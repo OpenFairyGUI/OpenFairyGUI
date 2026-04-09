@@ -1,0 +1,46 @@
+{
+	"private": true,
+	"name": "openfairygui",
+	"author": "OpenFairyGUI Contributors",
+	"license": "MIT",
+	"type": "module",
+	"scripts": {
+		"build": "lerna run build",
+		"build:cli-deps": "pnpm --filter @openfairygui/core build && pnpm --filter @openfairygui/functions build && pnpm --filter @openfairygui/cli build",
+		"build:watch": "lerna run build:watch --parallel --stream",
+		"clean:dist": "rm -rf packages/*/dist/** | true",
+		"clean:deps": "rm -rf packages/*/node_modules/** | true",
+		"dev:cli": "tsx packages/cli/src/cli.ts",
+		"test": "ava --no-worker-threads",
+		"test:debug": "ava debug --no-worker-threads",
+		"coverage": "c8 --reporter=lcov --reporter=text pnpm test -- --tap",
+		"lint": "biome lint packages",
+		"lint:ci": "biome lint packages"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.4.9",
+		"@types/node": "^22.0.0",
+		"ava": "^7.0.0",
+		"c8": "^11.0.0",
+		"lerna": "^8.2.0",
+		"tsdown": "^0.21.5",
+		"tsx": "^4.21.0",
+		"typescript": "^5.9.0"
+	},
+	"ava": {
+		"extensions": {
+			"ts": "module"
+		},
+		"nodeArguments": [
+			"--import",
+			"tsx/esm"
+		],
+		"files": [
+			"packages/*/test/**/*.test.ts"
+		]
+	},
+	"packageManager": "pnpm@10.14.0",
+	"dependencies": {
+		"sharp": "^0.34.5"
+	}
+}

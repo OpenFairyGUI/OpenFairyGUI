@@ -1,0 +1,26 @@
+{
+	"name": "@openfairygui/cli",
+	"version": "0.1.0",
+	"description": "FairyGUI Headless Authoring SDK — command-line interface.",
+	"author": "OpenFairyGUI Contributors",
+	"license": "MIT",
+	"type": "module",
+	"bin": {
+		"openfairygui": "bin/cli.cjs"
+	},
+	"scripts": {
+		"build": "tsdown src/cli.ts --format esm --platform node --no-dts --external sharp"
+	},
+	"files": [
+		"dist/",
+		"bin/",
+		"src/"
+	],
+	"devDependencies": {
+		"@openfairygui/core": "workspace:*",
+		"@openfairygui/functions": "workspace:*"
+	},
+	"optionalDependencies": {
+		"sharp": ">=0.33.0"
+	}
+}

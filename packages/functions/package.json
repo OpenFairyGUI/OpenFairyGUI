@@ -1,0 +1,37 @@
+{
+	"name": "@openfairygui/functions",
+	"version": "0.1.0",
+	"description": "FairyGUI Headless Authoring SDK — composable transform functions.",
+	"author": "OpenFairyGUI Contributors",
+	"license": "MIT",
+	"type": "module",
+	"sideEffects": false,
+	"main": "./dist/index.cjs",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		"require": {
+			"types": "./dist/index.d.cts",
+			"default": "./dist/index.cjs"
+		},
+		"default": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsdown --format esm,cjs --platform neutral --env.PACKAGE_VERSION=$npm_package_version",
+		"build:watch": "tsdown --watch --format esm,cjs --platform neutral --env.PACKAGE_VERSION=$npm_package_version"
+	},
+	"files": [
+		"dist/",
+		"src/"
+	],
+	"dependencies": {
+		"@openfairygui/core": "^0.1.0"
+	},
+	"devDependencies": {
+		"ava": "^7.0.0",
+		"tsx": "^4.0.0"
+	}
+}

@@ -1,0 +1,34 @@
+{
+	"name": "@openfairygui/test-utils",
+	"version": "0.1.0",
+	"description": "FairyGUI Headless Authoring SDK — test utilities and fixtures.",
+	"author": "OpenFairyGUI Contributors",
+	"license": "MIT",
+	"type": "module",
+	"sideEffects": false,
+	"main": "./dist/index.cjs",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		"require": {
+			"types": "./dist/index.d.cts",
+			"default": "./dist/index.cjs"
+		},
+		"default": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsdown",
+		"build:watch": "tsdown --watch"
+	},
+	"files": [
+		"dist/",
+		"src/",
+		"test/fixtures/"
+	],
+	"dependencies": {
+		"@openfairygui/core": "workspace:*"
+	}
+}

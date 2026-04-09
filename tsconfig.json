@@ -1,0 +1,30 @@
+{
+	"compilerOptions": {
+		"baseUrl": ".",
+		"paths": {
+			"@openfairygui/core": ["packages/core/src/index.ts"],
+			"@openfairygui/functions": ["packages/functions/src/index.ts"],
+			"@openfairygui/cli": ["packages/cli/src/cli.ts"],
+			"@openfairygui/test-utils": ["packages/test-utils/src/index.ts"]
+		},
+		"esModuleInterop": true,
+		"moduleResolution": "nodenext",
+		"lib": ["es2022"],
+		"target": "es2022",
+		"module": "nodenext",
+		"isolatedModules": true,
+		"allowJs": false,
+		"declaration": true,
+		"stripInternal": true,
+		"verbatimModuleSyntax": true,
+		"useDefineForClassFields": true,
+		"alwaysStrict": true,
+		"strictFunctionTypes": true,
+		"strictBindCallApply": true,
+		"noImplicitThis": true
+	},
+	"include": [
+		"packages/*/src/**/*.ts",
+		"packages/*/test/**/*.ts"
+	]
+}
