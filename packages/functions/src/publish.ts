@@ -456,7 +456,8 @@ function collectPackagePublishContext(pkg: Package): {
 			}
 			continue;
 		}
-		if (resource.getExported() || referencedIds.has(resourceId)) {
+		const genericResource = resource as ReturnType<Package['listResources']>[number];
+		if (genericResource.getExported() || referencedIds.has(resourceId)) {
 			publishedResourceIds.add(resourceId);
 		}
 	}

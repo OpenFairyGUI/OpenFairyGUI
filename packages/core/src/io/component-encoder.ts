@@ -621,7 +621,7 @@ function _writeDisplayList(buf: WriteBuffer, comp: Component, _doc: Document, _p
 
 		// --- Child Block 3: relations ---
 		const cb3 = buf.pos - childIndexPos;
-		_writeRelations(buf, child);
+		_writeRelations(buf, child, _createChildIndexMap(comp));
 
 		// --- Child Block 4: page controller (for GComponent/GList children only) ---
 		let cb4 = 0;
@@ -691,10 +691,14 @@ function _writeDisplayList(buf: WriteBuffer, comp: Component, _doc: Document, _p
 // ─── Block 3: Component relations ────────────────────────────────────────
 
 function _writeComponentRelations(buf: WriteBuffer, comp: Component): void {
-	_writeRelations(buf, comp as RelationOwner);
+	_writeRelations(buf, comp as RelationOwner, _createChildIndexMap(comp));
 }
 
-function _writeRelations(buf: WriteBuffer, obj: RelationOwner): void {
+function _writeRelations(
+	buf: WriteBuffer,
+	obj: RelationOwner,
+	childIndexById?: ReadonlyMap<string, number>,
+): void {
 	const relationDefs: Array<{ target: string; type: number; usePercent: boolean }>
 		= obj.getRelations?.() ?? [];
 
@@ -708,8 +712,7 @@ function _writeRelations(buf: WriteBuffer, obj: RelationOwner): void {
 
 	buf.writeUint8(grouped.size);
 	for (const [target, pairs] of grouped) {
-		// targetIndex: '' or empty means self (-1), otherwise parse as child index
-		const targetIdx = target === '' ? -1 : (parseInt(target, 10) || -1);
+		const targetIdx = _resolveRelationTargetIndex(target, childIndexById);
 		buf.writeInt16(targetIdx);
 		buf.writeUint8(pairs.length);
 		for (const sp of pairs) {
@@ -717,6 +720,27 @@ function _writeRelations(buf: WriteBuffer, obj: RelationOwner): void {
 			buf.writeBool(sp.usePercent);
 		}
 	}
+}
+
+function _createChildIndexMap(comp: Component): Map<string, number> {
+	const childIndexById = new Map<string, number>();
+	const children = comp.listChildren();
+	for (const [index, child] of children.entries()) {
+		const childId = child.getId?.();
+		if (childId) childIndexById.set(childId, index);
+	}
+	return childIndexById;
+}
+
+function _resolveRelationTargetIndex(
+	target: string,
+	childIndexById?: ReadonlyMap<string, number>,
+): number {
+	if (!target) return -1;
+	const mappedIndex = childIndexById?.get(target);
+	if (mappedIndex !== undefined) return mappedIndex;
+	const numericIndex = Number.parseInt(target, 10);
+	return Number.isNaN(numericIndex) ? -1 : numericIndex;
 }
 
 // ─── Block 4: Advanced properties ────────────────────────────────────────
@@ -817,6 +841,8 @@ function _writeTransitions(buf: WriteBuffer, comp: Component, version: number): 
 	buf.writeInt16(transitions.length);
 
 	for (const trans of transitions) {
+		const fps = trans.getFps?.() ?? 24;
+		const secondsPerFrame = fps > 0 ? 1 / fps : 1 / 24;
 		const transStartPos = buf.pos;
 		buf.writeInt16(0); // placeholder
 
@@ -847,7 +873,7 @@ function _writeTransitions(buf: WriteBuffer, comp: Component, version: number): 
 			// Transition item has its own index table
 			const itemIndexPos = buf.pos;
 			const hasTween = item.getTween?.() ?? false;
-			const blockCount = hasTween ? 4 : 3;
+			const blockCount = 4;
 			buf.writeUint8(blockCount);
 			buf.writeUint8(1);
 			const itemOffsetsPos = buf.pos;
@@ -856,22 +882,22 @@ function _writeTransitions(buf: WriteBuffer, comp: Component, version: number): 
 			// Item Block 0: header
 			const ib0 = buf.pos - itemIndexPos;
 			buf.writeUint8(item.getActionType?.() ?? 0);
-			buf.writeFloat32(item.getTime?.() ?? 0);
+			buf.writeFloat32((item.getTime?.() ?? 0) * secondsPerFrame);
 			// Resolve target ID to display list index
 			const targetStr = item.getTargetId?.() ?? '';
 			const targetIdx = targetStr ? (displayList[targetStr] ?? -1) : -1;
 			buf.writeInt16(targetIdx);
-			buf.writeS(item.getLabel?.() ?? null);
+			buf.writeSEx(item.getLabel?.() ?? null);
 			buf.writeBool(hasTween);
 
 			if (hasTween) {
 				// Item Block 1: tween params
 				const ib1 = buf.pos - itemIndexPos;
-				buf.writeFloat32(item.getDuration?.() ?? 0);
+				buf.writeFloat32((item.getDuration?.() ?? 0) * secondsPerFrame);
 				buf.writeUint8(item.getEaseType?.() ?? 5); // QuadOut default
 				buf.writeInt32(item.getRepeat?.() ?? 1);
 				buf.writeBool(item.getYoyo?.() ?? false);
-				buf.writeS(item.getEndLabel?.() ?? null);
+				buf.writeSEx(item.getEndLabel?.() ?? null);
 
 				// Item Block 2: start value
 				const ib2 = buf.pos - itemIndexPos;
@@ -894,15 +920,15 @@ function _writeTransitions(buf: WriteBuffer, comp: Component, version: number): 
 				buf.writeUint16(ib2); buf.writeUint16(ib3);
 				buf.pos = itemSaved;
 			} else {
-				// Item Block 1: (not used)
+				// Editor export still reserves 4 offset slots for non-tween items.
 				const ib1 = 0;
-				// Item Block 2: value
 				const ib2 = buf.pos - itemIndexPos;
 				_writeTransitionValue(buf, item, item.getStartValue?.(), version);
+				const ib3 = 0;
 
 				const itemSaved = buf.pos;
 				buf.pos = itemOffsetsPos;
-				buf.writeUint16(ib0); buf.writeUint16(ib1); buf.writeUint16(ib2);
+				buf.writeUint16(ib0); buf.writeUint16(ib1); buf.writeUint16(ib2); buf.writeUint16(ib3);
 				buf.pos = itemSaved;
 			}
 
@@ -1746,10 +1772,10 @@ function _writeScrollPane(buf: WriteBuffer, child: EncoderChildLike): void {
 		buf.writeInt32(sbMargin.left ?? 0);
 		buf.writeInt32(sbMargin.right ?? 0);
 	}
-	buf.writeS(child.getVtScrollBarRes?.() ?? null); // vtScrollBarRes
-	buf.writeS(child.getHzScrollBarRes?.() ?? null); // hzScrollBarRes
-	buf.writeS(child.getHeaderRes?.() ?? null); // headerRes
-	buf.writeS(child.getFooterRes?.() ?? null); // footerRes
+	buf.writeSEx(child.getVtScrollBarRes?.() ?? null); // vtScrollBarRes
+	buf.writeSEx(child.getHzScrollBarRes?.() ?? null); // hzScrollBarRes
+	buf.writeSEx(child.getHeaderRes?.() ?? null); // headerRes
+	buf.writeSEx(child.getFooterRes?.() ?? null); // footerRes
 }
 
 // ─── GList items (block 8) ───────────────────────────────────────────────
@@ -1834,8 +1860,8 @@ function _writeChildBlock4Component(buf: WriteBuffer, child: EncoderChildLike, c
 }
 
 function _writeChildBlock4TextInput(buf: WriteBuffer, child: EncoderChildLike): void {
-	buf.writeS(child.getPromptText?.() ?? child.getPrompt?.() ?? null);
-	buf.writeS(child.getRestrict?.() ?? null);
+	buf.writeSEx(child.getPromptText?.() ?? child.getPrompt?.() ?? null);
+	buf.writeSEx(child.getRestrict?.() ?? null);
 	buf.writeInt32(child.getMaxLength?.() ?? 0);
 	buf.writeInt32(child.getKeyboardType?.() ?? 0);
 	buf.writeBool(child.getPassword?.() ?? false);
@@ -1860,9 +1886,9 @@ function _writeComponentScrollPane(buf: WriteBuffer, comp: Component): void {
 		buf.writeInt32(sbMargin.right ?? 0);
 	}
 	// vtScrollBarRes, hzScrollBarRes
-	buf.writeS(comp.getVtScrollBarRes?.() ?? null);
-	buf.writeS(comp.getHzScrollBarRes?.() ?? null);
+	buf.writeSEx(comp.getVtScrollBarRes?.() ?? null);
+	buf.writeSEx(comp.getHzScrollBarRes?.() ?? null);
 	// headerRes, footerRes (ptrRes in XML)
-	buf.writeS(comp.getHeaderRes?.() ?? null);
-	buf.writeS(comp.getFooterRes?.() ?? null);
+	buf.writeSEx(comp.getHeaderRes?.() ?? null);
+	buf.writeSEx(comp.getFooterRes?.() ?? null);
 }

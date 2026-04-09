@@ -2,9 +2,15 @@ import test from 'ava';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { Document, NodeIO } from '../src/index.js';
+import { fileURLToPath } from 'node:url';
+import { Document, NodeIO, TransitionActionType } from '../src/index.js';
 
 const NULL_STRING_INDEX = 0xfffe;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PROJECT_PATH = path.resolve(
+	__dirname,
+	'../../../referer/UIProject/FairyGUI-Unity-Examples/FairyGUI-Unity-Examples.fairy',
+);
 
 function readUtfString(view: DataView, state: { pos: number }): string {
 	const len = view.getUint16(state.pos, false);
@@ -154,6 +160,231 @@ function readTextChildLayouts(raw: Uint8Array): Array<{ type: number; dataLen: n
 	}
 
 	return layouts;
+}
+
+function readListScrollPaneResourceIndexes(
+	raw: Uint8Array,
+	stringTable: string[],
+	childName: string,
+): {
+	vtIndex: number;
+	hzIndex: number;
+	headerIndex: number;
+	footerIndex: number;
+} {
+	const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
+	const block2Offset = view.getUint32(2 + 4 * 2, false);
+	let pos = block2Offset;
+	const childCount = view.getInt16(pos, false);
+	pos += 2;
+
+	for (let i = 0; i < childCount; i++) {
+		const dataLen = view.getUint16(pos, false);
+		pos += 2;
+		const childPos = pos;
+
+		const block0Offset = view.getUint16(childPos + 2, false);
+		const block7Offset = view.getUint16(childPos + 2 + 2 * 7, false);
+		if (block7Offset === 0) {
+			pos = childPos + dataLen;
+			continue;
+		}
+
+		const block0State = { pos: childPos + block0Offset };
+		block0State.pos += 1; // objectType
+		readStringIndex(view, block0State); // src
+		readStringIndex(view, block0State); // pkgId
+		readStringIndex(view, block0State); // id
+		const nameIndex = readStringIndex(view, block0State);
+		const currentName = stringTable[nameIndex];
+		if (currentName !== childName) {
+			pos = childPos + dataLen;
+			continue;
+		}
+
+		const state = { pos: childPos + block7Offset };
+		state.pos += 1; // scrollType
+		state.pos += 1; // scrollBarDisplay
+		state.pos += 4; // scrollBarFlags
+		const hasMargin = view.getUint8(state.pos++) !== 0;
+		if (hasMargin) state.pos += 16;
+
+		return {
+			vtIndex: readStringIndex(view, state),
+			hzIndex: readStringIndex(view, state),
+			headerIndex: readStringIndex(view, state),
+			footerIndex: readStringIndex(view, state),
+		};
+	}
+
+	throw new Error(`List child not found: ${childName}`);
+}
+
+function readTextInputBlock4(
+	raw: Uint8Array,
+	stringTable: string[],
+	childName: string,
+): {
+	promptIndex: number;
+	restrictIndex: number;
+	maxLength: number;
+	keyboardType: number;
+	password: boolean;
+} {
+	const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
+	const block2Offset = view.getUint32(2 + 4 * 2, false);
+	let pos = block2Offset;
+	const childCount = view.getInt16(pos, false);
+	pos += 2;
+
+	for (let i = 0; i < childCount; i++) {
+		const dataLen = view.getUint16(pos, false);
+		pos += 2;
+		const childPos = pos;
+
+		const block0Offset = view.getUint16(childPos + 2, false);
+		const block4Offset = view.getUint16(childPos + 2 + 2 * 4, false);
+		if (block4Offset === 0) {
+			pos = childPos + dataLen;
+			continue;
+		}
+
+		const block0State = { pos: childPos + block0Offset };
+		block0State.pos += 1; // objectType
+		readStringIndex(view, block0State); // src
+		readStringIndex(view, block0State); // pkgId
+		readStringIndex(view, block0State); // id
+		const nameIndex = readStringIndex(view, block0State);
+		if (stringTable[nameIndex] !== childName) {
+			pos = childPos + dataLen;
+			continue;
+		}
+
+		const state = { pos: childPos + block4Offset };
+		return {
+			promptIndex: readStringIndex(view, state),
+			restrictIndex: readStringIndex(view, state),
+			maxLength: view.getInt32(state.pos, false),
+			keyboardType: view.getInt32(state.pos + 4, false),
+			password: view.getUint8(state.pos + 8) !== 0,
+		};
+	}
+
+	throw new Error(`Text input child not found: ${childName}`);
+}
+
+function readChildRelationTargets(
+	raw: Uint8Array,
+	stringTable: string[],
+	childId: string,
+): number[] {
+	const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
+	const block2Offset = view.getUint32(2 + 4 * 2, false);
+	let pos = block2Offset;
+	const childCount = view.getInt16(pos, false);
+	pos += 2;
+
+	for (let i = 0; i < childCount; i++) {
+		const dataLen = view.getUint16(pos, false);
+		pos += 2;
+		const childPos = pos;
+		const block0Offset = view.getUint16(childPos + 2, false);
+		const block3Offset = view.getUint16(childPos + 2 + 2 * 3, false);
+
+		const block0State = { pos: childPos + block0Offset };
+		block0State.pos += 1;
+		readStringIndex(view, block0State);
+		readStringIndex(view, block0State);
+		const idIndex = readStringIndex(view, block0State);
+		readStringIndex(view, block0State);
+		if (stringTable[idIndex] !== childId) {
+			pos = childPos + dataLen;
+			continue;
+		}
+
+		const relationTargets: number[] = [];
+		const state = { pos: childPos + block3Offset };
+		const relationCount = view.getUint8(state.pos++);
+		for (let j = 0; j < relationCount; j++) {
+			const targetIndex = view.getInt16(state.pos, false);
+			state.pos += 2;
+			relationTargets.push(targetIndex);
+			const pairCount = view.getUint8(state.pos++);
+			state.pos += pairCount * 2;
+		}
+		return relationTargets;
+	}
+
+	throw new Error(`Relation child not found: ${childId}`);
+}
+
+function readComponentRelationTargets(raw: Uint8Array): number[] {
+	const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
+	const block3Offset = view.getUint32(2 + 4 * 3, false);
+	const state = { pos: block3Offset };
+	const relationTargets: number[] = [];
+	const relationCount = view.getUint8(state.pos++);
+	for (let i = 0; i < relationCount; i++) {
+		const targetIndex = view.getInt16(state.pos, false);
+		state.pos += 2;
+		relationTargets.push(targetIndex);
+		const pairCount = view.getUint8(state.pos++);
+		state.pos += pairCount * 2;
+	}
+	return relationTargets;
+}
+
+function readComponentRawLengths(bytes: Uint8Array): Array<{ id: string | null; name: string | null; rawLen: number }> {
+	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+	const state = { pos: 0 };
+	state.pos += 4; // magic
+	state.pos += 4; // version
+	state.pos += 1; // compressed
+	readUtfString(view, state); // packageId
+	readUtfString(view, state); // packageName
+	state.pos += 20; // reserved
+
+	const indexTablePos = state.pos;
+	state.pos += 2; // segCount + useShort
+	const offsets: number[] = [];
+	for (let i = 0; i < 6; i++) offsets.push(view.getUint32(state.pos + i * 4, false));
+
+	const stringTable = readStringTable(bytes, indexTablePos + offsets[4]);
+	let pos = indexTablePos + offsets[1];
+	const itemCount = view.getUint16(pos, false);
+	pos += 2;
+
+	const items: Array<{ id: string | null; name: string | null; rawLen: number }> = [];
+	for (let i = 0; i < itemCount; i++) {
+		const chunkLen = view.getInt32(pos, false);
+		pos += 4;
+		const itemEnd = pos + chunkLen;
+		const type = view.getUint8(pos++);
+		const idIndex = view.getUint16(pos, false);
+		pos += 2;
+		const nameIndex = view.getUint16(pos, false);
+		pos += 2;
+		pos += 2; // path
+		pos += 2; // file
+		pos += 1; // exported
+		pos += 4; // width
+		pos += 4; // height
+
+		if (type === 3) {
+			pos += 1; // ext
+			const rawLen = view.getInt32(pos, false);
+			pos += 4;
+			items.push({
+				id: stringTable[idIndex] ?? null,
+				name: stringTable[nameIndex] ?? null,
+				rawLen,
+			});
+		}
+
+		pos = itemEnd;
+	}
+
+	return items;
 }
 
 function readChildSummaries(raw: Uint8Array): Array<{ type: number; dataLen: number; groupId: number }> {
@@ -1230,6 +1461,197 @@ test('binary writer: emits version 7 gear xy percent footer', async (t) => {
 		gearState.pos += 4; // duration
 		gearState.pos += 4; // delay
 		t.false(view.getUint8(gearState.pos++) !== 0, 'gear xy percent footer defaults to false');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('binary writer: emits null scrollpane ptrRes slots for missing header/footer', async (t) => {
+	const io = new NodeIO();
+	const doc = await io.readProject(PROJECT_PATH);
+	const pkgIndex = doc.getRoot().listPackages().findIndex((item) => item.getName() === 'PullToRefresh');
+	t.true(pkgIndex >= 0, 'PullToRefresh package exists');
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-scrollpane-ptrres-'));
+	const outPath = path.join(tmpDir, 'PullToRefresh_fui.bytes');
+
+	try {
+		await io.writeBinary(doc, outPath, { compressed: false, version: 2, packageIndex: pkgIndex });
+
+		const bytes = await fs.readFile(outPath);
+		const binaryBytes = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+		const stringTable = readStringTable(binaryBytes, readBlockOffsets(binaryBytes)[4]);
+
+		const written = await io.readBinary(outPath);
+		const raw = getComponentRawBinary(written, 'PullToRefresh', 'Main');
+
+		const list1 = readListScrollPaneResourceIndexes(raw, stringTable, 'list1');
+		t.is(stringTable[list1.headerIndex], 'ui://3u9795n0n3qdr');
+		t.is(list1.footerIndex, NULL_STRING_INDEX, 'missing list footer is encoded as null');
+
+		const list2 = readListScrollPaneResourceIndexes(raw, stringTable, 'list2');
+		t.is(list2.headerIndex, NULL_STRING_INDEX, 'missing list header is encoded as null');
+		t.is(stringTable[list2.footerIndex], 'ui://3u9795n09sflu');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('binary writer: emits null restrict for Basics text input when unset', async (t) => {
+	const io = new NodeIO();
+	const doc = await io.readProject(PROJECT_PATH);
+	const pkgIndex = doc.getRoot().listPackages().findIndex((item) => item.getName() === 'Basics');
+	t.true(pkgIndex >= 0, 'Basics package exists');
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-textinput-restrict-'));
+	const outPath = path.join(tmpDir, 'Basics_fui.bytes');
+
+	try {
+		await io.writeBinary(doc, outPath, { compressed: false, version: 2, packageIndex: pkgIndex });
+
+		const bytes = await fs.readFile(outPath);
+		const binaryBytes = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+		const stringTable = readStringTable(binaryBytes, readBlockOffsets(binaryBytes)[4]);
+
+		const written = await io.readBinary(outPath);
+		const raw = getComponentRawBinary(written, 'Basics', 'Demo_Text');
+		const input = readTextInputBlock4(raw, stringTable, 'n22');
+
+		t.is(stringTable[input.promptIndex], '[i][color=#999999]Your Name Here[/color][/i]');
+		t.is(input.restrictIndex, NULL_STRING_INDEX, 'unset restrict is encoded as null');
+		t.is(input.maxLength, 0);
+		t.is(input.keyboardType, 0);
+		t.false(input.password);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('binary writer: converts transition frame time and duration using fps', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('TransitionFps');
+	pkg.setId('trfps001');
+
+	const comp = doc.createComponent('Main');
+	comp.setId('cmp_fps');
+	comp.setExported(true);
+	comp.setSize(100, 100);
+	pkg.addResource(comp);
+
+	const trans = doc.createTransition('fpsTrans');
+	trans.setFps(12);
+	const item = doc.createTransitionItem('fpsItem');
+	item.setActionType(TransitionActionType.Alpha);
+	item.setTween(true);
+	item.setTime(12);
+	item.setDuration(6);
+	item.setStartValue(['1']);
+	item.setEndValue(['0']);
+	trans.addItem(item);
+	comp.addTransition(trans);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-transition-fps-'));
+	const outPath = path.join(tmpDir, 'fps.fui');
+
+	try {
+		const io = new NodeIO();
+		await io.writeBinary(doc, outPath, { compressed: false, version: 2, packageIndex: 0 });
+		const written = await io.readBinary(outPath);
+		const raw = getComponentRawBinary(written, 'TransitionFps', 'Main');
+		const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
+
+		const transitionBlockOffset = view.getUint32(2 + 4 * 5, false);
+		let transitionPos = transitionBlockOffset;
+		t.is(view.getInt16(transitionPos, false), 1);
+		transitionPos += 2;
+		transitionPos += 2; // transition dataLen
+		transitionPos += 2; // transition name
+		transitionPos += 4; // options
+		transitionPos += 1; // autoPlay
+		transitionPos += 4; // autoPlayTimes
+		transitionPos += 4; // autoPlayDelay
+		t.is(view.getInt16(transitionPos, false), 1);
+		transitionPos += 2;
+
+		transitionPos += 2; // item dataLen
+		const itemPos = transitionPos;
+		const headerOffset = view.getUint16(itemPos + 2, false);
+		const tweenOffset = view.getUint16(itemPos + 4, false);
+		const headerPos = itemPos + headerOffset;
+		const tweenPos = itemPos + tweenOffset;
+
+		t.is(view.getUint8(headerPos), TransitionActionType.Alpha);
+		t.is(view.getFloat32(headerPos + 1, false), 1, '12 frames at 12 fps should encode as 1 second');
+		t.is(view.getFloat32(tweenPos, false), 0.5, '6 frames at 12 fps should encode as 0.5 seconds');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('binary writer: maps relation targets from child ids to display-list indexes', async (t) => {
+	const io = new NodeIO();
+	const doc = await io.readProject(PROJECT_PATH);
+	const pkgIndex = doc.getRoot().listPackages().findIndex((item) => item.getName() === 'Emoji');
+	t.true(pkgIndex >= 0, 'Emoji package exists');
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-emoji-relations-'));
+	const outPath = path.join(tmpDir, 'Emoji_fui.bytes');
+
+	try {
+		await io.writeBinary(doc, outPath, { compressed: false, version: 2, packageIndex: pkgIndex });
+		const bytes = await fs.readFile(outPath);
+		const binaryBytes = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+		const stringTable = readStringTable(binaryBytes, readBlockOffsets(binaryBytes)[4]);
+
+		const written = await io.readBinary(outPath);
+
+		const chatLeftRaw = getComponentRawBinary(written, 'Emoji', 'chatLeft');
+		t.deepEqual(
+			readChildRelationTargets(chatLeftRaw, stringTable, 'n0'),
+			[3],
+			'chatLeft child n0 should target sibling index 3 (msg)',
+		);
+		const chatRightRaw = getComponentRawBinary(written, 'Emoji', 'chatRight');
+		t.deepEqual(
+			readChildRelationTargets(chatRightRaw, stringTable, 'n9'),
+			[3, -1],
+			'chatRight child n9 should target sibling index 3 and parent',
+		);
+		t.deepEqual(
+			readChildRelationTargets(chatRightRaw, stringTable, 'n11'),
+			[-1],
+			'chatRight child n11 should target parent for right-right relation',
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('binary writer: matches Transition component raw lengths from editor baseline', async (t) => {
+	const io = new NodeIO();
+	const doc = await io.readProject(PROJECT_PATH);
+	const pkgIndex = doc.getRoot().listPackages().findIndex((item) => item.getName() === 'Transition');
+	t.true(pkgIndex >= 0, 'Transition package exists');
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-transition-raw-'));
+	const outPath = path.join(tmpDir, 'Transition_fui.bytes');
+
+	try {
+		await io.writeBinary(doc, outPath, { compressed: false, version: 2, packageIndex: pkgIndex });
+
+		const actualBytes = new Uint8Array(await fs.readFile(outPath));
+		const expectedBytes = new Uint8Array(await fs.readFile(path.resolve(__dirname, '../../../referer/Release/FairyGUI-Unity-Examples/Transition_fui.bytes')));
+
+		const actualMap = new Map(readComponentRawLengths(actualBytes).map((item) => [item.id, item]));
+		const expectedMap = new Map(readComponentRawLengths(expectedBytes).map((item) => [item.id, item]));
+
+		for (const id of ['gkq00', 'gkq04', 'gkq07', 'nra413', 'nra4c', 'ujnc1h']) {
+			const actual = actualMap.get(id);
+			const expected = expectedMap.get(id);
+			t.truthy(actual, `actual component exists: ${id}`);
+			t.truthy(expected, `expected component exists: ${id}`);
+			t.is(actual!.rawLen, expected!.rawLen, `${actual!.name} raw component length matches editor baseline`);
+		}
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

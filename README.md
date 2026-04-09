@@ -1,25 +1,27 @@
 # OpenFairyGUI
 
-OpenFairyGUI is a headless authoring SDK for FairyGUI projects.
+[English](./README_EN.md)
 
-This repository is organized as a pnpm workspace / Lerna monorepo and currently contains:
+OpenFairyGUI 是一个面向 FairyGUI 项目的无头创作 SDK。
 
-- `@openfairygui/core`: property graph, document model, and project / binary I/O
-- `@openfairygui/functions`: composable transforms and higher-level authoring helpers
-- `@openfairygui/cli`: command-line interface built on top of the core packages
-- `@openfairygui/test-utils`: shared utilities for tests and fixtures
+本仓库采用 `pnpm workspace` + `Lerna` 的 monorepo 组织方式，目前包含以下包：
 
-## Goals
+- `@openfairygui/core`：属性图、文档模型，以及项目 / 二进制读写能力
+- `@openfairygui/functions`：可组合的转换函数与更高层的创作辅助能力
+- `@openfairygui/cli`：构建在核心包之上的命令行工具
+- `@openfairygui/test-utils`：测试与夹具共享工具
 
-OpenFairyGUI is intended to support programmatic workflows around FairyGUI assets and projects, including:
+## 项目目标
 
-- reading and writing FairyGUI project data
-- reading and writing binary package data
-- inspecting and transforming documents in code
-- composing reusable authoring and publishing functions
-- providing a scriptable CLI for automation workflows
+OpenFairyGUI 旨在为 FairyGUI 资源与项目提供可编程工作流支持，包括：
 
-## Workspace Layout
+- 读取和写入 FairyGUI 项目数据
+- 读取和写入二进制包数据
+- 通过代码检查、修改和转换文档
+- 组合可复用的创作与发布函数
+- 提供适合自动化场景的 CLI 接口
+
+## 工作区结构
 
 ```text
 packages/
@@ -29,53 +31,53 @@ packages/
   test-utils/
 ```
 
-## Requirements
+## 环境要求
 
-- Node.js 22 or newer is recommended
-- pnpm 10.x
+- 推荐使用 Node.js 22 或更高版本
+- `pnpm` 10.x
 
-## Getting Started
+## 快速开始
 
-Install dependencies:
+安装依赖：
 
 ```bash
 pnpm install
 ```
 
-Build all packages:
+构建全部包：
 
 ```bash
 pnpm build
 ```
 
-Run tests:
+运行测试：
 
 ```bash
 pnpm test
 ```
 
-Run the CLI in development mode:
+以开发模式运行 CLI：
 
 ```bash
 pnpm dev:cli
 ```
 
-## Available Scripts
+## 常用脚本
 
-| Script | Description |
+| 脚本 | 说明 |
 |---|---|
-| `pnpm build` | Build all workspace packages |
-| `pnpm build:cli-deps` | Build the core packages needed by the CLI |
-| `pnpm build:watch` | Start package builds in watch mode |
-| `pnpm test` | Run the AVA test suite |
-| `pnpm coverage` | Run tests with coverage reporting |
-| `pnpm lint` | Run Biome lint checks |
-| `pnpm dev:cli` | Run the CLI entry in development mode |
+| `pnpm build` | 构建全部工作区包 |
+| `pnpm build:cli-deps` | 构建 CLI 依赖的核心包 |
+| `pnpm build:watch` | 以监听模式持续构建 |
+| `pnpm test` | 运行 AVA 测试集 |
+| `pnpm coverage` | 运行测试并生成覆盖率报告 |
+| `pnpm lint` | 运行 Biome lint 检查 |
+| `pnpm dev:cli` | 以开发模式运行 CLI 入口 |
 
-## Status
+## 当前状态
 
-The project is under active development. APIs and package contents should be treated as current implementation rather than a long-term compatibility contract.
+项目仍处于积极开发阶段。当前 API 与包内容应视为现行实现，而不是长期兼容承诺。
 
-## License
+## 许可证
 
-This project is licensed under the MIT License. See `LICENSE` for details.
+本项目基于 MIT License 发布，详见 `LICENSE`。
