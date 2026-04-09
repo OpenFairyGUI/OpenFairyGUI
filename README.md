@@ -11,6 +11,16 @@ OpenFairyGUI 是一个面向 FairyGUI 项目的无头创作 SDK。
 - `@openfairygui/cli`：构建在核心包之上的命令行工具
 - `@openfairygui/test-utils`：测试与夹具共享工具
 
+## 文档 / Docs
+
+当前开发依据文档以中文维护，入口见 [docs/README.md](./docs/README.md)。
+
+| 文档 | 说明 |
+|---|---|
+| [架构图说明](./docs/architecture-overview.md) | 包职责、模块边界、核心数据流 |
+| [编辑器发布设置](./docs/editor-publish-settings.md) | 发布设置来源、默认值、命名规则与消费位置 |
+| [二进制封包协议](./docs/fairygui-binary-package-format.md) | `.fui` / `_fui.bytes` 当前协议与 round-trip 承载方式 |
+
 ## 项目目标
 
 OpenFairyGUI 旨在为 FairyGUI 资源与项目提供可编程工作流支持，包括：

@@ -1,0 +1,455 @@
+# FairyGUI 二进制封包协议
+
+本文只描述 FairyGUI 发布二进制包的协议结构。本文按 V7 正式协议组织说明，不展开为多版本协议手册，也不描述具体项目的内部承载方式。
+
+## 目录
+
+| 章节 | 跳转 |
+|---|---|
+| 总体布局 | [查看](#总体布局) |
+| 文件头 | [查看](#文件头) |
+| 压缩策略 | [查看](#压缩策略) |
+| 索引表 | [查看](#索引表) |
+| 字符串表 | [查看](#字符串表) |
+| Block 0：Dependencies | [查看](#block-0dependencies) |
+| Block 1：Package Items | [查看](#block-1package-items) |
+| Block 2：Sprites | [查看](#block-2sprites) |
+| Block 3：Pixel Hit Test | [查看](#block-3pixel-hit-test) |
+| Component 解码 | [查看](#component-解码) |
+| Component / 解码目标 | [查看](#解码目标) |
+| Component / 解码入口 | [查看](#解码入口) |
+| Component / 顶层 block 布局 | [查看](#顶层-block-布局) |
+| Component / 顶层 block 详细内容 | [查看](#顶层-block-详细内容) |
+| Component / Child 解码 | [查看](#child-解码) |
+| Component / 扩展类型与 afterAdd 数据 | [查看](#扩展类型与-afteradd-数据) |
+| Component / 结构化对象解码边界 | [查看](#结构化对象解码边界) |
+| Component / 运行时阶段映射 | [查看](#运行时阶段映射) |
+| Component / 解码结果 | [查看](#解码结果) |
+| 版本口径 | [查看](#版本口径) |
+
+## 总体布局
+
+二进制包由“固定头部 + 数据区”组成。头部始终未压缩；当 `compressed=true` 时，头部之后的数据区使用 raw deflate。
+
+```text
+[Header]
+  magic
+  version
+  compressed
+  packageId
+  packageName
+  reserved(20 bytes)
+
+[Body]
+  index table
+  block 0: dependencies
+  block 1: package items
+  block 2: sprites
+  block 3: pixel hit test
+  block 4: string table
+  block 5: long string patches
+```
+
+## 文件头
+
+| 字段 | 协议说明 |
+|---|---|
+| `magic` | 固定为 `FGUI_MAGIC`，即 `"FGUI"` 的 `uint32` |
+| `version` | V7 协议固定写 `7` |
+| `compressed` | `bool`，表示头部之后的数据区是否经过 raw deflate |
+| `packageId` | 包 ID |
+| `packageName` | 包名字符串 |
+| `reserved` | 固定保留 20 字节 |
+
+说明：
+- 本文只定义 V7 协议口径。
+- `packageName` 是包名字段，不是发布输出文件名。
+
+## 压缩策略
+
+| 场景 | 协议说明 |
+|---|---|
+| `compressed=false` | 头部之后直接写未压缩数据区 |
+| `compressed=true` | 头部之后写 raw deflate 压缩后的数据区 |
+
+## 索引表
+
+数据区开头是索引表，用于定位后续 6 个 block。
+
+| 字段 | 协议说明 |
+|---|---|
+| `segCount` | `6` |
+| `useShort` | `false` |
+| 偏移类型 | `uint32` |
+
+偏移顺序如下：
+
+| Block | 含义 |
+|---|---|
+| 0 | dependencies |
+| 1 | package items |
+| 2 | sprites |
+| 3 | pixel hit test |
+| 4 | string table |
+| 5 | long string patches |
+
+## 字符串表
+
+### Block 4
+
+| 内容 | 协议说明 |
+|---|---|
+| 字符串表数量 | `int32` |
+| 常规字符串 | 直接写 `UTFString` |
+| 超长字符串 | 在 block 4 中写空串占位，正文放入 block 5 |
+
+### Block 5
+
+| 内容 | 协议说明 |
+|---|---|
+| patch 数量 | `int32` |
+| 每条 patch | `index` + `byteLength` + 原始 UTF-8 字节 |
+
+block 5 的 patch 用于替换 block 4 中相同索引位置的占位字符串。
+
+## Block 0：Dependencies
+
+| 字段 | 协议说明 |
+|---|---|
+| `depCnt` | `int16` |
+| 依赖项 | 每项写 `id` 与 `name` |
+| 条件附加字段 | 分支段包含 `branchCount`；当前 V7 口径下该值写 `0` |
+
+## Block 1：Package Items
+
+该 block 保存包内条目列表。每个条目至少包含通用头部，再按条目类型追加各自数据段。
+
+### 已记录的 item 类型
+
+| item type | 协议内容 |
+|---|---|
+| `Image` | `id`、`name`、`path`、尺寸、`scaleOption`、`scale9Grid`、`smoothing` |
+| `MovieClip` | 通用字段 + 帧数据块 |
+| `Sound` | 通用字段 + 声音文件名 |
+| `Component` | 通用字段 + 扩展类型码 + 组件二进制 |
+| `Font` | 通用字段 + glyph 数据块 |
+| `Atlas` | atlas 条目 `id`、`file`、尺寸 |
+| `Misc` | 未归类条目 |
+
+### 条件附加字段
+
+条目尾部包含条件附加段：
+
+| 字段 | 协议说明 |
+|---|---|
+| branch name | 分支名；当前 V7 口径下可写 `null` |
+| branchCount | 分支数量；当前 V7 口径下写 `0` |
+| highResCount | 高分辨率变体数量；当前 V7 口径下写 `0` |
+
+## Block 2：Sprites
+
+| 字段 | 协议说明 |
+|---|---|
+| sprite 数量 | `uint16` |
+| 基础字段 | `itemId`、`atlasId`、`x`、`y`、`w`、`h`、`rotated` |
+| 条件附加字段 | `offsetX`、`offsetY`、`originalWidth`、`originalHeight` |
+
+该 block 用于描述资源在 atlas 中的裁切矩形与原始尺寸信息。
+
+## Block 3：Pixel Hit Test
+
+| 字段 | 协议说明 |
+|---|---|
+| 数量 | `int16` |
+| 每项 | `itemId`、废弃 offset、`pixelWidth`、`scaleDenominator`、位图 bitmask 长度与数据 |
+
+该 block 用于描述图像资源的像素级命中测试数据。
+
+## Component 解码
+
+### 解码目标
+
+`Component` 条目的数据区不是普通资源字段集合，而是一段独立组件缓冲区。该缓冲区需要按组件协议展开为组件语义结构，包括：
+
+| 语义对象 | 解码结果 |
+|---|---|
+| `Component` | header、relations、advanced properties、extension definition、scroll pane、transitions |
+| child 节点 | beforeAdd / afterAdd / gears / relations / type-specific data |
+| `Controller` | 名称、页面、主页类型、actions 容器 |
+| `Transition` | header、item、tween、value、path、label、target |
+| `Gear` | controller 绑定、pages、状态值、tween 条件 |
+| ScrollPane / List / Tree | 滚动配置、列表布局、树设置、资源引用与控制器引用 |
+
+### 解码入口
+
+当 package item type 为 `Component` 时，条目数据区包含：
+
+| 步骤 | 协议动作 |
+|---|---|
+| 1 | 读取 `extension type` |
+| 2 | 读取组件二进制缓冲区 |
+| 3 | 以组件级 index table 解释该缓冲区 |
+| 4 | 按顶层 block 顺序解码组件 |
+| 5 | 对 display list 中的每个 child 继续按 child 自身 index table 解码 |
+
+### 顶层 block 布局
+
+组件顶层共有 8 个 block，顺序固定：
+
+| Block | 解码目标 |
+|---|---|
+| 0 | Component header：尺寸、restrict size、pivot、margin、overflow、clipSoftness |
+| 1 | Controllers：控制器列表、页面、action 容器 |
+| 2 | Display list：child 列表，child 自身再嵌套解码 |
+| 3 | Component-level relations |
+| 4 | Advanced properties：customData、opaque、mask、hitTest、stage sound |
+| 5 | Transitions |
+| 6 | Extension definition：Button / Label / ComboBox / ProgressBar / Slider / ScrollBar |
+| 7 | ScrollPane：仅 `overflow=scroll` 时存在 |
+
+解码顺序要求：
+- 先读取组件 index table 头部的 `blockCount` 与 `useShort`。
+- 再按顺序读取 8 个 block offset。
+- block 6、7 的 offset 为 `0` 时表示该 block 不存在。
+
+### 顶层 block 详细内容
+
+#### Block 0：Component header
+
+| 字段组 | 内容 |
+|---|---|
+| 尺寸 | `sourceWidth`、`sourceHeight` |
+| restrict size | `minWidth`、`maxWidth`、`minHeight`、`maxHeight` |
+| pivot | `pivotX`、`pivotY`、`pivotAsAnchor` |
+| margin | `top`、`bottom`、`left`、`right` |
+| overflow | `Visible` / `Hidden` / `Scroll` |
+| clipSoftness | `x`、`y` |
+
+#### Block 1：Controllers
+
+每个 controller 自带一个 3-block index table：
+
+| 子 Block | 内容 |
+|---|---|
+| 0 | `name`、`autoRadioGroupDepth` |
+| 1 | `pages`（id + name）、`homePageType` |
+| 2 | `actions` 容器 |
+
+#### Block 2：Display list
+
+该 block 保存 child 列表：
+
+| 步骤 | 协议动作 |
+|---|---|
+| 1 | 读取 child 数量 |
+| 2 | 逐个 child 读取 `dataLen` |
+| 3 | 读取 child 自身 index table |
+| 4 | 按 object type 决定 child 类型 |
+| 5 | 按 child block 顺序解码公共字段、特定字段、relations、gears、afterAdd 数据 |
+
+#### Block 3：Component-level relations
+
+| 内容 | 说明 |
+|---|---|
+| target | 优先按 child index 解析 |
+| relation pairs | 每个 target 下有多个 relation type + `usePercent` 组合 |
+
+#### Block 4：Advanced properties
+
+| 字段 | 说明 |
+|---|---|
+| `customData` | 组件自定义数据 |
+| `opaque` | 是否 opaque |
+| `mask` / `reversedMask` | 通过 display list index 引用 child |
+| `hitTest` | child index 模式或外部 hit test 资源模式 |
+| `addedToStageSound` / `removedFromStageSound` | 条件字段 |
+
+#### Block 5：Transitions
+
+| 内容 | 说明 |
+|---|---|
+| transition header | `name`、`options`、`autoPlay`、`autoPlayTimes`、`autoPlayDelay` |
+| item header | `actionType`、`time`、`target`、`label`、`tween` |
+| tween block | `duration`、`easeType`、`repeat`、`yoyo`、`endLabel` |
+| value block | `value` / `startValue` / `endValue` |
+| path block | `path`、custom ease path |
+
+#### Block 6：Extension definition
+
+| 扩展类型 | 内容 |
+|---|---|
+| `Button` | `mode`、`sound`、`soundVolumeScale`、`downEffect`、`downEffectValue` |
+| `Label` | 无额外定义块 |
+| `ComboBox` | `dropdown` |
+| `ProgressBar` | `titleType`、`reverse` |
+| `Slider` | `titleType`、`reverse`、`wholeNumbers`、`changeOnClick` |
+| `ScrollBar` | `fixedGripSize` |
+
+#### Block 7：ScrollPane
+
+仅当 component `overflow=scroll` 时存在：
+
+| 字段组 | 内容 |
+|---|---|
+| 滚动基础 | `scrollType`、`scrollBarFlags` |
+| margin | `scrollBarMargin` |
+| 资源引用 | `vtScrollBarRes`、`hzScrollBarRes`、`headerRes`、`footerRes` |
+
+### Child 解码
+
+#### Child 公共结构
+
+child 自身带独立 index table，不同对象类型的 block 数量不同：
+
+| child 类型 | block 数量 |
+|---|---|
+| 普通 child | 7 |
+| `GList` | 9 |
+| Tree | 10 |
+
+说明：
+- Tree 不是独立外层资源类型，而是 `GList` 且 `treeView=true` 的特殊分支。
+
+#### object type 映射
+
+| object type index | 组件对象类型 |
+|---|---|
+| 0 | `GImage` |
+| 1 | `GMovieClip` |
+| 3 | `GGraph` |
+| 4 | `GLoader` |
+| 5 | `GGroup` |
+| 6 | `GTextField` |
+| 7 | `GRichTextField` |
+| 8 | `GTextInput` |
+| 9 | `GComponent` |
+| 10 | `GList` |
+| 11 | `GLabel` |
+| 12 | `GButton` |
+| 13 | `GComboBox` |
+| 14 | `GProgressBar` |
+| 15 | `GSlider` |
+| 16 | `GScrollBar` |
+| Tree 分支 | `GList` + `treeView=true` |
+
+#### Child block 解码顺序
+
+| Block | 内容 |
+|---|---|
+| 0 | beforeAdd：object type、src、pkgId、id、name、xy、size、scale、skew、pivot、alpha、rotation、visible、touchable、grayed、blend、customData |
+| 1 | afterAdd 公共段：tooltips、group |
+| 2 | gears |
+| 3 | relations |
+| 4 | `GComponent` / `GList` page controller 或 `GTextInput` 特定段 |
+| 5 | child-type-specific extension |
+| 6 | afterAdd 文本/图标/扩展实例数据 |
+| 7 | `GList` 的 scroll pane |
+| 8 | `GList` 的静态 list items |
+| 9 | tree settings |
+
+#### Child Block 4
+
+| 类型 | 内容 |
+|---|---|
+| `GComponent`、`GList`、`GButton`、`GLabel`、`GComboBox`、`GProgressBar`、`GSlider`、`GScrollBar` | page controller / 组件实例关联信息 |
+| `GTextInput` | 输入框特定设置 |
+| 其他类型 | offset 为 `0`，该 block 不存在 |
+
+#### Child Block 5：类型特定扩展
+
+| 类型 | 主要字段 |
+|---|---|
+| `GImage` | color、flip、fillMethod、fillOrigin、fillClockwise、fillAmount |
+| `GTextField` / `GRichTextField` / `GTextInput` | font、fontSize、color、align、vAlign、leading、letterSpacing、ubb、autoSize、underline、italic、bold、singleLine、stroke、shadow、strikethrough |
+| `GGraph` | graphType、lineSize、lineColor、fillColor、cornerRadius、points、sides、startAngle、distances |
+| `GGroup` | layout、lineGap、columnGap、excludeInvisibles、autoSizeDisabled、mainGridIndex |
+| `GLoader` | url、align、vAlign、fill、shrinkOnly、autoSize、playing、frame、color、fillMethod、useResize |
+| `GMovieClip` | color、frame、playing |
+| `GList` | layout、selectionMode、align、vAlign、lineGap、columnGap、lineCount、columnCount、autoResizeItem、childrenRenderOrder、apexIndex、margin、overflow、clipSoftness、scrollItemToViewOnClick、foldInvisibleItems |
+
+### 扩展类型与 afterAdd 数据
+
+Block 6 用于恢复 afterAdd 阶段写入的数据：
+
+| 类型 | 内容 |
+|---|---|
+| `GTextField` / `GRichTextField` / `GTextInput` | `text` |
+| `GButton` | `title`、`selectedTitle`、`icon`、`selectedIcon`、`titleColor`、`titleFontSize`、`relatedController`、`relatedPageId`、`sound`、`soundVolume`、`selected` |
+| `GLabel` | `title`、`icon`、`titleColor`、`titleFontSize`、输入设置占位、`sound` |
+| `GComboBox` | `items`、`values`、`icons`、`title`、`icon`、`visibleItemCount`、`popupDirection`、`selectionController`、`sound` |
+| `GProgressBar` / `GSlider` | `value`、`max`、`min`、`sound` |
+| `GList` | `selectionController` |
+| 扩展实例数据 | `InstanceExtType` 分支下的 Button / Label / ComboBox / ProgressBar / Slider / ScrollBar 实例数据 |
+
+### 结构化对象解码边界
+
+#### Controller
+
+| 内容 | 要求 |
+|---|---|
+| 名称 | `name` |
+| 页面 | `ControllerPage.id`、`ControllerPage.name` |
+| 主页信息 | `homePageType` / 选中页相关语义 |
+| actions | action 容器及其类型信息 |
+
+#### Gear
+
+| 内容 | 要求 |
+|---|---|
+| gear type | 与 child 上的 gear 类型一致 |
+| controller 绑定 | controller index 解析为 controller 引用 |
+| pages | page id 列表 |
+| values/default | 不同 gear 类型对应不同状态结构 |
+| tween | ease、duration、delay、custom ease path |
+| 扩展状态 | GearXY percent、GearAnimation 扩展状态等条件字段 |
+
+#### Transition
+
+| 内容 | 要求 |
+|---|---|
+| item header | `actionType`、`time`、`target`、`label` |
+| tween | `duration`、`easeType`、`repeat`、`yoyo`、`endLabel` |
+| value | `value` / `startValue` / `endValue` |
+| path | `path`、custom ease path |
+
+#### ScrollPane
+
+| 内容 | 要求 |
+|---|---|
+| component scroll pane | `scrollType`、`scrollBarFlags`、`scrollBarMargin`、`vt/hz scrollBarRes`、`headerRes`、`footerRes` |
+| list scroll pane | 列表自身的 scroll pane 数据 |
+| tree/list 附加位 | `scrollItemToViewOnClick`、`foldInvisibleItems`、tree 设置 |
+
+#### Relations
+
+| 内容 | 要求 |
+|---|---|
+| child / component 级 relations | relation type 与 `usePercent` |
+| target 解析 | 优先按 child index 解析，再处理数值索引 |
+
+### 运行时阶段映射
+
+| 阶段 | 对应数据 |
+|---|---|
+| `constructFromResource2` | 组件顶层 block 0-7 与 child 列表装配 |
+| `setup_beforeAdd` | child block 0、5 以及 list/tree 扩展块 |
+| `setup_afterAdd` | child block 1、4、6 与扩展实例数据 |
+| ScrollPane / Extension definition | 组件 block 6、7 与 list 额外 block |
+
+### 解码结果
+
+Component 解码完成后，应能直接得到：
+
+| 维度 | 结果 |
+|---|---|
+| 结构 | 组件顶层结构、child 列表、controller、transition、gear、relations、scroll pane |
+| 语义 | 可直接按组件语义访问各字段，而不是停留在原始字节块层面 |
+| 编码回写 | 可依据结构化结果重新编码组件数据 |
+
+## 版本口径
+
+| 主题 | 说明 |
+|---|---|
+| 正式协议口径 | 本文只定义和说明 V7 |
+| 标准写出值 | 按本文档封包时，包头 `version` 固定为 `7` |
+| 条件字段 | 文中提到的条件字段仅表示字段是否按条件出现，不表示存在并列协议版本 |

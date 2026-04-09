@@ -11,6 +11,16 @@ This repository is organized as a pnpm workspace / Lerna monorepo and currently 
 - `@openfairygui/cli`: command-line interface built on top of the core packages
 - `@openfairygui/test-utils`: shared utilities for tests and fixtures
 
+## Documentation
+
+The implementation reference documents are currently maintained in Chinese. Start from [docs/README.md](./docs/README.md).
+
+| Document | Description |
+|---|---|
+| [Architecture Overview](./docs/architecture-overview.md) | Package responsibilities, module boundaries, and core data flow |
+| [Editor Publish Settings](./docs/editor-publish-settings.md) | Publish setting sources, defaults, naming rules, and consumption points |
+| [Binary Package Format](./docs/fairygui-binary-package-format.md) | Current `.fui` / `_fui.bytes` protocol and round-trip storage behavior |
+
 ## Goals
 
 OpenFairyGUI is intended to support programmatic workflows around FairyGUI assets and projects, including:
