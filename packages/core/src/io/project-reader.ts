@@ -271,6 +271,8 @@ interface DisplayObjectXmlNode extends Record<string, unknown> {
 	overflow?: string;
 	scroll?: string;
 	scrollBarFlags?: string | number;
+	scrollBarRes?: string;
+	ptrRes?: string;
 	margin?: string;
 	clipSoftness?: string;
 	controller?: string;
@@ -1197,12 +1199,12 @@ export class ProjectReader {
 				if (attrs.indent !== undefined) g.setIndent?.(parseInt2(attrs.indent));
 				if (attrs.clickToExpand !== undefined) g.setClickToExpand?.(parseInt2(attrs.clickToExpand));
 				if (attrs.scrollBarRes) {
-					const parts = attrs.scrollBarRes.split(',');
+					const parts = String(attrs.scrollBarRes).split(',');
 					g.setVtScrollBarRes?.(parts[0] ?? '');
 					g.setHzScrollBarRes?.(parts[1] ?? '');
 				}
 				if (attrs.ptrRes) {
-					const parts = attrs.ptrRes.split(',');
+					const parts = String(attrs.ptrRes).split(',');
 					g.setHeaderRes?.(parts[0] ?? '');
 					g.setFooterRes?.(parts[1] ?? '');
 				}

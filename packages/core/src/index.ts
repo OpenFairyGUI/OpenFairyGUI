@@ -76,7 +76,6 @@ export {
 	GGroup,
 	GLoader,
 	GLoader3D,
-	type IGLoader3D,
 	GMovieClip,
 	GComponent,
 	GList,

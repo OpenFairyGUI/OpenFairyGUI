@@ -171,6 +171,10 @@ type WritableChild = GObject & {
 	getOverflow?(): number;
 	getScrollType?(): number;
 	getScrollBarFlags?(): number;
+	getVtScrollBarRes?(): string;
+	getHzScrollBarRes?(): string;
+	getHeaderRes?(): string;
+	getFooterRes?(): string;
 	getMargin?(): { top?: number; bottom?: number; left?: number; right?: number };
 	getClipSoftness?(): { x?: number; y?: number };
 	getListItems?(): Array<{

@@ -1,11 +1,10 @@
 {
 	"compilerOptions": {
-		"baseUrl": ".",
 		"paths": {
-			"@openfairygui/core": ["packages/core/src/index.ts"],
-			"@openfairygui/functions": ["packages/functions/src/index.ts"],
-			"@openfairygui/cli": ["packages/cli/src/cli.ts"],
-			"@openfairygui/test-utils": ["packages/test-utils/src/index.ts"]
+			"@openfairygui/core": ["./packages/core/src/index.ts"],
+			"@openfairygui/functions": ["./packages/functions/src/index.ts"],
+			"@openfairygui/cli": ["./packages/cli/src/cli.ts"],
+			"@openfairygui/test-utils": ["./packages/test-utils/src/index.ts"]
 		},
 		"esModuleInterop": true,
 		"moduleResolution": "nodenext",
