@@ -28,6 +28,7 @@ export { GTextInput } from './g-text-input.js';
 export { GGraph } from './g-graph.js';
 export { GGroup } from './g-group.js';
 export { GLoader } from './g-loader.js';
+export { GLoader3D, type IGLoader3D } from './g-loader-3d.js';
 export { GMovieClip } from './g-movie-clip.js';
 export { GComponent } from './g-component.js';
 export { GList } from './g-list.js';

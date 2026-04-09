@@ -75,6 +75,9 @@ type EncoderChildLike = ChildNode & {
 	getPlaying?(): boolean;
 	getFrame?(): number;
 	getUseResize?(): boolean;
+	getAnimationName?(): string;
+	getSkinName?(): string;
+	getLoop?(): boolean;
 	getSelectionMode?(): number;
 	getLineCount?(): number;
 	getColumnCount?(): number;
@@ -489,6 +492,7 @@ const OBJECT_TYPE_MAP: Record<string, number> = {
 	GProgressBar: 14,
 	GSlider: 15,
 	GScrollBar: 16,
+	GLoader3D: 18,
 };
 
 function _resolveChildObjectType(child: EncoderChildLike): number {
@@ -1428,6 +1432,26 @@ function _writeChildSpecific(buf: WriteBuffer, child: EncoderChildLike, version:
 			if (version >= 7) {
 				buf.writeBool(child.getUseResize?.() ?? false);
 			}
+			break;
+		}
+
+		case 'GLoader3D': {
+			buf.writeS(child.getUrl?.() ?? null);
+			buf.writeUint8(child.getAlign?.() ?? 0);
+			buf.writeUint8(child.getVAlign?.() ?? 0);
+			buf.writeUint8(child.getFill?.() ?? 0);
+			buf.writeBool(child.getShrinkOnly?.() ?? false);
+			buf.writeBool(_boolVal(child.getAutoSize?.(), false));
+			buf.writeS(child.getAnimationName?.() ?? null);
+			buf.writeS(child.getSkinName?.() ?? null);
+			buf.writeBool(child.getPlaying?.() ?? true);
+			buf.writeInt32(child.getFrame?.() ?? 0);
+			buf.writeBool(child.getLoop?.() ?? true);
+			const loader3DColor = child.getColor?.() ?? null;
+			const loader3DColorLower = loader3DColor?.toLowerCase?.() ?? '';
+			const hasLoader3DColor = loader3DColor && loader3DColorLower !== '#ffffff' && loader3DColorLower !== '#ffffffff';
+			buf.writeBool(!!hasLoader3DColor);
+			if (hasLoader3DColor) buf.writeColor(loader3DColor, false);
 			break;
 		}
 

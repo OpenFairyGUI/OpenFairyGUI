@@ -298,6 +298,149 @@ function readComponentChildState(bytes: Uint8Array, componentId: string, childId
 	return null;
 }
 
+function readLoader3DChildState(bytes: Uint8Array, componentId: string, childId: string): {
+	objectType: number;
+	url: string | null;
+	align: number;
+	vAlign: number;
+	fill: number;
+	shrinkOnly: boolean;
+	autoSize: boolean;
+	animationName: string | null;
+	skinName: string | null;
+	playing: boolean;
+	frame: number;
+	loop: boolean;
+	color: string | null;
+} | null {
+	const state = { pos: 0 };
+	state.pos += 4; // magic
+	state.pos += 4; // version
+	state.pos += 1; // compressed
+	readUtfString(bytes, state); // packageId
+	readUtfString(bytes, state); // packageName
+	state.pos += 20; // reserved
+
+	const data = bytes.subarray(state.pos);
+	const dataView = new DataView(data.buffer, data.byteOffset, data.byteLength);
+	const offsets = [];
+	let pos = 2;
+	for (let i = 0; i < 6; i++) {
+		offsets.push(dataView.getInt32(pos, false));
+		pos += 4;
+	}
+
+	const stringTableOffset = offsets[4];
+	const stringCount = dataView.getInt32(stringTableOffset, false);
+	let stringPos = stringTableOffset + 4;
+	const strings: string[] = [];
+	for (let i = 0; i < stringCount; i++) {
+		const len = dataView.getUint16(stringPos, false);
+		stringPos += 2;
+		strings.push(Buffer.from(data.subarray(stringPos, stringPos + len)).toString('utf8'));
+		stringPos += len;
+	}
+
+	pos = offsets[1];
+	const itemCount = dataView.getInt16(pos, false);
+	pos += 2;
+
+	let rawComponentData: Uint8Array | null = null;
+	for (let i = 0; i < itemCount; i++) {
+		const nextOffset = dataView.getInt32(pos, false);
+		pos += 4;
+		const nextPos = nextOffset + pos;
+		const type = dataView.getUint8(pos++);
+		const id = strings[dataView.getUint16(pos, false)] ?? null;
+		pos += 2; // id
+		pos += 2; // name
+		pos += 2; // path
+		pos += 2; // file
+		pos += 1; // exported
+		pos += 4; // width
+		pos += 4; // height
+
+		if (type === 3) {
+			pos += 1; // ext
+			const rawLen = dataView.getInt32(pos, false);
+			pos += 4;
+			if (id === componentId) {
+				rawComponentData = data.subarray(pos, pos + rawLen);
+				break;
+			}
+			pos += rawLen;
+		}
+
+		pos = nextPos;
+	}
+
+	if (!rawComponentData) return null;
+
+	const compView = new DataView(rawComponentData.buffer, rawComponentData.byteOffset, rawComponentData.byteLength);
+	const childBlockOffset = compView.getInt32(2 + 4 * 2, false);
+	let childPos = childBlockOffset;
+	const childCount = compView.getInt16(childPos, false);
+	childPos += 2;
+
+	for (let i = 0; i < childCount; i++) {
+		const childLen = compView.getInt16(childPos, false);
+		childPos += 2;
+		const childStart = childPos;
+		const childEnd = childPos + childLen;
+
+		const childView = new DataView(
+			rawComponentData.buffer,
+			rawComponentData.byteOffset + childStart,
+			childLen,
+		);
+
+		let childStatePos = childView.getInt16(2, false);
+		const objectType = childView.getUint8(childStatePos++);
+		childStatePos += 2; // src
+		childStatePos += 2; // pkgId
+		const currentChildId = strings[childView.getUint16(childStatePos, false)] ?? null;
+		childStatePos += 2;
+		if (currentChildId !== childId) {
+			childPos = childEnd;
+			continue;
+		}
+
+		const block5Offset = childView.getInt16(2 + 2 * 5, false);
+		let block5Pos = block5Offset;
+		const urlIndex = childView.getUint16(block5Pos, false);
+		const url = urlIndex >= strings.length ? null : strings[urlIndex] ?? null;
+		block5Pos += 2;
+		const align = childView.getUint8(block5Pos++);
+		const vAlign = childView.getUint8(block5Pos++);
+		const fill = childView.getUint8(block5Pos++);
+		const shrinkOnly = childView.getUint8(block5Pos++) !== 0;
+		const autoSize = childView.getUint8(block5Pos++) !== 0;
+		const animationNameIndex = childView.getUint16(block5Pos, false);
+		const animationName = animationNameIndex >= strings.length ? null : strings[animationNameIndex] ?? null;
+		block5Pos += 2;
+		const skinNameIndex = childView.getUint16(block5Pos, false);
+		const skinName = skinNameIndex >= strings.length ? null : strings[skinNameIndex] ?? null;
+		block5Pos += 2;
+		const playing = childView.getUint8(block5Pos++) !== 0;
+		const frame = childView.getInt32(block5Pos, false);
+		block5Pos += 4;
+		const loop = childView.getUint8(block5Pos++) !== 0;
+		const hasColor = childView.getUint8(block5Pos++) !== 0;
+		let color: string | null = null;
+		if (hasColor) {
+			const r = childView.getUint8(block5Pos++).toString(16).padStart(2, '0');
+			const g = childView.getUint8(block5Pos++).toString(16).padStart(2, '0');
+			const b = childView.getUint8(block5Pos++).toString(16).padStart(2, '0');
+			const a = childView.getUint8(block5Pos++).toString(16).padStart(2, '0');
+			color = `#${r}${g}${b}${a}`.toUpperCase();
+		}
+
+		return { objectType, url, align, vAlign, fill, shrinkOnly, autoSize, animationName, skinName, playing, frame, loop, color };
+	}
+
+	return null;
+}
+
 function readTreeChildState(bytes: Uint8Array, componentId: string, childId: string): {
 	objectType: number;
 	segmentCount: number;
@@ -807,6 +950,61 @@ test('binary writer: child anchor and image flip are preserved in component raw-
 		const bytes = await fs.readFile(outPath);
 		const childState = readComponentChildState(bytes, 'comp001', 'n1');
 		t.deepEqual(childState, { anchor: true, flip: 3 });
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('binary writer: GLoader3D uses loader3d object type and persists runtime fields', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('Loader3DPkg');
+	pkg.setId('loader3dpkg01');
+
+	const comp = doc.createComponent('Loader3DHost');
+	comp.setId('loader3dhost01');
+	comp.setSize(320, 180);
+
+	const loader3D = doc.createGLoader3D('model');
+	loader3D.setId('model01');
+	loader3D.setUrl('ui://loader3dpkg01/hero');
+	loader3D.setAlign(2);
+	loader3D.setVAlign(1);
+	loader3D.setFill(5);
+	loader3D.setShrinkOnly(true);
+	loader3D.setAutoSize(true);
+	loader3D.setAnimationName('run');
+	loader3D.setSkinName('default');
+	loader3D.setPlaying(false);
+	loader3D.setFrame(7);
+	loader3D.setLoop(false);
+	loader3D.setColor('#112233');
+	comp.addChild(loader3D);
+	pkg.addResource(comp);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-bw-'));
+	const outPath = path.join(tmpDir, 'loader3d_state.bytes');
+
+	try {
+		await io.writeBinary(doc, outPath);
+		const bytes = await fs.readFile(outPath);
+		const loader3DState = readLoader3DChildState(bytes, 'loader3dhost01', 'model01');
+		t.truthy(loader3DState, 'loader3d child is encoded');
+		t.deepEqual(loader3DState, {
+			objectType: 18,
+			url: 'ui://loader3dpkg01/hero',
+			align: 2,
+			vAlign: 1,
+			fill: 5,
+			shrinkOnly: true,
+			autoSize: true,
+			animationName: 'run',
+			skinName: 'default',
+			playing: false,
+			frame: 7,
+			loop: false,
+			color: '#112233FF',
+		});
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

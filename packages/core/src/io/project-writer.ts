@@ -53,6 +53,7 @@ const DISPLAY_TAG: Record<string, string> = {
 	GGraph: 'graph',
 	GGroup: 'group',
 	GLoader: 'loader',
+	GLoader3D: 'loader3d',
 	GMovieClip: 'movieclip',
 	GComponent: 'component',
 	GButton: 'component',
@@ -142,6 +143,9 @@ type WritableChild = GObject & {
 	getShrinkOnly?(): boolean;
 	getAutoSize?(): boolean;
 	getUseResize?(): boolean;
+	getAnimationName?(): string;
+	getSkinName?(): string;
+	getLoop?(): boolean;
 	getPlaying?(): boolean;
 	getFrame?(): number;
 	getFlip?(): number;
@@ -614,6 +618,44 @@ export class ProjectWriter {
 				if (typedObj.getFillClockwise?.() === false) attrs['@_fillClockwise'] = 'false';
 				attrs['@_fillAmount'] = String(Math.round((typedObj.getFillAmount?.() ?? 0) * 100));
 			}
+		}
+		if (type === 'GLoader3D') {
+			const url = typedObj.getUrl?.();
+			if (url) attrs['@_url'] = url;
+			const align = typedObj.getAlign?.();
+			if (align !== undefined) {
+				const alignName: Record<number, string> = { 0: 'left', 1: 'center', 2: 'right' };
+				attrs['@_align'] = alignName[align] ?? 'left';
+			}
+			const vAlign = typedObj.getVAlign?.();
+			if (vAlign !== undefined) {
+				const vAlignName: Record<number, string> = { 0: 'top', 1: 'middle', 2: 'bottom' };
+				attrs['@_vAlign'] = vAlignName[vAlign] ?? 'top';
+			}
+			const fill = typedObj.getFill?.();
+			if (fill !== undefined) {
+				const fillName: Record<number, string> = {
+					0: 'none',
+					1: 'scale',
+					2: 'scaleMatchHeight',
+					3: 'scaleMatchWidth',
+					4: 'scaleFree',
+					5: 'scaleNoBorder',
+				};
+				attrs['@_fill'] = fillName[fill] ?? 'none';
+			}
+			if (typedObj.getShrinkOnly?.()) attrs['@_shrinkOnly'] = '1';
+			if (typedObj.getAutoSize?.()) attrs['@_autoSize'] = '1';
+			const animationName = typedObj.getAnimationName?.();
+			if (animationName) attrs['@_animationName'] = animationName;
+			const skinName = typedObj.getSkinName?.();
+			if (skinName) attrs['@_skinName'] = skinName;
+			if (typedObj.getPlaying?.() === false) attrs['@_playing'] = 'false';
+			const frame = typedObj.getFrame?.() ?? 0;
+			if (frame !== 0) attrs['@_frame'] = String(frame);
+			if (typedObj.getLoop?.() === false) attrs['@_loop'] = 'false';
+			const loaderColor = typedObj.getColor?.();
+			if (loaderColor) attrs['@_color'] = loaderColor;
 		}
 		if (type === 'GGroup') {
 			const layout = typedObj.getLayout?.();

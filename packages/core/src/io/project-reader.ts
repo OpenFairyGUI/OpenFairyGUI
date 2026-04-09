@@ -47,6 +47,7 @@ const DISPLAY_TAG_MAP: Record<string, string> = {
 	graph: 'GGraph',
 	group: 'GGroup',
 	loader: 'GLoader',
+	loader3d: 'GLoader3D',
 	movieclip: 'GMovieClip',
 	jta: 'GMovieClip',
 	component: 'GComponent',
@@ -259,6 +260,9 @@ interface DisplayObjectXmlNode extends Record<string, unknown> {
 	fillClockwise?: string | boolean;
 	fillAmount?: string | number;
 	useResize?: string | boolean;
+	animationName?: string;
+	skinName?: string;
+	loop?: string | boolean;
 	defaultItem?: string;
 	treeView?: string | boolean;
 	indent?: string | number;
@@ -1142,6 +1146,28 @@ export class ProjectReader {
 					g.setFillClockwise?.(attrs.fillClockwise !== 'false');
 					g.setFillAmount?.(parseInt2(attrs.fillAmount, 100) / 100);
 				}
+				obj = g;
+				break;
+			}
+			case 'loader3d': {
+				const g = doc.createGLoader3D(name);
+				if (attrs.url) g.setUrl(attrs.url);
+				if (attrs.align) { const m: Record<string, number> = { left: 0, center: 1, right: 2 }; g.setAlign?.(m[attrs.align] ?? 0); }
+				if (attrs.vAlign) { const m: Record<string, number> = { top: 0, middle: 1, bottom: 2 }; g.setVAlign?.(m[attrs.vAlign] ?? 0); }
+				if (attrs.fill) {
+					const fillMap: Record<string, number> = {
+						none: 0, scale: 1, scaleMatchHeight: 2, scaleMatchWidth: 3, scaleFree: 4, scaleNoBorder: 5,
+					};
+					g.setFill(fillMap[attrs.fill] ?? 0);
+				}
+				if (attrs.shrinkOnly) g.setShrinkOnly?.(parseBool(attrs.shrinkOnly));
+				if (attrs.autoSize) g.setAutoSize?.(parseBool(attrs.autoSize));
+				if (attrs.animationName !== undefined) g.setAnimationName?.(String(attrs.animationName));
+				if (attrs.skinName !== undefined) g.setSkinName?.(String(attrs.skinName));
+				if (attrs.playing !== undefined) g.setPlaying?.(parseBool(attrs.playing));
+				if (attrs.frame !== undefined) g.setFrame?.(parseInt2(attrs.frame));
+				if (attrs.loop !== undefined) g.setLoop?.(parseBool(attrs.loop));
+				if (attrs.color) g.setColor(attrs.color);
 				obj = g;
 				break;
 			}

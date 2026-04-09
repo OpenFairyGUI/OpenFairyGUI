@@ -19,6 +19,7 @@ import {
 	GGraph,
 	GGroup,
 	GLoader,
+	GLoader3D,
 	GMovieClip,
 	GComponent,
 	GList,
@@ -180,6 +181,10 @@ export class Document {
 
 	createGLoader(name = ''): GLoader {
 		return new GLoader(this._graph, name);
+	}
+
+	createGLoader3D(name = ''): GLoader3D {
+		return new GLoader3D(this._graph, name);
 	}
 
 	createGMovieClip(name = ''): GMovieClip {

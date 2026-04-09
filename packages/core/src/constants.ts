@@ -42,6 +42,7 @@ export enum PropertyType {
 	G_GRAPH = 'GGraph',
 	G_GROUP = 'GGroup',
 	G_LOADER = 'GLoader',
+	G_LOADER_3D = 'GLoader3D',
 	G_MOVIE_CLIP = 'GMovieClip',
 	G_COMPONENT = 'GComponent',
 	G_LIST = 'GList',

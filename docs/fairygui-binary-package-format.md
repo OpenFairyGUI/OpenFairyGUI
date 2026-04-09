@@ -330,6 +330,7 @@ child 自身带独立 index table，不同对象类型的 block 数量不同：
 | 14 | `GProgressBar` |
 | 15 | `GSlider` |
 | 16 | `GScrollBar` |
+| 18 | `GLoader3D` |
 | Tree 分支 | `GList` + `treeView=true` |
 
 #### Child block 解码顺序
@@ -364,6 +365,7 @@ child 自身带独立 index table，不同对象类型的 block 数量不同：
 | `GGraph` | graphType、lineSize、lineColor、fillColor、cornerRadius、points、sides、startAngle、distances |
 | `GGroup` | layout、lineGap、columnGap、excludeInvisibles、autoSizeDisabled、mainGridIndex |
 | `GLoader` | url、align、vAlign、fill、shrinkOnly、autoSize、playing、frame、color、fillMethod、useResize |
+| `GLoader3D` | url、align、vAlign、fill、shrinkOnly、autoSize、animationName、skinName、playing、frame、loop、color |
 | `GMovieClip` | color、frame、playing |
 | `GList` | layout、selectionMode、align、vAlign、lineGap、columnGap、lineCount、columnCount、autoResizeItem、childrenRenderOrder、apexIndex、margin、overflow、clipSoftness、scrollItemToViewOnClick、foldInvisibleItems |
 
