@@ -145,6 +145,40 @@ test('binary: component display lists decode into formal child nodes from sample
 	t.is(icon?.propertyType, 'GLoader');
 });
 
+test('binary: GList child blocks decode into formal list properties from sample package', async (t) => {
+	const doc = await getDoc();
+	const pkg = getMainPackage(doc)!;
+
+	const demoList = pkg.getComponent('Demo_List');
+	t.truthy(demoList, 'Demo_List exists');
+
+	const verticalList = demoList?.listChildren().find((child) => child.getId() === 'n0') as ReturnType<Document['createGList']>;
+	t.truthy(verticalList, 'Demo_List vertical list exists');
+	t.is(verticalList.getLayout(), 0);
+	t.is(verticalList.getOverflow(), 2);
+	t.is(verticalList.getScrollType(), 1);
+	t.is(verticalList.getDefaultItem(), 'ui://9leh0eyfkpev60');
+	t.deepEqual(verticalList.getClipSoftness(), { x: 0, y: 20 });
+	t.true(verticalList.getScrollItemToViewOnClick());
+	t.false(verticalList.getFoldInvisibleItems());
+	t.is(verticalList.getListItems().length, 6);
+
+	const flowHorizontalList = demoList?.listChildren().find((child) => child.getId() === 'n9') as ReturnType<Document['createGList']>;
+	t.truthy(flowHorizontalList, 'Demo_List flow-horizontal list exists');
+	t.is(flowHorizontalList.getLayout(), 3);
+	t.is(flowHorizontalList.getScrollType(), 0);
+	t.is(flowHorizontalList.getListItems().length, 6);
+
+	const demoGrid = pkg.getComponent('Demo_Grid');
+	t.truthy(demoGrid, 'Demo_Grid exists');
+	const multiSelectList = demoGrid?.listChildren().find((child) => child.getId() === 'n30') as ReturnType<Document['createGList']>;
+	t.truthy(multiSelectList, 'Demo_Grid selectable list exists');
+	t.is(multiSelectList.getSelectionMode(), 3);
+	t.is(multiSelectList.getDefaultItem(), 'ui://9leh0eyfatih7o');
+	t.deepEqual(multiSelectList.getClipSoftness(), { x: 0, y: 20 });
+	t.is(multiSelectList.getListItems().length, 4);
+});
+
 test('binary: component structured objects decode from sample package', async (t) => {
 	const doc = await getDoc();
 	const pkg = getMainPackage(doc)!;

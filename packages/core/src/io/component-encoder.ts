@@ -143,6 +143,7 @@ type EncoderChildLike = ChildNode & {
 	getInstanceMax?(): number;
 	getInstanceMin?(): number;
 	getInstanceComboItems?(): ComboItemLike[];
+	getSelectionController?(): string;
 };
 
 function getRuntimeChildren(comp: Component): EncoderChildLike[] {
@@ -1672,7 +1673,13 @@ function _writeChildAfterAdd(buf: WriteBuffer, child: EncoderChildLike, comp: Co
 		case 'GList':
 		case 'GTree': {
 			// GList.setup_afterAdd: block 6
-			buf.writeInt16(-1); // selectionController
+			const selectionController = child.getSelectionController?.() ?? '';
+			if (selectionController) {
+				const ctrlIdx = comp.listControllers().findIndex((controller) => controller.getName() === selectionController);
+				buf.writeInt16(ctrlIdx >= 0 ? ctrlIdx : -1);
+			} else {
+				buf.writeInt16(-1);
+			}
 			break;
 		}
 

@@ -386,6 +386,95 @@ function decodeTextChildSpecific(child: ComponentDisplayObject, childBuf: ByteBu
 	}
 }
 
+function decodeListScrollPane(child: ComponentDisplayObject, childBuf: ByteBuffer): void {
+	if (!childBuf.seek(0, 7) || remainingBytes(childBuf) < 10) return;
+	const listLike = child as ReturnType<Document['createGList']> | ReturnType<Document['createGTree']>;
+	listLike
+		.setScrollType(childBuf.getUint8());
+	childBuf.getUint8(); // scrollBarDisplay
+	listLike.setScrollBarFlags(childBuf.getInt32());
+	if (childBuf.readBool() && remainingBytes(childBuf) >= 16) {
+		listLike.setScrollBarMargin([
+			childBuf.getInt32(),
+			childBuf.getInt32(),
+			childBuf.getInt32(),
+			childBuf.getInt32(),
+		]);
+	}
+	listLike
+		.setVtScrollBarRes(childBuf.readS() ?? '')
+		.setHzScrollBarRes(childBuf.readS() ?? '')
+		.setHeaderRes(childBuf.readS() ?? '')
+		.setFooterRes(childBuf.readS() ?? '');
+}
+
+function skipListItemOverrides(buf: ByteBuffer, version: number): void {
+	if (remainingBytes(buf) < 2) return;
+	const controllerOverrideCount = buf.getInt16();
+	for (let index = 0; index < controllerOverrideCount && remainingBytes(buf) >= 4; index += 1) {
+		buf.readS();
+		buf.readS();
+	}
+	if (version >= 2 && remainingBytes(buf) >= 2) {
+		const propertyOverrideCount = buf.getInt16();
+		for (let index = 0; index < propertyOverrideCount && remainingBytes(buf) >= 6; index += 1) {
+			buf.readS();
+			buf.getInt16();
+			buf.readS();
+		}
+	}
+}
+
+function decodeListItems(child: ComponentDisplayObject, childBuf: ByteBuffer): void {
+	if (!childBuf.seek(0, 8) || remainingBytes(childBuf) < 4) return;
+	const listLike = child as ReturnType<Document['createGList']> | ReturnType<Document['createGTree']>;
+	const isTree = child.propertyType === 'GTree';
+	listLike.setDefaultItem(childBuf.readS() ?? '');
+	const itemCount = childBuf.getInt16();
+	const items: Array<{
+		title: string | null;
+		icon: string | null;
+		url: string | null;
+		name: string | null;
+		selectedTitle: string | null;
+		selectedIcon: string | null;
+		level: number;
+		isFolder: boolean | null;
+	}> = [];
+	for (let index = 0; index < itemCount && remainingBytes(childBuf) >= 2; index += 1) {
+		const chunkSize = childBuf.getInt16();
+		const nextPos = childBuf.pos + chunkSize;
+		const url = childBuf.readS();
+		let isFolder: boolean | null = null;
+		let level = 0;
+		if (isTree && remainingBytes(childBuf) >= 2) {
+			isFolder = childBuf.readBool();
+			level = childBuf.getUint8();
+		}
+		items.push({
+			url,
+			title: childBuf.readS(),
+			selectedTitle: childBuf.readS(),
+			icon: childBuf.readS(),
+			selectedIcon: childBuf.readS(),
+			name: childBuf.readS(),
+			level,
+			isFolder,
+		});
+		skipListItemOverrides(childBuf, childBuf.version);
+		childBuf.pos = nextPos;
+	}
+	listLike.setListItems(items);
+}
+
+function decodeTreeSettings(child: ComponentDisplayObject, childBuf: ByteBuffer): void {
+	if (child.propertyType !== 'GTree') return;
+	if (!childBuf.seek(0, 9) || remainingBytes(childBuf) < 5) return;
+	(child as ReturnType<Document['createGTree']>)
+		.setIndent(childBuf.getInt32())
+		.setClickToExpand(childBuf.getUint8());
+}
+
 function decodeChildBlock5(child: ComponentDisplayObject, childBuf: ByteBuffer): void {
 	if (!childBuf.seek(0, 5)) return;
 
@@ -484,12 +573,57 @@ function decodeChildBlock5(child: ComponentDisplayObject, childBuf: ByteBuffer):
 				.setPlaying(childBuf.readBool());
 			break;
 		}
+		case 'GList':
+		case 'GTree': {
+			if (remainingBytes(childBuf) < 18) return;
+			const listLike = child as ReturnType<Document['createGList']> | ReturnType<Document['createGTree']>;
+			listLike
+				.setLayout(childBuf.getUint8())
+				.setSelectionMode(childBuf.getUint8())
+				.setAlign(childBuf.getUint8())
+				.setVAlign(childBuf.getUint8())
+				.setLineGap(childBuf.getInt16())
+				.setColumnGap(childBuf.getInt16())
+				.setLineCount(childBuf.getInt16())
+				.setColumnCount(childBuf.getInt16())
+				.setAutoResizeItem(childBuf.readBool())
+				.setChildrenRenderOrder(childBuf.getUint8())
+				.setApexIndex(childBuf.getInt16());
+			if (childBuf.readBool() && remainingBytes(childBuf) >= 16) {
+				listLike.setMargin([
+					childBuf.getInt32(),
+					childBuf.getInt32(),
+					childBuf.getInt32(),
+					childBuf.getInt32(),
+				]);
+			}
+			const overflow = childBuf.getUint8();
+			listLike.setOverflow(overflow);
+			if (childBuf.readBool() && remainingBytes(childBuf) >= 8) {
+				listLike.setClipSoftness([childBuf.getInt32(), childBuf.getInt32()]);
+			}
+			if (childBuf.version >= 2 && remainingBytes(childBuf) >= 2) {
+				listLike
+					.setScrollItemToViewOnClick(childBuf.readBool())
+					.setFoldInvisibleItems(childBuf.readBool());
+			}
+			if (overflow === 2) {
+				decodeListScrollPane(child, childBuf);
+			}
+			decodeListItems(child, childBuf);
+			decodeTreeSettings(child, childBuf);
+			break;
+		}
 		default:
 			break;
 	}
 }
 
-function decodeChildBlock6(child: ComponentDisplayObject, childBuf: ByteBuffer): void {
+function decodeChildBlock6(
+	resource: ReturnType<Document['createComponent']>,
+	child: ComponentDisplayObject,
+	childBuf: ByteBuffer,
+): void {
 	if (!childBuf.seek(0, 6)) return;
 
 	switch (child.propertyType) {
@@ -599,6 +733,17 @@ function decodeChildBlock6(child: ComponentDisplayObject, childBuf: ByteBuffer):
 				(sliderLike as ReturnType<Document['createGProgressBar']>)
 					.setSound(childBuf.readS() ?? '')
 					.setSoundVolumeScale(childBuf.getFloat32());
+			}
+			break;
+		}
+		case 'GList':
+		case 'GTree': {
+			if (remainingBytes(childBuf) < 2) return;
+			const controllerIndex = childBuf.getInt16();
+			const controller = controllerIndex >= 0 ? resource.listControllers()[controllerIndex] : null;
+			if (controller) {
+				(child as ReturnType<Document['createGList']> | ReturnType<Document['createGTree']>)
+					.setSelectionController(controller.getName());
 			}
 			break;
 		}
@@ -1087,7 +1232,7 @@ function decodeComponentDisplayList(
 			decodeChildBlock4ComponentLike(resource, entry.child, entry.childBuf);
 		}
 		decodeChildBlock5(entry.child, entry.childBuf);
-		decodeChildBlock6(entry.child, entry.childBuf);
+		decodeChildBlock6(resource, entry.child, entry.childBuf);
 	}
 }
 

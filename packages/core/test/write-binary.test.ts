@@ -1597,6 +1597,223 @@ test('binary writer: component child blocks round-trip into formal child propert
 	}
 });
 
+test('binary writer: list and tree child blocks round-trip into formal list properties', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('ListPkg');
+	pkg.setId('listpkg');
+
+	const comp = doc.createComponent('ListHost');
+	comp.setId('listhost');
+	comp.setSize(640, 480);
+
+	const ctrl = doc.createController('state');
+	const page0 = doc.createControllerPage('idle');
+	page0.setId('0');
+	const page1 = doc.createControllerPage('active');
+	page1.setId('1');
+	ctrl.addPage(page0);
+	ctrl.addPage(page1);
+	comp.addController(ctrl);
+
+	const list = doc.createGList('mainList');
+	list
+		.setId('list01')
+		.setSrc('ui://listpkg/list')
+		.setLayout(4)
+		.setSelectionMode(1)
+		.setAlign(2)
+		.setVAlign(1)
+		.setLineGap(6)
+		.setColumnGap(8)
+		.setLineCount(2)
+		.setColumnCount(3)
+		.setAutoResizeItem(false)
+		.setChildrenRenderOrder(2)
+		.setApexIndex(1)
+		.setMargin([1, 2, 3, 4])
+		.setOverflow(2)
+		.setScrollType(2)
+		.setScrollBarFlags(19)
+		.setScrollBarMargin([5, 6, 7, 8])
+		.setVtScrollBarRes('ui://listpkg/vbar')
+		.setHzScrollBarRes('ui://listpkg/hbar')
+		.setHeaderRes('ui://listpkg/header')
+		.setFooterRes('ui://listpkg/footer')
+		.setClipSoftness([9, 10])
+		.setScrollItemToViewOnClick(false)
+		.setFoldInvisibleItems(true)
+		.setDefaultItem('ui://listpkg/defaultItem')
+		.setSelectionController('state')
+		.setListItems([
+			{
+				title: 'A',
+				selectedTitle: 'A*',
+				icon: 'ui://listpkg/iconA',
+				selectedIcon: 'ui://listpkg/iconASelected',
+				url: 'ui://listpkg/itemA',
+				name: 'itemA',
+				level: 0,
+				isFolder: null,
+			},
+			{
+				title: 'B',
+				selectedTitle: null,
+				icon: null,
+				selectedIcon: null,
+				url: null,
+				name: 'itemB',
+				level: 0,
+				isFolder: null,
+			},
+		]);
+	comp.addChild(list);
+
+	const tree = doc.createGTree('tree');
+	tree
+		.setId('tree01')
+		.setSrc('ui://listpkg/tree')
+		.setLayout(0)
+		.setLineGap(4)
+		.setColumnGap(0)
+		.setOverflow(2)
+		.setScrollType(1)
+		.setScrollBarFlags(7)
+		.setScrollBarMargin([2, 3, 4, 5])
+		.setVtScrollBarRes('ui://listpkg/treeVBar')
+		.setHeaderRes('ui://listpkg/treeHeader')
+		.setClipSoftness([11, 12])
+		.setScrollItemToViewOnClick(true)
+		.setFoldInvisibleItems(false)
+		.setDefaultItem('ui://listpkg/treeItem')
+		.setIndent(15)
+		.setClickToExpand(2)
+		.setListItems([
+			{
+				title: 'Folder 1',
+				selectedTitle: null,
+				icon: null,
+				selectedIcon: null,
+				url: null,
+				name: 'folder1',
+				level: 0,
+				isFolder: true,
+			},
+			{
+				title: 'Leaf 1',
+				selectedTitle: null,
+				icon: 'ui://listpkg/leaf',
+				selectedIcon: null,
+				url: 'ui://listpkg/treeLeaf',
+				name: 'leaf1',
+				level: 1,
+				isFolder: false,
+			},
+		]);
+	comp.addChild(tree);
+
+	pkg.addResource(comp);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-bw-'));
+	const outPath = path.join(tmpDir, 'list_tree_blocks.bytes');
+
+	try {
+		await io.writeBinary(doc, outPath);
+		const roundTripped = await io.readBinary(outPath);
+		const decodedComp = roundTripped.getRoot().getPackage('ListPkg')?.getComponent('ListHost');
+		t.truthy(decodedComp, 'round-tripped component exists');
+
+		const decodedList = decodedComp?.listChildren().find((child) => child.getId() === 'list01') as ReturnType<Document['createGList']>;
+		t.truthy(decodedList, 'list child exists');
+		t.is(decodedList.getLayout(), 4);
+		t.is(decodedList.getSelectionMode(), 1);
+		t.is(decodedList.getAlign(), 2);
+		t.is(decodedList.getVAlign(), 1);
+		t.is(decodedList.getLineGap(), 6);
+		t.is(decodedList.getColumnGap(), 8);
+		t.is(decodedList.getLineCount(), 2);
+		t.is(decodedList.getColumnCount(), 3);
+		t.false(decodedList.getAutoResizeItem());
+		t.is(decodedList.getChildrenRenderOrder(), 2);
+		t.is(decodedList.getApexIndex(), 1);
+		t.deepEqual(decodedList.getMargin(), { top: 1, bottom: 2, left: 3, right: 4 });
+		t.is(decodedList.getOverflow(), 2);
+		t.is(decodedList.getScrollType(), 2);
+		t.is(decodedList.getScrollBarFlags(), 19);
+		t.deepEqual(decodedList.getScrollBarMargin(), { top: 5, bottom: 6, left: 7, right: 8 });
+		t.is(decodedList.getVtScrollBarRes(), 'ui://listpkg/vbar');
+		t.is(decodedList.getHzScrollBarRes(), 'ui://listpkg/hbar');
+		t.is(decodedList.getHeaderRes(), 'ui://listpkg/header');
+		t.is(decodedList.getFooterRes(), 'ui://listpkg/footer');
+		t.deepEqual(decodedList.getClipSoftness(), { x: 9, y: 10 });
+		t.false(decodedList.getScrollItemToViewOnClick());
+		t.true(decodedList.getFoldInvisibleItems());
+		t.is(decodedList.getDefaultItem(), 'ui://listpkg/defaultItem');
+		t.is(decodedList.getSelectionController(), 'state');
+		t.deepEqual(decodedList.getListItems(), [
+			{
+				title: 'A',
+				selectedTitle: 'A*',
+				icon: 'ui://listpkg/iconA',
+				selectedIcon: 'ui://listpkg/iconASelected',
+				url: 'ui://listpkg/itemA',
+				name: 'itemA',
+				level: 0,
+				isFolder: null,
+			},
+			{
+				title: 'B',
+				selectedTitle: null,
+				icon: null,
+				selectedIcon: null,
+				url: null,
+				name: 'itemB',
+				level: 0,
+				isFolder: null,
+			},
+		]);
+
+		const decodedTree = decodedComp?.listChildren().find((child) => child.getId() === 'tree01') as ReturnType<Document['createGTree']>;
+		t.truthy(decodedTree, 'tree child exists');
+		t.is(decodedTree.getDefaultItem(), 'ui://listpkg/treeItem');
+		t.is(decodedTree.getOverflow(), 2);
+		t.is(decodedTree.getScrollType(), 1);
+		t.is(decodedTree.getScrollBarFlags(), 7);
+		t.deepEqual(decodedTree.getScrollBarMargin(), { top: 2, bottom: 3, left: 4, right: 5 });
+		t.is(decodedTree.getVtScrollBarRes(), 'ui://listpkg/treeVBar');
+		t.is(decodedTree.getHeaderRes(), 'ui://listpkg/treeHeader');
+		t.deepEqual(decodedTree.getClipSoftness(), { x: 11, y: 12 });
+		t.true(decodedTree.getScrollItemToViewOnClick());
+		t.false(decodedTree.getFoldInvisibleItems());
+		t.is(decodedTree.getIndent(), 15);
+		t.is(decodedTree.getClickToExpand(), 2);
+		t.deepEqual(decodedTree.getListItems(), [
+			{
+				title: 'Folder 1',
+				selectedTitle: null,
+				icon: null,
+				selectedIcon: null,
+				url: null,
+				name: 'folder1',
+				level: 0,
+				isFolder: true,
+			},
+			{
+				title: 'Leaf 1',
+				selectedTitle: null,
+				icon: 'ui://listpkg/leaf',
+				selectedIcon: null,
+				url: 'ui://listpkg/treeLeaf',
+				name: 'leaf1',
+				level: 1,
+				isFolder: false,
+			},
+		]);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('binary writer: component structured objects round-trip into formal models', async (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('StructuredPkg');
