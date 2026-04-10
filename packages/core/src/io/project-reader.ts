@@ -929,6 +929,10 @@ export class ProjectReader {
 								break;
 							case 'ComboBox':
 								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.ComboBox.attrs.dropdown) !== undefined) comp.setDropdown?.(String(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.ComboBox.attrs.dropdown)));
+								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.ComboBox.attrs.selectionController) !== undefined) comp.setSelectionController?.(String(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.ComboBox.attrs.selectionController)));
+								break;
+							case 'Label':
+								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Label.attrs.prompt) !== undefined) comp.setPromptText?.(String(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Label.attrs.prompt)));
 								break;
 							case 'ProgressBar':
 								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.ProgressBar.attrs.titleType) !== undefined) comp.setTitleType?.(parseTitleType(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.ProgressBar.attrs.titleType)!));
@@ -957,11 +961,14 @@ export class ProjectReader {
 		// Controllers
 		const controllers = ensureArray(compNode.controller);
 		for (const ctrlDef of controllers) {
-			const ctrl = doc.createController(ctrlDef.name || '');
-			ctrl.setSelectedIndex(parseInt2(ctrlDef.selected));
+			const ctrlName = readXmlAttr<string>(ctrlDef, PROJECT_XML_PROTOCOL.controller.attrs.name) ?? '';
+			const ctrl = doc.createController(ctrlName);
+			const selected = readXmlAttr<string | number>(ctrlDef, PROJECT_XML_PROTOCOL.controller.attrs.selected);
+			ctrl.setSelectedIndex(parseInt2(selected));
 
 			// Parse pages: "0,up,1,down,2,over" → [{id:"0",name:"up"}, ...]
-			const pages = parseControllerPages(ctrlDef.pages || '');
+			const pagesAttr = readXmlAttr<string>(ctrlDef, PROJECT_XML_PROTOCOL.controller.attrs.pages) ?? '';
+			const pages = parseControllerPages(pagesAttr);
 			for (const page of pages) {
 				const p = doc.createControllerPage(page.name);
 				p.setId(page.id);
@@ -973,24 +980,33 @@ export class ProjectReader {
 				const actionDef = getXmlNode<ControllerActionXmlNode>(actions[actionIndex]);
 				if (!actionDef) continue;
 				const action = doc.createControllerAction(`${ctrl.getName()}_action${actionIndex}`);
-				const actionType = parseControllerActionType(actionDef.type);
+				const actionType = parseControllerActionType(readXmlAttr<string>(actionDef, PROJECT_XML_PROTOCOL.controllerAction.attrs.type));
+				const fromPage = readXmlAttr<string>(actionDef, PROJECT_XML_PROTOCOL.controllerAction.attrs.fromPage);
+				const toPage = readXmlAttr<string>(actionDef, PROJECT_XML_PROTOCOL.controllerAction.attrs.toPage);
 				action
 					.setActionType(actionType)
-					.setFromPage(parseControllerActionPages(actionDef.fromPage))
-					.setToPage(parseControllerActionPages(actionDef.toPage));
+					.setFromPage(parseControllerActionPages(fromPage))
+					.setToPage(parseControllerActionPages(toPage));
 				switch (actionType) {
 					case ControllerActionType.PlayTransition:
+						const transitionName = readXmlAttr<string>(actionDef, PROJECT_XML_PROTOCOL.controllerAction.attrs.transition);
+						const repeat = readXmlAttr<string | number>(actionDef, PROJECT_XML_PROTOCOL.controllerAction.attrs.repeat);
+						const delay = readXmlAttr<string | number>(actionDef, PROJECT_XML_PROTOCOL.controllerAction.attrs.delay);
+						const stopOnExit = readXmlAttr<string | boolean>(actionDef, PROJECT_XML_PROTOCOL.controllerAction.attrs.stopOnExit);
 						action
-							.setTransitionName(getXmlScalar(actionDef.transition))
-							.setPlayTimes(parseInt2(actionDef.repeat, 1))
-							.setDelay(parseFloat2(actionDef.delay))
-							.setStopOnExit(parseBool(actionDef.stopOnExit));
+							.setTransitionName(getXmlScalar(transitionName))
+							.setPlayTimes(parseInt2(repeat, 1))
+							.setDelay(parseFloat2(delay))
+							.setStopOnExit(parseBool(stopOnExit));
 						break;
 					case ControllerActionType.ChangePage:
+						const objectId = readXmlAttr<string>(actionDef, PROJECT_XML_PROTOCOL.controllerAction.attrs.objectId);
+						const controllerName = readXmlAttr<string>(actionDef, PROJECT_XML_PROTOCOL.controllerAction.attrs.controller);
+						const targetPage = readXmlAttr<string>(actionDef, PROJECT_XML_PROTOCOL.controllerAction.attrs.targetPage);
 						action
-							.setObjectId(getXmlScalar(actionDef.objectId))
-							.setControllerName(getXmlScalar(actionDef.controller))
-							.setTargetPage(getXmlScalar(actionDef.targetPage));
+							.setObjectId(getXmlScalar(objectId))
+							.setControllerName(getXmlScalar(controllerName))
+							.setTargetPage(getXmlScalar(targetPage));
 						break;
 					default:
 						break;
@@ -1029,33 +1045,49 @@ export class ProjectReader {
 		// Transitions
 		const transitions = ensureArray(compNode.transition);
 		for (const transDef of transitions) {
-			const trans = doc.createTransition(transDef.name || '');
-			trans.setAutoPlay(parseBool(transDef.autoPlay));
-			trans.setAutoPlayTimes(parseInt2(transDef.autoPlayTimes, 1));
-			trans.setAutoPlayDelay(parseFloat2(transDef.autoPlayDelay));
-			if (transDef.options !== undefined) trans.setOptions?.(parseInt2(transDef.options));
-			if (transDef.fps !== undefined) trans.setFps?.(parseInt2(transDef.fps));
+			const transitionName = readXmlAttr<string>(transDef, PROJECT_XML_PROTOCOL.transition.attrs.name) ?? '';
+			const trans = doc.createTransition(transitionName);
+			const autoPlay = readXmlAttr<string | boolean>(transDef, PROJECT_XML_PROTOCOL.transition.attrs.autoPlay);
+			const autoPlayTimes = readXmlAttr<string | number>(transDef, PROJECT_XML_PROTOCOL.transition.attrs.autoPlayTimes);
+			const autoPlayDelay = readXmlAttr<string | number>(transDef, PROJECT_XML_PROTOCOL.transition.attrs.autoPlayDelay);
+			const options = readXmlAttr<string | number>(transDef, PROJECT_XML_PROTOCOL.transition.attrs.options);
+			const fps = readXmlAttr<string | number>(transDef, PROJECT_XML_PROTOCOL.transition.attrs.fps);
+			trans.setAutoPlay(parseBool(autoPlay));
+			trans.setAutoPlayTimes(parseInt2(autoPlayTimes, 1));
+			trans.setAutoPlayDelay(parseFloat2(autoPlayDelay));
+			if (options !== undefined) trans.setOptions?.(parseInt2(options));
+			if (fps !== undefined) trans.setFps?.(parseInt2(fps));
 
 			const items = ensureArray(transDef.item);
 			for (const itemDef of items) {
 				const ti = doc.createTransitionItem();
-				ti.setTime(parseFloat2(itemDef.time));
-				ti.setTargetId(itemDef.target || '');
-				ti.setTween(parseBool(itemDef.tween));
-				ti.setDuration(parseFloat2(itemDef.duration));
-				ti.setRepeat(parseInt2(itemDef.repeat));
-				ti.setYoyo(parseBool(itemDef.yoyo));
-				ti.setLabel(itemDef.label || '');
-				if (itemDef.label2 !== undefined) ti.setEndLabel?.(itemDef.label2);
-				if (itemDef.path !== undefined) ti.setPath?.(itemDef.path);
+				const time = readXmlAttr<string | number>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.time);
+				const target = readXmlAttr<string>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.target);
+				const tween = readXmlAttr<string | boolean>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.tween);
+				const duration = readXmlAttr<string | number>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.duration);
+				const repeat = readXmlAttr<string | number>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.repeat);
+				const yoyo = readXmlAttr<string | boolean>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.yoyo);
+				const label = readXmlAttr<string>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.label);
+				const label2 = readXmlAttr<string>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.label2);
+				const pathValue = readXmlAttr<string>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.path);
+				ti.setTime(parseFloat2(time));
+				ti.setTargetId(target || '');
+				ti.setTween(parseBool(tween));
+				ti.setDuration(parseFloat2(duration));
+				ti.setRepeat(parseInt2(repeat));
+				ti.setYoyo(parseBool(yoyo));
+				ti.setLabel(label || '');
+				if (label2 !== undefined) ti.setEndLabel?.(label2);
+				if (pathValue !== undefined) ti.setPath?.(pathValue);
 
 				// Ease type
-				if (itemDef.ease) {
-					ti.setEaseType?.(_parseEaseType(itemDef.ease));
+				const ease = readXmlAttr<string>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.ease);
+				if (ease) {
+					ti.setEaseType?.(_parseEaseType(ease));
 				}
 
 				// Action type from string
-				const typeStr = (itemDef.type || '').toUpperCase();
+				const typeStr = (readXmlAttr<string>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.type) || '').toUpperCase();
 				const actionTypeMap: Record<string, number> = {
 					XY: 0, SIZE: 1, SCALE: 2, PIVOT: 3, ALPHA: 4, ROTATION: 5,
 					COLOR: 6, ANIMATION: 7, VISIBLE: 8, SOUND: 9, TRANSITION: 10,
@@ -1064,14 +1096,17 @@ export class ProjectReader {
 				ti.setActionType(actionTypeMap[typeStr] ?? 16);
 
 				// Values
-				if (itemDef.value !== undefined) {
-					ti.setStartValue(String(itemDef.value).split(','));
+				const value = readXmlAttr<string>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.value);
+				if (value !== undefined) {
+					ti.setStartValue(String(value).split(','));
 				}
-				if (itemDef.startValue !== undefined) {
-					ti.setStartValue(String(itemDef.startValue).split(','));
+				const startValue = readXmlAttr<string>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.startValue);
+				if (startValue !== undefined) {
+					ti.setStartValue(String(startValue).split(','));
 				}
-				if (itemDef.endValue !== undefined) {
-					ti.setEndValue(String(itemDef.endValue).split(','));
+				const endValue = readXmlAttr<string>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.endValue);
+				if (endValue !== undefined) {
+					ti.setEndValue(String(endValue).split(','));
 				}
 
 				trans.addItem(ti);
@@ -1218,43 +1253,71 @@ export class ProjectReader {
 			}
 			case 'inputtext': {
 				const g = doc.createGTextInput(name);
-				if (attrs.text !== undefined) g.setText(String(attrs.text));
-				if (attrs.fontSize) g.setFontSize(parseInt2(attrs.fontSize));
-				if (attrs.font) g.setFont(attrs.font);
-				if (attrs.color) g.setColor(attrs.color);
-				if (attrs.align) { const m: Record<string,number> = {left:0,center:1,right:2}; g.setAlign(m[attrs.align]??0); }
-				if (attrs.vAlign) { const m: Record<string,number> = {top:0,middle:1,bottom:2}; g.setVAlign(m[attrs.vAlign]??0); }
-				if (attrs.leading !== undefined) g.setLeading?.(parseInt2(attrs.leading));
-				if (attrs.letterSpacing !== undefined) g.setLetterSpacing?.(parseInt2(attrs.letterSpacing));
-				if (attrs.autoSize) { const m: Record<string,number> = {none:0,both:1,height:2,shrink:3}; g.setAutoSize(m[attrs.autoSize]??1); }
-				if (attrs.singleLine) g.setSingleLine?.(parseBool(attrs.singleLine));
-				if (attrs.underline) g.setUnderline?.(parseBool(attrs.underline));
-				if (attrs.italic) g.setItalic?.(parseBool(attrs.italic));
-				if (attrs.bold) g.setBold?.(parseBool(attrs.bold));
-				if (attrs.strikethrough) g.setStrikethrough?.(parseBool(attrs.strikethrough));
-				if (attrs.strokeColor) { g.setStrokeColor?.(attrs.strokeColor); g.setStrokeSize?.(parseInt2(attrs.strokeSize, 1)); }
+				const inputText = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.text);
+				if (inputText !== undefined) g.setText(String(inputText));
+				const inputFontSize = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.fontSize);
+				if (inputFontSize !== undefined) g.setFontSize(parseInt2(inputFontSize));
+				const inputFont = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.font);
+				if (inputFont) g.setFont(inputFont);
+				const inputColor = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.color);
+				if (inputColor) g.setColor(inputColor);
+				const inputAlign = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.align);
+				if (inputAlign) { const m: Record<string,number> = {left:0,center:1,right:2}; g.setAlign(m[inputAlign]??0); }
+				const inputVAlign = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.vAlign);
+				if (inputVAlign) { const m: Record<string,number> = {top:0,middle:1,bottom:2}; g.setVAlign(m[inputVAlign]??0); }
+				const inputLeading = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.leading);
+				if (inputLeading !== undefined) g.setLeading?.(parseInt2(inputLeading));
+				const inputLetterSpacing = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.letterSpacing);
+				if (inputLetterSpacing !== undefined) g.setLetterSpacing?.(parseInt2(inputLetterSpacing));
+				const inputAutoSize = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.autoSize);
+				if (inputAutoSize) { const m: Record<string,number> = {none:0,both:1,height:2,shrink:3}; g.setAutoSize(m[inputAutoSize]??1); }
+				const inputSingleLine = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.singleLine);
+				if (inputSingleLine !== undefined) g.setSingleLine?.(parseBool(inputSingleLine));
+				const inputUnderline = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.underline);
+				if (inputUnderline !== undefined) g.setUnderline?.(parseBool(inputUnderline));
+				const inputItalic = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.italic);
+				if (inputItalic !== undefined) g.setItalic?.(parseBool(inputItalic));
+				const inputBold = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.bold);
+				if (inputBold !== undefined) g.setBold?.(parseBool(inputBold));
+				const inputStrikethrough = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.strikethrough);
+				if (inputStrikethrough !== undefined) g.setStrikethrough?.(parseBool(inputStrikethrough));
+				const inputStrokeColor = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.strokeColor);
+				if (inputStrokeColor) {
+					g.setStrokeColor?.(inputStrokeColor);
+					const inputStrokeSize = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.strokeSize);
+					g.setStrokeSize?.(parseInt2(inputStrokeSize, 1));
+				}
 				const prompt = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.prompt);
 				if (prompt !== undefined) g.setPromptText(prompt);
-				if (attrs.maxLength) g.setMaxLength(parseInt2(attrs.maxLength));
-				if (attrs.restrict) g.setRestrict(attrs.restrict);
-				if (attrs.password) g.setPassword(parseBool(attrs.password as string | boolean | undefined));
-				if (attrs.keyboardType !== undefined) g.setKeyboardType?.(parseInt2(attrs.keyboardType as string | number));
+				const inputMaxLength = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.maxLength);
+				if (inputMaxLength !== undefined) g.setMaxLength(parseInt2(inputMaxLength));
+				const inputRestrict = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.restrict);
+				if (inputRestrict !== undefined) g.setRestrict(inputRestrict);
+				const inputPassword = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.password);
+				if (inputPassword !== undefined) g.setPassword(parseBool(inputPassword));
+				const inputKeyboardType = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.keyboardType);
+				if (inputKeyboardType !== undefined) g.setKeyboardType?.(parseInt2(inputKeyboardType));
 				obj = g;
 				break;
 			}
 			case 'graph': {
 				const g = doc.createGGraph(name);
-				if (attrs.type) {
+				const graphType = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.graph.attrs.type);
+				if (graphType) {
 					const graphTypeMap: Record<string, number> = {
 						rect: 1, eclipse: 2, ellipse: 2, polygon: 3, regularpolygon: 4, regular_polygon: 4,
 					};
-					g.setGraphType(graphTypeMap[attrs.type] ?? 0);
+					g.setGraphType(graphTypeMap[graphType] ?? 0);
 				}
-				if (attrs.lineSize !== undefined) g.setLineSize(parseInt2(attrs.lineSize));
-				if (attrs.lineColor) g.setLineColor(attrs.lineColor);
-				if (attrs.fillColor) g.setFillColor(attrs.fillColor);
-				if (attrs.corner) {
-					const parts = attrs.corner.split(',').map(Number);
+				const lineSize = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.graph.attrs.lineSize);
+				if (lineSize !== undefined) g.setLineSize(parseInt2(lineSize));
+				const lineColor = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.graph.attrs.lineColor);
+				if (lineColor) g.setLineColor(lineColor);
+				const fillColor = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.graph.attrs.fillColor);
+				if (fillColor) g.setFillColor(fillColor);
+				const corner = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.graph.attrs.corner);
+				if (corner) {
+					const parts = corner.split(',').map(Number);
 					g.setCornerRadius([
 						parts[0] ?? 0,
 						parts[1] ?? parts[0] ?? 0,
@@ -1262,28 +1325,38 @@ export class ProjectReader {
 						parts[3] ?? parts[0] ?? 0,
 					]);
 				}
-				if (attrs.points) g.setPoints(attrs.points.split(',').map(Number));
-				if (attrs.sides !== undefined) {
-					g.setSides(parseInt2(attrs.sides));
-					g.setStartAngle(parseFloat2(attrs.startAngle));
-					if (attrs.distances) g.setDistances(attrs.distances.split(',').map(Number));
+				const points = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.graph.attrs.points);
+				if (points) g.setPoints(points.split(',').map(Number));
+				const sides = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.graph.attrs.sides);
+				if (sides !== undefined) {
+					g.setSides(parseInt2(sides));
+					const startAngle = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.graph.attrs.startAngle);
+					g.setStartAngle(parseFloat2(startAngle));
+					const distances = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.graph.attrs.distances);
+					if (distances) g.setDistances(distances.split(',').map(Number));
 				}
 				obj = g;
 				break;
 			}
 			case 'group': {
 				const g = doc.createGGroup(name);
-				if (attrs.layout) {
+				const groupLayout = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.group.attrs.layout);
+				if (groupLayout) {
 					const layoutMap: Record<string, number> = { none: 0, horizontal: 1, vertical: 2 };
-					g.setLayout(layoutMap[attrs.layout] ?? 0);
+					g.setLayout(layoutMap[groupLayout] ?? 0);
 				}
-				if (attrs.lineGap) g.setLineGap(parseInt2(attrs.lineGap));
+				const groupLineGap = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.group.attrs.lineGap);
+				if (groupLineGap !== undefined) g.setLineGap(parseInt2(groupLineGap));
 				const columnGap = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.group.attrs.columnGap);
 				if (columnGap !== undefined) g.setColumnGap(parseInt2(columnGap));
-				if (attrs.advanced !== undefined) g.setAdvanced(parseBool(attrs.advanced));
-				if (attrs.excludeInvisibles !== undefined) g.setExcludeInvisibles?.(parseBool(attrs.excludeInvisibles));
-				if (attrs.autoSizeDisabled !== undefined) g.setAutoSizeDisabled?.(parseBool(attrs.autoSizeDisabled));
-				if (attrs.mainGridIndex !== undefined) g.setMainGridIndex?.(parseInt2(attrs.mainGridIndex));
+				const groupAdvanced = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.group.attrs.advanced);
+				if (groupAdvanced !== undefined) g.setAdvanced(parseBool(groupAdvanced));
+				const excludeInvisibles = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.group.attrs.excludeInvisibles);
+				if (excludeInvisibles !== undefined) g.setExcludeInvisibles?.(parseBool(excludeInvisibles));
+				const autoSizeDisabled = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.group.attrs.autoSizeDisabled);
+				if (autoSizeDisabled !== undefined) g.setAutoSizeDisabled?.(parseBool(autoSizeDisabled));
+				const mainGridIndex = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.group.attrs.mainGridIndex);
+				if (mainGridIndex !== undefined) g.setMainGridIndex?.(parseInt2(mainGridIndex));
 				obj = g;
 				break;
 			}
@@ -1330,34 +1403,49 @@ export class ProjectReader {
 			}
 			case 'loader3d': {
 				const g = doc.createGLoader3D(name);
-				if (attrs.url) g.setUrl(attrs.url);
-				if (attrs.align) { const m: Record<string, number> = { left: 0, center: 1, right: 2 }; g.setAlign?.(m[attrs.align] ?? 0); }
-				if (attrs.vAlign) { const m: Record<string, number> = { top: 0, middle: 1, bottom: 2 }; g.setVAlign?.(m[attrs.vAlign] ?? 0); }
-				if (attrs.fill) {
+				const loader3dUrl = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.url);
+				if (loader3dUrl) g.setUrl(loader3dUrl);
+				const loader3dAlign = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.align);
+				if (loader3dAlign) { const m: Record<string, number> = { left: 0, center: 1, right: 2 }; g.setAlign?.(m[loader3dAlign] ?? 0); }
+				const loader3dVAlign = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.vAlign);
+				if (loader3dVAlign) { const m: Record<string, number> = { top: 0, middle: 1, bottom: 2 }; g.setVAlign?.(m[loader3dVAlign] ?? 0); }
+				const loader3dFill = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.fill);
+				if (loader3dFill) {
 					const fillMap: Record<string, number> = {
 						none: 0, scale: 1, scaleMatchHeight: 2, scaleMatchWidth: 3, scaleFree: 4, scaleNoBorder: 5,
 					};
-					g.setFill(fillMap[attrs.fill] ?? 0);
+					g.setFill(fillMap[loader3dFill] ?? 0);
 				}
-				if (attrs.shrinkOnly) g.setShrinkOnly?.(parseBool(attrs.shrinkOnly));
-				if (attrs.autoSize) g.setAutoSize?.(parseBool(attrs.autoSize));
+				const loader3dShrinkOnly = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.shrinkOnly);
+				if (loader3dShrinkOnly !== undefined) g.setShrinkOnly?.(parseBool(loader3dShrinkOnly));
+				const loader3dAutoSize = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.autoSize);
+				if (loader3dAutoSize !== undefined) g.setAutoSize?.(parseBool(loader3dAutoSize));
 				const animation = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.animation);
 				if (animation !== undefined) g.setAnimationName?.(String(animation));
-				if (attrs.skinName !== undefined) g.setSkinName?.(String(attrs.skinName));
-				if (attrs.playing !== undefined) g.setPlaying?.(parseBool(attrs.playing));
-				if (attrs.frame !== undefined) g.setFrame?.(parseInt2(attrs.frame));
-				if (attrs.loop !== undefined) g.setLoop?.(parseBool(attrs.loop));
-				if (attrs.color) g.setColor(attrs.color);
+				const skinName = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.skinName);
+				if (skinName !== undefined) g.setSkinName?.(String(skinName));
+				const playing = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.playing);
+				if (playing !== undefined) g.setPlaying?.(parseBool(playing));
+				const frame = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.frame);
+				if (frame !== undefined) g.setFrame?.(parseInt2(frame));
+				const loop = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.loop);
+				if (loop !== undefined) g.setLoop?.(parseBool(loop));
+				const loader3dColor = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.color);
+				if (loader3dColor) g.setColor(loader3dColor);
 				obj = g;
 				break;
 			}
 			case 'movieclip':
 			case 'jta': {
 				const g = doc.createGMovieClip(name);
-				g.setSrc(attrs.src || '');
-				if (attrs.playing !== undefined) g.setPlaying(parseBool(attrs.playing));
-				if (attrs.frame !== undefined) g.setFrame(parseInt2(attrs.frame));
-				if (attrs.color) g.setColor(attrs.color);
+				const src = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.src);
+				g.setSrc(src || '');
+				const playing = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.playing);
+				if (playing !== undefined) g.setPlaying(parseBool(playing));
+				const frame = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.frame);
+				if (frame !== undefined) g.setFrame(parseInt2(frame));
+				const movieClipColor = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.color);
+				if (movieClipColor) g.setColor(movieClipColor);
 				obj = g;
 				break;
 			}
@@ -1373,63 +1461,79 @@ export class ProjectReader {
 				break;
 			}
 			case 'list': {
-				const isTree = attrs.treeView !== undefined && parseBool(attrs.treeView);
+				const treeView = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.list.attrs.treeView);
+				const isTree = treeView !== undefined && parseBool(treeView);
 				let g;
 				if (isTree) {
 					g = doc.createGTree(name).setTreeView(true);
-					if (attrs.indent !== undefined) g.setIndent(parseInt2(attrs.indent));
-					if (attrs.clickToExpand !== undefined) g.setClickToExpand(parseInt2(attrs.clickToExpand));
+					const indent = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.indent);
+					if (indent !== undefined) g.setIndent(parseInt2(indent));
+					const clickToExpand = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.clickToExpand);
+					if (clickToExpand !== undefined) g.setClickToExpand(parseInt2(clickToExpand));
 				} else {
 					g = doc.createGList(name);
 				}
-				g.setSrc(attrs.src || '');
-				if (attrs.defaultItem) g.setDefaultItem(attrs.defaultItem);
-				if (attrs.scrollBarRes) {
-					const parts = String(attrs.scrollBarRes).split(',');
+				const src = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.src);
+				g.setSrc(src || '');
+				const defaultItem = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.defaultItem);
+				if (defaultItem) g.setDefaultItem(defaultItem);
+				const scrollBarRes = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarRes);
+				if (scrollBarRes) {
+					const parts = String(scrollBarRes).split(',');
 					g.setVtScrollBarRes?.(parts[0] ?? '');
 					g.setHzScrollBarRes?.(parts[1] ?? '');
 				}
-				if (attrs.ptrRes) {
-					const parts = String(attrs.ptrRes).split(',');
+				const ptrRes = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.ptrRes);
+				if (ptrRes) {
+					const parts = String(ptrRes).split(',');
 					g.setHeaderRes?.(parts[0] ?? '');
 					g.setFooterRes?.(parts[1] ?? '');
 				}
-				if (attrs.controller) g.setControllerOverrides?.(attrs.controller);
-				if (attrs.pageController) g.setPageController?.(attrs.pageController);
-				if (attrs.layout) {
+				const controllerOverrides = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.controllerOverrides);
+				if (controllerOverrides) g.setControllerOverrides?.(controllerOverrides);
+				const pageController = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.pageController);
+				if (pageController) g.setPageController?.(pageController);
+				const layout = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.layout);
+				if (layout) {
 					const layoutMap: Record<string, number> = {
 						singleColumn: 0, singleRow: 1, flowHorizontal: 2, flowVertical: 3, pagination: 4,
 						single_column: 0, single_row: 1, flow_hz: 2, flow_vt: 3,
 						column: 0, row: 1,
 					};
-					g.setLayout(layoutMap[attrs.layout] ?? 0);
+					g.setLayout(layoutMap[layout] ?? 0);
 				}
-				if (attrs.lineGap) g.setLineGap(parseInt2(attrs.lineGap));
+				const lineGap = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineGap);
+				if (lineGap !== undefined) g.setLineGap(parseInt2(lineGap));
 				const columnGap = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.columnGap);
 				if (columnGap !== undefined) g.setColumnGap(parseInt2(columnGap));
 				const lineCount = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineCount);
 				if (lineCount !== undefined) g.setLineCount?.(parseInt2(lineCount));
 				const autoResizeItem = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.list.attrs.autoResizeItem);
 				if (autoResizeItem !== undefined) g.setAutoResizeItem?.(parseBool(autoResizeItem));
-				if (attrs.selectionMode) {
+				const selectionMode = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.selectionMode);
+				if (selectionMode) {
 					const selMap: Record<string, number> = { single: 0, multiple: 1, multipleSingleClick: 2, none: 3 };
-					g.setSelectionMode(selMap[attrs.selectionMode] ?? 0);
+					g.setSelectionMode(selMap[selectionMode] ?? 0);
 				}
 				const selectionController = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.selectionController);
 				if (selectionController !== undefined) g.setSelectionController?.(selectionController);
 				// Overflow & scroll
-				if (attrs.overflow || attrs.scroll || attrs.scrollBarFlags || attrs.margin) {
-					if (attrs.overflow) {
+				const overflow = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.overflow);
+				const scroll = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.scroll);
+				const scrollBarFlags = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarFlags);
+				const margin = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.margin);
+				if (overflow || scroll || scrollBarFlags !== undefined || margin) {
+					if (overflow) {
 						const overflowMap: Record<string, number> = { visible: 0, hidden: 1, scroll: 2 };
-						g.setOverflow(overflowMap[attrs.overflow] ?? 0);
+						g.setOverflow(overflowMap[overflow] ?? 0);
 					}
-					if (attrs.scroll) {
+					if (scroll) {
 						const scrollMap: Record<string, number> = { horizontal: 0, vertical: 1, both: 2 };
-						g.setScrollType(scrollMap[attrs.scroll] ?? 1);
+						g.setScrollType(scrollMap[scroll] ?? 1);
 					}
-					if (attrs.scrollBarFlags !== undefined) g.setScrollBarFlags(parseInt2(attrs.scrollBarFlags));
-					if (attrs.margin) {
-						const parts = attrs.margin.split(',').map(Number);
+					if (scrollBarFlags !== undefined) g.setScrollBarFlags(parseInt2(scrollBarFlags));
+					if (margin) {
+						const parts = margin.split(',').map(Number);
 						g.setMargin({
 							top: parts[0] ?? 0,
 							bottom: parts[1] ?? 0,
@@ -1439,8 +1543,9 @@ export class ProjectReader {
 					}
 				}
 				// clipSoftness
-				if (attrs.clipSoftness) {
-					const csParts = attrs.clipSoftness.split(',').map(Number);
+				const clipSoftness = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.clipSoftness);
+				if (clipSoftness) {
+					const csParts = clipSoftness.split(',').map(Number);
 					g.setClipSoftness({ x: csParts[0] ?? 0, y: csParts[1] ?? 0 });
 				}
 				// Parse static list items
@@ -1466,35 +1571,58 @@ export class ProjectReader {
 		}
 
 		// Common GObject attributes
-		obj.setId(attrs.id || '');
-		if (attrs.xy) {
-			const [x, y] = parseXYString(attrs.xy);
+		const objectId = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.id);
+		obj.setId(objectId || '');
+		const xy = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.xy);
+		if (xy) {
+			const [x, y] = parseXYString(xy);
 			obj.setXY(x, y);
 		}
-		if (attrs.size) {
-			const [w, h] = parseSizeString(attrs.size);
+		const size = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.size);
+		if (size) {
+			const [w, h] = parseSizeString(size);
 			obj.setSize(w, h);
 		}
-		if (attrs.pivot) {
-			const [px, py] = parseXYString(attrs.pivot);
-			obj.setPivot(px, py, parseBool(attrs.anchor));
+		const objectPivot = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.pivot);
+		if (objectPivot) {
+			const [px, py] = parseXYString(objectPivot);
+			const objectAnchor = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.anchor);
+			obj.setPivot(px, py, parseBool(objectAnchor));
 		}
-		if (attrs.scale) {
-			const [sx, sy] = parseXYString(attrs.scale);
+		const scale = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.scale);
+		if (scale) {
+			const [sx, sy] = parseXYString(scale);
 			obj.setScale(sx, sy);
 		}
-		if (attrs.skew) {
-			const [skewX, skewY] = parseXYString(attrs.skew);
+		const skew = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.skew);
+		if (skew) {
+			const [skewX, skewY] = parseXYString(skew);
 			obj.setSkew(skewX, skewY);
 		}
-		if (attrs.rotation !== undefined) obj.setRotation(parseFloat2(attrs.rotation));
-		if (attrs.alpha !== undefined) obj.setAlpha(parseFloat2(attrs.alpha, 1));
-		if (attrs.visible === 'false') obj.setVisible(false);
-		if (attrs.touchable === 'false') obj.setTouchable(false);
-		if (attrs.grayed === 'true') obj.setGrayed(true);
-		if (attrs.tooltips) obj.setTooltips(attrs.tooltips);
-		if (attrs.customData) obj.setCustomData(attrs.customData);
-		if (attrs.group) obj.setGroup(attrs.group);
+		const rotation = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.rotation);
+		if (rotation !== undefined) obj.setRotation(parseFloat2(rotation));
+		const alpha = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.alpha);
+		if (alpha !== undefined) obj.setAlpha(parseFloat2(alpha, 1));
+		const visible = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.visible);
+		if (visible === 'false') obj.setVisible(false);
+		const touchable = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.touchable);
+		if (touchable === 'false') obj.setTouchable(false);
+		const grayed = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.grayed);
+		if (grayed === 'true') obj.setGrayed(true);
+		const tooltips = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.tooltips);
+		if (tooltips) obj.setTooltips(tooltips);
+		const objectCustomData = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.customData);
+		if (objectCustomData) obj.setCustomData(objectCustomData);
+		const group = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.group);
+		if (group) obj.setGroup(group);
+		const fileName = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.fileName);
+		if (fileName !== undefined) obj.setFileName?.(fileName);
+		const packageId = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.pkg);
+		if (packageId !== undefined) obj.setPackageId?.(packageId);
+		const filter = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.filter);
+		if (filter !== undefined) obj.setFilter?.(filter);
+		const filterData = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.filterData);
+		if (filterData !== undefined) obj.setFilterData?.(filterData);
 
 		// Parse gear elements
 		for (const gearTag of Object.keys(GEAR_TAG_MAP)) {
@@ -1509,10 +1637,12 @@ export class ProjectReader {
 		// Parse relation elements
 		const relations = ensureArray(attrs.relation);
 		for (const relDef of relations) {
-			const sidePairs = parseSidePair(relDef.sidePair || '');
+			const sidePair = readXmlAttr<string>(relDef, PROJECT_XML_PROTOCOL.relation.attrs.sidePair) || '';
+			const sidePairs = parseSidePair(sidePair);
 			for (const sp of sidePairs) {
+				const target = readXmlAttr<string>(relDef, PROJECT_XML_PROTOCOL.relation.attrs.target) || '';
 				const rel: RelationDef = {
-					target: relDef.target || '',
+					target,
 					type: sp.type,
 					usePercent: sp.usePercent,
 				};
@@ -1549,6 +1679,10 @@ export class ProjectReader {
 				if (page !== undefined) componentObj.setInstancePage?.(page);
 				const checked = extSpecs.checked ? readXmlAttr<string | boolean>(extAttrs, extSpecs.checked) : undefined;
 				if (checked !== undefined) componentObj.setInstanceChecked?.(parseBool(checked));
+				const prompt = extSpecs.prompt ? readXmlAttr<string>(extAttrs, extSpecs.prompt) : undefined;
+				if (prompt !== undefined) componentObj.setInstancePromptText?.(prompt);
+				const selectionController = extSpecs.selectionController ? readXmlAttr<string>(extAttrs, extSpecs.selectionController) : undefined;
+				if (selectionController !== undefined) componentObj.setInstanceSelectionController?.(selectionController);
 				const visibleItemCount = extSpecs.visibleItemCount ? readXmlAttr<string | number>(extAttrs, extSpecs.visibleItemCount) : undefined;
 				if (visibleItemCount !== undefined) componentObj.setInstanceVisibleItemCount?.(parseInt2(visibleItemCount));
 				const value = extSpecs.value ? readXmlAttr<string | number>(extAttrs, extSpecs.value) : undefined;
@@ -1584,27 +1718,32 @@ export class ProjectReader {
 
 		const gear = doc.createGear();
 		gear.setGearType(gearType);
-		gear.setTween(parseBool(attrs.tween));
+		const tween = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.gear.attrs.tween);
+		gear.setTween(parseBool(tween));
 
 		// Resolve controller reference
-		const ctrlName = attrs.controller || '';
+		const ctrlName = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.gear.attrs.controller) || '';
 		const controller = localControllers.get(ctrlName) || null;
 		if (controller) {
 			gear.setController(controller);
 		}
 
 		// Parse pages and values
-		if (attrs.pages) {
-			gear.setPages(attrs.pages);
+		const pages = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.gear.attrs.pages);
+		if (pages) {
+			gear.setPages(pages);
 		}
-		if (attrs.values) {
-			gear.setValues(attrs.values);
+		const values = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.gear.attrs.values);
+		if (values) {
+			gear.setValues(values);
 		}
-		if (attrs.default !== undefined) {
-			gear.setDefaultValue(attrs.default);
+		const defaultValue = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.gear.attrs.default);
+		if (defaultValue !== undefined) {
+			gear.setDefaultValue(defaultValue);
 		}
-		if (attrs.condition !== undefined) {
-			gear.setCondition(String(attrs.condition));
+		const condition = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.gear.attrs.condition);
+		if (condition !== undefined) {
+			gear.setCondition(String(condition));
 		}
 
 		obj.addGear(gear);

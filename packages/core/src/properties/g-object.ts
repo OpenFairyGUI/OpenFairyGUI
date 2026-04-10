@@ -28,6 +28,10 @@ export interface IGObject extends IExtensibleProperty {
 	tooltips: string;
 	customData: string;
 	group: string;
+	fileName: string;
+	packageId: string;
+	filter: string;
+	filterData: string;
 	relations: RelationDef[];
 	gears: RefList<Gear>;
 }
@@ -77,6 +81,10 @@ export class GObject<
 			tooltips: '',
 			customData: '',
 			group: '',
+			fileName: '',
+			packageId: '',
+			filter: '',
+			filterData: '',
 			relations: [],
 			gears: new RefList<Gear>(),
 		}) as Nullable<TProps>;
@@ -156,6 +164,18 @@ export class GObject<
 
 	public getGroup(): string { return this.getObjectProp('group'); }
 	public setGroup(v: string): this { return this.setObjectProp('group', v); }
+
+	public getFileName(): string { return this.getObjectProp('fileName'); }
+	public setFileName(v: string): this { return this.setObjectProp('fileName', v); }
+
+	public getPackageId(): string { return this.getObjectProp('packageId'); }
+	public setPackageId(v: string): this { return this.setObjectProp('packageId', v); }
+
+	public getFilter(): string { return this.getObjectProp('filter'); }
+	public setFilter(v: string): this { return this.setObjectProp('filter', v); }
+
+	public getFilterData(): string { return this.getObjectProp('filterData'); }
+	public setFilterData(v: string): this { return this.setObjectProp('filterData', v); }
 
 	/****** Relations ******/
 

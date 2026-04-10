@@ -150,8 +150,130 @@ test('project XML protocol covers selected tag attrs across referer samples', as
 	await assertTagAttrsCovered(t, 'ScrollBar', collectAllowedAttrNames('scrollBarExtension'));
 	await assertTagAttrsCovered(t, 'loader', collectAllowedAttrNames('displayObject', 'loader'));
 	await assertTagAttrsCovered(t, 'loader3D', collectAllowedAttrNames('displayObject', 'loader3D'));
+	await assertTagAttrsCovered(t, 'graph', collectAllowedAttrNames('displayObject', 'graph'));
 	await assertTagAttrsCovered(t, 'group', collectAllowedAttrNames('displayObject', 'group'));
 	await assertTagAttrsCovered(t, 'list', collectAllowedAttrNames('displayObject', 'list'));
 	await assertTagAttrsCovered(t, 'text', collectAllowedAttrNames('displayObject', 'text'));
 	await assertTagAttrsCovered(t, 'richtext', collectAllowedAttrNames('displayObject', 'text', 'richText'));
+	await assertTagAttrsCovered(t, 'transition', collectAllowedAttrNames('transition'));
+	await assertTagAttrsCovered(t, 'relation', collectAllowedAttrNames('relation'));
+	await assertTagAttrsCovered(t, 'gearDisplay', collectAllowedAttrNames('gear'));
+	await assertTagAttrsCovered(t, 'gearXY', collectAllowedAttrNames('gear'));
+	await assertTagAttrsCovered(t, 'gearSize', collectAllowedAttrNames('gear'));
+	await assertTagAttrsCovered(t, 'gearLook', collectAllowedAttrNames('gear'));
+	await assertTagAttrsCovered(t, 'gearColor', collectAllowedAttrNames('gear'));
+	await assertTagAttrsCovered(t, 'gearAni', collectAllowedAttrNames('gear'));
+	await assertTagAttrsCovered(t, 'gearText', collectAllowedAttrNames('gear'));
+	await assertTagAttrsCovered(t, 'gearIcon', collectAllowedAttrNames('gear'));
+	await assertTagAttrsCovered(t, 'gearDisplay2', collectAllowedAttrNames('gear'));
+	await assertTagAttrsCovered(t, 'gearFontSize', collectAllowedAttrNames('gear'));
+});
+
+test('protocolized project XML fields do not regress to legacy direct access patterns', async (t) => {
+	const readerPath = path.resolve(__dirname, '../src/io/project-reader.ts');
+	const writerPath = path.resolve(__dirname, '../src/io/project-writer.ts');
+	const readerSource = await fs.readFile(readerPath, 'utf-8');
+	const writerSource = await fs.readFile(writerPath, 'utf-8');
+
+	const forbiddenReaderSnippets = [
+		'g.setAnimationName?.(String(attrs.animationName))',
+		'g.setPromptText(attrs.promptText)',
+		'g.setColumnGap(parseInt2(attrs.columnGap))',
+		'g.setLineCount?.(parseInt2(attrs.lineCount))',
+		'g.setAutoResizeItem?.(parseBool(attrs.autoResizeItem))',
+		'if (attrs.layout) {',
+		'if (attrs.lineGap) g.setLineGap(parseInt2(attrs.lineGap))',
+		'if (attrs.url) g.setUrl(attrs.url)',
+		'if (attrs.maxLength)',
+		'if (attrs.restrict)',
+		'if (attrs.password)',
+		'obj.setFileName?.(attrs.fileName)',
+		'obj.setPackageId?.(attrs.pkg)',
+		'obj.setFilter?.(attrs.filter)',
+		'obj.setFilterData?.(attrs.filterData)',
+		'const ctrl = doc.createController(ctrlDef.name || \'\')',
+		'parseControllerPages(ctrlDef.pages || \'\')',
+		'const actionType = parseControllerActionType(actionDef.type)',
+		'.setFromPage(parseControllerActionPages(actionDef.fromPage))',
+		'.setTransitionName(getXmlScalar(actionDef.transition))',
+		'.setObjectId(getXmlScalar(actionDef.objectId))',
+		'const trans = doc.createTransition(transDef.name || \'\')',
+		'trans.setAutoPlay(parseBool(transDef.autoPlay))',
+		'trans.setAutoPlayTimes(parseInt2(transDef.autoPlayTimes, 1))',
+		'ti.setTime(parseFloat2(itemDef.time))',
+		'ti.setTargetId(itemDef.target || \'\')',
+		'const typeStr = (itemDef.type || \'\').toUpperCase()',
+		'if (itemDef.value !== undefined)',
+		'if (attrs.playing !== undefined) g.setPlaying(parseBool(attrs.playing))',
+		'const sidePairs = parseSidePair(relDef.sidePair || \'\')',
+		'target: relDef.target || \'\'',
+		'gear.setTween(parseBool(attrs.tween))',
+		'const ctrlName = attrs.controller || \'\'',
+		'gear.setPages(attrs.pages)',
+		'gear.setValues(attrs.values)',
+	];
+	const forbiddenWriterSnippets = [
+		"attrs['@_animationName']",
+		"attrs['@_promptText']",
+		"attrs['@_columnGap']",
+		"attrs['@_lineCount']",
+		"attrs['@_autoResizeItem']",
+		"attrs['@_maxLength']",
+		"attrs['@_restrict']",
+		"attrs['@_password']",
+		"attrs['@_keyboardType']",
+		"attrs['@_layout']",
+		"attrs['@_selectionMode']",
+		"attrs['@_defaultItem']",
+		"attrs['@_treeView']",
+		"attrs['@_overflow']",
+		"attrs['@_scroll']",
+		"attrs['@_fileName']",
+		"attrs['@_pkg']",
+		"attrs['@_filter']",
+		"attrs['@_filterData']",
+		"attrs['@_autoPlayTimes']",
+		"'@_name': ctrl.getName()",
+		"'@_pages': pagesStr",
+		"'@_selected': String(ctrl.getSelectedIndex())",
+		"attrs['@_transition']",
+		"attrs['@_objectId']",
+		"attrs['@_targetPage']",
+		"attrs['@_type'] = graphTypeName[graphType] ?? 'rect'",
+		"attrs['@_lineSize']",
+		"attrs['@_lineColor']",
+		"attrs['@_fillColor']",
+		"attrs['@_corner']",
+		"attrs['@_points']",
+		"attrs['@_sides']",
+		"attrs['@_startAngle']",
+		"attrs['@_distances']",
+		"attrs['@_sidePair']",
+		"attrs['@_controller'] = ctrl.getName()",
+		"attrs['@_pages'] = gear.getPages()",
+		"attrs['@_values'] = gear.getValues()",
+		"attrs['@_default'] = gear.getDefaultValue()",
+		"attrs['@_tween'] = 'true'",
+		"attrs['@_condition'] = gear.getCondition()",
+		"'@_time': String(item.getTime())",
+		"'@_type': ACTION_TYPE_NAMES[item.getActionType()] ?? 'XY'",
+		"'@_target': item.getTargetId()",
+		"ia['@_duration']",
+		"ia['@_tween'] = 'true'",
+		"ia['@_repeat']",
+		"ia['@_yoyo']",
+		"ia['@_label']",
+		"ia['@_value']",
+		"ia['@_startValue']",
+		"ia['@_endValue']",
+		"attrs['@_playing'] = 'false'",
+		"attrs['@_frame'] = String(frame)",
+	];
+
+	for (const snippet of forbiddenReaderSnippets) {
+		t.false(readerSource.includes(snippet), `reader should not use legacy direct access snippet: ${snippet}`);
+	}
+	for (const snippet of forbiddenWriterSnippets) {
+		t.false(writerSource.includes(snippet), `writer should not emit legacy direct access snippet: ${snippet}`);
+	}
 });

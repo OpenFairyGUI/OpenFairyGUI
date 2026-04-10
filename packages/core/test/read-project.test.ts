@@ -229,6 +229,44 @@ test('Bag package preserves list colGap and selectionController from source XML'
 	t.is(pageDots?.getSelectionMode?.(), ListSelectionMode.Single, 'selection mode remains default when XML omits it');
 });
 
+test('display objects preserve fileName/pkg/filter metadata from source XML', async (t) => {
+	const doc = await getDoc();
+	const filterPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Filter')!;
+	const filterMain = filterPkg.listComponents().find((c) => c.getName() === 'Main')!;
+	const filterById = new Map(filterMain.listChildren().map((child) => [child.getId(), child as any]));
+
+	const filteredImage = filterById.get('n0');
+	t.truthy(filteredImage, 'Filter/Main image exists');
+	t.is(filteredImage?.getFileName?.(), 'pic.png', 'image keeps fileName attr');
+	t.is(filteredImage?.getFilter?.(), 'color', 'image keeps filter attr');
+	t.is(filteredImage?.getFilterData?.(), '0.00,0.00,0.00,1.00', 'image keeps filterData attr');
+
+	const filteredMovieClip = filterById.get('n13');
+	t.truthy(filteredMovieClip, 'Filter/Main movieclip exists');
+	t.is(filteredMovieClip?.getFileName?.(), 'pet.jta', 'movieclip keeps fileName attr');
+	t.is(filteredMovieClip?.getFilter?.(), 'color', 'movieclip keeps filter attr');
+
+	const filteredButton = filterById.get('n14');
+	t.truthy(filteredButton, 'Filter/Main button instance exists');
+	t.is(filteredButton?.getFileName?.(), 'Button5.xml', 'component instance keeps fileName attr');
+	t.is(filteredButton?.getFilterData?.(), '0.00,0.00,0.00,1.00', 'component instance keeps filterData attr');
+
+	const editorDoc = await getEditorDoc();
+	const builderPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const alignToolbar = builderPkg.listComponents().find((c) => c.getName() === 'AlignToolbar')!;
+	const alignById = new Map(alignToolbar.listChildren().map((child) => [child.getId(), child as any]));
+
+	const separator = alignById.get('n98_wc5q');
+	t.truthy(separator, 'AlignToolbar separator exists');
+	t.is(separator?.getFileName?.(), 'HzSeperator.png', 'image keeps editor fileName attr');
+	t.is(separator?.getPackageId?.(), 'nk9ejx23', 'image keeps editor pkg attr');
+
+	const flatIconButton = alignById.get('n33');
+	t.truthy(flatIconButton, 'AlignToolbar FlatIconButton exists');
+	t.is(flatIconButton?.getFileName?.(), 'Button/FlatIconButton.xml', 'component keeps editor fileName attr');
+	t.is(flatIconButton?.getPackageId?.(), 'nk9ejx23', 'component keeps editor pkg attr');
+});
+
 test('FairyGUI-Editor samples preserve lineItemCount/autoItemSize and group visibility attrs', async (t) => {
 	const doc = await getEditorDoc();
 	const builderPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
@@ -280,6 +318,7 @@ test('FairyGUI-Editor samples preserve component root scroll/restrict attrs and 
 
 test('FairyGUI-Editor samples preserve component instance attrs and extension overlays', async (t) => {
 	const doc = await getEditorDoc();
+	const builderPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
 	const basicPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Basic')!;
 
 	const colorPickerPopup = basicPkg.listComponents().find((c) => c.getName() === 'ColorPickerPopup')!;
@@ -293,6 +332,13 @@ test('FairyGUI-Editor samples preserve component instance attrs and extension ov
 	t.truthy(alphaInput, 'ColorPickerPopup alphaInput exists');
 	t.is(alphaInput?.getInstanceExtType?.(), 'Label', 'component instance keeps Label overlay type');
 	t.is(alphaInput?.getInstanceTitle?.(), '100', 'Label overlay title survives');
+
+	const choosePackageDialog = builderPkg.listComponents().find((c) => c.getName() === 'ChoosePackageDialog')!;
+	const choosePackageById = new Map(choosePackageDialog.listChildren().map((child) => [child.getId(), child as any]));
+	const findInput = choosePackageById.get('n50_ajkn');
+	t.truthy(findInput, 'ChoosePackageDialog find input exists');
+	t.is(findInput?.getInstanceExtType?.(), 'Label', 'find input keeps Label overlay type');
+	t.is(findInput?.getInstancePromptText?.(), '[color=#959595]查找...[/color]', 'Label overlay prompt survives');
 
 	const moreButton = popupById.get('n15_mkkf');
 	t.truthy(moreButton, 'ColorPickerPopup more button exists');
@@ -311,6 +357,14 @@ test('FairyGUI-Editor samples preserve component instance attrs and extension ov
 	t.is(hueSlider?.getInstanceExtType?.(), 'Slider', 'slider instance keeps Slider overlay type');
 	t.is(hueSlider?.getInstanceValue?.(), 47, 'Slider overlay value survives');
 	t.is(hueSlider?.getInstanceMax?.(), 360, 'Slider overlay max survives');
+
+	const controllerEditDialog = builderPkg.listComponents().find((c) => c.getName() === 'ControllerEditDialog')!;
+	t.truthy(controllerEditDialog, 'ControllerEditDialog exists');
+	const controllerEditById = new Map(controllerEditDialog.listChildren().map((child) => [child.getId(), child as any]));
+	const homePageType = controllerEditById.get('n116_omf5');
+	t.truthy(homePageType, 'ControllerEditDialog homePageType exists');
+	t.is(homePageType?.getInstanceExtType?.(), 'ComboBox', 'ComboBox overlay keeps extension type');
+	t.is(homePageType?.getInstanceSelectionController?.(), 'homepage', 'ComboBox overlay keeps selectionController attr');
 });
 
 test('TreeView package resolves default tree item template semantics', async (t) => {

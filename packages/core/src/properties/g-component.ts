@@ -21,6 +21,8 @@ export interface IGComponent extends IGObject {
 	instanceController: string;
 	instancePage: string;
 	instanceChecked: boolean;
+	instancePromptText: string;
+	instanceSelectionController: string;
 	instanceVisibleItemCount: number;
 	instanceValue: number;
 	instanceMax: number;
@@ -73,6 +75,8 @@ export class GComponent extends GObject<IGComponent, PropertyType.G_COMPONENT> {
 			instanceController: '',
 			instancePage: '',
 			instanceChecked: false,
+			instancePromptText: '',
+			instanceSelectionController: '',
 			instanceVisibleItemCount: 0,
 			instanceValue: 0,
 			instanceMax: 0,
@@ -128,6 +132,12 @@ export class GComponent extends GObject<IGComponent, PropertyType.G_COMPONENT> {
 
 	public getInstanceChecked(): boolean { return this.get('instanceChecked'); }
 	public setInstanceChecked(v: boolean): this { return this.set('instanceChecked', v); }
+
+	public getInstancePromptText(): string { return firstString(this.get('instancePromptText')); }
+	public setInstancePromptText(v: string): this { return this.set('instancePromptText', v); }
+
+	public getInstanceSelectionController(): string { return firstString(this.get('instanceSelectionController')); }
+	public setInstanceSelectionController(v: string): this { return this.set('instanceSelectionController', v); }
 
 	public getInstanceVisibleItemCount(): number { return this.get('instanceVisibleItemCount'); }
 	public setInstanceVisibleItemCount(v: number): this { return this.set('instanceVisibleItemCount', v); }

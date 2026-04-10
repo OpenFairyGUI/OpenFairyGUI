@@ -518,6 +518,10 @@ export class ProjectWriter {
 					break;
 				case 'ComboBox':
 					if (typedComp.getDropdown?.()) writeXmlAttr(extAttrs, extSpecs.dropdown, typedComp.getDropdown?.());
+					if (typedComp.getSelectionController?.()) writeXmlAttr(extAttrs, extSpecs.selectionController, typedComp.getSelectionController?.());
+					break;
+				case 'Label':
+					if (typedComp.getPromptText?.()) writeXmlAttr(extAttrs, extSpecs.prompt, typedComp.getPromptText?.());
 					break;
 				case 'ProgressBar':
 					if ((typedComp.getTitleType?.() ?? 0) !== 0) writeXmlAttr(extAttrs, extSpecs.titleType, formatTitleType(typedComp.getTitleType?.() ?? 0));
@@ -549,11 +553,10 @@ export class ProjectWriter {
 	private _serializeController(ctrl: Controller): Record<string, unknown> {
 		const pages = ctrl.listPages();
 		const pagesStr = pages.map((p) => `${p.getId()},${p.getName()}`).join(',');
-		const attrs: Record<string, unknown> = {
-			'@_name': ctrl.getName(),
-			'@_pages': pagesStr,
-			'@_selected': String(ctrl.getSelectedIndex()),
-		};
+		const attrs: Record<string, unknown> = {};
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.name, ctrl.getName());
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.pages, pagesStr);
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.selected, String(ctrl.getSelectedIndex()));
 		const actions = ctrl.listActions().map((action) => this._serializeControllerAction(action as WritableControllerAction));
 		if (actions.length > 0) attrs.action = actions;
 		return attrs;
@@ -562,23 +565,22 @@ export class ProjectWriter {
 	private _serializeControllerAction(action: WritableControllerAction): Record<string, unknown> {
 		const fromPage = action.getFromPage?.() ?? [];
 		const toPage = action.getToPage?.() ?? [];
-		const attrs: Record<string, unknown> = {
-			'@_type': action.getActionType() === ControllerActionType.ChangePage ? 'change_page' : 'play_transition',
-			'@_fromPage': fromPage.join(','),
-			'@_toPage': toPage.join(','),
-		};
+		const attrs: Record<string, unknown> = {};
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controllerAction.attrs.type, action.getActionType() === ControllerActionType.ChangePage ? 'change_page' : 'play_transition');
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controllerAction.attrs.fromPage, fromPage.join(','));
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controllerAction.attrs.toPage, toPage.join(','));
 
 		switch (action.getActionType()) {
 			case ControllerActionType.PlayTransition:
-				if (action.getTransitionName?.()) attrs['@_transition'] = action.getTransitionName?.();
-				if ((action.getPlayTimes?.() ?? 1) !== 1) attrs['@_repeat'] = String(action.getPlayTimes?.() ?? 1);
-				if ((action.getDelay?.() ?? 0) !== 0) attrs['@_delay'] = String(action.getDelay?.() ?? 0);
-				if (action.getStopOnExit?.()) attrs['@_stopOnExit'] = 'true';
+				if (action.getTransitionName?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controllerAction.attrs.transition, action.getTransitionName?.());
+				if ((action.getPlayTimes?.() ?? 1) !== 1) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controllerAction.attrs.repeat, String(action.getPlayTimes?.() ?? 1));
+				if ((action.getDelay?.() ?? 0) !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controllerAction.attrs.delay, String(action.getDelay?.() ?? 0));
+				if (action.getStopOnExit?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controllerAction.attrs.stopOnExit, 'true');
 				break;
 			case ControllerActionType.ChangePage:
-				if (action.getObjectId?.()) attrs['@_objectId'] = action.getObjectId?.();
-				if (action.getControllerName?.()) attrs['@_controller'] = action.getControllerName?.();
-				if (action.getTargetPage?.()) attrs['@_targetPage'] = action.getTargetPage?.();
+				if (action.getObjectId?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controllerAction.attrs.objectId, action.getObjectId?.());
+				if (action.getControllerName?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controllerAction.attrs.controller, action.getControllerName?.());
+				if (action.getTargetPage?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controllerAction.attrs.targetPage, action.getTargetPage?.());
 				break;
 			default:
 				break;
@@ -600,33 +602,37 @@ export class ProjectWriter {
 	private _serializeChild(obj: GObject): Record<string, unknown> {
 		const typedObj = obj as WritableChild;
 		const attrs: Record<string, unknown> = {};
-		if (obj.getId()) attrs['@_id'] = obj.getId();
-		if (obj.getName()) attrs['@_name'] = obj.getName();
+		if (obj.getId()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.id, obj.getId());
+		if (obj.getName()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.name, obj.getName());
 
 		const [x, y] = [obj.getX(), obj.getY()];
-		if (x !== 0 || y !== 0) attrs['@_xy'] = `${x},${y}`;
+		if (x !== 0 || y !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.xy, `${x},${y}`);
 
 		const [w, h] = [obj.getWidth(), obj.getHeight()];
-		if (w !== 0 || h !== 0) attrs['@_size'] = `${w},${h}`;
+		if (w !== 0 || h !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.size, `${w},${h}`);
 		const [pivotX, pivotY] = [obj.getPivotX(), obj.getPivotY()];
 		if (pivotX !== 0 || pivotY !== 0) {
-			attrs['@_pivot'] = `${pivotX},${pivotY}`;
-			if (obj.getPivotAsAnchor()) attrs['@_anchor'] = 'true';
+			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.pivot, `${pivotX},${pivotY}`);
+			if (obj.getPivotAsAnchor()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.anchor, 'true');
 		}
 
-		if (obj.getAlpha() !== 1) attrs['@_alpha'] = String(obj.getAlpha());
-		if (!obj.getVisible()) attrs['@_visible'] = 'false';
-		if (!obj.getTouchable()) attrs['@_touchable'] = 'false';
-		if (obj.getGrayed()) attrs['@_grayed'] = 'true';
-		if (obj.getRotation() !== 0) attrs['@_rotation'] = String(obj.getRotation());
-		if (obj.getTooltips()) attrs['@_tooltips'] = obj.getTooltips();
-		if (obj.getCustomData()) attrs['@_customData'] = obj.getCustomData();
-		if (obj.getGroup()) attrs['@_group'] = obj.getGroup();
+		if (obj.getAlpha() !== 1) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.alpha, String(obj.getAlpha()));
+		if (!obj.getVisible()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.visible, 'false');
+		if (!obj.getTouchable()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.touchable, 'false');
+		if (obj.getGrayed()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.grayed, 'true');
+		if (obj.getRotation() !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.rotation, String(obj.getRotation()));
+		if (obj.getTooltips()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.tooltips, obj.getTooltips());
+		if (obj.getCustomData()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.customData, obj.getCustomData());
+		if (obj.getGroup()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.group, obj.getGroup());
+		if (typedObj.getFileName?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.fileName, typedObj.getFileName?.());
+		if (typedObj.getPackageId?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.pkg, typedObj.getPackageId?.());
+		if (typedObj.getFilter?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.filter, typedObj.getFilter?.());
+		if (typedObj.getFilterData?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.filterData, typedObj.getFilterData?.());
 
 		const [sx, sy] = [obj.getScaleX(), obj.getScaleY()];
-		if (sx !== 1 || sy !== 1) attrs['@_scale'] = `${sx},${sy}`;
+		if (sx !== 1 || sy !== 1) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.scale, `${sx},${sy}`);
 		const [skewX, skewY] = [obj.getSkewX(), obj.getSkewY()];
-		if (skewX !== 0 || skewY !== 0) attrs['@_skew'] = `${skewX},${skewY}`;
+		if (skewX !== 0 || skewY !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.skew, `${skewX},${skewY}`);
 
 		// Type-specific attributes
 		const type = obj.propertyType as string;
@@ -635,6 +641,7 @@ export class ProjectWriter {
 			const src = typedObj.getSrc?.();
 			if (src) {
 				if (type === 'GComponent' || EXTENSION_TYPE[type]) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.src, src);
+				else if (type === 'GMovieClip') writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.src, src);
 				else attrs['@_src'] = src;
 			}
 		}
@@ -666,23 +673,23 @@ export class ProjectWriter {
 					3: 'polygon',
 					4: 'regularpolygon',
 				};
-				attrs['@_type'] = graphTypeName[graphType] ?? 'rect';
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.type, graphTypeName[graphType] ?? 'rect');
 			}
-			if ((typedObj.getLineSize?.() ?? 1) !== 1) attrs['@_lineSize'] = String(typedObj.getLineSize?.() ?? 1);
+			if ((typedObj.getLineSize?.() ?? 1) !== 1) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.lineSize, String(typedObj.getLineSize?.() ?? 1));
 			const lineColor = typedObj.getLineColor?.();
-			if (lineColor) attrs['@_lineColor'] = lineColor;
+			if (lineColor) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.lineColor, lineColor);
 			const fillColor = typedObj.getFillColor?.();
-			if (fillColor) attrs['@_fillColor'] = fillColor;
+			if (fillColor) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.fillColor, fillColor);
 			const cornerRadius = typedObj.getCornerRadius?.();
-			if (cornerRadius) attrs['@_corner'] = cornerRadius.join(',');
+			if (cornerRadius) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.corner, cornerRadius.join(','));
 			const points = typedObj.getPoints?.();
-			if (points?.length) attrs['@_points'] = points.join(',');
+			if (points?.length) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.points, points.join(','));
 			const sides = typedObj.getSides?.() ?? 0;
-			if (sides > 0) attrs['@_sides'] = String(sides);
+			if (sides > 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.sides, String(sides));
 			const startAngle = typedObj.getStartAngle?.() ?? 0;
-			if (startAngle !== 0) attrs['@_startAngle'] = String(startAngle);
+			if (startAngle !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.startAngle, String(startAngle));
 			const distances = typedObj.getDistances?.();
-			if (distances?.length) attrs['@_distances'] = distances.join(',');
+			if (distances?.length) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.distances, distances.join(','));
 		}
 		if (type === 'GLoader') {
 			const url = typedObj.getUrl?.();
@@ -727,16 +734,16 @@ export class ProjectWriter {
 		}
 		if (type === 'GLoader3D') {
 			const url = typedObj.getUrl?.();
-			if (url) attrs['@_url'] = url;
+			if (url) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.url, url);
 			const align = typedObj.getAlign?.();
 			if (align !== undefined) {
 				const alignName: Record<number, string> = { 0: 'left', 1: 'center', 2: 'right' };
-				attrs['@_align'] = alignName[align] ?? 'left';
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.align, alignName[align] ?? 'left');
 			}
 			const vAlign = typedObj.getVAlign?.();
 			if (vAlign !== undefined) {
 				const vAlignName: Record<number, string> = { 0: 'top', 1: 'middle', 2: 'bottom' };
-				attrs['@_vAlign'] = vAlignName[vAlign] ?? 'top';
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.vAlign, vAlignName[vAlign] ?? 'top');
 			}
 			const fill = typedObj.getFill?.();
 			if (fill !== undefined) {
@@ -748,36 +755,43 @@ export class ProjectWriter {
 					4: 'scaleFree',
 					5: 'scaleNoBorder',
 				};
-				attrs['@_fill'] = fillName[fill] ?? 'none';
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.fill, fillName[fill] ?? 'none');
 			}
-			if (typedObj.getShrinkOnly?.()) attrs['@_shrinkOnly'] = '1';
-			if (typedObj.getAutoSize?.()) attrs['@_autoSize'] = '1';
+			if (typedObj.getShrinkOnly?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.shrinkOnly, '1');
+			if (typedObj.getAutoSize?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.autoSize, '1');
 			const animationName = typedObj.getAnimationName?.();
 			if (animationName) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.animation, animationName);
 			const skinName = typedObj.getSkinName?.();
-			if (skinName) attrs['@_skinName'] = skinName;
-			if (typedObj.getPlaying?.() === false) attrs['@_playing'] = 'false';
+			if (skinName) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.skinName, skinName);
+			if (typedObj.getPlaying?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.playing, 'false');
 			const frame = typedObj.getFrame?.() ?? 0;
-			if (frame !== 0) attrs['@_frame'] = String(frame);
-			if (typedObj.getLoop?.() === false) attrs['@_loop'] = 'false';
+			if (frame !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.frame, String(frame));
+			if (typedObj.getLoop?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.loop, 'false');
 			const loaderColor = typedObj.getColor?.();
-			if (loaderColor) attrs['@_color'] = loaderColor;
+			if (loaderColor) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.color, loaderColor);
+		}
+		if (type === 'GMovieClip') {
+			if (typedObj.getPlaying?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.playing, 'false');
+			const frame = typedObj.getFrame?.() ?? 0;
+			if (frame !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.frame, String(frame));
+			const movieClipColor = typedObj.getColor?.();
+			if (movieClipColor) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.color, movieClipColor);
 		}
 		if (type === 'GGroup') {
 			const layout = typedObj.getLayout?.();
 			if (layout !== undefined) {
 				const layoutName: Record<number, string> = { 0: 'none', 1: 'horizontal', 2: 'vertical' };
-				attrs['@_layout'] = layoutName[layout] ?? 'none';
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.layout, layoutName[layout] ?? 'none');
 			}
 			const lineGap = typedObj.getLineGap?.() ?? 0;
-			if (lineGap !== 0) attrs['@_lineGap'] = String(lineGap);
+			if (lineGap !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.lineGap, String(lineGap));
 			const columnGap = typedObj.getColumnGap?.() ?? 0;
 			if (columnGap !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.columnGap, String(columnGap));
-			if (typedObj.getAdvanced?.()) attrs['@_advanced'] = '1';
-			if (typedObj.getExcludeInvisibles?.()) attrs['@_excludeInvisibles'] = 'true';
-			if (typedObj.getAutoSizeDisabled?.()) attrs['@_autoSizeDisabled'] = 'true';
+			if (typedObj.getAdvanced?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.advanced, '1');
+			if (typedObj.getExcludeInvisibles?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.excludeInvisibles, 'true');
+			if (typedObj.getAutoSizeDisabled?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.autoSizeDisabled, 'true');
 			const mainGridIndex = typedObj.getMainGridIndex?.() ?? -1;
-			if (mainGridIndex >= 0) attrs['@_mainGridIndex'] = String(mainGridIndex);
+			if (mainGridIndex >= 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.mainGridIndex, String(mainGridIndex));
 		}
 		if (type === 'GList' || type === 'GTree') {
 			const isTree = type === 'GTree';
@@ -790,10 +804,10 @@ export class ProjectWriter {
 					3: 'flowVertical',
 					4: 'pagination',
 				};
-				attrs['@_layout'] = layoutName[layout] ?? 'singleColumn';
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.layout, layoutName[layout] ?? 'singleColumn');
 			}
 			const lineGap = typedObj.getLineGap?.() ?? 0;
-			if (lineGap !== 0) attrs['@_lineGap'] = String(lineGap);
+			if (lineGap !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineGap, String(lineGap));
 			const columnGap = typedObj.getColumnGap?.() ?? 0;
 			if (columnGap !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.columnGap, String(columnGap));
 			const lineCount = typedObj.getLineCount?.() ?? 0;
@@ -807,42 +821,42 @@ export class ProjectWriter {
 					2: 'multipleSingleClick',
 					3: 'none',
 				};
-				attrs['@_selectionMode'] = selectionName[selectionMode] ?? 'single';
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.selectionMode, selectionName[selectionMode] ?? 'single');
 			}
 			const defaultItem = typedObj.getDefaultItem?.();
-			if (defaultItem) attrs['@_defaultItem'] = defaultItem;
+			if (defaultItem) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.defaultItem, defaultItem);
 			const selectionController = typedObj.getSelectionController?.();
 			if (selectionController) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.selectionController, selectionController);
-			if (isTree) attrs['@_treeView'] = 'true';
+			if (isTree) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.treeView, 'true');
 			if (isTree) {
 				const indent = typedObj.getIndent?.() ?? 0;
-				if (indent !== 0) attrs['@_indent'] = String(indent);
+				if (indent !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.indent, String(indent));
 				const clickToExpand = typedObj.getClickToExpand?.() ?? 0;
-				if (clickToExpand !== 0) attrs['@_clickToExpand'] = String(clickToExpand);
+				if (clickToExpand !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.clickToExpand, String(clickToExpand));
 			}
 			const overflow = typedObj.getOverflow?.() ?? 0;
 			if (overflow !== 0) {
 				const overflowName: Record<number, string> = { 0: 'visible', 1: 'hidden', 2: 'scroll' };
-				attrs['@_overflow'] = overflowName[overflow] ?? 'visible';
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.overflow, overflowName[overflow] ?? 'visible');
 			}
 			const scrollType = typedObj.getScrollType?.();
 			if (scrollType !== undefined) {
 				const scrollTypeName: Record<number, string> = { 0: 'horizontal', 1: 'vertical', 2: 'both' };
-				attrs['@_scroll'] = scrollTypeName[scrollType] ?? 'vertical';
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scroll, scrollTypeName[scrollType] ?? 'vertical');
 			}
 			const scrollBarFlags = typedObj.getScrollBarFlags?.() ?? 0;
-			if (scrollBarFlags !== 0) attrs['@_scrollBarFlags'] = String(scrollBarFlags);
+			if (scrollBarFlags !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarFlags, String(scrollBarFlags));
 			const vtScrollBarRes = typedObj.getVtScrollBarRes?.() ?? '';
 			const hzScrollBarRes = typedObj.getHzScrollBarRes?.() ?? '';
-			if (vtScrollBarRes || hzScrollBarRes) attrs['@_scrollBarRes'] = `${vtScrollBarRes},${hzScrollBarRes}`;
+			if (vtScrollBarRes || hzScrollBarRes) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarRes, `${vtScrollBarRes},${hzScrollBarRes}`);
 			const headerRes = typedObj.getHeaderRes?.() ?? '';
 			const footerRes = typedObj.getFooterRes?.() ?? '';
-			if (headerRes || footerRes) attrs['@_ptrRes'] = `${headerRes},${footerRes}`;
+			if (headerRes || footerRes) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.ptrRes, `${headerRes},${footerRes}`);
 			const margin = typedObj.getMargin?.();
-			if (hasNonZeroInsets(margin)) attrs['@_margin'] = formatInsets(margin!);
+			if (hasNonZeroInsets(margin)) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.margin, formatInsets(margin!));
 			const clipSoftness = typedObj.getClipSoftness?.();
 			if (clipSoftness && ((clipSoftness.x ?? 0) !== 0 || (clipSoftness.y ?? 0) !== 0)) {
-				attrs['@_clipSoftness'] = `${clipSoftness.x ?? 0},${clipSoftness.y ?? 0}`;
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.clipSoftness, `${clipSoftness.x ?? 0},${clipSoftness.y ?? 0}`);
 			}
 			const listItems = typedObj.getListItems?.() ?? [];
 			if (listItems.length > 0) {
@@ -907,12 +921,12 @@ export class ProjectWriter {
 				const promptText = typedObj.getPromptText?.();
 				if (promptText) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.prompt, promptText);
 				const maxLength = typedObj.getMaxLength?.() ?? 0;
-				if (maxLength !== 0) attrs['@_maxLength'] = String(maxLength);
+				if (maxLength !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.maxLength, String(maxLength));
 				const restrict = typedObj.getRestrict?.();
-				if (restrict) attrs['@_restrict'] = restrict;
-				if (typedObj.getPassword?.()) attrs['@_password'] = 'true';
+				if (restrict) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.restrict, restrict);
+				if (typedObj.getPassword?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.password, 'true');
 				const keyboardType = typedObj.getKeyboardType?.() ?? 0;
-				if (keyboardType !== 0) attrs['@_keyboardType'] = String(keyboardType);
+				if (keyboardType !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.keyboardType, String(keyboardType));
 			}
 		}
 		if (type === 'GComponent') {
@@ -930,6 +944,8 @@ export class ProjectWriter {
 				if (typedObj.getInstanceController?.() && extSpecs.controller) writeXmlAttr(extAttrs, extSpecs.controller, typedObj.getInstanceController?.());
 				if (typedObj.getInstancePage?.() && extSpecs.page) writeXmlAttr(extAttrs, extSpecs.page, typedObj.getInstancePage?.());
 				if (typedObj.getInstanceChecked?.() && extSpecs.checked) writeXmlAttr(extAttrs, extSpecs.checked, '1');
+				if (typedObj.getInstancePromptText?.() && extSpecs.prompt) writeXmlAttr(extAttrs, extSpecs.prompt, typedObj.getInstancePromptText?.());
+				if (typedObj.getInstanceSelectionController?.() && extSpecs.selectionController) writeXmlAttr(extAttrs, extSpecs.selectionController, typedObj.getInstanceSelectionController?.());
 				if ((typedObj.getInstanceVisibleItemCount?.() ?? 0) > 0 && extSpecs.visibleItemCount) writeXmlAttr(extAttrs, extSpecs.visibleItemCount, String(typedObj.getInstanceVisibleItemCount?.() ?? 0));
 				const instanceValue = typedObj.getInstanceValue?.() ?? 0;
 				const instanceMax = typedObj.getInstanceMax?.() ?? 0;
@@ -969,8 +985,12 @@ export class ProjectWriter {
 				byTarget.get(rel.target)!.push(pair);
 			}
 			const relElements = Array.from(byTarget.entries()).map(([target, pairs]) => ({
-				'@_target': target,
-				'@_sidePair': pairs.join(','),
+				...(() => {
+					const relationAttrs: Record<string, unknown> = {};
+					writeXmlAttr(relationAttrs, PROJECT_XML_PROTOCOL.relation.attrs.target, target);
+					writeXmlAttr(relationAttrs, PROJECT_XML_PROTOCOL.relation.attrs.sidePair, pairs.join(','));
+					return relationAttrs;
+				})(),
 			}));
 			if (relElements.length > 0) attrs.relation = relElements;
 		}
@@ -981,20 +1001,21 @@ export class ProjectWriter {
 	private _serializeGear(gear: Gear): Record<string, unknown> {
 		const ctrl = gear.getController();
 		const attrs: Record<string, unknown> = {};
-		if (ctrl) attrs['@_controller'] = ctrl.getName();
-		if (gear.getPages()) attrs['@_pages'] = gear.getPages();
-		if (gear.getValues()) attrs['@_values'] = gear.getValues();
-		if (gear.getDefaultValue() !== null) attrs['@_default'] = gear.getDefaultValue();
-		if (gear.getTween()) attrs['@_tween'] = 'true';
-		if (gear.getCondition()) attrs['@_condition'] = gear.getCondition();
+		if (ctrl) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.controller, ctrl.getName());
+		if (gear.getPages()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.pages, gear.getPages());
+		if (gear.getValues()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.values, gear.getValues());
+		if (gear.getDefaultValue() !== null) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.default, gear.getDefaultValue());
+		if (gear.getTween()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.tween, 'true');
+		if (gear.getCondition()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.condition, gear.getCondition());
 		return attrs;
 	}
 
 	private _serializeTransition(trans: Transition): Record<string, unknown> {
-		const attrs: Record<string, unknown> = { '@_name': trans.getName() };
-		if (trans.getAutoPlay()) attrs['@_autoPlay'] = 'true';
-		if (trans.getAutoPlayTimes() !== 1) attrs['@_autoPlayTimes'] = String(trans.getAutoPlayTimes());
-		if (trans.getAutoPlayDelay() !== 0) attrs['@_autoPlayDelay'] = String(trans.getAutoPlayDelay());
+		const attrs: Record<string, unknown> = {};
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.transition.attrs.name, trans.getName());
+		if (trans.getAutoPlay()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.transition.attrs.autoPlay, 'true');
+		if (trans.getAutoPlayTimes() !== 1) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.transition.attrs.autoPlayTimes, String(trans.getAutoPlayTimes()));
+		if (trans.getAutoPlayDelay() !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.transition.attrs.autoPlayDelay, String(trans.getAutoPlayDelay()));
 
 		const ACTION_TYPE_NAMES: Record<number, string> = {
 			0: 'XY', 1: 'Size', 2: 'Scale', 3: 'Pivot', 4: 'Alpha', 5: 'Rotation',
@@ -1003,23 +1024,22 @@ export class ProjectWriter {
 		};
 
 		const items = trans.listItems().map((item) => {
-			const ia: Record<string, unknown> = {
-				'@_time': String(item.getTime()),
-				'@_type': ACTION_TYPE_NAMES[item.getActionType()] ?? 'XY',
-				'@_target': item.getTargetId(),
-			};
-			if (item.getDuration() !== 0) ia['@_duration'] = String(item.getDuration());
-			if (item.getTween()) ia['@_tween'] = 'true';
-			if (item.getRepeat() !== 0) ia['@_repeat'] = String(item.getRepeat());
-			if (item.getYoyo()) ia['@_yoyo'] = 'true';
-			if (item.getLabel()) ia['@_label'] = item.getLabel();
+			const ia: Record<string, unknown> = {};
+			writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.time, String(item.getTime()));
+			writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.type, ACTION_TYPE_NAMES[item.getActionType()] ?? 'XY');
+			writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.target, item.getTargetId());
+			if (item.getDuration() !== 0) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.duration, String(item.getDuration()));
+			if (item.getTween()) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.tween, 'true');
+			if (item.getRepeat() !== 0) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.repeat, String(item.getRepeat()));
+			if (item.getYoyo()) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.yoyo, 'true');
+			if (item.getLabel()) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.label, item.getLabel());
 			const sv = item.getStartValue();
 			if (sv.length) {
-				if (!item.getTween() && item.getActionType() !== 0) ia['@_value'] = sv.join(',');
-				else ia['@_startValue'] = sv.join(',');
+				if (!item.getTween() && item.getActionType() !== 0) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.value, sv.join(','));
+				else writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.startValue, sv.join(','));
 			}
 			const ev = item.getEndValue();
-			if (ev.length) ia['@_endValue'] = ev.join(',');
+			if (ev.length) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.endValue, ev.join(','));
 			return ia;
 		});
 

@@ -1047,7 +1047,15 @@ test('round-trip: component extension definition and instance extension attrs su
 	comboDef.setPath('/');
 	comboDef.setExtensionType('ComboBox');
 	comboDef.setDropdown('ui://pkg005/dropdown');
+	comboDef.setSelectionController('qualityOption');
 	pkg.addResource(comboDef);
+
+	const labelDef = doc.createComponent('ExtendedLabel');
+	labelDef.setId('cmpLabel');
+	labelDef.setPath('/');
+	labelDef.setExtensionType('Label');
+	labelDef.setPromptText('[color=#959595]查找...[/color]');
+	pkg.addResource(labelDef);
 
 	const comboChild = doc.createGComponent('combo-inst');
 	comboChild.setId('n1');
@@ -1055,11 +1063,18 @@ test('round-trip: component extension definition and instance extension attrs su
 	comboChild.setInstanceExtType('ComboBox');
 	comboChild.setInstanceTitle('选项A');
 	comboChild.setInstanceIcon('ui://pkg005/iconA');
+	comboChild.setInstanceSelectionController('qualityOption');
 	comboChild.setInstanceVisibleItemCount(6);
 	comboChild.setInstanceComboItems([
 		{ title: 'A', value: '1', icon: 'ui://pkg005/a' },
 		{ title: 'B', value: '2', icon: null },
 	]);
+
+	const labelChild = doc.createGComponent('label-inst');
+	labelChild.setId('n3');
+	labelChild.setSrc('cmpLabel');
+	labelChild.setInstanceExtType('Label');
+	labelChild.setInstancePromptText('[color=#959595]查找...[/color]');
 
 	const listChild = doc.createGList('list-inst');
 	listChild.setId('n2');
@@ -1070,6 +1085,7 @@ test('round-trip: component extension definition and instance extension attrs su
 	host.addChild(child);
 	host.addChild(comboChild);
 	host.addChild(listChild);
+	host.addChild(labelChild);
 	pkg.addResource(host);
 
 	const io = new NodeIO();
@@ -1081,6 +1097,7 @@ test('round-trip: component extension definition and instance extension attrs su
 		const hostXml = await fs.readFile(path.join(tmpDir, 'assets', 'Demo5', 'Host.xml'), 'utf-8');
 		const buttonDefXml = await fs.readFile(path.join(tmpDir, 'assets', 'Demo5', 'ExtendedButton.xml'), 'utf-8');
 		const comboDefXml = await fs.readFile(path.join(tmpDir, 'assets', 'Demo5', 'ExtendedCombo.xml'), 'utf-8');
+		const labelDefXml = await fs.readFile(path.join(tmpDir, 'assets', 'Demo5', 'ExtendedLabel.xml'), 'utf-8');
 
 		t.true(buttonDefXml.includes('<Button'), 'button definition writes Button extension node');
 		t.true(buttonDefXml.includes('mode="Radio"'), 'button definition writes canonical mode attr');
@@ -1088,6 +1105,9 @@ test('round-trip: component extension definition and instance extension attrs su
 		t.true(buttonDefXml.includes('downEffect="1"'), 'button definition writes canonical downEffect attr');
 		t.true(comboDefXml.includes('<ComboBox'), 'combo definition writes ComboBox extension node');
 		t.true(comboDefXml.includes('dropdown="ui://pkg005/dropdown"'), 'combo definition writes canonical dropdown attr');
+		t.true(comboDefXml.includes('selectionController="qualityOption"'), 'combo definition writes canonical selectionController attr');
+		t.true(labelDefXml.includes('<Label'), 'label definition writes Label extension node');
+		t.true(labelDefXml.includes('prompt="[color=#959595]查找...[/color]"'), 'label definition writes canonical prompt attr');
 		t.true(hostXml.includes('controller="button,1"'), 'component instance writes canonical controller override attr');
 		t.true(hostXml.includes('pageController="state"'), 'component instance writes canonical pageController attr');
 		t.true(hostXml.includes('<Button '), 'button instance writes Button overlay node');
@@ -1099,7 +1119,9 @@ test('round-trip: component extension definition and instance extension attrs su
 		t.true(hostXml.includes('page="1"'), 'button instance writes canonical page attr');
 		t.true(hostXml.includes('checked="1"'), 'button instance writes canonical checked attr');
 		t.true(hostXml.includes('<ComboBox '), 'combo instance writes ComboBox overlay node');
+		t.true(hostXml.includes('selectionController="qualityOption"'), 'combo instance writes canonical selectionController attr');
 		t.true(hostXml.includes('visibleItemCount="6"'), 'combo instance writes canonical visibleItemCount attr');
+		t.true(hostXml.includes('<Label prompt="[color=#959595]查找...[/color]"'), 'label instance writes canonical prompt attr');
 
 		const doc2 = await io.readProject(outFairy);
 		const pkg2 = doc2.getRoot().getPackage('Demo5');
@@ -1118,6 +1140,12 @@ test('round-trip: component extension definition and instance extension attrs su
 		t.truthy(comboDef2, 'ExtendedCombo exists');
 		t.is(comboDef2!.getExtensionType(), 'ComboBox');
 		t.is(comboDef2!.getDropdown(), 'ui://pkg005/dropdown');
+		t.is(comboDef2!.getSelectionController(), 'qualityOption');
+
+		const labelDef2 = pkg2!.listComponents().find((item) => item.getName() === 'ExtendedLabel');
+		t.truthy(labelDef2, 'ExtendedLabel exists');
+		t.is(labelDef2!.getExtensionType(), 'Label');
+		t.is(labelDef2!.getPromptText(), '[color=#959595]查找...[/color]');
 
 		const host2 = pkg2!.listComponents().find((item) => item.getName() === 'Host');
 		t.truthy(host2, 'Host exists');
@@ -1142,11 +1170,17 @@ test('round-trip: component extension definition and instance extension attrs su
 		t.is(comboChild2.getInstanceExtType(), 'ComboBox');
 		t.is(comboChild2.getInstanceTitle(), '选项A');
 		t.is(comboChild2.getInstanceIcon(), 'ui://pkg005/iconA');
+		t.is(comboChild2.getInstanceSelectionController(), 'qualityOption');
 		t.is(comboChild2.getInstanceVisibleItemCount(), 6);
 		t.deepEqual(comboChild2.getInstanceComboItems(), [
 			{ title: 'A', value: '1', icon: 'ui://pkg005/a' },
 			{ title: 'B', value: '2', icon: null },
 		]);
+
+		const labelChild2 = host2!.listChildren().find((item) => item.getId() === 'n3') as ReturnType<Document['createGComponent']>;
+		t.truthy(labelChild2, 'label instance exists');
+		t.is(labelChild2.getInstanceExtType(), 'Label');
+		t.is(labelChild2.getInstancePromptText(), '[color=#959595]查找...[/color]');
 
 		const listChild2 = host2!.listChildren().find((item) => item.getId() === 'n2') as ReturnType<Document['createGList']>;
 		t.truthy(listChild2, 'list instance exists');
@@ -1205,6 +1239,83 @@ test('round-trip: advanced groups survive write→read', async (t) => {
 
 		const text2 = comp2!.listChildren().find((child) => child.getId() === 'n0');
 		t.is(text2?.getGroup?.(), 'g1', 'child group reference survives');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('round-trip: display object fileName/pkg/filter metadata survives write→read', async (t) => {
+	const io = new NodeIO();
+	const doc = new Document();
+	doc.getRoot().setProjectId('proj-display-meta').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('DemoMeta');
+	pkg.setId('pkgMeta');
+
+	const host = doc.createComponent('Host');
+	host.setId('cmpMeta');
+	host.setPath('/');
+	host.setSize(400, 300);
+
+	const image = doc.createGImage('img');
+	image.setId('n0');
+	image.setSrc('img001');
+	image.setFileName('images/pic.png');
+	image.setPackageId('pkgA');
+	image.setFilter('color');
+	image.setFilterData('0.00,0.00,0.00,1.00');
+
+	const movieClip = doc.createGMovieClip('mc');
+	movieClip.setId('n1');
+	movieClip.setSrc('mc001');
+	movieClip.setFileName('pet.jta');
+	movieClip.setFilter('color');
+	movieClip.setFilterData('0.10,0.20,0.30,1.00');
+
+	const child = doc.createGComponent('child');
+	child.setId('n2');
+	child.setSrc('cmp001');
+	child.setFileName('Button/Button5.xml');
+	child.setPackageId('pkgB');
+	child.setFilter('blur');
+	child.setFilterData('4');
+
+	host.addChild(image);
+	host.addChild(movieClip);
+	host.addChild(child);
+	pkg.addResource(host);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-meta-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+		const hostXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoMeta', 'Host.xml'), 'utf-8');
+		t.true(hostXml.includes('fileName="images/pic.png"'), 'image writes canonical fileName attr');
+		t.true(hostXml.includes('pkg="pkgA"'), 'image writes canonical pkg attr');
+		t.true(hostXml.includes('filter="color"'), 'display object writes canonical filter attr');
+		t.true(hostXml.includes('filterData="0.00,0.00,0.00,1.00"'), 'display object writes canonical filterData attr');
+		t.true(hostXml.includes('fileName="pet.jta"'), 'movieclip writes canonical fileName attr');
+		t.true(hostXml.includes('fileName="Button/Button5.xml"'), 'component writes canonical fileName attr');
+		t.true(hostXml.includes('pkg="pkgB"'), 'component writes canonical pkg attr');
+
+		const doc2 = await io.readProject(outFairy);
+		const host2 = doc2.getRoot().getPackage('DemoMeta')?.listComponents().find((item) => item.getName() === 'Host');
+		t.truthy(host2, 'Host exists after round-trip');
+		const byId = new Map(host2!.listChildren().map((item) => [item.getId(), item as any]));
+
+		t.is(byId.get('n0')?.getFileName?.(), 'images/pic.png');
+		t.is(byId.get('n0')?.getPackageId?.(), 'pkgA');
+		t.is(byId.get('n0')?.getFilter?.(), 'color');
+		t.is(byId.get('n0')?.getFilterData?.(), '0.00,0.00,0.00,1.00');
+
+		t.is(byId.get('n1')?.getFileName?.(), 'pet.jta');
+		t.is(byId.get('n1')?.getFilterData?.(), '0.10,0.20,0.30,1.00');
+
+		t.is(byId.get('n2')?.getFileName?.(), 'Button/Button5.xml');
+		t.is(byId.get('n2')?.getPackageId?.(), 'pkgB');
+		t.is(byId.get('n2')?.getFilter?.(), 'blur');
+		t.is(byId.get('n2')?.getFilterData?.(), '4');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

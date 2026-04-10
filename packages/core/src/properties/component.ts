@@ -55,6 +55,8 @@ interface IComponent extends IExtensibleProperty {
 	downEffect: number;
 	downEffectValue: number;
 	dropdown: string;
+	promptText: string;
+	selectionController: string;
 	titleType: number;
 	reverse: boolean;
 	wholeNumbers: boolean;
@@ -124,6 +126,8 @@ export class Component extends ExtensibleProperty<IComponent> {
 			downEffect: 0,
 			downEffectValue: 0.8,
 			dropdown: '',
+			promptText: '',
+			selectionController: '',
 			titleType: 0,
 			reverse: false,
 			wholeNumbers: false,
@@ -282,6 +286,12 @@ export class Component extends ExtensibleProperty<IComponent> {
 
 	public getDropdown(): string { return this.get('dropdown'); }
 	public setDropdown(v: string): this { return this.set('dropdown', v); }
+
+	public getPromptText(): string { return this.get('promptText'); }
+	public setPromptText(v: string): this { return this.set('promptText', v); }
+
+	public getSelectionController(): string { return this.get('selectionController'); }
+	public setSelectionController(v: string): this { return this.set('selectionController', v); }
 
 	public getTitleType(): number { return this.get('titleType'); }
 	public setTitleType(v: number): this { return this.set('titleType', v); }
