@@ -1,5 +1,5 @@
 import { RefList } from 'property-graph';
-import { type Nullable, ObjectType, OverflowType, PropertyType, ChildrenRenderOrder } from '../constants.js';
+import { type Nullable, ObjectType, OverflowType, PropertyType, ChildrenRenderOrder, type RelationDef } from '../constants.js';
 import { ExtensibleProperty, type IExtensibleProperty } from './extensible-property.js';
 import type { GObject } from './g-object.js';
 import type { Controller } from './controller.js';
@@ -63,6 +63,7 @@ interface IComponent extends IExtensibleProperty {
 	opaque: boolean;
 	childrenRenderOrder: number;
 	apexIndex: number;
+	relations: RelationDef[];
 	displayList: RefList<GObject>;
 	controllers: RefList<Controller>;
 	transitions: RefList<Transition>;
@@ -131,6 +132,7 @@ export class Component extends ExtensibleProperty<IComponent> {
 			opaque: true,
 			childrenRenderOrder: ChildrenRenderOrder.Ascent,
 			apexIndex: 0,
+			relations: [],
 			displayList: new RefList<GObject>(),
 			controllers: new RefList<Controller>(),
 			transitions: new RefList<Transition>(),
@@ -301,6 +303,15 @@ export class Component extends ExtensibleProperty<IComponent> {
 
 	public getChildrenRenderOrder(): number { return this.get('childrenRenderOrder'); }
 	public setChildrenRenderOrder(v: number): this { return this.set('childrenRenderOrder', v); }
+
+	/****** Relations ******/
+
+	public getRelations(): RelationDef[] { return this.get('relations'); }
+	public setRelations(relations: RelationDef[]): this { return this.set('relations', relations); }
+	public addRelation(relation: RelationDef): this {
+		const relations = [...this.getRelations(), relation];
+		return this.set('relations', relations);
+	}
 
 	/****** Display List ******/
 

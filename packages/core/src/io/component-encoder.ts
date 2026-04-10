@@ -209,11 +209,6 @@ interface RelationOwner {
 	getRelations?(): RelationDef[];
 }
 
-interface ControllerExtras extends Record<string, unknown> {
-	autoRadioGroupDepth?: boolean;
-	_autoRadioGroupDepth?: boolean;
-}
-
 function getChildExtras(child: { getExtras?(): Record<string, unknown> }): ChildEncoderExtras {
 	return (child.getExtras?.() as ChildEncoderExtras | undefined) ?? {};
 }
@@ -244,11 +239,6 @@ function _boolVal(v: unknown, fallback = false): boolean {
 		if (normalized === 'false' || normalized === '0' || normalized === '') return false;
 	}
 	return fallback;
-}
-
-function _controllerAutoRadioGroupDepth(ctrl: { getExtras?(): Record<string, unknown> }): boolean {
-	const extras = (ctrl.getExtras?.() as ControllerExtras | undefined) ?? {};
-	return extras.autoRadioGroupDepth ?? extras._autoRadioGroupDepth ?? false;
 }
 
 /**
@@ -428,7 +418,7 @@ function _writeControllers(buf: WriteBuffer, comp: Component): void {
 		// Controller Block 0: name
 		const cb0 = buf.pos - ctrlIndexPos;
 		buf.writeS(ctrl.getName?.() ?? '');
-		buf.writeBool(_controllerAutoRadioGroupDepth(ctrl));
+		buf.writeBool(ctrl.getAutoRadioGroupDepth?.() ?? false);
 
 		// Controller Block 1: pages
 		const cb1 = buf.pos - ctrlIndexPos;

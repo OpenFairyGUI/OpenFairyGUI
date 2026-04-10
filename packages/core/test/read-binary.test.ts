@@ -119,6 +119,85 @@ test('binary: component top-level formal properties decode from sample package',
 	t.is(labelComp?.getExtensionType(), 'Label');
 });
 
+test('binary: component display lists decode into formal child nodes from sample package', async (t) => {
+	const doc = await getDoc();
+	const pkg = getMainPackage(doc)!;
+
+	const mainComp = pkg.getComponent('Main');
+	t.truthy(mainComp, 'Main exists');
+	t.true((mainComp?.listChildren().length ?? 0) > 10, 'Main has decoded display-list children');
+
+	const buttonComp = pkg.getComponent('Button5');
+	t.truthy(buttonComp, 'Button5 exists');
+	t.is(buttonComp?.listChildren().length, 3, 'Button5 child count is decoded');
+
+	const bg = buttonComp?.listChildren().find((child) => child.getId() === 'n0');
+	t.truthy(bg, 'Button5 background child exists');
+	t.is(bg?.propertyType, 'GImage');
+	t.is((bg as any)?.getSrc?.(), 'rpmb1');
+
+	const title = buttonComp?.listChildren().find((child) => child.getId() === 'n1');
+	t.truthy(title, 'Button5 title child exists');
+	t.is(title?.propertyType, 'GTextField');
+
+	const icon = buttonComp?.listChildren().find((child) => child.getId() === 'n2');
+	t.truthy(icon, 'Button5 icon child exists');
+	t.is(icon?.propertyType, 'GLoader');
+});
+
+test('binary: component structured objects decode from sample package', async (t) => {
+	const doc = await getDoc();
+	const pkg = getMainPackage(doc)!;
+
+	const buttonComp = pkg.getComponent('Button5');
+	t.truthy(buttonComp, 'Button5 exists');
+	t.is(buttonComp?.listControllers().length, 1, 'Button5 controller is decoded');
+	const buttonController = buttonComp?.listControllers()[0];
+	t.is(buttonController?.getName(), 'button');
+	t.deepEqual(
+		buttonController?.listPages().map((page) => ({ id: page.getId(), name: page.getName() })),
+		[
+			{ id: '0', name: 'up' },
+			{ id: '1', name: 'down' },
+			{ id: '2', name: 'over' },
+			{ id: '3', name: 'selectedOver' },
+		],
+	);
+	const buttonBg = buttonComp?.listChildren().find((child) => child.getId() === 'n0');
+	t.truthy(buttonBg, 'Button5 background child exists');
+	t.deepEqual(buttonBg?.getRelations(), [
+		{ target: '', type: 14, usePercent: false },
+		{ target: '', type: 15, usePercent: false },
+	]);
+
+	const relationComp = pkg.getComponent('Demo_Relation');
+	t.truthy(relationComp, 'Demo_Relation exists');
+	const gearChild = relationComp?.listChildren().find((child) => child.getId() === 'n1');
+	t.truthy(gearChild, 'Demo_Relation gear child exists');
+	t.is(gearChild?.listGears().length, 1);
+	const gear = gearChild?.listGears()[0];
+	t.is(gear?.getGearType(), 1);
+	t.is(gear?.getController()?.getName(), 'c1');
+	t.is(gear?.getPages(), '0,1');
+	t.is(gear?.getValues(), '45,219|336,224');
+	t.is(gear?.getDefaultValue(), '40,212');
+	t.true(gear?.getTween() ?? false);
+
+	const windowComp = pkg.getComponent('WindowB');
+	t.truthy(windowComp, 'WindowB exists');
+	t.is(windowComp?.listTransitions().length, 1, 'WindowB transition is decoded');
+	const transition = windowComp?.listTransitions()[0];
+	t.is(transition?.getName(), 't1');
+	t.false(transition?.getAutoPlay() ?? true);
+	t.is(transition?.listItems().length, 1);
+	const transitionItem = transition?.listItems()[0];
+	t.is(transitionItem?.getActionType(), 0);
+	t.is(transitionItem?.getTargetId(), 'n7');
+	t.true(transitionItem?.getTween() ?? false);
+	t.deepEqual(transitionItem?.getStartValue(), ['-29', '-']);
+	t.deepEqual(transitionItem?.getEndValue(), ['-9', '-']);
+});
+
 test('binary: movie clips decode frame data into formal properties', async (t) => {
 	const doc = await getDoc();
 	const pkg = getMainPackage(doc)!;

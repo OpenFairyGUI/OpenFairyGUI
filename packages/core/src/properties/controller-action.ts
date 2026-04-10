@@ -60,4 +60,13 @@ export class ControllerAction extends Property<IControllerAction> {
 
 	public getStopOnExit(): boolean { return this.get('stopOnExit'); }
 	public setStopOnExit(v: boolean): this { return this.set('stopOnExit', v); }
+
+	public getObjectId(): string { return this.get('objectId'); }
+	public setObjectId(v: string): this { return this.set('objectId', v); }
+
+	public getControllerName(): string { return this.get('controllerName'); }
+	public setControllerName(v: string): this { return this.set('controllerName', v); }
+
+	public getTargetPage(): string { return this.get('targetPage'); }
+	public setTargetPage(v: string): this { return this.set('targetPage', v); }
 }

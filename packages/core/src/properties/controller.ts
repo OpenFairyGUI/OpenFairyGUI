@@ -6,6 +6,7 @@ import type { ControllerAction } from './controller-action.js';
 
 interface IController extends IExtensibleProperty {
 	selectedIndex: number;
+	autoRadioGroupDepth: boolean;
 	pages: RefList<ControllerPage>;
 	actions: RefList<ControllerAction>;
 }
@@ -29,6 +30,7 @@ export class Controller extends ExtensibleProperty<IController> {
 	protected getDefaults(): Nullable<IController> {
 		return Object.assign(super.getDefaults(), {
 			selectedIndex: 0,
+			autoRadioGroupDepth: false,
 			pages: new RefList<ControllerPage>(),
 			actions: new RefList<ControllerAction>(),
 		});
@@ -36,6 +38,9 @@ export class Controller extends ExtensibleProperty<IController> {
 
 	public getSelectedIndex(): number { return this.get('selectedIndex'); }
 	public setSelectedIndex(v: number): this { return this.set('selectedIndex', v); }
+
+	public getAutoRadioGroupDepth(): boolean { return this.get('autoRadioGroupDepth'); }
+	public setAutoRadioGroupDepth(v: boolean): this { return this.set('autoRadioGroupDepth', v); }
 
 	public addPage(page: ControllerPage): this { return this.addRef('pages', page); }
 	public removePage(page: ControllerPage): this { return this.removeRef('pages', page); }

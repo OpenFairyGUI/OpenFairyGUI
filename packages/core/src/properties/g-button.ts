@@ -63,11 +63,23 @@ export class GButton extends GObject {
 	public getTitleColor(): string { return this.get('titleColor' as any); }
 	public setTitleColor(v: string): this { return this.set('titleColor' as any, v); }
 
+	public getTitleFontSize(): number { return this.get('titleFontSize' as any); }
+	public setTitleFontSize(v: number): this { return this.set('titleFontSize' as any, v); }
+
 	public getSound(): string { return this.get('sound' as any); }
 	public setSound(v: string): this { return this.set('sound' as any, v); }
 
+	public getSoundVolumeScale(): number { return this.get('soundVolumeScale' as any); }
+	public setSoundVolumeScale(v: number): this { return this.set('soundVolumeScale' as any, v); }
+
 	public getMode(): number { return this.get('mode' as any); }
 	public setMode(v: number): this { return this.set('mode' as any, v); }
+
+	public getDownEffect(): number { return this.get('downEffect' as any); }
+	public setDownEffect(v: number): this { return this.set('downEffect' as any, v); }
+
+	public getDownEffectValue(): number { return this.get('downEffectValue' as any); }
+	public setDownEffectValue(v: number): this { return this.set('downEffectValue' as any, v); }
 
 	public getSrc(): string { return this.get('src' as any); }
 	public setSrc(v: string): this { return this.set('src' as any, v); }

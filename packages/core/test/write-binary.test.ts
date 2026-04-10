@@ -1410,3 +1410,362 @@ test('binary writer: component top-level fields round-trip into formal propertie
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 });
+
+test('binary writer: component child blocks round-trip into formal child properties', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('ChildPkg');
+	pkg.setId('childpkg');
+
+	const comp = doc.createComponent('ChildHost');
+	comp.setId('childhost');
+	comp.setSize(640, 360);
+
+	const group = doc.createGGroup('group');
+	group
+		.setId('group01')
+		.setXY(12, 18)
+		.setAdvanced(true)
+		.setLayout(1)
+		.setLineGap(6)
+		.setColumnGap(8);
+	comp.addChild(group);
+
+	const image = doc.createGImage('hero');
+	image
+		.setId('img01')
+		.setSrc('ui://childpkg/hero')
+		.setXY(30, 40)
+		.setSize(120, 90)
+		.setScale(1.5, 0.75)
+		.setSkew(2, -3)
+		.setPivot(0.25, 0.5, true)
+		.setAlpha(0.6)
+		.setVisible(false)
+		.setTouchable(false)
+		.setGrayed(true)
+		.setCustomData('hero-meta')
+		.setTooltips('hero-tip')
+		.setGroup(group.getId())
+		.setColor('#336699')
+		.setFlip(2)
+		.setFillMethod(1)
+		.setFillOrigin(0)
+		.setFillClockwise(false)
+		.setFillAmount(0.25);
+	comp.addChild(image);
+
+	const input = doc.createGTextInput('input');
+	input
+		.setId('input01')
+		.setXY(80, 120)
+		.setSize(200, 36)
+		.setText('hello')
+		.setFont('ui://childpkg/font')
+		.setFontSize(18)
+		.setColor('#224466')
+		.setPromptText('enter name')
+		.setRestrict('A-Za-z')
+		.setMaxLength(12)
+		.setKeyboardType(4)
+		.setPassword(true);
+	comp.addChild(input);
+
+	const loader3d = doc.createGLoader3D('loader3d');
+	loader3d
+		.setId('ldr3d01')
+		.setXY(320, 90)
+		.setSize(140, 140)
+		.setUrl('ui://childpkg/model')
+		.setAlign(1)
+		.setVAlign(2)
+		.setFill(5)
+		.setShrinkOnly(true)
+		.setAutoSize(true)
+		.setAnimationName('idle')
+		.setSkinName('skinA')
+		.setPlaying(false)
+		.setFrame(7)
+		.setLoop(false)
+		.setColor('#445566');
+	comp.addChild(loader3d);
+
+	const button = doc.createGButton('action');
+	button
+		.setId('btn01')
+		.setSrc('ui://childpkg/button')
+		.setXY(480, 40)
+		.setSize(120, 50)
+		.setTitle('确认')
+		.setSelectedTitle('已确认')
+		.setIcon('ui://childpkg/iconA')
+		.setSelectedIcon('ui://childpkg/iconB')
+		.setTitleColor('#AA5500')
+		.setTitleFontSize(22);
+	comp.addChild(button);
+
+	pkg.addResource(comp);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-bw-'));
+	const outPath = path.join(tmpDir, 'component_child_blocks.bytes');
+
+	try {
+		await io.writeBinary(doc, outPath);
+		const roundTripped = await io.readBinary(outPath);
+		const roundTripComp = roundTripped.getRoot().getPackage('ChildPkg')?.getComponent('ChildHost');
+		t.truthy(roundTripComp, 'round-tripped component exists');
+		t.is(roundTripComp?.listChildren().length, 5);
+
+		const rtGroup = roundTripComp?.listChildren().find((child) => child.getId() === 'group01');
+		t.truthy(rtGroup, 'group child exists');
+		t.is(rtGroup?.propertyType, 'GGroup');
+
+		const rtImage = roundTripComp?.listChildren().find((child) => child.getId() === 'img01');
+		t.truthy(rtImage, 'image child exists');
+		t.is(rtImage?.propertyType, 'GImage');
+		const typedImage = rtImage as any;
+		t.is(typedImage.getSrc(), 'ui://childpkg/hero');
+		t.is(typedImage.getX(), 30);
+		t.is(typedImage.getY(), 40);
+		t.is(typedImage.getWidth(), 120);
+		t.is(typedImage.getHeight(), 90);
+		t.is(typedImage.getScaleX(), 1.5);
+		t.is(typedImage.getScaleY(), 0.75);
+		t.is(typedImage.getSkewX(), 2);
+		t.is(typedImage.getSkewY(), -3);
+		t.is(typedImage.getPivotX(), 0.25);
+		t.is(typedImage.getPivotY(), 0.5);
+		t.true(typedImage.getPivotAsAnchor());
+		t.true(Math.abs(typedImage.getAlpha() - 0.6) < 1e-6);
+		t.false(typedImage.getVisible());
+		t.false(typedImage.getTouchable());
+		t.true(typedImage.getGrayed());
+		t.is(typedImage.getCustomData(), 'hero-meta');
+		t.is(typedImage.getTooltips(), 'hero-tip');
+		t.is(typedImage.getGroup(), 'group01');
+		t.is(typedImage.getColor(), '#336699');
+		t.is(typedImage.getFlip(), 2);
+		t.is(typedImage.getFillMethod(), 1);
+		t.is(typedImage.getFillOrigin(), 0);
+		t.false(typedImage.getFillClockwise());
+		t.true(Math.abs(typedImage.getFillAmount() - 0.25) < 1e-6);
+
+		const rtInput = roundTripComp?.listChildren().find((child) => child.getId() === 'input01');
+		t.truthy(rtInput, 'text input child exists');
+		t.is(rtInput?.propertyType, 'GTextInput');
+		const typedInput = rtInput as any;
+		t.is(typedInput.getText(), 'hello');
+		t.is(typedInput.getFont(), 'ui://childpkg/font');
+		t.is(typedInput.getFontSize(), 18);
+		t.is(typedInput.getColor(), '#224466');
+		t.is(typedInput.getPromptText(), 'enter name');
+		t.is(typedInput.getRestrict(), 'A-Za-z');
+		t.is(typedInput.getMaxLength(), 12);
+		t.is(typedInput.getKeyboardType(), 4);
+		t.true(typedInput.getPassword());
+
+		const rtLoader3d = roundTripComp?.listChildren().find((child) => child.getId() === 'ldr3d01');
+		t.truthy(rtLoader3d, 'loader3d child exists');
+		t.is(rtLoader3d?.propertyType, 'GLoader3D');
+		const typedLoader3d = rtLoader3d as any;
+		t.is(typedLoader3d.getUrl(), 'ui://childpkg/model');
+		t.is(typedLoader3d.getAlign(), 1);
+		t.is(typedLoader3d.getVAlign(), 2);
+		t.is(typedLoader3d.getFill(), 5);
+		t.true(typedLoader3d.getShrinkOnly());
+		t.true(typedLoader3d.getAutoSize());
+		t.is(typedLoader3d.getAnimationName(), 'idle');
+		t.is(typedLoader3d.getSkinName(), 'skinA');
+		t.false(typedLoader3d.getPlaying());
+		t.is(typedLoader3d.getFrame(), 7);
+		t.false(typedLoader3d.getLoop());
+		t.is(typedLoader3d.getColor(), '#445566');
+
+		const rtButton = roundTripComp?.listChildren().find((child) => child.getId() === 'btn01');
+		t.truthy(rtButton, 'button child exists');
+		t.is(rtButton?.propertyType, 'GButton');
+		const typedButton = rtButton as any;
+		t.is(typedButton.getSrc(), 'ui://childpkg/button');
+		t.is(typedButton.getTitle(), '确认');
+		t.is(typedButton.getSelectedTitle(), '已确认');
+		t.is(typedButton.getIcon(), 'ui://childpkg/iconA');
+		t.is(typedButton.getSelectedIcon(), 'ui://childpkg/iconB');
+		t.is(typedButton.getTitleColor(), '#AA5500');
+		t.is(typedButton.getTitleFontSize(), 22);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('binary writer: component structured objects round-trip into formal models', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('StructuredPkg');
+	pkg.setId('structpkg');
+
+	const comp = doc.createComponent('StructuredHost');
+	comp
+		.setId('structured01')
+		.setSize(400, 240);
+
+	const state = doc.createController('state');
+	state
+		.setAutoRadioGroupDepth(true);
+
+	const pageIdle = doc.createControllerPage('Idle');
+	pageIdle.setId('p_idle');
+	const pageActive = doc.createControllerPage('Active');
+	pageActive.setId('p_active');
+	state.addPage(pageIdle);
+	state.addPage(pageActive);
+
+	const action = doc.createControllerAction('stateAction');
+	action.setActionType(1);
+	state.addAction(action);
+	comp.addController(state);
+
+	const bg = doc.createGImage('bg');
+	bg
+		.setId('bg01')
+		.setSrc('ui://structpkg/bg')
+		.setXY(20, 30)
+		.setSize(160, 90);
+	comp.addChild(bg);
+
+	const title = doc.createGTextField('title');
+	title
+		.setId('title01')
+		.setXY(48, 64)
+		.setText('Ready');
+	comp.addChild(title);
+
+	comp.addRelation({ target: 'title01', type: 0, usePercent: false });
+	bg.addRelation({ target: 'title01', type: 14, usePercent: true });
+
+	const gear = doc.createGear('bgXY');
+	gear
+		.setGearType(1)
+		.setController(state)
+		.setPages('p_idle,p_active')
+		.setValues('10,20,0.1,0.2|30,40,0.3,0.4')
+		.setDefaultValue('0,0,0.5,0.6')
+		.setTween(true)
+		.setEaseType(6)
+		.setTweenDuration(0.8)
+		.setTweenDelay(0.1)
+		.setPositionsInPercent(true);
+	bg.addGear(gear);
+
+	const transition = doc.createTransition('appear');
+	transition
+		.setAutoPlay(true)
+		.setAutoPlayTimes(2)
+		.setAutoPlayDelay(0.25);
+
+	const move = doc.createTransitionItem('move');
+	move
+		.setActionType(0)
+		.setTime(12)
+		.setTargetId('bg01')
+		.setLabel('start')
+		.setTween(true)
+		.setDuration(24)
+		.setEaseType(5)
+		.setRepeat(1)
+		.setYoyo(false)
+		.setEndLabel('finish')
+		.setStartValue(['0', '0'])
+		.setEndValue(['100', '50'])
+		.setPath('0,10,20');
+	transition.addItem(move);
+
+	const sound = doc.createTransitionItem('sound');
+	sound
+		.setActionType(9)
+		.setTime(6)
+		.setTween(false)
+		.setStartValue(['ui://structpkg/click', '80']);
+	transition.addItem(sound);
+	comp.addTransition(transition);
+
+	pkg.addResource(comp);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-bw-'));
+	const outPath = path.join(tmpDir, 'component_structured_objects.bytes');
+
+	try {
+		await io.writeBinary(doc, outPath);
+		const roundTripped = await io.readBinary(outPath);
+		const decoded = roundTripped.getRoot().getPackage('StructuredPkg')?.getComponent('StructuredHost');
+		t.truthy(decoded, 'round-tripped component exists');
+
+		const controllers = decoded?.listControllers() ?? [];
+		t.is(controllers.length, 1);
+		t.is(controllers[0]?.getName(), 'state');
+		t.true(controllers[0]?.getAutoRadioGroupDepth() ?? false);
+		t.deepEqual(
+			controllers[0]?.listPages().map((page) => ({ id: page.getId(), name: page.getName() })),
+			[
+				{ id: 'p_idle', name: 'Idle' },
+				{ id: 'p_active', name: 'Active' },
+			],
+		);
+		t.is(controllers[0]?.listActions()[0]?.getActionType(), 1);
+
+		t.deepEqual(decoded?.getRelations(), [{ target: 'title01', type: 0, usePercent: false }]);
+
+		const decodedBg = decoded?.listChildren().find((child) => child.getId() === 'bg01') as any;
+		t.truthy(decodedBg, 'child image exists');
+		t.deepEqual(decodedBg.getRelations(), [{ target: 'title01', type: 14, usePercent: true }]);
+		t.is(decodedBg.listGears().length, 1);
+		const decodedGear = decodedBg.listGears()[0];
+		t.is(decodedGear.getGearType(), 1);
+		t.is(decodedGear.getController()?.getName(), 'state');
+		t.is(decodedGear.getPages(), 'p_idle,p_active');
+		t.is(decodedGear.getValues(), '10,20,0.1,0.2|30,40,0.3,0.4');
+		t.is(decodedGear.getDefaultValue(), '0,0,0.5,0.6');
+		t.true(decodedGear.getTween());
+		t.is(decodedGear.getEaseType(), 6);
+		t.true(decodedGear.getPositionsInPercent());
+
+		const transitions = decoded?.listTransitions() ?? [];
+		t.is(transitions.length, 1);
+		t.is(transitions[0]?.getName(), 'appear');
+		t.true(transitions[0]?.getAutoPlay() ?? false);
+		t.is(transitions[0]?.getAutoPlayTimes(), 2);
+		t.true(Math.abs((transitions[0]?.getAutoPlayDelay() ?? 0) - 0.25) < 1e-6);
+		t.is(transitions[0]?.listItems().length, 2);
+		t.deepEqual(
+			transitions[0]?.listItems().map((item) => ({
+				actionType: item.getActionType(),
+				targetId: item.getTargetId(),
+				tween: item.getTween(),
+				startValue: item.getStartValue(),
+				endValue: item.getEndValue(),
+				label: item.getLabel(),
+			})),
+			[
+				{
+					actionType: 0,
+					targetId: 'bg01',
+					tween: true,
+					startValue: ['0', '0'],
+					endValue: ['100', '50'],
+					label: 'start',
+				},
+				{
+					actionType: 9,
+					targetId: '',
+					tween: false,
+					startValue: ['ui://structpkg/click', '80'],
+					endValue: [],
+					label: '',
+				},
+			],
+		);
+		t.is(transitions[0]?.listItems()[0]?.getEndLabel(), 'finish');
+		t.is(transitions[0]?.listItems()[0]?.getPath(), '0,10,20');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
