@@ -8,6 +8,10 @@ const PROJECT_PATH = path.resolve(
 	__dirname,
 	'../../../referer/UIProject/FairyGUI-Unity-Examples/FairyGUI-Unity-Examples.fairy',
 );
+const EDITOR_PROJECT_PATH = path.resolve(
+	__dirname,
+	'../../../referer/FairyGUI-Editor/ui/FairyGUI-Editor.fairy',
+);
 
 // Shared: read the project once for all tests in this file.
 let _doc: Awaited<ReturnType<NodeIO['readProject']>>;
@@ -17,6 +21,15 @@ async function getDoc() {
 		_doc = await io.readProject(PROJECT_PATH);
 	}
 	return _doc;
+}
+
+let _editorDoc: Awaited<ReturnType<NodeIO['readProject']>>;
+async function getEditorDoc() {
+	if (!_editorDoc) {
+		const io = new NodeIO();
+		_editorDoc = await io.readProject(EDITOR_PROJECT_PATH);
+	}
+	return _editorDoc;
 }
 
 test('reads project metadata', async (t) => {
@@ -196,6 +209,108 @@ test('TreeView package preserves tree list attrs and item hierarchy', async (t) 
 			{ title: 'Leaf 1', icon: 'ui://5nx1f8vzua5o7', level: 1, isFolder: false },
 		],
 	);
+});
+
+test('Bag package preserves list colGap and selectionController from source XML', async (t) => {
+	const doc = await getDoc();
+	const bagPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Bag')!;
+	const bagWin = bagPkg.listComponents().find((c) => c.getName() === 'BagWin')!;
+	const byId = new Map(bagWin.listChildren().map((child) => [child.getId(), child as any]));
+
+	const pagedList = byId.get('n8');
+	t.truthy(pagedList, 'paged list exists');
+	t.is(pagedList?.getColumnGap?.(), 5, 'list keeps colGap from XML');
+	t.is(pagedList?.getPageController?.(), 'page', 'list keeps pageController from XML');
+
+	const pageDots = byId.get('n25_osdo');
+	t.truthy(pageDots, 'page dot list exists');
+	t.is(pageDots?.getColumnGap?.(), 40, 'row list keeps colGap from XML');
+	t.is(pageDots?.getSelectionController?.(), 'page', 'row list keeps selectionController from XML');
+	t.is(pageDots?.getSelectionMode?.(), ListSelectionMode.Single, 'selection mode remains default when XML omits it');
+});
+
+test('FairyGUI-Editor samples preserve lineItemCount/autoItemSize and group visibility attrs', async (t) => {
+	const doc = await getEditorDoc();
+	const builderPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+
+	const viewGrid = builderPkg.listComponents().find((c) => c.getName() === 'ViewGrid')!;
+	const viewGridById = new Map(viewGrid.listChildren().map((child) => [child.getId(), child as any]));
+	const flowTabs = viewGridById.get('n9_gzi6');
+	t.truthy(flowTabs, 'ViewGrid flow list exists');
+	t.is(flowTabs?.getColumnGap?.(), -1, 'ViewGrid flow list keeps colGap');
+	t.is(flowTabs?.getLineCount?.(), 9999, 'ViewGrid flow list keeps lineItemCount');
+	t.true(flowTabs?.getAutoResizeItem?.(), 'ViewGrid flow list keeps autoItemSize=true');
+
+	const chooseFont = builderPkg.listComponents().find((c) => c.getName() === 'ChooseFontDialog')!;
+	const chooseFontById = new Map(chooseFont.listChildren().map((child) => [child.getId(), child as any]));
+	const tabGroup = chooseFontById.get('n49_g5bp');
+	t.truthy(tabGroup, 'ChooseFontDialog group exists');
+	t.true(tabGroup?.getAdvanced?.(), 'group keeps advanced attr');
+	t.is(tabGroup?.getColumnGap?.(), 1, 'group keeps colGap attr');
+	t.true(tabGroup?.getExcludeInvisibles?.(), 'group keeps excludeInvisibles attr');
+});
+
+test('FairyGUI-Editor samples preserve component root scroll/restrict attrs and loader/richtext display attrs', async (t) => {
+	const doc = await getEditorDoc();
+	const root = doc.getRoot();
+	const builderPkg = root.listPackages().find((p) => p.getName() === 'Builder')!;
+	const basicPkg = root.listPackages().find((p) => p.getName() === 'Basic')!;
+
+	const inspectorView = builderPkg.listComponents().find((c) => c.getName() === 'InspectorView')!;
+	t.is(inspectorView.getMinWidth?.(), 286, 'component root keeps restrictSize minWidth');
+
+	const docContainer = builderPkg.listComponents().find((c) => c.getName() === 'DocContainer')!;
+	t.is(docContainer.getOverflow?.(), 2, 'component root keeps overflow=scroll');
+	t.is(docContainer.getScrollType?.(), 2, 'component root keeps scroll=both');
+
+	const buttonWithIcon = basicPkg.listComponents().find((c) => c.getName() === 'ButtonWithIcon')!;
+	const iconLoader = buttonWithIcon.listChildren().find((child) => child.getName() === 'icon') as any;
+	t.truthy(iconLoader, 'ButtonWithIcon icon loader exists');
+	t.is(iconLoader?.getUrl?.(), 'ui://2pshu6oix5ao5k', 'loader keeps url attr');
+	t.is(iconLoader?.getFill?.(), 1, 'loader keeps fill=scale');
+	t.true(iconLoader?.getShrinkOnly?.(), 'loader keeps shrinkOnly attr');
+
+	const recentItem = builderPkg.listComponents().find((c) => c.getName() === 'RecentItem')!;
+	const title = recentItem.listChildren().find((child) => child.getName() === 'title') as any;
+	t.truthy(title, 'RecentItem richtext exists');
+	t.true(title?.getUbbEnabled?.(), 'richtext keeps ubb attr');
+	t.true(title?.getSingleLine?.(), 'richtext keeps singleLine attr');
+	t.is(title?.getText?.(), '[url=xx]FairyGUI-Unity-Demo[/url]', 'richtext keeps text attr');
+});
+
+test('FairyGUI-Editor samples preserve component instance attrs and extension overlays', async (t) => {
+	const doc = await getEditorDoc();
+	const basicPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Basic')!;
+
+	const colorPickerPopup = basicPkg.listComponents().find((c) => c.getName() === 'ColorPickerPopup')!;
+	const popupById = new Map(colorPickerPopup.listChildren().map((child) => [child.getId(), child as any]));
+	const currentColorValue = popupById.get('n3');
+	t.truthy(currentColorValue, 'ColorPickerPopup currentColorValue exists');
+	t.is(currentColorValue?.getSrc?.(), 'gcza1s', 'component instance keeps src attr');
+	t.is(currentColorValue?.getControllerOverrides?.(), 'noBorder,0,showClear,0', 'component instance keeps controller override attr');
+
+	const alphaInput = popupById.get('n7');
+	t.truthy(alphaInput, 'ColorPickerPopup alphaInput exists');
+	t.is(alphaInput?.getInstanceExtType?.(), 'Label', 'component instance keeps Label overlay type');
+	t.is(alphaInput?.getInstanceTitle?.(), '100', 'Label overlay title survives');
+
+	const moreButton = popupById.get('n15_mkkf');
+	t.truthy(moreButton, 'ColorPickerPopup more button exists');
+	t.is(moreButton?.getInstanceExtType?.(), 'Button', 'component instance keeps Button overlay type');
+	t.is(moreButton?.getInstanceIcon?.(), 'ui://nk9ejx23t64x7iuex', 'Button overlay icon survives');
+
+	const colorPickerDialog = basicPkg.listComponents().find((c) => c.getName() === 'ColorPickerDialog')!;
+	const dialogById = new Map(colorPickerDialog.listChildren().map((child) => [child.getId(), child as any]));
+	const okButton = dialogById.get('n23_ss7s');
+	t.truthy(okButton, 'ColorPickerDialog ok button exists');
+	t.is(okButton?.getInstanceExtType?.(), 'Button', 'button instance keeps Button overlay type');
+	t.is(okButton?.getInstanceTitle?.(), '确定', 'Button overlay title survives');
+
+	const hueSlider = dialogById.get('n42_mkkf');
+	t.truthy(hueSlider, 'ColorPickerDialog hueSlider exists');
+	t.is(hueSlider?.getInstanceExtType?.(), 'Slider', 'slider instance keeps Slider overlay type');
+	t.is(hueSlider?.getInstanceValue?.(), 47, 'Slider overlay value survives');
+	t.is(hueSlider?.getInstanceMax?.(), 360, 'Slider overlay max survives');
 });
 
 test('TreeView package resolves default tree item template semantics', async (t) => {

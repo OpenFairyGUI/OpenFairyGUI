@@ -591,6 +591,153 @@ test('round-trip: loader useResize and text strikethrough attrs survive write→
 	}
 });
 
+test('writer: uses canonical XML attr names for component root, loader, richtext, loader3D, input text, group, and list nodes', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectId('proj-xml-protocol').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('ProtocolDemo');
+	pkg.setId('pkgProtocol');
+
+	const comp = doc.createComponent('CanonicalAttrs');
+	comp.setId('compProtocol');
+	comp.setPath('/');
+	comp.setSize(320, 240);
+	comp.setPivotX(0.5);
+	comp.setPivotY(0.5);
+	comp.setPivotAsAnchor(true);
+	comp.setMinWidth(120);
+	comp.setOverflow(2);
+	comp.setScrollType(2);
+	comp.setScrollBarDisplay(2);
+	comp.setScrollBarFlags(1184);
+
+	const group = doc.createGGroup('toolbar');
+	group.setId('g0');
+	group.setAdvanced(true);
+	group.setColumnGap(5);
+	group.setExcludeInvisibles(true);
+
+	const loader = doc.createGLoader('icon');
+	loader.setId('n-1');
+	loader.setUrl('ui://pkgProtocol/icon');
+	loader.setFill(1);
+	loader.setShrinkOnly(true);
+	loader.setUseResize(true);
+
+	const loader3d = doc.createGLoader3D('avatar');
+	loader3d.setId('n0');
+	loader3d.setUrl('ui://pkgProtocol/avatar');
+	loader3d.setAnimationName('idle');
+	loader3d.setLoop(false);
+
+	const input = doc.createGTextInput('search');
+	input.setId('n1');
+	input.setPromptText('Search here');
+	input.setMaxLength(24);
+	input.setRestrict('A-Z');
+	input.setPassword(true);
+	input.setKeyboardType(2);
+
+	const richText = doc.createGRichTextField('summary');
+	richText.setId('n1_5');
+	richText.setText('[url=detail]detail[/url]');
+	richText.setFont('ui://pkgProtocol/font');
+	richText.setFontSize(18);
+	richText.setAlign(1);
+	richText.setVAlign(1);
+	richText.setAutoSize(0);
+	richText.setSingleLine(true);
+	richText.setUbbEnabled(true);
+	richText.setLeading(6);
+	richText.setBold(true);
+	richText.setStrokeColor('#ffffff');
+	richText.setStrokeSize(2);
+	richText.setShadowColor('#000000');
+	richText.setShadowOffset({ x: 1, y: 2 });
+
+	const list = doc.createGList('tabs');
+	list.setId('n2');
+	list.setLayout(2);
+	list.setColumnGap(8);
+	list.setLineCount(9999);
+	list.setAutoResizeItem(false);
+	list.setSelectionController('page');
+	list.setDefaultItem('ui://pkgProtocol/tab');
+
+	comp.addChild(loader);
+	comp.addChild(group);
+	comp.addChild(loader3d);
+	comp.addChild(input);
+	comp.addChild(richText);
+	comp.addChild(list);
+	pkg.addResource(comp);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-protocol-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+
+		const componentXml = await fs.readFile(path.join(tmpDir, 'assets', 'ProtocolDemo', 'CanonicalAttrs.xml'), 'utf-8');
+		t.true(componentXml.includes('pivot="0.5,0.5"'), 'component root writes canonical pivot attr');
+		t.true(/anchor(?:="true")?/.test(componentXml), 'component root writes canonical anchor attr');
+		t.true(componentXml.includes('restrictSize="120,0,0,0"'), 'component root writes canonical restrictSize attr');
+		t.true(componentXml.includes('scrollBarFlags="1184"'), 'component root writes canonical scrollBarFlags attr');
+		t.true(componentXml.includes('<loader'), 'loader node is written');
+		t.true(componentXml.includes('useResize="1"'), 'loader writes canonical useResize attr');
+		t.true(componentXml.includes('fill="scale"'), 'loader writes canonical fill attr');
+		t.true(componentXml.includes('<richtext'), 'richtext node is written');
+		t.true(componentXml.includes('font="ui://pkgProtocol/font"'), 'richtext writes canonical font attr');
+		t.true(/singleLine(?:="true")?/.test(componentXml), 'richtext writes canonical singleLine attr');
+		t.true(/ubb(?:="true")?/.test(componentXml), 'richtext writes canonical ubb attr');
+		t.true(componentXml.includes('strokeColor="#ffffff"'), 'richtext writes canonical strokeColor attr');
+		t.true(componentXml.includes('shadowOffset="1,2"'), 'richtext writes canonical shadowOffset attr');
+		t.true(componentXml.includes('animation="idle"'), 'loader3D uses canonical animation attr');
+		t.false(componentXml.includes('animationName='), 'loader3D no longer writes model field name');
+		t.true(componentXml.includes('prompt="Search here"'), 'text input uses canonical prompt attr');
+		t.false(componentXml.includes('promptText='), 'text input no longer writes model field name');
+		t.true(componentXml.includes('colGap="5"'), 'group uses canonical colGap attr');
+		t.true(/excludeInvisibles(?:="true")?/.test(componentXml), 'group writes excludeInvisibles attr');
+		t.true(componentXml.includes('colGap="8"'), 'list uses canonical colGap attr');
+		t.true(componentXml.includes('lineItemCount="9999"'), 'list uses canonical lineItemCount attr');
+		t.true(componentXml.includes('autoItemSize="false"'), 'list uses canonical autoItemSize attr');
+		t.false(componentXml.includes('columnGap='), 'writer no longer emits legacy columnGap attr');
+		t.true(componentXml.includes('selectionController="page"'), 'list writes selectionController attr');
+
+		const doc2 = await io.readProject(outFairy);
+		const comp2 = doc2.getRoot().getPackage('ProtocolDemo')?.listComponents().find((item) => item.getName() === 'CanonicalAttrs');
+		t.truthy(comp2, 'CanonicalAttrs component exists after round-trip');
+		t.true(comp2?.getPivotAsAnchor?.(), 'component root anchor survives round-trip');
+		t.is(comp2?.getMinWidth?.(), 120, 'component root restrictSize survives round-trip');
+		t.is(comp2?.getOverflow?.(), 2, 'component root overflow survives round-trip');
+		t.is(comp2?.getScrollBarFlags?.(), 1184, 'component root scrollBarFlags survive round-trip');
+
+		const byId = new Map(comp2!.listChildren().map((child) => [child.getId(), child as any]));
+		t.true(byId.get('n-1')?.getUseResize?.(), 'loader useResize survives round-trip');
+		t.is(byId.get('n-1')?.getFill?.(), 1, 'loader fill survives round-trip');
+		t.is(byId.get('g0')?.getColumnGap?.(), 5, 'group colGap survives round-trip');
+		t.true(byId.get('g0')?.getExcludeInvisibles?.(), 'group excludeInvisibles survives round-trip');
+		t.is(byId.get('n0')?.getAnimationName?.(), 'idle', 'loader3D animation survives round-trip');
+		t.false(byId.get('n0')?.getLoop?.(), 'loader3D loop survives round-trip');
+		t.is(byId.get('n1')?.getPromptText?.(), 'Search here', 'text input prompt survives round-trip');
+		t.is(byId.get('n1')?.getMaxLength?.(), 24, 'text input maxLength survives round-trip');
+		t.is(byId.get('n1')?.getRestrict?.(), 'A-Z', 'text input restrict survives round-trip');
+		t.true(byId.get('n1')?.getPassword?.(), 'text input password survives round-trip');
+		t.is(byId.get('n1')?.getKeyboardType?.(), 2, 'text input keyboardType survives round-trip');
+		t.is(byId.get('n1_5')?.getFont?.(), 'ui://pkgProtocol/font', 'richtext font survives round-trip');
+		t.true(byId.get('n1_5')?.getUbbEnabled?.(), 'richtext ubb survives round-trip');
+		t.true(byId.get('n1_5')?.getSingleLine?.(), 'richtext singleLine survives round-trip');
+		t.is(byId.get('n1_5')?.getStrokeSize?.(), 2, 'richtext strokeSize survives round-trip');
+		t.is(byId.get('n2')?.getColumnGap?.(), 8, 'list colGap survives round-trip');
+		t.is(byId.get('n2')?.getLineCount?.(), 9999, 'list lineItemCount survives round-trip');
+		t.false(byId.get('n2')?.getAutoResizeItem?.(), 'list autoItemSize survives round-trip');
+		t.is(byId.get('n2')?.getSelectionController?.(), 'page', 'list selectionController survives round-trip');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('round-trip: list scroll attrs and static items survive write→read', async (t) => {
 	const doc = new Document();
 	doc.getRoot().setProjectId('test-project').setProjectType(0).setVersion('3.0');
@@ -931,6 +1078,28 @@ test('round-trip: component extension definition and instance extension attrs su
 
 	try {
 		await io.writeProject(doc, outFairy);
+		const hostXml = await fs.readFile(path.join(tmpDir, 'assets', 'Demo5', 'Host.xml'), 'utf-8');
+		const buttonDefXml = await fs.readFile(path.join(tmpDir, 'assets', 'Demo5', 'ExtendedButton.xml'), 'utf-8');
+		const comboDefXml = await fs.readFile(path.join(tmpDir, 'assets', 'Demo5', 'ExtendedCombo.xml'), 'utf-8');
+
+		t.true(buttonDefXml.includes('<Button'), 'button definition writes Button extension node');
+		t.true(buttonDefXml.includes('mode="Radio"'), 'button definition writes canonical mode attr');
+		t.true(buttonDefXml.includes('sound="ui://pkg005/click"'), 'button definition writes canonical sound attr');
+		t.true(buttonDefXml.includes('downEffect="1"'), 'button definition writes canonical downEffect attr');
+		t.true(comboDefXml.includes('<ComboBox'), 'combo definition writes ComboBox extension node');
+		t.true(comboDefXml.includes('dropdown="ui://pkg005/dropdown"'), 'combo definition writes canonical dropdown attr');
+		t.true(hostXml.includes('controller="button,1"'), 'component instance writes canonical controller override attr');
+		t.true(hostXml.includes('pageController="state"'), 'component instance writes canonical pageController attr');
+		t.true(hostXml.includes('<Button '), 'button instance writes Button overlay node');
+		t.true(hostXml.includes('title="点我"'), 'button instance writes canonical title attr');
+		t.true(hostXml.includes('selectedTitle="已选"'), 'button instance writes canonical selectedTitle attr');
+		t.true(hostXml.includes('selectedIcon="ui://pkg005/icon-selected"'), 'button instance writes canonical selectedIcon attr');
+		t.true(hostXml.includes('titleColor="#ffcc00"'), 'button instance writes canonical titleColor attr');
+		t.true(hostXml.includes('titleFontSize="24"'), 'button instance writes canonical titleFontSize attr');
+		t.true(hostXml.includes('page="1"'), 'button instance writes canonical page attr');
+		t.true(hostXml.includes('checked="1"'), 'button instance writes canonical checked attr');
+		t.true(hostXml.includes('<ComboBox '), 'combo instance writes ComboBox overlay node');
+		t.true(hostXml.includes('visibleItemCount="6"'), 'combo instance writes canonical visibleItemCount attr');
 
 		const doc2 = await io.readProject(outFairy);
 		const pkg2 = doc2.getRoot().getPackage('Demo5');

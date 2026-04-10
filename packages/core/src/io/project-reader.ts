@@ -18,6 +18,7 @@ import {
 	parseSidePair,
 	ensureArray,
 } from '../utils/xml-utils.js';
+import { PROJECT_XML_PROTOCOL, readXmlAttr } from './project-xml-protocol.js';
 import { ReaderContext } from './reader-context.js';
 
 /** Map ease type string to numeric code matching editor's EaseType.parseEaseType. */
@@ -64,6 +65,15 @@ const EXTENSION_TYPE_MAP: Record<string, string> = {
 	Slider: 'GSlider',
 	ScrollBar: 'GScrollBar',
 };
+
+const EXTENSION_PROTOCOL_MAP = {
+	Button: PROJECT_XML_PROTOCOL.buttonExtension,
+	Label: PROJECT_XML_PROTOCOL.labelExtension,
+	ComboBox: PROJECT_XML_PROTOCOL.comboBoxExtension,
+	ProgressBar: PROJECT_XML_PROTOCOL.progressBarExtension,
+	Slider: PROJECT_XML_PROTOCOL.sliderExtension,
+	ScrollBar: PROJECT_XML_PROTOCOL.scrollBarExtension,
+} as const;
 
 // Maps gear XML element names to gear type indices.
 const GEAR_TAG_MAP: Record<string, number> = {
@@ -265,6 +275,8 @@ interface DisplayObjectXmlNode extends Record<string, unknown> {
 	lineGap?: string | number;
 	columnGap?: string | number;
 	colGap?: string | number;
+	lineItemCount?: string | number;
+	autoItemSize?: string | boolean;
 	fill?: string;
 	shrinkOnly?: string | boolean;
 	autoSizeDisabled?: string | boolean;
@@ -284,6 +296,7 @@ interface DisplayObjectXmlNode extends Record<string, unknown> {
 	indent?: string | number;
 	clickToExpand?: string | number;
 	selectionMode?: string;
+	selectionController?: string;
 	overflow?: string;
 	scroll?: string;
 	scrollBarFlags?: string | number;
@@ -794,34 +807,40 @@ export class ProjectReader {
 		const doc = ctx.document;
 
 		// Size
-		if (compNode.size) {
-			const [w, h] = parseSizeString(compNode.size);
+		const compSize = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.size);
+		if (compSize) {
+			const [w, h] = parseSizeString(compSize);
 			comp.setSize(w, h);
 		}
 
 		// Overflow
-		if (compNode.overflow) {
+		const overflow = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.overflow);
+		if (overflow) {
 			const overflowMap: Record<string, number> = { visible: 0, hidden: 1, scroll: 2 };
-			comp.setOverflow?.(overflowMap[compNode.overflow] ?? 0);
+			comp.setOverflow?.(overflowMap[overflow] ?? 0);
 		}
 
 		// Pivot
-		if (compNode.pivot) {
-			const parts = compNode.pivot.split(',');
+		const pivot = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.pivot);
+		if (pivot) {
+			const parts = pivot.split(',');
 			comp.setPivotX?.(parseFloat(parts[0]) || 0);
 			comp.setPivotY?.(parseFloat(parts[1]) || 0);
-			if (compNode.anchor) comp.setPivotAsAnchor?.(parseBool(compNode.anchor));
+			const anchor = readXmlAttr<string | boolean>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.anchor);
+			if (anchor !== undefined) comp.setPivotAsAnchor?.(parseBool(anchor));
 		}
 
 		// Margin
-		if (compNode.margin) {
-			const parts = compNode.margin.split(',').map(Number);
+		const margin = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.margin);
+		if (margin) {
+			const parts = margin.split(',').map(Number);
 			comp.setMargin?.({ top: parts[0] ?? 0, bottom: parts[1] ?? 0, left: parts[2] ?? 0, right: parts[3] ?? 0 });
 		}
 
 		// Restrict size
-		if (compNode.restrictSize) {
-			const parts = compNode.restrictSize.split(',').map(Number);
+		const restrictSize = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.restrictSize);
+		if (restrictSize) {
+			const parts = restrictSize.split(',').map(Number);
 			comp.setMinWidth?.(parts[0] ?? 0);
 			comp.setMaxWidth?.(parts[1] ?? 0);
 			comp.setMinHeight?.(parts[2] ?? 0);
@@ -829,35 +848,45 @@ export class ProjectReader {
 		}
 
 		// Clip softness
-		if (compNode.clipSoftness) {
-			const parts = compNode.clipSoftness.split(',').map(Number);
+		const clipSoftness = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.clipSoftness);
+		if (clipSoftness) {
+			const parts = clipSoftness.split(',').map(Number);
 			comp.setClipSoftness?.({ x: parts[0] ?? 0, y: parts[1] ?? 0 });
 		}
 
 		// Opaque
-		if (compNode.opaque !== undefined) {
-			comp.setOpaque?.(parseBool(compNode.opaque));
+		const opaque = readXmlAttr<string | boolean>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.opaque);
+		if (opaque !== undefined) {
+			comp.setOpaque?.(parseBool(opaque));
 		}
 
 		// Mask / HitTest / Custom data
-		if (compNode.mask !== undefined) comp.setMask?.(compNode.mask);
-		if (compNode.reversedMask !== undefined) comp.setReversedMask?.(parseBool(compNode.reversedMask));
-		if (compNode.hitTest !== undefined) comp.setHitTest?.(compNode.hitTest);
-		if (compNode.customData !== undefined) comp.setCustomData?.(compNode.customData);
+		const mask = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.mask);
+		if (mask !== undefined) comp.setMask?.(mask);
+		const reversedMask = readXmlAttr<string | boolean>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.reversedMask);
+		if (reversedMask !== undefined) comp.setReversedMask?.(parseBool(reversedMask));
+		const hitTest = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.hitTest);
+		if (hitTest !== undefined) comp.setHitTest?.(hitTest);
+		const customData = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.customData);
+		if (customData !== undefined) comp.setCustomData?.(customData);
 
 		// Scroll pane data for overflow=scroll
-		if (compNode.overflow === 'scroll') {
-			if (compNode.scroll) {
+		if (overflow === 'scroll') {
+			const scroll = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.scroll);
+			if (scroll) {
 				const scrollMap: Record<string, number> = { horizontal: 0, vertical: 1, both: 2 };
-				comp.setScrollType?.(scrollMap[compNode.scroll] ?? 1);
+				comp.setScrollType?.(scrollMap[scroll] ?? 1);
 			}
-			if (compNode.scrollBar) {
+			const scrollBar = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBar);
+			if (scrollBar) {
 				const barMap: Record<string, number> = { default: 0, visible: 1, auto: 2, hidden: 3 };
-				comp.setScrollBarDisplay?.(barMap[compNode.scrollBar] ?? 0);
+				comp.setScrollBarDisplay?.(barMap[scrollBar] ?? 0);
 			}
-			if (compNode.scrollBarFlags !== undefined) comp.setScrollBarFlags?.(parseInt2(compNode.scrollBarFlags));
-			if (compNode.scrollBarMargin) {
-				const parts = compNode.scrollBarMargin.split(',').map(Number);
+			const scrollBarFlags = readXmlAttr<string | number>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarFlags);
+			if (scrollBarFlags !== undefined) comp.setScrollBarFlags?.(parseInt2(scrollBarFlags));
+			const scrollBarMargin = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarMargin);
+			if (scrollBarMargin) {
+				const parts = scrollBarMargin.split(',').map(Number);
 				comp.setScrollBarMargin?.({
 					top: parts[0] ?? 0,
 					bottom: parts[1] ?? 0,
@@ -865,51 +894,54 @@ export class ProjectReader {
 					right: parts[3] ?? 0,
 				});
 			}
-			if (compNode.scrollBarRes) {
-				const parts = compNode.scrollBarRes.split(',');
+			const scrollBarRes = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarRes);
+			if (scrollBarRes) {
+				const parts = scrollBarRes.split(',');
 				comp.setVtScrollBarRes?.(parts[0] ?? '');
 				comp.setHzScrollBarRes?.(parts[1] ?? '');
 			}
-			if (compNode.ptrRes) {
-				const parts = compNode.ptrRes.split(',');
+			const ptrRes = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.ptrRes);
+			if (ptrRes) {
+				const parts = ptrRes.split(',');
 				comp.setHeaderRes?.(parts[0] ?? '');
 				comp.setFooterRes?.(parts[1] ?? '');
 			}
 		}
 
 		// Extension type (Button, Label, etc.)
-		if (compNode.extention) {
-			const extType = EXTENSION_TYPE_MAP[compNode.extention];
+		const extention = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.extention);
+		if (extention) {
+			const extType = EXTENSION_TYPE_MAP[extention];
 			if (extType) {
-				comp.setExtensionType?.(compNode.extention);
+				comp.setExtensionType?.(extention);
 				// Parse extension element attributes (e.g. <Button mode="Check" sound="..."/>)
-				const extElement = compNode[compNode.extention] as ExtensionXmlNode | ExtensionXmlNode[] | undefined;
+				const extElement = compNode[extention] as ExtensionXmlNode | ExtensionXmlNode[] | undefined;
 				if (extElement) {
 					const extAttrs = getXmlNode<ExtensionXmlNode>(extElement);
 					if (extAttrs) {
-						switch (compNode.extention) {
+						switch (extention) {
 							case 'Button':
-								if (extAttrs.mode !== undefined) comp.setButtonMode?.(parseButtonMode(extAttrs.mode));
-								if (extAttrs.sound !== undefined) comp.setSound?.(String(extAttrs.sound));
-								if (extAttrs.soundVolumeScale !== undefined) comp.setSoundVolumeScale?.(parseFloat2(extAttrs.soundVolumeScale, 1));
-								if (extAttrs.downEffect !== undefined) comp.setDownEffect?.(parseInt2(extAttrs.downEffect));
-								if (extAttrs.downEffectValue !== undefined) comp.setDownEffectValue?.(parseFloat2(extAttrs.downEffectValue, 0.8));
+								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.mode) !== undefined) comp.setButtonMode?.(parseButtonMode(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.mode)!));
+								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.sound) !== undefined) comp.setSound?.(String(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.sound)));
+								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.soundVolumeScale) !== undefined) comp.setSoundVolumeScale?.(parseFloat2(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.soundVolumeScale), 1));
+								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.downEffect) !== undefined) comp.setDownEffect?.(parseInt2(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.downEffect)));
+								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.downEffectValue) !== undefined) comp.setDownEffectValue?.(parseFloat2(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.downEffectValue), 0.8));
 								break;
 							case 'ComboBox':
-								if (extAttrs.dropdown !== undefined) comp.setDropdown?.(String(extAttrs.dropdown));
+								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.ComboBox.attrs.dropdown) !== undefined) comp.setDropdown?.(String(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.ComboBox.attrs.dropdown)));
 								break;
 							case 'ProgressBar':
-								if (extAttrs.titleType !== undefined) comp.setTitleType?.(parseTitleType(extAttrs.titleType));
-								if (extAttrs.reverse !== undefined) comp.setReverse?.(parseBool(extAttrs.reverse));
+								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.ProgressBar.attrs.titleType) !== undefined) comp.setTitleType?.(parseTitleType(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.ProgressBar.attrs.titleType)!));
+								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.ProgressBar.attrs.reverse) !== undefined) comp.setReverse?.(parseBool(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.ProgressBar.attrs.reverse)));
 								break;
 							case 'Slider':
-								if (extAttrs.titleType !== undefined) comp.setTitleType?.(parseTitleType(extAttrs.titleType));
-								if (extAttrs.reverse !== undefined) comp.setReverse?.(parseBool(extAttrs.reverse));
-								if (extAttrs.wholeNumbers !== undefined) comp.setWholeNumbers?.(parseBool(extAttrs.wholeNumbers));
-								if (extAttrs.changeOnClick !== undefined) comp.setChangeOnClick?.(parseBool(extAttrs.changeOnClick));
+								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Slider.attrs.titleType) !== undefined) comp.setTitleType?.(parseTitleType(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Slider.attrs.titleType)!));
+								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Slider.attrs.reverse) !== undefined) comp.setReverse?.(parseBool(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Slider.attrs.reverse)));
+								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Slider.attrs.wholeNumbers) !== undefined) comp.setWholeNumbers?.(parseBool(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Slider.attrs.wholeNumbers)));
+								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Slider.attrs.changeOnClick) !== undefined) comp.setChangeOnClick?.(parseBool(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Slider.attrs.changeOnClick)));
 								break;
 							case 'ScrollBar':
-								if (extAttrs.fixedGripSize !== undefined) comp.setFixedGripSize?.(parseBool(extAttrs.fixedGripSize));
+								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.ScrollBar.attrs.fixedGripSize) !== undefined) comp.setFixedGripSize?.(parseBool(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.ScrollBar.attrs.fixedGripSize)));
 								break;
 							default:
 								break;
@@ -1127,7 +1159,8 @@ export class ProjectReader {
 				}
 				if (isInputText) {
 					const input = g as ReturnType<Document['createGTextInput']>;
-					if (attrs.prompt !== undefined) input.setPromptText(String(attrs.prompt));
+					const prompt = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.prompt);
+					if (prompt !== undefined) input.setPromptText(String(prompt));
 					if (attrs.maxLength !== undefined) input.setMaxLength(parseInt2(attrs.maxLength));
 					if (attrs.restrict !== undefined) input.setRestrict(String(attrs.restrict));
 					if (attrs.password !== undefined) input.setPassword(parseBool(attrs.password as string | boolean | undefined));
@@ -1138,25 +1171,43 @@ export class ProjectReader {
 			}
 			case 'richtext': {
 				const g = doc.createGRichTextField(name);
-				if (attrs.text !== undefined) g.setText(String(attrs.text));
-				if (attrs.fontSize) g.setFontSize(parseInt2(attrs.fontSize));
-				if (attrs.font) g.setFont(attrs.font);
-				if (attrs.color) g.setColor(attrs.color);
-				if (attrs.align) { const m: Record<string,number> = {left:0,center:1,right:2}; g.setAlign(m[attrs.align]??0); }
-				if (attrs.vAlign) { const m: Record<string,number> = {top:0,middle:1,bottom:2}; g.setVAlign(m[attrs.vAlign]??0); }
-				if (attrs.leading !== undefined) g.setLeading?.(parseInt2(attrs.leading));
-				if (attrs.letterSpacing !== undefined) g.setLetterSpacing?.(parseInt2(attrs.letterSpacing));
-				if (attrs.ubb) g.setUbbEnabled?.(parseBool(attrs.ubb));
-				if (attrs.autoSize) { const m: Record<string,number> = {none:0,both:1,height:2,shrink:3}; g.setAutoSize(m[attrs.autoSize]??1); }
-				if (attrs.singleLine) g.setSingleLine?.(parseBool(attrs.singleLine));
+				const richText = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.text);
+				if (richText !== undefined) g.setText(String(richText));
+				const richTextFontSize = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.fontSize);
+				if (richTextFontSize !== undefined) g.setFontSize(parseInt2(richTextFontSize));
+				const richTextFont = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.font);
+				if (richTextFont) g.setFont(richTextFont);
+				const richTextColor = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.color);
+				if (richTextColor) g.setColor(richTextColor);
+				const richTextAlign = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.align);
+				if (richTextAlign) { const m: Record<string,number> = {left:0,center:1,right:2}; g.setAlign(m[richTextAlign]??0); }
+				const richTextVAlign = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.vAlign);
+				if (richTextVAlign) { const m: Record<string,number> = {top:0,middle:1,bottom:2}; g.setVAlign(m[richTextVAlign]??0); }
+				const richTextLeading = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.leading);
+				if (richTextLeading !== undefined) g.setLeading?.(parseInt2(richTextLeading));
+				const richTextLetterSpacing = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.letterSpacing);
+				if (richTextLetterSpacing !== undefined) g.setLetterSpacing?.(parseInt2(richTextLetterSpacing));
+				const richTextUbb = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.ubb);
+				if (richTextUbb !== undefined) g.setUbbEnabled?.(parseBool(richTextUbb));
+				const richTextAutoSize = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.autoSize);
+				if (richTextAutoSize) { const m: Record<string,number> = {none:0,both:1,height:2,shrink:3}; g.setAutoSize(m[richTextAutoSize]??1); }
+				const richTextSingleLine = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.singleLine);
+				if (richTextSingleLine !== undefined) g.setSingleLine?.(parseBool(richTextSingleLine));
 				if (attrs.underline) g.setUnderline?.(parseBool(attrs.underline));
 				if (attrs.italic) g.setItalic?.(parseBool(attrs.italic));
 				if (attrs.bold) g.setBold?.(parseBool(attrs.bold));
 				if (attrs.strikethrough) g.setStrikethrough?.(parseBool(attrs.strikethrough));
-				if (attrs.strokeColor) { g.setStrokeColor?.(attrs.strokeColor); g.setStrokeSize?.(parseInt2(attrs.strokeSize, 1)); }
-				if (attrs.shadowColor) {
-					g.setShadowColor?.(attrs.shadowColor);
-					const shadowParts = String(attrs.shadowOffset ?? '1,1').split(',');
+				const richTextStrokeColor = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.strokeColor);
+				if (richTextStrokeColor) {
+					g.setStrokeColor?.(richTextStrokeColor);
+					const richTextStrokeSize = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.strokeSize);
+					g.setStrokeSize?.(parseInt2(richTextStrokeSize, 1));
+				}
+				const richTextShadowColor = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.shadowColor);
+				if (richTextShadowColor) {
+					g.setShadowColor?.(richTextShadowColor);
+					const richTextShadowOffset = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.shadowOffset);
+					const shadowParts = String(richTextShadowOffset ?? '1,1').split(',');
 					g.setShadowOffset?.({
 						x: parseFloat(shadowParts[0] ?? '1') || 1,
 						y: parseFloat(shadowParts[1] ?? '1') || 1,
@@ -1182,7 +1233,8 @@ export class ProjectReader {
 				if (attrs.bold) g.setBold?.(parseBool(attrs.bold));
 				if (attrs.strikethrough) g.setStrikethrough?.(parseBool(attrs.strikethrough));
 				if (attrs.strokeColor) { g.setStrokeColor?.(attrs.strokeColor); g.setStrokeSize?.(parseInt2(attrs.strokeSize, 1)); }
-				if (attrs.promptText) g.setPromptText(attrs.promptText);
+				const prompt = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.prompt);
+				if (prompt !== undefined) g.setPromptText(prompt);
 				if (attrs.maxLength) g.setMaxLength(parseInt2(attrs.maxLength));
 				if (attrs.restrict) g.setRestrict(attrs.restrict);
 				if (attrs.password) g.setPassword(parseBool(attrs.password as string | boolean | undefined));
@@ -1226,34 +1278,52 @@ export class ProjectReader {
 					g.setLayout(layoutMap[attrs.layout] ?? 0);
 				}
 				if (attrs.lineGap) g.setLineGap(parseInt2(attrs.lineGap));
-				if (attrs.columnGap) g.setColumnGap(parseInt2(attrs.columnGap));
+				const columnGap = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.group.attrs.columnGap);
+				if (columnGap !== undefined) g.setColumnGap(parseInt2(columnGap));
 				if (attrs.advanced !== undefined) g.setAdvanced(parseBool(attrs.advanced));
+				if (attrs.excludeInvisibles !== undefined) g.setExcludeInvisibles?.(parseBool(attrs.excludeInvisibles));
+				if (attrs.autoSizeDisabled !== undefined) g.setAutoSizeDisabled?.(parseBool(attrs.autoSizeDisabled));
+				if (attrs.mainGridIndex !== undefined) g.setMainGridIndex?.(parseInt2(attrs.mainGridIndex));
 				obj = g;
 				break;
 			}
 			case 'loader': {
 				const g = doc.createGLoader(name);
-				if (attrs.url) g.setUrl(attrs.url);
-				if (attrs.align) { const m: Record<string,number> = {left:0,center:1,right:2}; g.setAlign?.(m[attrs.align]??0); }
-				if (attrs.vAlign) { const m: Record<string,number> = {top:0,middle:1,bottom:2}; g.setVAlign?.(m[attrs.vAlign]??0); }
-				if (attrs.fill) {
+				const loaderUrl = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.url);
+				if (loaderUrl) g.setUrl(loaderUrl);
+				const loaderAlign = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.align);
+				if (loaderAlign) { const m: Record<string,number> = {left:0,center:1,right:2}; g.setAlign?.(m[loaderAlign]??0); }
+				const loaderVAlign = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.vAlign);
+				if (loaderVAlign) { const m: Record<string,number> = {top:0,middle:1,bottom:2}; g.setVAlign?.(m[loaderVAlign]??0); }
+				const loaderFill = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fill);
+				if (loaderFill) {
 					const fillMap: Record<string, number> = {
 						none: 0, scale: 1, scaleMatchHeight: 2, scaleMatchWidth: 3, scaleFree: 4, scaleNoBorder: 5,
 					};
-					g.setFill(fillMap[attrs.fill] ?? 0);
+					g.setFill(fillMap[loaderFill] ?? 0);
 				}
-				if (attrs.shrinkOnly) g.setShrinkOnly?.(parseBool(attrs.shrinkOnly));
-				if (attrs.autoSize) g.setAutoSize?.(parseBool(attrs.autoSize));
-				if (attrs.useResize !== undefined) g.setUseResize?.(parseBool(attrs.useResize));
-				if (attrs.color) g.setColor(attrs.color);
-				if (attrs.playing !== undefined) g.setPlaying?.(parseBool(attrs.playing));
-				if (attrs.frame !== undefined) g.setFrame?.(parseInt2(attrs.frame));
-				if (attrs.fillMethod) {
+				const loaderShrinkOnly = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.shrinkOnly);
+				if (loaderShrinkOnly !== undefined) g.setShrinkOnly?.(parseBool(loaderShrinkOnly));
+				const loaderAutoSize = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.autoSize);
+				if (loaderAutoSize !== undefined) g.setAutoSize?.(parseBool(loaderAutoSize));
+				const useResize = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.useResize);
+				if (useResize !== undefined) g.setUseResize?.(parseBool(useResize));
+				const loaderColor = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.color);
+				if (loaderColor) g.setColor(loaderColor);
+				const loaderPlaying = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.playing);
+				if (loaderPlaying !== undefined) g.setPlaying?.(parseBool(loaderPlaying));
+				const loaderFrame = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.frame);
+				if (loaderFrame !== undefined) g.setFrame?.(parseInt2(loaderFrame));
+				const fillMethod = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fillMethod);
+				if (fillMethod) {
 					const fmMap: Record<string,number> = { none:0, hz:1, vt:2, radial90:3, radial180:4, radial360:5 };
-					g.setFillMethod?.(fmMap[attrs.fillMethod] ?? 0);
-					g.setFillOrigin?.(parseInt2(attrs.fillOrigin));
-					g.setFillClockwise?.(attrs.fillClockwise !== 'false');
-					g.setFillAmount?.(parseInt2(attrs.fillAmount, 100) / 100);
+					g.setFillMethod?.(fmMap[fillMethod] ?? 0);
+					const fillOrigin = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fillOrigin);
+					g.setFillOrigin?.(parseInt2(fillOrigin));
+					const fillClockwise = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fillClockwise);
+					g.setFillClockwise?.(fillClockwise !== 'false');
+					const fillAmount = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fillAmount);
+					g.setFillAmount?.(parseInt2(fillAmount, 100) / 100);
 				}
 				obj = g;
 				break;
@@ -1271,7 +1341,8 @@ export class ProjectReader {
 				}
 				if (attrs.shrinkOnly) g.setShrinkOnly?.(parseBool(attrs.shrinkOnly));
 				if (attrs.autoSize) g.setAutoSize?.(parseBool(attrs.autoSize));
-				if (attrs.animationName !== undefined) g.setAnimationName?.(String(attrs.animationName));
+				const animation = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.animation);
+				if (animation !== undefined) g.setAnimationName?.(String(animation));
 				if (attrs.skinName !== undefined) g.setSkinName?.(String(attrs.skinName));
 				if (attrs.playing !== undefined) g.setPlaying?.(parseBool(attrs.playing));
 				if (attrs.frame !== undefined) g.setFrame?.(parseInt2(attrs.frame));
@@ -1292,9 +1363,12 @@ export class ProjectReader {
 			}
 			case 'component': {
 				const g = doc.createGComponent(name);
-				g.setSrc(attrs.src || '');
-				if (attrs.controller) g.setControllerOverrides?.(attrs.controller);
-				if (attrs.pageController) g.setPageController?.(attrs.pageController);
+				const src = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.src);
+				g.setSrc(src || '');
+				const controllerOverrides = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.controllerOverrides);
+				if (controllerOverrides) g.setControllerOverrides?.(controllerOverrides);
+				const pageController = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.pageController);
+				if (pageController) g.setPageController?.(pageController);
 				obj = g;
 				break;
 			}
@@ -1331,11 +1405,18 @@ export class ProjectReader {
 					g.setLayout(layoutMap[attrs.layout] ?? 0);
 				}
 				if (attrs.lineGap) g.setLineGap(parseInt2(attrs.lineGap));
-				if (attrs.colGap || attrs.columnGap) g.setColumnGap(parseInt2(attrs.colGap || attrs.columnGap));
+				const columnGap = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.columnGap);
+				if (columnGap !== undefined) g.setColumnGap(parseInt2(columnGap));
+				const lineCount = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineCount);
+				if (lineCount !== undefined) g.setLineCount?.(parseInt2(lineCount));
+				const autoResizeItem = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.list.attrs.autoResizeItem);
+				if (autoResizeItem !== undefined) g.setAutoResizeItem?.(parseBool(autoResizeItem));
 				if (attrs.selectionMode) {
 					const selMap: Record<string, number> = { single: 0, multiple: 1, multipleSingleClick: 2, none: 3 };
 					g.setSelectionMode(selMap[attrs.selectionMode] ?? 0);
 				}
+				const selectionController = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.selectionController);
+				if (selectionController !== undefined) g.setSelectionController?.(selectionController);
 				// Overflow & scroll
 				if (attrs.overflow || attrs.scroll || attrs.scrollBarFlags || attrs.margin) {
 					if (attrs.overflow) {
@@ -1442,25 +1523,40 @@ export class ProjectReader {
 		// Parse extension overlay data for child component instances
 		// e.g. <component id="n18" src="rpmb10"><Button title="点我" icon="..."/></component>
 		for (const extTypeName of Object.keys(EXTENSION_TYPE_MAP)) {
-			const extElement = attrs[extTypeName];
+				const extElement = attrs[extTypeName];
 			if (extElement) {
 				const extAttrs = getXmlNode<ExtensionXmlNode>(extElement);
 				if (!extAttrs || obj.propertyType !== 'GComponent') continue;
 				const componentObj = obj as ReturnType<Document['createGComponent']>;
+				const extProtocol = EXTENSION_PROTOCOL_MAP[extTypeName as keyof typeof EXTENSION_PROTOCOL_MAP];
+				const extSpecs = extProtocol.attrs as Record<string, { canonical: string }>;
 				componentObj.setInstanceExtType?.(extTypeName);
-				if (extAttrs.title !== undefined) componentObj.setInstanceTitle?.(extAttrs.title);
-				if (extAttrs.selectedTitle !== undefined) componentObj.setInstanceSelectedTitle?.(extAttrs.selectedTitle);
-				if (extAttrs.icon !== undefined) componentObj.setInstanceIcon?.(extAttrs.icon);
-				if (extAttrs.selectedIcon !== undefined) componentObj.setInstanceSelectedIcon?.(extAttrs.selectedIcon);
-				if (extAttrs.titleColor !== undefined) componentObj.setInstanceTitleColor?.(extAttrs.titleColor);
-				if (extAttrs.titleFontSize !== undefined) componentObj.setInstanceTitleFontSize?.(parseInt2(extAttrs.titleFontSize));
-				if (extAttrs.controller !== undefined) componentObj.setInstanceController?.(extAttrs.controller);
-				if (extAttrs.page !== undefined) componentObj.setInstancePage?.(extAttrs.page);
-				if (extAttrs.checked !== undefined) componentObj.setInstanceChecked?.(parseBool(extAttrs.checked));
-				if (extAttrs.visibleItemCount !== undefined) componentObj.setInstanceVisibleItemCount?.(parseInt2(extAttrs.visibleItemCount));
-				if (extAttrs.value !== undefined) componentObj.setInstanceValue?.(parseInt2(extAttrs.value));
-				if (extAttrs.max !== undefined) componentObj.setInstanceMax?.(parseInt2(extAttrs.max, 100));
-				if (extAttrs.min !== undefined) componentObj.setInstanceMin?.(parseInt2(extAttrs.min));
+				const title = extSpecs.title ? readXmlAttr<string>(extAttrs, extSpecs.title) : undefined;
+				if (title !== undefined) componentObj.setInstanceTitle?.(title);
+				const selectedTitle = extSpecs.selectedTitle ? readXmlAttr<string>(extAttrs, extSpecs.selectedTitle) : undefined;
+				if (selectedTitle !== undefined) componentObj.setInstanceSelectedTitle?.(selectedTitle);
+				const icon = extSpecs.icon ? readXmlAttr<string>(extAttrs, extSpecs.icon) : undefined;
+				if (icon !== undefined) componentObj.setInstanceIcon?.(icon);
+				const selectedIcon = extSpecs.selectedIcon ? readXmlAttr<string>(extAttrs, extSpecs.selectedIcon) : undefined;
+				if (selectedIcon !== undefined) componentObj.setInstanceSelectedIcon?.(selectedIcon);
+				const titleColor = extSpecs.titleColor ? readXmlAttr<string>(extAttrs, extSpecs.titleColor) : undefined;
+				if (titleColor !== undefined) componentObj.setInstanceTitleColor?.(titleColor);
+				const titleFontSize = extSpecs.titleFontSize ? readXmlAttr<string | number>(extAttrs, extSpecs.titleFontSize) : undefined;
+				if (titleFontSize !== undefined) componentObj.setInstanceTitleFontSize?.(parseInt2(titleFontSize));
+				const controller = extSpecs.controller ? readXmlAttr<string>(extAttrs, extSpecs.controller) : undefined;
+				if (controller !== undefined) componentObj.setInstanceController?.(controller);
+				const page = extSpecs.page ? readXmlAttr<string>(extAttrs, extSpecs.page) : undefined;
+				if (page !== undefined) componentObj.setInstancePage?.(page);
+				const checked = extSpecs.checked ? readXmlAttr<string | boolean>(extAttrs, extSpecs.checked) : undefined;
+				if (checked !== undefined) componentObj.setInstanceChecked?.(parseBool(checked));
+				const visibleItemCount = extSpecs.visibleItemCount ? readXmlAttr<string | number>(extAttrs, extSpecs.visibleItemCount) : undefined;
+				if (visibleItemCount !== undefined) componentObj.setInstanceVisibleItemCount?.(parseInt2(visibleItemCount));
+				const value = extSpecs.value ? readXmlAttr<string | number>(extAttrs, extSpecs.value) : undefined;
+				if (value !== undefined) componentObj.setInstanceValue?.(parseInt2(value));
+				const max = extSpecs.max ? readXmlAttr<string | number>(extAttrs, extSpecs.max) : undefined;
+				if (max !== undefined) componentObj.setInstanceMax?.(parseInt2(max, 100));
+				const min = extSpecs.min ? readXmlAttr<string | number>(extAttrs, extSpecs.min) : undefined;
+				if (min !== undefined) componentObj.setInstanceMin?.(parseInt2(min));
 				if (extTypeName === 'ComboBox' && extAttrs.item) {
 					const comboItems = ensureArray(extAttrs.item);
 					componentObj.setInstanceComboItems?.(comboItems.map((item) => ({
