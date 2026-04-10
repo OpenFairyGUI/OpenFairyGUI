@@ -72,6 +72,10 @@ export class Package extends ExtensibleProperty<IPackage> {
 		return this.listRefs('resources') as PackageResource[];
 	}
 
+	public getResourceById(id: string): PackageResource | null {
+		return this.listResources().find((resource) => resource.getId?.() === id) ?? null;
+	}
+
 	public listComponents(): Component[] {
 		return this.listResources().filter((r) => r.propertyType === PropertyType.COMPONENT) as Component[];
 	}

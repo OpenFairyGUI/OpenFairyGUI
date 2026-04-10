@@ -714,21 +714,61 @@ test('round-trip: tree view list attrs and static item hierarchy survive writeâ†
 		t.is(tree?.getIndent?.(), 15);
 		t.is(tree?.getClickToExpand?.(), 1);
 		t.deepEqual(
-			tree?.getListItems?.().map((item) => ({
-				title: item.title,
-				level: item.level,
-				isFolder: item.isFolder,
-			})),
-			[
-				{ title: 'Folder 1', level: 0, isFolder: null },
-				{ title: 'Leaf 1', level: 1, isFolder: null },
-				{ title: 'Leaf 2', level: 1, isFolder: null },
-				{ title: 'Leaf 3', level: 1, isFolder: null },
-				{ title: 'Leaf 4', level: 1, isFolder: null },
-				{ title: 'Folder 2', level: 0, isFolder: null },
-				{ title: 'Leaf 1', level: 1, isFolder: null },
-			],
-		);
+		tree?.getListItems?.().map((item) => ({
+			title: item.title,
+			level: item.level,
+			isFolder: item.isFolder,
+		})),
+		[
+			{ title: 'Folder 1', level: 0, isFolder: true },
+			{ title: 'Leaf 1', level: 1, isFolder: false },
+			{ title: 'Leaf 2', level: 1, isFolder: false },
+			{ title: 'Leaf 3', level: 1, isFolder: false },
+			{ title: 'Leaf 4', level: 1, isFolder: false },
+			{ title: 'Folder 2', level: 0, isFolder: true },
+			{ title: 'Leaf 1', level: 1, isFolder: false },
+		],
+	);
+
+		const template = tree?.inspectDefaultItemTemplate(doc2.getRoot());
+		t.truthy(template, 'tree item template still resolves after round-trip');
+		t.is(template?.component.getName(), 'TreeItem');
+		t.is(template?.expandedController?.getName(), 'expanded');
+		t.is(template?.leafController?.getName(), 'leaf');
+		t.is(template?.indentChild?.getName(), 'indent');
+		t.is(template?.expandButtonChild?.getName(), 'expandButton');
+
+		const runtimeRoot = tree?.buildRuntimeTree();
+		t.truthy(runtimeRoot, 'runtime tree hierarchy resolves after round-trip');
+		t.is(runtimeRoot?.children.length, 2);
+		t.deepEqual(runtimeRoot?.children.map((node) => node.title), ['Folder 1', 'Folder 2']);
+		t.deepEqual(runtimeRoot?.children[0]?.children.map((node) => node.title), ['Leaf 1', 'Leaf 2', 'Leaf 3', 'Leaf 4']);
+		t.deepEqual(runtimeRoot?.children[1]?.children.map((node) => node.title), ['Leaf 1']);
+
+		const collapsed = tree?.collapseAll();
+		t.deepEqual(tree?.listVisibleRuntimeNodes(collapsed).map((node) => node.title), ['Folder 1', 'Folder 2']);
+
+		const selectedLeaf = tree?.selectRuntimeNode(collapsed ?? {}, 6);
+		t.deepEqual(selectedLeaf, {
+			expandedItemIndices: [5],
+			selectedItemIndices: [6],
+			lastSelectedItemIndex: 6,
+		});
+		t.is(tree?.getSelectedRuntimeNode(selectedLeaf)?.title, 'Leaf 1');
+		t.deepEqual(tree?.listVisibleRuntimeNodes(selectedLeaf).map((node) => node.title), ['Folder 1', 'Folder 2', 'Leaf 1']);
+
+		const keyboardExpand = tree?.navigateRuntimeSelection(tree.selectRuntimeNode(collapsed ?? {}, 0), 'right');
+		t.deepEqual(keyboardExpand, {
+			expandedItemIndices: [0],
+			selectedItemIndices: [0],
+			lastSelectedItemIndex: 0,
+		});
+		const keyboardEnterChild = tree?.navigateRuntimeSelection(keyboardExpand ?? {}, 'right');
+		t.deepEqual(keyboardEnterChild, {
+			expandedItemIndices: [0],
+			selectedItemIndices: [1],
+			lastSelectedItemIndex: 1,
+		});
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

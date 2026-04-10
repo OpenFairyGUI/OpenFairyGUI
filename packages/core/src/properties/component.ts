@@ -319,6 +319,14 @@ export class Component extends ExtensibleProperty<IComponent> {
 	public removeChild(child: GObject): this { return this.removeRef('displayList', child); }
 	public listChildren(): GObject[] { return this.listRefs('displayList'); }
 
+	public getChild(name: string): GObject | null {
+		return this.listChildren().find((child) => child.getName() === name) || null;
+	}
+
+	public getChildById(id: string): GObject | null {
+		return this.listChildren().find((child) => child.getId() === id) || null;
+	}
+
 	/****** Controllers ******/
 
 	public addController(ctrl: Controller): this { return this.addRef('controllers', ctrl); }

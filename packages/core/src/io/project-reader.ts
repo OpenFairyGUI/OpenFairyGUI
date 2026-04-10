@@ -122,6 +122,7 @@ interface ControllerXmlNode {
 }
 
 interface ControllerActionXmlNode {
+	[key: string]: unknown;
 	type?: string;
 	fromPage?: string;
 	toPage?: string;
@@ -518,6 +519,41 @@ function getXmlScalar(value: unknown): string {
 		return value.length > 0 ? String(value[0] ?? '') : '';
 	}
 	return value === undefined || value === null ? '' : String(value);
+}
+
+function inferTreeItemFolderFlags(items: Array<{
+	title: string | null;
+	icon: string | null;
+	url: string | null;
+	name: string | null;
+	selectedTitle: string | null;
+	selectedIcon: string | null;
+	level: number;
+	isFolder: boolean | null;
+}>): Array<{
+	title: string | null;
+	icon: string | null;
+	url: string | null;
+	name: string | null;
+	selectedTitle: string | null;
+	selectedIcon: string | null;
+	level: number;
+	isFolder: boolean | null;
+}> {
+	return items.map((item, index) => {
+		if (item.isFolder !== null) return item;
+		const next = items[index + 1];
+		if (next && next.level > item.level) {
+			return { ...item, isFolder: true };
+		}
+		if (next && next.level <= item.level) {
+			return { ...item, isFolder: false };
+		}
+		if (!item.icon && !item.url) {
+			return { ...item, isFolder: true };
+		}
+		return { ...item, isFolder: false };
+	});
 }
 
 export interface FileSystem {
@@ -1264,12 +1300,16 @@ export class ProjectReader {
 			}
 			case 'list': {
 				const isTree = attrs.treeView !== undefined && parseBool(attrs.treeView);
-				const g = isTree ? doc.createGTree(name) : doc.createGList(name);
+				let g;
+				if (isTree) {
+					g = doc.createGTree(name).setTreeView(true);
+					if (attrs.indent !== undefined) g.setIndent(parseInt2(attrs.indent));
+					if (attrs.clickToExpand !== undefined) g.setClickToExpand(parseInt2(attrs.clickToExpand));
+				} else {
+					g = doc.createGList(name);
+				}
 				g.setSrc(attrs.src || '');
 				if (attrs.defaultItem) g.setDefaultItem(attrs.defaultItem);
-				if (isTree) g.setTreeView?.(true);
-				if (isTree && attrs.indent !== undefined) g.setIndent?.(parseInt2(attrs.indent));
-				if (isTree && attrs.clickToExpand !== undefined) g.setClickToExpand?.(parseInt2(attrs.clickToExpand));
 				if (attrs.scrollBarRes) {
 					const parts = String(attrs.scrollBarRes).split(',');
 					g.setVtScrollBarRes?.(parts[0] ?? '');
@@ -1335,7 +1375,7 @@ export class ProjectReader {
 						level: parseInt2(item.level),
 						isFolder: item.isFolder !== undefined ? parseBool(item.isFolder) : null,
 					}));
-					g.setListItems(listItems);
+					g.setListItems(isTree ? inferTreeItemFolderFlags(listItems) : listItems);
 				}
 				obj = g;
 				break;

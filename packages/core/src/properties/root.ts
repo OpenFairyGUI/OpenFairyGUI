@@ -148,4 +148,8 @@ export class Root extends ExtensibleProperty<IRoot> {
 	public getPackage(name: string): Package | null {
 		return this.listPackages().find((p) => p.getName() === name) || null;
 	}
+
+	public getPackageById(id: string): Package | null {
+		return this.listPackages().find((p) => p.getId() === id) || null;
+	}
 }

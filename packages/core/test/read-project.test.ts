@@ -1,7 +1,7 @@
 import test from 'ava';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { NodeIO, PropertyType } from '../src/index.js';
+import { type GTree, ListSelectionMode, NodeIO, PropertyType } from '../src/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_PATH = path.resolve(
@@ -187,13 +187,277 @@ test('TreeView package preserves tree list attrs and item hierarchy', async (t) 
 			isFolder: item.isFolder,
 		})),
 		[
-			{ title: 'Folder 1', icon: null, level: 0, isFolder: null },
-			{ title: 'Leaf 1', icon: 'ui://5nx1f8vzua5o8', level: 1, isFolder: null },
-			{ title: 'Leaf 2', icon: 'ui://5nx1f8vzua5o8', level: 1, isFolder: null },
-			{ title: 'Leaf 3', icon: 'ui://5nx1f8vzua5o8', level: 1, isFolder: null },
-			{ title: 'Leaf 4', icon: 'ui://5nx1f8vzua5o8', level: 1, isFolder: null },
-			{ title: 'Folder 2', icon: null, level: 0, isFolder: null },
-			{ title: 'Leaf 1', icon: 'ui://5nx1f8vzua5o7', level: 1, isFolder: null },
+			{ title: 'Folder 1', icon: null, level: 0, isFolder: true },
+			{ title: 'Leaf 1', icon: 'ui://5nx1f8vzua5o8', level: 1, isFolder: false },
+			{ title: 'Leaf 2', icon: 'ui://5nx1f8vzua5o8', level: 1, isFolder: false },
+			{ title: 'Leaf 3', icon: 'ui://5nx1f8vzua5o8', level: 1, isFolder: false },
+			{ title: 'Leaf 4', icon: 'ui://5nx1f8vzua5o8', level: 1, isFolder: false },
+			{ title: 'Folder 2', icon: null, level: 0, isFolder: true },
+			{ title: 'Leaf 1', icon: 'ui://5nx1f8vzua5o7', level: 1, isFolder: false },
 		],
 	);
+});
+
+test('TreeView package resolves default tree item template semantics', async (t) => {
+	const doc = await getDoc();
+	const treeViewPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'TreeView')!;
+	const main = treeViewPkg.listComponents().find((c) => c.getName() === 'Main')!;
+	const tree = main.listChildren().find((child) => child.getName?.() === 'tree') as ReturnType<Document['createGTree']> | undefined;
+	t.truthy(tree, 'tree child exists');
+
+	const template = tree?.inspectDefaultItemTemplate(doc.getRoot());
+	t.truthy(template, 'default tree item template resolves');
+	t.is(template?.component.getName(), 'TreeItem');
+	t.is(template?.expandedController?.getName(), 'expanded');
+	t.is(template?.leafController?.getName(), 'leaf');
+	t.is(template?.titleChild?.getName(), 'title');
+	t.is(template?.titleChild?.propertyType, PropertyType.G_TEXT_FIELD);
+	t.is(template?.iconChild?.getName(), 'icon');
+	t.is(template?.iconChild?.propertyType, PropertyType.G_LOADER);
+	t.is(template?.indentChild?.getName(), 'indent');
+	t.is(template?.expandButtonChild?.getName(), 'expandButton');
+	t.is(template?.expandButtonChild?.propertyType, PropertyType.G_COMPONENT);
+	t.is(template?.expandButtonChild?.getSrc?.(), 'pmk33');
+});
+
+test('TreeView package builds runtime tree hierarchy semantics', async (t) => {
+	const doc = await getDoc();
+	const treeViewPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'TreeView')!;
+	const main = treeViewPkg.listComponents().find((c) => c.getName() === 'Main')!;
+	const tree = main.listChildren().find((child) => child.getName?.() === 'tree') as ReturnType<Document['createGTree']> | undefined;
+	t.truthy(tree, 'tree child exists');
+
+	const runtimeRoot = tree?.buildRuntimeTree();
+	t.truthy(runtimeRoot, 'runtime root exists');
+	t.true(runtimeRoot?.isFolder ?? false);
+	t.true(runtimeRoot?.expanded ?? false);
+	t.is(runtimeRoot?.level, 0);
+	t.is(runtimeRoot?.children.length, 2);
+
+	const [folder1, folder2] = runtimeRoot?.children ?? [];
+	t.is(folder1?.title, 'Folder 1');
+	t.true(folder1?.isFolder ?? false);
+	t.true(folder1?.expanded ?? false);
+	t.is(folder1?.level, 1);
+	t.is(folder1?.sourceLevel, 0);
+	t.is(folder1?.children.length, 4);
+	t.true(folder1?.children.every((node) => node.parent === folder1));
+	t.true(folder1?.children.every((node) => node.level === 2));
+	t.true(folder1?.children.every((node) => node.isFolder === false));
+	t.true(folder1?.children.every((node) => node.expanded === null));
+	t.deepEqual(folder1?.children.map((node) => node.title), ['Leaf 1', 'Leaf 2', 'Leaf 3', 'Leaf 4']);
+
+	t.is(folder2?.title, 'Folder 2');
+	t.true(folder2?.isFolder ?? false);
+	t.is(folder2?.children.length, 1);
+	t.is(folder2?.children[0]?.title, 'Leaf 1');
+	t.is(folder2?.children[0]?.icon, 'ui://5nx1f8vzua5o7');
+
+	const flattened = tree?.listRuntimeNodes() ?? [];
+	t.deepEqual(flattened.map((node) => node.title), ['Folder 1', 'Leaf 1', 'Leaf 2', 'Leaf 3', 'Leaf 4', 'Folder 2', 'Leaf 1']);
+});
+
+test('TreeView package exposes interactive runtime tree state helpers', async (t) => {
+	const doc = await getDoc();
+	const treeViewPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'TreeView')!;
+	const main = treeViewPkg.listComponents().find((c) => c.getName() === 'Main')!;
+	const tree = main.listChildren().find((child) => child.getName?.() === 'tree') as ReturnType<Document['createGTree']> | undefined;
+	t.truthy(tree, 'tree child exists');
+
+	const defaultState = tree?.createInteractionState();
+	t.deepEqual(defaultState, {
+		expandedItemIndices: [0, 5],
+		selectedItemIndices: [],
+		lastSelectedItemIndex: -1,
+	});
+
+	const collapsed = tree?.collapseAll(defaultState);
+	t.deepEqual(collapsed, {
+		expandedItemIndices: [],
+		selectedItemIndices: [],
+		lastSelectedItemIndex: -1,
+	});
+	t.deepEqual(tree?.listVisibleRuntimeNodes(collapsed).map((node) => node.title), ['Folder 1', 'Folder 2']);
+
+	const folder1Expanded = tree?.setRuntimeNodeExpanded(collapsed ?? {}, 0, true);
+	t.deepEqual(folder1Expanded, {
+		expandedItemIndices: [0],
+		selectedItemIndices: [],
+		lastSelectedItemIndex: -1,
+	});
+	t.deepEqual(tree?.listVisibleRuntimeNodes(folder1Expanded).map((node) => node.title), ['Folder 1', 'Leaf 1', 'Leaf 2', 'Leaf 3', 'Leaf 4', 'Folder 2']);
+
+	const selectedLeaf = tree?.selectRuntimeNode(collapsed ?? {}, 6);
+	t.deepEqual(selectedLeaf, {
+		expandedItemIndices: [5],
+		selectedItemIndices: [6],
+		lastSelectedItemIndex: 6,
+	});
+	t.is(tree?.getSelectedRuntimeNode(selectedLeaf)?.title, 'Leaf 1');
+	t.deepEqual(tree?.listVisibleRuntimeNodes(selectedLeaf).map((node) => node.title), ['Folder 1', 'Folder 2', 'Leaf 1']);
+
+	const toggled = tree?.toggleRuntimeNodeExpanded(defaultState ?? {}, 5);
+	t.deepEqual(toggled, {
+		expandedItemIndices: [0],
+		selectedItemIndices: [],
+		lastSelectedItemIndex: -1,
+	});
+
+	const expandedAll = tree?.expandAll(collapsed ?? {});
+	t.deepEqual(expandedAll, {
+		expandedItemIndices: [0, 5],
+		selectedItemIndices: [],
+		lastSelectedItemIndex: -1,
+	});
+
+	const unselected = tree?.unselectRuntimeNode(selectedLeaf ?? {}, 6);
+	t.deepEqual(unselected, {
+		expandedItemIndices: [5],
+		selectedItemIndices: [],
+		lastSelectedItemIndex: 6,
+	});
+});
+
+test('TreeView package supports multi-select and range-select interaction semantics', async (t) => {
+	const doc = await getDoc();
+	const treeViewPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'TreeView')!;
+	const main = treeViewPkg.listComponents().find((c) => c.getName() === 'Main')!;
+	const sourceTree = main.listChildren().find((child) => child.getName?.() === 'tree') as GTree;
+	const tree = sourceTree.clone();
+	tree.setSelectionMode(ListSelectionMode.Multiple);
+
+	const collapsed = tree.collapseAll();
+	t.deepEqual(collapsed, {
+		expandedItemIndices: [],
+		selectedItemIndices: [],
+		lastSelectedItemIndex: -1,
+	});
+
+	const firstPick = tree.setSelectionOnRuntimeNode(collapsed, 0);
+	t.deepEqual(firstPick, {
+		expandedItemIndices: [],
+		selectedItemIndices: [0],
+		lastSelectedItemIndex: 0,
+	});
+
+	const ctrlPick = tree.setSelectionOnRuntimeNode(firstPick, 5, { ctrlKey: true });
+	t.deepEqual(ctrlPick, {
+		expandedItemIndices: [],
+		selectedItemIndices: [0, 5],
+		lastSelectedItemIndex: 5,
+	});
+
+	const expandedFolders = tree.setRuntimeNodeExpanded(ctrlPick, 0, true);
+	const fullyExpanded = tree.setRuntimeNodeExpanded(expandedFolders, 5, true);
+	const shiftRange = tree.setSelectionOnRuntimeNode(fullyExpanded, 6, { shiftKey: true });
+	t.deepEqual(shiftRange, {
+		expandedItemIndices: [0, 5],
+		selectedItemIndices: [0, 5, 6],
+		lastSelectedItemIndex: 5,
+	});
+
+	const rangeState = tree.selectRuntimeRange(fullyExpanded, 3, 1, false);
+	t.deepEqual(rangeState, {
+		expandedItemIndices: [0, 5],
+		selectedItemIndices: [1, 2, 3],
+		lastSelectedItemIndex: 5,
+	});
+
+	const selectAll = tree.selectAllVisibleRuntimeNodes(fullyExpanded);
+	t.deepEqual(selectAll.selectedItemIndices, [0, 1, 2, 3, 4, 5, 6]);
+	t.is(selectAll.lastSelectedItemIndex, 6);
+
+	const reversed = tree.selectReverseVisibleRuntimeNodes({
+		expandedItemIndices: [0, 5],
+		selectedItemIndices: [1, 4],
+		lastSelectedItemIndex: 4,
+	});
+	t.deepEqual(reversed, {
+		expandedItemIndices: [0, 5],
+		selectedItemIndices: [0, 2, 3, 5, 6],
+		lastSelectedItemIndex: 6,
+	});
+
+	const multiSingleClickTree = sourceTree.clone();
+	multiSingleClickTree.setSelectionMode(ListSelectionMode.MultipleSingleClick);
+	const toggleOn = multiSingleClickTree.setSelectionOnRuntimeNode(multiSingleClickTree.collapseAll(), 0);
+	t.deepEqual(toggleOn, {
+		expandedItemIndices: [],
+		selectedItemIndices: [0],
+		lastSelectedItemIndex: 0,
+	});
+	const toggleOff = multiSingleClickTree.setSelectionOnRuntimeNode(toggleOn, 0);
+	t.deepEqual(toggleOff, {
+		expandedItemIndices: [],
+		selectedItemIndices: [],
+		lastSelectedItemIndex: 0,
+	});
+});
+
+test('TreeView package supports keyboard-style runtime tree navigation', async (t) => {
+	const doc = await getDoc();
+	const treeViewPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'TreeView')!;
+	const main = treeViewPkg.listComponents().find((c) => c.getName() === 'Main')!;
+	const sourceTree = main.listChildren().find((child) => child.getName?.() === 'tree') as GTree;
+	const tree = sourceTree.clone();
+
+	const collapsed = tree.collapseAll();
+	const selectedFolder1 = tree.selectRuntimeNode(collapsed, 0);
+	t.deepEqual(selectedFolder1, {
+		expandedItemIndices: [],
+		selectedItemIndices: [0],
+		lastSelectedItemIndex: 0,
+	});
+
+	const moveDown = tree.navigateRuntimeSelection(selectedFolder1, 'down');
+	t.deepEqual(moveDown, {
+		expandedItemIndices: [],
+		selectedItemIndices: [5],
+		lastSelectedItemIndex: 5,
+	});
+
+	const moveUp = tree.navigateRuntimeSelection(moveDown, 'up');
+	t.deepEqual(moveUp, {
+		expandedItemIndices: [],
+		selectedItemIndices: [0],
+		lastSelectedItemIndex: 0,
+	});
+
+	const expandFolder1 = tree.navigateRuntimeSelection(selectedFolder1, 'right');
+	t.deepEqual(expandFolder1, {
+		expandedItemIndices: [0],
+		selectedItemIndices: [0],
+		lastSelectedItemIndex: 0,
+	});
+	t.deepEqual(tree.listVisibleRuntimeNodes(expandFolder1).map((node) => node.title), ['Folder 1', 'Leaf 1', 'Leaf 2', 'Leaf 3', 'Leaf 4', 'Folder 2']);
+
+	const enterFirstChild = tree.navigateRuntimeSelection(expandFolder1, 'right');
+	t.deepEqual(enterFirstChild, {
+		expandedItemIndices: [0],
+		selectedItemIndices: [1],
+		lastSelectedItemIndex: 1,
+	});
+	t.is(tree.getSelectedRuntimeNode(enterFirstChild)?.title, 'Leaf 1');
+
+	const backToParent = tree.navigateRuntimeSelection(enterFirstChild, 'left');
+	t.deepEqual(backToParent, {
+		expandedItemIndices: [0],
+		selectedItemIndices: [0],
+		lastSelectedItemIndex: 0,
+	});
+
+	const collapseFolder1 = tree.navigateRuntimeSelection(backToParent, 'left');
+	t.deepEqual(collapseFolder1, {
+		expandedItemIndices: [],
+		selectedItemIndices: [0],
+		lastSelectedItemIndex: 0,
+	});
+	t.deepEqual(tree.listVisibleRuntimeNodes(collapseFolder1).map((node) => node.title), ['Folder 1', 'Folder 2']);
+
+	const leafNoop = tree.navigateRuntimeSelection(tree.selectRuntimeNode(expandFolder1, 1), 'right');
+	t.deepEqual(leafNoop, {
+		expandedItemIndices: [0],
+		selectedItemIndices: [1],
+		lastSelectedItemIndex: 1,
+	});
 });
