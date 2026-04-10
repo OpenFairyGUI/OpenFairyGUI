@@ -87,6 +87,38 @@ test('binary: components have raw binary data in extras', async (t) => {
 	t.is(withRaw.length, components.length, 'all components have _rawBinary in extras');
 });
 
+test('binary: component top-level formal properties decode from sample package', async (t) => {
+	const doc = await getDoc();
+	const pkg = getMainPackage(doc)!;
+
+	const scrollComp = pkg.getComponent('Demo_Component');
+	t.truthy(scrollComp, 'Demo_Component exists');
+	t.is(scrollComp?.getWidth(), 1136);
+	t.is(scrollComp?.getHeight(), 570);
+	t.is(scrollComp?.getOverflow(), 2, 'Demo_Component uses scroll overflow');
+	t.is(scrollComp?.getScrollBarDisplay(), 3, 'Demo_Component uses hidden scrollbar display');
+
+	const buttonComp = pkg.getComponent('Button5');
+	t.truthy(buttonComp, 'Button5 exists');
+	t.is(buttonComp?.getExtensionType(), 'Button');
+	t.is(buttonComp?.getDownEffect(), 2);
+	t.true(Math.abs((buttonComp?.getDownEffectValue() ?? 0) - 0.8) < 1e-6);
+
+	const comboComp = pkg.getComponent('Dropdown');
+	t.truthy(comboComp, 'Dropdown exists');
+	t.is(comboComp?.getExtensionType(), 'ComboBox');
+
+	const progressComp = pkg.getComponent('ProgressBar4');
+	t.truthy(progressComp, 'ProgressBar4 exists');
+	t.is(progressComp?.getExtensionType(), 'ProgressBar');
+	t.is(progressComp?.getTitleType(), 1);
+	t.true(progressComp?.getReverse() ?? false);
+
+	const labelComp = pkg.getComponent('WindowFrameB');
+	t.truthy(labelComp, 'WindowFrameB exists');
+	t.is(labelComp?.getExtensionType(), 'Label');
+});
+
 test('binary: movie clips decode frame data into formal properties', async (t) => {
 	const doc = await getDoc();
 	const pkg = getMainPackage(doc)!;

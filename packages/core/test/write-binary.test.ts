@@ -1311,3 +1311,102 @@ test('binary writer: transition items targeting missing children are filtered ou
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 });
+
+test('binary writer: component top-level fields round-trip into formal properties', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('ComponentPkg');
+	pkg.setId('comppkg1');
+
+	const scrollComp = doc.createComponent('ScrollHost');
+	scrollComp
+		.setId('scroll001')
+		.setExported(true)
+		.setSize(480, 320)
+		.setMinWidth(120)
+		.setMaxWidth(960)
+		.setMinHeight(90)
+		.setMaxHeight(640)
+		.setPivotX(0.25)
+		.setPivotY(0.75)
+		.setPivotAsAnchor(true)
+		.setMargin([5, 6, 7, 8])
+		.setOverflow(2)
+		.setClipSoftness([9, 10])
+		.setCustomData('component-meta')
+		.setOpaque(false)
+		.setAddedToStageSound('ui://comppkg1/add')
+		.setRemovedFromStageSound('ui://comppkg1/remove')
+		.setScrollType(2)
+		.setScrollBarDisplay(2)
+		.setScrollBarFlags(17)
+		.setScrollBarMargin([11, 12, 13, 14])
+		.setVtScrollBarRes('ui://comppkg1/vbar')
+		.setHzScrollBarRes('ui://comppkg1/hbar')
+		.setHeaderRes('ui://comppkg1/header')
+		.setFooterRes('ui://comppkg1/footer');
+	pkg.addResource(scrollComp);
+
+	const buttonComp = doc.createComponent('ButtonHost');
+	buttonComp
+		.setId('button001')
+		.setExported(true)
+		.setSize(180, 64)
+		.setExtensionType('Button')
+		.setButtonMode(2)
+		.setSound('ui://comppkg1/click')
+		.setSoundVolumeScale(0.5)
+		.setDownEffect(1)
+		.setDownEffectValue(0.65);
+	pkg.addResource(buttonComp);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-bw-'));
+	const outPath = path.join(tmpDir, 'component_top_level.bytes');
+
+	try {
+		await io.writeBinary(doc, outPath);
+		const roundTripped = await io.readBinary(outPath);
+		const roundTripPkg = roundTripped.getRoot().getPackage('ComponentPkg');
+		t.truthy(roundTripPkg, 'round-tripped package exists');
+
+		const decodedScroll = roundTripPkg?.getComponent('ScrollHost');
+		t.truthy(decodedScroll, 'scroll component is decoded');
+		t.is(decodedScroll?.getWidth(), 480);
+		t.is(decodedScroll?.getHeight(), 320);
+		t.is(decodedScroll?.getMinWidth(), 120);
+		t.is(decodedScroll?.getMaxWidth(), 960);
+		t.is(decodedScroll?.getMinHeight(), 90);
+		t.is(decodedScroll?.getMaxHeight(), 640);
+		t.is(decodedScroll?.getPivotX(), 0.25);
+		t.is(decodedScroll?.getPivotY(), 0.75);
+		t.true(decodedScroll?.getPivotAsAnchor() ?? false);
+		t.deepEqual(decodedScroll?.getMargin(), { top: 5, bottom: 6, left: 7, right: 8 });
+		t.is(decodedScroll?.getOverflow(), 2);
+		t.deepEqual(decodedScroll?.getClipSoftness(), { x: 9, y: 10 });
+		t.is(decodedScroll?.getCustomData(), 'component-meta');
+		t.false(decodedScroll?.getOpaque() ?? true);
+		t.is(decodedScroll?.getAddedToStageSound(), 'ui://comppkg1/add');
+		t.is(decodedScroll?.getRemovedFromStageSound(), 'ui://comppkg1/remove');
+		t.is(decodedScroll?.getScrollType(), 2);
+		t.is(decodedScroll?.getScrollBarDisplay(), 2);
+		t.is(decodedScroll?.getScrollBarFlags(), 17);
+		t.deepEqual(decodedScroll?.getScrollBarMargin(), { top: 11, bottom: 12, left: 13, right: 14 });
+		t.is(decodedScroll?.getVtScrollBarRes(), 'ui://comppkg1/vbar');
+		t.is(decodedScroll?.getHzScrollBarRes(), 'ui://comppkg1/hbar');
+		t.is(decodedScroll?.getHeaderRes(), 'ui://comppkg1/header');
+		t.is(decodedScroll?.getFooterRes(), 'ui://comppkg1/footer');
+		t.truthy((decodedScroll?.getExtras() as Record<string, unknown> | undefined)?._rawBinary, '_rawBinary is still retained for write-back');
+
+		const decodedButton = roundTripPkg?.getComponent('ButtonHost');
+		t.truthy(decodedButton, 'button component is decoded');
+		t.is(decodedButton?.getExtensionType(), 'Button');
+		t.is(decodedButton?.getButtonMode(), 2);
+		t.is(decodedButton?.getSound(), 'ui://comppkg1/click');
+		t.is(decodedButton?.getSoundVolumeScale(), 0.5);
+		t.is(decodedButton?.getDownEffect(), 1);
+		t.true(Math.abs((decodedButton?.getDownEffectValue() ?? 0) - 0.65) < 1e-6);
+		t.truthy((decodedButton?.getExtras() as Record<string, unknown> | undefined)?._rawBinary, '_rawBinary is retained for extended components');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});

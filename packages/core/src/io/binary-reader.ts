@@ -58,6 +58,15 @@ interface ComponentBinaryExtras extends Record<string, unknown> {
 	_rawBinary?: RawBinarySlice;
 }
 
+const COMPONENT_EXTENSION_TYPE_NAMES: Record<number, string> = {
+	11: 'Label',
+	12: 'Button',
+	13: 'ComboBox',
+	14: 'ProgressBar',
+	15: 'Slider',
+	16: 'ScrollBar',
+};
+
 interface PixelHitTestEntry {
 	itemId: string;
 	pixelWidth: number;
@@ -157,12 +166,167 @@ function decodeFontGlyphs(doc: Document, resource: ReturnType<Document['createFo
 	}
 }
 
+function remainingBytes(buf: ByteBuffer): number {
+	return Math.max(0, buf.byteLength - buf.pos);
+}
+
+function decodeComponentHeader(resource: ReturnType<Document['createComponent']>, buf: ByteBuffer): void {
+	if (!buf.seek(0, 0)) return;
+	if (remainingBytes(buf) < 11) return;
+
+	resource.setSize(buf.getInt32(), buf.getInt32());
+
+	if (buf.readBool()) {
+		resource
+			.setMinWidth(buf.getInt32())
+			.setMaxWidth(buf.getInt32())
+			.setMinHeight(buf.getInt32())
+			.setMaxHeight(buf.getInt32());
+	}
+
+	if (buf.readBool()) {
+		resource
+			.setPivotX(buf.getFloat32())
+			.setPivotY(buf.getFloat32())
+			.setPivotAsAnchor(buf.readBool());
+	}
+
+	if (buf.readBool()) {
+		resource.setMargin([
+			buf.getInt32(),
+			buf.getInt32(),
+			buf.getInt32(),
+			buf.getInt32(),
+		]);
+	}
+
+	resource.setOverflow(buf.getUint8());
+
+	if (buf.readBool()) {
+		resource.setClipSoftness([buf.getInt32(), buf.getInt32()]);
+	}
+}
+
+function decodeComponentAdvancedProps(resource: ReturnType<Document['createComponent']>, buf: ByteBuffer): void {
+	if (!buf.seek(0, 4)) return;
+	if (remainingBytes(buf) < 15) return;
+
+	resource
+		.setCustomData(buf.readS() ?? '')
+		.setOpaque(buf.readBool());
+
+	const maskIndex = buf.getInt16();
+	if (maskIndex >= 0) {
+		buf.readBool();
+	}
+
+	const hitTestId = buf.readS();
+	const hitTestArg1 = buf.getInt32();
+	const hitTestArg2 = buf.getInt32();
+	if (hitTestId) {
+		resource.setHitTest(`${hitTestId},${hitTestArg1},${hitTestArg2}`);
+	}
+
+	if (buf.version >= 5 && remainingBytes(buf) >= 4) {
+		resource
+			.setAddedToStageSound(buf.readS() ?? '')
+			.setRemovedFromStageSound(buf.readS() ?? '');
+	}
+}
+
+function decodeComponentExtensionDef(
+	resource: ReturnType<Document['createComponent']>,
+	buf: ByteBuffer,
+	extensionType: string,
+): void {
+	if (!extensionType) return;
+	if (!buf.seek(0, 6)) return;
+
+	switch (extensionType) {
+		case 'Button':
+			if (remainingBytes(buf) < 12) return;
+			resource
+				.setButtonMode(buf.getUint8())
+				.setSound(buf.readS() ?? '')
+				.setSoundVolumeScale(buf.getFloat32())
+				.setDownEffect(buf.getUint8())
+				.setDownEffectValue(buf.getFloat32());
+			break;
+		case 'ComboBox':
+			if (remainingBytes(buf) < 2) return;
+			resource.setDropdown(buf.readS() ?? '');
+			break;
+		case 'ProgressBar':
+			if (remainingBytes(buf) < 2) return;
+			resource
+				.setTitleType(buf.getUint8())
+				.setReverse(buf.readBool());
+			break;
+		case 'Slider':
+			if (remainingBytes(buf) < 4) return;
+			resource
+				.setTitleType(buf.getUint8())
+				.setReverse(buf.readBool())
+				.setWholeNumbers(buf.readBool())
+				.setChangeOnClick(buf.readBool());
+			break;
+		case 'ScrollBar':
+			if (remainingBytes(buf) < 1) return;
+			resource.setFixedGripSize(buf.readBool());
+			break;
+		default:
+			break;
+	}
+}
+
+function decodeComponentScrollPane(resource: ReturnType<Document['createComponent']>, buf: ByteBuffer): void {
+	if (!buf.seek(0, 7)) return;
+	if (remainingBytes(buf) < 14) return;
+
+	resource
+		.setScrollType(buf.getUint8())
+		.setScrollBarDisplay(buf.getUint8())
+		.setScrollBarFlags(buf.getInt32());
+
+	if (buf.readBool()) {
+		resource.setScrollBarMargin([
+			buf.getInt32(),
+			buf.getInt32(),
+			buf.getInt32(),
+			buf.getInt32(),
+		]);
+	}
+
+	resource
+		.setVtScrollBarRes(buf.readS() ?? '')
+		.setHzScrollBarRes(buf.readS() ?? '')
+		.setHeaderRes(buf.readS() ?? '')
+		.setFooterRes(buf.readS() ?? '');
+}
+
+function decodeComponentDefinition(
+	resource: ReturnType<Document['createComponent']>,
+	rawData: ByteBuffer,
+	extensionType: string,
+): void {
+	if (rawData.byteLength === 0) return;
+
+	const componentBuf = new ByteBuffer(rawData.buffer, rawData.byteOffset, rawData.byteLength);
+	componentBuf.stringTable = rawData.stringTable;
+	componentBuf.version = rawData.version;
+
+	decodeComponentHeader(resource, componentBuf);
+	decodeComponentAdvancedProps(resource, componentBuf);
+	decodeComponentExtensionDef(resource, componentBuf, extensionType);
+	decodeComponentScrollPane(resource, componentBuf);
+}
+
 /**
  * Reads a published FairyGUI binary package (.fui / _fui.bytes) into a {@link Document}.
  *
- * Only the package structure (resource manifest and sprite atlas mappings) is parsed.
- * Component display lists are stored in their raw binary form and not yet expanded
- * into the property graph (that requires a separate component binary decoder).
+ * Package items, sprite atlas mappings, and top-level component definition fields are parsed.
+ * Component display lists are still preserved in raw binary form and are not yet expanded
+ * into child/controller/transition nodes (that requires a separate component binary decoder).
  *
  * @category I/O
  */
@@ -314,10 +478,11 @@ export class BinaryReader {
 
 				case BinItemType.Component: {
 					const res = doc.createComponent(itemName);
-					res.setId(itemId).setExported(exported);
-					buf.readByte(); // extension type
+					res.setId(itemId).setExported(exported).setSize(width, height);
+					const extensionType = COMPONENT_EXTENSION_TYPE_NAMES[buf.readByte()] ?? '';
+					res.setExtensionType(extensionType);
 					const rawData = buf.readBuffer();
-					// Store raw binary for future component decoding
+					decodeComponentDefinition(res, rawData, extensionType);
 					res.setExtras({
 						...getComponentExtras(res),
 						_rawBinary: toRawBinarySlice(rawData),
