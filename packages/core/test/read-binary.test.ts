@@ -1,7 +1,7 @@
 import test from 'ava';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { NodeIO } from '../src/index.js';
+import { Document, NodeIO } from '../src/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BASICS_FUI = path.resolve(
@@ -85,4 +85,28 @@ test('binary: components have raw binary data in extras', async (t) => {
 		return extras?._rawBinary != null;
 	});
 	t.is(withRaw.length, components.length, 'all components have _rawBinary in extras');
+});
+
+test('binary: movie clips decode frame data into formal properties', async (t) => {
+	const doc = await getDoc();
+	const pkg = getMainPackage(doc)!;
+	const movieClips = pkg.listResources().filter((r) => r.propertyType === 'MovieClipResource');
+	t.true(movieClips.length > 0, 'package has movie clip resources');
+
+	const withFrames = movieClips.filter(
+		(clip) => (clip as ReturnType<Document['createMovieClipResource']>).listFrames().length > 0,
+	);
+	t.true(withFrames.length > 0, 'at least one movie clip decodes frames');
+
+	for (const clip of withFrames) {
+		const movieClip = clip as ReturnType<Document['createMovieClipResource']>;
+		t.true(movieClip.getInterval() >= 0, 'movie clip interval is decoded');
+		t.true(movieClip.getRepeatDelay() >= 0, 'movie clip repeatDelay is decoded');
+		const frame = movieClip.listFrames()[0]!;
+		t.true(frame.getRectWidth() >= 0, 'frame width is decoded');
+		t.true(frame.getRectHeight() >= 0, 'frame height is decoded');
+		t.truthy(frame.getSpriteId(), 'frame sprite id is decoded');
+		const extras = movieClip.getExtras() as Record<string, unknown>;
+		t.falsy(extras._rawBinaryFrames, 'raw movie clip frame extras are no longer used');
+	}
 });

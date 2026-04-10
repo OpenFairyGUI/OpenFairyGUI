@@ -58,10 +58,6 @@ interface ComponentBinaryExtras extends Record<string, unknown> {
 	_rawBinary?: RawBinarySlice;
 }
 
-interface MovieClipBinaryExtras extends Record<string, unknown> {
-	_rawBinaryFrames?: RawBinarySlice;
-}
-
 interface FontBinaryExtras extends Record<string, unknown> {
 	_rawBinaryGlyphs?: RawBinarySlice;
 }
@@ -89,12 +85,36 @@ function getComponentExtras(resource: { getExtras(): Record<string, unknown> }):
 	return resource.getExtras() as ComponentBinaryExtras;
 }
 
-function getMovieClipExtras(resource: { getExtras(): Record<string, unknown> }): MovieClipBinaryExtras {
-	return resource.getExtras() as MovieClipBinaryExtras;
-}
-
 function getFontExtras(resource: { getExtras(): Record<string, unknown> }): FontBinaryExtras {
 	return resource.getExtras() as FontBinaryExtras;
+}
+
+function decodeMovieClipFrames(doc: Document, resource: ReturnType<Document['createMovieClipResource']>, buf: ByteBuffer): void {
+	if (buf.byteLength === 0) return;
+	const indexTablePos = buf.pos;
+
+	if (buf.seek(indexTablePos, 0)) {
+		resource.setInterval(buf.getInt32());
+		resource.setSwing(buf.readBool());
+		resource.setRepeatDelay(buf.getInt32());
+	}
+
+	if (!buf.seek(indexTablePos, 1)) return;
+	const frameCount = buf.getInt16();
+	for (let index = 0; index < frameCount; index += 1) {
+		const chunkSize = buf.getInt16();
+		const nextPos = buf.pos + chunkSize;
+		const frame = doc.createMovieFrame(`${resource.getId()}_${index}`);
+		frame
+			.setRectX(buf.getInt32())
+			.setRectY(buf.getInt32())
+			.setRectWidth(buf.getInt32())
+			.setRectHeight(buf.getInt32())
+			.setAddDelay(buf.getInt32())
+			.setSpriteId(buf.readS() ?? '');
+		resource.addFrame(frame);
+		buf.pos = nextPos;
+	}
 }
 
 /**
@@ -233,13 +253,14 @@ export class BinaryReader {
 
 				case BinItemType.MovieClip: {
 					const res = doc.createMovieClipResource(itemName);
-					res.setId(itemId).setExported(exported);
+					res
+						.setId(itemId)
+						.setExported(exported)
+						.setWidth(width)
+						.setHeight(height);
 					res.setSmoothing(buf.readBool());
 					const rawFrames = buf.readBuffer();
-					res.setExtras({
-						...getMovieClipExtras(res),
-						_rawBinaryFrames: toRawBinarySlice(rawFrames),
-					});
+					decodeMovieClipFrames(doc, res, rawFrames);
 					pkg.addResource(res);
 					break;
 				}

@@ -880,6 +880,70 @@ test('binary writer: package dependencies round-trip as formal package relations
 	}
 });
 
+test('binary writer: movie clip frames round-trip as formal properties', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('MovieClipPkg');
+	pkg.setId('moviepkg1');
+
+	const movieClip = doc.createMovieClipResource('Explosion');
+	movieClip
+		.setId('mc001')
+		.setWidth(64)
+		.setHeight(48)
+		.setInterval(120)
+		.setSwing(true)
+		.setRepeatDelay(17)
+		.setSmoothing(false);
+
+	const frame0 = doc.createMovieFrame('mc001_0');
+	frame0.setRectX(1).setRectY(2).setRectWidth(30).setRectHeight(40).setAddDelay(3).setSpriteId('mc001_0');
+	movieClip.addFrame(frame0);
+
+	const frame1 = doc.createMovieFrame('mc001_1');
+	frame1.setRectX(4).setRectY(5).setRectWidth(31).setRectHeight(41).setAddDelay(6).setSpriteId('mc001_1');
+	movieClip.addFrame(frame1);
+
+	pkg.addResource(movieClip);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-bw-'));
+	const outPath = path.join(tmpDir, 'movieclip_roundtrip.bytes');
+
+	try {
+		await io.writeBinary(doc, outPath);
+		const doc2 = await io.readBinary(outPath);
+		const pkg2 = doc2.getRoot().listPackages().find((item) => item.getId() === 'moviepkg1');
+		t.truthy(pkg2, 'movie clip package exists after round-trip');
+		const movieClip2 = pkg2?.listResources().find((item) => item.propertyType === 'MovieClipResource');
+		t.truthy(movieClip2, 'movie clip resource exists after round-trip');
+
+		const roundTripClip = movieClip2 as ReturnType<Document['createMovieClipResource']>;
+		t.is(roundTripClip.getWidth(), 64);
+		t.is(roundTripClip.getHeight(), 48);
+		t.is(roundTripClip.getInterval(), 120);
+		t.true(roundTripClip.getSwing());
+		t.is(roundTripClip.getRepeatDelay(), 17);
+		t.false(roundTripClip.getSmoothing());
+		t.is(roundTripClip.listFrames().length, 2, 'movie clip frames are restored');
+		t.deepEqual(
+			roundTripClip.listFrames().map((frame) => ({
+				x: frame.getRectX(),
+				y: frame.getRectY(),
+				width: frame.getRectWidth(),
+				height: frame.getRectHeight(),
+				addDelay: frame.getAddDelay(),
+				spriteId: frame.getSpriteId(),
+			})),
+			[
+				{ x: 1, y: 2, width: 30, height: 40, addDelay: 3, spriteId: 'mc001_0' },
+				{ x: 4, y: 5, width: 31, height: 41, addDelay: 6, spriteId: 'mc001_1' },
+			],
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('binary writer: sprite originalSize is only emitted for rotated, trimmed, or zero-sized package sprites', async (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('SpritePkg');

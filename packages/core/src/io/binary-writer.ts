@@ -71,7 +71,6 @@ interface MovieClipFrameData {
 	interval: number;
 	swing: boolean;
 	repeatDelay: number;
-	frameCount: number;
 	frames: Array<{
 		x: number;
 		y: number;
@@ -104,11 +103,6 @@ interface FntData {
 	xadvance: number;
 	lineHeight: number;
 	glyphs: FntGlyphData[];
-}
-
-interface MovieClipBinaryExtras extends Record<string, unknown> {
-	_rawBinaryFrames?: RawBinarySlice;
-	_jtaData?: MovieClipFrameData;
 }
 
 interface ComponentBinaryExtras extends Record<string, unknown> {
@@ -371,18 +365,20 @@ export class BinaryWriter {
 					data.writeInt32(getOptionalNumber(res, 'getWidth'));
 					data.writeInt32(getOptionalNumber(res, 'getHeight'));
 					data.writeBool(res.getSmoothing());
-					// frame data
-					const mcExtras = res.getExtras() as MovieClipBinaryExtras;
-					if (mcExtras?._rawBinaryFrames) {
-						// From BinaryReader round-trip: use stored raw binary
-						data.writeBuffer(toUint8Array(mcExtras._rawBinaryFrames));
-					} else if (mcExtras?._jtaData) {
-						// From ProjectReader + atlas: encode frame data from jta metadata
-						const frameData = _encodeMovieClipFrames(mcExtras._jtaData, data);
-						data.writeBuffer(frameData);
-					} else {
-						data.writeBuffer(new Uint8Array(0));
-					}
+					const frameData = _encodeMovieClipFrames({
+						interval: res.getInterval(),
+						swing: res.getSwing(),
+						repeatDelay: res.getRepeatDelay(),
+						frames: res.listFrames().map((frame) => ({
+							x: frame.getRectX(),
+							y: frame.getRectY(),
+							width: frame.getRectWidth(),
+							height: frame.getRectHeight(),
+							addDelay: frame.getAddDelay(),
+							spriteId: frame.getSpriteId() || null,
+						})),
+					}, data);
+					data.writeBuffer(frameData);
 					break;
 				}
 				case 'SoundResource': {
@@ -695,7 +691,7 @@ function _filterReferencedResources(resources: PackageResource[]): PackageResour
  * @internal
  */
 function _encodeMovieClipFrames(
-	jtaData: { interval: number; swing: boolean; repeatDelay: number; frameCount: number; frames: Array<{ x: number; y: number; width: number; height: number; addDelay: number; spriteId: string | null }> },
+	jtaData: MovieClipFrameData,
 	parentBuf: WriteBuffer,
 ): Uint8Array {
 	const buf = new WriteBuffer(1024, parentBuf);
@@ -716,7 +712,7 @@ function _encodeMovieClipFrames(
 
 	// Block 1: frame list
 	const block1Offset = buf.pos - indexTablePos;
-	buf.writeInt16(jtaData.frameCount);
+	buf.writeInt16(jtaData.frames.length);
 
 	for (const frame of jtaData.frames) {
 		const frameStart = buf.pos;

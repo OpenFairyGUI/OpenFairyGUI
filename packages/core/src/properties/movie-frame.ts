@@ -7,6 +7,7 @@ interface IMovieFrame extends IProperty {
 	rectWidth: number;
 	rectHeight: number;
 	addDelay: number;
+	spriteId: string;
 }
 
 /**
@@ -27,6 +28,7 @@ export class MovieFrame extends Property<IMovieFrame> {
 			rectWidth: 0,
 			rectHeight: 0,
 			addDelay: 0,
+			spriteId: '',
 		});
 	}
 
@@ -44,4 +46,7 @@ export class MovieFrame extends Property<IMovieFrame> {
 
 	public getAddDelay(): number { return this.get('addDelay'); }
 	public setAddDelay(v: number): this { return this.set('addDelay', v); }
+
+	public getSpriteId(): string { return this.get('spriteId'); }
+	public setSpriteId(v: string): this { return this.set('spriteId', v); }
 }

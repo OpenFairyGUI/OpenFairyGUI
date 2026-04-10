@@ -180,27 +180,6 @@ interface FontResourceExtras extends ExtrasMap {
 	_fntData?: ParsedFnt;
 }
 
-interface MovieClipFrameInfo {
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-	addDelay: number;
-	spriteId: string | null;
-}
-
-interface MovieClipResourceExtras extends ExtrasMap {
-	_jtaData?: {
-		interval: number;
-		swing: boolean;
-		repeatDelay: number;
-		frameCount: number;
-		frames: MovieClipFrameInfo[];
-		boundsWidth: number;
-		boundsHeight: number;
-	};
-}
-
 interface AtlasEncoderMetadata {
 	width?: number;
 	height?: number;
@@ -582,7 +561,7 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 				} else if (isMovieClipResource(res)) {
 					const resId = res.getId();
 					if (!res.getExported() && referencedIds.size > 0 && !referencedIds.has(resId)) continue;
-					await _collectMovieClipFrames(res, pkg, inputs, encoder, options, logger);
+					await _collectMovieClipFrames(doc, res, pkg, inputs, encoder, options, logger);
 				} else if (isFontResource(res)) {
 					const resId = res.getId();
 					if (!res.getExported() && referencedIds.size > 0 && !referencedIds.has(resId)) continue;
@@ -1080,6 +1059,7 @@ async function _collectImage(
 
 /** Collect MovieClip frame textures from a .jta file into the inputs array. */
 async function _collectMovieClipFrames(
+	doc: Document,
 	resource: MovieClipResource,
 	pkg: Package,
 	inputs: InputItem[],
@@ -1100,7 +1080,13 @@ async function _collectMovieClipFrames(
 		if (jta.frames.length === 0) return;
 
 		const frameMetas = jta.meta?.frames ?? [];
-		const frameInfos: MovieClipFrameInfo[] = [];
+		for (const frame of resource.listFrames()) {
+			resource.removeFrame(frame);
+		}
+		resource
+			.setInterval(jta.meta?.interval ?? 100)
+			.setSwing(jta.meta?.swing ?? false)
+			.setRepeatDelay(jta.meta?.repeatDelay ?? 0);
 
 		if (frameMetas.length > 0) {
 			const firstFrameIndexByTextureIndex = new Map<number, number>();
@@ -1126,14 +1112,15 @@ async function _collectMovieClipFrames(
 			for (let frameIndex = 0; frameIndex < frameMetas.length; frameIndex += 1) {
 				const meta = frameMetas[frameIndex];
 				const textureIndex = Number.isFinite(meta.textureIndex) ? meta.textureIndex : frameIndex;
-				frameInfos.push({
-					x: meta.offsetX,
-					y: meta.offsetY,
-					width: meta.width,
-					height: meta.height,
-					addDelay: meta.addDelay,
-					spriteId: spriteIdByTextureIndex.get(textureIndex) ?? null,
-				});
+				const frame = doc.createMovieFrame(`${mcId}_${frameIndex}`);
+				frame
+					.setRectX(meta.offsetX)
+					.setRectY(meta.offsetY)
+					.setRectWidth(meta.width)
+					.setRectHeight(meta.height)
+					.setAddDelay(meta.addDelay)
+					.setSpriteId(spriteIdByTextureIndex.get(textureIndex) ?? '');
+				resource.addFrame(frame);
 			}
 		} else {
 			for (let frameIndex = 0; frameIndex < jta.frames.length; frameIndex += 1) {
@@ -1141,31 +1128,17 @@ async function _collectMovieClipFrames(
 				const input = await _createMovieClipFrameInput(jta.frames[frameIndex], itemId, resource, encoder);
 				if (!input) continue;
 				inputs.push(input);
-				frameInfos.push({
-					x: 0,
-					y: 0,
-					width: input.originalWidth,
-					height: input.originalHeight,
-					addDelay: 0,
-					spriteId: itemId,
-				});
+				const frame = doc.createMovieFrame(itemId);
+				frame
+					.setRectX(0)
+					.setRectY(0)
+					.setRectWidth(input.originalWidth)
+					.setRectHeight(input.originalHeight)
+					.setAddDelay(0)
+					.setSpriteId(itemId);
+				resource.addFrame(frame);
 			}
 		}
-
-		// Store jta data on resource extras for binary writer
-		const existingExtras = resource.getExtras() as MovieClipResourceExtras;
-		resource.setExtras({
-			...existingExtras,
-			_jtaData: {
-				interval: jta.meta?.interval ?? 100,
-				swing: jta.meta?.swing ?? false,
-				repeatDelay: jta.meta?.repeatDelay ?? 0,
-				frameCount: frameInfos.length,
-				frames: frameInfos,
-				boundsWidth: jta.meta?.width ?? 0,
-				boundsHeight: jta.meta?.height ?? 0,
-			},
-		});
 
 		if ((jta.meta?.width ?? 0) > 0 && (jta.meta?.height ?? 0) > 0) {
 			resource.setWidth(jta.meta?.width ?? 0);
