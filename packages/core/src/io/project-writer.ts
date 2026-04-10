@@ -90,12 +90,9 @@ type WritableImageResource = WritableResource & {
 	getDuplicatePadding?(): boolean;
 };
 
-interface FontWriterExtras extends Record<string, unknown> {
-	texture?: string;
-}
-
 type WritableFontResource = WritableResource & {
-	getExtras?(): FontWriterExtras;
+	getFileName?(): string;
+	getTextureId?(): string;
 };
 
 type WritableComponent = Component & {
@@ -212,10 +209,6 @@ type WritableChild = GObject & {
 		icon?: string | null;
 	}>;
 };
-
-function getFontExtras(resource: { getExtras?(): Record<string, unknown> }): FontWriterExtras {
-	return (resource.getExtras?.() ?? {}) as FontWriterExtras;
-}
 
 function hasNonZeroInsets(value: { top?: number; bottom?: number; left?: number; right?: number } | null | undefined): boolean {
 	return !!value && !!(value.top || value.bottom || value.left || value.right);
@@ -342,7 +335,7 @@ export class ProjectWriter {
 
 			// Font-specific: texture reference
 			if (res.propertyType === 'FontResource') {
-				const texture = getFontExtras(res as WritableFontResource).texture;
+				const texture = (res as WritableFontResource).getTextureId?.() ?? '';
 				if (texture) attrs['@_texture'] = texture;
 			}
 
@@ -886,6 +879,10 @@ export class ProjectWriter {
 		const name = res.getName?.() ?? '';
 		const type = res.propertyType as string;
 		if (type === 'Component') return name + '.xml';
+		if (type === 'FontResource') {
+			const fileName = (res as WritableFontResource).getFileName?.() ?? '';
+			if (fileName) return fileName;
+		}
 		// For other types the name usually includes the extension already (stored from original)
 		return name;
 	}

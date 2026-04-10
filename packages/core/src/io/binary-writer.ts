@@ -63,7 +63,6 @@ interface BinarySpriteEntry {
 }
 
 interface PackageBinaryExtras extends Record<string, unknown> {
-	dependencies?: BinaryDependency[];
 	publishedResourceIds?: string[];
 	sprites?: BinarySpriteEntry[];
 }
@@ -247,7 +246,13 @@ export class BinaryWriter {
 				? pkg.listResources().filter((resource) => publishedResourceIds.has(resource.getId()))
 				: pkg.listResources(),
 		);
-		const dependencies: BinaryDependency[] = extras.dependencies ?? [];
+		const dependencies: BinaryDependency[] = pkg
+			.listDependencies()
+			.map((dep) => ({
+				id: dep.getId(),
+				name: dep.getName(),
+			}))
+			.filter((dep) => !!dep.id);
 
 		// Collect sprites from Atlas/Sprite property nodes OR extras.sprites (BinaryReader round-trip)
 		const sprites: BinarySpriteEntry[] = [];

@@ -16,7 +16,6 @@ import { atlas, type AtlasOptions } from './atlas.js';
 import type {
 	CliPublishSettings,
 	HasOptionalFont,
-	PackageDependenciesExtras,
 	PackagePublishArtifactsExtras,
 	PublishDependency,
 	PublishFileSystem,
@@ -659,9 +658,9 @@ export function publish(options: PublishOptions): Transform {
 
 		const allDocPackages = root.listPackages();
 		// Build a pkgId→name map for dependency resolution
-		const pkgMap = new Map<string, string>();
+		const pkgMap = new Map<string, Package>();
 		for (const p of allDocPackages) {
-			pkgMap.set(p.getId(), p.getName());
+			pkgMap.set(p.getId(), p);
 		}
 
 		const writerFs = toBinaryWriterFileSystem(options.fs);
@@ -708,10 +707,7 @@ export function publish(options: PublishOptions): Transform {
  * The editor only adds dependencies for packages referenced via bitmap font URLs.
  * @internal
  */
-function _computeDependencies(pkg: Package, pkgMap: Map<string, string>): void {
-	const existingExtras = pkg.getExtras() as PackageDependenciesExtras;
-	if (existingExtras.dependencies && existingExtras.dependencies.length > 0) return;
-
+function _computeDependencies(pkg: Package, pkgMap: Map<string, Package>): void {
 	const referencedPkgIds = new Set<string>();
 
 	function scanFontUrl(font: string | string[] | null | undefined): void {
@@ -720,7 +716,8 @@ function _computeDependencies(pkg: Package, pkgMap: Map<string, string>): void {
 		if (typeof fontStr !== 'string' || !fontStr.startsWith('ui://')) return;
 		const rest = fontStr.slice(5);
 		if (rest.length >= 8) {
-			referencedPkgIds.add(rest.slice(0, 8));
+			const depPkgId = rest.slice(0, 8);
+			if (depPkgId !== pkg.getId()) referencedPkgIds.add(depPkgId);
 		}
 	}
 
@@ -732,12 +729,17 @@ function _computeDependencies(pkg: Package, pkgMap: Map<string, string>): void {
 		}
 	}
 
+	for (const dep of pkg.listDependencies()) {
+		pkg.removeDependency(dep);
+	}
+
 	if (referencedPkgIds.size > 0) {
-		const deps: PublishDependency[] = [];
 		const sortedIds = [...referencedPkgIds].sort((a, b) => a.localeCompare(b));
 		for (const refId of sortedIds) {
-			deps.push({ id: refId, name: pkgMap.get(refId) ?? refId });
+			const depPkg = pkgMap.get(refId);
+			if (depPkg) {
+				pkg.addDependency(depPkg);
+			}
 		}
-		pkg.setExtras({ ...pkg.getExtras(), dependencies: deps });
 	}
 }

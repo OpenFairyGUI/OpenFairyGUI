@@ -19,7 +19,6 @@ export type {
 	HasOptionalFont,
 	HasOptionalSrc,
 	HasOptionalUrl,
-	PackageDependenciesExtras,
 	PublishDependency,
 	PublishFileSystem,
 	RootProjectSettings,

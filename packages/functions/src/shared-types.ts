@@ -27,12 +27,7 @@ export interface PublishDependency {
 	name: string;
 }
 
-export interface PackageDependenciesExtras extends ExtrasMap {
-	dependencies?: PublishDependency[];
-}
-
 export interface PackagePublishArtifactsExtras extends ExtrasMap {
-	dependencies?: PublishDependency[];
 	publishedResourceIds?: string[];
 }
 

@@ -850,6 +850,36 @@ test('binary writer: component extension type is read from the formal component 
 	}
 });
 
+test('binary writer: package dependencies round-trip as formal package relations', async (t) => {
+	const doc = new Document();
+	const mainPkg = doc.createPackage('MainPkg');
+	mainPkg.setId('mainpkg1');
+	const depPkg = doc.createPackage('SharedPkg');
+	depPkg.setId('sharedp1');
+	mainPkg.addDependency(depPkg);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-bw-'));
+	const outPath = path.join(tmpDir, 'package_dependencies.bytes');
+
+	try {
+		await io.writeBinary(doc, outPath);
+		const doc2 = await io.readBinary(outPath);
+		const roundTripMainPkg = doc2
+			.getRoot()
+			.listPackages()
+			.find((pkg) => pkg.getId() === 'mainpkg1');
+		t.truthy(roundTripMainPkg, 'main package exists after round-trip');
+
+		const deps = roundTripMainPkg!.listDependencies();
+		t.is(deps.length, 1, 'one dependency relation is restored');
+		t.is(deps[0]?.getId(), 'sharedp1', 'dependency package id is preserved');
+		t.is(deps[0]?.getName(), 'SharedPkg', 'dependency package name is preserved');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('binary writer: sprite originalSize is only emitted for rotated, trimmed, or zero-sized package sprites', async (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('SpritePkg');

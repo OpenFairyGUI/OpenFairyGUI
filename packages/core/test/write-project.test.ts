@@ -120,6 +120,49 @@ test('round-trip: .fairy file content is valid XML with projectDescription', asy
 	}
 });
 
+test('round-trip: font fileName and textureId survive package.xml write→read', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectId('font-project').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('FontPkg');
+	pkg.setId('pkgfont1');
+
+	const texture = doc.createImageResource('fontTexture.png');
+	texture.setId('img001');
+	texture.setPath('/');
+	pkg.addResource(texture);
+
+	const font = doc.createFontResource('DemoFont');
+	font.setId('font001');
+	font.setPath('/fonts/');
+	font.setFileName('DemoFont.fnt');
+	font.setTextureId('img001');
+	pkg.addResource(font);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-font-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+
+		const pkgXml = await fs.readFile(path.join(tmpDir, 'assets', 'FontPkg', 'package.xml'), 'utf-8');
+		t.true(pkgXml.includes('name="DemoFont.fnt"'), 'font file name is written to package.xml');
+		t.true(pkgXml.includes('texture="img001"'), 'font texture id is written to package.xml');
+
+		const doc2 = await io.readProject(outFairy);
+		const pkg2 = doc2.getRoot().getPackage('FontPkg');
+		t.truthy(pkg2, 'FontPkg exists after round-trip');
+		const font2 = pkg2!.listResources().find((item) => item.propertyType === PropertyType.FONT_RESOURCE);
+		t.truthy(font2, 'font resource exists after round-trip');
+		t.is(font2!.getName(), 'DemoFont');
+		t.is((font2 as ReturnType<Document['createFontResource']>).getFileName(), 'DemoFont.fnt');
+		t.is((font2 as ReturnType<Document['createFontResource']>).getTextureId(), 'img001');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('round-trip: sample list ptrRes and transition value attrs survive write→read', async (t) => {
 	const io = new NodeIO();
 	const doc = await io.readProject(PROJECT_PATH);

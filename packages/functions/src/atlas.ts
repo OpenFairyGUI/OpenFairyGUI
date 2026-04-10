@@ -176,7 +176,6 @@ interface FontSpriteAlias {
 }
 
 interface FontResourceExtras extends ExtrasMap {
-	_textureId?: string;
 	_fontSpriteAlias?: FontSpriteAlias;
 	_fntData?: ParsedFnt;
 }
@@ -326,8 +325,7 @@ async function resolveEditorCompatibleResourceOrder(
 		added.add(resourceId);
 		ordered.push(resource);
 		if (isFontResource(resource)) {
-			const extras = resource.getExtras() as FontResourceExtras | undefined;
-			await addResource(resourceMap.get(extras?._textureId ?? ''));
+			await addResource(resourceMap.get(resource.getTextureId?.() ?? ''));
 			if (options.readFileRaw && options.basePath) {
 				const fontName = resolveFontFileName(resource.getName());
 				const fontPath = resource.getPath() ?? '/';
@@ -556,8 +554,8 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 				}
 				// Font texture references and glyph image references
 				if (isFontResource(res)) {
-					const fextras = res.getExtras() as FontResourceExtras;
-					if (fextras?._textureId) referencedIds.add(fextras._textureId);
+					const textureId = res.getTextureId?.() ?? '';
+					if (textureId) referencedIds.add(textureId);
 					// Parse .fnt file for glyph image references
 					if (options.readFileRaw && options.basePath) {
 						const fontName = resolveFontFileName(res.getName());
@@ -1403,7 +1401,7 @@ async function _collectFontTexture(
 	options: AtlasOptions,
 ): Promise<void> {
 	const extras = fontRes.getExtras() as FontResourceExtras;
-	const textureId = extras?._textureId;
+	const textureId = fontRes.getTextureId?.() ?? '';
 
 	if (textureId) {
 		// Record font→texture mapping so we can add a duplicate sprite entry

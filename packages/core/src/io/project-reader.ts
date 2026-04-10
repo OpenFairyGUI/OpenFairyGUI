@@ -683,10 +683,11 @@ export class ProjectReader {
 				const res = doc.createFontResource(name.replace(/\.\w+$/, ''));
 				res.setId(id);
 				res.setPath(path);
+				res.setFileName(name);
 				res.setExported(exported);
-				// Store texture reference and original filename for Bitmap Fonts
+				// Store texture reference for bitmap fonts.
 				if (attrs.texture) {
-					res.setExtras({ ...res.getExtras(), _textureId: attrs.texture, _fileName: name });
+					res.setTextureId(attrs.texture);
 				}
 				pkg.addResource(res);
 				ctx.registerResource(pkg.getId(), id, res);

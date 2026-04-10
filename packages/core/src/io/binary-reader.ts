@@ -51,7 +51,6 @@ function parseAtlasIndex(id: string): number {
 }
 
 interface BinaryPackageExtras extends Record<string, unknown> {
-	dependencies?: BinaryDependency[];
 	sprites?: BinarySpriteEntry[];
 }
 
@@ -191,8 +190,12 @@ export class BinaryReader {
 		pkg.setId(packageId);
 		const atlasMap = new Map<string, ReturnType<Document['createAtlas']>>();
 
-		// Store dependencies as extras for consumers
-		pkg.setExtras({ ...getPackageExtras(pkg), dependencies });
+		for (const dep of dependencies) {
+			if (!dep.id || dep.id === packageId) continue;
+			const depPkg = doc.createPackage(dep.name || dep.id);
+			depPkg.setId(dep.id);
+			pkg.addDependency(depPkg);
+		}
 
 		// --- Package items (block 1) ---
 		buf.seek(indexTablePos, 1);
