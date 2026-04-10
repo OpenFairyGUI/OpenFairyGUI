@@ -806,9 +806,40 @@ function decodeComponentControllers(
 			for (let actionIndex = 0; actionIndex < actionCount && remainingBytes(controllerBuf) >= 2; actionIndex += 1) {
 				const actionSize = controllerBuf.getInt16();
 				const actionNextPos = controllerBuf.pos + actionSize;
+				const actionBuf = new ByteBuffer(controllerBuf.buffer, controllerBuf.byteOffset + controllerBuf.pos, actionSize);
+				actionBuf.stringTable = controllerBuf.stringTable;
+				actionBuf.version = controllerBuf.version;
 				const action = doc.createControllerAction(`${controller.getName()}_action${actionIndex}`);
-				if (remainingBytes(controllerBuf) >= 1) {
-					action.setActionType(controllerBuf.getUint8());
+				if (remainingBytes(actionBuf) >= 1) {
+					const actionType = actionBuf.getUint8();
+					action.setActionType(actionType);
+					if (remainingBytes(actionBuf) >= 2) {
+						action.setFromPage(actionBuf.readSArray(actionBuf.getInt16()).filter((pageId) => pageId !== ''));
+					}
+					if (remainingBytes(actionBuf) >= 2) {
+						action.setToPage(actionBuf.readSArray(actionBuf.getInt16()).filter((pageId) => pageId !== ''));
+					}
+					switch (actionType) {
+						case ControllerActionType.PlayTransition:
+							if (remainingBytes(actionBuf) >= 11) {
+								action
+									.setTransitionName(actionBuf.readS() ?? '')
+									.setPlayTimes(actionBuf.getInt32())
+									.setDelay(actionBuf.getFloat32())
+									.setStopOnExit(actionBuf.readBool());
+							}
+							break;
+						case ControllerActionType.ChangePage:
+							if (remainingBytes(actionBuf) >= 6) {
+								action
+									.setObjectId(actionBuf.readS() ?? '')
+									.setControllerName(actionBuf.readS() ?? '')
+									.setTargetPage(actionBuf.readS() ?? '');
+							}
+							break;
+						default:
+							break;
+					}
 				}
 				controller.addAction(action);
 				controllerBuf.pos = actionNextPos;

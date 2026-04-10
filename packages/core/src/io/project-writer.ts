@@ -6,7 +6,7 @@ import type { GObject } from '../properties/g-object.js';
 import type { Controller } from '../properties/controller.js';
 import type { Transition } from '../properties/transition.js';
 import type { Gear } from '../properties/gear.js';
-import { GearType } from '../constants.js';
+import { ControllerActionType, GearType } from '../constants.js';
 import type { FileSystem } from './project-reader.js';
 
 const builder = new XMLBuilder({
@@ -208,6 +208,18 @@ type WritableChild = GObject & {
 		value?: string | null;
 		icon?: string | null;
 	}>;
+};
+
+type WritableControllerAction = ReturnType<Controller['listActions']>[number] & {
+	getFromPage?(): string[];
+	getToPage?(): string[];
+	getTransitionName?(): string;
+	getPlayTimes?(): number;
+	getDelay?(): number;
+	getStopOnExit?(): boolean;
+	getObjectId?(): string;
+	getControllerName?(): string;
+	getTargetPage?(): string;
 };
 
 function hasNonZeroInsets(value: { top?: number; bottom?: number; left?: number; right?: number } | null | undefined): boolean {
@@ -482,11 +494,42 @@ export class ProjectWriter {
 	private _serializeController(ctrl: Controller): Record<string, unknown> {
 		const pages = ctrl.listPages();
 		const pagesStr = pages.map((p) => `${p.getId()},${p.getName()}`).join(',');
-		return {
+		const attrs: Record<string, unknown> = {
 			'@_name': ctrl.getName(),
 			'@_pages': pagesStr,
 			'@_selected': String(ctrl.getSelectedIndex()),
 		};
+		const actions = ctrl.listActions().map((action) => this._serializeControllerAction(action as WritableControllerAction));
+		if (actions.length > 0) attrs.action = actions;
+		return attrs;
+	}
+
+	private _serializeControllerAction(action: WritableControllerAction): Record<string, unknown> {
+		const fromPage = action.getFromPage?.() ?? [];
+		const toPage = action.getToPage?.() ?? [];
+		const attrs: Record<string, unknown> = {
+			'@_type': action.getActionType() === ControllerActionType.ChangePage ? 'change_page' : 'play_transition',
+			'@_fromPage': fromPage.join(','),
+			'@_toPage': toPage.join(','),
+		};
+
+		switch (action.getActionType()) {
+			case ControllerActionType.PlayTransition:
+				if (action.getTransitionName?.()) attrs['@_transition'] = action.getTransitionName?.();
+				if ((action.getPlayTimes?.() ?? 1) !== 1) attrs['@_repeat'] = String(action.getPlayTimes?.() ?? 1);
+				if ((action.getDelay?.() ?? 0) !== 0) attrs['@_delay'] = String(action.getDelay?.() ?? 0);
+				if (action.getStopOnExit?.()) attrs['@_stopOnExit'] = 'true';
+				break;
+			case ControllerActionType.ChangePage:
+				if (action.getObjectId?.()) attrs['@_objectId'] = action.getObjectId?.();
+				if (action.getControllerName?.()) attrs['@_controller'] = action.getControllerName?.();
+				if (action.getTargetPage?.()) attrs['@_targetPage'] = action.getTargetPage?.();
+				break;
+			default:
+				break;
+		}
+
+		return attrs;
 	}
 
 	private _serializeDisplayList(children: GObject[]): Record<string, unknown[]> {

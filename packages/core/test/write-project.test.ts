@@ -163,6 +163,122 @@ test('round-trip: font fileName and textureId survive package.xml write→read',
 	}
 });
 
+test('round-trip: controller action payload survives project write→read', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectId('controller-action-project').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('ActionPkg');
+	pkg.setId('pkgAction');
+
+	const comp = doc.createComponent('ActionHost');
+	comp.setId('cmpAction');
+	comp.setPath('/');
+	comp.setSize(200, 120);
+
+	const child = doc.createGComponent('panel');
+	child.setId('n3');
+	comp.addChild(child);
+
+	const ctrl = doc.createController('state');
+	const page0 = doc.createControllerPage('up');
+	page0.setId('0');
+	const page1 = doc.createControllerPage('down');
+	page1.setId('1');
+	ctrl.addPage(page0);
+	ctrl.addPage(page1);
+
+	const changePage = doc.createControllerAction('change');
+	changePage
+		.setActionType(1)
+		.setFromPage(['0'])
+		.setToPage(['1'])
+		.setObjectId('n3')
+		.setControllerName('modified')
+		.setTargetPage('~1');
+	ctrl.addAction(changePage);
+
+	const playTransition = doc.createControllerAction('play');
+	playTransition
+		.setActionType(0)
+		.setFromPage(['1'])
+		.setToPage(['0'])
+		.setTransitionName('t0')
+		.setPlayTimes(2)
+		.setDelay(0.25)
+		.setStopOnExit(true);
+	ctrl.addAction(playTransition);
+
+	comp.addController(ctrl);
+	pkg.addResource(comp);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-action-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+
+		const componentXml = await fs.readFile(path.join(tmpDir, 'assets', 'ActionPkg', 'ActionHost.xml'), 'utf-8');
+		t.true(componentXml.includes('type="change_page"'), 'change_page action is written');
+		t.true(componentXml.includes('objectId="n3"'), 'change_page payload is written');
+		t.true(componentXml.includes('controller="modified"'), 'target controller name is written');
+		t.true(componentXml.includes('targetPage="~1"'), 'target page is written');
+		t.true(componentXml.includes('type="play_transition"'), 'play_transition action is written');
+		t.true(componentXml.includes('transition="t0"'), 'transition name is written');
+		t.true(componentXml.includes('repeat="2"'), 'repeat count is written');
+		t.true(componentXml.includes('delay="0.25"'), 'delay is written');
+		t.true(/stopOnExit(?:="true")?/.test(componentXml), 'stopOnExit is written');
+
+		const doc2 = await io.readProject(outFairy);
+		const comp2 = doc2.getRoot().getPackage('ActionPkg')?.getComponent('ActionHost');
+		t.truthy(comp2, 'ActionHost exists after round-trip');
+
+		const actions = comp2?.listControllers()[0]?.listActions() ?? [];
+		t.deepEqual(
+			actions.map((item) => ({
+				actionType: item.getActionType(),
+				fromPage: item.getFromPage(),
+				toPage: item.getToPage(),
+				objectId: item.getObjectId(),
+				controllerName: item.getControllerName(),
+				targetPage: item.getTargetPage(),
+				transitionName: item.getTransitionName(),
+				playTimes: item.getPlayTimes(),
+				delay: item.getDelay(),
+				stopOnExit: item.getStopOnExit(),
+			})),
+			[
+				{
+					actionType: 1,
+					fromPage: ['0'],
+					toPage: ['1'],
+					objectId: 'n3',
+					controllerName: 'modified',
+					targetPage: '~1',
+					transitionName: '',
+					playTimes: 1,
+					delay: 0,
+					stopOnExit: false,
+				},
+				{
+					actionType: 0,
+					fromPage: ['1'],
+					toPage: ['0'],
+					objectId: '',
+					controllerName: '',
+					targetPage: '',
+					transitionName: 't0',
+					playTimes: 2,
+					delay: 0.25,
+					stopOnExit: true,
+				},
+			],
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('round-trip: sample list ptrRes and transition value attrs survive write→read', async (t) => {
 	const io = new NodeIO();
 	const doc = await io.readProject(PROJECT_PATH);

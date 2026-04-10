@@ -233,7 +233,23 @@ block 5 的 patch 用于替换 block 4 中相同索引位置的占位字符串�
 |---|---|
 | 0 | `name`、`autoRadioGroupDepth` |
 | 1 | `pages`（id + name）、`homePageType` |
-| 2 | `actions` 容器 |
+| 2 | `actions` 容器与 action payload |
+
+`actions` block 先写 `actionCount:int16`，随后每个 action 以 `chunkSize:int16` 开头，action 正文顺序固定如下：
+
+| 字段 | 含义 |
+|---|---|
+| `actionType:uint8` | `0 = PlayTransition`，`1 = ChangePage` |
+| `fromPageCount:int16` + `fromPage[]` | 进入条件页 id 列表 |
+| `toPageCount:int16` + `toPage[]` | 目标页 id 列表 |
+| 条件 payload | 按 `actionType` 继续读取 |
+
+条件 payload：
+
+| `actionType` | payload |
+|---|---|
+| `PlayTransition` | `transitionName`、`playTimes:int32`、`delay:float32`、`stopOnExit:bool` |
+| `ChangePage` | `objectId`、`controllerName`、`targetPage` |
 
 #### Block 2：Display list
 
@@ -393,7 +409,7 @@ Block 6 用于恢复 afterAdd 阶段写入的数据：
 | 名称 | `name` |
 | 页面 | `ControllerPage.id`、`ControllerPage.name` |
 | 主页信息 | `homePageType` / 选中页相关语义 |
-| actions | action 容器及其类型信息 |
+| actions | `fromPage`、`toPage` 过滤条件，以及 `PlayTransition` / `ChangePage` 对应 payload |
 
 #### Gear
 

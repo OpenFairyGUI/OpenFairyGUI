@@ -1,5 +1,5 @@
 import { Document } from '../document.js';
-import { GearType, type RelationDef } from '../constants.js';
+import { ControllerActionType, GearType, type RelationDef } from '../constants.js';
 import type { Component } from '../properties/component.js';
 import type { GObject } from '../properties/g-object.js';
 import type { Controller } from '../properties/controller.js';
@@ -118,6 +118,20 @@ interface ControllerXmlNode {
 	name?: string;
 	selected?: string | number;
 	pages?: string;
+	action?: ControllerActionXmlNode | ControllerActionXmlNode[];
+}
+
+interface ControllerActionXmlNode {
+	type?: string;
+	fromPage?: string;
+	toPage?: string;
+	transition?: string;
+	repeat?: string | number;
+	delay?: string | number;
+	stopOnExit?: string | boolean;
+	objectId?: string;
+	controller?: string;
+	targetPage?: string;
 }
 
 interface TransitionItemXmlNode {
@@ -479,6 +493,31 @@ function parseTitleType(value: unknown): number {
 	};
 	const parsed = Number(normalized);
 	return map[normalized] ?? (Number.isFinite(parsed) ? parsed : 0);
+}
+
+function parseControllerActionType(value: unknown): number {
+	const normalized = String(value ?? '').trim().toLowerCase();
+	switch (normalized) {
+		case 'play_transition':
+			return ControllerActionType.PlayTransition;
+		case 'change_page':
+			return ControllerActionType.ChangePage;
+		default:
+			return ControllerActionType.PlayTransition;
+	}
+}
+
+function parseControllerActionPages(value: unknown): string[] {
+	const raw = String(value ?? '').trim();
+	if (!raw) return [];
+	return raw.split(',').map((entry) => entry.trim()).filter((entry) => entry !== '');
+}
+
+function getXmlScalar(value: unknown): string {
+	if (Array.isArray(value)) {
+		return value.length > 0 ? String(value[0] ?? '') : '';
+	}
+	return value === undefined || value === null ? '' : String(value);
 }
 
 export interface FileSystem {
@@ -859,6 +898,36 @@ export class ProjectReader {
 				const p = doc.createControllerPage(page.name);
 				p.setId(page.id);
 				ctrl.addPage(p);
+			}
+
+			const actions = ensureArray(ctrlDef.action);
+			for (let actionIndex = 0; actionIndex < actions.length; actionIndex += 1) {
+				const actionDef = getXmlNode<ControllerActionXmlNode>(actions[actionIndex]);
+				if (!actionDef) continue;
+				const action = doc.createControllerAction(`${ctrl.getName()}_action${actionIndex}`);
+				const actionType = parseControllerActionType(actionDef.type);
+				action
+					.setActionType(actionType)
+					.setFromPage(parseControllerActionPages(actionDef.fromPage))
+					.setToPage(parseControllerActionPages(actionDef.toPage));
+				switch (actionType) {
+					case ControllerActionType.PlayTransition:
+						action
+							.setTransitionName(getXmlScalar(actionDef.transition))
+							.setPlayTimes(parseInt2(actionDef.repeat, 1))
+							.setDelay(parseFloat2(actionDef.delay))
+							.setStopOnExit(parseBool(actionDef.stopOnExit));
+						break;
+					case ControllerActionType.ChangePage:
+						action
+							.setObjectId(getXmlScalar(actionDef.objectId))
+							.setControllerName(getXmlScalar(actionDef.controller))
+							.setTargetPage(getXmlScalar(actionDef.targetPage));
+						break;
+					default:
+						break;
+				}
+				ctrl.addAction(action);
 			}
 
 			comp.addController(ctrl);

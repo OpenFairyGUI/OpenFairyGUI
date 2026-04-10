@@ -1619,8 +1619,25 @@ test('binary writer: component structured objects round-trip into formal models'
 	state.addPage(pageActive);
 
 	const action = doc.createControllerAction('stateAction');
-	action.setActionType(1);
+	action
+		.setActionType(1)
+		.setFromPage(['p_idle'])
+		.setToPage(['p_active'])
+		.setObjectId('bg01')
+		.setControllerName('state')
+		.setTargetPage('p_idle');
 	state.addAction(action);
+
+	const playAction = doc.createControllerAction('playAppear');
+	playAction
+		.setActionType(0)
+		.setFromPage(['p_active'])
+		.setToPage(['p_idle'])
+		.setTransitionName('appear')
+		.setPlayTimes(3)
+		.setDelay(0.5)
+		.setStopOnExit(true);
+	state.addAction(playAction);
 	comp.addController(state);
 
 	const bg = doc.createGImage('bg');
@@ -1710,7 +1727,46 @@ test('binary writer: component structured objects round-trip into formal models'
 				{ id: 'p_active', name: 'Active' },
 			],
 		);
-		t.is(controllers[0]?.listActions()[0]?.getActionType(), 1);
+		t.deepEqual(
+			controllers[0]?.listActions().map((item) => ({
+				actionType: item.getActionType(),
+				fromPage: item.getFromPage(),
+				toPage: item.getToPage(),
+				objectId: item.getObjectId(),
+				controllerName: item.getControllerName(),
+				targetPage: item.getTargetPage(),
+				transitionName: item.getTransitionName(),
+				playTimes: item.getPlayTimes(),
+				delay: item.getDelay(),
+				stopOnExit: item.getStopOnExit(),
+			})),
+			[
+				{
+					actionType: 1,
+					fromPage: ['p_idle'],
+					toPage: ['p_active'],
+					objectId: 'bg01',
+					controllerName: 'state',
+					targetPage: 'p_idle',
+					transitionName: '',
+					playTimes: 1,
+					delay: 0,
+					stopOnExit: false,
+				},
+				{
+					actionType: 0,
+					fromPage: ['p_active'],
+					toPage: ['p_idle'],
+					objectId: '',
+					controllerName: '',
+					targetPage: '',
+					transitionName: 'appear',
+					playTimes: 3,
+					delay: 0.5,
+					stopOnExit: true,
+				},
+			],
+		);
 
 		t.deepEqual(decoded?.getRelations(), [{ target: 'title01', type: 0, usePercent: false }]);
 

@@ -14,7 +14,7 @@
  */
 
 import type { Document } from '../document.js';
-import { ObjectType, type RelationDef } from '../constants.js';
+import { ControllerActionType, ObjectType, type RelationDef } from '../constants.js';
 import type { Component } from '../properties/component.js';
 import type { Package } from '../properties/package.js';
 import { WriteBuffer } from './write-buffer.js';
@@ -438,8 +438,33 @@ function _writeControllers(buf: WriteBuffer, comp: Component): void {
 		for (const action of actions) {
 			const actionStart = buf.pos;
 			buf.writeInt16(0); // placeholder
-			buf.writeUint8(action.getActionType?.() ?? 0);
-			// TODO: encode action-specific data
+			const actionType = action.getActionType?.() ?? 0;
+			buf.writeUint8(actionType);
+			const fromPage = action.getFromPage?.() ?? [];
+			buf.writeInt16(fromPage.length);
+			for (const pageId of fromPage) {
+				buf.writeS(pageId);
+			}
+			const toPage = action.getToPage?.() ?? [];
+			buf.writeInt16(toPage.length);
+			for (const pageId of toPage) {
+				buf.writeS(pageId);
+			}
+			switch (actionType) {
+				case ControllerActionType.PlayTransition:
+					buf.writeS(action.getTransitionName?.() ?? '');
+					buf.writeInt32(action.getPlayTimes?.() ?? 1);
+					buf.writeFloat32(action.getDelay?.() ?? 0);
+					buf.writeBool(action.getStopOnExit?.() ?? false);
+					break;
+				case ControllerActionType.ChangePage:
+					buf.writeS(action.getObjectId?.() ?? '');
+					buf.writeS(action.getControllerName?.() ?? '');
+					buf.writeS(action.getTargetPage?.() ?? '');
+					break;
+				default:
+					break;
+			}
 			const actionEnd = buf.pos;
 			const saved = buf.pos;
 			buf.pos = actionStart;
