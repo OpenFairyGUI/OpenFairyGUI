@@ -12,7 +12,10 @@ interface IFontResource extends IExtensibleProperty {
 	ttf: boolean;
 	tint: boolean;
 	autoScale: boolean;
+	hasChannel: boolean;
 	fontSize: number;
+	xAdvance: number;
+	lineHeight: number;
 	glyphs: RefList<FontGlyph>;
 }
 
@@ -37,7 +40,10 @@ export class FontResource extends ExtensibleProperty<IFontResource> {
 			ttf: false,
 			tint: false,
 			autoScale: false,
+			hasChannel: false,
 			fontSize: 0,
+			xAdvance: 0,
+			lineHeight: 0,
 			glyphs: new RefList<FontGlyph>(),
 		});
 	}
@@ -66,8 +72,17 @@ export class FontResource extends ExtensibleProperty<IFontResource> {
 	public getAutoScale(): boolean { return this.get('autoScale'); }
 	public setAutoScale(v: boolean): this { return this.set('autoScale', v); }
 
+	public getHasChannel(): boolean { return this.get('hasChannel'); }
+	public setHasChannel(v: boolean): this { return this.set('hasChannel', v); }
+
 	public getFontSize(): number { return this.get('fontSize'); }
 	public setFontSize(v: number): this { return this.set('fontSize', v); }
+
+	public getXAdvance(): number { return this.get('xAdvance'); }
+	public setXAdvance(v: number): this { return this.set('xAdvance', v); }
+
+	public getLineHeight(): number { return this.get('lineHeight'); }
+	public setLineHeight(v: number): this { return this.set('lineHeight', v); }
 
 	public addGlyph(glyph: FontGlyph): this { return this.addRef('glyphs', glyph); }
 	public removeGlyph(glyph: FontGlyph): this { return this.removeRef('glyphs', glyph); }

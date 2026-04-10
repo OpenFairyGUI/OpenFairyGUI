@@ -110,3 +110,27 @@ test('binary: movie clips decode frame data into formal properties', async (t) =
 		t.falsy(extras._rawBinaryFrames, 'raw movie clip frame extras are no longer used');
 	}
 });
+
+test('binary: fonts decode glyph data into formal properties', async (t) => {
+	const doc = await getDoc();
+	const pkg = getMainPackage(doc)!;
+	const fonts = pkg.listResources().filter((r) => r.propertyType === 'FontResource');
+	t.true(fonts.length > 0, 'package has font resources');
+
+	const withGlyphs = fonts.filter(
+		(font) => (font as ReturnType<Document['createFontResource']>).listGlyphs().length > 0,
+	);
+	t.true(withGlyphs.length > 0, 'at least one font decodes glyphs');
+
+	for (const font of withGlyphs) {
+		const typedFont = font as ReturnType<Document['createFontResource']>;
+		t.true(typedFont.getFontSize() >= 0, 'font size is decoded');
+		t.true(typedFont.getLineHeight() >= 0, 'lineHeight is decoded');
+		const glyph = typedFont.listGlyphs()[0]!;
+		t.true(glyph.getCharId() >= 0, 'glyph charId is decoded');
+		t.true(glyph.getWidth() >= 0, 'glyph width is decoded');
+		t.true(glyph.getAdvance() >= 0, 'glyph advance is decoded');
+		const extras = typedFont.getExtras() as Record<string, unknown>;
+		t.falsy(extras._rawBinaryGlyphs, 'raw font glyph extras are no longer used');
+	}
+});

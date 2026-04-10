@@ -58,10 +58,6 @@ interface ComponentBinaryExtras extends Record<string, unknown> {
 	_rawBinary?: RawBinarySlice;
 }
 
-interface FontBinaryExtras extends Record<string, unknown> {
-	_rawBinaryGlyphs?: RawBinarySlice;
-}
-
 interface PixelHitTestEntry {
 	itemId: string;
 	pixelWidth: number;
@@ -83,10 +79,6 @@ function getPackageExtras(pkg: { getExtras(): Record<string, unknown> }): Binary
 
 function getComponentExtras(resource: { getExtras(): Record<string, unknown> }): ComponentBinaryExtras {
 	return resource.getExtras() as ComponentBinaryExtras;
-}
-
-function getFontExtras(resource: { getExtras(): Record<string, unknown> }): FontBinaryExtras {
-	return resource.getExtras() as FontBinaryExtras;
 }
 
 function decodeMovieClipFrames(doc: Document, resource: ReturnType<Document['createMovieClipResource']>, buf: ByteBuffer): void {
@@ -113,6 +105,54 @@ function decodeMovieClipFrames(doc: Document, resource: ReturnType<Document['cre
 			.setAddDelay(buf.getInt32())
 			.setSpriteId(buf.readS() ?? '');
 		resource.addFrame(frame);
+		buf.pos = nextPos;
+	}
+}
+
+function decodeChar(charId: number): string {
+	if (charId <= 0) return '';
+	try {
+		return String.fromCodePoint(charId);
+	} catch {
+		return '';
+	}
+}
+
+function decodeFontGlyphs(doc: Document, resource: ReturnType<Document['createFontResource']>, buf: ByteBuffer): void {
+	if (buf.byteLength === 0) return;
+	const indexTablePos = buf.pos;
+
+	if (buf.seek(indexTablePos, 0)) {
+		resource
+			.setTtf(buf.readBool())
+			.setTint(buf.readBool())
+			.setAutoScale(buf.readBool())
+			.setHasChannel(buf.readBool())
+			.setFontSize(buf.getInt32())
+			.setXAdvance(buf.getInt32())
+			.setLineHeight(buf.getInt32());
+	}
+
+	if (!buf.seek(indexTablePos, 1)) return;
+	const glyphCount = buf.getInt32();
+	for (let index = 0; index < glyphCount; index += 1) {
+		const chunkSize = buf.getInt16();
+		const nextPos = buf.pos + chunkSize;
+		const charId = buf.getInt16();
+		const glyph = doc.createFontGlyph(`${resource.getId()}_${charId || index}`);
+		glyph
+			.setCharId(charId)
+			.setChar(decodeChar(charId))
+			.setImg(buf.readS() ?? '')
+			.setX(buf.getInt32())
+			.setY(buf.getInt32())
+			.setXOffset(buf.getInt32())
+			.setYOffset(buf.getInt32())
+			.setWidth(buf.getInt32())
+			.setHeight(buf.getInt32())
+			.setAdvance(buf.getInt32())
+			.setChannel(buf.getUint8());
+		resource.addGlyph(glyph);
 		buf.pos = nextPos;
 	}
 }
@@ -290,10 +330,7 @@ export class BinaryReader {
 					const res = doc.createFontResource(itemName);
 					res.setId(itemId).setExported(exported);
 					const rawGlyphs = buf.readBuffer();
-					res.setExtras({
-						...getFontExtras(res),
-						_rawBinaryGlyphs: toRawBinarySlice(rawGlyphs),
-					});
+					decodeFontGlyphs(doc, res, rawGlyphs);
 					pkg.addResource(res);
 					break;
 				}

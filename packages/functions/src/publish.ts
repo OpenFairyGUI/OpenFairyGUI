@@ -90,11 +90,6 @@ interface ImageResourceExtras extends Record<string, unknown> {
 	_fileName?: string;
 }
 
-interface FontResourceExtras extends Record<string, unknown> {
-	_rawBinaryGlyphs?: unknown;
-	_fntData?: unknown;
-}
-
 interface PackagePublishContext {
 	referencedIds: Set<string>;
 	publishedResourceIds: Set<string>;
@@ -449,8 +444,7 @@ function collectPackagePublishContext(pkg: Package): {
 			continue;
 		}
 		if (isFontResource(resource)) {
-			const extras = (resource.getExtras() as FontResourceExtras | undefined) ?? {};
-			if ((resource.getExported() || referencedIds.has(resourceId)) && (extras._rawBinaryGlyphs || extras._fntData)) {
+			if ((resource.getExported() || referencedIds.has(resourceId)) && (resource.listGlyphs().length > 0 || resource.getTtf())) {
 				publishedResourceIds.add(resourceId);
 			}
 			continue;

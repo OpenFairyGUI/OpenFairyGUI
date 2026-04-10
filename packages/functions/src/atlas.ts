@@ -177,7 +177,6 @@ interface FontSpriteAlias {
 
 interface FontResourceExtras extends ExtrasMap {
 	_fontSpriteAlias?: FontSpriteAlias;
-	_fntData?: ParsedFnt;
 }
 
 interface AtlasEncoderMetadata {
@@ -565,7 +564,7 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 				} else if (isFontResource(res)) {
 					const resId = res.getId();
 					if (!res.getExported() && referencedIds.size > 0 && !referencedIds.has(resId)) continue;
-					await _collectFontTexture(res, pkg, options);
+					await _collectFontTexture(doc, res, pkg, options);
 				}
 			}
 
@@ -1369,6 +1368,7 @@ function _readUint32BE(data: Uint8Array, offset: number): number {
 
 /** Collect a Bitmap Font's texture image, packed under the font's ID. */
 async function _collectFontTexture(
+	doc: Document,
 	fontRes: FontResource,
 	pkg: Package,
 	options: AtlasOptions,
@@ -1395,7 +1395,34 @@ async function _collectFontTexture(
 			const fntData = await options.readFileRaw(fntFile);
 			const fntText = new TextDecoder().decode(fntData);
 			const fntParsed = _parseFnt(fntText);
-			fontRes.setExtras({ ...fontRes.getExtras(), _fntData: fntParsed });
+			for (const glyph of fontRes.listGlyphs()) {
+				fontRes.removeGlyph(glyph);
+			}
+			fontRes
+				.setTtf(fntParsed.hasFace)
+				.setTint(fntParsed.colored)
+				.setAutoScale(fntParsed.resizable)
+				.setHasChannel(fntParsed.hasChannel)
+				.setFontSize(fntParsed.fontSize)
+				.setXAdvance(fntParsed.xadvance)
+				.setLineHeight(fntParsed.lineHeight);
+			for (const item of fntParsed.glyphs) {
+				const glyph = doc.createFontGlyph(`${fontRes.getId()}_${item.charId}`);
+				glyph
+					.setCharId(item.charId)
+					.setChar(item.charId > 0 ? String.fromCodePoint(item.charId) : '')
+					.setImg(item.img ?? '')
+					.setX(item.x)
+					.setY(item.y)
+					.setXOffset(item.xoffset)
+					.setYOffset(item.yoffset)
+					.setWidth(item.width)
+					.setHeight(item.height)
+					.setAdvance(item.xadvance)
+					.setLineHeight(fntParsed.lineHeight)
+					.setChannel(item.channel);
+				fontRes.addGlyph(glyph);
+			}
 		} catch { /* .fnt not found */ }
 	}
 }

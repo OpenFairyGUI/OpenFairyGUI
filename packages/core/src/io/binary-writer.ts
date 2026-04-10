@@ -114,11 +114,6 @@ interface ComponentWithExtensionType {
 	getExtensionType?(): string;
 }
 
-interface FontBinaryExtras extends Record<string, unknown> {
-	_rawBinaryGlyphs?: RawBinarySlice;
-	_fntData?: FntData;
-}
-
 interface BinaryAtlasItem {
 	propertyType: 'AtlasItem';
 	getId(): string;
@@ -431,17 +426,28 @@ export class BinaryWriter {
 					data.writeBool(res.getExported());
 					data.writeInt32(0); // width
 					data.writeInt32(0); // height
-					// glyph data
-					const fontExtras = res.getExtras() as FontBinaryExtras;
-					if (fontExtras?._rawBinaryGlyphs) {
-						data.writeBuffer(toUint8Array(fontExtras._rawBinaryGlyphs));
-					} else if (fontExtras?._fntData) {
-						// From ProjectReader + atlas: encode glyph data from .fnt
-						const glyphData = _encodeFontGlyphs(fontExtras._fntData, data);
-						data.writeBuffer(glyphData);
-					} else {
-						data.writeBuffer(new Uint8Array(0));
-					}
+					const glyphData = _encodeFontGlyphs({
+						hasFace: res.getTtf(),
+						colored: res.getTint(),
+						resizable: res.getAutoScale(),
+						hasChannel: res.getHasChannel(),
+						fontSize: res.getFontSize(),
+						xadvance: res.getXAdvance(),
+						lineHeight: res.getLineHeight(),
+						glyphs: res.listGlyphs().map((glyph) => ({
+							charId: glyph.getCharId() || glyph.getChar().codePointAt(0) || 0,
+							img: glyph.getImg() || null,
+							x: glyph.getX(),
+							y: glyph.getY(),
+							xoffset: glyph.getXOffset(),
+							yoffset: glyph.getYOffset(),
+							width: glyph.getWidth(),
+							height: glyph.getHeight(),
+							xadvance: glyph.getAdvance(),
+							channel: glyph.getChannel(),
+						})),
+					}, data);
+					data.writeBuffer(glyphData);
 					break;
 				}
 				default:

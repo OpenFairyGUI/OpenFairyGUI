@@ -944,6 +944,98 @@ test('binary writer: movie clip frames round-trip as formal properties', async (
 	}
 });
 
+test('binary writer: font glyphs round-trip as formal properties', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('FontPkg');
+	pkg.setId('fontpkg1');
+
+	const font = doc.createFontResource('BattleFont');
+	font
+		.setId('font001')
+		.setTtf(true)
+		.setTint(true)
+		.setAutoScale(false)
+		.setHasChannel(true)
+		.setFontSize(24)
+		.setXAdvance(16)
+		.setLineHeight(28);
+
+	const glyphA = doc.createFontGlyph('font001_65');
+	glyphA
+		.setCharId(65)
+		.setChar('A')
+		.setImg('glyph_a')
+		.setX(1)
+		.setY(2)
+		.setXOffset(3)
+		.setYOffset(4)
+		.setWidth(20)
+		.setHeight(21)
+		.setAdvance(22)
+		.setChannel(1);
+	font.addGlyph(glyphA);
+
+	const glyphB = doc.createFontGlyph('font001_66');
+	glyphB
+		.setCharId(66)
+		.setChar('B')
+		.setImg('')
+		.setX(5)
+		.setY(6)
+		.setXOffset(7)
+		.setYOffset(8)
+		.setWidth(23)
+		.setHeight(24)
+		.setAdvance(25)
+		.setChannel(15);
+	font.addGlyph(glyphB);
+
+	pkg.addResource(font);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-bw-'));
+	const outPath = path.join(tmpDir, 'font_roundtrip.bytes');
+
+	try {
+		await io.writeBinary(doc, outPath);
+		const doc2 = await io.readBinary(outPath);
+		const pkg2 = doc2.getRoot().listPackages().find((item) => item.getId() === 'fontpkg1');
+		t.truthy(pkg2, 'font package exists after round-trip');
+		const font2 = pkg2?.listResources().find((item) => item.propertyType === 'FontResource');
+		t.truthy(font2, 'font resource exists after round-trip');
+
+		const roundTripFont = font2 as ReturnType<Document['createFontResource']>;
+		t.true(roundTripFont.getTtf());
+		t.true(roundTripFont.getTint());
+		t.false(roundTripFont.getAutoScale());
+		t.true(roundTripFont.getHasChannel());
+		t.is(roundTripFont.getFontSize(), 24);
+		t.is(roundTripFont.getXAdvance(), 16);
+		t.is(roundTripFont.getLineHeight(), 28);
+		t.deepEqual(
+			roundTripFont.listGlyphs().map((glyph) => ({
+				charId: glyph.getCharId(),
+				char: glyph.getChar(),
+				img: glyph.getImg(),
+				x: glyph.getX(),
+				y: glyph.getY(),
+				xOffset: glyph.getXOffset(),
+				yOffset: glyph.getYOffset(),
+				width: glyph.getWidth(),
+				height: glyph.getHeight(),
+				advance: glyph.getAdvance(),
+				channel: glyph.getChannel(),
+			})),
+			[
+				{ charId: 65, char: 'A', img: 'glyph_a', x: 1, y: 2, xOffset: 3, yOffset: 4, width: 20, height: 21, advance: 22, channel: 1 },
+				{ charId: 66, char: 'B', img: '', x: 5, y: 6, xOffset: 7, yOffset: 8, width: 23, height: 24, advance: 25, channel: 15 },
+			],
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('binary writer: sprite originalSize is only emitted for rotated, trimmed, or zero-sized package sprites', async (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('SpritePkg');
