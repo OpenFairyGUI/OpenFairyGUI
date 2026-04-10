@@ -1,7 +1,7 @@
 import test from 'ava';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { NodeIO } from '../src/index.js';
+import { NodeIO, PropertyType } from '../src/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_PATH = path.resolve(
@@ -170,6 +170,8 @@ test('TreeView package preserves tree list attrs and item hierarchy', async (t) 
 	t.truthy(tree, 'tree child exists');
 	t.truthy(tree2, 'tree2 child exists');
 
+	t.is(tree?.propertyType, PropertyType.G_TREE, 'tree lifts to formal GTree');
+	t.is(tree2?.propertyType, PropertyType.G_TREE, 'tree2 lifts to formal GTree');
 	t.true(tree?.getTreeView?.(), 'tree keeps treeView=true');
 	t.is(tree?.getIndent?.(), 15, 'tree keeps indent');
 	t.is(tree?.getClickToExpand?.(), 1, 'tree keeps clickToExpand');

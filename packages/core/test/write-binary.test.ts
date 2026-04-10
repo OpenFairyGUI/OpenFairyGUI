@@ -1019,13 +1019,12 @@ test('binary writer: tree lists use tree object type and persist hierarchy metad
 	comp.setId('treehost01');
 	comp.setSize(400, 300);
 
-	const list = doc.createGList('tree');
-	list.setId('treechild01');
-	list.setDefaultItem('ui://treepkg01/item');
-	list.setTreeView(true);
-	list.setIndent(15);
-	list.setClickToExpand(1);
-	list.setListItems([
+	const tree = doc.createGTree('tree');
+	tree.setId('treechild01');
+	tree.setDefaultItem('ui://treepkg01/item');
+	tree.setIndent(15);
+	tree.setClickToExpand(1);
+	tree.setListItems([
 		{
 			title: 'Folder 1',
 			icon: null,
@@ -1048,7 +1047,7 @@ test('binary writer: tree lists use tree object type and persist hierarchy metad
 		},
 	]);
 
-	comp.addChild(list);
+	comp.addChild(tree);
 	pkg.addResource(comp);
 
 	const io = new NodeIO();

@@ -32,6 +32,7 @@ export { GLoader3D } from './g-loader-3d.js';
 export { GMovieClip } from './g-movie-clip.js';
 export { GComponent } from './g-component.js';
 export { GList } from './g-list.js';
+export { GTree } from './g-tree.js';
 export { GButton } from './g-button.js';
 export { GLabel } from './g-label.js';
 export { GComboBox } from './g-combo-box.js';

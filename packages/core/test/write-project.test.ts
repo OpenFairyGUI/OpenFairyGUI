@@ -3,7 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { Document, GearType, NodeIO } from '../src/index.js';
+import { Document, GearType, NodeIO, PropertyType } from '../src/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_PATH = path.resolve(
@@ -548,8 +548,9 @@ test('round-trip: tree view list attrs and static item hierarchy survive writeâ†
 		const main = treeViewPkg?.listComponents().find((comp) => comp.getName() === 'Main');
 		t.truthy(main, 'TreeView/Main exists after round-trip');
 
-		const tree = main?.listChildren().find((child) => child.getName?.() === 'tree') as ReturnType<Document['createGList']> | undefined;
+		const tree = main?.listChildren().find((child) => child.getName?.() === 'tree') as ReturnType<Document['createGTree']> | undefined;
 		t.truthy(tree, 'tree list exists after round-trip');
+		t.is(tree?.propertyType, PropertyType.G_TREE);
 		t.true(tree?.getTreeView?.());
 		t.is(tree?.getIndent?.(), 15);
 		t.is(tree?.getClickToExpand?.(), 1);

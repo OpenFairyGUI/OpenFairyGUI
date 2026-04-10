@@ -79,6 +79,7 @@ export {
 	GMovieClip,
 	GComponent,
 	GList,
+	GTree,
 	GButton,
 	GLabel,
 	GComboBox,

@@ -52,6 +52,7 @@ const DISPLAY_TAG_MAP: Record<string, string> = {
 	jta: 'GMovieClip',
 	component: 'GComponent',
 	list: 'GList',
+	tree: 'GTree',
 };
 
 // Maps extension type (from <component extention="...">) to extended component type.
@@ -1192,12 +1193,13 @@ export class ProjectReader {
 				break;
 			}
 			case 'list': {
-				const g = doc.createGList(name);
+				const isTree = attrs.treeView !== undefined && parseBool(attrs.treeView);
+				const g = isTree ? doc.createGTree(name) : doc.createGList(name);
 				g.setSrc(attrs.src || '');
 				if (attrs.defaultItem) g.setDefaultItem(attrs.defaultItem);
-				if (attrs.treeView !== undefined) g.setTreeView?.(parseBool(attrs.treeView));
-				if (attrs.indent !== undefined) g.setIndent?.(parseInt2(attrs.indent));
-				if (attrs.clickToExpand !== undefined) g.setClickToExpand?.(parseInt2(attrs.clickToExpand));
+				if (isTree) g.setTreeView?.(true);
+				if (isTree && attrs.indent !== undefined) g.setIndent?.(parseInt2(attrs.indent));
+				if (isTree && attrs.clickToExpand !== undefined) g.setClickToExpand?.(parseInt2(attrs.clickToExpand));
 				if (attrs.scrollBarRes) {
 					const parts = String(attrs.scrollBarRes).split(',');
 					g.setVtScrollBarRes?.(parts[0] ?? '');

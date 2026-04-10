@@ -111,7 +111,6 @@ type EncoderChildLike = ChildNode & {
 	getMin?(): number;
 	getDefaultItem?(): string;
 	getListItems?(): ListItemLike[];
-	getTreeView?(): boolean;
 	getIndent?(): number;
 	getClickToExpand?(): number;
 	getPromptText?(): string;
@@ -492,13 +491,11 @@ const OBJECT_TYPE_MAP: Record<string, number> = {
 	GProgressBar: 14,
 	GSlider: 15,
 	GScrollBar: 16,
+	GTree: 17,
 	GLoader3D: 18,
 };
 
 function _resolveChildObjectType(child: EncoderChildLike): number {
-	if (child.propertyType === 'GList' && child.getTreeView?.()) {
-		return ObjectType.Tree;
-	}
 	return OBJECT_TYPE_MAP[child.propertyType as string] ?? 2;
 }
 
@@ -515,9 +512,10 @@ function _writeDisplayList(buf: WriteBuffer, comp: Component, _doc: Document, _p
 		// Child has its own index table
 		const childType = child.propertyType as string;
 		const objType = _resolveChildObjectType(child);
-		const isTree = objType === ObjectType.Tree;
+		const isTree = childType === 'GTree' || objType === ObjectType.Tree;
+		const isListLike = childType === 'GList' || childType === 'GTree';
 		// GList needs up to 9 blocks; tree needs 10; others need 7
-		const CHILD_BLOCKS = childType === 'GList' ? (isTree ? 10 : 9) : 7;
+		const CHILD_BLOCKS = isListLike ? (isTree ? 10 : 9) : 7;
 		const childIndexPos = buf.pos;
 		buf.writeUint8(CHILD_BLOCKS);
 		buf.writeUint8(1);
@@ -629,7 +627,7 @@ function _writeDisplayList(buf: WriteBuffer, comp: Component, _doc: Document, _p
 
 		// --- Child Block 4: page controller (for GComponent/GList children only) ---
 		let cb4 = 0;
-		const isCompOrList = childType === 'GComponent' || childType === 'GList' ||
+		const isCompOrList = childType === 'GComponent' || childType === 'GList' || childType === 'GTree' ||
 			childType === 'GButton' || childType === 'GLabel' ||
 			childType === 'GComboBox' || childType === 'GProgressBar' ||
 			childType === 'GSlider' || childType === 'GScrollBar';
@@ -654,7 +652,7 @@ function _writeDisplayList(buf: WriteBuffer, comp: Component, _doc: Document, _p
 
 		// --- GList extra blocks ---
 		let cb7 = 0, cb8 = 0, cb9 = 0;
-		if (childType === 'GList') {
+		if (isListLike) {
 			// Block 7: scroll pane (when overflow=scroll)
 			const overflow = child.getOverflow?.() ?? 0;
 			if (overflow === 2) { // Scroll
@@ -678,7 +676,7 @@ function _writeDisplayList(buf: WriteBuffer, comp: Component, _doc: Document, _p
 		buf.writeUint16(cb0); buf.writeUint16(cb1); buf.writeUint16(cb2);
 		buf.writeUint16(cb3); buf.writeUint16(cb4); buf.writeUint16(cb5);
 		buf.writeUint16(cb6);
-		if (childType === 'GList') {
+		if (isListLike) {
 			buf.writeUint16(cb7); buf.writeUint16(cb8);
 			if (isTree) buf.writeUint16(cb9);
 		}
@@ -1467,7 +1465,8 @@ function _writeChildSpecific(buf: WriteBuffer, child: EncoderChildLike, version:
 			break;
 		}
 
-		case 'GList': {
+		case 'GList':
+		case 'GTree': {
 			// GList.setup_beforeAdd block 5: layout, selection, scroll, items
 			const overflow = child.getOverflow?.() ?? 0;
 			buf.writeUint8(child.getLayout?.() ?? 0); // layout
@@ -1655,7 +1654,8 @@ function _writeChildAfterAdd(buf: WriteBuffer, child: EncoderChildLike, comp: Co
 			break;
 		}
 
-		case 'GList': {
+		case 'GList':
+		case 'GTree': {
 			// GList.setup_afterAdd: block 6
 			buf.writeInt16(-1); // selectionController
 			break;
@@ -1807,14 +1807,14 @@ function _writeScrollPane(buf: WriteBuffer, child: EncoderChildLike): void {
 function _writeListItems(buf: WriteBuffer, child: EncoderChildLike, version: number): void {
 	buf.writeS(child.getDefaultItem?.() ?? null);
 
-	const treeView = child.getTreeView?.() ?? false;
+	const isTree = child.propertyType === 'GTree';
 	const listItems: ListItemLike[] = child.getListItems?.() ?? [];
 	buf.writeInt16(listItems.length);
 	for (const item of listItems) {
 		const itemStart = buf.pos;
 		buf.writeInt16(0); // placeholder
 		buf.writeS(item.url ?? null);
-		if (treeView) {
+		if (isTree) {
 			const explicitFolder = item.isFolder;
 			const isFolder = explicitFolder ?? (!(item.icon ?? null) && !(item.url ?? null));
 			buf.writeBool(isFolder);

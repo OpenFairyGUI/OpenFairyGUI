@@ -24,7 +24,7 @@ interface EdgeInsetsLike {
 	right: number;
 }
 
-interface IGList extends IGObject {
+export interface IListBase extends IGObject {
 	layout: number;
 	lineGap: number;
 	columnGap: number;
@@ -47,10 +47,9 @@ interface IGList extends IGObject {
 	listItems: GListItemData[];
 	pageController: string;
 	controllerOverrides: string;
-	treeView: boolean;
-	indent: number;
-	clickToExpand: number;
 }
+
+export interface IGList extends IListBase {}
 
 function firstString(value: unknown): string {
 	if (Array.isArray(value)) return String(value[0] ?? '');
@@ -58,17 +57,13 @@ function firstString(value: unknown): string {
 }
 
 /**
- * A list display object that manages a collection of items.
- * @category Properties
+ * Shared list-like behavior used by both `GList` and `GTree`.
  */
-export class GList extends GObject<IGList, PropertyType.G_LIST> {
-	public declare propertyType: PropertyType.G_LIST;
-
-	protected init(): void {
-		this.propertyType = PropertyType.G_LIST;
-	}
-
-	protected getDefaults(): Nullable<IGList> {
+export class GListBase<
+	TProps extends IListBase = IListBase,
+	TType extends PropertyType = PropertyType.G_LIST,
+> extends GObject<TProps, TType> {
+	protected getDefaults(): Nullable<TProps> {
 		return Object.assign(super.getDefaults(), {
 			layout: ListLayoutType.SingleColumn,
 			lineGap: 0,
@@ -92,10 +87,7 @@ export class GList extends GObject<IGList, PropertyType.G_LIST> {
 			listItems: [] as GListItemData[],
 			pageController: '',
 			controllerOverrides: '',
-			treeView: false,
-			indent: 0,
-			clickToExpand: 0,
-		});
+		}) as Nullable<TProps>;
 	}
 
 	public getLayout(): number { return this.get('layout'); }
@@ -143,15 +135,6 @@ export class GList extends GObject<IGList, PropertyType.G_LIST> {
 	public getControllerOverrides(): string { return firstString(this.get('controllerOverrides')); }
 	public setControllerOverrides(v: string): this { return this.set('controllerOverrides', v); }
 
-	public getTreeView(): boolean { return this.get('treeView'); }
-	public setTreeView(v: boolean): this { return this.set('treeView', v); }
-
-	public getIndent(): number { return this.get('indent'); }
-	public setIndent(v: number): this { return this.set('indent', v); }
-
-	public getClickToExpand(): number { return this.get('clickToExpand'); }
-	public setClickToExpand(v: number): this { return this.set('clickToExpand', v); }
-
 	public getMargin(): EdgeInsetsLike {
 		const margin = this.get('margin');
 		return {
@@ -184,4 +167,16 @@ export class GList extends GObject<IGList, PropertyType.G_LIST> {
 
 	public getListItems(): GListItemData[] { return this.get('listItems' as never) as GListItemData[]; }
 	public setListItems(v: GListItemData[]): this { return this.set('listItems' as never, v as never); }
+}
+
+/**
+ * A list display object that manages a collection of items.
+ * @category Properties
+ */
+export class GList extends GListBase<IGList, PropertyType.G_LIST> {
+	public declare propertyType: PropertyType.G_LIST;
+
+	protected init(): void {
+		this.propertyType = PropertyType.G_LIST;
+	}
 }

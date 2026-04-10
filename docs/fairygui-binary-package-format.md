@@ -308,7 +308,8 @@ child 自身带独立 index table，不同对象类型的 block 数量不同：
 | Tree | 10 |
 
 说明：
-- Tree 不是独立外层资源类型，而是 `GList` 且 `treeView=true` 的特殊分支。
+- Tree 不是独立外层资源条目类型。
+- 当前实现的正式模型使用 `GTree`，但项目 XML 仍按编辑器口径写成 `<list treeView="true">`。
 
 #### object type 映射
 
@@ -331,7 +332,7 @@ child 自身带独立 index table，不同对象类型的 block 数量不同：
 | 15 | `GSlider` |
 | 16 | `GScrollBar` |
 | 18 | `GLoader3D` |
-| Tree 分支 | `GList` + `treeView=true` |
+| Tree 分支 | `GTree`（项目 XML 映射为 `list + treeView=true`） |
 
 #### Child block 解码顺序
 

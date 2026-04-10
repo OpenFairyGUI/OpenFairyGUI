@@ -46,6 +46,7 @@ export enum PropertyType {
 	G_MOVIE_CLIP = 'GMovieClip',
 	G_COMPONENT = 'GComponent',
 	G_LIST = 'GList',
+	G_TREE = 'GTree',
 	G_BUTTON = 'GButton',
 	G_LABEL = 'GLabel',
 	G_COMBO_BOX = 'GComboBox',

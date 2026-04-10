@@ -63,6 +63,7 @@ const DISPLAY_TAG: Record<string, string> = {
 	GSlider: 'component',
 	GScrollBar: 'component',
 	GList: 'list',
+	GTree: 'list',
 };
 
 const EXTENSION_TYPE: Record<string, string> = {
@@ -187,7 +188,6 @@ type WritableChild = GObject & {
 		level?: number;
 		isFolder?: boolean | null;
 	}>;
-	getTreeView?(): boolean;
 	getIndent?(): number;
 	getClickToExpand?(): number;
 	getPageController?(): string;
@@ -538,10 +538,10 @@ export class ProjectWriter {
 			const src = typedObj.getSrc?.();
 			if (src) attrs['@_src'] = src;
 		}
-		if ((type === 'GComponent' || type === 'GList') && typedObj.getControllerOverrides?.()) {
+		if ((type === 'GComponent' || type === 'GList' || type === 'GTree') && typedObj.getControllerOverrides?.()) {
 			attrs['@_controller'] = typedObj.getControllerOverrides?.();
 		}
-		if ((type === 'GComponent' || type === 'GList') && typedObj.getPageController?.()) {
+		if ((type === 'GComponent' || type === 'GList' || type === 'GTree') && typedObj.getPageController?.()) {
 			attrs['@_pageController'] = typedObj.getPageController?.();
 		}
 		if (type === 'GImage') {
@@ -673,7 +673,8 @@ export class ProjectWriter {
 			if (columnGap !== 0) attrs['@_columnGap'] = String(columnGap);
 			if (typedObj.getAdvanced?.()) attrs['@_advanced'] = '1';
 		}
-		if (type === 'GList') {
+		if (type === 'GList' || type === 'GTree') {
+			const isTree = type === 'GTree';
 			const layout = typedObj.getLayout?.();
 			if (layout !== undefined) {
 				const layoutName: Record<number, string> = {
@@ -701,11 +702,13 @@ export class ProjectWriter {
 			}
 			const defaultItem = typedObj.getDefaultItem?.();
 			if (defaultItem) attrs['@_defaultItem'] = defaultItem;
-			if (typedObj.getTreeView?.()) attrs['@_treeView'] = 'true';
-			const indent = typedObj.getIndent?.() ?? 0;
-			if (indent !== 0) attrs['@_indent'] = String(indent);
-			const clickToExpand = typedObj.getClickToExpand?.() ?? 0;
-			if (clickToExpand !== 0) attrs['@_clickToExpand'] = String(clickToExpand);
+			if (isTree) attrs['@_treeView'] = 'true';
+			if (isTree) {
+				const indent = typedObj.getIndent?.() ?? 0;
+				if (indent !== 0) attrs['@_indent'] = String(indent);
+				const clickToExpand = typedObj.getClickToExpand?.() ?? 0;
+				if (clickToExpand !== 0) attrs['@_clickToExpand'] = String(clickToExpand);
+			}
 			const overflow = typedObj.getOverflow?.() ?? 0;
 			if (overflow !== 0) {
 				const overflowName: Record<number, string> = { 0: 'visible', 1: 'hidden', 2: 'scroll' };

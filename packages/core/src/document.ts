@@ -23,6 +23,7 @@ import {
 	GMovieClip,
 	GComponent,
 	GList,
+	GTree,
 	GButton,
 	GLabel,
 	GComboBox,
@@ -197,6 +198,10 @@ export class Document {
 
 	createGList(name = ''): GList {
 		return new GList(this._graph, name);
+	}
+
+	createGTree(name = ''): GTree {
+		return new GTree(this._graph, name);
 	}
 
 	createGButton(name = ''): GButton {
