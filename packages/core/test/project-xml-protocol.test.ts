@@ -2,13 +2,34 @@ import test, { type ExecutionContext } from 'ava';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PROJECT_XML_PROTOCOL, listXmlAttrNames } from '../src/io/project-xml-protocol.js';
+import {
+	PROJECT_XML_PROTOCOL,
+	listXmlAttrNames,
+	listXmlChildNames,
+	listXmlContainerItemNames,
+	listXmlContainerNames,
+} from '../src/io/project-xml-protocol.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REFERER_ROOT = path.resolve(__dirname, '../../../referer');
 
 function collectAllowedAttrNames(...protocolKeys: Array<keyof typeof PROJECT_XML_PROTOCOL>): Set<string> {
 	return new Set(protocolKeys.flatMap((key) => listXmlAttrNames(PROJECT_XML_PROTOCOL[key])));
+}
+
+function collectChildNames(protocolKey: keyof typeof PROJECT_XML_PROTOCOL): string[] {
+	return [...listXmlChildNames(PROJECT_XML_PROTOCOL[protocolKey])].sort();
+}
+
+function collectContainerNames(protocolKey: keyof typeof PROJECT_XML_PROTOCOL): string[] {
+	return [...listXmlContainerNames(PROJECT_XML_PROTOCOL[protocolKey])].sort();
+}
+
+function collectContainerItemNames(
+	protocolKey: keyof typeof PROJECT_XML_PROTOCOL,
+	containerName: string,
+): string[] {
+	return [...listXmlContainerItemNames(PROJECT_XML_PROTOCOL[protocolKey], containerName)].sort();
 }
 
 async function walkXmlFiles(dirPath: string): Promise<string[]> {
@@ -314,6 +335,217 @@ test('project XML protocol covers selected tag attrs across referer samples', as
 	await assertTagAttrsCovered(t, 'gearIcon', collectAllowedAttrNames('gear'));
 	await assertTagAttrsCovered(t, 'gearDisplay2', collectAllowedAttrNames('gear'));
 	await assertTagAttrsCovered(t, 'gearFontSize', collectAllowedAttrNames('gear'));
+});
+
+test('project XML protocol children maps stay explicit and stable', (t) => {
+	t.deepEqual(
+		Object.keys(PROJECT_XML_PROTOCOL).sort(),
+		[
+			'buttonExtension',
+			'comboBoxExtension',
+			'comboBoxItem',
+			'componentInstance',
+			'componentRoot',
+			'controller',
+			'controllerAction',
+			'displayObject',
+			'gear',
+			'graph',
+			'group',
+			'image',
+			'labelExtension',
+			'list',
+			'listItem',
+			'loader',
+			'loader3D',
+			'movieClip',
+			'packageDescription',
+			'packageFontResource',
+			'packageImageResource',
+			'packagePublish',
+			'packageResource',
+			'progressBarExtension',
+			'relation',
+			'richText',
+			'scrollBarExtension',
+			'sliderExtension',
+			'text',
+			'textInput',
+			'transition',
+			'transitionItem',
+		],
+		'protocol should not expose new synthetic base/common nodes',
+	);
+
+	t.deepEqual(collectChildNames('componentRoot'), [
+		'Button',
+		'ComboBox',
+		'Label',
+		'ProgressBar',
+		'ScrollBar',
+		'Slider',
+		'controller',
+		'transition',
+	]);
+	t.deepEqual(collectChildNames('componentInstance'), [
+		'Button',
+		'ComboBox',
+		'Label',
+		'ProgressBar',
+		'ScrollBar',
+		'Slider',
+		'gearAni',
+		'gearColor',
+		'gearDisplay',
+		'gearDisplay2',
+		'gearFontSize',
+		'gearIcon',
+		'gearLook',
+		'gearSize',
+		'gearText',
+		'gearXY',
+		'relation',
+	]);
+	t.deepEqual(collectChildNames('image'), [
+		'gearAni',
+		'gearColor',
+		'gearDisplay',
+		'gearDisplay2',
+		'gearFontSize',
+		'gearIcon',
+		'gearLook',
+		'gearSize',
+		'gearText',
+		'gearXY',
+		'relation',
+	]);
+	t.deepEqual(collectChildNames('graph'), [
+		'gearAni',
+		'gearColor',
+		'gearDisplay',
+		'gearDisplay2',
+		'gearFontSize',
+		'gearIcon',
+		'gearLook',
+		'gearSize',
+		'gearText',
+		'gearXY',
+		'relation',
+	]);
+	t.deepEqual(collectChildNames('movieClip'), [
+		'gearAni',
+		'gearColor',
+		'gearDisplay',
+		'gearDisplay2',
+		'gearFontSize',
+		'gearIcon',
+		'gearLook',
+		'gearSize',
+		'gearText',
+		'gearXY',
+		'relation',
+	]);
+	t.deepEqual(collectChildNames('loader'), [
+		'gearAni',
+		'gearColor',
+		'gearDisplay',
+		'gearDisplay2',
+		'gearFontSize',
+		'gearIcon',
+		'gearLook',
+		'gearSize',
+		'gearText',
+		'gearXY',
+		'relation',
+	]);
+	t.deepEqual(collectChildNames('loader3D'), [
+		'gearAni',
+		'gearColor',
+		'gearDisplay',
+		'gearDisplay2',
+		'gearFontSize',
+		'gearIcon',
+		'gearLook',
+		'gearSize',
+		'gearText',
+		'gearXY',
+		'relation',
+	]);
+	t.deepEqual(collectChildNames('text'), [
+		'gearAni',
+		'gearColor',
+		'gearDisplay',
+		'gearDisplay2',
+		'gearFontSize',
+		'gearIcon',
+		'gearLook',
+		'gearSize',
+		'gearText',
+		'gearXY',
+		'relation',
+	]);
+	t.deepEqual(collectChildNames('richText'), [
+		'gearAni',
+		'gearColor',
+		'gearDisplay',
+		'gearDisplay2',
+		'gearFontSize',
+		'gearIcon',
+		'gearLook',
+		'gearSize',
+		'gearText',
+		'gearXY',
+		'relation',
+	]);
+	t.deepEqual(collectChildNames('group'), [
+		'gearAni',
+		'gearColor',
+		'gearDisplay',
+		'gearDisplay2',
+		'gearFontSize',
+		'gearIcon',
+		'gearLook',
+		'gearSize',
+		'gearText',
+		'gearXY',
+		'relation',
+	]);
+	t.deepEqual(collectChildNames('list'), [
+		'gearAni',
+		'gearColor',
+		'gearDisplay',
+		'gearDisplay2',
+		'gearFontSize',
+		'gearIcon',
+		'gearLook',
+		'gearSize',
+		'gearText',
+		'gearXY',
+		'item',
+		'relation',
+	]);
+	t.deepEqual(collectChildNames('controller'), ['action']);
+	t.deepEqual(collectChildNames('transition'), ['item']);
+	t.deepEqual(collectChildNames('comboBoxExtension'), ['item']);
+	t.deepEqual(collectChildNames('buttonExtension'), []);
+	t.deepEqual(collectChildNames('relation'), []);
+	t.deepEqual(collectContainerNames('componentRoot'), ['displayList']);
+	t.deepEqual(collectContainerNames('componentInstance'), []);
+	t.deepEqual(collectContainerItemNames('componentRoot', 'displayList'), [
+		'component',
+		'graph',
+		'group',
+		'image',
+		'inputtext',
+		'jta',
+		'list',
+		'loader',
+		'loader3D',
+		'movieclip',
+		'richtext',
+		'text',
+		'tree',
+	]);
 });
 
 test('protocolized project XML fields do not regress to legacy direct access patterns', async (t) => {

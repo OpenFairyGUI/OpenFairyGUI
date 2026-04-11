@@ -6,17 +6,45 @@ export interface XmlAttrSpec {
 
 export interface XmlNodeProtocol {
 	attrs: Record<string, XmlAttrSpec>;
+	children?: Record<string, XmlNodeProtocol>;
+	containers?: Record<string, XmlContainerProtocol>;
+}
+
+export interface XmlContainerProtocol {
+	kind: 'orderedVariants';
+	items: Record<string, XmlNodeProtocol>;
 }
 
 type XmlAttrSource = Record<string, unknown>;
 type XmlAttrTarget = Record<string, unknown>;
 type XmlAttrMap = Record<string, XmlAttrSpec>;
+type XmlChildrenMap = Record<string, XmlNodeProtocol>;
+type XmlContainerMap = Record<string, XmlContainerProtocol>;
 
 const mergeAttrs = (...parts: readonly XmlAttrMap[]): XmlAttrMap =>
 	Object.assign({}, ...parts);
 
-const defineNode = (...parts: readonly XmlAttrMap[]): XmlNodeProtocol => ({
-	attrs: mergeAttrs(...parts),
+const mergeChildren = (...parts: readonly XmlChildrenMap[]): XmlChildrenMap =>
+	Object.assign({}, ...parts);
+
+const mergeContainers = (...parts: readonly XmlContainerMap[]): XmlContainerMap =>
+	Object.assign({}, ...parts);
+
+const defineContainer = (
+	items: Record<string, XmlNodeProtocol>,
+): XmlContainerProtocol => ({
+	kind: 'orderedVariants',
+	items,
+});
+
+const defineNode = (
+	attrs: XmlAttrMap,
+	children?: XmlChildrenMap,
+	containers?: XmlContainerMap,
+): XmlNodeProtocol => ({
+	attrs,
+	...(children ? { children } : {}),
+	...(containers ? { containers } : {}),
 });
 
 const PACKAGE_DESCRIPTION_ATTRS = {
@@ -447,14 +475,90 @@ const COMBOBOX_ITEM_ATTRS = {
 	icon: { canonical: 'icon' },
 } satisfies XmlAttrMap;
 
-export const PROJECT_XML_PROTOCOL = {
-	packageDescription: defineNode(PACKAGE_DESCRIPTION_ATTRS),
-	packagePublish: defineNode(PACKAGE_PUBLISH_ATTRS),
-	packageResource: defineNode(PACKAGE_RESOURCE_BASE_ATTRS),
-	packageImageResource: defineNode(PACKAGE_IMAGE_RESOURCE_ATTRS),
-	packageFontResource: defineNode(PACKAGE_FONT_RESOURCE_ATTRS),
-	displayObject: defineNode(DISPLAY_OBJECT_IDENTITY_ATTRS),
-	image: defineNode(
+const PACKAGE_DESCRIPTION_NODE = defineNode(PACKAGE_DESCRIPTION_ATTRS);
+const PACKAGE_PUBLISH_NODE = defineNode(PACKAGE_PUBLISH_ATTRS);
+const PACKAGE_RESOURCE_NODE = defineNode(PACKAGE_RESOURCE_BASE_ATTRS);
+const PACKAGE_IMAGE_RESOURCE_NODE = defineNode(PACKAGE_IMAGE_RESOURCE_ATTRS);
+const PACKAGE_FONT_RESOURCE_NODE = defineNode(PACKAGE_FONT_RESOURCE_ATTRS);
+const DISPLAY_OBJECT_NODE = defineNode(DISPLAY_OBJECT_IDENTITY_ATTRS);
+const BUTTON_EXTENSION_NODE = defineNode(BUTTON_EXTENSION_ATTRS);
+const LABEL_EXTENSION_NODE = defineNode(LABEL_EXTENSION_ATTRS);
+const PROGRESSBAR_EXTENSION_NODE = defineNode(PROGRESSBAR_EXTENSION_ATTRS);
+const SLIDER_EXTENSION_NODE = defineNode(SLIDER_EXTENSION_ATTRS);
+const SCROLLBAR_EXTENSION_NODE = defineNode(SCROLLBAR_EXTENSION_ATTRS);
+const RELATION_NODE = defineNode(RELATION_ATTRS);
+const GEAR_NODE = defineNode(GEAR_ATTRS);
+const CONTROLLER_ACTION_NODE = defineNode(CONTROLLER_ACTION_ATTRS);
+const TRANSITION_ITEM_NODE = defineNode(TRANSITION_ITEM_ATTRS);
+const LIST_ITEM_NODE = defineNode(LIST_ITEM_ATTRS);
+const COMBOBOX_ITEM_NODE = defineNode(COMBOBOX_ITEM_ATTRS);
+
+const WITH_RELATION_CHILDREN = {
+	relation: RELATION_NODE,
+} satisfies XmlChildrenMap;
+
+const WITH_GEAR_CHILDREN = {
+	gearDisplay: GEAR_NODE,
+	gearXY: GEAR_NODE,
+	gearSize: GEAR_NODE,
+	gearLook: GEAR_NODE,
+	gearColor: GEAR_NODE,
+	gearAni: GEAR_NODE,
+	gearText: GEAR_NODE,
+	gearIcon: GEAR_NODE,
+	gearDisplay2: GEAR_NODE,
+	gearFontSize: GEAR_NODE,
+} satisfies XmlChildrenMap;
+
+const WITH_CONTROLLER_ACTION_CHILDREN = {
+	action: CONTROLLER_ACTION_NODE,
+} satisfies XmlChildrenMap;
+
+const WITH_TRANSITION_ITEM_CHILDREN = {
+	item: TRANSITION_ITEM_NODE,
+} satisfies XmlChildrenMap;
+
+const WITH_LIST_ITEM_CHILDREN = {
+	item: LIST_ITEM_NODE,
+} satisfies XmlChildrenMap;
+
+const COMBOBOX_EXTENSION_NODE = defineNode(
+	mergeAttrs(COMBOBOX_EXTENSION_ATTRS),
+	mergeChildren({
+		item: COMBOBOX_ITEM_NODE,
+	}),
+);
+
+const WITH_INSTANCE_EXTENSION_CHILDREN = {
+	Button: BUTTON_EXTENSION_NODE,
+	Label: LABEL_EXTENSION_NODE,
+	ComboBox: COMBOBOX_EXTENSION_NODE,
+	ProgressBar: PROGRESSBAR_EXTENSION_NODE,
+	Slider: SLIDER_EXTENSION_NODE,
+	ScrollBar: SCROLLBAR_EXTENSION_NODE,
+} satisfies XmlChildrenMap;
+
+const WITH_ROOT_EXTENSION_CHILDREN = {
+	Button: BUTTON_EXTENSION_NODE,
+	Label: LABEL_EXTENSION_NODE,
+	ComboBox: COMBOBOX_EXTENSION_NODE,
+	ProgressBar: PROGRESSBAR_EXTENSION_NODE,
+	Slider: SLIDER_EXTENSION_NODE,
+	ScrollBar: SCROLLBAR_EXTENSION_NODE,
+} satisfies XmlChildrenMap;
+
+const CONTROLLER_NODE = defineNode(
+	mergeAttrs(CONTROLLER_ATTRS),
+	mergeChildren(WITH_CONTROLLER_ACTION_CHILDREN),
+);
+
+const TRANSITION_NODE = defineNode(
+	mergeAttrs(TRANSITION_ATTRS),
+	mergeChildren(WITH_TRANSITION_ITEM_CHILDREN),
+);
+
+const IMAGE_NODE = defineNode(
+	mergeAttrs(
 		IMAGE_PANEL_ATTRS,
 		XY_SIZE_ATTRS,
 		LOCKED_ATTRS,
@@ -469,7 +573,11 @@ export const PROJECT_XML_PROTOCOL = {
 		RESOURCE_LINK_ATTRS,
 		FILTER_ATTRS,
 	),
-	graph: defineNode(
+	mergeChildren(WITH_RELATION_CHILDREN, WITH_GEAR_CHILDREN),
+);
+
+const GRAPH_NODE = defineNode(
+	mergeAttrs(
 		XY_SIZE_ATTRS,
 		LOCKED_ATTRS,
 		RESTRICT_SIZE_ATTRS,
@@ -481,7 +589,11 @@ export const PROJECT_XML_PROTOCOL = {
 		TOUCHABLE_ATTRS,
 		GRAPH_PANEL_ATTRS,
 	),
-	movieClip: defineNode(
+	mergeChildren(WITH_RELATION_CHILDREN, WITH_GEAR_CHILDREN),
+);
+
+const MOVIE_CLIP_NODE = defineNode(
+	mergeAttrs(
 		MOVIE_CLIP_PANEL_ATTRS,
 		XY_SIZE_ATTRS,
 		PIVOT_ATTRS,
@@ -492,12 +604,11 @@ export const PROJECT_XML_PROTOCOL = {
 		RESOURCE_LINK_ATTRS,
 		FILTER_ATTRS,
 	),
-	componentRoot: defineNode(
-		ROOT_COMPONENT_PANEL_ATTRS,
-		ROOT_DESIGN_PANEL_ATTRS,
-		ROOT_MISC_PANEL_ATTRS,
-	),
-	componentInstance: defineNode(
+	mergeChildren(WITH_RELATION_CHILDREN, WITH_GEAR_CHILDREN),
+);
+
+const COMPONENT_INSTANCE_NODE = defineNode(
+	mergeAttrs(
 		COMPONENT_INSTANCE_PANEL_ATTRS,
 		XY_SIZE_ATTRS,
 		LOCKED_ATTRS,
@@ -515,19 +626,15 @@ export const PROJECT_XML_PROTOCOL = {
 		RESOURCE_LINK_ATTRS,
 		FILTER_ATTRS,
 	),
-	buttonExtension: defineNode(BUTTON_EXTENSION_ATTRS),
-	labelExtension: defineNode(LABEL_EXTENSION_ATTRS),
-	comboBoxExtension: defineNode(COMBOBOX_EXTENSION_ATTRS),
-	progressBarExtension: defineNode(PROGRESSBAR_EXTENSION_ATTRS),
-	sliderExtension: defineNode(SLIDER_EXTENSION_ATTRS),
-	scrollBarExtension: defineNode(SCROLLBAR_EXTENSION_ATTRS),
-	relation: defineNode(RELATION_ATTRS),
-	gear: defineNode(GEAR_ATTRS),
-	controller: defineNode(CONTROLLER_ATTRS),
-	controllerAction: defineNode(CONTROLLER_ACTION_ATTRS),
-	transition: defineNode(TRANSITION_ATTRS),
-	transitionItem: defineNode(TRANSITION_ITEM_ATTRS),
-	loader: defineNode(
+	mergeChildren(
+		WITH_RELATION_CHILDREN,
+		WITH_GEAR_CHILDREN,
+		WITH_INSTANCE_EXTENSION_CHILDREN,
+	),
+);
+
+const LOADER_NODE = defineNode(
+	mergeAttrs(
 		XY_SIZE_ATTRS,
 		PIVOT_ATTRS,
 		SCALE_ATTRS,
@@ -536,8 +643,16 @@ export const PROJECT_XML_PROTOCOL = {
 		LOADER_PANEL_ATTRS,
 		FILTER_ATTRS,
 	),
-	loader3D: defineNode(XY_SIZE_ATTRS, LOADER3D_PANEL_ATTRS),
-	text: defineNode(
+	mergeChildren(WITH_RELATION_CHILDREN, WITH_GEAR_CHILDREN),
+);
+
+const LOADER3D_NODE = defineNode(
+	mergeAttrs(XY_SIZE_ATTRS, LOADER3D_PANEL_ATTRS),
+	mergeChildren(WITH_RELATION_CHILDREN, WITH_GEAR_CHILDREN),
+);
+
+const TEXT_NODE = defineNode(
+	mergeAttrs(
 		XY_SIZE_ATTRS,
 		RESTRICT_SIZE_ATTRS,
 		{ customData: { canonical: 'customData' } },
@@ -545,23 +660,108 @@ export const PROJECT_XML_PROTOCOL = {
 		TEXT_PANEL_ATTRS,
 		TEXT_INPUT_PANEL_ATTRS,
 	),
-	textInput: defineNode(TEXT_INPUT_PANEL_ATTRS),
-	richText: defineNode(RICH_TEXT_PANEL_ATTRS),
-	group: defineNode(
+	mergeChildren(WITH_RELATION_CHILDREN, WITH_GEAR_CHILDREN),
+);
+
+const TEXT_INPUT_NODE = defineNode(mergeAttrs(TEXT_INPUT_PANEL_ATTRS));
+
+const RICH_TEXT_NODE = defineNode(
+	mergeAttrs(RICH_TEXT_PANEL_ATTRS),
+	mergeChildren(WITH_RELATION_CHILDREN, WITH_GEAR_CHILDREN),
+);
+
+const GROUP_NODE = defineNode(
+	mergeAttrs(
 		XY_SIZE_ATTRS,
 		LOCKED_ATTRS,
 		GROUP_REF_ATTRS,
 		VISIBLE_ATTRS,
 		GROUP_PANEL_ATTRS,
 	),
-	list: defineNode(
+	mergeChildren(WITH_RELATION_CHILDREN, WITH_GEAR_CHILDREN),
+);
+
+const LIST_NODE = defineNode(
+	mergeAttrs(
 		XY_SIZE_ATTRS,
 		GROUP_REF_ATTRS,
 		TOUCHABLE_ATTRS,
 		LIST_PANEL_ATTRS,
 	),
-	listItem: defineNode(LIST_ITEM_ATTRS),
-	comboBoxItem: defineNode(COMBOBOX_ITEM_ATTRS),
+	mergeChildren(
+		WITH_RELATION_CHILDREN,
+		WITH_GEAR_CHILDREN,
+		WITH_LIST_ITEM_CHILDREN,
+	),
+);
+
+const DISPLAY_LIST_CONTAINER = defineContainer({
+	image: IMAGE_NODE,
+	graph: GRAPH_NODE,
+	movieclip: MOVIE_CLIP_NODE,
+	jta: MOVIE_CLIP_NODE,
+	component: COMPONENT_INSTANCE_NODE,
+	loader: LOADER_NODE,
+	loader3D: LOADER3D_NODE,
+	text: TEXT_NODE,
+	richtext: RICH_TEXT_NODE,
+	inputtext: TEXT_INPUT_NODE,
+	group: GROUP_NODE,
+	list: LIST_NODE,
+	tree: LIST_NODE,
+});
+
+const COMPONENT_ROOT_NODE = defineNode(
+	mergeAttrs(
+		ROOT_COMPONENT_PANEL_ATTRS,
+		ROOT_DESIGN_PANEL_ATTRS,
+		ROOT_MISC_PANEL_ATTRS,
+	),
+	mergeChildren(
+		{
+			controller: CONTROLLER_NODE,
+			transition: TRANSITION_NODE,
+		},
+		WITH_ROOT_EXTENSION_CHILDREN,
+	),
+	mergeContainers({
+		displayList: DISPLAY_LIST_CONTAINER,
+	}),
+);
+
+export const PROJECT_XML_PROTOCOL = {
+	packageDescription: PACKAGE_DESCRIPTION_NODE,
+	packagePublish: PACKAGE_PUBLISH_NODE,
+	packageResource: PACKAGE_RESOURCE_NODE,
+	packageImageResource: PACKAGE_IMAGE_RESOURCE_NODE,
+	packageFontResource: PACKAGE_FONT_RESOURCE_NODE,
+	displayObject: DISPLAY_OBJECT_NODE,
+	image: IMAGE_NODE,
+	graph: GRAPH_NODE,
+	movieClip: MOVIE_CLIP_NODE,
+	componentRoot: COMPONENT_ROOT_NODE,
+	componentInstance: COMPONENT_INSTANCE_NODE,
+	buttonExtension: BUTTON_EXTENSION_NODE,
+	labelExtension: LABEL_EXTENSION_NODE,
+	comboBoxExtension: COMBOBOX_EXTENSION_NODE,
+	progressBarExtension: PROGRESSBAR_EXTENSION_NODE,
+	sliderExtension: SLIDER_EXTENSION_NODE,
+	scrollBarExtension: SCROLLBAR_EXTENSION_NODE,
+	relation: RELATION_NODE,
+	gear: GEAR_NODE,
+	controller: CONTROLLER_NODE,
+	controllerAction: CONTROLLER_ACTION_NODE,
+	transition: TRANSITION_NODE,
+	transitionItem: TRANSITION_ITEM_NODE,
+	loader: LOADER_NODE,
+	loader3D: LOADER3D_NODE,
+	text: TEXT_NODE,
+	textInput: TEXT_INPUT_NODE,
+	richText: RICH_TEXT_NODE,
+	group: GROUP_NODE,
+	list: LIST_NODE,
+	listItem: LIST_ITEM_NODE,
+	comboBoxItem: COMBOBOX_ITEM_NODE,
 } satisfies Record<string, XmlNodeProtocol>;
 
 export function readXmlAttr<T = unknown>(
@@ -596,4 +796,19 @@ export function writeXmlAttr(
 export function listXmlAttrNames(protocol: XmlNodeProtocol): string[] {
 	return Object.values(protocol.attrs)
 		.flatMap((spec) => [spec.canonical, ...(spec.aliases ?? [])]);
+}
+
+export function listXmlChildNames(protocol: XmlNodeProtocol): string[] {
+	return Object.keys(protocol.children ?? {});
+}
+
+export function listXmlContainerNames(protocol: XmlNodeProtocol): string[] {
+	return Object.keys(protocol.containers ?? {});
+}
+
+export function listXmlContainerItemNames(
+	protocol: XmlNodeProtocol,
+	containerName: string,
+): string[] {
+	return Object.keys(protocol.containers?.[containerName]?.items ?? {});
 }
