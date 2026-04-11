@@ -504,6 +504,8 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 	const text = doc.createGTextField('plain');
 	text.setId('n0');
 	text.setText('hello');
+	text.setDemoText('preview');
+	text.setTemplateVarsEnabled(true);
 	text.setShadowColor('#112233');
 	text.setShadowOffset({ x: 2, y: 3 });
 
@@ -512,6 +514,10 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 	rich.setText('world');
 	rich.setShadowColor('#445566');
 	rich.setShadowOffset({ x: 4, y: 5 });
+	rich.setUnderlaySoftness(0.056);
+
+	text.setFaceDilate(0.324);
+	text.setUnderlaySoftness(1);
 
 	comp.addChild(text);
 	comp.addChild(rich);
@@ -524,17 +530,29 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 	try {
 		await io.writeProject(doc, outFairy);
 
+		const componentXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoText', 'TextShadow.xml'), 'utf-8');
+		t.true(/<text\b[^>]*demoText="preview"/.test(componentXml), 'text writes canonical demoText attr');
+		t.true(/<text\b[^>]*vars(?:="true")?/.test(componentXml), 'text writes canonical vars attr');
+		t.true(/<text\b[^>]*faceDilate="0.324"/.test(componentXml), 'text writes canonical faceDilate attr');
+		t.true(/<text\b[^>]*underlaySoftness="1"/.test(componentXml), 'text writes canonical underlaySoftness attr');
+		t.true(/<richtext\b[^>]*underlaySoftness="0.056"/.test(componentXml), 'richtext writes canonical underlaySoftness attr');
+
 		const doc2 = await io.readProject(outFairy);
 		const comp2 = doc2.getRoot().getPackage('DemoText')?.listComponents().find((item) => item.getName() === 'TextShadow');
 		t.truthy(comp2, 'TextShadow component exists');
 
 		const text2 = comp2!.listChildren().find((child) => child.getId() === 'n0') as ReturnType<Document['createGTextField']>;
 		t.truthy(text2, 'plain text exists');
+		t.is(text2.getDemoText?.(), 'preview');
+		t.true(text2.getTemplateVarsEnabled?.());
+		t.is(text2.getFaceDilate?.(), 0.324);
+		t.is(text2.getUnderlaySoftness?.(), 1);
 		t.is(text2.getShadowColor(), '#112233');
 		t.deepEqual(text2.getShadowOffset(), { x: 2, y: 3 });
 
 		const rich2 = comp2!.listChildren().find((child) => child.getId() === 'n1') as ReturnType<Document['createGRichTextField']>;
 		t.truthy(rich2, 'rich text exists');
+		t.is(rich2.getUnderlaySoftness?.(), 0.056);
 		t.is(rich2.getShadowColor(), '#445566');
 		t.deepEqual(rich2.getShadowOffset(), { x: 4, y: 5 });
 	} finally {
@@ -606,6 +624,14 @@ test('writer: uses canonical XML attr names for component root, loader, richtext
 	comp.setPivotY(0.5);
 	comp.setPivotAsAnchor(true);
 	comp.setMinWidth(120);
+	comp.setBgColorEnabled(true);
+	comp.setBgColor('#383838');
+	comp.setDesignImageAlpha(100);
+	comp.setDesignImageLayer(1);
+	comp.setDesignImageOffsetX(-428);
+	comp.setDesignImageOffsetY(-238);
+	comp.setIdNum(7);
+	comp.setInitName('frame');
 	comp.setOverflow(2);
 	comp.setScrollType(2);
 	comp.setScrollBarDisplay(2);
@@ -623,6 +649,7 @@ test('writer: uses canonical XML attr names for component root, loader, richtext
 	loader.setFill(1);
 	loader.setShrinkOnly(true);
 	loader.setUseResize(true);
+	loader.setClearOnPublish(true);
 
 	const loader3d = doc.createGLoader3D('avatar');
 	loader3d.setId('n0');
@@ -637,6 +664,7 @@ test('writer: uses canonical XML attr names for component root, loader, richtext
 	input.setRestrict('A-Z');
 	input.setPassword(true);
 	input.setKeyboardType(2);
+	input.setAutoClearText(true);
 
 	const richText = doc.createGRichTextField('summary');
 	richText.setId('n1_5');
@@ -647,6 +675,7 @@ test('writer: uses canonical XML attr names for component root, loader, richtext
 	richText.setVAlign(1);
 	richText.setAutoSize(0);
 	richText.setSingleLine(true);
+	richText.setAutoClearText(true);
 	richText.setUbbEnabled(true);
 	richText.setLeading(6);
 	richText.setBold(true);
@@ -683,19 +712,30 @@ test('writer: uses canonical XML attr names for component root, loader, richtext
 		t.true(componentXml.includes('pivot="0.5,0.5"'), 'component root writes canonical pivot attr');
 		t.true(/anchor(?:="true")?/.test(componentXml), 'component root writes canonical anchor attr');
 		t.true(componentXml.includes('restrictSize="120,0,0,0"'), 'component root writes canonical restrictSize attr');
+		t.true(/bgColorEnabled(?:="true")?/.test(componentXml), 'component root writes canonical bgColorEnabled attr');
+		t.true(componentXml.includes('bgColor="#383838"'), 'component root writes canonical bgColor attr');
+		t.true(componentXml.includes('designImageAlpha="100"'), 'component root writes canonical designImageAlpha attr');
+		t.true(componentXml.includes('designImageLayer="1"'), 'component root writes canonical designImageLayer attr');
+		t.true(componentXml.includes('designImageOffsetX="-428"'), 'component root writes canonical designImageOffsetX attr');
+		t.true(componentXml.includes('designImageOffsetY="-238"'), 'component root writes canonical designImageOffsetY attr');
+		t.true(componentXml.includes('idnum="7"'), 'component root writes canonical idnum attr');
+		t.true(componentXml.includes('initName="frame"'), 'component root writes canonical initName attr');
 		t.true(componentXml.includes('scrollBarFlags="1184"'), 'component root writes canonical scrollBarFlags attr');
 		t.true(componentXml.includes('<loader'), 'loader node is written');
 		t.true(componentXml.includes('useResize="1"'), 'loader writes canonical useResize attr');
 		t.true(componentXml.includes('fill="scale"'), 'loader writes canonical fill attr');
+		t.true(/<loader\b[^>]*clearOnPublish(?:="true")?/.test(componentXml), 'loader writes canonical clearOnPublish attr');
 		t.true(componentXml.includes('<richtext'), 'richtext node is written');
 		t.true(componentXml.includes('font="ui://pkgProtocol/font"'), 'richtext writes canonical font attr');
 		t.true(/singleLine(?:="true")?/.test(componentXml), 'richtext writes canonical singleLine attr');
+		t.true(/<richtext\b[^>]*autoClearText(?:="true")?/.test(componentXml), 'richtext writes canonical autoClearText attr');
 		t.true(/ubb(?:="true")?/.test(componentXml), 'richtext writes canonical ubb attr');
 		t.true(componentXml.includes('strokeColor="#ffffff"'), 'richtext writes canonical strokeColor attr');
 		t.true(componentXml.includes('shadowOffset="1,2"'), 'richtext writes canonical shadowOffset attr');
 		t.true(componentXml.includes('animation="idle"'), 'loader3D uses canonical animation attr');
 		t.false(componentXml.includes('animationName='), 'loader3D no longer writes model field name');
 		t.true(componentXml.includes('prompt="Search here"'), 'text input uses canonical prompt attr');
+		t.true(/<inputtext\b[^>]*autoClearText(?:="true")?/.test(componentXml), 'text input writes canonical autoClearText attr');
 		t.false(componentXml.includes('promptText='), 'text input no longer writes model field name');
 		t.true(componentXml.includes('colGap="5"'), 'group uses canonical colGap attr');
 		t.true(/excludeInvisibles(?:="true")?/.test(componentXml), 'group writes excludeInvisibles attr');
@@ -710,22 +750,33 @@ test('writer: uses canonical XML attr names for component root, loader, richtext
 		t.truthy(comp2, 'CanonicalAttrs component exists after round-trip');
 		t.true(comp2?.getPivotAsAnchor?.(), 'component root anchor survives round-trip');
 		t.is(comp2?.getMinWidth?.(), 120, 'component root restrictSize survives round-trip');
+		t.true(comp2?.getBgColorEnabled?.(), 'component root bgColorEnabled survives round-trip');
+		t.is(comp2?.getBgColor?.(), '#383838', 'component root bgColor survives round-trip');
+		t.is(comp2?.getDesignImageAlpha?.(), 100, 'component root designImageAlpha survives round-trip');
+		t.is(comp2?.getDesignImageLayer?.(), 1, 'component root designImageLayer survives round-trip');
+		t.is(comp2?.getDesignImageOffsetX?.(), -428, 'component root designImageOffsetX survives round-trip');
+		t.is(comp2?.getDesignImageOffsetY?.(), -238, 'component root designImageOffsetY survives round-trip');
+		t.is(comp2?.getIdNum?.(), 7, 'component root idnum survives round-trip');
+		t.is(comp2?.getInitName?.(), 'frame', 'component root initName survives round-trip');
 		t.is(comp2?.getOverflow?.(), 2, 'component root overflow survives round-trip');
 		t.is(comp2?.getScrollBarFlags?.(), 1184, 'component root scrollBarFlags survive round-trip');
 
 		const byId = new Map(comp2!.listChildren().map((child) => [child.getId(), child as any]));
 		t.true(byId.get('n-1')?.getUseResize?.(), 'loader useResize survives round-trip');
 		t.is(byId.get('n-1')?.getFill?.(), 1, 'loader fill survives round-trip');
+		t.true(byId.get('n-1')?.getClearOnPublish?.(), 'loader clearOnPublish survives round-trip');
 		t.is(byId.get('g0')?.getColumnGap?.(), 5, 'group colGap survives round-trip');
 		t.true(byId.get('g0')?.getExcludeInvisibles?.(), 'group excludeInvisibles survives round-trip');
 		t.is(byId.get('n0')?.getAnimationName?.(), 'idle', 'loader3D animation survives round-trip');
 		t.false(byId.get('n0')?.getLoop?.(), 'loader3D loop survives round-trip');
 		t.is(byId.get('n1')?.getPromptText?.(), 'Search here', 'text input prompt survives round-trip');
+		t.true(byId.get('n1')?.getAutoClearText?.(), 'text input autoClearText survives round-trip');
 		t.is(byId.get('n1')?.getMaxLength?.(), 24, 'text input maxLength survives round-trip');
 		t.is(byId.get('n1')?.getRestrict?.(), 'A-Z', 'text input restrict survives round-trip');
 		t.true(byId.get('n1')?.getPassword?.(), 'text input password survives round-trip');
 		t.is(byId.get('n1')?.getKeyboardType?.(), 2, 'text input keyboardType survives round-trip');
 		t.is(byId.get('n1_5')?.getFont?.(), 'ui://pkgProtocol/font', 'richtext font survives round-trip');
+		t.true(byId.get('n1_5')?.getAutoClearText?.(), 'richtext autoClearText survives round-trip');
 		t.true(byId.get('n1_5')?.getUbbEnabled?.(), 'richtext ubb survives round-trip');
 		t.true(byId.get('n1_5')?.getSingleLine?.(), 'richtext singleLine survives round-trip');
 		t.is(byId.get('n1_5')?.getStrokeSize?.(), 2, 'richtext strokeSize survives round-trip');
@@ -951,6 +1002,9 @@ test('round-trip: gear pages values and condition survive write→read', async (
 	textGear.setPages('0,1');
 	textGear.setValues('hello|world');
 	textGear.setDefaultValue('fallback');
+	textGear.setTween(true);
+	textGear.setEaseType(5);
+	textGear.setTweenDuration(0.5);
 
 	const display2Gear = doc.createGear();
 	display2Gear.setGearType(GearType.Display2);
@@ -970,6 +1024,11 @@ test('round-trip: gear pages values and condition survive write→read', async (
 	try {
 		await io.writeProject(doc, outFairy);
 
+		const componentXml = await fs.readFile(path.join(tmpDir, 'assets', 'Demo4', 'GearHost.xml'), 'utf-8');
+		t.true(/<gearText\b[^>]*tween(?:="true")?/.test(componentXml), 'gear writes tween attr');
+		t.true(componentXml.includes('ease="Quad.Out"'), 'gear writes canonical ease attr');
+		t.true(componentXml.includes('duration="0.5"'), 'gear writes canonical duration attr');
+
 		const doc2 = await io.readProject(outFairy);
 		const comp2 = doc2.getRoot().getPackage('Demo4')?.listComponents().find((item) => item.getName() === 'GearHost');
 		t.truthy(comp2, 'GearHost component exists');
@@ -984,6 +1043,9 @@ test('round-trip: gear pages values and condition survive write→read', async (
 		t.is(textGear2!.getPages(), '0,1');
 		t.is(textGear2!.getValues(), 'hello|world');
 		t.is(textGear2!.getDefaultValue(), 'fallback');
+		t.true(textGear2!.getTween(), 'text gear tween survives');
+		t.is(textGear2!.getEaseType(), 5, 'text gear ease survives');
+		t.is(textGear2!.getTweenDuration(), 0.5, 'text gear duration survives');
 
 		const display2Gear2 = gears.find((gear) => gear.getGearType() === GearType.Display2);
 		t.truthy(display2Gear2, 'display2 gear exists');
@@ -1262,6 +1324,7 @@ test('round-trip: display object fileName/pkg/filter metadata survives write→r
 	image.setSrc('img001');
 	image.setFileName('images/pic.png');
 	image.setPackageId('pkgA');
+	image.setAspect(true);
 	image.setFilter('color');
 	image.setFilterData('0.00,0.00,0.00,1.00');
 
@@ -1277,6 +1340,7 @@ test('round-trip: display object fileName/pkg/filter metadata survives write→r
 	child.setSrc('cmp001');
 	child.setFileName('Button/Button5.xml');
 	child.setPackageId('pkgB');
+	child.setAspect(true);
 	child.setFilter('blur');
 	child.setFilterData('4');
 
@@ -1293,11 +1357,13 @@ test('round-trip: display object fileName/pkg/filter metadata survives write→r
 		const hostXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoMeta', 'Host.xml'), 'utf-8');
 		t.true(hostXml.includes('fileName="images/pic.png"'), 'image writes canonical fileName attr');
 		t.true(hostXml.includes('pkg="pkgA"'), 'image writes canonical pkg attr');
+		t.true(/\baspect(?:="true")?(?=[\s>])/.test(hostXml), 'display object writes canonical aspect attr');
 		t.true(hostXml.includes('filter="color"'), 'display object writes canonical filter attr');
 		t.true(hostXml.includes('filterData="0.00,0.00,0.00,1.00"'), 'display object writes canonical filterData attr');
 		t.true(hostXml.includes('fileName="pet.jta"'), 'movieclip writes canonical fileName attr');
 		t.true(hostXml.includes('fileName="Button/Button5.xml"'), 'component writes canonical fileName attr');
 		t.true(hostXml.includes('pkg="pkgB"'), 'component writes canonical pkg attr');
+		t.true(/<component\b[^>]*\baspect(?:="true")?(?=[\s>])/.test(hostXml), 'component writes canonical aspect attr');
 
 		const doc2 = await io.readProject(outFairy);
 		const host2 = doc2.getRoot().getPackage('DemoMeta')?.listComponents().find((item) => item.getName() === 'Host');
@@ -1306,6 +1372,7 @@ test('round-trip: display object fileName/pkg/filter metadata survives write→r
 
 		t.is(byId.get('n0')?.getFileName?.(), 'images/pic.png');
 		t.is(byId.get('n0')?.getPackageId?.(), 'pkgA');
+		t.true(byId.get('n0')?.getAspect?.());
 		t.is(byId.get('n0')?.getFilter?.(), 'color');
 		t.is(byId.get('n0')?.getFilterData?.(), '0.00,0.00,0.00,1.00');
 
@@ -1314,8 +1381,673 @@ test('round-trip: display object fileName/pkg/filter metadata survives write→r
 
 		t.is(byId.get('n2')?.getFileName?.(), 'Button/Button5.xml');
 		t.is(byId.get('n2')?.getPackageId?.(), 'pkgB');
+		t.true(byId.get('n2')?.getAspect?.());
 		t.is(byId.get('n2')?.getFilter?.(), 'blur');
 		t.is(byId.get('n2')?.getFilterData?.(), '4');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('round-trip: component tooltips, text customData, and graph skew survive write→read', async (t) => {
+	const io = new NodeIO();
+	const doc = new Document();
+	doc.getRoot().setProjectId('proj-display-specific').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('SpecificDisplay');
+	pkg.setId('pkgSpecific');
+
+	const host = doc.createComponent('Host');
+	host.setId('cmpSpecific');
+	host.setPath('/');
+	host.setSize(320, 240);
+
+	const child = doc.createGComponent('child');
+	child.setId('n0');
+	child.setSrc('cmp001');
+	child.setTooltips('左对齐');
+
+	const text = doc.createGTextField('title');
+	text.setId('n1');
+	text.setText('hello');
+	text.setCustomData('k');
+
+	const graph = doc.createGGraph('shape');
+	graph.setId('n2');
+	graph.setGraphType(1);
+	graph.setFillColor('#ff006600');
+	graph.setSkew(60, 30);
+
+	host.addChild(child);
+	host.addChild(text);
+	host.addChild(graph);
+	pkg.addResource(host);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-specific-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+		const hostXml = await fs.readFile(path.join(tmpDir, 'assets', 'SpecificDisplay', 'Host.xml'), 'utf-8');
+		t.true(hostXml.includes('tooltips="左对齐"'), 'component writes canonical tooltips attr');
+		t.true(hostXml.includes('customData="k"'), 'text writes canonical customData attr');
+		t.true(hostXml.includes('skew="60,30"'), 'graph writes canonical skew attr');
+
+		const doc2 = await io.readProject(outFairy);
+		const host2 = doc2.getRoot().getPackage('SpecificDisplay')?.listComponents().find((item) => item.getName() === 'Host');
+		t.truthy(host2, 'Host exists after round-trip');
+		const byId = new Map(host2!.listChildren().map((item) => [item.getId(), item as any]));
+
+		t.is(byId.get('n0')?.getTooltips?.(), '左对齐');
+		t.is(byId.get('n1')?.getCustomData?.(), 'k');
+		t.is(byId.get('n2')?.getSkewX?.(), 60);
+		t.is(byId.get('n2')?.getSkewY?.(), 30);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('round-trip: tag-scoped alpha/rotation/visible/touchable/grayed survive write→read', async (t) => {
+	const io = new NodeIO();
+	const doc = new Document();
+	doc.getRoot().setProjectId('proj-display-state').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('DisplayState');
+	pkg.setId('pkgState');
+
+	const host = doc.createComponent('Host');
+	host.setId('cmpState');
+	host.setPath('/');
+	host.setSize(320, 240);
+
+	const image = doc.createGImage('img');
+	image.setId('n0');
+	image.setSrc('img001');
+	image.setAlpha(0.62);
+	image.setRotation(-39);
+	image.setVisible(false);
+	image.setGrayed(true);
+
+	const child = doc.createGComponent('child');
+	child.setId('n1');
+	child.setSrc('cmp001');
+	child.setAlpha(0.75);
+	child.setRotation(12);
+	child.setVisible(false);
+	child.setTouchable(false);
+	child.setGrayed(true);
+
+	const graph = doc.createGGraph('shape');
+	graph.setId('n2');
+	graph.setGraphType(1);
+	graph.setFillColor('#ff006600');
+	graph.setAlpha(0.5);
+	graph.setRotation(-30);
+	graph.setVisible(false);
+	graph.setTouchable(false);
+
+	const group = doc.createGGroup('group');
+	group.setId('n3');
+	group.setVisible(false);
+
+	const list = doc.createGList('list');
+	list.setId('n4');
+	list.setTouchable(false);
+
+	const loader = doc.createGLoader('loader');
+	loader.setId('n5');
+	loader.setGrayed(true);
+	loader.setUrl('ui://pkg001/icon');
+
+	host.addChild(image);
+	host.addChild(child);
+	host.addChild(graph);
+	host.addChild(group);
+	host.addChild(list);
+	host.addChild(loader);
+	pkg.addResource(host);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-state-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+		const hostXml = await fs.readFile(path.join(tmpDir, 'assets', 'DisplayState', 'Host.xml'), 'utf-8');
+		t.true(hostXml.includes('alpha="0.62"'), 'image writes alpha on image tag');
+		t.true(hostXml.includes('rotation="-39"'), 'image writes rotation on image tag');
+		t.true(/<image\b[^>]*visible="false"/.test(hostXml), 'image writes visible on image tag');
+		t.true(/<image\b[^>]*grayed(?:="true")?/.test(hostXml), 'image writes grayed on image tag');
+		t.true(/<component\b[^>]*touchable="false"/.test(hostXml), 'component writes touchable on component tag');
+		t.true(/<component\b[^>]*alpha="0.75"/.test(hostXml), 'component writes alpha on component tag');
+		t.true(/<graph\b[^>]*rotation="-30"/.test(hostXml), 'graph writes rotation on graph tag');
+		t.true(/<graph\b[^>]*touchable="false"/.test(hostXml), 'graph writes touchable on graph tag');
+		t.true(/<group\b[^>]*visible="false"/.test(hostXml), 'group writes visible on group tag');
+		t.true(/<list\b[^>]*touchable="false"/.test(hostXml), 'list writes touchable on list tag');
+		t.true(/<loader\b[^>]*grayed(?:="true")?/.test(hostXml), 'loader writes grayed on loader tag');
+
+		const doc2 = await io.readProject(outFairy);
+		const host2 = doc2.getRoot().getPackage('DisplayState')?.listComponents().find((item) => item.getName() === 'Host');
+		t.truthy(host2, 'Host exists after round-trip');
+		const byId = new Map(host2!.listChildren().map((item) => [item.getId(), item as any]));
+
+		t.true(Math.abs((byId.get('n0')?.getAlpha?.() ?? 0) - 0.62) < 1e-6);
+		t.is(byId.get('n0')?.getRotation?.(), -39);
+		t.false(byId.get('n0')?.getVisible?.());
+		t.true(byId.get('n0')?.getGrayed?.());
+
+		t.true(Math.abs((byId.get('n1')?.getAlpha?.() ?? 0) - 0.75) < 1e-6);
+		t.is(byId.get('n1')?.getRotation?.(), 12);
+		t.false(byId.get('n1')?.getVisible?.());
+		t.false(byId.get('n1')?.getTouchable?.());
+		t.true(byId.get('n1')?.getGrayed?.());
+
+		t.true(Math.abs((byId.get('n2')?.getAlpha?.() ?? 0) - 0.5) < 1e-6);
+		t.is(byId.get('n2')?.getRotation?.(), -30);
+		t.false(byId.get('n2')?.getVisible?.());
+		t.false(byId.get('n2')?.getTouchable?.());
+
+		t.false(byId.get('n3')?.getVisible?.());
+		t.false(byId.get('n4')?.getTouchable?.());
+		t.true(byId.get('n5')?.getGrayed?.());
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('round-trip: tag-scoped pivot/anchor/scale survive write→read', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectId('test-project').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('DemoPivot');
+	pkg.setId('pkgPivot');
+
+	const comp = doc.createComponent('PivotAttrs');
+	comp.setId('compPivot');
+	comp.setPath('/');
+	comp.setSize(320, 240);
+
+	const image = doc.createGImage('image');
+	image.setId('n0');
+	image.setPivot(0.5, 0.25, true);
+	image.setScale(1.5, 0.75);
+
+	const childComp = doc.createGComponent('child');
+	childComp.setId('n1');
+	childComp.setSrc('ui://pkgPivot/child');
+	childComp.setPivot(0.5, 0.5, true);
+	childComp.setScale(0.7, 1);
+
+	const graph = doc.createGGraph('graph');
+	graph.setId('n2');
+	graph.setPivot(0.5, 0.5, true);
+
+	const loader = doc.createGLoader('loader');
+	loader.setId('n3');
+	loader.setPivot(0.5, 0.5);
+	loader.setScale(2, 2);
+
+	const movieClip = doc.createGMovieClip('movie');
+	movieClip.setId('n4');
+	movieClip.setSrc('ui://pkgPivot/movie');
+	movieClip.setPivot(0.5, 0.5);
+
+	comp.addChild(image);
+	comp.addChild(childComp);
+	comp.addChild(graph);
+	comp.addChild(loader);
+	comp.addChild(movieClip);
+	pkg.addResource(comp);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-rt-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+
+		const componentXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoPivot', 'PivotAttrs.xml'), 'utf-8');
+		t.true(componentXml.includes('<image id="n0"'), 'image tag exists');
+		t.true(componentXml.includes('pivot="0.5,0.25"'), 'image writes pivot attr');
+		t.true(/<image\b[^>]*anchor(?:="true")?/.test(componentXml), 'image writes anchor attr');
+		t.true(componentXml.includes('scale="1.5,0.75"'), 'image writes scale attr');
+		t.true(/<component\b[^>]*id="n1"[^>]*pivot="0.5,0.5"/.test(componentXml), 'component instance writes pivot attr');
+		t.true(/<component\b[^>]*id="n1"[^>]*anchor(?:="true")?/.test(componentXml), 'component instance writes anchor attr');
+		t.true(/<component\b[^>]*id="n1"[^>]*scale="0.7,1"/.test(componentXml), 'component instance writes scale attr');
+		t.true(/<graph\b[^>]*id="n2"[^>]*pivot="0.5,0.5"/.test(componentXml), 'graph writes pivot attr');
+		t.true(/<graph\b[^>]*id="n2"[^>]*anchor(?:="true")?/.test(componentXml), 'graph writes anchor attr');
+		t.true(/<loader\b[^>]*id="n3"[^>]*pivot="0.5,0.5"/.test(componentXml), 'loader writes pivot attr');
+		t.true(/<loader\b[^>]*id="n3"[^>]*scale="2,2"/.test(componentXml), 'loader writes scale attr');
+		t.true(/<movieclip\b[^>]*id="n4"[^>]*pivot="0.5,0.5"/.test(componentXml), 'movieclip writes pivot attr');
+
+		const doc2 = await io.readProject(outFairy);
+		const comp2 = doc2.getRoot().getPackage('DemoPivot')?.listComponents().find((item) => item.getName() === 'PivotAttrs');
+		t.truthy(comp2, 'PivotAttrs component exists');
+
+		const byId = new Map(comp2!.listChildren().map((child) => [child.getId(), child as any]));
+		t.is(byId.get('n0')?.getPivotX?.(), 0.5);
+		t.is(byId.get('n0')?.getPivotY?.(), 0.25);
+		t.true(byId.get('n0')?.getPivotAsAnchor?.());
+		t.is(byId.get('n0')?.getScaleX?.(), 1.5);
+		t.is(byId.get('n0')?.getScaleY?.(), 0.75);
+		t.is(byId.get('n1')?.getPivotX?.(), 0.5);
+		t.is(byId.get('n1')?.getPivotY?.(), 0.5);
+		t.true(byId.get('n1')?.getPivotAsAnchor?.());
+		t.is(byId.get('n1')?.getScaleX?.(), 0.7);
+		t.is(byId.get('n1')?.getScaleY?.(), 1);
+		t.is(byId.get('n2')?.getPivotX?.(), 0.5);
+		t.is(byId.get('n2')?.getPivotY?.(), 0.5);
+		t.true(byId.get('n2')?.getPivotAsAnchor?.());
+		t.is(byId.get('n3')?.getPivotX?.(), 0.5);
+		t.is(byId.get('n3')?.getPivotY?.(), 0.5);
+		t.is(byId.get('n3')?.getScaleX?.(), 2);
+		t.is(byId.get('n3')?.getScaleY?.(), 2);
+		t.is(byId.get('n4')?.getPivotX?.(), 0.5);
+		t.is(byId.get('n4')?.getPivotY?.(), 0.5);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('round-trip: tag-scoped group survives write→read', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectId('test-project').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('DemoGroup');
+	pkg.setId('pkgGroup');
+
+	const comp = doc.createComponent('GroupAttrs');
+	comp.setId('compGroup');
+	comp.setPath('/');
+	comp.setSize(320, 240);
+
+	const image = doc.createGImage('image');
+	image.setId('n0');
+	image.setGroup('groot');
+
+	const childComp = doc.createGComponent('child');
+	childComp.setId('n1');
+	childComp.setSrc('ui://pkgGroup/child');
+	childComp.setGroup('groot');
+
+	const text = doc.createGTextField('text');
+	text.setId('n2');
+	text.setText('hello');
+	text.setGroup('groot');
+
+	const graph = doc.createGGraph('graph');
+	graph.setId('n3');
+	graph.setGraphType(1);
+	graph.setGroup('groot');
+
+	const nestedGroup = doc.createGGroup('group');
+	nestedGroup.setId('n4');
+	nestedGroup.setGroup('groot');
+
+	const list = doc.createGList('list');
+	list.setId('n5');
+	list.setGroup('groot');
+
+	const movieClip = doc.createGMovieClip('movie');
+	movieClip.setId('n6');
+	movieClip.setSrc('ui://pkgGroup/movie');
+	movieClip.setGroup('groot');
+
+	comp.addChild(image);
+	comp.addChild(childComp);
+	comp.addChild(text);
+	comp.addChild(graph);
+	comp.addChild(nestedGroup);
+	comp.addChild(list);
+	comp.addChild(movieClip);
+	pkg.addResource(comp);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-rt-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+
+		const componentXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoGroup', 'GroupAttrs.xml'), 'utf-8');
+		t.true(/<image\b[^>]*group="groot"/.test(componentXml), 'image writes group attr');
+		t.true(/<component\b[^>]*id="n1"[^>]*group="groot"/.test(componentXml), 'component instance writes group attr');
+		t.true(/<text\b[^>]*id="n2"[^>]*group="groot"/.test(componentXml), 'text writes group attr');
+		t.true(/<graph\b[^>]*id="n3"[^>]*group="groot"/.test(componentXml), 'graph writes group attr');
+		t.true(/<group\b[^>]*id="n4"[^>]*group="groot"/.test(componentXml), 'group writes group attr');
+		t.true(/<list\b[^>]*id="n5"[^>]*group="groot"/.test(componentXml), 'list writes group attr');
+		t.true(/<movieclip\b[^>]*id="n6"[^>]*group="groot"/.test(componentXml), 'movieclip writes group attr');
+
+		const doc2 = await io.readProject(outFairy);
+		const comp2 = doc2.getRoot().getPackage('DemoGroup')?.listComponents().find((item) => item.getName() === 'GroupAttrs');
+		t.truthy(comp2, 'GroupAttrs component exists');
+
+		const byId = new Map(comp2!.listChildren().map((child) => [child.getId(), child as any]));
+		t.is(byId.get('n0')?.getGroup?.(), 'groot');
+		t.is(byId.get('n1')?.getGroup?.(), 'groot');
+		t.is(byId.get('n2')?.getGroup?.(), 'groot');
+		t.is(byId.get('n3')?.getGroup?.(), 'groot');
+		t.is(byId.get('n4')?.getGroup?.(), 'groot');
+		t.is(byId.get('n5')?.getGroup?.(), 'groot');
+		t.is(byId.get('n6')?.getGroup?.(), 'groot');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('round-trip: tag-scoped xy survive write→read', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectId('test-project').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('DemoXY');
+	pkg.setId('pkgXY');
+
+	const comp = doc.createComponent('XYAttrs');
+	comp.setId('compXY');
+	comp.setPath('/');
+	comp.setSize(320, 240);
+
+	const image = doc.createGImage('image');
+	image.setId('n0');
+	image.setXY(10, 20);
+
+	const childComp = doc.createGComponent('child');
+	childComp.setId('n1');
+	childComp.setSrc('ui://pkgXY/child');
+	childComp.setXY(30, 40);
+
+	const text = doc.createGTextField('text');
+	text.setId('n2');
+	text.setText('hello');
+	text.setXY(50, 60);
+
+	const graph = doc.createGGraph('graph');
+	graph.setId('n3');
+	graph.setGraphType(1);
+	graph.setXY(70, 80);
+
+	const nestedGroup = doc.createGGroup('group');
+	nestedGroup.setId('n4');
+	nestedGroup.setXY(90, 100);
+
+	const list = doc.createGList('list');
+	list.setId('n5');
+	list.setXY(110, 120);
+
+	const loader = doc.createGLoader('loader');
+	loader.setId('n6');
+	loader.setXY(130, 140);
+
+	const loader3d = doc.createGLoader3D('loader3d');
+	loader3d.setId('n7');
+	loader3d.setXY(150, 160);
+
+	const movieClip = doc.createGMovieClip('movie');
+	movieClip.setId('n8');
+	movieClip.setSrc('ui://pkgXY/movie');
+	movieClip.setXY(170, 180);
+
+	comp.addChild(image);
+	comp.addChild(childComp);
+	comp.addChild(text);
+	comp.addChild(graph);
+	comp.addChild(nestedGroup);
+	comp.addChild(list);
+	comp.addChild(loader);
+	comp.addChild(loader3d);
+	comp.addChild(movieClip);
+	pkg.addResource(comp);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-rt-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+
+		const componentXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoXY', 'XYAttrs.xml'), 'utf-8');
+		t.true(/<image\b[^>]*id="n0"[^>]*xy="10,20"/.test(componentXml), 'image writes xy attr');
+		t.true(/<component\b[^>]*id="n1"[^>]*xy="30,40"/.test(componentXml), 'component instance writes xy attr');
+		t.true(/<text\b[^>]*id="n2"[^>]*xy="50,60"/.test(componentXml), 'text writes xy attr');
+		t.true(/<graph\b[^>]*id="n3"[^>]*xy="70,80"/.test(componentXml), 'graph writes xy attr');
+		t.true(/<group\b[^>]*id="n4"[^>]*xy="90,100"/.test(componentXml), 'group writes xy attr');
+		t.true(/<list\b[^>]*id="n5"[^>]*xy="110,120"/.test(componentXml), 'list writes xy attr');
+		t.true(/<loader\b[^>]*id="n6"[^>]*xy="130,140"/.test(componentXml), 'loader writes xy attr');
+		t.true(/<loader3d\b[^>]*id="n7"[^>]*xy="150,160"/.test(componentXml), 'loader3D writes xy attr');
+		t.true(/<movieclip\b[^>]*id="n8"[^>]*xy="170,180"/.test(componentXml), 'movieclip writes xy attr');
+
+		const doc2 = await io.readProject(outFairy);
+		const comp2 = doc2.getRoot().getPackage('DemoXY')?.listComponents().find((item) => item.getName() === 'XYAttrs');
+		t.truthy(comp2, 'XYAttrs component exists');
+
+		const byId = new Map(comp2!.listChildren().map((child) => [child.getId(), child as any]));
+		t.is(byId.get('n0')?.getX?.(), 10);
+		t.is(byId.get('n0')?.getY?.(), 20);
+		t.is(byId.get('n1')?.getX?.(), 30);
+		t.is(byId.get('n1')?.getY?.(), 40);
+		t.is(byId.get('n2')?.getX?.(), 50);
+		t.is(byId.get('n2')?.getY?.(), 60);
+		t.is(byId.get('n3')?.getX?.(), 70);
+		t.is(byId.get('n3')?.getY?.(), 80);
+		t.is(byId.get('n4')?.getX?.(), 90);
+		t.is(byId.get('n4')?.getY?.(), 100);
+		t.is(byId.get('n5')?.getX?.(), 110);
+		t.is(byId.get('n5')?.getY?.(), 120);
+		t.is(byId.get('n6')?.getX?.(), 130);
+		t.is(byId.get('n6')?.getY?.(), 140);
+		t.is(byId.get('n7')?.getX?.(), 150);
+		t.is(byId.get('n7')?.getY?.(), 160);
+		t.is(byId.get('n8')?.getX?.(), 170);
+		t.is(byId.get('n8')?.getY?.(), 180);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('round-trip: tag-scoped size survive write→read', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectId('test-project').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('DemoSize');
+	pkg.setId('pkgSize');
+
+	const comp = doc.createComponent('SizeAttrs');
+	comp.setId('compSize');
+	comp.setPath('/');
+	comp.setSize(320, 240);
+
+	const image = doc.createGImage('image');
+	image.setId('n0');
+	image.setSize(11, 21);
+
+	const childComp = doc.createGComponent('child');
+	childComp.setId('n1');
+	childComp.setSrc('ui://pkgSize/child');
+	childComp.setSize(31, 41);
+
+	const text = doc.createGTextField('text');
+	text.setId('n2');
+	text.setText('hello');
+	text.setSize(51, 61);
+
+	const graph = doc.createGGraph('graph');
+	graph.setId('n3');
+	graph.setGraphType(1);
+	graph.setSize(71, 81);
+
+	const nestedGroup = doc.createGGroup('group');
+	nestedGroup.setId('n4');
+	nestedGroup.setSize(91, 101);
+
+	const list = doc.createGList('list');
+	list.setId('n5');
+	list.setSize(111, 121);
+
+	const loader = doc.createGLoader('loader');
+	loader.setId('n6');
+	loader.setSize(131, 141);
+
+	const loader3d = doc.createGLoader3D('loader3d');
+	loader3d.setId('n7');
+	loader3d.setSize(151, 161);
+
+	const movieClip = doc.createGMovieClip('movie');
+	movieClip.setId('n8');
+	movieClip.setSrc('ui://pkgSize/movie');
+	movieClip.setSize(171, 181);
+
+	comp.addChild(image);
+	comp.addChild(childComp);
+	comp.addChild(text);
+	comp.addChild(graph);
+	comp.addChild(nestedGroup);
+	comp.addChild(list);
+	comp.addChild(loader);
+	comp.addChild(loader3d);
+	comp.addChild(movieClip);
+	pkg.addResource(comp);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-rt-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+
+		const componentXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoSize', 'SizeAttrs.xml'), 'utf-8');
+		t.true(/<image\b[^>]*id="n0"[^>]*size="11,21"/.test(componentXml), 'image writes size attr');
+		t.true(/<component\b[^>]*id="n1"[^>]*size="31,41"/.test(componentXml), 'component instance writes size attr');
+		t.true(/<text\b[^>]*id="n2"[^>]*size="51,61"/.test(componentXml), 'text writes size attr');
+		t.true(/<graph\b[^>]*id="n3"[^>]*size="71,81"/.test(componentXml), 'graph writes size attr');
+		t.true(/<group\b[^>]*id="n4"[^>]*size="91,101"/.test(componentXml), 'group writes size attr');
+		t.true(/<list\b[^>]*id="n5"[^>]*size="111,121"/.test(componentXml), 'list writes size attr');
+		t.true(/<loader\b[^>]*id="n6"[^>]*size="131,141"/.test(componentXml), 'loader writes size attr');
+		t.true(/<loader3d\b[^>]*id="n7"[^>]*size="151,161"/.test(componentXml), 'loader3D writes size attr');
+		t.true(/<movieclip\b[^>]*id="n8"[^>]*size="171,181"/.test(componentXml), 'movieclip writes size attr');
+
+		const doc2 = await io.readProject(outFairy);
+		const comp2 = doc2.getRoot().getPackage('DemoSize')?.listComponents().find((item) => item.getName() === 'SizeAttrs');
+		t.truthy(comp2, 'SizeAttrs component exists');
+
+		const byId = new Map(comp2!.listChildren().map((child) => [child.getId(), child as any]));
+		t.is(byId.get('n0')?.getWidth?.(), 11);
+		t.is(byId.get('n0')?.getHeight?.(), 21);
+		t.is(byId.get('n1')?.getWidth?.(), 31);
+		t.is(byId.get('n1')?.getHeight?.(), 41);
+		t.is(byId.get('n2')?.getWidth?.(), 51);
+		t.is(byId.get('n2')?.getHeight?.(), 61);
+		t.is(byId.get('n3')?.getWidth?.(), 71);
+		t.is(byId.get('n3')?.getHeight?.(), 81);
+		t.is(byId.get('n4')?.getWidth?.(), 91);
+		t.is(byId.get('n4')?.getHeight?.(), 101);
+		t.is(byId.get('n5')?.getWidth?.(), 111);
+		t.is(byId.get('n5')?.getHeight?.(), 121);
+		t.is(byId.get('n6')?.getWidth?.(), 131);
+		t.is(byId.get('n6')?.getHeight?.(), 141);
+		t.is(byId.get('n7')?.getWidth?.(), 151);
+		t.is(byId.get('n7')?.getHeight?.(), 161);
+		t.is(byId.get('n8')?.getWidth?.(), 171);
+		t.is(byId.get('n8')?.getHeight?.(), 181);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('round-trip: tag-scoped locked and restrictSize survive write→read', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectId('test-project').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('DemoMeta');
+	pkg.setId('pkgMeta');
+
+	const comp = doc.createComponent('MetaAttrs');
+	comp.setId('compMeta');
+	comp.setPath('/');
+	comp.setSize(320, 240);
+
+	const image = doc.createGImage('image');
+	image.setId('n0');
+	image.setLocked(true);
+
+	const childComp = doc.createGComponent('child');
+	childComp.setId('n1');
+	childComp.setSrc('ui://pkgMeta/child');
+	childComp.setLocked(true);
+	childComp.setMinWidth(10);
+	childComp.setMaxWidth(20);
+	childComp.setMinHeight(30);
+	childComp.setMaxHeight(40);
+
+	const text = doc.createGTextField('text');
+	text.setId('n2');
+	text.setText('hello');
+	text.setMinWidth(0);
+	text.setMaxWidth(60);
+	text.setMinHeight(0);
+	text.setMaxHeight(0);
+
+	const richText = doc.createGRichTextField('rich');
+	richText.setId('n3');
+	richText.setText('[b]hi[/b]');
+	richText.setMinWidth(1);
+	richText.setMaxWidth(61);
+	richText.setMinHeight(2);
+	richText.setMaxHeight(62);
+
+	const graph = doc.createGGraph('graph');
+	graph.setId('n4');
+	graph.setGraphType(1);
+	graph.setLocked(true);
+	graph.setMinWidth(0);
+	graph.setMaxWidth(1);
+	graph.setMinHeight(0);
+	graph.setMaxHeight(0);
+
+	const nestedGroup = doc.createGGroup('group');
+	nestedGroup.setId('n5');
+	nestedGroup.setLocked(true);
+
+	comp.addChild(image);
+	comp.addChild(childComp);
+	comp.addChild(text);
+	comp.addChild(richText);
+	comp.addChild(graph);
+	comp.addChild(nestedGroup);
+	pkg.addResource(comp);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-rt-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+
+		const componentXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoMeta', 'MetaAttrs.xml'), 'utf-8');
+		t.true(/<image\b(?=[^>]*id="n0")(?=[^>]*locked(?:="true")?)/.test(componentXml), 'image writes locked attr');
+		t.true(/<component\b(?=[^>]*id="n1")(?=[^>]*locked(?:="true")?)(?=[^>]*restrictSize="10,20,30,40")/.test(componentXml), 'component writes locked and restrictSize attrs');
+		t.true(/<text\b(?=[^>]*id="n2")(?=[^>]*restrictSize="0,60,0,0")/.test(componentXml), 'text writes restrictSize attr');
+		t.true(/<richtext\b(?=[^>]*id="n3")(?=[^>]*restrictSize="1,61,2,62")/.test(componentXml), 'richtext writes restrictSize attr');
+		t.true(/<graph\b(?=[^>]*id="n4")(?=[^>]*locked(?:="true")?)(?=[^>]*restrictSize="0,1,0,0")/.test(componentXml), 'graph writes locked and restrictSize attrs');
+		t.true(/<group\b(?=[^>]*id="n5")(?=[^>]*locked(?:="true")?)/.test(componentXml), 'group writes locked attr');
+
+		const doc2 = await io.readProject(outFairy);
+		const comp2 = doc2.getRoot().getPackage('DemoMeta')?.listComponents().find((item) => item.getName() === 'MetaAttrs');
+		t.truthy(comp2, 'MetaAttrs component exists');
+
+		const byId = new Map(comp2!.listChildren().map((child) => [child.getId(), child as any]));
+		t.true(byId.get('n0')?.getLocked?.());
+		t.true(byId.get('n1')?.getLocked?.());
+		t.is(byId.get('n1')?.getMinWidth?.(), 10);
+		t.is(byId.get('n1')?.getMaxWidth?.(), 20);
+		t.is(byId.get('n1')?.getMinHeight?.(), 30);
+		t.is(byId.get('n1')?.getMaxHeight?.(), 40);
+		t.is(byId.get('n2')?.getMaxWidth?.(), 60);
+		t.is(byId.get('n3')?.getMinWidth?.(), 1);
+		t.is(byId.get('n3')?.getMaxWidth?.(), 61);
+		t.is(byId.get('n3')?.getMinHeight?.(), 2);
+		t.is(byId.get('n3')?.getMaxHeight?.(), 62);
+		t.true(byId.get('n4')?.getLocked?.());
+		t.is(byId.get('n4')?.getMaxWidth?.(), 1);
+		t.true(byId.get('n5')?.getLocked?.());
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
@@ -1344,6 +2076,94 @@ test('round-trip: image duplicatePadding survives write→read', async (t) => {
 		const image2 = doc2.getRoot().getPackage('Demo')?.listResources().find((res) => res.getId?.() === 'img1');
 		t.truthy(image2, 'image exists after round-trip');
 		t.true((image2 as ReturnType<Document['createImageResource']>).getDuplicatePadding(), 'duplicatePadding survives');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('round-trip: package image width/height/gridTile survive package.xml write→read', async (t) => {
+	const io = new NodeIO();
+	const doc = new Document();
+	doc.getRoot().setProjectId('proj-image-size').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('DemoImageMeta');
+	pkg.setId('pkgImageMeta');
+
+	const image = doc.createImageResource('icon.svg');
+	image.setId('imgMeta');
+	image.setPath('/icons/');
+	image.setWidth(16);
+	image.setHeight(18);
+	image.setTileGridIndice(3);
+	pkg.addResource(image);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-image-meta-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+
+		const pkgXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoImageMeta', 'package.xml'), 'utf-8');
+		t.true(pkgXml.includes('width="16"'), 'package image writes width attr');
+		t.true(pkgXml.includes('height="18"'), 'package image writes height attr');
+		t.true(pkgXml.includes('gridTile="3"'), 'package image writes gridTile attr');
+
+		const doc2 = await io.readProject(outFairy);
+		const image2 = doc2.getRoot().getPackage('DemoImageMeta')?.listResources().find((res) => res.getId?.() === 'imgMeta');
+		t.truthy(image2, 'image exists after round-trip');
+		t.is((image2 as ReturnType<Document['createImageResource']>).getWidth(), 16, 'width survives');
+		t.is((image2 as ReturnType<Document['createImageResource']>).getHeight(), 18, 'height survives');
+		t.is((image2 as ReturnType<Document['createImageResource']>).getTileGridIndice(), 3, 'gridTile survives');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('round-trip: package image qualityOption and font TMP import attrs survive package.xml write→read', async (t) => {
+	const io = new NodeIO();
+	const doc = new Document();
+	doc.getRoot().setProjectId('proj-package-meta').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('DemoPackageMeta');
+	pkg.setId('pkgMeta1');
+
+	const image = doc.createImageResource('icon.png');
+	image.setId('imgMeta1');
+	image.setPath('/icons/');
+	image.setQualityOption('source');
+	pkg.addResource(image);
+
+	const font = doc.createFontResource('TmpFont');
+	font.setId('fontMeta1');
+	font.setPath('/fonts/');
+	font.setFileName('TmpFont.ttf');
+	font.setRenderMode('sdfaa');
+	font.setSamplePointSize(60);
+	pkg.addResource(font);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-package-meta-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+
+		const pkgXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoPackageMeta', 'package.xml'), 'utf-8');
+		t.true(pkgXml.includes('qualityOption="source"'), 'package image writes qualityOption attr');
+		t.true(pkgXml.includes('renderMode="sdfaa"'), 'font writes renderMode attr');
+		t.true(pkgXml.includes('samplePointSize="60"'), 'font writes samplePointSize attr');
+
+		const doc2 = await io.readProject(outFairy);
+		const pkg2 = doc2.getRoot().getPackage('DemoPackageMeta');
+		t.truthy(pkg2, 'DemoPackageMeta exists after round-trip');
+
+		const image2 = pkg2!.listResources().find((res) => res.getId?.() === 'imgMeta1') as ReturnType<Document['createImageResource']>;
+		t.truthy(image2, 'image resource exists after round-trip');
+		t.is(image2.getQualityOption(), 'source', 'qualityOption survives');
+
+		const font2 = pkg2!.listResources().find((res) => res.getId?.() === 'fontMeta1') as ReturnType<Document['createFontResource']>;
+		t.truthy(font2, 'font resource exists after round-trip');
+		t.is(font2.getRenderMode(), 'sdfaa', 'renderMode survives');
+		t.is(font2.getSamplePointSize(), 60, 'samplePointSize survives');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

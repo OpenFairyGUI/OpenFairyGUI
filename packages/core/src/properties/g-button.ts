@@ -1,7 +1,7 @@
 import { type Nullable, PropertyType, ButtonMode } from '../constants.js';
-import { GObject, type IGObject } from './g-object.js';
+import { GComponent, type IGComponent } from './g-component.js';
 
-interface IGButton extends IGObject {
+interface IGButton extends IGComponent {
 	title: string;
 	icon: string;
 	selectedTitle: string;
@@ -22,7 +22,7 @@ interface IGButton extends IGObject {
  * A button display object with title, icon, and interaction modes.
  * @category Properties
  */
-export class GButton extends GObject {
+export class GButton extends GComponent {
 	public declare propertyType: PropertyType.G_BUTTON;
 
 	protected init(): void {

@@ -1,8 +1,8 @@
 import type { Nullable } from '../constants.js';
 import { PropertyType } from '../constants.js';
-import { GObject, type IGObject } from './g-object.js';
+import { GComponent, type IGComponent } from './g-component.js';
 
-interface IGComboBox extends IGObject {
+interface IGComboBox extends IGComponent {
 	title: string;
 	icon: string;
 	titleColor: string;
@@ -22,7 +22,7 @@ interface IGComboBox extends IGObject {
  * A combo box (dropdown) display object.
  * @category Properties
  */
-export class GComboBox extends GObject {
+export class GComboBox extends GComponent {
 	public declare propertyType: PropertyType.G_COMBO_BOX;
 
 	protected init(): void {

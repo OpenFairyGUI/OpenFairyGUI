@@ -1,7 +1,7 @@
 import { type Nullable, PropertyType, ProgressTitleType } from '../constants.js';
-import { GObject, type IGObject } from './g-object.js';
+import { GComponent, type IGComponent } from './g-component.js';
 
-interface IGSlider extends IGObject {
+interface IGSlider extends IGComponent {
 	titleType: number;
 	min: number;
 	max: number;
@@ -17,7 +17,7 @@ interface IGSlider extends IGObject {
  * A slider display object.
  * @category Properties
  */
-export class GSlider extends GObject {
+export class GSlider extends GComponent {
 	public declare propertyType: PropertyType.G_SLIDER;
 
 	protected init(): void {

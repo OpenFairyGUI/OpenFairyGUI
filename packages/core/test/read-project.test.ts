@@ -1,7 +1,7 @@
 import test from 'ava';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { type GTree, ListSelectionMode, NodeIO, PropertyType } from '../src/index.js';
+import { type GTree, GearType, ListSelectionMode, NodeIO, PropertyType } from '../src/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_PATH = path.resolve(
@@ -68,6 +68,70 @@ test('Button component has controller, children, and gears', async (t) => {
 	const images = button!.listChildren().filter((c) => (c.propertyType as string) === 'GImage');
 	const gearedImages = images.filter((img) => img.listGears().length > 0);
 	t.true(gearedImages.length > 0, 'some images have gears');
+});
+
+test('Basics samples preserve gear tween attrs and text demoText', async (t) => {
+	const doc = await getDoc();
+	const basics = doc.getRoot().listPackages().find((p) => p.getName() === 'Basics')!;
+
+	const button9 = basics.listComponents().find((c) => c.getName() === 'Button9')!;
+	const button9Image = button9.listChildren().find((child) => child.getId() === 'n1') as any;
+	t.truthy(button9Image, 'Button9 geared image exists');
+	const gearLook = button9Image?.listGears?.().find((gear: any) => gear.getGearType?.() === GearType.Look);
+	t.truthy(gearLook, 'Button9 gearLook exists');
+	t.true(gearLook?.getTween?.(), 'gear tween survives');
+	t.is(gearLook?.getEaseType?.(), 5, 'gear ease survives');
+	t.is(gearLook?.getTweenDuration?.(), 0.5, 'gear duration survives');
+
+	const button10 = basics.listComponents().find((c) => c.getName() === 'Button10')!;
+	const title = button10.listChildren().find((child) => child.getName() === 'title') as any;
+	t.truthy(title, 'Button10 title text exists');
+	t.is(title?.getDemoText?.(), '', 'text demoText survives');
+
+	const relationDemo = basics.listComponents().find((c) => c.getName() === 'Demo_Relation')!;
+	t.is(relationDemo.getDesignImageLayer?.(), 1, 'component root designImageLayer survives');
+
+	const builder = await getEditorDoc();
+	const builderPkg = builder.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const referenceView = builderPkg.listComponents().find((c) => c.getName() === 'ReferenceView')!;
+	const resultText = referenceView.listChildren().find((child) => child.getName() === 'result') as any;
+	t.truthy(resultText, 'ReferenceView result text exists');
+	t.true(resultText?.getTemplateVarsEnabled?.(), 'text vars survives');
+});
+
+test('TextMeshPro samples preserve TMP text attrs', async (t) => {
+	const doc = await getDoc();
+	const textMeshPro = doc.getRoot().listPackages().find((p) => p.getName() === 'TextMeshPro')!;
+	const main = textMeshPro.listComponents().find((c) => c.getName() === 'Main')!;
+	const byId = new Map(main.listChildren().map((child) => [child.getId(), child as any]));
+
+	const rich = byId.get('n0_v040');
+	t.truthy(rich, 'TMP richtext exists');
+	t.is(rich?.getUnderlaySoftness?.(), 0.056, 'richtext underlaySoftness survives');
+
+	const title = byId.get('n1_v040');
+	t.truthy(title, 'TMP title text exists');
+	t.is(title?.getFaceDilate?.(), 0.324, 'text faceDilate survives');
+
+	const label = byId.get('n4_mpsw');
+	t.truthy(label, 'TMP label text exists');
+	t.is(label?.getFaceDilate?.(), 1, 'text faceDilate survives on secondary sample');
+	t.is(label?.getUnderlaySoftness?.(), 1, 'text underlaySoftness survives');
+});
+
+test('package.xml resources preserve image qualityOption and TMP font import attrs', async (t) => {
+	const editorDoc = await getEditorDoc();
+	const builderPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const editorImage = builderPkg.listResources().find((res) => res.getId?.() === 'au3n10') as any;
+	t.truthy(editorImage, 'Builder image resource exists');
+	t.is(editorImage.getQualityOption?.(), 'source', 'image resource keeps qualityOption');
+
+	const runtimeDoc = await getDoc();
+	const textMeshPro = runtimeDoc.getRoot().listPackages().find((p) => p.getName() === 'TextMeshPro')!;
+	const tmpFont = textMeshPro.listResources().find((res) => res.propertyType === PropertyType.FONT_RESOURCE) as any;
+	t.truthy(tmpFont, 'TMP font resource exists');
+	t.is(tmpFont.getRenderMode?.(), 'sdfaa', 'font resource keeps renderMode');
+	t.is(tmpFont.getSamplePointSize?.(), 60, 'font resource keeps samplePointSize');
 });
 
 test('controller pages are parsed', async (t) => {
@@ -160,6 +224,10 @@ test('Demo_Image preserves image flip values from source XML', async (t) => {
 	t.is(byId.get('n8')?.getFlip?.(), 2, 'n8 keeps vertical flip');
 	t.is(byId.get('n17')?.getFlip?.(), 3, 'n17 keeps both flip');
 	t.is(byId.get('n18')?.getFlip?.(), 2, 'n18 keeps vertical flip');
+	t.true(Math.abs((byId.get('n8')?.getAlpha?.() ?? 0) - 0.62) < 1e-6, 'n8 keeps alpha');
+	t.is(byId.get('n9')?.getRotation?.(), -39, 'n9 keeps rotation');
+	t.true(byId.get('n17')?.getGrayed?.(), 'n17 keeps grayed');
+	t.true(byId.get('n18')?.getGrayed?.(), 'n18 keeps grayed');
 });
 
 test('Demo_Graph preserves pivot anchor on image-backed graph children', async (t) => {
@@ -170,6 +238,183 @@ test('Demo_Graph preserves pivot anchor on image-backed graph children', async (
 
 	t.true(byId.get('n14_ty2k')?.getPivotAsAnchor?.(), 'n14_ty2k keeps pivot anchor');
 	t.true(byId.get('n15_ty2k')?.getPivotAsAnchor?.(), 'n15_ty2k keeps pivot anchor');
+	t.is(byId.get('n5')?.getSkewX?.(), 60, 'n5 keeps graph skewX');
+	t.is(byId.get('n5')?.getSkewY?.(), 30, 'n5 keeps graph skewY');
+});
+
+test('display objects preserve tag-scoped pivot and scale attrs from source XML', async (t) => {
+	const doc = await getDoc();
+	const basics = doc.getRoot().listPackages().find((p) => p.getName() === 'Basics')!;
+
+	const demoLoader = basics.listComponents().find((c) => c.getName() === 'Demo_Loader')!;
+	const loaderById = new Map(demoLoader.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(loaderById.get('n3')?.getScaleX?.(), 2, 'loader keeps scaleX from XML');
+	t.is(loaderById.get('n3')?.getScaleY?.(), 2, 'loader keeps scaleY from XML');
+
+	const windowB = basics.listComponents().find((c) => c.getName() === 'WindowB')!;
+	const windowBById = new Map(windowB.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(windowBById.get('n12')?.getScaleX?.(), 0.7, 'component keeps scaleX from XML');
+	t.is(windowBById.get('n12')?.getScaleY?.(), 1, 'component keeps scaleY from XML');
+
+	const movieClipDemo = basics.listComponents().find((c) => c.getName() === 'Demo_MovieClip')!;
+	const movieClipById = new Map(movieClipDemo.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(movieClipById.get('n15')?.getPivotX?.(), 0.5, 'movieclip keeps pivotX from XML');
+	t.is(movieClipById.get('n15')?.getPivotY?.(), 0.5, 'movieclip keeps pivotY from XML');
+
+	const editorDoc = await getEditorDoc();
+	const basicPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Basic')!;
+	const hueSlider = basicPkg.listComponents().find((c) => c.getName() === 'HueSlider')!;
+	const hueById = new Map(hueSlider.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(hueById.get('n43_mkkf')?.getPivotX?.(), 0, 'component keeps pivotX from editor XML');
+	t.is(hueById.get('n43_mkkf')?.getPivotY?.(), 0.5, 'component keeps pivotY from editor XML');
+	t.true(hueById.get('n43_mkkf')?.getPivotAsAnchor?.(), 'component keeps anchor=true from editor XML');
+});
+
+test('display objects preserve tag-scoped group attrs from source XML', async (t) => {
+	const editorDoc = await getEditorDoc();
+	const basicPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Basic')!;
+	const colorPicker = basicPkg.listComponents().find((c) => c.getName() === 'ColorPickerDialog')!;
+	const colorById = new Map(colorPicker.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(colorById.get('n18_ss7s')?.getGroup?.(), 'n20_ss7s', 'image keeps group attr');
+	t.is(colorById.get('n48_qfvx')?.getGroup?.(), 'n20_ss7s', 'graph keeps group attr');
+	t.is(colorById.get('n0_ss7s')?.getGroup?.(), 'n50_qfvx', 'text keeps group attr');
+	t.is(colorById.get('n1_ss7s')?.getGroup?.(), 'n50_qfvx', 'component keeps group attr');
+
+	const builderPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const libraryView = builderPkg.listComponents().find((c) => c.getName() === 'LibraryView')!;
+	const libraryById = new Map(libraryView.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(libraryById.get('n3')?.getGroup?.(), 'n16_emg4', 'list keeps group attr');
+
+	const customArrange = builderPkg.listComponents().find((c) => c.getName() === 'CustomArrangePanel')!;
+	const arrangeById = new Map(customArrange.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(arrangeById.get('n46_ov4h')?.getGroup?.(), 'n48_ryaj', 'group keeps group attr');
+
+	const runtimeDoc = await getDoc();
+	const transitionPkg = runtimeDoc.getRoot().listPackages().find((p) => p.getName() === 'Transition')!;
+	const powerUp = transitionPkg.listComponents().find((c) => c.getName() === 'PowerUp')!;
+	const powerById = new Map(powerUp.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(powerById.get('n5')?.getGroup?.(), 'n6', 'movieclip keeps group attr');
+});
+
+test('display objects preserve tag-scoped xy attrs from source XML', async (t) => {
+	const doc = await getDoc();
+	const basics = doc.getRoot().listPackages().find((p) => p.getName() === 'Basics')!;
+
+	const demoLoader = basics.listComponents().find((c) => c.getName() === 'Demo_Loader')!;
+	const loaderById = new Map(demoLoader.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(loaderById.get('n3')?.getX?.(), 295, 'loader keeps x from XML');
+	t.is(loaderById.get('n3')?.getY?.(), 66, 'loader keeps y from XML');
+
+	const windowB = basics.listComponents().find((c) => c.getName() === 'WindowB')!;
+	const windowBById = new Map(windowB.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(windowBById.get('n12')?.getX?.(), 185, 'component keeps x from XML');
+	t.is(windowBById.get('n12')?.getY?.(), 139, 'component keeps y from XML');
+
+	const movieClipDemo = basics.listComponents().find((c) => c.getName() === 'Demo_MovieClip')!;
+	const movieClipById = new Map(movieClipDemo.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(movieClipById.get('n15')?.getX?.(), 298, 'movieclip keeps x from XML');
+	t.is(movieClipById.get('n15')?.getY?.(), 227, 'movieclip keeps y from XML');
+
+	const editorDoc = await getEditorDoc();
+	const basicPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Basic')!;
+	const colorPicker = basicPkg.listComponents().find((c) => c.getName() === 'ColorPickerDialog')!;
+	const colorById = new Map(colorPicker.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(colorById.get('n18_ss7s')?.getX?.(), 325, 'image keeps x from editor XML');
+	t.is(colorById.get('n18_ss7s')?.getY?.(), 35, 'image keeps y from editor XML');
+	t.is(colorById.get('n0_ss7s')?.getX?.(), 322, 'text keeps x from editor XML');
+	t.is(colorById.get('n0_ss7s')?.getY?.(), 109, 'text keeps y from editor XML');
+
+	const builderPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const libraryView = builderPkg.listComponents().find((c) => c.getName() === 'LibraryView')!;
+	const libraryById = new Map(libraryView.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(libraryById.get('n3')?.getX?.(), 0, 'list keeps x from editor XML');
+	t.is(libraryById.get('n3')?.getY?.(), 27, 'list keeps y from editor XML');
+});
+
+test('display objects preserve tag-scoped size attrs from source XML', async (t) => {
+	const doc = await getDoc();
+	const basics = doc.getRoot().listPackages().find((p) => p.getName() === 'Basics')!;
+
+	const demoLoader = basics.listComponents().find((c) => c.getName() === 'Demo_Loader')!;
+	const loaderById = new Map(demoLoader.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(loaderById.get('n3')?.getWidth?.(), 133, 'loader keeps width from XML');
+	t.is(loaderById.get('n3')?.getHeight?.(), 131, 'loader keeps height from XML');
+
+	const demoButton = basics.listComponents().find((c) => c.getName() === 'Demo_Button')!;
+	const buttonById = new Map(demoButton.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(buttonById.get('n4')?.getWidth?.(), 88, 'component keeps width from XML');
+	t.is(buttonById.get('n4')?.getHeight?.(), 19, 'component keeps height from XML');
+
+	const movieClipDemo = basics.listComponents().find((c) => c.getName() === 'Demo_MovieClip')!;
+	const movieClipById = new Map(movieClipDemo.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(movieClipById.get('n15')?.getWidth?.(), 155, 'movieclip keeps width from XML');
+	t.is(movieClipById.get('n15')?.getHeight?.(), 144, 'movieclip keeps height from XML');
+
+	const editorDoc = await getEditorDoc();
+	const basicPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Basic')!;
+	const colorPicker = basicPkg.listComponents().find((c) => c.getName() === 'ColorPickerDialog')!;
+	const colorById = new Map(colorPicker.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(colorById.get('n18_ss7s')?.getWidth?.(), 57, 'image keeps width from editor XML');
+	t.is(colorById.get('n18_ss7s')?.getHeight?.(), 59, 'image keeps height from editor XML');
+	t.is(colorById.get('n0_ss7s')?.getWidth?.(), 17, 'text keeps width from editor XML');
+	t.is(colorById.get('n0_ss7s')?.getHeight?.(), 16, 'text keeps height from editor XML');
+	t.is(colorById.get('n48_qfvx')?.getWidth?.(), 58, 'graph keeps width from editor XML');
+	t.is(colorById.get('n48_qfvx')?.getHeight?.(), 30, 'graph keeps height from editor XML');
+
+	const builderPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const libraryView = builderPkg.listComponents().find((c) => c.getName() === 'LibraryView')!;
+	const libraryById = new Map(libraryView.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(libraryById.get('n3')?.getWidth?.(), 137, 'list keeps width from editor XML');
+	t.is(libraryById.get('n3')?.getHeight?.(), 553, 'list keeps height from editor XML');
+
+	const customArrange = builderPkg.listComponents().find((c) => c.getName() === 'CustomArrangePanel')!;
+	const arrangeById = new Map(customArrange.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(arrangeById.get('n46_ov4h')?.getWidth?.(), 146, 'group keeps width from editor XML');
+	t.is(arrangeById.get('n46_ov4h')?.getHeight?.(), 20, 'group keeps height from editor XML');
+});
+
+test('display objects preserve tag-scoped locked and restrictSize attrs from source XML', async (t) => {
+	const editorDoc = await getEditorDoc();
+	const basicPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Basic')!;
+	const colorPicker = basicPkg.listComponents().find((c) => c.getName() === 'ColorPickerDialog')!;
+	const colorById = new Map(colorPicker.listChildren().map((child) => [child.getId(), child as any]));
+	t.true(colorById.get('n37_mkkf')?.getLocked?.(), 'component keeps locked attr');
+
+	const builderPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const relationPopup = builderPkg.listComponents().find((c) => c.getName() === 'RelationTypePopup')!;
+	const relationById = new Map(relationPopup.listChildren().map((child) => [child.getId(), child as any]));
+	t.true(relationById.get('n3')?.getLocked?.(), 'image keeps locked attr');
+
+	const customArrange = builderPkg.listComponents().find((c) => c.getName() === 'CustomArrangePanel')!;
+	const arrangeById = new Map(customArrange.listChildren().map((child) => [child.getId(), child as any]));
+	t.true(arrangeById.get('n48_ryaj')?.getLocked?.() === false || arrangeById.get('n48_ryaj')?.getLocked?.() === undefined, 'unlocked group remains default false');
+
+	const langItem = builderPkg.listComponents().find((c) => c.getName() === 'LangSetting_item')!;
+	const langById = new Map(langItem.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(langById.get('n16')?.getMinWidth?.(), 0, 'graph keeps restrictSize minWidth');
+	t.is(langById.get('n16')?.getMaxWidth?.(), 1, 'graph keeps restrictSize maxWidth');
+	t.is(langById.get('n16')?.getMinHeight?.(), 0, 'graph keeps restrictSize minHeight');
+	t.is(langById.get('n16')?.getMaxHeight?.(), 0, 'graph keeps restrictSize maxHeight');
+
+	const inspectorPanel = builderPkg.listComponents().find((c) => c.getName() === 'BasicPropsInTransPanel')!;
+	const inspectorById = new Map(inspectorPanel.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(inspectorById.get('n22')?.getMinWidth?.(), 0, 'text keeps restrictSize minWidth');
+	t.is(inspectorById.get('n22')?.getMaxWidth?.(), 60, 'text keeps restrictSize maxWidth');
+
+	const libraryView = builderPkg.listComponents().find((c) => c.getName() === 'LibraryView')!;
+	const libraryById = new Map(libraryView.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(libraryById.get('n11_qilr')?.getMaxWidth?.(), 200, 'component keeps restrictSize maxWidth');
+
+	const doc = await getDoc();
+	const emojiPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Emoji')!;
+	const chatLeft = emojiPkg.listComponents().find((c) => c.getName() === 'chatLeft')!;
+	const chatById = new Map(chatLeft.listChildren().map((child) => [child.getId(), child as any]));
+	t.is(chatById.get('n3')?.getMaxWidth?.(), 663, 'richtext keeps restrictSize maxWidth');
+
+	const turnPagePkg = doc.getRoot().listPackages().find((p) => p.getName() === 'TurnPage')!;
+	const book = turnPagePkg.listComponents().find((c) => c.getName() === 'Book')!;
+	const bookById = new Map(book.listChildren().map((child) => [child.getId(), child as any]));
+	t.true(bookById.get('n10_jva6')?.getLocked?.(), 'group keeps locked attr');
 });
 
 test('TreeView package preserves tree list attrs and item hierarchy', async (t) => {
@@ -227,6 +472,7 @@ test('Bag package preserves list colGap and selectionController from source XML'
 	t.is(pageDots?.getColumnGap?.(), 40, 'row list keeps colGap from XML');
 	t.is(pageDots?.getSelectionController?.(), 'page', 'row list keeps selectionController from XML');
 	t.is(pageDots?.getSelectionMode?.(), ListSelectionMode.Single, 'selection mode remains default when XML omits it');
+	t.false(pageDots?.getTouchable?.(), 'row list keeps touchable=false from XML');
 });
 
 test('display objects preserve fileName/pkg/filter metadata from source XML', async (t) => {
@@ -260,11 +506,56 @@ test('display objects preserve fileName/pkg/filter metadata from source XML', as
 	t.truthy(separator, 'AlignToolbar separator exists');
 	t.is(separator?.getFileName?.(), 'HzSeperator.png', 'image keeps editor fileName attr');
 	t.is(separator?.getPackageId?.(), 'nk9ejx23', 'image keeps editor pkg attr');
+	t.true(separator?.getAspect?.(), 'image keeps editor aspect attr');
 
 	const flatIconButton = alignById.get('n33');
 	t.truthy(flatIconButton, 'AlignToolbar FlatIconButton exists');
 	t.is(flatIconButton?.getFileName?.(), 'Button/FlatIconButton.xml', 'component keeps editor fileName attr');
 	t.is(flatIconButton?.getPackageId?.(), 'nk9ejx23', 'component keeps editor pkg attr');
+	t.is(flatIconButton?.getTooltips?.(), '左对齐', 'component keeps editor tooltips attr');
+
+	const basicsPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Basics')!;
+	const windowFrame = basicsPkg.listComponents().find((c) => c.getName() === 'WindowFrame')!;
+	const windowFrameById = new Map(windowFrame.listChildren().map((child) => [child.getId(), child as any]));
+	const closeButton = windowFrameById.get('n1');
+	t.truthy(closeButton, 'WindowFrame closeButton exists');
+	t.true(closeButton?.getAspect?.(), 'component instance keeps aspect attr');
+});
+
+test('FairyGUI-Editor samples preserve text customData attrs', async (t) => {
+	const doc = await getEditorDoc();
+	const builderPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const hierarchyItem = builderPkg.listComponents().find((c) => c.getName() === 'HierarchyView_item')!;
+	const byId = new Map(hierarchyItem.listChildren().map((child) => [child.getId(), child as any]));
+
+	const title = byId.get('n2');
+	t.truthy(title, 'HierarchyView_item title exists');
+	t.is(title?.getCustomData?.(), 'k', 'text keeps customData attr');
+});
+
+test('FairyGUI-Editor samples preserve component/group/loader state attrs', async (t) => {
+	const editorDoc = await getEditorDoc();
+	const builderPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+
+	const toolbar = builderPkg.listComponents().find((c) => c.getName() === 'Toolbar')!;
+	const toolbarById = new Map(toolbar.listChildren().map((child) => [child.getId(), child as any]));
+	const reload = toolbarById.get('n133_s3qd');
+	t.truthy(reload, 'Toolbar reload button exists');
+	t.false(reload?.getTouchable?.(), 'component keeps touchable=false attr');
+	t.true(reload?.getGrayed?.(), 'component keeps grayed attr');
+
+	const textInputDialog = builderPkg.listComponents().find((c) => c.getName() === 'TextInputDialog')!;
+	const textInputById = new Map(textInputDialog.listChildren().map((child) => [child.getId(), child as any]));
+	const inputPanel = textInputById.get('n80_hd18');
+	t.truthy(inputPanel, 'TextInputDialog inputPanel group exists');
+	t.false(inputPanel?.getVisible?.(), 'group keeps visible=false attr');
+
+	const doc = await getDoc();
+	const basicsPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Basics')!;
+	const button52 = basicsPkg.listComponents().find((c) => c.getName() === 'Button52')!;
+	const iconLoader = button52.listChildren().find((child) => child.getName() === 'icon') as any;
+	t.truthy(iconLoader, 'Button52 icon loader exists');
+	t.true(iconLoader?.getGrayed?.(), 'loader keeps grayed attr');
 });
 
 test('FairyGUI-Editor samples preserve lineItemCount/autoItemSize and group visibility attrs', async (t) => {
@@ -296,6 +587,18 @@ test('FairyGUI-Editor samples preserve component root scroll/restrict attrs and 
 
 	const inspectorView = builderPkg.listComponents().find((c) => c.getName() === 'InspectorView')!;
 	t.is(inspectorView.getMinWidth?.(), 286, 'component root keeps restrictSize minWidth');
+	t.true(inspectorView.getBgColorEnabled?.(), 'component root keeps bgColorEnabled');
+	t.is(inspectorView.getBgColor?.(), '#383838', 'component root keeps bgColor');
+
+	const referenceView = builderPkg.listComponents().find((c) => c.getName() === 'ReferenceView')!;
+	t.is(referenceView.getDesignImageAlpha?.(), 100, 'component root keeps designImageAlpha');
+	t.is(referenceView.getDesignImageOffsetX?.(), -428, 'component root keeps designImageOffsetX');
+
+	const imageContainer = builderPkg.listComponents().find((c) => c.getName() === 'ImageContainer')!;
+	t.is(imageContainer.getIdNum?.(), 0, 'component root keeps idnum');
+
+	const windowFrame = basicPkg.listComponents().find((c) => c.getName() === 'WindowFrame')!;
+	t.is(windowFrame.getInitName?.(), 'frame', 'component root keeps initName');
 
 	const docContainer = builderPkg.listComponents().find((c) => c.getName() === 'DocContainer')!;
 	t.is(docContainer.getOverflow?.(), 2, 'component root keeps overflow=scroll');
@@ -307,12 +610,14 @@ test('FairyGUI-Editor samples preserve component root scroll/restrict attrs and 
 	t.is(iconLoader?.getUrl?.(), 'ui://2pshu6oix5ao5k', 'loader keeps url attr');
 	t.is(iconLoader?.getFill?.(), 1, 'loader keeps fill=scale');
 	t.true(iconLoader?.getShrinkOnly?.(), 'loader keeps shrinkOnly attr');
+	t.true(iconLoader?.getClearOnPublish?.(), 'loader keeps clearOnPublish attr');
 
 	const recentItem = builderPkg.listComponents().find((c) => c.getName() === 'RecentItem')!;
 	const title = recentItem.listChildren().find((child) => child.getName() === 'title') as any;
 	t.truthy(title, 'RecentItem richtext exists');
 	t.true(title?.getUbbEnabled?.(), 'richtext keeps ubb attr');
 	t.true(title?.getSingleLine?.(), 'richtext keeps singleLine attr');
+	t.true(title?.getAutoClearText?.(), 'richtext keeps autoClearText attr');
 	t.is(title?.getText?.(), '[url=xx]FairyGUI-Unity-Demo[/url]', 'richtext keeps text attr');
 });
 

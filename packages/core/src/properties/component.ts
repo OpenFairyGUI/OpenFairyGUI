@@ -46,6 +46,14 @@ interface IComponent extends IExtensibleProperty {
 	hzScrollBarRes: string;
 	headerRes: string;
 	footerRes: string;
+	bgColor: string;
+	bgColorEnabled: boolean;
+	designImageAlpha: number;
+	designImageLayer: number;
+	designImageOffsetX: number;
+	designImageOffsetY: number;
+	idNum: number;
+	initName: string;
 	extensionType: string;
 	buttonMode: number;
 	sound: string;
@@ -117,6 +125,14 @@ export class Component extends ExtensibleProperty<IComponent> {
 			hzScrollBarRes: '',
 			headerRes: '',
 			footerRes: '',
+			bgColor: '',
+			bgColorEnabled: false,
+			designImageAlpha: 0,
+			designImageLayer: 0,
+			designImageOffsetX: 0,
+			designImageOffsetY: 0,
+			idNum: 0,
+			initName: '',
 			extensionType: '',
 			buttonMode: 0,
 			sound: '',
@@ -259,6 +275,30 @@ export class Component extends ExtensibleProperty<IComponent> {
 
 	public getFooterRes(): string { return this.get('footerRes'); }
 	public setFooterRes(v: string): this { return this.set('footerRes', v); }
+
+	public getBgColor(): string { return this.get('bgColor'); }
+	public setBgColor(v: string): this { return this.set('bgColor', v); }
+
+	public getBgColorEnabled(): boolean { return this.get('bgColorEnabled'); }
+	public setBgColorEnabled(v: boolean): this { return this.set('bgColorEnabled', v); }
+
+	public getDesignImageAlpha(): number { return this.get('designImageAlpha'); }
+	public setDesignImageAlpha(v: number): this { return this.set('designImageAlpha', v); }
+
+	public getDesignImageLayer(): number { return this.get('designImageLayer'); }
+	public setDesignImageLayer(v: number): this { return this.set('designImageLayer', v); }
+
+	public getDesignImageOffsetX(): number { return this.get('designImageOffsetX'); }
+	public setDesignImageOffsetX(v: number): this { return this.set('designImageOffsetX', v); }
+
+	public getDesignImageOffsetY(): number { return this.get('designImageOffsetY'); }
+	public setDesignImageOffsetY(v: number): this { return this.set('designImageOffsetY', v); }
+
+	public getIdNum(): number { return this.get('idNum'); }
+	public setIdNum(v: number): this { return this.set('idNum', v); }
+
+	public getInitName(): string { return this.get('initName'); }
+	public setInitName(v: string): this { return this.set('initName', v); }
 
 	public getExtensionType(): string { return this.get('extensionType'); }
 	public setExtensionType(v: string): this { return this.set('extensionType', v); }

@@ -71,6 +71,18 @@ flowchart LR
 - `@openfairygui/functions` 只组合流程，不重新定义底层协议。
 - `@openfairygui/cli` 是入口层，不下沉协议细节。
 
+## 当前工程 XML 资源层覆盖
+
+`ProjectReader / ProjectWriter` 当前对 `package.xml` 资源层的正式覆盖范围如下：
+
+| 节点 | 当前正式读写属性 |
+|---|---|
+| 通用资源节点 | `id`、`name`、`path`、`exported` |
+| `image` 资源 | `scale`、`scale9grid`、`width`、`height`、`gridTile`、`qualityOption`、`duplicatePadding`、`smoothing` |
+| `font` 资源 | `texture`、`renderMode`、`samplePointSize` |
+
+当前仓库样本里仍存在未正式建模的资源层属性，例如部分 `image` 的 `atlas`。这类字段当前不属于正式工程读写覆盖范围。
+
 ## 当前最关键的数据流
 
 ```mermaid

@@ -2,6 +2,19 @@ import { type Nullable, PropertyType, LoaderFillType, FillMethod, FillOrigin } f
 import { GObject, type IGObject } from './g-object.js';
 
 export interface IGLoader extends IGObject {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	pivotX: number;
+	pivotY: number;
+	scaleX: number;
+	scaleY: number;
+	alpha: number;
+	rotation: number;
+	visible: boolean;
+	touchable: boolean;
+	grayed: boolean;
 	url: string;
 	fill: number;
 	shrinkOnly: boolean;
@@ -16,6 +29,7 @@ export interface IGLoader extends IGObject {
 	fillOrigin: number;
 	fillClockwise: boolean;
 	fillAmount: number;
+	clearOnPublish: boolean;
 }
 
 /**
@@ -31,6 +45,19 @@ export class GLoader extends GObject<IGLoader, PropertyType.G_LOADER> {
 
 	protected getDefaults(): Nullable<IGLoader> {
 		return Object.assign(super.getDefaults(), {
+			x: 0,
+			y: 0,
+			width: 0,
+			height: 0,
+			pivotX: 0,
+			pivotY: 0,
+			scaleX: 1,
+			scaleY: 1,
+			alpha: 1,
+			rotation: 0,
+			visible: true,
+			touchable: true,
+			grayed: false,
 			url: '',
 			fill: LoaderFillType.None,
 			shrinkOnly: false,
@@ -45,11 +72,56 @@ export class GLoader extends GObject<IGLoader, PropertyType.G_LOADER> {
 			fillOrigin: FillOrigin.Top,
 			fillClockwise: true,
 			fillAmount: 100,
+			clearOnPublish: false,
 		});
 	}
 
 	public getUrl(): string { return this.get('url'); }
 	public setUrl(v: string): this { return this.set('url', v); }
+
+	public getX(): number { return this.get('x'); }
+	public getY(): number { return this.get('y'); }
+	public getWidth(): number { return this.get('width'); }
+	public getHeight(): number { return this.get('height'); }
+	public setXY(x: number, y: number): this {
+		this.set('x', x);
+		return this.set('y', y);
+	}
+	public setSize(w: number, h: number): this {
+		this.set('width', w);
+		return this.set('height', h);
+	}
+	public setX(v: number): this { return this.set('x', v); }
+	public setY(v: number): this { return this.set('y', v); }
+
+	public getPivotX(): number { return this.get('pivotX'); }
+	public getPivotY(): number { return this.get('pivotY'); }
+	public setPivot(x: number, y: number): this {
+		this.set('pivotX', x);
+		return this.set('pivotY', y);
+	}
+
+	public getScaleX(): number { return this.get('scaleX'); }
+	public getScaleY(): number { return this.get('scaleY'); }
+	public setScale(x: number, y: number): this {
+		this.set('scaleX', x);
+		return this.set('scaleY', y);
+	}
+
+	public getAlpha(): number { return this.get('alpha'); }
+	public setAlpha(v: number): this { return this.set('alpha', v); }
+
+	public getRotation(): number { return this.get('rotation'); }
+	public setRotation(v: number): this { return this.set('rotation', v); }
+
+	public getVisible(): boolean { return this.get('visible'); }
+	public setVisible(v: boolean): this { return this.set('visible', v); }
+
+	public getTouchable(): boolean { return this.get('touchable'); }
+	public setTouchable(v: boolean): this { return this.set('touchable', v); }
+
+	public getGrayed(): boolean { return this.get('grayed'); }
+	public setGrayed(v: boolean): this { return this.set('grayed', v); }
 
 	public getFill(): number { return this.get('fill'); }
 	public setFill(v: number): this { return this.set('fill', v); }
@@ -89,4 +161,7 @@ export class GLoader extends GObject<IGLoader, PropertyType.G_LOADER> {
 
 	public getFillAmount(): number { return this.get('fillAmount'); }
 	public setFillAmount(v: number): this { return this.set('fillAmount', v); }
+
+	public getClearOnPublish(): boolean { return this.get('clearOnPublish'); }
+	public setClearOnPublish(v: boolean): this { return this.set('clearOnPublish', v); }
 }

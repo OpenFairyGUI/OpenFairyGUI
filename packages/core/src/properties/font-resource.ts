@@ -9,6 +9,8 @@ interface IFontResource extends IExtensibleProperty {
 	fileName: string;
 	textureId: string;
 	exported: boolean;
+	renderMode: string;
+	samplePointSize: number;
 	ttf: boolean;
 	tint: boolean;
 	autoScale: boolean;
@@ -37,6 +39,8 @@ export class FontResource extends ExtensibleProperty<IFontResource> {
 			fileName: '',
 			textureId: '',
 			exported: false,
+			renderMode: '',
+			samplePointSize: 0,
 			ttf: false,
 			tint: false,
 			autoScale: false,
@@ -62,6 +66,12 @@ export class FontResource extends ExtensibleProperty<IFontResource> {
 
 	public getExported(): boolean { return this.get('exported'); }
 	public setExported(v: boolean): this { return this.set('exported', v); }
+
+	public getRenderMode(): string { return this.get('renderMode'); }
+	public setRenderMode(v: string): this { return this.set('renderMode', v); }
+
+	public getSamplePointSize(): number { return this.get('samplePointSize'); }
+	public setSamplePointSize(v: number): this { return this.set('samplePointSize', v); }
 
 	public getTtf(): boolean { return this.get('ttf'); }
 	public setTtf(v: boolean): this { return this.set('ttf', v); }

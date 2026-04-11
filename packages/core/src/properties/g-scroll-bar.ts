@@ -1,8 +1,8 @@
 import type { Nullable } from '../constants.js';
 import { PropertyType } from '../constants.js';
-import { GObject, type IGObject } from './g-object.js';
+import { GComponent, type IGComponent } from './g-component.js';
 
-interface IGScrollBar extends IGObject {
+interface IGScrollBar extends IGComponent {
 	src: string;
 	fixedGripSize: boolean;
 }
@@ -11,7 +11,7 @@ interface IGScrollBar extends IGObject {
  * A scrollbar display object.
  * @category Properties
  */
-export class GScrollBar extends GObject {
+export class GScrollBar extends GComponent {
 	public declare propertyType: PropertyType.G_SCROLL_BAR;
 
 	protected init(): void {

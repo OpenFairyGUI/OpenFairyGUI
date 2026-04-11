@@ -30,7 +30,7 @@ async function walkXmlFiles(dirPath: string): Promise<string[]> {
 async function collectTagAttrNames(filePath: string, tagName: string): Promise<Set<string>> {
 	const content = await fs.readFile(filePath, 'utf-8');
 	const tagPattern = new RegExp(`<${tagName}\\b[^>]*>`, 'g');
-	const attrPattern = /([A-Za-z_][A-Za-z0-9_]*)=/g;
+	const attrPattern = /(?:^|\s)([A-Za-z_][A-Za-z0-9_]*)=(?:"[^"]*"|'[^']*')/g;
 	const attrNames = new Set<string>();
 
 	for (const match of content.matchAll(tagPattern)) {
@@ -48,7 +48,7 @@ async function collectRootComponentAttrNames(filePath: string): Promise<Set<stri
 	const match = content.match(/<component\b[^>]*>/);
 	if (!match) return new Set();
 
-	const attrPattern = /([A-Za-z_][A-Za-z0-9_]*)=/g;
+	const attrPattern = /(?:^|\s)([A-Za-z_][A-Za-z0-9_]*)=(?:"[^"]*"|'[^']*')/g;
 	const attrNames = new Set<string>();
 	for (const attrMatch of match[0].matchAll(attrPattern)) {
 		attrNames.add(attrMatch[1]!);
@@ -59,7 +59,7 @@ async function collectRootComponentAttrNames(filePath: string): Promise<Set<stri
 async function collectNestedComponentAttrNames(filePath: string): Promise<Set<string>> {
 	const content = await fs.readFile(filePath, 'utf-8');
 	const matches = [...content.matchAll(/<component\b[^>]*>/g)];
-	const attrPattern = /([A-Za-z_][A-Za-z0-9_]*)=/g;
+	const attrPattern = /(?:^|\s)([A-Za-z_][A-Za-z0-9_]*)=(?:"[^"]*"|'[^']*')/g;
 	const attrNames = new Set<string>();
 
 	for (const match of matches.slice(1)) {
@@ -139,7 +139,48 @@ async function assertNestedComponentAttrsCovered(t: ExecutionContext, allowedNam
 	);
 }
 
+async function assertPackageResourceAttrsCovered(
+	t: ExecutionContext,
+	tagName: string,
+	allowedNames: Set<string>,
+	ignoredNames: ReadonlySet<string> = new Set(),
+): Promise<void> {
+	const xmlFiles = (await walkXmlFiles(REFERER_ROOT)).filter((filePath) => path.basename(filePath) === 'package.xml');
+	const unknown = new Map<string, string[]>();
+
+	for (const filePath of xmlFiles) {
+		const actualNames = await collectTagAttrNames(filePath, tagName);
+		for (const name of actualNames) {
+			if (allowedNames.has(name) || ignoredNames.has(name)) continue;
+			const relative = path.relative(REFERER_ROOT, filePath);
+			const fileList = unknown.get(name) ?? [];
+			if (fileList.length < 3) fileList.push(relative);
+			unknown.set(name, fileList);
+		}
+	}
+
+	t.deepEqual(
+		[...unknown.entries()].sort(([a], [b]) => a.localeCompare(b)),
+		[],
+		`${tagName} resource attrs across referer package.xml samples are declared by protocol`,
+	);
+}
+
 test('project XML protocol covers selected tag attrs across referer samples', async (t) => {
+	await assertPackageResourceAttrsCovered(
+		t,
+		'image',
+		collectAllowedAttrNames('packageResource', 'packageImageResource'),
+		new Set(['atlas']),
+	);
+	await assertPackageResourceAttrsCovered(t, 'component', collectAllowedAttrNames('packageResource'));
+	await assertPackageResourceAttrsCovered(
+		t,
+		'font',
+		collectAllowedAttrNames('packageResource', 'packageFontResource'),
+	);
+	await assertPackageResourceAttrsCovered(t, 'sound', collectAllowedAttrNames('packageResource'));
+	await assertPackageResourceAttrsCovered(t, 'movieclip', collectAllowedAttrNames('packageResource'));
 	await assertRootComponentAttrsCovered(t, collectAllowedAttrNames('componentRoot'));
 	await assertNestedComponentAttrsCovered(t, collectAllowedAttrNames('displayObject', 'componentInstance'));
 	await assertTagAttrsCovered(t, 'Button', collectAllowedAttrNames('buttonExtension'));
@@ -153,6 +194,7 @@ test('project XML protocol covers selected tag attrs across referer samples', as
 	await assertTagAttrsCovered(t, 'graph', collectAllowedAttrNames('displayObject', 'graph'));
 	await assertTagAttrsCovered(t, 'group', collectAllowedAttrNames('displayObject', 'group'));
 	await assertTagAttrsCovered(t, 'list', collectAllowedAttrNames('displayObject', 'list'));
+	await assertTagAttrsCovered(t, 'jta', collectAllowedAttrNames('displayObject', 'movieClip'));
 	await assertTagAttrsCovered(t, 'text', collectAllowedAttrNames('displayObject', 'text'));
 	await assertTagAttrsCovered(t, 'richtext', collectAllowedAttrNames('displayObject', 'text', 'richText'));
 	await assertTagAttrsCovered(t, 'transition', collectAllowedAttrNames('transition'));
@@ -189,8 +231,25 @@ test('protocolized project XML fields do not regress to legacy direct access pat
 		'if (attrs.password)',
 		'obj.setFileName?.(attrs.fileName)',
 		'obj.setPackageId?.(attrs.pkg)',
+		'obj.setAspect?.(parseBool(attrs.aspect))',
 		'obj.setFilter?.(attrs.filter)',
 		'obj.setFilterData?.(attrs.filterData)',
+		'obj.setRotation(parseFloat2(rotation))',
+		'obj.setAlpha(parseFloat2(alpha, 1))',
+		'obj.setVisible(false)',
+		'obj.setTouchable(false)',
+		'obj.setGrayed(true)',
+		'PROJECT_XML_PROTOCOL.displayObject.attrs.size',
+		'PROJECT_XML_PROTOCOL.displayObject.attrs.xy',
+		'PROJECT_XML_PROTOCOL.displayObject.attrs.locked',
+		'PROJECT_XML_PROTOCOL.displayObject.attrs.restrictSize',
+		'PROJECT_XML_PROTOCOL.displayObject.attrs.pivot',
+		'PROJECT_XML_PROTOCOL.displayObject.attrs.anchor',
+		'PROJECT_XML_PROTOCOL.displayObject.attrs.scale',
+		'PROJECT_XML_PROTOCOL.displayObject.attrs.group',
+		'obj.setTooltips(tooltips)',
+		'obj.setCustomData(objectCustomData)',
+		'obj.setSkew(skewX, skewY)',
 		'const ctrl = doc.createController(ctrlDef.name || \'\')',
 		'parseControllerPages(ctrlDef.pages || \'\')',
 		'const actionType = parseControllerActionType(actionDef.type)',
@@ -205,6 +264,15 @@ test('protocolized project XML fields do not regress to legacy direct access pat
 		'const typeStr = (itemDef.type || \'\').toUpperCase()',
 		'if (itemDef.value !== undefined)',
 		'if (attrs.playing !== undefined) g.setPlaying(parseBool(attrs.playing))',
+		'const id = attrs.id || \'\'',
+		'const exported = parseBool(attrs.exported)',
+		'if (attrs.scale === \'9grid\' && attrs.scale9grid)',
+		'res.setQualityOption(attrs.qualityOption)',
+		'res.setDuplicatePadding(parseBool(attrs.duplicatePadding))',
+		'res.setSmoothing(attrs.smoothing !== \'false\')',
+		'if (attrs.texture) {',
+		'res.setRenderMode(attrs.renderMode)',
+		'res.setSamplePointSize(parseInt2(attrs.samplePointSize))',
 		'const sidePairs = parseSidePair(relDef.sidePair || \'\')',
 		'target: relDef.target || \'\'',
 		'gear.setTween(parseBool(attrs.tween))',
@@ -228,10 +296,34 @@ test('protocolized project XML fields do not regress to legacy direct access pat
 		"attrs['@_treeView']",
 		"attrs['@_overflow']",
 		"attrs['@_scroll']",
+		"attrs['@_scale'] = '9grid'",
+		"attrs['@_qualityOption']",
+		"attrs['@_duplicatePadding'] = 'true'",
+		"attrs['@_smoothing'] = 'false'",
+		"attrs['@_texture'] = texture",
+		"attrs['@_renderMode']",
+		"attrs['@_samplePointSize']",
 		"attrs['@_fileName']",
 		"attrs['@_pkg']",
+		"attrs['@_aspect']",
 		"attrs['@_filter']",
 		"attrs['@_filterData']",
+		"attrs['@_rotation']",
+		"attrs['@_alpha']",
+		"attrs['@_visible']",
+		"attrs['@_touchable']",
+		"attrs['@_grayed']",
+		'PROJECT_XML_PROTOCOL.displayObject.attrs.size',
+		'PROJECT_XML_PROTOCOL.displayObject.attrs.xy',
+		'PROJECT_XML_PROTOCOL.displayObject.attrs.locked',
+		'PROJECT_XML_PROTOCOL.displayObject.attrs.restrictSize',
+		'PROJECT_XML_PROTOCOL.displayObject.attrs.pivot',
+		'PROJECT_XML_PROTOCOL.displayObject.attrs.anchor',
+		'PROJECT_XML_PROTOCOL.displayObject.attrs.scale',
+		'PROJECT_XML_PROTOCOL.displayObject.attrs.group',
+		"attrs['@_tooltips']",
+		"attrs['@_customData']",
+		"attrs['@_skew']",
 		"attrs['@_autoPlayTimes']",
 		"'@_name': ctrl.getName()",
 		"'@_pages': pagesStr",

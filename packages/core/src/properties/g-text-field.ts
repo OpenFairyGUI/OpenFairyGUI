@@ -2,6 +2,21 @@ import { type Nullable, PropertyType, AlignType, VertAlignType, AutoSizeType } f
 import { GObject, type IGObject } from './g-object.js';
 
 export interface IGTextField extends IGObject {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	minWidth: number;
+	maxWidth: number;
+	minHeight: number;
+	maxHeight: number;
+	group: string;
+	alpha: number;
+	rotation: number;
+	visible: boolean;
+	touchable: boolean;
+	grayed: boolean;
+	customData: string;
 	text: string;
 	font: string;
 	fontSize: number;
@@ -12,6 +27,11 @@ export interface IGTextField extends IGObject {
 	letterSpacing: number;
 	autoSize: number;
 	singleLine: boolean;
+	autoClearText: boolean;
+	demoText: string;
+	templateVarsEnabled: boolean;
+	faceDilate: number;
+	underlaySoftness: number;
 	ubbEnabled: boolean;
 	underline: boolean;
 	italic: boolean;
@@ -47,6 +67,21 @@ export class GTextField<
 
 	protected getDefaults(): Nullable<TProps> {
 		return Object.assign(super.getDefaults(), {
+			x: 0,
+			y: 0,
+			width: 0,
+			height: 0,
+			minWidth: 0,
+			maxWidth: 0,
+			minHeight: 0,
+			maxHeight: 0,
+			group: '',
+			alpha: 1,
+			rotation: 0,
+			visible: true,
+			touchable: true,
+			grayed: false,
+			customData: '',
 			text: '',
 			font: '',
 			fontSize: 12,
@@ -57,6 +92,11 @@ export class GTextField<
 			letterSpacing: 0,
 			autoSize: AutoSizeType.Both,
 			singleLine: false,
+			autoClearText: false,
+			demoText: '',
+			templateVarsEnabled: false,
+			faceDilate: 0,
+			underlaySoftness: 0,
 			ubbEnabled: false,
 			underline: false,
 			italic: false,
@@ -85,6 +125,50 @@ export class GTextField<
 	public getText(): string { return this.getTextFieldProp('text'); }
 	public setText(v: string): this { return this.setTextFieldProp('text', v); }
 
+	public getX(): number { return this.getTextFieldProp('x'); }
+	public getY(): number { return this.getTextFieldProp('y'); }
+	public getWidth(): number { return this.getTextFieldProp('width'); }
+	public getHeight(): number { return this.getTextFieldProp('height'); }
+	public getMinWidth(): number { return this.getTextFieldProp('minWidth'); }
+	public getMaxWidth(): number { return this.getTextFieldProp('maxWidth'); }
+	public getMinHeight(): number { return this.getTextFieldProp('minHeight'); }
+	public getMaxHeight(): number { return this.getTextFieldProp('maxHeight'); }
+	public setXY(x: number, y: number): this {
+		this.setTextFieldProp('x', x);
+		return this.setTextFieldProp('y', y);
+	}
+	public setSize(w: number, h: number): this {
+		this.setTextFieldProp('width', w);
+		return this.setTextFieldProp('height', h);
+	}
+	public setMinWidth(v: number): this { return this.setTextFieldProp('minWidth', v); }
+	public setMaxWidth(v: number): this { return this.setTextFieldProp('maxWidth', v); }
+	public setMinHeight(v: number): this { return this.setTextFieldProp('minHeight', v); }
+	public setMaxHeight(v: number): this { return this.setTextFieldProp('maxHeight', v); }
+	public setX(v: number): this { return this.setTextFieldProp('x', v); }
+	public setY(v: number): this { return this.setTextFieldProp('y', v); }
+
+	public getGroup(): string { return this.getTextFieldProp('group'); }
+	public setGroup(v: string): this { return this.setTextFieldProp('group', v); }
+
+	public getAlpha(): number { return this.getTextFieldProp('alpha'); }
+	public setAlpha(v: number): this { return this.setTextFieldProp('alpha', v); }
+
+	public getRotation(): number { return this.getTextFieldProp('rotation'); }
+	public setRotation(v: number): this { return this.setTextFieldProp('rotation', v); }
+
+	public getVisible(): boolean { return this.getTextFieldProp('visible'); }
+	public setVisible(v: boolean): this { return this.setTextFieldProp('visible', v); }
+
+	public getTouchable(): boolean { return this.getTextFieldProp('touchable'); }
+	public setTouchable(v: boolean): this { return this.setTextFieldProp('touchable', v); }
+
+	public getGrayed(): boolean { return this.getTextFieldProp('grayed'); }
+	public setGrayed(v: boolean): this { return this.setTextFieldProp('grayed', v); }
+
+	public getCustomData(): string { return this.getTextFieldProp('customData'); }
+	public setCustomData(v: string): this { return this.setTextFieldProp('customData', v); }
+
 	public getFont(): string { return this.getTextFieldProp('font'); }
 	public setFont(v: string): this { return this.setTextFieldProp('font', v); }
 
@@ -111,6 +195,21 @@ export class GTextField<
 
 	public getSingleLine(): boolean { return this.getTextFieldProp('singleLine'); }
 	public setSingleLine(v: boolean): this { return this.setTextFieldProp('singleLine', v); }
+
+	public getAutoClearText(): boolean { return this.getTextFieldProp('autoClearText'); }
+	public setAutoClearText(v: boolean): this { return this.setTextFieldProp('autoClearText', v); }
+
+	public getDemoText(): string { return this.getTextFieldProp('demoText'); }
+	public setDemoText(v: string): this { return this.setTextFieldProp('demoText', v); }
+
+	public getTemplateVarsEnabled(): boolean { return this.getTextFieldProp('templateVarsEnabled'); }
+	public setTemplateVarsEnabled(v: boolean): this { return this.setTextFieldProp('templateVarsEnabled', v); }
+
+	public getFaceDilate(): number { return this.getTextFieldProp('faceDilate'); }
+	public setFaceDilate(v: number): this { return this.setTextFieldProp('faceDilate', v); }
+
+	public getUnderlaySoftness(): number { return this.getTextFieldProp('underlaySoftness'); }
+	public setUnderlaySoftness(v: number): this { return this.setTextFieldProp('underlaySoftness', v); }
 
 	public getUbbEnabled(): boolean { return this.getTextFieldProp('ubbEnabled'); }
 	public setUbbEnabled(v: boolean): this { return this.setTextFieldProp('ubbEnabled', v); }

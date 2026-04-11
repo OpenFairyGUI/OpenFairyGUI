@@ -1,7 +1,7 @@
 import { type Nullable, PropertyType, ProgressTitleType } from '../constants.js';
-import { GObject, type IGObject } from './g-object.js';
+import { GComponent, type IGComponent } from './g-component.js';
 
-interface IGProgressBar extends IGObject {
+interface IGProgressBar extends IGComponent {
 	titleType: number;
 	min: number;
 	max: number;
@@ -16,7 +16,7 @@ interface IGProgressBar extends IGObject {
  * A progress bar display object.
  * @category Properties
  */
-export class GProgressBar extends GObject {
+export class GProgressBar extends GComponent {
 	public declare propertyType: PropertyType.G_PROGRESS_BAR;
 
 	protected init(): void {

@@ -258,41 +258,80 @@ function decodeChildBlock0(
 		(child as { setSrc(v: string): void }).setSrc(src);
 	}
 
-	child.setXY(childBuf.getInt32(), childBuf.getInt32());
+		if ('setXY' in child && typeof child.setXY === 'function') {
+			(child as { setXY(x: number, y: number): void }).setXY(childBuf.getInt32(), childBuf.getInt32());
+		} else {
+			childBuf.skip(8);
+		}
 
 	if (childBuf.readBool() && remainingBytes(childBuf) >= 8) {
-		child.setSize(childBuf.getInt32(), childBuf.getInt32());
+		if ('setSize' in child && typeof child.setSize === 'function') {
+			(child as { setSize(w: number, h: number): void }).setSize(childBuf.getInt32(), childBuf.getInt32());
+		} else {
+			childBuf.skip(8);
+		}
 	}
 
 	if (childBuf.readBool() && remainingBytes(childBuf) >= 16) {
 		childBuf.skip(16);
 	}
 
-	if (childBuf.readBool() && remainingBytes(childBuf) >= 8) {
-		child.setScale(childBuf.getFloat32(), childBuf.getFloat32());
-	}
+		if (childBuf.readBool() && remainingBytes(childBuf) >= 8) {
+			if ('setScale' in child && typeof child.setScale === 'function') {
+				(child as { setScale(x: number, y: number): void }).setScale(childBuf.getFloat32(), childBuf.getFloat32());
+			} else {
+				childBuf.skip(8);
+			}
+		}
 
 	if (childBuf.readBool() && remainingBytes(childBuf) >= 8) {
-		child.setSkew(childBuf.getFloat32(), childBuf.getFloat32());
+		if ('setSkew' in child && typeof child.setSkew === 'function') {
+			(child as { setSkew(x: number, y: number): void }).setSkew(childBuf.getFloat32(), childBuf.getFloat32());
+		} else {
+			childBuf.skip(8);
+		}
 	}
 
-	if (childBuf.readBool() && remainingBytes(childBuf) >= 9) {
-		child.setPivot(childBuf.getFloat32(), childBuf.getFloat32(), childBuf.readBool());
-	}
+		if (childBuf.readBool() && remainingBytes(childBuf) >= 9) {
+			const px = childBuf.getFloat32();
+			const py = childBuf.getFloat32();
+			const anchor = childBuf.readBool();
+			if ('setPivot' in child && typeof child.setPivot === 'function') {
+				(child as { setPivot(x: number, y: number, anchor?: boolean): void }).setPivot(px, py, anchor);
+			}
+		}
 
 	if (remainingBytes(childBuf) < 15) return child;
-	child
-		.setAlpha(childBuf.getFloat32())
-		.setRotation(childBuf.getFloat32())
-		.setVisible(childBuf.readBool())
-		.setTouchable(childBuf.readBool())
-		.setGrayed(childBuf.readBool());
+	const alpha = childBuf.getFloat32();
+	const rotation = childBuf.getFloat32();
+	const visible = childBuf.readBool();
+	const touchable = childBuf.readBool();
+	const grayed = childBuf.readBool();
+	if ('setAlpha' in child && typeof child.setAlpha === 'function') {
+		(child as { setAlpha(v: number): void }).setAlpha(alpha);
+	}
+	if ('setRotation' in child && typeof child.setRotation === 'function') {
+		(child as { setRotation(v: number): void }).setRotation(rotation);
+	}
+	if ('setVisible' in child && typeof child.setVisible === 'function') {
+		(child as { setVisible(v: boolean): void }).setVisible(visible);
+	}
+	if ('setTouchable' in child && typeof child.setTouchable === 'function') {
+		(child as { setTouchable(v: boolean): void }).setTouchable(touchable);
+	}
+	if ('setGrayed' in child && typeof child.setGrayed === 'function') {
+		(child as { setGrayed(v: boolean): void }).setGrayed(grayed);
+	}
 
 	if (remainingBytes(childBuf) < 2) return child;
 	childBuf.getUint8(); // blendMode
 	childBuf.getUint8(); // filter
 	if (remainingBytes(childBuf) >= 2) {
-		child.setCustomData(childBuf.readS() ?? '');
+		if ('setCustomData' in child && typeof child.setCustomData === 'function') {
+			(child as { setCustomData(v: string): void }).setCustomData(childBuf.readS() ?? '');
+		} else {
+			childBuf.readS();
+		}
 	}
 
 	return child;
@@ -303,7 +342,11 @@ function decodeChildBlock1(
 	childBuf: ByteBuffer,
 ): number {
 	if (!childBuf.seek(0, 1) || remainingBytes(childBuf) < 4) return -1;
-	child.setTooltips(childBuf.readS() ?? '');
+	if ('setTooltips' in child && typeof child.setTooltips === 'function') {
+		(child as { setTooltips(v: string): void }).setTooltips(childBuf.readS() ?? '');
+	} else {
+		childBuf.readS();
+	}
 	return childBuf.getInt16();
 }
 
@@ -1209,7 +1252,9 @@ function decodeComponentDisplayList(
 		if (entry.groupIndex < 0) continue;
 		const target = entries[entry.groupIndex]?.child;
 		if (target) {
-			entry.child.setGroup(target.getId());
+			if ('setGroup' in entry.child && typeof entry.child.setGroup === 'function') {
+				(entry.child as { setGroup(v: string): void }).setGroup(target.getId());
+			}
 		}
 	}
 

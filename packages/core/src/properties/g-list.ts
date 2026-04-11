@@ -25,6 +25,16 @@ interface EdgeInsetsLike {
 }
 
 export interface IListBase extends IGObject {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	group: string;
+	alpha: number;
+	rotation: number;
+	visible: boolean;
+	touchable: boolean;
+	grayed: boolean;
 	layout: number;
 	align: number;
 	vAlign: number;
@@ -72,6 +82,16 @@ export class GListBase<
 > extends GObject<TProps, TType> {
 	protected getDefaults(): Nullable<TProps> {
 		return Object.assign(super.getDefaults(), {
+			x: 0,
+			y: 0,
+			width: 0,
+			height: 0,
+			group: '',
+			alpha: 1,
+			rotation: 0,
+			visible: true,
+			touchable: true,
+			grayed: false,
 			layout: ListLayoutType.SingleColumn,
 			align: 0,
 			vAlign: 0,
@@ -106,6 +126,39 @@ export class GListBase<
 
 	public getLayout(): number { return this.get('layout'); }
 	public setLayout(v: number): this { return this.set('layout', v); }
+
+	public getX(): number { return this.get('x'); }
+	public getY(): number { return this.get('y'); }
+	public getWidth(): number { return this.get('width'); }
+	public getHeight(): number { return this.get('height'); }
+	public setXY(x: number, y: number): this {
+		this.set('x', x);
+		return this.set('y', y);
+	}
+	public setSize(w: number, h: number): this {
+		this.set('width', w);
+		return this.set('height', h);
+	}
+	public setX(v: number): this { return this.set('x', v); }
+	public setY(v: number): this { return this.set('y', v); }
+
+	public getAlpha(): number { return this.get('alpha'); }
+	public setAlpha(v: number): this { return this.set('alpha', v); }
+
+	public getRotation(): number { return this.get('rotation'); }
+	public setRotation(v: number): this { return this.set('rotation', v); }
+
+	public getVisible(): boolean { return this.get('visible'); }
+	public setVisible(v: boolean): this { return this.set('visible', v); }
+
+	public getGroup(): string { return this.get('group'); }
+	public setGroup(v: string): this { return this.set('group', v); }
+
+	public getTouchable(): boolean { return this.get('touchable'); }
+	public setTouchable(v: boolean): this { return this.set('touchable', v); }
+
+	public getGrayed(): boolean { return this.get('grayed'); }
+	public setGrayed(v: boolean): this { return this.set('grayed', v); }
 
 	public getAlign(): number { return this.get('align'); }
 	public setAlign(v: number): this { return this.set('align', v); }

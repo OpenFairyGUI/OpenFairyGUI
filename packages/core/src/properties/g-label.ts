@@ -1,8 +1,8 @@
 import type { Nullable } from '../constants.js';
 import { PropertyType } from '../constants.js';
-import { GObject, type IGObject } from './g-object.js';
+import { GComponent, type IGComponent } from './g-component.js';
 
-interface IGLabel extends IGObject {
+interface IGLabel extends IGComponent {
 	title: string;
 	icon: string;
 	titleColor: string;
@@ -16,7 +16,7 @@ interface IGLabel extends IGObject {
  * A label display object with title and icon.
  * @category Properties
  */
-export class GLabel extends GObject {
+export class GLabel extends GComponent {
 	public declare propertyType: PropertyType.G_LABEL;
 
 	protected init(): void {
