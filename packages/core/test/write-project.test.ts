@@ -824,6 +824,7 @@ test('round-trip: list scroll attrs and static items survive write→read', asyn
 			selectedIcon: 'ui://pkg003/iconASelected',
 			level: 0,
 			isFolder: null,
+			controllers: 'bg,0,type,0',
 		},
 		{
 			title: 'B',
@@ -846,6 +847,8 @@ test('round-trip: list scroll attrs and static items survive write→read', asyn
 
 	try {
 		await io.writeProject(doc, outFairy);
+		const listXml = await fs.readFile(path.join(tmpDir, 'assets', 'Demo3', 'Lists.xml'), 'utf-8');
+		t.true(listXml.includes('controllers="bg,0,type,0"'), 'list static item writes canonical controllers attr');
 
 		const doc2 = await io.readProject(outFairy);
 		const comp2 = doc2.getRoot().getPackage('Demo3')?.listComponents().find((item) => item.getName() === 'Lists');
@@ -873,6 +876,7 @@ test('round-trip: list scroll attrs and static items survive write→read', asyn
 				selectedIcon: 'ui://pkg003/iconASelected',
 				level: 0,
 				isFolder: null,
+				controllers: 'bg,0,type,0',
 			},
 			{
 				title: 'B',
@@ -1183,6 +1187,7 @@ test('round-trip: component extension definition and instance extension attrs su
 		t.true(hostXml.includes('<ComboBox '), 'combo instance writes ComboBox overlay node');
 		t.true(hostXml.includes('selectionController="qualityOption"'), 'combo instance writes canonical selectionController attr');
 		t.true(hostXml.includes('visibleItemCount="6"'), 'combo instance writes canonical visibleItemCount attr');
+		t.regex(hostXml, /<item\b[^>]*title="A"[^>]*value="1"[^>]*icon="ui:\/\/pkg005\/a"[^>]*><\/item>/, 'combo instance item writes canonical item attrs');
 		t.true(hostXml.includes('<Label prompt="[color=#959595]查找...[/color]"'), 'label instance writes canonical prompt attr');
 
 		const doc2 = await io.readProject(outFairy);
@@ -2119,6 +2124,49 @@ test('round-trip: package image width/height/gridTile survive package.xml write�
 	}
 });
 
+test('round-trip: packageDescription id and publish attrs survive package.xml write→read', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectId('pkg-meta').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('DemoPkg');
+	pkg.setId('pkgmeta');
+	pkg.setPublishName('DemoPublish');
+	pkg.setPublishPath('dist/ui');
+	pkg.setPublishBranchPath('dist/branches');
+	pkg.setPublishPackageCount(1);
+
+	const image = doc.createImageResource('hero.png');
+	image.setId('imgmeta');
+	image.setPath('/images/');
+	pkg.addResource(image);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-rt-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+		const packageXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoPkg', 'package.xml'), 'utf-8');
+		t.true(packageXml.includes('<packageDescription id="pkgmeta">'), 'packageDescription writes canonical id attr');
+		t.true(
+			packageXml.includes('<publish name="DemoPublish" path="dist/ui" branchPath="dist/branches" packageCount="1">')
+				|| packageXml.includes('<publish name="DemoPublish" path="dist/ui" branchPath="dist/branches" packageCount="1"/>'),
+			'publish writes canonical name, path, branchPath and packageCount attrs',
+		);
+
+		const doc2 = await io.readProject(outFairy);
+		const pkg2 = doc2.getRoot().getPackage('DemoPkg');
+		t.truthy(pkg2, 'DemoPkg exists after round-trip');
+		t.is(pkg2?.getId(), 'pkgmeta');
+		t.is(pkg2?.getPublishName(), 'DemoPublish');
+		t.is(pkg2?.getPublishPath?.(), 'dist/ui');
+		t.is(pkg2?.getPublishBranchPath?.(), 'dist/branches');
+		t.is(pkg2?.getPublishPackageCount?.(), 1);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('round-trip: package image qualityOption and font TMP import attrs survive package.xml write→read', async (t) => {
 	const io = new NodeIO();
 	const doc = new Document();
@@ -2164,6 +2212,42 @@ test('round-trip: package image qualityOption and font TMP import attrs survive 
 		t.truthy(font2, 'font resource exists after round-trip');
 		t.is(font2.getRenderMode(), 'sdfaa', 'renderMode survives');
 		t.is(font2.getSamplePointSize(), 60, 'samplePointSize survives');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('round-trip: package image textureSetMode survives package.xml write→read', async (t) => {
+	const io = new NodeIO();
+	const doc = new Document();
+	doc.getRoot().setProjectId('proj-package-atlas').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('DemoTextureSetMode');
+	pkg.setId('pkgTextureSetMode');
+
+	const image = doc.createImageResource('timeline_frame.png');
+	image.setId('imgAtlas');
+	image.setPath('/timeline/');
+	image.setTextureSetMode('alone_npot');
+	image.setScaleOption(2);
+	pkg.addResource(image);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-package-atlas-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+
+		const pkgXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoTextureSetMode', 'package.xml'), 'utf-8');
+		t.true(pkgXml.includes('atlas="alone_npot"'), 'package image writes atlas attr');
+
+		const doc2 = await io.readProject(outFairy);
+		const pkg2 = doc2.getRoot().getPackage('DemoTextureSetMode');
+		t.truthy(pkg2, 'DemoTextureSetMode exists after round-trip');
+
+		const image2 = pkg2!.listResources().find((res) => res.getId?.() === 'imgAtlas') as ReturnType<Document['createImageResource']>;
+		t.truthy(image2, 'image resource exists after round-trip');
+		t.is(image2.getTextureSetMode(), 'alone_npot', 'textureSetMode survives');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

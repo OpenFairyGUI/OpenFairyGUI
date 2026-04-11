@@ -54,6 +54,7 @@ interface IComponent extends IExtensibleProperty {
 	designImageOffsetY: number;
 	idNum: number;
 	initName: string;
+	remark: string;
 	extensionType: string;
 	buttonMode: number;
 	sound: string;
@@ -133,6 +134,7 @@ export class Component extends ExtensibleProperty<IComponent> {
 			designImageOffsetY: 0,
 			idNum: 0,
 			initName: '',
+			remark: '',
 			extensionType: '',
 			buttonMode: 0,
 			sound: '',
@@ -299,6 +301,9 @@ export class Component extends ExtensibleProperty<IComponent> {
 
 	public getInitName(): string { return this.get('initName'); }
 	public setInitName(v: string): this { return this.set('initName', v); }
+
+	public getRemark(): string { return this.get('remark'); }
+	public setRemark(v: string): this { return this.set('remark', v); }
 
 	public getExtensionType(): string { return this.get('extensionType'); }
 	public setExtensionType(v: string): this { return this.set('extensionType', v); }

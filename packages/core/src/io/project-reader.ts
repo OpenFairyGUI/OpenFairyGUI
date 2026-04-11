@@ -102,6 +102,9 @@ interface FairyProjectDescriptionNode extends XmlNode {
 
 interface PackagePublishNode {
 	name?: string;
+	path?: string;
+	branchPath?: string;
+	packageCount?: string | number;
 }
 
 interface PackageResourcesNode extends Record<string, unknown> {}
@@ -195,6 +198,7 @@ interface ListItemXmlNode {
 	selectedIcon?: string;
 	level?: string | number;
 	isFolder?: string | boolean;
+	controllers?: string;
 }
 
 interface ComboItemXmlNode {
@@ -543,6 +547,7 @@ function inferTreeItemFolderFlags(items: Array<{
 	selectedIcon: string | null;
 	level: number;
 	isFolder: boolean | null;
+	controllers?: string | null;
 }>): Array<{
 	title: string | null;
 	icon: string | null;
@@ -552,6 +557,7 @@ function inferTreeItemFolderFlags(items: Array<{
 	selectedIcon: string | null;
 	level: number;
 	isFolder: boolean | null;
+	controllers?: string | null;
 }> {
 	return items.map((item, index) => {
 		if (item.isFolder !== null) return item;
@@ -567,6 +573,46 @@ function inferTreeItemFolderFlags(items: Array<{
 		}
 		return { ...item, isFolder: false };
 	});
+}
+
+function parseListItemXmlNode(item: ListItemXmlNode): {
+	title: string | null;
+	icon: string | null;
+	url: string | null;
+	name: string | null;
+	selectedTitle: string | null;
+	selectedIcon: string | null;
+	level: number;
+	isFolder: boolean | null;
+	controllers?: string | null;
+} {
+	const specs = PROJECT_XML_PROTOCOL.listItem.attrs;
+	const isFolder = readXmlAttr<string | boolean>(item, specs.isFolder);
+	const controllers = readXmlAttr<string>(item, specs.controllers);
+	return {
+		title: readXmlAttr<string>(item, specs.title) ?? null,
+		icon: readXmlAttr<string>(item, specs.icon) ?? null,
+		url: readXmlAttr<string>(item, specs.url) ?? null,
+		name: readXmlAttr<string>(item, specs.name) ?? null,
+		selectedTitle: readXmlAttr<string>(item, specs.selectedTitle) ?? null,
+		selectedIcon: readXmlAttr<string>(item, specs.selectedIcon) ?? null,
+		level: parseInt2(readXmlAttr<string | number>(item, specs.level)),
+		isFolder: isFolder !== undefined ? parseBool(isFolder) : null,
+		...(controllers !== undefined ? { controllers } : {}),
+	};
+}
+
+function parseComboBoxItemXmlNode(item: ComboItemXmlNode): {
+	title: string | null;
+	value: string | null;
+	icon: string | null;
+} {
+	const specs = PROJECT_XML_PROTOCOL.comboBoxItem.attrs;
+	return {
+		title: readXmlAttr<string>(item, specs.title) ?? null,
+		value: readXmlAttr<string>(item, specs.value) ?? null,
+		icon: readXmlAttr<string>(item, specs.icon) ?? null,
+	};
 }
 
 export interface FileSystem {
@@ -677,12 +723,24 @@ export class ProjectReader {
 		if (!desc) return;
 
 		const pkg = ctx.document.createPackage(dirName);
-		pkg.setId(desc.id || '');
+		const packageId = readXmlAttr<string>(desc, PROJECT_XML_PROTOCOL.packageDescription.attrs.id) || '';
+		pkg.setId(packageId);
 
 		// Publish name
 		const publish = desc.publish;
 		if (publish) {
-			pkg.setPublishName(publish.name || dirName);
+			const publishName = readXmlAttr<string>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.name) || dirName;
+			pkg.setPublishName(publishName);
+			pkg.setPublishPath(
+				readXmlAttr<string>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.path) || '',
+			);
+			pkg.setPublishBranchPath(
+				readXmlAttr<string>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.branchPath) || '',
+			);
+			pkg.setPublishPackageCount(parseInt2(
+				readXmlAttr<string | number>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.packageCount),
+				0,
+			));
 		}
 
 		ctx.packageMap.set(pkg.getId(), pkg);
@@ -733,6 +791,8 @@ export class ProjectReader {
 				res.setPath(path);
 				res.setExported(exported);
 				res.setExtras({ ...res.getExtras(), _fileName: name });
+				const textureSetMode = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.atlas);
+				if (textureSetMode !== undefined) res.setTextureSetMode(textureSetMode);
 				const scale = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.scale);
 				const scale9grid = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.scale9grid);
 				if (scale === '9grid' && scale9grid) {
@@ -877,6 +937,8 @@ export class ProjectReader {
 		if (idNum !== undefined) comp.setIdNum?.(parseInt2(idNum));
 		const initName = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.initName);
 		if (initName !== undefined) comp.setInitName?.(initName);
+		const remark = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.remark);
+		if (remark !== undefined) comp.setRemark?.(remark);
 
 		// Clip softness
 		const clipSoftness = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.clipSoftness);
@@ -1649,6 +1711,10 @@ export class ProjectReader {
 				if (clearOnPublish !== undefined) g.setClearOnPublish?.(parseBool(clearOnPublish));
 				const loaderColor = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.color);
 				if (loaderColor) g.setColor(loaderColor);
+				const loaderFilter = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.filter);
+				if (loaderFilter !== undefined) g.setFilter(loaderFilter);
+				const loaderFilterData = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.filterData);
+				if (loaderFilterData !== undefined) g.setFilterData(loaderFilterData);
 				const loaderPlaying = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.playing);
 				if (loaderPlaying !== undefined) g.setPlaying?.(parseBool(loaderPlaying));
 				const loaderFrame = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.frame);
@@ -1807,6 +1873,8 @@ export class ProjectReader {
 				if (componentGrayed !== undefined) g.setGrayed(parseBool(componentGrayed));
 				const componentTooltips = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.tooltips);
 				if (componentTooltips !== undefined) g.setTooltips(componentTooltips);
+				const componentCustomData = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.customData);
+				if (componentCustomData !== undefined) g.setCustomData(componentCustomData);
 				const componentFileName = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.fileName);
 				if (componentFileName !== undefined) g.setFileName(componentFileName);
 				const componentPackageId = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.pkg);
@@ -1927,16 +1995,10 @@ export class ProjectReader {
 				// Parse static list items
 				const items = ensureArray(attrs.item);
 				if (items.length > 0) {
-					const listItems = items.map((item) => ({
-						title: item.title ?? null,
-						icon: item.icon ?? null,
-						url: item.url ?? null,
-						name: item.name ?? null,
-						selectedTitle: item.selectedTitle ?? null,
-						selectedIcon: item.selectedIcon ?? null,
-						level: parseInt2(item.level),
-						isFolder: item.isFolder !== undefined ? parseBool(item.isFolder) : null,
-					}));
+					const listItems = items
+						.map((itemDef) => getXmlNode<ListItemXmlNode>(itemDef))
+						.filter((itemDef): itemDef is ListItemXmlNode => itemDef !== null)
+						.map((itemDef) => parseListItemXmlNode(itemDef));
 					g.setListItems(isTree ? inferTreeItemFolderFlags(listItems) : listItems);
 				}
 				obj = g;
@@ -2018,11 +2080,12 @@ export class ProjectReader {
 				if (min !== undefined) componentObj.setInstanceMin?.(parseInt2(min));
 				if (extTypeName === 'ComboBox' && extAttrs.item) {
 					const comboItems = ensureArray(extAttrs.item);
-					componentObj.setInstanceComboItems?.(comboItems.map((item) => ({
-						title: item.title ?? null,
-						value: item.value ?? null,
-						icon: item.icon ?? null,
-					})));
+					componentObj.setInstanceComboItems?.(
+						comboItems
+							.map((itemDef) => getXmlNode<ComboItemXmlNode>(itemDef))
+							.filter((itemDef): itemDef is ComboItemXmlNode => itemDef !== null)
+							.map((itemDef) => parseComboBoxItemXmlNode(itemDef)),
+					);
 				}
 			}
 		}
@@ -2045,6 +2108,10 @@ export class ProjectReader {
 		gear.setGearType(gearType);
 		const tween = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.gear.attrs.tween);
 		gear.setTween(parseBool(tween));
+		const positionsInPercent = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.gear.attrs.positionsInPercent);
+		if (positionsInPercent !== undefined) {
+			gear.setPositionsInPercent(parseBool(positionsInPercent));
+		}
 
 		// Resolve controller reference
 		const ctrlName = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.gear.attrs.controller) || '';

@@ -12,6 +12,10 @@ const EDITOR_PROJECT_PATH = path.resolve(
 	__dirname,
 	'../../../referer/FairyGUI-Editor/ui/FairyGUI-Editor.fairy',
 );
+const LAYABOX_PROJECT_PATH = path.resolve(
+	__dirname,
+	'../../../referer/Runtimes/Layabox/demo/UIProject/FairyGUI-layabox-demo.fairy',
+);
 
 // Shared: read the project once for all tests in this file.
 let _doc: Awaited<ReturnType<NodeIO['readProject']>>;
@@ -30,6 +34,15 @@ async function getEditorDoc() {
 		_editorDoc = await io.readProject(EDITOR_PROJECT_PATH);
 	}
 	return _editorDoc;
+}
+
+let _layaboxDoc: Awaited<ReturnType<NodeIO['readProject']>>;
+async function getLayaboxDoc() {
+	if (!_layaboxDoc) {
+		const io = new NodeIO();
+		_layaboxDoc = await io.readProject(LAYABOX_PROJECT_PATH);
+	}
+	return _layaboxDoc;
 }
 
 test('reads project metadata', async (t) => {
@@ -132,6 +145,22 @@ test('package.xml resources preserve image qualityOption and TMP font import att
 	t.truthy(tmpFont, 'TMP font resource exists');
 	t.is(tmpFont.getRenderMode?.(), 'sdfaa', 'font resource keeps renderMode');
 	t.is(tmpFont.getSamplePointSize?.(), 60, 'font resource keeps samplePointSize');
+});
+
+test('package.xml resources preserve image textureSetMode', async (t) => {
+	const editorDoc = await getEditorDoc();
+	const builderPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const atlasImage = builderPkg.listResources().find((res) => res.getId?.() === 'kpzgiua3') as any;
+	t.truthy(atlasImage, 'Builder atlas-configured image exists');
+	t.is(atlasImage.getTextureSetMode?.(), 'alone_npot', 'image resource keeps textureSetMode');
+});
+
+test('package.xml publish preserves packageCount', async (t) => {
+	const layaboxDoc = await getLayaboxDoc();
+	const joystickPkg = layaboxDoc.getRoot().listPackages().find((p) => p.getName() === 'Joystick');
+	t.truthy(joystickPkg, 'Joystick package exists');
+	t.is(joystickPkg?.getPublishName(), 'Joystick', 'publish name survives');
+	t.is(joystickPkg?.getPublishPackageCount?.(), 1, 'publish packageCount survives');
 });
 
 test('controller pages are parsed', async (t) => {
@@ -453,6 +482,38 @@ test('TreeView package preserves tree list attrs and item hierarchy', async (t) 
 			{ title: 'Folder 2', icon: null, level: 0, isFolder: true },
 			{ title: 'Leaf 1', icon: 'ui://5nx1f8vzua5o7', level: 1, isFolder: false },
 		],
+	);
+});
+
+test('Builder package preserves list static item controllers from source XML', async (t) => {
+	const doc = await getEditorDoc();
+	const builderPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const consoleView = builderPkg.listComponents().find((c) => c.getName() === 'ConsoleView')!;
+	const list = consoleView.listChildren().find((child) => child.getName?.() === 'list') as any;
+	t.truthy(list, 'ConsoleView/list exists');
+	t.deepEqual(
+		list.getListItems?.().map((item: any) => item.controllers ?? null),
+		['bg,0,type,0', 'bg,1,type,1', 'bg,0,type,2'],
+		'list static items preserve controllers attr',
+	);
+});
+
+test('Builder package preserves ComboBox static item collection from source XML', async (t) => {
+	const doc = await getEditorDoc();
+	const builderPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const dialog = builderPkg.listComponents().find((c) => c.getName() === 'CreatePluginDialog')!;
+	const combo = dialog.listChildren().find((child) => child.getName?.() === 'template') as any;
+	t.truthy(combo, 'CreatePluginDialog/template exists');
+	t.deepEqual(
+		combo.getInstanceComboItems?.(),
+		[
+			{ title: '空白(Lua)', value: 'empty', icon: null },
+			{ title: '空白(JavaScript)', value: 'empty_js', icon: null },
+			{ title: '空白(TypeScript)', value: 'empty_ts', icon: null },
+			{ title: '发布代码(Lua)', value: 'code', icon: null },
+			{ title: '发布代码(TypeScript)', value: 'code_ts', icon: null },
+		],
+		'ComboBox overlay items preserve canonical title/value attrs',
 	);
 });
 

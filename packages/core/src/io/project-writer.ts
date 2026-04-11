@@ -134,6 +134,7 @@ type WritableResource = PackageResource & {
 type WritableImageResource = WritableResource & {
 	getWidth?(): number;
 	getHeight?(): number;
+	getTextureSetMode?(): string;
 	getQualityOption?(): string;
 	getScaleOption?(): number;
 	getScale9Grid?(): [number, number, number, number] | null;
@@ -181,6 +182,7 @@ type WritableComponent = Component & {
 	getDesignImageOffsetY?(): number;
 	getIdNum?(): number;
 	getInitName?(): string;
+	getRemark?(): string;
 	getExtensionType?(): string;
 	getButtonMode?(): number;
 	getSound?(): string;
@@ -300,6 +302,7 @@ type WritableChild = GObject & {
 		selectedIcon?: string | null;
 		level?: number;
 		isFolder?: boolean | null;
+		controllers?: string | null;
 	}>;
 	getIndent?(): number;
 	getClickToExpand?(): number;
@@ -382,6 +385,44 @@ function formatTitleType(titleType: number): string {
 	return map[titleType] ?? 'percent';
 }
 
+function serializeListItemXmlNode(item: {
+	title?: string | null;
+	icon?: string | null;
+	url?: string | null;
+	name?: string | null;
+	selectedTitle?: string | null;
+	selectedIcon?: string | null;
+	level?: number;
+	isFolder?: boolean | null;
+	controllers?: string | null;
+}): Record<string, unknown> {
+	const attrs: Record<string, unknown> = {};
+	const specs = PROJECT_XML_PROTOCOL.listItem.attrs;
+	if (item.title !== undefined && item.title !== null) writeXmlAttr(attrs, specs.title, item.title);
+	if (item.icon !== undefined && item.icon !== null) writeXmlAttr(attrs, specs.icon, item.icon);
+	if (item.url !== undefined && item.url !== null) writeXmlAttr(attrs, specs.url, item.url);
+	if (item.name !== undefined && item.name !== null) writeXmlAttr(attrs, specs.name, item.name);
+	if (item.selectedTitle !== undefined && item.selectedTitle !== null) writeXmlAttr(attrs, specs.selectedTitle, item.selectedTitle);
+	if (item.selectedIcon !== undefined && item.selectedIcon !== null) writeXmlAttr(attrs, specs.selectedIcon, item.selectedIcon);
+	if (item.level !== undefined && item.level !== null) writeXmlAttr(attrs, specs.level, String(item.level));
+	if (item.isFolder !== undefined && item.isFolder !== null) writeXmlAttr(attrs, specs.isFolder, item.isFolder ? 'true' : 'false');
+	if (item.controllers !== undefined && item.controllers !== null) writeXmlAttr(attrs, specs.controllers, item.controllers);
+	return attrs;
+}
+
+function serializeComboBoxItemXmlNode(item: {
+	title?: string | null;
+	value?: string | null;
+	icon?: string | null;
+}): Record<string, unknown> {
+	const attrs: Record<string, unknown> = {};
+	const specs = PROJECT_XML_PROTOCOL.comboBoxItem.attrs;
+	if (item.title !== undefined && item.title !== null) writeXmlAttr(attrs, specs.title, item.title);
+	if (item.value !== undefined && item.value !== null) writeXmlAttr(attrs, specs.value, item.value);
+	if (item.icon !== undefined && item.icon !== null) writeXmlAttr(attrs, specs.icon, item.icon);
+	return attrs;
+}
+
 /**
  * Writes a {@link Document} to disk as a FairyGUI project
  * (.fairy file + settings JSON + assets directory with package.xml and component XML files).
@@ -454,6 +495,8 @@ export class ProjectWriter {
 			// Image-specific
 			if (res.propertyType === 'ImageResource') {
 				const imgRes = res as WritableImageResource;
+				const textureSetMode = imgRes.getTextureSetMode?.() ?? '';
+				if (textureSetMode) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.atlas, textureSetMode);
 				const scaleOpt = imgRes.getScaleOption?.() ?? 0;
 				if (scaleOpt === 1) {
 					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.scale, '9grid');
@@ -490,12 +533,34 @@ export class ProjectWriter {
 		}
 
 		const publishName = pkg.getPublishName() || pkg.getName();
+		const publishPath = pkg.getPublishPath();
+		const publishBranchPath = pkg.getPublishBranchPath();
+		const publishPackageCount = pkg.getPublishPackageCount();
+		const packageDescriptionAttrs: Record<string, unknown> = {};
+		writeXmlAttr(packageDescriptionAttrs, PROJECT_XML_PROTOCOL.packageDescription.attrs.id, pkg.getId());
+		const publishAttrs: Record<string, unknown> = {};
+		writeXmlAttr(publishAttrs, PROJECT_XML_PROTOCOL.packagePublish.attrs.name, publishName);
+		writeXmlAttr(
+			publishAttrs,
+			PROJECT_XML_PROTOCOL.packagePublish.attrs.path,
+			publishPath || undefined,
+		);
+		writeXmlAttr(
+			publishAttrs,
+			PROJECT_XML_PROTOCOL.packagePublish.attrs.branchPath,
+			publishBranchPath || undefined,
+		);
+		writeXmlAttr(
+			publishAttrs,
+			PROJECT_XML_PROTOCOL.packagePublish.attrs.packageCount,
+			publishPackageCount > 0 ? publishPackageCount : undefined,
+		);
 		const pkgXmlObj = {
 			'?xml': { '@_version': '1.0', '@_encoding': 'utf-8' },
 			packageDescription: {
-				'@_id': pkg.getId(),
+				...packageDescriptionAttrs,
 				resources,
-				publish: { '@_name': publishName },
+				publish: publishAttrs,
 			},
 		};
 
@@ -560,6 +625,8 @@ export class ProjectWriter {
 		if (idNum !== 0) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.idnum, String(idNum));
 		const initName = typedComp.getInitName?.();
 		if (initName) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.initName, initName);
+		const remark = typedComp.getRemark?.();
+		if (remark) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.remark, remark);
 		const clipSoftness = typedComp.getClipSoftness?.();
 		if (clipSoftness && ((clipSoftness.x ?? 0) !== 0 || (clipSoftness.y ?? 0) !== 0)) {
 			writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.clipSoftness, `${clipSoftness.x ?? 0},${clipSoftness.y ?? 0}`);
@@ -764,6 +831,7 @@ export class ProjectWriter {
 			if (typedObj.getTouchable?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.touchable, 'false');
 			if (typedObj.getGrayed?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.grayed, 'true');
 			if (typedObj.getTooltips?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.tooltips, typedObj.getTooltips?.());
+			if (typedObj.getCustomData?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.customData, typedObj.getCustomData?.());
 			if (typedObj.getFileName?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.fileName, typedObj.getFileName?.());
 			if (typedObj.getPackageId?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.pkg, typedObj.getPackageId?.());
 			if (typedObj.getFilter?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.filter, typedObj.getFilter?.());
@@ -904,6 +972,8 @@ export class ProjectWriter {
 			if (typedObj.getUseResize?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.useResize, '1');
 			const loaderColor = typedObj.getColor?.();
 			if (loaderColor) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.color, loaderColor);
+			if (typedObj.getFilter?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.filter, typedObj.getFilter?.());
+			if (typedObj.getFilterData?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.filterData, typedObj.getFilterData?.());
 			if (typedObj.getPlaying?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.playing, 'false');
 			const frame = typedObj.getFrame?.() ?? 0;
 			if (frame !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.frame, String(frame));
@@ -1113,16 +1183,7 @@ export class ProjectWriter {
 			}
 			const listItems = typedObj.getListItems?.() ?? [];
 			if (listItems.length > 0) {
-				attrs.item = listItems.map((item) => ({
-					'@_title': item.title ?? undefined,
-					'@_icon': item.icon ?? undefined,
-					'@_url': item.url ?? undefined,
-					'@_name': item.name ?? undefined,
-					'@_selectedTitle': item.selectedTitle ?? undefined,
-					'@_selectedIcon': item.selectedIcon ?? undefined,
-					'@_level': item.level === undefined || item.level === null ? undefined : String(item.level),
-					'@_isFolder': item.isFolder === null || item.isFolder === undefined ? undefined : (item.isFolder ? 'true' : 'false'),
-				}));
+				attrs.item = listItems.map((item) => serializeListItemXmlNode(item));
 			}
 		}
 		if (type === 'GTextField' || type === 'GRichTextField' || type === 'GTextInput') {
@@ -1208,11 +1269,7 @@ export class ProjectWriter {
 				if (instanceMin !== 0 && extSpecs.min) writeXmlAttr(extAttrs, extSpecs.min, String(instanceMin));
 				const comboItems = typedObj.getInstanceComboItems?.() ?? [];
 				if (comboItems.length > 0) {
-					extAttrs.item = comboItems.map((item) => ({
-						'@_title': item.title ?? undefined,
-						'@_value': item.value ?? undefined,
-						'@_icon': item.icon ?? undefined,
-					}));
+					extAttrs.item = comboItems.map((item) => serializeComboBoxItemXmlNode(item));
 				}
 				attrs[instanceExtType] = Object.keys(extAttrs).length > 0 ? extAttrs : '';
 			}
@@ -1263,6 +1320,7 @@ export class ProjectWriter {
 			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.ease, stringifyEaseType(gear.getEaseType()));
 			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.duration, String(gear.getTweenDuration()));
 		}
+		if (gear.getPositionsInPercent?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.positionsInPercent, 'true');
 		if (gear.getCondition()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.condition, gear.getCondition());
 		return attrs;
 	}

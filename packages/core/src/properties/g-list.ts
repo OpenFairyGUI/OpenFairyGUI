@@ -10,6 +10,7 @@ export interface GListItemData {
 	selectedIcon: string | null;
 	level: number;
 	isFolder: boolean | null;
+	controllers?: string | null;
 }
 
 interface XYLike {

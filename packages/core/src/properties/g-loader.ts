@@ -16,6 +16,8 @@ export interface IGLoader extends IGObject {
 	touchable: boolean;
 	grayed: boolean;
 	url: string;
+	filter: string;
+	filterData: string;
 	fill: number;
 	shrinkOnly: boolean;
 	autoSize: boolean;
@@ -59,6 +61,8 @@ export class GLoader extends GObject<IGLoader, PropertyType.G_LOADER> {
 			touchable: true,
 			grayed: false,
 			url: '',
+			filter: '',
+			filterData: '',
 			fill: LoaderFillType.None,
 			shrinkOnly: false,
 			autoSize: false,
@@ -78,6 +82,12 @@ export class GLoader extends GObject<IGLoader, PropertyType.G_LOADER> {
 
 	public getUrl(): string { return this.get('url'); }
 	public setUrl(v: string): this { return this.set('url', v); }
+
+	public getFilter(): string { return this.get('filter'); }
+	public setFilter(v: string): this { return this.set('filter', v); }
+
+	public getFilterData(): string { return this.get('filterData'); }
+	public setFilterData(v: string): this { return this.set('filterData', v); }
 
 	public getX(): number { return this.get('x'); }
 	public getY(): number { return this.get('y'); }

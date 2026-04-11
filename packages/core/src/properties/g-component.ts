@@ -25,6 +25,7 @@ export interface IGComponent extends IGObject {
 	touchable: boolean;
 	grayed: boolean;
 	tooltips: string;
+	customData: string;
 	fileName: string;
 	packageId: string;
 	filter: string;
@@ -105,6 +106,7 @@ export class GComponent extends GObject<IGComponent, PropertyType.G_COMPONENT> {
 			touchable: true,
 			grayed: false,
 			tooltips: '',
+			customData: '',
 			fileName: '',
 			packageId: '',
 			filter: '',
@@ -205,6 +207,9 @@ export class GComponent extends GObject<IGComponent, PropertyType.G_COMPONENT> {
 
 	public getTooltips(): string { return firstString(this.get('tooltips')); }
 	public setTooltips(v: string): this { return this.set('tooltips', v); }
+
+	public getCustomData(): string { return firstString(this.get('customData')); }
+	public setCustomData(v: string): this { return this.set('customData', v); }
 
 	public getFileName(): string { return firstString(this.get('fileName')); }
 	public setFileName(v: string): this { return this.set('fileName', v); }

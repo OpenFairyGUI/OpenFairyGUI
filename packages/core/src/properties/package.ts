@@ -14,6 +14,9 @@ type PackageResource = Component | ImageResource | SoundResource | FontResource 
 interface IPackage extends IExtensibleProperty {
 	id: string;
 	publishName: string;
+	publishPath: string;
+	publishBranchPath: string;
+	publishPackageCount: number;
 	resources: RefSet<Property>;
 	atlases: RefSet<Atlas>;
 	dependencies: RefSet<Property>;
@@ -38,6 +41,9 @@ export class Package extends ExtensibleProperty<IPackage> {
 		return Object.assign(super.getDefaults(), {
 			id: '',
 			publishName: '',
+			publishPath: '',
+			publishBranchPath: '',
+			publishPackageCount: 0,
 			resources: new RefSet<Property>(),
 			atlases: new RefSet<Atlas>(),
 			dependencies: new RefSet<Property>(),
@@ -58,6 +64,30 @@ export class Package extends ExtensibleProperty<IPackage> {
 
 	public setPublishName(name: string): this {
 		return this.set('publishName', name);
+	}
+
+	public getPublishPath(): string {
+		return this.get('publishPath');
+	}
+
+	public setPublishPath(path: string): this {
+		return this.set('publishPath', path);
+	}
+
+	public getPublishBranchPath(): string {
+		return this.get('publishBranchPath');
+	}
+
+	public setPublishBranchPath(path: string): this {
+		return this.set('publishBranchPath', path);
+	}
+
+	public getPublishPackageCount(): number {
+		return this.get('publishPackageCount');
+	}
+
+	public setPublishPackageCount(count: number): this {
+		return this.set('publishPackageCount', count);
 	}
 
 	public addResource(resource: PackageResource): this {

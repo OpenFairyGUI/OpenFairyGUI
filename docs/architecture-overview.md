@@ -77,11 +77,13 @@ flowchart LR
 
 | 节点 | 当前正式读写属性 |
 |---|---|
+| `packageDescription` 骨架 | `id` |
+| `packageDescription > publish` | `name`、`path`、`branchPath`、`packageCount` |
 | 通用资源节点 | `id`、`name`、`path`、`exported` |
-| `image` 资源 | `scale`、`scale9grid`、`width`、`height`、`gridTile`、`qualityOption`、`duplicatePadding`、`smoothing` |
+| `image` 资源 | `atlas`、`scale`、`scale9grid`、`width`、`height`、`gridTile`、`qualityOption`、`duplicatePadding`、`smoothing` |
 | `font` 资源 | `texture`、`renderMode`、`samplePointSize` |
 
-当前仓库样本里仍存在未正式建模的资源层属性，例如部分 `image` 的 `atlas`。这类字段当前不属于正式工程读写覆盖范围。
+其中 `image@atlas` 当前作为图片资源的纹理集模式字段读写，在正式模型中由 `ImageResource.textureSetMode` 承载。
 
 ## 当前最关键的数据流
 
