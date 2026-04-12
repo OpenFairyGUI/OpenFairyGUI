@@ -23,6 +23,14 @@ const GROUP_CONDITIONAL_CHILD_NAMES = new Set([
 	'gearText',
 	'gearIcon',
 ]);
+const EXTENSION_CHILD_NAMES = new Set([
+	'Button',
+	'Label',
+	'ComboBox',
+	'ProgressBar',
+	'Slider',
+	'ScrollBar',
+]);
 
 function collectAllowedAttrNames(...protocolKeys: Array<keyof typeof PROJECT_XML_PROTOCOL>): Set<string> {
 	return new Set(protocolKeys.flatMap((key) => listXmlAttrNames(PROJECT_XML_PROTOCOL[key])));
@@ -113,6 +121,36 @@ async function collectConditionalGroupChildren(
 	};
 
 	visit(parsed);
+	return rows;
+}
+
+async function collectRootExtensionChildren(
+	filePath: string,
+): Promise<Array<{ extention: string | null; childNames: string[] }>> {
+	const content = await fs.readFile(filePath, 'utf-8');
+	const parsed = XML_PARSER.parse(content) as Array<Record<string, unknown>>;
+	const rows: Array<{ extention: string | null; childNames: string[] }> = [];
+
+	for (const entry of parsed) {
+		if (!entry || typeof entry !== 'object' || !('component' in entry) || !Array.isArray(entry.component)) continue;
+		const attrs = (entry[':@'] ?? {}) as Record<string, string>;
+		const childNames = new Set<string>();
+		for (const child of entry.component) {
+			if (!child || typeof child !== 'object') continue;
+			for (const childKey of Object.keys(child as Record<string, unknown>)) {
+				if (EXTENSION_CHILD_NAMES.has(childKey)) {
+					childNames.add(childKey);
+				}
+			}
+		}
+		if (childNames.size > 0) {
+			rows.push({
+				extention: attrs['@_extention'] ?? null,
+				childNames: [...childNames].sort(),
+			});
+		}
+	}
+
 	return rows;
 }
 
@@ -619,6 +657,33 @@ test('group relation/gear children in referer samples only appear on advanced gr
 		invalid,
 		[],
 		'group relation/gear structural children should only appear on advanced groups in referer samples',
+	);
+});
+
+test('root extension children in referer samples require matching extention attr', async (t) => {
+	const xmlFiles = await walkXmlFiles(REFERER_ROOT);
+	const invalid: Array<{ file: string; extention: string | null; childNames: string[] }> = [];
+	let matched = 0;
+
+	for (const filePath of xmlFiles) {
+		if (path.basename(filePath) === 'package.xml') continue;
+		const rows = await collectRootExtensionChildren(filePath);
+		matched += rows.length;
+		for (const row of rows) {
+			if (row.childNames.length === 1 && row.extention === row.childNames[0]) continue;
+			invalid.push({
+				file: path.relative(REFERER_ROOT, filePath),
+				extention: row.extention,
+				childNames: row.childNames,
+			});
+		}
+	}
+
+	t.true(matched > 0, 'referer should contain root extension structural samples');
+	t.deepEqual(
+		invalid,
+		[],
+		'root extension child nodes should only appear when component extention matches the child tag',
 	);
 });
 

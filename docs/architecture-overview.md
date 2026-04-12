@@ -60,7 +60,7 @@ flowchart LR
 | 层级 | 当前职责 | 核心文件 |
 |---|---|---|
 | 入口层 | 命令行封装与参数分发 | `packages/cli/src/cli.ts` |
-| 协议适配层 | 屏蔽平台文件系统差异，承接工程格式与二进制格式的读写 | `packages/core/src/io/platform-io.ts`、`packages/core/src/io/node-io.ts`、`packages/core/src/io/project-reader.ts`、`packages/core/src/io/binary-reader.ts` |
+| 协议适配层 | 屏蔽平台文件系统差异，承接工程格式与二进制格式的读写，并集中声明工程 XML 协议元数据 | `packages/core/src/io/platform-io.ts`、`packages/core/src/io/node-io.ts`、`packages/core/src/io/project-xml-protocol.ts`、`packages/core/src/io/project-reader.ts`、`packages/core/src/io/binary-reader.ts` |
 | 核心模型层 | `Document` 持有 `Property Graph`，统一组织项目节点、资源节点与组件语义对象 | `packages/core/src/document.ts`、`packages/core/src/properties/property.ts` |
 | 项目骨架层 | `Root -> Package -> Resource -> Component` 组成基础结构 | `packages/core/src/properties/root.ts`、`packages/core/src/properties/package.ts`、`packages/core/src/properties/component.ts` |
 | 工作流层 | 面向自动化的可组合处理管线 | `packages/functions/src/inspect.ts`、`packages/functions/src/validate.ts`、`packages/functions/src/prune.ts`、`packages/functions/src/rename.ts`、`packages/functions/src/publish.ts` |
@@ -70,6 +70,40 @@ flowchart LR
 - `@openfairygui/core` 定义文档模型与协议读写能力。
 - `@openfairygui/functions` 只组合流程，不重新定义底层协议。
 - `@openfairygui/cli` 是入口层，不下沉协议细节。
+
+## 当前工程 XML 协议元数据结构
+
+`packages/core/src/io/project-xml-protocol.ts` 当前已经把工程 XML 协议拆成三层元数据：
+
+| 层 | 作用 | 当前典型节点 |
+|---|---|---|
+| `attrs` | 描述节点自身允许的 XML 属性，统一 canonical 名与 aliases | `componentRoot.attrs`、`componentInstance.attrs`、`image.attrs`、`packageImageResource.attrs` |
+| `children` | 描述稳定命名子节点集合，用于 `relation`、`gear*`、`action`、`item`、扩展子节点等结构 | `componentInstance.children`、`controller.children`、`transition.children`、`comboBoxExtension.children` |
+| `containers` | 描述容器型结构，而不是普通 child map；当前用于表达有序多态的 `displayList` | `componentRoot.containers.displayList` |
+
+当前三层结构的职责边界如下：
+
+| 元数据层 | 当前 reader / writer 使用方式 | 当前限制 |
+|---|---|---|
+| `attrs` | `ProjectReader / ProjectWriter` 已作为属性读写的主依据 | 不表达结构条件 |
+| `children` | 已参与稳定结构节点的读写与集合校验 | 目前是静态允许集合，不表达 `advanced=true`、`extention=...` 这类条件 |
+| `containers` | 当前已参与 `displayList` 变体集合校验 | 只表达允许的 variant 集合，不负责顺序算法，也不表达 `text -> inputtext`、`list -> tree` 这类条件归一来源 |
+
+`displayList` 当前在协议层的表达不是普通 `children.displayList`，而是容器元数据：
+
+| 项目 | 当前实现 |
+|---|---|
+| 容器宿主 | `componentRoot` |
+| 容器名 | `displayList` |
+| 容器类型 | `orderedVariants` |
+| 当前 variant 集合 | `image`、`graph`、`movieclip`、`jta`、`component`、`loader`、`loader3D`、`text`、`richtext`、`inputtext`、`group`、`list`、`tree` |
+
+其中：
+
+- `attrs` 和 `children` 已经进入 `ProjectReader / ProjectWriter` 的正式消费路径。
+- `containers.displayList` 当前用于读写期的合法性校验，不直接替代现有 `displayList` 的顺序解析和序列化逻辑。
+- 当前正式属性协议总表见 [Project XML 属性协议](./project-xml-attribute-reference.md)。
+- `displayList` 的原始 XML tag、容器 variant 与 editor `DisplayListItem.type` 对齐口径，见 [Project XML DisplayList Tag 对齐](./project-xml-displaylist-variants.md)。
 
 ## 当前工程 XML 资源层覆盖
 

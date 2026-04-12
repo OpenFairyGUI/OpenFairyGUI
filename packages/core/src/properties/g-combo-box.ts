@@ -22,7 +22,7 @@ interface IGComboBox extends IGComponent {
  * A combo box (dropdown) display object.
  * @category Properties
  */
-export class GComboBox extends GComponent {
+export class GComboBox extends GComponent<IGComboBox, PropertyType.G_COMBO_BOX> {
 	public declare propertyType: PropertyType.G_COMBO_BOX;
 
 	protected init(): void {

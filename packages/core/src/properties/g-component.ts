@@ -74,14 +74,17 @@ function firstString(value: unknown): string {
  *
  * @category Properties
  */
-export class GComponent extends GObject<IGComponent, PropertyType.G_COMPONENT> {
-	public declare propertyType: PropertyType.G_COMPONENT;
+export class GComponent<
+	TProps extends IGComponent = IGComponent,
+	TType extends PropertyType = PropertyType.G_COMPONENT,
+> extends GObject<TProps, TType> {
+	public declare propertyType: TType;
 
 	protected init(): void {
-		this.propertyType = PropertyType.G_COMPONENT;
+		this.propertyType = PropertyType.G_COMPONENT as TType;
 	}
 
-	protected getDefaults(): Nullable<IGComponent> {
+	protected getDefaults(): Nullable<TProps> {
 		return Object.assign(super.getDefaults(), {
 			src: '',
 			x: 0,
@@ -136,155 +139,165 @@ export class GComponent extends GObject<IGComponent, PropertyType.G_COMPONENT> {
 			instanceMax: 0,
 			instanceMin: 0,
 			instanceComboItems: [] as IGComponent['instanceComboItems'],
-		});
+		}) as Nullable<TProps>;
 	}
 
-	public getSrc(): string { return this.get('src'); }
-	public setSrc(v: string): this { return this.set('src', v); }
+	protected getComponentProp<K extends keyof IGComponent>(key: K): IGComponent[K] {
+		const self = this as unknown as GComponent<IGComponent, TType>;
+		return self.get(key as never) as IGComponent[K];
+	}
 
-	public getX(): number { return this.get('x'); }
-	public getY(): number { return this.get('y'); }
-	public getWidth(): number { return this.get('width'); }
-	public getHeight(): number { return this.get('height'); }
-	public getLocked(): boolean { return this.get('locked'); }
-	public getMinWidth(): number { return this.get('minWidth'); }
-	public getMaxWidth(): number { return this.get('maxWidth'); }
-	public getMinHeight(): number { return this.get('minHeight'); }
-	public getMaxHeight(): number { return this.get('maxHeight'); }
+	protected setComponentProp<K extends keyof IGComponent>(key: K, value: IGComponent[K]): this {
+		const self = this as unknown as GComponent<IGComponent, TType>;
+		return self.set(key as never, value as never) as this;
+	}
+
+	public getSrc(): string { return this.getComponentProp('src'); }
+	public setSrc(v: string): this { return this.setComponentProp('src', v); }
+
+	public getX(): number { return this.getComponentProp('x'); }
+	public getY(): number { return this.getComponentProp('y'); }
+	public getWidth(): number { return this.getComponentProp('width'); }
+	public getHeight(): number { return this.getComponentProp('height'); }
+	public getLocked(): boolean { return this.getComponentProp('locked'); }
+	public getMinWidth(): number { return this.getComponentProp('minWidth'); }
+	public getMaxWidth(): number { return this.getComponentProp('maxWidth'); }
+	public getMinHeight(): number { return this.getComponentProp('minHeight'); }
+	public getMaxHeight(): number { return this.getComponentProp('maxHeight'); }
 	public setXY(x: number, y: number): this {
-		this.set('x', x);
-		return this.set('y', y);
+		this.setComponentProp('x', x);
+		return this.setComponentProp('y', y);
 	}
 	public setSize(w: number, h: number): this {
-		this.set('width', w);
-		return this.set('height', h);
+		this.setComponentProp('width', w);
+		return this.setComponentProp('height', h);
 	}
-	public setLocked(v: boolean): this { return this.set('locked', v); }
-	public setMinWidth(v: number): this { return this.set('minWidth', v); }
-	public setMaxWidth(v: number): this { return this.set('maxWidth', v); }
-	public setMinHeight(v: number): this { return this.set('minHeight', v); }
-	public setMaxHeight(v: number): this { return this.set('maxHeight', v); }
-	public setX(v: number): this { return this.set('x', v); }
-	public setY(v: number): this { return this.set('y', v); }
+	public setLocked(v: boolean): this { return this.setComponentProp('locked', v); }
+	public setMinWidth(v: number): this { return this.setComponentProp('minWidth', v); }
+	public setMaxWidth(v: number): this { return this.setComponentProp('maxWidth', v); }
+	public setMinHeight(v: number): this { return this.setComponentProp('minHeight', v); }
+	public setMaxHeight(v: number): this { return this.setComponentProp('maxHeight', v); }
+	public setX(v: number): this { return this.setComponentProp('x', v); }
+	public setY(v: number): this { return this.setComponentProp('y', v); }
 
-	public getAspect(): boolean { return this.get('aspect'); }
-	public setAspect(v: boolean): this { return this.set('aspect', v); }
+	public getAspect(): boolean { return this.getComponentProp('aspect'); }
+	public setAspect(v: boolean): this { return this.setComponentProp('aspect', v); }
 
-	public getPivotX(): number { return this.get('pivotX'); }
-	public getPivotY(): number { return this.get('pivotY'); }
-	public getPivotAsAnchor(): boolean { return this.get('anchor'); }
+	public getPivotX(): number { return this.getComponentProp('pivotX'); }
+	public getPivotY(): number { return this.getComponentProp('pivotY'); }
+	public getPivotAsAnchor(): boolean { return this.getComponentProp('anchor'); }
 	public setPivot(x: number, y: number, anchor = false): this {
-		this.set('pivotX', x);
-		this.set('pivotY', y);
-		return this.set('anchor', anchor);
+		this.setComponentProp('pivotX', x);
+		this.setComponentProp('pivotY', y);
+		return this.setComponentProp('anchor', anchor);
 	}
-	public setPivotAsAnchor(v: boolean): this { return this.set('anchor', v); }
+	public setPivotAsAnchor(v: boolean): this { return this.setComponentProp('anchor', v); }
 
-	public getScaleX(): number { return this.get('scaleX'); }
-	public getScaleY(): number { return this.get('scaleY'); }
+	public getScaleX(): number { return this.getComponentProp('scaleX'); }
+	public getScaleY(): number { return this.getComponentProp('scaleY'); }
 	public setScale(x: number, y: number): this {
-		this.set('scaleX', x);
-		return this.set('scaleY', y);
+		this.setComponentProp('scaleX', x);
+		return this.setComponentProp('scaleY', y);
 	}
 
-	public getGroup(): string { return this.get('group'); }
-	public setGroup(v: string): this { return this.set('group', v); }
+	public getGroup(): string { return this.getComponentProp('group'); }
+	public setGroup(v: string): this { return this.setComponentProp('group', v); }
 
-	public getAlpha(): number { return this.get('alpha'); }
-	public setAlpha(v: number): this { return this.set('alpha', v); }
+	public getAlpha(): number { return this.getComponentProp('alpha'); }
+	public setAlpha(v: number): this { return this.setComponentProp('alpha', v); }
 
-	public getRotation(): number { return this.get('rotation'); }
-	public setRotation(v: number): this { return this.set('rotation', v); }
+	public getRotation(): number { return this.getComponentProp('rotation'); }
+	public setRotation(v: number): this { return this.setComponentProp('rotation', v); }
 
-	public getVisible(): boolean { return this.get('visible'); }
-	public setVisible(v: boolean): this { return this.set('visible', v); }
+	public getVisible(): boolean { return this.getComponentProp('visible'); }
+	public setVisible(v: boolean): this { return this.setComponentProp('visible', v); }
 
-	public getTouchable(): boolean { return this.get('touchable'); }
-	public setTouchable(v: boolean): this { return this.set('touchable', v); }
+	public getTouchable(): boolean { return this.getComponentProp('touchable'); }
+	public setTouchable(v: boolean): this { return this.setComponentProp('touchable', v); }
 
-	public getGrayed(): boolean { return this.get('grayed'); }
-	public setGrayed(v: boolean): this { return this.set('grayed', v); }
+	public getGrayed(): boolean { return this.getComponentProp('grayed'); }
+	public setGrayed(v: boolean): this { return this.setComponentProp('grayed', v); }
 
-	public getTooltips(): string { return firstString(this.get('tooltips')); }
-	public setTooltips(v: string): this { return this.set('tooltips', v); }
+	public getTooltips(): string { return firstString(this.getComponentProp('tooltips')); }
+	public setTooltips(v: string): this { return this.setComponentProp('tooltips', v); }
 
-	public getCustomData(): string { return firstString(this.get('customData')); }
-	public setCustomData(v: string): this { return this.set('customData', v); }
+	public getCustomData(): string { return firstString(this.getComponentProp('customData')); }
+	public setCustomData(v: string): this { return this.setComponentProp('customData', v); }
 
-	public getFileName(): string { return firstString(this.get('fileName')); }
-	public setFileName(v: string): this { return this.set('fileName', v); }
+	public getFileName(): string { return firstString(this.getComponentProp('fileName')); }
+	public setFileName(v: string): this { return this.setComponentProp('fileName', v); }
 
-	public getPackageId(): string { return firstString(this.get('packageId')); }
-	public setPackageId(v: string): this { return this.set('packageId', v); }
+	public getPackageId(): string { return firstString(this.getComponentProp('packageId')); }
+	public setPackageId(v: string): this { return this.setComponentProp('packageId', v); }
 
-	public getFilter(): string { return firstString(this.get('filter')); }
-	public setFilter(v: string): this { return this.set('filter', v); }
+	public getFilter(): string { return firstString(this.getComponentProp('filter')); }
+	public setFilter(v: string): this { return this.setComponentProp('filter', v); }
 
-	public getFilterData(): string { return firstString(this.get('filterData')); }
-	public setFilterData(v: string): this { return this.set('filterData', v); }
+	public getFilterData(): string { return firstString(this.getComponentProp('filterData')); }
+	public setFilterData(v: string): this { return this.setComponentProp('filterData', v); }
 
-	public getOverflow(): number { return this.get('overflow'); }
-	public setOverflow(v: number): this { return this.set('overflow', v); }
+	public getOverflow(): number { return this.getComponentProp('overflow'); }
+	public setOverflow(v: number): this { return this.setComponentProp('overflow', v); }
 
-	public getScrollType(): number { return this.get('scrollType'); }
-	public setScrollType(v: number): this { return this.set('scrollType', v); }
+	public getScrollType(): number { return this.getComponentProp('scrollType'); }
+	public setScrollType(v: number): this { return this.setComponentProp('scrollType', v); }
 
-	public getScrollBarDisplay(): number { return this.get('scrollBarDisplay'); }
-	public setScrollBarDisplay(v: number): this { return this.set('scrollBarDisplay', v); }
+	public getScrollBarDisplay(): number { return this.getComponentProp('scrollBarDisplay'); }
+	public setScrollBarDisplay(v: number): this { return this.setComponentProp('scrollBarDisplay', v); }
 
-	public getPageController(): string { return firstString(this.get('pageController')); }
-	public setPageController(v: string): this { return this.set('pageController', v); }
+	public getPageController(): string { return firstString(this.getComponentProp('pageController')); }
+	public setPageController(v: string): this { return this.setComponentProp('pageController', v); }
 
-	public getControllerOverrides(): string { return firstString(this.get('controllerOverrides')); }
-	public setControllerOverrides(v: string): this { return this.set('controllerOverrides', v); }
+	public getControllerOverrides(): string { return firstString(this.getComponentProp('controllerOverrides')); }
+	public setControllerOverrides(v: string): this { return this.setComponentProp('controllerOverrides', v); }
 
-	public getInstanceExtType(): string { return firstString(this.get('instanceExtType')); }
-	public setInstanceExtType(v: string): this { return this.set('instanceExtType', v); }
+	public getInstanceExtType(): string { return firstString(this.getComponentProp('instanceExtType')); }
+	public setInstanceExtType(v: string): this { return this.setComponentProp('instanceExtType', v); }
 
-	public getInstanceTitle(): string { return firstString(this.get('instanceTitle')); }
-	public setInstanceTitle(v: string): this { return this.set('instanceTitle', v); }
+	public getInstanceTitle(): string { return firstString(this.getComponentProp('instanceTitle')); }
+	public setInstanceTitle(v: string): this { return this.setComponentProp('instanceTitle', v); }
 
-	public getInstanceSelectedTitle(): string { return firstString(this.get('instanceSelectedTitle')); }
-	public setInstanceSelectedTitle(v: string): this { return this.set('instanceSelectedTitle', v); }
+	public getInstanceSelectedTitle(): string { return firstString(this.getComponentProp('instanceSelectedTitle')); }
+	public setInstanceSelectedTitle(v: string): this { return this.setComponentProp('instanceSelectedTitle', v); }
 
-	public getInstanceIcon(): string { return firstString(this.get('instanceIcon')); }
-	public setInstanceIcon(v: string): this { return this.set('instanceIcon', v); }
+	public getInstanceIcon(): string { return firstString(this.getComponentProp('instanceIcon')); }
+	public setInstanceIcon(v: string): this { return this.setComponentProp('instanceIcon', v); }
 
-	public getInstanceSelectedIcon(): string { return firstString(this.get('instanceSelectedIcon')); }
-	public setInstanceSelectedIcon(v: string): this { return this.set('instanceSelectedIcon', v); }
+	public getInstanceSelectedIcon(): string { return firstString(this.getComponentProp('instanceSelectedIcon')); }
+	public setInstanceSelectedIcon(v: string): this { return this.setComponentProp('instanceSelectedIcon', v); }
 
-	public getInstanceTitleColor(): string { return firstString(this.get('instanceTitleColor')); }
-	public setInstanceTitleColor(v: string): this { return this.set('instanceTitleColor', v); }
+	public getInstanceTitleColor(): string { return firstString(this.getComponentProp('instanceTitleColor')); }
+	public setInstanceTitleColor(v: string): this { return this.setComponentProp('instanceTitleColor', v); }
 
-	public getInstanceTitleFontSize(): number { return this.get('instanceTitleFontSize'); }
-	public setInstanceTitleFontSize(v: number): this { return this.set('instanceTitleFontSize', v); }
+	public getInstanceTitleFontSize(): number { return this.getComponentProp('instanceTitleFontSize'); }
+	public setInstanceTitleFontSize(v: number): this { return this.setComponentProp('instanceTitleFontSize', v); }
 
-	public getInstanceController(): string { return firstString(this.get('instanceController')); }
-	public setInstanceController(v: string): this { return this.set('instanceController', v); }
+	public getInstanceController(): string { return firstString(this.getComponentProp('instanceController')); }
+	public setInstanceController(v: string): this { return this.setComponentProp('instanceController', v); }
 
-	public getInstancePage(): string { return firstString(this.get('instancePage')); }
-	public setInstancePage(v: string): this { return this.set('instancePage', v); }
+	public getInstancePage(): string { return firstString(this.getComponentProp('instancePage')); }
+	public setInstancePage(v: string): this { return this.setComponentProp('instancePage', v); }
 
-	public getInstanceChecked(): boolean { return this.get('instanceChecked'); }
-	public setInstanceChecked(v: boolean): this { return this.set('instanceChecked', v); }
+	public getInstanceChecked(): boolean { return this.getComponentProp('instanceChecked'); }
+	public setInstanceChecked(v: boolean): this { return this.setComponentProp('instanceChecked', v); }
 
-	public getInstancePromptText(): string { return firstString(this.get('instancePromptText')); }
-	public setInstancePromptText(v: string): this { return this.set('instancePromptText', v); }
+	public getInstancePromptText(): string { return firstString(this.getComponentProp('instancePromptText')); }
+	public setInstancePromptText(v: string): this { return this.setComponentProp('instancePromptText', v); }
 
-	public getInstanceSelectionController(): string { return firstString(this.get('instanceSelectionController')); }
-	public setInstanceSelectionController(v: string): this { return this.set('instanceSelectionController', v); }
+	public getInstanceSelectionController(): string { return firstString(this.getComponentProp('instanceSelectionController')); }
+	public setInstanceSelectionController(v: string): this { return this.setComponentProp('instanceSelectionController', v); }
 
-	public getInstanceVisibleItemCount(): number { return this.get('instanceVisibleItemCount'); }
-	public setInstanceVisibleItemCount(v: number): this { return this.set('instanceVisibleItemCount', v); }
+	public getInstanceVisibleItemCount(): number { return this.getComponentProp('instanceVisibleItemCount'); }
+	public setInstanceVisibleItemCount(v: number): this { return this.setComponentProp('instanceVisibleItemCount', v); }
 
-	public getInstanceValue(): number { return this.get('instanceValue'); }
-	public setInstanceValue(v: number): this { return this.set('instanceValue', v); }
+	public getInstanceValue(): number { return this.getComponentProp('instanceValue'); }
+	public setInstanceValue(v: number): this { return this.setComponentProp('instanceValue', v); }
 
-	public getInstanceMax(): number { return this.get('instanceMax'); }
-	public setInstanceMax(v: number): this { return this.set('instanceMax', v); }
+	public getInstanceMax(): number { return this.getComponentProp('instanceMax'); }
+	public setInstanceMax(v: number): this { return this.setComponentProp('instanceMax', v); }
 
-	public getInstanceMin(): number { return this.get('instanceMin'); }
-	public setInstanceMin(v: number): this { return this.set('instanceMin', v); }
+	public getInstanceMin(): number { return this.getComponentProp('instanceMin'); }
+	public setInstanceMin(v: number): this { return this.setComponentProp('instanceMin', v); }
 
 	public getInstanceComboItems(): IGComponent['instanceComboItems'] {
 		return this.get('instanceComboItems' as never) as IGComponent['instanceComboItems'];
@@ -293,6 +306,6 @@ export class GComponent extends GObject<IGComponent, PropertyType.G_COMPONENT> {
 		return this.set('instanceComboItems' as never, v as never);
 	}
 
-	public getMargin(): [number, number, number, number] { return this.get('margin'); }
-	public setMargin(v: [number, number, number, number]): this { return this.set('margin', v); }
+	public getMargin(): [number, number, number, number] { return this.getComponentProp('margin'); }
+	public setMargin(v: [number, number, number, number]): this { return this.setComponentProp('margin', v); }
 }

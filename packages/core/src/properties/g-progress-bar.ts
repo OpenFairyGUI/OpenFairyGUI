@@ -16,7 +16,7 @@ interface IGProgressBar extends IGComponent {
  * A progress bar display object.
  * @category Properties
  */
-export class GProgressBar extends GComponent {
+export class GProgressBar extends GComponent<IGProgressBar, PropertyType.G_PROGRESS_BAR> {
 	public declare propertyType: PropertyType.G_PROGRESS_BAR;
 
 	protected init(): void {

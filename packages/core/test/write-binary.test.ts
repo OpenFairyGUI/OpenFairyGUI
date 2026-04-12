@@ -3,7 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { Document, NodeIO } from '../src/index.js';
+import { Document, NodeIO, PropertyType } from '../src/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BASICS_FUI = path.resolve(
@@ -1518,11 +1518,11 @@ test('binary writer: component child blocks round-trip into formal child propert
 
 		const rtGroup = roundTripComp?.listChildren().find((child) => child.getId() === 'group01');
 		t.truthy(rtGroup, 'group child exists');
-		t.is(rtGroup?.propertyType, 'GGroup');
+		t.is(rtGroup?.propertyType, PropertyType.G_GROUP);
 
 		const rtImage = roundTripComp?.listChildren().find((child) => child.getId() === 'img01');
 		t.truthy(rtImage, 'image child exists');
-		t.is(rtImage?.propertyType, 'GImage');
+		t.is(rtImage?.propertyType, PropertyType.G_IMAGE);
 		const typedImage = rtImage as any;
 		t.is(typedImage.getSrc(), 'ui://childpkg/hero');
 		t.is(typedImage.getX(), 30);
@@ -1552,7 +1552,7 @@ test('binary writer: component child blocks round-trip into formal child propert
 
 		const rtInput = roundTripComp?.listChildren().find((child) => child.getId() === 'input01');
 		t.truthy(rtInput, 'text input child exists');
-		t.is(rtInput?.propertyType, 'GTextInput');
+		t.is(rtInput?.propertyType, PropertyType.G_TEXT_INPUT);
 		const typedInput = rtInput as any;
 		t.is(typedInput.getText(), 'hello');
 		t.is(typedInput.getFont(), 'ui://childpkg/font');
@@ -1566,7 +1566,7 @@ test('binary writer: component child blocks round-trip into formal child propert
 
 		const rtLoader3d = roundTripComp?.listChildren().find((child) => child.getId() === 'ldr3d01');
 		t.truthy(rtLoader3d, 'loader3d child exists');
-		t.is(rtLoader3d?.propertyType, 'GLoader3D');
+		t.is(rtLoader3d?.propertyType, PropertyType.G_LOADER_3D);
 		const typedLoader3d = rtLoader3d as any;
 		t.is(typedLoader3d.getUrl(), 'ui://childpkg/model');
 		t.is(typedLoader3d.getAlign(), 1);
@@ -1583,7 +1583,7 @@ test('binary writer: component child blocks round-trip into formal child propert
 
 		const rtButton = roundTripComp?.listChildren().find((child) => child.getId() === 'btn01');
 		t.truthy(rtButton, 'button child exists');
-		t.is(rtButton?.propertyType, 'GButton');
+		t.is(rtButton?.propertyType, PropertyType.G_BUTTON);
 		const typedButton = rtButton as any;
 		t.is(typedButton.getSrc(), 'ui://childpkg/button');
 		t.is(typedButton.getTitle(), '确认');

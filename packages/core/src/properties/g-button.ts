@@ -22,7 +22,7 @@ interface IGButton extends IGComponent {
  * A button display object with title, icon, and interaction modes.
  * @category Properties
  */
-export class GButton extends GComponent {
+export class GButton extends GComponent<IGButton, PropertyType.G_BUTTON> {
 	public declare propertyType: PropertyType.G_BUTTON;
 
 	protected init(): void {

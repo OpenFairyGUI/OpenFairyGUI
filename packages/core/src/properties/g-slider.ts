@@ -17,7 +17,7 @@ interface IGSlider extends IGComponent {
  * A slider display object.
  * @category Properties
  */
-export class GSlider extends GComponent {
+export class GSlider extends GComponent<IGSlider, PropertyType.G_SLIDER> {
 	public declare propertyType: PropertyType.G_SLIDER;
 
 	protected init(): void {

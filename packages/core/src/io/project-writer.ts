@@ -230,6 +230,11 @@ type WritableChild = GObject & {
 	getY?(): number;
 	getWidth?(): number;
 	getHeight?(): number;
+	getPivotX?(): number;
+	getPivotY?(): number;
+	getPivotAsAnchor?(): boolean;
+	getScaleX?(): number;
+	getScaleY?(): number;
 	getLocked?(): boolean;
 	getMinWidth?(): number;
 	getMaxWidth?(): number;
@@ -276,7 +281,7 @@ type WritableChild = GObject & {
 	getVAlign?(): number;
 	getFill?(): number;
 	getShrinkOnly?(): boolean;
-	getAutoSize?(): boolean;
+	getAutoSize?(): number | boolean;
 	getUseResize?(): boolean;
 	getAnimationName?(): string;
 	getSkinName?(): string;
@@ -351,6 +356,8 @@ type WritableChild = GObject & {
 	getInstanceController?(): string;
 	getInstancePage?(): string;
 	getInstanceChecked?(): boolean;
+	getInstancePromptText?(): string;
+	getInstanceSelectionController?(): string;
 	getInstanceVisibleItemCount?(): number;
 	getInstanceValue?(): number;
 	getInstanceMax?(): number;
@@ -1271,7 +1278,7 @@ export class ProjectWriter {
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.vAlign, vAlignName[vAlign] ?? 'top');
 			}
 			const autoSize = typedObj.getAutoSize?.();
-			if (autoSize !== undefined) {
+			if (typeof autoSize === 'number') {
 				const autoSizeName: Record<number, string> = { 0: 'none', 1: 'both', 2: 'height', 3: 'shrink', 4: 'ellipsis' };
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.autoSize, autoSizeName[autoSize] ?? 'both');
 			}

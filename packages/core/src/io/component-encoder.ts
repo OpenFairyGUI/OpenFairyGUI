@@ -28,8 +28,23 @@ type GearNode = ReturnType<ChildNode['listGears']>[number];
 
 type EncoderChildLike = ChildNode & {
 	getSrc?(): string;
+	getX?(): number;
+	getY?(): number;
+	getWidth?(): number;
+	getHeight?(): number;
 	getColor?(): string;
+	getPivotX?(): number;
+	getPivotY?(): number;
 	getPivotAsAnchor?(): boolean;
+	getScaleX?(): number;
+	getScaleY?(): number;
+	getSkewX?(): number;
+	getSkewY?(): number;
+	getAlpha?(): number;
+	getRotation?(): number;
+	getVisible?(): boolean;
+	getTouchable?(): boolean;
+	getGrayed?(): boolean;
 	getBlendMode?(): number;
 	getFlip?(): number;
 	getFillMethod?(): number;
@@ -144,6 +159,8 @@ type EncoderChildLike = ChildNode & {
 	getInstanceMin?(): number;
 	getInstanceComboItems?(): ComboItemLike[];
 	getSelectionController?(): string;
+	getCustomData?(): string;
+	getTooltips?(): string;
 };
 
 function getRuntimeChildren(comp: Component): EncoderChildLike[] {

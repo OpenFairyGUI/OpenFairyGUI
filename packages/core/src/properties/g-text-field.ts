@@ -16,6 +16,7 @@ export interface IGTextField extends IGObject {
 	visible: boolean;
 	touchable: boolean;
 	grayed: boolean;
+	tooltips: string;
 	customData: string;
 	text: string;
 	font: string;
@@ -81,6 +82,7 @@ export class GTextField<
 			visible: true,
 			touchable: true,
 			grayed: false,
+			tooltips: '',
 			customData: '',
 			text: '',
 			font: '',
@@ -165,6 +167,9 @@ export class GTextField<
 
 	public getGrayed(): boolean { return this.getTextFieldProp('grayed'); }
 	public setGrayed(v: boolean): this { return this.setTextFieldProp('grayed', v); }
+
+	public getTooltips(): string { return this.getTextFieldProp('tooltips'); }
+	public setTooltips(v: string): this { return this.setTextFieldProp('tooltips', v); }
 
 	public getCustomData(): string { return this.getTextFieldProp('customData'); }
 	public setCustomData(v: string): this { return this.setTextFieldProp('customData', v); }

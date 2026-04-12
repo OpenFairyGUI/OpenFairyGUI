@@ -16,7 +16,7 @@ interface IGLabel extends IGComponent {
  * A label display object with title and icon.
  * @category Properties
  */
-export class GLabel extends GComponent {
+export class GLabel extends GComponent<IGLabel, PropertyType.G_LABEL> {
 	public declare propertyType: PropertyType.G_LABEL;
 
 	protected init(): void {

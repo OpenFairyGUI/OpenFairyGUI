@@ -19,6 +19,8 @@ The implementation reference documents are currently maintained in Chinese. Star
 |---|---|
 | [Architecture Overview](./docs/architecture-overview.md) | Package responsibilities, module boundaries, and core data flow |
 | [Editor Publish Settings](./docs/editor-publish-settings.md) | Publish setting sources, defaults, naming rules, and consumption points |
+| [Project XML Attribute Protocol](./docs/project-xml-attribute-reference.md) | Reference of currently supported XML attributes for `package.xml`, `component.xml`, and structural nodes |
+| [Project XML DisplayList Tag Alignment](./docs/project-xml-displaylist-variants.md) | Alignment of raw `component.xml` `displayList` tags, container variants, and editor `DisplayListItem.type` names |
 | [Binary Package Format](./docs/fairygui-binary-package-format.md) | Current `.fui` / `_fui.bytes` protocol and round-trip storage behavior |
 
 ## Goals

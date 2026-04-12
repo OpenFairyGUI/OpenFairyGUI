@@ -11,7 +11,7 @@ interface IGScrollBar extends IGComponent {
  * A scrollbar display object.
  * @category Properties
  */
-export class GScrollBar extends GComponent {
+export class GScrollBar extends GComponent<IGScrollBar, PropertyType.G_SCROLL_BAR> {
 	public declare propertyType: PropertyType.G_SCROLL_BAR;
 
 	protected init(): void {

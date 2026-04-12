@@ -123,7 +123,7 @@ interface FairyProjectDescriptionNode extends XmlNode {
 	version?: string;
 }
 
-interface PackagePublishNode {
+interface PackagePublishNode extends XmlNode {
 	name?: string;
 	path?: string;
 	branchPath?: string;
@@ -150,7 +150,7 @@ interface ResourceXmlAttrs extends XmlNode {
 	texture?: string;
 }
 
-interface ControllerXmlNode {
+interface ControllerXmlNode extends XmlNode {
 	name?: string;
 	selected?: string | number;
 	pages?: string;
@@ -171,7 +171,7 @@ interface ControllerActionXmlNode {
 	targetPage?: string;
 }
 
-interface TransitionItemXmlNode {
+interface TransitionItemXmlNode extends XmlNode {
 	time?: string | number;
 	target?: string;
 	tween?: string | boolean;
@@ -188,7 +188,7 @@ interface TransitionItemXmlNode {
 	endValue?: string | number;
 }
 
-interface TransitionXmlNode {
+interface TransitionXmlNode extends XmlNode {
 	name?: string;
 	autoPlay?: string | boolean;
 	autoPlayTimes?: string | number;
@@ -198,7 +198,7 @@ interface TransitionXmlNode {
 	item?: TransitionItemXmlNode | TransitionItemXmlNode[];
 }
 
-interface RelationXmlNode {
+interface RelationXmlNode extends XmlNode {
 	target?: string;
 	sidePair?: string;
 }
@@ -212,7 +212,7 @@ interface GearXmlNode extends XmlNode {
 	condition?: string;
 }
 
-interface ListItemXmlNode {
+interface ListItemXmlNode extends XmlNode {
 	title?: string;
 	icon?: string;
 	url?: string;
@@ -224,7 +224,7 @@ interface ListItemXmlNode {
 	controllers?: string;
 }
 
-interface ComboItemXmlNode {
+interface ComboItemXmlNode extends XmlNode {
 	title?: string;
 	value?: string;
 	icon?: string;
@@ -1221,16 +1221,18 @@ export class ProjectReader {
 			const transitionItemChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.transition, 'item');
 			const items = transitionItemChildName ? ensureArray(transDef[transitionItemChildName]) : [];
 			for (const itemDef of items) {
+				const parsedItem = getXmlNode<TransitionItemXmlNode>(itemDef);
+				if (!parsedItem) continue;
 				const ti = doc.createTransitionItem();
-				const time = readXmlAttr<string | number>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.time);
-				const target = readXmlAttr<string>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.target);
-				const tween = readXmlAttr<string | boolean>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.tween);
-				const duration = readXmlAttr<string | number>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.duration);
-				const repeat = readXmlAttr<string | number>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.repeat);
-				const yoyo = readXmlAttr<string | boolean>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.yoyo);
-				const label = readXmlAttr<string>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.label);
-				const label2 = readXmlAttr<string>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.label2);
-				const pathValue = readXmlAttr<string>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.path);
+				const time = readXmlAttr<string | number>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.time);
+				const target = readXmlAttr<string>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.target);
+				const tween = readXmlAttr<string | boolean>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.tween);
+				const duration = readXmlAttr<string | number>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.duration);
+				const repeat = readXmlAttr<string | number>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.repeat);
+				const yoyo = readXmlAttr<string | boolean>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.yoyo);
+				const label = readXmlAttr<string>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.label);
+				const label2 = readXmlAttr<string>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.label2);
+				const pathValue = readXmlAttr<string>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.path);
 				ti.setTime(parseFloat2(time));
 				ti.setTargetId(target || '');
 				ti.setTween(parseBool(tween));
@@ -1242,13 +1244,13 @@ export class ProjectReader {
 				if (pathValue !== undefined) ti.setPath?.(pathValue);
 
 				// Ease type
-				const ease = readXmlAttr<string>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.ease);
+				const ease = readXmlAttr<string>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.ease);
 				if (ease) {
 					ti.setEaseType?.(_parseEaseType(ease));
 				}
 
 				// Action type from string
-				const typeStr = (readXmlAttr<string>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.type) || '').toUpperCase();
+				const typeStr = (readXmlAttr<string>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.type) || '').toUpperCase();
 				const actionTypeMap: Record<string, number> = {
 					XY: 0, SIZE: 1, SCALE: 2, PIVOT: 3, ALPHA: 4, ROTATION: 5,
 					COLOR: 6, ANIMATION: 7, VISIBLE: 8, SOUND: 9, TRANSITION: 10,
@@ -1257,15 +1259,15 @@ export class ProjectReader {
 				ti.setActionType(actionTypeMap[typeStr] ?? 16);
 
 				// Values
-				const value = readXmlAttr<string>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.value);
+				const value = readXmlAttr<string>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.value);
 				if (value !== undefined) {
 					ti.setStartValue(String(value).split(','));
 				}
-				const startValue = readXmlAttr<string>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.startValue);
+				const startValue = readXmlAttr<string>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.startValue);
 				if (startValue !== undefined) {
 					ti.setStartValue(String(startValue).split(','));
 				}
-				const endValue = readXmlAttr<string>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.endValue);
+				const endValue = readXmlAttr<string>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.endValue);
 				if (endValue !== undefined) {
 					ti.setEndValue(String(endValue).split(','));
 				}
@@ -2095,10 +2097,12 @@ export class ProjectReader {
 		const relationChildName = getProtocolChildName(objectProtocol, 'relation');
 		const relations = relationChildName ? ensureArray(attrs[relationChildName]) : [];
 		for (const relDef of relations) {
-			const sidePair = readXmlAttr<string>(relDef, PROJECT_XML_PROTOCOL.relation.attrs.sidePair) || '';
+			const parsedRelation = getXmlNode<RelationXmlNode>(relDef);
+			if (!parsedRelation) continue;
+			const sidePair = readXmlAttr<string>(parsedRelation, PROJECT_XML_PROTOCOL.relation.attrs.sidePair) || '';
 			const sidePairs = parseSidePair(sidePair);
 			for (const sp of sidePairs) {
-				const target = readXmlAttr<string>(relDef, PROJECT_XML_PROTOCOL.relation.attrs.target) || '';
+				const target = readXmlAttr<string>(parsedRelation, PROJECT_XML_PROTOCOL.relation.attrs.target) || '';
 				const rel: RelationDef = {
 					target,
 					type: sp.type,

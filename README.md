@@ -19,6 +19,8 @@ OpenFairyGUI 是一个面向 FairyGUI 项目的无头创作 SDK。
 |---|---|
 | [架构图说明](./docs/architecture-overview.md) | 包职责、模块边界、核心数据流 |
 | [编辑器发布设置](./docs/editor-publish-settings.md) | 发布设置来源、默认值、命名规则与消费位置 |
+| [Project XML 属性协议](./docs/project-xml-attribute-reference.md) | `package.xml`、`component.xml` 与结构节点当前正式支持的 XML 属性协议汇总 |
+| [Project XML DisplayList Tag 对齐](./docs/project-xml-displaylist-variants.md) | `component.xml` `displayList` 的原始 XML tag、容器 variant 与 editor `DisplayListItem.type` 对齐口径 |
 | [二进制封包协议](./docs/fairygui-binary-package-format.md) | `.fui` / `_fui.bytes` 当前协议与 round-trip 承载方式 |
 
 ## 项目目标

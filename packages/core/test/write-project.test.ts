@@ -1258,6 +1258,72 @@ test('round-trip: component extension definition and instance extension attrs su
 	}
 });
 
+test('writer: extension child nodes require extension metadata before being emitted', async (t) => {
+	const io = new NodeIO();
+	const doc = new Document();
+	doc.getRoot().setProjectId('proj-ext-gate').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('DemoExtGate');
+	pkg.setId('pkgExtGate');
+
+	const plainDef = doc.createComponent('PlainComponent');
+	plainDef.setId('cmpPlain');
+	plainDef.setPath('/');
+	plainDef.setButtonMode?.(2);
+	pkg.addResource(plainDef);
+
+	const buttonDef = doc.createComponent('ButtonComponent');
+	buttonDef.setId('cmpButton');
+	buttonDef.setPath('/');
+	buttonDef.setExtensionType('Button');
+	buttonDef.setButtonMode?.(2);
+	pkg.addResource(buttonDef);
+
+	const host = doc.createComponent('Host');
+	host.setId('cmpHost');
+	host.setPath('/');
+
+	const plainChild = doc.createGComponent('plainChild');
+	plainChild.setId('n0');
+	plainChild.setSrc('cmpPlain');
+	plainChild.setInstanceTitle?.('不应写出');
+
+	const buttonChildWithoutExt = doc.createGComponent('buttonChildWithoutExt');
+	buttonChildWithoutExt.setId('n1');
+	buttonChildWithoutExt.setSrc('cmpButton');
+	buttonChildWithoutExt.setInstanceTitle?.('仍不应写出');
+
+	const buttonChildWithExt = doc.createGComponent('buttonChildWithExt');
+	buttonChildWithExt.setId('n2');
+	buttonChildWithExt.setSrc('cmpButton');
+	buttonChildWithExt.setInstanceExtType?.('Button');
+	buttonChildWithExt.setInstanceTitle?.('应该写出');
+
+	host.addChild(plainChild);
+	host.addChild(buttonChildWithoutExt);
+	host.addChild(buttonChildWithExt);
+	pkg.addResource(host);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-ext-gate-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+
+		const plainXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoExtGate', 'PlainComponent.xml'), 'utf-8');
+		const buttonXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoExtGate', 'ButtonComponent.xml'), 'utf-8');
+		const hostXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoExtGate', 'Host.xml'), 'utf-8');
+
+		t.false(plainXml.includes('<Button'), 'root component without extention must not emit Button extension child');
+		t.true(buttonXml.includes('<Button'), 'root component with Button extention emits Button extension child');
+		t.false(hostXml.includes('不应写出'), 'instance overlay attrs must not be emitted without instance extension type');
+		t.true(hostXml.includes('<Button '), 'instance with extension metadata emits overlay child');
+		t.true(hostXml.includes('title="应该写出"'), 'instance overlay attrs are emitted when instance extension type is set');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('round-trip: advanced groups survive write→read', async (t) => {
 	const io = new NodeIO();
 	const doc = new Document();
@@ -1304,8 +1370,8 @@ test('round-trip: advanced groups survive write→read', async (t) => {
 		t.true((advanced2 as ReturnType<Document['createGGroup']>)?.getAdvanced?.() ?? false, 'advanced group flag survives');
 		t.false((plain2 as ReturnType<Document['createGGroup']>)?.getAdvanced?.() ?? true, 'plain group stays non-advanced');
 
-		const text2 = comp2!.listChildren().find((child) => child.getId() === 'n0');
-		t.is(text2?.getGroup?.(), 'g1', 'child group reference survives');
+		const text2 = comp2!.listChildren().find((child) => child.getId() === 'n0') as ReturnType<Document['createGTextField']> | undefined;
+		t.is(text2?.getGroup(), 'g1', 'child group reference survives');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

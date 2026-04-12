@@ -191,7 +191,9 @@ test('atlas: trimImage keeps fully transparent images as zero-sized sprites', as
 			encoder: sharp,
 			basePath: tmpDir,
 			outputPath: tmpDir,
-			mkdir: (dir) => fs.mkdir(dir, { recursive: true }),
+			mkdir: async (dir) => {
+				await fs.mkdir(dir, { recursive: true });
+			},
 			trimImage: true,
 			powerOfTwo: true,
 			maxSize: 256,
@@ -238,7 +240,9 @@ test('atlas: direct single PNG output keeps portrait sprite unrotated for Unity 
 			encoder: sharp,
 			basePath: tmpDir,
 			outputPath: tmpDir,
-			mkdir: (dir) => fs.mkdir(dir, { recursive: true }),
+			mkdir: async (dir) => {
+				await fs.mkdir(dir, { recursive: true });
+			},
 			powerOfTwo: true,
 			allowRotation: true,
 			maxSize: 1024,

@@ -361,11 +361,11 @@ export class Component extends ExtensibleProperty<IComponent> {
 
 	/****** Relations ******/
 
-	public getRelations(): RelationDef[] { return this.get('relations'); }
-	public setRelations(relations: RelationDef[]): this { return this.set('relations', relations); }
+	public getRelations(): RelationDef[] { return this.get('relations' as never) as RelationDef[]; }
+	public setRelations(relations: RelationDef[]): this { return this.set('relations' as never, relations as never); }
 	public addRelation(relation: RelationDef): this {
 		const relations = [...this.getRelations(), relation];
-		return this.set('relations', relations);
+		return this.set('relations' as never, relations as never);
 	}
 
 	/****** Display List ******/

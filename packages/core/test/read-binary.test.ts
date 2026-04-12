@@ -1,7 +1,7 @@
 import test from 'ava';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Document, NodeIO } from '../src/index.js';
+import { Document, NodeIO, PropertyType } from '../src/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BASICS_FUI = path.resolve(
@@ -133,16 +133,16 @@ test('binary: component display lists decode into formal child nodes from sample
 
 	const bg = buttonComp?.listChildren().find((child) => child.getId() === 'n0');
 	t.truthy(bg, 'Button5 background child exists');
-	t.is(bg?.propertyType, 'GImage');
+	t.is(bg?.propertyType, PropertyType.G_IMAGE);
 	t.is((bg as any)?.getSrc?.(), 'rpmb1');
 
 	const title = buttonComp?.listChildren().find((child) => child.getId() === 'n1');
 	t.truthy(title, 'Button5 title child exists');
-	t.is(title?.propertyType, 'GTextField');
+	t.is(title?.propertyType, PropertyType.G_TEXT_FIELD);
 
 	const icon = buttonComp?.listChildren().find((child) => child.getId() === 'n2');
 	t.truthy(icon, 'Button5 icon child exists');
-	t.is(icon?.propertyType, 'GLoader');
+	t.is(icon?.propertyType, PropertyType.G_LOADER);
 });
 
 test('binary: GList child blocks decode into formal list properties from sample package', async (t) => {

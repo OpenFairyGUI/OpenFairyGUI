@@ -1,7 +1,7 @@
 import test from 'ava';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { type GTree, GearType, ListSelectionMode, NodeIO, PropertyType } from '../src/index.js';
+import { Document, type GTree, GearType, ListSelectionMode, NodeIO, PropertyType } from '../src/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_PATH = path.resolve(
