@@ -4,14 +4,12 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { NodeIO, Document } from '@openfairygui/core';
+import { getFixtureProjectPath } from '@openfairygui/test-utils';
 import sharp from 'sharp';
 import { publish, resolvePublishOptions, type RootProjectSettings } from '../src/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const UNITY_EXAMPLES_FAIRY = path.resolve(
-	__dirname,
-	'../../../referer/UIProject/FairyGUI-Unity-Examples/FairyGUI-Unity-Examples.fairy',
-);
+const UNITY_EXAMPLES_FAIRY = getFixtureProjectPath('FairyGUI-Unity-Examples');
 
 // Helper: create a simple NodeIO filesystem for publish output
 function createFs() {

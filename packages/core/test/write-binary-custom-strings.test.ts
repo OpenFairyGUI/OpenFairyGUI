@@ -3,14 +3,12 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getFixtureProjectPath } from '@openfairygui/test-utils';
 import { Document, NodeIO, TransitionActionType } from '../src/index.js';
 
 const NULL_STRING_INDEX = 0xfffe;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PROJECT_PATH = path.resolve(
-	__dirname,
-	'../../../referer/UIProject/FairyGUI-Unity-Examples/FairyGUI-Unity-Examples.fairy',
-);
+const PROJECT_PATH = getFixtureProjectPath('FairyGUI-Unity-Examples');
 
 function readUtfString(view: DataView, state: { pos: number }): string {
 	const len = view.getUint16(state.pos, false);

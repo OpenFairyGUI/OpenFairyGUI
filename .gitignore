@@ -2,6 +2,7 @@ node_modules/
 referer/
 release/
 **/dist/
+/[Oo]bj/
 
 # Local AI/tooling config
 .claude/

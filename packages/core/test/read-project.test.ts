@@ -1,13 +1,11 @@
 import test from 'ava';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getFixtureProjectPath } from '@openfairygui/test-utils';
 import { Document, type GTree, GearType, ListSelectionMode, NodeIO, PropertyType } from '../src/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PROJECT_PATH = path.resolve(
-	__dirname,
-	'../../../referer/UIProject/FairyGUI-Unity-Examples/FairyGUI-Unity-Examples.fairy',
-);
+const PROJECT_PATH = getFixtureProjectPath('FairyGUI-Unity-Examples');
 const EDITOR_PROJECT_PATH = path.resolve(
 	__dirname,
 	'../../../referer/FairyGUI-Editor/ui/FairyGUI-Editor.fairy',

@@ -4,15 +4,13 @@ import { fileURLToPath } from 'node:url';
 
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FIXTURES_DIR = path.join(PACKAGE_ROOT, 'test', 'fixtures');
-const REFERER_UI_PROJECT_DIR = path.resolve(PACKAGE_ROOT, '..', '..', '..', 'referer', 'UIProject');
 
 export interface FixtureProject {
 	name: string;
 	fairyPath: string;
-	source: 'fixtures' | 'referer';
 }
 
-function listFairyProjects(rootDir: string, source: FixtureProject['source']): FixtureProject[] {
+function listFairyProjects(rootDir: string): FixtureProject[] {
 	if (!fs.existsSync(rootDir)) return [];
 
 	const entries = fs.readdirSync(rootDir, { withFileTypes: true });
@@ -28,7 +26,6 @@ function listFairyProjects(rootDir: string, source: FixtureProject['source']): F
 		projects.push({
 			name: entry.name,
 			fairyPath: path.join(projectDir, fairyFiles[0]),
-			source,
 		});
 	}
 
@@ -44,10 +41,7 @@ export function hasLocalFixtures(): boolean {
 }
 
 export function listFixtureProjects(): FixtureProject[] {
-	const localProjects = listFairyProjects(FIXTURES_DIR, 'fixtures');
-	if (localProjects.length > 0) return localProjects;
-
-	return listFairyProjects(REFERER_UI_PROJECT_DIR, 'referer');
+	return listFairyProjects(FIXTURES_DIR);
 }
 
 export function getFixtureProject(name: string): FixtureProject {

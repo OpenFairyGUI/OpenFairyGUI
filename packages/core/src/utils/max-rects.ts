@@ -1,14 +1,5 @@
 /**
- * MaxRects bin-packing algorithm — faithful port of FairyGUI editor.
- *
- * Ported from `referer/Editor/worker/scripts/fairygui/utils/pack/`:
- * - MaxRects.as — core algorithm with 5 heuristics
- * - MaxRectsPacker.as — multi-page packer with SIZE_SCHEME + binary search
- * - BinarySearch.as — dimension optimizer
- * - PackSettings.as — configuration
- * - NodeRect.as — rectangle data structure
- * - Page.as — page output
- *
+ * MaxRects bin-packing algorithm
  * @category Utils
  */
 
