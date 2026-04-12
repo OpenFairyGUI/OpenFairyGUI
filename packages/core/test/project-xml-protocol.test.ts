@@ -2,6 +2,7 @@ import test, { type ExecutionContext } from 'ava';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { XMLParser } from 'fast-xml-parser';
 import {
 	PROJECT_XML_PROTOCOL,
 	listXmlAttrNames,
@@ -12,6 +13,16 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REFERER_ROOT = path.resolve(__dirname, '../../../referer');
+const XML_PARSER = new XMLParser({ ignoreAttributes: false, preserveOrder: true });
+const GROUP_CONDITIONAL_CHILD_NAMES = new Set([
+	'relation',
+	'gearDisplay',
+	'gearDisplay2',
+	'gearXY',
+	'gearSize',
+	'gearText',
+	'gearIcon',
+]);
 
 function collectAllowedAttrNames(...protocolKeys: Array<keyof typeof PROJECT_XML_PROTOCOL>): Set<string> {
 	return new Set(protocolKeys.flatMap((key) => listXmlAttrNames(PROJECT_XML_PROTOCOL[key])));
@@ -62,6 +73,47 @@ async function collectTagAttrNames(filePath: string, tagName: string): Promise<S
 	}
 
 	return attrNames;
+}
+
+async function collectConditionalGroupChildren(
+	filePath: string,
+): Promise<Array<{ advanced: boolean; childNames: string[] }>> {
+	const content = await fs.readFile(filePath, 'utf-8');
+	const parsed = XML_PARSER.parse(content) as Array<Record<string, unknown>>;
+	const rows: Array<{ advanced: boolean; childNames: string[] }> = [];
+
+	const visit = (nodes: unknown): void => {
+		if (!Array.isArray(nodes)) return;
+		for (const node of nodes) {
+			if (!node || typeof node !== 'object') continue;
+			const record = node as Record<string, unknown>;
+			for (const [key, value] of Object.entries(record)) {
+				if (key === ':@' || !Array.isArray(value)) continue;
+				if (key === 'group') {
+					const childNames = new Set<string>();
+					for (const child of value) {
+						if (!child || typeof child !== 'object') continue;
+						for (const childKey of Object.keys(child as Record<string, unknown>)) {
+							if (GROUP_CONDITIONAL_CHILD_NAMES.has(childKey)) {
+								childNames.add(childKey);
+							}
+						}
+					}
+					if (childNames.size > 0) {
+						const attrs = (record[':@'] ?? {}) as Record<string, string>;
+						rows.push({
+							advanced: attrs['@_advanced'] === 'true',
+							childNames: [...childNames].sort(),
+						});
+					}
+				}
+				visit(value);
+			}
+		}
+	};
+
+	visit(parsed);
+	return rows;
 }
 
 async function collectRootComponentAttrNames(filePath: string): Promise<Set<string>> {
@@ -498,13 +550,9 @@ test('project XML protocol children maps stay explicit and stable', (t) => {
 		'relation',
 	]);
 	t.deepEqual(collectChildNames('group'), [
-		'gearAni',
-		'gearColor',
 		'gearDisplay',
 		'gearDisplay2',
-		'gearFontSize',
 		'gearIcon',
-		'gearLook',
 		'gearSize',
 		'gearText',
 		'gearXY',
@@ -546,6 +594,32 @@ test('project XML protocol children maps stay explicit and stable', (t) => {
 		'text',
 		'tree',
 	]);
+});
+
+test('group relation/gear children in referer samples only appear on advanced groups', async (t) => {
+	const xmlFiles = await walkXmlFiles(REFERER_ROOT);
+	const invalid: Array<{ file: string; childNames: string[] }> = [];
+	let matched = 0;
+
+	for (const filePath of xmlFiles) {
+		if (path.basename(filePath) === 'package.xml') continue;
+		const rows = await collectConditionalGroupChildren(filePath);
+		matched += rows.length;
+		for (const row of rows) {
+			if (row.advanced) continue;
+			invalid.push({
+				file: path.relative(REFERER_ROOT, filePath),
+				childNames: row.childNames,
+			});
+		}
+	}
+
+	t.true(matched > 0, 'referer should contain advanced group structural samples');
+	t.deepEqual(
+		invalid,
+		[],
+		'group relation/gear structural children should only appear on advanced groups in referer samples',
+	);
 });
 
 test('protocolized project XML fields do not regress to legacy direct access patterns', async (t) => {

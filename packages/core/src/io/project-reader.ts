@@ -18,7 +18,7 @@ import {
 	parseSidePair,
 	ensureArray,
 } from '../utils/xml-utils.js';
-import { PROJECT_XML_PROTOCOL, readXmlAttr } from './project-xml-protocol.js';
+import { PROJECT_XML_PROTOCOL, readXmlAttr, type XmlNodeProtocol } from './project-xml-protocol.js';
 import { ReaderContext } from './reader-context.js';
 
 /** Map ease type string to numeric code matching editor's EaseType.parseEaseType. */
@@ -74,6 +74,29 @@ const EXTENSION_PROTOCOL_MAP = {
 	Slider: PROJECT_XML_PROTOCOL.sliderExtension,
 	ScrollBar: PROJECT_XML_PROTOCOL.scrollBarExtension,
 } as const;
+
+const DISPLAY_OBJECT_PROTOCOL_MAP: Record<string, XmlNodeProtocol> = {
+	image: PROJECT_XML_PROTOCOL.image,
+	text: PROJECT_XML_PROTOCOL.text,
+	richtext: PROJECT_XML_PROTOCOL.richText,
+	inputtext: PROJECT_XML_PROTOCOL.textInput,
+	graph: PROJECT_XML_PROTOCOL.graph,
+	group: PROJECT_XML_PROTOCOL.group,
+	loader: PROJECT_XML_PROTOCOL.loader,
+	loader3d: PROJECT_XML_PROTOCOL.loader3D,
+	movieclip: PROJECT_XML_PROTOCOL.movieClip,
+	jta: PROJECT_XML_PROTOCOL.movieClip,
+	component: PROJECT_XML_PROTOCOL.componentInstance,
+	list: PROJECT_XML_PROTOCOL.list,
+	tree: PROJECT_XML_PROTOCOL.list,
+};
+
+const DISPLAY_LIST_CONTAINER = PROJECT_XML_PROTOCOL.componentRoot.containers?.displayList;
+if (!DISPLAY_LIST_CONTAINER) {
+	throw new Error('PROJECT_XML_PROTOCOL.componentRoot must define containers.displayList');
+}
+
+const DISPLAY_LIST_ALLOWED_VARIANTS = new Set(Object.keys(DISPLAY_LIST_CONTAINER.items));
 
 // Maps gear XML element names to gear type indices.
 const GEAR_TAG_MAP: Record<string, number> = {
@@ -536,6 +559,47 @@ function getXmlScalar(value: unknown): string {
 		return value.length > 0 ? String(value[0] ?? '') : '';
 	}
 	return value === undefined || value === null ? '' : String(value);
+}
+
+function getProtocolChildName(protocol: XmlNodeProtocol, childName: string): string | null {
+	return protocol.children?.[childName] ? childName : null;
+}
+
+function getProtocolGearChildNames(protocol: XmlNodeProtocol): string[] {
+	return Object.keys(protocol.children ?? {}).filter((name) => name in GEAR_TAG_MAP);
+}
+
+function getProtocolExtensionChildNames(protocol: XmlNodeProtocol): Array<keyof typeof EXTENSION_PROTOCOL_MAP> {
+	return Object.keys(protocol.children ?? {}).filter((name): name is keyof typeof EXTENSION_PROTOCOL_MAP => name in EXTENSION_PROTOCOL_MAP);
+}
+
+function getDisplayListVariantName(tagName: string, attrs: DisplayObjectXmlNode): string {
+	if (tagName === 'loader3d') return 'loader3D';
+	if (tagName === 'text') {
+		const isInputText = parseBool(readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.input));
+		if (isInputText) return 'inputtext';
+	}
+	if (tagName === 'list') {
+		const isTree = parseBool(readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.list.attrs.treeView));
+		if (isTree) return 'tree';
+	}
+	return tagName;
+}
+
+function assertDisplayListTagAllowed(
+	tagName: string,
+	attrs: DisplayObjectXmlNode,
+	componentName: string,
+): void {
+	if (!DISPLAY_TAG_MAP[tagName]) {
+		throw new Error(`Unsupported displayList tag "${tagName}" in component "${componentName}"`);
+	}
+	const variantName = getDisplayListVariantName(tagName, attrs);
+	if (!DISPLAY_LIST_ALLOWED_VARIANTS.has(variantName)) {
+		throw new Error(
+			`displayList variant "${variantName}" derived from tag "${tagName}" is not declared in protocol for component "${componentName}"`,
+		);
+	}
 }
 
 function inferTreeItemFolderFlags(items: Array<{
@@ -1008,7 +1072,10 @@ export class ProjectReader {
 			if (extType) {
 				comp.setExtensionType?.(extention);
 				// Parse extension element attributes (e.g. <Button mode="Check" sound="..."/>)
-				const extElement = compNode[extention] as ExtensionXmlNode | ExtensionXmlNode[] | undefined;
+				const extChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.componentRoot, extention);
+				const extElement = extChildName
+					? compNode[extChildName] as ExtensionXmlNode | ExtensionXmlNode[] | undefined
+					: undefined;
 				if (extElement) {
 					const extAttrs = getXmlNode<ExtensionXmlNode>(extElement);
 					if (extAttrs) {
@@ -1068,7 +1135,8 @@ export class ProjectReader {
 				ctrl.addPage(p);
 			}
 
-			const actions = ensureArray(ctrlDef.action);
+			const controllerActionChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.controller, 'action');
+			const actions = controllerActionChildName ? ensureArray(ctrlDef[controllerActionChildName]) : [];
 			for (let actionIndex = 0; actionIndex < actions.length; actionIndex += 1) {
 				const actionDef = getXmlNode<ControllerActionXmlNode>(actions[actionIndex]);
 				if (!actionDef) continue;
@@ -1114,7 +1182,7 @@ export class ProjectReader {
 		// Display list
 		if (orderedDisplayItems.length > 0) {
 			for (const { tagName, attrs } of orderedDisplayItems) {
-				if (!DISPLAY_TAG_MAP[tagName]) continue;
+				assertDisplayListTagAllowed(tagName, attrs, comp.getName());
 				const child = this._createDisplayObject(ctx, doc, tagName, attrs, localControllers);
 				if (child) comp.addChild(child);
 			}
@@ -1122,10 +1190,9 @@ export class ProjectReader {
 			const displayList = compNode.displayList;
 			if (displayList) {
 				for (const tagName of Object.keys(displayList)) {
-					if (!DISPLAY_TAG_MAP[tagName]) continue;
-
 					const items = ensureArray(displayList[tagName]);
 					for (const itemDef of items) {
+						assertDisplayListTagAllowed(tagName, itemDef, comp.getName());
 						const child = this._createDisplayObject(ctx, doc, tagName, itemDef, localControllers);
 						if (child) {
 							comp.addChild(child);
@@ -1151,7 +1218,8 @@ export class ProjectReader {
 			if (options !== undefined) trans.setOptions?.(parseInt2(options));
 			if (fps !== undefined) trans.setFps?.(parseInt2(fps));
 
-			const items = ensureArray(transDef.item);
+			const transitionItemChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.transition, 'item');
+			const items = transitionItemChildName ? ensureArray(transDef[transitionItemChildName]) : [];
 			for (const itemDef of items) {
 				const ti = doc.createTransitionItem();
 				const time = readXmlAttr<string | number>(itemDef, PROJECT_XML_PROTOCOL.transitionItem.attrs.time);
@@ -1993,7 +2061,8 @@ export class ProjectReader {
 					g.setClipSoftness({ x: csParts[0] ?? 0, y: csParts[1] ?? 0 });
 				}
 				// Parse static list items
-				const items = ensureArray(attrs.item);
+				const listItemChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.list, 'item');
+				const items = listItemChildName ? ensureArray(attrs[listItemChildName]) : [];
 				if (items.length > 0) {
 					const listItems = items
 						.map((itemDef) => getXmlNode<ListItemXmlNode>(itemDef))
@@ -2011,8 +2080,9 @@ export class ProjectReader {
 		// Common GObject attributes
 		const objectId = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.id);
 		obj.setId(objectId || '');
+		const objectProtocol = DISPLAY_OBJECT_PROTOCOL_MAP[tagName];
 		// Parse gear elements
-		for (const gearTag of Object.keys(GEAR_TAG_MAP)) {
+		for (const gearTag of getProtocolGearChildNames(objectProtocol)) {
 			const gearDefs = ensureArray(attrs[gearTag]);
 			for (const gearDef of gearDefs) {
 				const parsedGear = getXmlNode<GearXmlNode>(gearDef);
@@ -2022,7 +2092,8 @@ export class ProjectReader {
 		}
 
 		// Parse relation elements
-		const relations = ensureArray(attrs.relation);
+		const relationChildName = getProtocolChildName(objectProtocol, 'relation');
+		const relations = relationChildName ? ensureArray(attrs[relationChildName]) : [];
 		for (const relDef of relations) {
 			const sidePair = readXmlAttr<string>(relDef, PROJECT_XML_PROTOCOL.relation.attrs.sidePair) || '';
 			const sidePairs = parseSidePair(sidePair);
@@ -2039,8 +2110,8 @@ export class ProjectReader {
 
 		// Parse extension overlay data for child component instances
 		// e.g. <component id="n18" src="rpmb10"><Button title="点我" icon="..."/></component>
-		for (const extTypeName of Object.keys(EXTENSION_TYPE_MAP)) {
-				const extElement = attrs[extTypeName];
+		for (const extTypeName of getProtocolExtensionChildNames(PROJECT_XML_PROTOCOL.componentInstance)) {
+			const extElement = attrs[extTypeName];
 			if (extElement) {
 				const extAttrs = getXmlNode<ExtensionXmlNode>(extElement);
 				if (!extAttrs || obj.propertyType !== 'GComponent') continue;
@@ -2078,8 +2149,9 @@ export class ProjectReader {
 				if (max !== undefined) componentObj.setInstanceMax?.(parseInt2(max, 100));
 				const min = extSpecs.min ? readXmlAttr<string | number>(extAttrs, extSpecs.min) : undefined;
 				if (min !== undefined) componentObj.setInstanceMin?.(parseInt2(min));
-				if (extTypeName === 'ComboBox' && extAttrs.item) {
-					const comboItems = ensureArray(extAttrs.item);
+				const comboBoxItemChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.comboBoxExtension, 'item');
+				if (extTypeName === 'ComboBox' && comboBoxItemChildName && extAttrs[comboBoxItemChildName]) {
+					const comboItems = ensureArray(extAttrs[comboBoxItemChildName]);
 					componentObj.setInstanceComboItems?.(
 						comboItems
 							.map((itemDef) => getXmlNode<ComboItemXmlNode>(itemDef))

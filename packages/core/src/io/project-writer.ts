@@ -8,7 +8,7 @@ import type { Transition } from '../properties/transition.js';
 import type { Gear } from '../properties/gear.js';
 import { ControllerActionType, GearType } from '../constants.js';
 import type { FileSystem } from './project-reader.js';
-import { PROJECT_XML_PROTOCOL, writeXmlAttr } from './project-xml-protocol.js';
+import { PROJECT_XML_PROTOCOL, writeXmlAttr, type XmlNodeProtocol } from './project-xml-protocol.js';
 
 const builder = new XMLBuilder({
 	ignoreAttributes: false,
@@ -84,6 +84,34 @@ const EXTENSION_PROTOCOL_MAP = {
 	Slider: PROJECT_XML_PROTOCOL.sliderExtension,
 	ScrollBar: PROJECT_XML_PROTOCOL.scrollBarExtension,
 } as const;
+
+const DISPLAY_OBJECT_PROTOCOL_BY_TYPE: Record<string, XmlNodeProtocol> = {
+	GImage: PROJECT_XML_PROTOCOL.image,
+	GTextField: PROJECT_XML_PROTOCOL.text,
+	GRichTextField: PROJECT_XML_PROTOCOL.richText,
+	GTextInput: PROJECT_XML_PROTOCOL.textInput,
+	GGraph: PROJECT_XML_PROTOCOL.graph,
+	GGroup: PROJECT_XML_PROTOCOL.group,
+	GLoader: PROJECT_XML_PROTOCOL.loader,
+	GLoader3D: PROJECT_XML_PROTOCOL.loader3D,
+	GMovieClip: PROJECT_XML_PROTOCOL.movieClip,
+	GComponent: PROJECT_XML_PROTOCOL.componentInstance,
+	GButton: PROJECT_XML_PROTOCOL.componentInstance,
+	GLabel: PROJECT_XML_PROTOCOL.componentInstance,
+	GComboBox: PROJECT_XML_PROTOCOL.componentInstance,
+	GProgressBar: PROJECT_XML_PROTOCOL.componentInstance,
+	GSlider: PROJECT_XML_PROTOCOL.componentInstance,
+	GScrollBar: PROJECT_XML_PROTOCOL.componentInstance,
+	GList: PROJECT_XML_PROTOCOL.list,
+	GTree: PROJECT_XML_PROTOCOL.list,
+};
+
+const DISPLAY_LIST_CONTAINER = PROJECT_XML_PROTOCOL.componentRoot.containers?.displayList;
+if (!DISPLAY_LIST_CONTAINER) {
+	throw new Error('PROJECT_XML_PROTOCOL.componentRoot must define containers.displayList');
+}
+
+const DISPLAY_LIST_ALLOWED_VARIANTS = new Set(Object.keys(DISPLAY_LIST_CONTAINER.items));
 
 function stringifyEaseType(easeType: number): string {
 	const names: Record<number, string> = {
@@ -423,6 +451,30 @@ function serializeComboBoxItemXmlNode(item: {
 	return attrs;
 }
 
+function getProtocolChildName(protocol: XmlNodeProtocol, childName: string): string | null {
+	return protocol.children?.[childName] ? childName : null;
+}
+
+function getProtocolGearChildNameSet(protocol: XmlNodeProtocol): Set<string> {
+	const gearTagNames = new Set(Object.values(GEAR_TAG));
+	return new Set(Object.keys(protocol.children ?? {}).filter((name) => gearTagNames.has(name)));
+}
+
+function getDisplayListVariantName(propertyType: string, tagName: string): string {
+	if (propertyType === 'GLoader3D') return 'loader3D';
+	if (propertyType === 'GTree') return 'tree';
+	return tagName;
+}
+
+function assertDisplayListVariantAllowed(propertyType: string, tagName: string, childName: string): void {
+	const variantName = getDisplayListVariantName(propertyType, tagName);
+	if (!DISPLAY_LIST_ALLOWED_VARIANTS.has(variantName)) {
+		throw new Error(
+			`displayList variant "${variantName}" derived from propertyType "${propertyType}" is not declared in protocol for child "${childName}"`,
+		);
+	}
+}
+
 /**
  * Writes a {@link Document} to disk as a FairyGUI project
  * (.fairy file + settings JSON + assets directory with package.xml and component XML files).
@@ -666,7 +718,10 @@ export class ProjectWriter {
 		// Controllers
 		const controllers = comp.listControllers();
 		if (controllers.length > 0) {
-			compNode.controller = controllers.map((ctrl) => this._serializeController(ctrl));
+			const controllerChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.componentRoot, 'controller');
+			if (controllerChildName) {
+				compNode[controllerChildName] = controllers.map((ctrl) => this._serializeController(ctrl));
+			}
 		}
 
 		// Display list
@@ -678,7 +733,10 @@ export class ProjectWriter {
 		// Transitions
 		const transitions = comp.listTransitions();
 		if (transitions.length > 0) {
-			compNode.transition = transitions.map((t) => this._serializeTransition(t));
+			const transitionChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.componentRoot, 'transition');
+			if (transitionChildName) {
+				compNode[transitionChildName] = transitions.map((t) => this._serializeTransition(t));
+			}
 		}
 
 		if (extType) {
@@ -716,7 +774,10 @@ export class ProjectWriter {
 				default:
 					break;
 			}
-			compNode[extType] = Object.keys(extAttrs).length > 0 ? extAttrs : '';
+			const rootExtensionChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.componentRoot, extType);
+			if (rootExtensionChildName) {
+				compNode[rootExtensionChildName] = Object.keys(extAttrs).length > 0 ? extAttrs : '';
+			}
 		}
 
 		const xmlObj = {
@@ -735,7 +796,8 @@ export class ProjectWriter {
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.pages, pagesStr);
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.selected, String(ctrl.getSelectedIndex()));
 		const actions = ctrl.listActions().map((action) => this._serializeControllerAction(action as WritableControllerAction));
-		if (actions.length > 0) attrs.action = actions;
+		const actionChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.controller, 'action');
+		if (actions.length > 0 && actionChildName) attrs[actionChildName] = actions;
 		return attrs;
 	}
 
@@ -769,7 +831,9 @@ export class ProjectWriter {
 	private _serializeDisplayList(children: GObject[]): Record<string, unknown[]> {
 		const byTag: Record<string, unknown[]> = {};
 		for (const child of children) {
-			const tag = DISPLAY_TAG[child.propertyType as string] ?? 'component';
+			const propertyType = child.propertyType as string;
+			const tag = DISPLAY_TAG[propertyType] ?? 'component';
+			assertDisplayListVariantAllowed(propertyType, tag, child.getName() || child.getId() || propertyType);
 			if (!byTag[tag]) byTag[tag] = [];
 			(byTag[tag] as Record<string, unknown>[]).push(this._serializeChild(child));
 		}
@@ -1182,8 +1246,9 @@ export class ProjectWriter {
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.clipSoftness, `${clipSoftness.x ?? 0},${clipSoftness.y ?? 0}`);
 			}
 			const listItems = typedObj.getListItems?.() ?? [];
-			if (listItems.length > 0) {
-				attrs.item = listItems.map((item) => serializeListItemXmlNode(item));
+			const listItemChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.list, 'item');
+			if (listItems.length > 0 && listItemChildName) {
+				attrs[listItemChildName] = listItems.map((item) => serializeListItemXmlNode(item));
 			}
 		}
 		if (type === 'GTextField' || type === 'GRichTextField' || type === 'GTextInput') {
@@ -1268,21 +1333,28 @@ export class ProjectWriter {
 				if (instanceMax !== 0 && extSpecs.max) writeXmlAttr(extAttrs, extSpecs.max, String(instanceMax));
 				if (instanceMin !== 0 && extSpecs.min) writeXmlAttr(extAttrs, extSpecs.min, String(instanceMin));
 				const comboItems = typedObj.getInstanceComboItems?.() ?? [];
-				if (comboItems.length > 0) {
-					extAttrs.item = comboItems.map((item) => serializeComboBoxItemXmlNode(item));
+				const comboBoxItemChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.comboBoxExtension, 'item');
+				if (comboItems.length > 0 && comboBoxItemChildName) {
+					extAttrs[comboBoxItemChildName] = comboItems.map((item) => serializeComboBoxItemXmlNode(item));
 				}
-				attrs[instanceExtType] = Object.keys(extAttrs).length > 0 ? extAttrs : '';
+				const extensionChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.componentInstance, instanceExtType);
+				if (extensionChildName) {
+					attrs[extensionChildName] = Object.keys(extAttrs).length > 0 ? extAttrs : '';
+				}
 			}
 		}
 
 		// Gear child elements
+		const objectProtocol = DISPLAY_OBJECT_PROTOCOL_BY_TYPE[type] ?? PROJECT_XML_PROTOCOL.componentInstance;
+		const gearChildNameSet = getProtocolGearChildNameSet(objectProtocol);
 		for (const gear of obj.listGears()) {
 			const gearTag = GEAR_TAG[gear.getGearType()];
-			if (!gearTag) continue;
+			if (!gearTag || !gearChildNameSet.has(gearTag)) continue;
 			attrs[gearTag] = [this._serializeGear(gear)];
 		}
 
 		// Relation child elements
+		const relationChildName = getProtocolChildName(objectProtocol, 'relation');
 		const relations = obj.getRelations();
 		if (relations.length > 0) {
 			// Group by target
@@ -1302,7 +1374,7 @@ export class ProjectWriter {
 					return relationAttrs;
 				})(),
 			}));
-			if (relElements.length > 0) attrs.relation = relElements;
+			if (relElements.length > 0 && relationChildName) attrs[relationChildName] = relElements;
 		}
 
 		return attrs;
@@ -1358,7 +1430,8 @@ export class ProjectWriter {
 			return ia;
 		});
 
-		if (items.length > 0) attrs.item = items;
+		const transitionItemChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.transition, 'item');
+		if (items.length > 0 && transitionItemChildName) attrs[transitionItemChildName] = items;
 		return attrs;
 	}
 

@@ -510,6 +510,15 @@ const WITH_GEAR_CHILDREN = {
 	gearFontSize: GEAR_NODE,
 } satisfies XmlChildrenMap;
 
+const WITH_GROUP_GEAR_CHILDREN = {
+	gearDisplay: GEAR_NODE,
+	gearXY: GEAR_NODE,
+	gearSize: GEAR_NODE,
+	gearText: GEAR_NODE,
+	gearIcon: GEAR_NODE,
+	gearDisplay2: GEAR_NODE,
+} satisfies XmlChildrenMap;
+
 const WITH_CONTROLLER_ACTION_CHILDREN = {
 	action: CONTROLLER_ACTION_NODE,
 } satisfies XmlChildrenMap;
@@ -678,7 +687,10 @@ const GROUP_NODE = defineNode(
 		VISIBLE_ATTRS,
 		GROUP_PANEL_ATTRS,
 	),
-	mergeChildren(WITH_RELATION_CHILDREN, WITH_GEAR_CHILDREN),
+	// FairyGUI editor only exposes relation/gear channels on advanced groups.
+	// Protocol metadata stays static, so we keep the child set narrow here and
+	// rely on samples/tests to enforce the advanced=true structural constraint.
+	mergeChildren(WITH_RELATION_CHILDREN, WITH_GROUP_GEAR_CHILDREN),
 );
 
 const LIST_NODE = defineNode(
