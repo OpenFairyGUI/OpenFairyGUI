@@ -138,6 +138,10 @@ interface PackageDescriptionNode extends XmlNode {
 	resources?: PackageResourcesNode;
 }
 
+interface BranchDescriptionNode extends XmlNode {
+	resources?: PackageResourcesNode;
+}
+
 interface ResourceXmlAttrs extends XmlNode {
 	id?: string;
 	name?: string;
@@ -741,6 +745,11 @@ export class ProjectReader {
 			await this._readPackage(ctx, dirName, pkgXmlPath);
 		}
 
+		const branchNames = await this._readPackageBranches(ctx);
+		if (branchNames.length > 0) {
+			doc.getRoot().setBranches(branchNames);
+		}
+
 		// 4. Parse component XMLs (second pass, after all resources registered)
 		for (const [_key, resource] of ctx.resourceMap) {
 			if (resource.propertyType !== 'Component') continue;
@@ -757,6 +766,39 @@ export class ProjectReader {
 		}
 
 		return doc;
+	}
+
+	private async _readPackageBranches(ctx: ReaderContext): Promise<string[]> {
+		const fs = this._fs;
+		let dirNames: string[] = [];
+		try {
+			dirNames = await fs.readdir(ctx.basePath);
+		} catch {
+			return [];
+		}
+
+		const branchNames = dirNames
+			.filter((dirName) => dirName.startsWith('assets_') && dirName.length > 'assets_'.length)
+			.map((dirName) => dirName.slice('assets_'.length))
+			.sort((a, b) => a.localeCompare(b));
+
+		for (const branchName of branchNames) {
+			const branchAssetsPath = fs.join(ctx.basePath, `assets_${branchName}`);
+			let packageDirs: string[] = [];
+			try {
+				packageDirs = await fs.readdir(branchAssetsPath);
+			} catch {
+				continue;
+			}
+
+			for (const dirName of packageDirs) {
+				const pkgXmlPath = fs.join(branchAssetsPath, dirName, 'package_branch.xml');
+				if (!(await fs.exists(pkgXmlPath))) continue;
+				await this._readPackage(ctx, dirName, pkgXmlPath, branchName);
+			}
+		}
+
+		return branchNames;
 	}
 
 	private async _readSettings(ctx: ReaderContext): Promise<void> {
@@ -786,19 +828,32 @@ export class ProjectReader {
 		ctx.document.getRoot().setSettings(ctx.settings);
 	}
 
-	private async _readPackage(ctx: ReaderContext, dirName: string, pkgXmlPath: string): Promise<void> {
+	private async _readPackage(
+		ctx: ReaderContext,
+		dirName: string,
+		pkgXmlPath: string,
+		branchName = '',
+	): Promise<void> {
 		const fs = this._fs;
 		const content = await fs.readFile(pkgXmlPath);
 		const xml = parseXML(content);
-		const desc = getXmlNode<PackageDescriptionNode>(xml.packageDescription);
+		const desc = branchName
+			? getXmlNode<BranchDescriptionNode>(xml.branchDescription)
+			: getXmlNode<PackageDescriptionNode>(xml.packageDescription);
 		if (!desc) return;
 
-		const pkg = ctx.document.createPackage(dirName);
-		const packageId = readXmlAttr<string>(desc, PROJECT_XML_PROTOCOL.packageDescription.attrs.id) || '';
-		pkg.setId(packageId);
+		let pkg = ctx.document.getRoot().getPackage(dirName);
+		if (!pkg) {
+			pkg = ctx.document.createPackage(dirName);
+		}
+
+		if (!branchName) {
+			const packageId = readXmlAttr<string>(desc, PROJECT_XML_PROTOCOL.packageDescription.attrs.id) || '';
+			pkg.setId(packageId);
+		}
 
 		// Publish name
-		const publish = desc.publish;
+		const publish = !branchName ? (desc as PackageDescriptionNode).publish : undefined;
 		if (publish) {
 			const publishName = readXmlAttr<string>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.name) || dirName;
 			pkg.setPublishName(publishName);
@@ -814,18 +869,22 @@ export class ProjectReader {
 			));
 		}
 
-		ctx.packageMap.set(pkg.getId(), pkg);
+		if (pkg.getId()) {
+			ctx.packageMap.set(pkg.getId(), pkg);
+		}
 
 		// Parse resources
 		const resources = desc.resources;
 		if (!resources) return;
 
-		const packageDir = fs.join(ctx.basePath, 'assets', dirName);
+		const packageDir = branchName
+			? fs.join(ctx.basePath, `assets_${branchName}`, dirName)
+			: fs.join(ctx.basePath, 'assets', dirName);
 
 		const orderedResources = getOrderedPackageResourceItems(content);
 		if (orderedResources.length > 0) {
 			for (const { tagName, attrs } of orderedResources) {
-				this._createResourceFromXML(ctx, pkg, tagName, attrs, packageDir);
+				this._createResourceFromXML(ctx, pkg, tagName, attrs, packageDir, branchName);
 			}
 			return;
 		}
@@ -836,7 +895,7 @@ export class ProjectReader {
 			for (const item of items) {
 				const attrs = getXmlNode<ResourceXmlAttrs>(item);
 				if (!attrs) continue;
-				this._createResourceFromXML(ctx, pkg, tagName, attrs, packageDir);
+				this._createResourceFromXML(ctx, pkg, tagName, attrs, packageDir, branchName);
 			}
 		}
 	}
@@ -847,6 +906,7 @@ export class ProjectReader {
 		tagName: string,
 		attrs: ResourceXmlAttrs,
 		packageDir: string,
+		branchName = '',
 	): void {
 		const doc = ctx.document;
 		const fs = this._fs;
@@ -860,6 +920,7 @@ export class ProjectReader {
 				const res = doc.createImageResource(name.replace(/\.\w+$/, ''));
 				res.setId(id);
 				res.setPath(path);
+				res.setBranch(branchName);
 				res.setExported(exported);
 				res.setExtras({ ...res.getExtras(), _fileName: name });
 				const textureSetMode = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.atlas);
@@ -890,6 +951,7 @@ export class ProjectReader {
 				const res = doc.createComponent(name.replace(/\.xml$/i, ''));
 				res.setId(id);
 				res.setPath(path);
+				res.setBranch(branchName);
 				res.setExported(exported);
 				// Store file path for second-pass parsing
 				const filePath = fs.join(packageDir, path.replace(/^\//, ''), name);
@@ -902,6 +964,7 @@ export class ProjectReader {
 				const res = doc.createSoundResource(name.replace(/\.\w+$/, ''));
 				res.setId(id);
 				res.setPath(path);
+				res.setBranch(branchName);
 				res.setFile(name);
 				res.setExported(exported);
 				pkg.addResource(res);
@@ -912,6 +975,7 @@ export class ProjectReader {
 				const res = doc.createMiscResource(name.replace(/\.\w+$/, ''));
 				res.setId(id);
 				res.setPath(path);
+				res.setBranch(branchName);
 				res.setFile(name);
 				res.setExported(exported);
 				pkg.addResource(res);
@@ -922,6 +986,7 @@ export class ProjectReader {
 				const res = doc.createFontResource(name.replace(/\.\w+$/, ''));
 				res.setId(id);
 				res.setPath(path);
+				res.setBranch(branchName);
 				res.setFileName(name);
 				res.setExported(exported);
 				// Store texture reference for bitmap fonts.
@@ -941,6 +1006,7 @@ export class ProjectReader {
 				const res = doc.createSpineResource(name.replace(/\.\w+$/, ''));
 				res.setId(id);
 				res.setPath(path);
+				res.setBranch(branchName);
 				res.setFile(name);
 				res.setExported(exported);
 				res.setWidth(parseInt2(readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.width)));
@@ -962,6 +1028,7 @@ export class ProjectReader {
 				const res = doc.createDragonBonesResource(name.replace(/\.\w+$/, ''));
 				res.setId(id);
 				res.setPath(path);
+				res.setBranch(branchName);
 				res.setFile(name);
 				res.setExported(exported);
 				res.setWidth(parseInt2(readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.width)));
@@ -983,6 +1050,7 @@ export class ProjectReader {
 				const res = doc.createMovieClipResource(name.replace(/\.\w+$/, ''));
 				res.setId(id);
 				res.setPath(path);
+				res.setBranch(branchName);
 				res.setExported(exported);
 				pkg.addResource(res);
 				ctx.registerResource(pkg.getId(), id, res);

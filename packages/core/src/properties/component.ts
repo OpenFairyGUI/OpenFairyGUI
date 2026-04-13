@@ -20,6 +20,8 @@ interface EdgeInsetsLike {
 interface IComponent extends IExtensibleProperty {
 	id: string;
 	path: string;
+	branch: string;
+	branchItemIds: string[];
 	exported: boolean;
 	width: number;
 	height: number;
@@ -100,6 +102,8 @@ export class Component extends ExtensibleProperty<IComponent> {
 		return Object.assign(super.getDefaults(), {
 			id: '',
 			path: '',
+			branch: '',
+			branchItemIds: [],
 			exported: false,
 			width: 0,
 			height: 0,
@@ -166,6 +170,12 @@ export class Component extends ExtensibleProperty<IComponent> {
 
 	public getPath(): string { return this.get('path'); }
 	public setPath(path: string): this { return this.set('path', path); }
+
+	public getBranch(): string { return this.get('branch'); }
+	public setBranch(branch: string): this { return this.set('branch', branch); }
+
+	public getBranchItemIds(): string[] { return [...this.get('branchItemIds')]; }
+	public setBranchItemIds(ids: string[]): this { return this.set('branchItemIds', [...ids]); }
 
 	public getExported(): boolean { return this.get('exported'); }
 	public setExported(v: boolean): this { return this.set('exported', v); }

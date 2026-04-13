@@ -255,6 +255,63 @@ test('round-trip: misc/spine/dragonbones resources survive package.xml write→r
 	}
 });
 
+test('round-trip: branch package resources write into package_branch.xml and survive read→write', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectId('branch-project').setProjectType(0).setVersion('3.0').setBranches(['dev']);
+
+	const pkg = doc.createPackage('Branch');
+	pkg.setId('branch001');
+
+	const mainComponent = doc.createComponent('Main');
+	mainComponent.setId('kn7w0');
+	mainComponent.setPath('/');
+	mainComponent.setExported(true);
+	mainComponent.setSize(200, 120);
+	pkg.addResource(mainComponent);
+
+	const mainImage = doc.createImageResource('face.png');
+	mainImage.setId('kn7w1');
+	mainImage.setPath('/');
+	mainImage.setExported(true);
+	mainImage.setBranchItemIds(['kn7w2']);
+	pkg.addResource(mainImage);
+
+	const devImage = doc.createImageResource('face.png');
+	devImage.setId('kn7w2');
+	devImage.setPath('/');
+	devImage.setExported(true);
+	devImage.setBranch('dev');
+	pkg.addResource(devImage);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-branch-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+
+		const mainPackageXml = await fs.readFile(path.join(tmpDir, 'assets', 'Branch', 'package.xml'), 'utf-8');
+		t.true(mainPackageXml.includes('id="kn7w1"'), 'main package.xml keeps main resource');
+		t.false(mainPackageXml.includes('id="kn7w2"'), 'main package.xml excludes branch resource');
+
+		const branchPackageXml = await fs.readFile(path.join(tmpDir, 'assets_dev', 'Branch', 'package_branch.xml'), 'utf-8');
+		t.true(branchPackageXml.includes('<branchDescription>'), 'branchDescription root is written');
+		t.true(branchPackageXml.includes('id="kn7w2"'), 'package_branch.xml keeps branch resource');
+
+		const doc2 = await io.readProject(outFairy);
+		const pkg2 = doc2.getRoot().getPackage('Branch');
+		t.truthy(pkg2, 'Branch package exists after round-trip');
+		t.deepEqual(doc2.getRoot().listBranches(), ['dev']);
+
+		const roundTripMainImage = pkg2!.listResources().find((res) => res.getId?.() === 'kn7w1') as any;
+		const roundTripDevImage = pkg2!.listResources().find((res) => res.getId?.() === 'kn7w2') as any;
+		t.is(roundTripMainImage?.getBranch?.(), '');
+		t.is(roundTripDevImage?.getBranch?.(), 'dev');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('round-trip: controller action payload survives project write→read', async (t) => {
 	const doc = new Document();
 	doc.getRoot().setProjectId('controller-action-project').setProjectType(0).setVersion('3.0');

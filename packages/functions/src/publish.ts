@@ -97,6 +97,10 @@ interface PublishFileExtras extends Record<string, unknown> {
 	_publishedFile?: string;
 }
 
+interface BranchAwarePublishedResource {
+	getBranch?(): string;
+}
+
 interface PackagePublishContext {
 	referencedIds: Set<string>;
 	publishedResourceIds: Set<string>;
@@ -333,25 +337,41 @@ function addLocalFontRef(target: Set<string>, pkgId: string, value: string | str
 	addLocalUiResourceRef(target, pkgId, value ?? undefined);
 }
 
+function resolvePackageAssetsBasePath(
+	basePath: string,
+	resource: BranchAwarePublishedResource | undefined,
+): string {
+	const branchName = resource?.getBranch?.() ?? '';
+	if (!branchName) return basePath;
+	const normalized = basePath.replace(/[/\\]+$/, '');
+	if (/[\\/]assets$/i.test(normalized)) {
+		return normalized.replace(/([\\/])assets$/i, `$1assets_${branchName}`);
+	}
+	return `${normalized}_${branchName}`;
+}
+
 function resolveImagePath(resource: ImageResource, pkg: Package, basePath: string): string {
 	const extras = (resource.getExtras() as ImageResourceExtras | undefined) ?? {};
 	const fileName = extras._fileName ?? resource.getName();
 	const resourcePath = resource.getPath() ?? '/';
-	return `${basePath}/${pkg.getName()}${resourcePath}${fileName}`;
+	const packageBasePath = resolvePackageAssetsBasePath(basePath, resource);
+	return `${packageBasePath}/${pkg.getName()}${resourcePath}${fileName}`;
 }
 
 function resolveSoundPath(resource: SoundResource, pkg: Package, basePath: string): string {
 	const resourcePath = resource.getPath() ?? '/';
-	return `${basePath}/${pkg.getName()}${resourcePath}${resource.getFile()}`;
+	const packageBasePath = resolvePackageAssetsBasePath(basePath, resource);
+	return `${packageBasePath}/${pkg.getName()}${resourcePath}${resource.getFile()}`;
 }
 
 function resolveGenericResourcePath(
-	resource: { getPath(): string; getFile(): string },
+	resource: { getPath(): string; getFile(): string; getBranch?(): string },
 	pkg: Package,
 	basePath: string,
 ): string {
 	const resourcePath = resource.getPath() ?? '/';
-	return `${basePath}/${pkg.getName()}${resourcePath}${resource.getFile()}`;
+	const packageBasePath = resolvePackageAssetsBasePath(basePath, resource);
+	return `${packageBasePath}/${pkg.getName()}${resourcePath}${resource.getFile()}`;
 }
 
 function resolvePublishedSoundFileName(pkg: Package, resource: SoundResource): string {
@@ -714,12 +734,17 @@ async function exportPackageExternalResources(
 		const isSkeletonImageDependency = skeletonDependencyImageIds.has(resourceId) && isImageResource(resource);
 		if (!isSkeletonExternal && !isSkeletonImageDependency) continue;
 
-		const sourcePath = isSkeletonImageDependency
-			? resolveImagePath(resource, pkg, basePath)
-			: resolveGenericResourcePath(resource, pkg, basePath);
-		const targetName = isSkeletonImageDependency
-			? (((resource.getExtras() as ImageResourceExtras | undefined) ?? {})._fileName ?? resource.getName())
-			: (((resource.getExtras() as PublishFileExtras | undefined) ?? {})._publishedFile ?? resource.getFile());
+		let sourcePath: string;
+		let targetName: string;
+		if (isSkeletonImageDependency) {
+			sourcePath = resolveImagePath(resource, pkg, basePath);
+			targetName = ((resource.getExtras() as ImageResourceExtras | undefined) ?? {})._fileName ?? resource.getName();
+		} else if (isMiscResource(resource) || isSkeletonResource(resource)) {
+			sourcePath = resolveGenericResourcePath(resource, pkg, basePath);
+			targetName = ((resource.getExtras() as PublishFileExtras | undefined) ?? {})._publishedFile ?? resource.getFile();
+		} else {
+			continue;
+		}
 		const targetPath = fs.join(outputDir, targetName);
 
 		try {

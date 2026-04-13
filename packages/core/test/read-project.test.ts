@@ -184,6 +184,25 @@ test('Loader package preserves spine and dragonbones resource attrs', async (t) 
 	t.is(spine.getAnchorY?.(), 380);
 });
 
+test('Branch package preserves branch resources and root branch list', async (t) => {
+	const doc = await getDoc();
+	const root = doc.getRoot();
+	t.true(root.listBranches().includes('dev'), 'root keeps project branch list');
+
+	const branchPkg = root.listPackages().find((p) => p.getName() === 'Branch')!;
+	t.truthy(branchPkg, 'Branch package exists');
+
+	const mainImage = branchPkg.listResources().find((res) => res.getId?.() === 'kn7w1') as any;
+	t.truthy(mainImage, 'main branch image exists');
+	t.is(mainImage.propertyType, PropertyType.IMAGE_RESOURCE);
+	t.is(mainImage.getBranch?.(), '');
+
+	const devImage = branchPkg.listResources().find((res) => res.getId?.() === 'kn7w2') as any;
+	t.truthy(devImage, 'dev branch image exists');
+	t.is(devImage.propertyType, PropertyType.IMAGE_RESOURCE);
+	t.is(devImage.getBranch?.(), 'dev');
+});
+
 test('package.xml publish preserves packageCount', async (t) => {
 	const layaboxDoc = await getLayaboxDoc();
 	const joystickPkg = layaboxDoc.getRoot().listPackages().find((p) => p.getName() === 'Joystick');

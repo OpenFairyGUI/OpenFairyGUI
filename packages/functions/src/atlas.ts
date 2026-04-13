@@ -988,7 +988,14 @@ function _resolveImagePath(resource: ImageResource, pkg: Package, basePath: stri
 	const imgPath = resource.getPath() ?? '/';
 	const extras = resource.getExtras() as ImageResourceExtras;
 	const fileName = extras._fileName ?? resource.getName();
-	return `${basePath}/${pkg.getName()}${imgPath}${fileName}`;
+	const branchName = resource.getBranch?.() ?? '';
+	const normalizedBasePath = basePath.replace(/[/\\]+$/, '');
+	const packageBasePath = !branchName
+		? normalizedBasePath
+		: /[\\/]assets$/i.test(normalizedBasePath)
+			? normalizedBasePath.replace(/([\\/])assets$/i, `$1assets_${branchName}`)
+			: `${normalizedBasePath}_${branchName}`;
+	return `${packageBasePath}/${pkg.getName()}${imgPath}${fileName}`;
 }
 
 type InputItem = {

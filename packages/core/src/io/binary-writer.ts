@@ -176,6 +176,12 @@ interface PixelHitTestEntry {
 	pixels: Uint8Array;
 }
 
+interface BranchAwareBinaryItem {
+	getPath?(): string;
+	getBranch?(): string;
+	getBranchItemIds?(): string[];
+}
+
 /**
  * Sort resources to match editor binary output order.
  * Editor sorts: non-exported first, then alphabetical by type, then by ID.
@@ -258,6 +264,8 @@ export class BinaryWriter {
 				name: dep.getName(),
 			}))
 			.filter((dep) => !!dep.id);
+		const branchNames = getPackageBranchNames(doc, pkg, resources);
+		const branchItemIdsMap = buildBranchItemIdsMap(pkg, branchNames);
 
 		// Collect sprites from Atlas/Sprite property nodes OR extras.sprites (BinaryReader round-trip)
 		const sprites: BinarySpriteEntry[] = [];
@@ -314,9 +322,11 @@ export class BinaryWriter {
 			data.writeS(dep.id);
 			data.writeS(dep.name);
 		}
-		// v2 branches: write 0 branches
 		if (version >= 2) {
-			data.writeInt16(0); // branchCount = 0
+			data.writeInt16(branchNames.length);
+			for (const branchName of branchNames) {
+				data.writeS(branchName);
+			}
 		}
 
 		// --- Block 1: Package items ---
@@ -532,8 +542,13 @@ export class BinaryWriter {
 
 			// v2 extra fields per item
 			if (version >= 2) {
-				data.writeS(null); // branch name
-				data.writeUint8(0); // branchCount
+				const branchName = getItemBranchName(res);
+				const branchItemIds = getItemBranchItemIds(res, branchNames, branchItemIdsMap);
+				data.writeSEx(branchName || null);
+				data.writeUint8(branchItemIds.length);
+				for (const branchItemId of branchItemIds) {
+					data.writeSEx(branchItemId || null);
+				}
 				data.writeUint8(0); // highResCount
 			}
 
@@ -881,6 +896,73 @@ function getPublishedFileName(resource: {
 }): string {
 	const extras = (resource.getExtras?.() as PublishFileExtras | undefined) ?? {};
 	return extras._publishedFile ?? resource.getFile();
+}
+
+function getItemBranchName(item: BinaryPackageItem): string {
+	const branchAware = item as BranchAwareBinaryItem;
+	return branchAware.getBranch?.() ?? '';
+}
+
+function getPackageBranchNames(doc: Document, pkg: Package, resources: PackageResource[]): string[] {
+	const packageBranchSet = new Set(
+		resources
+			.map((resource) => getItemBranchName(resource))
+			.filter((branchName) => !!branchName),
+	);
+	if (packageBranchSet.size === 0) {
+		return [];
+	}
+	return doc.getRoot().listBranches().filter((branchName) => packageBranchSet.has(branchName));
+}
+
+function buildBranchResourceKey(resource: BinaryPackageItem): string {
+	const path = (resource as BranchAwareBinaryItem).getPath?.() ?? '';
+	const name = resource.getName?.() ?? '';
+	return `${resource.propertyType}|${path}|${name}`;
+}
+
+function buildBranchItemIdsMap(pkg: Package, branchNames: string[]): Map<string, string[]> {
+	if (branchNames.length === 0) {
+		return new Map();
+	}
+
+	const branchSlotByName = new Map(branchNames.map((branchName, index) => [branchName, index] as const));
+	const map = new Map<string, string[]>();
+
+	for (const resource of pkg.listResources()) {
+		const branchName = getItemBranchName(resource);
+		if (!branchName) continue;
+		const slotIndex = branchSlotByName.get(branchName);
+		if (slotIndex === undefined) continue;
+
+		const key = buildBranchResourceKey(resource);
+		const branchIds = map.get(key) ?? Array(branchNames.length).fill('');
+		branchIds[slotIndex] = resource.getId();
+		map.set(key, branchIds);
+	}
+
+	return map;
+}
+
+function getItemBranchItemIds(
+	item: BinaryPackageItem,
+	branchNames: string[],
+	branchItemIdsMap: Map<string, string[]>,
+): string[] {
+	if (branchNames.length === 0) return [];
+
+	const branchAware = item as BranchAwareBinaryItem;
+	const explicitBranchItemIds = branchAware.getBranchItemIds?.() ?? [];
+	if (explicitBranchItemIds.length > 0) {
+		const normalized = branchNames.map((_, index) => explicitBranchItemIds[index] ?? '');
+		return normalized.some((value) => !!value) ? normalized : [];
+	}
+
+	if (getItemBranchName(item)) return [];
+
+	const inferred = branchItemIdsMap.get(buildBranchResourceKey(item));
+	if (!inferred) return [];
+	return inferred.some((value) => !!value) ? [...inferred] : [];
 }
 
 function getAtlasId(atlas: Atlas): string {

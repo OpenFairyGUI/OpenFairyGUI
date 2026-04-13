@@ -45,6 +45,11 @@ interface BinarySpriteEntry {
 	rotated: boolean;
 }
 
+interface BranchAwarePackageResource {
+	setBranch(branch: string): unknown;
+	setBranchItemIds(ids: string[]): unknown;
+}
+
 function parseAtlasIndex(id: string): number {
 	const match = /^atlas(\d+)$/.exec(id);
 	return match ? Number.parseInt(match[1] ?? '0', 10) : 0;
@@ -1520,16 +1525,20 @@ export class BinaryReader {
 
 		// v2 branches
 		let branchIncluded = false;
+		let packageBranches: string[] = [];
 		if (ver2) {
 			const branchCnt = buf.getInt16();
 			if (branchCnt > 0) {
-				buf.readSArray(branchCnt);
+				packageBranches = buf.readSArray(branchCnt);
 				branchIncluded = true;
 			}
 		}
 
 		// --- Build document ---
 		const doc = new Document();
+		if (packageBranches.length > 0) {
+			doc.getRoot().setBranches(packageBranches);
+		}
 		const pkg = doc.createPackage(packageName);
 		pkg.setId(packageId);
 		const atlasMap = new Map<string, ReturnType<Document['createAtlas']>>();
@@ -1556,6 +1565,7 @@ export class BinaryReader {
 			const exported = buf.readBool();
 			const width = buf.getInt32();
 			const height = buf.getInt32();
+			let createdResource: BranchAwarePackageResource | null = null;
 
 			switch (itemType) {
 				case BinItemType.Image: {
@@ -1572,6 +1582,7 @@ export class BinaryReader {
 					}
 					res.setSmoothing(buf.readBool());
 					pkg.addResource(res);
+					createdResource = res;
 					break;
 				}
 
@@ -1586,6 +1597,7 @@ export class BinaryReader {
 					const rawFrames = buf.readBuffer();
 					decodeMovieClipFrames(doc, res, rawFrames);
 					pkg.addResource(res);
+					createdResource = res;
 					break;
 				}
 
@@ -1593,6 +1605,7 @@ export class BinaryReader {
 					const res = doc.createSoundResource(itemName);
 					res.setId(itemId).setFile(itemFile).setExported(exported);
 					pkg.addResource(res);
+					createdResource = res;
 					break;
 				}
 
@@ -1600,6 +1613,7 @@ export class BinaryReader {
 					const res = doc.createMiscResource(itemName);
 					res.setId(itemId).setFile(itemFile).setExported(exported);
 					pkg.addResource(res);
+					createdResource = res;
 					break;
 				}
 
@@ -1615,6 +1629,7 @@ export class BinaryReader {
 						_rawBinary: toRawBinarySlice(rawData),
 					});
 					pkg.addResource(res);
+					createdResource = res;
 					break;
 				}
 
@@ -1624,6 +1639,7 @@ export class BinaryReader {
 					const rawGlyphs = buf.readBuffer();
 					decodeFontGlyphs(doc, res, rawGlyphs);
 					pkg.addResource(res);
+					createdResource = res;
 					break;
 				}
 
@@ -1649,6 +1665,7 @@ export class BinaryReader {
 						.setHeight(height)
 						.setAnchor(buf.getFloat32(), buf.getFloat32());
 					pkg.addResource(res);
+					createdResource = res;
 					break;
 				}
 
@@ -1662,6 +1679,7 @@ export class BinaryReader {
 						.setHeight(height)
 						.setAnchor(buf.getFloat32(), buf.getFloat32());
 					pkg.addResource(res);
+					createdResource = res;
 					break;
 				}
 
@@ -1672,14 +1690,19 @@ export class BinaryReader {
 
 			// v2 extra fields per item
 			if (ver2) {
-				buf.readS(); // branch override name
+				const branchName = buf.readS() ?? '';
 				const branchCnt2 = buf.getUint8();
+				let branchItemIds: string[] = [];
 				if (branchCnt2 > 0) {
-					if (branchIncluded) buf.readSArray(branchCnt2);
-					else buf.readS(); // single branch item id
+					if (branchIncluded) branchItemIds = buf.readSArray(branchCnt2);
+					else branchItemIds = [buf.readS() ?? ''];
 				}
 				const highResCnt = buf.getUint8();
 				if (highResCnt > 0) buf.readSArray(highResCnt);
+				if (createdResource) {
+					createdResource.setBranch(branchName);
+					createdResource.setBranchItemIds(branchItemIds);
+				}
 			}
 
 			buf.pos = nextPos;

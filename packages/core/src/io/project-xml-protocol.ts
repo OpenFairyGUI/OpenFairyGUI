@@ -51,6 +51,8 @@ const PACKAGE_DESCRIPTION_ATTRS = {
 	id: { canonical: 'id' },
 } satisfies XmlAttrMap;
 
+const BRANCH_DESCRIPTION_ATTRS = {} satisfies XmlAttrMap;
+
 const PACKAGE_PUBLISH_ATTRS = {
 	name: { canonical: 'name' },
 	path: { canonical: 'path' },
@@ -484,6 +486,7 @@ const COMBOBOX_ITEM_ATTRS = {
 } satisfies XmlAttrMap;
 
 const PACKAGE_DESCRIPTION_NODE = defineNode(PACKAGE_DESCRIPTION_ATTRS);
+const BRANCH_DESCRIPTION_NODE = defineNode(BRANCH_DESCRIPTION_ATTRS);
 const PACKAGE_PUBLISH_NODE = defineNode(PACKAGE_PUBLISH_ATTRS);
 const PACKAGE_RESOURCE_NODE = defineNode(PACKAGE_RESOURCE_BASE_ATTRS);
 const PACKAGE_IMAGE_RESOURCE_NODE = defineNode(PACKAGE_IMAGE_RESOURCE_ATTRS);
@@ -752,6 +755,7 @@ const COMPONENT_ROOT_NODE = defineNode(
 
 export const PROJECT_XML_PROTOCOL = {
 	packageDescription: PACKAGE_DESCRIPTION_NODE,
+	branchDescription: BRANCH_DESCRIPTION_NODE,
 	packagePublish: PACKAGE_PUBLISH_NODE,
 	packageResource: PACKAGE_RESOURCE_NODE,
 	packageImageResource: PACKAGE_IMAGE_RESOURCE_NODE,

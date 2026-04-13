@@ -9,6 +9,8 @@ export interface PublishSettings {
 	compressDesc?: boolean;
 	fileExtension?: string;
 	path?: string;
+	branchPath?: string;
+	branchProcessing?: number;
 	packageCount?: number;
 	atlasSetting?: {
 		maxSize?: number;

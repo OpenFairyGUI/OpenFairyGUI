@@ -6,6 +6,8 @@ import type { FairyBuffer } from './buffer.js';
 interface IMiscResource extends IExtensibleProperty {
 	id: string;
 	path: string;
+	branch: string;
+	branchItemIds: string[];
 	file: string;
 	exported: boolean;
 	resourceData: Ref<FairyBuffer>;
@@ -26,6 +28,8 @@ export class MiscResource extends ExtensibleProperty<IMiscResource> {
 		return Object.assign(super.getDefaults(), {
 			id: '',
 			path: '',
+			branch: '',
+			branchItemIds: [],
 			file: '',
 			exported: false,
 			resourceData: null,
@@ -37,6 +41,12 @@ export class MiscResource extends ExtensibleProperty<IMiscResource> {
 
 	public getPath(): string { return this.get('path'); }
 	public setPath(path: string): this { return this.set('path', path); }
+
+	public getBranch(): string { return this.get('branch'); }
+	public setBranch(branch: string): this { return this.set('branch', branch); }
+
+	public getBranchItemIds(): string[] { return [...this.get('branchItemIds')]; }
+	public setBranchItemIds(ids: string[]): this { return this.set('branchItemIds', [...ids]); }
 
 	public getFile(): string { return this.get('file'); }
 	public setFile(file: string): this { return this.set('file', file); }

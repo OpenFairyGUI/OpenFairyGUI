@@ -156,6 +156,8 @@ type PackageResource = ReturnType<Package['listResources']>[number];
 type WritableResource = PackageResource & {
 	getId?(): string;
 	getPath?(): string;
+	getBranch?(): string;
+	getBranchItemIds?(): string[];
 	getExported?(): boolean;
 };
 
@@ -548,11 +550,87 @@ export class ProjectWriter {
 		const fs = this._fs;
 		const pkgDir = fs.join(assetsPath, pkg.getName());
 		await fs.mkdir(pkgDir);
+		const basePath = fs.dirname(assetsPath);
+		const resourcesByBranch = new Map<string, PackageResource[]>();
+		for (const res of pkg.listResources()) {
+			const branchName = (res as WritableResource).getBranch?.() ?? '';
+			const bucket = resourcesByBranch.get(branchName) ?? [];
+			bucket.push(res);
+			resourcesByBranch.set(branchName, bucket);
+		}
 
 		// Build package.xml object
+		const mainResources = resourcesByBranch.get('') ?? [];
+		const resources: Record<string, unknown[]> = this._serializePackageResources(mainResources);
+
+		const publishName = pkg.getPublishName() || pkg.getName();
+		const publishPath = pkg.getPublishPath();
+		const publishBranchPath = pkg.getPublishBranchPath();
+		const publishPackageCount = pkg.getPublishPackageCount();
+		const packageDescriptionAttrs: Record<string, unknown> = {};
+		writeXmlAttr(packageDescriptionAttrs, PROJECT_XML_PROTOCOL.packageDescription.attrs.id, pkg.getId());
+		const publishAttrs: Record<string, unknown> = {};
+		writeXmlAttr(publishAttrs, PROJECT_XML_PROTOCOL.packagePublish.attrs.name, publishName);
+		writeXmlAttr(
+			publishAttrs,
+			PROJECT_XML_PROTOCOL.packagePublish.attrs.path,
+			publishPath || undefined,
+		);
+		writeXmlAttr(
+			publishAttrs,
+			PROJECT_XML_PROTOCOL.packagePublish.attrs.branchPath,
+			publishBranchPath || undefined,
+		);
+		writeXmlAttr(
+			publishAttrs,
+			PROJECT_XML_PROTOCOL.packagePublish.attrs.packageCount,
+			publishPackageCount > 0 ? publishPackageCount : undefined,
+		);
+		const pkgXmlObj = {
+			'?xml': { '@_version': '1.0', '@_encoding': 'utf-8' },
+			packageDescription: {
+				...packageDescriptionAttrs,
+				resources,
+				publish: publishAttrs,
+			},
+		};
+
+		await fs.writeFile(
+			fs.join(pkgDir, 'package.xml'),
+			builder.build(pkgXmlObj) as string,
+		);
+
+		// Write main-branch component XML files
+		for (const comp of mainResources.filter((resource): resource is Component => resource.propertyType === 'Component')) {
+			await this._writeComponent(comp, pkgDir);
+		}
+
+		for (const [branchName, branchResources] of resourcesByBranch) {
+			if (!branchName) continue;
+			const branchPkgDir = fs.join(basePath, `assets_${branchName}`, pkg.getName());
+			await fs.mkdir(branchPkgDir);
+			const branchResourcesObj = this._serializePackageResources(branchResources);
+			const branchPkgXmlObj = {
+				'?xml': { '@_version': '1.0', '@_encoding': 'utf-8' },
+				branchDescription: {
+					resources: branchResourcesObj,
+				},
+			};
+			await fs.writeFile(
+				fs.join(branchPkgDir, 'package_branch.xml'),
+				builder.build(branchPkgXmlObj) as string,
+			);
+
+			for (const comp of branchResources.filter((resource): resource is Component => resource.propertyType === 'Component')) {
+				await this._writeComponent(comp, branchPkgDir);
+			}
+		}
+	}
+
+	private _serializePackageResources(packageResources: PackageResource[]): Record<string, unknown[]> {
 		const resources: Record<string, unknown[]> = {};
 
-		for (const res of pkg.listResources()) {
+		for (const res of packageResources) {
 			const tagName = this._resourceTag(res.propertyType as string);
 			if (!tagName) continue;
 
@@ -617,50 +695,10 @@ export class ProjectWriter {
 			(resources[tagName] as Record<string, unknown>[]).push(attrs);
 		}
 
-		const publishName = pkg.getPublishName() || pkg.getName();
-		const publishPath = pkg.getPublishPath();
-		const publishBranchPath = pkg.getPublishBranchPath();
-		const publishPackageCount = pkg.getPublishPackageCount();
-		const packageDescriptionAttrs: Record<string, unknown> = {};
-		writeXmlAttr(packageDescriptionAttrs, PROJECT_XML_PROTOCOL.packageDescription.attrs.id, pkg.getId());
-		const publishAttrs: Record<string, unknown> = {};
-		writeXmlAttr(publishAttrs, PROJECT_XML_PROTOCOL.packagePublish.attrs.name, publishName);
-		writeXmlAttr(
-			publishAttrs,
-			PROJECT_XML_PROTOCOL.packagePublish.attrs.path,
-			publishPath || undefined,
-		);
-		writeXmlAttr(
-			publishAttrs,
-			PROJECT_XML_PROTOCOL.packagePublish.attrs.branchPath,
-			publishBranchPath || undefined,
-		);
-		writeXmlAttr(
-			publishAttrs,
-			PROJECT_XML_PROTOCOL.packagePublish.attrs.packageCount,
-			publishPackageCount > 0 ? publishPackageCount : undefined,
-		);
-		const pkgXmlObj = {
-			'?xml': { '@_version': '1.0', '@_encoding': 'utf-8' },
-			packageDescription: {
-				...packageDescriptionAttrs,
-				resources,
-				publish: publishAttrs,
-			},
-		};
-
-		await fs.writeFile(
-			fs.join(pkgDir, 'package.xml'),
-			builder.build(pkgXmlObj) as string,
-		);
-
-		// Write component XML files
-		for (const comp of pkg.listComponents()) {
-			await this._writeComponent(comp, pkg, pkgDir);
-		}
+		return resources;
 	}
 
-	private async _writeComponent(comp: Component, _pkg: Package, pkgDir: string): Promise<void> {
+	private async _writeComponent(comp: Component, pkgDir: string): Promise<void> {
 		const fs = this._fs;
 		const typedComp = comp as WritableComponent;
 		const path = typedComp.getPath?.() ?? '/';

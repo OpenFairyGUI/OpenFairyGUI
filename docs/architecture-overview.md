@@ -112,6 +112,7 @@ flowchart LR
 | 节点 | 当前正式读写属性 |
 |---|---|
 | `packageDescription` 骨架 | `id` |
+| `branchDescription` 骨架 | 分支资源清单根节点 |
 | `packageDescription > publish` | `name`、`path`、`branchPath`、`packageCount` |
 | 通用资源节点 | `id`、`name`、`path`、`exported` |
 | `image` 资源 | `atlas`、`scale`、`scale9grid`、`width`、`height`、`gridTile`、`qualityOption`、`duplicatePadding`、`smoothing` |
@@ -121,6 +122,17 @@ flowchart LR
 | `dragonbones` 资源 | `width`、`height`、`require`、`atlasNames`、`anchor` |
 
 其中 `image@atlas` 当前作为图片资源的纹理集模式字段读写，在正式模型中由 `ImageResource.textureSetMode` 承载。
+
+## 当前分支工程目录口径
+
+`ProjectReader / ProjectWriter` 当前已按编辑器目录结构处理资源分支：
+
+| 目录 / 文件 | 当前口径 |
+|---|---|
+| `assets/<包名>/package.xml` | 主分支资源清单 |
+| `assets_<branch>/<包名>/package_branch.xml` | 指定分支的资源清单 |
+| `Root.branches` | 当前工程已发现的分支名列表 |
+| 资源节点 `branch` | 分支资源通过正式资源字段区分，不再停留在临时 `extras` |
 
 ## 当前发布附属资源口径
 

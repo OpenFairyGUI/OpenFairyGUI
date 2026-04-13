@@ -1083,11 +1083,12 @@ test('binary writer: misc/spine/dragonbones resources round-trip as formal packa
 		t.deepEqual(
 			items
 				.filter((item) => item.id === 'misc001' || item.id === 'spine001' || item.id === 'dragon001')
+				.sort((a, b) => (a.id ?? '').localeCompare(b.id ?? ''))
 				.map((item) => ({ type: item.type, id: item.id, file: item.file })),
 			[
+				{ type: 9, id: 'dragon001', file: 'dragon_ske.json' },
 				{ type: 7, id: 'misc001', file: 'alien-pma.atlas' },
 				{ type: 8, id: 'spine001', file: 'alien-pro.skel' },
-				{ type: 9, id: 'dragon001', file: 'dragon_ske.json' },
 			],
 		);
 
@@ -1115,6 +1116,55 @@ test('binary writer: misc/spine/dragonbones resources round-trip as formal packa
 		t.is(dragon2.getFile?.(), 'dragon_ske.json');
 		t.is(dragon2.getAnchorX?.(), 0);
 		t.is(dragon2.getAnchorY?.(), 0);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('binary writer: branch metadata round-trips as package-level branches and item mappings', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setBranches(['dev']);
+
+	const pkg = doc.createPackage('BranchPkg');
+	pkg.setId('branch001');
+
+	const mainImage = doc.createImageResource('face.png');
+	mainImage
+		.setId('mainFace')
+		.setPath('/')
+		.setExported(true)
+		.setBranchItemIds(['devFace']);
+	pkg.addResource(mainImage);
+
+	const devImage = doc.createImageResource('face.png');
+	devImage
+		.setId('devFace')
+		.setPath('/')
+		.setExported(true)
+		.setBranch('dev');
+	pkg.addResource(devImage);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-bw-'));
+	const outPath = path.join(tmpDir, 'branch_resources.bytes');
+
+	try {
+		await io.writeBinary(doc, outPath);
+
+		const roundTripped = await io.readBinary(outPath);
+		t.deepEqual(roundTripped.getRoot().listBranches(), ['dev']);
+
+		const pkg2 = roundTripped.getRoot().getPackage('BranchPkg');
+		t.truthy(pkg2, 'BranchPkg exists after round-trip');
+
+		const mainImage2 = pkg2!.listResources().find((resource) => resource.getId?.() === 'mainFace') as any;
+		const devImage2 = pkg2!.listResources().find((resource) => resource.getId?.() === 'devFace') as any;
+		t.truthy(mainImage2, 'main image exists after round-trip');
+		t.truthy(devImage2, 'branch image exists after round-trip');
+		t.is(mainImage2.getBranch?.(), '');
+		t.deepEqual(mainImage2.getBranchItemIds?.(), ['devFace']);
+		t.is(devImage2.getBranch?.(), 'dev');
+		t.deepEqual(devImage2.getBranchItemIds?.(), []);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

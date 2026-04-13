@@ -6,6 +6,8 @@ import type { FontGlyph } from './font-glyph.js';
 interface IFontResource extends IExtensibleProperty {
 	id: string;
 	path: string;
+	branch: string;
+	branchItemIds: string[];
 	fileName: string;
 	textureId: string;
 	exported: boolean;
@@ -36,6 +38,8 @@ export class FontResource extends ExtensibleProperty<IFontResource> {
 		return Object.assign(super.getDefaults(), {
 			id: '',
 			path: '',
+			branch: '',
+			branchItemIds: [],
 			fileName: '',
 			textureId: '',
 			exported: false,
@@ -57,6 +61,12 @@ export class FontResource extends ExtensibleProperty<IFontResource> {
 
 	public getPath(): string { return this.get('path'); }
 	public setPath(path: string): this { return this.set('path', path); }
+
+	public getBranch(): string { return this.get('branch'); }
+	public setBranch(branch: string): this { return this.set('branch', branch); }
+
+	public getBranchItemIds(): string[] { return [...this.get('branchItemIds')]; }
+	public setBranchItemIds(ids: string[]): this { return this.set('branchItemIds', [...ids]); }
 
 	public getFileName(): string { return this.get('fileName'); }
 	public setFileName(fileName: string): this { return this.set('fileName', fileName); }

@@ -118,7 +118,7 @@ block 5 的 patch 用于替换 block 4 中相同索引位置的占位字符串�
 |---|---|
 | `depCnt` | `int16` |
 | 依赖项 | 每项写 `id` 与 `name` |
-| 条件附加字段 | 分支段包含 `branchCount`；当前 V7 口径下该值写 `0` |
+| 条件附加字段 | 分支段先写 `branchCount:int16`，再按顺序写 branch 名列表 |
 
 ## Block 1：Package Items
 
@@ -191,9 +191,13 @@ block 5 的 patch 用于替换 block 4 中相同索引位置的占位字符串�
 
 | 字段 | 协议说明 |
 |---|---|
-| branch name | 分支名；当前 V7 口径下可写 `null` |
-| branchCount | 分支数量；当前 V7 口径下写 `0` |
-| highResCount | 高分辨率变体数量；当前 V7 口径下写 `0` |
+| branch name | 当前条目所属分支名；主分支条目写 `null` |
+| branchCount | 分支映射数量；当包启用分支表时，主条目按包级 branch 顺序写分支变体 item id 列表 |
+| highResCount | 高分辨率变体数量；当前口径下写 `0` |
+
+说明：
+- package-level branch 表存在时，主条目的 `branchCount` 对应的是已写出的 branch 槽位数量。
+- branch 变体条目自身只写 `branch name`，不再继续嵌套 `branchCount` 映射。
 
 ## Block 2：Sprites
 

@@ -12,6 +12,8 @@ export interface PixelHitTestData {
 interface IImageResource extends IExtensibleProperty {
 	id: string;
 	path: string;
+	branch: string;
+	branchItemIds: string[];
 	width: number;
 	height: number;
 	exported: boolean;
@@ -43,6 +45,8 @@ export class ImageResource extends ExtensibleProperty<IImageResource> {
 		return Object.assign(super.getDefaults(), {
 			id: '',
 			path: '',
+			branch: '',
+			branchItemIds: [],
 			width: 0,
 			height: 0,
 			exported: false,
@@ -65,6 +69,12 @@ export class ImageResource extends ExtensibleProperty<IImageResource> {
 
 	public getPath(): string { return this.get('path'); }
 	public setPath(path: string): this { return this.set('path', path); }
+
+	public getBranch(): string { return this.get('branch'); }
+	public setBranch(branch: string): this { return this.set('branch', branch); }
+
+	public getBranchItemIds(): string[] { return [...this.get('branchItemIds')]; }
+	public setBranchItemIds(ids: string[]): this { return this.set('branchItemIds', [...ids]); }
 
 	public getWidth(): number { return this.get('width'); }
 	public setWidth(w: number): this { return this.set('width', w); }

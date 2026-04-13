@@ -34,6 +34,12 @@
 |---|---|---|
 | `id` |  | 包根标识 |
 
+### `package_branch.xml > branchDescription`
+
+| 属性名 | Alias | 说明 |
+|---|---|---|
+| 无属性 |  | 分支资源清单根节点 |
+
 ### `packageDescription > publish`
 
 | 属性名 | Alias | 说明 |
@@ -45,7 +51,7 @@
 
 ### 通用资源节点
 
-适用于 `resources` 下的通用资源基础属性。
+适用于 `package.xml` 与 `package_branch.xml` 的 `resources` 下通用资源基础属性。
 
 | 属性名 | Alias | 说明 |
 |---|---|---|

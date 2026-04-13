@@ -12,6 +12,7 @@ interface IRoot extends IExtensibleProperty {
 	projectId: string;
 	projectType: number;
 	version: string;
+	branches: string[];
 	settings: ProjectSettings;
 	packages: RefSet<Package>;
 }
@@ -39,6 +40,7 @@ export class Root extends ExtensibleProperty<IRoot> {
 			projectId: '',
 			projectType: 0,
 			version: VERSION,
+			branches: [],
 			settings: {},
 			packages: new RefSet<Package>(),
 		});
@@ -62,6 +64,7 @@ export class Root extends ExtensibleProperty<IRoot> {
 		this.set('projectId', other.get('projectId'));
 		this.set('projectType', other.get('projectType'));
 		this.set('version', other.get('version'));
+		this.set('branches', other.get('branches'));
 		this.set('settings', other.get('settings'));
 		this.setName(other.getName());
 		this.setExtras({ ...other.getExtras() });
@@ -107,6 +110,21 @@ export class Root extends ExtensibleProperty<IRoot> {
 
 	public setVersion(version: string): this {
 		return this.set('version', version);
+	}
+
+	public listBranches(): string[] {
+		return [...this.get('branches')];
+	}
+
+	public setBranches(branches: string[]): this {
+		return this.set('branches', [...branches]);
+	}
+
+	public addBranch(branch: string): this {
+		if (!branch) return this;
+		const branches = this.listBranches();
+		if (!branches.includes(branch)) branches.push(branch);
+		return this.set('branches', branches);
 	}
 
 	public getSettings(): ProjectSettings {

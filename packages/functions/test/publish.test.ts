@@ -40,8 +40,23 @@ function readUtfString(bytes: Uint8Array, state: { pos: number }): string {
 	return value;
 }
 
+function readStringRef(dataView: DataView, strings: string[], pos: number): { value: string | null; nextPos: number } {
+	const index = dataView.getUint16(pos, false);
+	if (index === 65534) return { value: null, nextPos: pos + 2 };
+	if (index === 65533) return { value: '', nextPos: pos + 2 };
+	return { value: strings[index] ?? null, nextPos: pos + 2 };
+}
+
 function parsePackageBinary(bytes: Uint8Array): {
-	items: Array<{ type: number; id: string | null; file: string | null; ext: number | null }>;
+	branches: string[];
+	items: Array<{
+		type: number;
+		id: string | null;
+		file: string | null;
+		ext: number | null;
+		branch: string | null;
+		branchItems: Array<string | null>;
+	}>;
 	spriteIds: string[];
 	hitTestIds: string[];
 } {
@@ -73,7 +88,30 @@ function parsePackageBinary(bytes: Uint8Array): {
 		stringPos += len;
 	}
 
-	const items: Array<{ type: number; id: string | null; file: string | null; ext: number | null }> = [];
+	pos = offsets[0];
+	const dependencyCount = dataView.getInt16(pos, false);
+	pos += 2;
+	for (let i = 0; i < dependencyCount; i++) {
+		pos += 2; // dep id
+		pos += 2; // dep name
+	}
+	const branchCount = dataView.getInt16(pos, false);
+	pos += 2;
+	const branches: string[] = [];
+	for (let i = 0; i < branchCount; i++) {
+		const branchRef = readStringRef(dataView, strings, pos);
+		pos = branchRef.nextPos;
+		branches.push(branchRef.value ?? '');
+	}
+
+	const items: Array<{
+		type: number;
+		id: string | null;
+		file: string | null;
+		ext: number | null;
+		branch: string | null;
+		branchItems: Array<string | null>;
+	}> = [];
 	pos = offsets[1];
 	const itemCount = dataView.getInt16(pos, false);
 	pos += 2;
@@ -92,7 +130,58 @@ function parsePackageBinary(bytes: Uint8Array): {
 		pos += 4; // width
 		pos += 4; // height
 		const ext = type === 3 ? dataView.getUint8(pos) : null;
-		items.push({ type, id, file, ext });
+
+		switch (type) {
+			case 0: {
+				const scaleOption = dataView.getUint8(pos);
+				pos += 1;
+				if (scaleOption === 1) pos += 20;
+				pos += 1; // smoothing
+				break;
+			}
+			case 1: {
+				pos += 1; // smoothing
+				const rawLen = dataView.getInt32(pos, false);
+				pos += 4 + rawLen;
+				break;
+			}
+			case 3: {
+				pos += 1; // ext
+				const rawLen = dataView.getInt32(pos, false);
+				pos += 4 + rawLen;
+				break;
+			}
+			case 5: {
+				const rawLen = dataView.getInt32(pos, false);
+				pos += 4 + rawLen;
+				break;
+			}
+			case 8:
+			case 9:
+				pos += 8; // anchor x/y
+				break;
+			default:
+				if (type === 3 && ext === null) {
+					break;
+				}
+				break;
+		}
+
+		const branchRef = readStringRef(dataView, strings, pos);
+		pos = branchRef.nextPos;
+		const itemBranchCount = dataView.getUint8(pos++);
+		const branchItems: Array<string | null> = [];
+		for (let branchIndex = 0; branchIndex < itemBranchCount; branchIndex++) {
+			const branchItemRef = readStringRef(dataView, strings, pos);
+			pos = branchItemRef.nextPos;
+			branchItems.push(branchItemRef.value);
+		}
+		const highResCount = dataView.getUint8(pos++);
+		for (let highResIndex = 0; highResIndex < highResCount; highResIndex++) {
+			pos += 2;
+		}
+
+		items.push({ type, id, file, ext, branch: branchRef.value, branchItems });
 		pos = nextPos;
 	}
 
@@ -124,7 +213,7 @@ function parsePackageBinary(bytes: Uint8Array): {
 		}
 	}
 
-	return { items, spriteIds, hitTestIds };
+	return { branches, items, spriteIds, hitTestIds };
 }
 
 // ─── publish() without encoder (layout-only + binary write) ──────────
@@ -301,6 +390,34 @@ test('publish: exports loader skeleton resources and dependency closure with edi
 		t.is(byId.get('nbcg7')?.file, 'alien-pma.atlas.txt', 'misc atlas dependency writes published file name');
 		t.is(byId.get('nbcge')?.file, 'alien-pro.skel.bytes', 'spine item writes published skeleton file name');
 		t.is(byId.get('biss6')?.file, 'dragon_ske.json', 'dragonbones item keeps published json file name');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: Branch package writes branch table and main-to-branch item mapping', async (t) => {
+	const io = new NodeIO();
+	const doc = await io.readProject(UNITY_EXAMPLES_FAIRY);
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-'));
+
+	try {
+		await doc.transform(publish({
+			output: tmpDir,
+			packages: ['Branch'],
+			fs: createFs(),
+			encoder: sharp,
+			basePath: path.join(path.dirname(UNITY_EXAMPLES_FAIRY), 'assets'),
+		}));
+
+		const bytes = await fs.readFile(path.join(tmpDir, 'Branch_fui.bytes'));
+		const parsed = parsePackageBinary(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+		t.deepEqual(parsed.branches, ['dev'], 'package branch table is written');
+
+		const byId = new Map(parsed.items.map((item) => [item.id, item]));
+		t.is(byId.get('kn7w1')?.branch, null, 'main item keeps empty branch name');
+		t.deepEqual(byId.get('kn7w1')?.branchItems, ['kn7w2'], 'main item points to branch variant item id');
+		t.is(byId.get('kn7w2')?.branch, 'dev', 'branch item keeps branch name');
+		t.deepEqual(byId.get('kn7w2')?.branchItems, [], 'branch item does not write nested branch variants');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
