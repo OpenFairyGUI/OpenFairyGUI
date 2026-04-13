@@ -198,6 +198,7 @@ block 5 的 patch 用于替换 block 4 中相同索引位置的占位字符串�
 说明：
 - package-level branch 表存在时，主条目的 `branchCount` 对应的是已写出的 branch 槽位数量。
 - branch 变体条目自身只写 `branch name`，不再继续嵌套 `branchCount` 映射。
+- 当发布模式为 `主干合并活跃分支` 时，发布结果已经完成分支替换，包级 `branchCount` 写 `0`，各 item 的 `branch name` 与 `branchCount` 也都写空值。
 
 ## Block 2：Sprites
 

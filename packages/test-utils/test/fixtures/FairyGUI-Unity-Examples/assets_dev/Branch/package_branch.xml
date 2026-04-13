@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <branchDescription>
   <resources>
+    <component id="kn7w3" name="Main.xml" path="/" exported="true"/>
     <image id="kn7w2" name="face.png" path="/" exported="true"/>
   </resources>
 </branchDescription>

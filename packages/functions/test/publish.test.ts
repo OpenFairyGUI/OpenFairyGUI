@@ -53,6 +53,8 @@ function parsePackageBinary(bytes: Uint8Array): {
 		type: number;
 		id: string | null;
 		file: string | null;
+		width: number;
+		height: number;
 		ext: number | null;
 		branch: string | null;
 		branchItems: Array<string | null>;
@@ -108,6 +110,8 @@ function parsePackageBinary(bytes: Uint8Array): {
 		type: number;
 		id: string | null;
 		file: string | null;
+		width: number;
+		height: number;
 		ext: number | null;
 		branch: string | null;
 		branchItems: Array<string | null>;
@@ -127,7 +131,9 @@ function parsePackageBinary(bytes: Uint8Array): {
 		const file = strings[dataView.getUint16(pos, false)] ?? null;
 		pos += 2; // file
 		pos += 1; // exported
+		const width = dataView.getInt32(pos, false);
 		pos += 4; // width
+		const height = dataView.getInt32(pos, false);
 		pos += 4; // height
 		const ext = type === 3 ? dataView.getUint8(pos) : null;
 
@@ -181,7 +187,7 @@ function parsePackageBinary(bytes: Uint8Array): {
 			pos += 2;
 		}
 
-		items.push({ type, id, file, ext, branch: branchRef.value, branchItems });
+		items.push({ type, id, file, width, height, ext, branch: branchRef.value, branchItems });
 		pos = nextPos;
 	}
 
@@ -254,7 +260,7 @@ test('publish: generates .fui files for a synthetic document', async (t) => {
 		const pkg2 = doc2.getRoot().listPackages()[0];
 		t.is(pkg2.getId(), 'test0001', 'package ID preserved');
 		t.is(pkg2.getName(), 'TestPkg', 'package name preserved');
-		t.is(pkg2.listResources().length, 1, 'publish prunes the unreferenced image resource from binary output');
+		t.is(pkg2.listResources().length, 0, 'publish prunes unexported and unreferenced resources from binary output');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
@@ -395,7 +401,7 @@ test('publish: exports loader skeleton resources and dependency closure with edi
 	}
 });
 
-test('publish: Branch package writes branch table and main-to-branch item mapping', async (t) => {
+test('publish: Branch package merges main branch by default when branchProcessing is active-branch mode', async (t) => {
 	const io = new NodeIO();
 	const doc = await io.readProject(UNITY_EXAMPLES_FAIRY);
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-'));
@@ -411,13 +417,57 @@ test('publish: Branch package writes branch table and main-to-branch item mappin
 
 		const bytes = await fs.readFile(path.join(tmpDir, 'Branch_fui.bytes'));
 		const parsed = parsePackageBinary(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
-		t.deepEqual(parsed.branches, ['dev'], 'package branch table is written');
+		t.deepEqual(parsed.branches, [], 'merged publish does not keep runtime branch table');
 
 		const byId = new Map(parsed.items.map((item) => [item.id, item]));
-		t.is(byId.get('kn7w1')?.branch, null, 'main item keeps empty branch name');
-		t.deepEqual(byId.get('kn7w1')?.branchItems, ['kn7w2'], 'main item points to branch variant item id');
-		t.is(byId.get('kn7w2')?.branch, 'dev', 'branch item keeps branch name');
-		t.deepEqual(byId.get('kn7w2')?.branchItems, [], 'branch item does not write nested branch variants');
+		t.is(byId.get('kn7w0')?.width, 800, 'main branch publish keeps main component width');
+		t.is(byId.get('kn7w0')?.height, 600, 'main branch publish keeps main component height');
+		t.true(byId.has('kn7w1'), 'main resource id is preserved');
+		t.false(byId.has('kn7w2'), 'branch variant item id is merged away');
+		t.is(byId.get('kn7w1')?.width, 60, 'main branch publish keeps main image width');
+		t.is(byId.get('kn7w1')?.height, 58, 'main branch publish keeps main image height');
+		const mainRoundTrip = await io.readBinary(path.join(tmpDir, 'Branch_fui.bytes'));
+		const mainPkg = mainRoundTrip.getRoot().getPackage('Branch')!;
+		const mainComponent = mainPkg.getResourceById('kn7w0') as any;
+		const mainLoader = mainComponent.listChildren().find((child: any) => child.getId?.() === 'n0_kn7w');
+		t.is(mainLoader?.getUrl?.(), 'ui://a9lkf94skn7w1', 'main branch publish keeps main component resource reference');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: Branch package merges active branch resources onto main ids', async (t) => {
+	const io = new NodeIO();
+	const doc = await io.readProject(UNITY_EXAMPLES_FAIRY);
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-'));
+
+	try {
+		await doc.transform(publish({
+			output: tmpDir,
+			packages: ['Branch'],
+			branch: 'dev',
+			fs: createFs(),
+			encoder: sharp,
+			basePath: path.join(path.dirname(UNITY_EXAMPLES_FAIRY), 'assets'),
+		}));
+
+		const bytes = await fs.readFile(path.join(tmpDir, 'Branch_fui.bytes'));
+		const parsed = parsePackageBinary(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+		t.deepEqual(parsed.branches, [], 'merged active-branch publish still omits branch table');
+
+		const byId = new Map(parsed.items.map((item) => [item.id, item]));
+		t.is(byId.get('kn7w0')?.width, 820, 'branch component reuses main component id');
+		t.is(byId.get('kn7w0')?.height, 620, 'branch component overrides component size');
+		t.true(byId.has('kn7w1'), 'branch resource reuses main id');
+		t.false(byId.has('kn7w2'), 'branch resource is not emitted under its original id');
+		t.false(byId.has('kn7w3'), 'branch component is not emitted under its original id');
+		t.is(byId.get('kn7w1')?.width, 62, 'active branch overrides image width');
+		t.is(byId.get('kn7w1')?.height, 60, 'active branch overrides image height');
+		const mergedRoundTrip = await io.readBinary(path.join(tmpDir, 'Branch_fui.bytes'));
+		const mergedPkg = mergedRoundTrip.getRoot().getPackage('Branch')!;
+		const mergedComponent = mergedPkg.getResourceById('kn7w0') as any;
+		const mergedLoader = mergedComponent.listChildren().find((child: any) => child.getId?.() === 'n0_kn7w');
+		t.is(mergedLoader?.getUrl?.(), 'ui://a9lkf94skn7w1', 'merged branch component remaps local branch resource ref to main id');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

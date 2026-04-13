@@ -76,6 +76,7 @@ interface BinarySpriteEntry {
 
 interface PackageBinaryExtras extends Record<string, unknown> {
 	publishedResourceIds?: string[];
+	publishedIncludeBranches?: boolean;
 	sprites?: BinarySpriteEntry[];
 }
 
@@ -124,6 +125,7 @@ interface ComponentBinaryExtras extends Record<string, unknown> {
 
 interface PublishFileExtras extends Record<string, unknown> {
 	_publishedFile?: string;
+	_publishedId?: string;
 }
 
 interface ComponentWithExtensionType {
@@ -252,6 +254,7 @@ export class BinaryWriter {
 		const publishedResourceIds = Array.isArray(extras.publishedResourceIds)
 			? new Set(extras.publishedResourceIds)
 			: null;
+		const includeBranches = extras.publishedIncludeBranches ?? true;
 		const resources = sortResources(
 			publishedResourceIds
 				? pkg.listResources().filter((resource) => publishedResourceIds.has(resource.getId()))
@@ -264,8 +267,9 @@ export class BinaryWriter {
 				name: dep.getName(),
 			}))
 			.filter((dep) => !!dep.id);
-		const branchNames = getPackageBranchNames(doc, pkg, resources);
+		const branchNames = includeBranches ? getPackageBranchNames(doc, pkg, resources) : [];
 		const branchItemIdsMap = buildBranchItemIdsMap(pkg, branchNames);
+		const publishedItemIdMap = new Map(resources.map((resource) => [resource.getId(), getPublishedItemId(resource)]));
 
 		// Collect sprites from Atlas/Sprite property nodes OR extras.sprites (BinaryReader round-trip)
 		const sprites: BinarySpriteEntry[] = [];
@@ -277,7 +281,7 @@ export class BinaryWriter {
 				const atlasId = getAtlasId(atlas);
 				for (const sprite of atlas.listSprites()) {
 					sprites.push({
-						itemId: sprite.getItemId(),
+						itemId: publishedItemIdMap.get(sprite.getItemId()) ?? sprite.getItemId(),
 						atlasId,
 						x: sprite.getRectX(),
 						y: sprite.getRectY(),
@@ -343,7 +347,12 @@ export class BinaryWriter {
 			getHeight: () => atlas.getHeight?.() ?? 0,
 		}));
 		const allItems: BinaryPackageItem[] = [...resources, ...atlasItems];
-		const packageItemIds = new Set(allItems.map((item) => item.getId()));
+		const packageItemIds = new Set(allItems.map((item) => {
+			if ('getExtras' in item) {
+				return getPublishedItemId(item as PackageResource);
+			}
+			return item.getId();
+		}));
 		data.writeUint16(allItems.length);
 
 		for (const res of allItems) {
@@ -355,7 +364,7 @@ export class BinaryWriter {
 			switch (type) {
 				case 'ImageResource': {
 					data.writeUint8(BinItemType.Image);
-					data.writeS(res.getId());
+					data.writeS(getPublishedItemId(res));
 					data.writeS(res.getName());
 					data.writeS(res.getPath() ?? '/');
 					data.writeS(null); // file: null for Image (editor behavior)
@@ -378,7 +387,7 @@ export class BinaryWriter {
 				}
 				case 'MovieClipResource': {
 					data.writeUint8(BinItemType.MovieClip);
-					data.writeS(res.getId());
+					data.writeS(getPublishedItemId(res));
 					data.writeS(res.getName());
 					data.writeS(res.getPath() ?? '/');
 					data.writeS(null); // file: null for MovieClip
@@ -404,13 +413,13 @@ export class BinaryWriter {
 				}
 				case 'SoundResource': {
 					data.writeUint8(BinItemType.Sound);
-					data.writeS(res.getId());
+					data.writeS(getPublishedItemId(res));
 					data.writeS(res.getName());
 					data.writeS(res.getPath());
 					// Editor publishes sound file as {id}.{ext}
 					const soundFile = res.getFile();
 					const soundExt = soundFile.includes('.') ? soundFile.split('.').pop() : 'wav';
-					data.writeS(`${res.getId()}.${soundExt}`);
+					data.writeS(`${getPublishedItemId(res)}.${soundExt}`);
 					data.writeBool(res.getExported());
 					data.writeInt32(0); // width
 					data.writeInt32(0); // height
@@ -418,7 +427,7 @@ export class BinaryWriter {
 				}
 				case 'MiscResource': {
 					data.writeUint8(BinItemType.Misc);
-					data.writeS(res.getId());
+					data.writeS(getPublishedItemId(res));
 					data.writeS(res.getName());
 					data.writeS(res.getPath());
 					data.writeS(getPublishedFileName(res));
@@ -429,7 +438,7 @@ export class BinaryWriter {
 				}
 				case 'Component': {
 					data.writeUint8(BinItemType.Component);
-					data.writeS(res.getId());
+					data.writeS(getPublishedItemId(res));
 					data.writeS(res.getName());
 					data.writeS(res.getPath());
 					data.writeS(null); // file: null for Component
@@ -456,7 +465,7 @@ export class BinaryWriter {
 				}
 				case 'FontResource': {
 					data.writeUint8(BinItemType.Font);
-					data.writeS(res.getId());
+					data.writeS(getPublishedItemId(res));
 					data.writeS(res.getName());
 					data.writeS(res.getPath());
 					data.writeS(null); // file: null for Font
@@ -489,7 +498,7 @@ export class BinaryWriter {
 				}
 				case 'SpineResource': {
 					data.writeUint8(BinItemType.Spine);
-					data.writeS(res.getId());
+					data.writeS(getPublishedItemId(res));
 					data.writeS(res.getName());
 					data.writeS(res.getPath());
 					data.writeS(getPublishedFileName(res));
@@ -502,7 +511,7 @@ export class BinaryWriter {
 				}
 				case 'DragonBonesResource': {
 					data.writeUint8(BinItemType.DragonBones);
-					data.writeS(res.getId());
+					data.writeS(getPublishedItemId(res));
 					data.writeS(res.getName());
 					data.writeS(res.getPath());
 					data.writeS(getPublishedFileName(res));
@@ -542,8 +551,8 @@ export class BinaryWriter {
 
 			// v2 extra fields per item
 			if (version >= 2) {
-				const branchName = getItemBranchName(res);
-				const branchItemIds = getItemBranchItemIds(res, branchNames, branchItemIdsMap);
+				const branchName = includeBranches ? getItemBranchName(res) : '';
+				const branchItemIds = includeBranches ? getItemBranchItemIds(res, branchNames, branchItemIdsMap) : [];
 				data.writeSEx(branchName || null);
 				data.writeUint8(branchItemIds.length);
 				for (const branchItemId of branchItemIds) {
@@ -896,6 +905,14 @@ function getPublishedFileName(resource: {
 }): string {
 	const extras = (resource.getExtras?.() as PublishFileExtras | undefined) ?? {};
 	return extras._publishedFile ?? resource.getFile();
+}
+
+function getPublishedItemId(item: {
+	getId(): string;
+	getExtras?(): Record<string, unknown> | undefined;
+}): string {
+	const extras = (item.getExtras?.() as PublishFileExtras | undefined) ?? {};
+	return extras._publishedId ?? item.getId();
 }
 
 function getItemBranchName(item: BinaryPackageItem): string {

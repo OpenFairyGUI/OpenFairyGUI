@@ -71,6 +71,12 @@ export interface PublishOptions {
 	 * is updated (atlas layout computed, sprite nodes created).
 	 */
 	fs?: PublishFileSystem;
+
+	/**
+	 * Active branch name used when branchProcessing is "主干合并活跃分支".
+	 * Empty or omitted means publishing the main branch.
+	 */
+	branch?: string;
 }
 
 export interface ResolvedPublishAtlasOptions extends Pick<AtlasOptions, 'maxSize' | 'fast' | 'allowRotation' | 'padding' | 'powerOfTwo' | 'square' | 'multiPage' | 'trimImage' | 'extractAlpha'> {}
@@ -95,6 +101,7 @@ interface ImageResourceExtras extends Record<string, unknown> {
 
 interface PublishFileExtras extends Record<string, unknown> {
 	_publishedFile?: string;
+	_publishedId?: string;
 }
 
 interface BranchAwarePublishedResource {
@@ -105,6 +112,8 @@ interface PackagePublishContext {
 	referencedIds: Set<string>;
 	publishedResourceIds: Set<string>;
 	pixelHitTestImageIds: Set<string>;
+	effectiveResourceIds: Map<string, string>;
+	includeBranches: boolean;
 }
 
 interface ChildReferenceItem {
@@ -412,11 +421,47 @@ function setPublishedFileExtra(
 	});
 }
 
-function collectPackagePublishContext(pkg: Package): {
-	referencedIds: Set<string>;
-	publishedResourceIds: Set<string>;
-	pixelHitTestImageIds: Set<string>;
-} {
+function setPublishedIdExtra(
+	resource: { getId(): string; getExtras(): Record<string, unknown> | undefined; setExtras(value: Record<string, unknown>): unknown },
+	effectiveId: string | null,
+): void {
+	const extras = (resource.getExtras() as PublishFileExtras | undefined) ?? {};
+	if (!effectiveId || effectiveId === resource.getId()) {
+		if (!('_publishedId' in extras)) return;
+		const { _publishedId: _ignored, ...rest } = extras;
+		resource.setExtras(rest);
+		return;
+	}
+	resource.setExtras({
+		...extras,
+		_publishedId: effectiveId,
+	});
+}
+
+function getPublishedId(resource: { getId(): string; getExtras(): Record<string, unknown> | undefined }): string {
+	const extras = (resource.getExtras() as PublishFileExtras | undefined) ?? {};
+	return extras._publishedId ?? resource.getId();
+}
+
+function getBranchName(resource: BranchAwarePublishedResource | undefined): string {
+	return resource?.getBranch?.() ?? '';
+}
+
+function buildBranchResourceKey(resource: {
+	propertyType: string;
+	getPath(): string;
+	getName(): string;
+}): string {
+	return `${resource.propertyType}|${resource.getPath() ?? ''}|${resource.getName() ?? ''}`;
+}
+
+function collectPackagePublishContext(
+	pkg: Package,
+	options: {
+		includeBranches: boolean;
+		activeBranch: string;
+	},
+): PackagePublishContext {
 	const pkgId = pkg.getId();
 	const resources = pkg.listResources();
 	const resourceMap = new Map(resources.map((resource) => [resource.getId(), resource]));
@@ -512,7 +557,7 @@ function collectPackagePublishContext(pkg: Package): {
 			continue;
 		}
 		if (isImageResource(resource)) {
-			if (resource.getExported() || spriteItemIds.has(resourceId) || pixelHitTestImageIds.has(resourceId)) {
+			if (resource.getExported() || referencedIds.has(resourceId) || spriteItemIds.has(resourceId) || pixelHitTestImageIds.has(resourceId)) {
 				publishedResourceIds.add(resourceId);
 			}
 			continue;
@@ -526,7 +571,7 @@ function collectPackagePublishContext(pkg: Package): {
 			continue;
 		}
 		if (isFontResource(resource)) {
-			if ((resource.getExported() || referencedIds.has(resourceId)) && (resource.listGlyphs().length > 0 || resource.getTtf())) {
+			if (resource.getExported() || referencedIds.has(resourceId)) {
 				publishedResourceIds.add(resourceId);
 			}
 			continue;
@@ -551,10 +596,81 @@ function collectPackagePublishContext(pkg: Package): {
 		}
 	}
 
+	if (!options.includeBranches) {
+		const mainByKey = new Map<string, ReturnType<Package['listResources']>[number]>();
+		const activeBranchByKey = new Map<string, ReturnType<Package['listResources']>[number]>();
+		for (const resource of resources) {
+			const branchName = getBranchName(resource);
+			const key = buildBranchResourceKey(resource);
+			if (!branchName) {
+				mainByKey.set(key, resource);
+			} else if (branchName === options.activeBranch) {
+				activeBranchByKey.set(key, resource);
+			}
+		}
+
+		const mergedPublishedResourceIds = new Set<string>();
+		const effectiveResourceIds = new Map<string, string>();
+		for (const resource of resources) {
+			const resourceId = resource.getId();
+			if (!publishedResourceIds.has(resourceId)) continue;
+
+			const branchName = getBranchName(resource);
+			const key = buildBranchResourceKey(resource);
+			if (branchName) {
+				if (branchName !== options.activeBranch) continue;
+				const mainResource = mainByKey.get(key);
+				mergedPublishedResourceIds.add(resourceId);
+				effectiveResourceIds.set(resourceId, mainResource?.getId() ?? resourceId);
+				continue;
+			}
+
+			const override = activeBranchByKey.get(key);
+			if (override) {
+				mergedPublishedResourceIds.add(override.getId());
+				effectiveResourceIds.set(override.getId(), resourceId);
+				continue;
+			}
+
+			mergedPublishedResourceIds.add(resourceId);
+			effectiveResourceIds.set(resourceId, resourceId);
+		}
+
+		publishedResourceIds.clear();
+		for (const resourceId of mergedPublishedResourceIds) {
+			publishedResourceIds.add(resourceId);
+		}
+
+		const mergedPixelHitTestImageIds = new Set<string>();
+		for (const resource of resources) {
+			if (!isImageResource(resource)) continue;
+			const resourceId = resource.getId();
+			if (!publishedResourceIds.has(resourceId)) continue;
+			const effectiveId = effectiveResourceIds.get(resourceId) ?? resourceId;
+			if (pixelHitTestImageIds.has(effectiveId)) {
+				mergedPixelHitTestImageIds.add(resourceId);
+			}
+		}
+		pixelHitTestImageIds.clear();
+		for (const resourceId of mergedPixelHitTestImageIds) {
+			pixelHitTestImageIds.add(resourceId);
+		}
+
+		return {
+			referencedIds,
+			publishedResourceIds,
+			pixelHitTestImageIds,
+			effectiveResourceIds,
+			includeBranches: false,
+		};
+	}
+
 	return {
 		referencedIds,
 		publishedResourceIds,
 		pixelHitTestImageIds,
+		effectiveResourceIds: new Map([...publishedResourceIds].map((resourceId) => [resourceId, resourceId])),
+		includeBranches: true,
 	};
 }
 
@@ -625,13 +741,22 @@ async function annotatePackagePublishArtifacts(
 	pkg: Package,
 	basePath: string | undefined,
 	encoder: PublishEncoder | undefined,
+	options: {
+		includeBranches: boolean;
+		activeBranch: string;
+	},
 ): Promise<void> {
-	const { publishedResourceIds, pixelHitTestImageIds } = collectPackagePublishContext(pkg);
+	const { publishedResourceIds, pixelHitTestImageIds, effectiveResourceIds, includeBranches } = collectPackagePublishContext(pkg, options);
+	for (const resource of pkg.listResources()) {
+		setPublishedIdExtra(resource, effectiveResourceIds.get(resource.getId()) ?? null);
+	}
 	await applyPixelHitTests(pkg, pixelHitTestImageIds, basePath, encoder);
 	const extras = (pkg.getExtras() as PackagePublishArtifactsExtras | undefined) ?? {};
 	pkg.setExtras({
 		...extras,
 		publishedResourceIds: [...publishedResourceIds].sort((a, b) => a.localeCompare(b)),
+		publishedIncludeBranches: includeBranches,
+		publishedEffectiveResourceIds: Object.fromEntries(effectiveResourceIds),
 	});
 	for (const resource of pkg.listResources()) {
 		if (isMiscResource(resource)) {
@@ -692,7 +817,7 @@ async function exportPackageSounds(
 		if (!publishedResourceIds.has(resource.getId())) continue;
 
 		const sourcePath = resolveSoundPath(resource, pkg, basePath);
-		const targetName = resolvePublishedSoundFileName(pkg, resource);
+		const targetName = `${pkg.getPublishName() || pkg.getName()}_${getPublishedId(resource)}${extname(resource.getFile() || '')}`;
 		const targetPath = fs.join(outputDir, targetName);
 
 		try {
@@ -783,6 +908,8 @@ export function publish(options: PublishOptions): Transform {
 	return createTransform('publish', async (doc: Document): Promise<void> => {
 		const root = doc.getRoot();
 		const logger = doc.getLogger();
+		const settings = (root.getSettings?.() ?? {}) as RootProjectSettings;
+		const publishSettings: CliPublishSettings = settings.publish ?? {};
 		const resolved = resolvePublishOptions(doc, {
 			compressed: options.compressed,
 			fileExtension: options.fileExtension,
@@ -791,7 +918,45 @@ export function publish(options: PublishOptions): Transform {
 		});
 		const ext = resolved.fileExtension;
 
-		// Step 1: Atlas packing
+		// Step 1: Determine which packages to publish
+		let allPackages = root.listPackages();
+		if (resolved.packages && resolved.packages.length > 0) {
+			const names = new Set(resolved.packages);
+			allPackages = allPackages.filter((p) => names.has(p.getName()));
+		}
+
+		if (allPackages.length === 0) {
+			logger.warn('publish: No packages to publish.');
+			return;
+		}
+
+		const branchProcessing = publishSettings.branchProcessing ?? 0;
+		const includeBranches = branchProcessing === 0;
+		const activeBranch = includeBranches ? '' : (options.branch ?? '');
+
+		const allDocPackages = root.listPackages();
+		// Build a pkgId→name map for dependency resolution
+		const pkgMap = new Map<string, Package>();
+		for (const p of allDocPackages) {
+			pkgMap.set(p.getId(), p);
+		}
+
+		for (const pkg of allPackages) {
+			// Compute dependency list and selected publish artifacts before atlas packing,
+			// so merged-branch publishes can pack the overridden resources with main IDs.
+			_computeDependencies(pkg, pkgMap);
+			await annotatePackagePublishArtifacts(
+				pkg,
+				options.basePath,
+				options.encoder as PublishEncoder | undefined,
+				{
+					includeBranches,
+					activeBranch,
+				},
+			);
+		}
+
+		// Step 2: Atlas packing
 		const atlasOpts: AtlasOptions = {
 			...resolved.atlas,
 			...(options.atlas ?? {}),
@@ -805,18 +970,6 @@ export function publish(options: PublishOptions): Transform {
 		};
 		await atlas(atlasOpts)(doc);
 
-		// Step 2: Determine which packages to publish
-		let allPackages = root.listPackages();
-		if (resolved.packages && resolved.packages.length > 0) {
-			const names = new Set(resolved.packages);
-			allPackages = allPackages.filter((p) => names.has(p.getName()));
-		}
-
-		if (allPackages.length === 0) {
-			logger.warn('publish: No packages to publish.');
-			return;
-		}
-
 		// Step 3: Write .fui binary per package
 		if (!options.fs) {
 			logger.info(`publish: No fs provided — layout computed for ${allPackages.length} package(s), skipping file output.`);
@@ -825,24 +978,9 @@ export function publish(options: PublishOptions): Transform {
 
 		await options.fs.mkdir(options.output);
 
-		const allDocPackages = root.listPackages();
-		// Build a pkgId→name map for dependency resolution
-		const pkgMap = new Map<string, Package>();
-		for (const p of allDocPackages) {
-			pkgMap.set(p.getId(), p);
-		}
-
 		const writerFs = toBinaryWriterFileSystem(options.fs);
 
 		for (const pkg of allPackages) {
-			// Compute dependency list: scan font="ui://..." references in text children
-			_computeDependencies(pkg, pkgMap);
-			await annotatePackagePublishArtifacts(
-				pkg,
-				options.basePath,
-				options.encoder as PublishEncoder | undefined,
-			);
-
 			const pkgIndex = allDocPackages.indexOf(pkg);
 			const publishName = pkg.getPublishName() || pkg.getName();
 			const fileName = resolvePublishFileName(publishName, ext);

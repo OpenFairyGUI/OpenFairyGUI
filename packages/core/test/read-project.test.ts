@@ -201,6 +201,16 @@ test('Branch package preserves branch resources and root branch list', async (t)
 	t.truthy(devImage, 'dev branch image exists');
 	t.is(devImage.propertyType, PropertyType.IMAGE_RESOURCE);
 	t.is(devImage.getBranch?.(), 'dev');
+
+	const devComponent = branchPkg.listResources().find((res) => res.getId?.() === 'kn7w3') as any;
+	t.truthy(devComponent, 'dev branch component exists');
+	t.is(devComponent.propertyType, PropertyType.COMPONENT);
+	t.is(devComponent.getBranch?.(), 'dev');
+	t.is(devComponent.getWidth?.(), 820);
+	t.is(devComponent.getHeight?.(), 620);
+	const devLoader = devComponent.listChildren?.().find((child: any) => child.getId?.() === 'n0_kn7w');
+	t.truthy(devLoader, 'dev branch component child exists');
+	t.is(devLoader?.getUrl?.(), 'ui://a9lkf94skn7w2', 'dev branch component keeps branch-local resource reference');
 });
 
 test('package.xml publish preserves packageCount', async (t) => {

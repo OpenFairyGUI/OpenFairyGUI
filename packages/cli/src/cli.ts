@@ -15,6 +15,7 @@ Publish options:
   --output, -o <dir>     Output directory (required)
   --compressed           Compress binary data (overrides project setting)
   --packages <a,b,c>     Only publish specific packages (comma-separated)
+  --branch <name>        Active branch used by "主干合并活跃分支"; omit for main branch
 
 Options:
   --help, -h     Show this help
@@ -123,12 +124,13 @@ async function cmdPublish(args: string[]): Promise<void> {
 			output: { type: 'string', short: 'o' },
 			compressed: { type: 'boolean' },
 			packages: { type: 'string' },
+			branch: { type: 'string' },
 		},
 		allowPositionals: true,
 	});
 
 	if (positionals.length === 0 || !values.output) {
-		console.error('Usage: openfairygui publish <project-dir> --output <dir> [--compressed] [--packages a,b,c]');
+		console.error('Usage: openfairygui publish <project-dir> --output <dir> [--compressed] [--packages a,b,c] [--branch name]');
 		process.exit(1);
 	}
 
@@ -147,6 +149,9 @@ async function cmdPublish(args: string[]): Promise<void> {
 	});
 
 	console.log(`Settings: ext=${resolved.fileExtension}, compressed=${resolved.compressed}`);
+	if (values.branch) {
+		console.log(`Active branch: ${values.branch}`);
+	}
 
 	const atlasConfig: NonNullable<PublishOptions['atlas']> = {
 		...resolved.atlas,
@@ -193,6 +198,7 @@ async function cmdPublish(args: string[]): Promise<void> {
 		encoder,
 		basePath: path.join(projectDir, 'assets'),
 		atlas: atlasConfig,
+		branch: values.branch,
 	}));
 
 	console.log(`\nDone! Output: ${outputDir}`);

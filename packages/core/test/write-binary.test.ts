@@ -1128,6 +1128,15 @@ test('binary writer: branch metadata round-trips as package-level branches and i
 	const pkg = doc.createPackage('BranchPkg');
 	pkg.setId('branch001');
 
+	const mainComponent = doc.createComponent('Main');
+	mainComponent
+		.setId('mainComp')
+		.setPath('/')
+		.setExported(true)
+		.setSize(200, 120)
+		.setBranchItemIds(['devComp']);
+	pkg.addResource(mainComponent);
+
 	const mainImage = doc.createImageResource('face.png');
 	mainImage
 		.setId('mainFace')
@@ -1144,6 +1153,15 @@ test('binary writer: branch metadata round-trips as package-level branches and i
 		.setBranch('dev');
 	pkg.addResource(devImage);
 
+	const devComponent = doc.createComponent('Main');
+	devComponent
+		.setId('devComp')
+		.setPath('/')
+		.setExported(true)
+		.setSize(320, 180)
+		.setBranch('dev');
+	pkg.addResource(devComponent);
+
 	const io = new NodeIO();
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-bw-'));
 	const outPath = path.join(tmpDir, 'branch_resources.bytes');
@@ -1157,10 +1175,18 @@ test('binary writer: branch metadata round-trips as package-level branches and i
 		const pkg2 = roundTripped.getRoot().getPackage('BranchPkg');
 		t.truthy(pkg2, 'BranchPkg exists after round-trip');
 
+		const mainComponent2 = pkg2!.listResources().find((resource) => resource.getId?.() === 'mainComp') as any;
+		const devComponent2 = pkg2!.listResources().find((resource) => resource.getId?.() === 'devComp') as any;
 		const mainImage2 = pkg2!.listResources().find((resource) => resource.getId?.() === 'mainFace') as any;
 		const devImage2 = pkg2!.listResources().find((resource) => resource.getId?.() === 'devFace') as any;
+		t.truthy(mainComponent2, 'main component exists after round-trip');
+		t.truthy(devComponent2, 'branch component exists after round-trip');
 		t.truthy(mainImage2, 'main image exists after round-trip');
 		t.truthy(devImage2, 'branch image exists after round-trip');
+		t.is(mainComponent2.getBranch?.(), '');
+		t.deepEqual(mainComponent2.getBranchItemIds?.(), ['devComp']);
+		t.is(devComponent2.getBranch?.(), 'dev');
+		t.deepEqual(devComponent2.getBranchItemIds?.(), []);
 		t.is(mainImage2.getBranch?.(), '');
 		t.deepEqual(mainImage2.getBranchItemIds?.(), ['devFace']);
 		t.is(devImage2.getBranch?.(), 'dev');

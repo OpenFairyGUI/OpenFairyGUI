@@ -267,6 +267,7 @@ test('round-trip: branch package resources write into package_branch.xml and sur
 	mainComponent.setPath('/');
 	mainComponent.setExported(true);
 	mainComponent.setSize(200, 120);
+	mainComponent.setBranchItemIds(['kn7w3']);
 	pkg.addResource(mainComponent);
 
 	const mainImage = doc.createImageResource('face.png');
@@ -283,6 +284,19 @@ test('round-trip: branch package resources write into package_branch.xml and sur
 	devImage.setBranch('dev');
 	pkg.addResource(devImage);
 
+	const devComponent = doc.createComponent('Main');
+	devComponent.setId('kn7w3');
+	devComponent.setPath('/');
+	devComponent.setExported(true);
+	devComponent.setSize(320, 180);
+	devComponent.setBranch('dev');
+	const devLoader = doc.createGLoader('n0');
+	devLoader.setId('n0_kn7w');
+	devLoader.setUrl('ui://branch001kn7w2');
+	devLoader.setSize(62, 60);
+	devComponent.addChild(devLoader);
+	pkg.addResource(devComponent);
+
 	const io = new NodeIO();
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-branch-'));
 	const outFairy = path.join(tmpDir, 'out.fairy');
@@ -297,6 +311,7 @@ test('round-trip: branch package resources write into package_branch.xml and sur
 		const branchPackageXml = await fs.readFile(path.join(tmpDir, 'assets_dev', 'Branch', 'package_branch.xml'), 'utf-8');
 		t.true(branchPackageXml.includes('<branchDescription>'), 'branchDescription root is written');
 		t.true(branchPackageXml.includes('id="kn7w2"'), 'package_branch.xml keeps branch resource');
+		t.true(branchPackageXml.includes('id="kn7w3"'), 'package_branch.xml keeps branch component resource');
 
 		const doc2 = await io.readProject(outFairy);
 		const pkg2 = doc2.getRoot().getPackage('Branch');
@@ -305,8 +320,16 @@ test('round-trip: branch package resources write into package_branch.xml and sur
 
 		const roundTripMainImage = pkg2!.listResources().find((res) => res.getId?.() === 'kn7w1') as any;
 		const roundTripDevImage = pkg2!.listResources().find((res) => res.getId?.() === 'kn7w2') as any;
+		const roundTripMainComponent = pkg2!.listResources().find((res) => res.getId?.() === 'kn7w0') as any;
+		const roundTripDevComponent = pkg2!.listResources().find((res) => res.getId?.() === 'kn7w3') as any;
 		t.is(roundTripMainImage?.getBranch?.(), '');
 		t.is(roundTripDevImage?.getBranch?.(), 'dev');
+		t.is(roundTripMainComponent?.getBranch?.(), '');
+		t.is(roundTripDevComponent?.getBranch?.(), 'dev');
+		t.is(roundTripDevComponent?.getWidth?.(), 320);
+		t.is(roundTripDevComponent?.getHeight?.(), 180);
+		const roundTripDevLoader = roundTripDevComponent?.listChildren?.().find((child: any) => child.getId?.() === 'n0_kn7w');
+		t.is(roundTripDevLoader?.getUrl?.(), 'ui://branch001kn7w2');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

@@ -18,7 +18,7 @@
     "codeType": ""
   },
   "includeHighResolution": 1,
-  "branchProcessing": 0,
+  "branchProcessing": 1,
   "seperatedAtlasForBranch": false,
   "atlasSetting": {
     "maxSize": 2048,

@@ -126,6 +126,10 @@ type PackableResource = ImageResource | MovieClipResource | FontResource;
 type PackInputResource = ImageResource | MovieClipResource;
 type ParsedFnt = ReturnType<typeof _parseFnt>;
 
+function getPublishedItemId(resource: { getId(): string; getExtras(): ExtrasMap | undefined }): string {
+	return ((resource.getExtras() as ImageResourceExtras | undefined) ?? {})._publishedId ?? resource.getId();
+}
+
 interface AtlasReferenceItem {
 	icon?: string | null;
 	url?: string | null;
@@ -168,6 +172,7 @@ interface ChildWithReferenceUrls extends HasOptionalSrc, HasOptionalUrl {
 
 interface ImageResourceExtras extends ExtrasMap {
 	_fileName?: string;
+	_publishedId?: string;
 }
 
 interface FontSpriteAlias {
@@ -177,6 +182,10 @@ interface FontSpriteAlias {
 
 interface FontResourceExtras extends ExtrasMap {
 	_fontSpriteAlias?: FontSpriteAlias;
+}
+
+interface PackageAtlasExtras extends ExtrasMap {
+	publishedResourceIds?: string[];
 }
 
 interface AtlasEncoderMetadata {
@@ -460,8 +469,12 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 		const doTrim = options.trimImage && !!encoder && !!options.basePath;
 
 		for (const pkg of root.listPackages()) {
+			// Respect publish-selected resources when publish() precomputes a merged branch view.
+			const selectedPublishIds = new Set(((pkg.getExtras() as PackageAtlasExtras | undefined) ?? {}).publishedResourceIds ?? []);
+			const allResources = selectedPublishIds.size > 0
+				? pkg.listResources().filter((resource) => selectedPublishIds.has(resource.getId()))
+				: pkg.listResources();
 			// Process resources in declaration order (matching editor behavior)
-			const allResources = pkg.listResources();
 			const orderedResources = await resolveEditorCompatibleResourceOrder(pkg, allResources, options);
 			const resourceOrder = new Map(orderedResources.map((resource, index) => [resource.getId(), index]));
 			const inputOrder = new Map(allResources.map((resource, index) => [resource.getId(), index]));
@@ -1059,7 +1072,7 @@ async function _collectImage(
 	}
 
 	inputs.push({
-		id: resource.getId(), width: packW, height: packH,
+		id: getPublishedItemId(resource), width: packW, height: packH,
 		originalWidth: origW, originalHeight: origH,
 		offsetX: offX, offsetY: offY,
 		resource,

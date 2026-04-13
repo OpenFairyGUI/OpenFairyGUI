@@ -29,6 +29,8 @@ export interface PublishDependency {
 
 export interface PackagePublishArtifactsExtras extends ExtrasMap {
 	publishedResourceIds?: string[];
+	publishedIncludeBranches?: boolean;
+	publishedEffectiveResourceIds?: Record<string, string>;
 }
 
 export interface HasOptionalFont {

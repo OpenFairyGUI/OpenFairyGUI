@@ -146,6 +146,17 @@ flowchart LR
 | `DragonBonesResource` | 输出 skeleton 主文件，当前保持原文件名 |
 | `SpineResource` / `DragonBonesResource` 依赖 | 按 `require` 形成资源闭包，依赖的 `misc` / `image` 资源一并发布 |
 
+## 当前分支发布口径
+
+`publish` 当前已区分两种分支发布语义：
+
+| 模式 | 当前实现 |
+|---|---|
+| `主干包含所有分支` | 保留包级 branch 表与主资源到分支资源的 item 映射，运行时可再切换分支 |
+| `主干合并活跃分支` | 先在发布期选出主干与活跃分支合并后的资源集合，再进行 atlas 与 `_fui.bytes` 写出；分支资源复用主资源 id，二进制不再写 branch 表 |
+
+当前 `publish` 在 `主干合并活跃分支` 模式下还会接受一个显式的活跃分支输入；未指定时视为发布主干。
+
 ## 当前最关键的数据流
 
 ```mermaid
