@@ -5,6 +5,7 @@ import type { FileSystem } from './project-reader.js';
 import {
 	PublishedProjectRestorer,
 	type RestoreImageCropper,
+	type RestoreImageExtractor,
 	type RestorePublishedProjectResult,
 } from './published-project-restorer.js';
 
@@ -12,6 +13,7 @@ export interface NodeRestorePublishedProjectOptions {
 	packages?: string[];
 	force?: boolean;
 	cropImage?: RestoreImageCropper;
+	extractImage?: RestoreImageExtractor;
 }
 
 function isPublishedBinaryFile(fileName: string): boolean {
@@ -72,6 +74,7 @@ export class NodeIO extends PlatformIO {
 			sourceDir,
 			outputProjectPath,
 			cropImage: options.cropImage,
+			extractImage: options.extractImage,
 		});
 	}
 

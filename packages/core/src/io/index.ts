@@ -9,6 +9,8 @@ export {
 	PublishedProjectRestorer,
 	type RestoreImageCropInput,
 	type RestoreImageCropper,
+	type RestoreImageExtractInput,
+	type RestoreImageExtractor,
 	type RestorePublishedProjectOptions,
 	type RestorePublishedProjectResult,
 } from './published-project-restorer.js';

@@ -21,12 +21,15 @@ export interface RestoreImageCropInput {
 }
 
 export type RestoreImageCropper = (input: RestoreImageCropInput) => Promise<void>;
+export type RestoreImageExtractInput = Omit<RestoreImageCropInput, 'outputPath'>;
+export type RestoreImageExtractor = (input: RestoreImageExtractInput) => Promise<Uint8Array>;
 
 export interface RestorePublishedProjectOptions {
 	binaryPaths: string[];
 	sourceDir: string;
 	outputProjectPath: string;
 	cropImage?: RestoreImageCropper;
+	extractImage?: RestoreImageExtractor;
 }
 
 export interface RestorePublishedProjectResult {
@@ -41,13 +44,20 @@ type RestorableResource = ReturnType<Package['listResources']>[number] & {
 	getFile?(): string;
 	getFileName?(): string;
 	getId?(): string;
+	getInterval?(): number;
+	getLineHeight?(): number;
 	getPath?(): string;
+	getRepeatDelay?(): number;
 	getRenderMode?(): string;
 	getSamplePointSize?(): number;
+	getSwing?(): boolean;
+	getTtf?(): boolean;
 	setAtlasNames?(names: string[]): unknown;
 	setFile?(file: string): unknown;
 	getWidth?(): number;
 	getHeight?(): number;
+	listFrames?(): RestorableMovieFrame[];
+	listGlyphs?(): RestorableFontGlyph[];
 	setRenderMode?(renderMode: string): unknown;
 	setRequireIds?(ids: string[]): unknown;
 	setSamplePointSize?(size: number): unknown;
@@ -66,6 +76,38 @@ interface RestorableSprite {
 	getOriginalWidth(): number;
 	getOriginalHeight(): number;
 }
+
+interface RestorableMovieFrame {
+	getRectX(): number;
+	getRectY(): number;
+	getRectWidth(): number;
+	getRectHeight(): number;
+	getAddDelay(): number;
+	getSpriteId(): string;
+}
+
+interface RestorableFontGlyph {
+	getAdvance(): number;
+	getChannel(): number;
+	getChar(): string;
+	getCharId(): number;
+	getHeight(): number;
+	getImg(): string;
+	getWidth(): number;
+	getX(): number;
+	getXOffset(): number;
+	getY(): number;
+	getYOffset(): number;
+}
+
+interface SpriteLookupEntry {
+	sourceAtlas: string;
+	sprite: RestorableSprite;
+}
+
+const JTA_FILE_MARK = 'yytou';
+const JTA_VERSION = 102;
+const JTA_DEFAULT_FPS = 24;
 
 function normalizeVirtualPath(path: string | undefined): string {
 	const normalized = (path ?? '').replace(/\\/g, '/').trim();
@@ -118,6 +160,59 @@ function findImageResource(pkg: Package, itemId: string): RestorableResource | n
 	return (pkg.listResources() as RestorableResource[]).find((resource) => {
 		return resource.propertyType === 'ImageResource' && resource.getId?.() === itemId;
 	}) ?? null;
+}
+
+function fontGlyphCharId(glyph: RestorableFontGlyph): number {
+	const charId = glyph.getCharId();
+	if (charId > 0) return charId;
+	const char = glyph.getChar();
+	return char ? (char.codePointAt(0) ?? 0) : 0;
+}
+
+function scaledFrameDelay(milliseconds: number): number {
+	return milliseconds <= 0 ? 0 : Math.max(1, Math.round(milliseconds / (1000 / JTA_DEFAULT_FPS)));
+}
+
+function jtaSpeed(interval: number): number {
+	return interval <= 0 ? 1 : Math.max(1, Math.round(interval / (1000 / JTA_DEFAULT_FPS)));
+}
+
+function writeInt16(value: number): Uint8Array {
+	const data = new Uint8Array(2);
+	new DataView(data.buffer).setInt16(0, value);
+	return data;
+}
+
+function writeUint16(value: number): Uint8Array {
+	const data = new Uint8Array(2);
+	new DataView(data.buffer).setUint16(0, value);
+	return data;
+}
+
+function writeInt32(value: number): Uint8Array {
+	const data = new Uint8Array(4);
+	new DataView(data.buffer).setInt32(0, value);
+	return data;
+}
+
+function writeByte(value: number): Uint8Array {
+	return new Uint8Array([value & 0xff]);
+}
+
+function concatBytes(chunks: Uint8Array[]): Uint8Array {
+	const length = chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
+	const data = new Uint8Array(length);
+	let offset = 0;
+	for (const chunk of chunks) {
+		data.set(chunk, offset);
+		offset += chunk.byteLength;
+	}
+	return data;
+}
+
+function encodeJtaUtf(value: string): Uint8Array {
+	const bytes = new TextEncoder().encode(value);
+	return concatBytes([writeUint16(bytes.byteLength), bytes]);
 }
 
 export class PublishedProjectRestorer {
@@ -258,6 +353,7 @@ export class PublishedProjectRestorer {
 	): Promise<void> {
 		for (const pkg of doc.getRoot().listPackages()) {
 			await this._restoreAtlasImages(pkg, options);
+			await this._writeGeneratedResources(pkg, options, warnings);
 			await this._copyLooseResources(pkg, options, warnings);
 		}
 	}
@@ -319,6 +415,160 @@ export class PublishedProjectRestorer {
 			await this._mkdirForFile(outputPath);
 			await this._fs.writeFileRaw(outputPath, await this._fs.readFileRaw(sourcePath));
 		}
+	}
+
+	private async _writeGeneratedResources(
+		pkg: Package,
+		options: RestorePublishedProjectOptions,
+		warnings: string[],
+	): Promise<void> {
+		for (const resource of pkg.listResources() as RestorableResource[]) {
+			if (resource.propertyType === 'FontResource') {
+				await this._writeFontFile(pkg, resource, options.outputProjectPath);
+			} else if (resource.propertyType === 'MovieClipResource') {
+				await this._writeMovieClipFile(pkg, resource, options, warnings);
+			}
+		}
+	}
+
+	private async _writeFontFile(pkg: Package, resource: RestorableResource, outputProjectPath: string): Promise<void> {
+		const fileName = resourceFileName(resource);
+		if (!/\.fnt$/i.test(fileName)) return;
+		const glyphs = resource.listGlyphs?.() ?? [];
+		if (glyphs.length === 0) return;
+
+		const outputPath = this._resourceOutputPath(outputProjectPath, pkg, resource, fileName);
+		await this._mkdirForFile(outputPath);
+		await this._fs.writeFile(outputPath, this._serializeFont(resource, glyphs));
+	}
+
+	private _serializeFont(resource: RestorableResource, glyphs: RestorableFontGlyph[]): string {
+		const lines = [
+			'info creator=UIBuilder',
+			`common lineHeight=${resource.getLineHeight?.() ?? 0}`,
+		];
+		const isTtf = resource.getTtf?.() === true;
+
+		for (const glyph of glyphs) {
+			const charId = fontGlyphCharId(glyph);
+			if (isTtf) {
+				lines.push(
+					`char id=${charId} x=${glyph.getX()} y=${glyph.getY()} width=${glyph.getWidth()} height=${glyph.getHeight()} `
+					+ `xoffset=${glyph.getXOffset()} yoffset=${glyph.getYOffset()} xadvance=${glyph.getAdvance()} page=0 chnl=${glyph.getChannel()}`,
+				);
+			} else {
+				lines.push(
+					`char id=${charId} img=${glyph.getImg()} xoffset=${glyph.getXOffset()} yoffset=${glyph.getYOffset()} xadvance=${glyph.getAdvance()}`,
+				);
+			}
+		}
+
+		return `${lines.join('\n')}\n`;
+	}
+
+	private async _writeMovieClipFile(
+		pkg: Package,
+		resource: RestorableResource,
+		options: RestorePublishedProjectOptions,
+		warnings: string[],
+	): Promise<void> {
+		const fileName = resourceFileName(resource);
+		if (!/\.jta$/i.test(fileName)) return;
+		const frames = resource.listFrames?.() ?? [];
+		if (frames.length === 0) return;
+		if (!options.extractImage) {
+			warnings.push(`MovieClip file not generated for package "${pkg.getName()}": ${fileName}`);
+			return;
+		}
+
+		const sprites = await this._buildSpriteLookup(pkg, options);
+		const textures: Uint8Array[] = [];
+		for (const [index, frame] of frames.entries()) {
+			const spriteEntry = sprites.get(frame.getSpriteId());
+			if (!spriteEntry) {
+				warnings.push(`MovieClip frame sprite not found for package "${pkg.getName()}": ${fileName} frame ${index}`);
+				return;
+			}
+			const sprite = spriteEntry.sprite;
+			if (sprite.getRectWidth() <= 0 || sprite.getRectHeight() <= 0) {
+				textures.push(new Uint8Array(0));
+				continue;
+			}
+			textures.push(await options.extractImage({
+				sourcePath: spriteEntry.sourceAtlas,
+				left: sprite.getRectX(),
+				top: sprite.getRectY(),
+				width: sprite.getRectWidth(),
+				height: sprite.getRectHeight(),
+				rotated: sprite.getRotated(),
+				offsetX: 0,
+				offsetY: 0,
+				expectedWidth: sprite.getRotated() ? sprite.getRectHeight() : sprite.getRectWidth(),
+				expectedHeight: sprite.getRotated() ? sprite.getRectWidth() : sprite.getRectHeight(),
+			}));
+		}
+
+		const outputPath = this._resourceOutputPath(options.outputProjectPath, pkg, resource, fileName);
+		await this._mkdirForFile(outputPath);
+		await this._fs.writeFileRaw(outputPath, this._serializeMovieClip(resource, frames, textures));
+	}
+
+	private async _buildSpriteLookup(
+		pkg: Package,
+		options: RestorePublishedProjectOptions,
+	): Promise<Map<string, SpriteLookupEntry>> {
+		const sprites = new Map<string, SpriteLookupEntry>();
+		for (const atlas of pkg.listAtlases()) {
+			const sourceAtlas = await this._resolveSourceFile(options.sourceDir, this._sourceFileCandidates(pkg, atlas.getFile()));
+			if (!sourceAtlas) {
+				throw new Error(`Atlas image not found for package "${pkg.getName()}": ${this._sourceFileCandidates(pkg, atlas.getFile()).join(', ')}`);
+			}
+			for (const sprite of atlas.listSprites() as RestorableSprite[]) {
+				sprites.set(sprite.getItemId(), { sourceAtlas, sprite });
+			}
+		}
+		return sprites;
+	}
+
+	private _serializeMovieClip(
+		resource: RestorableResource,
+		frames: RestorableMovieFrame[],
+		textures: Uint8Array[],
+	): Uint8Array {
+		const chunks: Uint8Array[] = [
+			encodeJtaUtf(JTA_FILE_MARK),
+			writeInt32(JTA_VERSION),
+			writeByte(0),
+			writeByte(0),
+			writeByte(0),
+			writeByte(0),
+			writeUint16(0),
+			writeUint16(0),
+			writeUint16(resource.getWidth?.() ?? 0),
+			writeUint16(resource.getHeight?.() ?? 0),
+			writeByte(jtaSpeed(resource.getInterval?.() ?? 0)),
+			writeByte(scaledFrameDelay(resource.getRepeatDelay?.() ?? 0)),
+			writeByte(resource.getSwing?.() ? 1 : 0),
+			writeInt16(frames.length),
+		];
+
+		for (const [index, frame] of frames.entries()) {
+			chunks.push(
+				writeInt16(scaledFrameDelay(frame.getAddDelay())),
+				writeInt16(frame.getRectX()),
+				writeInt16(frame.getRectY()),
+				writeInt16(frame.getRectWidth()),
+				writeInt16(frame.getRectHeight()),
+				writeInt16(textures[index]?.byteLength === 0 ? -1 : index),
+			);
+		}
+
+		chunks.push(writeInt16(textures.length));
+		for (const texture of textures) {
+			chunks.push(writeInt32(texture.byteLength), texture);
+		}
+
+		return concatBytes(chunks);
 	}
 
 	private _sourceFileCandidates(pkg: Package, fileName: string, outputFileName = fileName): string[] {

@@ -173,7 +173,7 @@ flowchart LR
 | 工程设置 | 初始化 Unity 发布默认值，不从发布包反推原编辑器设置 |
 | `packageDescription > publish` | 按发布包中的 atlas 页重建默认 publish atlas 条目，用于表达包级发布图集 |
 | `SpineResource` / `DragonBonesResource` | 按同目录 `.atlas` / `.png` / `_tex.json` 资源推导 `require` 与 `atlasNames`；该推导只覆盖发布目录可见的依赖资源 |
-| `MovieClipResource` / `FontResource` | 恢复 `.jta`、`.fnt`、`.ttf` 资源引用名；SDF 字体按文件名补默认 `renderMode` / `samplePointSize`；不生成原始 `.jta` / `.fnt` 源文件 |
+| `MovieClipResource` / `FontResource` | 恢复 `.jta`、`.fnt`、`.ttf` 资源引用名；基于发布包中的帧、字形与 sprite 映射重建 `.jta` / `.fnt` 文件；SDF 字体按文件名补默认 `renderMode` / `samplePointSize` |
 
 ## 当前最关键的数据流
 

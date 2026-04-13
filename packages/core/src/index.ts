@@ -123,6 +123,8 @@ export {
 	type NodeRestorePublishedProjectOptions,
 	type RestoreImageCropInput,
 	type RestoreImageCropper,
+	type RestoreImageExtractInput,
+	type RestoreImageExtractor,
 	type RestorePublishedProjectOptions,
 	type RestorePublishedProjectResult,
 } from './io/index.js';

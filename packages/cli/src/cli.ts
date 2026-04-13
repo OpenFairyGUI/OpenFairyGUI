@@ -1,4 +1,10 @@
-import { NodeIO, type RestoreImageCropInput, type RestoreImageCropper } from '@openfairygui/core';
+import {
+	NodeIO,
+	type RestoreImageCropInput,
+	type RestoreImageCropper,
+	type RestoreImageExtractInput,
+	type RestoreImageExtractor,
+} from '@openfairygui/core';
 import { inspect, publish, resolvePublishOptions, type InspectReport, type PublishOptions } from '@openfairygui/functions';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -89,7 +95,12 @@ async function main(): Promise<void> {
 	}
 }
 
-async function createRestoreCropper(): Promise<RestoreImageCropper> {
+interface RestoreImageProcessors {
+	cropImage: RestoreImageCropper;
+	extractImage: RestoreImageExtractor;
+}
+
+async function createRestoreImageProcessors(): Promise<RestoreImageProcessors> {
 	let sharp: any;
 	try {
 		const mod = await import('sharp');
@@ -98,8 +109,8 @@ async function createRestoreCropper(): Promise<RestoreImageCropper> {
 		throw new Error('restore: sharp is required to crop atlas images. Install it with: pnpm add sharp');
 	}
 
-	return async (input: RestoreImageCropInput): Promise<void> => {
-		await fs.mkdir(path.dirname(input.outputPath), { recursive: true });
+	async function extractImage(input: RestoreImageExtractInput): Promise<Uint8Array> {
+		const targetPath = (input as RestoreImageCropInput).outputPath ?? input.sourcePath;
 		let image = sharp(input.sourcePath).extract({
 			left: input.left,
 			top: input.top,
@@ -128,7 +139,7 @@ async function createRestoreCropper(): Promise<RestoreImageCropper> {
 					+ `canvas ${input.expectedWidth}x${input.expectedHeight}`,
 				);
 			}
-			await sharp({
+			const composed = await sharp({
 				create: {
 					width: input.expectedWidth,
 					height: input.expectedHeight,
@@ -138,22 +149,39 @@ async function createRestoreCropper(): Promise<RestoreImageCropper> {
 			})
 				.composite([{ input: data, left: input.offsetX, top: input.offsetY }])
 				.png()
-				.toFile(input.outputPath);
-		} else {
-			await sharp(data).png().toFile(input.outputPath);
+				.toBuffer({ resolveWithObject: true });
+			if (
+				input.expectedWidth > 0
+				&& input.expectedHeight > 0
+				&& (composed.info.width !== input.expectedWidth || composed.info.height !== input.expectedHeight)
+			) {
+				throw new Error(
+					`restore: Cropped image size mismatch for ${targetPath}: `
+					+ `expected ${input.expectedWidth}x${input.expectedHeight}, got ${composed.info.width}x${composed.info.height}`,
+				);
+			}
+			return composed.data;
 		}
 
-		const metadata = await sharp(input.outputPath).metadata();
 		if (
 			input.expectedWidth > 0
 			&& input.expectedHeight > 0
-			&& (metadata.width !== input.expectedWidth || metadata.height !== input.expectedHeight)
+			&& (info.width !== input.expectedWidth || info.height !== input.expectedHeight)
 		) {
 			throw new Error(
-				`restore: Cropped image size mismatch for ${input.outputPath}: `
-				+ `expected ${input.expectedWidth}x${input.expectedHeight}, got ${metadata.width}x${metadata.height}`,
+				`restore: Cropped image size mismatch for ${targetPath}: `
+				+ `expected ${input.expectedWidth}x${input.expectedHeight}, got ${info.width}x${info.height}`,
 			);
 		}
+		return data;
+	}
+
+	return {
+		extractImage,
+		cropImage: async (input: RestoreImageCropInput): Promise<void> => {
+			await fs.mkdir(path.dirname(input.outputPath), { recursive: true });
+			await fs.writeFile(input.outputPath, await extractImage(input));
+		},
 	};
 }
 
@@ -213,7 +241,7 @@ async function cmdRestore(args: string[]): Promise<void> {
 	const releaseDir = path.resolve(positionals[0]);
 	const outputDir = path.resolve(values.output);
 	const pkgFilter = values.packages ? values.packages.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
-	const cropImage = await createRestoreCropper();
+	const { cropImage, extractImage } = await createRestoreImageProcessors();
 
 	console.log(`Restoring published FairyGUI project: ${releaseDir}`);
 	const io = new NodeIO();
@@ -221,6 +249,7 @@ async function cmdRestore(args: string[]): Promise<void> {
 		packages: pkgFilter,
 		force: values.force,
 		cropImage,
+		extractImage,
 	});
 
 	const packages = result.document.getRoot().listPackages();

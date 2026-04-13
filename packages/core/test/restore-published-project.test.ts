@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
-import { NodeIO, type RestoreImageCropInput } from '../src/index.js';
+import { NodeIO, parseJta, type RestoreImageCropInput, type RestoreImageExtractInput } from '../src/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RELEASE_DIR = path.resolve(__dirname, '../../../release');
@@ -14,8 +14,7 @@ function resourcePath(basePath: string, resourcePath: string, fileName: string):
 	return subDir ? path.join(basePath, subDir, fileName) : path.join(basePath, fileName);
 }
 
-async function cropImage(input: RestoreImageCropInput): Promise<void> {
-	await fs.mkdir(path.dirname(input.outputPath), { recursive: true });
+async function extractImage(input: RestoreImageExtractInput): Promise<Uint8Array> {
 	let pipeline = sharp(input.sourcePath).extract({
 		left: input.left,
 		top: input.top,
@@ -31,7 +30,7 @@ async function cropImage(input: RestoreImageCropInput): Promise<void> {
 		|| info.height !== input.expectedHeight
 	);
 	if (needsOriginalCanvas) {
-		await sharp({
+		return sharp({
 			create: {
 				width: input.expectedWidth,
 				height: input.expectedHeight,
@@ -41,10 +40,14 @@ async function cropImage(input: RestoreImageCropInput): Promise<void> {
 		})
 			.composite([{ input: data, left: input.offsetX, top: input.offsetY }])
 			.png()
-			.toFile(input.outputPath);
-		return;
+			.toBuffer();
 	}
-	await sharp(data).png().toFile(input.outputPath);
+	return data;
+}
+
+async function cropImage(input: RestoreImageCropInput): Promise<void> {
+	await fs.mkdir(path.dirname(input.outputPath), { recursive: true });
+	await fs.writeFile(input.outputPath, await extractImage(input));
 }
 
 test('restore published project: directory batch restores packages, assets, and branch files', async (t) => {
@@ -57,6 +60,7 @@ test('restore published project: directory batch restores packages, assets, and 
 			packages: ['Basics', 'Branch', 'Joystick', 'Loader', 'TextMeshPro'],
 			force: true,
 			cropImage,
+			extractImage,
 		});
 
 		t.is(result.projectPath, path.join(outputDir, 'Restored.fairy'));
@@ -88,6 +92,15 @@ test('restore published project: directory batch restores packages, assets, and 
 		t.true(basicsPackageXml.includes('<atlas name="Default" index="0"'), 'package.xml keeps default atlas publish entry');
 		t.true(basicsPackageXml.includes('name="nlge1k.jta"'), 'movieclip package resource keeps .jta file name');
 		t.true(basicsPackageXml.includes('name="BMFontTest.fnt"'), 'font package resource keeps .fnt file name');
+		const hitNumberFnt = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'font', 'HitNumber.fnt'), 'utf-8');
+		t.true(hitNumberFnt.includes('char id=48 img=duef6n xoffset=0 yoffset=0 xadvance=33'), 'bitmap font file is regenerated from published glyphs');
+		const bmFontTestFnt = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'font', 'BMFontTest.fnt'), 'utf-8');
+		t.true(bmFontTestFnt.includes('char id=35 x=22 y=37 width=15 height=20 xoffset=0 yoffset=6 xadvance=14 page=0 chnl=15'), 'ttf-backed font file is regenerated from published glyph metrics');
+		const movieClipJta = parseJta(await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'images', 'nlge1k.jta')));
+		t.is(movieClipJta.version, 102, 'movieclip jta version is regenerated');
+		t.is(movieClipJta.speed, 3, 'movieclip jta speed is restored from interval');
+		t.is(movieClipJta.frames.length, 15, 'movieclip jta frame count is restored');
+		t.is(movieClipJta.textures.length, 15, 'movieclip jta frame textures are embedded');
 
 		const branchFacePath = path.join(outputDir, 'assets_dev', 'Branch', 'face.png');
 		t.truthy(await fs.stat(branchFacePath).catch(() => null), 'branch image is cropped into assets_dev');
@@ -127,6 +140,7 @@ test('restore published project: non-empty output directory fails without force'
 			() => io.restorePublishedProject(RELEASE_DIR, outputDir, {
 				packages: ['Basics'],
 				cropImage,
+				extractImage,
 			}),
 			{ message: /not empty/ },
 		);
