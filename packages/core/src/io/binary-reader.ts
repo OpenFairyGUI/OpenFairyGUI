@@ -62,6 +62,10 @@ function normalizePackageResourcePath(path: string): string {
 	return `/${normalized.replace(/^\/+/, '').replace(/\/+$/, '')}/`;
 }
 
+function normalizePublishedImageFileName(name: string): string {
+	return /\.[a-z0-9]+$/i.test(name) ? name : `${name}.png`;
+}
+
 function findPackageById(doc: Document, id: string): Package | null {
 	if (!id) return null;
 	return doc.getRoot().getPackageById(id);
@@ -1616,7 +1620,7 @@ export class BinaryReader {
 					const res = doc.createImageResource(itemName);
 					res
 						.setId(itemId)
-						.setFileName(`${itemName}.png`)
+						.setFileName(normalizePublishedImageFileName(itemName))
 						.setPath(itemPath)
 						.setExported(exported)
 						.setWidth(width)
@@ -1656,6 +1660,7 @@ export class BinaryReader {
 				case BinItemType.Sound: {
 					const res = doc.createSoundResource(itemName);
 					res.setId(itemId).setPath(itemPath).setFile(itemFile).setExported(exported);
+					res.setExtras({ ...res.getExtras(), _publishedFile: itemFile });
 					pkg.addResource(res);
 					createdResource = res;
 					break;
@@ -1664,6 +1669,7 @@ export class BinaryReader {
 				case BinItemType.Misc: {
 					const res = doc.createMiscResource(itemName);
 					res.setId(itemId).setPath(itemPath).setFile(itemFile).setExported(exported);
+					res.setExtras({ ...res.getExtras(), _publishedFile: itemFile });
 					pkg.addResource(res);
 					createdResource = res;
 					break;
@@ -1718,6 +1724,7 @@ export class BinaryReader {
 						.setWidth(width)
 						.setHeight(height)
 						.setAnchor(buf.getFloat32(), buf.getFloat32());
+					res.setExtras({ ...res.getExtras(), _publishedFile: itemFile });
 					pkg.addResource(res);
 					createdResource = res;
 					break;
@@ -1733,6 +1740,7 @@ export class BinaryReader {
 						.setWidth(width)
 						.setHeight(height)
 						.setAnchor(buf.getFloat32(), buf.getFloat32());
+					res.setExtras({ ...res.getExtras(), _publishedFile: itemFile });
 					pkg.addResource(res);
 					createdResource = res;
 					break;

@@ -169,10 +169,11 @@ flowchart LR
 |---|---|
 | `*_fui.bytes` / `.fui` | 批量读取到同一个 `Document`，按 package id 合并依赖占位包与真实包 |
 | `atlas*.png` | 由 `PublishedProjectRestorer` 通过注入的图片裁切器按 sprite 映射裁切为碎图 PNG |
-| `SoundResource` / `MiscResource` / `SpineResource` / `DragonBonesResource` | 优先按 `<包发布名>_<资源文件名>` 从发布目录复制，回退按资源文件名复制 |
+| `SoundResource` / `MiscResource` / `SpineResource` / `DragonBonesResource` | 优先按发布文件名从发布目录复制，回退按工程资源文件名复制；Unity 发布名 `.atlas.txt` / `.skel.bytes` 会还原为工程侧 `.atlas` / `.skel` |
 | 工程设置 | 初始化 Unity 发布默认值，不从发布包反推原编辑器设置 |
 | `packageDescription > publish` | 按发布包中的 atlas 页重建默认 publish atlas 条目，用于表达包级发布图集 |
-| `MovieClipResource` / `FontResource` | 恢复 `.jta`、`.fnt`、`.ttf` 资源引用名；不生成原始 `.jta` / `.fnt` 源文件 |
+| `SpineResource` / `DragonBonesResource` | 按同目录 `.atlas` / `.png` / `_tex.json` 资源推导 `require` 与 `atlasNames`；该推导只覆盖发布目录可见的依赖资源 |
+| `MovieClipResource` / `FontResource` | 恢复 `.jta`、`.fnt`、`.ttf` 资源引用名；SDF 字体按文件名补默认 `renderMode` / `samplePointSize`；不生成原始 `.jta` / `.fnt` 源文件 |
 
 ## 当前最关键的数据流
 

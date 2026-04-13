@@ -15,6 +15,7 @@ const builder = new XMLBuilder({
 	attributeNamePrefix: '@_',
 	format: true,
 	indentBy: '  ',
+	suppressBooleanAttributes: false,
 	suppressUnpairedNode: false,
 	unpairedTags: [],
 });

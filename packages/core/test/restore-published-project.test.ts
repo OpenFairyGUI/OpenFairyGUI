@@ -54,7 +54,7 @@ test('restore published project: directory batch restores packages, assets, and 
 
 	try {
 		const result = await io.restorePublishedProject(RELEASE_DIR, outputDir, {
-			packages: ['Basics', 'Branch', 'Joystick'],
+			packages: ['Basics', 'Branch', 'Joystick', 'Loader', 'TextMeshPro'],
 			force: true,
 			cropImage,
 		});
@@ -65,6 +65,8 @@ test('restore published project: directory batch restores packages, assets, and 
 		t.truthy(doc.getRoot().getPackage('Basics'), 'Basics package is restored');
 		t.truthy(doc.getRoot().getPackage('Branch'), 'Branch package is restored');
 		t.truthy(doc.getRoot().getPackage('Joystick'), 'Joystick package is restored');
+		t.truthy(doc.getRoot().getPackage('Loader'), 'Loader package is restored');
+		t.truthy(doc.getRoot().getPackage('TextMeshPro'), 'TextMeshPro package is restored');
 		t.deepEqual(doc.getRoot().listBranches(), ['dev'], 'branch metadata survives restore');
 
 		const basics = doc.getRoot().getPackage('Basics')!;
@@ -80,6 +82,8 @@ test('restore published project: directory batch restores packages, assets, and 
 		t.truthy(await fs.stat(soundPath).catch(() => null), 'sound file is copied without publish prefix');
 		const basicsPackageXml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'package.xml'), 'utf-8');
 		t.true(basicsPackageXml.includes('name="gojg7u.wav"'), 'package.xml references copied sound file name');
+		t.true(basicsPackageXml.includes('exported="true"'), 'package.xml writes explicit true boolean attributes');
+		t.false(basicsPackageXml.includes('.png.png"'), 'image resource file names are not suffixed with .png twice');
 		t.true(basicsPackageXml.includes('<publish name="Basics">'), 'package.xml keeps publish block');
 		t.true(basicsPackageXml.includes('<atlas name="Default" index="0"'), 'package.xml keeps default atlas publish entry');
 		t.true(basicsPackageXml.includes('name="nlge1k.jta"'), 'movieclip package resource keeps .jta file name');
@@ -93,6 +97,18 @@ test('restore published project: directory batch restores packages, assets, and 
 		const joystick1Meta = await sharp(path.join(outputDir, 'assets', 'Joystick', 'images', '1.png')).metadata();
 		t.is(joystick1Meta.width, 178, 'trimmed Joystick image is restored to original width');
 		t.is(joystick1Meta.height, 160, 'trimmed Joystick image is restored to original height');
+
+		const loaderPackageXml = await fs.readFile(path.join(outputDir, 'assets', 'Loader', 'package.xml'), 'utf-8');
+		t.true(loaderPackageXml.includes('name="alien-pma.atlas"'), 'Unity atlas text extension is restored to project file name');
+		t.true(loaderPackageXml.includes('name="alien-pro.skel"'), 'Unity skeleton binary extension is restored to project file name');
+		t.true(loaderPackageXml.includes('require="nbcg7,nbcg8"'), 'Spine resource dependency ids are restored');
+		t.true(loaderPackageXml.includes('atlasNames="alien-pma"'), 'Spine atlas name is restored');
+		t.truthy(await fs.stat(path.join(outputDir, 'assets', 'Loader', 'images', 'alien-pma.atlas')).catch(() => null), 'normalized atlas file is copied');
+		t.truthy(await fs.stat(path.join(outputDir, 'assets', 'Loader', 'images', 'alien-pro.skel')).catch(() => null), 'normalized skeleton file is copied');
+
+		const textMeshProPackageXml = await fs.readFile(path.join(outputDir, 'assets', 'TextMeshPro', 'package.xml'), 'utf-8');
+		t.true(textMeshProPackageXml.includes('renderMode="sdfaa"'), 'SDF font render mode is restored from published font name');
+		t.true(textMeshProPackageXml.includes('samplePointSize="60"'), 'SDF font sample point size is restored from published font name');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
