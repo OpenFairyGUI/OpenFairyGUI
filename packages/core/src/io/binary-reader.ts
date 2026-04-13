@@ -2,6 +2,7 @@ import { inflateRaw } from 'pako';
 import { Document } from '../document.js';
 import { ControllerActionType, FGUI_MAGIC, GearType, TransitionActionType, type RelationDef } from '../constants.js';
 import type { ImageResource } from '../properties/image-resource.js';
+import type { Package } from '../properties/package.js';
 import { ByteBuffer } from './byte-buffer.js';
 import type { FileSystem } from './project-reader.js';
 
@@ -46,8 +47,31 @@ interface BinarySpriteEntry {
 }
 
 interface BranchAwarePackageResource {
+	setPath(path: string): unknown;
 	setBranch(branch: string): unknown;
 	setBranchItemIds(ids: string[]): unknown;
+}
+
+function normalizePackageResourcePath(path: string): string {
+	const normalized = path.replace(/\\/g, '/').trim();
+	if (!normalized || normalized === '/') return '/';
+	return `/${normalized.replace(/^\/+/, '').replace(/\/+$/, '')}/`;
+}
+
+function findPackageById(doc: Document, id: string): Package | null {
+	if (!id) return null;
+	return doc.getRoot().getPackageById(id);
+}
+
+function getOrCreatePackage(doc: Document, id: string, name: string): Package {
+	const existing = findPackageById(doc, id);
+	if (existing) {
+		if (name) existing.setName(name);
+		return existing;
+	}
+	const pkg = doc.createPackage(name);
+	pkg.setId(id);
+	return pkg;
 }
 
 function parseAtlasIndex(id: string): number {
@@ -1463,12 +1487,26 @@ export class BinaryReader {
 	}
 
 	async read(filePath: string): Promise<Document> {
-		const raw = await this._fs.readFileRaw(filePath);
-		const outer = new ByteBuffer(raw.buffer, raw.byteOffset, raw.byteLength);
-		return this._parsePackage(outer);
+		const doc = new Document();
+		await this.readIntoDocument(doc, filePath);
+		return doc;
 	}
 
-	private _parsePackage(outer: ByteBuffer): Document {
+	async readIntoDocument(doc: Document, filePath: string): Promise<Document> {
+		const raw = await this._fs.readFileRaw(filePath);
+		const outer = new ByteBuffer(raw.buffer, raw.byteOffset, raw.byteLength);
+		return this._parsePackage(outer, doc);
+	}
+
+	async readMany(filePaths: string[]): Promise<Document> {
+		const doc = new Document();
+		for (const filePath of filePaths) {
+			await this.readIntoDocument(doc, filePath);
+		}
+		return doc;
+	}
+
+	private _parsePackage(outer: ByteBuffer, doc: Document): Document {
 		// --- Header (always uncompressed) ---
 		if (outer.getUint32() !== FGUI_MAGIC) {
 			throw new Error('Invalid FairyGUI binary file: bad magic');
@@ -1535,18 +1573,20 @@ export class BinaryReader {
 		}
 
 		// --- Build document ---
-		const doc = new Document();
 		if (packageBranches.length > 0) {
-			doc.getRoot().setBranches(packageBranches);
+			for (const branchName of packageBranches) {
+				doc.getRoot().addBranch(branchName);
+			}
 		}
-		const pkg = doc.createPackage(packageName);
-		pkg.setId(packageId);
+		const pkg = getOrCreatePackage(doc, packageId, packageName);
+		if (pkg.listResources().length > 0 || pkg.listAtlases().length > 0) {
+			throw new Error(`Package "${packageName}" (${packageId}) has already been read.`);
+		}
 		const atlasMap = new Map<string, ReturnType<Document['createAtlas']>>();
 
 		for (const dep of dependencies) {
 			if (!dep.id || dep.id === packageId) continue;
-			const depPkg = doc.createPackage(dep.name || dep.id);
-			depPkg.setId(dep.id);
+			const depPkg = getOrCreatePackage(doc, dep.id, dep.name || dep.id);
 			pkg.addDependency(depPkg);
 		}
 
@@ -1560,7 +1600,7 @@ export class BinaryReader {
 			const itemType = buf.readByte() as BinItemType;
 			const itemId = buf.readS() ?? '';
 			const itemName = buf.readS() ?? '';
-			buf.readS(); // path (virtual folder)
+			const itemPath = normalizePackageResourcePath(buf.readS() ?? '');
 			const itemFile = buf.readS() ?? '';
 			const exported = buf.readBool();
 			const width = buf.getInt32();
@@ -1570,7 +1610,13 @@ export class BinaryReader {
 			switch (itemType) {
 				case BinItemType.Image: {
 					const res = doc.createImageResource(itemName);
-					res.setId(itemId).setExported(exported).setWidth(width).setHeight(height);
+					res
+						.setId(itemId)
+						.setFileName(`${itemName}.png`)
+						.setPath(itemPath)
+						.setExported(exported)
+						.setWidth(width)
+						.setHeight(height);
 					const scaleOpt = buf.readByte();
 					if (scaleOpt === 1) {
 						const x = buf.getInt32(), y = buf.getInt32();
@@ -1590,6 +1636,7 @@ export class BinaryReader {
 					const res = doc.createMovieClipResource(itemName);
 					res
 						.setId(itemId)
+						.setPath(itemPath)
 						.setExported(exported)
 						.setWidth(width)
 						.setHeight(height);
@@ -1603,7 +1650,7 @@ export class BinaryReader {
 
 				case BinItemType.Sound: {
 					const res = doc.createSoundResource(itemName);
-					res.setId(itemId).setFile(itemFile).setExported(exported);
+					res.setId(itemId).setPath(itemPath).setFile(itemFile).setExported(exported);
 					pkg.addResource(res);
 					createdResource = res;
 					break;
@@ -1611,7 +1658,7 @@ export class BinaryReader {
 
 				case BinItemType.Misc: {
 					const res = doc.createMiscResource(itemName);
-					res.setId(itemId).setFile(itemFile).setExported(exported);
+					res.setId(itemId).setPath(itemPath).setFile(itemFile).setExported(exported);
 					pkg.addResource(res);
 					createdResource = res;
 					break;
@@ -1619,7 +1666,7 @@ export class BinaryReader {
 
 				case BinItemType.Component: {
 					const res = doc.createComponent(itemName);
-					res.setId(itemId).setExported(exported).setSize(width, height);
+					res.setId(itemId).setPath(itemPath).setExported(exported).setSize(width, height);
 					const extensionType = COMPONENT_EXTENSION_TYPE_NAMES[buf.readByte()] ?? '';
 					res.setExtensionType(extensionType);
 					const rawData = buf.readBuffer();
@@ -1635,7 +1682,7 @@ export class BinaryReader {
 
 				case BinItemType.Font: {
 					const res = doc.createFontResource(itemName);
-					res.setId(itemId).setExported(exported);
+					res.setId(itemId).setPath(itemPath).setExported(exported);
 					const rawGlyphs = buf.readBuffer();
 					decodeFontGlyphs(doc, res, rawGlyphs);
 					pkg.addResource(res);
@@ -1659,6 +1706,7 @@ export class BinaryReader {
 					const res = doc.createSpineResource(itemName);
 					res
 						.setId(itemId)
+						.setPath(itemPath)
 						.setFile(itemFile)
 						.setExported(exported)
 						.setWidth(width)
@@ -1673,6 +1721,7 @@ export class BinaryReader {
 					const res = doc.createDragonBonesResource(itemName);
 					res
 						.setId(itemId)
+						.setPath(itemPath)
 						.setFile(itemFile)
 						.setExported(exported)
 						.setWidth(width)
@@ -1700,6 +1749,7 @@ export class BinaryReader {
 				const highResCnt = buf.getUint8();
 				if (highResCnt > 0) buf.readSArray(highResCnt);
 				if (createdResource) {
+					createdResource.setPath(itemPath);
 					createdResource.setBranch(branchName);
 					createdResource.setBranchItemIds(branchItemIds);
 				}

@@ -431,6 +431,7 @@ test('project XML protocol children maps stay explicit and stable', (t) => {
 	t.deepEqual(
 		Object.keys(PROJECT_XML_PROTOCOL).sort(),
 		[
+			'branchDescription',
 			'buttonExtension',
 			'comboBoxExtension',
 			'comboBoxItem',
@@ -454,6 +455,7 @@ test('project XML protocol children maps stay explicit and stable', (t) => {
 			'packageImageResource',
 			'packagePublish',
 			'packageResource',
+			'packageSkeletonResource',
 			'progressBarExtension',
 			'relation',
 			'richText',

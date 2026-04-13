@@ -933,7 +933,7 @@ function resolveAtlasOutputFileName(pkg: Package, pageIndex: number, branchName:
 
 function resolveImageFileName(resource: ImageResource): string {
 	const extras = resource.getExtras() as ImageResourceExtras;
-	return extras._fileName ?? resource.getName();
+	return resource.getFileName() || extras._fileName || resource.getName();
 }
 
 function nextPow2(value: number): number {
@@ -1075,8 +1075,7 @@ async function _trimImage(
  */
 function _resolveImagePath(resource: ImageResource, pkg: Package, basePath: string): string {
 	const imgPath = resource.getPath() ?? '/';
-	const extras = resource.getExtras() as ImageResourceExtras;
-	const fileName = extras._fileName ?? resource.getName();
+	const fileName = resolveImageFileName(resource);
 	const branchName = resource.getBranch?.() ?? '';
 	const normalizedBasePath = basePath.replace(/[/\\]+$/, '');
 	const packageBasePath = !branchName

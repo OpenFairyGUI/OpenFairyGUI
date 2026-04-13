@@ -11,6 +11,7 @@ export interface PixelHitTestData {
 
 interface IImageResource extends IExtensibleProperty {
 	id: string;
+	fileName: string;
 	path: string;
 	branch: string;
 	branchItemIds: string[];
@@ -44,6 +45,7 @@ export class ImageResource extends ExtensibleProperty<IImageResource> {
 	protected getDefaults(): Nullable<IImageResource> {
 		return Object.assign(super.getDefaults(), {
 			id: '',
+			fileName: '',
 			path: '',
 			branch: '',
 			branchItemIds: [],
@@ -66,6 +68,9 @@ export class ImageResource extends ExtensibleProperty<IImageResource> {
 
 	public getId(): string { return this.get('id'); }
 	public setId(id: string): this { return this.set('id', id); }
+
+	public getFileName(): string { return this.get('fileName'); }
+	public setFileName(fileName: string): this { return this.set('fileName', fileName); }
 
 	public getPath(): string { return this.get('path'); }
 	public setPath(path: string): this { return this.set('path', path); }

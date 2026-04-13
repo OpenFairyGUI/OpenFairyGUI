@@ -1,4 +1,4 @@
-import { NodeIO } from '@openfairygui/core';
+import { NodeIO, type RestoreImageCropInput, type RestoreImageCropper } from '@openfairygui/core';
 import { inspect, publish, resolvePublishOptions, type InspectReport, type PublishOptions } from '@openfairygui/functions';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -10,12 +10,18 @@ openfairygui — FairyGUI Headless Authoring CLI
 Commands:
   inspect <project-dir>                          Show project contents report
   publish <project-dir> --output <dir> [options]  Publish project to .fui binary
+  restore <release-dir> --output <dir> [options]  Restore a FairyGUI project from published binaries
 
 Publish options:
   --output, -o <dir>     Output directory (required)
   --compressed           Compress binary data (overrides project setting)
   --packages <a,b,c>     Only publish specific packages (comma-separated)
   --branch <name>        Active branch used by "主干合并活跃分支"; omit for main branch
+
+Restore options:
+  --output, -o <dir>     Output project directory (required)
+  --packages <a,b,c>     Only restore specific packages (comma-separated)
+  --force                Overwrite a non-empty output directory
 
 Options:
   --help, -h     Show this help
@@ -73,11 +79,48 @@ async function main(): Promise<void> {
 		case 'publish':
 			await cmdPublish(rest);
 			break;
+		case 'restore':
+			await cmdRestore(rest);
+			break;
 		default:
 			console.error(`Unknown command: ${command}\n`);
 			console.log(HELP);
 			process.exit(1);
 	}
+}
+
+async function createRestoreCropper(): Promise<RestoreImageCropper> {
+	let sharp: any;
+	try {
+		const mod = await import('sharp');
+		sharp = mod.default ?? mod;
+	} catch {
+		throw new Error('restore: sharp is required to crop atlas images. Install it with: pnpm add sharp');
+	}
+
+	return async (input: RestoreImageCropInput): Promise<void> => {
+		await fs.mkdir(path.dirname(input.outputPath), { recursive: true });
+		let image = sharp(input.sourcePath).extract({
+			left: input.left,
+			top: input.top,
+			width: input.width,
+			height: input.height,
+		});
+		if (input.rotated) image = image.rotate(270);
+		await image.png().toFile(input.outputPath);
+
+		const metadata = await sharp(input.outputPath).metadata();
+		if (
+			input.expectedWidth > 0
+			&& input.expectedHeight > 0
+			&& (metadata.width !== input.expectedWidth || metadata.height !== input.expectedHeight)
+		) {
+			throw new Error(
+				`restore: Cropped image size mismatch for ${input.outputPath}: `
+				+ `expected ${input.expectedWidth}x${input.expectedHeight}, got ${metadata.width}x${metadata.height}`,
+			);
+		}
+	};
 }
 
 async function cmdInspect(args: string[]): Promise<void> {
@@ -114,6 +157,43 @@ function printReport(report: InspectReport): void {
 	for (const pkg of report.packages) {
 		const res = pkg.resources;
 		console.log(`  ${pkg.name} (${pkg.id}): ${res.images.count} img, ${res.sounds.count} snd, ${res.fonts.count} font, ${res.components.count} comp`);
+	}
+}
+
+async function cmdRestore(args: string[]): Promise<void> {
+	const { values, positionals } = parseArgs({
+		args,
+		options: {
+			output: { type: 'string', short: 'o' },
+			packages: { type: 'string' },
+			force: { type: 'boolean' },
+		},
+		allowPositionals: true,
+	});
+
+	if (positionals.length === 0 || !values.output) {
+		console.error('Usage: openfairygui restore <release-dir> --output <dir> [--packages a,b,c] [--force]');
+		process.exit(1);
+	}
+
+	const releaseDir = path.resolve(positionals[0]);
+	const outputDir = path.resolve(values.output);
+	const pkgFilter = values.packages ? values.packages.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
+	const cropImage = await createRestoreCropper();
+
+	console.log(`Restoring published FairyGUI project: ${releaseDir}`);
+	const io = new NodeIO();
+	const result = await io.restorePublishedProject(releaseDir, outputDir, {
+		packages: pkgFilter,
+		force: values.force,
+		cropImage,
+	});
+
+	const packages = result.document.getRoot().listPackages();
+	console.log(`\nDone! Output: ${result.projectPath}`);
+	console.log(`Packages: ${packages.map((pkg) => pkg.getName()).join(', ')}`);
+	for (const warning of result.warnings) {
+		console.warn(`Warning: ${warning}`);
 	}
 }
 

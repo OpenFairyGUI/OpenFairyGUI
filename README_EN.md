@@ -74,6 +74,12 @@ Run the CLI in development mode:
 pnpm dev:cli
 ```
 
+Restore a FairyGUI project from a Unity publish directory:
+
+```bash
+pnpm dev:cli restore release --output ./restored-project --packages Basics,Branch --force
+```
+
 ## Available Scripts
 
 | Script | Description |

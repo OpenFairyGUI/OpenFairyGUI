@@ -74,6 +74,12 @@ pnpm test
 pnpm dev:cli
 ```
 
+从 Unity 发布目录还原 FairyGUI 工程：
+
+```bash
+pnpm dev:cli restore release --output ./restored-project --packages Basics,Branch --force
+```
+
 ## 常用脚本
 
 | 脚本 | 说明 |

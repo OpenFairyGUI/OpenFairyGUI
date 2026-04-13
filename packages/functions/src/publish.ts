@@ -360,11 +360,15 @@ function resolvePackageAssetsBasePath(
 }
 
 function resolveImagePath(resource: ImageResource, pkg: Package, basePath: string): string {
-	const extras = (resource.getExtras() as ImageResourceExtras | undefined) ?? {};
-	const fileName = extras._fileName ?? resource.getName();
+	const fileName = resolveImageFileName(resource);
 	const resourcePath = resource.getPath() ?? '/';
 	const packageBasePath = resolvePackageAssetsBasePath(basePath, resource);
 	return `${packageBasePath}/${pkg.getName()}${resourcePath}${fileName}`;
+}
+
+function resolveImageFileName(resource: ImageResource): string {
+	const extras = (resource.getExtras() as ImageResourceExtras | undefined) ?? {};
+	return resource.getFileName() || extras._fileName || resource.getName();
 }
 
 function resolveSoundPath(resource: SoundResource, pkg: Package, basePath: string): string {
@@ -863,7 +867,7 @@ async function exportPackageExternalResources(
 		let targetName: string;
 		if (isSkeletonImageDependency) {
 			sourcePath = resolveImagePath(resource, pkg, basePath);
-			targetName = ((resource.getExtras() as ImageResourceExtras | undefined) ?? {})._fileName ?? resource.getName();
+			targetName = resolveImageFileName(resource);
 		} else if (isMiscResource(resource) || isSkeletonResource(resource)) {
 			sourcePath = resolveGenericResourcePath(resource, pkg, basePath);
 			targetName = ((resource.getExtras() as PublishFileExtras | undefined) ?? {})._publishedFile ?? resource.getFile();

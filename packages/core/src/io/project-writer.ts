@@ -162,6 +162,7 @@ type WritableResource = PackageResource & {
 };
 
 type WritableImageResource = WritableResource & {
+	getFileName?(): string;
 	getWidth?(): number;
 	getHeight?(): number;
 	getTextureSetMode?(): string;
@@ -1524,6 +1525,10 @@ export class ProjectWriter {
 		const name = res.getName?.() ?? '';
 		const type = res.propertyType as string;
 		if (type === 'Component') return name + '.xml';
+		if (type === 'ImageResource') {
+			const fileName = (res as WritableImageResource).getFileName?.() ?? '';
+			if (fileName) return fileName;
+		}
 		if (type === 'SoundResource' || type === 'MiscResource' || type === 'SpineResource' || type === 'DragonBonesResource') {
 			const fileName = (res as WritableFileResource).getFile?.() ?? '';
 			if (fileName) return fileName;

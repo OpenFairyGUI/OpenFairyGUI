@@ -16,6 +16,7 @@ flowchart LR
         FS["PlatformIO / NodeIO"]
         PR["ProjectReader"]
         BR["BinaryReader"]
+        RST["PublishedProjectRestorer"]
         PW["ProjectWriter"]
         BW["BinaryWriter"]
     end
@@ -42,6 +43,9 @@ flowchart LR
 
     PROJ --> FS --> PR --> DOC
     PACK --> FS --> BR --> DOC
+    PACK --> RST
+    ART --> RST
+    RST --> DOC
 
     DOC --> ROOT --> RES --> COMP --> UI
     DOC --> OPS
@@ -60,7 +64,7 @@ flowchart LR
 | 层级 | 当前职责 | 核心文件 |
 |---|---|---|
 | 入口层 | 命令行封装与参数分发 | `packages/cli/src/cli.ts` |
-| 协议适配层 | 屏蔽平台文件系统差异，承接工程格式与二进制格式的读写，并集中声明工程 XML 协议元数据 | `packages/core/src/io/platform-io.ts`、`packages/core/src/io/node-io.ts`、`packages/core/src/io/project-xml-protocol.ts`、`packages/core/src/io/project-reader.ts`、`packages/core/src/io/binary-reader.ts` |
+| 协议适配层 | 屏蔽平台文件系统差异，承接工程格式、二进制格式和发布产物恢复，并集中声明工程 XML 协议元数据 | `packages/core/src/io/platform-io.ts`、`packages/core/src/io/node-io.ts`、`packages/core/src/io/project-xml-protocol.ts`、`packages/core/src/io/project-reader.ts`、`packages/core/src/io/binary-reader.ts`、`packages/core/src/io/published-project-restorer.ts` |
 | 核心模型层 | `Document` 持有 `Property Graph`，统一组织项目节点、资源节点与组件语义对象 | `packages/core/src/document.ts`、`packages/core/src/properties/property.ts` |
 | 项目骨架层 | `Root -> Package -> Resource -> Component` 组成基础结构 | `packages/core/src/properties/root.ts`、`packages/core/src/properties/package.ts`、`packages/core/src/properties/component.ts` |
 | 工作流层 | 面向自动化的可组合处理管线 | `packages/functions/src/inspect.ts`、`packages/functions/src/validate.ts`、`packages/functions/src/prune.ts`、`packages/functions/src/rename.ts`、`packages/functions/src/publish.ts` |
@@ -157,14 +161,28 @@ flowchart LR
 
 当前 `publish` 在 `主干合并活跃分支` 模式下还会接受一个显式的活跃分支输入；未指定时视为发布主干。
 
+## 当前发布产物还原口径
+
+`restore` 当前面向 Unity 发布目录，把发布二进制与同目录附属资源重建成一个可重读的 FairyGUI 工程目录。该链路不承诺还原原工程的编辑器设置或历史文件布局，只输出当前模型可表达的工程结构。
+
+| 输入 / 资源 | 当前还原行为 |
+|---|---|
+| `*_fui.bytes` / `.fui` | 批量读取到同一个 `Document`，按 package id 合并依赖占位包与真实包 |
+| `atlas*.png` | 由 `PublishedProjectRestorer` 通过注入的图片裁切器按 sprite 映射裁切为碎图 PNG |
+| `SoundResource` / `MiscResource` / `SpineResource` / `DragonBonesResource` | 优先按 `<包发布名>_<资源文件名>` 从发布目录复制，回退按资源文件名复制 |
+| 工程设置 | 初始化 Unity 发布默认值，不从发布包反推原编辑器设置 |
+| `MovieClipResource` / `FontResource` | 第一版只保留解析后的正式属性与 XML，不生成 `.jta` / `.fnt` |
+
 ## 当前最关键的数据流
 
 ```mermaid
 flowchart TD
     A["工程目录输入"] --> B["ProjectReader"]
     X["二进制包输入"] --> Y["BinaryReader"]
+    R["发布目录输入<br/>.fui/.bytes + atlas/sounds"] --> S["PublishedProjectRestorer"]
     B --> C["Document"]
     Y --> C
+    S --> C
     C --> D["结构检查与整理<br/>inspect / validate / prune / rename"]
     C --> E["发布编排<br/>publish"]
     C --> F["工程写回<br/>ProjectWriter"]
@@ -179,7 +197,7 @@ flowchart TD
 
 | 模块 | 负责内容 | 不负责内容 |
 |---|---|---|
-| `@openfairygui/core` | 文档模型、属性节点、项目格式读写、二进制协议读写 | 发布编排、命令行参数封装 |
+| `@openfairygui/core` | 文档模型、属性节点、项目格式读写、二进制协议读写、发布产物恢复编排 | 发布策略、命令行参数封装 |
 | `@openfairygui/functions` | inspect / validate / prune / rename / atlas / publish 等流程组合 | 协议定义、Property Graph 基础建模 |
 | `@openfairygui/cli` | 命令入口、参数解析、调用装配 | 领域模型定义、协议定义 |
 | `@openfairygui/test-utils` | 测试辅助与夹具支持 | 生产协议与运行时流程 |

@@ -922,7 +922,7 @@ export class ProjectReader {
 				res.setPath(path);
 				res.setBranch(branchName);
 				res.setExported(exported);
-				res.setExtras({ ...res.getExtras(), _fileName: name });
+				res.setFileName(name);
 				const textureSetMode = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.atlas);
 				if (textureSetMode !== undefined) res.setTextureSetMode(textureSetMode);
 				const scale = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.scale);
