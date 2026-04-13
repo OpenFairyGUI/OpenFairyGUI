@@ -1,4 +1,4 @@
-import { GearType, TransitionActionType, type Component, type Document, type FontResource, type ILogger, type ImageResource, type MovieClipResource, type Package, type Transform } from '@openfairygui/core';
+import { GearType, TransitionActionType, type Component, type Document, type DragonBonesResource, type FontResource, type ILogger, type ImageResource, type MovieClipResource, type Package, type SpineResource, type Transform } from '@openfairygui/core';
 import { COMPAT_NODE_RECT_FLAGS, type CompatNodeRect } from './max-rects-compat.js';
 import { MaxRectsPackerCompat } from './max-rects-packer-compat.js';
 import type { ExtrasMap, HasOptionalSrc, HasOptionalUrl } from './shared-types.js';
@@ -529,6 +529,11 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 			for (const res of orderedAllResources) {
 				if (isComponentResource(res)) {
 					collectRefs(res, new Set());
+				}
+				if (isSkeletonResource(res) && referencedIds.has(res.getId())) {
+					for (const requiredId of res.getRequireIds()) {
+						if (requiredId) referencedIds.add(requiredId);
+					}
 				}
 				// Font texture references and glyph image references
 				if (isFontResource(res)) {
@@ -1506,6 +1511,10 @@ function isImageResource(resource: PackageResource): resource is ImageResource {
 
 function isMovieClipResource(resource: PackageResource): resource is MovieClipResource {
 	return resource.propertyType === 'MovieClipResource';
+}
+
+function isSkeletonResource(resource: PackageResource): resource is SpineResource | DragonBonesResource {
+	return resource.propertyType === 'SpineResource' || resource.propertyType === 'DragonBonesResource';
 }
 
 function isFontResource(resource: PackageResource): resource is FontResource {

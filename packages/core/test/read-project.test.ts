@@ -153,6 +153,37 @@ test('package.xml resources preserve image textureSetMode', async (t) => {
 	t.is(atlasImage.getTextureSetMode?.(), 'alone_npot', 'image resource keeps textureSetMode');
 });
 
+test('Loader package preserves spine and dragonbones resource attrs', async (t) => {
+	const doc = await getDoc();
+	const loaderPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Loader')!;
+	t.truthy(loaderPkg, 'Loader package exists');
+
+	const dragon = loaderPkg.listResources().find((res) => res.getId?.() === 'biss6') as any;
+	t.truthy(dragon, 'dragonbones resource exists');
+	t.is(dragon.propertyType, PropertyType.DRAGON_BONES_RESOURCE);
+	t.is(dragon.getFile?.(), 'dragon_ske.json');
+	t.deepEqual(dragon.getRequireIds?.(), ['biss7', 'biss8']);
+	t.deepEqual(dragon.getAtlasNames?.(), []);
+	t.is(dragon.getAnchorX?.(), 0);
+	t.is(dragon.getAnchorY?.(), 0);
+
+	const misc = loaderPkg.listResources().find((res) => res.getId?.() === 'nbcg7') as any;
+	t.truthy(misc, 'misc atlas dependency exists');
+	t.is(misc.propertyType, PropertyType.MISC_RESOURCE);
+	t.is(misc.getFile?.(), 'alien-pma.atlas');
+
+	const spine = loaderPkg.listResources().find((res) => res.getId?.() === 'nbcge') as any;
+	t.truthy(spine, 'spine resource exists');
+	t.is(spine.propertyType, PropertyType.SPINE_RESOURCE);
+	t.is(spine.getFile?.(), 'alien-pro.skel');
+	t.is(spine.getWidth?.(), 368);
+	t.is(spine.getHeight?.(), 384);
+	t.deepEqual(spine.getRequireIds?.(), ['nbcg7', 'nbcg8']);
+	t.deepEqual(spine.getAtlasNames?.(), ['alien-pma']);
+	t.is(spine.getAnchorX?.(), 176);
+	t.is(spine.getAnchorY?.(), 380);
+});
+
 test('package.xml publish preserves packageCount', async (t) => {
 	const layaboxDoc = await getLayaboxDoc();
 	const joystickPkg = layaboxDoc.getRoot().listPackages().find((p) => p.getName() === 'Joystick');

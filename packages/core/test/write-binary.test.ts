@@ -1036,6 +1036,90 @@ test('binary writer: font glyphs round-trip as formal properties', async (t) => 
 	}
 });
 
+test('binary writer: misc/spine/dragonbones resources round-trip as formal package resources', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('LoaderPkg');
+	pkg.setId('loader001');
+
+	const misc = doc.createMiscResource('alien-pma');
+	misc.setId('misc001').setPath('/images/').setFile('alien-pma.atlas').setExported(true);
+	pkg.addResource(misc);
+
+	const spine = doc.createSpineResource('alien-pro');
+	spine
+		.setId('spine001')
+		.setPath('/images/')
+		.setFile('alien-pro.skel')
+		.setExported(true)
+		.setWidth(368)
+		.setHeight(384)
+		.setRequireIds(['misc001', 'img001'])
+		.setAtlasNames(['alien-pma'])
+		.setAnchor(176, 380);
+	pkg.addResource(spine);
+
+	const dragon = doc.createDragonBonesResource('dragon_ske');
+	dragon
+		.setId('dragon001')
+		.setPath('/images/')
+		.setFile('dragon_ske.json')
+		.setExported(true)
+		.setWidth(0)
+		.setHeight(0)
+		.setRequireIds(['misc002', 'img002'])
+		.setAtlasNames([])
+		.setAnchor(0, 0);
+	pkg.addResource(dragon);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-bw-'));
+	const outPath = path.join(tmpDir, 'skeleton_resources.bytes');
+
+	try {
+		await io.writeBinary(doc, outPath);
+
+		const bytes = await fs.readFile(outPath);
+		const items = readPackageItems(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+		t.deepEqual(
+			items
+				.filter((item) => item.id === 'misc001' || item.id === 'spine001' || item.id === 'dragon001')
+				.map((item) => ({ type: item.type, id: item.id, file: item.file })),
+			[
+				{ type: 7, id: 'misc001', file: 'alien-pma.atlas' },
+				{ type: 8, id: 'spine001', file: 'alien-pro.skel' },
+				{ type: 9, id: 'dragon001', file: 'dragon_ske.json' },
+			],
+		);
+
+		const roundTripped = await io.readBinary(outPath);
+		const pkg2 = roundTripped.getRoot().getPackage('LoaderPkg');
+		t.truthy(pkg2, 'LoaderPkg exists after round-trip');
+
+		const misc2 = pkg2!.listResources().find((resource) => resource.getId?.() === 'misc001') as any;
+		t.truthy(misc2, 'misc resource exists');
+		t.is(misc2.propertyType, PropertyType.MISC_RESOURCE);
+		t.is(misc2.getFile?.(), 'alien-pma.atlas');
+
+		const spine2 = pkg2!.listResources().find((resource) => resource.getId?.() === 'spine001') as any;
+		t.truthy(spine2, 'spine resource exists');
+		t.is(spine2.propertyType, PropertyType.SPINE_RESOURCE);
+		t.is(spine2.getFile?.(), 'alien-pro.skel');
+		t.is(spine2.getWidth?.(), 368);
+		t.is(spine2.getHeight?.(), 384);
+		t.is(spine2.getAnchorX?.(), 176);
+		t.is(spine2.getAnchorY?.(), 380);
+
+		const dragon2 = pkg2!.listResources().find((resource) => resource.getId?.() === 'dragon001') as any;
+		t.truthy(dragon2, 'dragonbones resource exists');
+		t.is(dragon2.propertyType, PropertyType.DRAGON_BONES_RESOURCE);
+		t.is(dragon2.getFile?.(), 'dragon_ske.json');
+		t.is(dragon2.getAnchorX?.(), 0);
+		t.is(dragon2.getAnchorY?.(), 0);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('binary writer: sprite originalSize is only emitted for rotated, trimmed, or zero-sized package sprites', async (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('SpritePkg');

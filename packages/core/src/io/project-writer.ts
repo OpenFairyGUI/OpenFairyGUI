@@ -178,6 +178,19 @@ type WritableFontResource = WritableResource & {
 	getSamplePointSize?(): number;
 };
 
+type WritableFileResource = WritableResource & {
+	getFile?(): string;
+};
+
+type WritableSkeletonResource = WritableFileResource & {
+	getWidth?(): number;
+	getHeight?(): number;
+	getRequireIds?(): string[];
+	getAtlasNames?(): string[];
+	getAnchorX?(): number;
+	getAnchorY?(): number;
+};
+
 type WritableComponent = Component & {
 	getMinWidth?(): number;
 	getMaxWidth?(): number;
@@ -585,6 +598,19 @@ export class ProjectWriter {
 				if (renderMode) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageFontResource.attrs.renderMode, renderMode);
 				const samplePointSize = fontRes.getSamplePointSize?.() ?? 0;
 				if (samplePointSize !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageFontResource.attrs.samplePointSize, String(samplePointSize));
+			}
+
+			if (res.propertyType === 'SpineResource' || res.propertyType === 'DragonBonesResource') {
+				const skeletonRes = res as WritableSkeletonResource;
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.width, String(skeletonRes.getWidth?.() ?? 0));
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.height, String(skeletonRes.getHeight?.() ?? 0));
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.require, (skeletonRes.getRequireIds?.() ?? []).join(',') || undefined);
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.atlasNames, (skeletonRes.getAtlasNames?.() ?? []).join(','));
+				writeXmlAttr(
+					attrs,
+					PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.anchor,
+					`${skeletonRes.getAnchorX?.() ?? 0},${skeletonRes.getAnchorY?.() ?? 0}`,
+				);
 			}
 
 			if (!resources[tagName]) resources[tagName] = [];
@@ -1446,9 +1472,12 @@ export class ProjectWriter {
 		const map: Record<string, string> = {
 			ImageResource: 'image',
 			Component: 'component',
+			MiscResource: 'misc',
 			SoundResource: 'sound',
 			FontResource: 'font',
 			MovieClipResource: 'movieclip',
+			SpineResource: 'spine',
+			DragonBonesResource: 'dragonbones',
 		};
 		return map[propertyType] ?? null;
 	}
@@ -1457,6 +1486,10 @@ export class ProjectWriter {
 		const name = res.getName?.() ?? '';
 		const type = res.propertyType as string;
 		if (type === 'Component') return name + '.xml';
+		if (type === 'SoundResource' || type === 'MiscResource' || type === 'SpineResource' || type === 'DragonBonesResource') {
+			const fileName = (res as WritableFileResource).getFile?.() ?? '';
+			if (fileName) return fileName;
+		}
 		if (type === 'FontResource') {
 			const fileName = (res as WritableFontResource).getFileName?.() ?? '';
 			if (fileName) return fileName;

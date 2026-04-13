@@ -2,12 +2,15 @@ import {
 	type BinaryWriterOptions,
 	BinaryWriter,
 	type Component,
+	type DragonBonesResource,
 	type Document,
 	type FileSystem,
 	type FontResource,
 	type ImageResource,
+	type MiscResource,
 	type MovieClipResource,
 	type Package,
+	type SpineResource,
 	type SoundResource,
 	type Transform,
 } from '@openfairygui/core';
@@ -88,6 +91,10 @@ export interface ResolvedPublishOptions {
 
 interface ImageResourceExtras extends Record<string, unknown> {
 	_fileName?: string;
+}
+
+interface PublishFileExtras extends Record<string, unknown> {
+	_publishedFile?: string;
 }
 
 interface PackagePublishContext {
@@ -263,12 +270,30 @@ function isMovieClipResource(resource: ReturnType<Package['listResources']>[numb
 	return resource.propertyType === 'MovieClipResource';
 }
 
+function isMiscResource(resource: ReturnType<Package['listResources']>[number]): resource is MiscResource {
+	return resource.propertyType === 'MiscResource';
+}
+
 function isFontResource(resource: ReturnType<Package['listResources']>[number]): resource is FontResource {
 	return resource.propertyType === 'FontResource';
 }
 
 function isSoundResource(resource: ReturnType<Package['listResources']>[number]): resource is SoundResource {
 	return resource.propertyType === 'SoundResource';
+}
+
+function isSpineResource(resource: ReturnType<Package['listResources']>[number]): resource is SpineResource {
+	return resource.propertyType === 'SpineResource';
+}
+
+function isDragonBonesResource(resource: ReturnType<Package['listResources']>[number]): resource is DragonBonesResource {
+	return resource.propertyType === 'DragonBonesResource';
+}
+
+function isSkeletonResource(
+	resource: ReturnType<Package['listResources']>[number],
+): resource is SpineResource | DragonBonesResource {
+	return isSpineResource(resource) || isDragonBonesResource(resource);
 }
 
 function addLocalUiResourceRef(target: Set<string>, pkgId: string, value: string | null | undefined): void {
@@ -320,6 +345,15 @@ function resolveSoundPath(resource: SoundResource, pkg: Package, basePath: strin
 	return `${basePath}/${pkg.getName()}${resourcePath}${resource.getFile()}`;
 }
 
+function resolveGenericResourcePath(
+	resource: { getPath(): string; getFile(): string },
+	pkg: Package,
+	basePath: string,
+): string {
+	const resourcePath = resource.getPath() ?? '/';
+	return `${basePath}/${pkg.getName()}${resourcePath}${resource.getFile()}`;
+}
+
 function resolvePublishedSoundFileName(pkg: Package, resource: SoundResource): string {
 	const publishName = pkg.getPublishName() || pkg.getName();
 	const ext = extname(resource.getFile() || '');
@@ -332,6 +366,30 @@ function extname(fileName: string): string {
 	const lastDot = normalized.lastIndexOf('.');
 	if (lastDot <= lastSlash) return '';
 	return normalized.slice(lastDot);
+}
+
+function resolvePublishedMiscFileName(resource: MiscResource): string {
+	const file = resource.getFile();
+	if (file.toLowerCase().endsWith('.atlas')) return `${file}.txt`;
+	return file;
+}
+
+function resolvePublishedSkeletonFileName(resource: SpineResource | DragonBonesResource): string {
+	if (isSpineResource(resource) && resource.getFile().toLowerCase().endsWith('.skel')) {
+		return `${resource.getFile()}.bytes`;
+	}
+	return resource.getFile();
+}
+
+function setPublishedFileExtra(
+	resource: { getExtras(): Record<string, unknown> | undefined; setExtras(value: Record<string, unknown>): unknown },
+	fileName: string,
+): void {
+	const extras = (resource.getExtras() as PublishFileExtras | undefined) ?? {};
+	resource.setExtras({
+		...extras,
+		_publishedFile: fileName,
+	});
 }
 
 function collectPackagePublishContext(pkg: Package): {
@@ -443,6 +501,10 @@ function collectPackagePublishContext(pkg: Package): {
 			if (resource.getExported() || referencedIds.has(resourceId)) publishedResourceIds.add(resourceId);
 			continue;
 		}
+		if (isMiscResource(resource) || isSkeletonResource(resource)) {
+			if (resource.getExported() || referencedIds.has(resourceId)) publishedResourceIds.add(resourceId);
+			continue;
+		}
 		if (isFontResource(resource)) {
 			if ((resource.getExported() || referencedIds.has(resourceId)) && (resource.listGlyphs().length > 0 || resource.getTtf())) {
 				publishedResourceIds.add(resourceId);
@@ -452,6 +514,20 @@ function collectPackagePublishContext(pkg: Package): {
 		const genericResource = resource as ReturnType<Package['listResources']>[number];
 		if (genericResource.getExported() || referencedIds.has(resourceId)) {
 			publishedResourceIds.add(resourceId);
+		}
+	}
+
+	let changed = true;
+	while (changed) {
+		changed = false;
+		for (const resource of resources) {
+			if (!isSkeletonResource(resource)) continue;
+			if (!publishedResourceIds.has(resource.getId())) continue;
+			for (const requiredId of resource.getRequireIds()) {
+				if (!requiredId || publishedResourceIds.has(requiredId)) continue;
+				publishedResourceIds.add(requiredId);
+				changed = true;
+			}
 		}
 	}
 
@@ -537,11 +613,38 @@ async function annotatePackagePublishArtifacts(
 		...extras,
 		publishedResourceIds: [...publishedResourceIds].sort((a, b) => a.localeCompare(b)),
 	});
+	for (const resource of pkg.listResources()) {
+		if (isMiscResource(resource)) {
+			setPublishedFileExtra(resource, resolvePublishedMiscFileName(resource));
+			continue;
+		}
+		if (isSkeletonResource(resource)) {
+			setPublishedFileExtra(resource, resolvePublishedSkeletonFileName(resource));
+		}
+	}
 }
 
 function getAnnotatedPublishedResourceIds(pkg: Package): Set<string> {
 	const extras = (pkg.getExtras() as PackagePublishArtifactsExtras | undefined) ?? {};
 	return new Set(extras.publishedResourceIds ?? []);
+}
+
+function getPublishedSkeletonDependencyImageIds(
+	pkg: Package,
+	publishedResourceIds: Set<string>,
+): Set<string> {
+	const imageIds = new Set<string>();
+	const resourcesById = new Map(pkg.listResources().map((resource) => [resource.getId(), resource] as const));
+	for (const resource of pkg.listResources()) {
+		if (!isSkeletonResource(resource)) continue;
+		if (!publishedResourceIds.has(resource.getId())) continue;
+		for (const requiredId of resource.getRequireIds()) {
+			if (!requiredId) continue;
+			const required = resourcesById.get(requiredId);
+			if (required && isImageResource(required)) imageIds.add(requiredId);
+		}
+	}
+	return imageIds;
 }
 
 async function exportPackageSounds(
@@ -577,6 +680,53 @@ async function exportPackageSounds(
 			await fs.writeFileRaw(targetPath, data);
 		} catch {
 			logger.warn(`publish: Could not export sound "${resource.getId()}" from package "${pkg.getName()}".`);
+		}
+	}
+}
+
+async function exportPackageExternalResources(
+	pkg: Package,
+	outputDir: string,
+	basePath: string | undefined,
+	fs: PublishFileSystem,
+	readFileRaw: PublishFileSystem['readFileRaw'] | undefined,
+	logger: Document['getLogger'] extends () => infer T ? T : never,
+): Promise<void> {
+	const publishedResourceIds = getAnnotatedPublishedResourceIds(pkg);
+	const skeletonDependencyImageIds = getPublishedSkeletonDependencyImageIds(pkg, publishedResourceIds);
+	if (publishedResourceIds.size === 0) return;
+	if (!basePath || !readFileRaw) {
+		const hasPublishedExternal = pkg.listResources().some((resource) => {
+			return (
+				(isMiscResource(resource) || isSkeletonResource(resource))
+				&& publishedResourceIds.has(resource.getId())
+			) || skeletonDependencyImageIds.has(resource.getId());
+		});
+		if (hasPublishedExternal) {
+			logger.warn(`publish: External resources in package "${pkg.getName()}" were not exported because basePath/readFileRaw is unavailable.`);
+		}
+		return;
+	}
+
+	for (const resource of pkg.listResources()) {
+		const resourceId = resource.getId();
+		const isSkeletonExternal = publishedResourceIds.has(resourceId) && (isMiscResource(resource) || isSkeletonResource(resource));
+		const isSkeletonImageDependency = skeletonDependencyImageIds.has(resourceId) && isImageResource(resource);
+		if (!isSkeletonExternal && !isSkeletonImageDependency) continue;
+
+		const sourcePath = isSkeletonImageDependency
+			? resolveImagePath(resource, pkg, basePath)
+			: resolveGenericResourcePath(resource, pkg, basePath);
+		const targetName = isSkeletonImageDependency
+			? (((resource.getExtras() as ImageResourceExtras | undefined) ?? {})._fileName ?? resource.getName())
+			: (((resource.getExtras() as PublishFileExtras | undefined) ?? {})._publishedFile ?? resource.getFile());
+		const targetPath = fs.join(outputDir, targetName);
+
+		try {
+			const data = await readFileRaw(sourcePath);
+			await fs.writeFileRaw(targetPath, data);
+		} catch {
+			logger.warn(`publish: Could not export external resource "${resource.getId()}" from package "${pkg.getName()}".`);
 		}
 	}
 }
@@ -681,6 +831,14 @@ export function publish(options: PublishOptions): Transform {
 			const bw = new BinaryWriter(writerFs);
 			await bw.write(doc, filePath, bwOptions);
 			await exportPackageSounds(
+				pkg,
+				options.output,
+				options.basePath,
+				options.fs,
+				options.atlas?.readFileRaw ?? options.fs.readFileRaw,
+				logger,
+			);
+			await exportPackageExternalResources(
 				pkg,
 				options.output,
 				options.basePath,

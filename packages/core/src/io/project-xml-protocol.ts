@@ -83,6 +83,14 @@ const PACKAGE_FONT_RESOURCE_ATTRS = {
 	samplePointSize: { canonical: 'samplePointSize' },
 } satisfies XmlAttrMap;
 
+const PACKAGE_SKELETON_RESOURCE_ATTRS = {
+	width: { canonical: 'width' },
+	height: { canonical: 'height' },
+	require: { canonical: 'require' },
+	atlasNames: { canonical: 'atlasNames' },
+	anchor: { canonical: 'anchor' },
+} satisfies XmlAttrMap;
+
 const DISPLAY_OBJECT_IDENTITY_ATTRS = {
 	id: { canonical: 'id' },
 	name: { canonical: 'name' },
@@ -480,6 +488,7 @@ const PACKAGE_PUBLISH_NODE = defineNode(PACKAGE_PUBLISH_ATTRS);
 const PACKAGE_RESOURCE_NODE = defineNode(PACKAGE_RESOURCE_BASE_ATTRS);
 const PACKAGE_IMAGE_RESOURCE_NODE = defineNode(PACKAGE_IMAGE_RESOURCE_ATTRS);
 const PACKAGE_FONT_RESOURCE_NODE = defineNode(PACKAGE_FONT_RESOURCE_ATTRS);
+const PACKAGE_SKELETON_RESOURCE_NODE = defineNode(PACKAGE_SKELETON_RESOURCE_ATTRS);
 const DISPLAY_OBJECT_NODE = defineNode(DISPLAY_OBJECT_IDENTITY_ATTRS);
 const BUTTON_EXTENSION_NODE = defineNode(BUTTON_EXTENSION_ATTRS);
 const LABEL_EXTENSION_NODE = defineNode(LABEL_EXTENSION_ATTRS);
@@ -747,6 +756,7 @@ export const PROJECT_XML_PROTOCOL = {
 	packageResource: PACKAGE_RESOURCE_NODE,
 	packageImageResource: PACKAGE_IMAGE_RESOURCE_NODE,
 	packageFontResource: PACKAGE_FONT_RESOURCE_NODE,
+	packageSkeletonResource: PACKAGE_SKELETON_RESOURCE_NODE,
 	displayObject: DISPLAY_OBJECT_NODE,
 	image: IMAGE_NODE,
 	graph: GRAPH_NODE,

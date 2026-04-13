@@ -161,6 +161,100 @@ test('round-trip: font fileName and textureId survive package.xml write→read',
 	}
 });
 
+test('round-trip: misc/spine/dragonbones resources survive package.xml write→read', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectId('skeleton-project').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('Loader');
+	pkg.setId('loader001');
+
+	const misc = doc.createMiscResource('alien-pma');
+	misc.setId('misc001');
+	misc.setPath('/images/');
+	misc.setFile('alien-pma.atlas');
+	pkg.addResource(misc);
+
+	const image = doc.createImageResource('alien-pma.png');
+	image.setId('img001');
+	image.setPath('/images/');
+	pkg.addResource(image);
+
+	const spine = doc.createSpineResource('alien-pro');
+	spine.setId('spine001');
+	spine.setPath('/images/');
+	spine.setFile('alien-pro.skel');
+	spine.setWidth(368);
+	spine.setHeight(384);
+	spine.setRequireIds(['misc001', 'img001']);
+	spine.setAtlasNames(['alien-pma']);
+	spine.setAnchor(176, 380);
+	pkg.addResource(spine);
+
+	const dragonMisc = doc.createMiscResource('dragon-tex');
+	dragonMisc.setId('misc002');
+	dragonMisc.setPath('/images/');
+	dragonMisc.setFile('dragon_tex.json');
+	pkg.addResource(dragonMisc);
+
+	const dragonImage = doc.createImageResource('dragon.png');
+	dragonImage.setId('img002');
+	dragonImage.setPath('/images/');
+	pkg.addResource(dragonImage);
+
+	const dragon = doc.createDragonBonesResource('dragon_ske');
+	dragon.setId('dragon001');
+	dragon.setPath('/images/');
+	dragon.setFile('dragon_ske.json');
+	dragon.setWidth(0);
+	dragon.setHeight(0);
+	dragon.setRequireIds(['misc002', 'img002']);
+	dragon.setAtlasNames([]);
+	dragon.setAnchor(0, 0);
+	pkg.addResource(dragon);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-skeleton-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+
+		const pkgXml = await fs.readFile(path.join(tmpDir, 'assets', 'Loader', 'package.xml'), 'utf-8');
+		t.true(pkgXml.includes('<misc id="misc001" name="alien-pma.atlas" path="/images/">') || pkgXml.includes('<misc id="misc001" name="alien-pma.atlas" path="/images/"'), 'misc resource writes file name');
+		t.true(pkgXml.includes('require="misc001,img001"'), 'spine writes require ids');
+		t.true(pkgXml.includes('atlasNames="alien-pma"'), 'spine writes atlasNames');
+		t.true(pkgXml.includes('anchor="176,380"'), 'spine writes anchor');
+		t.true(pkgXml.includes('<dragonbones id="dragon001" name="dragon_ske.json" path="/images/" width="0" height="0" require="misc002,img002" atlasNames="" anchor="0,0"'), 'dragonbones writes canonical attrs');
+
+		const doc2 = await io.readProject(outFairy);
+		const pkg2 = doc2.getRoot().getPackage('Loader');
+		t.truthy(pkg2, 'Loader exists after round-trip');
+
+		const misc2 = pkg2!.listResources().find((res) => res.getId?.() === 'misc001') as any;
+		t.truthy(misc2, 'misc resource exists after round-trip');
+		t.is(misc2.propertyType, PropertyType.MISC_RESOURCE);
+		t.is(misc2.getFile?.(), 'alien-pma.atlas');
+
+		const spine2 = pkg2!.listResources().find((res) => res.getId?.() === 'spine001') as any;
+		t.truthy(spine2, 'spine resource exists after round-trip');
+		t.is(spine2.propertyType, PropertyType.SPINE_RESOURCE);
+		t.deepEqual(spine2.getRequireIds?.(), ['misc001', 'img001']);
+		t.deepEqual(spine2.getAtlasNames?.(), ['alien-pma']);
+		t.is(spine2.getAnchorX?.(), 176);
+		t.is(spine2.getAnchorY?.(), 380);
+
+		const dragon2 = pkg2!.listResources().find((res) => res.getId?.() === 'dragon001') as any;
+		t.truthy(dragon2, 'dragonbones resource exists after round-trip');
+		t.is(dragon2.propertyType, PropertyType.DRAGON_BONES_RESOURCE);
+		t.deepEqual(dragon2.getRequireIds?.(), ['misc002', 'img002']);
+		t.deepEqual(dragon2.getAtlasNames?.(), []);
+		t.is(dragon2.getAnchorX?.(), 0);
+		t.is(dragon2.getAnchorY?.(), 0);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('round-trip: controller action payload survives project write→read', async (t) => {
 	const doc = new Document();
 	doc.getRoot().setProjectId('controller-action-project').setProjectType(0).setVersion('3.0');

@@ -76,6 +76,32 @@
 | `renderMode` |  | 字体渲染模式 |
 | `samplePointSize` |  | 字体采样点大小 |
 
+### `resources > misc`
+
+| 属性名 | Alias | 说明 |
+|---|---|---|
+| 无附加属性 |  | 仅使用通用资源属性；资源文件名由通用 `name` 承载 |
+
+### `resources > spine`
+
+| 属性名 | Alias | 说明 |
+|---|---|---|
+| `width` |  | skeleton 资源宽度 |
+| `height` |  | skeleton 资源高度 |
+| `require` |  | 依赖资源 id 列表，逗号分隔 |
+| `atlasNames` |  | atlas 名列表，逗号分隔 |
+| `anchor` |  | skeleton 锚点，格式为 `x,y` |
+
+### `resources > dragonbones`
+
+| 属性名 | Alias | 说明 |
+|---|---|---|
+| `width` |  | skeleton 资源宽度 |
+| `height` |  | skeleton 资源高度 |
+| `require` |  | 依赖资源 id 列表，逗号分隔 |
+| `atlasNames` |  | atlas 名列表，逗号分隔 |
+| `anchor` |  | skeleton 锚点，格式为 `x,y` |
+
 ## `component.xml`
 
 ### 根节点 `<component>`

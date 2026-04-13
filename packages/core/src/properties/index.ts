@@ -9,9 +9,12 @@ export { Root } from './root.js';
 // Resources
 export { Package } from './package.js';
 export { ImageResource, type PixelHitTestData } from './image-resource.js';
+export { MiscResource } from './misc-resource.js';
 export { SoundResource } from './sound-resource.js';
 export { FontResource } from './font-resource.js';
 export { MovieClipResource } from './movie-clip-resource.js';
+export { SpineResource } from './spine-resource.js';
+export { DragonBonesResource } from './dragon-bones-resource.js';
 export { Component } from './component.js';
 export { Atlas } from './atlas.js';
 export { Sprite } from './sprite.js';

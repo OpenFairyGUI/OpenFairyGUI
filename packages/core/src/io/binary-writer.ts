@@ -4,6 +4,12 @@ import type { Atlas } from '../properties/atlas.js';
 import type { Component } from '../properties/component.js';
 import type { Package } from '../properties/package.js';
 import type { ImageResource } from '../properties/image-resource.js';
+import type { MiscResource } from '../properties/misc-resource.js';
+import type { SoundResource } from '../properties/sound-resource.js';
+import type { FontResource } from '../properties/font-resource.js';
+import type { MovieClipResource } from '../properties/movie-clip-resource.js';
+import type { SpineResource } from '../properties/spine-resource.js';
+import type { DragonBonesResource } from '../properties/dragon-bones-resource.js';
 import { FGUI_MAGIC } from '../constants.js';
 import { WriteBuffer } from './write-buffer.js';
 import { encodeComponent } from './component-encoder.js';
@@ -20,6 +26,9 @@ const BinItemType = {
 	Component: 3,
 	Atlas: 4,
 	Font: 5,
+	Misc: 7,
+	Spine: 8,
+	DragonBones: 9,
 } as const;
 
 /**
@@ -29,10 +38,13 @@ const BinItemType = {
  */
 const EDITOR_TYPE_STRING: Record<string, string> = {
 	ImageResource: 'image',
+	MiscResource: 'misc',
 	MovieClipResource: 'movieclip',
 	SoundResource: 'sound',
 	Component: 'component',
 	FontResource: 'font',
+	SpineResource: 'spine',
+	DragonBonesResource: 'dragonbones',
 };
 
 type PackageResource = ReturnType<Package['listResources']>[number];
@@ -108,6 +120,10 @@ interface FntData {
 interface ComponentBinaryExtras extends Record<string, unknown> {
 	_rawBinary?: RawBinarySlice;
 	extensionType?: string;
+}
+
+interface PublishFileExtras extends Record<string, unknown> {
+	_publishedFile?: string;
 }
 
 interface ComponentWithExtensionType {
@@ -390,6 +406,17 @@ export class BinaryWriter {
 					data.writeInt32(0); // height
 					break;
 				}
+				case 'MiscResource': {
+					data.writeUint8(BinItemType.Misc);
+					data.writeS(res.getId());
+					data.writeS(res.getName());
+					data.writeS(res.getPath());
+					data.writeS(getPublishedFileName(res));
+					data.writeBool(res.getExported());
+					data.writeInt32(0);
+					data.writeInt32(0);
+					break;
+				}
 				case 'Component': {
 					data.writeUint8(BinItemType.Component);
 					data.writeS(res.getId());
@@ -448,6 +475,32 @@ export class BinaryWriter {
 						})),
 					}, data);
 					data.writeBuffer(glyphData);
+					break;
+				}
+				case 'SpineResource': {
+					data.writeUint8(BinItemType.Spine);
+					data.writeS(res.getId());
+					data.writeS(res.getName());
+					data.writeS(res.getPath());
+					data.writeS(getPublishedFileName(res));
+					data.writeBool(res.getExported());
+					data.writeInt32(res.getWidth());
+					data.writeInt32(res.getHeight());
+					data.writeFloat32(res.getAnchorX());
+					data.writeFloat32(res.getAnchorY());
+					break;
+				}
+				case 'DragonBonesResource': {
+					data.writeUint8(BinItemType.DragonBones);
+					data.writeS(res.getId());
+					data.writeS(res.getName());
+					data.writeS(res.getPath());
+					data.writeS(getPublishedFileName(res));
+					data.writeBool(res.getExported());
+					data.writeInt32(res.getWidth());
+					data.writeInt32(res.getHeight());
+					data.writeFloat32(res.getAnchorX());
+					data.writeFloat32(res.getAnchorY());
 					break;
 				}
 				default:
@@ -820,6 +873,14 @@ function _encodeFontGlyphs(
 
 function isComponentResource(resource: PackageResource): resource is Component {
 	return resource.propertyType === 'Component';
+}
+
+function getPublishedFileName(resource: {
+	getFile(): string;
+	getExtras?(): Record<string, unknown> | undefined;
+}): string {
+	const extras = (resource.getExtras?.() as PublishFileExtras | undefined) ?? {};
+	return extras._publishedFile ?? resource.getFile();
 }
 
 function getAtlasId(atlas: Atlas): string {

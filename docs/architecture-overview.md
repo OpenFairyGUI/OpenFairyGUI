@@ -116,8 +116,23 @@ flowchart LR
 | 通用资源节点 | `id`、`name`、`path`、`exported` |
 | `image` 资源 | `atlas`、`scale`、`scale9grid`、`width`、`height`、`gridTile`、`qualityOption`、`duplicatePadding`、`smoothing` |
 | `font` 资源 | `texture`、`renderMode`、`samplePointSize` |
+| `misc` 资源 | 无附加属性；资源文件名由通用 `name` 承载 |
+| `spine` 资源 | `width`、`height`、`require`、`atlasNames`、`anchor` |
+| `dragonbones` 资源 | `width`、`height`、`require`、`atlasNames`、`anchor` |
 
 其中 `image@atlas` 当前作为图片资源的纹理集模式字段读写，在正式模型中由 `ImageResource.textureSetMode` 承载。
+
+## 当前发布附属资源口径
+
+`publish` 当前除 `_fui.bytes` 外，还会输出资源闭包内需要的附属文件。当前正式规则如下：
+
+| 资源类型 | 当前发布行为 |
+|---|---|
+| `SoundResource` | 输出发布后的声音文件名 |
+| `MiscResource` | 输出资源文件；若源文件扩展名为 `.atlas`，发布名改为 `.atlas.txt` |
+| `SpineResource` | 输出 skeleton 主文件；若源文件扩展名为 `.skel`，发布名改为 `.skel.bytes` |
+| `DragonBonesResource` | 输出 skeleton 主文件，当前保持原文件名 |
+| `SpineResource` / `DragonBonesResource` 依赖 | 按 `require` 形成资源闭包，依赖的 `misc` / `image` 资源一并发布 |
 
 ## 当前最关键的数据流
 

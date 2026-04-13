@@ -5,9 +5,12 @@ import {
 	Root,
 	Package,
 	ImageResource,
+	MiscResource,
 	SoundResource,
 	FontResource,
 	MovieClipResource,
+	SpineResource,
+	DragonBonesResource,
 	Component,
 	Atlas,
 	Sprite,
@@ -132,12 +135,24 @@ export class Document {
 		return new SoundResource(this._graph, name);
 	}
 
+	createMiscResource(name = ''): MiscResource {
+		return new MiscResource(this._graph, name);
+	}
+
 	createFontResource(name = ''): FontResource {
 		return new FontResource(this._graph, name);
 	}
 
 	createMovieClipResource(name = ''): MovieClipResource {
 		return new MovieClipResource(this._graph, name);
+	}
+
+	createSpineResource(name = ''): SpineResource {
+		return new SpineResource(this._graph, name);
+	}
+
+	createDragonBonesResource(name = ''): DragonBonesResource {
+		return new DragonBonesResource(this._graph, name);
 	}
 
 	createComponent(name = ''): Component {

@@ -131,10 +131,59 @@ block 5 的 patch 用于替换 block 4 中相同索引位置的占位字符串�
 | `Image` | `id`、`name`、`path`、尺寸、`scaleOption`、`scale9Grid`、`smoothing` |
 | `MovieClip` | 通用字段 + 帧数据块 |
 | `Sound` | 通用字段 + 声音文件名 |
+| `Spine` | 通用字段 + 资源文件名 + `skeletonAnchor.x` + `skeletonAnchor.y` |
+| `DragoneBones` | 通用字段 + 资源文件名 + `skeletonAnchor.x` + `skeletonAnchor.y` |
 | `Component` | 通用字段 + 扩展类型码 + 组件二进制 |
 | `Font` | 通用字段 + glyph 数据块 |
 | `Atlas` | atlas 条目 `id`、`file`、尺寸 |
 | `Misc` | 未归类条目 |
+
+### 通用头部字段
+
+每个 package item 在类型数据段之前都先写通用头部：
+
+| 字段 | 协议说明 |
+|---|---|
+| `type` | `uint8` item 类型码 |
+| `id` | 资源 ID |
+| `name` | 资源名称 |
+| `path` | 资源路径 |
+| `file` | 发布后供运行时加载的文件名或相对路径 |
+| `exported` | 是否导出 |
+| `width` | 资源宽度 |
+| `height` | 资源高度 |
+
+### `Spine` / `DragoneBones` item 数据段
+
+`Spine` 与 `DragoneBones` 在通用头部之后追加 skeleton 锚点：
+
+| 字段 | 协议说明 |
+|---|---|
+| `skeletonAnchor.x` | `float32` |
+| `skeletonAnchor.y` | `float32` |
+
+说明：
+- `require`、`atlasNames` 等工程资源层字段不直接写入 package item 数据段。
+- 运行时通过 `file` 和 `skeletonAnchor` 完成 skeleton 资源定位与对齐。
+
+### `file` 的发布语义
+
+`file` 字段承载的是发布产物中的资源定位结果，而不是工程资源目录下的原始文件名。当前 Unity 侧运行时口径下：
+
+| 资源类型 | `file` 语义 |
+|---|---|
+| `Atlas` / `Sound` / `Misc` | 指向发布后的附属资源文件名 |
+| `Spine` / `DragoneBones` | 指向发布后的 skeleton 主资源文件名；运行时再按该路径加载对应资源 |
+
+基于 `Loader` 样本可见的当前发布结果，`Spine` 侧常见附属资源命名规则如下：
+
+| 工程资源文件 | 发布结果 |
+|---|---|
+| `*.skel` | `*.skel.bytes` |
+| `*.atlas` | `*.atlas.txt` |
+| `*.png` | 保持原文件名 |
+
+`DragoneBones` 样本中的主文件与依赖文件当前保持原文件名，例如 `dragon_ske.json`、`dragon_tex.json`、`dragon.png`。
 
 ### 条件附加字段
 

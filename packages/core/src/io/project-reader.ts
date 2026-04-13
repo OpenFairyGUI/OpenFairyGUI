@@ -148,6 +148,13 @@ interface ResourceXmlAttrs extends XmlNode {
 	smoothing?: string | boolean;
 	duplicatePadding?: string | boolean;
 	texture?: string;
+	width?: string | number;
+	height?: string | number;
+	renderMode?: string;
+	samplePointSize?: string | number;
+	require?: string;
+	atlasNames?: string;
+	anchor?: string;
 }
 
 interface ControllerXmlNode extends XmlNode {
@@ -442,12 +449,12 @@ function getOrderedDisplayListItems(xmlContent: string): Array<{ tagName: string
 		: [];
 
 	return displayListChildren.flatMap((entry) => {
-		const tagName = Object.keys(entry).find((key) => key !== ':@' && key !== '#text');
-		if (!tagName) return [];
+		const rawTagName = Object.keys(entry).find((key) => key !== ':@' && key !== '#text');
+		if (!rawTagName) return [];
 		const attrs = (entry[':@'] as Record<string, unknown> | undefined) ?? {};
-		const nestedEntries = Array.isArray(entry[tagName]) ? (entry[tagName] as OrderedXmlEntry[]) : [];
+		const nestedEntries = Array.isArray(entry[rawTagName]) ? (entry[rawTagName] as OrderedXmlEntry[]) : [];
 		return [{
-			tagName,
+			tagName: rawTagName.toLowerCase(),
 			attrs: {
 				...attrs,
 				...normalizeOrderedChildren(nestedEntries),
@@ -901,6 +908,16 @@ export class ProjectReader {
 				ctx.registerResource(pkg.getId(), id, res);
 				break;
 			}
+			case 'misc': {
+				const res = doc.createMiscResource(name.replace(/\.\w+$/, ''));
+				res.setId(id);
+				res.setPath(path);
+				res.setFile(name);
+				res.setExported(exported);
+				pkg.addResource(res);
+				ctx.registerResource(pkg.getId(), id, res);
+				break;
+			}
 			case 'font': {
 				const res = doc.createFontResource(name.replace(/\.\w+$/, ''));
 				res.setId(id);
@@ -920,6 +937,48 @@ export class ProjectReader {
 				ctx.registerResource(pkg.getId(), id, res);
 				break;
 			}
+			case 'spine': {
+				const res = doc.createSpineResource(name.replace(/\.\w+$/, ''));
+				res.setId(id);
+				res.setPath(path);
+				res.setFile(name);
+				res.setExported(exported);
+				res.setWidth(parseInt2(readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.width)));
+				res.setHeight(parseInt2(readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.height)));
+				const requireValue = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.require);
+				res.setRequireIds(requireValue ? String(requireValue).split(',').filter(Boolean) : []);
+				const atlasNamesValue = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.atlasNames);
+				res.setAtlasNames(atlasNamesValue ? String(atlasNamesValue).split(',').filter(Boolean) : []);
+				const anchorValue = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.anchor);
+				if (anchorValue) {
+					const [anchorX, anchorY] = anchorValue.split(',').map((part) => parseFloat2(part));
+					res.setAnchor(anchorX, anchorY);
+				}
+				pkg.addResource(res);
+				ctx.registerResource(pkg.getId(), id, res);
+				break;
+			}
+			case 'dragonbones': {
+				const res = doc.createDragonBonesResource(name.replace(/\.\w+$/, ''));
+				res.setId(id);
+				res.setPath(path);
+				res.setFile(name);
+				res.setExported(exported);
+				res.setWidth(parseInt2(readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.width)));
+				res.setHeight(parseInt2(readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.height)));
+				const requireValue = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.require);
+				res.setRequireIds(requireValue ? String(requireValue).split(',').filter(Boolean) : []);
+				const atlasNamesValue = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.atlasNames);
+				res.setAtlasNames(atlasNamesValue ? String(atlasNamesValue).split(',').filter(Boolean) : []);
+				const anchorValue = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.anchor);
+				if (anchorValue) {
+					const [anchorX, anchorY] = anchorValue.split(',').map((part) => parseFloat2(part));
+					res.setAnchor(anchorX, anchorY);
+				}
+				pkg.addResource(res);
+				ctx.registerResource(pkg.getId(), id, res);
+				break;
+			}
 			case 'movieclip': {
 				const res = doc.createMovieClipResource(name.replace(/\.\w+$/, ''));
 				res.setId(id);
@@ -930,7 +989,7 @@ export class ProjectReader {
 				break;
 			}
 			default: {
-				// swf, misc, atlas — store as extras on package for now
+				// swf, atlas — store as extras on package for now
 				break;
 			}
 		}

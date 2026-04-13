@@ -1596,6 +1596,13 @@ export class BinaryReader {
 					break;
 				}
 
+				case BinItemType.Misc: {
+					const res = doc.createMiscResource(itemName);
+					res.setId(itemId).setFile(itemFile).setExported(exported);
+					pkg.addResource(res);
+					break;
+				}
+
 				case BinItemType.Component: {
 					const res = doc.createComponent(itemName);
 					res.setId(itemId).setExported(exported).setSize(width, height);
@@ -1632,8 +1639,34 @@ export class BinaryReader {
 					break;
 				}
 
+				case BinItemType.Spine: {
+					const res = doc.createSpineResource(itemName);
+					res
+						.setId(itemId)
+						.setFile(itemFile)
+						.setExported(exported)
+						.setWidth(width)
+						.setHeight(height)
+						.setAnchor(buf.getFloat32(), buf.getFloat32());
+					pkg.addResource(res);
+					break;
+				}
+
+				case BinItemType.DragonBones: {
+					const res = doc.createDragonBonesResource(itemName);
+					res
+						.setId(itemId)
+						.setFile(itemFile)
+						.setExported(exported)
+						.setWidth(width)
+						.setHeight(height)
+						.setAnchor(buf.getFloat32(), buf.getFloat32());
+					pkg.addResource(res);
+					break;
+				}
+
 				default:
-					// Swf, Misc, Spine, DragonBones — skip item data
+					// Swf — skip item data
 					break;
 			}
 

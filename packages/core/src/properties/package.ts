@@ -3,13 +3,24 @@ import { type Nullable, PropertyType } from '../constants.js';
 import { ExtensibleProperty, type IExtensibleProperty } from './extensible-property.js';
 import type { Component } from './component.js';
 import type { ImageResource } from './image-resource.js';
+import type { MiscResource } from './misc-resource.js';
 import type { SoundResource } from './sound-resource.js';
 import type { FontResource } from './font-resource.js';
 import type { MovieClipResource } from './movie-clip-resource.js';
+import type { SpineResource } from './spine-resource.js';
+import type { DragonBonesResource } from './dragon-bones-resource.js';
 import type { Atlas } from './atlas.js';
 import type { Property } from './property.js';
 
-type PackageResource = Component | ImageResource | SoundResource | FontResource | MovieClipResource;
+type PackageResource =
+	| Component
+	| ImageResource
+	| MiscResource
+	| SoundResource
+	| FontResource
+	| MovieClipResource
+	| SpineResource
+	| DragonBonesResource;
 
 interface IPackage extends IExtensibleProperty {
 	id: string;

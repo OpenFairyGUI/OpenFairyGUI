@@ -1,22 +1,35 @@
 {
-	"atlasSetting":{
-		"allowRotation":true,
-		"paging":true,
-		"sizeOption":"pot",
-		"trimImage":true
-	},
-	"binaryFormat":true,
-	"codeGeneration":{
-		"classNamePrefix":"",
-		"codePath":"",
-		"codeType":"",
-		"getMemberByName":false,
-		"ignoreNoname":true,
-		"memberNamePrefix":"",
-		"packageName":""
-	},
-	"compressDesc":true,
-	"includeHighResolution":1,
-	"packageCount":2,
-	"path":"../Assets/Examples/Resources/UI"
+  "path": "../../../../../release",
+  "branchPath": "",
+  "fileExtension": "bytes",
+  "packageCount": 2,
+  "compressDesc": true,
+  "binaryFormat": true,
+  "jpegQuality": 80,
+  "compressPNG": false,
+  "codeGeneration": {
+    "allowGenCode": true,
+    "codePath": "",
+    "classNamePrefix": "",
+    "memberNamePrefix": "",
+    "packageName": "",
+    "ignoreNoname": true,
+    "getMemberByName": false,
+    "codeType": ""
+  },
+  "includeHighResolution": 1,
+  "branchProcessing": 0,
+  "seperatedAtlasForBranch": false,
+  "atlasSetting": {
+    "maxSize": 2048,
+    "paging": true,
+    "sizeOption": "pot",
+    "forceSquare": false,
+    "allowRotation": true,
+    "trimImage": true
+  },
+  "include2x": true,
+  "include3x": false,
+  "include4x": false,
+  "fileName": "Publish"
 }

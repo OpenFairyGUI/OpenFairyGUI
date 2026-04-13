@@ -41,7 +41,7 @@ function readUtfString(bytes: Uint8Array, state: { pos: number }): string {
 }
 
 function parsePackageBinary(bytes: Uint8Array): {
-	items: Array<{ type: number; id: string | null; ext: number | null }>;
+	items: Array<{ type: number; id: string | null; file: string | null; ext: number | null }>;
 	spriteIds: string[];
 	hitTestIds: string[];
 } {
@@ -73,7 +73,7 @@ function parsePackageBinary(bytes: Uint8Array): {
 		stringPos += len;
 	}
 
-	const items: Array<{ type: number; id: string | null; ext: number | null }> = [];
+	const items: Array<{ type: number; id: string | null; file: string | null; ext: number | null }> = [];
 	pos = offsets[1];
 	const itemCount = dataView.getInt16(pos, false);
 	pos += 2;
@@ -86,12 +86,13 @@ function parsePackageBinary(bytes: Uint8Array): {
 		pos += 2; // id
 		pos += 2; // name
 		pos += 2; // path
+		const file = strings[dataView.getUint16(pos, false)] ?? null;
 		pos += 2; // file
 		pos += 1; // exported
 		pos += 4; // width
 		pos += 4; // height
 		const ext = type === 3 ? dataView.getUint8(pos) : null;
-		items.push({ type, id, ext });
+		items.push({ type, id, file, ext });
 		pos = nextPos;
 	}
 
@@ -253,6 +254,53 @@ test('publish: exports published sound resources with Unity naming', async (t) =
 		const targetPath = path.join(tmpDir, 'Basics_o4lt7w.wav');
 		const targetData = await fs.readFile(targetPath);
 		t.deepEqual(new Uint8Array(targetData.buffer, targetData.byteOffset, targetData.byteLength), sourceData);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: exports loader skeleton resources and dependency closure with editor-aligned naming', async (t) => {
+	const io = new NodeIO();
+	const doc = await io.readProject(UNITY_EXAMPLES_FAIRY);
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-'));
+
+	try {
+		await doc.transform(publish({
+			output: tmpDir,
+			packages: ['Loader'],
+			fs: createFs(),
+			encoder: sharp,
+			basePath: path.join(path.dirname(UNITY_EXAMPLES_FAIRY), 'assets'),
+		}));
+
+		const expectedFiles = [
+			'Loader_fui.bytes',
+			'dragon_ske.json',
+			'dragon_tex.json',
+			'dragon.png',
+			'alien-pro.skel.bytes',
+			'alien-pma.atlas.txt',
+			'alien-pma.png',
+			'mix-and-match-pro.skel.bytes',
+			'mix-and-match-pma.atlas.txt',
+			'mix-and-match-pma.png',
+		];
+		for (const file of expectedFiles) {
+			const stat = await fs.stat(path.join(tmpDir, file)).catch(() => null);
+			t.truthy(stat, `${file} was exported`);
+		}
+
+		for (const absentFile of ['spineboy-ess.skel.bytes', 'spineboy-pma.atlas.txt', 'spineboy-pma.png']) {
+			const stat = await fs.stat(path.join(tmpDir, absentFile)).catch(() => null);
+			t.falsy(stat, `${absentFile} was not exported`);
+		}
+
+		const bytes = await fs.readFile(path.join(tmpDir, 'Loader_fui.bytes'));
+		const parsed = parsePackageBinary(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+		const byId = new Map(parsed.items.map((item) => [item.id, item]));
+		t.is(byId.get('nbcg7')?.file, 'alien-pma.atlas.txt', 'misc atlas dependency writes published file name');
+		t.is(byId.get('nbcge')?.file, 'alien-pro.skel.bytes', 'spine item writes published skeleton file name');
+		t.is(byId.get('biss6')?.file, 'dragon_ske.json', 'dragonbones item keeps published json file name');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
