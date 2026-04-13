@@ -44,6 +44,10 @@ interface BinarySpriteEntry {
 	w: number;
 	h: number;
 	rotated: boolean;
+	offsetX: number;
+	offsetY: number;
+	originalWidth: number;
+	originalHeight: number;
 }
 
 interface BranchAwarePackageResource {
@@ -937,7 +941,7 @@ function decodeChildBlock2(
 	}
 }
 
-function decodeGearStatus(buf: ByteBuffer, gearType: number, version: number): string {
+function decodeGearStatus(buf: ByteBuffer, gearType: number, _version: number): string {
 	switch (gearType) {
 		case GearType.XY:
 			return `${buf.getInt32()},${buf.getInt32()}`;
@@ -1636,6 +1640,7 @@ export class BinaryReader {
 					const res = doc.createMovieClipResource(itemName);
 					res
 						.setId(itemId)
+						.setFileName(`${itemName}.jta`)
 						.setPath(itemPath)
 						.setExported(exported)
 						.setWidth(width)
@@ -1685,6 +1690,7 @@ export class BinaryReader {
 					res.setId(itemId).setPath(itemPath).setExported(exported);
 					const rawGlyphs = buf.readBuffer();
 					decodeFontGlyphs(doc, res, rawGlyphs);
+					res.setFileName(`${itemName}${res.listGlyphs().length === 0 ? '.ttf' : '.fnt'}`);
 					pkg.addResource(res);
 					createdResource = res;
 					break;
@@ -1770,10 +1776,17 @@ export class BinaryReader {
 			const x = buf.getInt32(), y = buf.getInt32();
 			const w = buf.getInt32(), h = buf.getInt32();
 			const rotated = buf.readBool();
+			let offsetX = 0;
+			let offsetY = 0;
+			let originalWidth = rotated ? h : w;
+			let originalHeight = rotated ? w : h;
 			if (ver2 && buf.readBool()) {
-				buf.skip(16); // offset + originalSize (4 x int32)
+				offsetX = buf.getInt32();
+				offsetY = buf.getInt32();
+				originalWidth = buf.getInt32();
+				originalHeight = buf.getInt32();
 			}
-			sprites.push({ itemId, atlasId, x, y, w, h, rotated });
+			sprites.push({ itemId, atlasId, x, y, w, h, rotated, offsetX, offsetY, originalWidth, originalHeight });
 			const atlas = atlasMap.get(atlasId);
 			if (atlas) {
 				const sprite = doc.createSprite(itemId);
@@ -1784,7 +1797,11 @@ export class BinaryReader {
 					.setRectY(y)
 					.setRectWidth(w)
 					.setRectHeight(h)
-					.setRotated(rotated);
+					.setRotated(rotated)
+					.setOffsetX(offsetX)
+					.setOffsetY(offsetY)
+					.setOriginalWidth(originalWidth)
+					.setOriginalHeight(originalHeight);
 				atlas.addSprite(sprite);
 			}
 			buf.pos = nextPos;

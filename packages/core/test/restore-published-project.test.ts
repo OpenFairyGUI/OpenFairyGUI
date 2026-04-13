@@ -23,7 +23,28 @@ async function cropImage(input: RestoreImageCropInput): Promise<void> {
 		height: input.height,
 	});
 	if (input.rotated) pipeline = pipeline.rotate(270);
-	await pipeline.png().toFile(input.outputPath);
+	const { data, info } = await pipeline.png().toBuffer({ resolveWithObject: true });
+	const needsOriginalCanvas = input.expectedWidth > 0 && input.expectedHeight > 0 && (
+		input.offsetX !== 0
+		|| input.offsetY !== 0
+		|| info.width !== input.expectedWidth
+		|| info.height !== input.expectedHeight
+	);
+	if (needsOriginalCanvas) {
+		await sharp({
+			create: {
+				width: input.expectedWidth,
+				height: input.expectedHeight,
+				channels: 4,
+				background: { r: 0, g: 0, b: 0, alpha: 0 },
+			},
+		})
+			.composite([{ input: data, left: input.offsetX, top: input.offsetY }])
+			.png()
+			.toFile(input.outputPath);
+		return;
+	}
+	await sharp(data).png().toFile(input.outputPath);
 }
 
 test('restore published project: directory batch restores packages, assets, and branch files', async (t) => {
@@ -33,7 +54,7 @@ test('restore published project: directory batch restores packages, assets, and 
 
 	try {
 		const result = await io.restorePublishedProject(RELEASE_DIR, outputDir, {
-			packages: ['Basics', 'Branch'],
+			packages: ['Basics', 'Branch', 'Joystick'],
 			force: true,
 			cropImage,
 		});
@@ -43,6 +64,7 @@ test('restore published project: directory batch restores packages, assets, and 
 		const doc = await io.readProject(result.projectPath);
 		t.truthy(doc.getRoot().getPackage('Basics'), 'Basics package is restored');
 		t.truthy(doc.getRoot().getPackage('Branch'), 'Branch package is restored');
+		t.truthy(doc.getRoot().getPackage('Joystick'), 'Joystick package is restored');
 		t.deepEqual(doc.getRoot().listBranches(), ['dev'], 'branch metadata survives restore');
 
 		const basics = doc.getRoot().getPackage('Basics')!;
@@ -58,11 +80,19 @@ test('restore published project: directory batch restores packages, assets, and 
 		t.truthy(await fs.stat(soundPath).catch(() => null), 'sound file is copied without publish prefix');
 		const basicsPackageXml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'package.xml'), 'utf-8');
 		t.true(basicsPackageXml.includes('name="gojg7u.wav"'), 'package.xml references copied sound file name');
+		t.true(basicsPackageXml.includes('<publish name="Basics">'), 'package.xml keeps publish block');
+		t.true(basicsPackageXml.includes('<atlas name="Default" index="0"'), 'package.xml keeps default atlas publish entry');
+		t.true(basicsPackageXml.includes('name="nlge1k.jta"'), 'movieclip package resource keeps .jta file name');
+		t.true(basicsPackageXml.includes('name="BMFontTest.fnt"'), 'font package resource keeps .fnt file name');
 
 		const branchFacePath = path.join(outputDir, 'assets_dev', 'Branch', 'face.png');
 		t.truthy(await fs.stat(branchFacePath).catch(() => null), 'branch image is cropped into assets_dev');
 		const branchPackageXml = await fs.readFile(path.join(outputDir, 'assets_dev', 'Branch', 'package_branch.xml'), 'utf-8');
 		t.true(branchPackageXml.includes('id="kn7w2"'), 'branch package xml references branch image resource');
+
+		const joystick1Meta = await sharp(path.join(outputDir, 'assets', 'Joystick', 'images', '1.png')).metadata();
+		t.is(joystick1Meta.width, 178, 'trimmed Joystick image is restored to original width');
+		t.is(joystick1Meta.height, 160, 'trimmed Joystick image is restored to original height');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

@@ -60,6 +60,11 @@ const PACKAGE_PUBLISH_ATTRS = {
 	packageCount: { canonical: 'packageCount' },
 } satisfies XmlAttrMap;
 
+const PACKAGE_PUBLISH_ATLAS_ATTRS = {
+	name: { canonical: 'name' },
+	index: { canonical: 'index' },
+} satisfies XmlAttrMap;
+
 const PACKAGE_RESOURCE_BASE_ATTRS = {
 	id: { canonical: 'id' },
 	name: { canonical: 'name' },
@@ -487,7 +492,13 @@ const COMBOBOX_ITEM_ATTRS = {
 
 const PACKAGE_DESCRIPTION_NODE = defineNode(PACKAGE_DESCRIPTION_ATTRS);
 const BRANCH_DESCRIPTION_NODE = defineNode(BRANCH_DESCRIPTION_ATTRS);
-const PACKAGE_PUBLISH_NODE = defineNode(PACKAGE_PUBLISH_ATTRS);
+const PACKAGE_PUBLISH_ATLAS_NODE = defineNode(PACKAGE_PUBLISH_ATLAS_ATTRS);
+const PACKAGE_PUBLISH_NODE = defineNode(
+	PACKAGE_PUBLISH_ATTRS,
+	{
+		atlas: PACKAGE_PUBLISH_ATLAS_NODE,
+	},
+);
 const PACKAGE_RESOURCE_NODE = defineNode(PACKAGE_RESOURCE_BASE_ATTRS);
 const PACKAGE_IMAGE_RESOURCE_NODE = defineNode(PACKAGE_IMAGE_RESOURCE_ATTRS);
 const PACKAGE_FONT_RESOURCE_NODE = defineNode(PACKAGE_FONT_RESOURCE_ATTRS);
@@ -757,6 +768,7 @@ export const PROJECT_XML_PROTOCOL = {
 	packageDescription: PACKAGE_DESCRIPTION_NODE,
 	branchDescription: BRANCH_DESCRIPTION_NODE,
 	packagePublish: PACKAGE_PUBLISH_NODE,
+	packagePublishAtlas: PACKAGE_PUBLISH_ATLAS_NODE,
 	packageResource: PACKAGE_RESOURCE_NODE,
 	packageImageResource: PACKAGE_IMAGE_RESOURCE_NODE,
 	packageFontResource: PACKAGE_FONT_RESOURCE_NODE,
@@ -794,12 +806,12 @@ export function readXmlAttr<T = unknown>(
 	source: XmlAttrSource,
 	spec: XmlAttrSpec,
 ): T | undefined {
-	if (Object.prototype.hasOwnProperty.call(source, spec.canonical)) {
+	if (Object.hasOwn(source, spec.canonical)) {
 		return source[spec.canonical] as T;
 	}
 
 	for (const alias of spec.aliases ?? []) {
-		if (Object.prototype.hasOwnProperty.call(source, alias)) {
+		if (Object.hasOwn(source, alias)) {
 			return source[alias] as T;
 		}
 	}

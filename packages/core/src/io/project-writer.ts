@@ -181,6 +181,10 @@ type WritableFontResource = WritableResource & {
 	getSamplePointSize?(): number;
 };
 
+type WritableMovieClipResource = WritableResource & {
+	getFileName?(): string;
+};
+
 type WritableFileResource = WritableResource & {
 	getFile?(): string;
 };
@@ -587,6 +591,20 @@ export class ProjectWriter {
 			PROJECT_XML_PROTOCOL.packagePublish.attrs.packageCount,
 			publishPackageCount > 0 ? publishPackageCount : undefined,
 		);
+		const publishAtlases = pkg.listAtlases().map((atlas) => {
+			const attrs: Record<string, unknown> = {};
+			const index = atlas.getIndex?.() ?? 0;
+			writeXmlAttr(
+				attrs,
+				PROJECT_XML_PROTOCOL.packagePublishAtlas.attrs.name,
+				index === 0 ? 'Default' : atlas.getName(),
+			);
+			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packagePublishAtlas.attrs.index, String(index));
+			return attrs;
+		});
+		if (publishAtlases.length > 0) {
+			publishAttrs.atlas = publishAtlases;
+		}
 		const pkgXmlObj = {
 			'?xml': { '@_version': '1.0', '@_encoding': 'utf-8' },
 			packageDescription: {
@@ -1536,6 +1554,11 @@ export class ProjectWriter {
 		if (type === 'FontResource') {
 			const fileName = (res as WritableFontResource).getFileName?.() ?? '';
 			if (fileName) return fileName;
+		}
+		if (type === 'MovieClipResource') {
+			const fileName = (res as WritableMovieClipResource).getFileName?.() ?? '';
+			if (fileName) return fileName;
+			return `${name}.jta`;
 		}
 		// For other types the name usually includes the extension already (stored from original)
 		return name;

@@ -454,6 +454,7 @@ test('project XML protocol children maps stay explicit and stable', (t) => {
 			'packageFontResource',
 			'packageImageResource',
 			'packagePublish',
+			'packagePublishAtlas',
 			'packageResource',
 			'packageSkeletonResource',
 			'progressBarExtension',

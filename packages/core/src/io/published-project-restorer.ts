@@ -14,6 +14,8 @@ export interface RestoreImageCropInput {
 	width: number;
 	height: number;
 	rotated: boolean;
+	offsetX: number;
+	offsetY: number;
 	expectedWidth: number;
 	expectedHeight: number;
 }
@@ -51,6 +53,10 @@ interface RestorableSprite {
 	getRectWidth(): number;
 	getRectHeight(): number;
 	getRotated(): boolean;
+	getOffsetX(): number;
+	getOffsetY(): number;
+	getOriginalWidth(): number;
+	getOriginalHeight(): number;
 }
 
 function normalizeVirtualPath(path: string | undefined): string {
@@ -150,6 +156,10 @@ export class PublishedProjectRestorer {
 				if (!image) continue;
 				if (sprite.getRectWidth() <= 0 || sprite.getRectHeight() <= 0) continue;
 				const outputPath = this._resourceOutputPath(options.outputProjectPath, pkg, image, imageFileName(image));
+				const imageWidth = image.getWidth?.() ?? 0;
+				const imageHeight = image.getHeight?.() ?? 0;
+				const spriteWidth = sprite.getRotated() ? sprite.getRectHeight() : sprite.getRectWidth();
+				const spriteHeight = sprite.getRotated() ? sprite.getRectWidth() : sprite.getRectHeight();
 				await this._mkdirForFile(outputPath);
 				await options.cropImage({
 					sourcePath: sourceAtlas,
@@ -159,8 +169,10 @@ export class PublishedProjectRestorer {
 					width: sprite.getRectWidth(),
 					height: sprite.getRectHeight(),
 					rotated: sprite.getRotated(),
-					expectedWidth: image.getWidth?.() ?? sprite.getRectWidth(),
-					expectedHeight: image.getHeight?.() ?? sprite.getRectHeight(),
+					offsetX: sprite.getOffsetX(),
+					offsetY: sprite.getOffsetY(),
+					expectedWidth: Math.max(imageWidth, sprite.getOriginalWidth(), spriteWidth),
+					expectedHeight: Math.max(imageHeight, sprite.getOriginalHeight(), spriteHeight),
 				});
 			}
 		}

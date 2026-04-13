@@ -95,6 +95,7 @@
 说明：
 - `PublishSettings` 不是 `settings/Publish.json` 的顶层结构，而是单个包发布配置对象。
 - 包级设置里可以单独定义图集列表，也可以指定使用全局图集设置。
+- 工程 `package.xml` 中的 `publish` 节点可写出包级图集子节点，例如 `<atlas name="Default" index="0"/>`，用于描述该包的发布图集列表。
 
 ## 包级图集设置真实属性
 

@@ -107,7 +107,41 @@ async function createRestoreCropper(): Promise<RestoreImageCropper> {
 			height: input.height,
 		});
 		if (input.rotated) image = image.rotate(270);
-		await image.png().toFile(input.outputPath);
+		const { data, info } = await image.png().toBuffer({ resolveWithObject: true });
+		const needsOriginalCanvas = input.expectedWidth > 0 && input.expectedHeight > 0 && (
+			input.offsetX !== 0
+			|| input.offsetY !== 0
+			|| info.width !== input.expectedWidth
+			|| info.height !== input.expectedHeight
+		);
+
+		if (needsOriginalCanvas) {
+			if (
+				input.offsetX < 0
+				|| input.offsetY < 0
+				|| input.offsetX + info.width > input.expectedWidth
+				|| input.offsetY + info.height > input.expectedHeight
+			) {
+				throw new Error(
+					`restore: Cropped image does not fit original canvas for ${input.outputPath}: `
+					+ `crop ${info.width}x${info.height} at ${input.offsetX},${input.offsetY}, `
+					+ `canvas ${input.expectedWidth}x${input.expectedHeight}`,
+				);
+			}
+			await sharp({
+				create: {
+					width: input.expectedWidth,
+					height: input.expectedHeight,
+					channels: 4,
+					background: { r: 0, g: 0, b: 0, alpha: 0 },
+				},
+			})
+				.composite([{ input: data, left: input.offsetX, top: input.offsetY }])
+				.png()
+				.toFile(input.outputPath);
+		} else {
+			await sharp(data).png().toFile(input.outputPath);
+		}
 
 		const metadata = await sharp(input.outputPath).metadata();
 		if (

@@ -117,7 +117,7 @@ flowchart LR
 |---|---|
 | `packageDescription` 骨架 | `id` |
 | `branchDescription` 骨架 | 分支资源清单根节点 |
-| `packageDescription > publish` | `name`、`path`、`branchPath`、`packageCount` |
+| `packageDescription > publish` | `name`、`path`、`branchPath`、`packageCount`，以及子节点 `atlas@name/index` |
 | 通用资源节点 | `id`、`name`、`path`、`exported` |
 | `image` 资源 | `atlas`、`scale`、`scale9grid`、`width`、`height`、`gridTile`、`qualityOption`、`duplicatePadding`、`smoothing` |
 | `font` 资源 | `texture`、`renderMode`、`samplePointSize` |
@@ -171,7 +171,8 @@ flowchart LR
 | `atlas*.png` | 由 `PublishedProjectRestorer` 通过注入的图片裁切器按 sprite 映射裁切为碎图 PNG |
 | `SoundResource` / `MiscResource` / `SpineResource` / `DragonBonesResource` | 优先按 `<包发布名>_<资源文件名>` 从发布目录复制，回退按资源文件名复制 |
 | 工程设置 | 初始化 Unity 发布默认值，不从发布包反推原编辑器设置 |
-| `MovieClipResource` / `FontResource` | 第一版只保留解析后的正式属性与 XML，不生成 `.jta` / `.fnt` |
+| `packageDescription > publish` | 按发布包中的 atlas 页重建默认 publish atlas 条目，用于表达包级发布图集 |
+| `MovieClipResource` / `FontResource` | 恢复 `.jta`、`.fnt`、`.ttf` 资源引用名；不生成原始 `.jta` / `.fnt` 源文件 |
 
 ## 当前最关键的数据流
 

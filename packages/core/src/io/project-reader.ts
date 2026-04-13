@@ -1051,6 +1051,7 @@ export class ProjectReader {
 				res.setId(id);
 				res.setPath(path);
 				res.setBranch(branchName);
+				res.setFileName(name);
 				res.setExported(exported);
 				pkg.addResource(res);
 				ctx.registerResource(pkg.getId(), id, res);
@@ -1276,7 +1277,7 @@ export class ProjectReader {
 					.setFromPage(parseControllerActionPages(fromPage))
 					.setToPage(parseControllerActionPages(toPage));
 				switch (actionType) {
-					case ControllerActionType.PlayTransition:
+					case ControllerActionType.PlayTransition: {
 						const transitionName = readXmlAttr<string>(actionDef, PROJECT_XML_PROTOCOL.controllerAction.attrs.transition);
 						const repeat = readXmlAttr<string | number>(actionDef, PROJECT_XML_PROTOCOL.controllerAction.attrs.repeat);
 						const delay = readXmlAttr<string | number>(actionDef, PROJECT_XML_PROTOCOL.controllerAction.attrs.delay);
@@ -1287,7 +1288,8 @@ export class ProjectReader {
 							.setDelay(parseFloat2(delay))
 							.setStopOnExit(parseBool(stopOnExit));
 						break;
-					case ControllerActionType.ChangePage:
+					}
+					case ControllerActionType.ChangePage: {
 						const objectId = readXmlAttr<string>(actionDef, PROJECT_XML_PROTOCOL.controllerAction.attrs.objectId);
 						const controllerName = readXmlAttr<string>(actionDef, PROJECT_XML_PROTOCOL.controllerAction.attrs.controller);
 						const targetPage = readXmlAttr<string>(actionDef, PROJECT_XML_PROTOCOL.controllerAction.attrs.targetPage);
@@ -1296,6 +1298,7 @@ export class ProjectReader {
 							.setControllerName(getXmlScalar(controllerName))
 							.setTargetPage(getXmlScalar(targetPage));
 						break;
+					}
 					default:
 						break;
 				}
