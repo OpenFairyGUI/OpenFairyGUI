@@ -87,6 +87,12 @@ export interface AtlasOptions {
 	 */
 	extractAlpha?: boolean;
 
+	/**
+	 * When branchProcessing keeps branch resources, publish branch images into
+	 * separate atlas pages/files per branch instead of mixing them with main.
+	 */
+	separatedAtlasForBranch?: boolean;
+
 }
 
 const ATLAS_DEFAULTS: Required<Omit<AtlasOptions, 'encoder' | 'basePath' | 'outputPath' | 'mkdir' | 'readFileRaw'>> = {
@@ -101,6 +107,7 @@ const ATLAS_DEFAULTS: Required<Omit<AtlasOptions, 'encoder' | 'basePath' | 'outp
 	preserveInputOrderOnTie: false,
 	directSingleImageOutput: false,
 	extractAlpha: false,
+	separatedAtlasForBranch: false,
 };
 
 /** Trim info for a single image. */
@@ -186,6 +193,12 @@ interface FontResourceExtras extends ExtrasMap {
 
 interface PackageAtlasExtras extends ExtrasMap {
 	publishedResourceIds?: string[];
+}
+
+interface BranchAtlasGroup {
+	branchName: string;
+	branchOrdinal: number;
+	inputs: InputItem[];
 }
 
 interface AtlasEncoderMetadata {
@@ -587,159 +600,206 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 			}
 
 			if (inputs.length === 0) continue;
-			const directOutput = resolveDirectImageOutput(inputs, options);
-			if (directOutput) {
-				await emitDirectImageOutput(doc, pkg, directOutput, encoder, options, logger);
-				logger.info(`atlas: Direct output for single image package "${pkg.getName()}".`);
-				continue;
-			}
+			const branchGroups = buildBranchAtlasGroups(doc, inputs, options);
+			let totalPageCount = 0;
+			let usedDirectOutput = false;
 
-			const hasDuplicatePadding = inputs.some((i) => {
-				return isImageResource(i.resource) && i.resource.getDuplicatePadding?.() === true;
-			});
-
-			const packer = new MaxRectsPackerCompat({
-				pot: options.powerOfTwo,
-				mof: !options.powerOfTwo,
-				padding: options.padding,
-				rotation: options.allowRotation,
-				minWidth: 16,
-				minHeight: 16,
-				maxWidth: options.maxSize,
-				maxHeight: options.maxSize,
-				square: options.square,
-				fast: options.fast,
-				edgePadding: false,
-				duplicatePadding: hasDuplicatePadding,
-				multiPage: options.multiPage,
-				preserveInputOrderOnTie: options.preserveInputOrderOnTie,
-			});
-			const pages = packer.pack(inputs.map((input, index) => inputToCompatRect(input, index)));
-			if (!pages || pages.length === 0) continue;
-			const pageCount = pages.length;
-
-			// Create Atlas + Sprite nodes
-			for (let p = 0; p < pageCount; p++) {
-				const page = pages[p];
-				const atlasNode = doc.createAtlas(`atlas${p}`);
-				atlasNode.setIndex(p);
-				atlasNode.setFile(`${pkg.getPublishName() || pkg.getName()}_atlas${p}.png`);
-				atlasNode.setWidth(page.width);
-				atlasNode.setHeight(page.height);
-				pkg.addAtlas(atlasNode);
-
-				for (const pr of page.outputRects) {
-					const input = inputs[pr.index];
-					if (!input) continue;
-					const packedSize = resolvePackedRectSize(input, pr.width, pr.height, pr.rotated);
-					const rotated = pr.rotated;
-					const sprite = doc.createSprite();
-					sprite.setItemId(input.id);
-					sprite.setRectX(pr.x);
-					sprite.setRectY(pr.y);
-					sprite.setRectWidth(packedSize.width);
-					sprite.setRectHeight(packedSize.height);
-					sprite.setRotated(rotated);
-					sprite.setOffsetX(input.offsetX);
-					sprite.setOffsetY(input.offsetY);
-					sprite.setOriginalWidth(input.originalWidth);
-					sprite.setOriginalHeight(input.originalHeight);
-					sprite.setAtlas(atlasNode);
-					atlasNode.addSprite(sprite);
+			for (const group of branchGroups) {
+				const directOutput = resolveDirectImageOutput(group.inputs, options);
+				if (directOutput) {
+					await emitDirectImageOutput(doc, pkg, directOutput, encoder, options, logger, group.branchName, group.branchOrdinal);
+					usedDirectOutput = true;
+					totalPageCount += 1;
+					continue;
 				}
 
-				// Add font alias sprites (font ID → same rect as texture image)
-				for (const res of allResources) {
-					if (!isFontResource(res)) continue;
-					const fextras = res.getExtras() as FontResourceExtras;
-					const alias = fextras?._fontSpriteAlias;
-					if (!alias) continue;
-					const imgSprite = page.outputRects.find((result) => inputs[result.index]?.id === alias.textureId);
-					if (!imgSprite) continue;
-					const imgInput = inputs[imgSprite.index];
-					const fontSprite = doc.createSprite();
-					fontSprite.setItemId(alias.fontId);
-					fontSprite.setRectX(imgSprite.x);
-					fontSprite.setRectY(imgSprite.y);
-					fontSprite.setRectWidth(imgSprite.width);
-					fontSprite.setRectHeight(imgSprite.height);
-					fontSprite.setRotated(imgSprite.rotated);
-					if (imgInput) {
-						fontSprite.setOffsetX(imgInput.offsetX);
-						fontSprite.setOffsetY(imgInput.offsetY);
-						fontSprite.setOriginalWidth(imgInput.originalWidth);
-						fontSprite.setOriginalHeight(imgInput.originalHeight);
-					}
-					fontSprite.setAtlas(atlasNode);
-					atlasNode.addSprite(fontSprite);
-				}
-			}
+				const hasDuplicatePadding = group.inputs.some((i) => {
+					return isImageResource(i.resource) && i.resource.getDuplicatePadding?.() === true;
+				});
 
-			// Composite actual PNGs if encoder is available
-			if (encoder && options.outputPath) {
-				if (options.mkdir) {
-					await options.mkdir(options.outputPath);
-				}
-				for (let p = 0; p < pageCount; p++) {
+				const packer = new MaxRectsPackerCompat({
+					pot: options.powerOfTwo,
+					mof: !options.powerOfTwo,
+					padding: options.padding,
+					rotation: options.allowRotation,
+					minWidth: 16,
+					minHeight: 16,
+					maxWidth: options.maxSize,
+					maxHeight: options.maxSize,
+					square: options.square,
+					fast: options.fast,
+					edgePadding: false,
+					duplicatePadding: hasDuplicatePadding,
+					multiPage: options.multiPage,
+					preserveInputOrderOnTie: options.preserveInputOrderOnTie,
+				});
+				const pages = packer.pack(group.inputs.map((input, index) => inputToCompatRect(input, index)));
+				if (!pages || pages.length === 0) continue;
+				totalPageCount += pages.length;
+
+				for (let p = 0; p < pages.length; p++) {
 					const page = pages[p];
-
-					const compositeInputs: Array<{ input: Uint8Array; left: number; top: number }> = [];
+					const atlasNode = doc.createAtlas(`atlas${resolveAtlasIndex(group.branchOrdinal, p)}`);
+					atlasNode.setIndex(resolveAtlasIndex(group.branchOrdinal, p));
+					atlasNode.setFile(resolveAtlasOutputFileName(pkg, p, group.branchName));
+					atlasNode.setWidth(page.width);
+					atlasNode.setHeight(page.height);
+					pkg.addAtlas(atlasNode);
 
 					for (const pr of page.outputRects) {
-					const input = inputs[pr.index];
-					if (!input) continue;
-					if (pr.width <= 0 || pr.height <= 0 || input.width <= 0 || input.height <= 0) continue;
-					try {
-						let imgBuffer: Uint8Array;
-
-						if (input.trimBuffer) {
-							// Use pre-trimmed buffer
-							imgBuffer = input.trimBuffer;
-							if (imgBuffer.length === 0) continue;
-						} else {
-								// Read from file
-								if (!isImageResource(input.resource)) {
-									logger.warn(`atlas: Non-image input "${input.id}" is missing inline buffer, skipping compositing.`);
-									continue;
-								}
-								const filePath = _resolveImagePath(input.resource, pkg, options.basePath!);
-								imgBuffer = await encoder(filePath).toBuffer();
-							}
-
-							if (pr.rotated) imgBuffer = await encoder(imgBuffer).rotate(270).toBuffer();
-
-							compositeInputs.push({
-								input: imgBuffer,
-								left: pr.x,
-								top: pr.y,
-							});
-						} catch {
-							logger.warn(`atlas: Could not read image "${input.id}" for compositing.`);
-						}
+						const input = group.inputs[pr.index];
+						if (!input) continue;
+						const packedSize = resolvePackedRectSize(input, pr.width, pr.height, pr.rotated);
+						const rotated = pr.rotated;
+						const sprite = doc.createSprite();
+						sprite.setItemId(input.id);
+						sprite.setRectX(pr.x);
+						sprite.setRectY(pr.y);
+						sprite.setRectWidth(packedSize.width);
+						sprite.setRectHeight(packedSize.height);
+						sprite.setRotated(rotated);
+						sprite.setOffsetX(input.offsetX);
+						sprite.setOffsetY(input.offsetY);
+						sprite.setOriginalWidth(input.originalWidth);
+						sprite.setOriginalHeight(input.originalHeight);
+						sprite.setAtlas(atlasNode);
+						atlasNode.addSprite(sprite);
 					}
 
-					const atlasFileName = `${pkg.getPublishName() || pkg.getName()}_atlas${p}.png`;
-					const outputFile = `${options.outputPath}/${atlasFileName}`;
+					for (const res of allResources) {
+						if (!isFontResource(res)) continue;
+						const fextras = res.getExtras() as FontResourceExtras;
+						const alias = fextras?._fontSpriteAlias;
+						if (!alias) continue;
+						const imgSprite = page.outputRects.find((result) => group.inputs[result.index]?.id === alias.textureId);
+						if (!imgSprite) continue;
+						const imgInput = group.inputs[imgSprite.index];
+						const fontSprite = doc.createSprite();
+						fontSprite.setItemId(alias.fontId);
+						fontSprite.setRectX(imgSprite.x);
+						fontSprite.setRectY(imgSprite.y);
+						fontSprite.setRectWidth(imgSprite.width);
+						fontSprite.setRectHeight(imgSprite.height);
+						fontSprite.setRotated(imgSprite.rotated);
+						if (imgInput) {
+							fontSprite.setOffsetX(imgInput.offsetX);
+							fontSprite.setOffsetY(imgInput.offsetY);
+							fontSprite.setOriginalWidth(imgInput.originalWidth);
+							fontSprite.setOriginalHeight(imgInput.originalHeight);
+						}
+						fontSprite.setAtlas(atlasNode);
+						atlasNode.addSprite(fontSprite);
+					}
+				}
 
-					await encoder({
-						create: {
-							width: page.width,
-							height: page.height,
-							channels: 4 as const,
-							background: { r: 0, g: 0, b: 0, alpha: 0 },
-						},
-					})
-						.composite(compositeInputs)
-						.png()
-						.toFile(outputFile);
+				if (encoder && options.outputPath) {
+					if (options.mkdir) {
+						await options.mkdir(options.outputPath);
+					}
+					for (let p = 0; p < pages.length; p++) {
+						const page = pages[p];
+						const compositeInputs: Array<{ input: Uint8Array; left: number; top: number }> = [];
 
-					logger.info(`atlas: Generated ${atlasFileName} (${page.width}x${page.height}, ${page.outputRects.length} sprites)`);
+						for (const pr of page.outputRects) {
+							const input = group.inputs[pr.index];
+							if (!input) continue;
+							if (pr.width <= 0 || pr.height <= 0 || input.width <= 0 || input.height <= 0) continue;
+							try {
+								let imgBuffer: Uint8Array;
+
+								if (input.trimBuffer) {
+									imgBuffer = input.trimBuffer;
+									if (imgBuffer.length === 0) continue;
+								} else {
+									if (!isImageResource(input.resource)) {
+										logger.warn(`atlas: Non-image input "${input.id}" is missing inline buffer, skipping compositing.`);
+										continue;
+									}
+									const filePath = _resolveImagePath(input.resource, pkg, options.basePath!);
+									imgBuffer = await encoder(filePath).toBuffer();
+								}
+
+								if (pr.rotated) imgBuffer = await encoder(imgBuffer).rotate(270).toBuffer();
+
+								compositeInputs.push({
+									input: imgBuffer,
+									left: pr.x,
+									top: pr.y,
+								});
+							} catch {
+								logger.warn(`atlas: Could not read image "${input.id}" for compositing.`);
+							}
+						}
+
+						const atlasFileName = resolveAtlasOutputFileName(pkg, p, group.branchName);
+						const outputFile = `${options.outputPath}/${atlasFileName}`;
+
+						await encoder({
+							create: {
+								width: page.width,
+								height: page.height,
+								channels: 4 as const,
+								background: { r: 0, g: 0, b: 0, alpha: 0 },
+							},
+						})
+							.composite(compositeInputs)
+							.png()
+							.toFile(outputFile);
+
+						logger.info(`atlas: Generated ${atlasFileName} (${page.width}x${page.height}, ${page.outputRects.length} sprites)`);
+					}
 				}
 			}
 
-			logger.info(`atlas: Packed ${inputs.length} images into ${pageCount} atlas(es) for package "${pkg.getName()}".`);
+			if (usedDirectOutput) {
+				logger.info(`atlas: Direct output for single image package "${pkg.getName()}".`);
+			}
+			logger.info(`atlas: Packed ${inputs.length} images into ${totalPageCount} atlas(es) for package "${pkg.getName()}".`);
 		}
 	});
+}
+
+function buildBranchAtlasGroups(doc: Document, inputs: InputItem[], options: AtlasOptions): BranchAtlasGroup[] {
+	if (!options.separatedAtlasForBranch) {
+		return [{ branchName: '', branchOrdinal: 0, inputs }];
+	}
+
+	const discoveredBranchNames = [...new Set(inputs
+		.map((input) => getInputBranchName(input))
+		.filter((branchName) => !!branchName))];
+	if (discoveredBranchNames.length === 0) {
+		return [{ branchName: '', branchOrdinal: 0, inputs }];
+	}
+
+	const orderedBranchNames = doc.getRoot().listBranches().filter((branchName) => discoveredBranchNames.includes(branchName));
+	for (const branchName of discoveredBranchNames) {
+		if (!orderedBranchNames.includes(branchName)) orderedBranchNames.push(branchName);
+	}
+
+	const groups = new Map<string, InputItem[]>();
+	groups.set('', []);
+	for (const branchName of orderedBranchNames) {
+		groups.set(branchName, []);
+	}
+
+	for (const input of inputs) {
+		const branchName = getInputBranchName(input);
+		const key = groups.has(branchName) ? branchName : '';
+		groups.get(key)!.push(input);
+	}
+
+	const orderedKeys = [''];
+	for (const branchName of orderedBranchNames) {
+		if ((groups.get(branchName)?.length ?? 0) > 0) orderedKeys.push(branchName);
+	}
+
+	return orderedKeys
+		.filter((branchName) => (groups.get(branchName)?.length ?? 0) > 0)
+		.map((branchName, index) => ({
+			branchName,
+			branchOrdinal: index,
+			inputs: groups.get(branchName) ?? [],
+		}));
 }
 
 function inputToCompatRect(input: InputItem, index: number): CompatNodeRect {
@@ -801,11 +861,13 @@ async function emitDirectImageOutput(
 	encoder: AtlasEncoder | undefined,
 	options: AtlasOptions,
 	logger: ILogger,
+	branchName: string = '',
+	branchOrdinal: number = 0,
 ): Promise<void> {
-	const atlasFileName = `${pkg.getPublishName() || pkg.getName()}_atlas0.png`;
+	const atlasFileName = resolveAtlasOutputFileName(pkg, 0, branchName);
 	const atlasSize = resolveDirectOutputAtlasSize(input.originalWidth, input.originalHeight, options);
-	const atlasNode = doc.createAtlas('atlas0');
-	atlasNode.setIndex(0);
+	const atlasNode = doc.createAtlas(`atlas${resolveAtlasIndex(branchOrdinal, 0)}`);
+	atlasNode.setIndex(resolveAtlasIndex(branchOrdinal, 0));
 	atlasNode.setFile(atlasFileName);
 	atlasNode.setWidth(atlasSize.width);
 	atlasNode.setHeight(atlasSize.height);
@@ -853,6 +915,20 @@ async function emitDirectImageOutput(
 	} catch {
 		logger.warn(`atlas: Could not write direct-output atlas "${atlasFileName}".`);
 	}
+}
+
+function getInputBranchName(input: InputItem): string {
+	return (input.resource as { getBranch?(): string }).getBranch?.() ?? '';
+}
+
+function resolveAtlasIndex(branchOrdinal: number, pageIndex: number): number {
+	if (branchOrdinal <= 0) return pageIndex;
+	return branchOrdinal * 100 + pageIndex;
+}
+
+function resolveAtlasOutputFileName(pkg: Package, pageIndex: number, branchName: string): string {
+	const suffix = branchName ? `_${branchName}` : '';
+	return `${pkg.getPublishName() || pkg.getName()}_atlas${pageIndex}${suffix}.png`;
 }
 
 function resolveImageFileName(resource: ImageResource): string {

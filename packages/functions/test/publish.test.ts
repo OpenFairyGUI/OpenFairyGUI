@@ -401,7 +401,7 @@ test('publish: exports loader skeleton resources and dependency closure with edi
 	}
 });
 
-test('publish: Branch package merges main branch by default when branchProcessing is active-branch mode', async (t) => {
+test('publish: Branch package keeps branch resources and emits separate branch atlases when configured', async (t) => {
 	const io = new NodeIO();
 	const doc = await io.readProject(UNITY_EXAMPLES_FAIRY);
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-'));
@@ -417,20 +417,39 @@ test('publish: Branch package merges main branch by default when branchProcessin
 
 		const bytes = await fs.readFile(path.join(tmpDir, 'Branch_fui.bytes'));
 		const parsed = parsePackageBinary(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
-		t.deepEqual(parsed.branches, [], 'merged publish does not keep runtime branch table');
+		t.deepEqual(parsed.branches, ['dev'], 'separated branch atlas mode keeps package branch list');
 
 		const byId = new Map(parsed.items.map((item) => [item.id, item]));
 		t.is(byId.get('kn7w0')?.width, 800, 'main branch publish keeps main component width');
 		t.is(byId.get('kn7w0')?.height, 600, 'main branch publish keeps main component height');
 		t.true(byId.has('kn7w1'), 'main resource id is preserved');
-		t.false(byId.has('kn7w2'), 'branch variant item id is merged away');
+		t.true(byId.has('kn7w2'), 'branch variant item id is preserved');
+		t.true(byId.has('kn7w3'), 'branch component id is preserved');
 		t.is(byId.get('kn7w1')?.width, 60, 'main branch publish keeps main image width');
 		t.is(byId.get('kn7w1')?.height, 58, 'main branch publish keeps main image height');
+		t.is(byId.get('kn7w2')?.width, 62, 'branch image width is preserved');
+		t.is(byId.get('kn7w2')?.height, 60, 'branch image height is preserved');
+		t.deepEqual(byId.get('kn7w1')?.branchItems ?? [], ['kn7w2'], 'main image maps to branch image id');
 		const mainRoundTrip = await io.readBinary(path.join(tmpDir, 'Branch_fui.bytes'));
 		const mainPkg = mainRoundTrip.getRoot().getPackage('Branch')!;
 		const mainComponent = mainPkg.getResourceById('kn7w0') as any;
 		const mainLoader = mainComponent.listChildren().find((child: any) => child.getId?.() === 'n0_kn7w');
 		t.is(mainLoader?.getUrl?.(), 'ui://a9lkf94skn7w1', 'main branch publish keeps main component resource reference');
+		const devComponent = mainPkg.getResourceById('kn7w3') as any;
+		const devLoader = devComponent.listChildren().find((child: any) => child.getId?.() === 'n0_kn7w');
+		t.is(devLoader?.getUrl?.(), 'ui://a9lkf94skn7w2', 'branch component keeps branch-local resource reference');
+		t.deepEqual(
+			mainPkg.listAtlases()
+				.map((atlas) => ({ index: atlas.getIndex(), file: atlas.getFile(), sprites: atlas.listSprites().map((sprite) => sprite.getItemId()) }))
+				.sort((left, right) => left.index - right.index),
+			[
+				{ index: 0, file: 'atlas0.png', sprites: ['kn7w1'] },
+				{ index: 100, file: 'atlas0_dev.png', sprites: ['kn7w2'] },
+			],
+			'main publish separates main and branch atlases',
+		);
+		t.truthy(await fs.stat(path.join(tmpDir, 'Branch_atlas0.png')).catch(() => null), 'main atlas png was written');
+		t.truthy(await fs.stat(path.join(tmpDir, 'Branch_atlas0_dev.png')).catch(() => null), 'branch atlas png was written');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
@@ -439,6 +458,10 @@ test('publish: Branch package merges main branch by default when branchProcessin
 test('publish: Branch package merges active branch resources onto main ids', async (t) => {
 	const io = new NodeIO();
 	const doc = await io.readProject(UNITY_EXAMPLES_FAIRY);
+	const settings = structuredClone(doc.getRoot().getSettings?.() ?? {});
+	settings.publish ??= {};
+	settings.publish.branchProcessing = 1;
+	doc.getRoot().setSettings(settings);
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-'));
 
 	try {

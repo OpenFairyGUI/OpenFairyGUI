@@ -11,6 +11,7 @@ export interface PublishSettings {
 	path?: string;
 	branchPath?: string;
 	branchProcessing?: number;
+	seperatedAtlasForBranch?: boolean;
 	packageCount?: number;
 	atlasSetting?: {
 		maxSize?: number;

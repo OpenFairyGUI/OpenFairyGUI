@@ -960,6 +960,7 @@ export function publish(options: PublishOptions): Transform {
 		const atlasOpts: AtlasOptions = {
 			...resolved.atlas,
 			...(options.atlas ?? {}),
+			separatedAtlasForBranch: includeBranches && publishSettings.seperatedAtlasForBranch === true,
 			encoder: options.encoder,
 			basePath: options.basePath,
 			outputPath: options.fs ? options.output : undefined,

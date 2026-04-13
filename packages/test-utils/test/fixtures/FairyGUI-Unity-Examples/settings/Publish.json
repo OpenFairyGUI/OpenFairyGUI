@@ -1,6 +1,6 @@
 {
   "path": "../../../../../release",
-  "branchPath": "",
+  "branchPath": "../../../../../release/branch",
   "fileExtension": "bytes",
   "packageCount": 2,
   "compressDesc": true,
@@ -18,8 +18,8 @@
     "codeType": ""
   },
   "includeHighResolution": 1,
-  "branchProcessing": 1,
-  "seperatedAtlasForBranch": false,
+  "branchProcessing": 0,
+  "seperatedAtlasForBranch": true,
   "atlasSetting": {
     "maxSize": 2048,
     "paging": true,

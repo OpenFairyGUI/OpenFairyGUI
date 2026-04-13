@@ -155,6 +155,7 @@
 | `includeHighResolution` | 位掩码字段，用于表示是否包含 `2x` / `3x` / `4x` 资源 |
 | `branchProcessing` | 分支处理模式 |
 | `branchPath` | 分支输出路径 |
+| `seperatedAtlasForBranch` | 分支 atlas 是否单独输出 |
 
 `includeHighResolution` 可以理解为 `2x`、`3x`、`4x` 资源开关对应的位掩码字段。
 
@@ -164,6 +165,14 @@
 |---|---|
 | `0` | `主干包含所有分支`，发布结果保留主干与全部分支内容，输出路径使用 `path` |
 | `1` | `主干合并活跃分支`，发布结果只保留主干与当前活跃分支合并后的内容；主干输出到 `path`，非主干分支输出到 `branchPath/<branch>`（若 `branchPath` 有值） |
+
+`seperatedAtlasForBranch` 当前可见语义如下：
+
+| 条件 | 编辑器行为 |
+|---|---|
+| `branchProcessing=0` 且 `seperatedAtlasForBranch=false` | 主干与分支资源可以进入同一组 atlas 页 |
+| `branchProcessing=0` 且 `seperatedAtlasForBranch=true` | 主干 atlas 与分支 atlas 分开输出；分支 atlas 文件名带 `_branchName` 后缀，例如 `atlas0_dev.png` |
+| `branchProcessing=1` | 发布结果已完成分支合并，`seperatedAtlasForBranch` 不再单独生效 |
 
 ## 编辑器写回行为
 

@@ -181,6 +181,8 @@ block 5 的 patch 用于替换 block 4 中相同索引位置的占位字符串�
 |---|---|
 | `*.skel` | `*.skel.bytes` |
 | `*.atlas` | `*.atlas.txt` |
+
+当发布设置启用“分支 atlas 单独输出”时，atlas 条目的 `file` 会写成分支后缀形式，例如 `atlas0_dev.png`。主干 atlas 仍写 `atlas0.png`。
 | `*.png` | 保持原文件名 |
 
 `DragoneBones` 样本中的主文件与依赖文件当前保持原文件名，例如 `dragon_ske.json`、`dragon_tex.json`、`dragon.png`。
@@ -199,6 +201,7 @@ block 5 的 patch 用于替换 block 4 中相同索引位置的占位字符串�
 - package-level branch 表存在时，主条目的 `branchCount` 对应的是已写出的 branch 槽位数量。
 - branch 变体条目自身只写 `branch name`，不再继续嵌套 `branchCount` 映射。
 - 当发布模式为 `主干合并活跃分支` 时，发布结果已经完成分支替换，包级 `branchCount` 写 `0`，各 item 的 `branch name` 与 `branchCount` 也都写空值。
+- 当发布模式保留分支且 atlas 单独输出时，分支 atlas 可以使用独立 atlas 条目；当前编辑器样本中分支 atlas 的 index 使用 `100 + pageIndex`。
 
 ## Block 2：Sprites
 

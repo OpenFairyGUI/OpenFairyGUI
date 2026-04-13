@@ -939,20 +939,21 @@ function buildBranchResourceKey(resource: BinaryPackageItem): string {
 }
 
 function buildBranchItemIdsMap(pkg: Package, branchNames: string[]): Map<string, string[]> {
-	if (branchNames.length === 0) {
-		return new Map();
-	}
-
-	const branchSlotByName = new Map(branchNames.map((branchName, index) => [branchName, index] as const));
 	const map = new Map<string, string[]>();
+	const branchSlotByName = new Map(branchNames.map((branchName, index) => [branchName, index] as const));
 
 	for (const resource of pkg.listResources()) {
 		const branchName = getItemBranchName(resource);
 		if (!branchName) continue;
+		const key = buildBranchResourceKey(resource);
+		if (branchNames.length === 0) {
+			if (!map.has(key)) {
+				map.set(key, [resource.getId()]);
+			}
+			continue;
+		}
 		const slotIndex = branchSlotByName.get(branchName);
 		if (slotIndex === undefined) continue;
-
-		const key = buildBranchResourceKey(resource);
 		const branchIds = map.get(key) ?? Array(branchNames.length).fill('');
 		branchIds[slotIndex] = resource.getId();
 		map.set(key, branchIds);
@@ -966,10 +967,19 @@ function getItemBranchItemIds(
 	branchNames: string[],
 	branchItemIdsMap: Map<string, string[]>,
 ): string[] {
-	if (branchNames.length === 0) return [];
-
 	const branchAware = item as BranchAwareBinaryItem;
 	const explicitBranchItemIds = branchAware.getBranchItemIds?.() ?? [];
+	if (branchNames.length === 0) {
+		if (explicitBranchItemIds.length > 0) {
+			return explicitBranchItemIds.find((value) => !!value) ? [explicitBranchItemIds.find((value) => !!value) ?? ''] : [];
+		}
+		if (getItemBranchName(item)) return [];
+		const inferred = branchItemIdsMap.get(buildBranchResourceKey(item));
+		if (!inferred) return [];
+		const first = inferred.find((value) => !!value);
+		return first ? [first] : [];
+	}
+
 	if (explicitBranchItemIds.length > 0) {
 		const normalized = branchNames.map((_, index) => explicitBranchItemIds[index] ?? '');
 		return normalized.some((value) => !!value) ? normalized : [];
