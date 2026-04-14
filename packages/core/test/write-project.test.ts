@@ -461,6 +461,24 @@ test('round-trip: sample list ptrRes and transition value attrs survive write→
 	try {
 		await io.writeProject(doc, outFairy);
 
+		const bossXml = await fs.readFile(path.join(tmpDir, 'assets', 'Transition', 'BOSS.xml'), 'utf-8');
+		t.false(bossXml.includes('target=""'), 'transition items omit empty target attr');
+		t.true(bossXml.includes('<item time="0" type="Sound" value="ui://zgmoraj4gkq03"/>'), 'transition sound omits default volume payload');
+		t.true(bossXml.includes('ease="Expo.Out"'), 'transition tween preserves dotted ease names');
+		t.true(bossXml.includes('ease="Back.Out"'), 'transition tween preserves non-default ease names');
+
+		const pathDemoXml = await fs.readFile(path.join(tmpDir, 'assets', 'Transition', 'PathDemo.xml'), 'utf-8');
+		t.true(pathDemoXml.includes('<item time="0" type="Transition" value="t1"/>'), 'transition action omits default play-times payload');
+		t.true(pathDemoXml.includes('path="2,0,0,'), 'transition path payload is written');
+		t.true(pathDemoXml.includes('ease="Linear"'), 'transition linear ease is written');
+
+		const powerUpXml = await fs.readFile(path.join(tmpDir, 'assets', 'Transition', 'PowerUp.xml'), 'utf-8');
+		t.true(powerUpXml.includes('label2="end"'), 'transition end label is written');
+
+		const demoListXml = await fs.readFile(path.join(tmpDir, 'assets', 'Basics', 'Demo_List.xml'), 'utf-8');
+		t.false(demoListXml.includes('selectionMode="single"'), 'list omits default selectionMode');
+		t.false(demoListXml.includes('level="0"'), 'list items omit default level');
+
 		const doc2 = await io.readProject(outFairy);
 		const pullToRefresh = doc2.getRoot().listPackages().find((pkg) => pkg.getName() === 'PullToRefresh');
 		const main = pullToRefresh?.listComponents().find((comp) => comp.getName() === 'Main');
@@ -475,6 +493,77 @@ test('round-trip: sample list ptrRes and transition value attrs survive write→
 		const soundItem = boss?.listTransitions?.()[0]?.listItems?.().find((item) => item.getActionType() === 9);
 		t.truthy(soundItem, 'BOSS transition sound action exists after round-trip');
 		t.deepEqual(soundItem?.getStartValue(), ['ui://zgmoraj4gkq03'], 'transition value is parsed through the formal startValue model');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('writer: suppresses restored-like default attrs and float-noise defaults', async (t) => {
+	const io = new NodeIO();
+	const doc = new Document();
+	doc.getRoot().setProjectId('proj-defaults').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('DefaultNoise');
+	pkg.setId('pkgDefaults');
+
+	const imageRes = doc.createImageResource('img.png');
+	imageRes.setId('img001');
+	imageRes.setPath('/');
+	pkg.addResource(imageRes);
+
+	const comp = doc.createComponent('Defaults');
+	comp.setId('cmpDefaults');
+	comp.setPath('/');
+	comp.setSize(400, 300);
+
+	const buttonDef = doc.createComponent('DefaultButton');
+	buttonDef.setId('cmpButton');
+	buttonDef.setPath('/');
+	buttonDef.setExtensionType('Button');
+	buttonDef.setDownEffectValue(0.800000011920929);
+	pkg.addResource(buttonDef);
+
+	const image = doc.createGImage('img');
+	image.setId('n0');
+	image.setSrc('img001');
+	image.setColor('#FFFFFF');
+
+	const loader = doc.createGLoader('loader');
+	loader.setId('n1');
+	loader.setColor('#FFFFFF');
+	loader.setFill(0);
+
+	const text = doc.createGTextField('text');
+	text.setId('n2');
+	text.setColor('#000000');
+	text.setText('Hello');
+
+	const list = doc.createGList('list');
+	list.setId('n3');
+	list.setSelectionMode(0);
+	list.setListItems([
+		{ title: 'A', icon: 'ui://pkgDefaults/iconA', level: 0 },
+	]);
+
+	comp.addChild(image);
+	comp.addChild(loader);
+	comp.addChild(text);
+	comp.addChild(list);
+	pkg.addResource(comp);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-defaults-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+		const buttonXml = await fs.readFile(path.join(tmpDir, 'assets', 'DefaultNoise', 'DefaultButton.xml'), 'utf-8');
+		const compXml = await fs.readFile(path.join(tmpDir, 'assets', 'DefaultNoise', 'Defaults.xml'), 'utf-8');
+		t.false(buttonXml.includes('downEffectValue='), 'button omits float-noise default downEffectValue');
+		t.false(compXml.includes('color="#FFFFFF"'), 'writer omits default white image/loader color');
+		t.false(compXml.includes('color="#000000"'), 'writer omits default black text color');
+		t.false(compXml.includes('fill="none"'), 'loader omits default fill');
+		t.false(compXml.includes('selectionMode="single"'), 'list omits default selectionMode');
+		t.false(compXml.includes('level="0"'), 'list items omit default level');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
@@ -1356,10 +1445,11 @@ test('round-trip: component extension definition and instance extension attrs su
 		t.true(hostXml.includes('titleFontSize="24"'), 'button instance writes canonical titleFontSize attr');
 		t.true(hostXml.includes('page="1"'), 'button instance writes canonical page attr');
 		t.true(hostXml.includes('checked="1"'), 'button instance writes canonical checked attr');
+		t.regex(hostXml, /<Button\b[^>]*title="点我"[^>]*\/>/, 'button instance without children writes a self-closing overlay node');
 		t.true(hostXml.includes('<ComboBox '), 'combo instance writes ComboBox overlay node');
 		t.true(hostXml.includes('selectionController="qualityOption"'), 'combo instance writes canonical selectionController attr');
 		t.true(hostXml.includes('visibleItemCount="6"'), 'combo instance writes canonical visibleItemCount attr');
-		t.regex(hostXml, /<item\b[^>]*title="A"[^>]*value="1"[^>]*icon="ui:\/\/pkg005\/a"[^>]*><\/item>/, 'combo instance item writes canonical item attrs');
+		t.regex(hostXml, /<item\b[^>]*title="A"[^>]*value="1"[^>]*icon="ui:\/\/pkg005\/a"[^>]*\/>/, 'combo instance item writes canonical item attrs');
 		t.true(hostXml.includes('<Label prompt="[color=#959595]查找...[/color]"'), 'label instance writes canonical prompt attr');
 
 		const doc2 = await io.readProject(outFairy);

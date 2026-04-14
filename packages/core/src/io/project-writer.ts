@@ -16,8 +16,10 @@ const builder = new XMLBuilder({
 	format: true,
 	indentBy: '  ',
 	suppressBooleanAttributes: false,
+	suppressEmptyNode: true,
 	suppressUnpairedNode: false,
 	unpairedTags: [],
+	stopNodes: ['component.displayList'],
 });
 
 const GEAR_TAG: Record<number, string> = {
@@ -150,6 +152,39 @@ function stringifyEaseType(easeType: number): string {
 		31: 'Custom',
 	};
 	return names[easeType] ?? 'Quad.Out';
+}
+
+function sameColor(a: string | undefined, b: string): boolean {
+	return (a ?? '').toLowerCase() === b.toLowerCase();
+}
+
+function formatXmlColor(color: string): string {
+	return color.toLowerCase();
+}
+
+function almostEqual(a: number, b: number, epsilon = 0.000001): boolean {
+	return Math.abs(a - b) < epsilon;
+}
+
+function isDefaultWhiteColor(color: string | undefined): boolean {
+	return sameColor(color, '#FFFFFF') || sameColor(color, '#FFFFFFFF');
+}
+
+function isDefaultBlackColor(color: string | undefined): boolean {
+	return sameColor(color, '#000000') || sameColor(color, '#FF000000');
+}
+
+function stringifyTransitionValue(actionType: number, values: unknown[]): string {
+	const parts = values.map((value) => String(value));
+	if (actionType === 9) {
+		if (parts.length <= 1) return parts[0] ?? '';
+		if (parts[1] === '100') return parts[0] ?? '';
+	}
+	if (actionType === 10) {
+		if (parts.length <= 1) return parts[0] ?? '';
+		if (parts[1] === '1') return parts[0] ?? '';
+	}
+	return parts.join(',');
 }
 
 type PackageResource = ReturnType<Package['listResources']>[number];
@@ -460,7 +495,7 @@ function serializeListItemXmlNode(item: {
 	if (item.name !== undefined && item.name !== null) writeXmlAttr(attrs, specs.name, item.name);
 	if (item.selectedTitle !== undefined && item.selectedTitle !== null) writeXmlAttr(attrs, specs.selectedTitle, item.selectedTitle);
 	if (item.selectedIcon !== undefined && item.selectedIcon !== null) writeXmlAttr(attrs, specs.selectedIcon, item.selectedIcon);
-	if (item.level !== undefined && item.level !== null) writeXmlAttr(attrs, specs.level, String(item.level));
+	if (item.level !== undefined && item.level !== null && item.level !== 0) writeXmlAttr(attrs, specs.level, String(item.level));
 	if (item.isFolder !== undefined && item.isFolder !== null) writeXmlAttr(attrs, specs.isFolder, item.isFolder ? 'true' : 'false');
 	if (item.controllers !== undefined && item.controllers !== null) writeXmlAttr(attrs, specs.controllers, item.controllers);
 	return attrs;
@@ -840,7 +875,7 @@ export class ProjectWriter {
 					if (typedComp.getSound?.()) writeXmlAttr(extAttrs, extSpecs.sound, typedComp.getSound?.());
 					if ((typedComp.getSoundVolumeScale?.() ?? 1) !== 1) writeXmlAttr(extAttrs, extSpecs.soundVolumeScale, String(typedComp.getSoundVolumeScale?.() ?? 1));
 					if ((typedComp.getDownEffect?.() ?? 0) !== 0) writeXmlAttr(extAttrs, extSpecs.downEffect, String(typedComp.getDownEffect?.() ?? 0));
-					if ((typedComp.getDownEffectValue?.() ?? 0.8) !== 0.8) writeXmlAttr(extAttrs, extSpecs.downEffectValue, String(typedComp.getDownEffectValue?.() ?? 0.8));
+					if (!almostEqual(typedComp.getDownEffectValue?.() ?? 0.8, 0.8)) writeXmlAttr(extAttrs, extSpecs.downEffectValue, String(typedComp.getDownEffectValue?.() ?? 0.8));
 					break;
 				case 'ComboBox':
 					if (typedComp.getDropdown?.()) writeXmlAttr(extAttrs, extSpecs.dropdown, typedComp.getDropdown?.());
@@ -919,21 +954,23 @@ export class ProjectWriter {
 		return attrs;
 	}
 
-	private _serializeDisplayList(children: GObject[]): Record<string, unknown[]> {
-		const byTag: Record<string, unknown[]> = {};
+	private _serializeDisplayList(children: GObject[]): string {
+		const lines: string[] = [];
 		for (const child of children) {
 			const propertyType = child.propertyType as string;
 			const tag = DISPLAY_TAG[propertyType] ?? 'component';
 			assertDisplayListVariantAllowed(propertyType, tag, child.getName() || child.getId() || propertyType);
-			if (!byTag[tag]) byTag[tag] = [];
-			(byTag[tag] as Record<string, unknown>[]).push(this._serializeChild(child));
+			const childXml = builder.build({ [tag]: this._serializeChild(child) }) as string;
+			lines.push(...childXml.trimEnd().split('\n').map((line) => `    ${line}`));
 		}
-		return byTag;
+		return `\n${lines.join('\n')}\n  `;
 	}
 
 	private _serializeChild(obj: GObject): Record<string, unknown> {
 		const typedObj = obj as WritableChild;
 		const attrs: Record<string, unknown> = {};
+		let extensionChildName: string | undefined;
+		let extensionValue: Record<string, unknown> | string | undefined;
 		if (obj.getId()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.id, obj.getId());
 		if (obj.getName()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.name, obj.getName());
 
@@ -1016,7 +1053,7 @@ export class ProjectWriter {
 			if (typedObj.getFilter?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.filter, typedObj.getFilter?.());
 			if (typedObj.getFilterData?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.filterData, typedObj.getFilterData?.());
 			const imageColor = typedObj.getColor?.();
-			if (imageColor) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.color, imageColor);
+			if (imageColor && !isDefaultWhiteColor(imageColor)) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.color, imageColor);
 			const flip = typedObj.getFlip?.() ?? 0;
 			if (flip !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.flip, String(flip));
 			const fillMethod = typedObj.getFillMethod?.() ?? 0;
@@ -1064,9 +1101,13 @@ export class ProjectWriter {
 			}
 			if ((typedObj.getLineSize?.() ?? 1) !== 1) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.lineSize, String(typedObj.getLineSize?.() ?? 1));
 			const lineColor = typedObj.getLineColor?.();
-			if (lineColor) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.lineColor, lineColor);
+			if (lineColor && !sameColor(lineColor, '#000000') && !sameColor(lineColor, '#ff000000')) {
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.lineColor, formatXmlColor(lineColor));
+			}
 			const fillColor = typedObj.getFillColor?.();
-			if (fillColor) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.fillColor, fillColor);
+			if (fillColor && !sameColor(fillColor, '#FFFFFF') && !sameColor(fillColor, '#FFFFFFFF')) {
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.fillColor, formatXmlColor(fillColor));
+			}
 			const cornerRadius = typedObj.getCornerRadius?.();
 			if (cornerRadius) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.corner, cornerRadius.join(','));
 			const points = typedObj.getPoints?.();
@@ -1111,7 +1152,7 @@ export class ProjectWriter {
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.vAlign, vAlignName[vAlign] ?? 'top');
 			}
 			const fill = typedObj.getFill?.();
-			if (fill !== undefined) {
+			if (fill !== undefined && fill !== 0) {
 				const fillName: Record<number, string> = {
 					0: 'none',
 					1: 'scale',
@@ -1126,7 +1167,7 @@ export class ProjectWriter {
 			if (typedObj.getAutoSize?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.autoSize, '1');
 			if (typedObj.getUseResize?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.useResize, '1');
 			const loaderColor = typedObj.getColor?.();
-			if (loaderColor) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.color, loaderColor);
+			if (loaderColor && !isDefaultWhiteColor(loaderColor)) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.color, loaderColor);
 			if (typedObj.getFilter?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.filter, typedObj.getFilter?.());
 			if (typedObj.getFilterData?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.filterData, typedObj.getFilterData?.());
 			if (typedObj.getPlaying?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.playing, 'false');
@@ -1257,7 +1298,7 @@ export class ProjectWriter {
 		}
 		if (type === 'GGroup') {
 			const layout = typedObj.getLayout?.();
-			if (layout !== undefined) {
+			if (layout !== undefined && layout !== 0) {
 				const layoutName: Record<number, string> = { 0: 'none', 1: 'horizontal', 2: 'vertical' };
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.layout, layoutName[layout] ?? 'none');
 			}
@@ -1265,7 +1306,7 @@ export class ProjectWriter {
 			if (lineGap !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.lineGap, String(lineGap));
 			const columnGap = typedObj.getColumnGap?.() ?? 0;
 			if (columnGap !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.columnGap, String(columnGap));
-			if (typedObj.getAdvanced?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.advanced, '1');
+			if (typedObj.getAdvanced?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.advanced, 'true');
 			if (typedObj.getExcludeInvisibles?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.excludeInvisibles, 'true');
 			if (typedObj.getAutoSizeDisabled?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.autoSizeDisabled, 'true');
 			const mainGridIndex = typedObj.getMainGridIndex?.() ?? -1;
@@ -1292,7 +1333,7 @@ export class ProjectWriter {
 			if (lineCount !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineCount, String(lineCount));
 			if (typedObj.getAutoResizeItem?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.autoResizeItem, 'false');
 			const selectionMode = typedObj.getSelectionMode?.();
-			if (selectionMode !== undefined) {
+			if (selectionMode !== undefined && selectionMode !== 0) {
 				const selectionName: Record<number, string> = {
 					0: 'single',
 					1: 'multiple',
@@ -1350,19 +1391,19 @@ export class ProjectWriter {
 			const fontSize = typedObj.getFontSize?.();
 			if (fontSize) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.fontSize, String(fontSize));
 			const color = typedObj.getColor?.();
-			if (color) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.color, color);
+			if (color && !isDefaultBlackColor(color)) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.color, color);
 			const align = typedObj.getAlign?.();
-			if (align !== undefined) {
+			if (align !== undefined && align !== 0) {
 				const alignName: Record<number, string> = { 0: 'left', 1: 'center', 2: 'right' };
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.align, alignName[align] ?? 'left');
 			}
 			const vAlign = typedObj.getVAlign?.();
-			if (vAlign !== undefined) {
+			if (vAlign !== undefined && vAlign !== 0) {
 				const vAlignName: Record<number, string> = { 0: 'top', 1: 'middle', 2: 'bottom' };
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.vAlign, vAlignName[vAlign] ?? 'top');
 			}
 			const autoSize = typedObj.getAutoSize?.();
-			if (typeof autoSize === 'number') {
+			if (typeof autoSize === 'number' && autoSize !== 1) {
 				const autoSizeName: Record<number, string> = { 0: 'none', 1: 'both', 2: 'height', 3: 'shrink', 4: 'ellipsis' };
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.autoSize, autoSizeName[autoSize] ?? 'both');
 			}
@@ -1428,9 +1469,9 @@ export class ProjectWriter {
 				if (comboItems.length > 0 && comboBoxItemChildName) {
 					extAttrs[comboBoxItemChildName] = comboItems.map((item) => serializeComboBoxItemXmlNode(item));
 				}
-				const extensionChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.componentInstance, instanceExtType);
+				extensionChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.componentInstance, instanceExtType);
 				if (extensionChildName) {
-					attrs[extensionChildName] = Object.keys(extAttrs).length > 0 ? extAttrs : '';
+					extensionValue = Object.keys(extAttrs).length > 0 ? extAttrs : '';
 				}
 			}
 		}
@@ -1467,6 +1508,9 @@ export class ProjectWriter {
 			}));
 			if (relElements.length > 0 && relationChildName) attrs[relationChildName] = relElements;
 		}
+		if (extensionChildName && extensionValue !== undefined) {
+			attrs[extensionChildName] = extensionValue;
+		}
 
 		return attrs;
 	}
@@ -1480,8 +1524,11 @@ export class ProjectWriter {
 		if (gear.getDefaultValue() !== null) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.default, gear.getDefaultValue());
 		if (gear.getTween()) {
 			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.tween, 'true');
-			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.ease, stringifyEaseType(gear.getEaseType()));
-			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.duration, String(gear.getTweenDuration()));
+			const hasDefaultTweenConfig = gear.getEaseType() === 5 && Math.abs(gear.getTweenDuration() - 0.3) < 0.000001;
+			if (!hasDefaultTweenConfig) {
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.ease, stringifyEaseType(gear.getEaseType()));
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.duration, String(gear.getTweenDuration()));
+			}
 		}
 		if (gear.getPositionsInPercent?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.positionsInPercent, 'true');
 		if (gear.getCondition()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.condition, gear.getCondition());
@@ -1505,19 +1552,22 @@ export class ProjectWriter {
 			const ia: Record<string, unknown> = {};
 			writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.time, String(item.getTime()));
 			writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.type, ACTION_TYPE_NAMES[item.getActionType()] ?? 'XY');
-			writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.target, item.getTargetId());
+			if (item.getTargetId()) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.target, item.getTargetId());
 			if (item.getDuration() !== 0) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.duration, String(item.getDuration()));
 			if (item.getTween()) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.tween, 'true');
+			if (item.getTween() && item.getEaseType() !== 5) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.ease, stringifyEaseType(item.getEaseType()));
 			if (item.getRepeat() !== 0) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.repeat, String(item.getRepeat()));
 			if (item.getYoyo()) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.yoyo, 'true');
 			if (item.getLabel()) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.label, item.getLabel());
+			if (item.getEndLabel()) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.label2, item.getEndLabel());
+			if (item.getPath()) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.path, item.getPath());
 			const sv = item.getStartValue();
 			if (sv.length) {
-				if (!item.getTween() && item.getActionType() !== 0) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.value, sv.join(','));
-				else writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.startValue, sv.join(','));
+				if (!item.getTween() && item.getActionType() !== 0) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.value, stringifyTransitionValue(item.getActionType(), sv));
+				else writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.startValue, stringifyTransitionValue(item.getActionType(), sv));
 			}
 			const ev = item.getEndValue();
-			if (ev.length) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.endValue, ev.join(','));
+			if (ev.length) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.endValue, stringifyTransitionValue(item.getActionType(), ev));
 			return ia;
 		});
 

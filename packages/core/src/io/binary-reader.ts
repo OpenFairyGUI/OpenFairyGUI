@@ -211,12 +211,12 @@ function remainingBytes(buf: ByteBuffer): number {
 	return Math.max(0, buf.byteLength - buf.pos);
 }
 
-function readColorValue(buf: ByteBuffer, hasAlpha: boolean): string {
+function readColorValue(buf: ByteBuffer, hasAlpha: boolean, preserveAlpha = false): string {
 	const r = buf.getUint8().toString(16).padStart(2, '0');
 	const g = buf.getUint8().toString(16).padStart(2, '0');
 	const b = buf.getUint8().toString(16).padStart(2, '0');
 	const a = buf.getUint8().toString(16).padStart(2, '0');
-	if (!hasAlpha || a === 'ff') return `#${r}${g}${b}`.toUpperCase();
+	if (!hasAlpha || (!preserveAlpha && a === 'ff')) return `#${r}${g}${b}`.toUpperCase();
 	return `#${a}${r}${g}${b}`.toUpperCase();
 }
 
@@ -581,6 +581,43 @@ function decodeChildBlock5(child: ComponentDisplayObject, childBuf: ByteBuffer):
 		case 'GTextInput':
 			decodeTextChildSpecific(child, childBuf);
 			break;
+		case 'GGraph': {
+			if (remainingBytes(childBuf) < 13) return;
+			const graph = child as ReturnType<Document['createGGraph']>;
+			const graphType = remainingBytes(childBuf) >= 14 ? childBuf.getUint8() : 0;
+			graph
+				.setGraphType(graphType)
+				.setLineSize(childBuf.getInt32())
+				.setLineColor(readColorValue(childBuf, true, true))
+				.setFillColor(readColorValue(childBuf, true, true));
+			if (childBuf.readBool() && remainingBytes(childBuf) >= 16) {
+				graph.setCornerRadius([
+					childBuf.getFloat32(),
+					childBuf.getFloat32(),
+					childBuf.getFloat32(),
+					childBuf.getFloat32(),
+				]);
+			}
+			if (graphType === 3 && remainingBytes(childBuf) >= 2) {
+				const pointCount = childBuf.getInt16();
+				const points: number[] = [];
+				for (let index = 0; index < pointCount && remainingBytes(childBuf) >= 4; index += 1) {
+					points.push(childBuf.getFloat32());
+				}
+				graph.setPoints(points);
+			} else if (graphType === 4 && remainingBytes(childBuf) >= 8) {
+				graph
+					.setSides(childBuf.getInt16())
+					.setStartAngle(childBuf.getFloat32());
+				const distanceCount = childBuf.getInt16();
+				const distances: number[] = [];
+				for (let index = 0; index < distanceCount && remainingBytes(childBuf) >= 4; index += 1) {
+					distances.push(childBuf.getFloat32());
+				}
+				graph.setDistances(distances);
+			}
+			break;
+		}
 		case 'GGroup': {
 			if (remainingBytes(childBuf) < 11) return;
 			(child as ReturnType<Document['createGGroup']>)
@@ -590,6 +627,10 @@ function decodeChildBlock5(child: ComponentDisplayObject, childBuf: ByteBuffer):
 				.setExcludeInvisibles(childBuf.readBool())
 				.setAutoSizeDisabled(childBuf.readBool())
 				.setMainGridIndex(childBuf.getInt16());
+			const group = child as ReturnType<Document['createGGroup']>;
+			if (group.listGears().length > 0 || group.getRelations().length > 0) {
+				group.setAdvanced(true);
+			}
 			break;
 		}
 		case 'GLoader': {
@@ -714,6 +755,115 @@ function decodeChildBlock6(
 				(child as ReturnType<Document['createGTextField']>).setText(childBuf.readS() ?? '');
 			}
 			break;
+		case 'GComponent': {
+			if (remainingBytes(childBuf) < 1) return;
+			const extType = childBuf.getUint8();
+			const extTypeName = COMPONENT_EXTENSION_TYPE_NAMES[extType] ?? '';
+			if (!extTypeName) return;
+			const component = child as ReturnType<Document['createGComponent']>;
+			component.setInstanceExtType(extTypeName);
+
+			switch (extTypeName) {
+				case 'Button':
+					if (remainingBytes(childBuf) < 12) return;
+					component
+						.setInstanceTitle(childBuf.readS() ?? '')
+						.setInstanceSelectedTitle(childBuf.readS() ?? '')
+						.setInstanceIcon(childBuf.readS() ?? '')
+						.setInstanceSelectedIcon(childBuf.readS() ?? '');
+					if (childBuf.readBool()) {
+						component.setInstanceTitleColor(readColorValue(childBuf, true));
+					}
+					component.setInstanceTitleFontSize(childBuf.getInt32());
+					{
+						const relatedControllerIndex = childBuf.getInt16();
+						if (relatedControllerIndex >= 0) {
+							component.setInstanceController(resource.listControllers()[relatedControllerIndex]?.getName() ?? '');
+						}
+					}
+					component.setInstancePage(childBuf.readS() ?? '');
+					childBuf.readS(); // sound
+					if (childBuf.readBool() && remainingBytes(childBuf) >= 4) {
+						childBuf.getFloat32(); // sound volume
+					}
+					if (remainingBytes(childBuf) >= 1) {
+						component.setInstanceChecked(childBuf.readBool());
+					}
+					break;
+				case 'Label':
+					if (remainingBytes(childBuf) < 9) return;
+					component
+						.setInstanceTitle(childBuf.readS() ?? '')
+						.setInstanceIcon(childBuf.readS() ?? '');
+					if (childBuf.readBool()) {
+						component.setInstanceTitleColor(readColorValue(childBuf, true));
+					}
+					component.setInstanceTitleFontSize(childBuf.getInt32());
+					if (remainingBytes(childBuf) >= 1 && childBuf.readBool()) {
+						component.setInstancePromptText(childBuf.readS() ?? '');
+						childBuf.readS(); // restrict
+						if (remainingBytes(childBuf) >= 9) {
+							childBuf.getInt32(); // maxLength
+							childBuf.getInt32(); // keyboardType
+							childBuf.readBool(); // password
+						}
+					}
+					if (childBuf.version >= 5 && remainingBytes(childBuf) >= 6) {
+						childBuf.readS(); // sound
+						childBuf.getFloat32(); // sound volume
+					}
+					break;
+				case 'ComboBox': {
+					if (remainingBytes(childBuf) < 2) return;
+					const itemCount = childBuf.getInt16();
+					const items: Array<{ title: string | null; value: string | null; icon: string | null }> = [];
+					for (let index = 0; index < itemCount && remainingBytes(childBuf) >= 2; index += 1) {
+						const chunkSize = childBuf.getInt16();
+						const nextPos = childBuf.pos + chunkSize;
+						items.push({
+							title: childBuf.readS(),
+							value: childBuf.readS(),
+							icon: childBuf.readS(),
+						});
+						childBuf.pos = nextPos;
+					}
+					component
+						.setInstanceComboItems(items)
+						.setInstanceTitle(childBuf.readS() ?? '')
+						.setInstanceIcon(childBuf.readS() ?? '');
+					if (childBuf.readBool()) {
+						component.setInstanceTitleColor(readColorValue(childBuf, true));
+					}
+					component
+						.setInstanceVisibleItemCount(childBuf.getInt32());
+					childBuf.getUint8(); // popupDirection
+					const selectionControllerIndex = childBuf.getInt16();
+					if (selectionControllerIndex >= 0) {
+						component.setInstanceSelectionController(resource.listControllers()[selectionControllerIndex]?.getName() ?? '');
+					}
+					if (childBuf.version >= 5 && remainingBytes(childBuf) >= 6) {
+						childBuf.readS(); // sound
+						childBuf.getFloat32(); // sound volume
+					}
+					break;
+				}
+				case 'ProgressBar':
+				case 'Slider':
+					if (remainingBytes(childBuf) < 12) return;
+					component
+						.setInstanceValue(childBuf.getInt32())
+						.setInstanceMax(childBuf.getInt32())
+						.setInstanceMin(childBuf.getInt32());
+					if (extTypeName === 'ProgressBar' && childBuf.version >= 5 && remainingBytes(childBuf) >= 6) {
+						childBuf.readS(); // sound
+						childBuf.getFloat32(); // sound volume
+					}
+					break;
+				default:
+					break;
+			}
+			break;
+		}
 		case 'GButton': {
 			if (remainingBytes(childBuf) < 13) return;
 			childBuf.getUint8(); // extType

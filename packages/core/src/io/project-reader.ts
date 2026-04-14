@@ -36,7 +36,8 @@ function _parseEaseType(ease: string): number {
 		BounceIn: 28, BounceOut: 29, BounceInOut: 30,
 		Custom: 31,
 	};
-	return map[ease] ?? 5; // default QuadOut
+	const normalized = ease.replace(/[.\s_-]/g, '');
+	return map[ease] ?? map[normalized] ?? 5; // default QuadOut
 }
 
 // Maps XML tag names for display objects to factory method names.
