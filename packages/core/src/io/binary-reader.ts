@@ -1171,8 +1171,30 @@ function decodeComponentControllers(
 					.setName(pageName);
 				controller.addPage(page);
 			}
+			let homePageIndex = 0;
+			if (controllerBuf.version >= 2 && remainingBytes(controllerBuf) >= 1) {
+				const homePageType = controllerBuf.getUint8();
+				switch (homePageType) {
+					case 1:
+						if (remainingBytes(controllerBuf) >= 2) homePageIndex = controllerBuf.getInt16();
+						break;
+					case 2:
+						// branch homepage: current restore has no branch runtime context, fall back to first page
+						homePageIndex = 0;
+						break;
+					case 3:
+						// variable homepage: payload is a string key, but restore has no runtime variable context
+						if (remainingBytes(controllerBuf) >= 2) controllerBuf.readS();
+						homePageIndex = 0;
+						break;
+					default:
+						homePageIndex = 0;
+						break;
+				}
+			}
 			if (controller.listPages().length > 0) {
-				controller.setSelectedIndex(0);
+				const maxIndex = controller.listPages().length - 1;
+				controller.setSelectedIndex(Math.min(Math.max(homePageIndex, 0), maxIndex));
 			}
 		}
 

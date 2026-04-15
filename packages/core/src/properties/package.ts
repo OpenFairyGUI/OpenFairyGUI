@@ -24,6 +24,8 @@ type PackageResource =
 
 interface IPackage extends IExtensibleProperty {
 	id: string;
+	compressPNG: boolean | null;
+	jpegQuality: number | null;
 	publishName: string;
 	publishPath: string;
 	publishBranchPath: string;
@@ -51,6 +53,8 @@ export class Package extends ExtensibleProperty<IPackage> {
 	protected getDefaults(): Nullable<IPackage> {
 		return Object.assign(super.getDefaults(), {
 			id: '',
+			compressPNG: null,
+			jpegQuality: null,
 			publishName: '',
 			publishPath: '',
 			publishBranchPath: '',
@@ -67,6 +71,22 @@ export class Package extends ExtensibleProperty<IPackage> {
 
 	public setId(id: string): this {
 		return this.set('id', id);
+	}
+
+	public getCompressPNG(): boolean | null {
+		return this.get('compressPNG');
+	}
+
+	public setCompressPNG(value: boolean | null): this {
+		return this.set('compressPNG', value);
+	}
+
+	public getJpegQuality(): number | null {
+		return this.get('jpegQuality');
+	}
+
+	public setJpegQuality(value: number | null): this {
+		return this.set('jpegQuality', value);
 	}
 
 	public getPublishName(): string {

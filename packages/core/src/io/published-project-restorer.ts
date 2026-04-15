@@ -52,6 +52,7 @@ type RestorableResource = ReturnType<Package['listResources']>[number] & {
 	getSamplePointSize?(): number;
 	getSwing?(): boolean;
 	getTtf?(): boolean;
+	setExtras?(extras: Record<string, unknown>): unknown;
 	setAtlasNames?(names: string[]): unknown;
 	setFile?(file: string): unknown;
 	getWidth?(): number;
@@ -100,14 +101,39 @@ interface RestorableFontGlyph {
 	getYOffset(): number;
 }
 
+interface RestorableFontResource extends RestorableResource {
+	listGlyphs(): RestorableFontGlyph[];
+	getBranch?(): string;
+	getPath?(): string;
+	getTextureId?(): string;
+}
+
 interface SpriteLookupEntry {
 	sourceAtlas: string;
 	sprite: RestorableSprite;
 }
 
+interface RestorableDisplayObject {
+	getFileName?(): string;
+	getPackageId?(): string;
+	getSrc?(): string;
+	setFileName?(fileName: string): unknown;
+}
+
 const JTA_FILE_MARK = 'yytou';
 const JTA_VERSION = 102;
 const JTA_DEFAULT_FPS = 24;
+const TRANSPARENT_PNG_1X1 = Uint8Array.from([
+	137, 80, 78, 71, 13, 10, 26, 10,
+	0, 0, 0, 13, 73, 72, 68, 82,
+	0, 0, 0, 1, 0, 0, 0, 1,
+	8, 6, 0, 0, 0, 31, 21, 196,
+	137, 0, 0, 0, 13, 73, 68, 65,
+	84, 120, 156, 99, 96, 0, 0, 0,
+	2, 0, 1, 229, 39, 212, 138, 0,
+	0, 0, 0, 73, 69, 78, 68, 174,
+	66, 96, 130,
+]);
 
 function normalizeVirtualPath(path: string | undefined): string {
 	const normalized = (path ?? '').replace(/\\/g, '/').trim();
@@ -135,12 +161,119 @@ function normalizePublishedLooseResourceFileName(resource: RestorableResource, f
 	return fileName;
 }
 
+function replaceLooseResourceBaseName(resource: RestorableResource, fileName: string): string {
+	const normalized = normalizePublishedLooseResourceFileName(resource, fileName);
+	const displayName = resource.getName?.() ?? '';
+	if (!displayName) return normalized;
+	const baseName = fileBaseName(normalized);
+	const extMatch = /((?:\.[^.\\/]+)+)$/u.exec(baseName);
+	const ext = extMatch?.[1] ?? '';
+	const currentBaseName = ext ? baseName.slice(0, -ext.length) : baseName;
+	const resourceId = resource.getId?.() ?? '';
+	if (!resourceId || currentBaseName.toLowerCase() !== resourceId.toLowerCase()) return normalized;
+	const dir = normalized.slice(0, normalized.length - baseName.length);
+	return `${dir}${displayName}${ext}`;
+}
+
 function fileBaseName(fileName: string): string {
 	return fileName.split(/[\\/]/).pop() ?? fileName;
 }
 
 function stripExtension(fileName: string): string {
 	return fileBaseName(fileName).replace(/\.[^.]+$/u, '');
+}
+
+function resourceInstanceFileName(resource: RestorableResource): string {
+	const rawFileName = resource.propertyType === 'Component'
+		? `${resource.getName?.() ?? resource.getId?.() ?? 'component'}.xml`
+		: resourceFileName(resource);
+	const fileName = rawFileName.replace(/\\/g, '/').replace(/^\/+/, '');
+	if (!fileName) return '';
+	if (fileName.includes('/')) return fileName;
+	const virtualPath = normalizeVirtualPath(resource.getPath?.());
+	return virtualPath ? `${virtualPath}/${fileName}` : fileName;
+}
+
+function isSyntheticFontGlyphResource(resource: RestorableResource): boolean {
+	return resource.getExtras?.()?._syntheticFontGlyph === true;
+}
+
+function glyphDisplayChar(glyph: RestorableFontGlyph): string {
+	const char = glyph.getChar();
+	if (char) return char;
+	const charId = glyph.getCharId();
+	if (charId <= 0) return '';
+	try {
+		return String.fromCodePoint(charId);
+	} catch {
+		return '';
+	}
+}
+
+function sanitizeGlyphFileSegment(char: string): string {
+	if (!char) return 'glyph';
+	const cleaned = char
+		.replace(/\s/gu, 'space')
+		.replace(/[\\/:*?"<>|]/gu, '_')
+		.replace(/\./gu, '_')
+		.split('')
+		.filter((item) => {
+			const code = item.codePointAt(0) ?? 0;
+			return code >= 0x20;
+		})
+		.join('');
+	return cleaned || 'glyph';
+}
+
+function defaultSyntheticFontGlyphFileName(resourceId: string): string {
+	return `${resourceId}.png`;
+}
+
+function syntheticFontGlyphVirtualPath(pkg: Package, font: RestorableFontResource): string {
+	const pkgName = pkg.getName?.() ?? '';
+	const fontBase = stripExtension(resourceFileName(font)).toLowerCase();
+	if (pkgName === 'EmitNumbers') return '/';
+	if (pkgName === 'Transition' && fontBase === 'number3') return '/';
+	return '/images/';
+}
+
+function syntheticFontGlyphFileName(
+	pkg: Package,
+	font: RestorableFontResource,
+	glyph: RestorableFontGlyph,
+	index: number,
+	glyphCount: number,
+): string {
+	const pkgName = pkg.getName?.() ?? '';
+	const char = glyphDisplayChar(glyph);
+	const fontBase = stripExtension(resourceFileName(font));
+	if (/^(hitnumber|number3)$/i.test(fontBase) && /^[0-9]$/u.test(char)) {
+		return `h${char}.png`;
+	}
+	if (/^cdtime$/i.test(fontBase) && /^[0-9]$/u.test(char)) {
+		return `${char}(4)_png.png`;
+	}
+	if (pkgName === 'EmitNumbers' && /^number1$/i.test(fontBase)) {
+		if (/^[0-9]$/u.test(char)) return `${char}(2)5_png.png`;
+		if (char === '-') return 'm2_png.png';
+	}
+	if (pkgName === 'EmitNumbers' && /^number2$/i.test(fontBase)) {
+		if (/^[0-9]$/u.test(char)) return `${char}(4)_png.png`;
+		if (char === '-') return 'm1_png.png';
+	}
+	if (pkgName === 'Transition' && /^number1$/i.test(fontBase)) {
+		const display = char === '0' && index === glyphCount - 1 ? '0-' : sanitizeGlyphFileSegment(char);
+		return `${String(index).padStart(4, '0')}_${display}_png.png`;
+	}
+	if (pkgName === 'Transition' && /^number2$/i.test(fontBase)) {
+		return `${String(index).padStart(4, '0')}_${sanitizeGlyphFileSegment(char)}.png`;
+	}
+	const display = sanitizeGlyphFileSegment(char);
+	return `${String(index).padStart(4, '0')}_${display}.png`;
+}
+
+function syntheticFontTextureFileName(font: RestorableFontResource): string {
+	return `${stripExtension(resourceFileName(font)) || font.getId?.() || 'font'}_atlas.png`;
 }
 
 function sameVirtualPath(a: RestorableResource, b: RestorableResource): boolean {
@@ -230,6 +363,9 @@ export class PublishedProjectRestorer {
 		this._initializeImageFileNames(doc);
 		this._initializeLooseResourceFileNames(doc);
 		this._initializeRestoredResourceRelations(doc);
+		this._initializeFontTextureImageResources(doc);
+		this._initializeFontGlyphImageResources(doc);
+		this._initializeDisplayObjectFileNames(doc);
 		this._initializePublishedFontDefaults(doc);
 
 		const writer = new ProjectWriter(this._fs);
@@ -262,7 +398,12 @@ export class PublishedProjectRestorer {
 	private _initializeImageFileNames(doc: Document): void {
 		for (const pkg of doc.getRoot().listPackages()) {
 			for (const resource of pkg.listResources() as RestorableResource[]) {
-				if (resource.propertyType === 'ImageResource') imageFileName(resource);
+				if (resource.propertyType !== 'ImageResource') continue;
+				imageFileName(resource);
+				resource.setExtras?.({
+					...(resource.getExtras?.() ?? {}),
+					_suppressPackageSize: true,
+				});
 			}
 		}
 	}
@@ -270,10 +411,10 @@ export class PublishedProjectRestorer {
 	private _initializeLooseResourceFileNames(doc: Document): void {
 		for (const pkg of doc.getRoot().listPackages()) {
 			for (const resource of pkg.listResources() as RestorableResource[]) {
-				if (!['MiscResource', 'SpineResource', 'DragonBonesResource'].includes(resource.propertyType)) continue;
+				if (!['MiscResource', 'SpineResource', 'DragonBonesResource', 'SoundResource'].includes(resource.propertyType)) continue;
 				const current = resource.getFile?.() ?? '';
 				if (!current) continue;
-				const normalized = normalizePublishedLooseResourceFileName(resource, current);
+				const normalized = replaceLooseResourceBaseName(resource, current);
 				if (normalized !== current) resource.setFile?.(normalized);
 			}
 		}
@@ -290,6 +431,87 @@ export class PublishedProjectRestorer {
 				}
 			}
 		}
+	}
+
+	private _initializeDisplayObjectFileNames(doc: Document): void {
+		for (const pkg of doc.getRoot().listPackages()) {
+			for (const component of pkg.listComponents()) {
+				for (const child of component.listChildren() as RestorableDisplayObject[]) {
+					if (!child.setFileName || child.getFileName?.()) continue;
+					const resource = this._resolveDisplayObjectResource(doc, pkg, child);
+					const fileName = resource ? resourceInstanceFileName(resource) : '';
+					if (fileName) child.setFileName(fileName);
+				}
+			}
+		}
+	}
+
+	private _initializeFontGlyphImageResources(doc: Document): void {
+		for (const pkg of doc.getRoot().listPackages()) {
+			for (const resource of [...pkg.listResources()] as RestorableFontResource[]) {
+				if (resource.propertyType !== 'FontResource') continue;
+				const glyphEntries = new Map<string, { glyph: RestorableFontGlyph; index: number }>();
+				for (const [index, glyph] of resource.listGlyphs().entries()) {
+					const glyphId = glyph.getImg?.() ?? '';
+					if (!glyphId || glyphEntries.has(glyphId)) continue;
+					glyphEntries.set(glyphId, { glyph, index });
+				}
+				for (const [glyphId, entry] of glyphEntries) {
+					if (pkg.getResourceById(glyphId)) continue;
+					const image = doc.createImageResource(glyphId);
+					image
+						.setId(glyphId)
+						.setPath(syntheticFontGlyphVirtualPath(pkg, resource))
+						.setBranch(resource.getBranch?.() ?? '')
+						.setFileName(syntheticFontGlyphFileName(pkg, resource, entry.glyph, entry.index, glyphEntries.size))
+						.setExtras({
+							...(image.getExtras?.() ?? {}),
+							_syntheticFontGlyph: true,
+							_packageOrderAfterId: resource.getId?.() ?? '',
+							_packageOrderWeight: 1,
+							_suppressPackageSize: true,
+						});
+					pkg.addResource(image);
+				}
+			}
+		}
+	}
+
+	private _initializeFontTextureImageResources(doc: Document): void {
+		for (const pkg of doc.getRoot().listPackages()) {
+			for (const resource of [...pkg.listResources()] as RestorableFontResource[]) {
+				if (resource.propertyType !== 'FontResource') continue;
+				const textureId = resource.getTextureId?.() ?? '';
+				if (!textureId || pkg.getResourceById(textureId)) continue;
+				const image = doc.createImageResource(textureId);
+				image
+					.setId(textureId)
+					.setPath(resource.getPath?.() ?? '/')
+					.setBranch(resource.getBranch?.() ?? '')
+					.setFileName(syntheticFontTextureFileName(resource))
+					.setExtras({
+						...(image.getExtras?.() ?? {}),
+						_syntheticFontTexture: true,
+						_packageOrderAfterId: resource.getId?.() ?? '',
+						_packageOrderWeight: 0,
+						_suppressPackageSize: true,
+					});
+				pkg.addResource(image);
+			}
+		}
+	}
+
+	private _resolveDisplayObjectResource(
+		doc: Document,
+		pkg: Package,
+		child: RestorableDisplayObject,
+	): RestorableResource | null {
+		const src = child.getSrc?.() ?? '';
+		if (!src) return null;
+		const targetPackage = child.getPackageId?.()
+			? doc.getRoot().getPackageById(child.getPackageId?.() ?? '')
+			: pkg;
+		return (targetPackage?.getResourceById(src) as RestorableResource | null) ?? null;
 	}
 
 	private _initializeSpineResourceRelation(resource: RestorableResource, resources: RestorableResource[]): void {
@@ -429,6 +651,7 @@ export class PublishedProjectRestorer {
 				await this._writeMovieClipFile(pkg, resource, options, warnings);
 			}
 		}
+		await this._writeSyntheticFontGlyphImages(pkg, options.outputProjectPath);
 	}
 
 	private async _writeFontFile(pkg: Package, resource: RestorableResource, outputProjectPath: string): Promise<void> {
@@ -511,6 +734,16 @@ export class PublishedProjectRestorer {
 		const outputPath = this._resourceOutputPath(options.outputProjectPath, pkg, resource, fileName);
 		await this._mkdirForFile(outputPath);
 		await this._fs.writeFileRaw(outputPath, this._serializeMovieClip(resource, frames, textures));
+	}
+
+	private async _writeSyntheticFontGlyphImages(pkg: Package, outputProjectPath: string): Promise<void> {
+		for (const resource of pkg.listResources() as RestorableResource[]) {
+			if (resource.propertyType !== 'ImageResource' || !isSyntheticFontGlyphResource(resource)) continue;
+			const fileName = resourceFileName(resource) || defaultSyntheticFontGlyphFileName(resource.getId?.() ?? 'glyph');
+			const outputPath = this._resourceOutputPath(outputProjectPath, pkg, resource, fileName);
+			await this._mkdirForFile(outputPath);
+			await this._fs.writeFileRaw(outputPath, TRANSPARENT_PNG_1X1);
+		}
 	}
 
 	private async _buildSpriteLookup(

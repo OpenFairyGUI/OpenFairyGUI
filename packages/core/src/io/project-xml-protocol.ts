@@ -49,6 +49,8 @@ const defineNode = (
 
 const PACKAGE_DESCRIPTION_ATTRS = {
 	id: { canonical: 'id' },
+	compressPNG: { canonical: 'compressPNG' },
+	jpegQuality: { canonical: 'jpegQuality' },
 } satisfies XmlAttrMap;
 
 const BRANCH_DESCRIPTION_ATTRS = {} satisfies XmlAttrMap;

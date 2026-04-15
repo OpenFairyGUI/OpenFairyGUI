@@ -462,7 +462,7 @@ test('round-trip: sample list ptrRes and transition value attrs survive write→
 		await io.writeProject(doc, outFairy);
 
 		const bossXml = await fs.readFile(path.join(tmpDir, 'assets', 'Transition', 'BOSS.xml'), 'utf-8');
-		t.false(bossXml.includes('target=""'), 'transition items omit empty target attr');
+		t.false(/<item\b[^>]*\btarget=""/.test(bossXml), 'transition items omit empty target attr');
 		t.true(bossXml.includes('<item time="0" type="Sound" value="ui://zgmoraj4gkq03"/>'), 'transition sound omits default volume payload');
 		t.true(bossXml.includes('ease="Expo.Out"'), 'transition tween preserves dotted ease names');
 		t.true(bossXml.includes('ease="Back.Out"'), 'transition tween preserves non-default ease names');
@@ -471,9 +471,18 @@ test('round-trip: sample list ptrRes and transition value attrs survive write→
 		t.true(pathDemoXml.includes('<item time="0" type="Transition" value="t1"/>'), 'transition action omits default play-times payload');
 		t.true(pathDemoXml.includes('path="2,0,0,'), 'transition path payload is written');
 		t.true(pathDemoXml.includes('ease="Linear"'), 'transition linear ease is written');
+		t.true(pathDemoXml.includes('startValue="0.38,0.00,0.00,0.00"'), 'transition color filter startValue keeps editor-style fixed decimals');
+		t.true(pathDemoXml.includes('endValue="0.00,0.00,0.00,0.00"'), 'transition color filter endValue keeps editor-style fixed decimals');
 
 		const powerUpXml = await fs.readFile(path.join(tmpDir, 'assets', 'Transition', 'PowerUp.xml'), 'utf-8');
 		t.true(powerUpXml.includes('label2="end"'), 'transition end label is written');
+		t.true(powerUpXml.includes('<item time="0" type="Alpha" value="1.00"/>'), 'non-tween alpha writes value attr with editor-style fixed decimals');
+		t.true(powerUpXml.includes('<item time="0" type="XY" value="0,0"/>'), 'non-tween XY writes value attr instead of startValue');
+		t.true(/<jta\b[^>]*id="n5"/.test(powerUpXml), 'movie clip instances write jta display tags');
+
+		const goodHitXml = await fs.readFile(path.join(tmpDir, 'assets', 'Transition', 'GoodHit.xml'), 'utf-8');
+		t.true(goodHitXml.includes('duration="7"'), 'transition duration rounds float noise back to editor frame integers');
+		t.true(goodHitXml.includes('<item time="7" type="Shake" value="3,0.5"/>'), 'transition time rounds float noise back to editor frame integers');
 
 		const demoListXml = await fs.readFile(path.join(tmpDir, 'assets', 'Basics', 'Demo_List.xml'), 'utf-8');
 		t.false(demoListXml.includes('selectionMode="single"'), 'list omits default selectionMode');
@@ -646,6 +655,38 @@ test('round-trip: component scrollpane/mask/hittest and image fill attrs survive
 		t.is((image2 as ReturnType<Document['createGImage']>).getFillOrigin(), 2);
 		t.false((image2 as ReturnType<Document['createGImage']>).getFillClockwise());
 		t.is((image2 as ReturnType<Document['createGImage']>).getFillAmount(), 0.35);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('writer: component root omits default vertical scroll and default scrollBar mode', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectId('test-project').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('DemoScrollDefaults');
+	pkg.setId('pkgScrollDefaults');
+
+	const comp = doc.createComponent('Panel');
+	comp.setId('compScrollDefaults');
+	comp.setPath('/');
+	comp.setSize(300, 200);
+	comp.setOverflow(2);
+	comp.setScrollType(1);
+	comp.setScrollBarDisplay(0);
+
+	pkg.addResource(comp);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-scroll-defaults-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+		const componentXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoScrollDefaults', 'Panel.xml'), 'utf-8');
+		t.true(componentXml.includes('overflow="scroll"'), 'component keeps scroll overflow');
+		t.false(componentXml.includes('scroll="vertical"'), 'component omits default vertical scroll attr');
+		t.false(componentXml.includes('scrollBar="default"'), 'component omits default scrollBar mode attr');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
@@ -920,6 +961,8 @@ test('writer: uses canonical XML attr names for component root, loader, richtext
 
 	const input = doc.createGTextInput('search');
 	input.setId('n1');
+	input.setText('');
+	input.setColor('#FF3300');
 	input.setPromptText('Search here');
 	input.setMaxLength(24);
 	input.setRestrict('A-Z');
@@ -940,7 +983,8 @@ test('writer: uses canonical XML attr names for component root, loader, richtext
 	richText.setUbbEnabled(true);
 	richText.setLeading(6);
 	richText.setBold(true);
-	richText.setStrokeColor('#ffffff');
+	richText.setColor('#CCFF00');
+	richText.setStrokeColor('#FFFFFF');
 	richText.setStrokeSize(2);
 	richText.setShadowColor('#000000');
 	richText.setShadowOffset({ x: 1, y: 2 });
@@ -986,21 +1030,29 @@ test('writer: uses canonical XML attr names for component root, loader, richtext
 		t.true(componentXml.includes('useResize="1"'), 'loader writes canonical useResize attr');
 		t.true(componentXml.includes('fill="scale"'), 'loader writes canonical fill attr');
 		t.true(/<loader\b[^>]*clearOnPublish(?:="true")?/.test(componentXml), 'loader writes canonical clearOnPublish attr');
+		t.false(/<loader\b[^>]*\balign=/.test(componentXml), 'loader omits default align attr');
+		t.false(/<loader\b[^>]*\bvAlign=/.test(componentXml), 'loader omits default vAlign attr');
 		t.true(componentXml.includes('<richtext'), 'richtext node is written');
 		t.true(componentXml.includes('font="ui://pkgProtocol/font"'), 'richtext writes canonical font attr');
+		t.true(componentXml.includes('color="#ccff00"'), 'text color attrs are normalized to lowercase');
 		t.true(/singleLine(?:="true")?/.test(componentXml), 'richtext writes canonical singleLine attr');
 		t.true(/<richtext\b[^>]*autoClearText(?:="true")?/.test(componentXml), 'richtext writes canonical autoClearText attr');
 		t.true(/ubb(?:="true")?/.test(componentXml), 'richtext writes canonical ubb attr');
 		t.true(componentXml.includes('strokeColor="#ffffff"'), 'richtext writes canonical strokeColor attr');
+		t.true(componentXml.includes('shadowColor="#000000"'), 'text shadowColor attrs are normalized to lowercase');
 		t.true(componentXml.includes('shadowOffset="1,2"'), 'richtext writes canonical shadowOffset attr');
 		t.true(componentXml.includes('animation="idle"'), 'loader3D uses canonical animation attr');
 		t.false(componentXml.includes('animationName='), 'loader3D no longer writes model field name');
+		t.false(/<loader3d\b[^>]*\balign=/.test(componentXml), 'loader3D omits default align attr');
+		t.false(/<loader3d\b[^>]*\bvAlign=/.test(componentXml), 'loader3D omits default vAlign attr');
 		t.true(componentXml.includes('prompt="Search here"'), 'text input uses canonical prompt attr');
+		t.true(/<inputtext\b[^>]*text=""[^>]*color="#ff3300"/.test(componentXml), 'text input preserves explicit empty text and lowercases color attrs');
 		t.true(/<inputtext\b[^>]*autoClearText(?:="true")?/.test(componentXml), 'text input writes canonical autoClearText attr');
 		t.false(componentXml.includes('promptText='), 'text input no longer writes model field name');
 		t.true(componentXml.includes('colGap="5"'), 'group uses canonical colGap attr');
 		t.true(/excludeInvisibles(?:="true")?/.test(componentXml), 'group writes excludeInvisibles attr');
 		t.true(componentXml.includes('colGap="8"'), 'list uses canonical colGap attr');
+		t.true(componentXml.includes('layout="flow_hz"'), 'list uses editor layout attr values');
 		t.true(componentXml.includes('lineItemCount="9999"'), 'list uses canonical lineItemCount attr');
 		t.true(componentXml.includes('autoItemSize="false"'), 'list uses canonical autoItemSize attr');
 		t.false(componentXml.includes('columnGap='), 'writer no longer emits legacy columnGap attr');
@@ -1031,6 +1083,7 @@ test('writer: uses canonical XML attr names for component root, loader, richtext
 		t.is(byId.get('n0')?.getAnimationName?.(), 'idle', 'loader3D animation survives round-trip');
 		t.false(byId.get('n0')?.getLoop?.(), 'loader3D loop survives round-trip');
 		t.is(byId.get('n1')?.getPromptText?.(), 'Search here', 'text input prompt survives round-trip');
+		t.is(byId.get('n1')?.getText?.(), '', 'text input empty text survives round-trip');
 		t.true(byId.get('n1')?.getAutoClearText?.(), 'text input autoClearText survives round-trip');
 		t.is(byId.get('n1')?.getMaxLength?.(), 24, 'text input maxLength survives round-trip');
 		t.is(byId.get('n1')?.getRestrict?.(), 'A-Z', 'text input restrict survives round-trip');
@@ -1164,6 +1217,8 @@ test('round-trip: tree view list attrs and static item hierarchy survive write�
 
 	try {
 		await io.writeProject(doc, outFairy);
+		const treeXml = await fs.readFile(path.join(tmpDir, 'assets', 'TreeView', 'Main.xml'), 'utf-8');
+		t.false(treeXml.includes('isFolder='), 'tree static items omit inferred isFolder attrs in editor xml');
 
 		const doc2 = await io.readProject(outFairy);
 		const treeViewPkg = doc2.getRoot().listPackages().find((pkg) => pkg.getName() === 'TreeView');
@@ -1277,9 +1332,61 @@ test('round-trip: gear pages values and condition survive write→read', async (
 	display2Gear.setPages('0,1');
 	display2Gear.setCondition('1');
 
+	const lookGear = doc.createGear();
+	lookGear.setGearType(GearType.Look);
+	lookGear.setController(ctrl);
+	lookGear.setPages('1');
+	lookGear.setValues('0.54,180,false,false');
+	lookGear.setDefaultValue('1,0,false,true');
+	lookGear.setTween(true);
+
+	const colorGear = doc.createGear();
+	colorGear.setGearType(GearType.Color);
+	colorGear.setController(ctrl);
+	colorGear.setPages('1');
+	colorGear.setValues('#66FF99,#000000');
+	colorGear.setDefaultValue('#FFFFFF,#000000');
+
+	const title = doc.createGTextField('title');
+	title.setId('n1');
+	title.setColor('#FFFFFF');
+	title.setStrokeColor('#000000');
+	const titleGear = doc.createGear();
+	titleGear.setGearType(GearType.Color);
+	titleGear.setController(ctrl);
+	titleGear.setPages('0,1');
+	titleGear.setValues('#FFFFFF,#000000|-');
+	titleGear.setDefaultValue('#DFB536,#000000');
+	title.addGear(titleGear);
+
+	const loader = doc.createGLoader('icon');
+	loader.setId('n2');
+	const loaderLookGear = doc.createGear();
+	loaderLookGear.setGearType(GearType.Look);
+	loaderLookGear.setController(ctrl);
+	loaderLookGear.setPages('0,1');
+	loaderLookGear.setValues('1,0,false,true|-');
+	loaderLookGear.setDefaultValue('1,0,true,true');
+	loader.addGear(loaderLookGear);
+
+	const bgImage = doc.createGImage('bg');
+	bgImage.setId('n3');
+	const sizeGear = doc.createGear();
+	sizeGear.setGearType(GearType.Size);
+	sizeGear.setController(ctrl);
+	sizeGear.setPages('0,1');
+	sizeGear.setValues('181,70,1,1|178,68,1,1');
+	sizeGear.setDefaultValue('181,70,1,1');
+	bgImage.addGear(sizeGear);
+
 	image.addGear(textGear);
 	image.addGear(display2Gear);
+	image.addGear(lookGear);
+	image.addGear(colorGear);
 	comp.addChild(image);
+	comp.addChild(title);
+	comp.addChild(loader);
+	comp.addChild(bgImage);
 	pkg.addResource(comp);
 
 	const io = new NodeIO();
@@ -1293,6 +1400,11 @@ test('round-trip: gear pages values and condition survive write→read', async (
 		t.true(/<gearText\b[^>]*tween(?:="true")?/.test(componentXml), 'gear writes tween attr');
 		t.true(componentXml.includes('ease="Quad.Out"'), 'gear writes canonical ease attr');
 		t.true(componentXml.includes('duration="0.5"'), 'gear writes canonical duration attr');
+		t.true(componentXml.includes('<gearLook controller="state" pages="1" values="0.54,180,0,0" default="1,0,0"'), 'gearLook compresses bool payload to editor-style numeric tokens');
+		t.true(componentXml.includes('<gearColor controller="state" pages="1" values="#66ff99" default="#ffffff"'), 'gearColor omits redundant black outline payload for non-text objects');
+		t.true(componentXml.includes('<gearColor controller="state" pages="0,1" values="#ffffff|-" default="#dfb536"'), 'title text gearColor omits redundant black outline payloads');
+		t.true(componentXml.includes('<gearLook controller="state" pages="0,1" values="1.00,0,0|-" default="1.00,0,1"'), 'loader gearLook keeps editor-style fixed alpha precision');
+		t.true(componentXml.includes('<gearSize controller="state" pages="0,1" values="181,70,1.00,1.00|178,68,1.00,1.00" default="181,70,1.00,1.00"'), 'non-tween gearSize keeps editor-style fixed scale precision');
 
 		const doc2 = await io.readProject(outFairy);
 		const comp2 = doc2.getRoot().getPackage('Demo4')?.listComponents().find((item) => item.getName() === 'GearHost');
@@ -1301,7 +1413,7 @@ test('round-trip: gear pages values and condition survive write→read', async (
 		const image2 = comp2!.listChildren().find((child) => child.getId() === 'n0');
 		t.truthy(image2, 'gear image exists');
 		const gears = image2!.listGears();
-		t.is(gears.length, 2);
+		t.is(gears.length, 4);
 
 		const textGear2 = gears.find((gear) => gear.getGearType() === GearType.Text);
 		t.truthy(textGear2, 'text gear exists');
@@ -1316,6 +1428,39 @@ test('round-trip: gear pages values and condition survive write→read', async (
 		t.truthy(display2Gear2, 'display2 gear exists');
 		t.is(display2Gear2!.getPages(), '0,1');
 		t.is(display2Gear2!.getCondition(), '1');
+
+		const lookGear2 = gears.find((gear) => gear.getGearType() === GearType.Look);
+		t.truthy(lookGear2, 'look gear exists');
+		t.is(lookGear2!.getPages(), '1');
+		t.is(lookGear2!.getValues(), '0.54,180,0,0');
+		t.is(lookGear2!.getDefaultValue(), '1,0,0');
+
+		const colorGear2 = gears.find((gear) => gear.getGearType() === GearType.Color);
+		t.truthy(colorGear2, 'color gear exists');
+		t.is(colorGear2!.getPages(), '1');
+		t.is(colorGear2!.getValues(), '#66ff99');
+		t.is(colorGear2!.getDefaultValue(), '#ffffff');
+
+		const title2 = comp2!.listChildren().find((child) => child.getId() === 'n1');
+		t.truthy(title2, 'title text exists');
+		const titleColorGear2 = title2!.listGears().find((gear) => gear.getGearType() === GearType.Color);
+		t.truthy(titleColorGear2, 'title text color gear exists');
+		t.is(titleColorGear2!.getValues(), '#ffffff|-');
+		t.is(titleColorGear2!.getDefaultValue(), '#dfb536');
+
+		const loader2 = comp2!.listChildren().find((child) => child.getId() === 'n2');
+		t.truthy(loader2, 'loader exists');
+		const loaderLookGear2 = loader2!.listGears().find((gear) => gear.getGearType() === GearType.Look);
+		t.truthy(loaderLookGear2, 'loader look gear exists');
+		t.is(loaderLookGear2!.getValues(), '1.00,0,0|-');
+		t.is(loaderLookGear2!.getDefaultValue(), '1.00,0,1');
+
+		const bgImage2 = comp2!.listChildren().find((child) => child.getId() === 'n3');
+		t.truthy(bgImage2, 'bg image exists');
+		const sizeGear2 = bgImage2!.listGears().find((gear) => gear.getGearType() === GearType.Size);
+		t.truthy(sizeGear2, 'size gear exists');
+		t.is(sizeGear2!.getValues(), '181,70,1.00,1.00|178,68,1.00,1.00');
+		t.is(sizeGear2!.getDefaultValue(), '181,70,1.00,1.00');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
@@ -1688,7 +1833,7 @@ test('round-trip: display object fileName/pkg/filter metadata survives write→r
 	try {
 		await io.writeProject(doc, outFairy);
 		const hostXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoMeta', 'Host.xml'), 'utf-8');
-		t.true(hostXml.includes('fileName="images/pic.png"'), 'image writes canonical fileName attr');
+		t.false(/<image\b[^>]*\bfileName=/.test(hostXml), 'image omits fileName attr');
 		t.true(hostXml.includes('pkg="pkgA"'), 'image writes canonical pkg attr');
 		t.true(/\baspect(?:="true")?(?=[\s>])/.test(hostXml), 'display object writes canonical aspect attr');
 		t.true(hostXml.includes('filter="color"'), 'display object writes canonical filter attr');
@@ -1703,7 +1848,7 @@ test('round-trip: display object fileName/pkg/filter metadata survives write→r
 		t.truthy(host2, 'Host exists after round-trip');
 		const byId = new Map(host2!.listChildren().map((item) => [item.getId(), item as any]));
 
-		t.is(byId.get('n0')?.getFileName?.(), 'images/pic.png');
+		t.is(byId.get('n0')?.getFileName?.(), '');
 		t.is(byId.get('n0')?.getPackageId?.(), 'pkgA');
 		t.true(byId.get('n0')?.getAspect?.());
 		t.is(byId.get('n0')?.getFilter?.(), 'color');
@@ -1797,6 +1942,7 @@ test('round-trip: tag-scoped alpha/rotation/visible/touchable/grayed survive wri
 	image.setId('n0');
 	image.setSrc('img001');
 	image.setAlpha(0.62);
+	image.setFlip(2);
 	image.setRotation(-39);
 	image.setVisible(false);
 	image.setGrayed(true);
@@ -1847,6 +1993,7 @@ test('round-trip: tag-scoped alpha/rotation/visible/touchable/grayed survive wri
 		await io.writeProject(doc, outFairy);
 		const hostXml = await fs.readFile(path.join(tmpDir, 'assets', 'DisplayState', 'Host.xml'), 'utf-8');
 		t.true(hostXml.includes('alpha="0.62"'), 'image writes alpha on image tag');
+		t.true(hostXml.includes('flip="vt"'), 'image writes editor-style flip token on image tag');
 		t.true(hostXml.includes('rotation="-39"'), 'image writes rotation on image tag');
 		t.true(/<image\b[^>]*visible="false"/.test(hostXml), 'image writes visible on image tag');
 		t.true(/<image\b[^>]*grayed(?:="true")?/.test(hostXml), 'image writes grayed on image tag');
@@ -1864,6 +2011,7 @@ test('round-trip: tag-scoped alpha/rotation/visible/touchable/grayed survive wri
 		const byId = new Map(host2!.listChildren().map((item) => [item.getId(), item as any]));
 
 		t.true(Math.abs((byId.get('n0')?.getAlpha?.() ?? 0) - 0.62) < 1e-6);
+		t.is(byId.get('n0')?.getFlip?.(), 2);
 		t.is(byId.get('n0')?.getRotation?.(), -39);
 		t.false(byId.get('n0')?.getVisible?.());
 		t.true(byId.get('n0')?.getGrayed?.());
@@ -1950,7 +2098,7 @@ test('round-trip: tag-scoped pivot/anchor/scale survive write→read', async (t)
 		t.true(/<graph\b[^>]*id="n2"[^>]*anchor(?:="true")?/.test(componentXml), 'graph writes anchor attr');
 		t.true(/<loader\b[^>]*id="n3"[^>]*pivot="0.5,0.5"/.test(componentXml), 'loader writes pivot attr');
 		t.true(/<loader\b[^>]*id="n3"[^>]*scale="2,2"/.test(componentXml), 'loader writes scale attr');
-		t.true(/<movieclip\b[^>]*id="n4"[^>]*pivot="0.5,0.5"/.test(componentXml), 'movieclip writes pivot attr');
+		t.true(/<jta\b[^>]*id="n4"[^>]*pivot="0.5,0.5"/.test(componentXml), 'jta writes pivot attr');
 
 		const doc2 = await io.readProject(outFairy);
 		const comp2 = doc2.getRoot().getPackage('DemoPivot')?.listComponents().find((item) => item.getName() === 'PivotAttrs');
@@ -2048,7 +2196,7 @@ test('round-trip: tag-scoped group survives write→read', async (t) => {
 		t.true(/<graph\b[^>]*id="n3"[^>]*group="groot"/.test(componentXml), 'graph writes group attr');
 		t.true(/<group\b[^>]*id="n4"[^>]*group="groot"/.test(componentXml), 'group writes group attr');
 		t.true(/<list\b[^>]*id="n5"[^>]*group="groot"/.test(componentXml), 'list writes group attr');
-		t.true(/<movieclip\b[^>]*id="n6"[^>]*group="groot"/.test(componentXml), 'movieclip writes group attr');
+		t.true(/<jta\b[^>]*id="n6"[^>]*group="groot"/.test(componentXml), 'jta writes group attr');
 
 		const doc2 = await io.readProject(outFairy);
 		const comp2 = doc2.getRoot().getPackage('DemoGroup')?.listComponents().find((item) => item.getName() === 'GroupAttrs');
@@ -2119,6 +2267,17 @@ test('round-trip: tag-scoped xy survive write→read', async (t) => {
 	movieClip.setSrc('ui://pkgXY/movie');
 	movieClip.setXY(170, 180);
 
+	const zeroImage = doc.createGImage('zeroImage');
+	zeroImage.setId('n9');
+
+	const zeroText = doc.createGTextField('zeroText');
+	zeroText.setId('n10');
+	zeroText.setText('');
+
+	const zeroComponent = doc.createGComponent('zeroComponent');
+	zeroComponent.setId('n11');
+	zeroComponent.setSrc('ui://pkgXY/zero');
+
 	comp.addChild(image);
 	comp.addChild(childComp);
 	comp.addChild(text);
@@ -2128,6 +2287,9 @@ test('round-trip: tag-scoped xy survive write→read', async (t) => {
 	comp.addChild(loader);
 	comp.addChild(loader3d);
 	comp.addChild(movieClip);
+	comp.addChild(zeroImage);
+	comp.addChild(zeroText);
+	comp.addChild(zeroComponent);
 	pkg.addResource(comp);
 
 	const io = new NodeIO();
@@ -2146,7 +2308,10 @@ test('round-trip: tag-scoped xy survive write→read', async (t) => {
 		t.true(/<list\b[^>]*id="n5"[^>]*xy="110,120"/.test(componentXml), 'list writes xy attr');
 		t.true(/<loader\b[^>]*id="n6"[^>]*xy="130,140"/.test(componentXml), 'loader writes xy attr');
 		t.true(/<loader3d\b[^>]*id="n7"[^>]*xy="150,160"/.test(componentXml), 'loader3D writes xy attr');
-		t.true(/<movieclip\b[^>]*id="n8"[^>]*xy="170,180"/.test(componentXml), 'movieclip writes xy attr');
+		t.true(/<jta\b[^>]*id="n8"[^>]*xy="170,180"/.test(componentXml), 'jta writes xy attr');
+		t.true(/<image\b[^>]*id="n9"[^>]*xy="0,0"/.test(componentXml), 'image writes explicit zero xy attr');
+		t.true(/<text\b[^>]*id="n10"[^>]*xy="0,0"/.test(componentXml), 'text writes explicit zero xy attr');
+		t.true(/<component\b[^>]*id="n11"[^>]*xy="0,0"/.test(componentXml), 'component instance writes explicit zero xy attr');
 
 		const doc2 = await io.readProject(outFairy);
 		const comp2 = doc2.getRoot().getPackage('DemoXY')?.listComponents().find((item) => item.getName() === 'XYAttrs');
@@ -2169,6 +2334,12 @@ test('round-trip: tag-scoped xy survive write→read', async (t) => {
 		t.is(byId.get('n6')?.getY?.(), 140);
 		t.is(byId.get('n7')?.getX?.(), 150);
 		t.is(byId.get('n7')?.getY?.(), 160);
+		t.is(byId.get('n9')?.getX?.(), 0);
+		t.is(byId.get('n9')?.getY?.(), 0);
+		t.is(byId.get('n10')?.getX?.(), 0);
+		t.is(byId.get('n10')?.getY?.(), 0);
+		t.is(byId.get('n11')?.getX?.(), 0);
+		t.is(byId.get('n11')?.getY?.(), 0);
 		t.is(byId.get('n8')?.getX?.(), 170);
 		t.is(byId.get('n8')?.getY?.(), 180);
 	} finally {
@@ -2255,7 +2426,7 @@ test('round-trip: tag-scoped size survive write→read', async (t) => {
 		t.true(/<list\b[^>]*id="n5"[^>]*size="111,121"/.test(componentXml), 'list writes size attr');
 		t.true(/<loader\b[^>]*id="n6"[^>]*size="131,141"/.test(componentXml), 'loader writes size attr');
 		t.true(/<loader3d\b[^>]*id="n7"[^>]*size="151,161"/.test(componentXml), 'loader3D writes size attr');
-		t.true(/<movieclip\b[^>]*id="n8"[^>]*size="171,181"/.test(componentXml), 'movieclip writes size attr');
+		t.true(/<jta\b[^>]*id="n8"[^>]*size="171,181"/.test(componentXml), 'jta writes size attr');
 
 		const doc2 = await io.readProject(outFairy);
 		const comp2 = doc2.getRoot().getPackage('DemoSize')?.listComponents().find((item) => item.getName() === 'SizeAttrs');
@@ -2458,6 +2629,8 @@ test('round-trip: packageDescription id and publish attrs survive package.xml wr
 
 	const pkg = doc.createPackage('DemoPkg');
 	pkg.setId('pkgmeta');
+	pkg.setCompressPNG(true);
+	pkg.setJpegQuality(80);
 	pkg.setPublishName('DemoPublish');
 	pkg.setPublishPath('dist/ui');
 	pkg.setPublishBranchPath('dist/branches');
@@ -2475,7 +2648,7 @@ test('round-trip: packageDescription id and publish attrs survive package.xml wr
 	try {
 		await io.writeProject(doc, outFairy);
 		const packageXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoPkg', 'package.xml'), 'utf-8');
-		t.true(packageXml.includes('<packageDescription id="pkgmeta">'), 'packageDescription writes canonical id attr');
+		t.true(packageXml.includes('<packageDescription id="pkgmeta" compressPNG="true" jpegQuality="80">'), 'packageDescription writes canonical id and publish image attrs');
 		t.true(
 			packageXml.includes('<publish name="DemoPublish" path="dist/ui" branchPath="dist/branches" packageCount="1">')
 				|| packageXml.includes('<publish name="DemoPublish" path="dist/ui" branchPath="dist/branches" packageCount="1"/>'),
@@ -2486,6 +2659,8 @@ test('round-trip: packageDescription id and publish attrs survive package.xml wr
 		const pkg2 = doc2.getRoot().getPackage('DemoPkg');
 		t.truthy(pkg2, 'DemoPkg exists after round-trip');
 		t.is(pkg2?.getId(), 'pkgmeta');
+		t.is(pkg2?.getCompressPNG?.(), true);
+		t.is(pkg2?.getJpegQuality?.(), 80);
 		t.is(pkg2?.getPublishName(), 'DemoPublish');
 		t.is(pkg2?.getPublishPath?.(), 'dist/ui');
 		t.is(pkg2?.getPublishBranchPath?.(), 'dist/branches');

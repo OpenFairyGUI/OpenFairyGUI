@@ -34,7 +34,7 @@
 | Loader | `loader` | `loader` | `loader` | `loader` |
 | Loader3D | `loader3d` | `loader3D` | 当前仓库按 `loader3D` 对齐 | `loader3d` |
 | MovieClip | `movieclip` | `movieclip` | `movieclip` | `movieclip` |
-| JTA 动画 | `jta` | `jta` | `jta` | 当前统一写回 `movieclip` |
+| JTA 动画 | `jta` | `jta` | `jta` | `jta` |
 | 子组件实例 | `component` | `component` | 资源引用对象通常不单独写 `type`，其显示列表项由引用资源决定 | `component` |
 | 列表 | `list` | `list` | `list` | `list` |
 | 树 | `list` 且 `treeView="true"`，或显式 `tree` | `tree` | `tree` | `list` 且 `treeView="true"` |
@@ -58,8 +58,8 @@
 | `GRichTextField` | `richtext` |
 | `GTree` | `list`，同时写 `treeView="true"` |
 | `GLoader3D` | `loader3d` |
-| `GMovieClip` | `movieclip` |
-| 兼容读入的 `jta` | 当前统一写回 `movieclip` |
+| `GMovieClip` | `jta` |
+| 兼容读入的 `movieclip` | 当前统一写回 `jta` |
 | `GComponent / GButton / GLabel / GComboBox / GProgressBar / GSlider / GScrollBar` | `component` |
 
 ## 维护要求

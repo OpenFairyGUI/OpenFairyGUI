@@ -40,6 +40,55 @@ function _parseEaseType(ease: string): number {
 	return map[ease] ?? map[normalized] ?? 5; // default QuadOut
 }
 
+function readPngSize(data: Uint8Array): { width: number; height: number } | null {
+	if (data.length < 24) return null;
+	const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+	for (let i = 0; i < signature.length; i++) {
+		if (data[i] !== signature[i]) return null;
+	}
+	const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+	return {
+		width: view.getUint32(16),
+		height: view.getUint32(20),
+	};
+}
+
+function readJpegSize(data: Uint8Array): { width: number; height: number } | null {
+	if (data.length < 4 || data[0] !== 0xff || data[1] !== 0xd8) return null;
+	let offset = 2;
+	while (offset + 9 < data.length) {
+		if (data[offset] !== 0xff) {
+			offset++;
+			continue;
+		}
+		const marker = data[offset + 1];
+		offset += 2;
+		if (marker === 0xd8 || marker === 0xd9) continue;
+		if (offset + 2 > data.length) return null;
+		const length = (data[offset] << 8) | data[offset + 1];
+		if (length < 2 || offset + length > data.length) return null;
+		const isStartOfFrame = (
+			(marker >= 0xc0 && marker <= 0xc3)
+			|| (marker >= 0xc5 && marker <= 0xc7)
+			|| (marker >= 0xc9 && marker <= 0xcb)
+			|| (marker >= 0xcd && marker <= 0xcf)
+		);
+		if (isStartOfFrame) {
+			if (offset + 7 > data.length) return null;
+			return {
+				height: (data[offset + 3] << 8) | data[offset + 4],
+				width: (data[offset + 5] << 8) | data[offset + 6],
+			};
+		}
+		offset += length;
+	}
+	return null;
+}
+
+function readImageSize(data: Uint8Array): { width: number; height: number } | null {
+	return readPngSize(data) ?? readJpegSize(data);
+}
+
 // Maps XML tag names for display objects to factory method names.
 const DISPLAY_TAG_MAP: Record<string, string> = {
 	image: 'GImage',
@@ -851,6 +900,12 @@ export class ProjectReader {
 		if (!branchName) {
 			const packageId = readXmlAttr<string>(desc, PROJECT_XML_PROTOCOL.packageDescription.attrs.id) || '';
 			pkg.setId(packageId);
+			const compressPNG = readXmlAttr<string | boolean>(desc, PROJECT_XML_PROTOCOL.packageDescription.attrs.compressPNG);
+			if (compressPNG !== undefined) pkg.setCompressPNG(parseBool(compressPNG));
+			const jpegQuality = readXmlAttr<string | number>(desc, PROJECT_XML_PROTOCOL.packageDescription.attrs.jpegQuality);
+			if (jpegQuality !== undefined && jpegQuality !== null && jpegQuality !== '') {
+				pkg.setJpegQuality(parseInt2(jpegQuality, 0));
+			}
 		}
 
 		// Publish name
@@ -882,11 +937,14 @@ export class ProjectReader {
 			? fs.join(ctx.basePath, `assets_${branchName}`, dirName)
 			: fs.join(ctx.basePath, 'assets', dirName);
 
+		const createdResources: Array<ReturnType<Package['listResources']>[number]> = [];
 		const orderedResources = getOrderedPackageResourceItems(content);
 		if (orderedResources.length > 0) {
 			for (const { tagName, attrs } of orderedResources) {
-				this._createResourceFromXML(ctx, pkg, tagName, attrs, packageDir, branchName);
+				const resource = this._createResourceFromXML(ctx, pkg, tagName, attrs, packageDir, branchName);
+				if (resource) createdResources.push(resource);
 			}
+			await this._hydratePackageImageSizes(createdResources, packageDir);
 			return;
 		}
 
@@ -896,7 +954,34 @@ export class ProjectReader {
 			for (const item of items) {
 				const attrs = getXmlNode<ResourceXmlAttrs>(item);
 				if (!attrs) continue;
-				this._createResourceFromXML(ctx, pkg, tagName, attrs, packageDir, branchName);
+				const resource = this._createResourceFromXML(ctx, pkg, tagName, attrs, packageDir, branchName);
+				if (resource) createdResources.push(resource);
+			}
+		}
+		await this._hydratePackageImageSizes(createdResources, packageDir);
+	}
+
+	private async _hydratePackageImageSizes(
+		resources: Array<ReturnType<Package['listResources']>[number]>,
+		packageDir: string,
+	): Promise<void> {
+		const fs = this._fs;
+		for (const resource of resources) {
+			if (resource.propertyType !== 'ImageResource') continue;
+			const image = resource as ReturnType<Document['createImageResource']>;
+			if ((image.getWidth?.() ?? 0) > 0 && (image.getHeight?.() ?? 0) > 0) continue;
+			const fileName = image.getFileName?.() ?? '';
+			if (!fileName) continue;
+			const resourcePath = image.getPath?.() ?? '/';
+			const filePath = fs.join(packageDir, resourcePath.replace(/^\//, ''), fileName);
+			if (!(await fs.exists(filePath))) continue;
+			try {
+				const size = readImageSize(await fs.readFileRaw(filePath));
+				if (!size) continue;
+				if ((image.getWidth?.() ?? 0) === 0) image.setWidth?.(size.width);
+				if ((image.getHeight?.() ?? 0) === 0) image.setHeight?.(size.height);
+			} catch {
+				// Ignore unreadable image files and keep XML-provided values only.
 			}
 		}
 	}
@@ -908,7 +993,7 @@ export class ProjectReader {
 		attrs: ResourceXmlAttrs,
 		packageDir: string,
 		branchName = '',
-	): void {
+	): ReturnType<Package['listResources']>[number] | null {
 		const doc = ctx.document;
 		const fs = this._fs;
 		const id = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.id) ?? '';
@@ -946,7 +1031,7 @@ export class ProjectReader {
 				res.setSmoothing(readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.smoothing) !== 'false');
 				pkg.addResource(res);
 				ctx.registerResource(pkg.getId(), id, res);
-				break;
+				return res;
 			}
 			case 'component': {
 				const res = doc.createComponent(name.replace(/\.xml$/i, ''));
@@ -959,7 +1044,7 @@ export class ProjectReader {
 				res.setExtras({ ...res.getExtras(), _filePath: filePath });
 				pkg.addResource(res);
 				ctx.registerResource(pkg.getId(), id, res);
-				break;
+				return res;
 			}
 			case 'sound': {
 				const res = doc.createSoundResource(name.replace(/\.\w+$/, ''));
@@ -970,7 +1055,7 @@ export class ProjectReader {
 				res.setExported(exported);
 				pkg.addResource(res);
 				ctx.registerResource(pkg.getId(), id, res);
-				break;
+				return res;
 			}
 			case 'misc': {
 				const res = doc.createMiscResource(name.replace(/\.\w+$/, ''));
@@ -981,7 +1066,7 @@ export class ProjectReader {
 				res.setExported(exported);
 				pkg.addResource(res);
 				ctx.registerResource(pkg.getId(), id, res);
-				break;
+				return res;
 			}
 			case 'font': {
 				const res = doc.createFontResource(name.replace(/\.\w+$/, ''));
@@ -1001,7 +1086,7 @@ export class ProjectReader {
 				if (samplePointSize !== undefined) res.setSamplePointSize(parseInt2(samplePointSize));
 				pkg.addResource(res);
 				ctx.registerResource(pkg.getId(), id, res);
-				break;
+				return res;
 			}
 			case 'spine': {
 				const res = doc.createSpineResource(name.replace(/\.\w+$/, ''));
@@ -1023,7 +1108,7 @@ export class ProjectReader {
 				}
 				pkg.addResource(res);
 				ctx.registerResource(pkg.getId(), id, res);
-				break;
+				return res;
 			}
 			case 'dragonbones': {
 				const res = doc.createDragonBonesResource(name.replace(/\.\w+$/, ''));
@@ -1045,7 +1130,7 @@ export class ProjectReader {
 				}
 				pkg.addResource(res);
 				ctx.registerResource(pkg.getId(), id, res);
-				break;
+				return res;
 			}
 			case 'movieclip': {
 				const res = doc.createMovieClipResource(name.replace(/\.\w+$/, ''));
@@ -1056,11 +1141,11 @@ export class ProjectReader {
 				res.setExported(exported);
 				pkg.addResource(res);
 				ctx.registerResource(pkg.getId(), id, res);
-				break;
+				return res;
 			}
 			default: {
 				// swf, atlas — store as extras on package for now
-				break;
+				return null;
 			}
 		}
 	}

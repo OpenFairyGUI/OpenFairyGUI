@@ -1,6 +1,7 @@
 node_modules/
 referer/
 release/
+restore/
 **/dist/
 /[Oo]bj/
 

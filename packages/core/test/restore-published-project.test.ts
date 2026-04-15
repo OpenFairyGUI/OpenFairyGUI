@@ -85,13 +85,20 @@ test('restore published project: directory batch restores packages, assets, and 
 		const soundPath = resourcePath(path.join(outputDir, 'assets', 'Basics'), sound.getPath(), sound.getFile());
 		t.truthy(await fs.stat(soundPath).catch(() => null), 'sound file is copied without publish prefix');
 		const basicsPackageXml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'package.xml'), 'utf-8');
-		t.true(basicsPackageXml.includes('name="gojg7u.wav"'), 'package.xml references copied sound file name');
+		t.true(basicsPackageXml.includes('name="tabswitch.wav"'), 'package.xml references restored editor-facing sound file name');
 		t.true(basicsPackageXml.includes('exported="true"'), 'package.xml writes explicit true boolean attributes');
 		t.false(basicsPackageXml.includes('.png.png"'), 'image resource file names are not suffixed with .png twice');
+		t.false(basicsPackageXml.includes('id="es4130" name="change.png" path="/images/" width='), 'restored package.xml omits inferred image width');
+		t.false(basicsPackageXml.includes('id="es4130" name="change.png" path="/images/" height='), 'restored package.xml omits inferred image height');
 		t.true(basicsPackageXml.includes('<publish name="Basics">'), 'package.xml keeps publish block');
 		t.true(basicsPackageXml.includes('<atlas name="Default" index="0"'), 'package.xml keeps default atlas publish entry');
 		t.true(basicsPackageXml.includes('name="nlge1k.jta"'), 'movieclip package resource keeps .jta file name');
 		t.true(basicsPackageXml.includes('name="BMFontTest.fnt"'), 'font package resource keeps .fnt file name');
+		t.true(
+			basicsPackageXml.indexOf('id="rpmbz"') < basicsPackageXml.indexOf('id="rpmb10"'),
+			'package.xml resource order follows editor-like id sequence instead of read order',
+		);
+		t.true(basicsPackageXml.includes('id="duef6n" name="h0.png"'), 'digit font glyph resources use readable synthesized file names');
 		const hitNumberFnt = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'font', 'HitNumber.fnt'), 'utf-8');
 		t.true(hitNumberFnt.includes('char id=48 img=duef6n xoffset=0 yoffset=0 xadvance=33'), 'bitmap font file is regenerated from published glyphs');
 		const bmFontTestFnt = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'font', 'BMFontTest.fnt'), 'utf-8');
@@ -101,6 +108,46 @@ test('restore published project: directory batch restores packages, assets, and 
 		t.is(movieClipJta.speed, 3, 'movieclip jta speed is restored from interval');
 		t.is(movieClipJta.frames.length, 15, 'movieclip jta frame count is restored');
 		t.is(movieClipJta.textures.length, 15, 'movieclip jta frame textures are embedded');
+		const basicsDemoImageXml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'Demo_Image.xml'), 'utf-8');
+		t.false(/<image\b[^>]*\bfileName=/.test(basicsDemoImageXml), 'restored image instances omit fileName attrs');
+		const basicsDemoControllerXml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'Demo_Controller.xml'), 'utf-8');
+		t.true(basicsDemoControllerXml.includes('fileName="components/Button4.xml"'), 'restored component instances backfill editor fileName attrs from package resources');
+		t.true(basicsDemoControllerXml.includes('fileName="images/nlge1k.jta"'), 'restored movieclip instances backfill editor fileName attrs from package resources');
+		t.true(basicsDemoControllerXml.includes('<gearLook controller="c1" pages="1" values="0.54,180,0,0" default="1,0,0,0"'), 'restored Demo_Controller writes compact numeric gearLook payloads');
+		t.true(basicsDemoControllerXml.includes('<gearColor controller="c1" pages="1" values="#66ff99" default="#ffffff"'), 'restored Demo_Controller compacts non-text gearColor payloads');
+		const basicsButton16Xml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'components', 'Button16.xml'), 'utf-8');
+		t.true(basicsButton16Xml.includes('<gearLook controller="button" pages="0,1,2,3" values="-|1,180,0|-|1,180,0" default="1,0,0"'), 'restored Button16 omits trailing touchable=true in gearLook payloads');
+		const basicsButton6Xml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'components', 'Button6.xml'), 'utf-8');
+		t.true(basicsButton6Xml.includes('<gearColor controller="button" pages="0,1,2,3" values="#ffffff|-|#ffffff|-" default="#dfb536"'), 'restored Button6 compacts title text gearColor outline payloads');
+		const basicsComboBoxItemXml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'components', 'ComboBoxItem.xml'), 'utf-8');
+		t.true(basicsComboBoxItemXml.includes('<gearColor controller="button" pages="0,1,2,3" values="-|#ffffff|#ffffff|#ffffff" default="#000000"'), 'restored ComboBoxItem compacts title text gearColor outline payloads');
+		const basicsButton52Xml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'components', 'Button52.xml'), 'utf-8');
+		t.true(basicsButton52Xml.includes('<gearLook controller="grayed" pages="0,1" values="1.00,0,0|-" default="1.00,0,1"'), 'restored Button52 keeps editor-style fixed alpha precision in gearLook');
+		const bagOutputDir = path.join(outputDir, 'BagPack');
+		await io.restorePublishedProject(RELEASE_DIR, bagOutputDir, {
+			packages: ['Bag'],
+			force: true,
+			cropImage,
+			extractImage,
+		});
+		const bagCloseButtonXml = await fs.readFile(path.join(bagOutputDir, 'assets', 'Bag', 'CloseButton.xml'), 'utf-8');
+		t.true(bagCloseButtonXml.includes('<gearSize controller="button" pages="0,1,2,3" values="61,53|-|61,53|-" default="55,47"'), 'restored CloseButton omits redundant identity scale payloads in non-tween gearSize');
+		t.true(/<image\b[^>]*id="n1"[^>]*xy="0,0"/.test(bagCloseButtonXml), 'restored CloseButton keeps explicit zero xy attrs on image tags');
+		const basicsDemoListXml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'Demo_List.xml'), 'utf-8');
+		t.false(basicsDemoListXml.includes('layout="singleColumn"'), 'default single-column list omits layout attr');
+		t.true(basicsDemoListXml.includes('layout="row"'), 'single-row list uses editor layout token');
+		t.true(basicsDemoListXml.includes('layout="flow_hz"'), 'flow-horizontal list uses editor layout token');
+		t.true(basicsDemoListXml.includes('layout="flow_vt"'), 'flow-vertical list uses editor layout token');
+		const basicsDemoTextXml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'Demo_Text.xml'), 'utf-8');
+		t.true(/<text\b[^>]*id="n2"[^>]*color="#cc3300"/.test(basicsDemoTextXml), 'restored Basics/Demo_Text lowercases text color attrs');
+		t.true(/<inputtext\b[^>]*id="n22"[^>]*text=""/.test(basicsDemoTextXml), 'restored Basics/Demo_Text keeps explicit empty input text');
+		t.true(/<text\b[^>]*id="n24"[^>]*text=""/.test(basicsDemoTextXml), 'restored Basics/Demo_Text keeps explicit empty text attrs');
+		t.true(/<image\b[^>]*id="n7"[^>]*flip="hz"/.test(basicsDemoImageXml), 'restored Basics/Demo_Image writes editor flip token for horizontal mirror');
+		t.true(/<image\b[^>]*id="n8"[^>]*alpha="0.62"/.test(basicsDemoImageXml), 'restored Basics/Demo_Image trims alpha float noise');
+		t.true(/<image\b[^>]*id="n8"[^>]*flip="vt"/.test(basicsDemoImageXml), 'restored Basics/Demo_Image writes editor flip token for vertical mirror');
+		t.true(/<image\b[^>]*id="n17"[^>]*flip="both"/.test(basicsDemoImageXml), 'restored Basics/Demo_Image writes editor flip token for dual mirror');
+		const basicsDemoComponentXml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'Demo_Component.xml'), 'utf-8');
+		t.false(basicsDemoComponentXml.includes('scroll="vertical"'), 'restored Basics/Demo_Component omits default vertical component scroll attr');
 
 		const branchFacePath = path.join(outputDir, 'assets_dev', 'Branch', 'face.png');
 		t.truthy(await fs.stat(branchFacePath).catch(() => null), 'branch image is cropped into assets_dev');
@@ -122,6 +169,77 @@ test('restore published project: directory batch restores packages, assets, and 
 		const textMeshProPackageXml = await fs.readFile(path.join(outputDir, 'assets', 'TextMeshPro', 'package.xml'), 'utf-8');
 		t.true(textMeshProPackageXml.includes('renderMode="sdfaa"'), 'SDF font render mode is restored from published font name');
 		t.true(textMeshProPackageXml.includes('samplePointSize="60"'), 'SDF font sample point size is restored from published font name');
+
+		const transitionOutputDir = path.join(outputDir, 'TransitionPack');
+		const transitionResult = await io.restorePublishedProject(RELEASE_DIR, transitionOutputDir, {
+			packages: ['Transition'],
+			force: true,
+			cropImage,
+			extractImage,
+		});
+		const transitionDoc = await io.readProject(transitionResult.projectPath);
+		const transitionPkg = transitionDoc.getRoot().getPackage('Transition')!;
+		t.truthy(transitionPkg.getResourceById('nra4g'), 'font-derived image resource is synthesized into package.xml');
+		t.truthy(transitionPkg.getResourceById('fou917'), 'additional font-derived image resource is synthesized into package.xml');
+		const transitionPackageXml = await fs.readFile(path.join(transitionOutputDir, 'assets', 'Transition', 'package.xml'), 'utf-8');
+		t.true(transitionPackageXml.includes('id="nra4g"'), 'transition package.xml includes derived glyph image resource ids');
+		t.true(transitionPackageXml.includes('id="fou917"'), 'transition package.xml includes root-path derived glyph image resource ids');
+		t.true(
+			transitionPackageXml.includes('id="nra4g" name="0000_9_png.png"'),
+			'transition digit glyph resources restore editor-facing numbered glyph file names',
+		);
+		t.true(
+			transitionPackageXml.includes('id="fou917" name="h0.png"'),
+			'transition hit-number glyph resources use h-prefixed synthesized file names',
+		);
+		t.true(
+			transitionPackageXml.includes('id="fou917" name="h0.png" path="/"'),
+			'transition number3 glyph resources restore root virtual path',
+		);
+		t.truthy(await fs.stat(path.join(transitionOutputDir, 'assets', 'Transition', 'images', '0000_9_png.png')).catch(() => null), 'derived glyph placeholder image is written with editor-facing file name');
+		t.truthy(await fs.stat(path.join(transitionOutputDir, 'assets', 'Transition', 'h0.png')).catch(() => null), 'root font glyph placeholder image is written at root virtual path');
+		const powerUpXml = await fs.readFile(path.join(transitionOutputDir, 'assets', 'Transition', 'PowerUp.xml'), 'utf-8');
+		t.true(powerUpXml.includes('<jta id="n5"'), 'restored Transition/PowerUp writes movie clips with jta display tags');
+		t.true(powerUpXml.includes('<item time="0" type="Alpha" value="1.00"/>'), 'restored Transition/PowerUp keeps non-tween alpha as value attr');
+		t.true(powerUpXml.includes('<item time="0" type="XY" value="0,0"/>'), 'restored Transition/PowerUp keeps non-tween XY as value attr');
+		const goodHitXml = await fs.readFile(path.join(transitionOutputDir, 'assets', 'Transition', 'GoodHit.xml'), 'utf-8');
+		t.true(goodHitXml.includes('duration="7"'), 'restored Transition/GoodHit rounds transition duration float noise to frame integers');
+		t.true(goodHitXml.includes('<item time="7" type="Shake" value="3,0.5"/>'), 'restored Transition/GoodHit rounds transition time float noise to frame integers');
+
+		const emitNumbersOutputDir = path.join(outputDir, 'EmitNumbersPack');
+		const emitNumbersResult = await io.restorePublishedProject(RELEASE_DIR, emitNumbersOutputDir, {
+			packages: ['EmitNumbers'],
+			force: true,
+			cropImage,
+			extractImage,
+		});
+		const emitNumbersDoc = await io.readProject(emitNumbersResult.projectPath);
+		const emitNumbersPkg = emitNumbersDoc.getRoot().getPackage('EmitNumbers')!;
+		t.truthy(emitNumbersPkg.getResourceById('mulj1'), 'EmitNumbers font glyph image resources are synthesized');
+		const emitNumbersPackageXml = await fs.readFile(path.join(emitNumbersOutputDir, 'assets', 'EmitNumbers', 'package.xml'), 'utf-8');
+		t.true(
+			emitNumbersPackageXml.includes('id="mulj1" name="0(2)5_png.png" path="/"'),
+			'EmitNumbers number1 glyph resources restore root-path editor file names',
+		);
+		t.true(
+			emitNumbersPackageXml.includes('id="muljd" name="0(4)_png.png" path="/"'),
+			'EmitNumbers number2 glyph resources restore alternate root-path editor file names',
+		);
+		t.truthy(await fs.stat(path.join(emitNumbersOutputDir, 'assets', 'EmitNumbers', '0(2)5_png.png')).catch(() => null), 'EmitNumbers glyph placeholder image is written at package root');
+
+		const loaderMainXml = await fs.readFile(path.join(outputDir, 'assets', 'Loader', 'Main.xml'), 'utf-8');
+		t.false(/<loader3d\b[^>]*\balign=/.test(loaderMainXml), 'restored Loader/Main omits default loader3D align attrs');
+		t.false(/<loader3d\b[^>]*\bvAlign=/.test(loaderMainXml), 'restored Loader/Main omits default loader3D vAlign attrs');
+
+		const treeViewOutputDir = path.join(outputDir, 'TreeViewPack');
+		await io.restorePublishedProject(RELEASE_DIR, treeViewOutputDir, {
+			packages: ['TreeView'],
+			force: true,
+			cropImage,
+			extractImage,
+		});
+		const treeViewMainXml = await fs.readFile(path.join(treeViewOutputDir, 'assets', 'TreeView', 'Main.xml'), 'utf-8');
+		t.false(treeViewMainXml.includes('isFolder='), 'restored TreeView/Main omits inferred tree item isFolder attrs');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

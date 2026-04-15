@@ -33,6 +33,8 @@
 | 属性名 | Alias | 说明 |
 |---|---|---|
 | `id` |  | 包根标识 |
+| `compressPNG` |  | 包级图片压缩开关 |
+| `jpegQuality` |  | 包级 JPEG 质量 |
 
 ### `package_branch.xml > branchDescription`
 
@@ -109,6 +111,12 @@
 | `anchor` |  | skeleton 锚点，格式为 `x,y` |
 
 ## `component.xml`
+
+当前工程写回口径：
+
+| 项目 | 说明 |
+|---|---|
+| 显示对象 `xy` | `displayList` 中支持 `xy` 的对象节点当前显式写出位置；默认原点写为 `xy="0,0"` |
 
 ### 根节点 `<component>`
 
@@ -204,7 +212,6 @@
 | `alpha` |  | 透明度 |
 | `visible` |  | 是否可见 |
 | `grayed` |  | 是否置灰 |
-| `fileName` |  | 资源文件名 |
 | `pkg` |  | 资源包标识 |
 | `filter` |  | 滤镜类型 |
 | `filterData` |  | 滤镜数据 |
