@@ -4,6 +4,15 @@
 	"description": "FairyGUI Headless Authoring SDK — test utilities and fixtures.",
 	"author": "OpenFairyGUI Contributors",
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/OpenFairyGUI/OpenFairyGUI.git",
+		"directory": "packages/test-utils"
+	},
+	"homepage": "https://github.com/OpenFairyGUI/OpenFairyGUI#readme",
+	"bugs": {
+		"url": "https://github.com/OpenFairyGUI/OpenFairyGUI/issues"
+	},
 	"type": "module",
 	"sideEffects": false,
 	"main": "./dist/index.cjs",
@@ -27,6 +36,12 @@
 		"dist/",
 		"src/",
 		"test/fixtures/"
+	],
+	"keywords": [
+		"fairygui",
+		"test",
+		"fixtures",
+		"utils"
 	],
 	"dependencies": {
 		"@openfairygui/core": "workspace:*"

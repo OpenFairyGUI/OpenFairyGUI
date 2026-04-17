@@ -4,6 +4,15 @@
 	"description": "FairyGUI Headless Authoring SDK — core property graph, Document, and I/O.",
 	"author": "OpenFairyGUI Contributors",
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/OpenFairyGUI/OpenFairyGUI.git",
+		"directory": "packages/core"
+	},
+	"homepage": "https://github.com/OpenFairyGUI/OpenFairyGUI#readme",
+	"bugs": {
+		"url": "https://github.com/OpenFairyGUI/OpenFairyGUI/issues"
+	},
 	"type": "module",
 	"sideEffects": false,
 	"main": "./dist/index.cjs",
@@ -27,7 +36,9 @@
 		"fairygui",
 		"ui",
 		"headless",
-		"authoring"
+		"authoring",
+		"fairygui-sdk",
+		"fairygui-core"
 	],
 	"files": [
 		"dist/",

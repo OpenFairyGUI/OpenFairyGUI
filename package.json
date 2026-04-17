@@ -3,6 +3,14 @@
 	"name": "openfairygui",
 	"author": "OpenFairyGUI Contributors",
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/OpenFairyGUI/OpenFairyGUI.git"
+	},
+	"homepage": "https://github.com/OpenFairyGUI/OpenFairyGUI#readme",
+	"bugs": {
+		"url": "https://github.com/OpenFairyGUI/OpenFairyGUI/issues"
+	},
 	"type": "module",
 	"scripts": {
 		"build": "lerna run build",

@@ -4,6 +4,15 @@
 	"description": "FairyGUI Headless Authoring SDK — command-line interface.",
 	"author": "OpenFairyGUI Contributors",
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/OpenFairyGUI/OpenFairyGUI.git",
+		"directory": "packages/cli"
+	},
+	"homepage": "https://github.com/OpenFairyGUI/OpenFairyGUI#readme",
+	"bugs": {
+		"url": "https://github.com/OpenFairyGUI/OpenFairyGUI/issues"
+	},
 	"type": "module",
 	"bin": {
 		"ofgui": "bin/cli.cjs",
@@ -16,6 +25,15 @@
 		"dist/",
 		"bin/",
 		"src/"
+	],
+	"keywords": [
+		"fairygui",
+		"cli",
+		"ui",
+		"headless",
+		"authoring",
+		"publish",
+		"restore"
 	],
 	"devDependencies": {
 		"@openfairygui/core": "workspace:*",
