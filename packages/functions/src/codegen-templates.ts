@@ -39,7 +39,7 @@ namespace {{namespaceName}}
 }
 `;
 
-export const LAYA_TYPESCRIPT_COMPONENT_TEMPLATE = `{{generatedMark}}
+export const FGUI_TYPESCRIPT_COMPONENT_TEMPLATE = `{{generatedMark}}
 
 {{importLines}}export default class {{className}} extends {{componentType}}
 {
@@ -56,7 +56,7 @@ export const LAYA_TYPESCRIPT_COMPONENT_TEMPLATE = `{{generatedMark}}
 }
 `;
 
-export const LAYA_TYPESCRIPT_BINDER_TEMPLATE = `{{generatedMark}}
+export const FGUI_TYPESCRIPT_BINDER_TEMPLATE = `{{generatedMark}}
 
 {{importLines}}export default class {{binderClassName}}
 {

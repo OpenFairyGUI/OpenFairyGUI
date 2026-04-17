@@ -194,14 +194,19 @@ interface PublishEncoderPipeline {
 type PublishEncoder = (input: string | Uint8Array) => PublishEncoderPipeline;
 
 const UNITY_PROJECT_TYPE = ProjectType.Unity;
+const COCOS_CREATOR_PROJECT_TYPE = ProjectType.CocosCreator;
 
 function resolveDefaultPublishFileExtension(projectType: number, publishSettings: CliPublishSettings): string {
 	if (projectType === UNITY_PROJECT_TYPE) {
 		return 'bytes';
 	}
+	if (projectType === COCOS_CREATOR_PROJECT_TYPE) {
+		return publishSettings.fileExtension || 'bin';
+	}
 	// publish() is currently a binary forward-publish path. For non-Unity projects,
 	// keep the emitted contract driven by the configured extension, falling back to
-	// `fui`, which intentionally covers the editor-aligned Layabox binary contract.
+	// `fui`, which intentionally covers the shared generic binary contract outside
+	// Unity and the Creator-specific default-to-bin rule.
 	return publishSettings.fileExtension || 'fui';
 }
 

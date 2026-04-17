@@ -7,8 +7,8 @@ import {
 	ProjectType,
 } from '@openfairygui/core';
 import {
-	LAYA_TYPESCRIPT_BINDER_TEMPLATE,
-	LAYA_TYPESCRIPT_COMPONENT_TEMPLATE,
+	FGUI_TYPESCRIPT_BINDER_TEMPLATE,
+	FGUI_TYPESCRIPT_COMPONENT_TEMPLATE,
 	UNITY_BINDER_TEMPLATE,
 	UNITY_COMPONENT_TEMPLATE,
 } from './codegen-templates.js';
@@ -43,12 +43,12 @@ interface ResolvedPackageCodegenPlan {
 	settings: ResolvedCodeGenerationSettings;
 }
 
-interface LayaTypescriptVariant {
-	binderMethod: 'setExtension' | 'setPackageItemExtension';
-	runtimeNamespace: 'fgui' | 'fairygui';
+interface FguiTypescriptVariant {
+	binderMethod: 'setExtension';
+	runtimeNamespace: 'fgui';
 }
 
-const LAYA_TYPESCRIPT_RUNTIME_TYPES = new Set([
+const FGUI_TYPESCRIPT_RUNTIME_TYPES = new Set([
 	'Controller',
 	'GButton',
 	'GComboBox',
@@ -71,6 +71,11 @@ const LAYA_TYPESCRIPT_RUNTIME_TYPES = new Set([
 	'GTree',
 	'Transition',
 ]);
+
+const SHARED_FGUI_TYPESCRIPT_VARIANT: FguiTypescriptVariant = {
+	binderMethod: 'setExtension',
+	runtimeNamespace: 'fgui',
+};
 
 interface CodegenMember {
 	index: number;
@@ -114,9 +119,9 @@ export async function publishCodeGeneration(
 			continue;
 		}
 
-		const layaTypescriptVariant = resolveLayaTypescriptVariant(doc);
-		if (layaTypescriptVariant) {
-			await generateLayaTypescriptCode(doc, pkg, plan, options.fs, layaTypescriptVariant);
+		const fguiTypescriptVariant = resolveFguiTypescriptVariant(doc);
+		if (fguiTypescriptVariant) {
+			await generateFguiTypescriptCode(doc, pkg, plan, options.fs, fguiTypescriptVariant);
 		} else {
 			await generateUnityCode(doc, pkg, plan, options.fs);
 		}
@@ -180,16 +185,15 @@ function resolvePackageCodegenPlan(
 function supportsCodeGenerationLane(doc: Document, codeType: string): boolean {
 	const projectType = doc.getRoot().getProjectType();
 	if (projectType === ProjectType.Unity) return codeType === '';
-	if (projectType === ProjectType.LayaBox) return true;
+	if (projectType === ProjectType.LayaBox || projectType === ProjectType.CocosCreator) return true;
 	return false;
 }
 
-function resolveLayaTypescriptVariant(doc: Document): LayaTypescriptVariant | null {
-	if (doc.getRoot().getProjectType() !== ProjectType.LayaBox) return null;
-	return {
-		binderMethod: 'setExtension',
-		runtimeNamespace: 'fgui',
-	};
+// Layabox and Cocos Creator currently share the same modern fgui TypeScript output contract.
+function resolveFguiTypescriptVariant(doc: Document): FguiTypescriptVariant | null {
+	const projectType = doc.getRoot().getProjectType();
+	if (projectType !== ProjectType.LayaBox && projectType !== ProjectType.CocosCreator) return null;
+	return SHARED_FGUI_TYPESCRIPT_VARIANT;
 }
 
 async function generateUnityCode(
@@ -219,12 +223,12 @@ async function generateUnityCode(
 	);
 }
 
-async function generateLayaTypescriptCode(
+async function generateFguiTypescriptCode(
 	doc: Document,
 	pkg: Package,
 	plan: ResolvedPackageCodegenPlan,
 	fs: PublishFileSystem,
-	variant: LayaTypescriptVariant,
+	variant: FguiTypescriptVariant,
 ): Promise<void> {
 	const packageDir = fs.join(plan.outputDir, plan.packageFolderName);
 	await fs.mkdir(plan.outputDir);
@@ -236,14 +240,14 @@ async function generateLayaTypescriptCode(
 		await writeTextFile(
 			fs,
 			fs.join(packageDir, `${classInfo.encodedClassName}.ts`),
-			renderLayaTypescriptComponentClass(classInfo, plan, variant),
+			renderFguiTypescriptComponentClass(classInfo, plan, variant),
 		);
 	}
 
 	await writeTextFile(
 		fs,
 		fs.join(packageDir, `${plan.binderClassName}.ts`),
-		renderLayaTypescriptBinder(classes, plan, variant),
+		renderFguiTypescriptBinder(classes, plan, variant),
 	);
 }
 
@@ -447,26 +451,26 @@ function renderUnityBinder(classes: CodegenClass[], plan: ResolvedPackageCodegen
 	});
 }
 
-function renderLayaTypescriptComponentClass(
+function renderFguiTypescriptComponentClass(
 	classInfo: CodegenClass,
 	plan: ResolvedPackageCodegenPlan,
-	variant: LayaTypescriptVariant,
+	variant: FguiTypescriptVariant,
 ): string {
 	const variableLines = classInfo.members
 		.filter((member) => !member.ignored)
-		.map((member) => `\tpublic ${member.name}:${translateLayaTypescriptType(member.type, variant)};`)
+		.map((member) => `\tpublic ${member.name}:${translateFguiTypescriptType(member.type, variant)};`)
 		.join('\n');
 	const assignmentLines = classInfo.members
-		.map((member) => renderLayaTypescriptMemberAssignment(member, plan.settings.getMemberByName, variant))
+		.map((member) => renderFguiTypescriptMemberAssignment(member, plan.settings.getMemberByName, variant))
 		.filter((line): line is string => Boolean(line))
 		.join('\n');
-	const importLines = collectLayaTypescriptImports(classInfo, variant);
+	const importLines = collectFguiTypescriptImports(classInfo, variant);
 
-	return renderTemplate(LAYA_TYPESCRIPT_COMPONENT_TEMPLATE, {
+	return renderTemplate(FGUI_TYPESCRIPT_COMPONENT_TEMPLATE, {
 		assignmentLines: assignmentLines ? `${assignmentLines}\n` : '',
 		className: classInfo.encodedClassName,
 		componentName: escapeTypeScriptString(classInfo.className),
-		componentType: translateLayaTypescriptType(classInfo.componentType, variant),
+		componentType: translateFguiTypescriptType(classInfo.componentType, variant),
 		generatedMark: AUTO_GENERATED_CODE_MARK,
 		importLines,
 		packageName: escapeTypeScriptString(classInfo.packageName),
@@ -476,10 +480,10 @@ function renderLayaTypescriptComponentClass(
 	});
 }
 
-function renderLayaTypescriptBinder(
+function renderFguiTypescriptBinder(
 	classes: CodegenClass[],
 	plan: ResolvedPackageCodegenPlan,
-	variant: LayaTypescriptVariant,
+	variant: FguiTypescriptVariant,
 ): string {
 	const bindLines = classes
 		.map((classInfo) => `\t\t${variant.runtimeNamespace}.UIObjectFactory.${variant.binderMethod}(${classInfo.encodedClassName}.URL, ${classInfo.encodedClassName});`)
@@ -488,7 +492,7 @@ function renderLayaTypescriptBinder(
 		.map((classInfo) => `import ${classInfo.encodedClassName} from "./${classInfo.encodedClassName}";`)
 		.join('\n');
 
-	return renderTemplate(LAYA_TYPESCRIPT_BINDER_TEMPLATE, {
+	return renderTemplate(FGUI_TYPESCRIPT_BINDER_TEMPLATE, {
 		binderClassName: plan.binderClassName,
 		bindLines: bindLines ? `${bindLines}\n` : '',
 		generatedMark: AUTO_GENERATED_CODE_MARK,
@@ -513,10 +517,10 @@ function renderMemberAssignment(member: CodegenMember, getMemberByName: boolean)
 		: `\t\t\t${member.name} = (${member.type})this.GetChildAt(${member.index});`;
 }
 
-function renderLayaTypescriptMemberAssignment(
+function renderFguiTypescriptMemberAssignment(
 	member: CodegenMember,
 	getMemberByName: boolean,
-	variant: LayaTypescriptVariant,
+	variant: FguiTypescriptVariant,
 ): string | null {
 	if (member.ignored) return null;
 	if (member.type === 'Controller') {
@@ -529,7 +533,7 @@ function renderLayaTypescriptMemberAssignment(
 			? `\t\tthis.${member.name} = this.getTransition("${escapeTypeScriptString(member.originalName)}");`
 			: `\t\tthis.${member.name} = this.getTransitionAt(${member.index});`;
 	}
-	const translatedType = translateLayaTypescriptType(member.type, variant);
+	const translatedType = translateFguiTypescriptType(member.type, variant);
 	return getMemberByName
 		? `\t\tthis.${member.name} = <${translatedType}><any>(this.getChild("${escapeTypeScriptString(member.originalName)}"));`
 		: `\t\tthis.${member.name} = <${translatedType}><any>(this.getChildAt(${member.index}));`;
@@ -604,11 +608,11 @@ function normalizeTypeName(value: string): string {
 	return /^[0-9]/.test(normalized) ? `_${normalized}` : normalized;
 }
 
-function collectLayaTypescriptImports(classInfo: CodegenClass, variant: LayaTypescriptVariant): string {
+function collectFguiTypescriptImports(classInfo: CodegenClass, variant: FguiTypescriptVariant): string {
 	const imports = new Set<string>();
 	for (const member of classInfo.members) {
 		if (member.ignored) continue;
-		const translated = translateLayaTypescriptType(member.type, variant);
+		const translated = translateFguiTypescriptType(member.type, variant);
 		if (!translated.includes('.')) {
 			imports.add(`import ${translated} from "./${translated}";`);
 		}
@@ -616,8 +620,8 @@ function collectLayaTypescriptImports(classInfo: CodegenClass, variant: LayaType
 	return imports.size > 0 ? `${[...imports].sort().join('\n')}\n\n` : '';
 }
 
-function translateLayaTypescriptType(typeName: string, variant: LayaTypescriptVariant): string {
-	if (LAYA_TYPESCRIPT_RUNTIME_TYPES.has(typeName)) {
+function translateFguiTypescriptType(typeName: string, variant: FguiTypescriptVariant): string {
+	if (FGUI_TYPESCRIPT_RUNTIME_TYPES.has(typeName)) {
 		return `${variant.runtimeNamespace}.${typeName}`;
 	}
 	return typeName;

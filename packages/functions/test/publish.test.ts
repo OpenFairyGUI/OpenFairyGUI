@@ -725,6 +725,34 @@ test('resolvePublishOptions: Layabox respects explicit fileExtension overrides',
 	t.true(resolved.compressed, 'override does not discard non-Unity compression behavior');
 });
 
+test('resolvePublishOptions: Cocos Creator defaults to bin and keeps non-Unity compression behavior', (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(3);
+	doc.getRoot().setSettings({
+		publish: {
+			compressDesc: true,
+		},
+	} as RootProjectSettings);
+
+	const resolved = resolvePublishOptions(doc);
+	t.is(resolved.fileExtension, 'bin', 'Cocos Creator defaults to .bin');
+	t.true(resolved.compressed, 'Cocos Creator keeps publish compression when configured');
+});
+
+test('resolvePublishOptions: Cocos Creator respects explicit fileExtension overrides', (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(3);
+	doc.getRoot().setSettings({
+		publish: {
+			compressDesc: true,
+		},
+	} as RootProjectSettings);
+
+	const resolved = resolvePublishOptions(doc, { fileExtension: 'fui' });
+	t.is(resolved.fileExtension, 'fui', 'explicit override wins over Creator defaults');
+	t.true(resolved.compressed, 'override does not discard non-Unity compression behavior');
+});
+
 test('resolvePublishAtlasRuntimeOptions: ext-coupled atlas toggles stay explicit', (t) => {
 	t.deepEqual(resolvePublishAtlasRuntimeOptions('fui'), {
 		preserveInputOrderOnTie: true,
@@ -733,6 +761,10 @@ test('resolvePublishAtlasRuntimeOptions: ext-coupled atlas toggles stay explicit
 	t.deepEqual(resolvePublishAtlasRuntimeOptions('bytes'), {
 		preserveInputOrderOnTie: false,
 		directSingleImageOutput: true,
+	});
+	t.deepEqual(resolvePublishAtlasRuntimeOptions('bin'), {
+		preserveInputOrderOnTie: false,
+		directSingleImageOutput: false,
 	});
 });
 
@@ -814,6 +846,45 @@ test('publish: Layabox sample emits editor-aligned .fui outputs and reference re
 		t.true(outputSet.has('Bag.fui'), 'representative package uses .fui output');
 		t.true(outputSet.has('Bag_atlas0.png'), 'representative atlas png is emitted');
 		t.true(outputSet.has('Basics_o4lt7w.wav'), 'representative loose audio file is emitted with package prefix');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: Cocos Creator stays on the generic path and defaults package output to .bin', async (t) => {
+	const io = new NodeIO();
+	const doc = await io.readProject(LAYABOX_EXAMPLES_FAIRY);
+	const settings = doc.getRoot().getSettings() as RootProjectSettings;
+	const creatorSettings: RootProjectSettings = {
+		...settings,
+		publish: {
+			...(settings.publish ?? {}),
+		},
+	};
+	delete creatorSettings.publish?.fileExtension;
+	doc.getRoot().setProjectType(3);
+	doc.getRoot().setSettings(creatorSettings);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-creator-pub-'));
+	const referenceNames = (await fs.readdir(LAYABOX_RELEASE_DIR)).sort();
+	const expectedNames = referenceNames.map((name) => name.replace(/\.fui$/i, '.bin'));
+	const basePath = path.join(path.dirname(LAYABOX_EXAMPLES_FAIRY), 'assets');
+
+	try {
+		await doc.transform(publish({
+			output: tmpDir,
+			fs: createFs(),
+			encoder: sharp,
+			basePath,
+		}));
+
+		const outputNames = (await fs.readdir(tmpDir)).sort();
+		const outputSet = new Set(outputNames);
+		t.deepEqual(outputNames, expectedNames, 'Cocos Creator stays on the generic publish layout and only changes descriptor extension defaults');
+		t.false(outputNames.some((name) => /_fui\.bytes$/i.test(name)), 'Cocos Creator publish does not emit Unity-style _fui.bytes packages');
+		t.true(outputSet.has('Bag.bin'), 'representative package uses .bin output');
+		t.true(outputSet.has('Bag_atlas0.png'), 'representative atlas png is emitted on the generic path');
+		t.false(outputNames.includes('resources'), 'Cocos Creator publish does not introduce Creator-specific resources/ shaping');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
@@ -1328,6 +1399,122 @@ test('publish: Layabox modern TypeScript code works without codeType configurati
 		t.true(
 			await fs.stat(path.join(tmpDir, 'generated', 'DemoPkg', 'UI_Main.ts')).then(() => true).catch(() => false),
 			'Layabox code generation no longer depends on codeType',
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: Cocos Creator reuses the shared fgui TypeScript lane without codeType configuration', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(3);
+	doc.getRoot().setSettings({
+		publish: {
+			codeGeneration: {
+				allowGenCode: true,
+				classNamePrefix: 'UI_',
+				memberNamePrefix: 'm_',
+				codePath: 'generated',
+				getMemberByName: true,
+				ignoreNoname: true,
+			},
+		},
+	} as RootProjectSettings);
+
+	const pkg = doc.createPackage('DemoPkg');
+	pkg.setId('pkg00001');
+	pkg.setGenCode(true);
+
+	const subPanel = doc.createComponent('SubPanel');
+	subPanel.setId('cmp00002');
+	subPanel.setExported(true);
+	pkg.addResource(subPanel);
+
+	const main = doc.createComponent('Main');
+	main.setId('cmp00001');
+	main.setExtensionType('Button');
+	main.setExported(true);
+	const namedChild = doc.createGTextField('content');
+	namedChild.setId('n0');
+	main.addChild(namedChild);
+	const defaultChild = doc.createGTextField('title');
+	defaultChild.setId('n1');
+	main.addChild(defaultChild);
+	const nested = doc.createGComponent('subPanel');
+	nested.setId('n2');
+	nested.setSrc('cmp00002');
+	main.addChild(nested);
+	const controller = doc.createController('button');
+	main.addController(controller);
+	const transition = doc.createTransition('fadeIn');
+	main.addTransition(transition);
+	pkg.addResource(main);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-codegen-creator-shared-ts-'));
+
+	try {
+		await doc.transform(publish({
+			output: path.join(tmpDir, 'release'),
+			basePath: path.join(tmpDir, 'assets'),
+			fs: createFs(),
+		}));
+
+		const generatedDir = path.join(tmpDir, 'generated', 'DemoPkg');
+		const mainClassPath = path.join(generatedDir, 'UI_Main.ts');
+		const binderPath = path.join(generatedDir, 'DemoPkgBinder.ts');
+
+		t.true(await fs.stat(mainClassPath).then(() => true).catch(() => false), 'Cocos Creator generates component file');
+		t.true(await fs.stat(binderPath).then(() => true).catch(() => false), 'Cocos Creator generates binder file');
+
+		const mainClass = await fs.readFile(mainClassPath, 'utf-8');
+		t.true(mainClass.includes('export default class UI_Main extends fgui.GButton'));
+		t.true(mainClass.includes('return <UI_Main><any>(fgui.UIPackage.createObject("DemoPkg","Main"));'));
+		t.true(mainClass.includes('public m_content:fgui.GTextField;'));
+		t.true(mainClass.includes('public m_fadeIn:fgui.Transition;'));
+		t.true(mainClass.includes('this.m_content = <fgui.GTextField><any>(this.getChild("content"));'));
+		t.true(mainClass.includes('import UI_SubPanel from "./UI_SubPanel";'));
+		t.false(mainClass.includes('m_title'), 'default title member is ignored');
+		t.false(mainClass.includes('m_button'), 'default button controller is ignored');
+
+		const binder = await fs.readFile(binderPath, 'utf-8');
+		t.true(binder.includes('fgui.UIObjectFactory.setExtension(UI_Main.URL, UI_Main);'));
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: unsupported project types still skip the shared fgui TypeScript lane', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(7);
+	doc.getRoot().setSettings({
+		publish: {
+			codeGeneration: {
+				allowGenCode: true,
+				codePath: 'generated',
+			},
+		},
+	} as RootProjectSettings);
+
+	const pkg = doc.createPackage('DemoPkg');
+	pkg.setId('pkg00001');
+	pkg.setGenCode(true);
+	const component = doc.createComponent('Main');
+	component.setId('cmp00001');
+	component.setExported(true);
+	pkg.addResource(component);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-codegen-unsupported-ts-'));
+
+	try {
+		await doc.transform(publish({
+			output: path.join(tmpDir, 'release'),
+			basePath: path.join(tmpDir, 'assets'),
+			fs: createFs(),
+		}));
+
+		t.false(
+			await fs.stat(path.join(tmpDir, 'generated', 'DemoPkg', 'UI_Main.ts')).then(() => true).catch(() => false),
+			'unsupported project types still do not opt into the shared fgui TypeScript lane',
 		);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });

@@ -109,7 +109,7 @@ OpenFairyGUI 当前已经把“代码生成”接入现有 `publish` 流程，�
 | 包级 `publish@codePath` 有值 | 优先使用包级代码输出路径 |
 | 包级 `publish@codePath` 为空 | 回退到全局 `codeGeneration.codePath` |
 | Unity 项目，且 `codeType` 为空字符串 | 生成 Unity 风格 `.cs` 代码 |
-| Laya 项目 | 生成现代 TypeScript 代码，运行时命名空间为 `fgui` |
+| Laya / Cocos Creator 项目 | 生成共享的 `fgui` TypeScript 代码 |
 | 其他项目类型 | 当前未实现，跳过生成 |
 
 当前正式落地的代码生成口径如下：
@@ -120,15 +120,15 @@ OpenFairyGUI 当前已经把“代码生成”接入现有 `publish` 流程，�
 | Unity + 空 `codeType` | 组件类 | 每个导出组件生成一个 `.cs` 类文件 |
 | Unity + 空 `codeType` | Binder | 每个包生成一个 `包名Binder.cs` |
 | Unity + 空 `codeType` | 清理规则 | 只清理当前包输出目录下、带 FairyGUI 自动生成标记的旧 `.cs` 文件 |
-| Laya 现代 TypeScript 模式 | 输出目录 | `codePath/<规范化包名>/` |
-| Laya 现代 TypeScript 模式 | 组件类 | 每个导出组件生成一个 `.ts` 类文件 |
-| Laya 现代 TypeScript 模式 | Binder | 每个包生成一个 `包名Binder.ts` |
-| Laya 现代 TypeScript 模式 | 运行时口径 | 使用 `fgui` 与 `UIObjectFactory.setExtension(...)` |
-| Laya 现代 TypeScript 模式 | 清理规则 | 只清理当前包输出目录下、带 FairyGUI 自动生成标记的旧 `.ts` 文件 |
+| 共享 `fgui` TypeScript 模式（Layabox / Cocos Creator） | 输出目录 | `codePath/<规范化包名>/` |
+| 共享 `fgui` TypeScript 模式（Layabox / Cocos Creator） | 组件类 | 每个导出组件生成一个 `.ts` 类文件 |
+| 共享 `fgui` TypeScript 模式（Layabox / Cocos Creator） | Binder | 每个包生成一个 `包名Binder.ts` |
+| 共享 `fgui` TypeScript 模式（Layabox / Cocos Creator） | 运行时口径 | 使用 `fgui` 与 `UIObjectFactory.setExtension(...)` |
+| 共享 `fgui` TypeScript 模式（Layabox / Cocos Creator） | 清理规则 | 只清理当前包输出目录下、带 FairyGUI 自动生成标记的旧 `.ts` 文件 |
 
 说明：
 - 这里描述的是 OpenFairyGUI 当前已实现行为，不等同于 FairyGUI 编辑器所有项目类型 / `codeType` 模板都已支持。
-- 这里的 Laya 代码生成口径已经不再依赖 `codeType` 字段分流；当前只保留一种现代 TypeScript 输出模式。
+- 这里的 `fgui` TypeScript 代码生成口径已经不再依赖 `codeType` 字段分流；当前由 Layabox 与 Cocos Creator 共用同一条 TS lane。
 
 ## 包级图集设置真实属性
 
@@ -176,10 +176,14 @@ OpenFairyGUI 当前已经把“代码生成”接入现有 `publish` 流程，�
 | 场景 | 结果 |
 |---|---|
 | Unity 项目 | 固定为 `bytes` |
-| 非 Unity 项目，且 `Publish.json` 显式设置了 `fileExtension` | 使用设置值 |
-| 非 Unity 项目，且 `Publish.json` 未显式设置 `fileExtension` | 回退为 `fui` |
+| Cocos Creator 项目，且 `Publish.json` 显式设置了 `fileExtension` | 使用设置值 |
+| Cocos Creator 项目，且 `Publish.json` 未显式设置 `fileExtension` | 默认使用 `bin` |
+| 其他非 Unity 项目，且 `Publish.json` 显式设置了 `fileExtension` | 使用设置值 |
+| 其他非 Unity 项目，且 `Publish.json` 未显式设置 `fileExtension` | 回退为 `fui` |
 
-当前仓库已正式覆盖的非 Unity 二进制发布口径是 Laya：Laya 样例工程使用 `binaryFormat=true` 和 `fileExtension="fui"`，发布结果为 `包名.fui`。
+当前仓库已正式覆盖的非 Unity 二进制发布口径包括：
+- Layabox：样例工程使用 `binaryFormat=true` 和 `fileExtension="fui"`，发布结果为 `包名.fui`
+- Cocos Creator：未显式设置 `fileExtension` 时默认发布为 `包名.bin`
 
 编辑器文档中其他项目类型的默认扩展名矩阵，目前**不应**直接视为 OpenFairyGUI 已实现行为；若仓库尚未实现对应项目类型发布规则，应从当前实现文档中删除，或明确标注为“未实现”。
 

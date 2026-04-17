@@ -9,7 +9,7 @@
 flowchart LR
     subgraph IN["输入源"]
         PROJ["FairyGUI 工程目录<br/>.fairy / settings / package.xml / component.xml"]
-        PACK["发布包文件<br/>.fui / _fui.bytes"]
+        PACK["发布包文件<br/>.fui / .bin / _fui.bytes"]
     end
 
     subgraph IO["协议适配与 I/O"]
@@ -38,7 +38,7 @@ flowchart LR
 
     subgraph OUT["输出物"]
         PROJOUT["工程文件写回<br/>.fairy + settings + assets/*"]
-        BIN["发布包<br/>.fui / .bytes"]
+        BIN["发布包<br/>.fui / .bin / _fui.bytes"]
         ART["发布附属资源<br/>atlas*.png / sounds / 其他文件"]
         CODEOUT["生成代码<br/>binder / component classes"]
     end
@@ -77,6 +77,7 @@ flowchart LR
 补充说明：
 - `@openfairygui/core` 定义文档模型与协议读写能力。
 - `@openfairygui/functions` 只组合流程，不重新定义底层协议；当前 `publish` 会编排 atlas、binary publish 与受限代码生成。
+- 当前 Unity、Layabox、Cocos Creator 共用同一条 `publish -> atlas / binary / codegen` 主链；差异主要体现在描述文件扩展名和代码生成 lane 选择，而不是工作流分叉。
 - `@openfairygui/cli` 是入口层，不下沉协议细节。
 
 ## 当前工程 XML 协议元数据结构
@@ -144,7 +145,7 @@ flowchart LR
 
 ## 当前发布附属资源口径
 
-`publish` 当前除 `_fui.bytes` 外，还会输出资源闭包内需要的附属文件。当前正式规则如下：
+`publish` 当前除二进制描述文件外，还会输出资源闭包内需要的附属文件。当前正式规则如下：
 
 | 资源类型 | 当前发布行为 |
 |---|---|
@@ -161,7 +162,7 @@ flowchart LR
 | 模式 | 当前实现 |
 |---|---|
 | `主干包含所有分支` | 保留包级 branch 表与主资源到分支资源的 item 映射，运行时可再切换分支 |
-| `主干合并活跃分支` | 先在发布期选出主干与活跃分支合并后的资源集合，再进行 atlas 与 `_fui.bytes` 写出；分支资源复用主资源 id，二进制不再写 branch 表 |
+| `主干合并活跃分支` | 先在发布期选出主干与活跃分支合并后的资源集合，再进行 atlas 与二进制描述文件写出；分支资源复用主资源 id，二进制不再写 branch 表 |
 
 当前 `publish` 在 `主干合并活跃分支` 模式下还会接受一个显式的活跃分支输入；未指定时视为发布主干。
 
@@ -196,7 +197,7 @@ flowchart TD
     E --> H["二进制写出<br/>BinaryWriter"]
     F --> I["FairyGUI 工程输出"]
     G --> J["atlas PNG / 附属资源"]
-    H --> K[".fui / .bytes"]
+    H --> K[".fui / .bin / _fui.bytes"]
 ```
 
 ## 模块边界
