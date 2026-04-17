@@ -178,6 +178,8 @@ interface PackagePublishNode extends XmlNode {
 	path?: string;
 	branchPath?: string;
 	packageCount?: string | number;
+	genCode?: string | boolean;
+	codePath?: string;
 }
 
 interface PackageResourcesNode extends Record<string, unknown> {}
@@ -923,6 +925,12 @@ export class ProjectReader {
 				readXmlAttr<string | number>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.packageCount),
 				0,
 			));
+			pkg.setGenCode(parseBool(
+				readXmlAttr<string | boolean>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.genCode),
+			));
+			pkg.setCodePath(
+				readXmlAttr<string>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.codePath) || '',
+			);
 		}
 
 		if (pkg.getId()) {

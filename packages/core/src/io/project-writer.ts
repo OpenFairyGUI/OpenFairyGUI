@@ -784,6 +784,8 @@ export class ProjectWriter {
 		const publishPath = pkg.getPublishPath();
 		const publishBranchPath = pkg.getPublishBranchPath();
 		const publishPackageCount = pkg.getPublishPackageCount();
+		const genCode = pkg.getGenCode();
+		const codePath = pkg.getCodePath();
 		const packageDescriptionAttrs: Record<string, unknown> = {};
 		writeXmlAttr(packageDescriptionAttrs, PROJECT_XML_PROTOCOL.packageDescription.attrs.id, pkg.getId());
 		const compressPNG = pkg.getCompressPNG();
@@ -810,6 +812,16 @@ export class ProjectWriter {
 			publishAttrs,
 			PROJECT_XML_PROTOCOL.packagePublish.attrs.packageCount,
 			publishPackageCount > 0 ? publishPackageCount : undefined,
+		);
+		writeXmlAttr(
+			publishAttrs,
+			PROJECT_XML_PROTOCOL.packagePublish.attrs.genCode,
+			genCode ? 'true' : undefined,
+		);
+		writeXmlAttr(
+			publishAttrs,
+			PROJECT_XML_PROTOCOL.packagePublish.attrs.codePath,
+			codePath || undefined,
 		);
 		const publishAtlases = pkg.listAtlases().map((atlas) => {
 			const attrs: Record<string, unknown> = {};

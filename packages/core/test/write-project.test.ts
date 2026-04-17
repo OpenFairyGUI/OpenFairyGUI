@@ -551,7 +551,16 @@ test('writer: suppresses restored-like default attrs and float-noise defaults', 
 	list.setId('n3');
 	list.setSelectionMode(0);
 	list.setListItems([
-		{ title: 'A', icon: 'ui://pkgDefaults/iconA', level: 0 },
+		{
+			title: 'A',
+			icon: 'ui://pkgDefaults/iconA',
+			url: null,
+			name: null,
+			selectedTitle: null,
+			selectedIcon: null,
+			level: 0,
+			isFolder: null,
+		},
 	]);
 
 	comp.addChild(image);
@@ -2635,6 +2644,8 @@ test('round-trip: packageDescription id and publish attrs survive package.xml wr
 	pkg.setPublishPath('dist/ui');
 	pkg.setPublishBranchPath('dist/branches');
 	pkg.setPublishPackageCount(1);
+	pkg.setGenCode(true);
+	pkg.setCodePath('src/ui-gen');
 
 	const image = doc.createImageResource('hero.png');
 	image.setId('imgmeta');
@@ -2650,9 +2661,9 @@ test('round-trip: packageDescription id and publish attrs survive package.xml wr
 		const packageXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoPkg', 'package.xml'), 'utf-8');
 		t.true(packageXml.includes('<packageDescription id="pkgmeta" compressPNG="true" jpegQuality="80">'), 'packageDescription writes canonical id and publish image attrs');
 		t.true(
-			packageXml.includes('<publish name="DemoPublish" path="dist/ui" branchPath="dist/branches" packageCount="1">')
-				|| packageXml.includes('<publish name="DemoPublish" path="dist/ui" branchPath="dist/branches" packageCount="1"/>'),
-			'publish writes canonical name, path, branchPath and packageCount attrs',
+			packageXml.includes('<publish name="DemoPublish" path="dist/ui" branchPath="dist/branches" packageCount="1" genCode="true" codePath="src/ui-gen">')
+				|| packageXml.includes('<publish name="DemoPublish" path="dist/ui" branchPath="dist/branches" packageCount="1" genCode="true" codePath="src/ui-gen"/>'),
+			'publish writes canonical name, path, branchPath, packageCount, genCode and codePath attrs',
 		);
 
 		const doc2 = await io.readProject(outFairy);
@@ -2665,6 +2676,8 @@ test('round-trip: packageDescription id and publish attrs survive package.xml wr
 		t.is(pkg2?.getPublishPath?.(), 'dist/ui');
 		t.is(pkg2?.getPublishBranchPath?.(), 'dist/branches');
 		t.is(pkg2?.getPublishPackageCount?.(), 1);
+		t.true(pkg2?.getGenCode?.(), 'genCode survives');
+		t.is(pkg2?.getCodePath?.(), 'src/ui-gen', 'codePath survives');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

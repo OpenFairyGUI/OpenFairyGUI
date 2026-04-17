@@ -95,8 +95,34 @@
 说明：
 - `PublishSettings` 不是 `settings/Publish.json` 的顶层结构，而是单个包发布配置对象。
 - 包级设置里可以单独定义图集列表，也可以指定使用全局图集设置。
-- 工程 `package.xml` 中的 `publish` 节点可写出包级图集子节点，例如 `<atlas name="Default" index="0"/>`，用于描述该包的发布图集列表。
+- 工程 `package.xml` 中的 `publish` 节点当前正式支持 `name`、`path`、`branchPath`、`packageCount`、`genCode`、`codePath`，以及包级图集子节点 `<atlas name="Default" index="0"/>`。
 - 工程 `package.xml` 的 `packageDescription` 根节点当前正式支持 `compressPNG` 与 `jpegQuality`，用于承载包级图片压缩选项；未设置时保持省略，不强制写默认值。
+
+## 代码生成的当前实现范围
+
+OpenFairyGUI 当前已经把“代码生成”接入现有 `publish` 流程，但实现范围仍是**正式收口的一条首发口径**，不是编辑器全部模板矩阵。
+
+| 条件 | 当前行为 |
+|---|---|
+| 全局 `codeGeneration.allowGenCode=false` | 不生成代码 |
+| 包级 `publish@genCode=false` 或未开启 | 该包不生成代码 |
+| 包级 `publish@codePath` 有值 | 优先使用包级代码输出路径 |
+| 包级 `publish@codePath` 为空 | 回退到全局 `codeGeneration.codePath` |
+| Unity 项目，且 `codeType` 为空字符串 | 生成 Unity 风格 `.cs` 代码 |
+| 非 Unity 项目，或 `codeType` 为非空值 | 当前未实现，跳过生成 |
+
+当前正式落地的 Unity 首发口径如下：
+
+| 输出项 | 当前行为 |
+|---|---|
+| 输出目录 | `codePath/<规范化包名>/` |
+| 组件类 | 每个导出组件生成一个 `.cs` 类文件 |
+| Binder | 每个包生成一个 `包名Binder.cs` |
+| 清理规则 | 只清理当前包输出目录下、带 FairyGUI 自动生成标记的旧 `.cs` 文件 |
+
+说明：
+- 这里描述的是 OpenFairyGUI 当前已实现行为，不等同于 FairyGUI 编辑器所有项目类型 / `codeType` 模板都已支持。
+- 其他项目类型或非空 `codeType` 的模板选择，当前仍应视为后续实现事项，而不是现行协议承诺。
 
 ## 包级图集设置真实属性
 

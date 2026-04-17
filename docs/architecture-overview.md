@@ -33,12 +33,14 @@ flowchart LR
         OPS["inspect / validate / prune / rename"]
         PUB["publish"]
         ATLAS["atlas"]
+        CG["codegen"]
     end
 
     subgraph OUT["输出物"]
         PROJOUT["工程文件写回<br/>.fairy + settings + assets/*"]
         BIN["发布包<br/>.fui / .bytes"]
         ART["发布附属资源<br/>atlas*.png / sounds / 其他文件"]
+        CODEOUT["生成代码<br/>binder / component classes"]
     end
 
     PROJ --> FS --> PR --> DOC
@@ -52,11 +54,13 @@ flowchart LR
     DOC --> PUB
     PUB --> ATLAS
     PUB --> BW
+    PUB --> CG
 
     DOC --> PW
     PW --> PROJOUT
     BW --> BIN
     ATLAS --> ART
+    CG --> CODEOUT
 ```
 
 ## 关键细节
@@ -67,12 +71,12 @@ flowchart LR
 | 协议适配层 | 屏蔽平台文件系统差异，承接工程格式、二进制格式和发布产物恢复，并集中声明工程 XML 协议元数据 | `packages/core/src/io/platform-io.ts`、`packages/core/src/io/node-io.ts`、`packages/core/src/io/project-xml-protocol.ts`、`packages/core/src/io/project-reader.ts`、`packages/core/src/io/binary-reader.ts`、`packages/core/src/io/published-project-restorer.ts` |
 | 核心模型层 | `Document` 持有 `Property Graph`，统一组织项目节点、资源节点与组件语义对象 | `packages/core/src/document.ts`、`packages/core/src/properties/property.ts` |
 | 项目骨架层 | `Root -> Package -> Resource -> Component` 组成基础结构 | `packages/core/src/properties/root.ts`、`packages/core/src/properties/package.ts`、`packages/core/src/properties/component.ts` |
-| 工作流层 | 面向自动化的可组合处理管线 | `packages/functions/src/inspect.ts`、`packages/functions/src/validate.ts`、`packages/functions/src/prune.ts`、`packages/functions/src/rename.ts`、`packages/functions/src/publish.ts` |
-| 输出层 | 工程文件写回、图集产物生成、二进制封包输出 | `packages/core/src/io/project-writer.ts`、`packages/functions/src/atlas.ts`、`packages/core/src/io/binary-writer.ts` |
+| 工作流层 | 面向自动化的可组合处理管线 | `packages/functions/src/inspect.ts`、`packages/functions/src/validate.ts`、`packages/functions/src/prune.ts`、`packages/functions/src/rename.ts`、`packages/functions/src/publish.ts`、`packages/functions/src/codegen.ts` |
+| 输出层 | 工程文件写回、图集产物生成、二进制封包输出与代码生成输出 | `packages/core/src/io/project-writer.ts`、`packages/functions/src/atlas.ts`、`packages/core/src/io/binary-writer.ts`、`packages/functions/src/codegen.ts` |
 
 补充说明：
 - `@openfairygui/core` 定义文档模型与协议读写能力。
-- `@openfairygui/functions` 只组合流程，不重新定义底层协议。
+- `@openfairygui/functions` 只组合流程，不重新定义底层协议；当前 `publish` 会编排 atlas、binary publish 与受限代码生成。
 - `@openfairygui/cli` 是入口层，不下沉协议细节。
 
 ## 当前工程 XML 协议元数据结构
@@ -117,7 +121,7 @@ flowchart LR
 |---|---|
 | `packageDescription` 骨架 | `id` |
 | `branchDescription` 骨架 | 分支资源清单根节点 |
-| `packageDescription > publish` | `name`、`path`、`branchPath`、`packageCount`，以及子节点 `atlas@name/index` |
+| `packageDescription > publish` | `name`、`path`、`branchPath`、`packageCount`、`genCode`、`codePath`，以及子节点 `atlas@name/index` |
 | 通用资源节点 | `id`、`name`、`path`、`exported` |
 | `image` 资源 | `atlas`、`scale`、`scale9grid`、`width`、`height`、`gridTile`、`qualityOption`、`duplicatePadding`、`smoothing` |
 | `font` 资源 | `texture`、`renderMode`、`samplePointSize` |

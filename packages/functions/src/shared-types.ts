@@ -2,6 +2,17 @@ import type { FileSystem, ProjectSettings, PublishSettings } from '@openfairygui
 
 export type ExtrasMap = Record<string, unknown>;
 
+export interface CliCodeGenerationSettings extends NonNullable<PublishSettings['codeGeneration']> {
+	allowGenCode?: boolean;
+	classNamePrefix?: string;
+	codePath?: string;
+	codeType?: string;
+	getMemberByName?: boolean;
+	ignoreNoname?: boolean;
+	memberNamePrefix?: string;
+	packageName?: string;
+}
+
 export interface CliAtlasSettings extends NonNullable<PublishSettings['atlasSetting']> {
 	maxSize?: number;
 	paging?: boolean;
@@ -16,6 +27,7 @@ export interface CliAtlasSettings extends NonNullable<PublishSettings['atlasSett
 
 export interface CliPublishSettings extends PublishSettings {
 	atlasSetting?: CliAtlasSettings;
+	codeGeneration?: CliCodeGenerationSettings;
 }
 
 export type RootProjectSettings = ProjectSettings & {
@@ -46,5 +58,8 @@ export interface HasOptionalUrl {
 }
 
 export type PublishFileSystem = Pick<FileSystem, 'join' | 'mkdir' | 'writeFileRaw'> & {
+	deleteFile?: (path: string) => Promise<void>;
+	exists?: FileSystem['exists'];
+	readdir?: FileSystem['readdir'];
 	readFileRaw?: FileSystem['readFileRaw'];
 };

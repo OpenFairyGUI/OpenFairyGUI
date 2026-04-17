@@ -25,6 +25,7 @@ export interface PublishSettings {
 		extractAlpha?: boolean;
 	};
 	codeGeneration?: {
+		allowGenCode?: boolean;
 		classNamePrefix?: string;
 		codePath?: string;
 		codeType?: string;

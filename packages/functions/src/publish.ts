@@ -17,6 +17,7 @@ import {
 } from '@openfairygui/core';
 import { createTransform } from './utils.js';
 import { atlas, type AtlasOptions } from './atlas.js';
+import { publishCodeGeneration } from './codegen.js';
 import type {
 	CliPublishSettings,
 	HasOptionalFont,
@@ -1033,6 +1034,12 @@ export function publish(options: PublishOptions): Transform {
 
 			logger.info(`publish: Written ${fileName}`);
 		}
+
+		await publishCodeGeneration(doc, {
+			basePath: options.basePath,
+			fs: options.fs,
+			packages: allPackages,
+		});
 
 		logger.info(`publish: Published ${allPackages.length} package(s) to ${options.output}`);
 	});

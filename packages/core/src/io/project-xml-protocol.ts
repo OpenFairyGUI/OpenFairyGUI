@@ -60,6 +60,8 @@ const PACKAGE_PUBLISH_ATTRS = {
 	path: { canonical: 'path' },
 	branchPath: { canonical: 'branchPath' },
 	packageCount: { canonical: 'packageCount' },
+	genCode: { canonical: 'genCode' },
+	codePath: { canonical: 'codePath' },
 } satisfies XmlAttrMap;
 
 const PACKAGE_PUBLISH_ATLAS_ATTRS = {

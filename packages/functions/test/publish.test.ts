@@ -34,6 +34,12 @@ function createFs() {
 		async mkdir(dirPath: string): Promise<void> {
 			await fs.mkdir(dirPath, { recursive: true });
 		},
+		async readdir(dirPath: string): Promise<string[]> {
+			return fs.readdir(dirPath);
+		},
+		async deleteFile(filePath: string): Promise<void> {
+			await fs.rm(filePath, { force: true });
+		},
 		join(...paths: string[]): string {
 			return path.join(...paths);
 		},
@@ -808,6 +814,283 @@ test('publish: Layabox sample emits editor-aligned .fui outputs and reference re
 		t.true(outputSet.has('Bag.fui'), 'representative package uses .fui output');
 		t.true(outputSet.has('Bag_atlas0.png'), 'representative atlas png is emitted');
 		t.true(outputSet.has('Basics_o4lt7w.wav'), 'representative loose audio file is emitted with package prefix');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: code generation gates on global allowGenCode and package genCode', async (t) => {
+	const combinations = [
+		{ allowGenCode: true, genCode: true, shouldGenerate: true },
+		{ allowGenCode: false, genCode: true, shouldGenerate: false },
+		{ allowGenCode: true, genCode: false, shouldGenerate: false },
+		{ allowGenCode: false, genCode: false, shouldGenerate: false },
+	];
+
+	for (const combination of combinations) {
+		const doc = new Document();
+		doc.getRoot().setProjectType(0);
+		doc.getRoot().setSettings({
+			publish: {
+				codeGeneration: {
+					allowGenCode: combination.allowGenCode,
+					codePath: 'generated',
+					codeType: '',
+				},
+			},
+		} as RootProjectSettings);
+
+		const pkg = doc.createPackage('DemoPkg');
+		pkg.setId('pkg00001');
+		pkg.setGenCode(combination.genCode);
+
+		const component = doc.createComponent('Main');
+		component.setId('cmp00001');
+		component.setExported(true);
+		pkg.addResource(component);
+
+		const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-codegen-gates-'));
+
+		try {
+			await doc.transform(publish({
+				output: path.join(tmpDir, 'release'),
+				basePath: path.join(tmpDir, 'assets'),
+				fs: createFs(),
+			}));
+
+			const generatedPath = path.join(tmpDir, 'generated', 'DemoPkg', 'UI_Main.cs');
+			t.is(
+				await fs.stat(generatedPath).then(() => true).catch(() => false),
+				combination.shouldGenerate,
+				`generation outcome matches ${JSON.stringify(combination)}`,
+			);
+		} finally {
+			await fs.rm(tmpDir, { recursive: true, force: true });
+		}
+	}
+});
+
+test('publish: package codePath overrides global codeGeneration.codePath', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(0);
+	doc.getRoot().setSettings({
+		publish: {
+			codeGeneration: {
+				allowGenCode: true,
+				codePath: 'global-generated',
+				codeType: '',
+			},
+		},
+	} as RootProjectSettings);
+
+	const pkg = doc.createPackage('DemoPkg');
+	pkg.setId('pkg00001');
+	pkg.setGenCode(true);
+	pkg.setCodePath('package-generated');
+
+	const component = doc.createComponent('Main');
+	component.setId('cmp00001');
+	component.setExported(true);
+	pkg.addResource(component);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-codegen-path-'));
+
+	try {
+		await doc.transform(publish({
+			output: path.join(tmpDir, 'release'),
+			basePath: path.join(tmpDir, 'assets'),
+			fs: createFs(),
+		}));
+
+		t.true(
+			await fs.stat(path.join(tmpDir, 'package-generated', 'DemoPkg', 'UI_Main.cs')).then(() => true).catch(() => false),
+			'package codePath wins',
+		);
+		t.false(
+			await fs.stat(path.join(tmpDir, 'global-generated', 'DemoPkg', 'UI_Main.cs')).then(() => true).catch(() => false),
+			'global codePath is not used when package codePath is set',
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: Unity blank codeType generates binder and exported component classes only', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(0);
+	doc.getRoot().setSettings({
+		publish: {
+			codeGeneration: {
+				allowGenCode: true,
+				classNamePrefix: 'UI_',
+				memberNamePrefix: 'm_',
+				codePath: 'generated',
+				codeType: '',
+				getMemberByName: true,
+				ignoreNoname: true,
+			},
+		},
+	} as RootProjectSettings);
+
+	const pkg = doc.createPackage('DemoPkg');
+	pkg.setId('pkg00001');
+	pkg.setGenCode(true);
+
+	const subPanel = doc.createComponent('SubPanel');
+	subPanel.setId('cmp00002');
+	subPanel.setExported(true);
+	pkg.addResource(subPanel);
+
+	const main = doc.createComponent('Main');
+	main.setId('cmp00001');
+	main.setExtensionType('Button');
+	main.setExported(true);
+	const namedChild = doc.createGTextField('content');
+	namedChild.setId('n0');
+	main.addChild(namedChild);
+	const defaultChild = doc.createGTextField('title');
+	defaultChild.setId('n1');
+	main.addChild(defaultChild);
+	const nested = doc.createGComponent('subPanel');
+	nested.setId('n2');
+	nested.setSrc('cmp00002');
+	main.addChild(nested);
+	const controller = doc.createController('button');
+	main.addController(controller);
+	const transition = doc.createTransition('fadeIn');
+	main.addTransition(transition);
+	pkg.addResource(main);
+
+	const internal = doc.createComponent('Internal');
+	internal.setId('cmp00003');
+	internal.setExported(false);
+	pkg.addResource(internal);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-codegen-unity-'));
+
+	try {
+		await doc.transform(publish({
+			output: path.join(tmpDir, 'release'),
+			basePath: path.join(tmpDir, 'assets'),
+			fs: createFs(),
+		}));
+
+		const generatedDir = path.join(tmpDir, 'generated', 'DemoPkg');
+		const mainClassPath = path.join(generatedDir, 'UI_Main.cs');
+		const subClassPath = path.join(generatedDir, 'UI_SubPanel.cs');
+		const internalClassPath = path.join(generatedDir, 'UI_Internal.cs');
+		const binderPath = path.join(generatedDir, 'DemoPkgBinder.cs');
+
+		t.true(await fs.stat(mainClassPath).then(() => true).catch(() => false), 'main exported component generates a class');
+		t.true(await fs.stat(subClassPath).then(() => true).catch(() => false), 'referenced exported component generates a class');
+		t.false(await fs.stat(internalClassPath).then(() => true).catch(() => false), 'non-exported component does not generate a class');
+		t.true(await fs.stat(binderPath).then(() => true).catch(() => false), 'binder file is generated');
+
+		const mainClass = await fs.readFile(mainClassPath, 'utf-8');
+		t.true(mainClass.startsWith('/** This is an automatically generated class by FairyGUI. Please do not modify it. **/'));
+		t.true(mainClass.includes('public partial class UI_Main : GButton'), 'component extension maps to GButton base class');
+		t.true(mainClass.includes('public UI_SubPanel m_subPanel;'), 'local exported component child uses generated class type');
+		t.true(mainClass.includes('public Transition m_fadeIn;'), 'transition field is generated');
+		t.false(mainClass.includes('m_title'), 'default child name is ignored when ignoreNoname=true');
+		t.false(mainClass.includes('m_button'), 'default controller name is ignored when ignoreNoname=true');
+		t.true(mainClass.includes('m_content = (GTextField)this.GetChild("content");'), 'named child uses GetChild when getMemberByName=true');
+
+		const binder = await fs.readFile(binderPath, 'utf-8');
+		t.true(binder.includes('UIObjectFactory.SetPackageItemExtension(UI_Main.URL, typeof(UI_Main));'));
+		t.true(binder.includes('UIObjectFactory.SetPackageItemExtension(UI_SubPanel.URL, typeof(UI_SubPanel));'));
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: omitted ignoreNoname keeps default members generated', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(0);
+	doc.getRoot().setSettings({
+		publish: {
+			codeGeneration: {
+				allowGenCode: true,
+				classNamePrefix: 'UI_',
+				memberNamePrefix: 'm_',
+				codePath: 'generated',
+				codeType: '',
+				getMemberByName: true,
+			},
+		},
+	} as RootProjectSettings);
+
+	const pkg = doc.createPackage('DemoPkg');
+	pkg.setId('pkg00001');
+	pkg.setGenCode(true);
+
+	const main = doc.createComponent('Main');
+	main.setId('cmp00001');
+	main.setExtensionType('Button');
+	main.setExported(true);
+	const titleChild = doc.createGTextField('title');
+	titleChild.setId('n0');
+	main.addChild(titleChild);
+	const controller = doc.createController('button');
+	main.addController(controller);
+	pkg.addResource(main);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-codegen-ignore-default-'));
+
+	try {
+		await doc.transform(publish({
+			output: path.join(tmpDir, 'release'),
+			basePath: path.join(tmpDir, 'assets'),
+			fs: createFs(),
+		}));
+
+		const mainClass = await fs.readFile(path.join(tmpDir, 'generated', 'DemoPkg', 'UI_Main.cs'), 'utf-8');
+		t.true(mainClass.includes('public GTextField m_title;'), 'default title child remains generated when ignoreNoname is omitted');
+		t.true(mainClass.includes('public Controller m_button;'), 'default button controller remains generated when ignoreNoname is omitted');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: code generation cleanup removes only prior marked files', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(0);
+	doc.getRoot().setSettings({
+		publish: {
+			codeGeneration: {
+				allowGenCode: true,
+				codePath: 'generated',
+				codeType: '',
+			},
+		},
+	} as RootProjectSettings);
+
+	const pkg = doc.createPackage('DemoPkg');
+	pkg.setId('pkg00001');
+	pkg.setGenCode(true);
+
+	const component = doc.createComponent('Main');
+	component.setId('cmp00001');
+	component.setExported(true);
+	pkg.addResource(component);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-codegen-cleanup-'));
+	const generatedDir = path.join(tmpDir, 'generated', 'DemoPkg');
+
+	try {
+		await fs.mkdir(generatedDir, { recursive: true });
+		await fs.writeFile(path.join(generatedDir, 'Stale.cs'), '/** This is an automatically generated class by FairyGUI. Please do not modify it. **/\nold', 'utf-8');
+		await fs.writeFile(path.join(generatedDir, 'Keep.cs'), 'user-authored file', 'utf-8');
+
+		await doc.transform(publish({
+			output: path.join(tmpDir, 'release'),
+			basePath: path.join(tmpDir, 'assets'),
+			fs: createFs(),
+		}));
+
+		t.false(await fs.stat(path.join(generatedDir, 'Stale.cs')).then(() => true).catch(() => false), 'stale marked file is deleted');
+		t.true(await fs.stat(path.join(generatedDir, 'Keep.cs')).then(() => true).catch(() => false), 'unmarked file is preserved');
+		t.true(await fs.stat(path.join(generatedDir, 'UI_Main.cs')).then(() => true).catch(() => false), 'new component file is generated');
+		t.true(await fs.stat(path.join(generatedDir, 'DemoPkgBinder.cs')).then(() => true).catch(() => false), 'new binder file is generated');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

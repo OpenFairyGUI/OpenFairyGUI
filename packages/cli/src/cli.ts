@@ -15,7 +15,7 @@ openfairygui — FairyGUI Headless Authoring CLI
 
 Commands:
   inspect <project-dir>                          Show project contents report
-  publish <project-dir> --output <dir> [options]  Publish project to .fui binary
+  publish <project-dir> --output <dir> [options]  Publish project to binary outputs and configured generated code
   restore <release-dir> --output <dir> [options]  Restore a FairyGUI project from published binaries
 
 Publish options:
@@ -326,6 +326,12 @@ async function cmdPublish(args: string[]): Promise<void> {
 		},
 		async mkdir(dirPath: string): Promise<void> {
 			await fs.mkdir(dirPath, { recursive: true });
+		},
+		async readdir(dirPath: string): Promise<string[]> {
+			return fs.readdir(dirPath);
+		},
+		async deleteFile(filePath: string): Promise<void> {
+			await fs.rm(filePath, { force: true });
 		},
 		join(...paths: string[]): string {
 			return path.join(...paths);

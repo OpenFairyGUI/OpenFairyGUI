@@ -30,6 +30,8 @@ interface IPackage extends IExtensibleProperty {
 	publishPath: string;
 	publishBranchPath: string;
 	publishPackageCount: number;
+	genCode: boolean;
+	codePath: string;
 	resources: RefSet<Property>;
 	atlases: RefSet<Atlas>;
 	dependencies: RefSet<Property>;
@@ -59,6 +61,8 @@ export class Package extends ExtensibleProperty<IPackage> {
 			publishPath: '',
 			publishBranchPath: '',
 			publishPackageCount: 0,
+			genCode: false,
+			codePath: '',
 			resources: new RefSet<Property>(),
 			atlases: new RefSet<Atlas>(),
 			dependencies: new RefSet<Property>(),
@@ -119,6 +123,22 @@ export class Package extends ExtensibleProperty<IPackage> {
 
 	public setPublishPackageCount(count: number): this {
 		return this.set('publishPackageCount', count);
+	}
+
+	public getGenCode(): boolean {
+		return this.get('genCode');
+	}
+
+	public setGenCode(value: boolean): this {
+		return this.set('genCode', value);
+	}
+
+	public getCodePath(): string {
+		return this.get('codePath');
+	}
+
+	public setCodePath(path: string): this {
+		return this.set('codePath', path);
 	}
 
 	public addResource(resource: PackageResource): this {
