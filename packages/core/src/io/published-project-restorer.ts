@@ -39,7 +39,9 @@ export interface RestorePublishedProjectResult {
 }
 
 type RestorableResource = ReturnType<Package['listResources']>[number] & {
+	getName?(): string;
 	getBranch?(): string;
+	getBranchItemIds?(): string[];
 	getExtras?(): Record<string, unknown>;
 	getFile?(): string;
 	getFileName?(): string;
@@ -52,17 +54,26 @@ type RestorableResource = ReturnType<Package['listResources']>[number] & {
 	getSamplePointSize?(): number;
 	getSwing?(): boolean;
 	getTtf?(): boolean;
+	getExported?(): boolean;
 	setExtras?(extras: Record<string, unknown>): unknown;
 	setAtlasNames?(names: string[]): unknown;
+	setBranch?(branch: string): unknown;
+	setBranchItemIds?(ids: string[]): unknown;
+	setExported?(exported: boolean): unknown;
 	setFile?(file: string): unknown;
 	getWidth?(): number;
 	getHeight?(): number;
+	setWidth?(width: number): unknown;
+	setHeight?(height: number): unknown;
 	listFrames?(): RestorableMovieFrame[];
 	listGlyphs?(): RestorableFontGlyph[];
 	setRenderMode?(renderMode: string): unknown;
 	setRequireIds?(ids: string[]): unknown;
 	setSamplePointSize?(size: number): unknown;
 	setFileName?(fileName: string): unknown;
+	setPath?(path: string): unknown;
+	setId?(id: string): unknown;
+	setAnchor?(x: number, y: number): unknown;
 };
 
 interface RestorableSprite {
@@ -362,6 +373,7 @@ export class PublishedProjectRestorer {
 		this._initializeProjectDefaults(doc);
 		this._initializeImageFileNames(doc);
 		this._initializeLooseResourceFileNames(doc);
+		await this._synthesizeLooseSkeletonResources(doc, options.sourceDir);
 		this._initializeRestoredResourceRelations(doc);
 		this._initializeFontTextureImageResources(doc);
 		this._initializeFontGlyphImageResources(doc);
@@ -420,6 +432,27 @@ export class PublishedProjectRestorer {
 		}
 	}
 
+	private async _synthesizeLooseSkeletonResources(doc: Document, sourceDir: string): Promise<void> {
+		for (const pkg of doc.getRoot().listPackages()) {
+			for (const resource of [...(pkg.listResources() as RestorableResource[])]) {
+				let current = resource;
+				if (resource.propertyType === 'DragonBonesResource' && /\.skel\.bytes$/i.test(resourceFileName(resource))) {
+					const normalizedFile = resourceFileName(resource).replace(/\.skel\.bytes$/i, '.skel');
+					const skeletonBase = stripExtension(normalizedFile);
+					const atlasBase = skeletonBase.replace(/-(?:pro|ess)$/i, '-pma');
+					const atlasSource = await this._resolveLooseSourceFile(pkg, sourceDir, `${atlasBase}.atlas`);
+					if (atlasSource) current = this._replaceSkeletonResourceType(doc, pkg, resource, 'SpineResource', normalizedFile);
+				}
+
+				if (current.propertyType === 'SpineResource') {
+					await this._ensureSpineSidecarResources(doc, pkg, current, sourceDir);
+				} else if (current.propertyType === 'DragonBonesResource') {
+					await this._ensureDragonBonesSidecarResources(doc, pkg, current, sourceDir);
+				}
+			}
+		}
+	}
+
 	private _initializeRestoredResourceRelations(doc: Document): void {
 		for (const pkg of doc.getRoot().listPackages()) {
 			const resources = pkg.listResources() as RestorableResource[];
@@ -431,6 +464,122 @@ export class PublishedProjectRestorer {
 				}
 			}
 		}
+	}
+
+	private _replaceSkeletonResourceType(
+		doc: Document,
+		pkg: Package,
+		resource: RestorableResource,
+		targetType: 'SpineResource' | 'DragonBonesResource',
+		fileName: string,
+	): RestorableResource {
+		const replacement = targetType === 'SpineResource'
+			? doc.createSpineResource(resource.getName?.() ?? '')
+			: doc.createDragonBonesResource(resource.getName?.() ?? '');
+
+		replacement
+			.setId?.(resource.getId?.() ?? '')
+			.setPath?.(resource.getPath?.() ?? '/')
+			.setFile?.(fileName)
+			.setExported?.(resource.getExported?.() ?? false)
+			.setWidth?.(resource.getWidth?.() ?? 0)
+			.setHeight?.(resource.getHeight?.() ?? 0)
+			.setRequireIds?.(resource.getRequireIds?.() ?? [])
+			.setAtlasNames?.(resource.getAtlasNames?.() ?? [])
+			.setAnchor?.(resource.getAnchorX?.() ?? 0, resource.getAnchorY?.() ?? 0)
+			.setBranch?.(resource.getBranch?.() ?? '')
+			.setBranchItemIds?.(resource.getBranchItemIds?.() ?? []);
+		replacement.setExtras?.({ ...(resource.getExtras?.() ?? {}) });
+
+		pkg.removeResource(resource as never);
+		pkg.addResource(replacement as never);
+		return replacement as RestorableResource;
+	}
+
+	private async _ensureSpineSidecarResources(
+		doc: Document,
+		pkg: Package,
+		resource: RestorableResource,
+		sourceDir: string,
+	): Promise<void> {
+		const fileName = resourceFileName(resource).replace(/\.skel\.bytes$/i, '.skel');
+		const skeletonBase = stripExtension(fileName);
+		if (!skeletonBase) return;
+		const atlasBase = skeletonBase.replace(/-(?:pro|ess)$/i, '-pma');
+		const atlas = await this._ensureLooseMiscResource(doc, pkg, resource, sourceDir, `${atlasBase}.atlas`);
+		const texture = await this._ensureLooseImageResource(doc, pkg, resource, sourceDir, `${atlasBase}.png`);
+		const requireIds = [atlas?.getId?.(), texture?.getId?.()].filter((id): id is string => !!id);
+		if (requireIds.length > 0) resource.setRequireIds?.(requireIds);
+		if (atlas) resource.setAtlasNames?.([atlasBase]);
+	}
+
+	private async _ensureDragonBonesSidecarResources(
+		doc: Document,
+		pkg: Package,
+		resource: RestorableResource,
+		sourceDir: string,
+	): Promise<void> {
+		const skeletonBase = stripExtension(resourceFileName(resource)).replace(/_ske$/i, '');
+		if (!skeletonBase) return;
+		const textureJson = await this._ensureLooseMiscResource(doc, pkg, resource, sourceDir, `${skeletonBase}_tex.json`);
+		const textureImage = await this._ensureLooseImageResource(doc, pkg, resource, sourceDir, `${skeletonBase}.png`);
+		const requireIds = [textureJson?.getId?.(), textureImage?.getId?.()].filter((id): id is string => !!id);
+		if (requireIds.length > 0) resource.setRequireIds?.(requireIds);
+	}
+
+	private async _ensureLooseMiscResource(
+		doc: Document,
+		pkg: Package,
+		owner: RestorableResource,
+		sourceDir: string,
+		fileName: string,
+	): Promise<RestorableResource | null> {
+		const resources = pkg.listResources() as RestorableResource[];
+		const existing = this._findResourceByFile(resources, owner, 'MiscResource', fileName);
+		if (existing) return existing;
+		const sourcePath = await this._resolveLooseSourceFile(pkg, sourceDir, fileName);
+		if (!sourcePath) return null;
+		const resource = doc.createMiscResource(stripExtension(fileName));
+		resource
+			.setId(generateId())
+			.setPath(owner.getPath?.() ?? '/')
+			.setBranch(owner.getBranch?.() ?? '')
+			.setBranchItemIds(owner.getBranchItemIds?.() ?? [])
+			.setExported(false)
+			.setFile(fileName);
+		resource.setExtras?.({ ...(resource.getExtras?.() ?? {}), _publishedFile: fileBaseName(sourcePath) });
+		pkg.addResource(resource);
+		return resource as RestorableResource;
+	}
+
+	private async _ensureLooseImageResource(
+		doc: Document,
+		pkg: Package,
+		owner: RestorableResource,
+		sourceDir: string,
+		fileName: string,
+	): Promise<RestorableResource | null> {
+		const resources = pkg.listResources() as RestorableResource[];
+		const existing = this._findResourceByFile(resources, owner, 'ImageResource', fileName);
+		if (existing) return existing;
+		const sourcePath = await this._resolveLooseSourceFile(pkg, sourceDir, fileName);
+		if (!sourcePath) return null;
+		const resource = doc.createImageResource(stripExtension(fileName));
+		resource
+			.setId(generateId())
+			.setPath(owner.getPath?.() ?? '/')
+			.setBranch(owner.getBranch?.() ?? '')
+			.setBranchItemIds(owner.getBranchItemIds?.() ?? [])
+			.setExported(false)
+			.setFileName(fileName);
+		resource.setExtras?.({
+			...(resource.getExtras?.() ?? {}),
+			_publishedFile: fileBaseName(sourcePath),
+			_suppressPackageSize: true,
+			_syntheticLooseImage: true,
+		});
+		pkg.addResource(resource);
+		return resource as RestorableResource;
 	}
 
 	private _initializeDisplayObjectFileNames(doc: Document): void {
@@ -620,7 +769,8 @@ export class PublishedProjectRestorer {
 		warnings: string[],
 	): Promise<void> {
 		for (const resource of pkg.listResources() as RestorableResource[]) {
-			if (!['SoundResource', 'MiscResource', 'SpineResource', 'DragonBonesResource'].includes(resource.propertyType)) {
+			const syntheticLooseImage = resource.getExtras?.()?._syntheticLooseImage === true;
+			if (!['SoundResource', 'MiscResource', 'SpineResource', 'DragonBonesResource'].includes(resource.propertyType) && !syntheticLooseImage) {
 				continue;
 			}
 			const fileName = resourceFileName(resource);
@@ -812,6 +962,15 @@ export class PublishedProjectRestorer {
 			`${publishName}_${outputFileName}`,
 			outputFileName,
 		]));
+	}
+
+	private async _resolveLooseSourceFile(pkg: Package, sourceDir: string, outputFileName: string): Promise<string | null> {
+		const candidates = outputFileName.endsWith('.atlas')
+			? this._sourceFileCandidates(pkg, `${outputFileName}.txt`, outputFileName)
+			: outputFileName.endsWith('.skel')
+				? this._sourceFileCandidates(pkg, `${outputFileName}.bytes`, outputFileName)
+				: this._sourceFileCandidates(pkg, outputFileName);
+		return this._resolveSourceFile(sourceDir, candidates);
 	}
 
 	private async _resolveSourceFile(sourceDir: string, candidates: string[]): Promise<string | null> {

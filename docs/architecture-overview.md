@@ -175,6 +175,7 @@ flowchart LR
 | `*_fui.bytes` / `.fui` | 批量读取到同一个 `Document`，按 package id 合并依赖占位包与真实包 |
 | `atlas*.png` | 由 `PublishedProjectRestorer` 通过注入的图片裁切器按 sprite 映射裁切为碎图 PNG |
 | `SoundResource` / `MiscResource` / `SpineResource` / `DragonBonesResource` | 优先按发布文件名从发布目录复制，回退按工程资源文件名复制；当发布文件基名等于资源 id 且资源名可用时，输出文件名回写为工程侧资源名；Unity 发布名 `.atlas.txt` / `.skel.bytes` 会还原为工程侧 `.atlas` / `.skel` |
+| skeleton loose sidecar | 若发布目录存在 `.atlas.txt` / `.png` / `_tex.json` 等 sidecar，而二进制资源表未显式携带对应 `misc` / `image` 资源，`PublishedProjectRestorer` 会补建正式资源节点，并回填 `require` / `atlasNames`；当 `.skel.bytes` 资源能匹配到 Spine atlas sidecar 时，恢复结果按 `spine` 资源写回 |
 | 工程设置 | 初始化 Unity 发布默认值，不从发布包反推原编辑器设置 |
 | `packageDescription > publish` | 按发布包中的 atlas 页重建默认 publish atlas 条目，用于表达包级发布图集 |
 | `SpineResource` / `DragonBonesResource` | 按同目录 `.atlas` / `.png` / `_tex.json` 资源推导 `require` 与 `atlasNames`；该推导只覆盖发布目录可见的依赖资源 |

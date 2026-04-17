@@ -21,7 +21,7 @@ async function extractImage(input: RestoreImageExtractInput): Promise<Uint8Array
 		width: input.width,
 		height: input.height,
 	});
-	if (input.rotated) pipeline = pipeline.rotate(270);
+	if (input.rotated) pipeline = pipeline.rotate(90);
 	const { data, info } = await pipeline.png().toBuffer({ resolveWithObject: true });
 	const needsOriginalCanvas = input.expectedWidth > 0 && input.expectedHeight > 0 && (
 		input.offsetX !== 0
@@ -164,10 +164,12 @@ test('restore published project: directory batch restores packages, assets, and 
 
 		const loaderPackageXml = await fs.readFile(path.join(outputDir, 'assets', 'Loader', 'package.xml'), 'utf-8');
 		t.true(loaderPackageXml.includes('name="alien-pma.atlas"'), 'Unity atlas text extension is restored to project file name');
+		t.true(loaderPackageXml.includes('name="alien-pma.png"'), 'Unity spine texture image is synthesized back into package.xml');
 		t.true(loaderPackageXml.includes('name="alien-pro.skel"'), 'Unity skeleton binary extension is restored to project file name');
-		t.true(loaderPackageXml.includes('require="nbcg7,nbcg8"'), 'Spine resource dependency ids are restored');
+		t.true(/<spine\b[^>]*id="nbcge"[^>]*require="[^"]+,[^"]+"/.test(loaderPackageXml), 'Spine resource dependency ids are synthesized for restored sidecar resources');
 		t.true(loaderPackageXml.includes('atlasNames="alien-pma"'), 'Spine atlas name is restored');
 		t.truthy(await fs.stat(path.join(outputDir, 'assets', 'Loader', 'images', 'alien-pma.atlas')).catch(() => null), 'normalized atlas file is copied');
+		t.truthy(await fs.stat(path.join(outputDir, 'assets', 'Loader', 'images', 'alien-pma.png')).catch(() => null), 'spine texture image is copied as loose image resource');
 		t.truthy(await fs.stat(path.join(outputDir, 'assets', 'Loader', 'images', 'alien-pro.skel')).catch(() => null), 'normalized skeleton file is copied');
 
 		const textMeshProPackageXml = await fs.readFile(path.join(outputDir, 'assets', 'TextMeshPro', 'package.xml'), 'utf-8');

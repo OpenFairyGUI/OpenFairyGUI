@@ -117,7 +117,7 @@ async function createRestoreImageProcessors(): Promise<RestoreImageProcessors> {
 			width: input.width,
 			height: input.height,
 		});
-		if (input.rotated) image = image.rotate(270);
+		if (input.rotated) image = image.rotate(90);
 		const { data, info } = await image.png().toBuffer({ resolveWithObject: true });
 		const needsOriginalCanvas = input.expectedWidth > 0 && input.expectedHeight > 0 && (
 			input.offsetX !== 0
