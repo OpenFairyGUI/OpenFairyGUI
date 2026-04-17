@@ -117,6 +117,8 @@ test('restore published project: directory batch restores packages, assets, and 
 		t.true(basicsDemoControllerXml.includes('<gearColor controller="c1" pages="1" values="#66ff99" default="#ffffff"'), 'restored Demo_Controller compacts non-text gearColor payloads');
 		const basicsButton16Xml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'components', 'Button16.xml'), 'utf-8');
 		t.true(basicsButton16Xml.includes('<gearLook controller="button" pages="0,1,2,3" values="-|1,180,0|-|1,180,0" default="1,0,0"'), 'restored Button16 omits trailing touchable=true in gearLook payloads');
+		const basicsButton5Xml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'components', 'Button5.xml'), 'utf-8');
+		t.true(/<Button\b[^>]*downEffectValue="0\.80"/.test(basicsButton5Xml), 'restored Button5 keeps explicit default downEffectValue when button downEffect is enabled');
 		const basicsButton6Xml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'components', 'Button6.xml'), 'utf-8');
 		t.true(basicsButton6Xml.includes('<gearColor controller="button" pages="0,1,2,3" values="#ffffff|-|#ffffff|-" default="#dfb536"'), 'restored Button6 compacts title text gearColor outline payloads');
 		const basicsComboBoxItemXml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'components', 'ComboBoxItem.xml'), 'utf-8');
@@ -200,6 +202,7 @@ test('restore published project: directory batch restores packages, assets, and 
 		t.truthy(await fs.stat(path.join(transitionOutputDir, 'assets', 'Transition', 'h0.png')).catch(() => null), 'root font glyph placeholder image is written at root virtual path');
 		const powerUpXml = await fs.readFile(path.join(transitionOutputDir, 'assets', 'Transition', 'PowerUp.xml'), 'utf-8');
 		t.true(powerUpXml.includes('<jta id="n5"'), 'restored Transition/PowerUp writes movie clips with jta display tags');
+		t.false(/<jta\b[^>]*color="#ffffff"/.test(powerUpXml), 'restored Transition/PowerUp omits default white jta color');
 		t.true(powerUpXml.includes('<item time="0" type="Alpha" value="1.00"/>'), 'restored Transition/PowerUp keeps non-tween alpha as value attr');
 		t.true(powerUpXml.includes('<item time="0" type="XY" value="0,0"/>'), 'restored Transition/PowerUp keeps non-tween XY as value attr');
 		const goodHitXml = await fs.readFile(path.join(transitionOutputDir, 'assets', 'Transition', 'GoodHit.xml'), 'utf-8');

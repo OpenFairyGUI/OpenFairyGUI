@@ -563,10 +563,16 @@ test('writer: suppresses restored-like default attrs and float-noise defaults', 
 		},
 	]);
 
+	const movieClip = doc.createGMovieClip('mc');
+	movieClip.setId('n4');
+	movieClip.setSrc('mc001');
+	movieClip.setColor('#FFFFFF');
+
 	comp.addChild(image);
 	comp.addChild(loader);
 	comp.addChild(text);
 	comp.addChild(list);
+	comp.addChild(movieClip);
 	pkg.addResource(comp);
 
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-defaults-'));
@@ -578,6 +584,7 @@ test('writer: suppresses restored-like default attrs and float-noise defaults', 
 		const compXml = await fs.readFile(path.join(tmpDir, 'assets', 'DefaultNoise', 'Defaults.xml'), 'utf-8');
 		t.false(buttonXml.includes('downEffectValue='), 'button omits float-noise default downEffectValue');
 		t.false(compXml.includes('color="#FFFFFF"'), 'writer omits default white image/loader color');
+		t.false(/<jta\b[^>]*color="#ffffff"/.test(compXml), 'writer omits default white jta color');
 		t.false(compXml.includes('color="#000000"'), 'writer omits default black text color');
 		t.false(compXml.includes('fill="none"'), 'loader omits default fill');
 		t.false(compXml.includes('selectionMode="single"'), 'list omits default selectionMode');
@@ -1228,6 +1235,8 @@ test('round-trip: tree view list attrs and static item hierarchy survive writeâ†
 		await io.writeProject(doc, outFairy);
 		const treeXml = await fs.readFile(path.join(tmpDir, 'assets', 'TreeView', 'Main.xml'), 'utf-8');
 		t.false(treeXml.includes('isFolder='), 'tree static items omit inferred isFolder attrs in editor xml');
+		t.true(treeXml.includes('<item title="Folder 1" level="0"/>'), 'tree root folders keep explicit level zero');
+		t.true(treeXml.includes('<item title="Folder 2" level="0"/>'), 'second tree root folder keeps explicit level zero');
 
 		const doc2 = await io.readProject(outFairy);
 		const treeViewPkg = doc2.getRoot().listPackages().find((pkg) => pkg.getName() === 'TreeView');
@@ -1584,6 +1593,7 @@ test('round-trip: component extension definition and instance extension attrs su
 		t.true(buttonDefXml.includes('mode="Radio"'), 'button definition writes canonical mode attr');
 		t.true(buttonDefXml.includes('sound="ui://pkg005/click"'), 'button definition writes canonical sound attr');
 		t.true(buttonDefXml.includes('downEffect="1"'), 'button definition writes canonical downEffect attr');
+		t.true(buttonDefXml.includes('downEffectValue="0.75"'), 'button definition writes explicit downEffectValue when downEffect is enabled');
 		t.true(comboDefXml.includes('<ComboBox'), 'combo definition writes ComboBox extension node');
 		t.true(comboDefXml.includes('dropdown="ui://pkg005/dropdown"'), 'combo definition writes canonical dropdown attr');
 		t.true(comboDefXml.includes('selectionController="qualityOption"'), 'combo definition writes canonical selectionController attr');

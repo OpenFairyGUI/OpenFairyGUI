@@ -162,6 +162,10 @@ function formatXmlColor(color: string): string {
 	return color.toLowerCase();
 }
 
+function formatButtonDownEffectValue(value: number): string {
+	return value.toFixed(2);
+}
+
 function almostEqual(a: number, b: number, epsilon = 0.000001): boolean {
 	return Math.abs(a - b) < epsilon;
 }
@@ -665,6 +669,8 @@ function serializeListItemXmlNode(item: {
 	level?: number;
 	isFolder?: boolean | null;
 	controllers?: string | null;
+}, options?: {
+	forceLevel?: boolean;
 }): Record<string, unknown> {
 	const attrs: Record<string, unknown> = {};
 	const specs = PROJECT_XML_PROTOCOL.listItem.attrs;
@@ -674,7 +680,9 @@ function serializeListItemXmlNode(item: {
 	if (item.name !== undefined && item.name !== null) writeXmlAttr(attrs, specs.name, item.name);
 	if (item.selectedTitle !== undefined && item.selectedTitle !== null) writeXmlAttr(attrs, specs.selectedTitle, item.selectedTitle);
 	if (item.selectedIcon !== undefined && item.selectedIcon !== null) writeXmlAttr(attrs, specs.selectedIcon, item.selectedIcon);
-	if (item.level !== undefined && item.level !== null && item.level !== 0) writeXmlAttr(attrs, specs.level, String(item.level));
+	if (item.level !== undefined && item.level !== null && ((options?.forceLevel ?? false) || item.level !== 0 || item.isFolder === true)) {
+		writeXmlAttr(attrs, specs.level, String(item.level));
+	}
 	if (item.controllers !== undefined && item.controllers !== null) writeXmlAttr(attrs, specs.controllers, item.controllers);
 	return attrs;
 }
@@ -1165,13 +1173,17 @@ export class ProjectWriter {
 			const extSpecs = extProtocol.attrs as Record<string, { canonical: string }>;
 			const extAttrs: Record<string, unknown> = {};
 			switch (extType) {
-				case 'Button':
+				case 'Button': {
 					if ((typedComp.getButtonMode?.() ?? 0) !== 0) writeXmlAttr(extAttrs, extSpecs.mode, formatButtonMode(typedComp.getButtonMode?.() ?? 0));
 					if (typedComp.getSound?.()) writeXmlAttr(extAttrs, extSpecs.sound, typedComp.getSound?.());
 					if ((typedComp.getSoundVolumeScale?.() ?? 1) !== 1) writeXmlAttr(extAttrs, extSpecs.soundVolumeScale, String(typedComp.getSoundVolumeScale?.() ?? 1));
-					if ((typedComp.getDownEffect?.() ?? 0) !== 0) writeXmlAttr(extAttrs, extSpecs.downEffect, String(typedComp.getDownEffect?.() ?? 0));
-					if (!almostEqual(typedComp.getDownEffectValue?.() ?? 0.8, 0.8)) writeXmlAttr(extAttrs, extSpecs.downEffectValue, String(typedComp.getDownEffectValue?.() ?? 0.8));
+					const downEffect = typedComp.getDownEffect?.() ?? 0;
+					if (downEffect !== 0) {
+						writeXmlAttr(extAttrs, extSpecs.downEffect, String(downEffect));
+						writeXmlAttr(extAttrs, extSpecs.downEffectValue, formatButtonDownEffectValue(typedComp.getDownEffectValue?.() ?? 0.8));
+					}
 					break;
+				}
 				case 'ComboBox':
 					if (typedComp.getDropdown?.()) writeXmlAttr(extAttrs, extSpecs.dropdown, typedComp.getDropdown?.());
 					if (typedComp.getSelectionController?.()) writeXmlAttr(extAttrs, extSpecs.selectionController, typedComp.getSelectionController?.());
@@ -1588,7 +1600,9 @@ export class ProjectWriter {
 			const frame = typedObj.getFrame?.() ?? 0;
 			if (frame !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.frame, String(frame));
 			const movieClipColor = typedObj.getColor?.();
-			if (movieClipColor) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.color, movieClipColor);
+			if (movieClipColor && !isDefaultWhiteColor(movieClipColor)) {
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.color, formatXmlColor(movieClipColor));
+			}
 		}
 		if (type === 'GGroup') {
 			const layout = typedObj.getLayout?.();
@@ -1673,7 +1687,7 @@ export class ProjectWriter {
 			const listItems = typedObj.getListItems?.() ?? [];
 			const listItemChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.list, 'item');
 			if (listItems.length > 0 && listItemChildName) {
-				attrs[listItemChildName] = listItems.map((item) => serializeListItemXmlNode(item));
+			attrs[listItemChildName] = listItems.map((item) => serializeListItemXmlNode(item, { forceLevel: isTree }));
 			}
 		}
 		if (type === 'GTextField' || type === 'GRichTextField' || type === 'GTextInput') {
