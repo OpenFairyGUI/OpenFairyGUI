@@ -94,6 +94,7 @@ test('restore published project: directory batch restores packages, assets, and 
 		t.true(basicsPackageXml.includes('<atlas name="Default" index="0"'), 'package.xml keeps default atlas publish entry');
 		t.true(basicsPackageXml.includes('name="nlge1k.jta"'), 'movieclip package resource keeps .jta file name');
 		t.true(basicsPackageXml.includes('name="BMFontTest.fnt"'), 'font package resource keeps .fnt file name');
+		t.true(basicsPackageXml.includes('id="wa8u2r" name="BMFontTest.fnt" path="/font/" exported="true" texture="jb800"'), 'ttf bitmap font restores package texture reference');
 		t.true(
 			basicsPackageXml.indexOf('id="rpmbz"') < basicsPackageXml.indexOf('id="rpmb10"'),
 			'package.xml resource order follows editor-like id sequence instead of read order',
@@ -102,6 +103,8 @@ test('restore published project: directory batch restores packages, assets, and 
 		const hitNumberFnt = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'font', 'HitNumber.fnt'), 'utf-8');
 		t.true(hitNumberFnt.includes('char id=48 img=duef6n xoffset=0 yoffset=0 xadvance=33'), 'bitmap font file is regenerated from published glyphs');
 		const bmFontTestFnt = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'font', 'BMFontTest.fnt'), 'utf-8');
+		t.true(bmFontTestFnt.includes('info face="BMFontTest" size=32'), 'ttf-backed font file writes BMFont-style info header');
+		t.true(bmFontTestFnt.includes('page id=0 file="BMFontTest_atlas.png"'), 'ttf-backed font file writes texture page header');
 		t.true(bmFontTestFnt.includes('char id=35 x=22 y=37 width=15 height=20 xoffset=0 yoffset=6 xadvance=14 page=0 chnl=15'), 'ttf-backed font file is regenerated from published glyph metrics');
 		const movieClipJta = parseJta(await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'images', 'nlge1k.jta')));
 		t.is(movieClipJta.version, 102, 'movieclip jta version is regenerated');

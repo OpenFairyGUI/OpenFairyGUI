@@ -55,6 +55,8 @@ type RestorableResource = ReturnType<Package['listResources']>[number] & {
 	getSwing?(): boolean;
 	getTtf?(): boolean;
 	getExported?(): boolean;
+	getTint?(): boolean;
+	getTextureId?(): string;
 	setExtras?(extras: Record<string, unknown>): unknown;
 	setAtlasNames?(names: string[]): unknown;
 	setBranch?(branch: string): unknown;
@@ -74,6 +76,7 @@ type RestorableResource = ReturnType<Package['listResources']>[number] & {
 	setPath?(path: string): unknown;
 	setId?(id: string): unknown;
 	setAnchor?(x: number, y: number): unknown;
+	setTextureId?(textureId: string): unknown;
 };
 
 interface RestorableSprite {
@@ -126,9 +129,11 @@ interface SpriteLookupEntry {
 
 interface RestorableDisplayObject {
 	getFileName?(): string;
+	getFont?(): string;
 	getPackageId?(): string;
 	getSrc?(): string;
 	setFileName?(fileName: string): unknown;
+	setFont?(font: string): unknown;
 }
 
 const JTA_FILE_MARK = 'yytou';
@@ -375,8 +380,10 @@ export class PublishedProjectRestorer {
 		this._initializeLooseResourceFileNames(doc);
 		await this._synthesizeLooseSkeletonResources(doc, options.sourceDir);
 		this._initializeRestoredResourceRelations(doc);
+		this._initializePublishedFontTextureIds(doc);
 		this._initializeFontTextureImageResources(doc);
 		this._initializeFontGlyphImageResources(doc);
+		this._initializePublishedTextFontResources(doc);
 		this._initializeDisplayObjectFileNames(doc);
 		this._initializePublishedFontDefaults(doc);
 
@@ -717,6 +724,63 @@ export class PublishedProjectRestorer {
 		}
 	}
 
+	private _initializePublishedTextFontResources(doc: Document): void {
+		for (const pkg of doc.getRoot().listPackages()) {
+			const fontResources = (pkg.listResources() as RestorableResource[]).filter((resource) => resource.propertyType === 'FontResource');
+			const fontByFileName = new Map(
+				fontResources.map((resource) => [resourceFileName(resource).toLowerCase(), resource] as const),
+			);
+			const fontByDisplayName = new Map(
+				fontResources.map((resource) => [stripExtension(resourceFileName(resource)).toLowerCase(), resource] as const),
+			);
+
+			for (const component of pkg.listComponents()) {
+				for (const child of component.listChildren() as RestorableDisplayObject[]) {
+					const font = child.getFont?.() ?? '';
+					if (!font || font.startsWith('ui://')) continue;
+					if (!/\bsdf\b/i.test(font)) continue;
+
+					const normalized = font.trim().toLowerCase();
+					let resource = fontByDisplayName.get(normalized) ?? fontByFileName.get(`${normalized}.ttf`);
+					if (!resource) {
+						resource = doc.createFontResource(font.trim());
+						resource
+							.setId(generateId())
+							.setPath('/font/')
+							.setFileName(`${font.trim()}.ttf`)
+							.setExported(false)
+							.setRenderMode('sdfaa')
+							.setSamplePointSize(60)
+							.setTtf(true);
+						pkg.addResource(resource as never);
+						fontByDisplayName.set(normalized, resource);
+						fontByFileName.set(`${normalized}.ttf`, resource);
+					}
+
+					child.setFont?.(`ui://${pkg.getId()}${resource.getId?.() ?? ''}`);
+				}
+			}
+		}
+	}
+
+	private _initializePublishedFontTextureIds(doc: Document): void {
+		for (const pkg of doc.getRoot().listPackages()) {
+			const resources = pkg.listResources() as RestorableResource[];
+			for (const resource of resources) {
+				if (resource.propertyType !== 'FontResource') continue;
+				if (resource.getTextureId?.()) continue;
+				if (resource.getTtf?.() !== true) continue;
+				const expectedFileName = syntheticFontTextureFileName(resource).toLowerCase();
+				const texture = resources.find((candidate) => {
+					return candidate.propertyType === 'ImageResource'
+						&& sameVirtualPath(resource, candidate)
+						&& fileBaseName(resourceFileName(candidate)).toLowerCase() === expectedFileName;
+				});
+				if (texture?.getId?.()) resource.setTextureId?.(texture.getId());
+			}
+		}
+	}
+
 	private async _restoreAssets(
 		doc: Document,
 		options: RestorePublishedProjectOptions,
@@ -812,15 +876,17 @@ export class PublishedProjectRestorer {
 
 		const outputPath = this._resourceOutputPath(outputProjectPath, pkg, resource, fileName);
 		await this._mkdirForFile(outputPath);
-		await this._fs.writeFile(outputPath, this._serializeFont(resource, glyphs));
+		await this._fs.writeFile(outputPath, this._serializeFont(pkg, resource, glyphs));
 	}
 
-	private _serializeFont(resource: RestorableResource, glyphs: RestorableFontGlyph[]): string {
-		const lines = [
-			'info creator=UIBuilder',
-			`common lineHeight=${resource.getLineHeight?.() ?? 0}`,
-		];
+	private _serializeFont(pkg: Package, resource: RestorableResource, glyphs: RestorableFontGlyph[]): string {
 		const isTtf = resource.getTtf?.() === true;
+		const lines = isTtf
+			? this._serializeTtfFontHeader(pkg, resource, glyphs)
+			: [
+				'info creator=UIBuilder',
+				`common lineHeight=${resource.getLineHeight?.() ?? 0}`,
+			];
 
 		for (const glyph of glyphs) {
 			const charId = fontGlyphCharId(glyph);
@@ -837,6 +903,25 @@ export class PublishedProjectRestorer {
 		}
 
 		return `${lines.join('\n')}\n`;
+	}
+
+	private _serializeTtfFontHeader(pkg: Package, resource: RestorableResource, glyphs: RestorableFontGlyph[]): string[] {
+		const fileName = resourceFileName(resource);
+		const face = stripExtension(fileName) || resource.getName?.() || 'Font';
+		const lineHeight = resource.getLineHeight?.() ?? 0;
+		const fontSize = resource.getFontSize?.() ?? lineHeight;
+		const textureId = resource.getTextureId?.() ?? '';
+		const textureResource = textureId ? pkg.getResourceById(textureId) as RestorableResource | null : null;
+		const textureName = textureResource ? resourceFileName(textureResource) : `${face}_atlas.png`;
+		const scaleW = textureResource?.getWidth?.() ?? 256;
+		const scaleH = textureResource?.getHeight?.() ?? 256;
+		const base = Math.max(Math.min(fontSize, lineHeight) - 6, 0);
+		return [
+			`info face="${face}" size=${fontSize} bold=0 italic=0 charset="" unicode=1 stretchH=100 smooth=1 aa=1 padding=0,0,0,0 spacing=1,1 outline=0`,
+			`common lineHeight=${lineHeight} base=${base} scaleW=${scaleW} scaleH=${scaleH} pages=1 packed=0 alphaChnl=${resource.getTint?.() ? 1 : 0} redChnl=0 greenChnl=0 blueChnl=0`,
+			`page id=0 file="${textureName}"`,
+			`chars count=${glyphs.length}`,
+		];
 	}
 
 	private async _writeMovieClipFile(
