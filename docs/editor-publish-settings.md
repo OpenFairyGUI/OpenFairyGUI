@@ -137,9 +137,23 @@
 | `atlasSetting.trimImage` | 项目版本号 `>= 500` 时默认 `true`，否则使用旧默认逻辑 |
 | `jpegQuality` | `80` |
 
-## `fileExtension` 的编辑器真实规则
+## `fileExtension` 的当前实现规则
 
-`fileExtension` 不是单纯的固定字段，它会受项目类型影响。当前编辑器规则如下：
+`fileExtension` 在 OpenFairyGUI 当前实现中不是完整复刻编辑器全部项目类型矩阵，而是基于已落地的发布逻辑生效。当前正式行为如下：
+
+| 场景 | 结果 |
+|---|---|
+| Unity 项目 | 固定为 `bytes` |
+| 非 Unity 项目，且 `Publish.json` 显式设置了 `fileExtension` | 使用设置值 |
+| 非 Unity 项目，且 `Publish.json` 未显式设置 `fileExtension` | 回退为 `fui` |
+
+当前仓库已正式覆盖的非 Unity 二进制发布口径是 Laya：Laya 样例工程使用 `binaryFormat=true` 和 `fileExtension="fui"`，发布结果为 `包名.fui`。
+
+编辑器文档中其他项目类型的默认扩展名矩阵，目前**不应**直接视为 OpenFairyGUI 已实现行为；若仓库尚未实现对应项目类型发布规则，应从当前实现文档中删除，或明确标注为“未实现”。
+
+## `fileExtension` 的编辑器参考矩阵
+
+下面这张表保留的是 FairyGUI 编辑器侧的项目类型规则，用作后续实现对齐时的参考索引；**它不代表当前 OpenFairyGUI 已全部实现这些项目类型的发布行为**。
 
 | 项目类型 | 结果 |
 |---|---|

@@ -7,9 +7,18 @@ import { NodeIO, Document } from '@openfairygui/core';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
 import sharp from 'sharp';
 import { publish, resolvePublishOptions, type RootProjectSettings } from '../src/index.js';
+import { resolvePublishAtlasRuntimeOptions } from '../src/publish.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UNITY_EXAMPLES_FAIRY = getFixtureProjectPath('FairyGUI-Unity-Examples');
+const LAYABOX_EXAMPLES_FAIRY = path.resolve(
+	__dirname,
+	'../../../referer/Runtimes/Layabox/demo/UIProject/FairyGUI-layabox-demo.fairy',
+);
+const LAYABOX_RELEASE_DIR = path.resolve(
+	__dirname,
+	'../../../referer/Release/FairyGUI-layabox-demo',
+);
 
 // Helper: create a simple NodeIO filesystem for publish output
 function createFs() {
@@ -681,6 +690,46 @@ test('resolvePublishOptions: Unity defaults to bytes and ignores project compres
 	t.false(resolved.compressed, 'Unity publish is uncompressed by default');
 });
 
+test('resolvePublishOptions: Layabox defaults to fui and keeps non-Unity compression behavior', (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(4);
+	doc.getRoot().setSettings({
+		publish: {
+			compressDesc: true,
+		},
+	} as RootProjectSettings);
+
+	const resolved = resolvePublishOptions(doc);
+	t.is(resolved.fileExtension, 'fui', 'Layabox defaults to .fui');
+	t.true(resolved.compressed, 'Layabox keeps publish compression when configured');
+});
+
+test('resolvePublishOptions: Layabox respects explicit fileExtension overrides', (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(4);
+	doc.getRoot().setSettings({
+		publish: {
+			fileExtension: 'fui',
+			compressDesc: true,
+		},
+	} as RootProjectSettings);
+
+	const resolved = resolvePublishOptions(doc, { fileExtension: 'bin' });
+	t.is(resolved.fileExtension, 'bin', 'explicit override wins over Layabox defaults');
+	t.true(resolved.compressed, 'override does not discard non-Unity compression behavior');
+});
+
+test('resolvePublishAtlasRuntimeOptions: ext-coupled atlas toggles stay explicit', (t) => {
+	t.deepEqual(resolvePublishAtlasRuntimeOptions('fui'), {
+		preserveInputOrderOnTie: true,
+		directSingleImageOutput: false,
+	});
+	t.deepEqual(resolvePublishAtlasRuntimeOptions('bytes'), {
+		preserveInputOrderOnTie: false,
+		directSingleImageOutput: true,
+	});
+});
+
 test('resolvePublishOptions: maps publish atlas settings into reusable atlas options', (t) => {
 	const doc = new Document();
 	doc.getRoot().setProjectType(7);
@@ -734,4 +783,32 @@ test('resolvePublishOptions: atlas maxSize defaults to 2048 when project setting
 
 	const resolved = resolvePublishOptions(doc);
 	t.is(resolved.atlas.maxSize, 2048);
+});
+
+test('publish: Layabox sample emits editor-aligned .fui outputs and reference release layout', async (t) => {
+	const io = new NodeIO();
+	const doc = await io.readProject(LAYABOX_EXAMPLES_FAIRY);
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-laya-pub-'));
+	const referenceNames = (await fs.readdir(LAYABOX_RELEASE_DIR)).sort();
+	const basePath = path.join(path.dirname(LAYABOX_EXAMPLES_FAIRY), 'assets');
+
+	try {
+		await doc.transform(publish({
+			output: tmpDir,
+			fs: createFs(),
+			encoder: sharp,
+			basePath,
+		}));
+
+		const outputNames = (await fs.readdir(tmpDir)).sort();
+		const outputSet = new Set(outputNames);
+		t.deepEqual(outputNames, referenceNames, 'Layabox publish matches the reference release layout exactly');
+
+		t.false(outputNames.some((name) => /_fui\.bytes$/i.test(name)), 'Layabox publish does not emit Unity-style _fui.bytes packages');
+		t.true(outputSet.has('Bag.fui'), 'representative package uses .fui output');
+		t.true(outputSet.has('Bag_atlas0.png'), 'representative atlas png is emitted');
+		t.true(outputSet.has('Basics_o4lt7w.wav'), 'representative loose audio file is emitted with package prefix');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
 });

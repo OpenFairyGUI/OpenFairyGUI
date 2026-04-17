@@ -10,6 +10,7 @@ import {
 	type MiscResource,
 	type MovieClipResource,
 	type Package,
+	ProjectType,
 	type SpineResource,
 	type SoundResource,
 	type Transform,
@@ -20,7 +21,6 @@ import type {
 	CliPublishSettings,
 	HasOptionalFont,
 	PackagePublishArtifactsExtras,
-	PublishDependency,
 	PublishFileSystem,
 	RootProjectSettings,
 } from './shared-types.js';
@@ -192,7 +192,29 @@ interface PublishEncoderPipeline {
 
 type PublishEncoder = (input: string | Uint8Array) => PublishEncoderPipeline;
 
-const UNITY_PROJECT_TYPE = 0;
+const UNITY_PROJECT_TYPE = ProjectType.Unity;
+
+function resolveDefaultPublishFileExtension(projectType: number, publishSettings: CliPublishSettings): string {
+	if (projectType === UNITY_PROJECT_TYPE) {
+		return 'bytes';
+	}
+	// publish() is currently a binary forward-publish path. For non-Unity projects,
+	// keep the emitted contract driven by the configured extension, falling back to
+	// `fui`, which intentionally covers the editor-aligned Layabox binary contract.
+	return publishSettings.fileExtension || 'fui';
+}
+
+export interface PublishAtlasRuntimeOptions {
+	preserveInputOrderOnTie: boolean;
+	directSingleImageOutput: boolean;
+}
+
+export function resolvePublishAtlasRuntimeOptions(fileExtension: string): PublishAtlasRuntimeOptions {
+	return {
+		preserveInputOrderOnTie: fileExtension === 'fui',
+		directSingleImageOutput: fileExtension === 'bytes',
+	};
+}
 
 function resolvePublishFileName(publishName: string, fileExtension: string): string {
 	if (fileExtension === 'bytes') {
@@ -218,7 +240,7 @@ export function resolvePublishOptions(
 	const projectType = root.getProjectType();
 
 	const fileExtension = overrides.fileExtension
-		?? (projectType === UNITY_PROJECT_TYPE ? 'bytes' : publishSettings.fileExtension || 'fui');
+		?? resolveDefaultPublishFileExtension(projectType, publishSettings);
 
 	let compressed = overrides.compressed ?? publishSettings.compressDesc ?? false;
 	if (projectType === UNITY_PROJECT_TYPE) {
@@ -385,12 +407,6 @@ function resolveGenericResourcePath(
 	const resourcePath = resource.getPath() ?? '/';
 	const packageBasePath = resolvePackageAssetsBasePath(basePath, resource);
 	return `${packageBasePath}/${pkg.getName()}${resourcePath}${resource.getFile()}`;
-}
-
-function resolvePublishedSoundFileName(pkg: Package, resource: SoundResource): string {
-	const publishName = pkg.getPublishName() || pkg.getName();
-	const ext = extname(resource.getFile() || '');
-	return `${publishName}_${resource.getId()}${ext}`;
 }
 
 function extname(fileName: string): string {
@@ -937,6 +953,7 @@ export function publish(options: PublishOptions): Transform {
 		const branchProcessing = publishSettings.branchProcessing ?? 0;
 		const includeBranches = branchProcessing === 0;
 		const activeBranch = includeBranches ? '' : (options.branch ?? '');
+		const atlasRuntimeOptions = resolvePublishAtlasRuntimeOptions(ext);
 
 		const allDocPackages = root.listPackages();
 		// Build a pkgId→name map for dependency resolution
@@ -970,8 +987,7 @@ export function publish(options: PublishOptions): Transform {
 			outputPath: options.fs ? options.output : undefined,
 			mkdir: options.fs ? options.fs.mkdir : undefined,
 			readFileRaw: options.atlas?.readFileRaw ?? options.fs?.readFileRaw,
-			preserveInputOrderOnTie: ext === 'fui',
-			directSingleImageOutput: ext === 'bytes',
+			...atlasRuntimeOptions,
 		};
 		await atlas(atlasOpts)(doc);
 
