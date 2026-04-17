@@ -1095,3 +1095,285 @@ test('publish: code generation cleanup removes only prior marked files', async (
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 });
+
+test('publish: Layabox modern TypeScript code generates package-scoped .ts output', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(4);
+	doc.getRoot().setSettings({
+		publish: {
+			codeGeneration: {
+				allowGenCode: true,
+				classNamePrefix: 'UI_',
+				memberNamePrefix: 'm_',
+				codePath: 'generated',
+				getMemberByName: true,
+				ignoreNoname: true,
+			},
+		},
+	} as RootProjectSettings);
+
+	const pkg = doc.createPackage('DemoPkg');
+	pkg.setId('pkg00001');
+	pkg.setGenCode(true);
+
+	const subPanel = doc.createComponent('SubPanel');
+	subPanel.setId('cmp00002');
+	subPanel.setExported(true);
+	pkg.addResource(subPanel);
+
+	const main = doc.createComponent('Main');
+	main.setId('cmp00001');
+	main.setExtensionType('Button');
+	main.setExported(true);
+	const namedChild = doc.createGTextField('content');
+	namedChild.setId('n0');
+	main.addChild(namedChild);
+	const defaultChild = doc.createGTextField('title');
+	defaultChild.setId('n1');
+	main.addChild(defaultChild);
+	const nested = doc.createGComponent('subPanel');
+	nested.setId('n2');
+	nested.setSrc('cmp00002');
+	main.addChild(nested);
+	const controller = doc.createController('button');
+	main.addController(controller);
+	const transition = doc.createTransition('fadeIn');
+	main.addTransition(transition);
+	pkg.addResource(main);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-codegen-laya-modern-ts-'));
+
+	try {
+		await doc.transform(publish({
+			output: path.join(tmpDir, 'release'),
+			basePath: path.join(tmpDir, 'assets'),
+			fs: createFs(),
+		}));
+
+		const generatedDir = path.join(tmpDir, 'generated', 'DemoPkg');
+		const mainClassPath = path.join(generatedDir, 'UI_Main.ts');
+		const binderPath = path.join(generatedDir, 'DemoPkgBinder.ts');
+
+		t.true(await fs.stat(mainClassPath).then(() => true).catch(() => false), 'Layabox generates component file');
+		t.true(await fs.stat(binderPath).then(() => true).catch(() => false), 'Layabox generates binder file');
+
+		const mainClass = await fs.readFile(mainClassPath, 'utf-8');
+		t.true(mainClass.startsWith('/** This is an automatically generated class by FairyGUI. Please do not modify it. **/'));
+		t.true(mainClass.includes('export default class UI_Main extends fgui.GButton'));
+		t.true(mainClass.includes('return <UI_Main><any>(fgui.UIPackage.createObject("DemoPkg","Main"));'));
+		t.true(mainClass.includes('public m_content:fgui.GTextField;'));
+		t.true(mainClass.includes('public m_fadeIn:fgui.Transition;'));
+		t.true(mainClass.includes('this.m_content = <fgui.GTextField><any>(this.getChild("content"));'));
+		t.true(mainClass.includes('this.m_fadeIn = this.getTransition("fadeIn");'));
+		t.true(mainClass.includes('import UI_SubPanel from "./UI_SubPanel";'));
+		t.true(mainClass.includes('public m_subPanel:UI_SubPanel;'));
+		t.false(mainClass.includes('m_title'), 'default title member is ignored');
+		t.false(mainClass.includes('m_button'), 'default button controller is ignored');
+		t.false(mainClass.includes('import fgui.GTextField'), 'builtin runtime types are not imported');
+
+		const binder = await fs.readFile(binderPath, 'utf-8');
+		t.true(binder.includes('import UI_Main from "./UI_Main";'));
+		t.true(binder.includes('import UI_SubPanel from "./UI_SubPanel";'));
+		t.true(binder.includes('fgui.UIObjectFactory.setExtension(UI_Main.URL, UI_Main);'));
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: Layabox modern TypeScript code keeps positional member access semantics', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(4);
+	doc.getRoot().setSettings({
+		publish: {
+			codeGeneration: {
+				allowGenCode: true,
+				classNamePrefix: 'UI_',
+				memberNamePrefix: 'm_',
+				codePath: 'generated',
+				getMemberByName: false,
+				ignoreNoname: false,
+			},
+		},
+	} as RootProjectSettings);
+
+	const pkg = doc.createPackage('DemoPkg');
+	pkg.setId('pkg00001');
+	pkg.setGenCode(true);
+
+	const subPanel = doc.createComponent('SubPanel');
+	subPanel.setId('cmp00002');
+	subPanel.setExported(true);
+	pkg.addResource(subPanel);
+
+	const main = doc.createComponent('Main');
+	main.setId('cmp00001');
+	main.setExtensionType('Button');
+	main.setExported(true);
+	const content = doc.createGTextField('content');
+	content.setId('n0');
+	main.addChild(content);
+	const sub = doc.createGComponent('subPanel');
+	sub.setId('n1');
+	sub.setSrc('cmp00002');
+	main.addChild(sub);
+	const controller = doc.createController('button');
+	main.addController(controller);
+	const transition = doc.createTransition('fadeIn');
+	main.addTransition(transition);
+	pkg.addResource(main);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-codegen-laya-modern-ts-pos-'));
+
+	try {
+		await doc.transform(publish({
+			output: path.join(tmpDir, 'release'),
+			basePath: path.join(tmpDir, 'assets'),
+			fs: createFs(),
+		}));
+
+		const mainClass = await fs.readFile(path.join(tmpDir, 'generated', 'DemoPkg', 'UI_Main.ts'), 'utf-8');
+		t.true(mainClass.includes('this.m_content = <fgui.GTextField><any>(this.getChildAt(0));'));
+		t.true(mainClass.includes('this.m_subPanel = <UI_SubPanel><any>(this.getChildAt(1));'));
+		t.true(mainClass.includes('this.m_button = this.getControllerAt(0);'));
+		t.true(mainClass.includes('this.m_fadeIn = this.getTransitionAt(0);'));
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: Layabox modern TypeScript code namespaces builtin runtime types instead of importing them as local classes', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(4);
+	doc.getRoot().setSettings({
+		publish: {
+			codeGeneration: {
+				allowGenCode: true,
+				classNamePrefix: 'UI_',
+				memberNamePrefix: 'm_',
+				codePath: 'generated',
+				getMemberByName: true,
+				ignoreNoname: false,
+			},
+		},
+	} as RootProjectSettings);
+
+	const pkg = doc.createPackage('DemoPkg');
+	pkg.setId('pkg00001');
+	pkg.setGenCode(true);
+
+	const main = doc.createComponent('Main');
+	main.setId('cmp00001');
+	main.setExported(true);
+
+	const preview = doc.createGLoader3D('preview');
+	preview.setId('n0');
+	main.addChild(preview);
+
+	const tree = doc.createGTree('tree');
+	tree.setId('n1');
+	main.addChild(tree);
+
+	pkg.addResource(main);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-codegen-laya-modern-ts-builtins-'));
+
+	try {
+		await doc.transform(publish({
+			output: path.join(tmpDir, 'release'),
+			basePath: path.join(tmpDir, 'assets'),
+			fs: createFs(),
+		}));
+
+		const mainClass = await fs.readFile(path.join(tmpDir, 'generated', 'DemoPkg', 'UI_Main.ts'), 'utf-8');
+		t.true(mainClass.includes('public m_preview:fgui.GLoader3D;'));
+		t.true(mainClass.includes('public m_tree:fgui.GTree;'));
+		t.true(mainClass.includes('this.m_preview = <fgui.GLoader3D><any>(this.getChild("preview"));'));
+		t.true(mainClass.includes('this.m_tree = <fgui.GTree><any>(this.getChild("tree"));'));
+		t.false(mainClass.includes('import GLoader3D from "./GLoader3D";'));
+		t.false(mainClass.includes('import GTree from "./GTree";'));
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: Layabox modern TypeScript code works without codeType configuration', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(4);
+	doc.getRoot().setSettings({
+		publish: {
+			codeGeneration: {
+				allowGenCode: true,
+				codePath: 'generated',
+			},
+		},
+	} as RootProjectSettings);
+
+	const pkg = doc.createPackage('DemoPkg');
+	pkg.setId('pkg00001');
+	pkg.setGenCode(true);
+	const component = doc.createComponent('Main');
+	component.setId('cmp00001');
+	component.setExported(true);
+	pkg.addResource(component);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-codegen-laya-no-codetype-'));
+
+	try {
+		await doc.transform(publish({
+			output: path.join(tmpDir, 'release'),
+			basePath: path.join(tmpDir, 'assets'),
+			fs: createFs(),
+		}));
+
+		t.true(
+			await fs.stat(path.join(tmpDir, 'generated', 'DemoPkg', 'UI_Main.ts')).then(() => true).catch(() => false),
+			'Layabox code generation no longer depends on codeType',
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: Layabox modern TypeScript cleanup removes only prior marked .ts files', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(4);
+	doc.getRoot().setSettings({
+		publish: {
+			codeGeneration: {
+				allowGenCode: true,
+				codePath: 'generated',
+			},
+		},
+	} as RootProjectSettings);
+
+	const pkg = doc.createPackage('DemoPkg');
+	pkg.setId('pkg00001');
+	pkg.setGenCode(true);
+
+	const component = doc.createComponent('Main');
+	component.setId('cmp00001');
+	component.setExported(true);
+	pkg.addResource(component);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-codegen-laya-cleanup-'));
+	const generatedDir = path.join(tmpDir, 'generated', 'DemoPkg');
+
+	try {
+		await fs.mkdir(generatedDir, { recursive: true });
+		await fs.writeFile(path.join(generatedDir, 'Stale.ts'), '/** This is an automatically generated class by FairyGUI. Please do not modify it. **/\nold', 'utf-8');
+		await fs.writeFile(path.join(generatedDir, 'Keep.ts'), 'user-authored file', 'utf-8');
+
+		await doc.transform(publish({
+			output: path.join(tmpDir, 'release'),
+			basePath: path.join(tmpDir, 'assets'),
+			fs: createFs(),
+		}));
+
+		t.false(await fs.stat(path.join(generatedDir, 'Stale.ts')).then(() => true).catch(() => false), 'stale marked .ts file is deleted');
+		t.true(await fs.stat(path.join(generatedDir, 'Keep.ts')).then(() => true).catch(() => false), 'unmarked .ts file is preserved');
+		t.true(await fs.stat(path.join(generatedDir, 'UI_Main.ts')).then(() => true).catch(() => false), 'new .ts component file is generated');
+		t.true(await fs.stat(path.join(generatedDir, 'DemoPkgBinder.ts')).then(() => true).catch(() => false), 'new .ts binder file is generated');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});

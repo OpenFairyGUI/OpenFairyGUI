@@ -109,20 +109,26 @@ OpenFairyGUI 当前已经把“代码生成”接入现有 `publish` 流程，�
 | 包级 `publish@codePath` 有值 | 优先使用包级代码输出路径 |
 | 包级 `publish@codePath` 为空 | 回退到全局 `codeGeneration.codePath` |
 | Unity 项目，且 `codeType` 为空字符串 | 生成 Unity 风格 `.cs` 代码 |
-| 非 Unity 项目，或 `codeType` 为非空值 | 当前未实现，跳过生成 |
+| Laya 项目 | 生成现代 TypeScript 代码，运行时命名空间为 `fgui` |
+| 其他项目类型 | 当前未实现，跳过生成 |
 
-当前正式落地的 Unity 首发口径如下：
+当前正式落地的代码生成口径如下：
 
-| 输出项 | 当前行为 |
-|---|---|
-| 输出目录 | `codePath/<规范化包名>/` |
-| 组件类 | 每个导出组件生成一个 `.cs` 类文件 |
-| Binder | 每个包生成一个 `包名Binder.cs` |
-| 清理规则 | 只清理当前包输出目录下、带 FairyGUI 自动生成标记的旧 `.cs` 文件 |
+| Lane | 输出项 | 当前行为 |
+|---|---|---|
+| Unity + 空 `codeType` | 输出目录 | `codePath/<规范化包名>/` |
+| Unity + 空 `codeType` | 组件类 | 每个导出组件生成一个 `.cs` 类文件 |
+| Unity + 空 `codeType` | Binder | 每个包生成一个 `包名Binder.cs` |
+| Unity + 空 `codeType` | 清理规则 | 只清理当前包输出目录下、带 FairyGUI 自动生成标记的旧 `.cs` 文件 |
+| Laya 现代 TypeScript 模式 | 输出目录 | `codePath/<规范化包名>/` |
+| Laya 现代 TypeScript 模式 | 组件类 | 每个导出组件生成一个 `.ts` 类文件 |
+| Laya 现代 TypeScript 模式 | Binder | 每个包生成一个 `包名Binder.ts` |
+| Laya 现代 TypeScript 模式 | 运行时口径 | 使用 `fgui` 与 `UIObjectFactory.setExtension(...)` |
+| Laya 现代 TypeScript 模式 | 清理规则 | 只清理当前包输出目录下、带 FairyGUI 自动生成标记的旧 `.ts` 文件 |
 
 说明：
 - 这里描述的是 OpenFairyGUI 当前已实现行为，不等同于 FairyGUI 编辑器所有项目类型 / `codeType` 模板都已支持。
-- 其他项目类型或非空 `codeType` 的模板选择，当前仍应视为后续实现事项，而不是现行协议承诺。
+- 这里的 Laya 代码生成口径已经不再依赖 `codeType` 字段分流；当前只保留一种现代 TypeScript 输出模式。
 
 ## 包级图集设置真实属性
 

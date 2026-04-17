@@ -1,10 +1,17 @@
 import {
 	type Component,
+	type GComponent,
 	type Document,
 	type GObject,
 	type Package,
 	ProjectType,
 } from '@openfairygui/core';
+import {
+	LAYA_TYPESCRIPT_BINDER_TEMPLATE,
+	LAYA_TYPESCRIPT_COMPONENT_TEMPLATE,
+	UNITY_BINDER_TEMPLATE,
+	UNITY_COMPONENT_TEMPLATE,
+} from './codegen-templates.js';
 import type { CliCodeGenerationSettings, PublishFileSystem, RootProjectSettings } from './shared-types.js';
 
 export const AUTO_GENERATED_CODE_MARK = '/** This is an automatically generated class by FairyGUI. Please do not modify it. **/';
@@ -35,6 +42,35 @@ interface ResolvedPackageCodegenPlan {
 	binderClassName: string;
 	settings: ResolvedCodeGenerationSettings;
 }
+
+interface LayaTypescriptVariant {
+	binderMethod: 'setExtension' | 'setPackageItemExtension';
+	runtimeNamespace: 'fgui' | 'fairygui';
+}
+
+const LAYA_TYPESCRIPT_RUNTIME_TYPES = new Set([
+	'Controller',
+	'GButton',
+	'GComboBox',
+	'GComponent',
+	'GGraph',
+	'GGroup',
+	'GImage',
+	'GLabel',
+	'GList',
+	'GLoader',
+	'GLoader3D',
+	'GMovieClip',
+	'GProgressBar',
+	'GRichTextField',
+	'GScrollBar',
+	'GSlider',
+	'GSwfObject',
+	'GTextField',
+	'GTextInput',
+	'GTree',
+	'Transition',
+]);
 
 interface CodegenMember {
 	index: number;
@@ -78,7 +114,12 @@ export async function publishCodeGeneration(
 			continue;
 		}
 
-		await generateUnityCode(doc, pkg, plan, options.fs);
+		const layaTypescriptVariant = resolveLayaTypescriptVariant(doc);
+		if (layaTypescriptVariant) {
+			await generateLayaTypescriptCode(doc, pkg, plan, options.fs, layaTypescriptVariant);
+		} else {
+			await generateUnityCode(doc, pkg, plan, options.fs);
+		}
 		logger.info(`publish: Generated code for package "${pkg.getName()}" into ${plan.outputDir}`);
 	}
 }
@@ -137,7 +178,18 @@ function resolvePackageCodegenPlan(
 }
 
 function supportsCodeGenerationLane(doc: Document, codeType: string): boolean {
-	return doc.getRoot().getProjectType() === ProjectType.Unity && codeType === '';
+	const projectType = doc.getRoot().getProjectType();
+	if (projectType === ProjectType.Unity) return codeType === '';
+	if (projectType === ProjectType.LayaBox) return true;
+	return false;
+}
+
+function resolveLayaTypescriptVariant(doc: Document): LayaTypescriptVariant | null {
+	if (doc.getRoot().getProjectType() !== ProjectType.LayaBox) return null;
+	return {
+		binderMethod: 'setExtension',
+		runtimeNamespace: 'fgui',
+	};
 }
 
 async function generateUnityCode(
@@ -167,7 +219,35 @@ async function generateUnityCode(
 	);
 }
 
-async function cleanupGeneratedFiles(directory: string, fs: PublishFileSystem): Promise<void> {
+async function generateLayaTypescriptCode(
+	doc: Document,
+	pkg: Package,
+	plan: ResolvedPackageCodegenPlan,
+	fs: PublishFileSystem,
+	variant: LayaTypescriptVariant,
+): Promise<void> {
+	const packageDir = fs.join(plan.outputDir, plan.packageFolderName);
+	await fs.mkdir(plan.outputDir);
+	await fs.mkdir(packageDir);
+	await cleanupGeneratedFiles(packageDir, fs, '.ts');
+
+	const classes = buildCodegenClasses(doc, pkg, plan);
+	for (const classInfo of classes) {
+		await writeTextFile(
+			fs,
+			fs.join(packageDir, `${classInfo.encodedClassName}.ts`),
+			renderLayaTypescriptComponentClass(classInfo, plan, variant),
+		);
+	}
+
+	await writeTextFile(
+		fs,
+		fs.join(packageDir, `${plan.binderClassName}.ts`),
+		renderLayaTypescriptBinder(classes, plan, variant),
+	);
+}
+
+async function cleanupGeneratedFiles(directory: string, fs: PublishFileSystem, extension = '.cs'): Promise<void> {
 	if (!fs.readdir || !fs.readFileRaw || !fs.deleteFile) return;
 
 	let entries: string[];
@@ -178,7 +258,7 @@ async function cleanupGeneratedFiles(directory: string, fs: PublishFileSystem): 
 	}
 
 	for (const entry of entries) {
-		if (!entry.toLowerCase().endsWith('.cs')) continue;
+		if (!entry.toLowerCase().endsWith(extension)) continue;
 		const filePath = fs.join(directory, entry);
 		try {
 			const bytes = await fs.readFileRaw(filePath);
@@ -341,28 +421,17 @@ function renderUnityComponentClass(classInfo: CodegenClass, plan: ResolvedPackag
 		.filter((line): line is string => Boolean(line))
 		.join('\n');
 
-	return `${AUTO_GENERATED_CODE_MARK}
-
-using FairyGUI;
-using FairyGUI.Utils;
-
-namespace ${plan.packageNamespace}
-{
-\tpublic partial class ${classInfo.encodedClassName} : ${classInfo.componentType}
-\t{
-\t\tpublic const string URL = "${escapeCSharpString(classInfo.url)}";
-${variableLines ? `${variableLines}\n` : ''}\t\tpublic static ${classInfo.encodedClassName} CreateInstance()
-\t\t{
-\t\t\treturn (${classInfo.encodedClassName})UIPackage.CreateObject("${escapeCSharpString(classInfo.packageName)}", "${escapeCSharpString(classInfo.className)}");
-\t\t}
-
-\t\tpublic override void ConstructFromXML(XML xml)
-\t\t{
-\t\t\tbase.ConstructFromXML(xml);
-${contentLines ? `${contentLines}\n` : ''}\t\t}
-\t}
-}
-`;
+	return renderTemplate(UNITY_COMPONENT_TEMPLATE, {
+		assignmentLines: contentLines ? `${contentLines}\n` : '',
+		className: classInfo.encodedClassName,
+		componentName: escapeCSharpString(classInfo.className),
+		componentType: classInfo.componentType,
+		generatedMark: AUTO_GENERATED_CODE_MARK,
+		namespaceName: plan.packageNamespace,
+		packageName: escapeCSharpString(classInfo.packageName),
+		url: escapeCSharpString(classInfo.url),
+		variableLines: variableLines ? `${variableLines}\n` : '',
+	});
 }
 
 function renderUnityBinder(classes: CodegenClass[], plan: ResolvedPackageCodegenPlan): string {
@@ -370,20 +439,61 @@ function renderUnityBinder(classes: CodegenClass[], plan: ResolvedPackageCodegen
 		.map((classInfo) => `\t\t\tUIObjectFactory.SetPackageItemExtension(${classInfo.encodedClassName}.URL, typeof(${classInfo.encodedClassName}));`)
 		.join('\n');
 
-	return `${AUTO_GENERATED_CODE_MARK}
-
-using FairyGUI;
-
-namespace ${plan.packageNamespace}
-{
-\tpublic static class ${plan.binderClassName}
-\t{
-\t\tpublic static void BindAll()
-\t\t{
-${bindLines ? `${bindLines}\n` : ''}\t\t}
-\t}
+	return renderTemplate(UNITY_BINDER_TEMPLATE, {
+		binderClassName: plan.binderClassName,
+		bindLines: bindLines ? `${bindLines}\n` : '',
+		generatedMark: AUTO_GENERATED_CODE_MARK,
+		namespaceName: plan.packageNamespace,
+	});
 }
-`;
+
+function renderLayaTypescriptComponentClass(
+	classInfo: CodegenClass,
+	plan: ResolvedPackageCodegenPlan,
+	variant: LayaTypescriptVariant,
+): string {
+	const variableLines = classInfo.members
+		.filter((member) => !member.ignored)
+		.map((member) => `\tpublic ${member.name}:${translateLayaTypescriptType(member.type, variant)};`)
+		.join('\n');
+	const assignmentLines = classInfo.members
+		.map((member) => renderLayaTypescriptMemberAssignment(member, plan.settings.getMemberByName, variant))
+		.filter((line): line is string => Boolean(line))
+		.join('\n');
+	const importLines = collectLayaTypescriptImports(classInfo, variant);
+
+	return renderTemplate(LAYA_TYPESCRIPT_COMPONENT_TEMPLATE, {
+		assignmentLines: assignmentLines ? `${assignmentLines}\n` : '',
+		className: classInfo.encodedClassName,
+		componentName: escapeTypeScriptString(classInfo.className),
+		componentType: translateLayaTypescriptType(classInfo.componentType, variant),
+		generatedMark: AUTO_GENERATED_CODE_MARK,
+		importLines,
+		packageName: escapeTypeScriptString(classInfo.packageName),
+		runtimeNamespace: variant.runtimeNamespace,
+		url: escapeTypeScriptString(classInfo.url),
+		variableLines: variableLines ? `${variableLines}\n` : '',
+	});
+}
+
+function renderLayaTypescriptBinder(
+	classes: CodegenClass[],
+	plan: ResolvedPackageCodegenPlan,
+	variant: LayaTypescriptVariant,
+): string {
+	const bindLines = classes
+		.map((classInfo) => `\t\t${variant.runtimeNamespace}.UIObjectFactory.${variant.binderMethod}(${classInfo.encodedClassName}.URL, ${classInfo.encodedClassName});`)
+		.join('\n');
+	const importLines = classes
+		.map((classInfo) => `import ${classInfo.encodedClassName} from "./${classInfo.encodedClassName}";`)
+		.join('\n');
+
+	return renderTemplate(LAYA_TYPESCRIPT_BINDER_TEMPLATE, {
+		binderClassName: plan.binderClassName,
+		bindLines: bindLines ? `${bindLines}\n` : '',
+		generatedMark: AUTO_GENERATED_CODE_MARK,
+		importLines: importLines ? `${importLines}\n\n` : '',
+	});
 }
 
 function renderMemberAssignment(member: CodegenMember, getMemberByName: boolean): string | null {
@@ -401,6 +511,28 @@ function renderMemberAssignment(member: CodegenMember, getMemberByName: boolean)
 	return getMemberByName
 		? `\t\t\t${member.name} = (${member.type})this.GetChild("${escapeCSharpString(member.originalName)}");`
 		: `\t\t\t${member.name} = (${member.type})this.GetChildAt(${member.index});`;
+}
+
+function renderLayaTypescriptMemberAssignment(
+	member: CodegenMember,
+	getMemberByName: boolean,
+	variant: LayaTypescriptVariant,
+): string | null {
+	if (member.ignored) return null;
+	if (member.type === 'Controller') {
+		return getMemberByName
+			? `\t\tthis.${member.name} = this.getController("${escapeTypeScriptString(member.originalName)}");`
+			: `\t\tthis.${member.name} = this.getControllerAt(${member.index});`;
+	}
+	if (member.type === 'Transition') {
+		return getMemberByName
+			? `\t\tthis.${member.name} = this.getTransition("${escapeTypeScriptString(member.originalName)}");`
+			: `\t\tthis.${member.name} = this.getTransitionAt(${member.index});`;
+	}
+	const translatedType = translateLayaTypescriptType(member.type, variant);
+	return getMemberByName
+		? `\t\tthis.${member.name} = <${translatedType}><any>(this.getChild("${escapeTypeScriptString(member.originalName)}"));`
+		: `\t\tthis.${member.name} = <${translatedType}><any>(this.getChildAt(${member.index}));`;
 }
 
 function resolveCodePath(
@@ -472,7 +604,38 @@ function normalizeTypeName(value: string): string {
 	return /^[0-9]/.test(normalized) ? `_${normalized}` : normalized;
 }
 
+function collectLayaTypescriptImports(classInfo: CodegenClass, variant: LayaTypescriptVariant): string {
+	const imports = new Set<string>();
+	for (const member of classInfo.members) {
+		if (member.ignored) continue;
+		const translated = translateLayaTypescriptType(member.type, variant);
+		if (!translated.includes('.')) {
+			imports.add(`import ${translated} from "./${translated}";`);
+		}
+	}
+	return imports.size > 0 ? `${[...imports].sort().join('\n')}\n\n` : '';
+}
+
+function translateLayaTypescriptType(typeName: string, variant: LayaTypescriptVariant): string {
+	if (LAYA_TYPESCRIPT_RUNTIME_TYPES.has(typeName)) {
+		return `${variant.runtimeNamespace}.${typeName}`;
+	}
+	return typeName;
+}
+
+function renderTemplate(template: string, data: Record<string, string>): string {
+	let output = template;
+	for (const [key, value] of Object.entries(data)) {
+		output = output.replaceAll(`{{${key}}}`, value);
+	}
+	return output;
+}
+
 function escapeCSharpString(value: string): string {
+	return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function escapeTypeScriptString(value: string): string {
 	return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
