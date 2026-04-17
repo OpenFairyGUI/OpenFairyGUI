@@ -185,7 +185,11 @@ function shouldWritePackageImageSize(resource: WritableImageResource): boolean {
 function escapeXmlAttr(value: unknown): string {
 	return String(value)
 		.replace(/&/g, '&amp;')
+		.replace(/\r\n/g, '&#xA;')
+		.replace(/[\r\n]/g, '&#xA;')
+		.replace(/\t/g, '&#x9;')
 		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&apos;')
 		.replace(/</g, '&lt;')
 		.replace(/>/g, '&gt;');
 }
@@ -199,6 +203,48 @@ function renderXmlAttrs(attrs: Record<string, unknown>): string {
 		parts.push(` ${attrName}="${escapeXmlAttr(value)}"`);
 	}
 	return parts.join('');
+}
+
+function renderXmlText(value: unknown): string {
+	return String(value)
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;');
+}
+
+function renderXmlNode(tagName: string, node: unknown, indent: string): string {
+	if (node === undefined || node === null || node === '') {
+		return `${indent}<${tagName}/>`;
+	}
+	if (Array.isArray(node)) {
+		return node.map((item) => renderXmlNode(tagName, item, indent)).join('\n');
+	}
+	if (typeof node !== 'object') {
+		return `${indent}<${tagName}>${renderXmlText(node)}</${tagName}>`;
+	}
+
+	const attrs: Record<string, unknown> = {};
+	const children: Array<{ tagName: string; value: unknown }> = [];
+	for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+		if (key.startsWith('@_')) attrs[key] = value;
+		else if (value !== undefined && value !== null) children.push({ tagName: key, value });
+	}
+
+	if (children.length === 0) {
+		return `${indent}<${tagName}${renderXmlAttrs(attrs)}/>`;
+	}
+
+	const childIndent = `${indent}  `;
+	const childLines: string[] = [];
+	for (const child of children) {
+		if (Array.isArray(child.value)) {
+			for (const item of child.value) childLines.push(renderXmlNode(child.tagName, item, childIndent));
+		} else {
+			childLines.push(renderXmlNode(child.tagName, child.value, childIndent));
+		}
+	}
+
+	return `${indent}<${tagName}${renderXmlAttrs(attrs)}>\n${childLines.join('\n')}\n${indent}</${tagName}>`;
 }
 
 function compareResourceIdSequence(a: string, b: string): number {
@@ -1267,8 +1313,7 @@ export class ProjectWriter {
 			const propertyType = child.propertyType as string;
 			const tag = DISPLAY_TAG[propertyType] ?? 'component';
 			assertDisplayListVariantAllowed(propertyType, tag, child.getName() || child.getId() || propertyType);
-			const childXml = builder.build({ [tag]: this._serializeChild(child) }) as string;
-			lines.push(...childXml.trimEnd().split('\n').map((line) => `    ${line}`));
+			lines.push(renderXmlNode(tag, this._serializeChild(child), '    '));
 		}
 		return `\n${lines.join('\n')}\n  `;
 	}

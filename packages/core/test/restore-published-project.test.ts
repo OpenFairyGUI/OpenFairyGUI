@@ -144,6 +144,8 @@ test('restore published project: directory batch restores packages, assets, and 
 		t.true(/<text\b[^>]*id="n2"[^>]*color="#cc3300"/.test(basicsDemoTextXml), 'restored Basics/Demo_Text lowercases text color attrs');
 		t.true(/<inputtext\b[^>]*id="n22"[^>]*text=""/.test(basicsDemoTextXml), 'restored Basics/Demo_Text keeps explicit empty input text');
 		t.true(/<text\b[^>]*id="n24"[^>]*text=""/.test(basicsDemoTextXml), 'restored Basics/Demo_Text keeps explicit empty text attrs');
+		t.true(/id="n5"[^>]*text="Support UBB grammer：&#xA;/.test(basicsDemoTextXml), 'restored Basics/Demo_Text escapes newline characters inside text attrs');
+		t.true(/id="n12"[^>]*&lt;img src=&apos;ui:\/\/9leh0eyfrpmb6&apos;\/&gt;/.test(basicsDemoTextXml), 'restored Basics/Demo_Text escapes apostrophes and angle brackets inside richtext attrs');
 		t.true(/<image\b[^>]*id="n7"[^>]*flip="hz"/.test(basicsDemoImageXml), 'restored Basics/Demo_Image writes editor flip token for horizontal mirror');
 		t.true(/<image\b[^>]*id="n8"[^>]*alpha="0.62"/.test(basicsDemoImageXml), 'restored Basics/Demo_Image trims alpha float noise');
 		t.true(/<image\b[^>]*id="n8"[^>]*flip="vt"/.test(basicsDemoImageXml), 'restored Basics/Demo_Image writes editor flip token for vertical mirror');

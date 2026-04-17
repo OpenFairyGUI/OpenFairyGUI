@@ -878,6 +878,44 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 	}
 });
 
+test('writer: display object attribute values escape XML special characters', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectId('test-project').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('EscapeXml');
+	pkg.setId('pkgEscape');
+
+	const comp = doc.createComponent('Escapes');
+	comp.setId('cmpEscapes');
+	comp.setPath('/');
+	comp.setSize(400, 240);
+
+	const text = doc.createGTextField('text');
+	text.setId('n0');
+	text.setText('line1\nline2');
+
+	const rich = doc.createGRichTextField('rich');
+	rich.setId('n1');
+	rich.setText("<a href='event:xx'>click</a>");
+
+	comp.addChild(text);
+	comp.addChild(rich);
+	pkg.addResource(comp);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-escape-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+		const componentXml = await fs.readFile(path.join(tmpDir, 'assets', 'EscapeXml', 'Escapes.xml'), 'utf-8');
+		t.true(componentXml.includes('text="line1&#xA;line2"'), 'text attrs escape newline as XML entity');
+		t.true(componentXml.includes('text="&lt;a href=&apos;event:xx&apos;&gt;click&lt;/a&gt;"'), 'text attrs escape apostrophes and angle brackets');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('round-trip: loader useResize and text strikethrough attrs survive write→read', async (t) => {
 	const doc = new Document();
 	doc.getRoot().setProjectId('test-project').setProjectType(0).setVersion('3.0');
