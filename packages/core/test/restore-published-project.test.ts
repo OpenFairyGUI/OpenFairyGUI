@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
-import { NodeIO, parseJta, type RestoreImageCropInput, type RestoreImageExtractInput } from '../src/index.js';
+import { NodeIO, ProjectType, parseJta, type RestoreImageCropInput, type RestoreImageExtractInput } from '../src/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RELEASE_DIR = path.resolve(__dirname, '../../../release');
@@ -272,6 +272,26 @@ test('restore published project: non-empty output directory fails without force'
 			}),
 			{ message: /not empty/ },
 		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('restore published project: projectType override sets restored project type', async (t) => {
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-type-'));
+	const outputDir = path.join(tmpDir, 'Restored');
+
+	try {
+		const result = await io.restorePublishedProject(RELEASE_DIR, outputDir, {
+			packages: ['Basics'],
+			force: true,
+			projectType: ProjectType.CocosCreator,
+			cropImage,
+			extractImage,
+		});
+		const doc = await io.readProject(result.projectPath);
+		t.is(doc.getRoot().getProjectType(), ProjectType.CocosCreator, 'restored project type follows explicit override');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

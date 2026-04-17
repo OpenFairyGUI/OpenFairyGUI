@@ -12,6 +12,7 @@ import {
 export interface NodeRestorePublishedProjectOptions {
 	packages?: string[];
 	force?: boolean;
+	projectType?: number;
 	cropImage?: RestoreImageCropper;
 	extractImage?: RestoreImageExtractor;
 }
@@ -73,6 +74,7 @@ export class NodeIO extends PlatformIO {
 			binaryPaths,
 			sourceDir,
 			outputProjectPath,
+			projectType: options.projectType,
 			cropImage: options.cropImage,
 			extractImage: options.extractImage,
 		});

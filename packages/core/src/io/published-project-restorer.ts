@@ -28,6 +28,7 @@ export interface RestorePublishedProjectOptions {
 	binaryPaths: string[];
 	sourceDir: string;
 	outputProjectPath: string;
+	projectType?: number;
 	cropImage?: RestoreImageCropper;
 	extractImage?: RestoreImageExtractor;
 }
@@ -375,7 +376,7 @@ export class PublishedProjectRestorer {
 		const warnings: string[] = [];
 		const reader = new BinaryReader(this._fs);
 		const doc = await reader.readMany(options.binaryPaths);
-		this._initializeProjectDefaults(doc);
+		this._initializeProjectDefaults(doc, options.projectType);
 		this._initializeImageFileNames(doc);
 		this._initializeLooseResourceFileNames(doc);
 		await this._synthesizeLooseSkeletonResources(doc, options.sourceDir);
@@ -398,10 +399,10 @@ export class PublishedProjectRestorer {
 		};
 	}
 
-	private _initializeProjectDefaults(doc: Document): void {
+	private _initializeProjectDefaults(doc: Document, projectType?: number): void {
 		doc.getRoot()
 			.setProjectId(generateId())
-			.setProjectType(ProjectType.Unity)
+			.setProjectType(projectType ?? ProjectType.Unity)
 			.setVersion('3.0')
 			.setSettings({
 				publish: {

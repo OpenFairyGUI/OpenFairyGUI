@@ -11,6 +11,14 @@ This repository is organized as a pnpm workspace / Lerna monorepo and currently 
 - `@openfairygui/cli`: command-line interface built on top of the core packages
 - `@openfairygui/test-utils`: shared utilities for tests and fixtures
 
+Recommended CLI publishing naming:
+
+| Item | Value |
+|---|---|
+| npm package | `@openfairygui/cli` |
+| preferred command | `ofgui` |
+| compatibility alias | `openfairygui` |
+
 ## Documentation
 
 The implementation reference documents are currently maintained in Chinese. Start from [docs/README.md](./docs/README.md).
@@ -75,10 +83,25 @@ Run the CLI in development mode:
 pnpm dev:cli
 ```
 
+After installation, prefer the short command:
+
+```bash
+ofgui --help
+```
+
+Override project type from the command line:
+
+```bash
+ofgui publish ./MyProject --output ./release --project-type unity
+ofgui restore ./release --output ./restored-project --project-type cocoscreator
+```
+
+`--project-type` accepts either a name or a numeric id, for example: `unity`, `layabox`, `cocoscreator`, `0`, `4`, `3`.
+
 Restore a FairyGUI project from a Unity publish directory:
 
 ```bash
-pnpm dev:cli restore release --output ./restored-project --packages Basics,Branch --force
+ofgui restore release --output ./restored-project --packages Basics,Branch --force
 ```
 
 ## Available Scripts
@@ -92,6 +115,8 @@ pnpm dev:cli restore release --output ./restored-project --packages Basics,Branc
 | `pnpm coverage` | Run tests with coverage reporting |
 | `pnpm lint` | Run Biome lint checks |
 | `pnpm dev:cli` | Run the CLI entry in development mode |
+| `ofgui` | Preferred installed CLI command |
+| `openfairygui` | Compatibility CLI alias |
 
 ## Status
 

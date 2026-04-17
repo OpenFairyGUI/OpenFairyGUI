@@ -11,6 +11,14 @@ OpenFairyGUI 是一个面向 FairyGUI 项目的无头创作 SDK。
 - `@openfairygui/cli`：构建在核心包之上的命令行工具
 - `@openfairygui/test-utils`：测试与夹具共享工具
 
+CLI 发布口径建议：
+
+| 项目 | 值 |
+|---|---|
+| npm 包名 | `@openfairygui/cli` |
+| 推荐命令 | `ofgui` |
+| 兼容别名 | `openfairygui` |
+
 ## 文档 / Docs
 
 当前开发依据文档以中文维护，入口见 [docs/README.md](./docs/README.md)。
@@ -75,10 +83,25 @@ pnpm test
 pnpm dev:cli
 ```
 
+安装后推荐使用短命令：
+
+```bash
+ofgui --help
+```
+
+按命令覆盖项目类型：
+
+```bash
+ofgui publish ./MyProject --output ./release --project-type unity
+ofgui restore ./release --output ./restored-project --project-type cocoscreator
+```
+
+`--project-type` 支持传名称或数字 id，例如：`unity` / `layabox` / `cocoscreator` / `0` / `4` / `3`。
+
 从 Unity 发布目录还原 FairyGUI 工程：
 
 ```bash
-pnpm dev:cli restore release --output ./restored-project --packages Basics,Branch --force
+ofgui restore release --output ./restored-project --packages Basics,Branch --force
 ```
 
 ## 常用脚本
@@ -92,6 +115,8 @@ pnpm dev:cli restore release --output ./restored-project --packages Basics,Branc
 | `pnpm coverage` | 运行测试并生成覆盖率报告 |
 | `pnpm lint` | 运行 Biome lint 检查 |
 | `pnpm dev:cli` | 以开发模式运行 CLI 入口 |
+| `ofgui` | 安装后推荐使用的 CLI 主命令 |
+| `openfairygui` | 保留兼容的 CLI 别名 |
 
 ## 当前状态
 

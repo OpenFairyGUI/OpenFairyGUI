@@ -6,6 +6,7 @@
 	"license": "MIT",
 	"type": "module",
 	"bin": {
+		"ofgui": "bin/cli.cjs",
 		"openfairygui": "bin/cli.cjs"
 	},
 	"scripts": {

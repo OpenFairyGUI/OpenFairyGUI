@@ -1,5 +1,6 @@
 import {
 	NodeIO,
+	ProjectType,
 	type RestoreImageCropInput,
 	type RestoreImageCropper,
 	type RestoreImageExtractInput,
@@ -11,7 +12,10 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 
 const HELP = `
-openfairygui — FairyGUI Headless Authoring CLI
+ofgui — FairyGUI Headless Authoring CLI
+
+Alias:
+  openfairygui
 
 Commands:
   inspect <project-dir>                          Show project contents report
@@ -23,11 +27,13 @@ Publish options:
   --compressed           Compress binary data (overrides project setting)
   --packages <a,b,c>     Only publish specific packages (comma-separated)
   --branch <name>        Active branch used by "主干合并活跃分支"; omit for main branch
+  --project-type <name|id>  Override project type (for example: unity, layabox, cocoscreator, 0, 4, 3)
 
 Restore options:
   --output, -o <dir>     Output project directory (required)
   --packages <a,b,c>     Only restore specific packages (comma-separated)
   --force                Overwrite a non-empty output directory
+  --project-type <name|id>  Override restored project type; default is unity
 
 Options:
   --help, -h     Show this help
@@ -187,7 +193,7 @@ async function createRestoreImageProcessors(): Promise<RestoreImageProcessors> {
 
 async function cmdInspect(args: string[]): Promise<void> {
 	if (args.length === 0) {
-		console.error('Usage: openfairygui inspect <project-dir>');
+		console.error('Usage: ofgui inspect <project-dir>');
 		process.exit(1);
 	}
 
@@ -222,6 +228,36 @@ function printReport(report: InspectReport): void {
 	}
 }
 
+function parseProjectType(value: string | undefined): number | undefined {
+	if (!value) return undefined;
+	const trimmed = value.trim();
+	if (trimmed === '') return undefined;
+	if (/^\d+$/u.test(trimmed)) return Number(trimmed);
+	const normalized = trimmed.toLowerCase();
+	const map: Record<string, number> = {
+		unity: ProjectType.Unity,
+		flash: ProjectType.Flash,
+		starling: ProjectType.Starling,
+		cocoscreator: ProjectType.CocosCreator,
+		cocos: ProjectType.CocosCreator,
+		layabox: ProjectType.LayaBox,
+		laya: ProjectType.LayaBox,
+		egret: ProjectType.Egret,
+		haxe: ProjectType.Haxe,
+		pixi: ProjectType.Pixi,
+		libgdx: ProjectType.LibGDX,
+		unreal: ProjectType.Unreal,
+		cryengine: ProjectType.CryEngine,
+		monogame: ProjectType.MonoGame,
+		vision: ProjectType.Vision,
+	};
+	const resolved = map[normalized];
+	if (resolved === undefined) {
+		throw new Error(`Unknown project type: ${value}. Use a numeric id or one of: ${Object.keys(map).join(', ')}`);
+	}
+	return resolved;
+}
+
 async function cmdRestore(args: string[]): Promise<void> {
 	const { values, positionals } = parseArgs({
 		args,
@@ -229,18 +265,20 @@ async function cmdRestore(args: string[]): Promise<void> {
 			output: { type: 'string', short: 'o' },
 			packages: { type: 'string' },
 			force: { type: 'boolean' },
+			'project-type': { type: 'string' },
 		},
 		allowPositionals: true,
 	});
 
 	if (positionals.length === 0 || !values.output) {
-		console.error('Usage: openfairygui restore <release-dir> --output <dir> [--packages a,b,c] [--force]');
+		console.error('Usage: ofgui restore <release-dir> --output <dir> [--packages a,b,c] [--force]');
 		process.exit(1);
 	}
 
 	const releaseDir = path.resolve(positionals[0]);
 	const outputDir = path.resolve(values.output);
 	const pkgFilter = values.packages ? values.packages.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
+	const projectType = parseProjectType(values['project-type']);
 	const { cropImage, extractImage } = await createRestoreImageProcessors();
 
 	console.log(`Restoring published FairyGUI project: ${releaseDir}`);
@@ -248,6 +286,7 @@ async function cmdRestore(args: string[]): Promise<void> {
 	const result = await io.restorePublishedProject(releaseDir, outputDir, {
 		packages: pkgFilter,
 		force: values.force,
+		projectType,
 		cropImage,
 		extractImage,
 	});
@@ -268,12 +307,13 @@ async function cmdPublish(args: string[]): Promise<void> {
 			compressed: { type: 'boolean' },
 			packages: { type: 'string' },
 			branch: { type: 'string' },
+			'project-type': { type: 'string' },
 		},
 		allowPositionals: true,
 	});
 
 	if (positionals.length === 0 || !values.output) {
-		console.error('Usage: openfairygui publish <project-dir> --output <dir> [--compressed] [--packages a,b,c] [--branch name]');
+		console.error('Usage: ofgui publish <project-dir> --output <dir> [--compressed] [--packages a,b,c] [--branch name]');
 		process.exit(1);
 	}
 
@@ -284,6 +324,10 @@ async function cmdPublish(args: string[]): Promise<void> {
 	console.log(`Reading project: ${fairyPath}`);
 	const io = new NodeIO();
 	const doc = await io.readProject(fairyPath);
+	const projectType = parseProjectType(values['project-type']);
+	if (projectType !== undefined) {
+		doc.getRoot().setProjectType(projectType);
+	}
 
 	const pkgFilter = values.packages ? values.packages.split(',').map((s) => s.trim()) : undefined;
 	const resolved = resolvePublishOptions(doc, {
