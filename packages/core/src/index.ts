@@ -117,16 +117,8 @@ export {
 	BinaryReader,
 	BinaryWriter,
 	ReaderContext,
-	PublishedProjectRestorer,
 	type BinaryWriterOptions,
 	type FileSystem,
-	type NodeRestorePublishedProjectOptions,
-	type RestoreImageCropInput,
-	type RestoreImageCropper,
-	type RestoreImageExtractInput,
-	type RestoreImageExtractor,
-	type RestorePublishedProjectOptions,
-	type RestorePublishedProjectResult,
 } from './io/index.js';
 
 // Types

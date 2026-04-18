@@ -4,7 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
-import { NodeIO, ProjectType, parseJta, type RestoreImageCropInput, type RestoreImageExtractInput } from '../src/index.js';
+import { NodeIO, ProjectType, parseJta } from '@openfairygui/core';
+import { restore, type RestoreFileSystem, type RestoreImageCropInput, type RestoreImageExtractInput } from '../src/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RELEASE_DIR = path.resolve(__dirname, '../../../release');
@@ -50,13 +51,73 @@ async function cropImage(input: RestoreImageCropInput): Promise<void> {
 	await fs.writeFile(input.outputPath, await extractImage(input));
 }
 
+function createRestoreFs(): RestoreFileSystem {
+	return {
+		async readFile(filePath: string): Promise<string> {
+			return fs.readFile(filePath, 'utf-8');
+		},
+		async readFileRaw(filePath: string): Promise<Uint8Array> {
+			const buf = await fs.readFile(filePath);
+			return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+		},
+		async writeFile(filePath: string, content: string): Promise<void> {
+			await fs.mkdir(path.dirname(filePath), { recursive: true });
+			await fs.writeFile(filePath, content, 'utf-8');
+		},
+		async writeFileRaw(filePath: string, data: Uint8Array): Promise<void> {
+			await fs.mkdir(path.dirname(filePath), { recursive: true });
+			await fs.writeFile(filePath, data);
+		},
+		async mkdir(dirPath: string): Promise<void> {
+			await fs.mkdir(dirPath, { recursive: true });
+		},
+		async readdir(dirPath: string): Promise<string[]> {
+			return fs.readdir(dirPath);
+		},
+		async exists(filePath: string): Promise<boolean> {
+			try {
+				await fs.access(filePath);
+				return true;
+			} catch {
+				return false;
+			}
+		},
+		async isFile(filePath: string): Promise<boolean> {
+			try {
+				return (await fs.stat(filePath)).isFile();
+			} catch {
+				return false;
+			}
+		},
+		async resolvePath(filePath: string): Promise<string> {
+			try {
+				return await fs.realpath(filePath);
+			} catch {
+				return path.resolve(filePath);
+			}
+		},
+		async rm(targetPath: string, options?: { recursive?: boolean; force?: boolean }): Promise<void> {
+			await fs.rm(targetPath, { recursive: options?.recursive ?? false, force: options?.force ?? false });
+		},
+		join(...paths: string[]): string {
+			return path.join(...paths);
+		},
+		dirname(filePath: string): string {
+			return path.dirname(filePath);
+		},
+	};
+}
+
 test('restore published project: directory batch restores packages, assets, and branch files', async (t) => {
 	const io = new NodeIO();
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-'));
 	const outputDir = path.join(tmpDir, 'Restored');
 
 	try {
-		const result = await io.restorePublishedProject(RELEASE_DIR, outputDir, {
+		const result = await restore({
+			inputDir: RELEASE_DIR,
+			output: outputDir,
+			fs: createRestoreFs(),
 			packages: ['Basics', 'Branch', 'Joystick', 'Loader', 'TextMeshPro'],
 			force: true,
 			cropImage,
@@ -129,7 +190,10 @@ test('restore published project: directory batch restores packages, assets, and 
 		const basicsButton52Xml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'components', 'Button52.xml'), 'utf-8');
 		t.true(basicsButton52Xml.includes('<gearLook controller="grayed" pages="0,1" values="1.00,0,0|-" default="1.00,0,1"'), 'restored Button52 keeps editor-style fixed alpha precision in gearLook');
 		const bagOutputDir = path.join(outputDir, 'BagPack');
-		await io.restorePublishedProject(RELEASE_DIR, bagOutputDir, {
+		await restore({
+			inputDir: RELEASE_DIR,
+			output: bagOutputDir,
+			fs: createRestoreFs(),
 			packages: ['Bag'],
 			force: true,
 			cropImage,
@@ -193,7 +257,10 @@ test('restore published project: directory batch restores packages, assets, and 
 		t.true(textMeshProPackageXml.includes('samplePointSize="60"'), 'SDF font sample point size is restored from published font name');
 
 		const transitionOutputDir = path.join(outputDir, 'TransitionPack');
-		const transitionResult = await io.restorePublishedProject(RELEASE_DIR, transitionOutputDir, {
+		const transitionResult = await restore({
+			inputDir: RELEASE_DIR,
+			output: transitionOutputDir,
+			fs: createRestoreFs(),
 			packages: ['Transition'],
 			force: true,
 			cropImage,
@@ -230,7 +297,10 @@ test('restore published project: directory batch restores packages, assets, and 
 		t.true(goodHitXml.includes('<item time="7" type="Shake" value="3,0.5"/>'), 'restored Transition/GoodHit rounds transition time float noise to frame integers');
 
 		const emitNumbersOutputDir = path.join(outputDir, 'EmitNumbersPack');
-		const emitNumbersResult = await io.restorePublishedProject(RELEASE_DIR, emitNumbersOutputDir, {
+		const emitNumbersResult = await restore({
+			inputDir: RELEASE_DIR,
+			output: emitNumbersOutputDir,
+			fs: createRestoreFs(),
 			packages: ['EmitNumbers'],
 			force: true,
 			cropImage,
@@ -255,7 +325,10 @@ test('restore published project: directory batch restores packages, assets, and 
 		t.false(/<loader3d\b[^>]*\bvAlign=/.test(loaderMainXml), 'restored Loader/Main omits default loader3D vAlign attrs');
 
 		const treeViewOutputDir = path.join(outputDir, 'TreeViewPack');
-		await io.restorePublishedProject(RELEASE_DIR, treeViewOutputDir, {
+		await restore({
+			inputDir: RELEASE_DIR,
+			output: treeViewOutputDir,
+			fs: createRestoreFs(),
 			packages: ['TreeView'],
 			force: true,
 			cropImage,
@@ -268,8 +341,59 @@ test('restore published project: directory batch restores packages, assets, and 
 	}
 });
 
+test('restore published project: ignores directory entries that look like binary packages', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-direntry-'));
+	const releaseDir = path.join(tmpDir, 'release');
+	const outputDir = path.join(tmpDir, 'Restored');
+
+	try {
+		await fs.mkdir(releaseDir, { recursive: true });
+		await fs.copyFile(path.join(RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
+		await fs.mkdir(path.join(releaseDir, 'Fake.bin'), { recursive: true });
+
+		const result = await restore({
+			inputDir: releaseDir,
+			output: outputDir,
+			fs: createRestoreFs(),
+			force: true,
+		});
+
+		t.truthy(result.document.getRoot().getPackage('Basics'), 'restore keeps actual binary packages');
+		t.falsy(result.document.getRoot().getPackage('Fake'), 'restore ignores directories whose names look like published package files');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('restore published project: ignores loose-resource directories and falls back to later file candidates', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-loose-'));
+	const releaseDir = path.join(tmpDir, 'release');
+	const outputDir = path.join(tmpDir, 'Restored');
+
+	try {
+		await fs.mkdir(releaseDir, { recursive: true });
+		await fs.copyFile(path.join(RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
+		await fs.mkdir(path.join(releaseDir, 'Basics_gojg7u.wav'), { recursive: true });
+
+		const result = await restore({
+			inputDir: releaseDir,
+			output: outputDir,
+			fs: createRestoreFs(),
+			packages: ['Basics'],
+			force: true,
+		});
+
+		t.truthy(result.document.getRoot().getPackage('Basics'), 'restore still completes when a loose-resource candidate is a directory');
+		t.true(
+			result.warnings.some((warning) => warning.includes('tabswitch.wav')),
+			'restore treats directory-shaped loose-resource candidates as missing files instead of reading them',
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('restore published project: non-empty output directory fails without force', async (t) => {
-	const io = new NodeIO();
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-nonempty-'));
 	const outputDir = path.join(tmpDir, 'Restored');
 
@@ -278,7 +402,10 @@ test('restore published project: non-empty output directory fails without force'
 		await fs.writeFile(path.join(outputDir, 'keep.txt'), 'do not overwrite', 'utf-8');
 
 		await t.throwsAsync(
-			() => io.restorePublishedProject(RELEASE_DIR, outputDir, {
+			() => restore({
+				inputDir: RELEASE_DIR,
+				output: outputDir,
+				fs: createRestoreFs(),
 				packages: ['Basics'],
 				cropImage,
 				extractImage,
@@ -290,13 +417,157 @@ test('restore published project: non-empty output directory fails without force'
 	}
 });
 
+test('restore published project: equivalent source and output paths are rejected before overwrite', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-samepath-'));
+	const releaseDir = path.join(tmpDir, 'release');
+
+	try {
+		await fs.mkdir(releaseDir, { recursive: true });
+		await fs.copyFile(path.join(RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
+
+		await t.throwsAsync(
+			() => restore({
+				inputDir: `${releaseDir}${path.sep}.`,
+				output: releaseDir,
+				fs: createRestoreFs(),
+				force: true,
+			}),
+			{ message: /must be different/ },
+		);
+		t.truthy(
+			await fs.stat(path.join(releaseDir, 'Basics_fui.bytes')).catch(() => null),
+			'restore keeps the published source directory intact when source and output spellings are equivalent',
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('restore published project: case-variant equivalent paths are rejected before overwrite', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-casepath-'));
+	const releaseDir = path.join(tmpDir, 'release');
+
+	try {
+		await fs.mkdir(releaseDir, { recursive: true });
+		await fs.copyFile(path.join(RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
+
+		await t.throwsAsync(
+			() => restore({
+				inputDir: releaseDir.toUpperCase(),
+				output: releaseDir,
+				fs: createRestoreFs(),
+				force: true,
+			}),
+			{ message: /must be different/ },
+		);
+		t.truthy(
+			await fs.stat(path.join(releaseDir, 'Basics_fui.bytes')).catch(() => null),
+			'restore keeps the published source directory intact when source and output differ only by path casing',
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test.serial('restore published project: mixed relative and absolute aliases are rejected before overwrite', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-mixedpath-'));
+	const releaseDir = path.join(tmpDir, 'release');
+	const previousCwd = process.cwd();
+
+	try {
+		await fs.mkdir(releaseDir, { recursive: true });
+		await fs.copyFile(path.join(RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
+		process.chdir(tmpDir);
+
+		await t.throwsAsync(
+			() => restore({
+				inputDir: 'release',
+				output: path.resolve('release'),
+				fs: createRestoreFs(),
+				force: true,
+			}),
+			{ message: /must be different/ },
+		);
+		t.truthy(
+			await fs.stat(path.join(releaseDir, 'Basics_fui.bytes')).catch(() => null),
+			'restore keeps the published source directory intact when relative and absolute paths alias the same directory',
+		);
+	} finally {
+		process.chdir(previousCwd);
+		await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
+	}
+});
+
+test('restore published project: filesystem alias paths are rejected before overwrite', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-realpath-'));
+	const releaseDir = path.join(tmpDir, 'release');
+	const aliasDir = path.join(tmpDir, 'release-link');
+
+	try {
+		await fs.mkdir(releaseDir, { recursive: true });
+		await fs.copyFile(path.join(RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
+		await fs.symlink(releaseDir, aliasDir, process.platform === 'win32' ? 'junction' : 'dir');
+
+		await t.throwsAsync(
+			() => restore({
+				inputDir: aliasDir,
+				output: releaseDir,
+				fs: createRestoreFs(),
+				force: true,
+			}),
+			{ message: /must be different/ },
+		);
+		t.truthy(
+			await fs.stat(path.join(releaseDir, 'Basics_fui.bytes')).catch(() => null),
+			'restore keeps the published source directory intact when output aliases the same directory through the filesystem',
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
+	}
+});
+
+test.serial('restore published project: bare relative .fairy output targets write a file, not a directory', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-relative-file-'));
+	const releaseDir = path.join(tmpDir, 'release');
+	const previousCwd = process.cwd();
+
+	try {
+		await fs.mkdir(releaseDir, { recursive: true });
+		await fs.copyFile(path.join(RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
+		process.chdir(tmpDir);
+
+		const result = await restore({
+			inputDir: releaseDir,
+			output: 'Restored.fairy',
+			fs: createRestoreFs(),
+			force: true,
+		});
+
+		t.is(result.projectPath, 'Restored.fairy');
+		t.truthy(
+			await fs.stat(path.join(tmpDir, 'Restored.fairy')).catch(() => null),
+			'restore writes the requested .fairy output file',
+		);
+		t.false(
+			(await fs.stat(path.join(tmpDir, 'Restored.fairy')).catch(() => null))?.isDirectory() ?? false,
+			'restore does not create a directory at the requested .fairy output path',
+		);
+	} finally {
+		process.chdir(previousCwd);
+		await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
+	}
+});
+
 test('restore published project: projectType override sets restored project type', async (t) => {
 	const io = new NodeIO();
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-type-'));
 	const outputDir = path.join(tmpDir, 'Restored');
 
 	try {
-		const result = await io.restorePublishedProject(RELEASE_DIR, outputDir, {
+		const result = await restore({
+			inputDir: RELEASE_DIR,
+			output: outputDir,
+			fs: createRestoreFs(),
 			packages: ['Basics'],
 			force: true,
 			projectType: ProjectType.CocosCreator,

@@ -1,12 +1,20 @@
 import {
 	NodeIO,
 	ProjectType,
+} from '@openfairygui/core';
+import {
+	inspect,
+	publish,
+	resolvePublishOptions,
+	restore,
+	type InspectReport,
+	type PublishOptions,
+	type RestoreFileSystem,
 	type RestoreImageCropInput,
 	type RestoreImageCropper,
 	type RestoreImageExtractInput,
 	type RestoreImageExtractor,
-} from '@openfairygui/core';
-import { inspect, publish, resolvePublishOptions, type InspectReport, type PublishOptions } from '@openfairygui/functions';
+} from '@openfairygui/functions';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
@@ -104,6 +112,63 @@ async function main(): Promise<void> {
 interface RestoreImageProcessors {
 	cropImage: RestoreImageCropper;
 	extractImage: RestoreImageExtractor;
+}
+
+function createNodeRestoreFs(): RestoreFileSystem {
+	return {
+		async readFile(filePath: string): Promise<string> {
+			return fs.readFile(filePath, 'utf-8');
+		},
+		async readFileRaw(filePath: string): Promise<Uint8Array> {
+			const buf = await fs.readFile(filePath);
+			return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+		},
+		async writeFile(filePath: string, content: string): Promise<void> {
+			await fs.mkdir(path.dirname(filePath), { recursive: true });
+			await fs.writeFile(filePath, content, 'utf-8');
+		},
+		async writeFileRaw(filePath: string, data: Uint8Array): Promise<void> {
+			await fs.mkdir(path.dirname(filePath), { recursive: true });
+			await fs.writeFile(filePath, data);
+		},
+		async mkdir(dirPath: string): Promise<void> {
+			await fs.mkdir(dirPath, { recursive: true });
+		},
+		async readdir(dirPath: string): Promise<string[]> {
+			return fs.readdir(dirPath);
+		},
+		async exists(filePath: string): Promise<boolean> {
+			try {
+				await fs.access(filePath);
+				return true;
+			} catch {
+				return false;
+			}
+		},
+		async isFile(filePath: string): Promise<boolean> {
+			try {
+				return (await fs.stat(filePath)).isFile();
+			} catch {
+				return false;
+			}
+		},
+		async resolvePath(filePath: string): Promise<string> {
+			try {
+				return await fs.realpath(filePath);
+			} catch {
+				return path.resolve(filePath);
+			}
+		},
+		async rm(targetPath: string, options?: { recursive?: boolean; force?: boolean }): Promise<void> {
+			await fs.rm(targetPath, { recursive: options?.recursive ?? false, force: options?.force ?? false });
+		},
+		join(...paths: string[]): string {
+			return path.join(...paths);
+		},
+		dirname(filePath: string): string {
+			return path.dirname(filePath);
+		},
+	};
 }
 
 async function createRestoreImageProcessors(): Promise<RestoreImageProcessors> {
@@ -282,8 +347,10 @@ async function cmdRestore(args: string[]): Promise<void> {
 	const { cropImage, extractImage } = await createRestoreImageProcessors();
 
 	console.log(`Restoring published FairyGUI project: ${releaseDir}`);
-	const io = new NodeIO();
-	const result = await io.restorePublishedProject(releaseDir, outputDir, {
+	const result = await restore({
+		inputDir: releaseDir,
+		output: outputDir,
+		fs: createNodeRestoreFs(),
 		packages: pkgFilter,
 		force: values.force,
 		projectType,

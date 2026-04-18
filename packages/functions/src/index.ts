@@ -5,6 +5,16 @@ export { rename, type RenameOptions } from './rename.js';
 export { atlas, type AtlasOptions } from './atlas.js';
 export { publishCodeGeneration, AUTO_GENERATED_CODE_MARK, type PublishCodeGenerationOptions } from './codegen.js';
 export {
+	restore,
+	type RestoreFileSystem,
+	type RestoreImageCropInput,
+	type RestoreImageCropper,
+	type RestoreImageExtractInput,
+	type RestoreImageExtractor,
+	type RestoreOptions,
+	type RestoreResult,
+} from './restore.js';
+export {
 	publish,
 	resolvePublishOptions,
 	type PublishOptions,

@@ -27,8 +27,8 @@ OpenFairyGUI 用于读取、编辑、写回和发布 FairyGUI 工程数据。和
 
 | 包 | 作用 |
 |---|---|
-| `@openfairygui/core` | 属性图、文档模型、工程读写、二进制读写、发布产物还原 |
-| `@openfairygui/functions` | 发布、检查、转换等高层函数能力 |
+| `@openfairygui/core` | 属性图、文档模型、工程读写、二进制读写等底层能力 |
+| `@openfairygui/functions` | 发布、还原、检查、转换等高层函数能力 |
 | `@openfairygui/cli` | 命令行工具 |
 | `@openfairygui/test-utils` | 测试辅助与夹具 |
 
@@ -57,14 +57,41 @@ await doc.transform(publish({
 }));
 ```
 
-如果你更关心“发布产物 -> 工程”的恢复链路，也可以直接调用：
+如果你更关心“发布产物 -> 工程”的恢复链路，也可以直接调用 `functions` 层的 restore workflow：
 
 ```ts
-import { NodeIO, ProjectType } from '@openfairygui/core';
+import { ProjectType } from '@openfairygui/core';
+import { restore } from '@openfairygui/functions';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
-const io = new NodeIO();
-await io.restorePublishedProject('./release', './restored-project', {
+await restore({
+  inputDir: './release',
+  output: './restored-project',
   projectType: ProjectType.Unity,
+  fs: {
+    async readFile(filePath) { return fs.readFile(filePath, 'utf-8'); },
+    async readFileRaw(filePath) {
+      const buf = await fs.readFile(filePath);
+      return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+    },
+    async writeFile(filePath, content) {
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
+      await fs.writeFile(filePath, content, 'utf-8');
+    },
+    async writeFileRaw(filePath, data) {
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
+      await fs.writeFile(filePath, data);
+    },
+    async mkdir(dirPath) { await fs.mkdir(dirPath, { recursive: true }); },
+    async readdir(dirPath) { return fs.readdir(dirPath); },
+    async exists(filePath) { try { await fs.access(filePath); return true; } catch { return false; } },
+    async isFile(filePath) { try { return (await fs.stat(filePath)).isFile(); } catch { return false; } },
+    async resolvePath(filePath) { try { return await fs.realpath(filePath); } catch { return path.resolve(filePath); } },
+    async rm(targetPath, options) { await fs.rm(targetPath, { recursive: options?.recursive ?? false, force: options?.force ?? false }); },
+    join: path.join,
+    dirname: path.dirname,
+  },
 });
 ```
 

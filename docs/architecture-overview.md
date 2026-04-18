@@ -16,7 +16,6 @@ flowchart LR
         FS["PlatformIO / NodeIO"]
         PR["ProjectReader"]
         BR["BinaryReader"]
-        RST["PublishedProjectRestorer"]
         PW["ProjectWriter"]
         BW["BinaryWriter"]
     end
@@ -32,6 +31,7 @@ flowchart LR
     subgraph WF["工作流能力"]
         OPS["inspect / validate / prune / rename"]
         PUB["publish"]
+        RST["restore"]
         ATLAS["atlas"]
         CG["codegen"]
     end
@@ -52,9 +52,12 @@ flowchart LR
     DOC --> ROOT --> RES --> COMP --> UI
     DOC --> OPS
     DOC --> PUB
+    DOC --> RST
     PUB --> ATLAS
     PUB --> BW
     PUB --> CG
+    RST --> BR
+    RST --> PW
 
     DOC --> PW
     PW --> PROJOUT
@@ -68,16 +71,16 @@ flowchart LR
 | 层级 | 当前职责 | 核心文件 |
 |---|---|---|
 | 入口层 | 命令行封装与参数分发 | `packages/cli/src/cli.ts` |
-| 协议适配层 | 屏蔽平台文件系统差异，承接工程格式、二进制格式和发布产物恢复，并集中声明工程 XML 协议元数据 | `packages/core/src/io/platform-io.ts`、`packages/core/src/io/node-io.ts`、`packages/core/src/io/project-xml-protocol.ts`、`packages/core/src/io/project-reader.ts`、`packages/core/src/io/binary-reader.ts`、`packages/core/src/io/component-decoder.ts`、`packages/core/src/io/published-project-restorer.ts` |
+| 协议适配层 | 屏蔽平台文件系统差异，承接工程格式、二进制格式与工程 XML 协议元数据 | `packages/core/src/io/platform-io.ts`、`packages/core/src/io/node-io.ts`、`packages/core/src/io/project-xml-protocol.ts`、`packages/core/src/io/project-reader.ts`、`packages/core/src/io/binary-reader.ts`、`packages/core/src/io/component-decoder.ts` |
 | 核心模型层 | `Document` 持有 `Property Graph`，统一组织项目节点、资源节点与组件语义对象 | `packages/core/src/document.ts`、`packages/core/src/properties/property.ts` |
 | 项目骨架层 | `Root -> Package -> Resource -> Component` 组成基础结构 | `packages/core/src/properties/root.ts`、`packages/core/src/properties/package.ts`、`packages/core/src/properties/component.ts` |
-| 工作流层 | 面向自动化的可组合处理管线 | `packages/functions/src/inspect.ts`、`packages/functions/src/validate.ts`、`packages/functions/src/prune.ts`、`packages/functions/src/rename.ts`、`packages/functions/src/publish.ts`、`packages/functions/src/codegen.ts` |
+| 工作流层 | 面向自动化的可组合处理管线 | `packages/functions/src/inspect.ts`、`packages/functions/src/validate.ts`、`packages/functions/src/prune.ts`、`packages/functions/src/rename.ts`、`packages/functions/src/publish.ts`、`packages/functions/src/restore.ts`、`packages/functions/src/codegen.ts` |
 | 输出层 | 工程文件写回、图集产物生成、二进制封包输出与代码生成输出 | `packages/core/src/io/project-writer.ts`、`packages/functions/src/atlas.ts`、`packages/core/src/io/binary-writer.ts`、`packages/functions/src/codegen.ts` |
 
 补充说明：
 - `@openfairygui/core` 定义文档模型与协议读写能力。
 - `BinaryReader` 仍然是二进制读入口；component block 的展开逻辑当前拆到内部 helper `component-decoder.ts`，对外调用面不变。
-- `@openfairygui/functions` 只组合流程，不重新定义底层协议；当前 `publish` 会编排 atlas、binary publish 与受限代码生成。
+- `@openfairygui/functions` 只组合流程，不重新定义底层协议；当前 `publish` 与 `restore` 都在这里编排高层 workflow，并组合 `core` primitives。
 - 当前 Unity、Layabox、Cocos Creator 共用同一条 `publish -> atlas / binary / codegen` 主链；差异主要体现在描述文件扩展名和代码生成 lane 选择，而不是工作流分叉。
 - `@openfairygui/cli` 是入口层，不下沉协议细节。
 
@@ -169,14 +172,14 @@ flowchart LR
 
 ## 当前发布产物还原口径
 
-`restore` 当前面向 Unity 发布目录，把发布二进制与同目录附属资源重建成一个可重读的 FairyGUI 工程目录。该链路不承诺还原原工程的编辑器设置或历史文件布局，只输出当前模型可表达的工程结构。
+`restore` 当前作为 `functions` 层 workflow，面向发布目录，把发布二进制与同目录附属资源重建成一个可重读的 FairyGUI 工程目录。该链路不承诺还原原工程的编辑器设置或历史文件布局，只输出当前模型可表达的工程结构。
 
 | 输入 / 资源 | 当前还原行为 |
 |---|---|
 | `*_fui.bytes` / `.fui` | 批量读取到同一个 `Document`，按 package id 合并依赖占位包与真实包 |
-| `atlas*.png` | 由 `PublishedProjectRestorer` 通过注入的图片裁切器按 sprite 映射裁切为碎图 PNG |
+| `atlas*.png` | 由 `functions` 层 restore workflow 通过注入的图片裁切器按 sprite 映射裁切为碎图 PNG |
 | `SoundResource` / `MiscResource` / `SpineResource` / `DragonBonesResource` | 优先按发布文件名从发布目录复制，回退按工程资源文件名复制；当发布文件基名等于资源 id 且资源名可用时，输出文件名回写为工程侧资源名；Unity 发布名 `.atlas.txt` / `.skel.bytes` 会还原为工程侧 `.atlas` / `.skel` |
-| skeleton loose sidecar | 若发布目录存在 `.atlas.txt` / `.png` / `_tex.json` 等 sidecar，而二进制资源表未显式携带对应 `misc` / `image` 资源，`PublishedProjectRestorer` 会补建正式资源节点，并回填 `require` / `atlasNames`；当 `.skel.bytes` 资源能匹配到 Spine atlas sidecar 时，恢复结果按 `spine` 资源写回 |
+| skeleton loose sidecar | 若发布目录存在 `.atlas.txt` / `.png` / `_tex.json` 等 sidecar，而二进制资源表未显式携带对应 `misc` / `image` 资源，restore workflow 会补建正式资源节点，并回填 `require` / `atlasNames`；当 `.skel.bytes` 资源能匹配到 Spine atlas sidecar 时，恢复结果按 `spine` 资源写回 |
 | 工程设置 | 初始化 Unity 发布默认值，不从发布包反推原编辑器设置 |
 | `packageDescription > publish` | 按发布包中的 atlas 页重建默认 publish atlas 条目，用于表达包级发布图集 |
 | `SpineResource` / `DragonBonesResource` | 按同目录 `.atlas` / `.png` / `_tex.json` 资源推导 `require` 与 `atlasNames`；该推导只覆盖发布目录可见的依赖资源 |
@@ -188,7 +191,7 @@ flowchart LR
 flowchart TD
     A["工程目录输入"] --> B["ProjectReader"]
     X["二进制包输入"] --> Y["BinaryReader"]
-    R["发布目录输入<br/>.fui/.bytes + atlas/sounds"] --> S["PublishedProjectRestorer"]
+    R["发布目录输入<br/>.fui/.bytes + atlas/sounds"] --> S["restore"]
     B --> C["Document"]
     Y --> C
     S --> C
@@ -206,7 +209,7 @@ flowchart TD
 
 | 模块 | 负责内容 | 不负责内容 |
 |---|---|---|
-| `@openfairygui/core` | 文档模型、属性节点、项目格式读写、二进制协议读写、发布产物恢复编排 | 发布策略、命令行参数封装 |
-| `@openfairygui/functions` | inspect / validate / prune / rename / atlas / publish 等流程组合 | 协议定义、Property Graph 基础建模 |
+| `@openfairygui/core` | 文档模型、属性节点、项目格式读写、二进制协议读写等底层能力 | 发布/还原策略、命令行参数封装 |
+| `@openfairygui/functions` | inspect / validate / prune / rename / atlas / publish / restore 等流程组合 | 协议定义、Property Graph 基础建模 |
 | `@openfairygui/cli` | 命令入口、参数解析、调用装配 | 领域模型定义、协议定义 |
 | `@openfairygui/test-utils` | 测试辅助与夹具支持 | 生产协议与运行时流程 |

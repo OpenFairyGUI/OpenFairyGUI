@@ -1,10 +1,12 @@
-import { ProjectType } from '../constants.js';
-import type { Document } from '../document.js';
-import type { Package } from '../properties/package.js';
-import { generateId } from '../utils/id-utils.js';
-import { BinaryReader } from './binary-reader.js';
-import { ProjectWriter } from './project-writer.js';
-import type { FileSystem } from './project-reader.js';
+import {
+	BinaryReader,
+	type Document,
+	type FileSystem,
+	generateId,
+	ProjectType,
+	ProjectWriter,
+	type Package,
+} from '@openfairygui/core';
 
 export interface RestoreImageCropInput {
 	sourcePath: string;
@@ -24,7 +26,7 @@ export type RestoreImageCropper = (input: RestoreImageCropInput) => Promise<void
 export type RestoreImageExtractInput = Omit<RestoreImageCropInput, 'outputPath'>;
 export type RestoreImageExtractor = (input: RestoreImageExtractInput) => Promise<Uint8Array>;
 
-export interface RestorePublishedProjectOptions {
+interface RestoreExecutionOptions {
 	binaryPaths: string[];
 	sourceDir: string;
 	outputProjectPath: string;
@@ -33,10 +35,28 @@ export interface RestorePublishedProjectOptions {
 	extractImage?: RestoreImageExtractor;
 }
 
-export interface RestorePublishedProjectResult {
+export interface RestoreResult {
 	document: Document;
 	projectPath: string;
 	warnings: string[];
+}
+
+export interface RestoreFileSystem extends Pick<FileSystem, 'readFile' | 'readFileRaw' | 'writeFile' | 'writeFileRaw' | 'mkdir' | 'exists' | 'join' | 'dirname'> {
+	readdir(path: string): Promise<string[]>;
+	isFile(path: string): Promise<boolean>;
+	resolvePath(path: string): string | Promise<string>;
+	rm?: (path: string, options?: { recursive?: boolean; force?: boolean }) => Promise<void>;
+}
+
+export interface RestoreOptions {
+	inputDir: string;
+	output: string;
+	fs: RestoreFileSystem;
+	packages?: string[];
+	force?: boolean;
+	projectType?: number;
+	cropImage?: RestoreImageCropper;
+	extractImage?: RestoreImageExtractor;
 }
 
 type RestorableResource = ReturnType<Package['listResources']>[number] & {
@@ -365,14 +385,176 @@ function encodeJtaUtf(value: string): Uint8Array {
 	return concatBytes([writeUint16(bytes.byteLength), bytes]);
 }
 
-export class PublishedProjectRestorer {
-	private readonly _fs: FileSystem;
+function isPublishedBinaryFile(fileName: string): boolean {
+	return /_fui\.bytes$/i.test(fileName) || /\.fui$/i.test(fileName) || /\.bin$/i.test(fileName);
+}
 
-	constructor(fs: FileSystem) {
+function inferPackageName(fileName: string): string {
+	if (/_fui\.bytes$/i.test(fileName)) return fileName.replace(/_fui\.bytes$/i, '');
+	if (/\.fui$/i.test(fileName)) return fileName.replace(/\.fui$/i, '');
+	return fileName.replace(/\.bin$/i, '');
+}
+
+function trimTrailingSlashes(value: string): string {
+	return value.replace(/[/\\]+$/, '');
+}
+
+function normalizeComparablePath(value: string): string {
+	const normalized = trimTrailingSlashes(value).replace(/\\/g, '/');
+	const driveMatch = normalized.match(/^([a-z]:)(?:\/(.*))?$/i);
+	const drivePrefix = driveMatch?.[1].toLowerCase() ?? '';
+	const remainder = driveMatch ? (driveMatch[2] ?? '') : normalized;
+	const hasRoot = driveMatch ? true : remainder.startsWith('/');
+	const rawSegments = remainder.split('/').filter((segment) => segment.length > 0);
+	const segments: string[] = [];
+
+	for (const segment of rawSegments) {
+		if (segment === '.') continue;
+		if (segment === '..') {
+			if (segments.length > 0 && segments[segments.length - 1] !== '..') {
+				segments.pop();
+			} else if (!hasRoot) {
+				segments.push('..');
+			}
+			continue;
+		}
+		segments.push(segment);
+	}
+
+	const joined = segments.join('/');
+	const comparable = drivePrefix
+		? `${drivePrefix}/${joined}`.replace(/\/$/, '')
+		: hasRoot
+			? `/${joined}`.replace(/\/$/, '')
+			: joined || '.';
+	// Restore prefers a conservative same-directory guard: false positives are safer than
+	// missing a Windows-style case-only path alias and deleting the source publish dir.
+	return comparable.toLowerCase();
+}
+
+function dirname(filePath: string): string {
+	const trimmed = trimTrailingSlashes(filePath);
+	const match = trimmed.match(/^(.*)[/\\][^/\\]+$/);
+	return match?.[1] ?? '';
+}
+
+function basename(filePath: string): string {
+	const trimmed = trimTrailingSlashes(filePath);
+	const match = trimmed.match(/([^/\\]+)$/);
+	return match?.[1] ?? '';
+}
+
+function resolveOutputProjectPath(output: string, fs: Pick<RestoreFileSystem, 'join'>): string {
+	if (/\.fairy$/i.test(output)) return output;
+	const normalizedOutput = trimTrailingSlashes(output);
+	const projectName = basename(normalizedOutput) || 'Restored';
+	return fs.join(normalizedOutput, `${projectName}.fairy`);
+}
+
+async function prepareRestoreOutputDir(
+	inputDir: string,
+	outputDir: string,
+	outputProjectPath: string,
+	fs: RestoreFileSystem,
+	force: boolean,
+	outputIsProjectFile: boolean,
+): Promise<void> {
+	const [resolvedInputDir, resolvedOutputDir] = await Promise.all([
+		Promise.resolve(fs.resolvePath(inputDir)),
+		Promise.resolve(fs.resolvePath(outputDir)),
+	]);
+	if (normalizeComparablePath(resolvedInputDir) === normalizeComparablePath(resolvedOutputDir)) {
+		throw new Error('Restore output directory must be different from the published input directory.');
+	}
+
+	if (outputIsProjectFile) {
+		if (!(await fs.exists(outputDir))) {
+			await fs.mkdir(outputDir);
+			return;
+		}
+		try {
+			await fs.readdir(outputDir);
+		} catch {
+			throw new Error(`Restore output path is not a directory: ${outputDir}`);
+		}
+
+		if (!(await fs.exists(outputProjectPath))) return;
+		if (!force) {
+			throw new Error(`Restore output file already exists: ${outputProjectPath}. Use --force to overwrite it.`);
+		}
+		if (!fs.rm) {
+			throw new Error('Restore output file already exists and the provided fs does not support rm(...).');
+		}
+		await fs.rm(outputProjectPath, { recursive: true, force: true });
+		return;
+	}
+
+	const exists = await fs.exists(outputDir);
+	if (!exists) {
+		await fs.mkdir(outputDir);
+		return;
+	}
+
+	let entries: string[];
+	try {
+		entries = await fs.readdir(outputDir);
+	} catch {
+		throw new Error(`Restore output path is not a directory: ${outputDir}`);
+	}
+
+	if (entries.length === 0) return;
+	if (!force) {
+		throw new Error(`Restore output directory is not empty: ${outputDir}. Use --force to overwrite it.`);
+	}
+	if (!fs.rm) {
+		throw new Error('Restore output directory is not empty and the provided fs does not support rm(...).');
+	}
+	await fs.rm(outputDir, { recursive: true, force: true });
+	await fs.mkdir(outputDir);
+}
+
+export async function restore(options: RestoreOptions): Promise<RestoreResult> {
+	const sourceDir = trimTrailingSlashes(options.inputDir);
+	const outputIsProjectFile = /\.fairy$/i.test(options.output);
+	const outputProjectPath = resolveOutputProjectPath(options.output, options.fs);
+	const outputDir = dirname(outputProjectPath) || '.';
+	await prepareRestoreOutputDir(sourceDir, outputDir, outputProjectPath, options.fs, options.force === true, outputIsProjectFile);
+
+	const packageFilter = options.packages?.length ? new Set(options.packages) : null;
+	const candidateBinaryPaths = (await options.fs.readdir(sourceDir))
+		.filter((name) => isPublishedBinaryFile(name))
+		.filter((name) => !packageFilter || packageFilter.has(inferPackageName(name)))
+		.map((name) => options.fs.join(sourceDir, name))
+		.sort((left, right) => left.localeCompare(right));
+	const binaryPaths = (await Promise.all(
+		candidateBinaryPaths.map(async (filePath) => (await options.fs.isFile(filePath)) ? filePath : null),
+	))
+		.filter((filePath): filePath is string => !!filePath)
+		.sort((left, right) => left.localeCompare(right));
+
+	if (binaryPaths.length === 0) {
+		throw new Error(`No FairyGUI published binary files found in ${sourceDir}.`);
+	}
+
+	const restorer = new RestoreWorkflow(options.fs);
+	return restorer.restore({
+		binaryPaths,
+		sourceDir,
+		outputProjectPath,
+		projectType: options.projectType,
+		cropImage: options.cropImage,
+		extractImage: options.extractImage,
+	});
+}
+
+class RestoreWorkflow {
+	private readonly _fs: RestoreFileSystem;
+
+	constructor(fs: RestoreFileSystem) {
 		this._fs = fs;
 	}
 
-	async restore(options: RestorePublishedProjectOptions): Promise<RestorePublishedProjectResult> {
+	async restore(options: RestoreExecutionOptions): Promise<RestoreResult> {
 		const warnings: string[] = [];
 		const reader = new BinaryReader(this._fs);
 		const doc = await reader.readMany(options.binaryPaths);
@@ -784,7 +966,7 @@ export class PublishedProjectRestorer {
 
 	private async _restoreAssets(
 		doc: Document,
-		options: RestorePublishedProjectOptions,
+		options: RestoreExecutionOptions,
 		warnings: string[],
 	): Promise<void> {
 		for (const pkg of doc.getRoot().listPackages()) {
@@ -794,7 +976,7 @@ export class PublishedProjectRestorer {
 		}
 	}
 
-	private async _restoreAtlasImages(pkg: Package, options: RestorePublishedProjectOptions): Promise<void> {
+	private async _restoreAtlasImages(pkg: Package, options: RestoreExecutionOptions): Promise<void> {
 		if (!options.cropImage) return;
 		for (const atlas of pkg.listAtlases()) {
 			const sourceAtlas = await this._resolveSourceFile(options.sourceDir, this._sourceFileCandidates(pkg, atlas.getFile()));
@@ -830,7 +1012,7 @@ export class PublishedProjectRestorer {
 
 	private async _copyLooseResources(
 		pkg: Package,
-		options: RestorePublishedProjectOptions,
+		options: RestoreExecutionOptions,
 		warnings: string[],
 	): Promise<void> {
 		for (const resource of pkg.listResources() as RestorableResource[]) {
@@ -856,7 +1038,7 @@ export class PublishedProjectRestorer {
 
 	private async _writeGeneratedResources(
 		pkg: Package,
-		options: RestorePublishedProjectOptions,
+		options: RestoreExecutionOptions,
 		warnings: string[],
 	): Promise<void> {
 		for (const resource of pkg.listResources() as RestorableResource[]) {
@@ -928,7 +1110,7 @@ export class PublishedProjectRestorer {
 	private async _writeMovieClipFile(
 		pkg: Package,
 		resource: RestorableResource,
-		options: RestorePublishedProjectOptions,
+		options: RestoreExecutionOptions,
 		warnings: string[],
 	): Promise<void> {
 		const fileName = resourceFileName(resource);
@@ -984,7 +1166,7 @@ export class PublishedProjectRestorer {
 
 	private async _buildSpriteLookup(
 		pkg: Package,
-		options: RestorePublishedProjectOptions,
+		options: RestoreExecutionOptions,
 	): Promise<Map<string, SpriteLookupEntry>> {
 		const sprites = new Map<string, SpriteLookupEntry>();
 		for (const atlas of pkg.listAtlases()) {
@@ -1062,7 +1244,7 @@ export class PublishedProjectRestorer {
 	private async _resolveSourceFile(sourceDir: string, candidates: string[]): Promise<string | null> {
 		for (const candidate of candidates) {
 			const sourcePath = this._fs.join(sourceDir, candidate);
-			if (await this._fs.exists(sourcePath)) return sourcePath;
+			if (await this._fs.isFile(sourcePath)) return sourcePath;
 		}
 		return null;
 	}

@@ -27,8 +27,8 @@ This repository is organized as a `pnpm workspace` + `Lerna` monorepo with the f
 
 | Package | Purpose |
 |---|---|
-| `@openfairygui/core` | Property graph, document model, project I/O, binary I/O, and publish restore |
-| `@openfairygui/functions` | Higher-level authoring, inspection, and publish functions |
+| `@openfairygui/core` | Property graph, document model, project I/O, and binary I/O primitives |
+| `@openfairygui/functions` | Higher-level publish, restore, inspection, and transform workflows |
 | `@openfairygui/cli` | Command-line interface |
 | `@openfairygui/test-utils` | Shared test helpers and fixtures |
 
@@ -57,14 +57,41 @@ await doc.transform(publish({
 }));
 ```
 
-If you want to rebuild a project from published output:
+If you want to rebuild a project from published output, use the high-level restore workflow from `functions`:
 
 ```ts
-import { NodeIO, ProjectType } from '@openfairygui/core';
+import { ProjectType } from '@openfairygui/core';
+import { restore } from '@openfairygui/functions';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
-const io = new NodeIO();
-await io.restorePublishedProject('./release', './restored-project', {
+await restore({
+  inputDir: './release',
+  output: './restored-project',
   projectType: ProjectType.Unity,
+  fs: {
+    async readFile(filePath) { return fs.readFile(filePath, 'utf-8'); },
+    async readFileRaw(filePath) {
+      const buf = await fs.readFile(filePath);
+      return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+    },
+    async writeFile(filePath, content) {
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
+      await fs.writeFile(filePath, content, 'utf-8');
+    },
+    async writeFileRaw(filePath, data) {
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
+      await fs.writeFile(filePath, data);
+    },
+    async mkdir(dirPath) { await fs.mkdir(dirPath, { recursive: true }); },
+    async readdir(dirPath) { return fs.readdir(dirPath); },
+    async exists(filePath) { try { await fs.access(filePath); return true; } catch { return false; } },
+    async isFile(filePath) { try { return (await fs.stat(filePath)).isFile(); } catch { return false; } },
+    async resolvePath(filePath) { try { return await fs.realpath(filePath); } catch { return path.resolve(filePath); } },
+    async rm(targetPath, options) { await fs.rm(targetPath, { recursive: options?.recursive ?? false, force: options?.force ?? false }); },
+    join: path.join,
+    dirname: path.dirname,
+  },
 });
 ```
 
