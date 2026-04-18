@@ -22,6 +22,9 @@
 		"strictBindCallApply": true,
 		"noImplicitThis": true
 	},
+	"exclude": [
+		"packages/*/test/fixtures/**"
+	],
 	"include": [
 		"packages/*/src/**/*.ts",
 		"packages/*/test/**/*.ts"

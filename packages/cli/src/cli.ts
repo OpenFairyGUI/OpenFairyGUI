@@ -205,7 +205,7 @@ async function createRestoreImageProcessors(): Promise<RestoreImageProcessors> {
 				|| input.offsetY + info.height > input.expectedHeight
 			) {
 				throw new Error(
-					`restore: Cropped image does not fit original canvas for ${input.outputPath}: `
+					`restore: Cropped image does not fit original canvas for ${targetPath}: `
 					+ `crop ${info.width}x${info.height} at ${input.offsetX},${input.offsetY}, `
 					+ `canvas ${input.expectedWidth}x${input.expectedHeight}`,
 				);

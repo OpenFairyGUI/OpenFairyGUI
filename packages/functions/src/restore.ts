@@ -60,6 +60,7 @@ export interface RestoreOptions {
 }
 
 type RestorableResource = ReturnType<Package['listResources']>[number] & {
+	propertyType: string;
 	getName?(): string;
 	getBranch?(): string;
 	getBranchItemIds?(): string[];
@@ -78,6 +79,11 @@ type RestorableResource = ReturnType<Package['listResources']>[number] & {
 	getExported?(): boolean;
 	getTint?(): boolean;
 	getTextureId?(): string;
+	getRequireIds?(): string[];
+	getAtlasNames?(): string[];
+	getAnchorX?(): number;
+	getAnchorY?(): number;
+	getFontSize?(): number;
 	setExtras?(extras: Record<string, unknown>): unknown;
 	setAtlasNames?(names: string[]): unknown;
 	setBranch?(branch: string): unknown;
@@ -136,12 +142,12 @@ interface RestorableFontGlyph {
 	getYOffset(): number;
 }
 
-interface RestorableFontResource extends RestorableResource {
+type RestorableFontResource = RestorableResource & {
 	listGlyphs(): RestorableFontGlyph[];
 	getBranch?(): string;
 	getPath?(): string;
 	getTextureId?(): string;
-}
+};
 
 interface SpriteLookupEntry {
 	sourceAtlas: string;

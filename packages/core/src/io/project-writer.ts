@@ -1831,7 +1831,7 @@ export class ProjectWriter {
 				if (comboItems.length > 0 && comboBoxItemChildName) {
 					extAttrs[comboBoxItemChildName] = comboItems.map((item) => serializeComboBoxItemXmlNode(item));
 				}
-				extensionChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.componentInstance, instanceExtType);
+				extensionChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.componentInstance, instanceExtType) ?? undefined;
 				if (extensionChildName) {
 					extensionValue = Object.keys(extAttrs).length > 0 ? extAttrs : '';
 				}
