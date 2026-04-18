@@ -1,0 +1,115 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build workspace
+        run: pnpm build
+
+      # NOTE:
+      # The repository still contains a small number of local-only referer baselines
+      # outside git control. Release CI runs the repository-contained test subset here.
+      - name: Run release-safe test suite
+        run: >
+          pnpm exec ava --no-worker-threads
+          packages/core/test/read-project.test.ts
+          packages/core/test/write-project.test.ts
+          packages/core/test/restore-published-project.test.ts
+          packages/core/test/write-binary-pixel-hit-test.test.ts
+          packages/functions/test/atlas.test.ts
+          packages/functions/test/functions.test.ts
+          packages/functions/test/publish.test.ts
+
+      - name: Pack publish artifacts
+        run: |
+          mkdir -p .release
+          npm pack ./packages/core --pack-destination .release
+          npm pack ./packages/functions --pack-destination .release
+          npm pack ./packages/cli --pack-destination .release
+
+      - name: Publish to npmjs
+        if: ${{ secrets.NPM_TOKEN != '' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npm config set //registry.npmjs.org/:_authToken "$NODE_AUTH_TOKEN"
+          publish_if_needed() {
+            local pkg_dir="$1"
+            local pkg_name
+            local pkg_version
+            pkg_name=$(node -p "require('./${pkg_dir}/package.json').name")
+            pkg_version=$(node -p "require('./${pkg_dir}/package.json').version")
+            if npm view "${pkg_name}@${pkg_version}" version --registry=https://registry.npmjs.org >/dev/null 2>&1; then
+              echo "Skipping npmjs publish for ${pkg_name}@${pkg_version} (already published)"
+            else
+              echo "Publishing ${pkg_name}@${pkg_version} to npmjs"
+              npm publish --access public "./${pkg_dir}"
+            fi
+          }
+          publish_if_needed packages/core
+          publish_if_needed packages/functions
+          publish_if_needed packages/cli
+
+      - name: Publish to GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm config set @openfairygui:registry https://npm.pkg.github.com
+          npm config set //npm.pkg.github.com/:_authToken "$NODE_AUTH_TOKEN"
+          publish_if_needed() {
+            local pkg_dir="$1"
+            local pkg_name
+            local pkg_version
+            pkg_name=$(node -p "require('./${pkg_dir}/package.json').name")
+            pkg_version=$(node -p "require('./${pkg_dir}/package.json').version")
+            if npm view "${pkg_name}@${pkg_version}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
+              echo "Skipping GitHub Packages publish for ${pkg_name}@${pkg_version} (already published)"
+            else
+              echo "Publishing ${pkg_name}@${pkg_version} to GitHub Packages"
+              npm publish "./${pkg_dir}" --registry=https://npm.pkg.github.com
+            fi
+          }
+          publish_if_needed packages/core
+          publish_if_needed packages/functions
+          publish_if_needed packages/cli
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            .release/*.tgz
