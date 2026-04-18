@@ -1,19 +1,11 @@
 import test from 'ava';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
-import { Document, type GTree, GearType, ListSelectionMode, NodeIO, PropertyType } from '../src/index.js';
+import { type Document, type GTree, GearType, ListSelectionMode, NodeIO, PropertyType } from '../src/index.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PROJECT_PATH = getFixtureProjectPath('FairyGUI-Unity-Examples');
-const EDITOR_PROJECT_PATH = path.resolve(
-	__dirname,
-	'../../../referer/FairyGUI-Editor/ui/FairyGUI-Editor.fairy',
-);
-const LAYABOX_PROJECT_PATH = path.resolve(
-	__dirname,
-	'../../../referer/Runtimes/Layabox/demo/UIProject/FairyGUI-layabox-demo.fairy',
-);
+const PROJECT_PATH = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
+const BRANCH_LOADER_PROJECT_PATH = getFixtureProjectPath('FairyGUI-Experiments');
+const EDITOR_PROJECT_PATH = getFixtureProjectPath('FairyGUI-Editor', 'ui/FairyGUI-Editor.fairy');
+const LAYABOX_PROJECT_PATH = getFixtureProjectPath('FairyGUI-layabox', 'demo/UIProject/FairyGUI-layabox-demo.fairy');
 
 // Shared: read the project once for all tests in this file.
 let _doc: Awaited<ReturnType<NodeIO['readProject']>>;
@@ -41,6 +33,15 @@ async function getLayaboxDoc() {
 		_layaboxDoc = await io.readProject(LAYABOX_PROJECT_PATH);
 	}
 	return _layaboxDoc;
+}
+
+let _branchLoaderDoc: Awaited<ReturnType<NodeIO['readProject']>>;
+async function getBranchLoaderDoc() {
+	if (!_branchLoaderDoc) {
+		const io = new NodeIO();
+		_branchLoaderDoc = await io.readProject(BRANCH_LOADER_PROJECT_PATH);
+	}
+	return _branchLoaderDoc;
 }
 
 test('reads project metadata', async (t) => {
@@ -154,7 +155,7 @@ test('package.xml resources preserve image textureSetMode', async (t) => {
 });
 
 test('Loader package preserves spine and dragonbones resource attrs', async (t) => {
-	const doc = await getDoc();
+	const doc = await getBranchLoaderDoc();
 	const loaderPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Loader')!;
 	t.truthy(loaderPkg, 'Loader package exists');
 
@@ -185,7 +186,7 @@ test('Loader package preserves spine and dragonbones resource attrs', async (t) 
 });
 
 test('Branch package preserves branch resources and root branch list', async (t) => {
-	const doc = await getDoc();
+	const doc = await getBranchLoaderDoc();
 	const root = doc.getRoot();
 	t.true(root.listBranches().includes('dev'), 'root keeps project branch list');
 

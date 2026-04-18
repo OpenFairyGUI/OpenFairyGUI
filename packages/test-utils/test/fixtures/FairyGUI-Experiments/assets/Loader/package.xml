@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<packageDescription id="hzobybbt">
+  <resources>
+    <component id="biss0" name="Main.xml" path="/" exported="true"/>
+    <dragonbones id="biss6" name="dragon_ske.json" path="/images/" width="0" height="0" require="biss7,biss8" atlasNames="" anchor="0,0"/>
+    <misc id="biss7" name="dragon_tex.json" path="/images/"/>
+    <image id="biss8" name="dragon.png" path="/images/"/>
+    <misc id="nbcg7" name="alien-pma.atlas" path="/images/"/>
+    <image id="nbcg8" name="alien-pma.png" path="/images/"/>
+    <spine id="nbcge" name="alien-pro.skel" path="/images/" width="368" height="384" require="nbcg7,nbcg8" atlasNames="alien-pma" anchor="176,380"/>
+    <image id="czqy1c" name="spineboy.png" path="/images/"/>
+    <misc id="czqy1e" name="spineboy-pma.atlas" path="/images/"/>
+    <image id="czqy1f" name="spineboy-pma.png" path="/images/"/>
+    <spine id="czqy1d" name="spineboy-ess.skel" path="/images/" width="470" height="731" require="czqy1e,czqy1f" atlasNames="spineboy-pma" anchor="249,723"/>
+    <image id="czqy1g" name="mix-and-match.png" path="/images/"/>
+    <misc id="czqy1i" name="mix-and-match-pma.atlas" path="/images/"/>
+    <image id="czqy1j" name="mix-and-match-pma.png" path="/images/"/>
+    <spine id="czqy1h" name="mix-and-match-pro.skel" path="/images/" width="410" height="806" require="czqy1i,czqy1j" atlasNames="mix-and-match-pma" anchor="169,803"/>
+  </resources>
+  <publish name=""/>
+</packageDescription>

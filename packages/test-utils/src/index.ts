@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FIXTURES_DIR = path.join(PACKAGE_ROOT, 'test', 'fixtures');
+const WORKSPACE_ROOT = path.resolve(PACKAGE_ROOT, '..', '..');
 
 export interface FixtureProject {
 	name: string;
@@ -36,6 +37,18 @@ export function getFixturesDir(): string {
 	return FIXTURES_DIR;
 }
 
+export function getWorkspaceRoot(): string {
+	return WORKSPACE_ROOT;
+}
+
+export function getWorkspacePath(...segments: string[]): string {
+	return path.join(WORKSPACE_ROOT, ...segments);
+}
+
+export function getWorkspaceReleasePath(...segments: string[]): string {
+	return path.join(WORKSPACE_ROOT, 'release', ...segments);
+}
+
 export function hasLocalFixtures(): boolean {
 	return fs.existsSync(FIXTURES_DIR) && fs.readdirSync(FIXTURES_DIR).length > 0;
 }
@@ -52,7 +65,26 @@ export function getFixtureProject(name: string): FixtureProject {
 	return match;
 }
 
-export function getFixtureProjectPath(name: string): string {
+export function getFixtureDir(name: string): string {
+	const fullPath = path.join(FIXTURES_DIR, name);
+	if (!fs.existsSync(fullPath)) {
+		throw new Error(`Unknown fixture directory "${name}".`);
+	}
+	return fullPath;
+}
+
+export function getFixturePath(name: string, ...segments: string[]): string {
+	return path.join(getFixtureDir(name), ...segments);
+}
+
+export function getFixtureProjectPath(name: string, relativeFairyPath?: string): string {
+	if (relativeFairyPath) {
+		const fullPath = getFixturePath(name, relativeFairyPath);
+		if (!fs.existsSync(fullPath)) {
+			throw new Error(`Unknown fixture project file "${name}/${relativeFairyPath}".`);
+		}
+		return fullPath;
+	}
 	return getFixtureProject(name).fairyPath;
 }
 

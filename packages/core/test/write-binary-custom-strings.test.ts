@@ -3,12 +3,12 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getFixtureProjectPath } from '@openfairygui/test-utils';
+import { getFixtureProjectPath, getWorkspaceReleasePath } from '@openfairygui/test-utils';
 import { Document, NodeIO, TransitionActionType } from '../src/index.js';
 
 const NULL_STRING_INDEX = 0xfffe;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PROJECT_PATH = getFixtureProjectPath('FairyGUI-Unity-Examples');
+const PROJECT_PATH = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
 
 function readUtfString(view: DataView, state: { pos: number }): string {
 	const len = view.getUint16(state.pos, false);
@@ -316,7 +316,7 @@ function readChildRelationTargets(
 	throw new Error(`Relation child not found: ${childId}`);
 }
 
-function readComponentRelationTargets(raw: Uint8Array): number[] {
+function _readComponentRelationTargets(raw: Uint8Array): number[] {
 	const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
 	const block3Offset = view.getUint32(2 + 4 * 3, false);
 	const state = { pos: block3Offset };
@@ -505,7 +505,7 @@ test('binary writer: writes overflow strings into block 5 patches', async (t) =>
 
 test('binary writer: emits editor-aligned child object types for text input components', async (t) => {
 	const io = new NodeIO();
-	const doc = await io.readProject('E:/Coding/OpenFairyGUI/referer/UIProject/FairyGUI-Unity-Examples/FairyGUI-Unity-Examples.fairy');
+	const doc = await io.readProject(PROJECT_PATH);
 
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-input-object-type-'));
 	const outPath = path.join(tmpDir, 'Basics_fui.bytes');
@@ -568,7 +568,7 @@ test('binary writer: emits editor-aligned child object types for text input comp
 
 test('binary writer: emits version 7 list item property override placeholders', async (t) => {
 	const io = new NodeIO();
-	const doc = await io.readProject('E:/Coding/OpenFairyGUI/referer/UIProject/FairyGUI-Unity-Examples/FairyGUI-Unity-Examples.fairy');
+	const doc = await io.readProject(PROJECT_PATH);
 
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-list-items-'));
 	const outPath = path.join(tmpDir, 'Basics_fui.bytes');
@@ -588,7 +588,7 @@ test('binary writer: emits version 7 list item property override placeholders', 
 
 test('binary writer: matches Basics text child layouts from editor baseline', async (t) => {
 	const io = new NodeIO();
-	const doc = await io.readProject('E:/Coding/OpenFairyGUI/referer/UIProject/FairyGUI-Unity-Examples/FairyGUI-Unity-Examples.fairy');
+	const doc = await io.readProject(PROJECT_PATH);
 
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-text-layouts-'));
 	const outPath = path.join(tmpDir, 'Basics_fui.bytes');
@@ -1638,7 +1638,7 @@ test('binary writer: matches Transition component raw lengths from editor baseli
 		await io.writeBinary(doc, outPath, { compressed: false, version: 2, packageIndex: pkgIndex });
 
 		const actualBytes = new Uint8Array(await fs.readFile(outPath));
-		const expectedBytes = new Uint8Array(await fs.readFile(path.resolve(__dirname, '../../../referer/Release/FairyGUI-Unity-Examples/Transition_fui.bytes')));
+		const expectedBytes = new Uint8Array(await fs.readFile(getWorkspaceReleasePath('Transition_fui.bytes')));
 
 		const actualMap = new Map(readComponentRawLengths(actualBytes).map((item) => [item.id, item]));
 		const expectedMap = new Map(readComponentRawLengths(expectedBytes).map((item) => [item.id, item]));

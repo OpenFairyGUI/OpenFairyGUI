@@ -1,13 +1,11 @@
 import test from 'ava';
-import path from 'node:path';
 import fs from 'node:fs/promises';
 import os from 'node:os';
-import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
 import { Document, GearType, NodeIO, PropertyType } from '../src/index.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PROJECT_PATH = getFixtureProjectPath('FairyGUI-Unity-Examples');
+const PROJECT_PATH = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
 
 // ─── Round-trip: read → write → read ──────────────────────────────────────
 

@@ -1,12 +1,9 @@
 import test from 'ava';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { NodeIO, Document } from '@openfairygui/core';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
 import { inspect, validate, prune, rename } from '../src/index.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PROJECT_PATH = getFixtureProjectPath('FairyGUI-Unity-Examples');
+const PROJECT_PATH = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
 
 // Shared: read the project once.
 let _doc: Document;

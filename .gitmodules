@@ -1,0 +1,9 @@
+[submodule "packages/test-utils/test/fixtures/FairyGUI-Editor"]
+	path = packages/test-utils/test/fixtures/FairyGUI-Editor
+	url = https://github.com/fairygui/FairyGUI-Editor
+[submodule "packages/test-utils/test/fixtures/FairyGUI-layabox"]
+	path = packages/test-utils/test/fixtures/FairyGUI-layabox
+	url = https://github.com/fairygui/FairyGUI-layabox
+[submodule "packages/test-utils/test/fixtures/FairyGUI-unity"]
+	path = packages/test-utils/test/fixtures/FairyGUI-unity
+	url = https://github.com/fairygui/FairyGUI-unity

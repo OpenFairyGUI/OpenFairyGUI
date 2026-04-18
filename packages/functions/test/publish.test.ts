@@ -2,23 +2,22 @@ import test from 'ava';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import os from 'node:os';
-import { fileURLToPath } from 'node:url';
 import { NodeIO, Document } from '@openfairygui/core';
-import { getFixtureProjectPath } from '@openfairygui/test-utils';
+import { getFixturePath, getFixtureProjectPath } from '@openfairygui/test-utils';
 import sharp from 'sharp';
 import { publish, resolvePublishOptions, type RootProjectSettings } from '../src/index.js';
 import { resolvePublishAtlasRuntimeOptions } from '../src/publish.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const UNITY_EXAMPLES_FAIRY = getFixtureProjectPath('FairyGUI-Unity-Examples');
-const LAYABOX_EXAMPLES_FAIRY = path.resolve(
-	__dirname,
-	'../../../referer/Runtimes/Layabox/demo/UIProject/FairyGUI-layabox-demo.fairy',
-);
-const LAYABOX_RELEASE_DIR = path.resolve(
-	__dirname,
-	'../../../referer/Release/FairyGUI-layabox-demo',
-);
+const UNITY_EXAMPLES_FAIRY = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
+const UNITY_BRANCH_LOADER_FAIRY = getFixtureProjectPath('FairyGUI-Experiments');
+const LAYABOX_EXAMPLES_FAIRY = getFixtureProjectPath('FairyGUI-layabox', 'demo/UIProject/FairyGUI-layabox-demo.fairy');
+const LAYABOX_RELEASE_DIR = getFixturePath('FairyGUI-layabox', 'demo', 'assets', 'resources', 'ui');
+
+async function readReferenceReleaseNames(dirPath: string): Promise<string[]> {
+	return (await fs.readdir(dirPath))
+		.filter((name) => !name.endsWith('.meta'))
+		.sort();
+}
 
 // Helper: create a simple NodeIO filesystem for publish output
 function createFs() {
@@ -371,7 +370,7 @@ test('publish: exports published sound resources with Unity naming', async (t) =
 
 test('publish: exports loader skeleton resources and dependency closure with editor-aligned naming', async (t) => {
 	const io = new NodeIO();
-	const doc = await io.readProject(UNITY_EXAMPLES_FAIRY);
+	const doc = await io.readProject(UNITY_BRANCH_LOADER_FAIRY);
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-'));
 
 	try {
@@ -380,7 +379,7 @@ test('publish: exports loader skeleton resources and dependency closure with edi
 			packages: ['Loader'],
 			fs: createFs(),
 			encoder: sharp,
-			basePath: path.join(path.dirname(UNITY_EXAMPLES_FAIRY), 'assets'),
+			basePath: path.join(path.dirname(UNITY_BRANCH_LOADER_FAIRY), 'assets'),
 		}));
 
 		const expectedFiles = [
@@ -418,7 +417,7 @@ test('publish: exports loader skeleton resources and dependency closure with edi
 
 test('publish: Branch package keeps branch resources and emits separate branch atlases when configured', async (t) => {
 	const io = new NodeIO();
-	const doc = await io.readProject(UNITY_EXAMPLES_FAIRY);
+	const doc = await io.readProject(UNITY_BRANCH_LOADER_FAIRY);
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-'));
 
 	try {
@@ -427,7 +426,7 @@ test('publish: Branch package keeps branch resources and emits separate branch a
 			packages: ['Branch'],
 			fs: createFs(),
 			encoder: sharp,
-			basePath: path.join(path.dirname(UNITY_EXAMPLES_FAIRY), 'assets'),
+			basePath: path.join(path.dirname(UNITY_BRANCH_LOADER_FAIRY), 'assets'),
 		}));
 
 		const bytes = await fs.readFile(path.join(tmpDir, 'Branch_fui.bytes'));
@@ -472,7 +471,7 @@ test('publish: Branch package keeps branch resources and emits separate branch a
 
 test('publish: Branch package merges active branch resources onto main ids', async (t) => {
 	const io = new NodeIO();
-	const doc = await io.readProject(UNITY_EXAMPLES_FAIRY);
+	const doc = await io.readProject(UNITY_BRANCH_LOADER_FAIRY);
 	const settings = structuredClone(doc.getRoot().getSettings?.() ?? {});
 	settings.publish ??= {};
 	settings.publish.branchProcessing = 1;
@@ -486,7 +485,7 @@ test('publish: Branch package merges active branch resources onto main ids', asy
 			branch: 'dev',
 			fs: createFs(),
 			encoder: sharp,
-			basePath: path.join(path.dirname(UNITY_EXAMPLES_FAIRY), 'assets'),
+			basePath: path.join(path.dirname(UNITY_BRANCH_LOADER_FAIRY), 'assets'),
 		}));
 
 		const bytes = await fs.readFile(path.join(tmpDir, 'Branch_fui.bytes'));
@@ -827,7 +826,7 @@ test('publish: Layabox sample emits editor-aligned .fui outputs and reference re
 	const io = new NodeIO();
 	const doc = await io.readProject(LAYABOX_EXAMPLES_FAIRY);
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-laya-pub-'));
-	const referenceNames = (await fs.readdir(LAYABOX_RELEASE_DIR)).sort();
+	const referenceNames = await readReferenceReleaseNames(LAYABOX_RELEASE_DIR);
 	const basePath = path.join(path.dirname(LAYABOX_EXAMPLES_FAIRY), 'assets');
 
 	try {
@@ -866,7 +865,7 @@ test('publish: Cocos Creator stays on the generic path and defaults package outp
 	doc.getRoot().setSettings(creatorSettings);
 
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-creator-pub-'));
-	const referenceNames = (await fs.readdir(LAYABOX_RELEASE_DIR)).sort();
+	const referenceNames = await readReferenceReleaseNames(LAYABOX_RELEASE_DIR);
 	const expectedNames = referenceNames.map((name) => name.replace(/\.fui$/i, '.bin'));
 	const basePath = path.join(path.dirname(LAYABOX_EXAMPLES_FAIRY), 'assets');
 
