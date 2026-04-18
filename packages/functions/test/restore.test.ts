@@ -5,10 +5,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { NodeIO, ProjectType, parseJta } from '@openfairygui/core';
-import { restore, type RestoreFileSystem, type RestoreImageCropInput, type RestoreImageExtractInput } from '../src/index.js';
+import { getFixturePath, getFixtureProjectPath } from '@openfairygui/test-utils';
+import { publish, restore, type PublishFileSystem, type RestoreFileSystem, type RestoreImageCropInput, type RestoreImageExtractInput } from '../src/index.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const RELEASE_DIR = path.resolve(__dirname, '../../../release');
+const UNITY_RELEASE_DIR = getFixturePath('FairyGUI-unity', 'Assets', 'Examples', 'Resources', 'UI');
+const EXPERIMENTS_FAIRY = getFixtureProjectPath('FairyGUI-Experiments');
 
 function resourcePath(basePath: string, resourcePath: string, fileName: string): string {
 	const subDir = resourcePath.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '');
@@ -108,14 +109,65 @@ function createRestoreFs(): RestoreFileSystem {
 	};
 }
 
+function createPublishFs(): PublishFileSystem {
+	return {
+		async readFileRaw(filePath: string): Promise<Uint8Array> {
+			const data = await fs.readFile(filePath);
+			return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+		},
+		async writeFileRaw(filePath: string, data: Uint8Array): Promise<void> {
+			await fs.mkdir(path.dirname(filePath), { recursive: true });
+			await fs.writeFile(filePath, data);
+		},
+		async mkdir(dirPath: string): Promise<void> {
+			await fs.mkdir(dirPath, { recursive: true });
+		},
+		async readdir(dirPath: string): Promise<string[]> {
+			return fs.readdir(dirPath);
+		},
+		async deleteFile(filePath: string): Promise<void> {
+			await fs.rm(filePath, { force: true });
+		},
+		join(...paths: string[]): string {
+			return path.join(...paths);
+		},
+	};
+}
+
+async function copyReleaseFixture(sourceDir: string, outputDir: string): Promise<void> {
+	await fs.mkdir(outputDir, { recursive: true });
+	for (const entry of await fs.readdir(sourceDir, { withFileTypes: true })) {
+		if (!entry.isFile() || entry.name.endsWith('.meta')) continue;
+		await fs.copyFile(path.join(sourceDir, entry.name), path.join(outputDir, entry.name));
+	}
+}
+
+async function createRestoreReleaseFixture(tmpDir: string): Promise<string> {
+	const releaseDir = path.join(tmpDir, 'release');
+	await copyReleaseFixture(UNITY_RELEASE_DIR, releaseDir);
+
+	const io = new NodeIO();
+	const doc = await io.readProject(EXPERIMENTS_FAIRY);
+	await doc.transform(publish({
+		output: releaseDir,
+		packages: ['Branch', 'Loader'],
+		fs: createPublishFs(),
+		encoder: sharp,
+		basePath: path.join(path.dirname(EXPERIMENTS_FAIRY), 'assets'),
+	}));
+
+	return releaseDir;
+}
+
 test('restore published project: directory batch restores packages, assets, and branch files', async (t) => {
 	const io = new NodeIO();
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-'));
 	const outputDir = path.join(tmpDir, 'Restored');
 
 	try {
+		const releaseDir = await createRestoreReleaseFixture(tmpDir);
 		const result = await restore({
-			inputDir: RELEASE_DIR,
+			inputDir: releaseDir,
 			output: outputDir,
 			fs: createRestoreFs(),
 			packages: ['Basics', 'Branch', 'Joystick', 'Loader', 'TextMeshPro'],
@@ -191,7 +243,7 @@ test('restore published project: directory batch restores packages, assets, and 
 		t.true(basicsButton52Xml.includes('<gearLook controller="grayed" pages="0,1" values="1.00,0,0|-" default="1.00,0,1"'), 'restored Button52 keeps editor-style fixed alpha precision in gearLook');
 		const bagOutputDir = path.join(outputDir, 'BagPack');
 		await restore({
-			inputDir: RELEASE_DIR,
+			inputDir: releaseDir,
 			output: bagOutputDir,
 			fs: createRestoreFs(),
 			packages: ['Bag'],
@@ -258,7 +310,7 @@ test('restore published project: directory batch restores packages, assets, and 
 
 		const transitionOutputDir = path.join(outputDir, 'TransitionPack');
 		const transitionResult = await restore({
-			inputDir: RELEASE_DIR,
+			inputDir: releaseDir,
 			output: transitionOutputDir,
 			fs: createRestoreFs(),
 			packages: ['Transition'],
@@ -298,7 +350,7 @@ test('restore published project: directory batch restores packages, assets, and 
 
 		const emitNumbersOutputDir = path.join(outputDir, 'EmitNumbersPack');
 		const emitNumbersResult = await restore({
-			inputDir: RELEASE_DIR,
+			inputDir: releaseDir,
 			output: emitNumbersOutputDir,
 			fs: createRestoreFs(),
 			packages: ['EmitNumbers'],
@@ -326,7 +378,7 @@ test('restore published project: directory batch restores packages, assets, and 
 
 		const treeViewOutputDir = path.join(outputDir, 'TreeViewPack');
 		await restore({
-			inputDir: RELEASE_DIR,
+			inputDir: releaseDir,
 			output: treeViewOutputDir,
 			fs: createRestoreFs(),
 			packages: ['TreeView'],
@@ -348,7 +400,7 @@ test('restore published project: ignores directory entries that look like binary
 
 	try {
 		await fs.mkdir(releaseDir, { recursive: true });
-		await fs.copyFile(path.join(RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
+		await fs.copyFile(path.join(UNITY_RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
 		await fs.mkdir(path.join(releaseDir, 'Fake.bin'), { recursive: true });
 
 		const result = await restore({
@@ -372,7 +424,7 @@ test('restore published project: ignores loose-resource directories and falls ba
 
 	try {
 		await fs.mkdir(releaseDir, { recursive: true });
-		await fs.copyFile(path.join(RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
+		await fs.copyFile(path.join(UNITY_RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
 		await fs.mkdir(path.join(releaseDir, 'Basics_gojg7u.wav'), { recursive: true });
 
 		const result = await restore({
@@ -403,7 +455,7 @@ test('restore published project: non-empty output directory fails without force'
 
 		await t.throwsAsync(
 			() => restore({
-				inputDir: RELEASE_DIR,
+				inputDir: UNITY_RELEASE_DIR,
 				output: outputDir,
 				fs: createRestoreFs(),
 				packages: ['Basics'],
@@ -423,7 +475,7 @@ test('restore published project: equivalent source and output paths are rejected
 
 	try {
 		await fs.mkdir(releaseDir, { recursive: true });
-		await fs.copyFile(path.join(RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
+		await fs.copyFile(path.join(UNITY_RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
 
 		await t.throwsAsync(
 			() => restore({
@@ -449,7 +501,7 @@ test('restore published project: case-variant equivalent paths are rejected befo
 
 	try {
 		await fs.mkdir(releaseDir, { recursive: true });
-		await fs.copyFile(path.join(RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
+		await fs.copyFile(path.join(UNITY_RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
 
 		await t.throwsAsync(
 			() => restore({
@@ -476,7 +528,7 @@ test.serial('restore published project: mixed relative and absolute aliases are 
 
 	try {
 		await fs.mkdir(releaseDir, { recursive: true });
-		await fs.copyFile(path.join(RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
+		await fs.copyFile(path.join(UNITY_RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
 		process.chdir(tmpDir);
 
 		await t.throwsAsync(
@@ -505,7 +557,7 @@ test('restore published project: filesystem alias paths are rejected before over
 
 	try {
 		await fs.mkdir(releaseDir, { recursive: true });
-		await fs.copyFile(path.join(RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
+		await fs.copyFile(path.join(UNITY_RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
 		await fs.symlink(releaseDir, aliasDir, process.platform === 'win32' ? 'junction' : 'dir');
 
 		await t.throwsAsync(
@@ -533,7 +585,7 @@ test.serial('restore published project: bare relative .fairy output targets writ
 
 	try {
 		await fs.mkdir(releaseDir, { recursive: true });
-		await fs.copyFile(path.join(RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
+		await fs.copyFile(path.join(UNITY_RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
 		process.chdir(tmpDir);
 
 		const result = await restore({
@@ -565,7 +617,7 @@ test('restore published project: projectType override sets restored project type
 
 	try {
 		const result = await restore({
-			inputDir: RELEASE_DIR,
+			inputDir: UNITY_RELEASE_DIR,
 			output: outputDir,
 			fs: createRestoreFs(),
 			packages: ['Basics'],

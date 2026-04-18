@@ -1,14 +1,17 @@
 import test from 'ava';
-import path from 'node:path';
 import fs from 'node:fs/promises';
 import os from 'node:os';
-import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+import { getFixturePath } from '@openfairygui/test-utils';
 import { Document, NodeIO, PropertyType } from '../src/index.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const BASICS_FUI = path.resolve(
-	__dirname,
-	'../../../referer/Release/FairyGUI-Unity-Examples/Basics_fui.bytes',
+const BASICS_FUI = getFixturePath(
+	'FairyGUI-unity',
+	'Assets',
+	'Examples',
+	'Resources',
+	'UI',
+	'Basics_fui.bytes',
 );
 
 function readUtfString(bytes: Uint8Array, state: { pos: number }): string {

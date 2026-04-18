@@ -1,12 +1,14 @@
 import test from 'ava';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { getFixturePath } from '@openfairygui/test-utils';
 import { Document, NodeIO, PropertyType } from '../src/index.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const BASICS_FUI = path.resolve(
-	__dirname,
-	'../../../referer/Release/FairyGUI-Unity-Examples/Basics_fui.bytes',
+const BASICS_FUI = getFixturePath(
+	'FairyGUI-unity',
+	'Assets',
+	'Examples',
+	'Resources',
+	'UI',
+	'Basics_fui.bytes',
 );
 
 // Shared: read the binary package once.

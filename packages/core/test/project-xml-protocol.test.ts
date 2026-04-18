@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { XMLParser } from 'fast-xml-parser';
+import { getFixturesDir } from '@openfairygui/test-utils';
 import {
 	PROJECT_XML_PROTOCOL,
 	listXmlAttrNames,
@@ -12,7 +13,7 @@ import {
 } from '../src/io/project-xml-protocol.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REFERER_ROOT = path.resolve(__dirname, '../../../referer');
+const FIXTURE_ROOT = getFixturesDir();
 const XML_PARSER = new XMLParser({ ignoreAttributes: false, preserveOrder: true });
 const GROUP_CONDITIONAL_CHILD_NAMES = new Set([
 	'relation',
@@ -196,14 +197,14 @@ async function collectNestedComponentAttrNames(filePath: string): Promise<Set<st
 }
 
 async function assertTagAttrsCovered(t: ExecutionContext, tagName: string, allowedNames: Set<string>): Promise<void> {
-	const xmlFiles = await walkXmlFiles(REFERER_ROOT);
+	const xmlFiles = await walkXmlFiles(FIXTURE_ROOT);
 	const unknown = new Map<string, string[]>();
 
 	for (const filePath of xmlFiles) {
 		const actualNames = await collectTagAttrNames(filePath, tagName);
 		for (const name of actualNames) {
 			if (allowedNames.has(name)) continue;
-			const relative = path.relative(REFERER_ROOT, filePath);
+			const relative = path.relative(FIXTURE_ROOT, filePath);
 			const fileList = unknown.get(name) ?? [];
 			if (fileList.length < 3) fileList.push(relative);
 			unknown.set(name, fileList);
@@ -213,20 +214,21 @@ async function assertTagAttrsCovered(t: ExecutionContext, tagName: string, allow
 	t.deepEqual(
 		[...unknown.entries()].sort(([a], [b]) => a.localeCompare(b)),
 		[],
-		`${tagName} attrs across referer samples are declared by protocol`,
+		`${tagName} attrs across fixture samples are declared by protocol`,
 	);
 }
 
 async function assertRootComponentAttrsCovered(t: ExecutionContext, allowedNames: Set<string>): Promise<void> {
-	const xmlFiles = await walkXmlFiles(REFERER_ROOT);
+	const xmlFiles = await walkXmlFiles(FIXTURE_ROOT);
 	const unknown = new Map<string, string[]>();
 
 	for (const filePath of xmlFiles) {
-		if (path.basename(filePath) === 'package.xml') continue;
+		const baseName = path.basename(filePath);
+		if (baseName === 'package.xml' || baseName === 'package_branch.xml') continue;
 		const actualNames = await collectRootComponentAttrNames(filePath);
 		for (const name of actualNames) {
 			if (allowedNames.has(name)) continue;
-			const relative = path.relative(REFERER_ROOT, filePath);
+			const relative = path.relative(FIXTURE_ROOT, filePath);
 			const fileList = unknown.get(name) ?? [];
 			if (fileList.length < 3) fileList.push(relative);
 			unknown.set(name, fileList);
@@ -236,7 +238,7 @@ async function assertRootComponentAttrsCovered(t: ExecutionContext, allowedNames
 	t.deepEqual(
 		[...unknown.entries()].sort(([a], [b]) => a.localeCompare(b)),
 		[],
-		'component root attrs across referer samples are declared by protocol',
+		'component root attrs across fixture samples are declared by protocol',
 	);
 }
 
@@ -246,14 +248,14 @@ async function assertPackageRootTagAttrsCovered(
 	allowedNames: Set<string>,
 	ignoredNames: ReadonlySet<string> = new Set(),
 ): Promise<void> {
-	const xmlFiles = (await walkXmlFiles(REFERER_ROOT)).filter((filePath) => path.basename(filePath) === 'package.xml');
+	const xmlFiles = (await walkXmlFiles(FIXTURE_ROOT)).filter((filePath) => path.basename(filePath) === 'package.xml');
 	const unknown = new Map<string, string[]>();
 
 	for (const filePath of xmlFiles) {
 		const actualNames = await collectRootTagAttrNames(filePath, tagName);
 		for (const name of actualNames) {
 			if (allowedNames.has(name) || ignoredNames.has(name)) continue;
-			const relative = path.relative(REFERER_ROOT, filePath);
+			const relative = path.relative(FIXTURE_ROOT, filePath);
 			const fileList = unknown.get(name) ?? [];
 			if (fileList.length < 3) fileList.push(relative);
 			unknown.set(name, fileList);
@@ -263,12 +265,12 @@ async function assertPackageRootTagAttrsCovered(
 	t.deepEqual(
 		[...unknown.entries()].sort(([a], [b]) => a.localeCompare(b)),
 		[],
-		`${tagName} root attrs across referer package.xml samples are declared by protocol`,
+		`${tagName} root attrs across fixture package.xml samples are declared by protocol`,
 	);
 }
 
 async function assertNestedComponentAttrsCovered(t: ExecutionContext, allowedNames: Set<string>): Promise<void> {
-	const xmlFiles = await walkXmlFiles(REFERER_ROOT);
+	const xmlFiles = await walkXmlFiles(FIXTURE_ROOT);
 	const unknown = new Map<string, string[]>();
 
 	for (const filePath of xmlFiles) {
@@ -276,7 +278,7 @@ async function assertNestedComponentAttrsCovered(t: ExecutionContext, allowedNam
 		const actualNames = await collectNestedComponentAttrNames(filePath);
 		for (const name of actualNames) {
 			if (allowedNames.has(name)) continue;
-			const relative = path.relative(REFERER_ROOT, filePath);
+			const relative = path.relative(FIXTURE_ROOT, filePath);
 			const fileList = unknown.get(name) ?? [];
 			if (fileList.length < 3) fileList.push(relative);
 			unknown.set(name, fileList);
@@ -286,7 +288,7 @@ async function assertNestedComponentAttrsCovered(t: ExecutionContext, allowedNam
 	t.deepEqual(
 		[...unknown.entries()].sort(([a], [b]) => a.localeCompare(b)),
 		[],
-		'component instance attrs across referer samples are declared by protocol',
+		'component instance attrs across fixture samples are declared by protocol',
 	);
 }
 
@@ -320,7 +322,7 @@ async function assertContextualChildTagAttrsCovered(
 	allowedNames: Set<string>,
 	ignoredNames: ReadonlySet<string> = new Set(),
 ): Promise<void> {
-	const xmlFiles = await walkXmlFiles(REFERER_ROOT);
+	const xmlFiles = await walkXmlFiles(FIXTURE_ROOT);
 	const unknown = new Map<string, string[]>();
 
 	for (const filePath of xmlFiles) {
@@ -328,7 +330,7 @@ async function assertContextualChildTagAttrsCovered(
 		const actualNames = await collectContextualChildTagAttrNames(filePath, parentTagName, childTagName);
 		for (const name of actualNames) {
 			if (allowedNames.has(name) || ignoredNames.has(name)) continue;
-			const relative = path.relative(REFERER_ROOT, filePath);
+			const relative = path.relative(FIXTURE_ROOT, filePath);
 			const fileList = unknown.get(name) ?? [];
 			if (fileList.length < 3) fileList.push(relative);
 			unknown.set(name, fileList);
@@ -338,7 +340,7 @@ async function assertContextualChildTagAttrsCovered(
 	t.deepEqual(
 		[...unknown.entries()].sort(([a], [b]) => a.localeCompare(b)),
 		[],
-		`${parentTagName} > ${childTagName} attrs across referer samples are declared by protocol`,
+		`${parentTagName} > ${childTagName} attrs across fixture samples are declared by protocol`,
 	);
 }
 
@@ -348,14 +350,14 @@ async function assertPackageResourceAttrsCovered(
 	allowedNames: Set<string>,
 	ignoredNames: ReadonlySet<string> = new Set(),
 ): Promise<void> {
-	const xmlFiles = (await walkXmlFiles(REFERER_ROOT)).filter((filePath) => path.basename(filePath) === 'package.xml');
+	const xmlFiles = (await walkXmlFiles(FIXTURE_ROOT)).filter((filePath) => path.basename(filePath) === 'package.xml');
 	const unknown = new Map<string, string[]>();
 
 	for (const filePath of xmlFiles) {
 		const actualNames = await collectTagAttrNames(filePath, tagName);
 		for (const name of actualNames) {
 			if (allowedNames.has(name) || ignoredNames.has(name)) continue;
-			const relative = path.relative(REFERER_ROOT, filePath);
+			const relative = path.relative(FIXTURE_ROOT, filePath);
 			const fileList = unknown.get(name) ?? [];
 			if (fileList.length < 3) fileList.push(relative);
 			unknown.set(name, fileList);
@@ -365,11 +367,11 @@ async function assertPackageResourceAttrsCovered(
 	t.deepEqual(
 		[...unknown.entries()].sort(([a], [b]) => a.localeCompare(b)),
 		[],
-		`${tagName} resource attrs across referer package.xml samples are declared by protocol`,
+		`${tagName} resource attrs across fixture package.xml samples are declared by protocol`,
 	);
 }
 
-test('project XML protocol covers selected tag attrs across referer samples', async (t) => {
+test('project XML protocol covers selected tag attrs across fixture samples', async (t) => {
 	await assertPackageResourceAttrsCovered(
 		t,
 		'image',
@@ -637,8 +639,8 @@ test('project XML protocol children maps stay explicit and stable', (t) => {
 	]);
 });
 
-test('group relation/gear children in referer samples only appear on advanced groups', async (t) => {
-	const xmlFiles = await walkXmlFiles(REFERER_ROOT);
+test('group relation/gear children in fixture samples only appear on advanced groups', async (t) => {
+	const xmlFiles = await walkXmlFiles(FIXTURE_ROOT);
 	const invalid: Array<{ file: string; childNames: string[] }> = [];
 	let matched = 0;
 
@@ -649,22 +651,22 @@ test('group relation/gear children in referer samples only appear on advanced gr
 		for (const row of rows) {
 			if (row.advanced) continue;
 			invalid.push({
-				file: path.relative(REFERER_ROOT, filePath),
+				file: path.relative(FIXTURE_ROOT, filePath),
 				childNames: row.childNames,
 			});
 		}
 	}
 
-	t.true(matched > 0, 'referer should contain advanced group structural samples');
+	t.true(matched > 0, 'fixtures should contain advanced group structural samples');
 	t.deepEqual(
 		invalid,
 		[],
-		'group relation/gear structural children should only appear on advanced groups in referer samples',
+		'group relation/gear structural children should only appear on advanced groups in fixture samples',
 	);
 });
 
-test('root extension children in referer samples require matching extention attr', async (t) => {
-	const xmlFiles = await walkXmlFiles(REFERER_ROOT);
+test('root extension children in fixture samples require matching extention attr', async (t) => {
+	const xmlFiles = await walkXmlFiles(FIXTURE_ROOT);
 	const invalid: Array<{ file: string; extention: string | null; childNames: string[] }> = [];
 	let matched = 0;
 
@@ -675,14 +677,14 @@ test('root extension children in referer samples require matching extention attr
 		for (const row of rows) {
 			if (row.childNames.length === 1 && row.extention === row.childNames[0]) continue;
 			invalid.push({
-				file: path.relative(REFERER_ROOT, filePath),
+				file: path.relative(FIXTURE_ROOT, filePath),
 				extention: row.extention,
 				childNames: row.childNames,
 			});
 		}
 	}
 
-	t.true(matched > 0, 'referer should contain root extension structural samples');
+	t.true(matched > 0, 'fixtures should contain root extension structural samples');
 	t.deepEqual(
 		invalid,
 		[],
