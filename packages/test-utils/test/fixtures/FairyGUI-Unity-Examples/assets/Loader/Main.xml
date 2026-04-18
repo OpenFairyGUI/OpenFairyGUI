@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<component size="1479,809">
-  <controller name="c1" pages="0,1,1,2" selected="0"/>
-  <displayList>
-    <loader3D id="n10_biss" name="n10" xy="416,476" size="50,30" url="ui://hzobybbtbiss6" autoSize="true" animation="stand" skin="" loop="true"/>
-    <loader3D id="n11_bist" name="n11" xy="698,52" size="368,384" url="ui://hzobybbtnbcge" autoSize="true" animation="run" skin="" playing="false" frame="10"/>
-    <loader3D id="n12_bist" name="n12" xy="1069,3" size="410,806" url="ui://hzobybbtczqy1h" autoSize="true" animation="idle" skin="full-skins/boy" loop="true"/>
-  </displayList>
-</component>
