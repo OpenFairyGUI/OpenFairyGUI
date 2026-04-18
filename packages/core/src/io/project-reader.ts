@@ -509,14 +509,38 @@ function getOrderedDisplayListItems(xmlContent: string): Array<{ tagName: string
 		if (!rawTagName) return [];
 		const attrs = (entry[':@'] as Record<string, unknown> | undefined) ?? {};
 		const nestedEntries = Array.isArray(entry[rawTagName]) ? (entry[rawTagName] as OrderedXmlEntry[]) : [];
+		const rawAttrs = readRawDisplayListAttrs(xmlContent, rawTagName, attrs.id);
 		return [{
 			tagName: rawTagName.toLowerCase(),
 			attrs: {
+				...rawAttrs,
 				...attrs,
 				...normalizeOrderedChildren(nestedEntries),
 			} as DisplayObjectXmlNode,
 		}];
 	});
+}
+
+function readRawDisplayListAttrs(
+	xmlContent: string,
+	tagName: string,
+	id: unknown,
+): Record<string, unknown> {
+	if (typeof id !== 'string' || !id) return {};
+	const idPattern = escapeRegExp(id);
+	const tagPattern = escapeRegExp(tagName);
+	const match = xmlContent.match(new RegExp(`<${tagPattern}\\b([^>]*\\bid="${idPattern}"[^>]*)\\/?>`, 'i'));
+	if (!match?.[1]) return {};
+	const attrText = match[1].replace(/\/\s*$/, '');
+	const attrs: Record<string, unknown> = {};
+	for (const attrMatch of attrText.matchAll(/([A-Za-z_:][\w:.-]*)\s*=\s*"([^"]*)"/g)) {
+		attrs[attrMatch[1]] = attrMatch[2];
+	}
+	return attrs;
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function getOrderedPackageResourceItems(xmlContent: string): Array<{ tagName: string; attrs: ResourceXmlAttrs }> {
@@ -2239,6 +2263,16 @@ export class ProjectReader {
 						column: 0, row: 1,
 					};
 					g.setLayout(layoutMap[layout] ?? 0);
+				}
+				const align = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.align);
+				if (align) {
+					const alignMap: Record<string, number> = { left: 0, center: 1, right: 2 };
+					g.setAlign(alignMap[align] ?? 0);
+				}
+				const vAlign = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.vAlign);
+				if (vAlign) {
+					const vAlignMap: Record<string, number> = { top: 0, middle: 1, bottom: 2 };
+					g.setVAlign(vAlignMap[vAlign] ?? 0);
 				}
 				const lineGap = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineGap);
 				if (lineGap !== undefined) g.setLineGap(parseInt2(lineGap));

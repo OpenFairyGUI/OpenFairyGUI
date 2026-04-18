@@ -1681,6 +1681,16 @@ export class ProjectWriter {
 			if (lineGap !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineGap, String(lineGap));
 			const columnGap = typedObj.getColumnGap?.() ?? 0;
 			if (columnGap !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.columnGap, String(columnGap));
+			const align = typedObj.getAlign?.();
+			if (align !== undefined && align !== 0) {
+				const alignName: Record<number, string> = { 0: 'left', 1: 'center', 2: 'right' };
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.align, alignName[align] ?? 'left');
+			}
+			const vAlign = typedObj.getVAlign?.();
+			if (vAlign !== undefined && vAlign !== 0) {
+				const vAlignName: Record<number, string> = { 0: 'top', 1: 'middle', 2: 'bottom' };
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.vAlign, vAlignName[vAlign] ?? 'top');
+			}
 			const lineCount = typedObj.getLineCount?.() ?? 0;
 			if (lineCount !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineCount, String(lineCount));
 			if (typedObj.getAutoResizeItem?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.autoResizeItem, 'false');

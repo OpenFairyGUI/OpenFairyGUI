@@ -138,6 +138,19 @@ test('restore published project: directory batch restores packages, assets, and 
 		const bagCloseButtonXml = await fs.readFile(path.join(bagOutputDir, 'assets', 'Bag', 'CloseButton.xml'), 'utf-8');
 		t.true(bagCloseButtonXml.includes('<gearSize controller="button" pages="0,1,2,3" values="61,53|-|61,53|-" default="55,47"'), 'restored CloseButton omits redundant identity scale payloads in non-tween gearSize');
 		t.true(/<image\b[^>]*id="n1"[^>]*xy="0,0"/.test(bagCloseButtonXml), 'restored CloseButton keeps explicit zero xy attrs on image tags');
+		const bagWinXml = await fs.readFile(path.join(bagOutputDir, 'assets', 'Bag', 'BagWin.xml'), 'utf-8');
+		t.true(
+			/<list\b[^>]*id="n8"[^>]*autoItemSize="false"/.test(bagWinXml),
+			'restored Bag/BagWin keeps explicit autoItemSize=false on the paginated item list',
+		);
+		t.true(
+			/<list\b[^>]*id="n25_osdo"[^>]*selectionController="page"/.test(bagWinXml),
+			'restored Bag/BagWin keeps the page-linked indicator list selectionController',
+		);
+		t.true(
+			/<list\b[^>]*id="n25_osdo"[^>]*\balign="center"/.test(bagWinXml),
+			'restored Bag/BagWin keeps explicit center alignment on the page-linked indicator list',
+		);
 		const basicsDemoListXml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'Demo_List.xml'), 'utf-8');
 		t.false(basicsDemoListXml.includes('layout="singleColumn"'), 'default single-column list omits layout attr');
 		t.true(basicsDemoListXml.includes('layout="row"'), 'single-row list uses editor layout token');

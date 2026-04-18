@@ -590,6 +590,7 @@ test('Bag package preserves list colGap and selectionController from source XML'
 	const pageDots = byId.get('n25_osdo');
 	t.truthy(pageDots, 'page dot list exists');
 	t.is(pageDots?.getColumnGap?.(), 40, 'row list keeps colGap from XML');
+	t.is(pageDots?.getAlign?.(), 1, 'row list keeps align=center from XML');
 	t.is(pageDots?.getSelectionController?.(), 'page', 'row list keeps selectionController from XML');
 	t.is(pageDots?.getSelectionMode?.(), ListSelectionMode.Single, 'selection mode remains default when XML omits it');
 	t.false(pageDots?.getTouchable?.(), 'row list keeps touchable=false from XML');

@@ -68,7 +68,7 @@ flowchart LR
 | 层级 | 当前职责 | 核心文件 |
 |---|---|---|
 | 入口层 | 命令行封装与参数分发 | `packages/cli/src/cli.ts` |
-| 协议适配层 | 屏蔽平台文件系统差异，承接工程格式、二进制格式和发布产物恢复，并集中声明工程 XML 协议元数据 | `packages/core/src/io/platform-io.ts`、`packages/core/src/io/node-io.ts`、`packages/core/src/io/project-xml-protocol.ts`、`packages/core/src/io/project-reader.ts`、`packages/core/src/io/binary-reader.ts`、`packages/core/src/io/published-project-restorer.ts` |
+| 协议适配层 | 屏蔽平台文件系统差异，承接工程格式、二进制格式和发布产物恢复，并集中声明工程 XML 协议元数据 | `packages/core/src/io/platform-io.ts`、`packages/core/src/io/node-io.ts`、`packages/core/src/io/project-xml-protocol.ts`、`packages/core/src/io/project-reader.ts`、`packages/core/src/io/binary-reader.ts`、`packages/core/src/io/component-decoder.ts`、`packages/core/src/io/published-project-restorer.ts` |
 | 核心模型层 | `Document` 持有 `Property Graph`，统一组织项目节点、资源节点与组件语义对象 | `packages/core/src/document.ts`、`packages/core/src/properties/property.ts` |
 | 项目骨架层 | `Root -> Package -> Resource -> Component` 组成基础结构 | `packages/core/src/properties/root.ts`、`packages/core/src/properties/package.ts`、`packages/core/src/properties/component.ts` |
 | 工作流层 | 面向自动化的可组合处理管线 | `packages/functions/src/inspect.ts`、`packages/functions/src/validate.ts`、`packages/functions/src/prune.ts`、`packages/functions/src/rename.ts`、`packages/functions/src/publish.ts`、`packages/functions/src/codegen.ts` |
@@ -76,6 +76,7 @@ flowchart LR
 
 补充说明：
 - `@openfairygui/core` 定义文档模型与协议读写能力。
+- `BinaryReader` 仍然是二进制读入口；component block 的展开逻辑当前拆到内部 helper `component-decoder.ts`，对外调用面不变。
 - `@openfairygui/functions` 只组合流程，不重新定义底层协议；当前 `publish` 会编排 atlas、binary publish 与受限代码生成。
 - 当前 Unity、Layabox、Cocos Creator 共用同一条 `publish -> atlas / binary / codegen` 主链；差异主要体现在描述文件扩展名和代码生成 lane 选择，而不是工作流分叉。
 - `@openfairygui/cli` 是入口层，不下沉协议细节。
