@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getFixtureProjectPath, getWorkspaceReleasePath } from '@openfairygui/test-utils';
+import { getFixturePath, getFixtureProjectPath } from '@openfairygui/test-utils';
 import { Document, NodeIO, TransitionActionType } from '../src/index.js';
 
 const NULL_STRING_INDEX = 0xfffe;
@@ -1638,7 +1638,9 @@ test('binary writer: matches Transition component raw lengths from editor baseli
 		await io.writeBinary(doc, outPath, { compressed: false, version: 2, packageIndex: pkgIndex });
 
 		const actualBytes = new Uint8Array(await fs.readFile(outPath));
-		const expectedBytes = new Uint8Array(await fs.readFile(getWorkspaceReleasePath('Transition_fui.bytes')));
+		const expectedBytes = new Uint8Array(await fs.readFile(
+			getFixturePath('FairyGUI-unity', 'Assets', 'Examples', 'Resources', 'UI', 'Transition_fui.bytes'),
+		));
 
 		const actualMap = new Map(readComponentRawLengths(actualBytes).map((item) => [item.id, item]));
 		const expectedMap = new Map(readComponentRawLengths(expectedBytes).map((item) => [item.id, item]));
