@@ -1304,6 +1304,58 @@ test('binary writer: child anchor and image flip are preserved in component raw-
 	}
 });
 
+test('binary writer: image and sound resource names keep dotted resource bases on readback', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('DottedNamesPkg');
+	pkg.setId('dotted001');
+
+	const imageRes = doc.createImageResource('hero.png');
+	imageRes
+		.setId('img001')
+		.setPath('/images/')
+		.setFileName('hero.png.jpg')
+		.setWidth(64)
+		.setHeight(32)
+		.setExported(true);
+	pkg.addResource(imageRes);
+
+	const soundRes = doc.createSoundResource('voice.wav');
+	soundRes
+		.setId('snd001')
+		.setPath('/sound/')
+		.setFile('voice.wav.mp3')
+		.setExported(true);
+	pkg.addResource(soundRes);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-bw-'));
+	const outPath = path.join(tmpDir, 'dotted_names.bytes');
+
+	try {
+		await io.writeBinary(doc, outPath);
+		const roundTripped = await io.readBinary(outPath);
+		const roundTripPkg = roundTripped.getRoot().getPackage('DottedNamesPkg');
+		t.truthy(roundTripPkg, 'round-tripped package exists');
+
+		const roundTripImage = roundTripPkg?.getResourceById('img001') as ReturnType<Document['createImageResource']>;
+		t.truthy(roundTripImage, 'round-tripped image exists');
+		t.is(roundTripImage.getName(), 'hero.png', 'binary item name keeps the dotted resource base');
+		t.is(roundTripImage.getFileName(), 'hero.png.png', 'binary image restore always appends png to the resource name');
+
+		const roundTripSound = roundTripPkg?.getResourceById('snd001') as ReturnType<Document['createSoundResource']>;
+		t.truthy(roundTripSound, 'round-tripped sound exists');
+		t.is(roundTripSound.getName(), 'voice.wav', 'binary item name keeps the dotted sound resource base');
+		t.is(roundTripSound.getFile(), 'voice.wav.mp3', 'binary sound restore appends the published sound suffix to the resource name');
+		t.is(
+			(roundTripSound.getExtras() as Record<string, unknown>)._publishedFile,
+			'snd001.mp3',
+			'binary sound restore still tracks the published file name for source lookup',
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('binary writer: GLoader3D uses loader3d object type and persists runtime fields', async (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('Loader3DPkg');

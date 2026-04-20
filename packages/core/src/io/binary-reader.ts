@@ -63,8 +63,20 @@ function normalizePackageResourcePath(path: string): string {
 	return `/${normalized.replace(/^\/+/, '').replace(/\/+$/, '')}/`;
 }
 
+function fileNameSuffix(fileName: string): string {
+	const baseName = fileName.split(/[\\/]/).pop() ?? fileName;
+	const suffixMatch = /((?:\.[^.\\/]+)+)$/u.exec(baseName);
+	return suffixMatch?.[1] ?? '';
+}
+
 function normalizePublishedImageFileName(name: string): string {
-	return /\.[a-z0-9]+$/i.test(name) ? name : `${name}.png`;
+	return `${name || 'image'}.png`;
+}
+
+function normalizePublishedSoundFileName(name: string, fileName: string): string {
+	if (!name) return fileName;
+	const suffix = fileNameSuffix(fileName) || '.wav';
+	return `${name}${suffix}`;
 }
 
 function findPackageById(doc: Document, id: string): Package | null {
@@ -377,7 +389,11 @@ export class BinaryReader {
 
 				case BinItemType.Sound: {
 					const res = doc.createSoundResource(itemName);
-					res.setId(itemId).setPath(itemPath).setFile(itemFile).setExported(exported);
+					res
+						.setId(itemId)
+						.setPath(itemPath)
+						.setFile(normalizePublishedSoundFileName(itemName, itemFile))
+						.setExported(exported);
 					res.setExtras({ ...res.getExtras(), _publishedFile: itemFile });
 					pkg.addResource(res);
 					createdResource = res;

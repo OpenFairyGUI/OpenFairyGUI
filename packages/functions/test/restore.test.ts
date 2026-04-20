@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
-import { NodeIO, ProjectType, parseJta } from '@openfairygui/core';
+import { Document, NodeIO, ProjectType, parseJta } from '@openfairygui/core';
 import { getFixturePath, getFixtureProjectPath } from '@openfairygui/test-utils';
 import { publish, restore, type PublishFileSystem, type RestoreFileSystem, type RestoreImageCropInput, type RestoreImageExtractInput } from '../src/index.js';
 
@@ -200,7 +200,7 @@ test('restore published project: directory batch restores packages, assets, and 
 		const basicsPackageXml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'package.xml'), 'utf-8');
 		t.true(basicsPackageXml.includes('name="tabswitch.wav"'), 'package.xml references restored editor-facing sound file name');
 		t.true(basicsPackageXml.includes('exported="true"'), 'package.xml writes explicit true boolean attributes');
-		t.false(basicsPackageXml.includes('.png.png"'), 'image resource file names are not suffixed with .png twice');
+		t.true(basicsPackageXml.includes('id="rpmb7" name="b1.png.png" path="/images/"'), 'dotted image resource names are restored by appending png to the resource name');
 		t.false(basicsPackageXml.includes('id="es4130" name="change.png" path="/images/" width='), 'restored package.xml omits inferred image width');
 		t.false(basicsPackageXml.includes('id="es4130" name="change.png" path="/images/" height='), 'restored package.xml omits inferred image height');
 		t.true(basicsPackageXml.includes('<publish name="Basics">'), 'package.xml keeps publish block');
@@ -572,6 +572,68 @@ test('restore published project: filesystem alias paths are rejected before over
 		t.truthy(
 			await fs.stat(path.join(releaseDir, 'Basics_fui.bytes')).catch(() => null),
 			'restore keeps the published source directory intact when output aliases the same directory through the filesystem',
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
+	}
+});
+
+test('restore published project: dotted image and sound resource names restore by appending the runtime suffix', async (t) => {
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-dotted-'));
+	const releaseDir = path.join(tmpDir, 'release');
+	const outputDir = path.join(tmpDir, 'Restored');
+	const binaryPath = path.join(releaseDir, 'DottedNamesPkg_fui.bytes');
+
+	try {
+		const doc = new Document();
+		const pkg = doc.createPackage('DottedNamesPkg');
+		pkg.setId('dotted001');
+		pkg.setPublishName('DottedNamesPkg');
+
+		const imageRes = doc.createImageResource('hero.png');
+		imageRes
+			.setId('img001')
+			.setPath('/images/')
+			.setFileName('hero.png.jpg')
+			.setWidth(64)
+			.setHeight(32)
+			.setExported(true);
+		pkg.addResource(imageRes);
+
+		const soundRes = doc.createSoundResource('voice.wav');
+		soundRes
+			.setId('snd001')
+			.setPath('/sound/')
+			.setFile('voice.wav.mp3')
+			.setExported(true);
+		pkg.addResource(soundRes);
+
+		await fs.mkdir(releaseDir, { recursive: true });
+		await io.writeBinary(doc, binaryPath);
+		await fs.writeFile(path.join(releaseDir, 'DottedNamesPkg_snd001.mp3'), new Uint8Array([0x01, 0x02, 0x03]));
+
+		const result = await restore({
+			inputDir: releaseDir,
+			output: outputDir,
+			fs: createRestoreFs(),
+			force: true,
+		});
+
+		const restoredDoc = await io.readProject(result.projectPath);
+		const restoredPkg = restoredDoc.getRoot().getPackage('DottedNamesPkg')!;
+		const restoredImage = restoredPkg.getResourceById('img001') as ReturnType<Document['createImageResource']>;
+		const restoredSound = restoredPkg.getResourceById('snd001') as ReturnType<Document['createSoundResource']>;
+
+		t.is(restoredImage.getFileName(), 'hero.png.png', 'restore treats dotted image item names as resource names and always appends png');
+		t.is(restoredSound.getFile(), 'voice.wav.mp3', 'restore treats dotted sound item names as resource names and appends the published sound suffix');
+
+		const packageXml = await fs.readFile(path.join(outputDir, 'assets', 'DottedNamesPkg', 'package.xml'), 'utf-8');
+		t.true(packageXml.includes('id="img001" name="hero.png.png" path="/images/"'), 'restored package.xml keeps the appended png image file name');
+		t.true(packageXml.includes('id="snd001" name="voice.wav.mp3" path="/sound/"'), 'restored package.xml keeps the appended sound file name');
+		t.truthy(
+			await fs.stat(path.join(outputDir, 'assets', 'DottedNamesPkg', 'sound', 'voice.wav.mp3')).catch(() => null),
+			'restore copies the sound file using the restored editor-facing file name',
 		);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
