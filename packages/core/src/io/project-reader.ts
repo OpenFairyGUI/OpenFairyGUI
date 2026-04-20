@@ -2127,6 +2127,8 @@ export class ProjectReader {
 				if (movieClipGrayed !== undefined) g.setGrayed(parseBool(movieClipGrayed));
 				const movieClipFileName = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.fileName);
 				if (movieClipFileName !== undefined) g.setFileName(movieClipFileName);
+				const movieClipPackageId = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.pkg);
+				if (movieClipPackageId !== undefined) g.setPackageId(movieClipPackageId);
 				const movieClipFilter = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.filter);
 				if (movieClipFilter !== undefined) g.setFilter(movieClipFilter);
 				const movieClipFilterData = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.filterData);

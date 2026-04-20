@@ -640,6 +640,104 @@ test('restore published project: dotted image and sound resource names restore b
 	}
 });
 
+test('restore published project: cross-package refs resolve against other restored binaries in the same directory', async (t) => {
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-crosspkg-'));
+	const releaseDir = path.join(tmpDir, 'release');
+	const outputDir = path.join(tmpDir, 'Restored');
+
+	try {
+		const doc = new Document();
+		const hostPkg = doc.createPackage('HostPkg');
+		hostPkg.setId('hostpkg01');
+		hostPkg.setPublishName('HostPkg');
+
+		const sharedPkg = doc.createPackage('SharedPkg');
+		sharedPkg.setId('shared01');
+		sharedPkg.setPublishName('SharedPkg');
+
+		const sharedImage = doc.createImageResource('SharedImage');
+		sharedImage
+			.setId('imgB')
+			.setPath('/images/')
+			.setFileName('SharedImage.png')
+			.setWidth(32)
+			.setHeight(24)
+			.setExported(true);
+		sharedPkg.addResource(sharedImage);
+
+		const sharedComponent = doc.createComponent('SharedCard');
+		sharedComponent
+			.setId('cmpB')
+			.setPath('/widgets/')
+			.setExported(true)
+			.setSize(120, 80);
+		sharedPkg.addResource(sharedComponent);
+
+		const sharedMovieClip = doc.createMovieClipResource('SharedFx');
+		sharedMovieClip
+			.setId('mcB')
+			.setPath('/fx/')
+			.setFileName('SharedFx.jta')
+			.setExported(true)
+			.setWidth(64)
+			.setHeight(32);
+		sharedPkg.addResource(sharedMovieClip);
+
+		const hostComponent = doc.createComponent('Host');
+		hostComponent
+			.setId('host001')
+			.setPath('/')
+			.setExported(true)
+			.setSize(400, 300);
+
+		const imageChild = doc.createGImage('sharedImage');
+		imageChild.setId('n0').setSrc('imgB').setPackageId('shared01');
+		hostComponent.addChild(imageChild);
+
+		const componentChild = doc.createGComponent('sharedComponent');
+		componentChild.setId('n1').setSrc('cmpB').setPackageId('shared01');
+		hostComponent.addChild(componentChild);
+
+		const movieClipChild = doc.createGMovieClip('sharedMovieClip');
+		movieClipChild.setId('n2').setSrc('mcB').setPackageId('shared01');
+		hostComponent.addChild(movieClipChild);
+
+		hostPkg.addResource(hostComponent);
+
+		await fs.mkdir(releaseDir, { recursive: true });
+		await io.writeBinary(doc, path.join(releaseDir, 'HostPkg_fui.bytes'), { packageIndex: 0 });
+		await io.writeBinary(doc, path.join(releaseDir, 'SharedPkg_fui.bytes'), { packageIndex: 1 });
+
+		const result = await restore({
+			inputDir: releaseDir,
+			output: outputDir,
+			fs: createRestoreFs(),
+			force: true,
+		});
+
+		const restoredDoc = await io.readProject(result.projectPath);
+		const restoredHostPkg = restoredDoc.getRoot().getPackage('HostPkg');
+		t.truthy(restoredHostPkg, 'restored host package exists');
+		const restoredHost = restoredHostPkg?.getComponent('Host');
+		t.truthy(restoredHost, 'restored host component exists');
+		const byId = new Map(restoredHost?.listChildren().map((child) => [child.getId(), child as any]));
+
+		t.is(byId.get('n0')?.getPackageId?.(), 'shared01', 'cross-package image keeps package id after restore');
+		t.is(byId.get('n1')?.getPackageId?.(), 'shared01', 'cross-package component keeps package id after restore');
+		t.is(byId.get('n1')?.getFileName?.(), 'widgets/SharedCard.xml', 'cross-package component backfills fileName from the target package resource');
+		t.is(byId.get('n2')?.getPackageId?.(), 'shared01', 'cross-package movieclip keeps package id after restore');
+		t.is(byId.get('n2')?.getFileName?.(), 'fx/SharedFx.jta', 'cross-package movieclip backfills fileName from the target package resource');
+
+		const hostXml = await fs.readFile(path.join(outputDir, 'assets', 'HostPkg', 'Host.xml'), 'utf-8');
+		t.true(/<image\b[^>]*id="n0"[^>]*src="imgB"[^>]*pkg="shared01"/.test(hostXml), 'restored image instance writes pkg attr for cross-package refs');
+		t.true(/<component\b[^>]*id="n1"[^>]*src="cmpB"[^>]*fileName="widgets\/SharedCard\.xml"[^>]*pkg="shared01"/.test(hostXml), 'restored component instance writes fileName and pkg attrs for cross-package refs');
+		t.true(/<(?:movieclip|jta)\b[^>]*id="n2"[^>]*src="mcB"[^>]*fileName="fx\/SharedFx\.jta"[^>]*pkg="shared01"/.test(hostXml), 'restored movieclip instance writes fileName and pkg attrs for cross-package refs');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
+	}
+});
+
 test.serial('restore published project: bare relative .fairy output targets write a file, not a directory', async (t) => {
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-relative-file-'));
 	const releaseDir = path.join(tmpDir, 'release');

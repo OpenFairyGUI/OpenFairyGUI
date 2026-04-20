@@ -17,6 +17,7 @@ export interface IGMovieClip extends IGObject {
 	touchable: boolean;
 	grayed: boolean;
 	fileName: string;
+	packageId: string;
 	filter: string;
 	filterData: string;
 	playing: boolean;
@@ -51,6 +52,7 @@ export class GMovieClip extends GObject<IGMovieClip, PropertyType.G_MOVIE_CLIP> 
 			touchable: true,
 			grayed: false,
 			fileName: '',
+			packageId: '',
 			filter: '',
 			filterData: '',
 			playing: true,
@@ -104,6 +106,9 @@ export class GMovieClip extends GObject<IGMovieClip, PropertyType.G_MOVIE_CLIP> 
 
 	public getFileName(): string { return this.get('fileName' as any); }
 	public setFileName(v: string): this { return this.set('fileName' as any, v); }
+
+	public getPackageId(): string { return this.get('packageId' as any); }
+	public setPackageId(v: string): this { return this.set('packageId' as any, v); }
 
 	public getFilter(): string { return this.get('filter' as any); }
 	public setFilter(v: string): this { return this.set('filter' as any, v); }

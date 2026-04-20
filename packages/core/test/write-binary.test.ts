@@ -1356,6 +1356,67 @@ test('binary writer: image and sound resource names keep dotted resource bases o
 	}
 });
 
+test('binary writer: cross-package display-list refs preserve package ids on readback', async (t) => {
+	const doc = new Document();
+	const hostPkg = doc.createPackage('HostPkg');
+	hostPkg.setId('hostpkg01');
+	const sharedPkg = doc.createPackage('SharedPkg');
+	sharedPkg.setId('shared01');
+
+	const sharedImage = doc.createImageResource('SharedImage');
+	sharedImage.setId('imgB').setPath('/images/').setFileName('SharedImage.png').setWidth(32).setHeight(24);
+	sharedPkg.addResource(sharedImage);
+
+	const sharedComponent = doc.createComponent('SharedCard');
+	sharedComponent.setId('cmpB').setPath('/widgets/').setSize(120, 80);
+	sharedPkg.addResource(sharedComponent);
+
+	const sharedMovieClip = doc.createMovieClipResource('SharedFx');
+	sharedMovieClip.setId('mcB').setPath('/fx/').setFileName('SharedFx.jta').setWidth(64).setHeight(32);
+	sharedPkg.addResource(sharedMovieClip);
+
+	const hostComponent = doc.createComponent('Host');
+	hostComponent.setId('host001').setSize(400, 300);
+
+	const imageChild = doc.createGImage('sharedImage');
+	imageChild.setId('n0').setSrc('imgB').setPackageId('shared01');
+	hostComponent.addChild(imageChild);
+
+	const componentChild = doc.createGComponent('sharedComponent');
+	componentChild.setId('n1').setSrc('cmpB').setPackageId('shared01');
+	hostComponent.addChild(componentChild);
+
+	const movieClipChild = doc.createGMovieClip('sharedMovieClip');
+	movieClipChild.setId('n2').setSrc('mcB').setPackageId('shared01');
+	hostComponent.addChild(movieClipChild);
+
+	hostPkg.addResource(hostComponent);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-bw-'));
+	const outPath = path.join(tmpDir, 'host_package.bytes');
+
+	try {
+		await io.writeBinary(doc, outPath, { packageIndex: 0 });
+		const roundTripped = await io.readBinary(outPath);
+		const roundTripPkg = roundTripped.getRoot().getPackage('HostPkg');
+		t.truthy(roundTripPkg, 'round-tripped host package exists');
+
+		const decodedHost = roundTripPkg?.getComponent('Host');
+		t.truthy(decodedHost, 'round-tripped host component exists');
+		const byId = new Map(decodedHost?.listChildren().map((child) => [child.getId(), child as any]));
+
+		t.is(byId.get('n0')?.getSrc?.(), 'imgB');
+		t.is(byId.get('n0')?.getPackageId?.(), 'shared01', 'cross-package image keeps package id');
+		t.is(byId.get('n1')?.getSrc?.(), 'cmpB');
+		t.is(byId.get('n1')?.getPackageId?.(), 'shared01', 'cross-package component keeps package id');
+		t.is(byId.get('n2')?.getSrc?.(), 'mcB');
+		t.is(byId.get('n2')?.getPackageId?.(), 'shared01', 'cross-package movieclip keeps package id');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('binary writer: GLoader3D uses loader3d object type and persists runtime fields', async (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('Loader3DPkg');

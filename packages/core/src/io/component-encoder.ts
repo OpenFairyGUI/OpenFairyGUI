@@ -28,6 +28,7 @@ type GearNode = ReturnType<ChildNode['listGears']>[number];
 
 type EncoderChildLike = ChildNode & {
 	getSrc?(): string;
+	getPackageId?(): string;
 	getX?(): number;
 	getY?(): number;
 	getWidth?(): number;
@@ -242,6 +243,24 @@ function getPublishedResourceIdMap(pkg: Package): Record<string, string> {
 function remapLocalResourceId(pkg: Package, value: string | null | undefined): string | null {
 	if (!value) return null;
 	return getPublishedResourceIdMap(pkg)[value] ?? value;
+}
+
+function resolveChildResourceRef(
+	pkg: Package,
+	child: Pick<EncoderChildLike, 'getSrc' | 'getPackageId'>,
+): { src: string | null; packageId: string | null } {
+	const src = child.getSrc?.() ?? null;
+	const packageId = child.getPackageId?.() ?? '';
+	if (!packageId || packageId === pkg.getId()) {
+		return {
+			src: remapLocalResourceId(pkg, src),
+			packageId: null,
+		};
+	}
+	return {
+		src,
+		packageId,
+	};
 }
 
 function remapLocalUiUrl(pkg: Package, value: string | null | undefined): string | null {
@@ -591,9 +610,10 @@ function _writeDisplayList(buf: WriteBuffer, comp: Component, _doc: Document, pk
 
 		// --- Child Block 0: beforeAdd ---
 		const cb0 = buf.pos - childIndexPos;
+		const resourceRef = resolveChildResourceRef(pkg, child);
 		buf.writeUint8(objType);
-		buf.writeS(remapLocalResourceId(pkg, child.getSrc?.() ?? null));
-		buf.writeS(null); // pkgId (same package = null)
+		buf.writeS(resourceRef.src);
+		buf.writeS(resourceRef.packageId);
 
 		buf.writeS(child.getId?.() ?? '');
 		buf.writeS(child.getName?.() ?? '');

@@ -99,7 +99,7 @@ function decodeChildBlock0(
 
 	const objectType = childBuf.getUint8();
 	const src = childBuf.readS() ?? '';
-	childBuf.readS(); // pkgId
+	const packageId = childBuf.readS();
 	const id = childBuf.readS() ?? '';
 	const name = childBuf.readS() ?? '';
 	const child = createDisplayObject(doc, objectType, name);
@@ -110,12 +110,15 @@ function decodeChildBlock0(
 	if ('setSrc' in child && typeof child.setSrc === 'function') {
 		(child as { setSrc(v: string): void }).setSrc(src);
 	}
+	if (packageId !== null && 'setPackageId' in child && typeof child.setPackageId === 'function') {
+		(child as { setPackageId(v: string): void }).setPackageId(packageId);
+	}
 
-		if ('setXY' in child && typeof child.setXY === 'function') {
-			(child as { setXY(x: number, y: number): void }).setXY(childBuf.getInt32(), childBuf.getInt32());
-		} else {
-			childBuf.skip(8);
-		}
+	if ('setXY' in child && typeof child.setXY === 'function') {
+		(child as { setXY(x: number, y: number): void }).setXY(childBuf.getInt32(), childBuf.getInt32());
+	} else {
+		childBuf.skip(8);
+	}
 
 	if (childBuf.readBool() && remainingBytes(childBuf) >= 8) {
 		if ('setSize' in child && typeof child.setSize === 'function') {
@@ -129,13 +132,13 @@ function decodeChildBlock0(
 		childBuf.skip(16);
 	}
 
-		if (childBuf.readBool() && remainingBytes(childBuf) >= 8) {
-			if ('setScale' in child && typeof child.setScale === 'function') {
-				(child as { setScale(x: number, y: number): void }).setScale(childBuf.getFloat32(), childBuf.getFloat32());
-			} else {
-				childBuf.skip(8);
-			}
+	if (childBuf.readBool() && remainingBytes(childBuf) >= 8) {
+		if ('setScale' in child && typeof child.setScale === 'function') {
+			(child as { setScale(x: number, y: number): void }).setScale(childBuf.getFloat32(), childBuf.getFloat32());
+		} else {
+			childBuf.skip(8);
 		}
+	}
 
 	if (childBuf.readBool() && remainingBytes(childBuf) >= 8) {
 		if ('setSkew' in child && typeof child.setSkew === 'function') {
@@ -145,14 +148,14 @@ function decodeChildBlock0(
 		}
 	}
 
-		if (childBuf.readBool() && remainingBytes(childBuf) >= 9) {
-			const px = childBuf.getFloat32();
-			const py = childBuf.getFloat32();
-			const anchor = childBuf.readBool();
-			if ('setPivot' in child && typeof child.setPivot === 'function') {
-				(child as { setPivot(x: number, y: number, anchor?: boolean): void }).setPivot(px, py, anchor);
-			}
+	if (childBuf.readBool() && remainingBytes(childBuf) >= 9) {
+		const px = childBuf.getFloat32();
+		const py = childBuf.getFloat32();
+		const anchor = childBuf.readBool();
+		if ('setPivot' in child && typeof child.setPivot === 'function') {
+			(child as { setPivot(x: number, y: number, anchor?: boolean): void }).setPivot(px, py, anchor);
 		}
+	}
 
 	if (remainingBytes(childBuf) < 15) return child;
 	const alpha = childBuf.getFloat32();

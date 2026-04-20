@@ -1865,6 +1865,7 @@ test('round-trip: display object fileName/pkg/filter metadata survives write→r
 	movieClip.setId('n1');
 	movieClip.setSrc('mc001');
 	movieClip.setFileName('pet.jta');
+	movieClip.setPackageId('pkgC');
 	movieClip.setFilter('color');
 	movieClip.setFilterData('0.10,0.20,0.30,1.00');
 
@@ -1894,6 +1895,7 @@ test('round-trip: display object fileName/pkg/filter metadata survives write→r
 		t.true(hostXml.includes('filter="color"'), 'display object writes canonical filter attr');
 		t.true(hostXml.includes('filterData="0.00,0.00,0.00,1.00"'), 'display object writes canonical filterData attr');
 		t.true(hostXml.includes('fileName="pet.jta"'), 'movieclip writes canonical fileName attr');
+		t.true(/<(?:movieclip|jta)\b[^>]*pkg="pkgC"/.test(hostXml), 'movieclip writes canonical pkg attr');
 		t.true(hostXml.includes('fileName="Button/Button5.xml"'), 'component writes canonical fileName attr');
 		t.true(hostXml.includes('pkg="pkgB"'), 'component writes canonical pkg attr');
 		t.true(/<component\b[^>]*\baspect(?:="true")?(?=[\s>])/.test(hostXml), 'component writes canonical aspect attr');
@@ -1910,6 +1912,7 @@ test('round-trip: display object fileName/pkg/filter metadata survives write→r
 		t.is(byId.get('n0')?.getFilterData?.(), '0.00,0.00,0.00,1.00');
 
 		t.is(byId.get('n1')?.getFileName?.(), 'pet.jta');
+		t.is(byId.get('n1')?.getPackageId?.(), 'pkgC');
 		t.is(byId.get('n1')?.getFilterData?.(), '0.10,0.20,0.30,1.00');
 
 		t.is(byId.get('n2')?.getFileName?.(), 'Button/Button5.xml');
