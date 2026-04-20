@@ -2,7 +2,6 @@ import test from 'ava';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { Document, NodeIO, ProjectType, parseJta } from '@openfairygui/core';
 import { getFixturePath, getFixtureProjectPath } from '@openfairygui/test-utils';

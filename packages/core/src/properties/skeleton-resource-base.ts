@@ -1,4 +1,4 @@
-import { type Nullable } from '../constants.js';
+import type { Nullable } from '../constants.js';
 import { ExtensibleProperty, type IExtensibleProperty } from './extensible-property.js';
 
 export interface ISkeletonResourceBase extends IExtensibleProperty {

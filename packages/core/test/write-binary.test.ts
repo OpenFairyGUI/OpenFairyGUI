@@ -176,7 +176,6 @@ function readComponentChildState(bytes: Uint8Array, componentId: string, childId
 	const state = { pos: 0 };
 
 	state.pos += 4; // magic
-	const version = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getInt32(state.pos, false);
 	state.pos += 4; // version
 	state.pos += 1; // compressed
 	readUtfString(bytes, state); // packageId
@@ -452,7 +451,6 @@ function readTreeChildState(bytes: Uint8Array, componentId: string, childId: str
 	clickToExpand: number;
 } | null {
 	const state = { pos: 0 };
-	const dataView = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 
 	state.pos += 4; // magic
 	state.pos += 4; // version
@@ -576,7 +574,6 @@ function readTreeChildState(bytes: Uint8Array, componentId: string, childId: str
 
 function readTransitionItemTypes(bytes: Uint8Array, componentId: string): number[] {
 	const state = { pos: 0 };
-	const dataView = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 
 	state.pos += 4; // magic
 	state.pos += 4; // version

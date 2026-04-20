@@ -131,7 +131,6 @@ interface TrimInfo {
 type PackageResource = ReturnType<Package['listResources']>[number];
 type PackableResource = ImageResource | MovieClipResource | FontResource;
 type PackInputResource = ImageResource | MovieClipResource;
-type ParsedFnt = ReturnType<typeof _parseFnt>;
 
 function getPublishedItemId(resource: { getId(): string; getExtras(): ExtrasMap | undefined }): string {
 	return ((resource.getExtras() as ImageResourceExtras | undefined) ?? {})._publishedId ?? resource.getId();
@@ -251,60 +250,6 @@ type AtlasEncoder = (input: AtlasEncoderInput) => AtlasEncoderPipeline;
 
 function resolveFontFileName(fontName: string): string {
 	return /\.fnt$/i.test(fontName) ? fontName : `${fontName}.fnt`;
-}
-
-function addLocalResourceByUiUrl(
-	target: PackageResource[],
-	added: Set<string>,
-	resourceMap: Map<string, PackageResource>,
-	pkgId: string,
-	value: string | null | undefined,
-): void {
-	if (!value || typeof value !== 'string' || !value.startsWith('ui://')) return;
-	const normalized = value.slice(5).split(',')[0] ?? '';
-	if (!normalized) return;
-	let resourceId = '';
-	const slashIndex = normalized.indexOf('/');
-	if (slashIndex >= 0) {
-		const packageToken = normalized.slice(0, slashIndex);
-		if (packageToken !== pkgId) return;
-		resourceId = normalized.slice(slashIndex + 1);
-	} else if (normalized.length > 8) {
-		const packageToken = normalized.slice(0, 8);
-		if (packageToken !== pkgId) return;
-		resourceId = normalized.slice(8);
-	}
-	if (!resourceId) return;
-	const resource = resourceMap.get(resourceId);
-	if (!resource || added.has(resourceId)) return;
-	added.add(resourceId);
-	target.push(resource);
-}
-
-function addLocalResourcesByText(
-	target: PackageResource[],
-	added: Set<string>,
-	resourceMap: Map<string, PackageResource>,
-	pkgId: string,
-	value: string | null | undefined,
-): void {
-	if (!value || typeof value !== 'string') return;
-	for (const match of value.matchAll(/ui:\/\/[0-9a-z]{8}[0-9a-z]+/gi)) {
-		addLocalResourceByUiUrl(target, added, resourceMap, pkgId, match[0]);
-	}
-}
-
-function addResourceById(
-	target: PackageResource[],
-	added: Set<string>,
-	resourceMap: Map<string, PackageResource>,
-	resourceId: string | null | undefined,
-): void {
-	if (!resourceId) return;
-	const resource = resourceMap.get(resourceId);
-	if (!resource || added.has(resourceId)) return;
-	added.add(resourceId);
-	target.push(resource);
 }
 
 async function resolveEditorCompatibleResourceOrder(
@@ -1473,7 +1418,6 @@ async function _collectFontTexture(
 	pkg: Package,
 	options: AtlasOptions,
 ): Promise<void> {
-	const extras = fontRes.getExtras() as FontResourceExtras;
 	const textureId = fontRes.getTextureId?.() ?? '';
 
 	if (textureId) {

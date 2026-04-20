@@ -48,6 +48,12 @@
 		}
 	},
 	"files": {
-		"includes": ["**", "!**/coverage", "!**/packages/**/*/dist", "!**/build"]
+		"includes": [
+			"**",
+			"!**/coverage",
+			"!**/packages/**/*/dist",
+			"!**/build",
+			"!packages/test-utils/test/fixtures/**"
+		]
 	}
 }

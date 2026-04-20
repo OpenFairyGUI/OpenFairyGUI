@@ -4,12 +4,6 @@ import type { Atlas } from '../properties/atlas.js';
 import type { Component } from '../properties/component.js';
 import type { Package } from '../properties/package.js';
 import type { ImageResource } from '../properties/image-resource.js';
-import type { MiscResource } from '../properties/misc-resource.js';
-import type { SoundResource } from '../properties/sound-resource.js';
-import type { FontResource } from '../properties/font-resource.js';
-import type { MovieClipResource } from '../properties/movie-clip-resource.js';
-import type { SpineResource } from '../properties/spine-resource.js';
-import type { DragonBonesResource } from '../properties/dragon-bones-resource.js';
 import { FGUI_MAGIC } from '../constants.js';
 import { WriteBuffer } from './write-buffer.js';
 import { encodeComponent } from './component-encoder.js';
@@ -267,7 +261,7 @@ export class BinaryWriter {
 				name: dep.getName(),
 			}))
 			.filter((dep) => !!dep.id);
-		const branchNames = includeBranches ? getPackageBranchNames(doc, pkg, resources) : [];
+		const branchNames = includeBranches ? getPackageBranchNames(doc, resources) : [];
 		const branchItemIdsMap = buildBranchItemIdsMap(pkg, branchNames);
 		const publishedItemIdMap = new Map(resources.map((resource) => [resource.getId(), getPublishedItemId(resource)]));
 
@@ -920,7 +914,7 @@ function getItemBranchName(item: BinaryPackageItem): string {
 	return branchAware.getBranch?.() ?? '';
 }
 
-function getPackageBranchNames(doc: Document, pkg: Package, resources: PackageResource[]): string[] {
+function getPackageBranchNames(doc: Document, resources: PackageResource[]): string[] {
 	const packageBranchSet = new Set(
 		resources
 			.map((resource) => getItemBranchName(resource))

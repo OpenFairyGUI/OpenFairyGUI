@@ -78,7 +78,7 @@ class BinarySearchCompat {
 	}
 
 	private getCurrent(): number {
-		if (this.pot) return Math.trunc(Math.pow(2, this.current));
+		if (this.pot) return Math.trunc(2 ** this.current);
 		if (this.mof) return this.current * 4;
 		return this.current;
 	}
@@ -323,8 +323,8 @@ function initSizeScheme(): Array<{ width: number; height: number; area: number; 
 	const result = [];
 	for (let w = 5; w <= 13; w += 1) {
 		for (let h = 5; h <= 13; h += 1) {
-			const width = Math.pow(2, w);
-			const height = Math.pow(2, h);
+			const width = 2 ** w;
+			const height = 2 ** h;
 			const area = width * height;
 			const aspectRatio = width > height ? width / height : height / width;
 			result.push({ width, height, area, aspectRatio, len: Math.max(width, height) });
