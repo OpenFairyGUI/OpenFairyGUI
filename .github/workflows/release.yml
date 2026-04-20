@@ -12,7 +12,7 @@ permissions:
   packages: write
 
 env:
-  NODE_VERSION: '22.14.0'
+  NODE_VERSION: '24'
 
 jobs:
   release:
@@ -28,10 +28,11 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -72,7 +73,7 @@ jobs:
               echo "Skipping npmjs publish for ${pkg_name}@${pkg_version} (already published)"
             else
               echo "Publishing ${pkg_name}@${pkg_version} to npmjs via trusted publishing"
-              npm publish --access public "./${pkg_dir}"
+              npm publish --provenance --access public "./${pkg_dir}"
             fi
           }
           publish_if_needed packages/core
