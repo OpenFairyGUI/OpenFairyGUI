@@ -1904,6 +1904,8 @@ export class ProjectWriter {
 		if (trans.getAutoPlay()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.transition.attrs.autoPlay, 'true');
 		if (trans.getAutoPlayTimes() !== 1) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.transition.attrs.autoPlayTimes, String(trans.getAutoPlayTimes()));
 		if (trans.getAutoPlayDelay() !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.transition.attrs.autoPlayDelay, String(trans.getAutoPlayDelay()));
+		if (trans.getOptions() !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.transition.attrs.options, String(trans.getOptions()));
+		if (trans.getFps() !== 24) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.transition.attrs.fps, String(trans.getFps()));
 
 		const ACTION_TYPE_NAMES: Record<number, string> = {
 			0: 'XY', 1: 'Size', 2: 'Scale', 3: 'Pivot', 4: 'Alpha', 5: 'Rotation',
