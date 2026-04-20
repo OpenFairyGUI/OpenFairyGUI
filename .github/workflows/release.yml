@@ -7,17 +7,16 @@ on:
   workflow_dispatch:
 
 permissions:
+  id-token: write
   contents: write
   packages: write
 
 env:
-  NODE_VERSION: '22'
+  NODE_VERSION: '22.14.0'
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    env:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
     steps:
       - name: Checkout
@@ -62,11 +61,7 @@ jobs:
           npm pack ./packages/cli --pack-destination .release
 
       - name: Publish to npmjs
-        if: ${{ env.NPM_TOKEN != '' }}
-        env:
-          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
         run: |
-          npm config set //registry.npmjs.org/:_authToken "$NODE_AUTH_TOKEN"
           publish_if_needed() {
             local pkg_dir="$1"
             local pkg_name
@@ -76,7 +71,7 @@ jobs:
             if npm view "${pkg_name}@${pkg_version}" version --registry=https://registry.npmjs.org >/dev/null 2>&1; then
               echo "Skipping npmjs publish for ${pkg_name}@${pkg_version} (already published)"
             else
-              echo "Publishing ${pkg_name}@${pkg_version} to npmjs"
+              echo "Publishing ${pkg_name}@${pkg_version} to npmjs via trusted publishing"
               npm publish --access public "./${pkg_dir}"
             fi
           }
