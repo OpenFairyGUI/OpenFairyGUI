@@ -4,6 +4,17 @@ export { Document, type Transform, type TransformContext } from './document.js';
 // Extension
 export { Extension } from './extension.js';
 
+// Authoring helpers
+export {
+	composeController,
+	composeTransition,
+	type ControllerActionComposition,
+	type ControllerCompositionOptions,
+	type ControllerPageComposition,
+	type TransitionCompositionOptions,
+	type TransitionItemComposition,
+} from './authoring.js';
+
 // Constants and Enums
 export {
 	VERSION,
