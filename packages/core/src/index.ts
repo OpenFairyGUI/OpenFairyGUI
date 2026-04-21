@@ -6,11 +6,15 @@ export { Extension } from './extension.js';
 
 // Authoring helpers
 export {
+	bindLookGear,
 	composeController,
 	composeTransition,
 	type ControllerActionComposition,
 	type ControllerCompositionOptions,
 	type ControllerPageComposition,
+	type LookGearBindingOptions,
+	type LookGearBindingState,
+	type LookGearBindingValue,
 	type TransitionCompositionOptions,
 	type TransitionItemComposition,
 } from './authoring.js';

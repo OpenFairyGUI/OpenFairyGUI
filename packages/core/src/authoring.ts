@@ -1,8 +1,9 @@
-import { EaseType } from './constants.js';
+import { EaseType, GearType } from './constants.js';
 import type { Document } from './document.js';
 import type { Component } from './properties/component.js';
 import type { Controller } from './properties/controller.js';
 import type { GObject } from './properties/g-object.js';
+import type { Gear } from './properties/gear.js';
 import type { Transition } from './properties/transition.js';
 import type { TransitionItem } from './properties/transition-item.js';
 
@@ -61,6 +62,32 @@ export interface TransitionCompositionOptions {
 	items?: TransitionItemComposition[];
 }
 
+export interface LookGearBindingValue {
+	alpha?: number;
+	rotation?: number;
+	grayed?: boolean;
+	touchable?: boolean;
+}
+
+export interface LookGearBindingState {
+	pageId: string;
+	value?: LookGearBindingValue | null;
+}
+
+export interface LookGearBindingOptions {
+	name?: string;
+	controller: Controller;
+	states: LookGearBindingState[];
+	defaultValue: LookGearBindingValue;
+	condition?: string;
+	positionsInPercent?: boolean;
+	tween?: boolean;
+	tweenDuration?: number;
+	tweenDelay?: number;
+	easeType?: number;
+	customEasePath?: string;
+}
+
 function resolveComponentChildId(component: Component, target: GObject | string | null | undefined, owner: string): string {
 	if (!target) return '';
 	if (typeof target === 'string') {
@@ -90,17 +117,50 @@ function ensureUniquePageIds(pages: ControllerPageComposition[], component: Comp
 	}
 }
 
+function ensureComponentOwnsController(component: Component, controller: Controller, owner: string): void {
+	if (!component.listControllers().includes(controller)) {
+		throw new Error(`${owner}: controller "${controller.getName()}" does not belong to component "${component.getName()}".`);
+	}
+}
+
+function ensureUniqueStatePageIds(states: LookGearBindingState[], owner: string): void {
+	const seen = new Set<string>();
+	for (const state of states) {
+		if (!state.pageId) {
+			throw new Error(`${owner}: state is missing pageId.`);
+		}
+		if (seen.has(state.pageId)) {
+			throw new Error(`${owner}: duplicate state page id "${state.pageId}".`);
+		}
+		seen.add(state.pageId);
+	}
+}
+
 function ensureKnownPageIds(
-	controllerName: string,
+	owner: string,
+	contextLabel: string,
 	pageIds: string[],
 	knownPageIds: Set<string>,
-	fieldName: 'fromPage' | 'toPage',
+	fieldName: string,
 ): void {
 	for (const pageId of pageIds) {
 		if (!knownPageIds.has(pageId)) {
-			throw new Error(`composeController: action ${fieldName} references unknown page id "${pageId}" in controller "${controllerName}".`);
+			throw new Error(`${owner}: ${fieldName} references unknown page id "${pageId}" in ${contextLabel}.`);
 		}
 	}
+}
+
+function serializeLookGearValue(value: LookGearBindingValue): string {
+	const alpha = value.alpha ?? 1;
+	const rotation = value.rotation ?? 0;
+	const grayed = value.grayed ?? false;
+	const touchable = value.touchable ?? true;
+	return `${alpha},${rotation},${grayed ? 'true' : 'false'},${touchable ? 'true' : 'false'}`;
+}
+
+function serializeOptionalLookGearValue(value: LookGearBindingValue | null | undefined): string {
+	if (!value) return '-';
+	return serializeLookGearValue(value);
 }
 
 /**
@@ -143,8 +203,8 @@ export function composeController(
 	for (const actionInput of options.actions ?? []) {
 		const fromPage = [...(actionInput.fromPage ?? [])];
 		const toPage = [...(actionInput.toPage ?? [])];
-		ensureKnownPageIds(options.name, fromPage, knownPageIds, 'fromPage');
-		ensureKnownPageIds(options.name, toPage, knownPageIds, 'toPage');
+		ensureKnownPageIds('composeController', `controller "${options.name}"`, fromPage, knownPageIds, 'action fromPage');
+		ensureKnownPageIds('composeController', `controller "${options.name}"`, toPage, knownPageIds, 'action toPage');
 
 		const action = doc.createControllerAction(actionInput.name ?? '');
 		action
@@ -209,4 +269,46 @@ export function composeTransition(
 
 	component.addTransition(transition);
 	return transition;
+}
+
+/**
+ * Compose and attach a Look gear binding with structured semantic input.
+ *
+ * The helper intentionally keeps the public contract controller/page-aware and
+ * object-structured, while centralizing the string-shaped gear payload assembly
+ * and validating membership before attach.
+ */
+export function bindLookGear(
+	doc: Document,
+	component: Component,
+	target: GObject,
+	options: LookGearBindingOptions,
+): Gear {
+	if (target.getId() === '' || component.getChildById(target.getId()) !== target) {
+		throw new Error(`bindLookGear: target "${target.getName()}" does not belong to component "${component.getName()}".`);
+	}
+
+	ensureComponentOwnsController(component, options.controller, 'bindLookGear');
+	ensureUniqueStatePageIds(options.states, 'bindLookGear');
+
+	const knownPageIds = new Set(options.controller.listPages().map((page) => page.getId()));
+	const statePageIds = options.states.map((state) => state.pageId);
+	ensureKnownPageIds('bindLookGear', `controller "${options.controller.getName()}"`, statePageIds, knownPageIds, 'state pageId');
+
+	const gear = doc.createGear(options.name ?? '')
+		.setGearType(GearType.Look)
+		.setController(options.controller)
+		.setPages(statePageIds.join(','))
+		.setValues(options.states.map((state) => serializeOptionalLookGearValue(state.value)).join('|'))
+		.setDefaultValue(serializeLookGearValue(options.defaultValue))
+		.setCondition(options.condition ?? '')
+		.setPositionsInPercent(options.positionsInPercent ?? false)
+		.setTween(options.tween ?? false)
+		.setTweenDuration(options.tweenDuration ?? 0.3)
+		.setTweenDelay(options.tweenDelay ?? 0)
+		.setEaseType(options.easeType ?? EaseType.QuadOut)
+		.setCustomEasePath(options.customEasePath ?? '');
+
+	target.addGear(gear);
+	return gear;
 }

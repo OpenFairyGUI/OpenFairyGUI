@@ -3,8 +3,10 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {
+	bindLookGear,
 	ControllerActionType,
 	Document,
+	GearType,
 	NodeIO,
 	TransitionActionType,
 	composeController,
@@ -264,4 +266,235 @@ test('composeTransition rejects a target that does not belong to the component',
 
 	t.regex(error?.message ?? '', /does not belong to component/i);
 	t.is(component.listTransitions().length, 0, 'failed composition should not attach a partial transition');
+});
+
+test('bindLookGear assembles a look gear from structured input, attaches it, and survives round-trip', async (t) => {
+	const doc = createProjectDocument('authoring-gear-look');
+	const pkg = doc.createPackage('Helpers');
+	pkg.setId('pkghelpers5');
+
+	const component = doc.createComponent('GearHost');
+	component
+		.setId('cmpgearhost1')
+		.setPath('/')
+		.setExported(true)
+		.setSize(220, 140);
+
+	const controller = doc.createController('state');
+	controller.addPage(doc.createControllerPage('Idle').setId('0'));
+	controller.addPage(doc.createControllerPage('Alert').setId('1'));
+	component.addController(controller);
+
+	const image = doc.createGImage('icon');
+	image.setId('n0').setXY(10, 10).setSize(80, 80);
+	component.addChild(image);
+	pkg.addResource(component);
+
+	const gear = bindLookGear(doc, component, image, {
+		name: 'look',
+		controller,
+		defaultValue: { alpha: 1, rotation: 0, grayed: false, touchable: true },
+		states: [
+			{ pageId: '0', value: { alpha: 1, rotation: 0, grayed: false, touchable: true } },
+			{ pageId: '1', value: { alpha: 0.5, rotation: 180, grayed: true, touchable: false } },
+		],
+		tween: true,
+		tweenDuration: 0.5,
+	});
+
+	t.is(image.listGears()[0], gear, 'helper should attach gear to the target');
+	t.is(gear.getGearType(), GearType.Look);
+	t.is(gear.getController(), controller);
+	t.is(gear.getPages(), '0,1');
+	t.is(gear.getValues(), '1,0,false,true|0.5,180,true,false');
+	t.is(gear.getDefaultValue(), '1,0,false,true');
+	t.true(gear.getTween());
+	t.true(Math.abs(gear.getTweenDuration() - 0.5) < 1e-6);
+
+	const doc2 = await roundTripProject(doc);
+	const image2 = doc2.getRoot().getPackage('Helpers')?.getComponent('GearHost')?.getChildById('n0') as ReturnType<Document['createGImage']> | null;
+	const gear2 = image2?.listGears()[0];
+
+	t.truthy(gear2, 'gear should survive round-trip');
+	t.is(gear2?.getGearType(), GearType.Look);
+	t.is(gear2?.getController()?.getName(), 'state');
+	t.is(gear2?.getPages(), '0,1');
+	t.is(gear2?.getValues(), '1.00,0,0|0.50,180,1,0');
+	t.is(gear2?.getDefaultValue(), '1.00,0,0');
+	t.true(gear2?.getTween() ?? false);
+	t.true(Math.abs((gear2?.getTweenDuration() ?? 0) - 0.5) < 1e-6);
+});
+
+test('bindLookGear rejects a controller that does not belong to the component before attach', (t) => {
+	const doc = createProjectDocument('authoring-gear-invalid-controller');
+	const pkg = doc.createPackage('Helpers');
+	pkg.setId('pkghelpers6');
+
+	const component = doc.createComponent('GearHost');
+	component
+		.setId('cmpgearhost2')
+		.setPath('/')
+		.setExported(true)
+		.setSize(220, 140);
+
+	const foreignController = doc.createController('foreign');
+	foreignController.addPage(doc.createControllerPage('Idle').setId('0'));
+
+	const image = doc.createGImage('icon');
+	image.setId('n0').setXY(10, 10).setSize(80, 80);
+	component.addChild(image);
+	pkg.addResource(component);
+
+	const error = t.throws(() => {
+		bindLookGear(doc, component, image, {
+			controller: foreignController,
+			defaultValue: { alpha: 1, rotation: 0, grayed: false, touchable: true },
+			states: [{ pageId: '0', value: { alpha: 1, rotation: 0, grayed: false, touchable: true } }],
+		});
+	});
+
+	t.regex(error?.message ?? '', /controller .* does not belong to component/i);
+	t.is(image.listGears().length, 0, 'failed composition should not attach a partial gear');
+});
+
+test('bindLookGear rejects state page ids that are not declared on the controller before attach', (t) => {
+	const doc = createProjectDocument('authoring-gear-invalid-pages');
+	const pkg = doc.createPackage('Helpers');
+	pkg.setId('pkghelpers7');
+
+	const component = doc.createComponent('GearHost');
+	component
+		.setId('cmpgearhost3')
+		.setPath('/')
+		.setExported(true)
+		.setSize(220, 140);
+
+	const controller = doc.createController('state');
+	controller.addPage(doc.createControllerPage('Idle').setId('0'));
+	component.addController(controller);
+
+	const image = doc.createGImage('icon');
+	image.setId('n0').setXY(10, 10).setSize(80, 80);
+	component.addChild(image);
+	pkg.addResource(component);
+
+	const error = t.throws(() => {
+		bindLookGear(doc, component, image, {
+			controller,
+			defaultValue: { alpha: 1, rotation: 0, grayed: false, touchable: true },
+			states: [{ pageId: 'missing', value: { alpha: 0.5, rotation: 180, grayed: true, touchable: false } }],
+		});
+	});
+
+	t.regex(error?.message ?? '', /bindLookGear: state pageId references unknown page id/i);
+	t.is(image.listGears().length, 0, 'failed composition should not attach a partial gear');
+});
+
+test('bindLookGear rejects a target that does not belong to the component before attach', (t) => {
+	const doc = createProjectDocument('authoring-gear-invalid-target');
+	const pkg = doc.createPackage('Helpers');
+	pkg.setId('pkghelpers8');
+
+	const component = doc.createComponent('GearHost');
+	component
+		.setId('cmpgearhost4')
+		.setPath('/')
+		.setExported(true)
+		.setSize(220, 140);
+
+	const controller = doc.createController('state');
+	controller.addPage(doc.createControllerPage('Idle').setId('0'));
+	component.addController(controller);
+
+	const foreignImage = doc.createGImage('foreign');
+	foreignImage.setId('n99').setXY(0, 0).setSize(80, 80);
+	pkg.addResource(component);
+
+	const error = t.throws(() => {
+		bindLookGear(doc, component, foreignImage, {
+			controller,
+			defaultValue: { alpha: 1, rotation: 0, grayed: false, touchable: true },
+			states: [{ pageId: '0', value: { alpha: 1, rotation: 0, grayed: false, touchable: true } }],
+		});
+	});
+
+	t.regex(error?.message ?? '', /does not belong to component/i);
+	t.is(component.listChildren().length, 0, 'helper should not mutate component children during failure');
+});
+
+test('bindLookGear rejects duplicate state page ids before attach', (t) => {
+	const doc = createProjectDocument('authoring-gear-duplicate-pages');
+	const pkg = doc.createPackage('Helpers');
+	pkg.setId('pkghelpers9');
+
+	const component = doc.createComponent('GearHost');
+	component
+		.setId('cmpgearhost5')
+		.setPath('/')
+		.setExported(true)
+		.setSize(220, 140);
+
+	const controller = doc.createController('state');
+	controller.addPage(doc.createControllerPage('Idle').setId('0'));
+	component.addController(controller);
+
+	const image = doc.createGImage('icon');
+	image.setId('n0').setXY(10, 10).setSize(80, 80);
+	component.addChild(image);
+	pkg.addResource(component);
+
+	const error = t.throws(() => {
+		bindLookGear(doc, component, image, {
+			controller,
+			defaultValue: { alpha: 1, rotation: 0, grayed: false, touchable: true },
+			states: [
+				{ pageId: '0', value: { alpha: 1, rotation: 0, grayed: false, touchable: true } },
+				{ pageId: '0', value: { alpha: 0.5, rotation: 180, grayed: true, touchable: false } },
+			],
+		});
+	});
+
+	t.regex(error?.message ?? '', /duplicate state page id/i);
+	t.is(image.listGears().length, 0, 'failed composition should not attach a partial gear');
+});
+
+test('bindLookGear serializes a null page state to the gear no-override marker', async (t) => {
+	const doc = createProjectDocument('authoring-gear-null-state');
+	const pkg = doc.createPackage('Helpers');
+	pkg.setId('pkghelpers10');
+
+	const component = doc.createComponent('GearHost');
+	component
+		.setId('cmpgearhost6')
+		.setPath('/')
+		.setExported(true)
+		.setSize(220, 140);
+
+	const controller = doc.createController('state');
+	controller.addPage(doc.createControllerPage('Idle').setId('0'));
+	controller.addPage(doc.createControllerPage('Alert').setId('1'));
+	component.addController(controller);
+
+	const image = doc.createGImage('icon');
+	image.setId('n0').setXY(10, 10).setSize(80, 80);
+	component.addChild(image);
+	pkg.addResource(component);
+
+	const gear = bindLookGear(doc, component, image, {
+		controller,
+		defaultValue: { alpha: 1, rotation: 0, grayed: false, touchable: true },
+		states: [
+			{ pageId: '0', value: { alpha: 1, rotation: 0, grayed: false, touchable: true } },
+			{ pageId: '1', value: null },
+		],
+	});
+
+	t.is(gear.getValues(), '1,0,false,true|-', 'helper should centralize null state serialization');
+
+	const doc2 = await roundTripProject(doc);
+	const image2 = doc2.getRoot().getPackage('Helpers')?.getComponent('GearHost')?.getChildById('n0') as ReturnType<Document['createGImage']> | null;
+	const gear2 = image2?.listGears()[0];
+
+	t.truthy(gear2, 'gear should survive round-trip');
+	t.is(gear2?.getValues(), '1,0,0|-');
 });
