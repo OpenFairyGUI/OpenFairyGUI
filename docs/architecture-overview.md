@@ -2,8 +2,8 @@
 
 ## 结论
 
-当前仓库更适合理解成五段式结构：`输入源 -> 协议适配 -> 领域模型 -> 工作流 -> 输出物`。  
-其中真正稳定的中心层是 `Document + Property Graph`，CLI 和 publish 都只是围绕这层做编排。
+当前仓库在 **Gate A** 阶段更适合理解成六段式结构：`输入源 -> 协议适配 -> 统一声明式 Authoring Model -> 内部图物化层 -> 工作流 -> 输出物`。  
+其中新的主真相层是 **Unified Authoring Model (UAM)**；`Document + Property Graph` 仍然存在，并且当前大多数既有流程仍围绕它执行，但在架构定位上已经进入内部执行 / 存储 / 适配层，而不是长期公开的 authoring 中心。
 
 ```mermaid
 flowchart LR
@@ -20,7 +20,14 @@ flowchart LR
         BW["BinaryWriter"]
     end
 
-    subgraph DOMAIN["核心领域模型"]
+    subgraph UAM["统一声明式 Authoring Model"]
+        UPROJECT["UAM Project"]
+        UPKG["UAM Package / Resource"]
+        UCOMP["UAM Component"]
+        UBEHAVIOR["DisplayList / Controller / Transition / Gear"]
+    end
+
+    subgraph GRAPH["内部图物化层"]
         DOC["Document"]
         ROOT["Root / Package"]
         RES["Resource 集合"]
@@ -43,22 +50,23 @@ flowchart LR
         CODEOUT["生成代码<br/>binder / component classes"]
     end
 
-    PROJ --> FS --> PR --> DOC
-    PACK --> FS --> BR --> DOC
+    PROJ --> FS --> PR --> DOC --> UPROJECT
+    PACK --> FS --> BR --> DOC --> UPROJECT
     PACK --> RST
     ART --> RST
-    RST --> DOC
+    RST --> UPROJECT
 
+    UPROJECT --> UPKG --> UCOMP --> UBEHAVIOR
+    UPROJECT --> DOC
     DOC --> ROOT --> RES --> COMP --> UI
-    DOC --> OPS
-    DOC --> PUB
-    DOC --> RST
+    UPROJECT --> OPS
     PUB --> ATLAS
     PUB --> BW
     PUB --> CG
     RST --> BR
     RST --> PW
 
+    UPROJECT --> PW
     DOC --> PW
     PW --> PROJOUT
     BW --> BIN
@@ -72,15 +80,16 @@ flowchart LR
 |---|---|---|
 | 入口层 | 命令行封装与参数分发 | `packages/cli/src/cli.ts` |
 | 协议适配层 | 屏蔽平台文件系统差异，承接工程格式、二进制格式与工程 XML 协议元数据 | `packages/core/src/io/platform-io.ts`、`packages/core/src/io/node-io.ts`、`packages/core/src/io/project-xml-protocol.ts`、`packages/core/src/io/project-reader.ts`、`packages/core/src/io/binary-reader.ts`、`packages/core/src/io/component-decoder.ts` |
-| 核心模型层 | `Document` 持有 `Property Graph`，统一组织项目节点、资源节点与组件语义对象 | `packages/core/src/document.ts`、`packages/core/src/properties/property.ts` |
+| UAM 主真相层 | 统一声明式工程级 authoring model，承接 `project / package / resource / component internals` 与行为语义 | `packages/core/src/uam/*.ts` |
+| 内部图物化层 | `Document` 持有 `Property Graph`，用于当前内部执行、存储、适配与既有工作流复用 | `packages/core/src/document.ts`、`packages/core/src/properties/property.ts` |
 | 项目骨架层 | `Root -> Package -> Resource -> Component` 组成基础结构 | `packages/core/src/properties/root.ts`、`packages/core/src/properties/package.ts`、`packages/core/src/properties/component.ts` |
 | 工作流层 | 面向自动化的可组合处理管线 | `packages/functions/src/inspect.ts`、`packages/functions/src/validate.ts`、`packages/functions/src/prune.ts`、`packages/functions/src/rename.ts`、`packages/functions/src/publish.ts`、`packages/functions/src/restore.ts`、`packages/functions/src/codegen.ts` |
 | 输出层 | 工程文件写回、图集产物生成、二进制封包输出与代码生成输出 | `packages/core/src/io/project-writer.ts`、`packages/functions/src/atlas.ts`、`packages/core/src/io/binary-writer.ts`、`packages/functions/src/codegen.ts` |
 
 补充说明：
-- `@openfairygui/core` 定义文档模型与协议读写能力。
+- `@openfairygui/core` 当前同时承载 UAM 主真相层与内部图物化层。
 - `BinaryReader` 仍然是二进制读入口；component block 的展开逻辑当前拆到内部 helper `component-decoder.ts`，对外调用面不变。
-- `@openfairygui/functions` 只组合流程，不重新定义底层协议；当前 `publish` 与 `restore` 都在这里编排高层 workflow，并组合 `core` primitives。
+- `@openfairygui/functions` 只组合流程，不重新定义底层协议；当前 `publish` 与 `restore` 仍主要围绕图物化后的内部表示执行。
 - 当前 Unity、Layabox、Cocos Creator 共用同一条 `publish -> atlas / binary / codegen` 主链；差异主要体现在描述文件扩展名和代码生成 lane 选择，而不是工作流分叉。
 - `@openfairygui/cli` 是入口层，不下沉协议细节。
 
@@ -192,12 +201,14 @@ flowchart TD
     A["工程目录输入"] --> B["ProjectReader"]
     X["二进制包输入"] --> Y["BinaryReader"]
     R["发布目录输入<br/>.fui/.bytes + atlas/sounds"] --> S["restore"]
-    B --> C["Document"]
+    B --> C["Document / Property Graph"]
     Y --> C
     S --> C
-    C --> D["结构检查与整理<br/>inspect / validate / prune / rename"]
+    C --> U["Unified Authoring Model"]
+    U --> D["结构检查与整理<br/>UAM normalization / validation"]
+    U --> F["工程写回<br/>ProjectWriter via narrow materialization"]
+    U --> C
     C --> E["发布编排<br/>publish"]
-    C --> F["工程写回<br/>ProjectWriter"]
     E --> G["图集布局与合图<br/>atlas"]
     E --> H["二进制写出<br/>BinaryWriter"]
     F --> I["FairyGUI 工程输出"]
@@ -209,7 +220,7 @@ flowchart TD
 
 | 模块 | 负责内容 | 不负责内容 |
 |---|---|---|
-| `@openfairygui/core` | 文档模型、属性节点、项目格式读写、二进制协议读写等底层能力 | 发布/还原策略、命令行参数封装 |
-| `@openfairygui/functions` | inspect / validate / prune / rename / atlas / publish / restore 等流程组合 | 协议定义、Property Graph 基础建模 |
+| `@openfairygui/core` | UAM 主真相层、内部图物化层、项目格式读写、二进制协议读写等底层能力 | 高层发布/还原策略、命令行参数封装 |
+| `@openfairygui/functions` | inspect / validate / prune / rename / atlas / publish / restore 等流程组合 | UAM schema 定义、Graph/UAM 核心建模 |
 | `@openfairygui/cli` | 命令入口、参数解析、调用装配 | 领域模型定义、协议定义 |
 | `@openfairygui/test-utils` | 测试辅助与夹具支持 | 生产协议与运行时流程 |
