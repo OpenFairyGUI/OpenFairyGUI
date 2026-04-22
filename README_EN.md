@@ -57,6 +57,34 @@ await doc.transform(publish({
 }));
 ```
 
+If you want to use the current **Phase A UAM authoring seam**, you can pass a
+`UamProject` plus an explicit operation batch into the thin application wrapper
+exposed by `@openfairygui/functions`. This path stays `UAM-public / Document-private`,
+is suitable for future automation / MCP adapters, and is intentionally limited to the
+frozen Phase A write surface rather than a general editing backend.
+
+```ts
+import {
+	type UamProject,
+	type UamTransactionOperation,
+} from '@openfairygui/core';
+import { applyUamTransactionApp } from '@openfairygui/functions';
+
+const project: UamProject = /* ... */;
+const operations: UamTransactionOperation[] = [
+	{
+		kind: 'renameResource',
+		selector: { packageId: 'pkg001', resourceId: 'img001' },
+		newName: 'renamed.png',
+	},
+];
+
+const result = applyUamTransactionApp({ project, operations });
+if (!result.ok) {
+	console.error(result.error.code, result.error.stage, result.error.message);
+}
+```
+
 If you want to rebuild a project from published output, use the high-level restore workflow from `functions`:
 
 ```ts

@@ -584,6 +584,10 @@ function asTransactionError(
 	});
 }
 
+function selectorDetails(selector: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+	return selector;
+}
+
 function resolvePackage(doc: Document, selector: { packageId: string }): Package {
 	const pkg = doc.getRoot().getPackageById(selector.packageId);
 	if (!pkg) {
@@ -626,15 +630,15 @@ function resolveUniqueController(component: Component, selector: UamControllerSe
 	if (matches.length === 0) {
 		throw new Error(`Controller "${selector.controllerName}" was not found in component "${selector.componentResourceId}".`);
 	}
-	if (matches.length > 1) {
-		throw new UamTransactionError(
-			`Controller selector "${selector.controllerName}" is ambiguous in component "${selector.componentResourceId}".`,
-			{
-				code: 'selector_ambiguity',
-				selector,
-			},
-		);
-	}
+		if (matches.length > 1) {
+			throw new UamTransactionError(
+				`Controller selector "${selector.controllerName}" is ambiguous in component "${selector.componentResourceId}".`,
+				{
+					code: 'selector_ambiguity',
+					selector: selectorDetails(selector as unknown as Record<string, unknown>),
+				},
+			);
+		}
 	return matches[0]!;
 }
 
@@ -643,15 +647,15 @@ function resolveUniqueTransition(component: Component, selector: UamTransitionSe
 	if (matches.length === 0) {
 		throw new Error(`Transition "${selector.transitionName}" was not found in component "${selector.componentResourceId}".`);
 	}
-	if (matches.length > 1) {
-		throw new UamTransactionError(
-			`Transition selector "${selector.transitionName}" is ambiguous in component "${selector.componentResourceId}".`,
-			{
-				code: 'selector_ambiguity',
-				selector,
-			},
-		);
-	}
+		if (matches.length > 1) {
+			throw new UamTransactionError(
+				`Transition selector "${selector.transitionName}" is ambiguous in component "${selector.componentResourceId}".`,
+				{
+					code: 'selector_ambiguity',
+					selector: selectorDetails(selector as unknown as Record<string, unknown>),
+				},
+			);
+		}
 	return matches[0]!;
 }
 
@@ -663,15 +667,15 @@ function resolveUniqueLookGear(node: GObject, selector: UamLookGearSelector) {
 	if (matches.length === 0) {
 		throw new Error(`Look gear for controller "${selector.controllerName}" was not found on node "${selector.displayNodeId}".`);
 	}
-	if (matches.length > 1) {
-		throw new UamTransactionError(
-			`Look gear selector is ambiguous on node "${selector.displayNodeId}" for controller "${selector.controllerName}".`,
-			{
-				code: 'selector_ambiguity',
-				selector,
-			},
-		);
-	}
+		if (matches.length > 1) {
+			throw new UamTransactionError(
+				`Look gear selector is ambiguous on node "${selector.displayNodeId}" for controller "${selector.controllerName}".`,
+				{
+					code: 'selector_ambiguity',
+					selector: selectorDetails(selector as unknown as Record<string, unknown>),
+				},
+			);
+		}
 	return matches[0]!;
 }
 
@@ -1014,14 +1018,14 @@ function applyOperation(doc: Document, operation: UamTransactionOperation): void
 				throw new Error(`addLookGear only supports image/text nodes in Phase A, got "${node.propertyType}".`);
 			}
 			if (hasControllerLookGear(node, operation.selector.controllerName)) {
-				throw new UamTransactionError(
-					`Look gear for controller "${operation.selector.controllerName}" already exists on node "${operation.selector.displayNodeId}".`,
-					{
-						code: 'selector_ambiguity',
-						selector: operation.selector,
-					},
-				);
-			}
+					throw new UamTransactionError(
+						`Look gear for controller "${operation.selector.controllerName}" already exists on node "${operation.selector.displayNodeId}".`,
+						{
+							code: 'selector_ambiguity',
+							selector: selectorDetails(operation.selector as unknown as Record<string, unknown>),
+						},
+					);
+				}
 			const controller = resolveUniqueController(component, {
 				packageId: operation.selector.packageId,
 				componentResourceId: operation.selector.componentResourceId,
@@ -1108,15 +1112,15 @@ export function applyUamTransaction(
 		try {
 			applyOperation(workingDocument, operation);
 		} catch (error) {
-			throw asTransactionError(error, {
-				code: error instanceof UamTransactionError ? error.code : 'execution_failure',
-				opIndex,
-				opId: operation.opId,
-				opKind: operation.kind,
-				selector: 'selector' in operation ? operation.selector as Record<string, unknown> : undefined,
-			});
+				throw asTransactionError(error, {
+					code: error instanceof UamTransactionError ? error.code : 'execution_failure',
+					opIndex,
+					opId: operation.opId,
+					opKind: operation.kind,
+					selector: 'selector' in operation ? selectorDetails(operation.selector as unknown as Record<string, unknown>) : undefined,
+				});
+			}
 		}
-	}
 
 	const result = normalizeUamProject(liftDocumentToUamProject(workingDocument));
 	const resultIssues = validateUamProject(result);

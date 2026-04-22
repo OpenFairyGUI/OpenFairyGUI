@@ -22,6 +22,12 @@ export {
 	type ResolvedPublishOptions,
 	type ResolvePublishOptionsOverrides,
 } from './publish.js';
+export {
+	applyUamTransactionApp,
+	type ApplyUamTransactionAppError,
+	type ApplyUamTransactionAppInput,
+	type ApplyUamTransactionAppResult,
+} from './uam-transaction.js';
 export { createTransform } from './utils.js';
 export type {
 	CliAtlasSettings,

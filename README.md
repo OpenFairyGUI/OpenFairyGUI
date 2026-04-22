@@ -57,6 +57,33 @@ await doc.transform(publish({
 }));
 ```
 
+如果你需要走当前正式支持的 **Phase A UAM authoring seam**，可以直接把
+`UamProject` 与显式 operation batch 交给 `@openfairygui/functions` 的薄应用接缝。
+这条路径保持 `UAM-public / Document-private`，适合未来自动化 / MCP 适配继续复用，
+但当前仍只覆盖 Phase A 已冻结的窄写入面，不等价于通用编辑后端。
+
+```ts
+import {
+	type UamProject,
+	type UamTransactionOperation,
+} from '@openfairygui/core';
+import { applyUamTransactionApp } from '@openfairygui/functions';
+
+const project: UamProject = /* ... */;
+const operations: UamTransactionOperation[] = [
+	{
+		kind: 'renameResource',
+		selector: { packageId: 'pkg001', resourceId: 'img001' },
+		newName: 'renamed.png',
+	},
+];
+
+const result = applyUamTransactionApp({ project, operations });
+if (!result.ok) {
+	console.error(result.error.code, result.error.stage, result.error.message);
+}
+```
+
 如果你更关心“发布产物 -> 工程”的恢复链路，也可以直接调用 `functions` 层的 restore workflow：
 
 ```ts

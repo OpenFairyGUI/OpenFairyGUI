@@ -63,12 +63,16 @@ export {
 	normalizeUamProject,
 	assertValidUamProject,
 	validateUamProject,
+	liftDocumentToUamProject,
+	materializeUamProject,
+	readProjectAsUam,
 	UamTransaction,
 	UamTransactionError,
 	applyUamTransaction,
 	assertTransactionSupported,
 	createUamTransaction,
 	validateTransactionSupport,
+	writeProjectFromUam,
 } from './uam/index.js';
 
 // Authoring helpers
