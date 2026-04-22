@@ -48,3 +48,21 @@ export {
 export { normalizeUamProject } from './normalize.js';
 export { assertValidUamProject, validateUamProject } from './validate.js';
 export { liftDocumentToUamProject, materializeUamProject, readProjectAsUam, writeProjectFromUam } from './bridge.js';
+export {
+	UamTransaction,
+	UamTransactionError,
+	type UamComponentSelector,
+	type UamControllerSelector,
+	type UamDisplayNodePropsUpdate,
+	type UamDisplayNodeSelector,
+	type UamLookGearSelector,
+	type UamResourceSelector,
+	type UamTransactionErrorCode,
+	type UamTransactionOperation,
+	type UamTransactionSupportIssue,
+	type UamTransitionSelector,
+	applyUamTransaction,
+	assertTransactionSupported,
+	createUamTransaction,
+	validateTransactionSupport,
+} from './transaction.js';

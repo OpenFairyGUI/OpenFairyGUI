@@ -3,7 +3,8 @@
 ## 结论
 
 当前仓库在 **Gate A** 阶段更适合理解成六段式结构：`输入源 -> 协议适配 -> 统一声明式 Authoring Model -> 内部图物化层 -> 工作流 -> 输出物`。  
-其中新的主真相层是 **Unified Authoring Model (UAM)**；`Document + Property Graph` 仍然存在，并且当前大多数既有流程仍围绕它执行，但在架构定位上已经进入内部执行 / 存储 / 适配层，而不是长期公开的 authoring 中心。
+其中新的主真相层是 **Unified Authoring Model (UAM)**；`Document + Property Graph` 仍然存在，并且当前大多数既有流程仍围绕它执行，但在架构定位上已经进入内部执行 / 存储 / 适配层，而不是长期公开的 authoring 中心。  
+当前还新增了一条 **UAM-public / Document-private** 的 Phase A authoring transaction seam：事务公共面定义在 UAM 层，内部执行仍允许通过私有 `Document` 物化完成，并在失败时丢弃工作副本。
 
 ```mermaid
 flowchart LR
@@ -25,6 +26,7 @@ flowchart LR
         UPKG["UAM Package / Resource"]
         UCOMP["UAM Component"]
         UBEHAVIOR["DisplayList / Controller / Transition / Gear"]
+        UTX["Phase A Transaction Kernel<br/>explicit ops / support preflight / commit"]
     end
 
     subgraph GRAPH["内部图物化层"]
@@ -57,7 +59,8 @@ flowchart LR
     RST --> UPROJECT
 
     UPROJECT --> UPKG --> UCOMP --> UBEHAVIOR
-    UPROJECT --> DOC
+    UPROJECT --> UTX --> DOC
+    UTX --> UPROJECT
     DOC --> ROOT --> RES --> COMP --> UI
     UPROJECT --> OPS
     PUB --> ATLAS
@@ -80,7 +83,7 @@ flowchart LR
 |---|---|---|
 | 入口层 | 命令行封装与参数分发 | `packages/cli/src/cli.ts` |
 | 协议适配层 | 屏蔽平台文件系统差异，承接工程格式、二进制格式与工程 XML 协议元数据 | `packages/core/src/io/platform-io.ts`、`packages/core/src/io/node-io.ts`、`packages/core/src/io/project-xml-protocol.ts`、`packages/core/src/io/project-reader.ts`、`packages/core/src/io/binary-reader.ts`、`packages/core/src/io/component-decoder.ts` |
-| UAM 主真相层 | 统一声明式工程级 authoring model，承接 `project / package / resource / component internals` 与行为语义 | `packages/core/src/uam/*.ts` |
+| UAM 主真相层 | 统一声明式工程级 authoring model，承接 `project / package / resource / component internals` 与行为语义，并公开 Phase A transaction kernel | `packages/core/src/uam/*.ts` |
 | 内部图物化层 | `Document` 持有 `Property Graph`，用于当前内部执行、存储、适配与既有工作流复用 | `packages/core/src/document.ts`、`packages/core/src/properties/property.ts` |
 | 项目骨架层 | `Root -> Package -> Resource -> Component` 组成基础结构 | `packages/core/src/properties/root.ts`、`packages/core/src/properties/package.ts`、`packages/core/src/properties/component.ts` |
 | 工作流层 | 面向自动化的可组合处理管线 | `packages/functions/src/inspect.ts`、`packages/functions/src/validate.ts`、`packages/functions/src/prune.ts`、`packages/functions/src/rename.ts`、`packages/functions/src/publish.ts`、`packages/functions/src/restore.ts`、`packages/functions/src/codegen.ts` |
@@ -88,6 +91,7 @@ flowchart LR
 
 补充说明：
 - `@openfairygui/core` 当前同时承载 UAM 主真相层与内部图物化层。
+- `packages/core/src/uam/transaction.ts` 当前提供的是 **UAM-public explicit operation batch API**；它的 `commit()` 结果是新的 canonical `UamProject`，内部允许通过私有 `Document` 工作副本执行并在失败时整体丢弃。
 - `BinaryReader` 仍然是二进制读入口；component block 的展开逻辑当前拆到内部 helper `component-decoder.ts`，对外调用面不变。
 - `@openfairygui/functions` 只组合流程，不重新定义底层协议；当前 `publish` 与 `restore` 仍主要围绕图物化后的内部表示执行。
 - 当前 Unity、Layabox、Cocos Creator 共用同一条 `publish -> atlas / binary / codegen` 主链；差异主要体现在描述文件扩展名和代码生成 lane 选择，而不是工作流分叉。
@@ -206,6 +210,9 @@ flowchart TD
     S --> C
     C --> U["Unified Authoring Model"]
     U --> D["结构检查与整理<br/>UAM normalization / validation"]
+    U --> T["Phase A transaction kernel<br/>explicit ops -> support preflight -> private Document commit"]
+    T --> U
+    T --> C
     U --> F["工程写回<br/>ProjectWriter via narrow materialization"]
     U --> C
     C --> E["发布编排<br/>publish"]
