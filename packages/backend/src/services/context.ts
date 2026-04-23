@@ -1,4 +1,14 @@
-import type { BackendCapabilities, BackendError, BackendFailure, BackendFileSystem, BackendSessionSnapshot, BackendSuccess } from '../runtime.js';
+import type {
+	BackendCacheEntry,
+	BackendCapabilities,
+	BackendError,
+	BackendEvent,
+	BackendFailure,
+	BackendFileSystem,
+	BackendJobSnapshot,
+	BackendSessionSnapshot,
+	BackendSuccess,
+} from '../runtime.js';
 import {
 	BACKEND_CAPABILITY_SCHEMA_VERSION,
 	BACKEND_CONTRACT_VERSION,
@@ -27,6 +37,10 @@ export interface BackendContext {
 	capabilities: BackendCapabilities;
 	sessions: Map<string, BackendSessionState>;
 	sessionsByPath: Map<string, string>;
+	eventsBySession: Map<string, BackendEvent[]>;
+	jobsBySession: Map<string, BackendJobSnapshot[]>;
+	cacheBySession: Map<string, BackendCacheEntry>;
+	nextEventSequence: () => number;
 }
 
 function randomId(): string {

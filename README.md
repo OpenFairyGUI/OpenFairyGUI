@@ -29,7 +29,7 @@ OpenFairyGUI 用于读取、编辑、写回和发布 FairyGUI 工程数据。和
 |---|---|
 | `@openfairygui/core` | 属性图、文档模型、工程读写、二进制读写等底层能力 |
 | `@openfairygui/functions` | 发布、还原、检查、转换等高层函数能力 |
-| `@openfairygui/backend` | stateful backend runtime、session 生命周期、save/lock/capability 协调 |
+| `@openfairygui/backend` | stateful backend runtime、session 生命周期、save/lock/capability 协调，以及 events/jobs/cache |
 | `@openfairygui/cli` | 命令行工具 |
 | `@openfairygui/test-utils` | 测试辅助与夹具 |
 
@@ -125,9 +125,11 @@ await restore({
 
 如果你需要一个带 session / revision / save / advisory lock 的 **backend runtime**，可以直接使用
 `@openfairygui/backend`。这层是 transport-neutral 的后端基础，不等价于 `packages/mcp`，也不重新定义
-`core` 的 transaction 语义。当前 P1 还进一步把 backend 内部分成 `read / authoring / artifact / runtime`
+`core` 的 transaction 语义。当前 backend 内部分成 `read / authoring / artifact / runtime`
 planes，并为所有 backend response 提供统一 metadata / diagnostics / version surface，
 包括 `requestId / sessionId / revision / durationMs / warnings / diagnostics / stage`。
+runtime plane 还提供 polling events、`cache.refresh` in-memory jobs、cooperative cancel，
+以及 revision-bound derived read-only cache snapshot。
 
 ```ts
 import { BackendRuntime } from '@openfairygui/backend';
@@ -138,6 +140,12 @@ if (!opened.ok) throw new Error(opened.error.message);
 
 const capabilities = runtime.getCapabilities();
 console.log(capabilities.data.runtimeOwner);
+
+const refresh = runtime.refreshCache({ sessionId: opened.data.sessionId });
+if (refresh.ok) {
+	const events = runtime.getEvents({ sessionId: opened.data.sessionId });
+	console.log(refresh.data.status, events.ok ? events.data.currentSequence : 0);
+}
 
 await runtime.closeSession({ sessionId: opened.data.sessionId });
 ```

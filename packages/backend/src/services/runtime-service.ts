@@ -1,5 +1,8 @@
 import { NodeIO, readProjectAsUam } from '@openfairygui/core';
 import { failure, success, type BackendContext, type BackendSessionState } from './context.js';
+import type { CacheService } from './cache-service.js';
+import type { EventService } from './event-service.js';
+import type { JobService } from './job-service.js';
 import type {
 	AdvisoryLockConflictError,
 	BackendFileHandle,
@@ -16,7 +19,12 @@ function randomId(): string {
 }
 
 export class RuntimeService {
-	public constructor(private readonly context: BackendContext) {}
+	public constructor(
+		private readonly context: BackendContext,
+		private readonly cacheService: CacheService,
+		private readonly eventService: EventService,
+		private readonly jobService: JobService,
+	) {}
 
 	public async openSession(input: { projectPath: string }): Promise<BackendResult<BackendSessionSnapshot, InProcessLockConflictError | AdvisoryLockConflictError>> {
 		const startedAt = Date.now();
@@ -64,6 +72,8 @@ export class RuntimeService {
 			};
 			this.context.sessions.set(sessionId, session);
 			this.context.sessionsByPath.set(canonicalPathKey, sessionId);
+			this.cacheService.refreshSession(session);
+			this.eventService.emit({ kind: 'session.opened', sessionId, canonicalPathKey, revision: session.revision });
 
 			return success('runtime', startedAt, toSessionSnapshot(session, this.context.capabilities), {
 				sessionId: session.sessionId,
@@ -96,11 +106,16 @@ export class RuntimeService {
 			return failure('runtime', startedAt, createSessionNotFoundError(input.sessionId));
 		}
 
+		this.eventService.emit({ kind: 'session.closeRequested', sessionId: session.sessionId, canonicalPathKey: session.canonicalPathKey, revision: session.revision });
 		await this.context.fileSystem.unlink(session.lockFilePath).catch(() => undefined);
 		session.lockHeld = false;
 		session.closed = true;
 		this.context.sessions.delete(session.sessionId);
 		this.context.sessionsByPath.delete(session.canonicalPathKey);
+		this.cacheService.removeSession(session.sessionId);
+		this.jobService.removeSession(session.sessionId);
+		this.eventService.emit({ kind: 'session.closed', sessionId: session.sessionId, canonicalPathKey: session.canonicalPathKey, revision: session.revision });
+		this.eventService.removeSession(session.sessionId);
 
 		return success('runtime', startedAt, {
 			sessionId: session.sessionId,

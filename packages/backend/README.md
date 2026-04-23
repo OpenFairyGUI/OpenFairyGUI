@@ -15,16 +15,20 @@ It owns:
 - capability discovery
 - transport-neutral bootstrap
 
-P1 extends this with:
+It also provides:
 
 - service stratification (`read` / `authoring` / `artifact` / `runtime`)
 - unified response metadata and diagnostics
 - capability planes
 - centralized path/workspace safety policy
 - backend contract versioning surface
-  compatibility policy
+- compatibility policy
+- polling runtime events with per-runtime monotonic sequence and bounded retention
+- `cache.refresh` in-memory jobs with cooperative cancel and terminal retention
+- revision-bound derived read-only cache snapshots
 
 It does **not** redefine transaction grammar or expose `Document`.
+It also does **not** implement MCP or any transport-specific wire protocol.
 
 ## Relationship to other packages
 
@@ -45,6 +49,11 @@ const capabilities = runtime.getCapabilities();
 console.log(capabilities.data.runtimeOwner);
 console.log(capabilities.data.contractVersion);
 console.log(capabilities.data.compatibilityPolicy.incompatibleChange);
+
+const refresh = runtime.refreshCache({ sessionId: opened.data.sessionId });
+if (refresh.ok) {
+	console.log(refresh.data.kind, refresh.data.status);
+}
 
 await runtime.closeSession({ sessionId: opened.data.sessionId });
 ```

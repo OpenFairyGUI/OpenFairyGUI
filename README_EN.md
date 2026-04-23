@@ -29,7 +29,7 @@ This repository is organized as a `pnpm workspace` + `Lerna` monorepo with the f
 |---|---|
 | `@openfairygui/core` | Property graph, document model, project I/O, and binary I/O primitives |
 | `@openfairygui/functions` | Higher-level publish, restore, inspection, and transform workflows |
-| `@openfairygui/backend` | Stateful backend runtime, session lifecycle, and save/lock/capability coordination |
+| `@openfairygui/backend` | Stateful backend runtime, session lifecycle, save/lock/capability coordination, and events/jobs/cache |
 | `@openfairygui/cli` | Command-line interface |
 | `@openfairygui/test-utils` | Shared test helpers and fixtures |
 
@@ -127,9 +127,11 @@ await restore({
 If you need a **stateful backend runtime** with sessions, revisions, coordinated saves,
 and advisory locking, use `@openfairygui/backend`. This layer is transport-neutral backend
 foundation, not `packages/mcp`, and it does not redefine the transaction semantics owned by
-`@openfairygui/core`. In P1, the backend is further stratified into `read / authoring / artifact / runtime`
-planes and now exposes a unified metadata / diagnostics / version surface for backend responses,
+`@openfairygui/core`. The backend is stratified into `read / authoring / artifact / runtime`
+planes and exposes a unified metadata / diagnostics / version surface for backend responses,
 including `requestId / sessionId / revision / durationMs / warnings / diagnostics / stage`.
+The runtime plane also provides polling events, `cache.refresh` in-memory jobs,
+cooperative cancel, and revision-bound derived read-only cache snapshots.
 
 ```ts
 import { BackendRuntime } from '@openfairygui/backend';
@@ -140,6 +142,12 @@ if (!opened.ok) throw new Error(opened.error.message);
 
 const capabilities = runtime.getCapabilities();
 console.log(capabilities.data.runtimeOwner);
+
+const refresh = runtime.refreshCache({ sessionId: opened.data.sessionId });
+if (refresh.ok) {
+	const events = runtime.getEvents({ sessionId: opened.data.sessionId });
+	console.log(refresh.data.status, events.ok ? events.data.currentSequence : 0);
+}
 
 await runtime.closeSession({ sessionId: opened.data.sessionId });
 ```

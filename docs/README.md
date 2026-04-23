@@ -6,7 +6,7 @@
 
 | 文档 | 说明 |
 |---|---|
-| [架构图说明](./architecture-overview.md) | 说明 monorepo 包职责、模块边界、核心数据流，以及 `backend` 在 P0/P1 阶段的 stateful runtime / service-layer 定位 |
+| [架构图说明](./architecture-overview.md) | 说明 monorepo 包职责、模块边界、核心数据流，以及 `backend` 的 stateful runtime、service-layer、events/jobs/cache 定位 |
 | [编辑器发布设置](./editor-publish-settings.md) | 说明 FairyGUI 编辑器发布设置的结构、字段、默认值与写回规则 |
 | [发布产物还原限制](./published-project-restore-limitations.md) | 记录仅凭发布目录重建工程时，当前已确认不可稳定恢复的内容边界 |
 | [Project XML 属性协议](./project-xml-attribute-reference.md) | 汇总 `package.xml`、`component.xml` 及结构节点当前正式支持的 XML 属性协议 |

@@ -59,6 +59,9 @@ flowchart LR
         LK["canonical path / advisory lock"]
         SV["coordinated save (non-atomic)"]
         CAP["capability planes / version surface"]
+        EV["runtime events<br/>polling cursor / retention"]
+        JOB["in-memory jobs<br/>cache.refresh / cooperative cancel"]
+        CACHE["derived read-only cache<br/>revision-bound"]
     end
 
     subgraph OUT["输出物"]
@@ -89,6 +92,9 @@ flowchart LR
     RT --> LK
     RT --> SV
     RT --> CAP
+    RT --> EV
+    RT --> JOB
+    RT --> CACHE
     PUB --> ATLAS
     PUB --> BW
     PUB --> CG
@@ -114,16 +120,19 @@ flowchart LR
 | 内部图物化层 | `Document` 持有 `Property Graph`，用于当前内部执行、存储、适配与既有工作流复用 | `packages/core/src/document.ts`、`packages/core/src/properties/property.ts` |
 | 项目骨架层 | `Root -> Package -> Resource -> Component` 组成基础结构 | `packages/core/src/properties/root.ts`、`packages/core/src/properties/package.ts`、`packages/core/src/properties/component.ts` |
 | 工作流层 | 面向自动化的可组合处理管线，以及建立在 `core` Phase A transaction contract 之上的薄 authoring app seam | `packages/functions/src/inspect.ts`、`packages/functions/src/validate.ts`、`packages/functions/src/prune.ts`、`packages/functions/src/rename.ts`、`packages/functions/src/publish.ts`、`packages/functions/src/restore.ts`、`packages/functions/src/codegen.ts`、`packages/functions/src/uam-transaction.ts` |
-| 状态化后端服务层 | session lifecycle、revision/dirty tracking、backend-local canonical path / advisory lock、coordinated save、capability planes、version surface，以及 `read / authoring / artifact / runtime` service stratification | `packages/backend/src/runtime.ts`、`packages/backend/src/contracts.ts`、`packages/backend/src/path-policy.ts`、`packages/backend/src/services/*.ts` |
+| 状态化后端服务层 | session lifecycle、revision/dirty tracking、backend-local canonical path / advisory lock、coordinated save、capability planes、version surface、runtime events、in-memory jobs、derived read-only cache，以及 `read / authoring / artifact / runtime` service stratification | `packages/backend/src/runtime.ts`、`packages/backend/src/contracts.ts`、`packages/backend/src/path-policy.ts`、`packages/backend/src/services/*.ts` |
 | 输出层 | 工程文件写回、图集产物生成、二进制封包输出与代码生成输出 | `packages/core/src/io/project-writer.ts`、`packages/functions/src/atlas.ts`、`packages/core/src/io/binary-writer.ts`、`packages/functions/src/codegen.ts` |
 
 补充说明：
 - `@openfairygui/core` 当前同时承载 UAM 主真相层与内部图物化层。
 - `packages/core/src/uam/transaction.ts` 当前提供的是 **UAM-public explicit operation batch API**；它的 `commit()` 结果是新的 canonical `UamProject`，内部允许通过私有 `Document` 工作副本执行并在失败时整体丢弃。
 - `packages/functions/src/uam-transaction.ts` 当前提供的是建立在上述 transaction contract 之上的 **thin stateless pre-MCP app seam**；它只接收 `UamProject + UamTransactionOperation[]`，返回结构化 app result，不重新定义 selector / op grammar，也不暴露 `Document`。
-- `packages/backend/src/runtime.ts` 当前提供的是第一层 **stateful backend runtime**；它通过 `functions.applyUamTransactionApp` 包装既有 authoring seam，额外承接 session lifecycle、revision / dirty state、backend-local canonical path / advisory lock、以及 coordinated but non-atomic save 语义。
+- `packages/backend/src/runtime.ts` 当前提供的是第一层 **stateful backend runtime**；它通过 `functions.applyUamTransactionApp` 包装既有 authoring seam，额外承接 session lifecycle、revision / dirty state、backend-local canonical path / advisory lock、coordinated but non-atomic save、runtime events、in-memory jobs，以及 derived read-only cache 语义。
 - `packages/backend/src/services/*.ts` 当前把 backend 进一步分成 `read / authoring / artifact / runtime` 四类内部服务面；`artifact` plane 目前仍保持 deferred，不重新包装 `publish` / `restore`。
 - `packages/backend/src/contracts.ts` 当前提供 backend contract version、capability schema version、compatibility policy，以及统一 response metadata / diagnostics 面；当前 metadata 至少覆盖 `requestId / sessionId / revision / durationMs / warnings / diagnostics / stage`。
+- `packages/backend/src/services/event-service.ts` 当前提供 per-runtime monotonic sequence 的 polling event snapshot，事件按 session 绑定并保留最近 1000 条；不提供 subscription 或 transport-specific cursor。
+- `packages/backend/src/services/job-service.ts` 当前只支持 `cache.refresh` in-memory job，提供 queued/running/completed/failed/cancelled 状态、active/terminal 查询、cooperative cancel，以及每 session 最近 100 个终态 job 保留。
+- `packages/backend/src/services/cache-service.ts` 当前提供 revision-bound derived read-only cache snapshot；cache 只作为运行时索引和摘要，不作为 source of truth。
 - `BinaryReader` 仍然是二进制读入口；component block 的展开逻辑当前拆到内部 helper `component-decoder.ts`，对外调用面不变。
 - `@openfairygui/functions` 仍以 workflow composition 为主，不重新定义底层协议；当前 `publish` 与 `restore` 仍主要围绕图物化后的内部表示执行，新 authoring seam 也明确不包装 `publish` / `restore`。
 - `@openfairygui/backend` 不拥有 transaction grammar / selector grammar / support semantics；它只承接 stateful runtime concerns，并保持 transport-neutral。
@@ -247,6 +256,7 @@ flowchart TD
     U --> A2["functions app seam<br/>structured app result / no Document leakage"]
     A2 --> B2["backend runtime<br/>session / revision / save / lock / capabilities"]
     B2 --> B3["service planes<br/>read / authoring / artifact / runtime"]
+    B3 --> B4["runtime coordination<br/>events / jobs / cache"]
     T --> U
     T --> C
     U --> F["工程写回<br/>ProjectWriter via narrow materialization"]
@@ -267,6 +277,6 @@ flowchart TD
 |---|---|---|
 | `@openfairygui/core` | UAM 主真相层、内部图物化层、项目格式读写、二进制协议读写等底层能力 | 高层发布/还原策略、命令行参数封装 |
 | `@openfairygui/functions` | inspect / validate / prune / rename / atlas / publish / restore 等流程组合，以及薄的 pre-MCP authoring app seam | UAM schema 定义、Graph/UAM 核心建模、第二套 selector / operation grammar、`Document` 暴露、`publish` / `restore` 包装 |
-| `@openfairygui/backend` | session lifecycle、request/result envelope、revisioned transaction orchestration、backend-local canonical path / advisory lock、coordinated save、capability discovery、transport bootstrap，以及 `read / authoring / artifact / runtime` 服务分层 | transaction kernel ownership、第二套 app seam、第二套 selector / operation grammar、`publish` / `restore` 包装、transport-specific wire protocol |
+| `@openfairygui/backend` | session lifecycle、request/result envelope、revisioned transaction orchestration、backend-local canonical path / advisory lock、coordinated save、capability discovery、runtime events、in-memory jobs、derived read-only cache、transport bootstrap，以及 `read / authoring / artifact / runtime` 服务分层 | transaction kernel ownership、第二套 app seam、第二套 selector / operation grammar、`publish` / `restore` 包装、transport-specific wire protocol、MCP transport |
 | `@openfairygui/cli` | 命令入口、参数解析、调用装配 | 领域模型定义、协议定义 |
 | `@openfairygui/test-utils` | 测试辅助与夹具支持 | 生产协议与运行时流程 |

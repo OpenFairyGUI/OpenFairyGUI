@@ -8,6 +8,9 @@ import {
 } from '@openfairygui/core';
 import {
 	type BackendFileSystem,
+	type BackendJobSnapshot,
+	type BackendJobStatus,
+	type BackendRuntime,
 	createNodeBackendFileSystem,
 } from '../src/index.js';
 
@@ -132,4 +135,26 @@ export function createFailingFileSystem(
 			await base.writeFileRaw(filePath, data);
 		},
 	};
+}
+
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => {
+		setTimeout(resolve, ms);
+	});
+}
+
+export async function waitForBackendJobStatus(
+	runtime: BackendRuntime,
+	sessionId: string,
+	jobId: string,
+	status: BackendJobStatus,
+): Promise<BackendJobSnapshot> {
+	for (let attempt = 0; attempt < 30; attempt += 1) {
+		const job = runtime.getJob({ sessionId, jobId });
+		if (job.ok && job.data.status === status) return job.data;
+		await sleep(10);
+	}
+	const finalJob = runtime.getJob({ sessionId, jobId });
+	if (finalJob.ok) return finalJob.data;
+	throw new Error(`Job did not become ${status}: ${jobId}`);
 }

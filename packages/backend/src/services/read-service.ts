@@ -1,12 +1,13 @@
 import { failure, success, type BackendContext } from './context.js';
 import type { BackendCapabilities, BackendResult, BackendSessionSnapshot, SessionNotFoundError } from '../runtime.js';
 import { createSessionNotFoundError, toSessionSnapshot } from './session-utils.js';
+import { cloneCapabilitiesSnapshot } from './snapshot-utils.js';
 
 export class ReadService {
 	public constructor(private readonly context: BackendContext) {}
 
 	public getCapabilities(): BackendResult<BackendCapabilities> {
-		return success('read', Date.now(), this.context.capabilities);
+		return success('read', Date.now(), cloneCapabilitiesSnapshot(this.context.capabilities));
 	}
 
 	public getSession(input: { sessionId: string }): BackendResult<BackendSessionSnapshot, SessionNotFoundError> {
