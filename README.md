@@ -125,7 +125,9 @@ await restore({
 
 如果你需要一个带 session / revision / save / advisory lock 的 **backend runtime**，可以直接使用
 `@openfairygui/backend`。这层是 transport-neutral 的后端基础，不等价于 `packages/mcp`，也不重新定义
-`core` 的 transaction 语义。
+`core` 的 transaction 语义。当前 P1 还进一步把 backend 内部分成 `read / authoring / artifact / runtime`
+planes，并为所有 backend response 提供统一 metadata / diagnostics / version surface，
+包括 `requestId / sessionId / revision / durationMs / warnings / diagnostics / stage`。
 
 ```ts
 import { BackendRuntime } from '@openfairygui/backend';

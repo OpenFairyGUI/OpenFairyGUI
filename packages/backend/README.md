@@ -15,6 +15,15 @@ It owns:
 - capability discovery
 - transport-neutral bootstrap
 
+P1 extends this with:
+
+- service stratification (`read` / `authoring` / `artifact` / `runtime`)
+- unified response metadata and diagnostics
+- capability planes
+- centralized path/workspace safety policy
+- backend contract versioning surface
+  compatibility policy
+
 It does **not** redefine transaction grammar or expose `Document`.
 
 ## Relationship to other packages
@@ -34,6 +43,8 @@ if (!opened.ok) throw new Error(opened.error.message);
 
 const capabilities = runtime.getCapabilities();
 console.log(capabilities.data.runtimeOwner);
+console.log(capabilities.data.contractVersion);
+console.log(capabilities.data.compatibilityPolicy.incompatibleChange);
 
 await runtime.closeSession({ sessionId: opened.data.sessionId });
 ```

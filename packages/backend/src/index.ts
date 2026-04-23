@@ -17,3 +17,12 @@ export {
 	type SessionNotFoundError,
 	type SessionStaleWriteError,
 } from './runtime.js';
+export {
+	type BackendDiagnostic,
+	type BackendMessage,
+	type BackendResponseMeta,
+	type BackendStage,
+	BACKEND_CAPABILITY_SCHEMA_VERSION,
+	BACKEND_COMPATIBILITY_POLICY,
+	BACKEND_CONTRACT_VERSION,
+} from './contracts.js';

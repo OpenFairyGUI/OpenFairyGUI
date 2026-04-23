@@ -127,7 +127,9 @@ await restore({
 If you need a **stateful backend runtime** with sessions, revisions, coordinated saves,
 and advisory locking, use `@openfairygui/backend`. This layer is transport-neutral backend
 foundation, not `packages/mcp`, and it does not redefine the transaction semantics owned by
-`@openfairygui/core`.
+`@openfairygui/core`. In P1, the backend is further stratified into `read / authoring / artifact / runtime`
+planes and now exposes a unified metadata / diagnostics / version surface for backend responses,
+including `requestId / sessionId / revision / durationMs / warnings / diagnostics / stage`.
 
 ```ts
 import { BackendRuntime } from '@openfairygui/backend';
