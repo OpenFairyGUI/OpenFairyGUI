@@ -50,6 +50,7 @@ export {
 	type UamValidationIssue,
 	type UamXYGearBinding,
 	type UamXYGearValue,
+	UAM_SUPPORTED_MATERIALIZATION_SCOPE,
 	type UamComponentSelector,
 	type UamControllerSelector,
 	type UamDisplayNodePropsUpdate,

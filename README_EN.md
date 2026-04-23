@@ -29,6 +29,7 @@ This repository is organized as a `pnpm workspace` + `Lerna` monorepo with the f
 |---|---|
 | `@openfairygui/core` | Property graph, document model, project I/O, and binary I/O primitives |
 | `@openfairygui/functions` | Higher-level publish, restore, inspection, and transform workflows |
+| `@openfairygui/backend` | Stateful backend runtime, session lifecycle, and save/lock/capability coordination |
 | `@openfairygui/cli` | Command-line interface |
 | `@openfairygui/test-utils` | Shared test helpers and fixtures |
 
@@ -121,6 +122,24 @@ await restore({
     dirname: path.dirname,
   },
 });
+```
+
+If you need a **stateful backend runtime** with sessions, revisions, coordinated saves,
+and advisory locking, use `@openfairygui/backend`. This layer is transport-neutral backend
+foundation, not `packages/mcp`, and it does not redefine the transaction semantics owned by
+`@openfairygui/core`.
+
+```ts
+import { BackendRuntime } from '@openfairygui/backend';
+
+const runtime = new BackendRuntime();
+const opened = await runtime.openSession({ projectPath: './MyProject' });
+if (!opened.ok) throw new Error(opened.error.message);
+
+const capabilities = runtime.getCapabilities();
+console.log(capabilities.data.runtimeOwner);
+
+await runtime.closeSession({ sessionId: opened.data.sessionId });
 ```
 
 ## Command-line API

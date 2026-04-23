@@ -14,7 +14,7 @@
 	"type": "module",
 	"scripts": {
 		"build": "lerna run build",
-		"build:cli-deps": "pnpm --filter @openfairygui/core build && pnpm --filter @openfairygui/functions build && pnpm --filter @openfairygui/cli build",
+		"build:cli-deps": "pnpm --filter @openfairygui/core build && pnpm --filter @openfairygui/functions build && pnpm --filter @openfairygui/backend build && pnpm --filter @openfairygui/cli build",
 		"build:watch": "lerna run build:watch --parallel --stream",
 		"clean:dist": "rm -rf packages/*/dist/** | true",
 		"clean:deps": "rm -rf packages/*/node_modules/** | true",

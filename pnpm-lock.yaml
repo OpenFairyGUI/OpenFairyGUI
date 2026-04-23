@@ -37,7 +37,27 @@ importers:
         specifier: ^5.9.0
         version: 5.9.3
 
+  packages/backend:
+    dependencies:
+      '@openfairygui/core':
+        specifier: workspace:*
+        version: link:../core
+      '@openfairygui/functions':
+        specifier: workspace:*
+        version: link:../functions
+    devDependencies:
+      ava:
+        specifier: ^7.0.0
+        version: 7.0.0(encoding@0.1.13)
+      tsx:
+        specifier: ^4.0.0
+        version: 4.21.0
+
   packages/cli:
+    dependencies:
+      '@openfairygui/backend':
+        specifier: workspace:*
+        version: link:../backend
     devDependencies:
       '@openfairygui/core':
         specifier: workspace:*
@@ -5216,7 +5236,7 @@ snapshots:
 
   jest-diff@29.7.0:
     dependencies:
-      chalk: 4.1.0
+      chalk: 4.1.2
       diff-sequences: 29.6.3
       jest-get-type: 29.6.3
       pretty-format: 29.7.0
@@ -5716,7 +5736,7 @@ snapshots:
       '@yarnpkg/parsers': 3.0.2
       '@zkochan/js-yaml': 0.0.7
       axios: 1.14.0
-      chalk: 4.1.0
+      chalk: 4.1.2
       cli-cursor: 3.1.0
       cli-spinners: 2.6.1
       cliui: 8.0.1
@@ -5778,7 +5798,7 @@ snapshots:
   ora@5.3.0:
     dependencies:
       bl: 4.1.0
-      chalk: 4.1.0
+      chalk: 4.1.2
       cli-cursor: 3.1.0
       cli-spinners: 2.6.1
       is-interactive: 1.0.0

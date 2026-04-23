@@ -1,3 +1,4 @@
+import { BackendRuntime } from '@openfairygui/backend';
 import {
 	NodeIO,
 	ProjectType,
@@ -29,6 +30,7 @@ Commands:
   inspect <project-dir>                          Show project contents report
   publish <project-dir> --output <dir> [options]  Publish project to binary outputs and configured generated code
   restore <release-dir> --output <dir> [options]  Restore a FairyGUI project from published binaries
+  backend-capabilities <project-dir>            Open a backend session, print runtime capabilities, then close it
 
 Publish options:
   --output, -o <dir>     Output directory (required)
@@ -101,6 +103,9 @@ async function main(): Promise<void> {
 			break;
 		case 'restore':
 			await cmdRestore(rest);
+			break;
+		case 'backend-capabilities':
+			await cmdBackendCapabilities(rest);
 			break;
 		default:
 			console.error(`Unknown command: ${command}\n`);
@@ -462,6 +467,42 @@ async function cmdPublish(args: string[]): Promise<void> {
 	}));
 
 	console.log(`\nDone! Output: ${outputDir}`);
+}
+
+async function cmdBackendCapabilities(args: string[]): Promise<void> {
+	if (args.length === 0) {
+		console.error('Usage: ofgui backend-capabilities <project-dir>');
+		process.exit(1);
+	}
+
+	const runtime = new BackendRuntime();
+	const opened = await runtime.openSession({ projectPath: path.resolve(args[0]) });
+	if (!opened.ok) {
+		const failure = opened as Extract<typeof opened, { ok: false }>;
+		console.error(`backend-capabilities: ${failure.error.message}`);
+		process.exit(1);
+	}
+
+	const capabilities = runtime.getCapabilities();
+	if (!capabilities.ok) {
+		console.error('backend-capabilities: failed to read capabilities');
+		await runtime.closeSession({ sessionId: opened.data.sessionId });
+		process.exit(1);
+	}
+
+	console.log(`Session: ${opened.data.sessionId}`);
+	console.log(`Project: ${opened.data.canonicalProjectPath}`);
+	console.log(`Revision: ${opened.data.revision}`);
+	console.log(`Runtime owner: ${capabilities.data.runtimeOwner}`);
+	console.log(`Transaction owner: ${capabilities.data.transactionKernelOwner}`);
+	console.log(`App seam owner: ${capabilities.data.appSeamOwner}`);
+
+	const closed = await runtime.closeSession({ sessionId: opened.data.sessionId });
+	if (!closed.ok) {
+		const failure = closed as Extract<typeof closed, { ok: false }>;
+		console.error(`backend-capabilities: ${failure.error.message}`);
+		process.exit(1);
+	}
 }
 
 main().catch((err) => {

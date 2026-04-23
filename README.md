@@ -29,6 +29,7 @@ OpenFairyGUI 用于读取、编辑、写回和发布 FairyGUI 工程数据。和
 |---|---|
 | `@openfairygui/core` | 属性图、文档模型、工程读写、二进制读写等底层能力 |
 | `@openfairygui/functions` | 发布、还原、检查、转换等高层函数能力 |
+| `@openfairygui/backend` | stateful backend runtime、session 生命周期、save/lock/capability 协调 |
 | `@openfairygui/cli` | 命令行工具 |
 | `@openfairygui/test-utils` | 测试辅助与夹具 |
 
@@ -120,6 +121,23 @@ await restore({
     dirname: path.dirname,
   },
 });
+```
+
+如果你需要一个带 session / revision / save / advisory lock 的 **backend runtime**，可以直接使用
+`@openfairygui/backend`。这层是 transport-neutral 的后端基础，不等价于 `packages/mcp`，也不重新定义
+`core` 的 transaction 语义。
+
+```ts
+import { BackendRuntime } from '@openfairygui/backend';
+
+const runtime = new BackendRuntime();
+const opened = await runtime.openSession({ projectPath: './MyProject' });
+if (!opened.ok) throw new Error(opened.error.message);
+
+const capabilities = runtime.getCapabilities();
+console.log(capabilities.data.runtimeOwner);
+
+await runtime.closeSession({ sessionId: opened.data.sessionId });
 ```
 
 ## Command-line API

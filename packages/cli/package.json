@@ -39,6 +39,9 @@
 		"@openfairygui/core": "workspace:*",
 		"@openfairygui/functions": "workspace:*"
 	},
+	"dependencies": {
+		"@openfairygui/backend": "workspace:*"
+	},
 	"optionalDependencies": {
 		"sharp": ">=0.33.0"
 	}
