@@ -65,7 +65,10 @@ export class RuntimeService {
 			this.context.sessions.set(sessionId, session);
 			this.context.sessionsByPath.set(canonicalPathKey, sessionId);
 
-			return success('runtime', startedAt, toSessionSnapshot(session, this.context.capabilities));
+			return success('runtime', startedAt, toSessionSnapshot(session, this.context.capabilities), {
+				sessionId: session.sessionId,
+				revision: session.revision,
+			});
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException)?.code === 'EEXIST') {
 				return failure('runtime', startedAt, {

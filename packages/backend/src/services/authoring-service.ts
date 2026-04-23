@@ -1,10 +1,11 @@
 import { materializeUamProject, ProjectWriter } from '@openfairygui/core';
 import { applyUamTransactionApp, type ApplyUamTransactionAppError } from '@openfairygui/functions';
-import { failure, success, type BackendContext, type BackendSessionState } from './context.js';
+import { failure, success, type BackendContext } from './context.js';
 import type {
 	ApplySessionTransactionInput,
 	BackendFileSystem,
 	BackendResult,
+	BackendSessionSnapshot,
 	SavePartialFailureError,
 	SessionNotFoundError,
 	SessionStaleWriteError,

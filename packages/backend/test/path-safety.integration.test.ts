@@ -36,9 +36,12 @@ test('saveSession rejects disallowed save targets structurally', async (t) => {
 		});
 		t.false(saved.ok);
 		if (saved.ok) return;
+		const failure = saved as Extract<typeof saved, { ok: false }>;
 
-		t.is(saved.error.code, 'path_policy_violation');
-		t.is(saved.error.policy, 'save_target');
+		t.is(failure.error.code, 'path_policy_violation');
+		if (failure.error.code === 'path_policy_violation') {
+			t.is(failure.error.policy, 'save_target');
+		}
 	} finally {
 		await fixture.cleanup();
 	}

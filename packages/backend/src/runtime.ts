@@ -159,6 +159,7 @@ export type BackendError =
 	| InProcessLockConflictError
 	| AdvisoryLockConflictError
 	| SavePartialFailureError
+	| PathPolicyViolationError
 	| ApplyUamTransactionAppError;
 
 export interface ApplySessionTransactionInput {
@@ -306,7 +307,7 @@ export class BackendRuntime {
 	}
 
 	public async saveSession(
-		input: { sessionId: string; expectedRevision?: number },
+		input: { sessionId: string; expectedRevision?: number; targetPath?: string },
 	): Promise<BackendResult<BackendSessionSnapshot, SessionNotFoundError | SessionStaleWriteError | SavePartialFailureError | PathPolicyViolationError>> {
 		return this.authoringService.saveSession(input);
 	}
