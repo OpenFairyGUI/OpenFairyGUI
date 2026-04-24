@@ -1,7 +1,7 @@
 {
 	"name": "@openfairygui/mcp",
 	"version": "0.1.1",
-	"description": "FairyGUI Headless Authoring SDK — MCP server adapter for the backend runtime.",
+	"description": "FairyGUI Headless Authoring SDK - MCP server adapter for the backend runtime.",
 	"author": "OpenFairyGUI Contributors",
 	"license": "MIT",
 	"repository": {
@@ -19,13 +19,15 @@
 	"module": "./dist/index.mjs",
 	"types": "./dist/index.d.mts",
 	"exports": {
-		"require": {
-			"types": "./dist/index.d.cts",
-			"default": "./dist/index.cjs"
-		},
-		"default": {
-			"types": "./dist/index.d.mts",
-			"default": "./dist/index.mjs"
+		".": {
+			"require": {
+				"types": "./dist/index.d.cts",
+				"default": "./dist/index.cjs"
+			},
+			"default": {
+				"types": "./dist/index.d.mts",
+				"default": "./dist/index.mjs"
+			}
 		},
 		"./stdio": {
 			"require": {
@@ -43,7 +45,8 @@
 	},
 	"scripts": {
 		"build": "tsdown src/index.ts src/stdio.ts --format esm,cjs --platform node --external node:fs --external node:path --external node:fs/promises --env.PACKAGE_VERSION=$npm_package_version",
-		"build:watch": "tsdown src/index.ts src/stdio.ts --watch --format esm,cjs --platform node --env.PACKAGE_VERSION=$npm_package_version"
+		"build:watch": "tsdown src/index.ts src/stdio.ts --watch --format esm,cjs --platform node --env.PACKAGE_VERSION=$npm_package_version",
+		"test": "ava test/**/*.test.ts --no-worker-threads"
 	},
 	"files": [
 		"dist/",
@@ -66,5 +69,17 @@
 		"@openfairygui/core": "workspace:*",
 		"ava": "^7.0.0",
 		"tsx": "^4.0.0"
+	},
+	"ava": {
+		"extensions": {
+			"ts": "module"
+		},
+		"nodeArguments": [
+			"--import",
+			"tsx/esm"
+		],
+		"files": [
+			"test/**/*.test.ts"
+		]
 	}
 }

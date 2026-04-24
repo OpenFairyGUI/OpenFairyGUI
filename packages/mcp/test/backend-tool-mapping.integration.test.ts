@@ -10,6 +10,7 @@ import { createTempMcpProject } from './helpers.js';
 
 interface BackendToolResult {
 	ok: boolean;
+	meta?: unknown;
 	data?: unknown;
 	error?: {
 		code: string;
@@ -41,6 +42,56 @@ test('MCP P0 tool definitions exactly map backend P2 methods', (t) => {
 	t.deepEqual(mappedMethods, [...capabilities.data.methods]);
 	t.deepEqual(OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.map((definition) => definition.name), [...OPENFAIRYGUI_BACKEND_TOOL_NAMES]);
 	t.is(new Set(OPENFAIRYGUI_BACKEND_TOOL_NAMES).size, capabilities.data.methods.length);
+	t.false(OPENFAIRYGUI_BACKEND_TOOL_NAMES.some((name) => name.includes('artifact')));
+	for (const name of OPENFAIRYGUI_BACKEND_TOOL_NAMES) {
+		t.true(name.startsWith('openfairygui_backend_'));
+	}
+});
+
+test('MCP P0 preserves backend failure envelopes as structured tool errors', async (t) => {
+	const runtime = new BackendRuntime();
+	const result = await callOpenFairyGuiBackendTool(runtime, 'openfairygui_backend_get_session', {
+		sessionId: 'missing-session',
+	});
+	const backendResult = backendResultOf(result);
+
+	t.true(result.isError);
+	t.false(backendResult.ok);
+	t.truthy(backendResult.meta);
+	t.is(backendResult.error?.code, 'session_not_found');
+});
+
+test('MCP P0 tool annotations reflect backend side effects and non-goals', (t) => {
+	const definitionsByMethod = new Map(
+		OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.map((definition) => [definition.backendMethod, definition]),
+	);
+
+	for (const method of [
+		'getCapabilities',
+		'getSession',
+		'getEvents',
+		'getJob',
+		'listJobs',
+		'getCacheSnapshot',
+	] as const) {
+		t.true(definitionsByMethod.get(method)?.annotations.readOnlyHint);
+	}
+
+	for (const method of [
+		'openSession',
+		'applyTransaction',
+		'saveSession',
+		'closeSession',
+		'cancelJob',
+		'refreshCache',
+	] as const) {
+		t.false(definitionsByMethod.get(method)?.annotations.readOnlyHint ?? false);
+	}
+
+	const applyTransactionAnnotations = definitionsByMethod.get('applyTransaction')?.annotations;
+	const saveSessionAnnotations = definitionsByMethod.get('saveSession')?.annotations;
+	t.true(Boolean(applyTransactionAnnotations && 'destructiveHint' in applyTransactionAnnotations && applyTransactionAnnotations.destructiveHint));
+	t.true(Boolean(saveSessionAnnotations && 'destructiveHint' in saveSessionAnnotations && saveSessionAnnotations.destructiveHint));
 });
 
 test('MCP P0 direct tool handler can call every backend P2 method without redefining backend semantics', async (t) => {

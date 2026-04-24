@@ -4,6 +4,7 @@ import test from 'ava';
 import { BackendRuntime } from '@openfairygui/backend';
 import {
 	createOpenFairyGuiMcpServer,
+	OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS,
 	OPENFAIRYGUI_BACKEND_TOOL_NAMES,
 } from '../src/index.js';
 
@@ -26,6 +27,12 @@ test('createOpenFairyGuiMcpServer exposes backend P2 tools over MCP transport', 
 			tools.tools.map((tool) => tool.name),
 			[...OPENFAIRYGUI_BACKEND_TOOL_NAMES],
 		);
+		for (const definition of OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS) {
+			const tool = tools.tools.find((candidate) => candidate.name === definition.name);
+			t.truthy(tool);
+			t.is(tool?._meta?.['openfairygui/backendMethod'], definition.backendMethod);
+			t.is(tool?._meta?.['openfairygui/adapter'], 'thin-backend-p2');
+		}
 
 		const capabilities = await client.callTool({
 			name: 'openfairygui_backend_get_capabilities',
