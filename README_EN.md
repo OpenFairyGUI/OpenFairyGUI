@@ -20,6 +20,7 @@ Current capabilities include:
 - Inspecting and transforming the document model in code
 - Reconstructing editable FairyGUI projects from publish directories
 - Providing a scriptable CLI for automation
+- Exposing backend runtime capabilities through a thin MCP adapter
 
 ## Packages
 
@@ -30,6 +31,7 @@ This repository is organized as a `pnpm workspace` + `Lerna` monorepo with the f
 | `@openfairygui/core` | Property graph, document model, project I/O, and binary I/O primitives |
 | `@openfairygui/functions` | Higher-level publish, restore, inspection, and transform workflows |
 | `@openfairygui/backend` | Stateful backend runtime, session lifecycle, save/lock/capability coordination, and events/jobs/cache |
+| `@openfairygui/mcp` | Thin MCP server adapter that maps the full backend P2 tool surface |
 | `@openfairygui/cli` | Command-line interface |
 | `@openfairygui/test-utils` | Shared test helpers and fixtures |
 
@@ -150,6 +152,15 @@ if (refresh.ok) {
 }
 
 await runtime.closeSession({ sessionId: opened.data.sessionId });
+```
+
+If you want to expose the current backend runtime to MCP clients, use `@openfairygui/mcp`.
+This package is only a transport adapter; it does not redefine backend or UAM semantics.
+
+```ts
+import { createOpenFairyGuiMcpServer } from '@openfairygui/mcp';
+
+const server = createOpenFairyGuiMcpServer();
 ```
 
 ## Command-line API

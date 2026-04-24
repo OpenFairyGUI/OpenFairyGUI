@@ -20,6 +20,7 @@ OpenFairyGUI 用于读取、编辑、写回和发布 FairyGUI 工程数据。和
 - 通过代码检查、修改和转换文档模型
 - 从发布目录重建可继续编辑的 FairyGUI 工程
 - 为自动化流程提供可脚本调用的 CLI
+- 通过 MCP 薄适配层暴露 backend runtime 能力
 
 ## 包结构
 
@@ -30,6 +31,7 @@ OpenFairyGUI 用于读取、编辑、写回和发布 FairyGUI 工程数据。和
 | `@openfairygui/core` | 属性图、文档模型、工程读写、二进制读写等底层能力 |
 | `@openfairygui/functions` | 发布、还原、检查、转换等高层函数能力 |
 | `@openfairygui/backend` | stateful backend runtime、session 生命周期、save/lock/capability 协调，以及 events/jobs/cache |
+| `@openfairygui/mcp` | MCP server 薄适配层，完整映射 backend P2 工具面 |
 | `@openfairygui/cli` | 命令行工具 |
 | `@openfairygui/test-utils` | 测试辅助与夹具 |
 
@@ -148,6 +150,15 @@ if (refresh.ok) {
 }
 
 await runtime.closeSession({ sessionId: opened.data.sessionId });
+```
+
+如果你要把当前 backend runtime 暴露给 MCP 客户端，可以使用 `@openfairygui/mcp`。
+这层只做 transport adapter，不重新定义 backend / UAM 语义。
+
+```ts
+import { createOpenFairyGuiMcpServer } from '@openfairygui/mcp';
+
+const server = createOpenFairyGuiMcpServer();
 ```
 
 ## Command-line API
