@@ -53,32 +53,49 @@ jobs:
           packages/functions/test/atlas.test.ts
           packages/functions/test/functions.test.ts
           packages/functions/test/publish.test.ts
+          packages/backend/test/*.integration.test.ts
+          packages/mcp/test/*.test.ts
 
       - name: Pack publish artifacts
         run: |
           mkdir -p .release
           npm pack ./packages/core --pack-destination .release
           npm pack ./packages/functions --pack-destination .release
+          npm pack ./packages/backend --pack-destination .release
           npm pack ./packages/cli --pack-destination .release
+          npm pack ./packages/mcp --pack-destination .release
 
       - name: Publish to npmjs
         run: |
+          npm_dist_tag_for_version() {
+            local pkg_version="$1"
+            if [[ "${pkg_version}" == *-* ]]; then
+              echo "next"
+            else
+              echo "latest"
+            fi
+          }
+
           publish_if_needed() {
             local pkg_dir="$1"
             local pkg_name
             local pkg_version
+            local npm_dist_tag
             pkg_name=$(node -p "require('./${pkg_dir}/package.json').name")
             pkg_version=$(node -p "require('./${pkg_dir}/package.json').version")
+            npm_dist_tag=$(npm_dist_tag_for_version "${pkg_version}")
             if npm view "${pkg_name}@${pkg_version}" version --registry=https://registry.npmjs.org >/dev/null 2>&1; then
               echo "Skipping npmjs publish for ${pkg_name}@${pkg_version} (already published)"
             else
-              echo "Publishing ${pkg_name}@${pkg_version} to npmjs via trusted publishing"
-              npm publish --provenance --access public "./${pkg_dir}"
+              echo "Publishing ${pkg_name}@${pkg_version} to npmjs via trusted publishing with dist-tag ${npm_dist_tag}"
+              npm publish --provenance --access public --tag "${npm_dist_tag}" "./${pkg_dir}"
             fi
           }
           publish_if_needed packages/core
           publish_if_needed packages/functions
+          publish_if_needed packages/backend
           publish_if_needed packages/cli
+          publish_if_needed packages/mcp
 
       - name: Publish to GitHub Packages
         env:
@@ -86,22 +103,35 @@ jobs:
         run: |
           npm config set @openfairygui:registry https://npm.pkg.github.com
           npm config set //npm.pkg.github.com/:_authToken "$NODE_AUTH_TOKEN"
+          npm_dist_tag_for_version() {
+            local pkg_version="$1"
+            if [[ "${pkg_version}" == *-* ]]; then
+              echo "next"
+            else
+              echo "latest"
+            fi
+          }
+
           publish_if_needed() {
             local pkg_dir="$1"
             local pkg_name
             local pkg_version
+            local npm_dist_tag
             pkg_name=$(node -p "require('./${pkg_dir}/package.json').name")
             pkg_version=$(node -p "require('./${pkg_dir}/package.json').version")
+            npm_dist_tag=$(npm_dist_tag_for_version "${pkg_version}")
             if npm view "${pkg_name}@${pkg_version}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
               echo "Skipping GitHub Packages publish for ${pkg_name}@${pkg_version} (already published)"
             else
-              echo "Publishing ${pkg_name}@${pkg_version} to GitHub Packages"
-              npm publish "./${pkg_dir}" --registry=https://npm.pkg.github.com
+              echo "Publishing ${pkg_name}@${pkg_version} to GitHub Packages with dist-tag ${npm_dist_tag}"
+              npm publish --tag "${npm_dist_tag}" "./${pkg_dir}" --registry=https://npm.pkg.github.com
             fi
           }
           publish_if_needed packages/core
           publish_if_needed packages/functions
+          publish_if_needed packages/backend
           publish_if_needed packages/cli
+          publish_if_needed packages/mcp
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
