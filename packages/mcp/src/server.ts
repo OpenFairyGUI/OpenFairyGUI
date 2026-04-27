@@ -8,7 +8,7 @@ import {
 	type OpenFairyGuiBackendToolName,
 } from './tool-definitions.js';
 
-const PACKAGE_VERSION = process.env.npm_package_version ?? '0.1.1';
+const PACKAGE_VERSION = process.env.npm_package_version ?? '0.2.0-alpha.0';
 
 export interface CreateOpenFairyGuiMcpServerOptions {
 	runtime?: BackendRuntime;
