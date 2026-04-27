@@ -1,5 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { BackendRuntime } from '@openfairygui/backend';
+import { registerOpenFairyGuiBackendPrompts } from './prompt-definitions.js';
+import { registerOpenFairyGuiBackendResources } from './resource-definitions.js';
 import { callOpenFairyGuiBackendTool } from './tool-handler.js';
 import {
 	OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS,
@@ -28,6 +30,7 @@ export function createOpenFairyGuiMcpServer(options: CreateOpenFairyGuiMcpServer
 				title: definition.title,
 				description: definition.description,
 				inputSchema: definition.inputSchema,
+				outputSchema: definition.outputSchema,
 				annotations: definition.annotations,
 				_meta: {
 					'openfairygui/backendMethod': definition.backendMethod,
@@ -37,6 +40,9 @@ export function createOpenFairyGuiMcpServer(options: CreateOpenFairyGuiMcpServer
 			async (args) => callOpenFairyGuiBackendTool(runtime, definition.name as OpenFairyGuiBackendToolName, args as Record<string, unknown>),
 		);
 	}
+
+	registerOpenFairyGuiBackendResources(server, runtime);
+	registerOpenFairyGuiBackendPrompts(server);
 
 	return server;
 }

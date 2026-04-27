@@ -31,7 +31,7 @@ OpenFairyGUI 用于读取、编辑、写回和发布 FairyGUI 工程数据。和
 | `@openfairygui/core` | 属性图、文档模型、工程读写、二进制读写等底层能力 |
 | `@openfairygui/functions` | 发布、还原、检查、转换等高层函数能力 |
 | `@openfairygui/backend` | stateful backend runtime、session 生命周期、save/lock/capability 协调，以及 events/jobs/cache |
-| `@openfairygui/mcp` | MCP server 薄适配层，完整映射 backend P2 工具面 |
+| `@openfairygui/mcp` | MCP server 薄适配层，完整映射 backend P2 工具面，并提供 resources / prompts / output schema 等客户端可用性表面 |
 | `@openfairygui/cli` | 命令行工具 |
 | `@openfairygui/test-utils` | 测试辅助与夹具 |
 
@@ -153,12 +153,20 @@ await runtime.closeSession({ sessionId: opened.data.sessionId });
 ```
 
 如果你要把当前 backend runtime 暴露给 MCP 客户端，可以使用 `@openfairygui/mcp`。
-这层只做 transport adapter，不重新定义 backend / UAM 语义。
+这层只做 transport adapter，不重新定义 backend / UAM 语义。当前 MCP 包除 12 个 backend P2 tools 外，
+还提供 identity snapshot resources、workflow guidance prompts，以及 `structuredContent.backendResult`
+的共享 output schema；MCP roots 只作为客户端上下文说明，不作为路径安全边界。
 
 ```ts
 import { createOpenFairyGuiMcpServer } from '@openfairygui/mcp';
 
 const server = createOpenFairyGuiMcpServer();
+```
+
+stdio 客户端可以使用包二进制：
+
+```bash
+ofgui-mcp
 ```
 
 ## Command-line API

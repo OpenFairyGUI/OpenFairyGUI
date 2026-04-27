@@ -1,5 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import test from 'ava';
 import { BackendRuntime } from '@openfairygui/backend';
 import {
@@ -32,13 +33,15 @@ test('createOpenFairyGuiMcpServer exposes backend P2 tools over MCP transport', 
 			t.truthy(tool);
 			t.is(tool?._meta?.['openfairygui/backendMethod'], definition.backendMethod);
 			t.is(tool?._meta?.['openfairygui/adapter'], 'thin-backend-p2');
+			t.truthy(tool?.outputSchema);
 		}
 
 		const capabilities = await client.callTool({
 			name: 'openfairygui_backend_get_capabilities',
 			arguments: {},
-		});
+		}, CallToolResultSchema);
 		t.false(capabilities.isError ?? false);
+		t.truthy((capabilities.structuredContent as { backendResult?: unknown } | undefined)?.backendResult);
 		const text = capabilities.content[0]?.type === 'text' ? capabilities.content[0].text : '';
 		t.true(text.includes('"runtimeOwner": "@openfairygui/backend"'));
 	} finally {

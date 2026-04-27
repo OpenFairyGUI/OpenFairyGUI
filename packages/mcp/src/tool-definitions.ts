@@ -39,6 +39,7 @@ export interface OpenFairyGuiBackendToolDefinition {
 	title: string;
 	description: string;
 	inputSchema: z.ZodObject;
+	outputSchema: z.ZodObject;
 	annotations: {
 		readOnlyHint?: boolean;
 		destructiveHint?: boolean;
@@ -52,6 +53,15 @@ const jobId = z.string().min(1);
 const expectedRevision = z.number().int().nonnegative();
 const limit = z.number().int().nonnegative().optional();
 
+export const OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA = z.object({
+	backendResult: z.object({
+		ok: z.boolean(),
+		data: z.unknown().optional(),
+		error: z.unknown().optional(),
+		meta: z.unknown().optional(),
+	}).passthrough(),
+});
+
 export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
 	{
 		name: 'openfairygui_backend_get_capabilities',
@@ -59,6 +69,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
 		title: 'Get Backend Capabilities',
 		description: 'Return the OpenFairyGUI backend capability, version, and service-plane snapshot.',
 		inputSchema: z.object({}),
+		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 	},
 	{
@@ -69,6 +80,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
 		inputSchema: z.object({
 			projectPath: z.string().min(1),
 		}),
+		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 		annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },
 	},
 	{
@@ -77,6 +89,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
 		title: 'Get Backend Session',
 		description: 'Return a backend session snapshot by session id.',
 		inputSchema: z.object({ sessionId }),
+		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 	},
 	{
@@ -89,6 +102,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
 			expectedRevision,
 			operations: z.array(z.unknown()),
 		}),
+		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 		annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
 	},
 	{
@@ -101,6 +115,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
 			expectedRevision: expectedRevision.optional(),
 			targetPath: z.string().min(1).optional(),
 		}),
+		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 		annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
 	},
 	{
@@ -109,6 +124,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
 		title: 'Close Backend Session',
 		description: 'Close a backend session and release its backend-local advisory lock.',
 		inputSchema: z.object({ sessionId }),
+		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 		annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },
 	},
 	{
@@ -121,6 +137,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
 			after: z.string().optional(),
 			limit,
 		}),
+		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 	},
 	{
@@ -129,6 +146,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
 		title: 'Get Runtime Job',
 		description: 'Return a backend runtime job snapshot by session and backend-local job id.',
 		inputSchema: z.object({ sessionId, jobId }),
+		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 	},
 	{
@@ -142,6 +160,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
 			kind: z.literal('cache.refresh').optional(),
 			limit,
 		}),
+		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 	},
 	{
@@ -150,6 +169,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
 		title: 'Cancel Runtime Job',
 		description: 'Request cooperative cancellation for a backend runtime job.',
 		inputSchema: z.object({ sessionId, jobId }),
+		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 		annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },
 	},
 	{
@@ -158,6 +178,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
 		title: 'Get Cache Snapshot',
 		description: 'Return the backend P2 derived read-only cache snapshot for a session.',
 		inputSchema: z.object({ sessionId }),
+		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 	},
 	{
@@ -169,6 +190,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
 			sessionId,
 			reason: z.enum(['manual', 'session_open', 'after_save']).optional(),
 		}),
+		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 		annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },
 	},
 ] as const satisfies readonly OpenFairyGuiBackendToolDefinition[];

@@ -31,7 +31,7 @@ This repository is organized as a `pnpm workspace` + `Lerna` monorepo with the f
 | `@openfairygui/core` | Property graph, document model, project I/O, and binary I/O primitives |
 | `@openfairygui/functions` | Higher-level publish, restore, inspection, and transform workflows |
 | `@openfairygui/backend` | Stateful backend runtime, session lifecycle, save/lock/capability coordination, and events/jobs/cache |
-| `@openfairygui/mcp` | Thin MCP server adapter that maps the full backend P2 tool surface |
+| `@openfairygui/mcp` | Thin MCP server adapter that maps the full backend P2 tool surface and adds client ergonomics through resources, prompts, and output schemas |
 | `@openfairygui/cli` | Command-line interface |
 | `@openfairygui/test-utils` | Shared test helpers and fixtures |
 
@@ -156,11 +156,20 @@ await runtime.closeSession({ sessionId: opened.data.sessionId });
 
 If you want to expose the current backend runtime to MCP clients, use `@openfairygui/mcp`.
 This package is only a transport adapter; it does not redefine backend or UAM semantics.
+In addition to the 12 backend P2 tools, it exposes identity snapshot resources,
+workflow guidance prompts, and a shared `structuredContent.backendResult` output schema.
+MCP roots are documented as client context only, not as the path-safety boundary.
 
 ```ts
 import { createOpenFairyGuiMcpServer } from '@openfairygui/mcp';
 
 const server = createOpenFairyGuiMcpServer();
+```
+
+stdio clients can use the package binary:
+
+```bash
+ofgui-mcp
 ```
 
 ## Command-line API
