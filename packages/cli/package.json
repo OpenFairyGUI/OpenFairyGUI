@@ -36,11 +36,11 @@
 		"restore"
 	],
 	"devDependencies": {
-		"@openfairygui/core": "0.2.0-alpha.2",
-		"@openfairygui/functions": "0.2.0-alpha.2"
+		"@openfairygui/core": "workspace:*",
+		"@openfairygui/functions": "workspace:*"
 	},
 	"dependencies": {
-		"@openfairygui/backend": "0.2.0-alpha.2"
+		"@openfairygui/backend": "workspace:*"
 	},
 	"optionalDependencies": {
 		"sharp": ">=0.33.0"

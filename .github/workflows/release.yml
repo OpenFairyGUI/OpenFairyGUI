@@ -59,11 +59,15 @@ jobs:
       - name: Pack publish artifacts
         run: |
           mkdir -p .release
-          npm pack ./packages/core --pack-destination .release
-          npm pack ./packages/functions --pack-destination .release
-          npm pack ./packages/backend --pack-destination .release
-          npm pack ./packages/cli --pack-destination .release
-          npm pack ./packages/mcp --pack-destination .release
+          pack_package() {
+            local pkg_dir="$1"
+            (cd "${pkg_dir}" && pnpm pack --pack-destination ../../.release)
+          }
+          pack_package packages/core
+          pack_package packages/functions
+          pack_package packages/backend
+          pack_package packages/cli
+          pack_package packages/mcp
 
       - name: Publish to npmjs
         run: |
@@ -76,19 +80,33 @@ jobs:
             fi
           }
 
+          package_tarball() {
+            local pkg_dir="$1"
+            local pkg_name
+            local pkg_version
+            local tarball_name
+            pkg_name=$(node -p "require('./${pkg_dir}/package.json').name")
+            pkg_version=$(node -p "require('./${pkg_dir}/package.json').version")
+            tarball_name="${pkg_name#@}"
+            tarball_name="${tarball_name//\//-}-${pkg_version}.tgz"
+            echo ".release/${tarball_name}"
+          }
+
           publish_if_needed() {
             local pkg_dir="$1"
             local pkg_name
             local pkg_version
             local npm_dist_tag
+            local pkg_tarball
             pkg_name=$(node -p "require('./${pkg_dir}/package.json').name")
             pkg_version=$(node -p "require('./${pkg_dir}/package.json').version")
             npm_dist_tag=$(npm_dist_tag_for_version "${pkg_version}")
+            pkg_tarball=$(package_tarball "${pkg_dir}")
             if npm view "${pkg_name}@${pkg_version}" version --registry=https://registry.npmjs.org >/dev/null 2>&1; then
               echo "Skipping npmjs publish for ${pkg_name}@${pkg_version} (already published)"
             else
               echo "Publishing ${pkg_name}@${pkg_version} to npmjs via trusted publishing with dist-tag ${npm_dist_tag}"
-              npm publish --provenance --access public --tag "${npm_dist_tag}" "./${pkg_dir}"
+              npm publish --provenance --access public --tag "${npm_dist_tag}" "${pkg_tarball}"
             fi
           }
           publish_if_needed packages/core
@@ -112,19 +130,33 @@ jobs:
             fi
           }
 
+          package_tarball() {
+            local pkg_dir="$1"
+            local pkg_name
+            local pkg_version
+            local tarball_name
+            pkg_name=$(node -p "require('./${pkg_dir}/package.json').name")
+            pkg_version=$(node -p "require('./${pkg_dir}/package.json').version")
+            tarball_name="${pkg_name#@}"
+            tarball_name="${tarball_name//\//-}-${pkg_version}.tgz"
+            echo ".release/${tarball_name}"
+          }
+
           publish_if_needed() {
             local pkg_dir="$1"
             local pkg_name
             local pkg_version
             local npm_dist_tag
+            local pkg_tarball
             pkg_name=$(node -p "require('./${pkg_dir}/package.json').name")
             pkg_version=$(node -p "require('./${pkg_dir}/package.json').version")
             npm_dist_tag=$(npm_dist_tag_for_version "${pkg_version}")
+            pkg_tarball=$(package_tarball "${pkg_dir}")
             if npm view "${pkg_name}@${pkg_version}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
               echo "Skipping GitHub Packages publish for ${pkg_name}@${pkg_version} (already published)"
             else
               echo "Publishing ${pkg_name}@${pkg_version} to GitHub Packages with dist-tag ${npm_dist_tag}"
-              npm publish --tag "${npm_dist_tag}" "./${pkg_dir}" --registry=https://npm.pkg.github.com
+              npm publish --tag "${npm_dist_tag}" "${pkg_tarball}" --registry=https://npm.pkg.github.com
             fi
           }
           publish_if_needed packages/core
