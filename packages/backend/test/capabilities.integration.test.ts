@@ -24,7 +24,11 @@ test('getCapabilities reports derived ownership and runtime capabilities', (t) =
 	t.true(result.data.authoring.saveSession);
 	t.false(result.data.artifact.publish);
 	t.false(result.data.artifact.restore);
-	t.is(result.data.artifact.status, 'deferred');
+	t.is(result.data.artifact.status, 'bridge-required');
+	t.deepEqual(result.data.artifact.publishBridge, result.data.manifest.executionBoundaries.artifactPublish);
+	t.is(result.data.manifest.rootEntrypoint, '@openfairygui/backend');
+	t.is(result.data.manifest.nodeEntrypoint, '@openfairygui/backend/node');
+	t.true(result.data.manifest.browserSafe);
 	t.deepEqual(result.data.authoring.resourceKinds, ['image', 'component']);
 	t.deepEqual(result.data.authoring.nodeKinds, ['image', 'text']);
 	t.deepEqual(result.data.authoring.gearKinds, ['look']);

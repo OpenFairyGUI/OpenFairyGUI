@@ -12,5 +12,7 @@ test('capabilities are separated into read, authoring, artifact, and runtime pla
 	t.truthy(result.data.artifact);
 	t.truthy(result.data.runtime);
 	t.deepEqual(result.data.authoring.unsupported, ['artifact.publish', 'artifact.restore']);
-	t.is(result.data.artifact.status, 'deferred');
+	t.is(result.data.artifact.status, 'bridge-required');
+	t.is(result.data.artifact.publishBridge.executionBoundary, 'external-bridge');
+	t.is(result.data.artifact.restoreBridge.requiredHost, 'node');
 });

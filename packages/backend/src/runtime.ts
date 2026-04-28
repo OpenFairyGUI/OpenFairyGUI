@@ -1,11 +1,9 @@
 import {
 	UAM_SUPPORTED_MATERIALIZATION_SCOPE,
+	type UamProject,
 	type UamTransactionOperation,
 } from '@openfairygui/core';
 import type { ApplyUamTransactionAppError } from '@openfairygui/functions';
-import fs from 'node:fs/promises';
-import type { Stats } from 'node:fs';
-import path from 'node:path';
 import {
 	BACKEND_CAPABILITY_SCHEMA_VERSION,
 	BACKEND_COMPATIBILITY_POLICY,
@@ -27,8 +25,13 @@ export interface BackendFileHandle {
 	close(): Promise<void>;
 }
 
+export interface BackendFileStat {
+	isFile(): boolean;
+	isDirectory(): boolean;
+}
+
 export interface BackendFileSystem {
-	stat(filePath: string): Promise<Stats>;
+	stat(filePath: string): Promise<BackendFileStat>;
 	readdir(dirPath: string): Promise<string[]>;
 	readFile(filePath: string): Promise<string>;
 	readFileRaw(filePath: string): Promise<Uint8Array>;
@@ -43,6 +46,48 @@ export interface BackendFileSystem {
 	resolve(...paths: string[]): string;
 }
 
+export interface BackendHostAdapter {
+	lockMetadata?(input: {
+		canonicalPathKey: string;
+		canonicalProjectPath: string;
+		lockFilePath: string;
+	}): unknown;
+}
+
+export interface BackendArtifactBridgeCapability {
+	available: false;
+	requiredHost: 'node';
+	executionBoundary: 'external-bridge';
+	bridgeEntrypoint: '@openfairygui/backend/node';
+	reason: string;
+}
+
+export interface BackendCapabilityManifest {
+	browserSafe: true;
+	rootEntrypoint: '@openfairygui/backend';
+	nodeEntrypoint: '@openfairygui/backend/node';
+	adapters: {
+		fileSystem: {
+			injected: true;
+			requiredFor: readonly ['openSession', 'saveSession'];
+		};
+		host: {
+			injected: true;
+			requiredFor: readonly ['advisoryLockMetadata'];
+		};
+	};
+	executionBoundaries: {
+		projectSession: 'in-process-browser-safe';
+		fileBackedSession: 'adapter-backed';
+		artifactPublish: BackendArtifactBridgeCapability;
+		artifactRestore: BackendArtifactBridgeCapability;
+	};
+	diagnostics: {
+		stableCodes: true;
+		errorDiagnosticMirror: true;
+	};
+}
+
 export interface BackendCapabilities {
 	contractVersion: typeof BACKEND_CONTRACT_VERSION;
 	capabilitySchemaVersion: typeof BACKEND_CAPABILITY_SCHEMA_VERSION;
@@ -52,6 +97,7 @@ export interface BackendCapabilities {
 	methods: readonly [
 		'getCapabilities',
 		'openSession',
+		'openProjectSession',
 		'getSession',
 		'applyTransaction',
 		'saveSession',
@@ -78,8 +124,11 @@ export interface BackendCapabilities {
 	artifact: {
 		publish: false;
 		restore: false;
-		status: 'deferred';
+		status: 'bridge-required';
+		publishBridge: BackendArtifactBridgeCapability;
+		restoreBridge: BackendArtifactBridgeCapability;
 	};
+	manifest: BackendCapabilityManifest;
 	compatibilityPolicy: typeof BACKEND_COMPATIBILITY_POLICY;
 	runtime: {
 		sessionRuntime: true;
@@ -319,6 +368,15 @@ export interface CacheRefreshFailedError {
 	causeCode?: string;
 }
 
+export interface BackendCapabilityUnavailableError {
+	code: 'capability_unavailable';
+	message: string;
+	capability: 'fileSystem' | 'artifact.publish' | 'artifact.restore';
+	requiredAdapter?: 'BackendFileSystem';
+	requiredHost?: 'node';
+	bridgeBoundary?: 'external-bridge';
+}
+
 export type BackendJobErrors =
 	| BackendJobNotFoundError
 	| BackendJobNotCancellableError
@@ -366,6 +424,7 @@ export type BackendError =
 	| BackendJobNotCancellableError
 	| BackendJobCancelledError
 	| CacheRefreshFailedError
+	| BackendCapabilityUnavailableError
 	| ApplyUamTransactionAppError;
 
 export interface ApplySessionTransactionInput {
@@ -374,14 +433,23 @@ export interface ApplySessionTransactionInput {
 	operations: UamTransactionOperation[];
 }
 
+export interface OpenProjectSessionInput {
+	project: UamProject;
+	sessionId?: string;
+	canonicalProjectPath?: string;
+	canonicalPathKey?: string;
+}
+
 export interface BackendRuntimeOptions {
 	fileSystem?: BackendFileSystem;
+	host?: BackendHostAdapter;
 }
 
 const BACKEND_METHODS = [
-	'getCapabilities',
-	'openSession',
-	'getSession',
+		'getCapabilities',
+		'openSession',
+		'openProjectSession',
+		'getSession',
 	'applyTransaction',
 	'saveSession',
 	'closeSession',
@@ -389,9 +457,17 @@ const BACKEND_METHODS = [
 	'getJob',
 	'listJobs',
 	'cancelJob',
-	'getCacheSnapshot',
-	'refreshCache',
+		'getCacheSnapshot',
+		'refreshCache',
 ] as const;
+
+const ARTIFACT_BRIDGE_CAPABILITY = {
+	available: false,
+	requiredHost: 'node',
+	executionBoundary: 'external-bridge',
+	bridgeEntrypoint: '@openfairygui/backend/node',
+	reason: 'publish/restore require explicit Node-hosted filesystem and artifact execution.',
+} as const satisfies BackendArtifactBridgeCapability;
 
 function createCapabilities(): BackendCapabilities {
 	return {
@@ -414,6 +490,31 @@ function createCapabilities(): BackendCapabilities {
 			unsupported: ['artifact.publish', 'artifact.restore'],
 		},
 		artifact: createArtifactCapabilities(),
+		manifest: {
+			browserSafe: true,
+			rootEntrypoint: '@openfairygui/backend',
+			nodeEntrypoint: '@openfairygui/backend/node',
+			adapters: {
+				fileSystem: {
+					injected: true,
+					requiredFor: ['openSession', 'saveSession'],
+				},
+				host: {
+					injected: true,
+					requiredFor: ['advisoryLockMetadata'],
+				},
+			},
+			executionBoundaries: {
+				projectSession: 'in-process-browser-safe',
+				fileBackedSession: 'adapter-backed',
+				artifactPublish: ARTIFACT_BRIDGE_CAPABILITY,
+				artifactRestore: ARTIFACT_BRIDGE_CAPABILITY,
+			},
+			diagnostics: {
+				stableCodes: true,
+				errorDiagnosticMirror: true,
+			},
+		},
 		compatibilityPolicy: BACKEND_COMPATIBILITY_POLICY,
 		runtime: {
 			sessionRuntime: true,
@@ -446,65 +547,8 @@ function createCapabilities(): BackendCapabilities {
 	};
 }
 
-export function createNodeBackendFileSystem(): BackendFileSystem {
-	return {
-		stat(filePath: string): Promise<Stats> {
-			return fs.stat(filePath);
-		},
-		readdir(dirPath: string): Promise<string[]> {
-			return fs.readdir(dirPath);
-		},
-		readFile(filePath: string): Promise<string> {
-			return fs.readFile(filePath, 'utf-8');
-		},
-		async readFileRaw(filePath: string): Promise<Uint8Array> {
-			const buffer = await fs.readFile(filePath);
-			return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
-		},
-		writeFile(filePath: string, content: string): Promise<void> {
-			return fs.writeFile(filePath, content, 'utf-8');
-		},
-		writeFileRaw(filePath: string, data: Uint8Array): Promise<void> {
-			return fs.writeFile(filePath, data);
-		},
-		async mkdir(dirPath: string, options?: { recursive?: boolean }): Promise<void> {
-			await fs.mkdir(dirPath, { recursive: options?.recursive ?? false });
-		},
-		async resolvePath(filePath: string): Promise<string> {
-			try {
-				return await fs.realpath(filePath);
-			} catch {
-				return path.resolve(filePath);
-			}
-		},
-		async openExclusive(filePath: string): Promise<BackendFileHandle> {
-			const handle = await fs.open(filePath, 'wx');
-			return {
-				writeFile(content: string): Promise<void> {
-					return handle.writeFile(content, 'utf-8');
-				},
-				close(): Promise<void> {
-					return handle.close();
-				},
-			};
-		},
-		unlink(filePath: string): Promise<void> {
-			return fs.unlink(filePath);
-		},
-		join(...paths: string[]): string {
-			return path.join(...paths);
-		},
-		dirname(filePath: string): string {
-			return path.dirname(filePath);
-		},
-		resolve(...paths: string[]): string {
-			return path.resolve(...paths);
-		},
-	};
-}
-
 export class BackendRuntime {
-	private readonly fileSystem: BackendFileSystem;
+	private readonly fileSystem?: BackendFileSystem;
 	private readonly capabilities: BackendCapabilities;
 	private readonly sessions = new Map<string, BackendSessionState>();
 	private readonly sessionsByPath = new Map<string, string>();
@@ -521,10 +565,11 @@ export class BackendRuntime {
 	private readonly jobService: JobService;
 
 	public constructor(options: BackendRuntimeOptions = {}) {
-		this.fileSystem = options.fileSystem ?? createNodeBackendFileSystem();
+		this.fileSystem = options.fileSystem;
 		this.capabilities = createCapabilities();
 		this.context = {
 			fileSystem: this.fileSystem,
+			host: options.host,
 			capabilities: this.capabilities,
 			sessions: this.sessions,
 			sessionsByPath: this.sessionsByPath,
@@ -548,8 +593,12 @@ export class BackendRuntime {
 		return this.readService.getCapabilities() as BackendSuccess<BackendCapabilities>;
 	}
 
-	public async openSession(input: { projectPath: string }): Promise<BackendResult<BackendSessionSnapshot, InProcessLockConflictError | AdvisoryLockConflictError>> {
+	public async openSession(input: { projectPath: string }): Promise<BackendResult<BackendSessionSnapshot, InProcessLockConflictError | AdvisoryLockConflictError | BackendCapabilityUnavailableError>> {
 		return this.runtimeService.openSession(input);
+	}
+
+	public openProjectSession(input: OpenProjectSessionInput): BackendResult<BackendSessionSnapshot> {
+		return this.runtimeService.openProjectSession(input);
 	}
 
 	public getSession(input: { sessionId: string }): BackendResult<BackendSessionSnapshot, SessionNotFoundError> {
@@ -564,7 +613,7 @@ export class BackendRuntime {
 
 	public async saveSession(
 		input: { sessionId: string; expectedRevision?: number; targetPath?: string },
-	): Promise<BackendResult<BackendSessionSnapshot, SessionNotFoundError | SessionStaleWriteError | SavePartialFailureError | PathPolicyViolationError>> {
+	): Promise<BackendResult<BackendSessionSnapshot, SessionNotFoundError | SessionStaleWriteError | SavePartialFailureError | PathPolicyViolationError | BackendCapabilityUnavailableError>> {
 		return this.authoringService.saveSession(input);
 	}
 

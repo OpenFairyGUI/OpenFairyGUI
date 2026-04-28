@@ -1,13 +1,12 @@
 import test from 'ava';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { BackendRuntime } from '../src/index.js';
-import { createTempBackendProject } from './helpers.js';
+import { createBackendRuntime, createTempBackendProject } from './helpers.js';
 
 test('same runtime rejects second open on the same canonical path', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
-		const runtime = new BackendRuntime();
+		const runtime = createBackendRuntime();
 		const first = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(first.ok);
 		if (!first.ok) return;
@@ -28,7 +27,7 @@ test('advisory lock conflict is surfaced before session creation', async (t) => 
 	const lockPath = path.join(fixture.rootDir, '.openfairygui.backend.lock');
 	try {
 		await fs.writeFile(lockPath, 'occupied', 'utf-8');
-		const runtime = new BackendRuntime();
+		const runtime = createBackendRuntime();
 		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.false(opened.ok);
 		if (opened.ok) return;

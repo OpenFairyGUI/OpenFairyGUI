@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { BackendRuntime } from '@openfairygui/backend';
+import type { BackendRuntime } from '@openfairygui/backend';
+import { createNodeBackendRuntime } from '@openfairygui/backend/node';
 import { registerOpenFairyGuiBackendPrompts } from './prompt-definitions.js';
 import { registerOpenFairyGuiBackendResources } from './resource-definitions.js';
 import { callOpenFairyGuiBackendTool } from './tool-handler.js';
@@ -17,7 +18,7 @@ export interface CreateOpenFairyGuiMcpServerOptions {
 }
 
 export function createOpenFairyGuiMcpServer(options: CreateOpenFairyGuiMcpServerOptions = {}): McpServer {
-	const runtime = options.runtime ?? new BackendRuntime();
+	const runtime = options.runtime ?? createNodeBackendRuntime();
 	const server = new McpServer({
 		name: options.name ?? 'openfairygui-mcp',
 		version: options.version ?? PACKAGE_VERSION,

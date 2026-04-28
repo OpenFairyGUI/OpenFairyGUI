@@ -1,11 +1,10 @@
 import test from 'ava';
-import { BackendRuntime } from '../src/index.js';
-import { createTempBackendProject, waitForBackendJobStatus } from './helpers.js';
+import { createBackendRuntime, createTempBackendProject, waitForBackendJobStatus } from './helpers.js';
 
 test('cache is derived, revision-bound, invalidated by transaction, and refreshed by job', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
-		const runtime = new BackendRuntime();
+		const runtime = createBackendRuntime();
 		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(opened.ok);
 		if (!opened.ok) return;
@@ -66,7 +65,7 @@ test('cache is derived, revision-bound, invalidated by transaction, and refreshe
 test('closeSession removes session-bound cache entry', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
-		const runtime = new BackendRuntime();
+		const runtime = createBackendRuntime();
 		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(opened.ok);
 		if (!opened.ok) return;

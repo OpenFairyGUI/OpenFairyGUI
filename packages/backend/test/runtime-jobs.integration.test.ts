@@ -1,11 +1,10 @@
 import test from 'ava';
-import { BackendRuntime } from '../src/index.js';
-import { createTempBackendProject, waitForBackendJobStatus } from './helpers.js';
+import { createBackendRuntime, createTempBackendProject, waitForBackendJobStatus } from './helpers.js';
 
 test('refreshCache creates queryable cache refresh jobs that complete asynchronously', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
-		const runtime = new BackendRuntime();
+		const runtime = createBackendRuntime();
 		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(opened.ok);
 		if (!opened.ok) return;
@@ -46,7 +45,7 @@ test('refreshCache creates queryable cache refresh jobs that complete asynchrono
 test('cancelJob cancels queued and running refresh jobs cooperatively', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
-		const runtime = new BackendRuntime();
+		const runtime = createBackendRuntime();
 		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(opened.ok);
 		if (!opened.ok) return;
@@ -82,7 +81,7 @@ test('cancelJob cancels queued and running refresh jobs cooperatively', async (t
 test('cancelJob reports terminal jobs as not cancellable and missing jobs as not found', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
-		const runtime = new BackendRuntime();
+		const runtime = createBackendRuntime();
 		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(opened.ok);
 		if (!opened.ok) return;
@@ -113,7 +112,7 @@ test('cancelJob reports terminal jobs as not cancellable and missing jobs as not
 test('listJobs retains only the latest 100 terminal jobs per session', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
-		const runtime = new BackendRuntime();
+		const runtime = createBackendRuntime();
 		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(opened.ok);
 		if (!opened.ok) return;

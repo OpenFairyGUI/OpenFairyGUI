@@ -1,4 +1,4 @@
-import { BackendRuntime } from '@openfairygui/backend';
+import { createNodeBackendRuntime } from '@openfairygui/backend/node';
 import {
 	NodeIO,
 	ProjectType,
@@ -475,7 +475,7 @@ async function cmdBackendCapabilities(args: string[]): Promise<void> {
 		process.exit(1);
 	}
 
-	const runtime = new BackendRuntime();
+	const runtime = createNodeBackendRuntime();
 	const opened = await runtime.openSession({ projectPath: path.resolve(args[0]) });
 	if (!opened.ok) {
 		const failure = opened as Extract<typeof opened, { ok: false }>;

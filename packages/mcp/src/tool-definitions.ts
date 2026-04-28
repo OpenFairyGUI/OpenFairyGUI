@@ -5,6 +5,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_PREFIX = 'openfairygui_backend_';
 export const OPENFAIRYGUI_BACKEND_TOOL_NAMES = [
 	'openfairygui_backend_get_capabilities',
 	'openfairygui_backend_open_session',
+	'openfairygui_backend_open_project_session',
 	'openfairygui_backend_get_session',
 	'openfairygui_backend_apply_transaction',
 	'openfairygui_backend_save_session',
@@ -22,6 +23,7 @@ export type OpenFairyGuiBackendToolName = typeof OPENFAIRYGUI_BACKEND_TOOL_NAMES
 export type BackendMethodName =
 	| 'getCapabilities'
 	| 'openSession'
+	| 'openProjectSession'
 	| 'getSession'
 	| 'applyTransaction'
 	| 'saveSession'
@@ -79,6 +81,20 @@ export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
 		description: 'Open a FairyGUI project through BackendRuntime and acquire its backend-local session lock.',
 		inputSchema: z.object({
 			projectPath: z.string().min(1),
+		}),
+		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
+		annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },
+	},
+	{
+		name: 'openfairygui_backend_open_project_session',
+		backendMethod: 'openProjectSession',
+		title: 'Open Project Session',
+		description: 'Open a browser-safe backend session from an already loaded UAM project without filesystem access.',
+		inputSchema: z.object({
+			project: z.unknown(),
+			sessionId: z.string().min(1).optional(),
+			canonicalProjectPath: z.string().min(1).optional(),
+			canonicalPathKey: z.string().min(1).optional(),
 		}),
 		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 		annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },

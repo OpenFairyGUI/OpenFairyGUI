@@ -1,11 +1,10 @@
 import test from 'ava';
-import { BackendRuntime } from '../src/index.js';
-import { createTempBackendProject } from './helpers.js';
+import { createBackendRuntime, createTempBackendProject } from './helpers.js';
 
 test('runtime events are monotonic and reflect transaction/save/close ordering', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
-		const runtime = new BackendRuntime();
+		const runtime = createBackendRuntime();
 		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(opened.ok);
 		if (!opened.ok) return;
@@ -61,7 +60,7 @@ test('runtime events are monotonic and reflect transaction/save/close ordering',
 test('runtime event cursor rejects malformed or unknown cursors', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
-		const runtime = new BackendRuntime();
+		const runtime = createBackendRuntime();
 		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(opened.ok);
 		if (!opened.ok) return;
@@ -87,7 +86,7 @@ test('runtime event cursor rejects malformed or unknown cursors', async (t) => {
 test('runtime events retain the latest 1000 entries and reject expired cursors', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
-		const runtime = new BackendRuntime();
+		const runtime = createBackendRuntime();
 		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(opened.ok);
 		if (!opened.ok) return;

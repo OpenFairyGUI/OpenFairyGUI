@@ -1,12 +1,11 @@
 import test from 'ava';
 import path from 'node:path';
-import { BackendRuntime } from '../src/index.js';
-import { createFailingFileSystem, createTempBackendProject } from './helpers.js';
+import { createBackendRuntime, createFailingFileSystem, createTempBackendProject } from './helpers.js';
 
 test('saveSession success updates lastSavedRevision and clears dirty state', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
-		const runtime = new BackendRuntime();
+		const runtime = createBackendRuntime();
 		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(opened.ok);
 		if (!opened.ok) return;
@@ -40,7 +39,7 @@ test('saveSession partial failure keeps dirty state and reports partial update r
 	const fixture = await createTempBackendProject();
 	try {
 		const failingFs = createFailingFileSystem((filePath) => filePath.endsWith(`${path.sep}package.xml`));
-		const runtime = new BackendRuntime({ fileSystem: failingFs });
+		const runtime = createBackendRuntime({ fileSystem: failingFs });
 		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(opened.ok);
 		if (!opened.ok) return;

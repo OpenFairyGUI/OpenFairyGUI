@@ -1,11 +1,10 @@
 import test from 'ava';
-import { BackendRuntime } from '../src/index.js';
-import { createTempBackendProject } from './helpers.js';
+import { createBackendRuntime, createTempBackendProject } from './helpers.js';
 
 test('requests are tagged by service concern via meta.stage', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
-		const runtime = new BackendRuntime();
+		const runtime = createBackendRuntime();
 
 		const capabilities = runtime.getCapabilities();
 		t.true(capabilities.ok);

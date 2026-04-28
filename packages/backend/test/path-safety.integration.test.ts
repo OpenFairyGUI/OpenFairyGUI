@@ -1,11 +1,10 @@
 import test from 'ava';
-import { BackendRuntime } from '../src/index.js';
-import { createTempBackendProject } from './helpers.js';
+import { createBackendRuntime, createTempBackendProject } from './helpers.js';
 
 test('canonical path logic collapses project root and fairy file aliases to one backend identity', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
-		const runtime = new BackendRuntime();
+		const runtime = createBackendRuntime();
 		const rootOpened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(rootOpened.ok);
 		if (!rootOpened.ok) return;
@@ -25,7 +24,7 @@ test('canonical path logic collapses project root and fairy file aliases to one 
 test('saveSession rejects disallowed save targets structurally', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
-		const runtime = new BackendRuntime();
+		const runtime = createBackendRuntime();
 		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(opened.ok);
 		if (!opened.ok) return;

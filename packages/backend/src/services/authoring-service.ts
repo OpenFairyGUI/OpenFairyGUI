@@ -5,6 +5,7 @@ import { failure, success, type BackendContext } from './context.js';
 import type { EventService } from './event-service.js';
 import type {
 	ApplySessionTransactionInput,
+	BackendCapabilityUnavailableError,
 	BackendFileSystem,
 	BackendResult,
 	BackendSessionSnapshot,
@@ -123,11 +124,22 @@ export class AuthoringService {
 
 	public async saveSession(
 		input: { sessionId: string; expectedRevision?: number; targetPath?: string },
-	): Promise<BackendResult<BackendSessionSnapshot, SessionNotFoundError | SessionStaleWriteError | SavePartialFailureError | PathPolicyViolationError>> {
+	): Promise<BackendResult<BackendSessionSnapshot, SessionNotFoundError | SessionStaleWriteError | SavePartialFailureError | PathPolicyViolationError | BackendCapabilityUnavailableError>> {
 		const startedAt = Date.now();
 		const session = this.context.sessions.get(input.sessionId);
 		if (!session || session.closed) {
 			return failure('authoring', startedAt, createSessionNotFoundError(input.sessionId));
+		}
+		if (!this.context.fileSystem) {
+			return failure('authoring', startedAt, {
+				code: 'capability_unavailable',
+				message: 'saveSession requires an injected BackendFileSystem adapter.',
+				capability: 'fileSystem',
+				requiredAdapter: 'BackendFileSystem',
+			}, toSessionSnapshot(session, this.context.capabilities), {
+				sessionId: session.sessionId,
+				revision: session.revision,
+			});
 		}
 		if (input.expectedRevision !== undefined && input.expectedRevision !== session.revision) {
 			return failure('authoring', startedAt, createStaleWriteError(session, input.expectedRevision), toSessionSnapshot(session, this.context.capabilities), {
@@ -135,7 +147,8 @@ export class AuthoringService {
 				revision: session.revision,
 			});
 		}
-		const targetViolation = await validateSaveTarget(this.context.fileSystem, session.fairyPath, input.targetPath);
+		const fileSystem = this.context.fileSystem;
+		const targetViolation = await validateSaveTarget(fileSystem, session.fairyPath, input.targetPath);
 		if (targetViolation) {
 			return failure('authoring', startedAt, targetViolation, toSessionSnapshot(session, this.context.capabilities), {
 				sessionId: session.sessionId,
@@ -153,7 +166,7 @@ export class AuthoringService {
 		const failedPaths: string[] = [];
 		this.eventService.emit({ kind: 'save.started', sessionId: session.sessionId, canonicalPathKey: session.canonicalPathKey, revision: session.revision });
 		try {
-			const writer = new ProjectWriter(createWriterFileSystem(this.context.fileSystem, committedPaths, failedPaths));
+			const writer = new ProjectWriter(createWriterFileSystem(fileSystem, committedPaths, failedPaths));
 			await writer.write(materializeUamProject(session.project), session.fairyPath);
 			session.lastSavedRevision = session.revision;
 			session.dirty = false;

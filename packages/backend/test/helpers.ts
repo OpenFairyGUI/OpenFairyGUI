@@ -11,8 +11,11 @@ import {
 	type BackendJobSnapshot,
 	type BackendJobStatus,
 	type BackendRuntime,
-	createNodeBackendFileSystem,
 } from '../src/index.js';
+import {
+	createNodeBackendFileSystem,
+	createNodeBackendRuntime,
+} from '../src/node.js';
 
 export function createBackendFixtureProject(): UamProject {
 	return {
@@ -135,6 +138,10 @@ export function createFailingFileSystem(
 			await base.writeFileRaw(filePath, data);
 		},
 	};
+}
+
+export function createBackendRuntime(options: { fileSystem?: BackendFileSystem } = {}): BackendRuntime {
+	return createNodeBackendRuntime(options);
 }
 
 function sleep(ms: number): Promise<void> {

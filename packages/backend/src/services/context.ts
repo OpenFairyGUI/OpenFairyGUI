@@ -5,6 +5,7 @@ import type {
 	BackendEvent,
 	BackendFailure,
 	BackendFileSystem,
+	BackendHostAdapter,
 	BackendJobSnapshot,
 	BackendSessionSnapshot,
 	BackendSuccess,
@@ -33,7 +34,8 @@ export interface BackendSessionState {
 }
 
 export interface BackendContext {
-	fileSystem: BackendFileSystem;
+	fileSystem?: BackendFileSystem;
+	host?: BackendHostAdapter;
 	capabilities: BackendCapabilities;
 	sessions: Map<string, BackendSessionState>;
 	sessionsByPath: Map<string, string>;
@@ -41,6 +43,14 @@ export interface BackendContext {
 	jobsBySession: Map<string, BackendJobSnapshot[]>;
 	cacheBySession: Map<string, BackendCacheEntry>;
 	nextEventSequence: () => number;
+}
+
+function diagnosticFromError(error: BackendError): BackendDiagnostic {
+	return {
+		code: error.code,
+		message: error.message,
+		severity: 'error',
+	};
 }
 
 function randomId(): string {
@@ -103,9 +113,10 @@ export function failure<E extends BackendError>(
 		diagnostics?: BackendDiagnostic[];
 	},
 ): BackendFailure<E> {
+	const diagnostics = options?.diagnostics ?? [diagnosticFromError(error)];
 	return {
 		ok: false,
-		meta: createMeta(stage, startedAt, options),
+		meta: createMeta(stage, startedAt, { ...options, diagnostics }),
 		error,
 		session,
 	};

@@ -2,9 +2,8 @@ import test from 'ava';
 import {
 	BACKEND_CAPABILITY_SCHEMA_VERSION,
 	BACKEND_CONTRACT_VERSION,
-	BackendRuntime,
 } from '../src/index.js';
-import { createTempBackendProject } from './helpers.js';
+import { createBackendRuntime, createTempBackendProject } from './helpers.js';
 
 interface MutableCapabilitiesProbe {
 	methods: string[];
@@ -22,7 +21,7 @@ interface MutableCapabilitiesProbe {
 }
 
 test('P2 capabilities and version fields expose events jobs and cache support', (t) => {
-	const runtime = new BackendRuntime();
+	const runtime = createBackendRuntime();
 	const result = runtime.getCapabilities();
 	t.true(result.ok);
 	if (!result.ok) return;
@@ -46,7 +45,7 @@ test('P2 capabilities and version fields expose events jobs and cache support', 
 });
 
 test('P2 capability snapshots are isolated from external mutation', (t) => {
-	const runtime = new BackendRuntime();
+	const runtime = createBackendRuntime();
 	const result = runtime.getCapabilities();
 	t.true(result.ok);
 	if (!result.ok) return;
@@ -68,7 +67,7 @@ test('P2 capability snapshots are isolated from external mutation', (t) => {
 
 test('session capability snapshots are isolated from external mutation', async (t) => {
 	const fixture = await createTempBackendProject();
-	const runtime = new BackendRuntime();
+	const runtime = createBackendRuntime();
 	try {
 		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(opened.ok);

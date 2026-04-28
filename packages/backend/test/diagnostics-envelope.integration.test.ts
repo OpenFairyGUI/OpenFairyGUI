@@ -1,11 +1,10 @@
 import test from 'ava';
-import { BackendRuntime } from '../src/index.js';
-import { createTempBackendProject } from './helpers.js';
+import { createBackendRuntime, createTempBackendProject } from './helpers.js';
 
 test('backend responses carry unified diagnostics metadata', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
-		const runtime = new BackendRuntime();
+		const runtime = createBackendRuntime();
 		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(opened.ok);
 		if (!opened.ok) return;
@@ -31,7 +30,13 @@ test('backend responses carry unified diagnostics metadata', async (t) => {
 		t.is(stale.meta.revision, 0);
 		t.true(stale.meta.durationMs >= 0);
 		t.deepEqual(stale.meta.warnings, []);
-		t.deepEqual(stale.meta.diagnostics, []);
+		t.deepEqual(stale.meta.diagnostics, [
+			{
+				code: 'stale_write',
+				message: 'Expected revision 99 does not match current revision 0.',
+				severity: 'error',
+			},
+		]);
 		t.is(stale.meta.stage, 'authoring');
 	} finally {
 		await fixture.cleanup();
