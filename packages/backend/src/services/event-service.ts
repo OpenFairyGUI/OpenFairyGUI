@@ -51,7 +51,7 @@ export class EventService {
 				after: String(input.after),
 			});
 		}
-		if (events.length > 0 && after < oldestSequence - 1) {
+		if (events.length > 0 && after !== 0 && after < oldestSequence - 1) {
 			return failure('runtime', startedAt, {
 				code: 'event_cursor_invalid',
 				message: `Event cursor has expired: ${after}`,

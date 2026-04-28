@@ -11,7 +11,8 @@ It owns:
 - project/session lifecycle
 - revisioned request handling
 - coordinated but non-atomic save semantics
-- backend-local advisory locking
+- browser-safe project sessions
+- adapter-backed file sessions and backend-local advisory locking
 - capability discovery
 - transport-neutral bootstrap
 
@@ -26,9 +27,12 @@ It also provides:
 - polling runtime events with per-runtime monotonic sequence and bounded retention
 - `cache.refresh` in-memory jobs with cooperative cancel and terminal retention
 - revision-bound derived read-only cache snapshots
+- explicit Node bridge boundaries for publish/restore
 
 It does **not** redefine transaction grammar or expose `Document`.
 It also does **not** implement MCP or any transport-specific wire protocol.
+The root `@openfairygui/backend` entrypoint is browser-safe: file-backed sessions require an injected
+`BackendFileSystem`, while the default Node filesystem/runtime lives under `@openfairygui/backend/node`.
 
 ## Relationship to other packages
 
@@ -38,16 +42,35 @@ It also does **not** implement MCP or any transport-specific wire protocol.
 
 ## Example
 
+Browser-safe project session:
+
 ```ts
 import { BackendRuntime } from '@openfairygui/backend';
 
 const runtime = new BackendRuntime();
+const opened = runtime.openProjectSession({ project: uamProject });
+if (!opened.ok) throw new Error(opened.error.message);
+
+const applied = await runtime.applyTransaction({
+	sessionId: opened.data.sessionId,
+	expectedRevision: opened.data.revision,
+	operations,
+});
+```
+
+Node file-backed session:
+
+```ts
+import { createNodeBackendRuntime } from '@openfairygui/backend/node';
+
+const runtime = createNodeBackendRuntime();
 const opened = await runtime.openSession({ projectPath: './MyProject' });
 if (!opened.ok) throw new Error(opened.error.message);
 
 const capabilities = runtime.getCapabilities();
 console.log(capabilities.data.runtimeOwner);
 console.log(capabilities.data.contractVersion);
+console.log(capabilities.data.artifact.publishBridge.executionBoundary);
 console.log(capabilities.data.compatibilityPolicy.incompatibleChange);
 
 const refresh = runtime.refreshCache({ sessionId: opened.data.sessionId });

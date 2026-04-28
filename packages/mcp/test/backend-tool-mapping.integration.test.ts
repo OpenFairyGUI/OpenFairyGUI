@@ -1,5 +1,7 @@
 import test from 'ava';
-import { BackendRuntime } from '@openfairygui/backend';
+import type { BackendRuntime } from '@openfairygui/backend';
+import { BackendRuntime as BrowserSafeBackendRuntime } from '@openfairygui/backend';
+import { createNodeBackendRuntime } from '@openfairygui/backend/node';
 import {
 	callOpenFairyGuiBackendTool,
 	OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS,
@@ -7,7 +9,7 @@ import {
 	OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 	type OpenFairyGuiBackendToolName,
 } from '../src/index.js';
-import { createTempMcpProject } from './helpers.js';
+import { createMcpFixtureProject, createTempMcpProject } from './helpers.js';
 
 interface BackendToolResult {
 	ok: boolean;
@@ -34,7 +36,7 @@ async function callTool(
 }
 
 test('MCP P0 tool definitions exactly map backend P2 methods', (t) => {
-	const runtime = new BackendRuntime();
+	const runtime = new BrowserSafeBackendRuntime();
 	const capabilities = runtime.getCapabilities();
 	t.true(capabilities.ok);
 	if (!capabilities.ok) return;
@@ -51,7 +53,7 @@ test('MCP P0 tool definitions exactly map backend P2 methods', (t) => {
 });
 
 test('MCP P0 preserves backend failure envelopes as structured tool errors', async (t) => {
-	const runtime = new BackendRuntime();
+	const runtime = new BrowserSafeBackendRuntime();
 	const result = await callOpenFairyGuiBackendTool(runtime, 'openfairygui_backend_get_session', {
 		sessionId: 'missing-session',
 	});
@@ -81,6 +83,7 @@ test('MCP P0 tool annotations reflect backend side effects and non-goals', (t) =
 
 	for (const method of [
 		'openSession',
+		'openProjectSession',
 		'applyTransaction',
 		'saveSession',
 		'closeSession',
@@ -98,10 +101,18 @@ test('MCP P0 tool annotations reflect backend side effects and non-goals', (t) =
 
 test('MCP P0 direct tool handler can call every backend P2 method without redefining backend semantics', async (t) => {
 	const fixture = await createTempMcpProject();
-	const runtime = new BackendRuntime();
+	const runtime = createNodeBackendRuntime();
 	try {
 		const capabilities = await callTool(runtime, 'openfairygui_backend_get_capabilities');
 		t.true(capabilities.ok);
+
+		const memoryOpened = await callTool(runtime, 'openfairygui_backend_open_project_session', {
+			project: createMcpFixtureProject(),
+			canonicalProjectPath: 'memory://mcp-project',
+		});
+		t.true(memoryOpened.ok);
+		const memorySessionId = (memoryOpened.data as { sessionId: string }).sessionId;
+		await callTool(runtime, 'openfairygui_backend_close_session', { sessionId: memorySessionId });
 
 		const opened = await callTool(runtime, 'openfairygui_backend_open_session', { projectPath: fixture.rootDir });
 		t.true(opened.ok);

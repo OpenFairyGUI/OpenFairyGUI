@@ -1,7 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import test from 'ava';
-import { BackendRuntime } from '@openfairygui/backend';
+import { createNodeBackendRuntime } from '@openfairygui/backend/node';
 import {
 	createOpenFairyGuiMcpServer,
 	OPENFAIRYGUI_BACKEND_CAPABILITIES_RESOURCE_URI,
@@ -20,7 +20,7 @@ interface BackendEnvelope {
 async function withClient<T>(run: (client: Client) => Promise<T>): Promise<T> {
 	const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 	const server = createOpenFairyGuiMcpServer({
-		runtime: new BackendRuntime(),
+		runtime: createNodeBackendRuntime(),
 		version: 'test',
 	});
 	const client = new Client({ name: 'openfairygui-mcp-resource-test', version: 'test' });

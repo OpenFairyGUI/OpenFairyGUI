@@ -39,6 +39,14 @@ export async function callOpenFairyGuiBackendTool(
 				projectPath: String(input.projectPath),
 			});
 			break;
+		case 'openfairygui_backend_open_project_session':
+			result = runtime.openProjectSession({
+				project: input.project as Parameters<BackendRuntime['openProjectSession']>[0]['project'],
+				sessionId: input.sessionId === undefined ? undefined : String(input.sessionId),
+				canonicalProjectPath: input.canonicalProjectPath === undefined ? undefined : String(input.canonicalProjectPath),
+				canonicalPathKey: input.canonicalPathKey === undefined ? undefined : String(input.canonicalPathKey),
+			});
+			break;
 		case 'openfairygui_backend_get_session':
 			result = runtime.getSession({
 				sessionId: String(input.sessionId),

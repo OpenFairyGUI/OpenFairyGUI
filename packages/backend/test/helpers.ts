@@ -6,11 +6,11 @@ import {
 	type UamProject,
 	writeProjectFromUam,
 } from '@openfairygui/core';
-import {
-	type BackendFileSystem,
-	type BackendJobSnapshot,
-	type BackendJobStatus,
-	type BackendRuntime,
+import type {
+	BackendFileSystem,
+	BackendJobSnapshot,
+	BackendJobStatus,
+	BackendRuntime,
 } from '../src/index.js';
 import {
 	createNodeBackendFileSystem,

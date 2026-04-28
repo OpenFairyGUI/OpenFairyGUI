@@ -127,23 +127,27 @@ await restore({
 ```
 
 If you need a **stateful backend runtime** with sessions, revisions, coordinated saves,
-and advisory locking, use `@openfairygui/backend`. This layer is transport-neutral backend
-foundation, not `packages/mcp`, and it does not redefine the transaction semantics owned by
+and advisory locking, use the browser-safe `@openfairygui/backend` root entrypoint or
+the Node filesystem bridge exposed by `@openfairygui/backend/node`. This layer is
+transport-neutral backend foundation, not `packages/mcp`, and it does not redefine the transaction semantics owned by
 `@openfairygui/core`. The backend is stratified into `read / authoring / artifact / runtime`
 planes and exposes a unified metadata / diagnostics / version surface for backend responses,
 including `requestId / sessionId / revision / durationMs / warnings / diagnostics / stage`.
 The runtime plane also provides polling events, `cache.refresh` in-memory jobs,
-cooperative cancel, and revision-bound derived read-only cache snapshots.
+cooperative cancel, and revision-bound derived read-only cache snapshots. `publish / restore`
+do not execute inside browser-safe authoring sessions; the capability manifest declares their
+Node bridge boundary.
 
 ```ts
-import { BackendRuntime } from '@openfairygui/backend';
+import { createNodeBackendRuntime } from '@openfairygui/backend/node';
 
-const runtime = new BackendRuntime();
+const runtime = createNodeBackendRuntime();
 const opened = await runtime.openSession({ projectPath: './MyProject' });
 if (!opened.ok) throw new Error(opened.error.message);
 
 const capabilities = runtime.getCapabilities();
 console.log(capabilities.data.runtimeOwner);
+console.log(capabilities.data.manifest.browserSafe);
 
 const refresh = runtime.refreshCache({ sessionId: opened.data.sessionId });
 if (refresh.ok) {
@@ -156,7 +160,7 @@ await runtime.closeSession({ sessionId: opened.data.sessionId });
 
 If you want to expose the current backend runtime to MCP clients, use `@openfairygui/mcp`.
 This package is only a transport adapter; it does not redefine backend or UAM semantics.
-In addition to the 12 backend P2 tools, it exposes identity snapshot resources,
+In addition to the 13 backend P2 tools, it exposes identity snapshot resources,
 workflow guidance prompts, and a shared `structuredContent.backendResult` output schema.
 MCP roots are documented as client context only, not as the path-safety boundary.
 

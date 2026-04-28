@@ -125,23 +125,26 @@ await restore({
 });
 ```
 
-如果你需要一个带 session / revision / save / advisory lock 的 **backend runtime**，可以直接使用
-`@openfairygui/backend`。这层是 transport-neutral 的后端基础，不等价于 `packages/mcp`，也不重新定义
+如果你需要一个带 session / revision / save / advisory lock 的 **backend runtime**，可以使用
+browser-safe 的 `@openfairygui/backend` 根入口，或通过 `@openfairygui/backend/node` 装配 Node 文件系统。
+这层是 transport-neutral 的后端基础，不等价于 `packages/mcp`，也不重新定义
 `core` 的 transaction 语义。当前 backend 内部分成 `read / authoring / artifact / runtime`
 planes，并为所有 backend response 提供统一 metadata / diagnostics / version surface，
 包括 `requestId / sessionId / revision / durationMs / warnings / diagnostics / stage`。
 runtime plane 还提供 polling events、`cache.refresh` in-memory jobs、cooperative cancel，
-以及 revision-bound derived read-only cache snapshot。
+以及 revision-bound derived read-only cache snapshot。`publish / restore` 不在 browser-safe
+authoring session 内执行，capability manifest 会声明它们需要 Node bridge boundary。
 
 ```ts
-import { BackendRuntime } from '@openfairygui/backend';
+import { createNodeBackendRuntime } from '@openfairygui/backend/node';
 
-const runtime = new BackendRuntime();
+const runtime = createNodeBackendRuntime();
 const opened = await runtime.openSession({ projectPath: './MyProject' });
 if (!opened.ok) throw new Error(opened.error.message);
 
 const capabilities = runtime.getCapabilities();
 console.log(capabilities.data.runtimeOwner);
+console.log(capabilities.data.manifest.browserSafe);
 
 const refresh = runtime.refreshCache({ sessionId: opened.data.sessionId });
 if (refresh.ok) {
@@ -153,7 +156,7 @@ await runtime.closeSession({ sessionId: opened.data.sessionId });
 ```
 
 如果你要把当前 backend runtime 暴露给 MCP 客户端，可以使用 `@openfairygui/mcp`。
-这层只做 transport adapter，不重新定义 backend / UAM 语义。当前 MCP 包除 12 个 backend P2 tools 外，
+这层只做 transport adapter，不重新定义 backend / UAM 语义。当前 MCP 包除 13 个 backend P2 tools 外，
 还提供 identity snapshot resources、workflow guidance prompts，以及 `structuredContent.backendResult`
 的共享 output schema；MCP roots 只作为客户端上下文说明，不作为路径安全边界。
 
