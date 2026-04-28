@@ -778,6 +778,11 @@ export interface FileSystem {
 	dirname(path: string): string;
 }
 
+function getProjectBasePath(fs: FileSystem, projectPath: string): string {
+	const basePath = fs.dirname(projectPath);
+	return basePath === '.' ? '' : basePath;
+}
+
 export class ProjectReader {
 	private readonly _fs: FileSystem;
 
@@ -788,7 +793,7 @@ export class ProjectReader {
 	async read(projectPath: string): Promise<Document> {
 		const fs = this._fs;
 		const doc = new Document();
-		const basePath = projectPath.replace(/[/\\][^/\\]*\.fairy$/i, '');
+		const basePath = getProjectBasePath(fs, projectPath);
 		const ctx = new ReaderContext(doc, basePath);
 
 		// 1. Parse .fairy file

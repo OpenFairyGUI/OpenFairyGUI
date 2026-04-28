@@ -5,6 +5,7 @@
 			"@openfairygui/core/node": ["./packages/core/src/node.ts"],
 			"@openfairygui/core/project-io": ["./packages/core/src/project-io.ts"],
 			"@openfairygui/core/uam": ["./packages/core/src/uam/index.ts"],
+			"@openfairygui/core/web": ["./packages/core/src/web.ts"],
 			"@openfairygui/functions": ["./packages/functions/src/index.ts"],
 			"@openfairygui/functions/uam": ["./packages/functions/src/uam-transaction.ts"],
 			"@openfairygui/backend": ["./packages/backend/src/index.ts"],

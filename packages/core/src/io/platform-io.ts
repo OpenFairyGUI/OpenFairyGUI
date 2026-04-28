@@ -7,8 +7,8 @@ import { BinaryWriter, type BinaryWriterOptions } from './binary-writer.js';
 /**
  * Abstract I/O base class for reading and writing FairyGUI projects.
  *
- * Platform-specific subclasses (NodeIO, WebIO) implement the file system
- * abstraction required by the reader/writer.
+ * Platform-specific adapters provide the file system abstraction required by
+ * the reader/writer.
  *
  * @category I/O
  */
