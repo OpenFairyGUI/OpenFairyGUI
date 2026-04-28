@@ -190,15 +190,25 @@ export {
 
 // Utilities
 export {
-	Logger, Verbosity, type ILogger, generateId, parseURL, buildURL,
-	maxRectsPack, type PackInput, type PackResult, type PackerOptions,
-	parseJta, type JtaDef, type JtaFrame, type JtaTexture,
+	Logger,
+	Verbosity,
+	type ILogger,
+	generateId,
+	parseURL,
+	buildURL,
+	maxRectsPack,
+	type PackInput,
+	type PackResult,
+	type PackerOptions,
+	parseJta,
+	type JtaDef,
+	type JtaFrame,
+	type JtaTexture,
 } from './utils/index.js';
 
 // I/O
 export {
 	PlatformIO,
-	NodeIO,
 	ProjectReader,
 	ProjectWriter,
 	BinaryReader,

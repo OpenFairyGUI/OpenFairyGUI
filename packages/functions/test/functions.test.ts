@@ -1,5 +1,6 @@
 import test from 'ava';
-import { NodeIO, Document } from '@openfairygui/core';
+import { Document } from '@openfairygui/core';
+import { NodeIO } from '@openfairygui/core/node';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
 import { inspect, validate, prune, rename } from '../src/index.js';
 

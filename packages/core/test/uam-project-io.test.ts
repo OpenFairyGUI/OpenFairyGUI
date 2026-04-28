@@ -3,11 +3,11 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {
-	NodeIO,
 	assertValidUamProject,
 	normalizeUamProject,
 	type UamProject,
 } from '../src/index.js';
+import { NodeIO } from '../src/node.js';
 import { liftDocumentToUamProject, materializeUamProject, readProjectAsUam, writeProjectFromUam } from '../src/uam/index.js';
 
 function createEngineeringScaleUamProject(): UamProject {

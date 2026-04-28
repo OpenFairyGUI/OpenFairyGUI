@@ -2,7 +2,11 @@
 	"compilerOptions": {
 		"paths": {
 			"@openfairygui/core": ["./packages/core/src/index.ts"],
+			"@openfairygui/core/node": ["./packages/core/src/node.ts"],
+			"@openfairygui/core/project-io": ["./packages/core/src/project-io.ts"],
+			"@openfairygui/core/uam": ["./packages/core/src/uam/index.ts"],
 			"@openfairygui/functions": ["./packages/functions/src/index.ts"],
+			"@openfairygui/functions/uam": ["./packages/functions/src/uam-transaction.ts"],
 			"@openfairygui/backend": ["./packages/backend/src/index.ts"],
 			"@openfairygui/mcp": ["./packages/mcp/src/index.ts"],
 			"@openfairygui/cli": ["./packages/cli/src/cli.ts"],

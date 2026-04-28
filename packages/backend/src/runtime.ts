@@ -2,8 +2,8 @@ import {
 	UAM_SUPPORTED_MATERIALIZATION_SCOPE,
 	type UamProject,
 	type UamTransactionOperation,
-} from '@openfairygui/core';
-import type { ApplyUamTransactionAppError } from '@openfairygui/functions';
+} from '@openfairygui/core/uam';
+import type { ApplyUamTransactionAppError } from '@openfairygui/functions/uam';
 import {
 	BACKEND_CAPABILITY_SCHEMA_VERSION,
 	BACKEND_COMPATIBILITY_POLICY,
@@ -47,11 +47,7 @@ export interface BackendFileSystem {
 }
 
 export interface BackendHostAdapter {
-	lockMetadata?(input: {
-		canonicalPathKey: string;
-		canonicalProjectPath: string;
-		lockFilePath: string;
-	}): unknown;
+	lockMetadata?(input: { canonicalPathKey: string; canonicalProjectPath: string; lockFilePath: string }): unknown;
 }
 
 export interface BackendArtifactBridgeCapability {
@@ -189,9 +185,7 @@ export interface BackendFailure<E extends BackendError = BackendError> {
 	session?: BackendSessionSnapshot;
 }
 
-export type BackendResult<T, E extends BackendError = BackendError> =
-	| BackendSuccess<T>
-	| BackendFailure<E>;
+export type BackendResult<T, E extends BackendError = BackendError> = BackendSuccess<T> | BackendFailure<E>;
 
 export interface SessionNotFoundError {
 	code: 'session_not_found';
@@ -446,10 +440,10 @@ export interface BackendRuntimeOptions {
 }
 
 const BACKEND_METHODS = [
-		'getCapabilities',
-		'openSession',
-		'openProjectSession',
-		'getSession',
+	'getCapabilities',
+	'openSession',
+	'openProjectSession',
+	'getSession',
 	'applyTransaction',
 	'saveSession',
 	'closeSession',
@@ -457,8 +451,8 @@ const BACKEND_METHODS = [
 	'getJob',
 	'listJobs',
 	'cancelJob',
-		'getCacheSnapshot',
-		'refreshCache',
+	'getCacheSnapshot',
+	'refreshCache',
 ] as const;
 
 const ARTIFACT_BRIDGE_CAPABILITY = {
@@ -593,7 +587,14 @@ export class BackendRuntime {
 		return this.readService.getCapabilities() as BackendSuccess<BackendCapabilities>;
 	}
 
-	public async openSession(input: { projectPath: string }): Promise<BackendResult<BackendSessionSnapshot, InProcessLockConflictError | AdvisoryLockConflictError | BackendCapabilityUnavailableError>> {
+	public async openSession(input: {
+		projectPath: string;
+	}): Promise<
+		BackendResult<
+			BackendSessionSnapshot,
+			InProcessLockConflictError | AdvisoryLockConflictError | BackendCapabilityUnavailableError
+		>
+	> {
 		return this.runtimeService.openSession(input);
 	}
 
@@ -607,27 +608,47 @@ export class BackendRuntime {
 
 	public async applyTransaction(
 		input: ApplySessionTransactionInput,
-	): Promise<BackendResult<BackendSessionSnapshot, SessionNotFoundError | SessionStaleWriteError | ApplyUamTransactionAppError>> {
+	): Promise<
+		BackendResult<
+			BackendSessionSnapshot,
+			SessionNotFoundError | SessionStaleWriteError | ApplyUamTransactionAppError
+		>
+	> {
 		return this.authoringService.applyTransaction(input);
 	}
 
-	public async saveSession(
-		input: { sessionId: string; expectedRevision?: number; targetPath?: string },
-	): Promise<BackendResult<BackendSessionSnapshot, SessionNotFoundError | SessionStaleWriteError | SavePartialFailureError | PathPolicyViolationError | BackendCapabilityUnavailableError>> {
+	public async saveSession(input: {
+		sessionId: string;
+		expectedRevision?: number;
+		targetPath?: string;
+	}): Promise<
+		BackendResult<
+			BackendSessionSnapshot,
+			| SessionNotFoundError
+			| SessionStaleWriteError
+			| SavePartialFailureError
+			| PathPolicyViolationError
+			| BackendCapabilityUnavailableError
+		>
+	> {
 		return this.authoringService.saveSession(input);
 	}
 
-	public async closeSession(
-		input: { sessionId: string },
-	): Promise<BackendResult<{ sessionId: string; closed: true }, SessionNotFoundError>> {
+	public async closeSession(input: {
+		sessionId: string;
+	}): Promise<BackendResult<{ sessionId: string; closed: true }, SessionNotFoundError>> {
 		return this.runtimeService.closeSession(input);
 	}
 
-	public getEvents(input: GetEventsInput): BackendResult<GetEventsSnapshot, SessionNotFoundError | EventCursorInvalidError> {
+	public getEvents(
+		input: GetEventsInput,
+	): BackendResult<GetEventsSnapshot, SessionNotFoundError | EventCursorInvalidError> {
 		return this.eventService.getEvents(input);
 	}
 
-	public getJob(input: GetJobInput): BackendResult<BackendJobSnapshot, SessionNotFoundError | BackendJobNotFoundError> {
+	public getJob(
+		input: GetJobInput,
+	): BackendResult<BackendJobSnapshot, SessionNotFoundError | BackendJobNotFoundError> {
 		return this.jobService.getJob(input);
 	}
 
@@ -635,7 +656,12 @@ export class BackendRuntime {
 		return this.jobService.listJobs(input);
 	}
 
-	public cancelJob(input: CancelJobInput): BackendResult<BackendJobSnapshot, SessionNotFoundError | BackendJobNotFoundError | BackendJobNotCancellableError> {
+	public cancelJob(
+		input: CancelJobInput,
+	): BackendResult<
+		BackendJobSnapshot,
+		SessionNotFoundError | BackendJobNotFoundError | BackendJobNotCancellableError
+	> {
 		return this.jobService.cancelJob(input);
 	}
 

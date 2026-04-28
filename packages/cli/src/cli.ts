@@ -1,8 +1,6 @@
 import { createNodeBackendRuntime } from '@openfairygui/backend/node';
-import {
-	NodeIO,
-	ProjectType,
-} from '@openfairygui/core';
+import { ProjectType } from '@openfairygui/core';
+import { NodeIO } from '@openfairygui/core/node';
 import {
 	inspect,
 	publish,
@@ -17,6 +15,7 @@ import {
 	type RestoreImageExtractor,
 } from '@openfairygui/functions';
 import fs from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 
@@ -53,6 +52,22 @@ Input can be a .fairy file or a project root directory (auto-discovers .fairy fi
 File extension and binary format are read from project settings.
 `;
 
+const require = createRequire(import.meta.url);
+
+function readPackageVersion(): string {
+	try {
+		const pkg = require('../package.json') as { version?: unknown };
+		if (typeof pkg.version === 'string' && pkg.version.length > 0) {
+			return pkg.version;
+		}
+	} catch {
+		// Keep the CLI usable when executed from a bundled artifact missing package.json.
+	}
+	return '0.2.0-alpha.1';
+}
+
+const PACKAGE_VERSION = readPackageVersion();
+
 /** Resolve input to a .fairy file path. Accepts a directory or a .fairy file. */
 async function resolveFairyPath(input: string): Promise<string> {
 	const resolved = path.resolve(input);
@@ -70,7 +85,9 @@ async function resolveFairyPath(input: string): Promise<string> {
 			return path.join(resolved, fairyFiles[0]);
 		}
 		if (fairyFiles.length > 1) {
-			throw new Error(`Multiple .fairy files found in ${resolved}: ${fairyFiles.join(', ')}. Please specify one.`);
+			throw new Error(
+				`Multiple .fairy files found in ${resolved}: ${fairyFiles.join(', ')}. Please specify one.`,
+			);
 		}
 		throw new Error(`No .fairy file found in ${resolved}`);
 	}
@@ -87,7 +104,7 @@ async function main(): Promise<void> {
 	}
 
 	if (args.includes('--version') || args.includes('-v')) {
-		console.log('0.1.0');
+		console.log(PACKAGE_VERSION);
 		return;
 	}
 
@@ -195,24 +212,25 @@ async function createRestoreImageProcessors(): Promise<RestoreImageProcessors> {
 		});
 		if (input.rotated) image = image.rotate(90);
 		const { data, info } = await image.png().toBuffer({ resolveWithObject: true });
-		const needsOriginalCanvas = input.expectedWidth > 0 && input.expectedHeight > 0 && (
-			input.offsetX !== 0
-			|| input.offsetY !== 0
-			|| info.width !== input.expectedWidth
-			|| info.height !== input.expectedHeight
-		);
+		const needsOriginalCanvas =
+			input.expectedWidth > 0 &&
+			input.expectedHeight > 0 &&
+			(input.offsetX !== 0 ||
+				input.offsetY !== 0 ||
+				info.width !== input.expectedWidth ||
+				info.height !== input.expectedHeight);
 
 		if (needsOriginalCanvas) {
 			if (
-				input.offsetX < 0
-				|| input.offsetY < 0
-				|| input.offsetX + info.width > input.expectedWidth
-				|| input.offsetY + info.height > input.expectedHeight
+				input.offsetX < 0 ||
+				input.offsetY < 0 ||
+				input.offsetX + info.width > input.expectedWidth ||
+				input.offsetY + info.height > input.expectedHeight
 			) {
 				throw new Error(
-					`restore: Cropped image does not fit original canvas for ${targetPath}: `
-					+ `crop ${info.width}x${info.height} at ${input.offsetX},${input.offsetY}, `
-					+ `canvas ${input.expectedWidth}x${input.expectedHeight}`,
+					`restore: Cropped image does not fit original canvas for ${targetPath}: ` +
+						`crop ${info.width}x${info.height} at ${input.offsetX},${input.offsetY}, ` +
+						`canvas ${input.expectedWidth}x${input.expectedHeight}`,
 				);
 			}
 			const composed = await sharp({
@@ -227,26 +245,26 @@ async function createRestoreImageProcessors(): Promise<RestoreImageProcessors> {
 				.png()
 				.toBuffer({ resolveWithObject: true });
 			if (
-				input.expectedWidth > 0
-				&& input.expectedHeight > 0
-				&& (composed.info.width !== input.expectedWidth || composed.info.height !== input.expectedHeight)
+				input.expectedWidth > 0 &&
+				input.expectedHeight > 0 &&
+				(composed.info.width !== input.expectedWidth || composed.info.height !== input.expectedHeight)
 			) {
 				throw new Error(
-					`restore: Cropped image size mismatch for ${targetPath}: `
-					+ `expected ${input.expectedWidth}x${input.expectedHeight}, got ${composed.info.width}x${composed.info.height}`,
+					`restore: Cropped image size mismatch for ${targetPath}: ` +
+						`expected ${input.expectedWidth}x${input.expectedHeight}, got ${composed.info.width}x${composed.info.height}`,
 				);
 			}
 			return composed.data;
 		}
 
 		if (
-			input.expectedWidth > 0
-			&& input.expectedHeight > 0
-			&& (info.width !== input.expectedWidth || info.height !== input.expectedHeight)
+			input.expectedWidth > 0 &&
+			input.expectedHeight > 0 &&
+			(info.width !== input.expectedWidth || info.height !== input.expectedHeight)
 		) {
 			throw new Error(
-				`restore: Cropped image size mismatch for ${targetPath}: `
-				+ `expected ${input.expectedWidth}x${input.expectedHeight}, got ${info.width}x${info.height}`,
+				`restore: Cropped image size mismatch for ${targetPath}: ` +
+					`expected ${input.expectedWidth}x${input.expectedHeight}, got ${info.width}x${info.height}`,
 			);
 		}
 		return data;
@@ -294,7 +312,9 @@ function printReport(report: InspectReport): void {
 	console.log('\nPackage details:');
 	for (const pkg of report.packages) {
 		const res = pkg.resources;
-		console.log(`  ${pkg.name} (${pkg.id}): ${res.images.count} img, ${res.sounds.count} snd, ${res.fonts.count} font, ${res.components.count} comp`);
+		console.log(
+			`  ${pkg.name} (${pkg.id}): ${res.images.count} img, ${res.sounds.count} snd, ${res.fonts.count} font, ${res.components.count} comp`,
+		);
 	}
 }
 
@@ -347,7 +367,12 @@ async function cmdRestore(args: string[]): Promise<void> {
 
 	const releaseDir = path.resolve(positionals[0]);
 	const outputDir = path.resolve(values.output);
-	const pkgFilter = values.packages ? values.packages.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
+	const pkgFilter = values.packages
+		? values.packages
+				.split(',')
+				.map((s) => s.trim())
+				.filter(Boolean)
+		: undefined;
 	const projectType = parseProjectType(values['project-type']);
 	const { cropImage, extractImage } = await createRestoreImageProcessors();
 
@@ -385,7 +410,9 @@ async function cmdPublish(args: string[]): Promise<void> {
 	});
 
 	if (positionals.length === 0 || !values.output) {
-		console.error('Usage: ofgui publish <project-dir> --output <dir> [--compressed] [--packages a,b,c] [--branch name]');
+		console.error(
+			'Usage: ofgui publish <project-dir> --output <dir> [--compressed] [--packages a,b,c] [--branch name]',
+		);
 		process.exit(1);
 	}
 
@@ -454,17 +481,19 @@ async function cmdPublish(args: string[]): Promise<void> {
 		},
 	};
 
-	await doc.transform(publish({
-		output: outputDir,
-		compressed: resolved.compressed,
-		fileExtension: resolved.fileExtension,
-		packages: resolved.packages,
-		fs: publishFs,
-		encoder,
-		basePath: path.join(projectDir, 'assets'),
-		atlas: atlasConfig,
-		branch: values.branch,
-	}));
+	await doc.transform(
+		publish({
+			output: outputDir,
+			compressed: resolved.compressed,
+			fileExtension: resolved.fileExtension,
+			packages: resolved.packages,
+			fs: publishFs,
+			encoder,
+			basePath: path.join(projectDir, 'assets'),
+			atlas: atlasConfig,
+			branch: values.branch,
+		}),
+	);
 
 	console.log(`\nDone! Output: ${outputDir}`);
 }

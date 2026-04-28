@@ -9,7 +9,7 @@ import type { FileSystem } from './project-reader.js';
  * Usage:
  *
  * ```ts
- * import { NodeIO } from '@openfairygui/core';
+ * import { NodeIO } from '@openfairygui/core/node';
  *
  * const io = new NodeIO();
  * const doc = await io.readProject('./path/to/project.fairy');

@@ -19,18 +19,50 @@
 	"module": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"exports": {
-		"require": {
-			"types": "./dist/index.d.cts",
-			"default": "./dist/index.cjs"
+		".": {
+			"require": {
+				"types": "./dist/index.d.cts",
+				"default": "./dist/index.cjs"
+			},
+			"default": {
+				"types": "./dist/index.d.ts",
+				"default": "./dist/index.js"
+			}
 		},
-		"default": {
-			"types": "./dist/index.d.ts",
-			"default": "./dist/index.js"
+		"./uam": {
+			"require": {
+				"types": "./dist/uam/index.d.cts",
+				"default": "./dist/uam/index.cjs"
+			},
+			"default": {
+				"types": "./dist/uam/index.d.ts",
+				"default": "./dist/uam/index.js"
+			}
+		},
+		"./project-io": {
+			"require": {
+				"types": "./dist/project-io.d.cts",
+				"default": "./dist/project-io.cjs"
+			},
+			"default": {
+				"types": "./dist/project-io.d.ts",
+				"default": "./dist/project-io.js"
+			}
+		},
+		"./node": {
+			"require": {
+				"types": "./dist/node.d.cts",
+				"default": "./dist/node.cjs"
+			},
+			"default": {
+				"types": "./dist/node.d.ts",
+				"default": "./dist/node.js"
+			}
 		}
 	},
 	"scripts": {
-		"build": "tsdown --format esm,cjs --platform neutral --external node:fs --external node:path --external node:fs/promises --env.PACKAGE_VERSION=$npm_package_version",
-		"build:watch": "tsdown --watch --format esm,cjs --platform neutral --env.PACKAGE_VERSION=$npm_package_version"
+		"build": "tsdown src/index.ts src/uam/index.ts src/project-io.ts src/node.ts --format esm,cjs --platform neutral --external node:fs --external node:path --external node:fs/promises --env.PACKAGE_VERSION=$npm_package_version",
+		"build:watch": "tsdown src/index.ts src/uam/index.ts src/project-io.ts src/node.ts --watch --format esm,cjs --platform neutral --env.PACKAGE_VERSION=$npm_package_version"
 	},
 	"keywords": [
 		"fairygui",

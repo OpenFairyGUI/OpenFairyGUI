@@ -44,6 +44,6 @@
 		"utils"
 	],
 	"dependencies": {
-		"@openfairygui/core": "workspace:*"
+		"@openfairygui/core": "0.2.0-alpha.1"
 	}
 }

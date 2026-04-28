@@ -3,7 +3,6 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {
-	NodeIO,
 	UamTransactionError,
 	applyUamTransaction,
 	assertTransactionSupported,
@@ -14,6 +13,7 @@ import {
 	type UamProject,
 	type UamTextNode,
 } from '../src/index.js';
+import { NodeIO } from '../src/node.js';
 import { readProjectAsUam, writeProjectFromUam } from '../src/uam/index.js';
 
 function createSupportedProject(): UamProject {

@@ -6,7 +6,7 @@ import {
 	type UamTransactionOperation,
 	type UamTransactionSupportIssue,
 	type UamValidationIssue,
-} from '@openfairygui/core';
+} from '@openfairygui/core/uam';
 
 export interface ApplyUamTransactionAppInput {
 	project: UamProject;

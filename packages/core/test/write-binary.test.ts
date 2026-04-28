@@ -3,7 +3,8 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { getFixturePath } from '@openfairygui/test-utils';
-import { Document, NodeIO, PropertyType } from '../src/index.js';
+import { Document, PropertyType } from '../src/index.js';
+import { NodeIO } from '../src/node.js';
 
 const BASICS_FUI = getFixturePath(
 	'FairyGUI-unity',

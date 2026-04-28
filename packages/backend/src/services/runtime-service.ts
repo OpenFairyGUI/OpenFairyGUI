@@ -1,4 +1,5 @@
-import { ProjectReader, liftDocumentToUamProject, normalizeUamProject } from '@openfairygui/core';
+import { ProjectReader, type FileSystem } from '@openfairygui/core/project-io';
+import { liftDocumentToUamProject, normalizeUamProject } from '@openfairygui/core/uam';
 import { failure, success, type BackendContext, type BackendSessionState } from './context.js';
 import type { CacheService } from './cache-service.js';
 import type { EventService } from './event-service.js';
@@ -20,7 +21,9 @@ function randomId(): string {
 	return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function createCapabilityUnavailableError(capability: BackendCapabilityUnavailableError['capability']): BackendCapabilityUnavailableError {
+function createCapabilityUnavailableError(
+	capability: BackendCapabilityUnavailableError['capability'],
+): BackendCapabilityUnavailableError {
 	const artifactCapability = capability === 'artifact.publish' || capability === 'artifact.restore';
 	return {
 		code: 'capability_unavailable',
@@ -34,7 +37,7 @@ function createCapabilityUnavailableError(capability: BackendCapabilityUnavailab
 	};
 }
 
-function createProjectReaderFileSystem(fileSystem: NonNullable<BackendContext['fileSystem']>): import('@openfairygui/core').FileSystem {
+function createProjectReaderFileSystem(fileSystem: NonNullable<BackendContext['fileSystem']>): FileSystem {
 	return {
 		readFile(filePath: string): Promise<string> {
 			return fileSystem.readFile(filePath);
@@ -79,7 +82,14 @@ export class RuntimeService {
 		private readonly jobService: JobService,
 	) {}
 
-	public async openSession(input: { projectPath: string }): Promise<BackendResult<BackendSessionSnapshot, InProcessLockConflictError | AdvisoryLockConflictError | BackendCapabilityUnavailableError>> {
+	public async openSession(input: {
+		projectPath: string;
+	}): Promise<
+		BackendResult<
+			BackendSessionSnapshot,
+			InProcessLockConflictError | AdvisoryLockConflictError | BackendCapabilityUnavailableError
+		>
+	> {
 		const startedAt = Date.now();
 		if (!this.context.fileSystem) {
 			return failure('runtime', startedAt, createCapabilityUnavailableError('fileSystem'));
@@ -104,14 +114,18 @@ export class RuntimeService {
 		let advisoryLock: BackendFileHandle | null = null;
 		try {
 			advisoryLock = await fileSystem.openExclusive(lockFilePath);
-			await advisoryLock.writeFile(JSON.stringify(this.context.host?.lockMetadata?.({
-				canonicalPathKey,
-				canonicalProjectPath,
-				lockFilePath,
-			}) ?? {
-				createdAt: new Date().toISOString(),
-				canonicalPathKey,
-			}));
+			await advisoryLock.writeFile(
+				JSON.stringify(
+					this.context.host?.lockMetadata?.({
+						canonicalPathKey,
+						canonicalProjectPath,
+						lockFilePath,
+					}) ?? {
+						createdAt: new Date().toISOString(),
+						canonicalPathKey,
+					},
+				),
+			);
 			await advisoryLock.close();
 
 			const reader = new ProjectReader(createProjectReaderFileSystem(fileSystem));
@@ -197,16 +211,21 @@ export class RuntimeService {
 		});
 	}
 
-	public async closeSession(
-		input: { sessionId: string },
-	): Promise<BackendResult<{ sessionId: string; closed: true }, SessionNotFoundError>> {
+	public async closeSession(input: {
+		sessionId: string;
+	}): Promise<BackendResult<{ sessionId: string; closed: true }, SessionNotFoundError>> {
 		const startedAt = Date.now();
 		const session = this.context.sessions.get(input.sessionId);
 		if (!session || session.closed) {
 			return failure('runtime', startedAt, createSessionNotFoundError(input.sessionId));
 		}
 
-		this.eventService.emit({ kind: 'session.closeRequested', sessionId: session.sessionId, canonicalPathKey: session.canonicalPathKey, revision: session.revision });
+		this.eventService.emit({
+			kind: 'session.closeRequested',
+			sessionId: session.sessionId,
+			canonicalPathKey: session.canonicalPathKey,
+			revision: session.revision,
+		});
 		if (this.context.fileSystem && session.lockFilePath) {
 			await this.context.fileSystem.unlink(session.lockFilePath).catch(() => undefined);
 		}
@@ -216,12 +235,22 @@ export class RuntimeService {
 		this.context.sessionsByPath.delete(session.canonicalPathKey);
 		this.cacheService.removeSession(session.sessionId);
 		this.jobService.removeSession(session.sessionId);
-		this.eventService.emit({ kind: 'session.closed', sessionId: session.sessionId, canonicalPathKey: session.canonicalPathKey, revision: session.revision });
+		this.eventService.emit({
+			kind: 'session.closed',
+			sessionId: session.sessionId,
+			canonicalPathKey: session.canonicalPathKey,
+			revision: session.revision,
+		});
 		this.eventService.removeSession(session.sessionId);
 
-		return success('runtime', startedAt, {
-			sessionId: session.sessionId,
-			closed: true,
-		}, { sessionId: session.sessionId, revision: session.revision });
+		return success(
+			'runtime',
+			startedAt,
+			{
+				sessionId: session.sessionId,
+				closed: true,
+			},
+			{ sessionId: session.sessionId, revision: session.revision },
+		);
 	}
 }

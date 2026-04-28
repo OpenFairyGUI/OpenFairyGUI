@@ -56,8 +56,8 @@
 		"runtime"
 	],
 	"dependencies": {
-		"@openfairygui/core": "workspace:*",
-		"@openfairygui/functions": "workspace:*"
+		"@openfairygui/core": "0.2.0-alpha.1",
+		"@openfairygui/functions": "0.2.0-alpha.1"
 	},
 	"devDependencies": {
 		"ava": "^7.0.0",

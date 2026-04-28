@@ -7,11 +7,11 @@ import {
 	ControllerActionType,
 	Document,
 	GearType,
-	NodeIO,
 	TransitionActionType,
 	composeController,
 	composeTransition,
 } from '../src/index.js';
+import { NodeIO } from '../src/node.js';
 
 function createProjectDocument(projectId: string): Document {
 	const doc = new Document();

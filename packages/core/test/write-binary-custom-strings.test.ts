@@ -4,7 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getFixturePath, getFixtureProjectPath } from '@openfairygui/test-utils';
-import { Document, NodeIO, TransitionActionType } from '../src/index.js';
+import { Document, TransitionActionType } from '../src/index.js';
+import { NodeIO } from '../src/node.js';
 
 const NULL_STRING_INDEX = 0xfffe;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

@@ -1,11 +1,8 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {
-	NodeIO,
-	type UamProject,
-	writeProjectFromUam,
-} from '@openfairygui/core';
+import { type UamProject, writeProjectFromUam } from '@openfairygui/core';
+import { NodeIO } from '@openfairygui/core/node';
 
 export function createMcpFixtureProject(): UamProject {
 	return {

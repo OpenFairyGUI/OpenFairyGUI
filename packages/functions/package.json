@@ -19,18 +19,30 @@
 	"module": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"exports": {
-		"require": {
-			"types": "./dist/index.d.cts",
-			"default": "./dist/index.cjs"
+		".": {
+			"require": {
+				"types": "./dist/index.d.cts",
+				"default": "./dist/index.cjs"
+			},
+			"default": {
+				"types": "./dist/index.d.ts",
+				"default": "./dist/index.js"
+			}
 		},
-		"default": {
-			"types": "./dist/index.d.ts",
-			"default": "./dist/index.js"
+		"./uam": {
+			"require": {
+				"types": "./dist/uam-transaction.d.cts",
+				"default": "./dist/uam-transaction.cjs"
+			},
+			"default": {
+				"types": "./dist/uam-transaction.d.ts",
+				"default": "./dist/uam-transaction.js"
+			}
 		}
 	},
 	"scripts": {
-		"build": "tsdown --format esm,cjs --platform neutral --env.PACKAGE_VERSION=$npm_package_version",
-		"build:watch": "tsdown --watch --format esm,cjs --platform neutral --env.PACKAGE_VERSION=$npm_package_version"
+		"build": "tsdown src/index.ts src/uam-transaction.ts --format esm,cjs --platform neutral --env.PACKAGE_VERSION=$npm_package_version",
+		"build:watch": "tsdown src/index.ts src/uam-transaction.ts --watch --format esm,cjs --platform neutral --env.PACKAGE_VERSION=$npm_package_version"
 	},
 	"files": [
 		"dist/",
@@ -45,7 +57,7 @@
 		"publish"
 	],
 	"dependencies": {
-		"@openfairygui/core": "workspace:*"
+		"@openfairygui/core": "0.2.0-alpha.1"
 	},
 	"devDependencies": {
 		"ava": "^7.0.0",

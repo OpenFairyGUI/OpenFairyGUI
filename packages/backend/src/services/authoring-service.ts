@@ -1,5 +1,6 @@
-import { materializeUamProject, ProjectWriter } from '@openfairygui/core';
-import { applyUamTransactionApp, type ApplyUamTransactionAppError } from '@openfairygui/functions';
+import { ProjectWriter, type FileSystem } from '@openfairygui/core/project-io';
+import { materializeUamProject } from '@openfairygui/core/uam';
+import { applyUamTransactionApp, type ApplyUamTransactionAppError } from '@openfairygui/functions/uam';
 import type { CacheService } from './cache-service.js';
 import { failure, success, type BackendContext } from './context.js';
 import type { EventService } from './event-service.js';
@@ -20,7 +21,7 @@ function createWriterFileSystem(
 	fileSystem: BackendFileSystem,
 	committedPaths: string[],
 	failedPaths: string[],
-): import('@openfairygui/core').FileSystem {
+): FileSystem {
 	async function trackWrite<T>(targetPath: string, fn: () => Promise<T>): Promise<T> {
 		try {
 			const result = await fn();
@@ -83,18 +84,34 @@ export class AuthoringService {
 
 	public async applyTransaction(
 		input: ApplySessionTransactionInput,
-	): Promise<BackendResult<BackendSessionSnapshot, SessionNotFoundError | SessionStaleWriteError | ApplyUamTransactionAppError>> {
+	): Promise<
+		BackendResult<
+			BackendSessionSnapshot,
+			SessionNotFoundError | SessionStaleWriteError | ApplyUamTransactionAppError
+		>
+	> {
 		const startedAt = Date.now();
 		const session = this.context.sessions.get(input.sessionId);
 		if (!session || session.closed) {
 			return failure('authoring', startedAt, createSessionNotFoundError(input.sessionId));
 		}
 		if (input.expectedRevision !== session.revision) {
-			this.eventService.emit({ kind: 'transaction.rejected', sessionId: session.sessionId, canonicalPathKey: session.canonicalPathKey, revision: session.revision });
-			return failure('authoring', startedAt, createStaleWriteError(session, input.expectedRevision), toSessionSnapshot(session, this.context.capabilities), {
+			this.eventService.emit({
+				kind: 'transaction.rejected',
 				sessionId: session.sessionId,
+				canonicalPathKey: session.canonicalPathKey,
 				revision: session.revision,
 			});
+			return failure(
+				'authoring',
+				startedAt,
+				createStaleWriteError(session, input.expectedRevision),
+				toSessionSnapshot(session, this.context.capabilities),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+				},
+			);
 		}
 
 		const result = applyUamTransactionApp({
@@ -102,19 +119,47 @@ export class AuthoringService {
 			operations: input.operations,
 		});
 		if (result.ok === false) {
-			this.eventService.emit({ kind: 'transaction.rejected', sessionId: session.sessionId, canonicalPathKey: session.canonicalPathKey, revision: session.revision, diagnostics: result.error.issues?.map((issue) => ({ code: result.error.code, message: issue.message, severity: 'error' as const })) ?? [] });
-			return failure('authoring', startedAt, result.error, toSessionSnapshot(session, this.context.capabilities), {
+			this.eventService.emit({
+				kind: 'transaction.rejected',
 				sessionId: session.sessionId,
+				canonicalPathKey: session.canonicalPathKey,
 				revision: session.revision,
+				diagnostics:
+					result.error.issues?.map((issue) => ({
+						code: result.error.code,
+						message: issue.message,
+						severity: 'error' as const,
+					})) ?? [],
 			});
+			return failure(
+				'authoring',
+				startedAt,
+				result.error,
+				toSessionSnapshot(session, this.context.capabilities),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+				},
+			);
 		}
 
 		session.project = result.project;
 		session.revision += 1;
 		session.dirty = true;
 		const cacheEntry = this.cacheService.invalidateSession(session);
-		this.eventService.emit({ kind: 'transaction.applied', sessionId: session.sessionId, canonicalPathKey: session.canonicalPathKey, revision: session.revision });
-		this.eventService.emit({ kind: 'cache.invalidated', sessionId: session.sessionId, canonicalPathKey: session.canonicalPathKey, revision: session.revision, cacheRevision: cacheEntry.revision });
+		this.eventService.emit({
+			kind: 'transaction.applied',
+			sessionId: session.sessionId,
+			canonicalPathKey: session.canonicalPathKey,
+			revision: session.revision,
+		});
+		this.eventService.emit({
+			kind: 'cache.invalidated',
+			sessionId: session.sessionId,
+			canonicalPathKey: session.canonicalPathKey,
+			revision: session.revision,
+			cacheRevision: cacheEntry.revision,
+		});
 
 		return success('authoring', startedAt, toSessionSnapshot(session, this.context.capabilities), {
 			sessionId: session.sessionId,
@@ -122,38 +167,67 @@ export class AuthoringService {
 		});
 	}
 
-	public async saveSession(
-		input: { sessionId: string; expectedRevision?: number; targetPath?: string },
-	): Promise<BackendResult<BackendSessionSnapshot, SessionNotFoundError | SessionStaleWriteError | SavePartialFailureError | PathPolicyViolationError | BackendCapabilityUnavailableError>> {
+	public async saveSession(input: {
+		sessionId: string;
+		expectedRevision?: number;
+		targetPath?: string;
+	}): Promise<
+		BackendResult<
+			BackendSessionSnapshot,
+			| SessionNotFoundError
+			| SessionStaleWriteError
+			| SavePartialFailureError
+			| PathPolicyViolationError
+			| BackendCapabilityUnavailableError
+		>
+	> {
 		const startedAt = Date.now();
 		const session = this.context.sessions.get(input.sessionId);
 		if (!session || session.closed) {
 			return failure('authoring', startedAt, createSessionNotFoundError(input.sessionId));
 		}
 		if (!this.context.fileSystem) {
-			return failure('authoring', startedAt, {
-				code: 'capability_unavailable',
-				message: 'saveSession requires an injected BackendFileSystem adapter.',
-				capability: 'fileSystem',
-				requiredAdapter: 'BackendFileSystem',
-			}, toSessionSnapshot(session, this.context.capabilities), {
-				sessionId: session.sessionId,
-				revision: session.revision,
-			});
+			return failure(
+				'authoring',
+				startedAt,
+				{
+					code: 'capability_unavailable',
+					message: 'saveSession requires an injected BackendFileSystem adapter.',
+					capability: 'fileSystem',
+					requiredAdapter: 'BackendFileSystem',
+				},
+				toSessionSnapshot(session, this.context.capabilities),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+				},
+			);
 		}
 		if (input.expectedRevision !== undefined && input.expectedRevision !== session.revision) {
-			return failure('authoring', startedAt, createStaleWriteError(session, input.expectedRevision), toSessionSnapshot(session, this.context.capabilities), {
-				sessionId: session.sessionId,
-				revision: session.revision,
-			});
+			return failure(
+				'authoring',
+				startedAt,
+				createStaleWriteError(session, input.expectedRevision),
+				toSessionSnapshot(session, this.context.capabilities),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+				},
+			);
 		}
 		const fileSystem = this.context.fileSystem;
 		const targetViolation = await validateSaveTarget(fileSystem, session.fairyPath, input.targetPath);
 		if (targetViolation) {
-			return failure('authoring', startedAt, targetViolation, toSessionSnapshot(session, this.context.capabilities), {
-				sessionId: session.sessionId,
-				revision: session.revision,
-			});
+			return failure(
+				'authoring',
+				startedAt,
+				targetViolation,
+				toSessionSnapshot(session, this.context.capabilities),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+				},
+			);
 		}
 		if (!session.dirty) {
 			return success('authoring', startedAt, toSessionSnapshot(session, this.context.capabilities), {
@@ -164,36 +238,63 @@ export class AuthoringService {
 
 		const committedPaths: string[] = [];
 		const failedPaths: string[] = [];
-		this.eventService.emit({ kind: 'save.started', sessionId: session.sessionId, canonicalPathKey: session.canonicalPathKey, revision: session.revision });
+		this.eventService.emit({
+			kind: 'save.started',
+			sessionId: session.sessionId,
+			canonicalPathKey: session.canonicalPathKey,
+			revision: session.revision,
+		});
 		try {
 			const writer = new ProjectWriter(createWriterFileSystem(fileSystem, committedPaths, failedPaths));
 			await writer.write(materializeUamProject(session.project), session.fairyPath);
 			session.lastSavedRevision = session.revision;
 			session.dirty = false;
 			const cacheEntry = this.cacheService.refreshSession(session);
-			this.eventService.emit({ kind: 'save.completed', sessionId: session.sessionId, canonicalPathKey: session.canonicalPathKey, revision: session.revision });
-			this.eventService.emit({ kind: 'cache.updated', sessionId: session.sessionId, canonicalPathKey: session.canonicalPathKey, revision: session.revision, cacheRevision: cacheEntry.revision });
+			this.eventService.emit({
+				kind: 'save.completed',
+				sessionId: session.sessionId,
+				canonicalPathKey: session.canonicalPathKey,
+				revision: session.revision,
+			});
+			this.eventService.emit({
+				kind: 'cache.updated',
+				sessionId: session.sessionId,
+				canonicalPathKey: session.canonicalPathKey,
+				revision: session.revision,
+				cacheRevision: cacheEntry.revision,
+			});
 			return success('authoring', startedAt, toSessionSnapshot(session, this.context.capabilities), {
 				sessionId: session.sessionId,
 				revision: session.revision,
 			});
 		} catch (error) {
 			this.cacheService.invalidateSession(session);
-			this.eventService.emit({ kind: 'save.failed', sessionId: session.sessionId, canonicalPathKey: session.canonicalPathKey, revision: session.revision });
-			return failure('authoring', startedAt, {
-				code: 'save_partial_failure',
-				message: error instanceof Error ? error.message : String(error),
+			this.eventService.emit({
+				kind: 'save.failed',
 				sessionId: session.sessionId,
 				canonicalPathKey: session.canonicalPathKey,
-				attemptedRevision: session.revision,
-				lastSavedRevision: session.lastSavedRevision,
-				committedPaths,
-				failedPaths,
-				diskMayBePartiallyUpdated: true,
-			}, toSessionSnapshot(session, this.context.capabilities), {
-				sessionId: session.sessionId,
 				revision: session.revision,
 			});
+			return failure(
+				'authoring',
+				startedAt,
+				{
+					code: 'save_partial_failure',
+					message: error instanceof Error ? error.message : String(error),
+					sessionId: session.sessionId,
+					canonicalPathKey: session.canonicalPathKey,
+					attemptedRevision: session.revision,
+					lastSavedRevision: session.lastSavedRevision,
+					committedPaths,
+					failedPaths,
+					diskMayBePartiallyUpdated: true,
+				},
+				toSessionSnapshot(session, this.context.capabilities),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+				},
+			);
 		}
 	}
 }

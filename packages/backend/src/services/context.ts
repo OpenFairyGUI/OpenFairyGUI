@@ -25,7 +25,7 @@ export interface BackendSessionState {
 	canonicalProjectPath: string;
 	canonicalPathKey: string;
 	lockFilePath: string;
-	project: import('@openfairygui/core').UamProject;
+	project: import('@openfairygui/core/uam').UamProject;
 	revision: number;
 	lastSavedRevision: number;
 	dirty: boolean;

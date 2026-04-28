@@ -1,21 +1,10 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {
-	NodeIO,
-	type UamProject,
-	writeProjectFromUam,
-} from '@openfairygui/core';
-import type {
-	BackendFileSystem,
-	BackendJobSnapshot,
-	BackendJobStatus,
-	BackendRuntime,
-} from '../src/index.js';
-import {
-	createNodeBackendFileSystem,
-	createNodeBackendRuntime,
-} from '../src/node.js';
+import { type UamProject, writeProjectFromUam } from '@openfairygui/core';
+import { NodeIO } from '@openfairygui/core/node';
+import type { BackendFileSystem, BackendJobSnapshot, BackendJobStatus, BackendRuntime } from '../src/index.js';
+import { createNodeBackendFileSystem, createNodeBackendRuntime } from '../src/node.js';
 
 export function createBackendFixtureProject(): UamProject {
 	return {
@@ -119,9 +108,7 @@ export async function createTempBackendProject() {
 	};
 }
 
-export function createFailingFileSystem(
-	shouldFail: (filePath: string) => boolean,
-): BackendFileSystem {
+export function createFailingFileSystem(shouldFail: (filePath: string) => boolean): BackendFileSystem {
 	const base = createNodeBackendFileSystem();
 	return {
 		...base,

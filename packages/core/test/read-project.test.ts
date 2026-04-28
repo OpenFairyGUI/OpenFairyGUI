@@ -1,6 +1,13 @@
 import test from 'ava';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
-import { type Document, type GTree, GearType, ListSelectionMode, NodeIO, PropertyType } from '../src/index.js';
+import {
+	type Document,
+	type GTree,
+	GearType,
+	ListSelectionMode,
+	PropertyType,
+} from '../src/index.js';
+import { NodeIO } from '../src/node.js';
 
 const PROJECT_PATH = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
 const BRANCH_LOADER_PROJECT_PATH = getFixtureProjectPath('FairyGUI-Experiments');

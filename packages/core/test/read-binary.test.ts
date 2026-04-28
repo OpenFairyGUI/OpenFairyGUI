@@ -1,6 +1,7 @@
 import test from 'ava';
 import { getFixturePath } from '@openfairygui/test-utils';
-import { type Document, NodeIO, PropertyType } from '../src/index.js';
+import { type Document, PropertyType } from '../src/index.js';
+import { NodeIO } from '../src/node.js';
 
 const BASICS_FUI = getFixturePath(
 	'FairyGUI-unity',

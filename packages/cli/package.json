@@ -19,7 +19,7 @@
 		"openfairygui": "bin/cli.cjs"
 	},
 	"scripts": {
-		"build": "tsdown src/cli.ts --format esm --platform node --no-dts --external sharp"
+		"build": "tsdown src/cli.ts --format esm --platform node --no-dts --external sharp --env.PACKAGE_VERSION=$npm_package_version"
 	},
 	"files": [
 		"dist/",
@@ -36,11 +36,11 @@
 		"restore"
 	],
 	"devDependencies": {
-		"@openfairygui/core": "workspace:*",
-		"@openfairygui/functions": "workspace:*"
+		"@openfairygui/core": "0.2.0-alpha.1",
+		"@openfairygui/functions": "0.2.0-alpha.1"
 	},
 	"dependencies": {
-		"@openfairygui/backend": "workspace:*"
+		"@openfairygui/backend": "0.2.0-alpha.1"
 	},
 	"optionalDependencies": {
 		"sharp": ">=0.33.0"

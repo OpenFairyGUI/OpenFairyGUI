@@ -3,12 +3,12 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {
-	NodeIO,
 	type UamProject,
 	type UamTransactionOperation,
 	readProjectAsUam,
 	writeProjectFromUam,
 } from '@openfairygui/core';
+import { NodeIO } from '@openfairygui/core/node';
 import {
 	applyUamTransactionApp,
 	type ApplyUamTransactionAppInput,

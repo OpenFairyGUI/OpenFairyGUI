@@ -62,11 +62,11 @@
 	],
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.29.0",
-		"@openfairygui/backend": "workspace:*",
+		"@openfairygui/backend": "0.2.0-alpha.1",
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {
-		"@openfairygui/core": "workspace:*",
+		"@openfairygui/core": "0.2.0-alpha.1",
 		"ava": "^7.0.0",
 		"tsx": "^4.0.0"
 	},

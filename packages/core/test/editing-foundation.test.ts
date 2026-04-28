@@ -7,9 +7,9 @@ import {
 	ControllerActionType,
 	Document,
 	GearType,
-	NodeIO,
 	TransitionActionType,
 } from '../src/index.js';
+import { NodeIO } from '../src/node.js';
 
 const REAL_PROJECT_PATH = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
 
