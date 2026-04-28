@@ -32,7 +32,7 @@ function runCli(args: string[]): Promise<string> {
 test('CLI bootstrap reports package version', async (t) => {
 	const output = await runCli(['--version']);
 
-	t.is(output.trim(), '0.2.0-alpha.1');
+	t.is(output.trim(), '0.2.0-alpha.2');
 });
 
 test('CLI bootstrap can open session, print backend capabilities, and close session', async (t) => {
