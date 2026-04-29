@@ -7,7 +7,9 @@ import type { ProjectSettings } from '../types/settings.js';
 import type {
 	UamAnimationGearBinding,
 	UamAssetResource,
+	UamButtonNode,
 	UamColorGearBinding,
+	UamComboBoxNode,
 	UamComponentRefNode,
 	UamComponentModel,
 	UamComponentResource,
@@ -22,6 +24,7 @@ import type {
 	UamGroupNode,
 	UamIconGearBinding,
 	UamImageNode,
+	UamLabelNode,
 	UamListItemData,
 	UamListNode,
 	UamLoader3DNode,
@@ -29,9 +32,12 @@ import type {
 	UamLookGearBinding,
 	UamMovieClipNode,
 	UamProject,
+	UamProgressBarNode,
 	UamRelation,
 	UamRichTextNode,
+	UamScrollBarNode,
 	UamSizeGearBinding,
+	UamSliderNode,
 	UamTextGearBinding,
 	UamTextInputNode,
 	UamTextNode,
@@ -98,6 +104,162 @@ function liftEdgeInsets(edgeInsets: UamEdgeInsets): UamEdgeInsets {
 
 function cloneListItems(items: UamListItemData[]): UamListItemData[] {
 	return items.map((item) => ({ ...item }));
+}
+
+type MaterializedDisplayNodeBase = {
+	setId(id: string): MaterializedDisplayNodeBase;
+	setXY(x: number, y: number): MaterializedDisplayNodeBase;
+	setSize(width: number, height: number): MaterializedDisplayNodeBase;
+	setVisible(visible: boolean): MaterializedDisplayNodeBase;
+	setTouchable(touchable: boolean): MaterializedDisplayNodeBase;
+	setGrayed(grayed: boolean): MaterializedDisplayNodeBase;
+	setAlpha(alpha: number): MaterializedDisplayNodeBase;
+	setRotation(rotation: number): MaterializedDisplayNodeBase;
+	setCustomData(customData: string): MaterializedDisplayNodeBase;
+	setRelations(relations: Array<{ target: string; type: number; usePercent: boolean }>): MaterializedDisplayNodeBase;
+};
+
+type MaterializedComponentDerivedControl = MaterializedDisplayNodeBase & {
+	setSrc(src: string): MaterializedComponentDerivedControl;
+	setPackageId(packageId: string): MaterializedComponentDerivedControl;
+};
+
+type MaterializedTitleControl = MaterializedComponentDerivedControl & {
+	setTitle(title: string): MaterializedTitleControl;
+	setIcon(icon: string): MaterializedTitleControl;
+	setTitleColor(color: string): MaterializedTitleControl;
+	setTitleFontSize(fontSize: number): MaterializedTitleControl;
+	setSound(sound: string): MaterializedTitleControl;
+	setSoundVolumeScale(scale: number): MaterializedTitleControl;
+};
+
+type UamComponentDerivedControlNode =
+	| UamButtonNode
+	| UamLabelNode
+	| UamComboBoxNode
+	| UamProgressBarNode
+	| UamSliderNode
+	| UamScrollBarNode;
+
+type UamTitleControlNode = UamButtonNode | UamLabelNode | UamComboBoxNode;
+
+type LiftableDisplayNodeBase = {
+	getId(): string;
+	getName(): string;
+	getX(): number;
+	getY(): number;
+	getWidth(): number;
+	getHeight(): number;
+	getVisible(): boolean;
+	getTouchable(): boolean;
+	getGrayed(): boolean;
+	getAlpha(): number;
+	getRotation(): number;
+	getCustomData(): string;
+	getRelations(): ReturnType<GObject['getRelations']>;
+	listGears(): ReturnType<GObject['listGears']>;
+};
+
+type LiftableComponentDerivedControl = LiftableDisplayNodeBase & {
+	getSrc(): string;
+	getPackageId(): string;
+};
+
+type LiftableTitleControl = LiftableComponentDerivedControl & {
+	getTitle(): string;
+	getIcon(): string;
+	getTitleColor(): string;
+	getTitleFontSize(): number;
+	getSound(): string;
+	getSoundVolumeScale(): number;
+};
+
+type LiftedDisplayNodeBase = Pick<
+	UamButtonNode,
+	'id' | 'name' | 'position' | 'size' | 'visible' | 'touchable' | 'grayed' | 'alpha' | 'rotation' | 'customData' | 'relations' | 'gears'
+>;
+
+type LiftedComponentDerivedControlBase = LiftedDisplayNodeBase & Pick<UamButtonNode, 'src' | 'packageId'>;
+type LiftedTitleControlBase = LiftedComponentDerivedControlBase &
+	Pick<UamButtonNode, 'title' | 'icon' | 'titleColor' | 'titleFontSize' | 'sound' | 'soundVolumeScale'>;
+
+function materializeDisplayNodeBase<TNode extends UamDisplayNode, TTarget extends MaterializedDisplayNodeBase>(
+	target: TTarget,
+	node: TNode,
+): TTarget {
+	target
+		.setId(node.id)
+		.setXY(node.position.x, node.position.y)
+		.setSize(node.size.width, node.size.height)
+		.setVisible(node.visible)
+		.setTouchable(node.touchable)
+		.setGrayed(node.grayed)
+		.setAlpha(node.alpha)
+		.setRotation(node.rotation)
+		.setCustomData(node.customData)
+		.setRelations(materializeRelations(node.relations));
+	return target;
+}
+
+function materializeComponentDerivedControlBase<TTarget extends MaterializedComponentDerivedControl>(
+	target: TTarget,
+	node: UamComponentDerivedControlNode,
+): TTarget {
+	materializeDisplayNodeBase(target, node)
+		.setSrc(node.src)
+		.setPackageId(node.packageId);
+	return target;
+}
+
+function materializeTitleControlBase<TTarget extends MaterializedTitleControl>(
+	target: TTarget,
+	node: UamTitleControlNode,
+): TTarget {
+	materializeComponentDerivedControlBase(target, node)
+		.setTitle(node.title)
+		.setIcon(node.icon)
+		.setTitleColor(node.titleColor)
+		.setTitleFontSize(node.titleFontSize)
+		.setSound(node.sound)
+		.setSoundVolumeScale(node.soundVolumeScale);
+	return target;
+}
+
+function liftDisplayNodeBase(child: LiftableDisplayNodeBase): LiftedDisplayNodeBase {
+	return {
+		id: child.getId(),
+		name: child.getName(),
+		position: { x: child.getX(), y: child.getY() },
+		size: { width: child.getWidth(), height: child.getHeight() },
+		visible: child.getVisible(),
+		touchable: child.getTouchable(),
+		grayed: child.getGrayed(),
+		alpha: child.getAlpha(),
+		rotation: child.getRotation(),
+		customData: child.getCustomData(),
+		relations: liftRelations(child.getRelations()),
+		gears: liftGears(child.listGears()),
+	};
+}
+
+function liftComponentDerivedControlBase(child: LiftableComponentDerivedControl): LiftedComponentDerivedControlBase {
+	return {
+		...liftDisplayNodeBase(child),
+		src: child.getSrc(),
+		packageId: child.getPackageId(),
+	};
+}
+
+function liftTitleControlBase(child: LiftableTitleControl): LiftedTitleControlBase {
+	return {
+		...liftComponentDerivedControlBase(child),
+		title: child.getTitle(),
+		icon: child.getIcon(),
+		titleColor: child.getTitleColor(),
+		titleFontSize: child.getTitleFontSize(),
+		sound: child.getSound(),
+		soundVolumeScale: child.getSoundVolumeScale(),
+	};
 }
 
 type MaterializedAssetBase = {
@@ -305,7 +467,7 @@ function materializeDisplayNode(
 			.setSelectionController(listNode.selectionController);
 		if (node.kind === 'tree') {
 			const treeNode = node as UamTreeNode;
-			list
+			(list as ReturnType<Document['createGTree']>)
 				.setTreeView(treeNode.treeView)
 				.setIndent(treeNode.indent)
 				.setClickToExpand(treeNode.clickToExpand);
@@ -429,6 +591,64 @@ function materializeDisplayNode(
 			.setColor(loaderNode.color);
 		loader.setRelations(materializeRelations(node.relations));
 		return loader;
+	}
+
+	if (node.kind === 'button') {
+		const buttonNode = node as UamButtonNode;
+		const button = materializeTitleControlBase(doc.createGButton(node.name), buttonNode)
+			.setSelectedTitle(buttonNode.selectedTitle)
+			.setSelectedIcon(buttonNode.selectedIcon)
+			.setMode(buttonNode.mode)
+			.setDownEffect(buttonNode.downEffect)
+			.setDownEffectValue(buttonNode.downEffectValue);
+		return button;
+	}
+
+	if (node.kind === 'label') {
+		const labelNode = node as UamLabelNode;
+		return materializeTitleControlBase(doc.createGLabel(node.name), labelNode);
+	}
+
+	if (node.kind === 'comboBox') {
+		const comboBoxNode = node as UamComboBoxNode;
+		const comboBox = materializeTitleControlBase(doc.createGComboBox(node.name), comboBoxNode)
+			.setItems(comboBoxNode.items)
+			.setIcons(comboBoxNode.icons)
+			.setValues(comboBoxNode.values)
+			.setSelectedIndex(comboBoxNode.selectedIndex)
+			.setVisibleItemCount(comboBoxNode.visibleItemCount)
+			.setPopupDirection(comboBoxNode.popupDirection);
+		return comboBox;
+	}
+
+	if (node.kind === 'progressBar') {
+		const progressBarNode = node as UamProgressBarNode;
+		const progressBar = materializeComponentDerivedControlBase(doc.createGProgressBar(node.name), progressBarNode)
+			.setTitleType(progressBarNode.titleType)
+			.setMin(progressBarNode.min)
+			.setMax(progressBarNode.max)
+			.setValue(progressBarNode.value)
+			.setReverse(progressBarNode.reverse)
+			.setSound(progressBarNode.sound)
+			.setSoundVolumeScale(progressBarNode.soundVolumeScale);
+		return progressBar;
+	}
+
+	if (node.kind === 'slider') {
+		const sliderNode = node as UamSliderNode;
+		const slider = materializeComponentDerivedControlBase(doc.createGSlider(node.name), sliderNode)
+			.setTitleType(sliderNode.titleType)
+			.setMin(sliderNode.min)
+			.setMax(sliderNode.max)
+			.setValue(sliderNode.value)
+			.setWholeNumbers(sliderNode.wholeNumbers);
+		return slider;
+	}
+
+	if (node.kind === 'scrollBar') {
+		const scrollBarNode = node as UamScrollBarNode;
+		return materializeComponentDerivedControlBase(doc.createGScrollBar(node.name), scrollBarNode)
+			.setFixedGripSize(scrollBarNode.fixedGripSize);
 	}
 
 	const movieClipNode = node as UamMovieClipNode;
@@ -638,9 +858,6 @@ function serializeGenericGearValue(kind: UamGenericValueGearBinding['kind'], val
 			const fontSize = value as { fontSize?: number };
 			return `${fontSize.fontSize ?? 12}`;
 		}
-		case 'text':
-		case 'icon':
-			return '';
 	}
 }
 
@@ -955,19 +1172,19 @@ function liftGears(gears: ReturnType<GObject['listGears']>): UamGearBinding[] {
 			};
 			switch (kind) {
 				case 'xy':
-					return { kind, ...base } satisfies UamXYGearBinding;
+					return { kind, ...base } as UamXYGearBinding;
 				case 'size':
-					return { kind, ...base } satisfies UamSizeGearBinding;
+					return { kind, ...base } as UamSizeGearBinding;
 				case 'color':
-					return { kind, ...base } satisfies UamColorGearBinding;
+					return { kind, ...base } as UamColorGearBinding;
 				case 'animation':
-					return { kind, ...base } satisfies UamAnimationGearBinding;
+					return { kind, ...base } as UamAnimationGearBinding;
 				case 'text':
-					return { kind, ...base } satisfies UamTextGearBinding;
+					return { kind, ...base } as UamTextGearBinding;
 				case 'icon':
-					return { kind, ...base } satisfies UamIconGearBinding;
+					return { kind, ...base } as UamIconGearBinding;
 				case 'fontSize':
-					return { kind, ...base } satisfies UamFontSizeGearBinding;
+					return { kind, ...base } as UamFontSizeGearBinding;
 			}
 		}
 		const values = gear.getValues() ? gear.getValues().split('|') : [];
@@ -1260,6 +1477,72 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			loop: loader.getLoop(),
 			color: loader.getColor(),
 		};
+	}
+	if (child.propertyType === PropertyType.G_BUTTON) {
+		const button = child as ReturnType<Document['createGButton']>;
+		return {
+			kind: 'button',
+			...liftTitleControlBase(button),
+			selectedTitle: button.getSelectedTitle(),
+			selectedIcon: button.getSelectedIcon(),
+			mode: button.getMode(),
+			downEffect: button.getDownEffect(),
+			downEffectValue: button.getDownEffectValue(),
+		} satisfies UamButtonNode;
+	}
+	if (child.propertyType === PropertyType.G_LABEL) {
+		const label = child as ReturnType<Document['createGLabel']>;
+		return {
+			kind: 'label',
+			...liftTitleControlBase(label),
+		} satisfies UamLabelNode;
+	}
+	if (child.propertyType === PropertyType.G_COMBO_BOX) {
+		const comboBox = child as ReturnType<Document['createGComboBox']>;
+		return {
+			kind: 'comboBox',
+			...liftTitleControlBase(comboBox),
+			items: comboBox.getItems(),
+			icons: comboBox.getIcons(),
+			values: comboBox.getValues(),
+			selectedIndex: comboBox.getSelectedIndex(),
+			visibleItemCount: comboBox.getVisibleItemCount(),
+			popupDirection: comboBox.getPopupDirection(),
+		} satisfies UamComboBoxNode;
+	}
+	if (child.propertyType === PropertyType.G_PROGRESS_BAR) {
+		const progressBar = child as ReturnType<Document['createGProgressBar']>;
+		return {
+			kind: 'progressBar',
+			...liftComponentDerivedControlBase(progressBar),
+			titleType: progressBar.getTitleType(),
+			min: progressBar.getMin(),
+			max: progressBar.getMax(),
+			value: progressBar.getValue(),
+			reverse: progressBar.getReverse(),
+			sound: progressBar.getSound(),
+			soundVolumeScale: progressBar.getSoundVolumeScale(),
+		} satisfies UamProgressBarNode;
+	}
+	if (child.propertyType === PropertyType.G_SLIDER) {
+		const slider = child as ReturnType<Document['createGSlider']>;
+		return {
+			kind: 'slider',
+			...liftComponentDerivedControlBase(slider),
+			titleType: slider.getTitleType(),
+			min: slider.getMin(),
+			max: slider.getMax(),
+			value: slider.getValue(),
+			wholeNumbers: slider.getWholeNumbers(),
+		} satisfies UamSliderNode;
+	}
+	if (child.propertyType === PropertyType.G_SCROLL_BAR) {
+		const scrollBar = child as ReturnType<Document['createGScrollBar']>;
+		return {
+			kind: 'scrollBar',
+			...liftComponentDerivedControlBase(scrollBar),
+			fixedGripSize: scrollBar.getFixedGripSize(),
+		} satisfies UamScrollBarNode;
 	}
 	if (child.propertyType === PropertyType.G_MOVIE_CLIP) {
 		const movieClip = child as ReturnType<Document['createGMovieClip']>;

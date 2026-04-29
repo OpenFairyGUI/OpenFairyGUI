@@ -137,7 +137,9 @@ flowchart LR
 
 补充说明：
 - `@openfairygui/core` 当前同时承载 UAM 主真相层与内部图物化层。
+- `packages/core/src/uam/model.ts` 当前的 materialization scope 覆盖现有全部 display node 类：`GImage`、`GTextField`、`GRichTextField`、`GTextInput`、`GComponent`、`GList`、`GTree`、`GGraph`、`GGroup`、`GLoader`、`GLoader3D`、`GMovieClip`、`GButton`、`GLabel`、`GComboBox`、`GProgressBar`、`GSlider`、`GScrollBar`。其中 component-derived controls 以具体 UAM node kind 建模，不通过长期 `extras` 或通用属性袋承载。
 - `packages/core/src/uam/transaction.ts` 当前提供的是 **UAM-public explicit operation batch API**；它的 `commit()` 结果是新的 canonical `UamProject`，内部允许通过私有 `Document` 工作副本执行并在失败时整体丢弃。
+- UAM materialization scope 与 transaction scope 是两个独立能力面；全量 display node lift/materialize 不代表 `UamTransactionOperation` 已开放这些 node kind 的全字段 mutation。
 - `packages/functions/src/uam-transaction.ts` 当前提供的是建立在上述 transaction contract 之上的 **thin stateless pre-MCP app seam**；它只接收 `UamProject + UamTransactionOperation[]`，返回结构化 app result，不重新定义 selector / op grammar，也不暴露 `Document`。
 - `packages/backend/src/runtime.ts` 当前提供 browser-safe 的第一层 **stateful backend runtime**；它通过 `functions.applyUamTransactionApp` 包装既有 authoring seam，支持 `openProjectSession` 直接从 UAM project 建立纯内存 session，并在注入 `BackendFileSystem` 后承接 file-backed `openSession / saveSession`。
 - `packages/backend/src/node.ts` 当前只承接 Node 默认装配：Node filesystem adapter、Node lock metadata，以及 `createNodeBackendRuntime()`。根入口不再默认导入 Node 文件系统。

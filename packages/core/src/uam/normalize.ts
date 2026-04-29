@@ -2,8 +2,10 @@ import type {
 	UamAnimationGearBinding,
 	UamAnimationGearValue,
 	UamAssetResource,
+	UamButtonNode,
 	UamColorGearBinding,
 	UamColorGearValue,
+	UamComboBoxNode,
 	UamComponentModel,
 	UamComponentRefNode,
 	UamComponentResource,
@@ -23,6 +25,7 @@ import type {
 	UamIconGearBinding,
 	UamIconGearValue,
 	UamImageNode,
+	UamLabelNode,
 	UamListItemData,
 	UamListNode,
 	UamLoader3DNode,
@@ -33,11 +36,14 @@ import type {
 	UamPackage,
 	UamPackagePublish,
 	UamProject,
+	UamProgressBarNode,
 	UamRelation,
 	UamResource,
 	UamRichTextNode,
+	UamScrollBarNode,
 	UamSizeGearBinding,
 	UamSizeGearValue,
+	UamSliderNode,
 	UamTextGearBinding,
 	UamTextGearValue,
 	UamTextInputNode,
@@ -535,6 +541,102 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				frame: movieClip.frame ?? 0,
 				color: movieClip.color ?? '#FFFFFF',
 			} satisfies UamMovieClipNode;
+		}
+		case 'button': {
+			const button = node as UamButtonNode;
+			return {
+				kind: 'button',
+				...base,
+				src: button.src ?? '',
+				packageId: button.packageId ?? '',
+				title: button.title ?? '',
+				icon: button.icon ?? '',
+				selectedTitle: button.selectedTitle ?? '',
+				selectedIcon: button.selectedIcon ?? '',
+				titleColor: button.titleColor ?? '#000000',
+				titleFontSize: button.titleFontSize ?? 0,
+				sound: button.sound ?? '',
+				soundVolumeScale: button.soundVolumeScale ?? 1,
+				mode: button.mode ?? 0,
+				downEffect: button.downEffect ?? 0,
+				downEffectValue: button.downEffectValue ?? 0.8,
+			} satisfies UamButtonNode;
+		}
+		case 'label': {
+			const label = node as UamLabelNode;
+			return {
+				kind: 'label',
+				...base,
+				src: label.src ?? '',
+				packageId: label.packageId ?? '',
+				title: label.title ?? '',
+				icon: label.icon ?? '',
+				titleColor: label.titleColor ?? '#000000',
+				titleFontSize: label.titleFontSize ?? 0,
+				sound: label.sound ?? '',
+				soundVolumeScale: label.soundVolumeScale ?? 1,
+			} satisfies UamLabelNode;
+		}
+		case 'comboBox': {
+			const comboBox = node as UamComboBoxNode;
+			return {
+				kind: 'comboBox',
+				...base,
+				src: comboBox.src ?? '',
+				packageId: comboBox.packageId ?? '',
+				title: comboBox.title ?? '',
+				icon: comboBox.icon ?? '',
+				titleColor: comboBox.titleColor ?? '#000000',
+				titleFontSize: comboBox.titleFontSize ?? 0,
+				items: [...(comboBox.items ?? [])],
+				icons: [...(comboBox.icons ?? [])],
+				values: [...(comboBox.values ?? [])],
+				selectedIndex: comboBox.selectedIndex ?? -1,
+				visibleItemCount: comboBox.visibleItemCount ?? 0,
+				popupDirection: comboBox.popupDirection ?? 0,
+				sound: comboBox.sound ?? '',
+				soundVolumeScale: comboBox.soundVolumeScale ?? 1,
+			} satisfies UamComboBoxNode;
+		}
+		case 'progressBar': {
+			const progressBar = node as UamProgressBarNode;
+			return {
+				kind: 'progressBar',
+				...base,
+				src: progressBar.src ?? '',
+				packageId: progressBar.packageId ?? '',
+				titleType: progressBar.titleType ?? 0,
+				min: progressBar.min ?? 0,
+				max: progressBar.max ?? 100,
+				value: progressBar.value ?? 0,
+				reverse: progressBar.reverse ?? false,
+				sound: progressBar.sound ?? '',
+				soundVolumeScale: progressBar.soundVolumeScale ?? 1,
+			} satisfies UamProgressBarNode;
+		}
+		case 'slider': {
+			const slider = node as UamSliderNode;
+			return {
+				kind: 'slider',
+				...base,
+				src: slider.src ?? '',
+				packageId: slider.packageId ?? '',
+				titleType: slider.titleType ?? 0,
+				min: slider.min ?? 0,
+				max: slider.max ?? 100,
+				value: slider.value ?? 0,
+				wholeNumbers: slider.wholeNumbers ?? false,
+			} satisfies UamSliderNode;
+		}
+		case 'scrollBar': {
+			const scrollBar = node as UamScrollBarNode;
+			return {
+				kind: 'scrollBar',
+				...base,
+				src: scrollBar.src ?? '',
+				packageId: scrollBar.packageId ?? '',
+				fixedGripSize: scrollBar.fixedGripSize ?? false,
+			} satisfies UamScrollBarNode;
 		}
 	}
 }

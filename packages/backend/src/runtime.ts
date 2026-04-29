@@ -1,5 +1,5 @@
 import {
-	UAM_SUPPORTED_MATERIALIZATION_SCOPE,
+	UAM_SUPPORTED_TRANSACTION_SCOPE,
 	type UamProject,
 	type UamTransactionOperation,
 } from '@openfairygui/core/uam';
@@ -478,9 +478,9 @@ function createCapabilities(): BackendCapabilities {
 		authoring: {
 			applyTransaction: true,
 			saveSession: true,
-			resourceKinds: [...UAM_SUPPORTED_MATERIALIZATION_SCOPE.resourceKinds],
-			nodeKinds: [...UAM_SUPPORTED_MATERIALIZATION_SCOPE.nodeKinds],
-			gearKinds: [...UAM_SUPPORTED_MATERIALIZATION_SCOPE.gearKinds],
+			resourceKinds: [...UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds],
+			nodeKinds: [...UAM_SUPPORTED_TRANSACTION_SCOPE.nodeKinds],
+			gearKinds: [...UAM_SUPPORTED_TRANSACTION_SCOPE.gearKinds],
 			unsupported: ['artifact.publish', 'artifact.restore'],
 		},
 		artifact: createArtifactCapabilities(),

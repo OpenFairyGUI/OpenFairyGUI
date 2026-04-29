@@ -116,7 +116,13 @@ export type UamDisplayNodeKind =
 	| 'group'
 	| 'loader'
 	| 'loader3D'
-	| 'movieClip';
+	| 'movieClip'
+	| 'button'
+	| 'label'
+	| 'comboBox'
+	| 'progressBar'
+	| 'slider'
+	| 'scrollBar';
 
 interface UamDisplayNodeBase {
 	kind: UamDisplayNodeKind;
@@ -303,6 +309,68 @@ export interface UamMovieClipNode extends UamDisplayNodeBase {
 	color: string;
 }
 
+interface UamComponentDerivedNodeBase extends UamDisplayNodeBase {
+	src: string;
+	packageId: string;
+}
+
+interface UamTitleControlNodeBase extends UamComponentDerivedNodeBase {
+	title: string;
+	icon: string;
+	titleColor: string;
+	titleFontSize: number;
+	sound: string;
+	soundVolumeScale: number;
+}
+
+export interface UamButtonNode extends UamTitleControlNodeBase {
+	kind: 'button';
+	selectedTitle: string;
+	selectedIcon: string;
+	mode: number;
+	downEffect: number;
+	downEffectValue: number;
+}
+
+export interface UamLabelNode extends UamTitleControlNodeBase {
+	kind: 'label';
+}
+
+export interface UamComboBoxNode extends UamTitleControlNodeBase {
+	kind: 'comboBox';
+	items: string[];
+	icons: string[];
+	values: string[];
+	selectedIndex: number;
+	visibleItemCount: number;
+	popupDirection: number;
+}
+
+export interface UamProgressBarNode extends UamComponentDerivedNodeBase {
+	kind: 'progressBar';
+	titleType: number;
+	min: number;
+	max: number;
+	value: number;
+	reverse: boolean;
+	sound: string;
+	soundVolumeScale: number;
+}
+
+export interface UamSliderNode extends UamComponentDerivedNodeBase {
+	kind: 'slider';
+	titleType: number;
+	min: number;
+	max: number;
+	value: number;
+	wholeNumbers: boolean;
+}
+
+export interface UamScrollBarNode extends UamComponentDerivedNodeBase {
+	kind: 'scrollBar';
+	fixedGripSize: boolean;
+}
+
 export type UamDisplayNode =
 	| UamImageNode
 	| UamTextNode
@@ -315,7 +383,13 @@ export type UamDisplayNode =
 	| UamGroupNode
 	| UamLoaderNode
 	| UamLoader3DNode
-	| UamMovieClipNode;
+	| UamMovieClipNode
+	| UamButtonNode
+	| UamLabelNode
+	| UamComboBoxNode
+	| UamProgressBarNode
+	| UamSliderNode
+	| UamScrollBarNode;
 
 export interface UamControllerPage {
 	id: string;
@@ -473,7 +547,26 @@ export interface UamValidationIssue {
 
 export const UAM_SUPPORTED_MATERIALIZATION_SCOPE = {
 	resourceKinds: ['image', 'sound', 'misc', 'font', 'movieClip', 'spine', 'dragonBones', 'component'] as const,
-	nodeKinds: ['image', 'text', 'richText', 'textInput', 'component', 'list', 'tree', 'graph', 'group', 'loader', 'loader3D', 'movieClip'] as const,
+	nodeKinds: [
+		'image',
+		'text',
+		'richText',
+		'textInput',
+		'component',
+		'list',
+		'tree',
+		'graph',
+		'group',
+		'loader',
+		'loader3D',
+		'movieClip',
+		'button',
+		'label',
+		'comboBox',
+		'progressBar',
+		'slider',
+		'scrollBar',
+	] as const,
 	gearKinds: ['display', 'display2', 'look', 'xy', 'size', 'color', 'animation', 'text', 'icon', 'fontSize'] as const,
 } as const;
 

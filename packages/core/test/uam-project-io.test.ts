@@ -5,7 +5,10 @@ import path from 'node:path';
 import {
 	assertValidUamProject,
 	Document,
+	GearType,
 	normalizeUamProject,
+	RelationType,
+	UAM_SUPPORTED_MATERIALIZATION_SCOPE,
 	type UamProject,
 } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
@@ -239,20 +242,243 @@ test('Gate A proves one engineering-scale UAM-owned project read/write path', as
 	}
 });
 
-test('liftDocumentToUamProject reports remaining unsupported real display node types explicitly', (t) => {
+test('UAM materialization scope covers every current concrete display node kind', (t) => {
+	t.deepEqual([...UAM_SUPPORTED_MATERIALIZATION_SCOPE.nodeKinds].sort(), [
+		'button',
+		'comboBox',
+		'component',
+		'graph',
+		'group',
+		'image',
+		'label',
+		'list',
+		'loader',
+		'loader3D',
+		'movieClip',
+		'progressBar',
+		'richText',
+		'scrollBar',
+		'slider',
+		'text',
+		'textInput',
+		'tree',
+	].sort());
+});
+
+test('UAM project lift and materialize preserve component-derived control display nodes', (t) => {
 	const doc = new Document();
-	const pkg = doc.createPackage('RealProjectShapes').setId('pkg-real');
-	const component = doc.createComponent('ButtonHost')
-		.setId('cmp-button-host')
+	const pkg = doc.createPackage('ControlShapes').setId('pkg-controls');
+	const component = doc.createComponent('ControlHost')
+		.setId('cmp-control-host')
 		.setPath('/')
 		.setExported(true)
-		.setSize(320, 180);
-	const button = doc.createGButton('button').setId('button-node');
-	component.addChild(button);
+		.setSize(480, 320);
+	const controller = doc.createController('control-state');
+	controller.addPage(doc.createControllerPage('Idle').setId('idle'));
+	controller.addPage(doc.createControllerPage('Active').setId('active'));
+	component.addController(controller);
+	const buttonControl = doc.createGButton('button')
+		.setId('button-node')
+		.setXY(1, 2)
+		.setSize(80, 24)
+		.setVisible(false)
+		.setTouchable(false)
+		.setGrayed(true)
+		.setAlpha(0.42)
+		.setRotation(15)
+		.setCustomData('button-data')
+		.setRelations([{ target: 'label-node', type: RelationType.Left_Left, usePercent: true }])
+		.setSrc('button-src')
+		.setPackageId('pkg-controls')
+		.setTitle('Play')
+		.setIcon('play-icon')
+		.setSelectedTitle('Playing')
+		.setSelectedIcon('pause-icon')
+		.setTitleColor('#112233')
+		.setTitleFontSize(14)
+		.setSound('click')
+		.setSoundVolumeScale(0.5)
+		.setMode(2)
+		.setDownEffect(1)
+		.setDownEffectValue(0.25);
+	buttonControl.addGear(doc.createGear('button-look')
+		.setGearType(GearType.Look)
+		.setController(controller)
+		.setPages('idle,active')
+		.setValues('1,0,false,true|0.5,15,true,false')
+		.setDefaultValue('1,0,false,true')
+		.setTween(true)
+		.setTweenDuration(0.2));
+	component.addChild(buttonControl);
+	component.addChild(doc.createGLabel('label')
+		.setId('label-node')
+		.setXY(3, 4)
+		.setSize(90, 26)
+		.setSrc('label-src')
+		.setPackageId('pkg-controls')
+		.setTitle('Name')
+		.setIcon('label-icon')
+		.setTitleColor('#445566')
+		.setTitleFontSize(16)
+		.setSound('label-sound')
+		.setSoundVolumeScale(0.75));
+	component.addChild(doc.createGComboBox('combo')
+		.setId('combo-node')
+		.setXY(5, 6)
+		.setSize(120, 30)
+		.setSrc('combo-src')
+		.setPackageId('pkg-controls')
+		.setTitle('Two')
+		.setIcon('combo-icon')
+		.setTitleColor('#778899')
+		.setTitleFontSize(12)
+		.setItems(['One', 'Two'])
+		.setIcons(['one-icon', 'two-icon'])
+		.setValues(['1', '2'])
+		.setSelectedIndex(1)
+		.setVisibleItemCount(8)
+		.setPopupDirection(2)
+		.setSound('combo-sound')
+		.setSoundVolumeScale(0.9));
+	component.addChild(doc.createGProgressBar('progress')
+		.setId('progress-node')
+		.setXY(7, 8)
+		.setSize(140, 20)
+		.setSrc('progress-src')
+		.setPackageId('pkg-controls')
+		.setTitleType(3)
+		.setMin(10)
+		.setMax(200)
+		.setValue(120)
+		.setReverse(true)
+		.setSound('progress-sound')
+		.setSoundVolumeScale(0.6));
+	component.addChild(doc.createGSlider('slider')
+		.setId('slider-node')
+		.setXY(9, 10)
+		.setSize(160, 22)
+		.setSrc('slider-src')
+		.setPackageId('pkg-controls')
+		.setTitleType(2)
+		.setMin(1)
+		.setMax(10)
+		.setValue(7)
+		.setWholeNumbers(true));
+	component.addChild(doc.createGScrollBar('scroll')
+		.setId('scroll-node')
+		.setXY(11, 12)
+		.setSize(16, 100)
+		.setSrc('scroll-src')
+		.setPackageId('pkg-controls')
+		.setFixedGripSize(true));
 	pkg.addResource(component);
 
-	const error = t.throws(() => liftDocumentToUamProject(doc), { instanceOf: Error });
-	t.is(error?.message, 'UAM lift does not support display node type "GButton" in Gate A.');
+	const lifted = liftDocumentToUamProject(doc);
+	const rematerialized = liftDocumentToUamProject(materializeUamProject(lifted));
+	const host = rematerialized.packages[0]?.resources.find((resource) => resource.id === 'cmp-control-host');
+	t.is(host?.kind, 'component');
+	if (host?.kind !== 'component') return;
+
+	const nodes = new Map(host.component.displayList.map((node) => [node.id, node]));
+	t.is(nodes.get('button-node')?.kind, 'button');
+	t.is(nodes.get('label-node')?.kind, 'label');
+	t.is(nodes.get('combo-node')?.kind, 'comboBox');
+	t.is(nodes.get('progress-node')?.kind, 'progressBar');
+	t.is(nodes.get('slider-node')?.kind, 'slider');
+	t.is(nodes.get('scroll-node')?.kind, 'scrollBar');
+
+	const button = nodes.get('button-node');
+	if (button?.kind === 'button') {
+		t.deepEqual(button.position, { x: 1, y: 2 });
+		t.deepEqual(button.size, { width: 80, height: 24 });
+		t.false(button.visible);
+		t.false(button.touchable);
+		t.true(button.grayed);
+		t.true(Math.abs(button.alpha - 0.42) < 1e-6);
+		t.is(button.rotation, 15);
+		t.is(button.customData, 'button-data');
+		t.deepEqual(button.relations, [{ targetNodeId: 'label-node', type: RelationType.Left_Left, usePercent: true }]);
+		t.is(button.gears.length, 1);
+		t.is(button.gears[0]?.kind, 'look');
+		if (button.gears[0]?.kind === 'look') {
+			t.is(button.gears[0].controllerName, 'control-state');
+			t.true(button.gears[0].tween);
+			t.true(Math.abs(button.gears[0].tweenDuration - 0.2) < 1e-6);
+			t.deepEqual(button.gears[0].states.map((state) => state.pageId), ['idle', 'active']);
+			t.deepEqual(button.gears[0].defaultValue, { alpha: 1, rotation: 0, grayed: false, touchable: true });
+		}
+		t.is(button.src, 'button-src');
+		t.is(button.packageId, 'pkg-controls');
+		t.is(button.title, 'Play');
+		t.is(button.icon, 'play-icon');
+		t.is(button.selectedTitle, 'Playing');
+		t.is(button.selectedIcon, 'pause-icon');
+		t.is(button.titleColor, '#112233');
+		t.is(button.titleFontSize, 14);
+		t.is(button.sound, 'click');
+		t.true(Math.abs(button.soundVolumeScale - 0.5) < 1e-6);
+		t.is(button.mode, 2);
+		t.is(button.downEffect, 1);
+		t.true(Math.abs(button.downEffectValue - 0.25) < 1e-6);
+	}
+
+	const label = nodes.get('label-node');
+	if (label?.kind === 'label') {
+		t.is(label.src, 'label-src');
+		t.is(label.packageId, 'pkg-controls');
+		t.is(label.title, 'Name');
+		t.is(label.icon, 'label-icon');
+		t.is(label.titleColor, '#445566');
+		t.is(label.titleFontSize, 16);
+		t.is(label.sound, 'label-sound');
+		t.true(Math.abs(label.soundVolumeScale - 0.75) < 1e-6);
+	}
+
+	const combo = nodes.get('combo-node');
+	if (combo?.kind === 'comboBox') {
+		t.is(combo.src, 'combo-src');
+		t.is(combo.packageId, 'pkg-controls');
+		t.is(combo.title, 'Two');
+		t.is(combo.icon, 'combo-icon');
+		t.is(combo.titleColor, '#778899');
+		t.is(combo.titleFontSize, 12);
+		t.deepEqual(combo.items, ['One', 'Two']);
+		t.deepEqual(combo.icons, ['one-icon', 'two-icon']);
+		t.deepEqual(combo.values, ['1', '2']);
+		t.is(combo.selectedIndex, 1);
+		t.is(combo.visibleItemCount, 8);
+		t.is(combo.popupDirection, 2);
+		t.is(combo.sound, 'combo-sound');
+		t.true(Math.abs(combo.soundVolumeScale - 0.9) < 1e-6);
+	}
+
+	const progress = nodes.get('progress-node');
+	if (progress?.kind === 'progressBar') {
+		t.is(progress.src, 'progress-src');
+		t.is(progress.packageId, 'pkg-controls');
+		t.is(progress.titleType, 3);
+		t.is(progress.min, 10);
+		t.is(progress.max, 200);
+		t.is(progress.value, 120);
+		t.true(progress.reverse);
+		t.is(progress.sound, 'progress-sound');
+		t.true(Math.abs(progress.soundVolumeScale - 0.6) < 1e-6);
+	}
+
+	const slider = nodes.get('slider-node');
+	if (slider?.kind === 'slider') {
+		t.is(slider.titleType, 2);
+		t.is(slider.min, 1);
+		t.is(slider.max, 10);
+		t.is(slider.value, 7);
+		t.true(slider.wholeNumbers);
+	}
+
+	const scrollBar = nodes.get('scroll-node');
+	if (scrollBar?.kind === 'scrollBar') {
+		t.is(scrollBar.src, 'scroll-src');
+		t.true(scrollBar.fixedGripSize);
+	}
 });
 
 test('liftDocumentToUamProject preserves component reference display nodes', (t) => {
