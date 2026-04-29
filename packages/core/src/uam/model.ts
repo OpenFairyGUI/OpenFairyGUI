@@ -297,6 +297,12 @@ export interface UamValidationIssue {
 
 export const UAM_SUPPORTED_MATERIALIZATION_SCOPE = {
 	resourceKinds: ['image', 'component'] as const,
+	nodeKinds: ['image', 'text', 'component'] as const,
+	gearKinds: ['look'] as const,
+} as const;
+
+export const UAM_SUPPORTED_TRANSACTION_SCOPE = {
+	resourceKinds: ['image', 'component'] as const,
 	nodeKinds: ['image', 'text'] as const,
 	gearKinds: ['look'] as const,
 } as const;

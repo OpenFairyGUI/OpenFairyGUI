@@ -44,6 +44,7 @@ export {
 	type UamXYGearBinding,
 	type UamXYGearValue,
 	UAM_SUPPORTED_MATERIALIZATION_SCOPE,
+	UAM_SUPPORTED_TRANSACTION_SCOPE,
 } from './model.js';
 export { normalizeUamProject } from './normalize.js';
 export { assertValidUamProject, validateUamProject } from './validate.js';

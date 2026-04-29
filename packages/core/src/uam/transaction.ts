@@ -20,7 +20,7 @@ import type {
 	UamTextNode,
 	UamValidationIssue,
 } from './model.js';
-import { UAM_SUPPORTED_MATERIALIZATION_SCOPE } from './model.js';
+import { UAM_SUPPORTED_TRANSACTION_SCOPE } from './model.js';
 import { normalizeUamProject } from './normalize.js';
 import { validateUamProject } from './validate.js';
 
@@ -293,7 +293,7 @@ function validateSupportedDisplayNode(
 	path: string,
 	issues: UamTransactionSupportIssue[],
 ): void {
-	if (!UAM_SUPPORTED_MATERIALIZATION_SCOPE.nodeKinds.includes(node.kind as never)) {
+	if (!UAM_SUPPORTED_TRANSACTION_SCOPE.nodeKinds.includes(node.kind as never)) {
 		pushSupportIssue(issues, `${path}.kind`, `Phase A does not support display node kind "${node.kind}".`);
 	}
 
@@ -311,7 +311,7 @@ function validateSupportedDisplayNode(
 
 	const lookGearControllers = new Set<string>();
 	for (const [gearIndex, gear] of node.gears.entries()) {
-		if (!UAM_SUPPORTED_MATERIALIZATION_SCOPE.gearKinds.includes(gear.kind as never)) {
+		if (!UAM_SUPPORTED_TRANSACTION_SCOPE.gearKinds.includes(gear.kind as never)) {
 			pushSupportIssue(issues, `${path}.gears[${gearIndex}]`, `Phase A does not support gear kind "${gear.kind}".`);
 			continue;
 		}
@@ -331,7 +331,7 @@ function validateBaselineSupport(project: UamProject, issues: UamTransactionSupp
 	for (const [packageIndex, pkg] of project.packages.entries()) {
 		for (const [resourceIndex, resource] of pkg.resources.entries()) {
 			const resourcePath = `packages[${packageIndex}].resources[${resourceIndex}]`;
-			if (resource.kind !== 'component' && !UAM_SUPPORTED_MATERIALIZATION_SCOPE.resourceKinds.includes(resource.kind as never)) {
+			if (resource.kind !== 'component' && !UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds.includes(resource.kind as never)) {
 				pushSupportIssue(issues, `${resourcePath}.kind`, `Phase A does not support resource kind "${resource.kind}".`);
 				continue;
 			}

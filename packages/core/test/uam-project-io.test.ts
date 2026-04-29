@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {
 	assertValidUamProject,
+	Document,
 	normalizeUamProject,
 	type UamProject,
 } from '../src/index.js';
@@ -236,4 +237,55 @@ test('Gate A proves one engineering-scale UAM-owned project read/write path', as
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
+});
+
+test('liftDocumentToUamProject reports unsupported real display node types explicitly', (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('RealProjectShapes').setId('pkg-real');
+	const component = doc.createComponent('ListHost')
+		.setId('cmp-list-host')
+		.setPath('/')
+		.setExported(true)
+		.setSize(320, 180);
+	const list = doc.createGList('items').setId('list-node');
+	component.addChild(list);
+	pkg.addResource(component);
+
+	const error = t.throws(() => liftDocumentToUamProject(doc), { instanceOf: Error });
+	t.is(error?.message, 'UAM lift does not support display node type "GList" in Gate A.');
+});
+
+test('liftDocumentToUamProject preserves component reference display nodes', (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('ComponentRefs').setId('pkg-component-refs');
+	const childComponent = doc.createComponent('Child')
+		.setId('child-component')
+		.setPath('/')
+		.setExported(true)
+		.setSize(40, 30);
+	const hostComponent = doc.createComponent('Host')
+		.setId('host-component')
+		.setPath('/')
+		.setExported(true)
+		.setSize(320, 180);
+	const childRef = doc.createGComponent('childRef')
+		.setId('child-ref-node')
+		.setXY(12, 18)
+		.setSize(40, 30)
+		.setSrc('child-component')
+		.setPackageId('pkg-component-refs')
+		.setCustomData('ref-data');
+	hostComponent.addChild(childRef);
+	pkg.addResource(childComponent);
+	pkg.addResource(hostComponent);
+
+	const lifted = liftDocumentToUamProject(doc);
+	const host = lifted.packages[0]?.resources.find((resource) => resource.id === 'host-component');
+	t.is(host?.kind, 'component');
+	if (host?.kind !== 'component') return;
+	const node = host.component.displayList[0];
+	t.is(node?.kind, 'component');
+	if (node?.kind !== 'component') return;
+	t.deepEqual(node.resource, { packageId: 'pkg-component-refs', resourceId: 'child-component' });
+	t.is(node.customData, 'ref-data');
 });

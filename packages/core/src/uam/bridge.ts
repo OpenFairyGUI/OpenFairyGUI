@@ -1,5 +1,5 @@
 import { bindLookGear, composeController, composeTransition } from '../authoring.js';
-import { GearType } from '../constants.js';
+import { GearType, PropertyType } from '../constants.js';
 import { Document } from '../document.js';
 import type { PlatformIO } from '../io/platform-io.js';
 import type { ProjectSettings } from '../types/settings.js';
@@ -357,8 +357,10 @@ function liftGears(gears: ReturnType<ReturnType<Document['createGImage']>['listG
 	});
 }
 
-function liftDisplayNode(child: ReturnType<Document['createGImage']> | ReturnType<Document['createGTextField']> | ReturnType<Document['createGComponent']>): UamDisplayNode {
-	if (child.propertyType === 'GImage') {
+function liftDisplayNode(
+	child: ReturnType<Document['createGImage']> | ReturnType<Document['createGTextField']> | ReturnType<Document['createGComponent']>,
+): UamDisplayNode {
+	if (child.propertyType === PropertyType.G_IMAGE) {
 		const image = child as ReturnType<Document['createGImage']>;
 		return {
 			kind: 'image',
@@ -377,7 +379,7 @@ function liftDisplayNode(child: ReturnType<Document['createGImage']> | ReturnTyp
 			resource: { resourceId: image.getSrc() },
 		};
 	}
-	if (child.propertyType === 'GTextField') {
+	if (child.propertyType === PropertyType.G_TEXT_FIELD) {
 		const text = child as ReturnType<Document['createGTextField']>;
 		return {
 			kind: 'text',
@@ -399,23 +401,27 @@ function liftDisplayNode(child: ReturnType<Document['createGImage']> | ReturnTyp
 			color: text.getColor(),
 		};
 	}
-	const component = child as ReturnType<Document['createGComponent']>;
-	return {
-		kind: 'component',
-		id: component.getId(),
-		name: component.getName(),
-		position: { x: component.getX(), y: component.getY() },
-		size: { width: component.getWidth(), height: component.getHeight() },
-		visible: component.getVisible(),
-		touchable: component.getTouchable(),
-		grayed: component.getGrayed(),
-		alpha: component.getAlpha(),
-		rotation: component.getRotation(),
-		customData: component.getCustomData(),
-		relations: liftRelations(component.getRelations()),
-		gears: liftGears(component.listGears()),
-		resource: { packageId: component.getPackageId(), resourceId: component.getSrc() },
-	};
+	if (child.propertyType === PropertyType.G_COMPONENT) {
+		const component = child as ReturnType<Document['createGComponent']>;
+		return {
+			kind: 'component',
+			id: component.getId(),
+			name: component.getName(),
+			position: { x: component.getX(), y: component.getY() },
+			size: { width: component.getWidth(), height: component.getHeight() },
+			visible: component.getVisible(),
+			touchable: component.getTouchable(),
+			grayed: component.getGrayed(),
+			alpha: component.getAlpha(),
+			rotation: component.getRotation(),
+			customData: component.getCustomData(),
+			relations: liftRelations(component.getRelations()),
+			gears: liftGears(component.listGears()),
+			resource: { packageId: component.getPackageId(), resourceId: component.getSrc() },
+		};
+	}
+
+	throw new Error(`UAM lift does not support display node type "${child.propertyType}" in Gate A.`);
 }
 
 function liftControllers(component: ReturnType<Document['createComponent']>): UamControllerModel[] {
