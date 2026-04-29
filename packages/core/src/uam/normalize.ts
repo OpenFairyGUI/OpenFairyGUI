@@ -13,25 +13,36 @@ import type {
 	UamDisplay2GearBinding,
 	UamDisplayGearBinding,
 	UamDisplayNode,
+	UamEdgeInsets,
 	UamFontSizeGearBinding,
 	UamFontSizeGearValue,
 	UamGearBinding,
 	UamGearPageState,
+	UamGraphNode,
+	UamGroupNode,
 	UamIconGearBinding,
 	UamIconGearValue,
 	UamImageNode,
+	UamListItemData,
+	UamListNode,
+	UamLoader3DNode,
+	UamLoaderNode,
 	UamLookGearBinding,
 	UamLookGearValue,
+	UamMovieClipNode,
 	UamPackage,
 	UamPackagePublish,
 	UamProject,
 	UamRelation,
 	UamResource,
+	UamRichTextNode,
 	UamSizeGearBinding,
 	UamSizeGearValue,
 	UamTextGearBinding,
 	UamTextGearValue,
+	UamTextInputNode,
 	UamTextNode,
+	UamTreeNode,
 	UamTransitionItem,
 	UamTransitionModel,
 	UamXYGearBinding,
@@ -55,6 +66,36 @@ function normalizeRelations(relations: UamRelation[] | undefined): UamRelation[]
 		targetNodeId: relation.targetNodeId,
 		type: relation.type,
 		usePercent: relation.usePercent ?? false,
+	}));
+}
+
+function normalizePoint(point: { x?: number; y?: number } | undefined): { x: number; y: number } {
+	return {
+		x: point?.x ?? 0,
+		y: point?.y ?? 0,
+	};
+}
+
+function normalizeEdgeInsets(edgeInsets: Partial<UamEdgeInsets> | undefined): UamEdgeInsets {
+	return {
+		top: edgeInsets?.top ?? 0,
+		bottom: edgeInsets?.bottom ?? 0,
+		left: edgeInsets?.left ?? 0,
+		right: edgeInsets?.right ?? 0,
+	};
+}
+
+function normalizeListItems(items: UamListItemData[] | undefined): UamListItemData[] {
+	return (items ?? []).map((item) => ({
+		title: item.title ?? null,
+		icon: item.icon ?? null,
+		url: item.url ?? null,
+		name: item.name ?? null,
+		selectedTitle: item.selectedTitle ?? null,
+		selectedIcon: item.selectedIcon ?? null,
+		level: item.level ?? 0,
+		isFolder: item.isFolder ?? null,
+		controllers: item.controllers ?? null,
 	}));
 }
 
@@ -276,10 +317,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 	const base = {
 		id: node.id,
 		name: node.name ?? '',
-		position: {
-			x: node.position?.x ?? 0,
-			y: node.position?.y ?? 0,
-		},
+		position: normalizePoint(node.position),
 		size: {
 			width: node.size?.width ?? 0,
 			height: node.size?.height ?? 0,
@@ -313,6 +351,31 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				fontSize: node.fontSize ?? 12,
 				color: node.color ?? '#000000',
 			} satisfies UamTextNode;
+		case 'richText':
+			return {
+				kind: 'richText',
+				...base,
+				text: node.text ?? '',
+				font: node.font ?? '',
+				fontSize: node.fontSize ?? 12,
+				color: node.color ?? '#000000',
+			} satisfies UamRichTextNode;
+		case 'textInput': {
+			const input = node as UamTextInputNode;
+			return {
+				kind: 'textInput',
+				...base,
+				text: input.text ?? '',
+				font: input.font ?? '',
+				fontSize: input.fontSize ?? 12,
+				color: input.color ?? '#000000',
+				promptText: input.promptText ?? '',
+				maxLength: input.maxLength ?? 0,
+				restrict: input.restrict ?? '',
+				password: input.password ?? false,
+				keyboardType: input.keyboardType ?? 0,
+			} satisfies UamTextInputNode;
+		}
 		case 'component':
 			return {
 				kind: 'component',
@@ -322,6 +385,157 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 					resourceId: node.resource.resourceId,
 				},
 			} satisfies UamComponentRefNode;
+		case 'list': {
+			const list = node as UamListNode;
+			return {
+				kind: 'list',
+				...base,
+				group: list.group ?? '',
+				layout: list.layout ?? 0,
+				align: list.align ?? 0,
+				vAlign: list.vAlign ?? 0,
+				lineGap: list.lineGap ?? 0,
+				columnGap: list.columnGap ?? 0,
+				lineCount: list.lineCount ?? 0,
+				columnCount: list.columnCount ?? 0,
+				selectionMode: list.selectionMode ?? 0,
+				defaultItem: list.defaultItem ?? '',
+				autoResizeItem: list.autoResizeItem ?? true,
+				childrenRenderOrder: list.childrenRenderOrder ?? 0,
+				apexIndex: list.apexIndex ?? 0,
+				src: list.src ?? '',
+				overflow: list.overflow ?? 0,
+				scrollType: list.scrollType ?? 1,
+				scrollBarFlags: list.scrollBarFlags ?? 0,
+				scrollBarMargin: normalizeEdgeInsets(list.scrollBarMargin),
+				vtScrollBarRes: list.vtScrollBarRes ?? '',
+				hzScrollBarRes: list.hzScrollBarRes ?? '',
+				headerRes: list.headerRes ?? '',
+				footerRes: list.footerRes ?? '',
+				margin: normalizeEdgeInsets(list.margin),
+				clipSoftness: normalizePoint(list.clipSoftness),
+				scrollItemToViewOnClick: list.scrollItemToViewOnClick ?? true,
+				foldInvisibleItems: list.foldInvisibleItems ?? false,
+				listItems: normalizeListItems(list.listItems),
+				pageController: list.pageController ?? '',
+				controllerOverrides: list.controllerOverrides ?? '',
+				selectionController: list.selectionController ?? '',
+			} satisfies UamListNode;
+		}
+		case 'tree': {
+			const tree = node as UamTreeNode;
+			const listBase = normalizeDisplayNode({ ...tree, kind: 'list' }) as UamListNode;
+			return {
+				...listBase,
+				kind: 'tree',
+				treeView: tree.treeView ?? true,
+				indent: tree.indent ?? 30,
+				clickToExpand: tree.clickToExpand ?? 0,
+			} satisfies UamTreeNode;
+		}
+		case 'graph': {
+			const graph = node as UamGraphNode;
+			return {
+				kind: 'graph',
+				...base,
+				locked: graph.locked ?? false,
+				minWidth: graph.minWidth ?? 0,
+				maxWidth: graph.maxWidth ?? 0,
+				minHeight: graph.minHeight ?? 0,
+				maxHeight: graph.maxHeight ?? 0,
+				pivot: normalizePoint(graph.pivot),
+				pivotAsAnchor: graph.pivotAsAnchor ?? false,
+				group: graph.group ?? '',
+				skew: normalizePoint(graph.skew),
+				graphType: graph.graphType ?? 0,
+				lineSize: graph.lineSize ?? 1,
+				lineColor: graph.lineColor ?? '#000000',
+				fillColor: graph.fillColor ?? '#FFFFFF',
+				cornerRadius: graph.cornerRadius ? [...graph.cornerRadius] as [number, number, number, number] : null,
+				points: graph.points ? [...graph.points] : null,
+				sides: graph.sides ?? 0,
+				startAngle: graph.startAngle ?? 0,
+				distances: graph.distances ? [...graph.distances] : null,
+			} satisfies UamGraphNode;
+		}
+		case 'group': {
+			const group = node as UamGroupNode;
+			return {
+				kind: 'group',
+				...base,
+				locked: group.locked ?? false,
+				group: group.group ?? '',
+				layout: group.layout ?? 0,
+				lineGap: group.lineGap ?? 0,
+				columnGap: group.columnGap ?? 0,
+				advanced: group.advanced ?? false,
+				excludeInvisibles: group.excludeInvisibles ?? false,
+				autoSizeDisabled: group.autoSizeDisabled ?? false,
+				mainGridIndex: group.mainGridIndex ?? -1,
+			} satisfies UamGroupNode;
+		}
+		case 'loader': {
+			const loader = node as UamLoaderNode;
+			return {
+				kind: 'loader',
+				...base,
+				pivot: normalizePoint(loader.pivot),
+				scale: { x: loader.scale?.x ?? 1, y: loader.scale?.y ?? 1 },
+				url: loader.url ?? '',
+				filter: loader.filter ?? '',
+				filterData: loader.filterData ?? '',
+				fill: loader.fill ?? 0,
+				shrinkOnly: loader.shrinkOnly ?? false,
+				autoSize: loader.autoSize ?? false,
+				useResize: loader.useResize ?? false,
+				align: loader.align ?? 0,
+				vAlign: loader.vAlign ?? 0,
+				frame: loader.frame ?? 0,
+				playing: loader.playing ?? true,
+				color: loader.color ?? '#FFFFFF',
+				fillMethod: loader.fillMethod ?? 0,
+				fillOrigin: loader.fillOrigin ?? 0,
+				fillClockwise: loader.fillClockwise ?? true,
+				fillAmount: loader.fillAmount ?? 100,
+				clearOnPublish: loader.clearOnPublish ?? false,
+			} satisfies UamLoaderNode;
+		}
+		case 'loader3D': {
+			const loader = node as UamLoader3DNode;
+			return {
+				kind: 'loader3D',
+				...base,
+				url: loader.url ?? '',
+				fill: loader.fill ?? 0,
+				shrinkOnly: loader.shrinkOnly ?? false,
+				autoSize: loader.autoSize ?? false,
+				align: loader.align ?? 0,
+				vAlign: loader.vAlign ?? 0,
+				animationName: loader.animationName ?? '',
+				skinName: loader.skinName ?? '',
+				playing: loader.playing ?? true,
+				frame: loader.frame ?? 0,
+				loop: loader.loop ?? true,
+				color: loader.color ?? '#FFFFFF',
+			} satisfies UamLoader3DNode;
+		}
+		case 'movieClip': {
+			const movieClip = node as UamMovieClipNode;
+			return {
+				kind: 'movieClip',
+				...base,
+				resource: {
+					packageId: movieClip.resource.packageId,
+					resourceId: movieClip.resource.resourceId,
+				},
+				fileName: movieClip.fileName ?? '',
+				filter: movieClip.filter ?? '',
+				filterData: movieClip.filterData ?? '',
+				playing: movieClip.playing ?? true,
+				frame: movieClip.frame ?? 0,
+				color: movieClip.color ?? '#FFFFFF',
+			} satisfies UamMovieClipNode;
+		}
 	}
 }
 

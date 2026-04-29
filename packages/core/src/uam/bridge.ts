@@ -2,20 +2,41 @@ import { bindLookGear, composeController, composeTransition } from '../authoring
 import { GearType, PropertyType } from '../constants.js';
 import { Document } from '../document.js';
 import type { PlatformIO } from '../io/platform-io.js';
+import type { GObject } from '../properties/g-object.js';
 import type { ProjectSettings } from '../types/settings.js';
 import type {
+	UamAnimationGearBinding,
 	UamAssetResource,
+	UamColorGearBinding,
 	UamComponentRefNode,
 	UamComponentModel,
 	UamComponentResource,
 	UamControllerModel,
+	UamDisplay2GearBinding,
+	UamDisplayGearBinding,
 	UamDisplayNode,
+	UamEdgeInsets,
+	UamFontSizeGearBinding,
 	UamGearBinding,
+	UamGraphNode,
+	UamGroupNode,
+	UamIconGearBinding,
 	UamImageNode,
+	UamListItemData,
+	UamListNode,
+	UamLoader3DNode,
+	UamLoaderNode,
 	UamLookGearBinding,
+	UamMovieClipNode,
 	UamProject,
 	UamRelation,
+	UamRichTextNode,
+	UamSizeGearBinding,
+	UamTextGearBinding,
+	UamTextInputNode,
 	UamTextNode,
+	UamTreeNode,
+	UamXYGearBinding,
 } from './model.js';
 import { UAM_SUPPORTED_MATERIALIZATION_SCOPE } from './model.js';
 import { assertValidUamProject } from './validate.js';
@@ -62,25 +83,113 @@ function liftRelations(relations: Array<{ target: string; type: number; usePerce
 	}));
 }
 
-function materializeAssetResource(doc: Document, resource: UamAssetResource): ReturnType<Document['createImageResource']> {
-	ensureSupportedResourceKind(resource.kind);
-	const image = doc.createImageResource(resource.name);
-	image
+function materializeEdgeInsets(edgeInsets: UamEdgeInsets): [number, number, number, number] {
+	return [edgeInsets.top, edgeInsets.bottom, edgeInsets.left, edgeInsets.right];
+}
+
+function liftEdgeInsets(edgeInsets: UamEdgeInsets): UamEdgeInsets {
+	return {
+		top: edgeInsets.top,
+		bottom: edgeInsets.bottom,
+		left: edgeInsets.left,
+		right: edgeInsets.right,
+	};
+}
+
+function cloneListItems(items: UamListItemData[]): UamListItemData[] {
+	return items.map((item) => ({ ...item }));
+}
+
+type MaterializedAssetBase = {
+	setId(id: string): MaterializedAssetBase;
+	setPath(path: string): MaterializedAssetBase;
+	setBranch(branch: string): MaterializedAssetBase;
+	setBranchItemIds(ids: string[]): MaterializedAssetBase;
+	setExported(exported: boolean): MaterializedAssetBase;
+};
+
+function materializeAssetBase<TResource extends MaterializedAssetBase>(asset: TResource, resource: UamAssetResource): TResource {
+	asset
 		.setId(resource.id)
 		.setPath(resource.path)
 		.setBranch(resource.branch)
 		.setBranchItemIds(resource.branchItemIds)
-		.setExported(resource.exported)
+		.setExported(resource.exported);
+	return asset;
+}
+
+function metadataNumber(resource: UamAssetResource, key: string, fallback: number): number {
+	const value = resource.metadata?.[key];
+	return typeof value === 'number' ? value : fallback;
+}
+
+function metadataBoolean(resource: UamAssetResource, key: string, fallback: boolean): boolean {
+	const value = resource.metadata?.[key];
+	return typeof value === 'boolean' ? value : fallback;
+}
+
+function metadataStringArray(resource: UamAssetResource, key: string): string[] {
+	const value = resource.metadata?.[key];
+	return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
+}
+
+function materializeAssetResource(doc: Document, resource: UamAssetResource) {
+	ensureSupportedResourceKind(resource.kind);
+	if (resource.kind === 'image') {
+		const image = materializeAssetBase(doc.createImageResource(resource.name), resource)
+			.setWidth(resource.dimensions?.width ?? 0)
+			.setHeight(resource.dimensions?.height ?? 0);
+		if (resource.fileName) image.setFileName(resource.fileName);
+		return image;
+	}
+	if (resource.kind === 'movieClip') {
+		const movieClip = materializeAssetBase(doc.createMovieClipResource(resource.name), resource)
+			.setWidth(resource.dimensions?.width ?? 0)
+			.setHeight(resource.dimensions?.height ?? 0)
+			.setInterval(metadataNumber(resource, 'interval', 0))
+			.setSwing(metadataBoolean(resource, 'swing', false))
+			.setRepeatDelay(metadataNumber(resource, 'repeatDelay', 0))
+			.setSmoothing(metadataBoolean(resource, 'smoothing', true));
+		if (resource.fileName) movieClip.setFileName(resource.fileName);
+		return movieClip;
+	}
+	if (resource.kind === 'sound') {
+		return materializeAssetBase(doc.createSoundResource(resource.name), resource).setFile(resource.file ?? '');
+	}
+	if (resource.kind === 'misc') {
+		return materializeAssetBase(doc.createMiscResource(resource.name), resource).setFile(resource.file ?? '');
+	}
+	if (resource.kind === 'font') {
+		const font = materializeAssetBase(doc.createFontResource(resource.name), resource);
+		if (resource.fileName) font.setFileName(resource.fileName);
+		return font
+			.setTextureId(`${resource.metadata?.textureId ?? ''}`)
+			.setRenderMode(`${resource.metadata?.renderMode ?? ''}`)
+			.setSamplePointSize(metadataNumber(resource, 'samplePointSize', 0))
+			.setTtf(metadataBoolean(resource, 'ttf', false))
+			.setTint(metadataBoolean(resource, 'tint', false))
+			.setAutoScale(metadataBoolean(resource, 'autoScale', false))
+			.setHasChannel(metadataBoolean(resource, 'hasChannel', false))
+			.setFontSize(metadataNumber(resource, 'fontSize', 0))
+			.setXAdvance(metadataNumber(resource, 'xAdvance', 0))
+			.setLineHeight(metadataNumber(resource, 'lineHeight', 0));
+	}
+	const skeleton = resource.kind === 'spine'
+		? doc.createSpineResource(resource.name)
+		: doc.createDragonBonesResource(resource.name);
+	return materializeAssetBase(skeleton, resource)
+		.setFile(resource.file ?? '')
 		.setWidth(resource.dimensions?.width ?? 0)
-		.setHeight(resource.dimensions?.height ?? 0);
-	if (resource.fileName) image.setFileName(resource.fileName);
-	return image;
+		.setHeight(resource.dimensions?.height ?? 0)
+		.setRequireIds(metadataStringArray(resource, 'requireIds'))
+		.setAtlasNames(metadataStringArray(resource, 'atlasNames'))
+		.setAnchor(metadataNumber(resource, 'anchorX', 0), metadataNumber(resource, 'anchorY', 0));
 }
 
 function materializeDisplayNode(
 	doc: Document,
 	node: UamDisplayNode,
-): ReturnType<Document['createGImage']> | ReturnType<Document['createGTextField']> | ReturnType<Document['createGComponent']> {
+): GObject {
 	ensureSupportedNodeKind(node.kind);
 
 	if (node.kind === 'image') {
@@ -100,9 +209,14 @@ function materializeDisplayNode(
 		return image;
 	}
 
-	if (node.kind === 'text') {
-		const textNode = node as UamTextNode;
-		const text = doc.createGTextField(node.name)
+	if (node.kind === 'text' || node.kind === 'richText' || node.kind === 'textInput') {
+		const textNode = node as UamTextNode | UamRichTextNode | UamTextInputNode;
+		const text = node.kind === 'richText'
+			? doc.createGRichTextField(node.name)
+			: node.kind === 'textInput'
+				? doc.createGTextInput(node.name)
+				: doc.createGTextField(node.name);
+		text
 			.setId(node.id)
 			.setXY(node.position.x, node.position.y)
 			.setSize(node.size.width, node.size.height)
@@ -116,12 +230,209 @@ function materializeDisplayNode(
 			.setFont(textNode.font)
 			.setFontSize(textNode.fontSize)
 			.setColor(textNode.color);
+		if (node.kind === 'textInput') {
+			const inputNode = node as UamTextInputNode;
+			(text as ReturnType<Document['createGTextInput']>)
+				.setPromptText(inputNode.promptText)
+				.setMaxLength(inputNode.maxLength)
+				.setRestrict(inputNode.restrict)
+				.setPassword(inputNode.password)
+				.setKeyboardType(inputNode.keyboardType);
+		}
 		text.setRelations(materializeRelations(node.relations));
 		return text;
 	}
 
-	const componentNode = node as UamComponentRefNode;
-	const component = doc.createGComponent(node.name)
+	if (node.kind === 'component') {
+		const componentNode = node as UamComponentRefNode;
+		const component = doc.createGComponent(node.name)
+			.setId(node.id)
+			.setXY(node.position.x, node.position.y)
+			.setSize(node.size.width, node.size.height)
+			.setVisible(node.visible)
+			.setTouchable(node.touchable)
+			.setGrayed(node.grayed)
+			.setAlpha(node.alpha)
+			.setRotation(node.rotation)
+			.setCustomData(node.customData)
+			.setSrc(componentNode.resource.resourceId)
+			.setPackageId(componentNode.resource.packageId ?? '');
+		component.setRelations(materializeRelations(node.relations));
+		return component;
+	}
+
+	if (node.kind === 'list' || node.kind === 'tree') {
+		const listNode = node as UamListNode | UamTreeNode;
+		const list = node.kind === 'tree' ? doc.createGTree(node.name) : doc.createGList(node.name);
+		list
+			.setId(node.id)
+			.setXY(node.position.x, node.position.y)
+			.setSize(node.size.width, node.size.height)
+			.setVisible(node.visible)
+			.setTouchable(node.touchable)
+			.setGrayed(node.grayed)
+			.setAlpha(node.alpha)
+			.setRotation(node.rotation)
+			.setGroup(listNode.group)
+			.setLayout(listNode.layout)
+			.setAlign(listNode.align)
+			.setVAlign(listNode.vAlign)
+			.setLineGap(listNode.lineGap)
+			.setColumnGap(listNode.columnGap)
+			.setLineCount(listNode.lineCount)
+			.setColumnCount(listNode.columnCount)
+			.setSelectionMode(listNode.selectionMode)
+			.setDefaultItem(listNode.defaultItem)
+			.setAutoResizeItem(listNode.autoResizeItem)
+			.setChildrenRenderOrder(listNode.childrenRenderOrder)
+			.setApexIndex(listNode.apexIndex)
+			.setSrc(listNode.src)
+			.setOverflow(listNode.overflow)
+			.setScrollType(listNode.scrollType)
+			.setScrollBarFlags(listNode.scrollBarFlags)
+			.setScrollBarMargin(materializeEdgeInsets(listNode.scrollBarMargin))
+			.setVtScrollBarRes(listNode.vtScrollBarRes)
+			.setHzScrollBarRes(listNode.hzScrollBarRes)
+			.setHeaderRes(listNode.headerRes)
+			.setFooterRes(listNode.footerRes)
+			.setMargin(materializeEdgeInsets(listNode.margin))
+			.setClipSoftness(listNode.clipSoftness)
+			.setScrollItemToViewOnClick(listNode.scrollItemToViewOnClick)
+			.setFoldInvisibleItems(listNode.foldInvisibleItems)
+			.setListItems(cloneListItems(listNode.listItems))
+			.setPageController(listNode.pageController)
+			.setControllerOverrides(listNode.controllerOverrides)
+			.setSelectionController(listNode.selectionController);
+		if (node.kind === 'tree') {
+			const treeNode = node as UamTreeNode;
+			list
+				.setTreeView(treeNode.treeView)
+				.setIndent(treeNode.indent)
+				.setClickToExpand(treeNode.clickToExpand);
+		}
+		list.setRelations(materializeRelations(node.relations));
+		return list;
+	}
+
+	if (node.kind === 'graph') {
+		const graphNode = node as UamGraphNode;
+		const graph = doc.createGGraph(node.name)
+			.setId(node.id)
+			.setXY(node.position.x, node.position.y)
+			.setSize(node.size.width, node.size.height)
+			.setLocked(graphNode.locked)
+			.setMinWidth(graphNode.minWidth)
+			.setMaxWidth(graphNode.maxWidth)
+			.setMinHeight(graphNode.minHeight)
+			.setMaxHeight(graphNode.maxHeight)
+			.setPivot(graphNode.pivot.x, graphNode.pivot.y, graphNode.pivotAsAnchor)
+			.setGroup(graphNode.group)
+			.setSkew(graphNode.skew.x, graphNode.skew.y)
+			.setVisible(node.visible)
+			.setTouchable(node.touchable)
+			.setGrayed(node.grayed)
+			.setAlpha(node.alpha)
+			.setRotation(node.rotation)
+			.setGraphType(graphNode.graphType)
+			.setLineSize(graphNode.lineSize)
+			.setLineColor(graphNode.lineColor)
+			.setFillColor(graphNode.fillColor)
+			.setCornerRadius(graphNode.cornerRadius)
+			.setPoints(graphNode.points)
+			.setSides(graphNode.sides)
+			.setStartAngle(graphNode.startAngle)
+			.setDistances(graphNode.distances);
+		graph.setRelations(materializeRelations(node.relations));
+		return graph;
+	}
+
+	if (node.kind === 'group') {
+		const groupNode = node as UamGroupNode;
+		const group = doc.createGGroup(node.name)
+			.setId(node.id)
+			.setXY(node.position.x, node.position.y)
+			.setSize(node.size.width, node.size.height)
+			.setLocked(groupNode.locked)
+			.setVisible(node.visible)
+			.setTouchable(node.touchable)
+			.setGrayed(node.grayed)
+			.setAlpha(node.alpha)
+			.setRotation(node.rotation)
+			.setGroup(groupNode.group)
+			.setLayout(groupNode.layout)
+			.setLineGap(groupNode.lineGap)
+			.setColumnGap(groupNode.columnGap)
+			.setAdvanced(groupNode.advanced)
+			.setExcludeInvisibles(groupNode.excludeInvisibles)
+			.setAutoSizeDisabled(groupNode.autoSizeDisabled)
+			.setMainGridIndex(groupNode.mainGridIndex);
+		group.setRelations(materializeRelations(node.relations));
+		return group;
+	}
+
+	if (node.kind === 'loader') {
+		const loaderNode = node as UamLoaderNode;
+		const loader = doc.createGLoader(node.name)
+			.setId(node.id)
+			.setXY(node.position.x, node.position.y)
+			.setSize(node.size.width, node.size.height)
+			.setPivot(loaderNode.pivot.x, loaderNode.pivot.y)
+			.setScale(loaderNode.scale.x, loaderNode.scale.y)
+			.setVisible(node.visible)
+			.setTouchable(node.touchable)
+			.setGrayed(node.grayed)
+			.setAlpha(node.alpha)
+			.setRotation(node.rotation)
+			.setUrl(loaderNode.url)
+			.setFilter(loaderNode.filter)
+			.setFilterData(loaderNode.filterData)
+			.setFill(loaderNode.fill)
+			.setShrinkOnly(loaderNode.shrinkOnly)
+			.setAutoSize(loaderNode.autoSize)
+			.setUseResize(loaderNode.useResize)
+			.setAlign(loaderNode.align)
+			.setVAlign(loaderNode.vAlign)
+			.setFrame(loaderNode.frame)
+			.setPlaying(loaderNode.playing)
+			.setColor(loaderNode.color)
+			.setFillMethod(loaderNode.fillMethod)
+			.setFillOrigin(loaderNode.fillOrigin)
+			.setFillClockwise(loaderNode.fillClockwise)
+			.setFillAmount(loaderNode.fillAmount)
+			.setClearOnPublish(loaderNode.clearOnPublish);
+		loader.setRelations(materializeRelations(node.relations));
+		return loader;
+	}
+
+	if (node.kind === 'loader3D') {
+		const loaderNode = node as UamLoader3DNode;
+		const loader = doc.createGLoader3D(node.name)
+			.setId(node.id)
+			.setXY(node.position.x, node.position.y)
+			.setSize(node.size.width, node.size.height)
+			.setVisible(node.visible)
+			.setTouchable(node.touchable)
+			.setGrayed(node.grayed)
+			.setAlpha(node.alpha)
+			.setRotation(node.rotation)
+			.setUrl(loaderNode.url)
+			.setFill(loaderNode.fill)
+			.setShrinkOnly(loaderNode.shrinkOnly)
+			.setAutoSize(loaderNode.autoSize)
+			.setAlign(loaderNode.align)
+			.setVAlign(loaderNode.vAlign)
+			.setAnimationName(loaderNode.animationName)
+			.setSkinName(loaderNode.skinName)
+			.setPlaying(loaderNode.playing)
+			.setFrame(loaderNode.frame)
+			.setLoop(loaderNode.loop)
+			.setColor(loaderNode.color);
+		loader.setRelations(materializeRelations(node.relations));
+		return loader;
+	}
+
+	const movieClipNode = node as UamMovieClipNode;
+	const movieClip = doc.createGMovieClip(node.name)
 		.setId(node.id)
 		.setXY(node.position.x, node.position.y)
 		.setSize(node.size.width, node.size.height)
@@ -130,11 +441,16 @@ function materializeDisplayNode(
 		.setGrayed(node.grayed)
 		.setAlpha(node.alpha)
 		.setRotation(node.rotation)
-		.setCustomData(node.customData)
-		.setSrc(componentNode.resource.resourceId)
-		.setPackageId(componentNode.resource.packageId ?? '');
-	component.setRelations(materializeRelations(node.relations));
-	return component;
+		.setSrc(movieClipNode.resource.resourceId)
+		.setPackageId(movieClipNode.resource.packageId ?? '')
+		.setFileName(movieClipNode.fileName)
+		.setFilter(movieClipNode.filter)
+		.setFilterData(movieClipNode.filterData)
+		.setPlaying(movieClipNode.playing)
+		.setFrame(movieClipNode.frame)
+		.setColor(movieClipNode.color);
+	movieClip.setRelations(materializeRelations(node.relations));
+	return movieClip;
 }
 
 function composeControllers(doc: Document, component: ReturnType<Document['createComponent']>, controllers: UamControllerModel[]): void {
@@ -191,10 +507,147 @@ function composeTransitions(doc: Document, component: ReturnType<Document['creat
 	}
 }
 
+type UamGenericValueGearBinding =
+	| UamXYGearBinding
+	| UamSizeGearBinding
+	| UamColorGearBinding
+	| UamAnimationGearBinding
+	| UamTextGearBinding
+	| UamIconGearBinding
+	| UamFontSizeGearBinding;
+
+function parseNumber(raw: string | undefined, fallback: number): number {
+	if (raw === undefined || raw === '') return fallback;
+	const value = Number(raw);
+	return Number.isFinite(value) ? value : fallback;
+}
+
+function parseBool(raw: string | undefined, fallback: boolean): boolean {
+	if (raw === undefined || raw === '') return fallback;
+	const normalized = raw.toLowerCase();
+	if (normalized === '1' || normalized === 'true' || normalized === 'p') return true;
+	if (normalized === '0' || normalized === 'false' || normalized === 's') return false;
+	return fallback;
+}
+
+function parseLookGearValue(value: string | null) {
+	if (!value || value === '-') return null;
+	const parts = value.split(',');
+	return {
+		alpha: parseNumber(parts[0], 1),
+		rotation: parseNumber(parts[1], 0),
+		grayed: parseBool(parts[2], false),
+		touchable: parseBool(parts[3], true),
+	};
+}
+
+function parseGenericGearValue(kind: UamGenericValueGearBinding['kind'], value: string | null) {
+	if (!value || value === '-') return null;
+	const parts = value.split(',');
+	switch (kind) {
+		case 'xy':
+			return { x: parseNumber(parts[0], 0), y: parseNumber(parts[1], 0) };
+		case 'size':
+			return {
+				width: parseNumber(parts[0], 0),
+				height: parseNumber(parts[1], 0),
+				scaleX: parseNumber(parts[2], 1),
+				scaleY: parseNumber(parts[3], 1),
+			};
+		case 'color':
+			return {
+				color: parts[0] || '#ffffff',
+				outlineColor: parts[1] || null,
+			};
+		case 'animation':
+			return {
+				frame: parseNumber(parts[0], 0),
+				playing: parseBool(parts[1], true),
+				animationName: parts[2] ?? '',
+				skinName: parts[3] ?? '',
+			};
+		case 'text':
+			return { text: value };
+		case 'icon':
+			return { icon: value };
+		case 'fontSize':
+			return { fontSize: parseNumber(parts[0], 12) };
+	}
+}
+
+function defaultGenericGearValue(kind: UamGenericValueGearBinding['kind']) {
+	switch (kind) {
+		case 'xy':
+			return { x: 0, y: 0 };
+		case 'size':
+			return { width: 0, height: 0, scaleX: 1, scaleY: 1 };
+		case 'color':
+			return { color: '#ffffff', outlineColor: null };
+		case 'animation':
+			return { frame: 0, playing: true, animationName: '', skinName: '' };
+		case 'text':
+			return { text: '' };
+		case 'icon':
+			return { icon: '' };
+		case 'fontSize':
+			return { fontSize: 12 };
+	}
+}
+
+function genericGearKindToType(kind: UamGenericValueGearBinding['kind']): GearType {
+	switch (kind) {
+		case 'xy':
+			return GearType.XY;
+		case 'size':
+			return GearType.Size;
+		case 'color':
+			return GearType.Color;
+		case 'animation':
+			return GearType.Animation;
+		case 'text':
+			return GearType.Text;
+		case 'icon':
+			return GearType.Icon;
+		case 'fontSize':
+			return GearType.FontSize;
+	}
+}
+
+function serializeGenericGearValue(kind: UamGenericValueGearBinding['kind'], value: unknown): string {
+	if (kind === 'text') return `${(value as { text?: string } | null)?.text ?? ''}`;
+	if (kind === 'icon') return `${(value as { icon?: string } | null)?.icon ?? ''}`;
+	if (!value) return '-';
+	switch (kind) {
+		case 'xy': {
+			const xy = value as { x?: number; y?: number };
+			return `${xy.x ?? 0},${xy.y ?? 0}`;
+		}
+		case 'size': {
+			const size = value as { width?: number; height?: number; scaleX?: number; scaleY?: number };
+			return `${size.width ?? 0},${size.height ?? 0},${size.scaleX ?? 1},${size.scaleY ?? 1}`;
+		}
+		case 'color': {
+			const color = value as { color?: string; outlineColor?: string | null };
+			return `${color.color ?? '#ffffff'},${color.outlineColor ?? ''}`;
+		}
+		case 'animation': {
+			const animation = value as { frame?: number; playing?: boolean; animationName?: string; skinName?: string };
+			return `${animation.frame ?? 0},${animation.playing ?? true ? 'p' : 's'},${animation.animationName ?? ''},${animation.skinName ?? ''}`;
+		}
+		case 'fontSize': {
+			const fontSize = value as { fontSize?: number };
+			return `${fontSize.fontSize ?? 12}`;
+		}
+		case 'text':
+		case 'icon':
+			return '';
+	}
+}
+
 function materializeLookGear(
 	doc: Document,
 	component: ReturnType<Document['createComponent']>,
-	target: ReturnType<Document['createGImage']> | ReturnType<Document['createGTextField']> | ReturnType<Document['createGComponent']>,
+	target: GObject,
 	gear: UamLookGearBinding,
 ): void {
 	const controller = component.getController(gear.controllerName);
@@ -220,15 +673,65 @@ function materializeLookGear(
 	});
 }
 
+function materializeDisplayGear(
+	doc: Document,
+	component: ReturnType<Document['createComponent']>,
+	target: GObject,
+	gear: UamDisplayGearBinding | UamDisplay2GearBinding,
+): void {
+	const controller = component.getController(gear.controllerName);
+	if (!controller) {
+		throw new Error(`UAM materialization expected controller "${gear.controllerName}" to exist on component "${component.getName()}".`);
+	}
+	const materialized = doc.createGear(gear.name)
+		.setGearType(gear.kind === 'display2' ? GearType.Display2 : GearType.Display)
+		.setController(controller)
+		.setPages(gear.visibleOnPageIds.join(','));
+	if (gear.kind === 'display2') materialized.setCondition(gear.condition);
+	target.addGear(materialized);
+}
+
+function materializeGenericValueGear(
+	doc: Document,
+	component: ReturnType<Document['createComponent']>,
+	target: GObject,
+	gear: UamGenericValueGearBinding,
+): void {
+	const controller = component.getController(gear.controllerName);
+	if (!controller) {
+		throw new Error(`UAM materialization expected controller "${gear.controllerName}" to exist on component "${component.getName()}".`);
+	}
+	const materialized = doc.createGear(gear.name)
+		.setGearType(genericGearKindToType(gear.kind))
+		.setController(controller)
+		.setPages(gear.states.map((state) => state.pageId).join(','))
+		.setValues(gear.states.map((state) => serializeGenericGearValue(gear.kind, state.value)).join('|'))
+		.setDefaultValue(serializeGenericGearValue(gear.kind, gear.defaultValue))
+		.setCondition(gear.condition)
+		.setPositionsInPercent(gear.positionsInPercent)
+		.setTween(gear.tween)
+		.setTweenDuration(gear.tweenDuration)
+		.setTweenDelay(gear.tweenDelay)
+		.setEaseType(gear.easeType)
+		.setCustomEasePath(gear.customEasePath);
+	target.addGear(materialized);
+}
+
 function materializeGears(
 	doc: Document,
 	component: ReturnType<Document['createComponent']>,
-	target: ReturnType<Document['createGImage']> | ReturnType<Document['createGTextField']> | ReturnType<Document['createGComponent']>,
+	target: GObject,
 	gears: UamGearBinding[],
 ): void {
 	for (const gear of gears) {
 		ensureSupportedGearKind(gear.kind);
-		materializeLookGear(doc, component, target, gear as UamLookGearBinding);
+		if (gear.kind === 'display' || gear.kind === 'display2') {
+			materializeDisplayGear(doc, component, target, gear);
+		} else if (gear.kind === 'look') {
+			materializeLookGear(doc, component, target, gear);
+		} else {
+			materializeGenericValueGear(doc, component, target, gear);
+		}
 	}
 }
 
@@ -250,7 +753,7 @@ function materializeComponentResource(doc: Document, resource: UamComponentResou
 	for (const node of resource.component.displayList) {
 		const target = component.getChildById(node.id);
 		if (target) {
-			materializeGears(doc, component, target as ReturnType<Document['createGImage']>, node.gears);
+			materializeGears(doc, component, target, node.gears);
 		}
 	}
 
@@ -290,52 +793,185 @@ export function materializeUamProject(project: UamProject): Document {
 	return doc;
 }
 
-function liftAssetResource(resource: ReturnType<Document['createImageResource']>): UamAssetResource {
+type LiftableAssetResource = {
+	propertyType: string;
+	getId(): string;
+	getName(): string;
+	getPath(): string;
+	getExported(): boolean;
+	getBranch(): string;
+	getBranchItemIds(): string[];
+};
+
+function baseAssetResource(kind: UamAssetResource['kind'], resource: LiftableAssetResource): UamAssetResource {
 	return {
-		kind: 'image',
+		kind,
 		id: resource.getId(),
 		name: resource.getName(),
 		path: resource.getPath(),
 		exported: resource.getExported(),
 		branch: resource.getBranch(),
 		branchItemIds: resource.getBranchItemIds(),
-		fileName: resource.getFileName(),
-		dimensions: {
-			width: resource.getWidth(),
-			height: resource.getHeight(),
-		},
-		metadata: {
-			textureSetMode: resource.getTextureSetMode(),
-		},
+		metadata: null,
 	};
 }
 
-function liftGears(gears: ReturnType<ReturnType<Document['createGImage']>['listGears']>): UamGearBinding[] {
+function liftAssetResource(resource: LiftableAssetResource): UamAssetResource {
+	if (resource.propertyType === PropertyType.IMAGE_RESOURCE) {
+		const image = resource as ReturnType<Document['createImageResource']>;
+		return {
+			...baseAssetResource('image', image),
+			fileName: image.getFileName(),
+			dimensions: {
+				width: image.getWidth(),
+				height: image.getHeight(),
+			},
+			metadata: {
+				textureSetMode: image.getTextureSetMode(),
+			},
+		};
+	}
+	if (resource.propertyType === PropertyType.MOVIE_CLIP_RESOURCE) {
+		const movieClip = resource as ReturnType<Document['createMovieClipResource']>;
+		return {
+			...baseAssetResource('movieClip', movieClip),
+			fileName: movieClip.getFileName(),
+			dimensions: {
+				width: movieClip.getWidth(),
+				height: movieClip.getHeight(),
+			},
+			metadata: {
+				interval: movieClip.getInterval(),
+				swing: movieClip.getSwing(),
+				repeatDelay: movieClip.getRepeatDelay(),
+				smoothing: movieClip.getSmoothing(),
+			},
+		};
+	}
+	if (resource.propertyType === PropertyType.SOUND_RESOURCE) {
+		const sound = resource as ReturnType<Document['createSoundResource']>;
+		return {
+			...baseAssetResource('sound', sound),
+			file: sound.getFile(),
+		};
+	}
+	if (resource.propertyType === PropertyType.MISC_RESOURCE) {
+		const misc = resource as ReturnType<Document['createMiscResource']>;
+		return {
+			...baseAssetResource('misc', misc),
+			file: misc.getFile(),
+		};
+	}
+	if (resource.propertyType === PropertyType.FONT_RESOURCE) {
+		const font = resource as ReturnType<Document['createFontResource']>;
+		return {
+			...baseAssetResource('font', font),
+			fileName: font.getFileName(),
+			metadata: {
+				textureId: font.getTextureId(),
+				renderMode: font.getRenderMode(),
+				samplePointSize: font.getSamplePointSize(),
+				ttf: font.getTtf(),
+				tint: font.getTint(),
+				autoScale: font.getAutoScale(),
+				hasChannel: font.getHasChannel(),
+				fontSize: font.getFontSize(),
+				xAdvance: font.getXAdvance(),
+				lineHeight: font.getLineHeight(),
+			},
+		};
+	}
+	if (resource.propertyType === PropertyType.SPINE_RESOURCE || resource.propertyType === PropertyType.DRAGON_BONES_RESOURCE) {
+		const skeleton = resource as ReturnType<Document['createSpineResource']>;
+		return {
+			...baseAssetResource(resource.propertyType === PropertyType.SPINE_RESOURCE ? 'spine' : 'dragonBones', skeleton),
+			file: skeleton.getFile(),
+			dimensions: {
+				width: skeleton.getWidth(),
+				height: skeleton.getHeight(),
+			},
+			metadata: {
+				requireIds: skeleton.getRequireIds(),
+				atlasNames: skeleton.getAtlasNames(),
+				anchorX: skeleton.getAnchorX(),
+				anchorY: skeleton.getAnchorY(),
+			},
+		};
+	}
+	throw new Error(`UAM lift does not support resource type "${resource.propertyType}" in Gate A.`);
+}
+
+function liftGears(gears: ReturnType<GObject['listGears']>): UamGearBinding[] {
 	return gears.map((gear) => {
-		if (gear.getGearType() !== GearType.Look) {
-			throw new Error(`UAM lift does not support gear type "${gear.getGearType()}" in Gate A.`);
-		}
 		const pages = gear.getPages() ? gear.getPages().split(',') : [];
+		if (gear.getGearType() === GearType.Display) {
+			return {
+				kind: 'display',
+				name: gear.getName(),
+				controllerName: gear.getController()?.getName() ?? '',
+				visibleOnPageIds: pages,
+			} satisfies UamDisplayGearBinding;
+		}
+		if (gear.getGearType() === GearType.Display2) {
+			return {
+				kind: 'display2',
+				name: gear.getName(),
+				controllerName: gear.getController()?.getName() ?? '',
+				visibleOnPageIds: pages,
+				condition: gear.getCondition(),
+			} satisfies UamDisplay2GearBinding;
+		}
+		if (gear.getGearType() !== GearType.Look) {
+			const gearKinds = new Map<number, UamGenericValueGearBinding['kind']>([
+				[GearType.XY, 'xy'],
+				[GearType.Size, 'size'],
+				[GearType.Color, 'color'],
+				[GearType.Animation, 'animation'],
+				[GearType.Text, 'text'],
+				[GearType.Icon, 'icon'],
+				[GearType.FontSize, 'fontSize'],
+			]);
+			const kind = gearKinds.get(gear.getGearType());
+			if (!kind) {
+				throw new Error(`UAM lift does not support gear type "${gear.getGearType()}" in Gate A.`);
+			}
+			const values = gear.getValues() ? gear.getValues().split('|') : [];
+			const defaultValue = `${gear.getDefaultValue() ?? ''}`;
+			const base = {
+				name: gear.getName(),
+				controllerName: gear.getController()?.getName() ?? '',
+				states: pages.map((pageId, index) => ({
+					pageId,
+					value: parseGenericGearValue(kind, values[index] ?? null),
+				})),
+				defaultValue: parseGenericGearValue(kind, defaultValue) ?? defaultGenericGearValue(kind),
+				condition: gear.getCondition(),
+				positionsInPercent: gear.getPositionsInPercent(),
+				tween: gear.getTween(),
+				tweenDuration: gear.getTweenDuration(),
+				tweenDelay: gear.getTweenDelay(),
+				easeType: gear.getEaseType(),
+				customEasePath: gear.getCustomEasePath(),
+			};
+			switch (kind) {
+				case 'xy':
+					return { kind, ...base } satisfies UamXYGearBinding;
+				case 'size':
+					return { kind, ...base } satisfies UamSizeGearBinding;
+				case 'color':
+					return { kind, ...base } satisfies UamColorGearBinding;
+				case 'animation':
+					return { kind, ...base } satisfies UamAnimationGearBinding;
+				case 'text':
+					return { kind, ...base } satisfies UamTextGearBinding;
+				case 'icon':
+					return { kind, ...base } satisfies UamIconGearBinding;
+				case 'fontSize':
+					return { kind, ...base } satisfies UamFontSizeGearBinding;
+			}
+		}
 		const values = gear.getValues() ? gear.getValues().split('|') : [];
 		const defaultValue = `${gear.getDefaultValue() ?? ''}`;
-
-		const parseLookValue = (value: string | null) => {
-			if (!value || value === '-') return null;
-			const parts = value.split(',');
-			const parseBool = (raw: string | undefined, fallback: boolean): boolean => {
-				if (raw === undefined || raw === '') return fallback;
-				const normalized = raw.toLowerCase();
-				if (normalized === '1' || normalized === 'true') return true;
-				if (normalized === '0' || normalized === 'false') return false;
-				return fallback;
-			};
-			return {
-				alpha: Number(parts[0] ?? 1),
-				rotation: Number(parts[1] ?? 0),
-				grayed: parseBool(parts[2], false),
-				touchable: parseBool(parts[3], true),
-			};
-		};
 
 		return {
 			kind: 'look',
@@ -343,9 +979,9 @@ function liftGears(gears: ReturnType<ReturnType<Document['createGImage']>['listG
 			controllerName: gear.getController()?.getName() ?? '',
 			states: pages.map((pageId, index) => ({
 				pageId,
-				value: parseLookValue(values[index] ?? null),
+				value: parseLookGearValue(values[index] ?? null),
 			})),
-			defaultValue: parseLookValue(defaultValue)!,
+			defaultValue: parseLookGearValue(defaultValue) ?? { alpha: 1, rotation: 0, grayed: false, touchable: true },
 			condition: gear.getCondition(),
 			positionsInPercent: gear.getPositionsInPercent(),
 			tween: gear.getTween(),
@@ -357,9 +993,7 @@ function liftGears(gears: ReturnType<ReturnType<Document['createGImage']>['listG
 	});
 }
 
-function liftDisplayNode(
-	child: ReturnType<Document['createGImage']> | ReturnType<Document['createGTextField']> | ReturnType<Document['createGComponent']>,
-): UamDisplayNode {
+function liftDisplayNode(child: GObject): UamDisplayNode {
 	if (child.propertyType === PropertyType.G_IMAGE) {
 		const image = child as ReturnType<Document['createGImage']>;
 		return {
@@ -379,10 +1013,13 @@ function liftDisplayNode(
 			resource: { resourceId: image.getSrc() },
 		};
 	}
-	if (child.propertyType === PropertyType.G_TEXT_FIELD) {
+	if (
+		child.propertyType === PropertyType.G_TEXT_FIELD
+		|| child.propertyType === PropertyType.G_RICH_TEXT_FIELD
+		|| child.propertyType === PropertyType.G_TEXT_INPUT
+	) {
 		const text = child as ReturnType<Document['createGTextField']>;
-		return {
-			kind: 'text',
+		const base = {
 			id: text.getId(),
 			name: text.getName(),
 			position: { x: text.getX(), y: text.getY() },
@@ -400,6 +1037,22 @@ function liftDisplayNode(
 			fontSize: text.getFontSize(),
 			color: text.getColor(),
 		};
+		if (child.propertyType === PropertyType.G_RICH_TEXT_FIELD) {
+			return { kind: 'richText', ...base } satisfies UamRichTextNode;
+		}
+		if (child.propertyType === PropertyType.G_TEXT_INPUT) {
+			const input = child as ReturnType<Document['createGTextInput']>;
+			return {
+				kind: 'textInput',
+				...base,
+				promptText: input.getPromptText(),
+				maxLength: input.getMaxLength(),
+				restrict: input.getRestrict(),
+				password: input.getPassword(),
+				keyboardType: input.getKeyboardType(),
+			} satisfies UamTextInputNode;
+		}
+		return { kind: 'text', ...base } satisfies UamTextNode;
 	}
 	if (child.propertyType === PropertyType.G_COMPONENT) {
 		const component = child as ReturnType<Document['createGComponent']>;
@@ -419,6 +1072,219 @@ function liftDisplayNode(
 			gears: liftGears(component.listGears()),
 			resource: { packageId: component.getPackageId(), resourceId: component.getSrc() },
 		};
+	}
+	if (child.propertyType === PropertyType.G_LIST || child.propertyType === PropertyType.G_TREE) {
+		const list = child as ReturnType<Document['createGList']>;
+		const base = {
+			id: list.getId(),
+			name: list.getName(),
+			position: { x: list.getX(), y: list.getY() },
+			size: { width: list.getWidth(), height: list.getHeight() },
+			visible: list.getVisible(),
+			touchable: list.getTouchable(),
+			grayed: list.getGrayed(),
+			alpha: list.getAlpha(),
+			rotation: list.getRotation(),
+			customData: '',
+			relations: liftRelations(list.getRelations()),
+			gears: liftGears(list.listGears()),
+			group: list.getGroup(),
+			layout: list.getLayout(),
+			align: list.getAlign(),
+			vAlign: list.getVAlign(),
+			lineGap: list.getLineGap(),
+			columnGap: list.getColumnGap(),
+			lineCount: list.getLineCount(),
+			columnCount: list.getColumnCount(),
+			selectionMode: list.getSelectionMode(),
+			defaultItem: list.getDefaultItem(),
+			autoResizeItem: list.getAutoResizeItem(),
+			childrenRenderOrder: list.getChildrenRenderOrder(),
+			apexIndex: list.getApexIndex(),
+			src: list.getSrc(),
+			overflow: list.getOverflow(),
+			scrollType: list.getScrollType(),
+			scrollBarFlags: list.getScrollBarFlags(),
+			scrollBarMargin: liftEdgeInsets(list.getScrollBarMargin()),
+			vtScrollBarRes: list.getVtScrollBarRes(),
+			hzScrollBarRes: list.getHzScrollBarRes(),
+			headerRes: list.getHeaderRes(),
+			footerRes: list.getFooterRes(),
+			margin: liftEdgeInsets(list.getMargin()),
+			clipSoftness: list.getClipSoftness(),
+			scrollItemToViewOnClick: list.getScrollItemToViewOnClick(),
+			foldInvisibleItems: list.getFoldInvisibleItems(),
+			listItems: cloneListItems(list.getListItems()),
+			pageController: list.getPageController(),
+			controllerOverrides: list.getControllerOverrides(),
+			selectionController: list.getSelectionController(),
+		};
+		if (child.propertyType === PropertyType.G_TREE) {
+			const tree = child as ReturnType<Document['createGTree']>;
+			return {
+				kind: 'tree',
+				...base,
+				treeView: tree.getTreeView(),
+				indent: tree.getIndent(),
+				clickToExpand: tree.getClickToExpand(),
+			};
+		}
+		return { kind: 'list', ...base };
+	}
+	if (child.propertyType === PropertyType.G_GRAPH) {
+		const graph = child as ReturnType<Document['createGGraph']>;
+		return {
+			kind: 'graph',
+			id: graph.getId(),
+			name: graph.getName(),
+			position: { x: graph.getX(), y: graph.getY() },
+			size: { width: graph.getWidth(), height: graph.getHeight() },
+			visible: graph.getVisible(),
+			touchable: graph.getTouchable(),
+			grayed: graph.getGrayed(),
+			alpha: graph.getAlpha(),
+			rotation: graph.getRotation(),
+			customData: '',
+			relations: liftRelations(graph.getRelations()),
+			gears: liftGears(graph.listGears()),
+			locked: graph.getLocked(),
+			minWidth: graph.getMinWidth(),
+			maxWidth: graph.getMaxWidth(),
+			minHeight: graph.getMinHeight(),
+			maxHeight: graph.getMaxHeight(),
+			pivot: { x: graph.getPivotX(), y: graph.getPivotY() },
+			pivotAsAnchor: graph.getPivotAsAnchor(),
+			group: graph.getGroup(),
+			skew: { x: graph.getSkewX(), y: graph.getSkewY() },
+			graphType: graph.getGraphType(),
+			lineSize: graph.getLineSize(),
+			lineColor: graph.getLineColor(),
+			fillColor: graph.getFillColor(),
+			cornerRadius: graph.getCornerRadius(),
+			points: graph.getPoints(),
+			sides: graph.getSides(),
+			startAngle: graph.getStartAngle(),
+			distances: graph.getDistances(),
+		};
+	}
+	if (child.propertyType === PropertyType.G_GROUP) {
+		const group = child as ReturnType<Document['createGGroup']>;
+		return {
+			kind: 'group',
+			id: group.getId(),
+			name: group.getName(),
+			position: { x: group.getX(), y: group.getY() },
+			size: { width: group.getWidth(), height: group.getHeight() },
+			visible: group.getVisible(),
+			touchable: group.getTouchable(),
+			grayed: group.getGrayed(),
+			alpha: group.getAlpha(),
+			rotation: group.getRotation(),
+			customData: '',
+			relations: liftRelations(group.getRelations()),
+			gears: liftGears(group.listGears()),
+			locked: group.getLocked(),
+			group: group.getGroup(),
+			layout: group.getLayout(),
+			lineGap: group.getLineGap(),
+			columnGap: group.getColumnGap(),
+			advanced: group.getAdvanced(),
+			excludeInvisibles: group.getExcludeInvisibles(),
+			autoSizeDisabled: group.getAutoSizeDisabled(),
+			mainGridIndex: group.getMainGridIndex(),
+		};
+	}
+	if (child.propertyType === PropertyType.G_LOADER) {
+		const loader = child as ReturnType<Document['createGLoader']>;
+		return {
+			kind: 'loader',
+			id: loader.getId(),
+			name: loader.getName(),
+			position: { x: loader.getX(), y: loader.getY() },
+			size: { width: loader.getWidth(), height: loader.getHeight() },
+			visible: loader.getVisible(),
+			touchable: loader.getTouchable(),
+			grayed: loader.getGrayed(),
+			alpha: loader.getAlpha(),
+			rotation: loader.getRotation(),
+			customData: '',
+			relations: liftRelations(loader.getRelations()),
+			gears: liftGears(loader.listGears()),
+			pivot: { x: loader.getPivotX(), y: loader.getPivotY() },
+			scale: { x: loader.getScaleX(), y: loader.getScaleY() },
+			url: loader.getUrl(),
+			filter: loader.getFilter(),
+			filterData: loader.getFilterData(),
+			fill: loader.getFill(),
+			shrinkOnly: loader.getShrinkOnly(),
+			autoSize: loader.getAutoSize(),
+			useResize: loader.getUseResize(),
+			align: loader.getAlign(),
+			vAlign: loader.getVAlign(),
+			frame: loader.getFrame(),
+			playing: loader.getPlaying(),
+			color: loader.getColor(),
+			fillMethod: loader.getFillMethod(),
+			fillOrigin: loader.getFillOrigin(),
+			fillClockwise: loader.getFillClockwise(),
+			fillAmount: loader.getFillAmount(),
+			clearOnPublish: loader.getClearOnPublish(),
+		};
+	}
+	if (child.propertyType === PropertyType.G_LOADER_3D) {
+		const loader = child as ReturnType<Document['createGLoader3D']>;
+		return {
+			kind: 'loader3D',
+			id: loader.getId(),
+			name: loader.getName(),
+			position: { x: loader.getX(), y: loader.getY() },
+			size: { width: loader.getWidth(), height: loader.getHeight() },
+			visible: loader.getVisible(),
+			touchable: loader.getTouchable(),
+			grayed: loader.getGrayed(),
+			alpha: loader.getAlpha(),
+			rotation: loader.getRotation(),
+			customData: '',
+			relations: liftRelations(loader.getRelations()),
+			gears: liftGears(loader.listGears()),
+			url: loader.getUrl(),
+			fill: loader.getFill(),
+			shrinkOnly: loader.getShrinkOnly(),
+			autoSize: loader.getAutoSize(),
+			align: loader.getAlign(),
+			vAlign: loader.getVAlign(),
+			animationName: loader.getAnimationName(),
+			skinName: loader.getSkinName(),
+			playing: loader.getPlaying(),
+			frame: loader.getFrame(),
+			loop: loader.getLoop(),
+			color: loader.getColor(),
+		};
+	}
+	if (child.propertyType === PropertyType.G_MOVIE_CLIP) {
+		const movieClip = child as ReturnType<Document['createGMovieClip']>;
+		return {
+			kind: 'movieClip',
+			id: movieClip.getId(),
+			name: movieClip.getName(),
+			position: { x: movieClip.getX(), y: movieClip.getY() },
+			size: { width: movieClip.getWidth(), height: movieClip.getHeight() },
+			visible: movieClip.getVisible(),
+			touchable: movieClip.getTouchable(),
+			grayed: movieClip.getGrayed(),
+			alpha: movieClip.getAlpha(),
+			rotation: movieClip.getRotation(),
+			customData: '',
+			relations: liftRelations(movieClip.getRelations()),
+			gears: liftGears(movieClip.listGears()),
+			resource: { packageId: movieClip.getPackageId(), resourceId: movieClip.getSrc() },
+			fileName: movieClip.getFileName(),
+			filter: movieClip.getFilter(),
+			filterData: movieClip.getFilterData(),
+			playing: movieClip.getPlaying(),
+			frame: movieClip.getFrame(),
+			color: movieClip.getColor(),
+		} satisfies UamMovieClipNode;
 	}
 
 	throw new Error(`UAM lift does not support display node type "${child.propertyType}" in Gate A.`);
@@ -489,7 +1355,7 @@ function liftComponentResource(resource: ReturnType<Document['createComponent']>
 		component: {
 			size: { width: resource.getWidth(), height: resource.getHeight() },
 			customData: resource.getCustomData(),
-			displayList: resource.listChildren().map((child) => liftDisplayNode(child as ReturnType<Document['createGImage']>)),
+			displayList: resource.listChildren().map((child) => liftDisplayNode(child)),
 			controllers: liftControllers(resource),
 			transitions: liftTransitions(resource),
 		},
@@ -519,10 +1385,7 @@ export function liftDocumentToUamProject(doc: Document): UamProject {
 				if (resource.propertyType === 'Component') {
 					return liftComponentResource(resource as ReturnType<Document['createComponent']>);
 				}
-				if (resource.propertyType === 'ImageResource') {
-					return liftAssetResource(resource as ReturnType<Document['createImageResource']>);
-				}
-				throw new Error(`UAM lift does not support resource type "${resource.propertyType}" in Gate A.`);
+				return liftAssetResource(resource as LiftableAssetResource);
 			}),
 		})),
 	};

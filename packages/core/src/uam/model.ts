@@ -15,6 +15,13 @@ export interface UamDimensions {
 	height: number;
 }
 
+export interface UamEdgeInsets {
+	top: number;
+	bottom: number;
+	left: number;
+	right: number;
+}
+
 export interface UamResourceRef {
 	packageId?: string;
 	resourceId: string;
@@ -100,7 +107,16 @@ export interface UamComponentModel {
 export type UamDisplayNodeKind =
 	| 'image'
 	| 'text'
-	| 'component';
+	| 'richText'
+	| 'textInput'
+	| 'component'
+	| 'list'
+	| 'tree'
+	| 'graph'
+	| 'group'
+	| 'loader'
+	| 'loader3D'
+	| 'movieClip';
 
 interface UamDisplayNodeBase {
 	kind: UamDisplayNodeKind;
@@ -131,15 +147,175 @@ export interface UamTextNode extends UamDisplayNodeBase {
 	color: string;
 }
 
+export interface UamRichTextNode extends Omit<UamTextNode, 'kind'> {
+	kind: 'richText';
+}
+
+export interface UamTextInputNode extends Omit<UamTextNode, 'kind'> {
+	kind: 'textInput';
+	promptText: string;
+	maxLength: number;
+	restrict: string;
+	password: boolean;
+	keyboardType: number;
+}
+
 export interface UamComponentRefNode extends UamDisplayNodeBase {
 	kind: 'component';
 	resource: UamResourceRef;
 }
 
+export interface UamListItemData {
+	title: string | null;
+	icon: string | null;
+	url: string | null;
+	name: string | null;
+	selectedTitle: string | null;
+	selectedIcon: string | null;
+	level: number;
+	isFolder: boolean | null;
+	controllers?: string | null;
+}
+
+export interface UamListNode extends UamDisplayNodeBase {
+	kind: 'list';
+	group: string;
+	layout: number;
+	align: number;
+	vAlign: number;
+	lineGap: number;
+	columnGap: number;
+	lineCount: number;
+	columnCount: number;
+	selectionMode: number;
+	defaultItem: string;
+	autoResizeItem: boolean;
+	childrenRenderOrder: number;
+	apexIndex: number;
+	src: string;
+	overflow: number;
+	scrollType: number;
+	scrollBarFlags: number;
+	scrollBarMargin: UamEdgeInsets;
+	vtScrollBarRes: string;
+	hzScrollBarRes: string;
+	headerRes: string;
+	footerRes: string;
+	margin: UamEdgeInsets;
+	clipSoftness: UamPoint;
+	scrollItemToViewOnClick: boolean;
+	foldInvisibleItems: boolean;
+	listItems: UamListItemData[];
+	pageController: string;
+	controllerOverrides: string;
+	selectionController: string;
+}
+
+export interface UamTreeNode extends Omit<UamListNode, 'kind'> {
+	kind: 'tree';
+	treeView: boolean;
+	indent: number;
+	clickToExpand: number;
+}
+
+export interface UamGraphNode extends UamDisplayNodeBase {
+	kind: 'graph';
+	locked: boolean;
+	minWidth: number;
+	maxWidth: number;
+	minHeight: number;
+	maxHeight: number;
+	pivot: UamPoint;
+	pivotAsAnchor: boolean;
+	group: string;
+	skew: UamPoint;
+	graphType: number;
+	lineSize: number;
+	lineColor: string;
+	fillColor: string;
+	cornerRadius: [number, number, number, number] | null;
+	points: number[] | null;
+	sides: number;
+	startAngle: number;
+	distances: number[] | null;
+}
+
+export interface UamGroupNode extends UamDisplayNodeBase {
+	kind: 'group';
+	locked: boolean;
+	group: string;
+	layout: number;
+	lineGap: number;
+	columnGap: number;
+	advanced: boolean;
+	excludeInvisibles: boolean;
+	autoSizeDisabled: boolean;
+	mainGridIndex: number;
+}
+
+export interface UamLoaderNode extends UamDisplayNodeBase {
+	kind: 'loader';
+	pivot: UamPoint;
+	scale: UamPoint;
+	url: string;
+	filter: string;
+	filterData: string;
+	fill: number;
+	shrinkOnly: boolean;
+	autoSize: boolean;
+	useResize: boolean;
+	align: number;
+	vAlign: number;
+	frame: number;
+	playing: boolean;
+	color: string;
+	fillMethod: number;
+	fillOrigin: number;
+	fillClockwise: boolean;
+	fillAmount: number;
+	clearOnPublish: boolean;
+}
+
+export interface UamLoader3DNode extends UamDisplayNodeBase {
+	kind: 'loader3D';
+	url: string;
+	fill: number;
+	shrinkOnly: boolean;
+	autoSize: boolean;
+	align: number;
+	vAlign: number;
+	animationName: string;
+	skinName: string;
+	playing: boolean;
+	frame: number;
+	loop: boolean;
+	color: string;
+}
+
+export interface UamMovieClipNode extends UamDisplayNodeBase {
+	kind: 'movieClip';
+	resource: UamResourceRef;
+	fileName: string;
+	filter: string;
+	filterData: string;
+	playing: boolean;
+	frame: number;
+	color: string;
+}
+
 export type UamDisplayNode =
 	| UamImageNode
 	| UamTextNode
-	| UamComponentRefNode;
+	| UamRichTextNode
+	| UamTextInputNode
+	| UamComponentRefNode
+	| UamListNode
+	| UamTreeNode
+	| UamGraphNode
+	| UamGroupNode
+	| UamLoaderNode
+	| UamLoader3DNode
+	| UamMovieClipNode;
 
 export interface UamControllerPage {
 	id: string;
@@ -296,9 +472,9 @@ export interface UamValidationIssue {
 }
 
 export const UAM_SUPPORTED_MATERIALIZATION_SCOPE = {
-	resourceKinds: ['image', 'component'] as const,
-	nodeKinds: ['image', 'text', 'component'] as const,
-	gearKinds: ['look'] as const,
+	resourceKinds: ['image', 'sound', 'misc', 'font', 'movieClip', 'spine', 'dragonBones', 'component'] as const,
+	nodeKinds: ['image', 'text', 'richText', 'textInput', 'component', 'list', 'tree', 'graph', 'group', 'loader', 'loader3D', 'movieClip'] as const,
+	gearKinds: ['display', 'display2', 'look', 'xy', 'size', 'color', 'animation', 'text', 'icon', 'fontSize'] as const,
 } as const;
 
 export const UAM_SUPPORTED_TRANSACTION_SCOPE = {

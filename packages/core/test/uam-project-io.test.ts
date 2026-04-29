@@ -239,20 +239,20 @@ test('Gate A proves one engineering-scale UAM-owned project read/write path', as
 	}
 });
 
-test('liftDocumentToUamProject reports unsupported real display node types explicitly', (t) => {
+test('liftDocumentToUamProject reports remaining unsupported real display node types explicitly', (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('RealProjectShapes').setId('pkg-real');
-	const component = doc.createComponent('ListHost')
-		.setId('cmp-list-host')
+	const component = doc.createComponent('ButtonHost')
+		.setId('cmp-button-host')
 		.setPath('/')
 		.setExported(true)
 		.setSize(320, 180);
-	const list = doc.createGList('items').setId('list-node');
-	component.addChild(list);
+	const button = doc.createGButton('button').setId('button-node');
+	component.addChild(button);
 	pkg.addResource(component);
 
 	const error = t.throws(() => liftDocumentToUamProject(doc), { instanceOf: Error });
-	t.is(error?.message, 'UAM lift does not support display node type "GList" in Gate A.');
+	t.is(error?.message, 'UAM lift does not support display node type "GButton" in Gate A.');
 });
 
 test('liftDocumentToUamProject preserves component reference display nodes', (t) => {
@@ -288,4 +288,130 @@ test('liftDocumentToUamProject preserves component reference display nodes', (t)
 	if (node?.kind !== 'component') return;
 	t.deepEqual(node.resource, { packageId: 'pkg-component-refs', resourceId: 'child-component' });
 	t.is(node.customData, 'ref-data');
+});
+
+test('UAM project lift and materialize preserve list, tree, graph, group, loader, and movie clip display nodes', (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('DisplayNodes').setId('pkg-display-nodes');
+	const component = doc.createComponent('Host')
+		.setId('host-component')
+		.setPath('/')
+		.setExported(true)
+		.setSize(640, 480);
+	pkg.addResource(doc.createMovieClipResource('movie.xml')
+		.setId('movie-resource')
+		.setPath('/')
+		.setFileName('movie.xml')
+		.setWidth(96)
+		.setHeight(72));
+
+	component.addChild(doc.createGList('items')
+		.setId('list-node')
+		.setXY(1, 2)
+		.setSize(100, 120)
+		.setLayout(2)
+		.setDefaultItem('ui://pkg-display-nodes/item')
+		.setListItems([{ title: 'Item', icon: null, url: null, name: 'item0', selectedTitle: null, selectedIcon: null, level: 0, isFolder: null }]));
+	component.addChild(doc.createGTree('tree')
+		.setId('tree-node')
+		.setXY(3, 4)
+		.setSize(110, 130)
+		.setIndent(24)
+		.setClickToExpand(1)
+		.setListItems([{ title: 'Folder', icon: null, url: null, name: 'folder0', selectedTitle: null, selectedIcon: null, level: 0, isFolder: true }]));
+	component.addChild(doc.createGGraph('shape')
+		.setId('graph-node')
+		.setXY(5, 6)
+		.setSize(20, 30)
+		.setGraphType(1)
+		.setLineColor('#112233')
+		.setFillColor('#445566')
+		.setCornerRadius([1, 2, 3, 4]));
+	component.addChild(doc.createGGroup('group')
+		.setId('group-node')
+		.setXY(7, 8)
+		.setSize(200, 40)
+		.setLayout(1)
+		.setAdvanced(true));
+	component.addChild(doc.createGLoader('loader')
+		.setId('loader-node')
+		.setXY(9, 10)
+		.setSize(64, 64)
+		.setUrl('ui://pkg-display-nodes/image')
+		.setColor('#abcdef')
+		.setFillAmount(75));
+	component.addChild(doc.createGLoader3D('loader3d')
+		.setId('loader3d-node')
+		.setXY(11, 12)
+		.setSize(80, 90)
+		.setUrl('ui://pkg-display-nodes/spine')
+		.setAnimationName('idle')
+		.setSkinName('default')
+		.setLoop(false));
+	component.addChild(doc.createGMovieClip('movie')
+		.setId('movie-node')
+		.setXY(13, 14)
+		.setSize(96, 72)
+		.setSrc('movie-resource')
+		.setPackageId('pkg-display-nodes')
+		.setFileName('movie.xml')
+		.setPlaying(false)
+		.setFrame(3)
+		.setColor('#123456'));
+	component.addChild(doc.createGRichTextField('rich')
+		.setId('rich-text-node')
+		.setXY(15, 16)
+		.setSize(140, 30)
+		.setText('[b]Rich[/b]')
+		.setFontSize(16)
+		.setColor('#654321'));
+	component.addChild(doc.createGTextInput('input')
+		.setId('text-input-node')
+		.setXY(17, 18)
+		.setSize(160, 32)
+		.setText('typed')
+		.setPromptText('prompt')
+		.setMaxLength(12)
+		.setRestrict('0-9')
+		.setPassword(true)
+		.setKeyboardType(2));
+	pkg.addResource(component);
+
+	const lifted = liftDocumentToUamProject(doc);
+	const rematerialized = liftDocumentToUamProject(materializeUamProject(lifted));
+	const host = rematerialized.packages[0]?.resources.find((resource) => resource.id === 'host-component');
+	t.is(host?.kind, 'component');
+	if (host?.kind !== 'component') return;
+
+	const nodes = new Map(host.component.displayList.map((node) => [node.id, node]));
+	t.is(nodes.get('list-node')?.kind, 'list');
+	t.is(nodes.get('tree-node')?.kind, 'tree');
+	t.is(nodes.get('graph-node')?.kind, 'graph');
+	t.is(nodes.get('group-node')?.kind, 'group');
+	t.is(nodes.get('loader-node')?.kind, 'loader');
+	t.is(nodes.get('loader3d-node')?.kind, 'loader3D');
+	t.is(nodes.get('movie-node')?.kind, 'movieClip');
+	t.is(nodes.get('rich-text-node')?.kind, 'richText');
+	t.is(nodes.get('text-input-node')?.kind, 'textInput');
+	const listNode = nodes.get('list-node');
+	if (listNode?.kind === 'list') t.is(listNode.listItems[0]?.title, 'Item');
+	const treeNode = nodes.get('tree-node');
+	if (treeNode?.kind === 'tree') t.is(treeNode.indent, 24);
+	const graphNode = nodes.get('graph-node');
+	if (graphNode?.kind === 'graph') t.deepEqual(graphNode.cornerRadius, [1, 2, 3, 4]);
+	const loaderNode = nodes.get('loader-node');
+	if (loaderNode?.kind === 'loader') t.is(loaderNode.fillAmount, 75);
+	const loader3DNode = nodes.get('loader3d-node');
+	if (loader3DNode?.kind === 'loader3D') t.false(loader3DNode.loop);
+	const movieNode = nodes.get('movie-node');
+	if (movieNode?.kind === 'movieClip') {
+		t.is(movieNode.resource.resourceId, 'movie-resource');
+		t.false(movieNode.playing);
+		t.is(movieNode.frame, 3);
+	}
+	const inputNode = nodes.get('text-input-node');
+	if (inputNode?.kind === 'textInput') {
+		t.is(inputNode.promptText, 'prompt');
+		t.true(inputNode.password);
+	}
 });
