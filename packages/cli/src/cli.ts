@@ -63,7 +63,7 @@ function readPackageVersion(): string {
 	} catch {
 		// Keep the CLI usable when executed from a bundled artifact missing package.json.
 	}
-	return '0.2.0-alpha.3';
+	return '0.2.0-alpha.4';
 }
 
 const PACKAGE_VERSION = readPackageVersion();

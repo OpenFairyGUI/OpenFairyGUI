@@ -9,6 +9,7 @@ export interface IGObject extends IExtensibleProperty {
 	sourceHeight: number;
 	initWidth: number;
 	initHeight: number;
+	customData: string;
 	relations: RelationDef[];
 	gears: RefList<Gear>;
 }
@@ -39,6 +40,7 @@ export class GObject<
 			sourceHeight: 0,
 			initWidth: 0,
 			initHeight: 0,
+			customData: '',
 			relations: [],
 			gears: new RefList<Gear>(),
 		}) as Nullable<TProps>;
@@ -66,6 +68,9 @@ export class GObject<
 	public setInitWidth(v: number): this { return this.setObjectProp('initWidth', v); }
 	public getInitHeight(): number { return this.getObjectProp('initHeight'); }
 	public setInitHeight(v: number): this { return this.setObjectProp('initHeight', v); }
+
+	public getCustomData(): string { return this.getObjectProp('customData'); }
+	public setCustomData(v: string): this { return this.setObjectProp('customData', v); }
 
 	/****** Relations ******/
 

@@ -1892,6 +1892,7 @@ test('binary writer: list and tree child blocks round-trip into formal list prop
 	const list = doc.createGList('mainList');
 	list
 		.setId('list01')
+		.setCustomData('list-custom')
 		.setSrc('ui://listpkg/list')
 		.setLayout(4)
 		.setSelectionMode(1)
@@ -1945,6 +1946,7 @@ test('binary writer: list and tree child blocks round-trip into formal list prop
 	const tree = doc.createGTree('tree');
 	tree
 		.setId('tree01')
+		.setCustomData('tree-custom')
 		.setSrc('ui://listpkg/tree')
 		.setLayout(0)
 		.setLineGap(4)
@@ -1999,6 +2001,7 @@ test('binary writer: list and tree child blocks round-trip into formal list prop
 
 		const decodedList = decodedComp?.listChildren().find((child) => child.getId() === 'list01') as ReturnType<Document['createGList']>;
 		t.truthy(decodedList, 'list child exists');
+		t.is(decodedList.getCustomData(), 'list-custom');
 		t.is(decodedList.getLayout(), 4);
 		t.is(decodedList.getSelectionMode(), 1);
 		t.is(decodedList.getAlign(), 2);
@@ -2049,6 +2052,7 @@ test('binary writer: list and tree child blocks round-trip into formal list prop
 
 		const decodedTree = decodedComp?.listChildren().find((child) => child.getId() === 'tree01') as ReturnType<Document['createGTree']>;
 		t.truthy(decodedTree, 'tree child exists');
+		t.is(decodedTree.getCustomData(), 'tree-custom');
 		t.is(decodedTree.getDefaultItem(), 'ui://listpkg/treeItem');
 		t.is(decodedTree.getOverflow(), 2);
 		t.is(decodedTree.getScrollType(), 1);

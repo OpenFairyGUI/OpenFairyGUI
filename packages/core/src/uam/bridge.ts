@@ -435,6 +435,7 @@ function materializeDisplayNode(
 			.setGrayed(node.grayed)
 			.setAlpha(node.alpha)
 			.setRotation(node.rotation)
+			.setCustomData(node.customData)
 			.setGroup(listNode.group)
 			.setLayout(listNode.layout)
 			.setAlign(listNode.align)
@@ -495,6 +496,7 @@ function materializeDisplayNode(
 			.setGrayed(node.grayed)
 			.setAlpha(node.alpha)
 			.setRotation(node.rotation)
+			.setCustomData(node.customData)
 			.setGraphType(graphNode.graphType)
 			.setLineSize(graphNode.lineSize)
 			.setLineColor(graphNode.lineColor)
@@ -520,6 +522,7 @@ function materializeDisplayNode(
 			.setGrayed(node.grayed)
 			.setAlpha(node.alpha)
 			.setRotation(node.rotation)
+			.setCustomData(node.customData)
 			.setGroup(groupNode.group)
 			.setLayout(groupNode.layout)
 			.setLineGap(groupNode.lineGap)
@@ -545,6 +548,7 @@ function materializeDisplayNode(
 			.setGrayed(node.grayed)
 			.setAlpha(node.alpha)
 			.setRotation(node.rotation)
+			.setCustomData(node.customData)
 			.setUrl(loaderNode.url)
 			.setFilter(loaderNode.filter)
 			.setFilterData(loaderNode.filterData)
@@ -577,6 +581,7 @@ function materializeDisplayNode(
 			.setGrayed(node.grayed)
 			.setAlpha(node.alpha)
 			.setRotation(node.rotation)
+			.setCustomData(node.customData)
 			.setUrl(loaderNode.url)
 			.setFill(loaderNode.fill)
 			.setShrinkOnly(loaderNode.shrinkOnly)
@@ -661,6 +666,7 @@ function materializeDisplayNode(
 		.setGrayed(node.grayed)
 		.setAlpha(node.alpha)
 		.setRotation(node.rotation)
+		.setCustomData(node.customData)
 		.setSrc(movieClipNode.resource.resourceId)
 		.setPackageId(movieClipNode.resource.packageId ?? '')
 		.setFileName(movieClipNode.fileName)
@@ -1302,7 +1308,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			grayed: list.getGrayed(),
 			alpha: list.getAlpha(),
 			rotation: list.getRotation(),
-			customData: '',
+			customData: list.getCustomData(),
 			relations: liftRelations(list.getRelations()),
 			gears: liftGears(list.listGears()),
 			group: list.getGroup(),
@@ -1361,7 +1367,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			grayed: graph.getGrayed(),
 			alpha: graph.getAlpha(),
 			rotation: graph.getRotation(),
-			customData: '',
+			customData: graph.getCustomData(),
 			relations: liftRelations(graph.getRelations()),
 			gears: liftGears(graph.listGears()),
 			locked: graph.getLocked(),
@@ -1397,7 +1403,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			grayed: group.getGrayed(),
 			alpha: group.getAlpha(),
 			rotation: group.getRotation(),
-			customData: '',
+			customData: group.getCustomData(),
 			relations: liftRelations(group.getRelations()),
 			gears: liftGears(group.listGears()),
 			locked: group.getLocked(),
@@ -1424,7 +1430,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			grayed: loader.getGrayed(),
 			alpha: loader.getAlpha(),
 			rotation: loader.getRotation(),
-			customData: '',
+			customData: loader.getCustomData(),
 			relations: liftRelations(loader.getRelations()),
 			gears: liftGears(loader.listGears()),
 			pivot: { x: loader.getPivotX(), y: loader.getPivotY() },
@@ -1461,7 +1467,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			grayed: loader.getGrayed(),
 			alpha: loader.getAlpha(),
 			rotation: loader.getRotation(),
-			customData: '',
+			customData: loader.getCustomData(),
 			relations: liftRelations(loader.getRelations()),
 			gears: liftGears(loader.listGears()),
 			url: loader.getUrl(),
@@ -1557,7 +1563,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			grayed: movieClip.getGrayed(),
 			alpha: movieClip.getAlpha(),
 			rotation: movieClip.getRotation(),
-			customData: '',
+			customData: movieClip.getCustomData(),
 			relations: liftRelations(movieClip.getRelations()),
 			gears: liftGears(movieClip.listGears()),
 			resource: { packageId: movieClip.getPackageId(), resourceId: movieClip.getSrc() },

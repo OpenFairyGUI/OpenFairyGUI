@@ -535,6 +535,7 @@ test('UAM project lift and materialize preserve list, tree, graph, group, loader
 		.setId('list-node')
 		.setXY(1, 2)
 		.setSize(100, 120)
+		.setCustomData('list-data')
 		.setLayout(2)
 		.setDefaultItem('ui://pkg-display-nodes/item')
 		.setListItems([{ title: 'Item', icon: null, url: null, name: 'item0', selectedTitle: null, selectedIcon: null, level: 0, isFolder: null }]));
@@ -542,6 +543,7 @@ test('UAM project lift and materialize preserve list, tree, graph, group, loader
 		.setId('tree-node')
 		.setXY(3, 4)
 		.setSize(110, 130)
+		.setCustomData('tree-data')
 		.setIndent(24)
 		.setClickToExpand(1)
 		.setListItems([{ title: 'Folder', icon: null, url: null, name: 'folder0', selectedTitle: null, selectedIcon: null, level: 0, isFolder: true }]));
@@ -549,6 +551,7 @@ test('UAM project lift and materialize preserve list, tree, graph, group, loader
 		.setId('graph-node')
 		.setXY(5, 6)
 		.setSize(20, 30)
+		.setCustomData('graph-data')
 		.setGraphType(1)
 		.setLineColor('#112233')
 		.setFillColor('#445566')
@@ -557,12 +560,14 @@ test('UAM project lift and materialize preserve list, tree, graph, group, loader
 		.setId('group-node')
 		.setXY(7, 8)
 		.setSize(200, 40)
+		.setCustomData('group-data')
 		.setLayout(1)
 		.setAdvanced(true));
 	component.addChild(doc.createGLoader('loader')
 		.setId('loader-node')
 		.setXY(9, 10)
 		.setSize(64, 64)
+		.setCustomData('loader-data')
 		.setUrl('ui://pkg-display-nodes/image')
 		.setColor('#abcdef')
 		.setFillAmount(75));
@@ -570,6 +575,7 @@ test('UAM project lift and materialize preserve list, tree, graph, group, loader
 		.setId('loader3d-node')
 		.setXY(11, 12)
 		.setSize(80, 90)
+		.setCustomData('loader3d-data')
 		.setUrl('ui://pkg-display-nodes/spine')
 		.setAnimationName('idle')
 		.setSkinName('default')
@@ -578,6 +584,7 @@ test('UAM project lift and materialize preserve list, tree, graph, group, loader
 		.setId('movie-node')
 		.setXY(13, 14)
 		.setSize(96, 72)
+		.setCustomData('movie-data')
 		.setSrc('movie-resource')
 		.setPackageId('pkg-display-nodes')
 		.setFileName('movie.xml')
@@ -620,17 +627,35 @@ test('UAM project lift and materialize preserve list, tree, graph, group, loader
 	t.is(nodes.get('rich-text-node')?.kind, 'richText');
 	t.is(nodes.get('text-input-node')?.kind, 'textInput');
 	const listNode = nodes.get('list-node');
-	if (listNode?.kind === 'list') t.is(listNode.listItems[0]?.title, 'Item');
+	if (listNode?.kind === 'list') {
+		t.is(listNode.customData, 'list-data');
+		t.is(listNode.listItems[0]?.title, 'Item');
+	}
 	const treeNode = nodes.get('tree-node');
-	if (treeNode?.kind === 'tree') t.is(treeNode.indent, 24);
+	if (treeNode?.kind === 'tree') {
+		t.is(treeNode.customData, 'tree-data');
+		t.is(treeNode.indent, 24);
+	}
 	const graphNode = nodes.get('graph-node');
-	if (graphNode?.kind === 'graph') t.deepEqual(graphNode.cornerRadius, [1, 2, 3, 4]);
+	if (graphNode?.kind === 'graph') {
+		t.is(graphNode.customData, 'graph-data');
+		t.deepEqual(graphNode.cornerRadius, [1, 2, 3, 4]);
+	}
+	const groupNode = nodes.get('group-node');
+	if (groupNode?.kind === 'group') t.is(groupNode.customData, 'group-data');
 	const loaderNode = nodes.get('loader-node');
-	if (loaderNode?.kind === 'loader') t.is(loaderNode.fillAmount, 75);
+	if (loaderNode?.kind === 'loader') {
+		t.is(loaderNode.customData, 'loader-data');
+		t.is(loaderNode.fillAmount, 75);
+	}
 	const loader3DNode = nodes.get('loader3d-node');
-	if (loader3DNode?.kind === 'loader3D') t.false(loader3DNode.loop);
+	if (loader3DNode?.kind === 'loader3D') {
+		t.is(loader3DNode.customData, 'loader3d-data');
+		t.false(loader3DNode.loop);
+	}
 	const movieNode = nodes.get('movie-node');
 	if (movieNode?.kind === 'movieClip') {
+		t.is(movieNode.customData, 'movie-data');
 		t.is(movieNode.resource.resourceId, 'movie-resource');
 		t.false(movieNode.playing);
 		t.is(movieNode.frame, 3);
