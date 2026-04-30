@@ -142,6 +142,7 @@ flowchart LR
 - UAM materialization scope 与 transaction scope 是两个独立能力面；全量 display node lift/materialize 不代表 `UamTransactionOperation` 已开放这些 node kind 的全字段 mutation。
 - `packages/functions/src/uam-transaction.ts` 当前提供的是建立在上述 transaction contract 之上的 **thin stateless pre-MCP app seam**；它只接收 `UamProject + UamTransactionOperation[]`，返回结构化 app result，不重新定义 selector / op grammar，也不暴露 `Document`。
 - `packages/backend/src/runtime.ts` 当前提供 browser-safe 的第一层 **stateful backend runtime**；它通过 `functions.applyUamTransactionApp` 包装既有 authoring seam，支持 `openProjectSession` 直接从 UAM project 建立纯内存 session，并在注入 `BackendFileSystem` 后承接 file-backed `openSession / saveSession`。
+- `packages/backend/src/runtime.ts` 的 capability authoring scope 当前声明正式 UAM lift/materialize 覆盖面；`authoring.transactionScope` 单独声明 `applyTransaction` 的 Phase A 窄编辑覆盖面，避免把全量 UAM display node 建模误解成全量事务 mutation 能力。
 - `packages/backend/src/node.ts` 当前只承接 Node 默认装配：Node filesystem adapter、Node lock metadata，以及 `createNodeBackendRuntime()`。根入口不再默认导入 Node 文件系统。
 - `packages/backend/src/services/*.ts` 当前把 backend 进一步分成 `read / authoring / artifact / runtime` 四类内部服务面；`artifact` plane 不执行 `publish` / `restore`，而是通过 capability manifest 声明它们需要 `@openfairygui/backend/node` 侧的 Node bridge boundary。
 - `packages/backend/src/contracts.ts` 当前提供 backend contract version、capability schema version、compatibility policy，以及统一 response metadata / diagnostics 面；当前 metadata 至少覆盖 `requestId / sessionId / revision / durationMs / warnings / diagnostics / stage`，失败 envelope 会稳定把错误码/消息镜像到 `meta.diagnostics`。

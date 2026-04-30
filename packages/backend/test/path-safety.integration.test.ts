@@ -15,7 +15,9 @@ test('canonical path logic collapses project root and fairy file aliases to one 
 		const failure = aliasOpened as Extract<typeof aliasOpened, { ok: false }>;
 
 		t.is(failure.error.code, 'lock_conflict');
-		t.is(failure.error.kind, 'in_process_session_exists');
+		if (failure.error.code === 'lock_conflict') {
+			t.is(failure.error.kind, 'in_process_session_exists');
+		}
 	} finally {
 		await fixture.cleanup();
 	}

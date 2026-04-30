@@ -1,5 +1,8 @@
 import test from 'ava';
-import { UAM_SUPPORTED_TRANSACTION_SCOPE } from '@openfairygui/core/uam';
+import {
+	UAM_SUPPORTED_MATERIALIZATION_SCOPE,
+	UAM_SUPPORTED_TRANSACTION_SCOPE,
+} from '@openfairygui/core/uam';
 import { BackendRuntime } from '../src/index.js';
 
 test('getCapabilities reports derived ownership and runtime capabilities', (t) => {
@@ -30,9 +33,12 @@ test('getCapabilities reports derived ownership and runtime capabilities', (t) =
 	t.is(result.data.manifest.rootEntrypoint, '@openfairygui/backend');
 	t.is(result.data.manifest.nodeEntrypoint, '@openfairygui/backend/node');
 	t.true(result.data.manifest.browserSafe);
-	t.deepEqual(result.data.authoring.resourceKinds, [...UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds]);
-	t.deepEqual(result.data.authoring.nodeKinds, [...UAM_SUPPORTED_TRANSACTION_SCOPE.nodeKinds]);
-	t.deepEqual(result.data.authoring.gearKinds, [...UAM_SUPPORTED_TRANSACTION_SCOPE.gearKinds]);
+	t.deepEqual(result.data.authoring.resourceKinds, [...UAM_SUPPORTED_MATERIALIZATION_SCOPE.resourceKinds]);
+	t.deepEqual(result.data.authoring.nodeKinds, [...UAM_SUPPORTED_MATERIALIZATION_SCOPE.nodeKinds]);
+	t.deepEqual(result.data.authoring.gearKinds, [...UAM_SUPPORTED_MATERIALIZATION_SCOPE.gearKinds]);
+	t.deepEqual(result.data.authoring.transactionScope.resourceKinds, [...UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds]);
+	t.deepEqual(result.data.authoring.transactionScope.nodeKinds, [...UAM_SUPPORTED_TRANSACTION_SCOPE.nodeKinds]);
+	t.deepEqual(result.data.authoring.transactionScope.gearKinds, [...UAM_SUPPORTED_TRANSACTION_SCOPE.gearKinds]);
 	t.true(result.data.runtime.sessionRuntime);
 	t.true(result.data.runtime.advisoryLocking);
 	t.false(result.data.runtime.atomicSave);

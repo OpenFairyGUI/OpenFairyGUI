@@ -7,6 +7,7 @@ export {
 } from './stdio.js';
 export {
 	callOpenFairyGuiBackendTool,
+	type OpenFairyGuiBackendRuntime,
 } from './tool-handler.js';
 export {
 	OPENFAIRYGUI_BACKEND_PROMPT_DEFINITIONS,

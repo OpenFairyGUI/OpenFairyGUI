@@ -1,6 +1,6 @@
 import { ResourceTemplate, type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
-import type { BackendRuntime } from '@openfairygui/backend';
+import type { OpenFairyGuiBackendRuntime } from './tool-handler.js';
 
 const JSON_MIME_TYPE = 'application/json';
 
@@ -28,7 +28,7 @@ export const OPENFAIRYGUI_BACKEND_RESOURCE_TEMPLATES = [
 	'openfairygui://backend/job/{sessionId}/{jobId}',
 ] as const;
 
-export function registerOpenFairyGuiBackendResources(server: McpServer, runtime: BackendRuntime): void {
+export function registerOpenFairyGuiBackendResources(server: McpServer, runtime: OpenFairyGuiBackendRuntime): void {
 	server.registerResource(
 		'openfairygui_backend_capabilities',
 		OPENFAIRYGUI_BACKEND_CAPABILITIES_RESOURCE_URI,

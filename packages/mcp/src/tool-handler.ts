@@ -2,6 +2,23 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { BackendRuntime } from '@openfairygui/backend';
 import type { OpenFairyGuiBackendToolName } from './tool-definitions.js';
 
+export type OpenFairyGuiBackendRuntime = Pick<
+	BackendRuntime,
+	| 'getCapabilities'
+	| 'openSession'
+	| 'openProjectSession'
+	| 'getSession'
+	| 'applyTransaction'
+	| 'saveSession'
+	| 'closeSession'
+	| 'getEvents'
+	| 'getJob'
+	| 'listJobs'
+	| 'cancelJob'
+	| 'getCacheSnapshot'
+	| 'refreshCache'
+>;
+
 function jsonResult(payload: unknown, isError = false): CallToolResult {
 	return {
 		content: [
@@ -25,7 +42,7 @@ function isBackendFailure(value: unknown): boolean {
 }
 
 export async function callOpenFairyGuiBackendTool(
-	runtime: BackendRuntime,
+	runtime: OpenFairyGuiBackendRuntime,
 	name: OpenFairyGuiBackendToolName,
 	input: Record<string, unknown>,
 ): Promise<CallToolResult> {

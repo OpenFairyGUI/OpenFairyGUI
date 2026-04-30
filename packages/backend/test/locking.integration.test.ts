@@ -16,7 +16,9 @@ test('same runtime rejects second open on the same canonical path', async (t) =>
 		if (second.ok) return;
 		const failure = second as Extract<typeof second, { ok: false }>;
 		t.is(failure.error.code, 'lock_conflict');
-		t.is(failure.error.kind, 'in_process_session_exists');
+		if (failure.error.code === 'lock_conflict') {
+			t.is(failure.error.kind, 'in_process_session_exists');
+		}
 	} finally {
 		await fixture.cleanup();
 	}
@@ -33,7 +35,9 @@ test('advisory lock conflict is surfaced before session creation', async (t) => 
 		if (opened.ok) return;
 		const failure = opened as Extract<typeof opened, { ok: false }>;
 		t.is(failure.error.code, 'lock_conflict');
-		t.is(failure.error.kind, 'advisory_lock_conflict');
+		if (failure.error.code === 'lock_conflict') {
+			t.is(failure.error.kind, 'advisory_lock_conflict');
+		}
 	} finally {
 		await fixture.cleanup();
 	}

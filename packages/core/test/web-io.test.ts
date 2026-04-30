@@ -14,7 +14,9 @@ class FakeBlob {
 	}
 
 	async arrayBuffer(): Promise<ArrayBuffer> {
-		return this._data.buffer.slice(this._data.byteOffset, this._data.byteOffset + this._data.byteLength);
+		const copy = new Uint8Array(this._data.byteLength);
+		copy.set(this._data);
+		return copy.buffer;
 	}
 }
 
@@ -201,7 +203,7 @@ async function seedMinimalProject(fs: MemoryFileSystem, prefix = ''): Promise<st
 function createWritableDocument(): Document {
 	const doc = new Document();
 	doc.getRoot().setProjectId('written-project').setProjectType(0).setVersion('3.0');
-	doc.getRoot().setSettings({ common: { defaultFont: 'Arial' } });
+	doc.getRoot().setSettings({ common: { font: 'Arial' } });
 	const pkg = doc.createPackage('Demo');
 	pkg.setId('pkgDemo');
 	const comp = doc.createComponent('Main');

@@ -1,4 +1,5 @@
 import {
+	UAM_SUPPORTED_MATERIALIZATION_SCOPE,
 	UAM_SUPPORTED_TRANSACTION_SCOPE,
 	type UamProject,
 	type UamTransactionOperation,
@@ -115,6 +116,11 @@ export interface BackendCapabilities {
 		resourceKinds: readonly string[];
 		nodeKinds: readonly string[];
 		gearKinds: readonly string[];
+		transactionScope: {
+			resourceKinds: readonly string[];
+			nodeKinds: readonly string[];
+			gearKinds: readonly string[];
+		};
 		unsupported: readonly ['artifact.publish', 'artifact.restore'];
 	};
 	artifact: {
@@ -478,9 +484,14 @@ function createCapabilities(): BackendCapabilities {
 		authoring: {
 			applyTransaction: true,
 			saveSession: true,
-			resourceKinds: [...UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds],
-			nodeKinds: [...UAM_SUPPORTED_TRANSACTION_SCOPE.nodeKinds],
-			gearKinds: [...UAM_SUPPORTED_TRANSACTION_SCOPE.gearKinds],
+			resourceKinds: [...UAM_SUPPORTED_MATERIALIZATION_SCOPE.resourceKinds],
+			nodeKinds: [...UAM_SUPPORTED_MATERIALIZATION_SCOPE.nodeKinds],
+			gearKinds: [...UAM_SUPPORTED_MATERIALIZATION_SCOPE.gearKinds],
+			transactionScope: {
+				resourceKinds: [...UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds],
+				nodeKinds: [...UAM_SUPPORTED_TRANSACTION_SCOPE.nodeKinds],
+				gearKinds: [...UAM_SUPPORTED_TRANSACTION_SCOPE.gearKinds],
+			},
 			unsupported: ['artifact.publish', 'artifact.restore'],
 		},
 		artifact: createArtifactCapabilities(),

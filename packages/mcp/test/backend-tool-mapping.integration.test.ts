@@ -1,5 +1,4 @@
 import test from 'ava';
-import type { BackendRuntime } from '@openfairygui/backend';
 import { BackendRuntime as BrowserSafeBackendRuntime } from '@openfairygui/backend';
 import { createNodeBackendRuntime } from '@openfairygui/backend/node';
 import {
@@ -7,6 +6,7 @@ import {
 	OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS,
 	OPENFAIRYGUI_BACKEND_TOOL_NAMES,
 	OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
+	type OpenFairyGuiBackendRuntime,
 	type OpenFairyGuiBackendToolName,
 } from '../src/index.js';
 import { createMcpFixtureProject, createTempMcpProject } from './helpers.js';
@@ -27,7 +27,7 @@ function backendResultOf(result: Awaited<ReturnType<typeof callOpenFairyGuiBacke
 }
 
 async function callTool(
-	runtime: BackendRuntime,
+	runtime: OpenFairyGuiBackendRuntime,
 	name: OpenFairyGuiBackendToolName,
 	input: Record<string, unknown> = {},
 ): Promise<BackendToolResult> {

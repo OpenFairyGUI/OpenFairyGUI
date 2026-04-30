@@ -33,9 +33,12 @@ test('root backend entry opens pure UAM project sessions without a filesystem ad
 	const saved = await runtime.saveSession({ sessionId: opened.data.sessionId });
 	t.false(saved.ok);
 	if (saved.ok) return;
-	t.is(saved.error.code, 'capability_unavailable');
-	t.is(saved.error.capability, 'fileSystem');
-	t.deepEqual(saved.meta.diagnostics, [
+	const saveFailure = saved as Extract<typeof saved, { ok: false }>;
+	t.is(saveFailure.error.code, 'capability_unavailable');
+	if (saveFailure.error.code === 'capability_unavailable') {
+		t.is(saveFailure.error.capability, 'fileSystem');
+	}
+	t.deepEqual(saveFailure.meta.diagnostics, [
 		{
 			code: 'capability_unavailable',
 			message: 'saveSession requires an injected BackendFileSystem adapter.',
@@ -49,8 +52,11 @@ test('file-backed openSession declares the missing filesystem capability instead
 	const opened = await runtime.openSession({ projectPath: './Project' });
 	t.false(opened.ok);
 	if (opened.ok) return;
-	t.is(opened.error.code, 'capability_unavailable');
-	t.is(opened.error.requiredAdapter, 'BackendFileSystem');
-	t.is(opened.meta.stage, 'runtime');
-	t.is(opened.meta.diagnostics[0]?.code, 'capability_unavailable');
+	const openFailure = opened as Extract<typeof opened, { ok: false }>;
+	t.is(openFailure.error.code, 'capability_unavailable');
+	if (openFailure.error.code === 'capability_unavailable') {
+		t.is(openFailure.error.requiredAdapter, 'BackendFileSystem');
+	}
+	t.is(openFailure.meta.stage, 'runtime');
+	t.is(openFailure.meta.diagnostics[0]?.code, 'capability_unavailable');
 });
