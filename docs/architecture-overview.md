@@ -29,7 +29,7 @@ flowchart LR
         UPKG["UAM Package / Resource"]
         UCOMP["UAM Component"]
         UBEHAVIOR["DisplayList / Controller / Transition / Gear"]
-        UTX["Phase A Transaction Kernel<br/>explicit ops / support preflight / commit"]
+        UTX["Phase A Transaction Kernel<br/>explicit ops / support preflight / UAM-native or Document commit"]
     end
 
     subgraph GRAPH["内部图物化层"]
@@ -138,7 +138,7 @@ flowchart LR
 补充说明：
 - `@openfairygui/core` 当前同时承载 UAM 主真相层与内部图物化层。
 - `packages/core/src/uam/model.ts` 当前的 materialization scope 覆盖现有全部 display node 类：`GImage`、`GTextField`、`GRichTextField`、`GTextInput`、`GComponent`、`GList`、`GTree`、`GGraph`、`GGroup`、`GLoader`、`GLoader3D`、`GMovieClip`、`GButton`、`GLabel`、`GComboBox`、`GProgressBar`、`GSlider`、`GScrollBar`。其中 component-derived controls 以具体 UAM node kind 建模，不通过长期 `extras` 或通用属性袋承载。
-- `packages/core/src/uam/transaction.ts` 当前提供的是 **UAM-public explicit operation batch API**；它的 `commit()` 结果是新的 canonical `UamProject`，内部允许通过私有 `Document` 工作副本执行并在失败时整体丢弃。
+- `packages/core/src/uam/transaction.ts` 当前提供的是 **UAM-public explicit operation batch API**；它的 `commit()` 结果是新的 normalized `UamProject`。纯 `setDisplayNodeProps` 与空事务直接在 UAM 上执行，未触及的复杂节点、引用、relation、transition 作为 lossless passthrough 保留；结构性事务仍允许通过私有 `Document` 工作副本执行并在失败时整体丢弃。
 - UAM materialization scope 与 transaction scope 是两个独立能力面；全量 display node lift/materialize 不代表 `UamTransactionOperation` 已开放这些 node kind 的全字段 mutation。当前 Phase A transaction display scope 覆盖 `image`、`text`、`richText`、`textInput`、`component`、`graph`、`group`、`list`、`loader`、`tree` 的基础 display props、attach/detach 与 look gear 操作，但不开放这些节点的全字段面板式 mutation。`validateTransactionSupport(project)` 保留全项目体检语义；`validateTransactionSupport(project, operations)` 与实际 transaction preflight 按 operation touch-set 判定，只阻塞本次 operations 触及的 unsupported 节点、资源或字段。
 - `packages/functions/src/uam-transaction.ts` 当前提供的是建立在上述 transaction contract 之上的 **thin stateless pre-MCP app seam**；它只接收 `UamProject + UamTransactionOperation[]`，返回结构化 app result，不重新定义 selector / op grammar，也不暴露 `Document`。
 - `packages/backend/src/runtime.ts` 当前提供 browser-safe 的第一层 **stateful backend runtime**；它通过 `functions.applyUamTransactionApp` 包装既有 authoring seam，支持 `openProjectSession` 直接从 UAM project 建立纯内存 session，并在注入 `BackendFileSystem` 后承接 file-backed `openSession / saveSession`。
@@ -275,7 +275,7 @@ flowchart TD
     S --> C
     C --> U["Unified Authoring Model"]
     U --> D["结构检查与整理<br/>UAM normalization / validation"]
-    U --> T["Phase A transaction kernel<br/>explicit ops -> support preflight -> private Document commit"]
+    U --> T["Phase A transaction kernel<br/>explicit ops -> support preflight -> UAM-native props or private Document commit"]
     U --> A2["functions app seam<br/>structured app result / no Document leakage"]
     A2 --> B2["backend runtime<br/>session / revision / save / lock / capabilities"]
     B2 --> B3["service planes<br/>read / authoring / artifact / runtime"]

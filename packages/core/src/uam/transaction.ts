@@ -909,6 +909,76 @@ function selectorDetails(selector: Record<string, unknown> | undefined): Record<
 	return selector;
 }
 
+type UamTextLikeDisplayNode = Extract<UamDisplayNode, { kind: 'text' | 'richText' | 'textInput' }>;
+
+function isTextLikeDisplayNode(node: UamDisplayNode): node is UamTextLikeDisplayNode {
+	return TEXT_DISPLAY_NODE_KINDS.has(node.kind);
+}
+
+function canApplyOperationsInUam(operations: UamTransactionOperation[]): boolean {
+	return operations.every((operation) => operation.kind === 'setDisplayNodeProps');
+}
+
+function applyDisplayNodePropsUpdate(node: UamDisplayNode, props: UamDisplayNodePropsUpdate): void {
+	if (props.position !== undefined) node.position = { ...props.position };
+	if (props.size !== undefined) node.size = { ...props.size };
+	if (props.visible !== undefined) node.visible = props.visible;
+	if (props.touchable !== undefined) node.touchable = props.touchable;
+	if (props.grayed !== undefined) node.grayed = props.grayed;
+	if (props.alpha !== undefined) node.alpha = props.alpha;
+	if (props.rotation !== undefined) node.rotation = props.rotation;
+	if (props.customData !== undefined) node.customData = props.customData;
+
+	const hasTextProps = props.text !== undefined
+		|| props.font !== undefined
+		|| props.fontSize !== undefined
+		|| props.color !== undefined;
+	if (!hasTextProps) return;
+	if (!isTextLikeDisplayNode(node)) {
+		throw new Error(`Text display props are not supported on display node kind "${node.kind}".`);
+	}
+	if (props.text !== undefined) node.text = props.text;
+	if (props.font !== undefined) node.font = props.font;
+	if (props.fontSize !== undefined) node.fontSize = props.fontSize;
+	if (props.color !== undefined) node.color = props.color;
+}
+
+function applyUamNativeOperation(project: UamProject, operation: UamTransactionOperation): void {
+	switch (operation.kind) {
+		case 'setDisplayNodeProps': {
+			const found = findDisplayNodeSpecWithPath(project, operation.selector);
+			if (!found) {
+				throw new Error(`Display node "${operation.selector.displayNodeId}" was not found in component "${operation.selector.componentResourceId}".`);
+			}
+			applyDisplayNodePropsUpdate(found.node, operation.props);
+			return;
+		}
+		default:
+			throw new Error(`UAM-native transaction path does not support operation "${operation.kind}".`);
+	}
+}
+
+function applyUamNativeOperations(
+	project: UamProject,
+	operations: UamTransactionOperation[],
+): UamProject {
+	const result = normalizeUamProject(project);
+	for (const [opIndex, operation] of operations.entries()) {
+		try {
+			applyUamNativeOperation(result, operation);
+		} catch (error) {
+			throw asTransactionError(error, {
+				code: error instanceof UamTransactionError ? error.code : 'execution_failure',
+				opIndex,
+				opId: operation.opId,
+				opKind: operation.kind,
+				selector: 'selector' in operation ? selectorDetails(operation.selector as unknown as Record<string, unknown>) : undefined,
+			});
+		}
+	}
+	return result;
+}
+
 function resolvePackage(doc: Document, selector: { packageId: string }): Package {
 	const pkg = doc.getRoot().getPackageById(selector.packageId);
 	if (!pkg) {
@@ -1392,6 +1462,11 @@ export function applyUamTransaction(
 	operations: UamTransactionOperation[],
 ): UamProject {
 	const baseline = normalizeUamProject(project);
+	assertTransactionSupported(baseline, operations);
+	if (canApplyOperationsInUam(operations)) {
+		return applyUamNativeOperations(baseline, operations);
+	}
+
 	const baselineIssues = validateUamProject(baseline);
 	if (baselineIssues.length > 0) {
 		throw new UamTransactionError(
@@ -1402,8 +1477,6 @@ export function applyUamTransaction(
 			},
 		);
 	}
-
-	assertTransactionSupported(baseline, operations);
 
 	const workingDocument = materializeUamProject(baseline);
 	for (const [opIndex, operation] of operations.entries()) {

@@ -537,6 +537,47 @@ test('validateTransactionSupport scopes unsupported baseline nodes and fields to
 	});
 });
 
+test('applyUamTransaction leaves untouched invalid baseline refs as passthrough for simple display props', (t) => {
+	const project = createSupportedProject();
+	const componentResource = project.packages[0]!.resources[1];
+	if (componentResource?.kind !== 'component') {
+		t.fail('expected component resource');
+		return;
+	}
+	componentResource.component.displayList[0]!.relations.push({
+		targetNodeId: '',
+		type: 0,
+		usePercent: false,
+	});
+
+	const result = applyUamTransaction(project, [
+		{
+			kind: 'setDisplayNodeProps',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+			props: {
+				position: { x: 24, y: 32 },
+				text: 'Scoped edit',
+			},
+		},
+	]);
+	const resultComponent = result.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	t.is(resultComponent?.kind, 'component');
+	if (resultComponent?.kind !== 'component') return;
+	t.deepEqual(resultComponent.component.displayList[0]?.relations, [
+		{
+			targetNodeId: '',
+			type: 0,
+			usePercent: false,
+		},
+	]);
+	const title = resultComponent.component.displayList.find((node) => node.id === 'n1');
+	t.is(title?.kind, 'text');
+	if (title?.kind === 'text') {
+		t.deepEqual(title.position, { x: 24, y: 32 });
+		t.is(title.text, 'Scoped edit');
+	}
+});
+
 test('Phase A transactions support common FairyGUI display node kinds for common props', (t) => {
 	const project = createSupportedProject();
 	const componentResource = project.packages[0]!.resources[1];
