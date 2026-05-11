@@ -277,6 +277,45 @@ function findDisplayNodeSpec(project: UamProject, selector: UamDisplayNodeSelect
 	return component?.component.displayList.find((node) => node.id === selector.displayNodeId) ?? null;
 }
 
+function findResourceSpecWithPath(project: UamProject, selector: UamResourceSelector) {
+	const packageIndex = project.packages.findIndex((pkg) => pkg.id === selector.packageId);
+	if (packageIndex < 0) return null;
+	const pkg = project.packages[packageIndex]!;
+	const resourceIndex = pkg.resources.findIndex((resource) => resource.id === selector.resourceId);
+	if (resourceIndex < 0) return null;
+	return {
+		pkg,
+		resource: pkg.resources[resourceIndex]!,
+		path: `packages[${packageIndex}].resources[${resourceIndex}]`,
+	};
+}
+
+function findComponentSpecWithPath(project: UamProject, selector: UamComponentSelector) {
+	const found = findResourceSpecWithPath(project, {
+		packageId: selector.packageId,
+		resourceId: selector.componentResourceId,
+	});
+	if (!found || found.resource.kind !== 'component') return null;
+	return {
+		pkg: found.pkg,
+		resource: found.resource,
+		path: found.path,
+	};
+}
+
+function findDisplayNodeSpecWithPath(project: UamProject, selector: UamDisplayNodeSelector) {
+	const component = findComponentSpecWithPath(project, selector);
+	if (!component) return null;
+	const nodeIndex = component.resource.component.displayList.findIndex((node) => node.id === selector.displayNodeId);
+	if (nodeIndex < 0) return null;
+	return {
+		pkg: component.pkg,
+		component: component.resource,
+		node: component.resource.component.displayList[nodeIndex]!,
+		path: `${component.path}.component.displayList[${nodeIndex}]`,
+	};
+}
+
 function countDuplicateNames(values: string[]): Set<string> {
 	const seen = new Set<string>();
 	const duplicates = new Set<string>();
@@ -356,6 +395,86 @@ function validateBaselineSupport(project: UamProject, issues: UamTransactionSupp
 				);
 			}
 		}
+	}
+}
+
+function validateTouchedResourceKind(
+	project: UamProject,
+	selector: UamResourceSelector,
+	path: string,
+	issues: UamTransactionSupportIssue[],
+): void {
+	const found = findResourceSpecWithPath(project, selector);
+	if (!found) return;
+	if (found.resource.kind === 'component' || UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds.includes(found.resource.kind as never)) {
+		return;
+	}
+	pushSupportIssue(
+		issues,
+		path,
+		`Phase A does not support ${found.resource.kind} resource mutation ("${selector.packageId}/${selector.resourceId}").`,
+	);
+}
+
+function validateTouchedDisplayNodeKind(
+	project: UamProject,
+	selector: UamDisplayNodeSelector,
+	path: string,
+	issues: UamTransactionSupportIssue[],
+) {
+	const found = findDisplayNodeSpecWithPath(project, selector);
+	if (!found) return null;
+	if (!UAM_SUPPORTED_TRANSACTION_SCOPE.nodeKinds.includes(found.node.kind as never)) {
+		pushSupportIssue(
+			issues,
+			path,
+			`Phase A does not support ${found.node.kind} display node mutation ("${selector.displayNodeId}").`,
+		);
+	}
+	return found;
+}
+
+function validateControllerActionTargets(
+	project: UamProject,
+	selector: UamComponentSelector,
+	controller: UamControllerModel,
+	path: string,
+	issues: UamTransactionSupportIssue[],
+): void {
+	for (const [actionIndex, action] of controller.actions.entries()) {
+		if (!action.targetNodeId) continue;
+		validateTouchedDisplayNodeKind(
+			project,
+			{
+				packageId: selector.packageId,
+				componentResourceId: selector.componentResourceId,
+				displayNodeId: action.targetNodeId,
+			},
+			`${path}.actions[${actionIndex}].targetNodeId`,
+			issues,
+		);
+	}
+}
+
+function validateTransitionTargets(
+	project: UamProject,
+	selector: UamComponentSelector,
+	transition: UamComponentModel['transitions'][number],
+	path: string,
+	issues: UamTransactionSupportIssue[],
+): void {
+	for (const [itemIndex, item] of transition.items.entries()) {
+		if (!item.targetNodeId) continue;
+		validateTouchedDisplayNodeKind(
+			project,
+			{
+				packageId: selector.packageId,
+				componentResourceId: selector.componentResourceId,
+				displayNodeId: item.targetNodeId,
+			},
+			`${path}.items[${itemIndex}].targetNodeId`,
+			issues,
+		);
 	}
 }
 
@@ -486,16 +605,19 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 		const operationPath = `operations[${operationIndex}]`;
 		switch (operation.kind) {
 			case 'renameResource':
+				validateTouchedResourceKind(project, operation.selector, `${operationPath}.selector.resourceId`, issues);
 				if (!operation.newName) {
 					pushSupportIssue(issues, `${operationPath}.newName`, 'renameResource.newName must not be empty.');
 				}
 				break;
 			case 'moveResource':
+				validateTouchedResourceKind(project, operation.selector, `${operationPath}.selector.resourceId`, issues);
 				if (!operation.toPath) {
 					pushSupportIssue(issues, `${operationPath}.toPath`, 'moveResource.toPath must not be empty.');
 				}
 				break;
 			case 'setDisplayNodeProps':
+				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues);
 				validateDisplayPropsPayload(operation, project, operationPath, issues);
 				break;
 			case 'attachDisplayNode':
@@ -505,24 +627,29 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 				validateSupportedDisplayNode(operation.node, operation.selector.packageId, `${operationPath}.node`, issues);
 				break;
 			case 'detachDisplayNode':
+				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues);
 				break;
 			case 'addController':
 			case 'updateController':
 				validateControllerPayload(operation.selector, operation.controller, operationPath, issues);
+				validateControllerActionTargets(project, operation.selector, operation.controller, `${operationPath}.controller`, issues);
 				break;
 			case 'removeController':
 				break;
 			case 'addTransition':
 			case 'updateTransition':
 				validateTransitionPayload(operation.selector, operation.transition, operationPath, issues);
+				validateTransitionTargets(project, operation.selector, operation.transition, `${operationPath}.transition`, issues);
 				break;
 			case 'removeTransition':
 				break;
 			case 'addLookGear':
 			case 'updateLookGear':
+				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues);
 				validateLookGearPayload(operation.selector, operation.gear, operationPath, issues);
 				break;
 			case 'removeLookGear':
+				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues);
 				break;
 		}
 	}
@@ -530,17 +657,20 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 
 export function validateTransactionSupport(
 	project: UamProject,
-	operations: UamTransactionOperation[] = [],
+	operations?: UamTransactionOperation[],
 ): UamTransactionSupportIssue[] {
 	const issues: UamTransactionSupportIssue[] = [];
-	validateBaselineSupport(project, issues);
+	if (operations === undefined) {
+		validateBaselineSupport(project, issues);
+		return issues;
+	}
 	validateOperationPayloads(project, operations, issues);
 	return issues;
 }
 
 export function assertTransactionSupported(
 	project: UamProject,
-	operations: UamTransactionOperation[] = [],
+	operations?: UamTransactionOperation[],
 ): void {
 	const issues = validateTransactionSupport(project, operations);
 	if (issues.length === 0) return;

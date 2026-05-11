@@ -8,6 +8,7 @@ import {
 	assertTransactionSupported,
 	createUamTransaction,
 	normalizeUamProject,
+	validateTransactionSupport,
 	type UamControllerModel,
 	type UamLookGearBinding,
 	type UamProject,
@@ -264,6 +265,82 @@ test('assertTransactionSupported rejects unsupported baseline project shapes', (
 		() => assertTransactionSupported(crossPackageImageRefProject),
 		{ instanceOf: UamTransactionError },
 	);
+});
+
+test('validateTransactionSupport scopes unsupported baseline nodes and fields to touched operations', (t) => {
+	const project = createSupportedProject();
+	const componentResource = project.packages[0]!.resources[1];
+	if (componentResource?.kind !== 'component') {
+		t.fail('expected component resource');
+		return;
+	}
+	componentResource.component.displayList.push({
+		kind: 'component',
+		id: 'n2',
+		name: 'sub',
+		position: { x: 0, y: 0 },
+		size: { width: 10, height: 10 },
+		visible: true,
+		touchable: true,
+		grayed: false,
+		alpha: 1,
+		rotation: 0,
+		customData: '',
+		relations: [],
+		gears: [],
+		resource: { resourceId: 'cmp001' },
+	});
+	componentResource.component.controllers.push(createControllerModel('state'));
+	(componentResource.component.displayList[0]!.gears as any[]).push({
+		kind: 'xy',
+		name: 'xy-gear',
+		controllerName: 'state',
+		states: [],
+		defaultValue: { x: 0, y: 0 },
+		condition: '',
+		positionsInPercent: false,
+		tween: false,
+		tweenDuration: 0.3,
+		tweenDelay: 0,
+		easeType: 5,
+		customEasePath: '',
+	});
+
+	t.true(validateTransactionSupport(project).length > 0);
+	t.deepEqual(validateTransactionSupport(project, []), []);
+	t.deepEqual(validateTransactionSupport(project, [
+		{
+			kind: 'setDisplayNodeProps',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+			props: { text: 'Scoped Update' },
+		},
+	]), []);
+
+	const result = applyUamTransaction(project, [
+		{
+			kind: 'setDisplayNodeProps',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+			props: { text: 'Scoped Update' },
+		},
+	]);
+	const resultComponent = result.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	t.is(resultComponent?.kind, 'component');
+	if (resultComponent?.kind !== 'component') return;
+	const textNode = resultComponent.component.displayList.find((node) => node.id === 'n1');
+	t.is(textNode?.kind, 'text');
+	if (textNode?.kind === 'text') t.is(textNode.text, 'Scoped Update');
+
+	const touchedUnsupportedNodeIssues = validateTransactionSupport(project, [
+		{
+			kind: 'setDisplayNodeProps',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n2' },
+			props: { alpha: 0.5 },
+		},
+	]);
+	t.true(touchedUnsupportedNodeIssues.some((issue) => (
+		issue.path === 'operations[0].selector.displayNodeId'
+		&& issue.message.includes('component display node mutation')
+	)));
 });
 
 test('assertTransactionSupported rejects duplicate transition names and duplicate look-gear-per-controller', (t) => {
