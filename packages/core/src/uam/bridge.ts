@@ -348,7 +348,7 @@ function materializeAssetResource(doc: Document, resource: UamAssetResource) {
 		.setAnchor(metadataNumber(resource, 'anchorX', 0), metadataNumber(resource, 'anchorY', 0));
 }
 
-function materializeDisplayNode(
+export function materializeDisplayNode(
 	doc: Document,
 	node: UamDisplayNode,
 ): GObject {

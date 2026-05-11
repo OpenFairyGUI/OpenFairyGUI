@@ -572,6 +572,6 @@ export const UAM_SUPPORTED_MATERIALIZATION_SCOPE = {
 
 export const UAM_SUPPORTED_TRANSACTION_SCOPE = {
 	resourceKinds: ['image', 'component'] as const,
-	nodeKinds: ['image', 'text'] as const,
+	nodeKinds: ['image', 'text', 'richText', 'textInput', 'component', 'graph', 'group', 'list', 'loader', 'tree'] as const,
 	gearKinds: ['look'] as const,
 } as const;

@@ -9,6 +9,7 @@
 			"@openfairygui/functions": ["./packages/functions/src/index.ts"],
 			"@openfairygui/functions/uam": ["./packages/functions/src/uam-transaction.ts"],
 			"@openfairygui/backend": ["./packages/backend/src/index.ts"],
+			"@openfairygui/backend/node": ["./packages/backend/src/node.ts"],
 			"@openfairygui/mcp": ["./packages/mcp/src/index.ts"],
 			"@openfairygui/cli": ["./packages/cli/src/cli.ts"],
 			"@openfairygui/test-utils": ["./packages/test-utils/src/index.ts"]

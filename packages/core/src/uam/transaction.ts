@@ -1,23 +1,19 @@
 import { bindLookGear, composeController, composeTransition } from '../authoring.js';
-import { GearType } from '../constants.js';
+import { GearType, PropertyType } from '../constants.js';
 import type { Document } from '../document.js';
 import type { Component } from '../properties/component.js';
 import type { Controller } from '../properties/controller.js';
-import type { GImage } from '../properties/g-image.js';
 import type { GObject } from '../properties/g-object.js';
 import type { GTextField } from '../properties/g-text-field.js';
 import type { Package } from '../properties/package.js';
 import type { Transition } from '../properties/transition.js';
-import { liftDocumentToUamProject, materializeUamProject } from './bridge.js';
+import { liftDocumentToUamProject, materializeDisplayNode, materializeUamProject } from './bridge.js';
 import type {
 	UamComponentModel,
 	UamControllerModel,
 	UamDisplayNode,
-	UamImageNode,
 	UamLookGearBinding,
 	UamProject,
-	UamRelation,
-	UamTextNode,
 	UamValidationIssue,
 } from './model.js';
 import { UAM_SUPPORTED_TRANSACTION_SCOPE } from './model.js';
@@ -66,7 +62,8 @@ export interface UamDisplayNodePropsUpdate {
 	color?: string;
 }
 
-type UamAttachableDisplayNode = UamImageNode | UamTextNode;
+type UamTransactionDisplayNodeKind = (typeof UAM_SUPPORTED_TRANSACTION_SCOPE.nodeKinds)[number];
+type UamAttachableDisplayNode = Extract<UamDisplayNode, { kind: UamTransactionDisplayNodeKind }>;
 
 interface UamTransactionOperationBase {
 	opId?: string;
@@ -246,13 +243,37 @@ function pushSupportIssue(issues: UamTransactionSupportIssue[], path: string, me
 	issues.push({ path, message });
 }
 
-function cloneRelations(relations: UamRelation[]): Array<{ target: string; type: number; usePercent: boolean }> {
-	return relations.map((relation) => ({
-		target: relation.targetNodeId,
-		type: relation.type,
-		usePercent: relation.usePercent,
-	}));
-}
+type CommonDisplayPropTarget = GObject & {
+	setXY(x: number, y: number): unknown;
+	setSize(width: number, height: number): unknown;
+	setVisible(visible: boolean): unknown;
+	setTouchable(touchable: boolean): unknown;
+	setGrayed(grayed: boolean): unknown;
+	setAlpha(alpha: number): unknown;
+	setRotation(rotation: number): unknown;
+	setCustomData(customData: string): unknown;
+};
+
+const TEXT_DISPLAY_NODE_KINDS = new Set<UamDisplayNode['kind']>(['text', 'richText', 'textInput']);
+
+const TEXT_DISPLAY_PROPERTY_TYPES = new Set<string>([
+	PropertyType.G_TEXT_FIELD,
+	PropertyType.G_RICH_TEXT_FIELD,
+	PropertyType.G_TEXT_INPUT,
+]);
+
+const COMMON_DISPLAY_PROPERTY_TYPES = new Set<string>([
+	PropertyType.G_IMAGE,
+	PropertyType.G_TEXT_FIELD,
+	PropertyType.G_RICH_TEXT_FIELD,
+	PropertyType.G_TEXT_INPUT,
+	PropertyType.G_COMPONENT,
+	PropertyType.G_GRAPH,
+	PropertyType.G_GROUP,
+	PropertyType.G_LIST,
+	PropertyType.G_LOADER,
+	PropertyType.G_TREE,
+]);
 
 function findPackageSpec(project: UamProject, packageId: string): UamProject['packages'][number] | null {
 	return project.packages.find((pkg) => pkg.id === packageId) ?? null;
@@ -342,10 +363,6 @@ function validateSupportedDisplayNode(
 			`${path}.resource.packageId`,
 			`Phase A does not support cross-package image refs on supported image nodes ("${node.resource.packageId}" != "${owningPackageId}").`,
 		);
-	}
-
-	if (node.kind === 'component') {
-		pushSupportIssue(issues, `${path}.kind`, 'Phase A does not support component display nodes.');
 	}
 
 	const lookGearControllers = new Set<string>();
@@ -507,8 +524,8 @@ function validateDisplayPropsPayload(
 	for (const key of Object.keys(op.props) as Array<keyof UamDisplayNodePropsUpdate>) {
 		if (COMMON_DISPLAY_PROP_KEYS.has(key)) continue;
 		if (TEXT_DISPLAY_PROP_KEYS.has(key)) {
-			if (nodeKind && nodeKind !== 'text') {
-				pushSupportIssue(issues, `${path}.props.${String(key)}`, `Field "${String(key)}" is only supported on text display nodes.`);
+			if (nodeKind && !TEXT_DISPLAY_NODE_KINDS.has(nodeKind)) {
+				pushSupportIssue(issues, `${path}.props.${String(key)}`, `Field "${String(key)}" is only supported on text, richText, or textInput display nodes.`);
 			}
 			continue;
 		}
@@ -809,11 +826,7 @@ function resolveUniqueLookGear(node: GObject, selector: UamLookGearSelector) {
 	return matches[0]!;
 }
 
-function materializeRelations(relations: UamRelation[]): Array<{ target: string; type: number; usePercent: boolean }> {
-	return cloneRelations(relations);
-}
-
-function applyCommonDisplayProps(target: GImage | GTextField, props: UamDisplayNodePropsUpdate): void {
+function applyCommonDisplayProps(target: CommonDisplayPropTarget, props: UamDisplayNodePropsUpdate): void {
 	if (props.position) target.setXY(props.position.x, props.position.y);
 	if (props.size) target.setSize(props.size.width, props.size.height);
 	if (props.visible !== undefined) target.setVisible(props.visible);
@@ -824,40 +837,21 @@ function applyCommonDisplayProps(target: GImage | GTextField, props: UamDisplayN
 	if (props.customData !== undefined) target.setCustomData(props.customData);
 }
 
-function createAttachableNode(doc: Document, packageId: string, node: UamAttachableDisplayNode): GImage | GTextField {
-	if (node.kind === 'image') {
-		const image = doc.createGImage(node.name)
-			.setId(node.id)
-			.setXY(node.position.x, node.position.y)
-			.setSize(node.size.width, node.size.height)
-			.setVisible(node.visible)
-			.setTouchable(node.touchable)
-			.setGrayed(node.grayed)
-			.setAlpha(node.alpha)
-			.setRotation(node.rotation)
-			.setCustomData(node.customData)
-			.setSrc(node.resource.resourceId)
-			.setPackageId(node.resource.packageId ?? packageId);
-		image.setRelations(materializeRelations(node.relations));
-		return image;
+function withDefaultOwnPackageRef(packageId: string, node: UamAttachableDisplayNode): UamAttachableDisplayNode {
+	if ((node.kind === 'image' || node.kind === 'component') && node.resource.packageId === undefined) {
+		return {
+			...node,
+			resource: {
+				...node.resource,
+				packageId,
+			},
+		} as UamAttachableDisplayNode;
 	}
+	return node;
+}
 
-	const text = doc.createGTextField(node.name)
-		.setId(node.id)
-		.setXY(node.position.x, node.position.y)
-		.setSize(node.size.width, node.size.height)
-		.setVisible(node.visible)
-		.setTouchable(node.touchable)
-		.setGrayed(node.grayed)
-		.setAlpha(node.alpha)
-		.setRotation(node.rotation)
-		.setCustomData(node.customData)
-		.setText(node.text)
-		.setFont(node.font)
-		.setFontSize(node.fontSize)
-		.setColor(node.color);
-	text.setRelations(materializeRelations(node.relations));
-	return text;
+function createAttachableNode(doc: Document, packageId: string, node: UamAttachableDisplayNode): GObject {
+	return materializeDisplayNode(doc, withDefaultOwnPackageRef(packageId, node));
 }
 
 function reorderChildren(component: Component, orderedChildren: GObject[]): void {
@@ -993,11 +987,11 @@ function applyOperation(doc: Document, operation: UamTransactionOperation): void
 		}
 		case 'setDisplayNodeProps': {
 			const node = resolveDisplayNode(doc, operation.selector);
-			if (node.propertyType !== 'GImage' && node.propertyType !== 'GTextField') {
-				throw new Error(`setDisplayNodeProps only supports GImage/GTextField in Phase A, got "${node.propertyType}".`);
+			if (!COMMON_DISPLAY_PROPERTY_TYPES.has(node.propertyType)) {
+				throw new Error(`setDisplayNodeProps does not support display node type "${node.propertyType}" in Phase A.`);
 			}
-			applyCommonDisplayProps(node as GImage | GTextField, operation.props);
-			if (node.propertyType === 'GTextField') {
+			applyCommonDisplayProps(node as CommonDisplayPropTarget, operation.props);
+			if (TEXT_DISPLAY_PROPERTY_TYPES.has(node.propertyType)) {
 				const textNode = node as GTextField;
 				if (operation.props.text !== undefined) textNode.setText(operation.props.text);
 				if (operation.props.font !== undefined) textNode.setFont(operation.props.font);
@@ -1144,8 +1138,8 @@ function applyOperation(doc: Document, operation: UamTransactionOperation): void
 		case 'addLookGear': {
 			const component = resolveComponent(doc, operation.selector);
 			const node = resolveDisplayNode(doc, operation.selector);
-			if (node.propertyType !== 'GImage' && node.propertyType !== 'GTextField') {
-				throw new Error(`addLookGear only supports image/text nodes in Phase A, got "${node.propertyType}".`);
+			if (!COMMON_DISPLAY_PROPERTY_TYPES.has(node.propertyType)) {
+				throw new Error(`addLookGear does not support display node type "${node.propertyType}" in Phase A.`);
 			}
 			if (hasControllerLookGear(node, operation.selector.controllerName)) {
 					throw new UamTransactionError(
@@ -1182,8 +1176,8 @@ function applyOperation(doc: Document, operation: UamTransactionOperation): void
 		case 'updateLookGear': {
 			const component = resolveComponent(doc, operation.selector);
 			const node = resolveDisplayNode(doc, operation.selector);
-			if (node.propertyType !== 'GImage' && node.propertyType !== 'GTextField') {
-				throw new Error(`updateLookGear only supports image/text nodes in Phase A, got "${node.propertyType}".`);
+			if (!COMMON_DISPLAY_PROPERTY_TYPES.has(node.propertyType)) {
+				throw new Error(`updateLookGear does not support display node type "${node.propertyType}" in Phase A.`);
 			}
 			const existing = resolveUniqueLookGear(node, operation.selector);
 			node.removeGear(existing);
