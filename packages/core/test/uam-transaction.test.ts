@@ -526,8 +526,15 @@ test('validateTransactionSupport scopes unsupported baseline nodes and fields to
 	]);
 	t.true(touchedUnsupportedNodeIssues.some((issue) => (
 		issue.path === 'operations[0].selector.displayNodeId'
-		&& issue.message.includes('button display node mutation')
+			&& issue.message.includes('button display node mutation')
 	)));
+	t.deepEqual(touchedUnsupportedNodeIssues[0], {
+		code: 'unsupported_display_node_mutation',
+		path: 'operations[0].selector.displayNodeId',
+		message: 'Phase A does not support button display node mutation ("n4").',
+		operationKind: 'setDisplayNodeProps',
+		nodeKind: 'button',
+	});
 });
 
 test('Phase A transactions support common FairyGUI display node kinds for common props', (t) => {

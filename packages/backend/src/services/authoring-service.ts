@@ -14,6 +14,7 @@ import type {
 	SessionNotFoundError,
 	SessionStaleWriteError,
 } from '../runtime.js';
+import type { BackendDiagnostic } from '../contracts.js';
 import { validateSaveTarget, type PathPolicyViolationError } from '../path-policy.js';
 import { createSessionNotFoundError, createStaleWriteError, toSessionSnapshot } from './session-utils.js';
 
@@ -75,6 +76,21 @@ function createWriterFileSystem(
 	};
 }
 
+function toBackendDiagnostics(error: ApplyUamTransactionAppError): BackendDiagnostic[] {
+	return error.diagnostics.length > 0
+		? error.diagnostics.map((diagnostic) => ({ ...diagnostic }))
+		: [
+			{
+				code: error.code,
+				message: error.message,
+				severity: 'error',
+				operationKind: error.operationKind,
+				opIndex: error.opIndex,
+				opId: error.opId,
+			},
+		];
+}
+
 export class AuthoringService {
 	public constructor(
 		private readonly context: BackendContext,
@@ -119,17 +135,13 @@ export class AuthoringService {
 			operations: input.operations,
 		});
 		if (result.ok === false) {
+			const diagnostics = toBackendDiagnostics(result.error);
 			this.eventService.emit({
 				kind: 'transaction.rejected',
 				sessionId: session.sessionId,
 				canonicalPathKey: session.canonicalPathKey,
 				revision: session.revision,
-				diagnostics:
-					result.error.issues?.map((issue) => ({
-						code: result.error.code,
-						message: issue.message,
-						severity: 'error' as const,
-					})) ?? [],
+				diagnostics,
 			});
 			return failure(
 				'authoring',
@@ -139,6 +151,7 @@ export class AuthoringService {
 				{
 					sessionId: session.sessionId,
 					revision: session.revision,
+					diagnostics,
 				},
 			);
 		}

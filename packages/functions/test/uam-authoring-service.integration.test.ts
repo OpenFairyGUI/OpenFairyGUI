@@ -109,9 +109,9 @@ function createUnsupportedProject(): UamProject {
 		throw new Error('expected component resource');
 	}
 	component.component.displayList.push({
-		kind: 'component',
+		kind: 'button',
 		id: 'n2',
-		name: 'nested',
+		name: 'button',
 		position: { x: 0, y: 0 },
 		size: { width: 10, height: 10 },
 		visible: true,
@@ -122,7 +122,19 @@ function createUnsupportedProject(): UamProject {
 		customData: '',
 		relations: [],
 		gears: [],
-		resource: { resourceId: 'cmp001' },
+		src: '',
+		packageId: '',
+		title: 'Button',
+		icon: '',
+		titleColor: '#000000',
+		titleFontSize: 12,
+		sound: '',
+		soundVolumeScale: 1,
+		selectedTitle: '',
+		selectedIcon: '',
+		mode: 0,
+		downEffect: 0,
+		downEffectValue: 0.8,
 	} as never);
 	return project;
 }
@@ -175,19 +187,44 @@ test('applyUamTransactionApp returns committed UAM and survives write/read verti
 	}
 });
 
-test('applyUamTransactionApp classifies unsupported baseline shapes as preflight failures', (t) => {
+test('applyUamTransactionApp leaves untouched unsupported baseline nodes as passthrough', (t) => {
 	const result = applyUamTransactionApp({
 		project: createUnsupportedProject(),
 		operations: [],
 	});
 
-	t.false(result.ok);
-	if (result.ok) {
-		return;
+	t.true(result.ok);
+	if (!result.ok) return;
+	const component = result.project.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	t.is(component?.kind, 'component');
+	if (component?.kind === 'component') {
+		t.is(component.component.displayList[2]?.kind, 'button');
 	}
-	const failure = result as Extract<ApplyUamTransactionAppResult, { ok: false }>;
+});
 
-	t.is(failure.error.code, 'transaction_unsupported');
-	t.is(failure.error.stage, 'preflight');
-	t.truthy(failure.error.issues);
+test('applyUamTransactionApp exposes stable operation-scoped diagnostics', (t) => {
+	const result = applyUamTransactionApp({
+		project: createUnsupportedProject(),
+		operations: [
+			{
+				kind: 'setDisplayNodeProps',
+				opId: 'edit-button',
+				selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n2' },
+				props: { alpha: 0.5 },
+			},
+		],
+	});
+
+	t.false(result.ok);
+	if (result.ok) return;
+	const failure = result as Extract<ApplyUamTransactionAppResult, { ok: false }>;
+	const diagnostic = failure.error.diagnostics[0];
+	t.deepEqual(diagnostic, {
+		code: 'unsupported_display_node_mutation',
+		message: 'Phase A does not support button display node mutation ("n2").',
+		severity: 'error',
+		path: 'operations[0].selector.displayNodeId',
+		nodeKind: 'button',
+		operationKind: 'setDisplayNodeProps',
+	});
 });

@@ -77,6 +77,7 @@ export {
 	type UamResourceSelector,
 	type UamTransactionErrorCode,
 	type UamTransactionOperation,
+	type UamTransactionSupportIssueCode,
 	type UamTransactionSupportIssue,
 	type UamTransitionSelector,
 	applyUamTransaction,

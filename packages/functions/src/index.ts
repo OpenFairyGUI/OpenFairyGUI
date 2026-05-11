@@ -24,6 +24,7 @@ export {
 } from './publish.js';
 export {
 	applyUamTransactionApp,
+	type ApplyUamTransactionAppDiagnostic,
 	type ApplyUamTransactionAppError,
 	type ApplyUamTransactionAppInput,
 	type ApplyUamTransactionAppResult,

@@ -166,9 +166,35 @@ export type UamTransactionOperation =
 	| UpdateLookGearOperation
 	| RemoveLookGearOperation;
 
+export type UamTransactionSupportIssueCode =
+	| 'unsupported_resource_kind'
+	| 'unsupported_display_node_kind'
+	| 'unsupported_cross_package_image_ref'
+	| 'unsupported_gear_kind'
+	| 'duplicate_look_gear_controller'
+	| 'duplicate_transition_name'
+	| 'unsupported_resource_mutation'
+	| 'unsupported_display_node_mutation'
+	| 'unsupported_text_field_target'
+	| 'unsupported_display_node_field'
+	| 'invalid_resource_name'
+	| 'invalid_resource_path'
+	| 'invalid_attach_index'
+	| 'invalid_controller_payload'
+	| 'invalid_transition_payload'
+	| 'invalid_look_gear_selector'
+	| 'invalid_look_gear_payload'
+	| 'duplicate_look_gear_state_page';
+
 export interface UamTransactionSupportIssue {
+	code: UamTransactionSupportIssueCode;
 	path: string;
 	message: string;
+	operationKind?: UamTransactionOperation['kind'];
+	nodeKind?: UamDisplayNode['kind'];
+	resourceKind?: UamProject['packages'][number]['resources'][number]['kind'];
+	gearKind?: UamDisplayNode['gears'][number]['kind'];
+	field?: string;
 }
 
 export type UamTransactionErrorCode =
@@ -239,8 +265,14 @@ export function createUamTransaction(project: UamProject): UamTransaction {
 	return new UamTransaction(project);
 }
 
-function pushSupportIssue(issues: UamTransactionSupportIssue[], path: string, message: string): void {
-	issues.push({ path, message });
+function pushSupportIssue(
+	issues: UamTransactionSupportIssue[],
+	code: UamTransactionSupportIssueCode,
+	path: string,
+	message: string,
+	details: Omit<Partial<UamTransactionSupportIssue>, 'code' | 'path' | 'message'> = {},
+): void {
+	issues.push({ code, path, message, ...details });
 }
 
 type CommonDisplayPropTarget = GObject & {
@@ -352,31 +384,48 @@ function validateSupportedDisplayNode(
 	owningPackageId: string,
 	path: string,
 	issues: UamTransactionSupportIssue[],
+	details: Omit<Partial<UamTransactionSupportIssue>, 'code' | 'path' | 'message' | 'nodeKind' | 'gearKind'> = {},
 ): void {
 	if (!UAM_SUPPORTED_TRANSACTION_SCOPE.nodeKinds.includes(node.kind as never)) {
-		pushSupportIssue(issues, `${path}.kind`, `Phase A does not support display node kind "${node.kind}".`);
+		pushSupportIssue(
+			issues,
+			'unsupported_display_node_kind',
+			`${path}.kind`,
+			`Phase A does not support display node kind "${node.kind}".`,
+			{ ...details, nodeKind: node.kind },
+		);
 	}
 
 	if (node.kind === 'image' && node.resource.packageId && node.resource.packageId !== owningPackageId) {
 		pushSupportIssue(
 			issues,
+			'unsupported_cross_package_image_ref',
 			`${path}.resource.packageId`,
 			`Phase A does not support cross-package image refs on supported image nodes ("${node.resource.packageId}" != "${owningPackageId}").`,
+			{ ...details, nodeKind: node.kind },
 		);
 	}
 
 	const lookGearControllers = new Set<string>();
 	for (const [gearIndex, gear] of node.gears.entries()) {
 		if (!UAM_SUPPORTED_TRANSACTION_SCOPE.gearKinds.includes(gear.kind as never)) {
-			pushSupportIssue(issues, `${path}.gears[${gearIndex}]`, `Phase A does not support gear kind "${gear.kind}".`);
+			pushSupportIssue(
+				issues,
+				'unsupported_gear_kind',
+				`${path}.gears[${gearIndex}]`,
+				`Phase A does not support gear kind "${gear.kind}".`,
+				{ ...details, nodeKind: node.kind, gearKind: gear.kind },
+			);
 			continue;
 		}
 		if (gear.kind !== 'look') continue;
 		if (lookGearControllers.has(gear.controllerName)) {
 			pushSupportIssue(
 				issues,
+				'duplicate_look_gear_controller',
 				`${path}.gears[${gearIndex}]`,
 				`Phase A allows at most one look gear per display node per controller ("${gear.controllerName}").`,
+				{ ...details, nodeKind: node.kind, gearKind: gear.kind },
 			);
 		}
 		lookGearControllers.add(gear.controllerName);
@@ -388,7 +437,13 @@ function validateBaselineSupport(project: UamProject, issues: UamTransactionSupp
 		for (const [resourceIndex, resource] of pkg.resources.entries()) {
 			const resourcePath = `packages[${packageIndex}].resources[${resourceIndex}]`;
 			if (resource.kind !== 'component' && !UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds.includes(resource.kind as never)) {
-				pushSupportIssue(issues, `${resourcePath}.kind`, `Phase A does not support resource kind "${resource.kind}".`);
+				pushSupportIssue(
+					issues,
+					'unsupported_resource_kind',
+					`${resourcePath}.kind`,
+					`Phase A does not support resource kind "${resource.kind}".`,
+					{ resourceKind: resource.kind },
+				);
 				continue;
 			}
 
@@ -398,6 +453,7 @@ function validateBaselineSupport(project: UamProject, issues: UamTransactionSupp
 			for (const duplicateName of duplicateTransitionNames) {
 				pushSupportIssue(
 					issues,
+					'duplicate_transition_name',
 					`${resourcePath}.component.transitions`,
 					`Phase A requires transition names to be unique within a component ("${duplicateName}").`,
 				);
@@ -420,6 +476,7 @@ function validateTouchedResourceKind(
 	selector: UamResourceSelector,
 	path: string,
 	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
 ): void {
 	const found = findResourceSpecWithPath(project, selector);
 	if (!found) return;
@@ -428,8 +485,10 @@ function validateTouchedResourceKind(
 	}
 	pushSupportIssue(
 		issues,
+		'unsupported_resource_mutation',
 		path,
 		`Phase A does not support ${found.resource.kind} resource mutation ("${selector.packageId}/${selector.resourceId}").`,
+		{ operationKind, resourceKind: found.resource.kind },
 	);
 }
 
@@ -438,14 +497,17 @@ function validateTouchedDisplayNodeKind(
 	selector: UamDisplayNodeSelector,
 	path: string,
 	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
 ) {
 	const found = findDisplayNodeSpecWithPath(project, selector);
 	if (!found) return null;
 	if (!UAM_SUPPORTED_TRANSACTION_SCOPE.nodeKinds.includes(found.node.kind as never)) {
 		pushSupportIssue(
 			issues,
+			'unsupported_display_node_mutation',
 			path,
 			`Phase A does not support ${found.node.kind} display node mutation ("${selector.displayNodeId}").`,
+			{ operationKind, nodeKind: found.node.kind },
 		);
 	}
 	return found;
@@ -457,6 +519,7 @@ function validateControllerActionTargets(
 	controller: UamControllerModel,
 	path: string,
 	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
 ): void {
 	for (const [actionIndex, action] of controller.actions.entries()) {
 		if (!action.targetNodeId) continue;
@@ -469,6 +532,7 @@ function validateControllerActionTargets(
 			},
 			`${path}.actions[${actionIndex}].targetNodeId`,
 			issues,
+			operationKind,
 		);
 	}
 }
@@ -479,6 +543,7 @@ function validateTransitionTargets(
 	transition: UamComponentModel['transitions'][number],
 	path: string,
 	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
 ): void {
 	for (const [itemIndex, item] of transition.items.entries()) {
 		if (!item.targetNodeId) continue;
@@ -491,6 +556,7 @@ function validateTransitionTargets(
 			},
 			`${path}.items[${itemIndex}].targetNodeId`,
 			issues,
+			operationKind,
 		);
 	}
 }
@@ -525,11 +591,23 @@ function validateDisplayPropsPayload(
 		if (COMMON_DISPLAY_PROP_KEYS.has(key)) continue;
 		if (TEXT_DISPLAY_PROP_KEYS.has(key)) {
 			if (nodeKind && !TEXT_DISPLAY_NODE_KINDS.has(nodeKind)) {
-				pushSupportIssue(issues, `${path}.props.${String(key)}`, `Field "${String(key)}" is only supported on text, richText, or textInput display nodes.`);
+				pushSupportIssue(
+					issues,
+					'unsupported_text_field_target',
+					`${path}.props.${String(key)}`,
+					`Field "${String(key)}" is only supported on text, richText, or textInput display nodes.`,
+					{ operationKind: op.kind, nodeKind, field: String(key) },
+				);
 			}
 			continue;
 		}
-		pushSupportIssue(issues, `${path}.props.${String(key)}`, `Field "${String(key)}" is not supported by setDisplayNodeProps in Phase A.`);
+		pushSupportIssue(
+			issues,
+			'unsupported_display_node_field',
+			`${path}.props.${String(key)}`,
+			`Field "${String(key)}" is not supported by setDisplayNodeProps in Phase A.`,
+			{ operationKind: op.kind, nodeKind, field: String(key) },
+		);
 	}
 }
 
@@ -537,15 +615,28 @@ function validateUniquePageIds(
 	pages: UamControllerModel['pages'],
 	path: string,
 	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
 ): void {
 	const seen = new Set<string>();
 	for (const [pageIndex, page] of pages.entries()) {
 		if (!page.id) {
-			pushSupportIssue(issues, `${path}.pages[${pageIndex}].id`, 'Controller page id must not be empty.');
+			pushSupportIssue(
+				issues,
+				'invalid_controller_payload',
+				`${path}.pages[${pageIndex}].id`,
+				'Controller page id must not be empty.',
+				{ operationKind },
+			);
 			continue;
 		}
 		if (seen.has(page.id)) {
-			pushSupportIssue(issues, `${path}.pages[${pageIndex}].id`, `Duplicate controller page id "${page.id}".`);
+			pushSupportIssue(
+				issues,
+				'invalid_controller_payload',
+				`${path}.pages[${pageIndex}].id`,
+				`Duplicate controller page id "${page.id}".`,
+				{ operationKind },
+			);
 		}
 		seen.add(page.id);
 	}
@@ -556,27 +647,58 @@ function validateControllerPayload(
 	controller: UamControllerModel,
 	path: string,
 	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
 ): void {
 	if (controller.name !== selector.controllerName) {
-		pushSupportIssue(issues, `${path}.controller.name`, 'Controller payload name must match selector.controllerName.');
+		pushSupportIssue(
+			issues,
+			'invalid_controller_payload',
+			`${path}.controller.name`,
+			'Controller payload name must match selector.controllerName.',
+			{ operationKind },
+		);
 	}
 	if (controller.pages.length === 0) {
-		pushSupportIssue(issues, `${path}.controller.pages`, 'Controller payload must define at least one page.');
+		pushSupportIssue(
+			issues,
+			'invalid_controller_payload',
+			`${path}.controller.pages`,
+			'Controller payload must define at least one page.',
+			{ operationKind },
+		);
 	}
-	validateUniquePageIds(controller.pages, `${path}.controller`, issues);
+	validateUniquePageIds(controller.pages, `${path}.controller`, issues, operationKind);
 	if (controller.selectedIndex < 0 || controller.selectedIndex >= controller.pages.length) {
-		pushSupportIssue(issues, `${path}.controller.selectedIndex`, 'Controller selectedIndex is out of range.');
+		pushSupportIssue(
+			issues,
+			'invalid_controller_payload',
+			`${path}.controller.selectedIndex`,
+			'Controller selectedIndex is out of range.',
+			{ operationKind },
+		);
 	}
 	const pageIds = new Set(controller.pages.map((page) => page.id));
 	for (const [actionIndex, action] of controller.actions.entries()) {
 		for (const pageId of action.fromPageIds) {
 			if (!pageIds.has(pageId)) {
-				pushSupportIssue(issues, `${path}.controller.actions[${actionIndex}].fromPageIds`, `Unknown controller page id "${pageId}".`);
+				pushSupportIssue(
+					issues,
+					'invalid_controller_payload',
+					`${path}.controller.actions[${actionIndex}].fromPageIds`,
+					`Unknown controller page id "${pageId}".`,
+					{ operationKind },
+				);
 			}
 		}
 		for (const pageId of action.toPageIds) {
 			if (!pageIds.has(pageId)) {
-				pushSupportIssue(issues, `${path}.controller.actions[${actionIndex}].toPageIds`, `Unknown controller page id "${pageId}".`);
+				pushSupportIssue(
+					issues,
+					'invalid_controller_payload',
+					`${path}.controller.actions[${actionIndex}].toPageIds`,
+					`Unknown controller page id "${pageId}".`,
+					{ operationKind },
+				);
 			}
 		}
 	}
@@ -587,9 +709,16 @@ function validateTransitionPayload(
 	transition: UamComponentModel['transitions'][number],
 	path: string,
 	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
 ): void {
 	if (transition.name !== selector.transitionName) {
-		pushSupportIssue(issues, `${path}.transition.name`, 'Transition payload name must match selector.transitionName.');
+		pushSupportIssue(
+			issues,
+			'invalid_transition_payload',
+			`${path}.transition.name`,
+			'Transition payload name must match selector.transitionName.',
+			{ operationKind },
+		);
 	}
 }
 
@@ -598,20 +727,45 @@ function validateLookGearPayload(
 	gear: UamLookGearBinding,
 	path: string,
 	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
 ): void {
 	if (selector.kind !== 'look') {
-		pushSupportIssue(issues, `${path}.selector.kind`, 'Phase A only supports look gear selectors.');
+		pushSupportIssue(
+			issues,
+			'invalid_look_gear_selector',
+			`${path}.selector.kind`,
+			'Phase A only supports look gear selectors.',
+			{ operationKind },
+		);
 	}
 	if (gear.kind !== 'look') {
-		pushSupportIssue(issues, `${path}.gear.kind`, 'Phase A only supports look gear payloads.');
+		pushSupportIssue(
+			issues,
+			'invalid_look_gear_payload',
+			`${path}.gear.kind`,
+			'Phase A only supports look gear payloads.',
+			{ operationKind, gearKind: gear.kind },
+		);
 	}
 	if (gear.controllerName !== selector.controllerName) {
-		pushSupportIssue(issues, `${path}.gear.controllerName`, 'Look gear payload controllerName must match selector.controllerName.');
+		pushSupportIssue(
+			issues,
+			'invalid_look_gear_payload',
+			`${path}.gear.controllerName`,
+			'Look gear payload controllerName must match selector.controllerName.',
+			{ operationKind, gearKind: gear.kind },
+		);
 	}
 	const seen = new Set<string>();
 	for (const [stateIndex, state] of gear.states.entries()) {
 		if (seen.has(state.pageId)) {
-			pushSupportIssue(issues, `${path}.gear.states[${stateIndex}]`, `Duplicate look gear state page id "${state.pageId}".`);
+			pushSupportIssue(
+				issues,
+				'duplicate_look_gear_state_page',
+				`${path}.gear.states[${stateIndex}]`,
+				`Duplicate look gear state page id "${state.pageId}".`,
+				{ operationKind, gearKind: gear.kind },
+			);
 		}
 		seen.add(state.pageId);
 	}
@@ -622,51 +776,71 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 		const operationPath = `operations[${operationIndex}]`;
 		switch (operation.kind) {
 			case 'renameResource':
-				validateTouchedResourceKind(project, operation.selector, `${operationPath}.selector.resourceId`, issues);
+				validateTouchedResourceKind(project, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
 				if (!operation.newName) {
-					pushSupportIssue(issues, `${operationPath}.newName`, 'renameResource.newName must not be empty.');
+					pushSupportIssue(
+						issues,
+						'invalid_resource_name',
+						`${operationPath}.newName`,
+						'renameResource.newName must not be empty.',
+						{ operationKind: operation.kind },
+					);
 				}
 				break;
 			case 'moveResource':
-				validateTouchedResourceKind(project, operation.selector, `${operationPath}.selector.resourceId`, issues);
+				validateTouchedResourceKind(project, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
 				if (!operation.toPath) {
-					pushSupportIssue(issues, `${operationPath}.toPath`, 'moveResource.toPath must not be empty.');
+					pushSupportIssue(
+						issues,
+						'invalid_resource_path',
+						`${operationPath}.toPath`,
+						'moveResource.toPath must not be empty.',
+						{ operationKind: operation.kind },
+					);
 				}
 				break;
 			case 'setDisplayNodeProps':
-				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues);
+				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
 				validateDisplayPropsPayload(operation, project, operationPath, issues);
 				break;
 			case 'attachDisplayNode':
 				if (!Number.isInteger(operation.atIndex) || operation.atIndex < 0) {
-					pushSupportIssue(issues, `${operationPath}.atIndex`, 'attachDisplayNode.atIndex must be a non-negative integer.');
+					pushSupportIssue(
+						issues,
+						'invalid_attach_index',
+						`${operationPath}.atIndex`,
+						'attachDisplayNode.atIndex must be a non-negative integer.',
+						{ operationKind: operation.kind },
+					);
 				}
-				validateSupportedDisplayNode(operation.node, operation.selector.packageId, `${operationPath}.node`, issues);
+				validateSupportedDisplayNode(operation.node, operation.selector.packageId, `${operationPath}.node`, issues, {
+					operationKind: operation.kind,
+				});
 				break;
 			case 'detachDisplayNode':
-				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues);
+				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
 				break;
 			case 'addController':
 			case 'updateController':
-				validateControllerPayload(operation.selector, operation.controller, operationPath, issues);
-				validateControllerActionTargets(project, operation.selector, operation.controller, `${operationPath}.controller`, issues);
+				validateControllerPayload(operation.selector, operation.controller, operationPath, issues, operation.kind);
+				validateControllerActionTargets(project, operation.selector, operation.controller, `${operationPath}.controller`, issues, operation.kind);
 				break;
 			case 'removeController':
 				break;
 			case 'addTransition':
 			case 'updateTransition':
-				validateTransitionPayload(operation.selector, operation.transition, operationPath, issues);
-				validateTransitionTargets(project, operation.selector, operation.transition, `${operationPath}.transition`, issues);
+				validateTransitionPayload(operation.selector, operation.transition, operationPath, issues, operation.kind);
+				validateTransitionTargets(project, operation.selector, operation.transition, `${operationPath}.transition`, issues, operation.kind);
 				break;
 			case 'removeTransition':
 				break;
 			case 'addLookGear':
 			case 'updateLookGear':
-				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues);
-				validateLookGearPayload(operation.selector, operation.gear, operationPath, issues);
+				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
+				validateLookGearPayload(operation.selector, operation.gear, operationPath, issues, operation.kind);
 				break;
 			case 'removeLookGear':
-				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues);
+				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
 				break;
 		}
 	}

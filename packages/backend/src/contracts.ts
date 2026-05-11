@@ -17,6 +17,14 @@ export interface BackendDiagnostic {
 	code: string;
 	message: string;
 	severity: 'info' | 'warning' | 'error';
+	path?: string;
+	nodeKind?: string;
+	resourceKind?: string;
+	gearKind?: string;
+	field?: string;
+	operationKind?: string;
+	opIndex?: number;
+	opId?: string;
 }
 
 export interface BackendResponseMeta {
