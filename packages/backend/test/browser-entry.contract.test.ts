@@ -4,6 +4,7 @@ import path from 'node:path';
 import { BackendRuntime } from '../src/index.js';
 
 const PUBLISHED_PACKAGES = [
+	'packages/core/package.json',
 	'packages/backend/package.json',
 	'packages/functions/package.json',
 	'packages/cli/package.json',
@@ -11,19 +12,55 @@ const PUBLISHED_PACKAGES = [
 	'packages/test-utils/package.json',
 ] as const;
 
-test('published package metadata does not use workspace protocol dependencies', async (t) => {
+type PackageManifest = {
+	name?: string;
+	version?: string;
+	dependencies?: Record<string, string>;
+	devDependencies?: Record<string, string>;
+	optionalDependencies?: Record<string, string>;
+};
+
+const SEMVER_SPEC = /^[~^]?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/u;
+
+async function readPackageManifest(manifestPath: string): Promise<PackageManifest> {
+	return JSON.parse(await fs.readFile(path.resolve(manifestPath), 'utf-8')) as PackageManifest;
+}
+
+async function readWorkspacePackageVersions(): Promise<Map<string, string>> {
+	const versions = new Map<string, string>();
 	for (const manifestPath of PUBLISHED_PACKAGES) {
-		const manifest = JSON.parse(await fs.readFile(path.resolve(manifestPath), 'utf-8')) as {
-			dependencies?: Record<string, string>;
-			devDependencies?: Record<string, string>;
-			optionalDependencies?: Record<string, string>;
-		};
+		const manifest = await readPackageManifest(manifestPath);
+		if (typeof manifest.name !== 'string' || typeof manifest.version !== 'string') continue;
+		versions.set(manifest.name, manifest.version);
+	}
+	return versions;
+}
+
+function resolveWorkspaceDependencyVersion(
+	dependencyName: string,
+	dependencyVersion: string,
+	workspaceVersions: Map<string, string>,
+): string {
+	if (!dependencyVersion.startsWith('workspace:')) return dependencyVersion;
+	const workspaceVersion = workspaceVersions.get(dependencyName);
+	if (!workspaceVersion) return dependencyVersion;
+	const range = dependencyVersion.slice('workspace:'.length);
+	if (range === '' || range === '*') return workspaceVersion;
+	if (range === '^' || range === '~') return `${range}${workspaceVersion}`;
+	return range;
+}
+
+test('workspace package dependencies resolve to semver for published metadata', async (t) => {
+	const workspaceVersions = await readWorkspacePackageVersions();
+	for (const manifestPath of PUBLISHED_PACKAGES) {
+		const manifest = await readPackageManifest(manifestPath);
 		for (const dependencySet of [manifest.dependencies, manifest.devDependencies, manifest.optionalDependencies]) {
 			for (const [dependencyName, dependencyVersion] of Object.entries(dependencySet ?? {})) {
-				t.false(
-					dependencyVersion.startsWith('workspace:'),
-					`${manifestPath} ${dependencyName} must publish with semver, got ${dependencyVersion}`,
-				);
+				const publishedVersion = resolveWorkspaceDependencyVersion(dependencyName, dependencyVersion, workspaceVersions);
+				t.false(publishedVersion.startsWith('workspace:'), `${manifestPath} ${dependencyName} must publish with semver, got ${dependencyVersion}`);
+				if (dependencyVersion.startsWith('workspace:')) {
+					t.regex(publishedVersion, SEMVER_SPEC, `${manifestPath} ${dependencyName} resolves to ${publishedVersion}`);
+				}
 			}
 		}
 	}

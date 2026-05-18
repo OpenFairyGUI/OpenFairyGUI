@@ -39,6 +39,7 @@ import type {
 	UamProgressBarNode,
 	UamRelation,
 	UamResource,
+	UamResourceRef,
 	UamRichTextNode,
 	UamScrollBarNode,
 	UamSizeGearBinding,
@@ -73,6 +74,13 @@ function normalizeRelations(relations: UamRelation[] | undefined): UamRelation[]
 		type: relation.type,
 		usePercent: relation.usePercent ?? false,
 	}));
+}
+
+function normalizeResourceRef(ref: UamResourceRef): UamResourceRef {
+	return {
+		packageId: ref.packageId || undefined,
+		resourceId: ref.resourceId,
+	};
 }
 
 function normalizePoint(point: { x?: number; y?: number } | undefined): { x: number; y: number } {
@@ -343,10 +351,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			return {
 				kind: 'image',
 				...base,
-				resource: {
-					packageId: node.resource.packageId,
-					resourceId: node.resource.resourceId,
-				},
+				resource: normalizeResourceRef(node.resource),
 			} satisfies UamImageNode;
 		case 'text':
 			return {
@@ -386,10 +391,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			return {
 				kind: 'component',
 				...base,
-				resource: {
-					packageId: node.resource.packageId,
-					resourceId: node.resource.resourceId,
-				},
+				resource: normalizeResourceRef(node.resource),
 			} satisfies UamComponentRefNode;
 		case 'list': {
 			const list = node as UamListNode;
@@ -530,10 +532,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			return {
 				kind: 'movieClip',
 				...base,
-				resource: {
-					packageId: movieClip.resource.packageId,
-					resourceId: movieClip.resource.resourceId,
-				},
+				resource: normalizeResourceRef(movieClip.resource),
 				fileName: movieClip.fileName ?? '',
 				filter: movieClip.filter ?? '',
 				filterData: movieClip.filterData ?? '',

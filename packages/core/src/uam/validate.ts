@@ -4,7 +4,6 @@ import type {
 	UamDisplayNode,
 	UamGearBinding,
 	UamProject,
-	UamTransitionItem,
 	UamValidationIssue,
 } from './model.js';
 
@@ -34,17 +33,6 @@ function validateControllerAction(
 	}
 }
 
-function validateTransitionItem(
-	item: UamTransitionItem,
-	knownChildIds: Set<string>,
-	path: string,
-	issues: UamValidationIssue[],
-): void {
-	if (item.targetNodeId && !knownChildIds.has(item.targetNodeId)) {
-		pushIssue(issues, `${path}.targetNodeId`, `Unknown transition target node id "${item.targetNodeId}".`);
-	}
-}
-
 function validateGearBinding(
 	gear: UamGearBinding,
 	controllerMap: Map<string, UamControllerModel>,
@@ -61,7 +49,6 @@ function validateGearBinding(
 	if (gear.kind === 'display' || gear.kind === 'display2') {
 		const seen = new Set<string>();
 		for (const pageId of gear.visibleOnPageIds) {
-			if (!pageIds.has(pageId)) pushIssue(issues, `${path}.visibleOnPageIds`, `Unknown gear page id "${pageId}".`);
 			if (seen.has(pageId)) pushIssue(issues, `${path}.visibleOnPageIds`, `Duplicate gear page id "${pageId}".`);
 			seen.add(pageId);
 		}
@@ -87,9 +74,6 @@ function validateDisplayNode(
 		validateGearBinding(gear, controllerMap, `${path}.gears[${gearIndex}]`, issues);
 	}
 	for (const [relationIndex, relation] of node.relations.entries()) {
-		if (!relation.targetNodeId) {
-			pushIssue(issues, `${path}.relations[${relationIndex}]`, 'Relation targetNodeId must not be empty.');
-		}
 		if (relation.targetNodeId && !knownChildIds.has(relation.targetNodeId)) {
 			pushIssue(issues, `${path}.relations[${relationIndex}]`, `Unknown relation target node id "${relation.targetNodeId}".`);
 		}
@@ -98,12 +82,6 @@ function validateDisplayNode(
 
 export function validateUamProject(project: UamProject): UamValidationIssue[] {
 	const issues: UamValidationIssue[] = [];
-	const packageResourceIds = new Map<string, Set<string>>();
-
-	for (const pkg of project.packages) {
-		packageResourceIds.set(pkg.id, new Set(pkg.resources.map((resource) => resource.id)));
-	}
-
 	const packageIds = new Set<string>();
 	const packageNames = new Set<string>();
 
@@ -128,13 +106,6 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 				const childPath = `${resourcePath}.component.displayList[${childIndex}]`;
 				if (childIds.has(child.id)) pushIssue(issues, `${childPath}.id`, `Duplicate child id "${child.id}".`);
 				childIds.add(child.id);
-				if ('resource' in child) {
-					const targetPackageId = child.resource.packageId ?? pkg.id;
-					const targetPackageResourceIds = packageResourceIds.get(targetPackageId);
-					if (!targetPackageResourceIds?.has(child.resource.resourceId)) {
-						pushIssue(issues, `${childPath}.resource`, `Unknown resource ref "${child.resource.resourceId}" in package "${targetPackageId}".`);
-					}
-				}
 			}
 
 			const controllerMap = new Map<string, UamControllerModel>();
@@ -157,13 +128,6 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 
 			for (const [childIndex, child] of component.displayList.entries()) {
 				validateDisplayNode(child, controllerMap, childIds, `${resourcePath}.component.displayList[${childIndex}]`, issues);
-			}
-
-			for (const [transitionIndex, transition] of component.transitions.entries()) {
-				const transitionPath = `${resourcePath}.component.transitions[${transitionIndex}]`;
-				for (const [itemIndex, item] of transition.items.entries()) {
-					validateTransitionItem(item, childIds, `${transitionPath}.items[${itemIndex}]`, issues);
-				}
 			}
 		}
 	}

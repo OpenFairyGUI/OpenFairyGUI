@@ -1,7 +1,16 @@
 import test from 'ava';
+import fs from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { createTempBackendProject } from './helpers.js';
+
+async function readPackageVersion(packageJsonPath: string): Promise<string> {
+	const manifest = JSON.parse(await fs.readFile(path.resolve(packageJsonPath), 'utf-8')) as { version?: unknown };
+	if (typeof manifest.version !== 'string' || manifest.version.length === 0) {
+		throw new Error(`Package manifest does not declare a version: ${packageJsonPath}`);
+	}
+	return manifest.version;
+}
 
 function runCli(args: string[]): Promise<string> {
 	const cliPath = path.resolve('packages/cli/src/cli.ts');
@@ -31,8 +40,9 @@ function runCli(args: string[]): Promise<string> {
 
 test('CLI bootstrap reports package version', async (t) => {
 	const output = await runCli(['--version']);
+	const expectedVersion = await readPackageVersion('packages/cli/package.json');
 
-	t.is(output.trim(), '0.2.0-alpha.5');
+	t.is(output.trim(), expectedVersion);
 });
 
 test('CLI bootstrap can open session, print backend capabilities, and close session', async (t) => {

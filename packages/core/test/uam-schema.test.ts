@@ -45,7 +45,7 @@ test('normalizeUamProject fills schema-local defaults into a canonical shape', (
 	t.is(normalized.packages[0]?.resources[0]?.kind, 'component');
 });
 
-test('validateUamProject rejects unknown semantic references before graph assembly', (t) => {
+test('validateUamProject rejects unknown hard references before graph assembly', (t) => {
 	const project = normalizeUamProject({
 		projectId: 'uam-invalid',
 		projectType: 0,
@@ -59,6 +59,16 @@ test('validateUamProject rejects unknown semantic references before graph assemb
 				publish: null,
 				resources: [
 					{
+						kind: 'image',
+						id: 'img001',
+						name: 'owned.png',
+						path: '/',
+						exported: true,
+						branch: '',
+						branchItemIds: [],
+						fileName: 'owned.png',
+					},
+					{
 						kind: 'component',
 						id: 'cmp001',
 						name: 'MainView',
@@ -70,6 +80,24 @@ test('validateUamProject rejects unknown semantic references before graph assemb
 							size: { width: 320, height: 180 },
 							customData: '',
 							displayList: [
+								{
+									kind: 'image',
+									id: 'img-node',
+									name: 'owned-image',
+									position: { x: 0, y: 0 },
+									size: { width: 16, height: 16 },
+									visible: true,
+									touchable: true,
+									grayed: false,
+									alpha: 1,
+									rotation: 0,
+									customData: '',
+									relations: [
+										{ targetNodeId: '', type: 0, usePercent: false },
+									],
+									gears: [],
+									resource: { packageId: '', resourceId: 'img001' },
+								},
 								{
 									kind: 'image',
 									id: 'n0',
@@ -99,7 +127,7 @@ test('validateUamProject rejects unknown semantic references before graph assemb
 											customEasePath: '',
 										},
 									],
-									resource: { resourceId: 'img001' },
+									resource: { resourceId: 'missing-image' },
 								},
 							],
 							controllers: [],
@@ -141,5 +169,14 @@ test('validateUamProject rejects unknown semantic references before graph assemb
 
 	const issues = validateUamProject(project);
 	t.true(issues.some((issue) => issue.message.includes('Unknown gear controller')));
-	t.true(issues.some((issue) => issue.message.includes('Unknown transition target node id')));
+	t.false(issues.some((issue) => issue.message.includes('Unknown resource ref "missing-image"')));
+	t.false(issues.some((issue) => issue.message.includes('Relation targetNodeId must not be empty')));
+	t.false(issues.some((issue) => issue.message.includes('Unknown resource ref "img001"')));
+	t.false(issues.some((issue) => issue.message.includes('Unknown transition target node id')));
+	const componentResource = project.packages[0]?.resources[1];
+	t.is(componentResource?.kind, 'component');
+	if (componentResource?.kind !== 'component') return;
+	const imageNode = componentResource.component.displayList[0];
+	t.is(imageNode?.kind, 'image');
+	if (imageNode?.kind === 'image') t.is(imageNode.resource.packageId, undefined);
 });

@@ -1,4 +1,7 @@
 import test from 'ava';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
 import { NodeIO } from '@openfairygui/core/node';
 import {
@@ -7,7 +10,9 @@ import {
 	type UamDisplayNode,
 	type UamProject,
 } from '@openfairygui/core/uam';
+import { publish } from '@openfairygui/functions';
 import { BackendRuntime } from '../src/index.js';
+import { createBackendRuntime } from './helpers.js';
 
 const LAYABOX_PROJECT_PATH = getFixtureProjectPath(
 	'FairyGUI-layabox',
@@ -48,6 +53,31 @@ function findDisplayNode(project: UamProject, target: DisplayNodeTarget): UamDis
 	const component = packageModel?.resources.find((resource) => resource.id === target.componentResourceId);
 	if (component?.kind !== 'component') return null;
 	return component.component.displayList.find((node) => node.id === target.node.id) ?? null;
+}
+
+function createPublishFs() {
+	return {
+		async readFileRaw(filePath: string): Promise<Uint8Array> {
+			const data = await fs.readFile(filePath);
+			return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+		},
+		async writeFileRaw(filePath: string, data: Uint8Array): Promise<void> {
+			await fs.mkdir(path.dirname(filePath), { recursive: true });
+			await fs.writeFile(filePath, data);
+		},
+		async mkdir(dirPath: string): Promise<void> {
+			await fs.mkdir(dirPath, { recursive: true });
+		},
+		async readdir(dirPath: string): Promise<string[]> {
+			return fs.readdir(dirPath);
+		},
+		async deleteFile(filePath: string): Promise<void> {
+			await fs.rm(filePath, { force: true });
+		},
+		join(...paths: string[]): string {
+			return path.join(...paths);
+		},
+	};
 }
 
 test('real LayaBox UIProject supports browser-safe UAM session edit with undo and save boundaries', async (t) => {
@@ -131,4 +161,92 @@ test('real LayaBox UIProject supports browser-safe UAM session edit with undo an
 	if (!undoNode || !isEditableTextNode(undoNode)) return;
 	t.is(undoNode.text, originalNode.text);
 	t.deepEqual(undoNode.position, originalNode.position);
+});
+
+test('real LayaBox UIProject supports file-backed UAM save, reload, and publish', async (t) => {
+	const sourceRoot = path.dirname(LAYABOX_PROJECT_PATH);
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-layabox-uam-save-'));
+	const projectRoot = path.join(tmpDir, 'UIProject');
+	const fairyPath = path.join(projectRoot, path.basename(LAYABOX_PROJECT_PATH));
+	let runtime: ReturnType<typeof createBackendRuntime> | null = null;
+	let sessionId: string | null = null;
+
+	try {
+		await fs.cp(sourceRoot, projectRoot, { recursive: true });
+
+		const io = new NodeIO();
+		const doc = await io.readProject(fairyPath);
+		const project = normalizeUamProject(liftDocumentToUamProject(doc));
+		const target = findEditableTextNode(project);
+		const originalNode = target.node;
+		const updatedText = `${originalNode.text} [openfairygui-file-save]`;
+		const updatedPosition = {
+			x: originalNode.position.x + 3,
+			y: originalNode.position.y + 4,
+		};
+		const updatedSize = {
+			width: originalNode.size.width + 5,
+			height: originalNode.size.height + 6,
+		};
+		const updatedVisible = !originalNode.visible;
+
+		runtime = createBackendRuntime();
+		const opened = await runtime.openSession({ projectPath: projectRoot });
+		t.true(opened.ok);
+		if (!opened.ok) return;
+		sessionId = opened.data.sessionId;
+
+		const applied = await runtime.applyTransaction({
+			sessionId,
+			expectedRevision: 0,
+			operations: [
+				{
+					kind: 'setDisplayNodeProps',
+					selector: {
+						packageId: target.packageId,
+						componentResourceId: target.componentResourceId,
+						displayNodeId: originalNode.id,
+					},
+					props: {
+						text: updatedText,
+						position: updatedPosition,
+						size: updatedSize,
+						visible: updatedVisible,
+					},
+				},
+			],
+		});
+		t.true(applied.ok);
+		if (!applied.ok) return;
+
+		const saved = await runtime.saveSession({ sessionId });
+		t.true(saved.ok);
+		if (!saved.ok) return;
+		t.false(saved.data.dirty);
+		t.is(saved.data.lastSavedRevision, 1);
+
+		const reloaded = normalizeUamProject(liftDocumentToUamProject(await io.readProject(fairyPath)));
+		const reloadedNode = findDisplayNode(reloaded, target);
+		t.truthy(reloadedNode);
+		if (!reloadedNode || !isEditableTextNode(reloadedNode)) return;
+		t.is(reloadedNode.text, updatedText);
+		t.deepEqual(reloadedNode.position, updatedPosition);
+		t.deepEqual(reloadedNode.size, updatedSize);
+		t.is(reloadedNode.visible, updatedVisible);
+
+		const publishOut = path.join(tmpDir, 'Release');
+		const publishDoc = await io.readProject(fairyPath);
+		await publishDoc.transform(publish({
+			output: publishOut,
+			fs: createPublishFs(),
+			basePath: path.join(projectRoot, 'assets'),
+		}));
+		const publishedNames = await fs.readdir(publishOut);
+		t.true(publishedNames.some((name) => name.endsWith('.fui')));
+	} finally {
+		if (runtime && sessionId) {
+			await runtime.closeSession({ sessionId }).catch(() => undefined);
+		}
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
 });

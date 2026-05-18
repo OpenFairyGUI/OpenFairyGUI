@@ -2,6 +2,7 @@ import test from 'ava';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { getFixtureProjectPath } from '@openfairygui/test-utils';
 import {
 	assertValidUamProject,
 	Document,
@@ -9,10 +10,16 @@ import {
 	normalizeUamProject,
 	RelationType,
 	UAM_SUPPORTED_MATERIALIZATION_SCOPE,
+	validateUamProject,
 	type UamProject,
 } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
 import { liftDocumentToUamProject, materializeUamProject, readProjectAsUam, writeProjectFromUam } from '../src/uam/index.js';
+
+const LAYABOX_PROJECT_PATH = getFixtureProjectPath(
+	'FairyGUI-layabox',
+	'demo/UIProject/FairyGUI-layabox-demo.fairy',
+);
 
 function createEngineeringScaleUamProject(): UamProject {
 	return normalizeUamProject({
@@ -240,6 +247,15 @@ test('Gate A proves one engineering-scale UAM-owned project read/write path', as
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
+});
+
+test('real LayaBox UIProject lift produces a materializable save baseline', async (t) => {
+	const io = new NodeIO();
+	const doc = await io.readProject(LAYABOX_PROJECT_PATH);
+	const project = normalizeUamProject(liftDocumentToUamProject(doc));
+
+	t.deepEqual(validateUamProject(project), []);
+	t.notThrows(() => materializeUamProject(project));
 });
 
 test('UAM materialization scope covers every current concrete display node kind', (t) => {

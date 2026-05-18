@@ -54,7 +54,14 @@ File extension and binary format are read from project settings.
 
 const require = createRequire(import.meta.url);
 
+function getInjectedPackageVersion(): string | null {
+	const version = (import.meta as ImportMeta & { env?: { PACKAGE_VERSION?: string } }).env?.PACKAGE_VERSION;
+	return typeof version === 'string' && version.length > 0 ? version : null;
+}
+
 function readPackageVersion(): string {
+	const injectedVersion = getInjectedPackageVersion();
+	if (injectedVersion) return injectedVersion;
 	try {
 		const pkg = require('../package.json') as { version?: unknown };
 		if (typeof pkg.version === 'string' && pkg.version.length > 0) {
@@ -63,7 +70,7 @@ function readPackageVersion(): string {
 	} catch {
 		// Keep the CLI usable when executed from a bundled artifact missing package.json.
 	}
-	return '0.2.0-alpha.5';
+	return '0.0.0-dev';
 }
 
 const PACKAGE_VERSION = readPackageVersion();

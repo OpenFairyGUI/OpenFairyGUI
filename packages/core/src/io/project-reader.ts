@@ -1641,6 +1641,8 @@ export class ProjectReader {
 				}
 				const textGroup = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.group);
 				if (textGroup) g.setGroup(textGroup);
+				const textVisible = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.visible);
+				if (textVisible !== undefined) g.setVisible(parseBool(textVisible));
 				const textCustomData = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.customData);
 				if (textCustomData !== undefined) g.setCustomData(textCustomData);
 				const textValue = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.text);
@@ -1746,6 +1748,8 @@ export class ProjectReader {
 				}
 				const richTextGroup = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.group);
 				if (richTextGroup) g.setGroup(richTextGroup);
+				const richTextVisible = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.richText.attrs.visible);
+				if (richTextVisible !== undefined) g.setVisible(parseBool(richTextVisible));
 				const richText = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.text);
 				if (richText !== undefined) g.setText(String(richText));
 				const richTextFontSize = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.fontSize);
@@ -1821,6 +1825,8 @@ export class ProjectReader {
 				}
 				const inputGroup = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.group);
 				if (inputGroup) g.setGroup(inputGroup);
+				const inputVisible = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.visible);
+				if (inputVisible !== undefined) g.setVisible(parseBool(inputVisible));
 				const inputText = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.text);
 				if (inputText !== undefined) g.setText(String(inputText));
 				const inputFontSize = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.fontSize);
@@ -2011,6 +2017,8 @@ export class ProjectReader {
 				}
 				const loaderGrayed = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.grayed);
 				if (loaderGrayed !== undefined) g.setGrayed(parseBool(loaderGrayed));
+				const loaderVisible = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.visible);
+				if (loaderVisible !== undefined) g.setVisible(parseBool(loaderVisible));
 				const loaderUrl = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.url);
 				if (loaderUrl) g.setUrl(loaderUrl);
 				const loaderAlign = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.align);
@@ -2068,6 +2076,8 @@ export class ProjectReader {
 					const [w, h] = parseSizeString(loader3dSize);
 					g.setSize(w, h);
 				}
+				const loader3dVisible = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.visible);
+				if (loader3dVisible !== undefined) g.setVisible(parseBool(loader3dVisible));
 				const loader3dUrl = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.url);
 				if (loader3dUrl) g.setUrl(loader3dUrl);
 				const loader3dAlign = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.align);
@@ -2242,6 +2252,8 @@ export class ProjectReader {
 				}
 				const listGroup = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.group);
 				if (listGroup) g.setGroup(listGroup);
+				const listVisible = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.list.attrs.visible);
+				if (listVisible !== undefined) g.setVisible(parseBool(listVisible));
 				const listTouchable = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.list.attrs.touchable);
 				if (listTouchable !== undefined) g.setTouchable(parseBool(listTouchable));
 				const defaultItem = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.defaultItem);

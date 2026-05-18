@@ -1,4 +1,4 @@
-import { bindLookGear, composeController, composeTransition } from '../authoring.js';
+import { bindLookGear, composeController } from '../authoring.js';
 import { GearType, PropertyType } from '../constants.js';
 import { Document } from '../document.js';
 import type { PlatformIO } from '../io/platform-io.js';
@@ -705,31 +705,30 @@ function composeControllers(doc: Document, component: ReturnType<Document['creat
 
 function composeTransitions(doc: Document, component: ReturnType<Document['createComponent']>, transitions: UamComponentModel['transitions']): void {
 	for (const transition of transitions) {
-		composeTransition(doc, component, {
-			name: transition.name,
-			autoPlay: transition.autoPlay,
-			autoPlayTimes: transition.autoPlayTimes,
-			autoPlayDelay: transition.autoPlayDelay,
-			options: transition.options,
-			fps: transition.fps,
-			items: transition.items.map((item) => ({
-				name: item.name,
-				time: item.time,
-				target: item.targetNodeId || null,
-				actionType: item.actionType,
-				tween: item.tween,
-				duration: item.duration,
-				startValue: item.startValue,
-				endValue: item.endValue,
-				easeType: item.easeType,
-				repeat: item.repeat,
-				yoyo: item.yoyo,
-				label: item.label,
-				endLabel: item.endLabel,
-				path: item.path,
-				customEasePath: item.customEasePath,
-			})),
-		});
+		const materialized = doc.createTransition(transition.name)
+			.setAutoPlay(transition.autoPlay)
+			.setAutoPlayTimes(transition.autoPlayTimes)
+			.setAutoPlayDelay(transition.autoPlayDelay)
+			.setOptions(transition.options)
+			.setFps(transition.fps);
+		for (const item of transition.items) {
+			materialized.addItem(doc.createTransitionItem(item.name)
+				.setTime(item.time)
+				.setTargetId(item.targetNodeId)
+				.setActionType(item.actionType)
+				.setTween(item.tween)
+				.setDuration(item.duration)
+				.setStartValue([...item.startValue])
+				.setEndValue([...item.endValue])
+				.setEaseType(item.easeType)
+				.setRepeat(item.repeat)
+				.setYoyo(item.yoyo)
+				.setLabel(item.label)
+				.setEndLabel(item.endLabel)
+				.setPath(item.path)
+				.setCustomEasePath(item.customEasePath));
+		}
+		component.addTransition(materialized);
 	}
 }
 
