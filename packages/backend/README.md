@@ -12,6 +12,7 @@ It owns:
 - revisioned request handling
 - coordinated but non-atomic save semantics
 - browser-safe project sessions
+- browser-safe async project storage adapter
 - adapter-backed file sessions and backend-local advisory locking
 - capability discovery
 - transport-neutral bootstrap
@@ -31,8 +32,9 @@ It also provides:
 
 It does **not** redefine transaction grammar or expose `Document`.
 It also does **not** implement MCP or any transport-specific wire protocol.
-The root `@openfairygui/backend` entrypoint is browser-safe: file-backed sessions require an injected
-`BackendFileSystem`, while the default Node filesystem/runtime lives under `@openfairygui/backend/node`.
+The root `@openfairygui/backend` entrypoint is browser-safe: pure authoring sessions can run in memory,
+and browser editors can inject an async storage adapter for OPFS, IndexedDB, ZIP-backed virtual filesystems,
+or File System Access API bridges. The default Node filesystem/runtime lives under `@openfairygui/backend/node`.
 
 ## Relationship to other packages
 
@@ -56,6 +58,35 @@ const applied = await runtime.applyTransaction({
 	expectedRevision: opened.data.revision,
 	operations,
 });
+```
+
+Browser-safe project session with injected storage:
+
+```ts
+import { BackendRuntime, createBackendStorageFileSystem } from '@openfairygui/backend';
+
+const fileSystem = createBackendStorageFileSystem({
+	async readFile(filePath) { return storage.readText(filePath); },
+	async readFileRaw(filePath) { return storage.readBytes(filePath); },
+	async writeFile(filePath, content) { await storage.writeText(filePath, content); },
+	async writeFileRaw(filePath, data) { await storage.writeBytes(filePath, data); },
+	async mkdir(dirPath) { await storage.mkdir(dirPath); },
+	async readdir(dirPath) { return storage.readdir(dirPath); },
+	async exists(filePath) { return storage.exists(filePath); },
+});
+
+const runtime = new BackendRuntime();
+const opened = runtime.openProjectSession({
+	project: uamProject,
+	storage: {
+		fileSystem,
+		fairyPath: 'Project.fairy',
+	},
+});
+if (!opened.ok) throw new Error(opened.error.message);
+
+const saved = await runtime.saveSession({ sessionId: opened.data.sessionId });
+if (!saved.ok) throw new Error(saved.error.message);
 ```
 
 Node file-backed session:

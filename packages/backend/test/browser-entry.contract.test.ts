@@ -21,6 +21,7 @@ type PackageManifest = {
 };
 
 const SEMVER_SPEC = /^[~^]?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/u;
+const DEPENDENCY_FIELDS = ['dependencies', 'devDependencies', 'optionalDependencies'] as const;
 
 async function readPackageManifest(manifestPath: string): Promise<PackageManifest> {
 	return JSON.parse(await fs.readFile(path.resolve(manifestPath), 'utf-8')) as PackageManifest;
@@ -54,12 +55,24 @@ test('workspace package dependencies resolve to semver for published metadata', 
 	const workspaceVersions = await readWorkspacePackageVersions();
 	for (const manifestPath of PUBLISHED_PACKAGES) {
 		const manifest = await readPackageManifest(manifestPath);
-		for (const dependencySet of [manifest.dependencies, manifest.devDependencies, manifest.optionalDependencies]) {
+		for (const field of DEPENDENCY_FIELDS) {
+			const dependencySet = manifest[field];
 			for (const [dependencyName, dependencyVersion] of Object.entries(dependencySet ?? {})) {
 				const publishedVersion = resolveWorkspaceDependencyVersion(dependencyName, dependencyVersion, workspaceVersions);
 				t.false(publishedVersion.startsWith('workspace:'), `${manifestPath} ${dependencyName} must publish with semver, got ${dependencyVersion}`);
 				if (dependencyVersion.startsWith('workspace:')) {
 					t.regex(publishedVersion, SEMVER_SPEC, `${manifestPath} ${dependencyName} resolves to ${publishedVersion}`);
+				}
+				if (workspaceVersions.has(dependencyName)) {
+					t.true(
+						dependencyVersion.startsWith('workspace:'),
+						`${manifestPath} ${field}.${dependencyName} must use workspace protocol instead of a fixed internal version.`,
+					);
+					t.is(
+						publishedVersion,
+						workspaceVersions.get(dependencyName),
+						`${manifestPath} ${field}.${dependencyName} must publish as the current workspace package version.`,
+					);
 				}
 			}
 		}
@@ -74,6 +87,8 @@ test('backend root entry advertises browser-safe project session boundary', (t) 
 	t.is(result.data.manifest.rootEntrypoint, '@openfairygui/backend');
 	t.is(result.data.manifest.nodeEntrypoint, '@openfairygui/backend/node');
 	t.is(result.data.manifest.executionBoundaries.projectSession, 'in-process-browser-safe');
+	t.true(result.data.manifest.adapters.projectStorage.browserSafe);
+	t.is(result.data.manifest.adapters.projectStorage.adapterFactory, 'createBackendStorageFileSystem');
 	t.is(result.data.manifest.executionBoundaries.artifactPublish.bridgeEntrypoint, '@openfairygui/backend/node');
 });
 

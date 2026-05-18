@@ -39,11 +39,19 @@ export {
 	type InProcessLockConflictError,
 	type ListJobsInput,
 	type OpenProjectSessionInput,
+	type BackendProjectSessionStorage,
 	type RefreshCacheInput,
+	type SaveSessionInput,
 	type SavePartialFailureError,
 	type SessionNotFoundError,
 	type SessionStaleWriteError,
 } from './runtime.js';
+export {
+	createBackendStorageFileSystem,
+	type BackendAsyncStorageAdapter,
+	type BackendStorageFileSystem,
+	type BackendStorageStatLike,
+} from './storage.js';
 export {
 	type BackendDiagnostic,
 	type BackendMessage,

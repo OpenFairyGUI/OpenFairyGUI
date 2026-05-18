@@ -14,7 +14,7 @@ import type {
 	OpenProjectSessionInput,
 	SessionNotFoundError,
 } from '../runtime.js';
-import { resolveCanonicalProjectRoot } from '../path-policy.js';
+import { normalizeComparablePath, resolveCanonicalProjectRoot } from '../path-policy.js';
 import { createSessionNotFoundError, toSessionSnapshot } from './session-utils.js';
 
 function randomId(): string {
@@ -137,6 +137,7 @@ export class RuntimeService {
 				canonicalProjectPath,
 				canonicalPathKey,
 				lockFilePath,
+				fileSystem,
 				project,
 				revision: 0,
 				lastSavedRevision: 0,
@@ -174,8 +175,14 @@ export class RuntimeService {
 	public openProjectSession(input: OpenProjectSessionInput): BackendResult<BackendSessionSnapshot> {
 		const startedAt = Date.now();
 		const sessionId = input.sessionId ?? randomId();
-		const canonicalProjectPath = input.canonicalProjectPath ?? `memory://${sessionId}`;
-		const canonicalPathKey = input.canonicalPathKey ?? canonicalProjectPath.toLowerCase();
+		const storage = input.storage;
+		const memoryProjectPath = `memory://${sessionId}`;
+		const canonicalProjectPath = storage?.canonicalProjectPath
+			?? input.canonicalProjectPath
+			?? (storage ? storage.fileSystem.dirname(storage.fairyPath) || '.' : memoryProjectPath);
+		const canonicalPathKey = storage?.canonicalPathKey
+			?? input.canonicalPathKey
+			?? (storage ? normalizeComparablePath(canonicalProjectPath) : canonicalProjectPath.toLowerCase());
 		const existingSessionId = this.context.sessionsByPath.get(canonicalPathKey);
 		if (existingSessionId) {
 			return failure('runtime', startedAt, {
@@ -189,10 +196,11 @@ export class RuntimeService {
 
 		const session: BackendSessionState = {
 			sessionId,
-			fairyPath: canonicalProjectPath,
+			fairyPath: storage?.fairyPath ?? canonicalProjectPath,
 			canonicalProjectPath,
 			canonicalPathKey,
 			lockFilePath: '',
+			fileSystem: storage?.fileSystem,
 			project: normalizeUamProject(input.project),
 			revision: 0,
 			lastSavedRevision: 0,

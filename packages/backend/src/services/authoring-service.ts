@@ -10,6 +10,7 @@ import type {
 	BackendFileSystem,
 	BackendResult,
 	BackendSessionSnapshot,
+	SaveSessionInput,
 	SavePartialFailureError,
 	SessionNotFoundError,
 	SessionStaleWriteError,
@@ -180,11 +181,7 @@ export class AuthoringService {
 		});
 	}
 
-	public async saveSession(input: {
-		sessionId: string;
-		expectedRevision?: number;
-		targetPath?: string;
-	}): Promise<
+	public async saveSession(input: SaveSessionInput): Promise<
 		BackendResult<
 			BackendSessionSnapshot,
 			| SessionNotFoundError
@@ -199,7 +196,8 @@ export class AuthoringService {
 		if (!session || session.closed) {
 			return failure('authoring', startedAt, createSessionNotFoundError(input.sessionId));
 		}
-		if (!this.context.fileSystem) {
+		const fileSystem = input.fileSystem ?? session.fileSystem ?? this.context.fileSystem;
+		if (!fileSystem) {
 			return failure(
 				'authoring',
 				startedAt,
@@ -228,7 +226,6 @@ export class AuthoringService {
 				},
 			);
 		}
-		const fileSystem = this.context.fileSystem;
 		const targetViolation = await validateSaveTarget(fileSystem, session.fairyPath, input.targetPath);
 		if (targetViolation) {
 			return failure(

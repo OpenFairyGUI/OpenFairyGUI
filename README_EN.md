@@ -30,7 +30,7 @@ This repository is organized as a `pnpm workspace` + `Lerna` monorepo with the f
 |---|---|
 | `@openfairygui/core` | Property graph, document model, project I/O, and binary I/O primitives |
 | `@openfairygui/functions` | Higher-level publish, restore, inspection, and transform workflows |
-| `@openfairygui/backend` | Stateful backend runtime, session lifecycle, save/lock/capability coordination, and events/jobs/cache |
+| `@openfairygui/backend` | Stateful backend runtime, browser-safe project sessions, injectable async storage adapter, save/lock/capability coordination, and events/jobs/cache |
 | `@openfairygui/mcp` | Thin MCP server adapter that maps the full backend P2 tool surface and adds client ergonomics through resources, prompts, and output schemas |
 | `@openfairygui/cli` | Command-line interface |
 | `@openfairygui/test-utils` | Shared test helpers and fixtures |
@@ -134,9 +134,25 @@ transport-neutral backend foundation, not `packages/mcp`, and it does not redefi
 planes and exposes a unified metadata / diagnostics / version surface for backend responses,
 including `requestId / sessionId / revision / durationMs / warnings / diagnostics / stage`.
 The runtime plane also provides polling events, `cache.refresh` in-memory jobs,
-cooperative cancel, and revision-bound derived read-only cache snapshots. `publish / restore`
+cooperative cancel, and revision-bound derived read-only cache snapshots. Browser editors can
+inject OPFS, IndexedDB, or ZIP-backed virtual filesystems through
+`createBackendStorageFileSystem` for `openProjectSession` and `saveSession` writeback. `publish / restore`
 do not execute inside browser-safe authoring sessions; the capability manifest declares their
 Node bridge boundary.
+
+```ts
+import { BackendRuntime, createBackendStorageFileSystem } from '@openfairygui/backend';
+
+const fileSystem = createBackendStorageFileSystem(browserStorage);
+const runtime = new BackendRuntime();
+const opened = runtime.openProjectSession({
+	project: uamProject,
+	storage: { fileSystem, fairyPath: 'Project.fairy' },
+});
+if (!opened.ok) throw new Error(opened.error.message);
+
+await runtime.saveSession({ sessionId: opened.data.sessionId });
+```
 
 ```ts
 import { createNodeBackendRuntime } from '@openfairygui/backend/node';

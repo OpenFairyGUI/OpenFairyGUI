@@ -30,7 +30,7 @@ OpenFairyGUI 用于读取、编辑、写回和发布 FairyGUI 工程数据。和
 |---|---|
 | `@openfairygui/core` | 属性图、文档模型、工程读写、二进制读写等底层能力 |
 | `@openfairygui/functions` | 发布、还原、检查、转换等高层函数能力 |
-| `@openfairygui/backend` | stateful backend runtime、session 生命周期、save/lock/capability 协调，以及 events/jobs/cache |
+| `@openfairygui/backend` | stateful backend runtime、browser-safe project session、可注入 async storage adapter、save/lock/capability 协调，以及 events/jobs/cache |
 | `@openfairygui/mcp` | MCP server 薄适配层，完整映射 backend P2 工具面，并提供 resources / prompts / output schema 等客户端可用性表面 |
 | `@openfairygui/cli` | 命令行工具 |
 | `@openfairygui/test-utils` | 测试辅助与夹具 |
@@ -132,8 +132,24 @@ browser-safe 的 `@openfairygui/backend` 根入口，或通过 `@openfairygui/ba
 planes，并为所有 backend response 提供统一 metadata / diagnostics / version surface，
 包括 `requestId / sessionId / revision / durationMs / warnings / diagnostics / stage`。
 runtime plane 还提供 polling events、`cache.refresh` in-memory jobs、cooperative cancel，
-以及 revision-bound derived read-only cache snapshot。`publish / restore` 不在 browser-safe
+以及 revision-bound derived read-only cache snapshot。浏览器编辑器可以通过
+`createBackendStorageFileSystem` 注入 OPFS / IndexedDB / ZIP 虚拟文件系统，用于
+`openProjectSession` 与 `saveSession` 的工程写回。`publish / restore` 不在 browser-safe
 authoring session 内执行，capability manifest 会声明它们需要 Node bridge boundary。
+
+```ts
+import { BackendRuntime, createBackendStorageFileSystem } from '@openfairygui/backend';
+
+const fileSystem = createBackendStorageFileSystem(browserStorage);
+const runtime = new BackendRuntime();
+const opened = runtime.openProjectSession({
+	project: uamProject,
+	storage: { fileSystem, fairyPath: 'Project.fairy' },
+});
+if (!opened.ok) throw new Error(opened.error.message);
+
+await runtime.saveSession({ sessionId: opened.data.sessionId });
+```
 
 ```ts
 import { createNodeBackendRuntime } from '@openfairygui/backend/node';

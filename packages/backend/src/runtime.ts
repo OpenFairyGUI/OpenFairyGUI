@@ -68,6 +68,12 @@ export interface BackendCapabilityManifest {
 			injected: true;
 			requiredFor: readonly ['openSession', 'saveSession'];
 		};
+		projectStorage: {
+			injected: true;
+			browserSafe: true;
+			requiredFor: readonly ['openProjectSession.writeback', 'saveSession'];
+			adapterFactory: 'createBackendStorageFileSystem';
+		};
 		host: {
 			injected: true;
 			requiredFor: readonly ['advisoryLockMetadata'];
@@ -438,6 +444,21 @@ export interface OpenProjectSessionInput {
 	sessionId?: string;
 	canonicalProjectPath?: string;
 	canonicalPathKey?: string;
+	storage?: BackendProjectSessionStorage;
+}
+
+export interface BackendProjectSessionStorage {
+	fileSystem: BackendFileSystem;
+	fairyPath: string;
+	canonicalProjectPath?: string;
+	canonicalPathKey?: string;
+}
+
+export interface SaveSessionInput {
+	sessionId: string;
+	expectedRevision?: number;
+	targetPath?: string;
+	fileSystem?: BackendFileSystem;
 }
 
 export interface BackendRuntimeOptions {
@@ -503,6 +524,12 @@ function createCapabilities(): BackendCapabilities {
 				fileSystem: {
 					injected: true,
 					requiredFor: ['openSession', 'saveSession'],
+				},
+				projectStorage: {
+					injected: true,
+					browserSafe: true,
+					requiredFor: ['openProjectSession.writeback', 'saveSession'],
+					adapterFactory: 'createBackendStorageFileSystem',
 				},
 				host: {
 					injected: true,
@@ -628,11 +655,7 @@ export class BackendRuntime {
 		return this.authoringService.applyTransaction(input);
 	}
 
-	public async saveSession(input: {
-		sessionId: string;
-		expectedRevision?: number;
-		targetPath?: string;
-	}): Promise<
+	public async saveSession(input: SaveSessionInput): Promise<
 		BackendResult<
 			BackendSessionSnapshot,
 			| SessionNotFoundError
