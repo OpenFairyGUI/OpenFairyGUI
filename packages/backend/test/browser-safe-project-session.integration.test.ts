@@ -195,3 +195,186 @@ test('browser-safe project session saves through injected async storage', async 
 	t.is(title?.kind, 'text');
 	if (title?.kind === 'text') t.is(title.text, 'Stored in browser storage');
 });
+
+test('materializeSession writes a clean browser-safe session without advancing edit revision', async (t) => {
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({
+		project: createBackendFixtureProject(),
+		storage: {
+			fileSystem,
+			fairyPath: 'Workspace/Project.fairy',
+		},
+	});
+	t.true(opened.ok);
+	if (!opened.ok) return;
+	t.false(opened.data.dirty);
+	t.is(opened.data.revision, 0);
+	t.is(opened.data.lastSavedRevision, 0);
+
+	const materialized = await runtime.materializeSession({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 0,
+		mode: 'fullProject',
+		reason: 'workspace_bootstrap',
+	});
+	t.true(materialized.ok);
+	if (!materialized.ok) return;
+	t.is(materialized.data.revision, 0);
+	t.is(materialized.data.materializeRevision, 0);
+	t.is(materialized.data.saveRevision, 0);
+	t.is(materialized.data.lastSavedRevision, 0);
+	t.false(materialized.data.dirty);
+	t.is(materialized.data.reason, 'workspace_bootstrap');
+	t.deepEqual(materialized.data.skippedPaths, []);
+	t.true(materialized.data.writtenPaths.some((filePath) => filePath.endsWith('Project.fairy')));
+	t.true(storage.hasFile('Workspace/Project.fairy'));
+	t.deepEqual(materialized.meta.diagnostics, []);
+
+	const reloaded = normalizeUamProject(liftDocumentToUamProject(await new ProjectReader(fileSystem).read('Workspace/Project.fairy')));
+	t.deepEqual(reloaded.packages.map((pkg) => pkg.id), ['pkg001']);
+});
+
+test('materializeSession can bind storage to an existing memory session for workspace bootstrap', async (t) => {
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({
+		project: createBackendFixtureProject(),
+		canonicalProjectPath: 'memory://bootstrap',
+	});
+	t.true(opened.ok);
+	if (!opened.ok) return;
+	t.is(opened.data.canonicalProjectPath, 'memory://bootstrap');
+
+	const materialized = await runtime.materializeSession({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 0,
+		storage: {
+			fileSystem,
+			fairyPath: 'Bootstrap/Project.fairy',
+		},
+		mode: 'fullProject',
+		reason: 'workspace_bootstrap',
+	});
+	t.true(materialized.ok);
+	if (!materialized.ok) return;
+	t.is(materialized.data.canonicalProjectPath, 'Bootstrap');
+	t.false(materialized.data.dirty);
+	t.true(storage.hasFile('Bootstrap/Project.fairy'));
+
+	const session = runtime.getSession({ sessionId: opened.data.sessionId });
+	t.true(session.ok);
+	if (session.ok) t.is(session.data.canonicalProjectPath, 'Bootstrap');
+});
+
+test('materializeSession rejects rebinding storage already owned by another session', async (t) => {
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const runtime = new BackendRuntime();
+	const first = runtime.openProjectSession({
+		project: createBackendFixtureProject(),
+		storage: {
+			fileSystem,
+			fairyPath: 'Project.fairy',
+		},
+	});
+	const second = runtime.openProjectSession({
+		project: createBackendFixtureProject(),
+		canonicalProjectPath: 'memory://second',
+	});
+	t.true(first.ok);
+	t.true(second.ok);
+	if (!first.ok || !second.ok) return;
+
+	const materialized = await runtime.materializeSession({
+		sessionId: second.data.sessionId,
+		expectedRevision: 0,
+		storage: {
+			fileSystem,
+			fairyPath: 'Project.fairy',
+		},
+		mode: 'fullProject',
+		reason: 'workspace_bootstrap',
+	});
+	t.false(materialized.ok);
+	if (materialized.ok) return;
+	const materializeFailure = materialized as Extract<typeof materialized, { ok: false }>;
+	t.is(materializeFailure.error.code, 'lock_conflict');
+	if (materializeFailure.error.code === 'lock_conflict') {
+		t.is(materializeFailure.error.holderSessionId, first.data.sessionId);
+	}
+});
+
+test('saveSession force materializes a clean browser-safe session', async (t) => {
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({
+		project: createBackendFixtureProject(),
+		storage: {
+			fileSystem,
+			fairyPath: 'Project.fairy',
+		},
+	});
+	t.true(opened.ok);
+	if (!opened.ok) return;
+
+	const saved = await runtime.saveSession({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 0,
+		force: true,
+		mode: 'materializeCleanSession',
+	});
+	t.true(saved.ok);
+	if (!saved.ok) return;
+	t.false(saved.data.dirty);
+	t.is(saved.data.revision, 0);
+	t.true('writtenPaths' in saved.data);
+	if ('writtenPaths' in saved.data) {
+		t.true(saved.data.writtenPaths.some((filePath) => filePath.endsWith('Project.fairy')));
+	}
+	t.true(storage.hasFile('Project.fairy'));
+});
+
+test('materializeSession reports stable validation diagnostics before write', async (t) => {
+	const project = createBackendFixtureProject();
+	const component = project.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (component?.kind !== 'component') {
+		t.fail('expected component resource');
+		return;
+	}
+	component.component.displayList[1]!.id = 'n0';
+
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({
+		project,
+		storage: {
+			fileSystem,
+			fairyPath: 'Project.fairy',
+		},
+	});
+	t.true(opened.ok);
+	if (!opened.ok) return;
+
+	const materialized = await runtime.materializeSession({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 0,
+		reason: 'workspace_bootstrap',
+	});
+	t.false(materialized.ok);
+	if (materialized.ok) return;
+	const materializeFailure = materialized as Extract<typeof materialized, { ok: false }>;
+	t.is(materializeFailure.error.code, 'materialize_validation_failed');
+	if (materializeFailure.error.code === 'materialize_validation_failed') {
+		t.is(materializeFailure.error.issueCount, 1);
+		t.is(materializeFailure.error.diagnostics[0]?.code, 'materialize_validation_failed');
+		t.is(materializeFailure.error.diagnostics[0]?.operationKind, 'materializeSession');
+		t.regex(materializeFailure.error.diagnostics[0]?.path ?? '', /displayList\[1\]\.id/u);
+	}
+	t.is(materializeFailure.meta.diagnostics[0]?.code, 'materialize_validation_failed');
+	t.false(storage.hasFile('Project.fairy'));
+});

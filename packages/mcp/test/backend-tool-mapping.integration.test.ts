@@ -86,6 +86,7 @@ test('MCP P0 tool annotations reflect backend side effects and non-goals', (t) =
 		'openProjectSession',
 		'applyTransaction',
 		'saveSession',
+		'materializeSession',
 		'closeSession',
 		'cancelJob',
 		'refreshCache',
@@ -136,6 +137,14 @@ test('MCP P0 direct tool handler can call every backend P2 method without redefi
 
 		const saved = await callTool(runtime, 'openfairygui_backend_save_session', { sessionId, expectedRevision: 1 });
 		t.true(saved.ok);
+
+		const materialized = await callTool(runtime, 'openfairygui_backend_materialize_session', {
+			sessionId,
+			expectedRevision: 1,
+			mode: 'fullProject',
+			reason: 'mcp_mapping',
+		});
+		t.true(materialized.ok);
 
 		const events = await callTool(runtime, 'openfairygui_backend_get_events', { sessionId, after: '0', limit: 10 });
 		t.true(events.ok);

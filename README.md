@@ -134,7 +134,8 @@ planes，并为所有 backend response 提供统一 metadata / diagnostics / ver
 runtime plane 还提供 polling events、`cache.refresh` in-memory jobs、cooperative cancel，
 以及 revision-bound derived read-only cache snapshot。浏览器编辑器可以通过
 `createBackendStorageFileSystem` 注入 OPFS / IndexedDB / ZIP 虚拟文件系统，用于
-`openProjectSession` 与 `saveSession` 的工程写回。`publish / restore` 不在 browser-safe
+`openProjectSession`、clean session 的 `materializeSession` 与 dirty session 的 `saveSession`
+工程写回。`publish / restore` 不在 browser-safe
 authoring session 内执行，capability manifest 会声明它们需要 Node bridge boundary。
 
 ```ts
@@ -148,7 +149,13 @@ const opened = runtime.openProjectSession({
 });
 if (!opened.ok) throw new Error(opened.error.message);
 
-await runtime.saveSession({ sessionId: opened.data.sessionId });
+const bootstrapped = await runtime.materializeSession({
+	sessionId: opened.data.sessionId,
+	expectedRevision: opened.data.revision,
+	mode: 'fullProject',
+	reason: 'workspace_bootstrap',
+});
+if (!bootstrapped.ok) throw new Error(bootstrapped.error.message);
 ```
 
 ```ts
@@ -172,7 +179,7 @@ await runtime.closeSession({ sessionId: opened.data.sessionId });
 ```
 
 如果你要把当前 backend runtime 暴露给 MCP 客户端，可以使用 `@openfairygui/mcp`。
-这层只做 transport adapter，不重新定义 backend / UAM 语义。当前 MCP 包除 13 个 backend P2 tools 外，
+这层只做 transport adapter，不重新定义 backend / UAM 语义。当前 MCP 包除 14 个 backend P2 tools 外，
 还提供 identity snapshot resources、workflow guidance prompts，以及 `structuredContent.backendResult`
 的共享 output schema；MCP roots 只作为客户端上下文说明，不作为路径安全边界。
 

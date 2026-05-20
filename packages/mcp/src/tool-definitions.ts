@@ -9,6 +9,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_NAMES = [
 	'openfairygui_backend_get_session',
 	'openfairygui_backend_apply_transaction',
 	'openfairygui_backend_save_session',
+	'openfairygui_backend_materialize_session',
 	'openfairygui_backend_close_session',
 	'openfairygui_backend_get_events',
 	'openfairygui_backend_get_job',
@@ -27,6 +28,7 @@ export type BackendMethodName =
 	| 'getSession'
 	| 'applyTransaction'
 	| 'saveSession'
+	| 'materializeSession'
 	| 'closeSession'
 	| 'getEvents'
 	| 'getJob'
@@ -130,6 +132,22 @@ export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
 			sessionId,
 			expectedRevision: expectedRevision.optional(),
 			targetPath: z.string().min(1).optional(),
+			force: z.boolean().optional(),
+			mode: z.literal('materializeCleanSession').optional(),
+		}),
+		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
+		annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+	},
+	{
+		name: 'openfairygui_backend_materialize_session',
+		backendMethod: 'materializeSession',
+		title: 'Materialize Backend Session',
+		description: 'Force materialize the current backend session project through the configured project storage without requiring a dirty edit revision.',
+		inputSchema: z.object({
+			sessionId,
+			expectedRevision: expectedRevision.optional(),
+			mode: z.literal('fullProject').optional(),
+			reason: z.string().min(1).optional(),
 		}),
 		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 		annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },

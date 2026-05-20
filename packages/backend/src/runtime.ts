@@ -66,12 +66,12 @@ export interface BackendCapabilityManifest {
 	adapters: {
 		fileSystem: {
 			injected: true;
-			requiredFor: readonly ['openSession', 'saveSession'];
+			requiredFor: readonly ['openSession', 'saveSession', 'materializeSession'];
 		};
 		projectStorage: {
 			injected: true;
 			browserSafe: true;
-			requiredFor: readonly ['openProjectSession.writeback', 'saveSession'];
+			requiredFor: readonly ['openProjectSession.writeback', 'saveSession', 'materializeSession'];
 			adapterFactory: 'createBackendStorageFileSystem';
 		};
 		host: {
@@ -104,6 +104,7 @@ export interface BackendCapabilities {
 		'getSession',
 		'applyTransaction',
 		'saveSession',
+		'materializeSession',
 		'closeSession',
 		'getEvents',
 		'getJob',
@@ -184,6 +185,16 @@ export interface BackendSessionSnapshot {
 	capabilities: BackendCapabilities;
 }
 
+export interface MaterializeSessionSnapshot extends BackendSessionSnapshot {
+	mode: 'fullProject';
+	reason?: string;
+	materializeRevision: number;
+	saveRevision: number;
+	writtenPaths: string[];
+	skippedPaths: string[];
+	diagnostics: import('./contracts.js').BackendDiagnostic[];
+}
+
 export interface BackendSuccess<T> {
 	ok: true;
 	meta: BackendResponseMeta;
@@ -241,6 +252,29 @@ export interface SavePartialFailureError {
 	lastSavedRevision: number;
 	committedPaths: string[];
 	failedPaths: string[];
+	diskMayBePartiallyUpdated: true;
+}
+
+export interface MaterializeValidationFailedError {
+	code: 'materialize_validation_failed';
+	message: string;
+	sessionId: string;
+	canonicalPathKey: string;
+	issueCount: number;
+	diagnostics: import('./contracts.js').BackendDiagnostic[];
+}
+
+export interface MaterializeWriteFailedError {
+	code: 'write_failed';
+	message: string;
+	sessionId: string;
+	canonicalPathKey: string;
+	attemptedRevision: number;
+	lastSavedRevision: number;
+	writtenPaths: string[];
+	failedPaths: string[];
+	skippedPaths: string[];
+	diagnostics: import('./contracts.js').BackendDiagnostic[];
 	diskMayBePartiallyUpdated: true;
 }
 
@@ -424,6 +458,8 @@ export type BackendError =
 	| InProcessLockConflictError
 	| AdvisoryLockConflictError
 	| SavePartialFailureError
+	| MaterializeValidationFailedError
+	| MaterializeWriteFailedError
 	| PathPolicyViolationError
 	| EventCursorInvalidError
 	| BackendJobNotFoundError
@@ -459,6 +495,18 @@ export interface SaveSessionInput {
 	expectedRevision?: number;
 	targetPath?: string;
 	fileSystem?: BackendFileSystem;
+	force?: boolean;
+	mode?: 'materializeCleanSession';
+}
+
+export interface MaterializeSessionInput {
+	sessionId: string;
+	expectedRevision?: number;
+	storage?: BackendProjectSessionStorage;
+	targetPath?: string;
+	fileSystem?: BackendFileSystem;
+	mode?: 'fullProject';
+	reason?: string;
 }
 
 export interface BackendRuntimeOptions {
@@ -473,6 +521,7 @@ const BACKEND_METHODS = [
 	'getSession',
 	'applyTransaction',
 	'saveSession',
+	'materializeSession',
 	'closeSession',
 	'getEvents',
 	'getJob',
@@ -523,12 +572,12 @@ function createCapabilities(): BackendCapabilities {
 			adapters: {
 				fileSystem: {
 					injected: true,
-					requiredFor: ['openSession', 'saveSession'],
+					requiredFor: ['openSession', 'saveSession', 'materializeSession'],
 				},
 				projectStorage: {
 					injected: true,
 					browserSafe: true,
-					requiredFor: ['openProjectSession.writeback', 'saveSession'],
+					requiredFor: ['openProjectSession.writeback', 'saveSession', 'materializeSession'],
 					adapterFactory: 'createBackendStorageFileSystem',
 				},
 				host: {
@@ -657,15 +706,33 @@ export class BackendRuntime {
 
 	public async saveSession(input: SaveSessionInput): Promise<
 		BackendResult<
-			BackendSessionSnapshot,
+			BackendSessionSnapshot | MaterializeSessionSnapshot,
 			| SessionNotFoundError
 			| SessionStaleWriteError
 			| SavePartialFailureError
+			| MaterializeValidationFailedError
+			| MaterializeWriteFailedError
 			| PathPolicyViolationError
+			| InProcessLockConflictError
 			| BackendCapabilityUnavailableError
 		>
 	> {
 		return this.authoringService.saveSession(input);
+	}
+
+	public async materializeSession(input: MaterializeSessionInput): Promise<
+		BackendResult<
+			MaterializeSessionSnapshot,
+			| SessionNotFoundError
+			| SessionStaleWriteError
+			| MaterializeValidationFailedError
+			| MaterializeWriteFailedError
+			| PathPolicyViolationError
+			| InProcessLockConflictError
+			| BackendCapabilityUnavailableError
+		>
+	> {
+		return this.authoringService.materializeSession(input);
 	}
 
 	public async closeSession(input: {

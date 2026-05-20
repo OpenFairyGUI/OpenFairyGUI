@@ -10,6 +10,7 @@ export type OpenFairyGuiBackendRuntime = Pick<
 	| 'getSession'
 	| 'applyTransaction'
 	| 'saveSession'
+	| 'materializeSession'
 	| 'closeSession'
 	| 'getEvents'
 	| 'getJob'
@@ -81,6 +82,16 @@ export async function callOpenFairyGuiBackendTool(
 				sessionId: String(input.sessionId),
 				expectedRevision: input.expectedRevision === undefined ? undefined : Number(input.expectedRevision),
 				targetPath: input.targetPath === undefined ? undefined : String(input.targetPath),
+				force: input.force === undefined ? undefined : Boolean(input.force),
+				mode: input.mode as Parameters<BackendRuntime['saveSession']>[0]['mode'],
+			});
+			break;
+		case 'openfairygui_backend_materialize_session':
+			result = await runtime.materializeSession({
+				sessionId: String(input.sessionId),
+				expectedRevision: input.expectedRevision === undefined ? undefined : Number(input.expectedRevision),
+				mode: input.mode as Parameters<BackendRuntime['materializeSession']>[0]['mode'],
+				reason: input.reason === undefined ? undefined : String(input.reason),
 			});
 			break;
 		case 'openfairygui_backend_close_session':

@@ -73,3 +73,36 @@ test('saveSession partial failure keeps dirty state and reports partial update r
 		await fixture.cleanup();
 	}
 });
+
+test('materializeSession reports write_failed and keeps session dirty state stable', async (t) => {
+	const fixture = await createTempBackendProject();
+	try {
+		const failingFs = createFailingFileSystem((filePath) => filePath.endsWith(`${path.sep}package.xml`));
+		const runtime = createBackendRuntime({ fileSystem: failingFs });
+		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
+		t.true(opened.ok);
+		if (!opened.ok) return;
+
+		const materialized = await runtime.materializeSession({
+			sessionId: opened.data.sessionId,
+			expectedRevision: 0,
+			mode: 'fullProject',
+			reason: 'workspace_bootstrap',
+		});
+		t.false(materialized.ok);
+		if (materialized.ok) return;
+		const materializeFailure = materialized as Extract<typeof materialized, { ok: false }>;
+		t.is(materializeFailure.error.code, 'write_failed');
+		if (materializeFailure.error.code === 'write_failed') {
+			t.true(materializeFailure.error.diskMayBePartiallyUpdated);
+			t.true(materializeFailure.error.failedPaths.some((filePath) => filePath.endsWith(`${path.sep}package.xml`)));
+			t.is(materializeFailure.error.lastSavedRevision, 0);
+			t.is(materializeFailure.error.diagnostics[0]?.operationKind, 'materializeSession');
+		}
+		t.false(materializeFailure.session?.dirty ?? true);
+		t.is(materializeFailure.session?.lastSavedRevision, 0);
+		t.is(materializeFailure.meta.diagnostics[0]?.code, 'write_failed');
+	} finally {
+		await fixture.cleanup();
+	}
+});

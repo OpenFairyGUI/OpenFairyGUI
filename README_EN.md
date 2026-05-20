@@ -136,7 +136,8 @@ including `requestId / sessionId / revision / durationMs / warnings / diagnostic
 The runtime plane also provides polling events, `cache.refresh` in-memory jobs,
 cooperative cancel, and revision-bound derived read-only cache snapshots. Browser editors can
 inject OPFS, IndexedDB, or ZIP-backed virtual filesystems through
-`createBackendStorageFileSystem` for `openProjectSession` and `saveSession` writeback. `publish / restore`
+`createBackendStorageFileSystem` for `openProjectSession`, clean-session `materializeSession`,
+and dirty-session `saveSession` writeback. `publish / restore`
 do not execute inside browser-safe authoring sessions; the capability manifest declares their
 Node bridge boundary.
 
@@ -151,7 +152,13 @@ const opened = runtime.openProjectSession({
 });
 if (!opened.ok) throw new Error(opened.error.message);
 
-await runtime.saveSession({ sessionId: opened.data.sessionId });
+const bootstrapped = await runtime.materializeSession({
+	sessionId: opened.data.sessionId,
+	expectedRevision: opened.data.revision,
+	mode: 'fullProject',
+	reason: 'workspace_bootstrap',
+});
+if (!bootstrapped.ok) throw new Error(bootstrapped.error.message);
 ```
 
 ```ts
@@ -176,7 +183,7 @@ await runtime.closeSession({ sessionId: opened.data.sessionId });
 
 If you want to expose the current backend runtime to MCP clients, use `@openfairygui/mcp`.
 This package is only a transport adapter; it does not redefine backend or UAM semantics.
-In addition to the 13 backend P2 tools, it exposes identity snapshot resources,
+In addition to the 14 backend P2 tools, it exposes identity snapshot resources,
 workflow guidance prompts, and a shared `structuredContent.backendResult` output schema.
 MCP roots are documented as client context only, not as the path-safety boundary.
 

@@ -89,6 +89,7 @@ test('backend root entry advertises browser-safe project session boundary', (t) 
 	t.is(result.data.manifest.executionBoundaries.projectSession, 'in-process-browser-safe');
 	t.true(result.data.manifest.adapters.projectStorage.browserSafe);
 	t.is(result.data.manifest.adapters.projectStorage.adapterFactory, 'createBackendStorageFileSystem');
+	t.true(result.data.manifest.adapters.projectStorage.requiredFor.includes('materializeSession'));
 	t.is(result.data.manifest.executionBoundaries.artifactPublish.bridgeEntrypoint, '@openfairygui/backend/node');
 });
 

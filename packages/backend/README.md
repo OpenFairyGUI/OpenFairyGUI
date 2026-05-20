@@ -85,8 +85,15 @@ const opened = runtime.openProjectSession({
 });
 if (!opened.ok) throw new Error(opened.error.message);
 
-const saved = await runtime.saveSession({ sessionId: opened.data.sessionId });
-if (!saved.ok) throw new Error(saved.error.message);
+const bootstrapped = await runtime.materializeSession({
+	sessionId: opened.data.sessionId,
+	expectedRevision: opened.data.revision,
+	mode: 'fullProject',
+	reason: 'workspace_bootstrap',
+});
+if (!bootstrapped.ok) throw new Error(bootstrapped.error.message);
+
+console.log(bootstrapped.data.writtenPaths);
 ```
 
 Node file-backed session:
