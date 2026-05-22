@@ -209,7 +209,9 @@ OpenFairyGUI 当前已经把“代码生成”接入现有 `publish` 流程，�
 | `branchPath` | 分支输出路径 |
 | `seperatedAtlasForBranch` | 分支 atlas 是否单独输出 |
 
-`includeHighResolution` 可以理解为 `2x`、`3x`、`4x` 资源开关对应的位掩码字段。
+`includeHighResolution` 可以理解为 `2x`、`3x`、`4x` 资源开关对应的位掩码字段：`@2x=1`、`@3x=2`、`@4x=4`。
+
+发布流程只发现并链接工程中已经存在的同路径、同分支、同类型 `@2x` / `@3x` / `@4x` 资源，例如 `icon.png` 对应 `icon@2x.png`。它们会作为独立 `image` / `movieclip` package item 写入，再由基础 item 的 high-resolution 列表引用；发布期不会主动把原始位图缩放或放大生成高分辨率资源。
 
 `branchProcessing` 当前可见语义如下：
 

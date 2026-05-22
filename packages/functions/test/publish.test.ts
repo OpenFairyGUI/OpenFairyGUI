@@ -73,6 +73,7 @@ function parsePackageBinary(bytes: Uint8Array): {
 		ext: number | null;
 		branch: string | null;
 		branchItems: Array<string | null>;
+		highResolutionItems: Array<string | null>;
 	}>;
 	spriteIds: string[];
 	hitTestIds: string[];
@@ -130,6 +131,7 @@ function parsePackageBinary(bytes: Uint8Array): {
 		ext: number | null;
 		branch: string | null;
 		branchItems: Array<string | null>;
+		highResolutionItems: Array<string | null>;
 	}> = [];
 	pos = offsets[1];
 	const itemCount = dataView.getInt16(pos, false);
@@ -198,11 +200,14 @@ function parsePackageBinary(bytes: Uint8Array): {
 			branchItems.push(branchItemRef.value);
 		}
 		const highResCount = dataView.getUint8(pos++);
+		const highResolutionItems: Array<string | null> = [];
 		for (let highResIndex = 0; highResIndex < highResCount; highResIndex++) {
-			pos += 2;
+			const highResRef = readStringRef(dataView, strings, pos);
+			pos = highResRef.nextPos;
+			highResolutionItems.push(highResRef.value);
 		}
 
-		items.push({ type, id, file, width, height, ext, branch: branchRef.value, branchItems });
+		items.push({ type, id, file, width, height, ext, branch: branchRef.value, branchItems, highResolutionItems });
 		pos = nextPos;
 	}
 
@@ -276,6 +281,66 @@ test('publish: generates .fui files for a synthetic document', async (t) => {
 		t.is(pkg2.getId(), 'test0001', 'package ID preserved');
 		t.is(pkg2.getName(), 'TestPkg', 'package name preserved');
 		t.is(pkg2.listResources().length, 0, 'publish prunes unexported and unreferenced resources from binary output');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: includes linked high-resolution image resources without upscaling', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(4);
+	doc.getRoot().setSettings({
+		publish: {
+			includeHighResolution: 5,
+		},
+	} as RootProjectSettings);
+
+	const pkg = doc.createPackage('HiResPkg');
+	pkg.setId('hires001');
+
+	const icon = doc.createImageResource('icon.png');
+	icon.setId('base01').setWidth(16).setHeight(16);
+	pkg.addResource(icon);
+
+	const icon2x = doc.createImageResource('icon@2x.png');
+	icon2x.setId('hi2x01').setWidth(32).setHeight(32);
+	pkg.addResource(icon2x);
+
+	const icon4x = doc.createImageResource('icon@4x.png');
+	icon4x.setId('hi4x01').setWidth(64).setHeight(64);
+	pkg.addResource(icon4x);
+
+	const component = doc.createComponent('Main');
+	component.setId('main01').setExported(true);
+	const child = doc.createGImage('icon');
+	child.setId('n0').setSrc('base01');
+	component.addChild(child);
+	pkg.addResource(component);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-hires-'));
+
+	try {
+		await doc.transform(publish({
+			output: tmpDir,
+			compressed: false,
+			fs: createFs(),
+		}));
+
+		const bytes = await fs.readFile(path.join(tmpDir, 'HiResPkg.fui'));
+		const parsed = parsePackageBinary(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+		const byId = new Map(parsed.items.map((item) => [item.id, item]));
+
+		t.true(byId.has('hi2x01'), '@2x resource is published as its own item');
+		t.true(byId.has('hi4x01'), '@4x resource is published as its own item');
+		t.is(byId.get('base01')?.width, 16, 'base image size is not upscaled');
+		t.is(byId.get('hi2x01')?.width, 32, '@2x resource keeps its own width');
+		t.is(byId.get('hi4x01')?.width, 64, '@4x resource keeps its own width');
+		t.deepEqual(byId.get('base01')?.highResolutionItems, ['hi2x01', null, 'hi4x01']);
+
+		const io = new NodeIO();
+		const roundTripped = await io.readBinary(path.join(tmpDir, 'HiResPkg.fui'));
+		const roundTripIcon = roundTripped.getRoot().getPackage('HiResPkg')?.getResourceById('base01') as any;
+		t.deepEqual(roundTripIcon?.getHighResolutionItemIds?.(), ['hi2x01', null, 'hi4x01']);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

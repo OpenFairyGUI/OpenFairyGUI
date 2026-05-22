@@ -531,15 +531,15 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 				if (isImageResource(res)) {
 					// Pack referenced images, plus explicitly exported standalone images.
 					const resId = res.getId();
-					if (!res.getExported() && referencedIds.size > 0 && !referencedIds.has(resId)) continue;
+					if (selectedPublishIds.size === 0 && !res.getExported() && referencedIds.size > 0 && !referencedIds.has(resId)) continue;
 					await _collectImage(res, pkg, inputs, encoder, options, doTrim, logger);
 				} else if (isMovieClipResource(res)) {
 					const resId = res.getId();
-					if (!res.getExported() && referencedIds.size > 0 && !referencedIds.has(resId)) continue;
+					if (selectedPublishIds.size === 0 && !res.getExported() && referencedIds.size > 0 && !referencedIds.has(resId)) continue;
 					await _collectMovieClipFrames(doc, res, pkg, inputs, encoder, options, logger);
 				} else if (isFontResource(res)) {
 					const resId = res.getId();
-					if (!res.getExported() && referencedIds.size > 0 && !referencedIds.has(resId)) continue;
+					if (selectedPublishIds.size === 0 && !res.getExported() && referencedIds.size > 0 && !referencedIds.has(resId)) continue;
 					await _collectFontTexture(doc, res, pkg, options);
 				}
 			}

@@ -57,6 +57,10 @@ interface BranchAwarePackageResource {
 	setBranchItemIds(ids: string[]): unknown;
 }
 
+interface HighResolutionAwarePackageResource {
+	setHighResolutionItemIds?(ids: Array<string | null>): unknown;
+}
+
 function normalizePackageResourcePath(path: string): string {
 	const normalized = path.replace(/\\/g, '/').trim();
 	if (!normalized || normalized === '/') return '/';
@@ -494,11 +498,15 @@ export class BinaryReader {
 					else branchItemIds = [buf.readS() ?? ''];
 				}
 				const highResCnt = buf.getUint8();
-				if (highResCnt > 0) buf.readSArray(highResCnt);
+				const highResolutionItemIds: Array<string | null> = [];
+				for (let highResIndex = 0; highResIndex < highResCnt; highResIndex++) {
+					highResolutionItemIds.push(buf.readS());
+				}
 				if (createdResource) {
 					createdResource.setPath(itemPath);
 					createdResource.setBranch(branchName);
 					createdResource.setBranchItemIds(branchItemIds);
+					(createdResource as HighResolutionAwarePackageResource).setHighResolutionItemIds?.(highResolutionItemIds);
 				}
 			}
 

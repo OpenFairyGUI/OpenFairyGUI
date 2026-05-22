@@ -113,6 +113,7 @@ interface PackagePublishContext {
 	referencedIds: Set<string>;
 	publishedResourceIds: Set<string>;
 	pixelHitTestImageIds: Set<string>;
+	highResolutionItemIds: Map<string, Array<string | null>>;
 	effectiveResourceIds: Map<string, string>;
 	includeBranches: boolean;
 }
@@ -311,6 +312,10 @@ function isMovieClipResource(resource: ReturnType<Package['listResources']>[numb
 	return resource.propertyType === 'MovieClipResource';
 }
 
+function isHighResolutionResource(resource: ReturnType<Package['listResources']>[number]): resource is ImageResource | MovieClipResource {
+	return isImageResource(resource) || isMovieClipResource(resource);
+}
+
 function isMiscResource(resource: ReturnType<Package['listResources']>[number]): resource is MiscResource {
 	return resource.propertyType === 'MiscResource';
 }
@@ -481,11 +486,92 @@ function buildBranchResourceKey(resource: {
 	return `${resource.propertyType}|${resource.getPath() ?? ''}|${resource.getName() ?? ''}`;
 }
 
+const HIGH_RESOLUTION_LEVELS = [
+	{ scale: 2, bit: 1, slot: 0 },
+	{ scale: 3, bit: 2, slot: 1 },
+	{ scale: 4, bit: 4, slot: 2 },
+] as const;
+
+function buildHighResolutionResourceKey(resource: {
+	propertyType: string;
+	getPath(): string;
+	getName(): string;
+	getBranch?(): string;
+}, name = resource.getName()): string {
+	return `${resource.propertyType}|${resource.getBranch?.() ?? ''}|${resource.getPath() ?? ''}|${name}`;
+}
+
+function isHighResolutionVariantName(name: string): boolean {
+	return /@(?:2|3|4)x(?:\.[^./\\]+)?$/iu.test(name);
+}
+
+function appendHighResolutionScaleToName(name: string, scale: number): string {
+	const extensionIndex = name.lastIndexOf('.');
+	if (extensionIndex > 0) {
+		return `${name.slice(0, extensionIndex)}@${scale}x${name.slice(extensionIndex)}`;
+	}
+	return `${name}@${scale}x`;
+}
+
+function trimTrailingMissingHighResolutionIds(ids: Array<string | null>): Array<string | null> {
+	while (ids.length > 0 && !ids[ids.length - 1]) {
+		ids.pop();
+	}
+	return ids;
+}
+
+function collectHighResolutionItemIds(
+	resources: ReturnType<Package['listResources']>,
+	publishedResourceIds: Set<string>,
+	includeHighResolution: number,
+): Map<string, Array<string | null>> {
+	const result = new Map<string, Array<string | null>>();
+	if (includeHighResolution <= 0) return result;
+
+	const highResolutionResourceByKey = new Map<string, ImageResource | MovieClipResource>();
+	for (const resource of resources) {
+		if (!isHighResolutionResource(resource)) continue;
+		highResolutionResourceByKey.set(buildHighResolutionResourceKey(resource), resource);
+	}
+
+	for (const resource of resources) {
+		if (!isHighResolutionResource(resource)) continue;
+		if (!publishedResourceIds.has(resource.getId())) continue;
+		if (isHighResolutionVariantName(resource.getName())) continue;
+
+		const ids: Array<string | null> = [];
+		for (const level of HIGH_RESOLUTION_LEVELS) {
+			if ((includeHighResolution & level.bit) === 0) {
+				ids[level.slot] = null;
+				continue;
+			}
+
+			const highResolutionResource = highResolutionResourceByKey.get(
+				buildHighResolutionResourceKey(resource, appendHighResolutionScaleToName(resource.getName(), level.scale)),
+			);
+			if (!highResolutionResource) {
+				ids[level.slot] = null;
+				continue;
+			}
+
+			const highResolutionId = highResolutionResource.getId();
+			publishedResourceIds.add(highResolutionId);
+			ids[level.slot] = highResolutionId;
+		}
+
+		trimTrailingMissingHighResolutionIds(ids);
+		if (ids.length > 0) result.set(resource.getId(), ids);
+	}
+
+	return result;
+}
+
 function collectPackagePublishContext(
 	pkg: Package,
 	options: {
 		includeBranches: boolean;
 		activeBranch: string;
+		includeHighResolution: number;
 	},
 ): PackagePublishContext {
 	const pkgId = pkg.getId();
@@ -622,6 +708,12 @@ function collectPackagePublishContext(
 		}
 	}
 
+	const highResolutionItemIds = collectHighResolutionItemIds(
+		resources,
+		publishedResourceIds,
+		options.includeHighResolution,
+	);
+
 	if (!options.includeBranches) {
 		const mainByKey = new Map<string, ReturnType<Package['listResources']>[number]>();
 		const activeBranchByKey = new Map<string, ReturnType<Package['listResources']>[number]>();
@@ -686,6 +778,7 @@ function collectPackagePublishContext(
 			referencedIds,
 			publishedResourceIds,
 			pixelHitTestImageIds,
+			highResolutionItemIds,
 			effectiveResourceIds,
 			includeBranches: false,
 		};
@@ -695,6 +788,7 @@ function collectPackagePublishContext(
 		referencedIds,
 		publishedResourceIds,
 		pixelHitTestImageIds,
+		highResolutionItemIds,
 		effectiveResourceIds: new Map([...publishedResourceIds].map((resourceId) => [resourceId, resourceId])),
 		includeBranches: true,
 	};
@@ -770,11 +864,15 @@ async function annotatePackagePublishArtifacts(
 	options: {
 		includeBranches: boolean;
 		activeBranch: string;
+		includeHighResolution: number;
 	},
 ): Promise<void> {
-	const { publishedResourceIds, pixelHitTestImageIds, effectiveResourceIds, includeBranches } = collectPackagePublishContext(pkg, options);
+	const { publishedResourceIds, pixelHitTestImageIds, highResolutionItemIds, effectiveResourceIds, includeBranches } = collectPackagePublishContext(pkg, options);
 	for (const resource of pkg.listResources()) {
 		setPublishedIdExtra(resource, effectiveResourceIds.get(resource.getId()) ?? null);
+		if (isHighResolutionResource(resource)) {
+			resource.setHighResolutionItemIds(highResolutionItemIds.get(resource.getId()) ?? []);
+		}
 	}
 	await applyPixelHitTests(pkg, pixelHitTestImageIds, basePath, encoder);
 	const extras = (pkg.getExtras() as PackagePublishArtifactsExtras | undefined) ?? {};
@@ -959,6 +1057,7 @@ export function publish(options: PublishOptions): Transform {
 		const branchProcessing = publishSettings.branchProcessing ?? 0;
 		const includeBranches = branchProcessing === 0;
 		const activeBranch = includeBranches ? '' : (options.branch ?? '');
+		const includeHighResolution = publishSettings.includeHighResolution ?? 0;
 		const atlasRuntimeOptions = resolvePublishAtlasRuntimeOptions(ext);
 
 		const allDocPackages = root.listPackages();
@@ -979,6 +1078,7 @@ export function publish(options: PublishOptions): Transform {
 				{
 					includeBranches,
 					activeBranch,
+					includeHighResolution,
 				},
 			);
 		}

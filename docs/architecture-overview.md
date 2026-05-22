@@ -236,6 +236,7 @@ flowchart LR
 |---|---|
 | `SoundResource` | 输出发布后的声音文件名 |
 | `MiscResource` | 输出资源文件；若源文件扩展名为 `.atlas`，发布名改为 `.atlas.txt` |
+| `ImageResource` / `MovieClipResource` 高分辨率变体 | 当 `includeHighResolution` 启用对应倍率时，按同路径、同分支、同类型的 `@2x` / `@3x` / `@4x` 资源加入发布闭包，并在基础 item 的 high-resolution 列表中引用；发布流程不主动缩放原图 |
 | `SpineResource` | 输出 skeleton 主文件；若源文件扩展名为 `.skel`，发布名改为 `.skel.bytes` |
 | `DragonBonesResource` | 输出 skeleton 主文件，当前保持原文件名 |
 | `SpineResource` / `DragonBonesResource` 依赖 | 按 `require` 形成资源闭包，依赖的 `misc` / `image` 资源一并发布 |

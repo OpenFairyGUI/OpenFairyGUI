@@ -195,11 +195,13 @@ block 5 的 patch 用于替换 block 4 中相同索引位置的占位字符串�
 |---|---|
 | branch name | 当前条目所属分支名；主分支条目写 `null` |
 | branchCount | 分支映射数量；当包启用分支表时，主条目按包级 branch 顺序写分支变体 item id 列表 |
-| highResCount | 高分辨率变体数量；当前口径下写 `0` |
+| highResCount | 高分辨率变体槽位数量；后续按 `@2x`、`@3x`、`@4x` 顺序写 package item id |
 
 说明：
 - package-level branch 表存在时，主条目的 `branchCount` 对应的是已写出的 branch 槽位数量。
 - branch 变体条目自身只写 `branch name`，不再继续嵌套 `branchCount` 映射。
+- 高分辨率列表只引用已经发布为 package item 的 `image` / `movieclip` 资源，不在发布期主动放大原始位图。
+- 当中间倍率缺失但后续倍率存在时，对应槽位写 `null`；尾部缺失槽位省略。
 - 当发布模式为 `主干合并活跃分支` 时，发布结果已经完成分支替换，包级 `branchCount` 写 `0`，各 item 的 `branch name` 与 `branchCount` 也都写空值。
 - 当发布模式保留分支且 atlas 单独输出时，分支 atlas 可以使用独立 atlas 条目；当前编辑器样本中分支 atlas 的 index 使用 `100 + pageIndex`。
 

@@ -10,6 +10,7 @@ export interface PublishSettings {
 	fileExtension?: string;
 	path?: string;
 	branchPath?: string;
+	includeHighResolution?: number;
 	branchProcessing?: number;
 	seperatedAtlasForBranch?: boolean;
 	packageCount?: number;

@@ -178,6 +178,10 @@ interface BranchAwareBinaryItem {
 	getBranchItemIds?(): string[];
 }
 
+interface HighResolutionBinaryItem {
+	getHighResolutionItemIds?(): Array<string | null>;
+}
+
 /**
  * Sort resources to match editor binary output order.
  * Editor sorts: non-exported first, then alphabetical by type, then by ID.
@@ -552,7 +556,11 @@ export class BinaryWriter {
 				for (const branchItemId of branchItemIds) {
 					data.writeSEx(branchItemId || null);
 				}
-				data.writeUint8(0); // highResCount
+				const highResolutionItemIds = getItemHighResolutionItemIds(res, publishedItemIdMap, packageItemIds);
+				data.writeUint8(highResolutionItemIds.length);
+				for (const highResolutionItemId of highResolutionItemIds) {
+					data.writeS(highResolutionItemId);
+				}
 			}
 
 			// Patch nextPos offset
@@ -984,6 +992,24 @@ function getItemBranchItemIds(
 	const inferred = branchItemIdsMap.get(buildBranchResourceKey(item));
 	if (!inferred) return [];
 	return inferred.some((value) => !!value) ? [...inferred] : [];
+}
+
+function getItemHighResolutionItemIds(
+	item: BinaryPackageItem,
+	publishedItemIdMap: Map<string, string>,
+	packageItemIds: Set<string>,
+): Array<string | null> {
+	const highResolutionAware = item as HighResolutionBinaryItem;
+	const rawIds = highResolutionAware.getHighResolutionItemIds?.() ?? [];
+	const resolvedIds = rawIds.map((id) => {
+		if (!id) return null;
+		const publishedId = publishedItemIdMap.get(id) ?? id;
+		return packageItemIds.has(publishedId) ? publishedId : null;
+	});
+	while (resolvedIds.length > 0 && !resolvedIds[resolvedIds.length - 1]) {
+		resolvedIds.pop();
+	}
+	return resolvedIds;
 }
 
 function getAtlasId(atlas: Atlas): string {

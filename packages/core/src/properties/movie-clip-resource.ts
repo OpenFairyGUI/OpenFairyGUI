@@ -8,6 +8,7 @@ interface IMovieClipResource extends IExtensibleProperty {
 	path: string;
 	branch: string;
 	branchItemIds: string[];
+	highResolutionItemIds: Array<string | null>;
 	fileName: string;
 	exported: boolean;
 	width: number;
@@ -36,6 +37,7 @@ export class MovieClipResource extends ExtensibleProperty<IMovieClipResource> {
 			path: '',
 			branch: '',
 			branchItemIds: [],
+			highResolutionItemIds: [],
 			fileName: '',
 			exported: false,
 			width: 0,
@@ -59,6 +61,9 @@ export class MovieClipResource extends ExtensibleProperty<IMovieClipResource> {
 
 	public getBranchItemIds(): string[] { return [...this.get('branchItemIds')]; }
 	public setBranchItemIds(ids: string[]): this { return this.set('branchItemIds', [...ids]); }
+
+	public getHighResolutionItemIds(): Array<string | null> { return [...this.get('highResolutionItemIds')]; }
+	public setHighResolutionItemIds(ids: Array<string | null>): this { return this.set('highResolutionItemIds', [...ids]); }
 
 	public getFileName(): string { return this.get('fileName'); }
 	public setFileName(fileName: string): this { return this.set('fileName', fileName); }

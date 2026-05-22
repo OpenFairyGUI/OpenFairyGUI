@@ -1197,6 +1197,44 @@ test('binary writer: branch metadata round-trips as package-level branches and i
 	}
 });
 
+test('binary writer: image high-resolution item ids round-trip as formal properties', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('HiResPkg');
+	pkg.setId('hirespkg');
+
+	const image = doc.createImageResource('icon.png');
+	image.setId('icon01').setWidth(16).setHeight(16).setHighResolutionItemIds(['icon2x', null, 'icon4x']);
+	pkg.addResource(image);
+
+	const image2x = doc.createImageResource('icon@2x.png');
+	image2x.setId('icon2x').setWidth(32).setHeight(32);
+	pkg.addResource(image2x);
+
+	const image4x = doc.createImageResource('icon@4x.png');
+	image4x.setId('icon4x').setWidth(64).setHeight(64);
+	pkg.addResource(image4x);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-bw-'));
+	const outPath = path.join(tmpDir, 'high_resolution.bytes');
+
+	try {
+		await io.writeBinary(doc, outPath);
+
+		const roundTripped = await io.readBinary(outPath);
+		const decodedImage = roundTripped
+			.getRoot()
+			.getPackage('HiResPkg')
+			?.listResources()
+			.find((resource) => resource.getId?.() === 'icon01') as any;
+
+		t.truthy(decodedImage, 'base image exists after round-trip');
+		t.deepEqual(decodedImage?.getHighResolutionItemIds?.(), ['icon2x', null, 'icon4x']);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('binary writer: sprite originalSize is only emitted for rotated, trimmed, or zero-sized package sprites', async (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('SpritePkg');
