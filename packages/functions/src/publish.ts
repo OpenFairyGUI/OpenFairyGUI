@@ -18,6 +18,7 @@ import {
 import { createTransform } from './utils.js';
 import { atlas, type AtlasOptions } from './atlas.js';
 import { publishCodeGeneration } from './codegen.js';
+import { formatPluginError, loadPlugins, type LoadedPlugin } from './plugins/loader.js';
 import type {
 	CliPublishSettings,
 	HasOptionalFont,
@@ -94,6 +95,24 @@ export interface ResolvedPublishOptions {
 	fileExtension: string;
 	packages?: string[];
 	atlas: ResolvedPublishAtlasOptions;
+}
+
+async function runPublishPluginHook(
+	plugins: LoadedPlugin[],
+	hook: 'onPublishStart' | 'onPublishEnd',
+	doc: Document,
+	options: PublishOptions,
+): Promise<void> {
+	const logger = doc.getLogger();
+	for (const plugin of plugins) {
+		const fn = plugin.plugin[hook];
+		if (typeof fn !== 'function') continue;
+		try {
+			await fn(doc, options);
+		} catch (error) {
+			logger.warn(`publish: Plugin "${plugin.name}" ${hook} failed: ${formatPluginError(error)}`);
+		}
+	}
 }
 
 interface ImageResourceExtras extends Record<string, unknown> {
@@ -1032,6 +1051,9 @@ export function publish(options: PublishOptions): Transform {
 	return createTransform('publish', async (doc: Document): Promise<void> => {
 		const root = doc.getRoot();
 		const logger = doc.getLogger();
+		const plugins = await loadPlugins(doc, options.basePath.replace('assets', 'plugins'));
+		await runPublishPluginHook(plugins, 'onPublishStart', doc, options);
+
 		const settings = (root.getSettings?.() ?? {}) as RootProjectSettings;
 		const publishSettings: CliPublishSettings = settings.publish ?? {};
 		const resolved = resolvePublishOptions(doc, {
@@ -1051,6 +1073,7 @@ export function publish(options: PublishOptions): Transform {
 
 		if (allPackages.length === 0) {
 			logger.warn('publish: No packages to publish.');
+			await runPublishPluginHook(plugins, 'onPublishEnd', doc, options);
 			return;
 		}
 
@@ -1100,6 +1123,7 @@ export function publish(options: PublishOptions): Transform {
 		// Step 3: Write .fui binary per package
 		if (!options.fs) {
 			logger.info(`publish: No fs provided — layout computed for ${allPackages.length} package(s), skipping file output.`);
+			await runPublishPluginHook(plugins, 'onPublishEnd', doc, options);
 			return;
 		}
 
@@ -1144,9 +1168,11 @@ export function publish(options: PublishOptions): Transform {
 			basePath: options.basePath,
 			fs: options.fs,
 			packages: allPackages,
+			plugins,
 		});
 
 		logger.info(`publish: Published ${allPackages.length} package(s) to ${options.output}`);
+		await runPublishPluginHook(plugins, 'onPublishEnd', doc, options);
 	});
 }
 

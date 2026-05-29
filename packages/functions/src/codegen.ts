@@ -12,6 +12,7 @@ import {
 	UNITY_BINDER_TEMPLATE,
 	UNITY_COMPONENT_TEMPLATE,
 } from './codegen-templates.js';
+import { formatPluginError, type LoadedPlugin } from './plugins/loader.js';
 import type { CliCodeGenerationSettings, PublishFileSystem, RootProjectSettings } from './shared-types.js';
 
 export const AUTO_GENERATED_CODE_MARK = '/** This is an automatically generated class by FairyGUI. Please do not modify it. **/';
@@ -22,6 +23,7 @@ export interface PublishCodeGenerationOptions {
 	basePath?: string;
 	fs: PublishFileSystem;
 	packages: Package[];
+	plugins?: LoadedPlugin[];
 }
 
 interface ResolvedCodeGenerationSettings {
@@ -104,6 +106,23 @@ export async function publishCodeGeneration(
 	const logger = doc.getLogger();
 	const settings = resolveCodeGenerationSettings(doc);
 	if (!settings.allowGenCode) return;
+
+	const plugins = options.plugins?.filter((plugin) => typeof plugin.plugin.genCode === 'function') ?? [];
+	if (plugins.length > 0) {
+		let handled = false;
+		for (const plugin of plugins) {
+			try {
+				await plugin.plugin.genCode?.(doc, options);
+				handled = true;
+				logger.info(`publish: Generated code using plugin "${plugin.name}"`);
+			} catch (error) {
+				logger.warn(`publish: Code generation plugin "${plugin.name}" failed: ${formatPluginError(error)}`);
+			}
+		}
+		if (handled) {
+			return;
+		}
+	}
 
 	for (const pkg of options.packages) {
 		if (!pkg.getGenCode()) continue;
