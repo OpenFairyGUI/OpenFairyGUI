@@ -1,6 +1,7 @@
 import type { Document } from '@openfairygui/core';
 import type { PublishCodeGenerationOptions } from '../codegen.js';
 import type { PublishOptions } from '../publish.js';
+import type { CliCodeGenerationSettings } from '../shared-types.js';
 
 export type MaybePromise<T> = T | Promise<T>;
 
@@ -38,7 +39,7 @@ export interface CodeWriter {
 }
 
 export interface Plugin {
-	genCode?: (doc: Document, options: PublishCodeGenerationOptions) => MaybePromise<void>;
+	genCode?: (doc: Document, settings: Required<CliCodeGenerationSettings>, options: PublishCodeGenerationOptions) => MaybePromise<void>;
 	onPublishStart?: (doc: Document, options: PublishOptions) => MaybePromise<void>;
 	onPublishEnd?: (doc: Document, options: PublishOptions) => MaybePromise<void>;
 }

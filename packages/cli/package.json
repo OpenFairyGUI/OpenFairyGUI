@@ -40,7 +40,8 @@
 		"@openfairygui/functions": "workspace:*"
 	},
 	"dependencies": {
-		"@openfairygui/backend": "workspace:*"
+		"@openfairygui/backend": "workspace:*",
+		"jiti": "^2.7.0"
 	},
 	"optionalDependencies": {
 		"sharp": ">=0.33.0"
