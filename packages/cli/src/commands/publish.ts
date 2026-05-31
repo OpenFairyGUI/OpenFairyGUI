@@ -7,7 +7,7 @@ import { resolveFairyPath } from '../utils/project-input.js';
 import { parseProjectType } from '../utils/project-type.js';
 
 type PublishCommandOptions = {
-	output: string;
+	output?: string;
 	compressed?: boolean;
 	packages?: string;
 	branch?: string;
@@ -19,7 +19,7 @@ export function registerPublishCommand(program: Command): void {
 		.command('publish')
 		.description('Publish project to binary outputs and configured generated code')
 		.argument('<project-dir>', 'Project root directory or .fairy file')
-		.requiredOption('-o, --output <dir>', 'Output directory')
+		.option('-o, --output <dir>', 'Override project or package publish output directory')
 		.option('-c, --compressed', 'Compress binary data (overrides project setting)')
 		.option('-p, --packages <a,b,c>', 'Only publish specific packages (comma-separated)')
 		.option('-b, --branch <name>', 'Active branch used by "主干合并活跃分支"; omit for main branch')
@@ -27,7 +27,7 @@ export function registerPublishCommand(program: Command): void {
 		.action(async (projectDir: string, options: PublishCommandOptions) => {
 			const fairyPath = await resolveFairyPath(projectDir);
 			const projectRootDir = path.dirname(fairyPath);
-			const outputDir = path.resolve(options.output);
+			const outputDir = options.output ? path.resolve(options.output) : undefined;
 
 			console.log(`Reading project: ${fairyPath}`);
 			const io = new NodeIO();
@@ -103,6 +103,6 @@ export function registerPublishCommand(program: Command): void {
 				}),
 			);
 
-			console.log(`\nDone! Output: ${outputDir}`);
+			console.log(`\nDone!${outputDir ? ` Output override: ${outputDir}` : ''}`);
 		});
 }
