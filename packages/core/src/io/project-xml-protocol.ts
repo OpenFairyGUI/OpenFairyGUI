@@ -366,7 +366,7 @@ const LIST_PANEL_ATTRS = {
 const BUTTON_EXTENSION_ATTRS = {
 	mode: { canonical: 'mode' },
 	sound: { canonical: 'sound' },
-	soundVolumeScale: { canonical: 'soundVolumeScale' },
+	soundVolumeScale: { canonical: 'soundVolumeScale', aliases: ['volume'] },
 	downEffect: { canonical: 'downEffect' },
 	downEffectValue: { canonical: 'downEffectValue' },
 	title: { canonical: 'title' },

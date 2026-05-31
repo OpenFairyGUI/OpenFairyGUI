@@ -155,6 +155,7 @@ interface BranchAwarePublishedResource {
 interface PackagePublishContext {
 	referencedIds: Set<string>;
 	publishedResourceIds: Set<string>;
+	exportedResourceIds: Set<string>;
 	pixelHitTestImageIds: Set<string>;
 	highResolutionItemIds: Map<string, Array<string | null>>;
 	effectiveResourceIds: Map<string, string>;
@@ -182,8 +183,10 @@ interface TransitionWithPublishRefs {
 
 interface ChildWithPublishRefs extends HasOptionalFont {
 	getId?(): string;
+	getPackageId?(): string;
 	getSrc?(): string;
 	getUrl?(): string;
+	getInstanceSound?(): string;
 	getDefaultItem?(): string;
 	getIcon?(): string;
 	getSelectedIcon?(): string;
@@ -643,6 +646,27 @@ function collectPackagePublishContext(
 	const referencedIds = new Set<string>();
 	const pixelHitTestImageIds = new Set<string>();
 	const spriteItemIds = new Set<string>();
+	const collectExportedResourceIds = (
+		sourceResources: ReturnType<Package['listResources']>,
+		sourcePublishedResourceIds: Set<string>,
+	): Set<string> => {
+		const exportedResourceIds = new Set<string>(sourcePublishedResourceIds);
+		const resourcesById = new Map(sourceResources.map((resource) => [resource.getId(), resource] as const));
+		let changed = true;
+		while (changed) {
+			changed = false;
+			for (const resourceId of [...exportedResourceIds]) {
+				const resource = resourcesById.get(resourceId);
+				if (!resource || !isSkeletonResource(resource)) continue;
+				for (const requiredId of resource.getRequireIds()) {
+					if (!requiredId || exportedResourceIds.has(requiredId)) continue;
+					exportedResourceIds.add(requiredId);
+					changed = true;
+				}
+			}
+		}
+		return exportedResourceIds;
+	};
 
 	for (const atlas of pkg.listAtlases()) {
 		for (const sprite of atlas.listSprites()) {
@@ -680,6 +704,7 @@ function collectPackagePublishContext(
 				child.getSelectedIcon?.(),
 				child.getDropdown?.(),
 				child.getSound?.(),
+				child.getInstanceSound?.(),
 				child.getInstanceIcon?.(),
 				child.getInstanceSelectedIcon?.(),
 				child.getVtScrollBarRes?.(),
@@ -757,20 +782,6 @@ function collectPackagePublishContext(
 		}
 	}
 
-	let changed = true;
-	while (changed) {
-		changed = false;
-		for (const resource of resources) {
-			if (!isSkeletonResource(resource)) continue;
-			if (!publishedResourceIds.has(resource.getId())) continue;
-			for (const requiredId of resource.getRequireIds()) {
-				if (!requiredId || publishedResourceIds.has(requiredId)) continue;
-				publishedResourceIds.add(requiredId);
-				changed = true;
-			}
-		}
-	}
-
 	const highResolutionItemIds = collectHighResolutionItemIds(
 		resources,
 		publishedResourceIds,
@@ -840,6 +851,7 @@ function collectPackagePublishContext(
 		return {
 			referencedIds,
 			publishedResourceIds,
+			exportedResourceIds: collectExportedResourceIds(resources, publishedResourceIds),
 			pixelHitTestImageIds,
 			highResolutionItemIds,
 			effectiveResourceIds,
@@ -850,6 +862,7 @@ function collectPackagePublishContext(
 	return {
 		referencedIds,
 		publishedResourceIds,
+		exportedResourceIds: collectExportedResourceIds(resources, publishedResourceIds),
 		pixelHitTestImageIds,
 		highResolutionItemIds,
 		effectiveResourceIds: new Map([...publishedResourceIds].map((resourceId) => [resourceId, resourceId])),
@@ -931,7 +944,14 @@ async function annotatePackagePublishArtifacts(
 		includeHighResolution: number;
 	},
 ): Promise<void> {
-	const { publishedResourceIds, pixelHitTestImageIds, highResolutionItemIds, effectiveResourceIds, includeBranches } = collectPackagePublishContext(pkg, options);
+	const {
+		publishedResourceIds,
+		exportedResourceIds,
+		pixelHitTestImageIds,
+		highResolutionItemIds,
+		effectiveResourceIds,
+		includeBranches,
+	} = collectPackagePublishContext(pkg, options);
 	for (const resource of pkg.listResources()) {
 		setPublishedIdExtra(resource, effectiveResourceIds.get(resource.getId()) ?? null);
 		if (isHighResolutionResource(resource)) {
@@ -943,6 +963,7 @@ async function annotatePackagePublishArtifacts(
 	pkg.setExtras({
 		...extras,
 		publishedResourceIds: [...publishedResourceIds].sort((a, b) => a.localeCompare(b)),
+		exportedResourceIds: [...exportedResourceIds].sort((a, b) => a.localeCompare(b)),
 		publishedIncludeBranches: includeBranches,
 		publishedEffectiveResourceIds: Object.fromEntries(effectiveResourceIds),
 	});
@@ -960,6 +981,11 @@ async function annotatePackagePublishArtifacts(
 function getAnnotatedPublishedResourceIds(pkg: Package): Set<string> {
 	const extras = (pkg.getExtras() as PackagePublishArtifactsExtras | undefined) ?? {};
 	return new Set(extras.publishedResourceIds ?? []);
+}
+
+function getAnnotatedExportedResourceIds(pkg: Package): Set<string> {
+	const extras = (pkg.getExtras() as PackagePublishArtifactsExtras | undefined) ?? {};
+	return new Set(extras.exportedResourceIds ?? []);
 }
 
 function getPublishedSkeletonDependencyImageIds(
@@ -1025,14 +1051,14 @@ async function exportPackageExternalResources(
 	readFileRaw: PublishFileSystem['readFileRaw'] | undefined,
 	logger: Document['getLogger'] extends () => infer T ? T : never,
 ): Promise<void> {
-	const publishedResourceIds = getAnnotatedPublishedResourceIds(pkg);
-	const skeletonDependencyImageIds = getPublishedSkeletonDependencyImageIds(pkg, publishedResourceIds);
-	if (publishedResourceIds.size === 0) return;
+	const exportedResourceIds = getAnnotatedExportedResourceIds(pkg);
+	const skeletonDependencyImageIds = getPublishedSkeletonDependencyImageIds(pkg, exportedResourceIds);
+	if (exportedResourceIds.size === 0) return;
 	if (!basePath || !readFileRaw) {
 		const hasPublishedExternal = pkg.listResources().some((resource) => {
 			return (
 				(isMiscResource(resource) || isSkeletonResource(resource))
-				&& publishedResourceIds.has(resource.getId())
+				&& exportedResourceIds.has(resource.getId())
 			) || skeletonDependencyImageIds.has(resource.getId());
 		});
 		if (hasPublishedExternal) {
@@ -1043,7 +1069,7 @@ async function exportPackageExternalResources(
 
 	for (const resource of pkg.listResources()) {
 		const resourceId = resource.getId();
-		const isSkeletonExternal = publishedResourceIds.has(resourceId) && (isMiscResource(resource) || isSkeletonResource(resource));
+		const isSkeletonExternal = exportedResourceIds.has(resourceId) && (isMiscResource(resource) || isSkeletonResource(resource));
 		const isSkeletonImageDependency = skeletonDependencyImageIds.has(resourceId) && isImageResource(resource);
 		if (!isSkeletonExternal && !isSkeletonImageDependency) continue;
 
@@ -1335,23 +1361,105 @@ export function publish(options: PublishOptions): Transform {
  */
 function _computeDependencies(pkg: Package, pkgMap: Map<string, Package>): void {
 	const referencedPkgIds = new Set<string>();
-
-	function scanFontUrl(font: string | string[] | null | undefined): void {
-		if (!font) return;
-		const fontStr = Array.isArray(font) ? font[0] : String(font);
-		if (typeof fontStr !== 'string' || !fontStr.startsWith('ui://')) return;
-		const rest = fontStr.slice(5);
-		if (rest.length >= 8) {
-			const depPkgId = rest.slice(0, 8);
-			if (depPkgId !== pkg.getId()) referencedPkgIds.add(depPkgId);
+	const pkgId = pkg.getId();
+	const addDependencyPackageId = (dependencyPkgId: string | null | undefined): void => {
+		const normalized = dependencyPkgId?.trim() ?? '';
+		if (!normalized || normalized === pkgId) return;
+		referencedPkgIds.add(normalized);
+	};
+	const extractPackageIdFromUiUrl = (value: string): string | null => {
+		if (!value.startsWith('ui://')) return null;
+		const rest = value.slice(5);
+		if (!rest) return null;
+		const slashIndex = rest.indexOf('/');
+		if (slashIndex >= 0) {
+			return rest.slice(0, slashIndex) || null;
 		}
-	}
+		if (rest.length >= 8) {
+			return rest.slice(0, 8);
+		}
+		return null;
+	};
+	const addDependencyPackageIdFromUiValue = (value: string | null | undefined): void => {
+		if (!value || typeof value !== 'string') return;
+		addDependencyPackageId(extractPackageIdFromUiUrl(value));
+	};
+	const addDependencyPackageIdsFromText = (value: string | null | undefined): void => {
+		if (!value || typeof value !== 'string') return;
+		const matches = value.matchAll(/ui:\/\/([0-9a-z]{8})/giu);
+		for (const match of matches) {
+			addDependencyPackageId(match[1] ?? '');
+		}
+	};
+	const addDependencyPackageIdsFromUnknown = (value: unknown): void => {
+		if (Array.isArray(value)) {
+			for (const entry of value) addDependencyPackageIdsFromUnknown(entry);
+			return;
+		}
+		if (typeof value === 'string') {
+			addDependencyPackageIdFromUiValue(value);
+			addDependencyPackageIdsFromText(value);
+		}
+	};
+	const addDependencyFontRef = (value: string | string[] | null | undefined): void => {
+		if (Array.isArray(value)) {
+			for (const entry of value) addDependencyPackageIdFromUiValue(entry);
+			return;
+		}
+		addDependencyPackageIdFromUiValue(value ?? undefined);
+	};
 
 	for (const res of pkg.listResources()) {
 		if (res.propertyType !== 'Component') continue;
-		for (const child of res.listChildren?.() ?? []) {
-			// Only font="ui://..." references generate dependencies
-			scanFontUrl((child as HasOptionalFont).getFont?.());
+		const component = res as ComponentWithPublishRefs;
+		for (const child of component.listChildren?.() ?? []) {
+			addDependencyPackageId(child.getPackageId?.());
+			addDependencyFontRef(child.getFont?.());
+			addDependencyPackageIdsFromText(child.getText?.());
+			for (const ref of [
+				child.getUrl?.(),
+				child.getDefaultItem?.(),
+				child.getIcon?.(),
+				child.getSelectedIcon?.(),
+				child.getDropdown?.(),
+				child.getSound?.(),
+				child.getInstanceIcon?.(),
+				child.getInstanceSelectedIcon?.(),
+				child.getVtScrollBarRes?.(),
+				child.getHzScrollBarRes?.(),
+				child.getHeaderRes?.(),
+				child.getFooterRes?.(),
+			]) {
+				addDependencyPackageIdFromUiValue(ref);
+			}
+			for (const item of child.getInstanceComboItems?.() ?? []) {
+				addDependencyPackageIdFromUiValue(item.icon ?? undefined);
+			}
+			for (const item of child.getListItems?.() ?? []) {
+				addDependencyPackageIdFromUiValue(item.icon ?? undefined);
+				addDependencyPackageIdFromUiValue(item.url ?? undefined);
+			}
+			for (const gear of child.listGears?.() ?? []) {
+				addDependencyPackageIdsFromUnknown(gear.getValues?.());
+				addDependencyPackageIdsFromUnknown(gear.getDefaultValue?.());
+			}
+		}
+		addDependencyFontRef(component.getFont?.());
+		for (const ref of [
+			component.getDropdown?.(),
+			component.getHeaderRes?.(),
+			component.getFooterRes?.(),
+			component.getVtScrollBarRes?.(),
+			component.getHzScrollBarRes?.(),
+			component.getSound?.(),
+		]) {
+			addDependencyPackageIdFromUiValue(ref);
+		}
+		for (const transition of component.listTransitions?.() ?? []) {
+			for (const item of transition.listItems?.() ?? []) {
+				addDependencyPackageIdsFromUnknown(item.getStartValue?.());
+				addDependencyPackageIdsFromUnknown(item.getEndValue?.());
+			}
 		}
 	}
 
