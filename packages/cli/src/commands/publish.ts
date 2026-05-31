@@ -20,10 +20,10 @@ export function registerPublishCommand(program: Command): void {
 		.description('Publish project to binary outputs and configured generated code')
 		.argument('<project-dir>', 'Project root directory or .fairy file')
 		.requiredOption('-o, --output <dir>', 'Output directory')
-		.option('--compressed', 'Compress binary data (overrides project setting)')
-		.option('--packages <a,b,c>', 'Only publish specific packages (comma-separated)')
-		.option('--branch <name>', 'Active branch used by "主干合并活跃分支"; omit for main branch')
-		.option('--project-type <name|id>', 'Override project type (for example: unity, layabox, cocoscreator, 0, 4, 3)')
+		.option('-c, --compressed', 'Compress binary data (overrides project setting)')
+		.option('-p, --packages <a,b,c>', 'Only publish specific packages (comma-separated)')
+		.option('-b, --branch <name>', 'Active branch used by "主干合并活跃分支"; omit for main branch')
+		.option('-t, --project-type <name|id>', 'Override project type (for example: unity, layabox, cocoscreator, 0, 4, 3)')
 		.action(async (projectDir: string, options: PublishCommandOptions) => {
 			const fairyPath = await resolveFairyPath(projectDir);
 			const projectRootDir = path.dirname(fairyPath);
