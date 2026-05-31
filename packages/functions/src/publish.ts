@@ -1304,7 +1304,7 @@ export function publish(options: PublishOptions): Transform {
 		for (const pkg of allPackages) {
 			// Compute dependency list and selected publish artifacts before atlas packing,
 			// so merged-branch publishes can pack the overridden resources with main IDs.
-			_computeDependencies(pkg, pkgMap);
+			_computeDependencies(doc, pkg, pkgMap);
 			await annotatePackagePublishArtifacts(
 				pkg,
 				options.basePath,
@@ -1367,9 +1367,10 @@ export function publish(options: PublishOptions): Transform {
  * The editor only adds dependencies for packages referenced via bitmap font URLs.
  * @internal
  */
-function _computeDependencies(pkg: Package, pkgMap: Map<string, Package>): void {
+function _computeDependencies(doc: Document, pkg: Package, pkgMap: Map<string, Package>): void {
 	const referencedPkgIds = new Set<string>();
 	const pkgId = pkg.getId();
+	const packageOrder = new Map(doc.getRoot().listPackages().map((entry, index) => [entry.getId(), index] as const));
 	const addDependencyPackageId = (dependencyPkgId: string | null | undefined): void => {
 		const normalized = dependencyPkgId?.trim() ?? '';
 		if (!normalized || normalized === pkgId) return;
@@ -1476,7 +1477,12 @@ function _computeDependencies(pkg: Package, pkgMap: Map<string, Package>): void 
 	}
 
 	if (referencedPkgIds.size > 0) {
-		const sortedIds = [...referencedPkgIds].sort((a, b) => a.localeCompare(b));
+		const sortedIds = [...referencedPkgIds].sort((a, b) => {
+			const orderA = packageOrder.get(a) ?? Number.MAX_SAFE_INTEGER;
+			const orderB = packageOrder.get(b) ?? Number.MAX_SAFE_INTEGER;
+			if (orderA !== orderB) return orderA - orderB;
+			return a.localeCompare(b);
+		});
 		for (const refId of sortedIds) {
 			const depPkg = pkgMap.get(refId);
 			if (depPkg) {
