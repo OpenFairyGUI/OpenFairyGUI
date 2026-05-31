@@ -6,6 +6,12 @@ import { createTransform } from './utils.js';
 
 export interface AtlasOptions {
 	/**
+	 * Limit atlas generation to specific package names.
+	 * When omitted, all packages are processed.
+	 */
+	packages?: string[];
+
+	/**
 	 * Sharp module instance, injected by the caller.
 	 * Required for actual image compositing and trimImage.
 	 *
@@ -95,7 +101,7 @@ export interface AtlasOptions {
 
 }
 
-const ATLAS_DEFAULTS: Required<Omit<AtlasOptions, 'encoder' | 'basePath' | 'outputPath' | 'mkdir' | 'readFileRaw'>> = {
+const ATLAS_DEFAULTS: Required<Omit<AtlasOptions, 'packages' | 'encoder' | 'basePath' | 'outputPath' | 'mkdir' | 'readFileRaw'>> = {
 	maxSize: 2048,
 	fast: true,
 	allowRotation: true,
@@ -425,8 +431,10 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 		const logger = doc.getLogger();
 		const encoder = options.encoder as AtlasEncoder | undefined;
 		const doTrim = options.trimImage && !!encoder && !!options.basePath;
+		const packageFilter = options.packages ? new Set(options.packages) : null;
 
 		for (const pkg of root.listPackages()) {
+			if (packageFilter && !packageFilter.has(pkg.getName())) continue;
 			// Respect publish-selected resources when publish() precomputes a merged branch view.
 			const selectedPublishIds = new Set(((pkg.getExtras() as PackageAtlasExtras | undefined) ?? {}).publishedResourceIds ?? []);
 			const allResources = selectedPublishIds.size > 0

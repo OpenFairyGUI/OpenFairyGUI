@@ -29,10 +29,10 @@ import type {
 
 export interface PublishOptions {
 	/**
-	 * Output directory for published files (.fui + atlas PNGs).
-	 * Required.
+	 * Output directory override for published files (.fui + atlas PNGs).
+	 * When omitted, publish uses package-level or project-level publish paths.
 	 */
-	output: string;
+	output?: string;
 
 	/**
 	 * Compress the binary data with zlib raw deflate. Default: false.
@@ -94,6 +94,29 @@ export interface ResolvedPublishOptions {
 	compressed: boolean;
 	fileExtension: string;
 	packages?: string[];
+	atlas: ResolvedPublishAtlasOptions;
+}
+
+interface ResolvedProjectPublishConfig extends ResolvedPublishOptions {
+	includeBranches: boolean;
+	activeBranch: string;
+	includeHighResolution: number;
+	separatedAtlasForBranch: boolean;
+	globalOutputPath: string;
+	globalBranchOutputPath: string;
+}
+
+interface ResolvedPackagePublishPlan {
+	pkg: Package;
+	outputDir?: string;
+	publishName: string;
+	fileName: string;
+	compressed: boolean;
+	fileExtension: string;
+	includeBranches: boolean;
+	activeBranch: string;
+	includeHighResolution: number;
+	separatedAtlasForBranch: boolean;
 	atlas: ResolvedPublishAtlasOptions;
 }
 
@@ -302,6 +325,24 @@ export function resolvePublishOptions(
 		atlas: atlasOptions,
 	};
 }
+
+function trimTrailingSlashes(value: string): string {
+	return value.replace(/[/\\]+$/, '');
+}
+
+function isAbsolutePathLike(value: string): boolean {
+	return /^(?:[a-zA-Z]:[/\\]|[/\\]{1,2})/u.test(value);
+}
+
+function joinPathSegments(left: string, right: string): string {
+	const normalizedLeft = trimTrailingSlashes(left);
+	const normalizedRight = right.replace(/^[/\\]+/, '');
+	if (!normalizedLeft) return normalizedRight;
+	if (!normalizedRight) return normalizedLeft;
+	const separator = normalizedLeft.includes('\\') ? '\\' : '/';
+	return `${normalizedLeft}${separator}${normalizedRight}`;
+}
+
 
 function dirname(filePath: string): string {
 	const trimmed = filePath.replace(/[/\\]+$/, '');
@@ -1059,20 +1100,155 @@ async function exportPackageExternalResources(
  */
 export function publish(options: PublishOptions): Transform {
 	return createTransform('publish', async (doc: Document): Promise<void> => {
+		const resolveProjectBasePath = (basePath?: string): string | undefined => {
+			if (!basePath) return undefined;
+			const normalized = trimTrailingSlashes(basePath);
+			if (!normalized) return undefined;
+			if (/[\\/]assets(?:_[^/\\]+)?$/iu.test(normalized)) {
+				return normalized.replace(/[\\/]assets(?:_[^/\\]+)?$/iu, '');
+			}
+			const resolvedDir = dirname(normalized);
+			return resolvedDir || undefined;
+		};
+
+		const resolveConfiguredOutputPath = (value?: string, projectBasePath?: string): string | undefined => {
+			const trimmed = value?.trim();
+			if (!trimmed) return undefined;
+			if (isAbsolutePathLike(trimmed) || !projectBasePath) {
+				return trimTrailingSlashes(trimmed);
+			}
+			return trimTrailingSlashes(options.fs ? options.fs.join(projectBasePath, trimmed) : joinPathSegments(projectBasePath, trimmed));
+		};
+
+		const resolveProjectPublishConfig = (): ResolvedProjectPublishConfig => {
+			const settings = (doc.getRoot().getSettings?.() ?? {}) as RootProjectSettings;
+			const publishSettings: CliPublishSettings = settings.publish ?? {};
+			const resolved = resolvePublishOptions(doc, {
+				compressed: options.compressed,
+				fileExtension: options.fileExtension,
+				packages: options.packages,
+				atlas: options.atlas,
+			});
+			const branchProcessing = publishSettings.branchProcessing ?? 0;
+			const includeBranches = branchProcessing === 0;
+
+			return {
+				...resolved,
+				includeBranches,
+				activeBranch: includeBranches ? '' : (options.branch ?? ''),
+				includeHighResolution: publishSettings.includeHighResolution ?? 0,
+				separatedAtlasForBranch: includeBranches && publishSettings.seperatedAtlasForBranch === true,
+				globalOutputPath: publishSettings.path?.trim() ?? '',
+				globalBranchOutputPath: publishSettings.branchPath?.trim() ?? '',
+			};
+		};
+
+		const resolvePackagePublishPlan = (pkg: Package, config: ResolvedProjectPublishConfig, projectBasePath?: string): ResolvedPackagePublishPlan => {
+			let outputDir: string | undefined;
+
+			if (options.output) {
+				outputDir = trimTrailingSlashes(options.output);
+			} else {
+				const candidates: Array<string | undefined> = [];
+				if (!config.includeBranches && config.activeBranch) {
+					candidates.push(pkg.getPublishBranchPath(), config.globalBranchOutputPath);
+				}
+				candidates.push(pkg.getPublishPath(), config.globalOutputPath);
+
+				for (const candidate of candidates) {
+					const resolved = resolveConfiguredOutputPath(candidate, projectBasePath);
+					if (!resolved) continue;
+					outputDir = resolved;
+					break;
+				}
+			}
+			const publishName = pkg.getPublishName() || pkg.getName();
+
+			return {
+				pkg,
+				outputDir,
+				publishName,
+				fileName: resolvePublishFileName(publishName, config.fileExtension),
+				compressed: config.compressed,
+				fileExtension: config.fileExtension,
+				includeBranches: config.includeBranches,
+				activeBranch: config.activeBranch,
+				includeHighResolution: config.includeHighResolution,
+				separatedAtlasForBranch: config.separatedAtlasForBranch,
+				atlas: config.atlas,
+			};
+		};
+
+		const createNoopPublishFs = (): PublishFileSystem => ({
+			async writeFileRaw(): Promise<void> {
+				// No-op for layout-only publish flows.
+			},
+			async mkdir(): Promise<void> {
+				// No-op for layout-only publish flows.
+			},
+			join(...paths: string[]): string {
+				return paths.join('/');
+			},
+		});
+
+		const publishPackage = async ( plan: ResolvedPackagePublishPlan, writerFs: FileSystem, packageIndex: number) => {
+			const atlasRuntimeOptions = resolvePublishAtlasRuntimeOptions(plan.fileExtension);
+			await atlas({
+				...plan.atlas,
+				...(options.atlas ?? {}),
+				separatedAtlasForBranch: plan.separatedAtlasForBranch,
+				encoder: options.encoder,
+				basePath: options.basePath,
+				outputPath: options.fs ? plan.outputDir : undefined,
+				mkdir: options.fs ? options.fs.mkdir : undefined,
+				readFileRaw: options.atlas?.readFileRaw ?? options.fs?.readFileRaw,
+				packages: [plan.pkg.getName()],
+				...atlasRuntimeOptions,
+			})(doc);
+
+			if (!options.fs) return;
+			if (!plan.outputDir) {
+				throw new Error('publish: no output directory resolved. Provide --output, or configure global publish.path / package publishPath.');
+			}
+
+			await options.fs.mkdir(plan.outputDir);
+
+			const filePath = options.fs.join(plan.outputDir, plan.fileName);
+			const bwOptions: BinaryWriterOptions = {
+				compressed: plan.compressed,
+				packageIndex,
+			};
+
+			const bw = new BinaryWriter(writerFs);
+			await bw.write(doc, filePath, bwOptions);
+			await exportPackageSounds(
+				plan.pkg,
+				plan.outputDir,
+				options.basePath,
+				options.fs,
+				options.atlas?.readFileRaw ?? options.fs.readFileRaw,
+				logger,
+			);
+			await exportPackageExternalResources(
+				plan.pkg,
+				plan.outputDir,
+				options.basePath,
+				options.fs,
+				options.atlas?.readFileRaw ?? options.fs.readFileRaw,
+				logger,
+			);
+
+			logger.info(`publish: Written ${plan.fileName}`);
+		};
+
 		const root = doc.getRoot();
 		const logger = doc.getLogger();
-		const plugins = await loadPlugins(doc, resolvePublishPluginsDir(doc, options));
+		const projectBasePath = resolveProjectBasePath(options.basePath);
+		const pluginsDir = projectBasePath ? (options.fs ? options.fs.join(projectBasePath, 'plugins') : joinPathSegments(projectBasePath, 'plugins')) : undefined;
+		const plugins = pluginsDir ? await loadPlugins(doc, pluginsDir) : [];
 		await runPublishPluginHook(plugins, 'onPublishStart', doc, options);
 
-		const settings = (root.getSettings?.() ?? {}) as RootProjectSettings;
-		const publishSettings: CliPublishSettings = settings.publish ?? {};
-		const resolved = resolvePublishOptions(doc, {
-			compressed: options.compressed,
-			fileExtension: options.fileExtension,
-			packages: options.packages,
-			atlas: options.atlas,
-		});
-		const ext = resolved.fileExtension;
+		const resolved = resolveProjectPublishConfig();
 
 		// Step 1: Determine which packages to publish
 		let allPackages = root.listPackages();
@@ -1086,12 +1262,6 @@ export function publish(options: PublishOptions): Transform {
 			await runPublishPluginHook(plugins, 'onPublishEnd', doc, options);
 			return;
 		}
-
-		const branchProcessing = publishSettings.branchProcessing ?? 0;
-		const includeBranches = branchProcessing === 0;
-		const activeBranch = includeBranches ? '' : (options.branch ?? '');
-		const includeHighResolution = publishSettings.includeHighResolution ?? 0;
-		const atlasRuntimeOptions = resolvePublishAtlasRuntimeOptions(ext);
 
 		const allDocPackages = root.listPackages();
 		// Build a pkgId→name map for dependency resolution
@@ -1109,69 +1279,38 @@ export function publish(options: PublishOptions): Transform {
 				options.basePath,
 				options.encoder as PublishEncoder | undefined,
 				{
-					includeBranches,
-					activeBranch,
-					includeHighResolution,
+					includeBranches: resolved.includeBranches,
+					activeBranch: resolved.activeBranch,
+					includeHighResolution: resolved.includeHighResolution,
 				},
 			);
 		}
 
-		// Step 2: Atlas packing
-		const atlasOpts: AtlasOptions = {
-			...resolved.atlas,
-			...(options.atlas ?? {}),
-			separatedAtlasForBranch: includeBranches && publishSettings.seperatedAtlasForBranch === true,
-			encoder: options.encoder,
-			basePath: options.basePath,
-			outputPath: options.fs ? options.output : undefined,
-			mkdir: options.fs ? options.fs.mkdir : undefined,
-			readFileRaw: options.atlas?.readFileRaw ?? options.fs?.readFileRaw,
-			...atlasRuntimeOptions,
-		};
-		await atlas(atlasOpts)(doc);
+		const plans = allPackages.map((pkg) => resolvePackagePublishPlan(pkg, resolved, projectBasePath));
 
-		// Step 3: Write .fui binary per package
 		if (!options.fs) {
 			logger.info(`publish: No fs provided — layout computed for ${allPackages.length} package(s), skipping file output.`);
+			const noopWriterFs = toBinaryWriterFileSystem(createNoopPublishFs());
+			for (const plan of plans) {
+				await publishPackage(plan, noopWriterFs, allDocPackages.indexOf(plan.pkg));
+			}
 			await runPublishPluginHook(plugins, 'onPublishEnd', doc, options);
 			return;
 		}
 
-		await options.fs.mkdir(options.output);
+		const unresolvedPlan = plans.find((plan) => !plan.outputDir);
+		if (unresolvedPlan) {
+			throw new Error(
+				`publish: no output directory resolved for package "${unresolvedPlan.pkg.getName()}". ` +
+					'Provide --output, or configure global publish.path / package publishPath.',
+			);
+		}
 
 		const writerFs = toBinaryWriterFileSystem(options.fs);
 
-		for (const pkg of allPackages) {
-			const pkgIndex = allDocPackages.indexOf(pkg);
-			const publishName = pkg.getPublishName() || pkg.getName();
-			const fileName = resolvePublishFileName(publishName, ext);
-			const filePath = options.fs.join(options.output, fileName);
-
-			const bwOptions: BinaryWriterOptions = {
-				compressed: resolved.compressed,
-				packageIndex: pkgIndex,
-			};
-
-			const bw = new BinaryWriter(writerFs);
-			await bw.write(doc, filePath, bwOptions);
-			await exportPackageSounds(
-				pkg,
-				options.output,
-				options.basePath,
-				options.fs,
-				options.atlas?.readFileRaw ?? options.fs.readFileRaw,
-				logger,
-			);
-			await exportPackageExternalResources(
-				pkg,
-				options.output,
-				options.basePath,
-				options.fs,
-				options.atlas?.readFileRaw ?? options.fs.readFileRaw,
-				logger,
-			);
-
-			logger.info(`publish: Written ${fileName}`);
+		for (const plan of plans) {
+			const pkgIndex = allDocPackages.indexOf(plan.pkg);
+			await publishPackage(plan, writerFs, pkgIndex);
 		}
 
 		await publishCodeGeneration(doc, {
@@ -1181,7 +1320,12 @@ export function publish(options: PublishOptions): Transform {
 			plugins,
 		});
 
-		logger.info(`publish: Published ${allPackages.length} package(s) to ${options.output}`);
+		const publishedTargets = [...new Set(plans.map((plan) => plan.outputDir).filter((value): value is string => Boolean(value)))];
+		logger.info(
+			publishedTargets.length > 0
+				? `publish: Published ${allPackages.length} package(s) to ${publishedTargets.join(', ')}`
+				: `publish: Published ${allPackages.length} package(s)`,
+		);
 		await runPublishPluginHook(plugins, 'onPublishEnd', doc, options);
 	});
 }
