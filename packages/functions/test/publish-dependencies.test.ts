@@ -212,3 +212,88 @@ test('publish: component instance button sound refs keep local sound items', asy
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 });
+
+test('publish: dependency block follows project package order instead of package id order', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectId('proj-deps-order').setProjectType(3).setVersion('3.0');
+
+	const commercePkg = doc.createPackage('Commerce');
+	commercePkg.setId('suospotn');
+	const commerceRes = doc.createComponent('CommerceCard');
+	commerceRes.setId('commerce01').setPath('/components/');
+	commercePkg.addResource(commerceRes);
+
+	const commonPkg = doc.createPackage('Common');
+	commonPkg.setId('unttpy9g');
+	const commonRes = doc.createComponent('CommonDialog');
+	commonRes.setId('common01').setPath('/components/');
+	commonPkg.addResource(commonRes);
+
+	const sidePanelPkg = doc.createPackage('SidePanelTutorial');
+	sidePanelPkg.setId('yy0eqg3d');
+	const sidePanelRes = doc.createComponent('SidePanel');
+	sidePanelRes.setId('side001').setPath('/components/');
+	sidePanelPkg.addResource(sidePanelRes);
+
+	const fontsPkg = doc.createPackage('fonts');
+	fontsPkg.setId('i9k1a6m7');
+	const fontRes = doc.createFontResource('BitmapFont');
+	fontRes.setId('font001').setPath('/fonts/').setFileName('BitmapFont.fnt');
+	fontsPkg.addResource(fontRes);
+
+	const uiKitPkg = doc.createPackage('uikit');
+	uiKitPkg.setId('zom0ouwz');
+	const uiKitRes = doc.createComponent('PrimaryButton');
+	uiKitRes.setId('uikit01').setPath('/components/');
+	uiKitPkg.addResource(uiKitRes);
+
+	const mainPkg = doc.createPackage('Main');
+	mainPkg.setId('main0001');
+	mainPkg.setPublishName('Main');
+
+	const mainRes = doc.createComponent('Entry');
+	mainRes.setId('entry003').setExported(true).setPath('/pages/');
+
+		const title = doc.createGTextField('title');
+	title.setId('text001');
+	title.setFont('ui://i9k1a6m7font001');
+	mainRes.addChild(title);
+
+	const commerceChild = doc.createGComponent('commerce');
+	commerceChild.setId('child003').setSrc('commerce01').setPackageId('suospotn');
+	mainRes.addChild(commerceChild);
+
+	const commonChild = doc.createGComponent('common');
+	commonChild.setId('child004').setSrc('common01').setPackageId('unttpy9g');
+	mainRes.addChild(commonChild);
+
+	const sidePanelChild = doc.createGComponent('side-panel');
+	sidePanelChild.setId('child005').setSrc('side001').setPackageId('yy0eqg3d');
+	mainRes.addChild(sidePanelChild);
+
+	const uiKitChild = doc.createGComponent('uikit');
+	uiKitChild.setId('child006').setSrc('uikit01').setPackageId('zom0ouwz');
+	mainRes.addChild(uiKitChild);
+
+	mainPkg.addResource(mainRes);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-deps-order-'));
+
+	try {
+		await doc.transform(publish({
+			output: tmpDir,
+			packages: ['Main'],
+			fs: createFs(),
+		}));
+
+		const bytes = await fs.readFile(path.join(tmpDir, 'Main.bin'));
+		const dependencies = parseDependencies(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+		t.deepEqual(
+			dependencies.map((entry) => entry.name),
+			['Commerce', 'Common', 'SidePanelTutorial', 'fonts', 'uikit'],
+			'dependencies keep root package order instead of sorting by package id',
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
