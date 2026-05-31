@@ -45,6 +45,16 @@ test('CLI bootstrap reports package version', async (t) => {
 	t.is(output.trim(), expectedVersion);
 });
 
+test('CLI bootstrap prints help with registered commands', async (t) => {
+	const output = await runCli(['--help']);
+
+	t.true(output.includes('Usage: ofgui'));
+	t.true(output.includes('inspect'));
+	t.true(output.includes('publish'));
+	t.true(output.includes('restore'));
+	t.true(output.includes('backend-capabilities'));
+});
+
 test('CLI bootstrap can open session, print backend capabilities, and close session', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
