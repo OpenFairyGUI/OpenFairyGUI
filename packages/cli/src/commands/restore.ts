@@ -29,9 +29,9 @@ export function registerRestoreCommand(program: Command): void {
 		.description('Restore a FairyGUI project from published binaries')
 		.argument('<release-dir>', 'Published release directory')
 		.requiredOption('-o, --output <dir>', 'Output project directory')
-		.option('--packages <a,b,c>', 'Only restore specific packages (comma-separated)')
-		.option('--force', 'Overwrite a non-empty output directory')
-		.option('--project-type <name|id>', 'Override restored project type; default is unity')
+		.option('-p, --packages <a,b,c>', 'Only restore specific packages (comma-separated)')
+		.option('-f, --force', 'Overwrite a non-empty output directory')
+		.option('-t, --project-type <name|id>', 'Override restored project type; default is unity')
 		.action(async (releaseDir: string, options: RestoreCommandOptions) => {
 			const inputDir = path.resolve(releaseDir);
 			const outputDir = path.resolve(options.output);
