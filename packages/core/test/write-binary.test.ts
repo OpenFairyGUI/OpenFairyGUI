@@ -1087,9 +1087,9 @@ test('binary writer: misc/spine/dragonbones resources round-trip as formal packa
 				.sort((a, b) => (a.id ?? '').localeCompare(b.id ?? ''))
 				.map((item) => ({ type: item.type, id: item.id, file: item.file })),
 			[
-				{ type: 9, id: 'dragon001', file: 'dragon_ske.json' },
+				{ type: 10, id: 'dragon001', file: 'dragon_ske.json' },
 				{ type: 7, id: 'misc001', file: 'alien-pma.atlas' },
-				{ type: 8, id: 'spine001', file: 'alien-pro.skel' },
+				{ type: 9, id: 'spine001', file: 'alien-pro.skel' },
 			],
 		);
 
