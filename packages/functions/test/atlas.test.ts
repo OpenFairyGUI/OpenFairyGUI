@@ -266,3 +266,84 @@ test('atlas: direct single PNG output keeps portrait sprite unrotated for Unity 
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 });
+
+test('atlas: standalone textureSetMode and fixed page outputs use editor-style file names', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-atlas-texture-set-mode-'));
+	const imageDir = path.join(tmpDir, 'AtlasModes', 'images');
+	const coverPath = path.join(imageDir, 'cover.jpg');
+	const iconPath = path.join(imageDir, 'icon.png');
+	const badgePath = path.join(imageDir, 'badge.png');
+
+	try {
+		await fs.mkdir(imageDir, { recursive: true });
+		await sharp({
+			create: {
+				width: 320,
+				height: 180,
+				channels: 3,
+				background: { r: 120, g: 40, b: 30 },
+			},
+		}).jpeg().toFile(coverPath);
+		await sharp({
+			create: {
+				width: 64,
+				height: 64,
+				channels: 4,
+				background: { r: 30, g: 120, b: 220, alpha: 1 },
+			},
+		}).png().toFile(iconPath);
+		await sharp({
+			create: {
+				width: 48,
+				height: 48,
+				channels: 4,
+				background: { r: 220, g: 180, b: 30, alpha: 1 },
+			},
+		}).png().toFile(badgePath);
+
+		const doc = new Document();
+		const pkg = doc.createPackage('AtlasModes');
+		pkg.setId('atlasmodes01');
+
+		const cover = doc.createImageResource('cover');
+		cover.setId('cover01').setPath('/images/').setWidth(320).setHeight(180).setExported(true).setTextureSetMode('alone_npot');
+		cover.setExtras({ ...cover.getExtras(), _fileName: 'cover.jpg' });
+		pkg.addResource(cover);
+
+		const icon = doc.createImageResource('icon');
+		icon.setId('icon01').setPath('/images/').setWidth(64).setHeight(64).setExported(true);
+		icon.setExtras({ ...icon.getExtras(), _fileName: 'icon.png' });
+		pkg.addResource(icon);
+
+		const badge = doc.createImageResource('badge');
+		badge.setId('badge01').setPath('/images/').setWidth(48).setHeight(48).setExported(true).setTextureSetMode('1');
+		badge.setExtras({ ...badge.getExtras(), _fileName: 'badge.png' });
+		pkg.addResource(badge);
+
+		await doc.transform(atlas({
+			encoder: sharp,
+			basePath: tmpDir,
+			outputPath: tmpDir,
+			mkdir: async (dir) => {
+				await fs.mkdir(dir, { recursive: true });
+			},
+			powerOfTwo: true,
+			maxSize: 512,
+		}));
+
+		const files = new Set((await fs.readdir(tmpDir)).filter((entry) => entry.startsWith('AtlasModes_atlas')));
+		t.true(files.has('AtlasModes_atlas_cover01.jpg'), 'standalone image writes resource-id atlas file');
+		t.true(files.has('AtlasModes_atlas0.png'), 'default auto atlas keeps page 0 name');
+		t.true(files.has('AtlasModes_atlas1.png'), 'fixed page atlas writes requested page name');
+		t.false(files.has('AtlasModes_atlas2.png'), 'no unexpected extra page is emitted');
+
+		const atlasFiles = pkg.listAtlases().map((atlasNode) => atlasNode.getFile()).sort();
+		t.deepEqual(
+			atlasFiles,
+			['AtlasModes_atlas0.png', 'AtlasModes_atlas1.png', 'AtlasModes_atlas_cover01.jpg'],
+			'atlas nodes keep standalone and fixed-page file names',
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});

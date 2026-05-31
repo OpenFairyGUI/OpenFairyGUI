@@ -2818,3 +2818,39 @@ test('round-trip: package image textureSetMode survives package.xml write→read
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 });
+
+test('round-trip: package movieclip textureSetMode survives package.xml write→read', async (t) => {
+	const io = new NodeIO();
+	const doc = new Document();
+	doc.getRoot().setProjectId('proj-package-movieclip-atlas').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('DemoMovieClipTextureSetMode');
+	pkg.setId('pkgMovieClipTextureSetMode');
+
+	const movieClip = doc.createMovieClipResource('pet');
+	movieClip.setId('mcAtlas');
+	movieClip.setPath('/fx/');
+	movieClip.setFileName('pet.jta');
+	movieClip.setTextureSetMode('alone_mof');
+	pkg.addResource(movieClip);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-package-movieclip-atlas-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+
+		const pkgXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoMovieClipTextureSetMode', 'package.xml'), 'utf-8');
+		t.true(pkgXml.includes('atlas="alone_mof"'), 'package movieclip writes atlas attr');
+
+		const doc2 = await io.readProject(outFairy);
+		const pkg2 = doc2.getRoot().getPackage('DemoMovieClipTextureSetMode');
+		t.truthy(pkg2, 'DemoMovieClipTextureSetMode exists after round-trip');
+
+		const movieClip2 = pkg2!.listResources().find((res) => res.getId?.() === 'mcAtlas') as ReturnType<Document['createMovieClipResource']>;
+		t.truthy(movieClip2, 'movieclip resource exists after round-trip');
+		t.is(movieClip2.getTextureSetMode(), 'alone_mof', 'movieclip textureSetMode survives');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});

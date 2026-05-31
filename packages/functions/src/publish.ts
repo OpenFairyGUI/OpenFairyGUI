@@ -98,6 +98,7 @@ export interface ResolvedPublishOptions {
 }
 
 interface ResolvedProjectPublishConfig extends ResolvedPublishOptions {
+	projectType: number;
 	includeBranches: boolean;
 	activeBranch: string;
 	includeHighResolution: number;
@@ -498,14 +499,15 @@ function extname(fileName: string): string {
 	return normalized.slice(lastDot);
 }
 
-function resolvePublishedMiscFileName(resource: MiscResource): string {
+function resolvePublishedMiscFileName(resource: MiscResource, projectType: number): string {
 	const file = resource.getFile();
+	if (projectType !== UNITY_PROJECT_TYPE) return file;
 	if (file.toLowerCase().endsWith('.atlas')) return `${file}.txt`;
 	return file;
 }
 
-function resolvePublishedSkeletonFileName(resource: SpineResource | DragonBonesResource): string {
-	if (isSpineResource(resource) && resource.getFile().toLowerCase().endsWith('.skel')) {
+function resolvePublishedSkeletonFileName(resource: SpineResource | DragonBonesResource, projectType: number): string {
+	if (projectType === UNITY_PROJECT_TYPE && isSpineResource(resource) && resource.getFile().toLowerCase().endsWith('.skel')) {
 		return `${resource.getFile()}.bytes`;
 	}
 	return resource.getFile();
@@ -639,6 +641,7 @@ function collectHighResolutionItemIds(
 function collectPackagePublishContext(
 	pkg: Package,
 	options: {
+		projectType: number;
 		includeBranches: boolean;
 		activeBranch: string;
 		includeHighResolution: number;
@@ -932,6 +935,7 @@ async function annotatePackagePublishArtifacts(
 	basePath: string | undefined,
 	encoder: PublishEncoder | undefined,
 	options: {
+		projectType: number;
 		includeBranches: boolean;
 		activeBranch: string;
 		includeHighResolution: number;
@@ -954,11 +958,11 @@ async function annotatePackagePublishArtifacts(
 	});
 	for (const resource of pkg.listResources()) {
 		if (isMiscResource(resource)) {
-			setPublishedFileExtra(resource, resolvePublishedMiscFileName(resource));
+			setPublishedFileExtra(resource, resolvePublishedMiscFileName(resource, options.projectType));
 			continue;
 		}
 		if (isSkeletonResource(resource)) {
-			setPublishedFileExtra(resource, resolvePublishedSkeletonFileName(resource));
+			setPublishedFileExtra(resource, resolvePublishedSkeletonFileName(resource, options.projectType));
 		}
 	}
 }
@@ -1134,6 +1138,7 @@ export function publish(options: PublishOptions): Transform {
 
 			return {
 				...resolved,
+				projectType: doc.getRoot().getProjectType(),
 				includeBranches,
 				activeBranch: includeBranches ? '' : (options.branch ?? ''),
 				includeHighResolution: publishSettings.includeHighResolution ?? 0,
@@ -1279,6 +1284,7 @@ export function publish(options: PublishOptions): Transform {
 				options.basePath,
 				options.encoder as PublishEncoder | undefined,
 				{
+					projectType: resolved.projectType,
 					includeBranches: resolved.includeBranches,
 					activeBranch: resolved.activeBranch,
 					includeHighResolution: resolved.includeHighResolution,

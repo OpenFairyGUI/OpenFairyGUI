@@ -1177,6 +1177,8 @@ export class ProjectReader {
 				res.setBranch(branchName);
 				res.setFileName(name);
 				res.setExported(exported);
+				const textureSetMode = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageMovieClipResource.attrs.atlas);
+				if (textureSetMode !== undefined) res.setTextureSetMode(textureSetMode);
 				pkg.addResource(res);
 				ctx.registerResource(pkg.getId(), id, res);
 				return res;
