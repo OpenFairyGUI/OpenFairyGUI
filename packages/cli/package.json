@@ -41,6 +41,7 @@
 	},
 	"dependencies": {
 		"@openfairygui/backend": "workspace:*",
+		"commander": "^14.0.2",
 		"jiti": "^2.7.0"
 	},
 	"optionalDependencies": {
