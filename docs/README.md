@@ -8,6 +8,7 @@
 |---|---|
 | [架构图说明](./architecture-overview.md) | 说明 monorepo 包职责、模块边界、核心数据流，以及 `backend` 的 browser-safe storage adapter、`materializeSession`、stateful runtime、service-layer、events/jobs/cache 与 `mcp` 薄适配 / resources / prompts 定位 |
 | [编辑器发布设置](./editor-publish-settings.md) | 说明 FairyGUI 编辑器发布设置的结构、字段、默认值与写回规则 |
+| [Publish 插件](./publish-plugins.md) | 说明 OpenFairyGUI publish 插件目录、manifest、生命周期、降级规则，以及与 FairyGUI 编辑器插件的关系 |
 | [发布产物还原限制](./published-project-restore-limitations.md) | 记录仅凭发布目录重建工程时，当前已确认不可稳定恢复的内容边界 |
 | [Project XML 属性协议](./project-xml-attribute-reference.md) | 汇总 `package.xml`、`component.xml` 及结构节点当前正式支持的 XML 属性协议 |
 | [Project XML DisplayList Tag 对齐](./project-xml-displaylist-variants.md) | 固定 `component.xml` `displayList` 的原始 XML tag、容器 variant 与 editor `DisplayListItem.type` 对齐口径 |

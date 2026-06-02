@@ -51,6 +51,9 @@ function createCodegenDocument(projectDir: string): Document {
 	const component = doc.createComponent('Main');
 	component.setId('cmp00001');
 	component.setExported(true);
+	const child = doc.createGTextField('content');
+	child.setId('n0');
+	component.addChild(child);
 	pkg.addResource(component);
 
 	return doc;
@@ -80,8 +83,8 @@ test('publish: code generation plugin supports default object export', async (t)
 			'default-plugin',
 			`
 export default {
-	async genCode(doc, options) {
-		await options.fs.writeFileRaw(options.fs.join(doc.getProjectDir(), 'plugin-default.txt'), new TextEncoder().encode('default:' + options.packages.length));
+	async genCode(doc, settings, options) {
+		await options.fs.writeFileRaw(options.fs.join(doc.getProjectDir(), 'plugin-default.txt'), new TextEncoder().encode('default:' + settings.codePath + ':' + options.packages.length));
 	}
 };
 `,
@@ -95,7 +98,7 @@ export default {
 			}),
 		);
 
-		t.is(await fs.readFile(path.join(tmpDir, 'plugin-default.txt'), 'utf-8'), 'default:1');
+		t.is(await fs.readFile(path.join(tmpDir, 'plugin-default.txt'), 'utf-8'), 'default:generated:1');
 		t.false(
 			await fs
 				.stat(path.join(tmpDir, 'generated', 'DemoPkg', 'UI_Main.cs'))
@@ -117,8 +120,8 @@ test('publish: code generation plugin supports named genCode export', async (t) 
 			tmpDir,
 			'named-plugin',
 			`
-export async function genCode(doc, options) {
-	await options.fs.writeFileRaw(options.fs.join(doc.getProjectDir(), 'plugin-named.txt'), new TextEncoder().encode(doc.getProjectDir()));
+export async function genCode(doc, settings, options) {
+	await options.fs.writeFileRaw(options.fs.join(doc.getProjectDir(), 'plugin-named.txt'), new TextEncoder().encode(settings.codePath + ':' + doc.getProjectDir() + ':' + options.packages.length));
 }
 `,
 		);
@@ -131,7 +134,7 @@ export async function genCode(doc, options) {
 			}),
 		);
 
-		t.is(await fs.readFile(path.join(tmpDir, 'plugin-named.txt'), 'utf-8'), tmpDir);
+		t.is(await fs.readFile(path.join(tmpDir, 'plugin-named.txt'), 'utf-8'), `generated:${tmpDir}:1`);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
@@ -213,6 +216,69 @@ export default {};
 				.then(() => true)
 				.catch(() => false),
 			'empty plugins do not replace built-in codegen',
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: derives plugin directory from assets_branch basePath without string replacement', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-assets-branch-plugin-'));
+
+	try {
+		const doc = createCodegenDocument('');
+		await writePlugin(
+			tmpDir,
+			'branch-plugin',
+			`
+export async function genCode(doc, settings, options) {
+	await options.fs.writeFileRaw(options.fs.join(options.basePath, '..', 'plugin-branch.txt'), new TextEncoder().encode(settings.codePath));
+}
+`,
+		);
+
+		await doc.transform(
+			publish({
+				output: path.join(tmpDir, 'release'),
+				basePath: path.join(tmpDir, 'assets_branch'),
+				fs: createFs(),
+			}),
+		);
+
+		t.is(await fs.readFile(path.join(tmpDir, 'plugin-branch.txt'), 'utf-8'), 'generated');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: non OpenFairyGUI plugins can share the plugins directory without blocking publish', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-mixed-plugins-'));
+
+	try {
+		const doc = createCodegenDocument(tmpDir);
+		await fs.mkdir(path.join(tmpDir, 'plugins', 'fairygui-editor-plugin'), { recursive: true });
+		await fs.writeFile(
+			path.join(tmpDir, 'plugins', 'fairygui-editor-plugin', 'package.json'),
+			JSON.stringify({
+				name: 'fairygui-editor-plugin',
+			}),
+			'utf-8',
+		);
+
+		await doc.transform(
+			publish({
+				output: path.join(tmpDir, 'release'),
+				basePath: path.join(tmpDir, 'assets'),
+				fs: createFs(),
+			}),
+		);
+
+		t.true(
+			await fs
+				.stat(path.join(tmpDir, 'generated', 'DemoPkg', 'UI_Main.cs'))
+				.then(() => true)
+				.catch(() => false),
+			'non OpenFairyGUI plugin entries are skipped and built-in codegen still runs',
 		);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });

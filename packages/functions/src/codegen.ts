@@ -587,7 +587,7 @@ function resolveCodePath(
 	return projectBasePath ? trimTrailingSlashes(fs.join(projectBasePath, codePath)) : trimTrailingSlashes(codePath);
 }
 
-function resolveProjectBasePath(basePath: string | undefined): string {
+export function resolveProjectBasePath(basePath: string | undefined): string {
 	if (!basePath) return '';
 	const normalized = trimTrailingSlashes(basePath);
 	const assetsMatch = normalized.match(/^(.*)[/\\]assets(?:_[^/\\]+)?$/i);
