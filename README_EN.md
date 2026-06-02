@@ -269,6 +269,7 @@ Implementation reference documents are currently maintained in Chinese. Start fr
 |---|---|
 | [Architecture Overview](./docs/architecture-overview.md) | Package responsibilities, module boundaries, and core data flow |
 | [Editor Publish Settings](./docs/editor-publish-settings.md) | Publish setting sources, defaults, naming rules, and consumption points |
+| [Publish Plugins](./docs/publish-plugins.md) | Publish plugin directory, lifecycle, fallback behavior, and relationship with FairyGUI editor plugins |
 | [Published Restore Limitations](./docs/published-project-restore-limitations.md) | Restore capability boundaries when only publish output is available |
 | [Project XML Attribute Protocol](./docs/project-xml-attribute-reference.md) | XML attributes supported for `package.xml`, `component.xml`, and structural nodes |
 | [Project XML DisplayList Tag Alignment](./docs/project-xml-displaylist-variants.md) | Alignment of raw `displayList` tags and editor display item types |

@@ -794,6 +794,7 @@ export class ProjectReader {
 		const fs = this._fs;
 		const doc = new Document();
 		const basePath = getProjectBasePath(fs, projectPath);
+		doc.setProjectDir(basePath);
 		const ctx = new ReaderContext(doc, basePath);
 
 		// 1. Parse .fairy file

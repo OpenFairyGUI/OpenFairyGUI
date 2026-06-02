@@ -57,7 +57,8 @@
 		"publish"
 	],
 	"dependencies": {
-		"@openfairygui/core": "workspace:*"
+		"@openfairygui/core": "workspace:*",
+		"jiti": "^2.6.1"
 	},
 	"devDependencies": {
 		"ava": "^7.0.0",

@@ -983,6 +983,9 @@ test('publish: code generation gates on global allowGenCode and package genCode'
 		const component = doc.createComponent('Main');
 		component.setId('cmp00001');
 		component.setExported(true);
+		const child = doc.createGTextField('content');
+		child.setId('n0');
+		component.addChild(child);
 		pkg.addResource(component);
 
 		const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-codegen-gates-'));
@@ -1027,6 +1030,9 @@ test('publish: package codePath overrides global codeGeneration.codePath', async
 	const component = doc.createComponent('Main');
 	component.setId('cmp00001');
 	component.setExported(true);
+	const child = doc.createGTextField('content');
+	child.setId('n0');
+	component.addChild(child);
 	pkg.addResource(component);
 
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-codegen-path-'));
@@ -1051,7 +1057,7 @@ test('publish: package codePath overrides global codeGeneration.codePath', async
 	}
 });
 
-test('publish: Unity blank codeType generates binder and exported component classes only', async (t) => {
+test('publish: Unity blank codeType generates binder and component classes with non-ignored members', async (t) => {
 	const doc = new Document();
 	doc.getRoot().setProjectType(0);
 	doc.getRoot().setSettings({
@@ -1075,6 +1081,9 @@ test('publish: Unity blank codeType generates binder and exported component clas
 	const subPanel = doc.createComponent('SubPanel');
 	subPanel.setId('cmp00002');
 	subPanel.setExported(true);
+	const subPanelChild = doc.createGTextField('content');
+	subPanelChild.setId('n0');
+	subPanel.addChild(subPanelChild);
 	pkg.addResource(subPanel);
 
 	const main = doc.createComponent('Main');
@@ -1117,15 +1126,15 @@ test('publish: Unity blank codeType generates binder and exported component clas
 		const internalClassPath = path.join(generatedDir, 'UI_Internal.cs');
 		const binderPath = path.join(generatedDir, 'DemoPkgBinder.cs');
 
-		t.true(await fs.stat(mainClassPath).then(() => true).catch(() => false), 'main exported component generates a class');
-		t.true(await fs.stat(subClassPath).then(() => true).catch(() => false), 'referenced exported component generates a class');
-		t.false(await fs.stat(internalClassPath).then(() => true).catch(() => false), 'non-exported component does not generate a class');
+		t.true(await fs.stat(mainClassPath).then(() => true).catch(() => false), 'main component generates a class');
+		t.true(await fs.stat(subClassPath).then(() => true).catch(() => false), 'referenced component generates a class');
+		t.false(await fs.stat(internalClassPath).then(() => true).catch(() => false), 'component with no generated members does not generate a class');
 		t.true(await fs.stat(binderPath).then(() => true).catch(() => false), 'binder file is generated');
 
 		const mainClass = await fs.readFile(mainClassPath, 'utf-8');
 		t.true(mainClass.startsWith('/** This is an automatically generated class by FairyGUI. Please do not modify it. **/'));
 		t.true(mainClass.includes('public partial class UI_Main : GButton'), 'component extension maps to GButton base class');
-		t.true(mainClass.includes('public UI_SubPanel m_subPanel;'), 'local exported component child uses generated class type');
+		t.true(mainClass.includes('public UI_SubPanel m_subPanel;'), 'local component child uses generated class type');
 		t.true(mainClass.includes('public Transition m_fadeIn;'), 'transition field is generated');
 		t.false(mainClass.includes('m_title'), 'default child name is ignored when ignoreNoname=true');
 		t.false(mainClass.includes('m_button'), 'default controller name is ignored when ignoreNoname=true');
@@ -1207,6 +1216,9 @@ test('publish: code generation cleanup removes only prior marked files', async (
 	const component = doc.createComponent('Main');
 	component.setId('cmp00001');
 	component.setExported(true);
+	const child = doc.createGTextField('content');
+	child.setId('n0');
+	component.addChild(child);
 	pkg.addResource(component);
 
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-codegen-cleanup-'));
@@ -1255,6 +1267,9 @@ test('publish: Layabox modern TypeScript code generates package-scoped .ts outpu
 	const subPanel = doc.createComponent('SubPanel');
 	subPanel.setId('cmp00002');
 	subPanel.setExported(true);
+	const subPanelChild = doc.createGTextField('content');
+	subPanelChild.setId('n0');
+	subPanel.addChild(subPanelChild);
 	pkg.addResource(subPanel);
 
 	const main = doc.createComponent('Main');
@@ -1339,6 +1354,9 @@ test('publish: Layabox modern TypeScript code keeps positional member access sem
 	const subPanel = doc.createComponent('SubPanel');
 	subPanel.setId('cmp00002');
 	subPanel.setExported(true);
+	const subPanelChild = doc.createGTextField('content');
+	subPanelChild.setId('n0');
+	subPanel.addChild(subPanelChild);
 	pkg.addResource(subPanel);
 
 	const main = doc.createComponent('Main');
@@ -1450,6 +1468,9 @@ test('publish: Layabox modern TypeScript code works without codeType configurati
 	const component = doc.createComponent('Main');
 	component.setId('cmp00001');
 	component.setExported(true);
+	const child = doc.createGTextField('content');
+	child.setId('n0');
+	component.addChild(child);
 	pkg.addResource(component);
 
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-codegen-laya-no-codetype-'));
@@ -1493,6 +1514,9 @@ test('publish: Cocos Creator reuses the shared fgui TypeScript lane without code
 	const subPanel = doc.createComponent('SubPanel');
 	subPanel.setId('cmp00002');
 	subPanel.setExported(true);
+	const subPanelChild = doc.createGTextField('content');
+	subPanelChild.setId('n0');
+	subPanel.addChild(subPanelChild);
 	pkg.addResource(subPanel);
 
 	const main = doc.createComponent('Main');
@@ -1566,6 +1590,9 @@ test('publish: unsupported project types still skip the shared fgui TypeScript l
 	const component = doc.createComponent('Main');
 	component.setId('cmp00001');
 	component.setExported(true);
+	const child = doc.createGTextField('content');
+	child.setId('n0');
+	component.addChild(child);
 	pkg.addResource(component);
 
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-codegen-unsupported-ts-'));
@@ -1605,6 +1632,9 @@ test('publish: Layabox modern TypeScript cleanup removes only prior marked .ts f
 	const component = doc.createComponent('Main');
 	component.setId('cmp00001');
 	component.setExported(true);
+	const child = doc.createGTextField('content');
+	child.setId('n0');
+	component.addChild(child);
 	pkg.addResource(component);
 
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-codegen-laya-cleanup-'));
