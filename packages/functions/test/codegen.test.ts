@@ -112,7 +112,7 @@ test('buildCodegenClasses counts only advanced groups in child member getChildAt
 	const buttonMember = mainClass?.members.find((member) => member.originalName === 'button');
 
 	t.is(labelMember?.index, 0);
-	t.is(groupMember?.index, 1);
+	t.is(groupMember, undefined);
 	t.is(advancedGroupMember?.index, 1);
 	t.is(buttonMember?.index, 2);
 });

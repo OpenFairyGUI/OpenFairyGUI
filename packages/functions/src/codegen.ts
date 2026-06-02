@@ -340,8 +340,8 @@ function buildCodegenMembers(
 	}
 
 	for (const child of component.listChildren()) {
-		const index = childIndex;
-		if (isRuntimeChild(child)) childIndex++;
+		if (!isRuntimeChild(child)) continue;
+		const index = childIndex++;
 		const resolvedChild = resolveChildType(doc, pkg, child, generatedById);
 		members.push(createMember(
 			ownerType,
