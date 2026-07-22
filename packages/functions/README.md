@@ -21,6 +21,10 @@ const report = inspect(doc);
 await doc.transform(publish({ output: './release' }));
 ```
 
+Publish plugins are documented in the repository guide:
+
+- https://github.com/OpenFairyGUI/OpenFairyGUI/blob/main/docs/publish-plugins.md
+
 ## Phase A UAM authoring seam
 
 `@openfairygui/functions` also exposes a thin stateless wrapper over the Phase A UAM

@@ -265,6 +265,7 @@ pnpm dev:cli --help
 |---|---|
 | [架构图说明](./docs/architecture-overview.md) | 包职责、模块边界、核心数据流 |
 | [编辑器发布设置](./docs/editor-publish-settings.md) | 发布设置来源、默认值、命名规则与消费位置 |
+| [Publish 插件](./docs/publish-plugins.md) | publish 插件目录、生命周期、失败降级，以及与 FairyGUI 编辑器插件的关系 |
 | [发布产物还原限制](./docs/published-project-restore-limitations.md) | 仅凭发布目录重建工程时的能力边界 |
 | [Project XML 属性协议](./docs/project-xml-attribute-reference.md) | `package.xml`、`component.xml` 及结构节点属性协议 |
 | [Project XML DisplayList Tag 对齐](./docs/project-xml-displaylist-variants.md) | `displayList` XML tag 与 editor 类型对齐口径 |

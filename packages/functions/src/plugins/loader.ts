@@ -1,0 +1,85 @@
+import type { Document } from '@openfairygui/core';
+import { createJiti } from 'jiti';
+import type { Plugin, PluginManifest, PluginModule } from './types.js';
+
+export interface LoadedPlugin {
+	name: string;
+	plugin: Plugin;
+}
+
+interface PluginPackageJson extends Partial<PluginManifest> {
+	name?: string;
+	main?: string;
+}
+
+// Keep Node builtins out of the neutral bundle resolver while still loading plugins in Node.
+const importNative = new Function('id', 'return import(id)') as <T>(id: string) => Promise<T>;
+
+export async function loadPlugins(doc: Document, pluginsDir: string): Promise<LoadedPlugin[]> {
+	if (!pluginsDir) return [];
+
+	const fs = await importNative<typeof import('node:fs/promises')>('node:fs/promises');
+	const path = await importNative<typeof import('node:path')>('node:path');
+	let entries: Array<{ name: string; isDirectory(): boolean }>;
+	try {
+		entries = await fs.readdir(pluginsDir, { withFileTypes: true });
+	} catch {
+		return [];
+	}
+
+	const plugins: LoadedPlugin[] = [];
+	for (const entry of entries) {
+		if (!entry.isDirectory()) continue;
+		const pluginDir = path.join(pluginsDir, entry.name);
+		try {
+			const manifest = await readPluginManifest(fs, path, pluginDir);
+			if (!manifest) continue;
+
+			const mainPath = resolvePluginMain(path, pluginDir, manifest);
+			const plugin = await loadPlugin(mainPath);
+			plugins.push({ name: manifest.name, plugin });
+		} catch (error) {
+			doc.getLogger().warn(`publish: Plugin "${entry.name}" was skipped: ${formatPluginError(error)}`);
+		}
+	}
+
+	return plugins;
+}
+
+export function formatPluginError(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
+}
+
+async function readPluginManifest(
+	fs: typeof import('node:fs/promises'),
+	path: typeof import('node:path'),
+	pluginDir: string,
+): Promise<PluginPackageJson | null> {
+	const manifestPath = path.join(pluginDir, 'package.json');
+	const content = await fs.readFile(manifestPath, 'utf-8');
+	const manifest = JSON.parse(content) as PluginPackageJson;
+	if (!manifest.name) throw new Error(`Codegen plugin at ${pluginDir} is missing package.json name.`);
+	if (!manifest.main) throw new Error(`Codegen plugin "${manifest.name}" is missing package.json main.`);
+	return manifest;
+}
+
+function resolvePluginMain(path: typeof import('node:path'), pluginDir: string, manifest: PluginPackageJson): string {
+	const mainPath = path.resolve(pluginDir, manifest.main!);
+	const relative = path.relative(pluginDir, mainPath);
+	if (relative.startsWith('..') || path.isAbsolute(relative)) {
+		throw new Error(`Codegen plugin "${manifest.name}" main must resolve inside its plugin directory.`);
+	}
+	return mainPath;
+}
+
+async function loadPlugin(mainPath: string): Promise<Plugin> {
+	const jiti = createJiti(import.meta.url);
+	const mod = await jiti.import<PluginModule>(mainPath);
+	const defaultExport = mod.default;
+	const plugin = isObject(defaultExport) ? defaultExport : mod;
+	return plugin as Plugin;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === 'object';
+}

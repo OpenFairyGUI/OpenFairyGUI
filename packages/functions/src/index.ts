@@ -3,7 +3,29 @@ export { validate, type ValidateOptions, type ValidationResult, type ValidationI
 export { prune, type PruneOptions } from './prune.js';
 export { rename, type RenameOptions } from './rename.js';
 export { atlas, type AtlasOptions } from './atlas.js';
-export { publishCodeGeneration, AUTO_GENERATED_CODE_MARK, type PublishCodeGenerationOptions } from './codegen.js';
+export {
+	publishCodeGeneration,
+	AUTO_GENERATED_CODE_MARK,
+	type PublishCodeGenerationOptions,
+	type ResolvedPackageCodegenPlan,
+	resolvePackageCodegenPlan,
+	buildCodegenClasses,
+	type CodegenClass,
+	type CodegenMember,
+	type CodegenReferencedComponent,
+	encodeText,
+	decodeText,
+} from './codegen.js';
+
+
+export type {
+	CodeWriter,
+	ICodeWriterConfig,
+	MaybePromise,
+	Plugin,
+	PluginManifest,
+	PluginModule,
+} from './plugins/types.js';
 export {
 	restore,
 	type RestoreFileSystem,
@@ -40,4 +62,5 @@ export type {
 	PublishDependency,
 	PublishFileSystem,
 	RootProjectSettings,
+	CliCodeGenerationSettings,
 } from './shared-types.js';

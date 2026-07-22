@@ -74,6 +74,7 @@ export class Document {
 	private _graph: Graph<Property> = new Graph<Property>();
 	private _root: Root = new Root(this._graph);
 	private _logger: ILogger = Logger.DEFAULT_INSTANCE;
+	private _projectDir = '';
 
 	private static _GRAPH_DOCUMENTS = new WeakMap<Graph<Property>, Document>();
 
@@ -100,6 +101,15 @@ export class Document {
 
 	public setLogger(logger: ILogger): Document {
 		this._logger = logger;
+		return this;
+	}
+
+	public getProjectDir(): string {
+		return this._projectDir;
+	}
+
+	public setProjectDir(projectDir: string): Document {
+		this._projectDir = projectDir;
 		return this;
 	}
 
