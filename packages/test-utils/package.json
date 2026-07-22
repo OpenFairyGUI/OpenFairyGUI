@@ -1,6 +1,6 @@
 {
 	"name": "@openfairygui/test-utils",
-	"version": "0.2.0-alpha.9",
+	"version": "0.2.0-alpha.10",
 	"description": "FairyGUI Headless Authoring SDK — test utilities and fixtures.",
 	"author": "OpenFairyGUI Contributors",
 	"license": "MIT",
