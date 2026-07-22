@@ -1588,7 +1588,11 @@ export class ProjectWriter {
 				if (underlaySoftness !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.richText.attrs.underlaySoftness, String(underlaySoftness));
 			}
 			if (typedObj.getGroup?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.group, typedObj.getGroup?.());
+			if ((typedObj.getRotation?.() ?? 0) !== 0) writeXmlAttr(attrs, textNodeProtocol.attrs.rotation, String(typedObj.getRotation?.() ?? 0));
+			if ((typedObj.getAlpha?.() ?? 1) !== 1) writeXmlAttr(attrs, textNodeProtocol.attrs.alpha, formatDisplayAlpha(typedObj.getAlpha?.() ?? 1));
 			if (typedObj.getVisible?.() === false) writeXmlAttr(attrs, textNodeProtocol.attrs.visible, 'false');
+			if (typedObj.getTouchable?.() === false) writeXmlAttr(attrs, textNodeProtocol.attrs.touchable, 'false');
+			if (typedObj.getGrayed?.()) writeXmlAttr(attrs, textNodeProtocol.attrs.grayed, 'true');
 			if (typedObj.getCustomData?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.customData, typedObj.getCustomData?.());
 		}
 		if ((type === 'GList' || type === 'GTree') && typedObj.getGroup?.()) {

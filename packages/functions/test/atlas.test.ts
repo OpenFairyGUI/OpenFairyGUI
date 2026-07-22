@@ -211,6 +211,55 @@ test('atlas: trimImage keeps fully transparent images as zero-sized sprites', as
 	}
 });
 
+test('atlas: rasterizes declared-size SVGs before trim and composite', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-atlas-svg-'));
+	const imageDir = path.join(tmpDir, 'Icons', 'images');
+	const imagePath = path.join(imageDir, 'save.svg');
+
+	try {
+		await fs.mkdir(imageDir, { recursive: true });
+		await fs.writeFile(
+			imagePath,
+			'<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect width="128" height="128" fill="#bdbdbd"/></svg>',
+		);
+
+		const doc = new Document();
+		const pkg = doc.createPackage('Icons');
+		pkg.setId('svg00001');
+
+		const img = doc.createImageResource('save.svg');
+		img.setId('svg001').setPath('/images/').setWidth(16).setHeight(16).setExported(true);
+		pkg.addResource(img);
+
+		await doc.transform(
+			atlas({
+				encoder: sharp,
+				basePath: tmpDir,
+				outputPath: tmpDir,
+				mkdir: async (dir) => {
+					await fs.mkdir(dir, { recursive: true });
+				},
+				trimImage: true,
+				powerOfTwo: true,
+				maxSize: 256,
+			}),
+		);
+
+		const sprite = pkg
+			.listAtlases()
+			.flatMap((atlasNode) => atlasNode.listSprites())
+			.find((entry) => entry.getItemId() === 'svg001');
+
+		t.truthy(sprite, 'SVG produces an atlas sprite');
+		t.is(sprite?.getRectWidth(), 16, 'trim uses the declared SVG width');
+		t.is(sprite?.getRectHeight(), 16, 'trim uses the declared SVG height');
+		t.is(sprite?.getOriginalWidth(), 16, 'sprite source width remains declared width');
+		t.is(sprite?.getOriginalHeight(), 16, 'sprite source height remains declared height');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('atlas: direct single PNG output keeps portrait sprite unrotated for Unity bytes', async (t) => {
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-atlas-direct-'));
 	const imageDir = path.join(tmpDir, 'BundleUsage');

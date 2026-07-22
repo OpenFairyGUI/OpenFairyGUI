@@ -189,6 +189,10 @@ test('real LayaBox UIProject supports file-backed UAM save, reload, and publish'
 			height: originalNode.size.height + 6,
 		};
 		const updatedVisible = !originalNode.visible;
+		const updatedTouchable = !originalNode.touchable;
+		const updatedGrayed = !originalNode.grayed;
+		const updatedAlpha = originalNode.alpha === 0.65 ? 0.55 : 0.65;
+		const updatedRotation = originalNode.rotation === 15 ? 30 : 15;
 
 		runtime = createBackendRuntime();
 		const opened = await runtime.openSession({ projectPath: projectRoot });
@@ -212,6 +216,10 @@ test('real LayaBox UIProject supports file-backed UAM save, reload, and publish'
 						position: updatedPosition,
 						size: updatedSize,
 						visible: updatedVisible,
+						touchable: updatedTouchable,
+						grayed: updatedGrayed,
+						alpha: updatedAlpha,
+						rotation: updatedRotation,
 					},
 				},
 			],
@@ -233,6 +241,10 @@ test('real LayaBox UIProject supports file-backed UAM save, reload, and publish'
 		t.deepEqual(reloadedNode.position, updatedPosition);
 		t.deepEqual(reloadedNode.size, updatedSize);
 		t.is(reloadedNode.visible, updatedVisible);
+		t.is(reloadedNode.touchable, updatedTouchable);
+		t.is(reloadedNode.grayed, updatedGrayed);
+		t.is(reloadedNode.alpha, updatedAlpha);
+		t.is(reloadedNode.rotation, updatedRotation);
 
 		const publishOut = path.join(tmpDir, 'Release');
 		const publishDoc = await io.readProject(fairyPath);

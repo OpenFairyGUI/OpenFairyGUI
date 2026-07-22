@@ -1641,8 +1641,16 @@ export class ProjectReader {
 				}
 				const textGroup = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.group);
 				if (textGroup) g.setGroup(textGroup);
+				const textRotation = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.rotation);
+				if (textRotation !== undefined) g.setRotation(parseFloat2(textRotation));
+				const textAlpha = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.alpha);
+				if (textAlpha !== undefined) g.setAlpha(parseFloat2(textAlpha, 1));
 				const textVisible = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.visible);
 				if (textVisible !== undefined) g.setVisible(parseBool(textVisible));
+				const textTouchable = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.touchable);
+				if (textTouchable !== undefined) g.setTouchable(parseBool(textTouchable));
+				const textGrayed = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.grayed);
+				if (textGrayed !== undefined) g.setGrayed(parseBool(textGrayed));
 				const textCustomData = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.customData);
 				if (textCustomData !== undefined) g.setCustomData(textCustomData);
 				const textValue = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.text);
@@ -1748,8 +1756,16 @@ export class ProjectReader {
 				}
 				const richTextGroup = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.group);
 				if (richTextGroup) g.setGroup(richTextGroup);
+				const richTextRotation = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.richText.attrs.rotation);
+				if (richTextRotation !== undefined) g.setRotation(parseFloat2(richTextRotation));
+				const richTextAlpha = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.richText.attrs.alpha);
+				if (richTextAlpha !== undefined) g.setAlpha(parseFloat2(richTextAlpha, 1));
 				const richTextVisible = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.richText.attrs.visible);
 				if (richTextVisible !== undefined) g.setVisible(parseBool(richTextVisible));
+				const richTextTouchable = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.richText.attrs.touchable);
+				if (richTextTouchable !== undefined) g.setTouchable(parseBool(richTextTouchable));
+				const richTextGrayed = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.richText.attrs.grayed);
+				if (richTextGrayed !== undefined) g.setGrayed(parseBool(richTextGrayed));
 				const richText = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.text);
 				if (richText !== undefined) g.setText(String(richText));
 				const richTextFontSize = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.fontSize);
@@ -1825,8 +1841,16 @@ export class ProjectReader {
 				}
 				const inputGroup = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.group);
 				if (inputGroup) g.setGroup(inputGroup);
+				const inputRotation = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.rotation);
+				if (inputRotation !== undefined) g.setRotation(parseFloat2(inputRotation));
+				const inputAlpha = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.alpha);
+				if (inputAlpha !== undefined) g.setAlpha(parseFloat2(inputAlpha, 1));
 				const inputVisible = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.visible);
 				if (inputVisible !== undefined) g.setVisible(parseBool(inputVisible));
+				const inputTouchable = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.touchable);
+				if (inputTouchable !== undefined) g.setTouchable(parseBool(inputTouchable));
+				const inputGrayed = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.grayed);
+				if (inputGrayed !== undefined) g.setGrayed(parseBool(inputGrayed));
 				const inputText = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.text);
 				if (inputText !== undefined) g.setText(String(inputText));
 				const inputFontSize = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.fontSize);

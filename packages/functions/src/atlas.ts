@@ -223,6 +223,7 @@ interface AtlasCompositeInput {
 interface AtlasEncoderPipeline {
 	ensureAlpha(): AtlasEncoderPipeline;
 	raw(): AtlasEncoderPipeline;
+	resize(width: number, height: number, options?: { fit?: 'fill' }): AtlasEncoderPipeline;
 	extract(options: { left: number; top: number; width: number; height: number }): AtlasEncoderPipeline;
 	toBuffer(options: { resolveWithObject: true }): Promise<AtlasEncoderResolvedBuffer>;
 	toBuffer(options?: { resolveWithObject?: false }): Promise<Uint8Array>;
@@ -655,6 +656,8 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 								if (input.trimBuffer) {
 									imgBuffer = input.trimBuffer;
 									if (imgBuffer.length === 0) continue;
+								} else if (input.rasterizedBuffer) {
+									imgBuffer = input.rasterizedBuffer;
 								} else {
 									if (!isImageResource(input.resource)) {
 										logger.warn(`atlas: Non-image input "${input.id}" is missing inline buffer, skipping compositing.`);
@@ -936,12 +939,12 @@ interface ExtractedJtaData {
  */
 async function _trimImage(
 	encoder: AtlasEncoder,
-	filePath: string,
+	input: AtlasEncoderInput,
 	originalWidth: number,
 	originalHeight: number,
 ): Promise<TrimInfo> {
 	try {
-		const trimResult = await encoder(filePath)
+		const trimResult = await encoder(input)
 			.ensureAlpha()
 			.raw()
 			.toBuffer({ resolveWithObject: true });
@@ -982,7 +985,7 @@ async function _trimImage(
 
 		const trimmedWidth = maxX - minX + 1;
 		const trimmedHeight = maxY - minY + 1;
-		const buffer = await encoder(filePath)
+		const buffer = await encoder(input)
 			.extract({
 				left: minX,
 				top: minY,
@@ -1002,7 +1005,7 @@ async function _trimImage(
 		};
 	} catch {
 		// Trim failed (e.g. JPEG without alpha, nothing to trim) — return original
-		const buf = await encoder(filePath).png().toBuffer();
+		const buf = await encoder(input).png().toBuffer();
 		return {
 			buffer: buf,
 			width: originalWidth,
@@ -1035,7 +1038,7 @@ type InputItem = {
 	id: string; width: number; height: number;
 	originalWidth: number; originalHeight: number;
 	offsetX: number; offsetY: number;
-	resource: PackInputResource; trimBuffer?: Uint8Array;
+	resource: PackInputResource; trimBuffer?: Uint8Array; rasterizedBuffer?: Uint8Array;
 	sourceKind: 'image' | 'movieclip-frame';
 };
 
@@ -1051,7 +1054,10 @@ async function _collectImage(
 ): Promise<void> {
 	let origW = resource.getWidth() ?? 0;
 	let origH = resource.getHeight() ?? 0;
+	const declaredWidth = origW;
+	const declaredHeight = origH;
 	let sourceHasAlpha = false;
+	let rasterizedBuffer: Uint8Array | undefined;
 
 	if (encoder && options.basePath) {
 		const filePath = _resolveImagePath(resource, pkg, options.basePath);
@@ -1064,6 +1070,13 @@ async function _collectImage(
 				resource.setHeight(origH);
 			}
 			sourceHasAlpha = metadata.hasAlpha === true || metadata.channels === 4;
+			if (/\.svg$/i.test(resolveImageFileName(resource)) && declaredWidth > 0 && declaredHeight > 0) {
+				rasterizedBuffer = await encoder(filePath)
+					.resize(declaredWidth, declaredHeight, { fit: 'fill' })
+					.png()
+					.toBuffer();
+				sourceHasAlpha = true;
+			}
 		} catch {
 			if (origW === 0 || origH === 0) {
 				logger.warn(`atlas: Could not read image "${filePath}", skipping.`);
@@ -1080,7 +1093,7 @@ async function _collectImage(
 	if (doTrim && sourceHasAlpha && options.basePath && encoder) {
 		const filePath = _resolveImagePath(resource, pkg, options.basePath);
 		try {
-			const trimResult = await _trimImage(encoder, filePath, origW, origH);
+			const trimResult = await _trimImage(encoder, rasterizedBuffer ?? filePath, origW, origH);
 			packW = trimResult.width;
 			packH = trimResult.height;
 			offX = trimResult.offsetX;
@@ -1097,6 +1110,7 @@ async function _collectImage(
 		offsetX: offX, offsetY: offY,
 		resource,
 		trimBuffer: trimBuf,
+		rasterizedBuffer,
 		sourceKind: 'image',
 	});
 }

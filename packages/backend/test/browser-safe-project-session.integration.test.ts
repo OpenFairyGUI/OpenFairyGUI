@@ -172,7 +172,13 @@ test('browser-safe project session saves through injected async storage', async 
 			{
 				kind: 'setDisplayNodeProps',
 				selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
-				props: { text: 'Stored in browser storage' },
+				props: {
+					text: 'Stored in browser storage',
+					touchable: false,
+					grayed: true,
+					alpha: 0.65,
+					rotation: 15,
+				},
 			},
 		],
 	});
@@ -193,7 +199,13 @@ test('browser-safe project session saves through injected async storage', async 
 	if (component?.kind !== 'component') return;
 	const title = component.component.displayList.find((node) => node.id === 'n1');
 	t.is(title?.kind, 'text');
-	if (title?.kind === 'text') t.is(title.text, 'Stored in browser storage');
+	if (title?.kind === 'text') {
+		t.is(title.text, 'Stored in browser storage');
+		t.false(title.touchable);
+		t.true(title.grayed);
+		t.is(title.alpha, 0.65);
+		t.is(title.rotation, 15);
+	}
 });
 
 test('materializeSession writes a clean browser-safe session without advancing edit revision', async (t) => {

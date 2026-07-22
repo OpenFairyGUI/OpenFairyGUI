@@ -76,6 +76,10 @@
 - 编辑器 `GlobalPublishSettings` 里还存在 `atlasMaxSize`、`atlasPaging`、`atlasSizeOption`、`atlasForceSquare`、`atlasAllowRotation`、`atlasTrimImage` 这些运行时字段，它们对应 `Publish.json` 里的 `atlasSetting` 子对象。
 - `extractAlpha` 不属于全局 `Publish.json` 的真实属性；它在包级图集设置里出现。
 
+### SVG 图像发布
+
+当 `package.xml` 的 `image` 资源指向 `.svg`，并声明了正的 `width` 和 `height` 时，发布会先按这两个声明尺寸栅格化，再执行可选裁边和图集合成。发布物只包含 PNG 图集；sprite 的原始尺寸保持为工程声明值。
+
 ## 包级发布设置真实属性
 
 `PublishSettings` 代表单个包的发布设置，真实属性如下：

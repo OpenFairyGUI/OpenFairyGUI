@@ -321,7 +321,11 @@
 | `restrictSize` |  | 尺寸限制 |
 | `customData` |  | 自定义数据 |
 | `group` |  | 所属 group |
+| `rotation` |  | 旋转 |
+| `alpha` |  | 透明度 |
 | `visible` |  | 是否可见 |
+| `touchable` |  | 是否可触摸 |
+| `grayed` |  | 是否置灰 |
 | `font` |  | 字体 |
 | `fontSize` |  | 字号 |
 | `color` |  | 颜色 |
@@ -361,7 +365,11 @@
 | `size` |  | 尺寸 |
 | `restrictSize` |  | 尺寸限制 |
 | `group` |  | 所属 group |
+| `rotation` |  | 旋转 |
+| `alpha` |  | 透明度 |
 | `visible` |  | 是否可见 |
+| `touchable` |  | 是否可触摸 |
+| `grayed` |  | 是否置灰 |
 | `font` |  | 字体 |
 | `fontSize` |  | 字号 |
 | `color` |  | 颜色 |
@@ -400,7 +408,11 @@
 | `xy` |  | 位置 |
 | `size` |  | 尺寸 |
 | `group` |  | 所属 group |
+| `rotation` |  | 旋转 |
+| `alpha` |  | 透明度 |
 | `visible` |  | 是否可见 |
+| `touchable` |  | 是否可触摸 |
+| `grayed` |  | 是否置灰 |
 | `font` |  | 字体 |
 | `fontSize` |  | 字号 |
 | `color` |  | 颜色 |
