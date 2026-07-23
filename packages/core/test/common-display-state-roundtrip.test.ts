@@ -47,8 +47,11 @@ test('XML round-trip preserves every modeled common display state on V1 node typ
 	const component = doc.createComponent('Main');
 	component.setId('main1').setPath('/').setSize(320, 240);
 
+	const image = setCommonDisplayState(doc.createGImage('image'))
+		.setId('n0')
+		.setSkew(3, 4);
 	const objects = [
-		setCommonDisplayState(doc.createGImage('image')).setId('n0'),
+		image,
 		setCommonDisplayState(doc.createGTextField('text')).setId('n1'),
 		setCommonDisplayState(doc.createGRichTextField('richText')).setId('n2'),
 		setCommonDisplayState(doc.createGTextInput('inputText')).setId('n3'),
@@ -95,6 +98,13 @@ test('XML round-trip preserves every modeled common display state on V1 node typ
 			t.truthy(object, `${source.getName()} survives round-trip`);
 			assertCommonDisplayState(t, object!, source.getName());
 		}
+		const imageTag = xml.match(/<image\b[^>]*\bid="n0"[^>]*>/)?.[0];
+		t.regex(imageTag ?? '', /\bskew="3,4"/, 'image writes modeled skew');
+		const roundTripImage = roundTripComponent?.getChildById('n0') as
+			| ReturnType<Document['createGImage']>
+			| null;
+		t.is(roundTripImage?.getSkewX(), 3);
+		t.is(roundTripImage?.getSkewY(), 4);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

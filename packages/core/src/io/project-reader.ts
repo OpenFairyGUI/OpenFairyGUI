@@ -1693,6 +1693,11 @@ export class ProjectReader {
 					const [scaleX, scaleY] = parseXYString(imageScale);
 					g.setScale(scaleX, scaleY);
 				}
+				const imageSkew = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.image.attrs.skew);
+				if (imageSkew) {
+					const [skewX, skewY] = parseXYString(imageSkew);
+					g.setSkew(skewX, skewY);
+				}
 				const imageRotation = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.image.attrs.rotation);
 				if (imageRotation !== undefined) g.setRotation(parseFloat2(imageRotation));
 				const imageAlpha = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.image.attrs.alpha);
