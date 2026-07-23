@@ -11,15 +11,18 @@ npm install --save @openfairygui/core @openfairygui/functions
 ## Usage
 
 ```ts
-import { NodeIO } from '@openfairygui/core';
-import { inspect, publish } from '@openfairygui/functions';
+import { NodeIO } from '@openfairygui/core/node';
+import { inspect } from '@openfairygui/functions';
+import { publishNode } from '@openfairygui/functions/node';
 
 const io = new NodeIO();
 const doc = await io.readProject('./MyProject/MyProject.fairy');
 
 const report = inspect(doc);
-await doc.transform(publish({ output: './release' }));
+await publishNode({ document: doc, output: './release' });
 ```
+
+`publishNode` owns the standard Node filesystem, Sharp raster backend, and project plugin discovery. The root `publish()` export remains the lower-level capability-injected core for custom hosts.
 
 ## Browser LayaBox publish
 
@@ -41,7 +44,7 @@ const result = await publishBrowser({
 if (!result.success) console.error(result.diagnostics);
 ```
 
-The browser entry uses native Canvas APIs for atlas PNGs, writes only through `outputFileSystem`, and skips Node publish plugins and non-runtime code generation.
+The browser entry uses native Canvas APIs for atlas PNGs, writes only through `outputFileSystem`, supplies no Node plugin capability, and disables non-runtime code generation.
 
 Publish plugins are documented in the repository guide:
 

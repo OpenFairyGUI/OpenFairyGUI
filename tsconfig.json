@@ -8,6 +8,7 @@
 			"@openfairygui/core/web": ["./packages/core/src/web.ts"],
 			"@openfairygui/functions": ["./packages/functions/src/index.ts"],
 			"@openfairygui/functions/uam": ["./packages/functions/src/uam-transaction.ts"],
+			"@openfairygui/functions/node": ["./packages/functions/src/node.ts"],
 			"@openfairygui/functions/web": ["./packages/functions/src/web.ts"],
 			"@openfairygui/backend": ["./packages/backend/src/index.ts"],
 			"@openfairygui/backend/node": ["./packages/backend/src/node.ts"],

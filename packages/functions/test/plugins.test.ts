@@ -3,32 +3,8 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { Document } from '@openfairygui/core';
-import { publish, type RootProjectSettings } from '../src/index.js';
-
-function createFs() {
-	return {
-		async readFileRaw(filePath: string): Promise<Uint8Array> {
-			const data = await fs.readFile(filePath);
-			return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-		},
-		async writeFileRaw(filePath: string, data: Uint8Array): Promise<void> {
-			await fs.mkdir(path.dirname(filePath), { recursive: true });
-			await fs.writeFile(filePath, data);
-		},
-		async mkdir(dirPath: string): Promise<void> {
-			await fs.mkdir(dirPath, { recursive: true });
-		},
-		async readdir(dirPath: string): Promise<string[]> {
-			return fs.readdir(dirPath);
-		},
-		async deleteFile(filePath: string): Promise<void> {
-			await fs.rm(filePath, { force: true });
-		},
-		join(...paths: string[]): string {
-			return path.join(...paths);
-		},
-	};
-}
+import type { RootProjectSettings } from '../src/index.js';
+import { publishNode } from '../src/node.js';
 
 function createCodegenDocument(projectDir: string): Document {
 	const doc = new Document();
@@ -73,7 +49,7 @@ async function writePlugin(projectDir: string, pluginName: string, source: strin
 	await fs.writeFile(path.join(pluginDir, 'index.mjs'), source, 'utf-8');
 }
 
-test('publish: code generation plugin supports default object export', async (t) => {
+test('publishNode: code generation plugin supports default object export', async (t) => {
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-codegen-plugin-default-'));
 
 	try {
@@ -90,12 +66,10 @@ export default {
 `,
 		);
 
-		await doc.transform(
-			publish({
-				output: path.join(tmpDir, 'release'),
-				fs: createFs(),
-			}),
-		);
+		await publishNode({
+			document: doc,
+			output: path.join(tmpDir, 'release'),
+		});
 
 		t.is(await fs.readFile(path.join(tmpDir, 'plugin-default.txt'), 'utf-8'), 'default:generated:1');
 		t.false(
@@ -110,7 +84,7 @@ export default {
 	}
 });
 
-test('publish: code generation plugin supports named genCode export', async (t) => {
+test('publishNode: code generation plugin supports named genCode export', async (t) => {
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-codegen-plugin-named-'));
 
 	try {
@@ -125,13 +99,11 @@ export async function genCode(doc, settings, options) {
 `,
 		);
 
-		await doc.transform(
-			publish({
-				output: path.join(tmpDir, 'release'),
-				basePath: path.join(tmpDir, 'assets'),
-				fs: createFs(),
-			}),
-		);
+		await publishNode({
+			document: doc,
+			output: path.join(tmpDir, 'release'),
+			assetsPath: path.join(tmpDir, 'assets'),
+		});
 
 		t.is(await fs.readFile(path.join(tmpDir, 'plugin-named.txt'), 'utf-8'), `generated:${tmpDir}:1`);
 	} finally {
@@ -139,7 +111,7 @@ export async function genCode(doc, settings, options) {
 	}
 });
 
-test('publish: plugin publish hooks run around publish and built-in codegen', async (t) => {
+test('publishNode: plugin publish hooks run around publish and built-in codegen', async (t) => {
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-plugin-hooks-'));
 
 	try {
@@ -167,13 +139,11 @@ export function onPublishEnd(doc, options) {
 `,
 		);
 
-		await doc.transform(
-			publish({
-				output: path.join(tmpDir, 'release'),
-				basePath: path.join(tmpDir, 'assets'),
-				fs: createFs(),
-			}),
-		);
+		await publishNode({
+			document: doc,
+			output: path.join(tmpDir, 'release'),
+			assetsPath: path.join(tmpDir, 'assets'),
+		});
 
 		t.is(await fs.readFile(path.join(tmpDir, 'hook-order.txt'), 'utf-8'), 'start>end');
 		t.true(
@@ -188,7 +158,7 @@ export function onPublishEnd(doc, options) {
 	}
 });
 
-test('publish: empty plugin does not replace built-in codegen', async (t) => {
+test('publishNode: empty plugin does not replace built-in codegen', async (t) => {
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-empty-plugin-'));
 
 	try {
@@ -201,13 +171,11 @@ export default {};
 `,
 		);
 
-		await doc.transform(
-			publish({
-				output: path.join(tmpDir, 'release'),
-				basePath: path.join(tmpDir, 'assets'),
-				fs: createFs(),
-			}),
-		);
+		await publishNode({
+			document: doc,
+			output: path.join(tmpDir, 'release'),
+			assetsPath: path.join(tmpDir, 'assets'),
+		});
 
 		t.true(
 			await fs
@@ -221,7 +189,7 @@ export default {};
 	}
 });
 
-test('publish: derives plugin directory from assets_branch basePath without string replacement', async (t) => {
+test('publishNode: derives plugin directory from assets_branch without string replacement', async (t) => {
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-assets-branch-plugin-'));
 
 	try {
@@ -236,13 +204,11 @@ export async function genCode(doc, settings, options) {
 `,
 		);
 
-		await doc.transform(
-			publish({
-				output: path.join(tmpDir, 'release'),
-				basePath: path.join(tmpDir, 'assets_branch'),
-				fs: createFs(),
-			}),
-		);
+		await publishNode({
+			document: doc,
+			output: path.join(tmpDir, 'release'),
+			assetsPath: path.join(tmpDir, 'assets_branch'),
+		});
 
 		t.is(await fs.readFile(path.join(tmpDir, 'plugin-branch.txt'), 'utf-8'), 'generated');
 	} finally {
@@ -250,7 +216,7 @@ export async function genCode(doc, settings, options) {
 	}
 });
 
-test('publish: non OpenFairyGUI plugins can share the plugins directory without blocking publish', async (t) => {
+test('publishNode: non OpenFairyGUI plugins can share the plugins directory without blocking publish', async (t) => {
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-mixed-plugins-'));
 
 	try {
@@ -264,13 +230,11 @@ test('publish: non OpenFairyGUI plugins can share the plugins directory without 
 			'utf-8',
 		);
 
-		await doc.transform(
-			publish({
-				output: path.join(tmpDir, 'release'),
-				basePath: path.join(tmpDir, 'assets'),
-				fs: createFs(),
-			}),
-		);
+		await publishNode({
+			document: doc,
+			output: path.join(tmpDir, 'release'),
+			assetsPath: path.join(tmpDir, 'assets'),
+		});
 
 		t.true(
 			await fs
@@ -284,7 +248,7 @@ test('publish: non OpenFairyGUI plugins can share the plugins directory without 
 	}
 });
 
-test('publish: broken plugin load does not block publish', async (t) => {
+test('publishNode: broken plugin load does not block publish', async (t) => {
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-broken-plugin-'));
 
 	try {
@@ -297,13 +261,11 @@ throw new Error('bad plugin');
 `,
 		);
 
-		await doc.transform(
-			publish({
-				output: path.join(tmpDir, 'release'),
-				basePath: path.join(tmpDir, 'assets'),
-				fs: createFs(),
-			}),
-		);
+		await publishNode({
+			document: doc,
+			output: path.join(tmpDir, 'release'),
+			assetsPath: path.join(tmpDir, 'assets'),
+		});
 
 		t.true(
 			await fs
@@ -317,7 +279,7 @@ throw new Error('bad plugin');
 	}
 });
 
-test('publish: plugin hook failure does not block publish', async (t) => {
+test('publishNode: plugin hook failure does not block publish', async (t) => {
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-plugin-hook-failure-'));
 
 	try {
@@ -336,13 +298,11 @@ export function onPublishEnd() {
 `,
 		);
 
-		await doc.transform(
-			publish({
-				output: path.join(tmpDir, 'release'),
-				basePath: path.join(tmpDir, 'assets'),
-				fs: createFs(),
-			}),
-		);
+		await publishNode({
+			document: doc,
+			output: path.join(tmpDir, 'release'),
+			assetsPath: path.join(tmpDir, 'assets'),
+		});
 
 		t.true(
 			await fs
@@ -356,7 +316,7 @@ export function onPublishEnd() {
 	}
 });
 
-test('publish: code generation plugin failure falls back to built-in codegen', async (t) => {
+test('publishNode: code generation plugin failure falls back to built-in codegen', async (t) => {
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-plugin-codegen-failure-'));
 
 	try {
@@ -371,13 +331,11 @@ export function genCode() {
 `,
 		);
 
-		await doc.transform(
-			publish({
-				output: path.join(tmpDir, 'release'),
-				basePath: path.join(tmpDir, 'assets'),
-				fs: createFs(),
-			}),
-		);
+		await publishNode({
+			document: doc,
+			output: path.join(tmpDir, 'release'),
+			assetsPath: path.join(tmpDir, 'assets'),
+		});
 
 		t.true(
 			await fs

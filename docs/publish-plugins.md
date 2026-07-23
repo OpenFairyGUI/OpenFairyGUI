@@ -1,11 +1,19 @@
 # Publish 插件
 
-本文记录 OpenFairyGUI `publish` 流程当前支持的插件口径。这里的插件只面向
+本文记录 OpenFairyGUI Node 发布链路当前支持的插件口径。这里的插件只面向
 OpenFairyGUI 自动化发布链路，不等同于 FairyGUI 编辑器插件。
+
+## 宿主边界
+
+只有 Node adapter（`@openfairygui/functions/node` 的 `publishNode()`）会从工程 `plugins/` 目录自动发现和加载 publish 插件。
+
+- 低层 `publish()` 内核不访问 Node 文件系统；它只执行调用方通过 `PublishOptions.plugins` 注入的 hooks。
+- `publishBrowser()` 不注入插件，因此 browser-safe 发布不会加载 Node 插件。
+- `genCode` 仍是通用发布后的处理能力；Node adapter 默认启用，browser adapter 默认关闭。
 
 ## 插件目录
 
-OpenFairyGUI 默认从工程根目录下的 `plugins/` 目录加载 publish 插件：
+`publishNode()` 默认从工程根目录下的 `plugins/` 目录加载 publish 插件：
 
 ```text
 MyProject/
@@ -17,8 +25,8 @@ MyProject/
       index.mjs
 ```
 
-读取工程后，`publish` 会优先按文档的工程根目录查找该目录。若文档没有工程根目录，
-但传入的 `basePath` 可定位到工程根目录，则按该根目录查找；两者都不可用时不加载插件，
+读取工程后，`publishNode()` 会优先按文档的工程根目录查找该目录。若文档没有工程根目录，
+但传入的 `assetsPath` 可定位到工程根目录，则按该根目录查找；两者都不可用时不加载插件，
 发布流程继续执行。
 
 ## Manifest

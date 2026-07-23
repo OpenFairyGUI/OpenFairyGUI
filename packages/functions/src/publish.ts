@@ -19,11 +19,11 @@ import { createTransform } from './utils.js';
 import { atlas, type AtlasOptions } from './atlas.js';
 import { publishCodeGeneration, resolveProjectBasePath } from './codegen.js';
 import { formatPluginError, type LoadedPlugin } from './plugins/types.js';
+import type { AtlasRasterBackend, PublishFileSystem } from './publish/contracts.js';
 import type {
 	CliPublishSettings,
 	HasOptionalFont,
 	PackagePublishArtifactsExtras,
-	PublishFileSystem,
 	RootProjectSettings,
 } from './shared-types.js';
 
@@ -46,10 +46,10 @@ export interface PublishOptions {
 	fileExtension?: string;
 
 	/**
-	 * Sharp module instance for atlas image compositing.
+	 * Raster backend for atlas image compositing.
 	 * If not provided, atlas packing only computes layout (no PNGs generated).
 	 */
-	encoder?: unknown;
+	encoder?: AtlasRasterBackend;
 
 	/**
 	 * Base path for reading source images (project assets root).
@@ -81,18 +81,31 @@ export interface PublishOptions {
 	branch?: string;
 
 	/**
-	 * Load Node publish plugins from the project directory. Default: true.
-	 * Browser adapters disable this because plugins are a Node-only extension point.
+	 * Publish hooks supplied by the host adapter.
+	 *
+	 * Node adapters load project plugins. Browser adapters pass an empty list.
 	 */
-	loadPlugins?: boolean;
+	plugins?: LoadedPlugin[];
 
 	/**
-	 * Run publish code generation after runtime artifacts. Default: true.
+	 * Run generic code generation after runtime artifacts. Default: true.
 	 */
 	codeGeneration?: boolean;
 }
 
-export interface ResolvedPublishAtlasOptions extends Pick<AtlasOptions, 'maxSize' | 'fast' | 'allowRotation' | 'padding' | 'powerOfTwo' | 'square' | 'multiPage' | 'trimImage' | 'extractAlpha'> {}
+export interface ResolvedPublishAtlasOptions
+	extends Pick<
+		AtlasOptions,
+		| 'maxSize'
+		| 'fast'
+		| 'allowRotation'
+		| 'padding'
+		| 'powerOfTwo'
+		| 'square'
+		| 'multiPage'
+		| 'trimImage'
+		| 'extractAlpha'
+	> {}
 
 export interface ResolvePublishOptionsOverrides {
 	compressed?: boolean;
@@ -148,26 +161,6 @@ async function runPublishPluginHook(
 			logger.warn(`publish: Plugin "${plugin.name}" ${hook} failed: ${formatPluginError(error)}`);
 		}
 	}
-}
-
-async function loadConfiguredPlugins(
-	doc: Document,
-	pluginsDir: string | undefined,
-	enabled: boolean | undefined,
-): Promise<LoadedPlugin[]> {
-	if (enabled === false || !pluginsDir) return [];
-	const { loadPlugins } = await import('./plugins/loader.js');
-	return loadPlugins(doc, pluginsDir);
-}
-
-function resolvePublishPluginsDir(doc: Document, options: PublishOptions): string {
-	const fs = options.fs;
-	const projectDir = doc.getProjectDir?.() ?? '';
-	if (projectDir) return fs?.join ? fs.join(projectDir, 'plugins') : `${projectDir.replace(/[/\\]+$/, '')}/plugins`;
-
-	const projectBasePath = resolveProjectBasePath(options.basePath);
-	if (!projectBasePath) return '';
-	return fs?.join ? fs.join(projectBasePath, 'plugins') : `${projectBasePath.replace(/[/\\]+$/, '')}/plugins`;
 }
 
 interface ImageResourceExtras extends Record<string, unknown> {
@@ -250,27 +243,6 @@ interface ComponentWithPublishRefs {
 	listTransitions?(): TransitionWithPublishRefs[];
 }
 
-interface PublishEncoderMetadata {
-	width?: number;
-	height?: number;
-	channels?: number;
-}
-
-interface PublishEncoderResolvedBuffer {
-	data: Uint8Array;
-	info: Required<Pick<PublishEncoderMetadata, 'width' | 'height' | 'channels'>> & PublishEncoderMetadata;
-}
-
-interface PublishEncoderPipeline {
-	ensureAlpha(): PublishEncoderPipeline;
-	resize(options: { width: number; height: number; fit: 'fill' }): PublishEncoderPipeline;
-	raw(): PublishEncoderPipeline;
-	toBuffer(options: { resolveWithObject: true }): Promise<PublishEncoderResolvedBuffer>;
-	metadata(): Promise<PublishEncoderMetadata>;
-}
-
-type PublishEncoder = (input: string | Uint8Array) => PublishEncoderPipeline;
-
 const UNITY_PROJECT_TYPE = ProjectType.Unity;
 const COCOS_CREATOR_PROJECT_TYPE = ProjectType.CocosCreator;
 
@@ -323,8 +295,7 @@ export function resolvePublishOptions(
 	const atlasSetting = publishSettings.atlasSetting ?? {};
 	const projectType = root.getProjectType();
 
-	const fileExtension = overrides.fileExtension
-		?? resolveDefaultPublishFileExtension(projectType, publishSettings);
+	const fileExtension = overrides.fileExtension ?? resolveDefaultPublishFileExtension(projectType, publishSettings);
 
 	let compressed = overrides.compressed ?? publishSettings.compressDesc ?? false;
 	if (projectType === UNITY_PROJECT_TYPE) {
@@ -368,7 +339,6 @@ function joinPathSegments(left: string, right: string): string {
 	return `${normalizedLeft}${separator}${normalizedRight}`;
 }
 
-
 function dirname(filePath: string): string {
 	const trimmed = filePath.replace(/[/\\]+$/, '');
 	const match = trimmed.match(/^(.*)[/\\][^/\\]+$/);
@@ -407,7 +377,9 @@ function isMovieClipResource(resource: ReturnType<Package['listResources']>[numb
 	return resource.propertyType === 'MovieClipResource';
 }
 
-function isHighResolutionResource(resource: ReturnType<Package['listResources']>[number]): resource is ImageResource | MovieClipResource {
+function isHighResolutionResource(
+	resource: ReturnType<Package['listResources']>[number],
+): resource is ImageResource | MovieClipResource {
 	return isImageResource(resource) || isMovieClipResource(resource);
 }
 
@@ -427,7 +399,9 @@ function isSpineResource(resource: ReturnType<Package['listResources']>[number])
 	return resource.propertyType === 'SpineResource';
 }
 
-function isDragonBonesResource(resource: ReturnType<Package['listResources']>[number]): resource is DragonBonesResource {
+function isDragonBonesResource(
+	resource: ReturnType<Package['listResources']>[number],
+): resource is DragonBonesResource {
 	return resource.propertyType === 'DragonBonesResource';
 }
 
@@ -474,10 +448,7 @@ function addLocalFontRef(target: Set<string>, pkgId: string, value: string | str
 	addLocalUiResourceRef(target, pkgId, value ?? undefined);
 }
 
-function resolvePackageAssetsBasePath(
-	basePath: string,
-	resource: BranchAwarePublishedResource | undefined,
-): string {
+function resolvePackageAssetsBasePath(basePath: string, resource: BranchAwarePublishedResource | undefined): string {
 	const branchName = resource?.getBranch?.() ?? '';
 	if (!branchName) return basePath;
 	const normalized = basePath.replace(/[/\\]+$/, '');
@@ -531,7 +502,11 @@ function resolvePublishedMiscFileName(resource: MiscResource, projectType: numbe
 }
 
 function resolvePublishedSkeletonFileName(resource: SpineResource | DragonBonesResource, projectType: number): string {
-	if (projectType === UNITY_PROJECT_TYPE && isSpineResource(resource) && resource.getFile().toLowerCase().endsWith('.skel')) {
+	if (
+		projectType === UNITY_PROJECT_TYPE &&
+		isSpineResource(resource) &&
+		resource.getFile().toLowerCase().endsWith('.skel')
+	) {
 		return `${resource.getFile()}.bytes`;
 	}
 	return resource.getFile();
@@ -549,7 +524,11 @@ function setPublishedFileExtra(
 }
 
 function setPublishedIdExtra(
-	resource: { getId(): string; getExtras(): Record<string, unknown> | undefined; setExtras(value: Record<string, unknown>): unknown },
+	resource: {
+		getId(): string;
+		getExtras(): Record<string, unknown> | undefined;
+		setExtras(value: Record<string, unknown>): unknown;
+	},
 	effectiveId: string | null,
 ): void {
 	const extras = (resource.getExtras() as PublishFileExtras | undefined) ?? {};
@@ -574,11 +553,7 @@ function getBranchName(resource: BranchAwarePublishedResource | undefined): stri
 	return resource?.getBranch?.() ?? '';
 }
 
-function buildBranchResourceKey(resource: {
-	propertyType: string;
-	getPath(): string;
-	getName(): string;
-}): string {
+function buildBranchResourceKey(resource: { propertyType: string; getPath(): string; getName(): string }): string {
 	return `${resource.propertyType}|${resource.getPath() ?? ''}|${resource.getName() ?? ''}`;
 }
 
@@ -588,12 +563,15 @@ const HIGH_RESOLUTION_LEVELS = [
 	{ scale: 4, bit: 4, slot: 2 },
 ] as const;
 
-function buildHighResolutionResourceKey(resource: {
-	propertyType: string;
-	getPath(): string;
-	getName(): string;
-	getBranch?(): string;
-}, name = resource.getName()): string {
+function buildHighResolutionResourceKey(
+	resource: {
+		propertyType: string;
+		getPath(): string;
+		getName(): string;
+		getBranch?(): string;
+	},
+	name = resource.getName(),
+): string {
 	return `${resource.propertyType}|${resource.getBranch?.() ?? ''}|${resource.getPath() ?? ''}|${name}`;
 }
 
@@ -643,7 +621,10 @@ function collectHighResolutionItemIds(
 			}
 
 			const highResolutionResource = highResolutionResourceByKey.get(
-				buildHighResolutionResourceKey(resource, appendHighResolutionScaleToName(resource.getName(), level.scale)),
+				buildHighResolutionResourceKey(
+					resource,
+					appendHighResolutionScaleToName(resource.getName(), level.scale),
+				),
 			);
 			if (!highResolutionResource) {
 				ids[level.slot] = null;
@@ -788,7 +769,12 @@ function collectPackagePublishContext(
 			continue;
 		}
 		if (isImageResource(resource)) {
-			if (resource.getExported() || referencedIds.has(resourceId) || spriteItemIds.has(resourceId) || pixelHitTestImageIds.has(resourceId)) {
+			if (
+				resource.getExported() ||
+				referencedIds.has(resourceId) ||
+				spriteItemIds.has(resourceId) ||
+				pixelHitTestImageIds.has(resourceId)
+			) {
 				publishedResourceIds.add(resourceId);
 			}
 			continue;
@@ -909,7 +895,7 @@ async function applyPixelHitTests(
 	pkg: Package,
 	imageIds: Set<string>,
 	basePath: string | undefined,
-	encoder: PublishEncoder | undefined,
+	encoder: AtlasRasterBackend | undefined,
 ): Promise<void> {
 	const images = pkg.listImageResources();
 	for (const image of images) {
@@ -971,7 +957,7 @@ async function applyPixelHitTests(
 async function annotatePackagePublishArtifacts(
 	pkg: Package,
 	basePath: string | undefined,
-	encoder: PublishEncoder | undefined,
+	encoder: AtlasRasterBackend | undefined,
 	options: {
 		projectType: number;
 		includeBranches: boolean;
@@ -1023,10 +1009,7 @@ function getAnnotatedExportedResourceIds(pkg: Package): Set<string> {
 	return new Set(extras.exportedResourceIds ?? []);
 }
 
-function getPublishedSkeletonDependencyImageIds(
-	pkg: Package,
-	publishedResourceIds: Set<string>,
-): Set<string> {
+function getPublishedSkeletonDependencyImageIds(pkg: Package, publishedResourceIds: Set<string>): Set<string> {
 	const imageIds = new Set<string>();
 	const resourcesById = new Map(pkg.listResources().map((resource) => [resource.getId(), resource] as const));
 	for (const resource of pkg.listResources()) {
@@ -1056,7 +1039,9 @@ async function exportPackageSounds(
 			return isSoundResource(resource) && publishedResourceIds.has(resource.getId());
 		});
 		if (hasPublishedSound) {
-			logger.warn(`publish: Sound resources in package "${pkg.getName()}" were not exported because basePath/readFileRaw is unavailable.`);
+			logger.warn(
+				`publish: Sound resources in package "${pkg.getName()}" were not exported because basePath/readFileRaw is unavailable.`,
+			);
 		}
 		return;
 	}
@@ -1092,19 +1077,23 @@ async function exportPackageExternalResources(
 	if (!basePath || !readFileRaw) {
 		const hasPublishedExternal = pkg.listResources().some((resource) => {
 			return (
-				(isMiscResource(resource) || isSkeletonResource(resource))
-				&& exportedResourceIds.has(resource.getId())
-			) || skeletonDependencyImageIds.has(resource.getId());
+				((isMiscResource(resource) || isSkeletonResource(resource)) &&
+					exportedResourceIds.has(resource.getId())) ||
+				skeletonDependencyImageIds.has(resource.getId())
+			);
 		});
 		if (hasPublishedExternal) {
-			logger.warn(`publish: External resources in package "${pkg.getName()}" were not exported because basePath/readFileRaw is unavailable.`);
+			logger.warn(
+				`publish: External resources in package "${pkg.getName()}" were not exported because basePath/readFileRaw is unavailable.`,
+			);
 		}
 		return;
 	}
 
 	for (const resource of pkg.listResources()) {
 		const resourceId = resource.getId();
-		const isSkeletonExternal = exportedResourceIds.has(resourceId) && (isMiscResource(resource) || isSkeletonResource(resource));
+		const isSkeletonExternal =
+			exportedResourceIds.has(resourceId) && (isMiscResource(resource) || isSkeletonResource(resource));
 		const isSkeletonImageDependency = skeletonDependencyImageIds.has(resourceId) && isImageResource(resource);
 		if (!isSkeletonExternal && !isSkeletonImageDependency) continue;
 
@@ -1115,7 +1104,8 @@ async function exportPackageExternalResources(
 			targetName = resolveImageFileName(resource);
 		} else if (isMiscResource(resource) || isSkeletonResource(resource)) {
 			sourcePath = resolveGenericResourcePath(resource, pkg, basePath);
-			targetName = ((resource.getExtras() as PublishFileExtras | undefined) ?? {})._publishedFile ?? resource.getFile();
+			targetName =
+				((resource.getExtras() as PublishFileExtras | undefined) ?? {})._publishedFile ?? resource.getFile();
 		} else {
 			continue;
 		}
@@ -1125,7 +1115,9 @@ async function exportPackageExternalResources(
 			const data = await readFileRaw(sourcePath);
 			await fs.writeFileRaw(targetPath, data);
 		} catch {
-			logger.warn(`publish: Could not export external resource "${resource.getId()}" from package "${pkg.getName()}".`);
+			logger.warn(
+				`publish: Could not export external resource "${resource.getId()}" from package "${pkg.getName()}".`,
+			);
 		}
 	}
 }
@@ -1134,9 +1126,12 @@ async function exportPackageExternalResources(
  * Publishes a FairyGUI project.
  *
  * Orchestrates:
- * 1. Atlas packing (MaxRects layout + optional sharp compositing)
+ * 1. Atlas packing (MaxRects layout + optional raster compositing)
  * 2. Per-package .fui binary serialization
  * 3. File writing to the output directory
+ *
+ * This is the capability-injected core. Standard hosts should use
+ * `publishNode()` or `publishBrowser()` through their dedicated entries.
  *
  * ```ts
  * import sharp from 'sharp';
@@ -1161,7 +1156,9 @@ export function publish(options: PublishOptions): Transform {
 			if (isAbsolutePathLike(trimmed) || !projectBasePath) {
 				return trimTrailingSlashes(trimmed);
 			}
-			return trimTrailingSlashes(options.fs ? options.fs.join(projectBasePath, trimmed) : joinPathSegments(projectBasePath, trimmed));
+			return trimTrailingSlashes(
+				options.fs ? options.fs.join(projectBasePath, trimmed) : joinPathSegments(projectBasePath, trimmed),
+			);
 		};
 
 		const resolveProjectPublishConfig = (): ResolvedProjectPublishConfig => {
@@ -1188,7 +1185,11 @@ export function publish(options: PublishOptions): Transform {
 			};
 		};
 
-		const resolvePackagePublishPlan = (pkg: Package, config: ResolvedProjectPublishConfig, projectBasePath?: string): ResolvedPackagePublishPlan => {
+		const resolvePackagePublishPlan = (
+			pkg: Package,
+			config: ResolvedProjectPublishConfig,
+			projectBasePath?: string,
+		): ResolvedPackagePublishPlan => {
 			let outputDir: string | undefined;
 
 			if (options.output) {
@@ -1236,7 +1237,7 @@ export function publish(options: PublishOptions): Transform {
 			},
 		});
 
-		const publishPackage = async ( plan: ResolvedPackagePublishPlan, writerFs: FileSystem, packageIndex: number) => {
+		const publishPackage = async (plan: ResolvedPackagePublishPlan, writerFs: FileSystem, packageIndex: number) => {
 			const atlasRuntimeOptions = resolvePublishAtlasRuntimeOptions(plan.fileExtension);
 			await atlas({
 				...plan.atlas,
@@ -1253,7 +1254,9 @@ export function publish(options: PublishOptions): Transform {
 
 			if (!options.fs) return;
 			if (!plan.outputDir) {
-				throw new Error('publish: no output directory resolved. Provide --output, or configure global publish.path / package publishPath.');
+				throw new Error(
+					'publish: no output directory resolved. Provide --output, or configure global publish.path / package publishPath.',
+				);
 			}
 
 			await options.fs.mkdir(plan.outputDir);
@@ -1289,8 +1292,7 @@ export function publish(options: PublishOptions): Transform {
 		const root = doc.getRoot();
 		const logger = doc.getLogger();
 		const projectBasePath = resolveProjectBasePath(options.basePath) || doc.getProjectDir?.() || '';
-		const pluginsDir = resolvePublishPluginsDir(doc, options);
-		const plugins = await loadConfiguredPlugins(doc, pluginsDir, options.loadPlugins);
+		const plugins = options.plugins ?? [];
 		await runPublishPluginHook(plugins, 'onPublishStart', doc, options);
 
 		const resolved = resolveProjectPublishConfig();
@@ -1319,23 +1321,20 @@ export function publish(options: PublishOptions): Transform {
 			// Compute dependency list and selected publish artifacts before atlas packing,
 			// so merged-branch publishes can pack the overridden resources with main IDs.
 			_computeDependencies(doc, pkg, pkgMap);
-			await annotatePackagePublishArtifacts(
-				pkg,
-				options.basePath,
-				options.encoder as PublishEncoder | undefined,
-				{
-					projectType: resolved.projectType,
-					includeBranches: resolved.includeBranches,
-					activeBranch: resolved.activeBranch,
-					includeHighResolution: resolved.includeHighResolution,
-				},
-			);
+			await annotatePackagePublishArtifacts(pkg, options.basePath, options.encoder, {
+				projectType: resolved.projectType,
+				includeBranches: resolved.includeBranches,
+				activeBranch: resolved.activeBranch,
+				includeHighResolution: resolved.includeHighResolution,
+			});
 		}
 
 		const plans = allPackages.map((pkg) => resolvePackagePublishPlan(pkg, resolved, projectBasePath));
 
 		if (!options.fs) {
-			logger.info(`publish: No fs provided — layout computed for ${allPackages.length} package(s), skipping file output.`);
+			logger.info(
+				`publish: No fs provided — layout computed for ${allPackages.length} package(s), skipping file output.`,
+			);
 			const noopWriterFs = toBinaryWriterFileSystem(createNoopPublishFs());
 			for (const plan of plans) {
 				await publishPackage(plan, noopWriterFs, allDocPackages.indexOf(plan.pkg));
@@ -1368,7 +1367,9 @@ export function publish(options: PublishOptions): Transform {
 			});
 		}
 
-		const publishedTargets = [...new Set(plans.map((plan) => plan.outputDir).filter((value): value is string => Boolean(value)))];
+		const publishedTargets = [
+			...new Set(plans.map((plan) => plan.outputDir).filter((value): value is string => Boolean(value))),
+		];
 		logger.info(
 			publishedTargets.length > 0
 				? `publish: Published ${allPackages.length} package(s) to ${publishedTargets.join(', ')}`
@@ -1386,7 +1387,12 @@ export function publish(options: PublishOptions): Transform {
 function _computeDependencies(doc: Document, pkg: Package, pkgMap: Map<string, Package>): void {
 	const referencedPkgIds = new Set<string>();
 	const pkgId = pkg.getId();
-	const packageOrder = new Map(doc.getRoot().listPackages().map((entry, index) => [entry.getId(), index] as const));
+	const packageOrder = new Map(
+		doc
+			.getRoot()
+			.listPackages()
+			.map((entry, index) => [entry.getId(), index] as const),
+	);
 	const addDependencyPackageId = (dependencyPkgId: string | null | undefined): void => {
 		const normalized = dependencyPkgId?.trim() ?? '';
 		if (!normalized || normalized === pkgId) return;

@@ -13,7 +13,8 @@ import {
 	UNITY_COMPONENT_TEMPLATE,
 } from './codegen-templates.js';
 import { formatPluginError, type LoadedPlugin } from './plugins/types.js';
-import type { CliCodeGenerationSettings, PublishFileSystem, RootProjectSettings } from './shared-types.js';
+import type { PublishFileSystem } from './publish/contracts.js';
+import type { CliCodeGenerationSettings, RootProjectSettings } from './shared-types.js';
 
 export const AUTO_GENERATED_CODE_MARK = '/** This is an automatically generated class by FairyGUI. Please do not modify it. **/';
 const DEFAULT_CLASS_NAME_PREFIX = 'UI_';

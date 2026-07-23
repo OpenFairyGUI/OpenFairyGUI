@@ -1,5 +1,11 @@
 import type { Document } from '@openfairygui/core';
-import { formatPluginError, type LoadedPlugin, type Plugin, type PluginManifest, type PluginModule } from './types.js';
+import {
+	formatPluginError,
+	type LoadedPlugin,
+	type Plugin,
+	type PluginManifest,
+	type PluginModule,
+} from '../../plugins/types.js';
 
 interface PluginPackageJson extends Partial<PluginManifest> {
 	name?: string;

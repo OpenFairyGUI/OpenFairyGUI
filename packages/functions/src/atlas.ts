@@ -1,6 +1,20 @@
-import { GearType, TransitionActionType, type Component, type Document, type DragonBonesResource, type FontResource, type ILogger, type ImageResource, type MovieClipResource, type Package, type SpineResource, type Transform } from '@openfairygui/core';
+import {
+	GearType,
+	TransitionActionType,
+	type Component,
+	type Document,
+	type DragonBonesResource,
+	type FontResource,
+	type ILogger,
+	type ImageResource,
+	type MovieClipResource,
+	type Package,
+	type SpineResource,
+	type Transform,
+} from '@openfairygui/core';
 import { COMPAT_NODE_RECT_FLAGS, type CompatNodeRect } from './max-rects-compat.js';
 import { MaxRectsPackerCompat } from './max-rects-packer-compat.js';
+import type { AtlasRasterBackend, AtlasRasterInput, AtlasRasterResolvedBuffer } from './publish/contracts.js';
 import type { ExtrasMap, HasOptionalSrc, HasOptionalUrl } from './shared-types.js';
 import { createTransform, parseTextureSetMode, type TextureSetMode } from './utils.js';
 
@@ -12,7 +26,7 @@ export interface AtlasOptions {
 	packages?: string[];
 
 	/**
-	 * Sharp module instance, injected by the caller.
+	 * Raster backend, injected by the host adapter.
 	 * Required for actual image compositing and trimImage.
 	 *
 	 * ```ts
@@ -20,7 +34,7 @@ export interface AtlasOptions {
 	 * await doc.transform(atlas({ encoder: sharp }));
 	 * ```
 	 */
-	encoder?: unknown;
+	encoder?: AtlasRasterBackend;
 
 	/** Maximum atlas texture size (width and height). Default: 2048. */
 	maxSize?: number;
@@ -45,7 +59,7 @@ export interface AtlasOptions {
 
 	/**
 	 * Trim transparent pixels from image edges before packing.
-	 * Requires encoder (sharp). Stores offset/originalSize in Sprite nodes.
+	 * Requires a raster backend. Stores offset/originalSize in Sprite nodes.
 	 * Default: false.
 	 */
 	trimImage?: boolean;
@@ -98,10 +112,11 @@ export interface AtlasOptions {
 	 * separate atlas pages/files per branch instead of mixing them with main.
 	 */
 	separatedAtlasForBranch?: boolean;
-
 }
 
-const ATLAS_DEFAULTS: Required<Omit<AtlasOptions, 'packages' | 'encoder' | 'basePath' | 'outputPath' | 'mkdir' | 'readFileRaw'>> = {
+const ATLAS_DEFAULTS: Required<
+	Omit<AtlasOptions, 'packages' | 'encoder' | 'basePath' | 'outputPath' | 'mkdir' | 'readFileRaw'>
+> = {
 	maxSize: 2048,
 	fast: true,
 	allowRotation: true,
@@ -206,26 +221,6 @@ interface BranchAtlasGroup {
 	inputs: InputItem[];
 }
 
-interface AtlasEncoderMetadata {
-	width?: number;
-	height?: number;
-	channels?: number;
-	hasAlpha?: boolean;
-	trimOffsetLeft?: number;
-	trimOffsetTop?: number;
-}
-
-interface AtlasEncoderResolvedBuffer {
-	data: Uint8Array;
-	info: Required<Pick<AtlasEncoderMetadata, 'width' | 'height' | 'channels'>> & AtlasEncoderMetadata;
-}
-
-interface AtlasCompositeInput {
-	input: Uint8Array;
-	left: number;
-	top: number;
-}
-
 function getSelectedSkeletonDependencyImageIds(resources: PackageResource[]): Set<string> {
 	const imageIds = new Set<string>();
 	const resourcesById = new Map(resources.map((resource) => [resource.getId(), resource] as const));
@@ -239,35 +234,6 @@ function getSelectedSkeletonDependencyImageIds(resources: PackageResource[]): Se
 	}
 	return imageIds;
 }
-
-interface AtlasEncoderPipeline {
-	ensureAlpha(): AtlasEncoderPipeline;
-	resize(width: number, height: number, options?: { fit?: 'fill' }): AtlasEncoderPipeline;
-	raw(): AtlasEncoderPipeline;
-	extract(options: { left: number; top: number; width: number; height: number }): AtlasEncoderPipeline;
-	toBuffer(options: { resolveWithObject: true }): Promise<AtlasEncoderResolvedBuffer>;
-	toBuffer(options?: { resolveWithObject?: false }): Promise<Uint8Array>;
-	toBuffer(options?: { resolveWithObject?: boolean }): Promise<Uint8Array | AtlasEncoderResolvedBuffer>;
-	png(): AtlasEncoderPipeline;
-	metadata(): Promise<AtlasEncoderMetadata>;
-	rotate(angle: number): AtlasEncoderPipeline;
-	composite(inputs: AtlasCompositeInput[]): AtlasEncoderPipeline;
-	toFile(path: string): Promise<unknown>;
-}
-
-type AtlasEncoderInput =
-	| string
-	| Uint8Array
-	| {
-		create: {
-			width: number;
-			height: number;
-			channels: 4;
-			background: { r: number; g: number; b: number; alpha: number };
-		};
-	};
-
-type AtlasEncoder = (input: AtlasEncoderInput) => AtlasEncoderPipeline;
 
 function resolveFontFileName(fontName: string): string {
 	return /\.fnt$/i.test(fontName) ? fontName : `${fontName}.fnt`;
@@ -303,7 +269,9 @@ async function resolveEditorCompatibleResourceOrder(
 						const imgMatch = line.match(/\bimg=(\w+)/);
 						if (imgMatch) await addResource(resourceMap.get(imgMatch[1] ?? ''));
 					}
-				} catch { /* ignore */ }
+				} catch {
+					/* ignore */
+				}
 			}
 		}
 		if (isComponentResource(resource)) {
@@ -392,7 +360,9 @@ async function resolveEditorCompatibleResourceOrder(
 		]) {
 			await addResourceByLocalUiUrl(ref);
 		}
-		for (const transition of (component as Component & { listTransitions?(): TransitionWithAtlasRefs[] }).listTransitions?.() ?? []) {
+		for (const transition of (
+			component as Component & { listTransitions?(): TransitionWithAtlasRefs[] }
+		).listTransitions?.() ?? []) {
 			for (const item of transition.listItems?.() ?? []) {
 				const actionType = item.getActionType?.();
 				if (actionType !== TransitionActionType.Sound && actionType !== TransitionActionType.Icon) continue;
@@ -421,7 +391,7 @@ async function resolveEditorCompatibleResourceOrder(
  *
  * This transform performs MaxRects bin-packing on all ImageResource items
  * within each package, creating Atlas and Sprite property nodes. When an
- * `encoder` (sharp) is provided, it also composites the actual PNG files.
+ * a raster backend is provided, it also composites the actual PNG files.
  *
  * When `trimImage` is enabled and encoder is available, transparent pixels
  * at image edges are trimmed before packing. The trimmed offset and original
@@ -444,17 +414,20 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 	return createTransform('atlas', async (doc: Document): Promise<void> => {
 		const root = doc.getRoot();
 		const logger = doc.getLogger();
-		const encoder = options.encoder as AtlasEncoder | undefined;
+		const encoder = options.encoder;
 		const doTrim = options.trimImage && !!encoder && !!options.basePath;
 		const packageFilter = options.packages ? new Set(options.packages) : null;
 
 		for (const pkg of root.listPackages()) {
 			if (packageFilter && !packageFilter.has(pkg.getName())) continue;
 			// Respect publish-selected resources when publish() precomputes a merged branch view.
-			const selectedPublishIds = new Set(((pkg.getExtras() as PackageAtlasExtras | undefined) ?? {}).publishedResourceIds ?? []);
-			const allResources = selectedPublishIds.size > 0
-				? pkg.listResources().filter((resource) => selectedPublishIds.has(resource.getId()))
-				: pkg.listResources();
+			const selectedPublishIds = new Set(
+				((pkg.getExtras() as PackageAtlasExtras | undefined) ?? {}).publishedResourceIds ?? [],
+			);
+			const allResources =
+				selectedPublishIds.size > 0
+					? pkg.listResources().filter((resource) => selectedPublishIds.has(resource.getId()))
+					: pkg.listResources();
 			const skeletonDependencyImageIds = getSelectedSkeletonDependencyImageIds(allResources);
 			// Process resources in declaration order (matching editor behavior)
 			const orderedResources = await resolveEditorCompatibleResourceOrder(pkg, allResources, options);
@@ -517,7 +490,9 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 						addUiResourceRefsFromUnknown(referencedIds, gear.getDefaultValue?.());
 					}
 				}
-				for (const transition of (component as Component & { listTransitions?(): TransitionWithAtlasRefs[] }).listTransitions?.() ?? []) {
+				for (const transition of (
+					component as Component & { listTransitions?(): TransitionWithAtlasRefs[] }
+				).listTransitions?.() ?? []) {
 					for (const item of transition.listItems?.() ?? []) {
 						addUiResourceRefsFromUnknown(referencedIds, item.getStartValue?.());
 						addUiResourceRefsFromUnknown(referencedIds, item.getEndValue?.());
@@ -549,7 +524,9 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 								const match = line.match(/img=(\w+)/);
 								if (match) referencedIds.add(match[1]);
 							}
-						} catch { /* .fnt file not found — OK */ }
+						} catch {
+							/* .fnt file not found — OK */
+						}
 					}
 				}
 			}
@@ -559,15 +536,33 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 					// Pack referenced images, plus explicitly exported standalone images.
 					const resId = res.getId();
 					if (skeletonDependencyImageIds.has(resId)) continue;
-					if (selectedPublishIds.size === 0 && !res.getExported() && referencedIds.size > 0 && !referencedIds.has(resId)) continue;
+					if (
+						selectedPublishIds.size === 0 &&
+						!res.getExported() &&
+						referencedIds.size > 0 &&
+						!referencedIds.has(resId)
+					)
+						continue;
 					await _collectImage(res, pkg, inputs, encoder, options, doTrim, logger);
 				} else if (isMovieClipResource(res)) {
 					const resId = res.getId();
-					if (selectedPublishIds.size === 0 && !res.getExported() && referencedIds.size > 0 && !referencedIds.has(resId)) continue;
+					if (
+						selectedPublishIds.size === 0 &&
+						!res.getExported() &&
+						referencedIds.size > 0 &&
+						!referencedIds.has(resId)
+					)
+						continue;
 					await _collectMovieClipFrames(doc, res, pkg, inputs, encoder, options, logger);
 				} else if (isFontResource(res)) {
 					const resId = res.getId();
-					if (selectedPublishIds.size === 0 && !res.getExported() && referencedIds.size > 0 && !referencedIds.has(resId)) continue;
+					if (
+						selectedPublishIds.size === 0 &&
+						!res.getExported() &&
+						referencedIds.size > 0 &&
+						!referencedIds.has(resId)
+					)
+						continue;
 					await _collectFontTexture(doc, res, pkg, options);
 				}
 			}
@@ -575,16 +570,30 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 			if (inputs.length === 0) continue;
 			let totalPageCount = 0;
 			let usedDirectOutput = false;
-			const { autoInputs, fixedPageGroups, standaloneGroups, reservedPageIndexes } = groupStandaloneInputs(doc, inputs, options);
+			const { autoInputs, fixedPageGroups, standaloneGroups, reservedPageIndexes } = groupStandaloneInputs(
+				doc,
+				inputs,
+				options,
+			);
 			const branchGroups = buildBranchAtlasGroups(doc, autoInputs, options);
 			const branchPageOffsets = new Map<number, number>();
 
 			for (const group of branchGroups) {
-				const directOutput = fixedPageGroups.length === 0 && standaloneGroups.length === 0
-					? resolveDirectImageOutput(group.inputs, options)
-					: null;
+				const directOutput =
+					fixedPageGroups.length === 0 && standaloneGroups.length === 0
+						? resolveDirectImageOutput(group.inputs, options)
+						: null;
 				if (directOutput) {
-					await emitDirectImageOutput(doc, pkg, directOutput, encoder, options, logger, group.branchName, group.branchOrdinal);
+					await emitDirectImageOutput(
+						doc,
+						pkg,
+						directOutput,
+						encoder,
+						options,
+						logger,
+						group.branchName,
+						group.branchOrdinal,
+					);
 					usedDirectOutput = true;
 					totalPageCount += 1;
 					continue;
@@ -632,13 +641,18 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 					logger,
 				});
 				totalPageCount += emittedPageCount;
-				standalonePageOffsets.set(group.branchOrdinal, (standalonePageOffsets.get(group.branchOrdinal) ?? 0) + emittedPageCount);
+				standalonePageOffsets.set(
+					group.branchOrdinal,
+					(standalonePageOffsets.get(group.branchOrdinal) ?? 0) + emittedPageCount,
+				);
 			}
 
 			if (usedDirectOutput) {
 				logger.info(`atlas: Direct output for single image package "${pkg.getName()}".`);
 			}
-			logger.info(`atlas: Packed ${inputs.length} images into ${totalPageCount} atlas(es) for package "${pkg.getName()}".`);
+			logger.info(
+				`atlas: Packed ${inputs.length} images into ${totalPageCount} atlas(es) for package "${pkg.getName()}".`,
+			);
 		}
 	});
 }
@@ -648,14 +662,17 @@ function buildBranchAtlasGroups(doc: Document, inputs: InputItem[], options: Atl
 		return [{ branchName: '', branchOrdinal: 0, inputs }];
 	}
 
-	const discoveredBranchNames = [...new Set(inputs
-		.map((input) => getInputBranchName(input))
-		.filter((branchName) => !!branchName))];
+	const discoveredBranchNames = [
+		...new Set(inputs.map((input) => getInputBranchName(input)).filter((branchName) => !!branchName)),
+	];
 	if (discoveredBranchNames.length === 0) {
 		return [{ branchName: '', branchOrdinal: 0, inputs }];
 	}
 
-	const orderedBranchNames = doc.getRoot().listBranches().filter((branchName) => discoveredBranchNames.includes(branchName));
+	const orderedBranchNames = doc
+		.getRoot()
+		.listBranches()
+		.filter((branchName) => discoveredBranchNames.includes(branchName));
 	for (const branchName of discoveredBranchNames) {
 		if (!orderedBranchNames.includes(branchName)) orderedBranchNames.push(branchName);
 	}
@@ -709,7 +726,7 @@ async function emitPagedAtlasGroup(
 		pageStart: number;
 		fileNameAt: (pageIndex: number) => string;
 		options: AtlasOptions;
-		encoder: AtlasEncoder | undefined;
+		encoder: AtlasRasterBackend | undefined;
 		logger: ILogger;
 		forceSinglePage?: boolean;
 	},
@@ -729,7 +746,15 @@ async function emitPagedAtlasGroup(
 		pkg.addAtlas(atlasNode);
 
 		attachSpritesToAtlas(doc, allResources, inputs, page.outputRects, atlasNode);
-		await writeAtlasPageImage(pkg, inputs, page, atlasNode.getFile(), context.encoder, context.options, context.logger);
+		await writeAtlasPageImage(
+			pkg,
+			inputs,
+			page,
+			atlasNode.getFile(),
+			context.encoder,
+			context.options,
+			context.logger,
+		);
 	}
 
 	return pages.length;
@@ -742,7 +767,7 @@ async function emitStandaloneAtlasGroup(
 	context: {
 		atlasIndexStart: number;
 		options: AtlasOptions;
-		encoder: AtlasEncoder | undefined;
+		encoder: AtlasRasterBackend | undefined;
 		logger: ILogger;
 	},
 ): Promise<number> {
@@ -874,9 +899,13 @@ function attachSpritesToAtlas(
 async function writeAtlasPageImage(
 	pkg: Package,
 	inputs: InputItem[],
-	page: { width: number; height: number; outputRects: Array<{ index: number; x: number; y: number; width: number; height: number; rotated: boolean }> },
+	page: {
+		width: number;
+		height: number;
+		outputRects: Array<{ index: number; x: number; y: number; width: number; height: number; rotated: boolean }>;
+	},
 	atlasFileName: string,
-	encoder: AtlasEncoder | undefined,
+	encoder: AtlasRasterBackend | undefined,
 	options: AtlasOptions,
 	logger: ILogger,
 ): Promise<void> {
@@ -948,7 +977,12 @@ function inputToCompatRect(input: InputItem, index: number): CompatNodeRect {
 	};
 }
 
-function resolvePackedRectSize(input: InputItem, width: number, height: number, rectRotated: boolean): { width: number; height: number } {
+function resolvePackedRectSize(
+	input: InputItem,
+	width: number,
+	height: number,
+	rectRotated: boolean,
+): { width: number; height: number } {
 	if (!rectRotated) return { width, height };
 	return {
 		width: input.height,
@@ -968,7 +1002,11 @@ function resolveDirectImageOutput(inputs: InputItem[], options: AtlasOptions): I
 	return input;
 }
 
-function resolveDirectOutputAtlasSize(width: number, height: number, options: AtlasOptions): { width: number; height: number } {
+function resolveDirectOutputAtlasSize(
+	width: number,
+	height: number,
+	options: AtlasOptions,
+): { width: number; height: number } {
 	let resolvedWidth = width;
 	let resolvedHeight = height;
 	if (options.square) {
@@ -987,7 +1025,7 @@ async function emitDirectImageOutput(
 	doc: Document,
 	pkg: Package,
 	input: InputItem,
-	encoder: AtlasEncoder | undefined,
+	encoder: AtlasRasterBackend | undefined,
 	options: AtlasOptions,
 	logger: ILogger,
 	branchName: string = '',
@@ -1060,11 +1098,7 @@ function resolveAtlasOutputFileName(pkg: Package, pageIndex: number, branchName:
 	return `${pkg.getPublishName() || pkg.getName()}_atlas${pageIndex}${suffix}.png`;
 }
 
-function resolveStandaloneAtlasOutputFileName(
-	pkg: Package,
-	resource: PackInputResource,
-	branchName: string,
-): string {
+function resolveStandaloneAtlasOutputFileName(pkg: Package, resource: PackInputResource, branchName: string): string {
 	const baseName = `${pkg.getPublishName() || pkg.getName()}_atlas_${getPublishedItemId(resource)}`;
 	const suffix = branchName ? `_${branchName}` : '';
 	if (isImageResource(resource)) {
@@ -1130,11 +1164,23 @@ function sortResourcesByOrder(
 	ordered.sort((left, right) => {
 		const leftId = left.getId();
 		const rightId = right.getId();
-		const leftOrder = leftId && orderMap.has(leftId) ? (orderMap.get(leftId) ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER;
-		const rightOrder = rightId && orderMap.has(rightId) ? (orderMap.get(rightId) ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER;
+		const leftOrder =
+			leftId && orderMap.has(leftId)
+				? (orderMap.get(leftId) ?? Number.MAX_SAFE_INTEGER)
+				: Number.MAX_SAFE_INTEGER;
+		const rightOrder =
+			rightId && orderMap.has(rightId)
+				? (orderMap.get(rightId) ?? Number.MAX_SAFE_INTEGER)
+				: Number.MAX_SAFE_INTEGER;
 		if (leftOrder !== rightOrder) return leftOrder - rightOrder;
-		const leftInputOrder = leftId && inputOrderMap.has(leftId) ? (inputOrderMap.get(leftId) ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER;
-		const rightInputOrder = rightId && inputOrderMap.has(rightId) ? (inputOrderMap.get(rightId) ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER;
+		const leftInputOrder =
+			leftId && inputOrderMap.has(leftId)
+				? (inputOrderMap.get(leftId) ?? Number.MAX_SAFE_INTEGER)
+				: Number.MAX_SAFE_INTEGER;
+		const rightInputOrder =
+			rightId && inputOrderMap.has(rightId)
+				? (inputOrderMap.get(rightId) ?? Number.MAX_SAFE_INTEGER)
+				: Number.MAX_SAFE_INTEGER;
 		if (leftInputOrder !== rightInputOrder) return leftInputOrder - rightInputOrder;
 		return (leftId ?? '').localeCompare(rightId ?? '');
 	});
@@ -1185,10 +1231,13 @@ function groupStandaloneInputs(
 	const fixedInputsByPage = new Map<string, PagedAtlasGroup>();
 	const standaloneGroups = new Map<string, StandaloneAtlasGroup>();
 	const reservedPageIndexes = new Set<number>();
-	const discoveredBranchNames = [...new Set(inputs
-		.map((input) => getInputBranchName(input))
-		.filter((branchName) => !!branchName))];
-	const orderedBranchNames = doc.getRoot().listBranches().filter((branchName) => discoveredBranchNames.includes(branchName));
+	const discoveredBranchNames = [
+		...new Set(inputs.map((input) => getInputBranchName(input)).filter((branchName) => !!branchName)),
+	];
+	const orderedBranchNames = doc
+		.getRoot()
+		.listBranches()
+		.filter((branchName) => discoveredBranchNames.includes(branchName));
 	for (const branchName of discoveredBranchNames) {
 		if (!orderedBranchNames.includes(branchName)) orderedBranchNames.push(branchName);
 	}
@@ -1247,34 +1296,31 @@ function groupStandaloneInputs(
 
 	return {
 		autoInputs,
-		fixedPageGroups: [...fixedInputsByPage.values()].sort((left, right) =>
-			left.branchOrdinal - right.branchOrdinal
-			|| left.pageIndex - right.pageIndex,
+		fixedPageGroups: [...fixedInputsByPage.values()].sort(
+			(left, right) => left.branchOrdinal - right.branchOrdinal || left.pageIndex - right.pageIndex,
 		),
-		standaloneGroups: [...standaloneGroups.values()].sort((left, right) =>
-			left.branchOrdinal - right.branchOrdinal
-			|| getPublishedItemId(left.resource).localeCompare(getPublishedItemId(right.resource)),
+		standaloneGroups: [...standaloneGroups.values()].sort(
+			(left, right) =>
+				left.branchOrdinal - right.branchOrdinal ||
+				getPublishedItemId(left.resource).localeCompare(getPublishedItemId(right.resource)),
 		),
 		reservedPageIndexes,
 	};
 }
 
 /**
- * Trim transparent edges from an image using sharp.
+ * Trim transparent edges from an image using the host raster backend.
  * Returns the trimmed buffer, dimensions, and offsets.
  * Falls back to the original image if trim fails (e.g. no alpha channel, no transparent edges).
  */
 async function _trimImage(
-	encoder: AtlasEncoder,
-	input: AtlasEncoderInput,
+	encoder: AtlasRasterBackend,
+	input: AtlasRasterInput,
 	originalWidth: number,
 	originalHeight: number,
 ): Promise<TrimInfo> {
 	try {
-		const trimResult = await encoder(input)
-			.ensureAlpha()
-			.raw()
-			.toBuffer({ resolveWithObject: true });
+		const trimResult = await encoder(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
 		if (!isResolvedBuffer(trimResult)) {
 			throw new Error('atlas: encoder raw alpha trim did not return resolved metadata.');
 		}
@@ -1362,10 +1408,16 @@ function _resolveImagePath(resource: ImageResource, pkg: Package, basePath: stri
 }
 
 type InputItem = {
-	id: string; width: number; height: number;
-	originalWidth: number; originalHeight: number;
-	offsetX: number; offsetY: number;
-	resource: PackInputResource; trimBuffer?: Uint8Array; rasterizedBuffer?: Uint8Array;
+	id: string;
+	width: number;
+	height: number;
+	originalWidth: number;
+	originalHeight: number;
+	offsetX: number;
+	offsetY: number;
+	resource: PackInputResource;
+	trimBuffer?: Uint8Array;
+	rasterizedBuffer?: Uint8Array;
 	sourceKind: 'image' | 'movieclip-frame';
 };
 
@@ -1389,7 +1441,7 @@ async function _collectImage(
 	resource: ImageResource,
 	pkg: Package,
 	inputs: InputItem[],
-	encoder: AtlasEncoder | undefined,
+	encoder: AtlasRasterBackend | undefined,
 	options: AtlasOptions,
 	doTrim: boolean,
 	logger: ILogger,
@@ -1414,7 +1466,7 @@ async function _collectImage(
 			sourceHasAlpha = metadata.hasAlpha === true || metadata.channels === 4;
 			if (/\.svg$/i.test(resolveImageFileName(resource)) && declaredWidth > 0 && declaredHeight > 0) {
 				rasterizedBuffer = await encoder(filePath)
-					.resize(declaredWidth, declaredHeight, { fit: 'fill' })
+					.resize({ width: declaredWidth, height: declaredHeight, fit: 'fill' })
 					.png()
 					.toBuffer();
 				sourceHasAlpha = true;
@@ -1429,7 +1481,10 @@ async function _collectImage(
 
 	if (origW <= 0 || origH <= 0) return;
 
-	let packW = origW, packH = origH, offX = 0, offY = 0;
+	let packW = origW,
+		packH = origH,
+		offX = 0,
+		offY = 0;
 	let trimBuf: Uint8Array | undefined;
 
 	if (doTrim && sourceHasAlpha && options.basePath && encoder) {
@@ -1447,9 +1502,13 @@ async function _collectImage(
 	}
 
 	inputs.push({
-		id: getPublishedItemId(resource), width: packW, height: packH,
-		originalWidth: origW, originalHeight: origH,
-		offsetX: offX, offsetY: offY,
+		id: getPublishedItemId(resource),
+		width: packW,
+		height: packH,
+		originalWidth: origW,
+		originalHeight: origH,
+		offsetX: offX,
+		offsetY: offY,
 		resource,
 		trimBuffer: trimBuf,
 		rasterizedBuffer,
@@ -1463,7 +1522,7 @@ async function _collectMovieClipFrames(
 	resource: MovieClipResource,
 	pkg: Package,
 	inputs: InputItem[],
-	encoder: AtlasEncoder | undefined,
+	encoder: AtlasRasterBackend | undefined,
 	options: AtlasOptions,
 	logger: ILogger,
 ): Promise<void> {
@@ -1553,7 +1612,7 @@ async function _createMovieClipFrameInput(
 	buffer: Uint8Array,
 	itemId: string,
 	resource: MovieClipResource,
-	encoder: AtlasEncoder | undefined,
+	encoder: AtlasRasterBackend | undefined,
 ): Promise<InputItem | null> {
 	if (!encoder || buffer.length === 0) return null;
 	try {
@@ -1626,10 +1685,7 @@ function _findPngEnd(data: Uint8Array, start: number): number {
 		pos += 8;
 		if (pos + length + 4 > data.length) return -1;
 		const isIEND =
-			data[pos - 4] === 0x49 &&
-			data[pos - 3] === 0x45 &&
-			data[pos - 2] === 0x4e &&
-			data[pos - 1] === 0x44;
+			data[pos - 4] === 0x49 && data[pos - 3] === 0x45 && data[pos - 2] === 0x4e && data[pos - 1] === 0x44;
 		pos += length + 4;
 		if (isIEND) return pos;
 	}
@@ -1760,7 +1816,7 @@ function _readUint16BE(data: Uint8Array, offset: number): number {
 function _readUint32BE(data: Uint8Array, offset: number): number {
 	if (offset + 3 >= data.length) return 0;
 	return (
-		(data[offset] * 0x1000000) +
+		data[offset] * 0x1000000 +
 		((data[offset + 1] ?? 0) << 16) +
 		((data[offset + 2] ?? 0) << 8) +
 		(data[offset + 3] ?? 0)
@@ -1823,27 +1879,53 @@ async function _collectFontTexture(
 					.setChannel(item.channel);
 				fontRes.addGlyph(glyph);
 			}
-		} catch { /* .fnt not found */ }
+		} catch {
+			/* .fnt not found */
+		}
 	}
 }
 
 /** Parse a BMFont .fnt text file into structured data for binary encoding. */
 function _parseFnt(text: string): {
-	hasFace: boolean; colored: boolean; resizable: boolean; hasChannel: boolean;
-	fontSize: number; xadvance: number; lineHeight: number;
+	hasFace: boolean;
+	colored: boolean;
+	resizable: boolean;
+	hasChannel: boolean;
+	fontSize: number;
+	xadvance: number;
+	lineHeight: number;
 	glyphs: Array<{
-		charId: number; img: string | null;
-		x: number; y: number; xoffset: number; yoffset: number;
-		width: number; height: number; xadvance: number; channel: number;
+		charId: number;
+		img: string | null;
+		x: number;
+		y: number;
+		xoffset: number;
+		yoffset: number;
+		width: number;
+		height: number;
+		xadvance: number;
+		channel: number;
 	}>;
 } {
 	const lines = text.split(/\r?\n/);
-	let hasFace = false, colored = false, resizable = false, hasChannel = false;
-	let fontSize = 0, globalXadvance = 0, lineHeight = 0;
+	let hasFace = false,
+		colored = false,
+		resizable = false,
+		hasChannel = false;
+	let fontSize = 0,
+		globalXadvance = 0,
+		lineHeight = 0;
 	const glyphs: Array<{
-		charId: number; img: string | null;
-		x: number; y: number; xoffset: number; yoffset: number;
-		width: number; height: number; xadvance: number; channel: number;
+		charId: number;
+		img: string | null;
+		x: number;
+		y: number;
+		xoffset: number;
+		yoffset: number;
+		width: number;
+		height: number;
+		xadvance: number;
+		channel: number;
 	}> = [];
 
 	for (const line of lines) {
@@ -1878,7 +1960,8 @@ function _parseFnt(text: string): {
 				const chnl = parseInt(attrs.chnl, 10) || 0;
 				if (chnl !== 0 && chnl !== 15) hasChannel = true;
 				glyphs.push({
-					charId, img,
+					charId,
+					img,
 					x: parseInt(attrs.x, 10) || 0,
 					y: parseInt(attrs.y, 10) || 0,
 					xoffset: parseInt(attrs.xoffset, 10) || 0,
@@ -1893,7 +1976,16 @@ function _parseFnt(text: string): {
 		}
 	}
 
-	return { hasFace, colored, resizable: fontSize > 0 ? resizable : false, hasChannel, fontSize, xadvance: globalXadvance, lineHeight, glyphs };
+	return {
+		hasFace,
+		colored,
+		resizable: fontSize > 0 ? resizable : false,
+		hasChannel,
+		fontSize,
+		xadvance: globalXadvance,
+		lineHeight,
+		glyphs,
+	};
 }
 
 function isComponentResource(resource: PackageResource): resource is Component {
@@ -1946,6 +2038,6 @@ function addUiResourceRefsFromUnknown(target: Set<string>, value: unknown): void
 	}
 }
 
-function isResolvedBuffer(value: Uint8Array | AtlasEncoderResolvedBuffer): value is AtlasEncoderResolvedBuffer {
+function isResolvedBuffer(value: Uint8Array | AtlasRasterResolvedBuffer): value is AtlasRasterResolvedBuffer {
 	return typeof value === 'object' && value !== null && 'data' in value && 'info' in value;
 }

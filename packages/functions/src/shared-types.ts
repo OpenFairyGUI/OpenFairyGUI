@@ -1,4 +1,6 @@
-import type { FileSystem, ProjectSettings, PublishSettings } from '@openfairygui/core';
+import type { ProjectSettings, PublishSettings } from '@openfairygui/core';
+
+export type { PublishFileSystem } from './publish/contracts.js';
 
 export type ExtrasMap = Record<string, unknown>;
 
@@ -57,10 +59,3 @@ export interface HasOptionalSrc {
 export interface HasOptionalUrl {
 	getUrl?(): string | undefined;
 }
-
-export type PublishFileSystem = Pick<FileSystem, 'join' | 'mkdir' | 'writeFileRaw'> & {
-	deleteFile?: (path: string) => Promise<void>;
-	exists?: FileSystem['exists'];
-	readdir?: FileSystem['readdir'];
-	readFileRaw?: FileSystem['readFileRaw'];
-};
