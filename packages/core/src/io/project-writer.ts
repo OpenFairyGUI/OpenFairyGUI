@@ -675,6 +675,29 @@ type WritableControllerAction = ReturnType<Controller['listActions']>[number] & 
 	getTargetPage?(): string;
 };
 
+function writeCommonDisplayState(
+	target: Record<string, unknown>,
+	object: WritableChild,
+	protocol: XmlNodeProtocol,
+): void {
+	const specs = protocol.attrs;
+	if (specs.alpha && (object.getAlpha?.() ?? 1) !== 1) {
+		writeXmlAttr(target, specs.alpha, formatDisplayAlpha(object.getAlpha?.() ?? 1));
+	}
+	if (specs.rotation && (object.getRotation?.() ?? 0) !== 0) {
+		writeXmlAttr(target, specs.rotation, String(object.getRotation?.() ?? 0));
+	}
+	if (specs.visible && object.getVisible?.() === false) {
+		writeXmlAttr(target, specs.visible, 'false');
+	}
+	if (specs.touchable && object.getTouchable?.() === false) {
+		writeXmlAttr(target, specs.touchable, 'false');
+	}
+	if (specs.grayed && object.getGrayed?.()) {
+		writeXmlAttr(target, specs.grayed, 'true');
+	}
+}
+
 function hasNonZeroInsets(value: { top?: number; bottom?: number; left?: number; right?: number } | null | undefined): boolean {
 	return !!value && !!(value.top || value.bottom || value.left || value.right);
 }
@@ -2013,6 +2036,7 @@ export class ProjectWriter {
 
 		// Gear child elements
 		const objectProtocol = DISPLAY_OBJECT_PROTOCOL_BY_TYPE[type] ?? PROJECT_XML_PROTOCOL.componentInstance;
+		writeCommonDisplayState(attrs, typedObj, objectProtocol);
 		const gearChildNameSet = getProtocolGearChildNameSet(objectProtocol);
 		for (const gear of obj.listGears()) {
 			const gearTag = GEAR_TAG[gear.getGearType()];

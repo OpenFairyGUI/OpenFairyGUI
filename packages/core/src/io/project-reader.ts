@@ -766,6 +766,46 @@ function parseComboBoxItemXmlNode(item: ComboItemXmlNode): {
 	};
 }
 
+type WritableCommonDisplayState = GObject & {
+	setAlpha?(value: number): unknown;
+	setRotation?(value: number): unknown;
+	setVisible?(value: boolean): unknown;
+	setTouchable?(value: boolean): unknown;
+	setGrayed?(value: boolean): unknown;
+};
+
+function readCommonDisplayState(
+	source: DisplayObjectXmlNode,
+	object: WritableCommonDisplayState,
+	protocol: XmlNodeProtocol,
+): void {
+	const specs = protocol.attrs;
+	const alpha = specs.alpha
+		? readXmlAttr<string | number>(source, specs.alpha)
+		: undefined;
+	if (alpha !== undefined) object.setAlpha?.(parseFloat2(alpha, 1));
+
+	const rotation = specs.rotation
+		? readXmlAttr<string | number>(source, specs.rotation)
+		: undefined;
+	if (rotation !== undefined) object.setRotation?.(parseFloat2(rotation));
+
+	const visible = specs.visible
+		? readXmlAttr<string | boolean>(source, specs.visible)
+		: undefined;
+	if (visible !== undefined) object.setVisible?.(parseBool(visible));
+
+	const touchable = specs.touchable
+		? readXmlAttr<string | boolean>(source, specs.touchable)
+		: undefined;
+	if (touchable !== undefined) object.setTouchable?.(parseBool(touchable));
+
+	const grayed = specs.grayed
+		? readXmlAttr<string | boolean>(source, specs.grayed)
+		: undefined;
+	if (grayed !== undefined) object.setGrayed?.(parseBool(grayed));
+}
+
 export interface FileSystem {
 	readFile(path: string): Promise<string>;
 	readFileRaw(path: string): Promise<Uint8Array>;
@@ -2463,6 +2503,7 @@ export class ProjectReader {
 		const objectId = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.id);
 		obj.setId(objectId || '');
 		const objectProtocol = DISPLAY_OBJECT_PROTOCOL_MAP[tagName];
+		readCommonDisplayState(attrs, obj as WritableCommonDisplayState, objectProtocol);
 		// Parse gear elements
 		for (const gearTag of getProtocolGearChildNames(objectProtocol)) {
 			const gearDefs = ensureArray(attrs[gearTag]);
