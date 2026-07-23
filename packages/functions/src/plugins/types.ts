@@ -44,4 +44,13 @@ export interface Plugin {
 	onPublishEnd?: (doc: Document, options: PublishOptions) => MaybePromise<void>;
 }
 
+export interface LoadedPlugin {
+	name: string;
+	plugin: Plugin;
+}
+
 export type PluginModule = Plugin & { default?: Plugin };
+
+export function formatPluginError(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
+}

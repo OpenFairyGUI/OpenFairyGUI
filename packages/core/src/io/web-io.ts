@@ -150,9 +150,9 @@ export function createFileSystemAccessFileSystem(root: FileSystemAccessDirectory
 /**
  * Browser-safe I/O implementation for reading and writing FairyGUI projects.
  *
- * WebIO performs project read/write only. Artifact publish and restore remain
- * Node-bound, and binary package I/O is intentionally not exposed from this
- * browser entrypoint.
+ * WebIO performs project read/write only. Browser artifact publish is exposed
+ * by `@openfairygui/functions/web`; binary package I/O is intentionally not
+ * exposed from this browser entrypoint.
  *
  * @category I/O
  */

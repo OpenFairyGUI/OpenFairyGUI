@@ -38,11 +38,21 @@
 				"types": "./dist/uam-transaction.d.ts",
 				"default": "./dist/uam-transaction.js"
 			}
+		},
+		"./web": {
+			"require": {
+				"types": "./dist/web.d.cts",
+				"default": "./dist/web.cjs"
+			},
+			"default": {
+				"types": "./dist/web.d.ts",
+				"default": "./dist/web.js"
+			}
 		}
 	},
 	"scripts": {
-		"build": "tsdown src/index.ts src/uam-transaction.ts --format esm,cjs --platform neutral --env.PACKAGE_VERSION=$npm_package_version",
-		"build:watch": "tsdown src/index.ts src/uam-transaction.ts --watch --format esm,cjs --platform neutral --env.PACKAGE_VERSION=$npm_package_version"
+		"build": "tsdown src/index.ts src/uam-transaction.ts src/web.ts --format esm,cjs --platform neutral --env.PACKAGE_VERSION=$npm_package_version",
+		"build:watch": "tsdown src/index.ts src/uam-transaction.ts src/web.ts --watch --format esm,cjs --platform neutral --env.PACKAGE_VERSION=$npm_package_version"
 	},
 	"files": [
 		"dist/",
