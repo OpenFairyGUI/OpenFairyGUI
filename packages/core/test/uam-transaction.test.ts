@@ -1236,6 +1236,11 @@ test('resource lifecycle preflight projects batches and rejects unsafe source pa
 		{ kind: 'addResource', selector: { packageId: 'pkg001' }, resource: addResource },
 	]);
 	t.true(duplicateIssues.some((issue) => issue.code === 'duplicate_resource_id'));
+	const removedTargetIssues = validateTransactionSupport(createSupportedProject(), [
+		{ kind: 'removeResource', selector: { packageId: 'pkg001', resourceId: 'img001' } },
+		{ kind: 'replaceResourceBytes', selector: { packageId: 'pkg001', resourceId: 'img001' }, sourceBytes: new Uint8Array([2]) },
+	]);
+	t.true(removedTargetIssues.some((issue) => issue.code === 'invalid_resource_selector'));
 
 	const replacedId = applyUamTransaction(createSupportedProject(), [
 		{ kind: 'removeResource', selector: { packageId: 'pkg001', resourceId: 'img001' } },

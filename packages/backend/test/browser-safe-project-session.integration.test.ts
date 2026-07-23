@@ -297,6 +297,14 @@ test('file-backed openSession declares the missing filesystem capability instead
 	t.is(openFailure.meta.diagnostics[0]?.code, 'capability_unavailable');
 });
 
+test('browser storage adapters require unlink before project writes', (t) => {
+	const storage = new MemoryBrowserStorage();
+	Object.defineProperty(storage, 'unlink', { value: undefined });
+
+	const error = t.throws(() => createBackendStorageFileSystem(storage as unknown as BackendAsyncStorageAdapter));
+	t.is(error?.message, 'Storage adapter must provide unlink() for project resource lifecycle writes.');
+});
+
 test('browser-safe project session saves through injected async storage', async (t) => {
 	const storage = new MemoryBrowserStorage();
 	const fileSystem = createBackendStorageFileSystem(storage);

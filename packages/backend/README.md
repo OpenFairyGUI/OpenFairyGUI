@@ -34,7 +34,8 @@ It does **not** redefine transaction grammar or expose `Document`.
 It also does **not** implement MCP or any transport-specific wire protocol.
 The root `@openfairygui/backend` entrypoint is browser-safe: pure authoring sessions can run in memory,
 and browser editors can inject an async storage adapter for OPFS, IndexedDB, ZIP-backed virtual filesystems,
-or File System Access API bridges. The default Node filesystem/runtime lives under `@openfairygui/backend/node`.
+or File System Access API bridges. Storage adapters must implement `unlink()` so resource rename/move/remove
+can clean up stale source files. The default Node filesystem/runtime lives under `@openfairygui/backend/node`.
 File-backed `openSession` hydrates primary resource bytes so browser-safe transactions can rename/move
 assets or add/replace/remove binary resources. `saveSession` writes replacement bytes before it removes
 stale source files, preserving the prior file when a write fails.

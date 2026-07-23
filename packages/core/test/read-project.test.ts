@@ -267,11 +267,21 @@ test('opt-in hydration never follows traversal paths from package XML', async (t
 			path.join(tmpDir, 'assets', 'Demo', 'package.xml'),
 			'<?xml version="1.0" encoding="utf-8"?><packageDescription id="pkgDemo"><resources><image id="img" name="secret.bin" path="../../" exported="true"/></resources></packageDescription>',
 		);
-		await fs.writeFile(path.join(tmpDir, 'secret.bin'), new Uint8Array([7, 8, 9]));
+		await fs.writeFile(path.join(tmpDir, 'secret.bin'), new Uint8Array([
+			0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+			0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+			0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x09,
+		]));
 
 		const doc = await new NodeIO().readProject(projectPath, { hydrateResourceBytes: true });
-		const image = doc.getRoot().getPackage('Demo')?.getResourceById('img') as { getSourceData?(): unknown } | undefined;
+		const image = doc.getRoot().getPackage('Demo')?.getResourceById('img') as {
+			getSourceData?(): unknown;
+			getWidth?(): number;
+			getHeight?(): number;
+		} | undefined;
 		t.is(image?.getSourceData?.() ?? null, null);
+		t.is(image?.getWidth?.() ?? 0, 0);
+		t.is(image?.getHeight?.() ?? 0, 0);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

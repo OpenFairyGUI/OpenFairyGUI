@@ -247,6 +247,7 @@ export type UamTransactionSupportIssueCode =
 	| 'invalid_gear_payload'
 	| 'duplicate_gear_state_page'
 	| 'invalid_resource_payload'
+	| 'invalid_resource_selector'
 	| 'duplicate_resource_id'
 	| 'unavailable_resource_source_bytes';
 
@@ -579,7 +580,16 @@ function validateTouchedResourceKind(
 	operationKind: UamTransactionOperation['kind'],
 ): void {
 	const resource = findProjectedResource(project, operations, operationIndex, selector);
-	if (!resource) return;
+	if (!resource) {
+		pushSupportIssue(
+			issues,
+			'invalid_resource_selector',
+			path,
+			`Resource "${selector.packageId}/${selector.resourceId}" does not exist at this point in the transaction.`,
+			{ operationKind },
+		);
+		return;
+	}
 	if (resource.kind === 'component' || UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds.includes(resource.kind as never)) {
 		return;
 	}
