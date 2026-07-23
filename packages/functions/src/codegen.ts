@@ -12,7 +12,7 @@ import {
 	UNITY_BINDER_TEMPLATE,
 	UNITY_COMPONENT_TEMPLATE,
 } from './codegen-templates.js';
-import { formatPluginError, type LoadedPlugin } from './plugins/loader.js';
+import { formatPluginError, type LoadedPlugin } from './plugins/types.js';
 import type { CliCodeGenerationSettings, PublishFileSystem, RootProjectSettings } from './shared-types.js';
 
 export const AUTO_GENERATED_CODE_MARK = '/** This is an automatically generated class by FairyGUI. Please do not modify it. **/';

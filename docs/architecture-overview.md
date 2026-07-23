@@ -43,7 +43,7 @@ flowchart LR
     subgraph WF["工作流能力"]
         OPS["inspect / validate / prune / rename"]
         APP["Phase A authoring app seam"]
-        PUB["publish"]
+        PUB["publish / publishBrowser"]
         RST["restore"]
         ATLAS["atlas"]
         CG["codegen"]
@@ -130,7 +130,7 @@ flowchart LR
 | UAM 主真相层 | 统一声明式工程级 authoring model，承接 `project / package / resource / component internals` 与行为语义，并公开 Phase A transaction kernel | `packages/core/src/uam/*.ts` |
 | 内部图物化层 | `Document` 持有 `Property Graph`，用于当前内部执行、存储、适配与既有工作流复用 | `packages/core/src/document.ts`、`packages/core/src/properties/property.ts` |
 | 项目骨架层 | `Root -> Package -> Resource -> Component` 组成基础结构 | `packages/core/src/properties/root.ts`、`packages/core/src/properties/package.ts`、`packages/core/src/properties/component.ts` |
-| 工作流层 | 面向自动化的可组合处理管线，以及建立在 `core` Phase A transaction contract 之上的薄 authoring app seam | `packages/functions/src/inspect.ts`、`packages/functions/src/validate.ts`、`packages/functions/src/prune.ts`、`packages/functions/src/rename.ts`、`packages/functions/src/publish.ts`、`packages/functions/src/restore.ts`、`packages/functions/src/codegen.ts`、`packages/functions/src/uam-transaction.ts` |
+| 工作流层 | 面向自动化的可组合处理管线，以及建立在 `core` Phase A transaction contract 之上的薄 authoring app seam | `packages/functions/src/inspect.ts`、`packages/functions/src/validate.ts`、`packages/functions/src/prune.ts`、`packages/functions/src/rename.ts`、`packages/functions/src/publish.ts`、`packages/functions/src/web.ts`、`packages/functions/src/restore.ts`、`packages/functions/src/codegen.ts`、`packages/functions/src/uam-transaction.ts` |
 | 状态化后端服务层 | browser-safe project session、browser-safe async project storage adapter、adapter-backed file session、revision/dirty tracking、backend-local canonical path / advisory lock、coordinated save、capability planes / manifest、version surface、runtime events、in-memory jobs、derived read-only cache，以及 `read / authoring / artifact / runtime` service stratification | `packages/backend/src/runtime.ts`、`packages/backend/src/storage.ts`、`packages/backend/src/node.ts`、`packages/backend/src/contracts.ts`、`packages/backend/src/path-policy.ts`、`packages/backend/src/services/*.ts` |
 | MCP 薄适配层 | 把 backend P2 方法完整映射为 MCP tools；承接 stdio transport、MCP tool output schema、identity resources 与 guidance prompts，不重新定义 UAM / backend 语义 | `packages/mcp/src/server.ts`、`packages/mcp/src/tool-definitions.ts`、`packages/mcp/src/tool-handler.ts`、`packages/mcp/src/resource-definitions.ts`、`packages/mcp/src/prompt-definitions.ts`、`packages/mcp/src/stdio.ts` |
 | 输出层 | 工程文件写回、图集产物生成、二进制封包输出与代码生成输出 | `packages/core/src/io/project-writer.ts`、`packages/functions/src/atlas.ts`、`packages/core/src/io/binary-writer.ts`、`packages/functions/src/codegen.ts` |
@@ -164,6 +164,10 @@ flowchart LR
 - `@openfairygui/functions/uam` 当前只暴露 UAM transaction app seam，用于 `@openfairygui/backend` browser root entry；`publish` / `restore` 仍留在 `@openfairygui/functions` 根入口，并由 CLI 或 Node bridge boundary 侧调用。
 - 当前 Unity、Layabox、Cocos Creator 共用同一条 `publish -> atlas / binary / codegen` 主链；差异主要体现在描述文件扩展名和代码生成 lane 选择，而不是工作流分叉。
 - `@openfairygui/cli` 是入口层，不下沉协议细节；`cli.ts` 只负责 program 注册和进程生命周期，`inspect`、`publish`、`restore`、backend capabilities 分别由独立 command 模块装配。
+
+## Browser 发布边界
+
+`@openfairygui/functions/web` 提供 LayaBox 的 browser-safe 发布入口：调用方注入源与输出 `FileSystem`，入口使用浏览器 Canvas 生成 atlas PNG，并复用 `publish -> atlas / BinaryWriter` 主链写出 `.fui`、atlas 与资源闭包。它返回写出文件和诊断，不加载 Node publish plugins，也不经过 backend Node bridge。
 
 ## 当前工程 XML 协议元数据结构
 
@@ -292,7 +296,7 @@ flowchart TD
     A2 --> F
     B2 --> F
     U --> C
-    C --> E["发布编排<br/>publish"]
+    C --> E["发布编排<br/>publish / publishBrowser"]
     E --> G["图集布局与合图<br/>atlas"]
     E --> H["二进制写出<br/>BinaryWriter"]
     F --> I["FairyGUI 工程输出"]

@@ -21,6 +21,28 @@ const report = inspect(doc);
 await doc.transform(publish({ output: './release' }));
 ```
 
+## Browser LayaBox publish
+
+Use `@openfairygui/core/web` to read the raw project, then publish through the browser-only entry. Both filesystems are caller-owned, so they can be File System Access, OPFS, IndexedDB, ZIP, or memory adapters.
+
+```ts
+import { WebIO } from '@openfairygui/core/web';
+import { publishBrowser } from '@openfairygui/functions/web';
+
+const document = await new WebIO(sourceFileSystem).readProject('Project.fairy');
+const result = await publishBrowser({
+	document,
+	sourceFileSystem,
+	outputFileSystem,
+	projectType: 'layabox',
+	output: '.fairygui-runtime',
+});
+
+if (!result.success) console.error(result.diagnostics);
+```
+
+The browser entry uses native Canvas APIs for atlas PNGs, writes only through `outputFileSystem`, and skips Node publish plugins and non-runtime code generation.
+
 Publish plugins are documented in the repository guide:
 
 - https://github.com/OpenFairyGUI/OpenFairyGUI/blob/main/docs/publish-plugins.md

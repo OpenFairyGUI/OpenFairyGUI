@@ -1,11 +1,5 @@
 import type { Document } from '@openfairygui/core';
-import { createJiti } from 'jiti';
-import type { Plugin, PluginManifest, PluginModule } from './types.js';
-
-export interface LoadedPlugin {
-	name: string;
-	plugin: Plugin;
-}
+import { formatPluginError, type LoadedPlugin, type Plugin, type PluginManifest, type PluginModule } from './types.js';
 
 interface PluginPackageJson extends Partial<PluginManifest> {
 	name?: string;
@@ -46,10 +40,6 @@ export async function loadPlugins(doc: Document, pluginsDir: string): Promise<Lo
 	return plugins;
 }
 
-export function formatPluginError(error: unknown): string {
-	return error instanceof Error ? error.message : String(error);
-}
-
 async function readPluginManifest(
 	fs: typeof import('node:fs/promises'),
 	path: typeof import('node:path'),
@@ -73,6 +63,7 @@ function resolvePluginMain(path: typeof import('node:path'), pluginDir: string, 
 }
 
 async function loadPlugin(mainPath: string): Promise<Plugin> {
+	const { createJiti } = await importNative<typeof import('jiti')>('jiti');
 	const jiti = createJiti(import.meta.url);
 	const mod = await jiti.import<PluginModule>(mainPath);
 	const defaultExport = mod.default;

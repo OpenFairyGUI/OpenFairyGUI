@@ -18,7 +18,7 @@ import {
 import { createTransform } from './utils.js';
 import { atlas, type AtlasOptions } from './atlas.js';
 import { publishCodeGeneration, resolveProjectBasePath } from './codegen.js';
-import { formatPluginError, loadPlugins, type LoadedPlugin } from './plugins/loader.js';
+import { formatPluginError, type LoadedPlugin } from './plugins/types.js';
 import type {
 	CliPublishSettings,
 	HasOptionalFont,
@@ -79,6 +79,17 @@ export interface PublishOptions {
 	 * Empty or omitted means publishing the main branch.
 	 */
 	branch?: string;
+
+	/**
+	 * Load Node publish plugins from the project directory. Default: true.
+	 * Browser adapters disable this because plugins are a Node-only extension point.
+	 */
+	loadPlugins?: boolean;
+
+	/**
+	 * Run publish code generation after runtime artifacts. Default: true.
+	 */
+	codeGeneration?: boolean;
 }
 
 export interface ResolvedPublishAtlasOptions extends Pick<AtlasOptions, 'maxSize' | 'fast' | 'allowRotation' | 'padding' | 'powerOfTwo' | 'square' | 'multiPage' | 'trimImage' | 'extractAlpha'> {}
@@ -137,6 +148,16 @@ async function runPublishPluginHook(
 			logger.warn(`publish: Plugin "${plugin.name}" ${hook} failed: ${formatPluginError(error)}`);
 		}
 	}
+}
+
+async function loadConfiguredPlugins(
+	doc: Document,
+	pluginsDir: string | undefined,
+	enabled: boolean | undefined,
+): Promise<LoadedPlugin[]> {
+	if (enabled === false || !pluginsDir) return [];
+	const { loadPlugins } = await import('./plugins/loader.js');
+	return loadPlugins(doc, pluginsDir);
 }
 
 function resolvePublishPluginsDir(doc: Document, options: PublishOptions): string {
@@ -1269,7 +1290,7 @@ export function publish(options: PublishOptions): Transform {
 		const logger = doc.getLogger();
 		const projectBasePath = resolveProjectBasePath(options.basePath) || doc.getProjectDir?.() || '';
 		const pluginsDir = resolvePublishPluginsDir(doc, options);
-		const plugins = pluginsDir ? await loadPlugins(doc, pluginsDir) : [];
+		const plugins = await loadConfiguredPlugins(doc, pluginsDir, options.loadPlugins);
 		await runPublishPluginHook(plugins, 'onPublishStart', doc, options);
 
 		const resolved = resolveProjectPublishConfig();
@@ -1338,12 +1359,14 @@ export function publish(options: PublishOptions): Transform {
 			await publishPackage(plan, writerFs, pkgIndex);
 		}
 
-		await publishCodeGeneration(doc, {
-			basePath: options.basePath,
-			fs: options.fs,
-			packages: allPackages,
-			plugins,
-		});
+		if (options.codeGeneration !== false) {
+			await publishCodeGeneration(doc, {
+				basePath: options.basePath,
+				fs: options.fs,
+				packages: allPackages,
+				plugins,
+			});
+		}
 
 		const publishedTargets = [...new Set(plans.map((plan) => plan.outputDir).filter((value): value is string => Boolean(value)))];
 		logger.info(
