@@ -187,7 +187,7 @@ test('applyUamTransactionApp returns committed UAM and survives write/read verti
 	}
 });
 
-test('applyUamTransactionApp leaves untouched unsupported baseline nodes as passthrough', (t) => {
+test('applyUamTransactionApp leaves untouched baseline nodes as passthrough', (t) => {
 	const result = applyUamTransactionApp({
 		project: createUnsupportedProject(),
 		operations: [],
@@ -207,10 +207,10 @@ test('applyUamTransactionApp exposes stable operation-scoped diagnostics', (t) =
 		project: createUnsupportedProject(),
 		operations: [
 			{
-				kind: 'setDisplayNodeProps',
-				opId: 'edit-button',
-				selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n2' },
-				props: { alpha: 0.5 },
+				kind: 'renameResource',
+				opId: 'rename-without-bytes',
+				selector: { packageId: 'pkg001', resourceId: 'img001' },
+				newName: 'renamed.png',
 			},
 		],
 	});
@@ -220,11 +220,11 @@ test('applyUamTransactionApp exposes stable operation-scoped diagnostics', (t) =
 	const failure = result as Extract<ApplyUamTransactionAppResult, { ok: false }>;
 	const diagnostic = failure.error.diagnostics[0];
 	t.deepEqual(diagnostic, {
-		code: 'unsupported_display_node_mutation',
-		message: 'Phase A does not support button display node mutation ("n2").',
+		code: 'unavailable_resource_source_bytes',
+		message: 'Resource "pkg001/img001" has no hydrated primary source bytes.',
 		severity: 'error',
-		path: 'operations[0].selector.displayNodeId',
-		nodeKind: 'button',
-		operationKind: 'setDisplayNodeProps',
+		path: 'operations[0].selector.resourceId',
+		resourceKind: 'image',
+		operationKind: 'renameResource',
 	});
 });

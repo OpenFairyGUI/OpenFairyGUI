@@ -2,6 +2,8 @@ import { bindLookGear, composeController } from '../authoring.js';
 import { GearType, PropertyType } from '../constants.js';
 import { Document } from '../document.js';
 import type { PlatformIO } from '../io/platform-io.js';
+import type { ProjectReadOptions } from '../io/project-reader.js';
+import type { ProjectSourceFile } from '../io/project-writer.js';
 import type { GObject } from '../properties/g-object.js';
 import type { ProjectSettings } from '../types/settings.js';
 import type {
@@ -270,6 +272,10 @@ type MaterializedAssetBase = {
 	setExported(exported: boolean): MaterializedAssetBase;
 };
 
+type MaterializedSourceDataResource = MaterializedAssetBase & {
+	setSourceData(buffer: ReturnType<Document['createBuffer']> | null): MaterializedSourceDataResource;
+};
+
 function materializeAssetBase<TResource extends MaterializedAssetBase>(asset: TResource, resource: UamAssetResource): TResource {
 	asset
 		.setId(resource.id)
@@ -277,6 +283,73 @@ function materializeAssetBase<TResource extends MaterializedAssetBase>(asset: TR
 		.setBranch(resource.branch)
 		.setBranchItemIds(resource.branchItemIds)
 		.setExported(resource.exported);
+	return asset;
+}
+
+function defaultAssetSourcePath(resource: UamAssetResource): string {
+	const fileName = resource.fileName ?? resource.file ?? '';
+	const path = resource.path.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+	return `/${[path, fileName].filter(Boolean).join('/')}`;
+}
+
+function sourceFileReference(packageName: string, resource: UamAssetResource): ProjectSourceFile | null {
+	const fileName = resource.fileName ?? resource.file ?? '';
+	if (!fileName) return null;
+	return {
+		packageName,
+		branch: resource.branch,
+		path: resource.path,
+		fileName,
+	};
+}
+
+function sourceFileKey(source: ProjectSourceFile): string {
+	return [source.branch, source.packageName, source.path, source.fileName].join('\0');
+}
+
+function projectSourceFiles(project: UamProject): Map<string, ProjectSourceFile> {
+	const sources = new Map<string, ProjectSourceFile>();
+	for (const pkg of project.packages) {
+		for (const resource of pkg.resources) {
+			if (resource.kind === 'component') continue;
+			const source = sourceFileReference(pkg.name, resource);
+			if (source) sources.set(`${pkg.id}/${resource.id}`, source);
+		}
+	}
+	return sources;
+}
+
+function staleSourceFiles(previousProject: UamProject, nextProject: UamProject): ProjectSourceFile[] {
+	const previous = projectSourceFiles(previousProject);
+	const nextKeys = new Set([...projectSourceFiles(nextProject).values()].map(sourceFileKey));
+	return [...previous.values()].filter((source) => !nextKeys.has(sourceFileKey(source)));
+}
+
+/** Marks hydrated resource bytes as committed at their current package-relative paths. */
+export function commitUamProjectSourcePaths(project: UamProject): void {
+	for (const pkg of project.packages) {
+		for (const resource of pkg.resources) {
+			if (resource.kind === 'component' || !(resource.sourceBytes instanceof Uint8Array)) continue;
+			resource.sourcePath = defaultAssetSourcePath(resource);
+		}
+	}
+}
+
+export interface WriteProjectFromUamOptions {
+	/** Previous project state used to safely clean replaced, moved, or removed source files. */
+	previousProject?: UamProject;
+}
+
+function attachAssetSourceData<TResource extends MaterializedSourceDataResource>(
+	doc: Document,
+	asset: TResource,
+	resource: UamAssetResource,
+): TResource {
+	if (resource.sourceBytes === undefined && !resource.sourcePath) return asset;
+	const buffer = doc.createBuffer()
+		.setURI(resource.sourcePath ?? defaultAssetSourcePath(resource))
+		.setData(resource.sourceBytes ? new Uint8Array(resource.sourceBytes) : null);
+	asset.setSourceData(buffer);
 	return asset;
 }
 
@@ -295,14 +368,14 @@ function metadataStringArray(resource: UamAssetResource, key: string): string[] 
 	return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
 }
 
-function materializeAssetResource(doc: Document, resource: UamAssetResource) {
+export function materializeAssetResource(doc: Document, resource: UamAssetResource) {
 	ensureSupportedResourceKind(resource.kind);
 	if (resource.kind === 'image') {
 		const image = materializeAssetBase(doc.createImageResource(resource.name), resource)
 			.setWidth(resource.dimensions?.width ?? 0)
 			.setHeight(resource.dimensions?.height ?? 0);
 		if (resource.fileName) image.setFileName(resource.fileName);
-		return image;
+		return attachAssetSourceData(doc, image, resource);
 	}
 	if (resource.kind === 'movieClip') {
 		const movieClip = materializeAssetBase(doc.createMovieClipResource(resource.name), resource)
@@ -313,18 +386,26 @@ function materializeAssetResource(doc: Document, resource: UamAssetResource) {
 			.setRepeatDelay(metadataNumber(resource, 'repeatDelay', 0))
 			.setSmoothing(metadataBoolean(resource, 'smoothing', true));
 		if (resource.fileName) movieClip.setFileName(resource.fileName);
-		return movieClip;
+		return attachAssetSourceData(doc, movieClip, resource);
 	}
 	if (resource.kind === 'sound') {
-		return materializeAssetBase(doc.createSoundResource(resource.name), resource).setFile(resource.file ?? '');
+		return attachAssetSourceData(
+			doc,
+			materializeAssetBase(doc.createSoundResource(resource.name), resource).setFile(resource.file ?? ''),
+			resource,
+		);
 	}
 	if (resource.kind === 'misc') {
-		return materializeAssetBase(doc.createMiscResource(resource.name), resource).setFile(resource.file ?? '');
+		return attachAssetSourceData(
+			doc,
+			materializeAssetBase(doc.createMiscResource(resource.name), resource).setFile(resource.file ?? ''),
+			resource,
+		);
 	}
 	if (resource.kind === 'font') {
 		const font = materializeAssetBase(doc.createFontResource(resource.name), resource);
 		if (resource.fileName) font.setFileName(resource.fileName);
-		return font
+		return attachAssetSourceData(doc, font
 			.setTextureId(`${resource.metadata?.textureId ?? ''}`)
 			.setRenderMode(`${resource.metadata?.renderMode ?? ''}`)
 			.setSamplePointSize(metadataNumber(resource, 'samplePointSize', 0))
@@ -334,18 +415,18 @@ function materializeAssetResource(doc: Document, resource: UamAssetResource) {
 			.setHasChannel(metadataBoolean(resource, 'hasChannel', false))
 			.setFontSize(metadataNumber(resource, 'fontSize', 0))
 			.setXAdvance(metadataNumber(resource, 'xAdvance', 0))
-			.setLineHeight(metadataNumber(resource, 'lineHeight', 0));
+			.setLineHeight(metadataNumber(resource, 'lineHeight', 0)), resource);
 	}
 	const skeleton = resource.kind === 'spine'
 		? doc.createSpineResource(resource.name)
 		: doc.createDragonBonesResource(resource.name);
-	return materializeAssetBase(skeleton, resource)
+	return attachAssetSourceData(doc, materializeAssetBase(skeleton, resource)
 		.setFile(resource.file ?? '')
 		.setWidth(resource.dimensions?.width ?? 0)
 		.setHeight(resource.dimensions?.height ?? 0)
 		.setRequireIds(metadataStringArray(resource, 'requireIds'))
 		.setAtlasNames(metadataStringArray(resource, 'atlasNames'))
-		.setAnchor(metadataNumber(resource, 'anchorX', 0), metadataNumber(resource, 'anchorY', 0));
+		.setAnchor(metadataNumber(resource, 'anchorX', 0), metadataNumber(resource, 'anchorY', 0)), resource);
 }
 
 export function materializeDisplayNode(
@@ -939,6 +1020,22 @@ function materializeGenericValueGear(
 	target.addGear(materialized);
 }
 
+export function materializeUamGear(
+	doc: Document,
+	component: ReturnType<Document['createComponent']>,
+	target: GObject,
+	gear: UamGearBinding,
+): void {
+	ensureSupportedGearKind(gear.kind);
+	if (gear.kind === 'display' || gear.kind === 'display2') {
+		materializeDisplayGear(doc, component, target, gear);
+	} else if (gear.kind === 'look') {
+		materializeLookGear(doc, component, target, gear);
+	} else {
+		materializeGenericValueGear(doc, component, target, gear);
+	}
+}
+
 function materializeGears(
 	doc: Document,
 	component: ReturnType<Document['createComponent']>,
@@ -946,14 +1043,7 @@ function materializeGears(
 	gears: UamGearBinding[],
 ): void {
 	for (const gear of gears) {
-		ensureSupportedGearKind(gear.kind);
-		if (gear.kind === 'display' || gear.kind === 'display2') {
-			materializeDisplayGear(doc, component, target, gear);
-		} else if (gear.kind === 'look') {
-			materializeLookGear(doc, component, target, gear);
-		} else {
-			materializeGenericValueGear(doc, component, target, gear);
-		}
+		materializeUamGear(doc, component, target, gear);
 	}
 }
 
@@ -1023,7 +1113,21 @@ type LiftableAssetResource = {
 	getExported(): boolean;
 	getBranch(): string;
 	getBranchItemIds(): string[];
+	getSourceData?(): {
+		getURI(): string;
+		getData(): Uint8Array | null;
+	} | null;
 };
+
+function liftAssetSourceData(resource: LiftableAssetResource): Pick<UamAssetResource, 'sourceBytes' | 'sourcePath'> {
+	const buffer = resource.getSourceData?.();
+	if (!buffer) return {};
+	const sourceBytes = buffer.getData();
+	return {
+		...(sourceBytes ? { sourceBytes: new Uint8Array(sourceBytes) } : { sourceBytes: null }),
+		...(buffer.getURI() ? { sourcePath: buffer.getURI() } : {}),
+	};
+}
 
 function baseAssetResource(kind: UamAssetResource['kind'], resource: LiftableAssetResource): UamAssetResource {
 	return {
@@ -1035,6 +1139,7 @@ function baseAssetResource(kind: UamAssetResource['kind'], resource: LiftableAss
 		branch: resource.getBranch(),
 		branchItemIds: resource.getBranchItemIds(),
 		metadata: null,
+		...liftAssetSourceData(resource),
 	};
 }
 
@@ -1683,13 +1788,18 @@ export async function writeProjectFromUam(
 	io: Pick<PlatformIO, 'writeProject'>,
 	project: UamProject,
 	projectPath: string,
+	options: WriteProjectFromUamOptions = {},
 ): Promise<void> {
-	await io.writeProject(materializeUamProject(project), projectPath);
+	await io.writeProject(materializeUamProject(project), projectPath, {
+		staleSourceFiles: options.previousProject ? staleSourceFiles(options.previousProject, project) : [],
+	});
+	commitUamProjectSourcePaths(project);
 }
 
 export async function readProjectAsUam(
 	io: Pick<PlatformIO, 'readProject'>,
 	projectPath: string,
+	options?: ProjectReadOptions,
 ): Promise<UamProject> {
-	return liftDocumentToUamProject(await io.readProject(projectPath));
+	return liftDocumentToUamProject(await io.readProject(projectPath, options));
 }

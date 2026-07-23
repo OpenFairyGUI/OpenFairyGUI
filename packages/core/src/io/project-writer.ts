@@ -455,6 +455,12 @@ type WritableFileResource = WritableResource & {
 	getFile?(): string;
 };
 
+type WritableSourceDataResource = WritableResource & {
+	getSourceData?(): {
+		getData(): Uint8Array | null;
+	} | null;
+};
+
 type WritableSkeletonResource = WritableFileResource & {
 	getWidth?(): number;
 	getHeight?(): number;
@@ -779,6 +785,23 @@ function assertDisplayListVariantAllowed(propertyType: string, tagName: string, 
  *
  * @category I/O
  */
+export interface ProjectWriteOptions {
+	/**
+	 * Previous package source files to remove only after every new project file
+	 * has been written successfully. Paths are package-relative by construction;
+	 * arbitrary filesystem paths are deliberately not accepted.
+	 */
+	staleSourceFiles?: readonly ProjectSourceFile[];
+}
+
+/** Identifies one raw package source file without exposing a filesystem path. */
+export interface ProjectSourceFile {
+	packageName: string;
+	branch: string;
+	path: string;
+	fileName: string;
+}
+
 export class ProjectWriter {
 	private readonly _fs: FileSystem;
 
@@ -786,10 +809,15 @@ export class ProjectWriter {
 		this._fs = fs;
 	}
 
-	async write(doc: Document, projectPath: string): Promise<void> {
+	async write(doc: Document, projectPath: string, options: ProjectWriteOptions = {}): Promise<void> {
 		const fs = this._fs;
 		const root = doc.getRoot();
 		const basePath = fs.dirname(projectPath);
+		const currentSourceFilePaths = new Set<string>();
+		const staleSourceFilePaths = new Set(
+			(options.staleSourceFiles ?? []).map((source) => this._projectSourceFilePath(basePath, source)),
+		);
+		for (const pkg of root.listPackages()) this._assertPackageOutputTargets(pkg);
 
 		// 1. Write .fairy file
 		const fairyXml = `<?xml version="1.0" encoding="utf-8"?>\n`
@@ -818,12 +846,20 @@ export class ProjectWriter {
 		const assetsPath = fs.join(basePath, 'assets');
 		await fs.mkdir(assetsPath);
 		for (const pkg of root.listPackages()) {
-			await this._writePackage(doc, pkg, assetsPath);
+			await this._writePackage(doc, pkg, assetsPath, currentSourceFilePaths);
 		}
+
+		await this._removeStaleSourceFiles(currentSourceFilePaths, staleSourceFilePaths);
 	}
 
-	private async _writePackage(_doc: Document, pkg: Package, assetsPath: string): Promise<void> {
+	private async _writePackage(
+		_doc: Document,
+		pkg: Package,
+		assetsPath: string,
+		currentSourceFilePaths: Set<string>,
+	): Promise<void> {
 		const fs = this._fs;
+		this._assertSafePathSegment(pkg.getName(), 'package name');
 		const pkgDir = fs.join(assetsPath, pkg.getName());
 		await fs.mkdir(pkgDir);
 		const basePath = fs.dirname(assetsPath);
@@ -903,9 +939,11 @@ export class ProjectWriter {
 		for (const comp of mainResources.filter((resource): resource is Component => resource.propertyType === 'Component')) {
 			await this._writeComponent(comp, pkgDir);
 		}
+		await this._writeResourceSourceFiles(mainResources, pkgDir, currentSourceFilePaths);
 
 		for (const [branchName, branchResources] of resourcesByBranch) {
 			if (!branchName) continue;
+			this._assertSafePathSegment(branchName, 'branch name');
 			const branchPkgDir = fs.join(basePath, `assets_${branchName}`, pkg.getName());
 			await fs.mkdir(branchPkgDir);
 			await fs.writeFile(
@@ -916,7 +954,114 @@ export class ProjectWriter {
 			for (const comp of branchResources.filter((resource): resource is Component => resource.propertyType === 'Component')) {
 				await this._writeComponent(comp, branchPkgDir);
 			}
+			await this._writeResourceSourceFiles(branchResources, branchPkgDir, currentSourceFilePaths);
 		}
+	}
+
+	private async _writeResourceSourceFiles(
+		resources: PackageResource[],
+		packageDir: string,
+		currentSourceFilePaths: Set<string>,
+	): Promise<void> {
+		const fs = this._fs;
+		for (const resource of resources) {
+			if (resource.propertyType === 'Component') continue;
+			const fileName = this._resourceFileName(resource as WritableResource);
+			if (!fileName) continue;
+			const relativePath = this._resourceSourceRelativePath(resource as WritableResource, fileName);
+			const targetPath = fs.join(packageDir, relativePath);
+			currentSourceFilePaths.add(targetPath);
+
+			const sourceData = (resource as WritableSourceDataResource).getSourceData?.();
+			if (!sourceData) continue;
+			const data = sourceData.getData();
+			if (!data) continue;
+			await fs.mkdir(fs.dirname(targetPath));
+			await fs.writeFileRaw(targetPath, new Uint8Array(data));
+		}
+	}
+
+	private async _removeStaleSourceFiles(
+		currentSourceFilePaths: Set<string>,
+		staleSourceFilePaths: Set<string>,
+	): Promise<void> {
+		const fs = this._fs;
+		const candidates = [...staleSourceFilePaths].filter((filePath) => !currentSourceFilePaths.has(filePath));
+		if (candidates.length === 0) return;
+		if (!fs.unlink) {
+			throw new Error('Project source cleanup requires a FileSystem.unlink() implementation.');
+		}
+		for (const filePath of candidates) {
+			if (!(await fs.exists(filePath))) continue;
+			await fs.unlink(filePath);
+		}
+	}
+
+	private _assertPackageOutputTargets(pkg: Package): void {
+		this._assertSafePathSegment(pkg.getName(), 'package name');
+		const resourcesByBranch = new Map<string, PackageResource[]>();
+		for (const resource of pkg.listResources()) {
+			const branchName = (resource as WritableResource).getBranch?.() ?? '';
+			const bucket = resourcesByBranch.get(branchName) ?? [];
+			bucket.push(resource);
+			resourcesByBranch.set(branchName, bucket);
+		}
+
+		for (const [branchName, resources] of resourcesByBranch) {
+			if (branchName) this._assertSafePathSegment(branchName, 'branch name');
+			const descriptorName = branchName ? 'package_branch.xml' : 'package.xml';
+			const targets = new Map<string, string>([[descriptorName, 'package descriptor']]);
+			for (const resource of resources) {
+				const target = resource.propertyType === 'Component'
+					? this._componentSourceRelativePath(resource as Component)
+					: this._resourceSourceRelativePath(resource as WritableResource, this._resourceFileName(resource as WritableResource));
+				if (!target) continue;
+				const previous = targets.get(target);
+				if (previous) {
+					throw new Error(`Package "${pkg.getName()}" output "${target}" conflicts with ${previous}.`);
+				}
+				targets.set(target, `resource "${(resource as WritableResource).getId?.() ?? resource.getName()}"`);
+			}
+		}
+	}
+
+	private _projectSourceFilePath(basePath: string, source: ProjectSourceFile): string {
+		this._assertSafePathSegment(source.packageName, 'stale source package name');
+		if (source.branch) this._assertSafePathSegment(source.branch, 'stale source branch name');
+		this._assertSafePathSegment(source.fileName, 'stale source file name');
+		const relativePath = this._normalizeSourceRelativePath([source.path, source.fileName].filter(Boolean).join('/'));
+		const assetRoot = source.branch ? `assets_${source.branch}` : 'assets';
+		return this._fs.join(basePath, assetRoot, source.packageName, relativePath);
+	}
+
+	private _resourceSourceRelativePath(resource: WritableResource, fileName: string): string {
+		if (!fileName) return '';
+		this._assertSafePathSegment(fileName, 'resource file name');
+		const resourcePath = resource.getPath?.() ?? '/';
+		const normalizedPath = resourcePath.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+		return this._normalizeSourceRelativePath([normalizedPath, fileName].filter(Boolean).join('/'));
+	}
+
+	private _componentSourceRelativePath(component: Component): string {
+		const typedComponent = component as WritableComponent;
+		const name = component.getName();
+		this._assertSafePathSegment(name, 'component name');
+		const componentPath = typedComponent.getPath?.() ?? '/';
+		return this._normalizeSourceRelativePath([componentPath, `${name}.xml`].filter(Boolean).join('/'));
+	}
+
+	private _assertSafePathSegment(value: string, label: string): void {
+		if (!value || value === '.' || value === '..' || /[\\/:]/.test(value)) {
+			throw new Error(`Invalid ${label} "${value}".`);
+		}
+	}
+
+	private _normalizeSourceRelativePath(value: string): string {
+		const segments = value.replace(/\\/g, '/').split('/').filter(Boolean);
+		if (segments.some((segment) => segment === '.' || segment === '..' || segment.includes(':'))) {
+			throw new Error(`Invalid project source path "${value}".`);
+		}
+		return segments.join('/');
 	}
 
 	private _renderPackageDescriptionXml(
@@ -1108,13 +1253,8 @@ export class ProjectWriter {
 	private async _writeComponent(comp: Component, pkgDir: string): Promise<void> {
 		const fs = this._fs;
 		const typedComp = comp as WritableComponent;
-		const path = typedComp.getPath?.() ?? '/';
-		const name = comp.getName() + '.xml';
-
-		// Ensure subdirectory exists
-		const subDir = path.replace(/^\//, '').replace(/\/$/, '');
-		const fileDir = subDir ? fs.join(pkgDir, subDir) : pkgDir;
-		if (subDir) await fs.mkdir(fileDir);
+		const targetPath = fs.join(pkgDir, this._componentSourceRelativePath(comp));
+		await fs.mkdir(fs.dirname(targetPath));
 
 		const compAttrs: Record<string, unknown> = {};
 		const [w, h] = [typedComp.getWidth?.() ?? 0, typedComp.getHeight?.() ?? 0];
@@ -1273,7 +1413,7 @@ export class ProjectWriter {
 			component: compNode,
 		};
 
-		await fs.writeFile(fs.join(fileDir, name), builder.build(xmlObj) as string);
+		await fs.writeFile(targetPath, builder.build(xmlObj) as string);
 	}
 
 	private _serializeController(ctrl: Controller): Record<string, unknown> {

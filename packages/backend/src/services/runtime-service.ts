@@ -129,7 +129,7 @@ export class RuntimeService {
 			await advisoryLock.close();
 
 			const reader = new ProjectReader(createProjectReaderFileSystem(fileSystem));
-			const project = liftDocumentToUamProject(await reader.read(fairyPath));
+			const project = liftDocumentToUamProject(await reader.read(fairyPath, { hydrateResourceBytes: true }));
 			const sessionId = randomId();
 			const session: BackendSessionState = {
 				sessionId,
@@ -141,6 +141,7 @@ export class RuntimeService {
 				project,
 				revision: 0,
 				lastSavedRevision: 0,
+				pendingStaleSourceFiles: new Map(),
 				dirty: false,
 				lockHeld: true,
 				closed: false,
@@ -204,6 +205,7 @@ export class RuntimeService {
 			project: normalizeUamProject(input.project),
 			revision: 0,
 			lastSavedRevision: 0,
+			pendingStaleSourceFiles: new Map(),
 			dirty: false,
 			lockHeld: false,
 			closed: false,

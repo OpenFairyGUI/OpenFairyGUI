@@ -56,4 +56,8 @@ export class SoundResource extends ExtensibleProperty<ISoundResource> {
 
 	public getSoundData(): FairyBuffer | null { return this.getRef('soundData' as never) as FairyBuffer | null; }
 	public setSoundData(buffer: FairyBuffer | null): this { return this.setRef('soundData' as never, buffer as never); }
+
+	/** Primary source-file bytes for this sound resource. */
+	public getSourceData(): FairyBuffer | null { return this.getSoundData(); }
+	public setSourceData(buffer: FairyBuffer | null): this { return this.setSoundData(buffer); }
 }

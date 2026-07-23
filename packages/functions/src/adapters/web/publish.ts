@@ -63,6 +63,7 @@ type BrowserCanvas = OffscreenCanvas | HTMLCanvasElement;
 interface BrowserContext {
 	clearRect(x: number, y: number, width: number, height: number): void;
 	drawImage(image: CanvasImageSource, dx: number, dy: number): void;
+	drawImage(image: CanvasImageSource, dx: number, dy: number, dw: number, dh: number): void;
 	drawImage(
 		image: CanvasImageSource,
 		sx: number,

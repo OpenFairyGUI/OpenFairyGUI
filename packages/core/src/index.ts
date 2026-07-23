@@ -82,6 +82,7 @@ export {
 	type UamTransitionSelector,
 	normalizeUamProject,
 	assertValidUamProject,
+	commitUamProjectSourcePaths,
 	validateUamProject,
 	liftDocumentToUamProject,
 	materializeUamProject,
@@ -93,6 +94,7 @@ export {
 	createUamTransaction,
 	validateTransactionSupport,
 	writeProjectFromUam,
+	type WriteProjectFromUamOptions,
 } from './uam/index.js';
 
 // Authoring helpers
@@ -235,6 +237,9 @@ export {
 	ReaderContext,
 	type BinaryWriterOptions,
 	type FileSystem,
+	type ProjectReadOptions,
+	type ProjectSourceFile,
+	type ProjectWriteOptions,
 } from './io/index.js';
 
 // Types

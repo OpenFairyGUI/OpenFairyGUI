@@ -50,9 +50,9 @@ Publish plugins are documented in the repository guide:
 
 - https://github.com/OpenFairyGUI/OpenFairyGUI/blob/main/docs/publish-plugins.md
 
-## Phase A UAM authoring seam
+## UAM authoring seam
 
-`@openfairygui/functions` also exposes a thin stateless wrapper over the Phase A UAM
+`@openfairygui/functions` also exposes a thin stateless wrapper over the UAM
 transaction contract from `@openfairygui/core`.
 
 This seam:
@@ -63,6 +63,14 @@ This seam:
 - does not define a second selector / operation grammar
 - does not wrap `publish` or `restore`
 
+The transaction surface includes resource rename/move, byte-backed binary resource
+add/replace/remove, and add/update/remove for `display`, `display2`, `look`, `xy`,
+`size`, `color`, `animation`, `text`, `icon`, and `fontSize` gears. Resource
+rename/move/replace/remove requires `sourceBytes`; opt in with
+`ProjectReader.read(path, { hydrateResourceBytes: true })` before lifting a project to
+UAM. Source bytes are written back with the project, and stale source files are removed
+only after all replacement content succeeds.
+
 ```ts
 import {
 	type UamProject,
@@ -70,7 +78,7 @@ import {
 } from '@openfairygui/core';
 import { applyUamTransactionApp } from '@openfairygui/functions';
 
-const project: UamProject = /* ... */;
+const project: UamProject = /* project read and lifted with hydrateResourceBytes */;
 const operations: UamTransactionOperation[] = [
 	{
 		kind: 'renameResource',

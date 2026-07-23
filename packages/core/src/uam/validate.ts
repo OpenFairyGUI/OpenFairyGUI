@@ -1,4 +1,5 @@
 import type {
+	UamAssetResource,
 	UamControllerAction,
 	UamControllerModel,
 	UamDisplayNode,
@@ -63,6 +64,63 @@ function validateGearBinding(
 	}
 }
 
+function isSafePathSegment(value: string): boolean {
+	return value.length > 0 && value !== '.' && value !== '..' && !/[\\/:]/.test(value);
+}
+
+function normalizedResourceTarget(path: string, fileName: string): string | null {
+	if (!isSafePathSegment(fileName)) return null;
+	const segments = path.replace(/\\/g, '/').split('/').filter(Boolean);
+	if (segments.some((segment) => !isSafePathSegment(segment))) return null;
+	return [...segments, fileName].join('/');
+}
+
+function isSafeRelativePath(value: string): boolean {
+	const segments = value.replace(/\\/g, '/').split('/').filter(Boolean);
+	return segments.length > 0 && segments.every(isSafePathSegment);
+}
+
+function assetFileName(resource: UamAssetResource): string {
+	return resource.fileName || resource.file || resource.name;
+}
+
+function validatePackageOutputTargets(
+	pkg: UamProject['packages'][number],
+	pkgPath: string,
+	issues: UamValidationIssue[],
+): void {
+	if (!isSafePathSegment(pkg.name)) {
+		pushIssue(issues, `${pkgPath}.name`, `Invalid package output name "${pkg.name}".`);
+	}
+	const outputs = new Map<string, string>();
+	for (const [resourceIndex, resource] of pkg.resources.entries()) {
+		const resourcePath = `${pkgPath}.resources[${resourceIndex}]`;
+		if (resource.branch && !isSafePathSegment(resource.branch)) {
+			pushIssue(issues, `${resourcePath}.branch`, `Invalid package branch name "${resource.branch}".`);
+		}
+		const fileName = resource.kind === 'component' ? `${resource.name}.xml` : assetFileName(resource);
+		const target = normalizedResourceTarget(resource.path, fileName);
+		if (!target) {
+			pushIssue(issues, `${resourcePath}.path`, 'Resource output path must be package-relative and traversal-free.');
+			continue;
+		}
+		const descriptor = resource.branch ? 'package_branch.xml' : 'package.xml';
+		if (target === descriptor) {
+			pushIssue(issues, `${resourcePath}.path`, `Resource output "${target}" conflicts with the package descriptor.`);
+		}
+		const key = `${resource.branch}\0${target}`;
+		const previous = outputs.get(key);
+		if (previous) {
+			pushIssue(issues, `${resourcePath}.path`, `Resource output "${target}" conflicts with ${previous}.`);
+		} else {
+			outputs.set(key, resourcePath);
+		}
+		if (resource.kind !== 'component' && resource.sourcePath && !isSafeRelativePath(resource.sourcePath)) {
+			pushIssue(issues, `${resourcePath}.sourcePath`, 'Resource sourcePath must be package-relative and traversal-free.');
+		}
+	}
+}
+
 function validateDisplayNode(
 	node: UamDisplayNode,
 	controllerMap: Map<string, UamControllerModel>,
@@ -91,6 +149,7 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 		if (packageNames.has(pkg.name)) pushIssue(issues, `${pkgPath}.name`, `Duplicate package name "${pkg.name}".`);
 		packageIds.add(pkg.id);
 		packageNames.add(pkg.name);
+		validatePackageOutputTargets(pkg, pkgPath, issues);
 
 		const resourceIds = new Set<string>();
 		for (const [resourceIndex, resource] of pkg.resources.entries()) {

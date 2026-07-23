@@ -1,7 +1,8 @@
-import { RefList } from 'property-graph';
+import { RefList, type Ref } from 'property-graph';
 import { type Nullable, PropertyType } from '../constants.js';
 import { ExtensibleProperty, type IExtensibleProperty } from './extensible-property.js';
 import type { FontGlyph } from './font-glyph.js';
+import type { FairyBuffer } from './buffer.js';
 
 interface IFontResource extends IExtensibleProperty {
 	id: string;
@@ -21,6 +22,7 @@ interface IFontResource extends IExtensibleProperty {
 	xAdvance: number;
 	lineHeight: number;
 	glyphs: RefList<FontGlyph>;
+	sourceData: Ref<FairyBuffer>;
 }
 
 /**
@@ -53,6 +55,7 @@ export class FontResource extends ExtensibleProperty<IFontResource> {
 			xAdvance: 0,
 			lineHeight: 0,
 			glyphs: new RefList<FontGlyph>(),
+			sourceData: null,
 		});
 	}
 
@@ -107,4 +110,8 @@ export class FontResource extends ExtensibleProperty<IFontResource> {
 	public addGlyph(glyph: FontGlyph): this { return this.addRef('glyphs', glyph); }
 	public removeGlyph(glyph: FontGlyph): this { return this.removeRef('glyphs', glyph); }
 	public listGlyphs(): FontGlyph[] { return this.listRefs('glyphs'); }
+
+	/** Primary source-file bytes for this font resource. */
+	public getSourceData(): FairyBuffer | null { return this.getRef('sourceData' as never) as FairyBuffer | null; }
+	public setSourceData(buffer: FairyBuffer | null): this { return this.setRef('sourceData' as never, buffer as never); }
 }

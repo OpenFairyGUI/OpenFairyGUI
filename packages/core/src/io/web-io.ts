@@ -1,6 +1,6 @@
 import type { Document } from '../document.js';
-import { ProjectReader, type FileSystem } from './project-reader.js';
-import { ProjectWriter } from './project-writer.js';
+import { ProjectReader, type FileSystem, type ProjectReadOptions } from './project-reader.js';
+import { ProjectWriter, type ProjectWriteOptions } from './project-writer.js';
 
 export interface FileSystemAccessFileLike {
 	text(): Promise<string>;
@@ -24,6 +24,7 @@ export interface FileSystemAccessDirectoryHandleLike {
 	readonly kind?: 'directory';
 	getFileHandle(name: string, options?: { create?: boolean }): Promise<FileSystemAccessFileHandleLike>;
 	getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<FileSystemAccessDirectoryHandleLike>;
+	removeEntry?(name: string, options?: { recursive?: boolean }): Promise<void>;
 	entries?(): AsyncIterableIterator<[string, FileSystemAccessDirectoryHandleLike | FileSystemAccessFileHandleLike]>;
 	values?(): AsyncIterableIterator<FileSystemAccessDirectoryHandleLike | FileSystemAccessFileHandleLike>;
 }
@@ -142,6 +143,15 @@ export function createFileSystemAccessFileSystem(root: FileSystemAccessDirectory
 				return false;
 			}
 		},
+		async unlink(path: string): Promise<void> {
+			const fileName = splitPath(path).pop();
+			if (!fileName) throw missingPathError(path);
+			const parent = await getDirectory(root, dirname(path));
+			if (!parent.removeEntry) {
+				throw new Error('FileSystemDirectoryHandle-like object must provide removeEntry() for source cleanup.');
+			}
+			await parent.removeEntry(fileName);
+		},
 		join: joinPath,
 		dirname,
 	};
@@ -165,11 +175,11 @@ export class WebIO {
 			: createFileSystemAccessFileSystem(fileSystemOrOptions.root);
 	}
 
-	public async readProject(projectPath: string): Promise<Document> {
-		return new ProjectReader(this._fs).read(projectPath);
+	public async readProject(projectPath: string, options?: ProjectReadOptions): Promise<Document> {
+		return new ProjectReader(this._fs).read(projectPath, options);
 	}
 
-	public async writeProject(doc: Document, projectPath: string): Promise<void> {
-		await new ProjectWriter(this._fs).write(doc, projectPath);
+	public async writeProject(doc: Document, projectPath: string, options?: ProjectWriteOptions): Promise<void> {
+		await new ProjectWriter(this._fs).write(doc, projectPath, options);
 	}
 }

@@ -14,6 +14,7 @@ import {
 	type UamControllerModel,
 	type UamDisplayNode,
 	type UamDisplayNodePropsUpdate,
+	type UamGearBinding,
 	type UamListNode,
 	type UamLookGearBinding,
 	type UamProject,
@@ -51,6 +52,8 @@ function createSupportedProject(): UamProject {
 						fileName: 'background.png',
 						dimensions: { width: 320, height: 180 },
 						metadata: { textureSetMode: 'atlas' },
+						sourceBytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+						sourcePath: '/images/background.png',
 					},
 					{
 						kind: 'component',
@@ -173,6 +176,83 @@ function createLookGear(controllerName = 'state', alpha = 1): UamLookGearBinding
 	};
 }
 
+function createNonLookGears(controllerName = 'state'): UamGearBinding[] {
+	const common = {
+		controllerName,
+		condition: '',
+		positionsInPercent: false,
+		tween: false,
+		tweenDuration: 0.3,
+		tweenDelay: 0,
+		easeType: 5,
+		customEasePath: '',
+	};
+	return [
+		{ kind: 'display', name: 'display', controllerName, visibleOnPageIds: ['0'] },
+		{ kind: 'display2', name: 'display2', controllerName, visibleOnPageIds: ['1'], condition: '1' },
+		{
+			kind: 'xy', name: 'xy', ...common,
+			states: [{ pageId: '0', value: { x: 12, y: 18 } }],
+			defaultValue: { x: 0, y: 0 },
+		},
+		{
+			kind: 'size', name: 'size', ...common,
+			states: [{ pageId: '0', value: { width: 48, height: 36, scaleX: 1.2, scaleY: 0.8 } }],
+			defaultValue: { width: 24, height: 20, scaleX: 1, scaleY: 1 },
+		},
+		{
+			kind: 'color', name: 'color', ...common,
+			states: [{ pageId: '0', value: { color: '#ff00ff', outlineColor: null } }],
+			defaultValue: { color: '#ffffff', outlineColor: null },
+		},
+		{
+			kind: 'animation', name: 'animation', ...common,
+			states: [{ pageId: '0', value: { frame: 3, playing: false, animationName: 'run', skinName: 'hero' } }],
+			defaultValue: { frame: 0, playing: true, animationName: '', skinName: '' },
+		},
+		{
+			kind: 'text', name: 'text', ...common,
+			states: [{ pageId: '0', value: { text: 'Alert' } }],
+			defaultValue: { text: 'Idle' },
+		},
+		{
+			kind: 'icon', name: 'icon', ...common,
+			states: [{ pageId: '0', value: { icon: 'ui://pkg001/icon' } }],
+			defaultValue: { icon: '' },
+		},
+		{
+			kind: 'fontSize', name: 'font-size', ...common,
+			states: [{ pageId: '0', value: { fontSize: 28 } }],
+			defaultValue: { fontSize: 16 },
+		},
+	];
+}
+
+function updateNonLookGear(gear: UamGearBinding): UamGearBinding {
+	switch (gear.kind) {
+		case 'display':
+			return { ...gear, visibleOnPageIds: ['1'] };
+		case 'display2':
+			return { ...gear, visibleOnPageIds: ['0'], condition: '2' };
+		case 'xy':
+			return { ...gear, states: [{ pageId: '1', value: { x: 30, y: 40 } }], defaultValue: { x: 3, y: 4 } };
+		case 'size':
+			return { ...gear, states: [{ pageId: '1', value: { width: 60, height: 44, scaleX: 1.1, scaleY: 1.3 } }], defaultValue: { width: 30, height: 28, scaleX: 1, scaleY: 1 } };
+		case 'color':
+			return { ...gear, states: [{ pageId: '1', value: { color: '#00ff00', outlineColor: null } }], defaultValue: { color: '#111111', outlineColor: null } };
+		case 'animation':
+			return { ...gear, states: [{ pageId: '1', value: { frame: 7, playing: true, animationName: 'idle', skinName: 'alt' } }], defaultValue: { frame: 1, playing: false, animationName: '', skinName: '' } };
+		case 'text':
+			return { ...gear, states: [{ pageId: '1', value: { text: 'Updated' } }], defaultValue: { text: 'Default' } };
+		case 'icon':
+			return { ...gear, states: [{ pageId: '1', value: { icon: 'ui://pkg001/updated-icon' } }], defaultValue: { icon: 'ui://pkg001/default-icon' } };
+		case 'fontSize':
+			return { ...gear, states: [{ pageId: '1', value: { fontSize: 32 } }], defaultValue: { fontSize: 18 } };
+		case 'look':
+			throw new Error('Expected a non-look gear.');
+	}
+}
+
 type UamDisplayNodeBaseFixture = Pick<
 	UamDisplayNode,
 	'id' | 'name' | 'position' | 'size' | 'visible' | 'touchable' | 'grayed' | 'alpha' | 'rotation' | 'customData' | 'relations' | 'gears'
@@ -249,13 +329,13 @@ async function roundTripCommittedProject(project: UamProject): Promise<UamProjec
 	const outFairy = path.join(tmpDir, 'out.fairy');
 	try {
 		await writeProjectFromUam(io, project, outFairy);
-		return await readProjectAsUam(io, outFairy);
+		return await readProjectAsUam(io, outFairy, { hydrateResourceBytes: true });
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 }
 
-test('assertTransactionSupported rejects unsupported baseline project shapes', (t) => {
+test('assertTransactionSupported accepts current materialization scope and rejects unsupported cross-package refs', (t) => {
 	const buttonNodeProject = createSupportedProject();
 	const componentResource = buttonNodeProject.packages[0]!.resources[1];
 	if (componentResource?.kind !== 'component') {
@@ -290,10 +370,7 @@ test('assertTransactionSupported rejects unsupported baseline project shapes', (
 		downEffect: 0,
 		downEffectValue: 0.8,
 	});
-	t.throws(
-		() => assertTransactionSupported(buttonNodeProject),
-		{ instanceOf: UamTransactionError },
-	);
+	t.notThrows(() => assertTransactionSupported(buttonNodeProject));
 
 	const nonLookGearProject = createSupportedProject();
 	const nonLookComponent = nonLookGearProject.packages[0]!.resources[1];
@@ -315,10 +392,7 @@ test('assertTransactionSupported rejects unsupported baseline project shapes', (
 		easeType: 5,
 		customEasePath: '',
 	});
-	t.throws(
-		() => assertTransactionSupported(nonLookGearProject),
-		{ instanceOf: UamTransactionError },
-	);
+	t.notThrows(() => assertTransactionSupported(nonLookGearProject));
 
 	const crossPackageImageRefProject = createSupportedProject();
 	crossPackageImageRefProject.packages.push({
@@ -355,7 +429,7 @@ test('assertTransactionSupported rejects unsupported baseline project shapes', (
 	);
 });
 
-test('validateTransactionSupport scopes unsupported baseline nodes and fields to touched operations', (t) => {
+test('validateTransactionSupport accepts supported baseline nodes and fields', (t) => {
 	const project = createSupportedProject();
 	const componentResource = project.packages[0]!.resources[1];
 	if (componentResource?.kind !== 'component') {
@@ -490,7 +564,7 @@ test('validateTransactionSupport scopes unsupported baseline nodes and fields to
 	const untouchedListSnapshot = structuredClone(normalizedComponent.component.displayList.find((node) => node.id === 'n3'));
 	const untouchedButtonSnapshot = structuredClone(normalizedComponent.component.displayList.find((node) => node.id === 'n4'));
 
-	t.true(validateTransactionSupport(normalizedProject).length > 0);
+	t.deepEqual(validateTransactionSupport(normalizedProject), []);
 	t.deepEqual(validateTransactionSupport(normalizedProject, []), []);
 	t.deepEqual(validateTransactionSupport(normalizedProject, [
 		{
@@ -517,24 +591,14 @@ test('validateTransactionSupport scopes unsupported baseline nodes and fields to
 	t.deepEqual(resultComponent.component.displayList.find((node) => node.id === 'n3'), untouchedListSnapshot);
 	t.deepEqual(resultComponent.component.displayList.find((node) => node.id === 'n4'), untouchedButtonSnapshot);
 
-	const touchedUnsupportedNodeIssues = validateTransactionSupport(normalizedProject, [
+	const buttonNodeIssues = validateTransactionSupport(normalizedProject, [
 		{
 			kind: 'setDisplayNodeProps',
 			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n4' },
 			props: { alpha: 0.5 },
 		},
 	]);
-	t.true(touchedUnsupportedNodeIssues.some((issue) => (
-		issue.path === 'operations[0].selector.displayNodeId'
-			&& issue.message.includes('button display node mutation')
-	)));
-	t.deepEqual(touchedUnsupportedNodeIssues[0], {
-		code: 'unsupported_display_node_mutation',
-		path: 'operations[0].selector.displayNodeId',
-		message: 'Phase A does not support button display node mutation ("n4").',
-		operationKind: 'setDisplayNodeProps',
-		nodeKind: 'button',
-	});
+	t.deepEqual(buttonNodeIssues, []);
 });
 
 test('applyUamTransaction leaves untouched invalid baseline refs as passthrough for simple display props', (t) => {
@@ -1071,7 +1135,334 @@ test('behavior remove operations remove look gears, transitions, and controllers
 	t.is(componentResource.component.displayList[0]?.gears.length, 0);
 });
 
-test('failing mid-batch preserves input project, leaks no earlier success, and reports stable op identity', (t) => {
+test('binary resource transactions require hydrated source bytes and survive write/reload', async (t) => {
+	const unhydrated = createSupportedProject();
+	const unhydratedImage = unhydrated.packages[0]!.resources[0];
+	if (unhydratedImage?.kind !== 'image') {
+		t.fail('expected image resource');
+		return;
+	}
+	unhydratedImage.sourceBytes = null;
+	const missingBytesError = t.throws(
+		() => applyUamTransaction(unhydrated, [{
+			kind: 'moveResource',
+			selector: { packageId: 'pkg001', resourceId: 'img001' },
+			toPath: '/moved',
+		}]),
+		{ instanceOf: UamTransactionError },
+	);
+	t.true(missingBytesError?.issues?.some((issue) => issue.code === 'unavailable_resource_source_bytes') ?? false);
+
+	const renamed = applyUamTransaction(createSupportedProject(), [
+		{
+			kind: 'renameResource',
+			selector: { packageId: 'pkg001', resourceId: 'img001' },
+			newName: 'renamed.png',
+		},
+		{
+			kind: 'moveResource',
+			selector: { packageId: 'pkg001', resourceId: 'img001' },
+			toPath: '/moved',
+		},
+	]);
+	const renamedImage = renamed.packages[0]!.resources.find((resource) => resource.id === 'img001');
+	if (renamedImage?.kind !== 'image') {
+		t.fail('expected renamed image resource');
+		return;
+	}
+	t.is(renamedImage.name, 'renamed');
+	t.is(renamedImage.fileName, 'renamed.png');
+	t.is(renamedImage.path, '/moved');
+	t.deepEqual([...renamedImage.sourceBytes ?? []], [0x89, 0x50, 0x4e, 0x47]);
+	t.is(renamedImage.sourcePath, '/images/background.png');
+
+	const added = applyUamTransaction(renamed, [{
+		kind: 'addResource',
+		selector: { packageId: 'pkg001' },
+		resource: {
+			kind: 'misc',
+			id: 'misc001',
+			name: 'payload.bin',
+			path: '/generated',
+			exported: true,
+			branch: '',
+			branchItemIds: [],
+			file: 'payload.bin',
+			metadata: null,
+			sourceBytes: new Uint8Array([1, 2, 3]),
+		},
+	}]);
+	const replaced = applyUamTransaction(added, [{
+		kind: 'replaceResourceBytes',
+		selector: { packageId: 'pkg001', resourceId: 'misc001' },
+		sourceBytes: new Uint8Array([4, 5, 6]),
+	}]);
+	const reloaded = await roundTripCommittedProject(replaced);
+	const reloadedImage = reloaded.packages[0]!.resources.find((resource) => resource.id === 'img001');
+	const reloadedMisc = reloaded.packages[0]!.resources.find((resource) => resource.id === 'misc001');
+	if (reloadedImage?.kind !== 'image' || reloadedMisc?.kind !== 'misc') {
+		t.fail('expected reloaded binary resources');
+		return;
+	}
+	t.is(reloadedImage.name, 'renamed');
+	t.is(reloadedImage.path, '/moved');
+	t.is(reloadedImage.sourcePath, '/moved/renamed.png');
+	t.deepEqual([...reloadedImage.sourceBytes ?? []], [0x89, 0x50, 0x4e, 0x47]);
+	t.deepEqual([...reloadedMisc.sourceBytes ?? []], [4, 5, 6]);
+
+	const removed = applyUamTransaction(reloaded, [{
+		kind: 'removeResource',
+		selector: { packageId: 'pkg001', resourceId: 'misc001' },
+	}]);
+	const reloadedAfterRemove = await roundTripCommittedProject(removed);
+	t.false(reloadedAfterRemove.packages[0]!.resources.some((resource) => resource.id === 'misc001'));
+});
+
+test('resource lifecycle preflight projects batches and rejects unsafe source paths', (t) => {
+	const addResource = {
+		kind: 'misc' as const,
+		id: 'generated',
+		name: 'generated',
+		path: '/generated',
+		exported: true,
+		branch: '',
+		branchItemIds: [],
+		file: 'generated.bin',
+		metadata: null,
+		sourceBytes: new Uint8Array([1]),
+	};
+	const duplicateIssues = validateTransactionSupport(createSupportedProject(), [
+		{ kind: 'addResource', selector: { packageId: 'pkg001' }, resource: addResource },
+		{ kind: 'addResource', selector: { packageId: 'pkg001' }, resource: addResource },
+	]);
+	t.true(duplicateIssues.some((issue) => issue.code === 'duplicate_resource_id'));
+
+	const replacedId = applyUamTransaction(createSupportedProject(), [
+		{ kind: 'removeResource', selector: { packageId: 'pkg001', resourceId: 'img001' } },
+		{ kind: 'addResource', selector: { packageId: 'pkg001' }, resource: { ...addResource, id: 'img001' } },
+	]);
+	t.is(replacedId.packages[0]?.resources.find((resource) => resource.id === 'img001')?.kind, 'misc');
+
+	const sourcePathIssues = validateTransactionSupport(createSupportedProject(), [{
+		kind: 'addResource',
+		selector: { packageId: 'pkg001' },
+		resource: { ...addResource, sourcePath: '/package.xml' },
+	}]);
+	t.true(sourcePathIssues.some((issue) => issue.code === 'invalid_resource_payload'));
+
+	const collisionError = t.throws(
+		() => applyUamTransaction(createSupportedProject(), [{
+			kind: 'addResource',
+			selector: { packageId: 'pkg001' },
+			resource: { ...addResource, id: 'package-descriptor', path: '/', file: 'package.xml' },
+		}]),
+		{ instanceOf: UamTransactionError },
+	);
+	t.true(collisionError?.issues?.some((issue) => issue.message.includes('conflicts with the package descriptor')) ?? false);
+});
+
+test('resource writes clean only explicit prior project sources and commit their current paths', async (t) => {
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-uam-lifecycle-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+	try {
+		const original = createSupportedProject();
+		await writeProjectFromUam(io, original, outFairy);
+		const renamed = applyUamTransaction(original, [
+			{ kind: 'renameResource', selector: { packageId: 'pkg001', resourceId: 'img001' }, newName: 'renamed.png' },
+			{ kind: 'moveResource', selector: { packageId: 'pkg001', resourceId: 'img001' }, toPath: '/moved' },
+		]);
+		await writeProjectFromUam(io, renamed, outFairy, { previousProject: original });
+		const renamedImage = renamed.packages[0]?.resources.find((resource) => resource.id === 'img001');
+		if (renamedImage?.kind !== 'image') {
+			t.fail('expected renamed image resource');
+			return;
+		}
+		t.is(renamedImage.sourcePath, '/moved/renamed.png');
+		await t.throwsAsync(fs.access(path.join(tmpDir, 'assets', 'Main', 'images', 'background.png')));
+
+		const removed = applyUamTransaction(renamed, [{
+			kind: 'removeResource',
+			selector: { packageId: 'pkg001', resourceId: 'img001' },
+		}]);
+		await writeProjectFromUam(io, removed, outFairy, { previousProject: renamed });
+		await t.throwsAsync(fs.access(path.join(tmpDir, 'assets', 'Main', 'moved', 'renamed.png')));
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('controller updates cannot leave display gears bound to removed pages', (t) => {
+	const project = createSupportedProject();
+	const component = project.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (component?.kind !== 'component') {
+		t.fail('expected component resource');
+		return;
+	}
+	component.component.controllers.push(createControllerModel());
+	component.component.displayList[0]?.gears.push({
+		kind: 'display',
+		name: 'visibility',
+		controllerName: 'state',
+		visibleOnPageIds: ['0'],
+	});
+	const error = t.throws(
+		() => applyUamTransaction(project, [{
+			kind: 'updateController',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: 'state' },
+			controller: { ...createControllerModel(), pages: [{ id: '2', name: 'New' }] },
+		}]),
+		{ instanceOf: UamTransactionError },
+	);
+	t.true(error?.issues?.some((issue) => issue.message.includes('Unknown gear page id "0"')) ?? false);
+});
+
+test('controller and display gear page changes can commit in one transaction', (t) => {
+	const project = createSupportedProject();
+	const component = project.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (component?.kind !== 'component') {
+		t.fail('expected component resource');
+		return;
+	}
+	component.component.controllers.push(createControllerModel());
+	component.component.displayList[0]?.gears.push({
+		kind: 'display',
+		name: 'visibility',
+		controllerName: 'state',
+		visibleOnPageIds: ['0'],
+	});
+
+	const updated = applyUamTransaction(project, [
+		{
+			kind: 'updateController',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: 'state' },
+			controller: { ...createControllerModel(), pages: [{ id: '2', name: 'New' }] },
+		},
+		{
+			kind: 'updateGear',
+			selector: {
+				packageId: 'pkg001',
+				componentResourceId: 'cmp001',
+				displayNodeId: 'n0',
+				kind: 'display',
+				controllerName: 'state',
+			},
+			gear: {
+				kind: 'display',
+				name: 'visibility',
+				controllerName: 'state',
+				visibleOnPageIds: ['2'],
+			},
+		},
+	]);
+	const updatedComponent = updated.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	const gear = updatedComponent?.kind === 'component'
+		? updatedComponent.component.displayList[0]?.gears.find((candidate) => candidate.kind === 'display')
+		: null;
+	t.deepEqual(gear?.kind === 'display' ? gear.visibleOnPageIds : null, ['2']);
+});
+
+test('non-look gear transactions validate references and persist every supported gear kind', async (t) => {
+	const seeded = applyUamTransaction(createSupportedProject(), [{
+		kind: 'addController',
+		selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: 'state' },
+		controller: createControllerModel('state'),
+	}]);
+	const gears = createNonLookGears();
+	const added = applyUamTransaction(seeded, gears.map((gear): UamTransactionOperation => ({
+		kind: 'addGear',
+		selector: {
+			packageId: 'pkg001',
+			componentResourceId: 'cmp001',
+			displayNodeId: 'n0',
+			kind: gear.kind,
+			controllerName: 'state',
+		},
+		gear,
+	})));
+
+	const duplicateError = t.throws(
+		() => applyUamTransaction(added, [{
+			kind: 'addGear',
+			selector: {
+				packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n0', kind: 'xy', controllerName: 'state',
+			},
+			gear: createNonLookGears().find((gear) => gear.kind === 'xy')!,
+		}]),
+		{ instanceOf: UamTransactionError },
+	);
+	t.true(duplicateError?.issues?.some((issue) => issue.code === 'duplicate_gear_controller') ?? false);
+
+	const invalidPageGear = createNonLookGears().find((gear) => gear.kind === 'text')!;
+	if (invalidPageGear.kind !== 'text') {
+		t.fail('expected text gear');
+		return;
+	}
+	invalidPageGear.states[0]!.pageId = 'missing';
+	const invalidPageError = t.throws(
+		() => applyUamTransaction(seeded, [{
+			kind: 'addGear',
+			selector: {
+				packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n0', kind: 'text', controllerName: 'state',
+			},
+			gear: invalidPageGear,
+		}]),
+		{ instanceOf: UamTransactionError },
+	);
+	t.true(invalidPageError?.issues?.some((issue) => issue.code === 'invalid_gear_payload') ?? false);
+
+	const updatedGears = gears.map((gear) => updateNonLookGear(gear));
+	const updated = applyUamTransaction(added, updatedGears.map((gear): UamTransactionOperation => ({
+		kind: 'updateGear',
+		selector: {
+			packageId: 'pkg001',
+			componentResourceId: 'cmp001',
+			displayNodeId: 'n0',
+			kind: gear.kind,
+			controllerName: 'state',
+		},
+		gear,
+	})));
+	const reloaded = await roundTripCommittedProject(updated);
+	const reloadedComponent = reloaded.packages[0]!.resources.find((resource) => resource.id === 'cmp001');
+	if (reloadedComponent?.kind !== 'component') {
+		t.fail('expected reloaded component resource');
+		return;
+	}
+	const reloadedNode = reloadedComponent.component.displayList.find((node) => node.id === 'n0');
+	const reloadedGearsByKind = new Map(reloadedNode?.gears.map((gear) => [gear.kind, gear]));
+	for (const expected of updatedGears) {
+		const actual = reloadedGearsByKind.get(expected.kind);
+		t.truthy(actual, `expected ${expected.kind} gear after reload`);
+		if (!actual) continue;
+		if (expected.kind === 'display') {
+			t.deepEqual(actual.kind === 'display' ? actual.visibleOnPageIds : null, expected.visibleOnPageIds);
+			continue;
+		}
+		if (expected.kind === 'display2') {
+			t.deepEqual(actual.kind === 'display2' ? actual.visibleOnPageIds : null, expected.visibleOnPageIds);
+			t.is(actual.kind === 'display2' ? actual.condition : null, expected.condition);
+			continue;
+		}
+		t.deepEqual(actual.kind === expected.kind ? actual.states : null, expected.states);
+		t.deepEqual(actual.kind === expected.kind ? actual.defaultValue : null, expected.defaultValue);
+	}
+
+	const removed = applyUamTransaction(reloaded, gears.map((gear): UamTransactionOperation => ({
+		kind: 'removeGear',
+		selector: {
+			packageId: 'pkg001',
+			componentResourceId: 'cmp001',
+			displayNodeId: 'n0',
+			kind: gear.kind,
+			controllerName: 'state',
+		},
+	})));
+	const removedComponent = removed.packages[0]!.resources.find((resource) => resource.id === 'cmp001');
+	if (removedComponent?.kind === 'component') t.is(removedComponent.component.displayList.find((node) => node.id === 'n0')?.gears.length, 0);
+});
+
+test('preflight validation rejects invalid controller references without mutating input', (t) => {
 	const project = createSupportedProject();
 	const snapshot = structuredClone(project);
 

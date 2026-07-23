@@ -21,7 +21,7 @@ export interface BackendAsyncStorageAdapter {
 	stat?(filePath: string): Promise<BackendStorageStatLike>;
 	resolvePath?(filePath: string): Promise<string>;
 	openExclusive?(filePath: string): Promise<BackendFileHandle>;
-	unlink?(filePath: string): Promise<void>;
+	unlink(filePath: string): Promise<void>;
 	join?(...paths: string[]): string;
 	dirname?(filePath: string): string;
 	resolve?(...paths: string[]): string;
@@ -114,6 +114,9 @@ async function inferStat(storage: BackendAsyncStorageAdapter, filePath: string):
 export type BackendStorageFileSystem = BackendFileSystem & CoreProjectFileSystem;
 
 export function createBackendStorageFileSystem(storage: BackendAsyncStorageAdapter): BackendStorageFileSystem {
+	if (typeof storage.unlink !== 'function') {
+		throw createPathError('ENOTSUP', 'Storage adapter must provide unlink() for project resource lifecycle writes.');
+	}
 	const lockedPaths = new Set<string>();
 
 	const fileSystem: BackendStorageFileSystem = {
@@ -174,8 +177,7 @@ export function createBackendStorageFileSystem(storage: BackendAsyncStorageAdapt
 		unlink(filePath: string): Promise<void> {
 			const resolved = fileSystem.resolve(filePath);
 			lockedPaths.delete(resolved);
-			if (storage.unlink) return storage.unlink(resolved);
-			throw createPathError('ENOTSUP', 'Storage adapter does not provide unlink().');
+			return storage.unlink(resolved);
 		},
 		join(...paths: string[]): string {
 			return storage.join ? storage.join(...paths) : joinStoragePath(...paths);

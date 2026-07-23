@@ -83,6 +83,16 @@ export interface UamAssetResource {
 	file?: string;
 	dimensions?: UamDimensions | null;
 	metadata?: Record<string, unknown> | null;
+	/**
+	 * Primary source-file bytes loaded by an explicit reader hydration request.
+	 * The value is copied at UAM boundaries and is never JSON serialized.
+	 */
+	sourceBytes?: Uint8Array | null;
+	/**
+	 * Package-relative location of hydrated source bytes. It is updated to the
+	 * current resource location after a successful project write.
+	 */
+	sourcePath?: string;
 }
 
 export interface UamComponentResource {
@@ -571,7 +581,26 @@ export const UAM_SUPPORTED_MATERIALIZATION_SCOPE = {
 } as const;
 
 export const UAM_SUPPORTED_TRANSACTION_SCOPE = {
-	resourceKinds: ['image', 'component'] as const,
-	nodeKinds: ['image', 'text', 'richText', 'textInput', 'component', 'graph', 'group', 'list', 'loader', 'tree'] as const,
-	gearKinds: ['look'] as const,
+	resourceKinds: ['image', 'sound', 'misc', 'font', 'movieClip', 'spine', 'dragonBones', 'component'] as const,
+	nodeKinds: [
+		'image',
+		'text',
+		'richText',
+		'textInput',
+		'component',
+		'list',
+		'tree',
+		'graph',
+		'group',
+		'loader',
+		'loader3D',
+		'movieClip',
+		'button',
+		'label',
+		'comboBox',
+		'progressBar',
+		'slider',
+		'scrollBar',
+	] as const,
+	gearKinds: ['display', 'display2', 'look', 'xy', 'size', 'color', 'animation', 'text', 'icon', 'fontSize'] as const,
 } as const;

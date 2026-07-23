@@ -1,5 +1,5 @@
-import { ProjectWriter, type FileSystem } from '@openfairygui/core/project-io';
-import { materializeUamProject, validateUamProject } from '@openfairygui/core/uam';
+import { ProjectWriter, type FileSystem, type ProjectSourceFile } from '@openfairygui/core/project-io';
+import { commitUamProjectSourcePaths, materializeUamProject, validateUamProject, type UamProject } from '@openfairygui/core/uam';
 import { applyUamTransactionApp, type ApplyUamTransactionAppError } from '@openfairygui/functions/uam';
 import type { CacheService } from './cache-service.js';
 import { failure, success, type BackendContext } from './context.js';
@@ -79,7 +79,47 @@ function createWriterFileSystem(
 		dirname(filePath: string): string {
 			return fileSystem.dirname(filePath);
 		},
+		async unlink(filePath: string): Promise<void> {
+			await trackWrite(filePath, () => fileSystem.unlink(filePath));
+		},
 	};
+}
+
+function projectAssetSourceFiles(project: UamProject): Map<string, ProjectSourceFile> {
+	const result = new Map<string, ProjectSourceFile>();
+	for (const pkg of project.packages) {
+		for (const resource of pkg.resources) {
+			if (resource.kind === 'component') continue;
+			const fileName = resource.fileName ?? resource.file ?? '';
+			if (!fileName) continue;
+			result.set(
+				`${pkg.id}/${resource.id}`,
+				{ packageName: pkg.name, branch: resource.branch, path: resource.path, fileName },
+			);
+		}
+	}
+	return result;
+}
+
+function sourceFileKey(source: ProjectSourceFile): string {
+	return [source.branch, source.packageName, source.path, source.fileName].join('\0');
+}
+
+function recordStaleResourceSources(
+	session: Parameters<typeof toSessionSnapshot>[0],
+	previousProject: UamProject,
+	nextProject: UamProject,
+): void {
+	if (!session.fileSystem) return;
+	const previousSources = projectAssetSourceFiles(previousProject);
+	const nextSourceKeys = new Set([...projectAssetSourceFiles(nextProject).values()].map(sourceFileKey));
+	for (const source of previousSources.values()) {
+		const key = sourceFileKey(source);
+		if (!nextSourceKeys.has(key)) session.pendingStaleSourceFiles.set(key, source);
+	}
+	for (const key of nextSourceKeys) {
+		session.pendingStaleSourceFiles.delete(key);
+	}
 }
 
 function toBackendDiagnostics(error: ApplyUamTransactionAppError): BackendDiagnostic[] {
@@ -219,6 +259,7 @@ export class AuthoringService {
 			);
 		}
 
+		recordStaleResourceSources(session, session.project, result.project);
 		session.project = result.project;
 		session.revision += 1;
 		session.dirty = true;
@@ -271,7 +312,7 @@ export class AuthoringService {
 		if (!session || session.closed) {
 			return failure('authoring', startedAt, createSessionNotFoundError(input.sessionId));
 		}
-		const fileSystem = input.fileSystem ?? session.fileSystem ?? this.context.fileSystem;
+		const fileSystem = session.fileSystem ?? input.fileSystem ?? this.context.fileSystem;
 		if (!fileSystem) {
 			return failure(
 				'authoring',
@@ -328,7 +369,12 @@ export class AuthoringService {
 		});
 		try {
 			const writer = new ProjectWriter(createWriterFileSystem(fileSystem, committedPaths, failedPaths));
-			await writer.write(materializeUamProject(session.project), session.fairyPath);
+			await writer.write(materializeUamProject(session.project), session.fairyPath, {
+				staleSourceFiles: [...session.pendingStaleSourceFiles.values()],
+			});
+			session.fileSystem ??= fileSystem;
+			session.pendingStaleSourceFiles.clear();
+			commitUamProjectSourcePaths(session.project);
 			session.lastSavedRevision = session.revision;
 			session.dirty = false;
 			const cacheEntry = this.cacheService.refreshSession(session);
@@ -530,7 +576,13 @@ export class AuthoringService {
 		});
 		try {
 			const writer = new ProjectWriter(createWriterFileSystem(fileSystem, writtenPaths, failedPaths));
-			await writer.write(document, fairyPath);
+			const isSessionStorageTarget = fileSystem === session.fileSystem && fairyPath === session.fairyPath;
+			await writer.write(document, fairyPath, {
+				staleSourceFiles: isSessionStorageTarget ? [...session.pendingStaleSourceFiles.values()] : [],
+			});
+			if (isSessionStorageTarget) session.pendingStaleSourceFiles.clear();
+			if (storageTarget && !isSessionStorageTarget) session.pendingStaleSourceFiles.clear();
+			if (isSessionStorageTarget || storageTarget) commitUamProjectSourcePaths(session.project);
 			if (storageTarget) {
 				this.context.sessionsByPath.delete(session.canonicalPathKey);
 				session.fileSystem = storageTarget.fileSystem;

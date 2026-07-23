@@ -65,21 +65,36 @@ export {
 } from './model.js';
 export { normalizeUamProject } from './normalize.js';
 export { assertValidUamProject, validateUamProject } from './validate.js';
-export { liftDocumentToUamProject, materializeUamProject, readProjectAsUam, writeProjectFromUam } from './bridge.js';
 export {
+	commitUamProjectSourcePaths,
+	liftDocumentToUamProject,
+	materializeUamProject,
+	readProjectAsUam,
+	type WriteProjectFromUamOptions,
+	writeProjectFromUam,
+} from './bridge.js';
+export {
+	type AddGearOperation,
+	type AddResourceOperation,
+	type RemoveGearOperation,
+	type RemoveResourceOperation,
+	type ReplaceResourceBytesOperation,
 	UamTransaction,
 	UamTransactionError,
 	type UamComponentSelector,
 	type UamControllerSelector,
 	type UamDisplayNodePropsUpdate,
 	type UamDisplayNodeSelector,
+	type UamGearSelector,
 	type UamLookGearSelector,
+	type UamPackageSelector,
 	type UamResourceSelector,
 	type UamTransactionErrorCode,
 	type UamTransactionOperation,
 	type UamTransactionSupportIssueCode,
 	type UamTransactionSupportIssue,
 	type UamTransitionSelector,
+	type UpdateGearOperation,
 	applyUamTransaction,
 	assertTransactionSupported,
 	createUamTransaction,

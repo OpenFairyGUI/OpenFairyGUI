@@ -119,6 +119,10 @@ export class ImageResource extends ExtensibleProperty<IImageResource> {
 	public getImageData(): FairyBuffer | null { return this.getRef('imageData' as never) as FairyBuffer | null; }
 	public setImageData(buffer: FairyBuffer | null): this { return this.setRef('imageData' as never, buffer as never); }
 
+	/** Primary source-file bytes for this image resource. */
+	public getSourceData(): FairyBuffer | null { return this.getImageData(); }
+	public setSourceData(buffer: FairyBuffer | null): this { return this.setImageData(buffer); }
+
 	public getPixelHitTestData(): PixelHitTestData | null {
 		const pixelWidth = this.get('pixelHitTestPixelWidth');
 		const scaleDenominator = this.get('pixelHitTestScaleDenominator');

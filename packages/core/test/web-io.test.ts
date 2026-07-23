@@ -317,3 +317,33 @@ test('ProjectReader and ProjectWriter support root and nested .fairy project pat
 	t.true(await nestedFs.exists('samples/Demo/assets/Demo/package.xml'));
 	t.false(await nestedFs.exists('assets/Demo/package.xml'));
 });
+
+test('ProjectWriter rejects resource outputs that collide with package metadata before writing', async (t) => {
+	const fs = new MemoryFileSystem();
+	const doc = createWritableDocument();
+	const pkg = doc.getRoot().getPackage('Demo');
+	if (!pkg) {
+		t.fail('expected writable demo package');
+		return;
+	}
+	const resource = doc.createMiscResource('bad')
+		.setId('bad')
+		.setPath('/')
+		.setFile('package.xml')
+		.setExported(true)
+		.setSourceData(doc.createBuffer().setData(new Uint8Array([1, 2, 3])));
+	pkg.addResource(resource);
+
+	const error = await t.throwsAsync(new ProjectWriter(fs).write(doc, 'Project.fairy'));
+	t.regex(error?.message ?? '', /conflicts with package descriptor/);
+	t.false(await fs.exists('Project.fairy'));
+});
+
+test('ProjectWriter only accepts structured, package-scoped stale source references', async (t) => {
+	const fs = new MemoryFileSystem();
+	const error = await t.throwsAsync(new ProjectWriter(fs).write(createWritableDocument(), 'Project.fairy', {
+		staleSourceFiles: [{ packageName: '..', branch: '', path: '/', fileName: 'outside.bin' }],
+	}));
+	t.regex(error?.message ?? '', /Invalid stale source package name/);
+	t.false(await fs.exists('Project.fairy'));
+});

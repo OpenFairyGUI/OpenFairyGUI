@@ -46,39 +46,6 @@ test('backend responses carry unified diagnostics metadata', async (t) => {
 
 test('transaction failures expose stable editor-targeted diagnostics', async (t) => {
 	const project = createBackendFixtureProject();
-	const component = project.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
-	if (component?.kind !== 'component') {
-		t.fail('expected component resource');
-		return;
-	}
-	component.component.displayList.push({
-		kind: 'button',
-		id: 'n2',
-		name: 'button',
-		position: { x: 0, y: 0 },
-		size: { width: 10, height: 10 },
-		visible: true,
-		touchable: true,
-		grayed: false,
-		alpha: 1,
-		rotation: 0,
-		customData: '',
-		relations: [],
-		gears: [],
-		src: '',
-		packageId: '',
-		title: 'Button',
-		icon: '',
-		titleColor: '#000000',
-		titleFontSize: 12,
-		sound: '',
-		soundVolumeScale: 1,
-		selectedTitle: '',
-		selectedIcon: '',
-		mode: 0,
-		downEffect: 0,
-		downEffectValue: 0.8,
-	} as never);
 
 	const runtime = new BackendRuntime();
 	const opened = runtime.openProjectSession({ project, canonicalProjectPath: 'memory://diagnostics' });
@@ -90,9 +57,9 @@ test('transaction failures expose stable editor-targeted diagnostics', async (t)
 		expectedRevision: 0,
 		operations: [
 			{
-				kind: 'setDisplayNodeProps',
-				selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n2' },
-				props: { alpha: 0.5 },
+				kind: 'renameResource',
+				selector: { packageId: 'pkg001', resourceId: 'img001' },
+				newName: 'renamed.png',
 			},
 		],
 	});
@@ -100,12 +67,12 @@ test('transaction failures expose stable editor-targeted diagnostics', async (t)
 	if (rejected.ok) return;
 	t.deepEqual(rejected.meta.diagnostics, [
 		{
-			code: 'unsupported_display_node_mutation',
-			message: 'Phase A does not support button display node mutation ("n2").',
+			code: 'unavailable_resource_source_bytes',
+			message: 'Resource "pkg001/img001" has no hydrated primary source bytes.',
 			severity: 'error',
-			path: 'operations[0].selector.displayNodeId',
-			nodeKind: 'button',
-			operationKind: 'setDisplayNodeProps',
+			path: 'operations[0].selector.resourceId',
+			resourceKind: 'image',
+			operationKind: 'renameResource',
 		},
 	]);
 

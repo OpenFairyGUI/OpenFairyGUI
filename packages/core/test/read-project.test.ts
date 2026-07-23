@@ -1,4 +1,7 @@
 import test from 'ava';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
 import {
 	type Document,
@@ -219,6 +222,59 @@ test('Branch package preserves branch resources and root branch list', async (t)
 	const devLoader = devComponent.listChildren?.().find((child: any) => child.getId?.() === 'n0_kn7w');
 	t.truthy(devLoader, 'dev branch component child exists');
 	t.is(devLoader?.getUrl?.(), 'ui://a9lkf94skn7w2', 'dev branch component keeps branch-local resource reference');
+});
+
+test('opt-in hydration loads primary source bytes from main and branch packages', async (t) => {
+	const io = new NodeIO();
+	const branchDoc = await io.readProject(BRANCH_LOADER_PROJECT_PATH, { hydrateResourceBytes: true });
+	const branchPkg = branchDoc.getRoot().listPackages().find((pkg) => pkg.getName() === 'Branch');
+	const mainImage = branchPkg?.getResourceById('kn7w1') as any;
+	const devImage = branchPkg?.getResourceById('kn7w2') as any;
+	t.true(mainImage?.getSourceData?.()?.getData?.() instanceof Uint8Array);
+	t.true(devImage?.getSourceData?.()?.getData?.() instanceof Uint8Array);
+	t.is(mainImage?.getSourceData?.()?.getURI?.(), '/face.png');
+	t.is(devImage?.getSourceData?.()?.getURI?.(), '/face.png');
+
+	const layaboxDoc = await io.readProject(LAYABOX_PROJECT_PATH, { hydrateResourceBytes: true });
+	const hydratedDocuments = [branchDoc, layaboxDoc];
+	for (const propertyType of [
+		PropertyType.IMAGE_RESOURCE,
+		PropertyType.SOUND_RESOURCE,
+		PropertyType.MISC_RESOURCE,
+		PropertyType.FONT_RESOURCE,
+		PropertyType.MOVIE_CLIP_RESOURCE,
+		PropertyType.SPINE_RESOURCE,
+		PropertyType.DRAGON_BONES_RESOURCE,
+	]) {
+		const resource = hydratedDocuments
+			.flatMap((doc) => doc.getRoot().listPackages())
+			.flatMap((pkg) => pkg.listResources())
+			.find((candidate) => (
+				candidate.propertyType === propertyType
+				&& (candidate as any).getSourceData?.()?.getData?.() instanceof Uint8Array
+			));
+		t.truthy(resource, `expected hydrated ${propertyType} source bytes`);
+	}
+});
+
+test('opt-in hydration never follows traversal paths from package XML', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-hydration-path-'));
+	const projectPath = path.join(tmpDir, 'Project.fairy');
+	try {
+		await fs.writeFile(projectPath, '<?xml version="1.0" encoding="utf-8"?><projectDescription id="safe" type="Layabox" version="3.0"/>');
+		await fs.mkdir(path.join(tmpDir, 'assets', 'Demo'), { recursive: true });
+		await fs.writeFile(
+			path.join(tmpDir, 'assets', 'Demo', 'package.xml'),
+			'<?xml version="1.0" encoding="utf-8"?><packageDescription id="pkgDemo"><resources><image id="img" name="secret.bin" path="../../" exported="true"/></resources></packageDescription>',
+		);
+		await fs.writeFile(path.join(tmpDir, 'secret.bin'), new Uint8Array([7, 8, 9]));
+
+		const doc = await new NodeIO().readProject(projectPath, { hydrateResourceBytes: true });
+		const image = doc.getRoot().getPackage('Demo')?.getResourceById('img') as { getSourceData?(): unknown } | undefined;
+		t.is(image?.getSourceData?.() ?? null, null);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
 });
 
 test('package.xml publish preserves packageCount', async (t) => {

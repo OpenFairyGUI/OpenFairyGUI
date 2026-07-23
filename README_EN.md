@@ -60,11 +60,14 @@ await doc.transform(publish({
 }));
 ```
 
-If you want to use the current **Phase A UAM authoring seam**, you can pass a
-`UamProject` plus an explicit operation batch into the thin application wrapper
-exposed by `@openfairygui/functions`. This path stays `UAM-public / Document-private`,
-is suitable for future automation / MCP adapters, and is intentionally limited to the
-frozen Phase A write surface rather than a general editing backend.
+If you want to use the current **UAM authoring seam**, pass a `UamProject` plus an
+explicit operation batch into the thin application wrapper exposed by
+`@openfairygui/functions`. This `UAM-public / Document-private` path supports resource
+rename/move, byte-backed binary resource add/replace/remove, and add/update/remove for
+the currently modeled gear kinds; it is still not a general editing backend. Read source
+projects with `ProjectReader.read(path, { hydrateResourceBytes: true })` before binary
+resource editing. File-backed `BackendRuntime.openSession` performs that hydration
+automatically.
 
 ```ts
 import {
@@ -73,7 +76,7 @@ import {
 } from '@openfairygui/core';
 import { applyUamTransactionApp } from '@openfairygui/functions';
 
-const project: UamProject = /* ... */;
+const project: UamProject = /* project read and lifted with hydrateResourceBytes */;
 const operations: UamTransactionOperation[] = [
 	{
 		kind: 'renameResource',

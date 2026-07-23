@@ -29,6 +29,8 @@ export interface BackendSessionState {
 	project: import('@openfairygui/core/uam').UamProject;
 	revision: number;
 	lastSavedRevision: number;
+	/** Source files deferred until a successful replacement project write. */
+	pendingStaleSourceFiles: Map<string, import('@openfairygui/core/project-io').ProjectSourceFile>;
 	dirty: boolean;
 	lockHeld: boolean;
 	closed: boolean;

@@ -1,4 +1,4 @@
-import { bindLookGear, composeController, composeTransition } from '../authoring.js';
+import { composeController, composeTransition } from '../authoring.js';
 import { GearType, PropertyType } from '../constants.js';
 import type { Document } from '../document.js';
 import type { Component } from '../properties/component.js';
@@ -7,11 +7,19 @@ import type { GObject } from '../properties/g-object.js';
 import type { GTextField } from '../properties/g-text-field.js';
 import type { Package } from '../properties/package.js';
 import type { Transition } from '../properties/transition.js';
-import { liftDocumentToUamProject, materializeDisplayNode, materializeUamProject } from './bridge.js';
+import {
+	liftDocumentToUamProject,
+	materializeAssetResource,
+	materializeDisplayNode,
+	materializeUamGear,
+	materializeUamProject,
+} from './bridge.js';
 import type {
+	UamAssetResource,
 	UamComponentModel,
 	UamControllerModel,
 	UamDisplayNode,
+	UamGearBinding,
 	UamLookGearBinding,
 	UamProject,
 	UamValidationIssue,
@@ -23,6 +31,10 @@ import { validateUamProject } from './validate.js';
 export interface UamResourceSelector {
 	packageId: string;
 	resourceId: string;
+}
+
+export interface UamPackageSelector {
+	packageId: string;
 }
 
 export interface UamComponentSelector {
@@ -44,6 +56,11 @@ export interface UamTransitionSelector extends UamComponentSelector {
 
 export interface UamLookGearSelector extends UamDisplayNodeSelector {
 	kind: 'look';
+	controllerName: string;
+}
+
+export interface UamGearSelector extends UamDisplayNodeSelector {
+	kind: UamGearBinding['kind'];
 	controllerName: string;
 }
 
@@ -79,6 +96,23 @@ export interface MoveResourceOperation extends UamTransactionOperationBase {
 	kind: 'moveResource';
 	selector: UamResourceSelector;
 	toPath: string;
+}
+
+export interface AddResourceOperation extends UamTransactionOperationBase {
+	kind: 'addResource';
+	selector: UamPackageSelector;
+	resource: UamAssetResource;
+}
+
+export interface ReplaceResourceBytesOperation extends UamTransactionOperationBase {
+	kind: 'replaceResourceBytes';
+	selector: UamResourceSelector;
+	sourceBytes: Uint8Array;
+}
+
+export interface RemoveResourceOperation extends UamTransactionOperationBase {
+	kind: 'removeResource';
+	selector: UamResourceSelector;
 }
 
 export interface SetDisplayNodePropsOperation extends UamTransactionOperationBase {
@@ -150,9 +184,29 @@ export interface RemoveLookGearOperation extends UamTransactionOperationBase {
 	selector: UamLookGearSelector;
 }
 
+export interface AddGearOperation extends UamTransactionOperationBase {
+	kind: 'addGear';
+	selector: UamGearSelector;
+	gear: UamGearBinding;
+}
+
+export interface UpdateGearOperation extends UamTransactionOperationBase {
+	kind: 'updateGear';
+	selector: UamGearSelector;
+	gear: UamGearBinding;
+}
+
+export interface RemoveGearOperation extends UamTransactionOperationBase {
+	kind: 'removeGear';
+	selector: UamGearSelector;
+}
+
 export type UamTransactionOperation =
 	| RenameResourceOperation
 	| MoveResourceOperation
+	| AddResourceOperation
+	| ReplaceResourceBytesOperation
+	| RemoveResourceOperation
 	| SetDisplayNodePropsOperation
 	| AttachDisplayNodeOperation
 	| DetachDisplayNodeOperation
@@ -164,7 +218,10 @@ export type UamTransactionOperation =
 	| RemoveTransitionOperation
 	| AddLookGearOperation
 	| UpdateLookGearOperation
-	| RemoveLookGearOperation;
+	| RemoveLookGearOperation
+	| AddGearOperation
+	| UpdateGearOperation
+	| RemoveGearOperation;
 
 export type UamTransactionSupportIssueCode =
 	| 'unsupported_resource_kind'
@@ -184,7 +241,14 @@ export type UamTransactionSupportIssueCode =
 	| 'invalid_transition_payload'
 	| 'invalid_look_gear_selector'
 	| 'invalid_look_gear_payload'
-	| 'duplicate_look_gear_state_page';
+	| 'duplicate_look_gear_state_page'
+	| 'duplicate_gear_controller'
+	| 'invalid_gear_selector'
+	| 'invalid_gear_payload'
+	| 'duplicate_gear_state_page'
+	| 'invalid_resource_payload'
+	| 'duplicate_resource_id'
+	| 'unavailable_resource_source_bytes';
 
 export interface UamTransactionSupportIssue {
 	code: UamTransactionSupportIssueCode;
@@ -304,7 +368,15 @@ const COMMON_DISPLAY_PROPERTY_TYPES = new Set<string>([
 	PropertyType.G_GROUP,
 	PropertyType.G_LIST,
 	PropertyType.G_LOADER,
+	PropertyType.G_LOADER_3D,
+	PropertyType.G_MOVIE_CLIP,
 	PropertyType.G_TREE,
+	PropertyType.G_BUTTON,
+	PropertyType.G_LABEL,
+	PropertyType.G_COMBO_BOX,
+	PropertyType.G_PROGRESS_BAR,
+	PropertyType.G_SLIDER,
+	PropertyType.G_SCROLL_BAR,
 ]);
 
 function findPackageSpec(project: UamProject, packageId: string): UamProject['packages'][number] | null {
@@ -341,6 +413,32 @@ function findResourceSpecWithPath(project: UamProject, selector: UamResourceSele
 		resource: pkg.resources[resourceIndex]!,
 		path: `packages[${packageIndex}].resources[${resourceIndex}]`,
 	};
+}
+
+function findProjectedResource(
+	project: UamProject,
+	operations: UamTransactionOperation[],
+	operationIndex: number,
+	selector: UamResourceSelector,
+): UamProject['packages'][number]['resources'][number] | null {
+	let resource = findResourceSpec(project, selector);
+	for (let index = 0; index < operationIndex; index += 1) {
+		const operation = operations[index]!;
+		if (operation.kind === 'addResource') {
+			if (operation.selector.packageId === selector.packageId && operation.resource.id === selector.resourceId) {
+				resource = operation.resource;
+			}
+			continue;
+		}
+		if (!('selector' in operation) || operation.selector.packageId !== selector.packageId) continue;
+		if ('resourceId' in operation.selector && operation.selector.resourceId === selector.resourceId) {
+			if (operation.kind === 'removeResource') resource = null;
+			if (operation.kind === 'replaceResourceBytes' && resource?.kind !== 'component') {
+				resource = { ...resource, sourceBytes: operation.sourceBytes };
+			}
+		}
+	}
+	return resource;
 }
 
 function findComponentSpecWithPath(project: UamProject, selector: UamComponentSelector) {
@@ -406,7 +504,7 @@ function validateSupportedDisplayNode(
 		);
 	}
 
-	const lookGearControllers = new Set<string>();
+	const gearControllers = new Set<string>();
 	for (const [gearIndex, gear] of node.gears.entries()) {
 		if (!UAM_SUPPORTED_TRANSACTION_SCOPE.gearKinds.includes(gear.kind as never)) {
 			pushSupportIssue(
@@ -418,17 +516,17 @@ function validateSupportedDisplayNode(
 			);
 			continue;
 		}
-		if (gear.kind !== 'look') continue;
-		if (lookGearControllers.has(gear.controllerName)) {
+		const key = `${gear.kind}\u0000${gear.controllerName}`;
+		if (gearControllers.has(key)) {
 			pushSupportIssue(
 				issues,
-				'duplicate_look_gear_controller',
+				gear.kind === 'look' ? 'duplicate_look_gear_controller' : 'duplicate_gear_controller',
 				`${path}.gears[${gearIndex}]`,
-				`Phase A allows at most one look gear per display node per controller ("${gear.controllerName}").`,
+				`A display node may only have one ${gear.kind} gear per controller ("${gear.controllerName}").`,
 				{ ...details, nodeKind: node.kind, gearKind: gear.kind },
 			);
 		}
-		lookGearControllers.add(gear.controllerName);
+		gearControllers.add(key);
 	}
 }
 
@@ -473,22 +571,24 @@ function validateBaselineSupport(project: UamProject, issues: UamTransactionSupp
 
 function validateTouchedResourceKind(
 	project: UamProject,
+	operations: UamTransactionOperation[],
+	operationIndex: number,
 	selector: UamResourceSelector,
 	path: string,
 	issues: UamTransactionSupportIssue[],
 	operationKind: UamTransactionOperation['kind'],
 ): void {
-	const found = findResourceSpecWithPath(project, selector);
-	if (!found) return;
-	if (found.resource.kind === 'component' || UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds.includes(found.resource.kind as never)) {
+	const resource = findProjectedResource(project, operations, operationIndex, selector);
+	if (!resource) return;
+	if (resource.kind === 'component' || UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds.includes(resource.kind as never)) {
 		return;
 	}
 	pushSupportIssue(
 		issues,
 		'unsupported_resource_mutation',
 		path,
-		`Phase A does not support ${found.resource.kind} resource mutation ("${selector.packageId}/${selector.resourceId}").`,
-		{ operationKind, resourceKind: found.resource.kind },
+		`Phase A does not support ${resource.kind} resource mutation ("${selector.packageId}/${selector.resourceId}").`,
+		{ operationKind, resourceKind: resource.kind },
 	);
 }
 
@@ -704,6 +804,100 @@ function validateControllerPayload(
 	}
 }
 
+function isControllerGearOperation(
+	operation: UamTransactionOperation,
+): operation is AddGearOperation | UpdateGearOperation | RemoveGearOperation {
+	return operation.kind === 'addGear' || operation.kind === 'updateGear' || operation.kind === 'removeGear';
+}
+
+function projectedDisplayGearsForController(
+	project: UamProject,
+	operations: UamTransactionOperation[],
+	selector: UamControllerSelector,
+): Array<{ displayNodeId: string; gear: Extract<UamGearBinding, { kind: 'display' | 'display2' }> }> {
+	const component = findComponentSpec(project, selector);
+	if (!component) return [];
+
+	const projected = new Map<string, { displayNodeId: string; gear: Extract<UamGearBinding, { kind: 'display' | 'display2' }> }>();
+	const keyFor = (displayNodeId: string, kind: 'display' | 'display2') => `${displayNodeId}\u0000${kind}`;
+	const include = (displayNodeId: string, gear: UamGearBinding) => {
+		if ((gear.kind !== 'display' && gear.kind !== 'display2') || gear.controllerName !== selector.controllerName) return;
+		projected.set(keyFor(displayNodeId, gear.kind), { displayNodeId, gear });
+	};
+
+	for (const node of component.component.displayList) {
+		for (const gear of node.gears) include(node.id, gear);
+	}
+
+	for (const operation of operations) {
+		if (operation.kind === 'attachDisplayNode'
+			&& operation.selector.packageId === selector.packageId
+			&& operation.selector.componentResourceId === selector.componentResourceId
+		) {
+			for (const gear of operation.node.gears) include(operation.node.id, gear);
+			continue;
+		}
+		if (operation.kind === 'detachDisplayNode'
+			&& operation.selector.packageId === selector.packageId
+			&& operation.selector.componentResourceId === selector.componentResourceId
+		) {
+			for (const kind of ['display', 'display2'] as const) projected.delete(keyFor(operation.selector.displayNodeId, kind));
+			continue;
+		}
+		if (!isControllerGearOperation(operation)
+			|| operation.selector.packageId !== selector.packageId
+			|| operation.selector.componentResourceId !== selector.componentResourceId
+			|| operation.selector.controllerName !== selector.controllerName
+			|| (operation.selector.kind !== 'display' && operation.selector.kind !== 'display2')
+		) continue;
+		const key = keyFor(operation.selector.displayNodeId, operation.selector.kind);
+		if (operation.kind === 'removeGear') projected.delete(key);
+		else include(operation.selector.displayNodeId, operation.gear);
+	}
+
+	return [...projected.values()];
+}
+
+function isFinalControllerMutation(
+	operations: UamTransactionOperation[],
+	operationIndex: number,
+	selector: UamControllerSelector,
+): boolean {
+	for (let index = operationIndex + 1; index < operations.length; index += 1) {
+		const operation = operations[index]!;
+		if ((operation.kind !== 'addController' && operation.kind !== 'updateController' && operation.kind !== 'removeController')
+			|| operation.selector.packageId !== selector.packageId
+			|| operation.selector.componentResourceId !== selector.componentResourceId
+			|| operation.selector.controllerName !== selector.controllerName
+		) continue;
+		return false;
+	}
+	return true;
+}
+
+function validateUpdatedControllerGearBindings(
+	project: UamProject,
+	operations: UamTransactionOperation[],
+	selector: UamControllerSelector,
+	controller: UamControllerModel,
+	path: string,
+	issues: UamTransactionSupportIssue[],
+): void {
+	const pageIds = new Set(controller.pages.map((page) => page.id));
+	for (const { displayNodeId, gear } of projectedDisplayGearsForController(project, operations, selector)) {
+		for (const pageId of gear.visibleOnPageIds) {
+			if (pageIds.has(pageId)) continue;
+			pushSupportIssue(
+				issues,
+				'invalid_controller_payload',
+				`${path}.controller.pages`,
+				`Unknown gear page id "${pageId}"; controller page ids would leave the ${gear.kind} gear on display node "${displayNodeId}" invalid.`,
+				{ operationKind: 'updateController', gearKind: gear.kind },
+			);
+		}
+	}
+}
+
 function validateTransitionPayload(
 	selector: UamTransitionSelector,
 	transition: UamComponentModel['transitions'][number],
@@ -722,52 +916,324 @@ function validateTransitionPayload(
 	}
 }
 
-function validateLookGearPayload(
-	selector: UamLookGearSelector,
-	gear: UamLookGearBinding,
+function plannedControllerForOperation(
+	project: UamProject,
+	operations: UamTransactionOperation[],
+	operationIndex: number,
+	selector: UamGearSelector,
+): UamControllerModel | null {
+	const component = findComponentSpec(project, selector);
+	let controller = component?.component.controllers.find((candidate) => candidate.name === selector.controllerName) ?? null;
+	for (let index = 0; index < operationIndex; index += 1) {
+		const operation = operations[index]!;
+		if (!('selector' in operation)) continue;
+		const candidate = operation.selector as Partial<UamComponentSelector & UamControllerSelector>;
+		if (
+			candidate.packageId !== selector.packageId
+			|| candidate.componentResourceId !== selector.componentResourceId
+			|| candidate.controllerName !== selector.controllerName
+		) continue;
+		if (operation.kind === 'addController' || operation.kind === 'updateController') controller = operation.controller;
+		if (operation.kind === 'removeController') controller = null;
+	}
+	return controller;
+}
+
+function validateGearSelector(
+	project: UamProject,
+	operations: UamTransactionOperation[],
+	operationIndex: number,
+	selector: UamGearSelector,
+	path: string,
+	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
+): UamControllerModel | null {
+	if (!UAM_SUPPORTED_TRANSACTION_SCOPE.gearKinds.includes(selector.kind as never)) {
+		pushSupportIssue(
+			issues,
+			'invalid_gear_selector',
+			`${path}.kind`,
+			`Unsupported gear selector kind "${selector.kind}".`,
+			{ operationKind, gearKind: selector.kind },
+		);
+	}
+	const controller = plannedControllerForOperation(project, operations, operationIndex, selector);
+	if (controller) return controller;
+	pushSupportIssue(
+		issues,
+		'invalid_gear_selector',
+		`${path}.controllerName`,
+		`Unknown gear controller "${selector.controllerName}".`,
+		{ operationKind, gearKind: selector.kind },
+	);
+	return null;
+}
+
+function validateGearPayload(
+	project: UamProject,
+	operations: UamTransactionOperation[],
+	operationIndex: number,
+	selector: UamGearSelector,
+	gear: UamGearBinding,
 	path: string,
 	issues: UamTransactionSupportIssue[],
 	operationKind: UamTransactionOperation['kind'],
 ): void {
-	if (selector.kind !== 'look') {
+	const controller = validateGearSelector(project, operations, operationIndex, selector, `${path}.selector`, issues, operationKind);
+	if (gear.kind !== selector.kind) {
 		pushSupportIssue(
 			issues,
-			'invalid_look_gear_selector',
-			`${path}.selector.kind`,
-			'Phase A only supports look gear selectors.',
-			{ operationKind },
-		);
-	}
-	if (gear.kind !== 'look') {
-		pushSupportIssue(
-			issues,
-			'invalid_look_gear_payload',
+			'invalid_gear_payload',
 			`${path}.gear.kind`,
-			'Phase A only supports look gear payloads.',
+			'Gear payload kind must match selector.kind.',
 			{ operationKind, gearKind: gear.kind },
 		);
 	}
 	if (gear.controllerName !== selector.controllerName) {
 		pushSupportIssue(
 			issues,
-			'invalid_look_gear_payload',
+			'invalid_gear_payload',
 			`${path}.gear.controllerName`,
-			'Look gear payload controllerName must match selector.controllerName.',
+			'Gear payload controllerName must match selector.controllerName.',
 			{ operationKind, gearKind: gear.kind },
 		);
 	}
+	if (!controller) return;
+	const pageIds = new Set(controller.pages.map((page) => page.id));
+	const statePageIds = gear.kind === 'display' || gear.kind === 'display2'
+		? gear.visibleOnPageIds
+		: gear.states.map((state) => state.pageId);
 	const seen = new Set<string>();
-	for (const [stateIndex, state] of gear.states.entries()) {
-		if (seen.has(state.pageId)) {
+	for (const [stateIndex, pageId] of statePageIds.entries()) {
+		const statePath = gear.kind === 'display' || gear.kind === 'display2'
+			? `${path}.gear.visibleOnPageIds[${stateIndex}]`
+			: `${path}.gear.states[${stateIndex}]`;
+		if (!pageIds.has(pageId)) {
 			pushSupportIssue(
 				issues,
-				'duplicate_look_gear_state_page',
-				`${path}.gear.states[${stateIndex}]`,
-				`Duplicate look gear state page id "${state.pageId}".`,
+				'invalid_gear_payload',
+				statePath,
+				`Unknown controller page id "${pageId}".`,
 				{ operationKind, gearKind: gear.kind },
 			);
 		}
-		seen.add(state.pageId);
+		if (seen.has(pageId)) {
+			pushSupportIssue(
+				issues,
+				gear.kind === 'look' ? 'duplicate_look_gear_state_page' : 'duplicate_gear_state_page',
+				statePath,
+				`Duplicate gear state page id "${pageId}".`,
+				{ operationKind, gearKind: gear.kind },
+			);
+		}
+		seen.add(pageId);
+	}
+}
+
+function projectedGearExists(
+	project: UamProject,
+	operations: UamTransactionOperation[],
+	operationIndex: number,
+	selector: UamGearSelector,
+): boolean {
+	let exists = findDisplayNodeSpec(project, selector)?.gears.some((gear) => (
+		gear.kind === selector.kind && gear.controllerName === selector.controllerName
+	)) ?? false;
+	for (let index = 0; index < operationIndex; index += 1) {
+		const operation = operations[index]!;
+		if (!('selector' in operation)) continue;
+		if (
+			(operation.kind !== 'addGear' && operation.kind !== 'updateGear' && operation.kind !== 'removeGear'
+				&& operation.kind !== 'addLookGear' && operation.kind !== 'updateLookGear' && operation.kind !== 'removeLookGear')
+		) continue;
+		const candidate = operation.selector as UamGearSelector;
+		if (
+			candidate.packageId !== selector.packageId
+			|| candidate.componentResourceId !== selector.componentResourceId
+			|| candidate.displayNodeId !== selector.displayNodeId
+			|| candidate.kind !== selector.kind
+			|| candidate.controllerName !== selector.controllerName
+		) continue;
+		if (operation.kind === 'addGear' || operation.kind === 'addLookGear') exists = true;
+		if (operation.kind === 'removeGear' || operation.kind === 'removeLookGear') exists = false;
+	}
+	return exists;
+}
+
+function validateAddGearDoesNotDuplicate(
+	project: UamProject,
+	operations: UamTransactionOperation[],
+	operationIndex: number,
+	selector: UamGearSelector,
+	path: string,
+	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
+): void {
+	if (!projectedGearExists(project, operations, operationIndex, selector)) return;
+	pushSupportIssue(
+		issues,
+		selector.kind === 'look' ? 'duplicate_look_gear_controller' : 'duplicate_gear_controller',
+		path,
+		`A ${selector.kind} gear already exists for controller "${selector.controllerName}" on this display node.`,
+		{ operationKind, gearKind: selector.kind },
+	);
+}
+
+function validateExistingGear(
+	project: UamProject,
+	operations: UamTransactionOperation[],
+	operationIndex: number,
+	selector: UamGearSelector,
+	path: string,
+	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
+): void {
+	if (projectedGearExists(project, operations, operationIndex, selector)) return;
+	pushSupportIssue(
+		issues,
+		'invalid_gear_selector',
+		path,
+		`No ${selector.kind} gear exists for controller "${selector.controllerName}" on this display node.`,
+		{ operationKind, gearKind: selector.kind },
+	);
+}
+
+function isSafeResourceFileName(value: string): boolean {
+	return value.length > 0
+		&& !value.includes('/')
+		&& !value.includes('\\')
+		&& value !== '.'
+		&& value !== '..';
+}
+
+function isSafeResourcePath(value: string): boolean {
+	if (!value) return false;
+	const segments = value.replace(/\\/g, '/').split('/').filter(Boolean);
+	return !segments.some((segment) => segment === '.' || segment === '..');
+}
+
+function primaryResourceFileName(resource: UamAssetResource): string {
+	return resource.fileName ?? resource.file ?? '';
+}
+
+function validateAssetSourceBytes(
+	project: UamProject,
+	operations: UamTransactionOperation[],
+	operationIndex: number,
+	selector: UamResourceSelector,
+	path: string,
+	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
+): void {
+	const resource = findProjectedResource(project, operations, operationIndex, selector);
+	if (!resource || resource.kind === 'component') return;
+	if (resource.sourceBytes instanceof Uint8Array) return;
+	pushSupportIssue(
+		issues,
+		'unavailable_resource_source_bytes',
+		path,
+		`Resource "${selector.packageId}/${selector.resourceId}" has no hydrated primary source bytes.`,
+		{ operationKind, resourceKind: resource.kind },
+	);
+}
+
+function validateBinaryResourceTarget(
+	project: UamProject,
+	operations: UamTransactionOperation[],
+	operationIndex: number,
+	selector: UamResourceSelector,
+	path: string,
+	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
+): void {
+	const resource = findProjectedResource(project, operations, operationIndex, selector);
+	if (!resource || resource.kind !== 'component') return;
+	pushSupportIssue(
+		issues,
+		'unsupported_resource_mutation',
+		path,
+		`${operationKind} only supports binary package resources, not components.`,
+		{ operationKind, resourceKind: resource.kind },
+	);
+}
+
+function validateAssetResourcePayload(
+	project: UamProject,
+	operations: UamTransactionOperation[],
+	operationIndex: number,
+	selector: UamPackageSelector,
+	resource: UamAssetResource,
+	path: string,
+	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
+): void {
+	const pkg = findPackageSpec(project, selector.packageId);
+	if (!pkg) return;
+	if (!UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds.includes(resource.kind as never)) {
+		pushSupportIssue(
+			issues,
+			'unsupported_resource_kind',
+			`${path}.resource.kind`,
+			`Unsupported resource kind "${resource.kind}".`,
+			{ operationKind, resourceKind: resource.kind },
+		);
+	}
+	if (!resource.id) {
+		pushSupportIssue(
+			issues,
+			'invalid_resource_payload',
+			`${path}.resource.id`,
+			'Added binary resource id must not be empty.',
+			{ operationKind, resourceKind: resource.kind },
+		);
+	} else if (findProjectedResource(project, operations, operationIndex, {
+		packageId: selector.packageId,
+		resourceId: resource.id,
+	})) {
+		pushSupportIssue(
+			issues,
+			'duplicate_resource_id',
+			`${path}.resource.id`,
+			`Resource id "${resource.id}" already exists in package "${selector.packageId}".`,
+			{ operationKind, resourceKind: resource.kind },
+		);
+	}
+	const fileName = primaryResourceFileName(resource);
+	if (!isSafeResourceFileName(fileName)) {
+		pushSupportIssue(
+			issues,
+			'invalid_resource_payload',
+			`${path}.resource`,
+			'Added binary resource must define a safe primary file name.',
+			{ operationKind, resourceKind: resource.kind },
+		);
+	}
+	if (!isSafeResourcePath(resource.path)) {
+		pushSupportIssue(
+			issues,
+			'invalid_resource_path',
+			`${path}.resource.path`,
+			'Added binary resource path must not contain traversal segments.',
+			{ operationKind, resourceKind: resource.kind },
+		);
+	}
+	if (!(resource.sourceBytes instanceof Uint8Array)) {
+		pushSupportIssue(
+			issues,
+			'unavailable_resource_source_bytes',
+			`${path}.resource.sourceBytes`,
+			'Added binary resource must provide primary source bytes.',
+			{ operationKind, resourceKind: resource.kind },
+		);
+	}
+	if (resource.sourcePath !== undefined) {
+		pushSupportIssue(
+			issues,
+			'invalid_resource_payload',
+			`${path}.resource.sourcePath`,
+			'Added binary resources must not declare a previous sourcePath.',
+			{ operationKind, resourceKind: resource.kind },
+		);
 	}
 }
 
@@ -776,28 +1242,52 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 		const operationPath = `operations[${operationIndex}]`;
 		switch (operation.kind) {
 			case 'renameResource':
-				validateTouchedResourceKind(project, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
-				if (!operation.newName) {
+				validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
+				validateAssetSourceBytes(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
+				if (!isSafeResourceFileName(operation.newName)) {
 					pushSupportIssue(
 						issues,
 						'invalid_resource_name',
 						`${operationPath}.newName`,
-						'renameResource.newName must not be empty.',
+						'renameResource.newName must be a safe file or resource name.',
 						{ operationKind: operation.kind },
 					);
 				}
 				break;
 			case 'moveResource':
-				validateTouchedResourceKind(project, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
-				if (!operation.toPath) {
+				validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
+				validateAssetSourceBytes(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
+				if (!isSafeResourcePath(operation.toPath)) {
 					pushSupportIssue(
 						issues,
 						'invalid_resource_path',
 						`${operationPath}.toPath`,
-						'moveResource.toPath must not be empty.',
+						'moveResource.toPath must not be empty or contain traversal segments.',
 						{ operationKind: operation.kind },
 					);
 				}
+				break;
+			case 'addResource':
+				validateAssetResourcePayload(project, operations, operationIndex, operation.selector, operation.resource, operationPath, issues, operation.kind);
+				break;
+			case 'replaceResourceBytes':
+				validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
+				validateBinaryResourceTarget(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
+				validateAssetSourceBytes(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
+				if (!(operation.sourceBytes instanceof Uint8Array)) {
+					pushSupportIssue(
+						issues,
+						'unavailable_resource_source_bytes',
+						`${operationPath}.sourceBytes`,
+						'replaceResourceBytes.sourceBytes must be a Uint8Array.',
+						{ operationKind: operation.kind },
+					);
+				}
+				break;
+			case 'removeResource':
+				validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
+				validateBinaryResourceTarget(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
+				validateAssetSourceBytes(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
 				break;
 			case 'setDisplayNodeProps':
 				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
@@ -821,9 +1311,15 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
 				break;
 			case 'addController':
+				validateControllerPayload(operation.selector, operation.controller, operationPath, issues, operation.kind);
+				validateControllerActionTargets(project, operation.selector, operation.controller, `${operationPath}.controller`, issues, operation.kind);
+				break;
 			case 'updateController':
 				validateControllerPayload(operation.selector, operation.controller, operationPath, issues, operation.kind);
 				validateControllerActionTargets(project, operation.selector, operation.controller, `${operationPath}.controller`, issues, operation.kind);
+				if (isFinalControllerMutation(operations, operationIndex, operation.selector)) {
+					validateUpdatedControllerGearBindings(project, operations, operation.selector, operation.controller, operationPath, issues);
+				}
 				break;
 			case 'removeController':
 				break;
@@ -835,12 +1331,34 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 			case 'removeTransition':
 				break;
 			case 'addLookGear':
+				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
+				validateGearPayload(project, operations, operationIndex, operation.selector, operation.gear, operationPath, issues, operation.kind);
+				validateAddGearDoesNotDuplicate(project, operations, operationIndex, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				break;
 			case 'updateLookGear':
 				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
-				validateLookGearPayload(operation.selector, operation.gear, operationPath, issues, operation.kind);
+				validateGearPayload(project, operations, operationIndex, operation.selector, operation.gear, operationPath, issues, operation.kind);
+				validateExistingGear(project, operations, operationIndex, operation.selector, `${operationPath}.selector`, issues, operation.kind);
 				break;
 			case 'removeLookGear':
 				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
+				validateGearSelector(project, operations, operationIndex, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				validateExistingGear(project, operations, operationIndex, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				break;
+			case 'addGear':
+				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
+				validateGearPayload(project, operations, operationIndex, operation.selector, operation.gear, operationPath, issues, operation.kind);
+				validateAddGearDoesNotDuplicate(project, operations, operationIndex, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				break;
+			case 'updateGear':
+				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
+				validateGearPayload(project, operations, operationIndex, operation.selector, operation.gear, operationPath, issues, operation.kind);
+				validateExistingGear(project, operations, operationIndex, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				break;
+			case 'removeGear':
+				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
+				validateGearSelector(project, operations, operationIndex, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				validateExistingGear(project, operations, operationIndex, operation.selector, `${operationPath}.selector`, issues, operation.kind);
 				break;
 		}
 	}
@@ -1050,23 +1568,45 @@ function resolveUniqueTransition(component: Component, selector: UamTransitionSe
 	return matches[0]!;
 }
 
-function resolveUniqueLookGear(node: GObject, selector: UamLookGearSelector) {
+function gearTypeForKind(kind: UamGearBinding['kind']): GearType {
+	switch (kind) {
+		case 'display': return GearType.Display;
+		case 'display2': return GearType.Display2;
+		case 'xy': return GearType.XY;
+		case 'size': return GearType.Size;
+		case 'look': return GearType.Look;
+		case 'color': return GearType.Color;
+		case 'animation': return GearType.Animation;
+		case 'text': return GearType.Text;
+		case 'icon': return GearType.Icon;
+		case 'fontSize': return GearType.FontSize;
+	}
+}
+
+function hasControllerGear(node: GObject, selector: UamGearSelector): boolean {
+	return node.listGears().some((gear) => (
+		gear.getGearType() === gearTypeForKind(selector.kind)
+		&& gear.getController()?.getName() === selector.controllerName
+	));
+}
+
+function resolveUniqueGear(node: GObject, selector: UamGearSelector) {
 	const matches = node.listGears().filter((gear) => (
-		gear.getGearType() === GearType.Look
+		gear.getGearType() === gearTypeForKind(selector.kind)
 		&& gear.getController()?.getName() === selector.controllerName
 	));
 	if (matches.length === 0) {
-		throw new Error(`Look gear for controller "${selector.controllerName}" was not found on node "${selector.displayNodeId}".`);
+		throw new Error(`${selector.kind} gear for controller "${selector.controllerName}" was not found on node "${selector.displayNodeId}".`);
 	}
-		if (matches.length > 1) {
-			throw new UamTransactionError(
-				`Look gear selector is ambiguous on node "${selector.displayNodeId}" for controller "${selector.controllerName}".`,
-				{
-					code: 'selector_ambiguity',
-					selector: selectorDetails(selector as unknown as Record<string, unknown>),
-				},
-			);
-		}
+	if (matches.length > 1) {
+		throw new UamTransactionError(
+			`${selector.kind} gear selector is ambiguous on node "${selector.displayNodeId}" for controller "${selector.controllerName}".`,
+			{
+				code: 'selector_ambiguity',
+				selector: selectorDetails(selector as unknown as Record<string, unknown>),
+			},
+		);
+	}
 	return matches[0]!;
 }
 
@@ -1211,22 +1751,153 @@ function replaceTransitionModel(
 	});
 }
 
-function hasControllerLookGear(node: GObject, controllerName: string): boolean {
-	return node.listGears().some((gear) => (
-		gear.getGearType() === GearType.Look && gear.getController()?.getName() === controllerName
-	));
+type ResourceSourceData = {
+	getURI(): string;
+	getData(): Uint8Array | null;
+};
+
+type MutableAssetResource = {
+	propertyType: string;
+	getName(): string;
+	setName(name: string): unknown;
+	getPath(): string;
+	setPath(path: string): unknown;
+	getFileName?(): string;
+	setFileName?(fileName: string): unknown;
+	getFile?(): string;
+	setFile?(file: string): unknown;
+	getSourceData(): ResourceSourceData | null;
+	setSourceData(buffer: ReturnType<Document['createBuffer']> | null): unknown;
+};
+
+function asMutableAssetResource(resource: ReturnType<Package['getResourceById']>): MutableAssetResource {
+	if (!resource || resource.propertyType === PropertyType.COMPONENT) {
+		throw new Error('Expected a binary package resource.');
+	}
+	return resource as unknown as MutableAssetResource;
+}
+
+function getAssetFileName(resource: MutableAssetResource): string {
+	return resource.getFileName?.() ?? resource.getFile?.() ?? '';
+}
+
+function setAssetFileName(resource: MutableAssetResource, fileName: string): void {
+	if (resource.setFileName) {
+		resource.setFileName(fileName);
+		return;
+	}
+	if (resource.setFile) {
+		resource.setFile(fileName);
+		return;
+	}
+	throw new Error(`Resource "${resource.getName()}" does not expose a primary source file name.`);
+}
+
+function resourceNameFromFileName(fileName: string): string {
+	const extensionIndex = fileName.lastIndexOf('.');
+	return extensionIndex > 0 ? fileName.slice(0, extensionIndex) : fileName;
+}
+
+function renamedAssetFileName(resource: MutableAssetResource, requestedName: string): string {
+	if (requestedName.includes('.')) return requestedName;
+	const previousFileName = getAssetFileName(resource);
+	const extensionIndex = previousFileName.lastIndexOf('.');
+	return extensionIndex > 0 ? `${requestedName}${previousFileName.slice(extensionIndex)}` : requestedName;
+}
+
+function renameBinaryAssetResource(resource: MutableAssetResource, requestedName: string): void {
+	const fileName = renamedAssetFileName(resource, requestedName);
+	if (!fileName) throw new Error(`Resource "${resource.getName()}" does not define a primary source file.`);
+	setAssetFileName(resource, fileName);
+	resource.setName(resourceNameFromFileName(fileName));
+}
+
+function replaceBinaryAssetBytes(doc: Document, resource: MutableAssetResource, sourceBytes: Uint8Array): void {
+	const previousSource = resource.getSourceData();
+	if (!previousSource) {
+		throw new Error(`Resource "${resource.getName()}" has no hydrated primary source bytes.`);
+	}
+	const sourcePath = previousSource.getURI() || `/${[resource.getPath(), getAssetFileName(resource)].filter(Boolean).join('/')}`;
+	resource.setSourceData(doc.createBuffer()
+		.setURI(sourcePath)
+		.setData(new Uint8Array(sourceBytes)));
+}
+
+function addGearToDisplayNode(
+	doc: Document,
+	component: Component,
+	node: GObject,
+	selector: UamGearSelector,
+	gear: UamGearBinding,
+): void {
+	if (hasControllerGear(node, selector)) {
+		throw new UamTransactionError(
+			`${selector.kind} gear for controller "${selector.controllerName}" already exists on node "${selector.displayNodeId}".`,
+			{
+				code: 'selector_ambiguity',
+				selector: selectorDetails(selector as unknown as Record<string, unknown>),
+			},
+		);
+	}
+	resolveUniqueController(component, {
+		packageId: selector.packageId,
+		componentResourceId: selector.componentResourceId,
+		controllerName: selector.controllerName,
+	});
+	materializeUamGear(doc, component, node, gear);
+}
+
+function replaceGearOnDisplayNode(
+	doc: Document,
+	component: Component,
+	node: GObject,
+	selector: UamGearSelector,
+	gear: UamGearBinding,
+): void {
+	node.removeGear(resolveUniqueGear(node, selector));
+	resolveUniqueController(component, {
+		packageId: selector.packageId,
+		componentResourceId: selector.componentResourceId,
+		controllerName: selector.controllerName,
+	});
+	materializeUamGear(doc, component, node, gear);
 }
 
 function applyOperation(doc: Document, operation: UamTransactionOperation): void {
 	switch (operation.kind) {
 		case 'renameResource': {
 			const { resource } = resolveResource(doc, operation.selector);
-			resource.setName(operation.newName);
+			if (resource.propertyType === PropertyType.COMPONENT) {
+				resource.setName(operation.newName);
+				return;
+			}
+			renameBinaryAssetResource(asMutableAssetResource(resource), operation.newName);
 			return;
 		}
 		case 'moveResource': {
 			const { resource } = resolveResource(doc, operation.selector);
 			resource.setPath(operation.toPath);
+			return;
+		}
+		case 'addResource': {
+			const pkg = resolvePackage(doc, operation.selector);
+			if (pkg.getResourceById(operation.resource.id)) {
+				throw new Error(`Resource "${operation.resource.id}" already exists in package "${operation.selector.packageId}".`);
+			}
+			pkg.addResource(materializeAssetResource(doc, operation.resource));
+			return;
+		}
+		case 'replaceResourceBytes': {
+			const { resource } = resolveResource(doc, operation.selector);
+			replaceBinaryAssetBytes(doc, asMutableAssetResource(resource), operation.sourceBytes);
+			return;
+		}
+		case 'removeResource': {
+			const { pkg, resource } = resolveResource(doc, operation.selector);
+			if (resource.propertyType === PropertyType.COMPONENT) {
+				throw new Error('removeResource only supports binary package resources.');
+			}
+			pkg.removeResource(resource);
 			return;
 		}
 		case 'setDisplayNodeProps': {
@@ -1252,32 +1923,13 @@ function applyOperation(doc: Document, operation: UamTransactionOperation): void
 			const child = createAttachableNode(doc, operation.selector.packageId, operation.node);
 			insertChildAtIndex(component, child, operation.atIndex);
 			for (const gear of operation.node.gears) {
-				if (gear.kind !== 'look') {
-					throw new Error(`attachDisplayNode only supports look gears in Phase A, got "${gear.kind}".`);
-				}
-				if (hasControllerLookGear(child, gear.controllerName)) {
-					throw new Error(`attachDisplayNode would create duplicate look gear for controller "${gear.controllerName}" on node "${operation.node.id}".`);
-				}
-				const controller = component.getController(gear.controllerName);
-				if (!controller) {
-					throw new Error(`attachDisplayNode references missing controller "${gear.controllerName}".`);
-				}
-				bindLookGear(doc, component, child, {
-					name: gear.name,
-					controller,
-					states: gear.states.map((state) => ({
-						pageId: state.pageId,
-						value: state.value ?? null,
-					})),
-					defaultValue: gear.defaultValue,
-					condition: gear.condition,
-					positionsInPercent: gear.positionsInPercent,
-					tween: gear.tween,
-					tweenDuration: gear.tweenDuration,
-					tweenDelay: gear.tweenDelay,
-					easeType: gear.easeType,
-					customEasePath: gear.customEasePath,
-				});
+				addGearToDisplayNode(doc, component, child, {
+					packageId: operation.selector.packageId,
+					componentResourceId: operation.selector.componentResourceId,
+					displayNodeId: operation.node.id,
+					kind: gear.kind,
+					controllerName: gear.controllerName,
+				}, gear);
 			}
 			return;
 		}
@@ -1379,79 +2031,24 @@ function applyOperation(doc: Document, operation: UamTransactionOperation): void
 			component.removeTransition(transition);
 			return;
 		}
-		case 'addLookGear': {
+		case 'addLookGear':
+		case 'addGear': {
 			const component = resolveComponent(doc, operation.selector);
 			const node = resolveDisplayNode(doc, operation.selector);
-			if (!COMMON_DISPLAY_PROPERTY_TYPES.has(node.propertyType)) {
-				throw new Error(`addLookGear does not support display node type "${node.propertyType}" in Phase A.`);
-			}
-			if (hasControllerLookGear(node, operation.selector.controllerName)) {
-					throw new UamTransactionError(
-						`Look gear for controller "${operation.selector.controllerName}" already exists on node "${operation.selector.displayNodeId}".`,
-						{
-							code: 'selector_ambiguity',
-							selector: selectorDetails(operation.selector as unknown as Record<string, unknown>),
-						},
-					);
-				}
-			const controller = resolveUniqueController(component, {
-				packageId: operation.selector.packageId,
-				componentResourceId: operation.selector.componentResourceId,
-				controllerName: operation.selector.controllerName,
-			});
-			bindLookGear(doc, component, node, {
-				name: operation.gear.name,
-				controller,
-				states: operation.gear.states.map((state) => ({
-					pageId: state.pageId,
-					value: state.value ?? null,
-				})),
-				defaultValue: operation.gear.defaultValue,
-				condition: operation.gear.condition,
-				positionsInPercent: operation.gear.positionsInPercent,
-				tween: operation.gear.tween,
-				tweenDuration: operation.gear.tweenDuration,
-				tweenDelay: operation.gear.tweenDelay,
-				easeType: operation.gear.easeType,
-				customEasePath: operation.gear.customEasePath,
-			});
+			addGearToDisplayNode(doc, component, node, operation.selector, operation.gear);
 			return;
 		}
-		case 'updateLookGear': {
+		case 'updateLookGear':
+		case 'updateGear': {
 			const component = resolveComponent(doc, operation.selector);
 			const node = resolveDisplayNode(doc, operation.selector);
-			if (!COMMON_DISPLAY_PROPERTY_TYPES.has(node.propertyType)) {
-				throw new Error(`updateLookGear does not support display node type "${node.propertyType}" in Phase A.`);
-			}
-			const existing = resolveUniqueLookGear(node, operation.selector);
-			node.removeGear(existing);
-			const controller = resolveUniqueController(component, {
-				packageId: operation.selector.packageId,
-				componentResourceId: operation.selector.componentResourceId,
-				controllerName: operation.selector.controllerName,
-			});
-			bindLookGear(doc, component, node, {
-				name: operation.gear.name,
-				controller,
-				states: operation.gear.states.map((state) => ({
-					pageId: state.pageId,
-					value: state.value ?? null,
-				})),
-				defaultValue: operation.gear.defaultValue,
-				condition: operation.gear.condition,
-				positionsInPercent: operation.gear.positionsInPercent,
-				tween: operation.gear.tween,
-				tweenDuration: operation.gear.tweenDuration,
-				tweenDelay: operation.gear.tweenDelay,
-				easeType: operation.gear.easeType,
-				customEasePath: operation.gear.customEasePath,
-			});
+			replaceGearOnDisplayNode(doc, component, node, operation.selector, operation.gear);
 			return;
 		}
-		case 'removeLookGear': {
+		case 'removeLookGear':
+		case 'removeGear': {
 			const node = resolveDisplayNode(doc, operation.selector);
-			const gear = resolveUniqueLookGear(node, operation.selector);
-			node.removeGear(gear);
+			node.removeGear(resolveUniqueGear(node, operation.selector));
 			return;
 		}
 	}

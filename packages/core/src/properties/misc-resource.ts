@@ -56,4 +56,8 @@ export class MiscResource extends ExtensibleProperty<IMiscResource> {
 
 	public getResourceData(): FairyBuffer | null { return this.getRef('resourceData' as never) as FairyBuffer | null; }
 	public setResourceData(buffer: FairyBuffer | null): this { return this.setRef('resourceData' as never, buffer as never); }
+
+	/** Primary source-file bytes for this miscellaneous resource. */
+	public getSourceData(): FairyBuffer | null { return this.getResourceData(); }
+	public setSourceData(buffer: FairyBuffer | null): this { return this.setResourceData(buffer); }
 }

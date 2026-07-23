@@ -1,6 +1,6 @@
 import type { Document } from '../document.js';
-import { ProjectReader, type FileSystem } from './project-reader.js';
-import { ProjectWriter } from './project-writer.js';
+import { ProjectReader, type FileSystem, type ProjectReadOptions } from './project-reader.js';
+import { ProjectWriter, type ProjectWriteOptions } from './project-writer.js';
 import { BinaryReader } from './binary-reader.js';
 import { BinaryWriter, type BinaryWriterOptions } from './binary-writer.js';
 
@@ -15,16 +15,16 @@ import { BinaryWriter, type BinaryWriterOptions } from './binary-writer.js';
 export abstract class PlatformIO {
 	protected abstract createFileSystem(): FileSystem;
 
-	public async readProject(projectPath: string): Promise<Document> {
+	public async readProject(projectPath: string, options?: ProjectReadOptions): Promise<Document> {
 		const fs = this.createFileSystem();
 		const reader = new ProjectReader(fs);
-		return reader.read(projectPath);
+		return reader.read(projectPath, options);
 	}
 
-	public async writeProject(doc: Document, projectPath: string): Promise<void> {
+	public async writeProject(doc: Document, projectPath: string, options?: ProjectWriteOptions): Promise<void> {
 		const fs = this.createFileSystem();
 		const writer = new ProjectWriter(fs);
-		return writer.write(doc, projectPath);
+		return writer.write(doc, projectPath, options);
 	}
 
 	public async readBinary(filePath: string): Promise<Document> {

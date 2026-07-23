@@ -719,6 +719,7 @@ function normalizeComponentModel(component: UamComponentModel): UamComponentMode
 }
 
 function normalizeAssetResource(resource: UamAssetResource): UamAssetResource {
+	const sourceBytes = resource.sourceBytes;
 	return {
 		kind: resource.kind,
 		id: resource.id,
@@ -733,6 +734,8 @@ function normalizeAssetResource(resource: UamAssetResource): UamAssetResource {
 			? { width: resource.dimensions.width ?? 0, height: resource.dimensions.height ?? 0 }
 			: null,
 		metadata: resource.metadata ?? null,
+		...(sourceBytes === undefined ? {} : { sourceBytes: sourceBytes ? new Uint8Array(sourceBytes) : null }),
+		...(resource.sourcePath ? { sourcePath: resource.sourcePath } : {}),
 	};
 }
 

@@ -61,6 +61,9 @@ export class NodeIO extends PlatformIO {
 					return false;
 				}
 			},
+			async unlink(filePath: string): Promise<void> {
+				await fs.unlink(filePath);
+			},
 			join(...paths: string[]): string {
 				return path.join(...paths);
 			},

@@ -1,7 +1,8 @@
-import { RefList } from 'property-graph';
+import { RefList, type Ref } from 'property-graph';
 import { type Nullable, PropertyType } from '../constants.js';
 import { ExtensibleProperty, type IExtensibleProperty } from './extensible-property.js';
 import type { MovieFrame } from './movie-frame.js';
+import type { FairyBuffer } from './buffer.js';
 
 interface IMovieClipResource extends IExtensibleProperty {
 	id: string;
@@ -19,6 +20,7 @@ interface IMovieClipResource extends IExtensibleProperty {
 	repeatDelay: number;
 	smoothing: boolean;
 	frames: RefList<MovieFrame>;
+	sourceData: Ref<FairyBuffer>;
 }
 
 /**
@@ -49,6 +51,7 @@ export class MovieClipResource extends ExtensibleProperty<IMovieClipResource> {
 			repeatDelay: 0,
 			smoothing: true,
 			frames: new RefList<MovieFrame>(),
+			sourceData: null,
 		});
 	}
 
@@ -97,4 +100,8 @@ export class MovieClipResource extends ExtensibleProperty<IMovieClipResource> {
 	public addFrame(frame: MovieFrame): this { return this.addRef('frames', frame); }
 	public removeFrame(frame: MovieFrame): this { return this.removeRef('frames', frame); }
 	public listFrames(): MovieFrame[] { return this.listRefs('frames'); }
+
+	/** Primary source-file bytes for this movie-clip resource. */
+	public getSourceData(): FairyBuffer | null { return this.getRef('sourceData' as never) as FairyBuffer | null; }
+	public setSourceData(buffer: FairyBuffer | null): this { return this.setRef('sourceData' as never, buffer as never); }
 }

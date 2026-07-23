@@ -776,6 +776,18 @@ export interface FileSystem {
 	exists(path: string): Promise<boolean>;
 	join(...paths: string[]): string;
 	dirname(path: string): string;
+	/** Removes a file when the adapter supports project-source cleanup. */
+	unlink?(path: string): Promise<void>;
+}
+
+/** Options for explicitly loading source bytes while reading a project. */
+export interface ProjectReadOptions {
+	/**
+	 * Load primary source bytes for image, sound, misc, font, movie-clip,
+	 * Spine, and DragonBones resources. Disabled by default to keep normal
+	 * inspection reads lightweight.
+	 */
+	hydrateResourceBytes?: boolean;
 }
 
 function getProjectBasePath(fs: FileSystem, projectPath: string): string {
@@ -790,7 +802,7 @@ export class ProjectReader {
 		this._fs = fs;
 	}
 
-	async read(projectPath: string): Promise<Document> {
+	async read(projectPath: string, options: ProjectReadOptions = {}): Promise<Document> {
 		const fs = this._fs;
 		const doc = new Document();
 		const basePath = getProjectBasePath(fs, projectPath);
@@ -824,10 +836,10 @@ export class ProjectReader {
 			const pkgXmlPath = fs.join(assetsPath, dirName, 'package.xml');
 			if (!(await fs.exists(pkgXmlPath))) continue;
 
-			await this._readPackage(ctx, dirName, pkgXmlPath);
+			await this._readPackage(ctx, dirName, pkgXmlPath, '', options);
 		}
 
-		const branchNames = await this._readPackageBranches(ctx);
+		const branchNames = await this._readPackageBranches(ctx, options);
 		if (branchNames.length > 0) {
 			doc.getRoot().setBranches(branchNames);
 		}
@@ -850,7 +862,7 @@ export class ProjectReader {
 		return doc;
 	}
 
-	private async _readPackageBranches(ctx: ReaderContext): Promise<string[]> {
+	private async _readPackageBranches(ctx: ReaderContext, options: ProjectReadOptions): Promise<string[]> {
 		const fs = this._fs;
 		let dirNames: string[] = [];
 		try {
@@ -876,7 +888,7 @@ export class ProjectReader {
 			for (const dirName of packageDirs) {
 				const pkgXmlPath = fs.join(branchAssetsPath, dirName, 'package_branch.xml');
 				if (!(await fs.exists(pkgXmlPath))) continue;
-				await this._readPackage(ctx, dirName, pkgXmlPath, branchName);
+				await this._readPackage(ctx, dirName, pkgXmlPath, branchName, options);
 			}
 		}
 
@@ -915,6 +927,7 @@ export class ProjectReader {
 		dirName: string,
 		pkgXmlPath: string,
 		branchName = '',
+		options: ProjectReadOptions = {},
 	): Promise<void> {
 		const fs = this._fs;
 		const content = await fs.readFile(pkgXmlPath);
@@ -983,11 +996,14 @@ export class ProjectReader {
 				if (resource) createdResources.push(resource);
 			}
 			await this._hydratePackageImageSizes(createdResources, packageDir);
+			if (options.hydrateResourceBytes) {
+				await this._hydratePackageResourceBytes(ctx.document, createdResources, packageDir);
+			}
 			return;
 		}
 
 		// Fallback for non-standard XML parser output.
-		for (const tagName of ['image', 'component', 'font', 'sound', 'movieclip', 'swf', 'misc', 'atlas']) {
+		for (const tagName of ['image', 'component', 'font', 'sound', 'movieclip', 'spine', 'dragonbones', 'swf', 'misc', 'atlas']) {
 			const items = ensureArray(resources[tagName]);
 			for (const item of items) {
 				const attrs = getXmlNode<ResourceXmlAttrs>(item);
@@ -997,6 +1013,9 @@ export class ProjectReader {
 			}
 		}
 		await this._hydratePackageImageSizes(createdResources, packageDir);
+		if (options.hydrateResourceBytes) {
+			await this._hydratePackageResourceBytes(ctx.document, createdResources, packageDir);
+		}
 	}
 
 	private async _hydratePackageImageSizes(
@@ -1011,7 +1030,9 @@ export class ProjectReader {
 			const fileName = image.getFileName?.() ?? '';
 			if (!fileName) continue;
 			const resourcePath = image.getPath?.() ?? '/';
-			const filePath = fs.join(packageDir, resourcePath.replace(/^\//, ''), fileName);
+			const sourcePath = this._packageRelativeSourcePath(resourcePath, fileName);
+			if (!sourcePath) continue;
+			const filePath = fs.join(packageDir, sourcePath.replace(/^\/+/, ''));
 			if (!(await fs.exists(filePath))) continue;
 			try {
 				const size = readImageSize(await fs.readFileRaw(filePath));
@@ -1022,6 +1043,61 @@ export class ProjectReader {
 				// Ignore unreadable image files and keep XML-provided values only.
 			}
 		}
+	}
+
+	private async _hydratePackageResourceBytes(
+		doc: Document,
+		resources: Array<ReturnType<Package['listResources']>[number]>,
+		packageDir: string,
+	): Promise<void> {
+		const fs = this._fs;
+		for (const resource of resources) {
+			const fileName = this._primaryResourceFileName(resource);
+			if (!fileName) continue;
+			const resourcePath = (resource as { getPath?(): string }).getPath?.() ?? '/';
+			const sourcePath = this._packageRelativeSourcePath(resourcePath, fileName);
+			if (!sourcePath) continue;
+			const filePath = fs.join(packageDir, sourcePath.replace(/^\/+/, ''));
+			if (!(await fs.exists(filePath))) continue;
+			try {
+				const data = new Uint8Array(await fs.readFileRaw(filePath));
+				const buffer = doc.createBuffer().setURI(sourcePath).setData(data);
+				(this._asSourceDataResource(resource)).setSourceData(buffer);
+			} catch {
+				// Keep resource metadata available when its primary source cannot be read.
+			}
+		}
+	}
+
+	private _primaryResourceFileName(resource: ReturnType<Package['listResources']>[number]): string {
+		switch (resource.propertyType) {
+			case 'ImageResource':
+			case 'FontResource':
+			case 'MovieClipResource':
+				return (resource as { getFileName(): string }).getFileName();
+			case 'SoundResource':
+			case 'MiscResource':
+			case 'SpineResource':
+			case 'DragonBonesResource':
+				return (resource as { getFile(): string }).getFile();
+			default:
+				return '';
+		}
+	}
+
+	private _packageRelativeSourcePath(resourcePath: string, fileName: string): string | null {
+		if (!fileName || /[\\/:]/.test(fileName) || fileName === '.' || fileName === '..') return null;
+		const segments = resourcePath.replace(/\\/g, '/').split('/').filter(Boolean);
+		if (segments.some((segment) => segment === '.' || segment === '..' || segment.includes(':'))) return null;
+		return `/${[...segments, fileName].join('/')}`;
+	}
+
+	private _asSourceDataResource(resource: ReturnType<Package['listResources']>[number]): {
+		setSourceData(buffer: ReturnType<Document['createBuffer']>): unknown;
+	} {
+		return resource as unknown as {
+			setSourceData(buffer: ReturnType<Document['createBuffer']>): unknown;
+		};
 	}
 
 	private _createResourceFromXML(

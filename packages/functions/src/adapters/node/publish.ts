@@ -68,8 +68,9 @@ async function resolveNodeAssetsPath(document: Document, assetsPath: string | un
 
 async function loadSharpBackend(): Promise<AtlasRasterBackend | undefined> {
 	try {
-		const sharp = await importNative<typeof import('sharp')>('sharp');
-		return (sharp.default ?? sharp) as unknown as AtlasRasterBackend;
+		const loaded = await importNative<typeof import('sharp')>('sharp');
+		const sharp = loaded as unknown as { default?: AtlasRasterBackend };
+		return sharp.default ?? (loaded as unknown as AtlasRasterBackend);
 	} catch {
 		return undefined;
 	}
