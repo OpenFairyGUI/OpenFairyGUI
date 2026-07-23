@@ -242,7 +242,7 @@ function parsePackageBinary(bytes: Uint8Array): {
 	return { branches, items, spriteIds, hitTestIds };
 }
 
-// ─── publish() without encoder (layout-only + binary write) ──────────
+// ─── publish() output contracts ──────────────────────────────────────
 
 test('publish: generates .fui files for a synthetic document', async (t) => {
 	const doc = new Document();
@@ -299,15 +299,15 @@ test('publish: includes linked high-resolution image resources without upscaling
 	pkg.setId('hires001');
 
 	const icon = doc.createImageResource('icon.png');
-	icon.setId('base01').setWidth(16).setHeight(16);
+	icon.setId('base01').setPath('/').setWidth(16).setHeight(16);
 	pkg.addResource(icon);
 
 	const icon2x = doc.createImageResource('icon@2x.png');
-	icon2x.setId('hi2x01').setWidth(32).setHeight(32);
+	icon2x.setId('hi2x01').setPath('/').setWidth(32).setHeight(32);
 	pkg.addResource(icon2x);
 
 	const icon4x = doc.createImageResource('icon@4x.png');
-	icon4x.setId('hi4x01').setWidth(64).setHeight(64);
+	icon4x.setId('hi4x01').setPath('/').setWidth(64).setHeight(64);
 	pkg.addResource(icon4x);
 
 	const component = doc.createComponent('Main');
@@ -318,12 +318,20 @@ test('publish: includes linked high-resolution image resources without upscaling
 	pkg.addResource(component);
 
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-hires-'));
+	const basePath = path.join(tmpDir, 'assets');
+	const sourceDir = path.join(basePath, 'HiResPkg');
 
 	try {
+		await fs.mkdir(sourceDir, { recursive: true });
+		await sharp({ create: { width: 16, height: 16, channels: 4, background: '#00000000' } }).png().toFile(path.join(sourceDir, 'icon.png'));
+		await sharp({ create: { width: 32, height: 32, channels: 4, background: '#00000000' } }).png().toFile(path.join(sourceDir, 'icon@2x.png'));
+		await sharp({ create: { width: 64, height: 64, channels: 4, background: '#00000000' } }).png().toFile(path.join(sourceDir, 'icon@4x.png'));
 		await doc.transform(publish({
 			output: tmpDir,
 			compressed: false,
 			fs: createFs(),
+			encoder: sharp,
+			basePath,
 		}));
 
 		const bytes = await fs.readFile(path.join(tmpDir, 'HiResPkg.fui'));
@@ -613,12 +621,118 @@ test('publish: without fs, only computes layout', async (t) => {
 	img.setId('i001').setWidth(32).setHeight(32);
 	pkg.addResource(img);
 
-	// No fs → no file output, but atlas layout should still be computed
-	await doc.transform(publish({ output: '/tmp/unused' }));
+	// No output request and no fs → explicit layout-only transform.
+	await doc.transform(publish({}));
 
 	const atlases = pkg.listAtlases();
 	t.is(atlases.length, 1, 'atlas node created even without fs');
 	t.is(atlases[0].listSprites().length, 1, 'sprite placed in atlas');
+});
+
+test('publish: an output directory requires a filesystem capability', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('NoFsPkg');
+	pkg.setId('nofs0001');
+
+	await t.throwsAsync(
+		() => doc.transform(publish({ output: 'release' })),
+		{ message: /requires a filesystem/ },
+	);
+});
+
+test('publish: rejects runtime output without raster capabilities', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('StrictPkg');
+	pkg.setId('strict01');
+	const image = doc.createImageResource('hero.png');
+	image.setId('img001').setWidth(16).setHeight(16).setExported(true);
+	pkg.addResource(image);
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-strict-'));
+
+	try {
+		await t.throwsAsync(
+			() => doc.transform(publish({ output: tmpDir, fs: createFs() })),
+			{ message: /requires encoder, basePath, and outputPath/ },
+		);
+		t.deepEqual(await fs.readdir(tmpDir), [], 'strict capability validation runs before writing package artifacts');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: rejects missing atlas source images instead of writing transparent holes', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('MissingImagePkg');
+	pkg.setId('missing01');
+	const image = doc.createImageResource('hero.png');
+	image.setId('img001').setWidth(16).setHeight(16).setExported(true);
+	pkg.addResource(image);
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-image-'));
+
+	try {
+		await t.throwsAsync(
+			() => doc.transform(publish({
+				output: tmpDir,
+				fs: createFs(),
+				encoder: sharp,
+				basePath: path.join(tmpDir, 'assets'),
+			})),
+			{ message: /Could not read image/ },
+		);
+		t.deepEqual(await fs.readdir(tmpDir), [], 'failed atlas input does not write a binary or PNG');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: missing sound input rejects before the package binary is written', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(0);
+	const pkg = doc.createPackage('MissingSoundPkg');
+	pkg.setId('sound0001');
+	const sound = doc.createSoundResource('click');
+	sound.setId('snd001').setPath('/sound/').setFile('click.wav').setExported(true);
+	pkg.addResource(sound);
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-sound-'));
+
+	try {
+		await t.throwsAsync(
+			() => doc.transform(publish({
+				output: tmpDir,
+				fs: createFs(),
+				basePath: path.join(tmpDir, 'assets'),
+			})),
+			{ message: /Could not export sound/ },
+		);
+		await t.throwsAsync(() => fs.stat(path.join(tmpDir, 'MissingSoundPkg_fui.bytes')), { code: 'ENOENT' });
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: missing external input rejects before the package binary is written', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(0);
+	const pkg = doc.createPackage('MissingExternalPkg');
+	pkg.setId('external1');
+	const misc = doc.createMiscResource('config');
+	misc.setId('misc001').setPath('/data/').setFile('config.json').setExported(true);
+	pkg.addResource(misc);
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-external-'));
+
+	try {
+		await t.throwsAsync(
+			() => doc.transform(publish({
+				output: tmpDir,
+				fs: createFs(),
+				basePath: path.join(tmpDir, 'assets'),
+			})),
+			{ message: /Could not export external resource/ },
+		);
+		await t.throwsAsync(() => fs.stat(path.join(tmpDir, 'MissingExternalPkg_fui.bytes')), { code: 'ENOENT' });
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
 });
 
 test('publish: binary output excludes unpublished image resources and preserves component extension type', async (t) => {
@@ -649,11 +763,17 @@ test('publish: binary output excludes unpublished image resources and preserves 
 	pkg.addResource(button);
 
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-'));
+	const basePath = path.join(tmpDir, 'assets');
+	const sourceDir = path.join(basePath, 'GhostPkg');
 
 	try {
+		await fs.mkdir(sourceDir, { recursive: true });
+		await sharp({ create: { width: 32, height: 32, channels: 4, background: '#00000000' } }).png().toFile(path.join(sourceDir, 'used.png'));
 		await doc.transform(publish({
 			output: tmpDir,
 			fs: createFs(),
+			encoder: sharp,
+			basePath,
 		}));
 
 		const bytes = await fs.readFile(path.join(tmpDir, 'GhostPkg_fui.bytes'));

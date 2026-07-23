@@ -1,9 +1,9 @@
 import {
-	type BinaryWriterOptions,
 	BinaryWriter,
+	type BinaryWriterOptions,
 	type Component,
-	type DragonBonesResource,
 	type Document,
+	type DragonBonesResource,
 	type FileSystem,
 	type FontResource,
 	type ImageResource,
@@ -11,12 +11,11 @@ import {
 	type MovieClipResource,
 	type Package,
 	ProjectType,
-	type SpineResource,
 	type SoundResource,
+	type SpineResource,
 	type Transform,
 } from '@openfairygui/core';
-import { createTransform } from './utils.js';
-import { atlas, type AtlasOptions } from './atlas.js';
+import { type AtlasOptions, atlas } from './atlas.js';
 import { publishCodeGeneration, resolveProjectBasePath } from './codegen.js';
 import { formatPluginError, type LoadedPlugin } from './plugins/types.js';
 import type { AtlasRasterBackend, PublishFileSystem } from './publish/contracts.js';
@@ -26,6 +25,7 @@ import type {
 	PackagePublishArtifactsExtras,
 	RootProjectSettings,
 } from './shared-types.js';
+import { createTransform } from './utils.js';
 
 export interface PublishOptions {
 	/**
@@ -47,7 +47,8 @@ export interface PublishOptions {
 
 	/**
 	 * Raster backend for atlas image compositing.
-	 * If not provided, atlas packing only computes layout (no PNGs generated).
+	 * Required when a filesystem-backed publish has packable resources.
+	 * Without a filesystem, publish remains an explicit layout-only transform.
 	 */
 	encoder?: AtlasRasterBackend;
 
@@ -69,8 +70,9 @@ export interface PublishOptions {
 
 	/**
 	 * FileSystem abstraction for writing output files.
-	 * Required for actual file output. Without it, only the Document model
-	 * is updated (atlas layout computed, sprite nodes created).
+	 * Required for actual file output. Calling publish with a resolved output
+	 * directory but no filesystem is rejected; omit output entirely for a
+	 * layout-only transform.
 	 */
 	fs?: PublishFileSystem;
 
@@ -1030,7 +1032,6 @@ async function exportPackageSounds(
 	basePath: string | undefined,
 	fs: PublishFileSystem,
 	readFileRaw: PublishFileSystem['readFileRaw'] | undefined,
-	logger: Document['getLogger'] extends () => infer T ? T : never,
 ): Promise<void> {
 	const publishedResourceIds = getAnnotatedPublishedResourceIds(pkg);
 	if (publishedResourceIds.size === 0) return;
@@ -1039,8 +1040,8 @@ async function exportPackageSounds(
 			return isSoundResource(resource) && publishedResourceIds.has(resource.getId());
 		});
 		if (hasPublishedSound) {
-			logger.warn(
-				`publish: Sound resources in package "${pkg.getName()}" were not exported because basePath/readFileRaw is unavailable.`,
+			throw new Error(
+				`publish: Sound resources in package "${pkg.getName()}" require basePath and readFileRaw for output.`,
 			);
 		}
 		return;
@@ -1058,7 +1059,7 @@ async function exportPackageSounds(
 			const data = await readFileRaw(sourcePath);
 			await fs.writeFileRaw(targetPath, data);
 		} catch {
-			logger.warn(`publish: Could not export sound "${resource.getId()}" from package "${pkg.getName()}".`);
+			throw new Error(`publish: Could not export sound "${resource.getId()}" from package "${pkg.getName()}".`);
 		}
 	}
 }
@@ -1069,7 +1070,6 @@ async function exportPackageExternalResources(
 	basePath: string | undefined,
 	fs: PublishFileSystem,
 	readFileRaw: PublishFileSystem['readFileRaw'] | undefined,
-	logger: Document['getLogger'] extends () => infer T ? T : never,
 ): Promise<void> {
 	const exportedResourceIds = getAnnotatedExportedResourceIds(pkg);
 	const skeletonDependencyImageIds = getPublishedSkeletonDependencyImageIds(pkg, exportedResourceIds);
@@ -1083,8 +1083,8 @@ async function exportPackageExternalResources(
 			);
 		});
 		if (hasPublishedExternal) {
-			logger.warn(
-				`publish: External resources in package "${pkg.getName()}" were not exported because basePath/readFileRaw is unavailable.`,
+			throw new Error(
+				`publish: External resources in package "${pkg.getName()}" require basePath and readFileRaw for output.`,
 			);
 		}
 		return;
@@ -1115,7 +1115,7 @@ async function exportPackageExternalResources(
 			const data = await readFileRaw(sourcePath);
 			await fs.writeFileRaw(targetPath, data);
 		} catch {
-			logger.warn(
+			throw new Error(
 				`publish: Could not export external resource "${resource.getId()}" from package "${pkg.getName()}".`,
 			);
 		}
@@ -1134,18 +1134,17 @@ async function exportPackageExternalResources(
  * `publishNode()` or `publishBrowser()` through their dedicated entries.
  *
  * ```ts
- * import sharp from 'sharp';
- * const io = new NodeIO();
- * const doc = await io.readProject('./project.fairy');
+ * import { NodeIO } from '@openfairygui/core/node';
+ * import { publishNode } from '@openfairygui/functions/node';
+ * const doc = await new NodeIO().readProject('./project.fairy');
  *
- * await doc.transform(publish({
+ * await publishNode({
+ *   document: doc,
  *   output: './release/',
  *   compressed: true,
- *   encoder: sharp,
- *   basePath: './assets/',
+ *   assetsPath: './assets/',
  *   fileExtension: 'bytes',
- *   fs: io.createFileSystem(),
- * }));
+ * });
  * ```
  */
 export function publish(options: PublishOptions): Transform {
@@ -1238,6 +1237,30 @@ export function publish(options: PublishOptions): Transform {
 		});
 
 		const publishPackage = async (plan: ResolvedPackagePublishPlan, writerFs: FileSystem, packageIndex: number) => {
+			if (options.fs && !plan.outputDir) {
+				throw new Error(
+					'publish: no output directory resolved. Provide --output, or configure global publish.path / package publishPath.',
+				);
+			}
+
+			if (options.fs) {
+				await options.fs.mkdir(plan.outputDir!);
+				await exportPackageSounds(
+					plan.pkg,
+					plan.outputDir!,
+					options.basePath,
+					options.fs,
+					options.atlas?.readFileRaw ?? options.fs.readFileRaw,
+				);
+				await exportPackageExternalResources(
+					plan.pkg,
+					plan.outputDir!,
+					options.basePath,
+					options.fs,
+					options.atlas?.readFileRaw ?? options.fs.readFileRaw,
+				);
+			}
+
 			const atlasRuntimeOptions = resolvePublishAtlasRuntimeOptions(plan.fileExtension);
 			await atlas({
 				...plan.atlas,
@@ -1248,20 +1271,14 @@ export function publish(options: PublishOptions): Transform {
 				outputPath: options.fs ? plan.outputDir : undefined,
 				mkdir: options.fs ? options.fs.mkdir : undefined,
 				readFileRaw: options.atlas?.readFileRaw ?? options.fs?.readFileRaw,
+				strictOutput: options.fs !== undefined,
 				packages: [plan.pkg.getName()],
 				...atlasRuntimeOptions,
 			})(doc);
 
 			if (!options.fs) return;
-			if (!plan.outputDir) {
-				throw new Error(
-					'publish: no output directory resolved. Provide --output, or configure global publish.path / package publishPath.',
-				);
-			}
 
-			await options.fs.mkdir(plan.outputDir);
-
-			const filePath = options.fs.join(plan.outputDir, plan.fileName);
+			const filePath = options.fs.join(plan.outputDir!, plan.fileName);
 			const bwOptions: BinaryWriterOptions = {
 				compressed: plan.compressed,
 				packageIndex,
@@ -1269,22 +1286,6 @@ export function publish(options: PublishOptions): Transform {
 
 			const bw = new BinaryWriter(writerFs);
 			await bw.write(doc, filePath, bwOptions);
-			await exportPackageSounds(
-				plan.pkg,
-				plan.outputDir,
-				options.basePath,
-				options.fs,
-				options.atlas?.readFileRaw ?? options.fs.readFileRaw,
-				logger,
-			);
-			await exportPackageExternalResources(
-				plan.pkg,
-				plan.outputDir,
-				options.basePath,
-				options.fs,
-				options.atlas?.readFileRaw ?? options.fs.readFileRaw,
-				logger,
-			);
 
 			logger.info(`publish: Written ${plan.fileName}`);
 		};
@@ -1332,8 +1333,15 @@ export function publish(options: PublishOptions): Transform {
 		const plans = allPackages.map((pkg) => resolvePackagePublishPlan(pkg, resolved, projectBasePath));
 
 		if (!options.fs) {
+			const outputPlan = plans.find((plan) => !!plan.outputDir);
+			if (outputPlan) {
+				throw new Error(
+					`publish: Output for package "${outputPlan.pkg.getName()}" requires a filesystem. ` +
+						'Omit output and publish paths to run a layout-only transform.',
+				);
+			}
 			logger.info(
-				`publish: No fs provided — layout computed for ${allPackages.length} package(s), skipping file output.`,
+				`publish: Layout computed for ${allPackages.length} package(s); no output directory was requested.`,
 			);
 			const noopWriterFs = toBinaryWriterFileSystem(createNoopPublishFs());
 			for (const plan of plans) {

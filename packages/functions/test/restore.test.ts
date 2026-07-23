@@ -1,12 +1,20 @@
-import test from 'ava';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import sharp from 'sharp';
 import { Document, ProjectType, parseJta } from '@openfairygui/core';
 import { NodeIO } from '@openfairygui/core/node';
 import { getFixturePath, getFixtureProjectPath } from '@openfairygui/test-utils';
-import { publish, restore, type PublishFileSystem, type RestoreFileSystem, type RestoreImageCropInput, type RestoreImageExtractInput } from '../src/index.js';
+import test from 'ava';
+import sharp from 'sharp';
+import {
+	atlas,
+	type PublishFileSystem,
+	publish,
+	type RestoreFileSystem,
+	type RestoreImageCropInput,
+	type RestoreImageExtractInput,
+	restore,
+} from '../src/index.js';
 
 const UNITY_RELEASE_DIR = getFixturePath('FairyGUI-unity', 'Assets', 'Examples', 'Resources', 'UI');
 const EXPERIMENTS_FAIRY = getFixtureProjectPath('FairyGUI-Experiments');
@@ -99,6 +107,9 @@ function createRestoreFs(): RestoreFileSystem {
 		},
 		async rm(targetPath: string, options?: { recursive?: boolean; force?: boolean }): Promise<void> {
 			await fs.rm(targetPath, { recursive: options?.recursive ?? false, force: options?.force ?? false });
+		},
+		async rename(from: string, to: string): Promise<void> {
+			await fs.rename(from, to);
 		},
 		join(...paths: string[]): string {
 			return path.join(...paths);
@@ -469,6 +480,195 @@ test('restore published project: non-empty output directory fails without force'
 	}
 });
 
+test('restore published project: force keeps an existing output when binary discovery fails', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-preflight-'));
+	const releaseDir = path.join(tmpDir, 'release');
+	const outputDir = path.join(tmpDir, 'Restored');
+
+	try {
+		await fs.mkdir(releaseDir, { recursive: true });
+		await fs.mkdir(outputDir, { recursive: true });
+		await fs.writeFile(path.join(outputDir, 'keep.txt'), 'do not overwrite', 'utf-8');
+
+		await t.throwsAsync(
+			() => restore({
+				inputDir: releaseDir,
+				output: outputDir,
+				fs: createRestoreFs(),
+				force: true,
+			}),
+			{ message: /No FairyGUI published binary files/ },
+		);
+		t.is(await fs.readFile(path.join(outputDir, 'keep.txt'), 'utf-8'), 'do not overwrite');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('restore published project: force replaces a complete staged project only after success', async (t) => {
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-swap-'));
+	const releaseDir = path.join(tmpDir, 'release');
+	const outputDir = path.join(tmpDir, 'Restored');
+
+	try {
+		const doc = new Document();
+		const pkg = doc.createPackage('SwapPkg');
+		pkg.setId('swap0001').setPublishName('SwapPkg');
+		await fs.mkdir(releaseDir, { recursive: true });
+		await io.writeBinary(doc, path.join(releaseDir, 'SwapPkg_fui.bytes'));
+		await fs.mkdir(outputDir, { recursive: true });
+		await fs.writeFile(path.join(outputDir, 'keep.txt'), 'replace after success', 'utf-8');
+
+		const result = await restore({
+			inputDir: releaseDir,
+			output: outputDir,
+			fs: createRestoreFs(),
+			force: true,
+		});
+
+		t.is(result.projectPath, path.join(outputDir, 'Restored.fairy'));
+		await t.throwsAsync(() => fs.stat(path.join(outputDir, 'keep.txt')), { code: 'ENOENT' });
+		t.truthy(await fs.stat(result.projectPath), 'completed restore replaces the previous project directory');
+		const siblingEntries = await fs.readdir(tmpDir);
+		t.false(siblingEntries.some((entry) => entry.startsWith('.Restored.restore-')), 'successful restore cleans its staging and backup directories');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('restore published project: unsafe resource paths fail before force replacement', async (t) => {
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-path-'));
+	const releaseDir = path.join(tmpDir, 'release');
+	const outputDir = path.join(tmpDir, 'Restored');
+
+	try {
+		const doc = new Document();
+		const pkg = doc.createPackage('UnsafePathPkg');
+		pkg.setId('unsafe01').setPublishName('UnsafePathPkg');
+		const image = doc.createImageResource('hero');
+		image
+			.setId('img001')
+			.setPath('../outside')
+			.setFileName('hero.png')
+			.setWidth(1)
+			.setHeight(1)
+			.setExported(true);
+		pkg.addResource(image);
+
+		await fs.mkdir(releaseDir, { recursive: true });
+		await io.writeBinary(doc, path.join(releaseDir, 'UnsafePathPkg_fui.bytes'));
+		await fs.mkdir(outputDir, { recursive: true });
+		await fs.writeFile(path.join(outputDir, 'keep.txt'), 'do not overwrite', 'utf-8');
+
+		await t.throwsAsync(
+			() => restore({
+				inputDir: releaseDir,
+				output: outputDir,
+				fs: createRestoreFs(),
+				force: true,
+			}),
+			{ message: /Invalid resource path/ },
+		);
+		t.is(await fs.readFile(path.join(outputDir, 'keep.txt'), 'utf-8'), 'do not overwrite');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('restore published project: source files resolved outside the input are rejected', async (t) => {
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-source-escape-'));
+	const releaseDir = path.join(tmpDir, 'release');
+	const outputDir = path.join(tmpDir, 'Restored');
+
+	try {
+		const doc = new Document();
+		const pkg = doc.createPackage('SourceEscapePkg');
+		pkg.setId('source001').setPublishName('SourceEscapePkg');
+		const sound = doc.createSoundResource('alert');
+		sound.setId('snd001').setPath('/sound/').setFile('alert.wav').setExported(true);
+		pkg.addResource(sound);
+
+		await fs.mkdir(releaseDir, { recursive: true });
+		await io.writeBinary(doc, path.join(releaseDir, 'SourceEscapePkg_fui.bytes'));
+		await fs.writeFile(path.join(releaseDir, 'SourceEscapePkg_snd001.wav'), new Uint8Array([0x01]));
+		await fs.writeFile(path.join(releaseDir, 'SourceEscapePkg_alert.wav'), new Uint8Array([0x01]));
+		await fs.writeFile(path.join(releaseDir, 'alert.wav'), new Uint8Array([0x01]));
+		await fs.mkdir(outputDir, { recursive: true });
+		await fs.writeFile(path.join(outputDir, 'keep.txt'), 'do not overwrite', 'utf-8');
+
+		const restoreFs = createRestoreFs();
+		const resolvePath = restoreFs.resolvePath.bind(restoreFs);
+		restoreFs.resolvePath = async (filePath) => filePath.endsWith('.wav')
+			? path.join(tmpDir, 'outside.wav')
+			: resolvePath(filePath);
+
+		await t.throwsAsync(
+			() => restore({
+				inputDir: releaseDir,
+				output: outputDir,
+				fs: restoreFs,
+				force: true,
+			}),
+			{ message: /resolves outside the input directory/ },
+		);
+		t.is(await fs.readFile(path.join(outputDir, 'keep.txt'), 'utf-8'), 'do not overwrite');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('restore published project: failed asset reconstruction keeps the previous output intact', async (t) => {
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-stage-'));
+	const releaseDir = path.join(tmpDir, 'release');
+	const outputDir = path.join(tmpDir, 'Restored');
+
+	try {
+		const doc = new Document();
+		const pkg = doc.createPackage('StagePkg');
+		pkg.setId('stage001').setPublishName('StagePkg');
+		const image = doc.createImageResource('hero');
+		image.setId('img001').setWidth(1).setHeight(1).setExported(true);
+		pkg.addResource(image);
+		await doc.transform(atlas({ maxSize: 16 }));
+
+		await fs.mkdir(releaseDir, { recursive: true });
+		await io.writeBinary(doc, path.join(releaseDir, 'StagePkg_fui.bytes'));
+		t.true((await fs.readdir(releaseDir)).includes('StagePkg_fui.bytes'), 'test setup writes the published binary');
+		const atlasFile = pkg.listAtlases()[0]?.getFile();
+		if (!atlasFile) throw new Error('test setup did not create an atlas');
+		const publishedAtlasFile = atlasFile.endsWith('.png') ? atlasFile : `${atlasFile}.png`;
+		await fs.writeFile(path.join(releaseDir, publishedAtlasFile), new Uint8Array([0x00]));
+		await fs.mkdir(outputDir, { recursive: true });
+		await fs.writeFile(path.join(outputDir, 'keep.txt'), 'do not overwrite', 'utf-8');
+		const restoreFs = createRestoreFs();
+		t.true((await restoreFs.readdir(releaseDir)).includes('StagePkg_fui.bytes'), 'restore filesystem sees the published binary');
+		t.true(await restoreFs.isFile(path.join(releaseDir, 'StagePkg_fui.bytes')), 'restore filesystem treats the published binary as a file');
+
+		await t.throwsAsync(
+			() => restore({
+				inputDir: releaseDir,
+				output: outputDir,
+				fs: restoreFs,
+				packages: ['StagePkg'],
+				force: true,
+				cropImage: async () => {
+					throw new Error('intentional crop failure');
+				},
+			}),
+			{ message: /intentional crop failure/ },
+		);
+		t.is(await fs.readFile(path.join(outputDir, 'keep.txt'), 'utf-8'), 'do not overwrite');
+		const siblingEntries = await fs.readdir(tmpDir);
+		t.false(siblingEntries.some((entry) => entry.startsWith('.Restored.restore-')), 'failed staging output is removed');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('restore published project: equivalent source and output paths are rejected before overwrite', async (t) => {
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-samepath-'));
 	const releaseDir = path.join(tmpDir, 'release');
@@ -738,35 +938,71 @@ test('restore published project: cross-package refs resolve against other restor
 	}
 });
 
-test.serial('restore published project: bare relative .fairy output targets write a file, not a directory', async (t) => {
+test.serial('restore published project: .fairy output targets are rejected before writing', async (t) => {
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-relative-file-'));
-	const releaseDir = path.join(tmpDir, 'release');
 	const previousCwd = process.cwd();
 
 	try {
-		await fs.mkdir(releaseDir, { recursive: true });
-		await fs.copyFile(path.join(UNITY_RELEASE_DIR, 'Basics_fui.bytes'), path.join(releaseDir, 'Basics_fui.bytes'));
 		process.chdir(tmpDir);
+		await fs.writeFile(path.join(tmpDir, 'Restored.fairy'), 'keep this file', 'utf-8');
 
-		const result = await restore({
-			inputDir: releaseDir,
-			output: 'Restored.fairy',
-			fs: createRestoreFs(),
-			force: true,
-		});
-
-		t.is(result.projectPath, 'Restored.fairy');
-		t.truthy(
-			await fs.stat(path.join(tmpDir, 'Restored.fairy')).catch(() => null),
-			'restore writes the requested .fairy output file',
+		await t.throwsAsync(
+			() => restore({
+				inputDir: 'release',
+				output: 'Restored.fairy',
+				fs: createRestoreFs(),
+				force: true,
+			}),
+			{ message: /must be a non-root project directory/ },
 		);
-		t.false(
-			(await fs.stat(path.join(tmpDir, 'Restored.fairy')).catch(() => null))?.isDirectory() ?? false,
-			'restore does not create a directory at the requested .fairy output path',
-		);
+		t.is(await fs.readFile(path.join(tmpDir, 'Restored.fairy'), 'utf-8'), 'keep this file');
 	} finally {
 		process.chdir(previousCwd);
 		await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
+	}
+});
+
+test('restore published project: nested output directories are rejected before scanning artifacts', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-nested-output-'));
+	const releaseDir = path.join(tmpDir, 'release');
+
+	try {
+		await fs.mkdir(releaseDir, { recursive: true });
+		await t.throwsAsync(
+			() => restore({
+				inputDir: releaseDir,
+				output: path.join(releaseDir, 'Restored'),
+				fs: createRestoreFs(),
+			}),
+			{ message: /must be independent/ },
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('restore published project: output nested through a resolved input alias is rejected', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-aliased-output-'));
+	const releaseDir = path.join(tmpDir, 'release');
+	const outputAlias = path.join(tmpDir, 'output-alias');
+
+	try {
+		await fs.mkdir(releaseDir, { recursive: true });
+		await fs.mkdir(outputAlias, { recursive: true });
+		const restoreFs = createRestoreFs();
+		const resolvePath = restoreFs.resolvePath.bind(restoreFs);
+		restoreFs.resolvePath = async (filePath) => filePath === outputAlias ? releaseDir : resolvePath(filePath);
+
+		await t.throwsAsync(
+			() => restore({
+				inputDir: releaseDir,
+				output: path.join(outputAlias, 'Restored'),
+				fs: restoreFs,
+			}),
+			{ message: /must be independent/ },
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 });
 

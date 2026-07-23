@@ -1,14 +1,14 @@
-import type { Command } from 'commander';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import {
-	restore,
 	type RestoreFileSystem,
 	type RestoreImageCropInput,
 	type RestoreImageCropper,
 	type RestoreImageExtractInput,
 	type RestoreImageExtractor,
+	restore,
 } from '@openfairygui/functions';
-import fs from 'node:fs/promises';
-import path from 'node:path';
+import type { Command } from 'commander';
 import { parseProjectType } from '../utils/project-type.js';
 
 type RestoreCommandOptions = {
@@ -26,11 +26,11 @@ interface RestoreImageProcessors {
 export function registerRestoreCommand(program: Command): void {
 	program
 		.command('restore')
-		.description('Restore a FairyGUI project from published binaries')
+		.description('Recover a project directory from trusted local published artifacts')
 		.argument('<release-dir>', 'Published release directory')
 		.requiredOption('-o, --output <dir>', 'Output project directory')
 		.option('-p, --packages <a,b,c>', 'Only restore specific packages (comma-separated)')
-		.option('-f, --force', 'Overwrite a non-empty output directory')
+		.option('-f, --force', 'Replace a non-empty output directory only after a complete staged restore')
 		.option('-t, --project-type <name|id>', 'Override restored project type; default is unity')
 		.action(async (releaseDir: string, options: RestoreCommandOptions) => {
 			const inputDir = path.resolve(releaseDir);
@@ -112,6 +112,9 @@ function createNodeRestoreFs(): RestoreFileSystem {
 		},
 		async rm(targetPath: string, options?: { recursive?: boolean; force?: boolean }): Promise<void> {
 			await fs.rm(targetPath, { recursive: options?.recursive ?? false, force: options?.force ?? false });
+		},
+		async rename(from: string, to: string): Promise<void> {
+			await fs.rename(from, to);
 		},
 		join(...paths: string[]): string {
 			return path.join(...paths);

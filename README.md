@@ -18,7 +18,7 @@ OpenFairyGUI 用于读取、编辑、写回和发布 FairyGUI 工程数据。和
 - 读取和写入 FairyGUI 工程目录
 - 读取和写入发布二进制包
 - 通过代码检查、修改和转换文档模型
-- 从发布目录重建可继续编辑的 FairyGUI 工程
+- 受限地从可信本地发布目录恢复工程，用于故障排查或迁移辅助
 - 为自动化流程提供可脚本调用的 CLI
 - 通过 MCP 薄适配层暴露 backend runtime 能力
 
@@ -46,8 +46,9 @@ npm install --save @openfairygui/core @openfairygui/functions
 典型用法是先读入工程，再基于 `Document` 做变换、发布或写回：
 
 ```ts
-import { NodeIO } from '@openfairygui/core';
-import { inspect, publish } from '@openfairygui/functions';
+import { NodeIO } from '@openfairygui/core/node';
+import { inspect } from '@openfairygui/functions';
+import { publishNode } from '@openfairygui/functions/node';
 
 const io = new NodeIO();
 const doc = await io.readProject('./MyProject/MyProject.fairy');
@@ -55,10 +56,14 @@ const doc = await io.readProject('./MyProject/MyProject.fairy');
 const report = inspect(doc);
 console.log(report.projectType, report.totals.packages);
 
-await doc.transform(publish({
+await publishNode({
+  document: doc,
   output: './release',
-}));
+  assetsPath: './MyProject/assets',
+});
 ```
+
+`publishNode` 会在无法生成完整运行时产物时失败：图集所需的 Sharp、源图、资源复制或封包任一环节出错，都不会报告发布成功。低层 `publish()` 只有在未请求输出目录时才是 layout-only 变换；请求输出时必须提供文件系统能力。
 
 如果你需要走当前正式支持的 **UAM authoring seam**，可以直接把
 `UamProject` 与显式 operation batch 交给 `@openfairygui/functions` 的薄应用接缝。
@@ -89,43 +94,7 @@ if (!result.ok) {
 }
 ```
 
-如果你更关心“发布产物 -> 工程”的恢复链路，也可以直接调用 `functions` 层的 restore workflow：
-
-```ts
-import { ProjectType } from '@openfairygui/core';
-import { restore } from '@openfairygui/functions';
-import fs from 'node:fs/promises';
-import path from 'node:path';
-
-await restore({
-  inputDir: './release',
-  output: './restored-project',
-  projectType: ProjectType.Unity,
-  fs: {
-    async readFile(filePath) { return fs.readFile(filePath, 'utf-8'); },
-    async readFileRaw(filePath) {
-      const buf = await fs.readFile(filePath);
-      return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
-    },
-    async writeFile(filePath, content) {
-      await fs.mkdir(path.dirname(filePath), { recursive: true });
-      await fs.writeFile(filePath, content, 'utf-8');
-    },
-    async writeFileRaw(filePath, data) {
-      await fs.mkdir(path.dirname(filePath), { recursive: true });
-      await fs.writeFile(filePath, data);
-    },
-    async mkdir(dirPath) { await fs.mkdir(dirPath, { recursive: true }); },
-    async readdir(dirPath) { return fs.readdir(dirPath); },
-    async exists(filePath) { try { await fs.access(filePath); return true; } catch { return false; } },
-    async isFile(filePath) { try { return (await fs.stat(filePath)).isFile(); } catch { return false; } },
-    async resolvePath(filePath) { try { return await fs.realpath(filePath); } catch { return path.resolve(filePath); } },
-    async rm(targetPath, options) { await fs.rm(targetPath, { recursive: options?.recursive ?? false, force: options?.force ?? false }); },
-    join: path.join,
-    dirname: path.dirname,
-  },
-});
-```
+> `restore` 是受限恢复工具，不是常规创作或发布工作流。仅对可信的本地发布目录使用它；输出必须是新的工程目录，恢复会在暂存目录完整写入后才替换目标。它不能证明第三方发布物安全，也不保证恢复出原工程源码。边界见[发布产物恢复边界](./docs/published-project-restore-limitations.md)。
 
 如果你需要一个带 session / revision / save / advisory lock 的 **backend runtime**，可以使用
 browser-safe 的 `@openfairygui/backend` 根入口，或通过 `@openfairygui/backend/node` 装配 Node 文件系统。
@@ -223,12 +192,14 @@ ofgui publish ./MyProject --output ./release
 # 按命令覆盖项目类型
 ofgui publish ./MyProject --output ./release --project-type unity
 
-# 从发布目录恢复工程
+# 仅在可信本地发布物需要排障恢复时使用
 ofgui restore ./release --output ./restored-project
 
 # 恢复时覆盖项目类型
 ofgui restore ./release --output ./restored-project --project-type cocoscreator
 ```
+
+`restore --force` 也只会在恢复完整写入后替换已有输出目录。
 
 `--project-type` 支持名称或数字 id，例如：
 
@@ -268,7 +239,7 @@ pnpm dev:cli --help
 | [架构图说明](./docs/architecture-overview.md) | 包职责、模块边界、核心数据流 |
 | [编辑器发布设置](./docs/editor-publish-settings.md) | 发布设置来源、默认值、命名规则与消费位置 |
 | [Publish 插件](./docs/publish-plugins.md) | publish 插件目录、生命周期、失败降级，以及与 FairyGUI 编辑器插件的关系 |
-| [发布产物还原限制](./docs/published-project-restore-limitations.md) | 仅凭发布目录重建工程时的能力边界 |
+| [发布产物恢复边界](./docs/published-project-restore-limitations.md) | 可信本地发布物的受限恢复范围与不可还原内容 |
 | [Project XML 属性协议](./docs/project-xml-attribute-reference.md) | `package.xml`、`component.xml` 及结构节点属性协议 |
 | [Project XML DisplayList Tag 对齐](./docs/project-xml-displaylist-variants.md) | `displayList` XML tag 与 editor 类型对齐口径 |
 | [二进制封包协议](./docs/fairygui-binary-package-format.md) | `.fui` / `_fui.bytes` 当前协议说明 |

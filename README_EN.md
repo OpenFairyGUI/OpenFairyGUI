@@ -18,7 +18,7 @@ Current capabilities include:
 - Reading and writing FairyGUI project directories
 - Reading and writing published binary packages
 - Inspecting and transforming the document model in code
-- Reconstructing editable FairyGUI projects from publish directories
+- Limited recovery from trusted local publish directories for diagnostics or migration assistance
 - Providing a scriptable CLI for automation
 - Exposing backend runtime capabilities through a thin MCP adapter
 
@@ -46,8 +46,9 @@ npm install --save @openfairygui/core @openfairygui/functions
 Typical usage reads a project into a `Document`, then inspects, transforms, publishes, or writes it back:
 
 ```ts
-import { NodeIO } from '@openfairygui/core';
-import { inspect, publish } from '@openfairygui/functions';
+import { NodeIO } from '@openfairygui/core/node';
+import { inspect } from '@openfairygui/functions';
+import { publishNode } from '@openfairygui/functions/node';
 
 const io = new NodeIO();
 const doc = await io.readProject('./MyProject/MyProject.fairy');
@@ -55,10 +56,14 @@ const doc = await io.readProject('./MyProject/MyProject.fairy');
 const report = inspect(doc);
 console.log(report.projectType, report.totals.packages);
 
-await doc.transform(publish({
+await publishNode({
+  document: doc,
   output: './release',
-}));
+  assetsPath: './MyProject/assets',
+});
 ```
+
+`publishNode` fails when it cannot produce a complete runtime artifact: missing Sharp, source images, resource copies, or packing failures do not report success. The lower-level `publish()` API is layout-only only when no output directory is requested; an output request requires filesystem capabilities.
 
 If you want to use the current **UAM authoring seam**, pass a `UamProject` plus an
 explicit operation batch into the thin application wrapper exposed by
@@ -91,43 +96,7 @@ if (!result.ok) {
 }
 ```
 
-If you want to rebuild a project from published output, use the high-level restore workflow from `functions`:
-
-```ts
-import { ProjectType } from '@openfairygui/core';
-import { restore } from '@openfairygui/functions';
-import fs from 'node:fs/promises';
-import path from 'node:path';
-
-await restore({
-  inputDir: './release',
-  output: './restored-project',
-  projectType: ProjectType.Unity,
-  fs: {
-    async readFile(filePath) { return fs.readFile(filePath, 'utf-8'); },
-    async readFileRaw(filePath) {
-      const buf = await fs.readFile(filePath);
-      return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
-    },
-    async writeFile(filePath, content) {
-      await fs.mkdir(path.dirname(filePath), { recursive: true });
-      await fs.writeFile(filePath, content, 'utf-8');
-    },
-    async writeFileRaw(filePath, data) {
-      await fs.mkdir(path.dirname(filePath), { recursive: true });
-      await fs.writeFile(filePath, data);
-    },
-    async mkdir(dirPath) { await fs.mkdir(dirPath, { recursive: true }); },
-    async readdir(dirPath) { return fs.readdir(dirPath); },
-    async exists(filePath) { try { await fs.access(filePath); return true; } catch { return false; } },
-    async isFile(filePath) { try { return (await fs.stat(filePath)).isFile(); } catch { return false; } },
-    async resolvePath(filePath) { try { return await fs.realpath(filePath); } catch { return path.resolve(filePath); } },
-    async rm(targetPath, options) { await fs.rm(targetPath, { recursive: options?.recursive ?? false, force: options?.force ?? false }); },
-    join: path.join,
-    dirname: path.dirname,
-  },
-});
-```
+> `restore` is a limited recovery tool, not a normal authoring or publishing workflow. Use it only with trusted local publish directories; the output must be a new project directory, and recovery replaces the target only after a complete staged write. It does not establish that third-party artifacts are safe and cannot reproduce the original source project. See the [published recovery boundaries](./docs/published-project-restore-limitations.md).
 
 If you need a **stateful backend runtime** with sessions, revisions, coordinated saves,
 and advisory locking, use the browser-safe `@openfairygui/backend` root entrypoint or
@@ -228,12 +197,14 @@ ofgui publish ./MyProject --output ./release
 # Override project type from the command line
 ofgui publish ./MyProject --output ./release --project-type unity
 
-# Restore a project from published output
+# Use only for trusted local artifact recovery
 ofgui restore ./release --output ./restored-project
 
 # Override restored project type
 ofgui restore ./release --output ./restored-project --project-type cocoscreator
 ```
+
+Even with `--force`, `restore` replaces an existing output directory only after the recovery completes.
 
 `--project-type` accepts either a name or a numeric id, for example:
 
@@ -273,7 +244,7 @@ Implementation reference documents are currently maintained in Chinese. Start fr
 | [Architecture Overview](./docs/architecture-overview.md) | Package responsibilities, module boundaries, and core data flow |
 | [Editor Publish Settings](./docs/editor-publish-settings.md) | Publish setting sources, defaults, naming rules, and consumption points |
 | [Publish Plugins](./docs/publish-plugins.md) | Publish plugin directory, lifecycle, fallback behavior, and relationship with FairyGUI editor plugins |
-| [Published Restore Limitations](./docs/published-project-restore-limitations.md) | Restore capability boundaries when only publish output is available |
+| [Published Recovery Boundaries](./docs/published-project-restore-limitations.md) | Limited trusted-local recovery scope and non-recoverable content |
 | [Project XML Attribute Protocol](./docs/project-xml-attribute-reference.md) | XML attributes supported for `package.xml`, `component.xml`, and structural nodes |
 | [Project XML DisplayList Tag Alignment](./docs/project-xml-displaylist-variants.md) | Alignment of raw `displayList` tags and editor display item types |
 | [Binary Package Format](./docs/fairygui-binary-package-format.md) | Current `.fui` / `_fui.bytes` protocol reference |

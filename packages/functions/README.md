@@ -22,7 +22,7 @@ const report = inspect(doc);
 await publishNode({ document: doc, output: './release' });
 ```
 
-`publishNode` owns the standard Node filesystem, Sharp raster backend, and project plugin discovery. The root `publish()` export remains the lower-level capability-injected core for custom hosts.
+`publishNode` owns the standard Node filesystem, Sharp raster backend, and project plugin discovery. It fails when a complete runtime artifact cannot be generated. The root `publish()` export remains the lower-level capability-injected core for custom hosts; it is layout-only only when no output directory is requested.
 
 ## Browser LayaBox publish
 

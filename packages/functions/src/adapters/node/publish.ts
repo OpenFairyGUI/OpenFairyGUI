@@ -1,8 +1,8 @@
 import type { Document } from '@openfairygui/core';
 import { resolveProjectBasePath } from '../../codegen.js';
-import { publish, type PublishOptions } from '../../publish.js';
-import type { AtlasRasterBackend, PublishFileSystem } from '../../publish/contracts.js';
 import type { LoadedPlugin } from '../../plugins/types.js';
+import type { AtlasRasterBackend, PublishFileSystem } from '../../publish/contracts.js';
+import { type PublishOptions, publish } from '../../publish.js';
 import { loadPlugins } from './plugins.js';
 
 const importNative = new Function('id', 'return import(id)') as <T>(id: string) => Promise<T>;
@@ -111,7 +111,7 @@ export async function publishNode(options: PublishNodeOptions): Promise<void> {
 	]);
 
 	if (!encoder) {
-		document.getLogger().warn('publish: Sharp is unavailable; atlas layout will be generated without PNG output.');
+		throw new Error('publishNode: Sharp is required for a complete publish. Install sharp or provide an encoder.');
 	}
 
 	await document.transform(

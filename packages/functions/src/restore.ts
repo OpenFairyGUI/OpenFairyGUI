@@ -3,9 +3,9 @@ import {
 	type Document,
 	type FileSystem,
 	generateId,
+	type Package,
 	ProjectType,
 	ProjectWriter,
-	type Package,
 } from '@openfairygui/core';
 
 export interface RestoreImageCropInput {
@@ -45,7 +45,8 @@ export interface RestoreFileSystem extends Pick<FileSystem, 'readFile' | 'readFi
 	readdir(path: string): Promise<string[]>;
 	isFile(path: string): Promise<boolean>;
 	resolvePath(path: string): string | Promise<string>;
-	rm?: (path: string, options?: { recursive?: boolean; force?: boolean }) => Promise<void>;
+	rm(path: string, options?: { recursive?: boolean; force?: boolean }): Promise<void>;
+	rename(from: string, to: string): Promise<void>;
 }
 
 export interface RestoreOptions {
@@ -178,10 +179,23 @@ const TRANSPARENT_PNG_1X1 = Uint8Array.from([
 	66, 96, 130,
 ]);
 
+function assertSafeRestoreSegment(value: string, label: string): void {
+	if (!value || value === '.' || value === '..' || value.includes('\0') || /[\\/:]/u.test(value)) {
+		throw new Error(`restore: Invalid ${label} "${value}".`);
+	}
+}
+
 function normalizeVirtualPath(path: string | undefined): string {
-	const normalized = (path ?? '').replace(/\\/g, '/').trim();
-	if (!normalized || normalized === '/') return '';
-	return normalized.replace(/^\/+/, '').replace(/\/+$/, '');
+	const raw = (path ?? '').trim();
+	if (!raw || raw === '/') return '';
+	if (raw.includes('\0') || raw.startsWith('\\') || raw.startsWith('//') || /^[a-z]:/iu.test(raw)) {
+		throw new Error(`restore: Invalid resource path "${raw}".`);
+	}
+	const segments = raw.replace(/\\/g, '/').split('/').filter(Boolean);
+	if (segments.some((segment) => segment === '.' || segment === '..' || segment.includes(':'))) {
+		throw new Error(`restore: Invalid resource path "${raw}".`);
+	}
+	return segments.join('/');
 }
 
 function resourceFileName(resource: RestorableResource): string {
@@ -438,10 +452,10 @@ function normalizeComparablePath(value: string): string {
 	return comparable.toLowerCase();
 }
 
-function dirname(filePath: string): string {
-	const trimmed = trimTrailingSlashes(filePath);
-	const match = trimmed.match(/^(.*)[/\\][^/\\]+$/);
-	return match?.[1] ?? '';
+function isPathWithin(root: string, candidate: string): boolean {
+	const normalizedRoot = normalizeComparablePath(root);
+	const normalizedCandidate = normalizeComparablePath(candidate);
+	return normalizedCandidate.startsWith(`${normalizedRoot}/`);
 }
 
 function basename(filePath: string): string {
@@ -450,56 +464,56 @@ function basename(filePath: string): string {
 	return match?.[1] ?? '';
 }
 
-function resolveOutputProjectPath(output: string, fs: Pick<RestoreFileSystem, 'join'>): string {
-	if (/\.fairy$/i.test(output)) return output;
-	const normalizedOutput = trimTrailingSlashes(output);
-	const projectName = basename(normalizedOutput) || 'Restored';
-	return fs.join(normalizedOutput, `${projectName}.fairy`);
+function normalizeRestoreOutputDir(output: string): string {
+	const normalized = trimTrailingSlashes(output);
+	const name = basename(normalized);
+	if (!normalized || /\.fairy$/i.test(normalized) || !name || name === '.' || name === '..' || /^[a-z]:$/iu.test(name)) {
+		throw new Error('restore: Output must be a non-root project directory, not a .fairy file.');
+	}
+	return normalized;
 }
 
-async function prepareRestoreOutputDir(
+function resolveOutputProjectPath(outputDir: string, fs: Pick<RestoreFileSystem, 'join'>): string {
+	return fs.join(outputDir, `${basename(outputDir)}.fairy`);
+}
+
+async function resolvePathForContainment(filePath: string, fs: RestoreFileSystem): Promise<string> {
+	const missingSegments: string[] = [];
+	let existingPath = filePath;
+	while (!(await fs.exists(existingPath))) {
+		const parentPath = fs.dirname(existingPath);
+		if (!parentPath || parentPath === existingPath) {
+			return Promise.resolve(fs.resolvePath(filePath));
+		}
+		missingSegments.unshift(basename(existingPath));
+		existingPath = parentPath;
+	}
+
+	const resolvedExistingPath = await Promise.resolve(fs.resolvePath(existingPath));
+	return missingSegments.reduce((resolvedPath, segment) => fs.join(resolvedPath, segment), resolvedExistingPath);
+}
+
+async function assertRestoreOutputDir(
 	inputDir: string,
 	outputDir: string,
-	outputProjectPath: string,
 	fs: RestoreFileSystem,
 	force: boolean,
-	outputIsProjectFile: boolean,
 ): Promise<void> {
 	const [resolvedInputDir, resolvedOutputDir] = await Promise.all([
-		Promise.resolve(fs.resolvePath(inputDir)),
-		Promise.resolve(fs.resolvePath(outputDir)),
+		resolvePathForContainment(inputDir, fs),
+		resolvePathForContainment(outputDir, fs),
 	]);
-	if (normalizeComparablePath(resolvedInputDir) === normalizeComparablePath(resolvedOutputDir)) {
-		throw new Error('Restore output directory must be different from the published input directory.');
+	const normalizedInputDir = normalizeComparablePath(resolvedInputDir);
+	const normalizedOutputDir = normalizeComparablePath(resolvedOutputDir);
+	if (
+		normalizedInputDir === normalizedOutputDir ||
+		isPathWithin(normalizedInputDir, normalizedOutputDir) ||
+		isPathWithin(normalizedOutputDir, normalizedInputDir)
+	) {
+		throw new Error('Restore output directory must be independent from the published input directory.');
 	}
 
-	if (outputIsProjectFile) {
-		if (!(await fs.exists(outputDir))) {
-			await fs.mkdir(outputDir);
-			return;
-		}
-		try {
-			await fs.readdir(outputDir);
-		} catch {
-			throw new Error(`Restore output path is not a directory: ${outputDir}`);
-		}
-
-		if (!(await fs.exists(outputProjectPath))) return;
-		if (!force) {
-			throw new Error(`Restore output file already exists: ${outputProjectPath}. Use --force to overwrite it.`);
-		}
-		if (!fs.rm) {
-			throw new Error('Restore output file already exists and the provided fs does not support rm(...).');
-		}
-		await fs.rm(outputProjectPath, { recursive: true, force: true });
-		return;
-	}
-
-	const exists = await fs.exists(outputDir);
-	if (!exists) {
-		await fs.mkdir(outputDir);
-		return;
-	}
+	if (!(await fs.exists(outputDir))) return;
 
 	let entries: string[];
 	try {
@@ -512,24 +526,69 @@ async function prepareRestoreOutputDir(
 	if (!force) {
 		throw new Error(`Restore output directory is not empty: ${outputDir}. Use --force to overwrite it.`);
 	}
-	if (!fs.rm) {
-		throw new Error('Restore output directory is not empty and the provided fs does not support rm(...).');
+}
+
+async function createRestoreStagingDir(outputDir: string, fs: RestoreFileSystem): Promise<string> {
+	const parentDir = fs.dirname(outputDir) || '.';
+	await fs.mkdir(parentDir);
+	for (let attempt = 0; attempt < 8; attempt += 1) {
+		const stagingDir = fs.join(parentDir, `.${basename(outputDir)}.restore-${generateId()}`);
+		if (await fs.exists(stagingDir)) continue;
+		await fs.mkdir(stagingDir);
+		return stagingDir;
 	}
-	await fs.rm(outputDir, { recursive: true, force: true });
-	await fs.mkdir(outputDir);
+	throw new Error(`restore: Could not allocate a staging directory beside ${outputDir}.`);
+}
+
+async function commitRestoreOutput(
+	stagingDir: string,
+	outputDir: string,
+	fs: RestoreFileSystem,
+): Promise<string | null> {
+	if (!(await fs.exists(outputDir))) {
+		await fs.rename(stagingDir, outputDir);
+		return null;
+	}
+
+	const parentDir = fs.dirname(outputDir) || '.';
+	let backupDir = '';
+	for (let attempt = 0; attempt < 8; attempt += 1) {
+		const candidate = fs.join(parentDir, `.${basename(outputDir)}.restore-backup-${generateId()}`);
+		if (!(await fs.exists(candidate))) {
+			backupDir = candidate;
+			break;
+		}
+	}
+	if (!backupDir) throw new Error(`restore: Could not allocate a backup directory beside ${outputDir}.`);
+
+	// ponytail: two-step rename preserves rollback; use a platform directory-exchange primitive if zero reader gap matters.
+	await fs.rename(outputDir, backupDir);
+	try {
+		await fs.rename(stagingDir, outputDir);
+	} catch (error) {
+		await fs.rename(backupDir, outputDir);
+		throw error;
+	}
+	try {
+		await fs.rm(backupDir, { recursive: true, force: true });
+		return null;
+	} catch {
+		return `restore: Previous output retained at ${backupDir}; remove it after checking the restored project.`;
+	}
 }
 
 export async function restore(options: RestoreOptions): Promise<RestoreResult> {
 	const sourceDir = trimTrailingSlashes(options.inputDir);
-	const outputIsProjectFile = /\.fairy$/i.test(options.output);
-	const outputProjectPath = resolveOutputProjectPath(options.output, options.fs);
-	const outputDir = dirname(outputProjectPath) || '.';
-	await prepareRestoreOutputDir(sourceDir, outputDir, outputProjectPath, options.fs, options.force === true, outputIsProjectFile);
+	const outputDir = normalizeRestoreOutputDir(options.output);
+	const outputProjectPath = resolveOutputProjectPath(outputDir, options.fs);
+	await assertRestoreOutputDir(sourceDir, outputDir, options.fs, options.force === true);
 
 	const packageFilter = options.packages?.length ? new Set(options.packages) : null;
-	const candidateBinaryPaths = (await options.fs.readdir(sourceDir))
+	const binaryNames = (await options.fs.readdir(sourceDir))
 		.filter((name) => isPublishedBinaryFile(name))
-		.filter((name) => !packageFilter || packageFilter.has(inferPackageName(name)))
+		.filter((name) => !packageFilter || packageFilter.has(inferPackageName(name)));
+	for (const binaryName of binaryNames) assertSafeRestoreSegment(binaryName, 'published binary file name');
+	const candidateBinaryPaths = binaryNames
 		.map((name) => options.fs.join(sourceDir, name))
 		.sort((left, right) => left.localeCompare(right));
 	const binaryPaths = (await Promise.all(
@@ -543,7 +602,7 @@ export async function restore(options: RestoreOptions): Promise<RestoreResult> {
 	}
 
 	const restorer = new RestoreWorkflow(options.fs);
-	return restorer.restore({
+	const document = await restorer.prepare({
 		binaryPaths,
 		sourceDir,
 		outputProjectPath,
@@ -551,6 +610,26 @@ export async function restore(options: RestoreOptions): Promise<RestoreResult> {
 		cropImage: options.cropImage,
 		extractImage: options.extractImage,
 	});
+	const stagingDir = await createRestoreStagingDir(outputDir, options.fs);
+	const stagingProjectPath = options.fs.join(stagingDir, basename(outputProjectPath));
+	const warnings: string[] = [];
+	try {
+		await restorer.write(document, {
+			binaryPaths,
+			sourceDir,
+			outputProjectPath: stagingProjectPath,
+			projectType: options.projectType,
+			cropImage: options.cropImage,
+			extractImage: options.extractImage,
+		}, warnings);
+		const cleanupWarning = await commitRestoreOutput(stagingDir, outputDir, options.fs);
+		if (cleanupWarning) warnings.push(cleanupWarning);
+	} catch (error) {
+		await options.fs.rm(stagingDir, { recursive: true, force: true }).catch(() => undefined);
+		throw error;
+	}
+
+	return { document, projectPath: outputProjectPath, warnings };
 }
 
 class RestoreWorkflow {
@@ -560,13 +639,14 @@ class RestoreWorkflow {
 		this._fs = fs;
 	}
 
-	async restore(options: RestoreExecutionOptions): Promise<RestoreResult> {
-		const warnings: string[] = [];
+	async prepare(options: RestoreExecutionOptions): Promise<Document> {
 		const reader = new BinaryReader(this._fs);
 		const doc = await reader.readMany(options.binaryPaths);
+		this._assertDocumentPaths(doc);
 		this._initializeProjectDefaults(doc, options.projectType);
 		this._initializeImageFileNames(doc);
 		this._initializeLooseResourceFileNames(doc);
+		this._assertDocumentPaths(doc);
 		await this._synthesizeLooseSkeletonResources(doc, options.sourceDir);
 		this._initializeRestoredResourceRelations(doc);
 		this._initializePublishedFontTextureIds(doc);
@@ -575,16 +655,30 @@ class RestoreWorkflow {
 		this._initializePublishedTextFontResources(doc);
 		this._initializeDisplayObjectFileNames(doc);
 		this._initializePublishedFontDefaults(doc);
+		this._assertDocumentPaths(doc);
+		return doc;
+	}
 
+	async write(doc: Document, options: RestoreExecutionOptions, warnings: string[]): Promise<void> {
 		const writer = new ProjectWriter(this._fs);
 		await writer.write(doc, options.outputProjectPath);
 		await this._restoreAssets(doc, options, warnings);
+	}
 
-		return {
-			document: doc,
-			projectPath: options.outputProjectPath,
-			warnings,
-		};
+	private _assertDocumentPaths(doc: Document): void {
+		for (const pkg of doc.getRoot().listPackages()) {
+			assertSafeRestoreSegment(pkg.getName(), 'package name');
+			assertSafeRestoreSegment(pkg.getPublishName() || pkg.getName(), 'package publish name');
+			for (const resource of pkg.listResources() as RestorableResource[]) {
+				normalizeVirtualPath(resource.getPath?.());
+				const branch = resource.getBranch?.() ?? '';
+				if (branch) assertSafeRestoreSegment(branch, 'branch name');
+				const fileName = resourceFileName(resource);
+				if (fileName) assertSafeRestoreSegment(fileName, 'resource file name');
+				const publishedFileName = resourcePublishedFileName(resource);
+				if (publishedFileName) assertSafeRestoreSegment(publishedFileName, 'published resource file name');
+			}
+		}
 	}
 
 	private _initializeProjectDefaults(doc: Document, projectType?: number): void {
@@ -1237,12 +1331,17 @@ class RestoreWorkflow {
 
 	private _sourceFileCandidates(pkg: Package, fileName: string, outputFileName = fileName): string[] {
 		const publishName = pkg.getPublishName() || pkg.getName();
-		return Array.from(new Set([
+		assertSafeRestoreSegment(publishName, 'package publish name');
+		assertSafeRestoreSegment(fileName, 'published source file name');
+		assertSafeRestoreSegment(outputFileName, 'published source file name');
+		const candidates = Array.from(new Set([
 			`${publishName}_${fileName}`,
 			fileName,
 			`${publishName}_${outputFileName}`,
 			outputFileName,
 		]));
+		for (const candidate of candidates) assertSafeRestoreSegment(candidate, 'published source file name');
+		return candidates;
 	}
 
 	private async _resolveLooseSourceFile(pkg: Package, sourceDir: string, outputFileName: string): Promise<string | null> {
@@ -1255,9 +1354,16 @@ class RestoreWorkflow {
 	}
 
 	private async _resolveSourceFile(sourceDir: string, candidates: string[]): Promise<string | null> {
+		const resolvedSourceDir = await Promise.resolve(this._fs.resolvePath(sourceDir));
 		for (const candidate of candidates) {
+			assertSafeRestoreSegment(candidate, 'published source file name');
 			const sourcePath = this._fs.join(sourceDir, candidate);
-			if (await this._fs.isFile(sourcePath)) return sourcePath;
+			if (!(await this._fs.isFile(sourcePath))) continue;
+			const resolvedSourcePath = await Promise.resolve(this._fs.resolvePath(sourcePath));
+			if (!isPathWithin(resolvedSourceDir, resolvedSourcePath)) {
+				throw new Error(`restore: Published source file resolves outside the input directory: ${candidate}.`);
+			}
+			return resolvedSourcePath;
 		}
 		return null;
 	}
@@ -1270,6 +1376,9 @@ class RestoreWorkflow {
 	): string {
 		const basePath = this._fs.dirname(outputProjectPath);
 		const branch = resource.getBranch?.() ?? '';
+		assertSafeRestoreSegment(pkg.getName(), 'package name');
+		if (branch) assertSafeRestoreSegment(branch, 'branch name');
+		assertSafeRestoreSegment(fileName, 'resource file name');
 		const assetsDir = branch ? `assets_${branch}` : 'assets';
 		const virtualPath = normalizeVirtualPath(resource.getPath?.());
 		const pkgDir = this._fs.join(basePath, assetsDir, pkg.getName());

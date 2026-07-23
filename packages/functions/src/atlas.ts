@@ -1,16 +1,16 @@
 import {
-	GearType,
-	TransitionActionType,
 	type Component,
 	type Document,
 	type DragonBonesResource,
 	type FontResource,
+	GearType,
 	type ILogger,
 	type ImageResource,
 	type MovieClipResource,
 	type Package,
 	type SpineResource,
 	type Transform,
+	TransitionActionType,
 } from '@openfairygui/core';
 import { COMPAT_NODE_RECT_FLAGS, type CompatNodeRect } from './max-rects-compat.js';
 import { MaxRectsPackerCompat } from './max-rects-packer-compat.js';
@@ -77,6 +77,14 @@ export interface AtlasOptions {
 	outputPath?: string;
 
 	/**
+	 * Require a complete raster artifact when there are packable inputs.
+	 * This is used by publish() so a runtime package cannot contain atlas
+	 * references without the matching PNG output.
+	 * @internal
+	 */
+	strictOutput?: boolean;
+
+	/**
 	 * Optional mkdir function to ensure output directory exists.
 	 * If not provided, the outputPath directory must already exist.
 	 */
@@ -129,6 +137,7 @@ const ATLAS_DEFAULTS: Required<
 	directSingleImageOutput: false,
 	extractAlpha: false,
 	separatedAtlasForBranch: false,
+	strictOutput: false,
 };
 
 /** Trim info for a single image. */
@@ -568,6 +577,11 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 			}
 
 			if (inputs.length === 0) continue;
+			if (options.strictOutput && (!encoder || !options.basePath || !options.outputPath)) {
+				throw new Error(
+					`atlas: Package "${pkg.getName()}" requires encoder, basePath, and outputPath for complete raster output.`,
+				);
+			}
 			let totalPageCount = 0;
 			let usedDirectOutput = false;
 			const { autoInputs, fixedPageGroups, standaloneGroups, reservedPageIndexes } = groupStandaloneInputs(
@@ -733,7 +747,7 @@ async function emitPagedAtlasGroup(
 ): Promise<number> {
 	if (inputs.length === 0) return 0;
 	const pages = packAtlasPages(inputs, context.options, context.forceSinglePage === true);
-	if (pages.length === 0) return 0;
+	assertPackedInputCoverage(pages, inputs.length, `package "${pkg.getName()}"`);
 
 	for (let pageOffset = 0; pageOffset < pages.length; pageOffset += 1) {
 		const page = pages[pageOffset];
@@ -780,9 +794,9 @@ async function emitStandaloneAtlasGroup(
 			? { powerOfTwo: false, multipleOfFour: false, square: false }
 			: group.sizeMode === 'multipleOf4'
 				? { powerOfTwo: false, multipleOfFour: true, square: false }
-				: undefined,
+			: undefined,
 	);
-	if (pages.length === 0) return 0;
+	assertPackedInputCoverage(pages, group.inputs.length, `standalone texture in package "${pkg.getName()}"`);
 
 	for (let pageOffset = 0; pageOffset < pages.length; pageOffset += 1) {
 		const page = pages[pageOffset];
@@ -842,6 +856,21 @@ function packAtlasPages(
 		preserveInputOrderOnTie: options.preserveInputOrderOnTie,
 	});
 	return packer.pack(inputs.map((input, index) => inputToCompatRect(input, index))) ?? [];
+}
+
+function assertPackedInputCoverage(
+	pages: Array<{ outputRects: Array<{ index: number }> }>,
+	inputCount: number,
+	label: string,
+): void {
+	const packedIndexes = new Set<number>();
+	for (const page of pages) {
+		for (const outputRect of page.outputRects) packedIndexes.add(outputRect.index);
+	}
+	const hasEveryInput = Array.from({ length: inputCount }, (_, index) => packedIndexes.has(index)).every(Boolean);
+	if (packedIndexes.size !== inputCount || !hasEveryInput) {
+		throw new Error(`atlas: Could not pack every input for ${label}.`);
+	}
 }
 
 function attachSpritesToAtlas(
@@ -928,7 +957,9 @@ async function writeAtlasPageImage(
 				imageBuffer = input.rasterizedBuffer;
 			} else {
 				if (!isImageResource(input.resource)) {
-					logger.warn(`atlas: Non-image input "${input.id}" is missing inline buffer, skipping compositing.`);
+					const message = `atlas: Non-image input "${input.id}" is missing inline buffer.`;
+					if (options.strictOutput) throw new Error(message);
+					logger.warn(`${message} Skipping compositing.`);
 					continue;
 				}
 				const filePath = _resolveImagePath(input.resource, pkg, options.basePath!);
@@ -941,7 +972,9 @@ async function writeAtlasPageImage(
 				top: packedRect.y,
 			});
 		} catch {
-			logger.warn(`atlas: Could not read image "${input.id}" for compositing.`);
+			const message = `atlas: Could not read image "${input.id}" for compositing.`;
+			if (options.strictOutput) throw new Error(message);
+			logger.warn(message);
 		}
 	}
 
@@ -1080,7 +1113,9 @@ async function emitDirectImageOutput(
 				.toFile(outputFile);
 		}
 	} catch {
-		logger.warn(`atlas: Could not write direct-output atlas "${atlasFileName}".`);
+		const message = `atlas: Could not write direct-output atlas "${atlasFileName}".`;
+		if (options.strictOutput) throw new Error(message);
+		logger.warn(message);
 	}
 }
 
@@ -1472,6 +1507,9 @@ async function _collectImage(
 				sourceHasAlpha = true;
 			}
 		} catch {
+			if (options.strictOutput) {
+				throw new Error(`atlas: Could not read image "${filePath}".`);
+			}
 			if (origW === 0 || origH === 0) {
 				logger.warn(`atlas: Could not read image "${filePath}", skipping.`);
 				return;
@@ -1526,7 +1564,15 @@ async function _collectMovieClipFrames(
 	options: AtlasOptions,
 	logger: ILogger,
 ): Promise<void> {
-	if (!options.basePath || !options.readFileRaw) return;
+	if (!options.basePath || !options.readFileRaw) {
+		if (options.strictOutput) {
+			throw new Error(`atlas: MovieClip "${resource.getId()}" requires basePath and readFileRaw for complete raster output.`);
+		}
+		return;
+	}
+	if (!encoder && options.strictOutput) {
+		throw new Error(`atlas: MovieClip "${resource.getId()}" requires an encoder for complete raster output.`);
+	}
 
 	const mcId = resource.getId();
 	const mcName = resource.getName() + '.jta';
@@ -1562,7 +1608,13 @@ async function _collectMovieClipFrames(
 				const exportFrameIndex = firstFrameIndexByTextureIndex.get(textureIndex);
 				if (exportFrameIndex === undefined) continue;
 				const itemId = `${mcId}_${exportFrameIndex}`;
-				const input = await _createMovieClipFrameInput(jta.frames[textureIndex], itemId, resource, encoder);
+			const input = await _createMovieClipFrameInput(
+				jta.frames[textureIndex],
+				itemId,
+				resource,
+				encoder,
+				options.strictOutput,
+			);
 				if (!input) continue;
 				inputs.push(input);
 				spriteIdByTextureIndex.set(textureIndex, itemId);
@@ -1584,7 +1636,13 @@ async function _collectMovieClipFrames(
 		} else {
 			for (let frameIndex = 0; frameIndex < jta.frames.length; frameIndex += 1) {
 				const itemId = `${mcId}_${frameIndex}`;
-				const input = await _createMovieClipFrameInput(jta.frames[frameIndex], itemId, resource, encoder);
+				const input = await _createMovieClipFrameInput(
+					jta.frames[frameIndex],
+					itemId,
+					resource,
+					encoder,
+					options.strictOutput,
+				);
 				if (!input) continue;
 				inputs.push(input);
 				const frame = doc.createMovieFrame(itemId);
@@ -1604,7 +1662,9 @@ async function _collectMovieClipFrames(
 			resource.setHeight(jta.meta?.height ?? 0);
 		}
 	} catch {
-		logger.warn(`atlas: Could not parse MovieClip "${filePath}", skipping frames.`);
+		const message = `atlas: Could not parse MovieClip "${filePath}".`;
+		if (options.strictOutput) throw new Error(message);
+		logger.warn(`${message} Skipping frames.`);
 	}
 }
 
@@ -1613,6 +1673,7 @@ async function _createMovieClipFrameInput(
 	itemId: string,
 	resource: MovieClipResource,
 	encoder: AtlasRasterBackend | undefined,
+	strictOutput: boolean,
 ): Promise<InputItem | null> {
 	if (!encoder || buffer.length === 0) return null;
 	try {
@@ -1633,6 +1694,7 @@ async function _createMovieClipFrameInput(
 			sourceKind: 'movieclip-frame',
 		};
 	} catch {
+		if (strictOutput) throw new Error(`atlas: Could not decode MovieClip frame "${itemId}".`);
 		return null;
 	}
 }

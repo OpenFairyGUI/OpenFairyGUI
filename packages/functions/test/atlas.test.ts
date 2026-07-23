@@ -1,8 +1,8 @@
-import test from 'ava';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { maxRectsPack, Document } from '@openfairygui/core';
+import { Document, maxRectsPack } from '@openfairygui/core';
+import test from 'ava';
 import sharp from 'sharp';
 import { atlas } from '../src/index.js';
 
@@ -136,6 +136,20 @@ test('atlas: skips packages with no images', async (t) => {
 	await doc.transform(atlas());
 
 	t.is(pkg.listAtlases().length, 0, 'no atlas created for image-less package');
+});
+
+test('atlas: rejects a packable input that cannot fit on any page', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('oversized');
+	pkg.setId('oversize1');
+	const image = doc.createImageResource('huge.png');
+	image.setId('img001').setWidth(64).setHeight(64);
+	pkg.addResource(image);
+
+	await t.throwsAsync(
+		() => doc.transform(atlas({ maxSize: 16, allowRotation: false, multiPage: false })),
+		{ message: /Could not pack every input/ },
+	);
 });
 
 test('atlas: handles multiple pages when images exceed maxSize', async (t) => {

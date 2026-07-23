@@ -46,7 +46,7 @@ flowchart LR
         PUB["publish core"]
         PUBNODE["publishNode"]
         PUBWEB["publishBrowser"]
-        RST["restore"]
+        RST["受限 restore<br/>trusted-local recovery"]
         ATLAS["atlas"]
         CG["codegen"]
         PUBNODE --> PUB
@@ -256,6 +256,8 @@ flowchart LR
 | `DragonBonesResource` | 输出 skeleton 主文件，当前保持原文件名 |
 | `SpineResource` / `DragonBonesResource` 依赖 | 按 `require` 形成资源闭包，依赖的 `misc` / `image` 资源一并发布 |
 
+发布输出采用完整性优先的失败口径：已解析到输出目录时必须有文件系统能力；存在可封包的图像时必须有 raster encoder、源资源路径和 atlas 输出目录；图集装箱/合成、声音或外部资源复制失败都会中止发布，不会报告为成功。
+
 ## 当前分支发布口径
 
 `publish` 当前已区分两种分支发布语义：
@@ -267,20 +269,16 @@ flowchart LR
 
 当前 `publish` 在 `主干合并活跃分支` 模式下还会接受一个显式的活跃分支输入；未指定时视为发布主干。
 
-## 当前发布产物还原口径
+## 受限发布产物恢复
 
-`restore` 当前作为 `functions` 层 workflow，面向发布目录，把发布二进制与同目录附属资源重建成一个可重读的 FairyGUI 工程目录。该链路不承诺还原原工程的编辑器设置或历史文件布局，只输出当前模型可表达的工程结构。
+`restore` 不是常规 authoring 工作流。它只用于可信本地发布目录的辅助恢复，输出为独立工程目录；不承诺原工程设置、历史布局或源码级一致性。
 
-| 输入 / 资源 | 当前还原行为 |
+| 边界 | 当前行为 |
 |---|---|
-| `*_fui.bytes` / `.fui` | 批量读取到同一个 `Document`，按 package id 合并依赖占位包与真实包 |
-| `atlas*.png` | 由 `functions` 层 restore workflow 通过注入的图片裁切器按 sprite 映射裁切为碎图 PNG |
-| `SoundResource` / `MiscResource` / `SpineResource` / `DragonBonesResource` | 优先按发布文件名从发布目录复制，回退按工程资源文件名复制；当发布文件基名等于资源 id 且资源名可用时，输出文件名回写为工程侧资源名；Unity 发布名 `.atlas.txt` / `.skel.bytes` 会还原为工程侧 `.atlas` / `.skel` |
-| skeleton loose sidecar | 发布目录中的 `.atlas.txt` / `.png` / `_tex.json` 等 sidecar 会按二进制中已有的正式 `misc` / `image` 节点复制回工程；若二进制未携带对应节点，restore workflow 会补建节点并回填 `require` / `atlasNames`。当 `.skel.bytes` 资源能匹配到 Spine atlas sidecar 时，恢复结果按 `spine` 资源写回 |
-| 工程设置 | 初始化 Unity 发布默认值，不从发布包反推原编辑器设置 |
-| `packageDescription > publish` | 按发布包中的 atlas 页重建默认 publish atlas 条目，用于表达包级发布图集 |
-| `SpineResource` / `DragonBonesResource` | 按同目录 `.atlas` / `.png` / `_tex.json` 资源推导 `require` 与 `atlasNames`；该推导只覆盖发布目录可见的依赖资源 |
-| `MovieClipResource` / `FontResource` | 恢复 `.jta`、`.fnt`、`.ttf` 资源引用名；基于发布包中的帧、字形与 sprite 映射重建 `.jta` / `.fnt` 文件；位图字体派生 image resource 按当前样本规则恢复 editor 风格文件名与虚拟路径；SDF 字体按文件名补默认 `renderMode` / `samplePointSize` |
+| 输入 | 读取同目录 `*_fui.bytes` / `.fui`、图集和 loose 资源；资源路径与解析后的源文件都必须留在输入目录内 |
+| 写入 | 先在相邻暂存目录重建工程和资源，完整成功后才替换目标目录 |
+| 恢复内容 | 按二进制和同目录资源重建当前模型可表达的包、素材、部分 `.jta` / `.fnt` 与 skeleton sidecar 关系 |
+| 非目标 | 不处理未知产物的安全判定，也不恢复原始编辑器设置、文件命名、XML 文本或本地工作区状态 |
 
 ## 当前最关键的数据流
 
@@ -288,7 +286,7 @@ flowchart LR
 flowchart TD
     A["工程目录输入"] --> B["ProjectReader"]
     X["二进制包输入"] --> Y["BinaryReader"]
-    R["发布目录输入<br/>.fui/.bytes + atlas/sounds"] --> S["restore"]
+    R["可信本地发布目录<br/>.fui/.bytes + atlas/sounds"] --> S["受限 restore"]
     B --> C["Document / Property Graph"]
     Y --> C
     S --> C
