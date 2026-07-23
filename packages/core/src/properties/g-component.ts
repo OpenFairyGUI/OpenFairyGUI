@@ -48,6 +48,8 @@ export interface IGComponent extends IGObject {
 	instanceController: string;
 	instancePage: string;
 	instanceChecked: boolean;
+	instanceSound: string;
+	instanceSoundVolumeScale: number;
 	instancePromptText: string;
 	instanceSelectionController: string;
 	instanceVisibleItemCount: number;
@@ -132,6 +134,8 @@ export class GComponent<
 			instanceController: '',
 			instancePage: '',
 			instanceChecked: false,
+			instanceSound: '',
+			instanceSoundVolumeScale: 1,
 			instancePromptText: '',
 			instanceSelectionController: '',
 			instanceVisibleItemCount: 0,
@@ -280,6 +284,12 @@ export class GComponent<
 
 	public getInstanceChecked(): boolean { return this.getComponentProp('instanceChecked'); }
 	public setInstanceChecked(v: boolean): this { return this.setComponentProp('instanceChecked', v); }
+
+	public getInstanceSound(): string { return firstString(this.getComponentProp('instanceSound')); }
+	public setInstanceSound(v: string): this { return this.setComponentProp('instanceSound', v); }
+
+	public getInstanceSoundVolumeScale(): number { return this.getComponentProp('instanceSoundVolumeScale'); }
+	public setInstanceSoundVolumeScale(v: number): this { return this.setComponentProp('instanceSoundVolumeScale', v); }
 
 	public getInstancePromptText(): string { return firstString(this.getComponentProp('instancePromptText')); }
 	public setInstancePromptText(v: string): this { return this.setComponentProp('instancePromptText', v); }

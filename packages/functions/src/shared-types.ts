@@ -41,6 +41,7 @@ export interface PublishDependency {
 
 export interface PackagePublishArtifactsExtras extends ExtrasMap {
 	publishedResourceIds?: string[];
+	exportedResourceIds?: string[];
 	publishedIncludeBranches?: boolean;
 	publishedEffectiveResourceIds?: Record<string, string>;
 }

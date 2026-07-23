@@ -126,17 +126,18 @@ block 5 的 patch 用于替换 block 4 中相同索引位置的占位字符串�
 
 ### 已记录的 item 类型
 
-| item type | 协议内容 |
-|---|---|
-| `Image` | `id`、`name`、`path`、尺寸、`scaleOption`、`scale9Grid`、`smoothing` |
-| `MovieClip` | 通用字段 + 帧数据块 |
-| `Sound` | 通用字段 + 声音文件名 |
-| `Spine` | 通用字段 + 资源文件名 + `skeletonAnchor.x` + `skeletonAnchor.y` |
-| `DragoneBones` | 通用字段 + 资源文件名 + `skeletonAnchor.x` + `skeletonAnchor.y` |
-| `Component` | 通用字段 + 扩展类型码 + 组件二进制 |
-| `Font` | 通用字段 + glyph 数据块 |
-| `Atlas` | atlas 条目 `id`、`file`、尺寸 |
-| `Misc` | 未归类条目 |
+| type code | item type | 协议内容 |
+|---|---|---|
+| `0` | `Image` | `id`、`name`、`path`、尺寸、`scaleOption`、`scale9Grid`、`smoothing` |
+| `1` | `MovieClip` | 通用字段 + 帧数据块 |
+| `2` | `Sound` | 通用字段 + 声音文件名 |
+| `3` | `Component` | 通用字段 + 扩展类型码 + 组件二进制 |
+| `4` | `Atlas` | atlas 条目 `id`、`file`、尺寸 |
+| `5` | `Font` | 通用字段 + glyph 数据块 |
+| `7` | `Misc` | 未归类条目 |
+| `8` | `Unknown` | 未建模的 package item 类型码 |
+| `9` | `Spine` | 通用字段 + 资源文件名 + `skeletonAnchor.x` + `skeletonAnchor.y` |
+| `10` | `DragonBones` | 通用字段 + 资源文件名 + `skeletonAnchor.x` + `skeletonAnchor.y` |
 
 ### 通用头部字段
 
@@ -175,15 +176,17 @@ block 5 的 patch 用于替换 block 4 中相同索引位置的占位字符串�
 | `Atlas` / `Sound` / `Misc` | 指向发布后的附属资源文件名 |
 | `Spine` / `DragoneBones` | 指向发布后的 skeleton 主资源文件名；运行时再按该路径加载对应资源 |
 
-基于 `Loader` 样本可见的当前发布结果，`Spine` 侧常见附属资源命名规则如下：
+当前 Unity 发布侧的 `Spine` 常见附属资源命名规则如下：
 
 | 工程资源文件 | 发布结果 |
 |---|---|
 | `*.skel` | `*.skel.bytes` |
 | `*.atlas` | `*.atlas.txt` |
+| `*.png` | 保持原文件名 |
+
+非 Unity 项目保持工程侧 `.skel` 与 `.atlas` 文件名。
 
 当发布设置启用“分支 atlas 单独输出”时，atlas 条目的 `file` 会写成分支后缀形式，例如 `atlas0_dev.png`。主干 atlas 仍写 `atlas0.png`。
-| `*.png` | 保持原文件名 |
 
 `DragoneBones` 样本中的主文件与依赖文件当前保持原文件名，例如 `dragon_ske.json`、`dragon_tex.json`、`dragon.png`。
 
@@ -457,7 +460,8 @@ Block 6 用于恢复 afterAdd 阶段写入的数据：
 | `GComboBox` | `items`、`values`、`icons`、`title`、`icon`、`visibleItemCount`、`popupDirection`、`selectionController`、`sound` |
 | `GProgressBar` / `GSlider` | `value`、`max`、`min`、`sound` |
 | `GList` | `selectionController` |
-| 扩展实例数据 | `InstanceExtType` 分支下的 Button / Label / ComboBox / ProgressBar / Slider / ScrollBar 实例数据 |
+| `GComponent` Button 扩展实例 | `title`、`selectedTitle`、`icon`、`selectedIcon`、`titleColor`、`titleFontSize`、`relatedController`、`relatedPageId`、`sound`、`soundVolumeScale`、`selected` |
+| 其他扩展实例数据 | `InstanceExtType` 分支下的 Label / ComboBox / ProgressBar / Slider / ScrollBar 实例数据 |
 
 ### 结构化对象解码边界
 

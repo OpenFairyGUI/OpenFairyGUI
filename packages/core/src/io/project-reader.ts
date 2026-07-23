@@ -1177,6 +1177,8 @@ export class ProjectReader {
 				res.setBranch(branchName);
 				res.setFileName(name);
 				res.setExported(exported);
+				const textureSetMode = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageMovieClipResource.attrs.atlas);
+				if (textureSetMode !== undefined) res.setTextureSetMode(textureSetMode);
 				pkg.addResource(res);
 				ctx.registerResource(pkg.getId(), id, res);
 				return res;
@@ -2443,6 +2445,10 @@ export class ProjectReader {
 				if (page !== undefined) componentObj.setInstancePage?.(page);
 				const checked = extSpecs.checked ? readXmlAttr<string | boolean>(extAttrs, extSpecs.checked) : undefined;
 				if (checked !== undefined) componentObj.setInstanceChecked?.(parseBool(checked));
+				const sound = extSpecs.sound ? readXmlAttr<string>(extAttrs, extSpecs.sound) : undefined;
+				if (sound !== undefined) componentObj.setInstanceSound?.(sound);
+				const soundVolumeScale = extSpecs.soundVolumeScale ? readXmlAttr<string | number>(extAttrs, extSpecs.soundVolumeScale) : undefined;
+				if (soundVolumeScale !== undefined) componentObj.setInstanceSoundVolumeScale?.(parseFloat2(soundVolumeScale, 1));
 				const prompt = extSpecs.prompt ? readXmlAttr<string>(extAttrs, extSpecs.prompt) : undefined;
 				if (prompt !== undefined) componentObj.setInstancePromptText?.(prompt);
 				const selectionController = extSpecs.selectionController ? readXmlAttr<string>(extAttrs, extSpecs.selectionController) : undefined;

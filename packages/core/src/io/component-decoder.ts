@@ -601,9 +601,9 @@ function decodeChildBlock6(
 						}
 					}
 					component.setInstancePage(childBuf.readS() ?? '');
-					childBuf.readS(); // sound
+					component.setInstanceSound(childBuf.readS() ?? '');
 					if (childBuf.readBool() && remainingBytes(childBuf) >= 4) {
-						childBuf.getFloat32(); // sound volume
+						component.setInstanceSoundVolumeScale(childBuf.getFloat32());
 					}
 					if (remainingBytes(childBuf) >= 1) {
 						component.setInstanceChecked(childBuf.readBool());

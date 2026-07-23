@@ -154,6 +154,8 @@ type EncoderChildLike = ChildNode & {
 	getInstanceController?(): string;
 	getInstancePage?(): string;
 	getInstanceChecked?(): boolean;
+	getInstanceSound?(): string;
+	getInstanceSoundVolumeScale?(): number;
 	getInstanceVisibleItemCount?(): number;
 	getInstanceValue?(): number;
 	getInstanceMax?(): number;
@@ -1800,8 +1802,15 @@ function _writeExtensionInstanceData(
 				buf.writeInt16(-1);
 			}
 			buf.writeS(child.getInstancePage?.() ?? null); // relatedPageId
-			buf.writeSEx(null, false, false); // sound — empty≠null
-			buf.writeBool(false); // soundVolume
+			const sound = child.getInstanceSound?.() ?? null;
+			buf.writeSEx(remapLocalUiUrl(pkg, sound) ?? null, false, false);
+			const soundVolume = child.getInstanceSoundVolumeScale?.();
+			if (soundVolume !== undefined && soundVolume !== null && soundVolume !== 1) {
+				buf.writeBool(true);
+				buf.writeFloat32(soundVolume);
+			} else {
+				buf.writeBool(false);
+			}
 			buf.writeBool(child.getInstanceChecked?.() ?? false); // selected
 			break;
 		}

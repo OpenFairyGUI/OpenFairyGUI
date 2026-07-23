@@ -1087,9 +1087,9 @@ test('binary writer: misc/spine/dragonbones resources round-trip as formal packa
 				.sort((a, b) => (a.id ?? '').localeCompare(b.id ?? ''))
 				.map((item) => ({ type: item.type, id: item.id, file: item.file })),
 			[
-				{ type: 9, id: 'dragon001', file: 'dragon_ske.json' },
+				{ type: 10, id: 'dragon001', file: 'dragon_ske.json' },
 				{ type: 7, id: 'misc001', file: 'alien-pma.atlas' },
-				{ type: 8, id: 'spine001', file: 'alien-pro.skel' },
+				{ type: 9, id: 'spine001', file: 'alien-pro.skel' },
 			],
 		);
 
@@ -1904,6 +1904,53 @@ test('binary writer: component child blocks round-trip into formal child propert
 		t.is(typedButton.getSelectedIcon(), 'ui://childpkg/iconB');
 		t.is(typedButton.getTitleColor(), '#AA5500');
 		t.is(typedButton.getTitleFontSize(), 22);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('binary writer: button component instances preserve instance sound properties', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('SoundPkg');
+	pkg.setId('soundpkg');
+
+	const sound = doc.createSoundResource('click.wav');
+	sound.setId('click001').setPath('/audio/').setFile('click.wav');
+	pkg.addResource(sound);
+
+	const buttonDefinition = doc.createComponent('ButtonDefinition');
+	buttonDefinition.setId('btnDef001').setExtensionType('Button');
+	pkg.addResource(buttonDefinition);
+
+	const host = doc.createComponent('Host');
+	host.setId('host001').setSize(320, 200);
+	const buttonInstance = doc.createGComponent('buttonInstance');
+	buttonInstance
+		.setId('n0')
+		.setSrc('btnDef001')
+		.setInstanceExtType('Button')
+		.setInstanceSound('ui://soundpkgclick001')
+		.setInstanceSoundVolumeScale(0.35);
+	host.addChild(buttonInstance);
+	pkg.addResource(host);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-button-instance-sound-'));
+	const outPath = path.join(tmpDir, 'button_instance_sound.fui');
+
+	try {
+		await io.writeBinary(doc, outPath);
+
+		const roundTripped = await io.readBinary(outPath);
+		const decodedHost = roundTripped.getRoot().getPackage('SoundPkg')?.getComponent('Host');
+		const decodedButton = decodedHost?.listChildren().find((child) => child.getId() === 'n0') as ReturnType<Document['createGComponent']>;
+		t.truthy(decodedButton, 'button component instance is decoded');
+		t.is(decodedButton.getInstanceExtType(), 'Button');
+		t.is(decodedButton.getInstanceSound(), 'ui://soundpkgclick001');
+		t.true(
+			Math.abs(decodedButton.getInstanceSoundVolumeScale() - 0.35) < 1e-6,
+			'instance sound volume is decoded from the extension block',
+		);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

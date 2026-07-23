@@ -93,7 +93,6 @@ export default {
 		await doc.transform(
 			publish({
 				output: path.join(tmpDir, 'release'),
-				basePath: path.join(tmpDir, 'assets'),
 				fs: createFs(),
 			}),
 		);

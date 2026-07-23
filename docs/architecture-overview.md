@@ -125,7 +125,7 @@ flowchart LR
 
 | 层级 | 当前职责 | 核心文件 |
 |---|---|---|
-| 入口层 | 命令行封装与参数分发 | `packages/cli/src/cli.ts` |
+| 入口层 | 命令行注册、参数解析与 workflow 装配 | `packages/cli/src/cli.ts`、`packages/cli/src/commands/*.ts`、`packages/cli/src/utils/*.ts` |
 | 协议适配层 | 屏蔽平台文件系统差异，承接工程格式、二进制格式与工程 XML 协议元数据 | `packages/core/src/io/platform-io.ts`、`packages/core/src/io/node-io.ts`、`packages/core/src/io/web-io.ts`、`packages/core/src/io/project-xml-protocol.ts`、`packages/core/src/io/project-reader.ts`、`packages/core/src/io/binary-reader.ts`、`packages/core/src/io/component-decoder.ts` |
 | UAM 主真相层 | 统一声明式工程级 authoring model，承接 `project / package / resource / component internals` 与行为语义，并公开 Phase A transaction kernel | `packages/core/src/uam/*.ts` |
 | 内部图物化层 | `Document` 持有 `Property Graph`，用于当前内部执行、存储、适配与既有工作流复用 | `packages/core/src/document.ts`、`packages/core/src/properties/property.ts` |
@@ -163,7 +163,7 @@ flowchart LR
 - `@openfairygui/backend` 根入口当前提供 browser-safe async storage bridge；浏览器宿主把 OPFS、IndexedDB、ZIP 虚拟文件系统等实现注入 `openProjectSession` 后，`materializeSession` 可用于 workspace bootstrap / first write，`saveSession` 使用该 session 绑定的文件系统写回 dirty session。
 - `@openfairygui/functions/uam` 当前只暴露 UAM transaction app seam，用于 `@openfairygui/backend` browser root entry；`publish` / `restore` 仍留在 `@openfairygui/functions` 根入口，并由 CLI 或 Node bridge boundary 侧调用。
 - 当前 Unity、Layabox、Cocos Creator 共用同一条 `publish -> atlas / binary / codegen` 主链；差异主要体现在描述文件扩展名和代码生成 lane 选择，而不是工作流分叉。
-- `@openfairygui/cli` 是入口层，不下沉协议细节。
+- `@openfairygui/cli` 是入口层，不下沉协议细节；`cli.ts` 只负责 program 注册和进程生命周期，`inspect`、`publish`、`restore`、backend capabilities 分别由独立 command 模块装配。
 
 ## 当前工程 XML 协议元数据结构
 
@@ -210,12 +210,13 @@ flowchart LR
 | `packageDescription > publish` | `name`、`path`、`branchPath`、`packageCount`、`genCode`、`codePath`，以及子节点 `atlas@name/index` |
 | 通用资源节点 | `id`、`name`、`path`、`exported` |
 | `image` 资源 | `atlas`、`scale`、`scale9grid`、`width`、`height`、`gridTile`、`qualityOption`、`duplicatePadding`、`smoothing` |
+| `movieclip` 资源 | `atlas` |
 | `font` 资源 | `texture`、`renderMode`、`samplePointSize` |
 | `misc` 资源 | 无附加属性；资源文件名由通用 `name` 承载 |
 | `spine` 资源 | `width`、`height`、`require`、`atlasNames`、`anchor` |
 | `dragonbones` 资源 | `width`、`height`、`require`、`atlasNames`、`anchor` |
 
-其中 `image@atlas` 当前作为图片资源的纹理集模式字段读写，在正式模型中由 `ImageResource.textureSetMode` 承载。
+其中 `image@atlas` 与 `movieclip@atlas` 当前分别作为图片和动画资源的纹理集模式字段读写，在正式模型中由 `ImageResource.textureSetMode` 与 `MovieClipResource.textureSetMode` 承载。
 
 ## 当前分支工程目录口径
 
@@ -235,9 +236,9 @@ flowchart LR
 | 资源类型 | 当前发布行为 |
 |---|---|
 | `SoundResource` | 输出发布后的声音文件名 |
-| `MiscResource` | 输出资源文件；若源文件扩展名为 `.atlas`，发布名改为 `.atlas.txt` |
+| `MiscResource` | 输出资源文件；Unity 项目中源文件扩展名为 `.atlas` 时，发布名改为 `.atlas.txt`，其他项目保持原文件名 |
 | `ImageResource` / `MovieClipResource` 高分辨率变体 | 当 `includeHighResolution` 启用对应倍率时，按同路径、同分支、同类型的 `@2x` / `@3x` / `@4x` 资源加入发布闭包，并在基础 item 的 high-resolution 列表中引用；发布流程不主动缩放原图 |
-| `SpineResource` | 输出 skeleton 主文件；若源文件扩展名为 `.skel`，发布名改为 `.skel.bytes` |
+| `SpineResource` | 输出 skeleton 主文件；Unity 项目中源文件扩展名为 `.skel` 时，发布名改为 `.skel.bytes`，其他项目保持原文件名 |
 | `DragonBonesResource` | 输出 skeleton 主文件，当前保持原文件名 |
 | `SpineResource` / `DragonBonesResource` 依赖 | 按 `require` 形成资源闭包，依赖的 `misc` / `image` 资源一并发布 |
 
@@ -261,7 +262,7 @@ flowchart LR
 | `*_fui.bytes` / `.fui` | 批量读取到同一个 `Document`，按 package id 合并依赖占位包与真实包 |
 | `atlas*.png` | 由 `functions` 层 restore workflow 通过注入的图片裁切器按 sprite 映射裁切为碎图 PNG |
 | `SoundResource` / `MiscResource` / `SpineResource` / `DragonBonesResource` | 优先按发布文件名从发布目录复制，回退按工程资源文件名复制；当发布文件基名等于资源 id 且资源名可用时，输出文件名回写为工程侧资源名；Unity 发布名 `.atlas.txt` / `.skel.bytes` 会还原为工程侧 `.atlas` / `.skel` |
-| skeleton loose sidecar | 若发布目录存在 `.atlas.txt` / `.png` / `_tex.json` 等 sidecar，而二进制资源表未显式携带对应 `misc` / `image` 资源，restore workflow 会补建正式资源节点，并回填 `require` / `atlasNames`；当 `.skel.bytes` 资源能匹配到 Spine atlas sidecar 时，恢复结果按 `spine` 资源写回 |
+| skeleton loose sidecar | 发布目录中的 `.atlas.txt` / `.png` / `_tex.json` 等 sidecar 会按二进制中已有的正式 `misc` / `image` 节点复制回工程；若二进制未携带对应节点，restore workflow 会补建节点并回填 `require` / `atlasNames`。当 `.skel.bytes` 资源能匹配到 Spine atlas sidecar 时，恢复结果按 `spine` 资源写回 |
 | 工程设置 | 初始化 Unity 发布默认值，不从发布包反推原编辑器设置 |
 | `packageDescription > publish` | 按发布包中的 atlas 页重建默认 publish atlas 条目，用于表达包级发布图集 |
 | `SpineResource` / `DragonBonesResource` | 按同目录 `.atlas` / `.png` / `_tex.json` 资源推导 `require` 与 `atlasNames`；该推导只覆盖发布目录可见的依赖资源 |
