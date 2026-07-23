@@ -21,8 +21,9 @@ const BinItemType = {
 	Atlas: 4,
 	Font: 5,
 	Misc: 7,
-	Spine: 8,
-	DragonBones: 9,
+	Unknown: 8,
+	Spine: 9,
+	DragonBones: 10,
 } as const;
 
 /**

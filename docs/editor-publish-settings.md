@@ -102,6 +102,16 @@
 - 工程 `package.xml` 中的 `publish` 节点当前正式支持 `name`、`path`、`branchPath`、`packageCount`、`genCode`、`codePath`，以及包级图集子节点 `<atlas name="Default" index="0"/>`。
 - 工程 `package.xml` 的 `packageDescription` 根节点当前正式支持 `compressPNG` 与 `jpegQuality`，用于承载包级图片压缩选项；未设置时保持省略，不强制写默认值。
 
+## 当前发布输出路径解析
+
+发布时显式传入的输出目录优先于设置文件。未传入时，当前选择顺序如下：
+
+1. 活跃分支发布的包级 `branchPath`，再到全局 `branchPath`。
+2. 包级 `path`。
+3. 全局 `path`。
+
+选中的相对路径以工程根目录为基准；若以上都未配置，发布不会隐式选择输出目录。
+
 ## 代码生成的当前实现范围
 
 OpenFairyGUI 当前已经把“代码生成”接入现有 `publish` 流程，但实现范围仍是**正式收口的一条首发口径**，不是编辑器全部模板矩阵。

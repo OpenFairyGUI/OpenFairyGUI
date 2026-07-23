@@ -448,6 +448,7 @@ type WritableFontResource = WritableResource & {
 
 type WritableMovieClipResource = WritableResource & {
 	getFileName?(): string;
+	getTextureSetMode?(): string;
 };
 
 type WritableFileResource = WritableResource & {
@@ -641,6 +642,8 @@ type WritableChild = GObject & {
 	getInstanceController?(): string;
 	getInstancePage?(): string;
 	getInstanceChecked?(): boolean;
+	getInstanceSound?(): string;
+	getInstanceSoundVolumeScale?(): number;
 	getInstancePromptText?(): string;
 	getInstanceSelectionController?(): string;
 	getInstanceVisibleItemCount?(): number;
@@ -1074,6 +1077,12 @@ export class ProjectWriter {
 				if (renderMode) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageFontResource.attrs.renderMode, renderMode);
 				const samplePointSize = fontRes.getSamplePointSize?.() ?? 0;
 				if (samplePointSize !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageFontResource.attrs.samplePointSize, String(samplePointSize));
+			}
+
+			if (res.propertyType === 'MovieClipResource') {
+				const movieClipRes = res as WritableMovieClipResource;
+				const textureSetMode = movieClipRes.getTextureSetMode?.() ?? '';
+				if (textureSetMode) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageMovieClipResource.attrs.atlas, textureSetMode);
 			}
 
 			if (res.propertyType === 'SpineResource' || res.propertyType === 'DragonBonesResource') {
@@ -1831,6 +1840,10 @@ export class ProjectWriter {
 				if (typedObj.getInstanceController?.() && extSpecs.controller) writeXmlAttr(extAttrs, extSpecs.controller, typedObj.getInstanceController?.());
 				if (typedObj.getInstancePage?.() && extSpecs.page) writeXmlAttr(extAttrs, extSpecs.page, typedObj.getInstancePage?.());
 				if (typedObj.getInstanceChecked?.() && extSpecs.checked) writeXmlAttr(extAttrs, extSpecs.checked, '1');
+				if (typedObj.getInstanceSound?.() && extSpecs.sound) writeXmlAttr(extAttrs, extSpecs.sound, typedObj.getInstanceSound?.());
+				if ((typedObj.getInstanceSoundVolumeScale?.() ?? 1) !== 1 && extSpecs.soundVolumeScale) {
+					writeXmlAttr(extAttrs, extSpecs.soundVolumeScale, String(typedObj.getInstanceSoundVolumeScale?.() ?? 1));
+				}
 				if (typedObj.getInstancePromptText?.() && extSpecs.prompt) writeXmlAttr(extAttrs, extSpecs.prompt, typedObj.getInstancePromptText?.());
 				if (typedObj.getInstanceSelectionController?.() && extSpecs.selectionController) writeXmlAttr(extAttrs, extSpecs.selectionController, typedObj.getInstanceSelectionController?.());
 				if ((typedObj.getInstanceVisibleItemCount?.() ?? 0) > 0 && extSpecs.visibleItemCount) writeXmlAttr(extAttrs, extSpecs.visibleItemCount, String(typedObj.getInstanceVisibleItemCount?.() ?? 0));

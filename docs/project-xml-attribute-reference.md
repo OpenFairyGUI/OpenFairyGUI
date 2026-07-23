@@ -76,6 +76,12 @@
 | `duplicatePadding` |  | 是否复制边缘像素 |
 | `smoothing` |  | 是否允许平滑 |
 
+### `resources > movieclip`
+
+| 属性名 | Alias | 说明 |
+|---|---|---|
+| `atlas` |  | 动画资源纹理集模式 |
+
 ### `resources > font`
 
 | 属性名 | Alias | 说明 |
@@ -497,7 +503,7 @@
 |---|---|---|
 | `mode` |  | 按钮模式 |
 | `sound` |  | 点击音效 |
-| `soundVolumeScale` |  | 音量缩放 |
+| `soundVolumeScale` | `volume` | 音量缩放 |
 | `downEffect` |  | 按下效果 |
 | `downEffectValue` |  | 按下效果值 |
 | `title` |  | 标题 |

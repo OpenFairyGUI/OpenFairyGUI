@@ -757,9 +757,16 @@ class RestoreWorkflow {
 	): Promise<RestorableResource | null> {
 		const resources = pkg.listResources() as RestorableResource[];
 		const existing = this._findResourceByFile(resources, owner, 'ImageResource', fileName);
-		if (existing) return existing;
 		const sourcePath = await this._resolveLooseSourceFile(pkg, sourceDir, fileName);
-		if (!sourcePath) return null;
+		if (!sourcePath) return existing ?? null;
+		if (existing) {
+			existing.setExtras?.({
+				...(existing.getExtras?.() ?? {}),
+				_publishedFile: fileBaseName(sourcePath),
+				_restoreAsLooseImage: true,
+			});
+			return existing;
+		}
 		const resource = doc.createImageResource(stripExtension(fileName));
 		resource
 			.setId(generateId())
@@ -772,7 +779,7 @@ class RestoreWorkflow {
 			...(resource.getExtras?.() ?? {}),
 			_publishedFile: fileBaseName(sourcePath),
 			_suppressPackageSize: true,
-			_syntheticLooseImage: true,
+			_restoreAsLooseImage: true,
 		});
 		pkg.addResource(resource);
 		return resource as RestorableResource;
@@ -1022,8 +1029,8 @@ class RestoreWorkflow {
 		warnings: string[],
 	): Promise<void> {
 		for (const resource of pkg.listResources() as RestorableResource[]) {
-			const syntheticLooseImage = resource.getExtras?.()?._syntheticLooseImage === true;
-			if (!['SoundResource', 'MiscResource', 'SpineResource', 'DragonBonesResource'].includes(resource.propertyType) && !syntheticLooseImage) {
+			const restoreAsLooseImage = resource.getExtras?.()?._restoreAsLooseImage === true;
+			if (!['SoundResource', 'MiscResource', 'SpineResource', 'DragonBonesResource'].includes(resource.propertyType) && !restoreAsLooseImage) {
 				continue;
 			}
 			const fileName = resourceFileName(resource);
