@@ -2,6 +2,7 @@ import test from 'ava';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { getFixtureProjectPath } from '@openfairygui/test-utils';
 import {
 	UamTransactionError,
 	applyUamTransaction,
@@ -23,6 +24,11 @@ import {
 } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
 import { readProjectAsUam, writeProjectFromUam } from '../src/uam/index.js';
+
+const LAYABOX_PROJECT_PATH = getFixtureProjectPath(
+	'FairyGUI-layabox',
+	'demo/UIProject/FairyGUI-layabox-demo.fairy',
+);
 
 function createSupportedProject(): UamProject {
 	return normalizeUamProject({
@@ -1506,10 +1512,64 @@ test('preflight validation rejects invalid controller references without mutatin
 		{ instanceOf: UamTransactionError },
 	);
 
-	t.is(error?.code, 'execution_failure');
-	t.is(error?.opIndex, 1);
-	t.is(error?.opId, 'bad-controller');
-	t.is(error?.opKind, 'addController');
+	t.is(error?.code, 'transaction_unsupported');
+	t.true(error?.issues?.some((issue) => (
+		issue.code === 'invalid_display_node_selector' && issue.operationKind === 'addController'
+	)) ?? false);
 	t.deepEqual(project, snapshot);
 	t.is(project.packages[0]!.resources[0]!.name, 'background.png');
+});
+
+test('updateTransition preflight rejects legacy dangling targets without blocking unrelated edits', async (t) => {
+	const project = await readProjectAsUam(new NodeIO(), LAYABOX_PROJECT_PATH);
+	const pkg = project.packages.find((candidate) => candidate.id === 'c0hnre6o');
+	const component = pkg?.resources.find((resource) => resource.id === 'lvxry');
+	if (component?.kind !== 'component') {
+		t.fail('expected the LayaBox BOSS component');
+		return;
+	}
+	const transition = component.component.transitions.find((candidate) => candidate.name === 't0');
+	if (!transition) {
+		t.fail('expected the LayaBox BOSS transition');
+		return;
+	}
+
+	const operation: UamTransactionOperation = {
+		kind: 'updateTransition',
+		opId: 'update-legacy-boss-transition',
+		selector: { packageId: pkg.id, componentResourceId: component.id, transitionName: transition.name },
+		transition: {
+			...structuredClone(transition),
+			items: transition.items.map((item, index) => index === 0 ? { ...item, label: 'preflight-check' } : item),
+		},
+	};
+	const issues = validateTransactionSupport(project, [operation]);
+	t.true(issues.some((issue) => (
+		issue.code === 'invalid_display_node_selector'
+		&& issue.operationKind === 'updateTransition'
+		&& issue.path === 'operations[0].transition.items[2].targetNodeId'
+	)));
+
+	const snapshot = structuredClone(project);
+	const error = t.throws(
+		() => applyUamTransaction(project, [operation]),
+		{ instanceOf: UamTransactionError },
+	);
+	t.is(error?.code, 'transaction_unsupported');
+	t.true(error?.issues?.some((issue) => issue.code === 'invalid_display_node_selector') ?? false);
+	t.deepEqual(project, snapshot);
+
+	const unrelated = applyUamTransaction(project, [{
+		kind: 'setDisplayNodeProps',
+		selector: { packageId: pkg.id, componentResourceId: component.id, displayNodeId: 'n4' },
+		props: { alpha: 0.9 },
+	}]);
+	const unrelatedComponent = unrelated.packages
+		.find((candidate) => candidate.id === pkg.id)
+		?.resources.find((resource) => resource.id === component.id);
+	if (unrelatedComponent?.kind !== 'component') {
+		t.fail('expected the updated LayaBox BOSS component');
+		return;
+	}
+	t.is(unrelatedComponent.component.displayList.find((node) => node.id === 'n4')?.alpha, 0.9);
 });

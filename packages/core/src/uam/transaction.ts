@@ -248,6 +248,7 @@ export type UamTransactionSupportIssueCode =
 	| 'duplicate_gear_state_page'
 	| 'invalid_resource_payload'
 	| 'invalid_resource_selector'
+	| 'invalid_display_node_selector'
 	| 'duplicate_resource_id'
 	| 'unavailable_resource_source_bytes';
 
@@ -610,7 +611,16 @@ function validateTouchedDisplayNodeKind(
 	operationKind: UamTransactionOperation['kind'],
 ) {
 	const found = findDisplayNodeSpecWithPath(project, selector);
-	if (!found) return null;
+	if (!found) {
+		pushSupportIssue(
+			issues,
+			'invalid_display_node_selector',
+			path,
+			`Display node "${selector.displayNodeId}" does not exist in component "${selector.componentResourceId}".`,
+			{ operationKind },
+		);
+		return null;
+	}
 	if (!UAM_SUPPORTED_TRANSACTION_SCOPE.nodeKinds.includes(found.node.kind as never)) {
 		pushSupportIssue(
 			issues,
