@@ -719,9 +719,6 @@ function inferTreeItemFolderFlags(items: Array<{
 		if (next && next.level <= item.level) {
 			return { ...item, isFolder: false };
 		}
-		if (!item.icon && !item.url) {
-			return { ...item, isFolder: true };
-		}
 		return { ...item, isFolder: false };
 	});
 }

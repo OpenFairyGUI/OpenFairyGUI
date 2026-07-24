@@ -630,6 +630,20 @@ test('Builder package preserves list static item controllers from source XML', a
 	);
 });
 
+test('Builder tree infers trailing anonymous items as leaves', async (t) => {
+	const doc = await getEditorDoc();
+	const builderPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const hierarchyView = builderPkg.listComponents().find((c) => c.getName() === 'HierarchyView')!;
+	const tree = hierarchyView.listChildren().find((child) => child.getName?.() === 'list') as any;
+
+	t.truthy(tree, 'HierarchyView/list exists');
+	t.deepEqual(
+		tree.getListItems?.().map((item: any) => item.isFolder),
+		[false, false],
+		'only an item followed by a deeper item may be inferred as a folder',
+	);
+});
+
 test('Builder package preserves ComboBox static item collection from source XML', async (t) => {
 	const doc = await getEditorDoc();
 	const builderPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
