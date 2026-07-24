@@ -214,6 +214,7 @@ interface ListItemLike {
 	name?: string | null;
 	level?: number;
 	isFolder?: boolean | null;
+	controllers?: string | null;
 }
 
 interface ChildEncoderExtras extends Record<string, unknown> {
@@ -1934,7 +1935,21 @@ function _writeListItems(buf: WriteBuffer, child: EncoderChildLike, pkg: Package
 		buf.writeS(remapLocalUiUrl(pkg, item.icon ?? null));
 		buf.writeS(remapLocalUiUrl(pkg, item.selectedIcon ?? null));
 		buf.writeS(item.name ?? null);
-		buf.writeInt16(0); // no controller overrides
+		const controllerParts = item.controllers?.split(',') ?? [];
+		const controllerCountPos = buf.pos;
+		buf.writeInt16(0);
+		let controllerCount = 0;
+		for (let index = 0; index < controllerParts.length; index += 2) {
+			const controllerName = controllerParts[index];
+			if (!controllerName) continue;
+			buf.writeS(controllerName);
+			buf.writeS(controllerParts[index + 1] ?? '');
+			controllerCount += 1;
+		}
+		const controllerEnd = buf.pos;
+		buf.pos = controllerCountPos;
+		buf.writeInt16(controllerCount);
+		buf.pos = controllerEnd;
 		if (version >= 2) {
 			buf.writeInt16(0); // no property overrides
 		}
