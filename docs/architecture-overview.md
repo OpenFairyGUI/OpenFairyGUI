@@ -315,6 +315,16 @@ flowchart TD
     H --> K[".fui / .bin / _fui.bytes"]
 ```
 
+## UAM package / component 生命周期事务
+
+`@openfairygui/core/uam` 的公开 `UamTransactionOperation` 包含以下直接在 UAM 上执行的生命周期操作：
+
+- `addPackage` 以完整 `UamPackage` 快照和 `atIndex` 新增包；`renamePackage`、`removePackage` 使用稳定的 `packageId` selector。
+- `addComponent` 以完整 `UamComponentResource` 快照和 `atIndex` 新增组件，快照包含初始 `displayList`、controller 与 transition；`removeComponent` 使用 `packageId + componentResourceId` selector。
+- `moveComponent` 使用组件 selector、目标 `toPackageId` 与 `toIndex` 在包之间移动组件。
+
+生命周期操作只能彼此组成一个 transaction batch。删除包或组件会检查直接 display resource 引用；移动组件还会拒绝仍依赖源包 display resource 的组件，调用方必须先完成引用调整。`writeProjectFromUam()` 会在新工程文件全部写入成功后，清理前一版本不再存在的 `package.xml`、`package_branch.xml`、component XML 和原始资源文件，避免删除或重命名的包在下次 `ProjectReader` reload 时被重新发现。
+
 ## 模块边界
 
 | 模块 | 负责内容 | 不负责内容 |

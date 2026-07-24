@@ -16,11 +16,13 @@ import {
 } from './bridge.js';
 import type {
 	UamAssetResource,
+	UamComponentResource,
 	UamComponentModel,
 	UamControllerModel,
 	UamDisplayNode,
 	UamGearBinding,
 	UamLookGearBinding,
+	UamPackage,
 	UamProject,
 	UamValidationIssue,
 } from './model.js';
@@ -102,6 +104,44 @@ export interface AddResourceOperation extends UamTransactionOperationBase {
 	kind: 'addResource';
 	selector: UamPackageSelector;
 	resource: UamAssetResource;
+}
+
+/** Adds a complete package snapshot at a stable package-list position. */
+export interface AddPackageOperation extends UamTransactionOperationBase {
+	kind: 'addPackage';
+	package: UamPackage;
+	atIndex: number;
+}
+
+export interface RenamePackageOperation extends UamTransactionOperationBase {
+	kind: 'renamePackage';
+	selector: UamPackageSelector;
+	newName: string;
+}
+
+export interface RemovePackageOperation extends UamTransactionOperationBase {
+	kind: 'removePackage';
+	selector: UamPackageSelector;
+}
+
+/** Adds a complete component snapshot, including its initial display list. */
+export interface AddComponentOperation extends UamTransactionOperationBase {
+	kind: 'addComponent';
+	selector: UamPackageSelector;
+	component: UamComponentResource;
+	atIndex: number;
+}
+
+export interface RemoveComponentOperation extends UamTransactionOperationBase {
+	kind: 'removeComponent';
+	selector: UamComponentSelector;
+}
+
+export interface MoveComponentOperation extends UamTransactionOperationBase {
+	kind: 'moveComponent';
+	selector: UamComponentSelector;
+	toPackageId: string;
+	toIndex: number;
 }
 
 export interface ReplaceResourceBytesOperation extends UamTransactionOperationBase {
@@ -205,6 +245,12 @@ export type UamTransactionOperation =
 	| RenameResourceOperation
 	| MoveResourceOperation
 	| AddResourceOperation
+	| AddPackageOperation
+	| RenamePackageOperation
+	| RemovePackageOperation
+	| AddComponentOperation
+	| RemoveComponentOperation
+	| MoveComponentOperation
 	| ReplaceResourceBytesOperation
 	| RemoveResourceOperation
 	| SetDisplayNodePropsOperation
@@ -250,7 +296,21 @@ export type UamTransactionSupportIssueCode =
 	| 'invalid_resource_selector'
 	| 'invalid_display_node_selector'
 	| 'duplicate_resource_id'
-	| 'unavailable_resource_source_bytes';
+	| 'unavailable_resource_source_bytes'
+	| 'invalid_package_selector'
+	| 'invalid_package_payload'
+	| 'duplicate_package_id'
+	| 'duplicate_package_name'
+	| 'invalid_package_index'
+	| 'invalid_component_selector'
+	| 'invalid_component_payload'
+	| 'duplicate_component_id'
+	| 'invalid_component_index'
+	| 'invalid_component_move'
+	| 'package_referenced'
+	| 'component_referenced'
+	| 'component_has_package_dependencies'
+	| 'unsupported_operation_batch';
 
 export interface UamTransactionSupportIssue {
 	code: UamTransactionSupportIssueCode;
@@ -329,6 +389,24 @@ export class UamTransaction {
 
 export function createUamTransaction(project: UamProject): UamTransaction {
 	return new UamTransaction(project);
+}
+
+type UamLifecycleOperation = Extract<
+	UamTransactionOperation,
+	{ kind: 'addPackage' | 'renamePackage' | 'removePackage' | 'addComponent' | 'removeComponent' | 'moveComponent' }
+>;
+
+function isLifecycleOperation(operation: UamTransactionOperation): operation is UamLifecycleOperation {
+	return operation.kind === 'addPackage'
+		|| operation.kind === 'renamePackage'
+		|| operation.kind === 'removePackage'
+		|| operation.kind === 'addComponent'
+		|| operation.kind === 'removeComponent'
+		|| operation.kind === 'moveComponent';
+}
+
+function isUamNativeOperation(operation: UamTransactionOperation): boolean {
+	return operation.kind === 'setDisplayNodeProps' || isLifecycleOperation(operation);
 }
 
 function pushSupportIssue(
@@ -467,6 +545,102 @@ function findDisplayNodeSpecWithPath(project: UamProject, selector: UamDisplayNo
 		node: component.resource.component.displayList[nodeIndex]!,
 		path: `${component.path}.component.displayList[${nodeIndex}]`,
 	};
+}
+
+function clonePackageSnapshot(project: UamProject, pkg: UamPackage): UamPackage {
+	return normalizeUamProject({ ...project, packages: [pkg] }).packages[0]!;
+}
+
+function cloneComponentSnapshot(
+	project: UamProject,
+	pkg: UamPackage,
+	component: UamComponentResource,
+): UamComponentResource {
+	const resource = normalizeUamProject({
+		...project,
+		packages: [{ ...pkg, resources: [component] }],
+	}).packages[0]?.resources[0];
+	if (!resource || resource.kind !== 'component') {
+		throw new Error('Expected a component lifecycle payload.');
+	}
+	return resource;
+}
+
+function requirePackageSpec(project: UamProject, packageId: string): UamPackage {
+	const pkg = findPackageSpec(project, packageId);
+	if (!pkg) throw new Error(`Package "${packageId}" was not found.`);
+	return pkg;
+}
+
+function assertInsertionIndex(index: number, length: number, label: string): void {
+	if (!Number.isInteger(index) || index < 0 || index > length) {
+		throw new Error(`${label} ${index} is out of bounds.`);
+	}
+}
+
+function applyUamLifecycleOperation(project: UamProject, operation: UamLifecycleOperation): void {
+	switch (operation.kind) {
+		case 'addPackage': {
+			if (findPackageSpec(project, operation.package.id)) {
+				throw new Error(`Package id "${operation.package.id}" already exists.`);
+			}
+			if (project.packages.some((pkg) => pkg.name === operation.package.name)) {
+				throw new Error(`Package name "${operation.package.name}" already exists.`);
+			}
+			assertInsertionIndex(operation.atIndex, project.packages.length, 'addPackage.atIndex');
+			project.packages.splice(operation.atIndex, 0, clonePackageSnapshot(project, operation.package));
+			return;
+		}
+		case 'renamePackage': {
+			const pkg = requirePackageSpec(project, operation.selector.packageId);
+			if (project.packages.some((candidate) => candidate !== pkg && candidate.name === operation.newName)) {
+				throw new Error(`Package name "${operation.newName}" already exists.`);
+			}
+			pkg.name = operation.newName;
+			return;
+		}
+		case 'removePackage': {
+			const index = project.packages.findIndex((pkg) => pkg.id === operation.selector.packageId);
+			if (index < 0) throw new Error(`Package "${operation.selector.packageId}" was not found.`);
+			project.packages.splice(index, 1);
+			return;
+		}
+		case 'addComponent': {
+			const pkg = requirePackageSpec(project, operation.selector.packageId);
+			if (pkg.resources.some((resource) => resource.id === operation.component.id)) {
+				throw new Error(`Resource id "${operation.component.id}" already exists in package "${pkg.id}".`);
+			}
+			assertInsertionIndex(operation.atIndex, pkg.resources.length, 'addComponent.atIndex');
+			pkg.resources.splice(operation.atIndex, 0, cloneComponentSnapshot(project, pkg, operation.component));
+			return;
+		}
+		case 'removeComponent': {
+			const pkg = requirePackageSpec(project, operation.selector.packageId);
+			const index = pkg.resources.findIndex((resource) => resource.id === operation.selector.componentResourceId);
+			if (index < 0 || pkg.resources[index]?.kind !== 'component') {
+				throw new Error(`Component "${operation.selector.componentResourceId}" was not found in package "${pkg.id}".`);
+			}
+			pkg.resources.splice(index, 1);
+			return;
+		}
+		case 'moveComponent': {
+			const source = requirePackageSpec(project, operation.selector.packageId);
+			const target = requirePackageSpec(project, operation.toPackageId);
+			if (source === target) throw new Error('moveComponent requires a different destination package.');
+			const sourceIndex = source.resources.findIndex((resource) => resource.id === operation.selector.componentResourceId);
+			const component = source.resources[sourceIndex];
+			if (!component || component.kind !== 'component') {
+				throw new Error(`Component "${operation.selector.componentResourceId}" was not found in package "${source.id}".`);
+			}
+			if (target.resources.some((resource) => resource.id === component.id)) {
+				throw new Error(`Resource id "${component.id}" already exists in package "${target.id}".`);
+			}
+			assertInsertionIndex(operation.toIndex, target.resources.length, 'moveComponent.toIndex');
+			source.resources.splice(sourceIndex, 1);
+			target.resources.splice(operation.toIndex, 0, component);
+			return;
+		}
+	}
 }
 
 function countDuplicateNames(values: string[]): Set<string> {
@@ -1126,6 +1300,13 @@ function isSafeResourceFileName(value: string): boolean {
 		&& value !== '..';
 }
 
+function isSafePackageName(value: string): boolean {
+	return value.length > 0
+		&& !/[\\/:]/.test(value)
+		&& value !== '.'
+		&& value !== '..';
+}
+
 function isSafeResourcePath(value: string): boolean {
 	if (!value) return false;
 	const segments = value.replace(/\\/g, '/').split('/').filter(Boolean);
@@ -1257,6 +1438,305 @@ function validateAssetResourcePayload(
 	}
 }
 
+function validatePackagePayload(
+	project: UamProject,
+	pkg: UamPackage,
+	path: string,
+	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
+): void {
+	if (!pkg.id) {
+		pushSupportIssue(issues, 'invalid_package_payload', `${path}.id`, 'Package id must not be empty.', { operationKind });
+	}
+	if (!isSafePackageName(pkg.name)) {
+		pushSupportIssue(issues, 'invalid_package_payload', `${path}.name`, 'Package name must be a safe output path segment.', { operationKind });
+	}
+
+	const standalone = normalizeUamProject({ ...project, packages: [pkg] });
+	for (const issue of validateUamProject(standalone)) {
+		const suffix = issue.path.startsWith('packages[0]') ? issue.path.slice('packages[0]'.length) : `.${issue.path}`;
+		pushSupportIssue(issues, 'invalid_package_payload', `${path}${suffix}`, issue.message, { operationKind });
+	}
+
+	for (const [resourceIndex, resource] of pkg.resources.entries()) {
+		const resourcePath = `${path}.resources[${resourceIndex}]`;
+		if (resource.kind !== 'component' && !(resource.sourceBytes instanceof Uint8Array)) {
+			pushSupportIssue(
+				issues,
+				'unavailable_resource_source_bytes',
+				`${resourcePath}.sourceBytes`,
+				'Added package assets must provide primary source bytes.',
+				{ operationKind, resourceKind: resource.kind },
+			);
+		}
+		if (resource.kind !== 'component') continue;
+		for (const [nodeIndex, node] of resource.component.displayList.entries()) {
+			validateSupportedDisplayNode(node, pkg.id, `${resourcePath}.component.displayList[${nodeIndex}]`, issues, {
+				operationKind,
+			});
+		}
+	}
+}
+
+function validateComponentPayload(
+	project: UamProject,
+	pkg: UamPackage,
+	component: UamComponentResource,
+	path: string,
+	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
+): void {
+	if (!component.id) {
+		pushSupportIssue(issues, 'invalid_component_payload', `${path}.id`, 'Component id must not be empty.', { operationKind });
+	}
+	const standalone = normalizeUamProject({
+		...project,
+		packages: [{ ...pkg, resources: [component] }],
+	});
+	for (const issue of validateUamProject(standalone)) {
+		const prefix = 'packages[0].resources[0]';
+		const suffix = issue.path.startsWith(prefix) ? issue.path.slice(prefix.length) : `.${issue.path}`;
+		pushSupportIssue(issues, 'invalid_component_payload', `${path}${suffix}`, issue.message, { operationKind });
+	}
+	for (const [nodeIndex, node] of component.component.displayList.entries()) {
+		validateSupportedDisplayNode(node, pkg.id, `${path}.component.displayList[${nodeIndex}]`, issues, {
+			operationKind,
+		});
+	}
+}
+
+function validateLifecycleInsertionIndex(
+	index: number,
+	maximum: number,
+	path: string,
+	code: 'invalid_package_index' | 'invalid_component_index',
+	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
+): void {
+	if (Number.isInteger(index) && index >= 0 && index <= maximum) return;
+	pushSupportIssue(
+		issues,
+		code,
+		path,
+		`Insertion index must be an integer between 0 and ${maximum}.`,
+		{ operationKind },
+	);
+}
+
+function validateLifecyclePackageSelector(
+	project: UamProject,
+	selector: UamPackageSelector,
+	path: string,
+	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
+): UamPackage | null {
+	const pkg = findPackageSpec(project, selector.packageId);
+	if (pkg) return pkg;
+	pushSupportIssue(
+		issues,
+		'invalid_package_selector',
+		`${path}.packageId`,
+		`Package "${selector.packageId}" was not found.`,
+		{ operationKind },
+	);
+	return null;
+}
+
+function validateLifecycleComponentSelector(
+	project: UamProject,
+	selector: UamComponentSelector,
+	path: string,
+	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
+): UamComponentResource | null {
+	const component = findComponentSpec(project, selector);
+	if (component) return component;
+	pushSupportIssue(
+		issues,
+		'invalid_component_selector',
+		`${path}.componentResourceId`,
+		`Component "${selector.componentResourceId}" was not found in package "${selector.packageId}".`,
+		{ operationKind },
+	);
+	return null;
+}
+
+function nodeReferencesPackage(node: UamDisplayNode, ownerPackageId: string, packageId: string): boolean {
+	const resourceNode = node as UamDisplayNode & { resource?: { packageId?: string; resourceId?: string } };
+	if (resourceNode.resource?.resourceId && (resourceNode.resource.packageId ?? ownerPackageId) === packageId) {
+		return true;
+	}
+	const derivedNode = node as UamDisplayNode & { packageId?: string; src?: string };
+	return !!derivedNode.src && (derivedNode.packageId || ownerPackageId) === packageId;
+}
+
+function nodeReferencesComponent(
+	node: UamDisplayNode,
+	ownerPackageId: string,
+	packageId: string,
+	componentId: string,
+): boolean {
+	const resourceNode = node as UamDisplayNode & { resource?: { packageId?: string; resourceId?: string } };
+	if (
+		resourceNode.resource?.resourceId === componentId
+		&& (resourceNode.resource.packageId ?? ownerPackageId) === packageId
+	) {
+		return true;
+	}
+	const derivedNode = node as UamDisplayNode & { packageId?: string; src?: string };
+	return derivedNode.src === componentId && (derivedNode.packageId || ownerPackageId) === packageId;
+}
+
+function findExternalPackageReference(project: UamProject, packageId: string): string | null {
+	for (const [packageIndex, pkg] of project.packages.entries()) {
+		if (pkg.id === packageId) continue;
+		for (const [resourceIndex, resource] of pkg.resources.entries()) {
+			if (resource.kind !== 'component') continue;
+			for (const [nodeIndex, node] of resource.component.displayList.entries()) {
+				if (nodeReferencesPackage(node, pkg.id, packageId)) {
+					return `packages[${packageIndex}].resources[${resourceIndex}].component.displayList[${nodeIndex}]`;
+				}
+			}
+		}
+	}
+	return null;
+}
+
+function findExternalComponentReference(project: UamProject, packageId: string, componentId: string): string | null {
+	for (const [packageIndex, pkg] of project.packages.entries()) {
+		for (const [resourceIndex, resource] of pkg.resources.entries()) {
+			if (resource.kind !== 'component') continue;
+			if (pkg.id === packageId && resource.id === componentId) continue;
+			for (const [nodeIndex, node] of resource.component.displayList.entries()) {
+				if (nodeReferencesComponent(node, pkg.id, packageId, componentId)) {
+					return `packages[${packageIndex}].resources[${resourceIndex}].component.displayList[${nodeIndex}]`;
+				}
+			}
+		}
+	}
+	return null;
+}
+
+function findComponentPackageDependency(component: UamComponentResource, packageId: string, path: string): string | null {
+	for (const [nodeIndex, node] of component.component.displayList.entries()) {
+		if (nodeReferencesPackage(node, packageId, packageId)) {
+			return `${path}.component.displayList[${nodeIndex}]`;
+		}
+	}
+	return null;
+}
+
+function validateLifecycleOperationPayloads(
+	project: UamProject,
+	operations: UamTransactionOperation[],
+	issues: UamTransactionSupportIssue[],
+): void {
+	const projected = normalizeUamProject(project);
+	for (const [operationIndex, operation] of operations.entries()) {
+		if (!isLifecycleOperation(operation)) continue;
+		const operationPath = `operations[${operationIndex}]`;
+		const issueCount = issues.length;
+		switch (operation.kind) {
+			case 'addPackage': {
+				validatePackagePayload(projected, operation.package, `${operationPath}.package`, issues, operation.kind);
+				if (findPackageSpec(projected, operation.package.id)) {
+					pushSupportIssue(issues, 'duplicate_package_id', `${operationPath}.package.id`, `Package id "${operation.package.id}" already exists.`, { operationKind: operation.kind });
+				}
+				if (projected.packages.some((pkg) => pkg.name === operation.package.name)) {
+					pushSupportIssue(issues, 'duplicate_package_name', `${operationPath}.package.name`, `Package name "${operation.package.name}" already exists.`, { operationKind: operation.kind });
+				}
+				validateLifecycleInsertionIndex(operation.atIndex, projected.packages.length, `${operationPath}.atIndex`, 'invalid_package_index', issues, operation.kind);
+				break;
+			}
+			case 'renamePackage': {
+				const pkg = validateLifecyclePackageSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				if (!isSafePackageName(operation.newName)) {
+					pushSupportIssue(issues, 'invalid_package_payload', `${operationPath}.newName`, 'Package name must be a safe output path segment.', { operationKind: operation.kind });
+				}
+				if (pkg && projected.packages.some((candidate) => candidate !== pkg && candidate.name === operation.newName)) {
+					pushSupportIssue(issues, 'duplicate_package_name', `${operationPath}.newName`, `Package name "${operation.newName}" already exists.`, { operationKind: operation.kind });
+				}
+				break;
+			}
+			case 'removePackage': {
+				const pkg = validateLifecyclePackageSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				if (pkg) {
+					const referencePath = findExternalPackageReference(projected, pkg.id);
+					if (referencePath) {
+						pushSupportIssue(issues, 'package_referenced', `${operationPath}.selector`, `Package "${pkg.id}" is still referenced by ${referencePath}.`, { operationKind: operation.kind });
+					}
+				}
+				break;
+			}
+			case 'addComponent': {
+				const pkg = validateLifecyclePackageSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				if (pkg) {
+					validateComponentPayload(projected, pkg, operation.component, `${operationPath}.component`, issues, operation.kind);
+					if (pkg.resources.some((resource) => resource.id === operation.component.id)) {
+						pushSupportIssue(issues, 'duplicate_component_id', `${operationPath}.component.id`, `Resource id "${operation.component.id}" already exists in package "${pkg.id}".`, { operationKind: operation.kind });
+					}
+					validateLifecycleInsertionIndex(operation.atIndex, pkg.resources.length, `${operationPath}.atIndex`, 'invalid_component_index', issues, operation.kind);
+				}
+				break;
+			}
+			case 'removeComponent': {
+				const component = validateLifecycleComponentSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				if (component) {
+					const referencePath = findExternalComponentReference(projected, operation.selector.packageId, component.id);
+					if (referencePath) {
+						pushSupportIssue(issues, 'component_referenced', `${operationPath}.selector`, `Component "${component.id}" is still referenced by ${referencePath}.`, { operationKind: operation.kind });
+					}
+				}
+				break;
+			}
+			case 'moveComponent': {
+				const component = validateLifecycleComponentSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				const target = findPackageSpec(projected, operation.toPackageId);
+				if (!target) {
+					pushSupportIssue(issues, 'invalid_package_selector', `${operationPath}.toPackageId`, `Package "${operation.toPackageId}" was not found.`, { operationKind: operation.kind });
+				}
+				if (operation.selector.packageId === operation.toPackageId) {
+					pushSupportIssue(issues, 'invalid_component_move', `${operationPath}.toPackageId`, 'moveComponent requires a different destination package.', { operationKind: operation.kind });
+				}
+				if (component && target) {
+					if (target.resources.some((resource) => resource.id === component.id)) {
+						pushSupportIssue(issues, 'duplicate_component_id', `${operationPath}.selector.componentResourceId`, `Resource id "${component.id}" already exists in package "${target.id}".`, { operationKind: operation.kind });
+					}
+					validateLifecycleInsertionIndex(operation.toIndex, target.resources.length, `${operationPath}.toIndex`, 'invalid_component_index', issues, operation.kind);
+					const referencePath = findExternalComponentReference(projected, operation.selector.packageId, component.id);
+					if (referencePath) {
+						pushSupportIssue(issues, 'component_referenced', `${operationPath}.selector`, `Component "${component.id}" is still referenced by ${referencePath}.`, { operationKind: operation.kind });
+					}
+					const dependencyPath = findComponentPackageDependency(component, operation.selector.packageId, `${operationPath}.selector`);
+					if (dependencyPath) {
+						pushSupportIssue(issues, 'component_has_package_dependencies', dependencyPath, `Component "${component.id}" still resolves display resources from package "${operation.selector.packageId}".`, { operationKind: operation.kind });
+					}
+				}
+				break;
+			}
+		}
+		if (issues.length === issueCount) applyUamLifecycleOperation(projected, operation);
+	}
+}
+
+function validateLifecycleBatchCompatibility(
+	operations: UamTransactionOperation[],
+	issues: UamTransactionSupportIssue[],
+): boolean {
+	if (!operations.some(isLifecycleOperation)) return true;
+	const nonLifecycleIndex = operations.findIndex((operation) => !isLifecycleOperation(operation));
+	if (nonLifecycleIndex < 0) return true;
+	const operation = operations[nonLifecycleIndex]!;
+	pushSupportIssue(
+		issues,
+		'unsupported_operation_batch',
+		`operations[${nonLifecycleIndex}].kind`,
+		`Lifecycle operations may only be batched with lifecycle operations; "${operation.kind}" must be committed separately.`,
+		{ operationKind: operation.kind },
+	);
+	return false;
+}
+
 function validateOperationPayloads(project: UamProject, operations: UamTransactionOperation[], issues: UamTransactionSupportIssue[]): void {
 	for (const [operationIndex, operation] of operations.entries()) {
 		const operationPath = `operations[${operationIndex}]`;
@@ -1380,6 +1860,13 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 				validateGearSelector(project, operations, operationIndex, operation.selector, `${operationPath}.selector`, issues, operation.kind);
 				validateExistingGear(project, operations, operationIndex, operation.selector, `${operationPath}.selector`, issues, operation.kind);
 				break;
+			case 'addPackage':
+			case 'renamePackage':
+			case 'removePackage':
+			case 'addComponent':
+			case 'removeComponent':
+			case 'moveComponent':
+				break;
 		}
 	}
 }
@@ -1393,7 +1880,9 @@ export function validateTransactionSupport(
 		validateBaselineSupport(project, issues);
 		return issues;
 	}
+	const lifecycleOnly = validateLifecycleBatchCompatibility(operations, issues);
 	validateOperationPayloads(project, operations, issues);
+	if (lifecycleOnly) validateLifecycleOperationPayloads(project, operations, issues);
 	return issues;
 }
 
@@ -1454,7 +1943,7 @@ function isTextLikeDisplayNode(node: UamDisplayNode): node is UamTextLikeDisplay
 }
 
 function canApplyOperationsInUam(operations: UamTransactionOperation[]): boolean {
-	return operations.every((operation) => operation.kind === 'setDisplayNodeProps');
+	return operations.every(isUamNativeOperation);
 }
 
 function applyDisplayNodePropsUpdate(node: UamDisplayNode, props: UamDisplayNodePropsUpdate): void {
@@ -1491,6 +1980,14 @@ function applyUamNativeOperation(project: UamProject, operation: UamTransactionO
 			applyDisplayNodePropsUpdate(found.node, operation.props);
 			return;
 		}
+		case 'addPackage':
+		case 'renamePackage':
+		case 'removePackage':
+		case 'addComponent':
+		case 'removeComponent':
+		case 'moveComponent':
+			applyUamLifecycleOperation(project, operation);
+			return;
 		default:
 			throw new Error(`UAM-native transaction path does not support operation "${operation.kind}".`);
 	}
@@ -2071,6 +2568,8 @@ function applyOperation(doc: Document, operation: UamTransactionOperation): void
 			node.removeGear(resolveUniqueGear(node, operation.selector));
 			return;
 		}
+		default:
+			throw new Error(`Document transaction path does not support operation "${operation.kind}".`);
 	}
 }
 

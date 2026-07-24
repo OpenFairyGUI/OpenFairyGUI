@@ -684,7 +684,7 @@ test('restore published project: equivalent source and output paths are rejected
 				fs: createRestoreFs(),
 				force: true,
 			}),
-			{ message: /must be different/ },
+			{ message: /must be independent/ },
 		);
 		t.truthy(
 			await fs.stat(path.join(releaseDir, 'Basics_fui.bytes')).catch(() => null),
@@ -710,7 +710,7 @@ test('restore published project: case-variant equivalent paths are rejected befo
 				fs: createRestoreFs(),
 				force: true,
 			}),
-			{ message: /must be different/ },
+			{ message: /must be independent/ },
 		);
 		t.truthy(
 			await fs.stat(path.join(releaseDir, 'Basics_fui.bytes')).catch(() => null),
@@ -738,7 +738,7 @@ test.serial('restore published project: mixed relative and absolute aliases are 
 				fs: createRestoreFs(),
 				force: true,
 			}),
-			{ message: /must be different/ },
+			{ message: /must be independent/ },
 		);
 		t.truthy(
 			await fs.stat(path.join(releaseDir, 'Basics_fui.bytes')).catch(() => null),
@@ -767,7 +767,7 @@ test('restore published project: filesystem alias paths are rejected before over
 				fs: createRestoreFs(),
 				force: true,
 			}),
-			{ message: /must be different/ },
+			{ message: /must be independent/ },
 		);
 		t.truthy(
 			await fs.stat(path.join(releaseDir, 'Basics_fui.bytes')).catch(() => null),

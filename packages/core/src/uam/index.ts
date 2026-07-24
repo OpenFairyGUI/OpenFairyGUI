@@ -74,10 +74,16 @@ export {
 	writeProjectFromUam,
 } from './bridge.js';
 export {
+	type AddComponentOperation,
 	type AddGearOperation,
+	type AddPackageOperation,
 	type AddResourceOperation,
+	type MoveComponentOperation,
+	type RemoveComponentOperation,
 	type RemoveGearOperation,
+	type RemovePackageOperation,
 	type RemoveResourceOperation,
+	type RenamePackageOperation,
 	type ReplaceResourceBytesOperation,
 	UamTransaction,
 	UamTransactionError,

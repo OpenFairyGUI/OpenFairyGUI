@@ -11,6 +11,7 @@ import {
 	normalizeUamProject,
 	validateTransactionSupport,
 	type UamButtonNode,
+	type UamComponentResource,
 	type UamComponentRefNode,
 	type UamControllerModel,
 	type UamDisplayNode,
@@ -18,6 +19,7 @@ import {
 	type UamGearBinding,
 	type UamListNode,
 	type UamLookGearBinding,
+	type UamPackage,
 	type UamProject,
 	type UamTextNode,
 	type UamTransactionOperation,
@@ -278,6 +280,41 @@ function createDisplayNodeBase(id: string, name: string, offset = 0): UamDisplay
 		customData: '',
 		relations: [],
 		gears: [],
+	};
+}
+
+function createLifecyclePackage(id = 'pkg002', name = 'Overlay'): UamPackage {
+	return {
+		id,
+		name,
+		publish: null,
+		resources: [],
+	};
+}
+
+function createLifecycleComponent(id = 'cmp002', name = 'Popup'): UamComponentResource {
+	return {
+		kind: 'component',
+		id,
+		name,
+		path: '/',
+		exported: true,
+		branch: '',
+		branchItemIds: [],
+		component: {
+			size: { width: 160, height: 80 },
+			customData: '',
+			displayList: [{
+				...createDisplayNodeBase('popup-title', 'title'),
+				kind: 'text',
+				text: 'Popup',
+				font: '',
+				fontSize: 16,
+				color: '#ffffff',
+			}],
+			controllers: [],
+			transitions: [],
+		},
 	};
 }
 
@@ -1272,6 +1309,115 @@ test('resource lifecycle preflight projects batches and rejects unsafe source pa
 	t.true(collisionError?.issues?.some((issue) => issue.message.includes('conflicts with the package descriptor')) ?? false);
 });
 
+test('package and component lifecycle transactions survive write, reload, and inverse operations', async (t) => {
+	const original = createSupportedProject();
+	const created = applyUamTransaction(original, [
+		{ kind: 'addPackage', package: createLifecyclePackage(), atIndex: 1 },
+		{
+			kind: 'addComponent',
+			selector: { packageId: 'pkg002' },
+			component: createLifecycleComponent(),
+			atIndex: 0,
+		},
+	]);
+	const createdPackage = created.packages.find((pkg) => pkg.id === 'pkg002');
+	const createdComponent = createdPackage?.resources.find((resource) => resource.id === 'cmp002');
+	t.is(createdPackage?.name, 'Overlay');
+	t.is(createdComponent?.kind, 'component');
+	if (createdComponent?.kind !== 'component') return;
+	t.is(createdComponent.component.displayList[0]?.id, 'popup-title');
+
+	const moved = applyUamTransaction(created, [
+		{ kind: 'renamePackage', selector: { packageId: 'pkg002' }, newName: 'OverlayRenamed' },
+		{
+			kind: 'moveComponent',
+			selector: { packageId: 'pkg002', componentResourceId: 'cmp002' },
+			toPackageId: 'pkg001',
+			toIndex: 2,
+		},
+	]);
+	const reloaded = await roundTripCommittedProject(moved);
+	const movedPackage = reloaded.packages.find((pkg) => pkg.id === 'pkg002');
+	const movedComponent = reloaded.packages
+		.find((pkg) => pkg.id === 'pkg001')?.resources
+		.find((resource) => resource.id === 'cmp002');
+	t.is(movedPackage?.name, 'OverlayRenamed');
+	t.is(movedComponent?.kind, 'component');
+
+	const restored = applyUamTransaction(reloaded, [
+		{
+			kind: 'moveComponent',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp002' },
+			toPackageId: 'pkg002',
+			toIndex: 0,
+		},
+		{ kind: 'renamePackage', selector: { packageId: 'pkg002' }, newName: 'Overlay' },
+	]);
+	const packageSnapshot = restored.packages.find((pkg) => pkg.id === 'pkg002');
+	if (!packageSnapshot) {
+		t.fail('expected restored package snapshot');
+		return;
+	}
+	const removed = applyUamTransaction(restored, [
+		{ kind: 'removeComponent', selector: { packageId: 'pkg002', componentResourceId: 'cmp002' } },
+		{ kind: 'removePackage', selector: { packageId: 'pkg002' } },
+	]);
+	t.false(removed.packages.some((pkg) => pkg.id === 'pkg002'));
+
+	const restoredFromInverse = applyUamTransaction(removed, [
+		{ kind: 'addPackage', package: packageSnapshot, atIndex: 1 },
+	]);
+	const inverseComponent = restoredFromInverse.packages
+		.find((pkg) => pkg.id === 'pkg002')?.resources
+		.find((resource) => resource.id === 'cmp002');
+	t.is(inverseComponent?.kind, 'component');
+});
+
+test('package and component lifecycle preflight reports dependency and batch diagnostics', (t) => {
+	const project = createSupportedProject();
+	const host = createLifecycleComponent('cmp003', 'Host');
+	host.component.displayList = [{
+		...createDisplayNodeBase('component-ref', 'component-ref'),
+		kind: 'component',
+		resource: { packageId: 'pkg001', resourceId: 'cmp001' },
+	}];
+	project.packages.push({ ...createLifecyclePackage(), resources: [host] });
+
+	const removeIssues = validateTransactionSupport(project, [
+		{ kind: 'removeComponent', selector: { packageId: 'pkg001', componentResourceId: 'cmp001' } },
+		{ kind: 'removePackage', selector: { packageId: 'pkg001' } },
+	]);
+	t.true(removeIssues.some((issue) => issue.code === 'component_referenced'));
+	t.true(removeIssues.some((issue) => issue.code === 'package_referenced'));
+
+	const moveIssues = validateTransactionSupport(project, [{
+		kind: 'moveComponent',
+		selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
+		toPackageId: 'pkg002',
+		toIndex: 1,
+	}]);
+	t.true(moveIssues.some((issue) => issue.code === 'component_has_package_dependencies'));
+
+	const addIssues = validateTransactionSupport(createSupportedProject(), [{
+		kind: 'addPackage',
+		package: createLifecyclePackage('pkg001', '../unsafe'),
+		atIndex: -1,
+	}]);
+	t.true(addIssues.some((issue) => issue.code === 'duplicate_package_id'));
+	t.true(addIssues.some((issue) => issue.code === 'invalid_package_payload'));
+	t.true(addIssues.some((issue) => issue.code === 'invalid_package_index'));
+
+	const batchIssues = validateTransactionSupport(createSupportedProject(), [
+		{ kind: 'addPackage', package: createLifecyclePackage(), atIndex: 1 },
+		{
+			kind: 'setDisplayNodeProps',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+			props: { text: 'Separate transaction' },
+		},
+	]);
+	t.true(batchIssues.some((issue) => issue.code === 'unsupported_operation_batch'));
+});
+
 test('resource writes clean only explicit prior project sources and commit their current paths', async (t) => {
 	const io = new NodeIO();
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-uam-lifecycle-'));
@@ -1298,6 +1444,34 @@ test('resource writes clean only explicit prior project sources and commit their
 		}]);
 		await writeProjectFromUam(io, removed, outFairy, { previousProject: renamed });
 		await t.throwsAsync(fs.access(path.join(tmpDir, 'assets', 'Main', 'moved', 'renamed.png')));
+
+		const withPackage = applyUamTransaction(removed, [
+			{ kind: 'addPackage', package: createLifecyclePackage(), atIndex: 1 },
+			{
+				kind: 'addComponent',
+				selector: { packageId: 'pkg002' },
+				component: createLifecycleComponent(),
+			atIndex: 0,
+			},
+		]);
+		await writeProjectFromUam(io, withPackage, outFairy, { previousProject: removed });
+		const renamedPackage = applyUamTransaction(withPackage, [
+			{ kind: 'renamePackage', selector: { packageId: 'pkg002' }, newName: 'OverlayRenamed' },
+		]);
+		await writeProjectFromUam(io, renamedPackage, outFairy, { previousProject: withPackage });
+		await t.throwsAsync(fs.access(path.join(tmpDir, 'assets', 'Overlay', 'package.xml')));
+		await fs.access(path.join(tmpDir, 'assets', 'OverlayRenamed', 'package.xml'));
+		await fs.access(path.join(tmpDir, 'assets', 'OverlayRenamed', 'Popup.xml'));
+
+		const withoutPackage = applyUamTransaction(renamedPackage, [
+			{ kind: 'removeComponent', selector: { packageId: 'pkg002', componentResourceId: 'cmp002' } },
+			{ kind: 'removePackage', selector: { packageId: 'pkg002' } },
+		]);
+		await writeProjectFromUam(io, withoutPackage, outFairy, { previousProject: renamedPackage });
+		await t.throwsAsync(fs.access(path.join(tmpDir, 'assets', 'OverlayRenamed', 'package.xml')));
+		await t.throwsAsync(fs.access(path.join(tmpDir, 'assets', 'OverlayRenamed', 'Popup.xml')));
+		const reloaded = await readProjectAsUam(io, outFairy, { hydrateResourceBytes: true });
+		t.false(reloaded.packages.some((pkg) => pkg.id === 'pkg002'));
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

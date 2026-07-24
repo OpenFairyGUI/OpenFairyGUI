@@ -30,7 +30,7 @@ export interface BackendSessionState {
 	uamFidelity: 'full' | 'unsupported';
 	revision: number;
 	lastSavedRevision: number;
-	/** Source files deferred until a successful replacement project write. */
+	/** Package-controlled files deferred until a successful replacement project write. */
 	pendingStaleSourceFiles: Map<string, import('@openfairygui/core/project-io').ProjectSourceFile>;
 	dirty: boolean;
 	lockHeld: boolean;

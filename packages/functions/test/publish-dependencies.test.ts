@@ -7,6 +7,10 @@ import { publish } from '../src/index.js';
 
 function createFs() {
 	return {
+		async readFileRaw(filePath: string): Promise<Uint8Array> {
+			const data = await fs.readFile(filePath);
+			return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+		},
 		async writeFileRaw(filePath: string, data: Uint8Array): Promise<void> {
 			await fs.mkdir(path.dirname(filePath), { recursive: true });
 			await fs.writeFile(filePath, data);
@@ -198,9 +202,16 @@ test('publish: component instance button sound refs keep local sound items', asy
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-button-sound-'));
 
 	try {
+		const basePath = path.join(tmpDir, 'assets');
+		const sourceSound = new Uint8Array([0x52, 0x49, 0x46, 0x46]);
+		const sourceSoundPath = path.join(basePath, 'Main', 'audio', 'tap.wav');
+		await fs.mkdir(path.dirname(sourceSoundPath), { recursive: true });
+		await fs.writeFile(sourceSoundPath, sourceSound);
+
 		await doc.transform(publish({
 			output: tmpDir,
 			packages: ['Main'],
+			basePath,
 			fs: createFs(),
 		}));
 
@@ -208,6 +219,7 @@ test('publish: component instance button sound refs keep local sound items', asy
 		const items = parseDependencies(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
 		t.deepEqual(items, [], 'local sound reference does not create package dependency');
 		t.true(parseItemIds(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)).includes('snd001'), 'published binary keeps referenced sound item');
+		t.deepEqual([...await fs.readFile(path.join(tmpDir, 'Main_snd001.wav'))], [...sourceSound], 'published local sound is copied alongside the package binary');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

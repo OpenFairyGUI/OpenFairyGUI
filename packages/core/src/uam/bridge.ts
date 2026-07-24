@@ -310,10 +310,32 @@ function sourceFileKey(source: ProjectSourceFile): string {
 function projectSourceFiles(project: UamProject): Map<string, ProjectSourceFile> {
 	const sources = new Map<string, ProjectSourceFile>();
 	for (const pkg of project.packages) {
+		sources.set(`${pkg.id}/package.xml`, {
+			packageName: pkg.name,
+			branch: '',
+			path: '',
+			fileName: 'package.xml',
+		});
+		const branches = new Set<string>();
 		for (const resource of pkg.resources) {
-			if (resource.kind === 'component') continue;
-			const source = sourceFileReference(pkg.name, resource);
+			if (resource.branch) branches.add(resource.branch);
+			const source = resource.kind === 'component'
+				? {
+					packageName: pkg.name,
+					branch: resource.branch,
+					path: resource.path,
+					fileName: `${resource.name}.xml`,
+				}
+				: sourceFileReference(pkg.name, resource);
 			if (source) sources.set(`${pkg.id}/${resource.id}`, source);
+		}
+		for (const branch of branches) {
+			sources.set(`${pkg.id}/branch/${branch}`, {
+				packageName: pkg.name,
+				branch,
+				path: '',
+				fileName: 'package_branch.xml',
+			});
 		}
 	}
 	return sources;
@@ -336,7 +358,7 @@ export function commitUamProjectSourcePaths(project: UamProject): void {
 }
 
 export interface WriteProjectFromUamOptions {
-	/** Previous project state used to safely clean replaced, moved, or removed source files. */
+	/** Previous project state used to safely clean replaced, moved, renamed, or removed package files. */
 	previousProject?: UamProject;
 }
 

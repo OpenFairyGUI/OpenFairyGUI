@@ -6,7 +6,9 @@ import { ProjectReader } from '@openfairygui/core/project-io';
 import {
 	liftDocumentToUamProject,
 	normalizeUamProject,
+	type UamComponentResource,
 	type UamGearBinding,
+	type UamPackage,
 	type UamProject,
 } from '@openfairygui/core/uam';
 import { BackendRuntime, createBackendStorageFileSystem, type BackendAsyncStorageAdapter } from '../src/index.js';
@@ -197,6 +199,52 @@ function findDisplayNode(project: UamProject, target: ReturnType<typeof findGear
 	return component.component.displayList.find((node) => node.id === target.displayNodeId) ?? null;
 }
 
+function createLifecyclePackage(): UamPackage {
+	return {
+		id: 'pkg002',
+		name: 'Overlay',
+		publish: null,
+		resources: [],
+	};
+}
+
+function createLifecycleComponent(): UamComponentResource {
+	return {
+		kind: 'component',
+		id: 'cmp002',
+		name: 'Popup',
+		path: '/',
+		exported: true,
+		branch: '',
+		branchItemIds: [],
+		component: {
+			size: { width: 160, height: 80 },
+			customData: '',
+			displayList: [{
+				kind: 'text',
+				id: 'popup-title',
+				name: 'title',
+				position: { x: 8, y: 8 },
+				size: { width: 120, height: 24 },
+				visible: true,
+				touchable: true,
+				grayed: false,
+				alpha: 1,
+				rotation: 0,
+				customData: '',
+				relations: [],
+				gears: [],
+				text: 'Popup',
+				font: '',
+				fontSize: 16,
+				color: '#ffffff',
+			}],
+			controllers: [],
+			transitions: [],
+		},
+	};
+}
+
 function createNonLookGears(controllerName: string, pageIds: readonly string[]): UamGearBinding[] {
 	const [firstPageId, secondPageId = firstPageId] = pageIds;
 	if (!firstPageId) throw new Error('Expected controller page ids.');
@@ -362,6 +410,70 @@ test('browser-safe project session saves through injected async storage', async 
 		t.is(title.alpha, 0.65);
 		t.is(title.rotation, 15);
 	}
+});
+
+test('browser-safe sessions materialize package and component lifecycle operations through inverse reloads', async (t) => {
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({
+		project: createBackendFixtureProject(),
+		storage: { fileSystem, fairyPath: 'Lifecycle/Project.fairy' },
+	});
+	t.true(opened.ok);
+	if (!opened.ok) return;
+
+	const added = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 0,
+		operations: [
+			{ kind: 'addPackage', package: createLifecyclePackage(), atIndex: 1 },
+			{
+				kind: 'addComponent',
+				selector: { packageId: 'pkg002' },
+				component: createLifecycleComponent(),
+				atIndex: 0,
+			},
+		],
+	});
+	t.true(added.ok);
+	if (!added.ok) return;
+	const savedAdded = await runtime.saveSession({ sessionId: opened.data.sessionId });
+	t.true(savedAdded.ok);
+	if (!savedAdded.ok) return;
+	t.true(storage.hasFile('Lifecycle/assets/Overlay/package.xml'));
+	t.true(storage.hasFile('Lifecycle/assets/Overlay/Popup.xml'));
+
+	const addedReload = normalizeUamProject(
+		liftDocumentToUamProject(await new ProjectReader(fileSystem).read('Lifecycle/Project.fairy')),
+	);
+	const addedComponent = addedReload.packages
+		.find((pkg) => pkg.id === 'pkg002')?.resources
+		.find((resource) => resource.id === 'cmp002');
+	t.is(addedComponent?.kind, 'component');
+	if (addedComponent?.kind !== 'component') return;
+	t.is(addedComponent.component.displayList[0]?.id, 'popup-title');
+
+	const removed = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: added.data.revision,
+		operations: [
+			{ kind: 'removeComponent', selector: { packageId: 'pkg002', componentResourceId: 'cmp002' } },
+			{ kind: 'removePackage', selector: { packageId: 'pkg002' } },
+		],
+	});
+	t.true(removed.ok);
+	if (!removed.ok) return;
+	const savedRemoved = await runtime.saveSession({ sessionId: opened.data.sessionId });
+	t.true(savedRemoved.ok);
+	if (!savedRemoved.ok) return;
+	t.false(storage.hasFile('Lifecycle/assets/Overlay/package.xml'));
+	t.false(storage.hasFile('Lifecycle/assets/Overlay/Popup.xml'));
+
+	const removedReload = normalizeUamProject(
+		liftDocumentToUamProject(await new ProjectReader(fileSystem).read('Lifecycle/Project.fairy')),
+	);
+	t.false(removedReload.packages.some((pkg) => pkg.id === 'pkg002'));
 });
 
 test('browser-safe save failure keeps the prior resource source file intact', async (t) => {

@@ -787,14 +787,14 @@ function assertDisplayListVariantAllowed(propertyType: string, tagName: string, 
  */
 export interface ProjectWriteOptions {
 	/**
-	 * Previous package source files to remove only after every new project file
+	 * Previous package-controlled files to remove only after every new project file
 	 * has been written successfully. Paths are package-relative by construction;
 	 * arbitrary filesystem paths are deliberately not accepted.
 	 */
 	staleSourceFiles?: readonly ProjectSourceFile[];
 }
 
-/** Identifies one raw package source file without exposing a filesystem path. */
+/** Identifies one package-controlled file without exposing a filesystem path. */
 export interface ProjectSourceFile {
 	packageName: string;
 	branch: string;
@@ -930,13 +930,16 @@ export class ProjectWriter {
 		if (publishAtlases.length > 0) {
 			publishAttrs.atlas = publishAtlases;
 		}
+		const packageDescriptorPath = fs.join(pkgDir, 'package.xml');
 		await fs.writeFile(
-			fs.join(pkgDir, 'package.xml'),
+			packageDescriptorPath,
 			this._renderPackageDescriptionXml(packageDescriptionAttrs, mainResources, publishAttrs),
 		);
+		currentSourceFilePaths.add(packageDescriptorPath);
 
 		// Write main-branch component XML files
 		for (const comp of mainResources.filter((resource): resource is Component => resource.propertyType === 'Component')) {
+			currentSourceFilePaths.add(fs.join(pkgDir, this._componentSourceRelativePath(comp)));
 			await this._writeComponent(comp, pkgDir);
 		}
 		await this._writeResourceSourceFiles(mainResources, pkgDir, currentSourceFilePaths);
@@ -946,12 +949,15 @@ export class ProjectWriter {
 			this._assertSafePathSegment(branchName, 'branch name');
 			const branchPkgDir = fs.join(basePath, `assets_${branchName}`, pkg.getName());
 			await fs.mkdir(branchPkgDir);
+			const branchDescriptorPath = fs.join(branchPkgDir, 'package_branch.xml');
 			await fs.writeFile(
-				fs.join(branchPkgDir, 'package_branch.xml'),
+				branchDescriptorPath,
 				this._renderBranchDescriptionXml(branchResources),
 			);
+			currentSourceFilePaths.add(branchDescriptorPath);
 
 			for (const comp of branchResources.filter((resource): resource is Component => resource.propertyType === 'Component')) {
+				currentSourceFilePaths.add(fs.join(branchPkgDir, this._componentSourceRelativePath(comp)));
 				await this._writeComponent(comp, branchPkgDir);
 			}
 			await this._writeResourceSourceFiles(branchResources, branchPkgDir, currentSourceFilePaths);

@@ -91,18 +91,35 @@ function createWriterFileSystem(
 	};
 }
 
-function projectAssetSourceFiles(project: UamProject): Map<string, ProjectSourceFile> {
+function projectSourceFiles(project: UamProject): Map<string, ProjectSourceFile> {
 	const result = new Map<string, ProjectSourceFile>();
 	for (const pkg of project.packages) {
+		result.set(`${pkg.id}/package.xml`, {
+			packageName: pkg.name,
+			branch: '',
+			path: '',
+			fileName: 'package.xml',
+		});
+		const branches = new Set<string>();
 		for (const resource of pkg.resources) {
-			if (resource.kind === 'component') continue;
-			const fileName = resource.fileName ?? resource.file ?? '';
+			if (resource.branch) branches.add(resource.branch);
+			const fileName = resource.kind === 'component'
+				? `${resource.name}.xml`
+				: resource.fileName ?? resource.file ?? '';
 			if (!fileName) continue;
 			result.set(`${pkg.id}/${resource.id}`, {
 				packageName: pkg.name,
 				branch: resource.branch,
 				path: resource.path,
 				fileName,
+			});
+		}
+		for (const branch of branches) {
+			result.set(`${pkg.id}/branch/${branch}`, {
+				packageName: pkg.name,
+				branch,
+				path: '',
+				fileName: 'package_branch.xml',
 			});
 		}
 	}
@@ -113,14 +130,14 @@ function sourceFileKey(source: ProjectSourceFile): string {
 	return [source.branch, source.packageName, source.path, source.fileName].join('\0');
 }
 
-function recordStaleResourceSources(
+function recordStaleProjectFiles(
 	session: Parameters<typeof toSessionSnapshot>[0],
 	previousProject: UamProject,
 	nextProject: UamProject,
 ): void {
 	if (!session.fileSystem) return;
-	const previousSources = projectAssetSourceFiles(previousProject);
-	const nextSourceKeys = new Set([...projectAssetSourceFiles(nextProject).values()].map(sourceFileKey));
+	const previousSources = projectSourceFiles(previousProject);
+	const nextSourceKeys = new Set([...projectSourceFiles(nextProject).values()].map(sourceFileKey));
 	for (const source of previousSources.values()) {
 		const key = sourceFileKey(source);
 		if (!nextSourceKeys.has(key)) session.pendingStaleSourceFiles.set(key, source);
@@ -308,7 +325,7 @@ export class AuthoringService {
 			);
 		}
 
-		recordStaleResourceSources(session, session.project, result.project);
+		recordStaleProjectFiles(session, session.project, result.project);
 		session.project = result.project;
 		session.revision += 1;
 		session.dirty = true;
