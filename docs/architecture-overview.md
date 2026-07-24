@@ -142,7 +142,7 @@ flowchart LR
 补充说明：
 - `@openfairygui/core` 当前同时承载 UAM 主真相层与内部图物化层。
 - `packages/core/src/uam/model.ts` 当前的 materialization scope 覆盖现有全部 display node 类：`GImage`、`GTextField`、`GRichTextField`、`GTextInput`、`GComponent`、`GList`、`GTree`、`GGraph`、`GGroup`、`GLoader`、`GLoader3D`、`GMovieClip`、`GButton`、`GLabel`、`GComboBox`、`GProgressBar`、`GSlider`、`GScrollBar`。其中 component-derived controls 以具体 UAM node kind 建模，不通过长期 `extras` 或通用属性袋承载。
-- `packages/core/src/uam/transaction.ts` 当前提供的是 **UAM-public explicit operation batch API**；它的 `commit()` 结果是新的 normalized `UamProject`。纯 `setDisplayNodeProps` 与空事务直接在 UAM 上执行，未触及的复杂节点、引用、relation、transition 作为 lossless passthrough 保留；资源、结构和 gear 事务通过私有 `Document` 工作副本执行，并在失败时整体丢弃。
+- `packages/core/src/uam/transaction.ts` 当前提供的是 **UAM-public explicit operation batch API**；它的 `commit()` 结果是新的 normalized `UamProject`。纯 `setDisplayNodeProps`、包/组件生命周期事务，以及生命周期与 `attachDisplayNode` / `detachDisplayNode` 引用重写的混合批次直接在 UAM 上执行；未触及的复杂节点、引用、relation、transition 作为 lossless passthrough 保留，其余资源、结构和 gear 事务通过私有 `Document` 工作副本执行，并在失败时整体丢弃。
 - `packages/core/src/uam/bridge.ts` 当前负责 UAM 与内部 `Document` 之间的 lift/materialize。真实工程里可保存但不一定可解析到当前资源图的弱引用会按工程 XML 语义透传：空 relation target 表示组件容器，display resource refs 允许悬空或跨包保留，transition item target 与 display gear pages 允许保留编辑器旧数据。`validateUamProject` 只阻塞会破坏当前物化/写回的硬结构错误。
 - `ProjectReader.read(path, { hydrateResourceBytes: true })` 是 source-byte hydration 的显式入口；它会为 main 与 branch package 中的 image、sound、misc、font、movie-clip、Spine、DragonBones 资源附加 primary source bytes，并拒绝 XML 中包含 traversal 的资源路径。UAM bridge 在 lift/materialize 时复制 `Uint8Array`，不以 JSON clone 承载二进制数据。
 - UAM materialization scope 与 transaction scope 是两个独立能力面；全量 display node lift/materialize 不代表 `UamTransactionOperation` 已开放这些 node kind 的全字段 mutation。当前 transaction scope 覆盖已建模资源的 rename/move、二进制资源 add/replace/remove、基础 display props、attach/detach、controller、transition，以及 `display`、`display2`、`look`、`xy`、`size`、`color`、`animation`、`text`、`icon`、`fontSize` gear 的 add/update/remove；它仍不开放任意 display-list、controller 或 transition 的面板式编辑。二进制资源的 rename/move/replace/remove 要求 UAM 持有已水合的 primary source bytes。`validateTransactionSupport(project)` 保留全项目体检语义；`validateTransactionSupport(project, operations)` 与实际 transaction preflight 按 operation touch-set 判定，并在物化前拒绝缺失源字节、无效 controller/page、被操作 transition 中的无效 target 引用、重复或无效 gear，以及不安全的新增资源 source path。UAM/writer 同时拒绝会覆盖 package descriptor、component XML 或其他资源的输出目标。
@@ -292,7 +292,7 @@ flowchart TD
     S --> C
     C --> U["Unified Authoring Model"]
     U --> D["结构检查与整理<br/>UAM normalization / validation"]
-    U --> T["UAM transaction kernel<br/>explicit ops -> bytes/refs/gear preflight -> UAM-native props or private Document commit"]
+    U --> T["UAM transaction kernel<br/>explicit ops -> bytes/refs/gear preflight -> UAM-native props/lifecycle rewrites or private Document commit"]
     U --> A2["functions app seam<br/>structured app result / no Document leakage"]
     A2 --> B2["backend runtime<br/>session / revision / save / lock / capabilities"]
     B2 --> B3["service planes<br/>read / authoring / artifact / runtime"]
@@ -323,7 +323,7 @@ flowchart TD
 - `addComponent` 以完整 `UamComponentResource` 快照和 `atIndex` 新增组件，快照包含初始 `displayList`、controller 与 transition；`removeComponent` 使用 `packageId + componentResourceId` selector。
 - `moveComponent` 使用组件 selector、目标 `toPackageId` 与 `toIndex` 在包之间移动组件。
 
-生命周期操作只能彼此组成一个 transaction batch。删除包或组件会检查直接 display resource 引用；移动组件还会拒绝仍依赖源包 display resource 的组件，调用方必须先完成引用调整。`writeProjectFromUam()` 会在新工程文件全部写入成功后，清理前一版本不再存在的 `package.xml`、`package_branch.xml`、component XML 和原始资源文件，避免删除或重命名的包在下次 `ProjectReader` reload 时被重新发现。
+生命周期操作可与 `attachDisplayNode` / `detachDisplayNode` 组成 transaction batch；其他非生命周期操作仍需单独提交。预检会按整个批次的投影状态校验 selector、插入位置和最终引用，执行阶段在同一份 UAM 工作副本中原子应用。删除包或组件、以及移动组件仍会拒绝最终状态中的悬空引用或源包依赖：调用方必须在同一批次中显式 detach 或 retarget inbound component node。`writeProjectFromUam()` 会在新工程文件全部写入成功后，清理前一版本不再存在的 `package.xml`、`package_branch.xml`、component XML 和原始资源文件，避免删除或重命名的包在下次 `ProjectReader` reload 时被重新发现。
 
 ## 模块边界
 

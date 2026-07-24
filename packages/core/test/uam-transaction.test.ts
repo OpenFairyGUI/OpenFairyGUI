@@ -1418,6 +1418,140 @@ test('package and component lifecycle preflight reports dependency and batch dia
 	t.true(batchIssues.some((issue) => issue.code === 'unsupported_operation_batch'));
 });
 
+test('component lifecycle atomically rewrites inbound display references', async (t) => {
+	const project = createSupportedProject();
+	const movable = createLifecycleComponent('cmp002', 'Movable');
+	const host = createLifecycleComponent('cmp003', 'Host');
+	const originalReference: UamComponentRefNode = {
+		...createDisplayNodeBase('component-ref', 'component-ref'),
+		kind: 'component',
+		resource: { packageId: 'pkg002', resourceId: 'cmp002' },
+	};
+	host.component.displayList = [originalReference];
+	project.packages.push({ ...createLifecyclePackage(), resources: [movable, host] });
+
+	const forward: UamTransactionOperation[] = [
+		{
+			kind: 'detachDisplayNode',
+			selector: { packageId: 'pkg002', componentResourceId: 'cmp003', displayNodeId: 'component-ref' },
+		},
+		{
+			kind: 'attachDisplayNode',
+			selector: { packageId: 'pkg002', componentResourceId: 'cmp003' },
+			atIndex: 0,
+			node: { ...originalReference, resource: { packageId: 'pkg001', resourceId: 'cmp002' } },
+		},
+		{
+			kind: 'moveComponent',
+			selector: { packageId: 'pkg002', componentResourceId: 'cmp002' },
+			toPackageId: 'pkg001',
+			toIndex: 2,
+		},
+	];
+	t.deepEqual(validateTransactionSupport(project, forward), []);
+	const moved = await roundTripCommittedProject(applyUamTransaction(project, forward));
+	const movedTarget = moved.packages.find((pkg) => pkg.id === 'pkg001')?.resources.find((resource) => resource.id === 'cmp002');
+	const movedHost = moved.packages.find((pkg) => pkg.id === 'pkg002')?.resources.find((resource) => resource.id === 'cmp003');
+	t.is(movedTarget?.kind, 'component');
+	if (movedHost?.kind !== 'component') {
+		t.fail('expected moved host component');
+		return;
+	}
+	const movedReference = movedHost.component.displayList.find((node) => node.id === 'component-ref');
+	t.is(movedReference?.kind, 'component');
+	if (movedReference?.kind === 'component') {
+		t.deepEqual(movedReference.resource, { packageId: 'pkg001', resourceId: 'cmp002' });
+	}
+
+	const inverse: UamTransactionOperation[] = [
+		{
+			kind: 'detachDisplayNode',
+			selector: { packageId: 'pkg002', componentResourceId: 'cmp003', displayNodeId: 'component-ref' },
+		},
+		{
+			kind: 'attachDisplayNode',
+			selector: { packageId: 'pkg002', componentResourceId: 'cmp003' },
+			atIndex: 0,
+			node: originalReference,
+		},
+		{
+			kind: 'moveComponent',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp002' },
+			toPackageId: 'pkg002',
+			toIndex: 0,
+		},
+	];
+	const restored = await roundTripCommittedProject(applyUamTransaction(moved, inverse));
+	const restoredPackage = restored.packages.find((pkg) => pkg.id === 'pkg002');
+	const restoredTarget = restoredPackage?.resources.find((resource) => resource.id === 'cmp002');
+	const restoredHost = restoredPackage?.resources.find((resource) => resource.id === 'cmp003');
+	if (restoredTarget?.kind !== 'component' || restoredHost?.kind !== 'component') {
+		t.fail('expected restored components');
+		return;
+	}
+	t.deepEqual(restoredHost.component.displayList.find((node) => node.id === 'component-ref'), originalReference);
+
+	const unsafeRemove = validateTransactionSupport(restored, [{
+		kind: 'removeComponent',
+		selector: { packageId: 'pkg002', componentResourceId: 'cmp002' },
+	}]);
+	t.true(unsafeRemove.some((issue) => issue.code === 'component_referenced'));
+	const implicitReplace = validateTransactionSupport(restored, [
+		{ kind: 'removeComponent', selector: { packageId: 'pkg002', componentResourceId: 'cmp002' } },
+		{ kind: 'addComponent', selector: { packageId: 'pkg002' }, component: restoredTarget, atIndex: 0 },
+	]);
+	t.true(implicitReplace.some((issue) => issue.code === 'component_referenced'));
+
+	const removed = await roundTripCommittedProject(applyUamTransaction(restored, [
+		{
+			kind: 'detachDisplayNode',
+			selector: { packageId: 'pkg002', componentResourceId: 'cmp003', displayNodeId: 'component-ref' },
+		},
+		{
+			kind: 'removeComponent',
+			selector: { packageId: 'pkg002', componentResourceId: 'cmp002' },
+		},
+	]));
+	t.false(removed.packages.find((pkg) => pkg.id === 'pkg002')?.resources.some((resource) => resource.id === 'cmp002') ?? true);
+
+	const restoredAfterRemove = await roundTripCommittedProject(applyUamTransaction(removed, [
+		{
+			kind: 'addComponent',
+			selector: { packageId: 'pkg002' },
+			component: restoredTarget,
+			atIndex: 0,
+		},
+		{
+			kind: 'attachDisplayNode',
+			selector: { packageId: 'pkg002', componentResourceId: 'cmp003' },
+			atIndex: 0,
+			node: originalReference,
+		},
+	]));
+	const reattachedHost = restoredAfterRemove.packages.find((pkg) => pkg.id === 'pkg002')?.resources.find((resource) => resource.id === 'cmp003');
+	if (reattachedHost?.kind !== 'component') {
+		t.fail('expected reattached host component');
+		return;
+	}
+	t.deepEqual(reattachedHost.component.displayList.find((node) => node.id === 'component-ref'), originalReference);
+
+	const invalidReference = validateTransactionSupport(project, [
+		{
+			kind: 'addComponent',
+			selector: { packageId: 'pkg002' },
+			component: createLifecycleComponent('cmp004', 'Added'),
+			atIndex: 2,
+		},
+		{
+			kind: 'attachDisplayNode',
+			selector: { packageId: 'pkg002', componentResourceId: 'cmp003' },
+			atIndex: 1,
+			node: { ...originalReference, id: 'missing-component-ref', resource: { packageId: 'pkg002', resourceId: 'missing' } },
+		},
+	]);
+	t.true(invalidReference.some((issue) => issue.code === 'invalid_component_reference'));
+});
+
 test('resource writes clean only explicit prior project sources and commit their current paths', async (t) => {
 	const io = new NodeIO();
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-uam-lifecycle-'));

@@ -6,6 +6,7 @@ import { ProjectReader } from '@openfairygui/core/project-io';
 import {
 	liftDocumentToUamProject,
 	normalizeUamProject,
+	type UamComponentRefNode,
 	type UamComponentResource,
 	type UamGearBinding,
 	type UamPackage,
@@ -199,6 +200,13 @@ function findDisplayNode(project: UamProject, target: ReturnType<typeof findGear
 	return component.component.displayList.find((node) => node.id === target.displayNodeId) ?? null;
 }
 
+function findComponent(project: UamProject, packageId: string, componentResourceId: string): UamComponentResource | null {
+	const resource = project.packages
+		.find((pkg) => pkg.id === packageId)
+		?.resources.find((candidate) => candidate.id === componentResourceId);
+	return resource?.kind === 'component' ? resource : null;
+}
+
 function createLifecyclePackage(): UamPackage {
 	return {
 		id: 'pkg002',
@@ -208,11 +216,11 @@ function createLifecyclePackage(): UamPackage {
 	};
 }
 
-function createLifecycleComponent(): UamComponentResource {
+function createLifecycleComponent(id = 'cmp002', name = 'Popup'): UamComponentResource {
 	return {
 		kind: 'component',
-		id: 'cmp002',
-		name: 'Popup',
+		id,
+		name,
 		path: '/',
 		exported: true,
 		branch: '',
@@ -474,6 +482,202 @@ test('browser-safe sessions materialize package and component lifecycle operatio
 		liftDocumentToUamProject(await new ProjectReader(fileSystem).read('Lifecycle/Project.fairy')),
 	);
 	t.false(removedReload.packages.some((pkg) => pkg.id === 'pkg002'));
+});
+
+test('real LayaBox UAM sessions persist atomic component lifecycle rewrites in browser storage', async (t) => {
+	const storage = new MemoryBrowserStorage();
+	const sourceRoot = 'LayaBoxInput';
+	await copyDirectoryToStorage(storage, path.dirname(LAYABOX_PROJECT_PATH), sourceRoot);
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const reader = new ProjectReader(fileSystem);
+	const inputFairyPath = `${sourceRoot}/${path.basename(LAYABOX_PROJECT_PATH)}`;
+	const input = normalizeUamProject(liftDocumentToUamProject(await reader.read(inputFairyPath, { hydrateResourceBytes: true })));
+	const destination = input.packages[0];
+	if (!destination) {
+		t.fail('expected a LayaBox package destination');
+		return;
+	}
+
+	const sourcePackage: UamPackage = {
+		id: 'issue9pkg',
+		name: 'Issue9',
+		publish: null,
+		resources: [],
+	};
+	const movable = createLifecycleComponent('issue9cmp', 'Issue9Movable');
+	const host = createLifecycleComponent('issue9host', 'Issue9Host');
+	host.component.displayList = [];
+	const originalReference: UamComponentRefNode = {
+		kind: 'component',
+		id: 'issue9-ref',
+		name: 'issue9-ref',
+		position: { x: 0, y: 0 },
+		size: { width: 80, height: 24 },
+		visible: true,
+		touchable: true,
+		grayed: false,
+		alpha: 1,
+		rotation: 0,
+		customData: '',
+		relations: [],
+		gears: [],
+		resource: { packageId: sourcePackage.id, resourceId: movable.id },
+	};
+	const runtime = new BackendRuntime();
+	const outputFairyPath = 'LayaBoxOutput/Project.fairy';
+	const opened = runtime.openProjectSession({
+		project: input,
+		storage: { fileSystem, fairyPath: outputFairyPath },
+	});
+	t.true(opened.ok);
+	if (!opened.ok) return;
+
+	let revision = 0;
+	try {
+		const added = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: revision,
+			operations: [
+				{ kind: 'addPackage', package: sourcePackage, atIndex: input.packages.length },
+				{ kind: 'addComponent', selector: { packageId: sourcePackage.id }, component: movable, atIndex: 0 },
+				{ kind: 'addComponent', selector: { packageId: sourcePackage.id }, component: host, atIndex: 1 },
+				{
+					kind: 'attachDisplayNode',
+					selector: { packageId: sourcePackage.id, componentResourceId: host.id },
+					atIndex: 0,
+					node: originalReference,
+				},
+			],
+		});
+		t.true(added.ok);
+		if (!added.ok) return;
+		revision = added.data.revision;
+		t.true((await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: revision })).ok);
+
+		const moved = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: revision,
+			operations: [
+				{
+					kind: 'detachDisplayNode',
+					selector: { packageId: sourcePackage.id, componentResourceId: host.id, displayNodeId: originalReference.id },
+				},
+				{
+					kind: 'attachDisplayNode',
+					selector: { packageId: sourcePackage.id, componentResourceId: host.id },
+					atIndex: 0,
+					node: { ...originalReference, resource: { packageId: destination.id, resourceId: movable.id } },
+				},
+				{
+					kind: 'moveComponent',
+					selector: { packageId: sourcePackage.id, componentResourceId: movable.id },
+					toPackageId: destination.id,
+					toIndex: destination.resources.length,
+				},
+			],
+		});
+		t.true(moved.ok);
+		if (!moved.ok) return;
+		revision = moved.data.revision;
+		t.true((await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: revision })).ok);
+		const movedReload = normalizeUamProject(liftDocumentToUamProject(await reader.read(outputFairyPath, { hydrateResourceBytes: true })));
+		t.is(findComponent(movedReload, destination.id, movable.id)?.kind, 'component');
+		const movedReference = findComponent(movedReload, sourcePackage.id, host.id)?.component.displayList.find((node) => node.id === originalReference.id);
+		if (movedReference?.kind === 'component') {
+			t.deepEqual(movedReference.resource, { packageId: destination.id, resourceId: movable.id });
+		} else {
+			t.fail('expected moved LayaBox component reference');
+			return;
+		}
+
+		const restored = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: revision,
+			operations: [
+				{
+					kind: 'detachDisplayNode',
+					selector: { packageId: sourcePackage.id, componentResourceId: host.id, displayNodeId: originalReference.id },
+				},
+				{
+					kind: 'attachDisplayNode',
+					selector: { packageId: sourcePackage.id, componentResourceId: host.id },
+					atIndex: 0,
+					node: originalReference,
+				},
+				{
+					kind: 'moveComponent',
+					selector: { packageId: destination.id, componentResourceId: movable.id },
+					toPackageId: sourcePackage.id,
+					toIndex: 0,
+				},
+			],
+		});
+		t.true(restored.ok);
+		if (!restored.ok) return;
+		revision = restored.data.revision;
+		t.true((await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: revision })).ok);
+		const restoredReload = normalizeUamProject(liftDocumentToUamProject(await reader.read(outputFairyPath, { hydrateResourceBytes: true })));
+		t.is(findComponent(restoredReload, sourcePackage.id, movable.id)?.kind, 'component');
+
+		const unsafeRemove = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: revision,
+			operations: [{
+				kind: 'removeComponent',
+				selector: { packageId: sourcePackage.id, componentResourceId: movable.id },
+			}],
+		});
+		t.false(unsafeRemove.ok);
+
+		const removed = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: revision,
+			operations: [
+				{
+					kind: 'detachDisplayNode',
+					selector: { packageId: sourcePackage.id, componentResourceId: host.id, displayNodeId: originalReference.id },
+				},
+				{
+					kind: 'removeComponent',
+					selector: { packageId: sourcePackage.id, componentResourceId: movable.id },
+				},
+			],
+		});
+		t.true(removed.ok);
+		if (!removed.ok) return;
+		revision = removed.data.revision;
+		t.true((await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: revision })).ok);
+		const removedReload = normalizeUamProject(liftDocumentToUamProject(await reader.read(outputFairyPath, { hydrateResourceBytes: true })));
+		t.is(findComponent(removedReload, sourcePackage.id, movable.id), null);
+
+		const restoredAfterRemove = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: revision,
+			operations: [
+				{ kind: 'addComponent', selector: { packageId: sourcePackage.id }, component: movable, atIndex: 0 },
+				{
+					kind: 'attachDisplayNode',
+					selector: { packageId: sourcePackage.id, componentResourceId: host.id },
+					atIndex: 0,
+					node: originalReference,
+				},
+			],
+		});
+		t.true(restoredAfterRemove.ok);
+		if (!restoredAfterRemove.ok) return;
+		revision = restoredAfterRemove.data.revision;
+		t.true((await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: revision })).ok);
+		const finalReload = normalizeUamProject(liftDocumentToUamProject(await reader.read(outputFairyPath, { hydrateResourceBytes: true })));
+		t.is(findComponent(finalReload, sourcePackage.id, movable.id)?.kind, 'component');
+		const finalReference = findComponent(finalReload, sourcePackage.id, host.id)?.component.displayList.find((node) => node.id === originalReference.id);
+		if (finalReference?.kind === 'component') {
+			t.deepEqual(finalReference.resource, originalReference.resource);
+		} else {
+			t.fail('expected restored LayaBox component reference');
+		}
+	} finally {
+		await runtime.closeSession({ sessionId: opened.data.sessionId });
+	}
 });
 
 test('browser-safe save failure keeps the prior resource source file intact', async (t) => {

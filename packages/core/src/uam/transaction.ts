@@ -303,6 +303,7 @@ export type UamTransactionSupportIssueCode =
 	| 'duplicate_package_name'
 	| 'invalid_package_index'
 	| 'invalid_component_selector'
+	| 'invalid_component_reference'
 	| 'invalid_component_payload'
 	| 'duplicate_component_id'
 	| 'invalid_component_index'
@@ -396,6 +397,11 @@ type UamLifecycleOperation = Extract<
 	{ kind: 'addPackage' | 'renamePackage' | 'removePackage' | 'addComponent' | 'removeComponent' | 'moveComponent' }
 >;
 
+type UamDisplayListRewriteOperation = Extract<
+	UamTransactionOperation,
+	{ kind: 'attachDisplayNode' | 'detachDisplayNode' }
+>;
+
 function isLifecycleOperation(operation: UamTransactionOperation): operation is UamLifecycleOperation {
 	return operation.kind === 'addPackage'
 		|| operation.kind === 'renamePackage'
@@ -405,8 +411,14 @@ function isLifecycleOperation(operation: UamTransactionOperation): operation is 
 		|| operation.kind === 'moveComponent';
 }
 
+function isDisplayListRewriteOperation(operation: UamTransactionOperation): operation is UamDisplayListRewriteOperation {
+	return operation.kind === 'attachDisplayNode' || operation.kind === 'detachDisplayNode';
+}
+
 function isUamNativeOperation(operation: UamTransactionOperation): boolean {
-	return operation.kind === 'setDisplayNodeProps' || isLifecycleOperation(operation);
+	return operation.kind === 'setDisplayNodeProps'
+		|| isLifecycleOperation(operation)
+		|| isDisplayListRewriteOperation(operation);
 }
 
 function pushSupportIssue(
@@ -638,6 +650,36 @@ function applyUamLifecycleOperation(project: UamProject, operation: UamLifecycle
 			assertInsertionIndex(operation.toIndex, target.resources.length, 'moveComponent.toIndex');
 			source.resources.splice(sourceIndex, 1);
 			target.resources.splice(operation.toIndex, 0, component);
+			return;
+		}
+	}
+}
+
+function applyUamDisplayListRewriteOperation(project: UamProject, operation: UamDisplayListRewriteOperation): void {
+	switch (operation.kind) {
+		case 'attachDisplayNode': {
+			const component = findComponentSpec(project, operation.selector);
+			if (!component) {
+				throw new Error(`Component "${operation.selector.componentResourceId}" was not found in package "${operation.selector.packageId}".`);
+			}
+			if (component.component.displayList.some((node) => node.id === operation.node.id)) {
+				throw new Error(`attachDisplayNode target component "${component.id}" already contains node id "${operation.node.id}".`);
+			}
+			assertInsertionIndex(operation.atIndex, component.component.displayList.length, 'attachDisplayNode.atIndex');
+			component.component.displayList.splice(
+				operation.atIndex,
+				0,
+				structuredClone(withDefaultOwnPackageRef(operation.selector.packageId, operation.node)),
+			);
+			return;
+		}
+		case 'detachDisplayNode': {
+			const found = findDisplayNodeSpecWithPath(project, operation.selector);
+			if (!found) {
+				throw new Error(`Display node "${operation.selector.displayNodeId}" was not found in component "${operation.selector.componentResourceId}".`);
+			}
+			const nodeIndex = found.component.component.displayList.indexOf(found.node);
+			found.component.component.displayList.splice(nodeIndex, 1);
 			return;
 		}
 	}
@@ -1570,21 +1612,32 @@ function nodeReferencesPackage(node: UamDisplayNode, ownerPackageId: string, pac
 	return !!derivedNode.src && (derivedNode.packageId || ownerPackageId) === packageId;
 }
 
+function getComponentReference(
+	node: UamDisplayNode,
+	ownerPackageId: string,
+): { packageId: string; componentId: string } | null {
+	if (node.kind === 'component') {
+		return {
+			packageId: node.resource.packageId ?? ownerPackageId,
+			componentId: node.resource.resourceId,
+		};
+	}
+	const derivedNode = node as UamDisplayNode & { packageId?: string; src?: string };
+	if (!derivedNode.src) return null;
+	return {
+		packageId: derivedNode.packageId || ownerPackageId,
+		componentId: derivedNode.src,
+	};
+}
+
 function nodeReferencesComponent(
 	node: UamDisplayNode,
 	ownerPackageId: string,
 	packageId: string,
 	componentId: string,
 ): boolean {
-	const resourceNode = node as UamDisplayNode & { resource?: { packageId?: string; resourceId?: string } };
-	if (
-		resourceNode.resource?.resourceId === componentId
-		&& (resourceNode.resource.packageId ?? ownerPackageId) === packageId
-	) {
-		return true;
-	}
-	const derivedNode = node as UamDisplayNode & { packageId?: string; src?: string };
-	return derivedNode.src === componentId && (derivedNode.packageId || ownerPackageId) === packageId;
+	const reference = getComponentReference(node, ownerPackageId);
+	return reference?.packageId === packageId && reference.componentId === componentId;
 }
 
 function findExternalPackageReference(project: UamProject, packageId: string): string | null {
@@ -1626,14 +1679,112 @@ function findComponentPackageDependency(component: UamComponentResource, package
 	return null;
 }
 
+function findComponentPackageByIdentity(project: UamProject, component: UamComponentResource): UamPackage | null {
+	return project.packages.find((pkg) => pkg.resources.some((resource) => resource === component)) ?? null;
+}
+
+function projectContainsDisplayNode(project: UamProject, target: UamDisplayNode): boolean {
+	return project.packages.some((pkg) => pkg.resources.some((resource) => (
+		resource.kind === 'component' && resource.component.displayList.includes(target)
+	)));
+}
+
+type UamLifecycleReferenceCheck =
+	| {
+		kind: 'removePackage';
+		packageId: string;
+		path: string;
+		operationKind: 'removePackage';
+	}
+	| {
+		kind: 'removeComponent';
+		packageId: string;
+		componentId: string;
+		path: string;
+		operationKind: 'removeComponent';
+	}
+	| {
+		kind: 'moveComponent';
+		component: UamComponentResource;
+		sourcePackageId: string;
+		path: string;
+		operationKind: 'moveComponent';
+	}
+	| {
+		kind: 'attachDisplayNode';
+		node: UamDisplayNode;
+		ownerPackageId: string;
+		path: string;
+		operationKind: 'attachDisplayNode';
+	};
+
+function validateLifecycleReferenceChecks(
+	project: UamProject,
+	checks: UamLifecycleReferenceCheck[],
+	issues: UamTransactionSupportIssue[],
+): void {
+	for (const check of checks) {
+		switch (check.kind) {
+			case 'removePackage': {
+				const referencePath = findExternalPackageReference(project, check.packageId);
+				if (referencePath) {
+					pushSupportIssue(issues, 'package_referenced', check.path, `Package "${check.packageId}" is still referenced by ${referencePath}.`, { operationKind: check.operationKind });
+				}
+				break;
+			}
+			case 'removeComponent': {
+				const referencePath = findExternalComponentReference(project, check.packageId, check.componentId);
+				if (referencePath) {
+					pushSupportIssue(issues, 'component_referenced', check.path, `Component "${check.componentId}" is still referenced by ${referencePath}.`, { operationKind: check.operationKind });
+				}
+				break;
+			}
+			case 'moveComponent': {
+				const finalPackage = findComponentPackageByIdentity(project, check.component);
+				if (!finalPackage || finalPackage.id === check.sourcePackageId) break;
+				const referencePath = findExternalComponentReference(project, check.sourcePackageId, check.component.id);
+				if (referencePath) {
+					pushSupportIssue(issues, 'component_referenced', check.path, `Component "${check.component.id}" is still referenced by ${referencePath}.`, { operationKind: check.operationKind });
+				}
+				const dependencyPath = findComponentPackageDependency(check.component, check.sourcePackageId, check.path);
+				if (dependencyPath) {
+					pushSupportIssue(issues, 'component_has_package_dependencies', dependencyPath, `Component "${check.component.id}" still resolves display resources from package "${check.sourcePackageId}".`, { operationKind: check.operationKind });
+				}
+				break;
+			}
+			case 'attachDisplayNode': {
+				if (!projectContainsDisplayNode(project, check.node)) break;
+				const reference = getComponentReference(check.node, check.ownerPackageId);
+				if (!reference || findComponentSpec(project, {
+					packageId: reference.packageId,
+					componentResourceId: reference.componentId,
+				})) break;
+				const referencePath = check.node.kind === 'component'
+					? `${check.path}.resource.resourceId`
+					: `${check.path}.src`;
+				pushSupportIssue(
+					issues,
+					'invalid_component_reference',
+					referencePath,
+					`Display node "${check.node.id}" references missing component "${reference.packageId}/${reference.componentId}".`,
+					{ operationKind: check.operationKind },
+				);
+				break;
+			}
+		}
+	}
+}
+
 function validateLifecycleOperationPayloads(
 	project: UamProject,
 	operations: UamTransactionOperation[],
 	issues: UamTransactionSupportIssue[],
 ): void {
 	const projected = normalizeUamProject(project);
+	const referenceChecks: UamLifecycleReferenceCheck[] = [];
+	const initialIssueCount = issues.length;
 	for (const [operationIndex, operation] of operations.entries()) {
-		if (!isLifecycleOperation(operation)) continue;
+		if (!isLifecycleOperation(operation) && !isDisplayListRewriteOperation(operation)) continue;
 		const operationPath = `operations[${operationIndex}]`;
 		const issueCount = issues.length;
 		switch (operation.kind) {
@@ -1659,13 +1810,7 @@ function validateLifecycleOperationPayloads(
 				break;
 			}
 			case 'removePackage': {
-				const pkg = validateLifecyclePackageSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
-				if (pkg) {
-					const referencePath = findExternalPackageReference(projected, pkg.id);
-					if (referencePath) {
-						pushSupportIssue(issues, 'package_referenced', `${operationPath}.selector`, `Package "${pkg.id}" is still referenced by ${referencePath}.`, { operationKind: operation.kind });
-					}
-				}
+				validateLifecyclePackageSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
 				break;
 			}
 			case 'addComponent': {
@@ -1680,13 +1825,7 @@ function validateLifecycleOperationPayloads(
 				break;
 			}
 			case 'removeComponent': {
-				const component = validateLifecycleComponentSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
-				if (component) {
-					const referencePath = findExternalComponentReference(projected, operation.selector.packageId, component.id);
-					if (referencePath) {
-						pushSupportIssue(issues, 'component_referenced', `${operationPath}.selector`, `Component "${component.id}" is still referenced by ${referencePath}.`, { operationKind: operation.kind });
-					}
-				}
+				validateLifecycleComponentSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
 				break;
 			}
 			case 'moveComponent': {
@@ -1703,19 +1842,94 @@ function validateLifecycleOperationPayloads(
 						pushSupportIssue(issues, 'duplicate_component_id', `${operationPath}.selector.componentResourceId`, `Resource id "${component.id}" already exists in package "${target.id}".`, { operationKind: operation.kind });
 					}
 					validateLifecycleInsertionIndex(operation.toIndex, target.resources.length, `${operationPath}.toIndex`, 'invalid_component_index', issues, operation.kind);
-					const referencePath = findExternalComponentReference(projected, operation.selector.packageId, component.id);
-					if (referencePath) {
-						pushSupportIssue(issues, 'component_referenced', `${operationPath}.selector`, `Component "${component.id}" is still referenced by ${referencePath}.`, { operationKind: operation.kind });
-					}
-					const dependencyPath = findComponentPackageDependency(component, operation.selector.packageId, `${operationPath}.selector`);
-					if (dependencyPath) {
-						pushSupportIssue(issues, 'component_has_package_dependencies', dependencyPath, `Component "${component.id}" still resolves display resources from package "${operation.selector.packageId}".`, { operationKind: operation.kind });
+				}
+				break;
+			}
+			case 'attachDisplayNode': {
+				const component = validateLifecycleComponentSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				if (!Number.isInteger(operation.atIndex) || operation.atIndex < 0) {
+					pushSupportIssue(
+						issues,
+						'invalid_attach_index',
+						`${operationPath}.atIndex`,
+						'attachDisplayNode.atIndex must be a non-negative integer.',
+						{ operationKind: operation.kind },
+					);
+				}
+				validateSupportedDisplayNode(operation.node, operation.selector.packageId, `${operationPath}.node`, issues, {
+					operationKind: operation.kind,
+				});
+				if (component && Number.isInteger(operation.atIndex) && operation.atIndex >= 0) {
+					if (component.component.displayList.some((node) => node.id === operation.node.id)) {
+						pushSupportIssue(issues, 'invalid_display_node_selector', `${operationPath}.node.id`, `Component "${component.id}" already contains display node id "${operation.node.id}".`, { operationKind: operation.kind });
+					} else if (operation.atIndex > component.component.displayList.length) {
+						pushSupportIssue(issues, 'invalid_attach_index', `${operationPath}.atIndex`, `attachDisplayNode.atIndex must be between 0 and ${component.component.displayList.length}.`, { operationKind: operation.kind });
 					}
 				}
 				break;
 			}
+			case 'detachDisplayNode':
+				validateTouchedDisplayNodeKind(projected, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
+				break;
 		}
-		if (issues.length === issueCount) applyUamLifecycleOperation(projected, operation);
+		if (issues.length !== issueCount) continue;
+		if (isLifecycleOperation(operation)) {
+			applyUamLifecycleOperation(projected, operation);
+		} else {
+			applyUamDisplayListRewriteOperation(projected, operation);
+		}
+		switch (operation.kind) {
+			case 'removePackage':
+				referenceChecks.push({
+					kind: 'removePackage',
+					packageId: operation.selector.packageId,
+					path: `${operationPath}.selector`,
+					operationKind: operation.kind,
+				});
+				break;
+			case 'removeComponent':
+				referenceChecks.push({
+					kind: 'removeComponent',
+					packageId: operation.selector.packageId,
+					componentId: operation.selector.componentResourceId,
+					path: `${operationPath}.selector`,
+					operationKind: operation.kind,
+				});
+				break;
+			case 'moveComponent': {
+				const component = findComponentSpec(projected, {
+					packageId: operation.toPackageId,
+					componentResourceId: operation.selector.componentResourceId,
+				});
+				if (component) {
+					referenceChecks.push({
+						kind: 'moveComponent',
+						component,
+						sourcePackageId: operation.selector.packageId,
+						path: `${operationPath}.selector`,
+						operationKind: operation.kind,
+					});
+				}
+				break;
+			}
+			case 'attachDisplayNode': {
+				const component = findComponentSpec(projected, operation.selector);
+				const node = component?.component.displayList.find((candidate) => candidate.id === operation.node.id);
+				if (node) {
+					referenceChecks.push({
+						kind: 'attachDisplayNode',
+						node,
+						ownerPackageId: operation.selector.packageId,
+						path: `${operationPath}.node`,
+						operationKind: operation.kind,
+					});
+				}
+				break;
+			}
+		}
+	}
+	if (issues.length === initialIssueCount) {
+		validateLifecycleReferenceChecks(projected, referenceChecks, issues);
 	}
 }
 
@@ -1724,20 +1938,21 @@ function validateLifecycleBatchCompatibility(
 	issues: UamTransactionSupportIssue[],
 ): boolean {
 	if (!operations.some(isLifecycleOperation)) return true;
-	const nonLifecycleIndex = operations.findIndex((operation) => !isLifecycleOperation(operation));
+	const nonLifecycleIndex = operations.findIndex((operation) => !isLifecycleOperation(operation) && !isDisplayListRewriteOperation(operation));
 	if (nonLifecycleIndex < 0) return true;
 	const operation = operations[nonLifecycleIndex]!;
 	pushSupportIssue(
 		issues,
 		'unsupported_operation_batch',
 		`operations[${nonLifecycleIndex}].kind`,
-		`Lifecycle operations may only be batched with lifecycle operations; "${operation.kind}" must be committed separately.`,
+		`Lifecycle operations may only be batched with lifecycle operations or display-list rewrites; "${operation.kind}" must be committed separately.`,
 		{ operationKind: operation.kind },
 	);
 	return false;
 }
 
 function validateOperationPayloads(project: UamProject, operations: UamTransactionOperation[], issues: UamTransactionSupportIssue[]): void {
+	const hasLifecycleOperation = operations.some(isLifecycleOperation);
 	for (const [operationIndex, operation] of operations.entries()) {
 		const operationPath = `operations[${operationIndex}]`;
 		switch (operation.kind) {
@@ -1794,6 +2009,7 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 				validateDisplayPropsPayload(operation, project, operationPath, issues);
 				break;
 			case 'attachDisplayNode':
+				if (hasLifecycleOperation) break;
 				if (!Number.isInteger(operation.atIndex) || operation.atIndex < 0) {
 					pushSupportIssue(
 						issues,
@@ -1808,6 +2024,7 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 				});
 				break;
 			case 'detachDisplayNode':
+				if (hasLifecycleOperation) break;
 				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
 				break;
 			case 'addController':
@@ -1882,7 +2099,9 @@ export function validateTransactionSupport(
 	}
 	const lifecycleOnly = validateLifecycleBatchCompatibility(operations, issues);
 	validateOperationPayloads(project, operations, issues);
-	if (lifecycleOnly) validateLifecycleOperationPayloads(project, operations, issues);
+	if (lifecycleOnly && operations.some(isLifecycleOperation)) {
+		validateLifecycleOperationPayloads(project, operations, issues);
+	}
 	return issues;
 }
 
@@ -1943,7 +2162,8 @@ function isTextLikeDisplayNode(node: UamDisplayNode): node is UamTextLikeDisplay
 }
 
 function canApplyOperationsInUam(operations: UamTransactionOperation[]): boolean {
-	return operations.every(isUamNativeOperation);
+	return operations.every(isUamNativeOperation)
+		&& (!operations.some(isDisplayListRewriteOperation) || operations.some(isLifecycleOperation));
 }
 
 function applyDisplayNodePropsUpdate(node: UamDisplayNode, props: UamDisplayNodePropsUpdate): void {
@@ -1987,6 +2207,10 @@ function applyUamNativeOperation(project: UamProject, operation: UamTransactionO
 		case 'removeComponent':
 		case 'moveComponent':
 			applyUamLifecycleOperation(project, operation);
+			return;
+		case 'attachDisplayNode':
+		case 'detachDisplayNode':
+			applyUamDisplayListRewriteOperation(project, operation);
 			return;
 		default:
 			throw new Error(`UAM-native transaction path does not support operation "${operation.kind}".`);
