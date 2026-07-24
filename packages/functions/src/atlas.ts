@@ -429,12 +429,13 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 
 		for (const pkg of root.listPackages()) {
 			if (packageFilter && !packageFilter.has(pkg.getName())) continue;
-			// Respect publish-selected resources when publish() precomputes a merged branch view.
-			const selectedPublishIds = new Set(
-				((pkg.getExtras() as PackageAtlasExtras | undefined) ?? {}).publishedResourceIds ?? [],
-			);
+			// Publish annotations select merged resources; only strict output treats an empty selection as explicit.
+			const publishedResourceIds = (pkg.getExtras() as PackageAtlasExtras | undefined)?.publishedResourceIds;
+			const selectedPublishIds = new Set(publishedResourceIds);
+			const hasPublishSelection =
+				publishedResourceIds !== undefined && (options.strictOutput || selectedPublishIds.size > 0);
 			const allResources =
-				selectedPublishIds.size > 0
+				hasPublishSelection
 					? pkg.listResources().filter((resource) => selectedPublishIds.has(resource.getId()))
 					: pkg.listResources();
 			const skeletonDependencyImageIds = getSelectedSkeletonDependencyImageIds(allResources);

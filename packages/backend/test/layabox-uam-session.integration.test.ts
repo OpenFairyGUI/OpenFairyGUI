@@ -163,7 +163,7 @@ test('real LayaBox UIProject supports browser-safe UAM session edit with undo an
 	t.deepEqual(undoNode.position, originalNode.position);
 });
 
-test('real LayaBox UIProject supports file-backed UAM save, reload, and publish', async (t) => {
+test('real LayaBox UIProject rejects lossy file-backed UAM saves before writing', async (t) => {
 	const sourceRoot = path.dirname(LAYABOX_PROJECT_PATH);
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-layabox-uam-save-'));
 	const projectRoot = path.join(tmpDir, 'UIProject');
@@ -173,6 +173,7 @@ test('real LayaBox UIProject supports file-backed UAM save, reload, and publish'
 
 	try {
 		await fs.cp(sourceRoot, projectRoot, { recursive: true });
+		const originalFairy = await fs.readFile(fairyPath);
 
 		const io = new NodeIO();
 		const doc = await io.readProject(fairyPath);
@@ -198,6 +199,7 @@ test('real LayaBox UIProject supports file-backed UAM save, reload, and publish'
 		const opened = await runtime.openSession({ projectPath: projectRoot });
 		t.true(opened.ok);
 		if (!opened.ok) return;
+		t.is(opened.data.uamFidelity, 'unsupported');
 		sessionId = opened.data.sessionId;
 
 		const applied = await runtime.applyTransaction({
@@ -228,8 +230,12 @@ test('real LayaBox UIProject supports file-backed UAM save, reload, and publish'
 		if (!applied.ok) return;
 
 		const saved = await runtime.saveSession({ sessionId });
-		t.true(saved.ok);
-		if (!saved.ok) return;
+		t.false(saved.ok);
+		if (!saved.ok) {
+			t.is(saved.error.code, 'uam_fidelity_unsupported');
+			t.deepEqual(await fs.readFile(fairyPath), originalFairy);
+			return;
+		}
 		t.false(saved.data.dirty);
 		t.is(saved.data.lastSavedRevision, 1);
 

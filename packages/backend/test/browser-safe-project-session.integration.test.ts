@@ -469,11 +469,12 @@ test('bound browser storage is not replaced by a saveSession filesystem override
 	}
 });
 
-test('browser-safe LayaBox storage sessions persist resource bytes and non-look gears through reload', async (t) => {
+test('browser-safe LayaBox storage sessions reject lossy UAM saves before touching storage', async (t) => {
 	const storage = new MemoryBrowserStorage();
 	const projectRoot = 'LayaBoxProject';
 	const fairyPath = `${projectRoot}/${path.basename(LAYABOX_PROJECT_PATH)}`;
 	await copyDirectoryToStorage(storage, path.dirname(LAYABOX_PROJECT_PATH), projectRoot);
+	const originalFairy = await storage.readFileRaw(fairyPath);
 
 	const fileSystem = createBackendStorageFileSystem(storage);
 	const reader = new ProjectReader(fileSystem);
@@ -504,6 +505,7 @@ test('browser-safe LayaBox storage sessions persist resource bytes and non-look 
 		const opened = await runtime.openSession({ projectPath: projectRoot });
 		t.true(opened.ok);
 		if (!opened.ok) return;
+		t.is(opened.data.uamFidelity, 'unsupported');
 		sessionId = opened.data.sessionId;
 		let revision = opened.data.revision;
 
@@ -535,8 +537,12 @@ test('browser-safe LayaBox storage sessions persist resource bytes and non-look 
 		if (!appliedRename.ok) return;
 		revision = appliedRename.data.revision;
 		const renamedSave = await runtime.saveSession({ sessionId, expectedRevision: revision });
-		t.true(renamedSave.ok);
-		if (!renamedSave.ok) return;
+		t.false(renamedSave.ok);
+		if (!renamedSave.ok) {
+			t.is(renamedSave.error.code, 'uam_fidelity_unsupported');
+			t.deepEqual(await storage.readFileRaw(fairyPath), originalFairy);
+			return;
+		}
 
 		const renamedReload = normalizeUamProject(liftDocumentToUamProject(await reader.read(fairyPath, { hydrateResourceBytes: true })));
 		const renamedImage = renamedReload.packages
