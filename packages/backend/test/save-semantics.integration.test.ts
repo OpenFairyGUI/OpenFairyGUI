@@ -1,5 +1,7 @@
-import test from 'ava';
+import fs from 'node:fs/promises';
 import path from 'node:path';
+import test from 'ava';
+import { createNodeBackendFileSystem } from '../src/node.js';
 import { createBackendRuntime, createFailingFileSystem, createTempBackendProject } from './helpers.js';
 
 test('saveSession success updates lastSavedRevision and clears dirty state', async (t) => {
@@ -9,6 +11,7 @@ test('saveSession success updates lastSavedRevision and clears dirty state', asy
 		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(opened.ok);
 		if (!opened.ok) return;
+		t.is(opened.data.uamFidelity, 'full');
 
 		const applied = await runtime.applyTransaction({
 			sessionId: opened.data.sessionId,
@@ -95,13 +98,150 @@ test('materializeSession reports write_failed and keeps session dirty state stab
 		t.is(materializeFailure.error.code, 'write_failed');
 		if (materializeFailure.error.code === 'write_failed') {
 			t.true(materializeFailure.error.diskMayBePartiallyUpdated);
-			t.true(materializeFailure.error.failedPaths.some((filePath) => filePath.endsWith(`${path.sep}package.xml`)));
+			t.true(
+				materializeFailure.error.failedPaths.some((filePath) => filePath.endsWith(`${path.sep}package.xml`)),
+			);
 			t.is(materializeFailure.error.lastSavedRevision, 0);
 			t.is(materializeFailure.error.diagnostics[0]?.operationKind, 'materializeSession');
 		}
 		t.false(materializeFailure.session?.dirty ?? true);
 		t.is(materializeFailure.session?.lastSavedRevision, 0);
 		t.is(materializeFailure.meta.diagnostics[0]?.code, 'write_failed');
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
+test('file sessions reject lossy UAM writeback before touching disk', async (t) => {
+	const fixture = await createTempBackendProject();
+	try {
+		const componentPath = path.join(fixture.rootDir, 'assets', 'Main', 'MainView.xml');
+		const source = (await fs.readFile(componentPath, 'utf8')).replace(
+			'<component ',
+			'<component overflow="scroll" ',
+		);
+		await fs.writeFile(componentPath, source);
+
+		const runtime = createBackendRuntime();
+		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
+		t.true(opened.ok);
+		if (!opened.ok) return;
+		t.is(opened.data.uamFidelity, 'unsupported');
+
+		const applied = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: 0,
+			operations: [
+				{
+					kind: 'setDisplayNodeProps',
+					selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+					props: { text: 'Must not be written' },
+				},
+			],
+		});
+		t.true(applied.ok);
+		if (!applied.ok) return;
+
+		const saved = await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: 1 });
+		t.false(saved.ok);
+		if (!saved.ok) t.is(saved.error.code, 'uam_fidelity_unsupported');
+
+		const materialized = await runtime.materializeSession({
+			sessionId: opened.data.sessionId,
+			expectedRevision: 1,
+			mode: 'fullProject',
+		});
+		t.false(materialized.ok);
+		if (!materialized.ok) t.is(materialized.error.code, 'uam_fidelity_unsupported');
+		t.is(await fs.readFile(componentPath, 'utf8'), source);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
+test('saveSession serializes a concurrent transaction behind the saved revision', async (t) => {
+	const fixture = await createTempBackendProject();
+	try {
+		const base = createNodeBackendFileSystem();
+		let releaseWrite = (): void => undefined;
+		const writeGate = new Promise<void>((resolve) => {
+			releaseWrite = resolve;
+		});
+		let signalWriteStarted = (): void => undefined;
+		const writeStarted = new Promise<void>((resolve) => {
+			signalWriteStarted = resolve;
+		});
+		let delayNextWrite = true;
+		const delayedFileSystem = {
+			...base,
+			async writeFile(filePath: string, content: string): Promise<void> {
+				if (delayNextWrite) {
+					delayNextWrite = false;
+					signalWriteStarted();
+					await writeGate;
+				}
+				await base.writeFile(filePath, content);
+			},
+		};
+		const runtime = createBackendRuntime({ fileSystem: delayedFileSystem });
+		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
+		t.true(opened.ok);
+		if (!opened.ok) return;
+
+		const first = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: 0,
+			operations: [
+				{
+					kind: 'setDisplayNodeProps',
+					selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+					props: { text: 'Saved revision' },
+				},
+			],
+		});
+		t.true(first.ok);
+		if (!first.ok) return;
+
+		const saving = runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: 1 });
+		await writeStarted;
+		let transactionSettled = false;
+		const applying = runtime
+			.applyTransaction({
+				sessionId: opened.data.sessionId,
+				expectedRevision: 1,
+				operations: [
+					{
+						kind: 'setDisplayNodeProps',
+						selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+						props: { text: 'Queued revision' },
+					},
+				],
+			})
+			.finally(() => {
+				transactionSettled = true;
+			});
+		await Promise.resolve();
+		t.false(transactionSettled);
+
+		releaseWrite();
+		const saved = await saving;
+		const second = await applying;
+		t.true(saved.ok);
+		if (saved.ok) {
+			t.is(saved.data.revision, 1);
+			t.is(saved.data.lastSavedRevision, 1);
+			t.false(saved.data.dirty);
+		}
+		t.true(second.ok);
+		if (second.ok) {
+			t.is(second.data.revision, 2);
+			t.is(second.data.lastSavedRevision, 1);
+			t.true(second.data.dirty);
+		}
+
+		const componentXml = await fs.readFile(path.join(fixture.rootDir, 'assets', 'Main', 'MainView.xml'), 'utf8');
+		t.true(componentXml.includes('Saved revision'));
+		t.false(componentXml.includes('Queued revision'));
 	} finally {
 		await fixture.cleanup();
 	}

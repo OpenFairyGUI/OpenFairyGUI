@@ -181,6 +181,7 @@ export interface BackendSessionSnapshot {
 	revision: number;
 	lastSavedRevision: number;
 	dirty: boolean;
+	uamFidelity: 'full' | 'unsupported';
 	lockHeld: boolean;
 	capabilities: BackendCapabilities;
 }
@@ -253,6 +254,13 @@ export interface SavePartialFailureError {
 	committedPaths: string[];
 	failedPaths: string[];
 	diskMayBePartiallyUpdated: true;
+}
+
+export interface UamFidelityUnsupportedError {
+	code: 'uam_fidelity_unsupported';
+	message: string;
+	sessionId: string;
+	canonicalPathKey: string;
 }
 
 export interface MaterializeValidationFailedError {
@@ -458,6 +466,7 @@ export type BackendError =
 	| InProcessLockConflictError
 	| AdvisoryLockConflictError
 	| SavePartialFailureError
+	| UamFidelityUnsupportedError
 	| MaterializeValidationFailedError
 	| MaterializeWriteFailedError
 	| PathPolicyViolationError
@@ -704,12 +713,15 @@ export class BackendRuntime {
 		return this.authoringService.applyTransaction(input);
 	}
 
-	public async saveSession(input: SaveSessionInput): Promise<
+	public async saveSession(
+		input: SaveSessionInput,
+	): Promise<
 		BackendResult<
 			BackendSessionSnapshot | MaterializeSessionSnapshot,
 			| SessionNotFoundError
 			| SessionStaleWriteError
 			| SavePartialFailureError
+			| UamFidelityUnsupportedError
 			| MaterializeValidationFailedError
 			| MaterializeWriteFailedError
 			| PathPolicyViolationError
@@ -720,11 +732,14 @@ export class BackendRuntime {
 		return this.authoringService.saveSession(input);
 	}
 
-	public async materializeSession(input: MaterializeSessionInput): Promise<
+	public async materializeSession(
+		input: MaterializeSessionInput,
+	): Promise<
 		BackendResult<
 			MaterializeSessionSnapshot,
 			| SessionNotFoundError
 			| SessionStaleWriteError
+			| UamFidelityUnsupportedError
 			| MaterializeValidationFailedError
 			| MaterializeWriteFailedError
 			| PathPolicyViolationError

@@ -7,13 +7,17 @@ import type {
 import type { BackendSessionState } from './context.js';
 import { cloneCapabilitiesSnapshot } from './snapshot-utils.js';
 
-export function toSessionSnapshot(session: BackendSessionState, capabilities: BackendCapabilities): BackendSessionSnapshot {
+export function toSessionSnapshot(
+	session: BackendSessionState,
+	capabilities: BackendCapabilities,
+): BackendSessionSnapshot {
 	return {
 		sessionId: session.sessionId,
 		canonicalProjectPath: session.canonicalProjectPath,
 		revision: session.revision,
 		lastSavedRevision: session.lastSavedRevision,
 		dirty: session.dirty,
+		uamFidelity: session.uamFidelity,
 		lockHeld: session.lockHeld,
 		capabilities: cloneCapabilitiesSnapshot(capabilities),
 	};

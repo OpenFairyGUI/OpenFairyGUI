@@ -72,7 +72,11 @@ rename/move, byte-backed binary resource add/replace/remove, and add/update/remo
 the currently modeled gear kinds; it is still not a general editing backend. Read source
 projects with `ProjectReader.read(path, { hydrateResourceBytes: true })` before binary
 resource editing. File-backed `BackendRuntime.openSession` performs that hydration
-automatically.
+automatically. It also compares the source project with the complete output of a UAM round trip.
+If persisted properties are not represented by the current UAM, the session reports
+`uamFidelity: 'unsupported'` and `saveSession / materializeSession` fail with
+`uam_fidelity_unsupported` without writing. Transactions, saves, and materialization are serialized
+per session.
 
 ```ts
 import {

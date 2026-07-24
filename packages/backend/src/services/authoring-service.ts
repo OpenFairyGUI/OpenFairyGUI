@@ -1,9 +1,13 @@
-import { ProjectWriter, type FileSystem, type ProjectSourceFile } from '@openfairygui/core/project-io';
-import { commitUamProjectSourcePaths, materializeUamProject, validateUamProject, type UamProject } from '@openfairygui/core/uam';
-import { applyUamTransactionApp, type ApplyUamTransactionAppError } from '@openfairygui/functions/uam';
-import type { CacheService } from './cache-service.js';
-import { failure, success, type BackendContext } from './context.js';
-import type { EventService } from './event-service.js';
+import { type FileSystem, type ProjectSourceFile, ProjectWriter } from '@openfairygui/core/project-io';
+import {
+	commitUamProjectSourcePaths,
+	materializeUamProject,
+	type UamProject,
+	validateUamProject,
+} from '@openfairygui/core/uam';
+import { type ApplyUamTransactionAppError, applyUamTransactionApp } from '@openfairygui/functions/uam';
+import type { BackendDiagnostic } from '../contracts.js';
+import { normalizeComparablePath, type PathPolicyViolationError, validateSaveTarget } from '../path-policy.js';
 import type {
 	ApplySessionTransactionInput,
 	BackendCapabilityUnavailableError,
@@ -15,13 +19,15 @@ import type {
 	MaterializeSessionSnapshot,
 	MaterializeValidationFailedError,
 	MaterializeWriteFailedError,
-	SaveSessionInput,
 	SavePartialFailureError,
+	SaveSessionInput,
 	SessionNotFoundError,
 	SessionStaleWriteError,
+	UamFidelityUnsupportedError,
 } from '../runtime.js';
-import type { BackendDiagnostic } from '../contracts.js';
-import { normalizeComparablePath, validateSaveTarget, type PathPolicyViolationError } from '../path-policy.js';
+import type { CacheService } from './cache-service.js';
+import { type BackendContext, failure, success } from './context.js';
+import type { EventService } from './event-service.js';
 import { createSessionNotFoundError, createStaleWriteError, toSessionSnapshot } from './session-utils.js';
 
 function createWriterFileSystem(
@@ -92,10 +98,12 @@ function projectAssetSourceFiles(project: UamProject): Map<string, ProjectSource
 			if (resource.kind === 'component') continue;
 			const fileName = resource.fileName ?? resource.file ?? '';
 			if (!fileName) continue;
-			result.set(
-				`${pkg.id}/${resource.id}`,
-				{ packageName: pkg.name, branch: resource.branch, path: resource.path, fileName },
-			);
+			result.set(`${pkg.id}/${resource.id}`, {
+				packageName: pkg.name,
+				branch: resource.branch,
+				path: resource.path,
+				fileName,
+			});
 		}
 	}
 	return result;
@@ -126,15 +134,15 @@ function toBackendDiagnostics(error: ApplyUamTransactionAppError): BackendDiagno
 	return error.diagnostics.length > 0
 		? error.diagnostics.map((diagnostic) => ({ ...diagnostic }))
 		: [
-			{
-				code: error.code,
-				message: error.message,
-				severity: 'error',
-				operationKind: error.operationKind,
-				opIndex: error.opIndex,
-				opId: error.opId,
-			},
-		];
+				{
+					code: error.code,
+					message: error.message,
+					severity: 'error',
+					operationKind: error.operationKind,
+					opIndex: error.opIndex,
+					opId: error.opId,
+				},
+			];
 }
 
 function createCapabilityUnavailableError(message: string): BackendCapabilityUnavailableError {
@@ -143,6 +151,17 @@ function createCapabilityUnavailableError(message: string): BackendCapabilityUna
 		message,
 		capability: 'fileSystem',
 		requiredAdapter: 'BackendFileSystem',
+	};
+}
+
+function createUamFidelityUnsupportedError(
+	session: Parameters<typeof toSessionSnapshot>[0],
+): UamFidelityUnsupportedError {
+	return {
+		code: 'uam_fidelity_unsupported',
+		message: 'The source project contains formal properties that the current UAM cannot preserve.',
+		sessionId: session.sessionId,
+		canonicalPathKey: session.canonicalPathKey,
 	};
 }
 
@@ -195,13 +214,43 @@ function storageCanonicalTarget(input: NonNullable<MaterializeSessionInput['stor
 }
 
 export class AuthoringService {
+	private readonly sessionOperations = new Map<string, Promise<void>>();
+
 	public constructor(
 		private readonly context: BackendContext,
 		private readonly cacheService: CacheService,
 		private readonly eventService: EventService,
 	) {}
 
+	private async runSessionExclusive<T>(sessionId: string, operation: () => Promise<T>): Promise<T> {
+		const previous = this.sessionOperations.get(sessionId) ?? Promise.resolve();
+		let release = (): void => undefined;
+		const current = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const tail = previous.then(() => current);
+		this.sessionOperations.set(sessionId, tail);
+		await previous;
+		try {
+			return await operation();
+		} finally {
+			release();
+			if (this.sessionOperations.get(sessionId) === tail) this.sessionOperations.delete(sessionId);
+		}
+	}
+
 	public async applyTransaction(
+		input: ApplySessionTransactionInput,
+	): Promise<
+		BackendResult<
+			BackendSessionSnapshot,
+			SessionNotFoundError | SessionStaleWriteError | ApplyUamTransactionAppError
+		>
+	> {
+		return this.runSessionExclusive(input.sessionId, () => this.applyTransactionExclusive(input));
+	}
+
+	private async applyTransactionExclusive(
 		input: ApplySessionTransactionInput,
 	): Promise<
 		BackendResult<
@@ -284,12 +333,15 @@ export class AuthoringService {
 		});
 	}
 
-	public async saveSession(input: SaveSessionInput): Promise<
+	public async saveSession(
+		input: SaveSessionInput,
+	): Promise<
 		BackendResult<
 			BackendSessionSnapshot | MaterializeSessionSnapshot,
 			| SessionNotFoundError
 			| SessionStaleWriteError
 			| SavePartialFailureError
+			| UamFidelityUnsupportedError
 			| MaterializeValidationFailedError
 			| MaterializeWriteFailedError
 			| PathPolicyViolationError
@@ -307,6 +359,25 @@ export class AuthoringService {
 				reason: 'force_save',
 			});
 		}
+		return this.runSessionExclusive(input.sessionId, () => this.saveSessionExclusive(input));
+	}
+
+	private async saveSessionExclusive(
+		input: SaveSessionInput,
+	): Promise<
+		BackendResult<
+			BackendSessionSnapshot | MaterializeSessionSnapshot,
+			| SessionNotFoundError
+			| SessionStaleWriteError
+			| SavePartialFailureError
+			| UamFidelityUnsupportedError
+			| MaterializeValidationFailedError
+			| MaterializeWriteFailedError
+			| PathPolicyViolationError
+			| InProcessLockConflictError
+			| BackendCapabilityUnavailableError
+		>
+	> {
 		const startedAt = Date.now();
 		const session = this.context.sessions.get(input.sessionId);
 		if (!session || session.closed) {
@@ -317,9 +388,7 @@ export class AuthoringService {
 			return failure(
 				'authoring',
 				startedAt,
-				createCapabilityUnavailableError(
-					'saveSession requires an injected BackendFileSystem adapter.',
-				),
+				createCapabilityUnavailableError('saveSession requires an injected BackendFileSystem adapter.'),
 				toSessionSnapshot(session, this.context.capabilities),
 				{
 					sessionId: session.sessionId,
@@ -357,6 +426,18 @@ export class AuthoringService {
 				sessionId: session.sessionId,
 				revision: session.revision,
 			});
+		}
+		if (session.uamFidelity === 'unsupported') {
+			return failure(
+				'authoring',
+				startedAt,
+				createUamFidelityUnsupportedError(session),
+				toSessionSnapshot(session, this.context.capabilities),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+				},
+			);
 		}
 
 		const committedPaths: string[] = [];
@@ -426,11 +507,32 @@ export class AuthoringService {
 		}
 	}
 
-	public async materializeSession(input: MaterializeSessionInput): Promise<
+	public async materializeSession(
+		input: MaterializeSessionInput,
+	): Promise<
 		BackendResult<
 			MaterializeSessionSnapshot,
 			| SessionNotFoundError
 			| SessionStaleWriteError
+			| UamFidelityUnsupportedError
+			| MaterializeValidationFailedError
+			| MaterializeWriteFailedError
+			| PathPolicyViolationError
+			| InProcessLockConflictError
+			| BackendCapabilityUnavailableError
+		>
+	> {
+		return this.runSessionExclusive(input.sessionId, () => this.materializeSessionExclusive(input));
+	}
+
+	private async materializeSessionExclusive(
+		input: MaterializeSessionInput,
+	): Promise<
+		BackendResult<
+			MaterializeSessionSnapshot,
+			| SessionNotFoundError
+			| SessionStaleWriteError
+			| UamFidelityUnsupportedError
 			| MaterializeValidationFailedError
 			| MaterializeWriteFailedError
 			| PathPolicyViolationError
@@ -457,14 +559,13 @@ export class AuthoringService {
 		}
 
 		const storageTarget = input.storage ? storageCanonicalTarget(input.storage) : null;
-		const fileSystem = storageTarget?.fileSystem ?? input.fileSystem ?? session.fileSystem ?? this.context.fileSystem;
+		const fileSystem =
+			storageTarget?.fileSystem ?? input.fileSystem ?? session.fileSystem ?? this.context.fileSystem;
 		if (!fileSystem) {
 			return failure(
 				'authoring',
 				startedAt,
-				createCapabilityUnavailableError(
-					'materializeSession requires an injected BackendFileSystem adapter.',
-				),
+				createCapabilityUnavailableError('materializeSession requires an injected BackendFileSystem adapter.'),
 				toSessionSnapshot(session, this.context.capabilities),
 				{
 					sessionId: session.sessionId,
@@ -510,6 +611,19 @@ export class AuthoringService {
 			}
 		}
 
+		if (session.uamFidelity === 'unsupported') {
+			return failure(
+				'authoring',
+				startedAt,
+				createUamFidelityUnsupportedError(session),
+				toSessionSnapshot(session, this.context.capabilities),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+				},
+			);
+		}
+
 		const diagnostics = validationDiagnostics(session.project);
 		if (diagnostics.length > 0) {
 			const error: MaterializeValidationFailedError = {
@@ -520,17 +634,11 @@ export class AuthoringService {
 				issueCount: diagnostics.length,
 				diagnostics,
 			};
-			return failure(
-				'authoring',
-				startedAt,
-				error,
-				toSessionSnapshot(session, this.context.capabilities),
-				{
-					sessionId: session.sessionId,
-					revision: session.revision,
-					diagnostics,
-				},
-			);
+			return failure('authoring', startedAt, error, toSessionSnapshot(session, this.context.capabilities), {
+				sessionId: session.sessionId,
+				revision: session.revision,
+				diagnostics,
+			});
 		}
 
 		let document: ReturnType<typeof materializeUamProject>;

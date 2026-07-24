@@ -39,6 +39,9 @@ can clean up stale source files. The default Node filesystem/runtime lives under
 File-backed `openSession` hydrates primary resource bytes so browser-safe transactions can rename/move
 assets or add/replace/remove binary resources. `saveSession` writes replacement bytes before it removes
 stale source files, preserving the prior file when a write fails.
+It also compares the source project with a UAM round trip through `ProjectWriter`; sessions with
+unrepresented persisted properties expose `uamFidelity: 'unsupported'`, and write attempts fail with
+`uam_fidelity_unsupported`. Transactions, saves, and materialization are serialized per session.
 
 ## Relationship to other packages
 

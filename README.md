@@ -71,6 +71,9 @@ await publishNode({
 add/replace/remove，以及当前建模 gear 的 add/update/remove；它仍不等价于通用编辑后端。
 资源编辑前请通过 `ProjectReader.read(path, { hydrateResourceBytes: true })` 读取工程；file-backed
 `BackendRuntime.openSession` 会自动执行该水合。
+file-backed session 还会比较原工程与 UAM 往返后的完整写出结果；若存在当前 UAM 未建模的持久化属性，
+session 会标记为 `uamFidelity: 'unsupported'`，`saveSession / materializeSession` 返回
+`uam_fidelity_unsupported` 而不写盘。同一 session 的 transaction、save 与 materialize 按队列串行执行。
 
 ```ts
 import {

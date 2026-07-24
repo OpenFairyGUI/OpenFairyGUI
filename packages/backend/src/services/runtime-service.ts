@@ -1,20 +1,25 @@
-import { ProjectReader, type FileSystem } from '@openfairygui/core/project-io';
-import { liftDocumentToUamProject, normalizeUamProject } from '@openfairygui/core/uam';
-import { failure, success, type BackendContext, type BackendSessionState } from './context.js';
-import type { CacheService } from './cache-service.js';
-import type { EventService } from './event-service.js';
-import type { JobService } from './job-service.js';
+import { type FileSystem, ProjectReader, ProjectWriter } from '@openfairygui/core/project-io';
+import {
+	liftDocumentToUamProject,
+	materializeUamProject,
+	normalizeUamProject,
+	type UamProject,
+} from '@openfairygui/core/uam';
+import { normalizeComparablePath, resolveCanonicalProjectRoot } from '../path-policy.js';
 import type {
 	AdvisoryLockConflictError,
+	BackendCapabilityUnavailableError,
 	BackendFileHandle,
 	BackendResult,
 	BackendSessionSnapshot,
-	BackendCapabilityUnavailableError,
 	InProcessLockConflictError,
 	OpenProjectSessionInput,
 	SessionNotFoundError,
 } from '../runtime.js';
-import { normalizeComparablePath, resolveCanonicalProjectRoot } from '../path-policy.js';
+import type { CacheService } from './cache-service.js';
+import { type BackendContext, type BackendSessionState, failure, success } from './context.js';
+import type { EventService } from './event-service.js';
+import type { JobService } from './job-service.js';
 import { createSessionNotFoundError, toSessionSnapshot } from './session-utils.js';
 
 function randomId(): string {
@@ -74,6 +79,82 @@ function createProjectReaderFileSystem(fileSystem: NonNullable<BackendContext['f
 	};
 }
 
+function createCaptureFileSystem(files: Map<string, string | Uint8Array>): FileSystem {
+	const normalize = (filePath: string): string => filePath.replace(/\\/g, '/').replace(/\/+/g, '/');
+	return {
+		async readFile(filePath: string): Promise<string> {
+			const value = files.get(normalize(filePath));
+			if (typeof value !== 'string') throw new Error(`Captured text file was not found: ${filePath}`);
+			return value;
+		},
+		async readFileRaw(filePath: string): Promise<Uint8Array> {
+			const value = files.get(normalize(filePath));
+			if (!(value instanceof Uint8Array)) throw new Error(`Captured binary file was not found: ${filePath}`);
+			return value.slice();
+		},
+		async writeFile(filePath: string, content: string): Promise<void> {
+			files.set(normalize(filePath), content);
+		},
+		async writeFileRaw(filePath: string, data: Uint8Array): Promise<void> {
+			files.set(normalize(filePath), data.slice());
+		},
+		async mkdir(): Promise<void> {},
+		async readdir(): Promise<string[]> {
+			return [];
+		},
+		async exists(filePath: string): Promise<boolean> {
+			return files.has(normalize(filePath));
+		},
+		join(...paths: string[]): string {
+			return normalize(paths.filter(Boolean).join('/'));
+		},
+		dirname(filePath: string): string {
+			const normalized = normalize(filePath);
+			const separator = normalized.lastIndexOf('/');
+			return separator < 0 ? '' : normalized.slice(0, separator);
+		},
+		async unlink(filePath: string): Promise<void> {
+			files.delete(normalize(filePath));
+		},
+	};
+}
+
+function capturedFilesEqual(left: Map<string, string | Uint8Array>, right: Map<string, string | Uint8Array>): boolean {
+	if (left.size !== right.size) return false;
+	for (const [filePath, leftValue] of left) {
+		const rightValue = right.get(filePath);
+		if (typeof leftValue === 'string') {
+			if (leftValue !== rightValue) return false;
+			continue;
+		}
+		if (!(rightValue instanceof Uint8Array) || leftValue.length !== rightValue.length) return false;
+		for (let index = 0; index < leftValue.length; index += 1) {
+			if (leftValue[index] !== rightValue[index]) return false;
+		}
+	}
+	return true;
+}
+
+async function hasFullUamFidelity(
+	document: Awaited<ReturnType<ProjectReader['read']>>,
+	project: UamProject,
+): Promise<boolean> {
+	const sourceFiles = new Map<string, string | Uint8Array>();
+	const materializedFiles = new Map<string, string | Uint8Array>();
+	try {
+		await Promise.all([
+			new ProjectWriter(createCaptureFileSystem(sourceFiles)).write(document, 'Project.fairy'),
+			new ProjectWriter(createCaptureFileSystem(materializedFiles)).write(
+				materializeUamProject(project),
+				'Project.fairy',
+			),
+		]);
+	} catch {
+		return false;
+	}
+	return capturedFilesEqual(sourceFiles, materializedFiles);
+}
+
 export class RuntimeService {
 	public constructor(
 		private readonly context: BackendContext,
@@ -129,7 +210,8 @@ export class RuntimeService {
 			await advisoryLock.close();
 
 			const reader = new ProjectReader(createProjectReaderFileSystem(fileSystem));
-			const project = liftDocumentToUamProject(await reader.read(fairyPath, { hydrateResourceBytes: true }));
+			const document = await reader.read(fairyPath, { hydrateResourceBytes: true });
+			const project = liftDocumentToUamProject(document);
 			const sessionId = randomId();
 			const session: BackendSessionState = {
 				sessionId,
@@ -139,6 +221,7 @@ export class RuntimeService {
 				lockFilePath,
 				fileSystem,
 				project,
+				uamFidelity: (await hasFullUamFidelity(document, project)) ? 'full' : 'unsupported',
 				revision: 0,
 				lastSavedRevision: 0,
 				pendingStaleSourceFiles: new Map(),
@@ -178,12 +261,14 @@ export class RuntimeService {
 		const sessionId = input.sessionId ?? randomId();
 		const storage = input.storage;
 		const memoryProjectPath = `memory://${sessionId}`;
-		const canonicalProjectPath = storage?.canonicalProjectPath
-			?? input.canonicalProjectPath
-			?? (storage ? storage.fileSystem.dirname(storage.fairyPath) || '.' : memoryProjectPath);
-		const canonicalPathKey = storage?.canonicalPathKey
-			?? input.canonicalPathKey
-			?? (storage ? normalizeComparablePath(canonicalProjectPath) : canonicalProjectPath.toLowerCase());
+		const canonicalProjectPath =
+			storage?.canonicalProjectPath ??
+			input.canonicalProjectPath ??
+			(storage ? storage.fileSystem.dirname(storage.fairyPath) || '.' : memoryProjectPath);
+		const canonicalPathKey =
+			storage?.canonicalPathKey ??
+			input.canonicalPathKey ??
+			(storage ? normalizeComparablePath(canonicalProjectPath) : canonicalProjectPath.toLowerCase());
 		const existingSessionId = this.context.sessionsByPath.get(canonicalPathKey);
 		if (existingSessionId) {
 			return failure('runtime', startedAt, {
@@ -203,6 +288,7 @@ export class RuntimeService {
 			lockFilePath: '',
 			fileSystem: storage?.fileSystem,
 			project: normalizeUamProject(input.project),
+			uamFidelity: 'full',
 			revision: 0,
 			lastSavedRevision: 0,
 			pendingStaleSourceFiles: new Map(),

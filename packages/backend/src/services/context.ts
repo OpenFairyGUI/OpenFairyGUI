@@ -1,3 +1,11 @@
+import {
+	BACKEND_CAPABILITY_SCHEMA_VERSION,
+	BACKEND_CONTRACT_VERSION,
+	type BackendDiagnostic,
+	type BackendMessage,
+	type BackendResponseMeta,
+	type BackendStage,
+} from '../contracts.js';
 import type {
 	BackendCacheEntry,
 	BackendCapabilities,
@@ -10,14 +18,6 @@ import type {
 	BackendSessionSnapshot,
 	BackendSuccess,
 } from '../runtime.js';
-import {
-	BACKEND_CAPABILITY_SCHEMA_VERSION,
-	BACKEND_CONTRACT_VERSION,
-	type BackendDiagnostic,
-	type BackendMessage,
-	type BackendResponseMeta,
-	type BackendStage,
-} from '../contracts.js';
 
 export interface BackendSessionState {
 	sessionId: string;
@@ -27,6 +27,7 @@ export interface BackendSessionState {
 	lockFilePath: string;
 	fileSystem?: BackendFileSystem;
 	project: import('@openfairygui/core/uam').UamProject;
+	uamFidelity: 'full' | 'unsupported';
 	revision: number;
 	lastSavedRevision: number;
 	/** Source files deferred until a successful replacement project write. */
