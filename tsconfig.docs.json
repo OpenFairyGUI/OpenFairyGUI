@@ -1,0 +1,13 @@
+{
+	"extends": "./tsconfig.json",
+	"include": [
+		"packages/core/src/**/*.ts",
+		"packages/functions/src/**/*.ts",
+		"packages/backend/src/**/*.ts",
+		"packages/mcp/src/**/*.ts"
+	],
+	"exclude": [
+		"packages/*/test/**",
+		"packages/*/test/fixtures/**"
+	]
+}

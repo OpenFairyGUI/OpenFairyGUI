@@ -22,6 +22,12 @@
 		"test": "ava --no-worker-threads",
 		"test:debug": "ava debug --no-worker-threads",
 		"coverage": "c8 --reporter=lcov --reporter=text pnpm test -- --tap",
+		"docs:api": "typedoc",
+		"predocs:build": "pnpm docs:api",
+		"predocs:dev": "pnpm docs:api",
+		"docs:build": "vitepress build docs",
+		"docs:dev": "vitepress dev docs",
+		"docs:preview": "vitepress preview docs",
 		"lint": "biome lint packages",
 		"lint:ci": "biome lint packages"
 	},
@@ -32,8 +38,10 @@
 		"c8": "^11.0.0",
 		"lerna": "^8.2.0",
 		"tsdown": "^0.21.5",
+		"typedoc": "^0.28.20",
 		"tsx": "^4.21.0",
-		"typescript": "^5.9.0"
+		"typescript": "^5.9.0",
+		"vitepress": "^1.6.4"
 	},
 	"ava": {
 		"extensions": {

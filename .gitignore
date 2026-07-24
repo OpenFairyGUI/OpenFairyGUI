@@ -24,6 +24,9 @@ coverage/
 .nyc_output/
 .turbo/
 *.tsbuildinfo
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+docs/public/api/
 
 # OS files
 .DS_Store

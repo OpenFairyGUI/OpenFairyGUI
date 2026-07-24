@@ -1,0 +1,26 @@
+{
+	"entryPoints": [
+		"packages/core/src/index.ts",
+		"packages/core/src/node.ts",
+		"packages/core/src/project-io.ts",
+		"packages/core/src/uam/index.ts",
+		"packages/core/src/web.ts",
+		"packages/functions/src/index.ts",
+		"packages/functions/src/node.ts",
+		"packages/functions/src/uam-transaction.ts",
+		"packages/functions/src/web.ts",
+		"packages/backend/src/index.ts",
+		"packages/backend/src/node.ts",
+		"packages/mcp/src/index.ts",
+		"packages/mcp/src/stdio.ts"
+	],
+	"entryPointStrategy": "resolve",
+	"excludeInternal": true,
+	"excludePrivate": true,
+	"excludeProtected": true,
+	"name": "OpenFairyGUI API",
+	"out": "docs/public/api",
+	"readme": "none",
+	"skipErrorChecking": true,
+	"tsconfig": "tsconfig.docs.json"
+}

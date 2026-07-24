@@ -243,6 +243,8 @@ pnpm dev:cli --help
 
 Implementation reference documents are currently maintained in Chinese. Start from [docs/README.md](./docs/README.md).
 
+The static documentation site renders the `docs/` content directly. Use `pnpm docs:dev` for a local preview and `pnpm docs:build` to generate the API Reference and site output.
+
 | Document | Description |
 |---|---|
 | [Architecture Overview](./docs/architecture-overview.md) | Package responsibilities, module boundaries, and core data flow |

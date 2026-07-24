@@ -237,6 +237,8 @@ pnpm dev:cli --help
 
 当前实现口径文档以中文维护，入口见 [docs/README.md](./docs/README.md)。
 
+静态文档站直接渲染 `docs/` 内容：使用 `pnpm docs:dev` 本地预览，使用 `pnpm docs:build` 生成 API Reference 与站点产物。
+
 | 文档 | 说明 |
 |---|---|
 | [架构图说明](./docs/architecture-overview.md) | 包职责、模块边界、核心数据流 |
