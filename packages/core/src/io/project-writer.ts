@@ -1886,7 +1886,15 @@ export class ProjectWriter {
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.vAlign, vAlignName[vAlign] ?? 'top');
 			}
 			const lineCount = typedObj.getLineCount?.() ?? 0;
-			if (lineCount !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineCount, String(lineCount));
+			const columnCount = typedObj.getColumnCount?.() ?? 0;
+			if ((layout === 2 || layout === 4) && columnCount !== 0) {
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineItemCount, String(columnCount));
+			} else if (layout === 3 && lineCount !== 0) {
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineItemCount, String(lineCount));
+			}
+			if (layout === 4 && lineCount !== 0) {
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineItemCount2, String(lineCount));
+			}
 			if (typedObj.getAutoResizeItem?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.autoResizeItem, 'false');
 			const selectionMode = typedObj.getSelectionMode?.();
 			if (selectionMode !== undefined && selectionMode !== 0) {

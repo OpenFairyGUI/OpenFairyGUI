@@ -366,6 +366,9 @@ interface DisplayObjectXmlNode extends Record<string, unknown> {
 	columnGap?: string | number;
 	colGap?: string | number;
 	lineItemCount?: string | number;
+	lineItemCount2?: string | number;
+	lineCount?: string | number;
+	columnCount?: string | number;
 	autoItemSize?: string | boolean;
 	fill?: string;
 	shrinkOnly?: string | boolean;
@@ -2445,8 +2448,23 @@ export class ProjectReader {
 				if (lineGap !== undefined) g.setLineGap(parseInt2(lineGap));
 				const columnGap = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.columnGap);
 				if (columnGap !== undefined) g.setColumnGap(parseInt2(columnGap));
-				const lineCount = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineCount);
-				if (lineCount !== undefined) g.setLineCount?.(parseInt2(lineCount));
+				const legacyLineCount = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineCount);
+				if (legacyLineCount !== undefined) g.setLineCount?.(parseInt2(legacyLineCount));
+				const legacyColumnCount = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.columnCount);
+				if (legacyColumnCount !== undefined) g.setColumnCount?.(parseInt2(legacyColumnCount));
+				const lineItemCount = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineItemCount);
+				const lineItemCount2 = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineItemCount2);
+				if (layout) {
+					const resolvedLayout = g.getLayout?.() ?? 0;
+					if (resolvedLayout === 2 || resolvedLayout === 4) {
+						if (lineItemCount !== undefined) g.setColumnCount?.(parseInt2(lineItemCount));
+					} else if (resolvedLayout === 3 && lineItemCount !== undefined) {
+						g.setLineCount?.(parseInt2(lineItemCount));
+					}
+					if (resolvedLayout === 4 && lineItemCount2 !== undefined) {
+						g.setLineCount?.(parseInt2(lineItemCount2));
+					}
+				}
 				const autoResizeItem = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.list.attrs.autoResizeItem);
 				if (autoResizeItem !== undefined) g.setAutoResizeItem?.(parseBool(autoResizeItem));
 				const selectionMode = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.selectionMode);
