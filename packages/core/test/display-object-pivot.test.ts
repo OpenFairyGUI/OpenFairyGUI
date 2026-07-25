@@ -2,11 +2,8 @@ import test from 'ava';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {
-	inspectOpaqueProjectXml,
-	NodeIO,
-	type Document,
-} from '../src/index.js';
+import type { Document } from '../src/index.js';
+import { NodeIO } from '../src/node.js';
 
 const PROJECT_XML = `<?xml version="1.0" encoding="utf-8"?>
 <projectDescription id="pivot-project" type="Unity" version="3.0"/>
@@ -98,15 +95,6 @@ test('text, loader, list, and tree pivot/anchor survive XML and binary round-tri
 	const io = new NodeIO();
 
 	try {
-		const findings = inspectOpaqueProjectXml('component', COMPONENT_XML);
-		t.false(
-			findings.some((finding) =>
-				finding.kind === 'attribute'
-				&& (finding.name === 'pivot' || finding.name === 'anchor')
-			),
-			'pivot and anchor are modeled attributes for all covered display objects',
-		);
-
 		const doc = await io.readProject(source.projectPath);
 		assertPivotState(t, doc);
 

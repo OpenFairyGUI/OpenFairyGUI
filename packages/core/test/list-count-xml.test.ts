@@ -2,7 +2,8 @@ import test from 'ava';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { Document, NodeIO } from '../src/index.js';
+import { Document } from '../src/index.js';
+import { NodeIO } from '../src/node.js';
 
 const PROJECT_XML = `<?xml version="1.0" encoding="utf-8"?>
 <projectDescription id="list-count-project" type="Unity" version="3.0"/>

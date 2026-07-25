@@ -1192,6 +1192,8 @@ test('round-trip: list scroll attrs and static items survive write→read', asyn
 	list.setLayout(4);
 	list.setLineGap(6);
 	list.setColumnGap(8);
+	list.setLineCount(5);
+	list.setColumnCount(3);
 	list.setSelectionMode(1);
 	list.setDefaultItem('ui://pkg003/item');
 	list.setOverflow(2);
@@ -1246,6 +1248,8 @@ test('round-trip: list scroll attrs and static items survive write→read', asyn
 		t.is(list2.getLayout(), 4);
 		t.is(list2.getLineGap(), 6);
 		t.is(list2.getColumnGap(), 8);
+		t.is(list2.getLineCount(), 5);
+		t.is(list2.getColumnCount(), 3);
 		t.is(list2.getSelectionMode(), 1);
 		t.is(list2.getDefaultItem(), 'ui://pkg003/item');
 		t.is(list2.getOverflow(), 2);
