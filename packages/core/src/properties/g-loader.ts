@@ -8,6 +8,7 @@ export interface IGLoader extends IGObject {
 	height: number;
 	pivotX: number;
 	pivotY: number;
+	anchor: boolean;
 	scaleX: number;
 	scaleY: number;
 	alpha: number;
@@ -53,6 +54,7 @@ export class GLoader extends GObject<IGLoader, PropertyType.G_LOADER> {
 			height: 0,
 			pivotX: 0,
 			pivotY: 0,
+			anchor: false,
 			scaleX: 1,
 			scaleY: 1,
 			alpha: 1,
@@ -106,10 +108,13 @@ export class GLoader extends GObject<IGLoader, PropertyType.G_LOADER> {
 
 	public getPivotX(): number { return this.get('pivotX'); }
 	public getPivotY(): number { return this.get('pivotY'); }
-	public setPivot(x: number, y: number): this {
+	public getPivotAsAnchor(): boolean { return this.get('anchor'); }
+	public setPivot(x: number, y: number, anchor = false): this {
 		this.set('pivotX', x);
-		return this.set('pivotY', y);
+		this.set('pivotY', y);
+		return this.set('anchor', anchor);
 	}
+	public setPivotAsAnchor(v: boolean): this { return this.set('anchor', v); }
 
 	public getScaleX(): number { return this.get('scaleX'); }
 	public getScaleY(): number { return this.get('scaleY'); }

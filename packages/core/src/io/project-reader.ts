@@ -1758,6 +1758,12 @@ export class ProjectReader {
 					const [w, h] = parseSizeString(textSize);
 					g.setSize(w, h);
 				}
+				const textPivot = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.pivot);
+				if (textPivot) {
+					const [pivotX, pivotY] = parseXYString(textPivot);
+					const textAnchor = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.anchor);
+					g.setPivot(pivotX, pivotY, parseBool(textAnchor));
+				}
 				const textRestrictSize = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.restrictSize);
 				if (textRestrictSize) {
 					const parts = textRestrictSize.split(',').map(Number);
@@ -1873,6 +1879,12 @@ export class ProjectReader {
 					const [w, h] = parseSizeString(richTextSize);
 					g.setSize(w, h);
 				}
+				const richTextPivot = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.richText.attrs.pivot);
+				if (richTextPivot) {
+					const [pivotX, pivotY] = parseXYString(richTextPivot);
+					const richTextAnchor = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.richText.attrs.anchor);
+					g.setPivot(pivotX, pivotY, parseBool(richTextAnchor));
+				}
 				const richTextRestrictSize = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.richText.attrs.restrictSize);
 				if (richTextRestrictSize) {
 					const parts = richTextRestrictSize.split(',').map(Number);
@@ -1957,6 +1969,12 @@ export class ProjectReader {
 				if (inputSize) {
 					const [w, h] = parseSizeString(inputSize);
 					g.setSize(w, h);
+				}
+				const inputPivot = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.pivot);
+				if (inputPivot) {
+					const [pivotX, pivotY] = parseXYString(inputPivot);
+					const inputAnchor = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.anchor);
+					g.setPivot(pivotX, pivotY, parseBool(inputAnchor));
 				}
 				const inputRestrictSize = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.restrictSize);
 				if (inputRestrictSize) {
@@ -2159,7 +2177,8 @@ export class ProjectReader {
 				const loaderPivot = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.pivot);
 				if (loaderPivot) {
 					const [pivotX, pivotY] = parseXYString(loaderPivot);
-					g.setPivot(pivotX, pivotY);
+					const loaderAnchor = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.anchor);
+					g.setPivot(pivotX, pivotY, parseBool(loaderAnchor));
 				}
 				const loaderScale = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.scale);
 				if (loaderScale) {
@@ -2400,6 +2419,12 @@ export class ProjectReader {
 				if (listSize) {
 					const [w, h] = parseSizeString(listSize);
 					g.setSize(w, h);
+				}
+				const listPivot = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.pivot);
+				if (listPivot) {
+					const [pivotX, pivotY] = parseXYString(listPivot);
+					const listAnchor = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.list.attrs.anchor);
+					g.setPivot(pivotX, pivotY, parseBool(listAnchor));
 				}
 				const listGroup = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.group);
 				if (listGroup) g.setGroup(listGroup);

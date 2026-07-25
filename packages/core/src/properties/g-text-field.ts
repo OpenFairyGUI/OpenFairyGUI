@@ -6,6 +6,9 @@ export interface IGTextField extends IGObject {
 	y: number;
 	width: number;
 	height: number;
+	pivotX: number;
+	pivotY: number;
+	anchor: boolean;
 	minWidth: number;
 	maxWidth: number;
 	minHeight: number;
@@ -72,6 +75,9 @@ export class GTextField<
 			y: 0,
 			width: 0,
 			height: 0,
+			pivotX: 0,
+			pivotY: 0,
+			anchor: false,
 			minWidth: 0,
 			maxWidth: 0,
 			minHeight: 0,
@@ -149,6 +155,16 @@ export class GTextField<
 	public setMaxHeight(v: number): this { return this.setTextFieldProp('maxHeight', v); }
 	public setX(v: number): this { return this.setTextFieldProp('x', v); }
 	public setY(v: number): this { return this.setTextFieldProp('y', v); }
+
+	public getPivotX(): number { return this.getTextFieldProp('pivotX'); }
+	public getPivotY(): number { return this.getTextFieldProp('pivotY'); }
+	public getPivotAsAnchor(): boolean { return this.getTextFieldProp('anchor'); }
+	public setPivot(x: number, y: number, anchor = false): this {
+		this.setTextFieldProp('pivotX', x);
+		this.setTextFieldProp('pivotY', y);
+		return this.setTextFieldProp('anchor', anchor);
+	}
+	public setPivotAsAnchor(v: boolean): this { return this.setTextFieldProp('anchor', v); }
 
 	public getGroup(): string { return this.getTextFieldProp('group'); }
 	public setGroup(v: string): this { return this.setTextFieldProp('group', v); }
