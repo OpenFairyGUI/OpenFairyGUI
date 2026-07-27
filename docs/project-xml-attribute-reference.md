@@ -213,10 +213,12 @@
 | `pivot` |  | pivot |
 | `anchor` |  | anchor |
 | `scale` |  | 缩放 |
+| `skew` |  | 倾斜，格式为 `x,y` |
 | `group` |  | 所属 group |
 | `rotation` |  | 旋转 |
 | `alpha` |  | 透明度 |
 | `visible` |  | 是否可见 |
+| `touchable` |  | 是否可触摸 |
 | `grayed` |  | 是否置灰 |
 | `pkg` |  | 资源包标识 |
 | `filter` |  | 滤镜类型 |
@@ -237,6 +239,7 @@
 | `alpha` |  | 透明度 |
 | `visible` |  | 是否可见 |
 | `touchable` |  | 是否可触摸 |
+| `grayed` |  | 是否置灰 |
 | `skew` |  | 倾斜 |
 | `type` |  | 图形类型 |
 | `lineSize` |  | 线宽 |
@@ -263,6 +266,7 @@
 | `rotation` |  | 旋转 |
 | `alpha` |  | 透明度 |
 | `visible` |  | 是否可见 |
+| `touchable` |  | 是否可触摸 |
 | `grayed` |  | 是否置灰 |
 | `fileName` |  | 资源文件名 |
 | `pkg` |  | 资源包标识 |
@@ -276,9 +280,13 @@
 | `xy` |  | 位置 |
 | `size` |  | 尺寸 |
 | `pivot` |  | pivot |
+| `anchor` |  | 是否以 pivot 作为坐标锚点 |
 | `scale` |  | 缩放 |
 | `group` |  | 所属 group |
+| `rotation` |  | 旋转 |
+| `alpha` |  | 透明度 |
 | `visible` |  | 是否可见 |
+| `touchable` |  | 是否可触摸 |
 | `grayed` |  | 是否置灰 |
 | `url` |  | 加载地址 |
 | `align` |  | 水平对齐 |
@@ -304,7 +312,11 @@
 |---|---|---|
 | `xy` |  | 位置 |
 | `size` |  | 尺寸 |
+| `rotation` |  | 旋转 |
+| `alpha` |  | 透明度 |
 | `visible` |  | 是否可见 |
+| `touchable` |  | 是否可触摸 |
+| `grayed` |  | 是否置灰 |
 | `url` |  | 加载地址 |
 | `align` |  | 水平对齐 |
 | `vAlign` |  | 垂直对齐 |
@@ -325,6 +337,8 @@
 | `xy` |  | 位置 |
 | `size` |  | 尺寸 |
 | `restrictSize` |  | 尺寸限制 |
+| `pivot` |  | pivot |
+| `anchor` |  | 是否以 pivot 作为坐标锚点 |
 | `customData` |  | 自定义数据 |
 | `group` |  | 所属 group |
 | `rotation` |  | 旋转 |
@@ -370,6 +384,9 @@
 | `xy` |  | 位置 |
 | `size` |  | 尺寸 |
 | `restrictSize` |  | 尺寸限制 |
+| `pivot` |  | pivot |
+| `anchor` |  | 是否以 pivot 作为坐标锚点 |
+| `customData` |  | 自定义数据 |
 | `group` |  | 所属 group |
 | `rotation` |  | 旋转 |
 | `alpha` |  | 透明度 |
@@ -413,6 +430,9 @@
 |---|---|---|
 | `xy` |  | 位置 |
 | `size` |  | 尺寸 |
+| `pivot` |  | pivot |
+| `anchor` |  | 是否以 pivot 作为坐标锚点 |
+| `customData` |  | 自定义数据 |
 | `group` |  | 所属 group |
 | `rotation` |  | 旋转 |
 | `alpha` |  | 透明度 |
@@ -450,7 +470,11 @@
 | `size` |  | 尺寸 |
 | `locked` |  | 是否锁定 |
 | `group` |  | 所属 group |
+| `rotation` |  | 旋转 |
+| `alpha` |  | 透明度 |
 | `visible` |  | 是否可见 |
+| `touchable` |  | 是否可触摸 |
+| `grayed` |  | 是否置灰 |
 | `layout` |  | 布局模式 |
 | `lineGap` |  | 行间距 |
 | `colGap` | `columnGap` | 列间距 |
@@ -469,7 +493,8 @@
 | `vAlign` |  | 垂直对齐 |
 | `lineGap` |  | 行间距 |
 | `colGap` | `columnGap` | 列间距 |
-| `lineItemCount` | `lineCount` | 单行项目数量 |
+| `lineItemCount` |  | `flow_hz` 每行项目数、`flow_vt` 每列项目数、`pagination` 每页列数 |
+| `lineItemCount2` |  | `pagination` 每页行数 |
 | `autoItemSize` | `autoResizeItem` | 自动调整项目尺寸 |
 | `selectionMode` |  | 选择模式 |
 | `selectionController` |  | 选择控制器 |
@@ -491,9 +516,14 @@
 | `autoClearItems` |  | 自动清空项目 |
 | `xy` |  | 位置 |
 | `size` |  | 尺寸 |
+| `pivot` |  | pivot |
+| `anchor` |  | 是否以 pivot 作为坐标锚点 |
 | `group` |  | 所属 group |
+| `rotation` |  | 旋转 |
+| `alpha` |  | 透明度 |
 | `visible` |  | 是否可见 |
 | `touchable` |  | 是否可触摸 |
+| `grayed` |  | 是否置灰 |
 
 ## 扩展子节点协议
 

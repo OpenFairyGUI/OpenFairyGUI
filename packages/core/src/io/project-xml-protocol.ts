@@ -353,8 +353,6 @@ const LIST_PANEL_ATTRS = {
 	columnGap: { canonical: 'colGap', aliases: ['columnGap'] },
 	lineItemCount: { canonical: 'lineItemCount' },
 	lineItemCount2: { canonical: 'lineItemCount2' },
-	lineCount: { canonical: 'lineCount' },
-	columnCount: { canonical: 'columnCount' },
 	autoResizeItem: { canonical: 'autoItemSize', aliases: ['autoResizeItem'] },
 	selectionMode: { canonical: 'selectionMode' },
 	selectionController: { canonical: 'selectionController' },

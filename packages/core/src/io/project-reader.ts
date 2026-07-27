@@ -367,8 +367,6 @@ interface DisplayObjectXmlNode extends Record<string, unknown> {
 	colGap?: string | number;
 	lineItemCount?: string | number;
 	lineItemCount2?: string | number;
-	lineCount?: string | number;
-	columnCount?: string | number;
 	autoItemSize?: string | boolean;
 	fill?: string;
 	shrinkOnly?: string | boolean;
@@ -2473,10 +2471,6 @@ export class ProjectReader {
 				if (lineGap !== undefined) g.setLineGap(parseInt2(lineGap));
 				const columnGap = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.columnGap);
 				if (columnGap !== undefined) g.setColumnGap(parseInt2(columnGap));
-				const legacyLineCount = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineCount);
-				if (legacyLineCount !== undefined) g.setLineCount?.(parseInt2(legacyLineCount));
-				const legacyColumnCount = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.columnCount);
-				if (legacyColumnCount !== undefined) g.setColumnCount?.(parseInt2(legacyColumnCount));
 				const lineItemCount = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineItemCount);
 				const lineItemCount2 = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineItemCount2);
 				if (layout) {

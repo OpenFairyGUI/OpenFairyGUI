@@ -23,9 +23,6 @@ const COMPONENT_XML = `<?xml version="1.0" encoding="utf-8"?>
     <list id="flow-hz" layout="flow_hz" lineItemCount="4"/>
     <list id="flow-vt" layout="flow_vt" lineItemCount="5"/>
     <list id="pagination" layout="pagination" lineItemCount="3" lineItemCount2="2"/>
-    <list id="legacy" layout="flow_hz" lineCount="6" columnCount="9"/>
-    <list id="canonical-wins" layout="flow_hz"
-      lineItemCount="4" lineCount="7" columnCount="8"/>
   </displayList>
 </component>
 `;
@@ -60,10 +57,6 @@ test('reader: canonical list item counts follow the active layout axes', async (
 		t.is(byId.get('flow-vt')?.getColumnCount?.(), 0);
 		t.is(byId.get('pagination')?.getLineCount?.(), 2);
 		t.is(byId.get('pagination')?.getColumnCount?.(), 3);
-		t.is(byId.get('legacy')?.getLineCount?.(), 6);
-		t.is(byId.get('legacy')?.getColumnCount?.(), 9);
-		t.is(byId.get('canonical-wins')?.getLineCount?.(), 7);
-		t.is(byId.get('canonical-wins')?.getColumnCount?.(), 4);
 	} finally {
 		await fs.rm(source.directory, { recursive: true, force: true });
 	}
