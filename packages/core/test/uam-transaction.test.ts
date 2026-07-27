@@ -1425,7 +1425,7 @@ test('component lifecycle atomically rewrites inbound display references', async
 	const originalReference: UamComponentRefNode = {
 		...createDisplayNodeBase('component-ref', 'component-ref'),
 		kind: 'component',
-		resource: { packageId: 'pkg002', resourceId: 'cmp002' },
+		resource: { packageId: '', resourceId: 'cmp002' },
 	};
 	host.component.displayList = [originalReference];
 	project.packages.push({ ...createLifecyclePackage(), resources: [movable, host] });
@@ -1481,6 +1481,7 @@ test('component lifecycle atomically rewrites inbound display references', async
 			toIndex: 0,
 		},
 	];
+	t.deepEqual(validateTransactionSupport(moved, inverse), []);
 	const restored = await roundTripCommittedProject(applyUamTransaction(moved, inverse));
 	const restoredPackage = restored.packages.find((pkg) => pkg.id === 'pkg002');
 	const restoredTarget = restoredPackage?.resources.find((resource) => resource.id === 'cmp002');
@@ -1489,7 +1490,10 @@ test('component lifecycle atomically rewrites inbound display references', async
 		t.fail('expected restored components');
 		return;
 	}
-	t.deepEqual(restoredHost.component.displayList.find((node) => node.id === 'component-ref'), originalReference);
+	t.deepEqual(restoredHost.component.displayList.find((node) => node.id === 'component-ref'), {
+		...originalReference,
+		resource: { packageId: 'pkg002', resourceId: 'cmp002' },
+	});
 
 	const unsafeRemove = validateTransactionSupport(restored, [{
 		kind: 'removeComponent',
@@ -1533,7 +1537,10 @@ test('component lifecycle atomically rewrites inbound display references', async
 		t.fail('expected reattached host component');
 		return;
 	}
-	t.deepEqual(reattachedHost.component.displayList.find((node) => node.id === 'component-ref'), originalReference);
+	t.deepEqual(reattachedHost.component.displayList.find((node) => node.id === 'component-ref'), {
+		...originalReference,
+		resource: { packageId: 'pkg002', resourceId: 'cmp002' },
+	});
 
 	const invalidReference = validateTransactionSupport(project, [
 		{

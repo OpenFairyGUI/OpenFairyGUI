@@ -521,7 +521,7 @@ test('real LayaBox UAM sessions persist atomic component lifecycle rewrites in b
 		customData: '',
 		relations: [],
 		gears: [],
-		resource: { packageId: sourcePackage.id, resourceId: movable.id },
+		resource: { packageId: '', resourceId: movable.id },
 	};
 	const runtime = new BackendRuntime();
 	const outputFairyPath = 'LayaBoxOutput/Project.fairy';
@@ -618,6 +618,13 @@ test('real LayaBox UAM sessions persist atomic component lifecycle rewrites in b
 		t.true((await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: revision })).ok);
 		const restoredReload = normalizeUamProject(liftDocumentToUamProject(await reader.read(outputFairyPath, { hydrateResourceBytes: true })));
 		t.is(findComponent(restoredReload, sourcePackage.id, movable.id)?.kind, 'component');
+		const restoredReference = findComponent(restoredReload, sourcePackage.id, host.id)?.component.displayList.find((node) => node.id === originalReference.id);
+		if (restoredReference?.kind === 'component') {
+			t.deepEqual(restoredReference.resource, { packageId: sourcePackage.id, resourceId: movable.id });
+		} else {
+			t.fail('expected restored local LayaBox component reference');
+			return;
+		}
 
 		const unsafeRemove = await runtime.applyTransaction({
 			sessionId: opened.data.sessionId,
@@ -671,7 +678,7 @@ test('real LayaBox UAM sessions persist atomic component lifecycle rewrites in b
 		t.is(findComponent(finalReload, sourcePackage.id, movable.id)?.kind, 'component');
 		const finalReference = findComponent(finalReload, sourcePackage.id, host.id)?.component.displayList.find((node) => node.id === originalReference.id);
 		if (finalReference?.kind === 'component') {
-			t.deepEqual(finalReference.resource, originalReference.resource);
+			t.deepEqual(finalReference.resource, { packageId: sourcePackage.id, resourceId: movable.id });
 		} else {
 			t.fail('expected restored LayaBox component reference');
 		}

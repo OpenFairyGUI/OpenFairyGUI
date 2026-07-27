@@ -323,7 +323,7 @@ flowchart TD
 - `addComponent` 以完整 `UamComponentResource` 快照和 `atIndex` 新增组件，快照包含初始 `displayList`、controller 与 transition；`removeComponent` 使用 `packageId + componentResourceId` selector。
 - `moveComponent` 使用组件 selector、目标 `toPackageId` 与 `toIndex` 在包之间移动组件。
 
-生命周期操作可与 `attachDisplayNode` / `detachDisplayNode` 组成 transaction batch；其他非生命周期操作仍需单独提交。预检会按整个批次的投影状态校验 selector、插入位置和最终引用，执行阶段在同一份 UAM 工作副本中原子应用。删除包或组件、以及移动组件仍会拒绝最终状态中的悬空引用或源包依赖：调用方必须在同一批次中显式 detach 或 retarget inbound component node。`writeProjectFromUam()` 会在新工程文件全部写入成功后，清理前一版本不再存在的 `package.xml`、`package_branch.xml`、component XML 和原始资源文件，避免删除或重命名的包在下次 `ProjectReader` reload 时被重新发现。
+生命周期操作可与 `attachDisplayNode` / `detachDisplayNode` 组成 transaction batch；其他非生命周期操作仍需单独提交。预检会按整个批次的投影状态校验 selector、插入位置和最终引用，执行阶段在同一份 UAM 工作副本中原子应用。display resource ref 的 `packageId` 省略或为空字符串都表示 owner package；attach 后会规范化为 owner package ID。删除包或组件、以及移动组件仍会拒绝最终状态中的悬空引用或源包依赖：调用方必须在同一批次中显式 detach 或 retarget inbound component node。`writeProjectFromUam()` 会在新工程文件全部写入成功后，清理前一版本不再存在的 `package.xml`、`package_branch.xml`、component XML 和原始资源文件，避免删除或重命名的包在下次 `ProjectReader` reload 时被重新发现。
 
 ## 模块边界
 

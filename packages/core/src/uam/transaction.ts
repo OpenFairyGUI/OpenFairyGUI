@@ -1605,7 +1605,7 @@ function validateLifecycleComponentSelector(
 
 function nodeReferencesPackage(node: UamDisplayNode, ownerPackageId: string, packageId: string): boolean {
 	const resourceNode = node as UamDisplayNode & { resource?: { packageId?: string; resourceId?: string } };
-	if (resourceNode.resource?.resourceId && (resourceNode.resource.packageId ?? ownerPackageId) === packageId) {
+	if (resourceNode.resource?.resourceId && (resourceNode.resource.packageId || ownerPackageId) === packageId) {
 		return true;
 	}
 	const derivedNode = node as UamDisplayNode & { packageId?: string; src?: string };
@@ -1618,7 +1618,7 @@ function getComponentReference(
 ): { packageId: string; componentId: string } | null {
 	if (node.kind === 'component') {
 		return {
-			packageId: node.resource.packageId ?? ownerPackageId,
+			packageId: node.resource.packageId || ownerPackageId,
 			componentId: node.resource.resourceId,
 		};
 	}
@@ -2363,7 +2363,7 @@ function applyCommonDisplayProps(target: CommonDisplayPropTarget, props: UamDisp
 }
 
 function withDefaultOwnPackageRef(packageId: string, node: UamAttachableDisplayNode): UamAttachableDisplayNode {
-	if ((node.kind === 'image' || node.kind === 'component') && node.resource.packageId === undefined) {
+	if ((node.kind === 'image' || node.kind === 'component') && !node.resource.packageId) {
 		return {
 			...node,
 			resource: {
