@@ -738,6 +738,9 @@ function serializeListItemXmlNode(item: {
 	if (item.level !== undefined && item.level !== null && ((options?.forceLevel ?? false) || item.level !== 0 || item.isFolder === true)) {
 		writeXmlAttr(attrs, specs.level, String(item.level));
 	}
+	if (item.isFolder !== undefined && item.isFolder !== null) {
+		writeXmlAttr(attrs, specs.isFolder, item.isFolder ? 'true' : 'false');
+	}
 	if (item.controllers !== undefined && item.controllers !== null) writeXmlAttr(attrs, specs.controllers, item.controllers);
 	return attrs;
 }

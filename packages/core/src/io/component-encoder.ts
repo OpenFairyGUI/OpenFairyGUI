@@ -17,6 +17,7 @@ import type { Document } from '../document.js';
 import { ControllerActionType, ObjectType, type RelationDef } from '../constants.js';
 import type { Component } from '../properties/component.js';
 import type { Package } from '../properties/package.js';
+import { resolveTreeItemIsFolder } from './tree-item-hierarchy.js';
 import { WriteBuffer } from './write-buffer.js';
 
 const BLOCK_COUNT = 8;
@@ -1920,14 +1921,12 @@ function _writeListItems(buf: WriteBuffer, child: EncoderChildLike, pkg: Package
 	const isTree = child.propertyType === 'GTree';
 	const listItems: ListItemLike[] = child.getListItems?.() ?? [];
 	buf.writeInt16(listItems.length);
-	for (const item of listItems) {
+	for (const [index, item] of listItems.entries()) {
 		const itemStart = buf.pos;
 		buf.writeInt16(0); // placeholder
 		buf.writeS(remapLocalUiUrl(pkg, item.url ?? null));
 		if (isTree) {
-			const explicitFolder = item.isFolder;
-			const isFolder = explicitFolder ?? (!(item.icon ?? null) && !(item.url ?? null));
-			buf.writeBool(isFolder);
+			buf.writeBool(resolveTreeItemIsFolder(listItems, index));
 			buf.writeUint8(Math.max(0, item.level ?? 0));
 		}
 		buf.writeSEx(item.title ?? null, true); // noCache

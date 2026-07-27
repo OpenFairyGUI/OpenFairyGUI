@@ -1279,6 +1279,64 @@ test('round-trip: list scroll attrs and static items survive write→read', asyn
 	}
 });
 
+test('round-trip: explicit empty tree folder survives write→read', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectId('tree-folder-project').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('TreePkg');
+	pkg.setId('treepkg01');
+
+	const comp = doc.createComponent('TreeHost');
+	comp.setId('treehost01');
+	comp.setPath('/');
+	comp.setSize(320, 240);
+
+	const tree = doc.createGTree('tree');
+	tree.setId('tree01');
+	tree.setListItems([
+		{
+			title: 'Empty folder',
+			icon: null,
+			url: null,
+			name: null,
+			selectedTitle: null,
+			selectedIcon: null,
+			level: 0,
+			isFolder: true,
+		},
+	]);
+
+	comp.addChild(tree);
+	pkg.addResource(comp);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-rt-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+		const treeXml = await fs.readFile(path.join(tmpDir, 'assets', 'TreePkg', 'TreeHost.xml'), 'utf-8');
+		t.true(
+			treeXml.includes('<item title="Empty folder" level="0" isFolder="true"/>'),
+			'explicit empty folder writes canonical isFolder attr',
+		);
+
+		const roundTripped = await io.readProject(outFairy);
+		const decodedComp = roundTripped.getRoot().getPackage('TreePkg')?.getComponent('TreeHost');
+		const decodedTree = decodedComp?.listChildren().find((child) => child.getId() === 'tree01') as ReturnType<Document['createGTree']>;
+		t.truthy(decodedTree, 'tree exists after round-trip');
+		t.deepEqual(decodedTree.getListItems().map((item) => ({
+			title: item.title,
+			level: item.level,
+			isFolder: item.isFolder,
+		})), [
+			{ title: 'Empty folder', level: 0, isFolder: true },
+		]);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('round-trip: tree view list attrs and static item hierarchy survive write→read', async (t) => {
 	const io = new NodeIO();
 	const doc = await io.readProject(PROJECT_PATH);
@@ -1289,9 +1347,9 @@ test('round-trip: tree view list attrs and static item hierarchy survive write�
 	try {
 		await io.writeProject(doc, outFairy);
 		const treeXml = await fs.readFile(path.join(tmpDir, 'assets', 'TreeView', 'Main.xml'), 'utf-8');
-		t.false(treeXml.includes('isFolder='), 'tree static items omit inferred isFolder attrs in editor xml');
-		t.true(treeXml.includes('<item title="Folder 1" level="0"/>'), 'tree root folders keep explicit level zero');
-		t.true(treeXml.includes('<item title="Folder 2" level="0"/>'), 'second tree root folder keeps explicit level zero');
+		t.true(treeXml.includes('<item title="Folder 1" level="0" isFolder="true"/>'), 'tree root folders keep their inferred folder state');
+		t.true(treeXml.includes('<item title="Folder 2" level="0" isFolder="true"/>'), 'second tree root folder keeps its inferred folder state');
+		t.regex(treeXml, /<item title="Leaf 1"[^>]* level="1" isFolder="false"\/>/, 'tree leaves keep their inferred leaf state');
 
 		const doc2 = await io.readProject(outFairy);
 		const treeViewPkg = doc2.getRoot().listPackages().find((pkg) => pkg.getName() === 'TreeView');
