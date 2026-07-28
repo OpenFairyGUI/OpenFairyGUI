@@ -95,7 +95,7 @@ test('XML round-trip preserves every modeled common display state on V1 node typ
 		t.truthy(roundTripComponent);
 
 		for (const source of objects) {
-			const object = roundTripComponent?.getChildById(source.getId()) as CommonDisplayState | null;
+			const object = roundTripComponent?.getChildById(source.getId()) as unknown as CommonDisplayState | null;
 			t.truthy(object, `${source.getName()} survives round-trip`);
 			assertCommonDisplayState(t, object!, source.getName());
 		}

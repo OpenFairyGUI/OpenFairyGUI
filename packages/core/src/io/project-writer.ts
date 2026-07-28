@@ -608,6 +608,7 @@ type WritableChild = GObject & {
 	getSelectionController?(): string;
 	getDefaultItem?(): string;
 	getLineCount?(): number;
+	getColumnCount?(): number;
 	getAutoResizeItem?(): boolean;
 	getOverflow?(): number;
 	getScrollType?(): number;
