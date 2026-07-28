@@ -20,6 +20,7 @@ import {
 } from '../utils/xml-utils.js';
 import { PROJECT_XML_PROTOCOL, readXmlAttr, type XmlNodeProtocol } from './project-xml-protocol.js';
 import { ReaderContext } from './reader-context.js';
+import { resolveTreeItemIsFolder } from './tree-item-hierarchy.js';
 
 /** Map ease type string to numeric code matching editor's EaseType.parseEaseType. */
 function _parseEaseType(ease: string): number {
@@ -713,17 +714,7 @@ function inferTreeItemFolderFlags(items: Array<{
 }> {
 	return items.map((item, index) => {
 		if (item.isFolder !== null) return item;
-		const next = items[index + 1];
-		if (next && next.level > item.level) {
-			return { ...item, isFolder: true };
-		}
-		if (next && next.level <= item.level) {
-			return { ...item, isFolder: false };
-		}
-		if (!item.icon && !item.url) {
-			return { ...item, isFolder: true };
-		}
-		return { ...item, isFolder: false };
+		return { ...item, isFolder: resolveTreeItemIsFolder(items, index) };
 	});
 }
 

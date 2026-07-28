@@ -398,7 +398,15 @@ test('restore published project: directory batch restores packages, assets, and 
 			extractImage,
 		});
 		const treeViewMainXml = await fs.readFile(path.join(treeViewOutputDir, 'assets', 'TreeView', 'Main.xml'), 'utf-8');
-		t.false(treeViewMainXml.includes('isFolder='), 'restored TreeView/Main omits inferred tree item isFolder attrs');
+		t.true(
+			treeViewMainXml.includes('<item title="Folder 1" level="0" isFolder="true"/>'),
+			'restored TreeView/Main preserves inferred folder state',
+		);
+		t.regex(
+			treeViewMainXml,
+			/<item title="Leaf 1"[^>]* level="1" isFolder="false"\/>/,
+			'restored TreeView/Main preserves inferred leaf state',
+		);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

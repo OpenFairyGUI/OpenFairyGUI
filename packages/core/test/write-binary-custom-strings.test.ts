@@ -587,6 +587,91 @@ test('binary writer: emits version 7 list item property override placeholders', 
 	}
 });
 
+test('binary writer: preserves static list item controller overrides', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectId('proj-list-controllers').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('ListControllerPkg');
+	pkg.setId('pkglist1');
+
+	const comp = doc.createComponent('Host');
+	comp.setId('host1');
+	comp.setPath('/');
+	comp.setSize(300, 200);
+
+	const list = doc.createGList('list');
+	list
+		.setId('n0')
+		.setDefaultItem('ui://pkglist1item1')
+		.setListItems([
+			{
+				title: null,
+				icon: null,
+				url: null,
+				name: null,
+				selectedTitle: null,
+				selectedIcon: null,
+				level: 0,
+				isFolder: null,
+				controllers: 'bg,0,type,0',
+			},
+			{
+				title: null,
+				icon: null,
+				url: null,
+				name: null,
+				selectedTitle: null,
+				selectedIcon: null,
+				level: 0,
+				isFolder: null,
+				controllers: 'bg,1,type,1',
+			},
+			{
+				title: null,
+				icon: null,
+				url: null,
+				name: null,
+				selectedTitle: null,
+				selectedIcon: null,
+				level: 0,
+				isFolder: null,
+				controllers: 'bg,0,type,2',
+			},
+		]);
+	comp.addChild(list);
+	pkg.addResource(comp);
+
+	const item = doc.createComponent('Item');
+	item.setId('item1');
+	item.setPath('/');
+	item.setSize(100, 20);
+	pkg.addResource(item);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-list-controller-overrides-'));
+	const outPath = path.join(tmpDir, 'out.fui');
+
+	try {
+		await new NodeIO().writeBinary(doc, outPath, { compressed: false, version: 7 });
+		const written = await new NodeIO().readBinary(outPath);
+		const raw = getComponentRawBinary(written, 'ListControllerPkg', 'Host');
+		const writtenPackage = written.getRoot().listPackages().find((candidate) => candidate.getName() === 'ListControllerPkg');
+		const writtenHost = writtenPackage?.listResources().find((resource) => resource.getName() === 'Host') as
+			| ReturnType<Document['createComponent']>
+			| undefined;
+		const writtenList = writtenHost?.listChildren().find((child) => child.getName() === 'list') as
+			| ReturnType<Document['createGList']>
+			| undefined;
+
+		t.deepEqual(readListItemLengths(raw, 0), [24, 24, 24]);
+		t.deepEqual(
+			writtenList?.getListItems().map((entry) => entry.controllers),
+			['bg,0,type,0', 'bg,1,type,1', 'bg,0,type,2'],
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('binary writer: matches Basics text child layouts from editor baseline', async (t) => {
 	const io = new NodeIO();
 	const doc = await io.readProject(PROJECT_PATH);
@@ -1377,6 +1462,76 @@ test('binary writer: emits version 4 transition and gear custom ease paths', asy
 		gearState.pos += 4; // delay
 		const gearCustomEasePath = readPathData(view, gearState);
 		t.deepEqual(gearCustomEasePath, [{ curveType: 0, values: [0.25, 0.75] }]);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('binary writer: preserves zero alpha in GearLook status', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectId('proj-gear-look-zero').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('GearLookZeroPkg');
+	pkg.setId('pkgzero');
+
+	const comp = doc.createComponent('Host');
+	comp.setId('comp001');
+	comp.setPath('/');
+	comp.setSize(320, 200);
+
+	const ctrl = doc.createController('state');
+	ctrl.setName('state');
+	comp.addController(ctrl);
+
+	const graph = doc.createGGraph('target');
+	graph.setId('n0');
+
+	const gear = doc.createGear('gearLook');
+	gear.setGearType(3);
+	gear.setController(ctrl);
+	gear.setPages('hidden');
+	gear.setValues('0,0,false,true');
+	gear.setDefaultValue('0,0,false,true');
+	graph.addGear(gear);
+
+	comp.addChild(graph);
+	pkg.addResource(comp);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-gear-look-zero-'));
+	const outPath = path.join(tmpDir, 'out.fui');
+
+	try {
+		const io = new NodeIO();
+		await io.writeBinary(doc, outPath, { compressed: false, version: 7 });
+
+		const written = await io.readBinary(outPath);
+		const raw = getComponentRawBinary(written, 'GearLookZeroPkg', 'Host');
+		const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
+
+		const block2Offset = view.getUint32(2 + 4 * 2, false);
+		let childPos = block2Offset;
+		t.is(view.getInt16(childPos, false), 1);
+		childPos += 2;
+
+		childPos += 2; // child data length
+		const encodedChildPos = childPos;
+		const childGearBlockOffset = view.getUint16(encodedChildPos + 2 + 2 * 2, false);
+		const gearState = { pos: encodedChildPos + childGearBlockOffset };
+
+		t.is(view.getInt16(gearState.pos, false), 1);
+		gearState.pos += 2;
+		gearState.pos += 2; // gear data length
+		t.is(view.getUint8(gearState.pos++), 3);
+		gearState.pos += 2; // controller index
+		t.is(view.getInt16(gearState.pos, false), 1);
+		gearState.pos += 2;
+
+		gearState.pos += 2; // page id
+		t.is(view.getFloat32(gearState.pos, false), 0, 'page status keeps alpha=0');
+		gearState.pos += 4 + 4 + 1 + 1;
+
+		t.true(view.getUint8(gearState.pos++) !== 0, 'gear has default status');
+		t.is(view.getFloat32(gearState.pos, false), 0, 'default status keeps alpha=0');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

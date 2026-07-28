@@ -17,6 +17,7 @@ import type { Document } from '../document.js';
 import { ControllerActionType, ObjectType, type RelationDef } from '../constants.js';
 import type { Component } from '../properties/component.js';
 import type { Package } from '../properties/package.js';
+import { resolveTreeItemIsFolder } from './tree-item-hierarchy.js';
 import { WriteBuffer } from './write-buffer.js';
 
 const BLOCK_COUNT = 8;
@@ -214,6 +215,7 @@ interface ListItemLike {
 	name?: string | null;
 	level?: number;
 	isFolder?: boolean | null;
+	controllers?: string | null;
 }
 
 interface ChildEncoderExtras extends Record<string, unknown> {
@@ -301,6 +303,12 @@ function _numVal(v: unknown, fallback = 0): number {
 		return Number.isFinite(parsed) ? parsed : fallback;
 	}
 	return fallback;
+}
+
+function _numberToken(value: string | undefined, fallback: number): number {
+	if (value === undefined || value.trim() === '') return fallback;
+	const parsed = Number(value);
+	return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 function _boolVal(v: unknown, fallback = false): boolean {
@@ -1326,7 +1334,7 @@ function _writeGearStatus(buf: WriteBuffer, gearType: number, valueStr: string, 
 			buf.writeFloat32(parseFloat(parts[3]) || 1);
 			break;
 		case 3: // GearLook: alpha,rotation,grayed,touchable
-			buf.writeFloat32(parseFloat(parts[0]) || 1);
+			buf.writeFloat32(_numberToken(parts[0], 1));
 			buf.writeFloat32(parseFloat(parts[1]) || 0);
 			buf.writeBool(parts[2] === 'true' || parts[2] === '1');
 			buf.writeBool(parts.length < 4 || parts[3] === 'true' || parts[3] === '1');
@@ -1913,14 +1921,12 @@ function _writeListItems(buf: WriteBuffer, child: EncoderChildLike, pkg: Package
 	const isTree = child.propertyType === 'GTree';
 	const listItems: ListItemLike[] = child.getListItems?.() ?? [];
 	buf.writeInt16(listItems.length);
-	for (const item of listItems) {
+	for (const [index, item] of listItems.entries()) {
 		const itemStart = buf.pos;
 		buf.writeInt16(0); // placeholder
 		buf.writeS(remapLocalUiUrl(pkg, item.url ?? null));
 		if (isTree) {
-			const explicitFolder = item.isFolder;
-			const isFolder = explicitFolder ?? (!(item.icon ?? null) && !(item.url ?? null));
-			buf.writeBool(isFolder);
+			buf.writeBool(resolveTreeItemIsFolder(listItems, index));
 			buf.writeUint8(Math.max(0, item.level ?? 0));
 		}
 		buf.writeSEx(item.title ?? null, true); // noCache
@@ -1928,7 +1934,21 @@ function _writeListItems(buf: WriteBuffer, child: EncoderChildLike, pkg: Package
 		buf.writeS(remapLocalUiUrl(pkg, item.icon ?? null));
 		buf.writeS(remapLocalUiUrl(pkg, item.selectedIcon ?? null));
 		buf.writeS(item.name ?? null);
-		buf.writeInt16(0); // no controller overrides
+		const controllerParts = item.controllers?.split(',') ?? [];
+		const controllerCountPos = buf.pos;
+		buf.writeInt16(0);
+		let controllerCount = 0;
+		for (let index = 0; index < controllerParts.length; index += 2) {
+			const controllerName = controllerParts[index];
+			if (!controllerName) continue;
+			buf.writeS(controllerName);
+			buf.writeS(controllerParts[index + 1] ?? '');
+			controllerCount += 1;
+		}
+		const controllerEnd = buf.pos;
+		buf.pos = controllerCountPos;
+		buf.writeInt16(controllerCount);
+		buf.pos = controllerEnd;
 		if (version >= 2) {
 			buf.writeInt16(0); // no property overrides
 		}

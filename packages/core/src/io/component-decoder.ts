@@ -307,12 +307,12 @@ function decodeListScrollPane(child: ComponentDisplayObject, childBuf: ByteBuffe
 		.setFooterRes(childBuf.readS() ?? '');
 }
 
-function skipListItemOverrides(buf: ByteBuffer, version: number): void {
-	if (remainingBytes(buf) < 2) return;
+function decodeListItemOverrides(buf: ByteBuffer, version: number): string | null {
+	if (remainingBytes(buf) < 2) return null;
 	const controllerOverrideCount = buf.getInt16();
+	const controllerParts: string[] = [];
 	for (let index = 0; index < controllerOverrideCount && remainingBytes(buf) >= 4; index += 1) {
-		buf.readS();
-		buf.readS();
+		controllerParts.push(buf.readS() ?? '', buf.readS() ?? '');
 	}
 	if (version >= 2 && remainingBytes(buf) >= 2) {
 		const propertyOverrideCount = buf.getInt16();
@@ -322,6 +322,7 @@ function skipListItemOverrides(buf: ByteBuffer, version: number): void {
 			buf.readS();
 		}
 	}
+	return controllerParts.length > 0 ? controllerParts.join(',') : null;
 }
 
 function decodeListItems(child: ComponentDisplayObject, childBuf: ByteBuffer): void {
@@ -339,6 +340,7 @@ function decodeListItems(child: ComponentDisplayObject, childBuf: ByteBuffer): v
 		selectedIcon: string | null;
 		level: number;
 		isFolder: boolean | null;
+		controllers?: string | null;
 	}> = [];
 	for (let index = 0; index < itemCount && remainingBytes(childBuf) >= 2; index += 1) {
 		const chunkSize = childBuf.getInt16();
@@ -350,7 +352,7 @@ function decodeListItems(child: ComponentDisplayObject, childBuf: ByteBuffer): v
 			isFolder = childBuf.readBool();
 			level = childBuf.getUint8();
 		}
-		items.push({
+		const item = {
 			url,
 			title: childBuf.readS(),
 			selectedTitle: childBuf.readS(),
@@ -359,8 +361,9 @@ function decodeListItems(child: ComponentDisplayObject, childBuf: ByteBuffer): v
 			name: childBuf.readS(),
 			level,
 			isFolder,
-		});
-		skipListItemOverrides(childBuf, childBuf.version);
+		};
+		const controllers = decodeListItemOverrides(childBuf, childBuf.version);
+		items.push(controllers === null ? item : { ...item, controllers });
 		childBuf.pos = nextPos;
 	}
 	listLike.setListItems(items);

@@ -1535,13 +1535,23 @@ test('binary writer: tree lists use tree object type and persist hierarchy metad
 		},
 		{
 			title: 'Leaf 1',
-			icon: 'ui://treepkg01/leaf',
+			icon: null,
 			url: null,
 			name: null,
 			selectedTitle: null,
 			selectedIcon: null,
 			level: 1,
-			isFolder: false,
+			isFolder: null,
+		},
+		{
+			title: 'Trailing leaf',
+			icon: null,
+			url: null,
+			name: null,
+			selectedTitle: null,
+			selectedIcon: null,
+			level: 0,
+			isFolder: null,
 		},
 	]);
 
@@ -1562,9 +1572,28 @@ test('binary writer: tree lists use tree object type and persist hierarchy metad
 		t.deepEqual(treeState?.items, [
 			{ isFolder: true, level: 0, title: 'Folder 1' },
 			{ isFolder: false, level: 1, title: 'Leaf 1' },
+			{ isFolder: false, level: 0, title: 'Trailing leaf' },
 		]);
 		t.is(treeState?.indent, 15);
 		t.is(treeState?.clickToExpand, 1);
+
+		const roundTripped = await io.readBinary(outPath);
+		const decodedTree = roundTripped
+			.getRoot()
+			.getPackage('TreePkg')
+			?.getComponent('TreeHost')
+			?.listChildren()
+			.find((child) => child.getId() === 'treechild01') as ReturnType<Document['createGTree']>;
+		t.truthy(decodedTree, 'tree child survives binary round-trip');
+		t.deepEqual(decodedTree.getListItems().map((item) => ({
+			title: item.title,
+			level: item.level,
+			isFolder: item.isFolder,
+		})), [
+			{ title: 'Folder 1', level: 0, isFolder: true },
+			{ title: 'Leaf 1', level: 1, isFolder: false },
+			{ title: 'Trailing leaf', level: 0, isFolder: false },
+		]);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

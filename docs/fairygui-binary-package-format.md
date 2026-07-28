@@ -21,6 +21,7 @@
 | Component / 顶层 block 布局 | [查看](#顶层-block-布局) |
 | Component / 顶层 block 详细内容 | [查看](#顶层-block-详细内容) |
 | Component / Child 解码 | [查看](#child-解码) |
+| Component / Child Block 8 | [查看](#child-block-8静态-list-items) |
 | Component / 扩展类型与 afterAdd 数据 | [查看](#扩展类型与-afteradd-数据) |
 | Component / 结构化对象解码边界 | [查看](#结构化对象解码边界) |
 | Component / 运行时阶段映射 | [查看](#运行时阶段映射) |
@@ -409,8 +410,8 @@ child 自身带独立 index table，不同对象类型的 block 数量不同：
 | 14 | `GProgressBar` |
 | 15 | `GSlider` |
 | 16 | `GScrollBar` |
+| 17 | `GTree` |
 | 18 | `GLoader3D` |
-| Tree 分支 | `GTree`（项目 XML 映射为 `list + treeView=true`） |
 
 #### Child block 解码顺序
 
@@ -462,6 +463,34 @@ Block 6 用于恢复 afterAdd 阶段写入的数据：
 | `GList` | `selectionController` |
 | `GComponent` Button 扩展实例 | `title`、`selectedTitle`、`icon`、`selectedIcon`、`titleColor`、`titleFontSize`、`relatedController`、`relatedPageId`、`sound`、`soundVolumeScale`、`selected` |
 | 其他扩展实例数据 | `InstanceExtType` 分支下的 Label / ComboBox / ProgressBar / Slider / ScrollBar 实例数据 |
+
+### Child Block 8：静态 List Items
+
+`GList` 与 `GTree` 共用 Block 8。Block 开头先写默认项资源与项数，随后每个静态项使用长度前缀分块：
+
+| 顺序 | 字段 | 编码与语义 |
+|---|---|---|
+| 1 | `defaultItem` | 字符串表引用 |
+| 2 | `itemCount` | `Int16` |
+| 3 | `chunkSize` | 每项一个 `Int16`，表示该长度字段之后的项数据字节数 |
+| 4 | `url` | 字符串表引用 |
+| 5 | `isFolder` | 仅 `GTree` 存在，`Bool` |
+| 6 | `level` | 仅 `GTree` 存在，`UInt8`；写入前将负值收敛为 `0` |
+| 7 | `title`、`selectedTitle` | 可空字符串引用 |
+| 8 | `icon`、`selectedIcon`、`name` | 可空字符串表引用 |
+| 9 | `controllerOverrideCount` | `Int16` |
+| 10 | controller overrides | 重复 `controllerOverrideCount` 次，每次依次写 `(controllerName, selectedPageId)` 两个字符串表引用 |
+| 11 | `propertyOverrideCount` | V7 中存在的 `Int16`；当前写入器写 `0`，读取器会跳过已存在的属性覆盖项 |
+
+静态项模型中的 `controllers` 使用逗号分隔的成对形式：`controllerName,selectedPageId,...`。编码时每一对写入一个 controller override；空的 controller name 不形成覆盖项，缺失的 selected page ID 按空字符串写入。解码时再按相同顺序还原为成对字符串。
+
+Tree 项的 `isFolder` 在二进制中没有 `null` 表示，因此编码时按以下规则解析：
+
+- 显式 `true` 或 `false` 原样写入。
+- `null` 或未指定时，仅当下一项的 `level` 大于当前项的 `level` 才写为 `true`。
+- 下一项同级、层级更浅或当前项已经是最后一项时写为 `false`。
+
+这使无图标、无 URL 的叶节点仍按层级语义编码；图标与资源 URL 不参与文件夹推断。
 
 ### 结构化对象解码边界
 
