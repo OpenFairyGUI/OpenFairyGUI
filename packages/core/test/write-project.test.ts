@@ -1054,7 +1054,7 @@ test('writer: uses canonical XML attr names for component root, loader, text nod
 	list.setId('n2');
 	list.setLayout(2);
 	list.setColumnGap(8);
-	list.setLineCount(9999);
+	list.setColumnCount(9999);
 	list.setAutoResizeItem(false);
 	list.setSelectionController('page');
 	list.setDefaultItem('ui://pkgProtocol/tab');
@@ -1166,7 +1166,7 @@ test('writer: uses canonical XML attr names for component root, loader, text nod
 		t.is(byId.get('n1_5')?.getAlpha?.(), 0.55, 'richtext alpha survives round-trip');
 		t.is(byId.get('n1_5')?.getRotation?.(), 30, 'richtext rotation survives round-trip');
 		t.is(byId.get('n2')?.getColumnGap?.(), 8, 'list colGap survives round-trip');
-		t.is(byId.get('n2')?.getLineCount?.(), 9999, 'list lineItemCount survives round-trip');
+		t.is(byId.get('n2')?.getColumnCount?.(), 9999, 'flow list lineItemCount survives as columnCount');
 		t.false(byId.get('n2')?.getAutoResizeItem?.(), 'list autoItemSize survives round-trip');
 		t.is(byId.get('n2')?.getSelectionController?.(), 'page', 'list selectionController survives round-trip');
 	} finally {
@@ -1192,6 +1192,8 @@ test('round-trip: list scroll attrs and static items survive write→read', asyn
 	list.setLayout(4);
 	list.setLineGap(6);
 	list.setColumnGap(8);
+	list.setLineCount(5);
+	list.setColumnCount(3);
 	list.setSelectionMode(1);
 	list.setDefaultItem('ui://pkg003/item');
 	list.setOverflow(2);
@@ -1234,6 +1236,8 @@ test('round-trip: list scroll attrs and static items survive write→read', asyn
 		await io.writeProject(doc, outFairy);
 		const listXml = await fs.readFile(path.join(tmpDir, 'assets', 'Demo3', 'Lists.xml'), 'utf-8');
 		t.true(listXml.includes('controllers="bg,0,type,0"'), 'list static item writes canonical controllers attr');
+		t.true(listXml.includes('lineItemCount="3"'), 'pagination list writes horizontal column count');
+		t.true(listXml.includes('lineItemCount2="5"'), 'pagination list writes vertical row count');
 
 		const doc2 = await io.readProject(outFairy);
 		const comp2 = doc2.getRoot().getPackage('Demo3')?.listComponents().find((item) => item.getName() === 'Lists');
@@ -1244,6 +1248,8 @@ test('round-trip: list scroll attrs and static items survive write→read', asyn
 		t.is(list2.getLayout(), 4);
 		t.is(list2.getLineGap(), 6);
 		t.is(list2.getColumnGap(), 8);
+		t.is(list2.getLineCount(), 5);
+		t.is(list2.getColumnCount(), 3);
 		t.is(list2.getSelectionMode(), 1);
 		t.is(list2.getDefaultItem(), 'ui://pkg003/item');
 		t.is(list2.getOverflow(), 2);

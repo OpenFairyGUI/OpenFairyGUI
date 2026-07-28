@@ -761,7 +761,8 @@ test('FairyGUI-Editor samples preserve lineItemCount/autoItemSize and group visi
 	const flowTabs = viewGridById.get('n9_gzi6');
 	t.truthy(flowTabs, 'ViewGrid flow list exists');
 	t.is(flowTabs?.getColumnGap?.(), -1, 'ViewGrid flow list keeps colGap');
-	t.is(flowTabs?.getLineCount?.(), 9999, 'ViewGrid flow list keeps lineItemCount');
+	t.is(flowTabs?.getLineCount?.(), 0, 'ViewGrid horizontal flow list keeps no row count');
+	t.is(flowTabs?.getColumnCount?.(), 9999, 'ViewGrid horizontal flow list maps lineItemCount to columns');
 	t.true(flowTabs?.getAutoResizeItem?.(), 'ViewGrid flow list keeps autoItemSize=true');
 
 	const chooseFont = builderPkg.listComponents().find((c) => c.getName() === 'ChooseFontDialog')!;

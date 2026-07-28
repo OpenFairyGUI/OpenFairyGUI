@@ -608,6 +608,7 @@ type WritableChild = GObject & {
 	getSelectionController?(): string;
 	getDefaultItem?(): string;
 	getLineCount?(): number;
+	getColumnCount?(): number;
 	getAutoResizeItem?(): boolean;
 	getOverflow?(): number;
 	getScrollType?(): number;
@@ -674,6 +675,29 @@ type WritableControllerAction = ReturnType<Controller['listActions']>[number] & 
 	getControllerName?(): string;
 	getTargetPage?(): string;
 };
+
+function writeCommonDisplayState(
+	target: Record<string, unknown>,
+	object: WritableChild,
+	protocol: XmlNodeProtocol,
+): void {
+	const specs = protocol.attrs;
+	if (specs.alpha && (object.getAlpha?.() ?? 1) !== 1) {
+		writeXmlAttr(target, specs.alpha, formatDisplayAlpha(object.getAlpha?.() ?? 1));
+	}
+	if (specs.rotation && (object.getRotation?.() ?? 0) !== 0) {
+		writeXmlAttr(target, specs.rotation, String(object.getRotation?.() ?? 0));
+	}
+	if (specs.visible && object.getVisible?.() === false) {
+		writeXmlAttr(target, specs.visible, 'false');
+	}
+	if (specs.touchable && object.getTouchable?.() === false) {
+		writeXmlAttr(target, specs.touchable, 'false');
+	}
+	if (specs.grayed && object.getGrayed?.()) {
+		writeXmlAttr(target, specs.grayed, 'true');
+	}
+}
 
 function hasNonZeroInsets(value: { top?: number; bottom?: number; left?: number; right?: number } | null | undefined): boolean {
 	return !!value && !!(value.top || value.bottom || value.left || value.right);
@@ -1551,6 +1575,8 @@ export class ProjectWriter {
 			}
 			const [scaleX, scaleY] = [typedObj.getScaleX?.() ?? 1, typedObj.getScaleY?.() ?? 1];
 			if (scaleX !== 1 || scaleY !== 1) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.scale, `${scaleX},${scaleY}`);
+			const [skewX, skewY] = [typedObj.getSkewX?.() ?? 0, typedObj.getSkewY?.() ?? 0];
+			if (skewX !== 0 || skewY !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.skew, `${skewX},${skewY}`);
 			if ((typedObj.getRotation?.() ?? 0) !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.rotation, String(typedObj.getRotation?.() ?? 0));
 			if ((typedObj.getAlpha?.() ?? 1) !== 1) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.alpha, formatDisplayAlpha(typedObj.getAlpha?.() ?? 1));
 			if (typedObj.getVisible?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.visible, 'false');
@@ -1641,7 +1667,10 @@ export class ProjectWriter {
 			const [w, h] = [typedObj.getWidth?.() ?? 0, typedObj.getHeight?.() ?? 0];
 			if (w !== 0 || h !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.size, `${w},${h}`);
 			const [pivotX, pivotY] = [typedObj.getPivotX?.() ?? 0, typedObj.getPivotY?.() ?? 0];
-			if (pivotX !== 0 || pivotY !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.pivot, `${pivotX},${pivotY}`);
+			if (pivotX !== 0 || pivotY !== 0) {
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.pivot, `${pivotX},${pivotY}`);
+				if (typedObj.getPivotAsAnchor?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.anchor, 'true');
+			}
 			const [scaleX, scaleY] = [typedObj.getScaleX?.() ?? 1, typedObj.getScaleY?.() ?? 1];
 			if (scaleX !== 1 || scaleY !== 1) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.scale, `${scaleX},${scaleY}`);
 			if (typedObj.getVisible?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.visible, 'false');
@@ -1716,6 +1745,11 @@ export class ProjectWriter {
 			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.xy, `${x},${y}`);
 			const [w, h] = [typedObj.getWidth?.() ?? 0, typedObj.getHeight?.() ?? 0];
 			if (w !== 0 || h !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.size, `${w},${h}`);
+			const [pivotX, pivotY] = [typedObj.getPivotX?.() ?? 0, typedObj.getPivotY?.() ?? 0];
+			if (pivotX !== 0 || pivotY !== 0) {
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.pivot, `${pivotX},${pivotY}`);
+				if (typedObj.getPivotAsAnchor?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.anchor, 'true');
+			}
 			const restrictSize = [
 				typedObj.getMinWidth?.() ?? 0,
 				typedObj.getMaxWidth?.() ?? 0,
@@ -1758,6 +1792,11 @@ export class ProjectWriter {
 			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.xy, `${x},${y}`);
 			const [w, h] = [typedObj.getWidth?.() ?? 0, typedObj.getHeight?.() ?? 0];
 			if (w !== 0 || h !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.size, `${w},${h}`);
+			const [pivotX, pivotY] = [typedObj.getPivotX?.() ?? 0, typedObj.getPivotY?.() ?? 0];
+			if (pivotX !== 0 || pivotY !== 0) {
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.pivot, `${pivotX},${pivotY}`);
+				if (typedObj.getPivotAsAnchor?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.anchor, 'true');
+			}
 			if (typedObj.getVisible?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.visible, 'false');
 		}
 		if (type === 'GLoader3D') {
@@ -1861,7 +1900,15 @@ export class ProjectWriter {
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.vAlign, vAlignName[vAlign] ?? 'top');
 			}
 			const lineCount = typedObj.getLineCount?.() ?? 0;
-			if (lineCount !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineCount, String(lineCount));
+			const columnCount = typedObj.getColumnCount?.() ?? 0;
+			if ((layout === 2 || layout === 4) && columnCount !== 0) {
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineItemCount, String(columnCount));
+			} else if (layout === 3 && lineCount !== 0) {
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineItemCount, String(lineCount));
+			}
+			if (layout === 4 && lineCount !== 0) {
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineItemCount2, String(lineCount));
+			}
 			if (typedObj.getAutoResizeItem?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.autoResizeItem, 'false');
 			const selectionMode = typedObj.getSelectionMode?.();
 			if (selectionMode !== undefined && selectionMode !== 0) {
@@ -2013,6 +2060,7 @@ export class ProjectWriter {
 
 		// Gear child elements
 		const objectProtocol = DISPLAY_OBJECT_PROTOCOL_BY_TYPE[type] ?? PROJECT_XML_PROTOCOL.componentInstance;
+		writeCommonDisplayState(attrs, typedObj, objectProtocol);
 		const gearChildNameSet = getProtocolGearChildNameSet(objectProtocol);
 		for (const gear of obj.listGears()) {
 			const gearTag = GEAR_TAG[gear.getGearType()];

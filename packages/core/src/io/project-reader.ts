@@ -366,6 +366,7 @@ interface DisplayObjectXmlNode extends Record<string, unknown> {
 	columnGap?: string | number;
 	colGap?: string | number;
 	lineItemCount?: string | number;
+	lineItemCount2?: string | number;
 	autoItemSize?: string | boolean;
 	fill?: string;
 	shrinkOnly?: string | boolean;
@@ -764,6 +765,46 @@ function parseComboBoxItemXmlNode(item: ComboItemXmlNode): {
 		value: readXmlAttr<string>(item, specs.value) ?? null,
 		icon: readXmlAttr<string>(item, specs.icon) ?? null,
 	};
+}
+
+type WritableCommonDisplayState = GObject & {
+	setAlpha?(value: number): unknown;
+	setRotation?(value: number): unknown;
+	setVisible?(value: boolean): unknown;
+	setTouchable?(value: boolean): unknown;
+	setGrayed?(value: boolean): unknown;
+};
+
+function readCommonDisplayState(
+	source: DisplayObjectXmlNode,
+	object: WritableCommonDisplayState,
+	protocol: XmlNodeProtocol,
+): void {
+	const specs = protocol.attrs;
+	const alpha = specs.alpha
+		? readXmlAttr<string | number>(source, specs.alpha)
+		: undefined;
+	if (alpha !== undefined) object.setAlpha?.(parseFloat2(alpha, 1));
+
+	const rotation = specs.rotation
+		? readXmlAttr<string | number>(source, specs.rotation)
+		: undefined;
+	if (rotation !== undefined) object.setRotation?.(parseFloat2(rotation));
+
+	const visible = specs.visible
+		? readXmlAttr<string | boolean>(source, specs.visible)
+		: undefined;
+	if (visible !== undefined) object.setVisible?.(parseBool(visible));
+
+	const touchable = specs.touchable
+		? readXmlAttr<string | boolean>(source, specs.touchable)
+		: undefined;
+	if (touchable !== undefined) object.setTouchable?.(parseBool(touchable));
+
+	const grayed = specs.grayed
+		? readXmlAttr<string | boolean>(source, specs.grayed)
+		: undefined;
+	if (grayed !== undefined) object.setGrayed?.(parseBool(grayed));
 }
 
 export interface FileSystem {
@@ -1653,6 +1694,11 @@ export class ProjectReader {
 					const [scaleX, scaleY] = parseXYString(imageScale);
 					g.setScale(scaleX, scaleY);
 				}
+				const imageSkew = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.image.attrs.skew);
+				if (imageSkew) {
+					const [skewX, skewY] = parseXYString(imageSkew);
+					g.setSkew(skewX, skewY);
+				}
 				const imageRotation = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.image.attrs.rotation);
 				if (imageRotation !== undefined) g.setRotation(parseFloat2(imageRotation));
 				const imageAlpha = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.image.attrs.alpha);
@@ -1709,6 +1755,12 @@ export class ProjectReader {
 				if (textSize) {
 					const [w, h] = parseSizeString(textSize);
 					g.setSize(w, h);
+				}
+				const textPivot = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.pivot);
+				if (textPivot) {
+					const [pivotX, pivotY] = parseXYString(textPivot);
+					const textAnchor = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.anchor);
+					g.setPivot(pivotX, pivotY, parseBool(textAnchor));
 				}
 				const textRestrictSize = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.restrictSize);
 				if (textRestrictSize) {
@@ -1825,6 +1877,12 @@ export class ProjectReader {
 					const [w, h] = parseSizeString(richTextSize);
 					g.setSize(w, h);
 				}
+				const richTextPivot = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.richText.attrs.pivot);
+				if (richTextPivot) {
+					const [pivotX, pivotY] = parseXYString(richTextPivot);
+					const richTextAnchor = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.richText.attrs.anchor);
+					g.setPivot(pivotX, pivotY, parseBool(richTextAnchor));
+				}
 				const richTextRestrictSize = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.richText.attrs.restrictSize);
 				if (richTextRestrictSize) {
 					const parts = richTextRestrictSize.split(',').map(Number);
@@ -1909,6 +1967,12 @@ export class ProjectReader {
 				if (inputSize) {
 					const [w, h] = parseSizeString(inputSize);
 					g.setSize(w, h);
+				}
+				const inputPivot = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.pivot);
+				if (inputPivot) {
+					const [pivotX, pivotY] = parseXYString(inputPivot);
+					const inputAnchor = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.anchor);
+					g.setPivot(pivotX, pivotY, parseBool(inputAnchor));
 				}
 				const inputRestrictSize = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.restrictSize);
 				if (inputRestrictSize) {
@@ -2111,7 +2175,8 @@ export class ProjectReader {
 				const loaderPivot = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.pivot);
 				if (loaderPivot) {
 					const [pivotX, pivotY] = parseXYString(loaderPivot);
-					g.setPivot(pivotX, pivotY);
+					const loaderAnchor = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.anchor);
+					g.setPivot(pivotX, pivotY, parseBool(loaderAnchor));
 				}
 				const loaderScale = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.scale);
 				if (loaderScale) {
@@ -2353,6 +2418,12 @@ export class ProjectReader {
 					const [w, h] = parseSizeString(listSize);
 					g.setSize(w, h);
 				}
+				const listPivot = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.pivot);
+				if (listPivot) {
+					const [pivotX, pivotY] = parseXYString(listPivot);
+					const listAnchor = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.list.attrs.anchor);
+					g.setPivot(pivotX, pivotY, parseBool(listAnchor));
+				}
 				const listGroup = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.group);
 				if (listGroup) g.setGroup(listGroup);
 				const listVisible = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.list.attrs.visible);
@@ -2400,8 +2471,19 @@ export class ProjectReader {
 				if (lineGap !== undefined) g.setLineGap(parseInt2(lineGap));
 				const columnGap = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.columnGap);
 				if (columnGap !== undefined) g.setColumnGap(parseInt2(columnGap));
-				const lineCount = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineCount);
-				if (lineCount !== undefined) g.setLineCount?.(parseInt2(lineCount));
+				const lineItemCount = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineItemCount);
+				const lineItemCount2 = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineItemCount2);
+				if (layout) {
+					const resolvedLayout = g.getLayout?.() ?? 0;
+					if (resolvedLayout === 2 || resolvedLayout === 4) {
+						if (lineItemCount !== undefined) g.setColumnCount?.(parseInt2(lineItemCount));
+					} else if (resolvedLayout === 3 && lineItemCount !== undefined) {
+						g.setLineCount?.(parseInt2(lineItemCount));
+					}
+					if (resolvedLayout === 4 && lineItemCount2 !== undefined) {
+						g.setLineCount?.(parseInt2(lineItemCount2));
+					}
+				}
 				const autoResizeItem = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.list.attrs.autoResizeItem);
 				if (autoResizeItem !== undefined) g.setAutoResizeItem?.(parseBool(autoResizeItem));
 				const selectionMode = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.selectionMode);
@@ -2463,6 +2545,7 @@ export class ProjectReader {
 		const objectId = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.id);
 		obj.setId(objectId || '');
 		const objectProtocol = DISPLAY_OBJECT_PROTOCOL_MAP[tagName];
+		readCommonDisplayState(attrs, obj as WritableCommonDisplayState, objectProtocol);
 		// Parse gear elements
 		for (const gearTag of getProtocolGearChildNames(objectProtocol)) {
 			const gearDefs = ensureArray(attrs[gearTag]);

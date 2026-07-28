@@ -159,6 +159,56 @@ test('file sessions reject lossy UAM writeback before touching disk', async (t) 
 	}
 });
 
+test('file sessions reject UAM writeback when pivot, anchor, or skew would be lost', async (t) => {
+	const fixture = await createTempBackendProject();
+	try {
+		const componentPath = path.join(fixture.rootDir, 'assets', 'Main', 'MainView.xml');
+		const originalSource = await fs.readFile(componentPath, 'utf8');
+		const source = originalSource
+			.replace('<image ', '<image skew="3,4" ')
+			.replace('<text ', '<text pivot="0.25,0.5" anchor="true" ');
+		t.not(source, originalSource);
+		t.true(source.includes('skew="3,4"'));
+		t.true(source.includes('pivot="0.25,0.5" anchor="true"'));
+		await fs.writeFile(componentPath, source);
+
+		const runtime = createBackendRuntime();
+		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
+		t.true(opened.ok);
+		if (!opened.ok) return;
+		t.is(opened.data.uamFidelity, 'unsupported');
+
+		const applied = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: 0,
+			operations: [
+				{
+					kind: 'setDisplayNodeProps',
+					selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+					props: { text: 'Must remain in memory' },
+				},
+			],
+		});
+		t.true(applied.ok);
+		if (!applied.ok) return;
+
+		const saved = await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: 1 });
+		t.false(saved.ok);
+		if (!saved.ok) t.is(saved.error.code, 'uam_fidelity_unsupported');
+
+		const materialized = await runtime.materializeSession({
+			sessionId: opened.data.sessionId,
+			expectedRevision: 1,
+			mode: 'fullProject',
+		});
+		t.false(materialized.ok);
+		if (!materialized.ok) t.is(materialized.error.code, 'uam_fidelity_unsupported');
+		t.is(await fs.readFile(componentPath, 'utf8'), source);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 test('saveSession serializes a concurrent transaction behind the saved revision', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {

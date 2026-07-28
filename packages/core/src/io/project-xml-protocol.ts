@@ -141,6 +141,10 @@ const SCALE_ATTRS = {
 	scale: { canonical: 'scale' },
 } satisfies XmlAttrMap;
 
+const SKEW_ATTRS = {
+	skew: { canonical: 'skew' },
+} satisfies XmlAttrMap;
+
 const GROUP_REF_ATTRS = {
 	group: { canonical: 'group' },
 } satisfies XmlAttrMap;
@@ -161,6 +165,13 @@ const TOUCHABLE_ATTRS = {
 const GRAYED_ATTRS = {
 	grayed: { canonical: 'grayed' },
 } satisfies XmlAttrMap;
+
+const COMMON_DISPLAY_STATE_ATTRS = mergeAttrs(
+	ROTATION_ALPHA_ATTRS,
+	VISIBLE_ATTRS,
+	TOUCHABLE_ATTRS,
+	GRAYED_ATTRS,
+);
 
 const INSTANCE_MISC_PANEL_ATTRS = {
 	tooltips: { canonical: 'tooltips' },
@@ -231,7 +242,6 @@ const IMAGE_PANEL_ATTRS = {
 } satisfies XmlAttrMap;
 
 const GRAPH_PANEL_ATTRS = {
-	skew: { canonical: 'skew' },
 	type: { canonical: 'type' },
 	lineSize: { canonical: 'lineSize' },
 	lineColor: { canonical: 'lineColor' },
@@ -341,7 +351,8 @@ const LIST_PANEL_ATTRS = {
 	vAlign: { canonical: 'vAlign' },
 	lineGap: { canonical: 'lineGap' },
 	columnGap: { canonical: 'colGap', aliases: ['columnGap'] },
-	lineCount: { canonical: 'lineItemCount', aliases: ['lineCount'] },
+	lineItemCount: { canonical: 'lineItemCount' },
+	lineItemCount2: { canonical: 'lineItemCount2' },
 	autoResizeItem: { canonical: 'autoItemSize', aliases: ['autoResizeItem'] },
 	selectionMode: { canonical: 'selectionMode' },
 	selectionController: { canonical: 'selectionController' },
@@ -607,10 +618,9 @@ const IMAGE_NODE = defineNode(
 		PIVOT_ATTRS,
 		ANCHOR_ATTRS,
 		SCALE_ATTRS,
+		SKEW_ATTRS,
 		GROUP_REF_ATTRS,
-		ROTATION_ALPHA_ATTRS,
-		VISIBLE_ATTRS,
-		GRAYED_ATTRS,
+		COMMON_DISPLAY_STATE_ATTRS,
 		RESOURCE_LINK_ATTRS,
 		FILTER_ATTRS,
 	),
@@ -624,10 +634,9 @@ const GRAPH_NODE = defineNode(
 		RESTRICT_SIZE_ATTRS,
 		PIVOT_ATTRS,
 		ANCHOR_ATTRS,
+		SKEW_ATTRS,
 		GROUP_REF_ATTRS,
-		ROTATION_ALPHA_ATTRS,
-		VISIBLE_ATTRS,
-		TOUCHABLE_ATTRS,
+		COMMON_DISPLAY_STATE_ATTRS,
 		GRAPH_PANEL_ATTRS,
 	),
 	mergeChildren(WITH_RELATION_CHILDREN, WITH_GEAR_CHILDREN),
@@ -639,9 +648,7 @@ const MOVIE_CLIP_NODE = defineNode(
 		XY_SIZE_ATTRS,
 		PIVOT_ATTRS,
 		GROUP_REF_ATTRS,
-		ROTATION_ALPHA_ATTRS,
-		VISIBLE_ATTRS,
-		GRAYED_ATTRS,
+		COMMON_DISPLAY_STATE_ATTRS,
 		RESOURCE_LINK_ATTRS,
 		FILTER_ATTRS,
 	),
@@ -659,10 +666,7 @@ const COMPONENT_INSTANCE_NODE = defineNode(
 		ANCHOR_ATTRS,
 		SCALE_ATTRS,
 		GROUP_REF_ATTRS,
-		ROTATION_ALPHA_ATTRS,
-		VISIBLE_ATTRS,
-		TOUCHABLE_ATTRS,
-		GRAYED_ATTRS,
+		COMMON_DISPLAY_STATE_ATTRS,
 		INSTANCE_MISC_PANEL_ATTRS,
 		RESOURCE_LINK_ATTRS,
 		FILTER_ATTRS,
@@ -678,10 +682,10 @@ const LOADER_NODE = defineNode(
 	mergeAttrs(
 		XY_SIZE_ATTRS,
 		PIVOT_ATTRS,
+		ANCHOR_ATTRS,
 		SCALE_ATTRS,
 		GROUP_REF_ATTRS,
-		VISIBLE_ATTRS,
-		GRAYED_ATTRS,
+		COMMON_DISPLAY_STATE_ATTRS,
 		LOADER_PANEL_ATTRS,
 		FILTER_ATTRS,
 	),
@@ -689,7 +693,7 @@ const LOADER_NODE = defineNode(
 );
 
 const LOADER3D_NODE = defineNode(
-	mergeAttrs(XY_SIZE_ATTRS, VISIBLE_ATTRS, LOADER3D_PANEL_ATTRS),
+	mergeAttrs(XY_SIZE_ATTRS, COMMON_DISPLAY_STATE_ATTRS, LOADER3D_PANEL_ATTRS),
 	mergeChildren(WITH_RELATION_CHILDREN, WITH_GEAR_CHILDREN),
 );
 
@@ -697,12 +701,11 @@ const TEXT_NODE = defineNode(
 	mergeAttrs(
 		XY_SIZE_ATTRS,
 		RESTRICT_SIZE_ATTRS,
+		PIVOT_ATTRS,
+		ANCHOR_ATTRS,
 		{ customData: { canonical: 'customData' } },
 		GROUP_REF_ATTRS,
-		ROTATION_ALPHA_ATTRS,
-		VISIBLE_ATTRS,
-		TOUCHABLE_ATTRS,
-		GRAYED_ATTRS,
+		COMMON_DISPLAY_STATE_ATTRS,
 		TEXT_PANEL_ATTRS,
 		TEXT_INPUT_PANEL_ATTRS,
 	),
@@ -713,24 +716,26 @@ const TEXT_INPUT_NODE = defineNode(
 	mergeAttrs(
 		XY_SIZE_ATTRS,
 		RESTRICT_SIZE_ATTRS,
+		PIVOT_ATTRS,
+		ANCHOR_ATTRS,
+		{ customData: { canonical: 'customData' } },
 		GROUP_REF_ATTRS,
-		ROTATION_ALPHA_ATTRS,
-		VISIBLE_ATTRS,
-		TOUCHABLE_ATTRS,
-		GRAYED_ATTRS,
+		COMMON_DISPLAY_STATE_ATTRS,
 		TEXT_PANEL_ATTRS,
 		TEXT_INPUT_PANEL_ATTRS,
 	),
+	mergeChildren(WITH_RELATION_CHILDREN, WITH_GEAR_CHILDREN),
 );
 
 const RICH_TEXT_NODE = defineNode(
 	mergeAttrs(
 		XY_SIZE_ATTRS,
+		RESTRICT_SIZE_ATTRS,
+		PIVOT_ATTRS,
+		ANCHOR_ATTRS,
+		{ customData: { canonical: 'customData' } },
 		GROUP_REF_ATTRS,
-		ROTATION_ALPHA_ATTRS,
-		VISIBLE_ATTRS,
-		TOUCHABLE_ATTRS,
-		GRAYED_ATTRS,
+		COMMON_DISPLAY_STATE_ATTRS,
 		TEXT_PANEL_ATTRS,
 		RICH_TEXT_PANEL_ATTRS,
 	),
@@ -742,7 +747,7 @@ const GROUP_NODE = defineNode(
 		XY_SIZE_ATTRS,
 		LOCKED_ATTRS,
 		GROUP_REF_ATTRS,
-		VISIBLE_ATTRS,
+		COMMON_DISPLAY_STATE_ATTRS,
 		GROUP_PANEL_ATTRS,
 	),
 	// FairyGUI editor only exposes relation/gear channels on advanced groups.
@@ -754,9 +759,10 @@ const GROUP_NODE = defineNode(
 const LIST_NODE = defineNode(
 	mergeAttrs(
 		XY_SIZE_ATTRS,
+		PIVOT_ATTRS,
+		ANCHOR_ATTRS,
 		GROUP_REF_ATTRS,
-		VISIBLE_ATTRS,
-		TOUCHABLE_ATTRS,
+		COMMON_DISPLAY_STATE_ATTRS,
 		LIST_PANEL_ATTRS,
 	),
 	mergeChildren(

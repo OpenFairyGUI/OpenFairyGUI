@@ -30,6 +30,9 @@ export interface IListBase extends IGObject {
 	y: number;
 	width: number;
 	height: number;
+	pivotX: number;
+	pivotY: number;
+	anchor: boolean;
 	group: string;
 	alpha: number;
 	rotation: number;
@@ -87,6 +90,9 @@ export class GListBase<
 			y: 0,
 			width: 0,
 			height: 0,
+			pivotX: 0,
+			pivotY: 0,
+			anchor: false,
 			group: '',
 			alpha: 1,
 			rotation: 0,
@@ -152,6 +158,16 @@ export class GListBase<
 	}
 	public setX(v: number): this { return this.setListProp('x', v); }
 	public setY(v: number): this { return this.setListProp('y', v); }
+
+	public getPivotX(): number { return this.getListProp('pivotX'); }
+	public getPivotY(): number { return this.getListProp('pivotY'); }
+	public getPivotAsAnchor(): boolean { return this.getListProp('anchor'); }
+	public setPivot(x: number, y: number, anchor = false): this {
+		this.setListProp('pivotX', x);
+		this.setListProp('pivotY', y);
+		return this.setListProp('anchor', anchor);
+	}
+	public setPivotAsAnchor(v: boolean): this { return this.setListProp('anchor', v); }
 
 	public getAlpha(): number { return this.getListProp('alpha'); }
 	public setAlpha(v: number): this { return this.setListProp('alpha', v); }
