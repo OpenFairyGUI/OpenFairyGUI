@@ -179,13 +179,13 @@ function createEngineeringScaleUamProject(): UamProject {
 											duration: 12,
 											startValue: [0, 0],
 											endValue: [120, 40],
-											easeType: 5,
+											easeType: 31,
 											repeat: 1,
 											yoyo: true,
 											label: 'start',
 											endLabel: 'end',
-											path: '',
-											customEasePath: '',
+											path: '0,0,0,0,120,40',
+											customEasePath: '2,0,0,0.5375,0.28,0.7575,0.865,1,0,1,1',
 										},
 									],
 								},
@@ -230,6 +230,9 @@ test('Gate A proves one engineering-scale UAM-owned project read/write path', as
 		t.is(componentResource.component.controllers[0]?.pages[1]?.name, 'Alert');
 		t.is(componentResource.component.transitions[0]?.name, 'intro');
 		t.is(componentResource.component.transitions[0]?.items[0]?.targetNodeId, 'n0');
+		t.is(componentResource.component.transitions[0]?.items[0]?.easeType, 31);
+		t.is(componentResource.component.transitions[0]?.items[0]?.path, '0,0,0,0,120,40');
+		t.is(componentResource.component.transitions[0]?.items[0]?.customEasePath, '2,0,0,0.5375,0.28,0.7575,0.865,1,0,1,1');
 
 		const lookGear = componentResource.component.displayList[0]?.gears[0];
 		t.is(lookGear?.kind, 'look');
