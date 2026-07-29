@@ -140,6 +140,8 @@ interface UamDisplayNodeBase {
 	name: string;
 	position: UamPoint;
 	size: UamSize;
+	pivot?: UamPoint;
+	pivotAsAnchor?: boolean;
 	visible: boolean;
 	touchable: boolean;
 	grayed: boolean;
