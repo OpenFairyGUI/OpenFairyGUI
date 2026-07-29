@@ -32,6 +32,12 @@ const COMPONENT_XML = `<?xml version="1.0" encoding="utf-8"?>
       pivot="0.5,0.6" anchor="true"/>
     <list id="tree" xy="60,70" size="100,30"
       pivot="0.6,0.7" anchor="true" treeView="true"/>
+    <group id="group" xy="70,80" size="100,30"
+      pivot="0.7,0.8" anchor="true" advanced="true"/>
+    <loader3D id="loader3d" xy="80,90" size="100,30"
+      pivot="0.8,0.9" anchor="true"/>
+    <movieclip id="movieclip" xy="90,100" size="100,30"
+      pivot="0.9,1" anchor="true"/>
   </displayList>
 </component>
 `;
@@ -49,6 +55,9 @@ const expected = new Map<string, [number, number]>([
 	['loader', [0.4, 0.5]],
 	['list', [0.5, 0.6]],
 	['tree', [0.6, 0.7]],
+	['group', [0.7, 0.8]],
+	['loader3d', [0.8, 0.9]],
+	['movieclip', [0.9, 1]],
 ]);
 
 async function createSourceProject(): Promise<{
@@ -87,7 +96,7 @@ function assertPivotState(
 	}
 }
 
-test('text, loader, list, and tree pivot/anchor survive XML and binary round-trips', async (t) => {
+test('all display node pivot/anchor variants survive XML and binary round-trips', async (t) => {
 	const source = await createSourceProject();
 	const outputDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pivot-out-'));
 	const outputProjectPath = path.join(outputDirectory, 'Pivot.fairy');
@@ -104,7 +113,7 @@ test('text, loader, list, and tree pivot/anchor survive XML and binary round-tri
 			'utf8',
 		);
 		for (const [id, [pivotX, pivotY]] of expected) {
-			const tag = outputXml.match(new RegExp(`<(?:text|richtext|inputtext|loader|list)\\b[^>]*id="${id}"[^>]*>`))?.[0] ?? '';
+			const tag = outputXml.match(new RegExp(`<(?:text|richtext|inputtext|loader|list|group|loader3d|movieclip|jta)\\b[^>]*id="${id}"[^>]*>`, 'i'))?.[0] ?? '';
 			t.regex(tag, new RegExp(`pivot="${pivotX},${pivotY}"`), `${id} writes pivot`);
 			t.regex(tag, /\banchor="true"/, `${id} writes anchor`);
 		}

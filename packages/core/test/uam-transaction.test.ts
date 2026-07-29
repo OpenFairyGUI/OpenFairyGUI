@@ -685,6 +685,38 @@ test('applyUamTransaction leaves untouched invalid baseline refs as passthrough 
 	}
 });
 
+test('setDisplayNodeProps preserves pivot and anchor through save/reload and inverse', async (t) => {
+	const project = normalizeUamProject(createSupportedProject());
+	const selector = { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' };
+	const forward: UamTransactionOperation[] = [{
+		kind: 'setDisplayNodeProps',
+		selector,
+		props: { pivot: { x: 0.25, y: 0.5 }, pivotAsAnchor: true },
+	}];
+	t.deepEqual(validateTransactionSupport(project, forward), []);
+
+	const updated = applyUamTransaction(project, forward);
+	const committed = await roundTripCommittedProject(updated);
+	const committedComponent = committed.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	t.is(committedComponent?.kind, 'component');
+	if (committedComponent?.kind !== 'component') return;
+	const committedNode = committedComponent.component.displayList.find((node) => node.id === 'n1');
+	t.deepEqual(committedNode?.pivot, { x: 0.25, y: 0.5 });
+	t.true(committedNode?.pivotAsAnchor ?? false);
+
+	const restored = await roundTripCommittedProject(applyUamTransaction(committed, [{
+		kind: 'setDisplayNodeProps',
+		selector,
+		props: { pivot: { x: 0, y: 0 }, pivotAsAnchor: false },
+	}]));
+	const restoredComponent = restored.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	t.is(restoredComponent?.kind, 'component');
+	if (restoredComponent?.kind !== 'component') return;
+	const restoredNode = restoredComponent.component.displayList.find((node) => node.id === 'n1');
+	t.deepEqual(restoredNode?.pivot, { x: 0, y: 0 });
+	t.false(restoredNode?.pivotAsAnchor ?? true);
+});
+
 test('Phase A transactions support common FairyGUI display node kinds for common props', (t) => {
 	const project = createSupportedProject();
 	const componentResource = project.packages[0]!.resources[1];
@@ -796,6 +828,8 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 		const props: UamDisplayNodePropsUpdate = {
 			position: { x: 100 + index, y: 120 + index },
 			size: { width: 200 + index, height: 40 + index },
+			pivot: { x: 0.25, y: 0.75 },
+			pivotAsAnchor: true,
 			alpha: 0.5,
 			rotation: 5 + index,
 			customData: `phase-a-${node.kind}`,
@@ -831,6 +865,8 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 		t.is(updatedNode?.kind, sourceNode.kind);
 		t.deepEqual(updatedNode?.position, { x: 100 + index, y: 120 + index });
 		t.deepEqual(updatedNode?.size, { width: 200 + index, height: 40 + index });
+		t.deepEqual(updatedNode?.pivot, { x: 0.25, y: 0.75 });
+		t.true(updatedNode?.pivotAsAnchor ?? false);
 		t.is(updatedNode?.alpha, 0.5);
 		t.is(updatedNode?.rotation, 5 + index);
 		t.is(updatedNode?.customData, `phase-a-${sourceNode.kind}`);
@@ -851,6 +887,13 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 		t.is(textInput.font, 'Arial');
 		t.is(textInput.color, '#00aaee');
 	}
+
+	const invalidPivotIssues = validateTransactionSupport(normalizedProject, [{
+		kind: 'setDisplayNodeProps',
+		selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n3' },
+		props: { pivot: { x: Number.NaN, y: 0.5 } },
+	}]);
+	t.true(invalidPivotIssues.some((issue) => issue.code === 'invalid_display_node_payload'));
 });
 
 test('assertTransactionSupported rejects duplicate transition names and duplicate look-gear-per-controller', (t) => {
@@ -1492,6 +1535,8 @@ test('component lifecycle atomically rewrites inbound display references', async
 	}
 	t.deepEqual(restoredHost.component.displayList.find((node) => node.id === 'component-ref'), {
 		...originalReference,
+		pivot: { x: 0, y: 0 },
+		pivotAsAnchor: false,
 		resource: { packageId: 'pkg002', resourceId: 'cmp002' },
 	});
 
@@ -1539,6 +1584,8 @@ test('component lifecycle atomically rewrites inbound display references', async
 	}
 	t.deepEqual(reattachedHost.component.displayList.find((node) => node.id === 'component-ref'), {
 		...originalReference,
+		pivot: { x: 0, y: 0 },
+		pivotAsAnchor: false,
 		resource: { packageId: 'pkg002', resourceId: 'cmp002' },
 	});
 

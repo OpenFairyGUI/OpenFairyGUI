@@ -28,7 +28,10 @@ import type {
 } from './model.js';
 import { UAM_SUPPORTED_TRANSACTION_SCOPE } from './model.js';
 import { normalizeUamProject } from './normalize.js';
-import { validateUamProject } from './validate.js';
+import {
+	isFiniteUamPoint,
+	validateUamProject,
+} from './validate.js';
 
 export interface UamResourceSelector {
 	packageId: string;
@@ -69,6 +72,8 @@ export interface UamGearSelector extends UamDisplayNodeSelector {
 export interface UamDisplayNodePropsUpdate {
 	position?: UamDisplayNode['position'];
 	size?: UamDisplayNode['size'];
+	pivot?: NonNullable<UamDisplayNode['pivot']>;
+	pivotAsAnchor?: boolean;
 	visible?: boolean;
 	touchable?: boolean;
 	grayed?: boolean;
@@ -280,6 +285,7 @@ export type UamTransactionSupportIssueCode =
 	| 'unsupported_display_node_mutation'
 	| 'unsupported_text_field_target'
 	| 'unsupported_display_node_field'
+	| 'invalid_display_node_payload'
 	| 'invalid_resource_name'
 	| 'invalid_resource_path'
 	| 'invalid_attach_index'
@@ -924,6 +930,30 @@ function validateDisplayPropsPayload(
 	const node = findDisplayNodeSpec(project, op.selector);
 	const nodeKind = node?.kind;
 	for (const key of Object.keys(op.props) as Array<keyof UamDisplayNodePropsUpdate>) {
+		if (key === 'pivot') {
+			if (!isFiniteUamPoint(op.props.pivot)) {
+				pushSupportIssue(
+					issues,
+					'invalid_display_node_payload',
+					`${path}.props.pivot`,
+					'Display node pivot must contain finite x and y numbers.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			}
+			continue;
+		}
+		if (key === 'pivotAsAnchor') {
+			if (typeof op.props.pivotAsAnchor !== 'boolean') {
+				pushSupportIssue(
+					issues,
+					'invalid_display_node_payload',
+					`${path}.props.pivotAsAnchor`,
+					'Display node pivotAsAnchor must be boolean.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			}
+			continue;
+		}
 		if (COMMON_DISPLAY_PROP_KEYS.has(key)) continue;
 		if (TEXT_DISPLAY_PROP_KEYS.has(key)) {
 			if (nodeKind && !TEXT_DISPLAY_NODE_KINDS.has(nodeKind)) {
@@ -2169,6 +2199,8 @@ function canApplyOperationsInUam(operations: UamTransactionOperation[]): boolean
 function applyDisplayNodePropsUpdate(node: UamDisplayNode, props: UamDisplayNodePropsUpdate): void {
 	if (props.position !== undefined) node.position = { ...props.position };
 	if (props.size !== undefined) node.size = { ...props.size };
+	if (props.pivot !== undefined) node.pivot = { ...props.pivot };
+	if (props.pivotAsAnchor !== undefined) node.pivotAsAnchor = props.pivotAsAnchor;
 	if (props.visible !== undefined) node.visible = props.visible;
 	if (props.touchable !== undefined) node.touchable = props.touchable;
 	if (props.grayed !== undefined) node.grayed = props.grayed;
@@ -2235,7 +2267,7 @@ function applyUamNativeOperations(
 			});
 		}
 	}
-	return result;
+	return normalizeUamProject(result);
 }
 
 function resolvePackage(doc: Document, selector: { packageId: string }): Package {
@@ -2354,6 +2386,26 @@ function resolveUniqueGear(node: GObject, selector: UamGearSelector) {
 function applyCommonDisplayProps(target: CommonDisplayPropTarget, props: UamDisplayNodePropsUpdate): void {
 	if (props.position) target.setXY(props.position.x, props.position.y);
 	if (props.size) target.setSize(props.size.width, props.size.height);
+	if (props.pivot !== undefined || props.pivotAsAnchor !== undefined) {
+		const pivotTarget = target as CommonDisplayPropTarget & {
+			getPivotX(): number;
+			getPivotY(): number;
+			getPivotAsAnchor?(): boolean;
+			setPivot(x: number, y: number, anchor?: boolean): unknown;
+		};
+		if (
+			typeof pivotTarget.getPivotX !== 'function'
+			|| typeof pivotTarget.getPivotY !== 'function'
+			|| typeof pivotTarget.setPivot !== 'function'
+		) {
+			throw new Error(`Display node type "${target.propertyType}" does not support pivot.`);
+		}
+		pivotTarget.setPivot(
+			props.pivot?.x ?? pivotTarget.getPivotX(),
+			props.pivot?.y ?? pivotTarget.getPivotY(),
+			props.pivotAsAnchor ?? pivotTarget.getPivotAsAnchor?.() ?? false,
+		);
+	}
 	if (props.visible !== undefined) target.setVisible(props.visible);
 	if (props.touchable !== undefined) target.setTouchable(props.touchable);
 	if (props.grayed !== undefined) target.setGrayed(props.grayed);

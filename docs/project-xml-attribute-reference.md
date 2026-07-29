@@ -159,13 +159,15 @@
 
 ### 显示对象公共标识层
 
-以下属性当前作为 display-list 对象的公共标识层存在于协议中。
+以下属性由编辑器公共 `FObject` 读写链路承载，适用于全部 display-list 对象。
 
 | 属性名 | Alias | 说明 |
 |---|---|---|
 | `id` |  | 对象标识 |
 | `name` |  | 对象名 |
 | `relation` |  | 关系引用字段 |
+| `pivot` |  | pivot |
+| `anchor` |  | 是否以 pivot 作为坐标锚点 |
 
 ### `<component>` 子组件实例
 
@@ -262,6 +264,7 @@
 | `xy` |  | 位置 |
 | `size` |  | 尺寸 |
 | `pivot` |  | pivot |
+| `anchor` |  | 是否以 pivot 作为坐标锚点 |
 | `group` |  | 所属 group |
 | `rotation` |  | 旋转 |
 | `alpha` |  | 透明度 |
@@ -312,6 +315,8 @@
 |---|---|---|
 | `xy` |  | 位置 |
 | `size` |  | 尺寸 |
+| `pivot` |  | pivot |
+| `anchor` |  | 是否以 pivot 作为坐标锚点 |
 | `rotation` |  | 旋转 |
 | `alpha` |  | 透明度 |
 | `visible` |  | 是否可见 |
@@ -469,6 +474,8 @@
 | `xy` |  | 位置 |
 | `size` |  | 尺寸 |
 | `locked` |  | 是否锁定 |
+| `pivot` |  | pivot |
+| `anchor` |  | 是否以 pivot 作为坐标锚点 |
 | `group` |  | 所属 group |
 | `rotation` |  | 旋转 |
 | `alpha` |  | 透明度 |

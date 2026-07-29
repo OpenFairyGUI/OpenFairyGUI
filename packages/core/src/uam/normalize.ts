@@ -336,6 +336,8 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			width: node.size?.width ?? 0,
 			height: node.size?.height ?? 0,
 		},
+		pivot: normalizePoint(node.pivot),
+		pivotAsAnchor: node.pivotAsAnchor ?? false,
 		visible: node.visible ?? true,
 		touchable: node.touchable ?? true,
 		grayed: node.grayed ?? false,

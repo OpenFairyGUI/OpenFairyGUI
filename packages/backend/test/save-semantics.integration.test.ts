@@ -38,6 +38,45 @@ test('saveSession success updates lastSavedRevision and clears dirty state', asy
 	}
 });
 
+test('file sessions preserve display pivot and anchor through apply, save, and reload', async (t) => {
+	const fixture = await createTempBackendProject();
+	try {
+		const componentPath = path.join(fixture.rootDir, 'assets', 'Main', 'MainView.xml');
+		const runtime = createBackendRuntime();
+		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
+		t.true(opened.ok);
+		if (!opened.ok) return;
+		t.is(opened.data.uamFidelity, 'full');
+
+		const applied = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: 0,
+			operations: [{
+				kind: 'setDisplayNodeProps',
+				selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+				props: { pivot: { x: 0.25, y: 0.5 }, pivotAsAnchor: true },
+			}],
+		});
+		t.true(applied.ok);
+		if (!applied.ok) return;
+
+		const saved = await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: 1 });
+		t.true(saved.ok);
+		if (!saved.ok) return;
+		const componentXml = await fs.readFile(componentPath, 'utf8');
+		t.true(componentXml.includes('pivot="0.25,0.5"'));
+		t.true(componentXml.includes('anchor="true"'));
+
+		await runtime.closeSession({ sessionId: opened.data.sessionId });
+		const reloadedRuntime = createBackendRuntime();
+		const reloaded = await reloadedRuntime.openSession({ projectPath: fixture.rootDir });
+		t.true(reloaded.ok);
+		if (reloaded.ok) t.is(reloaded.data.uamFidelity, 'full');
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 test('saveSession partial failure keeps dirty state and reports partial update risk', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
@@ -159,17 +198,14 @@ test('file sessions reject lossy UAM writeback before touching disk', async (t) 
 	}
 });
 
-test('file sessions reject UAM writeback when pivot, anchor, or skew would be lost', async (t) => {
+test('file sessions reject UAM writeback when skew would be lost', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
 		const componentPath = path.join(fixture.rootDir, 'assets', 'Main', 'MainView.xml');
 		const originalSource = await fs.readFile(componentPath, 'utf8');
-		const source = originalSource
-			.replace('<image ', '<image skew="3,4" ')
-			.replace('<text ', '<text pivot="0.25,0.5" anchor="true" ');
+		const source = originalSource.replace('<image ', '<image skew="3,4" ');
 		t.not(source, originalSource);
 		t.true(source.includes('skew="3,4"'));
-		t.true(source.includes('pivot="0.25,0.5" anchor="true"'));
 		await fs.writeFile(componentPath, source);
 
 		const runtime = createBackendRuntime();

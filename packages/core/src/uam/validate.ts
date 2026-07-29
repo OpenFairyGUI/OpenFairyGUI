@@ -12,6 +12,15 @@ function pushIssue(issues: UamValidationIssue[], path: string, message: string):
 	issues.push({ path, message });
 }
 
+export function isFiniteUamPoint(value: unknown): boolean {
+	if (typeof value !== 'object' || value === null) return false;
+	const point = value as { x?: unknown; y?: unknown };
+	return typeof point.x === 'number'
+		&& Number.isFinite(point.x)
+		&& typeof point.y === 'number'
+		&& Number.isFinite(point.y);
+}
+
 function validateControllerAction(
 	action: UamControllerAction,
 	knownPageIds: Set<string>,
@@ -128,6 +137,16 @@ function validateDisplayNode(
 	path: string,
 	issues: UamValidationIssue[],
 ): void {
+	if (node.pivot !== undefined) {
+		if (!isFiniteUamPoint(node.pivot)) {
+			pushIssue(issues, `${path}.pivot`, 'Display node pivot must contain finite x and y numbers.');
+		}
+	}
+	if (node.pivotAsAnchor !== undefined) {
+		if (typeof node.pivotAsAnchor !== 'boolean') {
+			pushIssue(issues, `${path}.pivotAsAnchor`, 'Display node pivotAsAnchor must be boolean.');
+		}
+	}
 	for (const [gearIndex, gear] of node.gears.entries()) {
 		validateGearBinding(gear, controllerMap, `${path}.gears[${gearIndex}]`, issues);
 	}

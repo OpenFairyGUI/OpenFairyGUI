@@ -112,6 +112,7 @@ type MaterializedDisplayNodeBase = {
 	setId(id: string): MaterializedDisplayNodeBase;
 	setXY(x: number, y: number): MaterializedDisplayNodeBase;
 	setSize(width: number, height: number): MaterializedDisplayNodeBase;
+	setPivot(x: number, y: number, anchor?: boolean): MaterializedDisplayNodeBase;
 	setVisible(visible: boolean): MaterializedDisplayNodeBase;
 	setTouchable(touchable: boolean): MaterializedDisplayNodeBase;
 	setGrayed(grayed: boolean): MaterializedDisplayNodeBase;
@@ -152,6 +153,9 @@ type LiftableDisplayNodeBase = {
 	getY(): number;
 	getWidth(): number;
 	getHeight(): number;
+	getPivotX(): number;
+	getPivotY(): number;
+	getPivotAsAnchor(): boolean;
 	getVisible(): boolean;
 	getTouchable(): boolean;
 	getGrayed(): boolean;
@@ -178,7 +182,7 @@ type LiftableTitleControl = LiftableComponentDerivedControl & {
 
 type LiftedDisplayNodeBase = Pick<
 	UamButtonNode,
-	'id' | 'name' | 'position' | 'size' | 'visible' | 'touchable' | 'grayed' | 'alpha' | 'rotation' | 'customData' | 'relations' | 'gears'
+	'id' | 'name' | 'position' | 'size' | 'pivot' | 'pivotAsAnchor' | 'visible' | 'touchable' | 'grayed' | 'alpha' | 'rotation' | 'customData' | 'relations' | 'gears'
 >;
 
 type LiftedComponentDerivedControlBase = LiftedDisplayNodeBase & Pick<UamButtonNode, 'src' | 'packageId'>;
@@ -193,6 +197,7 @@ function materializeDisplayNodeBase<TNode extends UamDisplayNode, TTarget extend
 		.setId(node.id)
 		.setXY(node.position.x, node.position.y)
 		.setSize(node.size.width, node.size.height)
+		.setPivot(node.pivot?.x ?? 0, node.pivot?.y ?? 0, node.pivotAsAnchor ?? false)
 		.setVisible(node.visible)
 		.setTouchable(node.touchable)
 		.setGrayed(node.grayed)
@@ -233,6 +238,8 @@ function liftDisplayNodeBase(child: LiftableDisplayNodeBase): LiftedDisplayNodeB
 		name: child.getName(),
 		position: { x: child.getX(), y: child.getY() },
 		size: { width: child.getWidth(), height: child.getHeight() },
+		pivot: { x: child.getPivotX(), y: child.getPivotY() },
+		pivotAsAnchor: child.getPivotAsAnchor(),
 		visible: child.getVisible(),
 		touchable: child.getTouchable(),
 		grayed: child.getGrayed(),
@@ -463,6 +470,7 @@ export function materializeDisplayNode(
 			.setId(node.id)
 			.setXY(node.position.x, node.position.y)
 			.setSize(node.size.width, node.size.height)
+			.setPivot(node.pivot?.x ?? 0, node.pivot?.y ?? 0, node.pivotAsAnchor ?? false)
 			.setVisible(node.visible)
 			.setTouchable(node.touchable)
 			.setGrayed(node.grayed)
@@ -485,6 +493,7 @@ export function materializeDisplayNode(
 			.setId(node.id)
 			.setXY(node.position.x, node.position.y)
 			.setSize(node.size.width, node.size.height)
+			.setPivot(node.pivot?.x ?? 0, node.pivot?.y ?? 0, node.pivotAsAnchor ?? false)
 			.setVisible(node.visible)
 			.setTouchable(node.touchable)
 			.setGrayed(node.grayed)
@@ -514,6 +523,7 @@ export function materializeDisplayNode(
 			.setId(node.id)
 			.setXY(node.position.x, node.position.y)
 			.setSize(node.size.width, node.size.height)
+			.setPivot(node.pivot?.x ?? 0, node.pivot?.y ?? 0, node.pivotAsAnchor ?? false)
 			.setVisible(node.visible)
 			.setTouchable(node.touchable)
 			.setGrayed(node.grayed)
@@ -533,6 +543,7 @@ export function materializeDisplayNode(
 			.setId(node.id)
 			.setXY(node.position.x, node.position.y)
 			.setSize(node.size.width, node.size.height)
+			.setPivot(node.pivot?.x ?? 0, node.pivot?.y ?? 0, node.pivotAsAnchor ?? false)
 			.setVisible(node.visible)
 			.setTouchable(node.touchable)
 			.setGrayed(node.grayed)
@@ -619,6 +630,7 @@ export function materializeDisplayNode(
 			.setId(node.id)
 			.setXY(node.position.x, node.position.y)
 			.setSize(node.size.width, node.size.height)
+			.setPivot(node.pivot?.x ?? 0, node.pivot?.y ?? 0, node.pivotAsAnchor ?? false)
 			.setLocked(groupNode.locked)
 			.setVisible(node.visible)
 			.setTouchable(node.touchable)
@@ -644,7 +656,7 @@ export function materializeDisplayNode(
 			.setId(node.id)
 			.setXY(node.position.x, node.position.y)
 			.setSize(node.size.width, node.size.height)
-			.setPivot(loaderNode.pivot.x, loaderNode.pivot.y)
+			.setPivot(loaderNode.pivot.x, loaderNode.pivot.y, loaderNode.pivotAsAnchor ?? false)
 			.setScale(loaderNode.scale.x, loaderNode.scale.y)
 			.setVisible(node.visible)
 			.setTouchable(node.touchable)
@@ -679,6 +691,7 @@ export function materializeDisplayNode(
 			.setId(node.id)
 			.setXY(node.position.x, node.position.y)
 			.setSize(node.size.width, node.size.height)
+			.setPivot(node.pivot?.x ?? 0, node.pivot?.y ?? 0, node.pivotAsAnchor ?? false)
 			.setVisible(node.visible)
 			.setTouchable(node.touchable)
 			.setGrayed(node.grayed)
@@ -764,6 +777,7 @@ export function materializeDisplayNode(
 		.setId(node.id)
 		.setXY(node.position.x, node.position.y)
 		.setSize(node.size.width, node.size.height)
+		.setPivot(node.pivot?.x ?? 0, node.pivot?.y ?? 0, node.pivotAsAnchor ?? false)
 		.setVisible(node.visible)
 		.setTouchable(node.touchable)
 		.setGrayed(node.grayed)
@@ -1351,6 +1365,8 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			name: image.getName(),
 			position: { x: image.getX(), y: image.getY() },
 			size: { width: image.getWidth(), height: image.getHeight() },
+			pivot: { x: image.getPivotX(), y: image.getPivotY() },
+			pivotAsAnchor: image.getPivotAsAnchor(),
 			visible: image.getVisible(),
 			touchable: image.getTouchable(),
 			grayed: image.getGrayed(),
@@ -1373,6 +1389,8 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			name: text.getName(),
 			position: { x: text.getX(), y: text.getY() },
 			size: { width: text.getWidth(), height: text.getHeight() },
+			pivot: { x: text.getPivotX(), y: text.getPivotY() },
+			pivotAsAnchor: text.getPivotAsAnchor(),
 			visible: text.getVisible(),
 			touchable: text.getTouchable(),
 			grayed: text.getGrayed(),
@@ -1411,6 +1429,8 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			name: component.getName(),
 			position: { x: component.getX(), y: component.getY() },
 			size: { width: component.getWidth(), height: component.getHeight() },
+			pivot: { x: component.getPivotX(), y: component.getPivotY() },
+			pivotAsAnchor: component.getPivotAsAnchor(),
 			visible: component.getVisible(),
 			touchable: component.getTouchable(),
 			grayed: component.getGrayed(),
@@ -1429,6 +1449,8 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			name: list.getName(),
 			position: { x: list.getX(), y: list.getY() },
 			size: { width: list.getWidth(), height: list.getHeight() },
+			pivot: { x: list.getPivotX(), y: list.getPivotY() },
+			pivotAsAnchor: list.getPivotAsAnchor(),
 			visible: list.getVisible(),
 			touchable: list.getTouchable(),
 			grayed: list.getGrayed(),
@@ -1524,6 +1546,8 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			name: group.getName(),
 			position: { x: group.getX(), y: group.getY() },
 			size: { width: group.getWidth(), height: group.getHeight() },
+			pivot: { x: group.getPivotX(), y: group.getPivotY() },
+			pivotAsAnchor: group.getPivotAsAnchor(),
 			visible: group.getVisible(),
 			touchable: group.getTouchable(),
 			grayed: group.getGrayed(),
@@ -1560,6 +1584,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			relations: liftRelations(loader.getRelations()),
 			gears: liftGears(loader.listGears()),
 			pivot: { x: loader.getPivotX(), y: loader.getPivotY() },
+			pivotAsAnchor: loader.getPivotAsAnchor(),
 			scale: { x: loader.getScaleX(), y: loader.getScaleY() },
 			url: loader.getUrl(),
 			filter: loader.getFilter(),
@@ -1588,6 +1613,8 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			name: loader.getName(),
 			position: { x: loader.getX(), y: loader.getY() },
 			size: { width: loader.getWidth(), height: loader.getHeight() },
+			pivot: { x: loader.getPivotX(), y: loader.getPivotY() },
+			pivotAsAnchor: loader.getPivotAsAnchor(),
 			visible: loader.getVisible(),
 			touchable: loader.getTouchable(),
 			grayed: loader.getGrayed(),
@@ -1684,6 +1711,8 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			name: movieClip.getName(),
 			position: { x: movieClip.getX(), y: movieClip.getY() },
 			size: { width: movieClip.getWidth(), height: movieClip.getHeight() },
+			pivot: { x: movieClip.getPivotX(), y: movieClip.getPivotY() },
+			pivotAsAnchor: movieClip.getPivotAsAnchor(),
 			visible: movieClip.getVisible(),
 			touchable: movieClip.getTouchable(),
 			grayed: movieClip.getGrayed(),

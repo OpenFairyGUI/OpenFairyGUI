@@ -81,9 +81,11 @@ export class GMovieClip extends GObject<IGMovieClip, PropertyType.G_MOVIE_CLIP> 
 
 	public getPivotX(): number { return this.get('pivotX' as any); }
 	public getPivotY(): number { return this.get('pivotY' as any); }
-	public setPivot(x: number, y: number): this {
+	public getPivotAsAnchor(): boolean { return this.get('anchor' as any); }
+	public setPivot(x: number, y: number, anchor = false): this {
 		this.set('pivotX' as any, x);
-		return this.set('pivotY' as any, y);
+		this.set('pivotY' as any, y);
+		return this.set('anchor' as any, anchor);
 	}
 
 	public getGroup(): string { return this.get('group' as any); }

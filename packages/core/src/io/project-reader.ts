@@ -2129,6 +2129,12 @@ export class ProjectReader {
 				}
 				const groupLocked = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.group.attrs.locked);
 				if (groupLocked !== undefined) g.setLocked(parseBool(groupLocked));
+				const groupPivot = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.group.attrs.pivot);
+				if (groupPivot) {
+					const [pivotX, pivotY] = parseXYString(groupPivot);
+					const groupAnchor = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.group.attrs.anchor);
+					g.setPivot(pivotX, pivotY, parseBool(groupAnchor));
+				}
 				const groupRef = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.group.attrs.group);
 				if (groupRef) g.setGroup(groupRef);
 				const groupVisible = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.group.attrs.visible);
@@ -2237,6 +2243,12 @@ export class ProjectReader {
 					const [w, h] = parseSizeString(loader3dSize);
 					g.setSize(w, h);
 				}
+				const loader3dPivot = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.pivot);
+				if (loader3dPivot) {
+					const [pivotX, pivotY] = parseXYString(loader3dPivot);
+					const loader3dAnchor = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.anchor);
+					g.setPivot(pivotX, pivotY, parseBool(loader3dAnchor));
+				}
 				const loader3dVisible = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.visible);
 				if (loader3dVisible !== undefined) g.setVisible(parseBool(loader3dVisible));
 				const loader3dUrl = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.url);
@@ -2291,7 +2303,8 @@ export class ProjectReader {
 				const movieClipPivot = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.pivot);
 				if (movieClipPivot) {
 					const [pivotX, pivotY] = parseXYString(movieClipPivot);
-					g.setPivot(pivotX, pivotY);
+					const movieClipAnchor = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.anchor);
+					g.setPivot(pivotX, pivotY, parseBool(movieClipAnchor));
 				}
 				const movieClipRotation = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.rotation);
 				if (movieClipRotation !== undefined) g.setRotation(parseFloat2(movieClipRotation));
