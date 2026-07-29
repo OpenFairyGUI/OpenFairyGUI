@@ -12,33 +12,6 @@ function pushIssue(issues: UamValidationIssue[], path: string, message: string):
 	issues.push({ path, message });
 }
 
-const PIVOT_DISPLAY_NODE_KINDS = new Set<UamDisplayNode['kind']>([
-	'image',
-	'text',
-	'richText',
-	'textInput',
-	'component',
-	'list',
-	'tree',
-	'graph',
-	'loader',
-	'movieClip',
-	'button',
-	'label',
-	'comboBox',
-	'progressBar',
-	'slider',
-	'scrollBar',
-]);
-
-export function supportsUamDisplayNodePivot(kind: UamDisplayNode['kind']): boolean {
-	return PIVOT_DISPLAY_NODE_KINDS.has(kind);
-}
-
-export function supportsUamDisplayNodePivotAsAnchor(kind: UamDisplayNode['kind']): boolean {
-	return kind !== 'movieClip' && supportsUamDisplayNodePivot(kind);
-}
-
 export function isFiniteUamPoint(value: unknown): boolean {
 	if (typeof value !== 'object' || value === null) return false;
 	const point = value as { x?: unknown; y?: unknown };
@@ -165,16 +138,12 @@ function validateDisplayNode(
 	issues: UamValidationIssue[],
 ): void {
 	if (node.pivot !== undefined) {
-		if (!supportsUamDisplayNodePivot(node.kind)) {
-			pushIssue(issues, `${path}.pivot`, `Display node kind "${node.kind}" does not support pivot.`);
-		} else if (!isFiniteUamPoint(node.pivot)) {
+		if (!isFiniteUamPoint(node.pivot)) {
 			pushIssue(issues, `${path}.pivot`, 'Display node pivot must contain finite x and y numbers.');
 		}
 	}
 	if (node.pivotAsAnchor !== undefined) {
-		if (!supportsUamDisplayNodePivotAsAnchor(node.kind)) {
-			pushIssue(issues, `${path}.pivotAsAnchor`, `Display node kind "${node.kind}" does not support pivot-as-anchor.`);
-		} else if (typeof node.pivotAsAnchor !== 'boolean') {
+		if (typeof node.pivotAsAnchor !== 'boolean') {
 			pushIssue(issues, `${path}.pivotAsAnchor`, 'Display node pivotAsAnchor must be boolean.');
 		}
 	}

@@ -30,8 +30,6 @@ import { UAM_SUPPORTED_TRANSACTION_SCOPE } from './model.js';
 import { normalizeUamProject } from './normalize.js';
 import {
 	isFiniteUamPoint,
-	supportsUamDisplayNodePivot,
-	supportsUamDisplayNodePivotAsAnchor,
 	validateUamProject,
 } from './validate.js';
 
@@ -933,15 +931,6 @@ function validateDisplayPropsPayload(
 	const nodeKind = node?.kind;
 	for (const key of Object.keys(op.props) as Array<keyof UamDisplayNodePropsUpdate>) {
 		if (key === 'pivot') {
-			if (nodeKind && !supportsUamDisplayNodePivot(nodeKind)) {
-				pushSupportIssue(
-					issues,
-					'unsupported_display_node_field',
-					`${path}.props.pivot`,
-					`Display node kind "${nodeKind}" does not support pivot.`,
-					{ operationKind: op.kind, nodeKind, field: key },
-				);
-			}
 			if (!isFiniteUamPoint(op.props.pivot)) {
 				pushSupportIssue(
 					issues,
@@ -954,15 +943,6 @@ function validateDisplayPropsPayload(
 			continue;
 		}
 		if (key === 'pivotAsAnchor') {
-			if (nodeKind && !supportsUamDisplayNodePivotAsAnchor(nodeKind)) {
-				pushSupportIssue(
-					issues,
-					'unsupported_display_node_field',
-					`${path}.props.pivotAsAnchor`,
-					`Display node kind "${nodeKind}" does not support pivot-as-anchor.`,
-					{ operationKind: op.kind, nodeKind, field: key },
-				);
-			}
 			if (typeof op.props.pivotAsAnchor !== 'boolean') {
 				pushSupportIssue(
 					issues,

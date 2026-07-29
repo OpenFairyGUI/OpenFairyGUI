@@ -55,10 +55,6 @@ import type {
 	UamXYGearBinding,
 	UamXYGearValue,
 } from './model.js';
-import {
-	supportsUamDisplayNodePivot,
-	supportsUamDisplayNodePivotAsAnchor,
-} from './validate.js';
 
 function normalizePackagePublish(publish: UamPackagePublish | null | undefined): UamPackagePublish | null {
 	if (!publish) return null;
@@ -332,14 +328,6 @@ function normalizeGearBinding(gear: UamGearBinding): UamGearBinding {
 }
 
 function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
-	const pivot = supportsUamDisplayNodePivot(node.kind)
-		? {
-			pivot: normalizePoint(node.pivot),
-			...(supportsUamDisplayNodePivotAsAnchor(node.kind)
-				? { pivotAsAnchor: node.pivotAsAnchor ?? false }
-				: {}),
-		}
-		: {};
 	const base = {
 		id: node.id,
 		name: node.name ?? '',
@@ -348,7 +336,8 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			width: node.size?.width ?? 0,
 			height: node.size?.height ?? 0,
 		},
-		...pivot,
+		pivot: normalizePoint(node.pivot),
+		pivotAsAnchor: node.pivotAsAnchor ?? false,
 		visible: node.visible ?? true,
 		touchable: node.touchable ?? true,
 		grayed: node.grayed ?? false,

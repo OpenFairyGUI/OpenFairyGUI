@@ -828,6 +828,8 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 		const props: UamDisplayNodePropsUpdate = {
 			position: { x: 100 + index, y: 120 + index },
 			size: { width: 200 + index, height: 40 + index },
+			pivot: { x: 0.25, y: 0.75 },
+			pivotAsAnchor: true,
 			alpha: 0.5,
 			rotation: 5 + index,
 			customData: `phase-a-${node.kind}`,
@@ -863,6 +865,8 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 		t.is(updatedNode?.kind, sourceNode.kind);
 		t.deepEqual(updatedNode?.position, { x: 100 + index, y: 120 + index });
 		t.deepEqual(updatedNode?.size, { width: 200 + index, height: 40 + index });
+		t.deepEqual(updatedNode?.pivot, { x: 0.25, y: 0.75 });
+		t.true(updatedNode?.pivotAsAnchor ?? false);
 		t.is(updatedNode?.alpha, 0.5);
 		t.is(updatedNode?.rotation, 5 + index);
 		t.is(updatedNode?.customData, `phase-a-${sourceNode.kind}`);
@@ -883,13 +887,6 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 		t.is(textInput.font, 'Arial');
 		t.is(textInput.color, '#00aaee');
 	}
-
-	const groupPivotIssues = validateTransactionSupport(normalizedProject, [{
-		kind: 'setDisplayNodeProps',
-		selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n4' },
-		props: { pivot: { x: 0.5, y: 0.5 } },
-	}]);
-	t.true(groupPivotIssues.some((issue) => issue.code === 'unsupported_display_node_field'));
 
 	const invalidPivotIssues = validateTransactionSupport(normalizedProject, [{
 		kind: 'setDisplayNodeProps',

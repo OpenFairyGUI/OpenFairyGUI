@@ -9,6 +9,9 @@ export interface IGObject extends IExtensibleProperty {
 	sourceHeight: number;
 	initWidth: number;
 	initHeight: number;
+	pivotX: number;
+	pivotY: number;
+	anchor: boolean;
 	customData: string;
 	relations: RelationDef[];
 	gears: RefList<Gear>;
@@ -40,6 +43,9 @@ export class GObject<
 			sourceHeight: 0,
 			initWidth: 0,
 			initHeight: 0,
+			pivotX: 0,
+			pivotY: 0,
+			anchor: false,
 			customData: '',
 			relations: [],
 			gears: new RefList<Gear>(),
@@ -68,6 +74,16 @@ export class GObject<
 	public setInitWidth(v: number): this { return this.setObjectProp('initWidth', v); }
 	public getInitHeight(): number { return this.getObjectProp('initHeight'); }
 	public setInitHeight(v: number): this { return this.setObjectProp('initHeight', v); }
+
+	public getPivotX(): number { return this.getObjectProp('pivotX'); }
+	public getPivotY(): number { return this.getObjectProp('pivotY'); }
+	public getPivotAsAnchor(): boolean { return this.getObjectProp('anchor'); }
+	public setPivot(x: number, y: number, anchor = false): this {
+		this.setObjectProp('pivotX', x);
+		this.setObjectProp('pivotY', y);
+		return this.setObjectProp('anchor', anchor);
+	}
+	public setPivotAsAnchor(v: boolean): this { return this.setObjectProp('anchor', v); }
 
 	public getCustomData(): string { return this.getObjectProp('customData'); }
 	public setCustomData(v: string): this { return this.setObjectProp('customData', v); }

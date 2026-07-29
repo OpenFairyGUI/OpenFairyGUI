@@ -630,6 +630,7 @@ export function materializeDisplayNode(
 			.setId(node.id)
 			.setXY(node.position.x, node.position.y)
 			.setSize(node.size.width, node.size.height)
+			.setPivot(node.pivot?.x ?? 0, node.pivot?.y ?? 0, node.pivotAsAnchor ?? false)
 			.setLocked(groupNode.locked)
 			.setVisible(node.visible)
 			.setTouchable(node.touchable)
@@ -690,6 +691,7 @@ export function materializeDisplayNode(
 			.setId(node.id)
 			.setXY(node.position.x, node.position.y)
 			.setSize(node.size.width, node.size.height)
+			.setPivot(node.pivot?.x ?? 0, node.pivot?.y ?? 0, node.pivotAsAnchor ?? false)
 			.setVisible(node.visible)
 			.setTouchable(node.touchable)
 			.setGrayed(node.grayed)
@@ -775,7 +777,7 @@ export function materializeDisplayNode(
 		.setId(node.id)
 		.setXY(node.position.x, node.position.y)
 		.setSize(node.size.width, node.size.height)
-		.setPivot(node.pivot?.x ?? 0, node.pivot?.y ?? 0)
+		.setPivot(node.pivot?.x ?? 0, node.pivot?.y ?? 0, node.pivotAsAnchor ?? false)
 		.setVisible(node.visible)
 		.setTouchable(node.touchable)
 		.setGrayed(node.grayed)
@@ -1544,6 +1546,8 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			name: group.getName(),
 			position: { x: group.getX(), y: group.getY() },
 			size: { width: group.getWidth(), height: group.getHeight() },
+			pivot: { x: group.getPivotX(), y: group.getPivotY() },
+			pivotAsAnchor: group.getPivotAsAnchor(),
 			visible: group.getVisible(),
 			touchable: group.getTouchable(),
 			grayed: group.getGrayed(),
@@ -1609,6 +1613,8 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			name: loader.getName(),
 			position: { x: loader.getX(), y: loader.getY() },
 			size: { width: loader.getWidth(), height: loader.getHeight() },
+			pivot: { x: loader.getPivotX(), y: loader.getPivotY() },
+			pivotAsAnchor: loader.getPivotAsAnchor(),
 			visible: loader.getVisible(),
 			touchable: loader.getTouchable(),
 			grayed: loader.getGrayed(),
@@ -1706,6 +1712,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			position: { x: movieClip.getX(), y: movieClip.getY() },
 			size: { width: movieClip.getWidth(), height: movieClip.getHeight() },
 			pivot: { x: movieClip.getPivotX(), y: movieClip.getPivotY() },
+			pivotAsAnchor: movieClip.getPivotAsAnchor(),
 			visible: movieClip.getVisible(),
 			touchable: movieClip.getTouchable(),
 			grayed: movieClip.getGrayed(),
