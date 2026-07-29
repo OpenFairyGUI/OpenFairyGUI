@@ -484,6 +484,7 @@ const TRANSITION_ITEM_ATTRS = {
 	label: { canonical: 'label' },
 	label2: { canonical: 'label2' },
 	path: { canonical: 'path' },
+	customEase: { canonical: 'customEase' },
 	ease: { canonical: 'ease' },
 	type: { canonical: 'type' },
 	value: { canonical: 'value' },

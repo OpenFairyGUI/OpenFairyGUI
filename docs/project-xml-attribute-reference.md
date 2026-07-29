@@ -663,8 +663,9 @@
 | `yoyo` |  | 是否往返 |
 | `label` |  | 标签 |
 | `label2` |  | 第二标签 |
-| `path` |  | 路径 |
-| `ease` |  | 缓动类型 |
+| `path` |  | XY 补间的运动轨迹路径 |
+| `customEase` |  | `ease="Custom"` 时使用的自定义缓动曲线数据，与 `path` 运动轨迹相互独立 |
+| `ease` |  | 缓动类型；`Custom` 表示使用 `customEase` |
 | `type` |  | 项目类型 |
 | `value` |  | 值 |
 | `startValue` |  | 起始值 |

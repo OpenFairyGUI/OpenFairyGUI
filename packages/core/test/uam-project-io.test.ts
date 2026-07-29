@@ -20,6 +20,8 @@ const LAYABOX_PROJECT_PATH = getFixtureProjectPath(
 	'FairyGUI-layabox',
 	'demo/UIProject/FairyGUI-layabox-demo.fairy',
 );
+const MOTION_PATH = '0,0,0,0,120,40';
+const CUSTOM_EASE_PATH = '2,0,0,0.07,0.5575,0.8925,0.41,1,0,1,1';
 
 function createEngineeringScaleUamProject(): UamProject {
 	return normalizeUamProject({
@@ -179,13 +181,13 @@ function createEngineeringScaleUamProject(): UamProject {
 											duration: 12,
 											startValue: [0, 0],
 											endValue: [120, 40],
-											easeType: 5,
+											easeType: 31,
 											repeat: 1,
 											yoyo: true,
 											label: 'start',
 											endLabel: 'end',
-											path: '',
-											customEasePath: '',
+											path: MOTION_PATH,
+											customEasePath: CUSTOM_EASE_PATH,
 										},
 									],
 								},
@@ -211,6 +213,11 @@ test('Gate A proves one engineering-scale UAM-owned project read/write path', as
 	const outFairy = path.join(tmpDir, 'out.fairy');
 	try {
 		await writeProjectFromUam(io, project, outFairy);
+		const componentXml = await fs.readFile(path.join(tmpDir, 'assets', 'Main', 'MainView.xml'), 'utf-8');
+		t.true(componentXml.includes('ease="Custom"'));
+		t.true(componentXml.includes(`customEase="${CUSTOM_EASE_PATH}"`));
+		t.true(componentXml.includes(`path="${MOTION_PATH}"`));
+
 		const roundTripped = await readProjectAsUam(io, outFairy);
 
 		t.is(roundTripped.projectId, project.projectId);
@@ -230,6 +237,9 @@ test('Gate A proves one engineering-scale UAM-owned project read/write path', as
 		t.is(componentResource.component.controllers[0]?.pages[1]?.name, 'Alert');
 		t.is(componentResource.component.transitions[0]?.name, 'intro');
 		t.is(componentResource.component.transitions[0]?.items[0]?.targetNodeId, 'n0');
+		t.is(componentResource.component.transitions[0]?.items[0]?.easeType, 31);
+		t.is(componentResource.component.transitions[0]?.items[0]?.path, MOTION_PATH);
+		t.is(componentResource.component.transitions[0]?.items[0]?.customEasePath, CUSTOM_EASE_PATH);
 
 		const lookGear = componentResource.component.displayList[0]?.gears[0];
 		t.is(lookGear?.kind, 'look');

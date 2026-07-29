@@ -2149,6 +2149,9 @@ export class ProjectWriter {
 			if (item.getLabel()) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.label, item.getLabel());
 			if (item.getEndLabel()) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.label2, item.getEndLabel());
 			if (item.getPath()) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.path, item.getPath());
+			if (item.getEaseType() === 31 && item.getCustomEasePath()) {
+				writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.customEase, item.getCustomEasePath());
+			}
 			const sv = item.getStartValue();
 			if (sv.length) {
 				if (!item.getTween()) writeXmlAttr(ia, PROJECT_XML_PROTOCOL.transitionItem.attrs.value, stringifyTransitionValue(item.getActionType(), sv));

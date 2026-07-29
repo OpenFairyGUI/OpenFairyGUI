@@ -1597,6 +1597,7 @@ export class ProjectReader {
 				const label = readXmlAttr<string>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.label);
 				const label2 = readXmlAttr<string>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.label2);
 				const pathValue = readXmlAttr<string>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.path);
+				const customEaseValue = readXmlAttr<string>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.customEase);
 				ti.setTime(parseFloat2(time));
 				ti.setTargetId(target || '');
 				ti.setTween(parseBool(tween));
@@ -1606,6 +1607,7 @@ export class ProjectReader {
 				ti.setLabel(label || '');
 				if (label2 !== undefined) ti.setEndLabel?.(label2);
 				if (pathValue !== undefined) ti.setPath?.(pathValue);
+				if (customEaseValue !== undefined) ti.setCustomEasePath?.(customEaseValue);
 
 				// Ease type
 				const ease = readXmlAttr<string>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.ease);
