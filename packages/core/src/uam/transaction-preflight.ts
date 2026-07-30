@@ -279,10 +279,29 @@ const TEXT_DISPLAY_PROP_KEYS = new Set<keyof UamDisplayNodePropsUpdate>([
 	'color',
 ]);
 
+const LOADER_3D_PROPERTY_KEYS = new Set<keyof UamLoader3DProperties>([
+	'url',
+	'fill',
+	'shrinkOnly',
+	'autoSize',
+	'align',
+	'vAlign',
+	'animationName',
+	'skinName',
+	'playing',
+	'frame',
+	'loop',
+	'color',
+	'clearOnPublish',
+]);
+
 function isValidLoader3DProperties(value: unknown): value is UamLoader3DProperties {
 	if (!value || typeof value !== 'object') return false;
 	const properties = value as UamLoader3DProperties;
-	return [properties.url, properties.animationName, properties.skinName].every((candidate) => typeof candidate === 'string')
+	const keys = Object.keys(properties);
+	return keys.length === LOADER_3D_PROPERTY_KEYS.size
+		&& keys.every((key) => LOADER_3D_PROPERTY_KEYS.has(key as keyof UamLoader3DProperties))
+		&& [properties.url, properties.animationName, properties.skinName].every((candidate) => typeof candidate === 'string')
 		&& Number.isInteger(properties.fill) && properties.fill >= 0 && properties.fill <= 5
 		&& [properties.shrinkOnly, properties.autoSize, properties.playing, properties.loop, properties.clearOnPublish]
 			.every((candidate) => typeof candidate === 'boolean')

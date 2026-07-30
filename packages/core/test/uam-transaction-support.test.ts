@@ -460,6 +460,13 @@ test('Loader3D properties survive transaction, save/reload, inverse, and invalid
 		selector,
 		props: { loader3DProperties: { ...updated, frame: -1 } },
 	}]).some((issue) => issue.code === 'invalid_display_node_payload'));
+	const unexpectedFields: UamTransactionOperation[] = [{
+		kind: 'setDisplayNodeProps',
+		selector,
+		props: { loader3DProperties: { ...updated, kind: 'text', id: 'hijacked' } },
+	}];
+	t.true(validateTransactionSupport(project, unexpectedFields).some((issue) => issue.code === 'invalid_display_node_payload'));
+	t.throws(() => applyUamTransaction(project, unexpectedFields), { instanceOf: UamTransactionError });
 });
 
 test('Phase A transactions support common FairyGUI display node kinds for common props', (t) => {

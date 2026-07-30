@@ -187,7 +187,22 @@ function applyDisplayNodePropsUpdate(node: UamDisplayNode, props: UamDisplayNode
 		if (node.kind !== 'loader3D') {
 			throw new Error(`Loader3D display props are not supported on display node kind "${node.kind}".`);
 		}
-		Object.assign(node, structuredClone(props.loader3DProperties));
+		const properties = props.loader3DProperties;
+		Object.assign(node, {
+			url: properties.url,
+			fill: properties.fill,
+			shrinkOnly: properties.shrinkOnly,
+			autoSize: properties.autoSize,
+			align: properties.align,
+			vAlign: properties.vAlign,
+			animationName: properties.animationName,
+			skinName: properties.skinName,
+			playing: properties.playing,
+			frame: properties.frame,
+			loop: properties.loop,
+			color: properties.color,
+			clearOnPublish: properties.clearOnPublish,
+		});
 	}
 }
 

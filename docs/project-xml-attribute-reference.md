@@ -334,6 +334,7 @@
 | `frame` |  | 帧号 |
 | `loop` |  | 是否循环 |
 | `color` |  | 颜色 |
+| `clearOnPublish` |  | 发布时清理 |
 
 ### `<text>`
 
