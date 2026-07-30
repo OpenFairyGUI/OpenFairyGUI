@@ -7,6 +7,18 @@ import {
 	ProjectType,
 	ProjectWriter,
 } from '@openfairygui/core';
+import {
+	assertRestoreOutputDir,
+	basename,
+	commitRestoreOutput,
+	createRestoreStagingDir,
+	isPathWithin,
+	normalizeRestoreOutputDir,
+	resolveOutputProjectPath,
+	trimTrailingSlashes,
+} from './restore-internals/output-transaction.js';
+import { serializeFont, type RestorableFontGlyph } from './restore-internals/font.js';
+import { serializeMovieClip, type RestorableMovieFrame } from './restore-internals/movie-clip.js';
 
 export interface RestoreImageCropInput {
 	sourcePath: string;
@@ -120,29 +132,6 @@ interface RestorableSprite {
 	getOriginalHeight(): number;
 }
 
-interface RestorableMovieFrame {
-	getRectX(): number;
-	getRectY(): number;
-	getRectWidth(): number;
-	getRectHeight(): number;
-	getAddDelay(): number;
-	getSpriteId(): string;
-}
-
-interface RestorableFontGlyph {
-	getAdvance(): number;
-	getChannel(): number;
-	getChar(): string;
-	getCharId(): number;
-	getHeight(): number;
-	getImg(): string;
-	getWidth(): number;
-	getX(): number;
-	getXOffset(): number;
-	getY(): number;
-	getYOffset(): number;
-}
-
 type RestorableFontResource = RestorableResource & {
 	listGlyphs(): RestorableFontGlyph[];
 	getBranch?(): string;
@@ -164,9 +153,6 @@ interface RestorableDisplayObject {
 	setFont?(font: string): unknown;
 }
 
-const JTA_FILE_MARK = 'yytou';
-const JTA_VERSION = 102;
-const JTA_DEFAULT_FPS = 24;
 const TRANSPARENT_PNG_1X1 = Uint8Array.from([
 	137, 80, 78, 71, 13, 10, 26, 10,
 	0, 0, 0, 13, 73, 72, 68, 82,
@@ -352,59 +338,6 @@ function findImageResource(pkg: Package, itemId: string): RestorableResource | n
 	}) ?? null;
 }
 
-function fontGlyphCharId(glyph: RestorableFontGlyph): number {
-	const charId = glyph.getCharId();
-	if (charId > 0) return charId;
-	const char = glyph.getChar();
-	return char ? (char.codePointAt(0) ?? 0) : 0;
-}
-
-function scaledFrameDelay(milliseconds: number): number {
-	return milliseconds <= 0 ? 0 : Math.max(1, Math.round(milliseconds / (1000 / JTA_DEFAULT_FPS)));
-}
-
-function jtaSpeed(interval: number): number {
-	return interval <= 0 ? 1 : Math.max(1, Math.round(interval / (1000 / JTA_DEFAULT_FPS)));
-}
-
-function writeInt16(value: number): Uint8Array {
-	const data = new Uint8Array(2);
-	new DataView(data.buffer).setInt16(0, value);
-	return data;
-}
-
-function writeUint16(value: number): Uint8Array {
-	const data = new Uint8Array(2);
-	new DataView(data.buffer).setUint16(0, value);
-	return data;
-}
-
-function writeInt32(value: number): Uint8Array {
-	const data = new Uint8Array(4);
-	new DataView(data.buffer).setInt32(0, value);
-	return data;
-}
-
-function writeByte(value: number): Uint8Array {
-	return new Uint8Array([value & 0xff]);
-}
-
-function concatBytes(chunks: Uint8Array[]): Uint8Array {
-	const length = chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
-	const data = new Uint8Array(length);
-	let offset = 0;
-	for (const chunk of chunks) {
-		data.set(chunk, offset);
-		offset += chunk.byteLength;
-	}
-	return data;
-}
-
-function encodeJtaUtf(value: string): Uint8Array {
-	const bytes = new TextEncoder().encode(value);
-	return concatBytes([writeUint16(bytes.byteLength), bytes]);
-}
-
 function isPublishedBinaryFile(fileName: string): boolean {
 	return /_fui\.bytes$/i.test(fileName) || /\.fui$/i.test(fileName) || /\.bin$/i.test(fileName);
 }
@@ -413,168 +346,6 @@ function inferPackageName(fileName: string): string {
 	if (/_fui\.bytes$/i.test(fileName)) return fileName.replace(/_fui\.bytes$/i, '');
 	if (/\.fui$/i.test(fileName)) return fileName.replace(/\.fui$/i, '');
 	return fileName.replace(/\.bin$/i, '');
-}
-
-function trimTrailingSlashes(value: string): string {
-	return value.replace(/[/\\]+$/, '');
-}
-
-function normalizeComparablePath(value: string): string {
-	const normalized = trimTrailingSlashes(value).replace(/\\/g, '/');
-	const driveMatch = normalized.match(/^([a-z]:)(?:\/(.*))?$/i);
-	const drivePrefix = driveMatch?.[1].toLowerCase() ?? '';
-	const remainder = driveMatch ? (driveMatch[2] ?? '') : normalized;
-	const hasRoot = driveMatch ? true : remainder.startsWith('/');
-	const rawSegments = remainder.split('/').filter((segment) => segment.length > 0);
-	const segments: string[] = [];
-
-	for (const segment of rawSegments) {
-		if (segment === '.') continue;
-		if (segment === '..') {
-			if (segments.length > 0 && segments[segments.length - 1] !== '..') {
-				segments.pop();
-			} else if (!hasRoot) {
-				segments.push('..');
-			}
-			continue;
-		}
-		segments.push(segment);
-	}
-
-	const joined = segments.join('/');
-	const comparable = drivePrefix
-		? `${drivePrefix}/${joined}`.replace(/\/$/, '')
-		: hasRoot
-			? `/${joined}`.replace(/\/$/, '')
-			: joined || '.';
-	// Restore prefers a conservative same-directory guard: false positives are safer than
-	// missing a Windows-style case-only path alias and deleting the source publish dir.
-	return comparable.toLowerCase();
-}
-
-function isPathWithin(root: string, candidate: string): boolean {
-	const normalizedRoot = normalizeComparablePath(root);
-	const normalizedCandidate = normalizeComparablePath(candidate);
-	return normalizedCandidate.startsWith(`${normalizedRoot}/`);
-}
-
-function basename(filePath: string): string {
-	const trimmed = trimTrailingSlashes(filePath);
-	const match = trimmed.match(/([^/\\]+)$/);
-	return match?.[1] ?? '';
-}
-
-function normalizeRestoreOutputDir(output: string): string {
-	const normalized = trimTrailingSlashes(output);
-	const name = basename(normalized);
-	if (!normalized || /\.fairy$/i.test(normalized) || !name || name === '.' || name === '..' || /^[a-z]:$/iu.test(name)) {
-		throw new Error('restore: Output must be a non-root project directory, not a .fairy file.');
-	}
-	return normalized;
-}
-
-function resolveOutputProjectPath(outputDir: string, fs: Pick<RestoreFileSystem, 'join'>): string {
-	return fs.join(outputDir, `${basename(outputDir)}.fairy`);
-}
-
-async function resolvePathForContainment(filePath: string, fs: RestoreFileSystem): Promise<string> {
-	const missingSegments: string[] = [];
-	let existingPath = filePath;
-	while (!(await fs.exists(existingPath))) {
-		const parentPath = fs.dirname(existingPath);
-		if (!parentPath || parentPath === existingPath) {
-			return Promise.resolve(fs.resolvePath(filePath));
-		}
-		missingSegments.unshift(basename(existingPath));
-		existingPath = parentPath;
-	}
-
-	const resolvedExistingPath = await Promise.resolve(fs.resolvePath(existingPath));
-	return missingSegments.reduce((resolvedPath, segment) => fs.join(resolvedPath, segment), resolvedExistingPath);
-}
-
-async function assertRestoreOutputDir(
-	inputDir: string,
-	outputDir: string,
-	fs: RestoreFileSystem,
-	force: boolean,
-): Promise<void> {
-	const [resolvedInputDir, resolvedOutputDir] = await Promise.all([
-		resolvePathForContainment(inputDir, fs),
-		resolvePathForContainment(outputDir, fs),
-	]);
-	const normalizedInputDir = normalizeComparablePath(resolvedInputDir);
-	const normalizedOutputDir = normalizeComparablePath(resolvedOutputDir);
-	if (
-		normalizedInputDir === normalizedOutputDir ||
-		isPathWithin(normalizedInputDir, normalizedOutputDir) ||
-		isPathWithin(normalizedOutputDir, normalizedInputDir)
-	) {
-		throw new Error('Restore output directory must be independent from the published input directory.');
-	}
-
-	if (!(await fs.exists(outputDir))) return;
-
-	let entries: string[];
-	try {
-		entries = await fs.readdir(outputDir);
-	} catch {
-		throw new Error(`Restore output path is not a directory: ${outputDir}`);
-	}
-
-	if (entries.length === 0) return;
-	if (!force) {
-		throw new Error(`Restore output directory is not empty: ${outputDir}. Use --force to overwrite it.`);
-	}
-}
-
-async function createRestoreStagingDir(outputDir: string, fs: RestoreFileSystem): Promise<string> {
-	const parentDir = fs.dirname(outputDir) || '.';
-	await fs.mkdir(parentDir);
-	for (let attempt = 0; attempt < 8; attempt += 1) {
-		const stagingDir = fs.join(parentDir, `.${basename(outputDir)}.restore-${generateId()}`);
-		if (await fs.exists(stagingDir)) continue;
-		await fs.mkdir(stagingDir);
-		return stagingDir;
-	}
-	throw new Error(`restore: Could not allocate a staging directory beside ${outputDir}.`);
-}
-
-async function commitRestoreOutput(
-	stagingDir: string,
-	outputDir: string,
-	fs: RestoreFileSystem,
-): Promise<string | null> {
-	if (!(await fs.exists(outputDir))) {
-		await fs.rename(stagingDir, outputDir);
-		return null;
-	}
-
-	const parentDir = fs.dirname(outputDir) || '.';
-	let backupDir = '';
-	for (let attempt = 0; attempt < 8; attempt += 1) {
-		const candidate = fs.join(parentDir, `.${basename(outputDir)}.restore-backup-${generateId()}`);
-		if (!(await fs.exists(candidate))) {
-			backupDir = candidate;
-			break;
-		}
-	}
-	if (!backupDir) throw new Error(`restore: Could not allocate a backup directory beside ${outputDir}.`);
-
-	// ponytail: two-step rename preserves rollback; use a platform directory-exchange primitive if zero reader gap matters.
-	await fs.rename(outputDir, backupDir);
-	try {
-		await fs.rename(stagingDir, outputDir);
-	} catch (error) {
-		await fs.rename(backupDir, outputDir);
-		throw error;
-	}
-	try {
-		await fs.rm(backupDir, { recursive: true, force: true });
-		return null;
-	} catch {
-		return `restore: Previous output retained at ${backupDir}; remove it after checking the restored project.`;
-	}
 }
 
 export async function restore(options: RestoreOptions): Promise<RestoreResult> {
@@ -1166,52 +937,7 @@ class RestoreWorkflow {
 
 		const outputPath = this._resourceOutputPath(outputProjectPath, pkg, resource, fileName);
 		await this._mkdirForFile(outputPath);
-		await this._fs.writeFile(outputPath, this._serializeFont(pkg, resource, glyphs));
-	}
-
-	private _serializeFont(pkg: Package, resource: RestorableResource, glyphs: RestorableFontGlyph[]): string {
-		const isTtf = resource.getTtf?.() === true;
-		const lines = isTtf
-			? this._serializeTtfFontHeader(pkg, resource, glyphs)
-			: [
-				'info creator=UIBuilder',
-				`common lineHeight=${resource.getLineHeight?.() ?? 0}`,
-			];
-
-		for (const glyph of glyphs) {
-			const charId = fontGlyphCharId(glyph);
-			if (isTtf) {
-				lines.push(
-					`char id=${charId} x=${glyph.getX()} y=${glyph.getY()} width=${glyph.getWidth()} height=${glyph.getHeight()} `
-					+ `xoffset=${glyph.getXOffset()} yoffset=${glyph.getYOffset()} xadvance=${glyph.getAdvance()} page=0 chnl=${glyph.getChannel()}`,
-				);
-			} else {
-				lines.push(
-					`char id=${charId} img=${glyph.getImg()} xoffset=${glyph.getXOffset()} yoffset=${glyph.getYOffset()} xadvance=${glyph.getAdvance()}`,
-				);
-			}
-		}
-
-		return `${lines.join('\n')}\n`;
-	}
-
-	private _serializeTtfFontHeader(pkg: Package, resource: RestorableResource, glyphs: RestorableFontGlyph[]): string[] {
-		const fileName = resourceFileName(resource);
-		const face = stripExtension(fileName) || resource.getName?.() || 'Font';
-		const lineHeight = resource.getLineHeight?.() ?? 0;
-		const fontSize = resource.getFontSize?.() ?? lineHeight;
-		const textureId = resource.getTextureId?.() ?? '';
-		const textureResource = textureId ? pkg.getResourceById(textureId) as RestorableResource | null : null;
-		const textureName = textureResource ? resourceFileName(textureResource) : `${face}_atlas.png`;
-		const scaleW = textureResource?.getWidth?.() ?? 256;
-		const scaleH = textureResource?.getHeight?.() ?? 256;
-		const base = Math.max(Math.min(fontSize, lineHeight) - 6, 0);
-		return [
-			`info face="${face}" size=${fontSize} bold=0 italic=0 charset="" unicode=1 stretchH=100 smooth=1 aa=1 padding=0,0,0,0 spacing=1,1 outline=0`,
-			`common lineHeight=${lineHeight} base=${base} scaleW=${scaleW} scaleH=${scaleH} pages=1 packed=0 alphaChnl=${resource.getTint?.() ? 1 : 0} redChnl=0 greenChnl=0 blueChnl=0`,
-			`page id=0 file="${textureName}"`,
-			`chars count=${glyphs.length}`,
-		];
+		await this._fs.writeFile(outputPath, serializeFont(pkg, resource, glyphs));
 	}
 
 	private async _writeMovieClipFile(
@@ -1258,7 +984,7 @@ class RestoreWorkflow {
 
 		const outputPath = this._resourceOutputPath(options.outputProjectPath, pkg, resource, fileName);
 		await this._mkdirForFile(outputPath);
-		await this._fs.writeFileRaw(outputPath, this._serializeMovieClip(resource, frames, textures));
+		await this._fs.writeFileRaw(outputPath, serializeMovieClip(resource, frames, textures));
 	}
 
 	private async _writeSyntheticFontGlyphImages(pkg: Package, outputProjectPath: string): Promise<void> {
@@ -1286,47 +1012,6 @@ class RestoreWorkflow {
 			}
 		}
 		return sprites;
-	}
-
-	private _serializeMovieClip(
-		resource: RestorableResource,
-		frames: RestorableMovieFrame[],
-		textures: Uint8Array[],
-	): Uint8Array {
-		const chunks: Uint8Array[] = [
-			encodeJtaUtf(JTA_FILE_MARK),
-			writeInt32(JTA_VERSION),
-			writeByte(0),
-			writeByte(0),
-			writeByte(0),
-			writeByte(0),
-			writeUint16(0),
-			writeUint16(0),
-			writeUint16(resource.getWidth?.() ?? 0),
-			writeUint16(resource.getHeight?.() ?? 0),
-			writeByte(jtaSpeed(resource.getInterval?.() ?? 0)),
-			writeByte(scaledFrameDelay(resource.getRepeatDelay?.() ?? 0)),
-			writeByte(resource.getSwing?.() ? 1 : 0),
-			writeInt16(frames.length),
-		];
-
-		for (const [index, frame] of frames.entries()) {
-			chunks.push(
-				writeInt16(scaledFrameDelay(frame.getAddDelay())),
-				writeInt16(frame.getRectX()),
-				writeInt16(frame.getRectY()),
-				writeInt16(frame.getRectWidth()),
-				writeInt16(frame.getRectHeight()),
-				writeInt16(textures[index]?.byteLength === 0 ? -1 : index),
-			);
-		}
-
-		chunks.push(writeInt16(textures.length));
-		for (const texture of textures) {
-			chunks.push(writeInt32(texture.byteLength), texture);
-		}
-
-		return concatBytes(chunks);
 	}
 
 	private _sourceFileCandidates(pkg: Package, fileName: string, outputFileName = fileName): string[] {

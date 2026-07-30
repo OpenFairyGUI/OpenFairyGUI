@@ -67,6 +67,7 @@
 	},
 	"devDependencies": {
 		"@openfairygui/core": "workspace:*",
+		"@openfairygui/test-utils": "workspace:*",
 		"ava": "^7.0.0",
 		"tsx": "^4.0.0"
 	},

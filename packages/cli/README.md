@@ -19,6 +19,7 @@ ofgui restore ./release --output ./restored-project
 ```
 
 `restore` accepts a publish directory and writes a new project directory. It validates artifact paths and completes a staged write before `--force` replaces an existing output; it does not make untrusted artifacts safe or recover the original source project.
+The command only parses CLI input and delegates Node filesystem and Sharp image handling to `restoreNode()` from `@openfairygui/functions/node`.
 
 The package also keeps `openfairygui` as a compatibility alias for the CLI command.
 

@@ -1,2 +1,4 @@
-export { ProjectReader, type FileSystem, type ProjectReadOptions } from './io/project-reader.js';
-export { ProjectWriter, type ProjectSourceFile, type ProjectWriteOptions } from './io/project-writer.js';
+export type { FileSystem } from './io/file-system.js';
+export type { ProjectReadOptions, ProjectSourceFile, ProjectWriteOptions } from './io/project-io-contracts.js';
+export { ProjectReader } from './io/project-reader.js';
+export { ProjectWriter } from './io/project-writer.js';

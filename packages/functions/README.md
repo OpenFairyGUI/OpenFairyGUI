@@ -13,16 +13,21 @@ npm install --save @openfairygui/core @openfairygui/functions
 ```ts
 import { NodeIO } from '@openfairygui/core/node';
 import { inspect } from '@openfairygui/functions';
-import { publishNode } from '@openfairygui/functions/node';
+import { publishNode, restoreNode } from '@openfairygui/functions/node';
 
 const io = new NodeIO();
 const doc = await io.readProject('./MyProject/MyProject.fairy');
 
 const report = inspect(doc);
 await publishNode({ document: doc, output: './release' });
+
+await restoreNode({
+	inputDir: './release',
+	output: './restored-project',
+});
 ```
 
-`publishNode` owns the standard Node filesystem, Sharp raster backend, and project plugin discovery. It fails when a complete runtime artifact cannot be generated. The root `publish()` export remains the lower-level capability-injected core for custom hosts; it is layout-only only when no output directory is requested.
+`publishNode` owns the standard Node filesystem, Sharp raster backend, and project plugin discovery. `restoreNode` owns the Node filesystem and Sharp image extraction required by trusted-local artifact recovery. The root `publish()` and `restore()` exports remain the lower-level capability-injected workflows for custom hosts.
 
 ## Browser LayaBox publish
 

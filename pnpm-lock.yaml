@@ -52,6 +52,9 @@ importers:
         specifier: workspace:*
         version: link:../functions
     devDependencies:
+      '@openfairygui/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       ava:
         specifier: ^7.0.0
         version: 7.0.0(encoding@0.1.13)(rollup@4.62.2)
@@ -119,6 +122,10 @@ importers:
       tsx:
         specifier: ^4.0.0
         version: 4.21.0
+    optionalDependencies:
+      sharp:
+        specifier: '>=0.33.0'
+        version: 0.34.5
 
   packages/mcp:
     dependencies:
@@ -135,6 +142,9 @@ importers:
       '@openfairygui/core':
         specifier: workspace:*
         version: link:../core
+      '@openfairygui/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
       ava:
         specifier: ^7.0.0
         version: 7.0.0(encoding@0.1.13)(rollup@4.62.2)

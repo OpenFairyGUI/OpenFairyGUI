@@ -80,6 +80,9 @@
 		"@openfairygui/core": "workspace:*",
 		"jiti": "^2.6.1"
 	},
+	"optionalDependencies": {
+		"sharp": ">=0.33.0"
+	},
 	"devDependencies": {
 		"ava": "^7.0.0",
 		"tsx": "^4.0.0"

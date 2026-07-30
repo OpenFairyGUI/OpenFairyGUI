@@ -1,4 +1,4 @@
-import { type FileSystem, type ProjectSourceFile, ProjectWriter } from '@openfairygui/core/project-io';
+import type { ProjectSourceFile } from '@openfairygui/core/project-io';
 import {
 	commitUamProjectSourcePaths,
 	materializeUamProject,
@@ -28,68 +28,8 @@ import type {
 import type { CacheService } from './cache-service.js';
 import { type BackendContext, failure, success } from './context.js';
 import type { EventService } from './event-service.js';
+import { writeSessionProject } from './session-project-writer.js';
 import { createSessionNotFoundError, createStaleWriteError, toSessionSnapshot } from './session-utils.js';
-
-function createWriterFileSystem(
-	fileSystem: BackendFileSystem,
-	committedPaths: string[],
-	failedPaths: string[],
-): FileSystem {
-	async function trackWrite<T>(targetPath: string, fn: () => Promise<T>): Promise<T> {
-		try {
-			const result = await fn();
-			committedPaths.push(targetPath);
-			return result;
-		} catch (error) {
-			failedPaths.push(targetPath);
-			throw error;
-		}
-	}
-
-	return {
-		async readFile(filePath: string): Promise<string> {
-			return fileSystem.readFile(filePath);
-		},
-		async readFileRaw(filePath: string): Promise<Uint8Array> {
-			return fileSystem.readFileRaw(filePath);
-		},
-		async writeFile(filePath: string, content: string): Promise<void> {
-			await trackWrite(filePath, async () => {
-				await fileSystem.mkdir(fileSystem.dirname(filePath), { recursive: true });
-				await fileSystem.writeFile(filePath, content);
-			});
-		},
-		async writeFileRaw(filePath: string, data: Uint8Array): Promise<void> {
-			await trackWrite(filePath, async () => {
-				await fileSystem.mkdir(fileSystem.dirname(filePath), { recursive: true });
-				await fileSystem.writeFileRaw(filePath, data);
-			});
-		},
-		async mkdir(dirPath: string): Promise<void> {
-			await fileSystem.mkdir(dirPath, { recursive: true });
-		},
-		async readdir(dirPath: string): Promise<string[]> {
-			return fileSystem.readdir(dirPath);
-		},
-		async exists(filePath: string): Promise<boolean> {
-			try {
-				await fileSystem.stat(filePath);
-				return true;
-			} catch {
-				return false;
-			}
-		},
-		join(...paths: string[]): string {
-			return fileSystem.join(...paths);
-		},
-		dirname(filePath: string): string {
-			return fileSystem.dirname(filePath);
-		},
-		async unlink(filePath: string): Promise<void> {
-			await trackWrite(filePath, () => fileSystem.unlink(filePath));
-		},
-	};
-}
 
 function projectSourceFiles(project: UamProject): Map<string, ProjectSourceFile> {
 	const result = new Map<string, ProjectSourceFile>();
@@ -466,9 +406,13 @@ export class AuthoringService {
 			revision: session.revision,
 		});
 		try {
-			const writer = new ProjectWriter(createWriterFileSystem(fileSystem, committedPaths, failedPaths));
-			await writer.write(materializeUamProject(session.project), session.fairyPath, {
+			await writeSessionProject({
+				fileSystem,
+				document: materializeUamProject(session.project),
+				fairyPath: session.fairyPath,
 				staleSourceFiles: [...session.pendingStaleSourceFiles.values()],
+				writtenPaths: committedPaths,
+				failedPaths,
 			});
 			session.fileSystem ??= fileSystem;
 			session.pendingStaleSourceFiles.clear();
@@ -700,10 +644,14 @@ export class AuthoringService {
 			revision: session.revision,
 		});
 		try {
-			const writer = new ProjectWriter(createWriterFileSystem(fileSystem, writtenPaths, failedPaths));
 			const isSessionStorageTarget = fileSystem === session.fileSystem && fairyPath === session.fairyPath;
-			await writer.write(document, fairyPath, {
+			await writeSessionProject({
+				fileSystem,
+				document,
+				fairyPath,
 				staleSourceFiles: isSessionStorageTarget ? [...session.pendingStaleSourceFiles.values()] : [],
+				writtenPaths,
+				failedPaths,
 			});
 			if (isSessionStorageTarget) session.pendingStaleSourceFiles.clear();
 			if (storageTarget && !isSessionStorageTarget) session.pendingStaleSourceFiles.clear();
