@@ -2,6 +2,7 @@ import { Document } from '../document.js';
 import type { Component } from '../properties/component.js';
 import type { Package } from '../properties/package.js';
 import type { ProjectSettings } from '../types/settings.js';
+import { tryReadJtaSize } from '../utils/jta-parser.js';
 import {
 	parseXML,
 	parseXMLPreserveOrder,
@@ -453,6 +454,13 @@ export class ProjectReader {
 				const data = new Uint8Array(await fs.readFileRaw(filePath));
 				const buffer = doc.createBuffer().setURI(sourcePath).setData(data);
 				(this._asSourceDataResource(resource)).setSourceData(buffer);
+				if (resource.propertyType === 'MovieClipResource') {
+					const size = tryReadJtaSize(data);
+					if (size) {
+						const movieClip = resource as ReturnType<Document['createMovieClipResource']>;
+						movieClip.setWidth(size.width).setHeight(size.height);
+					}
+				}
 			} catch {
 				// Keep resource metadata available when its primary source cannot be read.
 			}
