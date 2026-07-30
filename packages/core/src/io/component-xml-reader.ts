@@ -630,4 +630,3 @@ export function readComponentXml(ctx: ReaderContext, comp: Component, xmlContent
 			comp.addTransition(trans);
 		}
 	}
-

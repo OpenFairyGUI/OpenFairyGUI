@@ -366,5 +366,3 @@ export async function roundTripCommittedProject(project: UamProject): Promise<Ua
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 }
-
-

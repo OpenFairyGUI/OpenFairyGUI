@@ -927,4 +927,3 @@ export function materializeUamProject(project: UamProject): Document {
 
 	return doc;
 }
-

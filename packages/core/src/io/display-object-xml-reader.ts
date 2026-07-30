@@ -1482,4 +1482,3 @@ function parseGear(
 
 		obj.addGear(gear);
 	}
-

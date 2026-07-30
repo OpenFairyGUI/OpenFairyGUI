@@ -1261,5 +1261,3 @@ function serializeGear(gear: Gear, ownerType?: string, ownerName?: string | null
 		if (gear.getCondition()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.condition, gear.getCondition());
 		return attrs;
 	}
-
-

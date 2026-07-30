@@ -301,5 +301,3 @@ export function _boolVal(v: unknown, fallback = false): boolean {
 	}
 	return fallback;
 }
-
-

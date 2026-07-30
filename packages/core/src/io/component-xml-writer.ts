@@ -430,5 +430,3 @@ function serializeTransition(trans: Transition): Record<string, unknown> {
 		if (items.length > 0 && transitionItemChildName) attrs[transitionItemChildName] = items;
 		return attrs;
 	}
-
-

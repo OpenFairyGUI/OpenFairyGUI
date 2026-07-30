@@ -899,5 +899,3 @@ test('TreeView package supports keyboard-style runtime tree navigation', async (
 		lastSelectedItemIndex: 1,
 	});
 });
-
-

@@ -5,6 +5,7 @@ import type { UamProject } from '@openfairygui/core';
 
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FIXTURES_DIR = path.join(PACKAGE_ROOT, 'test', 'fixtures');
+const WORKSPACE_ROOT = path.resolve(PACKAGE_ROOT, '..', '..');
 
 export interface FixtureProject {
 	name: string;
@@ -35,6 +36,18 @@ function listFairyProjects(rootDir: string): FixtureProject[] {
 
 export function getFixturesDir(): string {
 	return FIXTURES_DIR;
+}
+
+export function getWorkspaceRoot(): string {
+	return WORKSPACE_ROOT;
+}
+
+export function getWorkspacePath(...segments: string[]): string {
+	return path.join(WORKSPACE_ROOT, ...segments);
+}
+
+export function getWorkspaceReleasePath(...segments: string[]): string {
+	return path.join(WORKSPACE_ROOT, 'release', ...segments);
 }
 
 export function hasLocalFixtures(): boolean {

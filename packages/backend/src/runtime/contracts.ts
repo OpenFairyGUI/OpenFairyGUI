@@ -510,4 +510,3 @@ export interface BackendRuntimeOptions {
 	fileSystem?: BackendFileSystem;
 	host?: BackendHostAdapter;
 }
-

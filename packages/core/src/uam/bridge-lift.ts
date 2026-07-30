@@ -819,4 +819,3 @@ export function liftDocumentToUamProject(doc: Document): UamProject {
 		})),
 	};
 }
-

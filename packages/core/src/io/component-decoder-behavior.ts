@@ -261,6 +261,3 @@ export function decodeComponentScrollPane(resource: ReturnType<Document['createC
 		.setHeaderRes(buf.readS() ?? '')
 		.setFooterRes(buf.readS() ?? '');
 }
-
-
-

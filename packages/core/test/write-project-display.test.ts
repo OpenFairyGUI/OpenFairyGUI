@@ -845,5 +845,3 @@ test('round-trip: tree view list attrs and static item hierarchy survive writeâ†
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 });
-
-

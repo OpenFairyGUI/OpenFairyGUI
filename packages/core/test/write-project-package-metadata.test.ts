@@ -248,5 +248,3 @@ test('round-trip: package movieclip textureSetMode survives package.xml write→
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 });
-
-

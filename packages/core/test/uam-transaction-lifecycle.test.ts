@@ -655,5 +655,3 @@ test('updateTransition preflight rejects legacy dangling targets without blockin
 	}
 	t.is(unrelatedComponent.component.displayList.find((node) => node.id === 'n4')?.alpha, 0.9);
 });
-
-

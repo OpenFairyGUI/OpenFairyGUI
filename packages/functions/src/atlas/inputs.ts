@@ -513,4 +513,3 @@ export function isPackableResource(resource: PackageResource): resource is Packa
 function isResolvedBuffer(value: Uint8Array | AtlasRasterResolvedBuffer): value is AtlasRasterResolvedBuffer {
 	return typeof value === 'object' && value !== null && 'data' in value && 'info' in value;
 }
-

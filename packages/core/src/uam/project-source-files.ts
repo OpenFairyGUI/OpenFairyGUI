@@ -71,6 +71,3 @@ export function commitUamProjectSourcePaths(project: UamProject): void {
 		}
 	}
 }
-
-
-

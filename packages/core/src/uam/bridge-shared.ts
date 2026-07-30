@@ -64,6 +64,3 @@ export function liftEdgeInsets(edgeInsets: UamEdgeInsets): UamEdgeInsets {
 export function cloneListItems(items: UamListItemData[]): UamListItemData[] {
 	return items.map((item) => ({ ...item }));
 }
-
-
-

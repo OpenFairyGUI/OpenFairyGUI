@@ -231,6 +231,3 @@ export function applyUamNativeOperations(
 	}
 	return normalizeUamProject(result);
 }
-
-
-

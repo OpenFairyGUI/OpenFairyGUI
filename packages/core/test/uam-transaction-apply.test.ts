@@ -392,5 +392,3 @@ test('binary resource transactions require hydrated source bytes and survive wri
 	const reloadedAfterRemove = await roundTripCommittedProject(removed);
 	t.false(reloadedAfterRemove.packages[0]!.resources.some((resource) => resource.id === 'misc001'));
 });
-
-

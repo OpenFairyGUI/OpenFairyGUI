@@ -765,4 +765,3 @@ function groupStandaloneInputs(
 		reservedPageIndexes,
 	};
 }
-

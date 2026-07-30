@@ -347,4 +347,3 @@ export function _writeComponentScrollPane(buf: WriteBuffer, comp: Component, pkg
 	buf.writeSEx(remapLocalUiUrl(pkg, comp.getHeaderRes?.() ?? null));
 	buf.writeSEx(remapLocalUiUrl(pkg, comp.getFooterRes?.() ?? null));
 }
-

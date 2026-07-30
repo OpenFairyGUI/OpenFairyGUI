@@ -785,5 +785,3 @@ test('round-trip: tag-scoped locked and restrictSize survive write→read', asyn
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 });
-
-

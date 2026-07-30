@@ -291,5 +291,3 @@ test('package.xml publish preserves packageCount', async (t) => {
 	t.is(joystickPkg?.getPublishName(), 'Joystick', 'publish name survives');
 	t.is(joystickPkg?.getPublishPackageCount?.(), 1, 'publish packageCount survives');
 });
-
-

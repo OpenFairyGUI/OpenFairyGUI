@@ -461,5 +461,3 @@ function _writeColorForGear(buf: WriteBuffer, colorStr: string, defaultColor: nu
 }
 
 // ─── Child-specific extensions ───────────────────────────────────────────
-
-

@@ -502,5 +502,3 @@ test('round-trip: advanced groups survive write→read', async (t) => {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 });
-
-

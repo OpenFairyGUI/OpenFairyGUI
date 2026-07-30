@@ -873,4 +873,3 @@ function _writeChildBlock4TextInput(buf: WriteBuffer, child: EncoderChildLike): 
 }
 
 // ─── Block 7: Component-level ScrollPane ─────────────────────────────────
-

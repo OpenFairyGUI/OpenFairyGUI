@@ -569,5 +569,3 @@ test('assertTransactionSupported rejects duplicate transition names and duplicat
 		{ instanceOf: UamTransactionError },
 	);
 });
-
-

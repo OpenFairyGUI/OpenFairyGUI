@@ -607,6 +607,3 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 			throw new Error(`Document transaction path does not support operation "${operation.kind}".`);
 	}
 }
-
-
-

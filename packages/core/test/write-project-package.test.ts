@@ -592,5 +592,3 @@ test('writer: suppresses restored-like default attrs and float-noise defaults', 
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 });
-
-
