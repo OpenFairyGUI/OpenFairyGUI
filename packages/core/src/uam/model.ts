@@ -294,8 +294,7 @@ export interface UamLoaderNode extends UamDisplayNodeBase {
 	clearOnPublish: boolean;
 }
 
-export interface UamLoader3DNode extends UamDisplayNodeBase {
-	kind: 'loader3D';
+export interface UamLoader3DProperties {
 	url: string;
 	fill: number;
 	shrinkOnly: boolean;
@@ -308,6 +307,11 @@ export interface UamLoader3DNode extends UamDisplayNodeBase {
 	frame: number;
 	loop: boolean;
 	color: string;
+	clearOnPublish: boolean;
+}
+
+export interface UamLoader3DNode extends UamDisplayNodeBase, UamLoader3DProperties {
+	kind: 'loader3D';
 }
 
 export interface UamMovieClipNode extends UamDisplayNodeBase {

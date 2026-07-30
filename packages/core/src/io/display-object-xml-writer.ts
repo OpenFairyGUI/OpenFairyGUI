@@ -985,6 +985,7 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 			if (typedObj.getLoop?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.loop, 'false');
 			const loaderColor = typedObj.getColor?.();
 			if (loaderColor) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.color, loaderColor);
+			if (typedObj.getClearOnPublish?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.clearOnPublish, 'true');
 		}
 		if (type === 'GGroup' && typedObj.getVisible?.() === false) {
 			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.visible, 'false');

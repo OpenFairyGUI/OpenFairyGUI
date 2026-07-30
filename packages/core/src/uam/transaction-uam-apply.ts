@@ -174,14 +174,21 @@ function applyDisplayNodePropsUpdate(node: UamDisplayNode, props: UamDisplayNode
 		|| props.font !== undefined
 		|| props.fontSize !== undefined
 		|| props.color !== undefined;
-	if (!hasTextProps) return;
-	if (!isTextLikeDisplayNode(node)) {
-		throw new Error(`Text display props are not supported on display node kind "${node.kind}".`);
+	if (hasTextProps) {
+		if (!isTextLikeDisplayNode(node)) {
+			throw new Error(`Text display props are not supported on display node kind "${node.kind}".`);
+		}
+		if (props.text !== undefined) node.text = props.text;
+		if (props.font !== undefined) node.font = props.font;
+		if (props.fontSize !== undefined) node.fontSize = props.fontSize;
+		if (props.color !== undefined) node.color = props.color;
 	}
-	if (props.text !== undefined) node.text = props.text;
-	if (props.font !== undefined) node.font = props.font;
-	if (props.fontSize !== undefined) node.fontSize = props.fontSize;
-	if (props.color !== undefined) node.color = props.color;
+	if (props.loader3DProperties !== undefined) {
+		if (node.kind !== 'loader3D') {
+			throw new Error(`Loader3D display props are not supported on display node kind "${node.kind}".`);
+		}
+		Object.assign(node, structuredClone(props.loader3DProperties));
+	}
 }
 
 function applyUamNativeOperation(project: UamProject, operation: UamTransactionOperation): void {

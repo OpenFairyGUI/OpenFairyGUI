@@ -10,6 +10,7 @@ import {
 	type UamDisplayNode,
 	type UamDisplayNodePropsUpdate,
 	type UamListNode,
+	type UamLoader3DProperties,
 	type UamTransactionOperation,
 } from '../src/index.js';
 
@@ -360,6 +361,105 @@ test('setDisplayNodeProps preserves pivot and anchor through save/reload and inv
 	const restoredNode = restoredComponent.component.displayList.find((node) => node.id === 'n1');
 	t.deepEqual(restoredNode?.pivot, { x: 0, y: 0 });
 	t.false(restoredNode?.pivotAsAnchor ?? true);
+});
+
+test('Loader3D properties survive transaction, save/reload, inverse, and invalid payload checks', async (t) => {
+	const project = normalizeUamProject(createSupportedProject());
+	const component = project.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (component?.kind !== 'component') {
+		t.fail('expected component resource');
+		return;
+	}
+	const loader = {
+		kind: 'loader3D' as const,
+		...createDisplayNodeBase('loader3d-node', 'loader3d'),
+		url: '',
+		fill: 0,
+		shrinkOnly: false,
+		autoSize: false,
+		align: 0,
+		vAlign: 0,
+		animationName: '',
+		skinName: '',
+		playing: true,
+		frame: 0,
+		loop: true,
+		color: '#FFFFFF',
+		clearOnPublish: false,
+	};
+	component.component.displayList.push(loader);
+	const selector = { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: loader.id };
+	const updated: UamLoader3DProperties = {
+		url: 'ui://pkg001spine001',
+		fill: 5,
+		shrinkOnly: true,
+		autoSize: true,
+		align: 2,
+		vAlign: 1,
+		animationName: 'run',
+		skinName: 'hero',
+		playing: false,
+		frame: 7,
+		loop: false,
+		color: '#A1B2C3',
+		clearOnPublish: true,
+	};
+	const read = (node: UamDisplayNode | undefined): UamLoader3DProperties | null => (
+		node?.kind === 'loader3D'
+			? {
+				url: node.url,
+				fill: node.fill,
+				shrinkOnly: node.shrinkOnly,
+				autoSize: node.autoSize,
+				align: node.align,
+				vAlign: node.vAlign,
+				animationName: node.animationName,
+				skinName: node.skinName,
+				playing: node.playing,
+				frame: node.frame,
+				loop: node.loop,
+				color: node.color,
+				clearOnPublish: node.clearOnPublish,
+			}
+			: null
+	);
+	const forward: UamTransactionOperation[] = [{
+		kind: 'setDisplayNodeProps',
+		selector,
+		props: { loader3DProperties: updated },
+	}];
+	t.deepEqual(validateTransactionSupport(project, forward), []);
+
+	const committed = await roundTripCommittedProject(applyUamTransaction(project, forward));
+	const committedComponent = committed.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (committedComponent?.kind !== 'component') {
+		t.fail('expected committed component resource');
+		return;
+	}
+	t.deepEqual(read(committedComponent.component.displayList.find((node) => node.id === loader.id)), updated);
+
+	const restored = await roundTripCommittedProject(applyUamTransaction(committed, [{
+		kind: 'setDisplayNodeProps',
+		selector,
+		props: { loader3DProperties: read(loader)! },
+	}]));
+	const restoredComponent = restored.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (restoredComponent?.kind !== 'component') {
+		t.fail('expected restored component resource');
+		return;
+	}
+	t.deepEqual(read(restoredComponent.component.displayList.find((node) => node.id === loader.id)), read(loader));
+
+	t.true(validateTransactionSupport(project, [{
+		kind: 'setDisplayNodeProps',
+		selector: { ...selector, displayNodeId: 'n1' },
+		props: { loader3DProperties: updated },
+	}]).some((issue) => issue.code === 'unsupported_display_node_field'));
+	t.true(validateTransactionSupport(project, [{
+		kind: 'setDisplayNodeProps',
+		selector,
+		props: { loader3DProperties: { ...updated, frame: -1 } },
+	}]).some((issue) => issue.code === 'invalid_display_node_payload'));
 });
 
 test('Phase A transactions support common FairyGUI display node kinds for common props', (t) => {

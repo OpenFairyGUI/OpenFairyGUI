@@ -620,6 +620,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			frame: loader.getFrame(),
 			loop: loader.getLoop(),
 			color: loader.getColor(),
+			clearOnPublish: loader.getClearOnPublish(),
 		};
 	}
 	if (child.propertyType === PropertyType.G_BUTTON) {
