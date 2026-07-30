@@ -108,6 +108,7 @@ interface ResourceXmlAttrs extends XmlNode {
 	name?: string;
 	path?: string;
 	exported?: string | boolean;
+	favorite?: string | boolean;
 	scale?: string;
 	scale9grid?: string;
 	smoothing?: string | boolean;
@@ -512,6 +513,7 @@ export class ProjectReader {
 		const name = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.name) ?? '';
 		const path = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.path) ?? '/';
 		const exported = parseBool(readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.exported));
+		const favorite = parseBool(readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.favorite));
 
 		switch (tagName) {
 			case 'image': {
@@ -520,6 +522,7 @@ export class ProjectReader {
 				res.setPath(path);
 				res.setBranch(branchName);
 				res.setExported(exported);
+				res.setFavorite(favorite);
 				res.setFileName(name);
 				const textureSetMode = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.atlas);
 				if (textureSetMode !== undefined) res.setTextureSetMode(textureSetMode);
@@ -551,6 +554,7 @@ export class ProjectReader {
 				res.setPath(path);
 				res.setBranch(branchName);
 				res.setExported(exported);
+				res.setFavorite(favorite);
 				// Store file path for second-pass parsing
 				const filePath = fs.join(packageDir, path.replace(/^\//, ''), name);
 				res.setExtras({ ...res.getExtras(), _filePath: filePath });
@@ -565,6 +569,7 @@ export class ProjectReader {
 				res.setBranch(branchName);
 				res.setFile(name);
 				res.setExported(exported);
+				res.setFavorite(favorite);
 				pkg.addResource(res);
 				ctx.registerResource(pkg.getId(), id, res);
 				return res;
@@ -576,6 +581,7 @@ export class ProjectReader {
 				res.setBranch(branchName);
 				res.setFile(name);
 				res.setExported(exported);
+				res.setFavorite(favorite);
 				pkg.addResource(res);
 				ctx.registerResource(pkg.getId(), id, res);
 				return res;
@@ -587,6 +593,7 @@ export class ProjectReader {
 				res.setBranch(branchName);
 				res.setFileName(name);
 				res.setExported(exported);
+				res.setFavorite(favorite);
 				// Store texture reference for bitmap fonts.
 				const texture = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageFontResource.attrs.texture);
 				if (texture) {
@@ -607,6 +614,7 @@ export class ProjectReader {
 				res.setBranch(branchName);
 				res.setFile(name);
 				res.setExported(exported);
+				res.setFavorite(favorite);
 				res.setWidth(parseInt2(readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.width)));
 				res.setHeight(parseInt2(readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.height)));
 				const requireValue = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.require);
@@ -629,6 +637,7 @@ export class ProjectReader {
 				res.setBranch(branchName);
 				res.setFile(name);
 				res.setExported(exported);
+				res.setFavorite(favorite);
 				res.setWidth(parseInt2(readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.width)));
 				res.setHeight(parseInt2(readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.height)));
 				const requireValue = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.require);
@@ -651,6 +660,7 @@ export class ProjectReader {
 				res.setBranch(branchName);
 				res.setFileName(name);
 				res.setExported(exported);
+				res.setFavorite(favorite);
 				const textureSetMode = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageMovieClipResource.attrs.atlas);
 				if (textureSetMode !== undefined) res.setTextureSetMode(textureSetMode);
 				pkg.addResource(res);

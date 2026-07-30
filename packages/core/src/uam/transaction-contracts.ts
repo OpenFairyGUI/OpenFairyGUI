@@ -86,6 +86,12 @@ export interface MoveResourceOperation extends UamTransactionOperationBase {
 	toPath: string;
 }
 
+export interface SetResourceFavoriteOperation extends UamTransactionOperationBase {
+	kind: 'setResourceFavorite';
+	selector: UamResourceSelector;
+	favorite: boolean;
+}
+
 export interface AddResourceOperation extends UamTransactionOperationBase {
 	kind: 'addResource';
 	selector: UamPackageSelector;
@@ -230,6 +236,7 @@ export interface RemoveGearOperation extends UamTransactionOperationBase {
 export type UamTransactionOperation =
 	| RenameResourceOperation
 	| MoveResourceOperation
+	| SetResourceFavoriteOperation
 	| AddResourceOperation
 	| AddPackageOperation
 	| RenamePackageOperation

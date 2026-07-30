@@ -12,6 +12,7 @@ interface IFontResource extends IExtensibleProperty {
 	fileName: string;
 	textureId: string;
 	exported: boolean;
+	favorite: boolean;
 	renderMode: string;
 	samplePointSize: number;
 	ttf: boolean;
@@ -45,6 +46,7 @@ export class FontResource extends ExtensibleProperty<IFontResource> {
 			fileName: '',
 			textureId: '',
 			exported: false,
+			favorite: false,
 			renderMode: '',
 			samplePointSize: 0,
 			ttf: false,
@@ -79,6 +81,9 @@ export class FontResource extends ExtensibleProperty<IFontResource> {
 
 	public getExported(): boolean { return this.get('exported'); }
 	public setExported(v: boolean): this { return this.set('exported', v); }
+
+	public getFavorite(): boolean { return this.get('favorite'); }
+	public setFavorite(v: boolean): this { return this.set('favorite', v); }
 
 	public getRenderMode(): string { return this.get('renderMode'); }
 	public setRenderMode(v: string): this { return this.set('renderMode', v); }

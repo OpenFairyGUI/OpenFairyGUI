@@ -68,7 +68,7 @@ await publishNode({
 If you want to use the current **UAM authoring seam**, pass a `UamProject` plus an
 explicit operation batch into the thin application wrapper exposed by
 `@openfairygui/functions`. This `UAM-public / Document-private` path supports resource
-rename/move, byte-backed binary resource add/replace/remove, and add/update/remove for
+rename/move/favorite updates, byte-backed binary resource add/replace/remove, and add/update/remove for
 the currently modeled gear kinds; it is still not a general editing backend. Read source
 projects with `ProjectReader.read(path, { hydrateResourceBytes: true })` before binary
 resource editing. File-backed `BackendRuntime.openSession` performs that hydration

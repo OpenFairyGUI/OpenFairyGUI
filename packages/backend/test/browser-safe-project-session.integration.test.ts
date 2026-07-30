@@ -223,6 +223,7 @@ function createLifecycleComponent(id = 'cmp002', name = 'Popup'): UamComponentRe
 		name,
 		path: '/',
 		exported: true,
+		favorite: false,
 		branch: '',
 		branchItemIds: [],
 		component: {
@@ -418,6 +419,88 @@ test('browser-safe project session saves through injected async storage', async 
 		t.is(title.alpha, 0.65);
 		t.is(title.rotation, 15);
 	}
+});
+
+test('browser-safe resource favorite transactions survive save, reload, and inverse', async (t) => {
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const project = createBackendFixtureProject();
+	const pkg = project.packages.find((candidate) => candidate.id === 'pkg001');
+	const image = pkg?.resources.find((resource) => resource.id === 'img001');
+	const component = pkg?.resources.find((resource) => resource.id === 'cmp001');
+	t.truthy(image);
+	t.truthy(component);
+	if (!image || !component) return;
+	image.favorite = true;
+
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({
+		project,
+		storage: { fileSystem, fairyPath: 'Favorites/Project.fairy' },
+	});
+	t.true(opened.ok);
+	if (!opened.ok) return;
+
+	const rejected = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 0,
+		operations: [{
+			kind: 'setResourceFavorite',
+			selector: { packageId: 'pkg001', resourceId: 'cmp001' },
+			favorite: 'true' as unknown as boolean,
+		}],
+	});
+	t.false(rejected.ok);
+	if (rejected.ok) return;
+	t.is(rejected.error.code, 'transaction_unsupported');
+	t.is(rejected.meta.diagnostics[0]?.path, 'operations[0].favorite');
+
+	const applied = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 0,
+		operations: [{
+			kind: 'setResourceFavorite',
+			selector: { packageId: 'pkg001', resourceId: 'cmp001' },
+			favorite: true,
+		}],
+	});
+	t.true(applied.ok);
+	if (!applied.ok) return;
+
+	const saved = await runtime.saveSession({ sessionId: opened.data.sessionId });
+	t.true(saved.ok);
+	if (!saved.ok) return;
+	const packageXml = await storage.readFile('Favorites/assets/Main/package.xml');
+	t.regex(packageXml, /<packageDescription[^>]*hasFavorites="true"/);
+
+	const reloaded = normalizeUamProject(
+		liftDocumentToUamProject(await new ProjectReader(fileSystem).read('Favorites/Project.fairy')),
+	);
+	const reloadedResources = reloaded.packages.find((candidate) => candidate.id === 'pkg001')?.resources ?? [];
+	t.true(reloadedResources.find((resource) => resource.id === 'img001')?.favorite);
+	t.true(reloadedResources.find((resource) => resource.id === 'cmp001')?.favorite);
+
+	const inverse = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 1,
+		operations: [{
+			kind: 'setResourceFavorite',
+			selector: { packageId: 'pkg001', resourceId: 'cmp001' },
+			favorite: false,
+		}],
+	});
+	t.true(inverse.ok);
+	if (!inverse.ok) return;
+	const savedInverse = await runtime.saveSession({ sessionId: opened.data.sessionId });
+	t.true(savedInverse.ok);
+	if (!savedInverse.ok) return;
+
+	const restored = normalizeUamProject(
+		liftDocumentToUamProject(await new ProjectReader(fileSystem).read('Favorites/Project.fairy')),
+	);
+	const restoredResources = restored.packages.find((candidate) => candidate.id === 'pkg001')?.resources ?? [];
+	t.true(restoredResources.find((resource) => resource.id === 'img001')?.favorite);
+	t.false(restoredResources.find((resource) => resource.id === 'cmp001')?.favorite);
 });
 
 test('browser-safe sessions materialize package and component lifecycle operations through inverse reloads', async (t) => {
@@ -905,6 +988,7 @@ test('browser-safe LayaBox storage sessions reject lossy UAM saves before touchi
 					name: 'browser-payload',
 					path: movedPath,
 					exported: true,
+					favorite: false,
 					branch: '',
 					branchItemIds: [],
 					file: miscFileName,

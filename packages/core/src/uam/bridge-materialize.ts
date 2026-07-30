@@ -139,6 +139,7 @@ type MaterializedAssetBase = {
 	setBranch(branch: string): MaterializedAssetBase;
 	setBranchItemIds(ids: string[]): MaterializedAssetBase;
 	setExported(exported: boolean): MaterializedAssetBase;
+	setFavorite(favorite: boolean): MaterializedAssetBase;
 };
 
 type MaterializedSourceDataResource = MaterializedAssetBase & {
@@ -151,7 +152,8 @@ function materializeAssetBase<TResource extends MaterializedAssetBase>(asset: TR
 		.setPath(resource.path)
 		.setBranch(resource.branch)
 		.setBranchItemIds(resource.branchItemIds)
-		.setExported(resource.exported);
+		.setExported(resource.exported)
+		.setFavorite(resource.favorite);
 	return asset;
 }
 
@@ -878,6 +880,7 @@ function materializeComponentResource(doc: Document, resource: UamComponentResou
 		.setBranch(resource.branch)
 		.setBranchItemIds(resource.branchItemIds)
 		.setExported(resource.exported)
+		.setFavorite(resource.favorite)
 		.setSize(resource.component.size.width, resource.component.size.height)
 		.setCustomData(resource.component.customData);
 

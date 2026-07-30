@@ -44,6 +44,7 @@ export function createSupportedProject(): UamProject {
 						name: 'background.png',
 						path: '/images',
 						exported: true,
+						favorite: false,
 						branch: '',
 						branchItemIds: [],
 						fileName: 'background.png',
@@ -58,6 +59,7 @@ export function createSupportedProject(): UamProject {
 						name: 'MainView',
 						path: '/',
 						exported: true,
+						favorite: false,
 						branch: '',
 						branchItemIds: [],
 						component: {
@@ -288,6 +290,7 @@ export function createLifecycleComponent(id = 'cmp002', name = 'Popup'): UamComp
 		name,
 		path: '/',
 		exported: true,
+		favorite: false,
 		branch: '',
 		branchItemIds: [],
 		component: {

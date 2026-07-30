@@ -95,6 +95,7 @@ test('assertTransactionSupported accepts current materialization scope and rejec
 				name: 'shared.png',
 				path: '/',
 				exported: true,
+				favorite: false,
 				branch: '',
 				branchItemIds: [],
 				fileName: 'shared.png',

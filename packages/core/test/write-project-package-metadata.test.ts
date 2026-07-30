@@ -127,6 +127,53 @@ test('round-trip: packageDescription id and publish attrs survive package.xml wr
 	}
 });
 
+test('round-trip: resource favorites derive package hasFavorites and survive write→read', async (t) => {
+	const io = new NodeIO();
+	const doc = new Document();
+	doc.getRoot().setProjectId('resource-favorites').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('Favorites');
+	pkg.setId('pkgFavorites');
+
+	const image = doc.createImageResource('icon.png')
+		.setId('imgFavorite')
+		.setPath('/')
+		.setFavorite(true);
+	const component = doc.createComponent('Main')
+		.setId('cmpFavorite')
+		.setPath('/')
+		.setFavorite(false);
+	pkg.addResource(image);
+	pkg.addResource(component);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-favorites-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+		const packagePath = path.join(tmpDir, 'assets', 'Favorites', 'package.xml');
+		const packageXml = await fs.readFile(packagePath, 'utf-8');
+		t.true(packageXml.includes('<packageDescription id="pkgFavorites" hasFavorites="true">'));
+		t.regex(packageXml, /<image[^>]*id="imgFavorite"[^>]*favorite="true"/);
+		t.notRegex(packageXml, /<component[^>]*id="cmpFavorite"[^>]*favorite=/);
+
+		const roundTripped = await io.readProject(outFairy);
+		const resources = roundTripped.getRoot().getPackage('Favorites')?.listResources() ?? [];
+		const roundTripImage = resources.find((resource) => resource.getId?.() === 'imgFavorite');
+		const roundTripComponent = resources.find((resource) => resource.getId?.() === 'cmpFavorite');
+		t.true((roundTripImage as ReturnType<Document['createImageResource']>).getFavorite());
+		t.false((roundTripComponent as ReturnType<Document['createComponent']>).getFavorite());
+
+		image.setFavorite(false);
+		await io.writeProject(doc, outFairy);
+		const clearedXml = await fs.readFile(packagePath, 'utf-8');
+		t.notRegex(clearedXml, /\bhasFavorites=/);
+		t.notRegex(clearedXml, /\bfavorite=/);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('round-trip: package image qualityOption and font TMP import attrs survive package.xml write→read', async (t) => {
 	const io = new NodeIO();
 	const doc = new Document();

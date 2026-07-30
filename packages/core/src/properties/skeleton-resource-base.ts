@@ -10,6 +10,7 @@ export interface ISkeletonResourceBase extends IExtensibleProperty {
 	branchItemIds: string[];
 	file: string;
 	exported: boolean;
+	favorite: boolean;
 	width: number;
 	height: number;
 	requireIds: string[];
@@ -32,6 +33,7 @@ export abstract class SkeletonResourceBase<T extends ISkeletonResourceBase> exte
 			branchItemIds: [],
 			file: '',
 			exported: false,
+			favorite: false,
 			width: 0,
 			height: 0,
 			requireIds: [],
@@ -59,6 +61,9 @@ export abstract class SkeletonResourceBase<T extends ISkeletonResourceBase> exte
 
 	public getExported(): boolean { return this.get('exported' as never) as boolean; }
 	public setExported(v: boolean): this { return this.set('exported' as never, v as never); }
+
+	public getFavorite(): boolean { return this.get('favorite' as never) as boolean; }
+	public setFavorite(v: boolean): this { return this.set('favorite' as never, v as never); }
 
 	public getWidth(): number { return this.get('width' as never) as number; }
 	public setWidth(v: number): this { return this.set('width' as never, v as never); }
