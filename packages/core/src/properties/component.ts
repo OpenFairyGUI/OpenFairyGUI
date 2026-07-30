@@ -23,6 +23,7 @@ interface IComponent extends IExtensibleProperty {
 	branch: string;
 	branchItemIds: string[];
 	exported: boolean;
+	favorite: boolean;
 	width: number;
 	height: number;
 	minWidth: number;
@@ -105,6 +106,7 @@ export class Component extends ExtensibleProperty<IComponent> {
 			branch: '',
 			branchItemIds: [],
 			exported: false,
+			favorite: false,
 			width: 0,
 			height: 0,
 			minWidth: 0,
@@ -179,6 +181,9 @@ export class Component extends ExtensibleProperty<IComponent> {
 
 	public getExported(): boolean { return this.get('exported'); }
 	public setExported(v: boolean): this { return this.set('exported', v); }
+
+	public getFavorite(): boolean { return this.get('favorite'); }
+	public setFavorite(v: boolean): this { return this.set('favorite', v); }
 
 	public getWidth(): number { return this.get('width'); }
 	public getHeight(): number { return this.get('height'); }

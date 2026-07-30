@@ -16,6 +16,7 @@ type WritableResource = PackageResource & {
 	getBranch?(): string;
 	getBranchItemIds?(): string[];
 	getExported?(): boolean;
+	getFavorite?(): boolean;
 	getExtras?(): Record<string, unknown>;
 };
 
@@ -181,6 +182,9 @@ export class ProjectWriter {
 		const codePath = pkg.getCodePath();
 		const packageDescriptionAttrs: Record<string, unknown> = {};
 		writeXmlAttr(packageDescriptionAttrs, PROJECT_XML_PROTOCOL.packageDescription.attrs.id, pkg.getId());
+		if (pkg.listResources().some((resource) => (resource as WritableResource).getFavorite?.())) {
+			writeXmlAttr(packageDescriptionAttrs, PROJECT_XML_PROTOCOL.packageDescription.attrs.hasFavorites, 'true');
+		}
 		const compressPNG = pkg.getCompressPNG();
 		if (compressPNG !== null) {
 			writeXmlAttr(packageDescriptionAttrs, PROJECT_XML_PROTOCOL.packageDescription.attrs.compressPNG, compressPNG ? 'true' : 'false');
@@ -491,6 +495,7 @@ export class ProjectWriter {
 			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.name, this._resourceFileName(res));
 			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.path, typedRes.getPath?.() ?? '/');
 			if (typedRes.getExported?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.exported, 'true');
+			if (typedRes.getFavorite?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.favorite, 'true');
 
 			// Image-specific
 			if (res.propertyType === 'ImageResource') {

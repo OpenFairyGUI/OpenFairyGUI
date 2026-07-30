@@ -76,6 +76,7 @@ export {
 	type RemoveComponentOperation,
 	type RemovePackageOperation,
 	type RenamePackageOperation,
+	type SetResourceFavoriteOperation,
 	type UamComponentSelector,
 	type UamControllerSelector,
 	type UamDisplayNodePropsUpdate,

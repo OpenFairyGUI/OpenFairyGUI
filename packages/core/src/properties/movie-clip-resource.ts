@@ -12,6 +12,7 @@ interface IMovieClipResource extends IExtensibleProperty {
 	highResolutionItemIds: Array<string | null>;
 	fileName: string;
 	exported: boolean;
+	favorite: boolean;
 	textureSetMode: string;
 	width: number;
 	height: number;
@@ -43,6 +44,7 @@ export class MovieClipResource extends ExtensibleProperty<IMovieClipResource> {
 			highResolutionItemIds: [],
 			fileName: '',
 			exported: false,
+			favorite: false,
 			textureSetMode: '',
 			width: 0,
 			height: 0,
@@ -75,6 +77,9 @@ export class MovieClipResource extends ExtensibleProperty<IMovieClipResource> {
 
 	public getExported(): boolean { return this.get('exported'); }
 	public setExported(v: boolean): this { return this.set('exported', v); }
+
+	public getFavorite(): boolean { return this.get('favorite'); }
+	public setFavorite(v: boolean): this { return this.set('favorite', v); }
 
 	public getTextureSetMode(): string { return this.get('textureSetMode'); }
 	public setTextureSetMode(v: string): this { return this.set('textureSetMode', v); }

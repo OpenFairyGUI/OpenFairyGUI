@@ -31,6 +31,7 @@ test('resource lifecycle preflight projects batches and rejects unsafe source pa
 		name: 'generated',
 		path: '/generated',
 		exported: true,
+		favorite: false,
 		branch: '',
 		branchItemIds: [],
 		file: 'generated.bin',

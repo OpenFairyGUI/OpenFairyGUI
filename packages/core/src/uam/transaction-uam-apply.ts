@@ -10,6 +10,7 @@ import {
 	findComponentSpec,
 	findDisplayNodeSpecWithPath,
 	findPackageSpec,
+	findResourceSpecWithPath,
 	isDisplayListRewriteOperation,
 	isLifecycleOperation,
 	isUamNativeOperation,
@@ -208,6 +209,14 @@ function applyDisplayNodePropsUpdate(node: UamDisplayNode, props: UamDisplayNode
 
 function applyUamNativeOperation(project: UamProject, operation: UamTransactionOperation): void {
 	switch (operation.kind) {
+		case 'setResourceFavorite': {
+			const found = findResourceSpecWithPath(project, operation.selector);
+			if (!found) {
+				throw new Error(`Resource "${operation.selector.resourceId}" was not found in package "${operation.selector.packageId}".`);
+			}
+			found.resource.favorite = operation.favorite;
+			return;
+		}
 		case 'setDisplayNodeProps': {
 			const found = findDisplayNodeSpecWithPath(project, operation.selector);
 			if (!found) {

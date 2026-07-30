@@ -175,6 +175,9 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 			const resourcePath = `${pkgPath}.resources[${resourceIndex}]`;
 			if (resourceIds.has(resource.id)) pushIssue(issues, `${resourcePath}.id`, `Duplicate resource id "${resource.id}".`);
 			resourceIds.add(resource.id);
+			if (typeof resource.favorite !== 'boolean') {
+				pushIssue(issues, `${resourcePath}.favorite`, 'Resource favorite must be boolean.');
+			}
 
 			if (resource.kind !== 'component') continue;
 

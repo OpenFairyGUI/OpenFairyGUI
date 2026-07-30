@@ -85,6 +85,7 @@ export {
 	type RemovePackageOperation,
 	type RemoveResourceOperation,
 	type RenamePackageOperation,
+	type SetResourceFavoriteOperation,
 	type ReplaceResourceBytesOperation,
 	UamTransaction,
 	UamTransactionError,

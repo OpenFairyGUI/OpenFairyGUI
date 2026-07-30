@@ -38,6 +38,7 @@ function createSupportedProject(): UamProject {
 						name: 'background.png',
 						path: '/images',
 						exported: true,
+						favorite: false,
 						branch: '',
 						branchItemIds: [],
 						fileName: 'background.png',
@@ -50,6 +51,7 @@ function createSupportedProject(): UamProject {
 						name: 'MainView',
 						path: '/',
 						exported: true,
+						favorite: false,
 						branch: '',
 						branchItemIds: [],
 						component: {

@@ -57,6 +57,7 @@ function createEngineeringScaleUamProject(): UamProject {
 						name: 'background.png',
 						path: '/',
 						exported: true,
+						favorite: false,
 						branch: '',
 						branchItemIds: [],
 						fileName: 'background.png',
@@ -71,6 +72,7 @@ function createEngineeringScaleUamProject(): UamProject {
 						name: 'MainView',
 						path: '/',
 						exported: true,
+						favorite: false,
 						branch: '',
 						branchItemIds: [],
 						component: {

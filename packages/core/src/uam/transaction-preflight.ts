@@ -1423,6 +1423,18 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 					);
 				}
 				break;
+			case 'setResourceFavorite':
+				validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
+				if (typeof operation.favorite !== 'boolean') {
+					pushSupportIssue(
+						issues,
+						'invalid_resource_payload',
+						`${operationPath}.favorite`,
+						'setResourceFavorite.favorite must be boolean.',
+						{ operationKind: operation.kind },
+					);
+				}
+				break;
 			case 'addResource':
 				validateAssetResourcePayload(project, operations, operationIndex, operation.selector, operation.resource, operationPath, issues, operation.kind);
 				break;

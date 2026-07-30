@@ -19,6 +19,7 @@ interface IImageResource extends IExtensibleProperty {
 	width: number;
 	height: number;
 	exported: boolean;
+	favorite: boolean;
 	textureSetMode: string;
 	qualityOption: string;
 	smoothing: boolean;
@@ -54,6 +55,7 @@ export class ImageResource extends ExtensibleProperty<IImageResource> {
 			width: 0,
 			height: 0,
 			exported: false,
+			favorite: false,
 			textureSetMode: '',
 			qualityOption: '',
 			smoothing: true,
@@ -94,6 +96,9 @@ export class ImageResource extends ExtensibleProperty<IImageResource> {
 
 	public getExported(): boolean { return this.get('exported'); }
 	public setExported(v: boolean): this { return this.set('exported', v); }
+
+	public getFavorite(): boolean { return this.get('favorite'); }
+	public setFavorite(v: boolean): this { return this.set('favorite', v); }
 
 	public getTextureSetMode(): string { return this.get('textureSetMode'); }
 	public setTextureSetMode(v: string): this { return this.set('textureSetMode', v); }

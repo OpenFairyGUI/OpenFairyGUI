@@ -33,6 +33,7 @@
 | 属性名 | Alias | 说明 |
 |---|---|---|
 | `id` |  | 包根标识 |
+| `hasFavorites` |  | 包内是否存在收藏资源 |
 | `compressPNG` |  | 包级图片压缩开关 |
 | `jpegQuality` |  | 包级 JPEG 质量 |
 
@@ -61,6 +62,7 @@
 | `name` |  | 资源名 |
 | `path` |  | 资源路径 |
 | `exported` |  | 是否参与导出 |
+| `favorite` |  | 是否加入资源收藏 |
 
 ### `resources > image`
 

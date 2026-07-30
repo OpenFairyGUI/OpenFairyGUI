@@ -132,6 +132,7 @@ type LiftableAssetResource = {
 	getName(): string;
 	getPath(): string;
 	getExported(): boolean;
+	getFavorite(): boolean;
 	getBranch(): string;
 	getBranchItemIds(): string[];
 	getSourceData?(): {
@@ -157,6 +158,7 @@ function baseAssetResource(kind: UamAssetResource['kind'], resource: LiftableAss
 		name: resource.getName(),
 		path: resource.getPath(),
 		exported: resource.getExported(),
+		favorite: resource.getFavorite(),
 		branch: resource.getBranch(),
 		branchItemIds: resource.getBranchItemIds(),
 		metadata: null,
@@ -780,6 +782,7 @@ function liftComponentResource(resource: ReturnType<Document['createComponent']>
 		name: resource.getName(),
 		path: resource.getPath(),
 		exported: resource.getExported(),
+		favorite: resource.getFavorite(),
 		branch: resource.getBranch(),
 		branchItemIds: resource.getBranchItemIds(),
 		component: {

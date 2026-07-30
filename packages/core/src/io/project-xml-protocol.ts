@@ -49,6 +49,7 @@ const defineNode = (
 
 const PACKAGE_DESCRIPTION_ATTRS = {
 	id: { canonical: 'id' },
+	hasFavorites: { canonical: 'hasFavorites' },
 	compressPNG: { canonical: 'compressPNG' },
 	jpegQuality: { canonical: 'jpegQuality' },
 } satisfies XmlAttrMap;
@@ -74,6 +75,7 @@ const PACKAGE_RESOURCE_BASE_ATTRS = {
 	name: { canonical: 'name' },
 	path: { canonical: 'path' },
 	exported: { canonical: 'exported' },
+	favorite: { canonical: 'favorite' },
 } satisfies XmlAttrMap;
 
 const PACKAGE_IMAGE_RESOURCE_ATTRS = {

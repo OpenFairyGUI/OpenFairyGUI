@@ -117,6 +117,7 @@ export function createMinimalUamProject(projectId: string): UamProject {
 						name: 'background.png',
 						path: '/images',
 						exported: true,
+						favorite: false,
 						branch: '',
 						branchItemIds: [],
 						fileName: 'background.png',
@@ -129,6 +130,7 @@ export function createMinimalUamProject(projectId: string): UamProject {
 						name: 'MainView',
 						path: '/',
 						exported: true,
+						favorite: false,
 						branch: '',
 						branchItemIds: [],
 						component: {

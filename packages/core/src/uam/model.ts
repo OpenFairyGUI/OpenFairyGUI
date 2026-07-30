@@ -77,6 +77,7 @@ export interface UamAssetResource {
 	name: string;
 	path: string;
 	exported: boolean;
+	favorite: boolean;
 	branch: string;
 	branchItemIds: string[];
 	fileName?: string;
@@ -101,6 +102,7 @@ export interface UamComponentResource {
 	name: string;
 	path: string;
 	exported: boolean;
+	favorite: boolean;
 	branch: string;
 	branchItemIds: string[];
 	component: UamComponentModel;

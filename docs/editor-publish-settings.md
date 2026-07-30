@@ -100,7 +100,13 @@
 - `PublishSettings` 不是 `settings/Publish.json` 的顶层结构，而是单个包发布配置对象。
 - 包级设置里可以单独定义图集列表，也可以指定使用全局图集设置。
 - 工程 `package.xml` 中的 `publish` 节点当前正式支持 `name`、`path`、`branchPath`、`packageCount`、`genCode`、`codePath`，以及包级图集子节点 `<atlas name="Default" index="0"/>`。
-- 工程 `package.xml` 的 `packageDescription` 根节点当前正式支持 `compressPNG` 与 `jpegQuality`，用于承载包级图片压缩选项；未设置时保持省略，不强制写默认值。
+- 工程 `package.xml` 的 `packageDescription` 根节点当前正式支持 `compressPNG`、`jpegQuality` 与派生的 `hasFavorites`；未设置的图片压缩选项保持省略，`hasFavorites` 仅在包内存在收藏资源时写为 `true`。
+
+## 工程资源收藏元数据
+
+`package.xml` 与 `package_branch.xml` 的 component/asset 资源节点使用 `favorite="true"` 记录收藏状态；未收藏时省略该属性。主 `package.xml` 的 `packageDescription@hasFavorites` 由包内所有已建模资源的收藏状态派生，不作为独立可编辑状态。
+
+UAM 通过 `resource.favorite` 承载该字段，公开事务使用幂等的 `setResourceFavorite` 设置目标布尔值。收藏状态只影响编辑器工程数据，不进入运行时二进制发布协议。当前工程资源模型不包含 package folder 项，因此文件夹收藏不在这一正式范围内。
 
 ## 当前发布输出路径解析
 
