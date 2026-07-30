@@ -1,7 +1,6 @@
 import { composeController, composeTransition } from '../authoring.js';
 import { GearType, PropertyType } from '../constants.js';
 import type { Document } from '../document.js';
-import { readMovieClipJtaSize } from '../io/project-reader.js';
 import type { Component } from '../properties/component.js';
 import type { Controller } from '../properties/controller.js';
 import type { GObject } from '../properties/g-object.js';
@@ -9,6 +8,7 @@ import type { GLoader3D } from '../properties/g-loader-3d.js';
 import type { GTextField } from '../properties/g-text-field.js';
 import type { Package } from '../properties/package.js';
 import type { Transition } from '../properties/transition.js';
+import { tryReadJtaSize } from '../utils/jta-parser.js';
 import {
 	materializeAssetResource,
 	materializeDisplayNode,
@@ -445,7 +445,7 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 			const { resource } = resolveResource(doc, operation.selector);
 			replaceBinaryAssetBytes(doc, asMutableAssetResource(resource), operation.sourceBytes);
 			if (resource.propertyType === PropertyType.MOVIE_CLIP_RESOURCE) {
-				const size = readMovieClipJtaSize(operation.sourceBytes);
+				const size = tryReadJtaSize(operation.sourceBytes);
 				if (size) {
 					const movieClip = resource as ReturnType<Document['createMovieClipResource']>;
 					movieClip.setWidth(size.width).setHeight(size.height);

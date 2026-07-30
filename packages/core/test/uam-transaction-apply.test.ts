@@ -3,6 +3,7 @@ import {
 	UamTransactionError,
 	applyUamTransaction,
 	createUamTransaction,
+	parseJta,
 	type UamTextNode,
 } from '../src/index.js';
 
@@ -14,7 +15,13 @@ import {
 	roundTripCommittedProject,
 } from './uam-transaction-fixtures.js';
 
-function createMovieClipJta(version: 100 | 101 | 102, width: number, height: number): Uint8Array {
+function createMovieClipJta(
+	version: 100 | 101 | 102,
+	width: number,
+	height: number,
+	frameX = -3,
+	frameY = -2,
+): Uint8Array {
 	const bytes = new Uint8Array(version === 100 ? 34 : 30);
 	const view = new DataView(bytes.buffer);
 	let offset = 0;
@@ -32,8 +39,8 @@ function createMovieClipJta(version: 100 | 101 | 102, width: number, height: num
 	view.setInt16(offset, version === 100 ? 1 : 0); offset += 2;
 	if (version === 100) {
 		view.setInt16(offset, 0); offset += 2;
-		view.setInt16(offset, -3); offset += 2;
-		view.setInt16(offset, -2); offset += 2;
+		view.setInt16(offset, frameX); offset += 2;
+		view.setInt16(offset, frameY); offset += 2;
 		view.setInt16(offset, width); offset += 2;
 		view.setInt16(offset, height); offset += 2;
 		view.setInt16(offset, -1); offset += 2;
@@ -48,6 +55,14 @@ function createMovieClipJta(version: 100 | 101 | 102, width: number, height: num
 	}
 	return bytes;
 }
+
+test('parseJta derives v100 bounds when frames stay on the negative axes', (t) => {
+	const parsed = parseJta(createMovieClipJta(100, 20, 10, -30, -20));
+	t.deepEqual(
+		{ width: parsed.boundsWidth, height: parsed.boundsHeight },
+		{ width: 20, height: 10 },
+	);
+});
 
 test('resource and display-list operations respect the frozen Phase A contracts', (t) => {
 	const project = createSupportedProject();

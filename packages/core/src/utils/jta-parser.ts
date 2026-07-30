@@ -45,6 +45,7 @@ export function parseJta(data: Uint8Array): JtaDef {
 	// readUTF: uint16 length + UTF-8 string
 	const markLen = view.getUint16(pos);
 	pos += 2;
+	if (pos + markLen > data.length) throw new Error('Invalid .jta file: truncated file mark');
 	const mark = new TextDecoder('utf-8').decode(data.subarray(pos, pos + markLen));
 	pos += markLen;
 
@@ -53,15 +54,17 @@ export function parseJta(data: Uint8Array): JtaDef {
 	}
 
 	const version = view.getInt32(pos); pos += 4;
+	if (version < 100 || version > 102) {
+		throw new Error(`Unsupported .jta version: ${version}`);
+	}
 	let fps = view.getInt8(pos); pos += 1;
 	if (fps === 0) fps = 24;
 	pos += 3; // 3 reserved bytes
 
-	let _boundsX = 0, _boundsY = 0, boundsWidth = 0, boundsHeight = 0;
+	let boundsWidth = 0, boundsHeight = 0;
 
 	if (version >= 102) {
-		_boundsX = view.getUint16(pos); pos += 2;
-		_boundsY = view.getUint16(pos); pos += 2;
+		pos += 4; // bounds x/y
 		boundsWidth = view.getUint16(pos); pos += 2;
 		boundsHeight = view.getUint16(pos); pos += 2;
 	}
@@ -72,6 +75,7 @@ export function parseJta(data: Uint8Array): JtaDef {
 
 	// Frames
 	const frameCount = view.getInt16(pos); pos += 2;
+	if (frameCount < 0) throw new Error('Invalid .jta file: negative frame count');
 	const frames: JtaFrame[] = [];
 	for (let i = 0; i < frameCount; i++) {
 		const delay = view.getInt16(pos); pos += 2;
@@ -85,9 +89,13 @@ export function parseJta(data: Uint8Array): JtaDef {
 
 	// Textures
 	const textureCount = view.getInt16(pos); pos += 2;
+	if (textureCount < 0) throw new Error('Invalid .jta file: negative texture count');
 	const textures: JtaTexture[] = [];
 	for (let i = 0; i < textureCount; i++) {
 		const rawLen = view.getInt32(pos); pos += 4;
+		if (rawLen < 0 || pos + rawLen > data.length) {
+			throw new Error('Invalid .jta file: truncated texture data');
+		}
 		let raw: Uint8Array;
 		if (rawLen > 0) {
 			raw = data.subarray(pos, pos + rawLen);
@@ -98,9 +106,40 @@ export function parseJta(data: Uint8Array): JtaDef {
 		textures.push({ raw });
 	}
 
+	if (version === 101) {
+		pos += 4; // bounds x/y
+		boundsWidth = view.getUint16(pos); pos += 2;
+		boundsHeight = view.getUint16(pos); pos += 2;
+	} else if (version === 100) {
+		let minX = Number.POSITIVE_INFINITY;
+		let minY = Number.POSITIVE_INFINITY;
+		let maxX = Number.NEGATIVE_INFINITY;
+		let maxY = Number.NEGATIVE_INFINITY;
+		for (const frame of frames) {
+			if (frame.rectWidth <= 0 || frame.rectHeight <= 0) continue;
+			minX = Math.min(minX, frame.rectX);
+			minY = Math.min(minY, frame.rectY);
+			maxX = Math.max(maxX, frame.rectX + frame.rectWidth);
+			maxY = Math.max(maxY, frame.rectY + frame.rectHeight);
+		}
+		if (Number.isFinite(minX)) {
+			boundsWidth = maxX - Math.min(minX, 0);
+			boundsHeight = maxY - Math.min(minY, 0);
+		}
+	}
+
 	return {
 		version, fps, speed, repeatDelay, swing,
 		boundsWidth, boundsHeight,
 		frames, textures,
 	};
+}
+
+export function tryReadJtaSize(data: Uint8Array): { width: number; height: number } | null {
+	try {
+		const parsed = parseJta(data);
+		return { width: parsed.boundsWidth, height: parsed.boundsHeight };
+	} catch {
+		return null;
+	}
 }
