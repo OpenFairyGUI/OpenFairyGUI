@@ -4,6 +4,7 @@ import type {
 	UamComponentResource,
 	UamControllerModel,
 	UamDisplayNode,
+	UamLoader3DProperties,
 	UamGearBinding,
 	UamPackage,
 	UamProject,
@@ -14,8 +15,10 @@ import { isFiniteUamPoint, validateUamProject } from './validate.js';
 import {
 	UamTransactionError,
 	type UamComponentSelector,
+	type UamDisplayNodePropsUpdate,
 	type UamDisplayNodeSelector,
 	type UamResourceSelector,
+	type SetDisplayNodePropsOperation,
 	type UamTransactionOperation,
 	type UamTransactionSupportIssue,
 	type UamTransactionSupportIssueCode,
@@ -276,6 +279,39 @@ const TEXT_DISPLAY_PROP_KEYS = new Set<keyof UamDisplayNodePropsUpdate>([
 	'color',
 ]);
 
+const LOADER_3D_PROPERTY_KEYS = new Set<keyof UamLoader3DProperties>([
+	'url',
+	'fill',
+	'shrinkOnly',
+	'autoSize',
+	'align',
+	'vAlign',
+	'animationName',
+	'skinName',
+	'playing',
+	'frame',
+	'loop',
+	'color',
+	'clearOnPublish',
+]);
+
+function isValidLoader3DProperties(value: unknown): value is UamLoader3DProperties {
+	if (!value || typeof value !== 'object') return false;
+	const properties = value as UamLoader3DProperties;
+	const keys = Object.keys(properties);
+	return keys.length === LOADER_3D_PROPERTY_KEYS.size
+		&& keys.every((key) => LOADER_3D_PROPERTY_KEYS.has(key as keyof UamLoader3DProperties))
+		&& [properties.url, properties.animationName, properties.skinName].every((candidate) => typeof candidate === 'string')
+		&& Number.isInteger(properties.fill) && properties.fill >= 0 && properties.fill <= 5
+		&& [properties.shrinkOnly, properties.autoSize, properties.playing, properties.loop, properties.clearOnPublish]
+			.every((candidate) => typeof candidate === 'boolean')
+		&& Number.isInteger(properties.align) && properties.align >= 0 && properties.align <= 2
+		&& Number.isInteger(properties.vAlign) && properties.vAlign >= 0 && properties.vAlign <= 2
+		&& Number.isInteger(properties.frame) && properties.frame >= 0
+		&& typeof properties.color === 'string'
+		&& /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(properties.color);
+}
+
 function validateDisplayPropsPayload(
 	op: SetDisplayNodePropsOperation,
 	project: UamProject,
@@ -304,6 +340,26 @@ function validateDisplayPropsPayload(
 					'invalid_display_node_payload',
 					`${path}.props.pivotAsAnchor`,
 					'Display node pivotAsAnchor must be boolean.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			}
+			continue;
+		}
+		if (key === 'loader3DProperties') {
+			if (nodeKind && nodeKind !== 'loader3D') {
+				pushSupportIssue(
+					issues,
+					'unsupported_display_node_field',
+					`${path}.props.loader3DProperties`,
+					'Loader3D properties are only supported on loader3D display nodes.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			} else if (!isValidLoader3DProperties(op.props.loader3DProperties)) {
+				pushSupportIssue(
+					issues,
+					'invalid_display_node_payload',
+					`${path}.props.loader3DProperties`,
+					'Loader3D properties must be a complete valid Loader3D property snapshot.',
 					{ operationKind: op.kind, nodeKind, field: key },
 				);
 			}

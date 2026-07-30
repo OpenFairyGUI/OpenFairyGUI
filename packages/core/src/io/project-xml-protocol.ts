@@ -291,6 +291,7 @@ const LOADER3D_PANEL_ATTRS = {
 	frame: { canonical: 'frame' },
 	loop: { canonical: 'loop' },
 	color: { canonical: 'color' },
+	clearOnPublish: { canonical: 'clearOnPublish' },
 } satisfies XmlAttrMap;
 
 const TEXT_PANEL_ATTRS = {

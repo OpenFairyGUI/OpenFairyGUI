@@ -527,6 +527,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				frame: loader.frame ?? 0,
 				loop: loader.loop ?? true,
 				color: loader.color ?? '#FFFFFF',
+				clearOnPublish: loader.clearOnPublish ?? false,
 			} satisfies UamLoader3DNode;
 		}
 		case 'movieClip': {

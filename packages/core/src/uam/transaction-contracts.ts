@@ -5,6 +5,7 @@ import type {
 	UamControllerModel,
 	UamDisplayNode,
 	UamGearBinding,
+	UamLoader3DProperties,
 	UamLookGearBinding,
 	UamPackage,
 	UamProject,
@@ -63,6 +64,7 @@ export interface UamDisplayNodePropsUpdate {
 	font?: string;
 	fontSize?: number;
 	color?: string;
+	loader3DProperties?: UamLoader3DProperties;
 }
 
 type UamTransactionDisplayNodeKind = (typeof UAM_SUPPORTED_TRANSACTION_SCOPE.nodeKinds)[number];

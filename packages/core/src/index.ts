@@ -39,6 +39,7 @@ export {
 	type UamListItemData,
 	type UamListNode,
 	type UamLoader3DNode,
+	type UamLoader3DProperties,
 	type UamLoaderNode,
 	type UamLookGearBinding,
 	type UamLookGearValue,

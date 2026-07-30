@@ -1065,6 +1065,8 @@ export function createDisplayObject(
 				if (loop !== undefined) g.setLoop?.(parseBool(loop));
 				const loader3dColor = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.color);
 				if (loader3dColor) g.setColor(loader3dColor);
+				const clearOnPublish = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.clearOnPublish);
+				if (clearOnPublish !== undefined) g.setClearOnPublish(parseBool(clearOnPublish));
 				obj = g;
 				break;
 			}

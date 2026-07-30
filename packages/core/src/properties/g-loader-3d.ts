@@ -23,6 +23,7 @@ export interface IGLoader3D extends IGObject {
 	frame: number;
 	loop: boolean;
 	color: string;
+	clearOnPublish: boolean;
 }
 
 /**
@@ -59,6 +60,7 @@ export class GLoader3D extends GObject<IGLoader3D, PropertyType.G_LOADER_3D> {
 			frame: 0,
 			loop: true,
 			color: '#FFFFFF',
+			clearOnPublish: false,
 		});
 	}
 
@@ -127,4 +129,7 @@ export class GLoader3D extends GObject<IGLoader3D, PropertyType.G_LOADER_3D> {
 
 	public getColor(): string { return this.get('color'); }
 	public setColor(v: string): this { return this.set('color', v); }
+
+	public getClearOnPublish(): boolean { return this.get('clearOnPublish'); }
+	public setClearOnPublish(v: boolean): this { return this.set('clearOnPublish', v); }
 }

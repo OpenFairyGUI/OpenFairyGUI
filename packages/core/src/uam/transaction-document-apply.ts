@@ -4,6 +4,7 @@ import type { Document } from '../document.js';
 import type { Component } from '../properties/component.js';
 import type { Controller } from '../properties/controller.js';
 import type { GObject } from '../properties/g-object.js';
+import type { GLoader3D } from '../properties/g-loader-3d.js';
 import type { GTextField } from '../properties/g-text-field.js';
 import type { Package } from '../properties/package.js';
 import type { Transition } from '../properties/transition.js';
@@ -464,6 +465,26 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 				if (operation.props.font !== undefined) textNode.setFont(operation.props.font);
 				if (operation.props.fontSize !== undefined) textNode.setFontSize(operation.props.fontSize);
 				if (operation.props.color !== undefined) textNode.setColor(operation.props.color);
+			}
+			if (operation.props.loader3DProperties !== undefined) {
+				if (node.propertyType !== PropertyType.G_LOADER_3D) {
+					throw new Error(`Loader3D display props are not supported on display node type "${node.propertyType}".`);
+				}
+				const properties = operation.props.loader3DProperties;
+				(node as GLoader3D)
+					.setUrl(properties.url)
+					.setFill(properties.fill)
+					.setShrinkOnly(properties.shrinkOnly)
+					.setAutoSize(properties.autoSize)
+					.setAlign(properties.align)
+					.setVAlign(properties.vAlign)
+					.setAnimationName(properties.animationName)
+					.setSkinName(properties.skinName)
+					.setPlaying(properties.playing)
+					.setFrame(properties.frame)
+					.setLoop(properties.loop)
+					.setColor(properties.color)
+					.setClearOnPublish(properties.clearOnPublish);
 			}
 			return;
 		}

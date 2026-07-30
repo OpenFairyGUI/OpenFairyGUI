@@ -496,7 +496,8 @@ export function materializeDisplayNode(
 			.setPlaying(loaderNode.playing)
 			.setFrame(loaderNode.frame)
 			.setLoop(loaderNode.loop)
-			.setColor(loaderNode.color);
+			.setColor(loaderNode.color)
+			.setClearOnPublish(loaderNode.clearOnPublish);
 		loader.setRelations(materializeRelations(node.relations));
 		return loader;
 	}
