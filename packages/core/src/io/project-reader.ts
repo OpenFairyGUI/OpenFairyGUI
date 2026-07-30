@@ -21,6 +21,7 @@ import {
 import { PROJECT_XML_PROTOCOL, readXmlAttr, type XmlNodeProtocol } from './project-xml-protocol.js';
 import { ReaderContext } from './reader-context.js';
 import { resolveTreeItemIsFolder } from './tree-item-hierarchy.js';
+import type { FileSystem } from './file-system.js';
 
 /** Map ease type string to numeric code matching editor's EaseType.parseEaseType. */
 function _parseEaseType(ease: string): number {
@@ -796,20 +797,6 @@ function readCommonDisplayState(
 		? readXmlAttr<string | boolean>(source, specs.grayed)
 		: undefined;
 	if (grayed !== undefined) object.setGrayed?.(parseBool(grayed));
-}
-
-export interface FileSystem {
-	readFile(path: string): Promise<string>;
-	readFileRaw(path: string): Promise<Uint8Array>;
-	writeFile(path: string, content: string): Promise<void>;
-	writeFileRaw(path: string, data: Uint8Array): Promise<void>;
-	mkdir(path: string): Promise<void>;
-	readdir(path: string): Promise<string[]>;
-	exists(path: string): Promise<boolean>;
-	join(...paths: string[]): string;
-	dirname(path: string): string;
-	/** Removes a file when the adapter supports project-source cleanup. */
-	unlink?(path: string): Promise<void>;
 }
 
 /** Options for explicitly loading source bytes while reading a project. */

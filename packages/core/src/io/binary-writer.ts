@@ -7,7 +7,7 @@ import type { ImageResource } from '../properties/image-resource.js';
 import { FGUI_MAGIC } from '../constants.js';
 import { WriteBuffer } from './write-buffer.js';
 import { encodeComponent } from './component-encoder.js';
-import type { FileSystem } from './project-reader.js';
+import type { FileSystem } from './file-system.js';
 
 /**
  * Binary item type codes matching the .fui format.

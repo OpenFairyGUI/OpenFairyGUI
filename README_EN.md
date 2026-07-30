@@ -102,6 +102,8 @@ if (!result.ok) {
 
 > `restore` is a limited recovery tool, not a normal authoring or publishing workflow. Use it only with trusted local publish directories; the output must be a new project directory, and recovery replaces the target only after a complete staged write. It does not establish that third-party artifacts are safe and cannot reproduce the original source project. See the [published recovery boundaries](./docs/published-project-restore-limitations.md).
 
+Node hosts can call `restoreNode()` from `@openfairygui/functions/node`; the official adapter supplies the Node filesystem and Sharp image extraction. Custom hosts can continue to inject their own capabilities into the root `restore()` workflow.
+
 If you need a **stateful backend runtime** with sessions, revisions, coordinated saves,
 and advisory locking, use the browser-safe `@openfairygui/backend` root entrypoint or
 the Node filesystem bridge exposed by `@openfairygui/backend/node`. This layer is

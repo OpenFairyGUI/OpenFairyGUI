@@ -19,9 +19,9 @@ import { type AtlasOptions, atlas } from './atlas.js';
 import { publishCodeGeneration, resolveProjectBasePath } from './codegen.js';
 import { formatPluginError, type LoadedPlugin } from './plugins/types.js';
 import type { AtlasRasterBackend, PublishFileSystem } from './publish/contracts.js';
+import { collectPackageResourceReferences } from './publish/resource-references.js';
 import type {
 	CliPublishSettings,
-	HasOptionalFont,
 	PackagePublishArtifactsExtras,
 	RootProjectSettings,
 } from './shared-types.js';
@@ -186,63 +186,6 @@ interface PackagePublishContext {
 	highResolutionItemIds: Map<string, Array<string | null>>;
 	effectiveResourceIds: Map<string, string>;
 	includeBranches: boolean;
-}
-
-interface ChildReferenceItem {
-	icon?: string | null;
-	url?: string | null;
-}
-
-interface GearWithPublishRefs {
-	getValues?(): string;
-	getDefaultValue?(): unknown;
-}
-
-interface TransitionItemWithPublishRefs {
-	getStartValue?(): unknown;
-	getEndValue?(): unknown;
-}
-
-interface TransitionWithPublishRefs {
-	listItems?(): TransitionItemWithPublishRefs[];
-}
-
-interface ChildWithPublishRefs extends HasOptionalFont {
-	getId?(): string;
-	getPackageId?(): string;
-	getSrc?(): string;
-	getUrl?(): string;
-	getInstanceSound?(): string;
-	getDefaultItem?(): string;
-	getIcon?(): string;
-	getSelectedIcon?(): string;
-	getDropdown?(): string;
-	getSound?(): string;
-	getText?(): string;
-	getInstanceIcon?(): string;
-	getInstanceSelectedIcon?(): string;
-	getVtScrollBarRes?(): string;
-	getHzScrollBarRes?(): string;
-	getHeaderRes?(): string;
-	getFooterRes?(): string;
-	getInstanceComboItems?(): Array<{ icon: string | null }>;
-	getListItems?(): ChildReferenceItem[];
-	listGears?(): GearWithPublishRefs[];
-}
-
-interface ComponentWithPublishRefs {
-	getId(): string;
-	getExported(): boolean;
-	listChildren(): ChildWithPublishRefs[];
-	getHitTest?(): string;
-	getDropdown?(): string;
-	getHeaderRes?(): string;
-	getFooterRes?(): string;
-	getVtScrollBarRes?(): string;
-	getHzScrollBarRes?(): string;
-	getSound?(): string;
-	getFont?(): string | string[] | null | undefined;
-	listTransitions?(): TransitionWithPublishRefs[];
 }
 
 const UNITY_PROJECT_TYPE = ProjectType.Unity;
@@ -411,43 +354,6 @@ function isSkeletonResource(
 	resource: ReturnType<Package['listResources']>[number],
 ): resource is SpineResource | DragonBonesResource {
 	return isSpineResource(resource) || isDragonBonesResource(resource);
-}
-
-function addLocalUiResourceRef(target: Set<string>, pkgId: string, value: string | null | undefined): void {
-	if (!value || typeof value !== 'string' || !value.startsWith(`ui://${pkgId}`) || value.length <= 13) return;
-	target.add(value.slice(13));
-}
-
-function addLocalUiResourceRefsFromText(target: Set<string>, pkgId: string, value: string | null | undefined): void {
-	if (!value || typeof value !== 'string') return;
-	const prefix = `ui://${pkgId}`;
-	let index = value.indexOf(prefix);
-	while (index !== -1) {
-		const start = index + prefix.length;
-		let end = start;
-		while (end < value.length && /[0-9a-z]/i.test(value[end] ?? '')) end++;
-		if (end > start) target.add(value.slice(start, end));
-		index = value.indexOf(prefix, end);
-	}
-}
-
-function addLocalUiResourceRefsFromUnknown(target: Set<string>, pkgId: string, value: unknown): void {
-	if (Array.isArray(value)) {
-		for (const entry of value) addLocalUiResourceRefsFromUnknown(target, pkgId, entry);
-		return;
-	}
-	if (typeof value === 'string') {
-		addLocalUiResourceRef(target, pkgId, value);
-		addLocalUiResourceRefsFromText(target, pkgId, value);
-	}
-}
-
-function addLocalFontRef(target: Set<string>, pkgId: string, value: string | string[] | null | undefined): void {
-	if (Array.isArray(value)) {
-		for (const entry of value) addLocalUiResourceRef(target, pkgId, entry);
-		return;
-	}
-	addLocalUiResourceRef(target, pkgId, value ?? undefined);
 }
 
 function resolvePackageAssetsBasePath(basePath: string, resource: BranchAwarePublishedResource | undefined): string {
@@ -654,10 +560,9 @@ function collectPackagePublishContext(
 		includeHighResolution: number;
 	},
 ): PackagePublishContext {
-	const pkgId = pkg.getId();
 	const resources = pkg.listResources();
 	const resourceMap = new Map(resources.map((resource) => [resource.getId(), resource]));
-	const referencedIds = new Set<string>();
+	const referencedIds = collectPackageResourceReferences(pkg).localResourceIds;
 	const pixelHitTestImageIds = new Set<string>();
 	const spriteItemIds = new Set<string>();
 	const collectExportedResourceIds = (
@@ -690,7 +595,7 @@ function collectPackagePublishContext(
 
 	for (const resource of resources) {
 		if (!isComponentResource(resource)) continue;
-		const component = resource as ComponentWithPublishRefs;
+		const component = resource;
 		const children = component.listChildren();
 		const childMap = new Map(children.map((child) => [child.getId?.() ?? '', child]));
 
@@ -703,59 +608,6 @@ function collectPackagePublishContext(
 				if (sourceResource && isImageResource(sourceResource)) {
 					pixelHitTestImageIds.add(sourceId);
 				}
-			}
-		}
-
-		for (const child of children) {
-			const src = child.getSrc?.();
-			if (src) referencedIds.add(src);
-			addLocalFontRef(referencedIds, pkgId, child.getFont?.());
-			addLocalUiResourceRefsFromText(referencedIds, pkgId, child.getText?.());
-			for (const ref of [
-				child.getUrl?.(),
-				child.getDefaultItem?.(),
-				child.getIcon?.(),
-				child.getSelectedIcon?.(),
-				child.getDropdown?.(),
-				child.getSound?.(),
-				child.getInstanceSound?.(),
-				child.getInstanceIcon?.(),
-				child.getInstanceSelectedIcon?.(),
-				child.getVtScrollBarRes?.(),
-				child.getHzScrollBarRes?.(),
-				child.getHeaderRes?.(),
-				child.getFooterRes?.(),
-			]) {
-				addLocalUiResourceRef(referencedIds, pkgId, ref);
-			}
-			for (const item of child.getInstanceComboItems?.() ?? []) {
-				addLocalUiResourceRef(referencedIds, pkgId, item.icon ?? undefined);
-			}
-			for (const item of child.getListItems?.() ?? []) {
-				addLocalUiResourceRef(referencedIds, pkgId, item.icon ?? undefined);
-				addLocalUiResourceRef(referencedIds, pkgId, item.url ?? undefined);
-			}
-			for (const gear of child.listGears?.() ?? []) {
-				addLocalUiResourceRefsFromUnknown(referencedIds, pkgId, gear.getValues?.());
-				addLocalUiResourceRefsFromUnknown(referencedIds, pkgId, gear.getDefaultValue?.());
-			}
-		}
-
-		addLocalFontRef(referencedIds, pkgId, component.getFont?.());
-		for (const ref of [
-			component.getDropdown?.(),
-			component.getHeaderRes?.(),
-			component.getFooterRes?.(),
-			component.getVtScrollBarRes?.(),
-			component.getHzScrollBarRes?.(),
-			component.getSound?.(),
-		]) {
-			addLocalUiResourceRef(referencedIds, pkgId, ref);
-		}
-		for (const transition of component.listTransitions?.() ?? []) {
-			for (const item of transition.listItems?.() ?? []) {
-				addLocalUiResourceRefsFromUnknown(referencedIds, pkgId, item.getStartValue?.());
-				addLocalUiResourceRefsFromUnknown(referencedIds, pkgId, item.getEndValue?.());
 			}
 		}
 	}
@@ -1393,116 +1245,13 @@ export function publish(options: PublishOptions): Transform {
  * @internal
  */
 function _computeDependencies(doc: Document, pkg: Package, pkgMap: Map<string, Package>): void {
-	const referencedPkgIds = new Set<string>();
-	const pkgId = pkg.getId();
+	const referencedPkgIds = collectPackageResourceReferences(pkg).packageIds;
 	const packageOrder = new Map(
 		doc
 			.getRoot()
 			.listPackages()
 			.map((entry, index) => [entry.getId(), index] as const),
 	);
-	const addDependencyPackageId = (dependencyPkgId: string | null | undefined): void => {
-		const normalized = dependencyPkgId?.trim() ?? '';
-		if (!normalized || normalized === pkgId) return;
-		referencedPkgIds.add(normalized);
-	};
-	const extractPackageIdFromUiUrl = (value: string): string | null => {
-		if (!value.startsWith('ui://')) return null;
-		const rest = value.slice(5);
-		if (!rest) return null;
-		const slashIndex = rest.indexOf('/');
-		if (slashIndex >= 0) {
-			return rest.slice(0, slashIndex) || null;
-		}
-		if (rest.length >= 8) {
-			return rest.slice(0, 8);
-		}
-		return null;
-	};
-	const addDependencyPackageIdFromUiValue = (value: string | null | undefined): void => {
-		if (!value || typeof value !== 'string') return;
-		addDependencyPackageId(extractPackageIdFromUiUrl(value));
-	};
-	const addDependencyPackageIdsFromText = (value: string | null | undefined): void => {
-		if (!value || typeof value !== 'string') return;
-		const matches = value.matchAll(/ui:\/\/([0-9a-z]{8})/giu);
-		for (const match of matches) {
-			addDependencyPackageId(match[1] ?? '');
-		}
-	};
-	const addDependencyPackageIdsFromUnknown = (value: unknown): void => {
-		if (Array.isArray(value)) {
-			for (const entry of value) addDependencyPackageIdsFromUnknown(entry);
-			return;
-		}
-		if (typeof value === 'string') {
-			addDependencyPackageIdFromUiValue(value);
-			addDependencyPackageIdsFromText(value);
-		}
-	};
-	const addDependencyFontRef = (value: string | string[] | null | undefined): void => {
-		if (Array.isArray(value)) {
-			for (const entry of value) addDependencyPackageIdFromUiValue(entry);
-			return;
-		}
-		addDependencyPackageIdFromUiValue(value ?? undefined);
-	};
-
-	for (const res of pkg.listResources()) {
-		if (res.propertyType !== 'Component') continue;
-		const component = res as ComponentWithPublishRefs;
-		for (const child of component.listChildren?.() ?? []) {
-			addDependencyPackageId(child.getPackageId?.());
-			addDependencyFontRef(child.getFont?.());
-			addDependencyPackageIdsFromText(child.getText?.());
-			for (const ref of [
-				child.getUrl?.(),
-				child.getDefaultItem?.(),
-				child.getIcon?.(),
-				child.getSelectedIcon?.(),
-				child.getDropdown?.(),
-				child.getSound?.(),
-				child.getInstanceSound?.(),
-				child.getInstanceIcon?.(),
-				child.getInstanceSelectedIcon?.(),
-				child.getVtScrollBarRes?.(),
-				child.getHzScrollBarRes?.(),
-				child.getHeaderRes?.(),
-				child.getFooterRes?.(),
-			]) {
-				addDependencyPackageIdFromUiValue(ref);
-			}
-			for (const item of child.getInstanceComboItems?.() ?? []) {
-				addDependencyPackageIdFromUiValue(item.icon ?? undefined);
-			}
-			for (const item of child.getListItems?.() ?? []) {
-				addDependencyPackageIdFromUiValue(item.icon ?? undefined);
-				addDependencyPackageIdFromUiValue(item.url ?? undefined);
-			}
-			for (const gear of child.listGears?.() ?? []) {
-				addDependencyPackageIdsFromUnknown(gear.getValues?.());
-				addDependencyPackageIdsFromUnknown(gear.getDefaultValue?.());
-			}
-		}
-		addDependencyFontRef(component.getFont?.());
-		for (const ref of [
-			component.getDropdown?.(),
-			component.getHeaderRes?.(),
-			component.getFooterRes?.(),
-			component.getVtScrollBarRes?.(),
-			component.getHzScrollBarRes?.(),
-			component.getSound?.(),
-		]) {
-			addDependencyPackageIdFromUiValue(ref);
-		}
-		for (const transition of component.listTransitions?.() ?? []) {
-			for (const item of transition.listItems?.() ?? []) {
-				addDependencyPackageIdsFromUnknown(item.getStartValue?.());
-				addDependencyPackageIdsFromUnknown(item.getEndValue?.());
-			}
-		}
-	}
-
 	for (const dep of pkg.listDependencies()) {
 		pkg.removeDependency(dep);
 	}

@@ -7,7 +7,7 @@ import type { Controller } from '../properties/controller.js';
 import type { Transition } from '../properties/transition.js';
 import type { Gear } from '../properties/gear.js';
 import { ControllerActionType, GearType, TransitionActionType } from '../constants.js';
-import type { FileSystem } from './project-reader.js';
+import type { FileSystem } from './file-system.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr, type XmlNodeProtocol } from './project-xml-protocol.js';
 
 const builder = new XMLBuilder({

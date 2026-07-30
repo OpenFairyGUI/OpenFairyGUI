@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { PlatformIO } from './platform-io.js';
-import type { FileSystem } from './project-reader.js';
+import type { FileSystem } from './file-system.js';
 
 /**
  * Node.js I/O implementation for reading and writing FairyGUI projects.

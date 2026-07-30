@@ -47,10 +47,12 @@ flowchart LR
         PUBNODE["publishNode"]
         PUBWEB["publishBrowser"]
         RST["受限 restore<br/>trusted-local recovery"]
+        RSTNODE["restoreNode"]
         ATLAS["atlas"]
         CG["codegen"]
         PUBNODE --> PUB
         PUBWEB --> PUB
+        RSTNODE --> RST
     end
 
     subgraph BE["状态化后端服务层"]
@@ -130,11 +132,11 @@ flowchart LR
 | 层级 | 当前职责 | 核心文件 |
 |---|---|---|
 | 入口层 | 命令行注册、参数解析与 workflow 装配 | `packages/cli/src/cli.ts`、`packages/cli/src/commands/*.ts`、`packages/cli/src/utils/*.ts` |
-| 协议适配层 | 屏蔽平台文件系统差异，承接工程格式、二进制格式与工程 XML 协议元数据 | `packages/core/src/io/platform-io.ts`、`packages/core/src/io/node-io.ts`、`packages/core/src/io/web-io.ts`、`packages/core/src/io/project-xml-protocol.ts`、`packages/core/src/io/project-reader.ts`、`packages/core/src/io/binary-reader.ts`、`packages/core/src/io/component-decoder.ts` |
+| 协议适配层 | 屏蔽平台文件系统差异，承接工程格式、二进制格式与工程 XML 协议元数据 | `packages/core/src/io/file-system.ts`、`packages/core/src/io/platform-io.ts`、`packages/core/src/io/node-io.ts`、`packages/core/src/io/web-io.ts`、`packages/core/src/io/project-xml-protocol.ts`、`packages/core/src/io/project-reader.ts`、`packages/core/src/io/binary-reader.ts`、`packages/core/src/io/component-decoder.ts` |
 | UAM 主真相层 | 统一声明式工程级 authoring model，承接 `project / package / resource / component internals` 与行为语义，并公开 Phase A transaction kernel | `packages/core/src/uam/*.ts` |
 | 内部图物化层 | `Document` 持有 `Property Graph`，用于当前内部执行、存储、适配与既有工作流复用 | `packages/core/src/document.ts`、`packages/core/src/properties/property.ts` |
 | 项目骨架层 | `Root -> Package -> Resource -> Component` 组成基础结构 | `packages/core/src/properties/root.ts`、`packages/core/src/properties/package.ts`、`packages/core/src/properties/component.ts` |
-| 工作流层 | 面向自动化的可组合处理管线，以及建立在 `core` Phase A transaction contract 之上的薄 authoring app seam | `packages/functions/src/inspect.ts`、`packages/functions/src/validate.ts`、`packages/functions/src/prune.ts`、`packages/functions/src/rename.ts`、`packages/functions/src/publish.ts`、`packages/functions/src/publish/contracts.ts`、`packages/functions/src/adapters/node/publish.ts`、`packages/functions/src/adapters/web/publish.ts`、`packages/functions/src/node.ts`、`packages/functions/src/web.ts`、`packages/functions/src/restore.ts`、`packages/functions/src/codegen.ts`、`packages/functions/src/uam-transaction.ts` |
+| 工作流层 | 面向自动化的可组合处理管线，以及建立在 `core` Phase A transaction contract 之上的薄 authoring app seam | `packages/functions/src/inspect.ts`、`packages/functions/src/validate.ts`、`packages/functions/src/prune.ts`、`packages/functions/src/rename.ts`、`packages/functions/src/publish.ts`、`packages/functions/src/publish/contracts.ts`、`packages/functions/src/publish/resource-references.ts`、`packages/functions/src/adapters/node/publish.ts`、`packages/functions/src/adapters/node/restore.ts`、`packages/functions/src/adapters/web/publish.ts`、`packages/functions/src/node.ts`、`packages/functions/src/web.ts`、`packages/functions/src/restore.ts`、`packages/functions/src/atlas/*.ts`、`packages/functions/src/codegen.ts`、`packages/functions/src/uam-transaction.ts` |
 | 状态化后端服务层 | browser-safe project session、browser-safe async project storage adapter、adapter-backed file session、revision/dirty tracking、backend-local canonical path / advisory lock、coordinated save、capability planes / manifest、version surface、runtime events、in-memory jobs、derived read-only cache，以及 `read / authoring / artifact / runtime` service stratification | `packages/backend/src/runtime.ts`、`packages/backend/src/storage.ts`、`packages/backend/src/node.ts`、`packages/backend/src/contracts.ts`、`packages/backend/src/path-policy.ts`、`packages/backend/src/services/*.ts` |
 | MCP 薄适配层 | 把 backend P2 方法完整映射为 MCP tools；承接 stdio transport、MCP tool output schema、identity resources 与 guidance prompts，不重新定义 UAM / backend 语义 | `packages/mcp/src/server.ts`、`packages/mcp/src/tool-definitions.ts`、`packages/mcp/src/tool-handler.ts`、`packages/mcp/src/resource-definitions.ts`、`packages/mcp/src/prompt-definitions.ts`、`packages/mcp/src/stdio.ts` |
 | 输出层 | 工程文件写回、图集产物生成、二进制封包输出与代码生成输出 | `packages/core/src/io/project-writer.ts`、`packages/functions/src/atlas.ts`、`packages/core/src/io/binary-writer.ts`、`packages/functions/src/codegen.ts` |
@@ -142,7 +144,7 @@ flowchart LR
 补充说明：
 - `@openfairygui/core` 当前同时承载 UAM 主真相层与内部图物化层。
 - `packages/core/src/uam/model.ts` 当前的 materialization scope 覆盖现有全部 display node 类：`GImage`、`GTextField`、`GRichTextField`、`GTextInput`、`GComponent`、`GList`、`GTree`、`GGraph`、`GGroup`、`GLoader`、`GLoader3D`、`GMovieClip`、`GButton`、`GLabel`、`GComboBox`、`GProgressBar`、`GSlider`、`GScrollBar`。其中 component-derived controls 以具体 UAM node kind 建模，不通过长期 `extras` 或通用属性袋承载。
-- `packages/core/src/uam/transaction.ts` 当前提供的是 **UAM-public explicit operation batch API**；它的 `commit()` 结果是新的 normalized `UamProject`。纯 `setDisplayNodeProps`、包/组件生命周期事务，以及生命周期与 `attachDisplayNode` / `detachDisplayNode` 引用重写的混合批次直接在 UAM 上执行；未触及的复杂节点、引用、relation、transition 作为 lossless passthrough 保留，其余资源、结构和 gear 事务通过私有 `Document` 工作副本执行，并在失败时整体丢弃。
+- `packages/core/src/uam/transaction-contracts.ts` 承载公开 selector、operation、support issue 与 transaction error contract；`packages/core/src/uam/transaction.ts` 保留事务门面、preflight 和执行。`commit()` 结果是新的 normalized `UamProject`。纯 `setDisplayNodeProps`、包/组件生命周期事务，以及生命周期与 `attachDisplayNode` / `detachDisplayNode` 引用重写的混合批次直接在 UAM 上执行；未触及的复杂节点、引用、relation、transition 作为 lossless passthrough 保留，其余资源、结构和 gear 事务通过私有 `Document` 工作副本执行，并在失败时整体丢弃。
 - `packages/core/src/uam/bridge.ts` 当前负责 UAM 与内部 `Document` 之间的 lift/materialize。真实工程里可保存但不一定可解析到当前资源图的弱引用会按工程 XML 语义透传：空 relation target 表示组件容器，display resource refs 允许悬空或跨包保留，transition item target 与 display gear pages 允许保留编辑器旧数据。`validateUamProject` 只阻塞会破坏当前物化/写回的硬结构错误。
 - `ProjectReader.read(path, { hydrateResourceBytes: true })` 是 source-byte hydration 的显式入口；它会为 main 与 branch package 中的 image、sound、misc、font、movie-clip、Spine、DragonBones 资源附加 primary source bytes，并拒绝 XML 中包含 traversal 的资源路径。UAM bridge 在 lift/materialize 时复制 `Uint8Array`，不以 JSON clone 承载二进制数据。
 - UAM materialization scope 与 transaction scope 是两个独立能力面；全量 display node lift/materialize 不代表 `UamTransactionOperation` 已开放这些 node kind 的全字段 mutation。当前 transaction scope 覆盖已建模资源的 rename/move、二进制资源 add/replace/remove、包含公共 `pivot / pivotAsAnchor` 的基础 display props、attach/detach、controller、transition，以及 `display`、`display2`、`look`、`xy`、`size`、`color`、`animation`、`text`、`icon`、`fontSize` gear 的 add/update/remove；它仍不开放任意 display-list、controller 或 transition 的面板式编辑。二进制资源的 rename/move/replace/remove 要求 UAM 持有已水合的 primary source bytes。`validateTransactionSupport(project)` 保留全项目体检语义；`validateTransactionSupport(project, operations)` 与实际 transaction preflight 按 operation touch-set 判定，并在物化前拒绝缺失源字节、无效 controller/page、被操作 transition 中的无效 target 引用、重复或无效 gear，以及不安全的新增资源 source path。UAM/writer 同时拒绝会覆盖 package descriptor、component XML 或其他资源的输出目标。
@@ -161,21 +163,22 @@ flowchart LR
 - `packages/mcp/src/prompt-definitions.ts` 当前只提供 guidance prompts，引导客户端使用既有 backend tools；prompts 不定义 transaction grammar、selector grammar 或具体 operation payload。
 - `@openfairygui/mcp` 不拥有 transaction grammar、selector grammar、path policy、job semantics、cache semantics 或 artifact publish/restore；MCP roots 只作为客户端上下文说明，路径安全仍由 backend path policy 决定。
 - `BinaryReader` 仍然是二进制读入口；component block 的展开逻辑当前拆到内部 helper `component-decoder.ts`，对外调用面不变。
-- `@openfairygui/functions` 仍以 workflow composition 为主，不重新定义底层协议；当前 `publish` 与 `restore` 仍主要围绕图物化后的内部表示执行，新 authoring seam 也明确不包装 `publish` / `restore`。
+- `@openfairygui/functions` 仍以 workflow composition 为主，不重新定义底层协议；当前 `publish` 与 `restore` 仍主要围绕图物化后的内部表示执行，新 authoring seam 也明确不包装 `publish` / `restore`。`publish/resource-references.ts` 只统一枚举组件中的本包资源与跨包引用，atlas 选取、发布闭包和依赖排序策略仍由各自 workflow 决定；JTA/FNT 纯解析逻辑位于 `atlas/jta.ts` 与 `atlas/font.ts`。
 - `@openfairygui/backend` 不拥有 transaction grammar / selector grammar / support semantics；它只承接 stateful runtime concerns，并保持 transport-neutral。根入口是 browser-safe API 面，Node 文件系统与必须 Node 执行的 artifact 能力通过 `@openfairygui/backend/node` 明确桥接。
 - `@openfairygui/core` 根入口当前保持 browser-safe，不再导出 `NodeIO` 或 `WebIO`；Node 默认工程 I/O 只从 `@openfairygui/core/node` 暴露，浏览器工程目录读写只从 `@openfairygui/core/web` 暴露。需要 project reader / writer adapter 类型但不能引入平台文件系统实现时，使用 `@openfairygui/core/project-io`。
 - `@openfairygui/core/web` 当前只承接 browser-safe 的 FairyGUI 工程树读写：它通过可注入 Core `FileSystem` 或 File System Access API directory handle 适配 `.fairy / settings / assets`，不暴露 binary package I/O，不执行 `publish` / `restore`，也不提供 backend session lifecycle、path policy 或 capability manifest。
 - `@openfairygui/backend` 根入口当前提供 browser-safe async storage bridge；浏览器宿主把 OPFS、IndexedDB、ZIP 虚拟文件系统等实现注入 `openProjectSession` 后，`materializeSession` 可用于 workspace bootstrap / first write，`saveSession` 使用该 session 绑定的文件系统写回 dirty session。
-- `@openfairygui/functions/uam` 当前只暴露 UAM transaction app seam，用于 `@openfairygui/backend` browser root entry；根入口的 `publish` 是 capability-injected 内核，正式 Node/Web 宿主入口分别是 `@openfairygui/functions/node` 与 `@openfairygui/functions/web`。
+- `@openfairygui/functions/uam` 当前只暴露 UAM transaction app seam，用于 `@openfairygui/backend` browser root entry；根入口的 `publish` / `restore` 是 capability-injected 内核，正式 Node/Web publish 宿主入口分别是 `@openfairygui/functions/node` 与 `@openfairygui/functions/web`，Node restore 宿主入口是 `@openfairygui/functions/node`。
 - 当前 Unity、Layabox、Cocos Creator 共用同一条 `publish -> atlas / binary / codegen` 主链；差异主要体现在描述文件扩展名和代码生成 lane 选择，而不是工作流分叉。
-- `@openfairygui/cli` 是入口层，不下沉协议细节；`cli.ts` 只负责 program 注册和进程生命周期，`inspect`、`publish`、`restore`、backend capabilities 分别由独立 command 模块装配。
+- `@openfairygui/cli` 是入口层，不下沉协议或 Node artifact 处理细节；`cli.ts` 只负责 program 注册和进程生命周期，`inspect`、`publish`、`restore`、backend capabilities 分别由独立 command 模块装配，restore command 将 Node 文件系统与 Sharp 图像处理委托给 `restoreNode()`。
 
-## Publish 宿主边界
+## Publish / Restore 宿主边界
 
 `publish.ts` 只编排发布设置、资源闭包、atlas、二进制写出与通用代码生成；文件系统、raster backend 与 publish hooks 都由宿主提供。
 
 - `@openfairygui/functions/node` 的 `publishNode()` 组装 Node 文件系统、Sharp 与工程 `plugins/` 自动发现。
 - `@openfairygui/functions/web` 的 `publishBrowser()` 接收调用方的源/输出 `FileSystem`，用 Canvas 生成 atlas PNG，注入空 hooks，并关闭非 runtime 代码生成。
+- `@openfairygui/functions/node` 的 `restoreNode()` 组装受限 restore 所需的 Node 文件系统与 Sharp 图像提取；CLI 只解析参数并调用该入口。
 
 两种宿主都复用 `publish -> atlas / BinaryWriter` 主链；Web 入口不经过 backend Node bridge。
 
@@ -330,7 +333,7 @@ flowchart TD
 | 模块 | 负责内容 | 不负责内容 |
 |---|---|---|
 | `@openfairygui/core` | UAM 主真相层、内部图物化层、项目格式读写、二进制协议读写等底层能力 | 高层发布/还原策略、命令行参数封装 |
-| `@openfairygui/functions` | inspect / validate / prune / rename / atlas / publish / restore 等流程组合，以及薄的 pre-MCP authoring app seam | UAM schema 定义、Graph/UAM 核心建模、第二套 selector / operation grammar、`Document` 暴露、`publish` / `restore` 包装 |
+| `@openfairygui/functions` | inspect / validate / prune / rename / atlas / publish / restore 等流程组合、Node/Web artifact host adapter，以及薄的 pre-MCP authoring app seam | UAM schema 定义、Graph/UAM 核心建模、第二套 selector / operation grammar、从 authoring app seam 暴露 `Document` 或隐式触发 `publish` / `restore` |
 | `@openfairygui/backend` | browser-safe project session、browser-safe async project storage adapter、可注入 filesystem adapter、session lifecycle、request/result envelope、revisioned transaction orchestration、backend-local canonical path / advisory lock、coordinated save、capability discovery / manifest、runtime events、in-memory jobs、derived read-only cache、transport bootstrap，以及 `read / authoring / artifact / runtime` 服务分层 | transaction kernel ownership、第二套 app seam、第二套 selector / operation grammar、在 browser-safe session 内执行 `publish` / `restore`、transport-specific wire protocol、MCP transport |
 | `@openfairygui/mcp` | MCP server、stdio transport、backend P2 tool schema / output schema、identity resources、guidance prompts 和 backend runtime method 调用映射 | UAM / backend 语义定义、transaction grammar、selector grammar、path policy、roots enforcement、artifact publish/restore 激活 |
 | `@openfairygui/cli` | 命令入口、参数解析、调用装配 | 领域模型定义、协议定义 |

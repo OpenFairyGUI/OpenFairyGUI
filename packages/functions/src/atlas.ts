@@ -14,7 +14,10 @@ import {
 } from '@openfairygui/core';
 import { COMPAT_NODE_RECT_FLAGS, type CompatNodeRect } from './max-rects-compat.js';
 import { MaxRectsPackerCompat } from './max-rects-packer-compat.js';
+import { parseFnt } from './atlas/font.js';
+import { extractJtaFrames } from './atlas/jta.js';
 import type { AtlasRasterBackend, AtlasRasterInput, AtlasRasterResolvedBuffer } from './publish/contracts.js';
+import { collectPackageResourceReferences } from './publish/resource-references.js';
 import type { ExtrasMap, HasOptionalSrc, HasOptionalUrl } from './shared-types.js';
 import { createTransform, parseTextureSetMode, type TextureSetMode } from './utils.js';
 
@@ -454,65 +457,8 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 			const inputs: InputItem[] = [];
 
 			// Build set of referenced resource IDs (editor only packs referenced images)
-			// Walk component tree recursively to find all image references
-			const referencedIds = new Set<string>();
-			const resourceMap = new Map<string, PackageResource>();
-			for (const res of allResources) {
-				const id = res.getId();
-				if (id) resourceMap.set(id, res);
-			}
-			function collectRefs(component: Component, visited: Set<string>): void {
-				for (const child of component.listChildren()) {
-					const refChild = child as ChildWithReferenceUrls;
-					const src = refChild.getSrc?.();
-					if (src && !visited.has(src)) {
-						referencedIds.add(src);
-						visited.add(src);
-						const srcRes = resourceMap.get(src);
-						if (srcRes && isComponentResource(srcRes)) {
-							collectRefs(srcRes, visited);
-						}
-					}
-					for (const ref of [
-						refChild.getIcon?.(),
-						refChild.getSelectedIcon?.(),
-						refChild.getFont?.(),
-						refChild.getDropdown?.(),
-						refChild.getInstanceIcon?.(),
-						refChild.getInstanceSelectedIcon?.(),
-						refChild.getVtScrollBarRes?.(),
-						refChild.getHzScrollBarRes?.(),
-						refChild.getHeaderRes?.(),
-						refChild.getFooterRes?.(),
-						refChild.getUrl?.(),
-					]) {
-						addUiResourceRef(referencedIds, ref);
-					}
-					addUiResourceRefsFromText(referencedIds, refChild.getText?.());
-					for (const item of refChild.getInstanceComboItems?.() ?? []) {
-						addUiResourceRef(referencedIds, item.icon ?? undefined);
-					}
-					for (const item of refChild.getListItems?.() ?? []) {
-						addUiResourceRef(referencedIds, item.icon ?? undefined);
-					}
-					for (const gear of refChild.listGears?.() ?? []) {
-						addUiResourceRefsFromUnknown(referencedIds, gear.getValues?.());
-						addUiResourceRefsFromUnknown(referencedIds, gear.getDefaultValue?.());
-					}
-				}
-				for (const transition of (
-					component as Component & { listTransitions?(): TransitionWithAtlasRefs[] }
-				).listTransitions?.() ?? []) {
-					for (const item of transition.listItems?.() ?? []) {
-						addUiResourceRefsFromUnknown(referencedIds, item.getStartValue?.());
-						addUiResourceRefsFromUnknown(referencedIds, item.getEndValue?.());
-					}
-				}
-			}
+			const referencedIds = collectPackageResourceReferences(pkg).localResourceIds;
 			for (const res of orderedAllResources) {
-				if (isComponentResource(res)) {
-					collectRefs(res, new Set());
-				}
 				if (isSkeletonResource(res) && referencedIds.has(res.getId())) {
 					for (const requiredId of res.getRequireIds()) {
 						if (requiredId) referencedIds.add(requiredId);
@@ -1223,29 +1169,6 @@ function sortResourcesByOrder(
 	return ordered;
 }
 
-interface ExtractedJtaFrameMeta {
-	addDelay: number;
-	offsetX: number;
-	offsetY: number;
-	width: number;
-	height: number;
-	textureIndex: number;
-}
-
-interface ExtractedJtaMeta {
-	interval: number;
-	repeatDelay: number;
-	swing: boolean;
-	width: number;
-	height: number;
-	frames: ExtractedJtaFrameMeta[];
-}
-
-interface ExtractedJtaData {
-	frames: Uint8Array[];
-	meta?: ExtractedJtaMeta;
-}
-
 function getResourceTextureSetMode(resource: PackInputResource): TextureSetMode {
 	if (isImageResource(resource)) {
 		return parseTextureSetMode(resource.getTextureSetMode?.());
@@ -1582,7 +1505,7 @@ async function _collectMovieClipFrames(
 
 	try {
 		const raw = await options.readFileRaw(filePath);
-		const jta = _extractJtaFrames(raw);
+		const jta = extractJtaFrames(raw);
 		if (jta.frames.length === 0) return;
 
 		const frameMetas = jta.meta?.frames ?? [];
@@ -1700,192 +1623,6 @@ async function _createMovieClipFrameInput(
 	}
 }
 
-const PNG_SIGNATURE = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-
-function _extractJtaFrames(data: Uint8Array): ExtractedJtaData {
-	const frames: Uint8Array[] = [];
-	let offset = 0;
-	let firstPngOffset = -1;
-
-	while (offset < data.length) {
-		const sigIndex = _findPngSignature(data, offset);
-		if (sigIndex === -1) break;
-		if (firstPngOffset === -1) firstPngOffset = sigIndex;
-		const end = _findPngEnd(data, sigIndex);
-		if (end === -1) break;
-		frames.push(data.subarray(sigIndex, end));
-		offset = end;
-	}
-
-	if (firstPngOffset === -1 || frames.length === 0) {
-		return { frames: [] };
-	}
-
-	return {
-		frames,
-		meta: _parseJtaHeader(data, firstPngOffset, frames.length),
-	};
-}
-
-function _findPngSignature(data: Uint8Array, fromIndex: number): number {
-	for (let index = fromIndex; index <= data.length - PNG_SIGNATURE.length; index += 1) {
-		let matched = true;
-		for (let sigIndex = 0; sigIndex < PNG_SIGNATURE.length; sigIndex += 1) {
-			if (data[index + sigIndex] !== PNG_SIGNATURE[sigIndex]) {
-				matched = false;
-				break;
-			}
-		}
-		if (matched) return index;
-	}
-	return -1;
-}
-
-function _findPngEnd(data: Uint8Array, start: number): number {
-	let pos = start + PNG_SIGNATURE.length;
-	while (pos + 8 <= data.length) {
-		const length = _readUint32BE(data, pos);
-		pos += 8;
-		if (pos + length + 4 > data.length) return -1;
-		const isIEND =
-			data[pos - 4] === 0x49 && data[pos - 3] === 0x45 && data[pos - 2] === 0x4e && data[pos - 1] === 0x44;
-		pos += length + 4;
-		if (isIEND) return pos;
-	}
-	return -1;
-}
-
-function _parseJtaHeader(data: Uint8Array, firstPngOffset: number, frameCount: number): ExtractedJtaMeta | undefined {
-	if (data.length < 10) return undefined;
-
-	const state = { offset: 0 };
-	const end = Math.min(firstPngOffset, data.length);
-	const mark = _readUtfBE(data, state, end);
-	if (!mark) return undefined;
-
-	const version = _readInt32BEAt(data, state, end);
-	if (version == null) return undefined;
-
-	const fpsRaw = _readInt8At(data, state, end);
-	if (fpsRaw == null) return undefined;
-	const fps = fpsRaw > 0 ? fpsRaw : 24;
-
-	if (state.offset + 3 > end) return undefined;
-	state.offset += 3;
-
-	if (version < 102) return undefined;
-
-	_readUint16BEAt(data, state, end);
-	_readUint16BEAt(data, state, end);
-	const width = _readUint16BEAt(data, state, end);
-	const height = _readUint16BEAt(data, state, end);
-	if (width == null || height == null) return undefined;
-
-	const speedRaw = _readUint8At(data, state, end);
-	const repeatDelayRaw = _readUint8At(data, state, end);
-	const swingRaw = _readInt8At(data, state, end);
-	const frameTableCount = _readInt16BEAt(data, state, end);
-	if (speedRaw == null || repeatDelayRaw == null || swingRaw == null || frameTableCount == null) return undefined;
-
-	const frames: ExtractedJtaFrameMeta[] = [];
-	for (let index = 0; index < frameTableCount; index += 1) {
-		const delayRaw = _readInt16BEAt(data, state, end);
-		const offsetX = _readInt16BEAt(data, state, end);
-		const offsetY = _readInt16BEAt(data, state, end);
-		const frameWidth = _readInt16BEAt(data, state, end);
-		const frameHeight = _readInt16BEAt(data, state, end);
-		const textureIndex = _readInt16BEAt(data, state, end);
-		if (
-			delayRaw == null ||
-			offsetX == null ||
-			offsetY == null ||
-			frameWidth == null ||
-			frameHeight == null ||
-			textureIndex == null
-		) {
-			break;
-		}
-		frames.push({
-			addDelay: Math.trunc((1000 / fps) * delayRaw),
-			offsetX,
-			offsetY,
-			width: frameWidth,
-			height: frameHeight,
-			textureIndex,
-		});
-	}
-
-	return {
-		interval: Math.trunc((1000 / fps) * (speedRaw || 1)),
-		repeatDelay: Math.trunc((1000 / fps) * repeatDelayRaw),
-		swing: swingRaw === 1,
-		width,
-		height,
-		frames: frames.length === 0 && frameCount > 0 ? [] : frames,
-	};
-}
-
-function _readUtfBE(data: Uint8Array, state: { offset: number }, end: number): string | null {
-	const length = _readUint16BEAt(data, state, end);
-	if (length == null || state.offset + length > end) return null;
-	const value = new TextDecoder().decode(data.subarray(state.offset, state.offset + length));
-	state.offset += length;
-	return value;
-}
-
-function _readUint8At(data: Uint8Array, state: { offset: number }, end: number): number | null {
-	if (state.offset + 1 > end) return null;
-	const value = data[state.offset];
-	state.offset += 1;
-	return value ?? 0;
-}
-
-function _readInt8At(data: Uint8Array, state: { offset: number }, end: number): number | null {
-	if (state.offset + 1 > end) return null;
-	const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-	const value = view.getInt8(state.offset);
-	state.offset += 1;
-	return value;
-}
-
-function _readUint16BEAt(data: Uint8Array, state: { offset: number }, end: number): number | null {
-	if (state.offset + 2 > end) return null;
-	const value = _readUint16BE(data, state.offset);
-	state.offset += 2;
-	return value;
-}
-
-function _readInt16BEAt(data: Uint8Array, state: { offset: number }, end: number): number | null {
-	if (state.offset + 2 > end) return null;
-	const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-	const value = view.getInt16(state.offset, false);
-	state.offset += 2;
-	return value;
-}
-
-function _readInt32BEAt(data: Uint8Array, state: { offset: number }, end: number): number | null {
-	if (state.offset + 4 > end) return null;
-	const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-	const value = view.getInt32(state.offset, false);
-	state.offset += 4;
-	return value;
-}
-
-function _readUint16BE(data: Uint8Array, offset: number): number {
-	if (offset + 1 >= data.length) return 0;
-	return (data[offset] << 8) | data[offset + 1];
-}
-
-function _readUint32BE(data: Uint8Array, offset: number): number {
-	if (offset + 3 >= data.length) return 0;
-	return (
-		data[offset] * 0x1000000 +
-		((data[offset + 1] ?? 0) << 16) +
-		((data[offset + 2] ?? 0) << 8) +
-		(data[offset + 3] ?? 0)
-	);
-}
-
 /** Collect a Bitmap Font's texture image, packed under the font's ID. */
 async function _collectFontTexture(
 	doc: Document,
@@ -1913,7 +1650,7 @@ async function _collectFontTexture(
 		try {
 			const fntData = await options.readFileRaw(fntFile);
 			const fntText = new TextDecoder().decode(fntData);
-			const fntParsed = _parseFnt(fntText);
+			const fntParsed = parseFnt(fntText);
 			for (const glyph of fontRes.listGlyphs()) {
 				fontRes.removeGlyph(glyph);
 			}
@@ -1948,109 +1685,6 @@ async function _collectFontTexture(
 	}
 }
 
-/** Parse a BMFont .fnt text file into structured data for binary encoding. */
-function _parseFnt(text: string): {
-	hasFace: boolean;
-	colored: boolean;
-	resizable: boolean;
-	hasChannel: boolean;
-	fontSize: number;
-	xadvance: number;
-	lineHeight: number;
-	glyphs: Array<{
-		charId: number;
-		img: string | null;
-		x: number;
-		y: number;
-		xoffset: number;
-		yoffset: number;
-		width: number;
-		height: number;
-		xadvance: number;
-		channel: number;
-	}>;
-} {
-	const lines = text.split(/\r?\n/);
-	let hasFace = false,
-		colored = false,
-		resizable = false,
-		hasChannel = false;
-	let fontSize = 0,
-		globalXadvance = 0,
-		lineHeight = 0;
-	const glyphs: Array<{
-		charId: number;
-		img: string | null;
-		x: number;
-		y: number;
-		xoffset: number;
-		yoffset: number;
-		width: number;
-		height: number;
-		xadvance: number;
-		channel: number;
-	}> = [];
-
-	for (const line of lines) {
-		const trimmed = line.trim();
-		if (!trimmed) continue;
-		const parts = trimmed.split(/\s+/);
-		const attrs: Record<string, string> = {};
-		for (let i = 1; i < parts.length; i++) {
-			const eq = parts[i].split('=');
-			if (eq.length === 2) attrs[eq[0]] = eq[1];
-		}
-
-		switch (parts[0]) {
-			case 'info':
-				hasFace = attrs.face != null;
-				colored = hasFace;
-				if (attrs.colored !== undefined) colored = attrs.colored === 'true';
-				fontSize = parseInt(attrs.size, 10) || 0;
-				resizable = attrs.resizable === 'true';
-				break;
-			case 'common':
-				lineHeight = parseInt(attrs.lineHeight, 10) || 0;
-				globalXadvance = parseInt(attrs.xadvance, 10) || 0;
-				if (fontSize === 0) fontSize = lineHeight;
-				else if (lineHeight === 0) lineHeight = fontSize;
-				break;
-			case 'char': {
-				const charId = parseInt(attrs.id, 10) || 0;
-				if (charId === 0) continue;
-				const img = attrs.img || null;
-				if (!hasFace && !img) continue;
-				const chnl = parseInt(attrs.chnl, 10) || 0;
-				if (chnl !== 0 && chnl !== 15) hasChannel = true;
-				glyphs.push({
-					charId,
-					img,
-					x: parseInt(attrs.x, 10) || 0,
-					y: parseInt(attrs.y, 10) || 0,
-					xoffset: parseInt(attrs.xoffset, 10) || 0,
-					yoffset: parseInt(attrs.yoffset, 10) || 0,
-					width: parseInt(attrs.width, 10) || 0,
-					height: parseInt(attrs.height, 10) || 0,
-					xadvance: parseInt(attrs.xadvance, 10) || 0,
-					channel: chnl,
-				});
-				break;
-			}
-		}
-	}
-
-	return {
-		hasFace,
-		colored,
-		resizable: fontSize > 0 ? resizable : false,
-		hasChannel,
-		fontSize,
-		xadvance: globalXadvance,
-		lineHeight,
-		glyphs,
-	};
-}
-
 function isComponentResource(resource: PackageResource): resource is Component {
 	return resource.propertyType === 'Component';
 }
@@ -2073,32 +1707,6 @@ function isFontResource(resource: PackageResource): resource is FontResource {
 
 function isPackableResource(resource: PackageResource): resource is PackableResource {
 	return isImageResource(resource) || isMovieClipResource(resource) || isFontResource(resource);
-}
-
-function addUiResourceRef(target: Set<string>, value: string | undefined | null): void {
-	if (!value?.startsWith('ui://')) return;
-	const refId = value.slice(5).slice(8);
-	if (refId) target.add(refId);
-}
-
-function addUiResourceRefsFromText(target: Set<string>, value: string | undefined | null): void {
-	if (!value || typeof value !== 'string') return;
-	const matches = value.matchAll(/ui:\/\/[0-9a-z]{8}([0-9a-z]+)/gi);
-	for (const match of matches) {
-		const refId = match[1] ?? '';
-		if (refId) target.add(refId);
-	}
-}
-
-function addUiResourceRefsFromUnknown(target: Set<string>, value: unknown): void {
-	if (Array.isArray(value)) {
-		for (const entry of value) addUiResourceRefsFromUnknown(target, entry);
-		return;
-	}
-	if (typeof value === 'string') {
-		addUiResourceRef(target, value);
-		addUiResourceRefsFromText(target, value);
-	}
 }
 
 function isResolvedBuffer(value: Uint8Array | AtlasRasterResolvedBuffer): value is AtlasRasterResolvedBuffer {

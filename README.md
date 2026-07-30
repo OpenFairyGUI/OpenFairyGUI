@@ -99,6 +99,8 @@ if (!result.ok) {
 
 > `restore` 是受限恢复工具，不是常规创作或发布工作流。仅对可信的本地发布目录使用它；输出必须是新的工程目录，恢复会在暂存目录完整写入后才替换目标。它不能证明第三方发布物安全，也不保证恢复出原工程源码。边界见[发布产物恢复边界](./docs/published-project-restore-limitations.md)。
 
+Node 宿主可从 `@openfairygui/functions/node` 调用 `restoreNode()`，由官方适配器组装 Node 文件系统与 Sharp 图像提取；需要自定义宿主能力时继续使用根入口的 `restore()`。
+
 如果你需要一个带 session / revision / save / advisory lock 的 **backend runtime**，可以使用
 browser-safe 的 `@openfairygui/backend` 根入口，或通过 `@openfairygui/backend/node` 装配 Node 文件系统。
 这层是 transport-neutral 的后端基础，不等价于 `packages/mcp`，也不重新定义

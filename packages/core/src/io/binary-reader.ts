@@ -5,7 +5,7 @@ import type { ImageResource } from '../properties/image-resource.js';
 import type { Package } from '../properties/package.js';
 import { ByteBuffer } from './byte-buffer.js';
 import { decodeComponentDefinition } from './component-decoder.js';
-import type { FileSystem } from './project-reader.js';
+import type { FileSystem } from './file-system.js';
 
 /**
  * Binary item type codes as used in the .fui format.

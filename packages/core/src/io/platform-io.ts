@@ -1,5 +1,6 @@
 import type { Document } from '../document.js';
-import { ProjectReader, type FileSystem, type ProjectReadOptions } from './project-reader.js';
+import type { FileSystem } from './file-system.js';
+import { ProjectReader, type ProjectReadOptions } from './project-reader.js';
 import { ProjectWriter, type ProjectWriteOptions } from './project-writer.js';
 import { BinaryReader } from './binary-reader.js';
 import { BinaryWriter, type BinaryWriterOptions } from './binary-writer.js';
