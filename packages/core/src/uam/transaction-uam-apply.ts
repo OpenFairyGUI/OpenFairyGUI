@@ -8,6 +8,7 @@ import {
 import {
 	asTransactionError,
 	findComponentSpec,
+	findComponentSpecWithPath,
 	findDisplayNodeSpecWithPath,
 	findPackageSpec,
 	findResourceSpecWithPath,
@@ -205,10 +206,33 @@ function applyDisplayNodePropsUpdate(node: UamDisplayNode, props: UamDisplayNode
 			clearOnPublish: properties.clearOnPublish,
 		});
 	}
+	if (props.componentInstanceProperties !== undefined) {
+		if (node.kind !== 'component') {
+			throw new Error(`Component instance props are not supported on display node kind "${node.kind}".`);
+		}
+		if (props.componentInstanceProperties === null) {
+			delete node.instanceProperties;
+		} else {
+			node.instanceProperties = structuredClone(props.componentInstanceProperties);
+		}
+	}
 }
 
 function applyUamNativeOperation(project: UamProject, operation: UamTransactionOperation): void {
 	switch (operation.kind) {
+		case 'setComponentProps': {
+			const found = findComponentSpecWithPath(project, operation.selector);
+			if (!found) {
+				throw new Error(`Component "${operation.selector.componentResourceId}" was not found in package "${operation.selector.packageId}".`);
+			}
+			if (operation.props.size !== undefined) {
+				found.resource.component.size = { ...operation.props.size };
+			}
+			if (operation.props.properties !== undefined) {
+				found.resource.component.properties = structuredClone(operation.props.properties);
+			}
+			return;
+		}
 		case 'setResourceFavorite': {
 			const found = findResourceSpecWithPath(project, operation.selector);
 			if (!found) {

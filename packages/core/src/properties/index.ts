@@ -15,7 +15,7 @@ export { FontResource } from './font-resource.js';
 export { MovieClipResource } from './movie-clip-resource.js';
 export { SpineResource } from './spine-resource.js';
 export { DragonBonesResource } from './dragon-bones-resource.js';
-export { Component } from './component.js';
+export { Component, type ComponentCustomProperty } from './component.js';
 export { Atlas } from './atlas.js';
 export { Sprite } from './sprite.js';
 export { FairyBuffer } from './buffer.js';

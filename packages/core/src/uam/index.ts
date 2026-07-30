@@ -7,7 +7,11 @@ export {
 	type UamColorGearBinding,
 	type UamColorGearValue,
 	type UamComboBoxNode,
+	type UamComponentCustomProperty,
+	type UamComponentInstanceComboItem,
+	type UamComponentInstanceProperties,
 	type UamComponentModel,
+	type UamComponentProperties,
 	type UamComponentRefNode,
 	type UamComponentResource,
 	type UamControllerAction,
@@ -64,7 +68,7 @@ export {
 	UAM_SUPPORTED_MATERIALIZATION_SCOPE,
 	UAM_SUPPORTED_TRANSACTION_SCOPE,
 } from './model.js';
-export { normalizeUamProject } from './normalize.js';
+export { createDefaultUamComponentProperties, normalizeUamProject } from './normalize.js';
 export { assertValidUamProject, validateUamProject } from './validate.js';
 export {
 	commitUamProjectSourcePaths,
@@ -85,6 +89,7 @@ export {
 	type RemovePackageOperation,
 	type RemoveResourceOperation,
 	type RenamePackageOperation,
+	type SetComponentPropsOperation,
 	type SetResourceFavoriteOperation,
 	type ReplaceResourceBytesOperation,
 	UamTransaction,

@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {
+	createDefaultUamComponentProperties,
 	type UamProject,
 	type UamTransactionOperation,
 	readProjectAsUam,
@@ -56,6 +57,7 @@ function createSupportedProject(): UamProject {
 						branchItemIds: [],
 						component: {
 							size: { width: 320, height: 180 },
+							properties: createDefaultUamComponentProperties(),
 							customData: '',
 							displayList: [
 								{

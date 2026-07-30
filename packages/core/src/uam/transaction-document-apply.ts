@@ -14,6 +14,10 @@ import {
 	materializeDisplayNode,
 	materializeUamGear,
 } from './bridge.js';
+import {
+	materializeUamComponentInstanceProperties,
+	materializeUamComponentProperties,
+} from './bridge-materialize.js';
 import type {
 	UamComponentModel,
 	UamControllerModel,
@@ -461,6 +465,16 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 			pkg.removeResource(resource);
 			return;
 		}
+		case 'setComponentProps': {
+			const component = resolveComponent(doc, operation.selector);
+			if (operation.props.size !== undefined) {
+				component.setSize(operation.props.size.width, operation.props.size.height);
+			}
+			if (operation.props.properties !== undefined) {
+				materializeUamComponentProperties(component, operation.props.properties);
+			}
+			return;
+		}
 		case 'setDisplayNodeProps': {
 			const node = resolveDisplayNode(doc, operation.selector);
 			if (!COMMON_DISPLAY_PROPERTY_TYPES.has(node.propertyType)) {
@@ -493,6 +507,15 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 					.setLoop(properties.loop)
 					.setColor(properties.color)
 					.setClearOnPublish(properties.clearOnPublish);
+			}
+			if (operation.props.componentInstanceProperties !== undefined) {
+				if (node.propertyType !== PropertyType.G_COMPONENT) {
+					throw new Error(`Component instance props are not supported on display node type "${node.propertyType}".`);
+				}
+				materializeUamComponentInstanceProperties(
+					node as ReturnType<Document['createGComponent']>,
+					operation.props.componentInstanceProperties,
+				);
 			}
 			return;
 		}

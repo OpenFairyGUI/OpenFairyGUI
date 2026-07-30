@@ -110,11 +110,110 @@ export interface UamComponentResource {
 
 export interface UamComponentModel {
 	size: UamSize;
+	properties: UamComponentProperties;
 	customData: string;
 	displayList: UamDisplayNode[];
 	controllers: UamControllerModel[];
 	transitions: UamTransitionModel[];
 }
+
+export interface UamComponentCustomProperty {
+	target: string;
+	propertyId: 0 | 1;
+	label: string;
+}
+
+export interface UamComponentProperties {
+	minSize: UamSize;
+	maxSize: UamSize;
+	pivot: UamPoint;
+	pivotAsAnchor: boolean;
+	overflow: number;
+	margin: UamEdgeInsets;
+	clipSoftness: UamPoint;
+	hitTest: string;
+	mask: string;
+	reversedMask: boolean;
+	scrollType: number;
+	scrollBarDisplay: number;
+	scrollBarFlags: number;
+	scrollBarMargin: UamEdgeInsets;
+	vtScrollBarRes: string;
+	hzScrollBarRes: string;
+	headerRes: string;
+	footerRes: string;
+	bgColor: string;
+	bgColorEnabled: boolean;
+	designImageAlpha: number;
+	designImageLayer: number;
+	designImageOffset: UamPoint;
+	idNum: number;
+	initName: string;
+	remark: string;
+	extensionType: string;
+	opaque: boolean;
+	buttonMode: number;
+	sound: string;
+	soundVolumeScale: number;
+	downEffect: number;
+	downEffectValue: number;
+	dropdown: string;
+	promptText: string;
+	selectionController: string;
+	titleType: number;
+	reverse: boolean;
+	wholeNumbers: boolean;
+	changeOnClick: boolean;
+	fixedGripSize: boolean;
+	customProperties: UamComponentCustomProperty[];
+}
+
+export interface UamComponentInstanceComboItem {
+	title: string | null;
+	value: string | null;
+	icon: string | null;
+}
+
+export type UamComponentInstanceProperties =
+	| {
+		extensionType: 'Button';
+		title: string;
+		selectedTitle: string;
+		icon: string;
+		selectedIcon: string;
+		titleColor: string;
+		titleFontSize: number;
+		controller: string;
+		page: string;
+		checked: boolean;
+		sound: string;
+		soundVolumeScale: number;
+	}
+	| {
+		extensionType: 'Label';
+		title: string;
+		icon: string;
+		titleColor: string;
+		titleFontSize: number;
+		promptText: string;
+	}
+	| {
+		extensionType: 'ComboBox';
+		title: string;
+		icon: string;
+		visibleItemCount: number;
+		selectionController: string;
+		items: UamComponentInstanceComboItem[];
+	}
+	| {
+		extensionType: 'ProgressBar' | 'Slider';
+		value: number;
+		max: number;
+		min: number;
+	}
+	| {
+		extensionType: 'ScrollBar';
+	};
 
 export type UamDisplayNodeKind =
 	| 'image'
@@ -183,6 +282,7 @@ export interface UamTextInputNode extends Omit<UamTextNode, 'kind'> {
 export interface UamComponentRefNode extends UamDisplayNodeBase {
 	kind: 'component';
 	resource: UamResourceRef;
+	instanceProperties?: UamComponentInstanceProperties;
 }
 
 export interface UamListItemData {

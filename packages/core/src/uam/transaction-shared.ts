@@ -33,7 +33,8 @@ export function isDisplayListRewriteOperation(operation: UamTransactionOperation
 }
 
 export function isUamNativeOperation(operation: UamTransactionOperation): boolean {
-	return operation.kind === 'setDisplayNodeProps'
+	return operation.kind === 'setComponentProps'
+		|| operation.kind === 'setDisplayNodeProps'
 		|| operation.kind === 'setResourceFavorite'
 		|| isLifecycleOperation(operation)
 		|| isDisplayListRewriteOperation(operation);

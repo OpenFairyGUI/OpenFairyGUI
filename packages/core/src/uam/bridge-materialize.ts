@@ -7,8 +7,10 @@ import type {
 	UamButtonNode,
 	UamColorGearBinding,
 	UamComboBoxNode,
+	UamComponentInstanceProperties,
 	UamComponentRefNode,
 	UamComponentModel,
+	UamComponentProperties,
 	UamComponentResource,
 	UamControllerModel,
 	UamDisplay2GearBinding,
@@ -63,6 +65,129 @@ type MaterializedDisplayNodeBase = {
 	setCustomData(customData: string): MaterializedDisplayNodeBase;
 	setRelations(relations: Array<{ target: string; type: number; usePercent: boolean }>): MaterializedDisplayNodeBase;
 };
+
+export function materializeUamComponentInstanceProperties(
+	component: ReturnType<Document['createGComponent']>,
+	properties: UamComponentInstanceProperties | null | undefined,
+): void {
+	component
+		.setInstanceExtType('')
+		.setInstanceTitle('')
+		.setInstanceSelectedTitle('')
+		.setInstanceIcon('')
+		.setInstanceSelectedIcon('')
+		.setInstanceTitleColor('')
+		.setInstanceTitleFontSize(0)
+		.setInstanceController('')
+		.setInstancePage('')
+		.setInstanceChecked(false)
+		.setInstanceSound('')
+		.setInstanceSoundVolumeScale(1)
+		.setInstancePromptText('')
+		.setInstanceSelectionController('')
+		.setInstanceVisibleItemCount(0)
+		.setInstanceValue(0)
+		.setInstanceMax(0)
+		.setInstanceMin(0)
+		.setInstanceComboItems([]);
+	if (!properties) return;
+
+	component.setInstanceExtType(properties.extensionType);
+	switch (properties.extensionType) {
+		case 'Button':
+			component
+				.setInstanceTitle(properties.title)
+				.setInstanceSelectedTitle(properties.selectedTitle)
+				.setInstanceIcon(properties.icon)
+				.setInstanceSelectedIcon(properties.selectedIcon)
+				.setInstanceTitleColor(properties.titleColor)
+				.setInstanceTitleFontSize(properties.titleFontSize)
+				.setInstanceController(properties.controller)
+				.setInstancePage(properties.page)
+				.setInstanceChecked(properties.checked)
+				.setInstanceSound(properties.sound)
+				.setInstanceSoundVolumeScale(properties.soundVolumeScale);
+			return;
+		case 'Label':
+			component
+				.setInstanceTitle(properties.title)
+				.setInstanceIcon(properties.icon)
+				.setInstanceTitleColor(properties.titleColor)
+				.setInstanceTitleFontSize(properties.titleFontSize)
+				.setInstancePromptText(properties.promptText);
+			return;
+		case 'ComboBox':
+			component
+				.setInstanceTitle(properties.title)
+				.setInstanceIcon(properties.icon)
+				.setInstanceVisibleItemCount(properties.visibleItemCount)
+				.setInstanceSelectionController(properties.selectionController)
+				.setInstanceComboItems(properties.items.map((item) => ({ ...item })));
+			return;
+		case 'ProgressBar':
+		case 'Slider':
+			component
+				.setInstanceValue(properties.value)
+				.setInstanceMax(properties.max)
+				.setInstanceMin(properties.min);
+			return;
+		case 'ScrollBar':
+			return;
+	}
+}
+
+export function materializeUamComponentProperties(
+	component: ReturnType<Document['createComponent']>,
+	properties: UamComponentProperties,
+): void {
+	component
+		.setMinWidth(properties.minSize.width)
+		.setMinHeight(properties.minSize.height)
+		.setMaxWidth(properties.maxSize.width)
+		.setMaxHeight(properties.maxSize.height)
+		.setPivotX(properties.pivot.x)
+		.setPivotY(properties.pivot.y)
+		.setPivotAsAnchor(properties.pivotAsAnchor)
+		.setOverflow(properties.overflow)
+		.setMargin(properties.margin)
+		.setClipSoftness(properties.clipSoftness)
+		.setHitTest(properties.hitTest)
+		.setMask(properties.mask)
+		.setReversedMask(properties.reversedMask)
+		.setScrollType(properties.scrollType)
+		.setScrollBarDisplay(properties.scrollBarDisplay)
+		.setScrollBarFlags(properties.scrollBarFlags)
+		.setScrollBarMargin(properties.scrollBarMargin)
+		.setVtScrollBarRes(properties.vtScrollBarRes)
+		.setHzScrollBarRes(properties.hzScrollBarRes)
+		.setHeaderRes(properties.headerRes)
+		.setFooterRes(properties.footerRes)
+		.setBgColor(properties.bgColor)
+		.setBgColorEnabled(properties.bgColorEnabled)
+		.setDesignImageAlpha(properties.designImageAlpha)
+		.setDesignImageLayer(properties.designImageLayer)
+		.setDesignImageOffsetX(properties.designImageOffset.x)
+		.setDesignImageOffsetY(properties.designImageOffset.y)
+		.setIdNum(properties.idNum)
+		.setInitName(properties.initName)
+		.setRemark(properties.remark)
+		.setExtensionType(properties.extensionType)
+		.setOpaque(properties.opaque)
+		.setButtonMode(properties.buttonMode)
+		.setSound(properties.sound)
+		.setSoundVolumeScale(properties.soundVolumeScale)
+		.setDownEffect(properties.downEffect)
+		.setDownEffectValue(properties.downEffectValue)
+		.setDropdown(properties.dropdown)
+		.setPromptText(properties.promptText)
+		.setSelectionController(properties.selectionController)
+		.setTitleType(properties.titleType)
+		.setReverse(properties.reverse)
+		.setWholeNumbers(properties.wholeNumbers)
+		.setChangeOnClick(properties.changeOnClick)
+		.setFixedGripSize(properties.fixedGripSize)
+		.setCustomProperties(properties.customProperties);
+}
 
 type MaterializedComponentDerivedControl = MaterializedDisplayNodeBase & {
 	setSrc(src: string): MaterializedComponentDerivedControl;
@@ -321,6 +446,7 @@ export function materializeDisplayNode(
 			.setCustomData(node.customData)
 			.setSrc(componentNode.resource.resourceId)
 			.setPackageId(componentNode.resource.packageId ?? '');
+		materializeUamComponentInstanceProperties(component, componentNode.instanceProperties);
 		component.setRelations(materializeRelations(node.relations));
 		return component;
 	}
@@ -883,6 +1009,7 @@ function materializeComponentResource(doc: Document, resource: UamComponentResou
 		.setFavorite(resource.favorite)
 		.setSize(resource.component.size.width, resource.component.size.height)
 		.setCustomData(resource.component.customData);
+	materializeUamComponentProperties(component, resource.component.properties);
 
 	for (const node of resource.component.displayList) {
 		component.addChild(materializeDisplayNode(doc, node));

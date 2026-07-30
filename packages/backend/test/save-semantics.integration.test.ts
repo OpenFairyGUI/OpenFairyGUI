@@ -151,7 +151,7 @@ test('materializeSession reports write_failed and keeps session dirty state stab
 	}
 });
 
-test('file sessions reject lossy UAM writeback before touching disk', async (t) => {
+test('file sessions preserve component properties through UAM writeback', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
 		const componentPath = path.join(fixture.rootDir, 'assets', 'Main', 'MainView.xml');
@@ -165,7 +165,7 @@ test('file sessions reject lossy UAM writeback before touching disk', async (t) 
 		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(opened.ok);
 		if (!opened.ok) return;
-		t.is(opened.data.uamFidelity, 'unsupported');
+		t.is(opened.data.uamFidelity, 'full');
 
 		const applied = await runtime.applyTransaction({
 			sessionId: opened.data.sessionId,
@@ -174,7 +174,7 @@ test('file sessions reject lossy UAM writeback before touching disk', async (t) 
 				{
 					kind: 'setDisplayNodeProps',
 					selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
-					props: { text: 'Must not be written' },
+					props: { text: 'Saved with component properties' },
 				},
 			],
 		});
@@ -182,17 +182,11 @@ test('file sessions reject lossy UAM writeback before touching disk', async (t) 
 		if (!applied.ok) return;
 
 		const saved = await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: 1 });
-		t.false(saved.ok);
-		if (!saved.ok) t.is(saved.error.code, 'uam_fidelity_unsupported');
-
-		const materialized = await runtime.materializeSession({
-			sessionId: opened.data.sessionId,
-			expectedRevision: 1,
-			mode: 'fullProject',
-		});
-		t.false(materialized.ok);
-		if (!materialized.ok) t.is(materialized.error.code, 'uam_fidelity_unsupported');
-		t.is(await fs.readFile(componentPath, 'utf8'), source);
+		t.true(saved.ok);
+		if (!saved.ok) return;
+		const savedSource = await fs.readFile(componentPath, 'utf8');
+		t.true(savedSource.includes('overflow="scroll"'));
+		t.true(savedSource.includes('text="Saved with component properties"'));
 	} finally {
 		await fixture.cleanup();
 	}

@@ -437,6 +437,12 @@ const RELATION_ATTRS = {
 	sidePair: { canonical: 'sidePair' },
 } satisfies XmlAttrMap;
 
+const CUSTOM_PROPERTY_ATTRS = {
+	target: { canonical: 'target' },
+	propertyId: { canonical: 'propertyId' },
+	label: { canonical: 'label' },
+} satisfies XmlAttrMap;
+
 const GEAR_ATTRS = {
 	controller: { canonical: 'controller' },
 	pages: { canonical: 'pages' },
@@ -538,6 +544,7 @@ const PROGRESSBAR_EXTENSION_NODE = defineNode(PROGRESSBAR_EXTENSION_ATTRS);
 const SLIDER_EXTENSION_NODE = defineNode(SLIDER_EXTENSION_ATTRS);
 const SCROLLBAR_EXTENSION_NODE = defineNode(SCROLLBAR_EXTENSION_ATTRS);
 const RELATION_NODE = defineNode(RELATION_ATTRS);
+const CUSTOM_PROPERTY_NODE = defineNode(CUSTOM_PROPERTY_ATTRS);
 const GEAR_NODE = defineNode(GEAR_ATTRS);
 const CONTROLLER_ACTION_NODE = defineNode(CONTROLLER_ACTION_ATTRS);
 const TRANSITION_ITEM_NODE = defineNode(TRANSITION_ITEM_ATTRS);
@@ -809,6 +816,7 @@ const COMPONENT_ROOT_NODE = defineNode(
 		{
 			controller: CONTROLLER_NODE,
 			transition: TRANSITION_NODE,
+			customProperty: CUSTOM_PROPERTY_NODE,
 		},
 		WITH_ROOT_EXTENSION_CHILDREN,
 	),

@@ -158,6 +158,7 @@ type WritableComponent = Component & {
 	getWholeNumbers?(): boolean;
 	getChangeOnClick?(): boolean;
 	getFixedGripSize?(): boolean;
+	getCustomProperties?(): Array<{ target: string; propertyId: 0 | 1; label: string }>;
 };
 
 
@@ -289,6 +290,19 @@ export async function writeComponent(
 			if (transitionChildName) {
 				compNode[transitionChildName] = transitions.map((t) => serializeTransition(t));
 			}
+		}
+
+		const customProperties = typedComp.getCustomProperties?.() ?? [];
+		const customPropertyChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.componentRoot, 'customProperty');
+		const customPropertyProtocol = PROJECT_XML_PROTOCOL.componentRoot.children?.customProperty;
+		if (customProperties.length > 0 && customPropertyChildName) {
+			compNode[customPropertyChildName] = customProperties.map((property) => {
+				const attrs: Record<string, unknown> = {};
+				writeXmlAttr(attrs, customPropertyProtocol?.attrs.target, property.target);
+				writeXmlAttr(attrs, customPropertyProtocol?.attrs.propertyId, String(property.propertyId));
+				if (property.label) writeXmlAttr(attrs, customPropertyProtocol?.attrs.label, property.label);
+				return attrs;
+			});
 		}
 
 		if (extType) {

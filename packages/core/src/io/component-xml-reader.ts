@@ -108,6 +108,11 @@ interface TransitionXmlNode extends XmlNode {
 	item?: TransitionItemXmlNode | TransitionItemXmlNode[];
 }
 
+interface CustomPropertyXmlNode extends XmlNode {
+	target?: string;
+	propertyId?: string | number;
+	label?: string;
+}
 
 interface ExtensionXmlNode extends Record<string, unknown> {
 	[key: string]: unknown;
@@ -133,6 +138,7 @@ interface ComponentXmlNode extends Record<string, unknown> {
 	ptrRes?: string;
 	extention?: string;
 	controller?: ControllerXmlNode | ControllerXmlNode[];
+	customProperty?: CustomPropertyXmlNode | CustomPropertyXmlNode[];
 	displayList?: Record<string, DisplayObjectXmlNode | DisplayObjectXmlNode[]>;
 	transition?: TransitionXmlNode | TransitionXmlNode[];
 	[key: string]: unknown;
@@ -462,6 +468,22 @@ export function readComponentXml(ctx: ReaderContext, comp: Component, xmlContent
 				}
 			}
 		}
+
+		const customPropertyChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.componentRoot, 'customProperty');
+		const customProperties = customPropertyChildName ? ensureArray(compNode[customPropertyChildName]) : [];
+		const customPropertyProtocol = PROJECT_XML_PROTOCOL.componentRoot.children?.customProperty;
+		comp.setCustomProperties(customProperties.flatMap((value) => {
+			const property = getXmlNode<CustomPropertyXmlNode>(value);
+			const propertyId = property
+				? parseInt2(readXmlAttr(property, customPropertyProtocol?.attrs.propertyId), -1)
+				: -1;
+			if (!property || (propertyId !== 0 && propertyId !== 1)) return [];
+			return [{
+				target: readXmlAttr<string>(property, customPropertyProtocol?.attrs.target) ?? '',
+				propertyId,
+				label: readXmlAttr<string>(property, customPropertyProtocol?.attrs.label) ?? '',
+			}];
+		}));
 
 		// Build a local controller map for this component
 		const localControllers = new Map<string, Controller>();

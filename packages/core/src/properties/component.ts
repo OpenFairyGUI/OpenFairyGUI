@@ -17,6 +17,12 @@ interface EdgeInsetsLike {
 	right: number;
 }
 
+export interface ComponentCustomProperty {
+	target: string;
+	propertyId: 0 | 1;
+	label: string;
+}
+
 interface IComponent extends IExtensibleProperty {
 	id: string;
 	path: string;
@@ -75,6 +81,7 @@ interface IComponent extends IExtensibleProperty {
 	changeOnClick: boolean;
 	fixedGripSize: boolean;
 	opaque: boolean;
+	customProperties: ComponentCustomProperty[];
 	childrenRenderOrder: number;
 	apexIndex: number;
 	relations: RelationDef[];
@@ -158,6 +165,7 @@ export class Component extends ExtensibleProperty<IComponent> {
 			changeOnClick: true,
 			fixedGripSize: false,
 			opaque: true,
+			customProperties: [],
 			childrenRenderOrder: ChildrenRenderOrder.Ascent,
 			apexIndex: 0,
 			relations: [],
@@ -370,6 +378,17 @@ export class Component extends ExtensibleProperty<IComponent> {
 
 	public getOpaque(): boolean { return this.get('opaque'); }
 	public setOpaque(v: boolean): this { return this.set('opaque', v); }
+
+	public getCustomProperties(): ComponentCustomProperty[] {
+		const properties = this.get('customProperties' as never) as ComponentCustomProperty[];
+		return properties.map((property) => ({ ...property }));
+	}
+	public setCustomProperties(properties: ComponentCustomProperty[]): this {
+		return this.set(
+			'customProperties' as never,
+			properties.map((property) => ({ ...property })) as never,
+		);
+	}
 
 	public getChildrenRenderOrder(): number { return this.get('childrenRenderOrder'); }
 	public setChildrenRenderOrder(v: number): this { return this.set('childrenRenderOrder', v); }

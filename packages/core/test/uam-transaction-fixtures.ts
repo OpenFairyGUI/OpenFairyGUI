@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
 import {
+	createDefaultUamComponentProperties,
 	normalizeUamProject,
 	type UamComponentResource,
 	type UamControllerModel,
@@ -64,6 +65,7 @@ export function createSupportedProject(): UamProject {
 						branchItemIds: [],
 						component: {
 							size: { width: 320, height: 180 },
+							properties: createDefaultUamComponentProperties(),
 							customData: '',
 							displayList: [
 								{
@@ -295,6 +297,7 @@ export function createLifecycleComponent(id = 'cmp002', name = 'Popup'): UamComp
 		branchItemIds: [],
 		component: {
 			size: { width: 160, height: 80 },
+			properties: createDefaultUamComponentProperties(),
 			customData: '',
 			displayList: [{
 				...createDisplayNodeBase('popup-title', 'title'),

@@ -1,5 +1,10 @@
 import test from 'ava';
-import { normalizeUamProject, validateUamProject, type UamProject } from '../src/index.js';
+import {
+	createDefaultUamComponentProperties,
+	normalizeUamProject,
+	validateUamProject,
+	type UamProject,
+} from '../src/index.js';
 
 test('normalizeUamProject fills schema-local defaults into a canonical shape', (t) => {
 	const project: UamProject = {
@@ -25,6 +30,7 @@ test('normalizeUamProject fills schema-local defaults into a canonical shape', (
 						branchItemIds: [],
 						component: {
 							size: { width: 320, height: 180 },
+							properties: createDefaultUamComponentProperties(),
 							customData: '',
 							displayList: [],
 							controllers: [],
@@ -81,6 +87,7 @@ test('validateUamProject rejects unknown hard references before graph assembly',
 						branchItemIds: [],
 						component: {
 							size: { width: 320, height: 180 },
+							properties: createDefaultUamComponentProperties(),
 							customData: '',
 							displayList: [
 								{

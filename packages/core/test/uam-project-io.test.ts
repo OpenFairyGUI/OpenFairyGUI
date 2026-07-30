@@ -5,13 +5,18 @@ import path from 'node:path';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
 import {
 	assertValidUamProject,
+	applyUamTransaction,
+	createDefaultUamComponentProperties,
 	Document,
 	GearType,
 	normalizeUamProject,
 	RelationType,
 	UAM_SUPPORTED_MATERIALIZATION_SCOPE,
 	validateUamProject,
+	type UamComponentInstanceProperties,
+	type UamComponentProperties,
 	type UamProject,
+	type UamTransactionOperation,
 } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
 import { liftDocumentToUamProject, materializeUamProject, readProjectAsUam, writeProjectFromUam } from '../src/uam/index.js';
@@ -77,6 +82,7 @@ function createEngineeringScaleUamProject(): UamProject {
 						branchItemIds: [],
 						component: {
 							size: { width: 320, height: 180 },
+							properties: createDefaultUamComponentProperties(),
 							customData: 'uam-owned',
 							displayList: [
 								{
@@ -265,9 +271,236 @@ test('real LayaBox UIProject lift produces a materializable save baseline', asyn
 	const io = new NodeIO();
 	const doc = await io.readProject(LAYABOX_PROJECT_PATH);
 	const project = normalizeUamProject(liftDocumentToUamProject(doc));
+	const components = project.packages.flatMap((pkg) => pkg.resources)
+		.filter((resource) => resource.kind === 'component');
+	const componentRefs = components.flatMap((resource) => resource.kind === 'component'
+		? resource.component.displayList.filter((node) => node.kind === 'component')
+		: []);
 
 	t.deepEqual(validateUamProject(project), []);
+	t.is(components.length, 160);
+	t.is(components.filter((resource) => resource.kind === 'component' && resource.component.properties).length, 160);
+	t.is(componentRefs.length, 156);
+	t.is(componentRefs.filter((node) => node.kind === 'component' && node.instanceProperties).length, 112);
+	t.is(componentRefs.filter((node) => (
+		node.kind === 'component' && node.instanceProperties?.extensionType === 'Button'
+	)).length, 86);
 	t.notThrows(() => materializeUamProject(project));
+});
+
+test('component root and Button instance properties survive transaction save/reload and inverse/reload', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectId('issue-25').setVersion('3.0');
+	const pkg = doc.createPackage('Issue25').setId('pkg-issue-25');
+	const component = doc.createComponent('ButtonDefinition')
+		.setId('button-definition')
+		.setPath('/')
+		.setExported(true)
+		.setSize(120, 40)
+		.setMinWidth(80)
+		.setMaxWidth(240)
+		.setMinHeight(30)
+		.setMaxHeight(80)
+		.setPivotX(0.25)
+		.setPivotY(0.75)
+		.setPivotAsAnchor(true)
+		.setOverflow(2)
+		.setMargin({ top: 1, bottom: 2, left: 3, right: 4 })
+		.setClipSoftness({ x: 5, y: 6 })
+		.setHitTest('hit-area')
+		.setMask('mask-node')
+		.setReversedMask(true)
+		.setScrollType(2)
+		.setScrollBarDisplay(2)
+		.setScrollBarFlags(3)
+		.setScrollBarMargin({ top: 7, bottom: 8, left: 9, right: 10 })
+		.setVtScrollBarRes('vt-res')
+		.setHzScrollBarRes('hz-res')
+		.setHeaderRes('header-res')
+		.setFooterRes('footer-res')
+		.setBgColor('#112233')
+		.setBgColorEnabled(true)
+		.setDesignImageAlpha(60)
+		.setDesignImageLayer(2)
+		.setDesignImageOffsetX(11)
+		.setDesignImageOffsetY(12)
+		.setIdNum(13)
+		.setInitName('buttonInit')
+		.setRemark('root remark')
+		.setExtensionType('Button')
+		.setOpaque(false)
+		.setButtonMode(2)
+		.setSound('click-sound')
+		.setSoundVolumeScale(0.5)
+		.setDownEffect(1)
+		.setDownEffectValue(0.3)
+		.setCustomProperties([{ target: 'title', propertyId: 0, label: 'Caption' }]);
+	const host = doc.createComponent('Host')
+		.setId('host-component')
+		.setPath('/')
+		.setExported(true)
+		.setSize(320, 180);
+	host.addChild(doc.createGComponent('button')
+		.setId('button-instance')
+		.setXY(10, 20)
+		.setSize(120, 40)
+		.setSrc('button-definition')
+		.setPackageId('pkg-issue-25')
+		.setInstanceExtType('Button')
+		.setInstanceTitle('Before')
+		.setInstanceSelectedTitle('Selected before')
+		.setInstanceIcon('icon-before')
+		.setInstanceSelectedIcon('selected-icon-before')
+		.setInstanceTitleColor('#445566')
+		.setInstanceTitleFontSize(16)
+		.setInstanceController('state')
+		.setInstancePage('checked')
+		.setInstanceChecked(true)
+		.setInstanceSound('instance-click')
+		.setInstanceSoundVolumeScale(0.75));
+	pkg.addResource(component);
+	pkg.addResource(host);
+
+	const rootProperties: UamComponentProperties = {
+		...createDefaultUamComponentProperties(),
+		minSize: { width: 80, height: 30 },
+		maxSize: { width: 240, height: 80 },
+		pivot: { x: 0.25, y: 0.75 },
+		pivotAsAnchor: true,
+		overflow: 2,
+		margin: { top: 1, bottom: 2, left: 3, right: 4 },
+		clipSoftness: { x: 5, y: 6 },
+		hitTest: 'hit-area',
+		mask: 'mask-node',
+		reversedMask: true,
+		scrollType: 2,
+		scrollBarDisplay: 2,
+		scrollBarFlags: 3,
+		scrollBarMargin: { top: 7, bottom: 8, left: 9, right: 10 },
+		vtScrollBarRes: 'vt-res',
+		hzScrollBarRes: 'hz-res',
+		headerRes: 'header-res',
+		footerRes: 'footer-res',
+		bgColor: '#112233',
+		bgColorEnabled: true,
+		designImageAlpha: 60,
+		designImageLayer: 2,
+		designImageOffset: { x: 11, y: 12 },
+		idNum: 13,
+		initName: 'buttonInit',
+		remark: 'root remark',
+		extensionType: 'Button',
+		opaque: false,
+		buttonMode: 2,
+		sound: 'click-sound',
+		soundVolumeScale: 0.5,
+		downEffect: 1,
+		downEffectValue: 0.3,
+		customProperties: [{ target: 'title', propertyId: 0, label: 'Caption' }],
+	};
+	const instanceProperties: UamComponentInstanceProperties = {
+		extensionType: 'Button',
+		title: 'Before',
+		selectedTitle: 'Selected before',
+		icon: 'icon-before',
+		selectedIcon: 'selected-icon-before',
+		titleColor: '#445566',
+		titleFontSize: 16,
+		controller: 'state',
+		page: 'checked',
+		checked: true,
+		sound: 'instance-click',
+		soundVolumeScale: 0.75,
+	};
+	const snapshot = (project: UamProject) => {
+		const resources = project.packages[0]?.resources ?? [];
+		const definition = resources.find((resource) => resource.id === 'button-definition');
+		const hostResource = resources.find((resource) => resource.id === 'host-component');
+		if (definition?.kind !== 'component' || hostResource?.kind !== 'component') {
+			throw new Error('Issue #25 component fixtures were not found.');
+		}
+		const instance = hostResource.component.displayList.find((node) => node.id === 'button-instance');
+		if (instance?.kind !== 'component') throw new Error('Issue #25 component instance was not found.');
+		return {
+			size: definition.component.size,
+			properties: definition.component.properties,
+			instanceProperties: instance.instanceProperties,
+		};
+	};
+
+	const baseline = liftDocumentToUamProject(doc);
+	t.deepEqual(snapshot(baseline), {
+		size: { width: 120, height: 40 },
+		properties: rootProperties,
+		instanceProperties,
+	});
+	t.deepEqual(snapshot(liftDocumentToUamProject(materializeUamProject(baseline))), snapshot(baseline));
+
+	const updatedProperties: UamComponentProperties = {
+		...rootProperties,
+		pivot: { x: 0.5, y: 0.5 },
+		opaque: true,
+		sound: 'updated-sound',
+		customProperties: [{ target: 'title', propertyId: 0, label: 'Updated caption' }],
+	};
+	const updatedInstanceProperties: UamComponentInstanceProperties = {
+		...instanceProperties,
+		title: 'After',
+		checked: false,
+		soundVolumeScale: 0.25,
+	};
+	const selectors = {
+		component: { packageId: 'pkg-issue-25', componentResourceId: 'button-definition' },
+		instance: {
+			packageId: 'pkg-issue-25',
+			componentResourceId: 'host-component',
+			displayNodeId: 'button-instance',
+		},
+	};
+	const forwardOperations: UamTransactionOperation[] = [
+		{
+			kind: 'setComponentProps',
+			selector: selectors.component,
+			props: { size: { width: 144, height: 48 }, properties: updatedProperties },
+		},
+		{
+			kind: 'setDisplayNodeProps',
+			selector: selectors.instance,
+			props: { componentInstanceProperties: updatedInstanceProperties },
+		},
+	];
+	const inverseOperations: UamTransactionOperation[] = [
+		{
+			kind: 'setComponentProps',
+			selector: selectors.component,
+			props: { size: { width: 120, height: 40 }, properties: rootProperties },
+		},
+		{
+			kind: 'setDisplayNodeProps',
+			selector: selectors.instance,
+			props: { componentInstanceProperties: instanceProperties },
+		},
+	];
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-issue-25-'));
+	const outFairy = path.join(tmpDir, 'issue-25.fairy');
+	try {
+		const updated = applyUamTransaction(baseline, forwardOperations);
+		await writeProjectFromUam(io, updated, outFairy);
+		const reloaded = await readProjectAsUam(io, outFairy);
+		t.deepEqual(snapshot(reloaded), {
+			size: { width: 144, height: 48 },
+			properties: updatedProperties,
+			instanceProperties: updatedInstanceProperties,
+		});
+
+		const reverted = applyUamTransaction(reloaded, inverseOperations);
+		await writeProjectFromUam(io, reverted, outFairy, { previousProject: reloaded });
+		const inverseReloaded = await readProjectAsUam(io, outFairy);
+		t.deepEqual(snapshot(inverseReloaded), snapshot(baseline));
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
 });
 
 test('UAM materialization scope covers every current concrete display node kind', (t) => {

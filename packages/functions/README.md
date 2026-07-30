@@ -68,9 +68,10 @@ This seam:
 - does not define a second selector / operation grammar
 - does not wrap `publish` or `restore`
 
-The transaction surface includes resource rename/move, byte-backed binary resource
-add/replace/remove, and add/update/remove for `display`, `display2`, `look`, `xy`,
-`size`, `color`, `animation`, `text`, `icon`, and `fontSize` gears. Resource
+The transaction surface includes component size/root properties, component-instance
+extension overlays, resource rename/move, byte-backed binary resource add/replace/remove,
+and add/update/remove for `display`, `display2`, `look`, `xy`, `size`, `color`,
+`animation`, `text`, `icon`, and `fontSize` gears. Resource
 rename/move/replace/remove requires `sourceBytes`; opt in with
 `ProjectReader.read(path, { hydrateResourceBytes: true })` before lifting a project to
 UAM. Source bytes are written back with the project, and stale source files are removed

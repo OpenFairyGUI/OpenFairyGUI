@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { UamProject } from '@openfairygui/core';
+import { createDefaultUamComponentProperties, type UamProject } from '@openfairygui/core';
 
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FIXTURES_DIR = path.join(PACKAGE_ROOT, 'test', 'fixtures');
@@ -135,6 +135,7 @@ export function createMinimalUamProject(projectId: string): UamProject {
 						branchItemIds: [],
 						component: {
 							size: { width: 320, height: 180 },
+							properties: createDefaultUamComponentProperties(),
 							customData: '',
 							displayList: [
 								{

@@ -67,8 +67,8 @@ await publishNode({
 
 如果你需要走当前正式支持的 **UAM authoring seam**，可以直接把
 `UamProject` 与显式 operation batch 交给 `@openfairygui/functions` 的薄应用接缝。
-这条路径保持 `UAM-public / Document-private`，支持资源 rename/move/favorite 设置、带 source bytes 的二进制资源
-add/replace/remove，以及当前建模 gear 的 add/update/remove；它仍不等价于通用编辑后端。
+这条路径保持 `UAM-public / Document-private`，支持组件尺寸/根属性与组件实例扩展覆盖、资源 rename/move/favorite
+设置、带 source bytes 的二进制资源 add/replace/remove，以及当前建模 gear 的 add/update/remove；它仍不等价于通用编辑后端。
 资源编辑前请通过 `ProjectReader.read(path, { hydrateResourceBytes: true })` 读取工程；file-backed
 `BackendRuntime.openSession` 会自动执行该水合。
 file-backed session 还会比较原工程与 UAM 往返后的完整写出结果；若存在当前 UAM 未建模的持久化属性，

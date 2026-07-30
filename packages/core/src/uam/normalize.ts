@@ -6,7 +6,9 @@ import type {
 	UamColorGearBinding,
 	UamColorGearValue,
 	UamComboBoxNode,
+	UamComponentInstanceProperties,
 	UamComponentModel,
+	UamComponentProperties,
 	UamComponentRefNode,
 	UamComponentResource,
 	UamControllerAction,
@@ -96,6 +98,160 @@ function normalizeEdgeInsets(edgeInsets: Partial<UamEdgeInsets> | undefined): Ua
 		bottom: edgeInsets?.bottom ?? 0,
 		left: edgeInsets?.left ?? 0,
 		right: edgeInsets?.right ?? 0,
+	};
+}
+
+function normalizeComponentInstanceProperties(
+	properties: UamComponentInstanceProperties,
+): UamComponentInstanceProperties {
+	switch (properties.extensionType) {
+		case 'Button':
+			return {
+				extensionType: 'Button',
+				title: properties.title ?? '',
+				selectedTitle: properties.selectedTitle ?? '',
+				icon: properties.icon ?? '',
+				selectedIcon: properties.selectedIcon ?? '',
+				titleColor: properties.titleColor ?? '',
+				titleFontSize: properties.titleFontSize ?? 0,
+				controller: properties.controller ?? '',
+				page: properties.page ?? '',
+				checked: properties.checked ?? false,
+				sound: properties.sound ?? '',
+				soundVolumeScale: properties.soundVolumeScale ?? 1,
+			};
+		case 'Label':
+			return {
+				extensionType: 'Label',
+				title: properties.title ?? '',
+				icon: properties.icon ?? '',
+				titleColor: properties.titleColor ?? '',
+				titleFontSize: properties.titleFontSize ?? 0,
+				promptText: properties.promptText ?? '',
+			};
+		case 'ComboBox':
+			return {
+				extensionType: 'ComboBox',
+				title: properties.title ?? '',
+				icon: properties.icon ?? '',
+				visibleItemCount: properties.visibleItemCount ?? 0,
+				selectionController: properties.selectionController ?? '',
+				items: (properties.items ?? []).map((item) => ({
+					title: item.title ?? null,
+					value: item.value ?? null,
+					icon: item.icon ?? null,
+				})),
+			};
+		case 'ProgressBar':
+		case 'Slider':
+			return {
+				extensionType: properties.extensionType,
+				value: properties.value ?? 0,
+				max: properties.max ?? 0,
+				min: properties.min ?? 0,
+			};
+		case 'ScrollBar':
+			return { extensionType: 'ScrollBar' };
+	}
+}
+
+export function createDefaultUamComponentProperties(): UamComponentProperties {
+	return {
+		minSize: { width: 0, height: 0 },
+		maxSize: { width: 0, height: 0 },
+		pivot: { x: 0, y: 0 },
+		pivotAsAnchor: false,
+		overflow: 0,
+		margin: { top: 0, bottom: 0, left: 0, right: 0 },
+		clipSoftness: { x: 0, y: 0 },
+		hitTest: '',
+		mask: '',
+		reversedMask: false,
+		scrollType: 1,
+		scrollBarDisplay: 0,
+		scrollBarFlags: 0,
+		scrollBarMargin: { top: 0, bottom: 0, left: 0, right: 0 },
+		vtScrollBarRes: '',
+		hzScrollBarRes: '',
+		headerRes: '',
+		footerRes: '',
+		bgColor: '',
+		bgColorEnabled: false,
+		designImageAlpha: 0,
+		designImageLayer: 0,
+		designImageOffset: { x: 0, y: 0 },
+		idNum: 0,
+		initName: '',
+		remark: '',
+		extensionType: '',
+		opaque: true,
+		buttonMode: 0,
+		sound: '',
+		soundVolumeScale: 1,
+		downEffect: 0,
+		downEffectValue: 0.8,
+		dropdown: '',
+		promptText: '',
+		selectionController: '',
+		titleType: 0,
+		reverse: false,
+		wholeNumbers: false,
+		changeOnClick: true,
+		fixedGripSize: false,
+		customProperties: [],
+	};
+}
+
+function normalizeComponentProperties(properties: UamComponentProperties): UamComponentProperties {
+	return {
+		minSize: {
+			width: properties.minSize?.width ?? 0,
+			height: properties.minSize?.height ?? 0,
+		},
+		maxSize: {
+			width: properties.maxSize?.width ?? 0,
+			height: properties.maxSize?.height ?? 0,
+		},
+		pivot: normalizePoint(properties.pivot),
+		pivotAsAnchor: properties.pivotAsAnchor ?? false,
+		overflow: properties.overflow ?? 0,
+		margin: normalizeEdgeInsets(properties.margin),
+		clipSoftness: normalizePoint(properties.clipSoftness),
+		hitTest: properties.hitTest ?? '',
+		mask: properties.mask ?? '',
+		reversedMask: properties.reversedMask ?? false,
+		scrollType: properties.scrollType ?? 1,
+		scrollBarDisplay: properties.scrollBarDisplay ?? 0,
+		scrollBarFlags: properties.scrollBarFlags ?? 0,
+		scrollBarMargin: normalizeEdgeInsets(properties.scrollBarMargin),
+		vtScrollBarRes: properties.vtScrollBarRes ?? '',
+		hzScrollBarRes: properties.hzScrollBarRes ?? '',
+		headerRes: properties.headerRes ?? '',
+		footerRes: properties.footerRes ?? '',
+		bgColor: properties.bgColor ?? '',
+		bgColorEnabled: properties.bgColorEnabled ?? false,
+		designImageAlpha: properties.designImageAlpha ?? 0,
+		designImageLayer: properties.designImageLayer ?? 0,
+		designImageOffset: normalizePoint(properties.designImageOffset),
+		idNum: properties.idNum ?? 0,
+		initName: properties.initName ?? '',
+		remark: properties.remark ?? '',
+		extensionType: properties.extensionType ?? '',
+		opaque: properties.opaque ?? true,
+		buttonMode: properties.buttonMode ?? 0,
+		sound: properties.sound ?? '',
+		soundVolumeScale: properties.soundVolumeScale ?? 1,
+		downEffect: properties.downEffect ?? 0,
+		downEffectValue: properties.downEffectValue ?? 0.8,
+		dropdown: properties.dropdown ?? '',
+		promptText: properties.promptText ?? '',
+		selectionController: properties.selectionController ?? '',
+		titleType: properties.titleType ?? 0,
+		reverse: properties.reverse ?? false,
+		wholeNumbers: properties.wholeNumbers ?? false,
+		changeOnClick: properties.changeOnClick ?? true,
+		fixedGripSize: properties.fixedGripSize ?? false,
+		customProperties: (properties.customProperties ?? []).map((property) => ({ ...property })),
 	};
 }
 
@@ -394,6 +550,9 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				kind: 'component',
 				...base,
 				resource: normalizeResourceRef(node.resource),
+				...(node.instanceProperties
+					? { instanceProperties: normalizeComponentInstanceProperties(node.instanceProperties) }
+					: {}),
 			} satisfies UamComponentRefNode;
 		case 'list': {
 			const list = node as UamListNode;
@@ -714,6 +873,7 @@ function normalizeComponentModel(component: UamComponentModel): UamComponentMode
 			width: component.size?.width ?? 0,
 			height: component.size?.height ?? 0,
 		},
+		properties: normalizeComponentProperties(component.properties),
 		customData: component.customData ?? '',
 		displayList: (component.displayList ?? []).map(normalizeDisplayNode),
 		controllers: (component.controllers ?? []).map(normalizeControllerModel),
