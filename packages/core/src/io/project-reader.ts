@@ -69,6 +69,78 @@ function readImageSize(data: Uint8Array): { width: number; height: number } | nu
 	return readPngSize(data) ?? readJpegSize(data);
 }
 
+function readMovieClipJtaSize(data: Uint8Array): { width: number; height: number } | null {
+	try {
+		const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+		let offset = 0;
+		const requireBytes = (count: number): void => {
+			if (count < 0 || offset + count > data.byteLength) throw new Error('truncated JTA');
+		};
+		const skip = (count: number): void => { requireBytes(count); offset += count; };
+		const readInt16 = (): number => { requireBytes(2); const value = view.getInt16(offset); offset += 2; return value; };
+		const readUint16 = (): number => { requireBytes(2); const value = view.getUint16(offset); offset += 2; return value; };
+		const readInt32 = (): number => { requireBytes(4); const value = view.getInt32(offset); offset += 4; return value; };
+
+		const markLength = readUint16();
+		requireBytes(markLength);
+		if (markLength !== 5 || data[offset] !== 0x79 || data[offset + 1] !== 0x79
+			|| data[offset + 2] !== 0x74 || data[offset + 3] !== 0x6f || data[offset + 4] !== 0x75) {
+			return null;
+		}
+		offset += markLength;
+		const version = readInt32();
+		if (version < 100 || version > 102) return null;
+		skip(4);
+
+		let width = 0;
+		let height = 0;
+		if (version >= 102) {
+			skip(4);
+			width = readUint16();
+			height = readUint16();
+		}
+		skip(3);
+
+		const frameCount = readInt16();
+		if (frameCount < 0) return null;
+		let minX = 0;
+		let minY = 0;
+		let maxX = 0;
+		let maxY = 0;
+		for (let index = 0; index < frameCount; index += 1) {
+			skip(2);
+			const x = readInt16();
+			const y = readInt16();
+			const frameWidth = readInt16();
+			const frameHeight = readInt16();
+			skip(2);
+			if (frameWidth <= 0 || frameHeight <= 0) continue;
+			minX = Math.min(minX, x);
+			minY = Math.min(minY, y);
+			maxX = Math.max(maxX, x + frameWidth);
+			maxY = Math.max(maxY, y + frameHeight);
+		}
+
+		const textureCount = readInt16();
+		if (textureCount < 0) return null;
+		for (let index = 0; index < textureCount; index += 1) {
+			const byteLength = readInt32();
+			skip(byteLength);
+		}
+		if (version === 101) {
+			skip(4);
+			width = readUint16();
+			height = readUint16();
+		} else if (version === 100) {
+			width = maxX - minX;
+			height = maxY - minY;
+		}
+		return { width, height };
+	} catch {
+		return null;
+	}
+}
+
 // Maps XML tag names for display objects to factory method names.
 type XmlNode = Record<string, unknown>;
 type OrderedXmlEntry = Record<string, unknown>;
@@ -453,6 +525,13 @@ export class ProjectReader {
 				const data = new Uint8Array(await fs.readFileRaw(filePath));
 				const buffer = doc.createBuffer().setURI(sourcePath).setData(data);
 				(this._asSourceDataResource(resource)).setSourceData(buffer);
+				if (resource.propertyType === 'MovieClipResource') {
+					const size = readMovieClipJtaSize(data);
+					if (size) {
+						const movieClip = resource as ReturnType<Document['createMovieClipResource']>;
+						movieClip.setWidth(size.width).setHeight(size.height);
+					}
+				}
 			} catch {
 				// Keep resource metadata available when its primary source cannot be read.
 			}

@@ -14,6 +14,41 @@ import {
 	roundTripCommittedProject,
 } from './uam-transaction-fixtures.js';
 
+function createMovieClipJta(version: 100 | 101 | 102, width: number, height: number): Uint8Array {
+	const bytes = new Uint8Array(version === 100 ? 34 : 30);
+	const view = new DataView(bytes.buffer);
+	let offset = 0;
+	view.setUint16(offset, 5); offset += 2;
+	bytes.set(new TextEncoder().encode('yytou'), offset); offset += 5;
+	view.setInt32(offset, version); offset += 4;
+	offset += 4;
+	if (version === 102) {
+		view.setUint16(offset, 0); offset += 2;
+		view.setUint16(offset, 0); offset += 2;
+		view.setUint16(offset, width); offset += 2;
+		view.setUint16(offset, height); offset += 2;
+	}
+	offset += 3;
+	view.setInt16(offset, version === 100 ? 1 : 0); offset += 2;
+	if (version === 100) {
+		view.setInt16(offset, 0); offset += 2;
+		view.setInt16(offset, -3); offset += 2;
+		view.setInt16(offset, -2); offset += 2;
+		view.setInt16(offset, width); offset += 2;
+		view.setInt16(offset, height); offset += 2;
+		view.setInt16(offset, -1); offset += 2;
+	}
+	view.setInt16(offset, 0);
+	offset += 2;
+	if (version === 101) {
+		view.setUint16(offset, 0); offset += 2;
+		view.setUint16(offset, 0); offset += 2;
+		view.setUint16(offset, width); offset += 2;
+		view.setUint16(offset, height);
+	}
+	return bytes;
+}
+
 test('resource and display-list operations respect the frozen Phase A contracts', (t) => {
 	const project = createSupportedProject();
 	const result = applyUamTransaction(project, [
@@ -391,4 +426,30 @@ test('binary resource transactions require hydrated source bytes and survive wri
 	}]);
 	const reloadedAfterRemove = await roundTripCommittedProject(removed);
 	t.false(reloadedAfterRemove.packages[0]!.resources.some((resource) => resource.id === 'misc001'));
+});
+
+test('ProjectReader hydrates MovieClip dimensions from JTA source bytes', async (t) => {
+	const project = createSupportedProject();
+	for (const version of [100, 101, 102] as const) {
+		project.packages[0]!.resources.push({
+			kind: 'movieClip',
+			id: `movie${version}`,
+			name: `pulse${version}`,
+			path: '/movieclips',
+			exported: true,
+			branch: '',
+			branchItemIds: [],
+			fileName: `pulse${version}.jta`,
+			dimensions: { width: 0, height: 0 },
+			metadata: { interval: 0, swing: false, repeatDelay: 0, smoothing: true },
+			sourceBytes: createMovieClipJta(version, 96, 72),
+		});
+	}
+
+	const reloaded = await roundTripCommittedProject(project);
+	for (const [version, dimensions] of [[100, { width: 96, height: 72 }], [101, { width: 96, height: 72 }], [102, { width: 96, height: 72 }]] as const) {
+		const movieClip = reloaded.packages[0]!.resources.find((resource) => resource.id === `movie${version}`);
+		t.is(movieClip?.kind, 'movieClip');
+		if (movieClip?.kind === 'movieClip') t.deepEqual(movieClip.dimensions, dimensions);
+	}
 });
