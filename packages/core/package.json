@@ -1,6 +1,6 @@
 {
 	"name": "@openfairygui/core",
-	"version": "0.2.0-alpha.20",
+	"version": "0.2.0-alpha.21",
 	"description": "FairyGUI Headless Authoring SDK — core property graph, Document, and I/O.",
 	"author": "OpenFairyGUI Contributors",
 	"license": "MIT",
