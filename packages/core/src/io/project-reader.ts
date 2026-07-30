@@ -69,7 +69,7 @@ function readImageSize(data: Uint8Array): { width: number; height: number } | nu
 	return readPngSize(data) ?? readJpegSize(data);
 }
 
-function readMovieClipJtaSize(data: Uint8Array): { width: number; height: number } | null {
+export function readMovieClipJtaSize(data: Uint8Array): { width: number; height: number } | null {
 	try {
 		const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
 		let offset = 0;

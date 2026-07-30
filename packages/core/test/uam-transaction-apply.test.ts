@@ -452,4 +452,21 @@ test('ProjectReader hydrates MovieClip dimensions from JTA source bytes', async 
 		t.is(movieClip?.kind, 'movieClip');
 		if (movieClip?.kind === 'movieClip') t.deepEqual(movieClip.dimensions, dimensions);
 	}
+
+	const replaced = applyUamTransaction(reloaded, [{
+		kind: 'replaceResourceBytes',
+		selector: { packageId: 'pkg001', resourceId: 'movie102' },
+		sourceBytes: createMovieClipJta(102, 120, 84),
+	}]);
+	const replacedMovieClip = replaced.packages[0]!.resources.find((resource) => resource.id === 'movie102');
+	t.is(replacedMovieClip?.kind, 'movieClip');
+	if (replacedMovieClip?.kind === 'movieClip') {
+		t.deepEqual(replacedMovieClip.dimensions, { width: 120, height: 84 });
+	}
+	const replacedReloaded = await roundTripCommittedProject(replaced);
+	const replacedReloadedMovieClip = replacedReloaded.packages[0]!.resources.find((resource) => resource.id === 'movie102');
+	t.is(replacedReloadedMovieClip?.kind, 'movieClip');
+	if (replacedReloadedMovieClip?.kind === 'movieClip') {
+		t.deepEqual(replacedReloadedMovieClip.dimensions, { width: 120, height: 84 });
+	}
 });

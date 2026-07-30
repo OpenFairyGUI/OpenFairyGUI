@@ -1,6 +1,7 @@
 import { composeController, composeTransition } from '../authoring.js';
 import { GearType, PropertyType } from '../constants.js';
 import type { Document } from '../document.js';
+import { readMovieClipJtaSize } from '../io/project-reader.js';
 import type { Component } from '../properties/component.js';
 import type { Controller } from '../properties/controller.js';
 import type { GObject } from '../properties/g-object.js';
@@ -443,6 +444,13 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 		case 'replaceResourceBytes': {
 			const { resource } = resolveResource(doc, operation.selector);
 			replaceBinaryAssetBytes(doc, asMutableAssetResource(resource), operation.sourceBytes);
+			if (resource.propertyType === PropertyType.MOVIE_CLIP_RESOURCE) {
+				const size = readMovieClipJtaSize(operation.sourceBytes);
+				if (size) {
+					const movieClip = resource as ReturnType<Document['createMovieClipResource']>;
+					movieClip.setWidth(size.width).setHeight(size.height);
+				}
+			}
 			return;
 		}
 		case 'removeResource': {
