@@ -279,6 +279,12 @@ OpenFairyGUI 当前已经把“代码生成”接入现有 `publish` 流程，�
 | `atlasSetting.trimImage` | 为 `true` 时写出 |
 | `compressPNG` / `jpegQuality` | 仅项目不支持 atlas 时写出 |
 
+## 工程写回联动边界
+
+发布设置不改变 `component.xml` 的 authoring 属性语义。工程读写会独立保留组件根属性、根组件
+`customProperty` 定义，以及组件引用的 `Button`、`Label`、`ComboBox`、`ProgressBar`、`Slider`、
+`ScrollBar` 实例扩展覆盖；对应 XML 协议见 [Project XML 属性协议](./project-xml-attribute-reference.md)。
+
 ## 文档边界
 
 | 项目 | 约束 |

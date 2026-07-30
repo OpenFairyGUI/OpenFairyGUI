@@ -1,5 +1,7 @@
 import type {
 	UamAssetResource,
+	UamComponentInstanceProperties,
+	UamComponentProperties,
 	UamControllerAction,
 	UamControllerModel,
 	UamDisplayNode,
@@ -19,6 +21,193 @@ export function isFiniteUamPoint(value: unknown): boolean {
 		&& Number.isFinite(point.x)
 		&& typeof point.y === 'number'
 		&& Number.isFinite(point.y);
+}
+
+function isFiniteUamSize(value: unknown): boolean {
+	if (typeof value !== 'object' || value === null) return false;
+	const size = value as { width?: unknown; height?: unknown };
+	return typeof size.width === 'number'
+		&& Number.isFinite(size.width)
+		&& typeof size.height === 'number'
+		&& Number.isFinite(size.height);
+}
+
+function isFiniteUamEdgeInsets(value: unknown): boolean {
+	if (typeof value !== 'object' || value === null) return false;
+	const insets = value as { top?: unknown; bottom?: unknown; left?: unknown; right?: unknown };
+	return [insets.top, insets.bottom, insets.left, insets.right]
+		.every((part) => typeof part === 'number' && Number.isFinite(part));
+}
+
+function hasExactKeys(value: object, keys: readonly string[]): boolean {
+	const actual = Object.keys(value);
+	return actual.length === keys.length && actual.every((key) => keys.includes(key));
+}
+
+const COMPONENT_PROPERTY_KEYS = [
+	'minSize',
+	'maxSize',
+	'pivot',
+	'pivotAsAnchor',
+	'overflow',
+	'margin',
+	'clipSoftness',
+	'hitTest',
+	'mask',
+	'reversedMask',
+	'scrollType',
+	'scrollBarDisplay',
+	'scrollBarFlags',
+	'scrollBarMargin',
+	'vtScrollBarRes',
+	'hzScrollBarRes',
+	'headerRes',
+	'footerRes',
+	'bgColor',
+	'bgColorEnabled',
+	'designImageAlpha',
+	'designImageLayer',
+	'designImageOffset',
+	'idNum',
+	'initName',
+	'remark',
+	'extensionType',
+	'opaque',
+	'buttonMode',
+	'sound',
+	'soundVolumeScale',
+	'downEffect',
+	'downEffectValue',
+	'dropdown',
+	'promptText',
+	'selectionController',
+	'titleType',
+	'reverse',
+	'wholeNumbers',
+	'changeOnClick',
+	'fixedGripSize',
+	'customProperties',
+] as const satisfies readonly (keyof UamComponentProperties)[];
+
+export function isValidUamComponentProperties(value: unknown): value is UamComponentProperties {
+	if (typeof value !== 'object' || value === null || !hasExactKeys(value, COMPONENT_PROPERTY_KEYS)) return false;
+	const properties = value as UamComponentProperties;
+	const strings = [
+		properties.hitTest,
+		properties.mask,
+		properties.vtScrollBarRes,
+		properties.hzScrollBarRes,
+		properties.headerRes,
+		properties.footerRes,
+		properties.bgColor,
+		properties.initName,
+		properties.remark,
+		properties.extensionType,
+		properties.sound,
+		properties.dropdown,
+		properties.promptText,
+		properties.selectionController,
+	];
+	const booleans = [
+		properties.pivotAsAnchor,
+		properties.reversedMask,
+		properties.bgColorEnabled,
+		properties.opaque,
+		properties.reverse,
+		properties.wholeNumbers,
+		properties.changeOnClick,
+		properties.fixedGripSize,
+	];
+	const numbers = [
+		properties.overflow,
+		properties.scrollType,
+		properties.scrollBarDisplay,
+		properties.scrollBarFlags,
+		properties.designImageAlpha,
+		properties.designImageLayer,
+		properties.idNum,
+		properties.buttonMode,
+		properties.soundVolumeScale,
+		properties.downEffect,
+		properties.downEffectValue,
+		properties.titleType,
+	];
+	return isFiniteUamSize(properties.minSize)
+		&& isFiniteUamSize(properties.maxSize)
+		&& isFiniteUamPoint(properties.pivot)
+		&& isFiniteUamEdgeInsets(properties.margin)
+		&& isFiniteUamPoint(properties.clipSoftness)
+		&& isFiniteUamEdgeInsets(properties.scrollBarMargin)
+		&& isFiniteUamPoint(properties.designImageOffset)
+		&& strings.every((item) => typeof item === 'string')
+		&& booleans.every((item) => typeof item === 'boolean')
+		&& numbers.every((item) => typeof item === 'number' && Number.isFinite(item))
+		&& Array.isArray(properties.customProperties)
+		&& properties.customProperties.every((property) => (
+			property
+			&& typeof property === 'object'
+			&& hasExactKeys(property, ['target', 'propertyId', 'label'])
+			&& typeof property.target === 'string'
+			&& (property.propertyId === 0 || property.propertyId === 1)
+			&& typeof property.label === 'string'
+		));
+}
+
+function isNullableString(value: unknown): boolean {
+	return value === null || typeof value === 'string';
+}
+
+export function isValidUamComponentInstanceProperties(
+	value: unknown,
+): value is UamComponentInstanceProperties {
+	if (typeof value !== 'object' || value === null || !('extensionType' in value)) return false;
+	const properties = value as UamComponentInstanceProperties;
+	const finite = (number: unknown) => typeof number === 'number' && Number.isFinite(number);
+	switch (properties.extensionType) {
+		case 'Button':
+			return hasExactKeys(properties, [
+				'extensionType', 'title', 'selectedTitle', 'icon', 'selectedIcon', 'titleColor',
+				'titleFontSize', 'controller', 'page', 'checked', 'sound', 'soundVolumeScale',
+			])
+				&& [
+					properties.title, properties.selectedTitle, properties.icon, properties.selectedIcon,
+					properties.titleColor, properties.controller, properties.page, properties.sound,
+				].every((item) => typeof item === 'string')
+				&& finite(properties.titleFontSize)
+				&& typeof properties.checked === 'boolean'
+				&& finite(properties.soundVolumeScale);
+		case 'Label':
+			return hasExactKeys(properties, [
+				'extensionType', 'title', 'icon', 'titleColor', 'titleFontSize', 'promptText',
+			])
+				&& [properties.title, properties.icon, properties.titleColor, properties.promptText]
+					.every((item) => typeof item === 'string')
+				&& finite(properties.titleFontSize);
+		case 'ComboBox':
+			return hasExactKeys(properties, [
+				'extensionType', 'title', 'icon', 'visibleItemCount', 'selectionController', 'items',
+			])
+				&& [properties.title, properties.icon, properties.selectionController]
+					.every((item) => typeof item === 'string')
+				&& finite(properties.visibleItemCount)
+				&& Array.isArray(properties.items)
+				&& properties.items.every((item) => (
+					item
+					&& typeof item === 'object'
+					&& hasExactKeys(item, ['title', 'value', 'icon'])
+					&& isNullableString(item.title)
+					&& isNullableString(item.value)
+					&& isNullableString(item.icon)
+				));
+		case 'ProgressBar':
+		case 'Slider':
+			return hasExactKeys(properties, ['extensionType', 'value', 'max', 'min'])
+				&& [properties.value, properties.max, properties.min].every(finite);
+		case 'ScrollBar':
+			return hasExactKeys(properties, ['extensionType']);
+		default:
+			return false;
+	}
 }
 
 function validateControllerAction(
@@ -182,6 +371,9 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 			if (resource.kind !== 'component') continue;
 
 			const component = resource.component;
+			if (!isValidUamComponentProperties(component.properties)) {
+				pushIssue(issues, `${resourcePath}.component.properties`, 'Component properties must be a complete valid property snapshot.');
+			}
 			const childIds = new Set<string>();
 			for (const [childIndex, child] of component.displayList.entries()) {
 				const childPath = `${resourcePath}.component.displayList[${childIndex}]`;
@@ -208,6 +400,16 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 			}
 
 			for (const [childIndex, child] of component.displayList.entries()) {
+				if (child.kind === 'component'
+					&& child.instanceProperties !== undefined
+					&& !isValidUamComponentInstanceProperties(child.instanceProperties)
+				) {
+					pushIssue(
+						issues,
+						`${resourcePath}.component.displayList[${childIndex}].instanceProperties`,
+						'Component instance properties must be a complete valid extension snapshot.',
+					);
+				}
 				validateDisplayNode(child, controllerMap, childIds, `${resourcePath}.component.displayList[${childIndex}]`, issues);
 			}
 		}

@@ -1,6 +1,8 @@
 import type {
 	UamAssetResource,
+	UamComponentInstanceProperties,
 	UamComponentModel,
+	UamComponentProperties,
 	UamComponentResource,
 	UamControllerModel,
 	UamDisplayNode,
@@ -65,6 +67,7 @@ export interface UamDisplayNodePropsUpdate {
 	fontSize?: number;
 	color?: string;
 	loader3DProperties?: UamLoader3DProperties;
+	componentInstanceProperties?: UamComponentInstanceProperties | null;
 }
 
 type UamTransactionDisplayNodeKind = (typeof UAM_SUPPORTED_TRANSACTION_SCOPE.nodeKinds)[number];
@@ -151,6 +154,15 @@ export interface SetDisplayNodePropsOperation extends UamTransactionOperationBas
 	kind: 'setDisplayNodeProps';
 	selector: UamDisplayNodeSelector;
 	props: UamDisplayNodePropsUpdate;
+}
+
+export interface SetComponentPropsOperation extends UamTransactionOperationBase {
+	kind: 'setComponentProps';
+	selector: UamComponentSelector;
+	props: {
+		size?: UamComponentModel['size'];
+		properties?: UamComponentProperties;
+	};
 }
 
 export interface AttachDisplayNodeOperation extends UamTransactionOperationBase {
@@ -246,6 +258,7 @@ export type UamTransactionOperation =
 	| MoveComponentOperation
 	| ReplaceResourceBytesOperation
 	| RemoveResourceOperation
+	| SetComponentPropsOperation
 	| SetDisplayNodePropsOperation
 	| AttachDisplayNodeOperation
 	| DetachDisplayNodeOperation

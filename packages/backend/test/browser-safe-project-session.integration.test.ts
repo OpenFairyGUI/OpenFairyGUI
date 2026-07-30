@@ -4,6 +4,7 @@ import path from 'node:path';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
 import { ProjectReader } from '@openfairygui/core/project-io';
 import {
+	createDefaultUamComponentProperties,
 	liftDocumentToUamProject,
 	normalizeUamProject,
 	type UamComponentRefNode,
@@ -228,6 +229,7 @@ function createLifecycleComponent(id = 'cmp002', name = 'Popup'): UamComponentRe
 		branchItemIds: [],
 		component: {
 			size: { width: 160, height: 80 },
+			properties: createDefaultUamComponentProperties(),
 			customData: '',
 			displayList: [{
 				kind: 'text',

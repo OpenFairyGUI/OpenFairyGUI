@@ -159,6 +159,16 @@
 | `designImageOffsetX` |  | 设计图 X 偏移 |
 | `designImageOffsetY` |  | 设计图 Y 偏移 |
 
+### 根组件自定义属性 `<customProperty>`
+
+`<customProperty>` 是 `<component>` 的直接子节点，可重复出现。
+
+| 属性名 | Alias | 说明 |
+|---|---|---|
+| `target` |  | 组件内目标对象路径 |
+| `propertyId` |  | 对外暴露的属性类型，`0` 表示文本、`1` 表示图标 |
+| `label` |  | 编辑器显示标签 |
+
 ### 显示对象公共标识层
 
 以下属性由编辑器公共 `FObject` 读写链路承载，适用于全部 display-list 对象。

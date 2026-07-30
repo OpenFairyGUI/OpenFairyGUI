@@ -7,7 +7,9 @@ import type {
 	UamButtonNode,
 	UamColorGearBinding,
 	UamComboBoxNode,
+	UamComponentInstanceProperties,
 	UamComponentModel,
+	UamComponentProperties,
 	UamComponentResource,
 	UamControllerModel,
 	UamDisplay2GearBinding,
@@ -410,6 +412,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 	}
 	if (child.propertyType === PropertyType.G_COMPONENT) {
 		const component = child as ReturnType<Document['createGComponent']>;
+		const instanceProperties = liftComponentInstanceProperties(component);
 		return {
 			kind: 'component',
 			id: component.getId(),
@@ -427,6 +430,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			relations: liftRelations(component.getRelations()),
 			gears: liftGears(component.listGears()),
 			resource: { packageId: component.getPackageId(), resourceId: component.getSrc() },
+			...(instanceProperties ? { instanceProperties } : {}),
 		};
 	}
 	if (child.propertyType === PropertyType.G_LIST || child.propertyType === PropertyType.G_TREE) {
@@ -722,6 +726,60 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 	throw new Error(`UAM lift does not support display node type "${child.propertyType}" in Gate A.`);
 }
 
+function liftComponentInstanceProperties(
+	component: ReturnType<Document['createGComponent']>,
+): UamComponentInstanceProperties | undefined {
+	switch (component.getInstanceExtType()) {
+		case 'Button':
+			return {
+				extensionType: 'Button',
+				title: component.getInstanceTitle(),
+				selectedTitle: component.getInstanceSelectedTitle(),
+				icon: component.getInstanceIcon(),
+				selectedIcon: component.getInstanceSelectedIcon(),
+				titleColor: component.getInstanceTitleColor(),
+				titleFontSize: component.getInstanceTitleFontSize(),
+				controller: component.getInstanceController(),
+				page: component.getInstancePage(),
+				checked: component.getInstanceChecked(),
+				sound: component.getInstanceSound(),
+				soundVolumeScale: component.getInstanceSoundVolumeScale(),
+			};
+		case 'Label':
+			return {
+				extensionType: 'Label',
+				title: component.getInstanceTitle(),
+				icon: component.getInstanceIcon(),
+				titleColor: component.getInstanceTitleColor(),
+				titleFontSize: component.getInstanceTitleFontSize(),
+				promptText: component.getInstancePromptText(),
+			};
+		case 'ComboBox':
+			return {
+				extensionType: 'ComboBox',
+				title: component.getInstanceTitle(),
+				icon: component.getInstanceIcon(),
+				visibleItemCount: component.getInstanceVisibleItemCount(),
+				selectionController: component.getInstanceSelectionController(),
+				items: component.getInstanceComboItems().map((item) => ({ ...item })),
+			};
+		case 'ProgressBar':
+		case 'Slider': {
+			const extensionType = component.getInstanceExtType() as 'ProgressBar' | 'Slider';
+			return {
+				extensionType,
+				value: component.getInstanceValue(),
+				max: component.getInstanceMax(),
+				min: component.getInstanceMin(),
+			};
+		}
+		case 'ScrollBar':
+			return { extensionType: 'ScrollBar' };
+		default:
+			return undefined;
+	}
+}
+
 function liftControllers(component: ReturnType<Document['createComponent']>): UamControllerModel[] {
 	return component.listControllers().map((controller) => ({
 		name: controller.getName(),
@@ -787,11 +845,64 @@ function liftComponentResource(resource: ReturnType<Document['createComponent']>
 		branchItemIds: resource.getBranchItemIds(),
 		component: {
 			size: { width: resource.getWidth(), height: resource.getHeight() },
+			properties: liftComponentProperties(resource),
 			customData: resource.getCustomData(),
 			displayList: resource.listChildren().map((child) => liftDisplayNode(child)),
 			controllers: liftControllers(resource),
 			transitions: liftTransitions(resource),
 		},
+	};
+}
+
+function liftComponentProperties(
+	resource: ReturnType<Document['createComponent']>,
+): UamComponentProperties {
+	return {
+		minSize: { width: resource.getMinWidth(), height: resource.getMinHeight() },
+		maxSize: { width: resource.getMaxWidth(), height: resource.getMaxHeight() },
+		pivot: { x: resource.getPivotX(), y: resource.getPivotY() },
+		pivotAsAnchor: resource.getPivotAsAnchor(),
+		overflow: resource.getOverflow(),
+		margin: resource.getMargin(),
+		clipSoftness: resource.getClipSoftness(),
+		hitTest: resource.getHitTest(),
+		mask: resource.getMask(),
+		reversedMask: resource.getReversedMask(),
+		scrollType: resource.getScrollType(),
+		scrollBarDisplay: resource.getScrollBarDisplay(),
+		scrollBarFlags: resource.getScrollBarFlags(),
+		scrollBarMargin: resource.getScrollBarMargin(),
+		vtScrollBarRes: resource.getVtScrollBarRes(),
+		hzScrollBarRes: resource.getHzScrollBarRes(),
+		headerRes: resource.getHeaderRes(),
+		footerRes: resource.getFooterRes(),
+		bgColor: resource.getBgColor(),
+		bgColorEnabled: resource.getBgColorEnabled(),
+		designImageAlpha: resource.getDesignImageAlpha(),
+		designImageLayer: resource.getDesignImageLayer(),
+		designImageOffset: {
+			x: resource.getDesignImageOffsetX(),
+			y: resource.getDesignImageOffsetY(),
+		},
+		idNum: resource.getIdNum(),
+		initName: resource.getInitName(),
+		remark: resource.getRemark(),
+		extensionType: resource.getExtensionType(),
+		opaque: resource.getOpaque(),
+		buttonMode: resource.getButtonMode(),
+		sound: resource.getSound(),
+		soundVolumeScale: resource.getSoundVolumeScale(),
+		downEffect: resource.getDownEffect(),
+		downEffectValue: resource.getDownEffectValue(),
+		dropdown: resource.getDropdown(),
+		promptText: resource.getPromptText(),
+		selectionController: resource.getSelectionController(),
+		titleType: resource.getTitleType(),
+		reverse: resource.getReverse(),
+		wholeNumbers: resource.getWholeNumbers(),
+		changeOnClick: resource.getChangeOnClick(),
+		fixedGripSize: resource.getFixedGripSize(),
+		customProperties: resource.getCustomProperties(),
 	};
 }
 

@@ -11,7 +11,12 @@ import type {
 } from './model.js';
 import { UAM_SUPPORTED_TRANSACTION_SCOPE } from './model.js';
 import { normalizeUamProject } from './normalize.js';
-import { isFiniteUamPoint, validateUamProject } from './validate.js';
+import {
+	isFiniteUamPoint,
+	isValidUamComponentInstanceProperties,
+	isValidUamComponentProperties,
+	validateUamProject,
+} from './validate.js';
 import {
 	UamTransactionError,
 	type UamComponentSelector,
@@ -360,6 +365,28 @@ function validateDisplayPropsPayload(
 					'invalid_display_node_payload',
 					`${path}.props.loader3DProperties`,
 					'Loader3D properties must be a complete valid Loader3D property snapshot.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			}
+			continue;
+		}
+		if (key === 'componentInstanceProperties') {
+			if (nodeKind && nodeKind !== 'component') {
+				pushSupportIssue(
+					issues,
+					'unsupported_display_node_field',
+					`${path}.props.componentInstanceProperties`,
+					'Component instance properties are only supported on component reference nodes.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			} else if (op.props.componentInstanceProperties !== null
+				&& !isValidUamComponentInstanceProperties(op.props.componentInstanceProperties)
+			) {
+				pushSupportIssue(
+					issues,
+					'invalid_display_node_payload',
+					`${path}.props.componentInstanceProperties`,
+					'Component instance properties must be null or a complete valid extension snapshot.',
 					{ operationKind: op.kind, nodeKind, field: key },
 				);
 			}
@@ -1457,6 +1484,60 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 				validateBinaryResourceTarget(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
 				validateAssetSourceBytes(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
 				break;
+			case 'setComponentProps': {
+				validateLifecycleComponentSelector(project, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				if (!operation.props || typeof operation.props !== 'object' || Array.isArray(operation.props)) {
+					pushSupportIssue(
+						issues,
+						'invalid_component_payload',
+						`${operationPath}.props`,
+						'setComponentProps.props must be an object.',
+						{ operationKind: operation.kind },
+					);
+					break;
+				}
+				const keys = Object.keys(operation.props);
+				if (keys.length === 0 || keys.some((key) => key !== 'size' && key !== 'properties')) {
+					pushSupportIssue(
+						issues,
+						'invalid_component_payload',
+						`${operationPath}.props`,
+						'setComponentProps.props must contain size, properties, or both.',
+						{ operationKind: operation.kind },
+					);
+				}
+				if (operation.props.size !== undefined) {
+					const size = operation.props.size;
+					if (!size
+						|| typeof size !== 'object'
+						|| Object.keys(size).length !== 2
+						|| !Number.isFinite(size.width)
+						|| size.width < 0
+						|| !Number.isFinite(size.height)
+						|| size.height < 0
+					) {
+						pushSupportIssue(
+							issues,
+							'invalid_component_payload',
+							`${operationPath}.props.size`,
+							'Component size must contain finite non-negative width and height values.',
+							{ operationKind: operation.kind },
+						);
+					}
+				}
+				if (operation.props.properties !== undefined
+					&& !isValidUamComponentProperties(operation.props.properties)
+				) {
+					pushSupportIssue(
+						issues,
+						'invalid_component_payload',
+						`${operationPath}.props.properties`,
+						'Component properties must be a complete valid property snapshot.',
+						{ operationKind: operation.kind },
+					);
+				}
+				break;
+			}
 			case 'setDisplayNodeProps':
 				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
 				validateDisplayPropsPayload(operation, project, operationPath, issues);
