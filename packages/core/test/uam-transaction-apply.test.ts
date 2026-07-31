@@ -143,6 +143,57 @@ test('resource folder favorite supports non-empty and branch folders, inverse, a
 	t.is(documentBacked.packages[0]!.resources.find((resource) => resource.id === 'cmp001')?.name, 'RenamedView');
 });
 
+test('resource folder favorite follows sequential folder lifecycle projection', (t) => {
+	const project = createSupportedProject();
+	project.branches = ['mobile'];
+	project.packages[0]!.folders.push(
+		{ branch: '', path: '/empty/', favorite: false, atlas: '' },
+		{ branch: '', path: '/target/', favorite: false, atlas: '' },
+	);
+	const original = structuredClone(project);
+	const operations = [
+		{ kind: 'addResourceFolder' as const, selector: { packageId: 'pkg001' }, path: '/work/' },
+		{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', path: '/work/' }, favorite: true },
+		{ kind: 'renameResourceFolder' as const, selector: { packageId: 'pkg001', path: '/work/' }, newName: 'renamed' },
+		{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', path: '/renamed/' }, favorite: false },
+		{ kind: 'moveResourceFolder' as const, selector: { packageId: 'pkg001', path: '/renamed/' }, toPath: '/target/' },
+		{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', path: '/target/renamed/' }, favorite: true },
+		{ kind: 'addResourceFolder' as const, selector: { packageId: 'pkg001' }, branch: 'mobile', path: '/branch-root/' },
+		{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', branch: 'mobile', path: '/branch-root/' }, favorite: true },
+		{ kind: 'addResourceFolder' as const, selector: { packageId: 'pkg001' }, branch: 'mobile', path: '/branch-root/nested/' },
+		{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', branch: 'mobile', path: '/branch-root/nested/' }, favorite: true },
+	];
+
+	t.deepEqual(validateTransactionSupport(project, operations), []);
+	const result = applyUamTransaction(project, operations);
+	t.true(result.packages[0]!.folders.find((folder) => folder.path === '/target/renamed/')?.favorite);
+	t.true(result.packages[0]!.folders.find((folder) => folder.branch === 'mobile' && folder.path === '/branch-root/')?.favorite);
+	t.true(result.packages[0]!.folders.find((folder) => folder.branch === 'mobile' && folder.path === '/branch-root/nested/')?.favorite);
+	t.deepEqual(project, original);
+
+	const staleCases = [
+		[
+			{ kind: 'renameResourceFolder' as const, selector: { packageId: 'pkg001', path: '/empty/' }, newName: 'renamed' },
+			{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', path: '/empty/' }, favorite: true },
+		],
+		[
+			{ kind: 'moveResourceFolder' as const, selector: { packageId: 'pkg001', path: '/empty/' }, toPath: '/target/' },
+			{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', path: '/empty/' }, favorite: true },
+		],
+		[
+			{ kind: 'removeResourceFolder' as const, selector: { packageId: 'pkg001', path: '/empty/' } },
+			{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', path: '/empty/' }, favorite: true },
+		],
+	];
+	for (const stale of staleCases) {
+		const issues = validateTransactionSupport(project, stale);
+		t.true(issues.some((issue) => issue.code === 'invalid_resource_folder_selector' && issue.path === 'operations[1].selector'));
+		const error = t.throws(() => applyUamTransaction(project, stale), { instanceOf: UamTransactionError });
+		t.is(error?.code, 'transaction_unsupported');
+		t.deepEqual(project, original);
+	}
+});
+
 test('resource folder lifecycle supports empty-folder forward, inverse, and atomic groups', (t) => {
 	const project = createSupportedProject();
 	project.packages[0]!.folders = [
