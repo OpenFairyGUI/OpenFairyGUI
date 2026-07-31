@@ -361,6 +361,7 @@ type WritableChild = GObject & {
 	getTouchable?(): boolean;
 	getGrayed?(): boolean;
 	getTooltips?(): string;
+	getBlendMode?(): string;
 	getCustomData?(): string;
 	getFileName?(): string;
 	getPackageId?(): string;
@@ -491,6 +492,42 @@ function writeCommonDisplayState(
 	protocol: XmlNodeProtocol,
 ): void {
 	const specs = protocol.attrs;
+	if (specs.xy) {
+		writeXmlAttr(target, specs.xy, `${object.getX?.() ?? 0},${object.getY?.() ?? 0}`);
+	}
+	const width = object.getWidth?.() ?? 0;
+	const height = object.getHeight?.() ?? 0;
+	if (specs.size && (width !== 0 || height !== 0)) {
+		writeXmlAttr(target, specs.size, `${width},${height}`);
+	}
+	if (specs.locked && object.getLocked?.()) writeXmlAttr(target, specs.locked, 'true');
+	const restrictSize = [
+		object.getMinWidth?.() ?? 0,
+		object.getMaxWidth?.() ?? 0,
+		object.getMinHeight?.() ?? 0,
+		object.getMaxHeight?.() ?? 0,
+	];
+	if (specs.restrictSize && restrictSize.some((value) => value !== 0)) {
+		writeXmlAttr(target, specs.restrictSize, restrictSize.join(','));
+	}
+	if (specs.aspect && object.getAspect?.()) writeXmlAttr(target, specs.aspect, 'true');
+	const pivotX = object.getPivotX?.() ?? 0;
+	const pivotY = object.getPivotY?.() ?? 0;
+	if (specs.pivot && (pivotX !== 0 || pivotY !== 0)) {
+		writeXmlAttr(target, specs.pivot, `${pivotX},${pivotY}`);
+		if (specs.anchor && object.getPivotAsAnchor?.()) writeXmlAttr(target, specs.anchor, 'true');
+	}
+	const scaleX = object.getScaleX?.() ?? 1;
+	const scaleY = object.getScaleY?.() ?? 1;
+	if (specs.scale && (scaleX !== 1 || scaleY !== 1)) {
+		writeXmlAttr(target, specs.scale, `${scaleX},${scaleY}`);
+	}
+	const skewX = object.getSkewX?.() ?? 0;
+	const skewY = object.getSkewY?.() ?? 0;
+	if (specs.skew && (skewX !== 0 || skewY !== 0)) {
+		writeXmlAttr(target, specs.skew, `${skewX},${skewY}`);
+	}
+	if (specs.group && object.getGroup?.()) writeXmlAttr(target, specs.group, object.getGroup?.());
 	if (specs.alpha && (object.getAlpha?.() ?? 1) !== 1) {
 		writeXmlAttr(target, specs.alpha, formatDisplayAlpha(object.getAlpha?.() ?? 1));
 	}
@@ -506,6 +543,12 @@ function writeCommonDisplayState(
 	if (specs.grayed && object.getGrayed?.()) {
 		writeXmlAttr(target, specs.grayed, 'true');
 	}
+	if (specs.tooltips && object.getTooltips?.()) writeXmlAttr(target, specs.tooltips, object.getTooltips?.());
+	if (specs.customData && object.getCustomData?.()) writeXmlAttr(target, specs.customData, object.getCustomData?.());
+	const blendMode = object.getBlendMode?.() ?? 'normal';
+	if (specs.blendMode && blendMode !== 'normal') writeXmlAttr(target, specs.blendMode, blendMode);
+	if (specs.filter && object.getFilter?.()) writeXmlAttr(target, specs.filter, object.getFilter?.());
+	if (specs.filterData && object.getFilterData?.()) writeXmlAttr(target, specs.filterData, object.getFilterData?.());
 }
 
 export function hasNonZeroInsets(value: { top?: number; bottom?: number; left?: number; right?: number } | null | undefined): boolean {

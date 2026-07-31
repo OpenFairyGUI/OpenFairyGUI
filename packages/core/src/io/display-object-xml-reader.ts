@@ -248,7 +248,13 @@ export interface DisplayObjectXmlNode extends Record<string, unknown> {
 	visible?: string | boolean;
 	touchable?: string | boolean;
 	grayed?: string | boolean;
+	locked?: string | boolean;
+	aspect?: string | boolean;
+	restrictSize?: string;
 	tooltips?: string;
+	blend?: string;
+	filter?: string;
+	filterData?: string;
 	customData?: string;
 	group?: string;
 	advanced?: string | boolean;
@@ -389,6 +395,9 @@ function parseComboBoxItemXmlNode(item: ComboItemXmlNode): {
 }
 
 type WritableCommonDisplayState = GObject & {
+	setXY?(x: number, y: number): unknown;
+	setSize?(width: number, height: number): unknown;
+	setGroup?(group: string): unknown;
 	setAlpha?(value: number): unknown;
 	setRotation?(value: number): unknown;
 	setVisible?(value: boolean): unknown;
@@ -402,6 +411,57 @@ function readCommonDisplayState(
 	protocol: XmlNodeProtocol,
 ): void {
 	const specs = protocol.attrs;
+	const xy = specs.xy ? readXmlAttr<string>(source, specs.xy) : undefined;
+	if (xy) {
+		const [x, y] = parseXYString(xy);
+		object.setXY?.(x, y);
+	}
+
+	const size = specs.size ? readXmlAttr<string>(source, specs.size) : undefined;
+	if (size) {
+		const [width, height] = parseSizeString(size);
+		object.setSize?.(width, height);
+	}
+
+	const locked = specs.locked ? readXmlAttr<string | boolean>(source, specs.locked) : undefined;
+	if (locked !== undefined) object.setLocked(parseBool(locked));
+
+	const restrictSize = specs.restrictSize ? readXmlAttr<string>(source, specs.restrictSize) : undefined;
+	if (restrictSize) {
+		const [minWidth = 0, maxWidth = 0, minHeight = 0, maxHeight = 0] = restrictSize
+			.split(',')
+			.map((value) => parseFloat2(value));
+		object
+			.setMinWidth(minWidth)
+			.setMaxWidth(maxWidth)
+			.setMinHeight(minHeight)
+			.setMaxHeight(maxHeight);
+	}
+
+	const aspect = specs.aspect ? readXmlAttr<string | boolean>(source, specs.aspect) : undefined;
+	if (aspect !== undefined) object.setAspect(parseBool(aspect));
+
+	const pivot = specs.pivot ? readXmlAttr<string>(source, specs.pivot) : undefined;
+	if (pivot) {
+		const [pivotX, pivotY] = parseXYString(pivot);
+		const anchor = specs.anchor ? readXmlAttr<string | boolean>(source, specs.anchor) : undefined;
+		object.setPivot(pivotX, pivotY, parseBool(anchor));
+	}
+
+	const scale = specs.scale ? readXmlAttr<string>(source, specs.scale) : undefined;
+	if (scale) {
+		const [scaleX, scaleY] = parseXYString(scale);
+		object.setScale(scaleX, scaleY);
+	}
+
+	const skew = specs.skew ? readXmlAttr<string>(source, specs.skew) : undefined;
+	if (skew) {
+		const [skewX, skewY] = parseXYString(skew);
+		object.setSkew(skewX, skewY);
+	}
+
+	const group = specs.group ? readXmlAttr<string>(source, specs.group) : undefined;
+	if (group !== undefined) object.setGroup?.(group);
 	const alpha = specs.alpha
 		? readXmlAttr<string | number>(source, specs.alpha)
 		: undefined;
@@ -426,6 +486,20 @@ function readCommonDisplayState(
 		? readXmlAttr<string | boolean>(source, specs.grayed)
 		: undefined;
 	if (grayed !== undefined) object.setGrayed?.(parseBool(grayed));
+
+	const tooltips = specs.tooltips ? readXmlAttr<string>(source, specs.tooltips) : undefined;
+	if (tooltips !== undefined) object.setTooltips(tooltips);
+
+	const customData = specs.customData ? readXmlAttr<string>(source, specs.customData) : undefined;
+	if (customData !== undefined) object.setCustomData(customData);
+
+	const blendMode = specs.blendMode ? readXmlAttr<string>(source, specs.blendMode) : undefined;
+	if (blendMode !== undefined) object.setBlendMode(blendMode);
+
+	const filter = specs.filter ? readXmlAttr<string>(source, specs.filter) : undefined;
+	if (filter !== undefined) object.setFilter(filter);
+	const filterData = specs.filterData ? readXmlAttr<string>(source, specs.filterData) : undefined;
+	if (filterData !== undefined) object.setFilterData(filterData);
 }
 
 /** Options for explicitly loading source bytes while reading a project. */

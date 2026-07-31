@@ -199,13 +199,23 @@ export function canApplyOperationsInUam(operations: UamTransactionOperation[]): 
 export function applyDisplayNodePropsUpdate(node: UamDisplayNode, props: UamDisplayNodePropsUpdate): void {
 	if (props.position !== undefined) node.position = { ...props.position };
 	if (props.size !== undefined) node.size = { ...props.size };
+	if (props.locked !== undefined) node.locked = props.locked;
+	if (props.aspect !== undefined) node.aspect = props.aspect;
+	if (props.minSize !== undefined) node.minSize = { ...props.minSize };
+	if (props.maxSize !== undefined) node.maxSize = { ...props.maxSize };
 	if (props.pivot !== undefined) node.pivot = { ...props.pivot };
 	if (props.pivotAsAnchor !== undefined) node.pivotAsAnchor = props.pivotAsAnchor;
+	if (props.scale !== undefined) node.scale = { ...props.scale };
+	if (props.skew !== undefined) node.skew = { ...props.skew };
 	if (props.visible !== undefined) node.visible = props.visible;
 	if (props.touchable !== undefined) node.touchable = props.touchable;
 	if (props.grayed !== undefined) node.grayed = props.grayed;
 	if (props.alpha !== undefined) node.alpha = props.alpha;
 	if (props.rotation !== undefined) node.rotation = props.rotation;
+	if (props.tooltips !== undefined) node.tooltips = props.tooltips;
+	if (props.blendMode !== undefined) node.blendMode = props.blendMode;
+	if (props.filter !== undefined) node.filter = props.filter;
+	if (props.filterData !== undefined) node.filterData = props.filterData;
 	if (props.customData !== undefined) node.customData = props.customData;
 	if (props.group !== undefined) {
 		if (!('group' in node)) {
@@ -238,6 +248,12 @@ export function applyDisplayNodePropsUpdate(node: UamDisplayNode, props: UamDisp
 			throw new Error(`Graph display props are not supported on display node kind "${node.kind}".`);
 		}
 		Object.assign(node, structuredClone(props.graphProperties));
+	}
+	if (props.groupProperties !== undefined) {
+		if (node.kind !== 'group') {
+			throw new Error(`Group display props are not supported on display node kind "${node.kind}".`);
+		}
+		Object.assign(node, structuredClone(props.groupProperties));
 	}
 	if (props.loaderProperties !== undefined) {
 		if (node.kind !== 'loader') {

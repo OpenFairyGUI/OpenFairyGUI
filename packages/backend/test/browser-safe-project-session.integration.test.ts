@@ -13,6 +13,7 @@ import {
 	type UamComponentResource,
 	type UamGearBinding,
 	type UamGraphProperties,
+	type UamGroupProperties,
 	type UamPackage,
 	type UamProject,
 } from '@openfairygui/core/uam';
@@ -226,8 +227,6 @@ function createLifecyclePlainTextProperties() {
 		text: 'Popup',
 		fontSize: 16,
 		color: '#ffffff',
-		minSize: { width: 10, height: 8 },
-		maxSize: { width: 140, height: 32 },
 		align: 1,
 		vAlign: 2,
 		leading: 5,
@@ -475,23 +474,27 @@ test('browser-safe project session saves through injected async storage', async 
 		name: 'graph',
 		position: { x: 0, y: 0 },
 		size: { width: 40, height: 30 },
+		locked: false,
+		aspect: false,
+		minSize: { width: 0, height: 0 },
+		maxSize: { width: 0, height: 0 },
 		pivot: { x: 0, y: 0 },
 		pivotAsAnchor: false,
+		scale: { x: 1, y: 1 },
+		skew: { x: 0, y: 0 },
 		visible: true,
 		touchable: true,
 		grayed: false,
 		alpha: 1,
 		rotation: 0,
+		tooltips: '',
+		blendMode: 'normal',
+		filter: '',
+		filterData: '',
 		customData: '',
 		relations: [],
 		gears: [],
-		locked: false,
-		minWidth: 0,
-		maxWidth: 0,
-		minHeight: 0,
-		maxHeight: 0,
 		group: '',
-		skew: { x: 0, y: 0 },
 		graphType: 1,
 		lineSize: 1,
 		lineColor: '#000000',
@@ -502,13 +505,42 @@ test('browser-safe project session saves through injected async storage', async 
 		startAngle: 0,
 		distances: null,
 	});
+	sourceComponent.component.displayList.push({
+		kind: 'group',
+		id: 'group1',
+		name: 'group',
+		position: { x: 0, y: 0 },
+		size: { width: 40, height: 30 },
+		locked: false,
+		aspect: false,
+		minSize: { width: 0, height: 0 },
+		maxSize: { width: 0, height: 0 },
+		pivot: { x: 0, y: 0 },
+		pivotAsAnchor: false,
+		scale: { x: 1, y: 1 },
+		skew: { x: 0, y: 0 },
+		visible: true,
+		touchable: true,
+		grayed: false,
+		alpha: 1,
+		rotation: 0,
+		tooltips: '',
+		blendMode: 'normal',
+		filter: '',
+		filterData: '',
+		customData: '',
+		relations: [],
+		gears: [],
+		group: '',
+		layout: 0,
+		lineGap: 0,
+		columnGap: 0,
+		advanced: false,
+		excludeInvisibles: false,
+		autoSizeDisabled: false,
+		mainGridIndex: -1,
+	});
 	const graphProperties: UamGraphProperties = {
-		locked: true,
-		minWidth: 10,
-		maxWidth: 80,
-		minHeight: 12,
-		maxHeight: 60,
-		skew: { x: 2, y: 3 },
 		graphType: 3,
 		lineSize: 2,
 		lineColor: '#112233',
@@ -518,6 +550,15 @@ test('browser-safe project session saves through injected async storage', async 
 		sides: 0,
 		startAngle: 0,
 		distances: null,
+	};
+	const groupProperties: UamGroupProperties = {
+		layout: 1,
+		lineGap: 4,
+		columnGap: 6,
+		advanced: true,
+		excludeInvisibles: true,
+		autoSizeDisabled: false,
+		mainGridIndex: 0,
 	};
 	const opened = runtime.openProjectSession({
 		project,
@@ -540,16 +581,31 @@ test('browser-safe project session saves through injected async storage', async 
 				selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
 				props: {
 					text: 'Stored in browser storage',
+					locked: true,
+					aspect: true,
+					minSize: { width: 10, height: 8 },
+					maxSize: { width: 140, height: 32 },
+					scale: { x: 1.25, y: 0.75 },
+					skew: { x: 2, y: 3 },
 					touchable: false,
 					grayed: true,
 					alpha: 0.65,
 					rotation: 15,
+					tooltips: 'browser tip',
+					blendMode: 'add',
+					filter: 'color',
+					filterData: '1,0.5,0.25,1',
 				},
 			},
 			{
 				kind: 'setDisplayNodeProps',
 				selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'graph1' },
 				props: { graphProperties },
+			},
+			{
+				kind: 'setDisplayNodeProps',
+				selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'group1' },
+				props: { groupProperties },
 			},
 		],
 	});
@@ -576,12 +632,29 @@ test('browser-safe project session saves through injected async storage', async 
 		t.true(title.grayed);
 		t.is(title.alpha, 0.65);
 		t.is(title.rotation, 15);
+		t.true(title.locked);
+		t.true(title.aspect);
+		t.deepEqual(title.minSize, { width: 10, height: 8 });
+		t.deepEqual(title.maxSize, { width: 140, height: 32 });
+		t.deepEqual(title.scale, { x: 1.25, y: 0.75 });
+		t.deepEqual(title.skew, { x: 2, y: 3 });
+		t.is(title.tooltips, 'browser tip');
+		t.is(title.blendMode, 'add');
+		t.is(title.filter, 'color');
+		t.is(title.filterData, '1,0.5,0.25,1');
 	}
 	const graph = component.component.displayList.find((node) => node.id === 'graph1');
 	t.is(graph?.kind, 'graph');
 	if (graph?.kind === 'graph') {
 		for (const [key, value] of Object.entries(graphProperties)) {
 			t.deepEqual((graph as unknown as Record<string, unknown>)[key], value);
+		}
+	}
+	const group = component.component.displayList.find((node) => node.id === 'group1');
+	t.is(group?.kind, 'group');
+	if (group?.kind === 'group') {
+		for (const [key, value] of Object.entries(groupProperties)) {
+			t.deepEqual((group as unknown as Record<string, unknown>)[key], value);
 		}
 	}
 });

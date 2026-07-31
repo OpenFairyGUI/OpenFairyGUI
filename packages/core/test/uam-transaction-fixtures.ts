@@ -262,7 +262,9 @@ export function updateNonLookGear(gear: UamGearBinding): UamGearBinding {
 
 export type UamDisplayNodeBaseFixture = Pick<
 	UamDisplayNode,
-	'id' | 'name' | 'position' | 'size' | 'visible' | 'touchable' | 'grayed' | 'alpha' | 'rotation' | 'customData' | 'relations' | 'gears'
+	'id' | 'name' | 'position' | 'size' | 'locked' | 'aspect' | 'minSize' | 'maxSize' | 'scale' | 'skew'
+	| 'visible' | 'touchable' | 'grayed' | 'alpha' | 'rotation' | 'tooltips' | 'blendMode' | 'filter'
+	| 'filterData' | 'customData' | 'relations' | 'gears'
 >;
 
 export function createDisplayNodeBase(id: string, name: string, offset = 0): UamDisplayNodeBaseFixture {
@@ -271,11 +273,21 @@ export function createDisplayNodeBase(id: string, name: string, offset = 0): Uam
 		name,
 		position: { x: offset, y: offset + 4 },
 		size: { width: 80 + offset, height: 24 + offset },
+		locked: false,
+		aspect: false,
+		minSize: { width: 0, height: 0 },
+		maxSize: { width: 0, height: 0 },
+		scale: { x: 1, y: 1 },
+		skew: { x: 0, y: 0 },
 		visible: true,
 		touchable: true,
 		grayed: false,
 		alpha: 1,
 		rotation: 0,
+		tooltips: '',
+		blendMode: 'normal',
+		filter: '',
+		filterData: '',
 		customData: '',
 		relations: [],
 		gears: [],

@@ -14,6 +14,10 @@ export type EncoderChildLike = ChildNode & {
 	getY?(): number;
 	getWidth?(): number;
 	getHeight?(): number;
+	getMinWidth?(): number;
+	getMaxWidth?(): number;
+	getMinHeight?(): number;
+	getMaxHeight?(): number;
 	getColor?(): string;
 	getPivotX?(): number;
 	getPivotY?(): number;
@@ -27,7 +31,9 @@ export type EncoderChildLike = ChildNode & {
 	getVisible?(): boolean;
 	getTouchable?(): boolean;
 	getGrayed?(): boolean;
-	getBlendMode?(): number;
+	getBlendMode?(): string;
+	getFilter?(): string;
+	getFilterData?(): string;
 	getFlip?(): number;
 	getFillMethod?(): number;
 	getFillOrigin?(): number;

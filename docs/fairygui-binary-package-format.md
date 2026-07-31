@@ -417,7 +417,7 @@ child 自身带独立 index table，不同对象类型的 block 数量不同：
 
 | Block | 内容 |
 |---|---|
-| 0 | beforeAdd：object type、src、pkgId、id、name、xy、size、scale、skew、pivot、alpha、rotation、visible、touchable、grayed、blend、customData |
+| 0 | beforeAdd：object type、src、pkgId、id、name、xy、size、restrict size、scale、skew、pivot、alpha、rotation、visible、touchable、grayed、blend、color filter、customData |
 | 1 | afterAdd 公共段：tooltips、group |
 | 2 | gears |
 | 3 | relations |

@@ -1777,6 +1777,10 @@ test('binary writer: component child blocks round-trip into formal child propert
 		.setSrc('ui://childpkg/hero')
 		.setXY(30, 40)
 		.setSize(120, 90)
+		.setMinWidth(20)
+		.setMaxWidth(200)
+		.setMinHeight(10)
+		.setMaxHeight(180)
 		.setScale(1.5, 0.75)
 		.setSkew(2, -3)
 		.setPivot(0.25, 0.5, true)
@@ -1786,6 +1790,9 @@ test('binary writer: component child blocks round-trip into formal child propert
 		.setGrayed(true)
 		.setCustomData('hero-meta')
 		.setTooltips('hero-tip')
+		.setBlendMode('multiply')
+		.setFilter('color')
+		.setFilterData('1,0.5,0.25,1')
 		.setGroup(group.getId())
 		.setColor('#336699')
 		.setFlip(2)
@@ -1870,6 +1877,10 @@ test('binary writer: component child blocks round-trip into formal child propert
 		t.is(typedImage.getY(), 40);
 		t.is(typedImage.getWidth(), 120);
 		t.is(typedImage.getHeight(), 90);
+		t.is(typedImage.getMinWidth(), 20);
+		t.is(typedImage.getMaxWidth(), 200);
+		t.is(typedImage.getMinHeight(), 10);
+		t.is(typedImage.getMaxHeight(), 180);
 		t.is(typedImage.getScaleX(), 1.5);
 		t.is(typedImage.getScaleY(), 0.75);
 		t.is(typedImage.getSkewX(), 2);
@@ -1883,6 +1894,9 @@ test('binary writer: component child blocks round-trip into formal child propert
 		t.true(typedImage.getGrayed());
 		t.is(typedImage.getCustomData(), 'hero-meta');
 		t.is(typedImage.getTooltips(), 'hero-tip');
+		t.is(typedImage.getBlendMode(), 'multiply');
+		t.is(typedImage.getFilter(), 'color');
+		t.is(typedImage.getFilterData(), '1,0.5,0.25,1');
 		t.is(typedImage.getGroup(), 'group01');
 		t.is(typedImage.getColor(), '#336699');
 		t.is(typedImage.getFlip(), 2);
@@ -1933,6 +1947,11 @@ test('binary writer: component child blocks round-trip into formal child propert
 		t.is(typedButton.getSelectedIcon(), 'ui://childpkg/iconB');
 		t.is(typedButton.getTitleColor(), '#AA5500');
 		t.is(typedButton.getTitleFontSize(), 22);
+
+		image.setFilter('blur');
+		await t.throwsAsync(() => io.writeBinary(doc, outPath), { message: /unsupported filter "blur"/ });
+		image.setFilter('').setBlendMode('overlay');
+		await t.throwsAsync(() => io.writeBinary(doc, outPath), { message: /unsupported blend mode "overlay"/ });
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

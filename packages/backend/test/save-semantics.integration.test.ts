@@ -192,7 +192,7 @@ test('file sessions preserve component properties through UAM writeback', async 
 	}
 });
 
-test('file sessions reject UAM writeback when skew would be lost', async (t) => {
+test('file sessions preserve display skew through UAM writeback', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
 		const componentPath = path.join(fixture.rootDir, 'assets', 'Main', 'MainView.xml');
@@ -206,7 +206,7 @@ test('file sessions reject UAM writeback when skew would be lost', async (t) => 
 		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(opened.ok);
 		if (!opened.ok) return;
-		t.is(opened.data.uamFidelity, 'unsupported');
+		t.is(opened.data.uamFidelity, 'full');
 
 		const applied = await runtime.applyTransaction({
 			sessionId: opened.data.sessionId,
@@ -215,7 +215,7 @@ test('file sessions reject UAM writeback when skew would be lost', async (t) => 
 				{
 					kind: 'setDisplayNodeProps',
 					selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
-					props: { text: 'Must remain in memory' },
+					props: { text: 'Saved with skew' },
 				},
 			],
 		});
@@ -223,17 +223,10 @@ test('file sessions reject UAM writeback when skew would be lost', async (t) => 
 		if (!applied.ok) return;
 
 		const saved = await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: 1 });
-		t.false(saved.ok);
-		if (!saved.ok) t.is(saved.error.code, 'uam_fidelity_unsupported');
-
-		const materialized = await runtime.materializeSession({
-			sessionId: opened.data.sessionId,
-			expectedRevision: 1,
-			mode: 'fullProject',
-		});
-		t.false(materialized.ok);
-		if (!materialized.ok) t.is(materialized.error.code, 'uam_fidelity_unsupported');
-		t.is(await fs.readFile(componentPath, 'utf8'), source);
+		t.true(saved.ok);
+		const savedSource = await fs.readFile(componentPath, 'utf8');
+		t.true(savedSource.includes('skew="3,4"'));
+		t.true(savedSource.includes('text="Saved with skew"'));
 	} finally {
 		await fixture.cleanup();
 	}

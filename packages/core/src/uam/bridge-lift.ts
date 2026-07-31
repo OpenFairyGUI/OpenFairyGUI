@@ -15,6 +15,7 @@ import type {
 	UamDisplay2GearBinding,
 	UamDisplayGearBinding,
 	UamDisplayNode,
+	UamDisplayNodeBase,
 	UamFontSizeGearBinding,
 	UamGearBinding,
 	UamIconGearBinding,
@@ -51,14 +52,28 @@ type LiftableDisplayNodeBase = {
 	getY(): number;
 	getWidth(): number;
 	getHeight(): number;
+	getLocked(): boolean;
+	getAspect(): boolean;
+	getMinWidth(): number;
+	getMaxWidth(): number;
+	getMinHeight(): number;
+	getMaxHeight(): number;
 	getPivotX(): number;
 	getPivotY(): number;
 	getPivotAsAnchor(): boolean;
+	getScaleX(): number;
+	getScaleY(): number;
+	getSkewX(): number;
+	getSkewY(): number;
 	getVisible(): boolean;
 	getTouchable(): boolean;
 	getGrayed(): boolean;
 	getAlpha(): number;
 	getRotation(): number;
+	getTooltips(): string;
+	getBlendMode(): string;
+	getFilter(): string;
+	getFilterData(): string;
 	getCustomData(): string;
 	getRelations(): ReturnType<GObject['getRelations']>;
 	listGears(): ReturnType<GObject['listGears']>;
@@ -79,12 +94,10 @@ type LiftableTitleControl = LiftableComponentDerivedControl & {
 	getSoundVolumeScale(): number;
 };
 
-type LiftedDisplayNodeBase = Pick<
-	UamButtonNode,
-	'id' | 'name' | 'position' | 'size' | 'pivot' | 'pivotAsAnchor' | 'visible' | 'touchable' | 'grayed' | 'alpha' | 'rotation' | 'customData' | 'relations' | 'gears' | 'group'
->;
+type LiftedDisplayNodeBase = Omit<UamDisplayNodeBase, 'kind'>;
+type LiftedGroupableDisplayNodeBase = LiftedDisplayNodeBase & Pick<UamButtonNode, 'group'>;
 
-type LiftedComponentDerivedControlBase = LiftedDisplayNodeBase & Pick<UamButtonNode, 'src' | 'packageId'>;
+type LiftedComponentDerivedControlBase = LiftedGroupableDisplayNodeBase & Pick<UamButtonNode, 'src' | 'packageId'>;
 type LiftedTitleControlBase = LiftedComponentDerivedControlBase &
 	Pick<UamButtonNode, 'title' | 'icon' | 'titleColor' | 'titleFontSize' | 'sound' | 'soundVolumeScale'>;
 
@@ -95,23 +108,33 @@ function liftDisplayNodeBase(child: LiftableDisplayNodeBase): LiftedDisplayNodeB
 		name: child.getName(),
 		position: { x: child.getX(), y: child.getY() },
 		size: { width: child.getWidth(), height: child.getHeight() },
+		locked: child.getLocked(),
+		aspect: child.getAspect(),
+		minSize: { width: child.getMinWidth(), height: child.getMinHeight() },
+		maxSize: { width: child.getMaxWidth(), height: child.getMaxHeight() },
 		pivot: { x: child.getPivotX(), y: child.getPivotY() },
 		pivotAsAnchor: child.getPivotAsAnchor(),
+		scale: { x: child.getScaleX(), y: child.getScaleY() },
+		skew: { x: child.getSkewX(), y: child.getSkewY() },
 		visible: child.getVisible(),
 		touchable: child.getTouchable(),
 		grayed: child.getGrayed(),
 		alpha: child.getAlpha(),
 		rotation: child.getRotation(),
+		tooltips: child.getTooltips(),
+		blendMode: child.getBlendMode() as UamDisplayNodeBase['blendMode'],
+		filter: child.getFilter(),
+		filterData: child.getFilterData(),
 		customData: child.getCustomData(),
 		relations: liftRelations(child.getRelations()),
 		gears: liftGears(child.listGears()),
-		group: child.getGroup(),
 	};
 }
 
 function liftComponentDerivedControlBase(child: LiftableComponentDerivedControl): LiftedComponentDerivedControlBase {
 	return {
 		...liftDisplayNodeBase(child),
+		group: child.getGroup(),
 		src: child.getSrc(),
 		packageId: child.getPackageId(),
 	};
@@ -359,20 +382,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 		const image = child as ReturnType<Document['createGImage']>;
 		return {
 			kind: 'image',
-			id: image.getId(),
-			name: image.getName(),
-			position: { x: image.getX(), y: image.getY() },
-			size: { width: image.getWidth(), height: image.getHeight() },
-			pivot: { x: image.getPivotX(), y: image.getPivotY() },
-			pivotAsAnchor: image.getPivotAsAnchor(),
-			visible: image.getVisible(),
-			touchable: image.getTouchable(),
-			grayed: image.getGrayed(),
-			alpha: image.getAlpha(),
-			rotation: image.getRotation(),
-			customData: image.getCustomData(),
-			relations: liftRelations(image.getRelations()),
-			gears: liftGears(image.listGears()),
+			...liftDisplayNodeBase(image),
 			group: image.getGroup(),
 			resource: { resourceId: image.getSrc() },
 		};
@@ -388,8 +398,6 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			font: text.getFont(),
 			fontSize: text.getFontSize(),
 			color: text.getColor(),
-			minSize: { width: text.getMinWidth(), height: text.getMinHeight() },
-			maxSize: { width: text.getMaxWidth(), height: text.getMaxHeight() },
 			align: text.getAlign(),
 			vAlign: text.getVAlign(),
 			leading: text.getLeading(),
@@ -415,20 +423,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			faceDilate: text.getFaceDilate(),
 		};
 		const base = {
-			id: text.getId(),
-			name: text.getName(),
-			position: { x: text.getX(), y: text.getY() },
-			size: { width: text.getWidth(), height: text.getHeight() },
-			pivot: { x: text.getPivotX(), y: text.getPivotY() },
-			pivotAsAnchor: text.getPivotAsAnchor(),
-			visible: text.getVisible(),
-			touchable: text.getTouchable(),
-			grayed: text.getGrayed(),
-			alpha: text.getAlpha(),
-			rotation: text.getRotation(),
-			customData: text.getCustomData(),
-			relations: liftRelations(text.getRelations()),
-			gears: liftGears(text.listGears()),
+			...liftDisplayNodeBase(text),
 			group: text.getGroup(),
 		};
 		if (child.propertyType === PropertyType.G_RICH_TEXT_FIELD) {
@@ -454,20 +449,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 		const instanceProperties = liftComponentInstanceProperties(component);
 		return {
 			kind: 'component',
-			id: component.getId(),
-			name: component.getName(),
-			position: { x: component.getX(), y: component.getY() },
-			size: { width: component.getWidth(), height: component.getHeight() },
-			pivot: { x: component.getPivotX(), y: component.getPivotY() },
-			pivotAsAnchor: component.getPivotAsAnchor(),
-			visible: component.getVisible(),
-			touchable: component.getTouchable(),
-			grayed: component.getGrayed(),
-			alpha: component.getAlpha(),
-			rotation: component.getRotation(),
-			customData: component.getCustomData(),
-			relations: liftRelations(component.getRelations()),
-			gears: liftGears(component.listGears()),
+			...liftDisplayNodeBase(component),
 			group: component.getGroup(),
 			resource: { packageId: component.getPackageId(), resourceId: component.getSrc() },
 			...(instanceProperties ? { instanceProperties } : {}),
@@ -476,20 +458,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 	if (child.propertyType === PropertyType.G_LIST || child.propertyType === PropertyType.G_TREE) {
 		const list = child as ReturnType<Document['createGList']>;
 		const base = {
-			id: list.getId(),
-			name: list.getName(),
-			position: { x: list.getX(), y: list.getY() },
-			size: { width: list.getWidth(), height: list.getHeight() },
-			pivot: { x: list.getPivotX(), y: list.getPivotY() },
-			pivotAsAnchor: list.getPivotAsAnchor(),
-			visible: list.getVisible(),
-			touchable: list.getTouchable(),
-			grayed: list.getGrayed(),
-			alpha: list.getAlpha(),
-			rotation: list.getRotation(),
-			customData: list.getCustomData(),
-			relations: liftRelations(list.getRelations()),
-			gears: liftGears(list.listGears()),
+			...liftDisplayNodeBase(list),
 			group: list.getGroup(),
 			layout: list.getLayout(),
 			align: list.getAlign(),
@@ -537,27 +506,10 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 		const graph = child as ReturnType<Document['createGGraph']>;
 		return {
 			kind: 'graph',
-			id: graph.getId(),
-			name: graph.getName(),
-			position: { x: graph.getX(), y: graph.getY() },
-			size: { width: graph.getWidth(), height: graph.getHeight() },
-			visible: graph.getVisible(),
-			touchable: graph.getTouchable(),
-			grayed: graph.getGrayed(),
-			alpha: graph.getAlpha(),
-			rotation: graph.getRotation(),
-			customData: graph.getCustomData(),
-			relations: liftRelations(graph.getRelations()),
-			gears: liftGears(graph.listGears()),
-			locked: graph.getLocked(),
-			minWidth: graph.getMinWidth(),
-			maxWidth: graph.getMaxWidth(),
-			minHeight: graph.getMinHeight(),
-			maxHeight: graph.getMaxHeight(),
+			...liftDisplayNodeBase(graph),
 			pivot: { x: graph.getPivotX(), y: graph.getPivotY() },
 			pivotAsAnchor: graph.getPivotAsAnchor(),
 			group: graph.getGroup(),
-			skew: { x: graph.getSkewX(), y: graph.getSkewY() },
 			graphType: graph.getGraphType(),
 			lineSize: graph.getLineSize(),
 			lineColor: graph.getLineColor(),
@@ -573,21 +525,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 		const group = child as ReturnType<Document['createGGroup']>;
 		return {
 			kind: 'group',
-			id: group.getId(),
-			name: group.getName(),
-			position: { x: group.getX(), y: group.getY() },
-			size: { width: group.getWidth(), height: group.getHeight() },
-			pivot: { x: group.getPivotX(), y: group.getPivotY() },
-			pivotAsAnchor: group.getPivotAsAnchor(),
-			visible: group.getVisible(),
-			touchable: group.getTouchable(),
-			grayed: group.getGrayed(),
-			alpha: group.getAlpha(),
-			rotation: group.getRotation(),
-			customData: group.getCustomData(),
-			relations: liftRelations(group.getRelations()),
-			gears: liftGears(group.listGears()),
-			locked: group.getLocked(),
+			...liftDisplayNodeBase(group),
 			group: group.getGroup(),
 			layout: group.getLayout(),
 			lineGap: group.getLineGap(),
@@ -602,24 +540,9 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 		const loader = child as ReturnType<Document['createGLoader']>;
 		return {
 			kind: 'loader',
-			id: loader.getId(),
-			name: loader.getName(),
-			position: { x: loader.getX(), y: loader.getY() },
-			size: { width: loader.getWidth(), height: loader.getHeight() },
-			visible: loader.getVisible(),
-			touchable: loader.getTouchable(),
-			grayed: loader.getGrayed(),
-			alpha: loader.getAlpha(),
-			rotation: loader.getRotation(),
-			customData: loader.getCustomData(),
-			relations: liftRelations(loader.getRelations()),
-			gears: liftGears(loader.listGears()),
+			...liftDisplayNodeBase(loader),
 			pivot: { x: loader.getPivotX(), y: loader.getPivotY() },
-			pivotAsAnchor: loader.getPivotAsAnchor(),
-			scale: { x: loader.getScaleX(), y: loader.getScaleY() },
 			url: loader.getUrl(),
-			filter: loader.getFilter(),
-			filterData: loader.getFilterData(),
 			fill: loader.getFill(),
 			shrinkOnly: loader.getShrinkOnly(),
 			autoSize: loader.getAutoSize(),
@@ -640,20 +563,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 		const loader = child as ReturnType<Document['createGLoader3D']>;
 		return {
 			kind: 'loader3D',
-			id: loader.getId(),
-			name: loader.getName(),
-			position: { x: loader.getX(), y: loader.getY() },
-			size: { width: loader.getWidth(), height: loader.getHeight() },
-			pivot: { x: loader.getPivotX(), y: loader.getPivotY() },
-			pivotAsAnchor: loader.getPivotAsAnchor(),
-			visible: loader.getVisible(),
-			touchable: loader.getTouchable(),
-			grayed: loader.getGrayed(),
-			alpha: loader.getAlpha(),
-			rotation: loader.getRotation(),
-			customData: loader.getCustomData(),
-			relations: liftRelations(loader.getRelations()),
-			gears: liftGears(loader.listGears()),
+			...liftDisplayNodeBase(loader),
 			url: loader.getUrl(),
 			fill: loader.getFill(),
 			shrinkOnly: loader.getShrinkOnly(),
@@ -739,25 +649,10 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 		const movieClip = child as ReturnType<Document['createGMovieClip']>;
 		return {
 			kind: 'movieClip',
-			id: movieClip.getId(),
-			name: movieClip.getName(),
-			position: { x: movieClip.getX(), y: movieClip.getY() },
-			size: { width: movieClip.getWidth(), height: movieClip.getHeight() },
-			pivot: { x: movieClip.getPivotX(), y: movieClip.getPivotY() },
-			pivotAsAnchor: movieClip.getPivotAsAnchor(),
-			visible: movieClip.getVisible(),
-			touchable: movieClip.getTouchable(),
-			grayed: movieClip.getGrayed(),
-			alpha: movieClip.getAlpha(),
-			rotation: movieClip.getRotation(),
-			customData: movieClip.getCustomData(),
-			relations: liftRelations(movieClip.getRelations()),
-			gears: liftGears(movieClip.listGears()),
+			...liftDisplayNodeBase(movieClip),
 			group: movieClip.getGroup(),
 			resource: { packageId: movieClip.getPackageId(), resourceId: movieClip.getSrc() },
 			fileName: movieClip.getFileName(),
-			filter: movieClip.getFilter(),
-			filterData: movieClip.getFilterData(),
 			playing: movieClip.getPlaying(),
 			frame: movieClip.getFrame(),
 			color: movieClip.getColor(),
