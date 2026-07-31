@@ -231,6 +231,20 @@ function insertChildAtIndex(component: Component, child: GObject, atIndex: numbe
 	reorderChildren(component, orderedChildren);
 }
 
+function insertResourceAtIndex(
+	pkg: Package,
+	resource: Parameters<Package['addResource']>[0],
+	atIndex: number,
+): void {
+	const resources = pkg.listResources();
+	if (!Number.isInteger(atIndex) || atIndex < 0 || atIndex > resources.length) {
+		throw new Error(`addResource.atIndex ${atIndex} is out of bounds for package "${pkg.getId()}".`);
+	}
+	resources.splice(atIndex, 0, resource);
+	for (const current of pkg.listResources()) pkg.removeResource(current);
+	for (const ordered of resources) pkg.addResource(ordered);
+}
+
 function validateControllerModelAgainstComponent(component: Component, model: UamControllerModel, owner: string): void {
 	if (model.pages.length === 0) {
 		throw new Error(`${owner}: controller "${model.name}" must define at least one page.`);
@@ -526,7 +540,11 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 			if (pkg.getResourceById(operation.resource.id)) {
 				throw new Error(`Resource "${operation.resource.id}" already exists in package "${operation.selector.packageId}".`);
 			}
-			pkg.addResource(materializeAssetResource(doc, operation.resource));
+			insertResourceAtIndex(
+				pkg,
+				materializeAssetResource(doc, operation.resource),
+				operation.atIndex ?? pkg.listResources().length,
+			);
 			return;
 		}
 		case 'replaceResourceBytes': {

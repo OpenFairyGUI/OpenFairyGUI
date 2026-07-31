@@ -175,7 +175,12 @@ export function applyUamResourceLifecycleOperation(
 			if (pkg.resources.some((resource) => resource.id === operation.resource.id)) {
 				throw new Error(`Resource id "${operation.resource.id}" already exists in package "${pkg.id}".`);
 			}
-			pkg.resources.push(cloneAssetSnapshot(project, pkg, operation.resource));
+			assertInsertionIndex(operation.atIndex ?? pkg.resources.length, pkg.resources.length, 'addResource.atIndex');
+			pkg.resources.splice(
+				operation.atIndex ?? pkg.resources.length,
+				0,
+				cloneAssetSnapshot(project, pkg, operation.resource),
+			);
 			return;
 		case 'removeResource': {
 			const resourceIndex = pkg.resources.findIndex((resource) => resource.id === operation.selector.resourceId);

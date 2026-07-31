@@ -160,6 +160,75 @@ test('resource lifecycle preflight projects batches and rejects unsafe source pa
 	}
 });
 
+test('addResource restores exact resource order with optional stable indexes', (t) => {
+	const createMisc = (id: string, byte: number) => ({
+		kind: 'misc' as const,
+		id,
+		name: `${id}.bin`,
+		path: '/',
+		exported: true,
+		favorite: false,
+		branch: '',
+		branchItemIds: [],
+		file: `${id}.bin`,
+		metadata: null,
+		sourceBytes: new Uint8Array([byte]),
+	});
+	const project = createSupportedProject();
+	const pkg = project.packages[0]!;
+	const orderedA = createMisc('ordered-a', 1);
+	const orderedB = createMisc('ordered-b', 2);
+	pkg.resources.splice(1, 0, orderedA);
+	pkg.resources.push(orderedB);
+	const originalOrder = pkg.resources.map((resource) => resource.id);
+	const snapshots = [orderedA, orderedB].map((resource) => structuredClone(resource));
+
+	const removed = applyUamTransaction(project, snapshots.map((resource) => ({
+		kind: 'removeResource' as const,
+		selector: { packageId: pkg.id, resourceId: resource.id },
+	})));
+	const restored = applyUamTransaction(removed, snapshots.map((resource, index) => ({
+		kind: 'addResource' as const,
+		selector: { packageId: pkg.id },
+		resource,
+		atIndex: index === 0 ? 1 : 3,
+	})));
+	t.deepEqual(restored.packages[0]!.resources.map((resource) => resource.id), originalOrder);
+
+	const appended = applyUamTransaction(restored, [{
+		kind: 'addResource',
+		selector: { packageId: pkg.id },
+		resource: createMisc('appended', 3),
+	}]);
+	t.is(appended.packages[0]!.resources.at(-1)?.id, 'appended');
+
+	const invalidSource = structuredClone(removed);
+	const invalidBefore = structuredClone(invalidSource);
+	const invalidOperations = [
+		{ kind: 'addResource' as const, selector: { packageId: pkg.id }, resource: createMisc('negative', 4), atIndex: -1 },
+		{ kind: 'addResource' as const, selector: { packageId: pkg.id }, resource: createMisc('past-end', 5), atIndex: 99 },
+	];
+	t.is(validateTransactionSupport(invalidSource, invalidOperations)
+		.filter((issue) => issue.code === 'invalid_resource_index').length, 2);
+	t.throws(() => applyUamTransaction(invalidSource, invalidOperations), { instanceOf: UamTransactionError });
+	t.deepEqual(invalidSource, invalidBefore);
+
+	const documentApplied = applyUamTransaction(removed, [
+		{
+			kind: 'addResource',
+			selector: { packageId: pkg.id },
+			resource: snapshots[0]!,
+			atIndex: 1,
+		},
+		{
+			kind: 'renameResource',
+			selector: { packageId: pkg.id, resourceId: snapshots[0]!.id },
+			newName: 'ordered-a-renamed.bin',
+		},
+	]);
+	t.is(documentApplied.packages[0]!.resources[1]?.id, snapshots[0]!.id);
+});
+
 test('UAM-native execution failure leaves the input project unchanged', (t) => {
 	const project = createSupportedProject();
 	const before = structuredClone(project);

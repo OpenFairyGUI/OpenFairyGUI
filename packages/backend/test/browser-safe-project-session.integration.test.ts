@@ -681,6 +681,87 @@ test('browser-safe project session saves through injected async storage', async 
 	}
 });
 
+test('browser-safe addResource indexes survive multi-resource inverse save and reload', async (t) => {
+	const createMisc = (id: string, byte: number) => ({
+		kind: 'misc' as const,
+		id,
+		name: `${id}.bin`,
+		path: '/',
+		exported: true,
+		favorite: false,
+		branch: '',
+		branchItemIds: [],
+		file: `${id}.bin`,
+		metadata: null,
+		sourceBytes: new Uint8Array([byte]),
+	});
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const project = createBackendFixtureProject();
+	const pkg = project.packages[0]!;
+	const orderedA = createMisc('ordered-a', 11);
+	const orderedB = createMisc('ordered-b', 22);
+	pkg.resources = [pkg.resources[1]!, pkg.resources[0]!, orderedA, orderedB];
+	const originalOrder = pkg.resources.map((resource) => resource.id);
+	const snapshots = [orderedA, orderedB].map((resource) => structuredClone(resource));
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({
+		project,
+		storage: { fileSystem, fairyPath: 'ResourceOrder/Project.fairy' },
+	});
+	t.true(opened.ok);
+	if (!opened.ok) return;
+
+	try {
+		const removed = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: 0,
+			operations: snapshots.map((resource) => ({
+				kind: 'removeResource' as const,
+				selector: { packageId: pkg.id, resourceId: resource.id },
+			})),
+		});
+		t.true(removed.ok);
+		if (!removed.ok) return;
+
+		const restored = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: removed.data.revision,
+			operations: snapshots.map((resource, index) => ({
+				kind: 'addResource' as const,
+				selector: { packageId: pkg.id },
+				resource,
+				atIndex: index + 2,
+			})),
+		});
+		t.true(restored.ok);
+		if (!restored.ok) return;
+
+		const saved = await runtime.saveSession({
+			sessionId: opened.data.sessionId,
+			expectedRevision: restored.data.revision,
+		});
+		t.true(saved.ok);
+		if (!saved.ok) return;
+		const reloaded = normalizeUamProject(liftDocumentToUamProject(await new ProjectReader(fileSystem).read(
+			'ResourceOrder/Project.fairy',
+			{ hydrateResourceBytes: true },
+		)));
+		const reloadedPackage = reloaded.packages.find((candidate) => candidate.id === pkg.id)!;
+		t.deepEqual(reloadedPackage.resources.map((resource) => resource.id), originalOrder);
+		for (const [index, snapshot] of snapshots.entries()) {
+			const resource = reloadedPackage.resources.find((candidate) => candidate.id === snapshot.id);
+			if (!resource || resource.kind === 'component') {
+				t.fail(`expected restored binary resource ${snapshot.id}`);
+				continue;
+			}
+			t.deepEqual([...resource.sourceBytes ?? []], [index === 0 ? 11 : 22]);
+		}
+	} finally {
+		await runtime.closeSession({ sessionId: opened.data.sessionId });
+	}
+});
+
 test('browser-safe resource favorite transactions survive save, reload, and inverse', async (t) => {
 	const storage = new MemoryBrowserStorage();
 	const fileSystem = createBackendStorageFileSystem(storage);

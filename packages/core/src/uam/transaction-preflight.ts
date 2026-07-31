@@ -1593,7 +1593,7 @@ function validateLifecycleInsertionIndex(
 	index: number,
 	maximum: number,
 	path: string,
-	code: 'invalid_package_index' | 'invalid_component_index',
+	code: 'invalid_package_index' | 'invalid_component_index' | 'invalid_resource_index',
 	issues: UamTransactionSupportIssue[],
 	operationKind: UamTransactionOperation['kind'],
 ): void {
@@ -1917,6 +1917,14 @@ function validateLifecycleOperationPayloads(
 						issues,
 						operation.kind,
 					);
+					validateLifecycleInsertionIndex(
+						operation.atIndex ?? pkg.resources.length,
+						pkg.resources.length,
+						`${operationPath}.atIndex`,
+						'invalid_resource_index',
+						issues,
+						operation.kind,
+					);
 				}
 				break;
 			}
@@ -2145,6 +2153,7 @@ function validateLifecycleBatchCompatibility(
 function requiresSequentialDisplayProjection(operations: UamTransactionOperation[]): boolean {
 	const hasDisplayListRewrite = operations.some(isDisplayListRewriteOperation);
 	return operations.some(isLifecycleOperation)
+		|| operations.some(isResourceLifecycleOperation)
 		|| operations.some(isResourceFolderLifecycleOperation)
 		|| (
 			hasDisplayListRewrite
