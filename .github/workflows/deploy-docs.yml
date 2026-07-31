@@ -35,8 +35,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build docs
         env:
-          VITEPRESS_BASE: /OpenFairyGUI/
-          VITEPRESS_SITE_URL: https://openfairygui.github.io/OpenFairyGUI
+          VITEPRESS_BASE: /
+          VITEPRESS_SITE_URL: https://fairygui.dev
         run: pnpm docs:build
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

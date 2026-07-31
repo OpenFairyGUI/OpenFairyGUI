@@ -1,10 +1,10 @@
 # OpenFairyGUI
 
-[![Documentation](https://img.shields.io/badge/docs-online-0f766e.svg)](https://openfairygui.github.io/OpenFairyGUI/)
+[![Documentation](https://img.shields.io/badge/docs-online-0f766e.svg)](https://fairygui.dev/)
 [![npm](https://img.shields.io/badge/npm-%40openfairygui%2Fcore-cb3837.svg)](https://www.npmjs.com/package/@openfairygui/core)
 [![License](https://img.shields.io/badge/license-MIT-007ec6.svg)](./LICENSE)
 
-[English](./README_EN.md) · [官网文档](https://openfairygui.github.io/OpenFairyGUI/) · [快速开始](https://openfairygui.github.io/OpenFairyGUI/guide/getting-started) · [API Reference](https://openfairygui.github.io/OpenFairyGUI/api/)
+[English](./README_EN.md) · [官网文档](https://fairygui.dev/) · [快速开始](https://fairygui.dev/guide/getting-started) · [API Reference](https://fairygui.dev/api/)
 
 > 用 TypeScript 读取、修改和发布 FairyGUI 工程，面向脚本、CI/CD 与智能体工具链。
 
@@ -57,7 +57,7 @@ await publishNode({
 });
 ```
 
-完整的工程写回、Web 入口和 UAM 示例见[快速开始](https://openfairygui.github.io/OpenFairyGUI/guide/getting-started)。
+完整的工程写回、Web 入口和 UAM 示例见[快速开始](https://fairygui.dev/guide/getting-started)。
 
 ## 命令行
 
@@ -80,12 +80,12 @@ ofgui publish ./MyProject --output ./release
 | [`@openfairygui/cli`](https://www.npmjs.com/package/@openfairygui/cli) | 命令行工具 |
 | [`@openfairygui/mcp`](https://www.npmjs.com/package/@openfairygui/mcp) | backend runtime 的 MCP 薄适配层 |
 
-包入口和 Node / Web 边界见[包与工具](https://openfairygui.github.io/OpenFairyGUI/guide/packages)。
+包入口和 Node / Web 边界见[包与工具](https://fairygui.dev/guide/packages)。
 
 ## 文档
 
-- [快速开始](https://openfairygui.github.io/OpenFairyGUI/guide/getting-started)
-- [API Reference](https://openfairygui.github.io/OpenFairyGUI/api/)
+- [快速开始](https://fairygui.dev/guide/getting-started)
+- [API Reference](https://fairygui.dev/api/)
 - [架构与包边界](./docs/architecture-overview.md)
 - [编辑器发布设置](./docs/editor-publish-settings.md)
 - [Project XML 属性协议](./docs/project-xml-attribute-reference.md)
@@ -100,7 +100,7 @@ ofgui publish ./MyProject --output ./release
 - UAM 无法保真写回时会拒绝保存，不会静默覆盖源工程。
 - `restore` 只用于可信的本地发布产物，不是常规创作流程。
 
-详细限制以[官网文档](https://openfairygui.github.io/OpenFairyGUI/)中的当前实现口径为准。
+详细限制以[官网文档](https://fairygui.dev/)中的当前实现口径为准。
 
 ## 本地开发
 
