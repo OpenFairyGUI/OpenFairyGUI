@@ -1842,6 +1842,7 @@ function validateLifecycleOperationPayloads(
 			&& !isResourceFolderLifecycleOperation(operation)
 			&& !isDisplayListRewriteOperation(operation)
 			&& operation.kind !== 'setDisplayNodeProps'
+			&& operation.kind !== 'setResourceFolderFavorite'
 		) continue;
 		const operationPath = `operations[${operationIndex}]`;
 		const issueCount = issues.length;
@@ -2044,6 +2045,9 @@ function validateLifecycleOperationPayloads(
 				validateTouchedDisplayNodeKind(projected, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
 				validateDisplayPropsPayload(operation, projected, operationPath, issues);
 				break;
+			case 'setResourceFolderFavorite':
+				validateResourceFolderSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				break;
 		}
 		if (issues.length !== issueCount) continue;
 		if (isLifecycleOperation(operation)) {
@@ -2054,6 +2058,8 @@ function validateLifecycleOperationPayloads(
 			applyUamResourceFolderLifecycleOperation(projected, operation);
 		} else if (operation.kind === 'setDisplayNodeProps') {
 			applyDisplayNodePropsUpdate(findDisplayNodeSpec(projected, operation.selector)!, operation.props);
+		} else if (operation.kind === 'setResourceFolderFavorite') {
+			findResourceFolder(projected, operation.selector)!.folder.favorite = operation.favorite;
 		} else {
 			applyUamDisplayListRewriteOperation(projected, operation);
 		}
@@ -2193,7 +2199,9 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 				}
 				break;
 			case 'setResourceFolderFavorite':
-				validateResourceFolderSelector(project, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				if (!usesSequentialDisplayProjection) {
+					validateResourceFolderSelector(project, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				}
 				if (typeof operation.favorite !== 'boolean') {
 					pushSupportIssue(
 						issues,

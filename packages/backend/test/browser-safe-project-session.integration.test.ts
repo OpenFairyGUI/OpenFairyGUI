@@ -768,7 +768,11 @@ test('browser-safe resource folder favorite transactions survive atomic save, re
 	const fileSystem = createBackendStorageFileSystem(storage);
 	const project = createBackendFixtureProject();
 	project.branches = ['mobile'];
-	project.packages[0]!.folders.push({ branch: 'mobile', path: '/branch/', favorite: false, atlas: '' });
+	project.packages[0]!.folders.push(
+		{ branch: '', path: '/empty/', favorite: false, atlas: '' },
+		{ branch: 'mobile', path: '/branch/', favorite: false, atlas: '' },
+	);
+	const original = structuredClone(project);
 	const runtime = new BackendRuntime();
 	const opened = runtime.openProjectSession({
 		project,
@@ -776,6 +780,21 @@ test('browser-safe resource folder favorite transactions survive atomic save, re
 	});
 	t.true(opened.ok);
 	if (!opened.ok) return;
+	const rejected = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 0,
+		operations: [
+			{ kind: 'removeResourceFolder', selector: { packageId: 'pkg001', path: '/empty/' } },
+			{ kind: 'setResourceFolderFavorite', selector: { packageId: 'pkg001', path: '/empty/' }, favorite: true },
+		],
+	});
+	t.false(rejected.ok);
+	if (rejected.ok) return;
+	t.is(rejected.error.code, 'transaction_unsupported');
+	t.is(rejected.meta.diagnostics[0]?.path, 'operations[1].selector');
+	t.is(rejected.session?.revision, 0);
+	t.false(rejected.session?.dirty ?? true);
+	t.deepEqual(project, original);
 
 	const operations = [
 		{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', path: '/images/' }, favorite: true },
