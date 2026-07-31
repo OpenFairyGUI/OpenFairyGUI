@@ -118,6 +118,7 @@ export {
 	type SetComponentPropsOperation,
 	type SetImageResourcePropsOperation,
 	type SetResourceFavoriteOperation,
+	type SetResourceFolderFavoriteOperation,
 	type SetResourceExportedOperation,
 	type ReplaceResourceBytesOperation,
 	UamTransaction,
