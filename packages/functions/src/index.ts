@@ -63,6 +63,7 @@ export {
 } from './publish.js';
 export {
 	applyUamTransactionApp,
+	applyUamTransactionAppAsync,
 	type ApplyUamTransactionAppDiagnostic,
 	type ApplyUamTransactionAppError,
 	type ApplyUamTransactionAppInput,

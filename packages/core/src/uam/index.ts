@@ -139,6 +139,7 @@ export {
 	type UamTransitionSelector,
 	type UpdateGearOperation,
 	applyUamTransaction,
+	applyUamTransactionAsync,
 	assertTransactionSupported,
 	createUamTransaction,
 	validateTransactionSupport,

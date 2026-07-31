@@ -387,6 +387,7 @@ export type UamTransactionSupportIssueCode =
 	| 'invalid_gear_payload'
 	| 'duplicate_gear_state_page'
 	| 'invalid_resource_payload'
+	| 'invalid_resource_bytes'
 	| 'invalid_resource_selector'
 	| 'invalid_resource_index'
 	| 'invalid_resource_reference'

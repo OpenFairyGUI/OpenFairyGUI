@@ -68,11 +68,15 @@
 				"types": "./dist/web.d.ts",
 				"default": "./dist/web.js"
 			}
+		},
+		"./image-validation-worker": {
+			"types": "./dist/image-validation-worker.d.ts",
+			"default": "./dist/image-validation-worker.js"
 		}
 	},
 	"scripts": {
-		"build": "tsdown src/index.ts src/uam/index.ts src/project-io.ts src/node.ts src/web.ts --format esm,cjs --platform neutral --external node:fs --external node:path --external node:fs/promises --env.PACKAGE_VERSION=$npm_package_version",
-		"build:watch": "tsdown src/index.ts src/uam/index.ts src/project-io.ts src/node.ts src/web.ts --watch --format esm,cjs --platform neutral --env.PACKAGE_VERSION=$npm_package_version"
+		"build": "tsdown src/index.ts src/uam/index.ts src/project-io.ts src/node.ts src/web.ts src/image-validation-worker.ts --format esm,cjs --platform neutral --external node:fs --external node:path --external node:fs/promises --env.PACKAGE_VERSION=$npm_package_version",
+		"build:watch": "tsdown src/index.ts src/uam/index.ts src/project-io.ts src/node.ts src/web.ts src/image-validation-worker.ts --watch --format esm,cjs --platform neutral --env.PACKAGE_VERSION=$npm_package_version"
 	},
 	"keywords": [
 		"fairygui",
@@ -93,6 +97,7 @@
 	},
 	"dependencies": {
 		"fast-xml-parser": "^5.0.0",
+		"jpeg-js": "0.4.4",
 		"pako": "^2.1.0",
 		"property-graph": "^4.1.0"
 	}

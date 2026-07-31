@@ -189,6 +189,180 @@ test('image resource properties survive transaction, save/reload, inverse, and s
 	t.true(incompleteIssues.some((issue) => issue.code === 'invalid_resource_payload'));
 });
 
+test('image source replacement validates format and refreshes dimensions through inverse reload', async (t) => {
+	const project = await readProjectAsUam(new NodeIO(), LAYABOX_PROJECT_PATH, { hydrateResourceBytes: true });
+	const images = project.packages.flatMap((pkg) => pkg.resources.flatMap((resource) => (
+		resource.kind === 'image'
+			&& resource.sourceBytes instanceof Uint8Array
+			&& resource.dimensions
+			&& resource.fileName
+			? [{ pkg, resource }]
+			: []
+	)));
+	const pngImages = images.filter(({ resource }) => resource.fileName?.toLowerCase().endsWith('.png'));
+	const target = pngImages.find(({ resource }, index) => pngImages.some(({ resource: donor }, donorIndex) => (
+		donorIndex !== index
+		&& (resource.dimensions?.width !== donor.dimensions?.width
+			|| resource.dimensions?.height !== donor.dimensions?.height)
+	)));
+	const donor = target && pngImages.find(({ resource }) => resource.id !== target.resource.id
+		&& (resource.dimensions?.width !== target.resource.dimensions?.width
+			|| resource.dimensions?.height !== target.resource.dimensions?.height));
+	if (!target || !donor || !target.resource.sourceBytes || !target.resource.dimensions || !donor.resource.sourceBytes || !donor.resource.dimensions) {
+		t.fail('expected two hydrated PNG resources with different dimensions');
+		return;
+	}
+
+	const selector = { packageId: target.pkg.id, resourceId: target.resource.id };
+	const originalBytes = new Uint8Array(target.resource.sourceBytes);
+	const originalDimensions = structuredClone(target.resource.dimensions);
+	const imageProps = structuredClone(target.resource.image);
+	const forward: UamTransactionOperation = {
+		kind: 'replaceResourceBytes',
+		selector,
+		sourceBytes: new Uint8Array(donor.resource.sourceBytes),
+	};
+	t.deepEqual(validateTransactionSupport(project, [forward]), []);
+	const applied = applyUamTransaction(project, [forward]);
+	const appliedImage = applied.packages.find((pkg) => pkg.id === selector.packageId)?.resources
+		.find((resource) => resource.id === selector.resourceId);
+	if (appliedImage?.kind !== 'image') {
+		t.fail('expected replaced image resource');
+		return;
+	}
+	t.deepEqual(appliedImage.dimensions, donor.resource.dimensions);
+	t.deepEqual(appliedImage.sourceBytes, donor.resource.sourceBytes);
+	t.deepEqual(appliedImage.image, imageProps);
+
+	const committed = await roundTripCommittedProject(applied);
+	const committedImage = committed.packages.find((pkg) => pkg.id === selector.packageId)?.resources
+		.find((resource) => resource.id === selector.resourceId);
+	if (committedImage?.kind !== 'image') {
+		t.fail('expected reloaded replaced image resource');
+		return;
+	}
+	t.deepEqual(committedImage.dimensions, donor.resource.dimensions);
+	t.deepEqual(committedImage.sourceBytes, donor.resource.sourceBytes);
+	const staleMetadata = structuredClone(applied);
+	const staleImage = staleMetadata.packages.find((pkg) => pkg.id === selector.packageId)?.resources
+		.find((resource) => resource.id === selector.resourceId);
+	if (staleImage?.kind === 'image') staleImage.dimensions = structuredClone(originalDimensions);
+	const hydratedFromStaleMetadata = await roundTripCommittedProject(staleMetadata);
+	const hydratedStaleImage = hydratedFromStaleMetadata.packages.find((pkg) => pkg.id === selector.packageId)?.resources
+		.find((resource) => resource.id === selector.resourceId);
+	t.deepEqual(hydratedStaleImage?.kind === 'image' ? hydratedStaleImage.dimensions : undefined, donor.resource.dimensions);
+
+	const restored = await roundTripCommittedProject(applyUamTransaction(committed, [{
+		kind: 'replaceResourceBytes',
+		selector,
+		sourceBytes: originalBytes,
+	}]));
+	const restoredImage = restored.packages.find((pkg) => pkg.id === selector.packageId)?.resources
+		.find((resource) => resource.id === selector.resourceId);
+	if (restoredImage?.kind !== 'image') {
+		t.fail('expected inverse-reloaded image resource');
+		return;
+	}
+	t.deepEqual(restoredImage.dimensions, originalDimensions);
+	t.deepEqual(restoredImage.sourceBytes, originalBytes);
+	t.deepEqual(restoredImage.image, imageProps);
+
+	const invalidBytes = new Uint8Array([1, 2, 3, 4]);
+	const invalidIssues = validateTransactionSupport(project, [{ ...forward, sourceBytes: invalidBytes }]);
+	t.true(invalidIssues.some((issue) => issue.code === 'invalid_resource_bytes'
+		&& issue.path === 'operations[0].sourceBytes'));
+	const forgedPng = new Uint8Array(donor.resource.sourceBytes.slice(0, 24));
+	t.true(validateTransactionSupport(project, [{ ...forward, sourceBytes: forgedPng }])
+		.some((issue) => issue.code === 'invalid_resource_bytes'));
+	const invalidBatch = t.throws(() => applyUamTransaction(project, [
+		{ kind: 'setResourceFavorite', selector, favorite: !target.resource.favorite },
+		{ ...forward, sourceBytes: invalidBytes },
+	]), { instanceOf: UamTransactionError });
+	t.true(invalidBatch?.issues?.some((issue) => 'code' in issue && issue.code === 'invalid_resource_bytes') ?? false);
+	t.deepEqual(target.resource.sourceBytes, originalBytes);
+	t.deepEqual(target.resource.dimensions, originalDimensions);
+
+	const renamedToJpeg = target.resource.fileName!.replace(/\.[^.]+$/, '.jpg');
+	t.true(validateTransactionSupport(project, [
+		{ kind: 'renameResource', selector, newName: renamedToJpeg },
+		forward,
+	]).some((issue) => issue.code === 'invalid_resource_bytes'));
+	t.true(validateTransactionSupport(project, [
+		forward,
+		{ kind: 'renameResource', selector, newName: renamedToJpeg },
+	]).some((issue) => issue.code === 'invalid_resource_bytes'));
+	t.true(validateTransactionSupport(project, [
+		{ kind: 'renameResource', selector, newName: renamedToJpeg },
+		forward,
+		{ kind: 'renameResource', selector, newName: target.resource.fileName! },
+	]).some((issue) => issue.code === 'invalid_resource_bytes'
+		&& issue.path === 'operations[1].sourceBytes'));
+	t.deepEqual(validateTransactionSupport(project, [
+		forward,
+		{ kind: 'renameResource', selector, newName: renamedToJpeg },
+		{ kind: 'renameResource', selector, newName: target.resource.fileName! },
+	]), []);
+	const readdedImage = structuredClone(target.resource);
+	delete readdedImage.sourcePath;
+	readdedImage.name = 'replacement';
+	readdedImage.fileName = 'replacement.png';
+	const lifecycleReplacement: UamTransactionOperation[] = [
+		{ kind: 'renameResource', selector, newName: renamedToJpeg },
+		{ kind: 'removeResource', selector },
+		{ kind: 'addResource', selector: { packageId: selector.packageId }, resource: readdedImage },
+		forward,
+	];
+	t.deepEqual(validateTransactionSupport(project, lifecycleReplacement), []);
+	t.notThrows(() => applyUamTransaction(project, lifecycleReplacement));
+	const unsupported = structuredClone(project);
+	const unsupportedTarget = unsupported.packages.find((pkg) => pkg.id === selector.packageId)?.resources
+		.find((resource) => resource.id === selector.resourceId);
+	if (unsupportedTarget?.kind === 'image') unsupportedTarget.fileName = 'unsupported.webp';
+	t.true(validateTransactionSupport(unsupported, [forward])
+		.some((issue) => issue.code === 'unsupported_resource_mutation'));
+
+	const jpegImages = images.filter(({ resource }) => resource.sourceBytes?.[0] === 0xff && resource.sourceBytes[1] === 0xd8);
+	const jpeg = jpegImages.find(({ resource }, index) => jpegImages.some(({ resource: donor }, donorIndex) => (
+		donorIndex !== index
+		&& (resource.dimensions?.width !== donor.dimensions?.width
+			|| resource.dimensions?.height !== donor.dimensions?.height)
+	)));
+	const jpegDonor = jpeg && jpegImages.find(({ resource }) => resource.id !== jpeg.resource.id
+		&& (resource.dimensions?.width !== jpeg.resource.dimensions?.width
+			|| resource.dimensions?.height !== jpeg.resource.dimensions?.height));
+	if (!jpeg || !jpegDonor || !jpeg.resource.sourceBytes || !jpeg.resource.dimensions
+		|| !jpegDonor.resource.sourceBytes || !jpegDonor.resource.dimensions
+	) {
+		t.fail('expected two hydrated JPEG resources with different dimensions');
+		return;
+	}
+	const jpegProject = structuredClone(project);
+	const jpegTarget = jpegProject.packages.find((pkg) => pkg.id === jpeg.pkg.id)?.resources
+		.find((resource) => resource.id === jpeg.resource.id);
+	if (jpegTarget?.kind !== 'image') {
+		t.fail('expected cloned JPEG resource');
+		return;
+	}
+	jpegTarget.fileName = jpegTarget.fileName?.replace(/\.jpe?g$/i, '.JPEG');
+	const jpegOperation: UamTransactionOperation = {
+		kind: 'replaceResourceBytes',
+		selector: { packageId: jpeg.pkg.id, resourceId: jpeg.resource.id },
+		sourceBytes: new Uint8Array(jpegDonor.resource.sourceBytes),
+	};
+	t.deepEqual(validateTransactionSupport(jpegProject, [jpegOperation]), []);
+	t.true(validateTransactionSupport(jpegProject, [{
+		...jpegOperation,
+		sourceBytes: new Uint8Array(jpegDonor.resource.sourceBytes.slice(0, -2)),
+	}]).some((issue) => issue.code === 'invalid_resource_bytes'));
+	t.true(validateTransactionSupport(project, [{
+		...forward,
+		sourceBytes: new Uint8Array(jpeg.resource.sourceBytes),
+	}]).some((issue) => issue.code === 'invalid_resource_bytes'));
+	const replacedJpeg = applyUamTransaction(jpegProject, [jpegOperation]).packages
+		.find((pkg) => pkg.id === jpeg.pkg.id)?.resources.find((resource) => resource.id === jpeg.resource.id);
+	t.deepEqual(replacedJpeg?.kind === 'image' ? replacedJpeg.dimensions : undefined, jpegDonor.resource.dimensions);
+});
+
 test('assertTransactionSupported accepts current materialization scope and rejects unsupported cross-package refs', (t) => {
 	const buttonNodeProject = createSupportedProject();
 	const componentResource = buttonNodeProject.packages[0]!.resources[1];
