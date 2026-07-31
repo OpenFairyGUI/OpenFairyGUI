@@ -1,4 +1,4 @@
-import type { ProjectSourceFile } from '../io/project-io-contracts.js';
+import type { ProjectResourceFolder, ProjectSourceFile } from '../io/project-io-contracts.js';
 import type { UamAssetResource, UamProject } from './model.js';
 
 export function defaultAssetSourcePath(resource: UamAssetResource): string {
@@ -32,6 +32,9 @@ function projectSourceFiles(project: UamProject): Map<string, ProjectSourceFile>
 			fileName: 'package.xml',
 		});
 		const branches = new Set<string>();
+		for (const folder of pkg.folders) {
+			if (folder.branch) branches.add(folder.branch);
+		}
 		for (const resource of pkg.resources) {
 			if (resource.branch) branches.add(resource.branch);
 			const source = resource.kind === 'component'
@@ -60,6 +63,24 @@ export function staleSourceFiles(previousProject: UamProject, nextProject: UamPr
 	const previous = projectSourceFiles(previousProject);
 	const nextKeys = new Set([...projectSourceFiles(nextProject).values()].map(sourceFileKey));
 	return [...previous.values()].filter((source) => !nextKeys.has(sourceFileKey(source)));
+}
+
+function resourceFolderKey(folder: ProjectResourceFolder): string {
+	return [folder.branch, folder.packageName, folder.path].join('\0');
+}
+
+export function staleResourceFolders(previousProject: UamProject, nextProject: UamProject): ProjectResourceFolder[] {
+	const previous = previousProject.packages.flatMap((pkg) => pkg.folders.map((folder) => ({
+		packageName: pkg.name,
+		branch: folder.branch,
+		path: folder.path,
+	})));
+	const nextKeys = new Set(nextProject.packages.flatMap((pkg) => pkg.folders.map((folder) => resourceFolderKey({
+		packageName: pkg.name,
+		branch: folder.branch,
+		path: folder.path,
+	}))));
+	return previous.filter((folder) => !nextKeys.has(resourceFolderKey(folder)));
 }
 
 /** Marks hydrated resource bytes as committed at their current package-relative paths. */

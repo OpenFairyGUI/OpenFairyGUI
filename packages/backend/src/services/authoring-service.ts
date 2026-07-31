@@ -1,4 +1,4 @@
-import type { ProjectSourceFile } from '@openfairygui/core/project-io';
+import type { ProjectResourceFolder, ProjectSourceFile } from '@openfairygui/core/project-io';
 import {
 	commitUamProjectSourcePaths,
 	materializeUamProject,
@@ -41,6 +41,9 @@ function projectSourceFiles(project: UamProject): Map<string, ProjectSourceFile>
 			fileName: 'package.xml',
 		});
 		const branches = new Set<string>();
+		for (const folder of pkg.folders) {
+			if (folder.branch) branches.add(folder.branch);
+		}
 		for (const resource of pkg.resources) {
 			if (resource.branch) branches.add(resource.branch);
 			const fileName = resource.kind === 'component'
@@ -70,6 +73,24 @@ function sourceFileKey(source: ProjectSourceFile): string {
 	return [source.branch, source.packageName, source.path, source.fileName].join('\0');
 }
 
+function projectResourceFolders(project: UamProject): Map<string, ProjectResourceFolder> {
+	const result = new Map<string, ProjectResourceFolder>();
+	for (const pkg of project.packages) {
+		for (const folder of pkg.folders) {
+			result.set(`${pkg.id}/${folder.branch}/${folder.path}`, {
+				packageName: pkg.name,
+				branch: folder.branch,
+				path: folder.path,
+			});
+		}
+	}
+	return result;
+}
+
+function resourceFolderKey(folder: ProjectResourceFolder): string {
+	return [folder.branch, folder.packageName, folder.path].join('\0');
+}
+
 function recordStaleProjectFiles(
 	session: Parameters<typeof toSessionSnapshot>[0],
 	previousProject: UamProject,
@@ -84,6 +105,15 @@ function recordStaleProjectFiles(
 	}
 	for (const key of nextSourceKeys) {
 		session.pendingStaleSourceFiles.delete(key);
+	}
+	const previousFolders = projectResourceFolders(previousProject);
+	const nextFolderKeys = new Set([...projectResourceFolders(nextProject).values()].map(resourceFolderKey));
+	for (const folder of previousFolders.values()) {
+		const key = resourceFolderKey(folder);
+		if (!nextFolderKeys.has(key)) session.pendingStaleResourceFolders.set(key, folder);
+	}
+	for (const key of nextFolderKeys) {
+		session.pendingStaleResourceFolders.delete(key);
 	}
 }
 
@@ -411,11 +441,13 @@ export class AuthoringService {
 				document: materializeUamProject(session.project),
 				fairyPath: session.fairyPath,
 				staleSourceFiles: [...session.pendingStaleSourceFiles.values()],
+				staleResourceFolders: [...session.pendingStaleResourceFolders.values()],
 				writtenPaths: committedPaths,
 				failedPaths,
 			});
 			session.fileSystem ??= fileSystem;
 			session.pendingStaleSourceFiles.clear();
+			session.pendingStaleResourceFolders.clear();
 			commitUamProjectSourcePaths(session.project);
 			session.lastSavedRevision = session.revision;
 			session.dirty = false;
@@ -650,11 +682,18 @@ export class AuthoringService {
 				document,
 				fairyPath,
 				staleSourceFiles: isSessionStorageTarget ? [...session.pendingStaleSourceFiles.values()] : [],
+				staleResourceFolders: isSessionStorageTarget ? [...session.pendingStaleResourceFolders.values()] : [],
 				writtenPaths,
 				failedPaths,
 			});
-			if (isSessionStorageTarget) session.pendingStaleSourceFiles.clear();
-			if (storageTarget && !isSessionStorageTarget) session.pendingStaleSourceFiles.clear();
+			if (isSessionStorageTarget) {
+				session.pendingStaleSourceFiles.clear();
+				session.pendingStaleResourceFolders.clear();
+			}
+			if (storageTarget && !isSessionStorageTarget) {
+				session.pendingStaleSourceFiles.clear();
+				session.pendingStaleResourceFolders.clear();
+			}
 			if (isSessionStorageTarget || storageTarget) commitUamProjectSourcePaths(session.project);
 			if (storageTarget) {
 				this.context.sessionsByPath.delete(session.canonicalPathKey);

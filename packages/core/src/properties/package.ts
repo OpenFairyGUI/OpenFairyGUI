@@ -22,6 +22,13 @@ type PackageResource =
 	| SpineResource
 	| DragonBonesResource;
 
+export interface PackageResourceFolder {
+	branch: string;
+	path: string;
+	favorite: boolean;
+	atlas: string;
+}
+
 interface IPackage extends IExtensibleProperty {
 	id: string;
 	compressPNG: boolean | null;
@@ -32,6 +39,7 @@ interface IPackage extends IExtensibleProperty {
 	publishPackageCount: number;
 	genCode: boolean;
 	codePath: string;
+	resourceFolders: PackageResourceFolder[];
 	resources: RefSet<Property>;
 	atlases: RefSet<Atlas>;
 	dependencies: RefSet<Property>;
@@ -63,6 +71,7 @@ export class Package extends ExtensibleProperty<IPackage> {
 			publishPackageCount: 0,
 			genCode: false,
 			codePath: '',
+			resourceFolders: [],
 			resources: new RefSet<Property>(),
 			atlases: new RefSet<Atlas>(),
 			dependencies: new RefSet<Property>(),
@@ -139,6 +148,14 @@ export class Package extends ExtensibleProperty<IPackage> {
 
 	public setCodePath(path: string): this {
 		return this.set('codePath', path);
+	}
+
+	public listResourceFolders(): PackageResourceFolder[] {
+		return (this.get('resourceFolders' as never) as PackageResourceFolder[]).map((folder) => ({ ...folder }));
+	}
+
+	public setResourceFolders(folders: PackageResourceFolder[]): this {
+		return this.set('resourceFolders' as never, folders.map((folder) => ({ ...folder })) as never);
 	}
 
 	public addResource(resource: PackageResource): this {

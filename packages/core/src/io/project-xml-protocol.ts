@@ -78,6 +78,14 @@ const PACKAGE_RESOURCE_BASE_ATTRS = {
 	favorite: { canonical: 'favorite' },
 } satisfies XmlAttrMap;
 
+const PACKAGE_RESOURCE_FOLDER_ATTRS = {
+	id: PACKAGE_RESOURCE_BASE_ATTRS.id,
+	name: PACKAGE_RESOURCE_BASE_ATTRS.name,
+	path: PACKAGE_RESOURCE_BASE_ATTRS.path,
+	favorite: PACKAGE_RESOURCE_BASE_ATTRS.favorite,
+	atlas: { canonical: 'atlas' },
+} satisfies XmlAttrMap;
+
 const PACKAGE_IMAGE_RESOURCE_ATTRS = {
 	atlas: { canonical: 'atlas' },
 	scale: { canonical: 'scale' },
@@ -553,6 +561,7 @@ const PACKAGE_PUBLISH_NODE = defineNode(
 	},
 );
 const PACKAGE_RESOURCE_NODE = defineNode(PACKAGE_RESOURCE_BASE_ATTRS);
+const PACKAGE_RESOURCE_FOLDER_NODE = defineNode(PACKAGE_RESOURCE_FOLDER_ATTRS);
 const PACKAGE_IMAGE_RESOURCE_NODE = defineNode(PACKAGE_IMAGE_RESOURCE_ATTRS);
 const PACKAGE_FONT_RESOURCE_NODE = defineNode(PACKAGE_FONT_RESOURCE_ATTRS);
 const PACKAGE_MOVIE_CLIP_RESOURCE_NODE = defineNode(PACKAGE_MOVIE_CLIP_RESOURCE_ATTRS);
@@ -864,6 +873,7 @@ export const PROJECT_XML_PROTOCOL = {
 	packagePublish: PACKAGE_PUBLISH_NODE,
 	packagePublishAtlas: PACKAGE_PUBLISH_ATLAS_NODE,
 	packageResource: PACKAGE_RESOURCE_NODE,
+	packageResourceFolder: PACKAGE_RESOURCE_FOLDER_NODE,
 	packageImageResource: PACKAGE_IMAGE_RESOURCE_NODE,
 	packageFontResource: PACKAGE_FONT_RESOURCE_NODE,
 	packageMovieClipResource: PACKAGE_MOVIE_CLIP_RESOURCE_NODE,

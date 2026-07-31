@@ -43,6 +43,7 @@ import type {
 	UamProgressBarNode,
 	UamRelation,
 	UamResource,
+	UamResourceFolder,
 	UamResourceRef,
 	UamRichTextNode,
 	UamScrollBarNode,
@@ -60,6 +61,7 @@ import type {
 	UamXYGearBinding,
 	UamXYGearValue,
 } from './model.js';
+import { normalizeResourceFolderPath } from '../utils/resource-folder.js';
 
 function normalizePackagePublish(publish: UamPackagePublish | null | undefined): UamPackagePublish | null {
 	if (!publish) return null;
@@ -1051,11 +1053,31 @@ function normalizeResource(resource: UamResource): UamResource {
 }
 
 function normalizePackage(pkg: UamPackage): UamPackage {
+	const resources = (pkg.resources ?? []).map(normalizeResource);
+	const folders = (pkg.folders ?? []).map((folder): UamResourceFolder => ({
+		branch: folder.branch ?? '',
+		path: normalizeResourceFolderPath(folder.path),
+		favorite: folder.favorite ?? false,
+		atlas: folder.atlas ?? '',
+	}));
+	const folderKeys = new Set(folders.map((folder) => `${folder.branch}\0${folder.path}`));
+	for (const resource of resources) {
+		const segments = normalizeResourceFolderPath(resource.path).split('/').filter(Boolean);
+		let path = '/';
+		for (const segment of segments) {
+			path = `${path}${segment}/`;
+			const key = `${resource.branch}\0${path}`;
+			if (folderKeys.has(key)) continue;
+			folderKeys.add(key);
+			folders.push({ branch: resource.branch, path, favorite: false, atlas: '' });
+		}
+	}
 	return {
 		id: pkg.id,
 		name: pkg.name,
 		publish: normalizePackagePublish(pkg.publish),
-		resources: (pkg.resources ?? []).map(normalizeResource),
+		folders,
+		resources,
 	};
 }
 

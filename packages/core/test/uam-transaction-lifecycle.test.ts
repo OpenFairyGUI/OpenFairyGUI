@@ -539,7 +539,24 @@ test('resource writes clean only explicit prior project sources and commit their
 		await writeProjectFromUam(io, removed, outFairy, { previousProject: renamed });
 		await t.throwsAsync(fs.access(path.join(tmpDir, 'assets', 'Main', 'moved', 'renamed.png')));
 
-		const withPackage = applyUamTransaction(removed, [
+		const withFolder = applyUamTransaction(removed, [{
+			kind: 'addResourceFolder', selector: { packageId: 'pkg001' }, path: '/empty/',
+		}]);
+		await writeProjectFromUam(io, withFolder, outFairy, { previousProject: removed });
+		await fs.access(path.join(tmpDir, 'assets', 'Main', 'empty'));
+		const renamedFolder = applyUamTransaction(withFolder, [{
+			kind: 'renameResourceFolder', selector: { packageId: 'pkg001', path: '/empty/' }, newName: 'renamed',
+		}]);
+		await writeProjectFromUam(io, renamedFolder, outFairy, { previousProject: withFolder });
+		await t.throwsAsync(fs.access(path.join(tmpDir, 'assets', 'Main', 'empty')));
+		await fs.access(path.join(tmpDir, 'assets', 'Main', 'renamed'));
+		const withoutFolder = applyUamTransaction(renamedFolder, [{
+			kind: 'removeResourceFolder', selector: { packageId: 'pkg001', path: '/renamed/' },
+		}]);
+		await writeProjectFromUam(io, withoutFolder, outFairy, { previousProject: renamedFolder });
+		await t.throwsAsync(fs.access(path.join(tmpDir, 'assets', 'Main', 'renamed')));
+
+		const withPackage = applyUamTransaction(withoutFolder, [
 			{ kind: 'addPackage', package: createLifecyclePackage(), atIndex: 1 },
 			{
 				kind: 'addComponent',
@@ -548,7 +565,7 @@ test('resource writes clean only explicit prior project sources and commit their
 			atIndex: 0,
 			},
 		]);
-		await writeProjectFromUam(io, withPackage, outFairy, { previousProject: removed });
+		await writeProjectFromUam(io, withPackage, outFairy, { previousProject: withoutFolder });
 		const renamedPackage = applyUamTransaction(withPackage, [
 			{ kind: 'renamePackage', selector: { packageId: 'pkg002' }, newName: 'OverlayRenamed' },
 		]);

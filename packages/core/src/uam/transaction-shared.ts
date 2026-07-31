@@ -24,6 +24,11 @@ export type UamResourceLifecycleOperation = Extract<
 	{ kind: 'addResource' | 'removeResource' }
 >;
 
+export type UamResourceFolderLifecycleOperation = Extract<
+	UamTransactionOperation,
+	{ kind: 'addResourceFolder' | 'renameResourceFolder' | 'moveResourceFolder' | 'removeResourceFolder' }
+>;
+
 export function isLifecycleOperation(operation: UamTransactionOperation): operation is UamLifecycleOperation {
 	return operation.kind === 'addPackage'
 		|| operation.kind === 'renamePackage'
@@ -41,11 +46,22 @@ export function isResourceLifecycleOperation(operation: UamTransactionOperation)
 	return operation.kind === 'addResource' || operation.kind === 'removeResource';
 }
 
+export function isResourceFolderLifecycleOperation(
+	operation: UamTransactionOperation,
+): operation is UamResourceFolderLifecycleOperation {
+	return operation.kind === 'addResourceFolder'
+		|| operation.kind === 'renameResourceFolder'
+		|| operation.kind === 'moveResourceFolder'
+		|| operation.kind === 'removeResourceFolder';
+}
+
 export function isUamNativeOperation(operation: UamTransactionOperation): boolean {
 	return operation.kind === 'setComponentProps'
 		|| operation.kind === 'setDisplayNodeProps'
 		|| operation.kind === 'setResourceFavorite'
+		|| operation.kind === 'setResourceExported'
 		|| operation.kind === 'setImageResourceProps'
+		|| isResourceFolderLifecycleOperation(operation)
 		|| isResourceLifecycleOperation(operation)
 		|| isLifecycleOperation(operation)
 		|| isDisplayListRewriteOperation(operation);

@@ -22,6 +22,7 @@ export interface BackendAsyncStorageAdapter {
 	resolvePath?(filePath: string): Promise<string>;
 	openExclusive?(filePath: string): Promise<BackendFileHandle>;
 	unlink(filePath: string): Promise<void>;
+	rmdir(dirPath: string): Promise<void>;
 	join?(...paths: string[]): string;
 	dirname?(filePath: string): string;
 	resolve?(...paths: string[]): string;
@@ -117,6 +118,9 @@ export function createBackendStorageFileSystem(storage: BackendAsyncStorageAdapt
 	if (typeof storage.unlink !== 'function') {
 		throw createPathError('ENOTSUP', 'Storage adapter must provide unlink() for project resource lifecycle writes.');
 	}
+	if (typeof storage.rmdir !== 'function') {
+		throw createPathError('ENOTSUP', 'Storage adapter must provide rmdir() for project resource folder lifecycle writes.');
+	}
 	const lockedPaths = new Set<string>();
 
 	const fileSystem: BackendStorageFileSystem = {
@@ -178,6 +182,9 @@ export function createBackendStorageFileSystem(storage: BackendAsyncStorageAdapt
 			const resolved = fileSystem.resolve(filePath);
 			lockedPaths.delete(resolved);
 			return storage.unlink(resolved);
+		},
+		rmdir(dirPath: string): Promise<void> {
+			return storage.rmdir(fileSystem.resolve(dirPath));
 		},
 		join(...paths: string[]): string {
 			return storage.join ? storage.join(...paths) : joinStoragePath(...paths);

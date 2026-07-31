@@ -30,6 +30,7 @@ export interface BackendFileSystem {
 	resolvePath(filePath: string): Promise<string>;
 	openExclusive(filePath: string): Promise<BackendFileHandle>;
 	unlink(filePath: string): Promise<void>;
+	rmdir(dirPath: string): Promise<void>;
 	join(...paths: string[]): string;
 	dirname(filePath: string): string;
 	resolve(...paths: string[]): string;

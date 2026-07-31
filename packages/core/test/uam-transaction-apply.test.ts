@@ -5,6 +5,7 @@ import {
 	createDefaultUamPlainTextProperties,
 	createUamTransaction,
 	parseJta,
+	validateTransactionSupport,
 	type UamTextNode,
 } from '../src/index.js';
 
@@ -65,6 +66,120 @@ test('parseJta derives v100 bounds when frames stay on the negative axes', (t) =
 	);
 });
 
+test('resource exported transactions support assets, components, inverse, and source immutability', (t) => {
+	const project = createSupportedProject();
+	const operations = [
+		{ kind: 'setResourceExported' as const, selector: { packageId: 'pkg001', resourceId: 'img001' }, exported: false },
+		{ kind: 'setResourceExported' as const, selector: { packageId: 'pkg001', resourceId: 'cmp001' }, exported: false },
+	];
+
+	t.deepEqual(validateTransactionSupport(project, operations), []);
+	const result = applyUamTransaction(project, operations);
+	t.true(project.packages[0]?.resources.find((resource) => resource.id === 'img001')?.exported);
+	t.true(project.packages[0]?.resources.find((resource) => resource.id === 'cmp001')?.exported);
+	t.false(result.packages[0]?.resources.find((resource) => resource.id === 'img001')?.exported);
+	t.false(result.packages[0]?.resources.find((resource) => resource.id === 'cmp001')?.exported);
+
+	const restored = applyUamTransaction(result, operations.map((operation) => ({ ...operation, exported: true })));
+	t.true(restored.packages[0]?.resources.find((resource) => resource.id === 'img001')?.exported);
+	t.true(restored.packages[0]?.resources.find((resource) => resource.id === 'cmp001')?.exported);
+
+	const invalid = validateTransactionSupport(project, [{ ...operations[0]!, exported: 'true' as unknown as boolean }]);
+	t.is(invalid[0]?.code, 'invalid_resource_payload');
+	t.is(invalid[0]?.path, 'operations[0].exported');
+
+	const unknown = validateTransactionSupport(project, [{ kind: 'unknownResourceOperation' } as never]);
+	t.is(unknown[0]?.code, 'unsupported_operation');
+	t.is(unknown[0]?.path, 'operations[0].kind');
+
+	const mixed = applyUamTransaction(project, [
+		operations[0]!,
+		{ kind: 'addResourceFolder', selector: { packageId: 'pkg001' }, path: '/mixed/' },
+		{ kind: 'renameResource', selector: { packageId: 'pkg001', resourceId: 'cmp001' }, newName: 'RenamedView' },
+	]);
+	t.false(mixed.packages[0]?.resources.find((resource) => resource.id === 'img001')?.exported);
+	t.true(mixed.packages[0]?.folders.some((folder) => folder.path === '/mixed/'));
+	t.is(mixed.packages[0]?.resources.find((resource) => resource.id === 'cmp001')?.name, 'RenamedView');
+});
+
+test('resource folder lifecycle supports empty-folder forward, inverse, and atomic groups', (t) => {
+	const project = createSupportedProject();
+	project.packages[0]!.folders = [
+		{ branch: '', path: '/images/', favorite: false, atlas: '' },
+		{ branch: '', path: '/empty/', favorite: true, atlas: 'atlas0' },
+	];
+	const originalFolders = structuredClone(project.packages[0]!.folders);
+
+	const atomic = [
+		{ kind: 'addResourceFolder' as const, selector: { packageId: 'pkg001' }, path: '/work/' },
+		{ kind: 'renameResourceFolder' as const, selector: { packageId: 'pkg001', path: '/work/' }, newName: 'renamed' },
+		{ kind: 'moveResourceFolder' as const, selector: { packageId: 'pkg001', path: '/renamed/' }, toPath: '/empty/' },
+		{ kind: 'removeResourceFolder' as const, selector: { packageId: 'pkg001', path: '/empty/renamed/' } },
+	];
+	t.deepEqual(validateTransactionSupport(project, atomic), []);
+	t.deepEqual(applyUamTransaction(project, atomic).packages[0]!.folders, originalFolders);
+	t.deepEqual(project.packages[0]!.folders, originalFolders);
+
+	const added = applyUamTransaction(project, [{
+		kind: 'addResourceFolder', selector: { packageId: 'pkg001' }, path: '/added/',
+	}]);
+	t.deepEqual(applyUamTransaction(added, [{
+		kind: 'removeResourceFolder', selector: { packageId: 'pkg001', path: '/added/' },
+	}]).packages[0]!.folders, originalFolders);
+
+	const renamed = applyUamTransaction(project, [{
+		kind: 'renameResourceFolder', selector: { packageId: 'pkg001', path: '/empty/' }, newName: 'renamed',
+	}]);
+	t.deepEqual(applyUamTransaction(renamed, [{
+		kind: 'renameResourceFolder', selector: { packageId: 'pkg001', path: '/renamed/' }, newName: 'empty',
+	}]).packages[0]!.folders, originalFolders);
+
+	const moved = applyUamTransaction(project, [{
+		kind: 'moveResourceFolder', selector: { packageId: 'pkg001', path: '/empty/' }, toPath: '/images/',
+	}]);
+	t.deepEqual(applyUamTransaction(moved, [{
+		kind: 'moveResourceFolder', selector: { packageId: 'pkg001', path: '/images/empty/' }, toPath: '/',
+	}]).packages[0]!.folders, originalFolders);
+
+	const removed = applyUamTransaction(project, [{
+		kind: 'removeResourceFolder',
+		selector: { packageId: 'pkg001', path: '/empty/' },
+	}]);
+	t.false(removed.packages[0]!.folders.some((folder) => folder.path === '/empty/'));
+	const restored = applyUamTransaction(removed, [{
+		kind: 'addResourceFolder',
+		selector: { packageId: 'pkg001' },
+		path: '/empty/',
+		favorite: true,
+		atlas: 'atlas0',
+	}]);
+	t.deepEqual(restored.packages[0]!.folders, originalFolders);
+});
+
+test('resource folder preflight rejects invalid selectors, conflicts, and non-empty changes', (t) => {
+	const project = createSupportedProject();
+	project.packages[0]!.folders = [
+		{ branch: '', path: '/images/', favorite: false, atlas: '' },
+		{ branch: '', path: '/empty/', favorite: false, atlas: '' },
+	];
+	const operations = [
+		{ kind: 'removeResourceFolder' as const, selector: { packageId: 'pkg001', path: '/' } },
+		{ kind: 'addResourceFolder' as const, selector: { packageId: 'pkg001' }, path: '/missing/child/' },
+		{ kind: 'addResourceFolder' as const, selector: { packageId: 'pkg001' }, path: '/empty/' },
+		{ kind: 'addResourceFolder' as const, selector: { packageId: 'pkg001' }, path: '/images/background.png/' },
+		{ kind: 'renameResourceFolder' as const, selector: { packageId: 'pkg001', path: '/images/' }, newName: 'renamed' },
+		{ kind: 'moveResourceFolder' as const, selector: { packageId: 'pkg001', path: '/images/' }, toPath: '/empty/' },
+		{ kind: 'removeResourceFolder' as const, selector: { packageId: 'pkg001', path: '/images/' } },
+	];
+	const issues = validateTransactionSupport(project, operations);
+	t.true(issues.some((issue) => issue.code === 'invalid_resource_folder_selector'));
+	t.true(issues.some((issue) => issue.code === 'invalid_resource_folder_path'));
+	t.true(issues.some((issue) => issue.code === 'resource_folder_conflict'));
+	t.true(issues.filter((issue) => issue.code === 'resource_folder_not_empty').length >= 3);
+	t.throws(() => applyUamTransaction(project, operations), { instanceOf: UamTransactionError });
+	t.deepEqual(project.packages[0]!.folders.map((folder) => folder.path), ['/images/', '/empty/']);
+});
+
 test('resource and display-list operations respect the frozen Phase A contracts', (t) => {
 	const project = createSupportedProject();
 	const result = applyUamTransaction(project, [
@@ -121,6 +236,7 @@ test('resource and display-list operations respect the frozen Phase A contracts'
 
 	const movedImage = result.packages[0]!.resources.find((resource) => resource.id === 'img001');
 	t.is(movedImage?.path, '/moved');
+	t.true(result.packages[0]!.folders.some((folder) => folder.path === '/moved/'));
 	t.is(movedImage?.name, 'background.png');
 	t.is(movedImage?.branch, '');
 	t.deepEqual(movedImage?.branchItemIds, []);

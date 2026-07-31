@@ -12,6 +12,7 @@ import type {
 	UamTextProperties,
 	UamValidationIssue,
 } from './model.js';
+import { normalizeResourceFolderPath, resourceFolderParentPath } from '../utils/resource-folder.js';
 
 function pushIssue(issues: UamValidationIssue[], path: string, message: string): void {
 	issues.push({ path, message });
@@ -461,6 +462,41 @@ function validatePackageOutputTargets(
 		pushIssue(issues, `${pkgPath}.name`, `Invalid package output name "${pkg.name}".`);
 	}
 	const outputs = new Map<string, string>();
+	const folderKeys = new Set<string>();
+	for (const [folderIndex, folder] of pkg.folders.entries()) {
+		const folderPath = `${pkgPath}.folders[${folderIndex}]`;
+		if (folder.branch && !isSafePathSegment(folder.branch)) {
+			pushIssue(issues, `${folderPath}.branch`, `Invalid package branch name "${folder.branch}".`);
+		}
+		const normalizedPath = normalizeResourceFolderPath(folder.path);
+		if (folder.path === '/' || folder.path !== normalizedPath || !folder.path.split('/').filter(Boolean).every(isSafePathSegment)) {
+			pushIssue(issues, `${folderPath}.path`, 'Resource folder path must be canonical, non-root, and traversal-free.');
+			continue;
+		}
+		if (typeof folder.favorite !== 'boolean') {
+			pushIssue(issues, `${folderPath}.favorite`, 'Resource folder favorite must be boolean.');
+		}
+		if (typeof folder.atlas !== 'string') {
+			pushIssue(issues, `${folderPath}.atlas`, 'Resource folder atlas must be a string.');
+		}
+		const key = `${folder.branch}\0${folder.path}`;
+		if (folderKeys.has(key)) {
+			pushIssue(issues, `${folderPath}.path`, `Duplicate resource folder path "${folder.path}".`);
+		}
+		folderKeys.add(key);
+		const parentPath = resourceFolderParentPath(folder.path);
+		if (parentPath !== '/' && !folderKeys.has(`${folder.branch}\0${parentPath}`)
+			&& !pkg.folders.some((candidate) => candidate.branch === folder.branch && candidate.path === parentPath)
+		) {
+			pushIssue(issues, `${folderPath}.path`, `Parent resource folder "${parentPath}" does not exist.`);
+		}
+		const target = folder.path.replace(/^\/+|\/+$/g, '');
+		const descriptor = folder.branch ? 'package_branch.xml' : 'package.xml';
+		if (target === descriptor) {
+			pushIssue(issues, `${folderPath}.path`, `Resource folder output "${target}" conflicts with the package descriptor.`);
+		}
+		outputs.set(`${folder.branch}\0${target}`, folderPath);
+	}
 	for (const [resourceIndex, resource] of pkg.resources.entries()) {
 		const resourcePath = `${pkgPath}.resources[${resourceIndex}]`;
 		if (resource.branch && !isSafePathSegment(resource.branch)) {

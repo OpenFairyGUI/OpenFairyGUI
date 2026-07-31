@@ -34,6 +34,7 @@ function createSupportedProject(): UamProject {
 				id: 'pkg001',
 				name: 'Main',
 				publish: null,
+				folders: [{ branch: '', path: '/images/', favorite: false, atlas: '' }],
 				resources: [
 					{
 						kind: 'image',

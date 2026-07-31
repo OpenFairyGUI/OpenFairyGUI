@@ -44,6 +44,7 @@ function createWriterFileSystem(
 		join: (...paths) => fileSystem.join(...paths),
 		dirname: (path) => fileSystem.dirname(path),
 		unlink: (path) => trackWrite(path, () => fileSystem.unlink(path)),
+		rmdir: (path) => trackWrite(path, () => fileSystem.rmdir(path)),
 	};
 }
 
@@ -52,6 +53,7 @@ export async function writeSessionProject(input: {
 	document: Document;
 	fairyPath: string;
 	staleSourceFiles: ProjectSourceFile[];
+	staleResourceFolders: import('@openfairygui/core/project-io').ProjectResourceFolder[];
 	writtenPaths: string[];
 	failedPaths: string[];
 }): Promise<void> {
@@ -60,5 +62,6 @@ export async function writeSessionProject(input: {
 	);
 	await writer.write(input.document, input.fairyPath, {
 		staleSourceFiles: input.staleSourceFiles,
+		staleResourceFolders: input.staleResourceFolders,
 	});
 }

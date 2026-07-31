@@ -153,6 +153,15 @@ export function createFileSystemAccessFileSystem(root: FileSystemAccessDirectory
 			}
 			await parent.removeEntry(fileName);
 		},
+		async rmdir(path: string): Promise<void> {
+			const dirName = splitPath(path).pop();
+			if (!dirName) throw missingPathError(path);
+			const parent = await getDirectory(root, dirname(path));
+			if (!parent.removeEntry) {
+				throw new Error('FileSystemDirectoryHandle-like object must provide removeEntry() for folder cleanup.');
+			}
+			await parent.removeEntry(dirName);
+		},
 		join: joinPath,
 		dirname,
 	};

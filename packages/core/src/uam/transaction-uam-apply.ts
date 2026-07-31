@@ -1,4 +1,9 @@
 import type { UamAssetResource, UamComponentResource, UamDisplayNode, UamPackage, UamProject } from './model.js';
+import {
+	normalizeResourceFolderPath,
+	resourceFolderName,
+	resourceFolderParentPath,
+} from '../utils/resource-folder.js';
 import { normalizeUamProject } from './normalize.js';
 import {
 	UamTransactionError,
@@ -21,6 +26,7 @@ import {
 	type UamDisplayListRewriteOperation,
 	type UamLifecycleOperation,
 	type UamResourceLifecycleOperation,
+	type UamResourceFolderLifecycleOperation,
 	withDefaultOwnPackageRef,
 } from './transaction-shared.js';
 
@@ -182,6 +188,44 @@ export function applyUamResourceLifecycleOperation(
 	}
 }
 
+export function applyUamResourceFolderLifecycleOperation(
+	project: UamProject,
+	operation: UamResourceFolderLifecycleOperation,
+): void {
+	const pkg = requirePackageSpec(project, operation.selector.packageId);
+	if (operation.kind === 'addResourceFolder') {
+		pkg.folders.push({
+			branch: operation.branch ?? '',
+			path: normalizeResourceFolderPath(operation.path),
+			favorite: operation.favorite ?? false,
+			atlas: operation.atlas ?? '',
+		});
+		return;
+	}
+
+	const branch = operation.selector.branch ?? '';
+	const folderIndex = pkg.folders.findIndex((folder) => (
+		folder.branch === branch && folder.path === operation.selector.path
+	));
+	const folder = pkg.folders[folderIndex];
+	if (!folder) {
+		throw new Error(`Resource folder "${branch}:${operation.selector.path}" was not found in package "${pkg.id}".`);
+	}
+
+	switch (operation.kind) {
+		case 'renameResourceFolder':
+			folder.path = normalizeResourceFolderPath(
+				`${resourceFolderParentPath(folder.path)}/${operation.newName}`,
+			);
+			return;
+		case 'moveResourceFolder':
+			folder.path = normalizeResourceFolderPath(`${operation.toPath}/${resourceFolderName(folder.path)}`);
+			return;
+		case 'removeResourceFolder':
+			pkg.folders.splice(folderIndex, 1);
+	}
+}
+
 
 type UamTextLikeDisplayNode = Extract<UamDisplayNode, { kind: 'text' | 'richText' | 'textInput' }>;
 
@@ -323,6 +367,14 @@ function applyUamNativeOperation(project: UamProject, operation: UamTransactionO
 			found.resource.favorite = operation.favorite;
 			return;
 		}
+		case 'setResourceExported': {
+			const found = findResourceSpecWithPath(project, operation.selector);
+			if (!found) {
+				throw new Error(`Resource "${operation.selector.resourceId}" was not found in package "${operation.selector.packageId}".`);
+			}
+			found.resource.exported = operation.exported;
+			return;
+		}
 		case 'setImageResourceProps': {
 			const found = findResourceSpecWithPath(project, operation.selector);
 			if (!found || found.resource.kind !== 'image') {
@@ -342,6 +394,12 @@ function applyUamNativeOperation(project: UamProject, operation: UamTransactionO
 		case 'addResource':
 		case 'removeResource':
 			applyUamResourceLifecycleOperation(project, operation);
+			return;
+		case 'addResourceFolder':
+		case 'renameResourceFolder':
+		case 'moveResourceFolder':
+		case 'removeResourceFolder':
+			applyUamResourceFolderLifecycleOperation(project, operation);
 			return;
 		case 'addPackage':
 		case 'renamePackage':

@@ -55,7 +55,15 @@ export interface UamPackage {
 	id: string;
 	name: string;
 	publish: UamPackagePublish | null;
+	folders: UamResourceFolder[];
 	resources: UamResource[];
+}
+
+export interface UamResourceFolder {
+	branch: string;
+	path: string;
+	favorite: boolean;
+	atlas: string;
 }
 
 export type UamResource =

@@ -32,6 +32,11 @@ export interface UamPackageSelector {
 	packageId: string;
 }
 
+export interface UamResourceFolderSelector extends UamPackageSelector {
+	branch?: string;
+	path: string;
+}
+
 export interface UamComponentSelector {
 	packageId: string;
 	componentResourceId: string;
@@ -117,6 +122,38 @@ export interface SetResourceFavoriteOperation extends UamTransactionOperationBas
 	kind: 'setResourceFavorite';
 	selector: UamResourceSelector;
 	favorite: boolean;
+}
+
+export interface SetResourceExportedOperation extends UamTransactionOperationBase {
+	kind: 'setResourceExported';
+	selector: UamResourceSelector;
+	exported: boolean;
+}
+
+export interface AddResourceFolderOperation extends UamTransactionOperationBase {
+	kind: 'addResourceFolder';
+	selector: UamPackageSelector;
+	path: string;
+	branch?: string;
+	favorite?: boolean;
+	atlas?: string;
+}
+
+export interface RenameResourceFolderOperation extends UamTransactionOperationBase {
+	kind: 'renameResourceFolder';
+	selector: UamResourceFolderSelector;
+	newName: string;
+}
+
+export interface MoveResourceFolderOperation extends UamTransactionOperationBase {
+	kind: 'moveResourceFolder';
+	selector: UamResourceFolderSelector;
+	toPath: string;
+}
+
+export interface RemoveResourceFolderOperation extends UamTransactionOperationBase {
+	kind: 'removeResourceFolder';
+	selector: UamResourceFolderSelector;
 }
 
 export interface SetImageResourcePropsOperation extends UamTransactionOperationBase {
@@ -279,6 +316,11 @@ export type UamTransactionOperation =
 	| RenameResourceOperation
 	| MoveResourceOperation
 	| SetResourceFavoriteOperation
+	| SetResourceExportedOperation
+	| AddResourceFolderOperation
+	| RenameResourceFolderOperation
+	| MoveResourceFolderOperation
+	| RemoveResourceFolderOperation
 	| SetImageResourcePropsOperation
 	| AddResourceOperation
 	| AddPackageOperation
@@ -307,6 +349,7 @@ export type UamTransactionOperation =
 	| RemoveGearOperation;
 
 export type UamTransactionSupportIssueCode =
+	| 'unsupported_operation'
 	| 'unsupported_resource_kind'
 	| 'unsupported_display_node_kind'
 	| 'unsupported_cross_package_image_ref'
@@ -320,6 +363,10 @@ export type UamTransactionSupportIssueCode =
 	| 'invalid_display_node_payload'
 	| 'invalid_resource_name'
 	| 'invalid_resource_path'
+	| 'invalid_resource_folder_selector'
+	| 'invalid_resource_folder_path'
+	| 'resource_folder_conflict'
+	| 'resource_folder_not_empty'
 	| 'invalid_attach_index'
 	| 'invalid_controller_payload'
 	| 'invalid_transition_payload'

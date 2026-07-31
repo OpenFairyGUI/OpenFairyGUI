@@ -33,6 +33,10 @@ class MemoryBrowserStorage implements BackendAsyncStorageAdapter {
 		return this.files.has(this.normalize(filePath));
 	}
 
+	public hasDirectory(dirPath: string): boolean {
+		return this.directories.has(this.normalize(dirPath));
+	}
+
 	public async readFile(filePath: string): Promise<string> {
 		const data = await this.readFileRaw(filePath);
 		return new TextDecoder().decode(data);
@@ -98,6 +102,18 @@ class MemoryBrowserStorage implements BackendAsyncStorageAdapter {
 
 	public async unlink(filePath: string): Promise<void> {
 		this.files.delete(this.normalize(filePath));
+	}
+
+	public async rmdir(dirPath: string): Promise<void> {
+		const normalized = this.normalize(dirPath);
+		const prefix = `${normalized}/`;
+		if (!this.directories.has(normalized)) throw new Error(`Missing directory: ${dirPath}`);
+		if ([...this.directories].some((directory) => directory !== normalized && directory.startsWith(prefix))
+			|| [...this.files.keys()].some((filePath) => filePath.startsWith(prefix))
+		) {
+			throw new Error(`Directory is not empty: ${dirPath}`);
+		}
+		this.directories.delete(normalized);
 	}
 
 	private normalize(filePath: string): string {
@@ -217,6 +233,7 @@ function createLifecyclePackage(): UamPackage {
 		id: 'pkg002',
 		name: 'Overlay',
 		publish: null,
+		folders: [],
 		resources: [],
 	};
 }
@@ -450,12 +467,17 @@ test('file-backed openSession declares the missing filesystem capability instead
 	t.is(openFailure.meta.diagnostics[0]?.code, 'capability_unavailable');
 });
 
-test('browser storage adapters require unlink before project writes', (t) => {
+test('browser storage adapters require file and folder cleanup primitives', (t) => {
 	const storage = new MemoryBrowserStorage();
 	Object.defineProperty(storage, 'unlink', { value: undefined });
 
 	const error = t.throws(() => createBackendStorageFileSystem(storage as unknown as BackendAsyncStorageAdapter));
 	t.is(error?.message, 'Storage adapter must provide unlink() for project resource lifecycle writes.');
+
+	const noRmdir = new MemoryBrowserStorage();
+	Object.defineProperty(noRmdir, 'rmdir', { value: undefined });
+	const rmdirError = t.throws(() => createBackendStorageFileSystem(noRmdir as unknown as BackendAsyncStorageAdapter));
+	t.is(rmdirError?.message, 'Storage adapter must provide rmdir() for project resource folder lifecycle writes.');
 });
 
 test('browser-safe project session saves through injected async storage', async (t) => {
@@ -741,6 +763,190 @@ test('browser-safe resource favorite transactions survive save, reload, and inve
 	t.false(restoredResources.find((resource) => resource.id === 'cmp001')?.favorite);
 });
 
+test('browser-safe resource exported transactions survive save, reload, and inverse', async (t) => {
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const project = createBackendFixtureProject();
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({
+		project,
+		storage: { fileSystem, fairyPath: 'Exported/Project.fairy' },
+	});
+	t.true(opened.ok);
+	if (!opened.ok) return;
+
+	const rejected = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 0,
+		operations: [{
+			kind: 'setResourceExported',
+			selector: { packageId: 'pkg001', resourceId: 'cmp001' },
+			exported: 'false' as unknown as boolean,
+		}],
+	});
+	t.false(rejected.ok);
+	if (rejected.ok) return;
+	t.is(rejected.error.code, 'transaction_unsupported');
+	t.is(rejected.meta.diagnostics[0]?.path, 'operations[0].exported');
+
+	const operations = ['img001', 'cmp001'].map((resourceId) => ({
+		kind: 'setResourceExported' as const,
+		selector: { packageId: 'pkg001', resourceId },
+		exported: false,
+	}));
+	const applied = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 0,
+		operations,
+	});
+	t.true(applied.ok);
+	if (!applied.ok) return;
+	t.true((await runtime.saveSession({ sessionId: opened.data.sessionId })).ok);
+
+	const reloaded = normalizeUamProject(
+		liftDocumentToUamProject(await new ProjectReader(fileSystem).read('Exported/Project.fairy')),
+	);
+	for (const resourceId of ['img001', 'cmp001']) {
+		t.false(reloaded.packages[0]?.resources.find((resource) => resource.id === resourceId)?.exported);
+	}
+
+	const inverse = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 1,
+		operations: operations.map((operation) => ({ ...operation, exported: true })),
+	});
+	t.true(inverse.ok);
+	if (!inverse.ok) return;
+	t.true((await runtime.saveSession({ sessionId: opened.data.sessionId })).ok);
+	const restored = normalizeUamProject(
+		liftDocumentToUamProject(await new ProjectReader(fileSystem).read('Exported/Project.fairy')),
+	);
+	for (const resourceId of ['img001', 'cmp001']) {
+		t.true(restored.packages[0]?.resources.find((resource) => resource.id === resourceId)?.exported);
+	}
+});
+
+test('browser-safe empty resource folders survive lifecycle saves and reloads', async (t) => {
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const runtime = new BackendRuntime();
+	const project = createBackendFixtureProject();
+	project.branches = ['mobile'];
+	const opened = runtime.openProjectSession({
+		project,
+		storage: { fileSystem, fairyPath: 'Folders/Project.fairy' },
+	});
+	t.true(opened.ok);
+	if (!opened.ok) return;
+
+	const added = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 0,
+		operations: [
+			{
+				kind: 'addResourceFolder',
+				selector: { packageId: 'pkg001' },
+				path: '/empty/',
+				favorite: true,
+				atlas: 'atlas0',
+			},
+			{ kind: 'addResourceFolder', selector: { packageId: 'pkg001' }, path: '/target/' },
+			{ kind: 'addResourceFolder', selector: { packageId: 'pkg001' }, branch: 'mobile', path: '/branch-empty/' },
+		],
+	});
+	t.true(added.ok);
+	if (!added.ok) return;
+	t.true((await runtime.saveSession({ sessionId: opened.data.sessionId })).ok);
+	t.true(storage.hasDirectory('Folders/assets/Main/empty'));
+	t.true(storage.hasDirectory('Folders/assets_mobile/Main/branch-empty'));
+	const packageXml = await storage.readFile('Folders/assets/Main/package.xml');
+	t.regex(packageXml, /<folder[^>]*name="empty"[^>]*favorite="true"[^>]*atlas="atlas0"/);
+
+	const reloaded = normalizeUamProject(
+		liftDocumentToUamProject(await new ProjectReader(fileSystem).read('Folders/Project.fairy')),
+	);
+	const empty = reloaded.packages[0]?.folders.find((folder) => folder.path === '/empty/');
+	t.deepEqual(empty, { branch: '', path: '/empty/', favorite: true, atlas: 'atlas0' });
+	t.true(reloaded.packages[0]?.folders.some((folder) => folder.branch === '' && folder.path === '/target/'));
+	t.true(reloaded.packages[0]?.folders.some((folder) => folder.branch === 'mobile' && folder.path === '/branch-empty/'));
+
+	const rejected = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 1,
+		operations: [{
+			kind: 'removeResourceFolder',
+			selector: { packageId: 'pkg001', path: '/images/' },
+		}],
+	});
+	t.false(rejected.ok);
+	if (rejected.ok) return;
+	t.is(rejected.meta.diagnostics[0]?.code, 'resource_folder_not_empty');
+	t.is(await storage.readFile('Folders/assets/Main/package.xml'), packageXml);
+	t.true(storage.hasDirectory('Folders/assets/Main/images'));
+
+	const renamed = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 1,
+		operations: [{
+			kind: 'renameResourceFolder',
+			selector: { packageId: 'pkg001', path: '/empty/' },
+			newName: 'renamed',
+		}],
+	});
+	t.true(renamed.ok);
+	if (!renamed.ok) return;
+	t.true((await runtime.saveSession({ sessionId: opened.data.sessionId })).ok);
+	t.false(storage.hasDirectory('Folders/assets/Main/empty'));
+	t.true(storage.hasDirectory('Folders/assets/Main/renamed'));
+
+	const moved = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 2,
+		operations: [{
+			kind: 'moveResourceFolder',
+			selector: { packageId: 'pkg001', path: '/renamed/' },
+			toPath: '/target/',
+		}],
+	});
+	t.true(moved.ok);
+	if (!moved.ok) return;
+	t.true((await runtime.saveSession({ sessionId: opened.data.sessionId })).ok);
+	t.false(storage.hasDirectory('Folders/assets/Main/renamed'));
+	t.true(storage.hasDirectory('Folders/assets/Main/target/renamed'));
+
+	const removed = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 3,
+		operations: [{
+			kind: 'removeResourceFolder',
+			selector: { packageId: 'pkg001', path: '/target/renamed/' },
+		}],
+	});
+	t.true(removed.ok);
+	if (!removed.ok) return;
+	t.true((await runtime.saveSession({ sessionId: opened.data.sessionId })).ok);
+	t.false(storage.hasDirectory('Folders/assets/Main/target/renamed'));
+
+	const removedBranch = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 4,
+		operations: [{
+			kind: 'removeResourceFolder',
+			selector: { packageId: 'pkg001', branch: 'mobile', path: '/branch-empty/' },
+		}],
+	});
+	t.true(removedBranch.ok);
+	if (!removedBranch.ok) return;
+	t.true((await runtime.saveSession({ sessionId: opened.data.sessionId })).ok);
+	t.false(storage.hasDirectory('Folders/assets_mobile/Main/branch-empty'));
+	t.false(storage.hasFile('Folders/assets_mobile/Main/package_branch.xml'));
+	const finalReload = normalizeUamProject(
+		liftDocumentToUamProject(await new ProjectReader(fileSystem).read('Folders/Project.fairy')),
+	);
+	t.false(finalReload.packages[0]?.folders.some((folder) => folder.path === '/target/renamed/'));
+	t.false(finalReload.packages[0]?.folders.some((folder) => folder.branch === 'mobile'));
+});
+
 test('browser-safe sessions materialize package and component lifecycle operations through inverse reloads', async (t) => {
 	const storage = new MemoryBrowserStorage();
 	const fileSystem = createBackendStorageFileSystem(storage);
@@ -936,6 +1142,7 @@ test('real LayaBox UAM sessions persist atomic resource dependency moves in brow
 		id: 'issue9pkg',
 		name: 'Issue9',
 		publish: null,
+		folders: [],
 		resources: [],
 	};
 	const nested = createLifecycleComponent('issue34nested', 'Issue34Nested');
@@ -1312,6 +1519,7 @@ test('real LayaBox Bag dependency closure moves and inverts atomically in browse
 		id: 'issue34real',
 		name: 'Issue34Real',
 		publish: null,
+		folders: [],
 		resources: [],
 	};
 	const copiedNested = structuredClone(nested);
@@ -1442,6 +1650,7 @@ test('real LayaBox Bag dependency closure moves and inverts atomically in browse
 			id: 'issue34failed',
 			name: 'Issue34Failed',
 			publish: null,
+			folders: [],
 			resources: [],
 		};
 		const failed = await runtime.applyTransaction({

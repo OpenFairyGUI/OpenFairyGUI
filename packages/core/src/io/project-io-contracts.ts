@@ -14,6 +14,8 @@ export interface ProjectWriteOptions {
 	 * arbitrary filesystem paths are deliberately not accepted.
 	 */
 	staleSourceFiles?: readonly ProjectSourceFile[];
+	/** Empty resource directories to remove after replacement files are written. */
+	staleResourceFolders?: readonly ProjectResourceFolder[];
 }
 
 /** Identifies one package-controlled file without exposing a filesystem path. */
@@ -22,4 +24,11 @@ export interface ProjectSourceFile {
 	branch: string;
 	path: string;
 	fileName: string;
+}
+
+/** Identifies one package-controlled resource directory. */
+export interface ProjectResourceFolder {
+	packageName: string;
+	branch: string;
+	path: string;
 }
