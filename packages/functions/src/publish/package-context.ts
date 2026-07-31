@@ -39,7 +39,7 @@ interface PackagePublishContext {
 
 const UNITY_PROJECT_TYPE = ProjectType.Unity;
 
-function isComponentResource(resource: ReturnType<Package['listResources']>[number]): resource is Component {
+export function isComponentResource(resource: ReturnType<Package['listResources']>[number]): resource is Component {
 	return resource.propertyType === 'Component';
 }
 
@@ -47,7 +47,7 @@ export function isImageResource(resource: ReturnType<Package['listResources']>[n
 	return resource.propertyType === 'ImageResource';
 }
 
-function isMovieClipResource(resource: ReturnType<Package['listResources']>[number]): resource is MovieClipResource {
+export function isMovieClipResource(resource: ReturnType<Package['listResources']>[number]): resource is MovieClipResource {
 	return resource.propertyType === 'MovieClipResource';
 }
 
@@ -61,7 +61,7 @@ export function isMiscResource(resource: ReturnType<Package['listResources']>[nu
 	return resource.propertyType === 'MiscResource';
 }
 
-function isFontResource(resource: ReturnType<Package['listResources']>[number]): resource is FontResource {
+export function isFontResource(resource: ReturnType<Package['listResources']>[number]): resource is FontResource {
 	return resource.propertyType === 'FontResource';
 }
 

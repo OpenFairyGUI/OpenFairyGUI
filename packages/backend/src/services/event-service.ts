@@ -8,7 +8,6 @@ import type {
 	GetEventsSnapshot,
 	SessionNotFoundError,
 } from '../runtime.js';
-import { cloneEventSnapshot } from './snapshot-utils.js';
 
 const DEFAULT_EVENT_RETENTION_LIMIT = 1000;
 
@@ -71,7 +70,7 @@ export class EventService {
 		const filtered = events.filter((event) => event.sequence > after);
 		const limit = input.limit === undefined ? filtered.length : Math.max(0, input.limit);
 		return success('runtime', startedAt, {
-			events: filtered.slice(0, limit).map(cloneEventSnapshot),
+			events: filtered.slice(0, limit).map((event) => structuredClone(event)),
 			oldestSequence,
 			currentSequence,
 			cursorExpired: false,

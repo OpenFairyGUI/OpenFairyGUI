@@ -1,53 +1,13 @@
 import { generateId } from '@openfairygui/core';
+import { basename, normalizeComparablePath, trimTrailingSlashes } from '../path-utils.js';
 import type { RestoreFileSystem } from '../restore.js';
 
-export function trimTrailingSlashes(value: string): string {
-	return value.replace(/[/\\]+$/, '');
-}
-
-function normalizeComparablePath(value: string): string {
-	const normalized = trimTrailingSlashes(value).replace(/\\/g, '/');
-	const driveMatch = normalized.match(/^([a-z]:)(?:\/(.*))?$/i);
-	const drivePrefix = driveMatch?.[1].toLowerCase() ?? '';
-	const remainder = driveMatch ? (driveMatch[2] ?? '') : normalized;
-	const hasRoot = driveMatch ? true : remainder.startsWith('/');
-	const rawSegments = remainder.split('/').filter((segment) => segment.length > 0);
-	const segments: string[] = [];
-
-	for (const segment of rawSegments) {
-		if (segment === '.') continue;
-		if (segment === '..') {
-			if (segments.length > 0 && segments[segments.length - 1] !== '..') {
-				segments.pop();
-			} else if (!hasRoot) {
-				segments.push('..');
-			}
-			continue;
-		}
-		segments.push(segment);
-	}
-
-	const joined = segments.join('/');
-	const comparable = drivePrefix
-		? `${drivePrefix}/${joined}`.replace(/\/$/, '')
-		: hasRoot
-			? `/${joined}`.replace(/\/$/, '')
-			: joined || '.';
-	// Restore prefers a conservative same-directory guard: false positives are safer than
-	// missing a Windows-style case-only path alias and deleting the source publish dir.
-	return comparable.toLowerCase();
-}
+export { basename, trimTrailingSlashes } from '../path-utils.js';
 
 export function isPathWithin(root: string, candidate: string): boolean {
 	const normalizedRoot = normalizeComparablePath(root);
 	const normalizedCandidate = normalizeComparablePath(candidate);
 	return normalizedCandidate.startsWith(`${normalizedRoot}/`);
-}
-
-export function basename(filePath: string): string {
-	const trimmed = trimTrailingSlashes(filePath);
-	const match = trimmed.match(/([^/\\]+)$/);
-	return match?.[1] ?? '';
 }
 
 export function normalizeRestoreOutputDir(output: string): string {

@@ -8,6 +8,7 @@ import {
 } from '@openfairygui/core';
 import { atlas } from './atlas.js';
 import { publishCodeGeneration, resolveProjectBasePath } from './codegen.js';
+import { dirname, isAbsolutePathLike, trimTrailingSlashes } from './path-utils.js';
 import { formatPluginError, type LoadedPlugin } from './plugins/types.js';
 import type { PublishFileSystem } from './publish/contracts.js';
 import {
@@ -73,14 +74,6 @@ async function runPublishPluginHook(
 	}
 }
 
-function trimTrailingSlashes(value: string): string {
-	return value.replace(/[/\\]+$/, '');
-}
-
-function isAbsolutePathLike(value: string): boolean {
-	return /^(?:[a-zA-Z]:[/\\]|[/\\]{1,2})/u.test(value);
-}
-
 function joinPathSegments(left: string, right: string): string {
 	const normalizedLeft = trimTrailingSlashes(left);
 	const normalizedRight = right.replace(/^[/\\]+/, '');
@@ -88,12 +81,6 @@ function joinPathSegments(left: string, right: string): string {
 	if (!normalizedRight) return normalizedLeft;
 	const separator = normalizedLeft.includes('\\') ? '\\' : '/';
 	return `${normalizedLeft}${separator}${normalizedRight}`;
-}
-
-function dirname(filePath: string): string {
-	const trimmed = filePath.replace(/[/\\]+$/, '');
-	const match = trimmed.match(/^(.*)[/\\][^/\\]+$/);
-	return match?.[1] ?? '';
 }
 
 function createUnsupportedFsOperation(name: keyof FileSystem) {

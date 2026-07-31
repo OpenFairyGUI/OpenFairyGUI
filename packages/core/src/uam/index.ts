@@ -95,6 +95,8 @@ export {
 	liftDocumentToUamProject,
 	materializeUamProject,
 	readProjectAsUam,
+	staleResourceFolders,
+	staleSourceFiles,
 	type WriteProjectFromUamOptions,
 	writeProjectFromUam,
 } from './bridge.js';

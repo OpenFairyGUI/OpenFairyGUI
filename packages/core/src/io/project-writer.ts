@@ -2,6 +2,7 @@ import type { Document } from '../document.js';
 import type { Component } from '../properties/component.js';
 import type { Package, PackageResourceFolder } from '../properties/package.js';
 import { resourceFolderName, resourceFolderParentPath } from '../utils/resource-folder.js';
+import { renderXmlAttrs } from '../utils/xml-utils.js';
 import { writeComponent } from './component-xml-writer.js';
 import type { FileSystem } from './file-system.js';
 import type { ProjectResourceFolder, ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
@@ -73,29 +74,6 @@ type WritableComponent = Component & {
 
 function shouldWritePackageImageSize(resource: WritableImageResource): boolean {
 	return resource.getExtras?.()?._suppressPackageSize !== true;
-}
-
-function escapeXmlAttr(value: unknown): string {
-	return String(value)
-		.replace(/&/g, '&amp;')
-		.replace(/\r\n/g, '&#xA;')
-		.replace(/[\r\n]/g, '&#xA;')
-		.replace(/\t/g, '&#x9;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&apos;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;');
-}
-
-function renderXmlAttrs(attrs: Record<string, unknown>): string {
-	const parts: string[] = [];
-	for (const [key, value] of Object.entries(attrs)) {
-		if (value === undefined || value === null) continue;
-		if (Array.isArray(value) || typeof value === 'object') continue;
-		const attrName = key.startsWith('@_') ? key.slice(2) : key;
-		parts.push(` ${attrName}="${escapeXmlAttr(value)}"`);
-	}
-	return parts.join('');
 }
 
 function compareResourceIdSequence(a: string, b: string): number {

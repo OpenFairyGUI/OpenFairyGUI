@@ -12,7 +12,11 @@ export {
 	materializeUamGear,
 	materializeUamProject,
 } from './bridge-materialize.js';
-export { commitUamProjectSourcePaths } from './project-source-files.js';
+export {
+	commitUamProjectSourcePaths,
+	staleResourceFolders,
+	staleSourceFiles,
+} from './project-source-files.js';
 
 export interface WriteProjectFromUamOptions {
 	/** Previous project state used to safely clean replaced, moved, renamed, or removed package files. */

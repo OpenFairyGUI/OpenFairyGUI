@@ -7,7 +7,6 @@ import type {
 	GetCacheSnapshotInput,
 	SessionNotFoundError,
 } from '../runtime.js';
-import { cloneCacheEntrySnapshot } from './snapshot-utils.js';
 
 function createCacheEntry(session: BackendSessionState, valid: boolean): BackendCacheEntry {
 	return {
@@ -38,7 +37,7 @@ export class CacheService {
 		const entry = this.context.cacheBySession.get(input.sessionId);
 		return success('read', startedAt, {
 			cacheRevision: entry?.revision ?? session.revision,
-			entries: entry ? [cloneCacheEntrySnapshot(entry)] : [],
+			entries: entry ? [structuredClone(entry)] : [],
 		}, { sessionId: session.sessionId, revision: session.revision });
 	}
 

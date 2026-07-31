@@ -1,13 +1,10 @@
 import type {
-	Component,
 	Document,
-	DragonBonesResource,
 	FontResource,
 	ILogger,
 	ImageResource,
 	MovieClipResource,
 	Package,
-	SpineResource,
 } from '@openfairygui/core';
 import type { AtlasOptions } from '../atlas.js';
 import type {
@@ -15,6 +12,13 @@ import type {
 	AtlasRasterInput,
 	AtlasRasterResolvedBuffer,
 } from '../publish/contracts.js';
+import {
+	isFontResource,
+	isImageResource,
+	isMovieClipResource,
+	resolveImageFileName,
+	resolveImagePath,
+} from '../publish/package-context.js';
 import type { ExtrasMap } from '../shared-types.js';
 import { parseFnt } from './font.js';
 import { extractJtaFrames } from './jta.js';
@@ -46,7 +50,6 @@ export function getPublishedItemId(resource: { getId(): string; getExtras(): Ext
 }
 
 interface ImageResourceExtras extends ExtrasMap {
-	_fileName?: string;
 	_publishedId?: string;
 }
 
@@ -61,11 +64,6 @@ export interface FontResourceExtras extends ExtrasMap {
 
 export function resolveFontFileName(fontName: string): string {
 	return /\.fnt$/i.test(fontName) ? fontName : `${fontName}.fnt`;
-}
-
-export function resolveImageFileName(resource: ImageResource): string {
-	const extras = resource.getExtras() as ImageResourceExtras;
-	return resource.getFileName() || extras._fileName || resource.getName();
 }
 
 /**
@@ -154,19 +152,6 @@ async function _trimImage(
 /**
  * Resolve an ImageResource to its actual file path on disk.
  */
-export function resolveImagePath(resource: ImageResource, pkg: Package, basePath: string): string {
-	const imgPath = resource.getPath() ?? '/';
-	const fileName = resolveImageFileName(resource);
-	const branchName = resource.getBranch?.() ?? '';
-	const normalizedBasePath = basePath.replace(/[/\\]+$/, '');
-	const packageBasePath = !branchName
-		? normalizedBasePath
-		: /[\\/]assets$/i.test(normalizedBasePath)
-			? normalizedBasePath.replace(/([\\/])assets$/i, `$1assets_${branchName}`)
-			: `${normalizedBasePath}_${branchName}`;
-	return `${packageBasePath}/${pkg.getName()}${imgPath}${fileName}`;
-}
-
 export type InputItem = {
 	id: string;
 	width: number;
@@ -484,26 +469,6 @@ export async function collectFontTexture(
 			/* .fnt not found */
 		}
 	}
-}
-
-export function isComponentResource(resource: PackageResource): resource is Component {
-	return resource.propertyType === 'Component';
-}
-
-export function isImageResource(resource: PackageResource): resource is ImageResource {
-	return resource.propertyType === 'ImageResource';
-}
-
-export function isMovieClipResource(resource: PackageResource): resource is MovieClipResource {
-	return resource.propertyType === 'MovieClipResource';
-}
-
-export function isSkeletonResource(resource: PackageResource): resource is SpineResource | DragonBonesResource {
-	return resource.propertyType === 'SpineResource' || resource.propertyType === 'DragonBonesResource';
-}
-
-export function isFontResource(resource: PackageResource): resource is FontResource {
-	return resource.propertyType === 'FontResource';
 }
 
 export function isPackableResource(resource: PackageResource): resource is PackableResource {
