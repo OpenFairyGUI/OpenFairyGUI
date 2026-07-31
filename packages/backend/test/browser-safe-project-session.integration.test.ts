@@ -10,6 +10,7 @@ import {
 	type UamComponentRefNode,
 	type UamComponentResource,
 	type UamGearBinding,
+	type UamGraphProperties,
 	type UamPackage,
 	type UamProject,
 } from '@openfairygui/core/uam';
@@ -368,8 +369,65 @@ test('browser-safe project session saves through injected async storage', async 
 	const storage = new MemoryBrowserStorage();
 	const fileSystem = createBackendStorageFileSystem(storage);
 	const runtime = new BackendRuntime();
+	const project = createBackendFixtureProject();
+	const sourceComponent = project.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (sourceComponent?.kind !== 'component') {
+		t.fail('expected backend fixture component');
+		return;
+	}
+	sourceComponent.component.displayList.push({
+		kind: 'graph',
+		id: 'graph1',
+		name: 'graph',
+		position: { x: 0, y: 0 },
+		size: { width: 40, height: 30 },
+		pivot: { x: 0, y: 0 },
+		pivotAsAnchor: false,
+		visible: true,
+		touchable: true,
+		grayed: false,
+		alpha: 1,
+		rotation: 0,
+		customData: '',
+		relations: [],
+		gears: [],
+		locked: false,
+		minWidth: 0,
+		maxWidth: 0,
+		minHeight: 0,
+		maxHeight: 0,
+		group: '',
+		skew: { x: 0, y: 0 },
+		graphType: 1,
+		lineSize: 1,
+		lineColor: '#000000',
+		fillColor: '#FFFFFF',
+		cornerRadius: null,
+		points: null,
+		sides: 0,
+		startAngle: 0,
+		distances: null,
+	});
+	const graphProperties: UamGraphProperties = {
+		locked: true,
+		minWidth: 10,
+		maxWidth: 80,
+		minHeight: 12,
+		maxHeight: 60,
+		group: 'browser-shapes',
+		skew: { x: 2, y: 3 },
+		graphType: 3,
+		lineSize: 2,
+		lineColor: '#112233',
+		fillColor: '#445566',
+		cornerRadius: null,
+		points: [0, 0, 40, 0, 20, 30],
+		sides: 0,
+		startAngle: 0,
+		distances: null,
+	};
 	const opened = runtime.openProjectSession({
-		project: createBackendFixtureProject(),
+		project,
 		storage: {
 			fileSystem,
 			fairyPath: 'Project.fairy',
@@ -394,6 +452,11 @@ test('browser-safe project session saves through injected async storage', async 
 					alpha: 0.65,
 					rotation: 15,
 				},
+			},
+			{
+				kind: 'setDisplayNodeProps',
+				selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'graph1' },
+				props: { graphProperties },
 			},
 		],
 	});
@@ -420,6 +483,13 @@ test('browser-safe project session saves through injected async storage', async 
 		t.true(title.grayed);
 		t.is(title.alpha, 0.65);
 		t.is(title.rotation, 15);
+	}
+	const graph = component.component.displayList.find((node) => node.id === 'graph1');
+	t.is(graph?.kind, 'graph');
+	if (graph?.kind === 'graph') {
+		for (const [key, value] of Object.entries(graphProperties)) {
+			t.deepEqual((graph as unknown as Record<string, unknown>)[key], value);
+		}
 	}
 });
 

@@ -4,10 +4,15 @@ import type {
 	UamComponentResource,
 	UamControllerModel,
 	UamDisplayNode,
-	UamLoader3DProperties,
 	UamGearBinding,
+	UamGraphProperties,
+	UamListItemData,
+	UamListProperties,
+	UamLoader3DProperties,
+	UamLoaderProperties,
 	UamPackage,
 	UamProject,
+	UamTreeProperties,
 } from './model.js';
 import { UAM_SUPPORTED_TRANSACTION_SCOPE } from './model.js';
 import { normalizeUamProject } from './normalize.js';
@@ -300,6 +305,255 @@ const LOADER_3D_PROPERTY_KEYS = new Set<keyof UamLoader3DProperties>([
 	'clearOnPublish',
 ]);
 
+const GRAPH_PROPERTY_KEYS = [
+	'locked',
+	'minWidth',
+	'maxWidth',
+	'minHeight',
+	'maxHeight',
+	'group',
+	'skew',
+	'graphType',
+	'lineSize',
+	'lineColor',
+	'fillColor',
+	'cornerRadius',
+	'points',
+	'sides',
+	'startAngle',
+	'distances',
+] as const satisfies readonly (keyof UamGraphProperties)[];
+
+const LOADER_PROPERTY_KEYS = [
+	'scale',
+	'url',
+	'filter',
+	'filterData',
+	'fill',
+	'shrinkOnly',
+	'autoSize',
+	'useResize',
+	'align',
+	'vAlign',
+	'frame',
+	'playing',
+	'color',
+	'fillMethod',
+	'fillOrigin',
+	'fillClockwise',
+	'fillAmount',
+	'clearOnPublish',
+] as const satisfies readonly (keyof UamLoaderProperties)[];
+
+const LIST_PROPERTY_KEYS = [
+	'group',
+	'layout',
+	'align',
+	'vAlign',
+	'lineGap',
+	'columnGap',
+	'lineCount',
+	'columnCount',
+	'selectionMode',
+	'defaultItem',
+	'autoResizeItem',
+	'childrenRenderOrder',
+	'apexIndex',
+	'src',
+	'overflow',
+	'scrollType',
+	'scrollBarFlags',
+	'scrollBarMargin',
+	'vtScrollBarRes',
+	'hzScrollBarRes',
+	'headerRes',
+	'footerRes',
+	'margin',
+	'clipSoftness',
+	'scrollItemToViewOnClick',
+	'foldInvisibleItems',
+	'listItems',
+	'pageController',
+	'controllerOverrides',
+	'selectionController',
+] as const satisfies readonly (keyof UamListProperties)[];
+
+const TREE_PROPERTY_KEYS = [
+	...LIST_PROPERTY_KEYS,
+	'treeView',
+	'indent',
+	'clickToExpand',
+] as const satisfies readonly (keyof UamTreeProperties)[];
+
+function hasExactKeys(value: object, keys: readonly string[]): boolean {
+	const actual = Object.keys(value);
+	return actual.length === keys.length && actual.every((key) => keys.includes(key));
+}
+
+function isFiniteNumber(value: unknown): value is number {
+	return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isIntegerBetween(value: unknown, minimum: number, maximum: number): value is number {
+	return Number.isInteger(value) && (value as number) >= minimum && (value as number) <= maximum;
+}
+
+function isColor(value: unknown): value is string {
+	return typeof value === 'string' && /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(value);
+}
+
+function isFiniteNumberArrayOrNull(value: unknown, length?: number): value is number[] | null {
+	return value === null || (
+		Array.isArray(value)
+		&& (length === undefined || value.length === length)
+		&& value.every(isFiniteNumber)
+	);
+}
+
+function isFiniteEdgeInsets(value: unknown): boolean {
+	if (!value || typeof value !== 'object') return false;
+	const insets = value as { top?: unknown; bottom?: unknown; left?: unknown; right?: unknown };
+	return [insets.top, insets.bottom, insets.left, insets.right].every(isFiniteNumber);
+}
+
+function isNullableString(value: unknown): value is string | null {
+	return value === null || typeof value === 'string';
+}
+
+function isValidListItem(value: unknown): value is UamListItemData {
+	if (!value || typeof value !== 'object') return false;
+	const item = value as UamListItemData;
+	const keys = Object.keys(item);
+	if (keys.length < 8 || keys.length > 9 || keys.some((key) => ![
+		'title',
+		'icon',
+		'url',
+		'name',
+		'selectedTitle',
+		'selectedIcon',
+		'level',
+		'isFolder',
+		'controllers',
+	].includes(key))) return false;
+	return [
+		item.title,
+		item.icon,
+		item.url,
+		item.name,
+		item.selectedTitle,
+		item.selectedIcon,
+	].every(isNullableString)
+		&& Number.isInteger(item.level)
+		&& item.level >= 0
+		&& (item.isFolder === null || typeof item.isFolder === 'boolean')
+		&& (item.controllers === undefined || isNullableString(item.controllers));
+}
+
+function isValidGraphProperties(value: unknown): value is UamGraphProperties {
+	if (!value || typeof value !== 'object' || !hasExactKeys(value, GRAPH_PROPERTY_KEYS)) return false;
+	const properties = value as UamGraphProperties;
+	return typeof properties.locked === 'boolean'
+		&& [
+			properties.minWidth,
+			properties.maxWidth,
+			properties.minHeight,
+			properties.maxHeight,
+			properties.lineSize,
+			properties.startAngle,
+		].every(isFiniteNumber)
+		&& typeof properties.group === 'string'
+		&& isFiniteUamPoint(properties.skew)
+		&& isIntegerBetween(properties.graphType, 0, 4)
+		&& isColor(properties.lineColor)
+		&& isColor(properties.fillColor)
+		&& isFiniteNumberArrayOrNull(properties.cornerRadius, 4)
+		&& isFiniteNumberArrayOrNull(properties.points)
+		&& Number.isInteger(properties.sides)
+		&& properties.sides >= 0
+		&& isFiniteNumberArrayOrNull(properties.distances)
+		&& (properties.sides > 0 || (properties.startAngle === 0 && properties.distances === null));
+}
+
+function isValidLoaderProperties(value: unknown): value is UamLoaderProperties {
+	if (!value || typeof value !== 'object' || !hasExactKeys(value, LOADER_PROPERTY_KEYS)) return false;
+	const properties = value as UamLoaderProperties;
+	return isFiniteUamPoint(properties.scale)
+		&& [properties.url, properties.filter, properties.filterData].every((item) => typeof item === 'string')
+		&& isIntegerBetween(properties.fill, 0, 5)
+		&& [properties.shrinkOnly, properties.autoSize, properties.useResize, properties.playing,
+			properties.fillClockwise, properties.clearOnPublish].every((item) => typeof item === 'boolean')
+		&& isIntegerBetween(properties.align, 0, 2)
+		&& isIntegerBetween(properties.vAlign, 0, 2)
+		&& Number.isInteger(properties.frame)
+		&& properties.frame >= 0
+		&& isColor(properties.color)
+		&& isIntegerBetween(properties.fillMethod, 0, 5)
+		&& isIntegerBetween(properties.fillOrigin, 0, 3)
+		&& isFiniteNumber(properties.fillAmount)
+		&& (properties.fillMethod !== 0 || (
+			properties.fillOrigin === 0
+			&& properties.fillClockwise
+			&& properties.fillAmount === 100
+		));
+}
+
+function isValidListProperties(
+	value: unknown,
+	nodeKind: UamDisplayNode['kind'] | undefined,
+): value is UamListProperties | UamTreeProperties {
+	const keys = nodeKind === 'tree' ? TREE_PROPERTY_KEYS : LIST_PROPERTY_KEYS;
+	if (!value || typeof value !== 'object' || !hasExactKeys(value, keys)) return false;
+	const properties = value as UamTreeProperties;
+	const validCounts = (
+		(properties.layout === 0 || properties.layout === 1)
+			? properties.lineCount === 0 && properties.columnCount === 0
+			: properties.layout === 2
+				? properties.lineCount === 0
+				: properties.layout === 3
+					? properties.columnCount === 0
+					: true
+	);
+	const validListProperties = [
+		properties.group,
+		properties.defaultItem,
+		properties.src,
+		properties.vtScrollBarRes,
+		properties.hzScrollBarRes,
+		properties.headerRes,
+		properties.footerRes,
+		properties.pageController,
+		properties.controllerOverrides,
+		properties.selectionController,
+	].every((item) => typeof item === 'string')
+		&& isIntegerBetween(properties.layout, 0, 4)
+		&& isIntegerBetween(properties.align, 0, 2)
+		&& isIntegerBetween(properties.vAlign, 0, 2)
+		&& [properties.lineGap, properties.columnGap].every(isFiniteNumber)
+		&& [properties.lineCount, properties.columnCount].every((item) => Number.isInteger(item) && item >= 0)
+		&& validCounts
+		&& isIntegerBetween(properties.selectionMode, 0, 3)
+		&& [properties.autoResizeItem, properties.scrollItemToViewOnClick, properties.foldInvisibleItems]
+			.every((item) => typeof item === 'boolean')
+		&& isIntegerBetween(properties.childrenRenderOrder, 0, 2)
+		&& Number.isInteger(properties.apexIndex)
+		&& (properties.childrenRenderOrder === 2 || properties.apexIndex === 0)
+		&& isIntegerBetween(properties.overflow, 0, 2)
+		&& isIntegerBetween(properties.scrollType, 0, 2)
+		&& Number.isInteger(properties.scrollBarFlags)
+		&& properties.scrollBarFlags >= 0
+		&& isFiniteEdgeInsets(properties.scrollBarMargin)
+		&& isFiniteEdgeInsets(properties.margin)
+		&& isFiniteUamPoint(properties.clipSoftness)
+		&& Array.isArray(properties.listItems)
+		&& properties.listItems.every(isValidListItem);
+	if (!validListProperties || nodeKind !== 'tree') return validListProperties;
+	return properties.treeView === true
+		&& isFiniteNumber(properties.indent)
+		&& properties.indent >= 0
+		&& isIntegerBetween(properties.clickToExpand, 0, 1)
+		&& properties.listItems.every((item) => typeof item.isFolder === 'boolean');
+}
+
 function isValidLoader3DProperties(value: unknown): value is UamLoader3DProperties {
 	if (!value || typeof value !== 'object') return false;
 	const properties = value as UamLoader3DProperties;
@@ -313,8 +567,7 @@ function isValidLoader3DProperties(value: unknown): value is UamLoader3DProperti
 		&& Number.isInteger(properties.align) && properties.align >= 0 && properties.align <= 2
 		&& Number.isInteger(properties.vAlign) && properties.vAlign >= 0 && properties.vAlign <= 2
 		&& Number.isInteger(properties.frame) && properties.frame >= 0
-		&& typeof properties.color === 'string'
-		&& /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(properties.color);
+		&& isColor(properties.color);
 }
 
 function validateDisplayPropsPayload(
@@ -345,6 +598,66 @@ function validateDisplayPropsPayload(
 					'invalid_display_node_payload',
 					`${path}.props.pivotAsAnchor`,
 					'Display node pivotAsAnchor must be boolean.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			}
+			continue;
+		}
+		if (key === 'graphProperties') {
+			if (nodeKind && nodeKind !== 'graph') {
+				pushSupportIssue(
+					issues,
+					'unsupported_display_node_field',
+					`${path}.props.graphProperties`,
+					'Graph properties are only supported on graph display nodes.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			} else if (!isValidGraphProperties(op.props.graphProperties)) {
+				pushSupportIssue(
+					issues,
+					'invalid_display_node_payload',
+					`${path}.props.graphProperties`,
+					'Graph properties must be a complete valid graph property snapshot.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			}
+			continue;
+		}
+		if (key === 'loaderProperties') {
+			if (nodeKind && nodeKind !== 'loader') {
+				pushSupportIssue(
+					issues,
+					'unsupported_display_node_field',
+					`${path}.props.loaderProperties`,
+					'Loader properties are only supported on loader display nodes.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			} else if (!isValidLoaderProperties(op.props.loaderProperties)) {
+				pushSupportIssue(
+					issues,
+					'invalid_display_node_payload',
+					`${path}.props.loaderProperties`,
+					'Loader properties must be a complete valid loader property snapshot.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			}
+			continue;
+		}
+		if (key === 'listProperties') {
+			if (nodeKind && nodeKind !== 'list' && nodeKind !== 'tree') {
+				pushSupportIssue(
+					issues,
+					'unsupported_display_node_field',
+					`${path}.props.listProperties`,
+					'List properties are only supported on list or tree display nodes.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			} else if (!isValidListProperties(op.props.listProperties, nodeKind)) {
+				pushSupportIssue(
+					issues,
+					'invalid_display_node_payload',
+					`${path}.props.listProperties`,
+					'List properties must be a complete snapshot matching the target list or tree node.',
 					{ operationKind: op.kind, nodeKind, field: key },
 				);
 			}

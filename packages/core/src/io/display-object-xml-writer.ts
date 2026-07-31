@@ -425,9 +425,12 @@ type WritableChild = GObject & {
 	getLineCount?(): number;
 	getColumnCount?(): number;
 	getAutoResizeItem?(): boolean;
+	getChildrenRenderOrder?(): number;
+	getApexIndex?(): number;
 	getOverflow?(): number;
 	getScrollType?(): number;
 	getScrollBarFlags?(): number;
+	getScrollBarMargin?(): { top?: number; bottom?: number; left?: number; right?: number };
 	getVtScrollBarRes?(): string;
 	getHzScrollBarRes?(): string;
 	getHeaderRes?(): string;
@@ -447,6 +450,8 @@ type WritableChild = GObject & {
 	}>;
 	getIndent?(): number;
 	getClickToExpand?(): number;
+	getScrollItemToViewOnClick?(): boolean;
+	getFoldInvisibleItems?(): boolean;
 	getPageController?(): string;
 	getControllerOverrides?(): string;
 	getPromptText?(): string;
@@ -639,11 +644,13 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 		// Type-specific attributes
 		const type = obj.propertyType as string;
 		if (type === 'GImage' || type === 'GMovieClip' || type === 'GComponent'
+			|| type === 'GList' || type === 'GTree'
 			|| EXTENSION_TYPE[type]) {
 			const src = typedObj.getSrc?.();
 			if (src) {
 				if (type === 'GComponent' || EXTENSION_TYPE[type]) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.src, src);
 				else if (type === 'GMovieClip') writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.src, src);
+				else if (type === 'GList' || type === 'GTree') writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.src, src);
 				else writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.src, src);
 			}
 		}
@@ -1055,6 +1062,19 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineItemCount2, String(lineCount));
 			}
 			if (typedObj.getAutoResizeItem?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.autoResizeItem, 'false');
+			const childrenRenderOrder = typedObj.getChildrenRenderOrder?.() ?? 0;
+			if (childrenRenderOrder !== 0) {
+				const renderOrderName: Record<number, string> = { 0: 'ascent', 1: 'descent', 2: 'arch' };
+				writeXmlAttr(
+					attrs,
+					PROJECT_XML_PROTOCOL.list.attrs.childrenRenderOrder,
+					renderOrderName[childrenRenderOrder] ?? 'ascent',
+				);
+				const apexIndex = typedObj.getApexIndex?.() ?? 0;
+				if (childrenRenderOrder === 2 && apexIndex !== 0) {
+					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.apexIndex, String(apexIndex));
+				}
+			}
 			const selectionMode = typedObj.getSelectionMode?.();
 			if (selectionMode !== undefined && selectionMode !== 0) {
 				const selectionName: Record<number, string> = {
@@ -1072,7 +1092,7 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 			if (isTree) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.treeView, 'true');
 			if (isTree) {
 				const indent = typedObj.getIndent?.() ?? 0;
-				if (indent !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.indent, String(indent));
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.indent, String(indent));
 				const clickToExpand = typedObj.getClickToExpand?.() ?? 0;
 				if (clickToExpand !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.clickToExpand, String(clickToExpand));
 			}
@@ -1088,6 +1108,10 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 			}
 			const scrollBarFlags = typedObj.getScrollBarFlags?.() ?? 0;
 			if (scrollBarFlags !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarFlags, String(scrollBarFlags));
+			const scrollBarMargin = typedObj.getScrollBarMargin?.();
+			if (hasNonZeroInsets(scrollBarMargin)) {
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarMargin, formatInsets(scrollBarMargin!));
+			}
 			const vtScrollBarRes = typedObj.getVtScrollBarRes?.() ?? '';
 			const hzScrollBarRes = typedObj.getHzScrollBarRes?.() ?? '';
 			if (vtScrollBarRes || hzScrollBarRes) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarRes, `${vtScrollBarRes},${hzScrollBarRes}`);
@@ -1099,6 +1123,12 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 			const clipSoftness = typedObj.getClipSoftness?.();
 			if (clipSoftness && ((clipSoftness.x ?? 0) !== 0 || (clipSoftness.y ?? 0) !== 0)) {
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.clipSoftness, `${clipSoftness.x ?? 0},${clipSoftness.y ?? 0}`);
+			}
+			if (typedObj.getScrollItemToViewOnClick?.() === false) {
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollItemToViewOnClick, 'false');
+			}
+			if (typedObj.getFoldInvisibleItems?.() === true) {
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.foldInvisibleItems, 'true');
 			}
 			const listItems = typedObj.getListItems?.() ?? [];
 			const listItemChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.list, 'item');

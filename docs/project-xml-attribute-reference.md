@@ -516,6 +516,8 @@
 | `lineItemCount` |  | `flow_hz` 每行项目数、`flow_vt` 每列项目数、`pagination` 每页列数 |
 | `lineItemCount2` |  | `pagination` 每页行数 |
 | `autoItemSize` | `autoResizeItem` | 自动调整项目尺寸 |
+| `renderOrder` |  | 子项渲染顺序：`ascent`、`descent`、`arch` |
+| `apex` |  | `renderOrder="arch"` 时的顶点子项索引 |
 | `selectionMode` |  | 选择模式 |
 | `selectionController` |  | 选择控制器 |
 | `defaultItem` |  | 默认项目资源 |
@@ -534,6 +536,8 @@
 | `indent` |  | 树缩进 |
 | `clickToExpand` |  | 点击展开方式 |
 | `autoClearItems` |  | 自动清空项目 |
+| `scrollItemToViewOnClick` |  | 点击子项后是否自动滚动到可见区域 |
+| `foldInvisibleItems` |  | 布局时是否折叠不可见子项 |
 | `xy` |  | 位置 |
 | `size` |  | 尺寸 |
 | `pivot` |  | pivot |

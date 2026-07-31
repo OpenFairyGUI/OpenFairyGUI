@@ -185,6 +185,24 @@ function applyDisplayNodePropsUpdate(node: UamDisplayNode, props: UamDisplayNode
 		if (props.fontSize !== undefined) node.fontSize = props.fontSize;
 		if (props.color !== undefined) node.color = props.color;
 	}
+	if (props.graphProperties !== undefined) {
+		if (node.kind !== 'graph') {
+			throw new Error(`Graph display props are not supported on display node kind "${node.kind}".`);
+		}
+		Object.assign(node, structuredClone(props.graphProperties));
+	}
+	if (props.loaderProperties !== undefined) {
+		if (node.kind !== 'loader') {
+			throw new Error(`Loader display props are not supported on display node kind "${node.kind}".`);
+		}
+		Object.assign(node, structuredClone(props.loaderProperties));
+	}
+	if (props.listProperties !== undefined) {
+		if (node.kind !== 'list' && node.kind !== 'tree') {
+			throw new Error(`List display props are not supported on display node kind "${node.kind}".`);
+		}
+		Object.assign(node, structuredClone(props.listProperties));
+	}
 	if (props.loader3DProperties !== undefined) {
 		if (node.kind !== 'loader3D') {
 			throw new Error(`Loader3D display props are not supported on display node kind "${node.kind}".`);

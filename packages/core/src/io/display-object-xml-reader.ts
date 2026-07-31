@@ -1279,6 +1279,13 @@ export function createDisplayObject(
 				}
 				const autoResizeItem = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.list.attrs.autoResizeItem);
 				if (autoResizeItem !== undefined) g.setAutoResizeItem?.(parseBool(autoResizeItem));
+				const childrenRenderOrder = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.childrenRenderOrder);
+				if (childrenRenderOrder) {
+					const renderOrderMap: Record<string, number> = { ascent: 0, descent: 1, arch: 2 };
+					g.setChildrenRenderOrder?.(renderOrderMap[childrenRenderOrder] ?? 0);
+				}
+				const apexIndex = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.apexIndex);
+				if (apexIndex !== undefined) g.setApexIndex?.(parseInt2(apexIndex));
 				const selectionMode = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.selectionMode);
 				if (selectionMode) {
 					const selMap: Record<string, number> = { single: 0, multiple: 1, multipleSingleClick: 2, none: 3 };
@@ -1311,12 +1318,34 @@ export function createDisplayObject(
 						});
 					}
 				}
+				const scrollBarMargin = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarMargin);
+				if (scrollBarMargin) {
+					const parts = scrollBarMargin.split(',').map(Number);
+					g.setScrollBarMargin?.({
+						top: parts[0] ?? 0,
+						bottom: parts[1] ?? 0,
+						left: parts[2] ?? 0,
+						right: parts[3] ?? 0,
+					});
+				}
 				// clipSoftness
 				const clipSoftness = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.clipSoftness);
 				if (clipSoftness) {
 					const csParts = clipSoftness.split(',').map(Number);
 					g.setClipSoftness({ x: csParts[0] ?? 0, y: csParts[1] ?? 0 });
 				}
+				const scrollItemToViewOnClick = readXmlAttr<string | boolean>(
+					attrs,
+					PROJECT_XML_PROTOCOL.list.attrs.scrollItemToViewOnClick,
+				);
+				if (scrollItemToViewOnClick !== undefined) {
+					g.setScrollItemToViewOnClick?.(parseBool(scrollItemToViewOnClick));
+				}
+				const foldInvisibleItems = readXmlAttr<string | boolean>(
+					attrs,
+					PROJECT_XML_PROTOCOL.list.attrs.foldInvisibleItems,
+				);
+				if (foldInvisibleItems !== undefined) g.setFoldInvisibleItems?.(parseBool(foldInvisibleItems));
 				// Parse static list items
 				const listItemChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.list, 'item');
 				const items = listItemChildName ? ensureArray(attrs[listItemChildName]) : [];

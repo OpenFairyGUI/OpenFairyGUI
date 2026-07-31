@@ -297,8 +297,7 @@ export interface UamListItemData {
 	controllers?: string | null;
 }
 
-export interface UamListNode extends UamDisplayNodeBase {
-	kind: 'list';
+export interface UamListProperties {
 	group: string;
 	layout: number;
 	align: number;
@@ -331,22 +330,26 @@ export interface UamListNode extends UamDisplayNodeBase {
 	selectionController: string;
 }
 
-export interface UamTreeNode extends Omit<UamListNode, 'kind'> {
-	kind: 'tree';
+export interface UamTreeProperties extends UamListProperties {
 	treeView: boolean;
 	indent: number;
 	clickToExpand: number;
 }
 
-export interface UamGraphNode extends UamDisplayNodeBase {
-	kind: 'graph';
+export interface UamListNode extends UamDisplayNodeBase, UamListProperties {
+	kind: 'list';
+}
+
+export interface UamTreeNode extends UamDisplayNodeBase, UamTreeProperties {
+	kind: 'tree';
+}
+
+export interface UamGraphProperties {
 	locked: boolean;
 	minWidth: number;
 	maxWidth: number;
 	minHeight: number;
 	maxHeight: number;
-	pivot: UamPoint;
-	pivotAsAnchor: boolean;
 	group: string;
 	skew: UamPoint;
 	graphType: number;
@@ -358,6 +361,12 @@ export interface UamGraphNode extends UamDisplayNodeBase {
 	sides: number;
 	startAngle: number;
 	distances: number[] | null;
+}
+
+export interface UamGraphNode extends UamDisplayNodeBase, UamGraphProperties {
+	kind: 'graph';
+	pivot: UamPoint;
+	pivotAsAnchor: boolean;
 }
 
 export interface UamGroupNode extends UamDisplayNodeBase {
@@ -373,9 +382,7 @@ export interface UamGroupNode extends UamDisplayNodeBase {
 	mainGridIndex: number;
 }
 
-export interface UamLoaderNode extends UamDisplayNodeBase {
-	kind: 'loader';
-	pivot: UamPoint;
+export interface UamLoaderProperties {
 	scale: UamPoint;
 	url: string;
 	filter: string;
@@ -394,6 +401,11 @@ export interface UamLoaderNode extends UamDisplayNodeBase {
 	fillClockwise: boolean;
 	fillAmount: number;
 	clearOnPublish: boolean;
+}
+
+export interface UamLoaderNode extends UamDisplayNodeBase, UamLoaderProperties {
+	kind: 'loader';
+	pivot: UamPoint;
 }
 
 export interface UamLoader3DProperties {
