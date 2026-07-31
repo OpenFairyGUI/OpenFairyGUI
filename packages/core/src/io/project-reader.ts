@@ -2,6 +2,7 @@ import { Document } from '../document.js';
 import type { Component } from '../properties/component.js';
 import type { Package } from '../properties/package.js';
 import type { ProjectSettings } from '../types/settings.js';
+import { probeRasterImageDimensions } from '../utils/image-info.js';
 import { tryReadJtaSize } from '../utils/jta-parser.js';
 import { normalizeResourceFolderPath } from '../utils/resource-folder.js';
 import {
@@ -20,56 +21,6 @@ import { readComponentXml } from './component-xml-reader.js';
 import type { ProjectReadOptions } from './project-io-contracts.js';
 
 export type { ProjectReadOptions } from './project-io-contracts.js';
-
-/** Map ease type string to numeric code matching editor's EaseType.parseEaseType. */
-function readPngSize(data: Uint8Array): { width: number; height: number } | null {
-	if (data.length < 24) return null;
-	const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-	for (let i = 0; i < signature.length; i++) {
-		if (data[i] !== signature[i]) return null;
-	}
-	const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-	return {
-		width: view.getUint32(16),
-		height: view.getUint32(20),
-	};
-}
-
-function readJpegSize(data: Uint8Array): { width: number; height: number } | null {
-	if (data.length < 4 || data[0] !== 0xff || data[1] !== 0xd8) return null;
-	let offset = 2;
-	while (offset + 9 < data.length) {
-		if (data[offset] !== 0xff) {
-			offset++;
-			continue;
-		}
-		const marker = data[offset + 1];
-		offset += 2;
-		if (marker === 0xd8 || marker === 0xd9) continue;
-		if (offset + 2 > data.length) return null;
-		const length = (data[offset] << 8) | data[offset + 1];
-		if (length < 2 || offset + length > data.length) return null;
-		const isStartOfFrame = (
-			(marker >= 0xc0 && marker <= 0xc3)
-			|| (marker >= 0xc5 && marker <= 0xc7)
-			|| (marker >= 0xc9 && marker <= 0xcb)
-			|| (marker >= 0xcd && marker <= 0xcf)
-		);
-		if (isStartOfFrame) {
-			if (offset + 7 > data.length) return null;
-			return {
-				height: (data[offset + 3] << 8) | data[offset + 4],
-				width: (data[offset + 5] << 8) | data[offset + 6],
-			};
-		}
-		offset += length;
-	}
-	return null;
-}
-
-function readImageSize(data: Uint8Array): { width: number; height: number } | null {
-	return readPngSize(data) ?? readJpegSize(data);
-}
 
 // Maps XML tag names for display objects to factory method names.
 type XmlNode = Record<string, unknown>;
@@ -482,7 +433,7 @@ export class ProjectReader {
 			const filePath = fs.join(packageDir, sourcePath.replace(/^\/+/, ''));
 			if (!(await fs.exists(filePath))) continue;
 			try {
-				const size = readImageSize(await fs.readFileRaw(filePath));
+				const size = probeRasterImageDimensions(await fs.readFileRaw(filePath));
 				if (!size) continue;
 				if ((image.getWidth?.() ?? 0) === 0) image.setWidth?.(size.width);
 				if ((image.getHeight?.() ?? 0) === 0) image.setHeight?.(size.height);
@@ -510,7 +461,13 @@ export class ProjectReader {
 				const data = new Uint8Array(await fs.readFileRaw(filePath));
 				const buffer = doc.createBuffer().setURI(sourcePath).setData(data);
 				(this._asSourceDataResource(resource)).setSourceData(buffer);
-				if (resource.propertyType === 'MovieClipResource') {
+				if (resource.propertyType === 'ImageResource') {
+					const size = probeRasterImageDimensions(data);
+					if (size) {
+						const image = resource as ReturnType<Document['createImageResource']>;
+						image.setWidth(size.width).setHeight(size.height);
+					}
+				} else if (resource.propertyType === 'MovieClipResource') {
 					const size = tryReadJtaSize(data);
 					if (size) {
 						const movieClip = resource as ReturnType<Document['createMovieClipResource']>;

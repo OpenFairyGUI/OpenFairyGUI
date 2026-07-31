@@ -125,6 +125,7 @@ export {
 	UamTransaction,
 	UamTransactionError,
 	applyUamTransaction,
+	applyUamTransactionAsync,
 	assertTransactionSupported,
 	createUamTransaction,
 	validateTransactionSupport,

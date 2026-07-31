@@ -114,6 +114,10 @@
 
 `package.xml` 与 `package_branch.xml` 的 `image` 资源属性由 UAM `resource.image` 完整快照承载，包括纹理集模式、质量选项与自定义质量、平滑、边缘复制、缩放模式、九宫格和 tile-grid 位掩码。公开事务 `setImageResourceProps` 只替换这份正式属性快照，不修改图片 source bytes；非图片 selector、不完整快照、非法缩放模式、九宫格或位掩码会在写回前被拒绝。
 
+图片 source bytes 通过 `replaceResourceBytes` 更新时，当前只支持 PNG 与常见 8-bit Huffman JPEG。preflight 会检查 PNG 的 chunk CRC、zlib/scanline 边界和容器顺序；JPEG 除检查 quantization/Huffman table、frame/scan 顺序及编码约束外，还会完成像素解码。两者都会核对实际格式与操作时、最终文件扩展名；畸形或不匹配返回 `invalid_resource_bytes`，SVG、WebP、GIF、PSD、TGA 等未支持格式返回 `unsupported_resource_mutation`。浏览器 backend 通过 `applyUamTransactionAsync` 在包内 Web Worker 中执行相同的严格校验，browser 环境误用同步入口会直接拒绝而不会在主线程扫描或解码。消费端 bundler 必须把公开入口 `@openfairygui/core/image-validation-worker` 再打成与主 bundle 相邻的 self-contained ESM `image-validation-worker.js`；仅重打主入口或只复制 worker 文件不会带上其解码 chunk。Worker 无响应会在 10 秒后终止。浏览器 source 上限为 8 MiB，decoded raster 上限为 8,388,608 pixels；Node/CLI 同步校验的 source/PNG decoded bytes 上限为 128 MiB，JPEG 严格解码另限 8,388,608 pixels 与 64 MiB。
+
+有效替换会从 bytes 派生新的 raster 宽高，并在同一内存 transaction 中原子投影到 UAM 与 Document。后续 Save 仍沿用现有多文件写回，不承诺文件系统级 `atomicSave`。`ProjectReader` 在请求 `hydrateResourceBytes` 时以可解析且字段合法的 PNG IHDR / JPEG SOF header 覆盖陈旧 XML 尺寸，不在批量水合时扫描完整容器或重复执行像素解码；SVG 继续使用工程声明尺寸。
+
 ## 当前发布输出路径解析
 
 发布时显式传入的输出目录优先于设置文件。未传入时，当前选择顺序如下：

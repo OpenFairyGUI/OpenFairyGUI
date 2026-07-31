@@ -143,6 +143,31 @@ class FailingMemoryBrowserStorage extends MemoryBrowserStorage {
 	}
 }
 
+class PausingMemoryBrowserStorage extends MemoryBrowserStorage {
+	private releaseWrite = (): void => undefined;
+	private readonly resumeWrite = new Promise<void>((resolve) => {
+		this.releaseWrite = resolve;
+	});
+	private markWriteStarted = (): void => undefined;
+	public readonly writeStarted = new Promise<void>((resolve) => {
+		this.markWriteStarted = resolve;
+	});
+	private paused = true;
+
+	public continueWrite(): void {
+		this.releaseWrite();
+	}
+
+	public override async writeFileRaw(filePath: string, data: Uint8Array): Promise<void> {
+		if (this.paused) {
+			this.paused = false;
+			this.markWriteStarted();
+			await this.resumeWrite;
+		}
+		await super.writeFileRaw(filePath, data);
+	}
+}
+
 async function copyDirectoryToStorage(
 	storage: MemoryBrowserStorage,
 	sourceDirectory: string,
@@ -2009,6 +2034,32 @@ test('browser-safe LayaBox storage sessions reject lossy UAM saves before touchi
 		sessionId = opened.data.sessionId;
 		let revision = opened.data.revision;
 
+		const imageSourcePath = [projectRoot, 'assets', image.packageName, image.path, image.fileName]
+			.join('/')
+			.replace(/\/+/g, '/');
+		const sourceBytesBeforeRejectedApply = await storage.readFileRaw(imageSourcePath);
+		const rejectedImageBytes = await runtime.applyTransaction({
+			sessionId,
+			expectedRevision: revision,
+			operations: [
+				{
+					kind: 'setResourceFavorite',
+					selector: { packageId: image.packageId, resourceId: image.resourceId },
+					favorite: true,
+				},
+				{
+					kind: 'replaceResourceBytes',
+					selector: { packageId: image.packageId, resourceId: image.resourceId },
+					sourceBytes: new Uint8Array([1, 2, 3, 4]),
+				},
+			],
+		});
+		t.false(rejectedImageBytes.ok);
+		if (!('error' in rejectedImageBytes)) return;
+		t.is(rejectedImageBytes.error.code, 'transaction_unsupported');
+		t.true(rejectedImageBytes.meta.diagnostics.some((diagnostic) => diagnostic.code === 'invalid_resource_bytes'));
+		t.deepEqual(await storage.readFileRaw(imageSourcePath), sourceBytesBeforeRejectedApply);
+
 		const extension = path.extname(image.fileName) || '.bin';
 		const renamedFileName = `browser-renamed-${image.resourceId}${extension}`;
 		const movedPath = '/browser-edited';
@@ -2431,4 +2482,141 @@ test('materializeSession reports stable validation diagnostics before write', as
 	}
 	t.is(materializeFailure.meta.diagnostics[0]?.code, 'materialize_validation_failed');
 	t.false(storage.hasFile('Project.fairy'));
+});
+
+test('applyTransaction snapshots queued operations and shared source bytes before waiting', async (t) => {
+	const storage = new PausingMemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({
+		project: createBackendFixtureProject(),
+		storage: { fileSystem, fairyPath: 'Project.fairy' },
+	});
+	t.true(opened.ok);
+	if (!opened.ok) return;
+
+	const blockingSave = runtime.saveSession({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 0,
+		force: true,
+		mode: 'materializeCleanSession',
+	});
+	await storage.writeStarted;
+
+	const sourceBuffer = typeof SharedArrayBuffer === 'undefined' ? new ArrayBuffer(3) : new SharedArrayBuffer(3);
+	const sourceBytes = new Uint8Array(sourceBuffer);
+	sourceBytes.set([1, 2, 3]);
+	const operations: Parameters<typeof runtime.applyTransaction>[0]['operations'] = [
+		{
+			kind: 'addResource',
+			selector: { packageId: 'pkg001' },
+			resource: {
+				kind: 'misc',
+				id: 'queued-bytes',
+				name: 'queued-bytes',
+				path: '/queued',
+				exported: true,
+				favorite: false,
+				branch: '',
+				branchItemIds: [],
+				file: 'queued-bytes.bin',
+				metadata: null,
+				sourceBytes,
+			},
+		},
+	];
+	const applying = runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 0,
+		operations,
+	});
+	sourceBytes.fill(9);
+	operations.length = 0;
+	storage.continueWrite();
+
+	t.true((await blockingSave).ok);
+	const applied = await applying;
+	t.true(applied.ok);
+	if (!applied.ok) return;
+	t.is(applied.data.revision, 1);
+	t.true((await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: 1 })).ok);
+
+	const reloaded = normalizeUamProject(
+		liftDocumentToUamProject(
+			await new ProjectReader(fileSystem).read('Project.fairy', { hydrateResourceBytes: true }),
+		),
+	);
+	const resource = reloaded.packages[0]?.resources.find((candidate) => candidate.id === 'queued-bytes');
+	t.is(resource?.kind, 'misc');
+	if (resource?.kind === 'misc') t.deepEqual([...(resource.sourceBytes ?? [])], [1, 2, 3]);
+});
+
+test.serial('applyTransaction rejects when its session closes during browser image validation', async (t) => {
+	const workerDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Worker');
+	let releaseValidation = (): void => undefined;
+	let markValidationStarted = (): void => undefined;
+	const validationStarted = new Promise<void>((resolve) => {
+		markValidationStarted = resolve;
+	});
+	class PausingImageWorker {
+		public onmessage: ((event: MessageEvent<{ format: 'png'; width: number; height: number }>) => void) | null = null;
+		public onerror: (() => void) | null = null;
+
+		public postMessage(): void {
+			markValidationStarted();
+			releaseValidation = () => {
+				this.onmessage?.({ data: { format: 'png', width: 1, height: 1 } } as MessageEvent<{
+					format: 'png';
+					width: number;
+					height: number;
+				}>);
+			};
+		}
+
+		public terminate(): void {}
+	}
+
+	try {
+		Object.defineProperty(globalThis, 'Worker', {
+			configurable: true,
+			value: PausingImageWorker,
+		});
+		const project = createBackendFixtureProject();
+		const image = project.packages[0]?.resources.find((resource) => resource.id === 'img001');
+		if (image?.kind !== 'image') {
+			t.fail('expected fixture image resource');
+			return;
+		}
+		image.sourceBytes = new Uint8Array([1]);
+		const runtime = new BackendRuntime();
+		const opened = runtime.openProjectSession({
+			project,
+			canonicalProjectPath: 'memory://close-during-image-validation',
+		});
+		t.true(opened.ok);
+		if (!opened.ok) return;
+
+		const applying = runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: 0,
+			operations: [
+				{
+					kind: 'replaceResourceBytes',
+					selector: { packageId: 'pkg001', resourceId: 'img001' },
+					sourceBytes: new Uint8Array([1, 2, 3, 4, 5]),
+				},
+			],
+		});
+		await validationStarted;
+		t.true((await runtime.closeSession({ sessionId: opened.data.sessionId })).ok);
+		releaseValidation();
+
+		const applied = await applying;
+		t.false(applied.ok);
+		if (!applied.ok) t.is(applied.error.code, 'session_not_found');
+		t.false(runtime.getSession({ sessionId: opened.data.sessionId }).ok);
+	} finally {
+		if (workerDescriptor) Object.defineProperty(globalThis, 'Worker', workerDescriptor);
+		else Reflect.deleteProperty(globalThis, 'Worker');
+	}
 });

@@ -68,6 +68,11 @@ export function isUamNativeOperation(operation: UamTransactionOperation): boolea
 		|| isDisplayListRewriteOperation(operation);
 }
 
+export function renamedResourceFileName(previousFileName: string, requestedName: string): string {
+	if (requestedName.includes('.')) return requestedName;
+	const extensionIndex = previousFileName.lastIndexOf('.');
+	return extensionIndex > 0 ? `${requestedName}${previousFileName.slice(extensionIndex)}` : requestedName;
+}
 
 export const TEXT_DISPLAY_NODE_KINDS = new Set<UamDisplayNode['kind']>(['text', 'richText', 'textInput']);
 

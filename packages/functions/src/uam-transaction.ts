@@ -1,5 +1,6 @@
 import {
 	applyUamTransaction,
+	applyUamTransactionAsync,
 	type UamProject,
 	UamTransactionError,
 	type UamTransactionErrorCode,
@@ -107,6 +108,24 @@ function mapTransactionDiagnostics(error: UamTransactionError): ApplyUamTransact
 	];
 }
 
+function transactionFailure(error: UamTransactionError): ApplyUamTransactionAppResult {
+	return {
+		ok: false,
+		error: {
+			code: error.code,
+			stage: mapTransactionErrorStage(error),
+			message: error.message,
+			opIndex: error.opIndex,
+			opId: error.opId,
+			opKind: error.opKind,
+			operationKind: error.opKind,
+			selector: error.selector,
+			issues: error.issues,
+			diagnostics: mapTransactionDiagnostics(error),
+		},
+	};
+}
+
 export function applyUamTransactionApp(input: ApplyUamTransactionAppInput): ApplyUamTransactionAppResult {
 	try {
 		return {
@@ -114,23 +133,21 @@ export function applyUamTransactionApp(input: ApplyUamTransactionAppInput): Appl
 			project: applyUamTransaction(input.project, input.operations),
 		};
 	} catch (error) {
-		if (error instanceof UamTransactionError) {
-			return {
-				ok: false,
-				error: {
-					code: error.code,
-					stage: mapTransactionErrorStage(error),
-					message: error.message,
-					opIndex: error.opIndex,
-					opId: error.opId,
-					opKind: error.opKind,
-					operationKind: error.opKind,
-					selector: error.selector,
-					issues: error.issues,
-					diagnostics: mapTransactionDiagnostics(error),
-				},
-			};
-		}
+		if (error instanceof UamTransactionError) return transactionFailure(error);
+		throw error;
+	}
+}
+
+export async function applyUamTransactionAppAsync(
+	input: ApplyUamTransactionAppInput,
+): Promise<ApplyUamTransactionAppResult> {
+	try {
+		return {
+			ok: true,
+			project: await applyUamTransactionAsync(input.project, input.operations),
+		};
+	} catch (error) {
+		if (error instanceof UamTransactionError) return transactionFailure(error);
 		throw error;
 	}
 }

@@ -8,6 +8,7 @@ import type { GLoader3D } from '../properties/g-loader-3d.js';
 import type { GTextField } from '../properties/g-text-field.js';
 import type { Package } from '../properties/package.js';
 import type { Transition } from '../properties/transition.js';
+import { probeRasterImageDimensions, rasterImageFormatFromFileName } from '../utils/image-info.js';
 import { tryReadJtaSize } from '../utils/jta-parser.js';
 import { normalizeResourceFolderPath, resourceFolderName, resourceFolderParentPath } from '../utils/resource-folder.js';
 import {
@@ -40,6 +41,7 @@ import {
 	COMMON_DISPLAY_PROPERTY_TYPES,
 	GROUPABLE_DISPLAY_PROPERTY_TYPES,
 	TEXT_DISPLAY_PROPERTY_TYPES,
+	renamedResourceFileName,
 	type UamAttachableDisplayNode,
 	withDefaultOwnPackageRef,
 } from './transaction-shared.js';
@@ -389,15 +391,8 @@ function resourceNameFromFileName(fileName: string): string {
 	return extensionIndex > 0 ? fileName.slice(0, extensionIndex) : fileName;
 }
 
-function renamedAssetFileName(resource: MutableAssetResource, requestedName: string): string {
-	if (requestedName.includes('.')) return requestedName;
-	const previousFileName = getAssetFileName(resource);
-	const extensionIndex = previousFileName.lastIndexOf('.');
-	return extensionIndex > 0 ? `${requestedName}${previousFileName.slice(extensionIndex)}` : requestedName;
-}
-
 function renameBinaryAssetResource(resource: MutableAssetResource, requestedName: string): void {
-	const fileName = renamedAssetFileName(resource, requestedName);
+	const fileName = renamedResourceFileName(getAssetFileName(resource), requestedName);
 	if (!fileName) throw new Error(`Resource "${resource.getName()}" does not define a primary source file.`);
 	setAssetFileName(resource, fileName);
 	resource.setName(resourceNameFromFileName(fileName));
@@ -549,8 +544,23 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 		}
 		case 'replaceResourceBytes': {
 			const { resource } = resolveResource(doc, operation.selector);
+			let imageInfo: ReturnType<typeof probeRasterImageDimensions> = null;
+			if (resource.propertyType === PropertyType.IMAGE_RESOURCE) {
+				const fileName = getAssetFileName(asMutableAssetResource(resource));
+				const expectedFormat = rasterImageFormatFromFileName(fileName);
+				imageInfo = probeRasterImageDimensions(operation.sourceBytes);
+				if (!expectedFormat) {
+					throw new Error(`Image resource "${resource.getName()}" uses an unsupported source format.`);
+				}
+				if (!imageInfo || imageInfo.format !== expectedFormat) {
+					throw new Error(`Image replacement bytes do not match source file "${fileName}".`);
+				}
+			}
 			replaceBinaryAssetBytes(doc, asMutableAssetResource(resource), operation.sourceBytes);
-			if (resource.propertyType === PropertyType.MOVIE_CLIP_RESOURCE) {
+			if (resource.propertyType === PropertyType.IMAGE_RESOURCE && imageInfo) {
+				const image = resource as ReturnType<Document['createImageResource']>;
+				image.setWidth(imageInfo.width).setHeight(imageInfo.height);
+			} else if (resource.propertyType === PropertyType.MOVIE_CLIP_RESOURCE) {
 				const size = tryReadJtaSize(operation.sourceBytes);
 				if (size) {
 					const movieClip = resource as ReturnType<Document['createMovieClipResource']>;

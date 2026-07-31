@@ -7,7 +7,7 @@ import {
 	type UamProject,
 	validateUamProject,
 } from '@openfairygui/core/uam';
-import { type ApplyUamTransactionAppError, applyUamTransactionApp } from '@openfairygui/functions/uam';
+import { type ApplyUamTransactionAppError, applyUamTransactionAppAsync } from '@openfairygui/functions/uam';
 import type { BackendDiagnostic } from '../contracts.js';
 import { normalizeComparablePath, type PathPolicyViolationError, validateSaveTarget } from '../path-policy.js';
 import type {
@@ -144,6 +144,20 @@ function storageCanonicalTarget(input: NonNullable<MaterializeSessionInput['stor
 	};
 }
 
+function detachSharedByteViews(value: unknown, seen = new WeakSet<object>()): void {
+	if (!value || typeof value !== 'object' || seen.has(value)) return;
+	seen.add(value);
+	for (const [key, child] of Object.entries(value)) {
+		if (child instanceof Uint8Array) {
+			if (typeof SharedArrayBuffer !== 'undefined' && child.buffer instanceof SharedArrayBuffer) {
+				(value as Record<string, unknown>)[key] = new Uint8Array(child);
+			}
+			continue;
+		}
+		detachSharedByteViews(child, seen);
+	}
+}
+
 export class AuthoringService {
 	private readonly sessionOperations = new Map<string, Promise<void>>();
 
@@ -178,7 +192,9 @@ export class AuthoringService {
 			SessionNotFoundError | SessionStaleWriteError | ApplyUamTransactionAppError
 		>
 	> {
-		return this.runSessionExclusive(input.sessionId, () => this.applyTransactionExclusive(input));
+		const queuedInput = structuredClone(input);
+		detachSharedByteViews(queuedInput);
+		return this.runSessionExclusive(queuedInput.sessionId, () => this.applyTransactionExclusive(queuedInput));
 	}
 
 	private async applyTransactionExclusive(
@@ -213,10 +229,13 @@ export class AuthoringService {
 			);
 		}
 
-		const result = applyUamTransactionApp({
+		const result = await applyUamTransactionAppAsync({
 			project: session.project,
 			operations: input.operations,
 		});
+		if (this.context.sessions.get(input.sessionId) !== session || session.closed) {
+			return failure('authoring', startedAt, createSessionNotFoundError(input.sessionId));
+		}
 		if (result.ok === false) {
 			const diagnostics = toBackendDiagnostics(result.error);
 			this.eventService.emit({

@@ -1,4 +1,3 @@
-import test from 'ava';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -6,16 +5,19 @@ import {
 	createDefaultUamComponentProperties,
 	createDefaultUamImageResourceProperties,
 	createDefaultUamPlainTextProperties,
+	readProjectAsUam,
 	type UamProject,
 	type UamTransactionOperation,
-	readProjectAsUam,
 	writeProjectFromUam,
 } from '@openfairygui/core';
 import { NodeIO } from '@openfairygui/core/node';
+import { getFixturePath } from '@openfairygui/test-utils';
+import test from 'ava';
 import {
-	applyUamTransactionApp,
 	type ApplyUamTransactionAppInput,
 	type ApplyUamTransactionAppResult,
+	applyUamTransactionApp,
+	applyUamTransactionAppAsync,
 } from '../src/index.js';
 
 function createSupportedProject(): UamProject {
@@ -238,4 +240,83 @@ test('applyUamTransactionApp exposes stable operation-scoped diagnostics', (t) =
 		resourceKind: 'image',
 		operationKind: 'renameResource',
 	});
+});
+
+test.serial('async app transaction uses browser worker raster validation', async (t) => {
+	const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'Worker');
+	let validationCount = 0;
+	class FakeWorker {
+		public onmessage:
+			| ((event: MessageEvent<{ format: 'png'; width: number; height: number } | null>) => void)
+			| null = null;
+		public onerror: (() => void) | null = null;
+
+		public postMessage(message: ArrayBuffer): void {
+			validationCount += 1;
+			const result = message.byteLength > 4 ? { format: 'png' as const, width: 60, height: 74 } : null;
+			queueMicrotask(() => this.onmessage?.({ data: result } as MessageEvent<typeof result>));
+		}
+
+		public terminate(): void {}
+	}
+	try {
+		Object.defineProperty(globalThis, 'Worker', {
+			configurable: true,
+			value: FakeWorker,
+		});
+		const project = createSupportedProject();
+		const image = project.packages[0]!.resources[0];
+		if (image?.kind !== 'image') throw new Error('expected image resource');
+		const bytes = new Uint8Array(
+			await fs.readFile(getFixturePath('FairyGUI-layabox', 'demo/UIProject/assets/Bag/images/0.png')),
+		);
+		image.sourceBytes = bytes;
+		image.sourcePath = '/images/background.png';
+		image.dimensions = { width: 60, height: 74 };
+		const input: ApplyUamTransactionAppInput = {
+			project,
+			operations: [
+				{
+					kind: 'replaceResourceBytes',
+					selector: { packageId: 'pkg001', resourceId: 'img001' },
+					sourceBytes: bytes,
+				},
+			],
+		};
+
+		const syncResult = applyUamTransactionApp(input);
+		t.false(syncResult.ok);
+		if ('error' in syncResult) t.is(syncResult.error.diagnostics[0]?.code, 'unsupported_resource_mutation');
+		const asyncResult = await applyUamTransactionAppAsync(input);
+		t.true(asyncResult.ok, JSON.stringify(asyncResult));
+		t.is(validationCount, 1);
+		const invalidResult = await applyUamTransactionAppAsync({
+			...input,
+			operations: [
+				{
+					kind: 'replaceResourceBytes',
+					selector: { packageId: 'pkg001', resourceId: 'img001' },
+					sourceBytes: new Uint8Array([1, 2, 3, 4]),
+				},
+			],
+		});
+		t.false(invalidResult.ok);
+		if ('error' in invalidResult) t.is(invalidResult.error.diagnostics[0]?.code, 'invalid_resource_bytes');
+		const malformedResult = await applyUamTransactionAppAsync({
+			...input,
+			operations: [
+				{
+					kind: 'replaceResourceBytes',
+					selector: { packageId: 'pkg001', resourceId: 'img001' },
+					sourceBytes: null as never,
+				},
+			],
+		});
+		t.false(malformedResult.ok);
+		if ('error' in malformedResult)
+			t.is(malformedResult.error.diagnostics[0]?.code, 'unavailable_resource_source_bytes');
+	} finally {
+		if (descriptor) Object.defineProperty(globalThis, 'Worker', descriptor);
+		else Reflect.deleteProperty(globalThis, 'Worker');
+	}
 });
