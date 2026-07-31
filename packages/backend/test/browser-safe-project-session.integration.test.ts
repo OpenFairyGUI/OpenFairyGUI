@@ -763,6 +763,66 @@ test('browser-safe resource favorite transactions survive save, reload, and inve
 	t.false(restoredResources.find((resource) => resource.id === 'cmp001')?.favorite);
 });
 
+test('browser-safe resource folder favorite transactions survive atomic save, reload, and inverse', async (t) => {
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const project = createBackendFixtureProject();
+	project.branches = ['mobile'];
+	project.packages[0]!.folders.push({ branch: 'mobile', path: '/branch/', favorite: false, atlas: '' });
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({
+		project,
+		storage: { fileSystem, fairyPath: 'FolderFavorites/Project.fairy' },
+	});
+	t.true(opened.ok);
+	if (!opened.ok) return;
+
+	const operations = [
+		{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', path: '/images/' }, favorite: true },
+		{ kind: 'setResourceFavorite' as const, selector: { packageId: 'pkg001', resourceId: 'img001' }, favorite: true },
+		{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', branch: 'mobile', path: '/branch/' }, favorite: true },
+	];
+	const applied = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 0,
+		operations,
+	});
+	t.true(applied.ok);
+	if (!applied.ok) return;
+	t.true((await runtime.saveSession({ sessionId: opened.data.sessionId })).ok);
+
+	const packageXml = await storage.readFile('FolderFavorites/assets/Main/package.xml');
+	const branchXml = await storage.readFile('FolderFavorites/assets_mobile/Main/package_branch.xml');
+	t.regex(packageXml, /<packageDescription[^>]*hasFavorites="true"/);
+	t.regex(packageXml, /<folder[^>]*name="images"[^>]*favorite="true"/);
+	t.regex(branchXml, /<folder[^>]*name="branch"[^>]*favorite="true"/);
+
+	const reloaded = normalizeUamProject(
+		liftDocumentToUamProject(await new ProjectReader(fileSystem).read('FolderFavorites/Project.fairy')),
+	);
+	t.true(reloaded.packages[0]!.folders.find((folder) => folder.path === '/images/')?.favorite);
+	t.true(reloaded.packages[0]!.folders.find((folder) => folder.branch === 'mobile')?.favorite);
+	t.true(reloaded.packages[0]!.resources.find((resource) => resource.id === 'img001')?.favorite);
+
+	const inverse = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 1,
+		operations: operations.map((operation) => ({ ...operation, favorite: false })),
+	});
+	t.true(inverse.ok);
+	if (!inverse.ok) return;
+	t.true((await runtime.saveSession({ sessionId: opened.data.sessionId })).ok);
+	const clearedPackageXml = await storage.readFile('FolderFavorites/assets/Main/package.xml');
+	t.notRegex(clearedPackageXml, /\bhasFavorites=/);
+
+	const restored = normalizeUamProject(
+		liftDocumentToUamProject(await new ProjectReader(fileSystem).read('FolderFavorites/Project.fairy')),
+	);
+	t.false(restored.packages[0]!.folders.find((folder) => folder.path === '/images/')?.favorite);
+	t.false(restored.packages[0]!.folders.find((folder) => folder.branch === 'mobile')?.favorite);
+	t.false(restored.packages[0]!.resources.find((resource) => resource.id === 'img001')?.favorite);
+});
+
 test('browser-safe resource exported transactions survive save, reload, and inverse', async (t) => {
 	const storage = new MemoryBrowserStorage();
 	const fileSystem = createBackendStorageFileSystem(storage);

@@ -101,6 +101,7 @@ export {
 	type SetComponentPropsOperation,
 	type SetImageResourcePropsOperation,
 	type SetResourceFavoriteOperation,
+	type SetResourceFolderFavoriteOperation,
 	type SetResourceExportedOperation,
 	type UamComponentSelector,
 	type UamControllerSelector,

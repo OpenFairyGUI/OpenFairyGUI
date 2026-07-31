@@ -106,7 +106,7 @@
 
 `package.xml` 与 `package_branch.xml` 的 component/asset 资源节点使用 `exported="true"` 与 `favorite="true"` 记录导出和收藏状态；未导出、未收藏时省略对应属性。UAM 通过 `resource.exported`、`resource.favorite` 承载这些字段，公开事务分别使用幂等的 `setResourceExported`、`setResourceFavorite` 设置目标布尔值。
 
-资源文件夹由 `package.folders` 正式承载 `branch / path / favorite / atlas`。文件夹路径使用以 `/` 开头和结尾的规范形式，根目录是隐式节点；实际 `assets[/_<branch>]/<包名>/` 目录是存在性的事实来源，`<folder>` 节点只写入需要持久化的收藏或图集元数据。公开事务 `addResourceFolder`、`renameResourceFolder`、`moveResourceFolder`、`removeResourceFolder` 只操作空文件夹；父目录必须存在，根目录、路径冲突和非空操作会在提交前拒绝。浏览器存储适配器须提供非递归 `rmdir`，保存成功后才清理被移除的空目录。
+资源文件夹由 `package.folders` 正式承载 `branch / path / favorite / atlas`。文件夹路径使用以 `/` 开头和结尾的规范形式，根目录是隐式节点；实际 `assets[/_<branch>]/<包名>/` 目录是存在性的事实来源，`<folder>` 节点只写入需要持久化的收藏或图集元数据。`setResourceFolderFavorite` 可更新既有主分支或资源分支文件夹的收藏状态，且单个操作只修改 selector 指定的文件夹；需要匹配编辑器的后代收藏行为时，调用方应在同一事务中显式提交后代文件夹与资源收藏操作。公开事务 `addResourceFolder`、`renameResourceFolder`、`moveResourceFolder`、`removeResourceFolder` 只操作空文件夹；父目录必须存在，根目录、路径冲突和非空操作会在提交前拒绝。浏览器存储适配器须提供非递归 `rmdir`，保存成功后才清理被移除的空目录。
 
 主 `package.xml` 的 `packageDescription@hasFavorites` 由包内资源与资源文件夹的收藏状态派生，不作为独立可编辑状态。收藏状态只影响编辑器工程数据，不进入运行时二进制发布协议。
 

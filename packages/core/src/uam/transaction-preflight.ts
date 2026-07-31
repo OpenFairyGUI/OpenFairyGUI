@@ -2192,6 +2192,18 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 					);
 				}
 				break;
+			case 'setResourceFolderFavorite':
+				validateResourceFolderSelector(project, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				if (typeof operation.favorite !== 'boolean') {
+					pushSupportIssue(
+						issues,
+						'invalid_resource_payload',
+						`${operationPath}.favorite`,
+						'setResourceFolderFavorite.favorite must be boolean.',
+						{ operationKind: operation.kind },
+					);
+				}
+				break;
 			case 'setResourceExported':
 				validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
 				if (typeof operation.exported !== 'boolean') {

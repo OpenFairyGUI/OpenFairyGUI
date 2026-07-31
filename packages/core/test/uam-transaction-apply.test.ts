@@ -102,6 +102,47 @@ test('resource exported transactions support assets, components, inverse, and so
 	t.is(mixed.packages[0]?.resources.find((resource) => resource.id === 'cmp001')?.name, 'RenamedView');
 });
 
+test('resource folder favorite supports non-empty and branch folders, inverse, and atomic resource updates', (t) => {
+	const project = createSupportedProject();
+	project.branches = ['mobile'];
+	project.packages[0]!.folders.push(
+		{ branch: '', path: '/other/', favorite: false, atlas: '' },
+		{ branch: 'mobile', path: '/branch/', favorite: false, atlas: '' },
+	);
+	const operations = [
+		{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', path: '/images/' }, favorite: true },
+		{ kind: 'setResourceFavorite' as const, selector: { packageId: 'pkg001', resourceId: 'img001' }, favorite: true },
+		{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', branch: 'mobile', path: '/branch/' }, favorite: true },
+	];
+
+	t.deepEqual(validateTransactionSupport(project, operations), []);
+	const result = applyUamTransaction(project, operations);
+	t.false(project.packages[0]!.folders.find((folder) => folder.path === '/images/')?.favorite);
+	t.false(project.packages[0]!.resources.find((resource) => resource.id === 'img001')?.favorite);
+	t.true(result.packages[0]!.folders.find((folder) => folder.path === '/images/')?.favorite);
+	t.true(result.packages[0]!.folders.find((folder) => folder.branch === 'mobile')?.favorite);
+	t.false(result.packages[0]!.folders.find((folder) => folder.path === '/other/')?.favorite);
+	t.true(result.packages[0]!.resources.find((resource) => resource.id === 'img001')?.favorite);
+
+	const restored = applyUamTransaction(result, operations.map((operation) => ({ ...operation, favorite: false })));
+	t.deepEqual(restored, project);
+
+	const invalid = validateTransactionSupport(project, [
+		{ kind: 'setResourceFolderFavorite', selector: { packageId: 'pkg001', path: '/' }, favorite: true },
+		{ kind: 'setResourceFolderFavorite', selector: { packageId: 'pkg001', path: '/missing/' }, favorite: true },
+		{ kind: 'setResourceFolderFavorite', selector: { packageId: 'pkg001', path: '/images/' }, favorite: 'true' as unknown as boolean },
+	]);
+	t.true(invalid.filter((issue) => issue.code === 'invalid_resource_folder_selector').length >= 2);
+	t.true(invalid.some((issue) => issue.path === 'operations[2].favorite' && issue.code === 'invalid_resource_payload'));
+
+	const documentBacked = applyUamTransaction(project, [
+		operations[0]!,
+		{ kind: 'renameResource', selector: { packageId: 'pkg001', resourceId: 'cmp001' }, newName: 'RenamedView' },
+	]);
+	t.true(documentBacked.packages[0]!.folders.find((folder) => folder.path === '/images/')?.favorite);
+	t.is(documentBacked.packages[0]!.resources.find((resource) => resource.id === 'cmp001')?.name, 'RenamedView');
+});
+
 test('resource folder lifecycle supports empty-folder forward, inverse, and atomic groups', (t) => {
 	const project = createSupportedProject();
 	project.packages[0]!.folders = [

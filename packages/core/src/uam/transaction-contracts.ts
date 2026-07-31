@@ -124,6 +124,12 @@ export interface SetResourceFavoriteOperation extends UamTransactionOperationBas
 	favorite: boolean;
 }
 
+export interface SetResourceFolderFavoriteOperation extends UamTransactionOperationBase {
+	kind: 'setResourceFolderFavorite';
+	selector: UamResourceFolderSelector;
+	favorite: boolean;
+}
+
 export interface SetResourceExportedOperation extends UamTransactionOperationBase {
 	kind: 'setResourceExported';
 	selector: UamResourceSelector;
@@ -316,6 +322,7 @@ export type UamTransactionOperation =
 	| RenameResourceOperation
 	| MoveResourceOperation
 	| SetResourceFavoriteOperation
+	| SetResourceFolderFavoriteOperation
 	| SetResourceExportedOperation
 	| AddResourceFolderOperation
 	| RenameResourceFolderOperation
