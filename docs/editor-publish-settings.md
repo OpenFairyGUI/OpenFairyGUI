@@ -108,6 +108,10 @@
 
 UAM 通过 `resource.favorite` 承载该字段，公开事务使用幂等的 `setResourceFavorite` 设置目标布尔值。收藏状态只影响编辑器工程数据，不进入运行时二进制发布协议。当前工程资源模型不包含 package folder 项，因此文件夹收藏不在这一正式范围内。
 
+## 工程图片资源属性
+
+`package.xml` 与 `package_branch.xml` 的 `image` 资源属性由 UAM `resource.image` 完整快照承载，包括纹理集模式、质量选项与自定义质量、平滑、边缘复制、缩放模式、九宫格和 tile-grid 位掩码。公开事务 `setImageResourceProps` 只替换这份正式属性快照，不修改图片 source bytes；非图片 selector、不完整快照、非法缩放模式、九宫格或位掩码会在写回前被拒绝。
+
 ## 当前发布输出路径解析
 
 发布时显式传入的输出目录优先于设置文件。未传入时，当前选择顺序如下：

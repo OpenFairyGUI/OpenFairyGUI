@@ -2,13 +2,13 @@ import type { ProjectSourceFile } from '../io/project-io-contracts.js';
 import type { UamAssetResource, UamProject } from './model.js';
 
 export function defaultAssetSourcePath(resource: UamAssetResource): string {
-	const fileName = resource.fileName ?? resource.file ?? '';
+	const fileName = resource.fileName ?? (resource.kind === 'image' ? '' : resource.file) ?? '';
 	const path = resource.path.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
 	return `/${[path, fileName].filter(Boolean).join('/')}`;
 }
 
 function sourceFileReference(packageName: string, resource: UamAssetResource): ProjectSourceFile | null {
-	const fileName = resource.fileName ?? resource.file ?? '';
+	const fileName = resource.fileName ?? (resource.kind === 'image' ? '' : resource.file) ?? '';
 	if (!fileName) return null;
 	return {
 		packageName,

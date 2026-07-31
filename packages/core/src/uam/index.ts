@@ -27,12 +27,15 @@ export {
 	type UamFontSizeGearValue,
 	type UamGearBinding,
 	type UamGearPageState,
+	type UamGenericAssetResource,
 	type UamGraphNode,
 	type UamGraphProperties,
 	type UamGroupNode,
 	type UamIconGearBinding,
 	type UamIconGearValue,
 	type UamImageNode,
+	type UamImageResource,
+	type UamImageResourceProperties,
 	type UamLabelNode,
 	type UamListItemData,
 	type UamListNode,
@@ -72,7 +75,11 @@ export {
 	UAM_SUPPORTED_MATERIALIZATION_SCOPE,
 	UAM_SUPPORTED_TRANSACTION_SCOPE,
 } from './model.js';
-export { createDefaultUamComponentProperties, normalizeUamProject } from './normalize.js';
+export {
+	createDefaultUamComponentProperties,
+	createDefaultUamImageResourceProperties,
+	normalizeUamProject,
+} from './normalize.js';
 export { assertValidUamProject, validateUamProject } from './validate.js';
 export {
 	commitUamProjectSourcePaths,
@@ -94,6 +101,7 @@ export {
 	type RemoveResourceOperation,
 	type RenamePackageOperation,
 	type SetComponentPropsOperation,
+	type SetImageResourcePropsOperation,
 	type SetResourceFavoriteOperation,
 	type ReplaceResourceBytesOperation,
 	UamTransaction,

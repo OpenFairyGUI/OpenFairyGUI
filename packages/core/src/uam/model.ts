@@ -71,8 +71,7 @@ export type UamAssetResourceKind =
 	| 'spine'
 	| 'dragonBones';
 
-export interface UamAssetResource {
-	kind: UamAssetResourceKind;
+interface UamAssetResourceBase {
 	id: string;
 	name: string;
 	path: string;
@@ -80,10 +79,6 @@ export interface UamAssetResource {
 	favorite: boolean;
 	branch: string;
 	branchItemIds: string[];
-	fileName?: string;
-	file?: string;
-	dimensions?: UamDimensions | null;
-	metadata?: Record<string, unknown> | null;
 	/**
 	 * Primary source-file bytes loaded by an explicit reader hydration request.
 	 * The value is copied at UAM boundaries and is never JSON serialized.
@@ -95,6 +90,36 @@ export interface UamAssetResource {
 	 */
 	sourcePath?: string;
 }
+
+export interface UamImageResourceProperties {
+	textureSetMode: string;
+	qualityOption: string;
+	quality: number;
+	smoothing: boolean;
+	duplicatePadding: boolean;
+	scaleOption: 0 | 1 | 2;
+	scale9Grid: [number, number, number, number] | null;
+	tileGridIndice: number;
+}
+
+export interface UamImageResource extends UamAssetResourceBase {
+	kind: 'image';
+	fileName?: string;
+	dimensions?: UamDimensions | null;
+	image: UamImageResourceProperties;
+}
+
+export interface UamGenericAssetResource extends UamAssetResourceBase {
+	kind: Exclude<UamAssetResourceKind, 'image'>;
+	fileName?: string;
+	file?: string;
+	dimensions?: UamDimensions | null;
+	metadata?: Record<string, unknown> | null;
+}
+
+export type UamAssetResource =
+	| UamImageResource
+	| UamGenericAssetResource;
 
 export interface UamComponentResource {
 	kind: 'component';

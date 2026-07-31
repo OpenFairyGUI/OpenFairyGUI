@@ -1,6 +1,7 @@
 import test from 'ava';
 import {
 	createDefaultUamComponentProperties,
+	createDefaultUamImageResourceProperties,
 	normalizeUamProject,
 	validateUamProject,
 	type UamProject,
@@ -75,6 +76,7 @@ test('validateUamProject rejects unknown hard references before graph assembly',
 						branch: '',
 						branchItemIds: [],
 						fileName: 'owned.png',
+						image: createDefaultUamImageResourceProperties(),
 					},
 					{
 						kind: 'component',

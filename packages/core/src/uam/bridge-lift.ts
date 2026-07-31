@@ -153,7 +153,7 @@ function liftAssetSourceData(resource: LiftableAssetResource): Pick<UamAssetReso
 	};
 }
 
-function baseAssetResource(kind: UamAssetResource['kind'], resource: LiftableAssetResource): UamAssetResource {
+function baseAssetResource<TKind extends UamAssetResource['kind']>(kind: TKind, resource: LiftableAssetResource) {
 	return {
 		kind,
 		id: resource.getId(),
@@ -163,7 +163,6 @@ function baseAssetResource(kind: UamAssetResource['kind'], resource: LiftableAss
 		favorite: resource.getFavorite(),
 		branch: resource.getBranch(),
 		branchItemIds: resource.getBranchItemIds(),
-		metadata: null,
 		...liftAssetSourceData(resource),
 	};
 }
@@ -171,6 +170,7 @@ function baseAssetResource(kind: UamAssetResource['kind'], resource: LiftableAss
 function liftAssetResource(resource: LiftableAssetResource): UamAssetResource {
 	if (resource.propertyType === PropertyType.IMAGE_RESOURCE) {
 		const image = resource as ReturnType<Document['createImageResource']>;
+		const scale9Grid = image.getScale9Grid();
 		return {
 			...baseAssetResource('image', image),
 			fileName: image.getFileName(),
@@ -178,8 +178,15 @@ function liftAssetResource(resource: LiftableAssetResource): UamAssetResource {
 				width: image.getWidth(),
 				height: image.getHeight(),
 			},
-			metadata: {
+			image: {
 				textureSetMode: image.getTextureSetMode(),
+				qualityOption: image.getQualityOption(),
+				quality: image.getQuality(),
+				smoothing: image.getSmoothing(),
+				duplicatePadding: image.getDuplicatePadding(),
+				scaleOption: image.getScaleOption() as 0 | 1 | 2,
+				scale9Grid: scale9Grid ? [...scale9Grid] : null,
+				tileGridIndice: image.getTileGridIndice(),
 			},
 		};
 	}

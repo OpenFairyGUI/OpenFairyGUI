@@ -7,6 +7,7 @@ import {
 	assertValidUamProject,
 	applyUamTransaction,
 	createDefaultUamComponentProperties,
+	createDefaultUamImageResourceProperties,
 	Document,
 	GearType,
 	normalizeUamProject,
@@ -67,7 +68,8 @@ function createEngineeringScaleUamProject(): UamProject {
 						branchItemIds: [],
 						fileName: 'background.png',
 						dimensions: { width: 320, height: 180 },
-						metadata: {
+						image: {
+							...createDefaultUamImageResourceProperties(),
 							textureSetMode: 'atlas',
 						},
 					},

@@ -1,7 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createDefaultUamComponentProperties, type UamProject } from '@openfairygui/core';
+import {
+	createDefaultUamComponentProperties,
+	createDefaultUamImageResourceProperties,
+	type UamProject,
+} from '@openfairygui/core';
 
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FIXTURES_DIR = path.join(PACKAGE_ROOT, 'test', 'fixtures');
@@ -122,7 +126,10 @@ export function createMinimalUamProject(projectId: string): UamProject {
 						branchItemIds: [],
 						fileName: 'background.png',
 						dimensions: { width: 320, height: 180 },
-						metadata: { textureSetMode: 'atlas' },
+						image: {
+							...createDefaultUamImageResourceProperties(),
+							textureSetMode: 'atlas',
+						},
 					},
 					{
 						kind: 'component',

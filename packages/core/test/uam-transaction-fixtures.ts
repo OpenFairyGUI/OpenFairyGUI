@@ -4,6 +4,7 @@ import path from 'node:path';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
 import {
 	createDefaultUamComponentProperties,
+	createDefaultUamImageResourceProperties,
 	normalizeUamProject,
 	type UamComponentResource,
 	type UamControllerModel,
@@ -50,7 +51,10 @@ export function createSupportedProject(): UamProject {
 						branchItemIds: [],
 						fileName: 'background.png',
 						dimensions: { width: 320, height: 180 },
-						metadata: { textureSetMode: 'atlas' },
+						image: {
+							...createDefaultUamImageResourceProperties(),
+							textureSetMode: 'atlas',
+						},
 						sourceBytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
 						sourcePath: '/images/background.png',
 					},

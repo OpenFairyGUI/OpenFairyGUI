@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {
 	createDefaultUamComponentProperties,
+	createDefaultUamImageResourceProperties,
 	type UamProject,
 	type UamTransactionOperation,
 	readProjectAsUam,
@@ -44,7 +45,10 @@ function createSupportedProject(): UamProject {
 						branchItemIds: [],
 						fileName: 'background.png',
 						dimensions: { width: 320, height: 180 },
-						metadata: { textureSetMode: 'atlas' },
+						image: {
+							...createDefaultUamImageResourceProperties(),
+							textureSetMode: 'atlas',
+						},
 					},
 					{
 						kind: 'component',

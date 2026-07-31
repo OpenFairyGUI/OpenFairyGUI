@@ -36,6 +36,7 @@ export function isUamNativeOperation(operation: UamTransactionOperation): boolea
 	return operation.kind === 'setComponentProps'
 		|| operation.kind === 'setDisplayNodeProps'
 		|| operation.kind === 'setResourceFavorite'
+		|| operation.kind === 'setImageResourceProps'
 		|| isLifecycleOperation(operation)
 		|| isDisplayListRewriteOperation(operation);
 }
@@ -126,6 +127,9 @@ export function findProjectedResource(
 			if (operation.kind === 'removeResource') resource = null;
 			if (operation.kind === 'replaceResourceBytes' && resource?.kind !== 'component') {
 				resource = { ...resource, sourceBytes: operation.sourceBytes };
+			}
+			if (operation.kind === 'setImageResourceProps' && resource?.kind === 'image') {
+				resource = { ...resource, image: structuredClone(operation.props) };
 			}
 		}
 	}

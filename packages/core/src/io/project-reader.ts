@@ -116,6 +116,8 @@ interface ResourceXmlAttrs extends XmlNode {
 	texture?: string;
 	width?: string | number;
 	height?: string | number;
+	qualityOption?: string;
+	quality?: string | number;
 	renderMode?: string;
 	samplePointSize?: string | number;
 	require?: string;
@@ -542,6 +544,8 @@ export class ProjectReader {
 				if (gridTile !== undefined) res.setTileGridIndice(parseInt2(gridTile));
 				const qualityOption = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.qualityOption);
 				if (qualityOption !== undefined) res.setQualityOption(qualityOption);
+				const quality = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.quality);
+				if (quality !== undefined) res.setQuality(parseInt2(quality));
 				res.setDuplicatePadding(parseBool(readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.duplicatePadding)));
 				res.setSmoothing(readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.smoothing) !== 'false');
 				pkg.addResource(res);

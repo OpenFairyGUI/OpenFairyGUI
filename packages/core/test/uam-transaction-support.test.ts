@@ -3,6 +3,7 @@ import {
 	UamTransactionError,
 	applyUamTransaction,
 	assertTransactionSupported,
+	createDefaultUamImageResourceProperties,
 	normalizeUamProject,
 	validateTransactionSupport,
 	type UamButtonNode,
@@ -10,6 +11,7 @@ import {
 	type UamDisplayNode,
 	type UamDisplayNodePropsUpdate,
 	type UamGraphProperties,
+	type UamImageResourceProperties,
 	type UamListNode,
 	type UamListProperties,
 	type UamLoader3DProperties,
@@ -19,6 +21,7 @@ import {
 } from '../src/index.js';
 
 import {
+	LAYABOX_PROJECT_PATH,
 	createControllerModel,
 	createDisplayNodeBase,
 	createListNodeBase,
@@ -27,6 +30,8 @@ import {
 	createTransitionModel,
 	roundTripCommittedProject,
 } from './uam-transaction-fixtures.js';
+import { NodeIO } from '../src/node.js';
+import { readProjectAsUam } from '../src/uam/index.js';
 
 const DISPLAY_NODE_BASE_KEYS = [
 	'kind',
@@ -51,6 +56,105 @@ function readSpecificProperties<T>(node: UamDisplayNode): T {
 	for (const key of DISPLAY_NODE_BASE_KEYS) delete snapshot[key];
 	return snapshot as T;
 }
+
+test('image resource properties survive transaction, save/reload, inverse, and second reload', async (t) => {
+	const project = await readProjectAsUam(new NodeIO(), LAYABOX_PROJECT_PATH, { hydrateResourceBytes: true });
+	const pkg = project.packages.find((candidate) => candidate.resources.some((resource) => (
+		resource.kind === 'image'
+		&& resource.sourceBytes instanceof Uint8Array
+		&& resource.sourceBytes.length > 0
+		&& (resource.dimensions?.width ?? 0) > 4
+		&& (resource.dimensions?.height ?? 0) > 4
+	)));
+	const image = pkg?.resources.find((resource) => (
+		resource.kind === 'image'
+		&& resource.sourceBytes instanceof Uint8Array
+		&& resource.sourceBytes.length > 0
+		&& (resource.dimensions?.width ?? 0) > 4
+		&& (resource.dimensions?.height ?? 0) > 4
+	));
+	if (!pkg || !image || image.kind !== 'image' || !image.dimensions || !image.sourceBytes) {
+		t.fail('expected a hydrated real image resource');
+		return;
+	}
+
+	const selector = { packageId: pkg.id, resourceId: image.id };
+	const originalProps = structuredClone(image.image);
+	const originalBytes = new Uint8Array(image.sourceBytes);
+	const updatedProps: UamImageResourceProperties = {
+		textureSetMode: 'alone_npot',
+		qualityOption: 'custom',
+		quality: 72,
+		smoothing: !originalProps.smoothing,
+		duplicatePadding: !originalProps.duplicatePadding,
+		scaleOption: 1,
+		scale9Grid: [1, 1, image.dimensions.width - 2, image.dimensions.height - 2],
+		tileGridIndice: 5,
+	};
+	const forward: UamTransactionOperation = {
+		kind: 'setImageResourceProps',
+		selector,
+		props: updatedProps,
+	};
+
+	t.deepEqual(validateTransactionSupport(project, [forward]), []);
+	const applied = applyUamTransaction(project, [forward]);
+	const appliedImage = applied.packages.find((candidate) => candidate.id === pkg.id)?.resources
+		.find((resource) => resource.id === image.id);
+	if (!appliedImage || appliedImage.kind !== 'image') {
+		t.fail('expected applied image resource');
+		return;
+	}
+	t.deepEqual(appliedImage.image, updatedProps);
+	t.deepEqual(appliedImage.sourceBytes, originalBytes);
+
+	const committed = await roundTripCommittedProject(applied);
+	const committedImage = committed.packages.find((candidate) => candidate.id === pkg.id)?.resources
+		.find((resource) => resource.id === image.id);
+	if (!committedImage || committedImage.kind !== 'image') {
+		t.fail('expected committed image resource');
+		return;
+	}
+	t.deepEqual(committedImage.image, updatedProps);
+	t.deepEqual(committedImage.sourceBytes, originalBytes);
+
+	const restored = await roundTripCommittedProject(applyUamTransaction(committed, [{
+		kind: 'setImageResourceProps',
+		selector,
+		props: originalProps,
+	}]));
+	const restoredImage = restored.packages.find((candidate) => candidate.id === pkg.id)?.resources
+		.find((resource) => resource.id === image.id);
+	if (!restoredImage || restoredImage.kind !== 'image') {
+		t.fail('expected restored image resource');
+		return;
+	}
+	t.deepEqual(restoredImage.image, originalProps);
+	t.deepEqual(restoredImage.sourceBytes, originalBytes);
+
+	const nonImage = pkg.resources.find((resource) => resource.kind !== 'image');
+	t.truthy(nonImage);
+	const invalidTargetIssues = validateTransactionSupport(project, [{
+		...forward,
+		selector: { packageId: pkg.id, resourceId: nonImage!.id },
+	}]);
+	t.true(invalidTargetIssues.some((issue) => issue.code === 'invalid_resource_selector'));
+	const invalidGridIssues = validateTransactionSupport(project, [{
+		...forward,
+		props: {
+			...updatedProps,
+			scale9Grid: [0, 0, 0, image.dimensions.height],
+		},
+	}]);
+	t.true(invalidGridIssues.some((issue) => issue.code === 'invalid_resource_payload'));
+	const incompleteProps = structuredClone(updatedProps) as Partial<UamImageResourceProperties>;
+	delete incompleteProps.quality;
+	const incompleteIssues = validateTransactionSupport(project, [{
+		...forward,
+		props: incompleteProps as UamImageResourceProperties,
+	}]);
+	t.true(incompleteIssues.some((issue) => issue.code === 'invalid_resource_payload'));
+});
 
 test('assertTransactionSupported accepts current materialization scope and rejects unsupported cross-package refs', (t) => {
 	const buttonNodeProject = createSupportedProject();
@@ -128,7 +232,7 @@ test('assertTransactionSupported accepts current materialization scope and rejec
 				branchItemIds: [],
 				fileName: 'shared.png',
 				dimensions: { width: 16, height: 16 },
-				metadata: null,
+				image: createDefaultUamImageResourceProperties(),
 			},
 		],
 	});
