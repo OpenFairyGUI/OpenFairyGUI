@@ -18,6 +18,7 @@ import {
 	materializeUamComponentInstanceProperties,
 	materializeUamComponentProperties,
 	materializeUamGraphProperties,
+	materializeUamImageResourceProperties,
 	materializeUamListProperties,
 	materializeUamLoaderProperties,
 } from './bridge-materialize.js';
@@ -438,6 +439,17 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 		case 'moveResource': {
 			const { resource } = resolveResource(doc, operation.selector);
 			resource.setPath(operation.toPath);
+			return;
+		}
+		case 'setImageResourceProps': {
+			const { resource } = resolveResource(doc, operation.selector);
+			if (resource.propertyType !== PropertyType.IMAGE_RESOURCE) {
+				throw new Error(`setImageResourceProps requires an image resource, received "${resource.propertyType}".`);
+			}
+			materializeUamImageResourceProperties(
+				resource as ReturnType<Document['createImageResource']>,
+				operation.props,
+			);
 			return;
 		}
 		case 'addResource': {

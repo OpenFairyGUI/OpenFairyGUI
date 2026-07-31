@@ -259,6 +259,14 @@ function applyUamNativeOperation(project: UamProject, operation: UamTransactionO
 			found.resource.favorite = operation.favorite;
 			return;
 		}
+		case 'setImageResourceProps': {
+			const found = findResourceSpecWithPath(project, operation.selector);
+			if (!found || found.resource.kind !== 'image') {
+				throw new Error(`Image resource "${operation.selector.resourceId}" was not found in package "${operation.selector.packageId}".`);
+			}
+			found.resource.image = structuredClone(operation.props);
+			return;
+		}
 		case 'setDisplayNodeProps': {
 			const found = findDisplayNodeSpecWithPath(project, operation.selector);
 			if (!found) {

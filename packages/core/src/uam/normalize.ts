@@ -27,6 +27,7 @@ import type {
 	UamIconGearBinding,
 	UamIconGearValue,
 	UamImageNode,
+	UamImageResourceProperties,
 	UamLabelNode,
 	UamListItemData,
 	UamListNode,
@@ -881,9 +882,38 @@ function normalizeComponentModel(component: UamComponentModel): UamComponentMode
 	};
 }
 
+export function createDefaultUamImageResourceProperties(): UamImageResourceProperties {
+	return {
+		textureSetMode: '',
+		qualityOption: '',
+		quality: 80,
+		smoothing: true,
+		duplicatePadding: false,
+		scaleOption: 0,
+		scale9Grid: null,
+		tileGridIndice: 0,
+	};
+}
+
+function normalizeImageResourceProperties(
+	properties: UamImageResourceProperties,
+): UamImageResourceProperties {
+	if (!properties) return properties;
+	return {
+		textureSetMode: properties.textureSetMode,
+		qualityOption: properties.qualityOption,
+		quality: properties.quality,
+		smoothing: properties.smoothing,
+		duplicatePadding: properties.duplicatePadding,
+		scaleOption: properties.scaleOption,
+		scale9Grid: properties.scale9Grid ? [...properties.scale9Grid] : null,
+		tileGridIndice: properties.tileGridIndice,
+	};
+}
+
 function normalizeAssetResource(resource: UamAssetResource): UamAssetResource {
 	const sourceBytes = resource.sourceBytes;
-	return {
+	const base = {
 		kind: resource.kind,
 		id: resource.id,
 		name: resource.name ?? '',
@@ -892,14 +922,29 @@ function normalizeAssetResource(resource: UamAssetResource): UamAssetResource {
 		favorite: resource.favorite ?? false,
 		branch: resource.branch ?? '',
 		branchItemIds: [...(resource.branchItemIds ?? [])],
+		...(sourceBytes === undefined ? {} : { sourceBytes: sourceBytes ? new Uint8Array(sourceBytes) : null }),
+		...(resource.sourcePath ? { sourcePath: resource.sourcePath } : {}),
+	};
+	if (resource.kind === 'image') {
+		return {
+			...base,
+			kind: 'image',
+			fileName: resource.fileName,
+			dimensions: resource.dimensions
+				? { width: resource.dimensions.width ?? 0, height: resource.dimensions.height ?? 0 }
+				: null,
+			image: normalizeImageResourceProperties(resource.image),
+		};
+	}
+	return {
+		...base,
+		kind: resource.kind,
 		fileName: resource.fileName,
 		file: resource.file,
 		dimensions: resource.dimensions
 			? { width: resource.dimensions.width ?? 0, height: resource.dimensions.height ?? 0 }
 			: null,
 		metadata: resource.metadata ?? null,
-		...(sourceBytes === undefined ? {} : { sourceBytes: sourceBytes ? new Uint8Array(sourceBytes) : null }),
-		...(resource.sourcePath ? { sourcePath: resource.sourcePath } : {}),
 	};
 }
 

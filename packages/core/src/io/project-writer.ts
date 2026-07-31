@@ -26,6 +26,7 @@ type WritableImageResource = WritableResource & {
 	getHeight?(): number;
 	getTextureSetMode?(): string;
 	getQualityOption?(): string;
+	getQuality?(): number;
 	getScaleOption?(): number;
 	getScale9Grid?(): [number, number, number, number] | null;
 	getTileGridIndice?(): number;
@@ -520,6 +521,9 @@ export class ProjectWriter {
 				if (gridTile !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.gridTile, String(gridTile));
 				const qualityOption = imgRes.getQualityOption?.() ?? '';
 				if (qualityOption) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.qualityOption, qualityOption);
+				if (qualityOption === 'custom') {
+					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.quality, String(imgRes.getQuality?.() ?? 80));
+				}
 				if (imgRes.getDuplicatePadding?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.duplicatePadding, 'true');
 				if (imgRes.getSmoothing?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.smoothing, 'false');
 			}

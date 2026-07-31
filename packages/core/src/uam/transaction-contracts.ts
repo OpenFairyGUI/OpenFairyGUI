@@ -8,6 +8,7 @@ import type {
 	UamDisplayNode,
 	UamGearBinding,
 	UamGraphProperties,
+	UamImageResourceProperties,
 	UamListProperties,
 	UamLoaderProperties,
 	UamLoader3DProperties,
@@ -100,6 +101,12 @@ export interface SetResourceFavoriteOperation extends UamTransactionOperationBas
 	kind: 'setResourceFavorite';
 	selector: UamResourceSelector;
 	favorite: boolean;
+}
+
+export interface SetImageResourcePropsOperation extends UamTransactionOperationBase {
+	kind: 'setImageResourceProps';
+	selector: UamResourceSelector;
+	props: UamImageResourceProperties;
 }
 
 export interface AddResourceOperation extends UamTransactionOperationBase {
@@ -256,6 +263,7 @@ export type UamTransactionOperation =
 	| RenameResourceOperation
 	| MoveResourceOperation
 	| SetResourceFavoriteOperation
+	| SetImageResourcePropsOperation
 	| AddResourceOperation
 	| AddPackageOperation
 	| RenamePackageOperation

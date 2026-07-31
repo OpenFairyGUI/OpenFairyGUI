@@ -23,6 +23,7 @@ import type {
 	UamGroupNode,
 	UamIconGearBinding,
 	UamImageNode,
+	UamImageResourceProperties,
 	UamLabelNode,
 	UamListNode,
 	UamListProperties,
@@ -391,19 +392,34 @@ function attachAssetSourceData<TResource extends MaterializedSourceDataResource>
 	return asset;
 }
 
-function metadataNumber(resource: UamAssetResource, key: string, fallback: number): number {
+function metadataNumber(resource: Exclude<UamAssetResource, { kind: 'image' }>, key: string, fallback: number): number {
 	const value = resource.metadata?.[key];
 	return typeof value === 'number' ? value : fallback;
 }
 
-function metadataBoolean(resource: UamAssetResource, key: string, fallback: boolean): boolean {
+function metadataBoolean(resource: Exclude<UamAssetResource, { kind: 'image' }>, key: string, fallback: boolean): boolean {
 	const value = resource.metadata?.[key];
 	return typeof value === 'boolean' ? value : fallback;
 }
 
-function metadataStringArray(resource: UamAssetResource, key: string): string[] {
+function metadataStringArray(resource: Exclude<UamAssetResource, { kind: 'image' }>, key: string): string[] {
 	const value = resource.metadata?.[key];
 	return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
+}
+
+export function materializeUamImageResourceProperties(
+	image: ReturnType<Document['createImageResource']>,
+	properties: UamImageResourceProperties,
+): void {
+	image
+		.setTextureSetMode(properties.textureSetMode)
+		.setQualityOption(properties.qualityOption)
+		.setQuality(properties.quality)
+		.setSmoothing(properties.smoothing)
+		.setDuplicatePadding(properties.duplicatePadding)
+		.setScaleOption(properties.scaleOption)
+		.setScale9Grid(properties.scale9Grid ? [...properties.scale9Grid] : null)
+		.setTileGridIndice(properties.tileGridIndice);
 }
 
 export function materializeAssetResource(doc: Document, resource: UamAssetResource) {
@@ -413,6 +429,7 @@ export function materializeAssetResource(doc: Document, resource: UamAssetResour
 			.setWidth(resource.dimensions?.width ?? 0)
 			.setHeight(resource.dimensions?.height ?? 0);
 		if (resource.fileName) image.setFileName(resource.fileName);
+		materializeUamImageResourceProperties(image, resource.image);
 		return attachAssetSourceData(doc, image, resource);
 	}
 	if (resource.kind === 'movieClip') {

@@ -69,7 +69,8 @@ This seam:
 - does not wrap `publish` or `restore`
 
 The transaction surface includes component size/root properties, component-instance
-extension overlays, resource rename/move, byte-backed binary resource add/replace/remove,
+extension overlays, resource rename/move, complete image-resource property snapshots,
+byte-backed binary resource add/replace/remove,
 and add/update/remove for `display`, `display2`, `look`, `xy`, `size`, `color`,
 `animation`, `text`, `icon`, and `fontSize` gears. Resource
 rename/move/replace/remove requires `sourceBytes`; opt in with

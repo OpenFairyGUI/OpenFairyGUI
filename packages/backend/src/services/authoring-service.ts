@@ -45,7 +45,7 @@ function projectSourceFiles(project: UamProject): Map<string, ProjectSourceFile>
 			if (resource.branch) branches.add(resource.branch);
 			const fileName = resource.kind === 'component'
 				? `${resource.name}.xml`
-				: resource.fileName ?? resource.file ?? '';
+				: resource.fileName ?? (resource.kind === 'image' ? '' : resource.file) ?? '';
 			if (!fileName) continue;
 			result.set(`${pkg.id}/${resource.id}`, {
 				packageName: pkg.name,

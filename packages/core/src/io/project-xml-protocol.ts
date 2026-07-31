@@ -86,6 +86,7 @@ const PACKAGE_IMAGE_RESOURCE_ATTRS = {
 	height: { canonical: 'height' },
 	gridTile: { canonical: 'gridTile' },
 	qualityOption: { canonical: 'qualityOption' },
+	quality: { canonical: 'quality' },
 	duplicatePadding: { canonical: 'duplicatePadding' },
 	smoothing: { canonical: 'smoothing' },
 } satisfies XmlAttrMap;

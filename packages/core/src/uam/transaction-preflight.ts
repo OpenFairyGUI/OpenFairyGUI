@@ -20,6 +20,7 @@ import {
 	isFiniteUamPoint,
 	isValidUamComponentInstanceProperties,
 	isValidUamComponentProperties,
+	isValidUamImageResourceProperties,
 	validateUamProject,
 } from './validate.js';
 import {
@@ -1137,7 +1138,7 @@ function isSafeResourcePath(value: string): boolean {
 }
 
 function primaryResourceFileName(resource: UamAssetResource): string {
-	return resource.fileName ?? resource.file ?? '';
+	return resource.fileName ?? (resource.kind === 'image' ? '' : resource.file) ?? '';
 }
 
 function validateAssetSourceBytes(
@@ -1775,6 +1776,28 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 					);
 				}
 				break;
+			case 'setImageResourceProps': {
+				validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
+				const resource = findProjectedResource(project, operations, operationIndex, operation.selector);
+				if (resource && resource.kind !== 'image') {
+					pushSupportIssue(
+						issues,
+						'invalid_resource_selector',
+						`${operationPath}.selector.resourceId`,
+						'setImageResourceProps requires an image resource selector.',
+						{ operationKind: operation.kind, resourceKind: resource.kind },
+					);
+				} else if (!isValidUamImageResourceProperties(operation.props)) {
+					pushSupportIssue(
+						issues,
+						'invalid_resource_payload',
+						`${operationPath}.props`,
+						'setImageResourceProps.props must be a complete valid image property snapshot.',
+						{ operationKind: operation.kind },
+					);
+				}
+				break;
+			}
 			case 'addResource':
 				validateAssetResourcePayload(project, operations, operationIndex, operation.selector, operation.resource, operationPath, issues, operation.kind);
 				break;

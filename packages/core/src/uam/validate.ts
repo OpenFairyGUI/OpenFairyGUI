@@ -6,6 +6,7 @@ import type {
 	UamControllerModel,
 	UamDisplayNode,
 	UamGearBinding,
+	UamImageResourceProperties,
 	UamProject,
 	UamValidationIssue,
 } from './model.js';
@@ -42,6 +43,47 @@ function isFiniteUamEdgeInsets(value: unknown): boolean {
 function hasExactKeys(value: object, keys: readonly string[]): boolean {
 	const actual = Object.keys(value);
 	return actual.length === keys.length && actual.every((key) => keys.includes(key));
+}
+
+const IMAGE_RESOURCE_PROPERTY_KEYS = [
+	'textureSetMode',
+	'qualityOption',
+	'quality',
+	'smoothing',
+	'duplicatePadding',
+	'scaleOption',
+	'scale9Grid',
+	'tileGridIndice',
+] as const satisfies readonly (keyof UamImageResourceProperties)[];
+
+export function isValidUamImageResourceProperties(
+	value: unknown,
+): value is UamImageResourceProperties {
+	if (typeof value !== 'object' || value === null || !hasExactKeys(value, IMAGE_RESOURCE_PROPERTY_KEYS)) return false;
+	const properties = value as UamImageResourceProperties;
+	if (typeof properties.textureSetMode !== 'string'
+		|| typeof properties.qualityOption !== 'string'
+		|| !Number.isInteger(properties.quality)
+		|| properties.quality < 0
+		|| properties.quality > 100
+		|| typeof properties.smoothing !== 'boolean'
+		|| typeof properties.duplicatePadding !== 'boolean'
+		|| ![0, 1, 2].includes(properties.scaleOption)
+		|| !Number.isInteger(properties.tileGridIndice)
+		|| properties.tileGridIndice < 0
+		|| properties.tileGridIndice > 31
+	) {
+		return false;
+	}
+	if (properties.scaleOption !== 1) return properties.scale9Grid === null;
+	if (!Array.isArray(properties.scale9Grid)
+		|| properties.scale9Grid.length !== 4
+		|| !properties.scale9Grid.every(Number.isInteger)
+	) {
+		return false;
+	}
+	const [x, y, width, height] = properties.scale9Grid;
+	return x >= 0 && y >= 0 && width > 0 && height > 0;
 }
 
 const COMPONENT_PROPERTY_KEYS = [
@@ -279,7 +321,7 @@ function isSafeRelativePath(value: string): boolean {
 }
 
 function assetFileName(resource: UamAssetResource): string {
-	return resource.fileName || resource.file || resource.name;
+	return resource.fileName || (resource.kind === 'image' ? '' : resource.file) || resource.name;
 }
 
 function validatePackageOutputTargets(
@@ -366,6 +408,9 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 			resourceIds.add(resource.id);
 			if (typeof resource.favorite !== 'boolean') {
 				pushIssue(issues, `${resourcePath}.favorite`, 'Resource favorite must be boolean.');
+			}
+			if (resource.kind === 'image' && !isValidUamImageResourceProperties(resource.image)) {
+				pushIssue(issues, `${resourcePath}.image`, 'Image resource properties must be a complete valid property snapshot.');
 			}
 
 			if (resource.kind !== 'component') continue;
