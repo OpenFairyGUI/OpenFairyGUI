@@ -1,98 +1,10 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { Document, maxRectsPack } from '@openfairygui/core';
+import { Document } from '@openfairygui/core';
 import test from 'ava';
 import sharp from 'sharp';
 import { atlas } from '../src/index.js';
-
-// ─── MaxRects algorithm tests ────────────────────────────────────────────
-
-test('maxRects: packs rectangles into a single page', (t) => {
-	const results = maxRectsPack(
-		[
-			{ id: 'a', width: 100, height: 100 },
-			{ id: 'b', width: 100, height: 100 },
-			{ id: 'c', width: 100, height: 100 },
-		],
-		{ maxWidth: 512, maxHeight: 512 },
-	);
-
-	t.is(results.length, 3, 'all 3 packed');
-	t.true(results.every((r) => r.page === 0), 'all on page 0');
-
-	// No overlaps
-	for (let i = 0; i < results.length; i++) {
-		for (let j = i + 1; j < results.length; j++) {
-			const a = results[i], b = results[j];
-			const noOverlap =
-				a.x + a.width <= b.x || b.x + b.width <= a.x ||
-				a.y + a.height <= b.y || b.y + b.height <= a.y;
-			t.true(noOverlap, `no overlap between ${a.id} and ${b.id}`);
-		}
-	}
-});
-
-test('maxRects: overflows to multiple pages', (t) => {
-	const results = maxRectsPack(
-		[
-			{ id: 'big1', width: 200, height: 200 },
-			{ id: 'big2', width: 200, height: 200 },
-		],
-		{ maxWidth: 256, maxHeight: 256 },
-	);
-
-	t.is(results.length, 2);
-	const pages = new Set(results.map((r) => r.page));
-	t.is(pages.size, 2, 'spans 2 pages');
-});
-
-test('maxRects: handles rotation', (t) => {
-	// Tall rect into wide space
-	const results = maxRectsPack(
-		[
-			{ id: 'wide', width: 400, height: 100 },
-			{ id: 'tall', width: 100, height: 400 },
-		],
-		{ maxWidth: 512, maxHeight: 512, allowRotation: true },
-	);
-
-	t.is(results.length, 2);
-	t.true(results.every((r) => r.page === 0), 'fits in one page with rotation');
-});
-
-test('maxRects: oversized input returns empty result', (t) => {
-	const results = maxRectsPack(
-		[{ id: 'huge', width: 600, height: 600 }],
-		{ maxWidth: 512, maxHeight: 512, allowRotation: false },
-	);
-	// Editor behavior: oversized items can't be placed, result is empty
-	t.is(results.length, 0, 'oversized item not placed');
-});
-
-test('maxRects: padding prevents overlap', (t) => {
-	const results = maxRectsPack(
-		[
-			{ id: 'a', width: 50, height: 50 },
-			{ id: 'b', width: 50, height: 50 },
-		],
-		{ maxWidth: 128, maxHeight: 128, padding: 4 },
-	);
-
-	t.is(results.length, 2);
-	// With padding=4, packed rects (54x54 effective) should not touch
-	const a = results.find((r) => r.id === 'a')!;
-	const b = results.find((r) => r.id === 'b')!;
-	const gap = Math.max(
-		Math.abs(a.x - (b.x + b.width)),
-		Math.abs(b.x - (a.x + a.width)),
-		Math.abs(a.y - (b.y + b.height)),
-		Math.abs(b.y - (a.y + a.height)),
-	);
-	t.true(gap >= 0, 'packed rects have non-negative gap');
-});
-
-// ─── atlas() transform layout tests (no encoder) ────────────────────────
 
 test('atlas: creates Atlas and Sprite nodes without encoder', async (t) => {
 	const doc = new Document();

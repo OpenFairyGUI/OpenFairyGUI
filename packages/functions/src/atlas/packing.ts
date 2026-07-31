@@ -3,13 +3,16 @@ import type { AtlasOptions } from '../atlas.js';
 import { COMPAT_NODE_RECT_FLAGS, type CompatNodeRect } from '../max-rects-compat.js';
 import { MaxRectsPackerCompat } from '../max-rects-packer-compat.js';
 import type { AtlasRasterBackend } from '../publish/contracts.js';
-import { parseTextureSetMode, type TextureSetMode } from '../utils.js';
 import {
-	getPublishedItemId,
+	extname,
 	isFontResource,
 	isImageResource,
 	resolveImageFileName,
 	resolveImagePath,
+} from '../publish/package-context.js';
+import { parseTextureSetMode, type TextureSetMode } from '../utils.js';
+import {
+	getPublishedItemId,
 	type FontResourceExtras,
 	type InputItem,
 	type PackageResource,
@@ -610,14 +613,6 @@ function resolveStandaloneAtlasSize(
 		};
 	}
 	return resolveDirectOutputAtlasSize(width, height, options);
-}
-
-function extname(fileName: string): string {
-	const normalized = fileName.replace(/\\/g, '/');
-	const lastSlash = normalized.lastIndexOf('/');
-	const lastDot = normalized.lastIndexOf('.');
-	if (lastDot <= lastSlash) return '';
-	return normalized.slice(lastDot);
 }
 
 function insertFileNameSuffix(fileName: string, suffix: string): string {

@@ -2,7 +2,6 @@ import { failure, success, type BackendContext } from './context.js';
 import type { CacheService } from './cache-service.js';
 import type { EventService } from './event-service.js';
 import { createSessionNotFoundError } from './session-utils.js';
-import { cloneJobSnapshot } from './snapshot-utils.js';
 import type {
 	BackendJobListSnapshot,
 	BackendJobNotCancellableError,
@@ -76,7 +75,7 @@ export class JobService {
 		this.eventService.emit({ kind: 'job.created', sessionId: session.sessionId, canonicalPathKey: session.canonicalPathKey, revision: session.revision, jobId });
 		this.scheduleRefreshJob(session.sessionId, jobId);
 
-		return success('runtime', startedAt, cloneJobSnapshot(job), { sessionId: session.sessionId, revision: session.revision });
+		return success('runtime', startedAt, structuredClone(job), { sessionId: session.sessionId, revision: session.revision });
 	}
 
 	public getJob(input: GetJobInput): BackendResult<BackendJobSnapshot, SessionNotFoundError | BackendJobNotFoundError> {
@@ -92,7 +91,7 @@ export class JobService {
 				jobId: input.jobId,
 			}, undefined, { sessionId: session.sessionId, revision: session.revision });
 		}
-		return success('runtime', startedAt, cloneJobSnapshot(job), { sessionId: session.sessionId, revision: session.revision });
+		return success('runtime', startedAt, structuredClone(job), { sessionId: session.sessionId, revision: session.revision });
 	}
 
 	public listJobs(input: ListJobsInput): BackendResult<BackendJobListSnapshot, SessionNotFoundError> {
@@ -107,7 +106,7 @@ export class JobService {
 			else jobs = jobs.filter((job) => job.status === input.status);
 		}
 		if (input.limit !== undefined) jobs = jobs.slice(0, Math.max(0, input.limit));
-		return success('runtime', startedAt, { jobs: jobs.map(cloneJobSnapshot) }, { sessionId: session.sessionId, revision: session.revision });
+		return success('runtime', startedAt, { jobs: jobs.map((job) => structuredClone(job)) }, { sessionId: session.sessionId, revision: session.revision });
 	}
 
 	public cancelJob(input: CancelJobInput): BackendResult<BackendJobSnapshot, SessionNotFoundError | BackendJobNotFoundError | BackendJobNotCancellableError> {
@@ -135,7 +134,7 @@ export class JobService {
 		this.cancellationRequests.add(job.jobId);
 		this.eventService.emit({ kind: 'job.cancelRequested', sessionId: input.sessionId, canonicalPathKey: session.canonicalPathKey, revision: session.revision, jobId: job.jobId });
 		const cancelled = this.cancelRefreshJob(session.sessionId, job);
-		return success('runtime', startedAt, cloneJobSnapshot(cancelled), { sessionId: session.sessionId, revision: session.revision });
+		return success('runtime', startedAt, structuredClone(cancelled), { sessionId: session.sessionId, revision: session.revision });
 	}
 
 	public removeSession(sessionId: string): void {

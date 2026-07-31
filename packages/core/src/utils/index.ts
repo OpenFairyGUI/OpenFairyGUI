@@ -14,12 +14,6 @@ export {
 	ensureArray,
 } from './xml-utils.js';
 export {
-	maxRectsPack,
-	type PackInput,
-	type PackResult,
-	type PackerOptions,
-} from './max-rects.js';
-export {
 	parseJta,
 	type JtaDef,
 	type JtaFrame,

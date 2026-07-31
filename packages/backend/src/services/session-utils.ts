@@ -5,7 +5,6 @@ import type {
 	SessionStaleWriteError,
 } from '../runtime.js';
 import type { BackendSessionState } from './context.js';
-import { cloneCapabilitiesSnapshot } from './snapshot-utils.js';
 
 export function toSessionSnapshot(
 	session: BackendSessionState,
@@ -19,7 +18,7 @@ export function toSessionSnapshot(
 		dirty: session.dirty,
 		uamFidelity: session.uamFidelity,
 		lockHeld: session.lockHeld,
-		capabilities: cloneCapabilitiesSnapshot(capabilities),
+		capabilities: structuredClone(capabilities),
 	};
 }
 

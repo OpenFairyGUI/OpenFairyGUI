@@ -13,6 +13,7 @@ import {
 	UNITY_COMPONENT_TEMPLATE,
 } from './codegen-templates.js';
 import { formatPluginError, type LoadedPlugin } from './plugins/types.js';
+import { dirname, isAbsolutePathLike, trimTrailingSlashes } from './path-utils.js';
 import type { PublishFileSystem } from './publish/contracts.js';
 import type { CliCodeGenerationSettings, RootProjectSettings } from './shared-types.js';
 
@@ -583,7 +584,7 @@ function resolveCodePath(
 	basePath: string | undefined,
 	fs: Pick<PublishFileSystem, 'join'>,
 ): string {
-	if (isAbsolutePath(codePath)) return trimTrailingSlashes(codePath);
+	if (isAbsolutePathLike(codePath)) return trimTrailingSlashes(codePath);
 	const projectBasePath = resolveProjectBasePath(basePath);
 	return projectBasePath ? trimTrailingSlashes(fs.join(projectBasePath, codePath)) : trimTrailingSlashes(codePath);
 }
@@ -594,20 +595,6 @@ export function resolveProjectBasePath(basePath: string | undefined): string {
 	const assetsMatch = normalized.match(/^(.*)[/\\]assets(?:_[^/\\]+)?$/i);
 	if (assetsMatch?.[1]) return assetsMatch[1];
 	return dirname(normalized);
-}
-
-function dirname(filePath: string): string {
-	const trimmed = trimTrailingSlashes(filePath);
-	const match = trimmed.match(/^(.*)[/\\][^/\\]+$/);
-	return match?.[1] ?? '';
-}
-
-function trimTrailingSlashes(value: string): string {
-	return value.replace(/[/\\]+$/, '');
-}
-
-function isAbsolutePath(value: string): boolean {
-	return /^[a-z]:[/\\]/i.test(value) || value.startsWith('/') || value.startsWith('\\\\');
 }
 
 function isDefaultMemberName(ownerType: string, kind: CodegenMember['kind'], name: string): boolean {

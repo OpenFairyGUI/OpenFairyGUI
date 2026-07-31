@@ -29,6 +29,28 @@ const preserveOrderParser = new XMLParser({
 	preserveOrder: true,
 });
 
+export function escapeXmlAttr(value: unknown): string {
+	return String(value)
+		.replace(/&/g, '&amp;')
+		.replace(/\r\n/g, '&#xA;')
+		.replace(/[\r\n]/g, '&#xA;')
+		.replace(/\t/g, '&#x9;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&apos;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;');
+}
+
+export function renderXmlAttrs(attrs: Record<string, unknown>): string {
+	const parts: string[] = [];
+	for (const [key, value] of Object.entries(attrs)) {
+		if (value === undefined || value === null || Array.isArray(value) || typeof value === 'object') continue;
+		const attrName = key.startsWith('@_') ? key.slice(2) : key;
+		parts.push(` ${attrName}="${escapeXmlAttr(value)}"`);
+	}
+	return parts.join('');
+}
+
 export function parseXML(xml: string): Record<string, unknown> {
 	return parser.parse(xml);
 }

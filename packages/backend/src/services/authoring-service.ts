@@ -2,6 +2,8 @@ import type { ProjectResourceFolder, ProjectSourceFile } from '@openfairygui/cor
 import {
 	commitUamProjectSourcePaths,
 	materializeUamProject,
+	staleResourceFolders,
+	staleSourceFiles,
 	type UamProject,
 	validateUamProject,
 } from '@openfairygui/core/uam';
@@ -31,60 +33,8 @@ import type { EventService } from './event-service.js';
 import { writeSessionProject } from './session-project-writer.js';
 import { createSessionNotFoundError, createStaleWriteError, toSessionSnapshot } from './session-utils.js';
 
-function projectSourceFiles(project: UamProject): Map<string, ProjectSourceFile> {
-	const result = new Map<string, ProjectSourceFile>();
-	for (const pkg of project.packages) {
-		result.set(`${pkg.id}/package.xml`, {
-			packageName: pkg.name,
-			branch: '',
-			path: '',
-			fileName: 'package.xml',
-		});
-		const branches = new Set<string>();
-		for (const folder of pkg.folders) {
-			if (folder.branch) branches.add(folder.branch);
-		}
-		for (const resource of pkg.resources) {
-			if (resource.branch) branches.add(resource.branch);
-			const fileName = resource.kind === 'component'
-				? `${resource.name}.xml`
-				: resource.fileName ?? (resource.kind === 'image' ? '' : resource.file) ?? '';
-			if (!fileName) continue;
-			result.set(`${pkg.id}/${resource.id}`, {
-				packageName: pkg.name,
-				branch: resource.branch,
-				path: resource.path,
-				fileName,
-			});
-		}
-		for (const branch of branches) {
-			result.set(`${pkg.id}/branch/${branch}`, {
-				packageName: pkg.name,
-				branch,
-				path: '',
-				fileName: 'package_branch.xml',
-			});
-		}
-	}
-	return result;
-}
-
 function sourceFileKey(source: ProjectSourceFile): string {
 	return [source.branch, source.packageName, source.path, source.fileName].join('\0');
-}
-
-function projectResourceFolders(project: UamProject): Map<string, ProjectResourceFolder> {
-	const result = new Map<string, ProjectResourceFolder>();
-	for (const pkg of project.packages) {
-		for (const folder of pkg.folders) {
-			result.set(`${pkg.id}/${folder.branch}/${folder.path}`, {
-				packageName: pkg.name,
-				branch: folder.branch,
-				path: folder.path,
-			});
-		}
-	}
-	return result;
 }
 
 function resourceFolderKey(folder: ProjectResourceFolder): string {
@@ -97,23 +47,17 @@ function recordStaleProjectFiles(
 	nextProject: UamProject,
 ): void {
 	if (!session.fileSystem) return;
-	const previousSources = projectSourceFiles(previousProject);
-	const nextSourceKeys = new Set([...projectSourceFiles(nextProject).values()].map(sourceFileKey));
-	for (const source of previousSources.values()) {
-		const key = sourceFileKey(source);
-		if (!nextSourceKeys.has(key)) session.pendingStaleSourceFiles.set(key, source);
+	for (const source of staleSourceFiles(previousProject, nextProject)) {
+		session.pendingStaleSourceFiles.set(sourceFileKey(source), source);
 	}
-	for (const key of nextSourceKeys) {
-		session.pendingStaleSourceFiles.delete(key);
+	for (const source of staleSourceFiles(nextProject, previousProject)) {
+		session.pendingStaleSourceFiles.delete(sourceFileKey(source));
 	}
-	const previousFolders = projectResourceFolders(previousProject);
-	const nextFolderKeys = new Set([...projectResourceFolders(nextProject).values()].map(resourceFolderKey));
-	for (const folder of previousFolders.values()) {
-		const key = resourceFolderKey(folder);
-		if (!nextFolderKeys.has(key)) session.pendingStaleResourceFolders.set(key, folder);
+	for (const folder of staleResourceFolders(previousProject, nextProject)) {
+		session.pendingStaleResourceFolders.set(resourceFolderKey(folder), folder);
 	}
-	for (const key of nextFolderKeys) {
-		session.pendingStaleResourceFolders.delete(key);
+	for (const folder of staleResourceFolders(nextProject, previousProject)) {
+		session.pendingStaleResourceFolders.delete(resourceFolderKey(folder));
 	}
 }
 

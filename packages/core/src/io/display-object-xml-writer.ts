@@ -1,6 +1,7 @@
 import { GearType } from '../constants.js';
 import type { Gear } from '../properties/gear.js';
 import type { GObject } from '../properties/g-object.js';
+import { renderXmlAttrs } from '../utils/xml-utils.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr, type XmlNodeProtocol } from './project-xml-protocol.js';
 
 const GEAR_TAG: Record<number, string> = {
@@ -138,29 +139,6 @@ function isDefaultBlackColor(color: string | undefined): boolean {
 	return sameColor(color, '#000000') || sameColor(color, '#FF000000');
 }
 
-
-function escapeXmlAttr(value: unknown): string {
-	return String(value)
-		.replace(/&/g, '&amp;')
-		.replace(/\r\n/g, '&#xA;')
-		.replace(/[\r\n]/g, '&#xA;')
-		.replace(/\t/g, '&#x9;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&apos;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;');
-}
-
-function renderXmlAttrs(attrs: Record<string, unknown>): string {
-	const parts: string[] = [];
-	for (const [key, value] of Object.entries(attrs)) {
-		if (value === undefined || value === null) continue;
-		if (Array.isArray(value) || typeof value === 'object') continue;
-		const attrName = key.startsWith('@_') ? key.slice(2) : key;
-		parts.push(` ${attrName}="${escapeXmlAttr(value)}"`);
-	}
-	return parts.join('');
-}
 
 function renderXmlText(value: unknown): string {
 	return String(value)
