@@ -615,7 +615,7 @@ export function createDisplayObject(
 				if (textStrokeColor) {
 					g.setStrokeColor?.(textStrokeColor);
 					const textStrokeSize = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.strokeSize);
-					g.setStrokeSize?.(parseInt2(textStrokeSize, 1));
+					g.setStrokeSize?.(parseFloat2(textStrokeSize, 1));
 				}
 				const textShadowColor = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.shadowColor);
 				if (textShadowColor) {
@@ -623,8 +623,8 @@ export function createDisplayObject(
 					const textShadowOffset = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.shadowOffset);
 					const shadowParts = String(textShadowOffset ?? '1,1').split(',');
 					g.setShadowOffset?.({
-						x: parseFloat(shadowParts[0] ?? '1') || 1,
-						y: parseFloat(shadowParts[1] ?? '1') || 1,
+						x: parseFloat2(shadowParts[0], 1),
+						y: parseFloat2(shadowParts[1], 1),
 					});
 				}
 				if (isInputText) {
@@ -700,7 +700,7 @@ export function createDisplayObject(
 				const richTextUbb = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.ubb);
 				if (richTextUbb !== undefined) g.setUbbEnabled?.(parseBool(richTextUbb));
 				const richTextAutoSize = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.autoSize);
-				if (richTextAutoSize) { const m: Record<string,number> = {none:0,both:1,height:2,shrink:3}; g.setAutoSize(m[richTextAutoSize]??1); }
+				if (richTextAutoSize) { const m: Record<string,number> = {none:0,both:1,height:2,shrink:3,ellipsis:4}; g.setAutoSize(m[richTextAutoSize]??1); }
 				const richTextSingleLine = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.singleLine);
 				if (richTextSingleLine !== undefined) g.setSingleLine?.(parseBool(richTextSingleLine));
 				const richTextAutoClearText = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.autoClearText);
@@ -719,7 +719,7 @@ export function createDisplayObject(
 				if (richTextStrokeColor) {
 					g.setStrokeColor?.(richTextStrokeColor);
 					const richTextStrokeSize = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.strokeSize);
-					g.setStrokeSize?.(parseInt2(richTextStrokeSize, 1));
+					g.setStrokeSize?.(parseFloat2(richTextStrokeSize, 1));
 				}
 				const richTextShadowColor = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.shadowColor);
 				if (richTextShadowColor) {
@@ -727,8 +727,8 @@ export function createDisplayObject(
 					const richTextShadowOffset = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.shadowOffset);
 					const shadowParts = String(richTextShadowOffset ?? '1,1').split(',');
 					g.setShadowOffset?.({
-						x: parseFloat(shadowParts[0] ?? '1') || 1,
-						y: parseFloat(shadowParts[1] ?? '1') || 1,
+						x: parseFloat2(shadowParts[0], 1),
+						y: parseFloat2(shadowParts[1], 1),
 					});
 				}
 				obj = g;
@@ -789,11 +789,21 @@ export function createDisplayObject(
 				const inputLetterSpacing = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.letterSpacing);
 				if (inputLetterSpacing !== undefined) g.setLetterSpacing?.(parseInt2(inputLetterSpacing));
 				const inputAutoSize = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.autoSize);
-				if (inputAutoSize) { const m: Record<string,number> = {none:0,both:1,height:2,shrink:3}; g.setAutoSize(m[inputAutoSize]??1); }
+				if (inputAutoSize) { const m: Record<string,number> = {none:0,both:1,height:2,shrink:3,ellipsis:4}; g.setAutoSize(m[inputAutoSize]??1); }
 				const inputSingleLine = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.singleLine);
 				if (inputSingleLine !== undefined) g.setSingleLine?.(parseBool(inputSingleLine));
 				const inputAutoClearText = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.autoClearText);
 				if (inputAutoClearText !== undefined) g.setAutoClearText?.(parseBool(inputAutoClearText));
+				const inputDemoText = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.demoText);
+				if (inputDemoText !== undefined) g.setDemoText?.(String(inputDemoText));
+				const inputVars = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.vars);
+				if (inputVars !== undefined) g.setTemplateVarsEnabled?.(parseBool(inputVars));
+				const inputFaceDilate = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.faceDilate);
+				if (inputFaceDilate !== undefined) g.setFaceDilate?.(parseFloat2(inputFaceDilate));
+				const inputUnderlaySoftness = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.underlaySoftness);
+				if (inputUnderlaySoftness !== undefined) g.setUnderlaySoftness?.(parseFloat2(inputUnderlaySoftness));
+				const inputUbb = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.ubb);
+				if (inputUbb !== undefined) g.setUbbEnabled?.(parseBool(inputUbb));
 				const inputUnderline = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.underline);
 				if (inputUnderline !== undefined) g.setUnderline?.(parseBool(inputUnderline));
 				const inputItalic = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.italic);
@@ -806,7 +816,17 @@ export function createDisplayObject(
 				if (inputStrokeColor) {
 					g.setStrokeColor?.(inputStrokeColor);
 					const inputStrokeSize = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.strokeSize);
-					g.setStrokeSize?.(parseInt2(inputStrokeSize, 1));
+					g.setStrokeSize?.(parseFloat2(inputStrokeSize, 1));
+				}
+				const inputShadowColor = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.shadowColor);
+				if (inputShadowColor) {
+					g.setShadowColor?.(inputShadowColor);
+					const inputShadowOffset = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.text.attrs.shadowOffset);
+					const shadowParts = String(inputShadowOffset ?? '1,1').split(',');
+					g.setShadowOffset?.({
+						x: parseFloat2(shadowParts[0], 1),
+						y: parseFloat2(shadowParts[1], 1),
+					});
 				}
 				const prompt = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.prompt);
 				if (prompt !== undefined) g.setPromptText(prompt);

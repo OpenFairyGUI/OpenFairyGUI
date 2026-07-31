@@ -7,7 +7,9 @@ import type {
 	UamDisplayNode,
 	UamGearBinding,
 	UamImageResourceProperties,
+	UamPlainTextProperties,
 	UamProject,
+	UamTextProperties,
 	UamValidationIssue,
 } from './model.js';
 
@@ -84,6 +86,138 @@ export function isValidUamImageResourceProperties(
 	}
 	const [x, y, width, height] = properties.scale9Grid;
 	return x >= 0 && y >= 0 && width > 0 && height > 0;
+}
+
+const TEXT_PROPERTY_KEYS = [
+	'text',
+	'font',
+	'fontSize',
+	'color',
+	'minSize',
+	'maxSize',
+	'align',
+	'vAlign',
+	'leading',
+	'letterSpacing',
+	'autoSize',
+	'singleLine',
+	'autoClearText',
+	'underlaySoftness',
+	'ubbEnabled',
+	'underline',
+	'italic',
+	'bold',
+	'strikethrough',
+	'strokeColor',
+	'strokeSize',
+	'shadowColor',
+	'shadowOffset',
+] as const satisfies readonly (keyof UamTextProperties)[];
+
+const PLAIN_TEXT_PROPERTY_KEYS = [
+	...TEXT_PROPERTY_KEYS,
+	'demoText',
+	'templateVarsEnabled',
+	'faceDilate',
+] as const satisfies readonly (keyof UamPlainTextProperties)[];
+
+type UamTextNodeKind = Extract<UamDisplayNode['kind'], 'text' | 'richText' | 'textInput'>;
+
+function isTextColor(value: unknown): value is string {
+	return typeof value === 'string' && /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(value);
+}
+
+export function isValidUamTextProperties(
+	value: unknown,
+	nodeKind: UamTextNodeKind,
+): value is UamTextProperties | UamPlainTextProperties {
+	const keys = nodeKind === 'richText' ? TEXT_PROPERTY_KEYS : PLAIN_TEXT_PROPERTY_KEYS;
+	if (typeof value !== 'object' || value === null || !hasExactKeys(value, keys)) return false;
+	const properties = value as UamPlainTextProperties;
+	const commonValid = [properties.text, properties.font].every((item) => typeof item === 'string')
+		&& Number.isInteger(properties.fontSize)
+		&& properties.fontSize > 0
+		&& isTextColor(properties.color)
+		&& isFiniteUamSize(properties.minSize)
+		&& isFiniteUamSize(properties.maxSize)
+		&& Number.isInteger(properties.align)
+		&& properties.align >= 0
+		&& properties.align <= 2
+		&& Number.isInteger(properties.vAlign)
+		&& properties.vAlign >= 0
+		&& properties.vAlign <= 2
+		&& Number.isInteger(properties.leading)
+		&& Number.isInteger(properties.letterSpacing)
+		&& Number.isInteger(properties.autoSize)
+		&& properties.autoSize >= 0
+		&& properties.autoSize <= 4
+		&& [
+			properties.singleLine,
+			properties.autoClearText,
+			properties.ubbEnabled,
+			properties.underline,
+			properties.italic,
+			properties.bold,
+			properties.strikethrough,
+		].every((item) => typeof item === 'boolean')
+		&& typeof properties.underlaySoftness === 'number'
+		&& Number.isFinite(properties.underlaySoftness)
+		&& typeof properties.strokeSize === 'number'
+		&& Number.isFinite(properties.strokeSize)
+		&& properties.strokeSize >= 0
+		&& (
+			properties.strokeColor === null
+				? properties.strokeSize === 1
+				: isTextColor(properties.strokeColor)
+		)
+		&& isFiniteUamPoint(properties.shadowOffset)
+		&& (
+			properties.shadowColor === null
+				? properties.shadowOffset.x === 0 && properties.shadowOffset.y === 0
+				: isTextColor(properties.shadowColor)
+		);
+	if (!commonValid || nodeKind === 'richText') return commonValid;
+	return typeof properties.demoText === 'string'
+		&& typeof properties.templateVarsEnabled === 'boolean'
+		&& typeof properties.faceDilate === 'number'
+		&& Number.isFinite(properties.faceDilate);
+}
+
+function textPropertiesFromNode(
+	node: Extract<UamDisplayNode, { kind: UamTextNodeKind }>,
+): UamTextProperties | UamPlainTextProperties {
+	const common: UamTextProperties = {
+		text: node.text,
+		font: node.font,
+		fontSize: node.fontSize,
+		color: node.color,
+		minSize: node.minSize,
+		maxSize: node.maxSize,
+		align: node.align,
+		vAlign: node.vAlign,
+		leading: node.leading,
+		letterSpacing: node.letterSpacing,
+		autoSize: node.autoSize,
+		singleLine: node.singleLine,
+		autoClearText: node.autoClearText,
+		underlaySoftness: node.underlaySoftness,
+		ubbEnabled: node.ubbEnabled,
+		underline: node.underline,
+		italic: node.italic,
+		bold: node.bold,
+		strikethrough: node.strikethrough,
+		strokeColor: node.strokeColor,
+		strokeSize: node.strokeSize,
+		shadowColor: node.shadowColor,
+		shadowOffset: node.shadowOffset,
+	};
+	if (node.kind === 'richText') return common;
+	return {
+		...common,
+		demoText: node.demoText,
+		templateVarsEnabled: node.templateVarsEnabled,
+		faceDilate: node.faceDilate,
+	};
 }
 
 const COMPONENT_PROPERTY_KEYS = [
@@ -365,6 +499,7 @@ function validateDisplayNode(
 	node: UamDisplayNode,
 	controllerMap: Map<string, UamControllerModel>,
 	knownChildIds: Set<string>,
+	knownGroupIds: Set<string>,
 	path: string,
 	issues: UamValidationIssue[],
 ): void {
@@ -376,6 +511,23 @@ function validateDisplayNode(
 	if (node.pivotAsAnchor !== undefined) {
 		if (typeof node.pivotAsAnchor !== 'boolean') {
 			pushIssue(issues, `${path}.pivotAsAnchor`, 'Display node pivotAsAnchor must be boolean.');
+		}
+	}
+	if (
+		(node.kind === 'text' || node.kind === 'richText' || node.kind === 'textInput')
+		&& !isValidUamTextProperties(textPropertiesFromNode(node), node.kind)
+	) {
+		pushIssue(issues, path, 'Text properties must be a complete valid snapshot matching the display node kind.');
+	}
+	if (node.kind === 'loader' || node.kind === 'loader3D') {
+		if ('group' in node) {
+			pushIssue(issues, `${path}.group`, `${node.kind} display nodes must not declare a group reference.`);
+		}
+	} else {
+		if (!('group' in node) || typeof node.group !== 'string') {
+			pushIssue(issues, `${path}.group`, 'Display node group must be a string.');
+		} else if (node.group && (node.group === node.id || !knownGroupIds.has(node.group))) {
+			pushIssue(issues, `${path}.group`, `Group reference "${node.group}" must target another group in the same component.`);
 		}
 	}
 	for (const [gearIndex, gear] of node.gears.entries()) {
@@ -420,10 +572,12 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 				pushIssue(issues, `${resourcePath}.component.properties`, 'Component properties must be a complete valid property snapshot.');
 			}
 			const childIds = new Set<string>();
+			const groupIds = new Set<string>();
 			for (const [childIndex, child] of component.displayList.entries()) {
 				const childPath = `${resourcePath}.component.displayList[${childIndex}]`;
 				if (childIds.has(child.id)) pushIssue(issues, `${childPath}.id`, `Duplicate child id "${child.id}".`);
 				childIds.add(child.id);
+				if (child.kind === 'group') groupIds.add(child.id);
 			}
 
 			const controllerMap = new Map<string, UamControllerModel>();
@@ -455,7 +609,7 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 						'Component instance properties must be a complete valid extension snapshot.',
 					);
 				}
-				validateDisplayNode(child, controllerMap, childIds, `${resourcePath}.component.displayList[${childIndex}]`, issues);
+				validateDisplayNode(child, controllerMap, childIds, groupIds, `${resourcePath}.component.displayList[${childIndex}]`, issues);
 			}
 		}
 	}

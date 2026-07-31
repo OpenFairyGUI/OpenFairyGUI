@@ -38,6 +38,7 @@ import type {
 	UamMovieClipNode,
 	UamPackage,
 	UamPackagePublish,
+	UamPlainTextProperties,
 	UamProject,
 	UamProgressBarNode,
 	UamRelation,
@@ -52,6 +53,7 @@ import type {
 	UamTextGearValue,
 	UamTextInputNode,
 	UamTextNode,
+	UamTextProperties,
 	UamTreeNode,
 	UamTransitionItem,
 	UamTransitionModel,
@@ -484,6 +486,86 @@ function normalizeGearBinding(gear: UamGearBinding): UamGearBinding {
 	}
 }
 
+export function createDefaultUamTextProperties(): UamTextProperties {
+	return {
+		text: '',
+		font: '',
+		fontSize: 12,
+		color: '#000000',
+		minSize: { width: 0, height: 0 },
+		maxSize: { width: 0, height: 0 },
+		align: 0,
+		vAlign: 0,
+		leading: 3,
+		letterSpacing: 0,
+		autoSize: 1,
+		singleLine: false,
+		autoClearText: false,
+		underlaySoftness: 0,
+		ubbEnabled: false,
+		underline: false,
+		italic: false,
+		bold: false,
+		strikethrough: false,
+		strokeColor: null,
+		strokeSize: 1,
+		shadowColor: null,
+		shadowOffset: { x: 0, y: 0 },
+	};
+}
+
+export function createDefaultUamPlainTextProperties(): UamPlainTextProperties {
+	return {
+		...createDefaultUamTextProperties(),
+		demoText: '',
+		templateVarsEnabled: false,
+		faceDilate: 0,
+	};
+}
+
+function normalizeTextProperties(properties: UamTextProperties): UamTextProperties {
+	const normalizeColor = (color: string) => {
+		const normalized = color.toLowerCase();
+		return normalized.startsWith('#ff') && normalized.length === 9
+			? `#${normalized.slice(3)}`
+			: normalized;
+	};
+	return {
+		text: properties.text,
+		font: properties.font,
+		fontSize: properties.fontSize,
+		color: normalizeColor(properties.color),
+		minSize: properties.minSize ? { ...properties.minSize } : properties.minSize,
+		maxSize: properties.maxSize ? { ...properties.maxSize } : properties.maxSize,
+		align: properties.align,
+		vAlign: properties.vAlign,
+		leading: properties.leading,
+		letterSpacing: properties.letterSpacing,
+		autoSize: properties.autoSize,
+		singleLine: properties.singleLine,
+		autoClearText: properties.autoClearText,
+		underlaySoftness: properties.underlaySoftness,
+		ubbEnabled: properties.ubbEnabled,
+		underline: properties.underline,
+		italic: properties.italic,
+		bold: properties.bold,
+		strikethrough: properties.strikethrough,
+		strokeColor: properties.strokeColor === null ? null : normalizeColor(properties.strokeColor),
+		strokeSize: properties.strokeSize,
+		shadowColor: properties.shadowColor === null ? null : normalizeColor(properties.shadowColor),
+		shadowOffset: properties.shadowOffset ? { ...properties.shadowOffset } : properties.shadowOffset,
+	};
+}
+
+function normalizePlainTextProperties(properties: UamPlainTextProperties): UamPlainTextProperties {
+	return {
+		...normalizeTextProperties(properties),
+		demoText: properties.demoText,
+		templateVarsEnabled: properties.templateVarsEnabled,
+		faceDilate: properties.faceDilate,
+	};
+}
+
 function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 	const base = {
 		id: node.id,
@@ -510,35 +592,30 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			return {
 				kind: 'image',
 				...base,
+				group: node.group ?? '',
 				resource: normalizeResourceRef(node.resource),
 			} satisfies UamImageNode;
 		case 'text':
 			return {
 				kind: 'text',
 				...base,
-				text: node.text ?? '',
-				font: node.font ?? '',
-				fontSize: node.fontSize ?? 12,
-				color: node.color ?? '#000000',
+				group: node.group ?? '',
+				...normalizePlainTextProperties(node),
 			} satisfies UamTextNode;
 		case 'richText':
 			return {
 				kind: 'richText',
 				...base,
-				text: node.text ?? '',
-				font: node.font ?? '',
-				fontSize: node.fontSize ?? 12,
-				color: node.color ?? '#000000',
+				group: node.group ?? '',
+				...normalizeTextProperties(node),
 			} satisfies UamRichTextNode;
 		case 'textInput': {
 			const input = node as UamTextInputNode;
 			return {
 				kind: 'textInput',
 				...base,
-				text: input.text ?? '',
-				font: input.font ?? '',
-				fontSize: input.fontSize ?? 12,
-				color: input.color ?? '#000000',
+				group: input.group ?? '',
+				...normalizePlainTextProperties(input),
 				promptText: input.promptText ?? '',
 				maxLength: input.maxLength ?? 0,
 				restrict: input.restrict ?? '',
@@ -550,6 +627,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			return {
 				kind: 'component',
 				...base,
+				group: node.group ?? '',
 				resource: normalizeResourceRef(node.resource),
 				...(node.instanceProperties
 					? { instanceProperties: normalizeComponentInstanceProperties(node.instanceProperties) }
@@ -695,6 +773,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			return {
 				kind: 'movieClip',
 				...base,
+				group: movieClip.group ?? '',
 				resource: normalizeResourceRef(movieClip.resource),
 				fileName: movieClip.fileName ?? '',
 				filter: movieClip.filter ?? '',
@@ -709,6 +788,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			return {
 				kind: 'button',
 				...base,
+				group: button.group ?? '',
 				src: button.src ?? '',
 				packageId: button.packageId ?? '',
 				title: button.title ?? '',
@@ -729,6 +809,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			return {
 				kind: 'label',
 				...base,
+				group: label.group ?? '',
 				src: label.src ?? '',
 				packageId: label.packageId ?? '',
 				title: label.title ?? '',
@@ -744,6 +825,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			return {
 				kind: 'comboBox',
 				...base,
+				group: comboBox.group ?? '',
 				src: comboBox.src ?? '',
 				packageId: comboBox.packageId ?? '',
 				title: comboBox.title ?? '',
@@ -765,6 +847,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			return {
 				kind: 'progressBar',
 				...base,
+				group: progressBar.group ?? '',
 				src: progressBar.src ?? '',
 				packageId: progressBar.packageId ?? '',
 				titleType: progressBar.titleType ?? 0,
@@ -781,6 +864,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			return {
 				kind: 'slider',
 				...base,
+				group: slider.group ?? '',
 				src: slider.src ?? '',
 				packageId: slider.packageId ?? '',
 				titleType: slider.titleType ?? 0,
@@ -795,6 +879,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			return {
 				kind: 'scrollBar',
 				...base,
+				group: scrollBar.group ?? '',
 				src: scrollBar.src ?? '',
 				packageId: scrollBar.packageId ?? '',
 				fixedGripSize: scrollBar.fixedGripSize ?? false,

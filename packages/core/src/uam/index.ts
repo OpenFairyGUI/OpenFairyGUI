@@ -31,6 +31,7 @@ export {
 	type UamGraphNode,
 	type UamGraphProperties,
 	type UamGroupNode,
+	type UamGroupableDisplayNodeBase,
 	type UamIconGearBinding,
 	type UamIconGearValue,
 	type UamImageNode,
@@ -61,10 +62,12 @@ export {
 	type UamSizeGearBinding,
 	type UamSizeGearValue,
 	type UamSliderNode,
+	type UamPlainTextProperties,
 	type UamTextGearBinding,
 	type UamTextGearValue,
 	type UamTextInputNode,
 	type UamTextNode,
+	type UamTextProperties,
 	type UamTreeNode,
 	type UamTreeProperties,
 	type UamTransitionItem,
@@ -78,6 +81,8 @@ export {
 export {
 	createDefaultUamComponentProperties,
 	createDefaultUamImageResourceProperties,
+	createDefaultUamPlainTextProperties,
+	createDefaultUamTextProperties,
 	normalizeUamProject,
 } from './normalize.js';
 export { assertValidUamProject, validateUamProject } from './validate.js';

@@ -5,6 +5,8 @@ import { getFixtureProjectPath } from '@openfairygui/test-utils';
 import { ProjectReader } from '@openfairygui/core/project-io';
 import {
 	createDefaultUamComponentProperties,
+	createDefaultUamPlainTextProperties,
+	createDefaultUamTextProperties,
 	liftDocumentToUamProject,
 	normalizeUamProject,
 	type UamComponentRefNode,
@@ -218,6 +220,37 @@ function createLifecyclePackage(): UamPackage {
 	};
 }
 
+function createLifecyclePlainTextProperties() {
+	return {
+		...createDefaultUamPlainTextProperties(),
+		text: 'Popup',
+		fontSize: 16,
+		color: '#ffffff',
+		minSize: { width: 10, height: 8 },
+		maxSize: { width: 140, height: 32 },
+		align: 1,
+		vAlign: 2,
+		leading: 5,
+		letterSpacing: 2,
+		autoSize: 3,
+		singleLine: true,
+		autoClearText: true,
+		underlaySoftness: 0.25,
+		ubbEnabled: true,
+		underline: true,
+		italic: true,
+		bold: true,
+		strikethrough: true,
+		strokeColor: '#112233',
+		strokeSize: 0.5,
+		shadowColor: '#445566',
+		shadowOffset: { x: 0, y: 2 },
+		demoText: 'Popup preview',
+		templateVarsEnabled: true,
+		faceDilate: 0.125,
+	};
+}
+
 function createLifecycleComponent(id = 'cmp002', name = 'Popup'): UamComponentResource {
 	return {
 		kind: 'component',
@@ -232,25 +265,86 @@ function createLifecycleComponent(id = 'cmp002', name = 'Popup'): UamComponentRe
 			size: { width: 160, height: 80 },
 			properties: createDefaultUamComponentProperties(),
 			customData: '',
-			displayList: [{
-				kind: 'text',
-				id: 'popup-title',
-				name: 'title',
-				position: { x: 8, y: 8 },
-				size: { width: 120, height: 24 },
-				visible: true,
-				touchable: true,
-				grayed: false,
-				alpha: 1,
-				rotation: 0,
-				customData: '',
-				relations: [],
-				gears: [],
-				text: 'Popup',
-				font: '',
-				fontSize: 16,
-				color: '#ffffff',
-			}],
+			displayList: [
+				{
+					kind: 'text',
+					...createLifecyclePlainTextProperties(),
+					id: 'popup-title',
+					name: 'title',
+					position: { x: 8, y: 8 },
+					size: { width: 120, height: 24 },
+					visible: true,
+					touchable: true,
+					grayed: false,
+					alpha: 1,
+					rotation: 0,
+					customData: '',
+					relations: [],
+					gears: [],
+					group: '',
+				},
+				{
+					kind: 'richText',
+					...createDefaultUamTextProperties(),
+					id: 'popup-rich',
+					name: 'rich',
+					position: { x: 8, y: 34 },
+					size: { width: 120, height: 20 },
+					visible: true,
+					touchable: true,
+					grayed: false,
+					alpha: 1,
+					rotation: 0,
+					customData: '',
+					relations: [],
+					gears: [],
+					group: '',
+					text: '[b]Rich[/b]',
+					fontSize: 15,
+					color: '#aabbcc',
+					autoSize: 4,
+					underlaySoftness: 0.125,
+					strokeColor: '#223344',
+					strokeSize: 0.25,
+					shadowColor: '#556677',
+					shadowOffset: { x: 0, y: 1 },
+				},
+				{
+					kind: 'textInput',
+					...createDefaultUamPlainTextProperties(),
+					id: 'popup-input',
+					name: 'input',
+					position: { x: 8, y: 56 },
+					size: { width: 120, height: 20 },
+					visible: true,
+					touchable: true,
+					grayed: false,
+					alpha: 1,
+					rotation: 0,
+					customData: '',
+					relations: [],
+					gears: [],
+					group: '',
+					text: 'Input',
+					fontSize: 14,
+					color: '#ddeeff',
+					autoSize: 4,
+					demoText: 'Input preview',
+					templateVarsEnabled: true,
+					faceDilate: 0.25,
+					underlaySoftness: 0.5,
+					ubbEnabled: true,
+					strokeColor: '#334455',
+					strokeSize: 0.75,
+					shadowColor: '#667788',
+					shadowOffset: { x: 0, y: 3 },
+					promptText: 'Type',
+					maxLength: 20,
+					restrict: 'A-Z',
+					password: false,
+					keyboardType: 3,
+				},
+			],
 			controllers: [],
 			transitions: [],
 		},
@@ -414,7 +508,6 @@ test('browser-safe project session saves through injected async storage', async 
 		maxWidth: 80,
 		minHeight: 12,
 		maxHeight: 60,
-		group: 'browser-shapes',
 		skew: { x: 2, y: 3 },
 		graphType: 3,
 		lineSize: 2,
@@ -585,6 +678,7 @@ test('browser-safe sessions materialize package and component lifecycle operatio
 	});
 	t.true(opened.ok);
 	if (!opened.ok) return;
+	const lifecycleComponent = createLifecycleComponent();
 
 	const added = await runtime.applyTransaction({
 		sessionId: opened.data.sessionId,
@@ -594,7 +688,7 @@ test('browser-safe sessions materialize package and component lifecycle operatio
 			{
 				kind: 'addComponent',
 				selector: { packageId: 'pkg002' },
-				component: createLifecycleComponent(),
+				component: lifecycleComponent,
 				atIndex: 0,
 			},
 		],
@@ -615,11 +709,102 @@ test('browser-safe sessions materialize package and component lifecycle operatio
 		.find((resource) => resource.id === 'cmp002');
 	t.is(addedComponent?.kind, 'component');
 	if (addedComponent?.kind !== 'component') return;
-	t.is(addedComponent.component.displayList[0]?.id, 'popup-title');
+	for (const expected of lifecycleComponent.component.displayList) {
+		t.like(addedComponent.component.displayList.find((node) => node.id === expected.id), expected);
+	}
+
+	const updatedTextProperties = {
+		...createLifecyclePlainTextProperties(),
+		text: 'Updated popup',
+		autoSize: 4,
+		strokeColor: '#778899',
+		strokeSize: 0.244,
+		shadowColor: '#112244',
+		shadowOffset: { x: 0, y: 0 },
+	};
+	const updated = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: added.data.revision,
+		operations: [{
+			kind: 'setDisplayNodeProps',
+			selector: { packageId: 'pkg002', componentResourceId: lifecycleComponent.id, displayNodeId: 'popup-title' },
+			props: { textProperties: updatedTextProperties },
+		}],
+	});
+	t.true(updated.ok);
+	if (!updated.ok) return;
+	t.true((await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: updated.data.revision })).ok);
+	const updatedReload = normalizeUamProject(
+		liftDocumentToUamProject(await new ProjectReader(fileSystem).read('Lifecycle/Project.fairy')),
+	);
+	const updatedTitle = findComponent(updatedReload, 'pkg002', lifecycleComponent.id)?.component.displayList
+		.find((node) => node.id === 'popup-title');
+	t.like(updatedTitle, updatedTextProperties);
+
+	const restoredText = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: updated.data.revision,
+		operations: [{
+			kind: 'setDisplayNodeProps',
+			selector: { packageId: 'pkg002', componentResourceId: lifecycleComponent.id, displayNodeId: 'popup-title' },
+			props: { textProperties: createLifecyclePlainTextProperties() },
+		}],
+	});
+	t.true(restoredText.ok);
+	if (!restoredText.ok) return;
+	t.true((await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: restoredText.data.revision })).ok);
+	const restoredTextReload = normalizeUamProject(
+		liftDocumentToUamProject(await new ProjectReader(fileSystem).read('Lifecycle/Project.fairy')),
+	);
+	const restoredTitle = findComponent(restoredTextReload, 'pkg002', lifecycleComponent.id)?.component.displayList
+		.find((node) => node.id === 'popup-title');
+	t.like(restoredTitle, createLifecyclePlainTextProperties());
+
+	const moved = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: restoredText.data.revision,
+		operations: [{
+			kind: 'moveComponent',
+			selector: { packageId: 'pkg002', componentResourceId: lifecycleComponent.id },
+			toPackageId: 'pkg001',
+			toIndex: 2,
+		}],
+	});
+	t.true(moved.ok);
+	if (!moved.ok) return;
+	t.true((await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: moved.data.revision })).ok);
+	const movedReload = normalizeUamProject(
+		liftDocumentToUamProject(await new ProjectReader(fileSystem).read('Lifecycle/Project.fairy')),
+	);
+	const movedComponent = findComponent(movedReload, 'pkg001', lifecycleComponent.id);
+	for (const expected of lifecycleComponent.component.displayList) {
+		t.like(movedComponent?.component.displayList.find((node) => node.id === expected.id), expected);
+	}
+
+	const restoredMove = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: moved.data.revision,
+		operations: [{
+			kind: 'moveComponent',
+			selector: { packageId: 'pkg001', componentResourceId: lifecycleComponent.id },
+			toPackageId: 'pkg002',
+			toIndex: 0,
+		}],
+	});
+	t.true(restoredMove.ok);
+	if (!restoredMove.ok) return;
+	t.true((await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: restoredMove.data.revision })).ok);
+	const restoredMoveReload = normalizeUamProject(
+		liftDocumentToUamProject(await new ProjectReader(fileSystem).read('Lifecycle/Project.fairy')),
+	);
+	const restoredMoveComponent = findComponent(restoredMoveReload, 'pkg002', lifecycleComponent.id);
+	for (const expected of lifecycleComponent.component.displayList) {
+		t.like(restoredMoveComponent?.component.displayList.find((node) => node.id === expected.id), expected);
+	}
 
 	const removed = await runtime.applyTransaction({
 		sessionId: opened.data.sessionId,
-		expectedRevision: added.data.revision,
+		expectedRevision: restoredMove.data.revision,
 		operations: [
 			{ kind: 'removeComponent', selector: { packageId: 'pkg002', componentResourceId: 'cmp002' } },
 			{ kind: 'removePackage', selector: { packageId: 'pkg002' } },
@@ -639,7 +824,7 @@ test('browser-safe sessions materialize package and component lifecycle operatio
 	t.false(removedReload.packages.some((pkg) => pkg.id === 'pkg002'));
 });
 
-test('real LayaBox UAM sessions persist atomic component lifecycle rewrites in browser storage', async (t) => {
+test('real LayaBox UAM sessions persist atomic resource dependency moves in browser storage', async (t) => {
 	const storage = new MemoryBrowserStorage();
 	const sourceRoot = 'LayaBoxInput';
 	await copyDirectoryToStorage(storage, path.dirname(LAYABOX_PROJECT_PATH), sourceRoot);
@@ -653,13 +838,79 @@ test('real LayaBox UAM sessions persist atomic component lifecycle rewrites in b
 		return;
 	}
 
+	const hydratedImage = findHydratedImage(input);
+	const fixtureImage = input.packages
+		.find((pkg) => pkg.id === hydratedImage.packageId)?.resources
+		.find((resource) => resource.id === hydratedImage.resourceId);
+	if (fixtureImage?.kind !== 'image') {
+		t.fail('expected a hydrated LayaBox image');
+		return;
+	}
+	const extension = path.extname(fixtureImage.fileName ?? '') || '.png';
+	const sourceImage = structuredClone(fixtureImage);
+	sourceImage.id = 'issue34sourceimage';
+	sourceImage.name = 'issue34-source';
+	sourceImage.path = '/issue34-source';
+	sourceImage.fileName = `issue34-source${extension}`;
+	delete sourceImage.sourcePath;
+	const copiedImage = structuredClone(sourceImage);
+	copiedImage.id = 'issue34copiedimage';
+	copiedImage.name = 'issue34-copy';
+	copiedImage.path = '/issue34-target';
+	copiedImage.fileName = `issue34-copy${extension}`;
+
 	const sourcePackage: UamPackage = {
 		id: 'issue9pkg',
 		name: 'Issue9',
 		publish: null,
 		resources: [],
 	};
+	const nested = createLifecycleComponent('issue34nested', 'Issue34Nested');
+	nested.component.displayList = [{
+		kind: 'image',
+		id: 'issue34-image-ref',
+		name: 'issue34-image-ref',
+		position: { x: 0, y: 0 },
+		size: { width: 32, height: 32 },
+		visible: true,
+		touchable: true,
+		grayed: false,
+		alpha: 1,
+		rotation: 0,
+		customData: '',
+		relations: [],
+		gears: [],
+		group: '',
+		resource: { packageId: '', resourceId: sourceImage.id },
+	}];
+	const copiedNested = structuredClone(nested);
+	copiedNested.id = 'issue34copiednested';
+	copiedNested.name = 'Issue34CopiedNested';
+	const copiedImageNode = copiedNested.component.displayList[0];
+	if (copiedImageNode?.kind !== 'image') {
+		t.fail('expected copied nested image node');
+		return;
+	}
+	copiedImageNode.resource = { packageId: '', resourceId: copiedImage.id };
 	const movable = createLifecycleComponent('issue9cmp', 'Issue9Movable');
+	const originalNestedReference: UamComponentRefNode = {
+		kind: 'component',
+		id: 'issue34-nested-ref',
+		name: 'issue34-nested-ref',
+		position: { x: 0, y: 0 },
+		size: { width: 80, height: 24 },
+		visible: true,
+		touchable: true,
+		grayed: false,
+		alpha: 1,
+		rotation: 0,
+		customData: '',
+		relations: [],
+		gears: [],
+		group: '',
+		resource: { packageId: '', resourceId: nested.id },
+	};
+	movable.component.displayList = [originalNestedReference];
 	const host = createLifecycleComponent('issue9host', 'Issue9Host');
 	host.component.displayList = [];
 	const originalReference: UamComponentRefNode = {
@@ -676,6 +927,7 @@ test('real LayaBox UAM sessions persist atomic component lifecycle rewrites in b
 		customData: '',
 		relations: [],
 		gears: [],
+		group: '',
 		resource: { packageId: '', resourceId: movable.id },
 	};
 	const runtime = new BackendRuntime();
@@ -694,8 +946,10 @@ test('real LayaBox UAM sessions persist atomic component lifecycle rewrites in b
 			expectedRevision: revision,
 			operations: [
 				{ kind: 'addPackage', package: sourcePackage, atIndex: input.packages.length },
-				{ kind: 'addComponent', selector: { packageId: sourcePackage.id }, component: movable, atIndex: 0 },
-				{ kind: 'addComponent', selector: { packageId: sourcePackage.id }, component: host, atIndex: 1 },
+				{ kind: 'addResource', selector: { packageId: sourcePackage.id }, resource: sourceImage },
+				{ kind: 'addComponent', selector: { packageId: sourcePackage.id }, component: nested, atIndex: 1 },
+				{ kind: 'addComponent', selector: { packageId: sourcePackage.id }, component: movable, atIndex: 2 },
+				{ kind: 'addComponent', selector: { packageId: sourcePackage.id }, component: host, atIndex: 3 },
 				{
 					kind: 'attachDisplayNode',
 					selector: { packageId: sourcePackage.id, componentResourceId: host.id },
@@ -713,6 +967,26 @@ test('real LayaBox UAM sessions persist atomic component lifecycle rewrites in b
 			sessionId: opened.data.sessionId,
 			expectedRevision: revision,
 			operations: [
+				{ kind: 'addResource', selector: { packageId: destination.id }, resource: copiedImage },
+				{
+					kind: 'addComponent',
+					selector: { packageId: destination.id },
+					component: copiedNested,
+					atIndex: destination.resources.length + 1,
+				},
+				{
+					kind: 'detachDisplayNode',
+					selector: { packageId: sourcePackage.id, componentResourceId: movable.id, displayNodeId: originalNestedReference.id },
+				},
+				{
+					kind: 'attachDisplayNode',
+					selector: { packageId: sourcePackage.id, componentResourceId: movable.id },
+					atIndex: 0,
+					node: {
+						...originalNestedReference,
+						resource: { packageId: destination.id, resourceId: copiedNested.id },
+					},
+				},
 				{
 					kind: 'detachDisplayNode',
 					selector: { packageId: sourcePackage.id, componentResourceId: host.id, displayNodeId: originalReference.id },
@@ -727,7 +1001,7 @@ test('real LayaBox UAM sessions persist atomic component lifecycle rewrites in b
 					kind: 'moveComponent',
 					selector: { packageId: sourcePackage.id, componentResourceId: movable.id },
 					toPackageId: destination.id,
-					toIndex: destination.resources.length,
+					toIndex: destination.resources.length + 2,
 				},
 			],
 		});
@@ -737,6 +1011,30 @@ test('real LayaBox UAM sessions persist atomic component lifecycle rewrites in b
 		t.true((await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: revision })).ok);
 		const movedReload = normalizeUamProject(liftDocumentToUamProject(await reader.read(outputFairyPath, { hydrateResourceBytes: true })));
 		t.is(findComponent(movedReload, destination.id, movable.id)?.kind, 'component');
+		const movedNested = findComponent(movedReload, destination.id, copiedNested.id);
+		t.is(movedNested?.kind, 'component');
+		const movedNestedImage = movedNested?.component.displayList.find((node) => node.id === copiedImageNode.id);
+		if (movedNestedImage?.kind === 'image') {
+			t.deepEqual(movedNestedImage.resource, { packageId: undefined, resourceId: copiedImage.id });
+		} else {
+			t.fail('expected copied nested image reference');
+			return;
+		}
+		const movedImage = movedReload.packages
+			.find((pkg) => pkg.id === destination.id)?.resources
+			.find((resource) => resource.id === copiedImage.id);
+		t.is(movedImage?.kind, 'image');
+		if (movedImage?.kind === 'image') {
+			t.deepEqual([...movedImage.sourceBytes ?? []], [...copiedImage.sourceBytes ?? []]);
+		}
+		const movedNestedReference = findComponent(movedReload, destination.id, movable.id)?.component.displayList
+			.find((node) => node.id === originalNestedReference.id);
+		if (movedNestedReference?.kind === 'component') {
+			t.deepEqual(movedNestedReference.resource, { packageId: destination.id, resourceId: copiedNested.id });
+		} else {
+			t.fail('expected moved nested component reference');
+			return;
+		}
 		const movedReference = findComponent(movedReload, sourcePackage.id, host.id)?.component.displayList.find((node) => node.id === originalReference.id);
 		if (movedReference?.kind === 'component') {
 			t.deepEqual(movedReference.resource, { packageId: destination.id, resourceId: movable.id });
@@ -751,6 +1049,19 @@ test('real LayaBox UAM sessions persist atomic component lifecycle rewrites in b
 			operations: [
 				{
 					kind: 'detachDisplayNode',
+					selector: { packageId: destination.id, componentResourceId: movable.id, displayNodeId: originalNestedReference.id },
+				},
+				{
+					kind: 'attachDisplayNode',
+					selector: { packageId: destination.id, componentResourceId: movable.id },
+					atIndex: 0,
+					node: {
+						...originalNestedReference,
+						resource: { packageId: sourcePackage.id, resourceId: nested.id },
+					},
+				},
+				{
+					kind: 'detachDisplayNode',
 					selector: { packageId: sourcePackage.id, componentResourceId: host.id, displayNodeId: originalReference.id },
 				},
 				{
@@ -763,8 +1074,10 @@ test('real LayaBox UAM sessions persist atomic component lifecycle rewrites in b
 					kind: 'moveComponent',
 					selector: { packageId: destination.id, componentResourceId: movable.id },
 					toPackageId: sourcePackage.id,
-					toIndex: 0,
+					toIndex: 3,
 				},
+				{ kind: 'removeComponent', selector: { packageId: destination.id, componentResourceId: copiedNested.id } },
+				{ kind: 'removeResource', selector: { packageId: destination.id, resourceId: copiedImage.id } },
 			],
 		});
 		t.true(restored.ok);
@@ -773,6 +1086,19 @@ test('real LayaBox UAM sessions persist atomic component lifecycle rewrites in b
 		t.true((await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: revision })).ok);
 		const restoredReload = normalizeUamProject(liftDocumentToUamProject(await reader.read(outputFairyPath, { hydrateResourceBytes: true })));
 		t.is(findComponent(restoredReload, sourcePackage.id, movable.id)?.kind, 'component');
+		const restoredNestedReference = findComponent(restoredReload, sourcePackage.id, movable.id)?.component.displayList
+			.find((node) => node.id === originalNestedReference.id);
+		if (restoredNestedReference?.kind === 'component') {
+			t.deepEqual(restoredNestedReference.resource, { packageId: sourcePackage.id, resourceId: nested.id });
+		} else {
+			t.fail('expected restored nested component reference');
+			return;
+		}
+		t.is(findComponent(restoredReload, destination.id, copiedNested.id), null);
+		t.false(restoredReload.packages
+			.find((pkg) => pkg.id === destination.id)?.resources
+			.some((resource) => resource.id === copiedImage.id) ?? true);
+		t.false(storage.hasFile(`LayaBoxOutput/assets/${destination.name}/issue34-target/${copiedImage.fileName}`));
 		const restoredReference = findComponent(restoredReload, sourcePackage.id, host.id)?.component.displayList.find((node) => node.id === originalReference.id);
 		if (restoredReference?.kind === 'component') {
 			t.deepEqual(restoredReference.resource, { packageId: sourcePackage.id, resourceId: movable.id });
@@ -780,6 +1106,35 @@ test('real LayaBox UAM sessions persist atomic component lifecycle rewrites in b
 			t.fail('expected restored local LayaBox component reference');
 			return;
 		}
+
+		const failedImage = structuredClone(copiedImage);
+		failedImage.id = 'issue34failedimage';
+		failedImage.name = 'issue34-failed';
+		failedImage.fileName = `issue34-failed${extension}`;
+		const failedBatch = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: revision,
+			operations: [
+				{ kind: 'addResource', selector: { packageId: destination.id }, resource: failedImage },
+				{
+					kind: 'moveComponent',
+					selector: { packageId: sourcePackage.id, componentResourceId: 'missing-component' },
+					toPackageId: destination.id,
+					toIndex: destination.resources.length,
+				},
+			],
+		});
+		t.false(failedBatch.ok);
+		t.true((await runtime.saveSession({
+			sessionId: opened.data.sessionId,
+			expectedRevision: revision,
+			force: true,
+		})).ok);
+		const failedReload = normalizeUamProject(liftDocumentToUamProject(await reader.read(outputFairyPath, { hydrateResourceBytes: true })));
+		t.false(failedReload.packages
+			.find((pkg) => pkg.id === destination.id)?.resources
+			.some((resource) => resource.id === failedImage.id) ?? true);
+		t.false(storage.hasFile(`LayaBoxOutput/assets/${destination.name}/issue34-target/${failedImage.fileName}`));
 
 		const unsafeRemove = await runtime.applyTransaction({
 			sessionId: opened.data.sessionId,
@@ -837,6 +1192,220 @@ test('real LayaBox UAM sessions persist atomic component lifecycle rewrites in b
 		} else {
 			t.fail('expected restored LayaBox component reference');
 		}
+	} finally {
+		await runtime.closeSession({ sessionId: opened.data.sessionId });
+	}
+});
+
+test('real LayaBox Bag dependency closure moves and inverts atomically in browser storage', async (t) => {
+	const storage = new MemoryBrowserStorage();
+	const sourceRoot = 'BagClosureInput';
+	await copyDirectoryToStorage(storage, path.dirname(LAYABOX_PROJECT_PATH), sourceRoot);
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const reader = new ProjectReader(fileSystem);
+	const input = normalizeUamProject(liftDocumentToUamProject(await reader.read(
+		`${sourceRoot}/${path.basename(LAYABOX_PROJECT_PATH)}`,
+		{ hydrateResourceBytes: true },
+	)));
+	const sourcePackage = input.packages.find((pkg) => pkg.name === 'Bag');
+	const movable = sourcePackage?.resources.find((resource) => resource.kind === 'component' && resource.name === 'Main');
+	const nested = sourcePackage?.resources.find((resource) => resource.kind === 'component' && resource.name === 'BagButton');
+	const image = sourcePackage?.resources.find((resource) => resource.id === 'thi7d');
+	const movieClip = sourcePackage?.resources.find((resource) => resource.id === 'thi7j');
+	if (
+		!sourcePackage
+		|| movable?.kind !== 'component'
+		|| nested?.kind !== 'component'
+		|| image?.kind !== 'image'
+		|| movieClip?.kind !== 'movieClip'
+		|| !(image.sourceBytes instanceof Uint8Array)
+		|| !(movieClip.sourceBytes instanceof Uint8Array)
+	) {
+		t.fail('expected the real Bag/Main -> BagButton -> image + MovieClip closure');
+		return;
+	}
+	const nestedReference = movable.component.displayList.find((node) => (
+		node.kind === 'component' && node.resource.resourceId === nested.id
+	));
+	if (nestedReference?.kind !== 'component') {
+		t.fail('expected Main to reference BagButton');
+		return;
+	}
+	const copiedImage = structuredClone(image);
+	const copiedMovieClip = structuredClone(movieClip);
+	delete copiedImage.sourcePath;
+	delete copiedMovieClip.sourcePath;
+	const targetPackage: UamPackage = {
+		id: 'issue34real',
+		name: 'Issue34Real',
+		publish: null,
+		resources: [],
+	};
+	const copiedNested = structuredClone(nested);
+	for (const node of copiedNested.component.displayList) {
+		if (node.kind === 'image' || node.kind === 'movieClip') {
+			node.resource.packageId = targetPackage.id;
+		}
+	}
+	const originalIndex = sourcePackage.resources.indexOf(movable);
+	const outputFairyPath = 'BagClosureOutput/Project.fairy';
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({
+		project: input,
+		storage: { fileSystem, fairyPath: outputFairyPath },
+	});
+	t.true(opened.ok);
+	if (!opened.ok) return;
+
+	let revision = opened.data.revision;
+	try {
+		const moved = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: revision,
+			operations: [
+				{ kind: 'addPackage', package: targetPackage, atIndex: input.packages.length },
+				{ kind: 'addResource', selector: { packageId: targetPackage.id }, resource: copiedImage },
+				{ kind: 'addResource', selector: { packageId: targetPackage.id }, resource: copiedMovieClip },
+				{ kind: 'addComponent', selector: { packageId: targetPackage.id }, component: copiedNested, atIndex: 2 },
+				{
+					kind: 'detachDisplayNode',
+					selector: { packageId: sourcePackage.id, componentResourceId: movable.id, displayNodeId: nestedReference.id },
+				},
+				{
+					kind: 'attachDisplayNode',
+					selector: { packageId: sourcePackage.id, componentResourceId: movable.id },
+					atIndex: 0,
+					node: {
+						...nestedReference,
+						resource: { packageId: targetPackage.id, resourceId: nested.id },
+					},
+				},
+				{
+					kind: 'moveComponent',
+					selector: { packageId: sourcePackage.id, componentResourceId: movable.id },
+					toPackageId: targetPackage.id,
+					toIndex: 3,
+				},
+			],
+		});
+		t.true(moved.ok);
+		if (!moved.ok) return;
+		revision = moved.data.revision;
+		t.true((await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: revision })).ok);
+
+		const movedReload = normalizeUamProject(liftDocumentToUamProject(await reader.read(
+			outputFairyPath,
+			{ hydrateResourceBytes: true },
+		)));
+		const movedMain = findComponent(movedReload, targetPackage.id, movable.id);
+		const movedButton = findComponent(movedReload, targetPackage.id, nested.id);
+		t.is(movedMain?.kind, 'component');
+		t.is(movedButton?.kind, 'component');
+		for (const node of movedButton?.component.displayList ?? []) {
+			if (node.kind === 'image' || node.kind === 'movieClip') {
+				t.is(node.resource.packageId ?? targetPackage.id, targetPackage.id);
+			}
+		}
+		const movedReference = movedMain?.component.displayList.find((node) => node.id === nestedReference.id);
+		t.deepEqual(
+			movedReference?.kind === 'component' ? movedReference.resource : null,
+			{ packageId: targetPackage.id, resourceId: nested.id },
+		);
+		const movedImage = movedReload.packages
+			.find((pkg) => pkg.id === targetPackage.id)?.resources
+			.find((resource) => resource.id === image.id);
+		const movedMovieClip = movedReload.packages
+			.find((pkg) => pkg.id === targetPackage.id)?.resources
+			.find((resource) => resource.id === movieClip.id);
+		t.deepEqual(movedImage?.kind === 'image' ? [...movedImage.sourceBytes ?? []] : null, [...image.sourceBytes]);
+		t.deepEqual(movedMovieClip?.kind === 'movieClip' ? [...movedMovieClip.sourceBytes ?? []] : null, [...movieClip.sourceBytes]);
+
+		const restored = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: revision,
+			operations: [
+				{
+					kind: 'detachDisplayNode',
+					selector: { packageId: targetPackage.id, componentResourceId: movable.id, displayNodeId: nestedReference.id },
+				},
+				{
+					kind: 'attachDisplayNode',
+					selector: { packageId: targetPackage.id, componentResourceId: movable.id },
+					atIndex: 0,
+					node: {
+						...nestedReference,
+						resource: { packageId: sourcePackage.id, resourceId: nested.id },
+					},
+				},
+				{
+					kind: 'moveComponent',
+					selector: { packageId: targetPackage.id, componentResourceId: movable.id },
+					toPackageId: sourcePackage.id,
+					toIndex: originalIndex,
+				},
+				{ kind: 'removeComponent', selector: { packageId: targetPackage.id, componentResourceId: nested.id } },
+				{ kind: 'removeResource', selector: { packageId: targetPackage.id, resourceId: image.id } },
+				{ kind: 'removeResource', selector: { packageId: targetPackage.id, resourceId: movieClip.id } },
+				{ kind: 'removePackage', selector: { packageId: targetPackage.id } },
+			],
+		});
+		t.true(restored.ok);
+		if (!restored.ok) return;
+		revision = restored.data.revision;
+		t.true((await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: revision })).ok);
+		const restoredReload = normalizeUamProject(liftDocumentToUamProject(await reader.read(
+			outputFairyPath,
+			{ hydrateResourceBytes: true },
+		)));
+		t.false(restoredReload.packages.some((pkg) => pkg.id === targetPackage.id));
+		const restoredMain = findComponent(restoredReload, sourcePackage.id, movable.id);
+		const restoredReference = restoredMain?.component.displayList.find((node) => node.id === nestedReference.id);
+		t.deepEqual(
+			restoredReference?.kind === 'component' ? restoredReference.resource : null,
+			{ packageId: sourcePackage.id, resourceId: nested.id },
+		);
+
+		const failedPackage: UamPackage = {
+			id: 'issue34failed',
+			name: 'Issue34Failed',
+			publish: null,
+			resources: [],
+		};
+		const failed = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: revision,
+			operations: [
+				{ kind: 'addPackage', package: failedPackage, atIndex: input.packages.length },
+				{ kind: 'addResource', selector: { packageId: failedPackage.id }, resource: copiedImage },
+				{
+					kind: 'moveComponent',
+					selector: { packageId: sourcePackage.id, componentResourceId: 'missing-component' },
+					toPackageId: failedPackage.id,
+					toIndex: 1,
+				},
+			],
+		});
+		t.false(failed.ok);
+		t.true((await runtime.saveSession({
+			sessionId: opened.data.sessionId,
+			expectedRevision: revision,
+			force: true,
+		})).ok);
+		const failedReload = normalizeUamProject(liftDocumentToUamProject(await reader.read(
+			outputFairyPath,
+			{ hydrateResourceBytes: true },
+		)));
+		t.false(failedReload.packages.some((pkg) => pkg.id === failedPackage.id));
+
+		const unsafeRemove = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: revision,
+			operations: [{
+				kind: 'removeComponent',
+				selector: { packageId: sourcePackage.id, componentResourceId: nested.id },
+			}],
+		});
+		t.false(unsafeRemove.ok);
 	} finally {
 		await runtime.closeSession({ sessionId: opened.data.sessionId });
 	}

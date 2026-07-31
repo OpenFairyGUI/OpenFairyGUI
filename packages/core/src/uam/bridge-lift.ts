@@ -65,6 +65,7 @@ type LiftableDisplayNodeBase = {
 };
 
 type LiftableComponentDerivedControl = LiftableDisplayNodeBase & {
+	getGroup(): string;
 	getSrc(): string;
 	getPackageId(): string;
 };
@@ -80,7 +81,7 @@ type LiftableTitleControl = LiftableComponentDerivedControl & {
 
 type LiftedDisplayNodeBase = Pick<
 	UamButtonNode,
-	'id' | 'name' | 'position' | 'size' | 'pivot' | 'pivotAsAnchor' | 'visible' | 'touchable' | 'grayed' | 'alpha' | 'rotation' | 'customData' | 'relations' | 'gears'
+	'id' | 'name' | 'position' | 'size' | 'pivot' | 'pivotAsAnchor' | 'visible' | 'touchable' | 'grayed' | 'alpha' | 'rotation' | 'customData' | 'relations' | 'gears' | 'group'
 >;
 
 type LiftedComponentDerivedControlBase = LiftedDisplayNodeBase & Pick<UamButtonNode, 'src' | 'packageId'>;
@@ -104,6 +105,7 @@ function liftDisplayNodeBase(child: LiftableDisplayNodeBase): LiftedDisplayNodeB
 		customData: child.getCustomData(),
 		relations: liftRelations(child.getRelations()),
 		gears: liftGears(child.listGears()),
+		group: child.getGroup(),
 	};
 }
 
@@ -371,6 +373,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			customData: image.getCustomData(),
 			relations: liftRelations(image.getRelations()),
 			gears: liftGears(image.listGears()),
+			group: image.getGroup(),
 			resource: { resourceId: image.getSrc() },
 		};
 	}
@@ -380,6 +383,37 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 		|| child.propertyType === PropertyType.G_TEXT_INPUT
 	) {
 		const text = child as ReturnType<Document['createGTextField']>;
+		const textProperties = {
+			text: text.getText(),
+			font: text.getFont(),
+			fontSize: text.getFontSize(),
+			color: text.getColor(),
+			minSize: { width: text.getMinWidth(), height: text.getMinHeight() },
+			maxSize: { width: text.getMaxWidth(), height: text.getMaxHeight() },
+			align: text.getAlign(),
+			vAlign: text.getVAlign(),
+			leading: text.getLeading(),
+			letterSpacing: text.getLetterSpacing(),
+			autoSize: text.getAutoSize(),
+			singleLine: text.getSingleLine(),
+			autoClearText: text.getAutoClearText(),
+			underlaySoftness: text.getUnderlaySoftness(),
+			ubbEnabled: text.getUbbEnabled(),
+			underline: text.getUnderline(),
+			italic: text.getItalic(),
+			bold: text.getBold(),
+			strikethrough: text.getStrikethrough(),
+			strokeColor: text.getStrokeColor(),
+			strokeSize: text.getStrokeSize(),
+			shadowColor: text.getShadowColor(),
+			shadowOffset: text.getShadowOffset(),
+		};
+		const plainTextProperties = {
+			...textProperties,
+			demoText: text.getDemoText(),
+			templateVarsEnabled: text.getTemplateVarsEnabled(),
+			faceDilate: text.getFaceDilate(),
+		};
 		const base = {
 			id: text.getId(),
 			name: text.getName(),
@@ -395,19 +429,17 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			customData: text.getCustomData(),
 			relations: liftRelations(text.getRelations()),
 			gears: liftGears(text.listGears()),
-			text: text.getText(),
-			font: text.getFont(),
-			fontSize: text.getFontSize(),
-			color: text.getColor(),
+			group: text.getGroup(),
 		};
 		if (child.propertyType === PropertyType.G_RICH_TEXT_FIELD) {
-			return { kind: 'richText', ...base } satisfies UamRichTextNode;
+			return { kind: 'richText', ...base, ...textProperties } satisfies UamRichTextNode;
 		}
 		if (child.propertyType === PropertyType.G_TEXT_INPUT) {
 			const input = child as ReturnType<Document['createGTextInput']>;
 			return {
 				kind: 'textInput',
 				...base,
+				...plainTextProperties,
 				promptText: input.getPromptText(),
 				maxLength: input.getMaxLength(),
 				restrict: input.getRestrict(),
@@ -415,7 +447,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 				keyboardType: input.getKeyboardType(),
 			} satisfies UamTextInputNode;
 		}
-		return { kind: 'text', ...base } satisfies UamTextNode;
+		return { kind: 'text', ...base, ...plainTextProperties } satisfies UamTextNode;
 	}
 	if (child.propertyType === PropertyType.G_COMPONENT) {
 		const component = child as ReturnType<Document['createGComponent']>;
@@ -436,6 +468,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			customData: component.getCustomData(),
 			relations: liftRelations(component.getRelations()),
 			gears: liftGears(component.listGears()),
+			group: component.getGroup(),
 			resource: { packageId: component.getPackageId(), resourceId: component.getSrc() },
 			...(instanceProperties ? { instanceProperties } : {}),
 		};
@@ -720,6 +753,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			customData: movieClip.getCustomData(),
 			relations: liftRelations(movieClip.getRelations()),
 			gears: liftGears(movieClip.listGears()),
+			group: movieClip.getGroup(),
 			resource: { packageId: movieClip.getPackageId(), resourceId: movieClip.getSrc() },
 			fileName: movieClip.getFileName(),
 			filter: movieClip.getFilter(),

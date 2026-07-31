@@ -5,6 +5,7 @@ import path from 'node:path';
 import {
 	createDefaultUamComponentProperties,
 	createDefaultUamImageResourceProperties,
+	createDefaultUamPlainTextProperties,
 	type UamProject,
 	type UamTransactionOperation,
 	readProjectAsUam,
@@ -82,6 +83,7 @@ function createSupportedProject(): UamProject {
 								},
 								{
 									kind: 'text',
+									...createDefaultUamPlainTextProperties(),
 									id: 'n1',
 									name: 'title',
 									position: { x: 16, y: 18 },

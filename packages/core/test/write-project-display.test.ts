@@ -240,8 +240,11 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 	text.setText('hello');
 	text.setDemoText('preview');
 	text.setTemplateVarsEnabled(true);
+	text.setAutoSize(4);
+	text.setStrokeColor('#778899');
+	text.setStrokeSize(0.244);
 	text.setShadowColor('#112233');
-	text.setShadowOffset({ x: 2, y: 3 });
+	text.setShadowOffset({ x: 0, y: 0 });
 
 	const rich = doc.createGRichTextField('rich');
 	rich.setId('n1');
@@ -249,12 +252,28 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 	rich.setShadowColor('#445566');
 	rich.setShadowOffset({ x: 4, y: 5 });
 	rich.setUnderlaySoftness(0.056);
+	rich.setAutoSize(4);
+
+	const input = doc.createGTextInput('input');
+	input.setId('n2');
+	input.setText('input');
+	input.setDemoText('input preview');
+	input.setTemplateVarsEnabled(true);
+	input.setFaceDilate(0.125);
+	input.setUnderlaySoftness(0.25);
+	input.setUbbEnabled(true);
+	input.setAutoSize(4);
+	input.setStrokeColor('#aabbcc');
+	input.setStrokeSize(0.5);
+	input.setShadowColor('#ddeeff');
+	input.setShadowOffset({ x: 0, y: 2 });
 
 	text.setFaceDilate(0.324);
 	text.setUnderlaySoftness(1);
 
 	comp.addChild(text);
 	comp.addChild(rich);
+	comp.addChild(input);
 	pkg.addResource(comp);
 
 	const io = new NodeIO();
@@ -270,6 +289,7 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 		t.true(/<text\b[^>]*faceDilate="0.324"/.test(componentXml), 'text writes canonical faceDilate attr');
 		t.true(/<text\b[^>]*underlaySoftness="1"/.test(componentXml), 'text writes canonical underlaySoftness attr');
 		t.true(/<richtext\b[^>]*underlaySoftness="0.056"/.test(componentXml), 'richtext writes canonical underlaySoftness attr');
+		t.true(/<inputtext\b[^>]*demoText="input preview"/.test(componentXml), 'input text writes canonical plain-text attrs');
 
 		const doc2 = await io.readProject(outFairy);
 		const comp2 = doc2.getRoot().getPackage('DemoText')?.listComponents().find((item) => item.getName() === 'TextShadow');
@@ -281,14 +301,27 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 		t.true(text2.getTemplateVarsEnabled?.());
 		t.is(text2.getFaceDilate?.(), 0.324);
 		t.is(text2.getUnderlaySoftness?.(), 1);
+		t.is(text2.getAutoSize(), 4);
+		t.is(text2.getStrokeSize(), 0.244);
 		t.is(text2.getShadowColor(), '#112233');
-		t.deepEqual(text2.getShadowOffset(), { x: 2, y: 3 });
+		t.deepEqual(text2.getShadowOffset(), { x: 0, y: 0 });
 
 		const rich2 = comp2!.listChildren().find((child) => child.getId() === 'n1') as ReturnType<Document['createGRichTextField']>;
 		t.truthy(rich2, 'rich text exists');
 		t.is(rich2.getUnderlaySoftness?.(), 0.056);
+		t.is(rich2.getAutoSize(), 4);
 		t.is(rich2.getShadowColor(), '#445566');
 		t.deepEqual(rich2.getShadowOffset(), { x: 4, y: 5 });
+
+		const input2 = comp2!.listChildren().find((child) => child.getId() === 'n2') as ReturnType<Document['createGTextInput']>;
+		t.is(input2.getDemoText(), 'input preview');
+		t.true(input2.getTemplateVarsEnabled());
+		t.is(input2.getFaceDilate(), 0.125);
+		t.is(input2.getUnderlaySoftness(), 0.25);
+		t.true(input2.getUbbEnabled());
+		t.is(input2.getAutoSize(), 4);
+		t.is(input2.getStrokeSize(), 0.5);
+		t.deepEqual(input2.getShadowOffset(), { x: 0, y: 2 });
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

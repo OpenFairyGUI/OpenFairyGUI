@@ -2,6 +2,7 @@ import test from 'ava';
 import {
 	UamTransactionError,
 	applyUamTransaction,
+	createDefaultUamPlainTextProperties,
 	createUamTransaction,
 	parseJta,
 	type UamTextNode,
@@ -92,6 +93,7 @@ test('resource and display-list operations respect the frozen Phase A contracts'
 			atIndex: 1,
 			node: {
 				kind: 'text',
+				...createDefaultUamPlainTextProperties(),
 				id: 'n2',
 				name: 'subtitle',
 				position: { x: 18, y: 52 },
@@ -160,6 +162,7 @@ test('resource and display-list operations respect the frozen Phase A contracts'
 				atIndex: 1,
 				node: {
 					kind: 'text',
+					...createDefaultUamPlainTextProperties(),
 					id: 'n1',
 					name: 'duplicate',
 					position: { x: 0, y: 0 },
@@ -300,6 +303,40 @@ test('behavior operations add and update controllers, transitions, and look gear
 	t.is(roundTrippedComponent.component.controllers[0]?.name, 'state');
 	t.is(roundTrippedComponent.component.transitions[0]?.name, 'intro');
 	t.is(roundTrippedComponent.component.displayList[0]?.gears[0]?.kind, 'look');
+});
+
+test('text color snapshots canonicalize before save and reload', async (t) => {
+	const textProperties = {
+		...createDefaultUamPlainTextProperties(),
+		text: 'Canonical colors',
+		color: '#FF000000',
+		strokeColor: '#DDEEFF',
+		shadowColor: '#ABCDEF',
+		shadowOffset: { x: 0, y: 0 },
+	};
+	const updated = applyUamTransaction(createSupportedProject(), [{
+		kind: 'setDisplayNodeProps',
+		selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+		props: { textProperties },
+	}]);
+	const updatedComponent = updated.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	const updatedText = updatedComponent?.kind === 'component'
+		? updatedComponent.component.displayList.find((node) => node.id === 'n1')
+		: null;
+	if (updatedText?.kind !== 'text') {
+		t.fail('expected updated text node');
+		return;
+	}
+	t.is(updatedText.color, '#000000');
+	t.is(updatedText.strokeColor, '#ddeeff');
+	t.is(updatedText.shadowColor, '#abcdef');
+
+	const reloaded = await roundTripCommittedProject(updated);
+	const reloadedComponent = reloaded.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	const reloadedText = reloadedComponent?.kind === 'component'
+		? reloadedComponent.component.displayList.find((node) => node.id === 'n1')
+		: null;
+	t.like(reloadedText, updatedText);
 });
 
 test('behavior remove operations remove look gears, transitions, and controllers with frozen selectors', (t) => {

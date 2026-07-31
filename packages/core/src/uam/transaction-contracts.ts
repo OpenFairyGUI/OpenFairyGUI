@@ -14,7 +14,9 @@ import type {
 	UamLoader3DProperties,
 	UamLookGearBinding,
 	UamPackage,
+	UamPlainTextProperties,
 	UamProject,
+	UamTextProperties,
 	UamTreeProperties,
 	UamValidationIssue,
 } from './model.js';
@@ -67,10 +69,12 @@ export interface UamDisplayNodePropsUpdate {
 	alpha?: number;
 	rotation?: number;
 	customData?: string;
+	group?: string;
 	text?: string;
 	font?: string;
 	fontSize?: number;
 	color?: string;
+	textProperties?: UamTextProperties | UamPlainTextProperties;
 	graphProperties?: UamGraphProperties;
 	loaderProperties?: UamLoaderProperties;
 	listProperties?: UamListProperties | UamTreeProperties;
@@ -316,6 +320,7 @@ export type UamTransactionSupportIssueCode =
 	| 'duplicate_gear_state_page'
 	| 'invalid_resource_payload'
 	| 'invalid_resource_selector'
+	| 'invalid_resource_reference'
 	| 'invalid_display_node_selector'
 	| 'duplicate_resource_id'
 	| 'unavailable_resource_source_bytes'
@@ -326,6 +331,7 @@ export type UamTransactionSupportIssueCode =
 	| 'invalid_package_index'
 	| 'invalid_component_selector'
 	| 'invalid_component_reference'
+	| 'invalid_group_reference'
 	| 'invalid_component_payload'
 	| 'duplicate_component_id'
 	| 'invalid_component_index'

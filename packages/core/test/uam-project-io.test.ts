@@ -8,6 +8,7 @@ import {
 	applyUamTransaction,
 	createDefaultUamComponentProperties,
 	createDefaultUamImageResourceProperties,
+	createDefaultUamPlainTextProperties,
 	Document,
 	GearType,
 	normalizeUamProject,
@@ -123,6 +124,7 @@ function createEngineeringScaleUamProject(): UamProject {
 								},
 								{
 									kind: 'text',
+									...createDefaultUamPlainTextProperties(),
 									id: 'n1',
 									name: 'title',
 									position: { x: 16, y: 18 },

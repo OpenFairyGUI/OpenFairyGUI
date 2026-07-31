@@ -665,7 +665,7 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 		if (type === 'GComponent' && typedObj.getAspect?.()) {
 			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.aspect, 'true');
 		}
-		if (type === 'GComponent') {
+		if (type === 'GComponent' || EXTENSION_TYPE[type]) {
 			const [x, y] = [typedObj.getX?.() ?? 0, typedObj.getY?.() ?? 0];
 			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.xy, `${x},${y}`);
 			const [w, h] = [typedObj.getWidth?.() ?? 0, typedObj.getHeight?.() ?? 0];
@@ -909,7 +909,7 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 				writeXmlAttr(attrs, restrictSpec, restrictSize.join(','));
 			}
 			if (typedObj.getAutoClearText?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.autoClearText, 'true');
-			if (type === 'GTextField') {
+			if (type !== 'GRichTextField') {
 				const demoText = typedObj.getDemoText?.();
 				if (demoText !== undefined && demoText !== '') writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.demoText, demoText);
 				if (typedObj.getTemplateVarsEnabled?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.vars, 'true');

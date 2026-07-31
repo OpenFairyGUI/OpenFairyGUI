@@ -5,6 +5,7 @@ import { getFixtureProjectPath } from '@openfairygui/test-utils';
 import {
 	createDefaultUamComponentProperties,
 	createDefaultUamImageResourceProperties,
+	createDefaultUamPlainTextProperties,
 	normalizeUamProject,
 	type UamComponentResource,
 	type UamControllerModel,
@@ -90,6 +91,7 @@ export function createSupportedProject(): UamProject {
 								},
 								{
 									kind: 'text',
+									...createDefaultUamPlainTextProperties(),
 									id: 'n1',
 									name: 'title',
 									position: { x: 16, y: 18 },
@@ -306,6 +308,7 @@ export function createLifecycleComponent(id = 'cmp002', name = 'Popup'): UamComp
 			displayList: [{
 				...createDisplayNodeBase('popup-title', 'title'),
 				kind: 'text',
+				...createDefaultUamPlainTextProperties(),
 				text: 'Popup',
 				font: '',
 				fontSize: 16,

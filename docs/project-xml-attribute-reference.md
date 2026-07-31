@@ -298,7 +298,6 @@
 | `pivot` |  | pivot |
 | `anchor` |  | 是否以 pivot 作为坐标锚点 |
 | `scale` |  | 缩放 |
-| `group` |  | 所属 group |
 | `rotation` |  | 旋转 |
 | `alpha` |  | 透明度 |
 | `visible` |  | 是否可见 |
