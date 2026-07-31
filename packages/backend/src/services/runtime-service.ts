@@ -79,7 +79,10 @@ function createProjectReaderFileSystem(fileSystem: NonNullable<BackendContext['f
 	};
 }
 
-function createCaptureFileSystem(files: Map<string, string | Uint8Array>): FileSystem {
+function createCaptureFileSystem(
+	files: Map<string, string | Uint8Array>,
+	directories: Set<string>,
+): FileSystem {
 	const normalize = (filePath: string): string => filePath.replace(/\\/g, '/').replace(/\/+/g, '/');
 	return {
 		async readFile(filePath: string): Promise<string> {
@@ -98,7 +101,9 @@ function createCaptureFileSystem(files: Map<string, string | Uint8Array>): FileS
 		async writeFileRaw(filePath: string, data: Uint8Array): Promise<void> {
 			files.set(normalize(filePath), data.slice());
 		},
-		async mkdir(): Promise<void> {},
+		async mkdir(dirPath: string): Promise<void> {
+			directories.add(normalize(dirPath));
+		},
 		async readdir(): Promise<string[]> {
 			return [];
 		},
@@ -135,16 +140,22 @@ function capturedFilesEqual(left: Map<string, string | Uint8Array>, right: Map<s
 	return true;
 }
 
+function capturedDirectoriesEqual(left: Set<string>, right: Set<string>): boolean {
+	return left.size === right.size && [...left].every((directory) => right.has(directory));
+}
+
 async function hasFullUamFidelity(
 	document: Awaited<ReturnType<ProjectReader['read']>>,
 	project: UamProject,
 ): Promise<boolean> {
 	const sourceFiles = new Map<string, string | Uint8Array>();
 	const materializedFiles = new Map<string, string | Uint8Array>();
+	const sourceDirectories = new Set<string>();
+	const materializedDirectories = new Set<string>();
 	try {
 		await Promise.all([
-			new ProjectWriter(createCaptureFileSystem(sourceFiles)).write(document, 'Project.fairy'),
-			new ProjectWriter(createCaptureFileSystem(materializedFiles)).write(
+			new ProjectWriter(createCaptureFileSystem(sourceFiles, sourceDirectories)).write(document, 'Project.fairy'),
+			new ProjectWriter(createCaptureFileSystem(materializedFiles, materializedDirectories)).write(
 				materializeUamProject(project),
 				'Project.fairy',
 			),
@@ -152,7 +163,8 @@ async function hasFullUamFidelity(
 	} catch {
 		return false;
 	}
-	return capturedFilesEqual(sourceFiles, materializedFiles);
+	return capturedFilesEqual(sourceFiles, materializedFiles)
+		&& capturedDirectoriesEqual(sourceDirectories, materializedDirectories);
 }
 
 export class RuntimeService {
@@ -225,6 +237,7 @@ export class RuntimeService {
 				revision: 0,
 				lastSavedRevision: 0,
 				pendingStaleSourceFiles: new Map(),
+				pendingStaleResourceFolders: new Map(),
 				dirty: false,
 				lockHeld: true,
 				closed: false,
@@ -292,6 +305,7 @@ export class RuntimeService {
 			revision: 0,
 			lastSavedRevision: 0,
 			pendingStaleSourceFiles: new Map(),
+			pendingStaleResourceFolders: new Map(),
 			dirty: false,
 			lockHeld: false,
 			closed: false,

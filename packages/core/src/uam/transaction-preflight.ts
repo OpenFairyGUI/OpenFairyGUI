@@ -16,6 +16,11 @@ import type {
 	UamTreeProperties,
 } from './model.js';
 import { UAM_SUPPORTED_TRANSACTION_SCOPE } from './model.js';
+import {
+	normalizeResourceFolderPath,
+	resourceFolderName,
+	resourceFolderParentPath,
+} from '../utils/resource-folder.js';
 import { normalizeUamProject } from './normalize.js';
 import {
 	isFiniteUamPoint,
@@ -31,6 +36,7 @@ import {
 	type UamDisplayNodePropsUpdate,
 	type UamDisplayNodeSelector,
 	type UamResourceSelector,
+	type UamResourceFolderSelector,
 	type SetDisplayNodePropsOperation,
 	type UamTransactionOperation,
 	type UamTransactionSupportIssue,
@@ -46,6 +52,7 @@ import {
 	isDisplayListRewriteOperation,
 	isLifecycleOperation,
 	isResourceLifecycleOperation,
+	isResourceFolderLifecycleOperation,
 	isUamNativeOperation,
 	TEXT_DISPLAY_NODE_KINDS,
 } from './transaction-shared.js';
@@ -55,6 +62,7 @@ import {
 	applyUamDisplayListRewriteOperation,
 	applyUamLifecycleOperation,
 	applyUamResourceLifecycleOperation,
+	applyUamResourceFolderLifecycleOperation,
 } from './transaction-uam-apply.js';
 
 function pushSupportIssue(
@@ -1320,6 +1328,75 @@ function isSafeResourcePath(value: string): boolean {
 	return !segments.some((segment) => segment === '.' || segment === '..');
 }
 
+function isSafeResourceFolderPath(value: string, allowRoot = false): boolean {
+	if (!value || value !== normalizeResourceFolderPath(value)) return false;
+	if (value === '/') return allowRoot;
+	return value.split('/').filter(Boolean).every(isSafePackageName);
+}
+
+function folderBranch(selector: UamResourceFolderSelector): string {
+	return selector.branch ?? '';
+}
+
+function findResourceFolder(project: UamProject, selector: UamResourceFolderSelector) {
+	const pkg = findPackageSpec(project, selector.packageId);
+	const branch = folderBranch(selector);
+	const folder = pkg?.folders.find((candidate) => candidate.branch === branch && candidate.path === selector.path);
+	return pkg && folder ? { pkg, folder } : null;
+}
+
+function folderContainsItems(pkg: UamPackage, branch: string, path: string): boolean {
+	return pkg.folders.some((folder) => (
+		folder.branch === branch && folder.path !== path && folder.path.startsWith(path)
+	)) || pkg.resources.some((resource) => (
+		resource.branch === branch && normalizeResourceFolderPath(resource.path).startsWith(path)
+	));
+}
+
+function folderPathConflictsWithResource(pkg: UamPackage, branch: string, path: string): boolean {
+	const folderTarget = path.replace(/^\/+|\/+$/g, '');
+	return pkg.resources.some((resource) => {
+		if (resource.branch !== branch) return false;
+		const fileName = resource.kind === 'component' ? `${resource.name}.xml` : primaryResourceFileName(resource);
+		return normalizeResourceFolderPath(`${resource.path}/${fileName}`).slice(1, -1) === folderTarget;
+	});
+}
+
+function folderParentExists(pkg: UamPackage, branch: string, path: string): boolean {
+	const parentPath = resourceFolderParentPath(path);
+	return parentPath === '/' || pkg.folders.some((folder) => folder.branch === branch && folder.path === parentPath);
+}
+
+function validateResourceFolderSelector(
+	project: UamProject,
+	selector: UamResourceFolderSelector,
+	path: string,
+	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
+) {
+	if (!isSafeResourceFolderPath(selector.path)) {
+		pushSupportIssue(
+			issues,
+			'invalid_resource_folder_selector',
+			`${path}.path`,
+			'Resource folder selector path must be canonical, non-root, and traversal-free.',
+			{ operationKind },
+		);
+		return null;
+	}
+	const found = findResourceFolder(project, selector);
+	if (!found) {
+		pushSupportIssue(
+			issues,
+			'invalid_resource_folder_selector',
+			path,
+			`Resource folder "${folderBranch(selector)}:${selector.path}" was not found in package "${selector.packageId}".`,
+			{ operationKind },
+		);
+	}
+	return found;
+}
+
 function primaryResourceFileName(resource: UamAssetResource): string {
 	return resource.fileName ?? (resource.kind === 'image' ? '' : resource.file) ?? '';
 }
@@ -1762,6 +1839,7 @@ function validateLifecycleOperationPayloads(
 		if (
 			!isLifecycleOperation(operation)
 			&& !isResourceLifecycleOperation(operation)
+			&& !isResourceFolderLifecycleOperation(operation)
 			&& !isDisplayListRewriteOperation(operation)
 			&& operation.kind !== 'setDisplayNodeProps'
 		) continue;
@@ -1854,6 +1932,88 @@ function validateLifecycleOperationPayloads(
 				}
 				break;
 			}
+			case 'addResourceFolder': {
+				const pkg = validateLifecyclePackageSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				const branch = operation.branch ?? '';
+				if (!isSafeResourceFolderPath(operation.path)) {
+					pushSupportIssue(issues, 'invalid_resource_folder_path', `${operationPath}.path`, 'Resource folder path must be canonical, non-root, and traversal-free.', { operationKind: operation.kind });
+				}
+				if (branch && (!isSafePackageName(branch) || !projected.branches.includes(branch))) {
+					pushSupportIssue(issues, 'invalid_resource_folder_path', `${operationPath}.branch`, `Resource folder branch "${branch}" is not defined by the project.`, { operationKind: operation.kind });
+				}
+				if (operation.favorite !== undefined && typeof operation.favorite !== 'boolean') {
+					pushSupportIssue(issues, 'invalid_resource_payload', `${operationPath}.favorite`, 'addResourceFolder.favorite must be boolean.', { operationKind: operation.kind });
+				}
+				if (operation.atlas !== undefined && typeof operation.atlas !== 'string') {
+					pushSupportIssue(issues, 'invalid_resource_payload', `${operationPath}.atlas`, 'addResourceFolder.atlas must be a string.', { operationKind: operation.kind });
+				}
+				if (pkg && isSafeResourceFolderPath(operation.path)) {
+					if (!folderParentExists(pkg, branch, operation.path)) {
+						pushSupportIssue(issues, 'invalid_resource_folder_path', `${operationPath}.path`, `Parent folder "${resourceFolderParentPath(operation.path)}" does not exist.`, { operationKind: operation.kind });
+					}
+					if (pkg.folders.some((folder) => folder.branch === branch && folder.path === operation.path)
+						|| folderPathConflictsWithResource(pkg, branch, operation.path)
+					) {
+						pushSupportIssue(issues, 'resource_folder_conflict', `${operationPath}.path`, `Resource folder path "${operation.path}" already exists or conflicts with a resource.`, { operationKind: operation.kind });
+					}
+				}
+				break;
+			}
+			case 'renameResourceFolder': {
+				const found = validateResourceFolderSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				if (!isSafePackageName(operation.newName)) {
+					pushSupportIssue(issues, 'invalid_resource_folder_path', `${operationPath}.newName`, 'renameResourceFolder.newName must be a safe folder name.', { operationKind: operation.kind });
+				}
+				if (found) {
+					const branch = folderBranch(operation.selector);
+					if (folderContainsItems(found.pkg, branch, found.folder.path)) {
+						pushSupportIssue(issues, 'resource_folder_not_empty', `${operationPath}.selector`, 'renameResourceFolder only supports empty folders.', { operationKind: operation.kind });
+					}
+					if (isSafePackageName(operation.newName)) {
+						const destination = normalizeResourceFolderPath(`${resourceFolderParentPath(found.folder.path)}/${operation.newName}`);
+						if (destination === found.folder.path
+							|| found.pkg.folders.some((folder) => folder.branch === branch && folder.path === destination)
+							|| folderPathConflictsWithResource(found.pkg, branch, destination)
+						) {
+							pushSupportIssue(issues, 'resource_folder_conflict', `${operationPath}.newName`, `Resource folder path "${destination}" already exists or conflicts with a resource.`, { operationKind: operation.kind });
+						}
+					}
+				}
+				break;
+			}
+			case 'moveResourceFolder': {
+				const found = validateResourceFolderSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				const branch = folderBranch(operation.selector);
+				if (!isSafeResourceFolderPath(operation.toPath, true)) {
+					pushSupportIssue(issues, 'invalid_resource_folder_path', `${operationPath}.toPath`, 'moveResourceFolder.toPath must be a canonical folder path or root.', { operationKind: operation.kind });
+				}
+				if (found && isSafeResourceFolderPath(operation.toPath, true)) {
+					if (operation.toPath !== '/' && !found.pkg.folders.some((folder) => folder.branch === branch && folder.path === operation.toPath)) {
+						pushSupportIssue(issues, 'invalid_resource_folder_path', `${operationPath}.toPath`, `Destination parent folder "${operation.toPath}" does not exist.`, { operationKind: operation.kind });
+					}
+					if (operation.toPath.startsWith(found.folder.path)) {
+						pushSupportIssue(issues, 'invalid_resource_folder_path', `${operationPath}.toPath`, 'A resource folder cannot be moved into itself.', { operationKind: operation.kind });
+					}
+					if (folderContainsItems(found.pkg, branch, found.folder.path)) {
+						pushSupportIssue(issues, 'resource_folder_not_empty', `${operationPath}.selector`, 'moveResourceFolder only supports empty folders.', { operationKind: operation.kind });
+					}
+					const destination = normalizeResourceFolderPath(`${operation.toPath}/${resourceFolderName(found.folder.path)}`);
+					if (destination === found.folder.path
+						|| found.pkg.folders.some((folder) => folder.branch === branch && folder.path === destination)
+						|| folderPathConflictsWithResource(found.pkg, branch, destination)
+					) {
+						pushSupportIssue(issues, 'resource_folder_conflict', `${operationPath}.toPath`, `Resource folder path "${destination}" already exists or conflicts with a resource.`, { operationKind: operation.kind });
+					}
+				}
+				break;
+			}
+			case 'removeResourceFolder': {
+				const found = validateResourceFolderSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				if (found && folderContainsItems(found.pkg, folderBranch(operation.selector), found.folder.path)) {
+					pushSupportIssue(issues, 'resource_folder_not_empty', `${operationPath}.selector`, 'removeResourceFolder only supports empty folders.', { operationKind: operation.kind });
+				}
+				break;
+			}
 			case 'attachDisplayNode': {
 				const component = validateLifecycleComponentSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
 				if (!Number.isInteger(operation.atIndex) || operation.atIndex < 0) {
@@ -1890,6 +2050,8 @@ function validateLifecycleOperationPayloads(
 			applyUamLifecycleOperation(projected, operation);
 		} else if (isResourceLifecycleOperation(operation)) {
 			applyUamResourceLifecycleOperation(projected, operation);
+		} else if (isResourceFolderLifecycleOperation(operation)) {
+			applyUamResourceFolderLifecycleOperation(projected, operation);
 		} else if (operation.kind === 'setDisplayNodeProps') {
 			applyDisplayNodePropsUpdate(findDisplayNodeSpec(projected, operation.selector)!, operation.props);
 		} else {
@@ -1958,6 +2120,7 @@ function validateLifecycleBatchCompatibility(
 	const nonLifecycleIndex = operations.findIndex((operation) => (
 		!isLifecycleOperation(operation)
 		&& !isResourceLifecycleOperation(operation)
+		&& !isResourceFolderLifecycleOperation(operation)
 		&& !isDisplayListRewriteOperation(operation)
 		&& operation.kind !== 'setDisplayNodeProps'
 	));
@@ -1976,6 +2139,7 @@ function validateLifecycleBatchCompatibility(
 function requiresSequentialDisplayProjection(operations: UamTransactionOperation[]): boolean {
 	const hasDisplayListRewrite = operations.some(isDisplayListRewriteOperation);
 	return operations.some(isLifecycleOperation)
+		|| operations.some(isResourceFolderLifecycleOperation)
 		|| (
 			hasDisplayListRewrite
 			&& (
@@ -2028,6 +2192,18 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 					);
 				}
 				break;
+			case 'setResourceExported':
+				validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
+				if (typeof operation.exported !== 'boolean') {
+					pushSupportIssue(
+						issues,
+						'invalid_resource_payload',
+						`${operationPath}.exported`,
+						'setResourceExported.exported must be boolean.',
+						{ operationKind: operation.kind },
+					);
+				}
+				break;
 			case 'setImageResourceProps': {
 				validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
 				const resource = findProjectedResource(project, operations, operationIndex, operation.selector);
@@ -2071,6 +2247,11 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 				validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
 				validateBinaryResourceTarget(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
 				validateAssetSourceBytes(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
+				break;
+			case 'addResourceFolder':
+			case 'renameResourceFolder':
+			case 'moveResourceFolder':
+			case 'removeResourceFolder':
 				break;
 			case 'setComponentProps': {
 				validateLifecycleComponentSelector(project, operation.selector, `${operationPath}.selector`, issues, operation.kind);
@@ -2207,6 +2388,16 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 			case 'removeComponent':
 			case 'moveComponent':
 				break;
+			default: {
+				const unknownOperation = operation as { kind?: unknown };
+				pushSupportIssue(
+					issues,
+					'unsupported_operation',
+					`${operationPath}.kind`,
+					`Unsupported transaction operation "${String(unknownOperation.kind)}".`,
+				);
+				break;
+			}
 		}
 	}
 }

@@ -32,6 +32,8 @@ export interface BackendSessionState {
 	lastSavedRevision: number;
 	/** Package-controlled files deferred until a successful replacement project write. */
 	pendingStaleSourceFiles: Map<string, import('@openfairygui/core/project-io').ProjectSourceFile>;
+	/** Empty resource directories deferred until a successful replacement project write. */
+	pendingStaleResourceFolders: Map<string, import('@openfairygui/core/project-io').ProjectResourceFolder>;
 	dirty: boolean;
 	lockHeld: boolean;
 	closed: boolean;

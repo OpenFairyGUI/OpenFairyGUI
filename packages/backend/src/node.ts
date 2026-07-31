@@ -54,6 +54,9 @@ export function createNodeBackendFileSystem(): BackendFileSystem {
 		unlink(filePath: string): Promise<void> {
 			return fs.unlink(filePath);
 		},
+		rmdir(dirPath: string): Promise<void> {
+			return fs.rmdir(dirPath);
+		},
 		join(...paths: string[]): string {
 			return path.join(...paths);
 		},

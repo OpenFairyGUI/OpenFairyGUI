@@ -100,13 +100,15 @@
 - `PublishSettings` 不是 `settings/Publish.json` 的顶层结构，而是单个包发布配置对象。
 - 包级设置里可以单独定义图集列表，也可以指定使用全局图集设置。
 - 工程 `package.xml` 中的 `publish` 节点当前正式支持 `name`、`path`、`branchPath`、`packageCount`、`genCode`、`codePath`，以及包级图集子节点 `<atlas name="Default" index="0"/>`。
-- 工程 `package.xml` 的 `packageDescription` 根节点当前正式支持 `compressPNG`、`jpegQuality` 与派生的 `hasFavorites`；未设置的图片压缩选项保持省略，`hasFavorites` 仅在包内存在收藏资源时写为 `true`。
+- 工程 `package.xml` 的 `packageDescription` 根节点当前正式支持 `compressPNG`、`jpegQuality` 与派生的 `hasFavorites`；未设置的图片压缩选项保持省略，`hasFavorites` 仅在包内存在收藏资源或资源文件夹时写为 `true`。
 
-## 工程资源收藏元数据
+## 工程资源树元数据
 
-`package.xml` 与 `package_branch.xml` 的 component/asset 资源节点使用 `favorite="true"` 记录收藏状态；未收藏时省略该属性。主 `package.xml` 的 `packageDescription@hasFavorites` 由包内所有已建模资源的收藏状态派生，不作为独立可编辑状态。
+`package.xml` 与 `package_branch.xml` 的 component/asset 资源节点使用 `exported="true"` 与 `favorite="true"` 记录导出和收藏状态；未导出、未收藏时省略对应属性。UAM 通过 `resource.exported`、`resource.favorite` 承载这些字段，公开事务分别使用幂等的 `setResourceExported`、`setResourceFavorite` 设置目标布尔值。
 
-UAM 通过 `resource.favorite` 承载该字段，公开事务使用幂等的 `setResourceFavorite` 设置目标布尔值。收藏状态只影响编辑器工程数据，不进入运行时二进制发布协议。当前工程资源模型不包含 package folder 项，因此文件夹收藏不在这一正式范围内。
+资源文件夹由 `package.folders` 正式承载 `branch / path / favorite / atlas`。文件夹路径使用以 `/` 开头和结尾的规范形式，根目录是隐式节点；实际 `assets[/_<branch>]/<包名>/` 目录是存在性的事实来源，`<folder>` 节点只写入需要持久化的收藏或图集元数据。公开事务 `addResourceFolder`、`renameResourceFolder`、`moveResourceFolder`、`removeResourceFolder` 只操作空文件夹；父目录必须存在，根目录、路径冲突和非空操作会在提交前拒绝。浏览器存储适配器须提供非递归 `rmdir`，保存成功后才清理被移除的空目录。
+
+主 `package.xml` 的 `packageDescription@hasFavorites` 由包内资源与资源文件夹的收藏状态派生，不作为独立可编辑状态。收藏状态只影响编辑器工程数据，不进入运行时二进制发布协议。
 
 ## 工程图片资源属性
 

@@ -396,6 +396,7 @@ test('project XML protocol covers selected tag attrs across fixture samples', as
 		collectAllowedAttrNames('packagePublish'),
 	);
 	await assertPackageResourceAttrsCovered(t, 'sound', collectAllowedAttrNames('packageResource'));
+	await assertPackageResourceAttrsCovered(t, 'folder', collectAllowedAttrNames('packageResourceFolder'));
 	await assertPackageResourceAttrsCovered(t, 'movieclip', collectAllowedAttrNames('packageResource', 'packageMovieClipResource'));
 	await assertRootComponentAttrsCovered(t, collectAllowedAttrNames('componentRoot'));
 	await assertNestedComponentAttrsCovered(t, collectAllowedAttrNames('displayObject', 'componentInstance'));
@@ -459,6 +460,7 @@ test('project XML protocol children maps stay explicit and stable', (t) => {
 			'packagePublish',
 			'packagePublishAtlas',
 			'packageResource',
+			'packageResourceFolder',
 			'packageSkeletonResource',
 			'progressBarExtension',
 			'relation',

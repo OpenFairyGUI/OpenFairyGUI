@@ -1043,7 +1043,9 @@ export function materializeUamProject(project: UamProject): Document {
 		.setSettings(cloneSettings(project.settings));
 
 	for (const pkgSpec of project.packages) {
-		const pkg = doc.createPackage(pkgSpec.name).setId(pkgSpec.id);
+		const pkg = doc.createPackage(pkgSpec.name)
+			.setId(pkgSpec.id)
+			.setResourceFolders(pkgSpec.folders);
 		if (pkgSpec.publish) {
 			pkg
 				.setPublishName(pkgSpec.publish.name)

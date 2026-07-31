@@ -253,6 +253,7 @@ test('assertTransactionSupported accepts current materialization scope and rejec
 		id: 'pkg002',
 		name: 'Shared',
 		publish: null,
+		folders: [],
 		resources: [
 			{
 				kind: 'image',

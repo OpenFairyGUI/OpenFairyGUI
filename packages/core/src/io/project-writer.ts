@@ -1,12 +1,13 @@
 import type { Document } from '../document.js';
 import type { Component } from '../properties/component.js';
-import type { Package } from '../properties/package.js';
+import type { Package, PackageResourceFolder } from '../properties/package.js';
+import { resourceFolderName, resourceFolderParentPath } from '../utils/resource-folder.js';
 import { writeComponent } from './component-xml-writer.js';
 import type { FileSystem } from './file-system.js';
-import type { ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
+import type { ProjectResourceFolder, ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr } from './project-xml-protocol.js';
 
-export type { ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
+export type { ProjectResourceFolder, ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
 
 type PackageResource = ReturnType<Package['listResources']>[number];
 
@@ -116,6 +117,7 @@ export class ProjectWriter {
 		const root = doc.getRoot();
 		const basePath = fs.dirname(projectPath);
 		const currentSourceFilePaths = new Set<string>();
+		const currentResourceFolderPaths = new Set<string>();
 		const staleSourceFilePaths = new Set(
 			(options.staleSourceFiles ?? []).map((source) => this._projectSourceFilePath(basePath, source)),
 		);
@@ -148,10 +150,14 @@ export class ProjectWriter {
 		const assetsPath = fs.join(basePath, 'assets');
 		await fs.mkdir(assetsPath);
 		for (const pkg of root.listPackages()) {
-			await this._writePackage(doc, pkg, assetsPath, currentSourceFilePaths);
+			await this._writePackage(doc, pkg, assetsPath, currentSourceFilePaths, currentResourceFolderPaths);
 		}
 
 		await this._removeStaleSourceFiles(currentSourceFilePaths, staleSourceFilePaths);
+		await this._removeStaleResourceFolders(
+			currentResourceFolderPaths,
+			new Set((options.staleResourceFolders ?? []).map((folder) => this._projectResourceFolderPath(basePath, folder))),
+		);
 	}
 
 	private async _writePackage(
@@ -159,6 +165,7 @@ export class ProjectWriter {
 		pkg: Package,
 		assetsPath: string,
 		currentSourceFilePaths: Set<string>,
+		currentResourceFolderPaths: Set<string>,
 	): Promise<void> {
 		const fs = this._fs;
 		this._assertSafePathSegment(pkg.getName(), 'package name');
@@ -166,15 +173,22 @@ export class ProjectWriter {
 		await fs.mkdir(pkgDir);
 		const basePath = fs.dirname(assetsPath);
 		const resourcesByBranch = new Map<string, PackageResource[]>();
+		const foldersByBranch = new Map<string, PackageResourceFolder[]>();
 		for (const res of pkg.listResources()) {
 			const branchName = (res as WritableResource).getBranch?.() ?? '';
 			const bucket = resourcesByBranch.get(branchName) ?? [];
 			bucket.push(res);
 			resourcesByBranch.set(branchName, bucket);
 		}
+		for (const folder of pkg.listResourceFolders()) {
+			const bucket = foldersByBranch.get(folder.branch) ?? [];
+			bucket.push(folder);
+			foldersByBranch.set(folder.branch, bucket);
+		}
 
 		// Build package.xml object
 		const mainResources = resourcesByBranch.get('') ?? [];
+		const mainFolders = foldersByBranch.get('') ?? [];
 		const publishName = pkg.getPublishName() || pkg.getName();
 		const publishPath = pkg.getPublishPath();
 		const publishBranchPath = pkg.getPublishBranchPath();
@@ -183,7 +197,9 @@ export class ProjectWriter {
 		const codePath = pkg.getCodePath();
 		const packageDescriptionAttrs: Record<string, unknown> = {};
 		writeXmlAttr(packageDescriptionAttrs, PROJECT_XML_PROTOCOL.packageDescription.attrs.id, pkg.getId());
-		if (pkg.listResources().some((resource) => (resource as WritableResource).getFavorite?.())) {
+		if (pkg.listResources().some((resource) => (resource as WritableResource).getFavorite?.())
+			|| pkg.listResourceFolders().some((folder) => folder.favorite)
+		) {
 			writeXmlAttr(packageDescriptionAttrs, PROJECT_XML_PROTOCOL.packageDescription.attrs.hasFavorites, 'true');
 		}
 		const compressPNG = pkg.getCompressPNG();
@@ -238,9 +254,10 @@ export class ProjectWriter {
 		const packageDescriptorPath = fs.join(pkgDir, 'package.xml');
 		await fs.writeFile(
 			packageDescriptorPath,
-			this._renderPackageDescriptionXml(packageDescriptionAttrs, mainResources, publishAttrs),
+			this._renderPackageDescriptionXml(packageDescriptionAttrs, mainFolders, mainResources, publishAttrs),
 		);
 		currentSourceFilePaths.add(packageDescriptorPath);
+		await this._writeResourceFolders(mainFolders, pkgDir, currentResourceFolderPaths);
 
 		// Write main-branch component XML files
 		for (const comp of mainResources.filter((resource): resource is Component => resource.propertyType === 'Component')) {
@@ -249,23 +266,40 @@ export class ProjectWriter {
 		}
 		await this._writeResourceSourceFiles(mainResources, pkgDir, currentSourceFilePaths);
 
-		for (const [branchName, branchResources] of resourcesByBranch) {
+		const branchNames = new Set([...resourcesByBranch.keys(), ...foldersByBranch.keys()]);
+		for (const branchName of branchNames) {
 			if (!branchName) continue;
+			const branchResources = resourcesByBranch.get(branchName) ?? [];
+			const branchFolders = foldersByBranch.get(branchName) ?? [];
 			this._assertSafePathSegment(branchName, 'branch name');
 			const branchPkgDir = fs.join(basePath, `assets_${branchName}`, pkg.getName());
 			await fs.mkdir(branchPkgDir);
 			const branchDescriptorPath = fs.join(branchPkgDir, 'package_branch.xml');
 			await fs.writeFile(
 				branchDescriptorPath,
-				this._renderBranchDescriptionXml(branchResources),
+				this._renderBranchDescriptionXml(branchFolders, branchResources),
 			);
 			currentSourceFilePaths.add(branchDescriptorPath);
+			await this._writeResourceFolders(branchFolders, branchPkgDir, currentResourceFolderPaths);
 
 			for (const comp of branchResources.filter((resource): resource is Component => resource.propertyType === 'Component')) {
 				currentSourceFilePaths.add(fs.join(branchPkgDir, this._componentSourceRelativePath(comp)));
 				await writeComponent(this._fs, comp, branchPkgDir, this._componentSourceRelativePath(comp));
 			}
 			await this._writeResourceSourceFiles(branchResources, branchPkgDir, currentSourceFilePaths);
+		}
+	}
+
+	private async _writeResourceFolders(
+		folders: PackageResourceFolder[],
+		packageDir: string,
+		currentResourceFolderPaths: Set<string>,
+	): Promise<void> {
+		for (const folder of folders) {
+			const relativePath = this._normalizeSourceRelativePath(folder.path);
+			const targetPath = this._fs.join(packageDir, relativePath);
+			await this._fs.mkdir(targetPath);
+			currentResourceFolderPaths.add(targetPath);
 		}
 	}
 
@@ -308,20 +342,53 @@ export class ProjectWriter {
 		}
 	}
 
+	private async _removeStaleResourceFolders(
+		currentResourceFolderPaths: Set<string>,
+		staleResourceFolderPaths: Set<string>,
+	): Promise<void> {
+		const candidates = [...staleResourceFolderPaths]
+			.filter((folderPath) => !currentResourceFolderPaths.has(folderPath))
+			.sort((left, right) => right.length - left.length);
+		if (candidates.length === 0) return;
+		if (!this._fs.rmdir) {
+			throw new Error('Project resource folder cleanup requires a FileSystem.rmdir() implementation.');
+		}
+		for (const folderPath of candidates) {
+			if (!(await this._fs.exists(folderPath))) continue;
+			await this._fs.rmdir(folderPath);
+		}
+	}
+
 	private _assertPackageOutputTargets(pkg: Package): void {
 		this._assertSafePathSegment(pkg.getName(), 'package name');
 		const resourcesByBranch = new Map<string, PackageResource[]>();
+		const foldersByBranch = new Map<string, PackageResourceFolder[]>();
 		for (const resource of pkg.listResources()) {
 			const branchName = (resource as WritableResource).getBranch?.() ?? '';
 			const bucket = resourcesByBranch.get(branchName) ?? [];
 			bucket.push(resource);
 			resourcesByBranch.set(branchName, bucket);
 		}
+		for (const folder of pkg.listResourceFolders()) {
+			const bucket = foldersByBranch.get(folder.branch) ?? [];
+			bucket.push(folder);
+			foldersByBranch.set(folder.branch, bucket);
+		}
 
-		for (const [branchName, resources] of resourcesByBranch) {
+		for (const branchName of new Set([...resourcesByBranch.keys(), ...foldersByBranch.keys()])) {
+			const resources = resourcesByBranch.get(branchName) ?? [];
 			if (branchName) this._assertSafePathSegment(branchName, 'branch name');
 			const descriptorName = branchName ? 'package_branch.xml' : 'package.xml';
 			const targets = new Map<string, string>([[descriptorName, 'package descriptor']]);
+			for (const folder of foldersByBranch.get(branchName) ?? []) {
+				const target = this._normalizeSourceRelativePath(folder.path);
+				if (!target) throw new Error(`Package "${pkg.getName()}" cannot declare the resource root as a folder.`);
+				const previous = targets.get(target);
+				if (previous) {
+					throw new Error(`Package "${pkg.getName()}" output "${target}" conflicts with ${previous}.`);
+				}
+				targets.set(target, `resource folder "${folder.path}"`);
+			}
 			for (const resource of resources) {
 				const target = resource.propertyType === 'Component'
 					? this._componentSourceRelativePath(resource as Component)
@@ -343,6 +410,14 @@ export class ProjectWriter {
 		const relativePath = this._normalizeSourceRelativePath([source.path, source.fileName].filter(Boolean).join('/'));
 		const assetRoot = source.branch ? `assets_${source.branch}` : 'assets';
 		return this._fs.join(basePath, assetRoot, source.packageName, relativePath);
+	}
+
+	private _projectResourceFolderPath(basePath: string, folder: ProjectResourceFolder): string {
+		this._assertSafePathSegment(folder.packageName, 'resource folder package name');
+		if (folder.branch) this._assertSafePathSegment(folder.branch, 'resource folder branch name');
+		const relativePath = this._normalizeSourceRelativePath(folder.path);
+		const assetRoot = folder.branch ? `assets_${folder.branch}` : 'assets';
+		return this._fs.join(basePath, assetRoot, folder.packageName, relativePath);
 	}
 
 	private _resourceSourceRelativePath(resource: WritableResource, fileName: string): string {
@@ -377,6 +452,7 @@ export class ProjectWriter {
 
 	private _renderPackageDescriptionXml(
 		packageDescriptionAttrs: Record<string, unknown>,
+		folders: PackageResourceFolder[],
 		resources: PackageResource[],
 		publishAttrs: Record<string, unknown>,
 	): string {
@@ -387,6 +463,7 @@ export class ProjectWriter {
 			'<?xml version="1.0" encoding="utf-8"?>',
 			`<packageDescription${renderXmlAttrs(packageDescriptionAttrs)}>`,
 			'  <resources>',
+			...this._renderPackageResourceFolderLines(folders, '    '),
 			...this._renderPackageResourceLines(resources, '    '),
 			'  </resources>',
 			`  <publish${renderXmlAttrs(publishNodeAttrs)}>`,
@@ -400,16 +477,33 @@ export class ProjectWriter {
 		return `${lines.join('\n')}\n`;
 	}
 
-	private _renderBranchDescriptionXml(resources: PackageResource[]): string {
+	private _renderBranchDescriptionXml(folders: PackageResourceFolder[], resources: PackageResource[]): string {
 		const lines = [
 			'<?xml version="1.0" encoding="utf-8"?>',
 			'<branchDescription>',
 			'  <resources>',
+			...this._renderPackageResourceFolderLines(folders, '    '),
 			...this._renderPackageResourceLines(resources, '    '),
 			'  </resources>',
 			'</branchDescription>',
 		];
 		return `${lines.join('\n')}\n`;
+	}
+
+	private _renderPackageResourceFolderLines(folders: PackageResourceFolder[], indent: string): string[] {
+		return [...folders]
+			.filter((folder) => folder.favorite || folder.atlas)
+			.sort((left, right) => left.path.localeCompare(right.path))
+			.map((folder) => {
+				const attrs: Record<string, unknown> = {};
+				const id = folder.branch ? `/:${folder.branch}${folder.path}` : folder.path;
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.id, id);
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.name, resourceFolderName(folder.path));
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.path, resourceFolderParentPath(folder.path));
+				if (folder.favorite) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.favorite, 'true');
+				if (folder.atlas) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.atlas, folder.atlas);
+				return `${indent}<folder${renderXmlAttrs(attrs)}/>`;
+			});
 	}
 
 	private _renderPackageResourceLines(resources: PackageResource[], indent: string): string[] {

@@ -15,4 +15,6 @@ export interface FileSystem {
 	dirname(path: string): string;
 	/** Removes a file when the adapter supports project-source cleanup. */
 	unlink?(path: string): Promise<void>;
+	/** Removes an empty directory when the adapter supports resource-folder cleanup. */
+	rmdir?(path: string): Promise<void>;
 }

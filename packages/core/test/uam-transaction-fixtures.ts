@@ -40,6 +40,7 @@ export function createSupportedProject(): UamProject {
 				id: 'pkg001',
 				name: 'Main',
 				publish: null,
+				folders: [{ branch: '', path: '/images/', favorite: false, atlas: '' }],
 				resources: [
 					{
 						kind: 'image',
@@ -299,6 +300,7 @@ export function createLifecyclePackage(id = 'pkg002', name = 'Overlay'): UamPack
 		id,
 		name,
 		publish: null,
+		folders: [],
 		resources: [],
 	};
 }

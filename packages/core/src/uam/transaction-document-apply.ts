@@ -9,6 +9,7 @@ import type { GTextField } from '../properties/g-text-field.js';
 import type { Package } from '../properties/package.js';
 import type { Transition } from '../properties/transition.js';
 import { tryReadJtaSize } from '../utils/jta-parser.js';
+import { normalizeResourceFolderPath, resourceFolderName, resourceFolderParentPath } from '../utils/resource-folder.js';
 import {
 	materializeAssetResource,
 	materializeDisplayNode,
@@ -453,6 +454,48 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 		case 'moveResource': {
 			const { resource } = resolveResource(doc, operation.selector);
 			resource.setPath(operation.toPath);
+			return;
+		}
+		case 'setResourceFavorite': {
+			resolveResource(doc, operation.selector).resource.setFavorite(operation.favorite);
+			return;
+		}
+		case 'setResourceExported': {
+			resolveResource(doc, operation.selector).resource.setExported(operation.exported);
+			return;
+		}
+		case 'addResourceFolder': {
+			const pkg = resolvePackage(doc, operation.selector);
+			pkg.setResourceFolders([...pkg.listResourceFolders(), {
+				branch: operation.branch ?? '',
+				path: operation.path,
+				favorite: operation.favorite ?? false,
+				atlas: operation.atlas ?? '',
+			}]);
+			return;
+		}
+		case 'renameResourceFolder':
+		case 'moveResourceFolder':
+		case 'removeResourceFolder': {
+			const pkg = resolvePackage(doc, operation.selector);
+			const branch = operation.selector.branch ?? '';
+			const folders = pkg.listResourceFolders();
+			const index = folders.findIndex((folder) => (
+				folder.branch === branch && folder.path === operation.selector.path
+			));
+			if (index < 0) throw new Error(`Resource folder "${branch}:${operation.selector.path}" was not found.`);
+			if (operation.kind === 'removeResourceFolder') {
+				folders.splice(index, 1);
+			} else if (operation.kind === 'renameResourceFolder') {
+				folders[index]!.path = normalizeResourceFolderPath(
+					`${resourceFolderParentPath(folders[index]!.path)}/${operation.newName}`,
+				);
+			} else {
+				folders[index]!.path = normalizeResourceFolderPath(
+					`${operation.toPath}/${resourceFolderName(folders[index]!.path)}`,
+				);
+			}
+			pkg.setResourceFolders(folders);
 			return;
 		}
 		case 'setImageResourceProps': {

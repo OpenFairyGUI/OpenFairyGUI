@@ -3,7 +3,7 @@ import type { ProjectReadOptions } from '../io/project-io-contracts.js';
 import type { UamProject } from './model.js';
 import { liftDocumentToUamProject } from './bridge-lift.js';
 import { materializeUamProject } from './bridge-materialize.js';
-import { commitUamProjectSourcePaths, staleSourceFiles } from './project-source-files.js';
+import { commitUamProjectSourcePaths, staleResourceFolders, staleSourceFiles } from './project-source-files.js';
 
 export { liftDocumentToUamProject } from './bridge-lift.js';
 export {
@@ -28,6 +28,7 @@ export async function writeProjectFromUam(
 ): Promise<void> {
 	await io.writeProject(materializeUamProject(project), projectPath, {
 		staleSourceFiles: options.previousProject ? staleSourceFiles(options.previousProject, project) : [],
+		staleResourceFolders: options.previousProject ? staleResourceFolders(options.previousProject, project) : [],
 	});
 	commitUamProjectSourcePaths(project);
 }

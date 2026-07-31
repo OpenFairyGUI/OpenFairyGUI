@@ -3,6 +3,7 @@ import type { Component } from '../properties/component.js';
 import type { Package } from '../properties/package.js';
 import type { ProjectSettings } from '../types/settings.js';
 import { tryReadJtaSize } from '../utils/jta-parser.js';
+import { normalizeResourceFolderPath } from '../utils/resource-folder.js';
 import {
 	parseXML,
 	parseXMLPreserveOrder,
@@ -123,14 +124,18 @@ interface ResourceXmlAttrs extends XmlNode {
 	require?: string;
 	atlasNames?: string;
 	anchor?: string;
+	atlas?: string;
 }
 
 function getOrderedPackageResourceItems(xmlContent: string): Array<{ tagName: string; attrs: ResourceXmlAttrs }> {
 	const ordered = parseXMLPreserveOrder(xmlContent);
-	const packageEntry = ordered.find((entry) => 'packageDescription' in entry);
-	if (!packageEntry) return [];
-	const packageChildren = Array.isArray(packageEntry.packageDescription)
-		? (packageEntry.packageDescription as OrderedXmlEntry[])
+	const descriptionEntry = ordered.find((entry) => 'packageDescription' in entry || 'branchDescription' in entry);
+	if (!descriptionEntry) return [];
+	const description = 'packageDescription' in descriptionEntry
+		? descriptionEntry.packageDescription
+		: descriptionEntry.branchDescription;
+	const packageChildren = Array.isArray(description)
+		? (description as OrderedXmlEntry[])
 		: [];
 	const resourcesEntry = packageChildren.find((entry) => 'resources' in entry);
 	if (!resourcesEntry) return [];
@@ -374,18 +379,21 @@ export class ProjectReader {
 			ctx.packageMap.set(pkg.getId(), pkg);
 		}
 
-		// Parse resources
-		const resources = desc.resources;
-		if (!resources) return;
-
 		const packageDir = branchName
 			? fs.join(ctx.basePath, `assets_${branchName}`, dirName)
 			: fs.join(ctx.basePath, 'assets', dirName);
+		const resources = desc.resources;
+		const orderedResources = getOrderedPackageResourceItems(content);
+		const folderEntries = orderedResources.length > 0
+			? orderedResources.filter((entry) => entry.tagName === 'folder').map((entry) => entry.attrs)
+			: ensureArray(resources?.folder).map((entry) => getXmlNode<ResourceXmlAttrs>(entry)).filter((entry): entry is ResourceXmlAttrs => !!entry);
+		await this._readPackageFolders(pkg, packageDir, branchName, folderEntries);
+		if (!resources) return;
 
 		const createdResources: Array<ReturnType<Package['listResources']>[number]> = [];
-		const orderedResources = getOrderedPackageResourceItems(content);
 		if (orderedResources.length > 0) {
 			for (const { tagName, attrs } of orderedResources) {
+				if (tagName === 'folder') continue;
 				const resource = this._createResourceFromXML(ctx, pkg, tagName, attrs, packageDir, branchName);
 				if (resource) createdResources.push(resource);
 			}
@@ -410,6 +418,50 @@ export class ProjectReader {
 		if (options.hydrateResourceBytes) {
 			await this._hydratePackageResourceBytes(ctx.document, createdResources, packageDir);
 		}
+	}
+
+	private async _readPackageFolders(
+		pkg: Package,
+		packageDir: string,
+		branch: string,
+		metadataEntries: ResourceXmlAttrs[],
+	): Promise<void> {
+		const metadata = new Map(metadataEntries.map((attrs) => {
+			const path = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.path) ?? '/';
+			const name = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.name) ?? '';
+			return [normalizeResourceFolderPath(`${path}/${name}`), attrs] as const;
+		}));
+		const folders = pkg.listResourceFolders();
+		const visit = async (directory: string, parentPath: string, entries?: string[]): Promise<void> => {
+			let names = entries;
+			if (!names) {
+				try {
+					names = await this._fs.readdir(directory);
+				} catch {
+					return;
+				}
+			}
+			for (const name of [...names].sort((left, right) => left.localeCompare(right))) {
+				const childDirectory = this._fs.join(directory, name);
+				let childEntries: string[];
+				try {
+					childEntries = await this._fs.readdir(childDirectory);
+				} catch {
+					continue;
+				}
+				const path = normalizeResourceFolderPath(`${parentPath}/${name}`);
+				const attrs = metadata.get(path);
+				folders.push({
+					branch,
+					path,
+					favorite: parseBool(readXmlAttr<string | boolean>(attrs ?? {}, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.favorite)),
+					atlas: readXmlAttr<string>(attrs ?? {}, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.atlas) ?? '',
+				});
+				await visit(childDirectory, path, childEntries);
+			}
+		};
+		await visit(packageDir, '/');
+		pkg.setResourceFolders(folders);
 	}
 
 	private async _hydratePackageImageSizes(

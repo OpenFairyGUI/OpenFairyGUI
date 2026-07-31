@@ -19,6 +19,7 @@ test('normalizeUamProject fills schema-local defaults into a canonical shape', (
 				id: 'pkg001',
 				name: 'Main',
 				publish: null,
+				folders: [],
 				resources: [
 					{
 						kind: 'component',
@@ -65,6 +66,7 @@ test('validateUamProject rejects unknown hard references before graph assembly',
 				id: 'pkg001',
 				name: 'Main',
 				publish: null,
+				folders: [],
 				resources: [
 					{
 						kind: 'image',
