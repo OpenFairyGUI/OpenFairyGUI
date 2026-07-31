@@ -340,6 +340,7 @@ export class ProjectReader {
 		if (!pkg) {
 			pkg = ctx.document.createPackage(dirName);
 		}
+		pkg.setExtras({ ...pkg.getExtras(), _preservePackageResourceOrder: true });
 
 		if (!branchName) {
 			const packageId = readXmlAttr<string>(desc, PROJECT_XML_PROTOCOL.packageDescription.attrs.id) || '';

@@ -229,10 +229,17 @@ export class ProjectWriter {
 		if (publishAtlases.length > 0) {
 			publishAttrs.atlas = publishAtlases;
 		}
+		const preserveResourceOrder = pkg.getExtras()._preservePackageResourceOrder === true;
 		const packageDescriptorPath = fs.join(pkgDir, 'package.xml');
 		await fs.writeFile(
 			packageDescriptorPath,
-			this._renderPackageDescriptionXml(packageDescriptionAttrs, mainFolders, mainResources, publishAttrs),
+			this._renderPackageDescriptionXml(
+				packageDescriptionAttrs,
+				mainFolders,
+				mainResources,
+				publishAttrs,
+				preserveResourceOrder,
+			),
 		);
 		currentSourceFilePaths.add(packageDescriptorPath);
 		await this._writeResourceFolders(mainFolders, pkgDir, currentResourceFolderPaths);
@@ -255,7 +262,7 @@ export class ProjectWriter {
 			const branchDescriptorPath = fs.join(branchPkgDir, 'package_branch.xml');
 			await fs.writeFile(
 				branchDescriptorPath,
-				this._renderBranchDescriptionXml(branchFolders, branchResources),
+				this._renderBranchDescriptionXml(branchFolders, branchResources, preserveResourceOrder),
 			);
 			currentSourceFilePaths.add(branchDescriptorPath);
 			await this._writeResourceFolders(branchFolders, branchPkgDir, currentResourceFolderPaths);
@@ -433,6 +440,7 @@ export class ProjectWriter {
 		folders: PackageResourceFolder[],
 		resources: PackageResource[],
 		publishAttrs: Record<string, unknown>,
+		preserveResourceOrder: boolean,
 	): string {
 		const publishNodeAttrs = Object.fromEntries(
 			Object.entries(publishAttrs).filter(([key]) => key !== 'atlas'),
@@ -442,7 +450,7 @@ export class ProjectWriter {
 			`<packageDescription${renderXmlAttrs(packageDescriptionAttrs)}>`,
 			'  <resources>',
 			...this._renderPackageResourceFolderLines(folders, '    '),
-			...this._renderPackageResourceLines(resources, '    '),
+			...this._renderPackageResourceLines(resources, '    ', preserveResourceOrder),
 			'  </resources>',
 			`  <publish${renderXmlAttrs(publishNodeAttrs)}>`,
 		];
@@ -455,13 +463,17 @@ export class ProjectWriter {
 		return `${lines.join('\n')}\n`;
 	}
 
-	private _renderBranchDescriptionXml(folders: PackageResourceFolder[], resources: PackageResource[]): string {
+	private _renderBranchDescriptionXml(
+		folders: PackageResourceFolder[],
+		resources: PackageResource[],
+		preserveResourceOrder: boolean,
+	): string {
 		const lines = [
 			'<?xml version="1.0" encoding="utf-8"?>',
 			'<branchDescription>',
 			'  <resources>',
 			...this._renderPackageResourceFolderLines(folders, '    '),
-			...this._renderPackageResourceLines(resources, '    '),
+			...this._renderPackageResourceLines(resources, '    ', preserveResourceOrder),
 			'  </resources>',
 			'</branchDescription>',
 		];
@@ -484,8 +496,12 @@ export class ProjectWriter {
 			});
 	}
 
-	private _renderPackageResourceLines(resources: PackageResource[], indent: string): string[] {
-		return this._orderedPackageResources(resources)
+	private _renderPackageResourceLines(
+		resources: PackageResource[],
+		indent: string,
+		preserveResourceOrder: boolean,
+	): string[] {
+		return this._orderedPackageResources(resources, preserveResourceOrder)
 			.map((resource) => {
 				const serialized = this._serializePackageResourceEntry(resource);
 				if (!serialized) return null;
@@ -494,12 +510,13 @@ export class ProjectWriter {
 			.filter((line): line is string => !!line);
 	}
 
-	private _orderedPackageResources(resources: PackageResource[]): PackageResource[] {
-		const original = [...resources].sort((a, b) => {
-			const aId = (a as WritableResource).getId?.() ?? '';
-			const bId = (b as WritableResource).getId?.() ?? '';
-			return compareResourceIdSequence(aId, bId);
-		});
+	private _orderedPackageResources(resources: PackageResource[], preserveResourceOrder: boolean): PackageResource[] {
+		const original = preserveResourceOrder
+			? [...resources]
+			: [...resources].sort((a, b) => compareResourceIdSequence(
+				(a as WritableResource).getId?.() ?? '',
+				(b as WritableResource).getId?.() ?? '',
+			));
 		const syntheticAfter = new Map<string, Array<{ resource: PackageResource; weight: number }>>();
 		const trailing: Array<{ resource: PackageResource; weight: number }> = [];
 

@@ -2,7 +2,7 @@ import test from 'ava';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
-import { ProjectReader } from '@openfairygui/core/project-io';
+import { ProjectReader, ProjectWriter } from '@openfairygui/core/project-io';
 import {
 	createDefaultUamComponentProperties,
 	createDefaultUamPlainTextProperties,
@@ -678,6 +678,98 @@ test('browser-safe project session saves through injected async storage', async 
 		for (const [key, value] of Object.entries(groupProperties)) {
 			t.deepEqual((group as unknown as Record<string, unknown>)[key], value);
 		}
+	}
+});
+
+test('browser-safe addResource indexes survive multi-resource inverse save and reload', async (t) => {
+	const createMisc = (id: string, byte: number) => ({
+		kind: 'misc' as const,
+		id,
+		name: `${id}.bin`,
+		path: '/',
+		exported: true,
+		favorite: false,
+		branch: '',
+		branchItemIds: [],
+		file: `${id}.bin`,
+		metadata: null,
+		sourceBytes: new Uint8Array([byte]),
+	});
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const project = createBackendFixtureProject();
+	const pkg = project.packages[0]!;
+	const orderedA = createMisc('zz0001', 11);
+	const orderedB = createMisc('aa0001', 22);
+	pkg.resources = [orderedA, pkg.resources[0]!, pkg.resources[1]!, orderedB];
+	const originalOrder = pkg.resources.map((resource) => resource.id);
+	const snapshots = [orderedA, orderedB].map((resource) => structuredClone(resource));
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({
+		project,
+		storage: { fileSystem, fairyPath: 'ResourceOrder/Project.fairy' },
+	});
+	t.true(opened.ok);
+	if (!opened.ok) return;
+
+	try {
+		const removed = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: 0,
+			operations: snapshots.map((resource) => ({
+				kind: 'removeResource' as const,
+				selector: { packageId: pkg.id, resourceId: resource.id },
+			})),
+		});
+		t.true(removed.ok);
+		if (!removed.ok) return;
+
+		const restored = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: removed.data.revision,
+			operations: snapshots.map((resource, index) => ({
+				kind: 'addResource' as const,
+				selector: { packageId: pkg.id },
+				resource,
+				atIndex: index === 0 ? 0 : 3,
+			})),
+		});
+		t.true(restored.ok);
+		if (!restored.ok) return;
+
+		const saved = await runtime.saveSession({
+			sessionId: opened.data.sessionId,
+			expectedRevision: restored.data.revision,
+		});
+		t.true(saved.ok);
+		if (!saved.ok) return;
+		const reader = new ProjectReader(fileSystem);
+		const reloadedDocument = await reader.read(
+			'ResourceOrder/Project.fairy',
+			{ hydrateResourceBytes: true },
+		);
+		t.is(
+			reloadedDocument.getRoot().listPackages().find((candidate) => candidate.getId() === pkg.id)
+				?.getExtras()._preservePackageResourceOrder,
+			true,
+		);
+		await new ProjectWriter(fileSystem).write(reloadedDocument, 'ResourceOrderCopy/Project.fairy');
+		const reloaded = normalizeUamProject(liftDocumentToUamProject(await reader.read(
+			'ResourceOrderCopy/Project.fairy',
+			{ hydrateResourceBytes: true },
+		)));
+		const reloadedPackage = reloaded.packages.find((candidate) => candidate.id === pkg.id)!;
+		t.deepEqual(reloadedPackage.resources.map((resource) => resource.id), originalOrder);
+		for (const [index, snapshot] of snapshots.entries()) {
+			const resource = reloadedPackage.resources.find((candidate) => candidate.id === snapshot.id);
+			if (!resource || resource.kind === 'component') {
+				t.fail(`expected restored binary resource ${snapshot.id}`);
+				continue;
+			}
+			t.deepEqual([...resource.sourceBytes ?? []], [index === 0 ? 11 : 22]);
+		}
+	} finally {
+		await runtime.closeSession({ sessionId: opened.data.sessionId });
 	}
 });
 

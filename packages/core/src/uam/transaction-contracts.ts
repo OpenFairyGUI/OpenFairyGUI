@@ -172,6 +172,8 @@ export interface AddResourceOperation extends UamTransactionOperationBase {
 	kind: 'addResource';
 	selector: UamPackageSelector;
 	resource: UamAssetResource;
+	/** Stable package-resource insertion index. Omit to append. */
+	atIndex?: number;
 }
 
 /** Adds a complete package snapshot at a stable package-list position. */
@@ -386,6 +388,7 @@ export type UamTransactionSupportIssueCode =
 	| 'duplicate_gear_state_page'
 	| 'invalid_resource_payload'
 	| 'invalid_resource_selector'
+	| 'invalid_resource_index'
 	| 'invalid_resource_reference'
 	| 'invalid_display_node_selector'
 	| 'duplicate_resource_id'
