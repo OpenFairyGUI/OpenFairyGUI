@@ -1,10 +1,10 @@
 # OpenFairyGUI
 
-[![Documentation](https://img.shields.io/badge/docs-online-0f766e.svg)](https://openfairygui.github.io/OpenFairyGUI/)
+[![Documentation](https://img.shields.io/badge/docs-online-0f766e.svg)](https://fairygui.dev/)
 [![npm](https://img.shields.io/badge/npm-%40openfairygui%2Fcore-cb3837.svg)](https://www.npmjs.com/package/@openfairygui/core)
 [![License](https://img.shields.io/badge/license-MIT-007ec6.svg)](./LICENSE)
 
-[中文](./README.md) · [Documentation](https://openfairygui.github.io/OpenFairyGUI/) · [Getting Started](https://openfairygui.github.io/OpenFairyGUI/guide/getting-started) · [API Reference](https://openfairygui.github.io/OpenFairyGUI/api/)
+[中文](./README.md) · [Documentation](https://fairygui.dev/) · [Getting Started](https://fairygui.dev/guide/getting-started) · [API Reference](https://fairygui.dev/api/)
 
 > Read, modify, and publish FairyGUI projects with TypeScript for scripts, CI/CD, and agent tooling.
 
@@ -57,7 +57,7 @@ await publishNode({
 });
 ```
 
-See [Getting Started](https://openfairygui.github.io/OpenFairyGUI/guide/getting-started) for project writeback, Web entrypoints, and UAM examples.
+See [Getting Started](https://fairygui.dev/guide/getting-started) for project writeback, Web entrypoints, and UAM examples.
 
 ## Command line
 
@@ -80,12 +80,12 @@ Run `ofgui --help` for all commands and options.
 | [`@openfairygui/cli`](https://www.npmjs.com/package/@openfairygui/cli) | Command-line tools |
 | [`@openfairygui/mcp`](https://www.npmjs.com/package/@openfairygui/mcp) | Thin MCP adapter for the backend runtime |
 
-See [Packages and Tools](https://openfairygui.github.io/OpenFairyGUI/guide/packages) for package entrypoints and Node / Web boundaries.
+See [Packages and Tools](https://fairygui.dev/guide/packages) for package entrypoints and Node / Web boundaries.
 
 ## Documentation
 
-- [Getting Started](https://openfairygui.github.io/OpenFairyGUI/guide/getting-started)
-- [API Reference](https://openfairygui.github.io/OpenFairyGUI/api/)
+- [Getting Started](https://fairygui.dev/guide/getting-started)
+- [API Reference](https://fairygui.dev/api/)
 - [Architecture and Package Boundaries](./docs/architecture-overview.md)
 - [Editor Publish Settings](./docs/editor-publish-settings.md)
 - [Project XML Attribute Protocol](./docs/project-xml-attribute-reference.md)
@@ -100,7 +100,7 @@ The project is currently in the `0.2.0` alpha series. APIs may still change befo
 - UAM writeback is rejected when the project cannot be preserved faithfully, preventing silent source overwrites.
 - `restore` is limited to trusted local publish artifacts and is not a normal authoring workflow.
 
-The [documentation site](https://openfairygui.github.io/OpenFairyGUI/) defines the current implementation boundaries.
+The [documentation site](https://fairygui.dev/) defines the current implementation boundaries.
 
 ## Local development
 
