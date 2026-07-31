@@ -1,6 +1,6 @@
 {
 	"name": "@openfairygui/cli",
-	"version": "0.2.0-alpha.31",
+	"version": "0.2.0-alpha.32",
 	"description": "FairyGUI Headless Authoring SDK — command-line interface.",
 	"author": "OpenFairyGUI Contributors",
 	"license": "MIT",
