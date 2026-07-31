@@ -18,6 +18,7 @@ import {
 	materializeUamComponentInstanceProperties,
 	materializeUamComponentProperties,
 	materializeUamGraphProperties,
+	materializeUamGroupProperties,
 	materializeUamImageResourceProperties,
 	materializeUamListProperties,
 	materializeUamLoaderProperties,
@@ -171,6 +172,10 @@ function resolveUniqueGear(node: GObject, selector: UamGearSelector) {
 function applyCommonDisplayProps(target: CommonDisplayPropTarget, props: UamDisplayNodePropsUpdate): void {
 	if (props.position) target.setXY(props.position.x, props.position.y);
 	if (props.size) target.setSize(props.size.width, props.size.height);
+	if (props.locked !== undefined) target.setLocked(props.locked);
+	if (props.aspect !== undefined) target.setAspect(props.aspect);
+	if (props.minSize !== undefined) target.setMinWidth(props.minSize.width).setMinHeight(props.minSize.height);
+	if (props.maxSize !== undefined) target.setMaxWidth(props.maxSize.width).setMaxHeight(props.maxSize.height);
 	if (props.pivot !== undefined || props.pivotAsAnchor !== undefined) {
 		const pivotTarget = target as CommonDisplayPropTarget & {
 			getPivotX(): number;
@@ -191,11 +196,17 @@ function applyCommonDisplayProps(target: CommonDisplayPropTarget, props: UamDisp
 			props.pivotAsAnchor ?? pivotTarget.getPivotAsAnchor?.() ?? false,
 		);
 	}
+	if (props.scale !== undefined) target.setScale(props.scale.x, props.scale.y);
+	if (props.skew !== undefined) target.setSkew(props.skew.x, props.skew.y);
 	if (props.visible !== undefined) target.setVisible(props.visible);
 	if (props.touchable !== undefined) target.setTouchable(props.touchable);
 	if (props.grayed !== undefined) target.setGrayed(props.grayed);
 	if (props.alpha !== undefined) target.setAlpha(props.alpha);
 	if (props.rotation !== undefined) target.setRotation(props.rotation);
+	if (props.tooltips !== undefined) target.setTooltips(props.tooltips);
+	if (props.blendMode !== undefined) target.setBlendMode(props.blendMode);
+	if (props.filter !== undefined) target.setFilter(props.filter);
+	if (props.filterData !== undefined) target.setFilterData(props.filterData);
 	if (props.customData !== undefined) target.setCustomData(props.customData);
 }
 
@@ -522,6 +533,15 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 				materializeUamGraphProperties(
 					node as ReturnType<Document['createGGraph']>,
 					operation.props.graphProperties,
+				);
+			}
+			if (operation.props.groupProperties !== undefined) {
+				if (node.propertyType !== PropertyType.G_GROUP) {
+					throw new Error(`Group display props are not supported on display node type "${node.propertyType}".`);
+				}
+				materializeUamGroupProperties(
+					node as ReturnType<Document['createGGroup']>,
+					operation.props.groupProperties,
 				);
 			}
 			if (operation.props.loaderProperties !== undefined) {

@@ -260,19 +260,31 @@ export type UamDisplayNodeKind =
 	| 'slider'
 	| 'scrollBar';
 
-interface UamDisplayNodeBase {
+export type UamBlendMode = 'normal' | 'none' | 'add' | 'multiply' | 'screen' | 'erase';
+
+export interface UamDisplayNodeBase {
 	kind: UamDisplayNodeKind;
 	id: string;
 	name: string;
 	position: UamPoint;
 	size: UamSize;
+	locked: boolean;
+	aspect: boolean;
+	minSize: UamSize;
+	maxSize: UamSize;
 	pivot?: UamPoint;
 	pivotAsAnchor?: boolean;
+	scale: UamPoint;
+	skew: UamPoint;
 	visible: boolean;
 	touchable: boolean;
 	grayed: boolean;
 	alpha: number;
 	rotation: number;
+	tooltips: string;
+	blendMode: UamBlendMode;
+	filter: string;
+	filterData: string;
 	customData: string;
 	relations: UamRelation[];
 	gears: UamGearBinding[];
@@ -292,8 +304,6 @@ export interface UamTextProperties {
 	font: string;
 	fontSize: number;
 	color: string;
-	minSize: UamSize;
-	maxSize: UamSize;
 	align: number;
 	vAlign: number;
 	leading: number;
@@ -401,12 +411,6 @@ export interface UamTreeNode extends UamGroupableDisplayNodeBase, UamTreePropert
 }
 
 export interface UamGraphProperties {
-	locked: boolean;
-	minWidth: number;
-	maxWidth: number;
-	minHeight: number;
-	maxHeight: number;
-	skew: UamPoint;
 	graphType: number;
 	lineSize: number;
 	lineColor: string;
@@ -424,9 +428,7 @@ export interface UamGraphNode extends UamGroupableDisplayNodeBase, UamGraphPrope
 	pivotAsAnchor: boolean;
 }
 
-export interface UamGroupNode extends UamGroupableDisplayNodeBase {
-	kind: 'group';
-	locked: boolean;
+export interface UamGroupProperties {
 	layout: number;
 	lineGap: number;
 	columnGap: number;
@@ -436,11 +438,12 @@ export interface UamGroupNode extends UamGroupableDisplayNodeBase {
 	mainGridIndex: number;
 }
 
+export interface UamGroupNode extends UamGroupableDisplayNodeBase, UamGroupProperties {
+	kind: 'group';
+}
+
 export interface UamLoaderProperties {
-	scale: UamPoint;
 	url: string;
-	filter: string;
-	filterData: string;
 	fill: number;
 	shrinkOnly: boolean;
 	autoSize: boolean;
@@ -486,8 +489,6 @@ export interface UamMovieClipNode extends UamGroupableDisplayNodeBase {
 	kind: 'movieClip';
 	resource: UamResourceRef;
 	fileName: string;
-	filter: string;
-	filterData: string;
 	playing: boolean;
 	frame: number;
 	color: string;

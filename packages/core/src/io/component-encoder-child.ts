@@ -17,6 +17,28 @@ import {
 	remapLocalUiUrl,
 	resolveChildResourceRef,
 } from './component-encoder-shared.js';
+
+const BLEND_MODE_CODE: Readonly<Record<string, number>> = {
+	normal: 0,
+	none: 1,
+	add: 2,
+	multiply: 3,
+	screen: 4,
+	erase: 5,
+};
+
+function colorFilterValues(child: EncoderChildLike): number[] | null {
+	const filter = child.getFilter?.() ?? '';
+	if (filter === '') return null;
+	if (filter !== 'color') {
+		throw new Error(`Display node "${child.getId?.() ?? child.getName?.() ?? ''}" has unsupported filter "${filter}".`);
+	}
+	const values = (child.getFilterData?.() ?? '').split(',').map((part) => Number(part.trim()));
+	if (values.length !== 4 || values.some((value) => !Number.isFinite(value))) {
+		throw new Error(`Display node "${child.getId?.() ?? child.getName?.() ?? ''}" has invalid color filterData.`);
+	}
+	return values;
+}
 import {
 	_createChildIndexMap,
 	_writeRelations,
@@ -98,7 +120,17 @@ export function _writeDisplayList(buf: WriteBuffer, comp: Component, _doc: Docum
 		}
 
 		// Restrict size
-		buf.writeBool(false); // hasRestrictSize
+		const restrictSize = [
+			child.getMinWidth?.() ?? 0,
+			child.getMaxWidth?.() ?? 0,
+			child.getMinHeight?.() ?? 0,
+			child.getMaxHeight?.() ?? 0,
+		];
+		const hasRestrictSize = restrictSize.some((value) => value !== 0);
+		buf.writeBool(hasRestrictSize);
+		if (hasRestrictSize) {
+			for (const value of restrictSize) buf.writeInt32(value);
+		}
 
 		// Scale
 		const sx = child.getScaleX?.() ?? 1;
@@ -139,10 +171,19 @@ export function _writeDisplayList(buf: WriteBuffer, comp: Component, _doc: Docum
 		buf.writeBool(child.getGrayed?.() ?? false);
 
 		// BlendMode
-		buf.writeUint8(child.getBlendMode?.() ?? 0);
+		const blendMode = child.getBlendMode?.() ?? 'normal';
+		const blendModeCode = BLEND_MODE_CODE[blendMode];
+		if (blendModeCode === undefined) {
+			throw new Error(`Display node "${child.getId?.() ?? child.getName?.() ?? ''}" has unsupported blend mode "${blendMode}".`);
+		}
+		buf.writeUint8(blendModeCode);
 
 		// Filter
-		buf.writeUint8(0); // no filter
+		const filterValues = colorFilterValues(child);
+		buf.writeUint8(filterValues ? 1 : 0);
+		if (filterValues) {
+			for (const value of filterValues) buf.writeFloat32(value);
+		}
 
 		// CustomData — editor writes with noCache=true
 		buf.writeSEx(child.getCustomData?.() ?? null, true);

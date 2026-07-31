@@ -14,6 +14,7 @@ import {
 	type UamDisplayNode,
 	type UamDisplayNodePropsUpdate,
 	type UamGraphProperties,
+	type UamGroupProperties,
 	type UamImageResourceProperties,
 	type UamListNode,
 	type UamListProperties,
@@ -42,13 +43,23 @@ const DISPLAY_NODE_BASE_KEYS = [
 	'name',
 	'position',
 	'size',
+	'locked',
+	'aspect',
+	'minSize',
+	'maxSize',
 	'pivot',
 	'pivotAsAnchor',
+	'scale',
+	'skew',
 	'visible',
 	'touchable',
 	'grayed',
 	'alpha',
 	'rotation',
+	'tooltips',
+	'blendMode',
+	'filter',
+	'filterData',
 	'customData',
 	'relations',
 	'gears',
@@ -59,6 +70,24 @@ function readSpecificProperties<T>(node: UamDisplayNode): T {
 	const snapshot = structuredClone(node) as unknown as Record<string, unknown>;
 	for (const key of DISPLAY_NODE_BASE_KEYS) delete snapshot[key];
 	return snapshot as T;
+}
+
+const COMMON_DISPLAY_PROPERTY_KEYS = [
+	'locked',
+	'aspect',
+	'minSize',
+	'maxSize',
+	'scale',
+	'skew',
+	'tooltips',
+	'blendMode',
+	'filter',
+	'filterData',
+] as const satisfies readonly (keyof UamDisplayNode)[];
+
+function readCommonDisplayProperties(node: UamDisplayNode): Pick<UamDisplayNode, (typeof COMMON_DISPLAY_PROPERTY_KEYS)[number]> {
+	return Object.fromEntries(COMMON_DISPLAY_PROPERTY_KEYS.map((key) => [key, structuredClone(node[key])])) as
+		Pick<UamDisplayNode, (typeof COMMON_DISPLAY_PROPERTY_KEYS)[number]>;
 }
 
 test('image resource properties survive transaction, save/reload, inverse, and second reload', async (t) => {
@@ -619,13 +648,7 @@ test('graph, loader, list, and tree property snapshots survive transaction lifec
 		...createDisplayNodeBase('graph-props', 'graph'),
 		pivot: { x: 0, y: 0 },
 		pivotAsAnchor: false,
-		locked: false,
-		minWidth: 0,
-		maxWidth: 0,
-		minHeight: 0,
-		maxHeight: 0,
 		group: '',
-		skew: { x: 0, y: 0 },
 		graphType: 1,
 		lineSize: 1,
 		lineColor: '#000000',
@@ -640,10 +663,7 @@ test('graph, loader, list, and tree property snapshots survive transaction lifec
 		kind: 'loader',
 		...createDisplayNodeBase('loader-props', 'loader', 16),
 		pivot: { x: 0, y: 0 },
-		scale: { x: 1, y: 1 },
 		url: '',
-		filter: '',
-		filterData: '',
 		fill: 0,
 		shrinkOnly: false,
 		autoSize: false,
@@ -681,12 +701,6 @@ test('graph, loader, list, and tree property snapshots survive transaction lifec
 	const initialTree = readSpecificProperties<UamTreeProperties>(tree);
 	const updatedGraph: UamGraphProperties = {
 		...initialGraph,
-		locked: true,
-		minWidth: 10,
-		maxWidth: 200,
-		minHeight: 12,
-		maxHeight: 160,
-		skew: { x: 2, y: 3 },
 		graphType: 4,
 		lineSize: 3,
 		lineColor: '#112233',
@@ -699,10 +713,7 @@ test('graph, loader, list, and tree property snapshots survive transaction lifec
 	};
 	const updatedLoader: UamLoaderProperties = {
 		...initialLoader,
-		scale: { x: 1.25, y: 0.75 },
 		url: 'ui://pkg001img001',
-		filter: 'color',
-		filterData: '1,0,0,1',
 		fill: 5,
 		shrinkOnly: true,
 		autoSize: true,
@@ -885,6 +896,99 @@ test('graph, loader, list, and tree property snapshots survive transaction lifec
 	}
 	assertProperties(mixedComponent.component.displayList.find((node) => node.id === graph.id), updatedGraph);
 	t.is(mixed.packages[0]?.resources.find((resource) => resource.id === 'img001')?.name, 'renamed');
+});
+
+test('common display and group properties survive transaction, save/reload, inverse, and invalid target checks', async (t) => {
+	const project = normalizeUamProject(createSupportedProject());
+	const component = project.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (component?.kind !== 'component') {
+		t.fail('expected component resource');
+		return;
+	}
+	const text = component.component.displayList.find((node) => node.id === 'n1')!;
+	const group: UamDisplayNode = {
+		kind: 'group',
+		...createDisplayNodeBase('group-props', 'group'),
+		group: '',
+		layout: 0,
+		lineGap: 0,
+		columnGap: 0,
+		advanced: false,
+		excludeInvisibles: false,
+		autoSizeDisabled: false,
+		mainGridIndex: -1,
+	};
+	component.component.displayList.push(group);
+	const originalCommon = readCommonDisplayProperties(text);
+	const originalGroup: UamGroupProperties = readSpecificProperties(group);
+	const updatedCommon = {
+		locked: true,
+		aspect: true,
+		minSize: { width: 10, height: 12 },
+		maxSize: { width: 500, height: 400 },
+		scale: { x: 1.25, y: 0.75 },
+		skew: { x: 5, y: 7 },
+		tooltips: 'tip',
+		blendMode: 'add',
+		filter: 'color',
+		filterData: '1,0.5,0.25,1',
+	} as const;
+	const updatedGroup: UamGroupProperties = {
+		layout: 1,
+		lineGap: 4,
+		columnGap: 6,
+		advanced: true,
+		excludeInvisibles: true,
+		autoSizeDisabled: false,
+		mainGridIndex: 0,
+	};
+	const selector = (displayNodeId: string) => ({
+		packageId: 'pkg001',
+		componentResourceId: 'cmp001',
+		displayNodeId,
+	});
+	const forward: UamTransactionOperation[] = [
+		{ kind: 'setDisplayNodeProps', selector: selector(text.id), props: updatedCommon },
+		{ kind: 'setDisplayNodeProps', selector: selector(group.id), props: { groupProperties: updatedGroup } },
+	];
+	t.deepEqual(validateTransactionSupport(project, forward), []);
+	const committed = await roundTripCommittedProject(applyUamTransaction(project, forward));
+	const committedComponent = committed.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (committedComponent?.kind !== 'component') {
+		t.fail('expected committed component resource');
+		return;
+	}
+	const committedText = committedComponent.component.displayList.find((node) => node.id === text.id)!;
+	const committedGroup = committedComponent.component.displayList.find((node) => node.id === group.id)!;
+	t.deepEqual(readCommonDisplayProperties(committedText), updatedCommon);
+	t.deepEqual(readSpecificProperties(committedGroup), updatedGroup);
+
+	const inverse: UamTransactionOperation[] = [
+		{ kind: 'setDisplayNodeProps', selector: selector(text.id), props: originalCommon },
+		{ kind: 'setDisplayNodeProps', selector: selector(group.id), props: { groupProperties: originalGroup } },
+	];
+	const restored = await roundTripCommittedProject(applyUamTransaction(committed, inverse));
+	const restoredComponent = restored.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (restoredComponent?.kind !== 'component') {
+		t.fail('expected restored component resource');
+		return;
+	}
+	t.deepEqual(readCommonDisplayProperties(restoredComponent.component.displayList.find((node) => node.id === text.id)!), originalCommon);
+	t.deepEqual(readSpecificProperties(restoredComponent.component.displayList.find((node) => node.id === group.id)!), originalGroup);
+
+	const invalidTarget = [{
+		kind: 'setDisplayNodeProps' as const,
+		selector: selector(text.id),
+		props: { groupProperties: updatedGroup },
+	}];
+	t.true(validateTransactionSupport(project, invalidTarget).some((issue) => issue.code === 'unsupported_display_node_field'));
+	t.throws(() => applyUamTransaction(project, invalidTarget), { instanceOf: UamTransactionError });
+	t.deepEqual(readCommonDisplayProperties(text), originalCommon, 'invalid target leaves source state unchanged');
+	t.true(validateTransactionSupport(project, [{
+		kind: 'setDisplayNodeProps',
+		selector: selector(text.id),
+		props: { minSize: { width: 20, height: 10 }, maxSize: { width: 10, height: 5 } },
+	}]).some((issue) => issue.code === 'invalid_display_node_payload'));
 });
 
 test('Phase A transactions support common FairyGUI display node kinds for common props', (t) => {

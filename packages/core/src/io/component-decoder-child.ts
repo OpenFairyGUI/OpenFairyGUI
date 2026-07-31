@@ -76,7 +76,15 @@ function decodeChildBlock0(
 	}
 
 	if (childBuf.readBool() && remainingBytes(childBuf) >= 16) {
-		childBuf.skip(16);
+		const minWidth = childBuf.getInt32();
+		const maxWidth = childBuf.getInt32();
+		const minHeight = childBuf.getInt32();
+		const maxHeight = childBuf.getInt32();
+		child
+			.setMinWidth(minWidth)
+			.setMaxWidth(maxWidth)
+			.setMinHeight(minHeight)
+			.setMaxHeight(maxHeight);
 	}
 
 	if (childBuf.readBool() && remainingBytes(childBuf) >= 8) {
@@ -127,8 +135,18 @@ function decodeChildBlock0(
 	}
 
 	if (remainingBytes(childBuf) < 2) return child;
-	childBuf.getUint8(); // blendMode
-	childBuf.getUint8(); // filter
+	const blendModes = ['normal', 'none', 'add', 'multiply', 'screen', 'erase'] as const;
+	child.setBlendMode(blendModes[childBuf.getUint8()] ?? 'normal');
+	const filter = childBuf.getUint8();
+	if (filter === 1 && remainingBytes(childBuf) >= 16) {
+		const filterData = [
+			childBuf.getFloat32(),
+			childBuf.getFloat32(),
+			childBuf.getFloat32(),
+			childBuf.getFloat32(),
+		].join(',');
+		child.setFilter('color').setFilterData(filterData);
+	}
 	if (remainingBytes(childBuf) >= 2) {
 		if ('setCustomData' in child && typeof child.setCustomData === 'function') {
 			(child as { setCustomData(v: string): void }).setCustomData(childBuf.readS() ?? '');

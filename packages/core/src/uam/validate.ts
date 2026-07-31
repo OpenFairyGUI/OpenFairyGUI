@@ -93,8 +93,6 @@ const TEXT_PROPERTY_KEYS = [
 	'font',
 	'fontSize',
 	'color',
-	'minSize',
-	'maxSize',
 	'align',
 	'vAlign',
 	'leading',
@@ -138,8 +136,6 @@ export function isValidUamTextProperties(
 		&& Number.isInteger(properties.fontSize)
 		&& properties.fontSize > 0
 		&& isTextColor(properties.color)
-		&& isFiniteUamSize(properties.minSize)
-		&& isFiniteUamSize(properties.maxSize)
 		&& Number.isInteger(properties.align)
 		&& properties.align >= 0
 		&& properties.align <= 2
@@ -191,8 +187,6 @@ function textPropertiesFromNode(
 		font: node.font,
 		fontSize: node.fontSize,
 		color: node.color,
-		minSize: node.minSize,
-		maxSize: node.maxSize,
 		align: node.align,
 		vAlign: node.vAlign,
 		leading: node.leading,
@@ -503,6 +497,52 @@ function validateDisplayNode(
 	path: string,
 	issues: UamValidationIssue[],
 ): void {
+	if (!isFiniteUamPoint(node.position)) pushIssue(issues, `${path}.position`, 'Display node position must contain finite x and y numbers.');
+	if (!isFiniteUamSize(node.size) || node.size.width < 0 || node.size.height < 0) {
+		pushIssue(issues, `${path}.size`, 'Display node size must contain finite non-negative width and height values.');
+	}
+	if (typeof node.locked !== 'boolean') pushIssue(issues, `${path}.locked`, 'Display node locked must be boolean.');
+	if (typeof node.aspect !== 'boolean') pushIssue(issues, `${path}.aspect`, 'Display node aspect must be boolean.');
+	for (const [key, value] of [['minSize', node.minSize], ['maxSize', node.maxSize]] as const) {
+		if (!isFiniteUamSize(value) || value.width < 0 || value.height < 0) {
+			pushIssue(issues, `${path}.${key}`, `Display node ${key} must contain finite non-negative width and height values.`);
+		}
+	}
+	if (isFiniteUamSize(node.minSize) && isFiniteUamSize(node.maxSize)) {
+		if (node.maxSize.width > 0 && node.maxSize.width < node.minSize.width) {
+			pushIssue(issues, `${path}.maxSize.width`, 'Display node maxSize.width must be zero or at least minSize.width.');
+		}
+		if (node.maxSize.height > 0 && node.maxSize.height < node.minSize.height) {
+			pushIssue(issues, `${path}.maxSize.height`, 'Display node maxSize.height must be zero or at least minSize.height.');
+		}
+	}
+	if (!isFiniteUamPoint(node.scale)) pushIssue(issues, `${path}.scale`, 'Display node scale must contain finite x and y numbers.');
+	if (!isFiniteUamPoint(node.skew)) pushIssue(issues, `${path}.skew`, 'Display node skew must contain finite x and y numbers.');
+	if (![node.visible, node.touchable, node.grayed].every((value) => typeof value === 'boolean')) {
+		pushIssue(issues, path, 'Display node visible, touchable, and grayed must be boolean.');
+	}
+	if (typeof node.alpha !== 'number' || !Number.isFinite(node.alpha) || node.alpha < 0 || node.alpha > 1) {
+		pushIssue(issues, `${path}.alpha`, 'Display node alpha must be a finite number between 0 and 1.');
+	}
+	if (typeof node.rotation !== 'number' || !Number.isFinite(node.rotation)) {
+		pushIssue(issues, `${path}.rotation`, 'Display node rotation must be finite.');
+	}
+	if (![node.tooltips, node.filter, node.filterData, node.customData].every((value) => typeof value === 'string')) {
+		pushIssue(issues, path, 'Display node tooltips, filter, filterData, and customData must be strings.');
+	}
+	if (!['normal', 'none', 'add', 'multiply', 'screen', 'erase'].includes(node.blendMode)) {
+		pushIssue(issues, `${path}.blendMode`, `Unsupported display node blendMode "${node.blendMode}".`);
+	}
+	if (node.filter !== '' && node.filter !== 'color') {
+		pushIssue(issues, `${path}.filter`, `Unsupported display node filter "${node.filter}".`);
+	} else if (node.filter === 'color') {
+		const values = node.filterData.split(',').map((part) => Number(part.trim()));
+		if (values.length !== 4 || values.some((value) => !Number.isFinite(value))) {
+			pushIssue(issues, `${path}.filterData`, 'Color filterData must contain four finite comma-separated numbers.');
+		}
+	} else if (node.filterData !== '') {
+		pushIssue(issues, `${path}.filterData`, 'filterData must be empty when filter is empty.');
+	}
 	if (node.pivot !== undefined) {
 		if (!isFiniteUamPoint(node.pivot)) {
 			pushIssue(issues, `${path}.pivot`, 'Display node pivot must contain finite x and y numbers.');

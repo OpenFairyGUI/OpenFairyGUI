@@ -6,6 +6,7 @@ import type {
 	UamDisplayNode,
 	UamGearBinding,
 	UamGraphProperties,
+	UamGroupProperties,
 	UamListItemData,
 	UamListProperties,
 	UamLoader3DProperties,
@@ -282,11 +283,21 @@ function validateTransitionTargets(
 const COMMON_DISPLAY_PROP_KEYS = new Set<keyof UamDisplayNodePropsUpdate>([
 	'position',
 	'size',
+	'locked',
+	'aspect',
+	'minSize',
+	'maxSize',
+	'scale',
+	'skew',
 	'visible',
 	'touchable',
 	'grayed',
 	'alpha',
 	'rotation',
+	'tooltips',
+	'blendMode',
+	'filter',
+	'filterData',
 	'customData',
 ]);
 
@@ -314,12 +325,6 @@ const LOADER_3D_PROPERTY_KEYS = new Set<keyof UamLoader3DProperties>([
 ]);
 
 const GRAPH_PROPERTY_KEYS = [
-	'locked',
-	'minWidth',
-	'maxWidth',
-	'minHeight',
-	'maxHeight',
-	'skew',
 	'graphType',
 	'lineSize',
 	'lineColor',
@@ -332,10 +337,7 @@ const GRAPH_PROPERTY_KEYS = [
 ] as const satisfies readonly (keyof UamGraphProperties)[];
 
 const LOADER_PROPERTY_KEYS = [
-	'scale',
 	'url',
-	'filter',
-	'filterData',
 	'fill',
 	'shrinkOnly',
 	'autoSize',
@@ -351,6 +353,16 @@ const LOADER_PROPERTY_KEYS = [
 	'fillAmount',
 	'clearOnPublish',
 ] as const satisfies readonly (keyof UamLoaderProperties)[];
+
+const GROUP_PROPERTY_KEYS = [
+	'layout',
+	'lineGap',
+	'columnGap',
+	'advanced',
+	'excludeInvisibles',
+	'autoSizeDisabled',
+	'mainGridIndex',
+] as const satisfies readonly (keyof UamGroupProperties)[];
 
 const LIST_PROPERTY_KEYS = [
 	'layout',
@@ -422,6 +434,12 @@ function isFiniteEdgeInsets(value: unknown): boolean {
 	return [insets.top, insets.bottom, insets.left, insets.right].every(isFiniteNumber);
 }
 
+function isFiniteSize(value: unknown): value is { width: number; height: number } {
+	if (!value || typeof value !== 'object') return false;
+	const size = value as { width?: unknown; height?: unknown };
+	return isFiniteNumber(size.width) && isFiniteNumber(size.height);
+}
+
 function isNullableString(value: unknown): value is string | null {
 	return value === null || typeof value === 'string';
 }
@@ -458,16 +476,7 @@ function isValidListItem(value: unknown): value is UamListItemData {
 function isValidGraphProperties(value: unknown): value is UamGraphProperties {
 	if (!value || typeof value !== 'object' || !hasExactKeys(value, GRAPH_PROPERTY_KEYS)) return false;
 	const properties = value as UamGraphProperties;
-	return typeof properties.locked === 'boolean'
-		&& [
-			properties.minWidth,
-			properties.maxWidth,
-			properties.minHeight,
-			properties.maxHeight,
-			properties.lineSize,
-			properties.startAngle,
-		].every(isFiniteNumber)
-		&& isFiniteUamPoint(properties.skew)
+	return [properties.lineSize, properties.startAngle].every(isFiniteNumber)
 		&& isIntegerBetween(properties.graphType, 0, 4)
 		&& isColor(properties.lineColor)
 		&& isColor(properties.fillColor)
@@ -482,8 +491,7 @@ function isValidGraphProperties(value: unknown): value is UamGraphProperties {
 function isValidLoaderProperties(value: unknown): value is UamLoaderProperties {
 	if (!value || typeof value !== 'object' || !hasExactKeys(value, LOADER_PROPERTY_KEYS)) return false;
 	const properties = value as UamLoaderProperties;
-	return isFiniteUamPoint(properties.scale)
-		&& [properties.url, properties.filter, properties.filterData].every((item) => typeof item === 'string')
+	return typeof properties.url === 'string'
 		&& isIntegerBetween(properties.fill, 0, 5)
 		&& [properties.shrinkOnly, properties.autoSize, properties.useResize, properties.playing,
 			properties.fillClockwise, properties.clearOnPublish].every((item) => typeof item === 'boolean')
@@ -500,6 +508,34 @@ function isValidLoaderProperties(value: unknown): value is UamLoaderProperties {
 			&& properties.fillClockwise
 			&& properties.fillAmount === 100
 		));
+}
+
+function isValidGroupProperties(value: unknown): value is UamGroupProperties {
+	if (!value || typeof value !== 'object' || !hasExactKeys(value, GROUP_PROPERTY_KEYS)) return false;
+	const properties = value as UamGroupProperties;
+	if (!isIntegerBetween(properties.layout, 0, 2)
+		|| ![properties.lineGap, properties.columnGap].every(isFiniteNumber)
+		|| ![properties.advanced, properties.excludeInvisibles, properties.autoSizeDisabled]
+			.every((item) => typeof item === 'boolean')
+		|| !Number.isInteger(properties.mainGridIndex)
+		|| properties.mainGridIndex < -1
+	) return false;
+	if (!properties.advanced) {
+		return properties.layout === 0
+			&& properties.lineGap === 0
+			&& properties.columnGap === 0
+			&& !properties.excludeInvisibles
+			&& !properties.autoSizeDisabled
+			&& properties.mainGridIndex === -1;
+	}
+	if (properties.layout === 0) {
+		return properties.lineGap === 0
+			&& properties.columnGap === 0
+			&& !properties.excludeInvisibles
+			&& !properties.autoSizeDisabled
+			&& properties.mainGridIndex === -1;
+	}
+	return true;
 }
 
 function isValidListProperties(
@@ -593,6 +629,72 @@ function validateDisplayPropsPayload(
 			{ operationKind: op.kind, nodeKind },
 		);
 	}
+	const commonValueIssue = (field: keyof UamDisplayNodePropsUpdate, message: string) => pushSupportIssue(
+		issues,
+		'invalid_display_node_payload',
+		`${path}.props.${String(field)}`,
+		message,
+		{ operationKind: op.kind, nodeKind, field: String(field) },
+	);
+	if (op.props.position !== undefined && !isFiniteUamPoint(op.props.position)) {
+		commonValueIssue('position', 'Display node position must contain finite x and y numbers.');
+	}
+	if (op.props.size !== undefined && (!isFiniteSize(op.props.size) || op.props.size.width < 0 || op.props.size.height < 0)) {
+		commonValueIssue('size', 'Display node size must contain finite non-negative width and height values.');
+	}
+	for (const field of ['locked', 'aspect', 'visible', 'touchable', 'grayed'] as const) {
+		if (op.props[field] !== undefined && typeof op.props[field] !== 'boolean') {
+			commonValueIssue(field, `Display node ${field} must be boolean.`);
+		}
+	}
+	for (const field of ['scale', 'skew'] as const) {
+		if (op.props[field] !== undefined && !isFiniteUamPoint(op.props[field])) {
+			commonValueIssue(field, `Display node ${field} must contain finite x and y numbers.`);
+		}
+	}
+	const minSize = op.props.minSize ?? node?.minSize;
+	const maxSize = op.props.maxSize ?? node?.maxSize;
+	for (const [field, value] of [['minSize', op.props.minSize], ['maxSize', op.props.maxSize]] as const) {
+		if (value !== undefined && (!isFiniteSize(value) || value.width < 0 || value.height < 0)) {
+			commonValueIssue(field, `Display node ${field} must contain finite non-negative width and height values.`);
+		}
+	}
+	if (isFiniteSize(minSize) && isFiniteSize(maxSize)) {
+		if (maxSize.width > 0 && maxSize.width < minSize.width) {
+			commonValueIssue('maxSize', 'Display node maxSize.width must be zero or at least minSize.width.');
+		}
+		if (maxSize.height > 0 && maxSize.height < minSize.height) {
+			commonValueIssue('maxSize', 'Display node maxSize.height must be zero or at least minSize.height.');
+		}
+	}
+	if (op.props.alpha !== undefined && (!isFiniteNumber(op.props.alpha) || op.props.alpha < 0 || op.props.alpha > 1)) {
+		commonValueIssue('alpha', 'Display node alpha must be a finite number between 0 and 1.');
+	}
+	if (op.props.rotation !== undefined && !isFiniteNumber(op.props.rotation)) {
+		commonValueIssue('rotation', 'Display node rotation must be finite.');
+	}
+	for (const field of ['tooltips', 'filter', 'filterData', 'customData'] as const) {
+		if (op.props[field] !== undefined && typeof op.props[field] !== 'string') {
+			commonValueIssue(field, `Display node ${field} must be a string.`);
+		}
+	}
+	if (op.props.blendMode !== undefined
+		&& !['normal', 'none', 'add', 'multiply', 'screen', 'erase'].includes(op.props.blendMode)
+	) {
+		commonValueIssue('blendMode', `Unsupported display node blendMode "${op.props.blendMode}".`);
+	}
+	const filter = op.props.filter ?? node?.filter ?? '';
+	const filterData = op.props.filterData ?? node?.filterData ?? '';
+	if (filter !== '' && filter !== 'color') {
+		commonValueIssue('filter', `Unsupported display node filter "${filter}".`);
+	} else if (filter === 'color') {
+		const values = filterData.split(',').map((part) => Number(part.trim()));
+		if (values.length !== 4 || values.some((value) => !Number.isFinite(value))) {
+			commonValueIssue('filterData', 'Color filterData must contain four finite comma-separated numbers.');
+		}
+	} else if (filterData !== '') {
+		commonValueIssue('filterData', 'filterData must be empty when filter is empty.');
+	}
 	for (const key of Object.keys(op.props) as Array<keyof UamDisplayNodePropsUpdate>) {
 		if (key === 'pivot') {
 			if (!isFiniteUamPoint(op.props.pivot)) {
@@ -653,6 +755,26 @@ function validateDisplayPropsPayload(
 					'invalid_display_node_payload',
 					`${path}.props.graphProperties`,
 					'Graph properties must be a complete valid graph property snapshot.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			}
+			continue;
+		}
+		if (key === 'groupProperties') {
+			if (nodeKind && nodeKind !== 'group') {
+				pushSupportIssue(
+					issues,
+					'unsupported_display_node_field',
+					`${path}.props.groupProperties`,
+					'Group properties are only supported on group display nodes.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			} else if (!isValidGroupProperties(op.props.groupProperties)) {
+				pushSupportIssue(
+					issues,
+					'invalid_display_node_payload',
+					`${path}.props.groupProperties`,
+					'Group properties must be a complete valid group property snapshot.',
 					{ operationKind: op.kind, nodeKind, field: key },
 				);
 			}

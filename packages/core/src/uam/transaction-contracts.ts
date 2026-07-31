@@ -8,6 +8,7 @@ import type {
 	UamDisplayNode,
 	UamGearBinding,
 	UamGraphProperties,
+	UamGroupProperties,
 	UamImageResourceProperties,
 	UamListProperties,
 	UamLoaderProperties,
@@ -61,13 +62,23 @@ export interface UamGearSelector extends UamDisplayNodeSelector {
 export interface UamDisplayNodePropsUpdate {
 	position?: UamDisplayNode['position'];
 	size?: UamDisplayNode['size'];
+	locked?: boolean;
+	aspect?: boolean;
+	minSize?: UamDisplayNode['minSize'];
+	maxSize?: UamDisplayNode['maxSize'];
 	pivot?: NonNullable<UamDisplayNode['pivot']>;
 	pivotAsAnchor?: boolean;
+	scale?: UamDisplayNode['scale'];
+	skew?: UamDisplayNode['skew'];
 	visible?: boolean;
 	touchable?: boolean;
 	grayed?: boolean;
 	alpha?: number;
 	rotation?: number;
+	tooltips?: string;
+	blendMode?: UamDisplayNode['blendMode'];
+	filter?: string;
+	filterData?: string;
 	customData?: string;
 	group?: string;
 	text?: string;
@@ -76,6 +87,7 @@ export interface UamDisplayNodePropsUpdate {
 	color?: string;
 	textProperties?: UamTextProperties | UamPlainTextProperties;
 	graphProperties?: UamGraphProperties;
+	groupProperties?: UamGroupProperties;
 	loaderProperties?: UamLoaderProperties;
 	listProperties?: UamListProperties | UamTreeProperties;
 	loader3DProperties?: UamLoader3DProperties;

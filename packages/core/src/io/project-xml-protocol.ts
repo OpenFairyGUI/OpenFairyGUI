@@ -191,6 +191,25 @@ const FILTER_ATTRS = {
 	filterData: { canonical: 'filterData' },
 } satisfies XmlAttrMap;
 
+const BLEND_ATTRS = {
+	blendMode: { canonical: 'blend' },
+} satisfies XmlAttrMap;
+
+const COMMON_DISPLAY_OBJECT_ATTRS = mergeAttrs(
+	XY_SIZE_ATTRS,
+	LOCKED_ATTRS,
+	RESTRICT_SIZE_ATTRS,
+	ASPECT_ATTRS,
+	PIVOT_ATTRS,
+	ANCHOR_ATTRS,
+	SCALE_ATTRS,
+	SKEW_ATTRS,
+	COMMON_DISPLAY_STATE_ATTRS,
+	INSTANCE_MISC_PANEL_ATTRS,
+	BLEND_ATTRS,
+	FILTER_ATTRS,
+);
+
 const ROOT_COMPONENT_PANEL_ATTRS = {
 	size: { canonical: 'size' },
 	pivot: { canonical: 'pivot' },
@@ -631,6 +650,7 @@ const TRANSITION_NODE = defineNode(
 
 const IMAGE_NODE = defineNode(
 	mergeAttrs(
+		COMMON_DISPLAY_OBJECT_ATTRS,
 		IMAGE_PANEL_ATTRS,
 		XY_SIZE_ATTRS,
 		LOCKED_ATTRS,
@@ -649,6 +669,7 @@ const IMAGE_NODE = defineNode(
 
 const GRAPH_NODE = defineNode(
 	mergeAttrs(
+		COMMON_DISPLAY_OBJECT_ATTRS,
 		XY_SIZE_ATTRS,
 		LOCKED_ATTRS,
 		RESTRICT_SIZE_ATTRS,
@@ -664,6 +685,7 @@ const GRAPH_NODE = defineNode(
 
 const MOVIE_CLIP_NODE = defineNode(
 	mergeAttrs(
+		COMMON_DISPLAY_OBJECT_ATTRS,
 		MOVIE_CLIP_PANEL_ATTRS,
 		XY_SIZE_ATTRS,
 		PIVOT_ATTRS,
@@ -678,6 +700,7 @@ const MOVIE_CLIP_NODE = defineNode(
 
 const COMPONENT_INSTANCE_NODE = defineNode(
 	mergeAttrs(
+		COMMON_DISPLAY_OBJECT_ATTRS,
 		COMPONENT_INSTANCE_PANEL_ATTRS,
 		XY_SIZE_ATTRS,
 		LOCKED_ATTRS,
@@ -701,6 +724,7 @@ const COMPONENT_INSTANCE_NODE = defineNode(
 
 const LOADER_NODE = defineNode(
 	mergeAttrs(
+		COMMON_DISPLAY_OBJECT_ATTRS,
 		XY_SIZE_ATTRS,
 		PIVOT_ATTRS,
 		ANCHOR_ATTRS,
@@ -713,12 +737,13 @@ const LOADER_NODE = defineNode(
 );
 
 const LOADER3D_NODE = defineNode(
-	mergeAttrs(XY_SIZE_ATTRS, PIVOT_ATTRS, ANCHOR_ATTRS, COMMON_DISPLAY_STATE_ATTRS, LOADER3D_PANEL_ATTRS),
+	mergeAttrs(COMMON_DISPLAY_OBJECT_ATTRS, LOADER3D_PANEL_ATTRS),
 	mergeChildren(WITH_RELATION_CHILDREN, WITH_GEAR_CHILDREN),
 );
 
 const TEXT_NODE = defineNode(
 	mergeAttrs(
+		COMMON_DISPLAY_OBJECT_ATTRS,
 		XY_SIZE_ATTRS,
 		RESTRICT_SIZE_ATTRS,
 		PIVOT_ATTRS,
@@ -734,6 +759,7 @@ const TEXT_NODE = defineNode(
 
 const TEXT_INPUT_NODE = defineNode(
 	mergeAttrs(
+		COMMON_DISPLAY_OBJECT_ATTRS,
 		XY_SIZE_ATTRS,
 		RESTRICT_SIZE_ATTRS,
 		PIVOT_ATTRS,
@@ -749,6 +775,7 @@ const TEXT_INPUT_NODE = defineNode(
 
 const RICH_TEXT_NODE = defineNode(
 	mergeAttrs(
+		COMMON_DISPLAY_OBJECT_ATTRS,
 		XY_SIZE_ATTRS,
 		RESTRICT_SIZE_ATTRS,
 		PIVOT_ATTRS,
@@ -764,6 +791,7 @@ const RICH_TEXT_NODE = defineNode(
 
 const GROUP_NODE = defineNode(
 	mergeAttrs(
+		COMMON_DISPLAY_OBJECT_ATTRS,
 		XY_SIZE_ATTRS,
 		LOCKED_ATTRS,
 		PIVOT_ATTRS,
@@ -780,6 +808,7 @@ const GROUP_NODE = defineNode(
 
 const LIST_NODE = defineNode(
 	mergeAttrs(
+		COMMON_DISPLAY_OBJECT_ATTRS,
 		XY_SIZE_ATTRS,
 		PIVOT_ATTRS,
 		ANCHOR_ATTRS,
