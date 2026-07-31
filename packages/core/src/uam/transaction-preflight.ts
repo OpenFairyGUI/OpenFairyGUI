@@ -49,6 +49,7 @@ import {
 	TEXT_DISPLAY_NODE_KINDS,
 } from './transaction-shared.js';
 import {
+	applyDisplayNodePropsUpdate,
 	applyUamNativeOperations,
 	applyUamDisplayListRewriteOperation,
 	applyUamLifecycleOperation,
@@ -1512,9 +1513,14 @@ function findExternalComponentReference(project: UamProject, packageId: string, 
 	return null;
 }
 
-function findComponentPackageDependency(component: UamComponentResource, packageId: string, path: string): string | null {
+function findComponentPackageDependency(
+	component: UamComponentResource,
+	ownerPackageId: string,
+	dependencyPackageId: string,
+	path: string,
+): string | null {
 	for (const [nodeIndex, node] of component.component.displayList.entries()) {
-		if (nodeReferencesPackage(node, packageId, packageId)) {
+		if (nodeReferencesPackage(node, ownerPackageId, dependencyPackageId)) {
 			return `${path}.component.displayList[${nodeIndex}]`;
 		}
 	}
@@ -1588,7 +1594,12 @@ function validateLifecycleReferenceChecks(
 				if (referencePath) {
 					pushSupportIssue(issues, 'component_referenced', check.path, `Component "${check.component.id}" is still referenced by ${referencePath}.`, { operationKind: check.operationKind });
 				}
-				const dependencyPath = findComponentPackageDependency(check.component, check.sourcePackageId, check.path);
+				const dependencyPath = findComponentPackageDependency(
+					check.component,
+					finalPackage.id,
+					check.sourcePackageId,
+					check.path,
+				);
 				if (dependencyPath) {
 					pushSupportIssue(issues, 'component_has_package_dependencies', dependencyPath, `Component "${check.component.id}" still resolves display resources from package "${check.sourcePackageId}".`, { operationKind: check.operationKind });
 				}
@@ -1630,6 +1641,7 @@ function validateLifecycleOperationPayloads(
 			!isLifecycleOperation(operation)
 			&& !isResourceLifecycleOperation(operation)
 			&& !isDisplayListRewriteOperation(operation)
+			&& operation.kind !== 'setDisplayNodeProps'
 		) continue;
 		const operationPath = `operations[${operationIndex}]`;
 		const issueCount = issues.length;
@@ -1746,12 +1758,18 @@ function validateLifecycleOperationPayloads(
 			case 'detachDisplayNode':
 				validateTouchedDisplayNodeKind(projected, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
 				break;
+			case 'setDisplayNodeProps':
+				validateTouchedDisplayNodeKind(projected, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
+				validateDisplayPropsPayload(operation, projected, operationPath, issues);
+				break;
 		}
 		if (issues.length !== issueCount) continue;
 		if (isLifecycleOperation(operation)) {
 			applyUamLifecycleOperation(projected, operation);
 		} else if (isResourceLifecycleOperation(operation)) {
 			applyUamResourceLifecycleOperation(projected, operation);
+		} else if (operation.kind === 'setDisplayNodeProps') {
+			applyDisplayNodePropsUpdate(findDisplayNodeSpec(projected, operation.selector)!, operation.props);
 		} else {
 			applyUamDisplayListRewriteOperation(projected, operation);
 		}
@@ -1833,8 +1851,20 @@ function validateLifecycleBatchCompatibility(
 	return false;
 }
 
+function requiresSequentialDisplayProjection(operations: UamTransactionOperation[]): boolean {
+	const hasDisplayListRewrite = operations.some(isDisplayListRewriteOperation);
+	return operations.some(isLifecycleOperation)
+		|| (
+			hasDisplayListRewrite
+			&& (
+				operations.some(isResourceLifecycleOperation)
+				|| operations.some((operation) => operation.kind === 'setDisplayNodeProps')
+			)
+		);
+}
+
 function validateOperationPayloads(project: UamProject, operations: UamTransactionOperation[], issues: UamTransactionSupportIssue[]): void {
-	const hasLifecycleOperation = operations.some(isLifecycleOperation);
+	const usesSequentialDisplayProjection = requiresSequentialDisplayProjection(operations);
 	for (const [operationIndex, operation] of operations.entries()) {
 		const operationPath = `operations[${operationIndex}]`;
 		switch (operation.kind) {
@@ -1975,11 +2005,12 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 				break;
 			}
 			case 'setDisplayNodeProps':
+				if (usesSequentialDisplayProjection) break;
 				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
 				validateDisplayPropsPayload(operation, project, operationPath, issues);
 				break;
 			case 'attachDisplayNode':
-				if (hasLifecycleOperation) break;
+				if (usesSequentialDisplayProjection) break;
 				if (!Number.isInteger(operation.atIndex) || operation.atIndex < 0) {
 					pushSupportIssue(
 						issues,
@@ -1994,7 +2025,7 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 				});
 				break;
 			case 'detachDisplayNode':
-				if (hasLifecycleOperation) break;
+				if (usesSequentialDisplayProjection) break;
 				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
 				break;
 			case 'addController':
@@ -2390,10 +2421,7 @@ export function validateTransactionSupport(
 	validateOperationPayloads(project, operations, issues);
 	if (
 		lifecycleOnly
-		&& (
-			operations.some(isLifecycleOperation)
-			|| (operations.some(isResourceLifecycleOperation) && operations.some(isDisplayListRewriteOperation))
-		)
+		&& requiresSequentialDisplayProjection(operations)
 	) {
 		validateLifecycleOperationPayloads(project, operations, issues);
 	}

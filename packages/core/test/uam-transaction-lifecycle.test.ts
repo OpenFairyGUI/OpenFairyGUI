@@ -268,6 +268,15 @@ test('package and component lifecycle preflight reports dependency and batch dia
 	t.true(removeIssues.some((issue) => issue.code === 'component_referenced'));
 	t.true(removeIssues.some((issue) => issue.code === 'package_referenced'));
 
+	const movedComponent = project.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	const movedImage = movedComponent?.kind === 'component'
+		? movedComponent.component.displayList.find((node) => node.id === 'n0')
+		: null;
+	if (movedImage?.kind !== 'image') {
+		t.fail('expected movable image dependency fixture');
+		return;
+	}
+	movedImage.resource.packageId = 'pkg001';
 	const moveIssues = validateTransactionSupport(project, [{
 		kind: 'moveComponent',
 		selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
@@ -294,6 +303,61 @@ test('package and component lifecycle preflight reports dependency and batch dia
 		},
 	]);
 	t.deepEqual(batchIssues, []);
+});
+
+test('display-list projection validates and applies properties on a newly attached node', (t) => {
+	const project = createSupportedProject();
+	const node = structuredClone(createLifecycleComponent().component.displayList[0]!);
+	const operations: UamTransactionOperation[] = [
+		{
+			kind: 'attachDisplayNode',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
+			atIndex: 2,
+			node,
+		},
+		{
+			kind: 'setDisplayNodeProps',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: node.id },
+			props: { alpha: 0.5 },
+		},
+	];
+	t.deepEqual(validateTransactionSupport(project, operations), []);
+	const updated = applyUamTransaction(project, operations);
+	const component = updated.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	t.is(component?.kind === 'component'
+		? component.component.displayList.find((candidate) => candidate.id === node.id)?.alpha
+		: null, 0.5);
+});
+
+test('package-local dependencies resolve from a component destination after an atomic copy and move', (t) => {
+	const project = createSupportedProject();
+	const sourcePackage = project.packages[0]!;
+	const image = sourcePackage.resources.find((resource) => resource.id === 'img001');
+	if (image?.kind !== 'image') {
+		t.fail('expected image dependency fixture');
+		return;
+	}
+	project.packages.push(createLifecyclePackage());
+	const copiedImage = structuredClone(image);
+	delete copiedImage.sourcePath;
+	const operations: UamTransactionOperation[] = [
+		{
+			kind: 'addResource',
+			selector: { packageId: 'pkg002' },
+			resource: copiedImage,
+		},
+		{
+			kind: 'moveComponent',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
+			toPackageId: 'pkg002',
+			toIndex: 0,
+		},
+	];
+	t.deepEqual(validateTransactionSupport(project, operations), []);
+	const moved = applyUamTransaction(project, operations);
+	const target = moved.packages.find((pkg) => pkg.id === 'pkg002');
+	t.true(target?.resources.some((resource) => resource.id === 'img001'));
+	t.true(target?.resources.some((resource) => resource.id === 'cmp001'));
 });
 
 test('component lifecycle atomically rewrites inbound display references', async (t) => {
