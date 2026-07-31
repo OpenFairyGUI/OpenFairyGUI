@@ -196,7 +196,7 @@ export function canApplyOperationsInUam(operations: UamTransactionOperation[]): 
 			|| operations.some(isResourceLifecycleOperation));
 }
 
-function applyDisplayNodePropsUpdate(node: UamDisplayNode, props: UamDisplayNodePropsUpdate): void {
+export function applyDisplayNodePropsUpdate(node: UamDisplayNode, props: UamDisplayNodePropsUpdate): void {
 	if (props.position !== undefined) node.position = { ...props.position };
 	if (props.size !== undefined) node.size = { ...props.size };
 	if (props.pivot !== undefined) node.pivot = { ...props.pivot };
