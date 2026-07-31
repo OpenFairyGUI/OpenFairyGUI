@@ -32,6 +32,7 @@ import type {
 	UamLoaderProperties,
 	UamLookGearBinding,
 	UamMovieClipNode,
+	UamPlainTextProperties,
 	UamProject,
 	UamProgressBarNode,
 	UamRichTextNode,
@@ -41,6 +42,7 @@ import type {
 	UamTextGearBinding,
 	UamTextInputNode,
 	UamTextNode,
+	UamTextProperties,
 	UamTreeNode,
 	UamTreeProperties,
 	UamXYGearBinding,
@@ -68,6 +70,7 @@ type MaterializedDisplayNodeBase = {
 	setAlpha(alpha: number): MaterializedDisplayNodeBase;
 	setRotation(rotation: number): MaterializedDisplayNodeBase;
 	setCustomData(customData: string): MaterializedDisplayNodeBase;
+	setGroup(group: string): MaterializedDisplayNodeBase;
 	setRelations(relations: Array<{ target: string; type: number; usePercent: boolean }>): MaterializedDisplayNodeBase;
 };
 
@@ -81,7 +84,6 @@ export function materializeUamGraphProperties(
 		.setMaxWidth(properties.maxWidth)
 		.setMinHeight(properties.minHeight)
 		.setMaxHeight(properties.maxHeight)
-		.setGroup(properties.group)
 		.setSkew(properties.skew.x, properties.skew.y)
 		.setGraphType(properties.graphType)
 		.setLineSize(properties.lineSize)
@@ -92,6 +94,44 @@ export function materializeUamGraphProperties(
 		.setSides(properties.sides)
 		.setStartAngle(properties.startAngle)
 		.setDistances(properties.distances);
+}
+
+export function materializeUamTextProperties(
+	text: ReturnType<Document['createGTextField']>,
+	properties: UamTextProperties | UamPlainTextProperties,
+): void {
+	text
+		.setText(properties.text)
+		.setFont(properties.font)
+		.setFontSize(properties.fontSize)
+		.setColor(properties.color)
+		.setMinWidth(properties.minSize.width)
+		.setMinHeight(properties.minSize.height)
+		.setMaxWidth(properties.maxSize.width)
+		.setMaxHeight(properties.maxSize.height)
+		.setAlign(properties.align)
+		.setVAlign(properties.vAlign)
+		.setLeading(properties.leading)
+		.setLetterSpacing(properties.letterSpacing)
+		.setAutoSize(properties.autoSize)
+		.setSingleLine(properties.singleLine)
+		.setAutoClearText(properties.autoClearText)
+		.setUnderlaySoftness(properties.underlaySoftness)
+		.setUbbEnabled(properties.ubbEnabled)
+		.setUnderline(properties.underline)
+		.setItalic(properties.italic)
+		.setBold(properties.bold)
+		.setStrikethrough(properties.strikethrough)
+		.setStrokeColor(properties.strokeColor)
+		.setStrokeSize(properties.strokeSize)
+		.setShadowColor(properties.shadowColor)
+		.setShadowOffset(properties.shadowOffset);
+	if ('demoText' in properties) {
+		text
+			.setDemoText(properties.demoText)
+			.setTemplateVarsEnabled(properties.templateVarsEnabled)
+			.setFaceDilate(properties.faceDilate);
+	}
 }
 
 export function materializeUamLoaderProperties(
@@ -124,7 +164,6 @@ export function materializeUamListProperties(
 	properties: UamListProperties | UamTreeProperties,
 ): void {
 	list
-		.setGroup(properties.group)
 		.setLayout(properties.layout)
 		.setAlign(properties.align)
 		.setVAlign(properties.vAlign)
@@ -326,6 +365,7 @@ function materializeDisplayNodeBase<TNode extends UamDisplayNode, TTarget extend
 		.setRotation(node.rotation)
 		.setCustomData(node.customData)
 		.setRelations(materializeRelations(node.relations));
+	if ('group' in node) target.setGroup(node.group);
 	return target;
 }
 
@@ -503,6 +543,7 @@ export function materializeDisplayNode(
 			.setAlpha(node.alpha)
 			.setRotation(node.rotation)
 			.setCustomData(node.customData)
+			.setGroup(imageNode.group)
 			.setSrc(imageNode.resource.resourceId);
 		image.setRelations(materializeRelations(node.relations));
 		return image;
@@ -526,10 +567,8 @@ export function materializeDisplayNode(
 			.setAlpha(node.alpha)
 			.setRotation(node.rotation)
 			.setCustomData(node.customData)
-			.setText(textNode.text)
-			.setFont(textNode.font)
-			.setFontSize(textNode.fontSize)
-			.setColor(textNode.color);
+			.setGroup(textNode.group);
+		materializeUamTextProperties(text, textNode);
 		if (node.kind === 'textInput') {
 			const inputNode = node as UamTextInputNode;
 			(text as ReturnType<Document['createGTextInput']>)
@@ -556,6 +595,7 @@ export function materializeDisplayNode(
 			.setAlpha(node.alpha)
 			.setRotation(node.rotation)
 			.setCustomData(node.customData)
+			.setGroup(componentNode.group)
 			.setSrc(componentNode.resource.resourceId)
 			.setPackageId(componentNode.resource.packageId ?? '');
 		materializeUamComponentInstanceProperties(component, componentNode.instanceProperties);
@@ -576,7 +616,8 @@ export function materializeDisplayNode(
 			.setGrayed(node.grayed)
 			.setAlpha(node.alpha)
 			.setRotation(node.rotation)
-			.setCustomData(node.customData);
+			.setCustomData(node.customData)
+			.setGroup(listNode.group);
 		materializeUamListProperties(list, listNode);
 		list.setRelations(materializeRelations(node.relations));
 		return list;
@@ -594,7 +635,8 @@ export function materializeDisplayNode(
 			.setGrayed(node.grayed)
 			.setAlpha(node.alpha)
 			.setRotation(node.rotation)
-			.setCustomData(node.customData);
+			.setCustomData(node.customData)
+			.setGroup(graphNode.group);
 		materializeUamGraphProperties(graph, graphNode);
 		graph.setRelations(materializeRelations(node.relations));
 		return graph;
@@ -744,6 +786,7 @@ export function materializeDisplayNode(
 		.setAlpha(node.alpha)
 		.setRotation(node.rotation)
 		.setCustomData(node.customData)
+		.setGroup(movieClipNode.group)
 		.setSrc(movieClipNode.resource.resourceId)
 		.setPackageId(movieClipNode.resource.packageId ?? '')
 		.setFileName(movieClipNode.fileName)

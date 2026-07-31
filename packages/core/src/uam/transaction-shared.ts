@@ -19,6 +19,11 @@ export type UamDisplayListRewriteOperation = Extract<
 	{ kind: 'attachDisplayNode' | 'detachDisplayNode' }
 >;
 
+export type UamResourceLifecycleOperation = Extract<
+	UamTransactionOperation,
+	{ kind: 'addResource' | 'removeResource' }
+>;
+
 export function isLifecycleOperation(operation: UamTransactionOperation): operation is UamLifecycleOperation {
 	return operation.kind === 'addPackage'
 		|| operation.kind === 'renamePackage'
@@ -32,17 +37,60 @@ export function isDisplayListRewriteOperation(operation: UamTransactionOperation
 	return operation.kind === 'attachDisplayNode' || operation.kind === 'detachDisplayNode';
 }
 
+export function isResourceLifecycleOperation(operation: UamTransactionOperation): operation is UamResourceLifecycleOperation {
+	return operation.kind === 'addResource' || operation.kind === 'removeResource';
+}
+
 export function isUamNativeOperation(operation: UamTransactionOperation): boolean {
 	return operation.kind === 'setComponentProps'
 		|| operation.kind === 'setDisplayNodeProps'
 		|| operation.kind === 'setResourceFavorite'
 		|| operation.kind === 'setImageResourceProps'
+		|| isResourceLifecycleOperation(operation)
 		|| isLifecycleOperation(operation)
 		|| isDisplayListRewriteOperation(operation);
 }
 
 
 export const TEXT_DISPLAY_NODE_KINDS = new Set<UamDisplayNode['kind']>(['text', 'richText', 'textInput']);
+
+export const GROUPABLE_DISPLAY_NODE_KINDS = new Set<UamDisplayNode['kind']>([
+	'image',
+	'text',
+	'richText',
+	'textInput',
+	'component',
+	'list',
+	'tree',
+	'graph',
+	'group',
+	'movieClip',
+	'button',
+	'label',
+	'comboBox',
+	'progressBar',
+	'slider',
+	'scrollBar',
+]);
+
+export const GROUPABLE_DISPLAY_PROPERTY_TYPES = new Set<string>([
+	PropertyType.G_IMAGE,
+	PropertyType.G_TEXT_FIELD,
+	PropertyType.G_RICH_TEXT_FIELD,
+	PropertyType.G_TEXT_INPUT,
+	PropertyType.G_COMPONENT,
+	PropertyType.G_GRAPH,
+	PropertyType.G_GROUP,
+	PropertyType.G_LIST,
+	PropertyType.G_TREE,
+	PropertyType.G_MOVIE_CLIP,
+	PropertyType.G_BUTTON,
+	PropertyType.G_LABEL,
+	PropertyType.G_COMBO_BOX,
+	PropertyType.G_PROGRESS_BAR,
+	PropertyType.G_SLIDER,
+	PropertyType.G_SCROLL_BAR,
+]);
 
 export const TEXT_DISPLAY_PROPERTY_TYPES = new Set<string>([
 	PropertyType.G_TEXT_FIELD,

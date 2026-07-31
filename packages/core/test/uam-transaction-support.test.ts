@@ -4,8 +4,11 @@ import {
 	applyUamTransaction,
 	assertTransactionSupported,
 	createDefaultUamImageResourceProperties,
+	createDefaultUamPlainTextProperties,
+	createDefaultUamTextProperties,
 	normalizeUamProject,
 	validateTransactionSupport,
+	validateUamProject,
 	type UamButtonNode,
 	type UamComponentRefNode,
 	type UamDisplayNode,
@@ -49,6 +52,7 @@ const DISPLAY_NODE_BASE_KEYS = [
 	'customData',
 	'relations',
 	'gears',
+	'group',
 ] as const;
 
 function readSpecificProperties<T>(node: UamDisplayNode): T {
@@ -682,7 +686,6 @@ test('graph, loader, list, and tree property snapshots survive transaction lifec
 		maxWidth: 200,
 		minHeight: 12,
 		maxHeight: 160,
-		group: 'shapes',
 		skew: { x: 2, y: 3 },
 		graphType: 4,
 		lineSize: 3,
@@ -717,7 +720,6 @@ test('graph, loader, list, and tree property snapshots survive transaction lifec
 	};
 	const updatedList: UamListProperties = {
 		...initialList,
-		group: 'menus',
 		layout: 4,
 		align: 1,
 		vAlign: 2,
@@ -963,6 +965,7 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 		},
 		{
 			kind: 'richText',
+			...createDefaultUamTextProperties(),
 			...createDisplayNodeBase('n7', 'rich-text', 48),
 			text: '[b]Rich[/b]',
 			font: '',
@@ -971,6 +974,7 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 		},
 		{
 			kind: 'textInput',
+			...createDefaultUamPlainTextProperties(),
 			...createDisplayNodeBase('n8', 'text-input', 56),
 			text: 'Input',
 			font: '',
@@ -1003,14 +1007,28 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 			customData: `phase-a-${node.kind}`,
 		};
 		if (node.kind === 'richText') {
-			props.text = '[i]Updated rich text[/i]';
-			props.fontSize = 18;
-			props.color = '#ff00ff';
+			props.textProperties = {
+				...createDefaultUamTextProperties(),
+				text: '[i]Updated rich text[/i]',
+				fontSize: 18,
+				color: '#ff00ff',
+				autoSize: 4,
+				strokeColor: '#123456',
+				strokeSize: 0.25,
+				shadowColor: '#654321',
+				shadowOffset: { x: 0, y: 2 },
+			};
 		}
 		if (node.kind === 'textInput') {
-			props.text = 'Updated input';
-			props.font = 'Arial';
-			props.color = '#00aaee';
+			props.textProperties = {
+				...createDefaultUamPlainTextProperties(),
+				text: 'Updated input',
+				font: 'Arial',
+				color: '#00aaee',
+				demoText: 'Preview input',
+				templateVarsEnabled: true,
+				faceDilate: 0.125,
+			};
 		}
 		return {
 			kind: 'setDisplayNodeProps',
@@ -1046,6 +1064,9 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 		t.is(richText.text, '[i]Updated rich text[/i]');
 		t.is(richText.fontSize, 18);
 		t.is(richText.color, '#ff00ff');
+		t.is(richText.autoSize, 4);
+		t.is(richText.strokeSize, 0.25);
+		t.deepEqual(richText.shadowOffset, { x: 0, y: 2 });
 	}
 
 	const textInput = resultComponent.component.displayList.find((node) => node.id === 'n8');
@@ -1054,6 +1075,9 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 		t.is(textInput.text, 'Updated input');
 		t.is(textInput.font, 'Arial');
 		t.is(textInput.color, '#00aaee');
+		t.is(textInput.demoText, 'Preview input');
+		t.true(textInput.templateVarsEnabled);
+		t.is(textInput.faceDilate, 0.125);
 	}
 
 	const invalidPivotIssues = validateTransactionSupport(normalizedProject, [{
@@ -1062,6 +1086,156 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 		props: { pivot: { x: Number.NaN, y: 0.5 } },
 	}]);
 	t.true(invalidPivotIssues.some((issue) => issue.code === 'invalid_display_node_payload'));
+	const invalidTextIssues = validateTransactionSupport(normalizedProject, [{
+		kind: 'setDisplayNodeProps',
+		selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n7' },
+		props: {
+			textProperties: createDefaultUamPlainTextProperties(),
+		},
+	}]);
+	t.true(invalidTextIssues.some((issue) => issue.code === 'invalid_display_node_payload'));
+	for (const textProperties of [
+		{ ...createDefaultUamTextProperties(), fontSize: 0 },
+		{ ...createDefaultUamTextProperties(), strokeSize: 2 },
+		{ ...createDefaultUamTextProperties(), shadowOffset: { x: 3, y: 4 } },
+	]) {
+		t.true(validateTransactionSupport(normalizedProject, [{
+			kind: 'setDisplayNodeProps',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n7' },
+			props: { textProperties },
+		}]).some((issue) => issue.code === 'invalid_display_node_payload'));
+	}
+});
+
+test('group references validate against the projected component display list', (t) => {
+	const project = createSupportedProject();
+	const selector = { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' };
+	const groupNode: UamDisplayNode = {
+		kind: 'group',
+		...createDisplayNodeBase('group-1', 'layout-group'),
+		group: '',
+		locked: false,
+		layout: 0,
+		lineGap: 0,
+		columnGap: 0,
+		advanced: false,
+		excludeInvisibles: false,
+		autoSizeDisabled: false,
+		mainGridIndex: -1,
+	};
+	const attachAndAssign: UamTransactionOperation[] = [
+		{
+			kind: 'attachDisplayNode',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
+			atIndex: 0,
+			node: groupNode,
+		},
+		{ kind: 'setDisplayNodeProps', selector, props: { group: groupNode.id } },
+	];
+	t.deepEqual(validateTransactionSupport(project, attachAndAssign), []);
+	const grouped = applyUamTransaction(project, attachAndAssign);
+
+	t.true(validateTransactionSupport(grouped, [{
+		kind: 'setDisplayNodeProps',
+		selector,
+		props: { group: 'missing-group' },
+	}]).some((issue) => issue.code === 'invalid_group_reference'));
+	t.true(validateTransactionSupport(grouped, [
+		{ kind: 'setDisplayNodeProps', selector, props: { group: 'missing-group' } },
+		{
+			kind: 'renameResource',
+			selector: { packageId: 'pkg001', resourceId: 'img001' },
+			newName: 'background-renamed.png',
+		},
+	]).some((issue) => issue.code === 'invalid_group_reference'));
+	const historicallyInvalid = structuredClone(grouped);
+	const historicalComponent = historicallyInvalid.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	const historicalTitle = historicalComponent?.kind === 'component'
+		? historicalComponent.component.displayList.find((node) => node.id === selector.displayNodeId)
+		: null;
+	if (historicalTitle && 'group' in historicalTitle) historicalTitle.group = 'missing-group';
+	t.true(validateTransactionSupport(historicallyInvalid, [{
+		kind: 'setDisplayNodeProps',
+		selector,
+		props: { group: 'missing-group' },
+	}]).some((issue) => issue.code === 'invalid_group_reference'));
+	t.deepEqual(validateTransactionSupport(historicallyInvalid, [{
+		kind: 'setDisplayNodeProps',
+		selector,
+		props: { alpha: 0.75 },
+	}]), []);
+	const mixedOperations: UamTransactionOperation[] = [
+		{ kind: 'setDisplayNodeProps', selector, props: { alpha: 0.75 } },
+		{
+			kind: 'renameResource',
+			selector: { packageId: 'pkg001', resourceId: 'img001' },
+			newName: 'background-renamed.png',
+		},
+	];
+	t.true(validateTransactionSupport(historicallyInvalid, mixedOperations)
+		.some((issue) => issue.code === 'invalid_group_reference'));
+	t.throws(
+		() => applyUamTransaction(historicallyInvalid, mixedOperations),
+		{ instanceOf: UamTransactionError },
+	);
+
+	const loaderTarget = { ...selector, displayNodeId: 'loader-group-target' };
+	const withLoader = normalizeUamProject(grouped);
+	const component = withLoader.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (component?.kind !== 'component') return;
+	component.component.displayList.push({
+		kind: 'loader',
+		...createDisplayNodeBase(loaderTarget.displayNodeId, 'loader'),
+		pivot: { x: 0, y: 0 },
+		scale: { x: 1, y: 1 },
+		url: '',
+		filter: '',
+		filterData: '',
+		fill: 0,
+		shrinkOnly: false,
+		autoSize: false,
+		useResize: false,
+		align: 0,
+		vAlign: 0,
+		frame: 0,
+		playing: true,
+		color: '#FFFFFF',
+		fillMethod: 0,
+		fillOrigin: 0,
+		fillClockwise: true,
+		fillAmount: 100,
+		clearOnPublish: false,
+	});
+	t.true(validateTransactionSupport(withLoader, [{
+		kind: 'setDisplayNodeProps',
+		selector: loaderTarget,
+		props: { group: groupNode.id },
+	}]).some((issue) => issue.code === 'unsupported_display_node_field'));
+	const loaderWithGroup = structuredClone(withLoader);
+	const loaderComponent = loaderWithGroup.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	const loaderNode = loaderComponent?.kind === 'component'
+		? loaderComponent.component.displayList.find((node) => node.id === loaderTarget.displayNodeId)
+		: null;
+	if (loaderNode) Object.assign(loaderNode, { group: groupNode.id });
+	t.true(validateUamProject(loaderWithGroup).some((issue) => issue.path.endsWith('.group')));
+
+	t.true(validateTransactionSupport(grouped, [{
+		kind: 'detachDisplayNode',
+		selector: { ...selector, displayNodeId: groupNode.id },
+	}]).some((issue) => issue.code === 'invalid_group_reference'));
+
+	const clearAndDetach: UamTransactionOperation[] = [
+		{ kind: 'setDisplayNodeProps', selector, props: { group: '' } },
+		{ kind: 'detachDisplayNode', selector: { ...selector, displayNodeId: groupNode.id } },
+	];
+	t.deepEqual(validateTransactionSupport(grouped, clearAndDetach), []);
+	const cleared = applyUamTransaction(grouped, clearAndDetach);
+	const clearedComponent = cleared.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (clearedComponent?.kind !== 'component') return;
+	t.false(clearedComponent.component.displayList.some((node) => node.id === groupNode.id));
+	const clearedTitle = clearedComponent.component.displayList.find((node) => node.id === selector.displayNodeId);
+	t.true(clearedTitle !== undefined && 'group' in clearedTitle);
+	if (clearedTitle && 'group' in clearedTitle) t.is(clearedTitle.group, '');
 });
 
 test('assertTransactionSupported rejects duplicate transition names and duplicate look-gear-per-controller', (t) => {

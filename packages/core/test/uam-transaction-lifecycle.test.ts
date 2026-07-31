@@ -11,6 +11,7 @@ import {
 } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
 import { readProjectAsUam, writeProjectFromUam } from '../src/uam/index.js';
+import { applyUamNativeOperations } from '../src/uam/transaction-uam-apply.js';
 
 import {
 	LAYABOX_PROJECT_PATH,
@@ -20,6 +21,7 @@ import {
 	createLifecyclePackage,
 	createNonLookGears,
 	createSupportedProject,
+	createTransitionModel,
 	roundTripCommittedProject,
 	updateNonLookGear,
 } from './uam-transaction-fixtures.js';
@@ -49,11 +51,19 @@ test('resource lifecycle preflight projects batches and rejects unsafe source pa
 	]);
 	t.true(removedTargetIssues.some((issue) => issue.code === 'invalid_resource_selector'));
 
-	const replacedId = applyUamTransaction(createSupportedProject(), [
+	const replacementProject = createSupportedProject();
+	const replacementImage = replacementProject.packages[0]?.resources.find((resource) => resource.id === 'img001');
+	if (replacementImage?.kind !== 'image') {
+		t.fail('expected image replacement fixture');
+		return;
+	}
+	const replacementImagePayload = structuredClone(replacementImage);
+	delete replacementImagePayload.sourcePath;
+	const replacedId = applyUamTransaction(replacementProject, [
 		{ kind: 'removeResource', selector: { packageId: 'pkg001', resourceId: 'img001' } },
-		{ kind: 'addResource', selector: { packageId: 'pkg001' }, resource: { ...addResource, id: 'img001' } },
+		{ kind: 'addResource', selector: { packageId: 'pkg001' }, resource: replacementImagePayload },
 	]);
-	t.is(replacedId.packages[0]?.resources.find((resource) => resource.id === 'img001')?.kind, 'misc');
+	t.is(replacedId.packages[0]?.resources.find((resource) => resource.id === 'img001')?.kind, 'image');
 
 	const sourcePathIssues = validateTransactionSupport(createSupportedProject(), [{
 		kind: 'addResource',
@@ -71,6 +81,110 @@ test('resource lifecycle preflight projects batches and rejects unsafe source pa
 		{ instanceOf: UamTransactionError },
 	);
 	t.true(collisionError?.issues?.some((issue) => issue.message.includes('conflicts with the package descriptor')) ?? false);
+
+	const referencedSoundProject = createSupportedProject();
+	referencedSoundProject.packages[0]?.resources.push({
+		kind: 'sound',
+		id: 'snd001',
+		name: 'click',
+		path: '/sounds',
+		exported: true,
+		favorite: false,
+		branch: '',
+		branchItemIds: [],
+		file: 'click.mp3',
+		metadata: null,
+		sourceBytes: new Uint8Array([1]),
+	});
+	const referencedSoundComponent = referencedSoundProject.packages[0]?.resources
+		.find((resource) => resource.id === 'cmp001');
+	if (referencedSoundComponent?.kind !== 'component') {
+		t.fail('expected referenced sound component fixture');
+		return;
+	}
+	referencedSoundComponent.component.properties.sound = 'ui://pkg001/snd001';
+	t.true(validateTransactionSupport(referencedSoundProject, [{
+		kind: 'removeResource',
+		selector: { packageId: 'pkg001', resourceId: 'snd001' },
+	}]).some((issue) => issue.code === 'invalid_resource_reference'));
+	t.deepEqual(validateTransactionSupport(referencedSoundProject, [
+		{
+			kind: 'setComponentProps',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
+			props: { properties: { ...referencedSoundComponent.component.properties, sound: '' } },
+		},
+		{ kind: 'removeResource', selector: { packageId: 'pkg001', resourceId: 'snd001' } },
+	]), []);
+
+	for (const source of ['text', 'transition', 'gear'] as const) {
+		const referencedProject = createSupportedProject();
+		const component = referencedProject.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+		const sourceImage = referencedProject.packages[0]?.resources.find((resource) => resource.id === 'img001');
+		if (component?.kind !== 'component' || sourceImage?.kind !== 'image') continue;
+		referencedProject.packages[0]?.resources.push({
+			...structuredClone(sourceImage),
+			id: 'embedded',
+			name: 'embedded.png',
+			fileName: 'embedded.png',
+			sourcePath: '/images/embedded.png',
+		});
+		if (source === 'text') {
+			const textNode = component.component.displayList.find((node) => node.id === 'n1');
+			if (textNode?.kind === 'text') textNode.text = '<img src="ui://pkg001embedded">';
+		} else if (source === 'transition') {
+			const transition = createTransitionModel();
+			transition.items[0]!.startValue = ['ui://pkg001embedded'];
+			component.component.transitions.push(transition);
+		} else {
+			component.component.controllers.push(createControllerModel('embedded-state'));
+			const textNode = component.component.displayList.find((node) => node.id === 'n1');
+			textNode?.gears.push({
+				kind: 'text',
+				name: 'resource-text',
+				controllerName: 'embedded-state',
+				states: [],
+				defaultValue: { text: 'ui://pkg001embedded' },
+				condition: '',
+				positionsInPercent: false,
+				tween: false,
+				tweenDuration: 0.3,
+				tweenDelay: 0,
+				easeType: 5,
+				customEasePath: '',
+			});
+		}
+		t.true(validateTransactionSupport(referencedProject, [{
+			kind: 'removeResource',
+			selector: { packageId: 'pkg001', resourceId: 'embedded' },
+		}]).some((issue) => issue.code === 'invalid_resource_reference'), source);
+	}
+});
+
+test('UAM-native execution failure leaves the input project unchanged', (t) => {
+	const project = createSupportedProject();
+	const before = structuredClone(project);
+	t.throws(() => applyUamNativeOperations(project, [
+		{
+			kind: 'addResource',
+			selector: { packageId: 'pkg001' },
+			resource: {
+				kind: 'misc',
+				id: 'temporary',
+				name: 'temporary',
+				path: '/',
+				exported: true,
+				favorite: false,
+				branch: '',
+				branchItemIds: [],
+				file: 'temporary.bin',
+				metadata: null,
+				sourceBytes: new Uint8Array([1]),
+			},
+		},
+		{ kind: 'removeResource', selector: { packageId: 'pkg001', resourceId: 'missing' } },
+	]));
+	t.deepEqual(project, before);
+	t.false(project.packages[0]?.resources.some((resource) => resource.id === 'temporary'));
 });
 
 test('package and component lifecycle transactions survive write, reload, and inverse operations', async (t) => {
@@ -179,7 +293,7 @@ test('package and component lifecycle preflight reports dependency and batch dia
 			props: { text: 'Separate transaction' },
 		},
 	]);
-	t.true(batchIssues.some((issue) => issue.code === 'unsupported_operation_batch'));
+	t.deepEqual(batchIssues, []);
 });
 
 test('component lifecycle atomically rewrites inbound display references', async (t) => {
@@ -189,6 +303,7 @@ test('component lifecycle atomically rewrites inbound display references', async
 	const originalReference: UamComponentRefNode = {
 		...createDisplayNodeBase('component-ref', 'component-ref'),
 		kind: 'component',
+		group: '',
 		resource: { packageId: '', resourceId: 'cmp002' },
 	};
 	host.component.displayList = [originalReference];
@@ -347,10 +462,16 @@ test('resource writes clean only explicit prior project sources and commit their
 		t.is(renamedImage.sourcePath, '/moved/renamed.png');
 		await t.throwsAsync(fs.access(path.join(tmpDir, 'assets', 'Main', 'images', 'background.png')));
 
-		const removed = applyUamTransaction(renamed, [{
-			kind: 'removeResource',
-			selector: { packageId: 'pkg001', resourceId: 'img001' },
-		}]);
+		const removed = applyUamTransaction(renamed, [
+			{
+				kind: 'detachDisplayNode',
+				selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n0' },
+			},
+			{
+				kind: 'removeResource',
+				selector: { packageId: 'pkg001', resourceId: 'img001' },
+			},
+		]);
 		await writeProjectFromUam(io, removed, outFairy, { previousProject: renamed });
 		await t.throwsAsync(fs.access(path.join(tmpDir, 'assets', 'Main', 'moved', 'renamed.png')));
 

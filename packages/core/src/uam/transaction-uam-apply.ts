@@ -1,4 +1,4 @@
-import type { UamComponentResource, UamDisplayNode, UamPackage, UamProject } from './model.js';
+import type { UamAssetResource, UamComponentResource, UamDisplayNode, UamPackage, UamProject } from './model.js';
 import { normalizeUamProject } from './normalize.js';
 import {
 	UamTransactionError,
@@ -14,11 +14,13 @@ import {
 	findResourceSpecWithPath,
 	isDisplayListRewriteOperation,
 	isLifecycleOperation,
+	isResourceLifecycleOperation,
 	isUamNativeOperation,
 	selectorDetails,
 	TEXT_DISPLAY_NODE_KINDS,
 	type UamDisplayListRewriteOperation,
 	type UamLifecycleOperation,
+	type UamResourceLifecycleOperation,
 	withDefaultOwnPackageRef,
 } from './transaction-shared.js';
 
@@ -39,6 +41,15 @@ function cloneComponentSnapshot(
 		throw new Error('Expected a component lifecycle payload.');
 	}
 	return resource;
+}
+
+function cloneAssetSnapshot(project: UamProject, pkg: UamPackage, resource: UamAssetResource): UamAssetResource {
+	const cloned = normalizeUamProject({
+		...project,
+		packages: [{ ...pkg, resources: [resource] }],
+	}).packages[0]?.resources[0];
+	if (!cloned || cloned.kind === 'component') throw new Error('Expected a binary resource lifecycle payload.');
+	return cloned;
 }
 
 function requirePackageSpec(project: UamProject, packageId: string): UamPackage {
@@ -148,6 +159,29 @@ export function applyUamDisplayListRewriteOperation(project: UamProject, operati
 	}
 }
 
+export function applyUamResourceLifecycleOperation(
+	project: UamProject,
+	operation: UamResourceLifecycleOperation,
+): void {
+	const pkg = requirePackageSpec(project, operation.selector.packageId);
+	switch (operation.kind) {
+		case 'addResource':
+			if (pkg.resources.some((resource) => resource.id === operation.resource.id)) {
+				throw new Error(`Resource id "${operation.resource.id}" already exists in package "${pkg.id}".`);
+			}
+			pkg.resources.push(cloneAssetSnapshot(project, pkg, operation.resource));
+			return;
+		case 'removeResource': {
+			const resourceIndex = pkg.resources.findIndex((resource) => resource.id === operation.selector.resourceId);
+			const resource = pkg.resources[resourceIndex];
+			if (!resource || resource.kind === 'component') {
+				throw new Error(`Binary resource "${operation.selector.resourceId}" was not found in package "${pkg.id}".`);
+			}
+			pkg.resources.splice(resourceIndex, 1);
+		}
+	}
+}
+
 
 type UamTextLikeDisplayNode = Extract<UamDisplayNode, { kind: 'text' | 'richText' | 'textInput' }>;
 
@@ -157,7 +191,9 @@ function isTextLikeDisplayNode(node: UamDisplayNode): node is UamTextLikeDisplay
 
 export function canApplyOperationsInUam(operations: UamTransactionOperation[]): boolean {
 	return operations.every(isUamNativeOperation)
-		&& (!operations.some(isDisplayListRewriteOperation) || operations.some(isLifecycleOperation));
+		&& (!operations.some(isDisplayListRewriteOperation)
+			|| operations.some(isLifecycleOperation)
+			|| operations.some(isResourceLifecycleOperation));
 }
 
 function applyDisplayNodePropsUpdate(node: UamDisplayNode, props: UamDisplayNodePropsUpdate): void {
@@ -171,7 +207,19 @@ function applyDisplayNodePropsUpdate(node: UamDisplayNode, props: UamDisplayNode
 	if (props.alpha !== undefined) node.alpha = props.alpha;
 	if (props.rotation !== undefined) node.rotation = props.rotation;
 	if (props.customData !== undefined) node.customData = props.customData;
+	if (props.group !== undefined) {
+		if (!('group' in node)) {
+			throw new Error(`Group references are not supported on display node kind "${node.kind}".`);
+		}
+		node.group = props.group;
+	}
 
+	if (props.textProperties !== undefined) {
+		if (!isTextLikeDisplayNode(node)) {
+			throw new Error(`Text display props are not supported on display node kind "${node.kind}".`);
+		}
+		Object.assign(node, structuredClone(props.textProperties));
+	}
 	const hasTextProps = props.text !== undefined
 		|| props.font !== undefined
 		|| props.fontSize !== undefined
@@ -275,6 +323,10 @@ function applyUamNativeOperation(project: UamProject, operation: UamTransactionO
 			applyDisplayNodePropsUpdate(found.node, operation.props);
 			return;
 		}
+		case 'addResource':
+		case 'removeResource':
+			applyUamResourceLifecycleOperation(project, operation);
+			return;
 		case 'addPackage':
 		case 'renamePackage':
 		case 'removePackage':

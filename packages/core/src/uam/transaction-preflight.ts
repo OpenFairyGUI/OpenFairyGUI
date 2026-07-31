@@ -21,6 +21,7 @@ import {
 	isValidUamComponentInstanceProperties,
 	isValidUamComponentProperties,
 	isValidUamImageResourceProperties,
+	isValidUamTextProperties,
 	validateUamProject,
 } from './validate.js';
 import {
@@ -39,14 +40,19 @@ import {
 	findDisplayNodeSpec,
 	findDisplayNodeSpecWithPath,
 	findPackageSpec,
+	GROUPABLE_DISPLAY_NODE_KINDS,
 	findProjectedResource,
 	isDisplayListRewriteOperation,
 	isLifecycleOperation,
+	isResourceLifecycleOperation,
+	isUamNativeOperation,
 	TEXT_DISPLAY_NODE_KINDS,
 } from './transaction-shared.js';
 import {
+	applyUamNativeOperations,
 	applyUamDisplayListRewriteOperation,
 	applyUamLifecycleOperation,
+	applyUamResourceLifecycleOperation,
 } from './transaction-uam-apply.js';
 
 function pushSupportIssue(
@@ -312,7 +318,6 @@ const GRAPH_PROPERTY_KEYS = [
 	'maxWidth',
 	'minHeight',
 	'maxHeight',
-	'group',
 	'skew',
 	'graphType',
 	'lineSize',
@@ -347,7 +352,6 @@ const LOADER_PROPERTY_KEYS = [
 ] as const satisfies readonly (keyof UamLoaderProperties)[];
 
 const LIST_PROPERTY_KEYS = [
-	'group',
 	'layout',
 	'align',
 	'vAlign',
@@ -462,7 +466,6 @@ function isValidGraphProperties(value: unknown): value is UamGraphProperties {
 			properties.lineSize,
 			properties.startAngle,
 		].every(isFiniteNumber)
-		&& typeof properties.group === 'string'
 		&& isFiniteUamPoint(properties.skew)
 		&& isIntegerBetween(properties.graphType, 0, 4)
 		&& isColor(properties.lineColor)
@@ -515,7 +518,6 @@ function isValidListProperties(
 					: true
 	);
 	const validListProperties = [
-		properties.group,
 		properties.defaultItem,
 		properties.src,
 		properties.vtScrollBarRes,
@@ -579,6 +581,17 @@ function validateDisplayPropsPayload(
 ): void {
 	const node = findDisplayNodeSpec(project, op.selector);
 	const nodeKind = node?.kind;
+	const hasTextProperties = op.props.textProperties !== undefined;
+	const hasTextOverrides = [...TEXT_DISPLAY_PROP_KEYS].some((key) => op.props[key] !== undefined);
+	if (hasTextProperties && hasTextOverrides) {
+		pushSupportIssue(
+			issues,
+			'invalid_display_node_payload',
+			`${path}.props`,
+			'textProperties cannot be combined with individual text property overrides.',
+			{ operationKind: op.kind, nodeKind },
+		);
+	}
 	for (const key of Object.keys(op.props) as Array<keyof UamDisplayNodePropsUpdate>) {
 		if (key === 'pivot') {
 			if (!isFiniteUamPoint(op.props.pivot)) {
@@ -599,6 +612,26 @@ function validateDisplayPropsPayload(
 					'invalid_display_node_payload',
 					`${path}.props.pivotAsAnchor`,
 					'Display node pivotAsAnchor must be boolean.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			}
+			continue;
+		}
+		if (key === 'group') {
+			if (nodeKind && !GROUPABLE_DISPLAY_NODE_KINDS.has(nodeKind)) {
+				pushSupportIssue(
+					issues,
+					'unsupported_display_node_field',
+					`${path}.props.group`,
+					'Group references are not supported on loader or loader3D display nodes.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			} else if (typeof op.props.group !== 'string') {
+				pushSupportIssue(
+					issues,
+					'invalid_display_node_payload',
+					`${path}.props.group`,
+					'Display node group must be a string.',
 					{ operationKind: op.kind, nodeKind, field: key },
 				);
 			}
@@ -701,6 +734,33 @@ function validateDisplayPropsPayload(
 					'invalid_display_node_payload',
 					`${path}.props.componentInstanceProperties`,
 					'Component instance properties must be null or a complete valid extension snapshot.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			}
+			continue;
+		}
+		if (key === 'textProperties') {
+			if (nodeKind && !TEXT_DISPLAY_NODE_KINDS.has(nodeKind)) {
+				pushSupportIssue(
+					issues,
+					'unsupported_text_field_target',
+					`${path}.props.textProperties`,
+					'Text properties are only supported on text, richText, or textInput display nodes.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			} else if (
+				nodeKind
+				&& TEXT_DISPLAY_NODE_KINDS.has(nodeKind)
+				&& !isValidUamTextProperties(
+					op.props.textProperties,
+					nodeKind as 'text' | 'richText' | 'textInput',
+				)
+			) {
+				pushSupportIssue(
+					issues,
+					'invalid_display_node_payload',
+					`${path}.props.textProperties`,
+					'Text properties must be a complete valid snapshot matching the target text node kind.',
 					{ operationKind: op.kind, nodeKind, field: key },
 				);
 			}
@@ -1566,7 +1626,11 @@ function validateLifecycleOperationPayloads(
 	const referenceChecks: UamLifecycleReferenceCheck[] = [];
 	const initialIssueCount = issues.length;
 	for (const [operationIndex, operation] of operations.entries()) {
-		if (!isLifecycleOperation(operation) && !isDisplayListRewriteOperation(operation)) continue;
+		if (
+			!isLifecycleOperation(operation)
+			&& !isResourceLifecycleOperation(operation)
+			&& !isDisplayListRewriteOperation(operation)
+		) continue;
 		const operationPath = `operations[${operationIndex}]`;
 		const issueCount = issues.length;
 		switch (operation.kind) {
@@ -1627,6 +1691,35 @@ function validateLifecycleOperationPayloads(
 				}
 				break;
 			}
+			case 'addResource': {
+				const pkg = validateLifecyclePackageSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				if (pkg) {
+					validateAssetResourcePayload(
+						projected,
+						[operation],
+						0,
+						operation.selector,
+						operation.resource,
+						operationPath,
+						issues,
+						operation.kind,
+					);
+				}
+				break;
+			}
+			case 'removeResource': {
+				const resource = findProjectedResource(projected, [operation], 0, operation.selector);
+				if (!resource || resource.kind === 'component') {
+					pushSupportIssue(
+						issues,
+						'invalid_resource_selector',
+						`${operationPath}.selector.resourceId`,
+						`Binary resource "${operation.selector.resourceId}" was not found in package "${operation.selector.packageId}".`,
+						{ operationKind: operation.kind },
+					);
+				}
+				break;
+			}
 			case 'attachDisplayNode': {
 				const component = validateLifecycleComponentSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
 				if (!Number.isInteger(operation.atIndex) || operation.atIndex < 0) {
@@ -1657,6 +1750,8 @@ function validateLifecycleOperationPayloads(
 		if (issues.length !== issueCount) continue;
 		if (isLifecycleOperation(operation)) {
 			applyUamLifecycleOperation(projected, operation);
+		} else if (isResourceLifecycleOperation(operation)) {
+			applyUamResourceLifecycleOperation(projected, operation);
 		} else {
 			applyUamDisplayListRewriteOperation(projected, operation);
 		}
@@ -1720,14 +1815,19 @@ function validateLifecycleBatchCompatibility(
 	issues: UamTransactionSupportIssue[],
 ): boolean {
 	if (!operations.some(isLifecycleOperation)) return true;
-	const nonLifecycleIndex = operations.findIndex((operation) => !isLifecycleOperation(operation) && !isDisplayListRewriteOperation(operation));
+	const nonLifecycleIndex = operations.findIndex((operation) => (
+		!isLifecycleOperation(operation)
+		&& !isResourceLifecycleOperation(operation)
+		&& !isDisplayListRewriteOperation(operation)
+		&& operation.kind !== 'setDisplayNodeProps'
+	));
 	if (nonLifecycleIndex < 0) return true;
 	const operation = operations[nonLifecycleIndex]!;
 	pushSupportIssue(
 		issues,
 		'unsupported_operation_batch',
 		`operations[${nonLifecycleIndex}].kind`,
-		`Lifecycle operations may only be batched with lifecycle operations or display-list rewrites; "${operation.kind}" must be committed separately.`,
+		`Lifecycle operations may only be batched with resource lifecycle operations, display-list rewrites, or display-node property updates; "${operation.kind}" must be committed separately.`,
 		{ operationKind: operation.kind },
 	);
 	return false;
@@ -1958,6 +2058,325 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 	}
 }
 
+interface ProjectedResourceReferenceIssue {
+	key: string;
+	path: string;
+	message: string;
+}
+
+function findUiResource(project: UamProject, value: string) {
+	if (!value.startsWith('ui://')) return null;
+	const reference = value.slice(5);
+	const slashIndex = reference.indexOf('/');
+	if (slashIndex >= 0) {
+		const packageKey = reference.slice(0, slashIndex);
+		const resourceKey = reference.slice(slashIndex + 1);
+		const pkg = project.packages.find((candidate) => candidate.id === packageKey || candidate.name === packageKey);
+		return pkg?.resources.find((resource) => (
+			resource.id === resourceKey
+			|| resource.name === resourceKey
+			|| resource.name.replace(/\.[^.]+$/, '') === resourceKey
+		)) ?? null;
+	}
+	const pkg = [...project.packages]
+		.sort((left, right) => right.id.length - left.id.length)
+		.find((candidate) => reference.startsWith(candidate.id));
+	return pkg?.resources.find((resource) => resource.id === reference.slice(pkg.id.length)) ?? null;
+}
+
+function collectUiReferences(value: unknown): string[] {
+	if (Array.isArray(value)) return value.flatMap(collectUiReferences);
+	if (typeof value === 'object' && value !== null) {
+		return Object.values(value).flatMap(collectUiReferences);
+	}
+	if (typeof value !== 'string') return [];
+	return [...value.matchAll(/ui:\/\/[^\s"'<>()[\]{}]+/g)].map((match) => match[0]);
+}
+
+function collectProjectedResourceReferenceIssues(project: UamProject): ProjectedResourceReferenceIssue[] {
+	const issues: ProjectedResourceReferenceIssue[] = [];
+	const findResource = (packageId: string, resourceId: string) => (
+		project.packages.find((pkg) => pkg.id === packageId)?.resources.find((resource) => resource.id === resourceId)
+	);
+	const pushMissing = (
+		key: string,
+		path: string,
+		packageId: string,
+		resourceId: string,
+		expectedKinds: readonly UamPackage['resources'][number]['kind'][],
+	) => {
+		const target = findResource(packageId, resourceId);
+		if (target && expectedKinds.includes(target.kind)) return;
+		issues.push({
+			key,
+			path,
+			message: `Resource reference "${packageId}/${resourceId}" must target ${expectedKinds.join(' or ')}.`,
+		});
+	};
+	const pushMissingUi = (
+		key: string,
+		path: string,
+		value: string,
+		expectedKinds: readonly UamPackage['resources'][number]['kind'][],
+	) => {
+		if (!value.startsWith('ui://')) return;
+		const target = findUiResource(project, value);
+		if (target && expectedKinds.includes(target.kind)) return;
+		issues.push({
+			key,
+			path,
+			message: `Resource reference "${value}" must target ${expectedKinds.join(' or ')}.`,
+		});
+	};
+	const componentKinds = ['component'] as const;
+	const visualKinds = ['image', 'movieClip', 'component', 'spine', 'dragonBones'] as const;
+	const binaryKinds = ['image', 'sound', 'misc', 'font', 'movieClip', 'spine', 'dragonBones'] as const;
+	const resourceKinds = UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds;
+
+	for (const pkg of project.packages) {
+		for (const resource of pkg.resources) {
+			if (resource.kind === 'font') {
+				const textureId = `${resource.metadata?.textureId ?? ''}`;
+				if (textureId) {
+					pushMissing(
+						`${pkg.id}/${resource.id}/metadata.textureId`,
+						`packages.${pkg.id}.resources.${resource.id}.metadata.textureId`,
+						pkg.id,
+						textureId,
+						['image'],
+					);
+				}
+			}
+			if (resource.kind === 'spine' || resource.kind === 'dragonBones') {
+				const requireIds = Array.isArray(resource.metadata?.requireIds)
+					? resource.metadata.requireIds.filter((value): value is string => typeof value === 'string')
+					: [];
+				for (const [requireIndex, requireId] of requireIds.entries()) {
+					pushMissing(
+						`${pkg.id}/${resource.id}/metadata.requireIds/${requireId}`,
+						`packages.${pkg.id}.resources.${resource.id}.metadata.requireIds.${requireIndex}`,
+						pkg.id,
+						requireId,
+						binaryKinds,
+					);
+				}
+			}
+			if (resource.kind !== 'component') continue;
+			const componentPath = `packages.${pkg.id}.resources.${resource.id}.component`;
+			const componentRefs = [
+				['vtScrollBarRes', resource.component.properties.vtScrollBarRes],
+				['hzScrollBarRes', resource.component.properties.hzScrollBarRes],
+				['headerRes', resource.component.properties.headerRes],
+				['footerRes', resource.component.properties.footerRes],
+				['dropdown', resource.component.properties.dropdown],
+			] as const;
+			for (const [field, value] of componentRefs) {
+				pushMissingUi(
+					`${pkg.id}/${resource.id}/properties/${field}`,
+					`${componentPath}.properties.${field}`,
+					value,
+					componentKinds,
+				);
+			}
+			pushMissingUi(
+				`${pkg.id}/${resource.id}/properties/sound`,
+				`${componentPath}.properties.sound`,
+				resource.component.properties.sound,
+				['sound'],
+			);
+			for (const node of resource.component.displayList) {
+				const nodeKey = `${pkg.id}/${resource.id}/${node.id}`;
+				const nodePath = `packages.${pkg.id}.resources.${resource.id}.component.displayList.${node.id}`;
+				if (node.kind === 'image' && node.resource.resourceId) {
+					pushMissing(
+						`${nodeKey}/resource`,
+						`${nodePath}.resource`,
+						node.resource.packageId || pkg.id,
+						node.resource.resourceId,
+						['image'],
+					);
+				} else if (node.kind === 'movieClip' && node.resource.resourceId) {
+					pushMissing(
+						`${nodeKey}/resource`,
+						`${nodePath}.resource`,
+						node.resource.packageId || pkg.id,
+						node.resource.resourceId,
+						['movieClip'],
+					);
+				} else if (node.kind === 'component' && node.resource.resourceId) {
+					pushMissing(
+						`${nodeKey}/resource`,
+						`${nodePath}.resource`,
+						node.resource.packageId || pkg.id,
+						node.resource.resourceId,
+						componentKinds,
+					);
+				} else if ('packageId' in node && 'src' in node && node.src) {
+					pushMissing(
+						`${nodeKey}/src`,
+						`${nodePath}.src`,
+						node.packageId || pkg.id,
+						node.src,
+						componentKinds,
+					);
+				}
+				if (node.kind === 'text' || node.kind === 'richText' || node.kind === 'textInput') {
+					pushMissingUi(`${nodeKey}/font`, `${nodePath}.font`, node.font, ['font']);
+					for (const [referenceIndex, reference] of collectUiReferences(node.text).entries()) {
+						pushMissingUi(`${nodeKey}/text/${reference}`, `${nodePath}.text.${referenceIndex}`, reference, resourceKinds);
+					}
+				}
+				if (node.kind === 'loader' || node.kind === 'loader3D') {
+					pushMissingUi(`${nodeKey}/url`, `${nodePath}.url`, node.url, visualKinds);
+				}
+				if (node.kind === 'list' || node.kind === 'tree') {
+					const listRefs = [
+						['defaultItem', node.defaultItem],
+						['src', node.src],
+						['vtScrollBarRes', node.vtScrollBarRes],
+						['hzScrollBarRes', node.hzScrollBarRes],
+						['headerRes', node.headerRes],
+						['footerRes', node.footerRes],
+					] as const;
+					for (const [field, value] of listRefs) {
+						pushMissingUi(`${nodeKey}/${field}`, `${nodePath}.${field}`, value, componentKinds);
+					}
+					for (const [itemIndex, item] of node.listItems.entries()) {
+						pushMissingUi(`${nodeKey}/items/${itemIndex}/url`, `${nodePath}.listItems.${itemIndex}.url`, item.url ?? '', componentKinds);
+						pushMissingUi(`${nodeKey}/items/${itemIndex}/icon`, `${nodePath}.listItems.${itemIndex}.icon`, item.icon ?? '', visualKinds);
+						pushMissingUi(`${nodeKey}/items/${itemIndex}/selectedIcon`, `${nodePath}.listItems.${itemIndex}.selectedIcon`, item.selectedIcon ?? '', visualKinds);
+					}
+				}
+				if (node.kind === 'component' && node.instanceProperties) {
+					const instance = node.instanceProperties;
+					if ('icon' in instance) {
+						pushMissingUi(`${nodeKey}/instance/icon`, `${nodePath}.instanceProperties.icon`, instance.icon, visualKinds);
+					}
+					if (instance.extensionType === 'Button') {
+						pushMissingUi(`${nodeKey}/instance/selectedIcon`, `${nodePath}.instanceProperties.selectedIcon`, instance.selectedIcon, visualKinds);
+						pushMissingUi(`${nodeKey}/instance/sound`, `${nodePath}.instanceProperties.sound`, instance.sound, ['sound']);
+					}
+					if (instance.extensionType === 'ComboBox') {
+						for (const [itemIndex, item] of instance.items.entries()) {
+							pushMissingUi(`${nodeKey}/instance/items/${itemIndex}/icon`, `${nodePath}.instanceProperties.items.${itemIndex}.icon`, item.icon ?? '', visualKinds);
+						}
+					}
+				}
+				if ('icon' in node) {
+					pushMissingUi(`${nodeKey}/icon`, `${nodePath}.icon`, node.icon, visualKinds);
+				}
+				if ('selectedIcon' in node) {
+					pushMissingUi(`${nodeKey}/selectedIcon`, `${nodePath}.selectedIcon`, node.selectedIcon, visualKinds);
+				}
+				if ('icons' in node) {
+					for (const [iconIndex, icon] of node.icons.entries()) {
+						pushMissingUi(`${nodeKey}/icons/${iconIndex}`, `${nodePath}.icons.${iconIndex}`, icon, visualKinds);
+					}
+				}
+				if ('sound' in node) {
+					pushMissingUi(`${nodeKey}/sound`, `${nodePath}.sound`, node.sound, ['sound']);
+				}
+				for (const [gearIndex, gear] of node.gears.entries()) {
+					for (const [referenceIndex, reference] of collectUiReferences(gear).entries()) {
+						pushMissingUi(`${nodeKey}/gears/${gearIndex}/${reference}`, `${nodePath}.gears.${gearIndex}.${referenceIndex}`, reference, resourceKinds);
+					}
+				}
+			}
+			for (const [transitionIndex, transition] of resource.component.transitions.entries()) {
+				for (const [itemIndex, item] of transition.items.entries()) {
+					for (const [field, value] of [['startValue', item.startValue], ['endValue', item.endValue]] as const) {
+						for (const [referenceIndex, reference] of collectUiReferences(value).entries()) {
+							pushMissingUi(
+								`${pkg.id}/${resource.id}/transitions/${transitionIndex}/${itemIndex}/${field}/${reference}`,
+								`${componentPath}.transitions.${transitionIndex}.items.${itemIndex}.${field}.${referenceIndex}`,
+								reference,
+								resourceKinds,
+							);
+						}
+					}
+				}
+			}
+		}
+	}
+	return issues;
+}
+
+function collectTouchedGroupPaths(project: UamProject, operations: UamTransactionOperation[]): Set<string> {
+	const paths = new Set<string>();
+	for (const operation of operations) {
+		if (operation.kind !== 'setDisplayNodeProps' || operation.props.group === undefined) continue;
+		const found = findDisplayNodeSpecWithPath(project, operation.selector);
+		if (found) paths.add(`${found.path}.group`);
+	}
+	return paths;
+}
+
+function validateProjectedState(
+	project: UamProject,
+	operations: UamTransactionOperation[],
+	issues: UamTransactionSupportIssue[],
+): void {
+	if (issues.length > 0 || !operations.every(isUamNativeOperation)) return;
+	let projected: UamProject;
+	try {
+		projected = applyUamNativeOperations(project, operations);
+	} catch {
+		return;
+	}
+	const baselineValidationIssues = new Set(validateUamProject(normalizeUamProject(project))
+		.map((issue) => `${issue.path}\0${issue.message}`));
+	const touchedGroupPaths = collectTouchedGroupPaths(projected, operations);
+	for (const issue of validateUamProject(projected)) {
+		if (
+			baselineValidationIssues.has(`${issue.path}\0${issue.message}`)
+			&& !touchedGroupPaths.has(issue.path)
+		) continue;
+		pushSupportIssue(
+			issues,
+			issue.path.endsWith('.group') ? 'invalid_group_reference' : 'invalid_resource_payload',
+			issue.path,
+			issue.message,
+		);
+	}
+	if (
+		operations.some(isLifecycleOperation)
+		|| operations.some(isResourceLifecycleOperation)
+		|| operations.some(isDisplayListRewriteOperation)
+	) {
+		const baselineReferenceKeys = new Set(collectProjectedResourceReferenceIssues(normalizeUamProject(project))
+			.map((issue) => issue.key));
+		for (const issue of collectProjectedResourceReferenceIssues(projected)) {
+			if (baselineReferenceKeys.has(issue.key)) continue;
+			pushSupportIssue(issues, 'invalid_resource_reference', issue.path, issue.message);
+		}
+	}
+}
+
+function validateProjectedGroupState(
+	project: UamProject,
+	operations: UamTransactionOperation[],
+	issues: UamTransactionSupportIssue[],
+): void {
+	if (issues.length > 0 || operations.every(isUamNativeOperation)) return;
+	const relevantOperations = operations.filter((operation) => (
+		isLifecycleOperation(operation)
+		|| isDisplayListRewriteOperation(operation)
+		|| (operation.kind === 'setDisplayNodeProps' && operation.props.group !== undefined)
+	));
+	let projected: UamProject;
+	try {
+		projected = relevantOperations.length === 0
+			? normalizeUamProject(project)
+			: applyUamNativeOperations(project, relevantOperations);
+	} catch {
+		return;
+	}
+	for (const issue of validateUamProject(projected)) {
+		if (!issue.path.endsWith('.group')) continue;
+		pushSupportIssue(issues, 'invalid_group_reference', issue.path, issue.message);
+	}
+}
+
 export function validateTransactionSupport(
 	project: UamProject,
 	operations?: UamTransactionOperation[],
@@ -1969,9 +2388,17 @@ export function validateTransactionSupport(
 	}
 	const lifecycleOnly = validateLifecycleBatchCompatibility(operations, issues);
 	validateOperationPayloads(project, operations, issues);
-	if (lifecycleOnly && operations.some(isLifecycleOperation)) {
+	if (
+		lifecycleOnly
+		&& (
+			operations.some(isLifecycleOperation)
+			|| (operations.some(isResourceLifecycleOperation) && operations.some(isDisplayListRewriteOperation))
+		)
+	) {
 		validateLifecycleOperationPayloads(project, operations, issues);
 	}
+	validateProjectedGroupState(project, operations, issues);
+	validateProjectedState(project, operations, issues);
 	return issues;
 }
 

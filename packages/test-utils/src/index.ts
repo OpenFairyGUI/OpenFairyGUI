@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import {
 	createDefaultUamComponentProperties,
 	createDefaultUamImageResourceProperties,
+	createDefaultUamPlainTextProperties,
 	type UamProject,
 } from '@openfairygui/core';
 
@@ -159,10 +160,12 @@ export function createMinimalUamProject(projectId: string): UamProject {
 									customData: '',
 									relations: [],
 									gears: [],
+									group: '',
 									resource: { resourceId: 'img001' },
 								},
 								{
 									kind: 'text',
+									...createDefaultUamPlainTextProperties(),
 									id: 'n1',
 									name: 'title',
 									position: { x: 16, y: 18 },
@@ -175,6 +178,7 @@ export function createMinimalUamProject(projectId: string): UamProject {
 									customData: '',
 									relations: [],
 									gears: [],
+									group: '',
 									text: 'Title',
 									font: '',
 									fontSize: 18,

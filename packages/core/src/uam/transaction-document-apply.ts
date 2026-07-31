@@ -21,6 +21,7 @@ import {
 	materializeUamImageResourceProperties,
 	materializeUamListProperties,
 	materializeUamLoaderProperties,
+	materializeUamTextProperties,
 } from './bridge-materialize.js';
 import type {
 	UamComponentModel,
@@ -35,6 +36,7 @@ import type {
 } from './transaction-contracts.js';
 import {
 	COMMON_DISPLAY_PROPERTY_TYPES,
+	GROUPABLE_DISPLAY_PROPERTY_TYPES,
 	TEXT_DISPLAY_PROPERTY_TYPES,
 	type UamAttachableDisplayNode,
 	withDefaultOwnPackageRef,
@@ -49,6 +51,7 @@ type CommonDisplayPropTarget = GObject & {
 	setAlpha(alpha: number): unknown;
 	setRotation(rotation: number): unknown;
 	setCustomData(customData: string): unknown;
+	setGroup(group: string): unknown;
 };
 
 
@@ -496,8 +499,17 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 				throw new Error(`setDisplayNodeProps does not support display node type "${node.propertyType}" in Phase A.`);
 			}
 			applyCommonDisplayProps(node as CommonDisplayPropTarget, operation.props);
+			if (operation.props.group !== undefined) {
+				if (!GROUPABLE_DISPLAY_PROPERTY_TYPES.has(node.propertyType)) {
+					throw new Error(`Group references are not supported on display node type "${node.propertyType}".`);
+				}
+				(node as CommonDisplayPropTarget).setGroup(operation.props.group);
+			}
 			if (TEXT_DISPLAY_PROPERTY_TYPES.has(node.propertyType)) {
 				const textNode = node as GTextField;
+				if (operation.props.textProperties !== undefined) {
+					materializeUamTextProperties(textNode, operation.props.textProperties);
+				}
 				if (operation.props.text !== undefined) textNode.setText(operation.props.text);
 				if (operation.props.font !== undefined) textNode.setFont(operation.props.font);
 				if (operation.props.fontSize !== undefined) textNode.setFontSize(operation.props.fontSize);

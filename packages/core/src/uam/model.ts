@@ -278,24 +278,56 @@ interface UamDisplayNodeBase {
 	gears: UamGearBinding[];
 }
 
-export interface UamImageNode extends UamDisplayNodeBase {
+export interface UamGroupableDisplayNodeBase extends UamDisplayNodeBase {
+	group: string;
+}
+
+export interface UamImageNode extends UamGroupableDisplayNodeBase {
 	kind: 'image';
 	resource: UamResourceRef;
 }
 
-export interface UamTextNode extends UamDisplayNodeBase {
-	kind: 'text';
+export interface UamTextProperties {
 	text: string;
 	font: string;
 	fontSize: number;
 	color: string;
+	minSize: UamSize;
+	maxSize: UamSize;
+	align: number;
+	vAlign: number;
+	leading: number;
+	letterSpacing: number;
+	autoSize: number;
+	singleLine: boolean;
+	autoClearText: boolean;
+	underlaySoftness: number;
+	ubbEnabled: boolean;
+	underline: boolean;
+	italic: boolean;
+	bold: boolean;
+	strikethrough: boolean;
+	strokeColor: string | null;
+	strokeSize: number;
+	shadowColor: string | null;
+	shadowOffset: UamPoint;
 }
 
-export interface UamRichTextNode extends Omit<UamTextNode, 'kind'> {
+export interface UamPlainTextProperties extends UamTextProperties {
+	demoText: string;
+	templateVarsEnabled: boolean;
+	faceDilate: number;
+}
+
+export interface UamTextNode extends UamGroupableDisplayNodeBase, UamPlainTextProperties {
+	kind: 'text';
+}
+
+export interface UamRichTextNode extends UamGroupableDisplayNodeBase, UamTextProperties {
 	kind: 'richText';
 }
 
-export interface UamTextInputNode extends Omit<UamTextNode, 'kind'> {
+export interface UamTextInputNode extends UamGroupableDisplayNodeBase, UamPlainTextProperties {
 	kind: 'textInput';
 	promptText: string;
 	maxLength: number;
@@ -304,7 +336,7 @@ export interface UamTextInputNode extends Omit<UamTextNode, 'kind'> {
 	keyboardType: number;
 }
 
-export interface UamComponentRefNode extends UamDisplayNodeBase {
+export interface UamComponentRefNode extends UamGroupableDisplayNodeBase {
 	kind: 'component';
 	resource: UamResourceRef;
 	instanceProperties?: UamComponentInstanceProperties;
@@ -323,7 +355,6 @@ export interface UamListItemData {
 }
 
 export interface UamListProperties {
-	group: string;
 	layout: number;
 	align: number;
 	vAlign: number;
@@ -361,11 +392,11 @@ export interface UamTreeProperties extends UamListProperties {
 	clickToExpand: number;
 }
 
-export interface UamListNode extends UamDisplayNodeBase, UamListProperties {
+export interface UamListNode extends UamGroupableDisplayNodeBase, UamListProperties {
 	kind: 'list';
 }
 
-export interface UamTreeNode extends UamDisplayNodeBase, UamTreeProperties {
+export interface UamTreeNode extends UamGroupableDisplayNodeBase, UamTreeProperties {
 	kind: 'tree';
 }
 
@@ -375,7 +406,6 @@ export interface UamGraphProperties {
 	maxWidth: number;
 	minHeight: number;
 	maxHeight: number;
-	group: string;
 	skew: UamPoint;
 	graphType: number;
 	lineSize: number;
@@ -388,16 +418,15 @@ export interface UamGraphProperties {
 	distances: number[] | null;
 }
 
-export interface UamGraphNode extends UamDisplayNodeBase, UamGraphProperties {
+export interface UamGraphNode extends UamGroupableDisplayNodeBase, UamGraphProperties {
 	kind: 'graph';
 	pivot: UamPoint;
 	pivotAsAnchor: boolean;
 }
 
-export interface UamGroupNode extends UamDisplayNodeBase {
+export interface UamGroupNode extends UamGroupableDisplayNodeBase {
 	kind: 'group';
 	locked: boolean;
-	group: string;
 	layout: number;
 	lineGap: number;
 	columnGap: number;
@@ -453,7 +482,7 @@ export interface UamLoader3DNode extends UamDisplayNodeBase, UamLoader3DProperti
 	kind: 'loader3D';
 }
 
-export interface UamMovieClipNode extends UamDisplayNodeBase {
+export interface UamMovieClipNode extends UamGroupableDisplayNodeBase {
 	kind: 'movieClip';
 	resource: UamResourceRef;
 	fileName: string;
@@ -464,7 +493,7 @@ export interface UamMovieClipNode extends UamDisplayNodeBase {
 	color: string;
 }
 
-interface UamComponentDerivedNodeBase extends UamDisplayNodeBase {
+interface UamComponentDerivedNodeBase extends UamGroupableDisplayNodeBase {
 	src: string;
 	packageId: string;
 }
