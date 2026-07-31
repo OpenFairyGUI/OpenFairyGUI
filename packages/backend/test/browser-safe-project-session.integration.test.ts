@@ -2,7 +2,7 @@ import test from 'ava';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
-import { ProjectReader } from '@openfairygui/core/project-io';
+import { ProjectReader, ProjectWriter } from '@openfairygui/core/project-io';
 import {
 	createDefaultUamComponentProperties,
 	createDefaultUamPlainTextProperties,
@@ -699,9 +699,9 @@ test('browser-safe addResource indexes survive multi-resource inverse save and r
 	const fileSystem = createBackendStorageFileSystem(storage);
 	const project = createBackendFixtureProject();
 	const pkg = project.packages[0]!;
-	const orderedA = createMisc('ordered-a', 11);
-	const orderedB = createMisc('ordered-b', 22);
-	pkg.resources = [pkg.resources[1]!, pkg.resources[0]!, orderedA, orderedB];
+	const orderedA = createMisc('zz0001', 11);
+	const orderedB = createMisc('aa0001', 22);
+	pkg.resources = [orderedA, pkg.resources[0]!, pkg.resources[1]!, orderedB];
 	const originalOrder = pkg.resources.map((resource) => resource.id);
 	const snapshots = [orderedA, orderedB].map((resource) => structuredClone(resource));
 	const runtime = new BackendRuntime();
@@ -731,7 +731,7 @@ test('browser-safe addResource indexes survive multi-resource inverse save and r
 				kind: 'addResource' as const,
 				selector: { packageId: pkg.id },
 				resource,
-				atIndex: index + 2,
+				atIndex: index === 0 ? 0 : 3,
 			})),
 		});
 		t.true(restored.ok);
@@ -743,8 +743,19 @@ test('browser-safe addResource indexes survive multi-resource inverse save and r
 		});
 		t.true(saved.ok);
 		if (!saved.ok) return;
-		const reloaded = normalizeUamProject(liftDocumentToUamProject(await new ProjectReader(fileSystem).read(
+		const reader = new ProjectReader(fileSystem);
+		const reloadedDocument = await reader.read(
 			'ResourceOrder/Project.fairy',
+			{ hydrateResourceBytes: true },
+		);
+		t.is(
+			reloadedDocument.getRoot().listPackages().find((candidate) => candidate.getId() === pkg.id)
+				?.getExtras()._preservePackageResourceOrder,
+			true,
+		);
+		await new ProjectWriter(fileSystem).write(reloadedDocument, 'ResourceOrderCopy/Project.fairy');
+		const reloaded = normalizeUamProject(liftDocumentToUamProject(await reader.read(
+			'ResourceOrderCopy/Project.fairy',
 			{ hydrateResourceBytes: true },
 		)));
 		const reloadedPackage = reloaded.packages.find((candidate) => candidate.id === pkg.id)!;

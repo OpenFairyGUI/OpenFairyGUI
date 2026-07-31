@@ -1918,7 +1918,7 @@ function validateLifecycleOperationPayloads(
 						operation.kind,
 					);
 					validateLifecycleInsertionIndex(
-						operation.atIndex ?? pkg.resources.length,
+						operation.atIndex === undefined ? pkg.resources.length : operation.atIndex,
 						pkg.resources.length,
 						`${operationPath}.atIndex`,
 						'invalid_resource_index',

@@ -233,14 +233,14 @@ function insertChildAtIndex(component: Component, child: GObject, atIndex: numbe
 
 function insertResourceAtIndex(
 	pkg: Package,
-	resource: Parameters<Package['addResource']>[0],
+	createResource: () => Parameters<Package['addResource']>[0],
 	atIndex: number,
 ): void {
 	const resources = pkg.listResources();
 	if (!Number.isInteger(atIndex) || atIndex < 0 || atIndex > resources.length) {
 		throw new Error(`addResource.atIndex ${atIndex} is out of bounds for package "${pkg.getId()}".`);
 	}
-	resources.splice(atIndex, 0, resource);
+	resources.splice(atIndex, 0, createResource());
 	for (const current of pkg.listResources()) pkg.removeResource(current);
 	for (const ordered of resources) pkg.addResource(ordered);
 }
@@ -542,8 +542,8 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 			}
 			insertResourceAtIndex(
 				pkg,
-				materializeAssetResource(doc, operation.resource),
-				operation.atIndex ?? pkg.listResources().length,
+				() => materializeAssetResource(doc, operation.resource),
+				operation.atIndex === undefined ? pkg.listResources().length : operation.atIndex,
 			);
 			return;
 		}
