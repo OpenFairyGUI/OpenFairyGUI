@@ -285,6 +285,10 @@ OpenFairyGUI 当前已经把“代码生成”接入现有 `publish` 流程，�
 `customProperty` 定义，以及组件引用的 `Button`、`Label`、`ComboBox`、`ProgressBar`、`Slider`、
 `ScrollBar` 实例扩展覆盖；对应 XML 协议见 [Project XML 属性协议](./project-xml-attribute-reference.md)。
 
+列表与树节点的布局、渲染顺序、滚动区域、静态条目和树行为属性也按该 XML 协议独立读写；
+其中 `renderOrder="arch"` 使用 `apex` 记录顶点子项，树节点通过 `treeView`、`indent` 和
+`clickToExpand` 保留树行为。
+
 ## 文档边界
 
 | 项目 | 约束 |

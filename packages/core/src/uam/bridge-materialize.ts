@@ -19,13 +19,16 @@ import type {
 	UamFontSizeGearBinding,
 	UamGearBinding,
 	UamGraphNode,
+	UamGraphProperties,
 	UamGroupNode,
 	UamIconGearBinding,
 	UamImageNode,
 	UamLabelNode,
 	UamListNode,
+	UamListProperties,
 	UamLoader3DNode,
 	UamLoaderNode,
+	UamLoaderProperties,
 	UamLookGearBinding,
 	UamMovieClipNode,
 	UamProject,
@@ -38,6 +41,7 @@ import type {
 	UamTextInputNode,
 	UamTextNode,
 	UamTreeNode,
+	UamTreeProperties,
 	UamXYGearBinding,
 } from './model.js';
 import { assertValidUamProject } from './validate.js';
@@ -65,6 +69,97 @@ type MaterializedDisplayNodeBase = {
 	setCustomData(customData: string): MaterializedDisplayNodeBase;
 	setRelations(relations: Array<{ target: string; type: number; usePercent: boolean }>): MaterializedDisplayNodeBase;
 };
+
+export function materializeUamGraphProperties(
+	graph: ReturnType<Document['createGGraph']>,
+	properties: UamGraphProperties,
+): void {
+	graph
+		.setLocked(properties.locked)
+		.setMinWidth(properties.minWidth)
+		.setMaxWidth(properties.maxWidth)
+		.setMinHeight(properties.minHeight)
+		.setMaxHeight(properties.maxHeight)
+		.setGroup(properties.group)
+		.setSkew(properties.skew.x, properties.skew.y)
+		.setGraphType(properties.graphType)
+		.setLineSize(properties.lineSize)
+		.setLineColor(properties.lineColor)
+		.setFillColor(properties.fillColor)
+		.setCornerRadius(properties.cornerRadius)
+		.setPoints(properties.points)
+		.setSides(properties.sides)
+		.setStartAngle(properties.startAngle)
+		.setDistances(properties.distances);
+}
+
+export function materializeUamLoaderProperties(
+	loader: ReturnType<Document['createGLoader']>,
+	properties: UamLoaderProperties,
+): void {
+	loader
+		.setScale(properties.scale.x, properties.scale.y)
+		.setUrl(properties.url)
+		.setFilter(properties.filter)
+		.setFilterData(properties.filterData)
+		.setFill(properties.fill)
+		.setShrinkOnly(properties.shrinkOnly)
+		.setAutoSize(properties.autoSize)
+		.setUseResize(properties.useResize)
+		.setAlign(properties.align)
+		.setVAlign(properties.vAlign)
+		.setFrame(properties.frame)
+		.setPlaying(properties.playing)
+		.setColor(properties.color)
+		.setFillMethod(properties.fillMethod)
+		.setFillOrigin(properties.fillOrigin)
+		.setFillClockwise(properties.fillClockwise)
+		.setFillAmount(properties.fillAmount)
+		.setClearOnPublish(properties.clearOnPublish);
+}
+
+export function materializeUamListProperties(
+	list: ReturnType<Document['createGList']> | ReturnType<Document['createGTree']>,
+	properties: UamListProperties | UamTreeProperties,
+): void {
+	list
+		.setGroup(properties.group)
+		.setLayout(properties.layout)
+		.setAlign(properties.align)
+		.setVAlign(properties.vAlign)
+		.setLineGap(properties.lineGap)
+		.setColumnGap(properties.columnGap)
+		.setLineCount(properties.lineCount)
+		.setColumnCount(properties.columnCount)
+		.setSelectionMode(properties.selectionMode)
+		.setDefaultItem(properties.defaultItem)
+		.setAutoResizeItem(properties.autoResizeItem)
+		.setChildrenRenderOrder(properties.childrenRenderOrder)
+		.setApexIndex(properties.apexIndex)
+		.setSrc(properties.src)
+		.setOverflow(properties.overflow)
+		.setScrollType(properties.scrollType)
+		.setScrollBarFlags(properties.scrollBarFlags)
+		.setScrollBarMargin(materializeEdgeInsets(properties.scrollBarMargin))
+		.setVtScrollBarRes(properties.vtScrollBarRes)
+		.setHzScrollBarRes(properties.hzScrollBarRes)
+		.setHeaderRes(properties.headerRes)
+		.setFooterRes(properties.footerRes)
+		.setMargin(materializeEdgeInsets(properties.margin))
+		.setClipSoftness(properties.clipSoftness)
+		.setScrollItemToViewOnClick(properties.scrollItemToViewOnClick)
+		.setFoldInvisibleItems(properties.foldInvisibleItems)
+		.setListItems(cloneListItems(properties.listItems))
+		.setPageController(properties.pageController)
+		.setControllerOverrides(properties.controllerOverrides)
+		.setSelectionController(properties.selectionController);
+	if ('treeView' in properties) {
+		(list as ReturnType<Document['createGTree']>)
+			.setTreeView(properties.treeView)
+			.setIndent(properties.indent)
+			.setClickToExpand(properties.clickToExpand);
+	}
+}
 
 export function materializeUamComponentInstanceProperties(
 	component: ReturnType<Document['createGComponent']>,
@@ -464,44 +559,8 @@ export function materializeDisplayNode(
 			.setGrayed(node.grayed)
 			.setAlpha(node.alpha)
 			.setRotation(node.rotation)
-			.setCustomData(node.customData)
-			.setGroup(listNode.group)
-			.setLayout(listNode.layout)
-			.setAlign(listNode.align)
-			.setVAlign(listNode.vAlign)
-			.setLineGap(listNode.lineGap)
-			.setColumnGap(listNode.columnGap)
-			.setLineCount(listNode.lineCount)
-			.setColumnCount(listNode.columnCount)
-			.setSelectionMode(listNode.selectionMode)
-			.setDefaultItem(listNode.defaultItem)
-			.setAutoResizeItem(listNode.autoResizeItem)
-			.setChildrenRenderOrder(listNode.childrenRenderOrder)
-			.setApexIndex(listNode.apexIndex)
-			.setSrc(listNode.src)
-			.setOverflow(listNode.overflow)
-			.setScrollType(listNode.scrollType)
-			.setScrollBarFlags(listNode.scrollBarFlags)
-			.setScrollBarMargin(materializeEdgeInsets(listNode.scrollBarMargin))
-			.setVtScrollBarRes(listNode.vtScrollBarRes)
-			.setHzScrollBarRes(listNode.hzScrollBarRes)
-			.setHeaderRes(listNode.headerRes)
-			.setFooterRes(listNode.footerRes)
-			.setMargin(materializeEdgeInsets(listNode.margin))
-			.setClipSoftness(listNode.clipSoftness)
-			.setScrollItemToViewOnClick(listNode.scrollItemToViewOnClick)
-			.setFoldInvisibleItems(listNode.foldInvisibleItems)
-			.setListItems(cloneListItems(listNode.listItems))
-			.setPageController(listNode.pageController)
-			.setControllerOverrides(listNode.controllerOverrides)
-			.setSelectionController(listNode.selectionController);
-		if (node.kind === 'tree') {
-			const treeNode = node as UamTreeNode;
-			(list as ReturnType<Document['createGTree']>)
-				.setTreeView(treeNode.treeView)
-				.setIndent(treeNode.indent)
-				.setClickToExpand(treeNode.clickToExpand);
-		}
+			.setCustomData(node.customData);
+		materializeUamListProperties(list, listNode);
 		list.setRelations(materializeRelations(node.relations));
 		return list;
 	}
@@ -512,29 +571,14 @@ export function materializeDisplayNode(
 			.setId(node.id)
 			.setXY(node.position.x, node.position.y)
 			.setSize(node.size.width, node.size.height)
-			.setLocked(graphNode.locked)
-			.setMinWidth(graphNode.minWidth)
-			.setMaxWidth(graphNode.maxWidth)
-			.setMinHeight(graphNode.minHeight)
-			.setMaxHeight(graphNode.maxHeight)
 			.setPivot(graphNode.pivot.x, graphNode.pivot.y, graphNode.pivotAsAnchor)
-			.setGroup(graphNode.group)
-			.setSkew(graphNode.skew.x, graphNode.skew.y)
 			.setVisible(node.visible)
 			.setTouchable(node.touchable)
 			.setGrayed(node.grayed)
 			.setAlpha(node.alpha)
 			.setRotation(node.rotation)
-			.setCustomData(node.customData)
-			.setGraphType(graphNode.graphType)
-			.setLineSize(graphNode.lineSize)
-			.setLineColor(graphNode.lineColor)
-			.setFillColor(graphNode.fillColor)
-			.setCornerRadius(graphNode.cornerRadius)
-			.setPoints(graphNode.points)
-			.setSides(graphNode.sides)
-			.setStartAngle(graphNode.startAngle)
-			.setDistances(graphNode.distances);
+			.setCustomData(node.customData);
+		materializeUamGraphProperties(graph, graphNode);
 		graph.setRelations(materializeRelations(node.relations));
 		return graph;
 	}
@@ -572,30 +616,13 @@ export function materializeDisplayNode(
 			.setXY(node.position.x, node.position.y)
 			.setSize(node.size.width, node.size.height)
 			.setPivot(loaderNode.pivot.x, loaderNode.pivot.y, loaderNode.pivotAsAnchor ?? false)
-			.setScale(loaderNode.scale.x, loaderNode.scale.y)
 			.setVisible(node.visible)
 			.setTouchable(node.touchable)
 			.setGrayed(node.grayed)
 			.setAlpha(node.alpha)
 			.setRotation(node.rotation)
-			.setCustomData(node.customData)
-			.setUrl(loaderNode.url)
-			.setFilter(loaderNode.filter)
-			.setFilterData(loaderNode.filterData)
-			.setFill(loaderNode.fill)
-			.setShrinkOnly(loaderNode.shrinkOnly)
-			.setAutoSize(loaderNode.autoSize)
-			.setUseResize(loaderNode.useResize)
-			.setAlign(loaderNode.align)
-			.setVAlign(loaderNode.vAlign)
-			.setFrame(loaderNode.frame)
-			.setPlaying(loaderNode.playing)
-			.setColor(loaderNode.color)
-			.setFillMethod(loaderNode.fillMethod)
-			.setFillOrigin(loaderNode.fillOrigin)
-			.setFillClockwise(loaderNode.fillClockwise)
-			.setFillAmount(loaderNode.fillAmount)
-			.setClearOnPublish(loaderNode.clearOnPublish);
+			.setCustomData(node.customData);
+		materializeUamLoaderProperties(loader, loaderNode);
 		loader.setRelations(materializeRelations(node.relations));
 		return loader;
 	}

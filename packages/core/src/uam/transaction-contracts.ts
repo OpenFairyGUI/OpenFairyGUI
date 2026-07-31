@@ -7,10 +7,14 @@ import type {
 	UamControllerModel,
 	UamDisplayNode,
 	UamGearBinding,
+	UamGraphProperties,
+	UamListProperties,
+	UamLoaderProperties,
 	UamLoader3DProperties,
 	UamLookGearBinding,
 	UamPackage,
 	UamProject,
+	UamTreeProperties,
 	UamValidationIssue,
 } from './model.js';
 import type { UAM_SUPPORTED_TRANSACTION_SCOPE } from './model.js';
@@ -66,6 +70,9 @@ export interface UamDisplayNodePropsUpdate {
 	font?: string;
 	fontSize?: number;
 	color?: string;
+	graphProperties?: UamGraphProperties;
+	loaderProperties?: UamLoaderProperties;
+	listProperties?: UamListProperties | UamTreeProperties;
 	loader3DProperties?: UamLoader3DProperties;
 	componentInstanceProperties?: UamComponentInstanceProperties | null;
 }

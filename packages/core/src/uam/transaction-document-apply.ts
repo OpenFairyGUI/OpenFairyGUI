@@ -17,6 +17,9 @@ import {
 import {
 	materializeUamComponentInstanceProperties,
 	materializeUamComponentProperties,
+	materializeUamGraphProperties,
+	materializeUamListProperties,
+	materializeUamLoaderProperties,
 } from './bridge-materialize.js';
 import type {
 	UamComponentModel,
@@ -487,6 +490,33 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 				if (operation.props.font !== undefined) textNode.setFont(operation.props.font);
 				if (operation.props.fontSize !== undefined) textNode.setFontSize(operation.props.fontSize);
 				if (operation.props.color !== undefined) textNode.setColor(operation.props.color);
+			}
+			if (operation.props.graphProperties !== undefined) {
+				if (node.propertyType !== PropertyType.G_GRAPH) {
+					throw new Error(`Graph display props are not supported on display node type "${node.propertyType}".`);
+				}
+				materializeUamGraphProperties(
+					node as ReturnType<Document['createGGraph']>,
+					operation.props.graphProperties,
+				);
+			}
+			if (operation.props.loaderProperties !== undefined) {
+				if (node.propertyType !== PropertyType.G_LOADER) {
+					throw new Error(`Loader display props are not supported on display node type "${node.propertyType}".`);
+				}
+				materializeUamLoaderProperties(
+					node as ReturnType<Document['createGLoader']>,
+					operation.props.loaderProperties,
+				);
+			}
+			if (operation.props.listProperties !== undefined) {
+				if (node.propertyType !== PropertyType.G_LIST && node.propertyType !== PropertyType.G_TREE) {
+					throw new Error(`List display props are not supported on display node type "${node.propertyType}".`);
+				}
+				materializeUamListProperties(
+					node as ReturnType<Document['createGList']> | ReturnType<Document['createGTree']>,
+					operation.props.listProperties,
+				);
 			}
 			if (operation.props.loader3DProperties !== undefined) {
 				if (node.propertyType !== PropertyType.G_LOADER_3D) {

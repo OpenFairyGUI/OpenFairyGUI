@@ -9,9 +9,13 @@ import {
 	type UamComponentRefNode,
 	type UamDisplayNode,
 	type UamDisplayNodePropsUpdate,
+	type UamGraphProperties,
 	type UamListNode,
+	type UamListProperties,
 	type UamLoader3DProperties,
+	type UamLoaderProperties,
 	type UamTransactionOperation,
+	type UamTreeProperties,
 } from '../src/index.js';
 
 import {
@@ -23,6 +27,30 @@ import {
 	createTransitionModel,
 	roundTripCommittedProject,
 } from './uam-transaction-fixtures.js';
+
+const DISPLAY_NODE_BASE_KEYS = [
+	'kind',
+	'id',
+	'name',
+	'position',
+	'size',
+	'pivot',
+	'pivotAsAnchor',
+	'visible',
+	'touchable',
+	'grayed',
+	'alpha',
+	'rotation',
+	'customData',
+	'relations',
+	'gears',
+] as const;
+
+function readSpecificProperties<T>(node: UamDisplayNode): T {
+	const snapshot = structuredClone(node) as unknown as Record<string, unknown>;
+	for (const key of DISPLAY_NODE_BASE_KEYS) delete snapshot[key];
+	return snapshot as T;
+}
 
 test('assertTransactionSupported accepts current materialization scope and rejects unsupported cross-package refs', (t) => {
 	const buttonNodeProject = createSupportedProject();
@@ -468,6 +496,289 @@ test('Loader3D properties survive transaction, save/reload, inverse, and invalid
 	}];
 	t.true(validateTransactionSupport(project, unexpectedFields).some((issue) => issue.code === 'invalid_display_node_payload'));
 	t.throws(() => applyUamTransaction(project, unexpectedFields), { instanceOf: UamTransactionError });
+});
+
+test('graph, loader, list, and tree property snapshots survive transaction lifecycle', async (t) => {
+	const project = normalizeUamProject(createSupportedProject());
+	const component = project.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (component?.kind !== 'component') {
+		t.fail('expected component resource');
+		return;
+	}
+
+	const graph: UamDisplayNode = {
+		kind: 'graph',
+		...createDisplayNodeBase('graph-props', 'graph'),
+		pivot: { x: 0, y: 0 },
+		pivotAsAnchor: false,
+		locked: false,
+		minWidth: 0,
+		maxWidth: 0,
+		minHeight: 0,
+		maxHeight: 0,
+		group: '',
+		skew: { x: 0, y: 0 },
+		graphType: 1,
+		lineSize: 1,
+		lineColor: '#000000',
+		fillColor: '#FFFFFF',
+		cornerRadius: null,
+		points: null,
+		sides: 0,
+		startAngle: 0,
+		distances: null,
+	};
+	const loader: UamDisplayNode = {
+		kind: 'loader',
+		...createDisplayNodeBase('loader-props', 'loader', 16),
+		pivot: { x: 0, y: 0 },
+		scale: { x: 1, y: 1 },
+		url: '',
+		filter: '',
+		filterData: '',
+		fill: 0,
+		shrinkOnly: false,
+		autoSize: false,
+		useResize: false,
+		align: 0,
+		vAlign: 0,
+		frame: 0,
+		playing: true,
+		color: '#FFFFFF',
+		fillMethod: 0,
+		fillOrigin: 0,
+		fillClockwise: true,
+		fillAmount: 100,
+		clearOnPublish: false,
+	};
+	const list: UamDisplayNode = {
+		kind: 'list',
+		...createListNodeBase('list-props', 'list', 32),
+	};
+	const tree: UamDisplayNode = {
+		kind: 'tree',
+		...createListNodeBase('tree-props', 'tree', 48),
+		treeView: true,
+		indent: 30,
+		clickToExpand: 0,
+	};
+	list.listItems[0]!.controllers = 'initial-list';
+	tree.listItems[0]!.controllers = 'initial-tree';
+	tree.listItems[0]!.isFolder = false;
+	component.component.displayList.push(graph, loader, list, tree);
+
+	const initialGraph = readSpecificProperties<UamGraphProperties>(graph);
+	const initialLoader = readSpecificProperties<UamLoaderProperties>(loader);
+	const initialList = readSpecificProperties<UamListProperties>(list);
+	const initialTree = readSpecificProperties<UamTreeProperties>(tree);
+	const updatedGraph: UamGraphProperties = {
+		...initialGraph,
+		locked: true,
+		minWidth: 10,
+		maxWidth: 200,
+		minHeight: 12,
+		maxHeight: 160,
+		group: 'shapes',
+		skew: { x: 2, y: 3 },
+		graphType: 4,
+		lineSize: 3,
+		lineColor: '#112233',
+		fillColor: '#445566',
+		cornerRadius: [1, 2, 3, 4],
+		points: [0, 0, 40, 0, 20, 30],
+		sides: 6,
+		startAngle: 15,
+		distances: [1, 0.8, 1, 0.8, 1, 0.8],
+	};
+	const updatedLoader: UamLoaderProperties = {
+		...initialLoader,
+		scale: { x: 1.25, y: 0.75 },
+		url: 'ui://pkg001img001',
+		filter: 'color',
+		filterData: '1,0,0,1',
+		fill: 5,
+		shrinkOnly: true,
+		autoSize: true,
+		useResize: true,
+		align: 2,
+		vAlign: 1,
+		frame: 4,
+		playing: false,
+		color: '#AABBCC',
+		fillMethod: 3,
+		fillOrigin: 2,
+		fillClockwise: false,
+		fillAmount: 0.65,
+		clearOnPublish: true,
+	};
+	const updatedList: UamListProperties = {
+		...initialList,
+		group: 'menus',
+		layout: 4,
+		align: 1,
+		vAlign: 2,
+		lineGap: 8,
+		columnGap: 9,
+		lineCount: 2,
+		columnCount: 3,
+		selectionMode: 2,
+		autoResizeItem: false,
+		childrenRenderOrder: 2,
+		apexIndex: 1,
+		src: 'ui://pkg001list',
+		overflow: 1,
+		scrollType: 2,
+		scrollBarFlags: 7,
+		scrollBarMargin: { top: 1, bottom: 2, left: 3, right: 4 },
+		vtScrollBarRes: 'ui://pkg001vbar',
+		hzScrollBarRes: 'ui://pkg001hbar',
+		headerRes: 'ui://pkg001header',
+		footerRes: 'ui://pkg001footer',
+		margin: { top: 5, bottom: 6, left: 7, right: 8 },
+		clipSoftness: { x: 2, y: 3 },
+		scrollItemToViewOnClick: false,
+		foldInvisibleItems: true,
+		listItems: [{
+			title: 'Updated',
+			icon: 'ui://pkg001img001',
+			url: 'ui://pkg001item',
+			name: 'updated-item',
+			selectedTitle: 'Selected',
+			selectedIcon: null,
+			level: 0,
+			isFolder: null,
+			controllers: 'state',
+		}],
+		pageController: 'page',
+		controllerOverrides: 'state=active',
+		selectionController: 'selection',
+	};
+	const updatedTree: UamTreeProperties = {
+		...updatedList,
+		listItems: [{
+			title: 'Folder',
+			icon: null,
+			url: 'ui://pkg001item',
+			name: 'folder',
+			selectedTitle: null,
+			selectedIcon: null,
+			level: 0,
+			isFolder: true,
+			controllers: 'state',
+		}],
+		treeView: true,
+		indent: 42,
+		clickToExpand: 1,
+	};
+	const selector = (displayNodeId: string) => ({
+		packageId: 'pkg001',
+		componentResourceId: 'cmp001',
+		displayNodeId,
+	});
+	const forward: UamTransactionOperation[] = [
+		{ kind: 'setDisplayNodeProps', selector: selector(graph.id), props: { graphProperties: updatedGraph } },
+		{ kind: 'setDisplayNodeProps', selector: selector(loader.id), props: { loaderProperties: updatedLoader } },
+		{ kind: 'setDisplayNodeProps', selector: selector(list.id), props: { listProperties: updatedList } },
+		{ kind: 'setDisplayNodeProps', selector: selector(tree.id), props: { listProperties: updatedTree } },
+	];
+	t.deepEqual(validateTransactionSupport(project, forward), []);
+
+	const applied = applyUamTransaction(project, forward);
+	updatedGraph.points![0] = 999;
+	const appliedComponent = applied.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (appliedComponent?.kind !== 'component') {
+		t.fail('expected applied component resource');
+		return;
+	}
+	const appliedGraph = appliedComponent.component.displayList.find((node) => node.id === graph.id);
+	t.is(appliedGraph?.kind, 'graph');
+	if (appliedGraph?.kind === 'graph') t.is(appliedGraph.points?.[0], 0, 'transaction clones nested snapshot values');
+	updatedGraph.points![0] = 0;
+
+	const assertProperties = (
+		node: UamDisplayNode | undefined,
+		expected: UamGraphProperties | UamLoaderProperties | UamListProperties | UamTreeProperties,
+	) => {
+		t.truthy(node);
+		if (!node) return;
+		t.deepEqual(readSpecificProperties(node), expected);
+	};
+	const committed = await roundTripCommittedProject(applied);
+	const committedComponent = committed.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (committedComponent?.kind !== 'component') {
+		t.fail('expected committed component resource');
+		return;
+	}
+	assertProperties(committedComponent.component.displayList.find((node) => node.id === graph.id), updatedGraph);
+	assertProperties(committedComponent.component.displayList.find((node) => node.id === loader.id), updatedLoader);
+	assertProperties(committedComponent.component.displayList.find((node) => node.id === list.id), updatedList);
+	assertProperties(committedComponent.component.displayList.find((node) => node.id === tree.id), updatedTree);
+
+	const inverse: UamTransactionOperation[] = [
+		{ kind: 'setDisplayNodeProps', selector: selector(graph.id), props: { graphProperties: initialGraph } },
+		{ kind: 'setDisplayNodeProps', selector: selector(loader.id), props: { loaderProperties: initialLoader } },
+		{ kind: 'setDisplayNodeProps', selector: selector(list.id), props: { listProperties: initialList } },
+		{ kind: 'setDisplayNodeProps', selector: selector(tree.id), props: { listProperties: initialTree } },
+	];
+	const restored = await roundTripCommittedProject(applyUamTransaction(committed, inverse));
+	const restoredComponent = restored.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (restoredComponent?.kind !== 'component') {
+		t.fail('expected restored component resource');
+		return;
+	}
+	assertProperties(restoredComponent.component.displayList.find((node) => node.id === graph.id), initialGraph);
+	assertProperties(restoredComponent.component.displayList.find((node) => node.id === loader.id), initialLoader);
+	assertProperties(restoredComponent.component.displayList.find((node) => node.id === list.id), initialList);
+	assertProperties(restoredComponent.component.displayList.find((node) => node.id === tree.id), initialTree);
+
+	const crossKindOperations: UamTransactionOperation[] = [
+		{ kind: 'setDisplayNodeProps', selector: selector(loader.id), props: { graphProperties: updatedGraph } },
+		{ kind: 'setDisplayNodeProps', selector: selector(tree.id), props: { listProperties: updatedList } },
+		{ kind: 'setDisplayNodeProps', selector: selector(list.id), props: { listProperties: updatedTree } },
+	];
+	const crossKindIssues = validateTransactionSupport(project, crossKindOperations);
+	t.is(crossKindIssues.filter((issue) => issue.code === 'unsupported_display_node_field').length, 1);
+	t.is(crossKindIssues.filter((issue) => issue.code === 'invalid_display_node_payload').length, 2);
+
+	const invalidPayloadIssues = validateTransactionSupport(project, [
+		{
+			kind: 'setDisplayNodeProps',
+			selector: selector(graph.id),
+			props: { graphProperties: { ...updatedGraph, pivot: { x: 0, y: 0 } } as UamGraphProperties },
+		},
+		{
+			kind: 'setDisplayNodeProps',
+			selector: selector(loader.id),
+			props: { loaderProperties: { ...updatedLoader, frame: -1 } },
+		},
+		{
+			kind: 'setDisplayNodeProps',
+			selector: selector(list.id),
+			props: {
+				listProperties: {
+					...updatedList,
+					listItems: [{ ...updatedList.listItems[0]!, level: -1 }],
+				},
+			},
+		},
+	]);
+	t.is(invalidPayloadIssues.filter((issue) => issue.code === 'invalid_display_node_payload').length, 3);
+
+	const mixed = await roundTripCommittedProject(applyUamTransaction(project, [
+		forward[0]!,
+		{
+			kind: 'renameResource',
+			selector: { packageId: 'pkg001', resourceId: 'img001' },
+			newName: 'renamed.png',
+		},
+	]));
+	const mixedComponent = mixed.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (mixedComponent?.kind !== 'component') {
+		t.fail('expected mixed transaction component resource');
+		return;
+	}
+	assertProperties(mixedComponent.component.displayList.find((node) => node.id === graph.id), updatedGraph);
+	t.is(mixed.packages[0]?.resources.find((resource) => resource.id === 'img001')?.name, 'renamed');
 });
 
 test('Phase A transactions support common FairyGUI display node kinds for common props', (t) => {

@@ -357,6 +357,8 @@ const LIST_PANEL_ATTRS = {
 	lineItemCount: { canonical: 'lineItemCount' },
 	lineItemCount2: { canonical: 'lineItemCount2' },
 	autoResizeItem: { canonical: 'autoItemSize', aliases: ['autoResizeItem'] },
+	childrenRenderOrder: { canonical: 'renderOrder' },
+	apexIndex: { canonical: 'apex' },
 	selectionMode: { canonical: 'selectionMode' },
 	selectionController: { canonical: 'selectionController' },
 	defaultItem: { canonical: 'defaultItem' },
@@ -375,6 +377,8 @@ const LIST_PANEL_ATTRS = {
 	indent: { canonical: 'indent' },
 	clickToExpand: { canonical: 'clickToExpand' },
 	autoClearItems: { canonical: 'autoClearItems' },
+	scrollItemToViewOnClick: { canonical: 'scrollItemToViewOnClick' },
+	foldInvisibleItems: { canonical: 'foldInvisibleItems' },
 } satisfies XmlAttrMap;
 
 const BUTTON_EXTENSION_ATTRS = {
