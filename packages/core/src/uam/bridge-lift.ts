@@ -224,11 +224,19 @@ function liftAssetResource(resource: LiftableAssetResource): UamAssetResource {
 				width: movieClip.getWidth(),
 				height: movieClip.getHeight(),
 			},
-			metadata: {
+			movieClip: {
 				interval: movieClip.getInterval(),
-				swing: movieClip.getSwing(),
 				repeatDelay: movieClip.getRepeatDelay(),
+				swing: movieClip.getSwing(),
 				smoothing: movieClip.getSmoothing(),
+				frames: movieClip.listFrames().map((frame) => ({
+					rectX: frame.getRectX(),
+					rectY: frame.getRectY(),
+					rectWidth: frame.getRectWidth(),
+					rectHeight: frame.getRectHeight(),
+					addDelay: frame.getAddDelay(),
+					spriteId: frame.getSpriteId(),
+				})),
 			},
 		};
 	}

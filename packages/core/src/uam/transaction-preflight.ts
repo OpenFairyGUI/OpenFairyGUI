@@ -21,6 +21,7 @@ import {
 	probeRasterImage,
 	rasterImageFormatFromFileName,
 } from '../utils/image-info.js';
+import { deriveMovieClipModelFromJta } from '../utils/jta-parser.js';
 import {
 	normalizeResourceFolderPath,
 	resourceFolderName,
@@ -32,6 +33,7 @@ import {
 	isValidUamComponentInstanceProperties,
 	isValidUamComponentProperties,
 	isValidUamImageResourceProperties,
+	isValidUamMovieClipResourceProperties,
 	isValidUamTextProperties,
 	validateUamProject,
 } from './validate.js';
@@ -1517,6 +1519,27 @@ function validateAssetResourcePayload(
 			'Added binary resource must provide primary source bytes.',
 			{ operationKind, resourceKind: resource.kind },
 		);
+	} else if (resource.kind === 'movieClip') {
+		try {
+			deriveMovieClipModelFromJta(resource.sourceBytes);
+		} catch (error) {
+			pushSupportIssue(
+				issues,
+				'invalid_movie_clip_jta',
+				`${path}.resource.sourceBytes`,
+				error instanceof Error ? error.message : 'MovieClip source bytes are not a valid JTA file.',
+				{ operationKind, resourceKind: resource.kind },
+			);
+		}
+	}
+	if (resource.kind === 'movieClip' && !isValidUamMovieClipResourceProperties(resource.movieClip)) {
+		pushSupportIssue(
+			issues,
+			'invalid_resource_payload',
+			`${path}.resource.movieClip`,
+			'Added MovieClip resource must define a complete valid typed MovieClip snapshot.',
+			{ operationKind, resourceKind: resource.kind },
+		);
 	}
 	if (resource.sourcePath !== undefined) {
 		pushSupportIssue(
@@ -1559,6 +1582,19 @@ function validatePackagePayload(
 				'Added package assets must provide primary source bytes.',
 				{ operationKind, resourceKind: resource.kind },
 			);
+		}
+		if (resource.kind === 'movieClip' && resource.sourceBytes instanceof Uint8Array) {
+			try {
+				deriveMovieClipModelFromJta(resource.sourceBytes);
+			} catch (error) {
+				pushSupportIssue(
+					issues,
+					'invalid_movie_clip_jta',
+					`${resourcePath}.sourceBytes`,
+					`MovieClip source bytes must contain a valid JTA payload: ${error instanceof Error ? error.message : String(error)}`,
+					{ operationKind, resourceKind: resource.kind },
+				);
+			}
 		}
 		if (resource.kind !== 'component') continue;
 		for (const [nodeIndex, node] of resource.component.displayList.entries()) {
@@ -2334,6 +2370,20 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 					break;
 				}
 				const resource = findProjectedResource(project, operations, operationIndex, operation.selector);
+				if (resource?.kind === 'movieClip') {
+					try {
+						deriveMovieClipModelFromJta(operation.sourceBytes);
+					} catch (error) {
+						pushSupportIssue(
+							issues,
+							'invalid_movie_clip_jta',
+							`${operationPath}.sourceBytes`,
+							error instanceof Error ? error.message : 'MovieClip replacement bytes are not a valid JTA file.',
+							{ operationKind: operation.kind, resourceKind: resource.kind },
+						);
+					}
+					break;
+				}
 				if (resource?.kind !== 'image') break;
 				const fileName = projectedAssetFileName(project, operations, operationIndex, operation.selector);
 				const expectedFormat = rasterImageFormatFromFileName(fileName);

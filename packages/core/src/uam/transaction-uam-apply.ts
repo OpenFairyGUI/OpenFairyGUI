@@ -4,6 +4,7 @@ import {
 	resourceFolderName,
 	resourceFolderParentPath,
 } from '../utils/resource-folder.js';
+import { deriveMovieClipModelFromJta } from '../utils/jta-parser.js';
 import { normalizeUamProject } from './normalize.js';
 import {
 	UamTransactionError,
@@ -31,7 +32,23 @@ import {
 } from './transaction-shared.js';
 
 function clonePackageSnapshot(project: UamProject, pkg: UamPackage): UamPackage {
-	return normalizeUamProject({ ...project, packages: [pkg] }).packages[0]!;
+	const cloned = normalizeUamProject({ ...project, packages: [pkg] }).packages[0]!;
+	for (const resource of cloned.resources) canonicalizeMovieClipSnapshot(resource);
+	return cloned;
+}
+
+function canonicalizeMovieClipSnapshot(resource: UamAssetResource): UamAssetResource {
+	if (resource.kind !== 'movieClip' || !(resource.sourceBytes instanceof Uint8Array)) return resource;
+	const derived = deriveMovieClipModelFromJta(resource.sourceBytes);
+	resource.dimensions = { ...derived.dimensions };
+	resource.movieClip = {
+		interval: derived.interval,
+		repeatDelay: derived.repeatDelay,
+		swing: derived.swing,
+		smoothing: resource.movieClip.smoothing,
+		frames: derived.frames.map(({ textureIndex: _textureIndex, ...frame }) => ({ ...frame, spriteId: '' })),
+	};
+	return resource;
 }
 
 function cloneComponentSnapshot(
@@ -55,7 +72,7 @@ function cloneAssetSnapshot(project: UamProject, pkg: UamPackage, resource: UamA
 		packages: [{ ...pkg, resources: [resource] }],
 	}).packages[0]?.resources[0];
 	if (!cloned || cloned.kind === 'component') throw new Error('Expected a binary resource lifecycle payload.');
-	return cloned;
+	return canonicalizeMovieClipSnapshot(cloned);
 }
 
 function requirePackageSpec(project: UamProject, packageId: string): UamPackage {

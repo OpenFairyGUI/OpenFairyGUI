@@ -17,6 +17,78 @@ export interface FixtureProject {
 	fairyPath: string;
 }
 
+export interface TestMovieClipJtaFrame {
+	delay: number;
+	rectX: number;
+	rectY: number;
+	rectWidth: number;
+	rectHeight: number;
+	textureIndex: number;
+}
+
+export interface TestMovieClipJtaOptions {
+	fps?: number;
+	speed?: number;
+	repeatDelay?: number;
+	swing?: boolean;
+	width?: number;
+	height?: number;
+	frames?: TestMovieClipJtaFrame[];
+	textures?: Uint8Array[];
+}
+
+/** Creates a structurally valid v100-v102 JTA fixture without Node-only APIs. */
+export function createTestMovieClipJta(
+	version: 100 | 101 | 102,
+	options: TestMovieClipJtaOptions = {},
+): Uint8Array {
+	const frames = options.frames ?? [];
+	const textures = options.textures ?? [];
+	const trailingBoundsLength = version === 101 ? 8 : 0;
+	const leadingBoundsLength = version === 102 ? 8 : 0;
+	const byteLength = 2 + 5 + 4 + 1 + 3 + leadingBoundsLength + 3 + 2
+		+ frames.length * 12 + 2 + textures.reduce((sum, texture) => sum + 4 + texture.byteLength, 0)
+		+ trailingBoundsLength;
+	const bytes = new Uint8Array(byteLength);
+	const view = new DataView(bytes.buffer);
+	let offset = 0;
+	view.setUint16(offset, 5, false); offset += 2;
+	bytes.set(new TextEncoder().encode('yytou'), offset); offset += 5;
+	view.setInt32(offset, version, false); offset += 4;
+	view.setInt8(offset, options.fps ?? 24); offset += 1;
+	offset += 3;
+	if (version === 102) {
+		view.setInt16(offset, 0, false); offset += 2;
+		view.setInt16(offset, 0, false); offset += 2;
+		view.setUint16(offset, options.width ?? 0, false); offset += 2;
+		view.setUint16(offset, options.height ?? 0, false); offset += 2;
+	}
+	view.setUint8(offset, options.speed ?? 1); offset += 1;
+	view.setUint8(offset, options.repeatDelay ?? 0); offset += 1;
+	view.setInt8(offset, options.swing ? 1 : 0); offset += 1;
+	view.setInt16(offset, frames.length, false); offset += 2;
+	for (const frame of frames) {
+		view.setInt16(offset, frame.delay, false); offset += 2;
+		view.setInt16(offset, frame.rectX, false); offset += 2;
+		view.setInt16(offset, frame.rectY, false); offset += 2;
+		view.setInt16(offset, frame.rectWidth, false); offset += 2;
+		view.setInt16(offset, frame.rectHeight, false); offset += 2;
+		view.setInt16(offset, frame.textureIndex, false); offset += 2;
+	}
+	view.setInt16(offset, textures.length, false); offset += 2;
+	for (const texture of textures) {
+		view.setInt32(offset, texture.byteLength, false); offset += 4;
+		bytes.set(texture, offset); offset += texture.byteLength;
+	}
+	if (version === 101) {
+		view.setInt16(offset, 0, false); offset += 2;
+		view.setInt16(offset, 0, false); offset += 2;
+		view.setUint16(offset, options.width ?? 0, false); offset += 2;
+		view.setUint16(offset, options.height ?? 0, false);
+	}
+	return bytes;
+}
+
 function listFairyProjects(rootDir: string): FixtureProject[] {
 	if (!fs.existsSync(rootDir)) return [];
 
