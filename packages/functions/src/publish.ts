@@ -3,16 +3,21 @@ import {
 	type BinaryWriterOptions,
 	type Document,
 	type FileSystem,
+	type MovieClipResource,
 	type Package,
 	type Transform,
 } from '@openfairygui/core';
 import { atlas } from './atlas.js';
+import { prepareMovieClipResource } from './atlas/inputs.js';
+import type { PreparedJtaData } from './atlas/jta.js';
 import { publishCodeGeneration, resolveProjectBasePath } from './codegen.js';
 import { dirname, isAbsolutePathLike, trimTrailingSlashes } from './path-utils.js';
 import { formatPluginError, type LoadedPlugin } from './plugins/types.js';
 import type { PublishFileSystem } from './publish/contracts.js';
 import {
 	annotatePackagePublishArtifacts,
+	getAnnotatedPublishedResourceIds,
+	isMovieClipResource,
 } from './publish/package-context.js';
 import {
 	exportPackageExternalResources,
@@ -217,7 +222,12 @@ export function publish(options: PublishOptions): Transform {
 			},
 		});
 
-		const publishPackage = async (plan: ResolvedPackagePublishPlan, writerFs: FileSystem, packageIndex: number) => {
+		const publishPackage = async (
+			plan: ResolvedPackagePublishPlan,
+			writerFs: FileSystem,
+			packageIndex: number,
+			preparedMovieClips?: ReadonlyMap<MovieClipResource, PreparedJtaData>,
+		) => {
 			if (options.fs && !plan.outputDir) {
 				throw new Error(
 					'publish: no output directory resolved. Provide --output, or configure global publish.path / package publishPath.',
@@ -253,6 +263,7 @@ export function publish(options: PublishOptions): Transform {
 				mkdir: options.fs ? options.fs.mkdir : undefined,
 				readFileRaw: options.atlas?.readFileRaw ?? options.fs?.readFileRaw,
 				strictOutput: options.fs !== undefined,
+				preparedMovieClips,
 				packages: [plan.pkg.getName()],
 				...atlasRuntimeOptions,
 			})(doc);
@@ -340,11 +351,43 @@ export function publish(options: PublishOptions): Transform {
 			);
 		}
 
+		// publishPackage starts with mkdir and loose-resource writes. Preflight the complete
+		// selected MovieClip set first so a failure in a later package leaves zero output.
+		const publishedMovieClips = allPackages.flatMap((pkg) => {
+			const publishedResourceIds = getAnnotatedPublishedResourceIds(pkg);
+			return pkg
+				.listResources()
+				.filter((resource): resource is MovieClipResource => {
+					return publishedResourceIds.has(resource.getId()) && isMovieClipResource(resource);
+				})
+				.map((resource) => ({ pkg, resource }));
+		});
+		const preparedMovieClips = new Map<MovieClipResource, PreparedJtaData>();
+		if (publishedMovieClips.length > 0) {
+			if (!options.encoder) {
+				throw new Error('publish: MovieClip output requires an encoder.');
+			}
+			if (!options.basePath) {
+				throw new Error('publish: MovieClip output requires basePath.');
+			}
+			const readFileRaw = options.atlas?.readFileRaw ?? options.fs.readFileRaw;
+			if (!readFileRaw) {
+				throw new Error('publish: MovieClip output requires readFileRaw.');
+			}
+
+			for (const { pkg, resource } of publishedMovieClips) {
+				preparedMovieClips.set(
+					resource,
+					await prepareMovieClipResource(resource, pkg, options.encoder, options.basePath, readFileRaw),
+				);
+			}
+		}
+
 		const writerFs = toBinaryWriterFileSystem(options.fs);
 
 		for (const plan of plans) {
 			const pkgIndex = allDocPackages.indexOf(plan.pkg);
-			await publishPackage(plan, writerFs, pkgIndex);
+			await publishPackage(plan, writerFs, pkgIndex, preparedMovieClips);
 		}
 
 		if (options.codeGeneration !== false) {

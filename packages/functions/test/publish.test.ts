@@ -8,6 +8,7 @@ import { getFixturePath, getFixtureProjectPath } from '@openfairygui/test-utils'
 import sharp from 'sharp';
 import { publish, resolvePublishOptions, type RootProjectSettings } from '../src/index.js';
 import { resolvePublishAtlasRuntimeOptions } from '../src/publish.js';
+import { createTestJta } from './test-jta.js';
 
 const UNITY_EXAMPLES_FAIRY = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
 const UNITY_BRANCH_LOADER_FAIRY = getFixtureProjectPath('FairyGUI-Experiments');
@@ -1775,6 +1776,109 @@ test('publish: Layabox modern TypeScript cleanup removes only prior marked .ts f
 		t.true(await fs.stat(path.join(generatedDir, 'Keep.ts')).then(() => true).catch(() => false), 'unmarked .ts file is preserved');
 		t.true(await fs.stat(path.join(generatedDir, 'UI_Main.ts')).then(() => true).catch(() => false), 'new .ts component file is generated');
 		t.true(await fs.stat(path.join(generatedDir, 'DemoPkgBinder.ts')).then(() => true).catch(() => false), 'new .ts binder file is generated');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: Node raster backend publishes mixed PNG/JPEG MovieClip textures', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-jta-mixed-'));
+	const assetsDir = path.join(tmpDir, 'assets');
+	const outputDir = path.join(tmpDir, 'release');
+	const png = new Uint8Array(
+		await sharp({ create: { width: 2, height: 3, channels: 4, background: '#ff0000ff' } }).png().toBuffer(),
+	);
+	const jpeg = new Uint8Array(
+		await sharp({ create: { width: 4, height: 5, channels: 3, background: '#00ff00' } }).jpeg().toBuffer(),
+	);
+	const doc = new Document();
+	const pkg = doc.createPackage('MovieFx');
+	pkg.setId('moviepkg');
+	const movieClip = doc.createMovieClipResource('spinner');
+	movieClip.setId('movie001').setPath('/clips/').setFileName('spinner.jta').setExported(true);
+	pkg.addResource(movieClip);
+
+	try {
+		await fs.mkdir(path.join(assetsDir, 'MovieFx', 'clips'), { recursive: true });
+		await fs.writeFile(
+			path.join(assetsDir, 'MovieFx', 'clips', 'spinner.jta'),
+			createTestJta([png, jpeg], [
+				{ textureIndex: 1, rectWidth: 4, rectHeight: 5 },
+				{ textureIndex: 0, rectWidth: 2, rectHeight: 3 },
+				{ textureIndex: 1, rectWidth: 4, rectHeight: 5 },
+				{ textureIndex: -1, rectWidth: 0, rectHeight: 0 },
+			]),
+		);
+
+		await doc.transform(
+			publish({
+				output: outputDir,
+				basePath: assetsDir,
+				fileExtension: 'fui',
+				encoder: sharp,
+				fs: createFs(),
+				codeGeneration: false,
+				atlas: { allowRotation: false },
+			}),
+		);
+
+		t.true(await fs.stat(path.join(outputDir, 'MovieFx.fui')).then(() => true).catch(() => false));
+		t.true(await fs.stat(path.join(outputDir, 'MovieFx_atlas0.png')).then(() => true).catch(() => false));
+		t.deepEqual(movieClip.listFrames().map((frame) => frame.getSpriteId()), [
+			'movie001_0',
+			'movie001_1',
+			'movie001_0',
+			'',
+		]);
+		const atlasMetadata = await sharp(path.join(outputDir, 'MovieFx_atlas0.png')).metadata();
+		t.is(atlasMetadata.format, 'png');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: a later invalid MovieClip package leaves Node output untouched', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-jta-preflight-'));
+	const assetsDir = path.join(tmpDir, 'assets');
+	const outputDir = path.join(tmpDir, 'release');
+	const png = new Uint8Array(
+		await sharp({ create: { width: 1, height: 1, channels: 4, background: '#ffffffff' } }).png().toBuffer(),
+	);
+	const doc = new Document();
+
+	const addPackage = async (name: string, id: string, jta: Uint8Array) => {
+		const pkg = doc.createPackage(name);
+		pkg.setId(id);
+		const movieClip = doc.createMovieClipResource('spinner');
+		movieClip.setId(`${id}mc`).setPath('/clips/').setFileName('spinner.jta').setExported(true);
+		pkg.addResource(movieClip);
+		const sourceDir = path.join(assetsDir, name, 'clips');
+		await fs.mkdir(sourceDir, { recursive: true });
+		await fs.writeFile(path.join(sourceDir, 'spinner.jta'), jta);
+	};
+
+	try {
+		await addPackage('First', 'first001', createTestJta([png], [{ textureIndex: 0 }]));
+		await addPackage('Second', 'second01', createTestJta([new Uint8Array(0)], [{ textureIndex: 0 }]));
+
+		await t.throwsAsync(
+			() =>
+				doc.transform(
+					publish({
+						output: outputDir,
+						basePath: assetsDir,
+						fileExtension: 'fui',
+						encoder: sharp,
+						fs: createFs(),
+						codeGeneration: false,
+					}),
+				),
+			{ message: /references empty texture 0/ },
+		);
+		t.false(
+			await fs.stat(outputDir).then(() => true).catch(() => false),
+			'preflight completes for every selected package before the first output mkdir/write',
+		);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

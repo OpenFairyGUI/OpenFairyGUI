@@ -145,6 +145,7 @@
 | 已解析到发布输出目录 | 必须提供输出文件系统；缺失时不会把流程当作发布成功 |
 | 有需要封包的图像或动画帧 | 必须提供 raster encoder、源资源路径和 atlas 输出目录 |
 | 图集装箱、图像读取或合成失败 | 中止发布，不生成带透明空洞或缺页的成功结果 |
+| 发布集合包含 MovieClip | 按 JTA 长度表读取 PNG / JPEG（可混合）纹理；重复 texture index 复用首次引用帧的 sprite，`-1` 表示空帧。所有选中包会先完成 JTA 解析与引用纹理解码；越界索引、被引用的空纹理、截断数据或解码失败会在创建输出目录或写入任何发布文件前中止整次发布 |
 | `SoundResource`、`MiscResource`、`SpineResource`、`DragonBonesResource` 及其依赖复制失败 | 中止发布，不把缺失的 runtime 资源降级为 warning |
 
 未请求任何输出目录时，低层 `publish()` 可以只计算 layout；这不是文件发布，也不会写出二进制或资源文件。标准 Node 工作流应使用 `publishNode()`。
