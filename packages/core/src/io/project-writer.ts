@@ -101,6 +101,19 @@ export class ProjectWriter {
 			(options.staleSourceFiles ?? []).map((source) => this._projectSourceFilePath(basePath, source)),
 		);
 		for (const pkg of root.listPackages()) this._assertPackageOutputTargets(pkg);
+		const settings = root.getSettings?.() ?? {};
+		const settingsPath = fs.join(basePath, 'settings');
+		const staleOptionalSettings: string[] = [];
+		for (const [fileName, key] of [
+			['CustomProperties.json', 'customProperties'],
+			['i18n.json', 'i18n'],
+		] as const) {
+			const filePath = fs.join(settingsPath, fileName);
+			if (settings[key] === undefined && await fs.exists(filePath)) staleOptionalSettings.push(filePath);
+		}
+		if (staleOptionalSettings.length > 0 && !fs.unlink) {
+			throw new Error('Project settings cleanup requires a FileSystem.unlink() implementation.');
+		}
 
 		// 1. Write .fairy file
 		const fairyXml = `<?xml version="1.0" encoding="utf-8"?>\n`
@@ -108,8 +121,6 @@ export class ProjectWriter {
 		await fs.writeFile(projectPath, fairyXml);
 
 		// 2. Write settings
-		const settings = root.getSettings?.() ?? {};
-		const settingsPath = fs.join(basePath, 'settings');
 		await fs.mkdir(settingsPath);
 		const settingFiles: Record<string, string> = {
 			'Publish.json': 'publish',
@@ -126,6 +137,7 @@ export class ProjectWriter {
 				);
 			}
 		}
+		for (const filePath of staleOptionalSettings) await fs.unlink!(filePath);
 
 		// 3. Write packages
 		const assetsPath = fs.join(basePath, 'assets');

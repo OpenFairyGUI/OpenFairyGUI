@@ -21,6 +21,7 @@ import type {
 	UamTreeProperties,
 	UamValidationIssue,
 } from './model.js';
+import type { ProjectSettings } from '../types/settings.js';
 import type { UAM_SUPPORTED_TRANSACTION_SCOPE } from './model.js';
 
 export interface UamResourceSelector {
@@ -104,6 +105,11 @@ type UamAttachableDisplayNode = Extract<UamDisplayNode, { kind: UamTransactionDi
 
 interface UamTransactionOperationBase {
 	opId?: string;
+}
+
+export interface UpdateProjectSettingsOperation extends UamTransactionOperationBase {
+	kind: 'updateProjectSettings';
+	settings: ProjectSettings;
 }
 
 export interface RenameResourceOperation extends UamTransactionOperationBase {
@@ -321,6 +327,7 @@ export interface RemoveGearOperation extends UamTransactionOperationBase {
 }
 
 export type UamTransactionOperation =
+	| UpdateProjectSettingsOperation
 	| RenameResourceOperation
 	| MoveResourceOperation
 	| SetResourceFavoriteOperation
@@ -359,6 +366,8 @@ export type UamTransactionOperation =
 
 export type UamTransactionSupportIssueCode =
 	| 'unsupported_operation'
+	| 'invalid_project_settings'
+	| 'project_settings_unchanged'
 	| 'unsupported_resource_kind'
 	| 'unsupported_display_node_kind'
 	| 'unsupported_cross_package_image_ref'

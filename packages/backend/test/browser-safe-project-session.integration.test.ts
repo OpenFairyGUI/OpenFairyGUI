@@ -911,6 +911,97 @@ test('browser-safe resource favorite transactions survive save, reload, and inve
 	t.false(restoredResources.find((resource) => resource.id === 'cmp001')?.favorite);
 });
 
+test('browser-safe project settings transactions survive save, reload, inverse, and optional sidecar removal', async (t) => {
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const project = createBackendFixtureProject();
+	project.settings = {
+		publish: { binaryFormat: true, atlasSetting: { maxSize: 2048 }, codeGeneration: { codePath: 'generated' } },
+		common: { font: 'Arial', scrollBars: { vertical: 'ui://scroll' } },
+		adaptation: { designResolutionX: 1280, devices: [{ name: 'tablet' }] },
+		customProperties: { groups: [{ name: 'Gameplay' }] },
+		i18n: { langFiles: [{ name: 'English', path: 'locale/en.xml' }] },
+	};
+	const original = structuredClone(project.settings);
+	const updated = {
+		publish: { binaryFormat: false, atlasSetting: { maxSize: 1024 }, codeGeneration: { codePath: 'src/ui' } },
+		common: { font: 'Noto Sans', scrollBars: { vertical: 'ui://new-scroll' } },
+		adaptation: { designResolutionX: 1920, devices: [{ name: 'desktop' }] },
+		customProperties: { groups: [{ name: 'UI' }] },
+		i18n: { langFiles: [{ name: 'French', path: 'locale/fr.xml' }] },
+	};
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({
+		project,
+		storage: { fileSystem, fairyPath: 'Settings/Project.fairy' },
+	});
+	t.true(opened.ok);
+	if (!opened.ok) return;
+	const sessionId = opened.data.sessionId;
+	t.true((await runtime.saveSession({ sessionId, force: true })).ok);
+
+	const pending = runtime.applyTransaction({
+		sessionId,
+		expectedRevision: 0,
+		operations: [{ kind: 'updateProjectSettings', settings: updated }],
+	});
+	updated.publish.atlasSetting.maxSize = 1;
+	updated.i18n.langFiles[0]!.name = 'Mutated caller';
+	const applied = await pending;
+	t.true(applied.ok);
+	if (!applied.ok) return;
+	t.is(applied.data.revision, 1);
+	t.true(applied.data.dirty);
+	t.true((await runtime.saveSession({ sessionId, expectedRevision: 1 })).ok);
+	const reloaded = await new ProjectReader(fileSystem).read('Settings/Project.fairy');
+	t.is(reloaded.getRoot().getSettings().publish?.atlasSetting?.maxSize, 1024);
+	t.is(reloaded.getRoot().getSettings().i18n?.langFiles[0]?.name, 'French');
+
+	const inverse = await runtime.applyTransaction({
+		sessionId,
+		expectedRevision: 1,
+		operations: [{ kind: 'updateProjectSettings', settings: original }],
+	});
+	t.true(inverse.ok);
+	if (!inverse.ok) return;
+	t.true((await runtime.saveSession({ sessionId, expectedRevision: 2 })).ok);
+	t.deepEqual((await new ProjectReader(fileSystem).read('Settings/Project.fairy')).getRoot().getSettings(), original);
+
+	const { customProperties: _customProperties, i18n: _i18n, ...withoutOptional } = original;
+	const removed = await runtime.applyTransaction({
+		sessionId,
+		expectedRevision: 2,
+		operations: [{ kind: 'updateProjectSettings', settings: withoutOptional }],
+	});
+	t.true(removed.ok);
+	if (!removed.ok) return;
+	t.true((await runtime.saveSession({ sessionId, expectedRevision: 3 })).ok);
+	t.false(storage.hasFile('Settings/settings/CustomProperties.json'));
+	t.false(storage.hasFile('Settings/settings/i18n.json'));
+	const unchanged = await runtime.applyTransaction({
+		sessionId,
+		expectedRevision: 3,
+		operations: [{ kind: 'updateProjectSettings', settings: structuredClone(withoutOptional) }],
+	});
+	t.false(unchanged.ok);
+	if (unchanged.ok) return;
+	t.is(unchanged.meta.diagnostics[0]?.code, 'project_settings_unchanged');
+
+	const publishBeforeInvalid = await storage.readFile('Settings/settings/Publish.json');
+	const rejected = await runtime.applyTransaction({
+		sessionId,
+		expectedRevision: 3,
+		operations: [{ kind: 'updateProjectSettings', settings: { publish: { packageCount: Number.NaN } } }],
+	});
+	t.false(rejected.ok);
+	if (rejected.ok) return;
+	t.is(rejected.error.code, 'transaction_unsupported');
+	t.is(rejected.meta.diagnostics[0]?.code, 'invalid_project_settings');
+	t.is((runtime.getSession({ sessionId }) as { ok: true; data: { revision: number; dirty: boolean } }).data.revision, 3);
+	t.false((runtime.getSession({ sessionId }) as { ok: true; data: { revision: number; dirty: boolean } }).data.dirty);
+	t.is(await storage.readFile('Settings/settings/Publish.json'), publishBeforeInvalid);
+});
+
 test('browser-safe resource folder favorite transactions survive atomic save, reload, and inverse', async (t) => {
 	const storage = new MemoryBrowserStorage();
 	const fileSystem = createBackendStorageFileSystem(storage);

@@ -429,6 +429,154 @@ function isFiniteNumber(value: unknown): value is number {
 	return typeof value === 'number' && Number.isFinite(value);
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+	if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+	const prototype = Object.getPrototypeOf(value);
+	return prototype === Object.prototype || prototype === null;
+}
+
+function findInvalidJsonData(
+	value: unknown,
+	path: string,
+	ancestors = new Set<object>(),
+): { path: string; message: string } | null {
+	if (value === null || typeof value === 'string' || typeof value === 'boolean') return null;
+	if (typeof value === 'number') {
+		return Number.isFinite(value) ? null : { path, message: 'Project settings numbers must be finite.' };
+	}
+	if (typeof value !== 'object') return { path, message: 'Project settings must contain only JSON-safe values.' };
+	if (ancestors.has(value)) return { path, message: 'Project settings must not contain circular references.' };
+	ancestors.add(value);
+	if (Array.isArray(value)) {
+		for (let index = 0; index < value.length; index += 1) {
+			if (!(index in value)) return { path: `${path}[${index}]`, message: 'Project settings arrays must not contain holes.' };
+			const invalid = findInvalidJsonData(value[index], `${path}[${index}]`, ancestors);
+			if (invalid) return invalid;
+		}
+	} else {
+		if (!isPlainRecord(value) || Reflect.ownKeys(value).some((key) => typeof key !== 'string')) {
+			return { path, message: 'Project settings objects must be plain JSON objects.' };
+		}
+		for (const [key, child] of Object.entries(value)) {
+			const invalid = findInvalidJsonData(child, `${path}.${key}`, ancestors);
+			if (invalid) return invalid;
+		}
+	}
+	ancestors.delete(value);
+	return null;
+}
+
+function optionalFieldsMatch(
+	record: Record<string, unknown>,
+	fields: readonly string[],
+	predicate: (value: unknown) => boolean,
+): boolean {
+	return fields.every((field) => record[field] === undefined || predicate(record[field]));
+}
+
+function validateProjectSettingsPayload(
+	settings: unknown,
+	path: string,
+	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
+): void {
+	const invalidJson = findInvalidJsonData(settings, path);
+	if (invalidJson) {
+		pushSupportIssue(issues, 'invalid_project_settings', invalidJson.path, invalidJson.message, { operationKind });
+		return;
+	}
+	if (!isPlainRecord(settings)) {
+		pushSupportIssue(issues, 'invalid_project_settings', path, 'Project settings must be a JSON object.', { operationKind });
+		return;
+	}
+
+	const strings = (value: unknown) => typeof value === 'string';
+	const booleans = (value: unknown) => typeof value === 'boolean';
+	const stringArray = (value: unknown) => Array.isArray(value) && value.every(strings);
+	const publish = settings.publish;
+	if (publish !== undefined) {
+		const valid = isPlainRecord(publish)
+			&& optionalFieldsMatch(publish, ['fileExtension', 'path', 'branchPath'], strings)
+			&& optionalFieldsMatch(publish, ['binaryFormat', 'compressDesc', 'seperatedAtlasForBranch'], booleans)
+			&& optionalFieldsMatch(publish, ['includeHighResolution', 'branchProcessing', 'packageCount'], isFiniteNumber);
+		if (!valid) {
+			pushSupportIssue(issues, 'invalid_project_settings', `${path}.publish`, 'Publish settings contain an invalid typed field.', { operationKind });
+		} else {
+			for (const [key, numberFields, booleanFields, stringFields] of [
+				['atlasSetting', ['maxSize', 'padding'], ['paging', 'forceSquare', 'fast', 'allowRotation', 'trimImage', 'extractAlpha'], ['sizeOption']],
+				['codeGeneration', [], ['allowGenCode', 'getMemberByName', 'ignoreNoname'], ['classNamePrefix', 'codePath', 'codeType', 'memberNamePrefix', 'packageName']],
+			] as const) {
+				const nested = publish[key];
+				if (nested === undefined) continue;
+				if (!isPlainRecord(nested)
+					|| !optionalFieldsMatch(nested, numberFields, isFiniteNumber)
+					|| !optionalFieldsMatch(nested, booleanFields, booleans)
+					|| !optionalFieldsMatch(nested, stringFields, strings)
+				) {
+					pushSupportIssue(issues, 'invalid_project_settings', `${path}.publish.${key}`, `Publish ${key} contains an invalid typed field.`, { operationKind });
+				}
+			}
+		}
+	}
+
+	const common = settings.common;
+	if (common !== undefined) {
+		const valid = isPlainRecord(common)
+			&& optionalFieldsMatch(common, ['font', 'textColor', 'buttonClickSound', 'pivot', 'tipsRes'], strings)
+			&& optionalFieldsMatch(common, ['fontSize'], isFiniteNumber)
+			&& optionalFieldsMatch(common, ['colorScheme', 'fontScheme', 'fontSizeScheme'], stringArray);
+		if (!valid) {
+			pushSupportIssue(issues, 'invalid_project_settings', `${path}.common`, 'Common settings contain an invalid typed field.', { operationKind });
+		} else if (common.scrollBars !== undefined && (
+			!isPlainRecord(common.scrollBars)
+			|| !optionalFieldsMatch(common.scrollBars, ['defaultDisplay', 'horizontal', 'vertical'], strings)
+		)) {
+			pushSupportIssue(issues, 'invalid_project_settings', `${path}.common.scrollBars`, 'Common scrollBars contain an invalid typed field.', { operationKind });
+		}
+	}
+
+	const adaptation = settings.adaptation;
+	if (adaptation !== undefined && (
+		!isPlainRecord(adaptation)
+		|| !optionalFieldsMatch(adaptation, ['designResolutionX', 'designResolutionY'], isFiniteNumber)
+		|| !optionalFieldsMatch(adaptation, ['scaleMode', 'screenMathMode'], strings)
+		|| (adaptation.devices !== undefined && !Array.isArray(adaptation.devices))
+	)) {
+		pushSupportIssue(issues, 'invalid_project_settings', `${path}.adaptation`, 'Adaptation settings contain an invalid typed field.', { operationKind });
+	}
+
+	if (settings.customProperties !== undefined && !isPlainRecord(settings.customProperties)) {
+		pushSupportIssue(issues, 'invalid_project_settings', `${path}.customProperties`, 'Custom properties settings must be a JSON object.', { operationKind });
+	}
+	const i18n = settings.i18n;
+	if (i18n !== undefined && (
+		!isPlainRecord(i18n)
+		|| !Array.isArray(i18n.langFiles)
+		|| !i18n.langFiles.every((entry) => (
+			isPlainRecord(entry) && typeof entry.name === 'string' && typeof entry.path === 'string'
+		))
+	)) {
+		pushSupportIssue(issues, 'invalid_project_settings', `${path}.i18n`, 'I18n settings require langFiles entries with string name and path.', { operationKind });
+	}
+}
+
+function canonicalProjectSettings(settings: Record<string, unknown>): Record<string, unknown> {
+	return structuredClone({
+		...settings,
+		publish: settings.publish ?? {},
+		common: settings.common ?? {},
+		adaptation: settings.adaptation ?? {},
+	});
+}
+
+function stableJson(value: unknown): string {
+	if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+	if (isPlainRecord(value)) {
+		return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(',')}}`;
+	}
+	return JSON.stringify(value) ?? 'null';
+}
+
 function isIntegerBetween(value: unknown, minimum: number, maximum: number): value is number {
 	return Number.isInteger(value) && (value as number) >= minimum && (value as number) <= maximum;
 }
@@ -2263,9 +2411,29 @@ function imageReplacementSurvives(
 
 function validateOperationPayloads(project: UamProject, operations: UamTransactionOperation[], issues: UamTransactionSupportIssue[]): void {
 	const usesSequentialDisplayProjection = requiresSequentialDisplayProjection(operations);
+	let projectedSettings = canonicalProjectSettings(project.settings);
 	for (const [operationIndex, operation] of operations.entries()) {
 		const operationPath = `operations[${operationIndex}]`;
 		switch (operation.kind) {
+			case 'updateProjectSettings': {
+				const issueCount = issues.length;
+				validateProjectSettingsPayload(operation.settings, `${operationPath}.settings`, issues, operation.kind);
+				if (issues.length === issueCount) {
+					const nextSettings = canonicalProjectSettings(operation.settings);
+					if (stableJson(nextSettings) === stableJson(projectedSettings)) {
+						pushSupportIssue(
+							issues,
+							'project_settings_unchanged',
+							`${operationPath}.settings`,
+							'updateProjectSettings must change the complete settings snapshot.',
+							{ operationKind: operation.kind },
+						);
+					} else {
+						projectedSettings = nextSettings;
+					}
+				}
+				break;
+			}
 			case 'renameResource':
 				validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
 				validateAssetSourceBytes(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);

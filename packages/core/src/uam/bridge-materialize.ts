@@ -529,11 +529,13 @@ export function materializeAssetResource(doc: Document, resource: UamAssetResour
 			.setWidth(resource.dimensions?.width ?? 0)
 			.setHeight(resource.dimensions?.height ?? 0);
 		if (resource.fileName) movieClip.setFileName(resource.fileName);
+		materializeUamMovieClipResourceProperties(doc, movieClip, resource.movieClip);
 		if (resource.sourceBytes instanceof Uint8Array) {
-			movieClip.setSmoothing(resource.movieClip.smoothing);
-			applyDerivedMovieClipModel(doc, movieClip, deriveMovieClipModelFromJta(resource.sourceBytes));
-		} else {
-			materializeUamMovieClipResourceProperties(doc, movieClip, resource.movieClip);
+			try {
+				applyDerivedMovieClipModel(doc, movieClip, deriveMovieClipModelFromJta(resource.sourceBytes));
+			} catch {
+				// Keep the stored model when source bytes cannot be derived.
+			}
 		}
 		return attachAssetSourceData(doc, movieClip, resource);
 	}

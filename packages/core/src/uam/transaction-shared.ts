@@ -56,7 +56,8 @@ export function isResourceFolderLifecycleOperation(
 }
 
 export function isUamNativeOperation(operation: UamTransactionOperation): boolean {
-	return operation.kind === 'setComponentProps'
+	return operation.kind === 'updateProjectSettings'
+		|| operation.kind === 'setComponentProps'
 		|| operation.kind === 'setDisplayNodeProps'
 		|| operation.kind === 'setResourceFavorite'
 		|| operation.kind === 'setResourceFolderFavorite'

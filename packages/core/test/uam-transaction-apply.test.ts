@@ -7,8 +7,10 @@ import {
 	createDefaultUamPlainTextProperties,
 	createUamTransaction,
 	deriveMovieClipModelFromJta,
+	materializeUamProject,
 	parseJta,
 	validateTransactionSupport,
+	type UamMovieClipResource,
 	type UamTextNode,
 } from '../src/index.js';
 
@@ -86,6 +88,98 @@ test('parseJta and the shared MovieClip derivation cover v100, v101, and v102 ti
 		t.throws(() => parseJta(createMovieClipJta(102, 10, 10, 0, 0, { frames: [frame] })), {
 			message: /negative delay or dimensions/,
 		});
+	}
+});
+
+test('MovieClip materialization keeps stored properties when source JTA cannot be derived', (t) => {
+	const project = createSupportedProject();
+	const sourceBytes = new Uint8Array([0, 1, 2, 3]);
+	project.packages[0]!.resources.push({
+		kind: 'movieClip',
+		id: 'brokenMovieClip',
+		name: 'broken',
+		path: '/',
+		exported: true,
+		favorite: false,
+		branch: '',
+		branchItemIds: [],
+		fileName: 'broken.jta',
+		dimensions: { width: 40, height: 30 },
+		movieClip: {
+			interval: 80,
+			repeatDelay: 160,
+			swing: true,
+			smoothing: false,
+			frames: [{ rectX: 1, rectY: 2, rectWidth: 40, rectHeight: 30, addDelay: 20, spriteId: '' }],
+		},
+		sourceBytes,
+		sourcePath: '/broken.jta',
+	} satisfies UamMovieClipResource);
+
+	const movieClip = materializeUamProject(project).getRoot().getPackage('Main')?.listResources().at(-1);
+	t.is(movieClip?.propertyType, 'MovieClipResource');
+	if (movieClip?.propertyType !== 'MovieClipResource') return;
+	t.deepEqual(movieClip.getSourceData()?.getData(), sourceBytes);
+	t.deepEqual(
+		[movieClip.getWidth(), movieClip.getHeight(), movieClip.getInterval(), movieClip.getRepeatDelay(), movieClip.getSwing()],
+		[40, 30, 80, 160, true],
+	);
+	t.false(movieClip.getSmoothing());
+	t.is(movieClip.listFrames()[0]?.getAddDelay(), 20);
+});
+
+test('project settings transactions validate, detach, preserve unknown JSON, and support an explicit inverse', (t) => {
+	const project = createSupportedProject();
+	project.settings = {
+		publish: { binaryFormat: true, atlasSetting: { maxSize: 2048 }, codeGeneration: { codePath: 'generated' } },
+		common: { font: 'Arial', scrollBars: { vertical: 'ui://scroll' } },
+		adaptation: { designResolutionX: 1280, devices: [{ name: 'tablet' }] },
+		customProperties: { groups: [{ name: 'Gameplay' }] },
+		i18n: { langFiles: [{ name: 'English', path: 'locale/en.xml' }] },
+		pluginData: { enabled: true },
+	};
+	const original = structuredClone(project.settings);
+	const updated = {
+		publish: { binaryFormat: false, atlasSetting: { maxSize: 1024 }, codeGeneration: { codePath: 'src/ui' } },
+		common: { font: 'Noto Sans', scrollBars: { vertical: 'ui://new-scroll' } },
+		adaptation: { designResolutionX: 1920, devices: [{ name: 'desktop' }] },
+		customProperties: { groups: [{ name: 'UI' }] },
+		i18n: { langFiles: [{ name: 'French', path: 'locale/fr.xml' }] },
+		pluginData: { enabled: false, nested: [1, 2, 3] },
+	};
+	const operation = { kind: 'updateProjectSettings' as const, settings: updated };
+
+	t.deepEqual(validateTransactionSupport(project, [operation]), []);
+	const result = applyUamTransaction(project, [operation]);
+	updated.publish.atlasSetting.maxSize = 1;
+	updated.i18n.langFiles[0]!.name = 'Mutated caller';
+	t.is(result.settings.publish?.atlasSetting?.maxSize, 1024);
+	t.is(result.settings.i18n?.langFiles[0]?.name, 'French');
+	t.deepEqual(project.settings, original);
+	t.deepEqual(result.settings.pluginData, { enabled: false, nested: [1, 2, 3] });
+
+	const restored = applyUamTransaction(result, [{ kind: 'updateProjectSettings', settings: original }]);
+	t.deepEqual(restored.settings, original);
+	const unchanged = validateTransactionSupport(project, [{ kind: 'updateProjectSettings', settings: original }]);
+	t.is(unchanged[0]?.code, 'project_settings_unchanged');
+	const unchangedError = t.throws(() => applyUamTransaction(project, [{ kind: 'updateProjectSettings', settings: original }]));
+	t.true(unchangedError instanceof UamTransactionError);
+
+	const circular: Record<string, unknown> = {};
+	circular.self = circular;
+	for (const settings of [
+		null,
+		{ publish: { binaryFormat: 'yes' } },
+		{ common: { scrollBars: { vertical: 1 } } },
+		{ adaptation: { devices: {} } },
+		{ customProperties: [] },
+		{ i18n: { langFiles: [{ name: 'English', path: 1 }] } },
+		{ unknown: Number.POSITIVE_INFINITY },
+		{ unknown: circular },
+		{ unknown: new Date() },
+	]) {
+		const issues = validateTransactionSupport(project, [{ kind: 'updateProjectSettings', settings } as never]);
+		t.is(issues[0]?.code, 'invalid_project_settings');
 	}
 });
 
