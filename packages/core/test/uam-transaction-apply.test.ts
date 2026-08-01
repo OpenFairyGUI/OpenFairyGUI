@@ -78,6 +78,15 @@ test('parseJta and the shared MovieClip derivation cover v100, v101, and v102 ti
 	t.throws(() => parseJta(createMovieClipJta(102, 10, 10, 0, 0, {
 		frames: [{ delay: 0, rectX: 0, rectY: 0, rectWidth: 10, rectHeight: 10, textureIndex: -2 }],
 	})), { message: /texture index -2 is outside/ });
+	for (const frame of [
+		{ delay: -1, rectX: 0, rectY: 0, rectWidth: 10, rectHeight: 10, textureIndex: -1 },
+		{ delay: 0, rectX: 0, rectY: 0, rectWidth: -1, rectHeight: 10, textureIndex: -1 },
+		{ delay: 0, rectX: 0, rectY: 0, rectWidth: 10, rectHeight: -1, textureIndex: -1 },
+	]) {
+		t.throws(() => parseJta(createMovieClipJta(102, 10, 10, 0, 0, { frames: [frame] })), {
+			message: /negative delay or dimensions/,
+		});
+	}
 });
 
 test('resource exported transactions support assets, components, inverse, and source immutability', (t) => {
@@ -869,6 +878,18 @@ test('ProjectReader and MovieClip replacement hydrate the complete typed JTA mod
 		kind: 'addResource' as const,
 		selector: { packageId: 'pkg001' },
 		resource: { ...staleMovieClip, id: 'invalidMovie', name: 'invalid', fileName: 'invalid.jta', sourceBytes: invalidBytes },
+	}, {
+		kind: 'addResource' as const,
+		selector: { packageId: 'pkg001' },
+		resource: {
+			...staleMovieClip,
+			id: 'negativeFrameMovie',
+			name: 'negativeFrame',
+			fileName: 'negative-frame.jta',
+			sourceBytes: createMovieClipJta(102, 10, 10, 0, 0, {
+				frames: [{ delay: -1, rectX: 0, rectY: 0, rectWidth: 10, rectHeight: 10, textureIndex: -1 }],
+			}),
+		},
 	}, {
 		kind: 'addPackage' as const,
 		atIndex: reloaded.packages.length,

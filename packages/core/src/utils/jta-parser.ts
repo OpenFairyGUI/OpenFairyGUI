@@ -151,6 +151,9 @@ export function parseJta(data: Uint8Array): JtaDef {
 		const rectWidth = cursor.readInt16(`frame ${i} rect width`);
 		const rectHeight = cursor.readInt16(`frame ${i} rect height`);
 		const textureIndex = cursor.readInt16(`frame ${i} texture index`);
+		if (delay < 0 || rectWidth < 0 || rectHeight < 0) {
+			throw new Error(`Invalid .jta file: frame ${i} has negative delay or dimensions`);
+		}
 		frames.push({ delay, rectX, rectY, rectWidth, rectHeight, textureIndex });
 	}
 
