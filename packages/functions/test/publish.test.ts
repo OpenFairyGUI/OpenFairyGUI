@@ -1837,49 +1837,82 @@ test('publish: Node raster backend publishes mixed PNG/JPEG MovieClip textures',
 	}
 });
 
-test('publish: a later invalid MovieClip package leaves Node output untouched', async (t) => {
-	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-jta-preflight-'));
-	const assetsDir = path.join(tmpDir, 'assets');
-	const outputDir = path.join(tmpDir, 'release');
-	const png = new Uint8Array(
-		await sharp({ create: { width: 1, height: 1, channels: 4, background: '#ffffffff' } }).png().toBuffer(),
-	);
-	const doc = new Document();
+test('publish: later truncated and unsupported MovieClips leave all Node built-in output untouched', async (t) => {
+	const createRaster = () => sharp({ create: { width: 8, height: 8, channels: 4, background: '#ffffffff' } });
+	const png = new Uint8Array(await createRaster().png().toBuffer());
+	const jpeg = new Uint8Array(await createRaster().jpeg().toBuffer());
+	const invalidTextures = [
+		['truncated PNG', png.subarray(0, png.byteLength - 1), /Could not decode MovieClip/],
+		['truncated JPEG', jpeg.subarray(0, jpeg.byteLength - 1), /Could not decode MovieClip/],
+		['WebP', new Uint8Array(await createRaster().webp().toBuffer()), /unsupported raster format/],
+		['GIF', new Uint8Array(await createRaster().gif().toBuffer()), /unsupported raster format/],
+		['TIFF', new Uint8Array(await createRaster().tiff().toBuffer()), /unsupported raster format/],
+	] as const;
 
-	const addPackage = async (name: string, id: string, jta: Uint8Array) => {
-		const pkg = doc.createPackage(name);
-		pkg.setId(id);
-		const movieClip = doc.createMovieClipResource('spinner');
-		movieClip.setId(`${id}mc`).setPath('/clips/').setFileName('spinner.jta').setExported(true);
-		pkg.addResource(movieClip);
-		const sourceDir = path.join(assetsDir, name, 'clips');
-		await fs.mkdir(sourceDir, { recursive: true });
-		await fs.writeFile(path.join(sourceDir, 'spinner.jta'), jta);
-	};
+	for (const [name, invalidTexture, expectedMessage] of invalidTextures) {
+		const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-jta-preflight-'));
+		const assetsDir = path.join(tmpDir, 'assets');
+		const outputDir = path.join(tmpDir, 'release');
+		const generatedDir = path.join(tmpDir, 'generated');
+		const doc = new Document();
+		doc.setProjectDir(tmpDir);
+		doc.getRoot().setProjectType(4);
+		doc.getRoot().setSettings({
+			publish: {
+				codeGeneration: {
+					allowGenCode: true,
+					codePath: 'generated',
+				},
+			},
+		} as RootProjectSettings);
 
-	try {
-		await addPackage('First', 'first001', createTestJta([png], [{ textureIndex: 0 }]));
-		await addPackage('Second', 'second01', createTestJta([new Uint8Array(0)], [{ textureIndex: 0 }]));
+		const addPackage = async (packageName: string, packageId: string, jta: Uint8Array) => {
+			const pkg = doc.createPackage(packageName);
+			pkg.setId(packageId);
+			const movieClip = doc.createMovieClipResource('spinner');
+			movieClip.setId(`${packageId}mc`).setPath('/clips/').setFileName('spinner.jta').setExported(true);
+			pkg.addResource(movieClip);
+			const sourceDir = path.join(assetsDir, packageName, 'clips');
+			await fs.mkdir(sourceDir, { recursive: true });
+			await fs.writeFile(path.join(sourceDir, 'spinner.jta'), jta);
+			return pkg;
+		};
 
-		await t.throwsAsync(
-			() =>
-				doc.transform(
-					publish({
-						output: outputDir,
-						basePath: assetsDir,
-						fileExtension: 'fui',
-						encoder: sharp,
-						fs: createFs(),
-						codeGeneration: false,
-					}),
-				),
-			{ message: /references empty texture 0/ },
-		);
-		t.false(
-			await fs.stat(outputDir).then(() => true).catch(() => false),
-			'preflight completes for every selected package before the first output mkdir/write',
-		);
-	} finally {
-		await fs.rm(tmpDir, { recursive: true, force: true });
+		try {
+			const first = await addPackage('First', 'first001', createTestJta([png], [{ textureIndex: 0 }]));
+			first.setGenCode(true);
+			const component = doc.createComponent('Main');
+			component.setId('main0001').setExported(true);
+			first.addResource(component);
+			const sound = doc.createSoundResource('click');
+			sound.setId('sound001').setPath('/sound/').setFile('click.wav').setExported(true);
+			first.addResource(sound);
+			const misc = doc.createMiscResource('config');
+			misc.setId('misc0001').setPath('/data/').setFile('config.json').setExported(true);
+			first.addResource(misc);
+			await fs.mkdir(path.join(assetsDir, 'First', 'sound'), { recursive: true });
+			await fs.mkdir(path.join(assetsDir, 'First', 'data'), { recursive: true });
+			await fs.writeFile(path.join(assetsDir, 'First', 'sound', 'click.wav'), new Uint8Array([1, 2, 3]));
+			await fs.writeFile(path.join(assetsDir, 'First', 'data', 'config.json'), new Uint8Array([4, 5, 6]));
+			await addPackage('Second', 'second01', createTestJta([invalidTexture], [{ textureIndex: 0 }]));
+
+			await t.throwsAsync(
+				() =>
+					doc.transform(
+						publish({
+							output: outputDir,
+							basePath: assetsDir,
+							fileExtension: 'fui',
+							encoder: sharp,
+							fs: createFs(),
+						}),
+					),
+				{ message: expectedMessage },
+			);
+			t.false(await fs.stat(outputDir).then(() => true).catch(() => false), `${name}: no release output`);
+			t.false(await fs.stat(generatedDir).then(() => true).catch(() => false), `${name}: no generated code output`);
+		} finally {
+			await fs.rm(tmpDir, { recursive: true, force: true });
+		}
 	}
 });

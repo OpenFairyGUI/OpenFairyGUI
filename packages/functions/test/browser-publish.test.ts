@@ -1,21 +1,7 @@
 import test from 'ava';
 import { Document, ProjectType } from '@openfairygui/core';
 import { publishBrowser } from '../src/web.js';
-import { createTestJta } from './test-jta.js';
-
-const PNG = Uint8Array.from([
-	0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-	0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
-	0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-	0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
-	0x89, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x44, 0x41,
-	0x54, 0x08, 0xd7, 0x63, 0xf8, 0xcf, 0xc0, 0xf0,
-	0x1f, 0x00, 0x05, 0x00, 0x01, 0xff, 0x89, 0x99,
-	0x3d, 0x1d, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45,
-	0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
-]);
-
-const JPEG = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46]);
+import { createTestJta, TEST_JPEG as JPEG, TEST_PNG as PNG } from './test-jta.js';
 
 class MemoryFileSystem {
 	readonly files = new Map<string, Uint8Array>();
@@ -48,11 +34,12 @@ function addMovieClipPackage(
 	packageName: string,
 	packageId: string,
 	jta: Uint8Array,
+	resourceId = `${packageId}mc`,
 ): ReturnType<Document['createMovieClipResource']> {
 	const pkg = document.createPackage(packageName);
 	pkg.setId(packageId);
 	const movieClip = document.createMovieClipResource('spinner');
-	movieClip.setId(`${packageId}mc`).setPath('/clips/').setFileName('spinner.jta').setExported(true);
+	movieClip.setId(resourceId).setPath('/clips/').setFileName('spinner.jta').setExported(true);
 	pkg.addResource(movieClip);
 	source.files.set(`assets/${packageName}/clips/spinner.jta`, jta);
 	return movieClip;
@@ -86,7 +73,7 @@ class BrowserCanvasStub {
 	}
 }
 
-test('publishBrowser writes Layabox .fui and atlas PNG through browser file systems', async (t) => {
+test.serial('publishBrowser writes Layabox .fui and atlas PNG through browser file systems', async (t) => {
 	const globals = globalThis as Record<string, unknown>;
 	const previousCanvas = globals.OffscreenCanvas;
 	const previousCreateImageBitmap = globals.createImageBitmap;
@@ -131,7 +118,7 @@ test('publishBrowser writes Layabox .fui and atlas PNG through browser file syst
 	}
 });
 
-test('publishBrowser decodes PNG/JPEG JTA textures with authoritative first-reference order', async (t) => {
+test.serial('publishBrowser decodes PNG/JPEG JTA textures in authoritative texture-table order', async (t) => {
 	const globals = globalThis as Record<string, unknown>;
 	const previousCanvas = globals.OffscreenCanvas;
 	const previousCreateImageBitmap = globals.createImageBitmap;
@@ -184,8 +171,8 @@ test('publishBrowser decodes PNG/JPEG JTA textures with authoritative first-refe
 			'sprite IDs and insertion order follow the first frame that references each texture',
 		);
 		t.deepEqual(document.getRoot().listPackages()[0]?.listAtlases()[0]?.listSprites().map((sprite) => sprite.getItemId()), [
-			'demo0001mc_0',
 			'demo0001mc_1',
+			'demo0001mc_0',
 		]);
 		t.is(source.readCalls.get('assets/Demo/clips/spinner.jta'), 1, 'publish reuses the global JTA preflight cache');
 		t.true(decodedMimeTypes.includes('image/jpeg'), 'embedded JPEG bytes use the JPEG Blob MIME type');
@@ -200,7 +187,7 @@ test('publishBrowser decodes PNG/JPEG JTA textures with authoritative first-refe
 	}
 });
 
-test('publishBrowser preflights every package before creating or writing output', async (t) => {
+test.serial('publishBrowser preflights every package before creating or writing output', async (t) => {
 	const globals = globalThis as Record<string, unknown>;
 	const previousCanvas = globals.OffscreenCanvas;
 	const previousCreateImageBitmap = globals.createImageBitmap;
@@ -227,6 +214,145 @@ test('publishBrowser preflights every package before creating or writing output'
 		t.is(output.mkdirCalls, 0, 'global preflight fails before the first output directory is created');
 		t.is(output.files.size, 0, 'global preflight fails before any package or atlas bytes are written');
 		t.deepEqual(result.files, []);
+	} finally {
+		if (previousCanvas === undefined) delete globals.OffscreenCanvas;
+		else globals.OffscreenCanvas = previousCanvas;
+		if (previousCreateImageBitmap === undefined) delete globals.createImageBitmap;
+		else globals.createImageBitmap = previousCreateImageBitmap;
+	}
+});
+
+test.serial('publishBrowser publishes single-frame PNG/JPEG resources with same-ID cache isolation', async (t) => {
+	const globals = globalThis as Record<string, unknown>;
+	const previousCanvas = globals.OffscreenCanvas;
+	const previousCreateImageBitmap = globals.createImageBitmap;
+	globals.OffscreenCanvas = BrowserCanvasStub;
+	globals.createImageBitmap = async () => ({ width: 1, height: 1, close() {} });
+
+	try {
+		const source = new MemoryFileSystem();
+		const output = new MemoryFileSystem();
+		const document = new Document();
+		const pngMovieClip = addMovieClipPackage(
+			document,
+			source,
+			'PngPackage',
+			'pngpkg01',
+			createTestJta([PNG], [{ textureIndex: 0 }]),
+			'sharedmc',
+		);
+		const jpegMovieClip = addMovieClipPackage(
+			document,
+			source,
+			'JpegPackage',
+			'jpegpkg1',
+			createTestJta([JPEG], [{ textureIndex: 0 }]),
+			'sharedmc',
+		);
+
+		const result = await publishBrowser({
+			document,
+			sourceFileSystem: source,
+			outputFileSystem: output,
+			projectType: 'layabox',
+			output: '.fairygui-runtime',
+		});
+
+		t.true(result.success, result.diagnostics.map((entry) => entry.message).join('\n'));
+		t.deepEqual(pngMovieClip.listFrames().map((frame) => frame.getSpriteId()), ['sharedmc_0']);
+		t.deepEqual(jpegMovieClip.listFrames().map((frame) => frame.getSpriteId()), ['sharedmc_0']);
+		t.is(source.readCalls.get('assets/PngPackage/clips/spinner.jta'), 1);
+		t.is(source.readCalls.get('assets/JpegPackage/clips/spinner.jta'), 1);
+		t.true(output.files.has('.fairygui-runtime/PngPackage_atlas0.png'));
+		t.true(output.files.has('.fairygui-runtime/JpegPackage_atlas0.png'));
+	} finally {
+		if (previousCanvas === undefined) delete globals.OffscreenCanvas;
+		else globals.OffscreenCanvas = previousCanvas;
+		if (previousCreateImageBitmap === undefined) delete globals.createImageBitmap;
+		else globals.createImageBitmap = previousCreateImageBitmap;
+	}
+});
+
+test.serial('publishBrowser skips an invalid unselected MovieClip during preflight', async (t) => {
+	const globals = globalThis as Record<string, unknown>;
+	const previousCanvas = globals.OffscreenCanvas;
+	const previousCreateImageBitmap = globals.createImageBitmap;
+	globals.OffscreenCanvas = BrowserCanvasStub;
+	globals.createImageBitmap = async () => ({ width: 1, height: 1, close() {} });
+
+	try {
+		const source = new MemoryFileSystem();
+		const output = new MemoryFileSystem();
+		const document = new Document();
+		addMovieClipPackage(document, source, 'Demo', 'demo0001', createTestJta([PNG], [{ textureIndex: 0 }]));
+		const pkg = document.getRoot().listPackages()[0]!;
+		const ignored = document.createMovieClipResource('ignored');
+		ignored.setId('ignored1').setPath('/clips/').setFileName('ignored.jta');
+		pkg.addResource(ignored);
+		source.files.set(
+			'assets/Demo/clips/ignored.jta',
+			createTestJta([Uint8Array.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61])], [{ textureIndex: 0 }]),
+		);
+
+		const result = await publishBrowser({
+			document,
+			sourceFileSystem: source,
+			outputFileSystem: output,
+			projectType: 'layabox',
+			output: '.fairygui-runtime',
+		});
+
+		t.true(result.success, result.diagnostics.map((entry) => entry.message).join('\n'));
+		t.is(source.readCalls.get('assets/Demo/clips/spinner.jta'), 1);
+		t.false(source.readCalls.has('assets/Demo/clips/ignored.jta'));
+	} finally {
+		if (previousCanvas === undefined) delete globals.OffscreenCanvas;
+		else globals.OffscreenCanvas = previousCanvas;
+		if (previousCreateImageBitmap === undefined) delete globals.createImageBitmap;
+		else globals.createImageBitmap = previousCreateImageBitmap;
+	}
+});
+
+test.serial('publishBrowser rejects truncated and unsupported JTA textures before built-in output', async (t) => {
+	const globals = globalThis as Record<string, unknown>;
+	const previousCanvas = globals.OffscreenCanvas;
+	const previousCreateImageBitmap = globals.createImageBitmap;
+	globals.OffscreenCanvas = BrowserCanvasStub;
+	let decoderCalls = 0;
+	globals.createImageBitmap = async () => {
+		decoderCalls += 1;
+		return { width: 1, height: 1, close() {} };
+	};
+
+	try {
+		const invalidTextures = [
+			['truncated PNG', PNG.subarray(0, PNG.byteLength - 1), /Could not decode MovieClip/],
+			['truncated JPEG', JPEG.subarray(0, JPEG.byteLength - 1), /Could not decode MovieClip/],
+			['WebP', Uint8Array.from([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]), /unsupported raster format/],
+			['GIF', Uint8Array.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]), /unsupported raster format/],
+			['TIFF', Uint8Array.from([0x49, 0x49, 0x2a, 0x00]), /unsupported raster format/],
+		] as const;
+
+		for (const [name, texture, expectedMessage] of invalidTextures) {
+			const source = new MemoryFileSystem();
+			const output = new MemoryFileSystem();
+			const document = new Document();
+			addMovieClipPackage(document, source, 'Broken', 'broken01', createTestJta([texture], [{ textureIndex: 0 }]));
+
+			const result = await publishBrowser({
+				document,
+				sourceFileSystem: source,
+				outputFileSystem: output,
+				projectType: 'layabox',
+				output: '.fairygui-runtime',
+			});
+
+			t.false(result.success, name);
+			t.regex(result.diagnostics.at(-1)?.message ?? '', expectedMessage, name);
+			t.is(output.mkdirCalls, 0, `${name}: no built-in output directory`);
+			t.is(output.files.size, 0, `${name}: no built-in output files`);
+		}
+		t.is(decoderCalls, 0, 'shared validation rejects invalid data before the browser host decoder');
 	} finally {
 		if (previousCanvas === undefined) delete globals.OffscreenCanvas;
 		else globals.OffscreenCanvas = previousCanvas;

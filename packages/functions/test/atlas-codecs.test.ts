@@ -3,7 +3,7 @@ import { createTestMovieClipJta } from '@openfairygui/test-utils';
 import { parseFnt } from '../src/atlas/font.js';
 import { extractJtaFrames, prepareJtaForPublish } from '../src/atlas/jta.js';
 import type { AtlasRasterBackend, AtlasRasterPipeline } from '../src/publish/contracts.js';
-import { createTestJta } from './test-jta.js';
+import { createTestJta, TEST_JPEG, TEST_PNG } from './test-jta.js';
 
 test('atlas codecs parse standalone BMFont metadata', (t) => {
 	const font = parseFnt([
@@ -35,8 +35,8 @@ test('atlas codecs parse standalone BMFont metadata', (t) => {
 });
 
 test('JTA extraction follows the authoritative texture table and frame references', async (t) => {
-	const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 1]);
-	const jpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 2]);
+	const png = TEST_PNG;
+	const jpeg = TEST_JPEG;
 	const jta = createTestJta(
 		[png, jpeg],
 		[
@@ -67,27 +67,33 @@ test('JTA extraction follows the authoritative texture table and frame reference
 	const decoded: Uint8Array[] = [];
 	const encoder = ((input: Uint8Array) => {
 		decoded.push(input);
-		return { metadata: async () => ({ width: 2, height: 3 }) } as AtlasRasterPipeline;
+		return {
+			png() {
+				return this;
+			},
+			toBuffer: async () => TEST_PNG,
+		} as AtlasRasterPipeline;
 	}) as AtlasRasterBackend;
 	const prepared = await prepareJtaForPublish(jta, encoder, 'Demo/fx.jta');
 	t.deepEqual(
 		prepared.referencedTextures.map(({ textureIndex, firstFrameIndex }) => ({ textureIndex, firstFrameIndex })),
 		[
-			{ textureIndex: 1, firstFrameIndex: 0 },
 			{ textureIndex: 0, firstFrameIndex: 1 },
+			{ textureIndex: 1, firstFrameIndex: 0 },
 		],
-		'textures retain first-reference order and repeated references decode once',
+		'textures retain JTA table order and repeated references decode once',
 	);
-	t.deepEqual(decoded, [jpeg, png]);
+	t.deepEqual(decoded, [png, jpeg]);
+	t.true(prepared.referencedTextures.every((texture) => texture.buffer === TEST_PNG));
 });
 
 test('JTA preparation rejects invalid, empty, truncated, and corrupt referenced textures', async (t) => {
-	const encoder = ((input: Uint8Array) => {
+	const encoder = ((_input: Uint8Array) => {
 		return {
-			metadata: async () => {
-				if (input[0] === 0x00) throw new Error('corrupt');
-				return { width: 1, height: 1 };
+			png() {
+				return this;
 			},
+			toBuffer: async () => TEST_PNG,
 		} as AtlasRasterPipeline;
 	}) as AtlasRasterBackend;
 	const blankFrame = await prepareJtaForPublish(
@@ -106,10 +112,14 @@ test('JTA preparation rejects invalid, empty, truncated, and corrupt referenced 
 		{ message: /references empty texture 0/ },
 	);
 	await t.throwsAsync(
-		() => prepareJtaForPublish(createTestJta([new Uint8Array([0])], [{ textureIndex: 0 }]), encoder, 'corrupt.jta'),
+		() => prepareJtaForPublish(createTestJta([new Uint8Array([0])], [{ textureIndex: 0 }]), encoder, 'unsupported.jta'),
+		{ message: /unsupported raster format; only PNG and JPEG are supported/ },
+	);
+	await t.throwsAsync(
+		() => prepareJtaForPublish(createTestJta([TEST_PNG.subarray(0, 33)], [{ textureIndex: 0 }]), encoder, 'corrupt.jta'),
 		{ message: /Could not decode MovieClip/ },
 	);
-	const valid = createTestJta([new Uint8Array([1, 2, 3])], [{ textureIndex: 0 }]);
+	const valid = createTestJta([TEST_PNG], [{ textureIndex: 0 }]);
 	t.throws(() => extractJtaFrames(valid.subarray(0, valid.byteLength - 1)), { message: /truncated texture data/ });
 });
 
@@ -152,3 +162,68 @@ for (const version of [100, 101, 102] as const) {
 		});
 	});
 }
+
+test('JTA preparation strictly accepts one-frame PNG/JPEG and rejects truncated sources', async (t) => {
+	for (const [name, texture] of [
+		['PNG', TEST_PNG],
+		['JPEG', TEST_JPEG],
+	] as const) {
+		const prepared = await prepareJtaForPublish(createTestJta([texture], [{ textureIndex: 0 }]), undefined, `${name}.jta`);
+		t.is(prepared.referencedTextures.length, 1, `${name} has one referenced texture`);
+		t.is(prepared.referencedTextures[0]?.width, 1);
+		t.is(prepared.referencedTextures[0]?.height, 1);
+		t.deepEqual(prepared.referencedTextures[0]?.buffer, texture);
+
+		await t.throwsAsync(
+			() =>
+				prepareJtaForPublish(
+					createTestJta([texture.subarray(0, texture.byteLength - 1)], [{ textureIndex: 0 }]),
+					undefined,
+					`truncated-${name}.jta`,
+				),
+			{ message: /Could not decode MovieClip/ },
+		);
+	}
+});
+
+test('JTA preparation rejects unsupported WebP, GIF, and TIFF before invoking the host decoder', async (t) => {
+	let decoderCalls = 0;
+	const encoder = ((_input: Uint8Array) => {
+		decoderCalls += 1;
+		throw new Error('host decoder must not be called');
+	}) as AtlasRasterBackend;
+	const unsupported = [
+		['WebP', Uint8Array.from([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50])],
+		['GIF', Uint8Array.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61])],
+		['TIFF', Uint8Array.from([0x49, 0x49, 0x2a, 0x00])],
+	] as const;
+
+	for (const [name, texture] of unsupported) {
+		await t.throwsAsync(
+			() => prepareJtaForPublish(createTestJta([texture], [{ textureIndex: 0 }]), encoder, `${name}.jta`),
+			{ message: /unsupported raster format; only PNG and JPEG are supported/ },
+		);
+	}
+	t.is(decoderCalls, 0);
+});
+
+test('JTA preflight performs a full host decode before accepting a texture', async (t) => {
+	let fullDecodeCalls = 0;
+	const encoder = ((_input: Uint8Array) => {
+		return {
+			png() {
+				return this;
+			},
+			async toBuffer() {
+				fullDecodeCalls += 1;
+				throw new Error('pixel decode failed');
+			},
+		} as AtlasRasterPipeline;
+	}) as AtlasRasterBackend;
+
+	await t.throwsAsync(
+		() => prepareJtaForPublish(createTestJta([TEST_PNG], [{ textureIndex: 0 }]), encoder, 'decode-fails.jta'),
+		{ message: /Could not decode MovieClip/ },
+	);
+	t.is(fullDecodeCalls, 1);
+});
