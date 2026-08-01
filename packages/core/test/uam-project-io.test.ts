@@ -57,6 +57,7 @@ function createEngineeringScaleUamProject(): UamProject {
 					genCode: false,
 					codePath: '',
 				},
+				branchNames: [],
 				resources: [
 					{
 						kind: 'image',

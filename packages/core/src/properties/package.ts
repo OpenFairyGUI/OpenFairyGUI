@@ -39,6 +39,7 @@ interface IPackage extends IExtensibleProperty {
 	publishPackageCount: number;
 	genCode: boolean;
 	codePath: string;
+	branchNames: string[];
 	resourceFolders: PackageResourceFolder[];
 	resources: RefSet<Property>;
 	atlases: RefSet<Atlas>;
@@ -71,6 +72,7 @@ export class Package extends ExtensibleProperty<IPackage> {
 			publishPackageCount: 0,
 			genCode: false,
 			codePath: '',
+			branchNames: [],
 			resourceFolders: [],
 			resources: new RefSet<Property>(),
 			atlases: new RefSet<Atlas>(),
@@ -148,6 +150,19 @@ export class Package extends ExtensibleProperty<IPackage> {
 
 	public setCodePath(path: string): this {
 		return this.set('codePath', path);
+	}
+
+	public listBranchNames(): string[] {
+		return [...this.get('branchNames')];
+	}
+
+	public setBranchNames(names: string[]): this {
+		return this.set('branchNames', [...names]);
+	}
+
+	public addBranchName(name: string): this {
+		if (!this.get('branchNames').includes(name)) this.set('branchNames', [...this.get('branchNames'), name]);
+		return this;
 	}
 
 	public listResourceFolders(): PackageResourceFolder[] {

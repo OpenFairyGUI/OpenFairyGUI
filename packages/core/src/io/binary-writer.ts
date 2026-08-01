@@ -266,7 +266,7 @@ export class BinaryWriter {
 				name: dep.getName(),
 			}))
 			.filter((dep) => !!dep.id);
-		const branchNames = includeBranches ? getPackageBranchNames(doc, resources) : [];
+		const branchNames = includeBranches ? pkg.listBranchNames() : [];
 		const branchItemIdsMap = buildBranchItemIdsMap(pkg, branchNames);
 		const publishedItemIdMap = new Map(resources.map((resource) => [resource.getId(), getPublishedItemId(resource)]));
 
@@ -921,18 +921,6 @@ function getPublishedItemId(item: {
 function getItemBranchName(item: BinaryPackageItem): string {
 	const branchAware = item as BranchAwareBinaryItem;
 	return branchAware.getBranch?.() ?? '';
-}
-
-function getPackageBranchNames(doc: Document, resources: PackageResource[]): string[] {
-	const packageBranchSet = new Set(
-		resources
-			.map((resource) => getItemBranchName(resource))
-			.filter((branchName) => !!branchName),
-	);
-	if (packageBranchSet.size === 0) {
-		return [];
-	}
-	return doc.getRoot().listBranches().filter((branchName) => packageBranchSet.has(branchName));
 }
 
 function buildBranchResourceKey(resource: BinaryPackageItem): string {

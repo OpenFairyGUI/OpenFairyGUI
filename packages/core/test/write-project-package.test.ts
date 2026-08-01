@@ -259,7 +259,7 @@ test('round-trip: branch package resources write into package_branch.xml and sur
 	doc.getRoot().setProjectId('branch-project').setProjectType(0).setVersion('3.0').setBranches(['dev']);
 
 	const pkg = doc.createPackage('Branch');
-	pkg.setId('branch001');
+	pkg.setId('branch001').setBranchNames(['dev']);
 
 	const mainComponent = doc.createComponent('Main');
 	mainComponent.setId('kn7w0');
@@ -316,6 +316,7 @@ test('round-trip: branch package resources write into package_branch.xml and sur
 		const pkg2 = doc2.getRoot().getPackage('Branch');
 		t.truthy(pkg2, 'Branch package exists after round-trip');
 		t.deepEqual(doc2.getRoot().listBranches(), ['dev']);
+		t.deepEqual(pkg2!.listBranchNames(), ['dev']);
 
 		const roundTripMainImage = pkg2!.listResources().find((res) => res.getId?.() === 'kn7w1') as any;
 		const roundTripDevImage = pkg2!.listResources().find((res) => res.getId?.() === 'kn7w2') as any;

@@ -671,12 +671,32 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 		packageIds.add(pkg.id);
 		packageNames.add(pkg.name);
 		validatePackageOutputTargets(pkg, pkgPath, issues);
+		const declaredBranchNames = Array.isArray(pkg.branchNames) ? pkg.branchNames : [];
+		if (!Array.isArray(pkg.branchNames)) {
+			pushIssue(issues, `${pkgPath}.branchNames`, 'Package branchNames must be an array.');
+		}
+		const packageBranchNames = new Set<string>();
+		for (const [branchIndex, branchName] of declaredBranchNames.entries()) {
+			if (!branchName || !project.branches.includes(branchName)) {
+				pushIssue(issues, `${pkgPath}.branchNames[${branchIndex}]`, `Unknown package branch "${branchName}".`);
+			}
+			if (packageBranchNames.has(branchName)) {
+				pushIssue(issues, `${pkgPath}.branchNames[${branchIndex}]`, `Duplicate package branch "${branchName}".`);
+			}
+			packageBranchNames.add(branchName);
+		}
 
 		const resourceIds = new Set<string>();
 		for (const [resourceIndex, resource] of pkg.resources.entries()) {
 			const resourcePath = `${pkgPath}.resources[${resourceIndex}]`;
 			if (resourceIds.has(resource.id)) pushIssue(issues, `${resourcePath}.id`, `Duplicate resource id "${resource.id}".`);
 			resourceIds.add(resource.id);
+			if (resource.branch && !packageBranchNames.has(resource.branch)) {
+				pushIssue(issues, `${resourcePath}.branch`, `Unknown package branch "${resource.branch}".`);
+			}
+			if (resource.branchItemIds.length > declaredBranchNames.length) {
+				pushIssue(issues, `${resourcePath}.branchItemIds`, 'Branch item ids exceed the package branch table.');
+			}
 			if (typeof resource.favorite !== 'boolean') {
 				pushIssue(issues, `${resourcePath}.favorite`, 'Resource favorite must be boolean.');
 			}

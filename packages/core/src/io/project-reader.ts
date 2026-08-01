@@ -294,6 +294,7 @@ export class ProjectReader {
 		if (!pkg) {
 			pkg = ctx.document.createPackage(dirName);
 		}
+		if (branchName) pkg.addBranchName(branchName);
 		pkg.setExtras({ ...pkg.getExtras(), _preservePackageResourceOrder: true });
 
 		if (!branchName) {

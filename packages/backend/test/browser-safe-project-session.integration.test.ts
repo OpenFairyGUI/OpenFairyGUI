@@ -289,6 +289,7 @@ function createLifecyclePackage(): UamPackage {
 		id: 'pkg002',
 		name: 'Overlay',
 		publish: null,
+		branchNames: [],
 		folders: [],
 		resources: [],
 	};
@@ -1460,6 +1461,7 @@ test('real LayaBox UAM sessions persist atomic resource dependency moves in brow
 		id: 'issue9pkg',
 		name: 'Issue9',
 		publish: null,
+		branchNames: [],
 		folders: [],
 		resources: [],
 	};
@@ -1837,6 +1839,7 @@ test('real LayaBox Bag dependency closure moves and inverts atomically in browse
 		id: 'issue34real',
 		name: 'Issue34Real',
 		publish: null,
+		branchNames: [],
 		folders: [],
 		resources: [],
 	};
@@ -1968,6 +1971,7 @@ test('real LayaBox Bag dependency closure moves and inverts atomically in browse
 			id: 'issue34failed',
 			name: 'Issue34Failed',
 			publish: null,
+			branchNames: [],
 			folders: [],
 			resources: [],
 		};

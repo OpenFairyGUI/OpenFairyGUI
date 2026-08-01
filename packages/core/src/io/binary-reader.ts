@@ -325,6 +325,7 @@ export class BinaryReader {
 		if (pkg.listResources().length > 0 || pkg.listAtlases().length > 0) {
 			throw new Error(`Package "${packageName}" (${packageId}) has already been read.`);
 		}
+		pkg.setBranchNames(packageBranches);
 		const atlasMap = new Map<string, ReturnType<Document['createAtlas']>>();
 
 		for (const dep of dependencies) {

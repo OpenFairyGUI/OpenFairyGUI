@@ -1120,6 +1120,7 @@ function normalizePackage(pkg: UamPackage): UamPackage {
 		id: pkg.id,
 		name: pkg.name,
 		publish: normalizePackagePublish(pkg.publish),
+		branchNames: [...(pkg.branchNames ?? [])],
 		folders,
 		resources,
 	};

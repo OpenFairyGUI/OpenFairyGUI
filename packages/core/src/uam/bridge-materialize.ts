@@ -1074,6 +1074,7 @@ export function materializeUamProject(project: UamProject): Document {
 	for (const pkgSpec of project.packages) {
 		const pkg = doc.createPackage(pkgSpec.name)
 			.setId(pkgSpec.id)
+			.setBranchNames(pkgSpec.branchNames)
 			.setResourceFolders(pkgSpec.folders);
 		pkg.setExtras({ ...pkg.getExtras(), _preservePackageResourceOrder: true });
 		if (pkgSpec.publish) {

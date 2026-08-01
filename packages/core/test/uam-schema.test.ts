@@ -20,6 +20,7 @@ test('normalizeUamProject fills schema-local defaults into a canonical shape', (
 				id: 'pkg001',
 				name: 'Main',
 				publish: null,
+				branchNames: [],
 				folders: [],
 				resources: [
 					{
@@ -79,6 +80,7 @@ test('MovieClip resources normalize and validate a typed model without metadata 
 			id: 'pkg001',
 			name: 'Main',
 			publish: null,
+			branchNames: [],
 			folders: [],
 			resources: [{
 				kind: 'movieClip',
@@ -132,6 +134,7 @@ test('validateUamProject rejects unknown hard references before graph assembly',
 				id: 'pkg001',
 				name: 'Main',
 				publish: null,
+				branchNames: [],
 				folders: [],
 				resources: [
 					{

@@ -248,6 +248,7 @@ flowchart LR
 | `assets_<branch>/<包名>/package_branch.xml` | 指定分支的资源清单 |
 | `assets[/_<branch>]/<包名>/<folder>/` | UAM `package.folders` 的实际目录；空目录也会读写保留 |
 | `Root.branches` | 当前工程已发现的分支名列表 |
+| `Package.branchNames` | 当前包的有序分支表；独立定义该包二进制 `branchItemIds` 的槽位，不复用工程级顺序 |
 | 资源节点 `branch` | 分支资源通过正式资源字段区分，不再停留在临时 `extras` |
 
 ## 当前发布附属资源口径
