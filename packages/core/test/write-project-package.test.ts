@@ -335,6 +335,37 @@ test('round-trip: branch package resources write into package_branch.xml and sur
 	}
 });
 
+test('round-trip: package-local branch order and item slots survive project reload', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectId('ordered-branches').setBranches(['desktop', 'mobile']);
+	const pkg = doc.createPackage('Ordered').setId('ordered001').setBranchNames(['mobile', 'desktop']);
+	const main = doc.createImageResource('face.png')
+		.setId('mainFace')
+		.setPath('/')
+		.setBranchItemIds(['mobileFace', 'desktopFace']);
+	pkg.addResource(main);
+	for (const [branch, id] of [['mobile', 'mobileFace'], ['desktop', 'desktopFace']] as const) {
+		pkg.addResource(doc.createImageResource('face.png').setId(id).setPath('/').setBranch(branch));
+	}
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-ordered-branches-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+	try {
+		await io.writeProject(doc, outFairy);
+		const packageXml = await fs.readFile(path.join(tmpDir, 'assets', 'Ordered', 'package.xml'), 'utf-8');
+		t.true(packageXml.includes('branchNames="[&quot;mobile&quot;,&quot;desktop&quot;]"'));
+		const reloadedPackage = (await io.readProject(outFairy)).getRoot().getPackage('Ordered');
+		t.deepEqual(reloadedPackage?.listBranchNames(), ['mobile', 'desktop']);
+		t.deepEqual(reloadedPackage?.listResources().find((resource) => resource.getId() === 'mainFace')?.getBranchItemIds(), [
+			'mobileFace',
+			'desktopFace',
+		]);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('round-trip: controller action payload survives project write→read', async (t) => {
 	const doc = new Document();
 	doc.getRoot().setProjectId('controller-action-project').setProjectType(0).setVersion('3.0');

@@ -1127,7 +1127,7 @@ test('binary writer: branch metadata round-trips as package-level branches and i
 	doc.getRoot().setBranches(['dev']);
 
 	const pkg = doc.createPackage('BranchPkg');
-	pkg.setId('branch001').setBranchNames(['dev']);
+	pkg.setId('branch001');
 
 	const mainComponent = doc.createComponent('Main');
 	mainComponent

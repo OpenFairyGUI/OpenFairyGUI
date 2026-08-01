@@ -248,10 +248,10 @@ flowchart LR
 | `assets_<branch>/<包名>/package_branch.xml` | 指定分支的资源清单 |
 | `assets[/_<branch>]/<包名>/<folder>/` | UAM `package.folders` 的实际目录；空目录也会读写保留 |
 | `Root.branches` | 当前工程已发现的分支名列表 |
-| `Package.branchNames` | 当前包的有序分支表；独立定义该包二进制 `branchItemIds` 的槽位，不复用工程级顺序 |
+| `Package.branchNames` | 当前包的有序分支表；由 `package.xml` 的 `branchNames` JSON 数组持久化，并独立定义该包二进制 `branchItemIds` 的槽位 |
 | 资源节点 `branch` | 分支资源通过正式资源字段区分，不再停留在临时 `extras` |
 
-ProjectReader 在所有主/分支资源注册完成后，按资源类型、路径和名称重建主资源的包内分支 ID 映射。ProjectWriter 总是创建每个 `Root.branches` 对应的根目录，并为 `Package.branchNames` 中的空槽位写空分支描述；保存完成后再通过受控分支目录清单非递归删除旧目录。
+ProjectReader 读取 `package.xml` 的包内分支顺序，并在所有主/分支资源注册完成后按资源类型、路径和名称重建主资源的包内分支 ID 映射。ProjectWriter 总是创建每个 `Root.branches` 对应的根目录，并为 `Package.branchNames` 中的空槽位写空分支描述；保存完成后再通过受控分支目录清单非递归删除旧目录。
 
 ## 当前发布附属资源口径
 

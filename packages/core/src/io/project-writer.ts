@@ -212,6 +212,12 @@ export class ProjectWriter {
 		const codePath = pkg.getCodePath();
 		const packageDescriptionAttrs: Record<string, unknown> = {};
 		writeXmlAttr(packageDescriptionAttrs, PROJECT_XML_PROTOCOL.packageDescription.attrs.id, pkg.getId());
+		const packageBranchNames = pkg.listBranchNames();
+		writeXmlAttr(
+			packageDescriptionAttrs,
+			PROJECT_XML_PROTOCOL.packageDescription.attrs.branchNames,
+			packageBranchNames.length > 0 ? JSON.stringify(packageBranchNames) : undefined,
+		);
 		if (pkg.listResources().some((resource) => (resource as WritableResource).getFavorite?.())
 			|| pkg.listResourceFolders().some((folder) => folder.favorite)
 		) {

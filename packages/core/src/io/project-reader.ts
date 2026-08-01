@@ -47,6 +47,7 @@ interface PackageResourcesNode extends Record<string, unknown> {}
 
 interface PackageDescriptionNode extends XmlNode {
 	id?: string;
+	branchNames?: string;
 	publish?: PackagePublishNode;
 	resources?: PackageResourcesNode;
 }
@@ -323,6 +324,25 @@ export class ProjectReader {
 		if (!branchName) {
 			const packageId = readXmlAttr<string>(desc, PROJECT_XML_PROTOCOL.packageDescription.attrs.id) || '';
 			pkg.setId(packageId);
+			const serializedBranchNames = readXmlAttr<string>(
+				desc,
+				PROJECT_XML_PROTOCOL.packageDescription.attrs.branchNames,
+			);
+			if (serializedBranchNames !== undefined) {
+				let parsedBranchNames: unknown;
+				try {
+					parsedBranchNames = JSON.parse(serializedBranchNames);
+				} catch {
+					throw new Error(`Invalid package branchNames for "${dirName}".`);
+				}
+				if (!Array.isArray(parsedBranchNames)
+					|| !parsedBranchNames.every((name): name is string => typeof name === 'string' && name.length > 0)
+					|| new Set(parsedBranchNames).size !== parsedBranchNames.length
+				) {
+					throw new Error(`Invalid package branchNames for "${dirName}".`);
+				}
+				pkg.setBranchNames(parsedBranchNames);
+			}
 			const compressPNG = readXmlAttr<string | boolean>(desc, PROJECT_XML_PROTOCOL.packageDescription.attrs.compressPNG);
 			if (compressPNG !== undefined) pkg.setCompressPNG(parseBool(compressPNG));
 			const jpegQuality = readXmlAttr<string | number>(desc, PROJECT_XML_PROTOCOL.packageDescription.attrs.jpegQuality);
