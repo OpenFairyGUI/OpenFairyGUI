@@ -89,6 +89,32 @@ function assertInsertionIndex(index: number, length: number, label: string): voi
 
 export function applyUamLifecycleOperation(project: UamProject, operation: UamLifecycleOperation): void {
 	switch (operation.kind) {
+		case 'addBranch':
+			project.branches = [...project.branches, operation.branch].sort((left, right) => left.localeCompare(right));
+			return;
+		case 'renameBranch': {
+			const previousName = operation.selector.branch;
+			project.branches = project.branches
+				.map((branch) => branch === previousName ? operation.newName : branch)
+				.sort((left, right) => left.localeCompare(right));
+			for (const pkg of project.packages) {
+				pkg.branchNames = pkg.branchNames.map((branch) => branch === previousName ? operation.newName : branch);
+				for (const folder of pkg.folders) if (folder.branch === previousName) folder.branch = operation.newName;
+				for (const resource of pkg.resources) if (resource.branch === previousName) resource.branch = operation.newName;
+			}
+			return;
+		}
+		case 'removeBranch': {
+			const branchName = operation.selector.branch;
+			project.branches = project.branches.filter((branch) => branch !== branchName);
+			for (const pkg of project.packages) {
+				const slotIndex = pkg.branchNames.indexOf(branchName);
+				if (slotIndex < 0) continue;
+				pkg.branchNames.splice(slotIndex, 1);
+				for (const resource of pkg.resources) resource.branchItemIds.splice(slotIndex, 1);
+			}
+			return;
+		}
 		case 'addPackage': {
 			if (findPackageSpec(project, operation.package.id)) {
 				throw new Error(`Package id "${operation.package.id}" already exists.`);
@@ -442,6 +468,9 @@ function applyUamNativeOperation(project: UamProject, operation: UamTransactionO
 		case 'removeResourceFolder':
 			applyUamResourceFolderLifecycleOperation(project, operation);
 			return;
+		case 'addBranch':
+		case 'renameBranch':
+		case 'removeBranch':
 		case 'addPackage':
 		case 'renamePackage':
 		case 'removePackage':

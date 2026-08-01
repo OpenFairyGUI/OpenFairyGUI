@@ -5,10 +5,10 @@ import { resourceFolderName, resourceFolderParentPath } from '../utils/resource-
 import { renderXmlAttrs } from '../utils/xml-utils.js';
 import { writeComponent } from './component-xml-writer.js';
 import type { FileSystem } from './file-system.js';
-import type { ProjectResourceFolder, ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
+import type { ProjectBranchDirectory, ProjectResourceFolder, ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr } from './project-xml-protocol.js';
 
-export type { ProjectResourceFolder, ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
+export type { ProjectBranchDirectory, ProjectResourceFolder, ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
 
 type PackageResource = ReturnType<Package['listResources']>[number];
 
@@ -97,9 +97,16 @@ export class ProjectWriter {
 		const basePath = fs.dirname(projectPath);
 		const currentSourceFilePaths = new Set<string>();
 		const currentResourceFolderPaths = new Set<string>();
+		const currentBranchDirectoryPaths = new Set<string>();
 		const staleSourceFilePaths = new Set(
 			(options.staleSourceFiles ?? []).map((source) => this._projectSourceFilePath(basePath, source)),
 		);
+		const staleBranchDirectoryPaths = new Set(
+			(options.staleBranchDirectories ?? []).map((directory) => this._projectBranchDirectoryPath(basePath, directory)),
+		);
+		if (staleBranchDirectoryPaths.size > 0 && !fs.rmdir) {
+			throw new Error('Project branch cleanup requires a FileSystem.rmdir() implementation.');
+		}
 		for (const pkg of root.listPackages()) this._assertPackageOutputTargets(pkg);
 		const settings = root.getSettings?.() ?? {};
 		const settingsPath = fs.join(basePath, 'settings');
@@ -142,8 +149,21 @@ export class ProjectWriter {
 		// 3. Write packages
 		const assetsPath = fs.join(basePath, 'assets');
 		await fs.mkdir(assetsPath);
+		for (const branchName of root.listBranches()) {
+			this._assertSafePathSegment(branchName, 'branch name');
+			const branchPath = fs.join(basePath, `assets_${branchName}`);
+			await fs.mkdir(branchPath);
+			currentBranchDirectoryPaths.add(branchPath);
+		}
 		for (const pkg of root.listPackages()) {
-			await this._writePackage(doc, pkg, assetsPath, currentSourceFilePaths, currentResourceFolderPaths);
+			await this._writePackage(
+				doc,
+				pkg,
+				assetsPath,
+				currentSourceFilePaths,
+				currentResourceFolderPaths,
+				currentBranchDirectoryPaths,
+			);
 		}
 
 		await this._removeStaleSourceFiles(currentSourceFilePaths, staleSourceFilePaths);
@@ -151,6 +171,7 @@ export class ProjectWriter {
 			currentResourceFolderPaths,
 			new Set((options.staleResourceFolders ?? []).map((folder) => this._projectResourceFolderPath(basePath, folder))),
 		);
+		await this._removeStaleBranchDirectories(currentBranchDirectoryPaths, staleBranchDirectoryPaths);
 	}
 
 	private async _writePackage(
@@ -159,6 +180,7 @@ export class ProjectWriter {
 		assetsPath: string,
 		currentSourceFilePaths: Set<string>,
 		currentResourceFolderPaths: Set<string>,
+		currentBranchDirectoryPaths: Set<string>,
 	): Promise<void> {
 		const fs = this._fs;
 		this._assertSafePathSegment(pkg.getName(), 'package name');
@@ -190,6 +212,12 @@ export class ProjectWriter {
 		const codePath = pkg.getCodePath();
 		const packageDescriptionAttrs: Record<string, unknown> = {};
 		writeXmlAttr(packageDescriptionAttrs, PROJECT_XML_PROTOCOL.packageDescription.attrs.id, pkg.getId());
+		const packageBranchNames = pkg.listBranchNames();
+		writeXmlAttr(
+			packageDescriptionAttrs,
+			PROJECT_XML_PROTOCOL.packageDescription.attrs.branchNames,
+			packageBranchNames.length > 0 ? JSON.stringify(packageBranchNames) : undefined,
+		);
 		if (pkg.listResources().some((resource) => (resource as WritableResource).getFavorite?.())
 			|| pkg.listResourceFolders().some((folder) => folder.favorite)
 		) {
@@ -266,7 +294,7 @@ export class ProjectWriter {
 		}
 		await this._writeResourceSourceFiles(mainResources, pkgDir, currentSourceFilePaths);
 
-		const branchNames = new Set([...resourcesByBranch.keys(), ...foldersByBranch.keys()]);
+		const branchNames = new Set([...pkg.listBranchNames(), ...resourcesByBranch.keys(), ...foldersByBranch.keys()]);
 		for (const branchName of branchNames) {
 			if (!branchName) continue;
 			const branchResources = resourcesByBranch.get(branchName) ?? [];
@@ -274,6 +302,7 @@ export class ProjectWriter {
 			this._assertSafePathSegment(branchName, 'branch name');
 			const branchPkgDir = fs.join(basePath, `assets_${branchName}`, pkg.getName());
 			await fs.mkdir(branchPkgDir);
+			currentBranchDirectoryPaths.add(branchPkgDir);
 			const branchDescriptorPath = fs.join(branchPkgDir, 'package_branch.xml');
 			await fs.writeFile(
 				branchDescriptorPath,
@@ -359,6 +388,19 @@ export class ProjectWriter {
 		}
 	}
 
+	private async _removeStaleBranchDirectories(
+		currentBranchDirectoryPaths: Set<string>,
+		staleBranchDirectoryPaths: Set<string>,
+	): Promise<void> {
+		const candidates = [...staleBranchDirectoryPaths]
+			.filter((directoryPath) => !currentBranchDirectoryPaths.has(directoryPath))
+			.sort((left, right) => right.length - left.length);
+		for (const directoryPath of candidates) {
+			if (!(await this._fs.exists(directoryPath))) continue;
+			await this._fs.rmdir!(directoryPath);
+		}
+	}
+
 	private _assertPackageOutputTargets(pkg: Package): void {
 		this._assertSafePathSegment(pkg.getName(), 'package name');
 		const resourcesByBranch = new Map<string, PackageResource[]>();
@@ -375,7 +417,7 @@ export class ProjectWriter {
 			foldersByBranch.set(folder.branch, bucket);
 		}
 
-		for (const branchName of new Set([...resourcesByBranch.keys(), ...foldersByBranch.keys()])) {
+		for (const branchName of new Set([...pkg.listBranchNames(), ...resourcesByBranch.keys(), ...foldersByBranch.keys()])) {
 			const resources = resourcesByBranch.get(branchName) ?? [];
 			if (branchName) this._assertSafePathSegment(branchName, 'branch name');
 			const descriptorName = branchName ? 'package_branch.xml' : 'package.xml';
@@ -420,6 +462,14 @@ export class ProjectWriter {
 		return this._fs.join(basePath, assetRoot, folder.packageName, relativePath);
 	}
 
+	private _projectBranchDirectoryPath(basePath: string, directory: ProjectBranchDirectory): string {
+		this._assertSafePathSegment(directory.branch, 'stale branch name');
+		const branchRoot = this._fs.join(basePath, `assets_${directory.branch}`);
+		if (!directory.packageName) return branchRoot;
+		this._assertSafePathSegment(directory.packageName, 'stale branch package name');
+		return this._fs.join(branchRoot, directory.packageName);
+	}
+
 	private _resourceSourceRelativePath(resource: WritableResource, fileName: string): string {
 		if (!fileName) return '';
 		this._assertSafePathSegment(fileName, 'resource file name');
@@ -437,7 +487,14 @@ export class ProjectWriter {
 	}
 
 	private _assertSafePathSegment(value: string, label: string): void {
-		if (!value || value === '.' || value === '..' || /[\\/:]/.test(value)) {
+		if (!value
+			|| value.trim() !== value
+			|| value === '.'
+			|| value === '..'
+			|| /[\\/:]/.test(value)
+			|| /[. ]$/.test(value)
+			|| /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i.test(value)
+		) {
 			throw new Error(`Invalid ${label} "${value}".`);
 		}
 	}

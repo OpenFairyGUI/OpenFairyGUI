@@ -47,6 +47,7 @@ interface PackageResourcesNode extends Record<string, unknown> {}
 
 interface PackageDescriptionNode extends XmlNode {
 	id?: string;
+	branchNames?: string;
 	publish?: PackagePublishNode;
 	resources?: PackageResourcesNode;
 }
@@ -196,6 +197,7 @@ export class ProjectReader {
 		if (branchNames.length > 0) {
 			doc.getRoot().setBranches(branchNames);
 		}
+		this._linkPackageBranchItems(doc);
 
 		// 4. Parse component XMLs (second pass, after all resources registered)
 		for (const [_key, resource] of ctx.resourceMap) {
@@ -213,6 +215,28 @@ export class ProjectReader {
 		}
 
 		return doc;
+	}
+
+	private _linkPackageBranchItems(doc: Document): void {
+		for (const pkg of doc.getRoot().listPackages()) {
+			const branchNames = pkg.listBranchNames();
+			if (branchNames.length === 0) continue;
+			const variants = new Map<string, string>();
+			for (const resource of pkg.listResources()) {
+				const branchName = resource.getBranch();
+				if (!branchName) continue;
+				variants.set(
+					`${branchName}\0${resource.propertyType}\0${resource.getPath()}\0${resource.getName()}`,
+					resource.getId(),
+				);
+			}
+			for (const resource of pkg.listResources()) {
+				if (resource.getBranch()) continue;
+				resource.setBranchItemIds(branchNames.map((branchName) => variants.get(
+					`${branchName}\0${resource.propertyType}\0${resource.getPath()}\0${resource.getName()}`,
+				) ?? ''));
+			}
+		}
 	}
 
 	private async _readPackageBranches(ctx: ReaderContext, options: ProjectReadOptions): Promise<string[]> {
@@ -294,11 +318,31 @@ export class ProjectReader {
 		if (!pkg) {
 			pkg = ctx.document.createPackage(dirName);
 		}
+		if (branchName) pkg.addBranchName(branchName);
 		pkg.setExtras({ ...pkg.getExtras(), _preservePackageResourceOrder: true });
 
 		if (!branchName) {
 			const packageId = readXmlAttr<string>(desc, PROJECT_XML_PROTOCOL.packageDescription.attrs.id) || '';
 			pkg.setId(packageId);
+			const serializedBranchNames = readXmlAttr<string>(
+				desc,
+				PROJECT_XML_PROTOCOL.packageDescription.attrs.branchNames,
+			);
+			if (serializedBranchNames !== undefined) {
+				let parsedBranchNames: unknown;
+				try {
+					parsedBranchNames = JSON.parse(serializedBranchNames);
+				} catch {
+					throw new Error(`Invalid package branchNames for "${dirName}".`);
+				}
+				if (!Array.isArray(parsedBranchNames)
+					|| !parsedBranchNames.every((name): name is string => typeof name === 'string' && name.length > 0)
+					|| new Set(parsedBranchNames).size !== parsedBranchNames.length
+				) {
+					throw new Error(`Invalid package branchNames for "${dirName}".`);
+				}
+				pkg.setBranchNames(parsedBranchNames);
+			}
 			const compressPNG = readXmlAttr<string | boolean>(desc, PROJECT_XML_PROTOCOL.packageDescription.attrs.compressPNG);
 			if (compressPNG !== undefined) pkg.setCompressPNG(parseBool(compressPNG));
 			const jpegQuality = readXmlAttr<string | number>(desc, PROJECT_XML_PROTOCOL.packageDescription.attrs.jpegQuality);

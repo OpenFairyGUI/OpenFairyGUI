@@ -182,6 +182,22 @@ export interface AddResourceOperation extends UamTransactionOperationBase {
 	atIndex?: number;
 }
 
+export interface AddBranchOperation extends UamTransactionOperationBase {
+	kind: 'addBranch';
+	branch: string;
+}
+
+export interface RenameBranchOperation extends UamTransactionOperationBase {
+	kind: 'renameBranch';
+	selector: { branch: string };
+	newName: string;
+}
+
+export interface RemoveBranchOperation extends UamTransactionOperationBase {
+	kind: 'removeBranch';
+	selector: { branch: string };
+}
+
 /** Adds a complete package snapshot at a stable package-list position. */
 export interface AddPackageOperation extends UamTransactionOperationBase {
 	kind: 'addPackage';
@@ -339,6 +355,9 @@ export type UamTransactionOperation =
 	| RemoveResourceFolderOperation
 	| SetImageResourcePropsOperation
 	| AddResourceOperation
+	| AddBranchOperation
+	| RenameBranchOperation
+	| RemoveBranchOperation
 	| AddPackageOperation
 	| RenamePackageOperation
 	| RemovePackageOperation
@@ -402,6 +421,11 @@ export type UamTransactionSupportIssueCode =
 	| 'invalid_resource_index'
 	| 'invalid_resource_reference'
 	| 'invalid_display_node_selector'
+	| 'invalid_branch_name'
+	| 'invalid_branch_selector'
+	| 'duplicate_branch_name'
+	| 'branch_not_empty'
+	| 'branch_referenced'
 	| 'duplicate_resource_id'
 	| 'unavailable_resource_source_bytes'
 	| 'invalid_package_selector'

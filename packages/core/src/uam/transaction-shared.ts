@@ -11,7 +11,10 @@ import {
 
 export type UamLifecycleOperation = Extract<
 	UamTransactionOperation,
-	{ kind: 'addPackage' | 'renamePackage' | 'removePackage' | 'addComponent' | 'removeComponent' | 'moveComponent' }
+	{ kind:
+		| 'addBranch' | 'renameBranch' | 'removeBranch'
+		| 'addPackage' | 'renamePackage' | 'removePackage'
+		| 'addComponent' | 'removeComponent' | 'moveComponent' }
 >;
 
 export type UamDisplayListRewriteOperation = Extract<
@@ -30,7 +33,10 @@ export type UamResourceFolderLifecycleOperation = Extract<
 >;
 
 export function isLifecycleOperation(operation: UamTransactionOperation): operation is UamLifecycleOperation {
-	return operation.kind === 'addPackage'
+	return operation.kind === 'addBranch'
+		|| operation.kind === 'renameBranch'
+		|| operation.kind === 'removeBranch'
+		|| operation.kind === 'addPackage'
 		|| operation.kind === 'renamePackage'
 		|| operation.kind === 'removePackage'
 		|| operation.kind === 'addComponent'

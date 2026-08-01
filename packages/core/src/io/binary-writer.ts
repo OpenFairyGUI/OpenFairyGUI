@@ -266,7 +266,10 @@ export class BinaryWriter {
 				name: dep.getName(),
 			}))
 			.filter((dep) => !!dep.id);
-		const branchNames = includeBranches ? getPackageBranchNames(doc, resources) : [];
+		const declaredBranchNames = pkg.listBranchNames();
+		const branchNames = includeBranches
+			? (declaredBranchNames.length > 0 ? declaredBranchNames : getPackageBranchNames(doc, resources))
+			: [];
 		const branchItemIdsMap = buildBranchItemIdsMap(pkg, branchNames);
 		const publishedItemIdMap = new Map(resources.map((resource) => [resource.getId(), getPublishedItemId(resource)]));
 
@@ -924,15 +927,17 @@ function getItemBranchName(item: BinaryPackageItem): string {
 }
 
 function getPackageBranchNames(doc: Document, resources: PackageResource[]): string[] {
-	const packageBranchSet = new Set(
+	const packageBranchNames = new Set(
 		resources
 			.map((resource) => getItemBranchName(resource))
 			.filter((branchName) => !!branchName),
 	);
-	if (packageBranchSet.size === 0) {
-		return [];
+	const rootBranchNames = doc.getRoot().listBranches();
+	const unknownBranchName = [...packageBranchNames].find((branchName) => !rootBranchNames.includes(branchName));
+	if (unknownBranchName) {
+		throw new Error(`Package resource references unknown branch "${unknownBranchName}".`);
 	}
-	return doc.getRoot().listBranches().filter((branchName) => packageBranchSet.has(branchName));
+	return rootBranchNames.filter((branchName) => packageBranchNames.has(branchName));
 }
 
 function buildBranchResourceKey(resource: BinaryPackageItem): string {

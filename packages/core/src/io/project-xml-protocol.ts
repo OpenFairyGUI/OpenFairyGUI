@@ -52,6 +52,7 @@ const PACKAGE_DESCRIPTION_ATTRS = {
 	hasFavorites: { canonical: 'hasFavorites' },
 	compressPNG: { canonical: 'compressPNG' },
 	jpegQuality: { canonical: 'jpegQuality' },
+	branchNames: { canonical: 'branchNames' },
 } satisfies XmlAttrMap;
 
 const BRANCH_DESCRIPTION_ATTRS = {} satisfies XmlAttrMap;

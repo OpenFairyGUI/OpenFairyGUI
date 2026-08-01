@@ -1479,6 +1479,13 @@ function isSafePackageName(value: string): boolean {
 		&& value !== '..';
 }
 
+function isSafeBranchName(value: string): boolean {
+	return isSafePackageName(value)
+		&& value.trim() === value
+		&& !/[. ]$/.test(value)
+		&& !/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i.test(value);
+}
+
 function isSafeResourcePath(value: string): boolean {
 	if (!value) return false;
 	const segments = value.replace(/\\/g, '/').split('/').filter(Boolean);
@@ -2038,6 +2045,47 @@ function validateLifecycleOperationPayloads(
 		const operationPath = `operations[${operationIndex}]`;
 		const issueCount = issues.length;
 		switch (operation.kind) {
+			case 'addBranch':
+				if (!isSafeBranchName(operation.branch)) {
+					pushSupportIssue(issues, 'invalid_branch_name', `${operationPath}.branch`, 'Branch must be a safe non-reserved output path segment.', { operationKind: operation.kind });
+				}
+				if (projected.branches.includes(operation.branch)) {
+					pushSupportIssue(issues, 'duplicate_branch_name', `${operationPath}.branch`, `Branch "${operation.branch}" already exists.`, { operationKind: operation.kind });
+				}
+				break;
+			case 'renameBranch': {
+				const branchName = operation.selector.branch;
+				if (!projected.branches.includes(branchName)) {
+					pushSupportIssue(issues, 'invalid_branch_selector', `${operationPath}.selector.branch`, `Branch "${branchName}" was not found.`, { operationKind: operation.kind });
+				}
+				if (!isSafeBranchName(operation.newName)) {
+					pushSupportIssue(issues, 'invalid_branch_name', `${operationPath}.newName`, 'Branch must be a safe non-reserved output path segment.', { operationKind: operation.kind });
+				}
+				if (projected.branches.includes(operation.newName)) {
+					pushSupportIssue(issues, 'duplicate_branch_name', `${operationPath}.newName`, `Branch "${operation.newName}" already exists.`, { operationKind: operation.kind });
+				}
+				break;
+			}
+			case 'removeBranch': {
+				const branchName = operation.selector.branch;
+				if (!projected.branches.includes(branchName)) {
+					pushSupportIssue(issues, 'invalid_branch_selector', `${operationPath}.selector.branch`, `Branch "${branchName}" was not found.`, { operationKind: operation.kind });
+					break;
+				}
+				if (projected.packages.some((pkg) => (
+					pkg.folders.some((folder) => folder.branch === branchName)
+					|| pkg.resources.some((resource) => resource.branch === branchName)
+				))) {
+					pushSupportIssue(issues, 'branch_not_empty', `${operationPath}.selector.branch`, `Branch "${branchName}" still contains resources or folders.`, { operationKind: operation.kind });
+				}
+				if (projected.packages.some((pkg) => {
+					const slotIndex = pkg.branchNames.indexOf(branchName);
+					return slotIndex >= 0 && pkg.resources.some((resource) => !!resource.branchItemIds[slotIndex]);
+				})) {
+					pushSupportIssue(issues, 'branch_referenced', `${operationPath}.selector.branch`, `Branch "${branchName}" still has mapped variant ids.`, { operationKind: operation.kind });
+				}
+				break;
+			}
 			case 'addPackage': {
 				validatePackagePayload(projected, operation.package, `${operationPath}.package`, issues, operation.kind);
 				if (findPackageSpec(projected, operation.package.id)) {
@@ -2752,6 +2800,9 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 				validateGearSelector(project, operations, operationIndex, operation.selector, `${operationPath}.selector`, issues, operation.kind);
 				validateExistingGear(project, operations, operationIndex, operation.selector, `${operationPath}.selector`, issues, operation.kind);
 				break;
+			case 'addBranch':
+			case 'renameBranch':
+			case 'removeBranch':
 			case 'addPackage':
 			case 'renamePackage':
 			case 'removePackage':

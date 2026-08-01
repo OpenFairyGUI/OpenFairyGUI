@@ -861,6 +861,7 @@ export function liftDocumentToUamProject(doc: Document): UamProject {
 		packages: root.listPackages().map((pkg) => ({
 			id: pkg.getId(),
 			name: pkg.getName(),
+			branchNames: pkg.listBranchNames(),
 			folders: pkg.listResourceFolders(),
 			publish: {
 				name: pkg.getPublishName(),
