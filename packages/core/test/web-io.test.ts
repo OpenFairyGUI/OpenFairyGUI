@@ -163,6 +163,10 @@ class MemoryFileSystem implements FileSystem {
 		return this.files.has(cleanPath) || this.dirs.has(cleanPath);
 	}
 
+	async unlink(path: string): Promise<void> {
+		if (!this.files.delete(this.clean(path))) throw new Error(`File not found: ${path}`);
+	}
+
 	join(...paths: string[]): string {
 		return this.clean(paths.filter((part) => part !== '').join('/'));
 	}
@@ -385,6 +389,25 @@ test('all project settings sidecars survive detached UAM round-trip and independ
 	);
 	t.false(await missingTarget.exists('settings/CustomProperties.json'));
 	t.false(await missingTarget.exists('settings/i18n.json'));
+});
+
+test('ProjectWriter preflights optional settings cleanup before writing', async (t) => {
+	const fs = new MemoryFileSystem();
+	await fs.writeFile('Project.fairy', 'unchanged');
+	await fs.writeFile('settings/i18n.json', '{"langFiles":[]}');
+	Object.defineProperty(fs, 'unlink', { value: undefined });
+	const before = [...fs.files.entries()];
+
+	const error = await t.throwsAsync(new ProjectWriter(fs).write(createWritableDocument(), 'Project.fairy'));
+	t.is(error?.message, 'Project settings cleanup requires a FileSystem.unlink() implementation.');
+	t.deepEqual([...fs.files.entries()], before);
+
+	const cleanupFs = new MemoryFileSystem();
+	await cleanupFs.writeFile('settings/CustomProperties.json', '{"old":true}');
+	await cleanupFs.writeFile('settings/i18n.json', '{"langFiles":[]}');
+	await new ProjectWriter(cleanupFs).write(createWritableDocument(), 'Project.fairy');
+	t.false(await cleanupFs.exists('settings/CustomProperties.json'));
+	t.false(await cleanupFs.exists('settings/i18n.json'));
 });
 
 test('ProjectWriter rejects resource outputs that collide with package metadata before writing', async (t) => {

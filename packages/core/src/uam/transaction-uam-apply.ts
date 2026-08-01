@@ -372,6 +372,9 @@ export function applyDisplayNodePropsUpdate(node: UamDisplayNode, props: UamDisp
 
 function applyUamNativeOperation(project: UamProject, operation: UamTransactionOperation): void {
 	switch (operation.kind) {
+		case 'updateProjectSettings':
+			project.settings = structuredClone(operation.settings);
+			return;
 		case 'setComponentProps': {
 			const found = findComponentSpecWithPath(project, operation.selector);
 			if (!found) {

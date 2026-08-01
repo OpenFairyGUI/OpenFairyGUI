@@ -109,6 +109,7 @@ export {
 	type AddGearOperation,
 	type AddPackageOperation,
 	type AddResourceOperation,
+	type UpdateProjectSettingsOperation,
 	type AddResourceFolderOperation,
 	type MoveComponentOperation,
 	type MoveResourceFolderOperation,

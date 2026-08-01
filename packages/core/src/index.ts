@@ -92,6 +92,7 @@ export {
 	createDefaultUamMovieClipResourceProperties,
 	createDefaultUamPlainTextProperties,
 	createDefaultUamTextProperties,
+	type UpdateProjectSettingsOperation,
 	type AddComponentOperation,
 	type AddPackageOperation,
 	type AddResourceFolderOperation,

@@ -14,7 +14,7 @@
 | `CustomProperties.json` | `customProperties`，保存 JSON 对象 |
 | `i18n.json` | `i18n`，其中 `langFiles` 保存语言文件的 `name` 与 `path` |
 
-五类设置在工程读写与 UAM 往返中保持完整的嵌套 JSON 数据。`CustomProperties.json` 与 `i18n.json` 是可选文件；源工程不存在对应设置时，规范化和写回不会自行创建它们。
+五类设置在工程读写与 UAM 往返中保持完整的嵌套 JSON 数据。`CustomProperties.json` 与 `i18n.json` 是可选文件；源工程不存在对应设置时，规范化和写回不会自行创建它们。`updateProjectSettings` 以完整设置快照更新工程设置，相同快照以 `project_settings_unchanged` 拒绝；从快照删除可选字段时，写回会删除已有 sidecar，并要求文件系统提供 `unlink()`。
 
 ## 设置文件与层级
 
