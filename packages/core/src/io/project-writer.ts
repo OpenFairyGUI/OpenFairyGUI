@@ -258,17 +258,48 @@ export class ProjectWriter {
 			PROJECT_XML_PROTOCOL.packagePublish.attrs.codePath,
 			codePath || undefined,
 		);
-		const publishAtlases = pkg.listAtlases().map((atlas) => {
-			const attrs: Record<string, unknown> = {};
-			const index = atlas.getIndex?.() ?? 0;
-			writeXmlAttr(
-				attrs,
-				PROJECT_XML_PROTOCOL.packagePublishAtlas.attrs.name,
-				index === 0 ? 'Default' : atlas.getName(),
-			);
-			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packagePublishAtlas.attrs.index, String(index));
-			return attrs;
-		});
+		const sourceAtlasSettings = pkg.getSourceAtlasSettings();
+		if (!sourceAtlasSettings.useGlobal) {
+			writeXmlAttr(publishAttrs, PROJECT_XML_PROTOCOL.packagePublish.attrs.maxAtlasSize, String(sourceAtlasSettings.maxSize));
+			writeXmlAttr(publishAttrs, PROJECT_XML_PROTOCOL.packagePublish.attrs.sizeOption, sourceAtlasSettings.sizeOption);
+			writeXmlAttr(publishAttrs, PROJECT_XML_PROTOCOL.packagePublish.attrs.square, sourceAtlasSettings.forceSquare ? 'true' : 'false');
+			writeXmlAttr(publishAttrs, PROJECT_XML_PROTOCOL.packagePublish.attrs.rotation, sourceAtlasSettings.allowRotation ? 'true' : 'false');
+			writeXmlAttr(publishAttrs, PROJECT_XML_PROTOCOL.packagePublish.attrs.multiPage, sourceAtlasSettings.paging ? 'true' : 'false');
+		}
+		writeXmlAttr(
+			publishAttrs,
+			PROJECT_XML_PROTOCOL.packagePublish.attrs.extractAlpha,
+			sourceAtlasSettings.extractAlpha ? 'true' : undefined,
+		);
+		writeXmlAttr(
+			publishAttrs,
+			PROJECT_XML_PROTOCOL.packagePublish.attrs.maxAtlasIndex,
+			sourceAtlasSettings.maxIndex === 10 ? undefined : String(sourceAtlasSettings.maxIndex),
+		);
+		writeXmlAttr(
+			publishAttrs,
+			PROJECT_XML_PROTOCOL.packagePublish.attrs.excluded,
+			sourceAtlasSettings.excludedResourceIds.length > 0
+				? sourceAtlasSettings.excludedResourceIds.join(',')
+				: undefined,
+		);
+		const publishAtlases = [...sourceAtlasSettings.atlases]
+			.sort((left, right) => left.index - right.index)
+			.map((atlas) => {
+				const attrs: Record<string, unknown> = {};
+				writeXmlAttr(
+					attrs,
+					PROJECT_XML_PROTOCOL.packagePublishAtlas.attrs.name,
+					atlas.name || undefined,
+				);
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packagePublishAtlas.attrs.index, String(atlas.index));
+				writeXmlAttr(
+					attrs,
+					PROJECT_XML_PROTOCOL.packagePublishAtlas.attrs.compression,
+					atlas.compression ? 'true' : undefined,
+				);
+				return attrs;
+			});
 		if (publishAtlases.length > 0) {
 			publishAttrs.atlas = publishAtlases;
 		}

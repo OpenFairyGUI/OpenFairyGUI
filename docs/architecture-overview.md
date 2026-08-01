@@ -224,7 +224,7 @@ flowchart LR
 |---|---|
 | `packageDescription` 骨架 | `id`、由资源与资源文件夹收藏状态派生的 `hasFavorites` |
 | `branchDescription` 骨架 | 分支资源清单根节点 |
-| `packageDescription > publish` | `name`、`path`、`branchPath`、`packageCount`、`genCode`、`codePath`，以及子节点 `atlas@name/index` |
+| `packageDescription > publish` | 基本输出/代码生成字段、全局或包级 atlas 参数、`maxAtlasIndex`、`excluded`，以及稀疏子节点 `atlas@name/index/compression` |
 | `folder` | 物理目录提供存在性；需要元数据时读写 `id`、`name`、`path`、`favorite`、`atlas` |
 | 通用资源节点 | `id`、`name`、`path`、`exported`、`favorite` |
 | `image` 资源 | `atlas`、`scale`、`scale9grid`、`width`、`height`、`gridTile`、`qualityOption`、`quality`、`duplicatePadding`、`smoothing` |
@@ -233,6 +233,8 @@ flowchart LR
 | `misc` 资源 | 无附加属性；资源文件名由通用 `name` 承载 |
 | `spine` 资源 | `width`、`height`、`require`、`atlasNames`、`anchor` |
 | `dragonbones` 资源 | `width`、`height`、`require`、`atlasNames`、`anchor` |
+
+包描述符中的 source publish atlas 配置由 `Package` 与 `UamPackagePublish` 的正式字段承载；它不复用 `Package.listAtlases()` 的发布期/二进制生成 atlas 集合。ProjectReader、UAM bridge 与 ProjectWriter 因此可以保持完整源配置，同时避免把生成 atlas 反写到工程协议。
 
 其中 `image@atlas` 与 `movieclip@atlas` 当前分别作为图片和动画资源的纹理集模式字段读写，在正式模型中由 `ImageResource.textureSetMode` 与 `MovieClipResource.textureSetMode` 承载。`movieclip@smoothing` 缺省为 `true`，仅在 `false` 时写回，并通过 `MovieClipResource.smoothing` 与 `UamMovieClipResource.movieClip.smoothing` 保持读写一致。
 

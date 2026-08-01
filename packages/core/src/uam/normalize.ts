@@ -74,6 +74,22 @@ function normalizePackagePublish(publish: UamPackagePublish | null | undefined):
 		packageCount: publish.packageCount ?? 0,
 		genCode: publish.genCode ?? false,
 		codePath: publish.codePath ?? '',
+		useGlobalAtlasSettings: publish.useGlobalAtlasSettings ?? true,
+		maxAtlasSize: publish.maxAtlasSize ?? 2048,
+		sizeOption: publish.sizeOption === 'npot' || publish.sizeOption === 'mof' ? publish.sizeOption : 'pot',
+		forceSquare: publish.forceSquare ?? false,
+		allowRotation: publish.allowRotation ?? false,
+		paging: publish.paging ?? true,
+		extractAlpha: publish.extractAlpha ?? false,
+		maxAtlasIndex: publish.maxAtlasIndex ?? 10,
+		atlases: (publish.atlases ?? [])
+			.map((atlas) => ({
+				index: atlas.index,
+				name: atlas.name ?? '',
+				compression: atlas.compression ?? false,
+			}))
+			.sort((left, right) => left.index - right.index),
+		excludedResourceIds: [...(publish.excludedResourceIds ?? [])],
 	};
 }
 
@@ -1119,6 +1135,8 @@ function normalizePackage(pkg: UamPackage): UamPackage {
 	return {
 		id: pkg.id,
 		name: pkg.name,
+		compressPNG: pkg.compressPNG ?? null,
+		jpegQuality: pkg.jpegQuality ?? null,
 		publish: normalizePackagePublish(pkg.publish),
 		branchNames: [...(pkg.branchNames ?? [])],
 		folders,

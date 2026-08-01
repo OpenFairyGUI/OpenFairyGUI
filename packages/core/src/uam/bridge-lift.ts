@@ -858,25 +858,40 @@ export function liftDocumentToUamProject(doc: Document): UamProject {
 		version: root.getVersion(),
 		branches: root.listBranches(),
 		settings: cloneSettings(root.getSettings()),
-		packages: root.listPackages().map((pkg) => ({
-			id: pkg.getId(),
-			name: pkg.getName(),
-			branchNames: pkg.listBranchNames(),
-			folders: pkg.listResourceFolders(),
-			publish: {
-				name: pkg.getPublishName(),
-				path: pkg.getPublishPath(),
-				branchPath: pkg.getPublishBranchPath(),
-				packageCount: pkg.getPublishPackageCount(),
-				genCode: pkg.getGenCode(),
-				codePath: pkg.getCodePath(),
-			},
-			resources: pkg.listResources().map((resource) => {
-				if (resource.propertyType === 'Component') {
-					return liftComponentResource(resource as ReturnType<Document['createComponent']>);
-				}
-				return liftAssetResource(resource as LiftableAssetResource);
-			}),
-		})),
+		packages: root.listPackages().map((pkg) => {
+			const sourceAtlasSettings = pkg.getSourceAtlasSettings();
+			return {
+				id: pkg.getId(),
+				name: pkg.getName(),
+				compressPNG: pkg.getCompressPNG(),
+				jpegQuality: pkg.getJpegQuality(),
+				branchNames: pkg.listBranchNames(),
+				folders: pkg.listResourceFolders(),
+				publish: {
+					name: pkg.getPublishName(),
+					path: pkg.getPublishPath(),
+					branchPath: pkg.getPublishBranchPath(),
+					packageCount: pkg.getPublishPackageCount(),
+					genCode: pkg.getGenCode(),
+					codePath: pkg.getCodePath(),
+					useGlobalAtlasSettings: sourceAtlasSettings.useGlobal,
+					maxAtlasSize: sourceAtlasSettings.maxSize,
+					sizeOption: sourceAtlasSettings.sizeOption,
+					forceSquare: sourceAtlasSettings.forceSquare,
+					allowRotation: sourceAtlasSettings.allowRotation,
+					paging: sourceAtlasSettings.paging,
+					extractAlpha: sourceAtlasSettings.extractAlpha,
+					maxAtlasIndex: sourceAtlasSettings.maxIndex,
+					atlases: sourceAtlasSettings.atlases,
+					excludedResourceIds: sourceAtlasSettings.excludedResourceIds,
+				},
+				resources: pkg.listResources().map((resource) => {
+					if (resource.propertyType === 'Component') {
+						return liftComponentResource(resource as ReturnType<Document['createComponent']>);
+					}
+					return liftAssetResource(resource as LiftableAssetResource);
+				}),
+			};
+		}),
 	};
 }

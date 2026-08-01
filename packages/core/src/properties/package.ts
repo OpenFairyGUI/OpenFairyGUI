@@ -29,6 +29,27 @@ export interface PackageResourceFolder {
 	atlas: string;
 }
 
+export type PackageAtlasSizeOption = 'pot' | 'npot' | 'mof';
+
+export interface PackageSourceAtlas {
+	index: number;
+	name: string;
+	compression: boolean;
+}
+
+export interface PackageSourceAtlasSettings {
+	useGlobal: boolean;
+	maxSize: number;
+	sizeOption: PackageAtlasSizeOption;
+	forceSquare: boolean;
+	allowRotation: boolean;
+	paging: boolean;
+	extractAlpha: boolean;
+	maxIndex: number;
+	atlases: PackageSourceAtlas[];
+	excludedResourceIds: string[];
+}
+
 interface IPackage extends IExtensibleProperty {
 	id: string;
 	compressPNG: boolean | null;
@@ -39,6 +60,7 @@ interface IPackage extends IExtensibleProperty {
 	publishPackageCount: number;
 	genCode: boolean;
 	codePath: string;
+	sourceAtlasSettings: PackageSourceAtlasSettings;
 	branchNames: string[];
 	resourceFolders: PackageResourceFolder[];
 	resources: RefSet<Property>;
@@ -72,6 +94,18 @@ export class Package extends ExtensibleProperty<IPackage> {
 			publishPackageCount: 0,
 			genCode: false,
 			codePath: '',
+			sourceAtlasSettings: {
+				useGlobal: true,
+				maxSize: 2048,
+				sizeOption: 'pot',
+				forceSquare: false,
+				allowRotation: false,
+				paging: true,
+				extractAlpha: false,
+				maxIndex: 10,
+				atlases: [],
+				excludedResourceIds: [],
+			},
 			branchNames: [],
 			resourceFolders: [],
 			resources: new RefSet<Property>(),
@@ -150,6 +184,23 @@ export class Package extends ExtensibleProperty<IPackage> {
 
 	public setCodePath(path: string): this {
 		return this.set('codePath', path);
+	}
+
+	public getSourceAtlasSettings(): PackageSourceAtlasSettings {
+		const settings = this.get('sourceAtlasSettings');
+		return {
+			...settings,
+			atlases: settings.atlases.map((atlas) => ({ ...atlas })),
+			excludedResourceIds: [...settings.excludedResourceIds],
+		};
+	}
+
+	public setSourceAtlasSettings(settings: PackageSourceAtlasSettings): this {
+		return this.set('sourceAtlasSettings', {
+			...settings,
+			atlases: settings.atlases.map((atlas) => ({ ...atlas })),
+			excludedResourceIds: [...settings.excludedResourceIds],
+		});
 	}
 
 	public listBranchNames(): string[] {

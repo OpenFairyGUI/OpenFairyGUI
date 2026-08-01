@@ -56,6 +56,7 @@ export {
 	type UamMovieClipResourceProperties,
 	type UamPackage,
 	type UamPackagePublish,
+	type UamPackagePublishAtlas,
 	type UamPoint,
 	type UamProgressBarNode,
 	type UamProject,

@@ -466,6 +466,16 @@ class RestoreWorkflow {
 				common: {},
 				adaptation: {},
 			});
+		for (const pkg of doc.getRoot().listPackages()) {
+			pkg.setSourceAtlasSettings({
+				...pkg.getSourceAtlasSettings(),
+				atlases: pkg.listAtlases().map((atlas) => ({
+					index: atlas.getIndex(),
+					name: atlas.getIndex() === 0 ? 'Default' : atlas.getName(),
+					compression: false,
+				})),
+			});
+		}
 	}
 
 	private _initializeImageFileNames(doc: Document): void {

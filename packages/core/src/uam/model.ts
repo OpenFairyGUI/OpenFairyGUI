@@ -49,11 +49,29 @@ export interface UamPackagePublish {
 	packageCount: number;
 	genCode: boolean;
 	codePath: string;
+	useGlobalAtlasSettings: boolean;
+	maxAtlasSize: number;
+	sizeOption: 'pot' | 'npot' | 'mof';
+	forceSquare: boolean;
+	allowRotation: boolean;
+	paging: boolean;
+	extractAlpha: boolean;
+	maxAtlasIndex: number;
+	atlases: UamPackagePublishAtlas[];
+	excludedResourceIds: string[];
+}
+
+export interface UamPackagePublishAtlas {
+	index: number;
+	name: string;
+	compression: boolean;
 }
 
 export interface UamPackage {
 	id: string;
 	name: string;
+	compressPNG: boolean | null;
+	jpegQuality: number | null;
 	publish: UamPackagePublish | null;
 	branchNames: string[];
 	folders: UamResourceFolder[];

@@ -1074,6 +1074,8 @@ export function materializeUamProject(project: UamProject): Document {
 	for (const pkgSpec of project.packages) {
 		const pkg = doc.createPackage(pkgSpec.name)
 			.setId(pkgSpec.id)
+			.setCompressPNG(pkgSpec.compressPNG)
+			.setJpegQuality(pkgSpec.jpegQuality)
 			.setBranchNames(pkgSpec.branchNames)
 			.setResourceFolders(pkgSpec.folders);
 		pkg.setExtras({ ...pkg.getExtras(), _preservePackageResourceOrder: true });
@@ -1084,7 +1086,19 @@ export function materializeUamProject(project: UamProject): Document {
 				.setPublishBranchPath(pkgSpec.publish.branchPath)
 				.setPublishPackageCount(pkgSpec.publish.packageCount)
 				.setGenCode(pkgSpec.publish.genCode)
-				.setCodePath(pkgSpec.publish.codePath);
+				.setCodePath(pkgSpec.publish.codePath)
+				.setSourceAtlasSettings({
+					useGlobal: pkgSpec.publish.useGlobalAtlasSettings,
+					maxSize: pkgSpec.publish.maxAtlasSize,
+					sizeOption: pkgSpec.publish.sizeOption,
+					forceSquare: pkgSpec.publish.forceSquare,
+					allowRotation: pkgSpec.publish.allowRotation,
+					paging: pkgSpec.publish.paging,
+					extractAlpha: pkgSpec.publish.extractAlpha,
+					maxIndex: pkgSpec.publish.maxAtlasIndex,
+					atlases: pkgSpec.publish.atlases,
+					excludedResourceIds: pkgSpec.publish.excludedResourceIds,
+				});
 		}
 		for (const resource of pkgSpec.resources) {
 			if (resource.kind === 'component') {

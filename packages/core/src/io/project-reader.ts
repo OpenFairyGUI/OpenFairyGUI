@@ -41,6 +41,7 @@ interface PackagePublishNode extends XmlNode {
 	packageCount?: string | number;
 	genCode?: string | boolean;
 	codePath?: string;
+	atlas?: XmlNode | XmlNode[];
 }
 
 interface PackageResourcesNode extends Record<string, unknown> {}
@@ -372,6 +373,40 @@ export class ProjectReader {
 			pkg.setCodePath(
 				readXmlAttr<string>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.codePath) || '',
 			);
+
+			const globalAtlas = ctx.settings.publish?.atlasSetting;
+			const maxAtlasSize = readXmlAttr<string | number>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.maxAtlasSize);
+			const sizeOption = parseBool(readXmlAttr<string | boolean>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.npot))
+				? 'npot'
+				: readXmlAttr<string>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.sizeOption) || globalAtlas?.sizeOption || 'pot';
+			const square = readXmlAttr<string | boolean>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.square);
+			const rotation = readXmlAttr<string | boolean>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.rotation);
+			const multiPage = readXmlAttr<string | boolean>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.multiPage);
+			pkg.setSourceAtlasSettings({
+				useGlobal: maxAtlasSize === undefined,
+				maxSize: parseInt2(maxAtlasSize, globalAtlas?.maxSize ?? 2048),
+				sizeOption: sizeOption === 'npot' || sizeOption === 'mof' ? sizeOption : 'pot',
+				forceSquare: square === undefined ? globalAtlas?.forceSquare ?? false : parseBool(square),
+				allowRotation: rotation === undefined ? globalAtlas?.allowRotation ?? false : parseBool(rotation),
+				paging: multiPage === undefined ? globalAtlas?.paging ?? true : parseBool(multiPage),
+				extractAlpha: parseBool(readXmlAttr<string | boolean>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.extractAlpha)),
+				maxIndex: parseInt2(
+					readXmlAttr<string | number>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.maxAtlasIndex),
+					10,
+				),
+				atlases: ensureArray(publish.atlas).flatMap((value) => {
+					const atlas = getXmlNode<XmlNode>(value);
+					if (!atlas) return [];
+					return [{
+						index: parseInt2(readXmlAttr<string | number>(atlas, PROJECT_XML_PROTOCOL.packagePublishAtlas.attrs.index)),
+						name: readXmlAttr<string>(atlas, PROJECT_XML_PROTOCOL.packagePublishAtlas.attrs.name) || '',
+						compression: parseBool(readXmlAttr<string | boolean>(atlas, PROJECT_XML_PROTOCOL.packagePublishAtlas.attrs.compression)),
+					}];
+				}),
+				excludedResourceIds: (readXmlAttr<string>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.excluded) || '')
+					.split(',')
+					.filter(Boolean),
+			});
 		}
 
 		if (pkg.getId()) {
