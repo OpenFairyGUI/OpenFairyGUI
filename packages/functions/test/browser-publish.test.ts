@@ -1,5 +1,6 @@
 import test from 'ava';
 import { Document, ProjectType } from '@openfairygui/core';
+import type { RootProjectSettings } from '../src/index.js';
 import { publishBrowser } from '../src/web.js';
 import { createTestJta, TEST_JPEG as JPEG, TEST_PNG as PNG } from './test-jta.js';
 
@@ -25,6 +26,17 @@ class MemoryFileSystem {
 
 	join(...paths: string[]): string {
 		return paths.filter(Boolean).join('/').replace(/\/+/g, '/');
+	}
+}
+
+class FailingOutputFileSystem extends MemoryFileSystem {
+	constructor(private readonly failingPath: string) {
+		super();
+	}
+
+	override async writeFileRaw(path: string, data: Uint8Array): Promise<void> {
+		if (path === this.failingPath) throw new Error(`Write failed: ${path}`);
+		await super.writeFileRaw(path, data);
 	}
 }
 
@@ -110,6 +122,128 @@ test.serial('publishBrowser writes Layabox .fui and atlas PNG through browser fi
 		t.true(output.files.has('.fairygui-runtime/Demo_atlas0.png'));
 		t.deepEqual([...output.files.get('.fairygui-runtime/Demo_atlas0.png')!.subarray(0, 8)], [...PNG.subarray(0, 8)]);
 		t.is(document.getRoot().getProjectType(), ProjectType.Pixi, 'publish target does not change the loaded project type');
+	} finally {
+		if (previousCanvas === undefined) delete globals.OffscreenCanvas;
+		else globals.OffscreenCanvas = previousCanvas;
+		if (previousCreateImageBitmap === undefined) delete globals.createImageBitmap;
+		else globals.createImageBitmap = previousCreateImageBitmap;
+	}
+});
+
+test.serial('publishBrowser resolves supported settings and rejects unsafe browser output', async (t) => {
+	const globals = globalThis as Record<string, unknown>;
+	const previousCanvas = globals.OffscreenCanvas;
+	const previousCreateImageBitmap = globals.createImageBitmap;
+	globals.OffscreenCanvas = BrowserCanvasStub;
+	globals.createImageBitmap = async () => ({ width: 1, height: 1, close() {} });
+
+	try {
+		const document = new Document();
+		document.getRoot().setSettings({
+			publish: {
+				fileExtension: 'bin',
+				codeGeneration: { allowGenCode: true },
+			},
+		} as RootProjectSettings);
+		const included = document.createPackage('Included');
+		included.setId('include1').setPublishPath('../desktop').setPublishBranchPath('C:\\desktop');
+		const component = document.createComponent('Main');
+		component.setId('main0001').setExported(true);
+		included.addResource(component);
+		const ignored = document.createPackage('CodegenOnly');
+		ignored.setId('codegen1').setGenCode(true);
+
+		const extensionOutput = new MemoryFileSystem();
+		const extensionResult = await publishBrowser({
+			document,
+			sourceFileSystem: new MemoryFileSystem(),
+			outputFileSystem: extensionOutput,
+			projectType: 'layabox',
+			output: '.fairygui-runtime',
+			packages: ['Included'],
+		});
+
+		t.true(extensionResult.success, extensionResult.diagnostics.map((entry) => entry.message).join('\n'));
+		t.deepEqual(extensionResult.files.map((file) => file.path), ['.fairygui-runtime/Included.bin']);
+		t.true(extensionOutput.files.has('.fairygui-runtime/Included.bin'));
+		t.false(extensionOutput.files.has('.fairygui-runtime/CodegenOnly.bin'));
+
+		delete globals.OffscreenCanvas;
+		delete globals.createImageBitmap;
+		const codegenDocument = new Document();
+		codegenDocument.getRoot().setSettings({
+			publish: { codeGeneration: { allowGenCode: true } },
+		} as RootProjectSettings);
+		const codegenPackage = codegenDocument.createPackage('Demo');
+		codegenPackage.setId('demo0001').setGenCode(true);
+		const codegenOutput = new MemoryFileSystem();
+
+		const codegenResult = await publishBrowser({
+			document: codegenDocument,
+			sourceFileSystem: new MemoryFileSystem(),
+			outputFileSystem: codegenOutput,
+			projectType: 'layabox',
+			output: '.fairygui-runtime',
+		});
+
+		t.false(codegenResult.success);
+		t.like(codegenResult.diagnostics.at(-1), {
+			code: 'unsupported_publish_setting',
+			setting: 'codeGeneration',
+			path: 'packages[0].publish.genCode',
+		});
+		t.deepEqual(codegenResult.files, []);
+		t.is(codegenOutput.mkdirCalls, 0);
+		t.is(codegenOutput.files.size, 0);
+
+		const extensionDocument = new Document();
+		extensionDocument.getRoot().setSettings({ publish: { fileExtension: '../bin' } } as RootProjectSettings);
+		const extensionPackage = extensionDocument.createPackage('Demo');
+		extensionPackage.setId('demo0001');
+		const unsafeOutput = new MemoryFileSystem();
+		const unsafeResult = await publishBrowser({
+			document: extensionDocument,
+			sourceFileSystem: new MemoryFileSystem(),
+			outputFileSystem: unsafeOutput,
+			projectType: 'layabox',
+			output: '.fairygui-runtime',
+		});
+
+		t.false(unsafeResult.success);
+		t.like(unsafeResult.diagnostics.at(-1), {
+			code: 'unsupported_publish_setting',
+			setting: 'fileExtension',
+			path: 'settings.publish.fileExtension',
+		});
+		t.deepEqual(unsafeResult.files, []);
+		t.is(unsafeOutput.mkdirCalls, 0);
+		t.is(unsafeOutput.files.size, 0);
+
+		globals.OffscreenCanvas = BrowserCanvasStub;
+		globals.createImageBitmap = async () => ({ width: 2, height: 2, close() {} });
+		const source = new MemoryFileSystem();
+		source.files.set('assets/Demo/images/icon.png', PNG);
+		const partialDocument = new Document();
+		const pkg = partialDocument.createPackage('Demo');
+		pkg.setId('demo0001');
+		const image = partialDocument.createImageResource('icon.png');
+		image.setId('img0001').setPath('/images/').setFileName('icon.png').setWidth(2).setHeight(2).setExported(true);
+		pkg.addResource(image);
+		const partialOutput = new FailingOutputFileSystem('.fairygui-runtime/Demo.fui');
+
+		const partialResult = await publishBrowser({
+			document: partialDocument,
+			sourceFileSystem: source,
+			outputFileSystem: partialOutput,
+			projectType: 'layabox',
+			output: '.fairygui-runtime',
+		});
+
+		t.false(partialResult.success);
+		t.is(partialResult.diagnostics.at(-1)?.code, 'publish_failed');
+		t.deepEqual(partialResult.files.map((file) => file.path), ['.fairygui-runtime/Demo_atlas0.png']);
+		t.true(partialOutput.files.has('.fairygui-runtime/Demo_atlas0.png'));
+		t.false(partialOutput.files.has('.fairygui-runtime/Demo.fui'));
 	} finally {
 		if (previousCanvas === undefined) delete globals.OffscreenCanvas;
 		else globals.OffscreenCanvas = previousCanvas;

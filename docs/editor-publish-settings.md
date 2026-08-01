@@ -159,6 +159,8 @@ ProjectWriter 会为每个工程分支保留 `assets_<branch>/`，并为包内�
 
 选中的相对路径以工程根目录为基准；若以上都未配置，发布不会隐式选择输出目录。
 
+浏览器 Laya 发布在显式 `output` 下不会使用工程或包内的桌面输出路径；显式 `branch`、`packages`、`compressed` 与 `atlas` 也保持调用参数优先。未显式覆盖时，持久化的压缩、图集和安全文件扩展名设置直接驱动输出。当前浏览器宿主不提供代码生成；全局允许且任一选中包启用 `genCode` 时，发布会在 Canvas 检查和文件写入前以 `unsupported_publish_setting`（含 `setting` 与 `path`）拒绝。失败结果的 `files` 只包含已经完成 `writeFileRaw` 的文件，因此 `success=false` 且列表非空表示内置输出已部分写入；需要原子发布的宿主必须提供事务式或 staging 输出文件系统。
+
 ## 当前发布完整性要求
 
 这些要求是 OpenFairyGUI 当前发布执行时的能力边界，不是新增的编辑器设置字段：
