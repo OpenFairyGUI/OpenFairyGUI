@@ -441,6 +441,20 @@ test('package and component lifecycle preflight reports dependency and batch dia
 	t.true(addIssues.some((issue) => issue.code === 'duplicate_package_id'));
 	t.true(addIssues.some((issue) => issue.code === 'invalid_package_payload'));
 	t.true(addIssues.some((issue) => issue.code === 'invalid_package_index'));
+	for (const invalidPackage of [
+		{ ...createLifecyclePackage('invalid-settings-1'), jpegQuality: Number.NaN },
+		{ ...createLifecyclePackage('invalid-settings-2'), publish: null },
+		{
+			...createLifecyclePackage('invalid-settings-3'),
+			publish: { ...createLifecyclePackage().publish!, maxAtlasSize: 0 },
+		},
+	]) {
+		t.true(validateTransactionSupport(createSupportedProject(), [{
+			kind: 'addPackage',
+			package: invalidPackage,
+			atIndex: 1,
+		}]).some((issue) => issue.code === 'invalid_package_settings'));
+	}
 
 	const batchIssues = validateTransactionSupport(createSupportedProject(), [
 		{ kind: 'addPackage', package: createLifecyclePackage(), atIndex: 1 },

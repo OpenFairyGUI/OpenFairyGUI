@@ -16,6 +16,7 @@ import {
 
 import {
 	createControllerModel,
+	createLifecyclePackage,
 	createLookGear,
 	createSupportedProject,
 	createTransitionModel,
@@ -181,6 +182,123 @@ test('project settings transactions validate, detach, preserve unknown JSON, and
 		const issues = validateTransactionSupport(project, [{ kind: 'updateProjectSettings', settings } as never]);
 		t.is(issues[0]?.code, 'invalid_project_settings');
 	}
+});
+
+test('package settings transactions replace one complete snapshot and support an explicit inverse', (t) => {
+	const project = createSupportedProject();
+	const pkg = project.packages[0]!;
+	pkg.compressPNG = false;
+	pkg.jpegQuality = 80;
+	pkg.publish = {
+		name: 'Main',
+		path: 'dist/ui',
+		branchPath: '',
+		packageCount: 1,
+		genCode: false,
+		codePath: '',
+		useGlobalAtlasSettings: true,
+		maxAtlasSize: 2048,
+		sizeOption: 'pot',
+		forceSquare: false,
+		allowRotation: false,
+		paging: true,
+		extractAlpha: false,
+		maxAtlasIndex: 10,
+		atlases: [{ index: 0, name: 'Default', compression: false }],
+		excludedResourceIds: [],
+	};
+	const original = {
+		compressPNG: pkg.compressPNG,
+		jpegQuality: pkg.jpegQuality,
+		publish: structuredClone(pkg.publish),
+	};
+	const updated = {
+		compressPNG: true,
+		jpegQuality: 73,
+		publish: {
+			name: 'Release',
+			path: 'release/ui',
+			branchPath: 'release/branches',
+			packageCount: 2,
+			genCode: true,
+			codePath: 'generated/ui',
+			useGlobalAtlasSettings: false,
+			maxAtlasSize: 1024,
+			sizeOption: 'mof' as const,
+			forceSquare: true,
+			allowRotation: true,
+			paging: false,
+			extractAlpha: true,
+			maxAtlasIndex: 4,
+			atlases: [
+				{ index: 3, name: 'Effects', compression: true },
+				{ index: 0, name: 'Main', compression: false },
+			],
+			excludedResourceIds: ['img001', 'missing-resource'],
+		},
+	};
+	const operation = {
+		kind: 'updatePackageSettings' as const,
+		selector: { packageId: pkg.id },
+		settings: updated,
+	};
+
+	t.deepEqual(validateTransactionSupport(project, [operation]), []);
+	const result = applyUamTransaction(project, [operation]);
+	const mixed = applyUamTransaction(project, [operation, {
+		kind: 'addController',
+		selector: { packageId: pkg.id, componentResourceId: 'cmp001', controllerName: 'state' },
+		controller: createControllerModel('state'),
+	}]);
+	t.is(mixed.packages[0]?.jpegQuality, 73);
+	const mixedComponent = mixed.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	t.is(mixedComponent?.kind === 'component' ? mixedComponent.component.controllers[0]?.name : undefined, 'state');
+	updated.publish.atlases[0]!.name = 'caller-mutated';
+	updated.publish.excludedResourceIds[0] = 'caller-mutated';
+	t.is(result.packages[0]?.publish?.atlases[0]?.name, 'Main');
+	t.deepEqual(result.packages[0]?.publish?.excludedResourceIds, ['img001', 'missing-resource']);
+	t.deepEqual({ compressPNG: pkg.compressPNG, jpegQuality: pkg.jpegQuality, publish: pkg.publish }, original);
+
+	const restored = applyUamTransaction(result, [{
+		kind: 'updatePackageSettings',
+		selector: { packageId: pkg.id },
+		settings: original,
+	}]);
+	t.deepEqual({
+		compressPNG: restored.packages[0]?.compressPNG,
+		jpegQuality: restored.packages[0]?.jpegQuality,
+		publish: restored.packages[0]?.publish,
+	}, original);
+
+	const unchanged = validateTransactionSupport(project, [{
+		kind: 'updatePackageSettings',
+		selector: { packageId: pkg.id },
+		settings: original,
+	}]);
+	t.is(unchanged[0]?.code, 'package_settings_unchanged');
+
+	const valid = structuredClone(original);
+	for (const settings of [
+		null,
+		{ ...valid, jpegQuality: 101 },
+		{ ...valid, publish: null },
+		{ ...valid, publish: { ...valid.publish!, path: '../escape' } },
+		{ ...valid, publish: { ...valid.publish!, maxAtlasSize: 0 } },
+		{ ...valid, publish: { ...valid.publish!, maxAtlasIndex: 2, atlases: [{ index: 3, name: 'Late', compression: false }] } },
+		{ ...valid, publish: { ...valid.publish!, excludedResourceIds: ['bad,id'] } },
+	]) {
+		const issues = validateTransactionSupport(project, [{
+			kind: 'updatePackageSettings',
+			selector: { packageId: pkg.id },
+			settings,
+		} as never]);
+		t.is(issues[0]?.code, 'invalid_package_settings');
+	}
+	t.is(validateTransactionSupport(project, [{
+		kind: 'updatePackageSettings',
+		selector: { packageId: 'missing' },
+		settings: original,
+	}])[0]?.code, 'invalid_package_selector');
 });
 
 test('resource exported transactions support assets, components, inverse, and source immutability', (t) => {
@@ -928,11 +1046,7 @@ test('ProjectReader and MovieClip replacement hydrate the complete typed JTA mod
 		kind: 'addPackage',
 		atIndex: reloaded.packages.length,
 		package: {
-			id: 'pkgmovie',
-			name: 'MoviePackage',
-			publish: null,
-			branchNames: [],
-			folders: [],
+			...createLifecyclePackage('pkgmovie', 'MoviePackage'),
 			resources: [{ ...staleMovieClip, id: 'moviePackaged', name: 'packaged', fileName: 'packaged.jta' }],
 		},
 	}]);
@@ -989,11 +1103,7 @@ test('ProjectReader and MovieClip replacement hydrate the complete typed JTA mod
 		kind: 'addPackage' as const,
 		atIndex: reloaded.packages.length,
 		package: {
-			id: 'invalidPackage',
-			name: 'InvalidMoviePackage',
-			publish: null,
-			branchNames: [],
-			folders: [],
+			...createLifecyclePackage('invalidPackage', 'InvalidMoviePackage'),
 			resources: [{ ...staleMovieClip, id: 'invalidPackagedMovie', sourceBytes: invalidBytes }],
 		},
 	}]) {

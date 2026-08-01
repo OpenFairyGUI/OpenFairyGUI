@@ -12,6 +12,7 @@ import type {
 	UamLoader3DProperties,
 	UamLoaderProperties,
 	UamPackage,
+	UamPackageSettings,
 	UamProject,
 	UamTreeProperties,
 } from './model.js';
@@ -558,6 +559,170 @@ function validateProjectSettingsPayload(
 	)) {
 		pushSupportIssue(issues, 'invalid_project_settings', `${path}.i18n`, 'I18n settings require langFiles entries with string name and path.', { operationKind });
 	}
+}
+
+const PACKAGE_SETTINGS_KEYS = ['compressPNG', 'jpegQuality', 'publish'] as const;
+const PACKAGE_PUBLISH_KEYS = [
+	'name',
+	'path',
+	'branchPath',
+	'packageCount',
+	'genCode',
+	'codePath',
+	'useGlobalAtlasSettings',
+	'maxAtlasSize',
+	'sizeOption',
+	'forceSquare',
+	'allowRotation',
+	'paging',
+	'extractAlpha',
+	'maxAtlasIndex',
+	'atlases',
+	'excludedResourceIds',
+] as const;
+const PACKAGE_PUBLISH_ATLAS_KEYS = ['index', 'name', 'compression'] as const;
+
+function pushInvalidPackageSettings(
+	issues: UamTransactionSupportIssue[],
+	path: string,
+	message: string,
+	operationKind: UamTransactionOperation['kind'],
+): void {
+	pushSupportIssue(issues, 'invalid_package_settings', path, message, { operationKind });
+}
+
+function isSafePackageOutputPath(value: string): boolean {
+	if (!value) return true;
+	if (/^[\\/]/.test(value) || /^[a-z]:/i.test(value)) return false;
+	return value.replace(/\\/g, '/').split('/').every(isSafeBranchName);
+}
+
+function validatePackageSettingsPayload(
+	settings: unknown,
+	path: string,
+	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
+): settings is UamPackageSettings {
+	const issueCount = issues.length;
+	const invalidJson = findInvalidJsonData(settings, path);
+	if (invalidJson) {
+		pushInvalidPackageSettings(
+			issues,
+			invalidJson.path,
+			invalidJson.message.replaceAll('Project settings', 'Package settings'),
+			operationKind,
+		);
+		return false;
+	}
+	if (!isPlainRecord(settings) || !hasExactKeys(settings, PACKAGE_SETTINGS_KEYS)) {
+		pushInvalidPackageSettings(issues, path, 'Package settings must be one complete typed snapshot.', operationKind);
+		return false;
+	}
+	if (settings.compressPNG !== null && typeof settings.compressPNG !== 'boolean') {
+		pushInvalidPackageSettings(issues, `${path}.compressPNG`, 'compressPNG must be boolean or null.', operationKind);
+	}
+	if (settings.jpegQuality !== null && !isIntegerBetween(settings.jpegQuality, 1, 100)) {
+		pushInvalidPackageSettings(issues, `${path}.jpegQuality`, 'jpegQuality must be null or an integer from 1 to 100.', operationKind);
+	}
+	if (settings.publish === null) {
+		pushInvalidPackageSettings(issues, `${path}.publish`, 'publish must be one complete typed snapshot.', operationKind);
+		return false;
+	}
+	const publish = settings.publish;
+	if (!isPlainRecord(publish) || !hasExactKeys(publish, PACKAGE_PUBLISH_KEYS)) {
+		pushInvalidPackageSettings(issues, `${path}.publish`, 'publish must be one complete typed snapshot.', operationKind);
+		return false;
+	}
+	for (const key of ['name', 'path', 'branchPath', 'codePath'] as const) {
+		if (typeof publish[key] !== 'string') {
+			pushInvalidPackageSettings(issues, `${path}.publish.${key}`, `${key} must be a string.`, operationKind);
+		}
+	}
+	if (typeof publish.name === 'string' && publish.name && !isSafeBranchName(publish.name)) {
+		pushInvalidPackageSettings(issues, `${path}.publish.name`, 'Publish name must be empty or a safe output path segment.', operationKind);
+	}
+	for (const key of ['path', 'branchPath', 'codePath'] as const) {
+		if (typeof publish[key] === 'string' && !isSafePackageOutputPath(publish[key])) {
+			pushInvalidPackageSettings(issues, `${path}.publish.${key}`, `${key} must be an empty or safe relative path.`, operationKind);
+		}
+	}
+	if (!isIntegerBetween(publish.packageCount, 0, 2_147_483_647)) {
+		pushInvalidPackageSettings(issues, `${path}.publish.packageCount`, 'packageCount must be a non-negative integer.', operationKind);
+	}
+	for (const key of ['genCode', 'useGlobalAtlasSettings', 'forceSquare', 'allowRotation', 'paging', 'extractAlpha'] as const) {
+		if (typeof publish[key] !== 'boolean') {
+			pushInvalidPackageSettings(issues, `${path}.publish.${key}`, `${key} must be boolean.`, operationKind);
+		}
+	}
+	if (!isIntegerBetween(publish.maxAtlasSize, 1, 16_384)) {
+		pushInvalidPackageSettings(issues, `${path}.publish.maxAtlasSize`, 'maxAtlasSize must be an integer from 1 to 16384.', operationKind);
+	}
+	if (publish.sizeOption !== 'pot' && publish.sizeOption !== 'npot' && publish.sizeOption !== 'mof') {
+		pushInvalidPackageSettings(issues, `${path}.publish.sizeOption`, 'sizeOption must be pot, npot, or mof.', operationKind);
+	}
+	if (!isIntegerBetween(publish.maxAtlasIndex, 0, 255)) {
+		pushInvalidPackageSettings(issues, `${path}.publish.maxAtlasIndex`, 'maxAtlasIndex must be an integer from 0 to 255.', operationKind);
+	}
+	if (!Array.isArray(publish.atlases)) {
+		pushInvalidPackageSettings(issues, `${path}.publish.atlases`, 'atlases must be an array.', operationKind);
+	} else {
+		const indices = new Set<number>();
+		for (const [atlasIndex, atlas] of publish.atlases.entries()) {
+			const atlasPath = `${path}.publish.atlases[${atlasIndex}]`;
+			if (!isPlainRecord(atlas) || !hasExactKeys(atlas, PACKAGE_PUBLISH_ATLAS_KEYS)) {
+				pushInvalidPackageSettings(issues, atlasPath, 'Atlas entries must be complete typed snapshots.', operationKind);
+				continue;
+			}
+			if (!Number.isInteger(atlas.index) || atlas.index < 0 || atlas.index > publish.maxAtlasIndex) {
+				pushInvalidPackageSettings(issues, `${atlasPath}.index`, 'Atlas index must be a non-negative integer no greater than maxAtlasIndex.', operationKind);
+			} else if (indices.has(atlas.index)) {
+				pushInvalidPackageSettings(issues, `${atlasPath}.index`, `Atlas index ${atlas.index} is duplicated.`, operationKind);
+			}
+			indices.add(atlas.index);
+			if (typeof atlas.name !== 'string' || (atlas.name && !isSafeBranchName(atlas.name))) {
+				pushInvalidPackageSettings(issues, `${atlasPath}.name`, 'Atlas name must be empty or a safe output path segment.', operationKind);
+			}
+			if (typeof atlas.compression !== 'boolean') {
+				pushInvalidPackageSettings(issues, `${atlasPath}.compression`, 'Atlas compression must be boolean.', operationKind);
+			} else if (!atlas.name && !atlas.compression) {
+				pushInvalidPackageSettings(issues, atlasPath, 'An atlas entry must define a name or enable compression.', operationKind);
+			}
+		}
+	}
+	if (!Array.isArray(publish.excludedResourceIds)) {
+		pushInvalidPackageSettings(issues, `${path}.publish.excludedResourceIds`, 'excludedResourceIds must be an array.', operationKind);
+	} else {
+		const ids = new Set<string>();
+		for (const [resourceIndex, resourceId] of publish.excludedResourceIds.entries()) {
+			const resourcePath = `${path}.publish.excludedResourceIds[${resourceIndex}]`;
+			if (typeof resourceId !== 'string' || !/^[A-Za-z0-9_-]+$/.test(resourceId)) {
+				pushInvalidPackageSettings(issues, resourcePath, 'Excluded resource ids must be non-empty CSV-safe ids.', operationKind);
+			} else if (ids.has(resourceId)) {
+				pushInvalidPackageSettings(issues, resourcePath, `Excluded resource id "${resourceId}" is duplicated.`, operationKind);
+			}
+			ids.add(resourceId);
+		}
+	}
+	return issues.length === issueCount;
+}
+
+function canonicalPackageSettings(settings: UamPackageSettings): UamPackageSettings {
+	return structuredClone({
+		...settings,
+		publish: settings.publish ? {
+			...settings.publish,
+			atlases: [...settings.publish.atlases].sort((left, right) => left.index - right.index),
+			excludedResourceIds: [...settings.publish.excludedResourceIds],
+		} : null,
+	});
+}
+
+function packageSettingsSnapshot(pkg: UamPackage): UamPackageSettings {
+	return canonicalPackageSettings({
+		compressPNG: pkg.compressPNG,
+		jpegQuality: pkg.jpegQuality,
+		publish: pkg.publish,
+	});
 }
 
 function canonicalProjectSettings(settings: Record<string, unknown>): Record<string, unknown> {
@@ -1720,6 +1885,11 @@ function validatePackagePayload(
 	if (!isSafePackageName(pkg.name)) {
 		pushSupportIssue(issues, 'invalid_package_payload', `${path}.name`, 'Package name must be a safe output path segment.', { operationKind });
 	}
+	validatePackageSettingsPayload({
+		compressPNG: pkg.compressPNG,
+		jpegQuality: pkg.jpegQuality,
+		publish: pkg.publish,
+	}, path, issues, operationKind);
 
 	const standalone = normalizeUamProject({ ...project, packages: [pkg] });
 	for (const issue of validateUamProject(standalone)) {
@@ -2460,6 +2630,7 @@ function imageReplacementSurvives(
 function validateOperationPayloads(project: UamProject, operations: UamTransactionOperation[], issues: UamTransactionSupportIssue[]): void {
 	const usesSequentialDisplayProjection = requiresSequentialDisplayProjection(operations);
 	let projectedSettings = canonicalProjectSettings(project.settings);
+	const projectedPackageSettings = new Map<string, UamPackageSettings>();
 	for (const [operationIndex, operation] of operations.entries()) {
 		const operationPath = `operations[${operationIndex}]`;
 		switch (operation.kind) {
@@ -2478,6 +2649,37 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 						);
 					} else {
 						projectedSettings = nextSettings;
+					}
+				}
+				break;
+			}
+			case 'updatePackageSettings': {
+				const pkg = validateLifecyclePackageSelector(
+					project,
+					operation.selector,
+					`${operationPath}.selector`,
+					issues,
+					operation.kind,
+				);
+				const valid = validatePackageSettingsPayload(
+					operation.settings,
+					`${operationPath}.settings`,
+					issues,
+					operation.kind,
+				);
+				if (pkg && valid) {
+					const current = projectedPackageSettings.get(pkg.id) ?? packageSettingsSnapshot(pkg);
+					const next = canonicalPackageSettings(operation.settings);
+					if (stableJson(next) === stableJson(current)) {
+						pushSupportIssue(
+							issues,
+							'package_settings_unchanged',
+							`${operationPath}.settings`,
+							'updatePackageSettings must change the complete settings snapshot.',
+							{ operationKind: operation.kind },
+						);
+					} else {
+						projectedPackageSettings.set(pkg.id, next);
 					}
 				}
 				break;

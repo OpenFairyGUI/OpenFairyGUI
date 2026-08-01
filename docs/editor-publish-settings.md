@@ -113,8 +113,11 @@
 说明：
 - `PublishSettings` 不是 `settings/Publish.json` 的顶层结构，而是单个包发布配置对象。
 - 包级设置里可以单独定义图集列表，也可以指定使用全局图集设置。
-- 工程 `package.xml` 中的 `publish` 节点当前正式支持 `name`、`path`、`branchPath`、`packageCount`、`genCode`、`codePath`，以及包级图集子节点 `<atlas name="Default" index="0"/>`。
-- 工程 `package.xml` 的 `packageDescription` 根节点当前正式支持 `compressPNG`、`jpegQuality` 与派生的 `hasFavorites`；未设置的图片压缩选项保持省略，`hasFavorites` 仅在包内存在收藏资源或资源文件夹时写为 `true`。
+- 工程 `package.xml` 中的 `publish` 节点正式支持 `name`、`path`、`branchPath`、`packageCount`、`genCode`、`codePath`、`maxAtlasSize`、`sizeOption`、`square`、`rotation`、`multiPage`、`extractAlpha`、`maxAtlasIndex`、`excluded`，以及稀疏的包级图集子节点 `<atlas name="Default" index="0" compression="true"/>`。缺少 `maxAtlasSize` 表示使用全局图集设置；`maxAtlasIndex` 默认是 `10`，图集子节点只记录实际命名或启用压缩的槽位。
+- 工程 `package.xml` 的 `packageDescription` 根节点正式支持 `compressPNG`、`jpegQuality` 与派生的 `hasFavorites`；未设置的图片压缩选项保持省略，`hasFavorites` 仅在包内存在收藏资源或资源文件夹时写为 `true`。UAM 同时承载根节点压缩值与完整包级 publish 快照，lift/materialize 不会丢失这些字段。
+- `<publish><atlas>` 是工程源配置，与发布/二进制读取后 `Package.listAtlases()` 中的生成 atlas 分离；ProjectWriter 只从源配置写回 `<publish><atlas>`，不会把生成 atlas 反写到 `package.xml`。
+
+`updatePackageSettings` 使用包含 `compressPNG`、`jpegQuality` 和完整 `publish` 的单包快照，删除字段通过提交新的完整快照表达；相同快照以 `package_settings_unchanged` 拒绝。包名和输出路径必须是安全的相对路径，JPEG 质量范围是 1–100，包级 atlas 最大尺寸范围是 1–16384，`maxAtlasIndex` 范围是 0–255；稀疏 atlas 索引必须唯一且不超过该上限。`excludedResourceIds` 保存 CSV-safe 的资源 ID，可以保留当前工程中不存在的 ID，读取与写回不会把它误判为悬空引用。
 
 ## 工程资源树元数据
 

@@ -455,6 +455,58 @@ function replaceGearOnDisplayNode(
 
 export function applyDocumentOperation(doc: Document, operation: UamTransactionOperation): void {
 	switch (operation.kind) {
+		case 'updateProjectSettings':
+			doc.getRoot().setSettings(structuredClone(operation.settings));
+			return;
+		case 'updatePackageSettings': {
+			const pkg = resolvePackage(doc, operation.selector);
+			pkg
+				.setCompressPNG(operation.settings.compressPNG)
+				.setJpegQuality(operation.settings.jpegQuality);
+			if (!operation.settings.publish) {
+				pkg
+					.setPublishName('')
+					.setPublishPath('')
+					.setPublishBranchPath('')
+					.setPublishPackageCount(0)
+					.setGenCode(false)
+					.setCodePath('')
+					.setSourceAtlasSettings({
+						useGlobal: true,
+						maxSize: 2048,
+						sizeOption: 'pot',
+						forceSquare: false,
+						allowRotation: false,
+						paging: true,
+						extractAlpha: false,
+						maxIndex: 10,
+						atlases: [],
+						excludedResourceIds: [],
+					});
+				return;
+			}
+			const publish = operation.settings.publish;
+			pkg
+				.setPublishName(publish.name)
+				.setPublishPath(publish.path)
+				.setPublishBranchPath(publish.branchPath)
+				.setPublishPackageCount(publish.packageCount)
+				.setGenCode(publish.genCode)
+				.setCodePath(publish.codePath)
+				.setSourceAtlasSettings({
+					useGlobal: publish.useGlobalAtlasSettings,
+					maxSize: publish.maxAtlasSize,
+					sizeOption: publish.sizeOption,
+					forceSquare: publish.forceSquare,
+					allowRotation: publish.allowRotation,
+					paging: publish.paging,
+					extractAlpha: publish.extractAlpha,
+					maxIndex: publish.maxAtlasIndex,
+					atlases: publish.atlases,
+					excludedResourceIds: publish.excludedResourceIds,
+				});
+			return;
+		}
 		case 'renameResource': {
 			const { resource } = resolveResource(doc, operation.selector);
 			if (resource.propertyType === PropertyType.COMPONENT) {

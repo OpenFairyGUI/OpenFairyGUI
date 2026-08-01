@@ -401,6 +401,13 @@ function applyUamNativeOperation(project: UamProject, operation: UamTransactionO
 		case 'updateProjectSettings':
 			project.settings = structuredClone(operation.settings);
 			return;
+		case 'updatePackageSettings': {
+			const pkg = requirePackageSpec(project, operation.selector.packageId);
+			pkg.compressPNG = operation.settings.compressPNG;
+			pkg.jpegQuality = operation.settings.jpegQuality;
+			pkg.publish = structuredClone(operation.settings.publish);
+			return;
+		}
 		case 'setComponentProps': {
 			const found = findComponentSpecWithPath(project, operation.selector);
 			if (!found) {

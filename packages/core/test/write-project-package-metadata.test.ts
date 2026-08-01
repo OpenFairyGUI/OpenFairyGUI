@@ -76,39 +76,55 @@ test('round-trip: package image width/height/gridTile survive package.xml writeâ
 	}
 });
 
-test('round-trip: packageDescription id and publish attrs survive package.xml writeâ†’read', async (t) => {
-	const doc = new Document();
-	doc.getRoot().setProjectId('pkg-meta').setProjectType(0).setVersion('3.0');
-
-	const pkg = doc.createPackage('DemoPkg');
-	pkg.setId('pkgmeta');
-	pkg.setCompressPNG(true);
-	pkg.setJpegQuality(80);
-	pkg.setPublishName('DemoPublish');
-	pkg.setPublishPath('dist/ui');
-	pkg.setPublishBranchPath('dist/branches');
-	pkg.setPublishPackageCount(1);
-	pkg.setGenCode(true);
-	pkg.setCodePath('src/ui-gen');
-
-	const image = doc.createImageResource('hero.png');
-	image.setId('imgmeta');
-	image.setPath('/images/');
-	pkg.addResource(image);
-
+test('round-trip: complete source package settings survive UAM without serializing generated atlases', async (t) => {
 	const io = new NodeIO();
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-rt-'));
-	const outFairy = path.join(tmpDir, 'out.fairy');
+	const sourceDir = path.join(tmpDir, 'source');
+	const sourceFairy = path.join(sourceDir, 'source.fairy');
+	const outFairy = path.join(tmpDir, 'out', 'out.fairy');
 
 	try {
-		await io.writeProject(doc, outFairy);
-		const packageXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoPkg', 'package.xml'), 'utf-8');
+		await fs.mkdir(path.join(sourceDir, 'assets', 'DemoPkg'), { recursive: true });
+		await fs.writeFile(sourceFairy, '<?xml version="1.0" encoding="utf-8"?>\n<projectDescription id="pkg-meta" type="Layabox" version="3.0"/>\n');
+		await fs.writeFile(path.join(sourceDir, 'assets', 'DemoPkg', 'package.xml'), `<?xml version="1.0" encoding="utf-8"?>
+<packageDescription id="pkgmeta" compressPNG="true" jpegQuality="80">
+  <resources>
+    <image id="imgmeta" name="hero.png" path="/images/"/>
+  </resources>
+  <publish name="DemoPublish" path="dist/ui" branchPath="dist/branches" packageCount="1" genCode="true" codePath="src/ui-gen" maxAtlasSize="1024" sizeOption="mof" square="true" rotation="true" multiPage="false" extractAlpha="true" maxAtlasIndex="4" excluded="imgmeta,missing-resource">
+    <atlas name="Main" index="0"/>
+    <atlas name="Effects" index="3" compression="true"/>
+  </publish>
+</packageDescription>
+`);
+
+		const doc = await io.readProject(sourceFairy);
+		const lifted = liftDocumentToUamProject(doc);
+		const liftedPackage = lifted.packages[0];
+		t.is(liftedPackage?.compressPNG, true);
+		t.is(liftedPackage?.jpegQuality, 80);
+		t.deepEqual(liftedPackage?.publish?.atlases, [
+			{ index: 0, name: 'Main', compression: false },
+			{ index: 3, name: 'Effects', compression: true },
+		]);
+		t.deepEqual(liftedPackage?.publish?.excludedResourceIds, ['imgmeta', 'missing-resource']);
+
+		const materialized = materializeUamProject(lifted);
+		const materializedPackage = materialized.getRoot().getPackage('DemoPkg');
+		materializedPackage?.addAtlas(materialized.createAtlas('generated-atlas').setIndex(2));
+		await fs.mkdir(path.dirname(outFairy), { recursive: true });
+		await io.writeProject(materialized, outFairy);
+		const packageXml = await fs.readFile(path.join(tmpDir, 'out', 'assets', 'DemoPkg', 'package.xml'), 'utf-8');
 		t.true(packageXml.includes('<packageDescription id="pkgmeta" compressPNG="true" jpegQuality="80">'), 'packageDescription writes canonical id and publish image attrs');
-		t.true(
-			packageXml.includes('<publish name="DemoPublish" path="dist/ui" branchPath="dist/branches" packageCount="1" genCode="true" codePath="src/ui-gen">')
-				|| packageXml.includes('<publish name="DemoPublish" path="dist/ui" branchPath="dist/branches" packageCount="1" genCode="true" codePath="src/ui-gen"/>'),
+		t.regex(
+			packageXml,
+			/<publish name="DemoPublish" path="dist\/ui" branchPath="dist\/branches" packageCount="1" genCode="true" codePath="src\/ui-gen"/,
 			'publish writes canonical name, path, branchPath, packageCount, genCode and codePath attrs',
 		);
+		t.regex(packageXml, /<publish[^>]*maxAtlasSize="1024"[^>]*sizeOption="mof"[^>]*square="true"[^>]*rotation="true"[^>]*multiPage="false"[^>]*extractAlpha="true"[^>]*maxAtlasIndex="4"[^>]*excluded="imgmeta,missing-resource"/);
+		t.regex(packageXml, /<atlas name="Main" index="0"\/>/);
+		t.regex(packageXml, /<atlas name="Effects" index="3" compression="true"\/>/);
+		t.false(packageXml.includes('generated-atlas'), 'generated atlas does not leak into source publish settings');
 
 		const doc2 = await io.readProject(outFairy);
 		const pkg2 = doc2.getRoot().getPackage('DemoPkg');
@@ -122,6 +138,21 @@ test('round-trip: packageDescription id and publish attrs survive package.xml wr
 		t.is(pkg2?.getPublishPackageCount?.(), 1);
 		t.true(pkg2?.getGenCode?.(), 'genCode survives');
 		t.is(pkg2?.getCodePath?.(), 'src/ui-gen', 'codePath survives');
+		t.deepEqual(pkg2?.getSourceAtlasSettings(), {
+			useGlobal: false,
+			maxSize: 1024,
+			sizeOption: 'mof',
+			forceSquare: true,
+			allowRotation: true,
+			paging: false,
+			extractAlpha: true,
+			maxIndex: 4,
+			atlases: [
+				{ index: 0, name: 'Main', compression: false },
+				{ index: 3, name: 'Effects', compression: true },
+			],
+			excludedResourceIds: ['imgmeta', 'missing-resource'],
+		});
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

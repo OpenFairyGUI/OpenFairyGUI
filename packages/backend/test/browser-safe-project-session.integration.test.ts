@@ -289,7 +289,26 @@ function createLifecyclePackage(): UamPackage {
 	return {
 		id: 'pkg002',
 		name: 'Overlay',
-		publish: null,
+		compressPNG: null,
+		jpegQuality: null,
+		publish: {
+			name: '',
+			path: '',
+			branchPath: '',
+			packageCount: 0,
+			genCode: false,
+			codePath: '',
+			useGlobalAtlasSettings: true,
+			maxAtlasSize: 2048,
+			sizeOption: 'pot',
+			forceSquare: false,
+			allowRotation: false,
+			paging: true,
+			extractAlpha: false,
+			maxAtlasIndex: 10,
+			atlases: [],
+			excludedResourceIds: [],
+		},
 		branchNames: [],
 		folders: [],
 		resources: [],
@@ -1004,6 +1023,101 @@ test('browser-safe project settings transactions survive save, reload, inverse, 
 	t.is(await storage.readFile('Settings/settings/Publish.json'), publishBeforeInvalid);
 });
 
+test('browser-safe package settings transactions survive save, reload, inverse, and invalid preflight', async (t) => {
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const project = createBackendFixtureProject();
+	const pkg = project.packages[0]!;
+	pkg.compressPNG = false;
+	pkg.jpegQuality = 80;
+	pkg.publish = {
+		name: 'Main', path: '', branchPath: '', packageCount: 0, genCode: false, codePath: '',
+		useGlobalAtlasSettings: true, maxAtlasSize: 2048, sizeOption: 'pot', forceSquare: false,
+		allowRotation: false, paging: true, extractAlpha: false, maxAtlasIndex: 10,
+		atlases: [{ index: 0, name: 'Default', compression: false }], excludedResourceIds: [],
+	};
+	const original = { compressPNG: pkg.compressPNG, jpegQuality: pkg.jpegQuality, publish: structuredClone(pkg.publish) };
+	const updated = {
+		compressPNG: true,
+		jpegQuality: 73,
+		publish: {
+			name: 'Release', path: 'dist/ui', branchPath: 'dist/branch', packageCount: 2, genCode: true, codePath: 'generated/ui',
+			useGlobalAtlasSettings: false, maxAtlasSize: 1024, sizeOption: 'npot' as const, forceSquare: true,
+			allowRotation: true, paging: false, extractAlpha: true, maxAtlasIndex: 4,
+			atlases: [{ index: 0, name: 'Main', compression: false }, { index: 3, name: 'Effects', compression: true }],
+			excludedResourceIds: ['img001', 'missing-resource'],
+		},
+	};
+	const resourceIds = pkg.resources.map((resource) => resource.id);
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({
+		project,
+		storage: { fileSystem, fairyPath: 'PackageSettings/Project.fairy' },
+	});
+	t.true(opened.ok);
+	if (!opened.ok) return;
+	const sessionId = opened.data.sessionId;
+	t.true((await runtime.saveSession({ sessionId, force: true })).ok);
+
+	const pending = runtime.applyTransaction({
+		sessionId,
+		expectedRevision: 0,
+		operations: [{ kind: 'updatePackageSettings', selector: { packageId: pkg.id }, settings: updated }],
+	});
+	updated.publish.atlases[0]!.name = 'caller-mutated';
+	const applied = await pending;
+	t.true(applied.ok);
+	if (!applied.ok) return;
+	t.true((await runtime.saveSession({ sessionId, expectedRevision: 1 })).ok);
+
+	const reloaded = normalizeUamProject(liftDocumentToUamProject(
+		await new ProjectReader(fileSystem).read('PackageSettings/Project.fairy'),
+	));
+	const reloadedPackage = reloaded.packages.find((candidate) => candidate.id === pkg.id)!;
+	t.is(reloadedPackage.jpegQuality, 73);
+	t.is(reloadedPackage.publish?.atlases[0]?.name, 'Main');
+	t.deepEqual(reloadedPackage.publish?.excludedResourceIds, ['img001', 'missing-resource']);
+	t.deepEqual(reloadedPackage.resources.map((resource) => resource.id), resourceIds);
+
+	const inverse = await runtime.applyTransaction({
+		sessionId,
+		expectedRevision: 1,
+		operations: [{ kind: 'updatePackageSettings', selector: { packageId: pkg.id }, settings: original }],
+	});
+	t.true(inverse.ok);
+	if (!inverse.ok) return;
+	t.true((await runtime.saveSession({ sessionId, expectedRevision: 2 })).ok);
+	const restored = normalizeUamProject(liftDocumentToUamProject(
+		await new ProjectReader(fileSystem).read('PackageSettings/Project.fairy'),
+	)).packages.find((candidate) => candidate.id === pkg.id)!;
+	t.deepEqual({ compressPNG: restored.compressPNG, jpegQuality: restored.jpegQuality, publish: restored.publish }, original);
+
+	const descriptorBeforeInvalid = await storage.readFile('PackageSettings/assets/Main/package.xml');
+	const unchanged = await runtime.applyTransaction({
+		sessionId,
+		expectedRevision: 2,
+		operations: [{ kind: 'updatePackageSettings', selector: { packageId: pkg.id }, settings: structuredClone(original) }],
+	});
+	t.false(unchanged.ok);
+	if (unchanged.ok) return;
+	t.is(unchanged.meta.diagnostics[0]?.code, 'package_settings_unchanged');
+	const rejected = await runtime.applyTransaction({
+		sessionId,
+		expectedRevision: 2,
+		operations: [{
+			kind: 'updatePackageSettings',
+			selector: { packageId: pkg.id },
+			settings: { ...original, publish: { ...original.publish!, path: '../escape' } },
+		}],
+	});
+	t.false(rejected.ok);
+	if (rejected.ok) return;
+	t.is(rejected.meta.diagnostics[0]?.code, 'invalid_package_settings');
+	t.is((runtime.getSession({ sessionId }) as { ok: true; data: { revision: number; dirty: boolean } }).data.revision, 2);
+	t.false((runtime.getSession({ sessionId }) as { ok: true; data: { revision: number; dirty: boolean } }).data.dirty);
+	t.is(await storage.readFile('PackageSettings/assets/Main/package.xml'), descriptorBeforeInvalid);
+});
+
 test('browser-safe resource folder favorite transactions survive atomic save, reload, and inverse', async (t) => {
 	const storage = new MemoryBrowserStorage();
 	const fileSystem = createBackendStorageFileSystem(storage);
@@ -1518,12 +1632,9 @@ test('real LayaBox UAM sessions persist atomic resource dependency moves in brow
 	copiedImage.fileName = `issue34-copy${extension}`;
 
 	const sourcePackage: UamPackage = {
+		...createLifecyclePackage(),
 		id: 'issue9pkg',
 		name: 'Issue9',
-		publish: null,
-		branchNames: [],
-		folders: [],
-		resources: [],
 	};
 	const nested = createLifecycleComponent('issue34nested', 'Issue34Nested');
 	nested.component.displayList = [{
@@ -1896,12 +2007,9 @@ test('real LayaBox Bag dependency closure moves and inverts atomically in browse
 	delete copiedImage.sourcePath;
 	delete copiedMovieClip.sourcePath;
 	const targetPackage: UamPackage = {
+		...createLifecyclePackage(),
 		id: 'issue34real',
 		name: 'Issue34Real',
-		publish: null,
-		branchNames: [],
-		folders: [],
-		resources: [],
 	};
 	const copiedNested = structuredClone(nested);
 	for (const node of copiedNested.component.displayList) {
@@ -2028,12 +2136,9 @@ test('real LayaBox Bag dependency closure moves and inverts atomically in browse
 		);
 
 		const failedPackage: UamPackage = {
+			...createLifecyclePackage(),
 			id: 'issue34failed',
 			name: 'Issue34Failed',
-			publish: null,
-			branchNames: [],
-			folders: [],
-			resources: [],
 		};
 		const failed = await runtime.applyTransaction({
 			sessionId: opened.data.sessionId,

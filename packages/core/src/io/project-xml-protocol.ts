@@ -64,11 +64,21 @@ const PACKAGE_PUBLISH_ATTRS = {
 	packageCount: { canonical: 'packageCount' },
 	genCode: { canonical: 'genCode' },
 	codePath: { canonical: 'codePath' },
+	maxAtlasSize: { canonical: 'maxAtlasSize' },
+	sizeOption: { canonical: 'sizeOption' },
+	npot: { canonical: 'npot' },
+	square: { canonical: 'square' },
+	rotation: { canonical: 'rotation' },
+	multiPage: { canonical: 'multiPage' },
+	extractAlpha: { canonical: 'extractAlpha' },
+	maxAtlasIndex: { canonical: 'maxAtlasIndex' },
+	excluded: { canonical: 'excluded' },
 } satisfies XmlAttrMap;
 
 const PACKAGE_PUBLISH_ATLAS_ATTRS = {
 	name: { canonical: 'name' },
 	index: { canonical: 'index' },
+	compression: { canonical: 'compression' },
 } satisfies XmlAttrMap;
 
 const PACKAGE_RESOURCE_BASE_ATTRS = {

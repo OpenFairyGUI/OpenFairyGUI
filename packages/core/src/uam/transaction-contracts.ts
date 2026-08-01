@@ -15,6 +15,7 @@ import type {
 	UamLoader3DProperties,
 	UamLookGearBinding,
 	UamPackage,
+	UamPackageSettings,
 	UamPlainTextProperties,
 	UamProject,
 	UamTextProperties,
@@ -110,6 +111,12 @@ interface UamTransactionOperationBase {
 export interface UpdateProjectSettingsOperation extends UamTransactionOperationBase {
 	kind: 'updateProjectSettings';
 	settings: ProjectSettings;
+}
+
+export interface UpdatePackageSettingsOperation extends UamTransactionOperationBase {
+	kind: 'updatePackageSettings';
+	selector: UamPackageSelector;
+	settings: UamPackageSettings;
 }
 
 export interface RenameResourceOperation extends UamTransactionOperationBase {
@@ -344,6 +351,7 @@ export interface RemoveGearOperation extends UamTransactionOperationBase {
 
 export type UamTransactionOperation =
 	| UpdateProjectSettingsOperation
+	| UpdatePackageSettingsOperation
 	| RenameResourceOperation
 	| MoveResourceOperation
 	| SetResourceFavoriteOperation
@@ -387,6 +395,8 @@ export type UamTransactionSupportIssueCode =
 	| 'unsupported_operation'
 	| 'invalid_project_settings'
 	| 'project_settings_unchanged'
+	| 'invalid_package_settings'
+	| 'package_settings_unchanged'
 	| 'unsupported_resource_kind'
 	| 'unsupported_display_node_kind'
 	| 'unsupported_cross_package_image_ref'

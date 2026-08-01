@@ -7,7 +7,13 @@ export { ExtensionProperty } from './extension-property.js';
 export { Root } from './root.js';
 
 // Resources
-export { Package, type PackageResourceFolder } from './package.js';
+export {
+	Package,
+	type PackageAtlasSizeOption,
+	type PackageResourceFolder,
+	type PackageSourceAtlas,
+	type PackageSourceAtlasSettings,
+} from './package.js';
 export { ImageResource, type PixelHitTestData } from './image-resource.js';
 export { MiscResource } from './misc-resource.js';
 export { SoundResource } from './sound-resource.js';
