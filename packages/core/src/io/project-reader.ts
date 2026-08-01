@@ -196,6 +196,7 @@ export class ProjectReader {
 		if (branchNames.length > 0) {
 			doc.getRoot().setBranches(branchNames);
 		}
+		this._linkPackageBranchItems(doc);
 
 		// 4. Parse component XMLs (second pass, after all resources registered)
 		for (const [_key, resource] of ctx.resourceMap) {
@@ -213,6 +214,28 @@ export class ProjectReader {
 		}
 
 		return doc;
+	}
+
+	private _linkPackageBranchItems(doc: Document): void {
+		for (const pkg of doc.getRoot().listPackages()) {
+			const branchNames = pkg.listBranchNames();
+			if (branchNames.length === 0) continue;
+			const variants = new Map<string, string>();
+			for (const resource of pkg.listResources()) {
+				const branchName = resource.getBranch();
+				if (!branchName) continue;
+				variants.set(
+					`${branchName}\0${resource.propertyType}\0${resource.getPath()}\0${resource.getName()}`,
+					resource.getId(),
+				);
+			}
+			for (const resource of pkg.listResources()) {
+				if (resource.getBranch()) continue;
+				resource.setBranchItemIds(branchNames.map((branchName) => variants.get(
+					`${branchName}\0${resource.propertyType}\0${resource.getPath()}\0${resource.getName()}`,
+				) ?? ''));
+			}
+		}
 	}
 
 	private async _readPackageBranches(ctx: ReaderContext, options: ProjectReadOptions): Promise<string[]> {

@@ -117,14 +117,12 @@ export class Root extends ExtensibleProperty<IRoot> {
 	}
 
 	public setBranches(branches: string[]): this {
-		return this.set('branches', [...branches]);
+		return this.set('branches', [...new Set(branches)].sort((left, right) => left.localeCompare(right)));
 	}
 
 	public addBranch(branch: string): this {
 		if (!branch) return this;
-		const branches = this.listBranches();
-		if (!branches.includes(branch)) branches.push(branch);
-		return this.set('branches', branches);
+		return this.setBranches([...this.listBranches(), branch]);
 	}
 
 	public getSettings(): ProjectSettings {

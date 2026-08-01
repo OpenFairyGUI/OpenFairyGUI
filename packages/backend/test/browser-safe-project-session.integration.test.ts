@@ -17,6 +17,7 @@ import {
 	type UamGroupProperties,
 	type UamPackage,
 	type UamProject,
+	type UamTransactionOperation,
 	type UamMovieClipResource,
 } from '@openfairygui/core/uam';
 import { BackendRuntime, createBackendStorageFileSystem, type BackendAsyncStorageAdapter } from '../src/index.js';
@@ -1264,6 +1265,65 @@ test('browser-safe empty resource folders survive lifecycle saves and reloads', 
 	);
 	t.false(finalReload.packages[0]?.folders.some((folder) => folder.path === '/target/renamed/'));
 	t.false(finalReload.packages[0]?.folders.some((folder) => folder.branch === 'mobile'));
+});
+
+test('browser-safe empty branches survive save, reload, cleanup, and inverse operations', async (t) => {
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({
+		project: createBackendFixtureProject(),
+		storage: { fileSystem, fairyPath: 'Branches/Project.fairy' },
+	});
+	t.true(opened.ok);
+	if (!opened.ok) return;
+	const sessionId = opened.data.sessionId;
+
+	const rejected = await runtime.applyTransaction({
+		sessionId,
+		expectedRevision: 0,
+		operations: [{ kind: 'addBranch', branch: '../unsafe' }],
+	});
+	t.false(rejected.ok);
+	const unchanged = runtime.getSession({ sessionId });
+	t.true(unchanged.ok);
+	if (!unchanged.ok) return;
+	t.is(unchanged.data.revision, 0);
+	t.false(unchanged.data.dirty);
+	t.false(storage.hasDirectory('Branches/assets_../unsafe'));
+
+	const transactAndSave = async (expectedRevision: number, operations: UamTransactionOperation[]) => {
+		const applied = await runtime.applyTransaction({ sessionId, expectedRevision, operations });
+		t.true(applied.ok);
+		if (!applied.ok) return false;
+		const saved = await runtime.saveSession({ sessionId });
+		t.true(saved.ok);
+		return saved.ok;
+	};
+	const readBranches = async () => (
+		await new ProjectReader(fileSystem).read('Branches/Project.fairy')
+	).getRoot().listBranches();
+
+	if (!await transactAndSave(0, [{ kind: 'addBranch', branch: 'zeta' }])) return;
+	t.true(storage.hasDirectory('Branches/assets_zeta'));
+	t.deepEqual(await readBranches(), ['zeta']);
+
+	if (!await transactAndSave(1, [{ kind: 'renameBranch', selector: { branch: 'zeta' }, newName: 'alpha' }])) return;
+	t.false(storage.hasDirectory('Branches/assets_zeta'));
+	t.true(storage.hasDirectory('Branches/assets_alpha'));
+	t.deepEqual(await readBranches(), ['alpha']);
+
+	if (!await transactAndSave(2, [{ kind: 'renameBranch', selector: { branch: 'alpha' }, newName: 'zeta' }])) return;
+	t.false(storage.hasDirectory('Branches/assets_alpha'));
+	t.deepEqual(await readBranches(), ['zeta']);
+
+	if (!await transactAndSave(3, [{ kind: 'removeBranch', selector: { branch: 'zeta' } }])) return;
+	t.false(storage.hasDirectory('Branches/assets_zeta'));
+	t.deepEqual(await readBranches(), []);
+
+	if (!await transactAndSave(4, [{ kind: 'addBranch', branch: 'zeta' }])) return;
+	t.true(storage.hasDirectory('Branches/assets_zeta'));
+	t.deepEqual(await readBranches(), ['zeta']);
 });
 
 test('browser-safe sessions materialize package and component lifecycle operations through inverse reloads', async (t) => {

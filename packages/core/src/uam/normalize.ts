@@ -1132,7 +1132,7 @@ export function normalizeUamProject(project: UamProject): UamProject {
 		projectId: project.projectId,
 		projectType: project.projectType ?? 0,
 		version: project.version || '3.0',
-		branches: [...(project.branches ?? [])],
+		branches: [...new Set(project.branches ?? [])].sort((left, right) => left.localeCompare(right)),
 		settings: cloneSettings({
 			...settings,
 			publish: settings.publish ?? {},

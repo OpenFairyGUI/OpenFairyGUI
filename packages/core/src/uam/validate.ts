@@ -477,7 +477,13 @@ function validateGearBinding(
 }
 
 function isSafePathSegment(value: string): boolean {
-	return value.length > 0 && value !== '.' && value !== '..' && !/[\\/:]/.test(value);
+	return value.length > 0
+		&& value.trim() === value
+		&& value !== '.'
+		&& value !== '..'
+		&& !/[\\/:]/.test(value)
+		&& !/[. ]$/.test(value)
+		&& !/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i.test(value);
 }
 
 function normalizedResourceTarget(path: string, fileName: string): string | null {
@@ -663,6 +669,17 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 	const issues: UamValidationIssue[] = [];
 	const packageIds = new Set<string>();
 	const packageNames = new Set<string>();
+	const declaredProjectBranches = Array.isArray(project.branches) ? project.branches : [];
+	if (!Array.isArray(project.branches)) pushIssue(issues, 'branches', 'Project branches must be an array.');
+	const projectBranchNames = new Set<string>();
+	for (const [branchIndex, branchName] of declaredProjectBranches.entries()) {
+		if (!isSafePathSegment(branchName)) pushIssue(issues, `branches[${branchIndex}]`, `Invalid branch name "${branchName}".`);
+		if (projectBranchNames.has(branchName)) pushIssue(issues, `branches[${branchIndex}]`, `Duplicate branch name "${branchName}".`);
+		if (branchIndex > 0 && declaredProjectBranches[branchIndex - 1]!.localeCompare(branchName) > 0) {
+			pushIssue(issues, `branches[${branchIndex}]`, 'Project branches must use canonical lexical order.');
+		}
+		projectBranchNames.add(branchName);
+	}
 
 	for (const [pkgIndex, pkg] of project.packages.entries()) {
 		const pkgPath = `packages[${pkgIndex}]`;
@@ -677,7 +694,7 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 		}
 		const packageBranchNames = new Set<string>();
 		for (const [branchIndex, branchName] of declaredBranchNames.entries()) {
-			if (!branchName || !project.branches.includes(branchName)) {
+			if (!branchName || !projectBranchNames.has(branchName)) {
 				pushIssue(issues, `${pkgPath}.branchNames[${branchIndex}]`, `Unknown package branch "${branchName}".`);
 			}
 			if (packageBranchNames.has(branchName)) {

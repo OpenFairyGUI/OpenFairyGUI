@@ -16,6 +16,8 @@ export interface ProjectWriteOptions {
 	staleSourceFiles?: readonly ProjectSourceFile[];
 	/** Empty resource directories to remove after replacement files are written. */
 	staleResourceFolders?: readonly ProjectResourceFolder[];
+	/** Removed package-branch and root-branch directories to remove after their controlled contents. */
+	staleBranchDirectories?: readonly ProjectBranchDirectory[];
 }
 
 /** Identifies one package-controlled file without exposing a filesystem path. */
@@ -31,4 +33,10 @@ export interface ProjectResourceFolder {
 	packageName: string;
 	branch: string;
 	path: string;
+}
+
+/** Identifies either a root branch directory or one package directory below it. */
+export interface ProjectBranchDirectory {
+	branch: string;
+	packageName?: string;
 }

@@ -1,4 +1,4 @@
-import type { ProjectResourceFolder, ProjectSourceFile } from '../io/project-io-contracts.js';
+import type { ProjectBranchDirectory, ProjectResourceFolder, ProjectSourceFile } from '../io/project-io-contracts.js';
 import type { UamAssetResource, UamProject } from './model.js';
 
 export function defaultAssetSourcePath(resource: UamAssetResource): string {
@@ -31,7 +31,7 @@ function projectSourceFiles(project: UamProject): Map<string, ProjectSourceFile>
 			path: '',
 			fileName: 'package.xml',
 		});
-		const branches = new Set<string>();
+		const branches = new Set(pkg.branchNames);
 		for (const folder of pkg.folders) {
 			if (folder.branch) branches.add(folder.branch);
 		}
@@ -81,6 +81,22 @@ export function staleResourceFolders(previousProject: UamProject, nextProject: U
 		path: folder.path,
 	}))));
 	return previous.filter((folder) => !nextKeys.has(resourceFolderKey(folder)));
+}
+
+function branchDirectoryKey(directory: ProjectBranchDirectory): string {
+	return [directory.branch, directory.packageName ?? ''].join('\0');
+}
+
+function projectBranchDirectories(project: UamProject): ProjectBranchDirectory[] {
+	return [
+		...project.branches.map((branch) => ({ branch })),
+		...project.packages.flatMap((pkg) => pkg.branchNames.map((branch) => ({ branch, packageName: pkg.name }))),
+	];
+}
+
+export function staleBranchDirectories(previousProject: UamProject, nextProject: UamProject): ProjectBranchDirectory[] {
+	const nextKeys = new Set(projectBranchDirectories(nextProject).map(branchDirectoryKey));
+	return projectBranchDirectories(previousProject).filter((directory) => !nextKeys.has(branchDirectoryKey(directory)));
 }
 
 /** Marks hydrated resource bytes as committed at their current package-relative paths. */

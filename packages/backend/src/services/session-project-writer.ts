@@ -1,5 +1,5 @@
 import type { Document } from '@openfairygui/core';
-import { type FileSystem, type ProjectSourceFile, ProjectWriter } from '@openfairygui/core/project-io';
+import { type FileSystem, type ProjectBranchDirectory, type ProjectSourceFile, ProjectWriter } from '@openfairygui/core/project-io';
 import type { BackendFileSystem } from '../runtime.js';
 
 function createWriterFileSystem(
@@ -54,6 +54,7 @@ export async function writeSessionProject(input: {
 	fairyPath: string;
 	staleSourceFiles: ProjectSourceFile[];
 	staleResourceFolders: import('@openfairygui/core/project-io').ProjectResourceFolder[];
+	staleBranchDirectories: ProjectBranchDirectory[];
 	writtenPaths: string[];
 	failedPaths: string[];
 }): Promise<void> {
@@ -63,5 +64,6 @@ export async function writeSessionProject(input: {
 	await writer.write(input.document, input.fairyPath, {
 		staleSourceFiles: input.staleSourceFiles,
 		staleResourceFolders: input.staleResourceFolders,
+		staleBranchDirectories: input.staleBranchDirectories,
 	});
 }

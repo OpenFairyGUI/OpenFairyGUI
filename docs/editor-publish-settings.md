@@ -122,6 +122,10 @@
 
 每个 package 通过正式的 `branchNames` 顺序记录自身出现的资源分支。工程读取时按该 package 的 `package_branch.xml` 发现顺序建立映射；二进制发布时同一顺序定义该 package 的 `branchItemIds` 槽位，不能按工程根分支顺序重新推导。
 
+公开事务 `addBranch`、`renameBranch`、`removeBranch` 维护按名称排序的工程分支注册表。重命名会原子更新资源、资源文件夹和包内分支表，但保持每个包已有槽位位置不变；删除只允许空且没有变体 ID 映射的分支。分支名必须是安全、非保留的单个路径段。编辑器当前激活分支属于本地界面状态，不在这些工程事务中修改。
+
+ProjectWriter 会为每个工程分支保留 `assets_<branch>/`，并为包内空分支槽位写出空的 `package_branch.xml`，因此空分支和包内分支子集都能在 ProjectReader reload 后恢复。重命名或删除成功保存后，仅以非递归目录删除清理已移除的受控分支目录。
+
 资源文件夹由 `package.folders` 正式承载 `branch / path / favorite / atlas`。文件夹路径使用以 `/` 开头和结尾的规范形式，根目录是隐式节点；实际 `assets[/_<branch>]/<包名>/` 目录是存在性的事实来源，`<folder>` 节点只写入需要持久化的收藏或图集元数据。`setResourceFolderFavorite` 可更新既有主分支或资源分支文件夹的收藏状态，且单个操作只修改 selector 指定的文件夹；需要匹配编辑器的后代收藏行为时，调用方应在同一事务中显式提交后代文件夹与资源收藏操作。公开事务 `addResourceFolder`、`renameResourceFolder`、`moveResourceFolder`、`removeResourceFolder` 只操作空文件夹；父目录必须存在，根目录、路径冲突和非空操作会在提交前拒绝。浏览器存储适配器须提供非递归 `rmdir`，保存成功后才清理被移除的空目录。
 
 主 `package.xml` 的 `packageDescription@hasFavorites` 由包内资源与资源文件夹的收藏状态派生，不作为独立可编辑状态。收藏状态只影响编辑器工程数据，不进入运行时二进制发布协议。

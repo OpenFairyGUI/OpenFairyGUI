@@ -34,6 +34,8 @@ export interface BackendSessionState {
 	pendingStaleSourceFiles: Map<string, import('@openfairygui/core/project-io').ProjectSourceFile>;
 	/** Empty resource directories deferred until a successful replacement project write. */
 	pendingStaleResourceFolders: Map<string, import('@openfairygui/core/project-io').ProjectResourceFolder>;
+	/** Removed package-branch and root-branch directories deferred until controlled files are replaced. */
+	pendingStaleBranchDirectories: Map<string, import('@openfairygui/core/project-io').ProjectBranchDirectory>;
 	dirty: boolean;
 	lockHeld: boolean;
 	closed: boolean;

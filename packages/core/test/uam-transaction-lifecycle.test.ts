@@ -260,6 +260,81 @@ test('UAM-native execution failure leaves the input project unchanged', (t) => {
 	t.false(project.packages[0]?.resources.some((resource) => resource.id === 'temporary'));
 });
 
+test('branch lifecycle preserves package-local slots and rejects unsafe removal', async (t) => {
+	const project = createSupportedProject();
+	project.branches = ['alpha', 'mobile', 'zulu'];
+	const main = project.packages[0]!;
+	main.branchNames = ['mobile', 'zulu'];
+	main.resources[0]!.branchItemIds = ['mobileImage', ''];
+	main.resources.push({
+		...structuredClone(main.resources[0]!),
+		id: 'mobileImage',
+		branch: 'mobile',
+		branchItemIds: [],
+	});
+	main.folders.push({ branch: 'mobile', path: '/mobile/', favorite: false, atlas: '' });
+	const overlay = createLifecyclePackage();
+	overlay.branchNames = ['alpha', 'mobile'];
+	overlay.resources = [{
+		...structuredClone(main.resources[0]!),
+		id: 'overlayMain',
+		branch: '',
+		branchItemIds: ['', 'overlayMobile'],
+	}, {
+		...structuredClone(main.resources[0]!),
+		id: 'overlayMobile',
+		branch: 'mobile',
+		branchItemIds: [],
+	}];
+	project.packages.push(overlay);
+	const baseline = applyUamTransaction(project, []);
+
+	const renamed = applyUamTransaction(baseline, [{
+		kind: 'renameBranch',
+		selector: { branch: 'mobile' },
+		newName: 'beta',
+	}]);
+	t.deepEqual(renamed.branches, ['alpha', 'beta', 'zulu']);
+	t.deepEqual(renamed.packages[0]!.branchNames, ['beta', 'zulu']);
+	t.deepEqual(renamed.packages[1]!.branchNames, ['alpha', 'beta']);
+	t.deepEqual(renamed.packages[0]!.resources[0]!.branchItemIds, ['mobileImage', '']);
+	t.true(renamed.packages.every((pkg) => pkg.resources.every((resource) => resource.branch !== 'mobile')));
+	t.true(renamed.packages[0]!.folders.some((folder) => folder.branch === 'beta'));
+	const reloaded = await roundTripCommittedProject(renamed);
+	t.deepEqual(reloaded.branches, ['alpha', 'beta', 'zulu']);
+	t.deepEqual(reloaded.packages[0]!.branchNames, ['beta', 'zulu']);
+	t.deepEqual(reloaded.packages[1]!.branchNames, ['alpha', 'beta']);
+	t.deepEqual(reloaded.packages[0]!.resources.find((resource) => resource.id === 'img001')?.branchItemIds, ['mobileImage', '']);
+	const restored = applyUamTransaction(renamed, [{
+		kind: 'renameBranch',
+		selector: { branch: 'beta' },
+		newName: 'mobile',
+	}]);
+	t.deepEqual(restored, baseline);
+
+	const emptyAdded = applyUamTransaction(baseline, [{ kind: 'addBranch', branch: 'empty' }]);
+	t.deepEqual(emptyAdded.branches, ['alpha', 'empty', 'mobile', 'zulu']);
+	t.deepEqual(applyUamTransaction(emptyAdded, [{ kind: 'removeBranch', selector: { branch: 'empty' } }]), baseline);
+
+	for (const [operation, code] of [
+		[{ kind: 'addBranch', branch: 'alpha' }, 'duplicate_branch_name'],
+		[{ kind: 'addBranch', branch: '../unsafe' }, 'invalid_branch_name'],
+		[{ kind: 'addBranch', branch: 'CON' }, 'invalid_branch_name'],
+		[{ kind: 'removeBranch', selector: { branch: 'missing' } }, 'invalid_branch_selector'],
+		[{ kind: 'removeBranch', selector: { branch: 'mobile' } }, 'branch_not_empty'],
+	] as const) {
+		t.true(validateTransactionSupport(baseline, [operation as UamTransactionOperation]).some((issue) => issue.code === code));
+	}
+	const referenced = createSupportedProject();
+	referenced.branches = ['mapped'];
+	referenced.packages[0]!.branchNames = ['mapped'];
+	referenced.packages[0]!.resources[0]!.branchItemIds = ['mappedVariant'];
+	t.true(validateTransactionSupport(referenced, [{
+		kind: 'removeBranch',
+		selector: { branch: 'mapped' },
+	}]).some((issue) => issue.code === 'branch_referenced'));
+});
+
 test('package and component lifecycle transactions survive write, reload, and inverse operations', async (t) => {
 	const original = createSupportedProject();
 	const created = applyUamTransaction(original, [

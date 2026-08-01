@@ -1,7 +1,8 @@
-import type { ProjectResourceFolder, ProjectSourceFile } from '@openfairygui/core/project-io';
+import type { ProjectBranchDirectory, ProjectResourceFolder, ProjectSourceFile } from '@openfairygui/core/project-io';
 import {
 	commitUamProjectSourcePaths,
 	materializeUamProject,
+	staleBranchDirectories,
 	staleResourceFolders,
 	staleSourceFiles,
 	type UamProject,
@@ -41,6 +42,10 @@ function resourceFolderKey(folder: ProjectResourceFolder): string {
 	return [folder.branch, folder.packageName, folder.path].join('\0');
 }
 
+function branchDirectoryKey(directory: ProjectBranchDirectory): string {
+	return [directory.branch, directory.packageName ?? ''].join('\0');
+}
+
 function recordStaleProjectFiles(
 	session: Parameters<typeof toSessionSnapshot>[0],
 	previousProject: UamProject,
@@ -58,6 +63,12 @@ function recordStaleProjectFiles(
 	}
 	for (const folder of staleResourceFolders(nextProject, previousProject)) {
 		session.pendingStaleResourceFolders.delete(resourceFolderKey(folder));
+	}
+	for (const directory of staleBranchDirectories(previousProject, nextProject)) {
+		session.pendingStaleBranchDirectories.set(branchDirectoryKey(directory), directory);
+	}
+	for (const directory of staleBranchDirectories(nextProject, previousProject)) {
+		session.pendingStaleBranchDirectories.delete(branchDirectoryKey(directory));
 	}
 }
 
@@ -405,12 +416,14 @@ export class AuthoringService {
 				fairyPath: session.fairyPath,
 				staleSourceFiles: [...session.pendingStaleSourceFiles.values()],
 				staleResourceFolders: [...session.pendingStaleResourceFolders.values()],
+				staleBranchDirectories: [...session.pendingStaleBranchDirectories.values()],
 				writtenPaths: committedPaths,
 				failedPaths,
 			});
 			session.fileSystem ??= fileSystem;
 			session.pendingStaleSourceFiles.clear();
 			session.pendingStaleResourceFolders.clear();
+			session.pendingStaleBranchDirectories.clear();
 			commitUamProjectSourcePaths(session.project);
 			session.lastSavedRevision = session.revision;
 			session.dirty = false;
@@ -646,16 +659,19 @@ export class AuthoringService {
 				fairyPath,
 				staleSourceFiles: isSessionStorageTarget ? [...session.pendingStaleSourceFiles.values()] : [],
 				staleResourceFolders: isSessionStorageTarget ? [...session.pendingStaleResourceFolders.values()] : [],
+				staleBranchDirectories: isSessionStorageTarget ? [...session.pendingStaleBranchDirectories.values()] : [],
 				writtenPaths,
 				failedPaths,
 			});
 			if (isSessionStorageTarget) {
 				session.pendingStaleSourceFiles.clear();
 				session.pendingStaleResourceFolders.clear();
+				session.pendingStaleBranchDirectories.clear();
 			}
 			if (storageTarget && !isSessionStorageTarget) {
 				session.pendingStaleSourceFiles.clear();
 				session.pendingStaleResourceFolders.clear();
+				session.pendingStaleBranchDirectories.clear();
 			}
 			if (isSessionStorageTarget || storageTarget) commitUamProjectSourcePaths(session.project);
 			if (storageTarget) {
