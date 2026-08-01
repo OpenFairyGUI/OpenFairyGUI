@@ -307,7 +307,7 @@ test('round-trip: package movieclip atlas survives XML and smoothing survives UA
 		const lifted = liftDocumentToUamProject(doc2);
 		const liftedMovieClip = lifted.packages[0]?.resources.find((resource) => resource.id === 'mcAtlas');
 		t.is(liftedMovieClip?.kind, 'movieClip');
-		if (liftedMovieClip?.kind === 'movieClip') t.is(liftedMovieClip.metadata?.smoothing, false);
+		if (liftedMovieClip?.kind === 'movieClip') t.false(liftedMovieClip.movieClip.smoothing);
 
 		await fs.mkdir(path.dirname(materializedFairy), { recursive: true });
 		await io.writeProject(materializeUamProject(lifted), materializedFairy);
@@ -321,6 +321,46 @@ test('round-trip: package movieclip atlas survives XML and smoothing survives UA
 		const materializedMovieClip = materializedDoc.getRoot().getPackage('DemoMovieClipTextureSetMode')
 			?.listResources().find((resource) => resource.getId?.() === 'mcAtlas') as ReturnType<Document['createMovieClipResource']>;
 		t.false(materializedMovieClip.getSmoothing(), 'materialized movieclip keeps smoothing=false after reload');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('round-trip: unreadable MovieClip JTA preserves source bytes and XML properties', async (t) => {
+	const io = new NodeIO();
+	const doc = new Document();
+	doc.getRoot().setProjectId('proj-unreadable-movieclip').setProjectType(0).setVersion('3.0');
+	const pkg = doc.createPackage('Demo');
+	pkg.setId('pkgUnreadableMovieClip');
+	const sourceBytes = new Uint8Array([0, 1, 2, 3]);
+	const movieClip = doc.createMovieClipResource('broken')
+		.setId('mcBroken')
+		.setPath('/')
+		.setFileName('broken.jta')
+		.setTextureSetMode('alone_mof')
+		.setSmoothing(false)
+		.setWidth(40)
+		.setHeight(30)
+		.setSourceData(doc.createBuffer().setURI('/broken.jta').setData(sourceBytes));
+	pkg.addResource(movieClip);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-unreadable-movieclip-'));
+	const sourceFairy = path.join(tmpDir, 'source.fairy');
+	const copiedFairy = path.join(tmpDir, 'copy', 'copy.fairy');
+	try {
+		await io.writeProject(doc, sourceFairy);
+		const hydrated = await io.readProject(sourceFairy, { hydrateResourceBytes: true });
+		const hydratedMovieClip = hydrated.getRoot().getPackage('Demo')?.listResources()[0] as typeof movieClip;
+		t.deepEqual(hydratedMovieClip.getSourceData()?.getData(), sourceBytes);
+		t.is(hydratedMovieClip.getTextureSetMode(), 'alone_mof');
+		t.false(hydratedMovieClip.getSmoothing());
+
+		await fs.mkdir(path.dirname(copiedFairy), { recursive: true });
+		await io.writeProject(hydrated, copiedFairy);
+		t.deepEqual(
+			new Uint8Array(await fs.readFile(path.join(tmpDir, 'copy', 'assets', 'Demo', 'broken.jta'))),
+			sourceBytes,
+		);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

@@ -260,6 +260,7 @@ export {
 	parseURL,
 	buildURL,
 	applyDerivedMovieClipModel,
+	deriveMovieClipModel,
 	deriveMovieClipModelFromJta,
 	parseJta,
 	type DerivedMovieClipFrame,

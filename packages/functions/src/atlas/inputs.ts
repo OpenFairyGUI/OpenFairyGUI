@@ -292,32 +292,29 @@ export async function collectMovieClipFrames(
 	try {
 		const raw = await options.readFileRaw(filePath);
 		const jta = extractJtaFrames(raw);
-		if (jta.frames.length === 0) return;
 
-		const frameMetas = jta.meta?.frames ?? [];
+		const frameMetas = jta.meta.frames;
 		for (const frame of resource.listFrames()) {
 			resource.removeFrame(frame);
 		}
 		resource
-			.setInterval(jta.meta?.interval ?? 100)
-			.setSwing(jta.meta?.swing ?? false)
-			.setRepeatDelay(jta.meta?.repeatDelay ?? 0);
+			.setInterval(jta.meta.interval)
+			.setSwing(jta.meta.swing)
+			.setRepeatDelay(jta.meta.repeatDelay);
 
-		if (frameMetas.length > 0) {
-			const firstFrameIndexByTextureIndex = new Map<number, number>();
-			for (let frameIndex = 0; frameIndex < frameMetas.length; frameIndex += 1) {
-				const meta = frameMetas[frameIndex];
-				const textureIndex = Number.isFinite(meta.textureIndex) ? meta.textureIndex : frameIndex;
-				if (!firstFrameIndexByTextureIndex.has(textureIndex)) {
-					firstFrameIndexByTextureIndex.set(textureIndex, frameIndex);
-				}
+		const firstFrameIndexByTextureIndex = new Map<number, number>();
+		for (let frameIndex = 0; frameIndex < frameMetas.length; frameIndex += 1) {
+			const textureIndex = frameMetas[frameIndex]!.textureIndex;
+			if (textureIndex >= 0 && !firstFrameIndexByTextureIndex.has(textureIndex)) {
+				firstFrameIndexByTextureIndex.set(textureIndex, frameIndex);
 			}
+		}
 
-			const spriteIdByTextureIndex = new Map<number, string>();
-			for (let textureIndex = 0; textureIndex < jta.frames.length; textureIndex += 1) {
-				const exportFrameIndex = firstFrameIndexByTextureIndex.get(textureIndex);
-				if (exportFrameIndex === undefined) continue;
-				const itemId = `${mcId}_${exportFrameIndex}`;
+		const spriteIdByTextureIndex = new Map<number, string>();
+		for (let textureIndex = 0; textureIndex < jta.frames.length; textureIndex += 1) {
+			const exportFrameIndex = firstFrameIndexByTextureIndex.get(textureIndex);
+			if (exportFrameIndex === undefined) continue;
+			const itemId = `${mcId}_${exportFrameIndex}`;
 			const input = await createMovieClipFrameInput(
 				jta.frames[textureIndex],
 				itemId,
@@ -325,51 +322,27 @@ export async function collectMovieClipFrames(
 				encoder,
 				options.strictOutput,
 			);
-				if (!input) continue;
-				inputs.push(input);
-				spriteIdByTextureIndex.set(textureIndex, itemId);
-			}
-
-			for (let frameIndex = 0; frameIndex < frameMetas.length; frameIndex += 1) {
-				const meta = frameMetas[frameIndex];
-				const textureIndex = Number.isFinite(meta.textureIndex) ? meta.textureIndex : frameIndex;
-				const frame = doc.createMovieFrame(`${mcId}_${frameIndex}`);
-				frame
-					.setRectX(meta.offsetX)
-					.setRectY(meta.offsetY)
-					.setRectWidth(meta.width)
-					.setRectHeight(meta.height)
-					.setAddDelay(meta.addDelay)
-					.setSpriteId(spriteIdByTextureIndex.get(textureIndex) ?? '');
-				resource.addFrame(frame);
-			}
-		} else {
-			for (let frameIndex = 0; frameIndex < jta.frames.length; frameIndex += 1) {
-				const itemId = `${mcId}_${frameIndex}`;
-				const input = await createMovieClipFrameInput(
-					jta.frames[frameIndex],
-					itemId,
-					resource,
-					encoder,
-					options.strictOutput,
-				);
-				if (!input) continue;
-				inputs.push(input);
-				const frame = doc.createMovieFrame(itemId);
-				frame
-					.setRectX(0)
-					.setRectY(0)
-					.setRectWidth(input.originalWidth)
-					.setRectHeight(input.originalHeight)
-					.setAddDelay(0)
-					.setSpriteId(itemId);
-				resource.addFrame(frame);
-			}
+			if (!input) continue;
+			inputs.push(input);
+			spriteIdByTextureIndex.set(textureIndex, itemId);
 		}
 
-		if ((jta.meta?.width ?? 0) > 0 && (jta.meta?.height ?? 0) > 0) {
-			resource.setWidth(jta.meta?.width ?? 0);
-			resource.setHeight(jta.meta?.height ?? 0);
+		for (let frameIndex = 0; frameIndex < frameMetas.length; frameIndex += 1) {
+			const meta = frameMetas[frameIndex]!;
+			const frame = doc.createMovieFrame(`${mcId}_${frameIndex}`);
+			frame
+				.setRectX(meta.offsetX)
+				.setRectY(meta.offsetY)
+				.setRectWidth(meta.width)
+				.setRectHeight(meta.height)
+				.setAddDelay(meta.addDelay)
+				.setSpriteId(meta.textureIndex === -1 ? '' : (spriteIdByTextureIndex.get(meta.textureIndex) ?? ''));
+			resource.addFrame(frame);
+		}
+
+		if (jta.meta.width > 0 && jta.meta.height > 0) {
+			resource.setWidth(jta.meta.width);
+			resource.setHeight(jta.meta.height);
 		}
 	} catch {
 		const message = `atlas: Could not parse MovieClip "${filePath}".`;

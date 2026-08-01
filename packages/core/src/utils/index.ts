@@ -15,6 +15,7 @@ export {
 } from './xml-utils.js';
 export {
 	applyDerivedMovieClipModel,
+	deriveMovieClipModel,
 	deriveMovieClipModelFromJta,
 	parseJta,
 	type DerivedMovieClipFrame,

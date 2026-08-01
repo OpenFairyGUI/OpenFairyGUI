@@ -69,6 +69,15 @@ test('parseJta and the shared MovieClip derivation cover v100, v101, and v102 ti
 		});
 		t.throws(() => parseJta(bytes.subarray(0, bytes.byteLength - 1)), { message: /Invalid \.jta file: truncated/ });
 	}
+	t.throws(() => parseJta(createMovieClipJta(102, 10, 10, 0, 0, { fps: -1 })), {
+		message: /Invalid \.jta file: negative fps/,
+	});
+	t.throws(() => parseJta(createMovieClipJta(102, 10, 10, 0, 0, {
+		frames: [{ delay: 0, rectX: 0, rectY: 0, rectWidth: 10, rectHeight: 10, textureIndex: 0 }],
+	})), { message: /texture index 0 is outside/ });
+	t.throws(() => parseJta(createMovieClipJta(102, 10, 10, 0, 0, {
+		frames: [{ delay: 0, rectX: 0, rectY: 0, rectWidth: 10, rectHeight: 10, textureIndex: -2 }],
+	})), { message: /texture index -2 is outside/ });
 });
 
 test('resource exported transactions support assets, components, inverse, and source immutability', (t) => {
@@ -747,6 +756,7 @@ test('ProjectReader and MovieClip replacement hydrate the complete typed JTA mod
 			{ delay: 5, rectX: 5, rectY: 7, rectWidth: 40, rectHeight: 30, textureIndex: 0 },
 			{ delay: 1, rectX: 45, rectY: 37, rectWidth: 75, rectHeight: 47, textureIndex: 0 },
 		],
+		textures: [new Uint8Array([1])],
 	});
 	const replaced = applyUamTransaction(reloaded, [{
 		kind: 'replaceResourceBytes',

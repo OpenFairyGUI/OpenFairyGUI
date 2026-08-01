@@ -2395,6 +2395,7 @@ test('browser-safe MovieClip replacement, save, inverse, and invalid JTA keep se
 			{ delay: 5, rectX: 5, rectY: 7, rectWidth: 40, rectHeight: 30, textureIndex: 0 },
 			{ delay: 1, rectX: 45, rectY: 37, rectWidth: 75, rectHeight: 47, textureIndex: 0 },
 		],
+		textures: [new Uint8Array([1])],
 	});
 	const project = createBackendFixtureProject();
 	project.packages[0]!.resources.push(createMovieClipResource('movie001', 'pulse.jta', initialBytes));

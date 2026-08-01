@@ -124,7 +124,8 @@ export function parseJta(data: Uint8Array): JtaDef {
 		throw new Error(`Unsupported .jta version: ${version}`);
 	}
 	let fps = cursor.readInt8('fps');
-	if (fps <= 0) fps = 24;
+	if (fps < 0) throw new Error(`Invalid .jta file: negative fps ${fps}`);
+	if (fps === 0) fps = 24;
 	cursor.skip(3, 'reserved header');
 
 	let boundsWidth = 0, boundsHeight = 0;
@@ -183,6 +184,14 @@ export function parseJta(data: Uint8Array): JtaDef {
 			boundsHeight = maxY - Math.min(minY, 0);
 		}
 	}
+	for (let index = 0; index < frames.length; index += 1) {
+		const textureIndex = frames[index]!.textureIndex;
+		if (textureIndex < -1 || textureIndex >= textures.length) {
+			throw new Error(
+				`Invalid .jta file: frame ${index} texture index ${textureIndex} is outside -1..${textures.length - 1}`,
+			);
+		}
+	}
 
 	return {
 		version, fps, speed, repeatDelay, swing,
@@ -191,9 +200,8 @@ export function parseJta(data: Uint8Array): JtaDef {
 	};
 }
 
-/** Converts raw JTA frame units to the millisecond-based Document/UAM model. */
-export function deriveMovieClipModelFromJta(data: Uint8Array): DerivedMovieClipModel {
-	const parsed = parseJta(data);
+/** Converts parsed JTA frame units to the millisecond-based Document/UAM model. */
+export function deriveMovieClipModel(parsed: JtaDef): DerivedMovieClipModel {
 	const millisecondsPerFrame = 1000 / parsed.fps;
 	return {
 		dimensions: { width: parsed.boundsWidth, height: parsed.boundsHeight },
@@ -209,6 +217,11 @@ export function deriveMovieClipModelFromJta(data: Uint8Array): DerivedMovieClipM
 			textureIndex: frame.textureIndex,
 		})),
 	};
+}
+
+/** Parses JTA bytes and derives the Document/UAM MovieClip model. */
+export function deriveMovieClipModelFromJta(data: Uint8Array): DerivedMovieClipModel {
+	return deriveMovieClipModel(parseJta(data));
 }
 
 /** Applies a fully parsed JTA model without changing XML-owned MovieClip settings such as smoothing. */
@@ -233,12 +246,4 @@ export function applyDerivedMovieClipModel(
 		.setRepeatDelay(model.repeatDelay)
 		.setSwing(model.swing);
 	for (const frame of frames) resource.addFrame(frame);
-}
-
-export function tryReadJtaSize(data: Uint8Array): { width: number; height: number } | null {
-	try {
-		return deriveMovieClipModelFromJta(data).dimensions;
-	} catch {
-		return null;
-	}
 }
