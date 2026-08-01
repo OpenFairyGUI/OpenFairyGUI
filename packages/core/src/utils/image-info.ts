@@ -412,7 +412,7 @@ function readJpegInfo(data: Uint8Array, decodePixels: boolean): RasterImageInfo 
 /**
  * Strictly validate a complete PNG or JPEG source and return its decoded dimensions.
  *
- * Unlike {@link probeRasterImageDimensions}, this validates PNG image data and fully
+ * Unlike `probeRasterImageDimensions`, this validates PNG image data and fully
  * decodes JPEG pixels. Unsupported formats and malformed inputs return `null`.
  */
 export function probeRasterImage(data: Uint8Array): RasterImageInfo | null {

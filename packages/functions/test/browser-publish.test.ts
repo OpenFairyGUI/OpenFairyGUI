@@ -210,7 +210,7 @@ test.serial('publishBrowser preflights every package before creating or writing 
 		});
 
 		t.false(result.success);
-		t.regex(result.diagnostics.at(-1)?.message ?? '', /invalid texture index 2/);
+		t.regex(result.diagnostics.at(-1)?.message ?? '', /texture index 2 is outside/);
 		t.is(output.mkdirCalls, 0, 'global preflight fails before the first output directory is created');
 		t.is(output.files.size, 0, 'global preflight fails before any package or atlas bytes are written');
 		t.deepEqual(result.files, []);

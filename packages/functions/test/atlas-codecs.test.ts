@@ -105,7 +105,7 @@ test('JTA preparation rejects invalid, empty, truncated, and corrupt referenced 
 
 	await t.throwsAsync(
 		() => prepareJtaForPublish(createTestJta([new Uint8Array([1])], [{ textureIndex: 1 }]), encoder, 'bad-index.jta'),
-		{ message: /invalid texture index 1/ },
+		{ message: /texture index 1 is outside/ },
 	);
 	await t.throwsAsync(
 		() => prepareJtaForPublish(createTestJta([new Uint8Array(0)], [{ textureIndex: 0 }]), encoder, 'empty.jta'),
@@ -120,7 +120,7 @@ test('JTA preparation rejects invalid, empty, truncated, and corrupt referenced 
 		{ message: /Could not decode MovieClip/ },
 	);
 	const valid = createTestJta([TEST_PNG], [{ textureIndex: 0 }]);
-	t.throws(() => extractJtaFrames(valid.subarray(0, valid.byteLength - 1)), { message: /truncated texture data/ });
+	t.throws(() => extractJtaFrames(valid.subarray(0, valid.byteLength - 1)), { message: /truncated texture 0 data/ });
 });
 
 for (const version of [100, 101, 102] as const) {
