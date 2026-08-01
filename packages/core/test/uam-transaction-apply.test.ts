@@ -7,8 +7,10 @@ import {
 	createDefaultUamPlainTextProperties,
 	createUamTransaction,
 	deriveMovieClipModelFromJta,
+	materializeUamProject,
 	parseJta,
 	validateTransactionSupport,
+	type UamMovieClipResource,
 	type UamTextNode,
 } from '../src/index.js';
 
@@ -87,6 +89,43 @@ test('parseJta and the shared MovieClip derivation cover v100, v101, and v102 ti
 			message: /negative delay or dimensions/,
 		});
 	}
+});
+
+test('MovieClip materialization keeps stored properties when source JTA cannot be derived', (t) => {
+	const project = createSupportedProject();
+	const sourceBytes = new Uint8Array([0, 1, 2, 3]);
+	project.packages[0]!.resources.push({
+		kind: 'movieClip',
+		id: 'brokenMovieClip',
+		name: 'broken',
+		path: '/',
+		exported: true,
+		favorite: false,
+		branch: '',
+		branchItemIds: [],
+		fileName: 'broken.jta',
+		dimensions: { width: 40, height: 30 },
+		movieClip: {
+			interval: 80,
+			repeatDelay: 160,
+			swing: true,
+			smoothing: false,
+			frames: [{ rectX: 1, rectY: 2, rectWidth: 40, rectHeight: 30, addDelay: 20, spriteId: '' }],
+		},
+		sourceBytes,
+		sourcePath: '/broken.jta',
+	} satisfies UamMovieClipResource);
+
+	const movieClip = materializeUamProject(project).getRoot().getPackage('Main')?.listResources().at(-1);
+	t.is(movieClip?.propertyType, 'MovieClipResource');
+	if (movieClip?.propertyType !== 'MovieClipResource') return;
+	t.deepEqual(movieClip.getSourceData()?.getData(), sourceBytes);
+	t.deepEqual(
+		[movieClip.getWidth(), movieClip.getHeight(), movieClip.getInterval(), movieClip.getRepeatDelay(), movieClip.getSwing()],
+		[40, 30, 80, 160, true],
+	);
+	t.false(movieClip.getSmoothing());
+	t.is(movieClip.listFrames()[0]?.getAddDelay(), 20);
 });
 
 test('project settings transactions validate, detach, preserve unknown JSON, and support an explicit inverse', (t) => {
