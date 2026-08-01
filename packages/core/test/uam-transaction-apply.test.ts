@@ -16,6 +16,7 @@ import {
 
 import {
 	createControllerModel,
+	createLifecyclePackage,
 	createLookGear,
 	createSupportedProject,
 	createTransitionModel,
@@ -280,6 +281,7 @@ test('package settings transactions replace one complete snapshot and support an
 	for (const settings of [
 		null,
 		{ ...valid, jpegQuality: 101 },
+		{ ...valid, publish: null },
 		{ ...valid, publish: { ...valid.publish!, path: '../escape' } },
 		{ ...valid, publish: { ...valid.publish!, maxAtlasSize: 0 } },
 		{ ...valid, publish: { ...valid.publish!, maxAtlasIndex: 2, atlases: [{ index: 3, name: 'Late', compression: false }] } },
@@ -1044,11 +1046,7 @@ test('ProjectReader and MovieClip replacement hydrate the complete typed JTA mod
 		kind: 'addPackage',
 		atIndex: reloaded.packages.length,
 		package: {
-			id: 'pkgmovie',
-			name: 'MoviePackage',
-			publish: null,
-			branchNames: [],
-			folders: [],
+			...createLifecyclePackage('pkgmovie', 'MoviePackage'),
 			resources: [{ ...staleMovieClip, id: 'moviePackaged', name: 'packaged', fileName: 'packaged.jta' }],
 		},
 	}]);
@@ -1105,11 +1103,7 @@ test('ProjectReader and MovieClip replacement hydrate the complete typed JTA mod
 		kind: 'addPackage' as const,
 		atIndex: reloaded.packages.length,
 		package: {
-			id: 'invalidPackage',
-			name: 'InvalidMoviePackage',
-			publish: null,
-			branchNames: [],
-			folders: [],
+			...createLifecyclePackage('invalidPackage', 'InvalidMoviePackage'),
 			resources: [{ ...staleMovieClip, id: 'invalidPackagedMovie', sourceBytes: invalidBytes }],
 		},
 	}]) {

@@ -624,10 +624,13 @@ function validatePackageSettingsPayload(
 	if (settings.jpegQuality !== null && !isIntegerBetween(settings.jpegQuality, 1, 100)) {
 		pushInvalidPackageSettings(issues, `${path}.jpegQuality`, 'jpegQuality must be null or an integer from 1 to 100.', operationKind);
 	}
-	if (settings.publish === null) return issues.length === issueCount;
+	if (settings.publish === null) {
+		pushInvalidPackageSettings(issues, `${path}.publish`, 'publish must be one complete typed snapshot.', operationKind);
+		return false;
+	}
 	const publish = settings.publish;
 	if (!isPlainRecord(publish) || !hasExactKeys(publish, PACKAGE_PUBLISH_KEYS)) {
-		pushInvalidPackageSettings(issues, `${path}.publish`, 'publish must be null or one complete typed snapshot.', operationKind);
+		pushInvalidPackageSettings(issues, `${path}.publish`, 'publish must be one complete typed snapshot.', operationKind);
 		return false;
 	}
 	for (const key of ['name', 'path', 'branchPath', 'codePath'] as const) {
@@ -1882,6 +1885,11 @@ function validatePackagePayload(
 	if (!isSafePackageName(pkg.name)) {
 		pushSupportIssue(issues, 'invalid_package_payload', `${path}.name`, 'Package name must be a safe output path segment.', { operationKind });
 	}
+	validatePackageSettingsPayload({
+		compressPNG: pkg.compressPNG,
+		jpegQuality: pkg.jpegQuality,
+		publish: pkg.publish,
+	}, path, issues, operationKind);
 
 	const standalone = normalizeUamProject({ ...project, packages: [pkg] });
 	for (const issue of validateUamProject(standalone)) {

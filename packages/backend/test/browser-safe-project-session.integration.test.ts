@@ -289,7 +289,26 @@ function createLifecyclePackage(): UamPackage {
 	return {
 		id: 'pkg002',
 		name: 'Overlay',
-		publish: null,
+		compressPNG: null,
+		jpegQuality: null,
+		publish: {
+			name: '',
+			path: '',
+			branchPath: '',
+			packageCount: 0,
+			genCode: false,
+			codePath: '',
+			useGlobalAtlasSettings: true,
+			maxAtlasSize: 2048,
+			sizeOption: 'pot',
+			forceSquare: false,
+			allowRotation: false,
+			paging: true,
+			extractAlpha: false,
+			maxAtlasIndex: 10,
+			atlases: [],
+			excludedResourceIds: [],
+		},
 		branchNames: [],
 		folders: [],
 		resources: [],
@@ -1613,12 +1632,9 @@ test('real LayaBox UAM sessions persist atomic resource dependency moves in brow
 	copiedImage.fileName = `issue34-copy${extension}`;
 
 	const sourcePackage: UamPackage = {
+		...createLifecyclePackage(),
 		id: 'issue9pkg',
 		name: 'Issue9',
-		publish: null,
-		branchNames: [],
-		folders: [],
-		resources: [],
 	};
 	const nested = createLifecycleComponent('issue34nested', 'Issue34Nested');
 	nested.component.displayList = [{
@@ -1991,12 +2007,9 @@ test('real LayaBox Bag dependency closure moves and inverts atomically in browse
 	delete copiedImage.sourcePath;
 	delete copiedMovieClip.sourcePath;
 	const targetPackage: UamPackage = {
+		...createLifecyclePackage(),
 		id: 'issue34real',
 		name: 'Issue34Real',
-		publish: null,
-		branchNames: [],
-		folders: [],
-		resources: [],
 	};
 	const copiedNested = structuredClone(nested);
 	for (const node of copiedNested.component.displayList) {
@@ -2123,12 +2136,9 @@ test('real LayaBox Bag dependency closure moves and inverts atomically in browse
 		);
 
 		const failedPackage: UamPackage = {
+			...createLifecyclePackage(),
 			id: 'issue34failed',
 			name: 'Issue34Failed',
-			publish: null,
-			branchNames: [],
-			folders: [],
-			resources: [],
 		};
 		const failed = await runtime.applyTransaction({
 			sessionId: opened.data.sessionId,
