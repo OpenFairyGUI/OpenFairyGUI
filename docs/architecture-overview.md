@@ -228,13 +228,13 @@ flowchart LR
 | `folder` | 物理目录提供存在性；需要元数据时读写 `id`、`name`、`path`、`favorite`、`atlas` |
 | 通用资源节点 | `id`、`name`、`path`、`exported`、`favorite` |
 | `image` 资源 | `atlas`、`scale`、`scale9grid`、`width`、`height`、`gridTile`、`qualityOption`、`quality`、`duplicatePadding`、`smoothing` |
-| `movieclip` 资源 | `atlas` |
+| `movieclip` 资源 | `atlas`、`smoothing` |
 | `font` 资源 | `texture`、`renderMode`、`samplePointSize` |
 | `misc` 资源 | 无附加属性；资源文件名由通用 `name` 承载 |
 | `spine` 资源 | `width`、`height`、`require`、`atlasNames`、`anchor` |
 | `dragonbones` 资源 | `width`、`height`、`require`、`atlasNames`、`anchor` |
 
-其中 `image@atlas` 与 `movieclip@atlas` 当前分别作为图片和动画资源的纹理集模式字段读写，在正式模型中由 `ImageResource.textureSetMode` 与 `MovieClipResource.textureSetMode` 承载。
+其中 `image@atlas` 与 `movieclip@atlas` 当前分别作为图片和动画资源的纹理集模式字段读写，在正式模型中由 `ImageResource.textureSetMode` 与 `MovieClipResource.textureSetMode` 承载。`movieclip@smoothing` 缺省为 `true`，仅在 `false` 时写回，并通过 `MovieClipResource.smoothing` 与 UAM `metadata.smoothing` 保持读写一致。
 
 `favorite` 是资源与资源文件夹的工程编辑元数据，不进入运行时二进制包；`packageDescription@hasFavorites` 不作为独立状态，而在写回时由主分支与资源分支中的收藏项共同派生。资源文件夹以实际目录为存在性的事实来源，`folder` XML 节点只承载需要持久化的收藏和图集元数据。
 

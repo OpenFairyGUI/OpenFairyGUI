@@ -118,6 +118,10 @@
 
 有效替换会从 bytes 派生新的 raster 宽高，并在同一内存 transaction 中原子投影到 UAM 与 Document。后续 Save 仍沿用现有多文件写回，不承诺文件系统级 `atomicSave`。`ProjectReader` 在请求 `hydrateResourceBytes` 时以可解析且字段合法的 PNG IHDR / JPEG SOF header 覆盖陈旧 XML 尺寸，不在批量水合时扫描完整容器或重复执行像素解码；SVG 继续使用工程声明尺寸。
 
+## 工程 MovieClip 资源属性
+
+`package.xml` 与 `package_branch.xml` 的 `movieclip` 资源使用 `atlas` 记录纹理集模式，并使用 `smoothing` 记录平滑设置。缺少 `smoothing` 时按 `true` 读取；写回时仅为非默认值输出 `smoothing="false"`。该设置通过 UAM `resource.metadata.smoothing` 保留，替换 JTA source bytes 不会改变它。
+
 ## 当前发布输出路径解析
 
 发布时显式传入的输出目录优先于设置文件。未传入时，当前选择顺序如下：

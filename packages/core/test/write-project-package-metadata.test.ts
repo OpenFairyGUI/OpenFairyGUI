@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
-import { Document, } from '../src/index.js';
+import { Document, liftDocumentToUamProject, materializeUamProject } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
 
 const _PROJECT_PATH = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
@@ -260,7 +260,7 @@ test('round-trip: package image textureSetMode survives package.xml write→read
 	}
 });
 
-test('round-trip: package movieclip textureSetMode survives package.xml write→read', async (t) => {
+test('round-trip: package movieclip atlas and smoothing survive UAM materialization', async (t) => {
 	const io = new NodeIO();
 	const doc = new Document();
 	doc.getRoot().setProjectId('proj-package-movieclip-atlas').setProjectType(0).setVersion('3.0');
@@ -273,16 +273,25 @@ test('round-trip: package movieclip textureSetMode survives package.xml write→
 	movieClip.setPath('/fx/');
 	movieClip.setFileName('pet.jta');
 	movieClip.setTextureSetMode('alone_mof');
+	movieClip.setSmoothing(false);
 	pkg.addResource(movieClip);
+	const defaultMovieClip = doc.createMovieClipResource('idle');
+	defaultMovieClip.setId('mcDefault');
+	defaultMovieClip.setPath('/fx/');
+	defaultMovieClip.setFileName('idle.jta');
+	pkg.addResource(defaultMovieClip);
 
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-package-movieclip-atlas-'));
 	const outFairy = path.join(tmpDir, 'out.fairy');
+	const materializedFairy = path.join(tmpDir, 'materialized', 'out.fairy');
 
 	try {
 		await io.writeProject(doc, outFairy);
 
 		const pkgXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoMovieClipTextureSetMode', 'package.xml'), 'utf-8');
 		t.true(pkgXml.includes('atlas="alone_mof"'), 'package movieclip writes atlas attr');
+		t.regex(pkgXml, /<movieclip[^>]*id="mcAtlas"[^>]*smoothing="false"/);
+		t.notRegex(pkgXml, /<movieclip[^>]*id="mcDefault"[^>]*smoothing=/);
 
 		const doc2 = await io.readProject(outFairy);
 		const pkg2 = doc2.getRoot().getPackage('DemoMovieClipTextureSetMode');
@@ -291,6 +300,27 @@ test('round-trip: package movieclip textureSetMode survives package.xml write→
 		const movieClip2 = pkg2!.listResources().find((res) => res.getId?.() === 'mcAtlas') as ReturnType<Document['createMovieClipResource']>;
 		t.truthy(movieClip2, 'movieclip resource exists after round-trip');
 		t.is(movieClip2.getTextureSetMode(), 'alone_mof', 'movieclip textureSetMode survives');
+		t.false(movieClip2.getSmoothing(), 'explicit movieclip smoothing=false survives');
+		const defaultMovieClip2 = pkg2!.listResources().find((res) => res.getId?.() === 'mcDefault') as ReturnType<Document['createMovieClipResource']>;
+		t.true(defaultMovieClip2.getSmoothing(), 'missing movieclip smoothing defaults to true');
+
+		const lifted = liftDocumentToUamProject(doc2);
+		const liftedMovieClip = lifted.packages[0]?.resources.find((resource) => resource.id === 'mcAtlas');
+		t.is(liftedMovieClip?.kind, 'movieClip');
+		if (liftedMovieClip?.kind === 'movieClip') t.is(liftedMovieClip.metadata?.smoothing, false);
+
+		await fs.mkdir(path.dirname(materializedFairy), { recursive: true });
+		await io.writeProject(materializeUamProject(lifted), materializedFairy);
+		const materializedPackageXml = await fs.readFile(
+			path.join(tmpDir, 'materialized', 'assets', 'DemoMovieClipTextureSetMode', 'package.xml'),
+			'utf-8',
+		);
+		t.regex(materializedPackageXml, /<movieclip[^>]*id="mcAtlas"[^>]*smoothing="false"/);
+		t.notRegex(materializedPackageXml, /<movieclip[^>]*id="mcDefault"[^>]*smoothing=/);
+		const materializedDoc = await io.readProject(materializedFairy);
+		const materializedMovieClip = materializedDoc.getRoot().getPackage('DemoMovieClipTextureSetMode')
+			?.listResources().find((resource) => resource.getId?.() === 'mcAtlas') as ReturnType<Document['createMovieClipResource']>;
+		t.false(materializedMovieClip.getSmoothing(), 'materialized movieclip keeps smoothing=false after reload');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

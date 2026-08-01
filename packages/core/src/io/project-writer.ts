@@ -47,6 +47,7 @@ type WritableFontResource = WritableResource & {
 type WritableMovieClipResource = WritableResource & {
 	getFileName?(): string;
 	getTextureSetMode?(): string;
+	getSmoothing?(): boolean;
 };
 
 type WritableFileResource = WritableResource & {
@@ -632,6 +633,7 @@ export class ProjectWriter {
 				const movieClipRes = res as WritableMovieClipResource;
 				const textureSetMode = movieClipRes.getTextureSetMode?.() ?? '';
 				if (textureSetMode) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageMovieClipResource.attrs.atlas, textureSetMode);
+				if (movieClipRes.getSmoothing?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageMovieClipResource.attrs.smoothing, 'false');
 			}
 
 			if (res.propertyType === 'SpineResource' || res.propertyType === 'DragonBonesResource') {

@@ -84,6 +84,7 @@
 | 属性名 | Alias | 说明 |
 |---|---|---|
 | `atlas` |  | 动画资源纹理集模式 |
+| `smoothing` |  | 是否允许平滑；缺省为 `true`，仅在 `false` 时写回 |
 
 ### `resources > font`
 
