@@ -7,6 +7,7 @@ import type {
 	UamDisplayNode,
 	UamGearBinding,
 	UamImageResourceProperties,
+	UamMovieClipResourceProperties,
 	UamPlainTextProperties,
 	UamProject,
 	UamTextProperties,
@@ -87,6 +88,48 @@ export function isValidUamImageResourceProperties(
 	}
 	const [x, y, width, height] = properties.scale9Grid;
 	return x >= 0 && y >= 0 && width > 0 && height > 0;
+}
+
+const MOVIE_CLIP_RESOURCE_PROPERTY_KEYS = [
+	'interval',
+	'repeatDelay',
+	'swing',
+	'smoothing',
+	'frames',
+] as const satisfies readonly (keyof UamMovieClipResourceProperties)[];
+
+const MOVIE_CLIP_FRAME_KEYS = [
+	'rectX',
+	'rectY',
+	'rectWidth',
+	'rectHeight',
+	'addDelay',
+	'spriteId',
+] as const satisfies readonly (keyof UamMovieClipResourceProperties['frames'][number])[];
+
+export function isValidUamMovieClipResourceProperties(
+	value: unknown,
+): value is UamMovieClipResourceProperties {
+	if (typeof value !== 'object' || value === null || !hasExactKeys(value, MOVIE_CLIP_RESOURCE_PROPERTY_KEYS)) return false;
+	const properties = value as UamMovieClipResourceProperties;
+	if (!Number.isInteger(properties.interval) || properties.interval < 0
+		|| !Number.isInteger(properties.repeatDelay) || properties.repeatDelay < 0
+		|| typeof properties.swing !== 'boolean'
+		|| typeof properties.smoothing !== 'boolean'
+		|| !Array.isArray(properties.frames)
+	) {
+		return false;
+	}
+	return properties.frames.every((frame) => (
+		typeof frame === 'object'
+		&& frame !== null
+		&& hasExactKeys(frame, MOVIE_CLIP_FRAME_KEYS)
+		&& [frame.rectX, frame.rectY, frame.rectWidth, frame.rectHeight, frame.addDelay].every(Number.isInteger)
+		&& frame.rectWidth >= 0
+		&& frame.rectHeight >= 0
+		&& frame.addDelay >= 0
+		&& typeof frame.spriteId === 'string'
+	));
 }
 
 const TEXT_PROPERTY_KEYS = [
@@ -639,6 +682,14 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 			}
 			if (resource.kind === 'image' && !isValidUamImageResourceProperties(resource.image)) {
 				pushIssue(issues, `${resourcePath}.image`, 'Image resource properties must be a complete valid property snapshot.');
+			}
+			if (resource.kind === 'movieClip') {
+				if (!isFiniteUamSize(resource.dimensions) || resource.dimensions.width < 0 || resource.dimensions.height < 0) {
+					pushIssue(issues, `${resourcePath}.dimensions`, 'MovieClip dimensions must contain finite non-negative width and height values.');
+				}
+				if (!isValidUamMovieClipResourceProperties(resource.movieClip)) {
+					pushIssue(issues, `${resourcePath}.movieClip`, 'MovieClip properties must be a complete valid property snapshot.');
+				}
 			}
 
 			if (resource.kind !== 'component') continue;

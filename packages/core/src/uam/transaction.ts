@@ -5,7 +5,7 @@ import { normalizeUamProject } from './normalize.js';
 import { UamTransactionError, type UamTransactionOperation } from './transaction-contracts.js';
 import { applyDocumentOperation } from './transaction-document-apply.js';
 import { assertTransactionSupported } from './transaction-preflight.js';
-import { asTransactionError, selectorDetails } from './transaction-shared.js';
+import { asTransactionError, findProjectedResource, selectorDetails } from './transaction-shared.js';
 import { applyUamNativeOperations, canApplyOperationsInUam } from './transaction-uam-apply.js';
 import { validateUamProject } from './validate.js';
 
@@ -108,8 +108,9 @@ export async function applyUamTransactionAsync(
 		return applyUamTransaction(project, operations);
 	const safeProject = normalizeUamProject(project);
 	const safeOperations = structuredClone(operations);
-	const imageBytes = safeOperations.flatMap((operation) => {
+	const imageBytes = safeOperations.flatMap((operation, operationIndex) => {
 		if (operation.kind !== 'replaceResourceBytes' || !(operation.sourceBytes instanceof Uint8Array)) return [];
+		if (findProjectedResource(safeProject, safeOperations, operationIndex, operation.selector)?.kind !== 'image') return [];
 		if (typeof SharedArrayBuffer !== 'undefined' && operation.sourceBytes.buffer instanceof SharedArrayBuffer) {
 			operation.sourceBytes = new Uint8Array(operation.sourceBytes);
 		}

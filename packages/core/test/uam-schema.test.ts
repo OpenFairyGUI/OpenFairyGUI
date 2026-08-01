@@ -2,6 +2,7 @@ import test from 'ava';
 import {
 	createDefaultUamComponentProperties,
 	createDefaultUamImageResourceProperties,
+	createDefaultUamMovieClipResourceProperties,
 	normalizeUamProject,
 	validateUamProject,
 	type UamProject,
@@ -52,6 +53,71 @@ test('normalizeUamProject fills schema-local defaults into a canonical shape', (
 		adaptation: {},
 	});
 	t.is(normalized.packages[0]?.resources[0]?.kind, 'component');
+});
+
+test('MovieClip resources normalize and validate a typed model without metadata fallback', (t) => {
+	const movieClip = createDefaultUamMovieClipResourceProperties();
+	movieClip.interval = 83;
+	movieClip.repeatDelay = 166;
+	movieClip.swing = true;
+	movieClip.smoothing = false;
+	movieClip.frames.push({
+		rectX: -4,
+		rectY: 7,
+		rectWidth: 32,
+		rectHeight: 18,
+		addDelay: 41,
+		spriteId: 'movie001_0',
+	});
+	const project = normalizeUamProject({
+		projectId: 'uam-movieclip',
+		projectType: 0,
+		version: '3.0',
+		branches: [],
+		settings: {} as never,
+		packages: [{
+			id: 'pkg001',
+			name: 'Main',
+			publish: null,
+			folders: [],
+			resources: [{
+				kind: 'movieClip',
+				id: 'movie001',
+				name: 'Spinner',
+				path: '/',
+				exported: true,
+				favorite: false,
+				branch: '',
+				branchItemIds: [],
+				fileName: 'Spinner.jta',
+				dimensions: { width: 32, height: 25 },
+				movieClip,
+			}],
+		}],
+	});
+
+	t.deepEqual(validateUamProject(project), []);
+	const normalizedResource = project.packages[0]?.resources[0];
+	t.is(normalizedResource?.kind, 'movieClip');
+	if (normalizedResource?.kind !== 'movieClip') return;
+	t.not(normalizedResource.movieClip, movieClip);
+	t.not(normalizedResource.movieClip.frames, movieClip.frames);
+	t.not(normalizedResource.movieClip.frames[0], movieClip.frames[0]);
+	t.deepEqual(normalizedResource.movieClip, movieClip);
+
+	const legacyMetadataOnly = normalizeUamProject({
+		...project,
+		packages: [{
+			...project.packages[0]!,
+			resources: [{
+				...normalizedResource,
+				movieClip: undefined,
+				metadata: { interval: 83, frames: movieClip.frames },
+			} as never],
+		}],
+	});
+	const issues = validateUamProject(legacyMetadataOnly);
+	t.true(issues.some((issue) => issue.path === 'packages[0].resources[0].movieClip'));
 });
 
 test('validateUamProject rejects unknown hard references before graph assembly', (t) => {

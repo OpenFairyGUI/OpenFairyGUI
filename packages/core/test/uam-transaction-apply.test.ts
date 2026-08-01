@@ -1,9 +1,12 @@
 import test from 'ava';
+import { createTestMovieClipJta, type TestMovieClipJtaOptions } from '@openfairygui/test-utils';
 import {
 	UamTransactionError,
 	applyUamTransaction,
+	applyUamTransactionAsync,
 	createDefaultUamPlainTextProperties,
 	createUamTransaction,
+	deriveMovieClipModelFromJta,
 	parseJta,
 	validateTransactionSupport,
 	type UamTextNode,
@@ -23,39 +26,18 @@ function createMovieClipJta(
 	height: number,
 	frameX = -3,
 	frameY = -2,
+	options: TestMovieClipJtaOptions = {},
 ): Uint8Array {
-	const bytes = new Uint8Array(version === 100 ? 34 : 30);
-	const view = new DataView(bytes.buffer);
-	let offset = 0;
-	view.setUint16(offset, 5); offset += 2;
-	bytes.set(new TextEncoder().encode('yytou'), offset); offset += 5;
-	view.setInt32(offset, version); offset += 4;
-	offset += 4;
-	if (version === 102) {
-		view.setUint16(offset, 0); offset += 2;
-		view.setUint16(offset, 0); offset += 2;
-		view.setUint16(offset, width); offset += 2;
-		view.setUint16(offset, height); offset += 2;
-	}
-	offset += 3;
-	view.setInt16(offset, version === 100 ? 1 : 0); offset += 2;
-	if (version === 100) {
-		view.setInt16(offset, 0); offset += 2;
-		view.setInt16(offset, frameX); offset += 2;
-		view.setInt16(offset, frameY); offset += 2;
-		view.setInt16(offset, width); offset += 2;
-		view.setInt16(offset, height); offset += 2;
-		view.setInt16(offset, -1); offset += 2;
-	}
-	view.setInt16(offset, 0);
-	offset += 2;
-	if (version === 101) {
-		view.setUint16(offset, 0); offset += 2;
-		view.setUint16(offset, 0); offset += 2;
-		view.setUint16(offset, width); offset += 2;
-		view.setUint16(offset, height);
-	}
-	return bytes;
+	return createTestMovieClipJta(version, {
+		fps: 25,
+		speed: 2,
+		repeatDelay: 4,
+		swing: true,
+		width,
+		height,
+		frames: [{ delay: 3, rectX: frameX, rectY: frameY, rectWidth: width, rectHeight: height, textureIndex: -1 }],
+		...options,
+	});
 }
 
 test('parseJta derives v100 bounds when frames stay on the negative axes', (t) => {
@@ -64,6 +46,29 @@ test('parseJta derives v100 bounds when frames stay on the negative axes', (t) =
 		{ width: parsed.boundsWidth, height: parsed.boundsHeight },
 		{ width: 20, height: 10 },
 	);
+});
+
+test('parseJta and the shared MovieClip derivation cover v100, v101, and v102 timing and frames', (t) => {
+	for (const version of [100, 101, 102] as const) {
+		const bytes = createMovieClipJta(version, 96, 72, 0, 0);
+		const parsed = parseJta(bytes);
+		t.is(parsed.version, version);
+		t.is(parsed.fps, 25);
+		t.is(parsed.speed, 2);
+		t.is(parsed.repeatDelay, 4);
+		t.true(parsed.swing);
+		t.is(parsed.frames.length, 1);
+
+		const derived = deriveMovieClipModelFromJta(bytes);
+		t.deepEqual(derived, {
+			dimensions: { width: 96, height: 72 },
+			interval: 80,
+			repeatDelay: 160,
+			swing: true,
+			frames: [{ rectX: 0, rectY: 0, rectWidth: 96, rectHeight: 72, addDelay: 120, textureIndex: -1 }],
+		});
+		t.throws(() => parseJta(bytes.subarray(0, bytes.byteLength - 1)), { message: /Invalid \.jta file: truncated/ });
+	}
 });
 
 test('resource exported transactions support assets, components, inverse, and source immutability', (t) => {
@@ -689,9 +694,11 @@ test('binary resource transactions require hydrated source bytes and survive wri
 	t.false(reloadedAfterRemove.packages[0]!.resources.some((resource) => resource.id === 'misc001'));
 });
 
-test('ProjectReader hydrates MovieClip dimensions from JTA source bytes', async (t) => {
+test('ProjectReader and MovieClip replacement hydrate the complete typed JTA model with inverse support', async (t) => {
 	const project = createSupportedProject();
 	for (const version of [100, 101, 102] as const) {
+		const sourceBytes = createMovieClipJta(version, 96, 72, 0, 0);
+		const derived = deriveMovieClipModelFromJta(sourceBytes);
 		project.packages[0]!.resources.push({
 			kind: 'movieClip',
 			id: `movie${version}`,
@@ -702,37 +709,176 @@ test('ProjectReader hydrates MovieClip dimensions from JTA source bytes', async 
 			branch: '',
 			branchItemIds: [],
 			fileName: `pulse${version}.jta`,
-			dimensions: { width: 0, height: 0 },
-			metadata: { interval: 0, swing: false, repeatDelay: 0, smoothing: version !== 102 },
-			sourceBytes: createMovieClipJta(version, 96, 72),
+			dimensions: derived.dimensions,
+			movieClip: {
+				interval: derived.interval,
+				repeatDelay: derived.repeatDelay,
+				swing: derived.swing,
+				smoothing: version !== 102,
+				frames: derived.frames.map(({ textureIndex: _textureIndex, ...frame }) => ({ ...frame, spriteId: '' })),
+			},
+			sourceBytes,
 		});
 	}
 
 	const reloaded = await roundTripCommittedProject(project);
-	for (const [version, dimensions] of [[100, { width: 96, height: 72 }], [101, { width: 96, height: 72 }], [102, { width: 96, height: 72 }]] as const) {
+	for (const version of [100, 101, 102] as const) {
 		const movieClip = reloaded.packages[0]!.resources.find((resource) => resource.id === `movie${version}`);
 		t.is(movieClip?.kind, 'movieClip');
-		if (movieClip?.kind === 'movieClip') t.deepEqual(movieClip.dimensions, dimensions);
+		if (movieClip?.kind !== 'movieClip') continue;
+		t.deepEqual(movieClip.dimensions, { width: 96, height: 72 });
+		t.deepEqual(movieClip.movieClip, {
+			interval: 80,
+			repeatDelay: 160,
+			swing: true,
+			smoothing: version !== 102,
+			frames: [{ rectX: 0, rectY: 0, rectWidth: 96, rectHeight: 72, addDelay: 120, spriteId: '' }],
+		});
 	}
-	const reloadedMovie102 = reloaded.packages[0]!.resources.find((resource) => resource.id === 'movie102');
-	if (reloadedMovie102?.kind === 'movieClip') t.is(reloadedMovie102.metadata?.smoothing, false);
-
+	const movie102 = reloaded.packages[0]!.resources.find((resource) => resource.id === 'movie102');
+	if (movie102?.kind === 'movieClip') movie102.movieClip.smoothing = false;
+	const originalMovie102 = structuredClone(movie102);
+	const replacementBytes = createMovieClipJta(102, 120, 84, 5, 7, {
+		fps: 50,
+		speed: 3,
+		repeatDelay: 2,
+		swing: false,
+		frames: [
+			{ delay: 5, rectX: 5, rectY: 7, rectWidth: 40, rectHeight: 30, textureIndex: 0 },
+			{ delay: 1, rectX: 45, rectY: 37, rectWidth: 75, rectHeight: 47, textureIndex: 0 },
+		],
+	});
 	const replaced = applyUamTransaction(reloaded, [{
 		kind: 'replaceResourceBytes',
 		selector: { packageId: 'pkg001', resourceId: 'movie102' },
-		sourceBytes: createMovieClipJta(102, 120, 84),
+		sourceBytes: replacementBytes,
 	}]);
 	const replacedMovieClip = replaced.packages[0]!.resources.find((resource) => resource.id === 'movie102');
 	t.is(replacedMovieClip?.kind, 'movieClip');
 	if (replacedMovieClip?.kind === 'movieClip') {
 		t.deepEqual(replacedMovieClip.dimensions, { width: 120, height: 84 });
-		t.is(replacedMovieClip.metadata?.smoothing, false);
+		t.deepEqual(replacedMovieClip.movieClip, {
+			interval: 60,
+			repeatDelay: 40,
+			swing: false,
+			smoothing: false,
+			frames: [
+				{ rectX: 5, rectY: 7, rectWidth: 40, rectHeight: 30, addDelay: 100, spriteId: '' },
+				{ rectX: 45, rectY: 37, rectWidth: 75, rectHeight: 47, addDelay: 20, spriteId: '' },
+			],
+		});
 	}
+	t.deepEqual(reloaded.packages[0]!.resources.find((resource) => resource.id === 'movie102'), originalMovie102);
 	const replacedReloaded = await roundTripCommittedProject(replaced);
 	const replacedReloadedMovieClip = replacedReloaded.packages[0]!.resources.find((resource) => resource.id === 'movie102');
-	t.is(replacedReloadedMovieClip?.kind, 'movieClip');
-	if (replacedReloadedMovieClip?.kind === 'movieClip') {
-		t.deepEqual(replacedReloadedMovieClip.dimensions, { width: 120, height: 84 });
-		t.is(replacedReloadedMovieClip.metadata?.smoothing, false);
+	if (replacedMovieClip?.kind === 'movieClip' && replacedReloadedMovieClip?.kind === 'movieClip') {
+		t.deepEqual(replacedReloadedMovieClip.dimensions, replacedMovieClip.dimensions);
+		t.deepEqual(replacedReloadedMovieClip.movieClip, replacedMovieClip.movieClip);
 	}
+
+	if (!originalMovie102 || originalMovie102.kind !== 'movieClip' || !(originalMovie102.sourceBytes instanceof Uint8Array)) {
+		t.fail('expected original hydrated MovieClip source');
+		return;
+	}
+	const { sourcePath: _sourcePath, ...portableMovieClip } = originalMovie102;
+	const staleMovieClip = {
+		...portableMovieClip,
+		id: 'movieAdded',
+		name: 'added',
+		path: '/',
+		fileName: 'added.jta',
+		dimensions: { width: 1, height: 1 },
+		movieClip: {
+			...portableMovieClip.movieClip,
+			interval: 1,
+			repeatDelay: 1,
+			frames: [],
+		},
+		sourceBytes: replacementBytes,
+	};
+	const addedResourceProject = applyUamTransaction(reloaded, [{
+		kind: 'addResource',
+		selector: { packageId: 'pkg001' },
+		resource: staleMovieClip,
+	}]);
+	const addedResource = addedResourceProject.packages[0]!.resources.find((resource) => resource.id === 'movieAdded');
+	t.is(addedResource?.kind, 'movieClip');
+	if (addedResource?.kind === 'movieClip') {
+		t.deepEqual(addedResource.dimensions, { width: 120, height: 84 });
+		t.is(addedResource.movieClip.interval, 60);
+		t.is(addedResource.movieClip.repeatDelay, 40);
+		t.is(addedResource.movieClip.frames.length, 2);
+		t.false(addedResource.movieClip.smoothing);
+	}
+
+	const addedPackageProject = applyUamTransaction(reloaded, [{
+		kind: 'addPackage',
+		atIndex: reloaded.packages.length,
+		package: {
+			id: 'pkgmovie',
+			name: 'MoviePackage',
+			publish: null,
+			folders: [],
+			resources: [{ ...staleMovieClip, id: 'moviePackaged', name: 'packaged', fileName: 'packaged.jta' }],
+		},
+	}]);
+	const addedPackageResource = addedPackageProject.packages.at(-1)?.resources[0];
+	t.is(addedPackageResource?.kind, 'movieClip');
+	if (addedPackageResource?.kind === 'movieClip') {
+		t.deepEqual(addedPackageResource.dimensions, { width: 120, height: 84 });
+		t.is(addedPackageResource.movieClip.interval, 60);
+		t.is(addedPackageResource.movieClip.frames.length, 2);
+	}
+
+	const restored = applyUamTransaction(replacedReloaded, [{
+		kind: 'replaceResourceBytes',
+		selector: { packageId: 'pkg001', resourceId: 'movie102' },
+		sourceBytes: originalMovie102.sourceBytes,
+	}]);
+	const restoredReloaded = await roundTripCommittedProject(restored);
+	const restoredMovieClip = restoredReloaded.packages[0]!.resources.find((resource) => resource.id === 'movie102');
+	if (restoredMovieClip?.kind === 'movieClip') {
+		t.deepEqual(restoredMovieClip.dimensions, originalMovie102.dimensions);
+		const { smoothing: _restoredSmoothing, ...restoredDerived } = restoredMovieClip.movieClip;
+		const { smoothing: _originalSmoothing, ...originalDerived } = originalMovie102.movieClip;
+		t.deepEqual(restoredDerived, originalDerived);
+		t.deepEqual(restoredMovieClip.sourceBytes, originalMovie102.sourceBytes);
+	}
+
+	const invalidBytes = replacementBytes.subarray(0, replacementBytes.byteLength - 1);
+	const beforeInvalid = structuredClone(replacedReloaded);
+	const invalidError = t.throws(() => applyUamTransaction(replacedReloaded, [{
+		kind: 'replaceResourceBytes',
+		selector: { packageId: 'pkg001', resourceId: 'movie102' },
+		sourceBytes: invalidBytes,
+	}]), { instanceOf: UamTransactionError });
+	t.true(invalidError?.issues?.some((issue) => 'code' in issue && issue.code === 'invalid_movie_clip_jta') ?? false);
+	t.deepEqual(replacedReloaded, beforeInvalid);
+	const beforeInvalidAdds = structuredClone(reloaded);
+	for (const operation of [{
+		kind: 'addResource' as const,
+		selector: { packageId: 'pkg001' },
+		resource: { ...staleMovieClip, id: 'invalidMovie', name: 'invalid', fileName: 'invalid.jta', sourceBytes: invalidBytes },
+	}, {
+		kind: 'addPackage' as const,
+		atIndex: reloaded.packages.length,
+		package: {
+			id: 'invalidPackage',
+			name: 'InvalidMoviePackage',
+			publish: null,
+			folders: [],
+			resources: [{ ...staleMovieClip, id: 'invalidPackagedMovie', sourceBytes: invalidBytes }],
+		},
+	}]) {
+		const error = t.throws(() => applyUamTransaction(reloaded, [operation]), { instanceOf: UamTransactionError });
+		t.true(error?.issues?.some((issue) => 'code' in issue && issue.code === 'invalid_movie_clip_jta') ?? false);
+	}
+	t.deepEqual(reloaded, beforeInvalidAdds);
+
+	const asyncReplaced = await applyUamTransactionAsync(reloaded, [{
+		kind: 'replaceResourceBytes',
+		selector: { packageId: 'pkg001', resourceId: 'movie102' },
+		sourceBytes: replacementBytes,
+	}]);
+	t.deepEqual(asyncReplaced, replaced);
 });

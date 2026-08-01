@@ -14,7 +14,11 @@ export {
 	ensureArray,
 } from './xml-utils.js';
 export {
+	applyDerivedMovieClipModel,
+	deriveMovieClipModelFromJta,
 	parseJta,
+	type DerivedMovieClipFrame,
+	type DerivedMovieClipModel,
 	type JtaDef,
 	type JtaFrame,
 	type JtaTexture,

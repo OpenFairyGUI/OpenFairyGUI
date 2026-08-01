@@ -1,4 +1,5 @@
 import test from 'ava';
+import { createTestMovieClipJta } from '@openfairygui/test-utils';
 import { parseFnt } from '../src/atlas/font.js';
 import { extractJtaFrames } from '../src/atlas/jta.js';
 
@@ -39,3 +40,43 @@ test('atlas codecs parse standalone BMFont metadata and embedded PNG frames', (t
 	t.deepEqual(extracted.frames[0], png);
 	t.is(extracted.meta, undefined);
 });
+
+for (const version of [100, 101, 102] as const) {
+	test(`atlas codec derives complete MovieClip metadata from JTA v${version}`, (t) => {
+		const texture = Uint8Array.from([1, 2, 3, version]);
+		const extracted = extractJtaFrames(createTestMovieClipJta(version, {
+			fps: 25,
+			speed: 2,
+			repeatDelay: 4,
+			swing: true,
+			width: 80,
+			height: 60,
+			frames: [{
+				delay: 3,
+				rectX: -5,
+				rectY: 6,
+				rectWidth: 80,
+				rectHeight: 54,
+				textureIndex: 0,
+			}],
+			textures: [texture],
+		}));
+
+		t.deepEqual(extracted.frames, [texture]);
+		t.deepEqual(extracted.meta, {
+			interval: 80,
+			repeatDelay: 160,
+			swing: true,
+			width: 80,
+			height: 60,
+			frames: [{
+				addDelay: 120,
+				offsetX: -5,
+				offsetY: 6,
+				width: 80,
+				height: 54,
+				textureIndex: 0,
+			}],
+		});
+	});
+}

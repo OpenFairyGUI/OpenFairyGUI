@@ -36,6 +36,7 @@ import type {
 	UamLookGearBinding,
 	UamLookGearValue,
 	UamMovieClipNode,
+	UamMovieClipResourceProperties,
 	UamPackage,
 	UamPackagePublish,
 	UamPlainTextProperties,
@@ -982,6 +983,16 @@ export function createDefaultUamImageResourceProperties(): UamImageResourcePrope
 	};
 }
 
+export function createDefaultUamMovieClipResourceProperties(): UamMovieClipResourceProperties {
+	return {
+		interval: 0,
+		repeatDelay: 0,
+		swing: false,
+		smoothing: true,
+		frames: [],
+	};
+}
+
 function normalizeImageResourceProperties(
 	properties: UamImageResourceProperties,
 ): UamImageResourceProperties {
@@ -995,6 +1006,26 @@ function normalizeImageResourceProperties(
 		scaleOption: properties.scaleOption,
 		scale9Grid: properties.scale9Grid ? [...properties.scale9Grid] : null,
 		tileGridIndice: properties.tileGridIndice,
+	};
+}
+
+function normalizeMovieClipResourceProperties(
+	properties: UamMovieClipResourceProperties,
+): UamMovieClipResourceProperties {
+	if (!properties) return properties;
+	return {
+		interval: properties.interval,
+		repeatDelay: properties.repeatDelay,
+		swing: properties.swing,
+		smoothing: properties.smoothing,
+		frames: properties.frames.map((frame) => ({
+			rectX: frame.rectX,
+			rectY: frame.rectY,
+			rectWidth: frame.rectWidth,
+			rectHeight: frame.rectHeight,
+			addDelay: frame.addDelay,
+			spriteId: frame.spriteId,
+		})),
 	};
 }
 
@@ -1021,6 +1052,18 @@ function normalizeAssetResource(resource: UamAssetResource): UamAssetResource {
 				? { width: resource.dimensions.width ?? 0, height: resource.dimensions.height ?? 0 }
 				: null,
 			image: normalizeImageResourceProperties(resource.image),
+		};
+	}
+	if (resource.kind === 'movieClip') {
+		return {
+			...base,
+			kind: 'movieClip',
+			fileName: resource.fileName,
+			dimensions: {
+				width: resource.dimensions?.width ?? 0,
+				height: resource.dimensions?.height ?? 0,
+			},
+			movieClip: normalizeMovieClipResourceProperties(resource.movieClip),
 		};
 	}
 	return {

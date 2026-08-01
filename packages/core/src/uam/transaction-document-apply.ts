@@ -9,7 +9,11 @@ import type { GTextField } from '../properties/g-text-field.js';
 import type { Package } from '../properties/package.js';
 import type { Transition } from '../properties/transition.js';
 import { probeRasterImageDimensions, rasterImageFormatFromFileName } from '../utils/image-info.js';
-import { tryReadJtaSize } from '../utils/jta-parser.js';
+import {
+	applyDerivedMovieClipModel,
+	deriveMovieClipModelFromJta,
+	type DerivedMovieClipModel,
+} from '../utils/jta-parser.js';
 import { normalizeResourceFolderPath, resourceFolderName, resourceFolderParentPath } from '../utils/resource-folder.js';
 import {
 	materializeAssetResource,
@@ -545,6 +549,7 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 		case 'replaceResourceBytes': {
 			const { resource } = resolveResource(doc, operation.selector);
 			let imageInfo: ReturnType<typeof probeRasterImageDimensions> = null;
+			let movieClipModel: DerivedMovieClipModel | null = null;
 			if (resource.propertyType === PropertyType.IMAGE_RESOURCE) {
 				const fileName = getAssetFileName(asMutableAssetResource(resource));
 				const expectedFormat = rasterImageFormatFromFileName(fileName);
@@ -555,17 +560,19 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 				if (!imageInfo || imageInfo.format !== expectedFormat) {
 					throw new Error(`Image replacement bytes do not match source file "${fileName}".`);
 				}
+			} else if (resource.propertyType === PropertyType.MOVIE_CLIP_RESOURCE) {
+				movieClipModel = deriveMovieClipModelFromJta(operation.sourceBytes);
 			}
 			replaceBinaryAssetBytes(doc, asMutableAssetResource(resource), operation.sourceBytes);
 			if (resource.propertyType === PropertyType.IMAGE_RESOURCE && imageInfo) {
 				const image = resource as ReturnType<Document['createImageResource']>;
 				image.setWidth(imageInfo.width).setHeight(imageInfo.height);
-			} else if (resource.propertyType === PropertyType.MOVIE_CLIP_RESOURCE) {
-				const size = tryReadJtaSize(operation.sourceBytes);
-				if (size) {
-					const movieClip = resource as ReturnType<Document['createMovieClipResource']>;
-					movieClip.setWidth(size.width).setHeight(size.height);
-				}
+			} else if (resource.propertyType === PropertyType.MOVIE_CLIP_RESOURCE && movieClipModel) {
+				applyDerivedMovieClipModel(
+					doc,
+					resource as ReturnType<Document['createMovieClipResource']>,
+					movieClipModel,
+				);
 			}
 			return;
 		}

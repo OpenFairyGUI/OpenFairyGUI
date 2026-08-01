@@ -3,7 +3,7 @@ import type { Component } from '../properties/component.js';
 import type { Package } from '../properties/package.js';
 import type { ProjectSettings } from '../types/settings.js';
 import { probeRasterImageDimensions } from '../utils/image-info.js';
-import { tryReadJtaSize } from '../utils/jta-parser.js';
+import { applyDerivedMovieClipModel, deriveMovieClipModelFromJta } from '../utils/jta-parser.js';
 import { normalizeResourceFolderPath } from '../utils/resource-folder.js';
 import {
 	parseXML,
@@ -459,6 +459,9 @@ export class ProjectReader {
 			if (!(await fs.exists(filePath))) continue;
 			try {
 				const data = new Uint8Array(await fs.readFileRaw(filePath));
+				const movieClipModel = resource.propertyType === 'MovieClipResource'
+					? deriveMovieClipModelFromJta(data)
+					: null;
 				const buffer = doc.createBuffer().setURI(sourcePath).setData(data);
 				(this._asSourceDataResource(resource)).setSourceData(buffer);
 				if (resource.propertyType === 'ImageResource') {
@@ -467,12 +470,12 @@ export class ProjectReader {
 						const image = resource as ReturnType<Document['createImageResource']>;
 						image.setWidth(size.width).setHeight(size.height);
 					}
-				} else if (resource.propertyType === 'MovieClipResource') {
-					const size = tryReadJtaSize(data);
-					if (size) {
-						const movieClip = resource as ReturnType<Document['createMovieClipResource']>;
-						movieClip.setWidth(size.width).setHeight(size.height);
-					}
+				} else if (resource.propertyType === 'MovieClipResource' && movieClipModel) {
+					applyDerivedMovieClipModel(
+						doc,
+						resource as ReturnType<Document['createMovieClipResource']>,
+						movieClipModel,
+					);
 				}
 			} catch {
 				// Keep resource metadata available when its primary source cannot be read.

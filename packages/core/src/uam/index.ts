@@ -51,6 +51,9 @@ export {
 	type UamLookGearBinding,
 	type UamLookGearValue,
 	type UamMovieClipNode,
+	type UamMovieClipFrame,
+	type UamMovieClipResource,
+	type UamMovieClipResourceProperties,
 	type UamPackage,
 	type UamPackagePublish,
 	type UamPoint,
@@ -85,6 +88,7 @@ export {
 export {
 	createDefaultUamComponentProperties,
 	createDefaultUamImageResourceProperties,
+	createDefaultUamMovieClipResourceProperties,
 	createDefaultUamPlainTextProperties,
 	createDefaultUamTextProperties,
 	normalizeUamProject,

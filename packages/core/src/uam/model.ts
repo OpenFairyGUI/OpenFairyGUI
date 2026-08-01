@@ -117,8 +117,32 @@ export interface UamImageResource extends UamAssetResourceBase {
 	image: UamImageResourceProperties;
 }
 
+export interface UamMovieClipFrame {
+	rectX: number;
+	rectY: number;
+	rectWidth: number;
+	rectHeight: number;
+	addDelay: number;
+	spriteId: string;
+}
+
+export interface UamMovieClipResourceProperties {
+	interval: number;
+	repeatDelay: number;
+	swing: boolean;
+	smoothing: boolean;
+	frames: UamMovieClipFrame[];
+}
+
+export interface UamMovieClipResource extends UamAssetResourceBase {
+	kind: 'movieClip';
+	fileName?: string;
+	dimensions: UamDimensions;
+	movieClip: UamMovieClipResourceProperties;
+}
+
 export interface UamGenericAssetResource extends UamAssetResourceBase {
-	kind: Exclude<UamAssetResourceKind, 'image'>;
+	kind: Exclude<UamAssetResourceKind, 'image' | 'movieClip'>;
 	fileName?: string;
 	file?: string;
 	dimensions?: UamDimensions | null;
@@ -127,6 +151,7 @@ export interface UamGenericAssetResource extends UamAssetResourceBase {
 
 export type UamAssetResource =
 	| UamImageResource
+	| UamMovieClipResource
 	| UamGenericAssetResource;
 
 export interface UamComponentResource {

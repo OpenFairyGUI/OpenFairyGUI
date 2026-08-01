@@ -1,7 +1,8 @@
 import test from 'ava';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { getFixtureProjectPath } from '@openfairygui/test-utils';
+import { createTestMovieClipJta, getFixtureProjectPath } from '@openfairygui/test-utils';
+import { deriveMovieClipModelFromJta } from '@openfairygui/core';
 import { ProjectReader, ProjectWriter } from '@openfairygui/core/project-io';
 import {
 	createDefaultUamComponentProperties,
@@ -16,6 +17,7 @@ import {
 	type UamGroupProperties,
 	type UamPackage,
 	type UamProject,
+	type UamMovieClipResource,
 } from '@openfairygui/core/uam';
 import { BackendRuntime, createBackendStorageFileSystem, type BackendAsyncStorageAdapter } from '../src/index.js';
 import { createBackendFixtureProject } from './helpers.js';
@@ -166,6 +168,35 @@ class PausingMemoryBrowserStorage extends MemoryBrowserStorage {
 		}
 		await super.writeFileRaw(filePath, data);
 	}
+}
+
+function createMovieClipResource(
+	id: string,
+	fileName: string,
+	sourceBytes: Uint8Array,
+	smoothing = true,
+): UamMovieClipResource {
+	const derived = deriveMovieClipModelFromJta(sourceBytes);
+	return {
+		kind: 'movieClip',
+		id,
+		name: fileName.replace(/\.jta$/i, ''),
+		path: '/movieclips',
+		exported: true,
+		favorite: false,
+		branch: '',
+		branchItemIds: [],
+		fileName,
+		dimensions: derived.dimensions,
+		movieClip: {
+			interval: derived.interval,
+			repeatDelay: derived.repeatDelay,
+			swing: derived.swing,
+			smoothing,
+			frames: derived.frames.map(({ textureIndex: _textureIndex, ...frame }) => ({ ...frame, spriteId: '' })),
+		},
+		sourceBytes,
+	};
 }
 
 async function copyDirectoryToStorage(
@@ -2339,6 +2370,130 @@ test('materializeSession writes a clean browser-safe session without advancing e
 
 	const reloaded = normalizeUamProject(liftDocumentToUamProject(await new ProjectReader(fileSystem).read('Workspace/Project.fairy')));
 	t.deepEqual(reloaded.packages.map((pkg) => pkg.id), ['pkg001']);
+});
+
+test('browser-safe MovieClip replacement, save, inverse, and invalid JTA keep session and storage atomic', async (t) => {
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const initialBytes = createTestMovieClipJta(102, {
+		fps: 25,
+		speed: 2,
+		repeatDelay: 4,
+		swing: true,
+		width: 96,
+		height: 72,
+		frames: [{ delay: 3, rectX: 0, rectY: 0, rectWidth: 96, rectHeight: 72, textureIndex: -1 }],
+	});
+	const replacementBytes = createTestMovieClipJta(102, {
+		fps: 50,
+		speed: 3,
+		repeatDelay: 2,
+		swing: false,
+		width: 120,
+		height: 84,
+		frames: [
+			{ delay: 5, rectX: 5, rectY: 7, rectWidth: 40, rectHeight: 30, textureIndex: 0 },
+			{ delay: 1, rectX: 45, rectY: 37, rectWidth: 75, rectHeight: 47, textureIndex: 0 },
+		],
+	});
+	const project = createBackendFixtureProject();
+	project.packages[0]!.resources.push(createMovieClipResource('movie001', 'pulse.jta', initialBytes));
+	const runtime = new BackendRuntime();
+	const fairyPath = 'MovieClip/Project.fairy';
+	const sourcePath = 'MovieClip/assets/Main/movieclips/pulse.jta';
+	const packagePath = 'MovieClip/assets/Main/package.xml';
+	const opened = runtime.openProjectSession({ project, storage: { fileSystem, fairyPath } });
+	t.true(opened.ok);
+	if (!opened.ok) return;
+	const sessionId = opened.data.sessionId;
+
+	const materialized = await runtime.materializeSession({
+		sessionId,
+		expectedRevision: 0,
+		mode: 'fullProject',
+		reason: 'workspace_bootstrap',
+	});
+	t.true(materialized.ok);
+	if (!materialized.ok) return;
+	t.deepEqual(await storage.readFileRaw(sourcePath), initialBytes);
+
+	const applied = await runtime.applyTransaction({
+		sessionId,
+		expectedRevision: 0,
+		operations: [{
+			kind: 'replaceResourceBytes',
+			selector: { packageId: 'pkg001', resourceId: 'movie001' },
+			sourceBytes: replacementBytes,
+		}],
+	});
+	t.true(applied.ok);
+	if (!applied.ok) return;
+	t.is(applied.data.revision, 1);
+	t.true(applied.data.dirty);
+	const saved = await runtime.saveSession({ sessionId, expectedRevision: 1 });
+	t.true(saved.ok);
+	if (!saved.ok) return;
+	t.false(saved.data.dirty);
+	t.deepEqual(await storage.readFileRaw(sourcePath), replacementBytes);
+
+	const replacementReload = normalizeUamProject(liftDocumentToUamProject(
+		await new ProjectReader(fileSystem).read(fairyPath, { hydrateResourceBytes: true }),
+	));
+	const replacementMovieClip = replacementReload.packages[0]?.resources.find((resource) => resource.id === 'movie001');
+	if (replacementMovieClip?.kind !== 'movieClip') {
+		t.fail('expected reloaded MovieClip resource');
+		return;
+	}
+	t.deepEqual(replacementMovieClip.dimensions, { width: 120, height: 84 });
+	t.deepEqual(replacementMovieClip.movieClip.frames, [
+		{ rectX: 5, rectY: 7, rectWidth: 40, rectHeight: 30, addDelay: 100, spriteId: '' },
+		{ rectX: 45, rectY: 37, rectWidth: 75, rectHeight: 47, addDelay: 20, spriteId: '' },
+	]);
+	t.like(replacementMovieClip.movieClip, { interval: 60, repeatDelay: 40, swing: false });
+
+	const inverse = await runtime.applyTransaction({
+		sessionId,
+		expectedRevision: 1,
+		operations: [{
+			kind: 'replaceResourceBytes',
+			selector: { packageId: 'pkg001', resourceId: 'movie001' },
+			sourceBytes: initialBytes,
+		}],
+	});
+	t.true(inverse.ok);
+	if (!inverse.ok) return;
+	t.is(inverse.data.revision, 2);
+	t.true((await runtime.saveSession({ sessionId, expectedRevision: 2 })).ok);
+	t.deepEqual(await storage.readFileRaw(sourcePath), initialBytes);
+	const inverseReload = normalizeUamProject(liftDocumentToUamProject(
+		await new ProjectReader(fileSystem).read(fairyPath, { hydrateResourceBytes: true }),
+	));
+	const inverseMovieClip = inverseReload.packages[0]?.resources.find((resource) => resource.id === 'movie001');
+	if (inverseMovieClip?.kind === 'movieClip') {
+		t.deepEqual(inverseMovieClip.movieClip, createMovieClipResource('expected', 'expected.jta', initialBytes).movieClip);
+	}
+
+	const fairyBeforeInvalid = await storage.readFileRaw(fairyPath);
+	const packageBeforeInvalid = await storage.readFileRaw(packagePath);
+	const sourceBeforeInvalid = await storage.readFileRaw(sourcePath);
+	const invalid = await runtime.applyTransaction({
+		sessionId,
+		expectedRevision: 2,
+		operations: [{
+			kind: 'replaceResourceBytes',
+			selector: { packageId: 'pkg001', resourceId: 'movie001' },
+			sourceBytes: replacementBytes.subarray(0, replacementBytes.byteLength - 1),
+		}],
+	});
+	t.false(invalid.ok);
+	if (invalid.ok) return;
+	t.is(invalid.error.code, 'transaction_unsupported');
+	t.true(invalid.meta.diagnostics.some((diagnostic) => diagnostic.code === 'invalid_movie_clip_jta'));
+	t.is(invalid.session?.revision, 2);
+	t.false(invalid.session?.dirty ?? true);
+	t.deepEqual(await storage.readFileRaw(fairyPath), fairyBeforeInvalid);
+	t.deepEqual(await storage.readFileRaw(packagePath), packageBeforeInvalid);
+	t.deepEqual(await storage.readFileRaw(sourcePath), sourceBeforeInvalid);
 });
 
 test('materializeSession can bind storage to an existing memory session for workspace bootstrap', async (t) => {

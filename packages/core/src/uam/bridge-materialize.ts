@@ -1,6 +1,7 @@
 import { bindLookGear, composeController } from '../authoring.js';
 import { GearType, } from '../constants.js';
 import { Document } from '../document.js';
+import { applyDerivedMovieClipModel, deriveMovieClipModelFromJta } from '../utils/jta-parser.js';
 import type {
 	UamAnimationGearBinding,
 	UamAssetResource,
@@ -33,6 +34,7 @@ import type {
 	UamLoaderProperties,
 	UamLookGearBinding,
 	UamMovieClipNode,
+	UamMovieClipResourceProperties,
 	UamPlainTextProperties,
 	UamProject,
 	UamProgressBarNode,
@@ -459,17 +461,19 @@ function attachAssetSourceData<TResource extends MaterializedSourceDataResource>
 	return asset;
 }
 
-function metadataNumber(resource: Exclude<UamAssetResource, { kind: 'image' }>, key: string, fallback: number): number {
+type UamMetadataAssetResource = Exclude<UamAssetResource, { kind: 'image' | 'movieClip' }>;
+
+function metadataNumber(resource: UamMetadataAssetResource, key: string, fallback: number): number {
 	const value = resource.metadata?.[key];
 	return typeof value === 'number' ? value : fallback;
 }
 
-function metadataBoolean(resource: Exclude<UamAssetResource, { kind: 'image' }>, key: string, fallback: boolean): boolean {
+function metadataBoolean(resource: UamMetadataAssetResource, key: string, fallback: boolean): boolean {
 	const value = resource.metadata?.[key];
 	return typeof value === 'boolean' ? value : fallback;
 }
 
-function metadataStringArray(resource: Exclude<UamAssetResource, { kind: 'image' }>, key: string): string[] {
+function metadataStringArray(resource: UamMetadataAssetResource, key: string): string[] {
 	const value = resource.metadata?.[key];
 	return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
 }
@@ -489,6 +493,27 @@ export function materializeUamImageResourceProperties(
 		.setTileGridIndice(properties.tileGridIndice);
 }
 
+export function materializeUamMovieClipResourceProperties(
+	doc: Document,
+	movieClip: ReturnType<Document['createMovieClipResource']>,
+	properties: UamMovieClipResourceProperties,
+): void {
+	const frames = properties.frames.map((frame, index) => doc.createMovieFrame(`${movieClip.getId()}_${index}`)
+		.setRectX(frame.rectX)
+		.setRectY(frame.rectY)
+		.setRectWidth(frame.rectWidth)
+		.setRectHeight(frame.rectHeight)
+		.setAddDelay(frame.addDelay)
+		.setSpriteId(frame.spriteId));
+	movieClip
+		.setInterval(properties.interval)
+		.setRepeatDelay(properties.repeatDelay)
+		.setSwing(properties.swing)
+		.setSmoothing(properties.smoothing);
+	for (const frame of movieClip.listFrames()) movieClip.removeFrame(frame);
+	for (const frame of frames) movieClip.addFrame(frame);
+}
+
 export function materializeAssetResource(doc: Document, resource: UamAssetResource) {
 	ensureSupportedResourceKind(resource.kind);
 	if (resource.kind === 'image') {
@@ -502,12 +527,14 @@ export function materializeAssetResource(doc: Document, resource: UamAssetResour
 	if (resource.kind === 'movieClip') {
 		const movieClip = materializeAssetBase(doc.createMovieClipResource(resource.name), resource)
 			.setWidth(resource.dimensions?.width ?? 0)
-			.setHeight(resource.dimensions?.height ?? 0)
-			.setInterval(metadataNumber(resource, 'interval', 0))
-			.setSwing(metadataBoolean(resource, 'swing', false))
-			.setRepeatDelay(metadataNumber(resource, 'repeatDelay', 0))
-			.setSmoothing(metadataBoolean(resource, 'smoothing', true));
+			.setHeight(resource.dimensions?.height ?? 0);
 		if (resource.fileName) movieClip.setFileName(resource.fileName);
+		if (resource.sourceBytes instanceof Uint8Array) {
+			movieClip.setSmoothing(resource.movieClip.smoothing);
+			applyDerivedMovieClipModel(doc, movieClip, deriveMovieClipModelFromJta(resource.sourceBytes));
+		} else {
+			materializeUamMovieClipResourceProperties(doc, movieClip, resource.movieClip);
+		}
 		return attachAssetSourceData(doc, movieClip, resource);
 	}
 	if (resource.kind === 'sound') {
