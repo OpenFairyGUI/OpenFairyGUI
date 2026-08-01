@@ -67,6 +67,12 @@ export interface UamPackagePublishAtlas {
 	compression: boolean;
 }
 
+export interface UamPackageSettings {
+	compressPNG: boolean | null;
+	jpegQuality: number | null;
+	publish: UamPackagePublish | null;
+}
+
 export interface UamPackage {
 	id: string;
 	name: string;
