@@ -268,6 +268,9 @@ export {
 	type JtaDef,
 	type JtaFrame,
 	type JtaTexture,
+	probeRasterImage,
+	type RasterImageFormat,
+	type RasterImageInfo,
 } from './utils/index.js';
 
 // I/O

@@ -145,9 +145,12 @@
 | 已解析到发布输出目录 | 必须提供输出文件系统；缺失时不会把流程当作发布成功 |
 | 有需要封包的图像或动画帧 | 必须提供 raster encoder、源资源路径和 atlas 输出目录 |
 | 图集装箱、图像读取或合成失败 | 中止发布，不生成带透明空洞或缺页的成功结果 |
+| 发布集合包含 MovieClip | 按 JTA 长度表读取 PNG / JPEG（可混合）纹理；重复 texture index 复用首次引用帧的 sprite，`-1` 表示空帧。所有选中包会先完成 JTA 解析、严格 PNG/JPEG 校验、引用纹理完整解码与规范化缓存；越界索引、被引用的空纹理、未支持格式、截断数据或解码失败会在创建任何 OpenFairyGUI 内置输出目录或写入内置发布文件前中止整次发布 |
 | `SoundResource`、`MiscResource`、`SpineResource`、`DragonBonesResource` 及其依赖复制失败 | 中止发布，不把缺失的 runtime 资源降级为 warning |
 
 未请求任何输出目录时，低层 `publish()` 可以只计算 layout；这不是文件发布，也不会写出二进制或资源文件。标准 Node 工作流应使用 `publishNode()`。
+
+这里的零输出保证只覆盖 OpenFairyGUI 内置的 sound、external resource、atlas、package binary 与 codegen 输出。Node `onPublishStart` 插件在内置 preflight 之前运行，并可通过宿主提供的文件系统执行自己的副作用；这些插件写入不会被 staging 或自动回滚。需要零副作用的插件应把写入延后到 `onPublishEnd`，或自行实现临时目录与提交策略。
 
 ## 代码生成的当前实现范围
 

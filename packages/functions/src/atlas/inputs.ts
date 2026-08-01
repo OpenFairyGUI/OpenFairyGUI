@@ -21,7 +21,7 @@ import {
 } from '../publish/package-context.js';
 import type { ExtrasMap } from '../shared-types.js';
 import { parseFnt } from './font.js';
-import { extractJtaFrames } from './jta.js';
+import { prepareJtaForPublish, type PreparedJtaData } from './jta.js';
 
 /** Trim info for a single image. */
 interface TrimInfo {
@@ -181,6 +181,36 @@ export interface PagedAtlasGroup {
 	inputs: InputItem[];
 }
 
+export function resolveMovieClipSourcePath(resource: MovieClipResource, pkg: Package, basePath: string): string {
+	const fileName = `${resource.getName()}.jta`;
+	const resourcePath = resource.getPath() ?? '/';
+	return `${basePath}/${pkg.getName()}${resourcePath}${fileName}`;
+}
+
+export async function prepareMovieClipResource(
+	resource: MovieClipResource,
+	pkg: Package,
+	encoder: AtlasRasterBackend | undefined,
+	basePath: string,
+	readFileRaw: (path: string) => Promise<Uint8Array>,
+): Promise<PreparedJtaData> {
+	const filePath = resolveMovieClipSourcePath(resource, pkg, basePath);
+	let raw: Uint8Array;
+	try {
+		raw = await readFileRaw(filePath);
+	} catch {
+		throw new Error(`atlas: Could not read MovieClip "${filePath}".`);
+	}
+
+	try {
+		return await prepareJtaForPublish(raw, encoder, filePath);
+	} catch (error) {
+		if (error instanceof Error && error.message.startsWith('atlas:')) throw error;
+		const detail = error instanceof Error ? ` ${error.message}` : '';
+		throw new Error(`atlas: Could not parse MovieClip "${filePath}".${detail}`);
+	}
+}
+
 /** Collect a single ImageResource into the inputs array. */
 export async function collectImage(
 	resource: ImageResource,
@@ -285,15 +315,12 @@ export async function collectMovieClipFrames(
 	}
 
 	const mcId = resource.getId();
-	const mcName = resource.getName() + '.jta';
-	const mcPath = resource.getPath() ?? '/';
-	const filePath = `${options.basePath}/${pkg.getName()}${mcPath}${mcName}`;
+	const filePath = resolveMovieClipSourcePath(resource, pkg, options.basePath);
 
 	try {
-		const raw = await options.readFileRaw(filePath);
-		const jta = extractJtaFrames(raw);
-
-		const frameMetas = jta.meta.frames;
+		const jta =
+			options.preparedMovieClips?.get(resource) ??
+			(await prepareMovieClipResource(resource, pkg, encoder, options.basePath, options.readFileRaw));
 		for (const frame of resource.listFrames()) {
 			resource.removeFrame(frame);
 		}
@@ -301,34 +328,27 @@ export async function collectMovieClipFrames(
 			.setInterval(jta.meta.interval)
 			.setSwing(jta.meta.swing)
 			.setRepeatDelay(jta.meta.repeatDelay);
-
-		const firstFrameIndexByTextureIndex = new Map<number, number>();
-		for (let frameIndex = 0; frameIndex < frameMetas.length; frameIndex += 1) {
-			const textureIndex = frameMetas[frameIndex]!.textureIndex;
-			if (textureIndex >= 0 && !firstFrameIndexByTextureIndex.has(textureIndex)) {
-				firstFrameIndexByTextureIndex.set(textureIndex, frameIndex);
-			}
-		}
-
 		const spriteIdByTextureIndex = new Map<number, string>();
-		for (let textureIndex = 0; textureIndex < jta.frames.length; textureIndex += 1) {
-			const exportFrameIndex = firstFrameIndexByTextureIndex.get(textureIndex);
-			if (exportFrameIndex === undefined) continue;
-			const itemId = `${mcId}_${exportFrameIndex}`;
-			const input = await createMovieClipFrameInput(
-				jta.frames[textureIndex],
-				itemId,
+		for (const texture of jta.referencedTextures) {
+			if (texture.width <= 0 || texture.height <= 0) continue;
+			const itemId = `${mcId}_${texture.firstFrameIndex}`;
+			inputs.push({
+				id: itemId,
+				width: texture.width,
+				height: texture.height,
+				originalWidth: texture.width,
+				originalHeight: texture.height,
+				offsetX: 0,
+				offsetY: 0,
 				resource,
-				encoder,
-				options.strictOutput,
-			);
-			if (!input) continue;
-			inputs.push(input);
-			spriteIdByTextureIndex.set(textureIndex, itemId);
+				trimBuffer: texture.buffer,
+				sourceKind: 'movieclip-frame',
+			});
+			spriteIdByTextureIndex.set(texture.textureIndex, itemId);
 		}
 
-		for (let frameIndex = 0; frameIndex < frameMetas.length; frameIndex += 1) {
-			const meta = frameMetas[frameIndex]!;
+		for (let frameIndex = 0; frameIndex < jta.meta.frames.length; frameIndex += 1) {
+			const meta = jta.meta.frames[frameIndex]!;
 			const frame = doc.createMovieFrame(`${mcId}_${frameIndex}`);
 			frame
 				.setRectX(meta.offsetX)
@@ -344,41 +364,10 @@ export async function collectMovieClipFrames(
 			resource.setWidth(jta.meta.width);
 			resource.setHeight(jta.meta.height);
 		}
-	} catch {
-		const message = `atlas: Could not parse MovieClip "${filePath}".`;
-		if (options.strictOutput) throw new Error(message);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : `atlas: Could not parse MovieClip "${filePath}".`;
+		if (options.strictOutput) throw error;
 		logger.warn(`${message} Skipping frames.`);
-	}
-}
-
-async function createMovieClipFrameInput(
-	buffer: Uint8Array,
-	itemId: string,
-	resource: MovieClipResource,
-	encoder: AtlasRasterBackend | undefined,
-	strictOutput: boolean,
-): Promise<InputItem | null> {
-	if (!encoder || buffer.length === 0) return null;
-	try {
-		const meta = await encoder(buffer).metadata();
-		const width = meta.width ?? 0;
-		const height = meta.height ?? 0;
-		if (width <= 0 || height <= 0) return null;
-		return {
-			id: itemId,
-			width,
-			height,
-			originalWidth: width,
-			originalHeight: height,
-			offsetX: 0,
-			offsetY: 0,
-			resource,
-			trimBuffer: buffer,
-			sourceKind: 'movieclip-frame',
-		};
-	} catch {
-		if (strictOutput) throw new Error(`atlas: Could not decode MovieClip frame "${itemId}".`);
-		return null;
 	}
 }
 

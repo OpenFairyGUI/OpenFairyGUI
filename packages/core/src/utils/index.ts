@@ -24,3 +24,8 @@ export {
 	type JtaFrame,
 	type JtaTexture,
 } from './jta-parser.js';
+export {
+	probeRasterImage,
+	type RasterImageFormat,
+	type RasterImageInfo,
+} from './image-info.js';
