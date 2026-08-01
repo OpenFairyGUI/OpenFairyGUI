@@ -677,6 +677,8 @@ export class ProjectReader {
 				res.setFavorite(favorite);
 				const textureSetMode = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageMovieClipResource.attrs.atlas);
 				if (textureSetMode !== undefined) res.setTextureSetMode(textureSetMode);
+				const smoothing = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageMovieClipResource.attrs.smoothing);
+				res.setSmoothing(smoothing !== 'false');
 				pkg.addResource(res);
 				ctx.registerResource(pkg.getId(), id, res);
 				return res;

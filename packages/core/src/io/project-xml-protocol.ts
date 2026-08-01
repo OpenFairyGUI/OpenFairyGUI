@@ -107,6 +107,7 @@ const PACKAGE_FONT_RESOURCE_ATTRS = {
 
 const PACKAGE_MOVIE_CLIP_RESOURCE_ATTRS = {
 	atlas: { canonical: 'atlas' },
+	smoothing: { canonical: 'smoothing' },
 } satisfies XmlAttrMap;
 
 const PACKAGE_SKELETON_RESOURCE_ATTRS = {
