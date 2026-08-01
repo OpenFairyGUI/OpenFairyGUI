@@ -260,7 +260,7 @@ test('round-trip: package image textureSetMode survives package.xml write→read
 	}
 });
 
-test('round-trip: package movieclip atlas and smoothing survive UAM materialization', async (t) => {
+test('round-trip: package movieclip atlas survives XML and smoothing survives UAM materialization', async (t) => {
 	const io = new NodeIO();
 	const doc = new Document();
 	doc.getRoot().setProjectId('proj-package-movieclip-atlas').setProjectType(0).setVersion('3.0');
