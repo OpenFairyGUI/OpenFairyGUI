@@ -2,6 +2,7 @@ import test from 'ava';
 import fs from 'node:fs/promises';
 import { Document } from '../src/index.js';
 import { ProjectReader, ProjectWriter, type FileSystem } from '../src/project-io.js';
+import { liftDocumentToUamProject, materializeUamProject, normalizeUamProject } from '../src/uam/index.js';
 import { createFileSystemAccessFileSystem, WebIO } from '../src/web.js';
 
 type FakeEntry = FakeDirectoryHandle | FakeFileHandle;
@@ -316,6 +317,74 @@ test('ProjectReader and ProjectWriter support root and nested .fairy project pat
 	await new ProjectWriter(nestedFs).write(createWritableDocument(), 'samples/Demo/Project.fairy');
 	t.true(await nestedFs.exists('samples/Demo/assets/Demo/package.xml'));
 	t.false(await nestedFs.exists('assets/Demo/package.xml'));
+});
+
+test('all project settings sidecars survive detached UAM round-trip and independent write', async (t) => {
+	const source = new MemoryFileSystem();
+	await seedMinimalProject(source);
+	const settings = {
+		publish: {
+			binaryFormat: true,
+			atlasSetting: { maxSize: 2048, allowRotation: true },
+			codeGeneration: { allowGenCode: true, codePath: 'generated' },
+		},
+		common: { font: 'Arial', scrollBars: { defaultDisplay: 'visible', vertical: 'ui://scroll' } },
+		adaptation: { designResolutionX: 1280, devices: [{ name: 'tablet', width: 1280 }] },
+		customProperties: { groups: [{ name: 'Gameplay', enabled: true }], defaults: { priority: 3 } },
+		i18n: { langFiles: [{ name: 'English', path: 'locale/en.xml' }] },
+	};
+	for (const [name, value] of [
+		['Publish.json', settings.publish],
+		['Common.json', settings.common],
+		['Adaptation.json', settings.adaptation],
+		['CustomProperties.json', settings.customProperties],
+		['i18n.json', settings.i18n],
+	] as const) {
+		await source.writeFile(`settings/${name}`, JSON.stringify(value));
+	}
+
+	const sourceDocument = await new ProjectReader(source).read('Project.fairy');
+	t.deepEqual(sourceDocument.getRoot().getSettings(), settings);
+
+	const lifted = liftDocumentToUamProject(sourceDocument);
+	lifted.settings.publish!.atlasSetting!.maxSize = 512;
+	lifted.settings.i18n!.langFiles[0]!.name = 'Changed';
+	const liftedGroups = lifted.settings.customProperties!.groups;
+	if (!Array.isArray(liftedGroups) || typeof liftedGroups[0] !== 'object' || liftedGroups[0] === null || Array.isArray(liftedGroups[0])) {
+		throw new Error('expected custom property group fixture');
+	}
+	liftedGroups[0].enabled = false;
+	t.deepEqual(sourceDocument.getRoot().getSettings(), settings, 'lifted settings are detached from the Document');
+
+	const liftedAgain = liftDocumentToUamProject(sourceDocument);
+	const normalized = normalizeUamProject(liftedAgain);
+	normalized.settings.common!.scrollBars!.vertical = 'changed';
+	normalized.settings.i18n!.langFiles[0]!.path = 'changed.xml';
+	t.deepEqual(liftedAgain.settings, settings, 'normalized settings are detached from the lifted snapshot');
+
+	const canonical = normalizeUamProject(liftedAgain);
+	const materialized = materializeUamProject(canonical);
+	canonical.settings.adaptation!.devices!.push({ name: 'phone' });
+	canonical.settings.i18n!.langFiles[0]!.name = 'Changed again';
+	t.deepEqual(materialized.getRoot().getSettings(), settings, 'materialized settings are detached from UAM');
+
+	const output = new MemoryFileSystem();
+	await new ProjectWriter(output).write(materialized, 'Project.fairy');
+	const reloaded = await new ProjectReader(output).read('Project.fairy');
+	t.deepEqual(reloaded.getRoot().getSettings(), settings);
+	t.deepEqual(materialized.getRoot().getSettings(), settings, 'independent write does not mutate its input Document');
+	t.is(await source.readFile('settings/i18n.json'), JSON.stringify(settings.i18n));
+
+	const missingSource = new MemoryFileSystem();
+	await seedMinimalProject(missingSource);
+	const missingDocument = await new ProjectReader(missingSource).read('Project.fairy');
+	const missingTarget = new MemoryFileSystem();
+	await new ProjectWriter(missingTarget).write(
+		materializeUamProject(normalizeUamProject(liftDocumentToUamProject(missingDocument))),
+		'Project.fairy',
+	);
+	t.false(await missingTarget.exists('settings/CustomProperties.json'));
+	t.false(await missingTarget.exists('settings/i18n.json'));
 });
 
 test('ProjectWriter rejects resource outputs that collide with package metadata before writing', async (t) => {

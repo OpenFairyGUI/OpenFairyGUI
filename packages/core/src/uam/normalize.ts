@@ -63,6 +63,7 @@ import type {
 	UamXYGearValue,
 } from './model.js';
 import { normalizeResourceFolderPath } from '../utils/resource-folder.js';
+import { cloneSettings } from './bridge-shared.js';
 
 function normalizePackagePublish(publish: UamPackagePublish | null | undefined): UamPackagePublish | null {
 	if (!publish) return null;
@@ -1125,16 +1126,18 @@ function normalizePackage(pkg: UamPackage): UamPackage {
 }
 
 export function normalizeUamProject(project: UamProject): UamProject {
+	const settings = project.settings ?? {};
 	return {
 		projectId: project.projectId,
 		projectType: project.projectType ?? 0,
 		version: project.version || '3.0',
 		branches: [...(project.branches ?? [])],
-		settings: {
-			publish: project.settings?.publish ?? {},
-			common: project.settings?.common ?? {},
-			adaptation: project.settings?.adaptation ?? {},
-		},
+		settings: cloneSettings({
+			...settings,
+			publish: settings.publish ?? {},
+			common: settings.common ?? {},
+			adaptation: settings.adaptation ?? {},
+		}),
 		packages: (project.packages ?? []).map(normalizePackage),
 	};
 }

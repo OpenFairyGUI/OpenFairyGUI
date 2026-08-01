@@ -1,1 +1,10 @@
-export type { FairyProjectDesc, PublishSettings, CommonSettings, AdaptationSettings, ProjectSettings } from './settings.js';
+export type {
+	FairyProjectDesc,
+	PublishSettings,
+	CommonSettings,
+	AdaptationSettings,
+	JsonValue,
+	CustomPropertiesSettings,
+	I18nSettings,
+	ProjectSettings,
+} from './settings.js';

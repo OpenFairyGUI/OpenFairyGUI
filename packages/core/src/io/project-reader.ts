@@ -126,8 +126,11 @@ function assignSetting(
 		case 'adaptation':
 			settings.adaptation = value as ProjectSettings['adaptation'];
 			break;
-		default:
-			settings[key] = value;
+		case 'customProperties':
+			settings.customProperties = value as ProjectSettings['customProperties'];
+			break;
+		case 'i18n':
+			settings.i18n = value as ProjectSettings['i18n'];
 			break;
 	}
 }
