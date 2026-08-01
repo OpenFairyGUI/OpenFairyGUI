@@ -2,6 +2,20 @@
 
 本文只记录 FairyGUI 编辑器侧真实存在的发布属性与设置文件结构，作为发布相关功能开发时的依据。本文只按编辑器真实属性组织内容。
 
+## 项目设置 sidecar
+
+工程设置目录支持以下五个 JSON 文件：
+
+| 文件 | 正式设置字段 |
+|---|---|
+| `Publish.json` | `publish` |
+| `Common.json` | `common` |
+| `Adaptation.json` | `adaptation` |
+| `CustomProperties.json` | `customProperties`，保存 JSON 对象 |
+| `i18n.json` | `i18n`，其中 `langFiles` 保存语言文件的 `name` 与 `path` |
+
+五类设置在工程读写与 UAM 往返中保持完整的嵌套 JSON 数据。`CustomProperties.json` 与 `i18n.json` 是可选文件；源工程不存在对应设置时，规范化和写回不会自行创建它们。
+
 ## 设置文件与层级
 
 编辑器发布设置至少分为两层：

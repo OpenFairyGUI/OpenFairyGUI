@@ -7,11 +7,7 @@ import type {
 import { UAM_SUPPORTED_MATERIALIZATION_SCOPE } from './model.js';
 
 export function cloneSettings(settings: ProjectSettings): ProjectSettings {
-	return {
-		publish: { ...(settings.publish ?? {}) },
-		common: { ...(settings.common ?? {}) },
-		adaptation: { ...(settings.adaptation ?? {}) },
-	};
+	return structuredClone(settings);
 }
 
 export function ensureSupportedResourceKind(kind: string): void {

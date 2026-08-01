@@ -294,5 +294,8 @@ export type {
 	PublishSettings,
 	CommonSettings,
 	AdaptationSettings,
+	JsonValue,
+	CustomPropertiesSettings,
+	I18nSettings,
 	ProjectSettings,
 } from './types/index.js';
