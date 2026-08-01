@@ -49,7 +49,9 @@ const result = await publishBrowser({
 if (!result.success) console.error(result.diagnostics);
 ```
 
-The browser entry uses native Canvas APIs for atlas PNGs, writes only through `outputFileSystem`, supplies no Node plugin capability, and disables non-runtime code generation.
+The browser entry uses native Canvas APIs for atlas PNGs, writes only through `outputFileSystem`, and supplies no Node plugin capability. Persisted Laya publish compression, atlas, and safe file-extension settings apply; explicit `compressed` and `atlas` options override their corresponding settings. Explicit `output`, `branch`, and `packages` also keep their normal precedence, so desktop-only configured output paths are not used when `output` is supplied.
+
+Browser code generation is not supported. If global code generation is enabled and a selected package requests it, preflight returns `unsupported_publish_setting` with `setting` and `path` before Canvas checks or output writes. On any failure, `files` lists only `writeFileRaw` operations that completed successfully; `success: false` with a non-empty list therefore means built-in output is partial. Callers needing atomic publication should provide a transactional or staging `outputFileSystem`.
 
 Publish plugins are documented in the repository guide:
 
