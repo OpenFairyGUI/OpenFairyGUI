@@ -24,13 +24,15 @@ const COMPONENT_XML = `<?xml version="1.0" encoding="utf-8"?>
   <displayList>
     <list id="list1" autoClearItems="true">
       <item title="First">
-        <property target="title" propertyId="0" value="First override"/>
-        <property target="icon" propertyId="1" value="ui://pkgoverridestemplate1"/>
+        <property target="title" propertyId="0" value="  First override  "/>
+        <property target="space" propertyId="1" value=" "/>
+        <property target="empty" propertyId="2" value=""/>
       </item>
     </list>
     <component id="instance1" src="template1">
-      <property target="title" propertyId="0" value="Instance override"/>
-      <property target="icon" propertyId="1" value="ui://pkgoverridestemplate1"/>
+      <property target="title" propertyId="0" value=" Instance override "/>
+      <property target="space" propertyId="1" value=" "/>
+      <property target="empty" propertyId="2" value=""/>
       <ComboBox autoClearItems="true"/>
     </component>
   </displayList>
@@ -81,12 +83,14 @@ test('project UAM round-trip preserves ordered property overrides and autoClearI
 			componentAutoClearItems: true,
 			listAutoClearItems: true,
 			listItemOverrides: [
-				{ target: 'title', propertyId: 0, value: 'First override' },
-				{ target: 'icon', propertyId: 1, value: 'ui://pkgoverridestemplate1' },
+				{ target: 'title', propertyId: 0, value: '  First override  ' },
+				{ target: 'space', propertyId: 1, value: ' ' },
+				{ target: 'empty', propertyId: 2, value: '' },
 			],
 			instanceOverrides: [
-				{ target: 'title', propertyId: 0, value: 'Instance override' },
-				{ target: 'icon', propertyId: 1, value: 'ui://pkgoverridestemplate1' },
+				{ target: 'title', propertyId: 0, value: ' Instance override ' },
+				{ target: 'space', propertyId: 1, value: ' ' },
+				{ target: 'empty', propertyId: 2, value: '' },
 			],
 			instanceAutoClearItems: true,
 		});
@@ -102,8 +106,11 @@ test('project UAM round-trip preserves ordered property overrides and autoClearI
 			'utf8',
 		);
 		const titleIndex = outputXml.indexOf('target="title"');
-		const iconIndex = outputXml.indexOf('target="icon"');
-		t.true(titleIndex >= 0 && iconIndex > titleIndex);
+		const spaceIndex = outputXml.indexOf('target="space"');
+		t.true(titleIndex >= 0 && spaceIndex > titleIndex);
+		t.true(outputXml.includes('value="  First override  "'));
+		t.true(outputXml.includes('value=" "'));
+		t.true(outputXml.includes('value=""'));
 
 		const malformed = structuredClone(lifted);
 		const malformedResource = malformed.packages[0]?.resources.find((candidate) => candidate.id === 'main1');

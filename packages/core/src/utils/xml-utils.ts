@@ -28,6 +28,11 @@ const preserveOrderParser = new XMLParser({
 	...defaultOptions,
 	preserveOrder: true,
 });
+const rawPreserveOrderParser = new XMLParser({
+	...defaultOptions,
+	preserveOrder: true,
+	trimValues: false,
+});
 
 export function escapeXmlAttr(value: unknown): string {
 	return String(value)
@@ -57,6 +62,10 @@ export function parseXML(xml: string): Record<string, unknown> {
 
 export function parseXMLPreserveOrder(xml: string): Array<Record<string, unknown>> {
 	return preserveOrderParser.parse(xml);
+}
+
+export function parseXMLPreserveOrderRaw(xml: string): Array<Record<string, unknown>> {
+	return rawPreserveOrderParser.parse(xml);
 }
 
 export function parseXYString(v: string | undefined): [number, number] {

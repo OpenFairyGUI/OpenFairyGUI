@@ -10,6 +10,7 @@ import {
 	parseSizeString,
 	parseXML,
 	parseXMLPreserveOrder,
+	parseXMLPreserveOrderRaw,
 } from '../utils/xml-utils.js';
 import {
 	assertDisplayListTagAllowed,
@@ -158,17 +159,34 @@ function appendOrderedValue(target: Record<string, unknown>, key: string, value:
 	target[key] = [current, value];
 }
 
-function normalizeOrderedChildren(entries: OrderedXmlEntry[]): Record<string, unknown> {
+function getOrderedElementEntries(entries: OrderedXmlEntry[]): OrderedXmlEntry[] {
+	return entries.filter((entry) => Object.keys(entry).some((key) => key !== ':@' && key !== '#text'));
+}
+
+function normalizeOrderedChildren(
+	entries: OrderedXmlEntry[],
+	rawEntries: OrderedXmlEntry[] = [],
+): Record<string, unknown> {
 	const out: Record<string, unknown> = {};
-	for (const entry of entries) {
+	const elements = getOrderedElementEntries(entries);
+	const rawElements = getOrderedElementEntries(rawEntries);
+	for (const [index, entry] of elements.entries()) {
 		const attrs = (entry[':@'] as Record<string, unknown> | undefined) ?? {};
+		const rawEntry = rawElements[index] ?? {};
+		const rawAttrs = (rawEntry[':@'] as Record<string, unknown> | undefined) ?? {};
 		for (const [tagName, value] of Object.entries(entry)) {
 			if (tagName === ':@' || tagName === '#text') continue;
 			const nestedEntries = Array.isArray(value) ? (value as OrderedXmlEntry[]) : [];
-			const normalizedChildren = normalizeOrderedChildren(nestedEntries);
+			const rawNestedEntries = Array.isArray(rawEntry[tagName])
+				? (rawEntry[tagName] as OrderedXmlEntry[])
+				: [];
+			const normalizedChildren = normalizeOrderedChildren(nestedEntries, rawNestedEntries);
+			const normalizedAttrs = tagName === 'property' && typeof rawAttrs.value === 'string'
+				? { ...attrs, value: rawAttrs.value }
+				: attrs;
 			const normalizedValue = Object.keys(normalizedChildren).length > 0
-				? { ...attrs, ...normalizedChildren }
-				: { ...attrs };
+				? { ...normalizedAttrs, ...normalizedChildren }
+				: { ...normalizedAttrs };
 			appendOrderedValue(out, tagName, normalizedValue);
 		}
 	}
@@ -177,29 +195,42 @@ function normalizeOrderedChildren(entries: OrderedXmlEntry[]): Record<string, un
 
 function getOrderedDisplayListItems(xmlContent: string): Array<{ tagName: string; attrs: DisplayObjectXmlNode }> {
 	const ordered = parseXMLPreserveOrder(xmlContent);
+	const rawOrdered = parseXMLPreserveOrderRaw(xmlContent);
 	const componentEntry = ordered.find((entry) => 'component' in entry);
+	const rawComponentEntry = rawOrdered.find((entry) => 'component' in entry);
 	if (!componentEntry) return [];
 	const componentChildren = Array.isArray(componentEntry.component)
 		? (componentEntry.component as OrderedXmlEntry[])
 		: [];
 	const displayListEntry = componentChildren.find((entry) => 'displayList' in entry);
+	const rawComponentChildren = Array.isArray(rawComponentEntry?.component)
+		? (rawComponentEntry.component as OrderedXmlEntry[])
+		: [];
+	const rawDisplayListEntry = rawComponentChildren.find((entry) => 'displayList' in entry);
 	if (!displayListEntry) return [];
 	const displayListChildren = Array.isArray(displayListEntry.displayList)
-		? (displayListEntry.displayList as OrderedXmlEntry[])
+		? getOrderedElementEntries(displayListEntry.displayList as OrderedXmlEntry[])
+		: [];
+	const rawDisplayListChildren = Array.isArray(rawDisplayListEntry?.displayList)
+		? getOrderedElementEntries(rawDisplayListEntry.displayList as OrderedXmlEntry[])
 		: [];
 
-	return displayListChildren.flatMap((entry) => {
+	return displayListChildren.flatMap((entry, index) => {
 		const rawTagName = Object.keys(entry).find((key) => key !== ':@' && key !== '#text');
 		if (!rawTagName) return [];
 		const attrs = (entry[':@'] as Record<string, unknown> | undefined) ?? {};
 		const nestedEntries = Array.isArray(entry[rawTagName]) ? (entry[rawTagName] as OrderedXmlEntry[]) : [];
+		const rawEntry = rawDisplayListChildren[index] ?? {};
+		const rawNestedEntries = Array.isArray(rawEntry[rawTagName])
+			? (rawEntry[rawTagName] as OrderedXmlEntry[])
+			: [];
 		const rawAttrs = readRawDisplayListAttrs(xmlContent, rawTagName, attrs.id);
 		return [{
 			tagName: rawTagName.toLowerCase(),
 			attrs: {
 				...rawAttrs,
 				...attrs,
-				...normalizeOrderedChildren(nestedEntries),
+				...normalizeOrderedChildren(nestedEntries, rawNestedEntries),
 			} as DisplayObjectXmlNode,
 		}];
 	});
