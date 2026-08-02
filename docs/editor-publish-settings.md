@@ -123,7 +123,7 @@
 
 ## 组件 XML 的列表清理与属性覆盖
 
-组件根扩展、ComboBox 组件实例和 List/Tree 显示节点使用正式的 `autoClearItems` 布尔属性；缺省值为 `false`，仅在启用时写出。组件实例与静态列表项的有序 `<property target="..." propertyId="..." value="..."/>` 子节点由 UAM 正式属性承载，读取、物化、保存和重新加载均保持原顺序与空字符串值。`target` 必须非空，`propertyId` 必须是非负安全整数，`value` 必须存在；无效输入在物化或写回前拒绝。
+组件根扩展、ComboBox 组件实例和 List/Tree 显示节点使用正式的 `autoClearItems` 布尔属性；缺省值为 `false`，仅在启用时写出。组件实例与静态列表项的有序 `<property target="..." propertyId="..." value="..."/>` 子节点由 UAM 正式属性承载，读取、物化、保存和重新加载均保持原顺序与原始字符串值，包括前后空白、纯空白和空字符串。`target` 必须非空，`propertyId` 必须是非负安全整数，`value` 必须存在；无效输入在物化或写回前拒绝。
 
 ## 工程资源树元数据
 
