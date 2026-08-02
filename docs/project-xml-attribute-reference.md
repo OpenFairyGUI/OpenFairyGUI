@@ -607,6 +607,7 @@
 | `icon` |  | 图标 |
 | `visibleItemCount` |  | 可见条目数 |
 | `selectionController` |  | 选择控制器 |
+| `autoClearItems` |  | 自动清空项目 |
 
 ### `<ProgressBar>`
 
@@ -726,6 +727,16 @@
 | `level` |  | 层级 |
 | `isFolder` |  | 是否文件夹 |
 | `controllers` |  | controller 覆盖 |
+
+### `<component><property>` / `<list><item><property>`
+
+| 属性名 | Alias | 说明 |
+|---|---|---|
+| `target` |  | 被覆盖对象标识，不能为空 |
+| `propertyId` |  | 非负整数属性编号 |
+| `value` |  | 覆盖值；空字符串是有效值 |
+
+同一宿主下的 `property` 子节点按 XML 顺序保存。
 
 ### `<ComboBox><item>`
 

@@ -204,6 +204,7 @@ export function materializeUamListProperties(
 		.setClipSoftness(properties.clipSoftness)
 		.setScrollItemToViewOnClick(properties.scrollItemToViewOnClick)
 		.setFoldInvisibleItems(properties.foldInvisibleItems)
+		.setAutoClearItems(properties.autoClearItems)
 		.setListItems(cloneListItems(properties.listItems))
 		.setPageController(properties.pageController)
 		.setControllerOverrides(properties.controllerOverrides)
@@ -236,6 +237,7 @@ export function materializeUamComponentInstanceProperties(
 		.setInstancePromptText('')
 		.setInstanceSelectionController('')
 		.setInstanceVisibleItemCount(0)
+		.setInstanceAutoClearItems(false)
 		.setInstanceValue(0)
 		.setInstanceMax(0)
 		.setInstanceMin(0)
@@ -272,6 +274,7 @@ export function materializeUamComponentInstanceProperties(
 				.setInstanceIcon(properties.icon)
 				.setInstanceVisibleItemCount(properties.visibleItemCount)
 				.setInstanceSelectionController(properties.selectionController)
+				.setInstanceAutoClearItems(properties.autoClearItems)
 				.setInstanceComboItems(properties.items.map((item) => ({ ...item })));
 			return;
 		case 'ProgressBar':
@@ -336,6 +339,7 @@ export function materializeUamComponentProperties(
 		.setWholeNumbers(properties.wholeNumbers)
 		.setChangeOnClick(properties.changeOnClick)
 		.setFixedGripSize(properties.fixedGripSize)
+		.setAutoClearItems(properties.autoClearItems)
 		.setCustomProperties(properties.customProperties);
 }
 
@@ -621,7 +625,8 @@ export function materializeDisplayNode(
 		const component = materializeDisplayNodeBase(doc.createGComponent(node.name), node)
 			.setGroup(componentNode.group)
 			.setSrc(componentNode.resource.resourceId)
-			.setPackageId(componentNode.resource.packageId ?? '');
+			.setPackageId(componentNode.resource.packageId ?? '')
+			.setPropertyOverrides((componentNode.propertyOverrides ?? []).map((property) => ({ ...property })));
 		materializeUamComponentInstanceProperties(component, componentNode.instanceProperties);
 		return component;
 	}

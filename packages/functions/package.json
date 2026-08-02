@@ -1,6 +1,6 @@
 {
 	"name": "@openfairygui/functions",
-	"version": "0.2.0-alpha.35",
+	"version": "0.2.0-alpha.36",
 	"description": "FairyGUI Headless Authoring SDK — composable transform functions.",
 	"author": "OpenFairyGUI Contributors",
 	"license": "MIT",
@@ -78,6 +78,7 @@
 	],
 	"dependencies": {
 		"@openfairygui/core": "workspace:*",
+		"fast-xml-parser": "^5.0.0",
 		"jiti": "^2.6.1"
 	},
 	"optionalDependencies": {

@@ -31,6 +31,7 @@ import {
 import { normalizeUamProject } from './normalize.js';
 import {
 	isFiniteUamPoint,
+	isValidUamComponentPropertyOverride,
 	isValidUamComponentInstanceProperties,
 	isValidUamComponentProperties,
 	isValidUamImageResourceProperties,
@@ -408,6 +409,7 @@ const LIST_PROPERTY_KEYS = [
 	'clipSoftness',
 	'scrollItemToViewOnClick',
 	'foldInvisibleItems',
+	'autoClearItems',
 	'listItems',
 	'pageController',
 	'controllerOverrides',
@@ -778,7 +780,7 @@ function isValidListItem(value: unknown): value is UamListItemData {
 	if (!value || typeof value !== 'object') return false;
 	const item = value as UamListItemData;
 	const keys = Object.keys(item);
-	if (keys.length < 8 || keys.length > 9 || keys.some((key) => ![
+	if (keys.length < 8 || keys.length > 10 || keys.some((key) => ![
 		'title',
 		'icon',
 		'url',
@@ -788,6 +790,7 @@ function isValidListItem(value: unknown): value is UamListItemData {
 		'level',
 		'isFolder',
 		'controllers',
+		'propertyOverrides',
 	].includes(key))) return false;
 	return [
 		item.title,
@@ -800,7 +803,10 @@ function isValidListItem(value: unknown): value is UamListItemData {
 		&& Number.isInteger(item.level)
 		&& item.level >= 0
 		&& (item.isFolder === null || typeof item.isFolder === 'boolean')
-		&& (item.controllers === undefined || isNullableString(item.controllers));
+		&& (item.controllers === undefined || isNullableString(item.controllers))
+		&& (item.propertyOverrides === undefined
+			|| (Array.isArray(item.propertyOverrides)
+				&& item.propertyOverrides.every(isValidUamComponentPropertyOverride)));
 }
 
 function isValidGraphProperties(value: unknown): value is UamGraphProperties {
@@ -902,7 +908,7 @@ function isValidListProperties(
 		&& [properties.lineCount, properties.columnCount].every((item) => Number.isInteger(item) && item >= 0)
 		&& validCounts
 		&& isIntegerBetween(properties.selectionMode, 0, 3)
-		&& [properties.autoResizeItem, properties.scrollItemToViewOnClick, properties.foldInvisibleItems]
+		&& [properties.autoResizeItem, properties.scrollItemToViewOnClick, properties.foldInvisibleItems, properties.autoClearItems]
 			.every((item) => typeof item === 'boolean')
 		&& isIntegerBetween(properties.childrenRenderOrder, 0, 2)
 		&& Number.isInteger(properties.apexIndex)

@@ -57,6 +57,15 @@ function addMovieClipPackage(
 	return movieClip;
 }
 
+function addSvgPackage(document: Document, source: MemoryFileSystem, svg: string): void {
+	const pkg = document.createPackage('SvgPackage');
+	pkg.setId('svgpkg01');
+	const image = document.createImageResource('icon.svg');
+	image.setId('svgimage').setPath('/images/').setFileName('icon.svg').setWidth(2).setHeight(2).setExported(true);
+	pkg.addResource(image);
+	source.files.set('assets/SvgPackage/images/icon.svg', new TextEncoder().encode(svg));
+}
+
 class BrowserCanvasStub {
 	readonly width: number;
 	readonly height: number;
@@ -84,6 +93,169 @@ class BrowserCanvasStub {
 		return new Blob([PNG], { type: 'image/png' });
 	}
 }
+
+class BrowserImageStub {
+	onload: (() => void) | null = null;
+	onerror: (() => void) | null = null;
+	readonly naturalWidth = 2;
+	readonly naturalHeight = 2;
+	readonly width = 2;
+	readonly height = 2;
+
+	set src(_value: string) {
+		queueMicrotask(() => this.onload?.());
+	}
+}
+
+class FailingBrowserImageStub extends BrowserImageStub {
+	override set src(_value: string) {
+		queueMicrotask(() => this.onerror?.());
+	}
+}
+
+test.serial('publishBrowser falls back to HTMLImageElement for validated SVG and revokes Blob URLs', async (t) => {
+	const globals = globalThis as Record<string, unknown>;
+	const previousCanvas = globals.OffscreenCanvas;
+	const previousCreateImageBitmap = globals.createImageBitmap;
+	const previousImage = globals.Image;
+	const previousCreateObjectUrl = globalThis.URL.createObjectURL;
+	const previousRevokeObjectUrl = globalThis.URL.revokeObjectURL;
+	let createdUrls = 0;
+	let revokedUrls = 0;
+	globals.OffscreenCanvas = BrowserCanvasStub;
+	globals.createImageBitmap = async (blob: Blob) => {
+		if (blob.type === 'image/svg+xml') throw new Error('SVG ImageBitmap decode rejected');
+		return { width: 2, height: 2, close() {} };
+	};
+	globals.Image = BrowserImageStub;
+	globalThis.URL.createObjectURL = () => `blob:svg-${++createdUrls}`;
+	globalThis.URL.revokeObjectURL = () => { revokedUrls += 1; };
+
+	try {
+		const source = new MemoryFileSystem();
+		const output = new MemoryFileSystem();
+		const document = new Document();
+		addSvgPackage(document, source, '<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2" viewBox="0 0 2 2"><rect width="2" height="2" fill="#fff"/></svg>');
+
+		const result = await publishBrowser({
+			document,
+			sourceFileSystem: source,
+			outputFileSystem: output,
+			projectType: 'layabox',
+			output: '.fairygui-runtime',
+		});
+
+		t.true(result.success, result.diagnostics.map((entry) => entry.message).join('\n'));
+		t.true(output.files.has('.fairygui-runtime/SvgPackage_atlas0.png'));
+		t.true(createdUrls > 0);
+		t.is(revokedUrls, createdUrls);
+
+		globals.Image = FailingBrowserImageStub;
+		const failedOutput = new MemoryFileSystem();
+		const failedResult = await publishBrowser({
+			document,
+			sourceFileSystem: source,
+			outputFileSystem: failedOutput,
+			projectType: 'layabox',
+			output: '.fairygui-runtime',
+		});
+		t.false(failedResult.success);
+		t.true(failedResult.diagnostics.some((entry) => entry.message.includes('DOM image decoding failed for SVG')));
+		t.is(failedOutput.files.size, 0);
+		t.is(revokedUrls, createdUrls);
+	} finally {
+		if (previousCanvas === undefined) delete globals.OffscreenCanvas;
+		else globals.OffscreenCanvas = previousCanvas;
+		if (previousCreateImageBitmap === undefined) delete globals.createImageBitmap;
+		else globals.createImageBitmap = previousCreateImageBitmap;
+		if (previousImage === undefined) delete globals.Image;
+		else globals.Image = previousImage;
+		globalThis.URL.createObjectURL = previousCreateObjectUrl;
+		globalThis.URL.revokeObjectURL = previousRevokeObjectUrl;
+	}
+});
+
+test.serial('publishBrowser rejects unsafe SVG before decode and leaves output untouched', async (t) => {
+	const globals = globalThis as Record<string, unknown>;
+	const previousCanvas = globals.OffscreenCanvas;
+	const previousCreateImageBitmap = globals.createImageBitmap;
+	let decoderCalls = 0;
+	globals.OffscreenCanvas = BrowserCanvasStub;
+	globals.createImageBitmap = async () => {
+		decoderCalls += 1;
+		return { width: 2, height: 2, close() {} };
+	};
+
+	try {
+		for (const svg of [
+			'<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2" onload="alert(1)"><rect width="2" height="2"/></svg>',
+			'<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><script>alert(1)</script></svg>',
+			'<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><use href="https://example.com/icon.svg#shape"/></svg>',
+			'<svg xmlns="http://www.w3.org/2000/svg" width="20000" height="2"><rect width="2" height="2"/></svg>',
+		]) {
+			const source = new MemoryFileSystem();
+			const output = new MemoryFileSystem();
+			const document = new Document();
+			addSvgPackage(document, source, svg);
+
+			const result = await publishBrowser({
+				document,
+				sourceFileSystem: source,
+				outputFileSystem: output,
+				projectType: 'layabox',
+				output: '.fairygui-runtime',
+			});
+
+			t.false(result.success);
+			t.true(result.diagnostics.some((entry) => entry.message.includes('unsafe SVG input')));
+			t.is(output.files.size, 0);
+		}
+		t.is(decoderCalls, 0);
+	} finally {
+		if (previousCanvas === undefined) delete globals.OffscreenCanvas;
+		else globals.OffscreenCanvas = previousCanvas;
+		if (previousCreateImageBitmap === undefined) delete globals.createImageBitmap;
+		else globals.createImageBitmap = previousCreateImageBitmap;
+	}
+});
+
+test.serial('publishBrowser reports unavailable SVG decoders with zero output', async (t) => {
+	const globals = globalThis as Record<string, unknown>;
+	const previousCanvas = globals.OffscreenCanvas;
+	const previousCreateImageBitmap = globals.createImageBitmap;
+	const previousImage = globals.Image;
+	globals.OffscreenCanvas = BrowserCanvasStub;
+	globals.createImageBitmap = async () => {
+		throw new Error('SVG ImageBitmap decode rejected');
+	};
+	delete globals.Image;
+
+	try {
+		const source = new MemoryFileSystem();
+		const output = new MemoryFileSystem();
+		const document = new Document();
+		addSvgPackage(document, source, '<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><rect width="2" height="2"/></svg>');
+
+		const result = await publishBrowser({
+			document,
+			sourceFileSystem: source,
+			outputFileSystem: output,
+			projectType: 'layabox',
+			output: '.fairygui-runtime',
+		});
+
+		t.false(result.success);
+		t.true(result.diagnostics.some((entry) => entry.message.includes('DOM image decoding is unavailable')));
+		t.is(output.files.size, 0);
+	} finally {
+		if (previousCanvas === undefined) delete globals.OffscreenCanvas;
+		else globals.OffscreenCanvas = previousCanvas;
+		if (previousCreateImageBitmap === undefined) delete globals.createImageBitmap;
+		else globals.createImageBitmap = previousCreateImageBitmap;
+		if (previousImage === undefined) delete globals.Image;
+		else globals.Image = previousImage;
+	}
+});
 
 test.serial('publishBrowser writes Layabox .fui and atlas PNG through browser file systems', async (t) => {
 	const globals = globalThis as Record<string, unknown>;

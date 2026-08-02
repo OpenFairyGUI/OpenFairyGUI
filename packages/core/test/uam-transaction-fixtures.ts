@@ -384,6 +384,7 @@ export function createListNodeBase(id: string, name: string, offset = 0): Omit<U
 		clipSoftness: { x: 0, y: 0 },
 		scrollItemToViewOnClick: true,
 		foldInvisibleItems: false,
+		autoClearItems: false,
 		listItems: [
 			{
 				title: 'Item',

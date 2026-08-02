@@ -444,6 +444,7 @@ export function readComponentXml(ctx: ReaderContext, comp: Component, xmlContent
 							case 'ComboBox':
 								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.ComboBox.attrs.dropdown) !== undefined) comp.setDropdown?.(String(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.ComboBox.attrs.dropdown)));
 								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.ComboBox.attrs.selectionController) !== undefined) comp.setSelectionController?.(String(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.ComboBox.attrs.selectionController)));
+								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.ComboBox.attrs.autoClearItems) !== undefined) comp.setAutoClearItems?.(parseBool(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.ComboBox.attrs.autoClearItems)));
 								break;
 							case 'Label':
 								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Label.attrs.prompt) !== undefined) comp.setPromptText?.(String(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Label.attrs.prompt)));

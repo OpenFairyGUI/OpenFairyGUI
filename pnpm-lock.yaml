@@ -112,6 +112,9 @@ importers:
       '@openfairygui/core':
         specifier: workspace:*
         version: link:../core
+      fast-xml-parser:
+        specifier: ^5.0.0
+        version: 5.5.10
       jiti:
         specifier: ^2.6.1
         version: 2.7.0

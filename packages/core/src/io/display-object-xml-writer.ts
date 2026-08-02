@@ -426,11 +426,13 @@ type WritableChild = GObject & {
 		level?: number;
 		isFolder?: boolean | null;
 		controllers?: string | null;
+		propertyOverrides?: Array<{ target: string; propertyId: number; value: string }>;
 	}>;
 	getIndent?(): number;
 	getClickToExpand?(): number;
 	getScrollItemToViewOnClick?(): boolean;
 	getFoldInvisibleItems?(): boolean;
+	getAutoClearItems?(): boolean;
 	getPageController?(): string;
 	getControllerOverrides?(): string;
 	getPromptText?(): string;
@@ -453,6 +455,7 @@ type WritableChild = GObject & {
 	getInstancePromptText?(): string;
 	getInstanceSelectionController?(): string;
 	getInstanceVisibleItemCount?(): number;
+	getInstanceAutoClearItems?(): boolean;
 	getInstanceValue?(): number;
 	getInstanceMax?(): number;
 	getInstanceMin?(): number;
@@ -461,6 +464,7 @@ type WritableChild = GObject & {
 		value?: string | null;
 		icon?: string | null;
 	}>;
+	getPropertyOverrides?(): Array<{ target: string; propertyId: number; value: string }>;
 };
 
 
@@ -578,6 +582,7 @@ function serializeListItemXmlNode(item: {
 	level?: number;
 	isFolder?: boolean | null;
 	controllers?: string | null;
+	propertyOverrides?: Array<{ target: string; propertyId: number; value: string }>;
 }, options?: {
 	forceLevel?: boolean;
 }): Record<string, unknown> {
@@ -596,6 +601,23 @@ function serializeListItemXmlNode(item: {
 		writeXmlAttr(attrs, specs.isFolder, item.isFolder ? 'true' : 'false');
 	}
 	if (item.controllers !== undefined && item.controllers !== null) writeXmlAttr(attrs, specs.controllers, item.controllers);
+	const propertyChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.listItem, 'property');
+	if (propertyChildName && item.propertyOverrides?.length) {
+		attrs[propertyChildName] = item.propertyOverrides.map(serializePropertyOverrideXmlNode);
+	}
+	return attrs;
+}
+
+function serializePropertyOverrideXmlNode(property: {
+	target: string;
+	propertyId: number;
+	value: string;
+}): Record<string, unknown> {
+	const attrs: Record<string, unknown> = {};
+	const specs = PROJECT_XML_PROTOCOL.propertyOverride.attrs;
+	writeXmlAttr(attrs, specs.target, property.target);
+	writeXmlAttr(attrs, specs.propertyId, String(property.propertyId));
+	writeXmlAttr(attrs, specs.value, property.value);
 	return attrs;
 }
 
@@ -1151,6 +1173,9 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 			if (typedObj.getFoldInvisibleItems?.() === true) {
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.foldInvisibleItems, 'true');
 			}
+			if (typedObj.getAutoClearItems?.() === true) {
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.autoClearItems, 'true');
+			}
 			const listItems = typedObj.getListItems?.() ?? [];
 			const listItemChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.list, 'item');
 			if (listItems.length > 0 && listItemChildName) {
@@ -1215,6 +1240,11 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 			}
 		}
 		if (type === 'GComponent') {
+			const propertyOverrides = typedObj.getPropertyOverrides?.() ?? [];
+			const propertyChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.componentInstance, 'property');
+			if (propertyChildName && propertyOverrides.length > 0) {
+				attrs[propertyChildName] = propertyOverrides.map(serializePropertyOverrideXmlNode);
+			}
 			const instanceExtType = typedObj.getInstanceExtType?.() ?? '';
 			if (instanceExtType) {
 				const extProtocol = EXTENSION_PROTOCOL_MAP[instanceExtType as keyof typeof EXTENSION_PROTOCOL_MAP];
@@ -1236,6 +1266,7 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 				if (typedObj.getInstancePromptText?.() && extSpecs.prompt) writeXmlAttr(extAttrs, extSpecs.prompt, typedObj.getInstancePromptText?.());
 				if (typedObj.getInstanceSelectionController?.() && extSpecs.selectionController) writeXmlAttr(extAttrs, extSpecs.selectionController, typedObj.getInstanceSelectionController?.());
 				if ((typedObj.getInstanceVisibleItemCount?.() ?? 0) > 0 && extSpecs.visibleItemCount) writeXmlAttr(extAttrs, extSpecs.visibleItemCount, String(typedObj.getInstanceVisibleItemCount?.() ?? 0));
+				if (typedObj.getInstanceAutoClearItems?.() && extSpecs.autoClearItems) writeXmlAttr(extAttrs, extSpecs.autoClearItems, 'true');
 				const instanceValue = typedObj.getInstanceValue?.() ?? 0;
 				const instanceMax = typedObj.getInstanceMax?.() ?? 0;
 				const instanceMin = typedObj.getInstanceMin?.() ?? 0;

@@ -1,6 +1,7 @@
 import type {
 	UamAssetResource,
 	UamComponentInstanceProperties,
+	UamComponentPropertyOverride,
 	UamComponentProperties,
 	UamControllerAction,
 	UamControllerModel,
@@ -47,6 +48,18 @@ function isFiniteUamEdgeInsets(value: unknown): boolean {
 function hasExactKeys(value: object, keys: readonly string[]): boolean {
 	const actual = Object.keys(value);
 	return actual.length === keys.length && actual.every((key) => keys.includes(key));
+}
+
+export function isValidUamComponentPropertyOverride(
+	value: unknown,
+): value is UamComponentPropertyOverride {
+	if (!value || typeof value !== 'object' || !hasExactKeys(value, ['target', 'propertyId', 'value'])) return false;
+	const property = value as UamComponentPropertyOverride;
+	return typeof property.target === 'string'
+		&& property.target.length > 0
+		&& Number.isSafeInteger(property.propertyId)
+		&& property.propertyId >= 0
+		&& typeof property.value === 'string';
 }
 
 const IMAGE_RESOURCE_PROPERTY_KEYS = [
@@ -300,6 +313,7 @@ const COMPONENT_PROPERTY_KEYS = [
 	'wholeNumbers',
 	'changeOnClick',
 	'fixedGripSize',
+	'autoClearItems',
 	'customProperties',
 ] as const satisfies readonly (keyof UamComponentProperties)[];
 
@@ -331,6 +345,7 @@ export function isValidUamComponentProperties(value: unknown): value is UamCompo
 		properties.wholeNumbers,
 		properties.changeOnClick,
 		properties.fixedGripSize,
+		properties.autoClearItems,
 	];
 	const numbers = [
 		properties.overflow,
@@ -399,11 +414,12 @@ export function isValidUamComponentInstanceProperties(
 				&& finite(properties.titleFontSize);
 		case 'ComboBox':
 			return hasExactKeys(properties, [
-				'extensionType', 'title', 'icon', 'visibleItemCount', 'selectionController', 'items',
+				'extensionType', 'title', 'icon', 'visibleItemCount', 'selectionController', 'autoClearItems', 'items',
 			])
 				&& [properties.title, properties.icon, properties.selectionController]
 					.every((item) => typeof item === 'string')
 				&& finite(properties.visibleItemCount)
+				&& typeof properties.autoClearItems === 'boolean'
 				&& Array.isArray(properties.items)
 				&& properties.items.every((item) => (
 					item
@@ -636,6 +652,23 @@ function validateDisplayNode(
 	if (node.pivotAsAnchor !== undefined) {
 		if (typeof node.pivotAsAnchor !== 'boolean') {
 			pushIssue(issues, `${path}.pivotAsAnchor`, 'Display node pivotAsAnchor must be boolean.');
+		}
+	}
+	if (node.kind === 'component'
+		&& node.propertyOverrides !== undefined
+		&& (!Array.isArray(node.propertyOverrides)
+			|| !node.propertyOverrides.every(isValidUamComponentPropertyOverride))
+	) {
+		pushIssue(issues, `${path}.propertyOverrides`, 'Component property overrides must contain a non-empty target, a non-negative integer propertyId, and a string value.');
+	}
+	if (node.kind === 'list' || node.kind === 'tree') {
+		for (const [itemIndex, item] of node.listItems.entries()) {
+			if (item.propertyOverrides !== undefined
+				&& (!Array.isArray(item.propertyOverrides)
+					|| !item.propertyOverrides.every(isValidUamComponentPropertyOverride))
+			) {
+				pushIssue(issues, `${path}.listItems[${itemIndex}].propertyOverrides`, 'List item property overrides must contain a non-empty target, a non-negative integer propertyId, and a string value.');
+			}
 		}
 	}
 	if (

@@ -6,6 +6,7 @@ import type {
 	PublishFileSystem,
 	PublishSourceFileSystem,
 } from '../../publish/contracts.js';
+import { XMLParser, XMLValidator } from 'fast-xml-parser';
 
 type BrowserCanvas = OffscreenCanvas | HTMLCanvasElement;
 
@@ -37,6 +38,137 @@ interface BrowserRaster {
 	canvas: BrowserCanvas;
 	width: number;
 	height: number;
+}
+
+const MAX_SVG_SOURCE_BYTES = 8 * 1024 * 1024;
+const MAX_SVG_DIMENSION = 16_384;
+const MAX_SVG_PIXELS = 64 * 1024 * 1024;
+const MAX_SVG_NODES = 50_000;
+const UNSAFE_SVG_ELEMENTS = new Set([
+	'a',
+	'animate',
+	'animatecolor',
+	'animatemotion',
+	'animatetransform',
+	'audio',
+	'canvas',
+	'discard',
+	'embed',
+	'feimage',
+	'foreignobject',
+	'iframe',
+	'image',
+	'object',
+	'script',
+	'set',
+	'style',
+	'video',
+]);
+
+type ParsedSvgEntry = Record<string, unknown> & { ':@'?: Record<string, unknown> };
+
+function unsafeSvg(message: string): never {
+	throw new Error(`publishBrowser: unsafe SVG input (${message}).`);
+}
+
+function svgLocalName(name: string): string {
+	return name.split(':').at(-1)!.toLowerCase();
+}
+
+function parseSvgLength(value: unknown, name: string): number | undefined {
+	if (value === undefined) return undefined;
+	const match = String(value).match(/^\s*(?:\d+(?:\.\d+)?|\.\d+)(?:px)?\s*$/iu);
+	if (!match) unsafeSvg(`${name} must use a finite pixel value`);
+	const parsed = Number.parseFloat(match[0]);
+	if (!Number.isFinite(parsed) || parsed <= 0 || parsed > MAX_SVG_DIMENSION) {
+		unsafeSvg(`${name} exceeds the supported dimensions`);
+	}
+	return parsed;
+}
+
+function validateSvgAttribute(name: string, value: unknown): void {
+	const normalizedName = name.toLowerCase();
+	if (normalizedName === 'xmlns' || normalizedName.startsWith('xmlns:')) return;
+	const localName = svgLocalName(name);
+	const text = String(value);
+	if (localName.startsWith('on')) unsafeSvg(`event attribute "${name}" is not allowed`);
+	if (localName === 'style' || localName === 'src') unsafeSvg(`attribute "${name}" is not allowed`);
+	if (localName === 'href' && !/^#[A-Za-z_][\w:.-]*$/u.test(text)) {
+		unsafeSvg(`external reference in "${name}" is not allowed`);
+	}
+	if (/(?:^|[\s("'=])(?:https?:|file:|javascript:|data:|\/\/)/iu.test(text)) {
+		unsafeSvg(`external URL in "${name}" is not allowed`);
+	}
+	for (const match of text.matchAll(/url\s*\(([^)]*)\)/giu)) {
+		const reference = (match[1] ?? '').trim().replace(/^(['"])(.*)\1$/u, '$2');
+		if (!/^#[A-Za-z_][\w:.-]*$/u.test(reference)) unsafeSvg(`external url() in "${name}" is not allowed`);
+	}
+}
+
+function visitSvgEntry(entry: ParsedSvgEntry): void {
+	const pending = [entry];
+	let nodeCount = 0;
+	while (pending.length > 0) {
+		const current = pending.pop()!;
+		for (const [name, value] of Object.entries(current)) {
+			if (name === ':@' || name.startsWith('#') || name.startsWith('?')) continue;
+			if (++nodeCount > MAX_SVG_NODES) unsafeSvg('node count exceeds the supported limit');
+			const localName = svgLocalName(name);
+			if (UNSAFE_SVG_ELEMENTS.has(localName)) unsafeSvg(`element <${name}> is not allowed`);
+			for (const [attributeName, attributeValue] of Object.entries(current[':@'] ?? {})) {
+				validateSvgAttribute(attributeName, attributeValue);
+			}
+			if (Array.isArray(value)) {
+				for (const child of value) {
+					if (child && typeof child === 'object' && !Array.isArray(child)) pending.push(child as ParsedSvgEntry);
+				}
+			}
+		}
+	}
+}
+
+function validateSvg(bytes: Uint8Array): void {
+	if (bytes.byteLength === 0 || bytes.byteLength > MAX_SVG_SOURCE_BYTES) unsafeSvg('source size is unsupported');
+	let source: string;
+	try {
+		source = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+	} catch {
+		unsafeSvg('source is not valid UTF-8');
+	}
+	if (/<!\s*(?:doctype|entity)\b|<\?xml-stylesheet\b/iu.test(source)) unsafeSvg('DTD, entities, and stylesheets are not allowed');
+	if (XMLValidator.validate(source, { allowBooleanAttributes: false }) !== true) unsafeSvg('source is not well-formed XML');
+	const parsed = new XMLParser({
+		preserveOrder: true,
+		ignoreAttributes: false,
+		attributeNamePrefix: '',
+		parseAttributeValue: false,
+		parseTagValue: false,
+		processEntities: false,
+		trimValues: false,
+	}).parse(source) as ParsedSvgEntry[];
+	const roots = parsed.flatMap((entry) => Object.keys(entry)
+		.filter((name) => name !== ':@' && !name.startsWith('#') && !name.startsWith('?'))
+		.map((name) => ({ entry, name })));
+	if (roots.length !== 1 || svgLocalName(roots[0]!.name) !== 'svg') unsafeSvg('a single <svg> root is required');
+	const root = roots[0]!.entry;
+	visitSvgEntry(root);
+	const attributes = root[':@'] ?? {};
+	const width = parseSvgLength(attributes.width, 'width');
+	const height = parseSvgLength(attributes.height, 'height');
+	let viewBoxWidth: number | undefined;
+	let viewBoxHeight: number | undefined;
+	if (attributes.viewBox !== undefined) {
+		const viewBox = String(attributes.viewBox).trim().split(/[\s,]+/u).map(Number);
+		if (viewBox.length !== 4 || viewBox.some((value) => !Number.isFinite(value)) || viewBox[2]! <= 0 || viewBox[3]! <= 0) {
+			unsafeSvg('viewBox must contain four finite values with positive dimensions');
+		}
+		viewBoxWidth = viewBox[2];
+		viewBoxHeight = viewBox[3];
+		if (viewBoxWidth > MAX_SVG_DIMENSION || viewBoxHeight > MAX_SVG_DIMENSION) unsafeSvg('viewBox exceeds the supported dimensions');
+	}
+	const rasterWidth = width ?? viewBoxWidth ?? 300;
+	const rasterHeight = height ?? viewBoxHeight ?? 150;
+	if (rasterWidth * rasterHeight > MAX_SVG_PIXELS) unsafeSvg('pixel count exceeds the supported limit');
 }
 
 function getBrowserContext(canvas: BrowserCanvas): BrowserContext {
@@ -115,13 +247,51 @@ async function decodeRaster(bytes: Uint8Array, mimeType: string): Promise<Browse
 		throw new Error('publishBrowser: createImageBitmap is required for atlas PNG generation.');
 	}
 	const copy = bytes.slice();
-	const bitmap = await createImageBitmap(new Blob([copy.buffer as ArrayBuffer], { type: mimeType }));
+	if (mimeType === 'image/svg+xml') validateSvg(copy);
+	const blob = new Blob([copy.buffer as ArrayBuffer], { type: mimeType });
+	let bitmap: ImageBitmap;
+	try {
+		bitmap = await createImageBitmap(blob);
+	} catch (error) {
+		if (mimeType !== 'image/svg+xml') throw error;
+		return decodeSvgWithDom(blob);
+	}
 	try {
 		const raster = createRaster(bitmap.width, bitmap.height);
 		getBrowserContext(raster.canvas).drawImage(bitmap, 0, 0);
 		return raster;
 	} finally {
 		bitmap.close();
+	}
+}
+
+async function decodeSvgWithDom(blob: Blob): Promise<BrowserRaster> {
+	if (typeof globalThis.Image !== 'function'
+		|| typeof globalThis.URL?.createObjectURL !== 'function'
+		|| typeof globalThis.URL?.revokeObjectURL !== 'function'
+	) {
+		throw new Error('publishBrowser: createImageBitmap rejected SVG and DOM image decoding is unavailable.');
+	}
+	const url = globalThis.URL.createObjectURL(blob);
+	try {
+		const image = new globalThis.Image();
+		await new Promise<void>((resolve, reject) => {
+			image.onload = () => resolve();
+			image.onerror = () => reject(new Error('publishBrowser: DOM image decoding failed for SVG.'));
+			image.src = url;
+		});
+		const width = image.naturalWidth || image.width;
+		const height = image.naturalHeight || image.height;
+		if (!Number.isFinite(width) || !Number.isFinite(height)
+			|| width <= 0 || height <= 0
+			|| width > MAX_SVG_DIMENSION || height > MAX_SVG_DIMENSION
+			|| width * height > MAX_SVG_PIXELS
+		) unsafeSvg('decoded dimensions exceed the supported limit');
+		const raster = createRaster(width, height);
+		getBrowserContext(raster.canvas).drawImage(image, 0, 0);
+		return raster;
+	} finally {
+		globalThis.URL.revokeObjectURL(url);
 	}
 }
 

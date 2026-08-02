@@ -159,6 +159,7 @@ function normalizeComponentInstanceProperties(
 				icon: properties.icon ?? '',
 				visibleItemCount: properties.visibleItemCount ?? 0,
 				selectionController: properties.selectionController ?? '',
+				autoClearItems: properties.autoClearItems ?? false,
 				items: (properties.items ?? []).map((item) => ({
 					title: item.title ?? null,
 					value: item.value ?? null,
@@ -221,6 +222,7 @@ export function createDefaultUamComponentProperties(): UamComponentProperties {
 		wholeNumbers: false,
 		changeOnClick: true,
 		fixedGripSize: false,
+		autoClearItems: false,
 		customProperties: [],
 	};
 }
@@ -274,6 +276,7 @@ function normalizeComponentProperties(properties: UamComponentProperties): UamCo
 		wholeNumbers: properties.wholeNumbers ?? false,
 		changeOnClick: properties.changeOnClick ?? true,
 		fixedGripSize: properties.fixedGripSize ?? false,
+		autoClearItems: properties.autoClearItems ?? false,
 		customProperties: (properties.customProperties ?? []).map((property) => ({ ...property })),
 	};
 }
@@ -289,6 +292,9 @@ function normalizeListItems(items: UamListItemData[] | undefined): UamListItemDa
 		level: item.level ?? 0,
 		isFolder: item.isFolder ?? null,
 		controllers: item.controllers ?? null,
+		...(item.propertyOverrides?.length
+			? { propertyOverrides: item.propertyOverrides.map((property) => ({ ...property })) }
+			: {}),
 	}));
 }
 
@@ -661,6 +667,9 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				...base,
 				group: node.group ?? '',
 				resource: normalizeResourceRef(node.resource),
+				...(node.propertyOverrides?.length
+					? { propertyOverrides: node.propertyOverrides.map((property) => ({ ...property })) }
+					: {}),
 				...(node.instanceProperties
 					? { instanceProperties: normalizeComponentInstanceProperties(node.instanceProperties) }
 					: {}),
@@ -696,6 +705,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				clipSoftness: normalizePoint(list.clipSoftness),
 				scrollItemToViewOnClick: list.scrollItemToViewOnClick ?? true,
 				foldInvisibleItems: list.foldInvisibleItems ?? false,
+				autoClearItems: list.autoClearItems ?? false,
 				listItems: normalizeListItems(list.listItems),
 				pageController: list.pageController ?? '',
 				controllerOverrides: list.controllerOverrides ?? '',

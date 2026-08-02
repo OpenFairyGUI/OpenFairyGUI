@@ -80,6 +80,7 @@ interface IComponent extends IExtensibleProperty {
 	wholeNumbers: boolean;
 	changeOnClick: boolean;
 	fixedGripSize: boolean;
+	autoClearItems: boolean;
 	opaque: boolean;
 	customProperties: ComponentCustomProperty[];
 	childrenRenderOrder: number;
@@ -164,6 +165,7 @@ export class Component extends ExtensibleProperty<IComponent> {
 			wholeNumbers: false,
 			changeOnClick: true,
 			fixedGripSize: false,
+			autoClearItems: false,
 			opaque: true,
 			customProperties: [],
 			childrenRenderOrder: ChildrenRenderOrder.Ascent,
@@ -375,6 +377,9 @@ export class Component extends ExtensibleProperty<IComponent> {
 
 	public getFixedGripSize(): boolean { return this.get('fixedGripSize'); }
 	public setFixedGripSize(v: boolean): this { return this.set('fixedGripSize', v); }
+
+	public getAutoClearItems(): boolean { return this.get('autoClearItems'); }
+	public setAutoClearItems(v: boolean): this { return this.set('autoClearItems', v); }
 
 	public getOpaque(): boolean { return this.get('opaque'); }
 	public setOpaque(v: boolean): this { return this.set('opaque', v); }

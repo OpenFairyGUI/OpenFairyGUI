@@ -2,6 +2,7 @@ import { GearType, type RelationDef } from '../constants.js';
 import type { Document } from '../document.js';
 import type { Controller } from '../properties/controller.js';
 import type { GObject } from '../properties/g-object.js';
+import type { GComponentPropertyOverride } from '../properties/g-component.js';
 import {
 	ensureArray,
 	parseBool,
@@ -124,6 +125,13 @@ interface ListItemXmlNode extends XmlNode {
 	level?: string | number;
 	isFolder?: string | boolean;
 	controllers?: string;
+	property?: PropertyOverrideXmlNode | PropertyOverrideXmlNode[];
+}
+
+interface PropertyOverrideXmlNode extends XmlNode {
+	target?: string;
+	propertyId?: string | number;
+	value?: string | number | boolean;
 }
 
 interface ComboItemXmlNode extends XmlNode {
@@ -154,6 +162,7 @@ interface ExtensionXmlNode extends Record<string, unknown> {
 	page?: string;
 	checked?: string | boolean;
 	visibleItemCount?: string | number;
+	autoClearItems?: string | boolean;
 	value?: string | number;
 	max?: string | number;
 	min?: string | number;
@@ -289,6 +298,27 @@ function getProtocolChildName(protocol: XmlNodeProtocol, childName: string): str
 	return protocol.children?.[childName] ? childName : null;
 }
 
+function parsePropertyOverrides(source: XmlNode, protocol: XmlNodeProtocol): GComponentPropertyOverride[] {
+	const childName = getProtocolChildName(protocol, 'property');
+	if (!childName) return [];
+	return ensureArray(source[childName]).map((raw, index) => {
+		const property = getXmlNode<PropertyOverrideXmlNode>(raw);
+		const specs = PROJECT_XML_PROTOCOL.propertyOverride.attrs;
+		const target = property ? readXmlAttr<string>(property, specs.target) : undefined;
+		const rawPropertyId = property ? readXmlAttr<string | number>(property, specs.propertyId) : undefined;
+		const propertyId = typeof rawPropertyId === 'number'
+			? rawPropertyId
+			: typeof rawPropertyId === 'string' && /^\d+$/.test(rawPropertyId)
+				? Number(rawPropertyId)
+				: Number.NaN;
+		const value = property ? readXmlAttr<string | number | boolean>(property, specs.value) : undefined;
+		if (!target || !Number.isSafeInteger(propertyId) || propertyId < 0 || value === undefined) {
+			throw new Error(`Invalid property override at ${childName}[${index}].`);
+		}
+		return { target, propertyId, value: String(value) };
+	});
+}
+
 function getProtocolGearChildNames(protocol: XmlNodeProtocol): string[] {
 	return Object.keys(protocol.children ?? {}).filter((name) => name in GEAR_TAG_MAP);
 }
@@ -364,10 +394,12 @@ function parseListItemXmlNode(item: ListItemXmlNode): {
 	level: number;
 	isFolder: boolean | null;
 	controllers?: string | null;
+	propertyOverrides?: GComponentPropertyOverride[];
 } {
 	const specs = PROJECT_XML_PROTOCOL.listItem.attrs;
 	const isFolder = readXmlAttr<string | boolean>(item, specs.isFolder);
 	const controllers = readXmlAttr<string>(item, specs.controllers);
+	const propertyOverrides = parsePropertyOverrides(item, PROJECT_XML_PROTOCOL.listItem);
 	return {
 		title: readXmlAttr<string>(item, specs.title) ?? null,
 		icon: readXmlAttr<string>(item, specs.icon) ?? null,
@@ -378,6 +410,7 @@ function parseListItemXmlNode(item: ListItemXmlNode): {
 		level: parseInt2(readXmlAttr<string | number>(item, specs.level)),
 		isFolder: isFolder !== undefined ? parseBool(isFolder) : null,
 		...(controllers !== undefined ? { controllers } : {}),
+		...(propertyOverrides.length > 0 ? { propertyOverrides } : {}),
 	};
 }
 
@@ -1440,6 +1473,8 @@ export function createDisplayObject(
 					PROJECT_XML_PROTOCOL.list.attrs.foldInvisibleItems,
 				);
 				if (foldInvisibleItems !== undefined) g.setFoldInvisibleItems?.(parseBool(foldInvisibleItems));
+				const autoClearItems = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.list.attrs.autoClearItems);
+				if (autoClearItems !== undefined) g.setAutoClearItems?.(parseBool(autoClearItems));
 				// Parse static list items
 				const listItemChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.list, 'item');
 				const items = listItemChildName ? ensureArray(attrs[listItemChildName]) : [];
@@ -1490,6 +1525,10 @@ export function createDisplayObject(
 				obj.addRelation(rel);
 			}
 		}
+		if (obj.propertyType === 'GComponent') {
+			(obj as ReturnType<Document['createGComponent']>)
+				.setPropertyOverrides(parsePropertyOverrides(attrs, PROJECT_XML_PROTOCOL.componentInstance));
+		}
 
 		// Parse extension overlay data for child component instances
 		// e.g. <component id="n18" src="rpmb10"><Button title="点我" icon="..."/></component>
@@ -1530,6 +1569,8 @@ export function createDisplayObject(
 				if (selectionController !== undefined) componentObj.setInstanceSelectionController?.(selectionController);
 				const visibleItemCount = extSpecs.visibleItemCount ? readXmlAttr<string | number>(extAttrs, extSpecs.visibleItemCount) : undefined;
 				if (visibleItemCount !== undefined) componentObj.setInstanceVisibleItemCount?.(parseInt2(visibleItemCount));
+				const autoClearItems = extSpecs.autoClearItems ? readXmlAttr<string | boolean>(extAttrs, extSpecs.autoClearItems) : undefined;
+				if (autoClearItems !== undefined) componentObj.setInstanceAutoClearItems?.(parseBool(autoClearItems));
 				const value = extSpecs.value ? readXmlAttr<string | number>(extAttrs, extSpecs.value) : undefined;
 				if (value !== undefined) componentObj.setInstanceValue?.(parseInt2(value));
 				const max = extSpecs.max ? readXmlAttr<string | number>(extAttrs, extSpecs.max) : undefined;
