@@ -246,9 +246,12 @@ export async function collectImage(
 					.toBuffer();
 				sourceHasAlpha = true;
 			}
-		} catch {
+		} catch (error) {
 			if (options.strictOutput) {
-				throw new Error(`atlas: Could not read image "${filePath}".`);
+				const detail = error instanceof Error && error.message.startsWith('publishBrowser:')
+					? ` ${error.message}`
+					: '';
+				throw new Error(`atlas: Could not read image "${filePath}".${detail}`);
 			}
 			if (origW === 0 || origH === 0) {
 				logger.warn(`atlas: Could not read image "${filePath}", skipping.`);

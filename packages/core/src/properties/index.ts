@@ -39,8 +39,8 @@ export { GGroup } from './g-group.js';
 export { GLoader } from './g-loader.js';
 export { GLoader3D } from './g-loader-3d.js';
 export { GMovieClip } from './g-movie-clip.js';
-export { GComponent } from './g-component.js';
-export { GList } from './g-list.js';
+export { GComponent, type GComponentPropertyOverride } from './g-component.js';
+export { GList, type GListItemData } from './g-list.js';
 export {
 	GTree,
 	type GTreeItemTemplateInfo,

@@ -158,6 +158,7 @@ type WritableComponent = Component & {
 	getWholeNumbers?(): boolean;
 	getChangeOnClick?(): boolean;
 	getFixedGripSize?(): boolean;
+	getAutoClearItems?(): boolean;
 	getCustomProperties?(): Array<{ target: string; propertyId: 0 | 1; label: string }>;
 };
 
@@ -324,6 +325,7 @@ export async function writeComponent(
 				case 'ComboBox':
 					if (typedComp.getDropdown?.()) writeXmlAttr(extAttrs, extSpecs.dropdown, typedComp.getDropdown?.());
 					if (typedComp.getSelectionController?.()) writeXmlAttr(extAttrs, extSpecs.selectionController, typedComp.getSelectionController?.());
+					if (typedComp.getAutoClearItems?.()) writeXmlAttr(extAttrs, extSpecs.autoClearItems, 'true');
 					break;
 				case 'Label':
 					if (typedComp.getPromptText?.()) writeXmlAttr(extAttrs, extSpecs.prompt, typedComp.getPromptText?.());

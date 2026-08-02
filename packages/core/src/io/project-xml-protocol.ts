@@ -452,6 +452,7 @@ const COMBOBOX_EXTENSION_ATTRS = {
 	icon: { canonical: 'icon' },
 	visibleItemCount: { canonical: 'visibleItemCount' },
 	selectionController: { canonical: 'selectionController' },
+	autoClearItems: { canonical: 'autoClearItems' },
 } satisfies XmlAttrMap;
 
 const PROGRESSBAR_EXTENSION_ATTRS = {
@@ -485,6 +486,12 @@ const CUSTOM_PROPERTY_ATTRS = {
 	target: { canonical: 'target' },
 	propertyId: { canonical: 'propertyId' },
 	label: { canonical: 'label' },
+} satisfies XmlAttrMap;
+
+const PROPERTY_OVERRIDE_ATTRS = {
+	target: { canonical: 'target' },
+	propertyId: { canonical: 'propertyId' },
+	value: { canonical: 'value' },
 } satisfies XmlAttrMap;
 
 const GEAR_ATTRS = {
@@ -590,10 +597,13 @@ const SLIDER_EXTENSION_NODE = defineNode(SLIDER_EXTENSION_ATTRS);
 const SCROLLBAR_EXTENSION_NODE = defineNode(SCROLLBAR_EXTENSION_ATTRS);
 const RELATION_NODE = defineNode(RELATION_ATTRS);
 const CUSTOM_PROPERTY_NODE = defineNode(CUSTOM_PROPERTY_ATTRS);
+const PROPERTY_OVERRIDE_NODE = defineNode(PROPERTY_OVERRIDE_ATTRS);
 const GEAR_NODE = defineNode(GEAR_ATTRS);
 const CONTROLLER_ACTION_NODE = defineNode(CONTROLLER_ACTION_ATTRS);
 const TRANSITION_ITEM_NODE = defineNode(TRANSITION_ITEM_ATTRS);
-const LIST_ITEM_NODE = defineNode(LIST_ITEM_ATTRS);
+const LIST_ITEM_NODE = defineNode(LIST_ITEM_ATTRS, {
+	property: PROPERTY_OVERRIDE_NODE,
+});
 const COMBOBOX_ITEM_NODE = defineNode(COMBOBOX_ITEM_ATTRS);
 
 const WITH_RELATION_CHILDREN = {
@@ -740,6 +750,7 @@ const COMPONENT_INSTANCE_NODE = defineNode(
 		WITH_RELATION_CHILDREN,
 		WITH_GEAR_CHILDREN,
 		WITH_INSTANCE_EXTENSION_CHILDREN,
+		{ property: PROPERTY_OVERRIDE_NODE },
 	),
 );
 
@@ -916,6 +927,7 @@ export const PROJECT_XML_PROTOCOL = {
 	group: GROUP_NODE,
 	list: LIST_NODE,
 	listItem: LIST_ITEM_NODE,
+	propertyOverride: PROPERTY_OVERRIDE_NODE,
 	comboBoxItem: COMBOBOX_ITEM_NODE,
 } satisfies Record<string, XmlNodeProtocol>;
 

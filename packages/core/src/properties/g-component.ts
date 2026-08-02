@@ -1,6 +1,12 @@
 import { type Nullable, PropertyType, OverflowType, ScrollType, ScrollBarDisplayType } from '../constants.js';
 import { GObject, type IGObject } from './g-object.js';
 
+export interface GComponentPropertyOverride {
+	target: string;
+	propertyId: number;
+	value: string;
+}
+
 export interface IGComponent extends IGObject {
 	src: string;
 	x: number;
@@ -53,6 +59,7 @@ export interface IGComponent extends IGObject {
 	instancePromptText: string;
 	instanceSelectionController: string;
 	instanceVisibleItemCount: number;
+	instanceAutoClearItems: boolean;
 	instanceValue: number;
 	instanceMax: number;
 	instanceMin: number;
@@ -61,6 +68,7 @@ export interface IGComponent extends IGObject {
 		value: string | null;
 		icon: string | null;
 	}>;
+	propertyOverrides: GComponentPropertyOverride[];
 }
 
 function firstString(value: unknown): string {
@@ -139,10 +147,12 @@ export class GComponent<
 			instancePromptText: '',
 			instanceSelectionController: '',
 			instanceVisibleItemCount: 0,
+			instanceAutoClearItems: false,
 			instanceValue: 0,
 			instanceMax: 0,
 			instanceMin: 0,
 			instanceComboItems: [] as IGComponent['instanceComboItems'],
+			propertyOverrides: [] as GComponentPropertyOverride[],
 		}) as Nullable<TProps>;
 	}
 
@@ -300,6 +310,9 @@ export class GComponent<
 	public getInstanceVisibleItemCount(): number { return this.getComponentProp('instanceVisibleItemCount'); }
 	public setInstanceVisibleItemCount(v: number): this { return this.setComponentProp('instanceVisibleItemCount', v); }
 
+	public getInstanceAutoClearItems(): boolean { return this.getComponentProp('instanceAutoClearItems'); }
+	public setInstanceAutoClearItems(v: boolean): this { return this.setComponentProp('instanceAutoClearItems', v); }
+
 	public getInstanceValue(): number { return this.getComponentProp('instanceValue'); }
 	public setInstanceValue(v: number): this { return this.setComponentProp('instanceValue', v); }
 
@@ -314,6 +327,13 @@ export class GComponent<
 	}
 	public setInstanceComboItems(v: IGComponent['instanceComboItems']): this {
 		return this.set('instanceComboItems' as never, v as never);
+	}
+
+	public getPropertyOverrides(): GComponentPropertyOverride[] {
+		return this.getComponentProp('propertyOverrides').map((property) => ({ ...property }));
+	}
+	public setPropertyOverrides(v: GComponentPropertyOverride[]): this {
+		return this.setComponentProp('propertyOverrides', v.map((property) => ({ ...property })));
 	}
 
 	public getMargin(): [number, number, number, number] { return this.getComponentProp('margin'); }

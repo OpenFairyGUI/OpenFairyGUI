@@ -15,6 +15,7 @@ import {
 	type UamGearBinding,
 	type UamGraphProperties,
 	type UamGroupProperties,
+	type UamListNode,
 	type UamPackage,
 	type UamProject,
 	type UamTransactionOperation,
@@ -2857,6 +2858,130 @@ test('saveSession force materializes a clean browser-safe session', async (t) =>
 		t.true(saved.data.writtenPaths.some((filePath) => filePath.endsWith('Project.fairy')));
 	}
 	t.true(storage.hasFile('Project.fairy'));
+});
+
+test('browser-safe clean save preserves property overrides and autoClearItems', async (t) => {
+	const project = createBackendFixtureProject();
+	const resource = project.packages[0]?.resources.find((candidate) => candidate.id === 'cmp001');
+	if (resource?.kind !== 'component') {
+		t.fail('expected component fixture');
+		return;
+	}
+	resource.component.properties.extensionType = 'ComboBox';
+	resource.component.properties.autoClearItems = true;
+	const image = resource.component.displayList[0];
+	if (image?.kind !== 'image') {
+		t.fail('expected image fixture');
+		return;
+	}
+	const { resource: _imageResource, ...base } = structuredClone(image);
+	const list: UamListNode = {
+		...base,
+		kind: 'list',
+		id: 'list-overrides',
+		name: 'list-overrides',
+		layout: 0,
+		align: 0,
+		vAlign: 0,
+		lineGap: 0,
+		columnGap: 0,
+		lineCount: 0,
+		columnCount: 0,
+		selectionMode: 0,
+		defaultItem: '',
+		autoResizeItem: true,
+		childrenRenderOrder: 0,
+		apexIndex: 0,
+		src: '',
+		overflow: 0,
+		scrollType: 1,
+		scrollBarFlags: 0,
+		scrollBarMargin: { top: 0, bottom: 0, left: 0, right: 0 },
+		vtScrollBarRes: '',
+		hzScrollBarRes: '',
+		headerRes: '',
+		footerRes: '',
+		margin: { top: 0, bottom: 0, left: 0, right: 0 },
+		clipSoftness: { x: 0, y: 0 },
+		scrollItemToViewOnClick: true,
+		foldInvisibleItems: false,
+		autoClearItems: true,
+		listItems: [{
+			title: 'First',
+			icon: null,
+			url: null,
+			name: null,
+			selectedTitle: null,
+			selectedIcon: null,
+			level: 0,
+			isFolder: null,
+			controllers: null,
+			propertyOverrides: [
+				{ target: 'title', propertyId: 0, value: 'First override' },
+				{ target: 'icon', propertyId: 1, value: 'ui://pkg001cmp001' },
+			],
+		}],
+		pageController: '',
+		controllerOverrides: '',
+		selectionController: '',
+	};
+	const instance: UamComponentRefNode = {
+		...base,
+		kind: 'component',
+		id: 'component-overrides',
+		name: 'component-overrides',
+		resource: { resourceId: 'cmp001' },
+		propertyOverrides: [
+			{ target: 'title', propertyId: 0, value: 'Instance override' },
+			{ target: 'icon', propertyId: 1, value: 'ui://pkg001cmp001' },
+		],
+		instanceProperties: {
+			extensionType: 'ComboBox',
+			title: '',
+			icon: '',
+			visibleItemCount: 0,
+			selectionController: '',
+			autoClearItems: true,
+			items: [],
+		},
+	};
+	resource.component.displayList.push(list, instance);
+
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({
+		project,
+		storage: { fileSystem, fairyPath: 'Project.fairy' },
+	});
+	t.true(opened.ok);
+	if (!opened.ok) return;
+	const saved = await runtime.saveSession({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 0,
+		force: true,
+		mode: 'materializeCleanSession',
+	});
+	t.true(saved.ok);
+	if (!saved.ok) return;
+	const savedXml = await storage.readFile('assets/Main/MainView.xml');
+	t.regex(savedXml, /<component\b[^>]*id="component-overrides"[^>]*>[\s\S]*?<property\b[^>]*target="title"/);
+
+	const reloaded = normalizeUamProject(liftDocumentToUamProject(await new ProjectReader(fileSystem).read('Project.fairy')));
+	const reloadedResource = reloaded.packages[0]?.resources.find((candidate) => candidate.id === 'cmp001');
+	if (reloadedResource?.kind !== 'component') {
+		t.fail('expected reloaded component');
+		return;
+	}
+	const reloadedList = reloadedResource.component.displayList.find((node) => node.id === list.id);
+	const reloadedInstance = reloadedResource.component.displayList.find((node) => node.id === instance.id);
+	t.true(reloadedResource.component.properties.autoClearItems);
+	t.deepEqual(reloadedList?.kind === 'list' ? reloadedList.listItems[0]?.propertyOverrides : null, list.listItems[0]?.propertyOverrides);
+	t.true(reloadedList?.kind === 'list' && reloadedList.autoClearItems);
+	t.deepEqual(reloadedInstance?.kind === 'component' ? reloadedInstance.propertyOverrides : null, instance.propertyOverrides);
+	t.true(reloadedInstance?.kind === 'component'
+		&& reloadedInstance.instanceProperties?.extensionType === 'ComboBox'
+		&& reloadedInstance.instanceProperties.autoClearItems);
 });
 
 test('materializeSession reports stable validation diagnostics before write', async (t) => {

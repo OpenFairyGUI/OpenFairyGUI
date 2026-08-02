@@ -455,11 +455,13 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 	if (child.propertyType === PropertyType.G_COMPONENT) {
 		const component = child as ReturnType<Document['createGComponent']>;
 		const instanceProperties = liftComponentInstanceProperties(component);
+		const propertyOverrides = component.getPropertyOverrides();
 		return {
 			kind: 'component',
 			...liftDisplayNodeBase(component),
 			group: component.getGroup(),
 			resource: { packageId: component.getPackageId(), resourceId: component.getSrc() },
+			...(propertyOverrides.length > 0 ? { propertyOverrides } : {}),
 			...(instanceProperties ? { instanceProperties } : {}),
 		};
 	}
@@ -493,6 +495,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			clipSoftness: list.getClipSoftness(),
 			scrollItemToViewOnClick: list.getScrollItemToViewOnClick(),
 			foldInvisibleItems: list.getFoldInvisibleItems(),
+			autoClearItems: list.getAutoClearItems(),
 			listItems: cloneListItems(list.getListItems()),
 			pageController: list.getPageController(),
 			controllerOverrides: list.getControllerOverrides(),
@@ -705,6 +708,7 @@ function liftComponentInstanceProperties(
 				icon: component.getInstanceIcon(),
 				visibleItemCount: component.getInstanceVisibleItemCount(),
 				selectionController: component.getInstanceSelectionController(),
+				autoClearItems: component.getInstanceAutoClearItems(),
 				items: component.getInstanceComboItems().map((item) => ({ ...item })),
 			};
 		case 'ProgressBar':
@@ -846,6 +850,7 @@ function liftComponentProperties(
 		wholeNumbers: resource.getWholeNumbers(),
 		changeOnClick: resource.getChangeOnClick(),
 		fixedGripSize: resource.getFixedGripSize(),
+		autoClearItems: resource.getAutoClearItems(),
 		customProperties: resource.getCustomProperties(),
 	};
 }

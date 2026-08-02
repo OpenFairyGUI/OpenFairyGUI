@@ -9,6 +9,7 @@ export {
 	type UamColorGearValue,
 	type UamComboBoxNode,
 	type UamComponentCustomProperty,
+	type UamComponentPropertyOverride,
 	type UamComponentInstanceComboItem,
 	type UamComponentInstanceProperties,
 	type UamComponentModel,

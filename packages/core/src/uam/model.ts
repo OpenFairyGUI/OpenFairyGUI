@@ -206,6 +206,12 @@ export interface UamComponentCustomProperty {
 	label: string;
 }
 
+export interface UamComponentPropertyOverride {
+	target: string;
+	propertyId: number;
+	value: string;
+}
+
 export interface UamComponentProperties {
 	minSize: UamSize;
 	maxSize: UamSize;
@@ -248,6 +254,7 @@ export interface UamComponentProperties {
 	wholeNumbers: boolean;
 	changeOnClick: boolean;
 	fixedGripSize: boolean;
+	autoClearItems: boolean;
 	customProperties: UamComponentCustomProperty[];
 }
 
@@ -286,6 +293,7 @@ export type UamComponentInstanceProperties =
 		icon: string;
 		visibleItemCount: number;
 		selectionController: string;
+		autoClearItems: boolean;
 		items: UamComponentInstanceComboItem[];
 	}
 	| {
@@ -408,6 +416,7 @@ export interface UamComponentRefNode extends UamGroupableDisplayNodeBase {
 	kind: 'component';
 	resource: UamResourceRef;
 	instanceProperties?: UamComponentInstanceProperties;
+	propertyOverrides?: UamComponentPropertyOverride[];
 }
 
 export interface UamListItemData {
@@ -420,6 +429,7 @@ export interface UamListItemData {
 	level: number;
 	isFolder: boolean | null;
 	controllers?: string | null;
+	propertyOverrides?: UamComponentPropertyOverride[];
 }
 
 export interface UamListProperties {
@@ -448,6 +458,7 @@ export interface UamListProperties {
 	clipSoftness: UamPoint;
 	scrollItemToViewOnClick: boolean;
 	foldInvisibleItems: boolean;
+	autoClearItems: boolean;
 	listItems: UamListItemData[];
 	pageController: string;
 	controllerOverrides: string;

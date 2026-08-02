@@ -1,4 +1,5 @@
 import { type Nullable, PropertyType, ListLayoutType, ListSelectionMode } from '../constants.js';
+import type { GComponentPropertyOverride } from './g-component.js';
 import { GObject, type IGObject } from './g-object.js';
 
 export interface GListItemData {
@@ -11,6 +12,7 @@ export interface GListItemData {
 	level: number;
 	isFolder: boolean | null;
 	controllers?: string | null;
+	propertyOverrides?: GComponentPropertyOverride[];
 }
 
 interface XYLike {
@@ -64,6 +66,7 @@ export interface IListBase extends IGObject {
 	clipSoftness: [number, number];
 	scrollItemToViewOnClick: boolean;
 	foldInvisibleItems: boolean;
+	autoClearItems: boolean;
 	listItems: GListItemData[];
 	pageController: string;
 	controllerOverrides: string;
@@ -124,6 +127,7 @@ export class GListBase<
 			clipSoftness: [0, 0] as [number, number],
 			scrollItemToViewOnClick: true,
 			foldInvisibleItems: false,
+			autoClearItems: false,
 			listItems: [] as GListItemData[],
 			pageController: '',
 			controllerOverrides: '',
@@ -301,6 +305,9 @@ export class GListBase<
 
 	public getFoldInvisibleItems(): boolean { return this.getListProp('foldInvisibleItems'); }
 	public setFoldInvisibleItems(v: boolean): this { return this.setListProp('foldInvisibleItems', v); }
+
+	public getAutoClearItems(): boolean { return this.getListProp('autoClearItems'); }
+	public setAutoClearItems(v: boolean): this { return this.setListProp('autoClearItems', v); }
 
 	public getListItems(): GListItemData[] { return this.get('listItems' as never) as GListItemData[]; }
 	public setListItems(v: GListItemData[]): this { return this.set('listItems' as never, v as never); }

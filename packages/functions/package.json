@@ -78,6 +78,7 @@
 	],
 	"dependencies": {
 		"@openfairygui/core": "workspace:*",
+		"fast-xml-parser": "^5.0.0",
 		"jiti": "^2.6.1"
 	},
 	"optionalDependencies": {
