@@ -41,6 +41,15 @@ class MemoryBrowserStorage implements BackendAsyncStorageAdapter {
 		return this.directories.has(this.normalize(dirPath));
 	}
 
+	public snapshot(): { files: Array<[string, number[]]>; directories: string[] } {
+		return {
+			files: [...this.files.entries()]
+				.map(([filePath, data]) => [filePath, [...data]] as [string, number[]])
+				.sort(([left], [right]) => left.localeCompare(right)),
+			directories: [...this.directories].sort(),
+		};
+	}
+
 	public async readFile(filePath: string): Promise<string> {
 		const data = await this.readFileRaw(filePath);
 		return new TextDecoder().decode(data);
@@ -2291,8 +2300,6 @@ test('browser-safe LayaBox storage sessions reject lossy UAM saves before touchi
 	const projectRoot = 'LayaBoxProject';
 	const fairyPath = `${projectRoot}/${path.basename(LAYABOX_PROJECT_PATH)}`;
 	await copyDirectoryToStorage(storage, path.dirname(LAYABOX_PROJECT_PATH), projectRoot);
-	const originalFairy = await storage.readFileRaw(fairyPath);
-
 	const fileSystem = createBackendStorageFileSystem(storage);
 	const reader = new ProjectReader(fileSystem);
 	const initial = normalizeUamProject(liftDocumentToUamProject(await reader.read(fairyPath, { hydrateResourceBytes: true })));
@@ -2379,11 +2386,21 @@ test('browser-safe LayaBox storage sessions reject lossy UAM saves before touchi
 		t.true(appliedRename.ok);
 		if (!appliedRename.ok) return;
 		revision = appliedRename.data.revision;
+		const storageBeforeRejectedWrites = storage.snapshot();
 		const renamedSave = await runtime.saveSession({ sessionId, expectedRevision: revision });
 		t.false(renamedSave.ok);
 		if (!renamedSave.ok) {
 			t.is(renamedSave.error.code, 'uam_fidelity_unsupported');
-			t.deepEqual(await storage.readFileRaw(fairyPath), originalFairy);
+			t.deepEqual(storage.snapshot(), storageBeforeRejectedWrites);
+			const materialized = await runtime.materializeSession({
+				sessionId,
+				expectedRevision: revision,
+				mode: 'fullProject',
+				reason: 'issue_87_fidelity_guard',
+			});
+			t.false(materialized.ok);
+			if (!materialized.ok) t.is(materialized.error.code, 'uam_fidelity_unsupported');
+			t.deepEqual(storage.snapshot(), storageBeforeRejectedWrites);
 			return;
 		}
 
@@ -2590,6 +2607,61 @@ test('browser-safe LayaBox storage sessions reject lossy UAM saves before touchi
 		t.false(finalNode?.gears.some((gear) => gear.controllerName === gearTarget.controllerName && gears.some((candidate) => candidate.kind === gear.kind)) ?? true);
 	} finally {
 		if (sessionId) await runtime.closeSession({ sessionId });
+	}
+});
+
+test('browser storage openSession preserves full UAM fidelity and saves verified projects', async (t) => {
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const fairyPath = 'VerifiedProject/Project.fairy';
+	const bootstrapRuntime = new BackendRuntime();
+	const bootstrap = bootstrapRuntime.openProjectSession({
+		project: createBackendFixtureProject(),
+		storage: { fileSystem, fairyPath },
+	});
+	t.true(bootstrap.ok);
+	if (!bootstrap.ok) return;
+	const bootstrapped = await bootstrapRuntime.materializeSession({
+		sessionId: bootstrap.data.sessionId,
+		expectedRevision: bootstrap.data.revision,
+		mode: 'fullProject',
+		reason: 'workspace_bootstrap',
+	});
+	t.true(bootstrapped.ok);
+	await bootstrapRuntime.closeSession({ sessionId: bootstrap.data.sessionId });
+	if (!bootstrapped.ok) return;
+
+	const runtime = new BackendRuntime({ fileSystem });
+	const opened = await runtime.openSession({ projectPath: 'VerifiedProject' });
+	t.true(opened.ok);
+	if (!opened.ok) return;
+	t.is(opened.data.uamFidelity, 'full');
+	try {
+		const applied = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: opened.data.revision,
+			operations: [{
+				kind: 'setDisplayNodeProps',
+				selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+				props: { text: 'Verified browser save' },
+			}],
+		});
+		t.true(applied.ok);
+		if (!applied.ok) return;
+		const saved = await runtime.saveSession({
+			sessionId: opened.data.sessionId,
+			expectedRevision: applied.data.revision,
+		});
+		t.true(saved.ok);
+		if (!saved.ok) return;
+		const reloaded = normalizeUamProject(liftDocumentToUamProject(await new ProjectReader(fileSystem).read(fairyPath)));
+		const component = reloaded.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+		const node = component?.kind === 'component'
+			? component.component.displayList.find((candidate) => candidate.id === 'n1')
+			: null;
+		t.is(node?.kind === 'text' ? node.text : null, 'Verified browser save');
+	} finally {
+		await runtime.closeSession({ sessionId: opened.data.sessionId });
 	}
 });
 

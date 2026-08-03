@@ -474,10 +474,12 @@ export interface ApplySessionTransactionInput {
 }
 
 export interface OpenProjectSessionInput {
+	/** Authoritative UAM project. Use BackendRuntime.openSession() when importing an existing project from storage. */
 	project: UamProject;
 	sessionId?: string;
 	canonicalProjectPath?: string;
 	canonicalPathKey?: string;
+	/** Optional writeback target for the authoritative UAM project; this is not an import source. */
 	storage?: BackendProjectSessionStorage;
 }
 
