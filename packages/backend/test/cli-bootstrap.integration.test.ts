@@ -1,8 +1,11 @@
 import test from 'ava';
 import fs from 'node:fs/promises';
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import { createTempBackendProject } from './helpers.js';
+
+const execFileAsync = promisify(execFile);
 
 async function readPackageVersion(packageJsonPath: string): Promise<string> {
 	const manifest = JSON.parse(await fs.readFile(path.resolve(packageJsonPath), 'utf-8')) as { version?: unknown };
@@ -38,8 +41,13 @@ function runCli(args: string[]): Promise<string> {
 	});
 }
 
-test('CLI bootstrap reports package version', async (t) => {
-	const output = await runCli(['--version']);
+test.serial('built CLI bootstrap reports package version', async (t) => {
+	const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+	await execFileAsync(pnpmCommand, ['--filter', '@openfairygui/cli', 'build'], {
+		cwd: path.resolve('.'),
+		shell: process.platform === 'win32',
+	});
+	const { stdout: output } = await execFileAsync(process.execPath, [path.resolve('packages/cli/bin/cli.cjs'), '--version']);
 	const expectedVersion = await readPackageVersion('packages/cli/package.json');
 
 	t.is(output.trim(), expectedVersion);

@@ -10,9 +10,10 @@ import {
 } from './tool-definitions.js';
 
 const require = createRequire(import.meta.url);
+declare const __OPENFAIRYGUI_PACKAGE_VERSION__: string | undefined;
 
 function getInjectedPackageVersion(): string | null {
-	const version = (import.meta as ImportMeta & { env?: { PACKAGE_VERSION?: string } }).env?.PACKAGE_VERSION;
+	const version = typeof __OPENFAIRYGUI_PACKAGE_VERSION__ === 'string' ? __OPENFAIRYGUI_PACKAGE_VERSION__ : null;
 	return typeof version === 'string' && version.length > 0 ? version : null;
 }
 

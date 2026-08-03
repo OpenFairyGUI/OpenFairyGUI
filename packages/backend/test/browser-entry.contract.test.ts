@@ -1,7 +1,12 @@
 import test from 'ava';
+import { execFile } from 'node:child_process';
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import { BackendRuntime } from '../src/index.js';
+
+const execFileAsync = promisify(execFile);
 
 const PUBLISHED_PACKAGES = [
 	'packages/core/package.json',
@@ -99,4 +104,23 @@ test('root browser-safe barrels do not export NodeIO', async (t) => {
 
 	t.false(coreRoot.includes('NodeIO'));
 	t.false(coreIoRoot.includes('NodeIO'));
+});
+
+test.serial('built backend CommonJS root does not load the Node bridge', async (t) => {
+	const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+	const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-backend-build-'));
+	try {
+		await execFileAsync(pnpmCommand, ['--filter', '@openfairygui/backend', 'exec', 'tsdown', '--out-dir', outputDir], {
+			cwd: path.resolve('.'),
+			shell: process.platform === 'win32',
+		});
+		const rootPath = path.join(outputDir, 'index.cjs');
+		const rootEntry = await fs.readFile(rootPath, 'utf-8');
+		const { stderr } = await execFileAsync(process.execPath, ['--trace-warnings', '-e', `require(${JSON.stringify(rootPath)})`]);
+
+		t.false(rootEntry.includes('node:fs'));
+		t.is(stderr, '');
+	} finally {
+		await fs.rm(outputDir, { recursive: true, force: true });
+	}
 });

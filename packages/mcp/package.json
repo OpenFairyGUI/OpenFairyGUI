@@ -1,6 +1,6 @@
 {
 	"name": "@openfairygui/mcp",
-	"version": "0.2.0-alpha.3",
+	"version": "0.2.0",
 	"description": "FairyGUI Headless Authoring SDK - MCP server adapter for the backend runtime.",
 	"author": "OpenFairyGUI Contributors",
 	"license": "MIT",
@@ -44,8 +44,8 @@
 		"ofgui-mcp": "bin/ofgui-mcp.cjs"
 	},
 	"scripts": {
-		"build": "tsdown src/index.ts src/stdio.ts --format esm,cjs --platform node --external node:fs --external node:path --external node:fs/promises --env.PACKAGE_VERSION=$npm_package_version",
-		"build:watch": "tsdown src/index.ts src/stdio.ts --watch --format esm,cjs --platform node --env.PACKAGE_VERSION=$npm_package_version",
+		"build": "tsdown src/index.ts src/stdio.ts --format esm,cjs --platform node --external node:fs --external node:path --external node:fs/promises",
+		"build:watch": "tsdown src/index.ts src/stdio.ts --watch --format esm,cjs --platform node",
 		"test": "ava test/**/*.test.ts --no-worker-threads"
 	},
 	"files": [

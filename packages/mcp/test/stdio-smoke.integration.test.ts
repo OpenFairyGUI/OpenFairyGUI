@@ -42,6 +42,8 @@ test.serial('MCP P1 built stdio entrypoint supports initialize and tools/list', 
 
 	await client.connect(transport);
 	try {
+		const manifest = JSON.parse(await (await import('node:fs/promises')).readFile(path.join(root, 'packages/mcp/package.json'), 'utf8')) as { version: string };
+		t.is(client.getServerVersion()?.version, manifest.version);
 		const tools = await client.listTools();
 		t.deepEqual(
 			tools.tools.map((tool) => tool.name),

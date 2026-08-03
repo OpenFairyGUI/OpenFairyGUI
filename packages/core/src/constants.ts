@@ -2,7 +2,8 @@
  * Current version of the package.
  * @hidden
  */
-export const VERSION: string = `v${(import.meta as Record<string, any>).env?.PACKAGE_VERSION ?? '0.0.0-dev'}`;
+declare const __OPENFAIRYGUI_PACKAGE_VERSION__: string | undefined;
+export const VERSION: string = `v${typeof __OPENFAIRYGUI_PACKAGE_VERSION__ === 'string' ? __OPENFAIRYGUI_PACKAGE_VERSION__ : '0.0.0-dev'}`;
 
 /** @internal */
 export const NAME = '@openfairygui/core';
