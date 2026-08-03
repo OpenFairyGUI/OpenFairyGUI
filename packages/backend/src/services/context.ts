@@ -15,6 +15,7 @@ import type {
 	BackendFileSystem,
 	BackendHostAdapter,
 	BackendJobSnapshot,
+	BackendSessionLock,
 	BackendSessionSnapshot,
 	BackendSuccess,
 } from '../runtime.js';
@@ -25,6 +26,7 @@ export interface BackendSessionState {
 	canonicalProjectPath: string;
 	canonicalPathKey: string;
 	lockFilePath: string;
+	sessionLock: BackendSessionLock | null;
 	fileSystem?: BackendFileSystem;
 	project: import('@openfairygui/core/uam').UamProject;
 	uamFidelity: 'full' | 'unsupported';

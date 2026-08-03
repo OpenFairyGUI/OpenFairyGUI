@@ -9,8 +9,8 @@ import { normalizeComparablePath, resolveCanonicalProjectRoot } from '../path-po
 import type {
 	AdvisoryLockConflictError,
 	BackendCapabilityUnavailableError,
-	BackendFileHandle,
 	BackendResult,
+	BackendSessionLock,
 	BackendSessionSnapshot,
 	InProcessLockConflictError,
 	OpenProjectSessionInput,
@@ -204,10 +204,10 @@ export class RuntimeService {
 			});
 		}
 
-		let advisoryLock: BackendFileHandle | null = null;
+		let sessionLock: BackendSessionLock | null = null;
 		try {
-			advisoryLock = await fileSystem.openExclusive(lockFilePath);
-			await advisoryLock.writeFile(
+			sessionLock = await fileSystem.acquireSessionLock(lockFilePath);
+			await sessionLock.writeMetadata(
 				JSON.stringify(
 					this.context.host?.lockMetadata?.({
 						canonicalPathKey,
@@ -219,8 +219,6 @@ export class RuntimeService {
 					},
 				),
 			);
-			await advisoryLock.close();
-
 			const reader = new ProjectReader(createProjectReaderFileSystem(fileSystem));
 			const document = await reader.read(fairyPath, { hydrateResourceBytes: true });
 			const project = liftDocumentToUamProject(document);
@@ -231,6 +229,7 @@ export class RuntimeService {
 				canonicalProjectPath,
 				canonicalPathKey,
 				lockFilePath,
+				sessionLock,
 				fileSystem,
 				project,
 				uamFidelity: (await hasFullUamFidelity(document, project)) ? 'full' : 'unsupported',
@@ -253,6 +252,7 @@ export class RuntimeService {
 				revision: session.revision,
 			});
 		} catch (error) {
+			if (sessionLock) await sessionLock.release().catch(() => undefined);
 			if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'EEXIST') {
 				return failure('runtime', startedAt, {
 					code: 'lock_conflict',
@@ -262,9 +262,11 @@ export class RuntimeService {
 					lockFilePath,
 				});
 			}
-			if (advisoryLock) {
-				await advisoryLock.close().catch(() => undefined);
-				await fileSystem.unlink(lockFilePath).catch(() => undefined);
+			if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOTSUP') {
+				return failure('runtime', startedAt, {
+					...createCapabilityUnavailableError('fileSystem'),
+					message: error instanceof Error ? error.message : String(error),
+				});
 			}
 			throw error;
 		}
@@ -300,6 +302,7 @@ export class RuntimeService {
 			canonicalProjectPath,
 			canonicalPathKey,
 			lockFilePath: '',
+			sessionLock: null,
 			fileSystem: storage?.fileSystem,
 			project: normalizeUamProject(input.project),
 			uamFidelity: 'full',
@@ -338,9 +341,8 @@ export class RuntimeService {
 			canonicalPathKey: session.canonicalPathKey,
 			revision: session.revision,
 		});
-		if (this.context.fileSystem && session.lockFilePath) {
-			await this.context.fileSystem.unlink(session.lockFilePath).catch(() => undefined);
-		}
+		await session.sessionLock?.release().catch(() => undefined);
+		session.sessionLock = null;
 		session.lockHeld = false;
 		session.closed = true;
 		this.context.sessions.delete(session.sessionId);

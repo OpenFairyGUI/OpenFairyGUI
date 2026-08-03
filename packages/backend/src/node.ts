@@ -2,11 +2,11 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {
 	BackendRuntime,
-	type BackendFileHandle,
 	type BackendFileStat,
 	type BackendFileSystem,
 	type BackendHostAdapter,
 	type BackendRuntimeOptions,
+	type BackendSessionLock,
 } from './runtime.js';
 
 export function createNodeBackendFileSystem(): BackendFileSystem {
@@ -40,14 +40,27 @@ export function createNodeBackendFileSystem(): BackendFileSystem {
 				return path.resolve(filePath);
 			}
 		},
-		async openExclusive(filePath: string): Promise<BackendFileHandle> {
+		async acquireSessionLock(filePath: string): Promise<BackendSessionLock> {
 			const handle = await fs.open(filePath, 'wx');
+			let closed = false;
+			let released = false;
+			const closeHandle = async (): Promise<void> => {
+				if (closed) return;
+				await handle.close();
+				closed = true;
+			};
 			return {
-				writeFile(content: string): Promise<void> {
-					return handle.writeFile(content, 'utf-8');
+				async writeMetadata(content: string): Promise<void> {
+					await handle.writeFile(content, 'utf-8');
+					await closeHandle();
 				},
-				close(): Promise<void> {
-					return handle.close();
+				async release(): Promise<void> {
+					if (released) return;
+					await closeHandle();
+					await fs.unlink(filePath).catch((error: NodeJS.ErrnoException) => {
+						if (error.code !== 'ENOENT') throw error;
+					});
+					released = true;
 				},
 			};
 		},
@@ -89,11 +102,11 @@ export function createNodeBackendRuntime(options: BackendRuntimeOptions = {}): B
 	});
 }
 
-export { BackendRuntime };
 export type {
-	BackendFileHandle,
 	BackendFileStat,
 	BackendFileSystem,
 	BackendHostAdapter,
 	BackendRuntimeOptions,
+	BackendSessionLock,
 } from './runtime.js';
+export { BackendRuntime };

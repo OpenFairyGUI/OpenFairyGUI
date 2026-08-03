@@ -156,7 +156,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
 		name: 'openfairygui_backend_close_session',
 		backendMethod: 'closeSession',
 		title: 'Close Backend Session',
-		description: 'Close a backend session and release its backend-local advisory lock.',
+		description: 'Close a backend session and release its backend-local session lock.',
 		inputSchema: z.object({ sessionId }),
 		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 		annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },

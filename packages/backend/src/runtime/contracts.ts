@@ -9,9 +9,12 @@ import type {
 } from '../contracts.js';
 import type { PathPolicyViolationError } from '../path-policy.js';
 
-export interface BackendFileHandle {
-	writeFile(content: string): Promise<void>;
-	close(): Promise<void>;
+/** An exclusive lock owned for the lifetime of one backend session. */
+export interface BackendSessionLock {
+	/** Persist optional host metadata without changing lock ownership. */
+	writeMetadata(content: string): Promise<void>;
+	/** Release ownership. Browser implementations must also release when their document terminates. */
+	release(): Promise<void>;
 }
 
 export interface BackendFileStat {
@@ -28,7 +31,7 @@ export interface BackendFileSystem {
 	writeFileRaw(filePath: string, data: Uint8Array): Promise<void>;
 	mkdir(dirPath: string, options?: { recursive?: boolean }): Promise<void>;
 	resolvePath(filePath: string): Promise<string>;
-	openExclusive(filePath: string): Promise<BackendFileHandle>;
+	acquireSessionLock(lockPath: string): Promise<BackendSessionLock>;
 	unlink(filePath: string): Promise<void>;
 	rmdir(dirPath: string): Promise<void>;
 	join(...paths: string[]): string;
