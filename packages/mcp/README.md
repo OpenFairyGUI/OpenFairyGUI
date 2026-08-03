@@ -10,9 +10,12 @@ It maps the backend P2 runtime surface into MCP tools:
 
 - `getCapabilities`
 - `openSession`
+- `openProjectSession`
 - `getSession`
+- `getProjectOutline`
 - `applyTransaction`
 - `saveSession`
+- `materializeSession`
 - `closeSession`
 - `getEvents`
 - `getJob`
@@ -33,11 +36,13 @@ P1 also registers MCP-native ergonomics around the same backend surface:
 - read-only resources for identity snapshots:
   - `openfairygui://backend/capabilities`
   - `openfairygui://backend/session/{sessionId}`
+  - `openfairygui://backend/session/{sessionId}/outline`
   - `openfairygui://backend/cache/{sessionId}`
   - `openfairygui://backend/job/{sessionId}/{jobId}`
-- prompts for capability inspection, session open/inspect, revision-checked transactions, save, and runtime polling
+- prompts for capability inspection, session open/inspect, project-outline inspection, revision-checked transactions, save, and runtime polling
 
 Resources return `application/json` text containing the unchanged backend result envelope. Parameterized polling remains tool-based: `getEvents` and `listJobs` are not exposed as resource URI query grammars.
+The project outline is revision-bound and exposes package, resource, folder, display-node, controller-page, and transition identities for transaction planning. It intentionally omits source bytes and full property payloads.
 
 It does **not** redefine transaction selectors, transaction operations, path policy, session semantics, job semantics, cache semantics, or backend error envelopes. Those remain owned by `@openfairygui/backend`, `@openfairygui/functions`, and `@openfairygui/core`.
 
