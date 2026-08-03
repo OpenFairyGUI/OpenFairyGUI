@@ -1,7 +1,5 @@
-import test from 'ava';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { createTestMovieClipJta, getFixtureProjectPath } from '@openfairygui/test-utils';
 import { deriveMovieClipModelFromJta } from '@openfairygui/core';
 import { ProjectReader, ProjectWriter } from '@openfairygui/core/project-io';
 import {
@@ -16,12 +14,19 @@ import {
 	type UamGraphProperties,
 	type UamGroupProperties,
 	type UamListNode,
+	type UamMovieClipResource,
 	type UamPackage,
 	type UamProject,
 	type UamTransactionOperation,
-	type UamMovieClipResource,
 } from '@openfairygui/core/uam';
-import { BackendRuntime, createBackendStorageFileSystem, type BackendAsyncStorageAdapter } from '../src/index.js';
+import { createTestMovieClipJta, getFixtureProjectPath } from '@openfairygui/test-utils';
+import test from 'ava';
+import {
+	type BackendAsyncStorageAdapter,
+	BackendRuntime,
+	type BackendSessionLock,
+	createBackendStorageFileSystem,
+} from '../src/index.js';
 import { createBackendFixtureProject } from './helpers.js';
 
 const LAYABOX_PROJECT_PATH = getFixtureProjectPath(
@@ -32,6 +37,7 @@ const LAYABOX_PROJECT_PATH = getFixtureProjectPath(
 class MemoryBrowserStorage implements BackendAsyncStorageAdapter {
 	private readonly files = new Map<string, Uint8Array>();
 	private readonly directories = new Set<string>(['.']);
+	private readonly sessionLocks = new Set<string>();
 
 	public hasFile(filePath: string): boolean {
 		return this.files.has(this.normalize(filePath));
@@ -113,6 +119,29 @@ class MemoryBrowserStorage implements BackendAsyncStorageAdapter {
 		throw new Error(`Missing path: ${filePath}`);
 	}
 
+	public async acquireSessionLock(lockPath: string): Promise<BackendSessionLock> {
+		const normalized = this.normalize(lockPath);
+		if (this.sessionLocks.has(normalized)) {
+			const error = new Error(`Session lock is already held: ${normalized}`) as Error & { code: string };
+			error.code = 'EEXIST';
+			throw error;
+		}
+		this.sessionLocks.add(normalized);
+		let released = false;
+		return {
+			writeMetadata(): Promise<void> {
+				return Promise.resolve();
+			},
+			release: (): Promise<void> => {
+				if (!released) {
+					released = true;
+					this.sessionLocks.delete(normalized);
+				}
+				return Promise.resolve();
+			},
+		};
+	}
+
 	public async unlink(filePath: string): Promise<void> {
 		this.files.delete(this.normalize(filePath));
 	}
@@ -138,6 +167,36 @@ class MemoryBrowserStorage implements BackendAsyncStorageAdapter {
 		parts.pop();
 		return parts.join('/') || '.';
 	}
+}
+
+class FakeWebLockManager {
+	private readonly heldNames = new Set<string>();
+
+	public abandonAll(): void {
+		this.heldNames.clear();
+	}
+
+	public request<T>(name: string, options: LockOptions, callback: LockGrantedCallback<T>): Promise<T> {
+		const available = !this.heldNames.has(name);
+		const lock = available ? { name, mode: options.mode ?? 'exclusive' } as Lock : null;
+		if (lock) this.heldNames.add(name);
+		return Promise.resolve(callback(lock)).finally(() => {
+			if (lock) this.heldNames.delete(name);
+		});
+	}
+}
+
+function installWebLockManager(lockManager: FakeWebLockManager): () => void {
+	const navigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+	Object.defineProperty(globalThis, 'navigator', {
+		configurable: true,
+		enumerable: true,
+		value: { locks: lockManager },
+	});
+	return () => {
+		if (navigatorDescriptor) Object.defineProperty(globalThis, 'navigator', navigatorDescriptor);
+		else Reflect.deleteProperty(globalThis, 'navigator');
+	};
 }
 
 class FailingMemoryBrowserStorage extends MemoryBrowserStorage {
@@ -565,6 +624,72 @@ test('browser storage adapters require file and folder cleanup primitives', (t) 
 	Object.defineProperty(noRmdir, 'rmdir', { value: undefined });
 	const rmdirError = t.throws(() => createBackendStorageFileSystem(noRmdir as unknown as BackendAsyncStorageAdapter));
 	t.is(rmdirError?.message, 'Storage adapter must provide rmdir() for project resource folder lifecycle writes.');
+});
+
+test.serial('browser Web Locks reject live peers and recover after abrupt owner termination', async (t) => {
+	const lockManager = new FakeWebLockManager();
+	const restoreNavigator = installWebLockManager(lockManager);
+	const storage = new MemoryBrowserStorage();
+	Object.defineProperty(storage, 'acquireSessionLock', { value: undefined });
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const fairyPath = 'Project.fairy';
+	const bootstrapRuntime = new BackendRuntime();
+	const bootstrap = bootstrapRuntime.openProjectSession({
+		project: createBackendFixtureProject(),
+		storage: { fileSystem, fairyPath },
+	});
+	t.true(bootstrap.ok);
+	if (!bootstrap.ok) {
+		restoreNavigator();
+		return;
+	}
+	const materialized = await bootstrapRuntime.materializeSession({
+		sessionId: bootstrap.data.sessionId,
+		expectedRevision: bootstrap.data.revision,
+		mode: 'fullProject',
+		reason: 'workspace_bootstrap',
+	});
+	await bootstrapRuntime.closeSession({ sessionId: bootstrap.data.sessionId });
+	t.true(materialized.ok);
+	if (!materialized.ok) {
+		restoreNavigator();
+		return;
+	}
+
+	const firstRuntime = new BackendRuntime({ fileSystem: createBackendStorageFileSystem(storage) });
+	const first = await firstRuntime.openSession({ projectPath: '.' });
+	t.true(first.ok);
+	if (!first.ok) {
+		restoreNavigator();
+		return;
+	}
+	try {
+		t.is(first.data.uamFidelity, 'full');
+		t.true(first.data.lockHeld);
+		t.false(storage.hasFile('.openfairygui.backend.lock'));
+
+		const peerRuntime = new BackendRuntime({ fileSystem: createBackendStorageFileSystem(storage) });
+		const peer = await peerRuntime.openSession({ projectPath: '.' });
+		t.false(peer.ok);
+		if (!peer.ok) {
+			t.is(peer.error.code, 'lock_conflict');
+			if (peer.error.code === 'lock_conflict') t.is(peer.error.kind, 'advisory_lock_conflict');
+		}
+
+		lockManager.abandonAll();
+		const recoveredRuntime = new BackendRuntime({ fileSystem: createBackendStorageFileSystem(storage) });
+		const recovered = await recoveredRuntime.openSession({ projectPath: '.' });
+		t.true(recovered.ok);
+		if (recovered.ok) {
+			t.is(recovered.data.uamFidelity, 'full');
+			t.true(recovered.data.lockHeld);
+			t.false(storage.hasFile('.openfairygui.backend.lock'));
+			await recoveredRuntime.closeSession({ sessionId: recovered.data.sessionId });
+		}
+	} finally {
+		await firstRuntime.closeSession({ sessionId: first.data.sessionId });
+		restoreNavigator();
+	}
 });
 
 test('browser-safe project session saves through injected async storage', async (t) => {

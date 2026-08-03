@@ -1,5 +1,5 @@
 import type { FileSystem as CoreProjectFileSystem } from '@openfairygui/core/project-io';
-import type { BackendFileHandle, BackendFileStat, BackendFileSystem } from './runtime.js';
+import type { BackendFileStat, BackendFileSystem, BackendSessionLock } from './runtime.js';
 
 type StorageStatKind = 'file' | 'directory';
 
@@ -19,8 +19,13 @@ export interface BackendAsyncStorageAdapter {
 	readdir(dirPath: string): Promise<string[]>;
 	exists?(filePath: string): Promise<boolean>;
 	stat?(filePath: string): Promise<BackendStorageStatLike>;
+	/** Stable cross-context path identity; also scopes the default Web Lock name. */
 	resolvePath?(filePath: string): Promise<string>;
-	openExclusive?(filePath: string): Promise<BackendFileHandle>;
+	/**
+	 * Optional replacement for Web Locks. Acquisition must be atomic across browser contexts, remain held
+	 * until release(), and recover automatically when the owning document terminates.
+	 */
+	acquireSessionLock?(lockPath: string): Promise<BackendSessionLock>;
 	unlink(filePath: string): Promise<void>;
 	rmdir(dirPath: string): Promise<void>;
 	join?(...paths: string[]): string;
@@ -44,6 +49,44 @@ function createPathError(code: string, message: string): Error & { code: string 
 	const error = new Error(message) as Error & { code: string };
 	error.code = code;
 	return error;
+}
+
+function getWebLockManager(): LockManager | null {
+	if (typeof navigator === 'undefined') return null;
+	const lockManager = (navigator as Navigator & { locks?: LockManager }).locks;
+	return lockManager && typeof lockManager.request === 'function' ? lockManager : null;
+}
+
+function acquireWebSessionLock(lockManager: LockManager, lockName: string): Promise<BackendSessionLock> {
+	return new Promise((resolve, reject) => {
+		let releasePlatformLock = (): void => undefined;
+		const held = new Promise<void>((release) => {
+			releasePlatformLock = release;
+		});
+		void lockManager
+			.request(lockName, { mode: 'exclusive', ifAvailable: true }, async (lock) => {
+				if (!lock) {
+					reject(createPathError('EEXIST', `Browser session lock is already held: ${lockName}`));
+					return;
+				}
+				let released = false;
+				resolve({
+					// Web Locks are the authority; a persisted marker would survive abrupt document termination.
+					writeMetadata(): Promise<void> {
+						return Promise.resolve();
+					},
+					release(): Promise<void> {
+						if (!released) {
+							released = true;
+							releasePlatformLock();
+						}
+						return Promise.resolve();
+					},
+				});
+				await held;
+			})
+			.catch(reject);
+	});
 }
 
 function normalizeStoragePath(value: string): string {
@@ -121,8 +164,6 @@ export function createBackendStorageFileSystem(storage: BackendAsyncStorageAdapt
 	if (typeof storage.rmdir !== 'function') {
 		throw createPathError('ENOTSUP', 'Storage adapter must provide rmdir() for project resource folder lifecycle writes.');
 	}
-	const lockedPaths = new Set<string>();
-
 	const fileSystem: BackendStorageFileSystem = {
 		stat(filePath: string): Promise<BackendFileStat> {
 			return inferStat(storage, fileSystem.resolve(filePath));
@@ -158,30 +199,20 @@ export function createBackendStorageFileSystem(storage: BackendAsyncStorageAdapt
 			const resolved = fileSystem.resolve(filePath);
 			return storage.resolvePath ? storage.resolvePath(resolved) : Promise.resolve(resolved);
 		},
-		async openExclusive(filePath: string): Promise<BackendFileHandle> {
-			const resolved = fileSystem.resolve(filePath);
-			if (storage.openExclusive) return storage.openExclusive(resolved);
-			if (lockedPaths.has(resolved) || await fileSystem.exists(resolved)) {
-				throw createPathError('EEXIST', `Storage path already exists: ${resolved}`);
+		async acquireSessionLock(lockPath: string): Promise<BackendSessionLock> {
+			const resolved = fileSystem.resolve(lockPath);
+			if (storage.acquireSessionLock) return storage.acquireSessionLock(resolved);
+			const lockManager = getWebLockManager();
+			if (!lockManager) {
+				throw createPathError(
+					'ENOTSUP',
+					'Browser openSession requires Web Locks or BackendAsyncStorageAdapter.acquireSessionLock().',
+				);
 			}
-			lockedPaths.add(resolved);
-			let closed = false;
-			return {
-				async writeFile(content: string): Promise<void> {
-					if (closed) throw createPathError('EBADF', `Storage lock handle is closed: ${resolved}`);
-					await fileSystem.mkdir(fileSystem.dirname(resolved), { recursive: true });
-					await storage.writeFile(resolved, content);
-				},
-				async close(): Promise<void> {
-					closed = true;
-					lockedPaths.delete(resolved);
-				},
-			};
+			return acquireWebSessionLock(lockManager, `@openfairygui/backend:${resolved}`);
 		},
 		unlink(filePath: string): Promise<void> {
-			const resolved = fileSystem.resolve(filePath);
-			lockedPaths.delete(resolved);
-			return storage.unlink(resolved);
+			return storage.unlink(fileSystem.resolve(filePath));
 		},
 		rmdir(dirPath: string): Promise<void> {
 			return storage.rmdir(fileSystem.resolve(dirPath));

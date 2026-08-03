@@ -13,7 +13,7 @@ It owns:
 - coordinated but non-atomic save semantics
 - browser-safe project sessions
 - browser-safe async project storage adapter
-- adapter-backed file sessions and backend-local advisory locking
+- adapter-backed file sessions and backend-local session locking
 - capability discovery
 - transport-neutral bootstrap
 
@@ -35,7 +35,11 @@ It also does **not** implement MCP or any transport-specific wire protocol.
 The root `@openfairygui/backend` entrypoint is browser-safe: pure authoring sessions can run in memory,
 and browser editors can inject an async storage adapter for OPFS, IndexedDB, ZIP-backed virtual filesystems,
 or File System Access API bridges. Storage adapters must implement `unlink()` so resource rename/move/remove
-can clean up stale source files. The default Node filesystem/runtime lives under `@openfairygui/backend/node`.
+can clean up stale source files. Existing browser projects use a session-lifetime Web Lock: a live peer tab
+receives `lock_conflict`, while reload or abrupt document termination releases ownership without leaving a
+persistent `.openfairygui.backend.lock` marker. When Web Locks are unavailable, the storage adapter must
+provide `acquireSessionLock()` with the same atomic cross-context and owner-termination semantics. The default
+Node filesystem/runtime lives under `@openfairygui/backend/node` and retains its advisory lock file behavior.
 Adapter-backed `openSession` hydrates primary resource bytes so browser-safe transactions can rename/move
 assets or add/replace/remove binary resources. `saveSession` writes replacement bytes before it removes
 stale source files, preserving the prior file when a write fails.
