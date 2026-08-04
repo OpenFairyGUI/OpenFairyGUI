@@ -5,6 +5,9 @@ hero:
   name: OpenFairyGUI
   text: FairyGUI 工程的 Node.js SDK
   tagline: 以代码读取、检查、转换、发布和还原 FairyGUI 工程，适合自动化工作流与工具集成。
+  image:
+    src: /logo.svg
+    alt: OpenFairyGUI logo
   actions:
     - theme: brand
       text: 快速开始

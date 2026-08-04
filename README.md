@@ -1,10 +1,12 @@
 # OpenFairyGUI
 
+<p align="center"><img src="./docs/public/logo.svg" alt="OpenFairyGUI logo" width="160"></p>
+
 [![Documentation](https://img.shields.io/badge/docs-online-0f766e.svg)](https://fairygui.dev/)
 [![npm](https://img.shields.io/badge/npm-%40openfairygui%2Fcore-cb3837.svg)](https://www.npmjs.com/package/@openfairygui/core)
 [![License](https://img.shields.io/badge/license-MIT-007ec6.svg)](./LICENSE)
 
-[English](./README_EN.md) · [官网文档](https://fairygui.dev/) · [快速开始](https://fairygui.dev/guide/getting-started) · [API Reference](https://fairygui.dev/api/)
+[English](./README_EN.md) · [官网文档](https://fairygui.dev/) · [快速开始](https://fairygui.dev/guide/getting-started) · [API Reference](https://fairygui.dev/api/) · [更新日志](./CHANGELOG_CN.md)
 
 > 用 TypeScript 读取、修改和发布 FairyGUI 工程，面向脚本、CI/CD 与智能体工具链。
 

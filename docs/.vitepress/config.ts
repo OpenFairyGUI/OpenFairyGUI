@@ -9,14 +9,18 @@ export default defineConfig({
 	title: 'OpenFairyGUI',
 	description: '面向 Node.js 与自动化工作流的 FairyGUI 工程 SDK。',
 	cleanUrls: true,
-	head: siteUrl
-		? [
-				['meta', { name: 'theme-color', content: '#0f766e' }],
-				['meta', { property: 'og:image', content: `${siteUrl}/og.png` }],
-				['meta', { name: 'twitter:card', content: 'summary_large_image' }],
-			]
-		: [['meta', { name: 'theme-color', content: '#0f766e' }]],
+	head: [
+		['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}logo.svg` }],
+		['meta', { name: 'theme-color', content: '#0f766e' }],
+		...(siteUrl
+			? [
+					['meta', { property: 'og:image', content: `${siteUrl}/og.png` }] as const,
+					['meta', { name: 'twitter:card', content: 'summary_large_image' }] as const,
+				]
+			: []),
+	],
 	themeConfig: {
+		logo: { src: '/logo.svg', alt: 'OpenFairyGUI' },
 		nav: [
 			{ text: '指南', link: '/guide/getting-started' },
 			{ text: '参考文档', link: '/architecture-overview' },
