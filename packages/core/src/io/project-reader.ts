@@ -14,7 +14,7 @@ import {
 	parseInt2,
 	ensureArray,
 } from '../utils/xml-utils.js';
-import { PROJECT_XML_PROTOCOL, readXmlAttr, } from './project-xml-protocol.js';
+import { PROJECT_XML_PROTOCOL, readXmlAttr, type XmlAttrSpec } from './project-xml-protocol.js';
 import { ReaderContext } from './reader-context.js';
 import type { FileSystem } from './file-system.js';
 import { readComponentXml } from './component-xml-reader.js';
@@ -118,6 +118,113 @@ function getXmlNode<T extends XmlNode>(value: unknown): T | null {
 	const node = Array.isArray(value) ? value[0] : value;
 	if (!node || typeof node !== 'object' || Array.isArray(node)) return null;
 	return node as T;
+}
+
+type ProjectInt32Rule = readonly [spec: XmlAttrSpec, partCount: number];
+
+const COMPONENT_INT32_RULES: readonly ProjectInt32Rule[] = [
+	[PROJECT_XML_PROTOCOL.componentRoot.attrs.size, 2],
+	[PROJECT_XML_PROTOCOL.componentRoot.attrs.restrictSize, 4],
+	[PROJECT_XML_PROTOCOL.componentRoot.attrs.margin, 4],
+	[PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarMargin, 4],
+	[PROJECT_XML_PROTOCOL.componentRoot.attrs.clipSoftness, 2],
+	[PROJECT_XML_PROTOCOL.componentRoot.attrs.designImageOffsetX, 1],
+	[PROJECT_XML_PROTOCOL.componentRoot.attrs.designImageOffsetY, 1],
+];
+
+const DISPLAY_OBJECT_INT32_RULES: readonly ProjectInt32Rule[] = [
+	[PROJECT_XML_PROTOCOL.list.attrs.xy, 2],
+	[PROJECT_XML_PROTOCOL.list.attrs.size, 2],
+	[PROJECT_XML_PROTOCOL.list.attrs.restrictSize, 4],
+];
+
+const LIST_INT32_RULES: readonly ProjectInt32Rule[] = [
+	[PROJECT_XML_PROTOCOL.list.attrs.margin, 4],
+	[PROJECT_XML_PROTOCOL.list.attrs.scrollBarMargin, 4],
+	[PROJECT_XML_PROTOCOL.list.attrs.clipSoftness, 2],
+];
+
+function isProjectInt32(value: string): boolean {
+	const trimmed = value.trim();
+	if (!/^[+-]?\d+$/.test(trimmed)) return false;
+	const parsed = BigInt(trimmed);
+	return parsed >= -2_147_483_648n && parsed <= 2_147_483_647n;
+}
+
+function hasInvalidProjectInt32Parts(value: unknown, partCount: number, allowSuffix = false): boolean {
+	const parts = String(value).split(',');
+	if (allowSuffix ? parts.length < partCount : parts.length !== partCount) return true;
+	return parts.slice(0, partCount).some((part) => !isProjectInt32(part));
+}
+
+function validateComponentXmlGeometry(
+	ctx: ReaderContext,
+	comp: Component,
+	sourcePath: string,
+	componentNode: XmlNode,
+): void {
+	const addDiagnostics = (
+		attrs: XmlNode,
+		rules: readonly ProjectInt32Rule[],
+		path: string,
+		nodeId?: string,
+	): void => {
+		for (const [spec, partCount] of rules) {
+			const value = readXmlAttr(attrs, spec);
+			if (value === undefined || !hasInvalidProjectInt32Parts(value, partCount)) continue;
+			ctx.addDiagnostic({
+				severity: 'error',
+				code: 'desktop_incompatible_geometry',
+				path: `${path}.${spec.canonical}`,
+				message: `FairyGUI Desktop requires "${spec.canonical}" to contain ${partCount} signed 32-bit integer value(s); received ${JSON.stringify(String(value))}.`,
+				resourceId: comp.getId(),
+				...(nodeId ? { nodeId } : {}),
+				sourcePath,
+			});
+		}
+	};
+
+	const componentPath = `components.${comp.getId()}`;
+	addDiagnostics(componentNode, COMPONENT_INT32_RULES, `${componentPath}.component`);
+
+	const displayList = getXmlNode<XmlNode>(componentNode.displayList);
+	if (!displayList) return;
+	let nodeIndex = 0;
+	for (const [tagName, definitions] of Object.entries(displayList)) {
+		for (const definition of ensureArray(definitions)) {
+			const attrs = getXmlNode<XmlNode>(definition);
+			if (!attrs) continue;
+			const nodeId = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.id);
+			const nodePath = `${componentPath}.displayList.${nodeIndex++}`;
+			addDiagnostics(attrs, DISPLAY_OBJECT_INT32_RULES, nodePath, nodeId);
+			const normalizedTagName = tagName.toLowerCase();
+			if (normalizedTagName === 'list' || normalizedTagName === 'tree') {
+				addDiagnostics(attrs, LIST_INT32_RULES, nodePath, nodeId);
+			}
+
+			for (const gearTag of ['gearXY', 'gearSize'] as const) {
+				for (const [gearIndex, gearDefinition] of ensureArray(attrs[gearTag]).entries()) {
+					const gear = getXmlNode<XmlNode>(gearDefinition);
+					if (!gear) continue;
+					for (const spec of [PROJECT_XML_PROTOCOL.gear.attrs.values, PROJECT_XML_PROTOCOL.gear.attrs.default]) {
+						const value = readXmlAttr(gear, spec);
+						if (value === undefined || !String(value).split('|').some((segment) => (
+							segment.trim() !== '-' && hasInvalidProjectInt32Parts(segment, 2, true)
+						))) continue;
+						ctx.addDiagnostic({
+							severity: 'error',
+							code: 'desktop_incompatible_geometry',
+							path: `${nodePath}.${gearTag}.${gearIndex}.${spec.canonical}`,
+							message: `FairyGUI Desktop requires each "${gearTag}.${spec.canonical}" segment to start with two signed 32-bit integers; received ${JSON.stringify(String(value))}.`,
+							resourceId: comp.getId(),
+							...(nodeId ? { nodeId } : {}),
+							sourcePath,
+						});
+					}
+				}
+			}
+		}
+	}
 }
 
 function assignSetting(
@@ -275,7 +382,9 @@ export class ProjectReader {
 				const compContent = await fs.readFile(compPath);
 				if (diagnostics) {
 					assertWellFormedXml(compContent);
-					if (!getXmlNode(parseXML(compContent).component)) throw new Error('Component XML must contain a component root element.');
+					const componentNode = getXmlNode<XmlNode>(parseXML(compContent).component);
+					if (!componentNode) throw new Error('Component XML must contain a component root element.');
+					validateComponentXmlGeometry(ctx, comp, compPath, componentNode);
 				}
 				readComponentXml(ctx, comp, compContent);
 			} catch (err) {

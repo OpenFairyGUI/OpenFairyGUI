@@ -82,3 +82,38 @@ test('detailed project reads retain settings and missing-source diagnostics', as
 		await fs.rm(root, { recursive: true, force: true });
 	}
 });
+
+test('detailed project reads report FairyGUI Desktop-incompatible integer geometry', async (t) => {
+	const root = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-read-geometry-'));
+	try {
+		const fairyPath = path.join(root, 'Project.fairy');
+		const componentPath = path.join(root, 'assets', 'Main', 'MainView.xml');
+		const io = new NodeIO();
+		await writeProjectFromUam(io, createMinimalUamProject('validation'), fairyPath);
+		await fs.writeFile(componentPath, `<?xml version="1.0" encoding="utf-8"?>
+<component size="320.5,180" scale="1.25,0.75" designImageOffsetX="2147483648">
+  <displayList>
+    <image id="n0" name="bg" src="img001" xy="2.625,5.25" size="320,180">
+      <gearXY values="1.5,2,0.25,0.5" default="-"/>
+    </image>
+    <list id="n1" xy="0,0" size="100,100" margin="1,2.5,3,4"/>
+  </displayList>
+</component>`, 'utf8');
+
+		const read = await io.readProjectDetailed(fairyPath);
+		const geometryDiagnostics = read.diagnostics.filter((diagnostic) => diagnostic.code === 'desktop_incompatible_geometry');
+		t.truthy(read.document);
+		t.true(read.complete);
+		t.deepEqual(geometryDiagnostics.map((diagnostic) => diagnostic.path), [
+			'components.cmp001.component.size',
+			'components.cmp001.component.designImageOffsetX',
+			'components.cmp001.displayList.0.xy',
+			'components.cmp001.displayList.0.gearXY.0.values',
+			'components.cmp001.displayList.1.margin',
+		]);
+		t.true(geometryDiagnostics.every((diagnostic) => diagnostic.sourcePath === componentPath));
+		t.false(geometryDiagnostics.some((diagnostic) => diagnostic.path.endsWith('.scale')));
+	} finally {
+		await fs.rm(root, { recursive: true, force: true });
+	}
+});
