@@ -9,7 +9,7 @@ npm install @openfairygui/core @openfairygui/functions
 读取工程后，可以检查文档模型，再按需发布或写回：
 
 ```ts
-import { NodeIO } from '@openfairygui/core';
+import { NodeIO } from '@openfairygui/core/node';
 import { inspect } from '@openfairygui/functions';
 
 const io = new NodeIO();

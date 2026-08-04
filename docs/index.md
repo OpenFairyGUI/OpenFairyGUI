@@ -5,6 +5,9 @@ hero:
   name: OpenFairyGUI
   text: FairyGUI 工程的 Node.js SDK
   tagline: 以代码读取、检查、转换、发布和还原 FairyGUI 工程，适合自动化工作流与工具集成。
+  image:
+    src: /logo.svg
+    alt: OpenFairyGUI logo
   actions:
     - theme: brand
       text: 快速开始
@@ -12,6 +15,7 @@ hero:
     - theme: alt
       text: 浏览 API
       link: /api/
+      target: _self
 
 features:
   - title: 工程与发布包双向处理
@@ -26,4 +30,4 @@ features:
 
 先读取 FairyGUI 工程，再围绕 `Document` 进行检查、变换、发布或写回。完整步骤见[快速开始](/guide/getting-started)。
 
-如果你正在补齐工程格式或发布链路，请从[参考文档](/architecture-overview)开始；如果你需要查看可调用的公开符号，请打开[API Reference](/api/)。
+如果你正在补齐工程格式或发布链路，请从[参考文档](/architecture-overview)开始；如果你需要查看可调用的公开符号，请打开 <a href="/api/" target="_self">API Reference</a>。
