@@ -125,6 +125,19 @@
 
 组件根扩展、ComboBox 组件实例和 List/Tree 显示节点使用正式的 `autoClearItems` 布尔属性；缺省值为 `false`，仅在启用时写出。组件实例与静态列表项的有序 `<property target="..." propertyId="..." value="..."/>` 子节点由 UAM 正式属性承载，读取、物化、保存和重新加载均保持原顺序与原始字符串值，包括前后空白、纯空白和空字符串。`target` 必须非空，`propertyId` 必须是非负安全整数，`value` 必须存在；无效输入在物化或写回前拒绝。
 
+## 组件 XML 的整数几何字段
+
+FairyGUI 工程 XML 中由桌面编辑器按有符号 32 位整数读取的几何值，写出时统一向零截断。非有限值或截断后超出 `-2147483648` 至 `2147483647` 的值会拒绝写出。
+
+整数几何字段包括：
+
+- 显示节点的 `xy`、`size`、`restrictSize`。
+- 组件根的 `size`、`restrictSize`、`margin`、`scrollBarMargin`、`clipSoftness` 与 `designImageOffsetX/Y`。
+- List/Tree 的 `margin`、`scrollBarMargin` 与 `clipSoftness`。
+- `gearXY` 的 x/y，以及 `gearSize` 的 width/height。
+
+`pivot`、`scale`、`skew`、`gearXY` 的百分比和 `gearSize` 的缩放值继续保留小数。
+
 ## 工程资源树元数据
 
 `package.xml` 与 `package_branch.xml` 的 component/asset 资源节点使用 `exported="true"` 与 `favorite="true"` 记录导出和收藏状态；未导出、未收藏时省略对应属性。UAM 通过 `resource.exported`、`resource.favorite` 承载这些字段，公开事务分别使用幂等的 `setResourceExported`、`setResourceFavorite` 设置目标布尔值。
