@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title">
+  <title id="title">OpenFairyGUI logo</title>
+  <rect width="1024" height="1024" fill-opacity="0" />
+  <path fill="#ff9b24" d="M215 320c-11 0-20 9-20 20v268c0 17 9 32 24 40l284 160V490c0-37-20-71-52-90L235 325c-6-3-13-5-20-5Z"/>
+  <path fill="#e87d07" d="M330 420l122 75c31 19 51 53 51 90v180L345 676c-9-5-15-15-15-26V420Z"/>
+  <path fill="#ffa41f" d="M195 608c0 17 9 32 24 40l284 160v-57L233 600c-17-10-38-3-38 8Z"/>
+  <path fill="#ffc127" d="M523 804V550c0-57 31-111 81-141l247-148c0 114-44 221-123 300-57 57-133 104-205 135Z"/>
+  <path fill="none" stroke="#e87d07" stroke-linecap="round" stroke-width="25" d="M541 673c72-31 140-73 194-126 52-51 88-112 105-180"/>
+  <path fill="#ffb20e" d="M523 804V647c38-42 93-66 150-68l119 7c-63 91-163 160-269 218Z"/>
+  <path fill="#f7be4b" d="M523 804V700c50-29 95-63 135-102-41 44-86 82-135 113Z"/>
+  <path fill="#fff3d1" d="M513 223c9 81 17 89 98 98-81 9-89 17-98 98-9-81-17-89-98-98 81-9 89-17 98-98Z"/>
+</svg>

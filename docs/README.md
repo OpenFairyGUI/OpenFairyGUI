@@ -2,10 +2,13 @@
 
 本文档目录用于维护协议、设置结构与架构说明，并作为官网静态文档站的内容源。文档以中文为主，只描述当前正式口径，不记录历史兼容方案、过渡结构或未来规划。
 
+[English documentation](./en/README.md)
+
 ## 文档索引
 
 | 文档 | 说明 |
 |---|---|
+| [版本变更记录](https://github.com/OpenFairyGUI/OpenFairyGUI/blob/main/CHANGELOG_CN.md) | 按发布版本汇总公开功能、修复、破坏性变更与维护事项 |
 | [架构图说明](./architecture-overview.md) | 说明 monorepo 包职责、模块边界、核心数据流，以及 `backend` 的 browser-safe storage adapter、`materializeSession`、stateful runtime、service-layer、events/jobs/cache 与 `mcp` 薄适配 / resources / prompts 定位 |
 | [工程验证](./project-validation.md) | 说明工程读取、UAM 完整性、资源与宿主解码验证，以及 API、CLI、Backend、MCP 的统一报告契约 |
 | [编辑器发布设置](./editor-publish-settings.md) | 说明 FairyGUI 编辑器发布设置的结构、字段、默认值与写回规则 |
