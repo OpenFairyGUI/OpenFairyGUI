@@ -1,9 +1,10 @@
-import test from 'ava';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
-import { Document, } from '../src/index.js';
+import test from 'ava';
+import { Document, GearType } from '../src/index.js';
+import { formatProjectInt32 } from '../src/io/display-object-xml-writer.js';
 import { NodeIO } from '../src/node.js';
 
 const _PROJECT_PATH = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
@@ -781,6 +782,91 @@ test('round-trip: tag-scoped locked and restrictSize survive write→read', asyn
 		t.true(byId.get('n4')?.getLocked?.());
 		t.is(byId.get('n4')?.getMaxWidth?.(), 1);
 		t.true(byId.get('n5')?.getLocked?.());
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('writer truncates desktop integer geometry without mutating document values', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectId('integer-geometry').setProjectType(0).setVersion('3.0');
+
+	const pkg = doc.createPackage('IntegerGeometry');
+	pkg.setId('pkgIntegerGeometry');
+
+	const comp = doc.createComponent('Fractional');
+	comp.setId('cmpFractional');
+	comp.setPath('/');
+	comp.setSize(320.75, 240.5);
+	comp.setMinWidth(120.9);
+	comp.setMargin({ top: 1.9, bottom: 2.9, left: -3.9, right: -4.9 });
+	comp.setClipSoftness({ x: 5.9, y: -6.9 });
+	comp.setOverflow(2);
+	comp.setScrollBarMargin({ top: 7.9, bottom: 8.9, left: -9.9, right: -10.9 });
+	comp.setDesignImageOffsetX(-428.9);
+	comp.setDesignImageOffsetY(238.9);
+
+	const ctrl = doc.createController('state');
+	const page = doc.createControllerPage('default');
+	page.setId('0');
+	ctrl.addPage(page);
+	comp.addController(ctrl);
+
+	const image = doc.createGImage('fractional-image');
+	image.setId('n0');
+	image.setXY(2.625, -5.25);
+	image.setSize(16.625, 10.5);
+	image.setMinWidth(11.9);
+	image.setMaxHeight(12.9);
+
+	const xyGear = doc.createGear();
+	xyGear.setGearType(GearType.XY);
+	xyGear.setController(ctrl);
+	xyGear.setPages('0');
+	xyGear.setValues('2.625,-5.25,0.125,0.25');
+	xyGear.setDefaultValue('-3.9,4.9,0.5,0.75');
+	image.addGear(xyGear);
+
+	const sizeGear = doc.createGear();
+	sizeGear.setGearType(GearType.Size);
+	sizeGear.setController(ctrl);
+	sizeGear.setPages('0');
+	sizeGear.setValues('16.625,10.5,1.25,0.75');
+	sizeGear.setDefaultValue('-3.9,4.9,1.5,0.5');
+	image.addGear(sizeGear);
+
+	const list = doc.createGList('fractional-list');
+	list.setId('n1');
+	list.setMargin({ top: 13.9, bottom: 14.9, left: -15.9, right: -16.9 });
+	list.setScrollBarMargin({ top: 17.9, bottom: 18.9, left: -19.9, right: -20.9 });
+	list.setClipSoftness({ x: 21.9, y: -22.9 });
+
+	comp.addChild(image);
+	comp.addChild(list);
+	pkg.addResource(comp);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-integer-geometry-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+
+	try {
+		await io.writeProject(doc, outFairy);
+		const componentXml = await fs.readFile(path.join(tmpDir, 'assets', 'IntegerGeometry', 'Fractional.xml'), 'utf-8');
+
+		t.regex(componentXml, /<component\b(?=[^>]*size="320,240")(?=[^>]*margin="1,2,-3,-4")(?=[^>]*restrictSize="120,0,0,0")(?=[^>]*designImageOffsetX="-428")(?=[^>]*designImageOffsetY="238")(?=[^>]*clipSoftness="5,-6")(?=[^>]*scrollBarMargin="7,8,-9,-10")/);
+		t.regex(componentXml, /<image\b(?=[^>]*id="n0")(?=[^>]*xy="2,-5")(?=[^>]*size="16,10")(?=[^>]*restrictSize="11,0,0,12")/);
+		t.true(componentXml.includes('<gearXY controller="state" pages="0" values="2,-5,0.125,0.25" default="-3,4,0.5,0.75"'));
+		t.true(componentXml.includes('<gearSize controller="state" pages="0" values="16,10,1.25,0.75" default="-3,4,1.50,0.50"'));
+		t.regex(componentXml, /<list\b(?=[^>]*id="n1")(?=[^>]*margin="13,14,-15,-16")(?=[^>]*scrollBarMargin="17,18,-19,-20")(?=[^>]*clipSoftness="21,-22")/);
+
+		t.is(comp.getWidth(), 320.75);
+		t.is(image.getX(), 2.625);
+		t.is(image.getWidth(), 16.625);
+		t.is(xyGear.getValues(), '2.625,-5.25,0.125,0.25');
+		t.deepEqual(list.getMargin(), { top: 13.9, bottom: 14.9, left: -15.9, right: -16.9 });
+		t.is(formatProjectInt32(-0.5), '0');
+		t.throws(() => formatProjectInt32(Number.POSITIVE_INFINITY), { message: /must be finite/ });
+		t.throws(() => formatProjectInt32(2_147_483_648), { message: /signed 32-bit integer/ });
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

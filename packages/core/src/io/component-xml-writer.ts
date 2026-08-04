@@ -3,17 +3,19 @@ import { ControllerActionType, TransitionActionType } from '../constants.js';
 import type { Component } from '../properties/component.js';
 import type { Controller } from '../properties/controller.js';
 import type { Transition } from '../properties/transition.js';
-import type { FileSystem } from './file-system.js';
 import {
 	EXTENSION_PROTOCOL_MAP,
 	formatButtonDownEffectValue,
 	formatButtonMode,
 	formatInsets,
+	formatProjectInt32,
+	formatProjectInt32List,
 	formatTitleType,
 	getProtocolChildName,
 	hasNonZeroInsets,
 	serializeDisplayList,
 } from './display-object-xml-writer.js';
+import type { FileSystem } from './file-system.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr } from './project-xml-protocol.js';
 
 const builder = new XMLBuilder({
@@ -188,7 +190,7 @@ export async function writeComponent(
 
 		const compAttrs: Record<string, unknown> = {};
 		const [w, h] = [typedComp.getWidth?.() ?? 0, typedComp.getHeight?.() ?? 0];
-		if (w || h) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.size, `${w},${h}`);
+		if (w || h) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.size, formatProjectInt32List([w, h], 'component size'));
 		const [pivotX, pivotY] = [typedComp.getPivotX?.() ?? 0, typedComp.getPivotY?.() ?? 0];
 		if (pivotX !== 0 || pivotY !== 0) {
 			writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.pivot, `${pivotX},${pivotY}`);
@@ -200,7 +202,7 @@ export async function writeComponent(
 			writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.overflow, overflowName[overflow] ?? 'visible');
 		}
 		const margin = typedComp.getMargin?.();
-		if (hasNonZeroInsets(margin)) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.margin, formatInsets(margin!));
+		if (hasNonZeroInsets(margin)) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.margin, formatInsets(margin!, 'component margin'));
 		const restrictSize = [
 			typedComp.getMinWidth?.() ?? 0,
 			typedComp.getMaxWidth?.() ?? 0,
@@ -208,7 +210,7 @@ export async function writeComponent(
 			typedComp.getMaxHeight?.() ?? 0,
 		];
 		if (restrictSize.some((value) => value !== 0)) {
-			writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.restrictSize, restrictSize.join(','));
+			writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.restrictSize, formatProjectInt32List(restrictSize, 'component restrictSize'));
 		}
 		if (typedComp.getBgColorEnabled?.()) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.bgColorEnabled, 'true');
 		const bgColor = typedComp.getBgColor?.();
@@ -218,9 +220,9 @@ export async function writeComponent(
 		const designImageLayer = typedComp.getDesignImageLayer?.() ?? 0;
 		if (designImageLayer !== 0) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.designImageLayer, String(designImageLayer));
 		const designImageOffsetX = typedComp.getDesignImageOffsetX?.() ?? 0;
-		if (designImageOffsetX !== 0) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.designImageOffsetX, String(designImageOffsetX));
+		if (designImageOffsetX !== 0) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.designImageOffsetX, formatProjectInt32(designImageOffsetX, 'designImageOffsetX'));
 		const designImageOffsetY = typedComp.getDesignImageOffsetY?.() ?? 0;
-		if (designImageOffsetY !== 0) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.designImageOffsetY, String(designImageOffsetY));
+		if (designImageOffsetY !== 0) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.designImageOffsetY, formatProjectInt32(designImageOffsetY, 'designImageOffsetY'));
 		const idNum = typedComp.getIdNum?.() ?? 0;
 		if (idNum !== 0) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.idnum, String(idNum));
 		const initName = typedComp.getInitName?.();
@@ -229,7 +231,10 @@ export async function writeComponent(
 		if (remark) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.remark, remark);
 		const clipSoftness = typedComp.getClipSoftness?.();
 		if (clipSoftness && ((clipSoftness.x ?? 0) !== 0 || (clipSoftness.y ?? 0) !== 0)) {
-			writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.clipSoftness, `${clipSoftness.x ?? 0},${clipSoftness.y ?? 0}`);
+			writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.clipSoftness, formatProjectInt32List([
+				clipSoftness.x ?? 0,
+				clipSoftness.y ?? 0,
+			], 'component clipSoftness'));
 		}
 		if (typedComp.getOpaque?.() === false) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.opaque, 'false');
 		const mask = typedComp.getMask?.();
@@ -255,7 +260,7 @@ export async function writeComponent(
 			const scrollBarFlags = typedComp.getScrollBarFlags?.() ?? 0;
 			if (scrollBarFlags !== 0) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarFlags, String(scrollBarFlags));
 			const scrollBarMargin = typedComp.getScrollBarMargin?.();
-			if (hasNonZeroInsets(scrollBarMargin)) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarMargin, formatInsets(scrollBarMargin!));
+			if (hasNonZeroInsets(scrollBarMargin)) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarMargin, formatInsets(scrollBarMargin!, 'component scrollBarMargin'));
 			const vtScrollBarRes = typedComp.getVtScrollBarRes?.() ?? '';
 			const hzScrollBarRes = typedComp.getHzScrollBarRes?.() ?? '';
 			if (vtScrollBarRes || hzScrollBarRes) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarRes, `${vtScrollBarRes},${hzScrollBarRes}`);

@@ -1,6 +1,6 @@
 import { GearType } from '../constants.js';
-import type { Gear } from '../properties/gear.js';
 import type { GObject } from '../properties/g-object.js';
+import type { Gear } from '../properties/gear.js';
 import { renderXmlAttrs } from '../utils/xml-utils.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr, type XmlNodeProtocol } from './project-xml-protocol.js';
 
@@ -190,6 +190,22 @@ function formatTrimmedFixed(value: number, precision = 2): string {
 	return fixed.replace(/(?:\.0+|(\.\d*?[1-9])0+)$/, '$1');
 }
 
+const INT32_MIN = -2_147_483_648;
+const INT32_MAX = 2_147_483_647;
+
+export function formatProjectInt32(value: number, field = 'project XML integer'): string {
+	if (!Number.isFinite(value)) throw new Error(`${field} must be finite.`);
+	const normalized = Math.trunc(value);
+	if (normalized < INT32_MIN || normalized > INT32_MAX) {
+		throw new Error(`${field} must fit a signed 32-bit integer.`);
+	}
+	return Object.is(normalized, -0) ? '0' : String(normalized);
+}
+
+export function formatProjectInt32List(values: readonly number[], field: string): string {
+	return values.map((value) => formatProjectInt32(value, field)).join(',');
+}
+
 function formatDisplayAlpha(value: number): string {
 	return formatTrimmedFixed(value, 2);
 }
@@ -260,8 +276,8 @@ function normalizeGearSizeSegment(segment: string, fixedScale: boolean, omitIden
 	const parts = segment.split(',');
 	if (parts.length < 2) return segment;
 	const normalized = [
-		String(Math.trunc(Number(parts[0] ?? 0))),
-		String(Math.trunc(Number(parts[1] ?? 0))),
+		formatProjectInt32(Number(parts[0] ?? 0), 'gearSize width'),
+		formatProjectInt32(Number(parts[1] ?? 0), 'gearSize height'),
 	];
 	if (parts.length >= 4) {
 		if (omitIdentityScale && isIdentityGearSizeScale(segment)) {
@@ -278,6 +294,17 @@ function normalizeGearSizeSegment(segment: string, fixedScale: boolean, omitIden
 	return normalized.join(',');
 }
 
+function normalizeGearXYSegment(segment: string): string {
+	if (!segment || segment === '-') return segment;
+	const parts = segment.split(',');
+	if (parts.length < 2) return segment;
+	return [
+		formatProjectInt32(Number(parts[0] ?? 0), 'gearXY x'),
+		formatProjectInt32(Number(parts[1] ?? 0), 'gearXY y'),
+		...parts.slice(2),
+	].join(',');
+}
+
 function shouldCompactTextGearColor(ownerType?: string, ownerName?: string): boolean {
 	return (ownerType === 'GTextField' || ownerType === 'GRichTextField' || ownerType === 'GTextInput')
 		&& ownerName === 'title';
@@ -286,6 +313,8 @@ function shouldCompactTextGearColor(ownerType?: string, ownerName?: string): boo
 function normalizeGearXmlValue(gearType: number, value: unknown, ownerType?: string, ownerName?: string, gear?: Gear): string {
 	const raw = String(value ?? '');
 	switch (gearType) {
+		case GearType.XY:
+			return raw.split('|').map((segment) => normalizeGearXYSegment(segment)).join('|');
 		case GearType.Size: {
 			const fixedScale = !gear?.getTween();
 			const segments = raw.split('|');
@@ -475,12 +504,15 @@ function writeCommonDisplayState(
 ): void {
 	const specs = protocol.attrs;
 	if (specs.xy) {
-		writeXmlAttr(target, specs.xy, `${object.getX?.() ?? 0},${object.getY?.() ?? 0}`);
+		writeXmlAttr(target, specs.xy, formatProjectInt32List([
+			object.getX?.() ?? 0,
+			object.getY?.() ?? 0,
+		], 'display object xy'));
 	}
 	const width = object.getWidth?.() ?? 0;
 	const height = object.getHeight?.() ?? 0;
 	if (specs.size && (width !== 0 || height !== 0)) {
-		writeXmlAttr(target, specs.size, `${width},${height}`);
+		writeXmlAttr(target, specs.size, formatProjectInt32List([width, height], 'display object size'));
 	}
 	if (specs.locked && object.getLocked?.()) writeXmlAttr(target, specs.locked, 'true');
 	const restrictSize = [
@@ -490,7 +522,7 @@ function writeCommonDisplayState(
 		object.getMaxHeight?.() ?? 0,
 	];
 	if (specs.restrictSize && restrictSize.some((value) => value !== 0)) {
-		writeXmlAttr(target, specs.restrictSize, restrictSize.join(','));
+		writeXmlAttr(target, specs.restrictSize, formatProjectInt32List(restrictSize, 'display object restrictSize'));
 	}
 	if (specs.aspect && object.getAspect?.()) writeXmlAttr(target, specs.aspect, 'true');
 	const pivotX = object.getPivotX?.() ?? 0;
@@ -537,8 +569,16 @@ export function hasNonZeroInsets(value: { top?: number; bottom?: number; left?: 
 	return !!value && !!(value.top || value.bottom || value.left || value.right);
 }
 
-export function formatInsets(value: { top?: number; bottom?: number; left?: number; right?: number }): string {
-	return `${value.top ?? 0},${value.bottom ?? 0},${value.left ?? 0},${value.right ?? 0}`;
+export function formatInsets(
+	value: { top?: number; bottom?: number; left?: number; right?: number },
+	field = 'margin',
+): string {
+	return formatProjectInt32List([
+		value.top ?? 0,
+		value.bottom ?? 0,
+		value.left ?? 0,
+		value.right ?? 0,
+	], field);
 }
 
 function formatFillMethod(fillMethod: number): string {
@@ -1153,7 +1193,7 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 			if (scrollBarFlags !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarFlags, String(scrollBarFlags));
 			const scrollBarMargin = typedObj.getScrollBarMargin?.();
 			if (hasNonZeroInsets(scrollBarMargin)) {
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarMargin, formatInsets(scrollBarMargin!));
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarMargin, formatInsets(scrollBarMargin!, 'list scrollBarMargin'));
 			}
 			const vtScrollBarRes = typedObj.getVtScrollBarRes?.() ?? '';
 			const hzScrollBarRes = typedObj.getHzScrollBarRes?.() ?? '';
@@ -1162,10 +1202,13 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 			const footerRes = typedObj.getFooterRes?.() ?? '';
 			if (headerRes || footerRes) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.ptrRes, `${headerRes},${footerRes}`);
 			const margin = typedObj.getMargin?.();
-			if (hasNonZeroInsets(margin)) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.margin, formatInsets(margin!));
+			if (hasNonZeroInsets(margin)) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.margin, formatInsets(margin!, 'list margin'));
 			const clipSoftness = typedObj.getClipSoftness?.();
 			if (clipSoftness && ((clipSoftness.x ?? 0) !== 0 || (clipSoftness.y ?? 0) !== 0)) {
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.clipSoftness, `${clipSoftness.x ?? 0},${clipSoftness.y ?? 0}`);
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.clipSoftness, formatProjectInt32List([
+					clipSoftness.x ?? 0,
+					clipSoftness.y ?? 0,
+				], 'list clipSoftness'));
 			}
 			if (typedObj.getScrollItemToViewOnClick?.() === false) {
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollItemToViewOnClick, 'false');

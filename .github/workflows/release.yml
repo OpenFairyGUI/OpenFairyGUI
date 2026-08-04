@@ -48,6 +48,7 @@ jobs:
           pnpm exec ava --no-worker-threads
           packages/core/test/read-project.test.ts
           packages/core/test/write-project.test.ts
+          packages/core/test/write-project-display-metadata.test.ts
           packages/core/test/restore-published-project.test.ts
           packages/core/test/write-binary-pixel-hit-test.test.ts
           packages/functions/test/atlas.test.ts
