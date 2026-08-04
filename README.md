@@ -93,6 +93,7 @@ ofgui publish ./MyProject --output ./release
 - [Project XML 属性协议](./docs/project-xml-attribute-reference.md)
 - [FairyGUI 二进制包格式](./docs/fairygui-binary-package-format.md)
 - [全部文档](./docs/README.md)
+- [English documentation](./docs/en/README.md)
 
 ## 当前状态与边界
 
