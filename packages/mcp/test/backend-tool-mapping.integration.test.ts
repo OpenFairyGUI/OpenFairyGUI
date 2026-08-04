@@ -73,6 +73,7 @@ test('MCP P0 tool annotations reflect backend side effects and non-goals', (t) =
 	for (const method of [
 		'getCapabilities',
 		'getSession',
+		'getProjectOutline',
 		'getEvents',
 		'getJob',
 		'listJobs',
@@ -121,6 +122,9 @@ test('MCP P0 direct tool handler can call every backend P2 method without redefi
 
 		const session = await callTool(runtime, 'openfairygui_backend_get_session', { sessionId });
 		t.true(session.ok);
+		const outline = await callTool(runtime, 'openfairygui_backend_get_project_outline', { sessionId });
+		t.true(outline.ok);
+		t.is((outline.data as { revision: number }).revision, 0);
 
 		const applied = await callTool(runtime, 'openfairygui_backend_apply_transaction', {
 			sessionId,
@@ -134,6 +138,9 @@ test('MCP P0 direct tool handler can call every backend P2 method without redefi
 			],
 		});
 		t.true(applied.ok);
+		const updatedOutline = await callTool(runtime, 'openfairygui_backend_get_project_outline', { sessionId });
+		t.true(updatedOutline.ok);
+		t.is((updatedOutline.data as { revision: number }).revision, 1);
 
 		const saved = await callTool(runtime, 'openfairygui_backend_save_session', { sessionId, expectedRevision: 1 });
 		t.true(saved.ok);

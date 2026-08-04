@@ -8,6 +8,7 @@ export type OpenFairyGuiBackendRuntime = Pick<
 	| 'openSession'
 	| 'openProjectSession'
 	| 'getSession'
+	| 'getProjectOutline'
 	| 'applyTransaction'
 	| 'saveSession'
 	| 'materializeSession'
@@ -67,6 +68,11 @@ export async function callOpenFairyGuiBackendTool(
 			break;
 		case 'openfairygui_backend_get_session':
 			result = runtime.getSession({
+				sessionId: String(input.sessionId),
+			});
+			break;
+		case 'openfairygui_backend_get_project_outline':
+			result = runtime.getProjectOutline({
 				sessionId: String(input.sessionId),
 			});
 			break;

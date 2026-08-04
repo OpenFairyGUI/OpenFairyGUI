@@ -21,6 +21,7 @@ import type {
 	BackendJobNotCancellableError,
 	BackendJobNotFoundError,
 	BackendJobSnapshot,
+	BackendProjectOutline,
 	BackendResult,
 	BackendRuntimeOptions,
 	BackendSessionSnapshot,
@@ -31,6 +32,7 @@ import type {
 	GetEventsInput,
 	GetEventsSnapshot,
 	GetJobInput,
+	GetProjectOutlineInput,
 	InProcessLockConflictError,
 	ListJobsInput,
 	MaterializeSessionInput,
@@ -111,6 +113,12 @@ export class BackendRuntime {
 
 	public getSession(input: { sessionId: string }): BackendResult<BackendSessionSnapshot, SessionNotFoundError> {
 		return this.readService.getSession(input);
+	}
+
+	public getProjectOutline(
+		input: GetProjectOutlineInput,
+	): BackendResult<BackendProjectOutline, SessionNotFoundError> {
+		return this.readService.getProjectOutline(input);
 	}
 
 	public async applyTransaction(

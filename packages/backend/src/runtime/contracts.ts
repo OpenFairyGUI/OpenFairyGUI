@@ -1,4 +1,9 @@
-import type { UamProject, UamTransactionOperation } from '@openfairygui/core/uam';
+import type {
+	UamDisplayNodeKind,
+	UamProject,
+	UamResource,
+	UamTransactionOperation,
+} from '@openfairygui/core/uam';
 import type { ApplyUamTransactionAppError } from '@openfairygui/functions/uam';
 import type {
 	BACKEND_CAPABILITY_SCHEMA_VERSION,
@@ -94,6 +99,7 @@ export interface BackendCapabilities {
 		'openSession',
 		'openProjectSession',
 		'getSession',
+		'getProjectOutline',
 		'applyTransaction',
 		'saveSession',
 		'materializeSession',
@@ -108,6 +114,7 @@ export interface BackendCapabilities {
 	read: {
 		capabilitySnapshot: true;
 		sessionSnapshot: true;
+		projectOutline: true;
 	};
 	authoring: {
 		applyTransaction: true;
@@ -176,6 +183,37 @@ export interface BackendSessionSnapshot {
 	uamFidelity: 'full' | 'unsupported';
 	lockHeld: boolean;
 	capabilities: BackendCapabilities;
+}
+
+export interface BackendProjectOutline {
+	sessionId: string;
+	revision: number;
+	projectId: string;
+	projectType: number;
+	version: string;
+	branches: string[];
+	packages: BackendProjectOutlinePackage[];
+}
+
+export interface BackendProjectOutlinePackage {
+	id: string;
+	name: string;
+	branchNames: string[];
+	folders: Array<{ branch: string; path: string }>;
+	resources: BackendProjectOutlineResource[];
+}
+
+export interface BackendProjectOutlineResource {
+	id: string;
+	name: string;
+	path: string;
+	kind: UamResource['kind'];
+	branch: string;
+	component?: {
+		displayList: Array<{ id: string; name: string; kind: UamDisplayNodeKind }>;
+		controllers: Array<{ name: string; pages: Array<{ id: string; name: string }> }>;
+		transitions: Array<{ name: string }>;
+	};
 }
 
 export interface MaterializeSessionSnapshot extends BackendSessionSnapshot {
@@ -474,6 +512,10 @@ export interface ApplySessionTransactionInput {
 	sessionId: string;
 	expectedRevision: number;
 	operations: UamTransactionOperation[];
+}
+
+export interface GetProjectOutlineInput {
+	sessionId: string;
 }
 
 export interface OpenProjectSessionInput {
