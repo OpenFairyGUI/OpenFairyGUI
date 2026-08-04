@@ -21,11 +21,13 @@ test('getCapabilities reports derived ownership and runtime capabilities', (t) =
 	t.is(result.data.appSeamOwner, '@openfairygui/functions');
 	t.is(result.data.runtimeOwner, '@openfairygui/backend');
 	t.is(result.data.contractVersion, '1.1.0-p2');
-	t.is(result.data.capabilitySchemaVersion, 2);
+	t.is(result.data.capabilitySchemaVersion, 3);
 	t.true(result.data.read.capabilitySnapshot);
 	t.true(result.data.read.sessionSnapshot);
 	t.true(result.data.read.projectOutline);
+	t.true(result.data.read.projectValidation);
 	t.true(result.data.methods.includes('getProjectOutline'));
+	t.true(result.data.methods.includes('validateSession'));
 	t.true(result.data.authoring.applyTransaction);
 	t.true(result.data.authoring.saveSession);
 	t.false(result.data.artifact.publish);

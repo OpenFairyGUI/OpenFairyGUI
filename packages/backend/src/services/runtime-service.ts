@@ -220,7 +220,9 @@ export class RuntimeService {
 				),
 			);
 			const reader = new ProjectReader(createProjectReaderFileSystem(fileSystem));
-			const document = await reader.read(fairyPath, { hydrateResourceBytes: true });
+			const read = await reader.readDetailed(fairyPath, { hydrateResourceBytes: true });
+			if (!read.document) throw new Error(read.diagnostics[0]?.message ?? `Unable to read project: ${fairyPath}`);
+			const document = read.document;
 			const project = liftDocumentToUamProject(document);
 			const sessionId = randomId();
 			const session: BackendSessionState = {
@@ -232,6 +234,8 @@ export class RuntimeService {
 				sessionLock,
 				fileSystem,
 				project,
+				readDiagnostics: read.diagnostics,
+				readComplete: read.complete,
 				uamFidelity: (await hasFullUamFidelity(document, project)) ? 'full' : 'unsupported',
 				revision: 0,
 				lastSavedRevision: 0,
@@ -305,6 +309,8 @@ export class RuntimeService {
 			sessionLock: null,
 			fileSystem: storage?.fileSystem,
 			project: normalizeUamProject(input.project),
+			readDiagnostics: [],
+			readComplete: true,
 			uamFidelity: 'full',
 			revision: 0,
 			lastSavedRevision: 0,

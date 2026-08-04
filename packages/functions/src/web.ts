@@ -9,3 +9,4 @@ export {
 	type BrowserPublishOutputFileSystem,
 	type BrowserPublishSourceFileSystem,
 } from './adapters/web/publish.js';
+export { validateProjectWeb } from './adapters/web/validate.js';

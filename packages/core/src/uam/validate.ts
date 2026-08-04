@@ -15,9 +15,15 @@ import type {
 	UamValidationIssue,
 } from './model.js';
 import { normalizeResourceFolderPath, resourceFolderParentPath } from '../utils/resource-folder.js';
+import type { ProjectDiagnosticCode } from '../validation.js';
 
-function pushIssue(issues: UamValidationIssue[], path: string, message: string): void {
-	issues.push({ path, message });
+function pushIssue(
+	issues: UamValidationIssue[],
+	path: string,
+	message: string,
+	code: ProjectDiagnosticCode = 'invalid_uam',
+): void {
+	issues.push({ severity: 'error', code, path, message });
 }
 
 export function isFiniteUamPoint(value: unknown): boolean {
@@ -524,7 +530,7 @@ function validatePackageOutputTargets(
 	issues: UamValidationIssue[],
 ): void {
 	if (!isSafePathSegment(pkg.name)) {
-		pushIssue(issues, `${pkgPath}.name`, `Invalid package output name "${pkg.name}".`);
+		pushIssue(issues, `${pkgPath}.name`, `Invalid package output name "${pkg.name}".`, 'unsafe_path');
 	}
 	const outputs = new Map<string, string>();
 	const folderKeys = new Set<string>();
@@ -535,7 +541,7 @@ function validatePackageOutputTargets(
 		}
 		const normalizedPath = normalizeResourceFolderPath(folder.path);
 		if (folder.path === '/' || folder.path !== normalizedPath || !folder.path.split('/').filter(Boolean).every(isSafePathSegment)) {
-			pushIssue(issues, `${folderPath}.path`, 'Resource folder path must be canonical, non-root, and traversal-free.');
+			pushIssue(issues, `${folderPath}.path`, 'Resource folder path must be canonical, non-root, and traversal-free.', 'unsafe_path');
 			continue;
 		}
 		if (typeof folder.favorite !== 'boolean') {
@@ -544,23 +550,24 @@ function validatePackageOutputTargets(
 		if (typeof folder.atlas !== 'string') {
 			pushIssue(issues, `${folderPath}.atlas`, 'Resource folder atlas must be a string.');
 		}
-		const key = `${folder.branch}\0${folder.path}`;
+		const key = `${folder.branch}\0${folder.path}`.toLowerCase();
 		if (folderKeys.has(key)) {
-			pushIssue(issues, `${folderPath}.path`, `Duplicate resource folder path "${folder.path}".`);
+			pushIssue(issues, `${folderPath}.path`, `Duplicate resource folder path "${folder.path}".`, 'path_collision');
 		}
 		folderKeys.add(key);
 		const parentPath = resourceFolderParentPath(folder.path);
-		if (parentPath !== '/' && !folderKeys.has(`${folder.branch}\0${parentPath}`)
-			&& !pkg.folders.some((candidate) => candidate.branch === folder.branch && candidate.path === parentPath)
+		if (parentPath !== '/' && !folderKeys.has(`${folder.branch}\0${parentPath}`.toLowerCase())
+			&& !pkg.folders.some((candidate) => candidate.branch.toLowerCase() === folder.branch.toLowerCase()
+				&& candidate.path.toLowerCase() === parentPath.toLowerCase())
 		) {
 			pushIssue(issues, `${folderPath}.path`, `Parent resource folder "${parentPath}" does not exist.`);
 		}
 		const target = folder.path.replace(/^\/+|\/+$/g, '');
 		const descriptor = folder.branch ? 'package_branch.xml' : 'package.xml';
-		if (target === descriptor) {
-			pushIssue(issues, `${folderPath}.path`, `Resource folder output "${target}" conflicts with the package descriptor.`);
+		if (target.toLowerCase() === descriptor) {
+			pushIssue(issues, `${folderPath}.path`, `Resource folder output "${target}" conflicts with the package descriptor.`, 'path_collision');
 		}
-		outputs.set(`${folder.branch}\0${target}`, folderPath);
+		outputs.set(`${folder.branch}\0${target}`.toLowerCase(), folderPath);
 	}
 	for (const [resourceIndex, resource] of pkg.resources.entries()) {
 		const resourcePath = `${pkgPath}.resources[${resourceIndex}]`;
@@ -570,22 +577,22 @@ function validatePackageOutputTargets(
 		const fileName = resource.kind === 'component' ? `${resource.name}.xml` : assetFileName(resource);
 		const target = normalizedResourceTarget(resource.path, fileName);
 		if (!target) {
-			pushIssue(issues, `${resourcePath}.path`, 'Resource output path must be package-relative and traversal-free.');
+			pushIssue(issues, `${resourcePath}.path`, 'Resource output path must be package-relative and traversal-free.', 'unsafe_path');
 			continue;
 		}
 		const descriptor = resource.branch ? 'package_branch.xml' : 'package.xml';
-		if (target === descriptor) {
-			pushIssue(issues, `${resourcePath}.path`, `Resource output "${target}" conflicts with the package descriptor.`);
+		if (target.toLowerCase() === descriptor) {
+			pushIssue(issues, `${resourcePath}.path`, `Resource output "${target}" conflicts with the package descriptor.`, 'path_collision');
 		}
-		const key = `${resource.branch}\0${target}`;
+		const key = `${resource.branch}\0${target}`.toLowerCase();
 		const previous = outputs.get(key);
 		if (previous) {
-			pushIssue(issues, `${resourcePath}.path`, `Resource output "${target}" conflicts with ${previous}.`);
+			pushIssue(issues, `${resourcePath}.path`, `Resource output "${target}" conflicts with ${previous}.`, 'path_collision');
 		} else {
 			outputs.set(key, resourcePath);
 		}
 		if (resource.kind !== 'component' && resource.sourcePath && !isSafeRelativePath(resource.sourcePath)) {
-			pushIssue(issues, `${resourcePath}.sourcePath`, 'Resource sourcePath must be package-relative and traversal-free.');
+			pushIssue(issues, `${resourcePath}.sourcePath`, 'Resource sourcePath must be package-relative and traversal-free.', 'unsafe_path');
 		}
 	}
 }
@@ -716,10 +723,10 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 
 	for (const [pkgIndex, pkg] of project.packages.entries()) {
 		const pkgPath = `packages[${pkgIndex}]`;
-		if (packageIds.has(pkg.id)) pushIssue(issues, `${pkgPath}.id`, `Duplicate package id "${pkg.id}".`);
-		if (packageNames.has(pkg.name)) pushIssue(issues, `${pkgPath}.name`, `Duplicate package name "${pkg.name}".`);
+		if (packageIds.has(pkg.id)) pushIssue(issues, `${pkgPath}.id`, `Duplicate package id "${pkg.id}".`, 'duplicate_package_id');
+		if (packageNames.has(pkg.name.toLowerCase())) pushIssue(issues, `${pkgPath}.name`, `Duplicate package name "${pkg.name}".`, 'duplicate_package_name');
 		packageIds.add(pkg.id);
-		packageNames.add(pkg.name);
+		packageNames.add(pkg.name.toLowerCase());
 		validatePackageOutputTargets(pkg, pkgPath, issues);
 		const declaredBranchNames = Array.isArray(pkg.branchNames) ? pkg.branchNames : [];
 		if (!Array.isArray(pkg.branchNames)) {
@@ -739,7 +746,7 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 		const resourceIds = new Set<string>();
 		for (const [resourceIndex, resource] of pkg.resources.entries()) {
 			const resourcePath = `${pkgPath}.resources[${resourceIndex}]`;
-			if (resourceIds.has(resource.id)) pushIssue(issues, `${resourcePath}.id`, `Duplicate resource id "${resource.id}".`);
+			if (resourceIds.has(resource.id)) pushIssue(issues, `${resourcePath}.id`, `Duplicate resource id "${resource.id}".`, 'duplicate_resource_id');
 			resourceIds.add(resource.id);
 			if (resource.branch && !packageBranchNames.has(resource.branch)) {
 				pushIssue(issues, `${resourcePath}.branch`, `Unknown package branch "${resource.branch}".`);

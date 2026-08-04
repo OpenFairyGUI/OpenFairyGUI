@@ -97,6 +97,8 @@ export {
 	normalizeUamProject,
 } from './normalize.js';
 export { assertValidUamProject, validateUamProject } from './validate.js';
+export { validateUamReferences } from './reference-validation.js';
+export { validateUamSourceBytes, type UamSourceValidationResult } from './source-validation.js';
 export {
 	commitUamProjectSourcePaths,
 	liftDocumentToUamProject,

@@ -18,15 +18,22 @@ import { PROJECT_XML_PROTOCOL, readXmlAttr, } from './project-xml-protocol.js';
 import { ReaderContext } from './reader-context.js';
 import type { FileSystem } from './file-system.js';
 import { readComponentXml } from './component-xml-reader.js';
-import type { ProjectReadOptions } from './project-io-contracts.js';
+import type { ProjectDiagnostic } from '../validation.js';
+import type { ProjectReadOptions, ProjectReadResult } from './project-io-contracts.js';
+import { XMLValidator } from 'fast-xml-parser';
 
-export type { ProjectReadOptions } from './project-io-contracts.js';
+export type { ProjectReadOptions, ProjectReadResult } from './project-io-contracts.js';
 
 // Maps XML tag names for display objects to factory method names.
 type XmlNode = Record<string, unknown>;
 type OrderedXmlEntry = Record<string, unknown>;
 
 type ProjectSettingKey = 'publish' | 'common' | 'adaptation' | 'customProperties' | 'i18n';
+
+function assertWellFormedXml(content: string): void {
+	const result = XMLValidator.validate(content, { allowBooleanAttributes: true });
+	if (result !== true) throw new Error(result.err.msg);
+}
 
 interface FairyProjectDescriptionNode extends XmlNode {
 	id?: string;
@@ -158,14 +165,52 @@ export class ProjectReader {
 	}
 
 	async read(projectPath: string, options: ProjectReadOptions = {}): Promise<Document> {
+		return this._read(projectPath, options);
+	}
+
+	async readDetailed(projectPath: string, options: ProjectReadOptions = {}): Promise<ProjectReadResult> {
+		const diagnostics: ProjectDiagnostic[] = [];
+		try {
+			const document = await this._read(projectPath, options, diagnostics);
+			return {
+				document,
+				diagnostics,
+				complete: !diagnostics.some((diagnostic) => [
+					'invalid_project_xml',
+					'invalid_package_xml',
+					'invalid_branch_package_xml',
+					'invalid_component_xml',
+					'invalid_settings_json',
+					'unreadable_source',
+					'unsupported_resource_kind',
+				].includes(diagnostic.code)),
+			};
+		} catch (error) {
+			diagnostics.push({
+				severity: 'error',
+				code: 'invalid_project_xml',
+				path: 'project',
+				message: error instanceof Error ? error.message : String(error),
+				sourcePath: projectPath,
+			});
+			return { document: null, diagnostics, complete: false };
+		}
+	}
+
+	private async _read(
+		projectPath: string,
+		options: ProjectReadOptions,
+		diagnostics?: ProjectDiagnostic[],
+	): Promise<Document> {
 		const fs = this._fs;
 		const doc = new Document();
 		const basePath = getProjectBasePath(fs, projectPath);
 		doc.setProjectDir(basePath);
-		const ctx = new ReaderContext(doc, basePath);
+		const ctx = new ReaderContext(doc, basePath, diagnostics);
 
 		// 1. Parse .fairy file
 		const fairyContent = await fs.readFile(projectPath);
+		if (diagnostics) assertWellFormedXml(fairyContent);
 		const fairyXML = parseXML(fairyContent);
 		const projDesc = getXmlNode<FairyProjectDescriptionNode>(fairyXML.projectDescription);
 		if (projDesc) {
@@ -173,6 +218,14 @@ export class ProjectReader {
 			root.setProjectId(projDesc.id ?? '');
 			root.setProjectType(this._resolveProjectType(projDesc.type ?? ''));
 			root.setVersion(projDesc.version ?? '');
+		} else {
+			ctx.addDiagnostic({
+				severity: 'error',
+				code: 'invalid_project_xml',
+				path: 'projectDescription',
+				message: 'Project file must contain a projectDescription root element.',
+				sourcePath: projectPath,
+			});
 		}
 
 		// 2. Read settings
@@ -191,10 +244,21 @@ export class ProjectReader {
 			const pkgXmlPath = fs.join(assetsPath, dirName, 'package.xml');
 			if (!(await fs.exists(pkgXmlPath))) continue;
 
-			await this._readPackage(ctx, dirName, pkgXmlPath, '', options);
+			try {
+				await this._readPackage(ctx, dirName, pkgXmlPath, '', options, diagnostics !== undefined);
+			} catch (error) {
+				if (!diagnostics) throw error;
+				ctx.addDiagnostic({
+					severity: 'error',
+					code: 'invalid_package_xml',
+					path: `packages.${dirName}`,
+					message: error instanceof Error ? error.message : String(error),
+					sourcePath: pkgXmlPath,
+				});
+			}
 		}
 
-		const branchNames = await this._readPackageBranches(ctx, options);
+		const branchNames = await this._readPackageBranches(ctx, options, diagnostics !== undefined);
 		if (branchNames.length > 0) {
 			doc.getRoot().setBranches(branchNames);
 		}
@@ -209,9 +273,21 @@ export class ProjectReader {
 
 			try {
 				const compContent = await fs.readFile(compPath);
+				if (diagnostics) {
+					assertWellFormedXml(compContent);
+					if (!getXmlNode(parseXML(compContent).component)) throw new Error('Component XML must contain a component root element.');
+				}
 				readComponentXml(ctx, comp, compContent);
 			} catch (err) {
 				ctx.logger.warn(`Failed to parse component: ${compPath} — ${err}`);
+				ctx.addDiagnostic({
+					severity: 'error',
+					code: await fs.exists(compPath) ? 'invalid_component_xml' : 'missing_source',
+					path: `components.${comp.getId()}`,
+					message: `Failed to read component "${comp.getName()}": ${err instanceof Error ? err.message : String(err)}`,
+					resourceId: comp.getId(),
+					sourcePath: compPath,
+				});
 			}
 		}
 
@@ -240,7 +316,11 @@ export class ProjectReader {
 		}
 	}
 
-	private async _readPackageBranches(ctx: ReaderContext, options: ProjectReadOptions): Promise<string[]> {
+	private async _readPackageBranches(
+		ctx: ReaderContext,
+		options: ProjectReadOptions,
+		collectDiagnostics = false,
+	): Promise<string[]> {
 		const fs = this._fs;
 		let dirNames: string[] = [];
 		try {
@@ -266,7 +346,18 @@ export class ProjectReader {
 			for (const dirName of packageDirs) {
 				const pkgXmlPath = fs.join(branchAssetsPath, dirName, 'package_branch.xml');
 				if (!(await fs.exists(pkgXmlPath))) continue;
-				await this._readPackage(ctx, dirName, pkgXmlPath, branchName, options);
+				try {
+					await this._readPackage(ctx, dirName, pkgXmlPath, branchName, options, collectDiagnostics);
+				} catch (error) {
+					if (!collectDiagnostics) throw error;
+					ctx.addDiagnostic({
+						severity: 'error',
+						code: 'invalid_branch_package_xml',
+						path: `branches.${branchName}.packages.${dirName}`,
+						message: error instanceof Error ? error.message : String(error),
+						sourcePath: pkgXmlPath,
+					});
+				}
 			}
 		}
 
@@ -286,14 +377,20 @@ export class ProjectReader {
 		];
 
 		for (const { name, key } of settingFiles) {
+			const filePath = fs.join(settingsPath, name);
 			try {
-				const filePath = fs.join(settingsPath, name);
 				if (await fs.exists(filePath)) {
 					const content = await fs.readFile(filePath);
 					assignSetting(ctx.settings, key, JSON.parse(content));
 				}
-			} catch {
-				// Skip missing/invalid settings files.
+			} catch (error) {
+				ctx.addDiagnostic({
+					severity: 'error',
+					code: 'invalid_settings_json',
+					path: `settings.${name}`,
+					message: `Failed to read ${name}: ${error instanceof Error ? error.message : String(error)}`,
+					sourcePath: filePath,
+				});
 			}
 		}
 
@@ -306,14 +403,19 @@ export class ProjectReader {
 		pkgXmlPath: string,
 		branchName = '',
 		options: ProjectReadOptions = {},
+		validateSyntax = false,
 	): Promise<void> {
 		const fs = this._fs;
 		const content = await fs.readFile(pkgXmlPath);
+		if (validateSyntax) assertWellFormedXml(content);
 		const xml = parseXML(content);
 		const desc = branchName
 			? getXmlNode<BranchDescriptionNode>(xml.branchDescription)
 			: getXmlNode<PackageDescriptionNode>(xml.packageDescription);
-		if (!desc) return;
+		if (!desc) {
+			if (validateSyntax) throw new Error(`Package XML must contain a ${branchName ? 'branchDescription' : 'packageDescription'} root element.`);
+			return;
+		}
 
 		let pkg = ctx.document.getRoot().getPackage(dirName);
 		if (!pkg) {
@@ -433,7 +535,7 @@ export class ProjectReader {
 			}
 			await this._hydratePackageImageSizes(createdResources, packageDir);
 			if (options.hydrateResourceBytes) {
-				await this._hydratePackageResourceBytes(ctx.document, createdResources, packageDir);
+				await this._hydratePackageResourceBytes(ctx, createdResources, packageDir, pkg.getId());
 			}
 			return;
 		}
@@ -450,7 +552,7 @@ export class ProjectReader {
 		}
 		await this._hydratePackageImageSizes(createdResources, packageDir);
 		if (options.hydrateResourceBytes) {
-			await this._hydratePackageResourceBytes(ctx.document, createdResources, packageDir);
+			await this._hydratePackageResourceBytes(ctx, createdResources, packageDir, pkg.getId());
 		}
 	}
 
@@ -526,11 +628,13 @@ export class ProjectReader {
 	}
 
 	private async _hydratePackageResourceBytes(
-		doc: Document,
+		ctx: ReaderContext,
 		resources: Array<ReturnType<Package['listResources']>[number]>,
 		packageDir: string,
+		packageId: string,
 	): Promise<void> {
 		const fs = this._fs;
+		const doc = ctx.document;
 		for (const resource of resources) {
 			const fileName = this._primaryResourceFileName(resource);
 			if (!fileName) continue;
@@ -538,7 +642,18 @@ export class ProjectReader {
 			const sourcePath = this._packageRelativeSourcePath(resourcePath, fileName);
 			if (!sourcePath) continue;
 			const filePath = fs.join(packageDir, sourcePath.replace(/^\/+/, ''));
-			if (!(await fs.exists(filePath))) continue;
+			if (!(await fs.exists(filePath))) {
+				ctx.addDiagnostic({
+					severity: 'error',
+					code: 'missing_source',
+					path: `packages.${packageId}.resources.${resource.getId()}`,
+					message: `Declared source file is missing: ${sourcePath}`,
+					packageId,
+					resourceId: resource.getId(),
+					sourcePath: filePath,
+				});
+				continue;
+			}
 			try {
 				const data = new Uint8Array(await fs.readFileRaw(filePath));
 				const buffer = doc.createBuffer().setURI(sourcePath).setData(data);
@@ -556,12 +671,30 @@ export class ProjectReader {
 							resource as ReturnType<Document['createMovieClipResource']>,
 							deriveMovieClipModelFromJta(data),
 						);
-					} catch {
+					} catch (error) {
 						// Preserve source bytes and XML-owned fields when a legacy or corrupt JTA cannot be derived.
+						ctx.addDiagnostic({
+							severity: 'error',
+							code: 'corrupt_source',
+							path: `packages.${packageId}.resources.${resource.getId()}`,
+							message: `MovieClip source is invalid: ${error instanceof Error ? error.message : String(error)}`,
+							packageId,
+							resourceId: resource.getId(),
+							sourcePath: filePath,
+						});
 					}
 				}
-			} catch {
+			} catch (error) {
 				// Keep resource metadata available when its primary source cannot be read.
+				ctx.addDiagnostic({
+					severity: 'error',
+					code: 'unreadable_source',
+					path: `packages.${packageId}.resources.${resource.getId()}`,
+					message: `Declared source file cannot be read: ${error instanceof Error ? error.message : String(error)}`,
+					packageId,
+					resourceId: resource.getId(),
+					sourcePath: filePath,
+				});
 			}
 		}
 	}
@@ -770,7 +903,15 @@ export class ProjectReader {
 				return res;
 			}
 			default: {
-				// swf, atlas — store as extras on package for now
+				ctx.addDiagnostic({
+					severity: 'error',
+					code: 'unsupported_resource_kind',
+					path: `packages.${pkg.getId()}.resources.${id || name}`,
+					message: `Unsupported declared resource kind "${tagName}".`,
+					packageId: pkg.getId(),
+					resourceId: id,
+					sourcePath: fs.join(packageDir, path.replace(/^\//, ''), name),
+				});
 				return null;
 			}
 		}

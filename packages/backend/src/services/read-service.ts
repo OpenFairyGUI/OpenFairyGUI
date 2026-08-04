@@ -8,6 +8,8 @@ import type {
 	SessionNotFoundError,
 } from '../runtime.js';
 import { createSessionNotFoundError, toSessionSnapshot } from './session-utils.js';
+import { validateProject } from '@openfairygui/functions';
+import type { ProjectValidationReport } from '@openfairygui/core';
 
 function toProjectOutline(session: BackendSessionState): BackendProjectOutline {
 	const project = session.project;
@@ -79,6 +81,26 @@ export class ReadService {
 		return success('read', startedAt, toProjectOutline(session), {
 			sessionId: session.sessionId,
 			revision: session.revision,
+		});
+	}
+
+	public validateSession(
+		input: { sessionId: string },
+	): BackendResult<ProjectValidationReport, SessionNotFoundError> {
+		const startedAt = Date.now();
+		const session = this.context.sessions.get(input.sessionId);
+		if (!session || session.closed) {
+			return failure('read', startedAt, createSessionNotFoundError(input.sessionId));
+		}
+		const report = validateProject(session.project, {
+			readDiagnostics: session.readDiagnostics,
+			complete: session.readComplete,
+			validateSources: true,
+		});
+		return success('read', startedAt, report, {
+			sessionId: session.sessionId,
+			revision: session.revision,
+			diagnostics: report.diagnostics.map(({ code, message, severity, path }) => ({ code, message, severity, path })),
 		});
 	}
 }

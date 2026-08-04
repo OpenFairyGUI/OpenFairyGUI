@@ -13,6 +13,7 @@ It maps the backend P2 runtime surface into MCP tools:
 - `openProjectSession`
 - `getSession`
 - `getProjectOutline`
+- `validateSession`
 - `applyTransaction`
 - `saveSession`
 - `materializeSession`
@@ -42,7 +43,7 @@ P1 also registers MCP-native ergonomics around the same backend surface:
 - prompts for capability inspection, session open/inspect, project-outline inspection, revision-checked transactions, save, and runtime polling
 
 Resources return `application/json` text containing the unchanged backend result envelope. Parameterized polling remains tool-based: `getEvents` and `listJobs` are not exposed as resource URI query grammars.
-The project outline is revision-bound and exposes package, resource, folder, display-node, controller-page, and transition identities for transaction planning. It intentionally omits source bytes and full property payloads.
+The project outline is revision-bound and exposes package, resource, folder, display-node, controller-page, and transition identities for transaction planning. It intentionally omits source bytes and full property payloads. `validateSession` returns the backend-owned read-only project validation report; the MCP adapter does not reinterpret its diagnostics.
 
 It does **not** redefine transaction selectors, transaction operations, path policy, session semantics, job semantics, cache semantics, or backend error envelopes. Those remain owned by `@openfairygui/backend`, `@openfairygui/functions`, and `@openfairygui/core`.
 

@@ -100,6 +100,7 @@ export interface BackendCapabilities {
 		'openProjectSession',
 		'getSession',
 		'getProjectOutline',
+		'validateSession',
 		'applyTransaction',
 		'saveSession',
 		'materializeSession',
@@ -115,6 +116,7 @@ export interface BackendCapabilities {
 		capabilitySnapshot: true;
 		sessionSnapshot: true;
 		projectOutline: true;
+		projectValidation: true;
 	};
 	authoring: {
 		applyTransaction: true;
@@ -515,6 +517,10 @@ export interface ApplySessionTransactionInput {
 }
 
 export interface GetProjectOutlineInput {
+	sessionId: string;
+}
+
+export interface ValidateSessionInput {
 	sessionId: string;
 }
 

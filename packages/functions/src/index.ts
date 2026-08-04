@@ -1,10 +1,7 @@
 export { inspect, type InspectReport, type InspectCategoryReport } from './inspect.js';
 export {
-	validate,
-	type ValidateOptions,
-	type ValidationResult,
-	type ValidationIssue,
-	ValidationSeverity,
+	validateProject,
+	type ValidateProjectOptions,
 } from './validate.js';
 export { prune, type PruneOptions } from './prune.js';
 export { rename, type RenameOptions } from './rename.js';
