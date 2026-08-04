@@ -63,7 +63,7 @@ function compactDiagnostic(diagnostic: ApplyUamTransactionAppDiagnostic): ApplyU
 }
 
 function isTransactionSupportIssue(issue: UamValidationIssue | UamTransactionSupportIssue): issue is UamTransactionSupportIssue {
-	return 'code' in issue;
+	return !('severity' in issue);
 }
 
 function mapTransactionDiagnostics(error: UamTransactionError): ApplyUamTransactionAppDiagnostic[] {

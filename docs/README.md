@@ -7,6 +7,7 @@
 | 文档 | 说明 |
 |---|---|
 | [架构图说明](./architecture-overview.md) | 说明 monorepo 包职责、模块边界、核心数据流，以及 `backend` 的 browser-safe storage adapter、`materializeSession`、stateful runtime、service-layer、events/jobs/cache 与 `mcp` 薄适配 / resources / prompts 定位 |
+| [工程验证](./project-validation.md) | 说明工程读取、UAM 完整性、资源与宿主解码验证，以及 API、CLI、Backend、MCP 的统一报告契约 |
 | [编辑器发布设置](./editor-publish-settings.md) | 说明 FairyGUI 编辑器发布设置的结构、字段、默认值与写回规则 |
 | [Publish 插件](./publish-plugins.md) | 说明 OpenFairyGUI publish 插件目录、manifest、生命周期、降级规则，以及与 FairyGUI 编辑器插件的关系 |
 | [发布产物恢复边界](./published-project-restore-limitations.md) | 记录可信本地发布物的受限恢复范围、安全约束与不可稳定恢复的内容 |

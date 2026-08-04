@@ -1,4 +1,5 @@
 import type { ProjectSettings } from '../types/settings.js';
+import type { ProjectDiagnostic } from '../validation.js';
 
 export interface UamPoint {
 	x: number;
@@ -794,10 +795,7 @@ export type UamGearBinding =
 	| UamIconGearBinding
 	| UamFontSizeGearBinding;
 
-export interface UamValidationIssue {
-	path: string;
-	message: string;
-}
+export interface UamValidationIssue extends ProjectDiagnostic {}
 
 export const UAM_SUPPORTED_MATERIALIZATION_SCOPE = {
 	resourceKinds: ['image', 'sound', 'misc', 'font', 'movieClip', 'spine', 'dragonBones', 'component'] as const,

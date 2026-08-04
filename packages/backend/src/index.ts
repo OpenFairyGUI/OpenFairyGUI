@@ -63,6 +63,7 @@ export {
 	type SessionNotFoundError,
 	type SessionStaleWriteError,
 	type UamFidelityUnsupportedError,
+	type ValidateSessionInput,
 } from './runtime.js';
 export {
 	type BackendAsyncStorageAdapter,

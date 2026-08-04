@@ -1,8 +1,8 @@
 import test from 'ava';
-import { Document } from '@openfairygui/core';
+import { Document, liftDocumentToUamProject } from '@openfairygui/core';
 import { NodeIO } from '@openfairygui/core/node';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
-import { inspect, validate, prune, rename } from '../src/index.js';
+import { inspect, validateProject, prune, rename } from '../src/index.js';
 
 const PROJECT_PATH = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
 
@@ -40,17 +40,13 @@ test('inspect: Basics package report has details', async (t) => {
 	t.true(basics!.componentDetails.length > 0, 'has component details');
 });
 
-// ─── validate() ──────────────────────────────────────────────────────────
+// ─── validateProject() ───────────────────────────────────────────────────
 
 test('validate: runs without throwing on the demo project', async (t) => {
 	const doc = await getDoc();
-	await doc.transform(validate());
-
-	const extras = doc.getRoot().getExtras() as any;
-	t.truthy(extras._validation, 'validation result stored in extras');
-	t.is(typeof extras._validation.ok, 'boolean', 'ok is boolean');
-	t.true(Array.isArray(extras._validation.errors), 'errors is array');
-	t.true(Array.isArray(extras._validation.warnings), 'warnings is array');
+	const report = validateProject(liftDocumentToUamProject(doc));
+	t.true(['valid', 'invalid'].includes(report.status));
+	t.true(Array.isArray(report.diagnostics));
 });
 
 test('validate: detects errors in a broken project', async (t) => {
@@ -67,13 +63,9 @@ test('validate: detects errors in a broken project', async (t) => {
 	comp.addChild(child);
 	pkg.addResource(comp);
 
-	await doc.transform(validate());
-
-	const extras = doc.getRoot().getExtras() as any;
-	const result = extras._validation;
-	t.false(result.ok, 'validation should fail');
-	t.true(result.errors.length > 0, 'has errors');
-	t.true(result.errors.some((e: any) => e.message.includes('Broken reference')), 'broken ref error found');
+	const report = validateProject(liftDocumentToUamProject(doc));
+	t.is(report.status, 'invalid');
+	t.true(report.diagnostics.some((diagnostic) => diagnostic.code === 'dangling_resource_reference'));
 });
 
 // ─── prune() ─────────────────────────────────────────────────────────────
@@ -139,7 +131,7 @@ test('rename: renames a resource', async (t) => {
 
 // ─── transform pipeline ─────────────────────────────────────────────────
 
-test('transform pipeline: validate + prune runs sequentially', async (t) => {
+test('transform pipeline: prune runs on a validatable document', async (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('test');
 	pkg.setId('test0001');
@@ -153,12 +145,9 @@ test('transform pipeline: validate + prune runs sequentially', async (t) => {
 	pkg.addResource(comp);
 
 	await doc.transform(
-		validate(),
 		prune(),
 	);
-
-	const extras = doc.getRoot().getExtras() as any;
-	t.truthy(extras._validation, 'validation ran');
+	t.truthy(validateProject(liftDocumentToUamProject(doc)));
 	// Image should be pruned
 	const images = pkg.listResources().filter((r) => r.propertyType === 'ImageResource');
 	t.is(images.length, 0, 'unused image was pruned');

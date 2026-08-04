@@ -29,6 +29,7 @@ It also provides:
 - `cache.refresh` in-memory jobs with cooperative cancel and terminal retention
 - revision-bound derived read-only cache snapshots
 - revision-bound project identity outlines for transaction planning
+- revision-bound read-only project validation reports
 - explicit Node bridge boundaries for publish/restore
 
 It does **not** redefine transaction grammar or expose `Document`.
@@ -70,6 +71,9 @@ if (!opened.ok) throw new Error(opened.error.message);
 
 const outline = runtime.getProjectOutline({ sessionId: opened.data.sessionId });
 if (!outline.ok) throw new Error(outline.error.message);
+
+const validation = runtime.validateSession({ sessionId: opened.data.sessionId });
+if (!validation.ok) throw new Error(validation.error.message);
 
 const applied = await runtime.applyTransaction({
 	sessionId: opened.data.sessionId,

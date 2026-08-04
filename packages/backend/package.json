@@ -1,6 +1,6 @@
 {
 	"name": "@openfairygui/backend",
-	"version": "0.3.0-alpha.1",
+	"version": "0.3.0-alpha.2",
 	"description": "FairyGUI Headless Authoring SDK — stateful backend runtime and session services.",
 	"author": "OpenFairyGUI Contributors",
 	"license": "MIT",

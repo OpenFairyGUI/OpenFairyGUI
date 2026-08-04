@@ -6,3 +6,4 @@ export {
 	restoreNode,
 	type RestoreNodeOptions,
 } from './adapters/node/restore.js';
+export { validateProjectNode } from './adapters/node/validate.js';
