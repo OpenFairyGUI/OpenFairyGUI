@@ -6,7 +6,7 @@ OpenFairyGUI 的工程验证用于回答：当前工程能否被可靠读取、�
 
 | 层级 | 当前检查 |
 |---|---|
-| 工程读取 | `.fairy`、主/分支 `package.xml`、component XML 与 settings JSON 是否可读和可解析；同时检查 Desktop 按 `Int32` 读取的几何字段，无法解析或不兼容的内容会成为诊断，不再静默丢失 |
+| 工程读取 | `.fairy`、主/分支 `package.xml`、component XML 与 settings JSON 是否可读和可解析；同时检查 component XML 的布尔、数值、固定长度元组和枚举值，以及 Desktop 按 `Int32` 读取的几何字段，无法解析或不兼容的内容会成为诊断，不再静默丢失 |
 | UAM 完整性 | 正式字段约束、ID/包名唯一性、路径安全、大小写不敏感文件系统上的输出冲突、资源文件夹关系，以及组件、字体、骨骼、列表、gear、transition 等资源引用 |
 | 源文件 | 声明源文件是否存在、可读、非空；PNG/JPEG/SVG 的可移植检查与 MovieClip JTA 解析 |
 | 宿主解码 | Node 入口使用 Sharp 解码图片；Web 入口复用浏览器 Canvas/ImageBitmap 解码能力 |
@@ -24,6 +24,8 @@ OpenFairyGUI 的工程验证用于回答：当前工程能否被可靠读取、�
 `invalid` 表示发现确定错误；`incomplete` 表示未发现确定错误，但缺少源字节或宿主解码能力，不能宣称完整通过。诊断提供稳定 `code`、`severity`、`path`、`message`，并在适用时提供 `packageId`、`resourceId`、`nodeId` 和 `sourcePath`。
 
 原始 component XML 的 `size`、`xy`、`restrictSize`、边距、`clipSoftness`、设计图偏移及 `gearXY` / `gearSize` 整数部分若不是有符号 32 位整数，会报告 `desktop_incompatible_geometry`。缩放、旋转、透明度、pivot、skew 和 gear 百分比等浮点字段不受此规则限制；检查只报告问题，不修改源工程。
+
+当前纳入严格检查的已建模字段在进入宽松读取器前执行词法检查：布尔值接受 `true`、`false`、`1`、`0`；浮点值必须是有限十进制数，元组长度必须准确；透明度必须在 `0..1`；整数必须符合字段的 `Int32` 约束；枚举必须是当前读取器正式支持的取值。失败时报告 `invalid_project_value`，避免 `parseInt`、`parseFloat` 或默认枚举分支把错误值静默改成看似有效的 UAM。
 
 ## API
 

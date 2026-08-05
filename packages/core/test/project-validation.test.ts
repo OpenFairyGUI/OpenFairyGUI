@@ -117,3 +117,48 @@ test('detailed project reads report FairyGUI Desktop-incompatible integer geomet
 		await fs.rm(root, { recursive: true, force: true });
 	}
 });
+
+test('detailed project reads report invalid raw component values before tolerant parsing', async (t) => {
+	const root = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-read-values-'));
+	try {
+		const fairyPath = path.join(root, 'Project.fairy');
+		const componentPath = path.join(root, 'assets', 'Main', 'MainView.xml');
+		const io = new NodeIO();
+		await writeProjectFromUam(io, createMinimalUamProject('validation'), fairyPath);
+		await fs.writeFile(componentPath, `<?xml version="1.0" encoding="utf-8"?>
+<component size="320,180" pivot="0.5,NaN" overflow="clip" opaque="yes" designImageAlpha="50.5">
+  <displayList>
+    <text id="n0" xy="0,0" size="100,20" scale="1.25,0.75" visible="yes" alpha="1.5" rotation="90deg" fontSize="12.5" align="sideways" shadowColor="#000000" shadowOffset="1"/>
+    <list id="n1" xy="0,20" size="100,100" layout="grid" autoItemSize="sometimes" lineGap="2.5"/>
+    <group id="n2" xy="0,0" size="100,100" advanced="true" layout="hz"/>
+  </displayList>
+</component>`, 'utf8');
+
+		const read = await io.readProjectDetailed(fairyPath);
+		const valueDiagnostics = read.diagnostics.filter((diagnostic) => diagnostic.code === 'invalid_project_value');
+		t.truthy(read.document);
+		t.true(read.complete);
+		t.deepEqual(valueDiagnostics.map((diagnostic) => diagnostic.path).sort(), [
+			'components.cmp001.component.designImageAlpha',
+			'components.cmp001.component.opaque',
+			'components.cmp001.component.overflow',
+			'components.cmp001.component.pivot',
+			'components.cmp001.displayList.0.align',
+			'components.cmp001.displayList.0.alpha',
+			'components.cmp001.displayList.0.fontSize',
+			'components.cmp001.displayList.0.rotation',
+			'components.cmp001.displayList.0.shadowOffset',
+			'components.cmp001.displayList.0.visible',
+			'components.cmp001.displayList.1.autoItemSize',
+			'components.cmp001.displayList.1.layout',
+			'components.cmp001.displayList.1.lineGap',
+		].sort());
+		t.true(valueDiagnostics.every((diagnostic) => diagnostic.sourcePath === componentPath));
+		t.false(valueDiagnostics.some((diagnostic) => diagnostic.path.endsWith('.scale')));
+		const group = read.document!.getRoot().listPackages()[0]!.listComponents()[0]!.listChildren()
+			.find((child) => child.getId() === 'n2') as { getLayout(): number } | undefined;
+		t.is(group?.getLayout(), 1);
+	} finally {
+		await fs.rm(root, { recursive: true, force: true });
+	}
+});

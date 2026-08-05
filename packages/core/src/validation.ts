@@ -5,6 +5,7 @@ export type ProjectDiagnosticCode =
 	| 'invalid_package_xml'
 	| 'invalid_branch_package_xml'
 	| 'invalid_component_xml'
+	| 'invalid_project_value'
 	| 'desktop_incompatible_geometry'
 	| 'invalid_settings_json'
 	| 'invalid_uam'
