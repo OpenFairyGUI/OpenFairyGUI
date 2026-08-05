@@ -25,7 +25,7 @@ function createProgram(): Command {
 			'  openfairygui',
 			'',
 			'Input can be a .fairy file or a project root directory (auto-discovers .fairy file).',
-			'File extension and binary format are read from project settings.',
+			'Publish settings are read from the project; --project-type applies target-specific output rules.',
 		].join('\n'),
 	);
 

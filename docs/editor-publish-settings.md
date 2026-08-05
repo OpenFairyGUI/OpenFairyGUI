@@ -280,6 +280,15 @@ OpenFairyGUI 当前已经把“代码生成”接入现有 `publish` 流程，�
 | 其他非 Unity 项目，且 `Publish.json` 显式设置了 `fileExtension` | 使用设置值 |
 | 其他非 Unity 项目，且 `Publish.json` 未显式设置 `fileExtension` | 回退为 `fui` |
 
+### CLI 显式目标覆盖
+
+`ofgui publish --project-type layabox` 表示按 Layabox 目标发布，而不只是修改工程类型字段。命令会在读取工程设置后应用以下目标规则：
+
+- 描述文件扩展名使用 `fui`
+- atlas 禁止旋转，确保产物可由当前 FairyGUI-Layabox 运行时正确消费
+
+`includeHighResolution`、压缩、atlas 尺寸、分页和裁边等 Layabox 支持的设置继续使用工程配置。未提供 `--project-type` 时，仍遵循上表的工程设置规则。
+
 当前仓库已正式覆盖的非 Unity 二进制发布口径包括：
 - Layabox：样例工程使用 `binaryFormat=true` 和 `fileExtension="fui"`，发布结果为 `包名.fui`
 - Cocos Creator：未显式设置 `fileExtension` 时默认发布为 `包名.bin`
