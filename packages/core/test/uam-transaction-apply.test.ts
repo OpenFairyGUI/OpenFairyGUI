@@ -378,6 +378,69 @@ test('resource folder favorite supports non-empty and branch folders, inverse, a
 	t.is(documentBacked.packages[0]!.resources.find((resource) => resource.id === 'cmp001')?.name, 'RenamedView');
 });
 
+test('resource folder atlas supports projected slots, inverse, both apply paths, and strict preflight', (t) => {
+	const project = createSupportedProject();
+	project.branches = ['mobile'];
+	project.packages[0]!.folders.push({ branch: 'mobile', path: '/branch/', favorite: false, atlas: '' });
+	const original = structuredClone(project);
+	const operations = [
+		{ kind: 'setResourceFolderAtlas' as const, selector: { packageId: 'pkg001', path: '/images/' }, atlas: '2' },
+		{ kind: 'setResourceFolderAtlas' as const, selector: { packageId: 'pkg001', branch: 'mobile', path: '/branch/' }, atlas: '10' },
+	];
+
+	t.deepEqual(validateTransactionSupport(project, operations), []);
+	const result = applyUamTransaction(project, operations);
+	t.is(result.packages[0]!.folders.find((folder) => folder.path === '/images/')?.atlas, '2');
+	t.is(result.packages[0]!.folders.find((folder) => folder.branch === 'mobile')?.atlas, '10');
+	t.deepEqual(project, original);
+	t.deepEqual(applyUamTransaction(result, operations.map((operation) => ({ ...operation, atlas: '' }))), project);
+
+	const documentBacked = applyUamTransaction(project, [
+		operations[0]!,
+		{ kind: 'renameResource', selector: { packageId: 'pkg001', resourceId: 'cmp001' }, newName: 'RenamedView' },
+	]);
+	t.is(documentBacked.packages[0]!.folders.find((folder) => folder.path === '/images/')?.atlas, '2');
+	t.is(documentBacked.packages[0]!.resources.find((resource) => resource.id === 'cmp001')?.name, 'RenamedView');
+
+	const expandedPackage = createLifecyclePackage('pkg001', 'Main');
+	const expandedSettings = {
+		compressPNG: expandedPackage.compressPNG,
+		jpegQuality: expandedPackage.jpegQuality,
+		publish: {
+			...expandedPackage.publish!,
+			maxAtlasIndex: 12,
+			atlases: [{ index: 12, name: 'Effects', compression: false }],
+		},
+	};
+	const expanded = applyUamTransaction(project, [
+		{ kind: 'updatePackageSettings', selector: { packageId: 'pkg001' }, settings: expandedSettings },
+		{ kind: 'setResourceFolderAtlas', selector: { packageId: 'pkg001', path: '/images/' }, atlas: '12' },
+	]);
+	t.is(expanded.packages[0]?.publish?.maxAtlasIndex, 12);
+	t.is(expanded.packages[0]?.folders.find((folder) => folder.path === '/images/')?.atlas, '12');
+
+	for (const atlas of ['atlas0', '01', '11']) {
+		const issues = validateTransactionSupport(project, [{
+			kind: 'setResourceFolderAtlas', selector: { packageId: 'pkg001', path: '/images/' }, atlas,
+		}]);
+		t.is(issues[0]?.code, 'invalid_resource_folder_atlas');
+	}
+	t.is(validateTransactionSupport(project, [{
+		kind: 'setResourceFolderAtlas', selector: { packageId: 'pkg001', path: '/images/' }, atlas: '',
+	}])[0]?.code, 'resource_folder_atlas_unchanged');
+	t.is(validateTransactionSupport(project, [{
+		kind: 'addResourceFolder', selector: { packageId: 'pkg001' }, path: '/invalid-atlas/', atlas: 'atlas0',
+	}])[0]?.code, 'invalid_resource_folder_atlas');
+	t.is(validateTransactionSupport(project, [
+		{ kind: 'setResourceFolderAtlas', selector: { packageId: 'pkg001', path: '/images/' }, atlas: '12' },
+		{ kind: 'updatePackageSettings', selector: { packageId: 'pkg001' }, settings: expandedSettings },
+	])[0]?.code, 'invalid_resource_folder_atlas');
+	t.throws(() => applyUamTransaction(project, [{
+		kind: 'setResourceFolderAtlas', selector: { packageId: 'pkg001', path: '/images/' }, atlas: 'atlas0',
+	}]), { instanceOf: UamTransactionError });
+	t.deepEqual(project, original);
+});
+
 test('resource folder favorite follows sequential folder lifecycle projection', (t) => {
 	const project = createSupportedProject();
 	project.branches = ['mobile'];
@@ -433,7 +496,7 @@ test('resource folder lifecycle supports empty-folder forward, inverse, and atom
 	const project = createSupportedProject();
 	project.packages[0]!.folders = [
 		{ branch: '', path: '/images/', favorite: false, atlas: '' },
-		{ branch: '', path: '/empty/', favorite: true, atlas: 'atlas0' },
+		{ branch: '', path: '/empty/', favorite: true, atlas: '0' },
 	];
 	const originalFolders = structuredClone(project.packages[0]!.folders);
 
@@ -478,7 +541,7 @@ test('resource folder lifecycle supports empty-folder forward, inverse, and atom
 		selector: { packageId: 'pkg001' },
 		path: '/empty/',
 		favorite: true,
-		atlas: 'atlas0',
+		atlas: '0',
 	}]);
 	t.deepEqual(restored.packages[0]!.folders, originalFolders);
 });

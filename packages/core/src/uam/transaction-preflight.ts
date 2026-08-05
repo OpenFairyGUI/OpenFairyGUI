@@ -1732,6 +1732,44 @@ function validateResourceFolderSelector(
 	return found;
 }
 
+function resourceFolderMaxAtlasIndexAt(
+	pkg: UamPackage,
+	operations: UamTransactionOperation[],
+	operationIndex: number,
+): number {
+	let maxAtlasIndex = pkg.publish?.maxAtlasIndex ?? 10;
+	for (let index = 0; index < operationIndex; index += 1) {
+		const operation = operations[index]!;
+		if (operation.kind !== 'updatePackageSettings' || operation.selector.packageId !== pkg.id) continue;
+		const settings = operation.settings as unknown;
+		if (!isPlainRecord(settings) || !isPlainRecord(settings.publish)) continue;
+		if (isIntegerBetween(settings.publish.maxAtlasIndex, 0, 255)) {
+			maxAtlasIndex = settings.publish.maxAtlasIndex;
+		}
+	}
+	return maxAtlasIndex;
+}
+
+function validateResourceFolderAtlas(
+	atlas: unknown,
+	maxAtlasIndex: number,
+	path: string,
+	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
+): atlas is string {
+	if (typeof atlas === 'string'
+		&& (atlas === '' || (/^(0|[1-9]\d*)$/.test(atlas) && Number(atlas) <= maxAtlasIndex))
+	) return true;
+	pushSupportIssue(
+		issues,
+		'invalid_resource_folder_atlas',
+		path,
+		`Resource folder atlas must be empty or a canonical slot index from 0 to ${maxAtlasIndex}.`,
+		{ operationKind },
+	);
+	return false;
+}
+
 function primaryResourceFileName(resource: UamAssetResource): string {
 	return resource.fileName ?? (resource.kind === 'image' ? '' : resource.file) ?? '';
 }
@@ -2217,6 +2255,7 @@ function validateLifecycleOperationPayloads(
 			&& !isDisplayListRewriteOperation(operation)
 			&& operation.kind !== 'setDisplayNodeProps'
 			&& operation.kind !== 'setResourceFolderFavorite'
+			&& operation.kind !== 'setResourceFolderAtlas'
 		) continue;
 		const operationPath = `operations[${operationIndex}]`;
 		const issueCount = issues.length;
@@ -2368,9 +2407,13 @@ function validateLifecycleOperationPayloads(
 				if (operation.favorite !== undefined && typeof operation.favorite !== 'boolean') {
 					pushSupportIssue(issues, 'invalid_resource_payload', `${operationPath}.favorite`, 'addResourceFolder.favorite must be boolean.', { operationKind: operation.kind });
 				}
-				if (operation.atlas !== undefined && typeof operation.atlas !== 'string') {
-					pushSupportIssue(issues, 'invalid_resource_payload', `${operationPath}.atlas`, 'addResourceFolder.atlas must be a string.', { operationKind: operation.kind });
-				}
+				validateResourceFolderAtlas(
+					operation.atlas === undefined ? '' : operation.atlas,
+					pkg ? resourceFolderMaxAtlasIndexAt(pkg, operations, operationIndex) : 10,
+					`${operationPath}.atlas`,
+					issues,
+					operation.kind,
+				);
 				if (pkg && isSafeResourceFolderPath(operation.path)) {
 					if (!folderParentExists(pkg, branch, operation.path)) {
 						pushSupportIssue(issues, 'invalid_resource_folder_path', `${operationPath}.path`, `Parent folder "${resourceFolderParentPath(operation.path)}" does not exist.`, { operationKind: operation.kind });
@@ -2471,6 +2514,26 @@ function validateLifecycleOperationPayloads(
 			case 'setResourceFolderFavorite':
 				validateResourceFolderSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
 				break;
+			case 'setResourceFolderAtlas': {
+				const found = validateResourceFolderSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				const validAtlas = validateResourceFolderAtlas(
+					operation.atlas,
+					found ? resourceFolderMaxAtlasIndexAt(found.pkg, operations, operationIndex) : 10,
+					`${operationPath}.atlas`,
+					issues,
+					operation.kind,
+				);
+				if (found && validAtlas && found.folder.atlas === operation.atlas) {
+					pushSupportIssue(
+						issues,
+						'resource_folder_atlas_unchanged',
+						`${operationPath}.atlas`,
+						'setResourceFolderAtlas must change the selected folder atlas.',
+						{ operationKind: operation.kind },
+					);
+				}
+				break;
+			}
 		}
 		if (issues.length !== issueCount) continue;
 		if (isLifecycleOperation(operation)) {
@@ -2483,6 +2546,8 @@ function validateLifecycleOperationPayloads(
 			applyDisplayNodePropsUpdate(findDisplayNodeSpec(projected, operation.selector)!, operation.props);
 		} else if (operation.kind === 'setResourceFolderFavorite') {
 			findResourceFolder(projected, operation.selector)!.folder.favorite = operation.favorite;
+		} else if (operation.kind === 'setResourceFolderAtlas') {
+			findResourceFolder(projected, operation.selector)!.folder.atlas = operation.atlas;
 		} else {
 			applyUamDisplayListRewriteOperation(projected, operation);
 		}
@@ -2570,6 +2635,7 @@ function requiresSequentialDisplayProjection(operations: UamTransactionOperation
 	return operations.some(isLifecycleOperation)
 		|| operations.some(isResourceLifecycleOperation)
 		|| operations.some(isResourceFolderLifecycleOperation)
+		|| operations.some((operation) => operation.kind === 'setResourceFolderAtlas')
 		|| (
 			hasDisplayListRewrite
 			&& (
@@ -2741,6 +2807,8 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 						{ operationKind: operation.kind },
 					);
 				}
+				break;
+			case 'setResourceFolderAtlas':
 				break;
 			case 'setResourceExported':
 				validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);

@@ -143,6 +143,13 @@ export interface SetResourceFolderFavoriteOperation extends UamTransactionOperat
 	favorite: boolean;
 }
 
+export interface SetResourceFolderAtlasOperation extends UamTransactionOperationBase {
+	kind: 'setResourceFolderAtlas';
+	selector: UamResourceFolderSelector;
+	/** Canonical atlas slot index; an empty string clears the folder override. */
+	atlas: string;
+}
+
 export interface SetResourceExportedOperation extends UamTransactionOperationBase {
 	kind: 'setResourceExported';
 	selector: UamResourceSelector;
@@ -155,6 +162,7 @@ export interface AddResourceFolderOperation extends UamTransactionOperationBase 
 	path: string;
 	branch?: string;
 	favorite?: boolean;
+	/** Canonical atlas slot index; omitted or empty inherits the parent assignment. */
 	atlas?: string;
 }
 
@@ -356,6 +364,7 @@ export type UamTransactionOperation =
 	| MoveResourceOperation
 	| SetResourceFavoriteOperation
 	| SetResourceFolderFavoriteOperation
+	| SetResourceFolderAtlasOperation
 	| SetResourceExportedOperation
 	| AddResourceFolderOperation
 	| RenameResourceFolderOperation
@@ -412,6 +421,8 @@ export type UamTransactionSupportIssueCode =
 	| 'invalid_resource_path'
 	| 'invalid_resource_folder_selector'
 	| 'invalid_resource_folder_path'
+	| 'invalid_resource_folder_atlas'
+	| 'resource_folder_atlas_unchanged'
 	| 'resource_folder_conflict'
 	| 'resource_folder_not_empty'
 	| 'invalid_attach_index'

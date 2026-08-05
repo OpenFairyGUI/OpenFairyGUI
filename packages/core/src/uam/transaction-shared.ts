@@ -68,6 +68,7 @@ export function isUamNativeOperation(operation: UamTransactionOperation): boolea
 		|| operation.kind === 'setDisplayNodeProps'
 		|| operation.kind === 'setResourceFavorite'
 		|| operation.kind === 'setResourceFolderFavorite'
+		|| operation.kind === 'setResourceFolderAtlas'
 		|| operation.kind === 'setResourceExported'
 		|| operation.kind === 'setImageResourceProps'
 		|| isResourceFolderLifecycleOperation(operation)

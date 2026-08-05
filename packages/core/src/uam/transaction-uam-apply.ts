@@ -441,6 +441,18 @@ function applyUamNativeOperation(project: UamProject, operation: UamTransactionO
 			folder.favorite = operation.favorite;
 			return;
 		}
+		case 'setResourceFolderAtlas': {
+			const pkg = requirePackageSpec(project, operation.selector.packageId);
+			const branch = operation.selector.branch ?? '';
+			const folder = pkg.folders.find((candidate) => (
+				candidate.branch === branch && candidate.path === operation.selector.path
+			));
+			if (!folder) {
+				throw new Error(`Resource folder "${branch}:${operation.selector.path}" was not found in package "${pkg.id}".`);
+			}
+			folder.atlas = operation.atlas;
+			return;
+		}
 		case 'setResourceExported': {
 			const found = findResourceSpecWithPath(project, operation.selector);
 			if (!found) {
