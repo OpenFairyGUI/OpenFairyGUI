@@ -270,6 +270,15 @@ The current OpenFairyGUI implementation of `fileExtension` does not reproduce th
 | Other non-Unity project with explicit `fileExtension` | Uses the configured value |
 | Other non-Unity project without explicit `fileExtension` | Falls back to `fui` |
 
+### Explicit CLI target overrides
+
+`ofgui publish --project-type layabox` publishes for the Layabox target instead of only changing the project-type field. After reading the project settings, the command applies these target rules:
+
+- the descriptor extension is `fui`
+- atlas rotation is disabled so the output remains consumable by the current FairyGUI-Layabox runtime
+
+Layabox-supported settings such as `includeHighResolution`, compression, atlas size, paging, and trimming remain project-configured. Without `--project-type`, the project-setting rules in the table above remain unchanged.
+
 The non-Unity binary publish contracts formally covered by the repository include:
 
 - Layabox: sample projects use `binaryFormat=true` and `fileExtension="fui"`, producing `<package-name>.fui`.

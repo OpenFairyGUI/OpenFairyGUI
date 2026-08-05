@@ -170,7 +170,7 @@ flowchart LR
 - `@openfairygui/backend` 根入口当前提供 browser-safe async storage bridge；浏览器宿主把 OPFS、IndexedDB、ZIP 虚拟文件系统等实现适配为 `BackendFileSystem` 后，通过 `BackendRuntime({ fileSystem }).openSession()` 获取 Web Lock session lease、导入现有工程并执行 source-fidelity 检查。该租约在正常 `closeSession` 时释放，页面刷新或异常终止时由浏览器自动释放，活跃 peer session 仍返回 `lock_conflict`。只有当 UAM 本身是事实来源时，才通过 `openProjectSession` 绑定 storage，并由 `materializeSession` 完成 workspace bootstrap / first write；`saveSession` 使用该 session 绑定的文件系统写回 dirty session。
 - `@openfairygui/functions/uam` 当前只暴露 UAM transaction app seam，用于 `@openfairygui/backend` browser root entry；根入口的 `publish` / `restore` 是 capability-injected 内核，正式 Node/Web publish 宿主入口分别是 `@openfairygui/functions/node` 与 `@openfairygui/functions/web`，Node restore 宿主入口是 `@openfairygui/functions/node`。
 - 当前 Unity、Layabox、Cocos Creator 共用同一条 `publish -> atlas / binary / codegen` 主链；差异主要体现在描述文件扩展名和代码生成 lane 选择，而不是工作流分叉。
-- `@openfairygui/cli` 是入口层，不下沉协议或 Node artifact 处理细节；`cli.ts` 只负责 program 注册和进程生命周期，`inspect`、`publish`、`restore`、backend capabilities 分别由独立 command 模块装配，restore command 将 Node 文件系统与 Sharp 图像处理委托给 `restoreNode()`。
+- `@openfairygui/cli` 是入口层，不下沉协议或 Node artifact 处理细节；`cli.ts` 只负责 program 注册和进程生命周期，`inspect`、`publish`、`restore`、backend capabilities 分别由独立 command 模块装配。publish command 将显式 `--project-type` 传给 functions 选项解析器；该解析器在 Layabox 目标下应用 `.fui` 与禁止 atlas 旋转规则，未显式指定目标时继续使用工程设置。restore command 将 Node 文件系统与 Sharp 图像处理委托给 `restoreNode()`。
 
 ## Publish / Restore 宿主边界
 

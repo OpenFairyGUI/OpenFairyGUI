@@ -1,8 +1,8 @@
 import { type Document, ProjectType } from '@openfairygui/core';
 import type { AtlasOptions } from '../atlas.js';
 import type { LoadedPlugin } from '../plugins/types.js';
-import type { AtlasRasterBackend, PublishFileSystem } from './contracts.js';
 import type { CliPublishSettings, RootProjectSettings } from '../shared-types.js';
+import type { AtlasRasterBackend, PublishFileSystem } from './contracts.js';
 
 export interface PublishOptions {
 	/**
@@ -87,6 +87,8 @@ export interface ResolvedPublishAtlasOptions
 	> {}
 
 export interface ResolvePublishOptionsOverrides {
+	/** Select a target profile between direct overrides and persisted project settings. */
+	targetProjectType?: number;
 	compressed?: boolean;
 	fileExtension?: string;
 	packages?: string[];
@@ -150,9 +152,12 @@ export function resolvePublishOptions(
 	const settings = (root.getSettings?.() ?? {}) as RootProjectSettings;
 	const publishSettings: CliPublishSettings = settings.publish ?? {};
 	const atlasSetting = publishSettings.atlasSetting ?? {};
-	const projectType = root.getProjectType();
+	const projectType = overrides.targetProjectType ?? root.getProjectType();
+	const explicitLayaboxTarget = overrides.targetProjectType === ProjectType.LayaBox;
 
-	const fileExtension = overrides.fileExtension ?? resolveDefaultPublishFileExtension(projectType, publishSettings);
+	const fileExtension =
+		overrides.fileExtension ??
+		(explicitLayaboxTarget ? 'fui' : resolveDefaultPublishFileExtension(projectType, publishSettings));
 
 	let compressed = overrides.compressed ?? publishSettings.compressDesc ?? false;
 	if (projectType === UNITY_PROJECT_TYPE) {
@@ -162,7 +167,8 @@ export function resolvePublishOptions(
 	const atlasOptions: ResolvedPublishAtlasOptions = {
 		maxSize: overrides.atlas?.maxSize ?? atlasSetting.maxSize ?? 2048,
 		fast: overrides.atlas?.fast ?? atlasSetting.fast ?? true,
-		allowRotation: overrides.atlas?.allowRotation ?? atlasSetting.allowRotation ?? false,
+		allowRotation:
+			overrides.atlas?.allowRotation ?? (explicitLayaboxTarget ? false : (atlasSetting.allowRotation ?? false)),
 		padding: overrides.atlas?.padding ?? atlasSetting.padding ?? 2,
 		powerOfTwo: overrides.atlas?.powerOfTwo ?? atlasSetting.sizeOption === 'pot',
 		square: overrides.atlas?.square ?? atlasSetting.forceSquare ?? false,
