@@ -525,6 +525,7 @@ export function createDefaultUamTextProperties(): UamTextProperties {
 		autoSize: 1,
 		singleLine: false,
 		autoClearText: false,
+		outlineSoftness: 0,
 		underlaySoftness: 0,
 		ubbEnabled: false,
 		underline: false,
@@ -566,6 +567,7 @@ function normalizeTextProperties(properties: UamTextProperties): UamTextProperti
 		autoSize: properties.autoSize,
 		singleLine: properties.singleLine,
 		autoClearText: properties.autoClearText,
+		outlineSoftness: properties.outlineSoftness,
 		underlaySoftness: properties.underlaySoftness,
 		ubbEnabled: properties.ubbEnabled,
 		underline: properties.underline,
@@ -632,6 +634,12 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				...base,
 				group: node.group ?? '',
 				resource: normalizeResourceRef(node.resource),
+				color: node.color ?? '#FFFFFF',
+				flip: node.flip ?? 0,
+				fillMethod: node.fillMethod ?? 0,
+				fillOrigin: node.fillOrigin ?? 0,
+				fillClockwise: node.fillClockwise ?? true,
+				fillAmount: node.fillAmount ?? 100,
 			} satisfies UamImageNode;
 		case 'text':
 			return {

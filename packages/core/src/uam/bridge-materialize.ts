@@ -25,6 +25,7 @@ import type {
 	UamGroupProperties,
 	UamIconGearBinding,
 	UamImageNode,
+	UamImageProperties,
 	UamImageResourceProperties,
 	UamLabelNode,
 	UamListNode,
@@ -34,6 +35,7 @@ import type {
 	UamLoaderProperties,
 	UamLookGearBinding,
 	UamMovieClipNode,
+	UamMovieClipProperties,
 	UamMovieClipResourceProperties,
 	UamPlainTextProperties,
 	UamProject,
@@ -104,6 +106,29 @@ export function materializeUamGraphProperties(
 		.setDistances(properties.distances);
 }
 
+export function materializeUamImageProperties(
+	image: ReturnType<Document['createGImage']>,
+	properties: UamImageProperties,
+): void {
+	image
+		.setColor(properties.color)
+		.setFlip(properties.flip)
+		.setFillMethod(properties.fillMethod)
+		.setFillOrigin(properties.fillOrigin)
+		.setFillClockwise(properties.fillClockwise)
+		.setFillAmount(properties.fillAmount);
+}
+
+export function materializeUamMovieClipProperties(
+	movieClip: ReturnType<Document['createGMovieClip']>,
+	properties: UamMovieClipProperties,
+): void {
+	movieClip
+		.setPlaying(properties.playing)
+		.setFrame(properties.frame)
+		.setColor(properties.color);
+}
+
 export function materializeUamTextProperties(
 	text: ReturnType<Document['createGTextField']>,
 	properties: UamTextProperties | UamPlainTextProperties,
@@ -120,6 +145,7 @@ export function materializeUamTextProperties(
 		.setAutoSize(properties.autoSize)
 		.setSingleLine(properties.singleLine)
 		.setAutoClearText(properties.autoClearText)
+		.setOutlineSoftness(properties.outlineSoftness)
 		.setUnderlaySoftness(properties.underlaySoftness)
 		.setUbbEnabled(properties.ubbEnabled)
 		.setUnderline(properties.underline)
@@ -595,6 +621,7 @@ export function materializeDisplayNode(
 		const image = materializeDisplayNodeBase(doc.createGImage(node.name), node)
 			.setGroup(imageNode.group)
 			.setSrc(imageNode.resource.resourceId);
+		materializeUamImageProperties(image, imageNode);
 		return image;
 	}
 
@@ -745,10 +772,8 @@ export function materializeDisplayNode(
 		.setGroup(movieClipNode.group)
 		.setSrc(movieClipNode.resource.resourceId)
 		.setPackageId(movieClipNode.resource.packageId ?? '')
-		.setFileName(movieClipNode.fileName)
-		.setPlaying(movieClipNode.playing)
-		.setFrame(movieClipNode.frame)
-		.setColor(movieClipNode.color);
+		.setFileName(movieClipNode.fileName);
+	materializeUamMovieClipProperties(movieClip, movieClipNode);
 	return movieClip;
 }
 

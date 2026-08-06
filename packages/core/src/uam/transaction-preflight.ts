@@ -34,7 +34,9 @@ import {
 	isValidUamComponentPropertyOverride,
 	isValidUamComponentInstanceProperties,
 	isValidUamComponentProperties,
+	isValidUamImageProperties,
 	isValidUamImageResourceProperties,
+	isValidUamMovieClipProperties,
 	isValidUamMovieClipResourceProperties,
 	isValidUamTextProperties,
 	validateUamProject,
@@ -1111,6 +1113,46 @@ function validateDisplayPropsPayload(
 					'invalid_display_node_payload',
 					`${path}.props.groupProperties`,
 					'Group properties must be a complete valid group property snapshot.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			}
+			continue;
+		}
+		if (key === 'imageProperties') {
+			if (nodeKind && nodeKind !== 'image') {
+				pushSupportIssue(
+					issues,
+					'unsupported_display_node_field',
+					`${path}.props.imageProperties`,
+					'Image properties are only supported on image display nodes.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			} else if (!isValidUamImageProperties(op.props.imageProperties)) {
+				pushSupportIssue(
+					issues,
+					'invalid_display_node_payload',
+					`${path}.props.imageProperties`,
+					'Image properties must be a complete valid image property snapshot.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			}
+			continue;
+		}
+		if (key === 'movieClipProperties') {
+			if (nodeKind && nodeKind !== 'movieClip') {
+				pushSupportIssue(
+					issues,
+					'unsupported_display_node_field',
+					`${path}.props.movieClipProperties`,
+					'MovieClip properties are only supported on movieClip display nodes.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			} else if (!isValidUamMovieClipProperties(op.props.movieClipProperties)) {
+				pushSupportIssue(
+					issues,
+					'invalid_display_node_payload',
+					`${path}.props.movieClipProperties`,
+					'MovieClip properties must be a complete valid MovieClip property snapshot.',
 					{ operationKind: op.kind, nodeKind, field: key },
 				);
 			}

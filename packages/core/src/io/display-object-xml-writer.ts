@@ -998,10 +998,14 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 				if (typedObj.getTemplateVarsEnabled?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.vars, 'true');
 				const faceDilate = typedObj.getFaceDilate?.() ?? 0;
 				if (faceDilate !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.faceDilate, String(faceDilate));
+				const outlineSoftness = typedObj.getOutlineSoftness?.() ?? 0;
+				if (outlineSoftness !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.outlineSoftness, String(outlineSoftness));
 				const underlaySoftness = typedObj.getUnderlaySoftness?.() ?? 0;
 				if (underlaySoftness !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.underlaySoftness, String(underlaySoftness));
 			}
 			if (type === 'GRichTextField') {
+				const outlineSoftness = typedObj.getOutlineSoftness?.() ?? 0;
+				if (outlineSoftness !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.richText.attrs.outlineSoftness, String(outlineSoftness));
 				const underlaySoftness = typedObj.getUnderlaySoftness?.() ?? 0;
 				if (underlaySoftness !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.richText.attrs.underlaySoftness, String(underlaySoftness));
 			}

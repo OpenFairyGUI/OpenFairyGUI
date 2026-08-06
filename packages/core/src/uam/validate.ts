@@ -7,7 +7,9 @@ import type {
 	UamControllerModel,
 	UamDisplayNode,
 	UamGearBinding,
+	UamImageProperties,
 	UamImageResourceProperties,
+	UamMovieClipProperties,
 	UamMovieClipResourceProperties,
 	UamPlainTextProperties,
 	UamProject,
@@ -157,6 +159,7 @@ const TEXT_PROPERTY_KEYS = [
 	'autoSize',
 	'singleLine',
 	'autoClearText',
+	'outlineSoftness',
 	'underlaySoftness',
 	'ubbEnabled',
 	'underline',
@@ -213,6 +216,8 @@ export function isValidUamTextProperties(
 			properties.bold,
 			properties.strikethrough,
 		].every((item) => typeof item === 'boolean')
+		&& typeof properties.outlineSoftness === 'number'
+		&& Number.isFinite(properties.outlineSoftness)
 		&& typeof properties.underlaySoftness === 'number'
 		&& Number.isFinite(properties.underlaySoftness)
 		&& typeof properties.strokeSize === 'number'
@@ -251,6 +256,7 @@ function textPropertiesFromNode(
 		autoSize: node.autoSize,
 		singleLine: node.singleLine,
 		autoClearText: node.autoClearText,
+		outlineSoftness: node.outlineSoftness,
 		underlaySoftness: node.underlaySoftness,
 		ubbEnabled: node.ubbEnabled,
 		underline: node.underline,
@@ -269,6 +275,43 @@ function textPropertiesFromNode(
 		templateVarsEnabled: node.templateVarsEnabled,
 		faceDilate: node.faceDilate,
 	};
+}
+
+const IMAGE_PROPERTY_KEYS = [
+	'color',
+	'flip',
+	'fillMethod',
+	'fillOrigin',
+	'fillClockwise',
+	'fillAmount',
+] as const satisfies readonly (keyof UamImageProperties)[];
+
+export function isValidUamImageProperties(value: unknown): value is UamImageProperties {
+	if (typeof value !== 'object' || value === null || !hasExactKeys(value, IMAGE_PROPERTY_KEYS)) return false;
+	const properties = value as UamImageProperties;
+	return isTextColor(properties.color)
+		&& Number.isInteger(properties.flip) && properties.flip >= 0 && properties.flip <= 3
+		&& Number.isInteger(properties.fillMethod) && properties.fillMethod >= 0 && properties.fillMethod <= 5
+		&& Number.isInteger(properties.fillOrigin) && properties.fillOrigin >= 0 && properties.fillOrigin <= 3
+		&& typeof properties.fillClockwise === 'boolean'
+		&& typeof properties.fillAmount === 'number' && Number.isFinite(properties.fillAmount)
+		&& (properties.fillMethod === 0
+			? properties.fillOrigin === 0 && properties.fillClockwise && properties.fillAmount === 100
+			: properties.fillAmount >= 0 && properties.fillAmount <= 1);
+}
+
+const MOVIE_CLIP_PROPERTY_KEYS = [
+	'playing',
+	'frame',
+	'color',
+] as const satisfies readonly (keyof UamMovieClipProperties)[];
+
+export function isValidUamMovieClipProperties(value: unknown): value is UamMovieClipProperties {
+	if (typeof value !== 'object' || value === null || !hasExactKeys(value, MOVIE_CLIP_PROPERTY_KEYS)) return false;
+	const properties = value as UamMovieClipProperties;
+	return typeof properties.playing === 'boolean'
+		&& Number.isInteger(properties.frame) && properties.frame >= 0
+		&& isTextColor(properties.color);
 }
 
 const COMPONENT_PROPERTY_KEYS = [
@@ -676,6 +719,23 @@ function validateDisplayNode(
 		&& !isValidUamTextProperties(textPropertiesFromNode(node), node.kind)
 	) {
 		pushIssue(issues, path, 'Text properties must be a complete valid snapshot matching the display node kind.');
+	}
+	if (node.kind === 'image' && !isValidUamImageProperties({
+		color: node.color,
+		flip: node.flip,
+		fillMethod: node.fillMethod,
+		fillOrigin: node.fillOrigin,
+		fillClockwise: node.fillClockwise,
+		fillAmount: node.fillAmount,
+	})) {
+		pushIssue(issues, path, 'Image properties must be a complete valid property snapshot.');
+	}
+	if (node.kind === 'movieClip' && !isValidUamMovieClipProperties({
+		playing: node.playing,
+		frame: node.frame,
+		color: node.color,
+	})) {
+		pushIssue(issues, path, 'MovieClip properties must be a complete valid property snapshot.');
 	}
 	if (node.kind === 'loader' || node.kind === 'loader3D') {
 		if ('group' in node) {

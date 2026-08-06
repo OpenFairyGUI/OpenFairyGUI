@@ -2322,7 +2322,10 @@ test('binary writer: component structured objects round-trip into formal models'
 	title
 		.setId('title01')
 		.setXY(48, 64)
-		.setText('Ready');
+		.setText('Ready')
+		.setFaceDilate(0.125)
+		.setOutlineSoftness(0.375)
+		.setUnderlaySoftness(0.625);
 	comp.addChild(title);
 
 	comp.addRelation({ target: 'title01', type: 0, usePercent: false });
@@ -2453,6 +2456,10 @@ test('binary writer: component structured objects round-trip into formal models'
 		t.true(decodedGear.getTween());
 		t.is(decodedGear.getEaseType(), 6);
 		t.true(decodedGear.getPositionsInPercent());
+		const decodedTitle = decoded?.listChildren().find((child) => child.getId() === 'title01') as ReturnType<Document['createGTextField']>;
+		t.is(decodedTitle.getFaceDilate(), 0.125);
+		t.is(decodedTitle.getOutlineSoftness(), 0.375);
+		t.is(decodedTitle.getUnderlaySoftness(), 0.625);
 
 		const transitions = decoded?.listTransitions() ?? [];
 		t.is(transitions.length, 1);

@@ -245,8 +245,11 @@ function decodeTextChildSpecific(child: ComponentDisplayObject, childBuf: ByteBu
 	}
 
 	if (childBuf.version >= 3 && remainingBytes(childBuf) >= 13) {
-		textChild.setStrikethrough(childBuf.readBool());
-		childBuf.skip(12);
+		textChild
+			.setStrikethrough(childBuf.readBool())
+			.setFaceDilate(childBuf.getFloat32())
+			.setOutlineSoftness(childBuf.getFloat32())
+			.setUnderlaySoftness(childBuf.getFloat32());
 	}
 }
 

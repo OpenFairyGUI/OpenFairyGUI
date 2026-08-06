@@ -360,7 +360,16 @@ export interface UamGroupableDisplayNodeBase extends UamDisplayNodeBase {
 	group: string;
 }
 
-export interface UamImageNode extends UamGroupableDisplayNodeBase {
+export interface UamImageProperties {
+	color: string;
+	flip: number;
+	fillMethod: number;
+	fillOrigin: number;
+	fillClockwise: boolean;
+	fillAmount: number;
+}
+
+export interface UamImageNode extends UamGroupableDisplayNodeBase, UamImageProperties {
 	kind: 'image';
 	resource: UamResourceRef;
 }
@@ -377,6 +386,7 @@ export interface UamTextProperties {
 	autoSize: number;
 	singleLine: boolean;
 	autoClearText: boolean;
+	outlineSoftness: number;
 	underlaySoftness: number;
 	ubbEnabled: boolean;
 	underline: boolean;
@@ -554,13 +564,16 @@ export interface UamLoader3DNode extends UamDisplayNodeBase, UamLoader3DProperti
 	kind: 'loader3D';
 }
 
-export interface UamMovieClipNode extends UamGroupableDisplayNodeBase {
-	kind: 'movieClip';
-	resource: UamResourceRef;
-	fileName: string;
+export interface UamMovieClipProperties {
 	playing: boolean;
 	frame: number;
 	color: string;
+}
+
+export interface UamMovieClipNode extends UamGroupableDisplayNodeBase, UamMovieClipProperties {
+	kind: 'movieClip';
+	resource: UamResourceRef;
+	fileName: string;
 }
 
 interface UamComponentDerivedNodeBase extends UamGroupableDisplayNodeBase {

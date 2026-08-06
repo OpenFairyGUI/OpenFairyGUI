@@ -393,6 +393,12 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			...liftDisplayNodeBase(image),
 			group: image.getGroup(),
 			resource: { resourceId: image.getSrc() },
+			color: image.getColor(),
+			flip: image.getFlip(),
+			fillMethod: image.getFillMethod(),
+			fillOrigin: image.getFillOrigin(),
+			fillClockwise: image.getFillClockwise(),
+			fillAmount: image.getFillAmount(),
 		};
 	}
 	if (
@@ -413,6 +419,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			autoSize: text.getAutoSize(),
 			singleLine: text.getSingleLine(),
 			autoClearText: text.getAutoClearText(),
+			outlineSoftness: text.getOutlineSoftness(),
 			underlaySoftness: text.getUnderlaySoftness(),
 			ubbEnabled: text.getUbbEnabled(),
 			underline: text.getUnderline(),

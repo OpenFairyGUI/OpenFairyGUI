@@ -405,6 +405,7 @@
 | `autoClearText` |  | 自动清空文本 |
 | `demoText` |  | 示例文本 |
 | `faceDilate` |  | 字面扩张 |
+| `outlineSoftness` |  | 描边柔化 |
 | `underlaySoftness` |  | 下层柔化 |
 | `vars` |  | 模板变量开关 |
 | `prompt` | `promptText` | 输入提示 |
@@ -452,6 +453,7 @@
 | `autoClearText` |  | 自动清空文本 |
 | `demoText` |  | 示例文本 |
 | `faceDilate` |  | 字面扩张 |
+| `outlineSoftness` |  | 描边柔化 |
 | `underlaySoftness` |  | 下层柔化 |
 | `vars` |  | 模板变量开关 |
 | `prompt` | `promptText` | 输入提示 |
@@ -496,6 +498,7 @@
 | `shadowOffset` |  | 阴影偏移 |
 | `autoClearText` |  | 自动清空文本 |
 | `restrictSize` |  | 尺寸限制 |
+| `outlineSoftness` |  | 描边柔化 |
 | `underlaySoftness` |  | 下层柔化 |
 
 ### `<group>`

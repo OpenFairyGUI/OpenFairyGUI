@@ -405,6 +405,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `autoClearText` |  | Whether text is cleared automatically |
 | `demoText` |  | Sample text |
 | `faceDilate` |  | Face dilation |
+| `outlineSoftness` |  | Outline softness |
 | `underlaySoftness` |  | Underlay softness |
 | `vars` |  | Template-variable switch |
 | `prompt` | `promptText` | Input prompt |
@@ -452,6 +453,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `autoClearText` |  | Whether text is cleared automatically |
 | `demoText` |  | Sample text |
 | `faceDilate` |  | Face dilation |
+| `outlineSoftness` |  | Outline softness |
 | `underlaySoftness` |  | Underlay softness |
 | `vars` |  | Template-variable switch |
 | `prompt` | `promptText` | Input prompt |
@@ -496,6 +498,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `shadowOffset` |  | Shadow offset |
 | `autoClearText` |  | Whether text is cleared automatically |
 | `restrictSize` |  | Size constraints |
+| `outlineSoftness` |  | Outline softness |
 | `underlaySoftness` |  | Underlay softness |
 
 ### `<group>`

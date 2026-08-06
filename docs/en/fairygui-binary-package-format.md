@@ -448,7 +448,7 @@ Notes:
 | Type | Main fields |
 |---|---|
 | `GImage` | color, flip, fillMethod, fillOrigin, fillClockwise, fillAmount |
-| `GTextField` / `GRichTextField` / `GTextInput` | font, fontSize, color, align, vAlign, leading, letterSpacing, ubb, autoSize, underline, italic, bold, singleLine, stroke, shadow, strikethrough |
+| `GTextField` / `GRichTextField` / `GTextInput` | font, fontSize, color, align, vAlign, leading, letterSpacing, ubb, autoSize, underline, italic, bold, singleLine, stroke, shadow, strikethrough, faceDilate, outlineSoftness, underlaySoftness |
 | `GGraph` | graphType, lineSize, lineColor, fillColor, cornerRadius, points, sides, startAngle, distances |
 | `GGroup` | layout, lineGap, columnGap, excludeInvisibles, autoSizeDisabled, mainGridIndex |
 | `GLoader` | url, align, vAlign, fill, shrinkOnly, autoSize, playing, frame, color, fillMethod, useResize |

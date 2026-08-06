@@ -344,9 +344,9 @@ function _writeChildSpecific(buf: WriteBuffer, child: EncoderChildLike, pkg: Pac
 			buf.writeBool(false);
 			if (version >= 3) {
 				buf.writeBool(child.getStrikethrough?.() ?? false);
-				buf.writeFloat32(0);
-				buf.writeFloat32(0);
-				buf.writeFloat32(0);
+				buf.writeFloat32(child.getFaceDilate?.() ?? 0);
+				buf.writeFloat32(child.getOutlineSoftness?.() ?? 0);
+				buf.writeFloat32(child.getUnderlaySoftness?.() ?? 0);
 			}
 			break;
 		}

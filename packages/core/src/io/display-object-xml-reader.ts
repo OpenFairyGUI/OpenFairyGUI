@@ -702,6 +702,8 @@ export function createDisplayObject(
 				if (textVars !== undefined) g.setTemplateVarsEnabled?.(parseBool(textVars));
 				const textFaceDilate = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.faceDilate);
 				if (textFaceDilate !== undefined) g.setFaceDilate?.(parseFloat2(textFaceDilate));
+				const textOutlineSoftness = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.outlineSoftness);
+				if (textOutlineSoftness !== undefined) g.setOutlineSoftness?.(parseFloat2(textOutlineSoftness));
 				const textUnderlaySoftness = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.underlaySoftness);
 				if (textUnderlaySoftness !== undefined) g.setUnderlaySoftness?.(parseFloat2(textUnderlaySoftness));
 				const textUbb = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.ubb);
@@ -812,6 +814,8 @@ export function createDisplayObject(
 				if (richTextSingleLine !== undefined) g.setSingleLine?.(parseBool(richTextSingleLine));
 				const richTextAutoClearText = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.autoClearText);
 				if (richTextAutoClearText !== undefined) g.setAutoClearText?.(parseBool(richTextAutoClearText));
+				const richTextOutlineSoftness = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.richText.attrs.outlineSoftness);
+				if (richTextOutlineSoftness !== undefined) g.setOutlineSoftness?.(parseFloat2(richTextOutlineSoftness));
 				const richTextUnderlaySoftness = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.richText.attrs.underlaySoftness);
 				if (richTextUnderlaySoftness !== undefined) g.setUnderlaySoftness?.(parseFloat2(richTextUnderlaySoftness));
 				const richTextUnderline = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.underline);
@@ -907,6 +911,8 @@ export function createDisplayObject(
 				if (inputVars !== undefined) g.setTemplateVarsEnabled?.(parseBool(inputVars));
 				const inputFaceDilate = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.faceDilate);
 				if (inputFaceDilate !== undefined) g.setFaceDilate?.(parseFloat2(inputFaceDilate));
+				const inputOutlineSoftness = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.outlineSoftness);
+				if (inputOutlineSoftness !== undefined) g.setOutlineSoftness?.(parseFloat2(inputOutlineSoftness));
 				const inputUnderlaySoftness = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.underlaySoftness);
 				if (inputUnderlaySoftness !== undefined) g.setUnderlaySoftness?.(parseFloat2(inputUnderlaySoftness));
 				const inputUbb = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.ubb);

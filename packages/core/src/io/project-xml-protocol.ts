@@ -360,6 +360,7 @@ const TEXT_PANEL_ATTRS = {
 	autoClearText: { canonical: 'autoClearText' },
 	demoText: { canonical: 'demoText' },
 	faceDilate: { canonical: 'faceDilate' },
+	outlineSoftness: { canonical: 'outlineSoftness' },
 	underlaySoftness: { canonical: 'underlaySoftness' },
 	vars: { canonical: 'vars' },
 } satisfies XmlAttrMap;
@@ -374,6 +375,7 @@ const TEXT_INPUT_PANEL_ATTRS = {
 
 const RICH_TEXT_PANEL_ATTRS = {
 	restrictSize: { canonical: 'restrictSize' },
+	outlineSoftness: { canonical: 'outlineSoftness' },
 	underlaySoftness: { canonical: 'underlaySoftness' },
 } satisfies XmlAttrMap;
 

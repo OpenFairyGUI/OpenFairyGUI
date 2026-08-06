@@ -251,6 +251,7 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 	rich.setText('world');
 	rich.setShadowColor('#445566');
 	rich.setShadowOffset({ x: 4, y: 5 });
+	rich.setOutlineSoftness(0.375);
 	rich.setUnderlaySoftness(0.056);
 	rich.setAutoSize(4);
 
@@ -260,6 +261,7 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 	input.setDemoText('input preview');
 	input.setTemplateVarsEnabled(true);
 	input.setFaceDilate(0.125);
+	input.setOutlineSoftness(0.5);
 	input.setUnderlaySoftness(0.25);
 	input.setUbbEnabled(true);
 	input.setAutoSize(4);
@@ -269,6 +271,7 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 	input.setShadowOffset({ x: 0, y: 2 });
 
 	text.setFaceDilate(0.324);
+	text.setOutlineSoftness(0.75);
 	text.setUnderlaySoftness(1);
 
 	comp.addChild(text);
@@ -287,7 +290,9 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 		t.true(/<text\b[^>]*demoText="preview"/.test(componentXml), 'text writes canonical demoText attr');
 		t.true(/<text\b[^>]*vars(?:="true")?/.test(componentXml), 'text writes canonical vars attr');
 		t.true(/<text\b[^>]*faceDilate="0.324"/.test(componentXml), 'text writes canonical faceDilate attr');
+		t.true(/<text\b[^>]*outlineSoftness="0.75"/.test(componentXml), 'text writes canonical outlineSoftness attr');
 		t.true(/<text\b[^>]*underlaySoftness="1"/.test(componentXml), 'text writes canonical underlaySoftness attr');
+		t.true(/<richtext\b[^>]*outlineSoftness="0.375"/.test(componentXml), 'richtext writes canonical outlineSoftness attr');
 		t.true(/<richtext\b[^>]*underlaySoftness="0.056"/.test(componentXml), 'richtext writes canonical underlaySoftness attr');
 		t.true(/<inputtext\b[^>]*demoText="input preview"/.test(componentXml), 'input text writes canonical plain-text attrs');
 
@@ -300,6 +305,7 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 		t.is(text2.getDemoText?.(), 'preview');
 		t.true(text2.getTemplateVarsEnabled?.());
 		t.is(text2.getFaceDilate?.(), 0.324);
+		t.is(text2.getOutlineSoftness?.(), 0.75);
 		t.is(text2.getUnderlaySoftness?.(), 1);
 		t.is(text2.getAutoSize(), 4);
 		t.is(text2.getStrokeSize(), 0.244);
@@ -308,6 +314,7 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 
 		const rich2 = comp2!.listChildren().find((child) => child.getId() === 'n1') as ReturnType<Document['createGRichTextField']>;
 		t.truthy(rich2, 'rich text exists');
+		t.is(rich2.getOutlineSoftness?.(), 0.375);
 		t.is(rich2.getUnderlaySoftness?.(), 0.056);
 		t.is(rich2.getAutoSize(), 4);
 		t.is(rich2.getShadowColor(), '#445566');
@@ -317,6 +324,7 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 		t.is(input2.getDemoText(), 'input preview');
 		t.true(input2.getTemplateVarsEnabled());
 		t.is(input2.getFaceDilate(), 0.125);
+		t.is(input2.getOutlineSoftness(), 0.5);
 		t.is(input2.getUnderlaySoftness(), 0.25);
 		t.true(input2.getUbbEnabled());
 		t.is(input2.getAutoSize(), 4);
