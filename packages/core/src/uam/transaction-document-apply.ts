@@ -539,6 +539,18 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 			pkg.setResourceFolders(folders);
 			return;
 		}
+		case 'setResourceFolderAtlas': {
+			const pkg = resolvePackage(doc, operation.selector);
+			const branch = operation.selector.branch ?? '';
+			const folders = pkg.listResourceFolders();
+			const folder = folders.find((candidate) => (
+				candidate.branch === branch && candidate.path === operation.selector.path
+			));
+			if (!folder) throw new Error(`Resource folder "${branch}:${operation.selector.path}" was not found.`);
+			folder.atlas = operation.atlas;
+			pkg.setResourceFolders(folders);
+			return;
+		}
 		case 'setResourceExported': {
 			resolveResource(doc, operation.selector).resource.setExported(operation.exported);
 			return;

@@ -152,6 +152,8 @@ ProjectWriter 会为每个工程分支保留 `assets_<branch>/`，并为包内�
 
 资源文件夹由 `package.folders` 正式承载 `branch / path / favorite / atlas`。文件夹路径使用以 `/` 开头和结尾的规范形式，根目录是隐式节点；实际 `assets[/_<branch>]/<包名>/` 目录是存在性的事实来源，`<folder>` 节点只写入需要持久化的收藏或图集元数据。`setResourceFolderFavorite` 可更新既有主分支或资源分支文件夹的收藏状态，且单个操作只修改 selector 指定的文件夹；需要匹配编辑器的后代收藏行为时，调用方应在同一事务中显式提交后代文件夹与资源收藏操作。公开事务 `addResourceFolder`、`renameResourceFolder`、`moveResourceFolder`、`removeResourceFolder` 只操作空文件夹；父目录必须存在，根目录、路径冲突和非空操作会在提交前拒绝。浏览器存储适配器须提供非递归 `rmdir`，保存成功后才清理被移除的空目录。
 
+`setResourceFolderAtlas` 以规范 `branch + path` selector 更新既有文件夹的 source Atlas 槽位。空字符串清除覆盖；非空值必须是 `0..maxAtlasIndex` 范围内且没有前导零的十进制字符串，Atlas 名称不作为引用值。`addResourceFolder.atlas` 使用相同校验，未显式配置 package publish 时上限默认为 `10`。同一事务需要扩大上限时，必须先提交 `updatePackageSettings`，再提交文件夹 Atlas 操作；相同赋值以 `resource_folder_atlas_unchanged` 拒绝。
+
 主 `package.xml` 的 `packageDescription@hasFavorites` 由包内资源与资源文件夹的收藏状态派生，不作为独立可编辑状态。收藏状态只影响编辑器工程数据，不进入运行时二进制发布协议。
 
 ## 工程图片资源属性

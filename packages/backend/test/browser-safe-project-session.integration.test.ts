@@ -1450,6 +1450,75 @@ test('browser-safe resource folder favorite transactions survive atomic save, re
 	t.false(restored.packages[0]!.resources.find((resource) => resource.id === 'img001')?.favorite);
 });
 
+test('browser-safe resource folder atlas transactions preserve revision, save, reload, clear, and branch scope', async (t) => {
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const project = createBackendFixtureProject();
+	project.branches = ['mobile'];
+	project.packages[0]!.folders.push({ branch: 'mobile', path: '/branch/', favorite: false, atlas: '' });
+	const original = structuredClone(project);
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({
+		project,
+		storage: { fileSystem, fairyPath: 'FolderAtlases/Project.fairy' },
+	});
+	t.true(opened.ok);
+	if (!opened.ok) return;
+	const sessionId = opened.data.sessionId;
+
+	for (const [atlas, code] of [['atlas0', 'invalid_resource_folder_atlas'], ['', 'resource_folder_atlas_unchanged']] as const) {
+		const rejected = await runtime.applyTransaction({
+			sessionId,
+			expectedRevision: 0,
+			operations: [{ kind: 'setResourceFolderAtlas', selector: { packageId: 'pkg001', path: '/images/' }, atlas }],
+		});
+		t.false(rejected.ok);
+		if (rejected.ok) return;
+		t.is(rejected.meta.diagnostics[0]?.code, code);
+		t.is(rejected.session?.revision, 0);
+		t.false(rejected.session?.dirty ?? true);
+	}
+	t.deepEqual(project, original);
+
+	const operations = [
+		{ kind: 'setResourceFolderAtlas' as const, selector: { packageId: 'pkg001', path: '/images/' }, atlas: '2' },
+		{ kind: 'setResourceFolderAtlas' as const, selector: { packageId: 'pkg001', branch: 'mobile', path: '/branch/' }, atlas: '10' },
+	];
+	const applied = await runtime.applyTransaction({ sessionId, expectedRevision: 0, operations });
+	t.true(applied.ok);
+	if (!applied.ok) return;
+	t.is(applied.data.revision, 1);
+	t.true(applied.data.dirty);
+	t.true((await runtime.saveSession({ sessionId })).ok);
+
+	const packageXml = await storage.readFile('FolderAtlases/assets/Main/package.xml');
+	const branchXml = await storage.readFile('FolderAtlases/assets_mobile/Main/package_branch.xml');
+	t.regex(packageXml, /<folder[^>]*name="images"[^>]*atlas="2"/);
+	t.regex(branchXml, /<folder[^>]*name="branch"[^>]*atlas="10"/);
+	const reloaded = normalizeUamProject(
+		liftDocumentToUamProject(await new ProjectReader(fileSystem).read('FolderAtlases/Project.fairy')),
+	);
+	t.is(reloaded.packages[0]!.folders.find((folder) => folder.path === '/images/')?.atlas, '2');
+	t.is(reloaded.packages[0]!.folders.find((folder) => folder.branch === 'mobile')?.atlas, '10');
+
+	const inverse = await runtime.applyTransaction({
+		sessionId,
+		expectedRevision: 1,
+		operations: operations.map((operation) => ({ ...operation, atlas: '' })),
+	});
+	t.true(inverse.ok);
+	if (!inverse.ok) return;
+	t.is(inverse.data.revision, 2);
+	t.true((await runtime.saveSession({ sessionId })).ok);
+	t.notRegex(await storage.readFile('FolderAtlases/assets/Main/package.xml'), /<folder[^>]*name="images"/);
+	t.notRegex(await storage.readFile('FolderAtlases/assets_mobile/Main/package_branch.xml'), /<folder[^>]*name="branch"/);
+	const restored = normalizeUamProject(
+		liftDocumentToUamProject(await new ProjectReader(fileSystem).read('FolderAtlases/Project.fairy')),
+	);
+	t.is(restored.packages[0]!.folders.find((folder) => folder.path === '/images/')?.atlas, '');
+	t.is(restored.packages[0]!.folders.find((folder) => folder.branch === 'mobile')?.atlas, '');
+});
+
 test('browser-safe resource exported transactions survive save, reload, and inverse', async (t) => {
 	const storage = new MemoryBrowserStorage();
 	const fileSystem = createBackendStorageFileSystem(storage);
@@ -1535,7 +1604,7 @@ test('browser-safe empty resource folders survive lifecycle saves and reloads', 
 				selector: { packageId: 'pkg001' },
 				path: '/empty/',
 				favorite: true,
-				atlas: 'atlas0',
+				atlas: '0',
 			},
 			{ kind: 'addResourceFolder', selector: { packageId: 'pkg001' }, path: '/target/' },
 			{ kind: 'addResourceFolder', selector: { packageId: 'pkg001' }, branch: 'mobile', path: '/branch-empty/' },
@@ -1547,13 +1616,13 @@ test('browser-safe empty resource folders survive lifecycle saves and reloads', 
 	t.true(storage.hasDirectory('Folders/assets/Main/empty'));
 	t.true(storage.hasDirectory('Folders/assets_mobile/Main/branch-empty'));
 	const packageXml = await storage.readFile('Folders/assets/Main/package.xml');
-	t.regex(packageXml, /<folder[^>]*name="empty"[^>]*favorite="true"[^>]*atlas="atlas0"/);
+	t.regex(packageXml, /<folder[^>]*name="empty"[^>]*favorite="true"[^>]*atlas="0"/);
 
 	const reloaded = normalizeUamProject(
 		liftDocumentToUamProject(await new ProjectReader(fileSystem).read('Folders/Project.fairy')),
 	);
 	const empty = reloaded.packages[0]?.folders.find((folder) => folder.path === '/empty/');
-	t.deepEqual(empty, { branch: '', path: '/empty/', favorite: true, atlas: 'atlas0' });
+	t.deepEqual(empty, { branch: '', path: '/empty/', favorite: true, atlas: '0' });
 	t.true(reloaded.packages[0]?.folders.some((folder) => folder.branch === '' && folder.path === '/target/'));
 	t.true(reloaded.packages[0]?.folders.some((folder) => folder.branch === 'mobile' && folder.path === '/branch-empty/'));
 
