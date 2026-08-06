@@ -14,6 +14,7 @@ import {
 	normalizeUamProject,
 	RelationType,
 	UAM_SUPPORTED_MATERIALIZATION_SCOPE,
+	UamTransactionError,
 	validateTransactionSupport,
 	validateUamProject,
 	type UamComponentInstanceProperties,
@@ -598,8 +599,8 @@ test('Label, ComboBox, and ProgressBar instance overlays survive UAM transaction
 		selector: selector('combo108'),
 		props: { componentInstanceProperties: invalidCombo },
 	}];
-	t.deepEqual(validateTransactionSupport(baseline, unchanged), []);
-	t.deepEqual(getInstances(applyUamTransaction(baseline, unchanged)), baselineInstances);
+	t.is(validateTransactionSupport(baseline, unchanged)[0]?.code, 'display_node_props_unchanged');
+	t.throws(() => applyUamTransaction(baseline, unchanged), { instanceOf: UamTransactionError });
 });
 
 test('remaining component-root authoring metadata survives UAM transaction round-trips', async (t) => {
