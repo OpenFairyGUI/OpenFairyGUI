@@ -1,6 +1,6 @@
 {
 	"name": "@openfairygui/mcp",
-	"version": "0.2.3",
+	"version": "0.2.4",
 	"description": "FairyGUI Headless Authoring SDK - MCP server adapter for the backend runtime.",
 	"author": "OpenFairyGUI Contributors",
 	"license": "MIT",
