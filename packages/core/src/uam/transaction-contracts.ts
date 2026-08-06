@@ -412,6 +412,7 @@ export type UamTransactionSupportIssueCode =
 	| 'unsupported_text_field_target'
 	| 'unsupported_display_node_field'
 	| 'invalid_display_node_payload'
+	| 'display_node_props_unchanged'
 	| 'invalid_resource_name'
 	| 'invalid_resource_path'
 	| 'invalid_resource_folder_selector'

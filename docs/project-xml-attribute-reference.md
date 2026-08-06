@@ -560,7 +560,7 @@
 | `clipSoftness` |  | 裁剪软边 |
 | `treeView` |  | 是否树模式 |
 | `indent` |  | 树缩进 |
-| `clickToExpand` |  | 点击展开方式 |
+| `clickToExpand` |  | 点击展开方式：`0`=无动作，`1`=单击，`2`=双击 |
 | `autoClearItems` |  | 自动清空项目 |
 | `scrollItemToViewOnClick` |  | 点击子项后是否自动滚动到可见区域 |
 | `foldInvisibleItems` |  | 布局时是否折叠不可见子项 |

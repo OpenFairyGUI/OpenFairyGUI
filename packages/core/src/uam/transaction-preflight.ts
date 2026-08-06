@@ -930,7 +930,7 @@ function isValidListProperties(
 	return properties.treeView === true
 		&& isFiniteNumber(properties.indent)
 		&& properties.indent >= 0
-		&& isIntegerBetween(properties.clickToExpand, 0, 1)
+		&& isIntegerBetween(properties.clickToExpand, 0, 2)
 		&& properties.listItems.every((item) => typeof item.isFolder === 'boolean');
 }
 
@@ -956,6 +956,7 @@ function validateDisplayPropsPayload(
 	path: string,
 	issues: UamTransactionSupportIssue[],
 ): void {
+	const initialIssueCount = issues.length;
 	const node = findDisplayNodeSpec(project, op.selector);
 	const nodeKind = node?.kind;
 	const hasTextProperties = op.props.textProperties !== undefined;
@@ -1289,6 +1290,19 @@ function validateDisplayPropsPayload(
 			`Field "${String(key)}" is not supported by setDisplayNodeProps in Phase A.`,
 			{ operationKind: op.kind, nodeKind, field: String(key) },
 		);
+	}
+	if (node && issues.length === initialIssueCount) {
+		const projected = structuredClone(node);
+		applyDisplayNodePropsUpdate(projected, op.props);
+		if (stableJson(projected) === stableJson(node)) {
+			pushSupportIssue(
+				issues,
+				'display_node_props_unchanged',
+				`${path}.props`,
+				'setDisplayNodeProps must change at least one display node property.',
+				{ operationKind: op.kind, nodeKind },
+			);
+		}
 	}
 }
 
@@ -2611,7 +2625,8 @@ function validateLifecycleBatchCompatibility(
 
 function requiresSequentialDisplayProjection(operations: UamTransactionOperation[]): boolean {
 	const hasDisplayListRewrite = operations.some(isDisplayListRewriteOperation);
-	return operations.some(isLifecycleOperation)
+	return operations.some((operation) => operation.kind === 'setDisplayNodeProps')
+		|| operations.some(isLifecycleOperation)
 		|| operations.some(isResourceLifecycleOperation)
 		|| operations.some(isResourceFolderLifecycleOperation)
 		|| (

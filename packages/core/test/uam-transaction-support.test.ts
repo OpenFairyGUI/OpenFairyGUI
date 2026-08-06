@@ -1058,7 +1058,7 @@ test('graph, loader, list, and tree property snapshots survive transaction lifec
 		}],
 		treeView: true,
 		indent: 42,
-		clickToExpand: 1,
+		clickToExpand: 2,
 	};
 	const selector = (displayNodeId: string) => ({
 		packageId: 'pkg001',
@@ -1129,7 +1129,14 @@ test('graph, loader, list, and tree property snapshots survive transaction lifec
 	const crossKindIssues = validateTransactionSupport(project, crossKindOperations);
 	t.is(crossKindIssues.filter((issue) => issue.code === 'unsupported_display_node_field').length, 1);
 	t.is(crossKindIssues.filter((issue) => issue.code === 'invalid_display_node_payload').length, 2);
+	const unchangedTreeIssues = validateTransactionSupport(project, [{
+		kind: 'setDisplayNodeProps',
+		selector: selector(tree.id),
+		props: { listProperties: initialTree },
+	}]);
+	t.deepEqual(unchangedTreeIssues.map((issue) => issue.code), ['display_node_props_unchanged']);
 
+	const invalidTreeClickValues = [-1, 3, 1.5, true, '2', null] as const;
 	const invalidPayloadIssues = validateTransactionSupport(project, [
 		{
 			kind: 'setDisplayNodeProps',
@@ -1156,8 +1163,15 @@ test('graph, loader, list, and tree property snapshots survive transaction lifec
 			selector: selector(tree.id),
 			props: { listProperties: { ...updatedTree, scrollBarDisplay: 4 } },
 		},
+		...invalidTreeClickValues.map((clickToExpand) => ({
+			kind: 'setDisplayNodeProps' as const,
+			selector: selector(tree.id),
+			props: {
+				listProperties: { ...updatedTree, clickToExpand: clickToExpand as number },
+			},
+		})),
 	]);
-	t.is(invalidPayloadIssues.filter((issue) => issue.code === 'invalid_display_node_payload').length, 4);
+	t.is(invalidPayloadIssues.filter((issue) => issue.code === 'invalid_display_node_payload').length, 10);
 
 	const mixed = await roundTripCommittedProject(applyUamTransaction(project, [
 		forward[0]!,
@@ -1545,7 +1559,7 @@ test('group references validate against the projected component display list', (
 		kind: 'setDisplayNodeProps',
 		selector,
 		props: { group: 'missing-group' },
-	}]).some((issue) => issue.code === 'invalid_group_reference'));
+	}]).some((issue) => issue.code === 'display_node_props_unchanged'));
 	t.deepEqual(validateTransactionSupport(historicallyInvalid, [{
 		kind: 'setDisplayNodeProps',
 		selector,

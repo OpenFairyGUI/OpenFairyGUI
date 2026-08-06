@@ -1563,7 +1563,7 @@ test('binary writer: tree lists use tree object type and persist hierarchy metad
 	tree.setId('treechild01');
 	tree.setDefaultItem('ui://treepkg01/item');
 	tree.setIndent(15);
-	tree.setClickToExpand(1);
+	tree.setClickToExpand(2);
 	tree.setListItems([
 		{
 			title: 'Folder 1',
@@ -1617,7 +1617,7 @@ test('binary writer: tree lists use tree object type and persist hierarchy metad
 			{ isFolder: false, level: 0, title: 'Trailing leaf' },
 		]);
 		t.is(treeState?.indent, 15);
-		t.is(treeState?.clickToExpand, 1);
+		t.is(treeState?.clickToExpand, 2);
 
 		const roundTripped = await io.readBinary(outPath);
 		const decodedTree = roundTripped
@@ -1627,6 +1627,7 @@ test('binary writer: tree lists use tree object type and persist hierarchy metad
 			?.listChildren()
 			.find((child) => child.getId() === 'treechild01') as ReturnType<Document['createGTree']>;
 		t.truthy(decodedTree, 'tree child survives binary round-trip');
+		t.is(decodedTree.getClickToExpand(), 2);
 		t.deepEqual(decodedTree.getListItems().map((item) => ({
 			title: item.title,
 			level: item.level,

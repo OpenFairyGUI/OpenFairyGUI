@@ -560,7 +560,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `clipSoftness` |  | Soft clipping edge |
 | `treeView` |  | Whether tree mode is enabled |
 | `indent` |  | Tree indentation |
-| `clickToExpand` |  | Click-to-expand behavior |
+| `clickToExpand` |  | Click-to-expand behavior: `0`=none, `1`=single click, `2`=double click |
 | `autoClearItems` |  | Whether items are cleared automatically |
 | `scrollItemToViewOnClick` |  | Whether clicking an item scrolls it into view |
 | `foldInvisibleItems` |  | Whether invisible items collapse during layout |
