@@ -3375,11 +3375,25 @@ function validateProjectedState(
 			issue.message,
 		);
 	}
-	const baselineReferenceKeys = new Set(collectProjectedResourceReferenceIssues(normalizeUamProject(project))
-		.map((issue) => issue.key));
-	for (const issue of collectProjectedResourceReferenceIssues(projected)) {
-		if (baselineReferenceKeys.has(issue.key)) continue;
-		pushSupportIssue(issues, 'invalid_resource_reference', issue.path, issue.message);
+	if (
+		operations.some(isLifecycleOperation)
+		|| operations.some(isResourceLifecycleOperation)
+		|| operations.some(isDisplayListRewriteOperation)
+		|| operations.some((operation) => (
+			operation.kind === 'setDisplayNodeProps'
+			&& operation.props.componentInstanceProperties !== undefined
+		))
+		|| operations.some((operation) => (
+			operation.kind === 'setComponentProps'
+			&& operation.props.properties !== undefined
+		))
+	) {
+		const baselineReferenceKeys = new Set(collectProjectedResourceReferenceIssues(normalizeUamProject(project))
+			.map((issue) => issue.key));
+		for (const issue of collectProjectedResourceReferenceIssues(projected)) {
+			if (baselineReferenceKeys.has(issue.key)) continue;
+			pushSupportIssue(issues, 'invalid_resource_reference', issue.path, issue.message);
+		}
 	}
 }
 
