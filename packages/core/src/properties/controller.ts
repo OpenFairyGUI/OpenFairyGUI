@@ -4,9 +4,15 @@ import { ExtensibleProperty, type IExtensibleProperty } from './extensible-prope
 import type { ControllerPage } from './controller-page.js';
 import type { ControllerAction } from './controller-action.js';
 
+export type ControllerHomePageType = 'default' | 'specific' | 'branch' | 'variable';
+
 interface IController extends IExtensibleProperty {
 	selectedIndex: number;
 	autoRadioGroupDepth: boolean;
+	alias: string;
+	exported: boolean;
+	homePageType: ControllerHomePageType;
+	homePage: string;
 	pages: RefList<ControllerPage>;
 	actions: RefList<ControllerAction>;
 }
@@ -31,6 +37,10 @@ export class Controller extends ExtensibleProperty<IController> {
 		return Object.assign(super.getDefaults(), {
 			selectedIndex: 0,
 			autoRadioGroupDepth: false,
+			alias: '',
+			exported: false,
+			homePageType: 'default',
+			homePage: '',
 			pages: new RefList<ControllerPage>(),
 			actions: new RefList<ControllerAction>(),
 		});
@@ -41,6 +51,18 @@ export class Controller extends ExtensibleProperty<IController> {
 
 	public getAutoRadioGroupDepth(): boolean { return this.get('autoRadioGroupDepth'); }
 	public setAutoRadioGroupDepth(v: boolean): this { return this.set('autoRadioGroupDepth', v); }
+
+	public getAlias(): string { return this.get('alias'); }
+	public setAlias(v: string): this { return this.set('alias', v); }
+
+	public getExported(): boolean { return this.get('exported'); }
+	public setExported(v: boolean): this { return this.set('exported', v); }
+
+	public getHomePageType(): ControllerHomePageType { return this.get('homePageType'); }
+	public setHomePageType(v: ControllerHomePageType): this { return this.set('homePageType', v); }
+
+	public getHomePage(): string { return this.get('homePage'); }
+	public setHomePage(v: string): this { return this.set('homePage', v); }
 
 	public addPage(page: ControllerPage): this { return this.addRef('pages', page); }
 	public removePage(page: ControllerPage): this { return this.removeRef('pages', page); }

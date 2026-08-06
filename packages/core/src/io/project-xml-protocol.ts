@@ -525,6 +525,11 @@ const CONTROLLER_ATTRS = {
 	name: { canonical: 'name' },
 	pages: { canonical: 'pages' },
 	selected: { canonical: 'selected' },
+	alias: { canonical: 'alias' },
+	autoRadioGroupDepth: { canonical: 'autoRadioGroupDepth' },
+	exported: { canonical: 'exported' },
+	homePageType: { canonical: 'homePageType' },
+	homePage: { canonical: 'homePage' },
 } satisfies XmlAttrMap;
 
 const CONTROLLER_ACTION_ATTRS = {

@@ -803,6 +803,10 @@ function composeControllers(doc: Document, component: ReturnType<Document['creat
 			name: controller.name,
 			selectedIndex: controller.selectedIndex,
 			autoRadioGroupDepth: controller.autoRadioGroupDepth,
+			alias: controller.alias,
+			exported: controller.exported,
+			homePageType: controller.homePageType,
+			homePage: controller.homePage,
 			pages: controller.pages.map((page) => ({ id: page.id, name: page.name })),
 			actions: controller.actions.map((action) => ({
 				name: action.name,

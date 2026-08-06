@@ -39,26 +39,36 @@ export function decodeComponentControllers(
 				controller.addPage(page);
 			}
 			let homePageIndex = 0;
+			let homePageType = controller.getHomePageType();
+			let homePage = '';
 			if (controllerBuf.version >= 2 && remainingBytes(controllerBuf) >= 1) {
-				const homePageType = controllerBuf.getUint8();
-				switch (homePageType) {
+				const encodedHomePageType = controllerBuf.getUint8();
+				switch (encodedHomePageType) {
 					case 1:
-						if (remainingBytes(controllerBuf) >= 2) homePageIndex = controllerBuf.getInt16();
+						homePageType = 'specific';
+						if (remainingBytes(controllerBuf) >= 2) {
+							homePageIndex = controllerBuf.getInt16();
+							homePage = controller.listPages()[homePageIndex]?.getId() ?? '';
+						}
 						break;
 					case 2:
+						homePageType = 'branch';
 						// branch homepage: current restore has no branch runtime context, fall back to first page
 						homePageIndex = 0;
 						break;
 					case 3:
+						homePageType = 'variable';
 						// variable homepage: payload is a string key, but restore has no runtime variable context
-						if (remainingBytes(controllerBuf) >= 2) controllerBuf.readS();
+						if (remainingBytes(controllerBuf) >= 2) homePage = controllerBuf.readS() ?? '';
 						homePageIndex = 0;
 						break;
 					default:
+						homePageType = 'default';
 						homePageIndex = 0;
 						break;
 				}
 			}
+			controller.setHomePageType(homePageType).setHomePage(homePage);
 			if (controller.listPages().length > 0) {
 				const maxIndex = controller.listPages().length - 1;
 				controller.setSelectedIndex(Math.min(Math.max(homePageIndex, 0), maxIndex));

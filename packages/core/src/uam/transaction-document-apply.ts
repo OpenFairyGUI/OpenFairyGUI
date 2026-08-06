@@ -271,6 +271,30 @@ function validateControllerModelAgainstComponent(component: Component, model: Ua
 		throw new Error(`${owner}: controller "${model.name}" selectedIndex is out of range.`);
 	}
 	const pageIds = new Set(model.pages.map((page) => page.id));
+	if (typeof model.autoRadioGroupDepth !== 'boolean') {
+		throw new Error(`${owner}: controller "${model.name}" autoRadioGroupDepth must be boolean.`);
+	}
+	if (typeof model.alias !== 'string') {
+		throw new Error(`${owner}: controller "${model.name}" alias must be a string.`);
+	}
+	if (typeof model.exported !== 'boolean') {
+		throw new Error(`${owner}: controller "${model.name}" exported must be boolean.`);
+	}
+	if (!['default', 'specific', 'branch', 'variable'].includes(model.homePageType)) {
+		throw new Error(`${owner}: controller "${model.name}" has unknown home page type "${model.homePageType}".`);
+	}
+	if (typeof model.homePage !== 'string') {
+		throw new Error(`${owner}: controller "${model.name}" homePage must be a string.`);
+	}
+	if (model.homePageType === 'specific' && !pageIds.has(model.homePage)) {
+		throw new Error(`${owner}: controller "${model.name}" references unknown home page id "${model.homePage}".`);
+	}
+	if (model.homePageType === 'variable' && !model.homePage) {
+		throw new Error(`${owner}: controller "${model.name}" requires a custom property key.`);
+	}
+	if ((model.homePageType === 'default' || model.homePageType === 'branch') && model.homePage) {
+		throw new Error(`${owner}: controller "${model.name}" home page must be empty for "${model.homePageType}".`);
+	}
 	for (const action of model.actions) {
 		for (const pageId of action.fromPageIds) {
 			if (!pageIds.has(pageId)) throw new Error(`${owner}: controller "${model.name}" action references unknown fromPage id "${pageId}".`);
@@ -293,6 +317,10 @@ function replaceControllerModel(
 	validateControllerModelAgainstComponent(component, model, 'updateController');
 	controller.setName(model.name);
 	controller.setAutoRadioGroupDepth(model.autoRadioGroupDepth);
+	controller.setAlias(model.alias);
+	controller.setExported(model.exported);
+	controller.setHomePageType(model.homePageType);
+	controller.setHomePage(model.homePage);
 	controller.setSelectedIndex(model.selectedIndex);
 	for (const action of [...controller.listActions()]) controller.removeAction(action);
 	for (const page of [...controller.listPages()]) controller.removePage(page);
@@ -804,6 +832,10 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 				name: operation.controller.name,
 				selectedIndex: operation.controller.selectedIndex,
 				autoRadioGroupDepth: operation.controller.autoRadioGroupDepth,
+				alias: operation.controller.alias,
+				exported: operation.controller.exported,
+				homePageType: operation.controller.homePageType,
+				homePage: operation.controller.homePage,
 				pages: operation.controller.pages.map((page) => ({ id: page.id, name: page.name })),
 				actions: operation.controller.actions.map((action) => ({
 					name: action.name,

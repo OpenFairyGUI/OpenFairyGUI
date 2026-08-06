@@ -1,7 +1,7 @@
 import { EaseType, GearType } from './constants.js';
 import type { Document } from './document.js';
 import type { Component } from './properties/component.js';
-import type { Controller } from './properties/controller.js';
+import type { Controller, ControllerHomePageType } from './properties/controller.js';
 import type { GObject } from './properties/g-object.js';
 import type { Gear } from './properties/gear.js';
 import type { Transition } from './properties/transition.js';
@@ -30,6 +30,10 @@ export interface ControllerCompositionOptions {
 	name: string;
 	selectedIndex?: number;
 	autoRadioGroupDepth?: boolean;
+	alias?: string;
+	exported?: boolean;
+	homePageType?: ControllerHomePageType;
+	homePage?: string;
 	pages: ControllerPageComposition[];
 	actions?: ControllerActionComposition[];
 }
@@ -186,12 +190,24 @@ export function composeController(
 
 	const controller = doc.createController(options.name)
 		.setSelectedIndex(options.selectedIndex ?? 0)
-		.setAutoRadioGroupDepth(options.autoRadioGroupDepth ?? false);
+		.setAutoRadioGroupDepth(options.autoRadioGroupDepth ?? false)
+		.setAlias(options.alias ?? '')
+		.setExported(options.exported ?? false)
+		.setHomePageType(options.homePageType ?? 'default')
+		.setHomePage(options.homePage ?? '');
 
 	if (controller.getSelectedIndex() < 0 || controller.getSelectedIndex() >= options.pages.length) {
 		throw new Error(
 			`composeController: selectedIndex ${controller.getSelectedIndex()} is out of range for controller "${options.name}".`,
 		);
+	}
+	if (controller.getHomePageType() === 'specific' && !knownPageIds.has(controller.getHomePage())) {
+		throw new Error(
+			`composeController: controller "${options.name}" references unknown home page id "${controller.getHomePage()}".`,
+		);
+	}
+	if (controller.getHomePageType() === 'variable' && !controller.getHomePage()) {
+		throw new Error(`composeController: controller "${options.name}" requires a custom property key.`);
 	}
 
 	for (const pageInput of options.pages) {

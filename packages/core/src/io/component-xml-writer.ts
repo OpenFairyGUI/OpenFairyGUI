@@ -386,6 +386,15 @@ function serializeController(ctrl: Controller): Record<string, unknown> {
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.name, ctrl.getName());
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.pages, pagesStr);
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.selected, String(ctrl.getSelectedIndex()));
+		if (ctrl.getAlias()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.alias, ctrl.getAlias());
+		if (ctrl.getAutoRadioGroupDepth()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.autoRadioGroupDepth, 'true');
+		if (ctrl.getExported()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.exported, 'true');
+		if (ctrl.getHomePageType() !== 'default') {
+			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.homePageType, ctrl.getHomePageType());
+		}
+		if (ctrl.getHomePageType() === 'specific' || ctrl.getHomePageType() === 'variable') {
+			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.homePage, ctrl.getHomePage());
+		}
 		const actions = ctrl.listActions().map((action) => serializeControllerAction(action as WritableControllerAction));
 		const actionChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.controller, 'action');
 		if (actions.length > 0 && actionChildName) attrs[actionChildName] = actions;

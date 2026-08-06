@@ -304,6 +304,17 @@ Every controller has its own three-block index table:
 | 1 | `pages` as ID and name, plus `homePageType` |
 | 2 | `actions` container and action payload |
 
+The formal `homePageType:uint8` values and their trailing payloads are:
+
+| Value | Meaning | Trailing payload |
+|---|---|---|
+| `0` | First page (`default`) | None |
+| `1` | Specific page (`specific`) | Page index as `int16` |
+| `2` | Match branch name (`branch`) | None |
+| `3` | Match variable value (`variable`) | Project-variable key string |
+
+Controller `alias` and `exported` are editor metadata in project XML and are not written into this runtime Controller block.
+
 The `actions` block begins with `actionCount:int16`. Each action then starts with `chunkSize:int16`, followed by fields in this fixed order:
 
 | Field | Meaning |
