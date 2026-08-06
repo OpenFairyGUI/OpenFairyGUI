@@ -753,6 +753,10 @@ function liftControllers(component: ReturnType<Document['createComponent']>): Ua
 		name: controller.getName(),
 		selectedIndex: controller.getSelectedIndex(),
 		autoRadioGroupDepth: controller.getAutoRadioGroupDepth(),
+		alias: controller.getAlias(),
+		exported: controller.getExported(),
+		homePageType: controller.getHomePageType(),
+		homePage: controller.getHomePage(),
 		pages: controller.listPages().map((page) => ({
 			id: page.getId(),
 			name: page.getName(),

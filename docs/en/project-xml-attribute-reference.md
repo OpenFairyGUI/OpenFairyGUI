@@ -683,6 +683,11 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `name` |  | Controller name |
 | `pages` |  | Page set |
 | `selected` |  | Currently selected page |
+| `alias` |  | Editor-facing remark name, used as the display label when exported as a component property |
+| `autoRadioGroupDepth` |  | Whether controlled radio buttons automatically adjust their display depth |
+| `exported` |  | Whether the controller is exported as a component property |
+| `homePageType` |  | Home-page strategy: `default`, `specific`, `branch`, or `variable` |
+| `homePage` |  | Page ID for `specific`, or project-variable key for `variable` |
 
 ### `<action>`
 

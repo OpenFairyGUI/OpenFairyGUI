@@ -127,6 +127,10 @@ export function createControllerModel(name = 'state'): UamControllerModel {
 		name,
 		selectedIndex: 0,
 		autoRadioGroupDepth: false,
+		alias: '',
+		exported: false,
+		homePageType: 'default',
+		homePage: '',
 		pages: [
 			{ id: '0', name: 'Idle' },
 			{ id: '1', name: 'Alert' },

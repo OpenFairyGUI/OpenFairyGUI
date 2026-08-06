@@ -683,6 +683,11 @@
 | `name` |  | 控制器名 |
 | `pages` |  | 页面集合 |
 | `selected` |  | 当前选中页 |
+| `alias` |  | 编辑器中显示的备注名；导出为组件属性时作为显示名称 |
+| `autoRadioGroupDepth` |  | 是否自动调整受控单选按钮的层级 |
+| `exported` |  | 是否导出为组件属性 |
+| `homePageType` |  | 首页策略：`default`、`specific`、`branch` 或 `variable` |
+| `homePage` |  | `specific` 时为页面 id，`variable` 时为工程变量键 |
 
 ### `<action>`
 

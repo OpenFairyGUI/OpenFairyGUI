@@ -56,7 +56,7 @@ export { GSlider } from './g-slider.js';
 export { GScrollBar } from './g-scroll-bar.js';
 
 // Controller / Gear / Transition
-export { Controller } from './controller.js';
+export { Controller, type ControllerHomePageType } from './controller.js';
 export { ControllerPage } from './controller-page.js';
 export { ControllerAction } from './controller-action.js';
 export { Transition } from './transition.js';

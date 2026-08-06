@@ -895,6 +895,22 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 					if (pageIds.has(page.id)) pushIssue(issues, `${pagePath}.id`, `Duplicate controller page id "${page.id}".`);
 					pageIds.add(page.id);
 				}
+				if (typeof controller.autoRadioGroupDepth !== 'boolean') {
+					pushIssue(issues, `${controllerPath}.autoRadioGroupDepth`, 'Controller autoRadioGroupDepth must be boolean.');
+				}
+				if (typeof controller.alias !== 'string') pushIssue(issues, `${controllerPath}.alias`, 'Controller alias must be a string.');
+				if (typeof controller.exported !== 'boolean') pushIssue(issues, `${controllerPath}.exported`, 'Controller exported must be boolean.');
+				if (!['default', 'specific', 'branch', 'variable'].includes(controller.homePageType)) {
+					pushIssue(issues, `${controllerPath}.homePageType`, `Unknown controller home page type "${controller.homePageType}".`);
+				} else if (typeof controller.homePage !== 'string') {
+					pushIssue(issues, `${controllerPath}.homePage`, 'Controller homePage must be a string.');
+				} else if (controller.homePageType === 'specific' && !pageIds.has(controller.homePage)) {
+					pushIssue(issues, `${controllerPath}.homePage`, `Unknown controller home page id "${controller.homePage}".`);
+				} else if (controller.homePageType === 'variable' && !controller.homePage) {
+					pushIssue(issues, `${controllerPath}.homePage`, 'Variable controller home page requires a custom property key.');
+				} else if ((controller.homePageType === 'default' || controller.homePageType === 'branch') && controller.homePage) {
+					pushIssue(issues, `${controllerPath}.homePage`, `Controller home page must be empty for "${controller.homePageType}".`);
+				}
 
 				for (const [actionIndex, action] of controller.actions.entries()) {
 					validateControllerAction(action, pageIds, childIds, `${controllerPath}.actions[${actionIndex}]`, issues);

@@ -1,6 +1,6 @@
 import { ControllerActionType } from '../constants.js';
 import type { Component } from '../properties/component.js';
-import type { Controller } from '../properties/controller.js';
+import type { Controller, ControllerHomePageType } from '../properties/controller.js';
 import {
 	ensureArray,
 	parseBool,
@@ -47,6 +47,8 @@ const EXTENSION_TYPE_MAP: Record<string, string> = {
 	Slider: 'GSlider',
 	ScrollBar: 'GScrollBar',
 };
+
+const CONTROLLER_HOME_PAGE_TYPES = new Set<ControllerHomePageType>(['default', 'specific', 'branch', 'variable']);
 
 const EXTENSION_PROTOCOL_MAP = {
 	Button: PROJECT_XML_PROTOCOL.buttonExtension,
@@ -536,7 +538,17 @@ export function readComponentXml(ctx: ReaderContext, comp: Component, xmlContent
 			const ctrlName = readXmlAttr<string>(ctrlDef, PROJECT_XML_PROTOCOL.controller.attrs.name) ?? '';
 			const ctrl = doc.createController(ctrlName);
 			const selected = readXmlAttr<string | number>(ctrlDef, PROJECT_XML_PROTOCOL.controller.attrs.selected);
-			ctrl.setSelectedIndex(parseInt2(selected));
+			const homePageType = readXmlAttr<string>(ctrlDef, PROJECT_XML_PROTOCOL.controller.attrs.homePageType) ?? 'default';
+			if (!CONTROLLER_HOME_PAGE_TYPES.has(homePageType as ControllerHomePageType)) {
+				throw new Error(`Controller "${ctrlName}" has unsupported homePageType "${homePageType}".`);
+			}
+			ctrl
+				.setSelectedIndex(parseInt2(selected))
+				.setAlias(readXmlAttr<string>(ctrlDef, PROJECT_XML_PROTOCOL.controller.attrs.alias) ?? '')
+				.setAutoRadioGroupDepth(parseBool(readXmlAttr(ctrlDef, PROJECT_XML_PROTOCOL.controller.attrs.autoRadioGroupDepth)))
+				.setExported(parseBool(readXmlAttr(ctrlDef, PROJECT_XML_PROTOCOL.controller.attrs.exported)))
+				.setHomePageType(homePageType as ControllerHomePageType)
+				.setHomePage(readXmlAttr<string>(ctrlDef, PROJECT_XML_PROTOCOL.controller.attrs.homePage) ?? '');
 
 			// Parse pages: "0,up,1,down,2,over" → [{id:"0",name:"up"}, ...]
 			const pagesAttr = readXmlAttr<string>(ctrlDef, PROJECT_XML_PROTOCOL.controller.attrs.pages) ?? '';

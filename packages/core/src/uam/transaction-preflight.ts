@@ -1373,6 +1373,26 @@ function validateControllerPayload(
 		);
 	}
 	const pageIds = new Set(controller.pages.map((page) => page.id));
+	if (typeof controller.autoRadioGroupDepth !== 'boolean') {
+		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.autoRadioGroupDepth`, 'Controller autoRadioGroupDepth must be boolean.', { operationKind });
+	}
+	if (typeof controller.alias !== 'string') {
+		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.alias`, 'Controller alias must be a string.', { operationKind });
+	}
+	if (typeof controller.exported !== 'boolean') {
+		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.exported`, 'Controller exported must be boolean.', { operationKind });
+	}
+	if (!['default', 'specific', 'branch', 'variable'].includes(controller.homePageType)) {
+		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.homePageType`, `Unknown controller home page type "${controller.homePageType}".`, { operationKind });
+	} else if (typeof controller.homePage !== 'string') {
+		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.homePage`, 'Controller homePage must be a string.', { operationKind });
+	} else if (controller.homePageType === 'specific' && !pageIds.has(controller.homePage)) {
+		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.homePage`, `Unknown controller home page id "${controller.homePage}".`, { operationKind });
+	} else if (controller.homePageType === 'variable' && !controller.homePage) {
+		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.homePage`, 'Variable controller home page requires a custom property key.', { operationKind });
+	} else if ((controller.homePageType === 'default' || controller.homePageType === 'branch') && controller.homePage) {
+		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.homePage`, `Controller home page must be empty for "${controller.homePageType}".`, { operationKind });
+	}
 	for (const [actionIndex, action] of controller.actions.entries()) {
 		for (const pageId of action.fromPageIds) {
 			if (!pageIds.has(pageId)) {

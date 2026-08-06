@@ -300,6 +300,17 @@ block 5 的 patch 用于替换 block 4 中相同索引位置的占位字符串�
 | 1 | `pages`（id + name）、`homePageType` |
 | 2 | `actions` 容器与 action payload |
 
+`homePageType:uint8` 的正式取值和附加 payload：
+
+| 值 | 语义 | 后续 payload |
+|---|---|---|
+| `0` | 第一页（`default`） | 无 |
+| `1` | 指定页（`specific`） | 页面索引 `int16` |
+| `2` | 匹配分支名（`branch`） | 无 |
+| `3` | 匹配变量值（`variable`） | 工程变量键字符串 |
+
+工程 XML 中的 controller `alias` 与 `exported` 属于编辑器元数据，不进入这个运行时 Controller block。
+
 `actions` block 先写 `actionCount:int16`，随后每个 action 以 `chunkSize:int16` 开头，action 正文顺序固定如下：
 
 | 字段 | 含义 |

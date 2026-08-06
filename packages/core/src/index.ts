@@ -255,6 +255,7 @@ export {
 	GSlider,
 	GScrollBar,
 	Controller,
+	type ControllerHomePageType,
 	ControllerPage,
 	ControllerAction,
 	Transition,

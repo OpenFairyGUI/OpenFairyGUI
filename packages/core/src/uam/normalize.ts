@@ -975,10 +975,15 @@ function normalizeControllerAction(action: UamControllerAction): UamControllerAc
 }
 
 function normalizeControllerModel(controller: UamControllerModel): UamControllerModel {
+	const homePageType = controller.homePageType ?? 'default';
 	return {
 		name: controller.name,
 		selectedIndex: controller.selectedIndex ?? 0,
 		autoRadioGroupDepth: controller.autoRadioGroupDepth ?? false,
+		alias: controller.alias ?? '',
+		exported: controller.exported ?? false,
+		homePageType,
+		homePage: homePageType === 'specific' || homePageType === 'variable' ? controller.homePage ?? '' : '',
 		pages: (controller.pages ?? []).map(normalizeControllerPage),
 		actions: (controller.actions ?? []).map(normalizeControllerAction),
 	};

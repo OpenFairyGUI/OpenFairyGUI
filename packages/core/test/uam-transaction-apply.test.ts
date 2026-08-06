@@ -709,6 +709,11 @@ test('behavior operations add and update controllers, transitions, and look gear
 			controller: {
 				...createControllerModel('state'),
 				selectedIndex: 1,
+				autoRadioGroupDepth: true,
+				alias: 'Shared state',
+				exported: true,
+				homePageType: 'specific',
+				homePage: '1',
 				actions: [
 					{
 						name: 'activate',
@@ -785,6 +790,10 @@ test('behavior operations add and update controllers, transitions, and look gear
 
 	t.is(componentResource.component.controllers.length, 1);
 	t.is(componentResource.component.controllers[0]?.selectedIndex, 1);
+	t.is(componentResource.component.controllers[0]?.alias, 'Shared state');
+	t.true(componentResource.component.controllers[0]?.exported);
+	t.is(componentResource.component.controllers[0]?.homePageType, 'specific');
+	t.is(componentResource.component.controllers[0]?.homePage, '1');
 	t.is(componentResource.component.controllers[0]?.actions.length, 1);
 
 	t.is(componentResource.component.transitions.length, 1);
@@ -807,6 +816,10 @@ test('behavior operations add and update controllers, transitions, and look gear
 		return;
 	}
 	t.is(roundTrippedComponent.component.controllers[0]?.name, 'state');
+	t.is(roundTrippedComponent.component.controllers[0]?.alias, 'Shared state');
+	t.true(roundTrippedComponent.component.controllers[0]?.exported);
+	t.is(roundTrippedComponent.component.controllers[0]?.homePageType, 'specific');
+	t.is(roundTrippedComponent.component.controllers[0]?.homePage, '1');
 	t.is(roundTrippedComponent.component.transitions[0]?.name, 'intro');
 	t.is(roundTrippedComponent.component.displayList[0]?.gears[0]?.kind, 'look');
 });
@@ -843,6 +856,21 @@ test('text color snapshots canonicalize before save and reload', async (t) => {
 		? reloadedComponent.component.displayList.find((node) => node.id === 'n1')
 		: null;
 	t.like(reloadedText, updatedText);
+});
+
+test('controller metadata preflight rejects invalid home-page payloads', (t) => {
+	const operation = {
+		kind: 'addController' as const,
+		selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: 'state' },
+		controller: {
+			...createControllerModel('state'),
+			homePageType: 'specific' as const,
+			homePage: 'missing',
+		},
+	};
+	const issues = validateTransactionSupport(createSupportedProject(), [operation]);
+	t.true(issues.some((issue) => issue.code === 'invalid_controller_payload'));
+	t.throws(() => applyUamTransaction(createSupportedProject(), [operation]), { instanceOf: UamTransactionError });
 });
 
 test('behavior remove operations remove look gears, transitions, and controllers with frozen selectors', (t) => {

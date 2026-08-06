@@ -851,6 +851,47 @@ test('binary writer: component extension type is read from the formal component 
 	}
 });
 
+test('binary writer: controller home-page metadata round-trips through the controller block', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('ControllerPkg').setId('controllerpkg');
+	const component = doc.createComponent('ControllerHost').setId('controllerhost').setSize(320, 200);
+	for (const [name, homePageType, homePage] of [
+		['default-state', 'default', ''],
+		['specific-state', 'specific', '1'],
+		['branch-state', 'branch', ''],
+		['variable-state', 'variable', 'theme'],
+	] as const) {
+		const controller = doc.createController(name)
+			.setAutoRadioGroupDepth(name === 'specific-state')
+			.setHomePageType(homePageType)
+			.setHomePage(homePage);
+		controller.addPage(doc.createControllerPage('Idle').setId('0'));
+		controller.addPage(doc.createControllerPage('Active').setId('1'));
+		component.addController(controller);
+	}
+	pkg.addResource(component);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-controller-metadata-'));
+	const outPath = path.join(tmpDir, 'controller_metadata.bytes');
+	try {
+		await io.writeBinary(doc, outPath);
+		const decoded = (await io.readBinary(outPath)).getRoot().getPackage('ControllerPkg')?.getComponent('ControllerHost');
+		t.truthy(decoded);
+		const controllers = new Map(decoded?.listControllers().map((controller) => [controller.getName(), controller]));
+		t.is(controllers.get('default-state')?.getHomePageType(), 'default');
+		t.is(controllers.get('specific-state')?.getHomePageType(), 'specific');
+		t.is(controllers.get('specific-state')?.getHomePage(), '1');
+		t.is(controllers.get('specific-state')?.getSelectedIndex(), 1);
+		t.true(controllers.get('specific-state')?.getAutoRadioGroupDepth());
+		t.is(controllers.get('branch-state')?.getHomePageType(), 'branch');
+		t.is(controllers.get('variable-state')?.getHomePageType(), 'variable');
+		t.is(controllers.get('variable-state')?.getHomePage(), 'theme');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('binary writer: package dependencies round-trip as formal package relations', async (t) => {
 	const doc = new Document();
 	const mainPkg = doc.createPackage('MainPkg');

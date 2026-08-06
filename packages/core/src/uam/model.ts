@@ -1,3 +1,4 @@
+import type { ControllerHomePageType } from '../properties/controller.js';
 import type { ProjectSettings } from '../types/settings.js';
 
 export interface UamPoint {
@@ -701,6 +702,10 @@ export interface UamControllerModel {
 	name: string;
 	selectedIndex: number;
 	autoRadioGroupDepth: boolean;
+	alias: string;
+	exported: boolean;
+	homePageType: ControllerHomePageType;
+	homePage: string;
 	pages: UamControllerPage[];
 	actions: UamControllerAction[];
 }
