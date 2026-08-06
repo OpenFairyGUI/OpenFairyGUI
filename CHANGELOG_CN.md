@@ -2,13 +2,44 @@
 
 [English](./CHANGELOG.md)
 
-## [未发布]
+## 未发布
+
+发布比较：
+
+- 稳定线（`main`）：[v0.2.5...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.2.5...main)
+- 预发布线（`next`）：[v0.3.0-alpha.4...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.0-alpha.4...next)
 
 其他：
 
-- docs：在官网与仓库文档中加入新版 OpenFairyGUI 项目 Logo。
+- docs：补齐双语发布记录、当前版本状态、英文整数几何协议与公开包入口说明，并将双语 Changelog 同步纳入发布约束。
 
 ## v0.3.x
+
+### v0.3.0-alpha.4（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.3.0-alpha.4)）
+
+新功能：
+
+- functions,cli：验证流程拒绝无效工程值，不再把严格校验失败的工程报告为可安全使用。[#101](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/101)
+
+### v0.3.0-alpha.3（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.3.0-alpha.3)）
+
+新功能：
+
+- functions,cli：报告与 FairyGUI 桌面编辑器有符号 32 位整数几何范围不兼容的工程值。[#99](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/99)
+
+修复：
+
+- core：工程 XML 的整数几何字段统一向零截断，并拒绝非有限值和越界值。[#98](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/98)
+
+其他：
+
+- docs：加入项目 Logo、双语文档和修正后的 API 链接。[#94](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/94) [#95](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/95)
+
+### v0.3.0-alpha.2（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.3.0-alpha.2)）
+
+新功能：
+
+- functions,cli：新增工程验证工作流，提供 `valid`、`invalid`、`incomplete` 状态、诊断信息与 JSON 输出。[#96](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/96)
 
 ### v0.3.0-alpha.1（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.3.0-alpha.1)）
 
@@ -19,6 +50,49 @@
 ## v0.2.x
 
 从 `v0.2.0-alpha.0` 到 `v0.2.0-alpha.38` 的预发布版本统一归入下方正式版记录。
+
+### v0.2.5（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.2.5)）
+
+新功能：
+
+- core：将 controller 的 `alias`、`autoRadioGroupDepth` 与 `exported` 建模为正式属性，并在 Project XML、UAM 与 authoring API 中保留。[#117](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/117)
+
+### v0.2.4（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.2.4)）
+
+新功能：
+
+- core,backend：新增 `setResourceFolderAtlas` 事务，按规范分支与路径更新资源文件夹的 source Atlas 槽位。[#115](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/115)
+
+### v0.2.3（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.2.3)）
+
+新功能：
+
+- core：补齐 Image、MovieClip、List、内置组件实例与组件 authoring 元数据的 UAM、Project XML 和二进制往返契约。[#112](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/112)
+- core,backend：支持 Tree 双击展开状态事务，并收紧 no-op 事务安全检查。[#113](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/113)
+
+其他：
+
+- docs：推荐基于 OpenFairyGUI 构建的 FairyGUI Editor Online，并明确 OpenFairyGUI 与 FairyGUI 品牌的非官方关系。[#111](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/111)
+
+### v0.2.2（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.2.2)）
+
+修复：
+
+- cli,functions：`--project-type layabox` 使用安全的 Layabox 发布配置，不再沿用不兼容的 Unity 扩展名和旋转图集设置。[#103](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/103)
+
+其他：
+
+- docs：在 VitePress 官网中渲染 Mermaid 架构图。[#100](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/100)
+
+### v0.2.1（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.2.1)）
+
+修复：
+
+- core：工程 XML 的整数几何字段统一向零截断，并拒绝非有限值和越界值。[#98](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/98)
+
+其他：
+
+- docs：加入项目 Logo、双语 Changelog、英文文档和修正后的 API 链接。[#94](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/94) [#95](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/95)
 
 ### v0.2.0（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.2.0)）
 
@@ -60,5 +134,3 @@
 ### v0.1.0（[标签](https://github.com/OpenFairyGUI/OpenFairyGUI/tree/v0.1.0)）
 
 首个版本，提供 FairyGUI 工程与二进制包读写、文档变换、发布、已发布工程恢复和 `ofgui` CLI。
-
-[未发布]: https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.2.0...main

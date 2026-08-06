@@ -127,6 +127,19 @@ Notes:
 
 Component root extensions, ComboBox component instances, and List/Tree display nodes use the formal boolean `autoClearItems` property. Its default is `false`, and it is written only when enabled. Ordered `<property target="..." propertyId="..." value="..."/>` children for component instances and static list items are stored in formal UAM properties. Reads, materialization, saves, and reloads preserve their original order and raw string values, including leading/trailing whitespace, whitespace-only values, and empty strings. `target` must be non-empty, `propertyId` must be a non-negative safe integer, and `value` must be present; invalid input is rejected before materialization or write-back.
 
+## Integer geometry fields in component XML
+
+Geometry values that the FairyGUI desktop editor reads as signed 32-bit integers are truncated toward zero when written to Project XML. Non-finite values and values outside `-2147483648` to `2147483647` after truncation are rejected.
+
+Integer geometry fields include:
+
+- Display-node `xy`, `size`, and `restrictSize`.
+- Component-root `size`, `restrictSize`, `margin`, `scrollBarMargin`, `clipSoftness`, and `designImageOffsetX/Y`.
+- List/Tree `margin`, `scrollBarMargin`, and `clipSoftness`.
+- The x/y values of `gearXY` and the width/height values of `gearSize`.
+
+`pivot`, `scale`, `skew`, percentage values in `gearXY`, and scale values in `gearSize` continue to preserve decimals.
+
 ## Project resource-tree metadata
 
 Component and asset resource nodes in `package.xml` and `package_branch.xml` use `exported="true"` and `favorite="true"` to store export and favorite state. The corresponding attribute is omitted when disabled. UAM stores these values as `resource.exported` and `resource.favorite`; public transactions set the target Boolean idempotently through `setResourceExported` and `setResourceFavorite`.

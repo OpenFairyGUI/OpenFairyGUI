@@ -2,13 +2,44 @@
 
 [中文](./CHANGELOG_CN.md)
 
-## [Unreleased]
+## Unreleased
+
+Release comparisons:
+
+- Stable line (`main`): [v0.2.5...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.2.5...main)
+- Prerelease line (`next`): [v0.3.0-alpha.4...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.0-alpha.4...next)
 
 Other:
 
-- docs: Add the new OpenFairyGUI project logo to the website and repository documentation.
+- docs: Complete the bilingual release history, current version status, English integer-geometry protocol, and public package entrypoint guide, and make bilingual Changelog updates a release requirement.
 
 ## v0.3.x
+
+### v0.3.0-alpha.4 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.3.0-alpha.4))
+
+Features:
+
+- functions,cli: Reject invalid project values during validation instead of reporting strictly invalid projects as safe to use. [#101](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/101)
+
+### v0.3.0-alpha.3 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.3.0-alpha.3))
+
+Features:
+
+- functions,cli: Report project geometry that is incompatible with the FairyGUI desktop editor's signed 32-bit integer range. [#99](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/99)
+
+Fixes:
+
+- core: Truncate integer geometry fields toward zero in Project XML and reject non-finite or out-of-range values. [#98](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/98)
+
+Other:
+
+- docs: Add the project logo, English documentation, and corrected API links. [#94](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/94) [#95](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/95)
+
+### v0.3.0-alpha.2 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.3.0-alpha.2))
+
+Features:
+
+- functions,cli: Add project validation with `valid`, `invalid`, and `incomplete` states, diagnostics, and JSON output. [#96](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/96)
 
 ### v0.3.0-alpha.1 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.3.0-alpha.1))
 
@@ -19,6 +50,49 @@ Features:
 ## v0.2.x
 
 Prerelease builds from `v0.2.0-alpha.0` through `v0.2.0-alpha.38` are consolidated into the stable release below.
+
+### v0.2.5 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.2.5))
+
+Features:
+
+- core: Model controller `alias`, `autoRadioGroupDepth`, and `exported` as formal properties preserved through Project XML, UAM, and authoring APIs. [#117](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/117)
+
+### v0.2.4 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.2.4))
+
+Features:
+
+- core,backend: Add the `setResourceFolderAtlas` transaction for updating a resource folder's source Atlas slot by canonical branch and path. [#115](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/115)
+
+### v0.2.3 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.2.3))
+
+Features:
+
+- core: Complete UAM, Project XML, and binary round-trip contracts for Image, MovieClip, List, built-in component instances, and component authoring metadata. [#112](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/112)
+- core,backend: Support Tree double-click expansion state transactions and tighten no-op transaction safety. [#113](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/113)
+
+Other:
+
+- docs: Recommend FairyGUI Editor Online as an OpenFairyGUI application and clarify OpenFairyGUI's unofficial relationship to the FairyGUI brand. [#111](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/111)
+
+### v0.2.2 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.2.2))
+
+Fixes:
+
+- cli,functions: Make `--project-type layabox` apply a safe Layabox publish profile instead of retaining incompatible Unity extensions and atlas rotation settings. [#103](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/103)
+
+Other:
+
+- docs: Render Mermaid architecture diagrams on the VitePress website. [#100](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/100)
+
+### v0.2.1 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.2.1))
+
+Fixes:
+
+- core: Truncate integer geometry fields toward zero in Project XML and reject non-finite or out-of-range values. [#98](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/98)
+
+Other:
+
+- docs: Add the project logo, bilingual Changelogs, English documentation, and corrected API links. [#94](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/94) [#95](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/95)
 
 ### v0.2.0 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.2.0))
 
@@ -60,5 +134,3 @@ Other:
 ### v0.1.0 ([Tag](https://github.com/OpenFairyGUI/OpenFairyGUI/tree/v0.1.0))
 
 Initial release with FairyGUI project and binary package I/O, document transforms, publishing, published-project recovery, and the `ofgui` CLI.
-
-[Unreleased]: https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.2.0...main
