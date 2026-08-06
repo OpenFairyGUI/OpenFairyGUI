@@ -123,6 +123,7 @@ export type EncoderChildLike = ChildNode & {
 	getKeyboardType?(): number;
 	getPassword?(): boolean;
 	getScrollType?(): number;
+	getScrollBarDisplay?(): number;
 	getScrollBarFlags?(): number;
 	getScrollBarMargin?(): EdgeInsetsLike | null;
 	getVtScrollBarRes?(): string;

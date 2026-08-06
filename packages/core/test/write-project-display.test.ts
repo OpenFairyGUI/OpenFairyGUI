@@ -656,6 +656,7 @@ test('round-trip: list scroll attrs and static items survive write→read', asyn
 	list.setDefaultItem('ui://pkg003/item');
 	list.setOverflow(2);
 	list.setScrollType(2);
+	list.setScrollBarDisplay(3);
 	list.setScrollBarFlags(9);
 	list.setMargin({ top: 1, bottom: 2, left: 3, right: 4 });
 	list.setClipSoftness({ x: 5, y: 6 });
@@ -696,6 +697,7 @@ test('round-trip: list scroll attrs and static items survive write→read', asyn
 		t.true(listXml.includes('controllers="bg,0,type,0"'), 'list static item writes canonical controllers attr');
 		t.true(listXml.includes('lineItemCount="3"'), 'pagination list writes horizontal column count');
 		t.true(listXml.includes('lineItemCount2="5"'), 'pagination list writes vertical row count');
+		t.true(listXml.includes('scrollBar="hidden"'), 'list writes canonical scrollBar mode');
 
 		const doc2 = await io.readProject(outFairy);
 		const comp2 = doc2.getRoot().getPackage('Demo3')?.listComponents().find((item) => item.getName() === 'Lists');
@@ -712,6 +714,7 @@ test('round-trip: list scroll attrs and static items survive write→read', asyn
 		t.is(list2.getDefaultItem(), 'ui://pkg003/item');
 		t.is(list2.getOverflow(), 2);
 		t.is(list2.getScrollType(), 2);
+		t.is(list2.getScrollBarDisplay(), 3);
 		t.is(list2.getScrollBarFlags(), 9);
 		t.deepEqual(list2.getMargin(), { top: 1, bottom: 2, left: 3, right: 4 });
 		t.deepEqual(list2.getClipSoftness(), { x: 5, y: 6 });

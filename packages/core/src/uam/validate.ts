@@ -705,6 +705,9 @@ function validateDisplayNode(
 		pushIssue(issues, `${path}.propertyOverrides`, 'Component property overrides must contain a non-empty target, a non-negative integer propertyId, and a string value.');
 	}
 	if (node.kind === 'list' || node.kind === 'tree') {
+		if (!Number.isInteger(node.scrollBarDisplay) || node.scrollBarDisplay < 0 || node.scrollBarDisplay > 3) {
+			pushIssue(issues, `${path}.scrollBarDisplay`, 'List scrollBarDisplay must be an integer between 0 and 3.');
+		}
 		for (const [itemIndex, item] of node.listItems.entries()) {
 			if (item.propertyOverrides !== undefined
 				&& (!Array.isArray(item.propertyOverrides)

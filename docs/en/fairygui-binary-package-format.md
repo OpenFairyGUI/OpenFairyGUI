@@ -471,6 +471,10 @@ Block 6 restores data written during the afterAdd phase:
 | `GComponent` Button extension instance | `title`, `selectedTitle`, `icon`, `selectedIcon`, `titleColor`, `titleFontSize`, `relatedController`, `relatedPageId`, `sound`, `soundVolumeScale`, `selected` |
 | Other extension-instance data | Label / ComboBox / ProgressBar / Slider / ScrollBar instance data selected by the `InstanceExtType` branch |
 
+### Child Block 7: List ScrollPane
+
+`GList` and `GTree` share Block 7. It stores `scrollType`, `scrollBarDisplay` (`0` default, `1` visible, `2` auto, `3` hidden), `scrollBarFlags`, scrollbar margins, and scrollbar/pull-to-refresh resource references in that order.
+
 ### Child Block 8: Static List Items
 
 `GList` and `GTree` share Block 8. The block first writes the default item resource and item count, then stores every static item as a length-prefixed chunk:

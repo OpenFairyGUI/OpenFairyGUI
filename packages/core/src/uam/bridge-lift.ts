@@ -492,6 +492,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			src: list.getSrc(),
 			overflow: list.getOverflow(),
 			scrollType: list.getScrollType(),
+			scrollBarDisplay: list.getScrollBarDisplay(),
 			scrollBarFlags: list.getScrollBarFlags(),
 			scrollBarMargin: liftEdgeInsets(list.getScrollBarMargin()),
 			vtScrollBarRes: list.getVtScrollBarRes(),

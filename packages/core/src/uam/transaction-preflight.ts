@@ -401,6 +401,7 @@ const LIST_PROPERTY_KEYS = [
 	'src',
 	'overflow',
 	'scrollType',
+	'scrollBarDisplay',
 	'scrollBarFlags',
 	'scrollBarMargin',
 	'vtScrollBarRes',
@@ -917,6 +918,7 @@ function isValidListProperties(
 		&& (properties.childrenRenderOrder === 2 || properties.apexIndex === 0)
 		&& isIntegerBetween(properties.overflow, 0, 2)
 		&& isIntegerBetween(properties.scrollType, 0, 2)
+		&& isIntegerBetween(properties.scrollBarDisplay, 0, 3)
 		&& Number.isInteger(properties.scrollBarFlags)
 		&& properties.scrollBarFlags >= 0
 		&& isFiniteEdgeInsets(properties.scrollBarMargin)

@@ -515,6 +515,7 @@ test('validateTransactionSupport accepts supported baseline nodes and fields', (
 		src: 'ui://pkg001/list',
 		overflow: 2,
 		scrollType: 1,
+		scrollBarDisplay: 2,
 		scrollBarFlags: 7,
 		scrollBarMargin: { top: 1, bottom: 2, left: 3, right: 4 },
 		vtScrollBarRes: 'ui://pkg001/vbar',
@@ -1014,8 +1015,9 @@ test('graph, loader, list, and tree property snapshots survive transaction lifec
 		childrenRenderOrder: 2,
 		apexIndex: 1,
 		src: 'ui://pkg001list',
-		overflow: 1,
+		overflow: 2,
 		scrollType: 2,
+		scrollBarDisplay: 3,
 		scrollBarFlags: 7,
 		scrollBarMargin: { top: 1, bottom: 2, left: 3, right: 4 },
 		vtScrollBarRes: 'ui://pkg001vbar',
@@ -1149,8 +1151,13 @@ test('graph, loader, list, and tree property snapshots survive transaction lifec
 				},
 			},
 		},
+		{
+			kind: 'setDisplayNodeProps',
+			selector: selector(tree.id),
+			props: { listProperties: { ...updatedTree, scrollBarDisplay: 4 } },
+		},
 	]);
-	t.is(invalidPayloadIssues.filter((issue) => issue.code === 'invalid_display_node_payload').length, 3);
+	t.is(invalidPayloadIssues.filter((issue) => issue.code === 'invalid_display_node_payload').length, 4);
 
 	const mixed = await roundTripCommittedProject(applyUamTransaction(project, [
 		forward[0]!,

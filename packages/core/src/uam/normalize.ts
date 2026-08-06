@@ -703,6 +703,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				src: list.src ?? '',
 				overflow: list.overflow ?? 0,
 				scrollType: list.scrollType ?? 1,
+				scrollBarDisplay: list.scrollBarDisplay ?? 0,
 				scrollBarFlags: list.scrollBarFlags ?? 0,
 				scrollBarMargin: normalizeEdgeInsets(list.scrollBarMargin),
 				vtScrollBarRes: list.vtScrollBarRes ?? '',

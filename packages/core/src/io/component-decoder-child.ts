@@ -257,8 +257,8 @@ function decodeListScrollPane(child: ComponentDisplayObject, childBuf: ByteBuffe
 	if (!childBuf.seek(0, 7) || remainingBytes(childBuf) < 10) return;
 	const listLike = child as ReturnType<Document['createGList']> | ReturnType<Document['createGTree']>;
 	listLike
-		.setScrollType(childBuf.getUint8());
-	childBuf.getUint8(); // scrollBarDisplay
+		.setScrollType(childBuf.getUint8())
+		.setScrollBarDisplay(childBuf.getUint8());
 	listLike.setScrollBarFlags(childBuf.getInt32());
 	if (childBuf.readBool() && remainingBytes(childBuf) >= 16) {
 		listLike.setScrollBarMargin([

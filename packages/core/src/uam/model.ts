@@ -458,6 +458,7 @@ export interface UamListProperties {
 	src: string;
 	overflow: number;
 	scrollType: number;
+	scrollBarDisplay: number;
 	scrollBarFlags: number;
 	scrollBarMargin: UamEdgeInsets;
 	vtScrollBarRes: string;

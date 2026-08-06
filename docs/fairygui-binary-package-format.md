@@ -466,6 +466,10 @@ Block 6 用于恢复 afterAdd 阶段写入的数据：
 | `GComponent` Button 扩展实例 | `title`、`selectedTitle`、`icon`、`selectedIcon`、`titleColor`、`titleFontSize`、`relatedController`、`relatedPageId`、`sound`、`soundVolumeScale`、`selected` |
 | 其他扩展实例数据 | `InstanceExtType` 分支下的 Label / ComboBox / ProgressBar / Slider / ScrollBar 实例数据 |
 
+### Child Block 7：List ScrollPane
+
+`GList` 与 `GTree` 共用 Block 7，依次保存 `scrollType`、`scrollBarDisplay`（`0` default、`1` visible、`2` auto、`3` hidden）、`scrollBarFlags`、滚动条 margin 与滚动条/刷新资源引用。
+
 ### Child Block 8：静态 List Items
 
 `GList` 与 `GTree` 共用 Block 8。Block 开头先写默认项资源与项数，随后每个静态项使用长度前缀分块：

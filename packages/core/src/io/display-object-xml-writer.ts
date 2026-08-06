@@ -437,6 +437,7 @@ type WritableChild = GObject & {
 	getApexIndex?(): number;
 	getOverflow?(): number;
 	getScrollType?(): number;
+	getScrollBarDisplay?(): number;
 	getScrollBarFlags?(): number;
 	getScrollBarMargin?(): { top?: number; bottom?: number; left?: number; right?: number };
 	getVtScrollBarRes?(): string;
@@ -1192,6 +1193,11 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 			if (scrollType !== undefined && scrollType !== 1) {
 				const scrollTypeName: Record<number, string> = { 0: 'horizontal', 1: 'vertical', 2: 'both' };
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scroll, scrollTypeName[scrollType] ?? 'vertical');
+			}
+			const scrollBarDisplay = typedObj.getScrollBarDisplay?.() ?? 0;
+			if (overflow === 2 && scrollBarDisplay !== 0) {
+				const scrollBarName: Record<number, string> = { 0: 'default', 1: 'visible', 2: 'auto', 3: 'hidden' };
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBar, scrollBarName[scrollBarDisplay] ?? 'default');
 			}
 			const scrollBarFlags = typedObj.getScrollBarFlags?.() ?? 0;
 			if (scrollBarFlags !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarFlags, String(scrollBarFlags));

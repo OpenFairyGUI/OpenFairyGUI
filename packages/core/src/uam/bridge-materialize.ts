@@ -220,6 +220,7 @@ export function materializeUamListProperties(
 		.setSrc(properties.src)
 		.setOverflow(properties.overflow)
 		.setScrollType(properties.scrollType)
+		.setScrollBarDisplay(properties.scrollBarDisplay)
 		.setScrollBarFlags(properties.scrollBarFlags)
 		.setScrollBarMargin(materializeEdgeInsets(properties.scrollBarMargin))
 		.setVtScrollBarRes(properties.vtScrollBarRes)

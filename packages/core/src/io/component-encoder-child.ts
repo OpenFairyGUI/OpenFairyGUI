@@ -795,7 +795,7 @@ function _writeExtensionInstanceData(
 
 function _writeScrollPane(buf: WriteBuffer, child: EncoderChildLike, pkg: Package): void {
 	buf.writeUint8(child.getScrollType?.() ?? 1); // scrollType
-	buf.writeUint8(0); // scrollBarDisplay
+	buf.writeUint8(child.getScrollBarDisplay?.() ?? 0); // scrollBarDisplay
 	buf.writeInt32(child.getScrollBarFlags?.() ?? 0); // flags
 	// scrollBar margin
 	const sbMargin = child.getScrollBarMargin?.();

@@ -238,6 +238,7 @@ export interface DisplayObjectXmlNode extends Record<string, unknown> {
 	selectionController?: string;
 	overflow?: string;
 	scroll?: string;
+	scrollBar?: string;
 	scrollBarFlags?: string | number;
 	scrollBarRes?: string;
 	ptrRes?: string;
@@ -1429,9 +1430,10 @@ export function createDisplayObject(
 				// Overflow & scroll
 				const overflow = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.overflow);
 				const scroll = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.scroll);
+				const scrollBar = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBar);
 				const scrollBarFlags = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarFlags);
 				const margin = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.margin);
-				if (overflow || scroll || scrollBarFlags !== undefined || margin) {
+				if (overflow || scroll || scrollBar || scrollBarFlags !== undefined || margin) {
 					if (overflow) {
 						const overflowMap: Record<string, number> = { visible: 0, hidden: 1, scroll: 2 };
 						g.setOverflow(overflowMap[overflow] ?? 0);
@@ -1439,6 +1441,10 @@ export function createDisplayObject(
 					if (scroll) {
 						const scrollMap: Record<string, number> = { horizontal: 0, vertical: 1, both: 2 };
 						g.setScrollType(scrollMap[scroll] ?? 1);
+					}
+					if (scrollBar) {
+						const scrollBarMap: Record<string, number> = { default: 0, visible: 1, auto: 2, hidden: 3 };
+						g.setScrollBarDisplay(scrollBarMap[scrollBar] ?? 0);
 					}
 					if (scrollBarFlags !== undefined) g.setScrollBarFlags(parseInt2(scrollBarFlags));
 					if (margin) {

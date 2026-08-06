@@ -2083,6 +2083,7 @@ test('binary writer: list and tree child blocks round-trip into formal list prop
 		.setMargin([1, 2, 3, 4])
 		.setOverflow(2)
 		.setScrollType(2)
+		.setScrollBarDisplay(2)
 		.setScrollBarFlags(19)
 		.setScrollBarMargin([5, 6, 7, 8])
 		.setVtScrollBarRes('ui://listpkg/vbar')
@@ -2128,6 +2129,7 @@ test('binary writer: list and tree child blocks round-trip into formal list prop
 		.setColumnGap(0)
 		.setOverflow(2)
 		.setScrollType(1)
+		.setScrollBarDisplay(3)
 		.setScrollBarFlags(7)
 		.setScrollBarMargin([2, 3, 4, 5])
 		.setVtScrollBarRes('ui://listpkg/treeVBar')
@@ -2191,6 +2193,7 @@ test('binary writer: list and tree child blocks round-trip into formal list prop
 		t.deepEqual(decodedList.getMargin(), { top: 1, bottom: 2, left: 3, right: 4 });
 		t.is(decodedList.getOverflow(), 2);
 		t.is(decodedList.getScrollType(), 2);
+		t.is(decodedList.getScrollBarDisplay(), 2);
 		t.is(decodedList.getScrollBarFlags(), 19);
 		t.deepEqual(decodedList.getScrollBarMargin(), { top: 5, bottom: 6, left: 7, right: 8 });
 		t.is(decodedList.getVtScrollBarRes(), 'ui://listpkg/vbar');
@@ -2231,6 +2234,7 @@ test('binary writer: list and tree child blocks round-trip into formal list prop
 		t.is(decodedTree.getDefaultItem(), 'ui://listpkg/treeItem');
 		t.is(decodedTree.getOverflow(), 2);
 		t.is(decodedTree.getScrollType(), 1);
+		t.is(decodedTree.getScrollBarDisplay(), 3);
 		t.is(decodedTree.getScrollBarFlags(), 7);
 		t.deepEqual(decodedTree.getScrollBarMargin(), { top: 2, bottom: 3, left: 4, right: 5 });
 		t.is(decodedTree.getVtScrollBarRes(), 'ui://listpkg/treeVBar');

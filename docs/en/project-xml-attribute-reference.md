@@ -145,7 +145,7 @@ Current project write-back contract:
 | `hitTest` |  | Hit-test resource |
 | `customData` |  | Custom data |
 | `scroll` |  | Scroll mode |
-| `scrollBar` |  | Scrollbar display mode |
+| `scrollBar` |  | Scrollbar display mode: `default`, `visible`, `auto`, or `hidden` |
 | `scrollBarFlags` |  | Scrollbar flags |
 | `scrollBarMargin` |  | Scrollbar margin |
 | `scrollBarRes` |  | Scrollbar resource |
@@ -546,7 +546,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `controller` |  | Controller override |
 | `overflow` |  | Overflow mode |
 | `scroll` |  | Scroll mode |
-| `scrollBar` |  | Scrollbar display mode |
+| `scrollBar` |  | Scrollbar display mode: `default`, `visible`, `auto`, or `hidden` |
 | `scrollBarFlags` |  | Scrollbar flags |
 | `scrollBarMargin` |  | Scrollbar margin |
 | `scrollBarRes` |  | Scrollbar resource |

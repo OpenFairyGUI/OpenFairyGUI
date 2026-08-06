@@ -145,7 +145,7 @@
 | `hitTest` |  | 命中测试资源 |
 | `customData` |  | 自定义数据 |
 | `scroll` |  | 滚动模式 |
-| `scrollBar` |  | 滚动条显示方式 |
+| `scrollBar` |  | 滚动条显示方式：`default`、`visible`、`auto` 或 `hidden` |
 | `scrollBarFlags` |  | 滚动条相关标志 |
 | `scrollBarMargin` |  | 滚动条 margin |
 | `scrollBarRes` |  | 滚动条资源 |
@@ -546,7 +546,7 @@
 | `controller` |  | controller override |
 | `overflow` |  | overflow 模式 |
 | `scroll` |  | 滚动模式 |
-| `scrollBar` |  | 滚动条显示方式 |
+| `scrollBar` |  | 滚动条显示方式：`default`、`visible`、`auto` 或 `hidden` |
 | `scrollBarFlags` |  | 滚动条相关标志 |
 | `scrollBarMargin` |  | 滚动条 margin |
 | `scrollBarRes` |  | 滚动条资源 |
