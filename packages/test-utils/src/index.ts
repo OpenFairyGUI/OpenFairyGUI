@@ -245,6 +245,12 @@ export function createMinimalUamProject(projectId: string): UamProject {
 									relations: [],
 									gears: [],
 									group: '',
+									color: '#FFFFFF',
+									flip: 0,
+									fillMethod: 0,
+									fillOrigin: 0,
+									fillClockwise: true,
+									fillAmount: 100,
 									resource: { resourceId: 'img001' },
 								},
 								{

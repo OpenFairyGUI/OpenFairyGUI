@@ -123,6 +123,7 @@ export type EncoderChildLike = ChildNode & {
 	getKeyboardType?(): number;
 	getPassword?(): boolean;
 	getScrollType?(): number;
+	getScrollBarDisplay?(): number;
 	getScrollBarFlags?(): number;
 	getScrollBarMargin?(): EdgeInsetsLike | null;
 	getVtScrollBarRes?(): string;
@@ -143,6 +144,7 @@ export type EncoderChildLike = ChildNode & {
 	getInstanceChecked?(): boolean;
 	getInstanceSound?(): string;
 	getInstanceSoundVolumeScale?(): number;
+	getInstancePopupDirection?(): number;
 	getInstanceVisibleItemCount?(): number;
 	getInstanceValue?(): number;
 	getInstanceMax?(): number;

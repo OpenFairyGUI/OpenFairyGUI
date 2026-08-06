@@ -254,6 +254,9 @@ const ROOT_COMPONENT_PANEL_ATTRS = {
 	bgColorEnabled: { canonical: 'bgColorEnabled' },
 	idnum: { canonical: 'idnum' },
 	initName: { canonical: 'initName' },
+	pageController: { canonical: 'pageController' },
+	showSound: { canonical: 'showSound' },
+	hideSound: { canonical: 'hideSound' },
 } satisfies XmlAttrMap;
 
 const ROOT_MISC_PANEL_ATTRS = {
@@ -261,6 +264,8 @@ const ROOT_MISC_PANEL_ATTRS = {
 } satisfies XmlAttrMap;
 
 const ROOT_DESIGN_PANEL_ATTRS = {
+	designImage: { canonical: 'designImage' },
+	designImageForTest: { canonical: 'designImageForTest' },
 	designImageAlpha: { canonical: 'designImageAlpha' },
 	designImageLayer: { canonical: 'designImageLayer' },
 	designImageOffsetX: { canonical: 'designImageOffsetX' },
@@ -360,6 +365,7 @@ const TEXT_PANEL_ATTRS = {
 	autoClearText: { canonical: 'autoClearText' },
 	demoText: { canonical: 'demoText' },
 	faceDilate: { canonical: 'faceDilate' },
+	outlineSoftness: { canonical: 'outlineSoftness' },
 	underlaySoftness: { canonical: 'underlaySoftness' },
 	vars: { canonical: 'vars' },
 } satisfies XmlAttrMap;
@@ -374,6 +380,7 @@ const TEXT_INPUT_PANEL_ATTRS = {
 
 const RICH_TEXT_PANEL_ATTRS = {
 	restrictSize: { canonical: 'restrictSize' },
+	outlineSoftness: { canonical: 'outlineSoftness' },
 	underlaySoftness: { canonical: 'underlaySoftness' },
 } satisfies XmlAttrMap;
 
@@ -424,7 +431,7 @@ const LIST_PANEL_ATTRS = {
 const BUTTON_EXTENSION_ATTRS = {
 	mode: { canonical: 'mode' },
 	sound: { canonical: 'sound' },
-	soundVolumeScale: { canonical: 'soundVolumeScale', aliases: ['volume'] },
+	soundVolumeScale: { canonical: 'volume' },
 	downEffect: { canonical: 'downEffect' },
 	downEffectValue: { canonical: 'downEffectValue' },
 	title: { canonical: 'title' },
@@ -444,12 +451,18 @@ const LABEL_EXTENSION_ATTRS = {
 	titleColor: { canonical: 'titleColor' },
 	titleFontSize: { canonical: 'titleFontSize' },
 	prompt: { canonical: 'prompt' },
+	sound: { canonical: 'sound' },
+	soundVolumeScale: { canonical: 'volume' },
 } satisfies XmlAttrMap;
 
 const COMBOBOX_EXTENSION_ATTRS = {
 	dropdown: { canonical: 'dropdown' },
 	title: { canonical: 'title' },
 	icon: { canonical: 'icon' },
+	titleColor: { canonical: 'titleColor' },
+	popupDirection: { canonical: 'direction' },
+	sound: { canonical: 'sound' },
+	soundVolumeScale: { canonical: 'volume' },
 	visibleItemCount: { canonical: 'visibleItemCount' },
 	selectionController: { canonical: 'selectionController' },
 	autoClearItems: { canonical: 'autoClearItems' },
@@ -461,6 +474,8 @@ const PROGRESSBAR_EXTENSION_ATTRS = {
 	value: { canonical: 'value' },
 	max: { canonical: 'max' },
 	min: { canonical: 'min' },
+	sound: { canonical: 'sound' },
+	soundVolumeScale: { canonical: 'volume' },
 } satisfies XmlAttrMap;
 
 const SLIDER_EXTENSION_ATTRS = {

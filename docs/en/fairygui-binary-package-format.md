@@ -448,7 +448,7 @@ Notes:
 | Type | Main fields |
 |---|---|
 | `GImage` | color, flip, fillMethod, fillOrigin, fillClockwise, fillAmount |
-| `GTextField` / `GRichTextField` / `GTextInput` | font, fontSize, color, align, vAlign, leading, letterSpacing, ubb, autoSize, underline, italic, bold, singleLine, stroke, shadow, strikethrough |
+| `GTextField` / `GRichTextField` / `GTextInput` | font, fontSize, color, align, vAlign, leading, letterSpacing, ubb, autoSize, underline, italic, bold, singleLine, stroke, shadow, strikethrough, faceDilate, outlineSoftness, underlaySoftness |
 | `GGraph` | graphType, lineSize, lineColor, fillColor, cornerRadius, points, sides, startAngle, distances |
 | `GGroup` | layout, lineGap, columnGap, excludeInvisibles, autoSizeDisabled, mainGridIndex |
 | `GLoader` | url, align, vAlign, fill, shrinkOnly, autoSize, playing, frame, color, fillMethod, useResize |
@@ -464,12 +464,20 @@ Block 6 restores data written during the afterAdd phase:
 |---|---|
 | `GTextField` / `GRichTextField` / `GTextInput` | `text` |
 | `GButton` | `title`, `selectedTitle`, `icon`, `selectedIcon`, `titleColor`, `titleFontSize`, `relatedController`, `relatedPageId`, `sound`, `soundVolume`, `selected` |
-| `GLabel` | `title`, `icon`, `titleColor`, `titleFontSize`, input-setting placeholder, `sound` |
-| `GComboBox` | `items`, `values`, `icons`, `title`, `icon`, `visibleItemCount`, `popupDirection`, `selectionController`, `sound` |
-| `GProgressBar` / `GSlider` | `value`, `max`, `min`, `sound` |
+| `GLabel` | `title`, `icon`, `titleColor`, `titleFontSize`, input-setting placeholder, `sound`, `soundVolumeScale` |
+| `GComboBox` | `items`, `values`, `icons`, `title`, `icon`, `titleColor`, `visibleItemCount`, `popupDirection`, `selectionController`, `sound`, `soundVolumeScale` |
+| `GProgressBar` | `value`, `max`, `min`, `sound`, `soundVolumeScale` |
+| `GSlider` | `value`, `max`, `min` |
 | `GList` | `selectionController` |
 | `GComponent` Button extension instance | `title`, `selectedTitle`, `icon`, `selectedIcon`, `titleColor`, `titleFontSize`, `relatedController`, `relatedPageId`, `sound`, `soundVolumeScale`, `selected` |
-| Other extension-instance data | Label / ComboBox / ProgressBar / Slider / ScrollBar instance data selected by the `InstanceExtType` branch |
+| `GComponent` Label extension instance | `title`, `icon`, `titleColor`, `titleFontSize`, input settings, `sound`, `soundVolumeScale` |
+| `GComponent` ComboBox extension instance | `items`, `title`, `icon`, `titleColor`, `visibleItemCount`, `popupDirection`, `selectionController`, `sound`, `soundVolumeScale` |
+| `GComponent` ProgressBar extension instance | `value`, `max`, `min`, `sound`, `soundVolumeScale` |
+| Other extension-instance data | Slider / ScrollBar instance data selected by the `InstanceExtType` branch |
+
+### Child Block 7: List ScrollPane
+
+`GList` and `GTree` share Block 7. It stores `scrollType`, `scrollBarDisplay` (`0` default, `1` visible, `2` auto, `3` hidden), `scrollBarFlags`, scrollbar margins, and scrollbar/pull-to-refresh resource references in that order.
 
 ### Child Block 8: Static List Items
 

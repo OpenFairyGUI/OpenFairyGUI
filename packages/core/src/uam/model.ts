@@ -236,6 +236,11 @@ export interface UamComponentProperties {
 	designImageAlpha: number;
 	designImageLayer: number;
 	designImageOffset: UamPoint;
+	designImage: string;
+	designImageForTest: boolean;
+	pageController: string;
+	showSound: string;
+	hideSound: string;
 	idNum: number;
 	initName: string;
 	remark: string;
@@ -286,18 +291,32 @@ export type UamComponentInstanceProperties =
 		titleColor: string;
 		titleFontSize: number;
 		promptText: string;
+		sound: string;
+		soundVolumeScale: number;
 	}
 	| {
 		extensionType: 'ComboBox';
 		title: string;
 		icon: string;
+		titleColor: string;
+		popupDirection: number;
+		sound: string;
+		soundVolumeScale: number;
 		visibleItemCount: number;
 		selectionController: string;
 		autoClearItems: boolean;
 		items: UamComponentInstanceComboItem[];
 	}
 	| {
-		extensionType: 'ProgressBar' | 'Slider';
+		extensionType: 'ProgressBar';
+		value: number;
+		max: number;
+		min: number;
+		sound: string;
+		soundVolumeScale: number;
+	}
+	| {
+		extensionType: 'Slider';
 		value: number;
 		max: number;
 		min: number;
@@ -360,7 +379,16 @@ export interface UamGroupableDisplayNodeBase extends UamDisplayNodeBase {
 	group: string;
 }
 
-export interface UamImageNode extends UamGroupableDisplayNodeBase {
+export interface UamImageProperties {
+	color: string;
+	flip: number;
+	fillMethod: number;
+	fillOrigin: number;
+	fillClockwise: boolean;
+	fillAmount: number;
+}
+
+export interface UamImageNode extends UamGroupableDisplayNodeBase, UamImageProperties {
 	kind: 'image';
 	resource: UamResourceRef;
 }
@@ -377,6 +405,7 @@ export interface UamTextProperties {
 	autoSize: number;
 	singleLine: boolean;
 	autoClearText: boolean;
+	outlineSoftness: number;
 	underlaySoftness: number;
 	ubbEnabled: boolean;
 	underline: boolean;
@@ -448,6 +477,7 @@ export interface UamListProperties {
 	src: string;
 	overflow: number;
 	scrollType: number;
+	scrollBarDisplay: number;
 	scrollBarFlags: number;
 	scrollBarMargin: UamEdgeInsets;
 	vtScrollBarRes: string;
@@ -554,13 +584,16 @@ export interface UamLoader3DNode extends UamDisplayNodeBase, UamLoader3DProperti
 	kind: 'loader3D';
 }
 
-export interface UamMovieClipNode extends UamGroupableDisplayNodeBase {
-	kind: 'movieClip';
-	resource: UamResourceRef;
-	fileName: string;
+export interface UamMovieClipProperties {
 	playing: boolean;
 	frame: number;
 	color: string;
+}
+
+export interface UamMovieClipNode extends UamGroupableDisplayNodeBase, UamMovieClipProperties {
+	kind: 'movieClip';
+	resource: UamResourceRef;
+	fileName: string;
 }
 
 interface UamComponentDerivedNodeBase extends UamGroupableDisplayNodeBase {

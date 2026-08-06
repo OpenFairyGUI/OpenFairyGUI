@@ -9,9 +9,11 @@ import type {
 	UamGearBinding,
 	UamGraphProperties,
 	UamGroupProperties,
+	UamImageProperties,
 	UamImageResourceProperties,
 	UamListProperties,
 	UamLoaderProperties,
+	UamMovieClipProperties,
 	UamLoader3DProperties,
 	UamLookGearBinding,
 	UamPackage,
@@ -93,6 +95,8 @@ export interface UamDisplayNodePropsUpdate {
 	fontSize?: number;
 	color?: string;
 	textProperties?: UamTextProperties | UamPlainTextProperties;
+	imageProperties?: UamImageProperties;
+	movieClipProperties?: UamMovieClipProperties;
 	graphProperties?: UamGraphProperties;
 	groupProperties?: UamGroupProperties;
 	loaderProperties?: UamLoaderProperties;

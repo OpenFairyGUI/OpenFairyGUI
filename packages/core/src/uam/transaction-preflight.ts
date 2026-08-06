@@ -34,7 +34,9 @@ import {
 	isValidUamComponentPropertyOverride,
 	isValidUamComponentInstanceProperties,
 	isValidUamComponentProperties,
+	isValidUamImageProperties,
 	isValidUamImageResourceProperties,
+	isValidUamMovieClipProperties,
 	isValidUamMovieClipResourceProperties,
 	isValidUamTextProperties,
 	validateUamProject,
@@ -399,6 +401,7 @@ const LIST_PROPERTY_KEYS = [
 	'src',
 	'overflow',
 	'scrollType',
+	'scrollBarDisplay',
 	'scrollBarFlags',
 	'scrollBarMargin',
 	'vtScrollBarRes',
@@ -915,6 +918,7 @@ function isValidListProperties(
 		&& (properties.childrenRenderOrder === 2 || properties.apexIndex === 0)
 		&& isIntegerBetween(properties.overflow, 0, 2)
 		&& isIntegerBetween(properties.scrollType, 0, 2)
+		&& isIntegerBetween(properties.scrollBarDisplay, 0, 3)
 		&& Number.isInteger(properties.scrollBarFlags)
 		&& properties.scrollBarFlags >= 0
 		&& isFiniteEdgeInsets(properties.scrollBarMargin)
@@ -1111,6 +1115,46 @@ function validateDisplayPropsPayload(
 					'invalid_display_node_payload',
 					`${path}.props.groupProperties`,
 					'Group properties must be a complete valid group property snapshot.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			}
+			continue;
+		}
+		if (key === 'imageProperties') {
+			if (nodeKind && nodeKind !== 'image') {
+				pushSupportIssue(
+					issues,
+					'unsupported_display_node_field',
+					`${path}.props.imageProperties`,
+					'Image properties are only supported on image display nodes.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			} else if (!isValidUamImageProperties(op.props.imageProperties)) {
+				pushSupportIssue(
+					issues,
+					'invalid_display_node_payload',
+					`${path}.props.imageProperties`,
+					'Image properties must be a complete valid image property snapshot.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			}
+			continue;
+		}
+		if (key === 'movieClipProperties') {
+			if (nodeKind && nodeKind !== 'movieClip') {
+				pushSupportIssue(
+					issues,
+					'unsupported_display_node_field',
+					`${path}.props.movieClipProperties`,
+					'MovieClip properties are only supported on movieClip display nodes.',
+					{ operationKind: op.kind, nodeKind, field: key },
+				);
+			} else if (!isValidUamMovieClipProperties(op.props.movieClipProperties)) {
+				pushSupportIssue(
+					issues,
+					'invalid_display_node_payload',
+					`${path}.props.movieClipProperties`,
+					'MovieClip properties must be a complete valid MovieClip property snapshot.',
 					{ operationKind: op.kind, nodeKind, field: key },
 				);
 			}
@@ -3158,6 +3202,20 @@ function collectProjectedResourceReferenceIssues(project: UamProject): Projected
 				resource.component.properties.sound,
 				['sound'],
 			);
+			pushMissingUi(
+				`${pkg.id}/${resource.id}/properties/designImage`,
+				`${componentPath}.properties.designImage`,
+				resource.component.properties.designImage,
+				['image'],
+			);
+			for (const field of ['showSound', 'hideSound'] as const) {
+				pushMissingUi(
+					`${pkg.id}/${resource.id}/properties/${field}`,
+					`${componentPath}.properties.${field}`,
+					resource.component.properties[field],
+					['sound'],
+				);
+			}
 			for (const node of resource.component.displayList) {
 				const nodeKey = `${pkg.id}/${resource.id}/${node.id}`;
 				const nodePath = `packages.${pkg.id}.resources.${resource.id}.component.displayList.${node.id}`;
@@ -3228,6 +3286,11 @@ function collectProjectedResourceReferenceIssues(project: UamProject): Projected
 					}
 					if (instance.extensionType === 'Button') {
 						pushMissingUi(`${nodeKey}/instance/selectedIcon`, `${nodePath}.instanceProperties.selectedIcon`, instance.selectedIcon, visualKinds);
+					}
+					if (instance.extensionType === 'Button'
+						|| instance.extensionType === 'Label'
+						|| instance.extensionType === 'ComboBox'
+						|| instance.extensionType === 'ProgressBar') {
 						pushMissingUi(`${nodeKey}/instance/sound`, `${nodePath}.instanceProperties.sound`, instance.sound, ['sound']);
 					}
 					if (instance.extensionType === 'ComboBox') {
@@ -3316,6 +3379,14 @@ function validateProjectedState(
 		operations.some(isLifecycleOperation)
 		|| operations.some(isResourceLifecycleOperation)
 		|| operations.some(isDisplayListRewriteOperation)
+		|| operations.some((operation) => (
+			operation.kind === 'setDisplayNodeProps'
+			&& operation.props.componentInstanceProperties !== undefined
+		))
+		|| operations.some((operation) => (
+			operation.kind === 'setComponentProps'
+			&& operation.props.properties !== undefined
+		))
 	) {
 		const baselineReferenceKeys = new Set(collectProjectedResourceReferenceIssues(normalizeUamProject(project))
 			.map((issue) => issue.key));

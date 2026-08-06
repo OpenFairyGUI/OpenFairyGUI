@@ -25,9 +25,11 @@ import {
 	materializeUamComponentProperties,
 	materializeUamGraphProperties,
 	materializeUamGroupProperties,
+	materializeUamImageProperties,
 	materializeUamImageResourceProperties,
 	materializeUamListProperties,
 	materializeUamLoaderProperties,
+	materializeUamMovieClipProperties,
 	materializeUamTextProperties,
 } from './bridge-materialize.js';
 import type {
@@ -684,6 +686,24 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 				materializeUamGroupProperties(
 					node as ReturnType<Document['createGGroup']>,
 					operation.props.groupProperties,
+				);
+			}
+			if (operation.props.imageProperties !== undefined) {
+				if (node.propertyType !== PropertyType.G_IMAGE) {
+					throw new Error(`Image display props are not supported on display node type "${node.propertyType}".`);
+				}
+				materializeUamImageProperties(
+					node as ReturnType<Document['createGImage']>,
+					operation.props.imageProperties,
+				);
+			}
+			if (operation.props.movieClipProperties !== undefined) {
+				if (node.propertyType !== PropertyType.G_MOVIE_CLIP) {
+					throw new Error(`MovieClip display props are not supported on display node type "${node.propertyType}".`);
+				}
+				materializeUamMovieClipProperties(
+					node as ReturnType<Document['createGMovieClip']>,
+					operation.props.movieClipProperties,
 				);
 			}
 			if (operation.props.loaderProperties !== undefined) {

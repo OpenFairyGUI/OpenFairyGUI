@@ -145,7 +145,7 @@ Current project write-back contract:
 | `hitTest` |  | Hit-test resource |
 | `customData` |  | Custom data |
 | `scroll` |  | Scroll mode |
-| `scrollBar` |  | Scrollbar display mode |
+| `scrollBar` |  | Scrollbar display mode: `default`, `visible`, `auto`, or `hidden` |
 | `scrollBarFlags` |  | Scrollbar flags |
 | `scrollBarMargin` |  | Scrollbar margin |
 | `scrollBarRes` |  | Scrollbar resource |
@@ -156,8 +156,13 @@ Current project write-back contract:
 | `idnum` |  | Internal number |
 | `initName` |  | Initial name |
 | `remark` |  | Remarks |
-| `designImageAlpha` |  | Design-image opacity |
-| `designImageLayer` |  | Design-image layer |
+| `pageController` |  | Root page-controller name; must target a controller in this component |
+| `showSound` |  | Component show/enter sound resource |
+| `hideSound` |  | Component hide/exit sound resource |
+| `designImage` |  | Design-reference image resource |
+| `designImageForTest` |  | Whether the design reference is visible in Test View |
+| `designImageAlpha` |  | Design-image opacity; defaults to `50` |
+| `designImageLayer` |  | Design-image layer: `0` behind, `1` in front |
 | `designImageOffsetX` |  | Design-image X offset |
 | `designImageOffsetY` |  | Design-image Y offset |
 
@@ -405,6 +410,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `autoClearText` |  | Whether text is cleared automatically |
 | `demoText` |  | Sample text |
 | `faceDilate` |  | Face dilation |
+| `outlineSoftness` |  | Outline softness |
 | `underlaySoftness` |  | Underlay softness |
 | `vars` |  | Template-variable switch |
 | `prompt` | `promptText` | Input prompt |
@@ -452,6 +458,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `autoClearText` |  | Whether text is cleared automatically |
 | `demoText` |  | Sample text |
 | `faceDilate` |  | Face dilation |
+| `outlineSoftness` |  | Outline softness |
 | `underlaySoftness` |  | Underlay softness |
 | `vars` |  | Template-variable switch |
 | `prompt` | `promptText` | Input prompt |
@@ -496,6 +503,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `shadowOffset` |  | Shadow offset |
 | `autoClearText` |  | Whether text is cleared automatically |
 | `restrictSize` |  | Size constraints |
+| `outlineSoftness` |  | Outline softness |
 | `underlaySoftness` |  | Underlay softness |
 
 ### `<group>`
@@ -543,7 +551,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `controller` |  | Controller override |
 | `overflow` |  | Overflow mode |
 | `scroll` |  | Scroll mode |
-| `scrollBar` |  | Scrollbar display mode |
+| `scrollBar` |  | Scrollbar display mode: `default`, `visible`, `auto`, or `hidden` |
 | `scrollBarFlags` |  | Scrollbar flags |
 | `scrollBarMargin` |  | Scrollbar margin |
 | `scrollBarRes` |  | Scrollbar resource |
@@ -575,7 +583,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 |---|---|---|
 | `mode` |  | Button mode |
 | `sound` |  | Click sound |
-| `soundVolumeScale` | `volume` | Volume scale |
+| `volume` |  | Volume percentage (`0`–`100`) |
 | `downEffect` |  | Pressed effect |
 | `downEffectValue` |  | Pressed-effect value |
 | `title` |  | Title |
@@ -597,6 +605,8 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `titleColor` |  | Title color |
 | `titleFontSize` |  | Title font size |
 | `prompt` |  | Prompt text |
+| `sound` |  | Click-sound resource |
+| `volume` |  | Volume percentage (`0`–`100`) |
 
 ### `<ComboBox>`
 
@@ -605,6 +615,10 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `dropdown` |  | Dropdown component resource |
 | `title` |  | Title |
 | `icon` |  | Icon |
+| `titleColor` |  | Title color |
+| `direction` |  | Popup direction: `auto`, `up`, or `down` |
+| `sound` |  | Click-sound resource |
+| `volume` |  | Volume percentage (`0`–`100`) |
 | `visibleItemCount` |  | Number of visible items |
 | `selectionController` |  | Selection controller |
 | `autoClearItems` |  | Whether items are cleared automatically |
@@ -618,6 +632,8 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `value` |  | Current value |
 | `max` |  | Maximum value |
 | `min` |  | Minimum value |
+| `sound` |  | Sound resource |
+| `volume` |  | Volume percentage (`0`–`100`) |
 
 ### `<Slider>`
 

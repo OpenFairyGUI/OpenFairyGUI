@@ -1999,7 +1999,7 @@ test('binary writer: component child blocks round-trip into formal child propert
 	}
 });
 
-test('binary writer: button component instances preserve instance sound properties', async (t) => {
+test('binary writer: built-in component instances preserve desktop overlay properties', async (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('SoundPkg');
 	pkg.setId('soundpkg');
@@ -2022,6 +2022,35 @@ test('binary writer: button component instances preserve instance sound properti
 		.setInstanceSound('ui://soundpkgclick001')
 		.setInstanceSoundVolumeScale(0.35);
 	host.addChild(buttonInstance);
+
+	const labelInstance = doc.createGComponent('labelInstance')
+		.setId('n1')
+		.setInstanceExtType('Label')
+		.setInstanceSound('ui://soundpkgclick001')
+		.setInstanceSoundVolumeScale(0.45);
+	const comboInstance = doc.createGComponent('comboInstance')
+		.setId('n2')
+		.setInstanceExtType('ComboBox')
+		.setInstanceTitleColor('#336699')
+		.setInstancePopupDirection(2)
+		.setInstanceSound('ui://soundpkgclick001')
+		.setInstanceSoundVolumeScale(0.55);
+	const progressInstance = doc.createGComponent('progressInstance')
+		.setId('n3')
+		.setInstanceExtType('ProgressBar')
+		.setInstanceValue(25)
+		.setInstanceMax(50)
+		.setInstanceMin(5)
+		.setInstanceSound('ui://soundpkgclick001')
+		.setInstanceSoundVolumeScale(0.65);
+	const directCombo = doc.createGComboBox('directCombo')
+		.setId('n4')
+		.setTitleColor('#884422')
+		.setPopupDirection(1);
+	host.addChild(labelInstance);
+	host.addChild(comboInstance);
+	host.addChild(progressInstance);
+	host.addChild(directCombo);
 	pkg.addResource(host);
 
 	const io = new NodeIO();
@@ -2041,6 +2070,27 @@ test('binary writer: button component instances preserve instance sound properti
 			Math.abs(decodedButton.getInstanceSoundVolumeScale() - 0.35) < 1e-6,
 			'instance sound volume is decoded from the extension block',
 		);
+
+		const decodedLabel = decodedHost?.listChildren().find((child) => child.getId() === 'n1') as ReturnType<Document['createGComponent']>;
+		t.is(decodedLabel.getInstanceSound(), 'ui://soundpkgclick001');
+		t.true(Math.abs(decodedLabel.getInstanceSoundVolumeScale() - 0.45) < 1e-6);
+
+		const decodedCombo = decodedHost?.listChildren().find((child) => child.getId() === 'n2') as ReturnType<Document['createGComponent']>;
+		t.is(decodedCombo.getInstanceTitleColor(), '#336699');
+		t.is(decodedCombo.getInstancePopupDirection(), 2);
+		t.is(decodedCombo.getInstanceSound(), 'ui://soundpkgclick001');
+		t.true(Math.abs(decodedCombo.getInstanceSoundVolumeScale() - 0.55) < 1e-6);
+
+		const decodedProgress = decodedHost?.listChildren().find((child) => child.getId() === 'n3') as ReturnType<Document['createGComponent']>;
+		t.is(decodedProgress.getInstanceValue(), 25);
+		t.is(decodedProgress.getInstanceMax(), 50);
+		t.is(decodedProgress.getInstanceMin(), 5);
+		t.is(decodedProgress.getInstanceSound(), 'ui://soundpkgclick001');
+		t.true(Math.abs(decodedProgress.getInstanceSoundVolumeScale() - 0.65) < 1e-6);
+
+		const decodedDirectCombo = decodedHost?.listChildren().find((child) => child.getId() === 'n4') as ReturnType<Document['createGComboBox']>;
+		t.is(decodedDirectCombo.getTitleColor(), '#884422');
+		t.is(decodedDirectCombo.getPopupDirection(), 1);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
@@ -2083,6 +2133,7 @@ test('binary writer: list and tree child blocks round-trip into formal list prop
 		.setMargin([1, 2, 3, 4])
 		.setOverflow(2)
 		.setScrollType(2)
+		.setScrollBarDisplay(2)
 		.setScrollBarFlags(19)
 		.setScrollBarMargin([5, 6, 7, 8])
 		.setVtScrollBarRes('ui://listpkg/vbar')
@@ -2128,6 +2179,7 @@ test('binary writer: list and tree child blocks round-trip into formal list prop
 		.setColumnGap(0)
 		.setOverflow(2)
 		.setScrollType(1)
+		.setScrollBarDisplay(3)
 		.setScrollBarFlags(7)
 		.setScrollBarMargin([2, 3, 4, 5])
 		.setVtScrollBarRes('ui://listpkg/treeVBar')
@@ -2191,6 +2243,7 @@ test('binary writer: list and tree child blocks round-trip into formal list prop
 		t.deepEqual(decodedList.getMargin(), { top: 1, bottom: 2, left: 3, right: 4 });
 		t.is(decodedList.getOverflow(), 2);
 		t.is(decodedList.getScrollType(), 2);
+		t.is(decodedList.getScrollBarDisplay(), 2);
 		t.is(decodedList.getScrollBarFlags(), 19);
 		t.deepEqual(decodedList.getScrollBarMargin(), { top: 5, bottom: 6, left: 7, right: 8 });
 		t.is(decodedList.getVtScrollBarRes(), 'ui://listpkg/vbar');
@@ -2231,6 +2284,7 @@ test('binary writer: list and tree child blocks round-trip into formal list prop
 		t.is(decodedTree.getDefaultItem(), 'ui://listpkg/treeItem');
 		t.is(decodedTree.getOverflow(), 2);
 		t.is(decodedTree.getScrollType(), 1);
+		t.is(decodedTree.getScrollBarDisplay(), 3);
 		t.is(decodedTree.getScrollBarFlags(), 7);
 		t.deepEqual(decodedTree.getScrollBarMargin(), { top: 2, bottom: 3, left: 4, right: 5 });
 		t.is(decodedTree.getVtScrollBarRes(), 'ui://listpkg/treeVBar');
@@ -2322,7 +2376,10 @@ test('binary writer: component structured objects round-trip into formal models'
 	title
 		.setId('title01')
 		.setXY(48, 64)
-		.setText('Ready');
+		.setText('Ready')
+		.setFaceDilate(0.125)
+		.setOutlineSoftness(0.375)
+		.setUnderlaySoftness(0.625);
 	comp.addChild(title);
 
 	comp.addRelation({ target: 'title01', type: 0, usePercent: false });
@@ -2453,6 +2510,10 @@ test('binary writer: component structured objects round-trip into formal models'
 		t.true(decodedGear.getTween());
 		t.is(decodedGear.getEaseType(), 6);
 		t.true(decodedGear.getPositionsInPercent());
+		const decodedTitle = decoded?.listChildren().find((child) => child.getId() === 'title01') as ReturnType<Document['createGTextField']>;
+		t.is(decodedTitle.getFaceDilate(), 0.125);
+		t.is(decodedTitle.getOutlineSoftness(), 0.375);
+		t.is(decodedTitle.getUnderlaySoftness(), 0.625);
 
 		const transitions = decoded?.listTransitions() ?? [];
 		t.is(transitions.length, 1);
