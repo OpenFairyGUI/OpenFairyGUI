@@ -331,7 +331,7 @@ function collectPackagePublishContext(
 		const hitTest = component.getHitTest?.()?.trim();
 		if (hitTest && !hitTest.includes(',')) {
 			const targetChild = childMap.get(hitTest);
-			const sourceId = targetChild?.getSrc?.();
+			const sourceId = (targetChild as { getSrc?(): string } | undefined)?.getSrc?.();
 			if (sourceId) {
 				const sourceResource = resourceMap.get(sourceId);
 				if (sourceResource && isImageResource(sourceResource)) {

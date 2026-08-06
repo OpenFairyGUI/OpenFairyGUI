@@ -373,7 +373,9 @@ test('assertTransactionSupported accepts current materialization scope and rejec
 		return;
 	}
 	componentResource.component.displayList.push({
+		...createDisplayNodeBase('n2', 'button'),
 		kind: 'button',
+		group: '',
 		id: 'n2',
 		name: 'button',
 		position: { x: 0, y: 0 },
@@ -428,6 +430,8 @@ test('assertTransactionSupported accepts current materialization scope and rejec
 	crossPackageImageRefProject.packages.push({
 		id: 'pkg002',
 		name: 'Shared',
+		compressPNG: null,
+		jpegQuality: null,
 		publish: null,
 		branchNames: [],
 		folders: [],
@@ -470,7 +474,9 @@ test('validateTransactionSupport accepts supported baseline nodes and fields', (
 		return;
 	}
 	const supportedComponentNode: UamComponentRefNode = {
+		...createDisplayNodeBase('n2', 'sub'),
 		kind: 'component',
+		group: '',
 		id: 'n2',
 		name: 'sub',
 		position: { x: 0, y: 0 },
@@ -486,6 +492,7 @@ test('validateTransactionSupport accepts supported baseline nodes and fields', (
 		resource: { packageId: 'pkg001', resourceId: 'cmp001' },
 	};
 	const supportedListNode: UamListNode = {
+		...createDisplayNodeBase('n3', 'menu'),
 		kind: 'list',
 		id: 'n3',
 		name: 'menu',
@@ -526,6 +533,7 @@ test('validateTransactionSupport accepts supported baseline nodes and fields', (
 		clipSoftness: { x: 2, y: 3 },
 		scrollItemToViewOnClick: false,
 		foldInvisibleItems: true,
+		autoClearItems: false,
 		listItems: [
 			{
 				title: 'Item',
@@ -544,7 +552,9 @@ test('validateTransactionSupport accepts supported baseline nodes and fields', (
 		selectionController: 'state',
 	};
 	const unsupportedButtonNode: UamButtonNode = {
+		...createDisplayNodeBase('n4', 'button'),
 		kind: 'button',
+		group: '',
 		id: 'n4',
 		name: 'button',
 		position: { x: 30, y: 40 },
@@ -808,7 +818,7 @@ test('Loader3D properties survive transaction, save/reload, inverse, and invalid
 	const unexpectedFields: UamTransactionOperation[] = [{
 		kind: 'setDisplayNodeProps',
 		selector,
-		props: { loader3DProperties: { ...updated, kind: 'text', id: 'hijacked' } },
+		props: { loader3DProperties: { ...updated, kind: 'text', id: 'hijacked' } as never },
 	}];
 	t.true(validateTransactionSupport(project, unexpectedFields).some((issue) => issue.code === 'invalid_display_node_payload'));
 	t.throws(() => applyUamTransaction(project, unexpectedFields), { instanceOf: UamTransactionError });
@@ -1295,16 +1305,12 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 		{
 			kind: 'component',
 			...createDisplayNodeBase('n2', 'component-ref', 8),
+			group: '',
 			resource: { packageId: 'pkg001', resourceId: 'cmp001' },
 		},
 		{
 			kind: 'graph',
 			...createDisplayNodeBase('n3', 'graph', 16),
-			locked: false,
-			minWidth: 0,
-			maxWidth: 0,
-			minHeight: 0,
-			maxHeight: 0,
 			pivot: { x: 0, y: 0 },
 			pivotAsAnchor: false,
 			group: '',
@@ -1363,6 +1369,7 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 			kind: 'richText',
 			...createDefaultUamTextProperties(),
 			...createDisplayNodeBase('n7', 'rich-text', 48),
+			group: '',
 			text: '[b]Rich[/b]',
 			font: '',
 			fontSize: 14,
@@ -1372,6 +1379,7 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 			kind: 'textInput',
 			...createDefaultUamPlainTextProperties(),
 			...createDisplayNodeBase('n8', 'text-input', 56),
+			group: '',
 			text: 'Input',
 			font: '',
 			fontSize: 14,

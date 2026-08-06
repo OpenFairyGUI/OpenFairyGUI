@@ -33,7 +33,7 @@ export interface ResolvedPackageCodegenPlan {
 	packageFolderName: string;
 	packageNamespace: string;
 	binderClassName: string;
-	settings: CliCodeGenerationSettings;
+	settings: Required<CliCodeGenerationSettings>;
 }
 
 interface FguiTypescriptVariant {
@@ -101,12 +101,14 @@ export async function publishCodeGeneration(doc: Document, options: PublishCodeG
 	const settings = resolveCodeGenerationSettings(doc);
 	if (!settings.allowGenCode) return;
 
-	const plugins = options.plugins?.filter((plugin) => typeof plugin.plugin.genCode === 'function') ?? [];
+	const plugins = options.plugins ?? [];
 	if (plugins.length > 0) {
 		let handled = false;
 		for (const plugin of plugins) {
+			const genCode = plugin.plugin.genCode;
+			if (!genCode) continue;
 			try {
-				await plugin.plugin.genCode(doc, settings, options);
+				await genCode(doc, settings, options);
 				handled = true;
 				logger.info(`publish: Generated code using plugin "${plugin.name}"`);
 			} catch (error) {
@@ -172,7 +174,7 @@ export function resolveCodeGenerationSettings(doc: Document): Required<CliCodeGe
 	};
 }
 
-export function resolvePackageCodegenPlan(pkg: Package, settings: CliCodeGenerationSettings, options: PublishCodeGenerationOptions): ResolvedPackageCodegenPlan | null {
+export function resolvePackageCodegenPlan(pkg: Package, settings: Required<CliCodeGenerationSettings>, options: PublishCodeGenerationOptions): ResolvedPackageCodegenPlan | null {
 	const rawCodePath = (pkg.getCodePath() || settings.codePath || '').trim();
 	if (!rawCodePath) return null;
 

@@ -601,7 +601,7 @@ function isSafeRelativePath(value: string): boolean {
 }
 
 function assetFileName(resource: UamAssetResource): string {
-	return resource.fileName || (resource.kind === 'image' ? '' : resource.file) || resource.name;
+	return resource.fileName || ('file' in resource ? resource.file : '') || resource.name;
 }
 
 function validatePackageOutputTargets(

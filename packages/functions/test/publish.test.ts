@@ -5,10 +5,12 @@ import os from 'node:os';
 import { Document } from '@openfairygui/core';
 import { NodeIO } from '@openfairygui/core/node';
 import { getFixturePath, getFixtureProjectPath } from '@openfairygui/test-utils';
-import sharp from 'sharp';
-import { publish, resolvePublishOptions, type RootProjectSettings } from '../src/index.js';
+import sharpImplementation from 'sharp';
+import { publish, resolvePublishOptions, type AtlasRasterBackend, type RootProjectSettings } from '../src/index.js';
 import { resolvePublishAtlasRuntimeOptions } from '../src/publish.js';
 import { createTestJta } from './test-jta.js';
+
+const sharp = sharpImplementation as typeof sharpImplementation & AtlasRasterBackend;
 
 const UNITY_EXAMPLES_FAIRY = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
 const UNITY_BRANCH_LOADER_FAIRY = getFixtureProjectPath('FairyGUI-Experiments');

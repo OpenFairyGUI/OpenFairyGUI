@@ -3,8 +3,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { Document } from '@openfairygui/core';
 import test from 'ava';
-import sharp from 'sharp';
-import { atlas } from '../src/index.js';
+import sharpImplementation from 'sharp';
+import { atlas, type AtlasRasterBackend } from '../src/index.js';
+
+const sharp = sharpImplementation as typeof sharpImplementation & AtlasRasterBackend;
 
 test('atlas: creates Atlas and Sprite nodes without encoder', async (t) => {
 	const doc = new Document();

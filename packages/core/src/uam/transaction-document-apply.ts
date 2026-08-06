@@ -39,13 +39,19 @@ import type {
 } from './model.js';
 import type {
 	UamComponentSelector,
+	UamControllerSelector,
+	UamDisplayNodePropsUpdate,
 	UamDisplayNodeSelector,
+	UamGearSelector,
 	UamResourceSelector,
+	UamTransitionSelector,
 	UamTransactionOperation,
 } from './transaction-contracts.js';
+import { UamTransactionError } from './transaction-contracts.js';
 import {
 	COMMON_DISPLAY_PROPERTY_TYPES,
 	GROUPABLE_DISPLAY_PROPERTY_TYPES,
+	selectorDetails,
 	TEXT_DISPLAY_PROPERTY_TYPES,
 	renamedResourceFileName,
 	type UamAttachableDisplayNode,
@@ -107,7 +113,7 @@ function resolveUniqueController(component: Component, selector: UamControllerSe
 	if (matches.length === 0) {
 		throw new Error(`Controller "${selector.controllerName}" was not found in component "${selector.componentResourceId}".`);
 	}
-		if (matches.length > 1) {
+	if (matches.length > 1) {
 			throw new UamTransactionError(
 				`Controller selector "${selector.controllerName}" is ambiguous in component "${selector.componentResourceId}".`,
 				{
@@ -115,7 +121,7 @@ function resolveUniqueController(component: Component, selector: UamControllerSe
 					selector: selectorDetails(selector as unknown as Record<string, unknown>),
 				},
 			);
-		}
+	}
 	return matches[0]!;
 }
 
@@ -124,7 +130,7 @@ function resolveUniqueTransition(component: Component, selector: UamTransitionSe
 	if (matches.length === 0) {
 		throw new Error(`Transition "${selector.transitionName}" was not found in component "${selector.componentResourceId}".`);
 	}
-		if (matches.length > 1) {
+	if (matches.length > 1) {
 			throw new UamTransactionError(
 				`Transition selector "${selector.transitionName}" is ambiguous in component "${selector.componentResourceId}".`,
 				{
@@ -132,7 +138,7 @@ function resolveUniqueTransition(component: Component, selector: UamTransitionSe
 					selector: selectorDetails(selector as unknown as Record<string, unknown>),
 				},
 			);
-		}
+	}
 	return matches[0]!;
 }
 

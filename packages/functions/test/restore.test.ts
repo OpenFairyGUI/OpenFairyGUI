@@ -5,9 +5,10 @@ import { Document, ProjectType, parseJta } from '@openfairygui/core';
 import { NodeIO } from '@openfairygui/core/node';
 import { getFixturePath, getFixtureProjectPath } from '@openfairygui/test-utils';
 import test from 'ava';
-import sharp from 'sharp';
+import sharpImplementation from 'sharp';
 import {
 	atlas,
+	type AtlasRasterBackend,
 	type PublishFileSystem,
 	publish,
 	type RestoreFileSystem,
@@ -15,6 +16,8 @@ import {
 	type RestoreImageExtractInput,
 	restore,
 } from '../src/index.js';
+
+const sharp = sharpImplementation as typeof sharpImplementation & AtlasRasterBackend;
 
 const UNITY_RELEASE_DIR = getFixturePath('FairyGUI-unity', 'Assets', 'Examples', 'Resources', 'UI');
 const EXPERIMENTS_FAIRY = getFixtureProjectPath('FairyGUI-Experiments');

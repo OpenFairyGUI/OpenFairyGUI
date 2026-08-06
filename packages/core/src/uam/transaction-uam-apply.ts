@@ -33,7 +33,7 @@ import {
 
 function clonePackageSnapshot(project: UamProject, pkg: UamPackage): UamPackage {
 	const cloned = normalizeUamProject({ ...project, packages: [pkg] }).packages[0]!;
-	for (const resource of cloned.resources) canonicalizeMovieClipSnapshot(resource);
+	for (const resource of cloned.resources) if (resource.kind !== 'component') canonicalizeMovieClipSnapshot(resource);
 	return cloned;
 }
 

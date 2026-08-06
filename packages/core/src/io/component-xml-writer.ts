@@ -314,7 +314,7 @@ export async function writeComponent(
 
 		const customProperties = typedComp.getCustomProperties?.() ?? [];
 		const customPropertyChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.componentRoot, 'customProperty');
-		const customPropertyProtocol = PROJECT_XML_PROTOCOL.componentRoot.children?.customProperty;
+		const customPropertyProtocol = PROJECT_XML_PROTOCOL.componentRoot.children!.customProperty!;
 		if (customProperties.length > 0 && customPropertyChildName) {
 			compNode[customPropertyChildName] = customProperties.map((property) => {
 				const attrs: Record<string, unknown> = {};

@@ -130,7 +130,7 @@ function collectComponentReferences(
 	ownerPackageId: string,
 	component: Component,
 ): void {
-	const referenceComponent = component as Component & ReferenceComponent;
+	const referenceComponent = component as unknown as ReferenceComponent;
 	for (const child of referenceComponent.listChildren()) {
 		const sourceId = child.getSrc?.();
 		if (sourceId) {

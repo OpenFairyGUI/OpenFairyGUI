@@ -232,7 +232,8 @@ test('real LayaBox UIProject rejects lossy file-backed UAM saves before writing'
 		const saved = await runtime.saveSession({ sessionId });
 		t.false(saved.ok);
 		if (!saved.ok) {
-			t.is(saved.error.code, 'uam_fidelity_unsupported');
+			const failure = saved as Extract<typeof saved, { ok: false }>;
+			t.is(failure.error.code, 'uam_fidelity_unsupported');
 			t.deepEqual(await fs.readFile(fairyPath), originalFairy);
 			return;
 		}

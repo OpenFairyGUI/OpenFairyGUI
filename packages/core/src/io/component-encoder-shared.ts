@@ -95,6 +95,9 @@ export type EncoderChildLike = ChildNode & {
 	getScrollItemToViewOnClick?(): boolean;
 	getFoldInvisibleItems?(): boolean;
 	getText?(): string;
+	getFaceDilate?(): number;
+	getOutlineSoftness?(): number;
+	getUnderlaySoftness?(): number;
 	getTitle?(): string;
 	getSelectedTitle?(): string;
 	getIcon?(): string;

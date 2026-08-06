@@ -50,17 +50,17 @@ async function readPluginManifest(
 	fs: typeof import('node:fs/promises'),
 	path: typeof import('node:path'),
 	pluginDir: string,
-): Promise<PluginPackageJson | null> {
+): Promise<PluginManifest | null> {
 	const manifestPath = path.join(pluginDir, 'package.json');
 	const content = await fs.readFile(manifestPath, 'utf-8');
 	const manifest = JSON.parse(content) as PluginPackageJson;
 	if (!manifest.name) throw new Error(`Codegen plugin at ${pluginDir} is missing package.json name.`);
 	if (!manifest.main) throw new Error(`Codegen plugin "${manifest.name}" is missing package.json main.`);
-	return manifest;
+	return manifest as PluginManifest;
 }
 
-function resolvePluginMain(path: typeof import('node:path'), pluginDir: string, manifest: PluginPackageJson): string {
-	const mainPath = path.resolve(pluginDir, manifest.main!);
+function resolvePluginMain(path: typeof import('node:path'), pluginDir: string, manifest: PluginManifest): string {
+	const mainPath = path.resolve(pluginDir, manifest.main);
 	const relative = path.relative(pluginDir, mainPath);
 	if (relative.startsWith('..') || path.isAbsolute(relative)) {
 		throw new Error(`Codegen plugin "${manifest.name}" main must resolve inside its plugin directory.`);
