@@ -405,6 +405,7 @@ test('package and component lifecycle preflight reports dependency and batch dia
 	host.component.displayList = [{
 		...createDisplayNodeBase('component-ref', 'component-ref'),
 		kind: 'component',
+		group: '',
 		resource: { packageId: 'pkg001', resourceId: 'cmp001' },
 	}];
 	project.packages.push({ ...createLifecyclePackage(), resources: [host] });
@@ -849,7 +850,7 @@ test('non-look gear transactions validate references and persist every supported
 		}]),
 		{ instanceOf: UamTransactionError },
 	);
-	t.true(duplicateError?.issues?.some((issue) => issue.code === 'duplicate_gear_controller') ?? false);
+	t.true(duplicateError?.issues?.some((issue) => 'code' in issue && issue.code === 'duplicate_gear_controller') ?? false);
 
 	const invalidPageGear = createNonLookGears().find((gear) => gear.kind === 'text')!;
 	if (invalidPageGear.kind !== 'text') {
@@ -867,7 +868,7 @@ test('non-look gear transactions validate references and persist every supported
 		}]),
 		{ instanceOf: UamTransactionError },
 	);
-	t.true(invalidPageError?.issues?.some((issue) => issue.code === 'invalid_gear_payload') ?? false);
+	t.true(invalidPageError?.issues?.some((issue) => 'code' in issue && issue.code === 'invalid_gear_payload') ?? false);
 
 	const updatedGears = gears.map((gear) => updateNonLookGear(gear));
 	const updated = applyUamTransaction(added, updatedGears.map((gear): UamTransactionOperation => ({
@@ -961,7 +962,8 @@ test('preflight validation rejects invalid controller references without mutatin
 
 	t.is(error?.code, 'transaction_unsupported');
 	t.true(error?.issues?.some((issue) => (
-		issue.code === 'invalid_display_node_selector' && issue.operationKind === 'addController'
+		'code' in issue && issue.code === 'invalid_display_node_selector'
+		&& 'operationKind' in issue && issue.operationKind === 'addController'
 	)) ?? false);
 	t.deepEqual(project, snapshot);
 	t.is(project.packages[0]!.resources[0]!.name, 'background.png');
@@ -971,7 +973,7 @@ test('updateTransition preflight rejects legacy dangling targets without blockin
 	const project = await readProjectAsUam(new NodeIO(), LAYABOX_PROJECT_PATH);
 	const pkg = project.packages.find((candidate) => candidate.id === 'c0hnre6o');
 	const component = pkg?.resources.find((resource) => resource.id === 'lvxry');
-	if (component?.kind !== 'component') {
+	if (!pkg || component?.kind !== 'component') {
 		t.fail('expected the LayaBox BOSS component');
 		return;
 	}
@@ -1003,7 +1005,7 @@ test('updateTransition preflight rejects legacy dangling targets without blockin
 		{ instanceOf: UamTransactionError },
 	);
 	t.is(error?.code, 'transaction_unsupported');
-	t.true(error?.issues?.some((issue) => issue.code === 'invalid_display_node_selector') ?? false);
+	t.true(error?.issues?.some((issue) => 'code' in issue && issue.code === 'invalid_display_node_selector') ?? false);
 	t.deepEqual(project, snapshot);
 
 	const unrelated = applyUamTransaction(project, [{

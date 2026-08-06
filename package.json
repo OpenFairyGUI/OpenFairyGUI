@@ -29,10 +29,12 @@
 		"docs:dev": "vitepress dev docs",
 		"docs:preview": "vitepress preview docs",
 		"lint": "biome lint packages",
-		"lint:ci": "biome lint packages"
+		"lint:ci": "biome lint packages",
+		"typecheck": "tsc --noEmit --declaration false"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.9",
+		"@typescript/native": "npm:typescript@^7.0.2",
 		"@types/node": "^22.0.0",
 		"ava": "^7.0.0",
 		"c8": "^11.0.0",
@@ -40,7 +42,7 @@
 		"tsdown": "^0.21.5",
 		"tsx": "^4.21.0",
 		"typedoc": "^0.28.20",
-		"typescript": "^5.9.0",
+		"typescript": "npm:@typescript/typescript6@^6.0.2",
 		"vitepress": "^1.6.4",
 		"vitepress-plugin-mermaid": "2.0.17"
 	},

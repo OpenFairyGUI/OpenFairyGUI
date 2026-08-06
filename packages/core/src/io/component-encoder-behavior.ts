@@ -2,6 +2,7 @@ import { ControllerActionType, } from '../constants.js';
 import type { Component } from '../properties/component.js';
 import type { Package } from '../properties/package.js';
 import type {
+	MarginLike,
 	RelationOwner,
 } from './component-encoder-shared.js';
 import {

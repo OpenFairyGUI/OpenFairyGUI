@@ -24,6 +24,7 @@ import {
 } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
 import { liftDocumentToUamProject, materializeUamProject, readProjectAsUam, writeProjectFromUam } from '../src/uam/index.js';
+import { createDisplayNodeBase } from './uam-transaction-fixtures.js';
 
 const LAYABOX_PROJECT_PATH = getFixtureProjectPath(
 	'FairyGUI-layabox',
@@ -51,6 +52,8 @@ function createEngineeringScaleUamProject(): UamProject {
 			{
 				id: 'pkg001',
 				name: 'Main',
+				compressPNG: null,
+				jpegQuality: null,
 				publish: {
 					name: 'Main',
 					path: 'dist/main',
@@ -58,8 +61,19 @@ function createEngineeringScaleUamProject(): UamProject {
 					packageCount: 1,
 					genCode: false,
 					codePath: '',
+					useGlobalAtlasSettings: true,
+					maxAtlasSize: 2048,
+					sizeOption: 'pot',
+					forceSquare: false,
+					allowRotation: false,
+					paging: true,
+					extractAlpha: false,
+					maxAtlasIndex: 10,
+					atlases: [],
+					excludedResourceIds: [],
 				},
 				branchNames: [],
+				folders: [],
 				resources: [
 					{
 						kind: 'image',
@@ -93,17 +107,16 @@ function createEngineeringScaleUamProject(): UamProject {
 							displayList: [
 								{
 									kind: 'image',
-									id: 'n0',
-									name: 'bg',
+									...createDisplayNodeBase('n0', 'bg'),
 									position: { x: 0, y: 0 },
 									size: { width: 320, height: 180 },
-									visible: true,
-									touchable: true,
-									grayed: false,
-									alpha: 1,
-									rotation: 0,
-									customData: '',
-									relations: [],
+									group: '',
+									color: '#FFFFFF',
+									flip: 0,
+									fillMethod: 0,
+									fillOrigin: 0,
+									fillClockwise: true,
+									fillAmount: 100,
 									gears: [
 										{
 											kind: 'look',
@@ -127,17 +140,11 @@ function createEngineeringScaleUamProject(): UamProject {
 								},
 								{
 									kind: 'text',
+									...createDisplayNodeBase('n1', 'title'),
 									...createDefaultUamPlainTextProperties(),
-									id: 'n1',
-									name: 'title',
 									position: { x: 16, y: 18 },
 									size: { width: 180, height: 32 },
-									visible: true,
-									touchable: true,
-									grayed: false,
-									alpha: 1,
-									rotation: 0,
-									customData: '',
+									group: '',
 									relations: [
 										{
 											targetNodeId: 'n0',
@@ -145,7 +152,6 @@ function createEngineeringScaleUamProject(): UamProject {
 											usePercent: false,
 										},
 									],
-									gears: [],
 									text: 'Unified Authoring Model',
 									font: '',
 									fontSize: 18,
@@ -216,7 +222,7 @@ function createEngineeringScaleUamProject(): UamProject {
 				],
 			},
 		],
-	} as UamProject);
+	});
 }
 
 test('Gate A proves one engineering-scale UAM-owned project read/write path', async (t) => {

@@ -1,6 +1,7 @@
 import { bindLookGear, composeController } from '../authoring.js';
 import { GearType, } from '../constants.js';
 import { Document } from '../document.js';
+import type { GObject } from '../properties/g-object.js';
 import { applyDerivedMovieClipModel, deriveMovieClipModelFromJta } from '../utils/jta-parser.js';
 import type {
 	UamAnimationGearBinding,

@@ -314,7 +314,7 @@ function liftGears(gears: ReturnType<GObject['listGears']>): UamGearBinding[] {
 			} satisfies UamDisplay2GearBinding;
 		}
 		if (gear.getGearType() !== GearType.Look) {
-			const gearKinds = new Map<number, UamGenericValueGearBinding['kind']>([
+			const gearKinds = new Map<number, Exclude<UamGearBinding['kind'], 'display' | 'display2' | 'look'>>([
 				[GearType.XY, 'xy'],
 				[GearType.Size, 'size'],
 				[GearType.Color, 'color'],

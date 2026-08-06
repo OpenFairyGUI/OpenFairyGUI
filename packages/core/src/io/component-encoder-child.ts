@@ -4,7 +4,9 @@ import type { Component } from '../properties/component.js';
 import type { Package } from '../properties/package.js';
 import { resolveTreeItemIsFolder } from './tree-item-hierarchy.js';
 import type {
+	ComboItemLike,
 	EncoderChildLike,
+	ListItemLike,
 } from './component-encoder-shared.js';
 import {
 	_boolVal,

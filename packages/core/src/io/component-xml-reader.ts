@@ -515,7 +515,7 @@ export function readComponentXml(ctx: ReaderContext, comp: Component, xmlContent
 
 		const customPropertyChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.componentRoot, 'customProperty');
 		const customProperties = customPropertyChildName ? ensureArray(compNode[customPropertyChildName]) : [];
-		const customPropertyProtocol = PROJECT_XML_PROTOCOL.componentRoot.children?.customProperty;
+		const customPropertyProtocol = PROJECT_XML_PROTOCOL.componentRoot.children!.customProperty!;
 		comp.setCustomProperties(customProperties.flatMap((value) => {
 			const property = getXmlNode<CustomPropertyXmlNode>(value);
 			const propertyId = property

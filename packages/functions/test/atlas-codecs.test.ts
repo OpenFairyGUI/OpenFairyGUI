@@ -72,8 +72,8 @@ test('JTA extraction follows the authoritative texture table and frame reference
 				return this;
 			},
 			toBuffer: async () => TEST_PNG,
-		} as AtlasRasterPipeline;
-	}) as AtlasRasterBackend;
+			} as unknown as AtlasRasterPipeline;
+	}) as unknown as AtlasRasterBackend;
 	const prepared = await prepareJtaForPublish(jta, encoder, 'Demo/fx.jta');
 	t.deepEqual(
 		prepared.referencedTextures.map(({ textureIndex, firstFrameIndex }) => ({ textureIndex, firstFrameIndex })),
@@ -94,7 +94,7 @@ test('JTA preparation rejects invalid, empty, truncated, and corrupt referenced 
 				return this;
 			},
 			toBuffer: async () => TEST_PNG,
-		} as AtlasRasterPipeline;
+		} as unknown as AtlasRasterPipeline;
 	}) as AtlasRasterBackend;
 	const blankFrame = await prepareJtaForPublish(
 		createTestJta([new Uint8Array(0)], [{ textureIndex: -1 }]),
@@ -191,7 +191,7 @@ test('JTA preparation rejects unsupported WebP, GIF, and TIFF before invoking th
 	const encoder = ((_input: Uint8Array) => {
 		decoderCalls += 1;
 		throw new Error('host decoder must not be called');
-	}) as AtlasRasterBackend;
+	}) as unknown as AtlasRasterBackend;
 	const unsupported = [
 		['WebP', Uint8Array.from([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50])],
 		['GIF', Uint8Array.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61])],
@@ -218,7 +218,7 @@ test('JTA preflight performs a full host decode before accepting a texture', asy
 				fullDecodeCalls += 1;
 				throw new Error('pixel decode failed');
 			},
-		} as AtlasRasterPipeline;
+		} as unknown as AtlasRasterPipeline;
 	}) as AtlasRasterBackend;
 
 	await t.throwsAsync(

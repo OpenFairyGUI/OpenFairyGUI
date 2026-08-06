@@ -21,6 +21,7 @@ export interface IProperty {
 	extras: Record<string, unknown>;
 }
 
+type NullableStringArrayKeys<T> = { [K in keyof T]-?: T[K] extends Array<string | null> ? K : never }[keyof T];
 type UnknownRef = GraphEdge<Property, Property> | RefList<Property> | RefSet<Property> | RefMap<Property>;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -109,6 +110,19 @@ export abstract class Property<T extends IProperty = IProperty> extends GraphNod
 	protected set<K extends LiteralKeys<T>>(attribute: K, value: T[K]): this {
 		if (Array.isArray(value)) value = value.slice() as T[K];
 		return super.set(attribute, value);
+	}
+
+	/** @hidden */
+	protected getExtendedLiteral<K extends NullableStringArrayKeys<T>>(attribute: K): T[K] {
+		return super.get(attribute as unknown as LiteralKeys<T>) as unknown as T[K];
+	}
+
+	/** @hidden */
+	protected setExtendedLiteral<K extends NullableStringArrayKeys<T>>(attribute: K, value: T[K]): this {
+		return super.set(
+			attribute as unknown as LiteralKeys<T>,
+			(value as Array<string | null>).slice() as unknown as T[LiteralKeys<T>],
+		);
 	}
 
 	public getName(): string {

@@ -34,7 +34,10 @@ test('binary: reads without error', async (t) => {
 test('binary: package is created with non-empty id and name', async (t) => {
 	const doc = await getDoc();
 	const pkg = getMainPackage(doc);
-	t.truthy(pkg, 'main package exists');
+	if (!pkg) {
+		t.fail('main package exists');
+		return;
+	}
 	t.truthy(pkg.getId(), 'package has non-empty id');
 	t.truthy(pkg.getName(), 'package has non-empty name');
 });

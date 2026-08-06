@@ -1,6 +1,6 @@
 import type { Document, ILogger, Package } from '@openfairygui/core';
 import type { AtlasOptions } from '../atlas.js';
-import { COMPAT_NODE_RECT_FLAGS, type CompatNodeRect } from '../max-rects-compat.js';
+import { COMPAT_NODE_RECT_FLAGS, type CompatNodeRect, type CompatPage } from '../max-rects-compat.js';
 import { MaxRectsPackerCompat } from '../max-rects-packer-compat.js';
 import type { AtlasRasterBackend } from '../publish/contracts.js';
 import {
@@ -289,7 +289,7 @@ function packAtlasPages(
 		multipleOfFour: boolean;
 		square: boolean;
 	},
-): ReturnType<MaxRectsPackerCompat['pack']> {
+): CompatPage[] {
 	const hasDuplicatePadding = inputs.some((input) => {
 		return isImageResource(input.resource) && input.resource.getDuplicatePadding?.() === true;
 	});

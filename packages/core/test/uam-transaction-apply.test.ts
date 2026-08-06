@@ -2,6 +2,7 @@ import test from 'ava';
 import { createTestMovieClipJta, type TestMovieClipJtaOptions } from '@openfairygui/test-utils';
 import {
 	UamTransactionError,
+	PropertyType,
 	applyUamTransaction,
 	applyUamTransactionAsync,
 	createDefaultUamPlainTextProperties,
@@ -16,6 +17,7 @@ import {
 
 import {
 	createControllerModel,
+	createDisplayNodeBase,
 	createLifecyclePackage,
 	createLookGear,
 	createSupportedProject,
@@ -118,8 +120,8 @@ test('MovieClip materialization keeps stored properties when source JTA cannot b
 	} satisfies UamMovieClipResource);
 
 	const movieClip = materializeUamProject(project).getRoot().getPackage('Main')?.listResources().at(-1);
-	t.is(movieClip?.propertyType, 'MovieClipResource');
-	if (movieClip?.propertyType !== 'MovieClipResource') return;
+	t.is(movieClip?.propertyType, PropertyType.MOVIE_CLIP_RESOURCE);
+	if (movieClip?.propertyType !== PropertyType.MOVIE_CLIP_RESOURCE) return;
 	t.deepEqual(movieClip.getSourceData()?.getData(), sourceBytes);
 	t.deepEqual(
 		[movieClip.getWidth(), movieClip.getHeight(), movieClip.getInterval(), movieClip.getRepeatDelay(), movieClip.getSwing()],
@@ -597,8 +599,10 @@ test('resource and display-list operations respect the frozen Phase A contracts'
 			selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
 			atIndex: 1,
 			node: {
+				...createDisplayNodeBase('n2', 'subtitle'),
 				kind: 'text',
 				...createDefaultUamPlainTextProperties(),
+				group: '',
 				id: 'n2',
 				name: 'subtitle',
 				position: { x: 18, y: 52 },
@@ -667,8 +671,10 @@ test('resource and display-list operations respect the frozen Phase A contracts'
 				selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
 				atIndex: 1,
 				node: {
+					...createDisplayNodeBase('n1', 'duplicate'),
 					kind: 'text',
 					...createDefaultUamPlainTextProperties(),
+					group: '',
 					id: 'n1',
 					name: 'duplicate',
 					position: { x: 0, y: 0 },
@@ -947,7 +953,7 @@ test('binary resource transactions require hydrated source bytes and survive wri
 		}]),
 		{ instanceOf: UamTransactionError },
 	);
-	t.true(missingBytesError?.issues?.some((issue) => issue.code === 'unavailable_resource_source_bytes') ?? false);
+	t.true(missingBytesError?.issues?.some((issue) => 'code' in issue && issue.code === 'unavailable_resource_source_bytes') ?? false);
 
 	const renamed = applyUamTransaction(createSupportedProject(), [
 		{

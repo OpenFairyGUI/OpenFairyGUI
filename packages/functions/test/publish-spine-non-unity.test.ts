@@ -3,8 +3,10 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import { Document } from '@openfairygui/core';
-import sharp from 'sharp';
-import { publish } from '../src/index.js';
+import sharpImplementation from 'sharp';
+import { publish, type AtlasRasterBackend } from '../src/index.js';
+
+const sharp = sharpImplementation as typeof sharpImplementation & AtlasRasterBackend;
 
 function createFs() {
 	return {

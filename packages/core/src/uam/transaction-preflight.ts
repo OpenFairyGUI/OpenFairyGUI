@@ -43,15 +43,22 @@ import {
 } from './validate.js';
 import {
 	UamTransactionError,
+	type AddGearOperation,
 	type UamComponentSelector,
+	type UamControllerSelector,
 	type UamDisplayNodePropsUpdate,
 	type UamDisplayNodeSelector,
+	type UamGearSelector,
+	type UamPackageSelector,
+	type RemoveGearOperation,
 	type UamResourceSelector,
 	type UamResourceFolderSelector,
 	type SetDisplayNodePropsOperation,
+	type UamTransitionSelector,
 	type UamTransactionOperation,
 	type UamTransactionSupportIssue,
 	type UamTransactionSupportIssueCode,
+	type UpdateGearOperation,
 } from './transaction-contracts.js';
 import {
 	findComponentSpec,
@@ -665,6 +672,7 @@ function validatePackageSettingsPayload(
 	if (publish.sizeOption !== 'pot' && publish.sizeOption !== 'npot' && publish.sizeOption !== 'mof') {
 		pushInvalidPackageSettings(issues, `${path}.publish.sizeOption`, 'sizeOption must be pot, npot, or mof.', operationKind);
 	}
+	const maxAtlasIndex = isIntegerBetween(publish.maxAtlasIndex, 0, 255) ? publish.maxAtlasIndex : 255;
 	if (!isIntegerBetween(publish.maxAtlasIndex, 0, 255)) {
 		pushInvalidPackageSettings(issues, `${path}.publish.maxAtlasIndex`, 'maxAtlasIndex must be an integer from 0 to 255.', operationKind);
 	}
@@ -678,12 +686,14 @@ function validatePackageSettingsPayload(
 				pushInvalidPackageSettings(issues, atlasPath, 'Atlas entries must be complete typed snapshots.', operationKind);
 				continue;
 			}
-			if (!Number.isInteger(atlas.index) || atlas.index < 0 || atlas.index > publish.maxAtlasIndex) {
+			if (typeof atlas.index !== 'number' || !Number.isInteger(atlas.index) || atlas.index < 0 || atlas.index > maxAtlasIndex) {
 				pushInvalidPackageSettings(issues, `${atlasPath}.index`, 'Atlas index must be a non-negative integer no greater than maxAtlasIndex.', operationKind);
-			} else if (indices.has(atlas.index)) {
-				pushInvalidPackageSettings(issues, `${atlasPath}.index`, `Atlas index ${atlas.index} is duplicated.`, operationKind);
+			} else {
+				if (indices.has(atlas.index)) {
+					pushInvalidPackageSettings(issues, `${atlasPath}.index`, `Atlas index ${atlas.index} is duplicated.`, operationKind);
+				}
+				indices.add(atlas.index);
 			}
-			indices.add(atlas.index);
 			if (typeof atlas.name !== 'string' || (atlas.name && !isSafeBranchName(atlas.name))) {
 				pushInvalidPackageSettings(issues, `${atlasPath}.name`, 'Atlas name must be empty or a safe output path segment.', operationKind);
 			}
@@ -1849,7 +1859,7 @@ function validateResourceFolderAtlas(
 }
 
 function primaryResourceFileName(resource: UamAssetResource): string {
-	return resource.fileName ?? (resource.kind === 'image' ? '' : resource.file) ?? '';
+	return resource.fileName ?? ('file' in resource ? resource.file : '') ?? '';
 }
 
 function validateAssetSourceBytes(
@@ -2745,6 +2755,7 @@ function projectedAssetFileName(
 			continue;
 		}
 		if (!('selector' in operation)
+			|| !('packageId' in operation.selector)
 			|| operation.selector.packageId !== selector.packageId
 			|| !('resourceId' in operation.selector)
 			|| operation.selector.resourceId !== selector.resourceId
@@ -2769,6 +2780,7 @@ function imageReplacementSurvives(
 			continue;
 		}
 		if (!('selector' in operation)
+			|| !('packageId' in operation.selector)
 			|| operation.selector.packageId !== selector.packageId
 			|| !('resourceId' in operation.selector)
 			|| operation.selector.resourceId !== selector.resourceId
@@ -2869,7 +2881,7 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 						'invalid_resource_payload',
 						`${operationPath}.favorite`,
 						'setResourceFavorite.favorite must be boolean.',
-						{ operationKind: operation.kind },
+						{ operationKind: 'setResourceFavorite' },
 					);
 				}
 				break;
@@ -2883,7 +2895,7 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 						'invalid_resource_payload',
 						`${operationPath}.favorite`,
 						'setResourceFolderFavorite.favorite must be boolean.',
-						{ operationKind: operation.kind },
+						{ operationKind: 'setResourceFolderFavorite' },
 					);
 				}
 				break;
