@@ -15,11 +15,13 @@ import {
 	type UamDisplayNodePropsUpdate,
 	type UamGraphProperties,
 	type UamGroupProperties,
+	type UamImageProperties,
 	type UamImageResourceProperties,
 	type UamListNode,
 	type UamListProperties,
 	type UamLoader3DProperties,
 	type UamLoaderProperties,
+	type UamMovieClipProperties,
 	type UamTransactionOperation,
 	type UamTreeProperties,
 } from '../src/index.js';
@@ -513,6 +515,7 @@ test('validateTransactionSupport accepts supported baseline nodes and fields', (
 		src: 'ui://pkg001/list',
 		overflow: 2,
 		scrollType: 1,
+		scrollBarDisplay: 2,
 		scrollBarFlags: 7,
 		scrollBarMargin: { top: 1, bottom: 2, left: 3, right: 4 },
 		vtScrollBarRes: 'ui://pkg001/vbar',
@@ -726,7 +729,7 @@ test('Loader3D properties survive transaction, save/reload, inverse, and invalid
 		playing: true,
 		frame: 0,
 		loop: true,
-		color: '#FFFFFF',
+		color: '#ffffff',
 		clearOnPublish: false,
 	};
 	component.component.displayList.push(loader);
@@ -809,6 +812,99 @@ test('Loader3D properties survive transaction, save/reload, inverse, and invalid
 	}];
 	t.true(validateTransactionSupport(project, unexpectedFields).some((issue) => issue.code === 'invalid_display_node_payload'));
 	t.throws(() => applyUamTransaction(project, unexpectedFields), { instanceOf: UamTransactionError });
+});
+
+test('image and movieClip property snapshots survive transaction lifecycle', async (t) => {
+	const project = normalizeUamProject(createSupportedProject());
+	const component = project.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (component?.kind !== 'component') {
+		t.fail('expected component resource');
+		return;
+	}
+	const image = component.component.displayList.find((node) => node.kind === 'image');
+	if (image?.kind !== 'image') {
+		t.fail('expected image display node');
+		return;
+	}
+	const movieClip: UamDisplayNode = {
+		kind: 'movieClip',
+		...createDisplayNodeBase('movie-props', 'movieClip', 24),
+		group: '',
+		resource: { resourceId: 'img001' },
+		fileName: '',
+		playing: true,
+		frame: 0,
+		color: '#FFFFFF',
+	};
+	component.component.displayList.push(movieClip);
+	const readImage = (node: UamDisplayNode | undefined): UamImageProperties | null => node?.kind === 'image' ? {
+		color: node.color,
+		flip: node.flip,
+		fillMethod: node.fillMethod,
+		fillOrigin: node.fillOrigin,
+		fillClockwise: node.fillClockwise,
+		fillAmount: node.fillAmount,
+	} : null;
+	const readMovieClip = (node: UamDisplayNode | undefined): UamMovieClipProperties | null => node?.kind === 'movieClip' ? {
+		playing: node.playing,
+		frame: node.frame,
+		color: node.color,
+	} : null;
+	const initialImage = readImage(image)!;
+	const initialMovieClip = readMovieClip(movieClip)!;
+	const updatedImage: UamImageProperties = {
+		color: '#123456',
+		flip: 3,
+		fillMethod: 2,
+		fillOrigin: 1,
+		fillClockwise: false,
+		fillAmount: 0.37,
+	};
+	const updatedMovieClip: UamMovieClipProperties = {
+		playing: false,
+		frame: 5,
+		color: '#abcdef',
+	};
+	const selector = (displayNodeId: string) => ({
+		packageId: 'pkg001',
+		componentResourceId: 'cmp001',
+		displayNodeId,
+	});
+	const forward: UamTransactionOperation[] = [
+		{ kind: 'setDisplayNodeProps', selector: selector(image.id), props: { imageProperties: updatedImage } },
+		{ kind: 'setDisplayNodeProps', selector: selector(movieClip.id), props: { movieClipProperties: updatedMovieClip } },
+	];
+	t.deepEqual(validateTransactionSupport(project, forward), []);
+	const original = structuredClone(project);
+	const committed = await roundTripCommittedProject(applyUamTransaction(project, forward));
+	t.deepEqual(project, original, 'transaction input remains immutable');
+	const committedComponent = committed.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (committedComponent?.kind !== 'component') {
+		t.fail('expected committed component resource');
+		return;
+	}
+	t.deepEqual(readImage(committedComponent.component.displayList.find((node) => node.id === image.id)), updatedImage);
+	t.deepEqual(readMovieClip(committedComponent.component.displayList.find((node) => node.id === movieClip.id)), updatedMovieClip);
+
+	const restored = await roundTripCommittedProject(applyUamTransaction(committed, [
+		{ kind: 'setDisplayNodeProps', selector: selector(image.id), props: { imageProperties: initialImage } },
+		{ kind: 'setDisplayNodeProps', selector: selector(movieClip.id), props: { movieClipProperties: initialMovieClip } },
+	]));
+	const restoredComponent = restored.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (restoredComponent?.kind !== 'component') {
+		t.fail('expected restored component resource');
+		return;
+	}
+	t.deepEqual(readImage(restoredComponent.component.displayList.find((node) => node.id === image.id)), initialImage);
+	t.deepEqual(readMovieClip(restoredComponent.component.displayList.find((node) => node.id === movieClip.id)), initialMovieClip);
+
+	const invalid = validateTransactionSupport(project, [
+		{ kind: 'setDisplayNodeProps', selector: selector(movieClip.id), props: { imageProperties: updatedImage } },
+		{ kind: 'setDisplayNodeProps', selector: selector(image.id), props: { imageProperties: { ...updatedImage, fillAmount: 1.01 } } },
+		{ kind: 'setDisplayNodeProps', selector: selector(movieClip.id), props: { movieClipProperties: { ...updatedMovieClip, frame: -1 } } },
+	]);
+	t.is(invalid.filter((issue) => issue.code === 'unsupported_display_node_field').length, 1);
+	t.is(invalid.filter((issue) => issue.code === 'invalid_display_node_payload').length, 2);
 });
 
 test('graph, loader, list, and tree property snapshots survive transaction lifecycle', async (t) => {
@@ -919,8 +1015,9 @@ test('graph, loader, list, and tree property snapshots survive transaction lifec
 		childrenRenderOrder: 2,
 		apexIndex: 1,
 		src: 'ui://pkg001list',
-		overflow: 1,
+		overflow: 2,
 		scrollType: 2,
+		scrollBarDisplay: 3,
 		scrollBarFlags: 7,
 		scrollBarMargin: { top: 1, bottom: 2, left: 3, right: 4 },
 		vtScrollBarRes: 'ui://pkg001vbar',
@@ -1061,6 +1158,11 @@ test('graph, loader, list, and tree property snapshots survive transaction lifec
 				},
 			},
 		},
+		{
+			kind: 'setDisplayNodeProps',
+			selector: selector(tree.id),
+			props: { listProperties: { ...updatedTree, scrollBarDisplay: 4 } },
+		},
 		...invalidTreeClickValues.map((clickToExpand) => ({
 			kind: 'setDisplayNodeProps' as const,
 			selector: selector(tree.id),
@@ -1069,7 +1171,7 @@ test('graph, loader, list, and tree property snapshots survive transaction lifec
 			},
 		})),
 	]);
-	t.is(invalidPayloadIssues.filter((issue) => issue.code === 'invalid_display_node_payload').length, 9);
+	t.is(invalidPayloadIssues.filter((issue) => issue.code === 'invalid_display_node_payload').length, 10);
 
 	const mixed = await roundTripCommittedProject(applyUamTransaction(project, [
 		forward[0]!,
@@ -1307,6 +1409,7 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 				fontSize: 18,
 				color: '#ff00ff',
 				autoSize: 4,
+				outlineSoftness: 0.375,
 				strokeColor: '#123456',
 				strokeSize: 0.25,
 				shadowColor: '#654321',
@@ -1322,6 +1425,7 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 				demoText: 'Preview input',
 				templateVarsEnabled: true,
 				faceDilate: 0.125,
+				outlineSoftness: 0.25,
 			};
 		}
 		return {
@@ -1359,6 +1463,7 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 		t.is(richText.fontSize, 18);
 		t.is(richText.color, '#ff00ff');
 		t.is(richText.autoSize, 4);
+		t.is(richText.outlineSoftness, 0.375);
 		t.is(richText.strokeSize, 0.25);
 		t.deepEqual(richText.shadowOffset, { x: 0, y: 2 });
 	}
@@ -1372,6 +1477,7 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 		t.is(textInput.demoText, 'Preview input');
 		t.true(textInput.templateVarsEnabled);
 		t.is(textInput.faceDilate, 0.125);
+		t.is(textInput.outlineSoftness, 0.25);
 	}
 
 	const invalidPivotIssues = validateTransactionSupport(normalizedProject, [{
@@ -1392,6 +1498,7 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 		{ ...createDefaultUamTextProperties(), fontSize: 0 },
 		{ ...createDefaultUamTextProperties(), strokeSize: 2 },
 		{ ...createDefaultUamTextProperties(), shadowOffset: { x: 3, y: 4 } },
+		{ ...createDefaultUamTextProperties(), outlineSoftness: Number.NaN },
 	]) {
 		t.true(validateTransactionSupport(normalizedProject, [{
 			kind: 'setDisplayNodeProps',

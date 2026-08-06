@@ -25,6 +25,7 @@ import type {
 	UamGroupProperties,
 	UamIconGearBinding,
 	UamImageNode,
+	UamImageProperties,
 	UamImageResourceProperties,
 	UamLabelNode,
 	UamListNode,
@@ -34,6 +35,7 @@ import type {
 	UamLoaderProperties,
 	UamLookGearBinding,
 	UamMovieClipNode,
+	UamMovieClipProperties,
 	UamMovieClipResourceProperties,
 	UamPlainTextProperties,
 	UamProject,
@@ -104,6 +106,29 @@ export function materializeUamGraphProperties(
 		.setDistances(properties.distances);
 }
 
+export function materializeUamImageProperties(
+	image: ReturnType<Document['createGImage']>,
+	properties: UamImageProperties,
+): void {
+	image
+		.setColor(properties.color)
+		.setFlip(properties.flip)
+		.setFillMethod(properties.fillMethod)
+		.setFillOrigin(properties.fillOrigin)
+		.setFillClockwise(properties.fillClockwise)
+		.setFillAmount(properties.fillAmount);
+}
+
+export function materializeUamMovieClipProperties(
+	movieClip: ReturnType<Document['createGMovieClip']>,
+	properties: UamMovieClipProperties,
+): void {
+	movieClip
+		.setPlaying(properties.playing)
+		.setFrame(properties.frame)
+		.setColor(properties.color);
+}
+
 export function materializeUamTextProperties(
 	text: ReturnType<Document['createGTextField']>,
 	properties: UamTextProperties | UamPlainTextProperties,
@@ -120,6 +145,7 @@ export function materializeUamTextProperties(
 		.setAutoSize(properties.autoSize)
 		.setSingleLine(properties.singleLine)
 		.setAutoClearText(properties.autoClearText)
+		.setOutlineSoftness(properties.outlineSoftness)
 		.setUnderlaySoftness(properties.underlaySoftness)
 		.setUbbEnabled(properties.ubbEnabled)
 		.setUnderline(properties.underline)
@@ -194,6 +220,7 @@ export function materializeUamListProperties(
 		.setSrc(properties.src)
 		.setOverflow(properties.overflow)
 		.setScrollType(properties.scrollType)
+		.setScrollBarDisplay(properties.scrollBarDisplay)
 		.setScrollBarFlags(properties.scrollBarFlags)
 		.setScrollBarMargin(materializeEdgeInsets(properties.scrollBarMargin))
 		.setVtScrollBarRes(properties.vtScrollBarRes)
@@ -234,6 +261,7 @@ export function materializeUamComponentInstanceProperties(
 		.setInstanceChecked(false)
 		.setInstanceSound('')
 		.setInstanceSoundVolumeScale(1)
+		.setInstancePopupDirection(0)
 		.setInstancePromptText('')
 		.setInstanceSelectionController('')
 		.setInstanceVisibleItemCount(0)
@@ -266,18 +294,31 @@ export function materializeUamComponentInstanceProperties(
 				.setInstanceIcon(properties.icon)
 				.setInstanceTitleColor(properties.titleColor)
 				.setInstanceTitleFontSize(properties.titleFontSize)
-				.setInstancePromptText(properties.promptText);
+				.setInstancePromptText(properties.promptText)
+				.setInstanceSound(properties.sound)
+				.setInstanceSoundVolumeScale(properties.soundVolumeScale);
 			return;
 		case 'ComboBox':
 			component
 				.setInstanceTitle(properties.title)
 				.setInstanceIcon(properties.icon)
+				.setInstanceTitleColor(properties.titleColor)
+				.setInstancePopupDirection(properties.popupDirection)
+				.setInstanceSound(properties.sound)
+				.setInstanceSoundVolumeScale(properties.soundVolumeScale)
 				.setInstanceVisibleItemCount(properties.visibleItemCount)
 				.setInstanceSelectionController(properties.selectionController)
 				.setInstanceAutoClearItems(properties.autoClearItems)
 				.setInstanceComboItems(properties.items.map((item) => ({ ...item })));
 			return;
 		case 'ProgressBar':
+			component
+				.setInstanceValue(properties.value)
+				.setInstanceMax(properties.max)
+				.setInstanceMin(properties.min)
+				.setInstanceSound(properties.sound)
+				.setInstanceSoundVolumeScale(properties.soundVolumeScale);
+			return;
 		case 'Slider':
 			component
 				.setInstanceValue(properties.value)
@@ -321,6 +362,11 @@ export function materializeUamComponentProperties(
 		.setDesignImageLayer(properties.designImageLayer)
 		.setDesignImageOffsetX(properties.designImageOffset.x)
 		.setDesignImageOffsetY(properties.designImageOffset.y)
+		.setDesignImage(properties.designImage)
+		.setDesignImageForTest(properties.designImageForTest)
+		.setPageController(properties.pageController)
+		.setAddedToStageSound(properties.showSound)
+		.setRemovedFromStageSound(properties.hideSound)
 		.setIdNum(properties.idNum)
 		.setInitName(properties.initName)
 		.setRemark(properties.remark)
@@ -595,6 +641,7 @@ export function materializeDisplayNode(
 		const image = materializeDisplayNodeBase(doc.createGImage(node.name), node)
 			.setGroup(imageNode.group)
 			.setSrc(imageNode.resource.resourceId);
+		materializeUamImageProperties(image, imageNode);
 		return image;
 	}
 
@@ -745,10 +792,8 @@ export function materializeDisplayNode(
 		.setGroup(movieClipNode.group)
 		.setSrc(movieClipNode.resource.resourceId)
 		.setPackageId(movieClipNode.resource.packageId ?? '')
-		.setFileName(movieClipNode.fileName)
-		.setPlaying(movieClipNode.playing)
-		.setFrame(movieClipNode.frame)
-		.setColor(movieClipNode.color);
+		.setFileName(movieClipNode.fileName);
+	materializeUamMovieClipProperties(movieClip, movieClipNode);
 	return movieClip;
 }
 

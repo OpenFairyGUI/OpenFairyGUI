@@ -61,6 +61,9 @@ interface IComponent extends IExtensibleProperty {
 	designImageLayer: number;
 	designImageOffsetX: number;
 	designImageOffsetY: number;
+	designImage: string;
+	designImageForTest: boolean;
+	pageController: string;
 	idNum: number;
 	initName: string;
 	remark: string;
@@ -142,10 +145,13 @@ export class Component extends ExtensibleProperty<IComponent> {
 			footerRes: '',
 			bgColor: '',
 			bgColorEnabled: false,
-			designImageAlpha: 0,
+			designImageAlpha: 50,
 			designImageLayer: 0,
 			designImageOffsetX: 0,
 			designImageOffsetY: 0,
+			designImage: '',
+			designImageForTest: false,
+			pageController: '',
 			idNum: 0,
 			initName: '',
 			remark: '',
@@ -320,6 +326,15 @@ export class Component extends ExtensibleProperty<IComponent> {
 
 	public getDesignImageOffsetY(): number { return this.get('designImageOffsetY'); }
 	public setDesignImageOffsetY(v: number): this { return this.set('designImageOffsetY', v); }
+
+	public getDesignImage(): string { return this.get('designImage'); }
+	public setDesignImage(v: string): this { return this.set('designImage', v); }
+
+	public getDesignImageForTest(): boolean { return this.get('designImageForTest'); }
+	public setDesignImageForTest(v: boolean): this { return this.set('designImageForTest', v); }
+
+	public getPageController(): string { return this.get('pageController'); }
+	public setPageController(v: string): this { return this.set('pageController', v); }
 
 	public getIdNum(): number { return this.get('idNum'); }
 	public setIdNum(v: number): this { return this.set('idNum', v); }
