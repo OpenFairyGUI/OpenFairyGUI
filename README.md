@@ -10,6 +10,8 @@
 
 > 用 TypeScript 读取、修改和发布 FairyGUI 工程，面向脚本、CI/CD 与智能体工具链。
 
+> **与 FairyGUI 的关系：** OpenFairyGUI 是围绕 FairyGUI 工程格式与工具链开发的非官方开源项目，并非 FairyGUI 官方产品。“FairyGUI”名称、Logo 及相关品牌标识的权利归其权利人所有；官方产品与信息请访问 [FairyGUI 官网](https://fairygui.com/)。
+
 ## OpenFairyGUI 是什么
 
 OpenFairyGUI 是一个面向 Node.js 和自动化工作流的 FairyGUI 工程 SDK。它把工程读写、文档变换、发布以及后端会话能力拆分为可组合的 TypeScript 包，同时提供 CLI 与 MCP 接入方式。
@@ -83,6 +85,14 @@ ofgui publish ./MyProject --output ./release
 | [`@openfairygui/mcp`](https://www.npmjs.com/package/@openfairygui/mcp) | backend runtime 的 MCP 薄适配层 |
 
 包入口和 Node / Web 边界见[包与工具](https://fairygui.dev/guide/packages)。
+
+## 推荐项目
+
+### FairyGUI Editor Online
+
+[FairyGUI Editor Online](https://editor.fairygui.dev/) 是基于 OpenFairyGUI 构建的浏览器端 FairyGUI 工程编辑器，支持从本地文件夹或 ZIP 导入工程，并在浏览器中编辑、保存、发布与预览。
+
+[在线体验](https://editor.fairygui.dev/) · [GitHub 仓库](https://github.com/OpenFairyGUI/FairyGUI-Editor-Online)
 
 ## 文档
 

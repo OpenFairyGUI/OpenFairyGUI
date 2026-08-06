@@ -9,9 +9,11 @@ import type {
 	UamGearBinding,
 	UamGraphProperties,
 	UamGroupProperties,
+	UamImageProperties,
 	UamImageResourceProperties,
 	UamListProperties,
 	UamLoaderProperties,
+	UamMovieClipProperties,
 	UamLoader3DProperties,
 	UamLookGearBinding,
 	UamPackage,
@@ -93,6 +95,8 @@ export interface UamDisplayNodePropsUpdate {
 	fontSize?: number;
 	color?: string;
 	textProperties?: UamTextProperties | UamPlainTextProperties;
+	imageProperties?: UamImageProperties;
+	movieClipProperties?: UamMovieClipProperties;
 	graphProperties?: UamGraphProperties;
 	groupProperties?: UamGroupProperties;
 	loaderProperties?: UamLoaderProperties;
@@ -417,6 +421,7 @@ export type UamTransactionSupportIssueCode =
 	| 'unsupported_text_field_target'
 	| 'unsupported_display_node_field'
 	| 'invalid_display_node_payload'
+	| 'display_node_props_unchanged'
 	| 'invalid_resource_name'
 	| 'invalid_resource_path'
 	| 'invalid_resource_folder_selector'

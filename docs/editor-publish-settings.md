@@ -125,6 +125,8 @@
 
 组件根扩展、ComboBox 组件实例和 List/Tree 显示节点使用正式的 `autoClearItems` 布尔属性；缺省值为 `false`，仅在启用时写出。组件实例与静态列表项的有序 `<property target="..." propertyId="..." value="..."/>` 子节点由 UAM 正式属性承载，读取、物化、保存和重新加载均保持原顺序与原始字符串值，包括前后空白、纯空白和空字符串。`target` 必须非空，`propertyId` 必须是非负安全整数，`value` 必须存在；无效输入在物化或写回前拒绝。
 
+组件根的 `designImage`、`designImageForTest`、`pageController`、`showSound` 和 `hideSound` 作为正式 authoring 属性读写；`designImageAlpha` 缺省为 `50`。设计图必须引用 image 资源，出场/退场音效必须引用 sound 资源，`pageController` 必须指向本组件控制器。Label、ComboBox 和 ProgressBar 组件实例的音效覆盖使用 `sound` 与百分比 `volume`，ComboBox 另以 `titleColor` 和 `direction`（`auto` / `up` / `down`）保存标题颜色与弹出方向。
+
 ## 组件 XML 的整数几何字段
 
 FairyGUI 工程 XML 中由桌面编辑器按有符号 32 位整数读取的几何值，写出时统一向零截断。非有限值或截断后超出 `-2147483648` 至 `2147483647` 的值会拒绝写出。

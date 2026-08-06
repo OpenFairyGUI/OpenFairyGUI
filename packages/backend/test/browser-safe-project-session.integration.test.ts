@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { deriveMovieClipModelFromJta } from '@openfairygui/core';
+import { Document, deriveMovieClipModelFromJta } from '@openfairygui/core';
 import { ProjectReader, ProjectWriter } from '@openfairygui/core/project-io';
 import {
 	createDefaultUamComponentProperties,
@@ -17,6 +17,7 @@ import {
 	type UamMovieClipResource,
 	type UamPackage,
 	type UamProject,
+	type UamTreeProperties,
 	type UamTransactionOperation,
 } from '@openfairygui/core/uam';
 import { createTestMovieClipJta, getFixtureProjectPath } from '@openfairygui/test-utils';
@@ -805,6 +806,25 @@ test('browser-safe project session saves through injected async storage', async 
 	if (!opened.ok) return;
 	t.false(opened.data.lockHeld);
 	t.is(opened.data.canonicalProjectPath, '.');
+	const storageBeforeUnchanged = storage.snapshot();
+	const unchanged = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: 0,
+		operations: [{
+			kind: 'setDisplayNodeProps',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+			props: { text: 'Title' },
+		}],
+	});
+	t.false(unchanged.ok);
+	if (unchanged.ok) return;
+	t.is(unchanged.meta.diagnostics[0]?.code, 'display_node_props_unchanged');
+	const unchangedSession = runtime.getSession({ sessionId: opened.data.sessionId });
+	t.true(unchangedSession.ok);
+	if (!unchangedSession.ok) return;
+	t.is(unchangedSession.data.revision, 0);
+	t.false(unchangedSession.data.dirty);
+	t.deepEqual(storage.snapshot(), storageBeforeUnchanged);
 
 	const applied = await runtime.applyTransaction({
 		sessionId: opened.data.sessionId,
@@ -891,6 +911,104 @@ test('browser-safe project session saves through injected async storage', async 
 			t.deepEqual((group as unknown as Record<string, unknown>)[key], value);
 		}
 	}
+});
+
+test('browser-safe tree clickToExpand supports double-click mode and rejects non-mutating writes', async (t) => {
+	const document = new Document();
+	const pkg = document.createPackage('TreePkg');
+	pkg.setId('treepkg01');
+	const component = document.createComponent('TreeHost');
+	component.setId('treehost01');
+	component.setSize(320, 180);
+	const sourceTree = document.createGTree('tree');
+	sourceTree.setId('tree01');
+	sourceTree.setClickToExpand(0);
+	component.addChild(sourceTree);
+	pkg.addResource(component);
+	const project = normalizeUamProject(liftDocumentToUamProject(document));
+	const componentResource = project.packages[0]?.resources.find((resource) => resource.id === 'treehost01');
+	const tree = componentResource?.kind === 'component'
+		? componentResource.component.displayList.find((node) => node.id === 'tree01')
+		: null;
+	if (tree?.kind !== 'tree') {
+		t.fail('expected tree fixture node');
+		return;
+	}
+	const properties = structuredClone(tree) as unknown as Record<string, unknown>;
+	for (const key of [
+		'kind', 'id', 'name', 'position', 'size', 'locked', 'aspect', 'minSize', 'maxSize', 'pivot',
+		'pivotAsAnchor', 'scale', 'skew', 'visible', 'touchable', 'grayed', 'alpha', 'rotation', 'tooltips',
+		'blendMode', 'filter', 'filterData', 'customData', 'relations', 'gears', 'group',
+	]) delete properties[key];
+	const initialProperties = properties as unknown as UamTreeProperties;
+	const selector = { packageId: 'treepkg01', componentResourceId: 'treehost01', displayNodeId: 'tree01' };
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({
+		project,
+		storage: { fileSystem, fairyPath: 'TreeClick/Project.fairy' },
+	});
+	t.true(opened.ok);
+	if (!opened.ok) return;
+	const readTree = async () => {
+		const reloaded = normalizeUamProject(liftDocumentToUamProject(
+			await new ProjectReader(fileSystem).read('TreeClick/Project.fairy'),
+		));
+		const resource = reloaded.packages[0]?.resources.find((candidate) => candidate.id === 'treehost01');
+		return resource?.kind === 'component'
+			? resource.component.displayList.find((node) => node.id === 'tree01')
+			: null;
+	};
+	let revision = 0;
+	for (const clickToExpand of [1, 2, 0]) {
+		const applied = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: revision,
+			operations: [{
+				kind: 'setDisplayNodeProps',
+				selector,
+				props: { listProperties: { ...initialProperties, clickToExpand } },
+			}],
+		});
+		t.true(applied.ok);
+		if (!applied.ok) return;
+		revision = applied.data.revision;
+		t.true((await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: revision })).ok);
+		const reloadedTree = await readTree();
+		t.is(reloadedTree?.kind, 'tree');
+		if (reloadedTree?.kind === 'tree') {
+			t.deepEqual(reloadedTree, { ...tree, clickToExpand });
+		}
+	}
+
+	const storageBeforeRejected = storage.snapshot();
+	for (const clickToExpand of [-1, 3, 1.5, true, '2', null] as const) {
+		const rejected = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: revision,
+			operations: [{
+				kind: 'setDisplayNodeProps',
+				selector,
+				props: { listProperties: { ...initialProperties, clickToExpand: clickToExpand as number } },
+			}],
+		});
+		t.false(rejected.ok);
+		if (!rejected.ok) t.is(rejected.meta.diagnostics[0]?.code, 'invalid_display_node_payload');
+	}
+	const unchanged = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId,
+		expectedRevision: revision,
+		operations: [{ kind: 'setDisplayNodeProps', selector, props: { listProperties: initialProperties } }],
+	});
+	t.false(unchanged.ok);
+	if (!unchanged.ok) t.is(unchanged.meta.diagnostics[0]?.code, 'display_node_props_unchanged');
+	const session = runtime.getSession({ sessionId: opened.data.sessionId });
+	t.true(session.ok);
+	if (!session.ok) return;
+	t.is(session.data.revision, revision);
+	t.false(session.data.dirty);
+	t.deepEqual(storage.snapshot(), storageBeforeRejected);
 });
 
 test('browser-safe addResource indexes survive multi-resource inverse save and reload', async (t) => {

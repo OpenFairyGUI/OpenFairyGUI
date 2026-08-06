@@ -344,9 +344,9 @@ function _writeChildSpecific(buf: WriteBuffer, child: EncoderChildLike, pkg: Pac
 			buf.writeBool(false);
 			if (version >= 3) {
 				buf.writeBool(child.getStrikethrough?.() ?? false);
-				buf.writeFloat32(0);
-				buf.writeFloat32(0);
-				buf.writeFloat32(0);
+				buf.writeFloat32(child.getFaceDilate?.() ?? 0);
+				buf.writeFloat32(child.getOutlineSoftness?.() ?? 0);
+				buf.writeFloat32(child.getUnderlaySoftness?.() ?? 0);
 			}
 			break;
 		}
@@ -633,7 +633,9 @@ function _writeChildAfterAdd(buf: WriteBuffer, child: EncoderChildLike, comp: Co
 			buf.writeSEx(child.getTitle?.() ?? null, true); // noCache
 			buf.writeS(remapLocalUiUrl(pkg, child.getIcon?.() ?? null));
 			// titleColor
-			buf.writeBool(false);
+			const comboTitleColor = child.getTitleColor?.() ?? null;
+			buf.writeBool(!!comboTitleColor);
+			if (comboTitleColor) buf.writeColor(comboTitleColor, true);
 			// visibleItemCount
 			buf.writeInt32(child.getVisibleItemCount?.() ?? 10);
 			// popupDirection
@@ -742,8 +744,8 @@ function _writeExtensionInstanceData(
 			buf.writeInt32(child.getInstanceTitleFontSize?.() ?? 0);
 			buf.writeBool(false); // no input settings
 			if (version >= 5) {
-				buf.writeS(null);
-				buf.writeFloat32(1);
+				buf.writeS(remapLocalUiUrl(pkg, child.getInstanceSound?.() ?? null));
+				buf.writeFloat32(child.getInstanceSoundVolumeScale?.() ?? 1);
 			}
 			break;
 		}
@@ -768,11 +770,11 @@ function _writeExtensionInstanceData(
 			buf.writeBool(!!comboTitleColor);
 			if (comboTitleColor) buf.writeColor(comboTitleColor, true);
 			buf.writeInt32(child.getInstanceVisibleItemCount?.() ?? 10);
-			buf.writeUint8(0); // popupDirection
+			buf.writeUint8(child.getInstancePopupDirection?.() ?? 0);
 			buf.writeInt16(-1); // selectionController
 			if (version >= 5) {
-				buf.writeS(null);
-				buf.writeFloat32(1);
+				buf.writeS(remapLocalUiUrl(pkg, child.getInstanceSound?.() ?? null));
+				buf.writeFloat32(child.getInstanceSoundVolumeScale?.() ?? 1);
 			}
 			break;
 		}
@@ -782,8 +784,8 @@ function _writeExtensionInstanceData(
 			buf.writeInt32(child.getInstanceMax?.() ?? 100);
 			buf.writeInt32(child.getInstanceMin?.() ?? 0);
 			if (version >= 5 && extType === 'ProgressBar') {
-				buf.writeS(null);
-				buf.writeFloat32(1);
+				buf.writeS(remapLocalUiUrl(pkg, child.getInstanceSound?.() ?? null));
+				buf.writeFloat32(child.getInstanceSoundVolumeScale?.() ?? 1);
 			}
 			break;
 		default:
@@ -795,7 +797,7 @@ function _writeExtensionInstanceData(
 
 function _writeScrollPane(buf: WriteBuffer, child: EncoderChildLike, pkg: Package): void {
 	buf.writeUint8(child.getScrollType?.() ?? 1); // scrollType
-	buf.writeUint8(0); // scrollBarDisplay
+	buf.writeUint8(child.getScrollBarDisplay?.() ?? 0); // scrollBarDisplay
 	buf.writeInt32(child.getScrollBarFlags?.() ?? 0); // flags
 	// scrollBar margin
 	const sbMargin = child.getScrollBarMargin?.();

@@ -374,6 +374,7 @@ export function createListNodeBase(id: string, name: string, offset = 0): Omit<U
 		src: '',
 		overflow: 2,
 		scrollType: 1,
+		scrollBarDisplay: 0,
 		scrollBarFlags: 0,
 		scrollBarMargin: { top: 0, bottom: 0, left: 0, right: 0 },
 		vtScrollBarRes: '',

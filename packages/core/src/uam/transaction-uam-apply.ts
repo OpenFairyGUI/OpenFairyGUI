@@ -351,6 +351,18 @@ export function applyDisplayNodePropsUpdate(node: UamDisplayNode, props: UamDisp
 		}
 		Object.assign(node, structuredClone(props.groupProperties));
 	}
+	if (props.imageProperties !== undefined) {
+		if (node.kind !== 'image') {
+			throw new Error(`Image display props are not supported on display node kind "${node.kind}".`);
+		}
+		Object.assign(node, structuredClone(props.imageProperties));
+	}
+	if (props.movieClipProperties !== undefined) {
+		if (node.kind !== 'movieClip') {
+			throw new Error(`MovieClip display props are not supported on display node kind "${node.kind}".`);
+		}
+		Object.assign(node, structuredClone(props.movieClipProperties));
+	}
 	if (props.loaderProperties !== undefined) {
 		if (node.kind !== 'loader') {
 			throw new Error(`Loader display props are not supported on display node kind "${node.kind}".`);

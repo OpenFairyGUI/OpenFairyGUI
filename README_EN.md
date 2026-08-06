@@ -10,6 +10,8 @@
 
 > Read, modify, and publish FairyGUI projects with TypeScript for scripts, CI/CD, and agent tooling.
 
+> **Relationship to FairyGUI:** OpenFairyGUI is an unofficial open-source project built around FairyGUI project formats and tooling; it is not an official FairyGUI product. The FairyGUI name, logo, and related brand assets belong to their respective owners. For official products and information, visit the [FairyGUI website](https://fairygui.com/).
+
 ## What is OpenFairyGUI?
 
 OpenFairyGUI is a FairyGUI project SDK for Node.js and automation workflows. It provides composable TypeScript packages for project I/O, document transforms, publishing, and backend sessions, together with CLI and MCP entrypoints.
@@ -83,6 +85,14 @@ Run `ofgui --help` for all commands and options.
 | [`@openfairygui/mcp`](https://www.npmjs.com/package/@openfairygui/mcp) | Thin MCP adapter for the backend runtime |
 
 See [Packages and Tools](https://fairygui.dev/en/guide/packages) for package entrypoints and Node / Web boundaries.
+
+## Recommended Project
+
+### FairyGUI Editor Online
+
+[FairyGUI Editor Online](https://editor.fairygui.dev/) is a browser-based FairyGUI project editor built on OpenFairyGUI. It imports projects from local folders or ZIP files and supports editing, saving, publishing, and previewing directly in the browser.
+
+[Try it online](https://editor.fairygui.dev/) · [GitHub repository](https://github.com/OpenFairyGUI/FairyGUI-Editor-Online)
 
 ## Documentation
 

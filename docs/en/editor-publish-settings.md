@@ -350,6 +350,8 @@ When the editor writes `Publish.json`, current rules include:
 
 Publish settings do not change the authoring-property semantics of `component.xml`. Project I/O independently preserves component root properties, root-component `customProperty` definitions, and `Button`, `Label`, `ComboBox`, `ProgressBar`, `Slider`, and `ScrollBar` instance-extension overrides on component references. See [Project XML Attribute Protocol](./project-xml-attribute-reference.md) for the corresponding XML contract.
 
+The root `designImage`, `designImageForTest`, `pageController`, `showSound`, and `hideSound` fields are formal authoring properties; `designImageAlpha` defaults to `50`. The design reference must target an image resource, show/hide sounds must target sound resources, and `pageController` must name a controller in the same component. Label, ComboBox, and ProgressBar instance sounds use `sound` plus percentage `volume`; ComboBox also stores title color and popup direction through `titleColor` and `direction` (`auto` / `up` / `down`).
+
 Layout, render order, scroll area, static items, and tree-behavior attributes for list and tree nodes are also read and written independently according to that XML contract. `renderOrder="arch"` uses `apex` for the apex child, while tree nodes preserve behavior through `treeView`, `indent`, and `clickToExpand`.
 
 ## Documentation boundary
