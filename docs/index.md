@@ -31,3 +31,13 @@ features:
 先读取 FairyGUI 工程，再围绕 `Document` 进行检查、变换、发布或写回。完整步骤见[快速开始](/guide/getting-started)。
 
 如果你正在补齐工程格式或发布链路，请从[参考文档](/architecture-overview)开始；如果你需要查看可调用的公开符号，请打开 <a href="/api/" target="_self">API Reference</a>。
+
+## 推荐项目
+
+**[FairyGUI Editor Online](https://editor.fairygui.dev/)** 已将 OpenFairyGUI 落地为可直接使用的浏览器端 FairyGUI 工程编辑器，支持从本地文件夹或 ZIP 导入工程，并在浏览器中编辑、保存、发布与预览。
+
+[在线体验](https://editor.fairygui.dev/) · [GitHub 仓库](https://github.com/OpenFairyGUI/FairyGUI-Editor-Online)
+
+## 与 FairyGUI 的关系
+
+OpenFairyGUI 是围绕 FairyGUI 工程格式与工具链开发的非官方开源项目，并非 FairyGUI 官方产品。“FairyGUI”名称、Logo 及相关品牌标识的权利归其权利人所有；官方产品与信息请访问 [FairyGUI 官网](https://fairygui.com/)。

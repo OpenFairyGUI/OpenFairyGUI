@@ -31,3 +31,13 @@ features:
 Read a FairyGUI project, then inspect, transform, publish, or write it through a `Document`. See [Getting Started](/en/guide/getting-started) for a complete example.
 
 Use the [documentation index](/en/README) to explore the translated reference material, or open the <a href="/api/" target="_self">API Reference</a> for public symbols.
+
+## Recommended Project
+
+**[FairyGUI Editor Online](https://editor.fairygui.dev/)** turns OpenFairyGUI into a ready-to-use browser-based FairyGUI project editor. It imports projects from local folders or ZIP files and supports editing, saving, publishing, and previewing directly in the browser.
+
+[Try it online](https://editor.fairygui.dev/) · [GitHub repository](https://github.com/OpenFairyGUI/FairyGUI-Editor-Online)
+
+## Relationship to FairyGUI
+
+OpenFairyGUI is an unofficial open-source project built around FairyGUI project formats and tooling; it is not an official FairyGUI product. The FairyGUI name, logo, and related brand assets belong to their respective owners. For official products and information, visit the [FairyGUI website](https://fairygui.com/).
