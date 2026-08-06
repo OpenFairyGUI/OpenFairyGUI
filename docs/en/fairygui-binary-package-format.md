@@ -464,12 +464,16 @@ Block 6 restores data written during the afterAdd phase:
 |---|---|
 | `GTextField` / `GRichTextField` / `GTextInput` | `text` |
 | `GButton` | `title`, `selectedTitle`, `icon`, `selectedIcon`, `titleColor`, `titleFontSize`, `relatedController`, `relatedPageId`, `sound`, `soundVolume`, `selected` |
-| `GLabel` | `title`, `icon`, `titleColor`, `titleFontSize`, input-setting placeholder, `sound` |
-| `GComboBox` | `items`, `values`, `icons`, `title`, `icon`, `visibleItemCount`, `popupDirection`, `selectionController`, `sound` |
-| `GProgressBar` / `GSlider` | `value`, `max`, `min`, `sound` |
+| `GLabel` | `title`, `icon`, `titleColor`, `titleFontSize`, input-setting placeholder, `sound`, `soundVolumeScale` |
+| `GComboBox` | `items`, `values`, `icons`, `title`, `icon`, `titleColor`, `visibleItemCount`, `popupDirection`, `selectionController`, `sound`, `soundVolumeScale` |
+| `GProgressBar` | `value`, `max`, `min`, `sound`, `soundVolumeScale` |
+| `GSlider` | `value`, `max`, `min` |
 | `GList` | `selectionController` |
 | `GComponent` Button extension instance | `title`, `selectedTitle`, `icon`, `selectedIcon`, `titleColor`, `titleFontSize`, `relatedController`, `relatedPageId`, `sound`, `soundVolumeScale`, `selected` |
-| Other extension-instance data | Label / ComboBox / ProgressBar / Slider / ScrollBar instance data selected by the `InstanceExtType` branch |
+| `GComponent` Label extension instance | `title`, `icon`, `titleColor`, `titleFontSize`, input settings, `sound`, `soundVolumeScale` |
+| `GComponent` ComboBox extension instance | `items`, `title`, `icon`, `titleColor`, `visibleItemCount`, `popupDirection`, `selectionController`, `sound`, `soundVolumeScale` |
+| `GComponent` ProgressBar extension instance | `value`, `max`, `min`, `sound`, `soundVolumeScale` |
+| Other extension-instance data | Slider / ScrollBar instance data selected by the `InstanceExtType` branch |
 
 ### Child Block 7: List ScrollPane
 

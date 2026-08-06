@@ -144,6 +144,7 @@ export type EncoderChildLike = ChildNode & {
 	getInstanceChecked?(): boolean;
 	getInstanceSound?(): string;
 	getInstanceSoundVolumeScale?(): number;
+	getInstancePopupDirection?(): number;
 	getInstanceVisibleItemCount?(): number;
 	getInstanceValue?(): number;
 	getInstanceMax?(): number;

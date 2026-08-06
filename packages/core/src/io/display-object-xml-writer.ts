@@ -358,6 +358,7 @@ type WritableChild = GObject & {
 	getDemoText?(): string;
 	getTemplateVarsEnabled?(): boolean;
 	getFaceDilate?(): number;
+	getOutlineSoftness?(): number;
 	getUnderlaySoftness?(): number;
 	getSrc?(): string;
 	getAspect?(): boolean;
@@ -482,6 +483,7 @@ type WritableChild = GObject & {
 	getInstanceChecked?(): boolean;
 	getInstanceSound?(): string;
 	getInstanceSoundVolumeScale?(): number;
+	getInstancePopupDirection?(): number;
 	getInstancePromptText?(): string;
 	getInstanceSelectionController?(): string;
 	getInstanceVisibleItemCount?(): number;
@@ -1312,9 +1314,16 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 				if (typedObj.getInstanceController?.() && extSpecs.controller) writeXmlAttr(extAttrs, extSpecs.controller, typedObj.getInstanceController?.());
 				if (typedObj.getInstancePage?.() && extSpecs.page) writeXmlAttr(extAttrs, extSpecs.page, typedObj.getInstancePage?.());
 				if (typedObj.getInstanceChecked?.() && extSpecs.checked) writeXmlAttr(extAttrs, extSpecs.checked, '1');
+				const popupDirection = typedObj.getInstancePopupDirection?.() ?? 0;
+				if (popupDirection !== 0 && extSpecs.popupDirection) {
+					writeXmlAttr(extAttrs, extSpecs.popupDirection, ({ 1: 'up', 2: 'down' } as Record<number, string>)[popupDirection]);
+				}
 				if (typedObj.getInstanceSound?.() && extSpecs.sound) writeXmlAttr(extAttrs, extSpecs.sound, typedObj.getInstanceSound?.());
 				if ((typedObj.getInstanceSoundVolumeScale?.() ?? 1) !== 1 && extSpecs.soundVolumeScale) {
-					writeXmlAttr(extAttrs, extSpecs.soundVolumeScale, String(typedObj.getInstanceSoundVolumeScale?.() ?? 1));
+					writeXmlAttr(extAttrs, extSpecs.soundVolumeScale, formatProjectInt32(
+						Math.round((typedObj.getInstanceSoundVolumeScale?.() ?? 1) * 100),
+						'component instance volume',
+					));
 				}
 				if (typedObj.getInstancePromptText?.() && extSpecs.prompt) writeXmlAttr(extAttrs, extSpecs.prompt, typedObj.getInstancePromptText?.());
 				if (typedObj.getInstanceSelectionController?.() && extSpecs.selectionController) writeXmlAttr(extAttrs, extSpecs.selectionController, typedObj.getInstanceSelectionController?.());

@@ -261,6 +261,7 @@ export function materializeUamComponentInstanceProperties(
 		.setInstanceChecked(false)
 		.setInstanceSound('')
 		.setInstanceSoundVolumeScale(1)
+		.setInstancePopupDirection(0)
 		.setInstancePromptText('')
 		.setInstanceSelectionController('')
 		.setInstanceVisibleItemCount(0)
@@ -293,18 +294,31 @@ export function materializeUamComponentInstanceProperties(
 				.setInstanceIcon(properties.icon)
 				.setInstanceTitleColor(properties.titleColor)
 				.setInstanceTitleFontSize(properties.titleFontSize)
-				.setInstancePromptText(properties.promptText);
+				.setInstancePromptText(properties.promptText)
+				.setInstanceSound(properties.sound)
+				.setInstanceSoundVolumeScale(properties.soundVolumeScale);
 			return;
 		case 'ComboBox':
 			component
 				.setInstanceTitle(properties.title)
 				.setInstanceIcon(properties.icon)
+				.setInstanceTitleColor(properties.titleColor)
+				.setInstancePopupDirection(properties.popupDirection)
+				.setInstanceSound(properties.sound)
+				.setInstanceSoundVolumeScale(properties.soundVolumeScale)
 				.setInstanceVisibleItemCount(properties.visibleItemCount)
 				.setInstanceSelectionController(properties.selectionController)
 				.setInstanceAutoClearItems(properties.autoClearItems)
 				.setInstanceComboItems(properties.items.map((item) => ({ ...item })));
 			return;
 		case 'ProgressBar':
+			component
+				.setInstanceValue(properties.value)
+				.setInstanceMax(properties.max)
+				.setInstanceMin(properties.min)
+				.setInstanceSound(properties.sound)
+				.setInstanceSoundVolumeScale(properties.soundVolumeScale);
+			return;
 		case 'Slider':
 			component
 				.setInstanceValue(properties.value)

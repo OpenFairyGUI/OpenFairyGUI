@@ -429,6 +429,15 @@ function isNullableString(value: unknown): boolean {
 	return value === null || typeof value === 'string';
 }
 
+function isSoundReference(value: unknown): value is string {
+	return typeof value === 'string'
+		&& (value === '' || (value.startsWith('ui://') && value.length > 5 && !/\s/.test(value)));
+}
+
+function isSoundVolume(value: unknown): value is number {
+	return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
 export function isValidUamComponentInstanceProperties(
 	value: unknown,
 ): value is UamComponentInstanceProperties {
@@ -447,20 +456,32 @@ export function isValidUamComponentInstanceProperties(
 				].every((item) => typeof item === 'string')
 				&& finite(properties.titleFontSize)
 				&& typeof properties.checked === 'boolean'
-				&& finite(properties.soundVolumeScale);
+				&& isSoundReference(properties.sound)
+				&& isSoundVolume(properties.soundVolumeScale);
 		case 'Label':
 			return hasExactKeys(properties, [
 				'extensionType', 'title', 'icon', 'titleColor', 'titleFontSize', 'promptText',
+				'sound', 'soundVolumeScale',
 			])
-				&& [properties.title, properties.icon, properties.titleColor, properties.promptText]
+				&& [properties.title, properties.icon, properties.promptText]
 					.every((item) => typeof item === 'string')
-				&& finite(properties.titleFontSize);
+				&& (properties.titleColor === '' || isTextColor(properties.titleColor))
+				&& finite(properties.titleFontSize)
+				&& isSoundReference(properties.sound)
+				&& isSoundVolume(properties.soundVolumeScale);
 		case 'ComboBox':
 			return hasExactKeys(properties, [
-				'extensionType', 'title', 'icon', 'visibleItemCount', 'selectionController', 'autoClearItems', 'items',
+				'extensionType', 'title', 'icon', 'titleColor', 'popupDirection', 'sound', 'soundVolumeScale',
+				'visibleItemCount', 'selectionController', 'autoClearItems', 'items',
 			])
 				&& [properties.title, properties.icon, properties.selectionController]
 					.every((item) => typeof item === 'string')
+				&& (properties.titleColor === '' || isTextColor(properties.titleColor))
+				&& Number.isInteger(properties.popupDirection)
+				&& properties.popupDirection >= 0
+				&& properties.popupDirection <= 2
+				&& isSoundReference(properties.sound)
+				&& isSoundVolume(properties.soundVolumeScale)
 				&& finite(properties.visibleItemCount)
 				&& typeof properties.autoClearItems === 'boolean'
 				&& Array.isArray(properties.items)
@@ -473,6 +494,12 @@ export function isValidUamComponentInstanceProperties(
 					&& isNullableString(item.icon)
 				));
 		case 'ProgressBar':
+			return hasExactKeys(properties, [
+				'extensionType', 'value', 'max', 'min', 'sound', 'soundVolumeScale',
+			])
+				&& [properties.value, properties.max, properties.min].every(finite)
+				&& isSoundReference(properties.sound)
+				&& isSoundVolume(properties.soundVolumeScale);
 		case 'Slider':
 			return hasExactKeys(properties, ['extensionType', 'value', 'max', 'min'])
 				&& [properties.value, properties.max, properties.min].every(finite);

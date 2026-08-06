@@ -3272,6 +3272,11 @@ function collectProjectedResourceReferenceIssues(project: UamProject): Projected
 					}
 					if (instance.extensionType === 'Button') {
 						pushMissingUi(`${nodeKey}/instance/selectedIcon`, `${nodePath}.instanceProperties.selectedIcon`, instance.selectedIcon, visualKinds);
+					}
+					if (instance.extensionType === 'Button'
+						|| instance.extensionType === 'Label'
+						|| instance.extensionType === 'ComboBox'
+						|| instance.extensionType === 'ProgressBar') {
 						pushMissingUi(`${nodeKey}/instance/sound`, `${nodePath}.instanceProperties.sound`, instance.sound, ['sound']);
 					}
 					if (instance.extensionType === 'ComboBox') {
@@ -3356,17 +3361,11 @@ function validateProjectedState(
 			issue.message,
 		);
 	}
-	if (
-		operations.some(isLifecycleOperation)
-		|| operations.some(isResourceLifecycleOperation)
-		|| operations.some(isDisplayListRewriteOperation)
-	) {
-		const baselineReferenceKeys = new Set(collectProjectedResourceReferenceIssues(normalizeUamProject(project))
-			.map((issue) => issue.key));
-		for (const issue of collectProjectedResourceReferenceIssues(projected)) {
-			if (baselineReferenceKeys.has(issue.key)) continue;
-			pushSupportIssue(issues, 'invalid_resource_reference', issue.path, issue.message);
-		}
+	const baselineReferenceKeys = new Set(collectProjectedResourceReferenceIssues(normalizeUamProject(project))
+		.map((issue) => issue.key));
+	for (const issue of collectProjectedResourceReferenceIssues(projected)) {
+		if (baselineReferenceKeys.has(issue.key)) continue;
+		pushSupportIssue(issues, 'invalid_resource_reference', issue.path, issue.message);
 	}
 }
 

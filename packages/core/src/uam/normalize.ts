@@ -151,12 +151,18 @@ function normalizeComponentInstanceProperties(
 				titleColor: properties.titleColor ?? '',
 				titleFontSize: properties.titleFontSize ?? 0,
 				promptText: properties.promptText ?? '',
+				sound: properties.sound ?? '',
+				soundVolumeScale: properties.soundVolumeScale ?? 1,
 			};
 		case 'ComboBox':
 			return {
 				extensionType: 'ComboBox',
 				title: properties.title ?? '',
 				icon: properties.icon ?? '',
+				titleColor: properties.titleColor ?? '',
+				popupDirection: properties.popupDirection ?? 0,
+				sound: properties.sound ?? '',
+				soundVolumeScale: properties.soundVolumeScale ?? 1,
 				visibleItemCount: properties.visibleItemCount ?? 0,
 				selectionController: properties.selectionController ?? '',
 				autoClearItems: properties.autoClearItems ?? false,
@@ -167,9 +173,17 @@ function normalizeComponentInstanceProperties(
 				})),
 			};
 		case 'ProgressBar':
+			return {
+				extensionType: 'ProgressBar',
+				value: properties.value ?? 0,
+				max: properties.max ?? 0,
+				min: properties.min ?? 0,
+				sound: properties.sound ?? '',
+				soundVolumeScale: properties.soundVolumeScale ?? 1,
+			};
 		case 'Slider':
 			return {
-				extensionType: properties.extensionType,
+				extensionType: 'Slider',
 				value: properties.value ?? 0,
 				max: properties.max ?? 0,
 				min: properties.min ?? 0,

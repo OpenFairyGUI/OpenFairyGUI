@@ -578,7 +578,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 |---|---|---|
 | `mode` |  | Button mode |
 | `sound` |  | Click sound |
-| `soundVolumeScale` | `volume` | Volume scale |
+| `volume` |  | Volume percentage (`0`–`100`) |
 | `downEffect` |  | Pressed effect |
 | `downEffectValue` |  | Pressed-effect value |
 | `title` |  | Title |
@@ -600,6 +600,8 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `titleColor` |  | Title color |
 | `titleFontSize` |  | Title font size |
 | `prompt` |  | Prompt text |
+| `sound` |  | Click-sound resource |
+| `volume` |  | Volume percentage (`0`–`100`) |
 
 ### `<ComboBox>`
 
@@ -608,6 +610,10 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `dropdown` |  | Dropdown component resource |
 | `title` |  | Title |
 | `icon` |  | Icon |
+| `titleColor` |  | Title color |
+| `direction` |  | Popup direction: `auto`, `up`, or `down` |
+| `sound` |  | Click-sound resource |
+| `volume` |  | Volume percentage (`0`–`100`) |
 | `visibleItemCount` |  | Number of visible items |
 | `selectionController` |  | Selection controller |
 | `autoClearItems` |  | Whether items are cleared automatically |
@@ -621,6 +627,8 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `value` |  | Current value |
 | `max` |  | Maximum value |
 | `min` |  | Minimum value |
+| `sound` |  | Sound resource |
+| `volume` |  | Volume percentage (`0`–`100`) |
 
 ### `<Slider>`
 

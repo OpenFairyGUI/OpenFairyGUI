@@ -426,7 +426,7 @@ const LIST_PANEL_ATTRS = {
 const BUTTON_EXTENSION_ATTRS = {
 	mode: { canonical: 'mode' },
 	sound: { canonical: 'sound' },
-	soundVolumeScale: { canonical: 'soundVolumeScale', aliases: ['volume'] },
+	soundVolumeScale: { canonical: 'volume' },
 	downEffect: { canonical: 'downEffect' },
 	downEffectValue: { canonical: 'downEffectValue' },
 	title: { canonical: 'title' },
@@ -446,12 +446,18 @@ const LABEL_EXTENSION_ATTRS = {
 	titleColor: { canonical: 'titleColor' },
 	titleFontSize: { canonical: 'titleFontSize' },
 	prompt: { canonical: 'prompt' },
+	sound: { canonical: 'sound' },
+	soundVolumeScale: { canonical: 'volume' },
 } satisfies XmlAttrMap;
 
 const COMBOBOX_EXTENSION_ATTRS = {
 	dropdown: { canonical: 'dropdown' },
 	title: { canonical: 'title' },
 	icon: { canonical: 'icon' },
+	titleColor: { canonical: 'titleColor' },
+	popupDirection: { canonical: 'direction' },
+	sound: { canonical: 'sound' },
+	soundVolumeScale: { canonical: 'volume' },
 	visibleItemCount: { canonical: 'visibleItemCount' },
 	selectionController: { canonical: 'selectionController' },
 	autoClearItems: { canonical: 'autoClearItems' },
@@ -463,6 +469,8 @@ const PROGRESSBAR_EXTENSION_ATTRS = {
 	value: { canonical: 'value' },
 	max: { canonical: 'max' },
 	min: { canonical: 'min' },
+	sound: { canonical: 'sound' },
+	soundVolumeScale: { canonical: 'volume' },
 } satisfies XmlAttrMap;
 
 const SLIDER_EXTENSION_ATTRS = {

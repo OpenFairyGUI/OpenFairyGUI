@@ -708,27 +708,39 @@ function liftComponentInstanceProperties(
 				titleColor: component.getInstanceTitleColor(),
 				titleFontSize: component.getInstanceTitleFontSize(),
 				promptText: component.getInstancePromptText(),
+				sound: component.getInstanceSound(),
+				soundVolumeScale: component.getInstanceSoundVolumeScale(),
 			};
 		case 'ComboBox':
 			return {
 				extensionType: 'ComboBox',
 				title: component.getInstanceTitle(),
 				icon: component.getInstanceIcon(),
+				titleColor: component.getInstanceTitleColor(),
+				popupDirection: component.getInstancePopupDirection(),
+				sound: component.getInstanceSound(),
+				soundVolumeScale: component.getInstanceSoundVolumeScale(),
 				visibleItemCount: component.getInstanceVisibleItemCount(),
 				selectionController: component.getInstanceSelectionController(),
 				autoClearItems: component.getInstanceAutoClearItems(),
 				items: component.getInstanceComboItems().map((item) => ({ ...item })),
 			};
 		case 'ProgressBar':
-		case 'Slider': {
-			const extensionType = component.getInstanceExtType() as 'ProgressBar' | 'Slider';
 			return {
-				extensionType,
+				extensionType: 'ProgressBar',
+				value: component.getInstanceValue(),
+				max: component.getInstanceMax(),
+				min: component.getInstanceMin(),
+				sound: component.getInstanceSound(),
+				soundVolumeScale: component.getInstanceSoundVolumeScale(),
+			};
+		case 'Slider':
+			return {
+				extensionType: 'Slider',
 				value: component.getInstanceValue(),
 				max: component.getInstanceMax(),
 				min: component.getInstanceMin(),
 			};
-		}
 		case 'ScrollBar':
 			return { extensionType: 'ScrollBar' };
 		default:

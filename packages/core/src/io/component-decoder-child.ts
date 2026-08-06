@@ -599,8 +599,9 @@ function decodeChildBlock6(
 						}
 					}
 					if (childBuf.version >= 5 && remainingBytes(childBuf) >= 6) {
-						childBuf.readS(); // sound
-						childBuf.getFloat32(); // sound volume
+						component
+							.setInstanceSound(childBuf.readS() ?? '')
+							.setInstanceSoundVolumeScale(childBuf.getFloat32());
 					}
 					break;
 				case 'ComboBox': {
@@ -625,15 +626,16 @@ function decodeChildBlock6(
 						component.setInstanceTitleColor(readColorValue(childBuf, true));
 					}
 					component
-						.setInstanceVisibleItemCount(childBuf.getInt32());
-					childBuf.getUint8(); // popupDirection
+						.setInstanceVisibleItemCount(childBuf.getInt32())
+						.setInstancePopupDirection(childBuf.getUint8());
 					const selectionControllerIndex = childBuf.getInt16();
 					if (selectionControllerIndex >= 0) {
 						component.setInstanceSelectionController(resource.listControllers()[selectionControllerIndex]?.getName() ?? '');
 					}
 					if (childBuf.version >= 5 && remainingBytes(childBuf) >= 6) {
-						childBuf.readS(); // sound
-						childBuf.getFloat32(); // sound volume
+						component
+							.setInstanceSound(childBuf.readS() ?? '')
+							.setInstanceSoundVolumeScale(childBuf.getFloat32());
 					}
 					break;
 				}
@@ -645,8 +647,9 @@ function decodeChildBlock6(
 						.setInstanceMax(childBuf.getInt32())
 						.setInstanceMin(childBuf.getInt32());
 					if (extTypeName === 'ProgressBar' && childBuf.version >= 5 && remainingBytes(childBuf) >= 6) {
-						childBuf.readS(); // sound
-						childBuf.getFloat32(); // sound volume
+						component
+							.setInstanceSound(childBuf.readS() ?? '')
+							.setInstanceSoundVolumeScale(childBuf.getFloat32());
 					}
 					break;
 				default:

@@ -14,6 +14,7 @@ import {
 	normalizeUamProject,
 	RelationType,
 	UAM_SUPPORTED_MATERIALIZATION_SCOPE,
+	validateTransactionSupport,
 	validateUamProject,
 	type UamComponentInstanceProperties,
 	type UamComponentProperties,
@@ -361,7 +362,7 @@ test('component root and Button instance properties survive transaction save/rel
 		.setInstanceController('state')
 		.setInstancePage('checked')
 		.setInstanceChecked(true)
-		.setInstanceSound('instance-click')
+		.setInstanceSound('')
 		.setInstanceSoundVolumeScale(0.75));
 	pkg.addResource(component);
 	pkg.addResource(host);
@@ -414,7 +415,7 @@ test('component root and Button instance properties survive transaction save/rel
 		controller: 'state',
 		page: 'checked',
 		checked: true,
-		sound: 'instance-click',
+		sound: '',
 		soundVolumeScale: 0.75,
 	};
 	const snapshot = (project: UamProject) => {
@@ -506,6 +507,99 @@ test('component root and Button instance properties survive transaction save/rel
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
+});
+
+test('Label, ComboBox, and ProgressBar instance overlays survive UAM transaction round-trips', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('Issue108').setId('pkg108');
+	const sound = doc.createSoundResource('click.wav')
+		.setId('snd108')
+		.setPath('/')
+		.setFile('click.wav')
+		.setSourceData(doc.createBuffer().setData(new Uint8Array([1, 2, 3])));
+	pkg.addResource(sound);
+	const host = doc.createComponent('Host108').setId('host108').setPath('/').setSize(320, 200);
+	const label = doc.createGComponent('label').setId('label108').setInstanceExtType('Label')
+		.setInstanceTitle('Label').setInstanceIcon('').setInstanceTitleColor('#112233')
+		.setInstanceTitleFontSize(14).setInstancePromptText('Prompt')
+		.setInstanceSound('ui://pkg108snd108').setInstanceSoundVolumeScale(0.4);
+	const combo = doc.createGComponent('combo').setId('combo108').setInstanceExtType('ComboBox')
+		.setInstanceTitle('Combo').setInstanceIcon('').setInstanceTitleColor('#445566')
+		.setInstancePopupDirection(2).setInstanceSound('ui://pkg108snd108').setInstanceSoundVolumeScale(0.5)
+		.setInstanceVisibleItemCount(6).setInstanceSelectionController('').setInstanceAutoClearItems(true)
+		.setInstanceComboItems([{ title: 'A', value: '1', icon: null }]);
+	const progress = doc.createGComponent('progress').setId('progress108').setInstanceExtType('ProgressBar')
+		.setInstanceValue(25).setInstanceMax(50).setInstanceMin(5)
+		.setInstanceSound('ui://pkg108snd108').setInstanceSoundVolumeScale(0.6);
+	host.addChild(label).addChild(combo).addChild(progress);
+	pkg.addResource(host);
+
+	const baseline = liftDocumentToUamProject(doc);
+	const getInstances = (project: UamProject) => {
+		const resource = project.packages[0]?.resources.find((item) => item.id === 'host108');
+		if (resource?.kind !== 'component') throw new Error('Issue #108 host fixture was not found.');
+		return Object.fromEntries(resource.component.displayList.map((node) => [node.id, node.kind === 'component' ? node.instanceProperties : undefined]));
+	};
+	const baselineInstances = getInstances(baseline);
+	t.deepEqual(getInstances(liftDocumentToUamProject(materializeUamProject(baseline))), baselineInstances);
+
+	const updated = {
+		label108: { ...baselineInstances.label108, soundVolumeScale: 0.7 },
+		combo108: { ...baselineInstances.combo108, titleColor: '#778899', popupDirection: 1, soundVolumeScale: 0.8 },
+		progress108: { ...baselineInstances.progress108, value: 40, soundVolumeScale: 0.9 },
+	} as Record<string, UamComponentInstanceProperties>;
+	const selector = (displayNodeId: string) => ({ packageId: 'pkg108', componentResourceId: 'host108', displayNodeId });
+	const forward = Object.entries(updated).map(([displayNodeId, componentInstanceProperties]) => ({
+		kind: 'setDisplayNodeProps' as const,
+		selector: selector(displayNodeId),
+		props: { componentInstanceProperties },
+	}));
+	const inverse = Object.entries(baselineInstances).map(([displayNodeId, componentInstanceProperties]) => ({
+		kind: 'setDisplayNodeProps' as const,
+		selector: selector(displayNodeId),
+		props: { componentInstanceProperties: componentInstanceProperties as UamComponentInstanceProperties },
+	}));
+	t.deepEqual(validateTransactionSupport(baseline, forward), []);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-issue-108-'));
+	const outFairy = path.join(tmpDir, 'issue-108.fairy');
+	try {
+		const changed = applyUamTransaction(baseline, forward);
+		await writeProjectFromUam(io, changed, outFairy);
+		const reloaded = await readProjectAsUam(io, outFairy);
+		t.deepEqual(getInstances(reloaded), updated);
+
+		const reverted = applyUamTransaction(reloaded, inverse);
+		await writeProjectFromUam(io, reverted, outFairy, { previousProject: reloaded });
+		t.deepEqual(getInstances(await readProjectAsUam(io, outFairy)), baselineInstances);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+
+	const invalidCombo = baselineInstances.combo108 as Extract<UamComponentInstanceProperties, { extensionType: 'ComboBox' }>;
+	for (const componentInstanceProperties of [
+		{ ...invalidCombo, popupDirection: 3 },
+		{ ...invalidCombo, soundVolumeScale: 1.1 },
+		{ ...invalidCombo, sound: 'click.wav' },
+		{ ...invalidCombo, sound: 'ui://pkg108host108' },
+		{ ...invalidCombo, extensionType: 'Unknown' },
+		{ ...invalidCombo, unexpected: true },
+	]) {
+		const issues = validateTransactionSupport(baseline, [{
+			kind: 'setDisplayNodeProps',
+			selector: selector('combo108'),
+			props: { componentInstanceProperties: componentInstanceProperties as UamComponentInstanceProperties },
+		}]);
+		t.true(issues.length > 0);
+	}
+	const unchanged = [{
+		kind: 'setDisplayNodeProps' as const,
+		selector: selector('combo108'),
+		props: { componentInstanceProperties: invalidCombo },
+	}];
+	t.deepEqual(validateTransactionSupport(baseline, unchanged), []);
+	t.deepEqual(getInstances(applyUamTransaction(baseline, unchanged)), baselineInstances);
 });
 
 test('UAM materialization scope covers every current concrete display node kind', (t) => {

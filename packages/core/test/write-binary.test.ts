@@ -1999,7 +1999,7 @@ test('binary writer: component child blocks round-trip into formal child propert
 	}
 });
 
-test('binary writer: button component instances preserve instance sound properties', async (t) => {
+test('binary writer: built-in component instances preserve desktop overlay properties', async (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('SoundPkg');
 	pkg.setId('soundpkg');
@@ -2022,6 +2022,35 @@ test('binary writer: button component instances preserve instance sound properti
 		.setInstanceSound('ui://soundpkgclick001')
 		.setInstanceSoundVolumeScale(0.35);
 	host.addChild(buttonInstance);
+
+	const labelInstance = doc.createGComponent('labelInstance')
+		.setId('n1')
+		.setInstanceExtType('Label')
+		.setInstanceSound('ui://soundpkgclick001')
+		.setInstanceSoundVolumeScale(0.45);
+	const comboInstance = doc.createGComponent('comboInstance')
+		.setId('n2')
+		.setInstanceExtType('ComboBox')
+		.setInstanceTitleColor('#336699')
+		.setInstancePopupDirection(2)
+		.setInstanceSound('ui://soundpkgclick001')
+		.setInstanceSoundVolumeScale(0.55);
+	const progressInstance = doc.createGComponent('progressInstance')
+		.setId('n3')
+		.setInstanceExtType('ProgressBar')
+		.setInstanceValue(25)
+		.setInstanceMax(50)
+		.setInstanceMin(5)
+		.setInstanceSound('ui://soundpkgclick001')
+		.setInstanceSoundVolumeScale(0.65);
+	const directCombo = doc.createGComboBox('directCombo')
+		.setId('n4')
+		.setTitleColor('#884422')
+		.setPopupDirection(1);
+	host.addChild(labelInstance);
+	host.addChild(comboInstance);
+	host.addChild(progressInstance);
+	host.addChild(directCombo);
 	pkg.addResource(host);
 
 	const io = new NodeIO();
@@ -2041,6 +2070,27 @@ test('binary writer: button component instances preserve instance sound properti
 			Math.abs(decodedButton.getInstanceSoundVolumeScale() - 0.35) < 1e-6,
 			'instance sound volume is decoded from the extension block',
 		);
+
+		const decodedLabel = decodedHost?.listChildren().find((child) => child.getId() === 'n1') as ReturnType<Document['createGComponent']>;
+		t.is(decodedLabel.getInstanceSound(), 'ui://soundpkgclick001');
+		t.true(Math.abs(decodedLabel.getInstanceSoundVolumeScale() - 0.45) < 1e-6);
+
+		const decodedCombo = decodedHost?.listChildren().find((child) => child.getId() === 'n2') as ReturnType<Document['createGComponent']>;
+		t.is(decodedCombo.getInstanceTitleColor(), '#336699');
+		t.is(decodedCombo.getInstancePopupDirection(), 2);
+		t.is(decodedCombo.getInstanceSound(), 'ui://soundpkgclick001');
+		t.true(Math.abs(decodedCombo.getInstanceSoundVolumeScale() - 0.55) < 1e-6);
+
+		const decodedProgress = decodedHost?.listChildren().find((child) => child.getId() === 'n3') as ReturnType<Document['createGComponent']>;
+		t.is(decodedProgress.getInstanceValue(), 25);
+		t.is(decodedProgress.getInstanceMax(), 50);
+		t.is(decodedProgress.getInstanceMin(), 5);
+		t.is(decodedProgress.getInstanceSound(), 'ui://soundpkgclick001');
+		t.true(Math.abs(decodedProgress.getInstanceSoundVolumeScale() - 0.65) < 1e-6);
+
+		const decodedDirectCombo = decodedHost?.listChildren().find((child) => child.getId() === 'n4') as ReturnType<Document['createGComboBox']>;
+		t.is(decodedDirectCombo.getTitleColor(), '#884422');
+		t.is(decodedDirectCombo.getPopupDirection(), 1);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

@@ -286,18 +286,32 @@ export type UamComponentInstanceProperties =
 		titleColor: string;
 		titleFontSize: number;
 		promptText: string;
+		sound: string;
+		soundVolumeScale: number;
 	}
 	| {
 		extensionType: 'ComboBox';
 		title: string;
 		icon: string;
+		titleColor: string;
+		popupDirection: number;
+		sound: string;
+		soundVolumeScale: number;
 		visibleItemCount: number;
 		selectionController: string;
 		autoClearItems: boolean;
 		items: UamComponentInstanceComboItem[];
 	}
 	| {
-		extensionType: 'ProgressBar' | 'Slider';
+		extensionType: 'ProgressBar';
+		value: number;
+		max: number;
+		min: number;
+		sound: string;
+		soundVolumeScale: number;
+	}
+	| {
+		extensionType: 'Slider';
 		value: number;
 		max: number;
 		min: number;

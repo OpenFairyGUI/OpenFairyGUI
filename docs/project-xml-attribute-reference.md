@@ -578,7 +578,7 @@
 |---|---|---|
 | `mode` |  | 按钮模式 |
 | `sound` |  | 点击音效 |
-| `soundVolumeScale` | `volume` | 音量缩放 |
+| `volume` |  | 音量百分比（`0`–`100`） |
 | `downEffect` |  | 按下效果 |
 | `downEffectValue` |  | 按下效果值 |
 | `title` |  | 标题 |
@@ -600,6 +600,8 @@
 | `titleColor` |  | 标题颜色 |
 | `titleFontSize` |  | 标题字号 |
 | `prompt` |  | 提示文本 |
+| `sound` |  | 点击音效资源 |
+| `volume` |  | 音量百分比（`0`–`100`） |
 
 ### `<ComboBox>`
 
@@ -608,6 +610,10 @@
 | `dropdown` |  | 下拉组件资源 |
 | `title` |  | 标题 |
 | `icon` |  | 图标 |
+| `titleColor` |  | 标题颜色 |
+| `direction` |  | 弹出方向：`auto`、`up`、`down` |
+| `sound` |  | 点击音效资源 |
+| `volume` |  | 音量百分比（`0`–`100`） |
 | `visibleItemCount` |  | 可见条目数 |
 | `selectionController` |  | 选择控制器 |
 | `autoClearItems` |  | 自动清空项目 |
@@ -621,6 +627,8 @@
 | `value` |  | 当前值 |
 | `max` |  | 最大值 |
 | `min` |  | 最小值 |
+| `sound` |  | 音效资源 |
+| `volume` |  | 音量百分比（`0`–`100`） |
 
 ### `<Slider>`
 

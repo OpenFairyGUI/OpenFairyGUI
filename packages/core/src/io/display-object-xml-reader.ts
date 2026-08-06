@@ -144,6 +144,7 @@ interface ExtensionXmlNode extends Record<string, unknown> {
 	mode?: string | number;
 	sound?: string;
 	soundVolumeScale?: string | number;
+	popupDirection?: string | number;
 	downEffect?: string | number;
 	downEffectValue?: string | number;
 	dropdown?: string;
@@ -1574,7 +1575,11 @@ export function createDisplayObject(
 				const sound = extSpecs.sound ? readXmlAttr<string>(extAttrs, extSpecs.sound) : undefined;
 				if (sound !== undefined) componentObj.setInstanceSound?.(sound);
 				const soundVolumeScale = extSpecs.soundVolumeScale ? readXmlAttr<string | number>(extAttrs, extSpecs.soundVolumeScale) : undefined;
-				if (soundVolumeScale !== undefined) componentObj.setInstanceSoundVolumeScale?.(parseFloat2(soundVolumeScale, 1));
+				if (soundVolumeScale !== undefined) componentObj.setInstanceSoundVolumeScale?.(parseFloat2(soundVolumeScale, 100) / 100);
+				const popupDirection = extSpecs.popupDirection ? readXmlAttr<string>(extAttrs, extSpecs.popupDirection) : undefined;
+				if (popupDirection !== undefined) {
+					componentObj.setInstancePopupDirection?.(({ auto: 0, up: 1, down: 2 } as Record<string, number>)[popupDirection] ?? 0);
+				}
 				const prompt = extSpecs.prompt ? readXmlAttr<string>(extAttrs, extSpecs.prompt) : undefined;
 				if (prompt !== undefined) componentObj.setInstancePromptText?.(prompt);
 				const selectionController = extSpecs.selectionController ? readXmlAttr<string>(extAttrs, extSpecs.selectionController) : undefined;

@@ -459,12 +459,16 @@ Block 6 用于恢复 afterAdd 阶段写入的数据：
 |---|---|
 | `GTextField` / `GRichTextField` / `GTextInput` | `text` |
 | `GButton` | `title`、`selectedTitle`、`icon`、`selectedIcon`、`titleColor`、`titleFontSize`、`relatedController`、`relatedPageId`、`sound`、`soundVolume`、`selected` |
-| `GLabel` | `title`、`icon`、`titleColor`、`titleFontSize`、输入设置占位、`sound` |
-| `GComboBox` | `items`、`values`、`icons`、`title`、`icon`、`visibleItemCount`、`popupDirection`、`selectionController`、`sound` |
-| `GProgressBar` / `GSlider` | `value`、`max`、`min`、`sound` |
+| `GLabel` | `title`、`icon`、`titleColor`、`titleFontSize`、输入设置占位、`sound`、`soundVolumeScale` |
+| `GComboBox` | `items`、`values`、`icons`、`title`、`icon`、`titleColor`、`visibleItemCount`、`popupDirection`、`selectionController`、`sound`、`soundVolumeScale` |
+| `GProgressBar` | `value`、`max`、`min`、`sound`、`soundVolumeScale` |
+| `GSlider` | `value`、`max`、`min` |
 | `GList` | `selectionController` |
 | `GComponent` Button 扩展实例 | `title`、`selectedTitle`、`icon`、`selectedIcon`、`titleColor`、`titleFontSize`、`relatedController`、`relatedPageId`、`sound`、`soundVolumeScale`、`selected` |
-| 其他扩展实例数据 | `InstanceExtType` 分支下的 Label / ComboBox / ProgressBar / Slider / ScrollBar 实例数据 |
+| `GComponent` Label 扩展实例 | `title`、`icon`、`titleColor`、`titleFontSize`、输入设置、`sound`、`soundVolumeScale` |
+| `GComponent` ComboBox 扩展实例 | `items`、`title`、`icon`、`titleColor`、`visibleItemCount`、`popupDirection`、`selectionController`、`sound`、`soundVolumeScale` |
+| `GComponent` ProgressBar 扩展实例 | `value`、`max`、`min`、`sound`、`soundVolumeScale` |
+| 其他扩展实例数据 | `InstanceExtType` 分支下的 Slider / ScrollBar 实例数据 |
 
 ### Child Block 7：List ScrollPane
 

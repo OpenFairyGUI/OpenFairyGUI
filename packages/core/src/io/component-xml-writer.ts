@@ -319,7 +319,7 @@ export async function writeComponent(
 				case 'Button': {
 					if ((typedComp.getButtonMode?.() ?? 0) !== 0) writeXmlAttr(extAttrs, extSpecs.mode, formatButtonMode(typedComp.getButtonMode?.() ?? 0));
 					if (typedComp.getSound?.()) writeXmlAttr(extAttrs, extSpecs.sound, typedComp.getSound?.());
-					if ((typedComp.getSoundVolumeScale?.() ?? 1) !== 1) writeXmlAttr(extAttrs, extSpecs.soundVolumeScale, String(typedComp.getSoundVolumeScale?.() ?? 1));
+					if ((typedComp.getSoundVolumeScale?.() ?? 1) !== 1) writeXmlAttr(extAttrs, extSpecs.soundVolumeScale, String(Math.round((typedComp.getSoundVolumeScale?.() ?? 1) * 100)));
 					const downEffect = typedComp.getDownEffect?.() ?? 0;
 					if (downEffect !== 0) {
 						writeXmlAttr(extAttrs, extSpecs.downEffect, String(downEffect));
