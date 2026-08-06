@@ -3202,6 +3202,20 @@ function collectProjectedResourceReferenceIssues(project: UamProject): Projected
 				resource.component.properties.sound,
 				['sound'],
 			);
+			pushMissingUi(
+				`${pkg.id}/${resource.id}/properties/designImage`,
+				`${componentPath}.properties.designImage`,
+				resource.component.properties.designImage,
+				['image'],
+			);
+			for (const field of ['showSound', 'hideSound'] as const) {
+				pushMissingUi(
+					`${pkg.id}/${resource.id}/properties/${field}`,
+					`${componentPath}.properties.${field}`,
+					resource.component.properties[field],
+					['sound'],
+				);
+			}
 			for (const node of resource.component.displayList) {
 				const nodeKey = `${pkg.id}/${resource.id}/${node.id}`;
 				const nodePath = `packages.${pkg.id}.resources.${resource.id}.component.displayList.${node.id}`;

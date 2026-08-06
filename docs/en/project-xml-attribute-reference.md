@@ -156,8 +156,13 @@ Current project write-back contract:
 | `idnum` |  | Internal number |
 | `initName` |  | Initial name |
 | `remark` |  | Remarks |
-| `designImageAlpha` |  | Design-image opacity |
-| `designImageLayer` |  | Design-image layer |
+| `pageController` |  | Root page-controller name; must target a controller in this component |
+| `showSound` |  | Component show/enter sound resource |
+| `hideSound` |  | Component hide/exit sound resource |
+| `designImage` |  | Design-reference image resource |
+| `designImageForTest` |  | Whether the design reference is visible in Test View |
+| `designImageAlpha` |  | Design-image opacity; defaults to `50` |
+| `designImageLayer` |  | Design-image layer: `0` behind, `1` in front |
 | `designImageOffsetX` |  | Design-image X offset |
 | `designImageOffsetY` |  | Design-image Y offset |
 

@@ -156,8 +156,13 @@
 | `idnum` |  | 内部编号 |
 | `initName` |  | 初始化名 |
 | `remark` |  | 备注 |
-| `designImageAlpha` |  | 设计图透明度 |
-| `designImageLayer` |  | 设计图层 |
+| `pageController` |  | 根组件分页控制器名称，必须指向本组件控制器 |
+| `showSound` |  | 组件出场音效资源 |
+| `hideSound` |  | 组件退场音效资源 |
+| `designImage` |  | 设计参考图资源 |
+| `designImageForTest` |  | 是否在测试视图显示设计参考图 |
+| `designImageAlpha` |  | 设计图透明度，缺省值为 `50` |
+| `designImageLayer` |  | 设计图层：`0` 底层，`1` 顶层 |
 | `designImageOffsetX` |  | 设计图 X 偏移 |
 | `designImageOffsetY` |  | 设计图 Y 偏移 |
 

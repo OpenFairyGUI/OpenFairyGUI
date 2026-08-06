@@ -327,7 +327,7 @@ test('component root and Button instance properties survive transaction save/rel
 		.setBgColor('#112233')
 		.setBgColorEnabled(true)
 		.setDesignImageAlpha(60)
-		.setDesignImageLayer(2)
+		.setDesignImageLayer(1)
 		.setDesignImageOffsetX(11)
 		.setDesignImageOffsetY(12)
 		.setIdNum(13)
@@ -390,7 +390,7 @@ test('component root and Button instance properties survive transaction save/rel
 		bgColor: '#112233',
 		bgColorEnabled: true,
 		designImageAlpha: 60,
-		designImageLayer: 2,
+		designImageLayer: 1,
 		designImageOffset: { x: 11, y: 12 },
 		idNum: 13,
 		initName: 'buttonInit',
@@ -600,6 +600,95 @@ test('Label, ComboBox, and ProgressBar instance overlays survive UAM transaction
 	}];
 	t.deepEqual(validateTransactionSupport(baseline, unchanged), []);
 	t.deepEqual(getInstances(applyUamTransaction(baseline, unchanged)), baselineInstances);
+});
+
+test('remaining component-root authoring metadata survives UAM transaction round-trips', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('Issue109').setId('pkg109');
+	const png = new Uint8Array(Buffer.from(
+		'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+		'base64',
+	));
+	for (const [id, name] of [['img109a', 'design-a.png'], ['img109b', 'design-b.png']] as const) {
+		pkg.addResource(doc.createImageResource(name).setId(id).setPath('/').setFileName(name)
+			.setWidth(1).setHeight(1).setSourceData(doc.createBuffer().setData(png)));
+	}
+	for (const [id, name] of [['snd109a', 'sound-a.wav'], ['snd109b', 'sound-b.wav']] as const) {
+		pkg.addResource(doc.createSoundResource(name).setId(id).setPath('/').setFile(name)
+			.setSourceData(doc.createBuffer().setData(new Uint8Array([1, 2, 3]))));
+	}
+	const component = doc.createComponent('Host109').setId('host109').setPath('/').setSize(320, 200)
+		.setDesignImage('ui://pkg109img109a').setDesignImageForTest(true).setDesignImageAlpha(60)
+		.setDesignImageLayer(1).setDesignImageOffsetX(3).setDesignImageOffsetY(4)
+		.setPageController('pageA').setAddedToStageSound('ui://pkg109snd109a')
+		.setRemovedFromStageSound('ui://pkg109snd109a');
+	for (const name of ['pageA', 'pageB']) {
+		const controller = doc.createController(name);
+		controller.addPage(doc.createControllerPage('Default').setId(`${name}-0`));
+		component.addController(controller);
+	}
+	pkg.addResource(component);
+
+	const baseline = liftDocumentToUamProject(doc);
+	const getProperties = (project: UamProject) => {
+		const resource = project.packages[0]?.resources.find((item) => item.id === 'host109');
+		if (resource?.kind !== 'component') throw new Error('Issue #109 host fixture was not found.');
+		return resource.component.properties;
+	};
+	const baselineProperties = getProperties(baseline);
+	t.deepEqual(getProperties(liftDocumentToUamProject(materializeUamProject(baseline))), baselineProperties);
+	const updatedProperties: UamComponentProperties = {
+		...baselineProperties,
+		designImage: 'ui://pkg109img109b',
+		designImageForTest: false,
+		pageController: 'pageB',
+		showSound: 'ui://pkg109snd109b',
+		hideSound: 'ui://pkg109snd109b',
+	};
+	const selector = { packageId: 'pkg109', componentResourceId: 'host109' };
+	const forward: UamTransactionOperation[] = [{ kind: 'setComponentProps', selector, props: { properties: updatedProperties } }];
+	const inverse: UamTransactionOperation[] = [{ kind: 'setComponentProps', selector, props: { properties: baselineProperties } }];
+	t.deepEqual(validateTransactionSupport(baseline, forward), []);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-issue-109-'));
+	const outFairy = path.join(tmpDir, 'issue-109.fairy');
+	try {
+		const changed = applyUamTransaction(baseline, forward);
+		await writeProjectFromUam(io, changed, outFairy);
+		const reloaded = await readProjectAsUam(io, outFairy);
+		t.deepEqual(getProperties(reloaded), updatedProperties);
+
+		const reverted = applyUamTransaction(reloaded, inverse);
+		await writeProjectFromUam(io, reverted, outFairy, { previousProject: reloaded });
+		t.deepEqual(getProperties(await readProjectAsUam(io, outFairy)), baselineProperties);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+
+	for (const properties of [
+		{ ...baselineProperties, designImage: 'design.png' },
+		{ ...baselineProperties, designImage: 'ui://pkg109missing' },
+		{ ...baselineProperties, designImage: 'ui://pkg109snd109a' },
+		{ ...baselineProperties, showSound: 'ui://pkg109img109a' },
+		{ ...baselineProperties, showSound: 'sound.wav' },
+		{ ...baselineProperties, pageController: 'missing' },
+		{ ...baselineProperties, unexpected: true },
+	]) {
+		const issues = validateTransactionSupport(baseline, [{
+			kind: 'setComponentProps',
+			selector,
+			props: { properties: properties as UamComponentProperties },
+		}]);
+		t.true(issues.length > 0);
+	}
+	const unchanged: UamTransactionOperation[] = [{
+		kind: 'setComponentProps',
+		selector,
+		props: { properties: baselineProperties },
+	}];
+	t.deepEqual(validateTransactionSupport(baseline, unchanged), []);
+	t.deepEqual(getProperties(applyUamTransaction(baseline, unchanged)), baselineProperties);
 });
 
 test('UAM materialization scope covers every current concrete display node kind', (t) => {

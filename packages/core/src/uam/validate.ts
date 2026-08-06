@@ -338,6 +338,11 @@ const COMPONENT_PROPERTY_KEYS = [
 	'designImageAlpha',
 	'designImageLayer',
 	'designImageOffset',
+	'designImage',
+	'designImageForTest',
+	'pageController',
+	'showSound',
+	'hideSound',
 	'idNum',
 	'initName',
 	'remark',
@@ -373,6 +378,7 @@ export function isValidUamComponentProperties(value: unknown): value is UamCompo
 		properties.bgColor,
 		properties.initName,
 		properties.remark,
+		properties.pageController,
 		properties.extensionType,
 		properties.sound,
 		properties.dropdown,
@@ -383,6 +389,7 @@ export function isValidUamComponentProperties(value: unknown): value is UamCompo
 		properties.pivotAsAnchor,
 		properties.reversedMask,
 		properties.bgColorEnabled,
+		properties.designImageForTest,
 		properties.opaque,
 		properties.reverse,
 		properties.wholeNumbers,
@@ -395,8 +402,6 @@ export function isValidUamComponentProperties(value: unknown): value is UamCompo
 		properties.scrollType,
 		properties.scrollBarDisplay,
 		properties.scrollBarFlags,
-		properties.designImageAlpha,
-		properties.designImageLayer,
 		properties.idNum,
 		properties.buttonMode,
 		properties.soundVolumeScale,
@@ -414,6 +419,15 @@ export function isValidUamComponentProperties(value: unknown): value is UamCompo
 		&& strings.every((item) => typeof item === 'string')
 		&& booleans.every((item) => typeof item === 'boolean')
 		&& numbers.every((item) => typeof item === 'number' && Number.isFinite(item))
+		&& isUiResourceReference(properties.designImage)
+		&& isSoundReference(properties.showSound)
+		&& isSoundReference(properties.hideSound)
+		&& Number.isInteger(properties.designImageAlpha)
+		&& properties.designImageAlpha >= 0
+		&& properties.designImageAlpha <= 100
+		&& Number.isInteger(properties.designImageLayer)
+		&& properties.designImageLayer >= 0
+		&& properties.designImageLayer <= 1
 		&& Array.isArray(properties.customProperties)
 		&& properties.customProperties.every((property) => (
 			property
@@ -429,10 +443,12 @@ function isNullableString(value: unknown): boolean {
 	return value === null || typeof value === 'string';
 }
 
-function isSoundReference(value: unknown): value is string {
+function isUiResourceReference(value: unknown): value is string {
 	return typeof value === 'string'
 		&& (value === '' || (value.startsWith('ui://') && value.length > 5 && !/\s/.test(value)));
 }
+
+const isSoundReference = isUiResourceReference;
 
 function isSoundVolume(value: unknown): value is number {
 	return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
@@ -883,6 +899,13 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 				for (const [actionIndex, action] of controller.actions.entries()) {
 					validateControllerAction(action, pageIds, childIds, `${controllerPath}.actions[${actionIndex}]`, issues);
 				}
+			}
+			if (component.properties.pageController && !controllerMap.has(component.properties.pageController)) {
+				pushIssue(
+					issues,
+					`${resourcePath}.component.properties.pageController`,
+					`Unknown page controller "${component.properties.pageController}".`,
+				);
 			}
 
 			for (const [childIndex, child] of component.displayList.entries()) {

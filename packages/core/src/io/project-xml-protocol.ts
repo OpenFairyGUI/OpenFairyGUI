@@ -254,6 +254,9 @@ const ROOT_COMPONENT_PANEL_ATTRS = {
 	bgColorEnabled: { canonical: 'bgColorEnabled' },
 	idnum: { canonical: 'idnum' },
 	initName: { canonical: 'initName' },
+	pageController: { canonical: 'pageController' },
+	showSound: { canonical: 'showSound' },
+	hideSound: { canonical: 'hideSound' },
 } satisfies XmlAttrMap;
 
 const ROOT_MISC_PANEL_ATTRS = {
@@ -261,6 +264,8 @@ const ROOT_MISC_PANEL_ATTRS = {
 } satisfies XmlAttrMap;
 
 const ROOT_DESIGN_PANEL_ATTRS = {
+	designImage: { canonical: 'designImage' },
+	designImageForTest: { canonical: 'designImageForTest' },
 	designImageAlpha: { canonical: 'designImageAlpha' },
 	designImageLayer: { canonical: 'designImageLayer' },
 	designImageOffsetX: { canonical: 'designImageOffsetX' },

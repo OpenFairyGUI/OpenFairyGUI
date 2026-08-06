@@ -236,6 +236,11 @@ export interface UamComponentProperties {
 	designImageAlpha: number;
 	designImageLayer: number;
 	designImageOffset: UamPoint;
+	designImage: string;
+	designImageForTest: boolean;
+	pageController: string;
+	showSound: string;
+	hideSound: string;
 	idNum: number;
 	initName: string;
 	remark: string;
