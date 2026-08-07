@@ -163,6 +163,7 @@ const ATLAS_DEFAULTS: Required<
 
 interface AtlasReferenceItem {
 	icon?: string | null;
+	selectedIcon?: string | null;
 	url?: string | null;
 }
 
@@ -324,6 +325,7 @@ async function resolveEditorCompatibleResourceOrder(
 			}
 			for (const item of refChild.getListItems?.() ?? []) {
 				await addResourceByLocalUiUrl(item.icon ?? undefined);
+				await addResourceByLocalUiUrl(item.selectedIcon ?? undefined);
 				await addResourceByLocalUiUrl(item.url ?? undefined);
 			}
 			for (const gear of refChild.listGears?.() ?? []) {

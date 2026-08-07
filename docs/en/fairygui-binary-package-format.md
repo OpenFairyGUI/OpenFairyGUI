@@ -174,26 +174,28 @@ Notes:
 
 ### Publish semantics of `file`
 
-`file` stores the resource location in published output, not the original filename under the project resource directory. Under the current Unity runtime contract:
+`file` stores the resource location in published output, not the original filename under the project resource directory:
 
 | Resource type | Meaning of `file` |
 |---|---|
-| `Atlas` / `Sound` / `Misc` | Published auxiliary-resource filename |
+| `Atlas` / `Sound` / `Misc` | Published auxiliary-resource filename; the runtime adds the package asset prefix required by the target |
 | `Spine` / `DragoneBones` | Published primary skeleton-resource filename, which the runtime uses to load the corresponding resource |
 
-Current common Unity naming for `Spine` auxiliary resources is:
+For `Sound` / `Misc`, `file` is the published item ID plus the source extension. Unity additionally appends `.txt` to `.atlas`. For example, `hero.json` with item ID `biss7` is stored as `biss7.json`; its physical auxiliary file carries the package publish-name prefix expected by the runtime.
+
+Current Unity naming for `Spine` primary and dependent resources is:
 
 | Project resource file | Published result |
 |---|---|
 | `*.skel` | `*.skel.bytes` |
-| `*.atlas` | `*.atlas.txt` |
+| `*.atlas` (`Misc` dependency) | `<item-id>.atlas.txt` |
 | `*.png` | Original filename retained |
 
-Non-Unity projects retain the project-side `.skel` and `.atlas` filenames.
+Non-Unity primary skeleton files retain the filename required by their target; dependencies published as `Misc` still use `<item-id><source-extension>`.
 
 When publish settings enable separate branch atlases, an atlas item's `file` contains a branch suffix, such as `atlas0_dev.png`. The main atlas remains `atlas0.png`.
 
-Primary and dependent files in current `DragoneBones` samples retain their original filenames, such as `dragon_ske.json`, `dragon_tex.json`, and `dragon.png`.
+The `DragoneBones` primary file retains the filename required by its target. `Misc` dependencies use their published item IDs, while image dependencies retain their published image names.
 
 ### Conditional trailing fields
 

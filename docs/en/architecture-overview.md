@@ -266,11 +266,13 @@ In addition to the binary descriptor, `publish` outputs auxiliary files required
 | Resource type | Current publish behavior |
 |---|---|
 | `SoundResource` | Writes the published sound filename |
-| `MiscResource` | Writes the resource file. In Unity projects, a source file ending in `.atlas` is published as `.atlas.txt`; other projects retain the source filename. |
+| `MiscResource` | Binary `file` uses the published resource ID plus the source extension; Unity appends `.txt` to `.atlas`. The physical auxiliary file also receives the package publish-name prefix expected by the runtime. |
 | High-resolution `ImageResource` / `MovieClipResource` variants | When the corresponding scale is enabled by `includeHighResolution`, resources named `@2x` / `@3x` / `@4x` with the same path, branch, and type enter the publish closure and are referenced from the base item's high-resolution list. Publishing does not rescale source images. |
 | `SpineResource` | Writes the primary skeleton file. In Unity projects, a source ending in `.skel` is published as `.skel.bytes`; other projects retain the source filename. |
 | `DragonBonesResource` | Writes the primary skeleton file with its current filename. |
-| `SpineResource` / `DragonBonesResource` dependencies | Forms a resource closure through `require` and publishes dependent `misc` / `image` resources. |
+| `SpineResource` / `DragonBonesResource` dependencies | Forms a resource closure through `require` and publishes dependent `misc` / `image` resources; `misc` dependencies use the same published-ID naming rule. |
+
+The component resource closure scans loader URLs plus list-item `url`, `icon`, and `selectedIcon` fields, so resources used only by the selected state are retained.
 
 Publishing fails closed for completeness: after an output directory resolves, filesystem capability is required; packable images require a raster encoder, source-resource path, and atlas output directory; atlas packing/compositing and sound or external-resource copy failures abort publishing rather than being reported as success.
 

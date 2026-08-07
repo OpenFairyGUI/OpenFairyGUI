@@ -98,8 +98,11 @@ export async function exportPackageExternalResources(
 			targetName = resolveImageFileName(resource);
 		} else if (isMiscResource(resource) || isSkeletonResource(resource)) {
 			sourcePath = resolveGenericResourcePath(resource, pkg, basePath);
-			targetName =
+			const publishedFile =
 				((resource.getExtras() as PublishFileExtras | undefined) ?? {})._publishedFile ?? resource.getFile();
+			targetName = isMiscResource(resource)
+				? `${pkg.getPublishName() || pkg.getName()}_${publishedFile}`
+				: publishedFile;
 		} else {
 			continue;
 		}

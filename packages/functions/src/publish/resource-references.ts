@@ -3,6 +3,7 @@ import type { HasOptionalFont } from '../shared-types.js';
 
 interface ReferenceItem {
 	icon?: string | null;
+	selectedIcon?: string | null;
 	url?: string | null;
 }
 
@@ -164,6 +165,7 @@ function collectComponentReferences(
 		}
 		for (const item of child.getListItems?.() ?? []) {
 			addUiReference(target, ownerPackageId, item.icon);
+			addUiReference(target, ownerPackageId, item.selectedIcon);
 			addUiReference(target, ownerPackageId, item.url);
 		}
 		for (const gear of child.listGears?.() ?? []) {

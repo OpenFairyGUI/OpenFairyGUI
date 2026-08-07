@@ -132,10 +132,11 @@ export function extname(fileName: string): string {
 }
 
 function resolvePublishedMiscFileName(resource: MiscResource, projectType: number): string {
-	const file = resource.getFile();
-	if (projectType !== UNITY_PROJECT_TYPE) return file;
-	if (file.toLowerCase().endsWith('.atlas')) return `${file}.txt`;
-	return file;
+	const fileName = `${getPublishedId(resource)}${extname(resource.getFile())}`;
+	if (projectType === UNITY_PROJECT_TYPE && fileName.toLowerCase().endsWith('.atlas')) {
+		return `${fileName}.txt`;
+	}
+	return fileName;
 }
 
 function resolvePublishedSkeletonFileName(resource: SpineResource | DragonBonesResource, projectType: number): string {

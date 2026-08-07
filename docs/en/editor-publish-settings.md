@@ -294,6 +294,8 @@ The current OpenFairyGUI implementation of `fileExtension` does not reproduce th
 
 Layabox-supported settings such as `includeHighResolution`, compression, atlas size, paging, and trimming remain project-configured. Without `--project-type`, the project-setting rules in the table above remain unchanged.
 
+The Unity and Cocos Creator runtimes do not inflate binary descriptors, so those targets always emit uncompressed data. An explicit API or CLI request for `compressed=true` / `--compressed` fails publishing, and persisted `compressDesc` cannot override this target constraint. Layabox continues to use the project's compression setting.
+
 The non-Unity binary publish contracts formally covered by the repository include:
 
 - Layabox: sample projects use `binaryFormat=true` and `fileExtension="fui"`, producing `<package-name>.fui`.

@@ -263,11 +263,13 @@ ProjectReader 读取 `package.xml` 的包内分支顺序，并在所有主/分�
 | 资源类型 | 当前发布行为 |
 |---|---|
 | `SoundResource` | 输出发布后的声音文件名 |
-| `MiscResource` | 输出资源文件；Unity 项目中源文件扩展名为 `.atlas` 时，发布名改为 `.atlas.txt`，其他项目保持原文件名 |
+| `MiscResource` | 二进制 `file` 使用资源发布 ID 与源扩展名；Unity 项目的 `.atlas` 追加 `.txt`。实际附属文件再加包发布名前缀，匹配运行时加载路径 |
 | `ImageResource` / `MovieClipResource` 高分辨率变体 | 当 `includeHighResolution` 启用对应倍率时，按同路径、同分支、同类型的 `@2x` / `@3x` / `@4x` 资源加入发布闭包，并在基础 item 的 high-resolution 列表中引用；发布流程不主动缩放原图 |
 | `SpineResource` | 输出 skeleton 主文件；Unity 项目中源文件扩展名为 `.skel` 时，发布名改为 `.skel.bytes`，其他项目保持原文件名 |
 | `DragonBonesResource` | 输出 skeleton 主文件，当前保持原文件名 |
-| `SpineResource` / `DragonBonesResource` 依赖 | 按 `require` 形成资源闭包，依赖的 `misc` / `image` 资源一并发布 |
+| `SpineResource` / `DragonBonesResource` 依赖 | 按 `require` 形成资源闭包，依赖的 `misc` / `image` 资源一并发布；其中 `misc` 依赖沿用统一的发布 ID 命名规则 |
+
+组件资源闭包会同时扫描 Loader URL、List item 的 `url`、`icon` 与 `selectedIcon`，避免仅在选中状态使用的资源被裁掉。
 
 发布输出采用完整性优先的失败口径：已解析到输出目录时必须有文件系统能力；存在可封包的图像时必须有 raster encoder、源资源路径和 atlas 输出目录；图集装箱/合成、声音或外部资源复制失败都会中止发布，不会报告为成功。
 

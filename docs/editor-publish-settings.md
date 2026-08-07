@@ -293,6 +293,8 @@ OpenFairyGUI 当前已经把“代码生成”接入现有 `publish` 流程，�
 
 `includeHighResolution`、压缩、atlas 尺寸、分页和裁边等 Layabox 支持的设置继续使用工程配置。未提供 `--project-type` 时，仍遵循上表的工程设置规则。
 
+Unity 与 Cocos Creator 运行时不解压二进制描述文件，因此这两个目标始终输出未压缩数据。若 API 或 CLI 对它们显式请求 `compressed=true` / `--compressed`，发布会直接报错；工程中持久化的 `compressDesc` 不会覆盖该目标约束。Layabox 继续使用工程中的压缩设置。
+
 当前仓库已正式覆盖的非 Unity 二进制发布口径包括：
 - Layabox：样例工程使用 `binaryFormat=true` 和 `fileExtension="fui"`，发布结果为 `包名.fui`
 - Cocos Creator：未显式设置 `fileExtension` 时默认发布为 `包名.bin`

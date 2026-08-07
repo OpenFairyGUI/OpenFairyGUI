@@ -172,26 +172,28 @@ block 5 的 patch 用于替换 block 4 中相同索引位置的占位字符串�
 
 ### `file` 的发布语义
 
-`file` 字段承载的是发布产物中的资源定位结果，而不是工程资源目录下的原始文件名。当前 Unity 侧运行时口径下：
+`file` 字段承载的是发布产物中的资源定位结果，而不是工程资源目录下的原始文件名：
 
 | 资源类型 | `file` 语义 |
 |---|---|
-| `Atlas` / `Sound` / `Misc` | 指向发布后的附属资源文件名 |
+| `Atlas` / `Sound` / `Misc` | 指向发布后的附属资源文件名；运行时按目标规则添加包资源前缀 |
 | `Spine` / `DragoneBones` | 指向发布后的 skeleton 主资源文件名；运行时再按该路径加载对应资源 |
 
-当前 Unity 发布侧的 `Spine` 常见附属资源命名规则如下：
+`Sound` / `Misc` 的 `file` 使用发布 item id 加源扩展名。Unity 中 `.atlas` 额外追加 `.txt`。例如 item id 为 `biss7` 的 `hero.json` 写为 `biss7.json`，其实际附属文件按运行时约定带包发布名前缀。
+
+当前 Unity 发布侧的 `Spine` 主资源与依赖资源命名规则如下：
 
 | 工程资源文件 | 发布结果 |
 |---|---|
 | `*.skel` | `*.skel.bytes` |
-| `*.atlas` | `*.atlas.txt` |
+| `*.atlas`（`Misc` 依赖） | `<item-id>.atlas.txt` |
 | `*.png` | 保持原文件名 |
 
-非 Unity 项目保持工程侧 `.skel` 与 `.atlas` 文件名。
+非 Unity 项目的 skeleton 主资源保持目标所需文件名；作为 `Misc` 发布的依赖仍使用 `<item-id><源扩展名>`。
 
 当发布设置启用“分支 atlas 单独输出”时，atlas 条目的 `file` 会写成分支后缀形式，例如 `atlas0_dev.png`。主干 atlas 仍写 `atlas0.png`。
 
-`DragoneBones` 样本中的主文件与依赖文件当前保持原文件名，例如 `dragon_ske.json`、`dragon_tex.json`、`dragon.png`。
+`DragoneBones` 主文件保持目标所需文件名；其 `Misc` 依赖按发布 item id 命名，图片依赖保持图片发布名。
 
 ### 条件附加字段
 

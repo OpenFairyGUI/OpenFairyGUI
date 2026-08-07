@@ -159,10 +159,14 @@ export function resolvePublishOptions(
 		overrides.fileExtension ??
 		(explicitLayaboxTarget ? 'fui' : resolveDefaultPublishFileExtension(projectType, publishSettings));
 
-	let compressed = overrides.compressed ?? publishSettings.compressDesc ?? false;
-	if (projectType === UNITY_PROJECT_TYPE) {
-		compressed = overrides.compressed ?? false;
+	const runtimeRejectsCompression =
+		projectType === UNITY_PROJECT_TYPE || projectType === COCOS_CREATOR_PROJECT_TYPE;
+	if (runtimeRejectsCompression && overrides.compressed === true) {
+		throw new Error('publish: The selected target runtime does not support compressed package data.');
 	}
+	const compressed = runtimeRejectsCompression
+		? false
+		: (overrides.compressed ?? publishSettings.compressDesc ?? false);
 
 	const atlasOptions: ResolvedPublishAtlasOptions = {
 		maxSize: overrides.atlas?.maxSize ?? atlasSetting.maxSize ?? 2048,

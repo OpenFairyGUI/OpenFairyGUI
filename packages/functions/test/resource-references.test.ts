@@ -25,9 +25,25 @@ test('resource reference scanner separates local resources from external package
 	shared.setId('shared01').setSrc('panel001').setPackageId('shared01');
 	component.addChild(shared);
 
+	const list = doc.createGList('choices');
+	list.setId('list0001').setListItems([{
+		title: null,
+		selectedTitle: null,
+		icon: null,
+		selectedIcon: 'ui://main0001/listSelected',
+		url: null,
+		name: null,
+		level: 0,
+		isFolder: null,
+	}]);
+	component.addChild(list);
+
 	pkg.addResource(component);
 
 	const references = collectPackageResourceReferences(pkg);
-	t.deepEqual([...references.localResourceIds].sort(), ['font0001', 'loaderImage', 'panel001', 'textIcon']);
+	t.deepEqual(
+		[...references.localResourceIds].sort(),
+		['font0001', 'listSelected', 'loaderImage', 'panel001', 'textIcon'],
+	);
 	t.deepEqual([...references.packageIds], ['shared01']);
 });

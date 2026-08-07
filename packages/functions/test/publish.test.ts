@@ -462,13 +462,13 @@ test('publish: exports loader skeleton resources and dependency closure with edi
 		const expectedFiles = [
 			'Loader_fui.bytes',
 			'dragon_ske.json',
-			'dragon_tex.json',
+			'Loader_biss7.json',
 			'dragon.png',
 			'alien-pro.skel.bytes',
-			'alien-pma.atlas.txt',
+			'Loader_nbcg7.atlas.txt',
 			'alien-pma.png',
 			'mix-and-match-pro.skel.bytes',
-			'mix-and-match-pma.atlas.txt',
+			'Loader_czqy1i.atlas.txt',
 			'mix-and-match-pma.png',
 		];
 		for (const file of expectedFiles) {
@@ -484,7 +484,7 @@ test('publish: exports loader skeleton resources and dependency closure with edi
 		const bytes = await fs.readFile(path.join(tmpDir, 'Loader_fui.bytes'));
 		const parsed = parsePackageBinary(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
 		const byId = new Map(parsed.items.map((item) => [item.id, item]));
-		t.is(byId.get('nbcg7')?.file, 'alien-pma.atlas.txt', 'misc atlas dependency writes published file name');
+		t.is(byId.get('nbcg7')?.file, 'nbcg7.atlas.txt', 'misc atlas dependency writes runtime item-id file name');
 		t.is(byId.get('nbcge')?.file, 'alien-pro.skel.bytes', 'spine item writes published skeleton file name');
 		t.is(byId.get('biss6')?.file, 'dragon_ske.json', 'dragonbones item keeps published json file name');
 	} finally {
@@ -738,6 +738,33 @@ test('publish: missing external input rejects before the package binary is writt
 	}
 });
 
+test('publish: misc resources use runtime-prefixed item-id file names', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(0);
+	const pkg = doc.createPackage('Demo');
+	pkg.setId('demo0001').setPublishName('Demo');
+	const misc = doc.createMiscResource('config');
+	misc.setId('misc001').setPath('/data/').setFile('config.json').setExported(true);
+	pkg.addResource(misc);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-misc-'));
+	const assetsDir = path.join(tmpDir, 'assets');
+	const outputDir = path.join(tmpDir, 'release');
+	try {
+		await fs.mkdir(path.join(assetsDir, 'Demo', 'data'), { recursive: true });
+		await fs.writeFile(path.join(assetsDir, 'Demo', 'data', 'config.json'), '{"ok":true}');
+		await doc.transform(publish({ output: outputDir, fs: createFs(), basePath: assetsDir }));
+
+		const outputNames = (await fs.readdir(outputDir)).sort();
+		t.deepEqual(outputNames, ['Demo_fui.bytes', 'Demo_misc001.json']);
+		const bytes = await fs.readFile(path.join(outputDir, 'Demo_fui.bytes'));
+		const parsed = parsePackageBinary(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+		t.is(parsed.items.find((item) => item.id === 'misc001')?.file, 'misc001.json');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('publish: binary output excludes unpublished image resources and preserves component extension type', async (t) => {
 	const doc = new Document();
 	doc.getRoot().setProjectType(0);
@@ -913,7 +940,7 @@ test('resolvePublishOptions: Layabox respects explicit fileExtension overrides',
 	t.true(resolved.compressed, 'override does not discard non-Unity compression behavior');
 });
 
-test('resolvePublishOptions: Cocos Creator defaults to bin and keeps non-Unity compression behavior', (t) => {
+test('resolvePublishOptions: Cocos Creator defaults to bin and disables unsupported compression', (t) => {
 	const doc = new Document();
 	doc.getRoot().setProjectType(3);
 	doc.getRoot().setSettings({
@@ -924,7 +951,7 @@ test('resolvePublishOptions: Cocos Creator defaults to bin and keeps non-Unity c
 
 	const resolved = resolvePublishOptions(doc);
 	t.is(resolved.fileExtension, 'bin', 'Cocos Creator defaults to .bin');
-	t.true(resolved.compressed, 'Cocos Creator keeps publish compression when configured');
+	t.false(resolved.compressed, 'Cocos Creator ignores persisted compression unsupported by its runtime');
 });
 
 test('resolvePublishOptions: Cocos Creator respects explicit fileExtension overrides', (t) => {
@@ -938,7 +965,16 @@ test('resolvePublishOptions: Cocos Creator respects explicit fileExtension overr
 
 	const resolved = resolvePublishOptions(doc, { fileExtension: 'fui' });
 	t.is(resolved.fileExtension, 'fui', 'explicit override wins over Creator defaults');
-	t.true(resolved.compressed, 'override does not discard non-Unity compression behavior');
+	t.false(resolved.compressed, 'file extension overrides do not re-enable unsupported compression');
+});
+
+test('resolvePublishOptions: Unity and Cocos Creator reject explicit compression', (t) => {
+	for (const projectType of [0, 3]) {
+		const doc = new Document();
+		doc.getRoot().setProjectType(projectType);
+		const error = t.throws(() => resolvePublishOptions(doc, { compressed: true }));
+		t.regex(error?.message ?? '', /does not support compressed package data/);
+	}
 });
 
 test('resolvePublishAtlasRuntimeOptions: ext-coupled atlas toggles stay explicit', (t) => {
