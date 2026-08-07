@@ -5,6 +5,7 @@ import type { Controller } from '../properties/controller.js';
 import type { Transition } from '../properties/transition.js';
 import {
 	EXTENSION_PROTOCOL_MAP,
+	formatButtonDownEffect,
 	formatButtonDownEffectValue,
 	formatButtonMode,
 	formatInsets,
@@ -336,7 +337,7 @@ export async function writeComponent(
 					if ((typedComp.getSoundVolumeScale?.() ?? 1) !== 1) writeXmlAttr(extAttrs, extSpecs.soundVolumeScale, String(Math.round((typedComp.getSoundVolumeScale?.() ?? 1) * 100)));
 					const downEffect = typedComp.getDownEffect?.() ?? 0;
 					if (downEffect !== 0) {
-						writeXmlAttr(extAttrs, extSpecs.downEffect, String(downEffect));
+						writeXmlAttr(extAttrs, extSpecs.downEffect, formatButtonDownEffect(downEffect));
 						writeXmlAttr(extAttrs, extSpecs.downEffectValue, formatButtonDownEffectValue(typedComp.getDownEffectValue?.() ?? 0.8));
 					}
 					break;

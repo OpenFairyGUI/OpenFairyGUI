@@ -127,6 +127,8 @@
 
 组件根的 `designImage`、`designImageForTest`、`pageController`、`showSound` 和 `hideSound` 作为正式 authoring 属性读写；`designImageAlpha` 缺省为 `50`。设计图必须引用 image 资源，出场/退场音效必须引用 sound 资源，`pageController` 必须指向本组件控制器。Label、ComboBox 和 ProgressBar 组件实例的音效覆盖使用 `sound` 与百分比 `volume`，ComboBox 另以 `titleColor` 和 `direction`（`auto` / `up` / `down`）保存标题颜色与弹出方向。
 
+List/Tree 的 `autoItemSize` 缺省值随布局变化：single column/row 为 `true`，flow/pagination 为 `false`；只有与布局缺省值不同时才写出。Button 根扩展使用 `none / dark / scale` 字符串枚举保存 `downEffect`。Transition 使用 `frameRate` 保存非 24 的帧率。
+
 ## 组件 XML 的整数几何字段
 
 FairyGUI 工程 XML 中由桌面编辑器按有符号 32 位整数读取的几何值，写出时统一向零截断。非有限值或截断后超出 `-2147483648` 至 `2147483647` 的值会拒绝写出。

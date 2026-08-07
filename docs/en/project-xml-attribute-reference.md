@@ -541,7 +541,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `colGap` | `columnGap` | Column gap |
 | `lineItemCount` |  | Items per row for `flow_hz`, per column for `flow_vt`, or columns per page for `pagination` |
 | `lineItemCount2` |  | Rows per page for `pagination` |
-| `autoItemSize` | `autoResizeItem` | Whether item size is adjusted automatically |
+| `autoItemSize` | `autoResizeItem` | Whether item size is adjusted automatically; defaults to `true` for single column/row and `false` for flow/pagination |
 | `renderOrder` |  | Child render order: `ascent`, `descent`, or `arch` |
 | `apex` |  | Apex child index when `renderOrder="arch"` |
 | `selectionMode` |  | Selection mode |
@@ -584,7 +584,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `mode` |  | Button mode |
 | `sound` |  | Click sound |
 | `volume` |  | Volume percentage (`0`–`100`) |
-| `downEffect` |  | Pressed effect |
+| `downEffect` |  | Pressed effect: `none`, `dark`, or `scale` |
 | `downEffectValue` |  | Pressed-effect value |
 | `title` |  | Title |
 | `selectedTitle` |  | Selected title |
@@ -713,7 +713,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `autoPlayRepeat` | `autoPlayTimes` | Automatic-play repeat count |
 | `autoPlayDelay` |  | Automatic-play delay |
 | `options` |  | Options |
-| `fps` |  | Frame rate |
+| `frameRate` |  | Frame rate |
 
 ### `<transition><item>`
 

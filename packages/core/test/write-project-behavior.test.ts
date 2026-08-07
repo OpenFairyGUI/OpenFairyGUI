@@ -200,6 +200,9 @@ test('round-trip: component extension definition and instance extension attrs su
 	buttonDef.setSoundVolumeScale(0.6);
 	buttonDef.setDownEffect(1);
 	buttonDef.setDownEffectValue(0.75);
+	const transition = doc.createTransition('pulse');
+	transition.setFps(30);
+	buttonDef.addTransition(transition);
 	pkg.addResource(buttonDef);
 
 	const host = doc.createComponent('Host');
@@ -311,8 +314,10 @@ test('round-trip: component extension definition and instance extension attrs su
 		t.true(buttonDefXml.includes('mode="Radio"'), 'button definition writes canonical mode attr');
 		t.true(buttonDefXml.includes('sound="ui://pkg005/click"'), 'button definition writes canonical sound attr');
 		t.true(buttonDefXml.includes('volume="60"'), 'button definition writes canonical percent volume attr');
-		t.true(buttonDefXml.includes('downEffect="1"'), 'button definition writes canonical downEffect attr');
+		t.true(buttonDefXml.includes('downEffect="dark"'), 'button definition writes canonical downEffect enum');
 		t.true(buttonDefXml.includes('downEffectValue="0.75"'), 'button definition writes explicit downEffectValue when downEffect is enabled');
+		t.true(buttonDefXml.includes('<transition name="pulse" frameRate="30"'), 'transition writes canonical frameRate attr');
+		t.false(buttonDefXml.includes(' fps='), 'transition does not write the model field name');
 		t.true(comboDefXml.includes('<ComboBox'), 'combo definition writes ComboBox extension node');
 		t.true(comboDefXml.includes('dropdown="ui://pkg005/dropdown"'), 'combo definition writes canonical dropdown attr');
 		t.true(comboDefXml.includes('selectionController="qualityOption"'), 'combo definition writes canonical selectionController attr');
@@ -351,6 +356,7 @@ test('round-trip: component extension definition and instance extension attrs su
 		t.is(buttonDef2!.getSoundVolumeScale(), 0.6);
 		t.is(buttonDef2!.getDownEffect(), 1);
 		t.is(buttonDef2!.getDownEffectValue(), 0.75);
+		t.is(buttonDef2!.listTransitions()[0]?.getFps(), 30);
 
 		const comboDef2 = pkg2!.listComponents().find((item) => item.getName() === 'ExtendedCombo');
 		t.truthy(comboDef2, 'ExtendedCombo exists');

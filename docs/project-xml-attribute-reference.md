@@ -541,7 +541,7 @@
 | `colGap` | `columnGap` | 列间距 |
 | `lineItemCount` |  | `flow_hz` 每行项目数、`flow_vt` 每列项目数、`pagination` 每页列数 |
 | `lineItemCount2` |  | `pagination` 每页行数 |
-| `autoItemSize` | `autoResizeItem` | 自动调整项目尺寸 |
+| `autoItemSize` | `autoResizeItem` | 自动调整项目尺寸；single column/row 缺省为 `true`，flow/pagination 缺省为 `false` |
 | `renderOrder` |  | 子项渲染顺序：`ascent`、`descent`、`arch` |
 | `apex` |  | `renderOrder="arch"` 时的顶点子项索引 |
 | `selectionMode` |  | 选择模式 |
@@ -584,7 +584,7 @@
 | `mode` |  | 按钮模式 |
 | `sound` |  | 点击音效 |
 | `volume` |  | 音量百分比（`0`–`100`） |
-| `downEffect` |  | 按下效果 |
+| `downEffect` |  | 按下效果：`none`、`dark`、`scale` |
 | `downEffectValue` |  | 按下效果值 |
 | `title` |  | 标题 |
 | `selectedTitle` |  | 选中标题 |
@@ -713,7 +713,7 @@
 | `autoPlayRepeat` | `autoPlayTimes` | 自动播放重复次数 |
 | `autoPlayDelay` |  | 自动播放延迟 |
 | `options` |  | 选项 |
-| `fps` |  | 帧率 |
+| `frameRate` |  | 帧率 |
 
 ### `<transition><item>`
 

@@ -3,6 +3,7 @@ import type { Document } from '../document.js';
 import type { Controller } from '../properties/controller.js';
 import type { GObject } from '../properties/g-object.js';
 import type { GComponentPropertyOverride } from '../properties/g-component.js';
+import { getDefaultListAutoResizeItem } from '../properties/g-list.js';
 import {
 	ensureArray,
 	parseBool,
@@ -1413,7 +1414,11 @@ export function createDisplayObject(
 					}
 				}
 				const autoResizeItem = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.list.attrs.autoResizeItem);
-				if (autoResizeItem !== undefined) g.setAutoResizeItem?.(parseBool(autoResizeItem));
+				g.setAutoResizeItem?.(
+					autoResizeItem === undefined
+						? getDefaultListAutoResizeItem(g.getLayout?.() ?? 0)
+						: parseBool(autoResizeItem),
+				);
 				const childrenRenderOrder = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.childrenRenderOrder);
 				if (childrenRenderOrder) {
 					const renderOrderMap: Record<string, number> = { ascent: 0, descent: 1, arch: 2 };

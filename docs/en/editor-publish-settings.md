@@ -127,6 +127,8 @@ Notes:
 
 Component root extensions, ComboBox component instances, and List/Tree display nodes use the formal boolean `autoClearItems` property. Its default is `false`, and it is written only when enabled. Ordered `<property target="..." propertyId="..." value="..."/>` children for component instances and static list items are stored in formal UAM properties. Reads, materialization, saves, and reloads preserve their original order and raw string values, including leading/trailing whitespace, whitespace-only values, and empty strings. `target` must be non-empty, `propertyId` must be a non-negative safe integer, and `value` must be present; invalid input is rejected before materialization or write-back.
 
+List/Tree `autoItemSize` defaults by layout: `true` for single column/row and `false` for flow/pagination, and it is written only when it differs from that layout default. Button root extensions store `downEffect` with the `none / dark / scale` string enum. Transitions store non-24 frame rates in `frameRate`.
+
 ## Integer geometry fields in component XML
 
 Geometry values that the FairyGUI desktop editor reads as signed 32-bit integers are truncated toward zero when written to Project XML. Non-finite values and values outside `-2147483648` to `2147483647` after truncation are rejected.

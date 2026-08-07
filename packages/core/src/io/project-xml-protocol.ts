@@ -551,7 +551,7 @@ const TRANSITION_ATTRS = {
 	autoPlayTimes: { canonical: 'autoPlayRepeat', aliases: ['autoPlayTimes'] },
 	autoPlayDelay: { canonical: 'autoPlayDelay' },
 	options: { canonical: 'options' },
-	fps: { canonical: 'fps' },
+	fps: { canonical: 'frameRate' },
 } satisfies XmlAttrMap;
 
 const TRANSITION_ITEM_ATTRS = {

@@ -588,7 +588,7 @@ test('writer: uses canonical XML attr names for component root, loader, text nod
 		t.true(componentXml.includes('colGap="8"'), 'list uses canonical colGap attr');
 		t.true(componentXml.includes('layout="flow_hz"'), 'list uses editor layout attr values');
 		t.true(componentXml.includes('lineItemCount="9999"'), 'list uses canonical lineItemCount attr');
-		t.true(componentXml.includes('autoItemSize="false"'), 'list uses canonical autoItemSize attr');
+		t.false(componentXml.includes('autoItemSize='), 'flow list omits its false autoItemSize default');
 		t.false(componentXml.includes('columnGap='), 'writer no longer emits legacy columnGap attr');
 		t.true(componentXml.includes('selectionController="page"'), 'list writes selectionController attr');
 
