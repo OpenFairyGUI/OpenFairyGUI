@@ -175,6 +175,7 @@ export function materializeUamLoaderProperties(
 		.setShrinkOnly(properties.shrinkOnly)
 		.setAutoSize(properties.autoSize)
 		.setUseResize(properties.useResize)
+		.setShowErrorSign(properties.showErrorSign)
 		.setAlign(properties.align)
 		.setVAlign(properties.vAlign)
 		.setFrame(properties.frame)
@@ -371,6 +372,7 @@ export function materializeUamComponentProperties(
 		.setIdNum(properties.idNum)
 		.setInitName(properties.initName)
 		.setRemark(properties.remark)
+		.setCustomExtensionId(properties.customExtensionId)
 		.setExtensionType(properties.extensionType)
 		.setOpaque(properties.opaque)
 		.setButtonMode(properties.buttonMode)
@@ -808,7 +810,7 @@ function composeControllers(doc: Document, component: ReturnType<Document['creat
 			exported: controller.exported,
 			homePageType: controller.homePageType,
 			homePage: controller.homePage,
-			pages: controller.pages.map((page) => ({ id: page.id, name: page.name })),
+			pages: controller.pages.map((page) => ({ id: page.id, name: page.name, remark: page.remark })),
 			actions: controller.actions.map((action) => ({
 				name: action.name,
 				actionType: action.actionType,

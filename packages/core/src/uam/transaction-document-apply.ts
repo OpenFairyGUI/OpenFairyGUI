@@ -842,7 +842,7 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 				exported: operation.controller.exported,
 				homePageType: operation.controller.homePageType,
 				homePage: operation.controller.homePage,
-				pages: operation.controller.pages.map((page) => ({ id: page.id, name: page.name })),
+				pages: operation.controller.pages.map((page) => ({ id: page.id, name: page.name, remark: page.remark })),
 				actions: operation.controller.actions.map((action) => ({
 					name: action.name,
 					actionType: action.actionType,

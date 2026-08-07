@@ -80,6 +80,7 @@ export type EncoderChildLike = ChildNode & {
 	getPlaying?(): boolean;
 	getFrame?(): number;
 	getUseResize?(): boolean;
+	getShowErrorSign?(): boolean;
 	getAnimationName?(): string;
 	getSkinName?(): string;
 	getLoop?(): boolean;

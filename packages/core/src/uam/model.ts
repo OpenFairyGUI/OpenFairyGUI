@@ -245,6 +245,7 @@ export interface UamComponentProperties {
 	idNum: number;
 	initName: string;
 	remark: string;
+	customExtensionId: string;
 	extensionType: string;
 	opaque: boolean;
 	buttonMode: number;
@@ -548,6 +549,7 @@ export interface UamLoaderProperties {
 	shrinkOnly: boolean;
 	autoSize: boolean;
 	useResize: boolean;
+	showErrorSign: boolean;
 	align: number;
 	vAlign: number;
 	frame: number;
@@ -682,6 +684,7 @@ export type UamDisplayNode =
 export interface UamControllerPage {
 	id: string;
 	name: string;
+	remark: string;
 }
 
 export interface UamControllerAction {

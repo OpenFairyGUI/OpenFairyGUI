@@ -131,6 +131,8 @@
 
 组件根的 `designImage`、`designImageForTest`、`pageController`、`showSound` 和 `hideSound` 作为正式 authoring 属性读写；`designImageAlpha` 缺省为 `50`。设计图必须引用 image 资源，出场/退场音效必须引用 sound 资源，`pageController` 必须指向本组件控制器。Label、ComboBox 和 ProgressBar 组件实例的音效覆盖使用 `sound` 与百分比 `volume`，ComboBox 另以 `titleColor` 和 `direction`（`auto` / `up` / `down`）保存标题颜色与弹出方向。
 
+组件根的自定义扩展 ID 使用编辑器协议拼写 `customExtention`；Controller page 的备注使用 `<remark page="索引" value="..."/>` 子节点；Loader 的错误占位开关使用 `errorSign`。三者均由正式属性模型、UAM 与工程 XML 读写承载，Controller page 备注不进入运行时二进制。
+
 List/Tree 的 `autoItemSize` 缺省值随布局变化：single column/row 为 `true`，flow/pagination 为 `false`；只有与布局缺省值不同时才写出。Button 根扩展使用 `none / dark / scale` 字符串枚举保存 `downEffect`。Transition 使用 `frameRate` 保存非 24 的帧率。
 
 ## 组件 XML 的整数几何字段

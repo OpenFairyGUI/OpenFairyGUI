@@ -10,6 +10,7 @@ import type { TransitionItem } from './properties/transition-item.js';
 export interface ControllerPageComposition {
 	id: string;
 	name: string;
+	remark?: string;
 }
 
 export interface ControllerActionComposition {
@@ -212,7 +213,7 @@ export function composeController(
 
 	for (const pageInput of options.pages) {
 		controller.addPage(
-			doc.createControllerPage(pageInput.name).setId(pageInput.id),
+			doc.createControllerPage(pageInput.name).setId(pageInput.id).setRemark(pageInput.remark ?? ''),
 		);
 	}
 

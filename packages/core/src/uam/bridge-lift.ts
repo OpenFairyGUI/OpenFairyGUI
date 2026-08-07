@@ -566,6 +566,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			shrinkOnly: loader.getShrinkOnly(),
 			autoSize: loader.getAutoSize(),
 			useResize: loader.getUseResize(),
+			showErrorSign: loader.getShowErrorSign(),
 			align: loader.getAlign(),
 			vAlign: loader.getVAlign(),
 			frame: loader.getFrame(),
@@ -760,6 +761,7 @@ function liftControllers(component: ReturnType<Document['createComponent']>): Ua
 		pages: controller.listPages().map((page) => ({
 			id: page.getId(),
 			name: page.getName(),
+			remark: page.getRemark(),
 		})),
 		actions: controller.listActions().map((action) => ({
 			name: action.getName(),
@@ -864,6 +866,7 @@ function liftComponentProperties(
 		idNum: resource.getIdNum(),
 		initName: resource.getInitName(),
 		remark: resource.getRemark(),
+		customExtensionId: resource.getCustomExtensionId(),
 		extensionType: resource.getExtensionType(),
 		opaque: resource.getOpaque(),
 		buttonMode: resource.getButtonMode(),

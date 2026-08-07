@@ -422,7 +422,7 @@ function _writeChildSpecific(buf: WriteBuffer, child: EncoderChildLike, pkg: Pac
 			buf.writeUint8(child.getFill?.() ?? 0);
 			buf.writeBool(child.getShrinkOnly?.() ?? false);
 			buf.writeBool(_boolVal(child.getAutoSize?.(), false));
-			buf.writeBool(false); // showErrorSign
+			buf.writeBool(child.getShowErrorSign?.() ?? false);
 			buf.writeBool(child.getPlaying?.() ?? true);
 			buf.writeInt32(child.getFrame?.() ?? 0);
 			const loaderColor = child.getColor?.() ?? null;

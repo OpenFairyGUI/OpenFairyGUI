@@ -454,7 +454,7 @@ function decodeChildBlock5(child: ComponentDisplayObject, childBuf: ByteBuffer):
 				.setFill(childBuf.getUint8())
 				.setShrinkOnly(childBuf.readBool())
 				.setAutoSize(childBuf.readBool());
-			childBuf.readBool(); // showErrorSign
+			loader.setShowErrorSign(childBuf.readBool());
 			loader
 				.setPlaying(childBuf.readBool())
 				.setFrame(childBuf.getInt32());

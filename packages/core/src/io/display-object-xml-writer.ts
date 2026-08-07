@@ -400,6 +400,7 @@ type WritableChild = GObject & {
 	getShrinkOnly?(): boolean;
 	getAutoSize?(): number | boolean;
 	getUseResize?(): boolean;
+	getShowErrorSign?(): boolean;
 	getAnimationName?(): string;
 	getSkinName?(): string;
 	getLoop?(): boolean;
@@ -936,6 +937,7 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 			if (typedObj.getShrinkOnly?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.shrinkOnly, '1');
 			if (typedObj.getAutoSize?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.autoSize, '1');
 			if (typedObj.getUseResize?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.useResize, '1');
+			if (typedObj.getShowErrorSign?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.errorSign, 'true');
 			const loaderColor = typedObj.getColor?.();
 			if (loaderColor && !isDefaultWhiteColor(loaderColor)) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.color, loaderColor);
 			if (typedObj.getFilter?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.filter, typedObj.getFilter?.());

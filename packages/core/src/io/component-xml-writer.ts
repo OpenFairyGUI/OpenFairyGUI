@@ -151,6 +151,7 @@ type WritableComponent = Component & {
 	getIdNum?(): number;
 	getInitName?(): string;
 	getRemark?(): string;
+	getCustomExtensionId?(): string;
 	getPageController?(): string;
 	getAddedToStageSound?(): string;
 	getRemovedFromStageSound?(): string;
@@ -238,6 +239,8 @@ export async function writeComponent(
 		if (initName) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.initName, initName);
 		const remark = typedComp.getRemark?.();
 		if (remark) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.remark, remark);
+		const customExtensionId = typedComp.getCustomExtensionId?.();
+		if (customExtensionId) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.customExtention, customExtensionId);
 		const pageController = typedComp.getPageController?.();
 		if (pageController) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.pageController, pageController);
 		const showSound = typedComp.getAddedToStageSound?.();
@@ -396,6 +399,16 @@ function serializeController(ctrl: Controller): Record<string, unknown> {
 		if (ctrl.getHomePageType() === 'specific' || ctrl.getHomePageType() === 'variable') {
 			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.homePage, ctrl.getHomePage());
 		}
+		const remarkProtocol = PROJECT_XML_PROTOCOL.controller.children!.remark!;
+		const remarks = pages.flatMap((page, pageIndex) => {
+			if (!page.getRemark()) return [];
+			const remarkAttrs: Record<string, unknown> = {};
+			writeXmlAttr(remarkAttrs, remarkProtocol.attrs.page, String(pageIndex));
+			writeXmlAttr(remarkAttrs, remarkProtocol.attrs.value, page.getRemark());
+			return [remarkAttrs];
+		});
+		const remarkChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.controller, 'remark');
+		if (remarks.length > 0 && remarkChildName) attrs[remarkChildName] = remarks;
 		const actions = ctrl.listActions().map((action) => serializeControllerAction(action as WritableControllerAction));
 		const actionChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.controller, 'action');
 		if (actions.length > 0 && actionChildName) attrs[actionChildName] = actions;

@@ -23,6 +23,7 @@ export interface IGLoader extends IGObject {
 	shrinkOnly: boolean;
 	autoSize: boolean;
 	useResize: boolean;
+	showErrorSign: boolean;
 	align: number;
 	vAlign: number;
 	frame: number;
@@ -69,6 +70,7 @@ export class GLoader extends GObject<IGLoader, PropertyType.G_LOADER> {
 			shrinkOnly: false,
 			autoSize: false,
 			useResize: false,
+			showErrorSign: false,
 			align: 0,
 			vAlign: 0,
 			frame: 0,
@@ -149,6 +151,9 @@ export class GLoader extends GObject<IGLoader, PropertyType.G_LOADER> {
 
 	public getUseResize(): boolean { return this.get('useResize'); }
 	public setUseResize(v: boolean): this { return this.set('useResize', v); }
+
+	public getShowErrorSign(): boolean { return this.get('showErrorSign'); }
+	public setShowErrorSign(v: boolean): this { return this.set('showErrorSign', v); }
 
 	public getAlign(): number { return this.get('align'); }
 	public setAlign(v: number): this { return this.set('align', v); }

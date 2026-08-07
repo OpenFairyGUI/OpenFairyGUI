@@ -1390,7 +1390,7 @@ test('binary writer: publish-clear flags remove runtime-only initial content', a
 	text.setId('text').setText('secret').setAutoClearText(true);
 	component.addChild(text);
 	const loader = doc.createGLoader('loader');
-	loader.setId('loader').setUrl('ui://clearpkg1/image01').setClearOnPublish(true);
+	loader.setId('loader').setUrl('ui://clearpkg1/image01').setClearOnPublish(true).setShowErrorSign(true);
 	component.addChild(loader);
 	const list = doc.createGList('list');
 	list.setId('list').setAutoClearItems(true).setListItems([{
@@ -1417,6 +1417,7 @@ test('binary writer: publish-clear flags remove runtime-only initial content', a
 		const byId = new Map(main?.listChildren().map((child) => [child.getId(), child as any]));
 		t.is(byId.get('text')?.getText?.(), '');
 		t.is(byId.get('loader')?.getUrl?.(), '');
+		t.true(byId.get('loader')?.getShowErrorSign?.());
 		t.deepEqual(byId.get('list')?.getListItems?.(), []);
 		t.deepEqual(byId.get('combo')?.getInstanceComboItems?.(), []);
 	} finally {

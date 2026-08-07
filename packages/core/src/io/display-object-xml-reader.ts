@@ -1126,6 +1126,8 @@ export function createDisplayObject(
 				if (loaderAutoSize !== undefined) g.setAutoSize?.(parseBool(loaderAutoSize));
 				const useResize = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.useResize);
 				if (useResize !== undefined) g.setUseResize?.(parseBool(useResize));
+				const errorSign = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.errorSign);
+				if (errorSign !== undefined) g.setShowErrorSign(parseBool(errorSign));
 				const clearOnPublish = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.clearOnPublish);
 				if (clearOnPublish !== undefined) g.setClearOnPublish?.(parseBool(clearOnPublish));
 				const loaderColor = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.color);

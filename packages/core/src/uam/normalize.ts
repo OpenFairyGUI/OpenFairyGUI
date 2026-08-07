@@ -226,6 +226,7 @@ export function createDefaultUamComponentProperties(): UamComponentProperties {
 		idNum: 0,
 		initName: '',
 		remark: '',
+		customExtensionId: '',
 		extensionType: '',
 		opaque: true,
 		buttonMode: 0,
@@ -285,6 +286,7 @@ function normalizeComponentProperties(properties: UamComponentProperties): UamCo
 		idNum: properties.idNum ?? 0,
 		initName: properties.initName ?? '',
 		remark: properties.remark ?? '',
+		customExtensionId: properties.customExtensionId ?? '',
 		extensionType: properties.extensionType ?? '',
 		opaque: properties.opaque ?? true,
 		buttonMode: properties.buttonMode ?? 0,
@@ -801,6 +803,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				shrinkOnly: loader.shrinkOnly ?? false,
 				autoSize: loader.autoSize ?? false,
 				useResize: loader.useResize ?? false,
+				showErrorSign: loader.showErrorSign ?? false,
 				align: loader.align ?? 0,
 				vAlign: loader.vAlign ?? 0,
 				frame: loader.frame ?? 0,
@@ -955,6 +958,7 @@ function normalizeControllerPage(page: UamControllerPage): UamControllerPage {
 	return {
 		id: page.id,
 		name: page.name ?? '',
+		remark: page.remark ?? '',
 	};
 }
 

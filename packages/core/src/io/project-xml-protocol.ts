@@ -254,6 +254,7 @@ const ROOT_COMPONENT_PANEL_ATTRS = {
 	bgColorEnabled: { canonical: 'bgColorEnabled' },
 	idnum: { canonical: 'idnum' },
 	initName: { canonical: 'initName' },
+	customExtention: { canonical: 'customExtention' },
 	pageController: { canonical: 'pageController' },
 	showSound: { canonical: 'showSound' },
 	hideSound: { canonical: 'hideSound' },
@@ -315,6 +316,7 @@ const LOADER_PANEL_ATTRS = {
 	shrinkOnly: { canonical: 'shrinkOnly' },
 	autoSize: { canonical: 'autoSize' },
 	useResize: { canonical: 'useResize' },
+	errorSign: { canonical: 'errorSign' },
 	color: { canonical: 'color' },
 	playing: { canonical: 'playing' },
 	frame: { canonical: 'frame' },
@@ -545,6 +547,11 @@ const CONTROLLER_ACTION_ATTRS = {
 	targetPage: { canonical: 'targetPage' },
 } satisfies XmlAttrMap;
 
+const CONTROLLER_REMARK_ATTRS = {
+	page: { canonical: 'page' },
+	value: { canonical: 'value' },
+} satisfies XmlAttrMap;
+
 const TRANSITION_ATTRS = {
 	name: { canonical: 'name' },
 	autoPlay: { canonical: 'autoPlay' },
@@ -620,6 +627,7 @@ const CUSTOM_PROPERTY_NODE = defineNode(CUSTOM_PROPERTY_ATTRS);
 const PROPERTY_OVERRIDE_NODE = defineNode(PROPERTY_OVERRIDE_ATTRS);
 const GEAR_NODE = defineNode(GEAR_ATTRS);
 const CONTROLLER_ACTION_NODE = defineNode(CONTROLLER_ACTION_ATTRS);
+const CONTROLLER_REMARK_NODE = defineNode(CONTROLLER_REMARK_ATTRS);
 const TRANSITION_ITEM_NODE = defineNode(TRANSITION_ITEM_ATTRS);
 const LIST_ITEM_NODE = defineNode(LIST_ITEM_ATTRS, {
 	property: PROPERTY_OVERRIDE_NODE,
@@ -654,6 +662,7 @@ const WITH_GROUP_GEAR_CHILDREN = {
 
 const WITH_CONTROLLER_ACTION_CHILDREN = {
 	action: CONTROLLER_ACTION_NODE,
+	remark: CONTROLLER_REMARK_NODE,
 } satisfies XmlChildrenMap;
 
 const WITH_TRANSITION_ITEM_CHILDREN = {
