@@ -7,6 +7,7 @@ import type { MiscResource } from './misc-resource.js';
 import type { SoundResource } from './sound-resource.js';
 import type { FontResource } from './font-resource.js';
 import type { MovieClipResource } from './movie-clip-resource.js';
+import type { SwfResource } from './swf-resource.js';
 import type { SpineResource } from './spine-resource.js';
 import type { DragonBonesResource } from './dragon-bones-resource.js';
 import type { Atlas } from './atlas.js';
@@ -19,6 +20,7 @@ type PackageResource =
 	| SoundResource
 	| FontResource
 	| MovieClipResource
+	| SwfResource
 	| SpineResource
 	| DragonBonesResource;
 

@@ -32,6 +32,7 @@ export enum PropertyType {
 	SOUND_RESOURCE = 'SoundResource',
 	FONT_RESOURCE = 'FontResource',
 	MOVIE_CLIP_RESOURCE = 'MovieClipResource',
+	SWF_RESOURCE = 'SwfResource',
 	SPINE_RESOURCE = 'SpineResource',
 	DRAGON_BONES_RESOURCE = 'DragonBonesResource',
 	COMPONENT = 'Component',

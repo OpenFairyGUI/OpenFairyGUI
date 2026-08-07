@@ -765,6 +765,34 @@ test('publish: misc resources use runtime-prefixed item-id file names', async (t
 	}
 });
 
+test('publish: SWF resources keep their binary type and runtime-prefixed file', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(1);
+	const pkg = doc.createPackage('DemoSwf').setId('demoswf1').setPublishName('DemoSwf');
+	pkg.addResource(doc.createSwfResource('movie')
+		.setId('swf001')
+		.setPath('/movies/')
+		.setFile('movie.swf')
+		.setExported(true));
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-swf-'));
+	const assetsDir = path.join(tmpDir, 'assets');
+	const outputDir = path.join(tmpDir, 'release');
+	try {
+		await fs.mkdir(path.join(assetsDir, 'DemoSwf', 'movies'), { recursive: true });
+		await fs.writeFile(path.join(assetsDir, 'DemoSwf', 'movies', 'movie.swf'), new Uint8Array([0x46, 0x57, 0x53]));
+		await doc.transform(publish({ output: outputDir, fs: createFs(), basePath: assetsDir }));
+
+		t.deepEqual((await fs.readdir(outputDir)).sort(), ['DemoSwf.fui', 'DemoSwf_swf001.swf']);
+		const parsed = parsePackageBinary(await fs.readFile(path.join(outputDir, 'DemoSwf.fui')));
+		const item = parsed.items.find((candidate) => candidate.id === 'swf001');
+		t.is(item?.type, 6);
+		t.is(item?.file, 'swf001.swf');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('publish: binary output excludes unpublished image resources and preserves component extension type', async (t) => {
 	const doc = new Document();
 	doc.getRoot().setProjectType(0);

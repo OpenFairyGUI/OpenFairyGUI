@@ -20,6 +20,7 @@ const BinItemType = {
 	Component: 3,
 	Atlas: 4,
 	Font: 5,
+	Swf: 6,
 	Misc: 7,
 	Unknown: 8,
 	Spine: 9,
@@ -38,6 +39,7 @@ const EDITOR_TYPE_STRING: Record<string, string> = {
 	SoundResource: 'sound',
 	Component: 'component',
 	FontResource: 'font',
+	SwfResource: 'swf',
 	SpineResource: 'spine',
 	DragonBonesResource: 'dragonbones',
 };
@@ -429,6 +431,17 @@ export class BinaryWriter {
 				}
 				case 'MiscResource': {
 					data.writeUint8(BinItemType.Misc);
+					data.writeS(getPublishedItemId(res));
+					data.writeS(res.getName());
+					data.writeS(res.getPath());
+					data.writeS(getPublishedFileName(res));
+					data.writeBool(res.getExported());
+					data.writeInt32(0);
+					data.writeInt32(0);
+					break;
+				}
+				case 'SwfResource': {
+					data.writeUint8(BinItemType.Swf);
 					data.writeS(getPublishedItemId(res));
 					data.writeS(res.getName());
 					data.writeS(res.getPath());

@@ -396,3 +396,39 @@ test('round-trip: unreadable MovieClip JTA preserves source bytes and XML proper
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 });
+
+test('round-trip: SWF resources survive UAM and hydrated project writes', async (t) => {
+	const io = new NodeIO();
+	const doc = new Document();
+	doc.getRoot().setProjectId('proj-swf').setProjectType(1).setVersion('3.0');
+	const pkg = doc.createPackage('DemoSwf').setId('pkgSwf');
+	const bytes = new Uint8Array([0x46, 0x57, 0x53, 0x09]);
+	pkg.addResource(doc.createSwfResource('movie')
+		.setId('swf001')
+		.setPath('/movies/')
+		.setFile('movie.swf')
+		.setExported(true)
+		.setSourceData(doc.createBuffer().setURI('/movies/movie.swf').setData(bytes)));
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-swf-'));
+	const sourceFairy = path.join(tmpDir, 'source.fairy');
+	const copiedFairy = path.join(tmpDir, 'copy', 'copy.fairy');
+	try {
+		await io.writeProject(doc, sourceFairy);
+		const hydrated = await io.readProject(sourceFairy, { hydrateResourceBytes: true });
+		const uam = liftDocumentToUamProject(hydrated);
+		const lifted = uam.packages[0]?.resources[0];
+		t.is(lifted?.kind, 'swf');
+		if (lifted?.kind === 'swf') t.deepEqual(lifted.sourceBytes, bytes);
+
+		await fs.mkdir(path.dirname(copiedFairy), { recursive: true });
+		await io.writeProject(materializeUamProject(uam), copiedFairy);
+		const copied = await io.readProject(copiedFairy, { hydrateResourceBytes: true });
+		const swf = copied.getRoot().getPackage('DemoSwf')?.getResourceById('swf001') as ReturnType<Document['createSwfResource']>;
+		t.is(swf.propertyType, 'SwfResource');
+		t.is(swf.getFile(), 'movie.swf');
+		t.deepEqual(swf.getSourceData()?.getData(), bytes);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});

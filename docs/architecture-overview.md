@@ -266,6 +266,7 @@ ProjectReader 读取 `package.xml` 的包内分支顺序，并在所有主/分�
 |---|---|
 | `SoundResource` | 输出发布后的声音文件名 |
 | `MiscResource` | 二进制 `file` 使用资源发布 ID 与源扩展名；Unity 项目的 `.atlas` 追加 `.txt`。实际附属文件再加包发布名前缀，匹配运行时加载路径 |
+| `SwfResource` | 以二进制 item 类型码 `6` 保留，并按资源发布 ID 与源扩展名输出带包发布名前缀的附属文件 |
 | `ImageResource` / `MovieClipResource` 高分辨率变体 | 当 `includeHighResolution` 启用对应倍率时，按同路径、同分支、同类型的 `@2x` / `@3x` / `@4x` 资源加入发布闭包，并在基础 item 的 high-resolution 列表中引用；发布流程不主动缩放原图 |
 | `SpineResource` | 输出 skeleton 主文件；Unity 项目中源文件扩展名为 `.skel` 时，发布名改为 `.skel.bytes`，其他项目保持原文件名 |
 | `DragonBonesResource` | 输出 skeleton 主文件，当前保持原文件名 |

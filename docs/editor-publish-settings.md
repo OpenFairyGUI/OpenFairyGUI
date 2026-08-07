@@ -150,7 +150,7 @@ FairyGUI 工程 XML 中由桌面编辑器按有符号 32 位整数读取的几�
 
 ## 工程资源树元数据
 
-`package.xml` 与 `package_branch.xml` 的 component/asset 资源节点使用 `exported="true"` 与 `favorite="true"` 记录导出和收藏状态；未导出、未收藏时省略对应属性。UAM 通过 `resource.exported`、`resource.favorite` 承载这些字段，公开事务分别使用幂等的 `setResourceExported`、`setResourceFavorite` 设置目标布尔值。
+`package.xml` 与 `package_branch.xml` 的 component/asset 资源节点使用 `exported="true"` 与 `favorite="true"` 记录导出和收藏状态；未导出、未收藏时省略对应属性。SWF 使用正式的 `SwfResource` 模型读写 `<swf>` 节点，并通过 UAM `swf` 资源保留源文件、导出状态与收藏状态。UAM 通过 `resource.exported`、`resource.favorite` 承载这些字段，公开事务分别使用幂等的 `setResourceExported`、`setResourceFavorite` 设置目标布尔值。
 
 每个 package 通过正式的 `branchNames` 顺序记录自身出现的资源分支，并以 `package.xml` 根节点的同名 JSON 数组属性持久化。工程读取时使用该顺序建立映射；二进制发布时同一顺序定义该 package 的 `branchItemIds` 槽位，不能按工程根分支顺序重新推导。未显式设置包内表的 Document 调用会从实际分支资源按工程分支顺序推导后再发布。
 

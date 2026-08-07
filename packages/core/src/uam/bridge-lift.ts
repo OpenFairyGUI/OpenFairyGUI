@@ -254,6 +254,13 @@ function liftAssetResource(resource: LiftableAssetResource): UamAssetResource {
 			file: misc.getFile(),
 		};
 	}
+	if (resource.propertyType === PropertyType.SWF_RESOURCE) {
+		const swf = resource as ReturnType<Document['createSwfResource']>;
+		return {
+			...baseAssetResource('swf', swf),
+			file: swf.getFile(),
+		};
+	}
 	if (resource.propertyType === PropertyType.FONT_RESOURCE) {
 		const font = resource as ReturnType<Document['createFontResource']>;
 		return {

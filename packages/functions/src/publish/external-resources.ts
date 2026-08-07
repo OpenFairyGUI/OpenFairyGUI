@@ -10,6 +10,7 @@ import {
 	isMiscResource,
 	isSkeletonResource,
 	isSoundResource,
+	isSwfResource,
 	resolveGenericResourcePath,
 	resolveImageFileName,
 	resolveImagePath,
@@ -71,7 +72,7 @@ export async function exportPackageExternalResources(
 	if (!basePath || !readFileRaw) {
 		const hasPublishedExternal = pkg.listResources().some((resource) => {
 			return (
-				((isMiscResource(resource) || isSkeletonResource(resource)) &&
+				((isMiscResource(resource) || isSwfResource(resource) || isSkeletonResource(resource)) &&
 					exportedResourceIds.has(resource.getId())) ||
 				skeletonDependencyImageIds.has(resource.getId())
 			);
@@ -86,23 +87,25 @@ export async function exportPackageExternalResources(
 
 	for (const resource of pkg.listResources()) {
 		const resourceId = resource.getId();
-		const isSkeletonExternal =
-			exportedResourceIds.has(resourceId) && (isMiscResource(resource) || isSkeletonResource(resource));
+		const isExternal =
+			exportedResourceIds.has(resourceId) &&
+			(isMiscResource(resource) || isSwfResource(resource) || isSkeletonResource(resource));
 		const isSkeletonImageDependency = skeletonDependencyImageIds.has(resourceId) && isImageResource(resource);
-		if (!isSkeletonExternal && !isSkeletonImageDependency) continue;
+		if (!isExternal && !isSkeletonImageDependency) continue;
 
 		let sourcePath: string;
 		let targetName: string;
 		if (isSkeletonImageDependency) {
 			sourcePath = resolveImagePath(resource, pkg, basePath);
 			targetName = resolveImageFileName(resource);
-		} else if (isMiscResource(resource) || isSkeletonResource(resource)) {
+		} else if (isMiscResource(resource) || isSwfResource(resource) || isSkeletonResource(resource)) {
 			sourcePath = resolveGenericResourcePath(resource, pkg, basePath);
 			const publishedFile =
 				((resource.getExtras() as PublishFileExtras | undefined) ?? {})._publishedFile ?? resource.getFile();
-			targetName = isMiscResource(resource)
-				? `${pkg.getPublishName() || pkg.getName()}_${publishedFile}`
-				: publishedFile;
+			targetName =
+				isMiscResource(resource) || isSwfResource(resource)
+					? `${pkg.getPublishName() || pkg.getName()}_${publishedFile}`
+					: publishedFile;
 		} else {
 			continue;
 		}

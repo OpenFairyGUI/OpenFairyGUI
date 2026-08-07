@@ -1078,7 +1078,7 @@ test('binary writer: font glyphs round-trip as formal properties', async (t) => 
 	}
 });
 
-test('binary writer: misc/spine/dragonbones resources round-trip as formal package resources', async (t) => {
+test('binary writer: misc/swf/spine/dragonbones resources round-trip as formal package resources', async (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('LoaderPkg');
 	pkg.setId('loader001');
@@ -1086,6 +1086,10 @@ test('binary writer: misc/spine/dragonbones resources round-trip as formal packa
 	const misc = doc.createMiscResource('alien-pma');
 	misc.setId('misc001').setPath('/images/').setFile('alien-pma.atlas').setExported(true);
 	pkg.addResource(misc);
+
+	const swf = doc.createSwfResource('movie');
+	swf.setId('swf001').setPath('/movies/').setFile('movie.swf').setExported(true);
+	pkg.addResource(swf);
 
 	const spine = doc.createSpineResource('alien-pro');
 	spine
@@ -1124,13 +1128,14 @@ test('binary writer: misc/spine/dragonbones resources round-trip as formal packa
 		const items = readPackageItems(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
 		t.deepEqual(
 			items
-				.filter((item) => item.id === 'misc001' || item.id === 'spine001' || item.id === 'dragon001')
+				.filter((item) => item.id === 'misc001' || item.id === 'swf001' || item.id === 'spine001' || item.id === 'dragon001')
 				.sort((a, b) => (a.id ?? '').localeCompare(b.id ?? ''))
 				.map((item) => ({ type: item.type, id: item.id, file: item.file })),
 			[
 				{ type: 10, id: 'dragon001', file: 'dragon_ske.json' },
 				{ type: 7, id: 'misc001', file: 'alien-pma.atlas' },
 				{ type: 9, id: 'spine001', file: 'alien-pro.skel' },
+				{ type: 6, id: 'swf001', file: 'movie.swf' },
 			],
 		);
 
@@ -1142,6 +1147,10 @@ test('binary writer: misc/spine/dragonbones resources round-trip as formal packa
 		t.truthy(misc2, 'misc resource exists');
 		t.is(misc2.propertyType, PropertyType.MISC_RESOURCE);
 		t.is(misc2.getFile?.(), 'alien-pma.atlas');
+
+		const swf2 = pkg2!.listResources().find((resource) => resource.getId?.() === 'swf001') as any;
+		t.is(swf2.propertyType, PropertyType.SWF_RESOURCE);
+		t.is(swf2.getFile?.(), 'movie.swf');
 
 		const spine2 = pkg2!.listResources().find((resource) => resource.getId?.() === 'spine001') as any;
 		t.truthy(spine2, 'spine resource exists');

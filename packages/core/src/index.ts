@@ -227,6 +227,7 @@ export {
 	SoundResource,
 	FontResource,
 	MovieClipResource,
+	SwfResource,
 	SpineResource,
 	DragonBonesResource,
 	Component,

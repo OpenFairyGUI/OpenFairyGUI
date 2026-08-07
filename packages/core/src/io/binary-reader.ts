@@ -415,6 +415,15 @@ export class BinaryReader {
 					break;
 				}
 
+				case BinItemType.Swf: {
+					const res = doc.createSwfResource(itemName);
+					res.setId(itemId).setPath(itemPath).setFile(itemFile).setExported(exported);
+					res.setExtras({ ...res.getExtras(), _publishedFile: itemFile });
+					pkg.addResource(res);
+					createdResource = res;
+					break;
+				}
+
 				case BinItemType.Component: {
 					const res = doc.createComponent(itemName);
 					res.setId(itemId).setPath(itemPath).setExported(exported).setSize(width, height);
@@ -486,7 +495,6 @@ export class BinaryReader {
 				}
 
 				default:
-					// Swf — skip item data
 					break;
 			}
 

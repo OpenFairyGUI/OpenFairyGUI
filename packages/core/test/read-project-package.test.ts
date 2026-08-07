@@ -74,6 +74,14 @@ test('Basics package has expected resources and components', async (t) => {
 	t.true(basics!.listComponents().length > 30, 'Basics has many components');
 });
 
+test('Layabox Basics preserves SWF package resources', async (t) => {
+	const doc = await getLayaboxDoc();
+	const swf = doc.getRoot().getPackage('Basics')?.getResourceById('wa8u2w');
+	t.truthy(swf, 'qtm01d.swf resource exists');
+	t.is(swf?.propertyType, PropertyType.SWF_RESOURCE);
+	t.is((swf as { getFile(): string }).getFile(), 'qtm01d.swf');
+});
+
 test('Button component has controller, children, and gears', async (t) => {
 	const doc = await getDoc();
 	const root = doc.getRoot();

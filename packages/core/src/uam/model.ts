@@ -100,6 +100,7 @@ export type UamAssetResourceKind =
 	| 'image'
 	| 'sound'
 	| 'misc'
+	| 'swf'
 	| 'font'
 	| 'movieClip'
 	| 'spine'
@@ -841,7 +842,7 @@ export interface UamValidationIssue {
 }
 
 export const UAM_SUPPORTED_MATERIALIZATION_SCOPE = {
-	resourceKinds: ['image', 'sound', 'misc', 'font', 'movieClip', 'spine', 'dragonBones', 'component'] as const,
+	resourceKinds: ['image', 'sound', 'misc', 'swf', 'font', 'movieClip', 'spine', 'dragonBones', 'component'] as const,
 	nodeKinds: [
 		'image',
 		'text',
@@ -866,7 +867,7 @@ export const UAM_SUPPORTED_MATERIALIZATION_SCOPE = {
 } as const;
 
 export const UAM_SUPPORTED_TRANSACTION_SCOPE = {
-	resourceKinds: ['image', 'sound', 'misc', 'font', 'movieClip', 'spine', 'dragonBones', 'component'] as const,
+	resourceKinds: ['image', 'sound', 'misc', 'swf', 'font', 'movieClip', 'spine', 'dragonBones', 'component'] as const,
 	nodeKinds: [
 		'image',
 		'text',

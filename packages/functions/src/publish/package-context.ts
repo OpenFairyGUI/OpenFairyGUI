@@ -9,6 +9,7 @@ import {
 	ProjectType,
 	type SoundResource,
 	type SpineResource,
+	type SwfResource,
 } from '@openfairygui/core';
 import type { AtlasRasterBackend } from './contracts.js';
 import { collectPackageResourceReferences } from './resource-references.js';
@@ -67,6 +68,12 @@ export function isFontResource(resource: ReturnType<Package['listResources']>[nu
 
 export function isSoundResource(resource: ReturnType<Package['listResources']>[number]): resource is SoundResource {
 	return resource.propertyType === 'SoundResource';
+}
+
+export function isSwfResource(
+	resource: ReturnType<Package['listResources']>[number],
+): resource is SwfResource {
+	return resource.propertyType === 'SwfResource';
 }
 
 function isSpineResource(resource: ReturnType<Package['listResources']>[number]): resource is SpineResource {
@@ -137,6 +144,10 @@ function resolvePublishedMiscFileName(resource: MiscResource, projectType: numbe
 		return `${fileName}.txt`;
 	}
 	return fileName;
+}
+
+function resolvePublishedSwfFileName(resource: SwfResource): string {
+	return `${getPublishedId(resource)}${extname(resource.getFile()) || '.swf'}`;
 }
 
 function resolvePublishedSkeletonFileName(resource: SpineResource | DragonBonesResource, projectType: number): string {
@@ -583,6 +594,10 @@ export async function annotatePackagePublishArtifacts(
 	for (const resource of pkg.listResources()) {
 		if (isMiscResource(resource)) {
 			setPublishedFileExtra(resource, resolvePublishedMiscFileName(resource, options.projectType));
+			continue;
+		}
+		if (isSwfResource(resource)) {
+			setPublishedFileExtra(resource, resolvePublishedSwfFileName(resource));
 			continue;
 		}
 		if (isSkeletonResource(resource)) {

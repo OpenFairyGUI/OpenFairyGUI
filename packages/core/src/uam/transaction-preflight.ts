@@ -3264,7 +3264,7 @@ function collectProjectedResourceReferenceIssues(project: UamProject): Projected
 	};
 	const componentKinds = ['component'] as const;
 	const visualKinds = ['image', 'movieClip', 'component', 'spine', 'dragonBones'] as const;
-	const binaryKinds = ['image', 'sound', 'misc', 'font', 'movieClip', 'spine', 'dragonBones'] as const;
+	const binaryKinds = ['image', 'sound', 'misc', 'swf', 'font', 'movieClip', 'spine', 'dragonBones'] as const;
 	const resourceKinds = UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds;
 
 	for (const pkg of project.packages) {

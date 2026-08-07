@@ -606,6 +606,13 @@ export function materializeAssetResource(doc: Document, resource: UamAssetResour
 			resource,
 		);
 	}
+	if (resource.kind === 'swf') {
+		return attachAssetSourceData(
+			doc,
+			materializeAssetBase(doc.createSwfResource(resource.name), resource).setFile(resource.file ?? ''),
+			resource,
+		);
+	}
 	if (resource.kind === 'font') {
 		const font = materializeAssetBase(doc.createFontResource(resource.name), resource);
 		if (resource.fileName) font.setFileName(resource.fileName);
