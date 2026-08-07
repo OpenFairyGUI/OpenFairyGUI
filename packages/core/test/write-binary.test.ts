@@ -1318,6 +1318,67 @@ test('binary writer: image high-resolution item ids round-trip as formal propert
 	}
 });
 
+test('binary writer: image tile-grid and component property overrides round-trip', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('ProtocolPkg');
+	pkg.setId('protocol01');
+
+	const image = doc.createImageResource('panel.png');
+	image
+		.setId('panel01')
+		.setWidth(40)
+		.setHeight(40)
+		.setScaleOption(1)
+		.setScale9Grid([4, 4, 32, 32])
+		.setTileGridIndice(5);
+	pkg.addResource(image);
+
+	const component = doc.createComponent('Host');
+	component.setId('host01').setSize(100, 100);
+	const instance = doc.createGComponent('instance');
+	instance.setId('instance').setPropertyOverrides([
+		{ target: 'icon', propertyId: 1, value: 'ui://protocol01/panel01' },
+	]);
+	component.addChild(instance);
+	const list = doc.createGList('list');
+	list.setId('list').setListItems([{
+		title: 'Item',
+		icon: null,
+		url: null,
+		name: null,
+		selectedTitle: null,
+		selectedIcon: null,
+		level: 0,
+		isFolder: null,
+		propertyOverrides: [{ target: 'label', propertyId: 0, value: 'Overridden' }],
+	}]);
+	component.addChild(list);
+	pkg.addResource(component);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-bw-'));
+	const outPath = path.join(tmpDir, 'protocol.bytes');
+	try {
+		await io.writeBinary(doc, outPath);
+		const roundTripped = await io.readBinary(outPath);
+		const decodedPackage = roundTripped.getRoot().getPackage('ProtocolPkg')!;
+		const decodedImage = decodedPackage.listResources().find((resource) => resource.getId() === 'panel01') as any;
+		const decodedComponent = decodedPackage.listResources().find((resource) => resource.getId() === 'host01') as any;
+		const decodedInstance = decodedComponent.listChildren().find((child: any) => child.getId() === 'instance');
+		const decodedList = decodedComponent.listChildren().find((child: any) => child.getId() === 'list');
+
+		t.is(decodedImage.getTileGridIndice(), 5);
+		t.deepEqual(decodedInstance.getPropertyOverrides(), [
+			{ target: 'icon', propertyId: 1, value: 'ui://protocol01/panel01' },
+		]);
+		t.deepEqual(decodedList.getListItems()[0]?.propertyOverrides, [
+			{ target: 'label', propertyId: 0, value: 'Overridden' },
+		]);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('binary writer: sprite originalSize is only emitted for rotated, trimmed, or zero-sized package sprites', async (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('SpritePkg');
@@ -1334,6 +1395,10 @@ test('binary writer: sprite originalSize is only emitted for rotated, trimmed, o
 	const zero = doc.createImageResource('zero.png');
 	zero.setId('zero01').setWidth(66).setHeight(44);
 	pkg.addResource(zero);
+
+	const edgeTrimmed = doc.createImageResource('edge-trimmed.png');
+	edgeTrimmed.setId('edge01').setWidth(20).setHeight(20);
+	pkg.addResource(edgeTrimmed);
 
 	const atlas = doc.createAtlas('atlas0');
 	atlas.setFile('atlas0.png').setIndex(0);
@@ -1361,6 +1426,13 @@ test('binary writer: sprite originalSize is only emitted for rotated, trimmed, o
 	zeroSprite.setOriginalWidth(66).setOriginalHeight(44);
 	atlas.addSprite(zeroSprite);
 
+	const edgeTrimmedSprite = doc.createSprite('edge01');
+	edgeTrimmedSprite.setItemId('edge01');
+	edgeTrimmedSprite.setAtlas(atlas);
+	edgeTrimmedSprite.setRectX(52).setRectY(44).setRectWidth(10).setRectHeight(10);
+	edgeTrimmedSprite.setOriginalWidth(20).setOriginalHeight(20);
+	atlas.addSprite(edgeTrimmedSprite);
+
 	const frameSprite = doc.createSprite('plain01_0');
 	frameSprite.setItemId('plain01_0');
 	frameSprite.setAtlas(atlas);
@@ -1382,6 +1454,7 @@ test('binary writer: sprite originalSize is only emitted for rotated, trimmed, o
 		t.is(byId.get('plain01')?.extra, null, 'plain untrimmed sprite omits originalSize payload');
 		t.deepEqual(byId.get('rot01')?.extra, { ox: 0, oy: 0, ow: 40, oh: 20 }, 'rotated sprite keeps originalSize payload');
 		t.deepEqual(byId.get('zero01')?.extra, { ox: 0, oy: 0, ow: 66, oh: 44 }, 'zero-sized package sprite keeps originalSize payload');
+		t.deepEqual(byId.get('edge01')?.extra, { ox: 0, oy: 0, ow: 20, oh: 20 }, 'right/bottom-only trim keeps originalSize payload');
 		t.is(byId.get('plain01_0')?.extra, null, 'generated rotated frame sprite omits originalSize payload without trim offsets');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });

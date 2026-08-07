@@ -165,6 +165,7 @@ interface AtlasReferenceItem {
 	icon?: string | null;
 	selectedIcon?: string | null;
 	url?: string | null;
+	propertyOverrides?: Array<{ value: string }>;
 }
 
 interface GearWithAtlasRefs {
@@ -199,6 +200,7 @@ interface ChildWithReferenceUrls extends HasOptionalSrc, HasOptionalUrl {
 	getFooterRes?(): string;
 	getInstanceComboItems?(): Array<{ icon: string | null }>;
 	getListItems?(): AtlasReferenceItem[];
+	getPropertyOverrides?(): Array<{ value: string }>;
 	listGears?(): GearWithAtlasRefs[];
 }
 
@@ -327,6 +329,12 @@ async function resolveEditorCompatibleResourceOrder(
 				await addResourceByLocalUiUrl(item.icon ?? undefined);
 				await addResourceByLocalUiUrl(item.selectedIcon ?? undefined);
 				await addResourceByLocalUiUrl(item.url ?? undefined);
+				for (const property of item.propertyOverrides ?? []) {
+					await addResourceByLocalUiUrl(property.value);
+				}
+			}
+			for (const property of refChild.getPropertyOverrides?.() ?? []) {
+				await addResourceByLocalUiUrl(property.value);
 			}
 			for (const gear of refChild.listGears?.() ?? []) {
 				await addGearIconResources(gear);

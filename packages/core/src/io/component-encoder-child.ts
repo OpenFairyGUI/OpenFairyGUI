@@ -228,7 +228,7 @@ export function _writeDisplayList(buf: WriteBuffer, comp: Component, _doc: Docum
 		const isTextInput = childType === 'GTextInput';
 		if (isCompOrList) {
 			cb4 = buf.pos - childIndexPos;
-			_writeChildBlock4Component(buf, child, comp, pkg);
+			_writeChildBlock4Component(buf, child, comp, pkg, version);
 		} else if (isTextInput) {
 			cb4 = buf.pos - childIndexPos;
 			_writeChildBlock4TextInput(buf, child);
@@ -853,7 +853,7 @@ function _writeListItems(buf: WriteBuffer, child: EncoderChildLike, pkg: Package
 		buf.writeInt16(controllerCount);
 		buf.pos = controllerEnd;
 		if (version >= 2) {
-			buf.writeInt16(0); // no property overrides
+			_writePropertyOverrides(buf, item.propertyOverrides ?? []);
 		}
 
 		const itemEnd = buf.pos;
@@ -871,7 +871,13 @@ function _writeTreeSettings(buf: WriteBuffer, child: EncoderChildLike): void {
 
 // ─── Block 4: Component/List child controller overrides ──────────────────
 
-function _writeChildBlock4Component(buf: WriteBuffer, child: EncoderChildLike, comp: Component, _pkg: Package): void {
+function _writeChildBlock4Component(
+	buf: WriteBuffer,
+	child: EncoderChildLike,
+	comp: Component,
+	_pkg: Package,
+	version: number,
+): void {
 	// 1. pageController index
 	const pageCtrlName = child.getPageController?.() ?? null;
 	if (pageCtrlName) {
@@ -906,7 +912,21 @@ function _writeChildBlock4Component(buf: WriteBuffer, child: EncoderChildLike, c
 	}
 
 	// 3. Property overrides (§_-55§)
-	buf.writeInt16(0); // no property overrides in current project data
+	if (version >= 2) {
+		_writePropertyOverrides(buf, child.getPropertyOverrides?.() ?? []);
+	}
+}
+
+function _writePropertyOverrides(
+	buf: WriteBuffer,
+	overrides: Array<{ target: string; propertyId: number; value: string }>,
+): void {
+	buf.writeInt16(overrides.length);
+	for (const property of overrides) {
+		buf.writeS(property.target);
+		buf.writeInt16(property.propertyId);
+		buf.writeSEx(property.value, true);
+	}
 }
 
 function _writeChildBlock4TextInput(buf: WriteBuffer, child: EncoderChildLike): void {

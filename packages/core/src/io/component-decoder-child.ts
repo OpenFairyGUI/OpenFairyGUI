@@ -1,5 +1,6 @@
 import { GearType } from '../constants.js';
 import type { Document } from '../document.js';
+import type { GComponentPropertyOverride } from '../properties/g-component.js';
 import { ByteBuffer } from './byte-buffer.js';
 import {
 	COMPONENT_EXTENSION_TYPE_NAMES,
@@ -192,6 +193,12 @@ function decodeChildBlock4ComponentLike(
 			(child as { setPageController(v: string): void }).setPageController(controller.getName());
 		}
 	}
+	if (childBuf.version >= 2 && remainingBytes(childBuf) >= 2) {
+		const propertyOverrides = decodePropertyOverrides(childBuf);
+		if ('setPropertyOverrides' in child && typeof child.setPropertyOverrides === 'function') {
+			(child as { setPropertyOverrides(v: GComponentPropertyOverride[]): void }).setPropertyOverrides(propertyOverrides);
+		}
+	}
 }
 
 function decodeChildBlock4TextInput(child: ComponentDisplayObject, childBuf: ByteBuffer): void {
@@ -275,22 +282,36 @@ function decodeListScrollPane(child: ComponentDisplayObject, childBuf: ByteBuffe
 		.setFooterRes(childBuf.readS() ?? '');
 }
 
-function decodeListItemOverrides(buf: ByteBuffer, version: number): string | null {
-	if (remainingBytes(buf) < 2) return null;
+function decodePropertyOverrides(buf: ByteBuffer): GComponentPropertyOverride[] {
+	const count = buf.getInt16();
+	const properties: GComponentPropertyOverride[] = [];
+	for (let index = 0; index < count && remainingBytes(buf) >= 6; index += 1) {
+		properties.push({
+			target: buf.readS() ?? '',
+			propertyId: buf.getInt16(),
+			value: buf.readS() ?? '',
+		});
+	}
+	return properties;
+}
+
+function decodeListItemOverrides(
+	buf: ByteBuffer,
+	version: number,
+): { controllers?: string; propertyOverrides?: GComponentPropertyOverride[] } {
+	if (remainingBytes(buf) < 2) return {};
 	const controllerOverrideCount = buf.getInt16();
 	const controllerParts: string[] = [];
 	for (let index = 0; index < controllerOverrideCount && remainingBytes(buf) >= 4; index += 1) {
 		controllerParts.push(buf.readS() ?? '', buf.readS() ?? '');
 	}
-	if (version >= 2 && remainingBytes(buf) >= 2) {
-		const propertyOverrideCount = buf.getInt16();
-		for (let index = 0; index < propertyOverrideCount && remainingBytes(buf) >= 6; index += 1) {
-			buf.readS();
-			buf.getInt16();
-			buf.readS();
-		}
-	}
-	return controllerParts.length > 0 ? controllerParts.join(',') : null;
+	const propertyOverrides = version >= 2 && remainingBytes(buf) >= 2
+		? decodePropertyOverrides(buf)
+		: [];
+	return {
+		...(controllerParts.length > 0 ? { controllers: controllerParts.join(',') } : {}),
+		...(propertyOverrides.length > 0 ? { propertyOverrides } : {}),
+	};
 }
 
 function decodeListItems(child: ComponentDisplayObject, childBuf: ByteBuffer): void {
@@ -309,6 +330,7 @@ function decodeListItems(child: ComponentDisplayObject, childBuf: ByteBuffer): v
 		level: number;
 		isFolder: boolean | null;
 		controllers?: string | null;
+		propertyOverrides?: GComponentPropertyOverride[];
 	}> = [];
 	for (let index = 0; index < itemCount && remainingBytes(childBuf) >= 2; index += 1) {
 		const chunkSize = childBuf.getInt16();
@@ -330,8 +352,7 @@ function decodeListItems(child: ComponentDisplayObject, childBuf: ByteBuffer): v
 			level,
 			isFolder,
 		};
-		const controllers = decodeListItemOverrides(childBuf, childBuf.version);
-		items.push(controllers === null ? item : { ...item, controllers });
+		items.push({ ...item, ...decodeListItemOverrides(childBuf, childBuf.version) });
 		childBuf.pos = nextPos;
 	}
 	listLike.setListItems(items);

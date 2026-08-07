@@ -272,7 +272,7 @@ In addition to the binary descriptor, `publish` outputs auxiliary files required
 | `DragonBonesResource` | Writes the primary skeleton file with its current filename. |
 | `SpineResource` / `DragonBonesResource` dependencies | Forms a resource closure through `require` and publishes dependent `misc` / `image` resources; `misc` dependencies use the same published-ID naming rule. |
 
-The component resource closure scans loader URLs plus list-item `url`, `icon`, and `selectedIcon` fields, so resources used only by the selected state are retained.
+The component resource closure scans loader URLs, list-item `url`, `icon`, and `selectedIcon` fields, plus component-instance and list-item property-override values. Resources used only by selected states or property overrides are therefore retained.
 
 Publishing fails closed for completeness: after an output directory resolves, filesystem capability is required; packable images require a raster encoder, source-resource path, and atlas output directory; atlas packing/compositing and sound or external-resource copy failures abort publishing rather than being reported as success.
 

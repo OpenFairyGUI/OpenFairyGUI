@@ -5,6 +5,7 @@ interface ReferenceItem {
 	icon?: string | null;
 	selectedIcon?: string | null;
 	url?: string | null;
+	propertyOverrides?: Array<{ value: string }>;
 }
 
 interface ReferenceGear {
@@ -40,6 +41,7 @@ interface ReferenceChild extends HasOptionalFont {
 	getFooterRes?(): string;
 	getInstanceComboItems?(): Array<{ icon: string | null }>;
 	getListItems?(): ReferenceItem[];
+	getPropertyOverrides?(): Array<{ value: string }>;
 	listGears?(): ReferenceGear[];
 }
 
@@ -167,7 +169,13 @@ function collectComponentReferences(
 			addUiReference(target, ownerPackageId, item.icon);
 			addUiReference(target, ownerPackageId, item.selectedIcon);
 			addUiReference(target, ownerPackageId, item.url);
+			addUnknownReferences(target, ownerPackageId, item.propertyOverrides?.map((property) => property.value));
 		}
+		addUnknownReferences(
+			target,
+			ownerPackageId,
+			child.getPropertyOverrides?.().map((property) => property.value),
+		);
 		for (const gear of child.listGears?.() ?? []) {
 			addUnknownReferences(target, ownerPackageId, gear.getValues?.());
 			addUnknownReferences(target, ownerPackageId, gear.getDefaultValue?.());

@@ -22,7 +22,11 @@ test('resource reference scanner separates local resources from external package
 	component.addChild(loader);
 
 	const shared = doc.createGComponent('shared');
-	shared.setId('shared01').setSrc('panel001').setPackageId('shared01');
+	shared
+		.setId('shared01')
+		.setSrc('panel001')
+		.setPackageId('shared01')
+		.setPropertyOverrides([{ target: 'icon', propertyId: 1, value: 'ui://main0001/overrideIcon' }]);
 	component.addChild(shared);
 
 	const list = doc.createGList('choices');
@@ -35,6 +39,7 @@ test('resource reference scanner separates local resources from external package
 		name: null,
 		level: 0,
 		isFolder: null,
+		propertyOverrides: [{ target: 'icon', propertyId: 1, value: 'ui://main0001/listOverride' }],
 	}]);
 	component.addChild(list);
 
@@ -43,7 +48,7 @@ test('resource reference scanner separates local resources from external package
 	const references = collectPackageResourceReferences(pkg);
 	t.deepEqual(
 		[...references.localResourceIds].sort(),
-		['font0001', 'listSelected', 'loaderImage', 'panel001', 'textIcon'],
+		['font0001', 'listOverride', 'listSelected', 'loaderImage', 'overrideIcon', 'panel001', 'textIcon'],
 	);
 	t.deepEqual([...references.packageIds], ['shared01']);
 });

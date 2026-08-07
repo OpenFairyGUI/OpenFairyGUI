@@ -1,5 +1,6 @@
 import type { RelationDef } from '../constants.js';
 import type { Component } from '../properties/component.js';
+import type { GComponentPropertyOverride } from '../properties/g-component.js';
 import type { Package } from '../properties/package.js';
 
 export type ChildNode = ReturnType<Component['listChildren']>[number];
@@ -135,6 +136,7 @@ export type EncoderChildLike = ChildNode & {
 	getFooterRes?(): string;
 	getPageController?(): string;
 	getControllerOverrides?(): string;
+	getPropertyOverrides?(): GComponentPropertyOverride[];
 	getInstanceExtType?(): string;
 	getInstanceTitle?(): string;
 	getInstanceSelectedTitle?(): string;
@@ -207,6 +209,7 @@ export interface ListItemLike {
 	level?: number;
 	isFolder?: boolean | null;
 	controllers?: string | null;
+	propertyOverrides?: GComponentPropertyOverride[];
 }
 
 export interface ChildEncoderExtras extends Record<string, unknown> {

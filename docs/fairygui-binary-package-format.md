@@ -131,7 +131,7 @@ block 5 的 patch 用于替换 block 4 中相同索引位置的占位字符串�
 
 | type code | item type | 协议内容 |
 |---|---|---|
-| `0` | `Image` | `id`、`name`、`path`、尺寸、`scaleOption`、`scale9Grid`、`smoothing` |
+| `0` | `Image` | `id`、`name`、`path`、尺寸、`scaleOption`、`scale9Grid`、`tileGridIndice`、`smoothing` |
 | `1` | `MovieClip` | 通用字段 + 帧数据块 |
 | `2` | `Sound` | 通用字段 + 声音文件名 |
 | `3` | `Component` | 通用字段 + 扩展类型码 + 组件二进制 |
@@ -221,7 +221,7 @@ block 5 的 patch 用于替换 block 4 中相同索引位置的占位字符串�
 | 基础字段 | `itemId`、`atlasId`、`x`、`y`、`w`、`h`、`rotated` |
 | 条件附加字段 | `offsetX`、`offsetY`、`originalWidth`、`originalHeight` |
 
-该 block 用于描述资源在 atlas 中的裁切矩形与原始尺寸信息。
+该 block 用于描述资源在 atlas 中的裁切矩形与原始尺寸信息。当 offset 非零、旋转、零尺寸直出，或原始尺寸与裁切矩形不同时，附加段存在；因此仅裁掉右侧/下侧且 offset 为 `0` 的 sprite 仍会保留 `originalWidth` / `originalHeight`。
 
 ## Block 3：Pixel Hit Test
 
@@ -447,7 +447,7 @@ child 自身带独立 index table，不同对象类型的 block 数量不同：
 
 | 类型 | 内容 |
 |---|---|
-| `GComponent`、`GList`、`GButton`、`GLabel`、`GComboBox`、`GProgressBar`、`GSlider`、`GScrollBar` | page controller / 组件实例关联信息 |
+| `GComponent`、`GList`、`GButton`、`GLabel`、`GComboBox`、`GProgressBar`、`GSlider`、`GScrollBar` | page controller、controller overrides；V2+ 继续写有序 property overrides，每项为 `target / propertyId / value` |
 | `GTextInput` | 输入框特定设置 |
 | 其他类型 | offset 为 `0`，该 block 不存在 |
 
@@ -503,9 +503,10 @@ Block 6 用于恢复 afterAdd 阶段写入的数据：
 | 8 | `icon`、`selectedIcon`、`name` | 可空字符串表引用 |
 | 9 | `controllerOverrideCount` | `Int16` |
 | 10 | controller overrides | 重复 `controllerOverrideCount` 次，每次依次写 `(controllerName, selectedPageId)` 两个字符串表引用 |
-| 11 | `propertyOverrideCount` | V7 中存在的 `Int16`；当前写入器写 `0`，读取器会跳过已存在的属性覆盖项 |
+| 11 | `propertyOverrideCount` | V2+ 的 `Int16` |
+| 12 | property overrides | 重复 `propertyOverrideCount` 次，每项依次写 `target`、`propertyId: Int16`、`value` |
 
-静态项模型中的 `controllers` 使用逗号分隔的成对形式：`controllerName,selectedPageId,...`。编码时每一对写入一个 controller override；空的 controller name 不形成覆盖项，缺失的 selected page ID 按空字符串写入。解码时再按相同顺序还原为成对字符串。
+静态项模型中的 `controllers` 使用逗号分隔的成对形式：`controllerName,selectedPageId,...`。编码时每一对写入一个 controller override；空的 controller name 不形成覆盖项，缺失的 selected page ID 按空字符串写入。解码时再按相同顺序还原为成对字符串。property overrides 按模型顺序原样往返。
 
 Tree 项的 `isFolder` 在二进制中没有 `null` 表示，因此编码时按以下规则解析：
 
