@@ -27,6 +27,7 @@ interface BrowserContext {
 	): void;
 	fillRect(x: number, y: number, width: number, height: number): void;
 	getImageData(sx: number, sy: number, sw: number, sh: number): ImageData;
+	putImageData(imageData: ImageData, dx: number, dy: number): void;
 	rotate(angle: number): void;
 	restore(): void;
 	save(): void;

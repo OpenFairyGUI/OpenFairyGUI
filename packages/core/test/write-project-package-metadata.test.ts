@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
-import { Document, liftDocumentToUamProject, materializeUamProject } from '../src/index.js';
+import { Document, liftDocumentToUamProject, materializeUamProject, PropertyType } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
 
 const _PROJECT_PATH = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
@@ -425,7 +425,7 @@ test('round-trip: SWF resources survive UAM and hydrated project writes', async 
 		await io.writeProject(materializeUamProject(uam), copiedFairy);
 		const copied = await io.readProject(copiedFairy, { hydrateResourceBytes: true });
 		const swf = copied.getRoot().getPackage('DemoSwf')?.getResourceById('swf001') as ReturnType<Document['createSwfResource']>;
-		t.is(swf.propertyType, 'SwfResource');
+		t.is(swf.propertyType, PropertyType.SWF_RESOURCE);
 		t.is(swf.getFile(), 'movie.swf');
 		t.deepEqual(swf.getSourceData()?.getData(), bytes);
 	} finally {

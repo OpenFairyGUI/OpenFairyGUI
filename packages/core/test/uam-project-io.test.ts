@@ -168,8 +168,8 @@ function createEngineeringScaleUamProject(): UamProject {
 									homePageType: 'default',
 									homePage: '',
 									pages: [
-										{ id: '0', name: 'Idle' },
-										{ id: '1', name: 'Alert' },
+										{ id: '0', name: 'Idle', remark: '' },
+										{ id: '1', name: 'Alert', remark: '' },
 									],
 									actions: [
 										{
