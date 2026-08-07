@@ -1369,6 +1369,7 @@ test('publish: Unity blank codeType generates binder and component classes with 
 
 		const mainClass = await fs.readFile(mainClassPath, 'utf-8');
 		t.true(mainClass.startsWith('/** This is an automatically generated class by FairyGUI. Please do not modify it. **/'));
+		t.false(mainClass.includes('fairygui-cc'), 'Layabox continues using the host global fgui namespace');
 		t.true(mainClass.includes('public partial class UI_Main : GButton'), 'component extension maps to GButton base class');
 		t.true(mainClass.includes('public UI_SubPanel m_subPanel;'), 'local component child uses generated class type');
 		t.true(mainClass.includes('public Transition m_fadeIn;'), 'transition field is generated');
@@ -1792,6 +1793,7 @@ test('publish: Cocos Creator reuses the shared fgui TypeScript lane without code
 		t.true(await fs.stat(binderPath).then(() => true).catch(() => false), 'Cocos Creator generates binder file');
 
 		const mainClass = await fs.readFile(mainClassPath, 'utf-8');
+		t.true(mainClass.includes('import * as fgui from "fairygui-cc";'));
 		t.true(mainClass.includes('export default class UI_Main extends fgui.GButton'));
 		t.true(mainClass.includes('return <UI_Main><any>(fgui.UIPackage.createObject("DemoPkg","Main"));'));
 		t.true(mainClass.includes('public m_content:fgui.GTextField;'));
@@ -1802,6 +1804,7 @@ test('publish: Cocos Creator reuses the shared fgui TypeScript lane without code
 		t.false(mainClass.includes('m_button'), 'default button controller is ignored');
 
 		const binder = await fs.readFile(binderPath, 'utf-8');
+		t.true(binder.includes('import * as fgui from "fairygui-cc";'));
 		t.true(binder.includes('fgui.UIObjectFactory.setExtension(UI_Main.URL, UI_Main);'));
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });

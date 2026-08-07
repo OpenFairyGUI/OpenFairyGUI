@@ -39,6 +39,7 @@ export interface ResolvedPackageCodegenPlan {
 interface FguiTypescriptVariant {
 	binderMethod: 'setExtension';
 	runtimeNamespace: 'fgui';
+	runtimeImport: string;
 }
 
 const FGUI_TYPESCRIPT_RUNTIME_TYPES = new Set([
@@ -65,9 +66,15 @@ const FGUI_TYPESCRIPT_RUNTIME_TYPES = new Set([
 	'Transition',
 ]);
 
-const SHARED_FGUI_TYPESCRIPT_VARIANT: FguiTypescriptVariant = {
+const LAYABOX_TYPESCRIPT_VARIANT: FguiTypescriptVariant = {
 	binderMethod: 'setExtension',
 	runtimeNamespace: 'fgui',
+	runtimeImport: '',
+};
+
+const COCOS_CREATOR_TYPESCRIPT_VARIANT: FguiTypescriptVariant = {
+	...LAYABOX_TYPESCRIPT_VARIANT,
+	runtimeImport: 'import * as fgui from "fairygui-cc";',
 };
 
 export interface CodegenMember {
@@ -200,11 +207,11 @@ function supportsCodeGenerationLane(doc: Document, codeType: string): boolean {
 	return false;
 }
 
-// Layabox and Cocos Creator currently share the same modern fgui TypeScript output contract.
 function resolveFguiTypescriptVariant(doc: Document): FguiTypescriptVariant | null {
 	const projectType = doc.getRoot().getProjectType();
-	if (projectType !== ProjectType.LayaBox && projectType !== ProjectType.CocosCreator) return null;
-	return SHARED_FGUI_TYPESCRIPT_VARIANT;
+	if (projectType === ProjectType.LayaBox) return LAYABOX_TYPESCRIPT_VARIANT;
+	if (projectType === ProjectType.CocosCreator) return COCOS_CREATOR_TYPESCRIPT_VARIANT;
+	return null;
 }
 
 async function generateUnityCode(
@@ -530,9 +537,10 @@ function renderFguiTypescriptBinder(
 	const bindLines = classes
 		.map((classInfo) => `\t\t${variant.runtimeNamespace}.UIObjectFactory.${variant.binderMethod}(${classInfo.encodedClassName}.URL, ${classInfo.encodedClassName});`)
 		.join('\n');
-	const importLines = classes
+	const classImports = classes
 		.map((classInfo) => `import ${classInfo.encodedClassName} from "./${classInfo.encodedClassName}";`)
 		.join('\n');
+	const importLines = [variant.runtimeImport, classImports].filter(Boolean).join('\n');
 
 	return renderTemplate(FGUI_TYPESCRIPT_BINDER_TEMPLATE, {
 		binderClassName: plan.binderClassName,
@@ -638,6 +646,7 @@ function normalizeTypeName(value: string): string {
 
 function collectFguiTypescriptImports(classInfo: CodegenClass, variant: FguiTypescriptVariant): string {
 	const imports = new Set<string>();
+	if (variant.runtimeImport) imports.add(variant.runtimeImport);
 	for (const member of classInfo.members) {
 		if (member.ignored) continue;
 		const translated = translateFguiTypescriptType(member.type, variant);

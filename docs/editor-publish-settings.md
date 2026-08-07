@@ -236,7 +236,7 @@ OpenFairyGUI 当前已经把“代码生成”接入现有 `publish` 流程，�
 
 说明：
 - 这里描述的是 OpenFairyGUI 当前已实现行为，不等同于 FairyGUI 编辑器所有项目类型 / `codeType` 模板都已支持。
-- 这里的 `fgui` TypeScript 代码生成口径已经不再依赖 `codeType` 字段分流；当前由 Layabox 与 Cocos Creator 共用同一条 TS lane。
+- 这里的 `fgui` TypeScript 代码生成口径已经不再依赖 `codeType` 字段分流；Layabox 与 Cocos Creator 共用 TS 模板，Cocos Creator 生成文件会显式导入 `fairygui-cc`，Layabox 继续使用宿主提供的全局 `fgui`。
 - `publish` 流程也支持 OpenFairyGUI publish 插件接管代码生成。插件目录、生命周期、失败降级，以及与 FairyGUI 编辑器插件的关系见 [Publish 插件](./publish-plugins.md)。
 
 ## 包级图集设置真实属性
