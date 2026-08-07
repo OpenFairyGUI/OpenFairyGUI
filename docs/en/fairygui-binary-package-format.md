@@ -178,10 +178,10 @@ Notes:
 
 | Resource type | Meaning of `file` |
 |---|---|
-| `Atlas` / `Sound` / `Misc` | Published auxiliary-resource filename; the runtime adds the package asset prefix required by the target |
+| `Atlas` / `Sound` / `Misc` / `Swf` | Published auxiliary-resource filename; the runtime adds the package asset prefix required by the target |
 | `Spine` / `DragoneBones` | Published primary skeleton-resource filename, which the runtime uses to load the corresponding resource |
 
-For `Sound` / `Misc`, `file` is the published item ID plus the source extension. Unity additionally appends `.txt` to `.atlas`. For example, `hero.json` with item ID `biss7` is stored as `biss7.json`; its physical auxiliary file carries the package publish-name prefix expected by the runtime.
+For `Sound` / `Misc` / `Swf`, `file` is the published item ID plus the source extension. Unity additionally appends `.txt` to `.atlas`. For example, `hero.json` with item ID `biss7` is stored as `biss7.json`; its physical auxiliary file carries the package publish-name prefix expected by the runtime. `Swf` uses item type code `6`.
 
 Current Unity naming for `Spine` primary and dependent resources is:
 
