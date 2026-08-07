@@ -6,12 +6,8 @@
 
 Release comparisons:
 
-- Stable line (`main`): [v0.2.5...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.2.5...main)
+- Stable line (`main`): [v0.2.6...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.2.6...main)
 - Prerelease line (`next`): [v0.3.0-alpha.4...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.0-alpha.4...next)
-
-Other:
-
-- docs: Complete the bilingual release history, current version status, English integer-geometry protocol, and public package entrypoint guide, and make bilingual Changelog updates a release requirement.
 
 ## v0.3.x
 
@@ -50,6 +46,23 @@ Features:
 ## v0.2.x
 
 Prerelease builds from `v0.2.0-alpha.0` through `v0.2.0-alpha.38` are consolidated into the stable release below.
+
+### v0.2.6 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.2.6))
+
+Features:
+
+- core: Model SWF resources, controller-page remarks, loader error signs, and component custom-extension IDs as formal Project XML, UAM, and binary properties. [#121](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/121)
+
+Fixes:
+
+- core: Align button down effects, layout-dependent List defaults, Transition frame rates, property overrides, tile-grid metadata, trimmed sprite sizes, and remaining component XML fields with the editor and runtime protocols. [#121](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/121)
+- functions: Enforce runtime-supported compression, resource filenames, Layabox atlas rotation, and Cocos Creator runtime imports. [#121](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/121)
+- functions: Apply package exclusions, publish-clear projection, package-level atlas settings, selected-state resource closure, and Unity split-alpha output during publishing. [#121](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/121)
+
+Other:
+
+- docs: Complete the bilingual release history, current version status, English integer-geometry protocol, and public package entrypoint guide, and make bilingual Changelog updates a release requirement. [#120](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/120)
+- docs: Synchronize the architecture, editor-publish settings, and binary-package protocol documents with the corrected implementation. [#121](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/121)
 
 ### v0.2.5 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.2.5))
 

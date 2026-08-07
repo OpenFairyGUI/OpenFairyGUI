@@ -19,6 +19,7 @@ export { MiscResource } from './misc-resource.js';
 export { SoundResource } from './sound-resource.js';
 export { FontResource } from './font-resource.js';
 export { MovieClipResource } from './movie-clip-resource.js';
+export { SwfResource } from './swf-resource.js';
 export { SpineResource } from './spine-resource.js';
 export { DragonBonesResource } from './dragon-bones-resource.js';
 export { Component, type ComponentCustomProperty } from './component.js';

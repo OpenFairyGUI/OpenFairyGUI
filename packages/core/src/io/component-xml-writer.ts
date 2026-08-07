@@ -5,6 +5,7 @@ import type { Controller } from '../properties/controller.js';
 import type { Transition } from '../properties/transition.js';
 import {
 	EXTENSION_PROTOCOL_MAP,
+	formatButtonDownEffect,
 	formatButtonDownEffectValue,
 	formatButtonMode,
 	formatInsets,
@@ -150,6 +151,7 @@ type WritableComponent = Component & {
 	getIdNum?(): number;
 	getInitName?(): string;
 	getRemark?(): string;
+	getCustomExtensionId?(): string;
 	getPageController?(): string;
 	getAddedToStageSound?(): string;
 	getRemovedFromStageSound?(): string;
@@ -237,6 +239,8 @@ export async function writeComponent(
 		if (initName) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.initName, initName);
 		const remark = typedComp.getRemark?.();
 		if (remark) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.remark, remark);
+		const customExtensionId = typedComp.getCustomExtensionId?.();
+		if (customExtensionId) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.customExtention, customExtensionId);
 		const pageController = typedComp.getPageController?.();
 		if (pageController) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.pageController, pageController);
 		const showSound = typedComp.getAddedToStageSound?.();
@@ -336,7 +340,7 @@ export async function writeComponent(
 					if ((typedComp.getSoundVolumeScale?.() ?? 1) !== 1) writeXmlAttr(extAttrs, extSpecs.soundVolumeScale, String(Math.round((typedComp.getSoundVolumeScale?.() ?? 1) * 100)));
 					const downEffect = typedComp.getDownEffect?.() ?? 0;
 					if (downEffect !== 0) {
-						writeXmlAttr(extAttrs, extSpecs.downEffect, String(downEffect));
+						writeXmlAttr(extAttrs, extSpecs.downEffect, formatButtonDownEffect(downEffect));
 						writeXmlAttr(extAttrs, extSpecs.downEffectValue, formatButtonDownEffectValue(typedComp.getDownEffectValue?.() ?? 0.8));
 					}
 					break;
@@ -395,6 +399,16 @@ function serializeController(ctrl: Controller): Record<string, unknown> {
 		if (ctrl.getHomePageType() === 'specific' || ctrl.getHomePageType() === 'variable') {
 			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.homePage, ctrl.getHomePage());
 		}
+		const remarkProtocol = PROJECT_XML_PROTOCOL.controller.children!.remark!;
+		const remarks = pages.flatMap((page, pageIndex) => {
+			if (!page.getRemark()) return [];
+			const remarkAttrs: Record<string, unknown> = {};
+			writeXmlAttr(remarkAttrs, remarkProtocol.attrs.page, String(pageIndex));
+			writeXmlAttr(remarkAttrs, remarkProtocol.attrs.value, page.getRemark());
+			return [remarkAttrs];
+		});
+		const remarkChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.controller, 'remark');
+		if (remarks.length > 0 && remarkChildName) attrs[remarkChildName] = remarks;
 		const actions = ctrl.listActions().map((action) => serializeControllerAction(action as WritableControllerAction));
 		const actionChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.controller, 'action');
 		if (actions.length > 0 && actionChildName) attrs[actionChildName] = actions;

@@ -1,6 +1,7 @@
 import { GearType } from '../constants.js';
 import type { GObject } from '../properties/g-object.js';
 import type { Gear } from '../properties/gear.js';
+import { getDefaultListAutoResizeItem } from '../properties/g-list.js';
 import { renderXmlAttrs } from '../utils/xml-utils.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr, type XmlNodeProtocol } from './project-xml-protocol.js';
 
@@ -399,6 +400,7 @@ type WritableChild = GObject & {
 	getShrinkOnly?(): boolean;
 	getAutoSize?(): number | boolean;
 	getUseResize?(): boolean;
+	getShowErrorSign?(): boolean;
 	getAnimationName?(): string;
 	getSkinName?(): string;
 	getLoop?(): boolean;
@@ -603,6 +605,10 @@ export function formatButtonMode(mode: number): string {
 		2: 'Radio',
 	};
 	return map[mode] ?? 'Common';
+}
+
+export function formatButtonDownEffect(effect: number): string {
+	return ['none', 'dark', 'scale'][effect] ?? 'none';
 }
 
 export function formatTitleType(titleType: number): string {
@@ -931,6 +937,7 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 			if (typedObj.getShrinkOnly?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.shrinkOnly, '1');
 			if (typedObj.getAutoSize?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.autoSize, '1');
 			if (typedObj.getUseResize?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.useResize, '1');
+			if (typedObj.getShowErrorSign?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.errorSign, 'true');
 			const loaderColor = typedObj.getColor?.();
 			if (loaderColor && !isDefaultWhiteColor(loaderColor)) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.color, loaderColor);
 			if (typedObj.getFilter?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.filter, typedObj.getFilter?.());
@@ -1151,7 +1158,10 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 			if (layout === 4 && lineCount !== 0) {
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineItemCount2, String(lineCount));
 			}
-			if (typedObj.getAutoResizeItem?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.autoResizeItem, 'false');
+			const autoResizeItem = typedObj.getAutoResizeItem?.() ?? true;
+			if (autoResizeItem !== getDefaultListAutoResizeItem(layout ?? 0)) {
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.autoResizeItem, String(autoResizeItem));
+			}
 			const childrenRenderOrder = typedObj.getChildrenRenderOrder?.() ?? 0;
 			if (childrenRenderOrder !== 0) {
 				const renderOrderName: Record<number, string> = { 0: 'ascent', 1: 'descent', 2: 'arch' };

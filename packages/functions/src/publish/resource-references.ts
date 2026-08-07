@@ -3,7 +3,9 @@ import type { HasOptionalFont } from '../shared-types.js';
 
 interface ReferenceItem {
 	icon?: string | null;
+	selectedIcon?: string | null;
 	url?: string | null;
+	propertyOverrides?: Array<{ value: string }>;
 }
 
 interface ReferenceGear {
@@ -24,6 +26,7 @@ interface ReferenceChild extends HasOptionalFont {
 	getPackageId?(): string;
 	getSrc?(): string;
 	getUrl?(): string;
+	getClearOnPublish?(): boolean;
 	getInstanceSound?(): string;
 	getDefaultItem?(): string;
 	getIcon?(): string;
@@ -31,6 +34,7 @@ interface ReferenceChild extends HasOptionalFont {
 	getDropdown?(): string;
 	getSound?(): string;
 	getText?(): string;
+	getAutoClearText?(): boolean;
 	getInstanceIcon?(): string;
 	getInstanceSelectedIcon?(): string;
 	getVtScrollBarRes?(): string;
@@ -38,7 +42,10 @@ interface ReferenceChild extends HasOptionalFont {
 	getHeaderRes?(): string;
 	getFooterRes?(): string;
 	getInstanceComboItems?(): Array<{ icon: string | null }>;
+	getInstanceAutoClearItems?(): boolean;
 	getListItems?(): ReferenceItem[];
+	getAutoClearItems?(): boolean;
+	getPropertyOverrides?(): Array<{ value: string }>;
 	listGears?(): ReferenceGear[];
 }
 
@@ -141,9 +148,9 @@ function collectComponentReferences(
 		if (sourcePackageId && sourcePackageId !== ownerPackageId) target.packageIds.add(sourcePackageId);
 
 		addFontReferences(target, ownerPackageId, child.getFont?.());
-		addTextReferences(target, ownerPackageId, child.getText?.());
+		if (!child.getAutoClearText?.()) addTextReferences(target, ownerPackageId, child.getText?.());
 		for (const reference of [
-			child.getUrl?.(),
+			child.getClearOnPublish?.() ? undefined : child.getUrl?.(),
 			child.getDefaultItem?.(),
 			child.getIcon?.(),
 			child.getSelectedIcon?.(),
@@ -159,13 +166,20 @@ function collectComponentReferences(
 		]) {
 			addUiReference(target, ownerPackageId, reference);
 		}
-		for (const item of child.getInstanceComboItems?.() ?? []) {
+		for (const item of child.getInstanceAutoClearItems?.() ? [] : (child.getInstanceComboItems?.() ?? [])) {
 			addUiReference(target, ownerPackageId, item.icon);
 		}
-		for (const item of child.getListItems?.() ?? []) {
+		for (const item of child.getAutoClearItems?.() ? [] : (child.getListItems?.() ?? [])) {
 			addUiReference(target, ownerPackageId, item.icon);
+			addUiReference(target, ownerPackageId, item.selectedIcon);
 			addUiReference(target, ownerPackageId, item.url);
+			addUnknownReferences(target, ownerPackageId, item.propertyOverrides?.map((property) => property.value));
 		}
+		addUnknownReferences(
+			target,
+			ownerPackageId,
+			child.getPropertyOverrides?.().map((property) => property.value),
+		);
 		for (const gear of child.listGears?.() ?? []) {
 			addUnknownReferences(target, ownerPackageId, gear.getValues?.());
 			addUnknownReferences(target, ownerPackageId, gear.getDefaultValue?.());
@@ -201,8 +215,9 @@ export function collectPackageResourceReferences(pkg: Package): PackageResourceR
 		localResourceIds: new Set<string>(),
 		packageIds: new Set<string>(),
 	};
+	const excludedResourceIds = new Set(pkg.getSourceAtlasSettings().excludedResourceIds);
 	for (const resource of pkg.listResources()) {
-		if (resource.propertyType === 'Component') {
+		if (resource.propertyType === 'Component' && !excludedResourceIds.has(resource.getId())) {
 			collectComponentReferences(references, pkg.getId(), resource);
 		}
 	}

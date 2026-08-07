@@ -280,6 +280,10 @@ function parseButtonMode(value: unknown): number {
 	return map[normalized] ?? (Number.isFinite(parsed) ? parsed : 0);
 }
 
+function parseButtonDownEffect(value: unknown): number {
+	return ({ none: 0, dark: 1, scale: 2 } as Record<string, number>)[String(value ?? '').trim().toLowerCase()] ?? 0;
+}
+
 function parseTitleType(value: unknown): number {
 	if (typeof value === 'number') return value;
 	const normalized = String(value ?? '').trim().toLowerCase();
@@ -394,6 +398,8 @@ export function readComponentXml(ctx: ReaderContext, comp: Component, xmlContent
 		if (initName !== undefined) comp.setInitName?.(initName);
 		const remark = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.remark);
 		if (remark !== undefined) comp.setRemark?.(remark);
+		const customExtensionId = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.customExtention);
+		if (customExtensionId !== undefined) comp.setCustomExtensionId?.(customExtensionId);
 		const pageController = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.pageController);
 		if (pageController !== undefined) comp.setPageController?.(pageController);
 		const showSound = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.showSound);
@@ -481,7 +487,7 @@ export function readComponentXml(ctx: ReaderContext, comp: Component, xmlContent
 								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.mode) !== undefined) comp.setButtonMode?.(parseButtonMode(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.mode)!));
 								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.sound) !== undefined) comp.setSound?.(String(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.sound)));
 								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.soundVolumeScale) !== undefined) comp.setSoundVolumeScale?.(parseFloat2(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.soundVolumeScale), 100) / 100);
-								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.downEffect) !== undefined) comp.setDownEffect?.(parseInt2(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.downEffect)));
+								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.downEffect) !== undefined) comp.setDownEffect?.(parseButtonDownEffect(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.downEffect)));
 								if (readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.downEffectValue) !== undefined) comp.setDownEffectValue?.(parseFloat2(readXmlAttr(extAttrs, EXTENSION_PROTOCOL_MAP.Button.attrs.downEffectValue), 0.8));
 								break;
 							case 'ComboBox':
@@ -557,6 +563,15 @@ export function readComponentXml(ctx: ReaderContext, comp: Component, xmlContent
 				const p = doc.createControllerPage(page.name);
 				p.setId(page.id);
 				ctrl.addPage(p);
+			}
+			const controllerRemarkChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.controller, 'remark');
+			const controllerRemarkProtocol = PROJECT_XML_PROTOCOL.controller.children!.remark!;
+			const remarks = controllerRemarkChildName ? ensureArray(ctrlDef[controllerRemarkChildName]) : [];
+			for (const remarkDef of remarks) {
+				const pageIndex = parseInt2(readXmlAttr(remarkDef as XmlNode, controllerRemarkProtocol.attrs.page), -1);
+				const page = ctrl.listPages()[pageIndex];
+				if (!page) continue;
+				page.setRemark(readXmlAttr<string>(remarkDef as XmlNode, controllerRemarkProtocol.attrs.value) ?? '');
 			}
 
 			const controllerActionChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.controller, 'action');

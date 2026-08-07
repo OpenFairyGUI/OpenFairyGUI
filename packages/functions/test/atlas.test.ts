@@ -293,7 +293,7 @@ test('atlas: standalone textureSetMode and fixed page outputs use editor-style f
 		pkg.addResource(icon);
 
 		const badge = doc.createImageResource('badge');
-		badge.setId('badge01').setPath('/images/').setWidth(48).setHeight(48).setExported(true).setTextureSetMode('0');
+		badge.setId('badge01').setPath('/images/').setWidth(48).setHeight(48).setExported(true).setTextureSetMode('12');
 		badge.setExtras({ ...badge.getExtras(), _fileName: 'badge.png' });
 		pkg.addResource(badge);
 
@@ -306,19 +306,20 @@ test('atlas: standalone textureSetMode and fixed page outputs use editor-style f
 			},
 			powerOfTwo: true,
 			maxSize: 512,
+			maxAtlasIndex: 12,
 			directSingleImageOutput: true,
 		}));
 
 		const files = new Set((await fs.readdir(tmpDir)).filter((entry) => entry.startsWith('AtlasModes_atlas')));
 		t.true(files.has('AtlasModes_atlas_cover01.jpg'), 'standalone image writes resource-id atlas file');
-		t.true(files.has('AtlasModes_atlas0.png'), 'fixed page atlas keeps its requested page name');
-		t.true(files.has('AtlasModes_atlas1.png'), 'auto atlas skips the fixed page instead of colliding with direct output');
-		t.false(files.has('AtlasModes_atlas2.png'), 'no unexpected extra page is emitted');
+		t.true(files.has('AtlasModes_atlas12.png'), 'fixed page atlas respects the package maximum index');
+		t.true(files.has('AtlasModes_atlas0.png'), 'auto atlas uses the first unreserved page');
+		t.false(files.has('AtlasModes_atlas1.png'), 'no unexpected extra page is emitted');
 
 		const atlasFiles = pkg.listAtlases().map((atlasNode) => atlasNode.getFile()).sort();
 		t.deepEqual(
 			atlasFiles,
-			['AtlasModes_atlas0.png', 'AtlasModes_atlas1.png', 'AtlasModes_atlas_cover01.jpg'],
+			['AtlasModes_atlas0.png', 'AtlasModes_atlas12.png', 'AtlasModes_atlas_cover01.jpg'],
 			'atlas nodes keep standalone and fixed-page file names',
 		);
 	} finally {

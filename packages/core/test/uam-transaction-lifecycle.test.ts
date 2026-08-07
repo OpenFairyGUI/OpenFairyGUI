@@ -769,7 +769,7 @@ test('controller updates cannot leave display gears bound to removed pages', (t)
 		() => applyUamTransaction(project, [{
 			kind: 'updateController',
 			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: 'state' },
-			controller: { ...createControllerModel(), pages: [{ id: '2', name: 'New' }] },
+			controller: { ...createControllerModel(), pages: [{ id: '2', name: 'New', remark: '' }] },
 		}]),
 		{ instanceOf: UamTransactionError },
 	);
@@ -795,7 +795,7 @@ test('controller and display gear page changes can commit in one transaction', (
 		{
 			kind: 'updateController',
 			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: 'state' },
-			controller: { ...createControllerModel(), pages: [{ id: '2', name: 'New' }] },
+			controller: { ...createControllerModel(), pages: [{ id: '2', name: 'New', remark: '' }] },
 		},
 		{
 			kind: 'updateGear',

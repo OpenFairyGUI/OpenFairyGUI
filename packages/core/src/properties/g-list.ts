@@ -2,6 +2,10 @@ import { type Nullable, PropertyType, ListLayoutType, ListSelectionMode } from '
 import type { GComponentPropertyOverride } from './g-component.js';
 import { GObject, type IGObject } from './g-object.js';
 
+export function getDefaultListAutoResizeItem(layout: number): boolean {
+	return layout === ListLayoutType.SingleColumn || layout === ListLayoutType.SingleRow;
+}
+
 export interface GListItemData {
 	title: string | null;
 	icon: string | null;
@@ -112,7 +116,7 @@ export class GListBase<
 			columnCount: 0,
 			selectionMode: ListSelectionMode.Single,
 			defaultItem: '',
-			autoResizeItem: true,
+			autoResizeItem: getDefaultListAutoResizeItem(ListLayoutType.SingleColumn),
 			childrenRenderOrder: 0,
 			apexIndex: 0,
 			src: '',

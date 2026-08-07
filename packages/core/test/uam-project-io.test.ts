@@ -168,8 +168,8 @@ function createEngineeringScaleUamProject(): UamProject {
 									homePageType: 'default',
 									homePage: '',
 									pages: [
-										{ id: '0', name: 'Idle' },
-										{ id: '1', name: 'Alert' },
+										{ id: '0', name: 'Idle', remark: '' },
+										{ id: '1', name: 'Alert', remark: '' },
 									],
 									actions: [
 										{
@@ -631,11 +631,12 @@ test('remaining component-root authoring metadata survives UAM transaction round
 	const component = doc.createComponent('Host109').setId('host109').setPath('/').setSize(320, 200)
 		.setDesignImage('ui://pkg109img109a').setDesignImageForTest(true).setDesignImageAlpha(60)
 		.setDesignImageLayer(1).setDesignImageOffsetX(3).setDesignImageOffsetY(4)
+		.setCustomExtensionId('issue109.extension')
 		.setPageController('pageA').setAddedToStageSound('ui://pkg109snd109a')
 		.setRemovedFromStageSound('ui://pkg109snd109a');
 	for (const name of ['pageA', 'pageB']) {
 		const controller = doc.createController(name);
-		controller.addPage(doc.createControllerPage('Default').setId(`${name}-0`));
+		controller.addPage(doc.createControllerPage('Default').setId(`${name}-0`).setRemark(`${name} remark`));
 		component.addController(controller);
 	}
 	pkg.addResource(component);
@@ -647,7 +648,13 @@ test('remaining component-root authoring metadata survives UAM transaction round
 		return resource.component.properties;
 	};
 	const baselineProperties = getProperties(baseline);
-	t.deepEqual(getProperties(liftDocumentToUamProject(materializeUamProject(baseline))), baselineProperties);
+	const rematerialized = liftDocumentToUamProject(materializeUamProject(baseline));
+	t.deepEqual(getProperties(rematerialized), baselineProperties);
+	const getFirstPageRemark = (project: UamProject) => {
+		const resource = project.packages[0]?.resources.find((item) => item.id === 'host109');
+		return resource?.kind === 'component' ? resource.component.controllers[0]?.pages[0]?.remark : undefined;
+	};
+	t.is(getFirstPageRemark(rematerialized), 'pageA remark');
 	const updatedProperties: UamComponentProperties = {
 		...baselineProperties,
 		designImage: 'ui://pkg109img109b',
@@ -655,6 +662,7 @@ test('remaining component-root authoring metadata survives UAM transaction round
 		pageController: 'pageB',
 		showSound: 'ui://pkg109snd109b',
 		hideSound: 'ui://pkg109snd109b',
+		customExtensionId: 'issue109.updated',
 	};
 	const selector = { packageId: 'pkg109', componentResourceId: 'host109' };
 	const forward: UamTransactionOperation[] = [{ kind: 'setComponentProps', selector, props: { properties: updatedProperties } }];
@@ -669,6 +677,7 @@ test('remaining component-root authoring metadata survives UAM transaction round
 		await writeProjectFromUam(io, changed, outFairy);
 		const reloaded = await readProjectAsUam(io, outFairy);
 		t.deepEqual(getProperties(reloaded), updatedProperties);
+		t.is(getFirstPageRemark(reloaded), 'pageA remark');
 
 		const reverted = applyUamTransaction(reloaded, inverse);
 		await writeProjectFromUam(io, reverted, outFairy, { previousProject: reloaded });
@@ -1030,6 +1039,7 @@ test('UAM project lift and materialize preserve list, tree, graph, group, loader
 		.setCustomData('loader-data')
 		.setUrl('ui://pkg-display-nodes/image')
 		.setColor('#abcdef')
+		.setShowErrorSign(true)
 		.setFillAmount(75));
 	component.addChild(doc.createGLoader3D('loader3d')
 		.setId('loader3d-node')
@@ -1107,6 +1117,7 @@ test('UAM project lift and materialize preserve list, tree, graph, group, loader
 	if (loaderNode?.kind === 'loader') {
 		t.is(loaderNode.customData, 'loader-data');
 		t.is(loaderNode.fillAmount, 75);
+		t.true(loaderNode.showErrorSign);
 	}
 	const loader3DNode = nodes.get('loader3d-node');
 	if (loader3DNode?.kind === 'loader3D') {

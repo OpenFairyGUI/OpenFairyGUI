@@ -132,7 +132,7 @@ This block stores package entries. Every entry has a common header followed by i
 
 | Type code | Item type | Protocol content |
 |---|---|---|
-| `0` | `Image` | `id`, `name`, `path`, dimensions, `scaleOption`, `scale9Grid`, `smoothing` |
+| `0` | `Image` | `id`, `name`, `path`, dimensions, `scaleOption`, `scale9Grid`, `tileGridIndice`, `smoothing` |
 | `1` | `MovieClip` | Common fields plus frame-data block |
 | `2` | `Sound` | Common fields plus sound filename |
 | `3` | `Component` | Common fields plus extension type code and component binary data |
@@ -174,26 +174,28 @@ Notes:
 
 ### Publish semantics of `file`
 
-`file` stores the resource location in published output, not the original filename under the project resource directory. Under the current Unity runtime contract:
+`file` stores the resource location in published output, not the original filename under the project resource directory:
 
 | Resource type | Meaning of `file` |
 |---|---|
-| `Atlas` / `Sound` / `Misc` | Published auxiliary-resource filename |
+| `Atlas` / `Sound` / `Misc` / `Swf` | Published auxiliary-resource filename; the runtime adds the package asset prefix required by the target |
 | `Spine` / `DragoneBones` | Published primary skeleton-resource filename, which the runtime uses to load the corresponding resource |
 
-Current common Unity naming for `Spine` auxiliary resources is:
+For `Sound` / `Misc` / `Swf`, `file` is the published item ID plus the source extension. Unity additionally appends `.txt` to `.atlas`. For example, `hero.json` with item ID `biss7` is stored as `biss7.json`; its physical auxiliary file carries the package publish-name prefix expected by the runtime. `Swf` uses item type code `6`.
+
+Current Unity naming for `Spine` primary and dependent resources is:
 
 | Project resource file | Published result |
 |---|---|
 | `*.skel` | `*.skel.bytes` |
-| `*.atlas` | `*.atlas.txt` |
+| `*.atlas` (`Misc` dependency) | `<item-id>.atlas.txt` |
 | `*.png` | Original filename retained |
 
-Non-Unity projects retain the project-side `.skel` and `.atlas` filenames.
+Non-Unity primary skeleton files retain the filename required by their target; dependencies published as `Misc` still use `<item-id><source-extension>`.
 
 When publish settings enable separate branch atlases, an atlas item's `file` contains a branch suffix, such as `atlas0_dev.png`. The main atlas remains `atlas0.png`.
 
-Primary and dependent files in current `DragoneBones` samples retain their original filenames, such as `dragon_ske.json`, `dragon_tex.json`, and `dragon.png`.
+The `DragoneBones` primary file retains the filename required by its target. `Misc` dependencies use their published item IDs, while image dependencies retain their published image names.
 
 ### Conditional trailing fields
 
@@ -222,7 +224,7 @@ Notes:
 | Base fields | `itemId`, `atlasId`, `x`, `y`, `w`, `h`, `rotated` |
 | Conditional fields | `offsetX`, `offsetY`, `originalWidth`, `originalHeight` |
 
-This block describes each resource's trimmed atlas rectangle and original dimensions.
+This block describes each resource's trimmed atlas rectangle and original dimensions. The trailing segment is present when offsets are non-zero, the sprite is rotated or zero-sized direct output, or the original dimensions differ from the trimmed rectangle. A sprite trimmed only on its right or bottom edge therefore retains `originalWidth` / `originalHeight` even with zero offsets.
 
 ## Block 3: Pixel Hit Test
 
@@ -450,7 +452,7 @@ Notes:
 
 | Type | Content |
 |---|---|
-| `GComponent`, `GList`, `GButton`, `GLabel`, `GComboBox`, `GProgressBar`, `GSlider`, `GScrollBar` | Page controller / component-instance association |
+| `GComponent`, `GList`, `GButton`, `GLabel`, `GComboBox`, `GProgressBar`, `GSlider`, `GScrollBar` | Page controller and controller overrides; V2+ then stores ordered property overrides as `target / propertyId / value` |
 | `GTextInput` | Input-field-specific settings |
 | Other types | Offset is `0`; the block is absent |
 
@@ -506,9 +508,10 @@ Block 6 restores data written during the afterAdd phase:
 | 8 | `icon`, `selectedIcon`, `name` | Nullable string-table references |
 | 9 | `controllerOverrideCount` | `Int16` |
 | 10 | Controller overrides | Repeated `controllerOverrideCount` times; each entry writes `(controllerName, selectedPageId)` as two string-table references |
-| 11 | `propertyOverrideCount` | `Int16` present in V7; the current writer emits `0`, and the reader skips existing property-override entries |
+| 11 | `propertyOverrideCount` | `Int16` in V2+ |
+| 12 | Property overrides | Repeated `propertyOverrideCount` times; each entry writes `target`, `propertyId: Int16`, and `value` |
 
-The static-item `controllers` field uses comma-separated pairs: `controllerName,selectedPageId,...`. Encoding writes one controller override per pair. An empty controller name does not create an override, and a missing selected-page ID is written as an empty string. Decoding reconstructs the paired string in the same order.
+The static-item `controllers` field uses comma-separated pairs: `controllerName,selectedPageId,...`. Encoding writes one controller override per pair. An empty controller name does not create an override, and a missing selected-page ID is written as an empty string. Decoding reconstructs the paired string in the same order. Property overrides round-trip in model order.
 
 A Tree item's `isFolder` has no `null` representation in the binary, so encoding resolves it as follows:
 

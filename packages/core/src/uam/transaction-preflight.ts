@@ -370,6 +370,7 @@ const LOADER_PROPERTY_KEYS = [
 	'shrinkOnly',
 	'autoSize',
 	'useResize',
+	'showErrorSign',
 	'align',
 	'vAlign',
 	'frame',
@@ -842,7 +843,7 @@ function isValidLoaderProperties(value: unknown): value is UamLoaderProperties {
 	const properties = value as UamLoaderProperties;
 	return typeof properties.url === 'string'
 		&& isIntegerBetween(properties.fill, 0, 5)
-		&& [properties.shrinkOnly, properties.autoSize, properties.useResize, properties.playing,
+		&& [properties.shrinkOnly, properties.autoSize, properties.useResize, properties.showErrorSign, properties.playing,
 			properties.fillClockwise, properties.clearOnPublish].every((item) => typeof item === 'boolean')
 		&& isIntegerBetween(properties.align, 0, 2)
 		&& isIntegerBetween(properties.vAlign, 0, 2)
@@ -3263,7 +3264,7 @@ function collectProjectedResourceReferenceIssues(project: UamProject): Projected
 	};
 	const componentKinds = ['component'] as const;
 	const visualKinds = ['image', 'movieClip', 'component', 'spine', 'dragonBones'] as const;
-	const binaryKinds = ['image', 'sound', 'misc', 'font', 'movieClip', 'spine', 'dragonBones'] as const;
+	const binaryKinds = ['image', 'sound', 'misc', 'swf', 'font', 'movieClip', 'spine', 'dragonBones'] as const;
 	const resourceKinds = UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds;
 
 	for (const pkg of project.packages) {

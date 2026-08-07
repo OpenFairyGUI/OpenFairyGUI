@@ -73,6 +73,28 @@ test('transitions are parsed', async (t) => {
 	t.true(trans.listItems().length > 0, 'transition has items');
 });
 
+test('button downEffect enums and layout-dependent list defaults are parsed', async (t) => {
+	const unityDoc = await getDoc();
+	const button5 = unityDoc
+		.getRoot()
+		.getPackage('Basics')
+		?.listComponents()
+		.find((component) => component.getName() === 'Button5');
+	t.is(button5?.getDownEffect(), 2, 'downEffect="scale" maps to the runtime enum');
+
+	const layaboxDoc = await _getLayaboxDoc();
+	const demoList = layaboxDoc
+		.getRoot()
+		.getPackage('Basics')
+		?.listComponents()
+		.find((component) => component.getName() === 'Demo_List');
+	const byId = new Map(demoList?.listChildren().map((child) => [child.getId(), child as any]));
+	t.true(byId.get('n0')?.getAutoResizeItem?.(), 'single-column list defaults autoItemSize to true');
+	t.true(byId.get('n4')?.getAutoResizeItem?.(), 'single-row list defaults autoItemSize to true');
+	t.false(byId.get('n7')?.getAutoResizeItem?.(), 'flow-horizontal list defaults autoItemSize to false');
+	t.false(byId.get('n9')?.getAutoResizeItem?.(), 'flow-vertical list defaults autoItemSize to false');
+});
+
 test('relations are parsed on display objects', async (t) => {
 	const doc = await getDoc();
 	const root = doc.getRoot();

@@ -80,7 +80,7 @@ flowchart LR
     subgraph OUT["输出物"]
         PROJOUT["工程文件写回<br/>.fairy + settings + assets/*"]
         BIN["发布包<br/>.fui / .bin / _fui.bytes"]
-        ART["发布附属资源<br/>atlas*.png / sounds / 其他文件"]
+        ART["发布附属资源<br/>atlas*.png / atlas*!a.png / sounds / 其他文件"]
         CODEOUT["生成代码<br/>binder / component classes"]
     end
 
@@ -177,6 +177,8 @@ flowchart LR
 
 `publish.ts` 只编排发布设置、资源闭包、atlas、二进制写出与通用代码生成；文件系统、raster backend 与 publish hooks 都由宿主提供。
 
+每个包的发布计划按“显式调用参数 > 包级 atlas 设置 > 全局发布设置”解析图集尺寸、尺寸约束、分页与旋转；`extractAlpha` 和 `maxAtlasIndex` 使用包级正式设置。Layabox 发布计划统一禁用旋转。包级排除列表和组件的发布时清理标记在资源闭包与二进制投影阶段生效，不修改工程源模型。
+
 - `@openfairygui/functions/node` 的 `publishNode()` 组装 Node 文件系统、Sharp 与工程 `plugins/` 自动发现。
 - `@openfairygui/functions/web` 的 `publishBrowser()` 接收调用方的源/输出 `FileSystem`，通过独立 `adapters/web/raster.ts` Canvas adapter 生成 atlas PNG，并注入空 hooks。SVG 在解码前经过有尺寸、节点数和输入大小上限的 XML 安全校验；`createImageBitmap` 拒绝已验证 SVG 时仅对 SVG 使用 `HTMLImageElement` Blob URL 回退，并在成功或失败后释放 URL，其他图片格式仍沿用原解码路径。它解析持久化的 Laya 压缩、图集和安全文件扩展名设置，同时保持显式 browser 参数优先；选中包实际请求代码生成或扩展名不安全时，会在 Canvas 检查与输出写入前返回结构化 `unsupported_publish_setting`。失败结果的 `files` 只声明已完成的 `writeFileRaw`，原子提交由宿主文件系统负责。
 - `@openfairygui/functions/node` 的 `restoreNode()` 组装受限 restore 所需的 Node 文件系统与 Sharp 图像提取；CLI 只解析参数并调用该入口。
@@ -263,11 +265,16 @@ ProjectReader 读取 `package.xml` 的包内分支顺序，并在所有主/分�
 | 资源类型 | 当前发布行为 |
 |---|---|
 | `SoundResource` | 输出发布后的声音文件名 |
-| `MiscResource` | 输出资源文件；Unity 项目中源文件扩展名为 `.atlas` 时，发布名改为 `.atlas.txt`，其他项目保持原文件名 |
+| `MiscResource` | 二进制 `file` 使用资源发布 ID 与源扩展名；Unity 项目的 `.atlas` 追加 `.txt`。实际附属文件再加包发布名前缀，匹配运行时加载路径 |
+| `SwfResource` | 以二进制 item 类型码 `6` 保留，并按资源发布 ID 与源扩展名输出带包发布名前缀的附属文件 |
 | `ImageResource` / `MovieClipResource` 高分辨率变体 | 当 `includeHighResolution` 启用对应倍率时，按同路径、同分支、同类型的 `@2x` / `@3x` / `@4x` 资源加入发布闭包，并在基础 item 的 high-resolution 列表中引用；发布流程不主动缩放原图 |
 | `SpineResource` | 输出 skeleton 主文件；Unity 项目中源文件扩展名为 `.skel` 时，发布名改为 `.skel.bytes`，其他项目保持原文件名 |
 | `DragonBonesResource` | 输出 skeleton 主文件，当前保持原文件名 |
-| `SpineResource` / `DragonBonesResource` 依赖 | 按 `require` 形成资源闭包，依赖的 `misc` / `image` 资源一并发布 |
+| `SpineResource` / `DragonBonesResource` 依赖 | 按 `require` 形成资源闭包，依赖的 `misc` / `image` 资源一并发布；其中 `misc` 依赖沿用统一的发布 ID 命名规则 |
+
+组件资源闭包会同时扫描 Loader URL、List item 的 `url`、`icon`、`selectedIcon`，以及组件实例和 List item 的 property override 值，避免仅在选中状态或属性覆盖中使用的资源被裁掉。
+
+包级 `excludedResourceIds` 会从发布资源、骨骼依赖和高分辨率变体闭包中排除对应资源。Loader `clearOnPublish`、文本 `autoClearText`、List `autoClearItems` 与 ComboBox 实例 `instanceAutoClearItems` 会同时清空二进制中的对应值和引用扫描结果。Unity 启用 `extractAlpha` 时输出无 alpha 的主 atlas 与 RGB 通道的 `atlas*!a.png`；其他目标保持普通 RGBA atlas。
 
 发布输出采用完整性优先的失败口径：已解析到输出目录时必须有文件系统能力；存在可封包的图像时必须有 raster encoder、源资源路径和 atlas 输出目录；图集装箱/合成、声音或外部资源复制失败都会中止发布，不会报告为成功。
 

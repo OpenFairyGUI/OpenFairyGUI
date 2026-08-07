@@ -65,6 +65,9 @@ export type AtlasRasterInput =
  */
 export interface AtlasRasterPipeline {
 	ensureAlpha(): AtlasRasterPipeline;
+	removeAlpha(): AtlasRasterPipeline;
+	extractChannel(channel: 'alpha'): AtlasRasterPipeline;
+	joinChannel(images: Uint8Array[]): AtlasRasterPipeline;
 	resize(options: { width: number; height: number; fit?: 'fill' }): AtlasRasterPipeline;
 	raw(): AtlasRasterPipeline;
 	extract(options: { left: number; top: number; width: number; height: number }): AtlasRasterPipeline;

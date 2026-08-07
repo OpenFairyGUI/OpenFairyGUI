@@ -228,7 +228,7 @@ export function _writeDisplayList(buf: WriteBuffer, comp: Component, _doc: Docum
 		const isTextInput = childType === 'GTextInput';
 		if (isCompOrList) {
 			cb4 = buf.pos - childIndexPos;
-			_writeChildBlock4Component(buf, child, comp, pkg);
+			_writeChildBlock4Component(buf, child, comp, pkg, version);
 		} else if (isTextInput) {
 			cb4 = buf.pos - childIndexPos;
 			_writeChildBlock4TextInput(buf, child);
@@ -416,13 +416,13 @@ function _writeChildSpecific(buf: WriteBuffer, child: EncoderChildLike, pkg: Pac
 			break;
 
 		case 'GLoader': {
-			buf.writeS(remapLocalUiUrl(pkg, child.getUrl?.() ?? null));
+			buf.writeS(remapLocalUiUrl(pkg, child.getClearOnPublish?.() ? null : (child.getUrl?.() ?? null)));
 			buf.writeUint8(child.getAlign?.() ?? 0);
 			buf.writeUint8(child.getVAlign?.() ?? 0);
 			buf.writeUint8(child.getFill?.() ?? 0);
 			buf.writeBool(child.getShrinkOnly?.() ?? false);
 			buf.writeBool(_boolVal(child.getAutoSize?.(), false));
-			buf.writeBool(false); // showErrorSign
+			buf.writeBool(child.getShowErrorSign?.() ?? false);
 			buf.writeBool(child.getPlaying?.() ?? true);
 			buf.writeInt32(child.getFrame?.() ?? 0);
 			const loaderColor = child.getColor?.() ?? null;
@@ -444,7 +444,7 @@ function _writeChildSpecific(buf: WriteBuffer, child: EncoderChildLike, pkg: Pac
 		}
 
 		case 'GLoader3D': {
-			buf.writeS(remapLocalUiUrl(pkg, child.getUrl?.() ?? null));
+			buf.writeS(remapLocalUiUrl(pkg, child.getClearOnPublish?.() ? null : (child.getUrl?.() ?? null)));
 			buf.writeUint8(child.getAlign?.() ?? 0);
 			buf.writeUint8(child.getVAlign?.() ?? 0);
 			buf.writeUint8(child.getFill?.() ?? 0);
@@ -548,7 +548,10 @@ function _writeChildAfterAdd(buf: WriteBuffer, child: EncoderChildLike, comp: Co
 		case 'GRichTextField':
 		case 'GTextInput':
 			// GTextField.setup_afterAdd: readS() → text — noCache
-			buf.writeSEx(remapLocalUiRefsInText(pkg, child.getText?.() ?? null), true);
+			buf.writeSEx(
+				remapLocalUiRefsInText(pkg, child.getAutoClearText?.() ? null : (child.getText?.() ?? null)),
+				true,
+			);
 			break;
 
 		case 'GButton': {
@@ -752,7 +755,9 @@ function _writeExtensionInstanceData(
 			break;
 		}
 		case 'ComboBox': {
-			const comboItems: ComboItemLike[] = child.getInstanceComboItems?.() ?? [];
+			const comboItems: ComboItemLike[] = child.getInstanceAutoClearItems?.()
+				? []
+				: (child.getInstanceComboItems?.() ?? []);
 			buf.writeInt16(comboItems.length);
 			for (const item of comboItems) {
 				const itemStart = buf.pos;
@@ -822,7 +827,7 @@ function _writeListItems(buf: WriteBuffer, child: EncoderChildLike, pkg: Package
 	buf.writeS(remapLocalUiUrl(pkg, child.getDefaultItem?.() ?? null));
 
 	const isTree = child.propertyType === 'GTree';
-	const listItems: ListItemLike[] = child.getListItems?.() ?? [];
+	const listItems: ListItemLike[] = child.getAutoClearItems?.() ? [] : (child.getListItems?.() ?? []);
 	buf.writeInt16(listItems.length);
 	for (const [index, item] of listItems.entries()) {
 		const itemStart = buf.pos;
@@ -853,7 +858,7 @@ function _writeListItems(buf: WriteBuffer, child: EncoderChildLike, pkg: Package
 		buf.writeInt16(controllerCount);
 		buf.pos = controllerEnd;
 		if (version >= 2) {
-			buf.writeInt16(0); // no property overrides
+			_writePropertyOverrides(buf, item.propertyOverrides ?? []);
 		}
 
 		const itemEnd = buf.pos;
@@ -871,7 +876,13 @@ function _writeTreeSettings(buf: WriteBuffer, child: EncoderChildLike): void {
 
 // ─── Block 4: Component/List child controller overrides ──────────────────
 
-function _writeChildBlock4Component(buf: WriteBuffer, child: EncoderChildLike, comp: Component, _pkg: Package): void {
+function _writeChildBlock4Component(
+	buf: WriteBuffer,
+	child: EncoderChildLike,
+	comp: Component,
+	_pkg: Package,
+	version: number,
+): void {
 	// 1. pageController index
 	const pageCtrlName = child.getPageController?.() ?? null;
 	if (pageCtrlName) {
@@ -906,7 +917,21 @@ function _writeChildBlock4Component(buf: WriteBuffer, child: EncoderChildLike, c
 	}
 
 	// 3. Property overrides (§_-55§)
-	buf.writeInt16(0); // no property overrides in current project data
+	if (version >= 2) {
+		_writePropertyOverrides(buf, child.getPropertyOverrides?.() ?? []);
+	}
+}
+
+function _writePropertyOverrides(
+	buf: WriteBuffer,
+	overrides: Array<{ target: string; propertyId: number; value: string }>,
+): void {
+	buf.writeInt16(overrides.length);
+	for (const property of overrides) {
+		buf.writeS(property.target);
+		buf.writeInt16(property.propertyId);
+		buf.writeSEx(property.value, true);
+	}
 }
 
 function _writeChildBlock4TextInput(buf: WriteBuffer, child: EncoderChildLike): void {

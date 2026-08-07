@@ -131,7 +131,7 @@ block 5 的 patch 用于替换 block 4 中相同索引位置的占位字符串�
 
 | type code | item type | 协议内容 |
 |---|---|---|
-| `0` | `Image` | `id`、`name`、`path`、尺寸、`scaleOption`、`scale9Grid`、`smoothing` |
+| `0` | `Image` | `id`、`name`、`path`、尺寸、`scaleOption`、`scale9Grid`、`tileGridIndice`、`smoothing` |
 | `1` | `MovieClip` | 通用字段 + 帧数据块 |
 | `2` | `Sound` | 通用字段 + 声音文件名 |
 | `3` | `Component` | 通用字段 + 扩展类型码 + 组件二进制 |
@@ -172,26 +172,28 @@ block 5 的 patch 用于替换 block 4 中相同索引位置的占位字符串�
 
 ### `file` 的发布语义
 
-`file` 字段承载的是发布产物中的资源定位结果，而不是工程资源目录下的原始文件名。当前 Unity 侧运行时口径下：
+`file` 字段承载的是发布产物中的资源定位结果，而不是工程资源目录下的原始文件名：
 
 | 资源类型 | `file` 语义 |
 |---|---|
-| `Atlas` / `Sound` / `Misc` | 指向发布后的附属资源文件名 |
+| `Atlas` / `Sound` / `Misc` / `Swf` | 指向发布后的附属资源文件名；运行时按目标规则添加包资源前缀 |
 | `Spine` / `DragoneBones` | 指向发布后的 skeleton 主资源文件名；运行时再按该路径加载对应资源 |
 
-当前 Unity 发布侧的 `Spine` 常见附属资源命名规则如下：
+`Sound` / `Misc` / `Swf` 的 `file` 使用发布 item id 加源扩展名。Unity 中 `.atlas` 额外追加 `.txt`。例如 item id 为 `biss7` 的 `hero.json` 写为 `biss7.json`，其实际附属文件按运行时约定带包发布名前缀。`Swf` 使用 item 类型码 `6`。
+
+当前 Unity 发布侧的 `Spine` 主资源与依赖资源命名规则如下：
 
 | 工程资源文件 | 发布结果 |
 |---|---|
 | `*.skel` | `*.skel.bytes` |
-| `*.atlas` | `*.atlas.txt` |
+| `*.atlas`（`Misc` 依赖） | `<item-id>.atlas.txt` |
 | `*.png` | 保持原文件名 |
 
-非 Unity 项目保持工程侧 `.skel` 与 `.atlas` 文件名。
+非 Unity 项目的 skeleton 主资源保持目标所需文件名；作为 `Misc` 发布的依赖仍使用 `<item-id><源扩展名>`。
 
 当发布设置启用“分支 atlas 单独输出”时，atlas 条目的 `file` 会写成分支后缀形式，例如 `atlas0_dev.png`。主干 atlas 仍写 `atlas0.png`。
 
-`DragoneBones` 样本中的主文件与依赖文件当前保持原文件名，例如 `dragon_ske.json`、`dragon_tex.json`、`dragon.png`。
+`DragoneBones` 主文件保持目标所需文件名；其 `Misc` 依赖按发布 item id 命名，图片依赖保持图片发布名。
 
 ### 条件附加字段
 
@@ -219,7 +221,7 @@ block 5 的 patch 用于替换 block 4 中相同索引位置的占位字符串�
 | 基础字段 | `itemId`、`atlasId`、`x`、`y`、`w`、`h`、`rotated` |
 | 条件附加字段 | `offsetX`、`offsetY`、`originalWidth`、`originalHeight` |
 
-该 block 用于描述资源在 atlas 中的裁切矩形与原始尺寸信息。
+该 block 用于描述资源在 atlas 中的裁切矩形与原始尺寸信息。当 offset 非零、旋转、零尺寸直出，或原始尺寸与裁切矩形不同时，附加段存在；因此仅裁掉右侧/下侧且 offset 为 `0` 的 sprite 仍会保留 `originalWidth` / `originalHeight`。
 
 ## Block 3：Pixel Hit Test
 
@@ -445,7 +447,7 @@ child 自身带独立 index table，不同对象类型的 block 数量不同：
 
 | 类型 | 内容 |
 |---|---|
-| `GComponent`、`GList`、`GButton`、`GLabel`、`GComboBox`、`GProgressBar`、`GSlider`、`GScrollBar` | page controller / 组件实例关联信息 |
+| `GComponent`、`GList`、`GButton`、`GLabel`、`GComboBox`、`GProgressBar`、`GSlider`、`GScrollBar` | page controller、controller overrides；V2+ 继续写有序 property overrides，每项为 `target / propertyId / value` |
 | `GTextInput` | 输入框特定设置 |
 | 其他类型 | offset 为 `0`，该 block 不存在 |
 
@@ -457,7 +459,7 @@ child 自身带独立 index table，不同对象类型的 block 数量不同：
 | `GTextField` / `GRichTextField` / `GTextInput` | font、fontSize、color、align、vAlign、leading、letterSpacing、ubb、autoSize、underline、italic、bold、singleLine、stroke、shadow、strikethrough、faceDilate、outlineSoftness、underlaySoftness |
 | `GGraph` | graphType、lineSize、lineColor、fillColor、cornerRadius、points、sides、startAngle、distances |
 | `GGroup` | layout、lineGap、columnGap、excludeInvisibles、autoSizeDisabled、mainGridIndex |
-| `GLoader` | url、align、vAlign、fill、shrinkOnly、autoSize、playing、frame、color、fillMethod、useResize |
+| `GLoader` | url、align、vAlign、fill、shrinkOnly、autoSize、errorSign、playing、frame、color、fillMethod、useResize |
 | `GLoader3D` | url、align、vAlign、fill、shrinkOnly、autoSize、animationName、skinName、playing、frame、loop、color |
 | `GMovieClip` | color、frame、playing |
 | `GList` | layout、selectionMode、align、vAlign、lineGap、columnGap、lineCount、columnCount、autoResizeItem、childrenRenderOrder、apexIndex、margin、overflow、clipSoftness、scrollItemToViewOnClick、foldInvisibleItems |
@@ -501,9 +503,12 @@ Block 6 用于恢复 afterAdd 阶段写入的数据：
 | 8 | `icon`、`selectedIcon`、`name` | 可空字符串表引用 |
 | 9 | `controllerOverrideCount` | `Int16` |
 | 10 | controller overrides | 重复 `controllerOverrideCount` 次，每次依次写 `(controllerName, selectedPageId)` 两个字符串表引用 |
-| 11 | `propertyOverrideCount` | V7 中存在的 `Int16`；当前写入器写 `0`，读取器会跳过已存在的属性覆盖项 |
+| 11 | `propertyOverrideCount` | V2+ 的 `Int16` |
+| 12 | property overrides | 重复 `propertyOverrideCount` 次，每项依次写 `target`、`propertyId: Int16`、`value` |
 
-静态项模型中的 `controllers` 使用逗号分隔的成对形式：`controllerName,selectedPageId,...`。编码时每一对写入一个 controller override；空的 controller name 不形成覆盖项，缺失的 selected page ID 按空字符串写入。解码时再按相同顺序还原为成对字符串。
+静态项模型中的 `controllers` 使用逗号分隔的成对形式：`controllerName,selectedPageId,...`。编码时每一对写入一个 controller override；空的 controller name 不形成覆盖项，缺失的 selected page ID 按空字符串写入。解码时再按相同顺序还原为成对字符串。property overrides 按模型顺序原样往返。
+
+发布时清理标记不作为运行时字段写入二进制；编码前的发布投影直接清空相应值：Loader / Loader3D URL、文本内容、List / Tree 静态项和 ComboBox 实例项。资源闭包使用同一投影语义，因此被清理值中的资源引用不会进入发布包。
 
 Tree 项的 `isFolder` 在二进制中没有 `null` 表示，因此编码时按以下规则解析：
 

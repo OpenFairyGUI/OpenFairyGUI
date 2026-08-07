@@ -67,6 +67,7 @@ interface IComponent extends IExtensibleProperty {
 	idNum: number;
 	initName: string;
 	remark: string;
+	customExtensionId: string;
 	extensionType: string;
 	buttonMode: number;
 	sound: string;
@@ -155,6 +156,7 @@ export class Component extends ExtensibleProperty<IComponent> {
 			idNum: 0,
 			initName: '',
 			remark: '',
+			customExtensionId: '',
 			extensionType: '',
 			buttonMode: 0,
 			sound: '',
@@ -344,6 +346,9 @@ export class Component extends ExtensibleProperty<IComponent> {
 
 	public getRemark(): string { return this.get('remark'); }
 	public setRemark(v: string): this { return this.set('remark', v); }
+
+	public getCustomExtensionId(): string { return this.get('customExtensionId'); }
+	public setCustomExtensionId(v: string): this { return this.set('customExtensionId', v); }
 
 	public getExtensionType(): string { return this.get('extensionType'); }
 	public setExtensionType(v: string): this { return this.set('extensionType', v); }

@@ -127,6 +127,8 @@ Notes:
 
 Component root extensions, ComboBox component instances, and List/Tree display nodes use the formal boolean `autoClearItems` property. Its default is `false`, and it is written only when enabled. Ordered `<property target="..." propertyId="..." value="..."/>` children for component instances and static list items are stored in formal UAM properties. Reads, materialization, saves, and reloads preserve their original order and raw string values, including leading/trailing whitespace, whitespace-only values, and empty strings. `target` must be non-empty, `propertyId` must be a non-negative safe integer, and `value` must be present; invalid input is rejected before materialization or write-back.
 
+List/Tree `autoItemSize` defaults by layout: `true` for single column/row and `false` for flow/pagination, and it is written only when it differs from that layout default. Button root extensions store `downEffect` with the `none / dark / scale` string enum. Transitions store non-24 frame rates in `frameRate`.
+
 ## Integer geometry fields in component XML
 
 Geometry values that the FairyGUI desktop editor reads as signed 32-bit integers are truncated toward zero when written to Project XML. Non-finite values and values outside `-2147483648` to `2147483647` after truncation are rejected.
@@ -142,7 +144,7 @@ Integer geometry fields include:
 
 ## Project resource-tree metadata
 
-Component and asset resource nodes in `package.xml` and `package_branch.xml` use `exported="true"` and `favorite="true"` to store export and favorite state. The corresponding attribute is omitted when disabled. UAM stores these values as `resource.exported` and `resource.favorite`; public transactions set the target Boolean idempotently through `setResourceExported` and `setResourceFavorite`.
+Component and asset resource nodes in `package.xml` and `package_branch.xml` use `exported="true"` and `favorite="true"` to store export and favorite state. The corresponding attribute is omitted when disabled. SWF uses the formal `SwfResource` model for `<swf>` nodes, and the UAM `swf` resource preserves its source file, export state, and favorite state. UAM stores these values as `resource.exported` and `resource.favorite`; public transactions set the target Boolean idempotently through `setResourceExported` and `setResourceFavorite`.
 
 Each package records its own resource branches in the formal ordered `branchNames` list, persisted as the same-named JSON-array attribute on the `package.xml` root. Project reads use that order to establish mappings; binary publishing uses the same order to define that package's `branchItemIds` slots and must not derive them again from root project branch order. Document calls that do not explicitly set a package-local table derive it from actual branch resources in project branch order before publishing.
 
@@ -194,7 +196,7 @@ These are OpenFairyGUI's current execution boundaries, not new editor setting fi
 | Images or animation frames need packing | A raster encoder, source-resource path, and atlas output directory are required |
 | Atlas packing, image reads, or composition fail | Publishing aborts instead of returning a successful result with transparent holes or missing pages |
 | The publish set contains a MovieClip | Reads mixed PNG/JPEG textures through the JTA length table. Duplicate texture indices reuse the first referenced frame's sprite, and `-1` means an empty frame. All selected packages finish JTA parsing, strict PNG/JPEG validation, complete decoding of referenced textures, and normalized caching before any built-in OpenFairyGUI output directory or file is created. Out-of-range indices, referenced empty textures, unsupported formats, truncated data, or decode failure abort the entire publish. |
-| Copying a `SoundResource`, `MiscResource`, `SpineResource`, `DragonBonesResource`, or one of their dependencies fails | Publishing aborts instead of downgrading a missing runtime resource to a warning |
+| Copying a `SoundResource`, `MiscResource`, `SwfResource`, `SpineResource`, `DragonBonesResource`, or one of their dependencies fails | Publishing aborts instead of downgrading a missing runtime resource to a warning |
 
 When no output directory is requested, low-level `publish()` may calculate layout only. That is not a file publish and writes no binary or resource files. Standard Node workflows should use `publishNode()`.
 
@@ -293,6 +295,8 @@ The current OpenFairyGUI implementation of `fileExtension` does not reproduce th
 - atlas rotation is disabled so the output remains consumable by the current FairyGUI-Layabox runtime
 
 Layabox-supported settings such as `includeHighResolution`, compression, atlas size, paging, and trimming remain project-configured. Without `--project-type`, the project-setting rules in the table above remain unchanged.
+
+The Unity and Cocos Creator runtimes do not inflate binary descriptors, so those targets always emit uncompressed data. An explicit API or CLI request for `compressed=true` / `--compressed` fails publishing, and persisted `compressDesc` cannot override this target constraint. Layabox continues to use the project's compression setting.
 
 The non-Unity binary publish contracts formally covered by the repository include:
 

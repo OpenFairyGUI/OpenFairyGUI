@@ -365,8 +365,8 @@ export class BinaryReader {
 					if (scaleOpt === 1) {
 						const x = buf.getInt32(), y = buf.getInt32();
 						const w = buf.getInt32(), h = buf.getInt32();
-						buf.getInt32(); // tileGridIndice
-						res.setScaleOption(1).setScale9Grid([x, y, w, h]);
+						const tileGridIndice = buf.getInt32();
+						res.setScaleOption(1).setScale9Grid([x, y, w, h]).setTileGridIndice(tileGridIndice);
 					} else if (scaleOpt === 2) {
 						res.setScaleOption(2);
 					}
@@ -408,6 +408,15 @@ export class BinaryReader {
 
 				case BinItemType.Misc: {
 					const res = doc.createMiscResource(itemName);
+					res.setId(itemId).setPath(itemPath).setFile(itemFile).setExported(exported);
+					res.setExtras({ ...res.getExtras(), _publishedFile: itemFile });
+					pkg.addResource(res);
+					createdResource = res;
+					break;
+				}
+
+				case BinItemType.Swf: {
+					const res = doc.createSwfResource(itemName);
 					res.setId(itemId).setPath(itemPath).setFile(itemFile).setExported(exported);
 					res.setExtras({ ...res.getExtras(), _publishedFile: itemFile });
 					pkg.addResource(res);
@@ -486,7 +495,6 @@ export class BinaryReader {
 				}
 
 				default:
-					// Swf — skip item data
 					break;
 			}
 
