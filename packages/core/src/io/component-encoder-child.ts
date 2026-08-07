@@ -416,7 +416,7 @@ function _writeChildSpecific(buf: WriteBuffer, child: EncoderChildLike, pkg: Pac
 			break;
 
 		case 'GLoader': {
-			buf.writeS(remapLocalUiUrl(pkg, child.getUrl?.() ?? null));
+			buf.writeS(remapLocalUiUrl(pkg, child.getClearOnPublish?.() ? null : (child.getUrl?.() ?? null)));
 			buf.writeUint8(child.getAlign?.() ?? 0);
 			buf.writeUint8(child.getVAlign?.() ?? 0);
 			buf.writeUint8(child.getFill?.() ?? 0);
@@ -444,7 +444,7 @@ function _writeChildSpecific(buf: WriteBuffer, child: EncoderChildLike, pkg: Pac
 		}
 
 		case 'GLoader3D': {
-			buf.writeS(remapLocalUiUrl(pkg, child.getUrl?.() ?? null));
+			buf.writeS(remapLocalUiUrl(pkg, child.getClearOnPublish?.() ? null : (child.getUrl?.() ?? null)));
 			buf.writeUint8(child.getAlign?.() ?? 0);
 			buf.writeUint8(child.getVAlign?.() ?? 0);
 			buf.writeUint8(child.getFill?.() ?? 0);
@@ -548,7 +548,10 @@ function _writeChildAfterAdd(buf: WriteBuffer, child: EncoderChildLike, comp: Co
 		case 'GRichTextField':
 		case 'GTextInput':
 			// GTextField.setup_afterAdd: readS() → text — noCache
-			buf.writeSEx(remapLocalUiRefsInText(pkg, child.getText?.() ?? null), true);
+			buf.writeSEx(
+				remapLocalUiRefsInText(pkg, child.getAutoClearText?.() ? null : (child.getText?.() ?? null)),
+				true,
+			);
 			break;
 
 		case 'GButton': {
@@ -752,7 +755,9 @@ function _writeExtensionInstanceData(
 			break;
 		}
 		case 'ComboBox': {
-			const comboItems: ComboItemLike[] = child.getInstanceComboItems?.() ?? [];
+			const comboItems: ComboItemLike[] = child.getInstanceAutoClearItems?.()
+				? []
+				: (child.getInstanceComboItems?.() ?? []);
 			buf.writeInt16(comboItems.length);
 			for (const item of comboItems) {
 				const itemStart = buf.pos;
@@ -822,7 +827,7 @@ function _writeListItems(buf: WriteBuffer, child: EncoderChildLike, pkg: Package
 	buf.writeS(remapLocalUiUrl(pkg, child.getDefaultItem?.() ?? null));
 
 	const isTree = child.propertyType === 'GTree';
-	const listItems: ListItemLike[] = child.getListItems?.() ?? [];
+	const listItems: ListItemLike[] = child.getAutoClearItems?.() ? [] : (child.getListItems?.() ?? []);
 	buf.writeInt16(listItems.length);
 	for (const [index, item] of listItems.entries()) {
 		const itemStart = buf.pos;

@@ -1379,6 +1379,51 @@ test('binary writer: image tile-grid and component property overrides round-trip
 	}
 });
 
+test('binary writer: publish-clear flags remove runtime-only initial content', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('ClearPkg');
+	pkg.setId('clearpkg1');
+	const component = doc.createComponent('Main');
+	component.setId('main01').setSize(100, 100);
+
+	const text = doc.createGTextField('text');
+	text.setId('text').setText('secret').setAutoClearText(true);
+	component.addChild(text);
+	const loader = doc.createGLoader('loader');
+	loader.setId('loader').setUrl('ui://clearpkg1/image01').setClearOnPublish(true);
+	component.addChild(loader);
+	const list = doc.createGList('list');
+	list.setId('list').setAutoClearItems(true).setListItems([{
+		title: 'secret', selectedTitle: null, icon: null, selectedIcon: null, url: null,
+		name: null, level: 0, isFolder: null,
+	}]);
+	component.addChild(list);
+	const combo = doc.createGComponent('combo');
+	combo
+		.setId('combo')
+		.setInstanceExtType('ComboBox')
+		.setInstanceAutoClearItems(true)
+		.setInstanceComboItems([{ title: 'secret', value: '1', icon: null }]);
+	component.addChild(combo);
+	pkg.addResource(component);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-clear-'));
+	const outPath = path.join(tmpDir, 'clear.bytes');
+	try {
+		await io.writeBinary(doc, outPath);
+		const decoded = await io.readBinary(outPath);
+		const main = decoded.getRoot().getPackage('ClearPkg')?.getComponent('Main');
+		const byId = new Map(main?.listChildren().map((child) => [child.getId(), child as any]));
+		t.is(byId.get('text')?.getText?.(), '');
+		t.is(byId.get('loader')?.getUrl?.(), '');
+		t.deepEqual(byId.get('list')?.getListItems?.(), []);
+		t.deepEqual(byId.get('combo')?.getInstanceComboItems?.(), []);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('binary writer: sprite originalSize is only emitted for rotated, trimmed, or zero-sized package sprites', async (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('SpritePkg');

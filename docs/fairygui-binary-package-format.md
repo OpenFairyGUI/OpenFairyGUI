@@ -508,6 +508,8 @@ Block 6 用于恢复 afterAdd 阶段写入的数据：
 
 静态项模型中的 `controllers` 使用逗号分隔的成对形式：`controllerName,selectedPageId,...`。编码时每一对写入一个 controller override；空的 controller name 不形成覆盖项，缺失的 selected page ID 按空字符串写入。解码时再按相同顺序还原为成对字符串。property overrides 按模型顺序原样往返。
 
+发布时清理标记不作为运行时字段写入二进制；编码前的发布投影直接清空相应值：Loader / Loader3D URL、文本内容、List / Tree 静态项和 ComboBox 实例项。资源闭包使用同一投影语义，因此被清理值中的资源引用不会进入发布包。
+
 Tree 项的 `isFolder` 在二进制中没有 `null` 表示，因此编码时按以下规则解析：
 
 - 显式 `true` 或 `false` 原样写入。

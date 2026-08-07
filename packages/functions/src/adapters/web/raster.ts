@@ -308,6 +308,51 @@ class BrowserImagePipeline implements AtlasRasterPipeline {
 		return this;
 	}
 
+	removeAlpha(): this {
+		this.raster = this.raster.then((source) => {
+			const context = getBrowserContext(source.canvas);
+			const image = context.getImageData(0, 0, source.width, source.height);
+			for (let index = 3; index < image.data.length; index += 4) image.data[index] = 255;
+			context.putImageData(image, 0, 0);
+			return source;
+		});
+		return this;
+	}
+
+	extractChannel(channel: 'alpha'): this {
+		if (channel !== 'alpha') throw new Error(`publishBrowser: Unsupported channel "${channel}".`);
+		this.raster = this.raster.then((source) => {
+			const context = getBrowserContext(source.canvas);
+			const image = context.getImageData(0, 0, source.width, source.height);
+			for (let index = 0; index < image.data.length; index += 4) {
+				const alpha = image.data[index + 3] ?? 0;
+				image.data[index] = alpha;
+				image.data[index + 1] = alpha;
+				image.data[index + 2] = alpha;
+				image.data[index + 3] = 255;
+			}
+			context.putImageData(image, 0, 0);
+			return source;
+		});
+		return this;
+	}
+
+	joinChannel(images: Uint8Array[]): this {
+		this.raster = Promise.all([this.raster, ...images.map((image) => this.decode(image))]).then(([source, ...channels]) => {
+			const context = getBrowserContext(source.canvas);
+			const image = context.getImageData(0, 0, source.width, source.height);
+			for (const [channelIndex, channel] of channels.slice(0, 2).entries()) {
+				const channelData = getBrowserContext(channel.canvas).getImageData(0, 0, channel.width, channel.height).data;
+				for (let index = 0; index < image.data.length; index += 4) {
+					image.data[index + channelIndex + 1] = channelData[index] ?? 0;
+				}
+			}
+			context.putImageData(image, 0, 0);
+			return source;
+		});
+		return this;
+	}
+
 	resize(options: { width: number; height: number; fit?: 'fill' }): this {
 		this.raster = this.raster.then((source) => {
 			const target = createRaster(options.width, options.height);

@@ -80,6 +80,8 @@ export interface ResolvedPublishAtlasOptions
 		| 'allowRotation'
 		| 'padding'
 		| 'powerOfTwo'
+		| 'maxAtlasIndex'
+		| 'multipleOfFour'
 		| 'square'
 		| 'multiPage'
 		| 'trimImage'
@@ -175,6 +177,8 @@ export function resolvePublishOptions(
 			overrides.atlas?.allowRotation ?? (explicitLayaboxTarget ? false : (atlasSetting.allowRotation ?? false)),
 		padding: overrides.atlas?.padding ?? atlasSetting.padding ?? 2,
 		powerOfTwo: overrides.atlas?.powerOfTwo ?? atlasSetting.sizeOption === 'pot',
+		maxAtlasIndex: overrides.atlas?.maxAtlasIndex ?? 10,
+		multipleOfFour: overrides.atlas?.multipleOfFour ?? atlasSetting.sizeOption === 'mof',
 		square: overrides.atlas?.square ?? atlasSetting.forceSquare ?? false,
 		multiPage: overrides.atlas?.multiPage ?? atlasSetting.paging ?? true,
 		trimImage: overrides.atlas?.trimImage ?? atlasSetting.trimImage ?? false,

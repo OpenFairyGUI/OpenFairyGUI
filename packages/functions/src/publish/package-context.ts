@@ -236,18 +236,19 @@ function collectHighResolutionItemIds(
 	resources: ReturnType<Package['listResources']>,
 	publishedResourceIds: Set<string>,
 	includeHighResolution: number,
+	excludedResourceIds: Set<string>,
 ): Map<string, Array<string | null>> {
 	const result = new Map<string, Array<string | null>>();
 	if (includeHighResolution <= 0) return result;
 
 	const highResolutionResourceByKey = new Map<string, ImageResource | MovieClipResource>();
 	for (const resource of resources) {
-		if (!isHighResolutionResource(resource)) continue;
+		if (!isHighResolutionResource(resource) || excludedResourceIds.has(resource.getId())) continue;
 		highResolutionResourceByKey.set(buildHighResolutionResourceKey(resource), resource);
 	}
 
 	for (const resource of resources) {
-		if (!isHighResolutionResource(resource)) continue;
+		if (!isHighResolutionResource(resource) || excludedResourceIds.has(resource.getId())) continue;
 		if (!publishedResourceIds.has(resource.getId())) continue;
 		if (isHighResolutionVariantName(resource.getName())) continue;
 
@@ -291,6 +292,7 @@ function collectPackagePublishContext(
 	},
 ): PackagePublishContext {
 	const resources = pkg.listResources();
+	const excludedResourceIds = new Set(pkg.getSourceAtlasSettings().excludedResourceIds);
 	const resourceMap = new Map(resources.map((resource) => [resource.getId(), resource]));
 	const referencedIds = collectPackageResourceReferences(pkg).localResourceIds;
 	const pixelHitTestImageIds = new Set<string>();
@@ -305,10 +307,15 @@ function collectPackagePublishContext(
 		while (changed) {
 			changed = false;
 			for (const resourceId of [...exportedResourceIds]) {
+				if (excludedResourceIds.has(resourceId)) {
+					exportedResourceIds.delete(resourceId);
+					changed = true;
+					continue;
+				}
 				const resource = resourcesById.get(resourceId);
 				if (!resource || !isSkeletonResource(resource)) continue;
 				for (const requiredId of resource.getRequireIds()) {
-					if (!requiredId || exportedResourceIds.has(requiredId)) continue;
+					if (!requiredId || excludedResourceIds.has(requiredId) || exportedResourceIds.has(requiredId)) continue;
 					exportedResourceIds.add(requiredId);
 					changed = true;
 				}
@@ -319,7 +326,7 @@ function collectPackagePublishContext(
 
 	for (const atlas of pkg.listAtlases()) {
 		for (const sprite of atlas.listSprites()) {
-			spriteItemIds.add(sprite.getItemId());
+			if (!excludedResourceIds.has(sprite.getItemId())) spriteItemIds.add(sprite.getItemId());
 		}
 	}
 
@@ -332,8 +339,8 @@ function collectPackagePublishContext(
 		const hitTest = component.getHitTest?.()?.trim();
 		if (hitTest && !hitTest.includes(',')) {
 			const targetChild = childMap.get(hitTest);
-			const sourceId = (targetChild as { getSrc?(): string } | undefined)?.getSrc?.();
-			if (sourceId) {
+		const sourceId = (targetChild as { getSrc?(): string } | undefined)?.getSrc?.();
+			if (sourceId && !excludedResourceIds.has(sourceId)) {
 				const sourceResource = resourceMap.get(sourceId);
 				if (sourceResource && isImageResource(sourceResource)) {
 					pixelHitTestImageIds.add(sourceId);
@@ -345,7 +352,7 @@ function collectPackagePublishContext(
 	const publishedResourceIds = new Set<string>(spriteItemIds);
 	for (const resource of resources) {
 		const resourceId = resource.getId();
-		if (!resourceId) continue;
+		if (!resourceId || excludedResourceIds.has(resourceId)) continue;
 		if (isComponentResource(resource)) {
 			if (resource.getExported() || referencedIds.has(resourceId)) {
 				publishedResourceIds.add(resourceId);
@@ -391,6 +398,7 @@ function collectPackagePublishContext(
 		resources,
 		publishedResourceIds,
 		options.includeHighResolution,
+		excludedResourceIds,
 	);
 
 	if (!options.includeBranches) {

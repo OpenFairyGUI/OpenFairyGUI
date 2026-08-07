@@ -13,7 +13,7 @@ export function createTransform(name: string, fn: Transform): Transform {
 	return fn;
 }
 
-export function parseTextureSetMode(value: string | null | undefined): TextureSetMode {
+export function parseTextureSetMode(value: string | null | undefined, maxAtlasIndex = 10): TextureSetMode {
 	const raw = value?.trim() ?? '';
 	if (!raw) {
 		return { kind: 'auto', raw: '' };
@@ -29,7 +29,7 @@ export function parseTextureSetMode(value: string | null | undefined): TextureSe
 	}
 	if (/^\d+$/.test(raw)) {
 		const pageIndex = Number(raw);
-		if (pageIndex >= 0 && pageIndex <= 10) {
+		if (pageIndex >= 0 && pageIndex <= maxAtlasIndex) {
 			return { kind: 'page', raw, pageIndex };
 		}
 	}

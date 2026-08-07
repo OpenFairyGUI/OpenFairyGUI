@@ -5,6 +5,7 @@ import {
 	type FileSystem,
 	type MovieClipResource,
 	type Package,
+	ProjectType,
 	type Transform,
 } from '@openfairygui/core';
 import { atlas } from './atlas.js';
@@ -194,6 +195,26 @@ export function publish(options: PublishOptions): Transform {
 				}
 			}
 			const publishName = pkg.getPublishName() || pkg.getName();
+			const sourceAtlas = pkg.getSourceAtlasSettings();
+			const usePackageAtlas = !sourceAtlas.useGlobal;
+			const atlas: ResolvedPublishAtlasOptions = {
+				...config.atlas,
+				maxSize: options.atlas?.maxSize ?? (usePackageAtlas ? sourceAtlas.maxSize : config.atlas.maxSize),
+				allowRotation: config.projectType === ProjectType.LayaBox
+					? false
+					: (options.atlas?.allowRotation ?? (usePackageAtlas ? sourceAtlas.allowRotation : config.atlas.allowRotation)),
+				powerOfTwo: options.atlas?.powerOfTwo
+					?? (usePackageAtlas ? sourceAtlas.sizeOption === 'pot' : config.atlas.powerOfTwo),
+				maxAtlasIndex: options.atlas?.maxAtlasIndex ?? sourceAtlas.maxIndex,
+				multipleOfFour: options.atlas?.multipleOfFour
+					?? (usePackageAtlas ? sourceAtlas.sizeOption === 'mof' : config.atlas.multipleOfFour),
+				square: options.atlas?.square ?? (usePackageAtlas ? sourceAtlas.forceSquare : config.atlas.square),
+				multiPage: options.atlas?.multiPage ?? (usePackageAtlas ? sourceAtlas.paging : config.atlas.multiPage),
+				extractAlpha: config.projectType === ProjectType.Unity && (
+					options.atlas?.extractAlpha
+					?? (usePackageAtlas || sourceAtlas.extractAlpha ? sourceAtlas.extractAlpha : config.atlas.extractAlpha)
+				),
+			};
 
 			return {
 				pkg,
@@ -206,7 +227,7 @@ export function publish(options: PublishOptions): Transform {
 				activeBranch: config.activeBranch,
 				includeHighResolution: config.includeHighResolution,
 				separatedAtlasForBranch: config.separatedAtlasForBranch,
-				atlas: config.atlas,
+				atlas,
 			};
 		};
 
@@ -255,7 +276,6 @@ export function publish(options: PublishOptions): Transform {
 			const atlasRuntimeOptions = resolvePublishAtlasRuntimeOptions(plan.fileExtension);
 			await atlas({
 				...plan.atlas,
-				...(options.atlas ?? {}),
 				separatedAtlasForBranch: plan.separatedAtlasForBranch,
 				encoder: options.encoder,
 				basePath: options.basePath,

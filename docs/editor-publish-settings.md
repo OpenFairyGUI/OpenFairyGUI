@@ -121,9 +121,13 @@
 
 `updatePackageSettings` 使用包含 `compressPNG`、`jpegQuality` 和完整 `publish` 的单包快照，删除字段通过提交新的完整快照表达；相同快照以 `package_settings_unchanged` 拒绝。包名和输出路径必须是安全的相对路径，JPEG 质量范围是 1–100，包级 atlas 最大尺寸范围是 1–16384，`maxAtlasIndex` 范围是 0–255；稀疏 atlas 索引必须唯一且不超过该上限。`excludedResourceIds` 保存 CSV-safe 的资源 ID，可以保留当前工程中不存在的 ID，读取与写回不会把它误判为悬空引用。
 
+发布时，显式调用参数优先于包级 atlas 设置，包级设置在 `useGlobal=false` 时优先于全局发布设置；`extractAlpha` 与 `maxAtlasIndex` 始终读取包级正式值。包级设置控制最大尺寸、`pot / npot / mof`、正方形、旋转和分页，Layabox 目标强制禁用旋转。`excludedResourceIds` 从发布闭包移除对应资源；Unity 的 `extractAlpha` 输出无 alpha 的主图集与 `!a.png` alpha 图集。
+
 ## 组件 XML 的列表清理与属性覆盖
 
 组件根扩展、ComboBox 组件实例和 List/Tree 显示节点使用正式的 `autoClearItems` 布尔属性；缺省值为 `false`，仅在启用时写出。组件实例与静态列表项的有序 `<property target="..." propertyId="..." value="..."/>` 子节点由 UAM 正式属性承载，读取、物化、保存和重新加载均保持原顺序与原始字符串值，包括前后空白、纯空白和空字符串。`target` 必须非空，`propertyId` 必须是非负安全整数，`value` 必须存在；无效输入在物化或写回前拒绝。
+
+发布投影会执行清理语义：Loader / Loader3D 的 `clearOnPublish` 清空 URL，文本的 `autoClearText` 清空内容，List / Tree 的 `autoClearItems` 和 ComboBox 实例的 `instanceAutoClearItems` 清空静态项；资源闭包按清理后的值收集引用，工程源模型保持不变。
 
 组件根的 `designImage`、`designImageForTest`、`pageController`、`showSound` 和 `hideSound` 作为正式 authoring 属性读写；`designImageAlpha` 缺省为 `50`。设计图必须引用 image 资源，出场/退场音效必须引用 sound 资源，`pageController` 必须指向本组件控制器。Label、ComboBox 和 ProgressBar 组件实例的音效覆盖使用 `sound` 与百分比 `volume`，ComboBox 另以 `titleColor` 和 `direction`（`auto` / `up` / `down`）保存标题颜色与弹出方向。
 

@@ -821,6 +821,81 @@ test('publish: binary output excludes unpublished image resources and preserves 
 	}
 });
 
+test('publish: package exclusions remove exported resources from runtime output', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(0);
+	const pkg = doc.createPackage('ExcludedPkg');
+	pkg.setId('excluded01');
+	pkg.setSourceAtlasSettings({
+		...pkg.getSourceAtlasSettings(),
+		excludedResourceIds: ['img_excluded'],
+	});
+
+	const image = doc.createImageResource('excluded.png');
+	image.setId('img_excluded').setExported(true).setWidth(16).setHeight(16);
+	pkg.addResource(image);
+	const component = doc.createComponent('Main');
+	component.setId('main01').setExported(true).setSize(16, 16);
+	pkg.addResource(component);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-excluded-'));
+	try {
+		await doc.transform(publish({ output: tmpDir, fs: createFs() }));
+		const bytes = await fs.readFile(path.join(tmpDir, 'ExcludedPkg_fui.bytes'));
+		const itemIds = new Set(parsePackageBinary(bytes).items.map((item) => item.id));
+		t.true(itemIds.has('main01'));
+		t.false(itemIds.has('img_excluded'));
+		t.false(await fs.stat(path.join(tmpDir, 'ExcludedPkg_atlas0.png')).then(() => true).catch(() => false));
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: package atlas settings split RGB and alpha outputs', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(0);
+	const pkg = doc.createPackage('AlphaPkg');
+	pkg.setId('alpha001');
+	pkg.setSourceAtlasSettings({
+		...pkg.getSourceAtlasSettings(),
+		useGlobal: false,
+		maxSize: 64,
+		sizeOption: 'npot',
+		forceSquare: true,
+		extractAlpha: true,
+	});
+	const image = doc.createImageResource('alpha.png');
+	image.setId('alpha_img').setPath('/').setExported(true).setWidth(17).setHeight(9);
+	pkg.addResource(image);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-alpha-'));
+	const basePath = path.join(tmpDir, 'assets');
+	const sourceDir = path.join(basePath, 'AlphaPkg');
+	try {
+		await fs.mkdir(sourceDir, { recursive: true });
+		await sharp({
+			create: { width: 17, height: 9, channels: 4, background: { r: 10, g: 20, b: 30, alpha: 0.5 } },
+		}).png().toFile(path.join(sourceDir, 'alpha.png'));
+		await doc.transform(publish({ output: tmpDir, fs: createFs(), encoder: sharp, basePath }));
+
+		const colorPath = path.join(tmpDir, 'AlphaPkg_atlas0.png');
+		const alphaPath = path.join(tmpDir, 'AlphaPkg_atlas0!a.png');
+		const colorMetadata = await sharp(colorPath).metadata();
+		const alphaMetadata = await sharp(alphaPath).metadata();
+		t.is(colorMetadata.width, 19, 'package npot keeps the padded atlas width unrounded');
+		t.is(colorMetadata.height, 19, 'package square setting drives atlas size');
+		t.false(colorMetadata.hasAlpha, 'RGB atlas drops its alpha channel');
+		t.is(alphaMetadata.channels, 3, 'alpha atlas stores the channel as RGB');
+		const colorPixel = await sharp(colorPath).raw().toBuffer();
+		const alphaPixel = await sharp(alphaPath).raw().toBuffer();
+		t.deepEqual([...colorPixel.subarray(0, 3)], [10, 20, 30]);
+		t.true(alphaPixel[0]! >= 127 && alphaPixel[0]! <= 128);
+		t.deepEqual([...alphaPixel.subarray(0, 3)], [alphaPixel[0]!, alphaPixel[0]!, alphaPixel[0]!]);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('publish: generates package-level pixel hit test entries for Unity hit-test images', async (t) => {
 	const io = new NodeIO();
 	const doc = await io.readProject(UNITY_EXAMPLES_FAIRY);
@@ -1022,6 +1097,8 @@ test('resolvePublishOptions: maps publish atlas settings into reusable atlas opt
 		allowRotation: true,
 		padding: 4,
 		powerOfTwo: true,
+		maxAtlasIndex: 10,
+		multipleOfFour: false,
 		square: true,
 		multiPage: false,
 		trimImage: true,

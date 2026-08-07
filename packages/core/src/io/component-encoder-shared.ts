@@ -74,6 +74,7 @@ export type EncoderChildLike = ChildNode & {
 	getAutoSizeDisabled?(): boolean;
 	getMainGridIndex?(): number;
 	getUrl?(): string;
+	getClearOnPublish?(): boolean;
 	getFill?(): number;
 	getShrinkOnly?(): boolean;
 	getPlaying?(): boolean;
@@ -96,6 +97,7 @@ export type EncoderChildLike = ChildNode & {
 	getScrollItemToViewOnClick?(): boolean;
 	getFoldInvisibleItems?(): boolean;
 	getText?(): string;
+	getAutoClearText?(): boolean;
 	getFaceDilate?(): number;
 	getOutlineSoftness?(): number;
 	getUnderlaySoftness?(): number;
@@ -118,6 +120,7 @@ export type EncoderChildLike = ChildNode & {
 	getMin?(): number;
 	getDefaultItem?(): string;
 	getListItems?(): ListItemLike[];
+	getAutoClearItems?(): boolean;
 	getIndent?(): number;
 	getClickToExpand?(): number;
 	getPromptText?(): string;
@@ -155,6 +158,7 @@ export type EncoderChildLike = ChildNode & {
 	getInstanceMax?(): number;
 	getInstanceMin?(): number;
 	getInstanceComboItems?(): ComboItemLike[];
+	getInstanceAutoClearItems?(): boolean;
 	getSelectionController?(): string;
 	getCustomData?(): string;
 	getTooltips?(): string;

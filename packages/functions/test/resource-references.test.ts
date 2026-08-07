@@ -43,6 +43,19 @@ test('resource reference scanner separates local resources from external package
 	}]);
 	component.addChild(list);
 
+	const clearedText = doc.createGTextField('cleared-text');
+	clearedText.setText('ui://main0001/clearedText').setAutoClearText(true);
+	component.addChild(clearedText);
+	const clearedLoader = doc.createGLoader('cleared-loader');
+	clearedLoader.setUrl('ui://main0001/clearedLoader').setClearOnPublish(true);
+	component.addChild(clearedLoader);
+	const clearedList = doc.createGList('cleared-list');
+	clearedList.setAutoClearItems(true).setListItems([{
+		title: null, selectedTitle: null, icon: 'ui://main0001/clearedList', selectedIcon: null,
+		url: null, name: null, level: 0, isFolder: null,
+	}]);
+	component.addChild(clearedList);
+
 	pkg.addResource(component);
 
 	const references = collectPackageResourceReferences(pkg);
