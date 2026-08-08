@@ -2,6 +2,10 @@ import { type Nullable, PropertyType, ListLayoutType, ListSelectionMode } from '
 import type { GComponentPropertyOverride } from './g-component.js';
 import { GObject, type IGObject } from './g-object.js';
 
+export function getDefaultListAutoResizeItem(layout: number): boolean {
+	return layout === ListLayoutType.SingleColumn || layout === ListLayoutType.SingleRow;
+}
+
 export interface GListItemData {
 	title: string | null;
 	icon: string | null;
@@ -56,6 +60,7 @@ export interface IListBase extends IGObject {
 	src: string;
 	overflow: number;
 	scrollType: number;
+	scrollBarDisplay: number;
 	scrollBarFlags: number;
 	scrollBarMargin: [number, number, number, number];
 	vtScrollBarRes: string;
@@ -111,12 +116,13 @@ export class GListBase<
 			columnCount: 0,
 			selectionMode: ListSelectionMode.Single,
 			defaultItem: '',
-			autoResizeItem: true,
+			autoResizeItem: getDefaultListAutoResizeItem(ListLayoutType.SingleColumn),
 			childrenRenderOrder: 0,
 			apexIndex: 0,
 			src: '',
 			overflow: 0,
 			scrollType: 1,
+			scrollBarDisplay: 0,
 			scrollBarFlags: 0,
 			scrollBarMargin: [0, 0, 0, 0] as [number, number, number, number],
 			vtScrollBarRes: '',
@@ -232,6 +238,9 @@ export class GListBase<
 
 	public getScrollType(): number { return this.getListProp('scrollType'); }
 	public setScrollType(v: number): this { return this.setListProp('scrollType', v); }
+
+	public getScrollBarDisplay(): number { return this.getListProp('scrollBarDisplay'); }
+	public setScrollBarDisplay(v: number): this { return this.setListProp('scrollBarDisplay', v); }
 
 	public getScrollBarFlags(): number { return this.getListProp('scrollBarFlags'); }
 	public setScrollBarFlags(v: number): this { return this.setListProp('scrollBarFlags', v); }

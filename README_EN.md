@@ -10,6 +10,8 @@
 
 > Read, modify, and publish FairyGUI projects with TypeScript for scripts, CI/CD, and agent tooling.
 
+> **Relationship to FairyGUI:** OpenFairyGUI is an unofficial open-source project built around FairyGUI project formats and tooling; it is not an official FairyGUI product. The FairyGUI name, logo, and related brand assets belong to their respective owners. For official products and information, visit the [FairyGUI website](https://fairygui.com/).
+
 ## What is OpenFairyGUI?
 
 OpenFairyGUI is a FairyGUI project SDK for Node.js and automation workflows. It provides composable TypeScript packages for project I/O, document transforms, publishing, and backend sessions, together with CLI and MCP entrypoints.
@@ -86,6 +88,14 @@ Run `ofgui --help` for all commands and options.
 
 See [Packages and Tools](https://fairygui.dev/en/guide/packages) for package entrypoints and Node / Web boundaries.
 
+## Recommended Project
+
+### FairyGUI Editor Online
+
+[FairyGUI Editor Online](https://editor.fairygui.dev/) is a browser-based FairyGUI project editor built on OpenFairyGUI. It imports projects from local folders or ZIP files and supports editing, saving, publishing, and previewing directly in the browser.
+
+[Try it online](https://editor.fairygui.dev/) · [GitHub repository](https://github.com/OpenFairyGUI/FairyGUI-Editor-Online)
+
 ## Documentation
 
 - [Getting Started](https://fairygui.dev/en/guide/getting-started)
@@ -99,7 +109,7 @@ See [Packages and Tools](https://fairygui.dev/en/guide/packages) for package ent
 
 ## Status and boundaries
 
-The project is currently in the `0.2.0` alpha series. APIs may still change before the stable release.
+The project currently maintains a stable `0.2.x` line and a `0.3.x` prerelease line. The 0.x APIs may continue to evolve; see the [Changelog](./CHANGELOG.md) for version changes.
 
 - Node.js automation is the primary workflow; browser hosts use explicit `/web` entrypoints and injected capabilities.
 - UAM writeback is rejected when the project cannot be preserved faithfully, preventing silent source overwrites.

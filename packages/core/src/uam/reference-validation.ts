@@ -70,7 +70,7 @@ export function validateUamReferences(project: UamProject): UamValidationIssue[]
 	};
 	const componentKinds = ['component'] as const;
 	const visualKinds = ['image', 'movieClip', 'component', 'spine', 'dragonBones'] as const;
-	const binaryKinds = ['image', 'sound', 'misc', 'font', 'movieClip', 'spine', 'dragonBones'] as const;
+	const binaryKinds = ['image', 'sound', 'misc', 'swf', 'font', 'movieClip', 'spine', 'dragonBones'] as const;
 	const resourceKinds = [...binaryKinds, 'component'] as const;
 
 	for (const [packageIndex, pkg] of project.packages.entries()) {
@@ -102,6 +102,10 @@ export function validateUamReferences(project: UamProject): UamValidationIssue[]
 				pushMissingUi(`${componentPath}.properties.${field}`, value, componentKinds, owner);
 			}
 			pushMissingUi(`${componentPath}.properties.sound`, resource.component.properties.sound, ['sound'], owner);
+			pushMissingUi(`${componentPath}.properties.designImage`, resource.component.properties.designImage, ['image'], owner);
+			for (const field of ['showSound', 'hideSound'] as const) {
+				pushMissingUi(`${componentPath}.properties.${field}`, resource.component.properties[field], ['sound'], owner);
+			}
 
 			for (const [nodeIndex, node] of resource.component.displayList.entries()) {
 				const nodePath = `${componentPath}.displayList[${nodeIndex}]`;
@@ -146,6 +150,11 @@ export function validateUamReferences(project: UamProject): UamValidationIssue[]
 					if ('icon' in instance) pushMissingUi(`${nodePath}.instanceProperties.icon`, instance.icon, visualKinds, nodeOwner);
 					if (instance.extensionType === 'Button') {
 						pushMissingUi(`${nodePath}.instanceProperties.selectedIcon`, instance.selectedIcon, visualKinds, nodeOwner);
+					}
+					if (instance.extensionType === 'Button'
+						|| instance.extensionType === 'Label'
+						|| instance.extensionType === 'ComboBox'
+						|| instance.extensionType === 'ProgressBar') {
 						pushMissingUi(`${nodePath}.instanceProperties.sound`, instance.sound, ['sound'], nodeOwner);
 					}
 					if (instance.extensionType === 'ComboBox') {

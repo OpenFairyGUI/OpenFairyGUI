@@ -72,6 +72,7 @@ export async function validateProjectNode(projectPath: string): Promise<ProjectV
 	));
 
 	for (const { pkg, packageIndex, resource, resourceIndex } of images) {
+		if (resource.kind !== 'image') continue;
 		try {
 			await sharp(resource.sourceBytes!).raw().toBuffer();
 		} catch (error) {

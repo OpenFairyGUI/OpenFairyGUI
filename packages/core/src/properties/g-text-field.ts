@@ -35,6 +35,7 @@ export interface IGTextField extends IGObject {
 	demoText: string;
 	templateVarsEnabled: boolean;
 	faceDilate: number;
+	outlineSoftness: number;
 	underlaySoftness: number;
 	ubbEnabled: boolean;
 	underline: boolean;
@@ -104,6 +105,7 @@ export class GTextField<
 			demoText: '',
 			templateVarsEnabled: false,
 			faceDilate: 0,
+			outlineSoftness: 0,
 			underlaySoftness: 0,
 			ubbEnabled: false,
 			underline: false,
@@ -228,6 +230,9 @@ export class GTextField<
 
 	public getFaceDilate(): number { return this.getTextFieldProp('faceDilate'); }
 	public setFaceDilate(v: number): this { return this.setTextFieldProp('faceDilate', v); }
+
+	public getOutlineSoftness(): number { return this.getTextFieldProp('outlineSoftness'); }
+	public setOutlineSoftness(v: number): this { return this.setTextFieldProp('outlineSoftness', v); }
 
 	public getUnderlaySoftness(): number { return this.getTextFieldProp('underlaySoftness'); }
 	public setUnderlaySoftness(v: number): this { return this.setTextFieldProp('underlaySoftness', v); }

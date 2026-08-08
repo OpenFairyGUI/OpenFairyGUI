@@ -5,10 +5,12 @@ import os from 'node:os';
 import { Document } from '@openfairygui/core';
 import { NodeIO } from '@openfairygui/core/node';
 import { getFixturePath, getFixtureProjectPath } from '@openfairygui/test-utils';
-import sharp from 'sharp';
-import { publish, resolvePublishOptions, type RootProjectSettings } from '../src/index.js';
+import sharpImplementation from 'sharp';
+import { publish, resolvePublishOptions, type AtlasRasterBackend, type RootProjectSettings } from '../src/index.js';
 import { resolvePublishAtlasRuntimeOptions } from '../src/publish.js';
 import { createTestJta } from './test-jta.js';
+
+const sharp = sharpImplementation as typeof sharpImplementation & AtlasRasterBackend;
 
 const UNITY_EXAMPLES_FAIRY = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
 const UNITY_BRANCH_LOADER_FAIRY = getFixtureProjectPath('FairyGUI-Experiments');
@@ -460,13 +462,13 @@ test('publish: exports loader skeleton resources and dependency closure with edi
 		const expectedFiles = [
 			'Loader_fui.bytes',
 			'dragon_ske.json',
-			'dragon_tex.json',
+			'Loader_biss7.json',
 			'dragon.png',
 			'alien-pro.skel.bytes',
-			'alien-pma.atlas.txt',
+			'Loader_nbcg7.atlas.txt',
 			'alien-pma.png',
 			'mix-and-match-pro.skel.bytes',
-			'mix-and-match-pma.atlas.txt',
+			'Loader_czqy1i.atlas.txt',
 			'mix-and-match-pma.png',
 		];
 		for (const file of expectedFiles) {
@@ -482,7 +484,7 @@ test('publish: exports loader skeleton resources and dependency closure with edi
 		const bytes = await fs.readFile(path.join(tmpDir, 'Loader_fui.bytes'));
 		const parsed = parsePackageBinary(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
 		const byId = new Map(parsed.items.map((item) => [item.id, item]));
-		t.is(byId.get('nbcg7')?.file, 'alien-pma.atlas.txt', 'misc atlas dependency writes published file name');
+		t.is(byId.get('nbcg7')?.file, 'nbcg7.atlas.txt', 'misc atlas dependency writes runtime item-id file name');
 		t.is(byId.get('nbcge')?.file, 'alien-pro.skel.bytes', 'spine item writes published skeleton file name');
 		t.is(byId.get('biss6')?.file, 'dragon_ske.json', 'dragonbones item keeps published json file name');
 	} finally {
@@ -736,6 +738,61 @@ test('publish: missing external input rejects before the package binary is writt
 	}
 });
 
+test('publish: misc resources use runtime-prefixed item-id file names', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(0);
+	const pkg = doc.createPackage('Demo');
+	pkg.setId('demo0001').setPublishName('Demo');
+	const misc = doc.createMiscResource('config');
+	misc.setId('misc001').setPath('/data/').setFile('config.json').setExported(true);
+	pkg.addResource(misc);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-misc-'));
+	const assetsDir = path.join(tmpDir, 'assets');
+	const outputDir = path.join(tmpDir, 'release');
+	try {
+		await fs.mkdir(path.join(assetsDir, 'Demo', 'data'), { recursive: true });
+		await fs.writeFile(path.join(assetsDir, 'Demo', 'data', 'config.json'), '{"ok":true}');
+		await doc.transform(publish({ output: outputDir, fs: createFs(), basePath: assetsDir }));
+
+		const outputNames = (await fs.readdir(outputDir)).sort();
+		t.deepEqual(outputNames, ['Demo_fui.bytes', 'Demo_misc001.json']);
+		const bytes = await fs.readFile(path.join(outputDir, 'Demo_fui.bytes'));
+		const parsed = parsePackageBinary(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+		t.is(parsed.items.find((item) => item.id === 'misc001')?.file, 'misc001.json');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: SWF resources keep their binary type and runtime-prefixed file', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(1);
+	const pkg = doc.createPackage('DemoSwf').setId('demoswf1').setPublishName('DemoSwf');
+	pkg.addResource(doc.createSwfResource('movie')
+		.setId('swf001')
+		.setPath('/movies/')
+		.setFile('movie.swf')
+		.setExported(true));
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-pub-swf-'));
+	const assetsDir = path.join(tmpDir, 'assets');
+	const outputDir = path.join(tmpDir, 'release');
+	try {
+		await fs.mkdir(path.join(assetsDir, 'DemoSwf', 'movies'), { recursive: true });
+		await fs.writeFile(path.join(assetsDir, 'DemoSwf', 'movies', 'movie.swf'), new Uint8Array([0x46, 0x57, 0x53]));
+		await doc.transform(publish({ output: outputDir, fs: createFs(), basePath: assetsDir }));
+
+		t.deepEqual((await fs.readdir(outputDir)).sort(), ['DemoSwf.fui', 'DemoSwf_swf001.swf']);
+		const parsed = parsePackageBinary(await fs.readFile(path.join(outputDir, 'DemoSwf.fui')));
+		const item = parsed.items.find((candidate) => candidate.id === 'swf001');
+		t.is(item?.type, 6);
+		t.is(item?.file, 'swf001.swf');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('publish: binary output excludes unpublished image resources and preserves component extension type', async (t) => {
 	const doc = new Document();
 	doc.getRoot().setProjectType(0);
@@ -787,6 +844,81 @@ test('publish: binary output excludes unpublished image resources and preserves 
 			12,
 			'component extension type is serialized from the formal property',
 		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: package exclusions remove exported resources from runtime output', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(0);
+	const pkg = doc.createPackage('ExcludedPkg');
+	pkg.setId('excluded01');
+	pkg.setSourceAtlasSettings({
+		...pkg.getSourceAtlasSettings(),
+		excludedResourceIds: ['img_excluded'],
+	});
+
+	const image = doc.createImageResource('excluded.png');
+	image.setId('img_excluded').setExported(true).setWidth(16).setHeight(16);
+	pkg.addResource(image);
+	const component = doc.createComponent('Main');
+	component.setId('main01').setExported(true).setSize(16, 16);
+	pkg.addResource(component);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-excluded-'));
+	try {
+		await doc.transform(publish({ output: tmpDir, fs: createFs() }));
+		const bytes = await fs.readFile(path.join(tmpDir, 'ExcludedPkg_fui.bytes'));
+		const itemIds = new Set(parsePackageBinary(bytes).items.map((item) => item.id));
+		t.true(itemIds.has('main01'));
+		t.false(itemIds.has('img_excluded'));
+		t.false(await fs.stat(path.join(tmpDir, 'ExcludedPkg_atlas0.png')).then(() => true).catch(() => false));
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: package atlas settings split RGB and alpha outputs', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setProjectType(0);
+	const pkg = doc.createPackage('AlphaPkg');
+	pkg.setId('alpha001');
+	pkg.setSourceAtlasSettings({
+		...pkg.getSourceAtlasSettings(),
+		useGlobal: false,
+		maxSize: 64,
+		sizeOption: 'npot',
+		forceSquare: true,
+		extractAlpha: true,
+	});
+	const image = doc.createImageResource('alpha.png');
+	image.setId('alpha_img').setPath('/').setExported(true).setWidth(17).setHeight(9);
+	pkg.addResource(image);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-alpha-'));
+	const basePath = path.join(tmpDir, 'assets');
+	const sourceDir = path.join(basePath, 'AlphaPkg');
+	try {
+		await fs.mkdir(sourceDir, { recursive: true });
+		await sharp({
+			create: { width: 17, height: 9, channels: 4, background: { r: 10, g: 20, b: 30, alpha: 0.5 } },
+		}).png().toFile(path.join(sourceDir, 'alpha.png'));
+		await doc.transform(publish({ output: tmpDir, fs: createFs(), encoder: sharp, basePath }));
+
+		const colorPath = path.join(tmpDir, 'AlphaPkg_atlas0.png');
+		const alphaPath = path.join(tmpDir, 'AlphaPkg_atlas0!a.png');
+		const colorMetadata = await sharp(colorPath).metadata();
+		const alphaMetadata = await sharp(alphaPath).metadata();
+		t.is(colorMetadata.width, 19, 'package npot keeps the padded atlas width unrounded');
+		t.is(colorMetadata.height, 19, 'package square setting drives atlas size');
+		t.false(colorMetadata.hasAlpha, 'RGB atlas drops its alpha channel');
+		t.is(alphaMetadata.channels, 3, 'alpha atlas stores the channel as RGB');
+		const colorPixel = await sharp(colorPath).raw().toBuffer();
+		const alphaPixel = await sharp(alphaPath).raw().toBuffer();
+		t.deepEqual([...colorPixel.subarray(0, 3)], [10, 20, 30]);
+		t.true(alphaPixel[0]! >= 127 && alphaPixel[0]! <= 128);
+		t.deepEqual([...alphaPixel.subarray(0, 3)], [alphaPixel[0]!, alphaPixel[0]!, alphaPixel[0]!]);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
@@ -911,7 +1043,7 @@ test('resolvePublishOptions: Layabox respects explicit fileExtension overrides',
 	t.true(resolved.compressed, 'override does not discard non-Unity compression behavior');
 });
 
-test('resolvePublishOptions: Cocos Creator defaults to bin and keeps non-Unity compression behavior', (t) => {
+test('resolvePublishOptions: Cocos Creator defaults to bin and disables unsupported compression', (t) => {
 	const doc = new Document();
 	doc.getRoot().setProjectType(3);
 	doc.getRoot().setSettings({
@@ -922,7 +1054,7 @@ test('resolvePublishOptions: Cocos Creator defaults to bin and keeps non-Unity c
 
 	const resolved = resolvePublishOptions(doc);
 	t.is(resolved.fileExtension, 'bin', 'Cocos Creator defaults to .bin');
-	t.true(resolved.compressed, 'Cocos Creator keeps publish compression when configured');
+	t.false(resolved.compressed, 'Cocos Creator ignores persisted compression unsupported by its runtime');
 });
 
 test('resolvePublishOptions: Cocos Creator respects explicit fileExtension overrides', (t) => {
@@ -936,7 +1068,16 @@ test('resolvePublishOptions: Cocos Creator respects explicit fileExtension overr
 
 	const resolved = resolvePublishOptions(doc, { fileExtension: 'fui' });
 	t.is(resolved.fileExtension, 'fui', 'explicit override wins over Creator defaults');
-	t.true(resolved.compressed, 'override does not discard non-Unity compression behavior');
+	t.false(resolved.compressed, 'file extension overrides do not re-enable unsupported compression');
+});
+
+test('resolvePublishOptions: Unity and Cocos Creator reject explicit compression', (t) => {
+	for (const projectType of [0, 3]) {
+		const doc = new Document();
+		doc.getRoot().setProjectType(projectType);
+		const error = t.throws(() => resolvePublishOptions(doc, { compressed: true }));
+		t.regex(error?.message ?? '', /does not support compressed package data/);
+	}
 });
 
 test('resolvePublishAtlasRuntimeOptions: ext-coupled atlas toggles stay explicit', (t) => {
@@ -984,6 +1125,8 @@ test('resolvePublishOptions: maps publish atlas settings into reusable atlas opt
 		allowRotation: true,
 		padding: 4,
 		powerOfTwo: true,
+		maxAtlasIndex: 10,
+		multipleOfFour: false,
 		square: true,
 		multiPage: false,
 		trimImage: true,
@@ -1254,6 +1397,7 @@ test('publish: Unity blank codeType generates binder and component classes with 
 
 		const mainClass = await fs.readFile(mainClassPath, 'utf-8');
 		t.true(mainClass.startsWith('/** This is an automatically generated class by FairyGUI. Please do not modify it. **/'));
+		t.false(mainClass.includes('fairygui-cc'), 'Layabox continues using the host global fgui namespace');
 		t.true(mainClass.includes('public partial class UI_Main : GButton'), 'component extension maps to GButton base class');
 		t.true(mainClass.includes('public UI_SubPanel m_subPanel;'), 'local component child uses generated class type');
 		t.true(mainClass.includes('public Transition m_fadeIn;'), 'transition field is generated');
@@ -1677,6 +1821,7 @@ test('publish: Cocos Creator reuses the shared fgui TypeScript lane without code
 		t.true(await fs.stat(binderPath).then(() => true).catch(() => false), 'Cocos Creator generates binder file');
 
 		const mainClass = await fs.readFile(mainClassPath, 'utf-8');
+		t.true(mainClass.includes('import * as fgui from "fairygui-cc";'));
 		t.true(mainClass.includes('export default class UI_Main extends fgui.GButton'));
 		t.true(mainClass.includes('return <UI_Main><any>(fgui.UIPackage.createObject("DemoPkg","Main"));'));
 		t.true(mainClass.includes('public m_content:fgui.GTextField;'));
@@ -1687,6 +1832,7 @@ test('publish: Cocos Creator reuses the shared fgui TypeScript lane without code
 		t.false(mainClass.includes('m_button'), 'default button controller is ignored');
 
 		const binder = await fs.readFile(binderPath, 'utf-8');
+		t.true(binder.includes('import * as fgui from "fairygui-cc";'));
 		t.true(binder.includes('fgui.UIObjectFactory.setExtension(UI_Main.URL, UI_Main);'));
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });

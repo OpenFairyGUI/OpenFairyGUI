@@ -3,6 +3,7 @@ import type { Document } from '../document.js';
 import type { Controller } from '../properties/controller.js';
 import type { GObject } from '../properties/g-object.js';
 import type { GComponentPropertyOverride } from '../properties/g-component.js';
+import { getDefaultListAutoResizeItem } from '../properties/g-list.js';
 import {
 	ensureArray,
 	parseBool,
@@ -144,6 +145,7 @@ interface ExtensionXmlNode extends Record<string, unknown> {
 	mode?: string | number;
 	sound?: string;
 	soundVolumeScale?: string | number;
+	popupDirection?: string | number;
 	downEffect?: string | number;
 	downEffectValue?: string | number;
 	dropdown?: string;
@@ -238,6 +240,7 @@ export interface DisplayObjectXmlNode extends Record<string, unknown> {
 	selectionController?: string;
 	overflow?: string;
 	scroll?: string;
+	scrollBar?: string;
 	scrollBarFlags?: string | number;
 	scrollBarRes?: string;
 	ptrRes?: string;
@@ -702,6 +705,8 @@ export function createDisplayObject(
 				if (textVars !== undefined) g.setTemplateVarsEnabled?.(parseBool(textVars));
 				const textFaceDilate = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.faceDilate);
 				if (textFaceDilate !== undefined) g.setFaceDilate?.(parseFloat2(textFaceDilate));
+				const textOutlineSoftness = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.outlineSoftness);
+				if (textOutlineSoftness !== undefined) g.setOutlineSoftness?.(parseFloat2(textOutlineSoftness));
 				const textUnderlaySoftness = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.underlaySoftness);
 				if (textUnderlaySoftness !== undefined) g.setUnderlaySoftness?.(parseFloat2(textUnderlaySoftness));
 				const textUbb = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.ubb);
@@ -812,6 +817,8 @@ export function createDisplayObject(
 				if (richTextSingleLine !== undefined) g.setSingleLine?.(parseBool(richTextSingleLine));
 				const richTextAutoClearText = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.autoClearText);
 				if (richTextAutoClearText !== undefined) g.setAutoClearText?.(parseBool(richTextAutoClearText));
+				const richTextOutlineSoftness = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.richText.attrs.outlineSoftness);
+				if (richTextOutlineSoftness !== undefined) g.setOutlineSoftness?.(parseFloat2(richTextOutlineSoftness));
 				const richTextUnderlaySoftness = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.richText.attrs.underlaySoftness);
 				if (richTextUnderlaySoftness !== undefined) g.setUnderlaySoftness?.(parseFloat2(richTextUnderlaySoftness));
 				const richTextUnderline = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.underline);
@@ -907,6 +914,8 @@ export function createDisplayObject(
 				if (inputVars !== undefined) g.setTemplateVarsEnabled?.(parseBool(inputVars));
 				const inputFaceDilate = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.faceDilate);
 				if (inputFaceDilate !== undefined) g.setFaceDilate?.(parseFloat2(inputFaceDilate));
+				const inputOutlineSoftness = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.outlineSoftness);
+				if (inputOutlineSoftness !== undefined) g.setOutlineSoftness?.(parseFloat2(inputOutlineSoftness));
 				const inputUnderlaySoftness = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.text.attrs.underlaySoftness);
 				if (inputUnderlaySoftness !== undefined) g.setUnderlaySoftness?.(parseFloat2(inputUnderlaySoftness));
 				const inputUbb = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.text.attrs.ubb);
@@ -1117,6 +1126,8 @@ export function createDisplayObject(
 				if (loaderAutoSize !== undefined) g.setAutoSize?.(parseBool(loaderAutoSize));
 				const useResize = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.useResize);
 				if (useResize !== undefined) g.setUseResize?.(parseBool(useResize));
+				const errorSign = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.errorSign);
+				if (errorSign !== undefined) g.setShowErrorSign(parseBool(errorSign));
 				const clearOnPublish = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.clearOnPublish);
 				if (clearOnPublish !== undefined) g.setClearOnPublish?.(parseBool(clearOnPublish));
 				const loaderColor = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.loader.attrs.color);
@@ -1405,7 +1416,11 @@ export function createDisplayObject(
 					}
 				}
 				const autoResizeItem = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.list.attrs.autoResizeItem);
-				if (autoResizeItem !== undefined) g.setAutoResizeItem?.(parseBool(autoResizeItem));
+				g.setAutoResizeItem?.(
+					autoResizeItem === undefined
+						? getDefaultListAutoResizeItem(g.getLayout?.() ?? 0)
+						: parseBool(autoResizeItem),
+				);
 				const childrenRenderOrder = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.childrenRenderOrder);
 				if (childrenRenderOrder) {
 					const renderOrderMap: Record<string, number> = { ascent: 0, descent: 1, arch: 2 };
@@ -1423,9 +1438,10 @@ export function createDisplayObject(
 				// Overflow & scroll
 				const overflow = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.overflow);
 				const scroll = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.scroll);
+				const scrollBar = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBar);
 				const scrollBarFlags = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarFlags);
 				const margin = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.margin);
-				if (overflow || scroll || scrollBarFlags !== undefined || margin) {
+				if (overflow || scroll || scrollBar || scrollBarFlags !== undefined || margin) {
 					if (overflow) {
 						const overflowMap: Record<string, number> = { visible: 0, hidden: 1, scroll: 2 };
 						g.setOverflow(overflowMap[overflow] ?? 0);
@@ -1433,6 +1449,10 @@ export function createDisplayObject(
 					if (scroll) {
 						const scrollMap: Record<string, number> = { horizontal: 0, vertical: 1, both: 2 };
 						g.setScrollType(scrollMap[scroll] ?? 1);
+					}
+					if (scrollBar) {
+						const scrollBarMap: Record<string, number> = { default: 0, visible: 1, auto: 2, hidden: 3 };
+						g.setScrollBarDisplay(scrollBarMap[scrollBar] ?? 0);
 					}
 					if (scrollBarFlags !== undefined) g.setScrollBarFlags(parseInt2(scrollBarFlags));
 					if (margin) {
@@ -1562,7 +1582,11 @@ export function createDisplayObject(
 				const sound = extSpecs.sound ? readXmlAttr<string>(extAttrs, extSpecs.sound) : undefined;
 				if (sound !== undefined) componentObj.setInstanceSound?.(sound);
 				const soundVolumeScale = extSpecs.soundVolumeScale ? readXmlAttr<string | number>(extAttrs, extSpecs.soundVolumeScale) : undefined;
-				if (soundVolumeScale !== undefined) componentObj.setInstanceSoundVolumeScale?.(parseFloat2(soundVolumeScale, 1));
+				if (soundVolumeScale !== undefined) componentObj.setInstanceSoundVolumeScale?.(parseFloat2(soundVolumeScale, 100) / 100);
+				const popupDirection = extSpecs.popupDirection ? readXmlAttr<string>(extAttrs, extSpecs.popupDirection) : undefined;
+				if (popupDirection !== undefined) {
+					componentObj.setInstancePopupDirection?.(({ auto: 0, up: 1, down: 2 } as Record<string, number>)[popupDirection] ?? 0);
+				}
 				const prompt = extSpecs.prompt ? readXmlAttr<string>(extAttrs, extSpecs.prompt) : undefined;
 				if (prompt !== undefined) componentObj.setInstancePromptText?.(prompt);
 				const selectionController = extSpecs.selectionController ? readXmlAttr<string>(extAttrs, extSpecs.selectionController) : undefined;

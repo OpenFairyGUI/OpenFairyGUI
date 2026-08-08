@@ -62,6 +62,9 @@ export interface AtlasOptions {
 
 	/** Constrain atlas dimensions to powers of two. Default: false. */
 	powerOfTwo?: boolean;
+	/** Highest fixed atlas page index accepted from resource textureSetMode. Default: 10. */
+	maxAtlasIndex?: number;
+	multipleOfFour?: boolean;
 
 	/** Force square atlas (width === height). Default: false. */
 	square?: boolean;
@@ -151,6 +154,8 @@ const ATLAS_DEFAULTS: Required<
 	allowRotation: true,
 	padding: 1,
 	powerOfTwo: false,
+	maxAtlasIndex: 10,
+	multipleOfFour: false,
 	square: false,
 	multiPage: true,
 	trimImage: false,
@@ -163,7 +168,9 @@ const ATLAS_DEFAULTS: Required<
 
 interface AtlasReferenceItem {
 	icon?: string | null;
+	selectedIcon?: string | null;
 	url?: string | null;
+	propertyOverrides?: Array<{ value: string }>;
 }
 
 interface GearWithAtlasRefs {
@@ -183,12 +190,14 @@ interface TransitionWithAtlasRefs {
 }
 
 interface ChildWithReferenceUrls extends HasOptionalSrc, HasOptionalUrl {
+	getClearOnPublish?(): boolean;
 	getDefaultItem?(): string;
 	getIcon?(): string;
 	getSelectedIcon?(): string;
 	getDropdown?(): string;
 	getSound?(): string;
 	getText?(): string;
+	getAutoClearText?(): boolean;
 	getFont?(): string;
 	getInstanceIcon?(): string;
 	getInstanceSelectedIcon?(): string;
@@ -197,7 +206,10 @@ interface ChildWithReferenceUrls extends HasOptionalSrc, HasOptionalUrl {
 	getHeaderRes?(): string;
 	getFooterRes?(): string;
 	getInstanceComboItems?(): Array<{ icon: string | null }>;
+	getInstanceAutoClearItems?(): boolean;
 	getListItems?(): AtlasReferenceItem[];
+	getAutoClearItems?(): boolean;
+	getPropertyOverrides?(): Array<{ value: string }>;
 	listGears?(): GearWithAtlasRefs[];
 }
 
@@ -303,7 +315,7 @@ async function resolveEditorCompatibleResourceOrder(
 			const refChild = child as ChildWithReferenceUrls;
 			await addResource(resourceMap.get(refChild.getSrc?.() ?? ''));
 			for (const ref of [
-				refChild.getUrl?.(),
+				refChild.getClearOnPublish?.() ? undefined : refChild.getUrl?.(),
 				refChild.getDefaultItem?.(),
 				refChild.getIcon?.(),
 				refChild.getSelectedIcon?.(),
@@ -319,12 +331,19 @@ async function resolveEditorCompatibleResourceOrder(
 			]) {
 				await addResourceByLocalUiUrl(ref);
 			}
-			for (const item of refChild.getInstanceComboItems?.() ?? []) {
+			for (const item of refChild.getInstanceAutoClearItems?.() ? [] : (refChild.getInstanceComboItems?.() ?? [])) {
 				await addResourceByLocalUiUrl(item.icon ?? undefined);
 			}
-			for (const item of refChild.getListItems?.() ?? []) {
+			for (const item of refChild.getAutoClearItems?.() ? [] : (refChild.getListItems?.() ?? [])) {
 				await addResourceByLocalUiUrl(item.icon ?? undefined);
+				await addResourceByLocalUiUrl(item.selectedIcon ?? undefined);
 				await addResourceByLocalUiUrl(item.url ?? undefined);
+				for (const property of item.propertyOverrides ?? []) {
+					await addResourceByLocalUiUrl(property.value);
+				}
+			}
+			for (const property of refChild.getPropertyOverrides?.() ?? []) {
+				await addResourceByLocalUiUrl(property.value);
 			}
 			for (const gear of refChild.listGears?.() ?? []) {
 				await addGearIconResources(gear);

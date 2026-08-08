@@ -145,7 +145,7 @@
 | `hitTest` |  | 命中测试资源 |
 | `customData` |  | 自定义数据 |
 | `scroll` |  | 滚动模式 |
-| `scrollBar` |  | 滚动条显示方式 |
+| `scrollBar` |  | 滚动条显示方式：`default`、`visible`、`auto` 或 `hidden` |
 | `scrollBarFlags` |  | 滚动条相关标志 |
 | `scrollBarMargin` |  | 滚动条 margin |
 | `scrollBarRes` |  | 滚动条资源 |
@@ -156,8 +156,13 @@
 | `idnum` |  | 内部编号 |
 | `initName` |  | 初始化名 |
 | `remark` |  | 备注 |
-| `designImageAlpha` |  | 设计图透明度 |
-| `designImageLayer` |  | 设计图层 |
+| `pageController` |  | 根组件分页控制器名称，必须指向本组件控制器 |
+| `showSound` |  | 组件出场音效资源 |
+| `hideSound` |  | 组件退场音效资源 |
+| `designImage` |  | 设计参考图资源 |
+| `designImageForTest` |  | 是否在测试视图显示设计参考图 |
+| `designImageAlpha` |  | 设计图透明度，缺省值为 `50` |
+| `designImageLayer` |  | 设计图层：`0` 底层，`1` 顶层 |
 | `designImageOffsetX` |  | 设计图 X 偏移 |
 | `designImageOffsetY` |  | 设计图 Y 偏移 |
 
@@ -405,6 +410,7 @@
 | `autoClearText` |  | 自动清空文本 |
 | `demoText` |  | 示例文本 |
 | `faceDilate` |  | 字面扩张 |
+| `outlineSoftness` |  | 描边柔化 |
 | `underlaySoftness` |  | 下层柔化 |
 | `vars` |  | 模板变量开关 |
 | `prompt` | `promptText` | 输入提示 |
@@ -452,6 +458,7 @@
 | `autoClearText` |  | 自动清空文本 |
 | `demoText` |  | 示例文本 |
 | `faceDilate` |  | 字面扩张 |
+| `outlineSoftness` |  | 描边柔化 |
 | `underlaySoftness` |  | 下层柔化 |
 | `vars` |  | 模板变量开关 |
 | `prompt` | `promptText` | 输入提示 |
@@ -496,6 +503,7 @@
 | `shadowOffset` |  | 阴影偏移 |
 | `autoClearText` |  | 自动清空文本 |
 | `restrictSize` |  | 尺寸限制 |
+| `outlineSoftness` |  | 描边柔化 |
 | `underlaySoftness` |  | 下层柔化 |
 
 ### `<group>`
@@ -533,7 +541,7 @@
 | `colGap` | `columnGap` | 列间距 |
 | `lineItemCount` |  | `flow_hz` 每行项目数、`flow_vt` 每列项目数、`pagination` 每页列数 |
 | `lineItemCount2` |  | `pagination` 每页行数 |
-| `autoItemSize` | `autoResizeItem` | 自动调整项目尺寸 |
+| `autoItemSize` | `autoResizeItem` | 自动调整项目尺寸；single column/row 缺省为 `true`，flow/pagination 缺省为 `false` |
 | `renderOrder` |  | 子项渲染顺序：`ascent`、`descent`、`arch` |
 | `apex` |  | `renderOrder="arch"` 时的顶点子项索引 |
 | `selectionMode` |  | 选择模式 |
@@ -543,7 +551,7 @@
 | `controller` |  | controller override |
 | `overflow` |  | overflow 模式 |
 | `scroll` |  | 滚动模式 |
-| `scrollBar` |  | 滚动条显示方式 |
+| `scrollBar` |  | 滚动条显示方式：`default`、`visible`、`auto` 或 `hidden` |
 | `scrollBarFlags` |  | 滚动条相关标志 |
 | `scrollBarMargin` |  | 滚动条 margin |
 | `scrollBarRes` |  | 滚动条资源 |
@@ -552,7 +560,7 @@
 | `clipSoftness` |  | 裁剪软边 |
 | `treeView` |  | 是否树模式 |
 | `indent` |  | 树缩进 |
-| `clickToExpand` |  | 点击展开方式 |
+| `clickToExpand` |  | 点击展开方式：`0`=无动作，`1`=单击，`2`=双击 |
 | `autoClearItems` |  | 自动清空项目 |
 | `scrollItemToViewOnClick` |  | 点击子项后是否自动滚动到可见区域 |
 | `foldInvisibleItems` |  | 布局时是否折叠不可见子项 |
@@ -575,8 +583,8 @@
 |---|---|---|
 | `mode` |  | 按钮模式 |
 | `sound` |  | 点击音效 |
-| `soundVolumeScale` | `volume` | 音量缩放 |
-| `downEffect` |  | 按下效果 |
+| `volume` |  | 音量百分比（`0`–`100`） |
+| `downEffect` |  | 按下效果：`none`、`dark`、`scale` |
 | `downEffectValue` |  | 按下效果值 |
 | `title` |  | 标题 |
 | `selectedTitle` |  | 选中标题 |
@@ -597,6 +605,8 @@
 | `titleColor` |  | 标题颜色 |
 | `titleFontSize` |  | 标题字号 |
 | `prompt` |  | 提示文本 |
+| `sound` |  | 点击音效资源 |
+| `volume` |  | 音量百分比（`0`–`100`） |
 
 ### `<ComboBox>`
 
@@ -605,6 +615,10 @@
 | `dropdown` |  | 下拉组件资源 |
 | `title` |  | 标题 |
 | `icon` |  | 图标 |
+| `titleColor` |  | 标题颜色 |
+| `direction` |  | 弹出方向：`auto`、`up`、`down` |
+| `sound` |  | 点击音效资源 |
+| `volume` |  | 音量百分比（`0`–`100`） |
 | `visibleItemCount` |  | 可见条目数 |
 | `selectionController` |  | 选择控制器 |
 | `autoClearItems` |  | 自动清空项目 |
@@ -618,6 +632,8 @@
 | `value` |  | 当前值 |
 | `max` |  | 最大值 |
 | `min` |  | 最小值 |
+| `sound` |  | 音效资源 |
+| `volume` |  | 音量百分比（`0`–`100`） |
 
 ### `<Slider>`
 
@@ -667,6 +683,11 @@
 | `name` |  | 控制器名 |
 | `pages` |  | 页面集合 |
 | `selected` |  | 当前选中页 |
+| `alias` |  | 编辑器中显示的备注名；导出为组件属性时作为显示名称 |
+| `autoRadioGroupDepth` |  | 是否自动调整受控单选按钮的层级 |
+| `exported` |  | 是否导出为组件属性 |
+| `homePageType` |  | 首页策略：`default`、`specific`、`branch` 或 `variable` |
+| `homePage` |  | `specific` 时为页面 id，`variable` 时为工程变量键 |
 
 ### `<action>`
 
@@ -692,7 +713,7 @@
 | `autoPlayRepeat` | `autoPlayTimes` | 自动播放重复次数 |
 | `autoPlayDelay` |  | 自动播放延迟 |
 | `options` |  | 选项 |
-| `fps` |  | 帧率 |
+| `frameRate` |  | 帧率 |
 
 ### `<transition><item>`
 

@@ -14,6 +14,8 @@ import {
 	normalizeUamProject,
 	RelationType,
 	UAM_SUPPORTED_MATERIALIZATION_SCOPE,
+	UamTransactionError,
+	validateTransactionSupport,
 	validateUamProject,
 	type UamComponentInstanceProperties,
 	type UamComponentProperties,
@@ -22,6 +24,7 @@ import {
 } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
 import { liftDocumentToUamProject, materializeUamProject, readProjectAsUam, writeProjectFromUam } from '../src/uam/index.js';
+import { createDisplayNodeBase } from './uam-transaction-fixtures.js';
 
 const LAYABOX_PROJECT_PATH = getFixtureProjectPath(
 	'FairyGUI-layabox',
@@ -49,6 +52,8 @@ function createEngineeringScaleUamProject(): UamProject {
 			{
 				id: 'pkg001',
 				name: 'Main',
+				compressPNG: null,
+				jpegQuality: null,
 				publish: {
 					name: 'Main',
 					path: 'dist/main',
@@ -56,8 +61,19 @@ function createEngineeringScaleUamProject(): UamProject {
 					packageCount: 1,
 					genCode: false,
 					codePath: '',
+					useGlobalAtlasSettings: true,
+					maxAtlasSize: 2048,
+					sizeOption: 'pot',
+					forceSquare: false,
+					allowRotation: false,
+					paging: true,
+					extractAlpha: false,
+					maxAtlasIndex: 10,
+					atlases: [],
+					excludedResourceIds: [],
 				},
 				branchNames: [],
+				folders: [],
 				resources: [
 					{
 						kind: 'image',
@@ -91,17 +107,16 @@ function createEngineeringScaleUamProject(): UamProject {
 							displayList: [
 								{
 									kind: 'image',
-									id: 'n0',
-									name: 'bg',
+									...createDisplayNodeBase('n0', 'bg'),
 									position: { x: 0, y: 0 },
 									size: { width: 320, height: 180 },
-									visible: true,
-									touchable: true,
-									grayed: false,
-									alpha: 1,
-									rotation: 0,
-									customData: '',
-									relations: [],
+									group: '',
+									color: '#FFFFFF',
+									flip: 0,
+									fillMethod: 0,
+									fillOrigin: 0,
+									fillClockwise: true,
+									fillAmount: 100,
 									gears: [
 										{
 											kind: 'look',
@@ -125,17 +140,11 @@ function createEngineeringScaleUamProject(): UamProject {
 								},
 								{
 									kind: 'text',
+									...createDisplayNodeBase('n1', 'title'),
 									...createDefaultUamPlainTextProperties(),
-									id: 'n1',
-									name: 'title',
 									position: { x: 16, y: 18 },
 									size: { width: 180, height: 32 },
-									visible: true,
-									touchable: true,
-									grayed: false,
-									alpha: 1,
-									rotation: 0,
-									customData: '',
+									group: '',
 									relations: [
 										{
 											targetNodeId: 'n0',
@@ -143,7 +152,6 @@ function createEngineeringScaleUamProject(): UamProject {
 											usePercent: false,
 										},
 									],
-									gears: [],
 									text: 'Unified Authoring Model',
 									font: '',
 									fontSize: 18,
@@ -155,9 +163,13 @@ function createEngineeringScaleUamProject(): UamProject {
 									name: 'state',
 									selectedIndex: 1,
 									autoRadioGroupDepth: false,
+									alias: '',
+									exported: false,
+									homePageType: 'default',
+									homePage: '',
 									pages: [
-										{ id: '0', name: 'Idle' },
-										{ id: '1', name: 'Alert' },
+										{ id: '0', name: 'Idle', remark: '' },
+										{ id: '1', name: 'Alert', remark: '' },
 									],
 									actions: [
 										{
@@ -210,7 +222,7 @@ function createEngineeringScaleUamProject(): UamProject {
 				],
 			},
 		],
-	} as UamProject);
+	});
 }
 
 test('Gate A proves one engineering-scale UAM-owned project read/write path', async (t) => {
@@ -326,7 +338,7 @@ test('component root and Button instance properties survive transaction save/rel
 		.setBgColor('#112233')
 		.setBgColorEnabled(true)
 		.setDesignImageAlpha(60)
-		.setDesignImageLayer(2)
+		.setDesignImageLayer(1)
 		.setDesignImageOffsetX(11)
 		.setDesignImageOffsetY(12)
 		.setIdNum(13)
@@ -361,7 +373,7 @@ test('component root and Button instance properties survive transaction save/rel
 		.setInstanceController('state')
 		.setInstancePage('checked')
 		.setInstanceChecked(true)
-		.setInstanceSound('instance-click')
+		.setInstanceSound('')
 		.setInstanceSoundVolumeScale(0.75));
 	pkg.addResource(component);
 	pkg.addResource(host);
@@ -389,7 +401,7 @@ test('component root and Button instance properties survive transaction save/rel
 		bgColor: '#112233',
 		bgColorEnabled: true,
 		designImageAlpha: 60,
-		designImageLayer: 2,
+		designImageLayer: 1,
 		designImageOffset: { x: 11, y: 12 },
 		idNum: 13,
 		initName: 'buttonInit',
@@ -414,7 +426,7 @@ test('component root and Button instance properties survive transaction save/rel
 		controller: 'state',
 		page: 'checked',
 		checked: true,
-		sound: 'instance-click',
+		sound: '',
 		soundVolumeScale: 0.75,
 	};
 	const snapshot = (project: UamProject) => {
@@ -506,6 +518,197 @@ test('component root and Button instance properties survive transaction save/rel
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
+});
+
+test('Label, ComboBox, and ProgressBar instance overlays survive UAM transaction round-trips', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('Issue108').setId('pkg108');
+	const sound = doc.createSoundResource('click.wav')
+		.setId('snd108')
+		.setPath('/')
+		.setFile('click.wav')
+		.setSourceData(doc.createBuffer().setData(new Uint8Array([1, 2, 3])));
+	pkg.addResource(sound);
+	const host = doc.createComponent('Host108').setId('host108').setPath('/').setSize(320, 200);
+	const label = doc.createGComponent('label').setId('label108').setInstanceExtType('Label')
+		.setInstanceTitle('Label').setInstanceIcon('').setInstanceTitleColor('#112233')
+		.setInstanceTitleFontSize(14).setInstancePromptText('Prompt')
+		.setInstanceSound('ui://pkg108snd108').setInstanceSoundVolumeScale(0.4);
+	const combo = doc.createGComponent('combo').setId('combo108').setInstanceExtType('ComboBox')
+		.setInstanceTitle('Combo').setInstanceIcon('').setInstanceTitleColor('#445566')
+		.setInstancePopupDirection(2).setInstanceSound('ui://pkg108snd108').setInstanceSoundVolumeScale(0.5)
+		.setInstanceVisibleItemCount(6).setInstanceSelectionController('').setInstanceAutoClearItems(true)
+		.setInstanceComboItems([{ title: 'A', value: '1', icon: null }]);
+	const progress = doc.createGComponent('progress').setId('progress108').setInstanceExtType('ProgressBar')
+		.setInstanceValue(25).setInstanceMax(50).setInstanceMin(5)
+		.setInstanceSound('ui://pkg108snd108').setInstanceSoundVolumeScale(0.6);
+	host.addChild(label).addChild(combo).addChild(progress);
+	pkg.addResource(host);
+
+	const baseline = liftDocumentToUamProject(doc);
+	const getInstances = (project: UamProject) => {
+		const resource = project.packages[0]?.resources.find((item) => item.id === 'host108');
+		if (resource?.kind !== 'component') throw new Error('Issue #108 host fixture was not found.');
+		return Object.fromEntries(resource.component.displayList.map((node) => [node.id, node.kind === 'component' ? node.instanceProperties : undefined]));
+	};
+	const baselineInstances = getInstances(baseline);
+	t.deepEqual(getInstances(liftDocumentToUamProject(materializeUamProject(baseline))), baselineInstances);
+
+	const updated = {
+		label108: { ...baselineInstances.label108, soundVolumeScale: 0.7 },
+		combo108: { ...baselineInstances.combo108, titleColor: '#778899', popupDirection: 1, soundVolumeScale: 0.8 },
+		progress108: { ...baselineInstances.progress108, value: 40, soundVolumeScale: 0.9 },
+	} as Record<string, UamComponentInstanceProperties>;
+	const selector = (displayNodeId: string) => ({ packageId: 'pkg108', componentResourceId: 'host108', displayNodeId });
+	const forward = Object.entries(updated).map(([displayNodeId, componentInstanceProperties]) => ({
+		kind: 'setDisplayNodeProps' as const,
+		selector: selector(displayNodeId),
+		props: { componentInstanceProperties },
+	}));
+	const inverse = Object.entries(baselineInstances).map(([displayNodeId, componentInstanceProperties]) => ({
+		kind: 'setDisplayNodeProps' as const,
+		selector: selector(displayNodeId),
+		props: { componentInstanceProperties: componentInstanceProperties as UamComponentInstanceProperties },
+	}));
+	t.deepEqual(validateTransactionSupport(baseline, forward), []);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-issue-108-'));
+	const outFairy = path.join(tmpDir, 'issue-108.fairy');
+	try {
+		const changed = applyUamTransaction(baseline, forward);
+		await writeProjectFromUam(io, changed, outFairy);
+		const reloaded = await readProjectAsUam(io, outFairy);
+		t.deepEqual(getInstances(reloaded), updated);
+
+		const reverted = applyUamTransaction(reloaded, inverse);
+		await writeProjectFromUam(io, reverted, outFairy, { previousProject: reloaded });
+		t.deepEqual(getInstances(await readProjectAsUam(io, outFairy)), baselineInstances);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+
+	const invalidCombo = baselineInstances.combo108 as Extract<UamComponentInstanceProperties, { extensionType: 'ComboBox' }>;
+	for (const componentInstanceProperties of [
+		{ ...invalidCombo, popupDirection: 3 },
+		{ ...invalidCombo, soundVolumeScale: 1.1 },
+		{ ...invalidCombo, sound: 'click.wav' },
+		{ ...invalidCombo, sound: 'ui://pkg108host108' },
+		{ ...invalidCombo, extensionType: 'Unknown' },
+		{ ...invalidCombo, unexpected: true },
+	]) {
+		const issues = validateTransactionSupport(baseline, [{
+			kind: 'setDisplayNodeProps',
+			selector: selector('combo108'),
+			props: { componentInstanceProperties: componentInstanceProperties as UamComponentInstanceProperties },
+		}]);
+		t.true(issues.length > 0);
+	}
+	const unchanged = [{
+		kind: 'setDisplayNodeProps' as const,
+		selector: selector('combo108'),
+		props: { componentInstanceProperties: invalidCombo },
+	}];
+	t.is(validateTransactionSupport(baseline, unchanged)[0]?.code, 'display_node_props_unchanged');
+	t.throws(() => applyUamTransaction(baseline, unchanged), { instanceOf: UamTransactionError });
+});
+
+test('remaining component-root authoring metadata survives UAM transaction round-trips', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('Issue109').setId('pkg109');
+	const png = new Uint8Array(Buffer.from(
+		'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+		'base64',
+	));
+	for (const [id, name] of [['img109a', 'design-a.png'], ['img109b', 'design-b.png']] as const) {
+		pkg.addResource(doc.createImageResource(name).setId(id).setPath('/').setFileName(name)
+			.setWidth(1).setHeight(1).setSourceData(doc.createBuffer().setData(png)));
+	}
+	for (const [id, name] of [['snd109a', 'sound-a.wav'], ['snd109b', 'sound-b.wav']] as const) {
+		pkg.addResource(doc.createSoundResource(name).setId(id).setPath('/').setFile(name)
+			.setSourceData(doc.createBuffer().setData(new Uint8Array([1, 2, 3]))));
+	}
+	const component = doc.createComponent('Host109').setId('host109').setPath('/').setSize(320, 200)
+		.setDesignImage('ui://pkg109img109a').setDesignImageForTest(true).setDesignImageAlpha(60)
+		.setDesignImageLayer(1).setDesignImageOffsetX(3).setDesignImageOffsetY(4)
+		.setCustomExtensionId('issue109.extension')
+		.setPageController('pageA').setAddedToStageSound('ui://pkg109snd109a')
+		.setRemovedFromStageSound('ui://pkg109snd109a');
+	for (const name of ['pageA', 'pageB']) {
+		const controller = doc.createController(name);
+		controller.addPage(doc.createControllerPage('Default').setId(`${name}-0`).setRemark(`${name} remark`));
+		component.addController(controller);
+	}
+	pkg.addResource(component);
+
+	const baseline = liftDocumentToUamProject(doc);
+	const getProperties = (project: UamProject) => {
+		const resource = project.packages[0]?.resources.find((item) => item.id === 'host109');
+		if (resource?.kind !== 'component') throw new Error('Issue #109 host fixture was not found.');
+		return resource.component.properties;
+	};
+	const baselineProperties = getProperties(baseline);
+	const rematerialized = liftDocumentToUamProject(materializeUamProject(baseline));
+	t.deepEqual(getProperties(rematerialized), baselineProperties);
+	const getFirstPageRemark = (project: UamProject) => {
+		const resource = project.packages[0]?.resources.find((item) => item.id === 'host109');
+		return resource?.kind === 'component' ? resource.component.controllers[0]?.pages[0]?.remark : undefined;
+	};
+	t.is(getFirstPageRemark(rematerialized), 'pageA remark');
+	const updatedProperties: UamComponentProperties = {
+		...baselineProperties,
+		designImage: 'ui://pkg109img109b',
+		designImageForTest: false,
+		pageController: 'pageB',
+		showSound: 'ui://pkg109snd109b',
+		hideSound: 'ui://pkg109snd109b',
+		customExtensionId: 'issue109.updated',
+	};
+	const selector = { packageId: 'pkg109', componentResourceId: 'host109' };
+	const forward: UamTransactionOperation[] = [{ kind: 'setComponentProps', selector, props: { properties: updatedProperties } }];
+	const inverse: UamTransactionOperation[] = [{ kind: 'setComponentProps', selector, props: { properties: baselineProperties } }];
+	t.deepEqual(validateTransactionSupport(baseline, forward), []);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-issue-109-'));
+	const outFairy = path.join(tmpDir, 'issue-109.fairy');
+	try {
+		const changed = applyUamTransaction(baseline, forward);
+		await writeProjectFromUam(io, changed, outFairy);
+		const reloaded = await readProjectAsUam(io, outFairy);
+		t.deepEqual(getProperties(reloaded), updatedProperties);
+		t.is(getFirstPageRemark(reloaded), 'pageA remark');
+
+		const reverted = applyUamTransaction(reloaded, inverse);
+		await writeProjectFromUam(io, reverted, outFairy, { previousProject: reloaded });
+		t.deepEqual(getProperties(await readProjectAsUam(io, outFairy)), baselineProperties);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+
+	for (const properties of [
+		{ ...baselineProperties, designImage: 'design.png' },
+		{ ...baselineProperties, designImage: 'ui://pkg109missing' },
+		{ ...baselineProperties, designImage: 'ui://pkg109snd109a' },
+		{ ...baselineProperties, showSound: 'ui://pkg109img109a' },
+		{ ...baselineProperties, showSound: 'sound.wav' },
+		{ ...baselineProperties, pageController: 'missing' },
+		{ ...baselineProperties, unexpected: true },
+	]) {
+		const issues = validateTransactionSupport(baseline, [{
+			kind: 'setComponentProps',
+			selector,
+			props: { properties: properties as UamComponentProperties },
+		}]);
+		t.true(issues.length > 0);
+	}
+	const unchanged: UamTransactionOperation[] = [{
+		kind: 'setComponentProps',
+		selector,
+		props: { properties: baselineProperties },
+	}];
+	t.deepEqual(validateTransactionSupport(baseline, unchanged), []);
+	t.deepEqual(getProperties(applyUamTransaction(baseline, unchanged)), baselineProperties);
 });
 
 test('UAM materialization scope covers every current concrete display node kind', (t) => {
@@ -836,6 +1039,7 @@ test('UAM project lift and materialize preserve list, tree, graph, group, loader
 		.setCustomData('loader-data')
 		.setUrl('ui://pkg-display-nodes/image')
 		.setColor('#abcdef')
+		.setShowErrorSign(true)
 		.setFillAmount(75));
 	component.addChild(doc.createGLoader3D('loader3d')
 		.setId('loader3d-node')
@@ -913,6 +1117,7 @@ test('UAM project lift and materialize preserve list, tree, graph, group, loader
 	if (loaderNode?.kind === 'loader') {
 		t.is(loaderNode.customData, 'loader-data');
 		t.is(loaderNode.fillAmount, 75);
+		t.true(loaderNode.showErrorSign);
 	}
 	const loader3DNode = nodes.get('loader3d-node');
 	if (loader3DNode?.kind === 'loader3D') {

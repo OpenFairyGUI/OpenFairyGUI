@@ -11,7 +11,7 @@ import {
 	writeProjectFromUam,
 } from '@openfairygui/core';
 import { NodeIO } from '@openfairygui/core/node';
-import { getFixturePath } from '@openfairygui/test-utils';
+import { createUamDisplayNodeBase, getFixturePath } from '@openfairygui/test-utils';
 import test from 'ava';
 import {
 	type ApplyUamTransactionAppInput,
@@ -35,6 +35,8 @@ function createSupportedProject(): UamProject {
 			{
 				id: 'pkg001',
 				name: 'Main',
+				compressPNG: null,
+				jpegQuality: null,
 				publish: null,
 				branchNames: [],
 				folders: [{ branch: '', path: '/images/', favorite: false, atlas: '' }],
@@ -70,7 +72,15 @@ function createSupportedProject(): UamProject {
 							customData: '',
 							displayList: [
 								{
+									...createUamDisplayNodeBase('n0', 'bg'),
 									kind: 'image',
+									group: '',
+									color: '#ffffff',
+									flip: 0,
+									fillMethod: 0,
+									fillOrigin: 0,
+									fillClockwise: true,
+									fillAmount: 100,
 									id: 'n0',
 									name: 'bg',
 									position: { x: 0, y: 0 },
@@ -86,8 +96,10 @@ function createSupportedProject(): UamProject {
 									resource: { resourceId: 'img001' },
 								},
 								{
+									...createUamDisplayNodeBase('n1', 'title'),
 									kind: 'text',
 									...createDefaultUamPlainTextProperties(),
+									group: '',
 									id: 'n1',
 									name: 'title',
 									position: { x: 16, y: 18 },

@@ -19,6 +19,8 @@ export type BrowserPublishAtlasOptions = Pick<
 	| 'allowRotation'
 	| 'padding'
 	| 'powerOfTwo'
+	| 'maxAtlasIndex'
+	| 'multipleOfFour'
 	| 'square'
 	| 'multiPage'
 	| 'trimImage'

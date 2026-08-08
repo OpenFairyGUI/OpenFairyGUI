@@ -9,9 +9,11 @@ import type {
 	UamGearBinding,
 	UamGraphProperties,
 	UamGroupProperties,
+	UamImageProperties,
 	UamImageResourceProperties,
 	UamListProperties,
 	UamLoaderProperties,
+	UamMovieClipProperties,
 	UamLoader3DProperties,
 	UamLookGearBinding,
 	UamPackage,
@@ -93,6 +95,8 @@ export interface UamDisplayNodePropsUpdate {
 	fontSize?: number;
 	color?: string;
 	textProperties?: UamTextProperties | UamPlainTextProperties;
+	imageProperties?: UamImageProperties;
+	movieClipProperties?: UamMovieClipProperties;
 	graphProperties?: UamGraphProperties;
 	groupProperties?: UamGroupProperties;
 	loaderProperties?: UamLoaderProperties;
@@ -143,6 +147,13 @@ export interface SetResourceFolderFavoriteOperation extends UamTransactionOperat
 	favorite: boolean;
 }
 
+export interface SetResourceFolderAtlasOperation extends UamTransactionOperationBase {
+	kind: 'setResourceFolderAtlas';
+	selector: UamResourceFolderSelector;
+	/** Canonical atlas slot index; an empty string clears the folder override. */
+	atlas: string;
+}
+
 export interface SetResourceExportedOperation extends UamTransactionOperationBase {
 	kind: 'setResourceExported';
 	selector: UamResourceSelector;
@@ -155,6 +166,7 @@ export interface AddResourceFolderOperation extends UamTransactionOperationBase 
 	path: string;
 	branch?: string;
 	favorite?: boolean;
+	/** Canonical atlas slot index; omitted or empty inherits the parent assignment. */
 	atlas?: string;
 }
 
@@ -356,6 +368,7 @@ export type UamTransactionOperation =
 	| MoveResourceOperation
 	| SetResourceFavoriteOperation
 	| SetResourceFolderFavoriteOperation
+	| SetResourceFolderAtlasOperation
 	| SetResourceExportedOperation
 	| AddResourceFolderOperation
 	| RenameResourceFolderOperation
@@ -408,10 +421,13 @@ export type UamTransactionSupportIssueCode =
 	| 'unsupported_text_field_target'
 	| 'unsupported_display_node_field'
 	| 'invalid_display_node_payload'
+	| 'display_node_props_unchanged'
 	| 'invalid_resource_name'
 	| 'invalid_resource_path'
 	| 'invalid_resource_folder_selector'
 	| 'invalid_resource_folder_path'
+	| 'invalid_resource_folder_atlas'
+	| 'resource_folder_atlas_unchanged'
 	| 'resource_folder_conflict'
 	| 'resource_folder_not_empty'
 	| 'invalid_attach_index'

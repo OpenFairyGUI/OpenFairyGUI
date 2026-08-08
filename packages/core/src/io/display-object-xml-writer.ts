@@ -1,6 +1,7 @@
 import { GearType } from '../constants.js';
 import type { GObject } from '../properties/g-object.js';
 import type { Gear } from '../properties/gear.js';
+import { getDefaultListAutoResizeItem } from '../properties/g-list.js';
 import { renderXmlAttrs } from '../utils/xml-utils.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr, type XmlNodeProtocol } from './project-xml-protocol.js';
 
@@ -358,6 +359,7 @@ type WritableChild = GObject & {
 	getDemoText?(): string;
 	getTemplateVarsEnabled?(): boolean;
 	getFaceDilate?(): number;
+	getOutlineSoftness?(): number;
 	getUnderlaySoftness?(): number;
 	getSrc?(): string;
 	getAspect?(): boolean;
@@ -398,6 +400,7 @@ type WritableChild = GObject & {
 	getShrinkOnly?(): boolean;
 	getAutoSize?(): number | boolean;
 	getUseResize?(): boolean;
+	getShowErrorSign?(): boolean;
 	getAnimationName?(): string;
 	getSkinName?(): string;
 	getLoop?(): boolean;
@@ -437,6 +440,7 @@ type WritableChild = GObject & {
 	getApexIndex?(): number;
 	getOverflow?(): number;
 	getScrollType?(): number;
+	getScrollBarDisplay?(): number;
 	getScrollBarFlags?(): number;
 	getScrollBarMargin?(): { top?: number; bottom?: number; left?: number; right?: number };
 	getVtScrollBarRes?(): string;
@@ -481,6 +485,7 @@ type WritableChild = GObject & {
 	getInstanceChecked?(): boolean;
 	getInstanceSound?(): string;
 	getInstanceSoundVolumeScale?(): number;
+	getInstancePopupDirection?(): number;
 	getInstancePromptText?(): string;
 	getInstanceSelectionController?(): string;
 	getInstanceVisibleItemCount?(): number;
@@ -600,6 +605,10 @@ export function formatButtonMode(mode: number): string {
 		2: 'Radio',
 	};
 	return map[mode] ?? 'Common';
+}
+
+export function formatButtonDownEffect(effect: number): string {
+	return ['none', 'dark', 'scale'][effect] ?? 'none';
 }
 
 export function formatTitleType(titleType: number): string {
@@ -928,6 +937,7 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 			if (typedObj.getShrinkOnly?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.shrinkOnly, '1');
 			if (typedObj.getAutoSize?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.autoSize, '1');
 			if (typedObj.getUseResize?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.useResize, '1');
+			if (typedObj.getShowErrorSign?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.errorSign, 'true');
 			const loaderColor = typedObj.getColor?.();
 			if (loaderColor && !isDefaultWhiteColor(loaderColor)) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.color, loaderColor);
 			if (typedObj.getFilter?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.filter, typedObj.getFilter?.());
@@ -998,10 +1008,14 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 				if (typedObj.getTemplateVarsEnabled?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.vars, 'true');
 				const faceDilate = typedObj.getFaceDilate?.() ?? 0;
 				if (faceDilate !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.faceDilate, String(faceDilate));
+				const outlineSoftness = typedObj.getOutlineSoftness?.() ?? 0;
+				if (outlineSoftness !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.outlineSoftness, String(outlineSoftness));
 				const underlaySoftness = typedObj.getUnderlaySoftness?.() ?? 0;
 				if (underlaySoftness !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.underlaySoftness, String(underlaySoftness));
 			}
 			if (type === 'GRichTextField') {
+				const outlineSoftness = typedObj.getOutlineSoftness?.() ?? 0;
+				if (outlineSoftness !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.richText.attrs.outlineSoftness, String(outlineSoftness));
 				const underlaySoftness = typedObj.getUnderlaySoftness?.() ?? 0;
 				if (underlaySoftness !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.richText.attrs.underlaySoftness, String(underlaySoftness));
 			}
@@ -1144,7 +1158,10 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 			if (layout === 4 && lineCount !== 0) {
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineItemCount2, String(lineCount));
 			}
-			if (typedObj.getAutoResizeItem?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.autoResizeItem, 'false');
+			const autoResizeItem = typedObj.getAutoResizeItem?.() ?? true;
+			if (autoResizeItem !== getDefaultListAutoResizeItem(layout ?? 0)) {
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.autoResizeItem, String(autoResizeItem));
+			}
 			const childrenRenderOrder = typedObj.getChildrenRenderOrder?.() ?? 0;
 			if (childrenRenderOrder !== 0) {
 				const renderOrderName: Record<number, string> = { 0: 'ascent', 1: 'descent', 2: 'arch' };
@@ -1188,6 +1205,11 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 			if (scrollType !== undefined && scrollType !== 1) {
 				const scrollTypeName: Record<number, string> = { 0: 'horizontal', 1: 'vertical', 2: 'both' };
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scroll, scrollTypeName[scrollType] ?? 'vertical');
+			}
+			const scrollBarDisplay = typedObj.getScrollBarDisplay?.() ?? 0;
+			if (overflow === 2 && scrollBarDisplay !== 0) {
+				const scrollBarName: Record<number, string> = { 0: 'default', 1: 'visible', 2: 'auto', 3: 'hidden' };
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBar, scrollBarName[scrollBarDisplay] ?? 'default');
 			}
 			const scrollBarFlags = typedObj.getScrollBarFlags?.() ?? 0;
 			if (scrollBarFlags !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarFlags, String(scrollBarFlags));
@@ -1302,9 +1324,16 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 				if (typedObj.getInstanceController?.() && extSpecs.controller) writeXmlAttr(extAttrs, extSpecs.controller, typedObj.getInstanceController?.());
 				if (typedObj.getInstancePage?.() && extSpecs.page) writeXmlAttr(extAttrs, extSpecs.page, typedObj.getInstancePage?.());
 				if (typedObj.getInstanceChecked?.() && extSpecs.checked) writeXmlAttr(extAttrs, extSpecs.checked, '1');
+				const popupDirection = typedObj.getInstancePopupDirection?.() ?? 0;
+				if (popupDirection !== 0 && extSpecs.popupDirection) {
+					writeXmlAttr(extAttrs, extSpecs.popupDirection, ({ 1: 'up', 2: 'down' } as Record<number, string>)[popupDirection]);
+				}
 				if (typedObj.getInstanceSound?.() && extSpecs.sound) writeXmlAttr(extAttrs, extSpecs.sound, typedObj.getInstanceSound?.());
 				if ((typedObj.getInstanceSoundVolumeScale?.() ?? 1) !== 1 && extSpecs.soundVolumeScale) {
-					writeXmlAttr(extAttrs, extSpecs.soundVolumeScale, String(typedObj.getInstanceSoundVolumeScale?.() ?? 1));
+					writeXmlAttr(extAttrs, extSpecs.soundVolumeScale, formatProjectInt32(
+						Math.round((typedObj.getInstanceSoundVolumeScale?.() ?? 1) * 100),
+						'component instance volume',
+					));
 				}
 				if (typedObj.getInstancePromptText?.() && extSpecs.prompt) writeXmlAttr(extAttrs, extSpecs.prompt, typedObj.getInstancePromptText?.());
 				if (typedObj.getInstanceSelectionController?.() && extSpecs.selectionController) writeXmlAttr(extAttrs, extSpecs.selectionController, typedObj.getInstanceSelectionController?.());

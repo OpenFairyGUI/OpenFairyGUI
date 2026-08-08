@@ -15,6 +15,7 @@ import {
 	type UamLookGearBinding,
 	type UamPackage,
 	type UamProject,
+	type UamTransitionModel,
 } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
 import { readProjectAsUam, writeProjectFromUam } from '../src/uam/index.js';
@@ -39,6 +40,8 @@ export function createSupportedProject(): UamProject {
 			{
 				id: 'pkg001',
 				name: 'Main',
+				compressPNG: null,
+				jpegQuality: null,
 				publish: null,
 				branchNames: [],
 				folders: [{ branch: '', path: '/images/', favorite: false, atlas: '' }],
@@ -77,35 +80,25 @@ export function createSupportedProject(): UamProject {
 							displayList: [
 								{
 									kind: 'image',
-									id: 'n0',
-									name: 'bg',
+									...createDisplayNodeBase('n0', 'bg'),
 									position: { x: 0, y: 0 },
 									size: { width: 320, height: 180 },
-									visible: true,
-									touchable: true,
-									grayed: false,
-									alpha: 1,
-									rotation: 0,
-									customData: '',
-									relations: [],
-									gears: [],
+									group: '',
+									color: '#FFFFFF',
+									flip: 0,
+									fillMethod: 0,
+									fillOrigin: 0,
+									fillClockwise: true,
+									fillAmount: 100,
 									resource: { resourceId: 'img001' },
 								},
 								{
 									kind: 'text',
+									...createDisplayNodeBase('n1', 'title'),
 									...createDefaultUamPlainTextProperties(),
-									id: 'n1',
-									name: 'title',
 									position: { x: 16, y: 18 },
 									size: { width: 180, height: 32 },
-									visible: true,
-									touchable: true,
-									grayed: false,
-									alpha: 1,
-									rotation: 0,
-									customData: '',
-									relations: [],
-									gears: [],
+									group: '',
 									text: 'Title',
 									font: '',
 									fontSize: 18,
@@ -119,7 +112,7 @@ export function createSupportedProject(): UamProject {
 				],
 			},
 		],
-	} as UamProject);
+	});
 }
 
 export function createControllerModel(name = 'state'): UamControllerModel {
@@ -127,15 +120,19 @@ export function createControllerModel(name = 'state'): UamControllerModel {
 		name,
 		selectedIndex: 0,
 		autoRadioGroupDepth: false,
+		alias: '',
+		exported: false,
+		homePageType: 'default',
+		homePage: '',
 		pages: [
-			{ id: '0', name: 'Idle' },
-			{ id: '1', name: 'Alert' },
+			{ id: '0', name: 'Idle', remark: '' },
+			{ id: '1', name: 'Alert', remark: '' },
 		],
 		actions: [],
 	};
 }
 
-export function createTransitionModel(name = 'intro') {
+export function createTransitionModel(name = 'intro'): UamTransitionModel {
 	return {
 		name,
 		autoPlay: true,
@@ -343,6 +340,7 @@ export function createLifecycleComponent(id = 'cmp002', name = 'Popup'): UamComp
 			displayList: [{
 				...createDisplayNodeBase('popup-title', 'title'),
 				kind: 'text',
+				group: '',
 				...createDefaultUamPlainTextProperties(),
 				text: 'Popup',
 				font: '',
@@ -374,6 +372,7 @@ export function createListNodeBase(id: string, name: string, offset = 0): Omit<U
 		src: '',
 		overflow: 2,
 		scrollType: 1,
+		scrollBarDisplay: 0,
 		scrollBarFlags: 0,
 		scrollBarMargin: { top: 0, bottom: 0, left: 0, right: 0 },
 		vtScrollBarRes: '',

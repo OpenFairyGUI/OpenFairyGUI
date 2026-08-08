@@ -25,9 +25,11 @@ import {
 	materializeUamComponentProperties,
 	materializeUamGraphProperties,
 	materializeUamGroupProperties,
+	materializeUamImageProperties,
 	materializeUamImageResourceProperties,
 	materializeUamListProperties,
 	materializeUamLoaderProperties,
+	materializeUamMovieClipProperties,
 	materializeUamTextProperties,
 } from './bridge-materialize.js';
 import type {
@@ -37,13 +39,19 @@ import type {
 } from './model.js';
 import type {
 	UamComponentSelector,
+	UamControllerSelector,
+	UamDisplayNodePropsUpdate,
 	UamDisplayNodeSelector,
+	UamGearSelector,
 	UamResourceSelector,
+	UamTransitionSelector,
 	UamTransactionOperation,
 } from './transaction-contracts.js';
+import { UamTransactionError } from './transaction-contracts.js';
 import {
 	COMMON_DISPLAY_PROPERTY_TYPES,
 	GROUPABLE_DISPLAY_PROPERTY_TYPES,
+	selectorDetails,
 	TEXT_DISPLAY_PROPERTY_TYPES,
 	renamedResourceFileName,
 	type UamAttachableDisplayNode,
@@ -105,7 +113,7 @@ function resolveUniqueController(component: Component, selector: UamControllerSe
 	if (matches.length === 0) {
 		throw new Error(`Controller "${selector.controllerName}" was not found in component "${selector.componentResourceId}".`);
 	}
-		if (matches.length > 1) {
+	if (matches.length > 1) {
 			throw new UamTransactionError(
 				`Controller selector "${selector.controllerName}" is ambiguous in component "${selector.componentResourceId}".`,
 				{
@@ -113,7 +121,7 @@ function resolveUniqueController(component: Component, selector: UamControllerSe
 					selector: selectorDetails(selector as unknown as Record<string, unknown>),
 				},
 			);
-		}
+	}
 	return matches[0]!;
 }
 
@@ -122,7 +130,7 @@ function resolveUniqueTransition(component: Component, selector: UamTransitionSe
 	if (matches.length === 0) {
 		throw new Error(`Transition "${selector.transitionName}" was not found in component "${selector.componentResourceId}".`);
 	}
-		if (matches.length > 1) {
+	if (matches.length > 1) {
 			throw new UamTransactionError(
 				`Transition selector "${selector.transitionName}" is ambiguous in component "${selector.componentResourceId}".`,
 				{
@@ -130,7 +138,7 @@ function resolveUniqueTransition(component: Component, selector: UamTransitionSe
 					selector: selectorDetails(selector as unknown as Record<string, unknown>),
 				},
 			);
-		}
+	}
 	return matches[0]!;
 }
 
@@ -269,6 +277,30 @@ function validateControllerModelAgainstComponent(component: Component, model: Ua
 		throw new Error(`${owner}: controller "${model.name}" selectedIndex is out of range.`);
 	}
 	const pageIds = new Set(model.pages.map((page) => page.id));
+	if (typeof model.autoRadioGroupDepth !== 'boolean') {
+		throw new Error(`${owner}: controller "${model.name}" autoRadioGroupDepth must be boolean.`);
+	}
+	if (typeof model.alias !== 'string') {
+		throw new Error(`${owner}: controller "${model.name}" alias must be a string.`);
+	}
+	if (typeof model.exported !== 'boolean') {
+		throw new Error(`${owner}: controller "${model.name}" exported must be boolean.`);
+	}
+	if (!['default', 'specific', 'branch', 'variable'].includes(model.homePageType)) {
+		throw new Error(`${owner}: controller "${model.name}" has unknown home page type "${model.homePageType}".`);
+	}
+	if (typeof model.homePage !== 'string') {
+		throw new Error(`${owner}: controller "${model.name}" homePage must be a string.`);
+	}
+	if (model.homePageType === 'specific' && !pageIds.has(model.homePage)) {
+		throw new Error(`${owner}: controller "${model.name}" references unknown home page id "${model.homePage}".`);
+	}
+	if (model.homePageType === 'variable' && !model.homePage) {
+		throw new Error(`${owner}: controller "${model.name}" requires a custom property key.`);
+	}
+	if ((model.homePageType === 'default' || model.homePageType === 'branch') && model.homePage) {
+		throw new Error(`${owner}: controller "${model.name}" home page must be empty for "${model.homePageType}".`);
+	}
 	for (const action of model.actions) {
 		for (const pageId of action.fromPageIds) {
 			if (!pageIds.has(pageId)) throw new Error(`${owner}: controller "${model.name}" action references unknown fromPage id "${pageId}".`);
@@ -291,6 +323,10 @@ function replaceControllerModel(
 	validateControllerModelAgainstComponent(component, model, 'updateController');
 	controller.setName(model.name);
 	controller.setAutoRadioGroupDepth(model.autoRadioGroupDepth);
+	controller.setAlias(model.alias);
+	controller.setExported(model.exported);
+	controller.setHomePageType(model.homePageType);
+	controller.setHomePage(model.homePage);
 	controller.setSelectedIndex(model.selectedIndex);
 	for (const action of [...controller.listActions()]) controller.removeAction(action);
 	for (const page of [...controller.listPages()]) controller.removePage(page);
@@ -537,6 +573,18 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 			pkg.setResourceFolders(folders);
 			return;
 		}
+		case 'setResourceFolderAtlas': {
+			const pkg = resolvePackage(doc, operation.selector);
+			const branch = operation.selector.branch ?? '';
+			const folders = pkg.listResourceFolders();
+			const folder = folders.find((candidate) => (
+				candidate.branch === branch && candidate.path === operation.selector.path
+			));
+			if (!folder) throw new Error(`Resource folder "${branch}:${operation.selector.path}" was not found.`);
+			folder.atlas = operation.atlas;
+			pkg.setResourceFolders(folders);
+			return;
+		}
 		case 'setResourceExported': {
 			resolveResource(doc, operation.selector).resource.setExported(operation.exported);
 			return;
@@ -686,6 +734,24 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 					operation.props.groupProperties,
 				);
 			}
+			if (operation.props.imageProperties !== undefined) {
+				if (node.propertyType !== PropertyType.G_IMAGE) {
+					throw new Error(`Image display props are not supported on display node type "${node.propertyType}".`);
+				}
+				materializeUamImageProperties(
+					node as ReturnType<Document['createGImage']>,
+					operation.props.imageProperties,
+				);
+			}
+			if (operation.props.movieClipProperties !== undefined) {
+				if (node.propertyType !== PropertyType.G_MOVIE_CLIP) {
+					throw new Error(`MovieClip display props are not supported on display node type "${node.propertyType}".`);
+				}
+				materializeUamMovieClipProperties(
+					node as ReturnType<Document['createGMovieClip']>,
+					operation.props.movieClipProperties,
+				);
+			}
 			if (operation.props.loaderProperties !== undefined) {
 				if (node.propertyType !== PropertyType.G_LOADER) {
 					throw new Error(`Loader display props are not supported on display node type "${node.propertyType}".`);
@@ -772,7 +838,11 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 				name: operation.controller.name,
 				selectedIndex: operation.controller.selectedIndex,
 				autoRadioGroupDepth: operation.controller.autoRadioGroupDepth,
-				pages: operation.controller.pages.map((page) => ({ id: page.id, name: page.name })),
+				alias: operation.controller.alias,
+				exported: operation.controller.exported,
+				homePageType: operation.controller.homePageType,
+				homePage: operation.controller.homePage,
+				pages: operation.controller.pages.map((page) => ({ id: page.id, name: page.name, remark: page.remark })),
 				actions: operation.controller.actions.map((action) => ({
 					name: action.name,
 					actionType: action.actionType,

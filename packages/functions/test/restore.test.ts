@@ -5,9 +5,10 @@ import { Document, ProjectType, parseJta } from '@openfairygui/core';
 import { NodeIO } from '@openfairygui/core/node';
 import { getFixturePath, getFixtureProjectPath } from '@openfairygui/test-utils';
 import test from 'ava';
-import sharp from 'sharp';
+import sharpImplementation from 'sharp';
 import {
 	atlas,
+	type AtlasRasterBackend,
 	type PublishFileSystem,
 	publish,
 	type RestoreFileSystem,
@@ -15,6 +16,8 @@ import {
 	type RestoreImageExtractInput,
 	restore,
 } from '../src/index.js';
+
+const sharp = sharpImplementation as typeof sharpImplementation & AtlasRasterBackend;
 
 const UNITY_RELEASE_DIR = getFixturePath('FairyGUI-unity', 'Assets', 'Examples', 'Resources', 'UI');
 const EXPERIMENTS_FAIRY = getFixtureProjectPath('FairyGUI-Experiments');
@@ -266,9 +269,9 @@ test('restore published project: directory batch restores packages, assets, and 
 		t.true(bagCloseButtonXml.includes('<gearSize controller="button" pages="0,1,2,3" values="61,53|-|61,53|-" default="55,47"'), 'restored CloseButton omits redundant identity scale payloads in non-tween gearSize');
 		t.true(/<image\b[^>]*id="n1"[^>]*xy="0,0"/.test(bagCloseButtonXml), 'restored CloseButton keeps explicit zero xy attrs on image tags');
 		const bagWinXml = await fs.readFile(path.join(bagOutputDir, 'assets', 'Bag', 'BagWin.xml'), 'utf-8');
-		t.true(
-			/<list\b[^>]*id="n8"[^>]*autoItemSize="false"/.test(bagWinXml),
-			'restored Bag/BagWin keeps explicit autoItemSize=false on the paginated item list',
+		t.false(
+			/<list\b[^>]*id="n8"[^>]*autoItemSize=/.test(bagWinXml),
+			'restored Bag/BagWin omits the false autoItemSize default on the paginated item list',
 		);
 		t.true(
 			/<list\b[^>]*id="n25_osdo"[^>]*selectionController="page"/.test(bagWinXml),

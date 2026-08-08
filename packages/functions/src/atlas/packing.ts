@@ -1,6 +1,6 @@
 import type { Document, ILogger, Package } from '@openfairygui/core';
 import type { AtlasOptions } from '../atlas.js';
-import { COMPAT_NODE_RECT_FLAGS, type CompatNodeRect } from '../max-rects-compat.js';
+import { COMPAT_NODE_RECT_FLAGS, type CompatNodeRect, type CompatPage } from '../max-rects-compat.js';
 import { MaxRectsPackerCompat } from '../max-rects-packer-compat.js';
 import type { AtlasRasterBackend } from '../publish/contracts.js';
 import {
@@ -289,13 +289,13 @@ function packAtlasPages(
 		multipleOfFour: boolean;
 		square: boolean;
 	},
-): ReturnType<MaxRectsPackerCompat['pack']> {
+): CompatPage[] {
 	const hasDuplicatePadding = inputs.some((input) => {
 		return isImageResource(input.resource) && input.resource.getDuplicatePadding?.() === true;
 	});
 	const packer = new MaxRectsPackerCompat({
 		pot: sizeOverrides?.powerOfTwo ?? options.powerOfTwo,
-		mof: sizeOverrides?.multipleOfFour ?? !options.powerOfTwo,
+		mof: sizeOverrides?.multipleOfFour ?? options.multipleOfFour,
 		padding: options.padding,
 		rotation: options.allowRotation,
 		minWidth: 16,
@@ -433,16 +433,25 @@ async function writeAtlasPageImage(
 	}
 
 	const outputFile = `${options.outputPath}/${atlasFileName}`;
-	await encoder({
+	const atlasPipeline = encoder({
 		create: {
 			width: page.width,
 			height: page.height,
 			channels: 4 as const,
 			background: { r: 0, g: 0, b: 0, alpha: 0 },
 		},
-	})
-		.composite(compositeInputs)
-		.toFile(outputFile);
+	}).composite(compositeInputs);
+	if (options.extractAlpha) {
+		const atlasBuffer = await atlasPipeline.png().toBuffer();
+		await encoder(atlasBuffer).removeAlpha().png().toFile(outputFile);
+		const alphaBuffer = await encoder(atlasBuffer).extractChannel('alpha').png().toBuffer();
+		await encoder(alphaBuffer)
+			.joinChannel([alphaBuffer, alphaBuffer])
+			.png()
+			.toFile(`${options.outputPath}/${insertFileNameSuffix(atlasFileName, '!a')}`);
+	} else {
+		await atlasPipeline.toFile(outputFile);
+	}
 
 	logger.info(`atlas: Generated ${atlasFileName} (${page.width}x${page.height}, ${page.outputRects.length} sprites)`);
 }
@@ -504,6 +513,9 @@ function resolveDirectOutputAtlasSize(
 	if (options.powerOfTwo) {
 		resolvedWidth = nextPow2(resolvedWidth);
 		resolvedHeight = nextPow2(resolvedHeight);
+	} else if (options.multipleOfFour) {
+		resolvedWidth = roundUpToMultiple(resolvedWidth, 4);
+		resolvedHeight = roundUpToMultiple(resolvedHeight, 4);
 	}
 	return { width: resolvedWidth, height: resolvedHeight };
 }
@@ -663,11 +675,8 @@ export function sortResourcesByOrder(
 	return ordered;
 }
 
-function getResourceTextureSetMode(resource: PackInputResource): TextureSetMode {
-	if (isImageResource(resource)) {
-		return parseTextureSetMode(resource.getTextureSetMode?.());
-	}
-	return parseTextureSetMode(resource.getTextureSetMode?.());
+function getResourceTextureSetMode(resource: PackInputResource, maxAtlasIndex: number): TextureSetMode {
+	return parseTextureSetMode(resource.getTextureSetMode?.(), maxAtlasIndex);
 }
 
 function groupStandaloneInputs(
@@ -710,7 +719,7 @@ function groupStandaloneInputs(
 	for (const input of inputs) {
 		const branchName = getInputBranchName(input);
 		const branchOrdinal = branchOrdinalByName.get(branchName) ?? 0;
-		const mode = getResourceTextureSetMode(input.resource);
+		const mode = getResourceTextureSetMode(input.resource, options.maxAtlasIndex ?? 10);
 		if (mode.kind === 'standalone') {
 			const resourceId = getPublishedItemId(input.resource);
 			const key = `${branchName}\u0000${resourceId}`;

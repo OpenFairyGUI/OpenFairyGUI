@@ -5,6 +5,7 @@ import {
 	createDefaultUamComponentProperties,
 	createDefaultUamImageResourceProperties,
 	createDefaultUamPlainTextProperties,
+	type UamDisplayNodeBase,
 	type UamProject,
 } from '@openfairygui/core';
 
@@ -186,6 +187,8 @@ export function createMinimalUamProject(projectId: string): UamProject {
 			{
 				id: 'pkg001',
 				name: 'Main',
+				compressPNG: null,
+				jpegQuality: null,
 				publish: null,
 				branchNames: [],
 				folders: [{ branch: '', path: '/images/', favorite: false, atlas: '' }],
@@ -245,6 +248,12 @@ export function createMinimalUamProject(projectId: string): UamProject {
 									relations: [],
 									gears: [],
 									group: '',
+									color: '#FFFFFF',
+									flip: 0,
+									fillMethod: 0,
+									fillOrigin: 0,
+									fillClockwise: true,
+									fillAmount: 100,
 									resource: { resourceId: 'img001' },
 								},
 								{
@@ -286,5 +295,32 @@ export function createMinimalUamProject(projectId: string): UamProject {
 				],
 			},
 		],
+	};
+}
+
+export function createUamDisplayNodeBase(id: string, name: string): Omit<UamDisplayNodeBase, 'kind'> {
+	return {
+		id,
+		name,
+		position: { x: 0, y: 0 },
+		size: { width: 0, height: 0 },
+		locked: false,
+		aspect: false,
+		minSize: { width: 0, height: 0 },
+		maxSize: { width: 0, height: 0 },
+		scale: { x: 1, y: 1 },
+		skew: { x: 0, y: 0 },
+		visible: true,
+		touchable: true,
+		grayed: false,
+		alpha: 1,
+		rotation: 0,
+		tooltips: '',
+		blendMode: 'normal',
+		filter: '',
+		filterData: '',
+		customData: '',
+		relations: [],
+		gears: [],
 	};
 }

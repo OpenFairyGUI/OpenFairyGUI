@@ -251,6 +251,7 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 	rich.setText('world');
 	rich.setShadowColor('#445566');
 	rich.setShadowOffset({ x: 4, y: 5 });
+	rich.setOutlineSoftness(0.375);
 	rich.setUnderlaySoftness(0.056);
 	rich.setAutoSize(4);
 
@@ -260,6 +261,7 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 	input.setDemoText('input preview');
 	input.setTemplateVarsEnabled(true);
 	input.setFaceDilate(0.125);
+	input.setOutlineSoftness(0.5);
 	input.setUnderlaySoftness(0.25);
 	input.setUbbEnabled(true);
 	input.setAutoSize(4);
@@ -269,6 +271,7 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 	input.setShadowOffset({ x: 0, y: 2 });
 
 	text.setFaceDilate(0.324);
+	text.setOutlineSoftness(0.75);
 	text.setUnderlaySoftness(1);
 
 	comp.addChild(text);
@@ -287,7 +290,9 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 		t.true(/<text\b[^>]*demoText="preview"/.test(componentXml), 'text writes canonical demoText attr');
 		t.true(/<text\b[^>]*vars(?:="true")?/.test(componentXml), 'text writes canonical vars attr');
 		t.true(/<text\b[^>]*faceDilate="0.324"/.test(componentXml), 'text writes canonical faceDilate attr');
+		t.true(/<text\b[^>]*outlineSoftness="0.75"/.test(componentXml), 'text writes canonical outlineSoftness attr');
 		t.true(/<text\b[^>]*underlaySoftness="1"/.test(componentXml), 'text writes canonical underlaySoftness attr');
+		t.true(/<richtext\b[^>]*outlineSoftness="0.375"/.test(componentXml), 'richtext writes canonical outlineSoftness attr');
 		t.true(/<richtext\b[^>]*underlaySoftness="0.056"/.test(componentXml), 'richtext writes canonical underlaySoftness attr');
 		t.true(/<inputtext\b[^>]*demoText="input preview"/.test(componentXml), 'input text writes canonical plain-text attrs');
 
@@ -300,6 +305,7 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 		t.is(text2.getDemoText?.(), 'preview');
 		t.true(text2.getTemplateVarsEnabled?.());
 		t.is(text2.getFaceDilate?.(), 0.324);
+		t.is(text2.getOutlineSoftness?.(), 0.75);
 		t.is(text2.getUnderlaySoftness?.(), 1);
 		t.is(text2.getAutoSize(), 4);
 		t.is(text2.getStrokeSize(), 0.244);
@@ -308,6 +314,7 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 
 		const rich2 = comp2!.listChildren().find((child) => child.getId() === 'n1') as ReturnType<Document['createGRichTextField']>;
 		t.truthy(rich2, 'rich text exists');
+		t.is(rich2.getOutlineSoftness?.(), 0.375);
 		t.is(rich2.getUnderlaySoftness?.(), 0.056);
 		t.is(rich2.getAutoSize(), 4);
 		t.is(rich2.getShadowColor(), '#445566');
@@ -317,6 +324,7 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 		t.is(input2.getDemoText(), 'input preview');
 		t.true(input2.getTemplateVarsEnabled());
 		t.is(input2.getFaceDilate(), 0.125);
+		t.is(input2.getOutlineSoftness(), 0.5);
 		t.is(input2.getUnderlaySoftness(), 0.25);
 		t.true(input2.getUbbEnabled());
 		t.is(input2.getAutoSize(), 4);
@@ -431,16 +439,25 @@ test('writer: uses canonical XML attr names for component root, loader, text nod
 	comp.setMinWidth(120);
 	comp.setBgColorEnabled(true);
 	comp.setBgColor('#383838');
+	comp.setDesignImage('ui://pkgProtocol/design');
+	comp.setDesignImageForTest(true);
 	comp.setDesignImageAlpha(100);
 	comp.setDesignImageLayer(1);
 	comp.setDesignImageOffsetX(-428);
 	comp.setDesignImageOffsetY(-238);
 	comp.setIdNum(7);
 	comp.setInitName('frame');
+	comp.setCustomExtensionId('demo.extension');
+	comp.setPageController('page');
+	comp.setAddedToStageSound('ui://pkgProtocol/show');
+	comp.setRemovedFromStageSound('ui://pkgProtocol/hide');
 	comp.setOverflow(2);
 	comp.setScrollType(2);
 	comp.setScrollBarDisplay(2);
 	comp.setScrollBarFlags(1184);
+	const pageController = doc.createController('page');
+	pageController.addPage(doc.createControllerPage('Default').setId('0').setRemark('Default page'));
+	comp.addController(pageController);
 
 	const group = doc.createGGroup('toolbar');
 	group.setId('g0');
@@ -455,6 +472,7 @@ test('writer: uses canonical XML attr names for component root, loader, text nod
 	loader.setFill(1);
 	loader.setShrinkOnly(true);
 	loader.setUseResize(true);
+	loader.setShowErrorSign(true);
 	loader.setClearOnPublish(true);
 
 	const loader3d = doc.createGLoader3D('avatar');
@@ -531,15 +549,23 @@ test('writer: uses canonical XML attr names for component root, loader, text nod
 		t.true(componentXml.includes('restrictSize="120,0,0,0"'), 'component root writes canonical restrictSize attr');
 		t.true(/bgColorEnabled(?:="true")?/.test(componentXml), 'component root writes canonical bgColorEnabled attr');
 		t.true(componentXml.includes('bgColor="#383838"'), 'component root writes canonical bgColor attr');
+		t.true(componentXml.includes('designImage="ui://pkgProtocol/design"'), 'component root writes canonical designImage attr');
+		t.true(/designImageForTest(?:="true")?/.test(componentXml), 'component root writes canonical designImageForTest attr');
 		t.true(componentXml.includes('designImageAlpha="100"'), 'component root writes canonical designImageAlpha attr');
 		t.true(componentXml.includes('designImageLayer="1"'), 'component root writes canonical designImageLayer attr');
 		t.true(componentXml.includes('designImageOffsetX="-428"'), 'component root writes canonical designImageOffsetX attr');
 		t.true(componentXml.includes('designImageOffsetY="-238"'), 'component root writes canonical designImageOffsetY attr');
 		t.true(componentXml.includes('idnum="7"'), 'component root writes canonical idnum attr');
 		t.true(componentXml.includes('initName="frame"'), 'component root writes canonical initName attr');
+		t.true(componentXml.includes('customExtention="demo.extension"'), 'component root writes canonical customExtention attr');
+		t.true(componentXml.includes('<remark page="0" value="Default page"'), 'controller page remark is written by page index');
+		t.true(componentXml.includes('pageController="page"'), 'component root writes canonical pageController attr');
+		t.true(componentXml.includes('showSound="ui://pkgProtocol/show"'), 'component root writes canonical showSound attr');
+		t.true(componentXml.includes('hideSound="ui://pkgProtocol/hide"'), 'component root writes canonical hideSound attr');
 		t.true(componentXml.includes('scrollBarFlags="1184"'), 'component root writes canonical scrollBarFlags attr');
 		t.true(componentXml.includes('<loader'), 'loader node is written');
 		t.true(componentXml.includes('useResize="1"'), 'loader writes canonical useResize attr');
+		t.true(/<loader\b[^>]*errorSign(?:="true")?/.test(componentXml), 'loader writes canonical errorSign attr');
 		t.true(componentXml.includes('fill="scale"'), 'loader writes canonical fill attr');
 		t.true(/<loader\b[^>]*clearOnPublish(?:="true")?/.test(componentXml), 'loader writes canonical clearOnPublish attr');
 		t.false(/<loader\b[^>]*\balign=/.test(componentXml), 'loader omits default align attr');
@@ -569,7 +595,7 @@ test('writer: uses canonical XML attr names for component root, loader, text nod
 		t.true(componentXml.includes('colGap="8"'), 'list uses canonical colGap attr');
 		t.true(componentXml.includes('layout="flow_hz"'), 'list uses editor layout attr values');
 		t.true(componentXml.includes('lineItemCount="9999"'), 'list uses canonical lineItemCount attr');
-		t.true(componentXml.includes('autoItemSize="false"'), 'list uses canonical autoItemSize attr');
+		t.false(componentXml.includes('autoItemSize='), 'flow list omits its false autoItemSize default');
 		t.false(componentXml.includes('columnGap='), 'writer no longer emits legacy columnGap attr');
 		t.true(componentXml.includes('selectionController="page"'), 'list writes selectionController attr');
 
@@ -580,17 +606,25 @@ test('writer: uses canonical XML attr names for component root, loader, text nod
 		t.is(comp2?.getMinWidth?.(), 120, 'component root restrictSize survives round-trip');
 		t.true(comp2?.getBgColorEnabled?.(), 'component root bgColorEnabled survives round-trip');
 		t.is(comp2?.getBgColor?.(), '#383838', 'component root bgColor survives round-trip');
+		t.is(comp2?.getDesignImage?.(), 'ui://pkgProtocol/design', 'component root designImage survives round-trip');
+		t.true(comp2?.getDesignImageForTest?.(), 'component root designImageForTest survives round-trip');
 		t.is(comp2?.getDesignImageAlpha?.(), 100, 'component root designImageAlpha survives round-trip');
 		t.is(comp2?.getDesignImageLayer?.(), 1, 'component root designImageLayer survives round-trip');
 		t.is(comp2?.getDesignImageOffsetX?.(), -428, 'component root designImageOffsetX survives round-trip');
 		t.is(comp2?.getDesignImageOffsetY?.(), -238, 'component root designImageOffsetY survives round-trip');
 		t.is(comp2?.getIdNum?.(), 7, 'component root idnum survives round-trip');
 		t.is(comp2?.getInitName?.(), 'frame', 'component root initName survives round-trip');
+		t.is(comp2?.getCustomExtensionId?.(), 'demo.extension', 'component root customExtention survives round-trip');
+		t.is(comp2?.getController('page')?.listPages()[0]?.getRemark(), 'Default page', 'controller page remark survives round-trip');
+		t.is(comp2?.getPageController?.(), 'page', 'component root pageController survives round-trip');
+		t.is(comp2?.getAddedToStageSound?.(), 'ui://pkgProtocol/show', 'component root showSound survives round-trip');
+		t.is(comp2?.getRemovedFromStageSound?.(), 'ui://pkgProtocol/hide', 'component root hideSound survives round-trip');
 		t.is(comp2?.getOverflow?.(), 2, 'component root overflow survives round-trip');
 		t.is(comp2?.getScrollBarFlags?.(), 1184, 'component root scrollBarFlags survive round-trip');
 
 		const byId = new Map(comp2!.listChildren().map((child) => [child.getId(), child as any]));
 		t.true(byId.get('n-1')?.getUseResize?.(), 'loader useResize survives round-trip');
+		t.true(byId.get('n-1')?.getShowErrorSign?.(), 'loader errorSign survives round-trip');
 		t.is(byId.get('n-1')?.getFill?.(), 1, 'loader fill survives round-trip');
 		t.true(byId.get('n-1')?.getClearOnPublish?.(), 'loader clearOnPublish survives round-trip');
 		t.is(byId.get('g0')?.getColumnGap?.(), 5, 'group colGap survives round-trip');
@@ -651,6 +685,7 @@ test('round-trip: list scroll attrs and static items survive write→read', asyn
 	list.setDefaultItem('ui://pkg003/item');
 	list.setOverflow(2);
 	list.setScrollType(2);
+	list.setScrollBarDisplay(3);
 	list.setScrollBarFlags(9);
 	list.setMargin({ top: 1, bottom: 2, left: 3, right: 4 });
 	list.setClipSoftness({ x: 5, y: 6 });
@@ -691,6 +726,7 @@ test('round-trip: list scroll attrs and static items survive write→read', asyn
 		t.true(listXml.includes('controllers="bg,0,type,0"'), 'list static item writes canonical controllers attr');
 		t.true(listXml.includes('lineItemCount="3"'), 'pagination list writes horizontal column count');
 		t.true(listXml.includes('lineItemCount2="5"'), 'pagination list writes vertical row count');
+		t.true(listXml.includes('scrollBar="hidden"'), 'list writes canonical scrollBar mode');
 
 		const doc2 = await io.readProject(outFairy);
 		const comp2 = doc2.getRoot().getPackage('Demo3')?.listComponents().find((item) => item.getName() === 'Lists');
@@ -707,6 +743,7 @@ test('round-trip: list scroll attrs and static items survive write→read', asyn
 		t.is(list2.getDefaultItem(), 'ui://pkg003/item');
 		t.is(list2.getOverflow(), 2);
 		t.is(list2.getScrollType(), 2);
+		t.is(list2.getScrollBarDisplay(), 3);
 		t.is(list2.getScrollBarFlags(), 9);
 		t.deepEqual(list2.getMargin(), { top: 1, bottom: 2, left: 3, right: 4 });
 		t.deepEqual(list2.getClipSoftness(), { x: 5, y: 6 });

@@ -254,6 +254,13 @@ function liftAssetResource(resource: LiftableAssetResource): UamAssetResource {
 			file: misc.getFile(),
 		};
 	}
+	if (resource.propertyType === PropertyType.SWF_RESOURCE) {
+		const swf = resource as ReturnType<Document['createSwfResource']>;
+		return {
+			...baseAssetResource('swf', swf),
+			file: swf.getFile(),
+		};
+	}
 	if (resource.propertyType === PropertyType.FONT_RESOURCE) {
 		const font = resource as ReturnType<Document['createFontResource']>;
 		return {
@@ -314,7 +321,7 @@ function liftGears(gears: ReturnType<GObject['listGears']>): UamGearBinding[] {
 			} satisfies UamDisplay2GearBinding;
 		}
 		if (gear.getGearType() !== GearType.Look) {
-			const gearKinds = new Map<number, UamGenericValueGearBinding['kind']>([
+			const gearKinds = new Map<number, Exclude<UamGearBinding['kind'], 'display' | 'display2' | 'look'>>([
 				[GearType.XY, 'xy'],
 				[GearType.Size, 'size'],
 				[GearType.Color, 'color'],
@@ -393,6 +400,12 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			...liftDisplayNodeBase(image),
 			group: image.getGroup(),
 			resource: { packageId: image.getPackageId(), resourceId: image.getSrc() },
+			color: image.getColor(),
+			flip: image.getFlip(),
+			fillMethod: image.getFillMethod(),
+			fillOrigin: image.getFillOrigin(),
+			fillClockwise: image.getFillClockwise(),
+			fillAmount: image.getFillAmount(),
 		};
 	}
 	if (
@@ -413,6 +426,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			autoSize: text.getAutoSize(),
 			singleLine: text.getSingleLine(),
 			autoClearText: text.getAutoClearText(),
+			outlineSoftness: text.getOutlineSoftness(),
 			underlaySoftness: text.getUnderlaySoftness(),
 			ubbEnabled: text.getUbbEnabled(),
 			underline: text.getUnderline(),
@@ -485,6 +499,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			src: list.getSrc(),
 			overflow: list.getOverflow(),
 			scrollType: list.getScrollType(),
+			scrollBarDisplay: list.getScrollBarDisplay(),
 			scrollBarFlags: list.getScrollBarFlags(),
 			scrollBarMargin: liftEdgeInsets(list.getScrollBarMargin()),
 			vtScrollBarRes: list.getVtScrollBarRes(),
@@ -558,6 +573,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			shrinkOnly: loader.getShrinkOnly(),
 			autoSize: loader.getAutoSize(),
 			useResize: loader.getUseResize(),
+			showErrorSign: loader.getShowErrorSign(),
 			align: loader.getAlign(),
 			vAlign: loader.getVAlign(),
 			frame: loader.getFrame(),
@@ -700,27 +716,39 @@ function liftComponentInstanceProperties(
 				titleColor: component.getInstanceTitleColor(),
 				titleFontSize: component.getInstanceTitleFontSize(),
 				promptText: component.getInstancePromptText(),
+				sound: component.getInstanceSound(),
+				soundVolumeScale: component.getInstanceSoundVolumeScale(),
 			};
 		case 'ComboBox':
 			return {
 				extensionType: 'ComboBox',
 				title: component.getInstanceTitle(),
 				icon: component.getInstanceIcon(),
+				titleColor: component.getInstanceTitleColor(),
+				popupDirection: component.getInstancePopupDirection(),
+				sound: component.getInstanceSound(),
+				soundVolumeScale: component.getInstanceSoundVolumeScale(),
 				visibleItemCount: component.getInstanceVisibleItemCount(),
 				selectionController: component.getInstanceSelectionController(),
 				autoClearItems: component.getInstanceAutoClearItems(),
 				items: component.getInstanceComboItems().map((item) => ({ ...item })),
 			};
 		case 'ProgressBar':
-		case 'Slider': {
-			const extensionType = component.getInstanceExtType() as 'ProgressBar' | 'Slider';
 			return {
-				extensionType,
+				extensionType: 'ProgressBar',
+				value: component.getInstanceValue(),
+				max: component.getInstanceMax(),
+				min: component.getInstanceMin(),
+				sound: component.getInstanceSound(),
+				soundVolumeScale: component.getInstanceSoundVolumeScale(),
+			};
+		case 'Slider':
+			return {
+				extensionType: 'Slider',
 				value: component.getInstanceValue(),
 				max: component.getInstanceMax(),
 				min: component.getInstanceMin(),
 			};
-		}
 		case 'ScrollBar':
 			return { extensionType: 'ScrollBar' };
 		default:
@@ -733,9 +761,14 @@ function liftControllers(component: ReturnType<Document['createComponent']>): Ua
 		name: controller.getName(),
 		selectedIndex: controller.getSelectedIndex(),
 		autoRadioGroupDepth: controller.getAutoRadioGroupDepth(),
+		alias: controller.getAlias(),
+		exported: controller.getExported(),
+		homePageType: controller.getHomePageType(),
+		homePage: controller.getHomePage(),
 		pages: controller.listPages().map((page) => ({
 			id: page.getId(),
 			name: page.getName(),
+			remark: page.getRemark(),
 		})),
 		actions: controller.listActions().map((action) => ({
 			name: action.getName(),
@@ -832,9 +865,15 @@ function liftComponentProperties(
 			x: resource.getDesignImageOffsetX(),
 			y: resource.getDesignImageOffsetY(),
 		},
+		designImage: resource.getDesignImage(),
+		designImageForTest: resource.getDesignImageForTest(),
+		pageController: resource.getPageController(),
+		showSound: resource.getAddedToStageSound(),
+		hideSound: resource.getRemovedFromStageSound(),
 		idNum: resource.getIdNum(),
 		initName: resource.getInitName(),
 		remark: resource.getRemark(),
+		customExtensionId: resource.getCustomExtensionId(),
 		extensionType: resource.getExtensionType(),
 		opaque: resource.getOpaque(),
 		buttonMode: resource.getButtonMode(),

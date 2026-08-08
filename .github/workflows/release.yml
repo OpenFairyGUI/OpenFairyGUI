@@ -54,6 +54,7 @@ jobs:
           packages/functions/test/atlas.test.ts
           packages/functions/test/functions.test.ts
           packages/functions/test/publish.test.ts
+          packages/cli/test/*.test.ts
           packages/backend/test/*.integration.test.ts
           packages/mcp/test/*.test.ts
 

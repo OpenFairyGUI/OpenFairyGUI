@@ -19,6 +19,7 @@ export { MiscResource } from './misc-resource.js';
 export { SoundResource } from './sound-resource.js';
 export { FontResource } from './font-resource.js';
 export { MovieClipResource } from './movie-clip-resource.js';
+export { SwfResource } from './swf-resource.js';
 export { SpineResource } from './spine-resource.js';
 export { DragonBonesResource } from './dragon-bones-resource.js';
 export { Component, type ComponentCustomProperty } from './component.js';
@@ -56,7 +57,7 @@ export { GSlider } from './g-slider.js';
 export { GScrollBar } from './g-scroll-bar.js';
 
 // Controller / Gear / Transition
-export { Controller } from './controller.js';
+export { Controller, type ControllerHomePageType } from './controller.js';
 export { ControllerPage } from './controller-page.js';
 export { ControllerAction } from './controller-action.js';
 export { Transition } from './transition.js';

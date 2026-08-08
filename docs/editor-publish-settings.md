@@ -121,9 +121,19 @@
 
 `updatePackageSettings` 使用包含 `compressPNG`、`jpegQuality` 和完整 `publish` 的单包快照，删除字段通过提交新的完整快照表达；相同快照以 `package_settings_unchanged` 拒绝。包名和输出路径必须是安全的相对路径，JPEG 质量范围是 1–100，包级 atlas 最大尺寸范围是 1–16384，`maxAtlasIndex` 范围是 0–255；稀疏 atlas 索引必须唯一且不超过该上限。`excludedResourceIds` 保存 CSV-safe 的资源 ID，可以保留当前工程中不存在的 ID，读取与写回不会把它误判为悬空引用。
 
+发布时，显式调用参数优先于包级 atlas 设置，包级设置在 `useGlobal=false` 时优先于全局发布设置；`extractAlpha` 与 `maxAtlasIndex` 始终读取包级正式值。包级设置控制最大尺寸、`pot / npot / mof`、正方形、旋转和分页，Layabox 目标强制禁用旋转。`excludedResourceIds` 从发布闭包移除对应资源；Unity 的 `extractAlpha` 输出无 alpha 的主图集与 `!a.png` alpha 图集。
+
 ## 组件 XML 的列表清理与属性覆盖
 
 组件根扩展、ComboBox 组件实例和 List/Tree 显示节点使用正式的 `autoClearItems` 布尔属性；缺省值为 `false`，仅在启用时写出。组件实例与静态列表项的有序 `<property target="..." propertyId="..." value="..."/>` 子节点由 UAM 正式属性承载，读取、物化、保存和重新加载均保持原顺序与原始字符串值，包括前后空白、纯空白和空字符串。`target` 必须非空，`propertyId` 必须是非负安全整数，`value` 必须存在；无效输入在物化或写回前拒绝。
+
+发布投影会执行清理语义：Loader / Loader3D 的 `clearOnPublish` 清空 URL，文本的 `autoClearText` 清空内容，List / Tree 的 `autoClearItems` 和 ComboBox 实例的 `instanceAutoClearItems` 清空静态项；资源闭包按清理后的值收集引用，工程源模型保持不变。
+
+组件根的 `designImage`、`designImageForTest`、`pageController`、`showSound` 和 `hideSound` 作为正式 authoring 属性读写；`designImageAlpha` 缺省为 `50`。设计图必须引用 image 资源，出场/退场音效必须引用 sound 资源，`pageController` 必须指向本组件控制器。Label、ComboBox 和 ProgressBar 组件实例的音效覆盖使用 `sound` 与百分比 `volume`，ComboBox 另以 `titleColor` 和 `direction`（`auto` / `up` / `down`）保存标题颜色与弹出方向。
+
+组件根的自定义扩展 ID 使用编辑器协议拼写 `customExtention`；Controller page 的备注使用 `<remark page="索引" value="..."/>` 子节点；Loader 的错误占位开关使用 `errorSign`。三者均由正式属性模型、UAM 与工程 XML 读写承载，Controller page 备注不进入运行时二进制。
+
+List/Tree 的 `autoItemSize` 缺省值随布局变化：single column/row 为 `true`，flow/pagination 为 `false`；只有与布局缺省值不同时才写出。Button 根扩展使用 `none / dark / scale` 字符串枚举保存 `downEffect`。Transition 使用 `frameRate` 保存非 24 的帧率。
 
 ## 组件 XML 的整数几何字段
 
@@ -140,7 +150,7 @@ FairyGUI 工程 XML 中由桌面编辑器按有符号 32 位整数读取的几�
 
 ## 工程资源树元数据
 
-`package.xml` 与 `package_branch.xml` 的 component/asset 资源节点使用 `exported="true"` 与 `favorite="true"` 记录导出和收藏状态；未导出、未收藏时省略对应属性。UAM 通过 `resource.exported`、`resource.favorite` 承载这些字段，公开事务分别使用幂等的 `setResourceExported`、`setResourceFavorite` 设置目标布尔值。
+`package.xml` 与 `package_branch.xml` 的 component/asset 资源节点使用 `exported="true"` 与 `favorite="true"` 记录导出和收藏状态；未导出、未收藏时省略对应属性。SWF 使用正式的 `SwfResource` 模型读写 `<swf>` 节点，并通过 UAM `swf` 资源保留源文件、导出状态与收藏状态。UAM 通过 `resource.exported`、`resource.favorite` 承载这些字段，公开事务分别使用幂等的 `setResourceExported`、`setResourceFavorite` 设置目标布尔值。
 
 每个 package 通过正式的 `branchNames` 顺序记录自身出现的资源分支，并以 `package.xml` 根节点的同名 JSON 数组属性持久化。工程读取时使用该顺序建立映射；二进制发布时同一顺序定义该 package 的 `branchItemIds` 槽位，不能按工程根分支顺序重新推导。未显式设置包内表的 Document 调用会从实际分支资源按工程分支顺序推导后再发布。
 
@@ -149,6 +159,8 @@ FairyGUI 工程 XML 中由桌面编辑器按有符号 32 位整数读取的几�
 ProjectWriter 会为每个工程分支保留 `assets_<branch>/`，并为包内空分支槽位写出空的 `package_branch.xml`，因此空分支和包内分支子集都能在 ProjectReader reload 后恢复。重命名或删除成功保存后，仅以非递归目录删除清理已移除的受控分支目录。
 
 资源文件夹由 `package.folders` 正式承载 `branch / path / favorite / atlas`。文件夹路径使用以 `/` 开头和结尾的规范形式，根目录是隐式节点；实际 `assets[/_<branch>]/<包名>/` 目录是存在性的事实来源，`<folder>` 节点只写入需要持久化的收藏或图集元数据。`setResourceFolderFavorite` 可更新既有主分支或资源分支文件夹的收藏状态，且单个操作只修改 selector 指定的文件夹；需要匹配编辑器的后代收藏行为时，调用方应在同一事务中显式提交后代文件夹与资源收藏操作。公开事务 `addResourceFolder`、`renameResourceFolder`、`moveResourceFolder`、`removeResourceFolder` 只操作空文件夹；父目录必须存在，根目录、路径冲突和非空操作会在提交前拒绝。浏览器存储适配器须提供非递归 `rmdir`，保存成功后才清理被移除的空目录。
+
+`setResourceFolderAtlas` 以规范 `branch + path` selector 更新既有文件夹的 source Atlas 槽位。空字符串清除覆盖；非空值必须是 `0..maxAtlasIndex` 范围内且没有前导零的十进制字符串，Atlas 名称不作为引用值。`addResourceFolder.atlas` 使用相同校验，未显式配置 package publish 时上限默认为 `10`。同一事务需要扩大上限时，必须先提交 `updatePackageSettings`，再提交文件夹 Atlas 操作；相同赋值以 `resource_folder_atlas_unchanged` 拒绝。
 
 主 `package.xml` 的 `packageDescription@hasFavorites` 由包内资源与资源文件夹的收藏状态派生，不作为独立可编辑状态。收藏状态只影响编辑器工程数据，不进入运行时二进制发布协议。
 
@@ -226,7 +238,7 @@ OpenFairyGUI 当前已经把“代码生成”接入现有 `publish` 流程，�
 
 说明：
 - 这里描述的是 OpenFairyGUI 当前已实现行为，不等同于 FairyGUI 编辑器所有项目类型 / `codeType` 模板都已支持。
-- 这里的 `fgui` TypeScript 代码生成口径已经不再依赖 `codeType` 字段分流；当前由 Layabox 与 Cocos Creator 共用同一条 TS lane。
+- 这里的 `fgui` TypeScript 代码生成口径已经不再依赖 `codeType` 字段分流；Layabox 与 Cocos Creator 共用 TS 模板，Cocos Creator 生成文件会显式导入 `fairygui-cc`，Layabox 继续使用宿主提供的全局 `fgui`。
 - `publish` 流程也支持 OpenFairyGUI publish 插件接管代码生成。插件目录、生命周期、失败降级，以及与 FairyGUI 编辑器插件的关系见 [Publish 插件](./publish-plugins.md)。
 
 ## 包级图集设置真实属性
@@ -279,6 +291,17 @@ OpenFairyGUI 当前已经把“代码生成”接入现有 `publish` 流程，�
 | Cocos Creator 项目，且 `Publish.json` 未显式设置 `fileExtension` | 默认使用 `bin` |
 | 其他非 Unity 项目，且 `Publish.json` 显式设置了 `fileExtension` | 使用设置值 |
 | 其他非 Unity 项目，且 `Publish.json` 未显式设置 `fileExtension` | 回退为 `fui` |
+
+### CLI 显式目标覆盖
+
+`ofgui publish --project-type layabox` 表示按 Layabox 目标发布，而不只是修改工程类型字段。命令会在读取工程设置后应用以下目标规则：
+
+- 描述文件扩展名使用 `fui`
+- atlas 禁止旋转，确保产物可由当前 FairyGUI-Layabox 运行时正确消费
+
+`includeHighResolution`、压缩、atlas 尺寸、分页和裁边等 Layabox 支持的设置继续使用工程配置。未提供 `--project-type` 时，仍遵循上表的工程设置规则。
+
+Unity 与 Cocos Creator 运行时不解压二进制描述文件，因此这两个目标始终输出未压缩数据。若 API 或 CLI 对它们显式请求 `compressed=true` / `--compressed`，发布会直接报错；工程中持久化的 `compressDesc` 不会覆盖该目标约束。Layabox 继续使用工程中的压缩设置。
 
 当前仓库已正式覆盖的非 Unity 二进制发布口径包括：
 - Layabox：样例工程使用 `binaryFormat=true` 和 `fileExtension="fui"`，发布结果为 `包名.fui`

@@ -60,7 +60,7 @@ export function createOpenFairyGuiMcpServer(options: CreateOpenFairyGuiMcpServer
 					'openfairygui/adapter': 'thin-backend-p2',
 				},
 			},
-			async (args) => callOpenFairyGuiBackendTool(runtime, definition.name as OpenFairyGuiBackendToolName, args as Record<string, unknown>),
+			async (args: Record<string, unknown>) => callOpenFairyGuiBackendTool(runtime, definition.name as OpenFairyGuiBackendToolName, args),
 		);
 	}
 

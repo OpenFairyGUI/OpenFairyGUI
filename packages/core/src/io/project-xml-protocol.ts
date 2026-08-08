@@ -254,6 +254,10 @@ const ROOT_COMPONENT_PANEL_ATTRS = {
 	bgColorEnabled: { canonical: 'bgColorEnabled' },
 	idnum: { canonical: 'idnum' },
 	initName: { canonical: 'initName' },
+	customExtention: { canonical: 'customExtention' },
+	pageController: { canonical: 'pageController' },
+	showSound: { canonical: 'showSound' },
+	hideSound: { canonical: 'hideSound' },
 } satisfies XmlAttrMap;
 
 const ROOT_MISC_PANEL_ATTRS = {
@@ -261,6 +265,8 @@ const ROOT_MISC_PANEL_ATTRS = {
 } satisfies XmlAttrMap;
 
 const ROOT_DESIGN_PANEL_ATTRS = {
+	designImage: { canonical: 'designImage' },
+	designImageForTest: { canonical: 'designImageForTest' },
 	designImageAlpha: { canonical: 'designImageAlpha' },
 	designImageLayer: { canonical: 'designImageLayer' },
 	designImageOffsetX: { canonical: 'designImageOffsetX' },
@@ -310,6 +316,7 @@ const LOADER_PANEL_ATTRS = {
 	shrinkOnly: { canonical: 'shrinkOnly' },
 	autoSize: { canonical: 'autoSize' },
 	useResize: { canonical: 'useResize' },
+	errorSign: { canonical: 'errorSign' },
 	color: { canonical: 'color' },
 	playing: { canonical: 'playing' },
 	frame: { canonical: 'frame' },
@@ -360,6 +367,7 @@ const TEXT_PANEL_ATTRS = {
 	autoClearText: { canonical: 'autoClearText' },
 	demoText: { canonical: 'demoText' },
 	faceDilate: { canonical: 'faceDilate' },
+	outlineSoftness: { canonical: 'outlineSoftness' },
 	underlaySoftness: { canonical: 'underlaySoftness' },
 	vars: { canonical: 'vars' },
 } satisfies XmlAttrMap;
@@ -374,6 +382,7 @@ const TEXT_INPUT_PANEL_ATTRS = {
 
 const RICH_TEXT_PANEL_ATTRS = {
 	restrictSize: { canonical: 'restrictSize' },
+	outlineSoftness: { canonical: 'outlineSoftness' },
 	underlaySoftness: { canonical: 'underlaySoftness' },
 } satisfies XmlAttrMap;
 
@@ -424,7 +433,7 @@ const LIST_PANEL_ATTRS = {
 const BUTTON_EXTENSION_ATTRS = {
 	mode: { canonical: 'mode' },
 	sound: { canonical: 'sound' },
-	soundVolumeScale: { canonical: 'soundVolumeScale', aliases: ['volume'] },
+	soundVolumeScale: { canonical: 'volume' },
 	downEffect: { canonical: 'downEffect' },
 	downEffectValue: { canonical: 'downEffectValue' },
 	title: { canonical: 'title' },
@@ -444,12 +453,18 @@ const LABEL_EXTENSION_ATTRS = {
 	titleColor: { canonical: 'titleColor' },
 	titleFontSize: { canonical: 'titleFontSize' },
 	prompt: { canonical: 'prompt' },
+	sound: { canonical: 'sound' },
+	soundVolumeScale: { canonical: 'volume' },
 } satisfies XmlAttrMap;
 
 const COMBOBOX_EXTENSION_ATTRS = {
 	dropdown: { canonical: 'dropdown' },
 	title: { canonical: 'title' },
 	icon: { canonical: 'icon' },
+	titleColor: { canonical: 'titleColor' },
+	popupDirection: { canonical: 'direction' },
+	sound: { canonical: 'sound' },
+	soundVolumeScale: { canonical: 'volume' },
 	visibleItemCount: { canonical: 'visibleItemCount' },
 	selectionController: { canonical: 'selectionController' },
 	autoClearItems: { canonical: 'autoClearItems' },
@@ -461,6 +476,8 @@ const PROGRESSBAR_EXTENSION_ATTRS = {
 	value: { canonical: 'value' },
 	max: { canonical: 'max' },
 	min: { canonical: 'min' },
+	sound: { canonical: 'sound' },
+	soundVolumeScale: { canonical: 'volume' },
 } satisfies XmlAttrMap;
 
 const SLIDER_EXTENSION_ATTRS = {
@@ -510,6 +527,11 @@ const CONTROLLER_ATTRS = {
 	name: { canonical: 'name' },
 	pages: { canonical: 'pages' },
 	selected: { canonical: 'selected' },
+	alias: { canonical: 'alias' },
+	autoRadioGroupDepth: { canonical: 'autoRadioGroupDepth' },
+	exported: { canonical: 'exported' },
+	homePageType: { canonical: 'homePageType' },
+	homePage: { canonical: 'homePage' },
 } satisfies XmlAttrMap;
 
 const CONTROLLER_ACTION_ATTRS = {
@@ -525,13 +547,18 @@ const CONTROLLER_ACTION_ATTRS = {
 	targetPage: { canonical: 'targetPage' },
 } satisfies XmlAttrMap;
 
+const CONTROLLER_REMARK_ATTRS = {
+	page: { canonical: 'page' },
+	value: { canonical: 'value' },
+} satisfies XmlAttrMap;
+
 const TRANSITION_ATTRS = {
 	name: { canonical: 'name' },
 	autoPlay: { canonical: 'autoPlay' },
 	autoPlayTimes: { canonical: 'autoPlayRepeat', aliases: ['autoPlayTimes'] },
 	autoPlayDelay: { canonical: 'autoPlayDelay' },
 	options: { canonical: 'options' },
-	fps: { canonical: 'fps' },
+	fps: { canonical: 'frameRate' },
 } satisfies XmlAttrMap;
 
 const TRANSITION_ITEM_ATTRS = {
@@ -600,6 +627,7 @@ const CUSTOM_PROPERTY_NODE = defineNode(CUSTOM_PROPERTY_ATTRS);
 const PROPERTY_OVERRIDE_NODE = defineNode(PROPERTY_OVERRIDE_ATTRS);
 const GEAR_NODE = defineNode(GEAR_ATTRS);
 const CONTROLLER_ACTION_NODE = defineNode(CONTROLLER_ACTION_ATTRS);
+const CONTROLLER_REMARK_NODE = defineNode(CONTROLLER_REMARK_ATTRS);
 const TRANSITION_ITEM_NODE = defineNode(TRANSITION_ITEM_ATTRS);
 const LIST_ITEM_NODE = defineNode(LIST_ITEM_ATTRS, {
 	property: PROPERTY_OVERRIDE_NODE,
@@ -634,6 +662,7 @@ const WITH_GROUP_GEAR_CHILDREN = {
 
 const WITH_CONTROLLER_ACTION_CHILDREN = {
 	action: CONTROLLER_ACTION_NODE,
+	remark: CONTROLLER_REMARK_NODE,
 } satisfies XmlChildrenMap;
 
 const WITH_TRANSITION_ITEM_CHILDREN = {

@@ -7,6 +7,7 @@ import type { MiscResource } from './misc-resource.js';
 import type { SoundResource } from './sound-resource.js';
 import type { FontResource } from './font-resource.js';
 import type { MovieClipResource } from './movie-clip-resource.js';
+import type { SwfResource } from './swf-resource.js';
 import type { SpineResource } from './spine-resource.js';
 import type { DragonBonesResource } from './dragon-bones-resource.js';
 import type { Atlas } from './atlas.js';
@@ -19,6 +20,7 @@ type PackageResource =
 	| SoundResource
 	| FontResource
 	| MovieClipResource
+	| SwfResource
 	| SpineResource
 	| DragonBonesResource;
 
@@ -187,7 +189,7 @@ export class Package extends ExtensibleProperty<IPackage> {
 	}
 
 	public getSourceAtlasSettings(): PackageSourceAtlasSettings {
-		const settings = this.get('sourceAtlasSettings');
+		const settings = this.get('sourceAtlasSettings' as never) as PackageSourceAtlasSettings;
 		return {
 			...settings,
 			atlases: settings.atlases.map((atlas) => ({ ...atlas })),
@@ -196,11 +198,11 @@ export class Package extends ExtensibleProperty<IPackage> {
 	}
 
 	public setSourceAtlasSettings(settings: PackageSourceAtlasSettings): this {
-		return this.set('sourceAtlasSettings', {
+		return this.set('sourceAtlasSettings' as never, {
 			...settings,
 			atlases: settings.atlases.map((atlas) => ({ ...atlas })),
 			excludedResourceIds: [...settings.excludedResourceIds],
-		});
+		} as never);
 	}
 
 	public listBranchNames(): string[] {

@@ -69,8 +69,8 @@ export class MovieClipResource extends ExtensibleProperty<IMovieClipResource> {
 	public getBranchItemIds(): string[] { return [...this.get('branchItemIds')]; }
 	public setBranchItemIds(ids: string[]): this { return this.set('branchItemIds', [...ids]); }
 
-	public getHighResolutionItemIds(): Array<string | null> { return [...this.get('highResolutionItemIds')]; }
-	public setHighResolutionItemIds(ids: Array<string | null>): this { return this.set('highResolutionItemIds', [...ids]); }
+	public getHighResolutionItemIds(): Array<string | null> { return [...this.getExtendedLiteral('highResolutionItemIds')]; }
+	public setHighResolutionItemIds(ids: Array<string | null>): this { return this.setExtendedLiteral('highResolutionItemIds', ids); }
 
 	public getFileName(): string { return this.get('fileName'); }
 	public setFileName(fileName: string): this { return this.set('fileName', fileName); }
