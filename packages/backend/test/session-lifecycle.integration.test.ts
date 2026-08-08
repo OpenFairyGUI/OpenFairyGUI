@@ -20,6 +20,27 @@ test('openSession -> getSession -> closeSession reports revision and dirty state
 		t.is(session.data.revision, 0);
 		t.false(session.data.dirty);
 
+		const outline = runtime.getProjectOutline({ sessionId: opened.data.sessionId });
+		t.true(outline.ok);
+		if (!outline.ok) return;
+		t.is(outline.meta.stage, 'read');
+		t.is(outline.data.revision, 0);
+		t.is(outline.data.projectId, 'backend-p0');
+		t.deepEqual(outline.data.packages.map((pkg) => [pkg.id, pkg.name]), [['pkg001', 'Main']]);
+		t.deepEqual(outline.data.packages[0]?.folders, [{ branch: '', path: '/images/' }]);
+		t.deepEqual(
+			outline.data.packages[0]?.resources.map((resource) => [resource.id, resource.kind]),
+			[['img001', 'image'], ['cmp001', 'component']],
+		);
+		t.deepEqual(
+			outline.data.packages[0]?.resources.find((resource) => resource.id === 'cmp001')?.component?.displayList,
+			[
+				{ id: 'n0', name: 'bg', kind: 'image' },
+				{ id: 'n1', name: 'title', kind: 'text' },
+			],
+		);
+		t.false(JSON.stringify(outline.data).includes('sourceBytes'));
+
 		const closed = await runtime.closeSession({ sessionId: opened.data.sessionId });
 		t.true(closed.ok);
 	} finally {

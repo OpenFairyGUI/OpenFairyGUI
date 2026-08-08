@@ -266,6 +266,10 @@ async function decodeRaster(bytes: Uint8Array, mimeType: string): Promise<Browse
 	}
 }
 
+export async function validateBrowserImageSource(bytes: Uint8Array, path: string): Promise<void> {
+	await decodeRaster(bytes, imageMimeType(path));
+}
+
 async function decodeSvgWithDom(blob: Blob): Promise<BrowserRaster> {
 	if (typeof globalThis.Image !== 'function'
 		|| typeof globalThis.URL?.createObjectURL !== 'function'

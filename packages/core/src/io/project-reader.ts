@@ -14,19 +14,26 @@ import {
 	parseInt2,
 	ensureArray,
 } from '../utils/xml-utils.js';
-import { PROJECT_XML_PROTOCOL, readXmlAttr, } from './project-xml-protocol.js';
+import { PROJECT_XML_PROTOCOL, readXmlAttr, type XmlAttrSpec } from './project-xml-protocol.js';
 import { ReaderContext } from './reader-context.js';
 import type { FileSystem } from './file-system.js';
 import { readComponentXml } from './component-xml-reader.js';
-import type { ProjectReadOptions } from './project-io-contracts.js';
+import type { ProjectDiagnostic } from '../validation.js';
+import type { ProjectReadOptions, ProjectReadResult } from './project-io-contracts.js';
+import { XMLValidator } from 'fast-xml-parser';
 
-export type { ProjectReadOptions } from './project-io-contracts.js';
+export type { ProjectReadOptions, ProjectReadResult } from './project-io-contracts.js';
 
 // Maps XML tag names for display objects to factory method names.
 type XmlNode = Record<string, unknown>;
 type OrderedXmlEntry = Record<string, unknown>;
 
 type ProjectSettingKey = 'publish' | 'common' | 'adaptation' | 'customProperties' | 'i18n';
+
+function assertWellFormedXml(content: string): void {
+	const result = XMLValidator.validate(content, { allowBooleanAttributes: true });
+	if (result !== true) throw new Error(result.err.msg);
+}
 
 interface FairyProjectDescriptionNode extends XmlNode {
 	id?: string;
@@ -113,6 +120,326 @@ function getXmlNode<T extends XmlNode>(value: unknown): T | null {
 	return node as T;
 }
 
+type ProjectInt32Rule = readonly [spec: XmlAttrSpec, partCount: number];
+
+const COMPONENT_INT32_RULES: readonly ProjectInt32Rule[] = [
+	[PROJECT_XML_PROTOCOL.componentRoot.attrs.size, 2],
+	[PROJECT_XML_PROTOCOL.componentRoot.attrs.restrictSize, 4],
+	[PROJECT_XML_PROTOCOL.componentRoot.attrs.margin, 4],
+	[PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarMargin, 4],
+	[PROJECT_XML_PROTOCOL.componentRoot.attrs.clipSoftness, 2],
+	[PROJECT_XML_PROTOCOL.componentRoot.attrs.designImageOffsetX, 1],
+	[PROJECT_XML_PROTOCOL.componentRoot.attrs.designImageOffsetY, 1],
+];
+
+const DISPLAY_OBJECT_INT32_RULES: readonly ProjectInt32Rule[] = [
+	[PROJECT_XML_PROTOCOL.list.attrs.xy, 2],
+	[PROJECT_XML_PROTOCOL.list.attrs.size, 2],
+	[PROJECT_XML_PROTOCOL.list.attrs.restrictSize, 4],
+];
+
+const LIST_INT32_RULES: readonly ProjectInt32Rule[] = [
+	[PROJECT_XML_PROTOCOL.list.attrs.margin, 4],
+	[PROJECT_XML_PROTOCOL.list.attrs.scrollBarMargin, 4],
+	[PROJECT_XML_PROTOCOL.list.attrs.clipSoftness, 2],
+];
+
+function isProjectInt32(value: string): boolean {
+	const trimmed = value.trim();
+	if (!/^[+-]?\d+$/.test(trimmed)) return false;
+	const parsed = BigInt(trimmed);
+	return parsed >= -2_147_483_648n && parsed <= 2_147_483_647n;
+}
+
+function isProjectFiniteNumber(value: string): boolean {
+	const trimmed = value.trim();
+	return /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(trimmed)
+		&& Number.isFinite(Number(trimmed));
+}
+
+function isProjectBoolean(value: string): boolean {
+	return ['true', 'false', '1', '0'].includes(value.trim());
+}
+
+function hasInvalidProjectInt32Parts(value: unknown, partCount: number, allowSuffix = false): boolean {
+	const parts = String(value).split(',');
+	if (allowSuffix ? parts.length < partCount : parts.length !== partCount) return true;
+	return parts.slice(0, partCount).some((part) => !isProjectInt32(part));
+}
+
+function validateComponentXmlValues(
+	ctx: ReaderContext,
+	comp: Component,
+	sourcePath: string,
+	componentNode: XmlNode,
+): void {
+	const addInvalidValue = (
+		attrs: XmlNode,
+		spec: XmlAttrSpec | undefined,
+		path: string,
+		expectation: string,
+		isValid: (value: string) => boolean,
+		nodeId?: string,
+	): void => {
+		if (!spec) return;
+		const value = readXmlAttr(attrs, spec);
+		if (value === undefined || isValid(String(value))) return;
+		ctx.addDiagnostic({
+			severity: 'error',
+			code: 'invalid_project_value',
+			path: `${path}.${spec.canonical}`,
+			message: `Attribute "${spec.canonical}" must be ${expectation}; received ${JSON.stringify(String(value))}.`,
+			resourceId: comp.getId(),
+			...(nodeId ? { nodeId } : {}),
+			sourcePath,
+		});
+	};
+
+	const validateBooleanAttrs = (
+		attrs: XmlNode,
+		specs: readonly (XmlAttrSpec | undefined)[],
+		path: string,
+		nodeId?: string,
+	): void => {
+		for (const spec of specs) {
+			addInvalidValue(attrs, spec, path, 'true, false, 1, or 0', isProjectBoolean, nodeId);
+		}
+	};
+
+	const validateInt32Attrs = (
+		attrs: XmlNode,
+		specs: readonly (XmlAttrSpec | undefined)[],
+		path: string,
+		nodeId?: string,
+	): void => {
+		for (const spec of specs) {
+			addInvalidValue(attrs, spec, path, 'a signed 32-bit integer', isProjectInt32, nodeId);
+		}
+	};
+
+	const validateNumberTuple = (
+		attrs: XmlNode,
+		spec: XmlAttrSpec | undefined,
+		partCount: number,
+		path: string,
+		nodeId?: string,
+	): void => {
+		addInvalidValue(attrs, spec, path, `exactly ${partCount} finite number(s)`, (value) => {
+			const parts = value.split(',');
+			return parts.length === partCount && parts.every(isProjectFiniteNumber);
+		}, nodeId);
+	};
+
+	const validateEnum = (
+		attrs: XmlNode,
+		spec: XmlAttrSpec | undefined,
+		values: readonly string[],
+		path: string,
+		nodeId?: string,
+	): void => {
+		addInvalidValue(attrs, spec, path, `one of ${values.map((value) => JSON.stringify(value)).join(', ')}`, (value) => (
+			values.includes(value.trim())
+		), nodeId);
+	};
+
+	const addDiagnostics = (
+		attrs: XmlNode,
+		rules: readonly ProjectInt32Rule[],
+		path: string,
+		nodeId?: string,
+	): void => {
+		for (const [spec, partCount] of rules) {
+			const value = readXmlAttr(attrs, spec);
+			if (value === undefined || !hasInvalidProjectInt32Parts(value, partCount)) continue;
+			ctx.addDiagnostic({
+				severity: 'error',
+				code: 'desktop_incompatible_geometry',
+				path: `${path}.${spec.canonical}`,
+				message: `FairyGUI Desktop requires "${spec.canonical}" to contain ${partCount} signed 32-bit integer value(s); received ${JSON.stringify(String(value))}.`,
+				resourceId: comp.getId(),
+				...(nodeId ? { nodeId } : {}),
+				sourcePath,
+			});
+		}
+	};
+
+	const componentPath = `components.${comp.getId()}`;
+	const rootPath = `${componentPath}.component`;
+	const rootAttrs = PROJECT_XML_PROTOCOL.componentRoot.attrs;
+	addDiagnostics(componentNode, COMPONENT_INT32_RULES, rootPath);
+	validateBooleanAttrs(componentNode, [
+		rootAttrs.anchor,
+		rootAttrs.opaque,
+		rootAttrs.reversedMask,
+		rootAttrs.bgColorEnabled,
+	], rootPath);
+	validateInt32Attrs(componentNode, [
+		rootAttrs.scrollBarFlags,
+		rootAttrs.designImageAlpha,
+		rootAttrs.designImageLayer,
+		rootAttrs.idnum,
+	], rootPath);
+	validateNumberTuple(componentNode, rootAttrs.pivot, 2, rootPath);
+	validateEnum(componentNode, rootAttrs.overflow, ['visible', 'hidden', 'scroll'], rootPath);
+	validateEnum(componentNode, rootAttrs.scroll, ['horizontal', 'vertical', 'both'], rootPath);
+	validateEnum(componentNode, rootAttrs.scrollBar, ['default', 'visible', 'auto', 'hidden'], rootPath);
+
+	const displayList = getXmlNode<XmlNode>(componentNode.displayList);
+	if (!displayList) return;
+	let nodeIndex = 0;
+	for (const [tagName, definitions] of Object.entries(displayList)) {
+		for (const definition of ensureArray(definitions)) {
+			const attrs = getXmlNode<XmlNode>(definition);
+			if (!attrs) continue;
+			const nodeId = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.id);
+			const nodePath = `${componentPath}.displayList.${nodeIndex++}`;
+			addDiagnostics(attrs, DISPLAY_OBJECT_INT32_RULES, nodePath, nodeId);
+			const normalizedTagName = tagName.toLowerCase();
+			const displayProtocol = Object.entries(PROJECT_XML_PROTOCOL.componentRoot.containers?.displayList?.items ?? {})
+				.find(([name]) => name.toLowerCase() === normalizedTagName)?.[1];
+			const displayAttrs = displayProtocol?.attrs;
+			if (displayAttrs) {
+				validateBooleanAttrs(attrs, [
+					displayAttrs.locked,
+					displayAttrs.aspect,
+					displayAttrs.anchor,
+					displayAttrs.visible,
+					displayAttrs.touchable,
+					displayAttrs.grayed,
+				], nodePath, nodeId);
+				for (const spec of [displayAttrs.pivot, displayAttrs.scale, displayAttrs.skew]) {
+					validateNumberTuple(attrs, spec, 2, nodePath, nodeId);
+				}
+				addInvalidValue(attrs, displayAttrs.rotation, nodePath, 'a finite number', isProjectFiniteNumber, nodeId);
+				addInvalidValue(attrs, displayAttrs.alpha, nodePath, 'a finite number between 0 and 1', (value) => (
+					isProjectFiniteNumber(value) && Number(value) >= 0 && Number(value) <= 1
+				), nodeId);
+			}
+			if (normalizedTagName === 'list' || normalizedTagName === 'tree') {
+				addDiagnostics(attrs, LIST_INT32_RULES, nodePath, nodeId);
+			}
+
+			if (displayAttrs && ['text', 'richtext', 'inputtext'].includes(normalizedTagName)) {
+				validateBooleanAttrs(attrs, [
+					displayAttrs.input,
+					displayAttrs.singleLine,
+					displayAttrs.autoClearText,
+					displayAttrs.vars,
+					displayAttrs.ubb,
+					displayAttrs.underline,
+					displayAttrs.italic,
+					displayAttrs.bold,
+					displayAttrs.strikethrough,
+					displayAttrs.password,
+				], nodePath, nodeId);
+				validateInt32Attrs(attrs, [
+					displayAttrs.leading,
+					displayAttrs.letterSpacing,
+					displayAttrs.maxLength,
+					displayAttrs.keyboardType,
+				], nodePath, nodeId);
+				addInvalidValue(attrs, displayAttrs.fontSize, nodePath, 'a positive signed 32-bit integer', (value) => (
+					isProjectInt32(value) && BigInt(value.trim()) > 0n
+				), nodeId);
+				for (const spec of [displayAttrs.strokeSize, displayAttrs.faceDilate, displayAttrs.underlaySoftness]) {
+					addInvalidValue(attrs, spec, nodePath, 'a finite number', isProjectFiniteNumber, nodeId);
+				}
+				validateNumberTuple(attrs, displayAttrs.shadowOffset, 2, nodePath, nodeId);
+				validateEnum(attrs, displayAttrs.align, ['left', 'center', 'right'], nodePath, nodeId);
+				validateEnum(attrs, displayAttrs.vAlign, ['top', 'middle', 'bottom'], nodePath, nodeId);
+				validateEnum(attrs, displayAttrs.autoSize, ['none', 'both', 'height', 'shrink', 'ellipsis'], nodePath, nodeId);
+			}
+
+			if (displayAttrs && (normalizedTagName === 'list' || normalizedTagName === 'tree')) {
+				validateBooleanAttrs(attrs, [
+					displayAttrs.autoResizeItem,
+					displayAttrs.treeView,
+					displayAttrs.autoClearItems,
+					displayAttrs.scrollItemToViewOnClick,
+					displayAttrs.foldInvisibleItems,
+				], nodePath, nodeId);
+				validateInt32Attrs(attrs, [
+					displayAttrs.lineGap,
+					displayAttrs.columnGap,
+					displayAttrs.lineItemCount,
+					displayAttrs.lineItemCount2,
+					displayAttrs.apexIndex,
+					displayAttrs.scrollBarFlags,
+					displayAttrs.indent,
+					displayAttrs.clickToExpand,
+				], nodePath, nodeId);
+				validateEnum(attrs, displayAttrs.layout, [
+					'singleColumn', 'singleRow', 'flowHorizontal', 'flowVertical', 'pagination',
+					'single_column', 'single_row', 'flow_hz', 'flow_vt', 'column', 'row',
+				], nodePath, nodeId);
+				validateEnum(attrs, displayAttrs.align, ['left', 'center', 'right'], nodePath, nodeId);
+				validateEnum(attrs, displayAttrs.vAlign, ['top', 'middle', 'bottom'], nodePath, nodeId);
+				validateEnum(attrs, displayAttrs.childrenRenderOrder, ['ascent', 'descent', 'arch'], nodePath, nodeId);
+				validateEnum(attrs, displayAttrs.selectionMode, ['single', 'multiple', 'multipleSingleClick', 'none'], nodePath, nodeId);
+				validateEnum(attrs, displayAttrs.overflow, ['visible', 'hidden', 'scroll'], nodePath, nodeId);
+				validateEnum(attrs, displayAttrs.scroll, ['horizontal', 'vertical', 'both'], nodePath, nodeId);
+				validateEnum(attrs, displayAttrs.scrollBar, ['default', 'visible', 'auto', 'hidden'], nodePath, nodeId);
+			}
+
+			if (displayAttrs && normalizedTagName === 'group') {
+				validateBooleanAttrs(attrs, [
+					displayAttrs.advanced,
+					displayAttrs.excludeInvisibles,
+					displayAttrs.autoSizeDisabled,
+				], nodePath, nodeId);
+				validateInt32Attrs(attrs, [displayAttrs.lineGap, displayAttrs.columnGap, displayAttrs.mainGridIndex], nodePath, nodeId);
+				validateEnum(attrs, displayAttrs.layout, ['none', 'hz', 'vt'], nodePath, nodeId);
+			}
+
+			if (displayAttrs && ['image', 'loader', 'loader3d'].includes(normalizedTagName)) {
+				validateBooleanAttrs(attrs, [
+					displayAttrs.fillClockwise,
+					displayAttrs.shrinkOnly,
+					displayAttrs.autoSize,
+					displayAttrs.useResize,
+					displayAttrs.playing,
+					displayAttrs.loop,
+					displayAttrs.clearOnPublish,
+				], nodePath, nodeId);
+				validateInt32Attrs(attrs, [displayAttrs.frame, displayAttrs.fillOrigin, displayAttrs.fillAmount], nodePath, nodeId);
+				validateEnum(attrs, displayAttrs.align, ['left', 'center', 'right'], nodePath, nodeId);
+				validateEnum(attrs, displayAttrs.vAlign, ['top', 'middle', 'bottom'], nodePath, nodeId);
+				validateEnum(attrs, displayAttrs.fill, [
+					'none', 'scale', 'scaleMatchHeight', 'scaleMatchWidth', 'scaleFree', 'scaleNoBorder',
+				], nodePath, nodeId);
+				validateEnum(attrs, displayAttrs.fillMethod, ['none', 'hz', 'vt', 'radial90', 'radial180', 'radial360'], nodePath, nodeId);
+			}
+
+			if (displayAttrs && (normalizedTagName === 'movieclip' || normalizedTagName === 'jta')) {
+				validateBooleanAttrs(attrs, [displayAttrs.playing], nodePath, nodeId);
+				validateInt32Attrs(attrs, [displayAttrs.frame], nodePath, nodeId);
+			}
+
+			for (const gearTag of ['gearXY', 'gearSize'] as const) {
+				for (const [gearIndex, gearDefinition] of ensureArray(attrs[gearTag]).entries()) {
+					const gear = getXmlNode<XmlNode>(gearDefinition);
+					if (!gear) continue;
+					for (const spec of [PROJECT_XML_PROTOCOL.gear.attrs.values, PROJECT_XML_PROTOCOL.gear.attrs.default]) {
+						const value = readXmlAttr(gear, spec);
+						if (value === undefined || !String(value).split('|').some((segment) => (
+							segment.trim() !== '-' && hasInvalidProjectInt32Parts(segment, 2, true)
+						))) continue;
+						ctx.addDiagnostic({
+							severity: 'error',
+							code: 'desktop_incompatible_geometry',
+							path: `${nodePath}.${gearTag}.${gearIndex}.${spec.canonical}`,
+							message: `FairyGUI Desktop requires each "${gearTag}.${spec.canonical}" segment to start with two signed 32-bit integers; received ${JSON.stringify(String(value))}.`,
+							resourceId: comp.getId(),
+							...(nodeId ? { nodeId } : {}),
+							sourcePath,
+						});
+					}
+				}
+			}
+		}
+	}
+}
+
 function assignSetting(
 	settings: ProjectSettings,
 	key: ProjectSettingKey,
@@ -158,14 +485,52 @@ export class ProjectReader {
 	}
 
 	async read(projectPath: string, options: ProjectReadOptions = {}): Promise<Document> {
+		return this._read(projectPath, options);
+	}
+
+	async readDetailed(projectPath: string, options: ProjectReadOptions = {}): Promise<ProjectReadResult> {
+		const diagnostics: ProjectDiagnostic[] = [];
+		try {
+			const document = await this._read(projectPath, options, diagnostics);
+			return {
+				document,
+				diagnostics,
+				complete: !diagnostics.some((diagnostic) => [
+					'invalid_project_xml',
+					'invalid_package_xml',
+					'invalid_branch_package_xml',
+					'invalid_component_xml',
+					'invalid_settings_json',
+					'unreadable_source',
+					'unsupported_resource_kind',
+				].includes(diagnostic.code)),
+			};
+		} catch (error) {
+			diagnostics.push({
+				severity: 'error',
+				code: 'invalid_project_xml',
+				path: 'project',
+				message: error instanceof Error ? error.message : String(error),
+				sourcePath: projectPath,
+			});
+			return { document: null, diagnostics, complete: false };
+		}
+	}
+
+	private async _read(
+		projectPath: string,
+		options: ProjectReadOptions,
+		diagnostics?: ProjectDiagnostic[],
+	): Promise<Document> {
 		const fs = this._fs;
 		const doc = new Document();
 		const basePath = getProjectBasePath(fs, projectPath);
 		doc.setProjectDir(basePath);
-		const ctx = new ReaderContext(doc, basePath);
+		const ctx = new ReaderContext(doc, basePath, diagnostics);
 
 		// 1. Parse .fairy file
 		const fairyContent = await fs.readFile(projectPath);
+		if (diagnostics) assertWellFormedXml(fairyContent);
 		const fairyXML = parseXML(fairyContent);
 		const projDesc = getXmlNode<FairyProjectDescriptionNode>(fairyXML.projectDescription);
 		if (projDesc) {
@@ -173,6 +538,14 @@ export class ProjectReader {
 			root.setProjectId(projDesc.id ?? '');
 			root.setProjectType(this._resolveProjectType(projDesc.type ?? ''));
 			root.setVersion(projDesc.version ?? '');
+		} else {
+			ctx.addDiagnostic({
+				severity: 'error',
+				code: 'invalid_project_xml',
+				path: 'projectDescription',
+				message: 'Project file must contain a projectDescription root element.',
+				sourcePath: projectPath,
+			});
 		}
 
 		// 2. Read settings
@@ -191,10 +564,21 @@ export class ProjectReader {
 			const pkgXmlPath = fs.join(assetsPath, dirName, 'package.xml');
 			if (!(await fs.exists(pkgXmlPath))) continue;
 
-			await this._readPackage(ctx, dirName, pkgXmlPath, '', options);
+			try {
+				await this._readPackage(ctx, dirName, pkgXmlPath, '', options, diagnostics !== undefined);
+			} catch (error) {
+				if (!diagnostics) throw error;
+				ctx.addDiagnostic({
+					severity: 'error',
+					code: 'invalid_package_xml',
+					path: `packages.${dirName}`,
+					message: error instanceof Error ? error.message : String(error),
+					sourcePath: pkgXmlPath,
+				});
+			}
 		}
 
-		const branchNames = await this._readPackageBranches(ctx, options);
+		const branchNames = await this._readPackageBranches(ctx, options, diagnostics !== undefined);
 		if (branchNames.length > 0) {
 			doc.getRoot().setBranches(branchNames);
 		}
@@ -209,9 +593,23 @@ export class ProjectReader {
 
 			try {
 				const compContent = await fs.readFile(compPath);
+				if (diagnostics) {
+					assertWellFormedXml(compContent);
+					const componentNode = getXmlNode<XmlNode>(parseXML(compContent).component);
+					if (!componentNode) throw new Error('Component XML must contain a component root element.');
+					validateComponentXmlValues(ctx, comp, compPath, componentNode);
+				}
 				readComponentXml(ctx, comp, compContent);
 			} catch (err) {
 				ctx.logger.warn(`Failed to parse component: ${compPath} — ${err}`);
+				ctx.addDiagnostic({
+					severity: 'error',
+					code: await fs.exists(compPath) ? 'invalid_component_xml' : 'missing_source',
+					path: `components.${comp.getId()}`,
+					message: `Failed to read component "${comp.getName()}": ${err instanceof Error ? err.message : String(err)}`,
+					resourceId: comp.getId(),
+					sourcePath: compPath,
+				});
 			}
 		}
 
@@ -240,7 +638,11 @@ export class ProjectReader {
 		}
 	}
 
-	private async _readPackageBranches(ctx: ReaderContext, options: ProjectReadOptions): Promise<string[]> {
+	private async _readPackageBranches(
+		ctx: ReaderContext,
+		options: ProjectReadOptions,
+		collectDiagnostics = false,
+	): Promise<string[]> {
 		const fs = this._fs;
 		let dirNames: string[] = [];
 		try {
@@ -266,7 +668,18 @@ export class ProjectReader {
 			for (const dirName of packageDirs) {
 				const pkgXmlPath = fs.join(branchAssetsPath, dirName, 'package_branch.xml');
 				if (!(await fs.exists(pkgXmlPath))) continue;
-				await this._readPackage(ctx, dirName, pkgXmlPath, branchName, options);
+				try {
+					await this._readPackage(ctx, dirName, pkgXmlPath, branchName, options, collectDiagnostics);
+				} catch (error) {
+					if (!collectDiagnostics) throw error;
+					ctx.addDiagnostic({
+						severity: 'error',
+						code: 'invalid_branch_package_xml',
+						path: `branches.${branchName}.packages.${dirName}`,
+						message: error instanceof Error ? error.message : String(error),
+						sourcePath: pkgXmlPath,
+					});
+				}
 			}
 		}
 
@@ -286,14 +699,20 @@ export class ProjectReader {
 		];
 
 		for (const { name, key } of settingFiles) {
+			const filePath = fs.join(settingsPath, name);
 			try {
-				const filePath = fs.join(settingsPath, name);
 				if (await fs.exists(filePath)) {
 					const content = await fs.readFile(filePath);
 					assignSetting(ctx.settings, key, JSON.parse(content));
 				}
-			} catch {
-				// Skip missing/invalid settings files.
+			} catch (error) {
+				ctx.addDiagnostic({
+					severity: 'error',
+					code: 'invalid_settings_json',
+					path: `settings.${name}`,
+					message: `Failed to read ${name}: ${error instanceof Error ? error.message : String(error)}`,
+					sourcePath: filePath,
+				});
 			}
 		}
 
@@ -306,14 +725,19 @@ export class ProjectReader {
 		pkgXmlPath: string,
 		branchName = '',
 		options: ProjectReadOptions = {},
+		validateSyntax = false,
 	): Promise<void> {
 		const fs = this._fs;
 		const content = await fs.readFile(pkgXmlPath);
+		if (validateSyntax) assertWellFormedXml(content);
 		const xml = parseXML(content);
 		const desc = branchName
 			? getXmlNode<BranchDescriptionNode>(xml.branchDescription)
 			: getXmlNode<PackageDescriptionNode>(xml.packageDescription);
-		if (!desc) return;
+		if (!desc) {
+			if (validateSyntax) throw new Error(`Package XML must contain a ${branchName ? 'branchDescription' : 'packageDescription'} root element.`);
+			return;
+		}
 
 		let pkg = ctx.document.getRoot().getPackage(dirName);
 		if (!pkg) {
@@ -433,7 +857,7 @@ export class ProjectReader {
 			}
 			await this._hydratePackageImageSizes(createdResources, packageDir);
 			if (options.hydrateResourceBytes) {
-				await this._hydratePackageResourceBytes(ctx.document, createdResources, packageDir);
+				await this._hydratePackageResourceBytes(ctx, createdResources, packageDir, pkg.getId());
 			}
 			return;
 		}
@@ -450,7 +874,7 @@ export class ProjectReader {
 		}
 		await this._hydratePackageImageSizes(createdResources, packageDir);
 		if (options.hydrateResourceBytes) {
-			await this._hydratePackageResourceBytes(ctx.document, createdResources, packageDir);
+			await this._hydratePackageResourceBytes(ctx, createdResources, packageDir, pkg.getId());
 		}
 	}
 
@@ -526,11 +950,13 @@ export class ProjectReader {
 	}
 
 	private async _hydratePackageResourceBytes(
-		doc: Document,
+		ctx: ReaderContext,
 		resources: Array<ReturnType<Package['listResources']>[number]>,
 		packageDir: string,
+		packageId: string,
 	): Promise<void> {
 		const fs = this._fs;
+		const doc = ctx.document;
 		for (const resource of resources) {
 			const fileName = this._primaryResourceFileName(resource);
 			if (!fileName) continue;
@@ -538,7 +964,18 @@ export class ProjectReader {
 			const sourcePath = this._packageRelativeSourcePath(resourcePath, fileName);
 			if (!sourcePath) continue;
 			const filePath = fs.join(packageDir, sourcePath.replace(/^\/+/, ''));
-			if (!(await fs.exists(filePath))) continue;
+			if (!(await fs.exists(filePath))) {
+				ctx.addDiagnostic({
+					severity: 'error',
+					code: 'missing_source',
+					path: `packages.${packageId}.resources.${resource.getId()}`,
+					message: `Declared source file is missing: ${sourcePath}`,
+					packageId,
+					resourceId: resource.getId(),
+					sourcePath: filePath,
+				});
+				continue;
+			}
 			try {
 				const data = new Uint8Array(await fs.readFileRaw(filePath));
 				const buffer = doc.createBuffer().setURI(sourcePath).setData(data);
@@ -556,12 +993,30 @@ export class ProjectReader {
 							resource as ReturnType<Document['createMovieClipResource']>,
 							deriveMovieClipModelFromJta(data),
 						);
-					} catch {
+					} catch (error) {
 						// Preserve source bytes and XML-owned fields when a legacy or corrupt JTA cannot be derived.
+						ctx.addDiagnostic({
+							severity: 'error',
+							code: 'corrupt_source',
+							path: `packages.${packageId}.resources.${resource.getId()}`,
+							message: `MovieClip source is invalid: ${error instanceof Error ? error.message : String(error)}`,
+							packageId,
+							resourceId: resource.getId(),
+							sourcePath: filePath,
+						});
 					}
 				}
-			} catch {
+			} catch (error) {
 				// Keep resource metadata available when its primary source cannot be read.
+				ctx.addDiagnostic({
+					severity: 'error',
+					code: 'unreadable_source',
+					path: `packages.${packageId}.resources.${resource.getId()}`,
+					message: `Declared source file cannot be read: ${error instanceof Error ? error.message : String(error)}`,
+					packageId,
+					resourceId: resource.getId(),
+					sourcePath: filePath,
+				});
 			}
 		}
 	}
@@ -782,8 +1237,20 @@ export class ProjectReader {
 				ctx.registerResource(pkg.getId(), id, res);
 				return res;
 			}
-			default: {
+			case 'atlas': {
 				// Generated atlas entries are not source package resources.
+				return null;
+			}
+			default: {
+				ctx.addDiagnostic({
+					severity: 'error',
+					code: 'unsupported_resource_kind',
+					path: `packages.${pkg.getId()}.resources.${id || name}`,
+					message: `Unsupported declared resource kind "${tagName}".`,
+					packageId: pkg.getId(),
+					resourceId: id,
+					sourcePath: fs.join(packageDir, path.replace(/^\//, ''), name),
+				});
 				return null;
 			}
 		}

@@ -1109,7 +1109,7 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 		if (type === 'GGroup') {
 			const layout = typedObj.getLayout?.();
 			if (layout !== undefined && layout !== 0) {
-				const layoutName: Record<number, string> = { 0: 'none', 1: 'horizontal', 2: 'vertical' };
+				const layoutName: Record<number, string> = { 0: 'none', 1: 'hz', 2: 'vt' };
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.layout, layoutName[layout] ?? 'none');
 			}
 			const lineGap = typedObj.getLineGap?.() ?? 0;

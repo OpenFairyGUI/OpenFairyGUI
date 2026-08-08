@@ -91,6 +91,14 @@ test('MCP P1 resources read unchanged backend envelopes as JSON content', async 
 			}));
 			t.true(session.ok);
 
+			const outlineResource = await client.readResource({
+				uri: `openfairygui://backend/session/${sessionId}/outline`,
+			});
+			const outline = parseJsonResource(outlineResource);
+			t.true(outline.ok);
+			t.is((outline.data as { projectId: string }).projectId, 'mcp-p0');
+			t.false((outlineResource.contents[0] as { text?: string }).text?.includes('sourceBytes') ?? true);
+
 			const cache = parseJsonResource(await client.readResource({
 				uri: `openfairygui://backend/cache/${sessionId}`,
 			}));
@@ -113,6 +121,12 @@ test('MCP P1 resources read unchanged backend envelopes as JSON content', async 
 			}));
 			t.false(missingSession.ok);
 			t.is(missingSession.error?.code, 'session_not_found');
+
+			const missingOutline = parseJsonResource(await client.readResource({
+				uri: 'openfairygui://backend/session/missing-session/outline',
+			}));
+			t.false(missingOutline.ok);
+			t.is(missingOutline.error?.code, 'session_not_found');
 
 			const missingJob = parseJsonResource(await client.readResource({
 				uri: `openfairygui://backend/job/${sessionId}/missing-job`,

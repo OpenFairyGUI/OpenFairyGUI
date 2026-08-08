@@ -3,6 +3,7 @@ import type { GetPromptResult } from '@modelcontextprotocol/sdk/types.js';
 export const OPENFAIRYGUI_BACKEND_PROMPT_NAMES = [
 	'openfairygui_inspect_capabilities',
 	'openfairygui_open_and_inspect_session',
+	'openfairygui_inspect_project_outline',
 	'openfairygui_plan_revision_checked_transaction',
 	'openfairygui_save_session',
 	'openfairygui_poll_runtime_state',
@@ -36,6 +37,17 @@ export const OPENFAIRYGUI_BACKEND_PROMPT_DEFINITIONS = [
 			'Use openfairygui_backend_open_session with a projectPath, then use openfairygui_backend_get_session with the returned sessionId.',
 			'Backend path policy remains authoritative for project paths and save targets; MCP roots are only client context in this package.',
 			'Close the session with openfairygui_backend_close_session when finished.',
+		].join('\n'),
+	},
+	{
+		name: 'openfairygui_inspect_project_outline',
+		title: 'Inspect an OpenFairyGUI Project Outline',
+		description: 'Guide a client through selector discovery before a revision-checked transaction.',
+		text: [
+			'Use openfairygui_backend_get_project_outline with the active sessionId before planning mutations.',
+			'Use package, resource, folder, display node, controller page, and transition identities from the returned outline.',
+			'Pass the returned revision as expectedRevision when calling openfairygui_backend_apply_transaction.',
+			'Read a new outline if the backend reports a stale revision; the outline intentionally excludes source bytes and full property payloads.',
 		].join('\n'),
 	},
 	{

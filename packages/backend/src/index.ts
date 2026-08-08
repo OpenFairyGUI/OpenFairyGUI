@@ -32,6 +32,9 @@ export {
 	type BackendJobProgress,
 	type BackendJobSnapshot,
 	type BackendJobStatus,
+	type BackendProjectOutline,
+	type BackendProjectOutlinePackage,
+	type BackendProjectOutlineResource,
 	type BackendProjectSessionStorage,
 	type BackendResult,
 	BackendRuntime,
@@ -46,6 +49,7 @@ export {
 	type GetEventsInput,
 	type GetEventsSnapshot,
 	type GetJobInput,
+	type GetProjectOutlineInput,
 	type InProcessLockConflictError,
 	type ListJobsInput,
 	type MaterializeSessionInput,
@@ -59,6 +63,7 @@ export {
 	type SessionNotFoundError,
 	type SessionStaleWriteError,
 	type UamFidelityUnsupportedError,
+	type ValidateSessionInput,
 } from './runtime.js';
 export {
 	type BackendAsyncStorageAdapter,

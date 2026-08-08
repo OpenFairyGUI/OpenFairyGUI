@@ -16,6 +16,8 @@ const BACKEND_METHODS = [
 	'openSession',
 	'openProjectSession',
 	'getSession',
+	'getProjectOutline',
+	'validateSession',
 	'applyTransaction',
 	'saveSession',
 	'materializeSession',
@@ -47,6 +49,8 @@ export function createCapabilities(): BackendCapabilities {
 		read: {
 			capabilitySnapshot: true,
 			sessionSnapshot: true,
+			projectOutline: true,
+			projectValidation: true,
 		},
 		authoring: {
 			applyTransaction: true,

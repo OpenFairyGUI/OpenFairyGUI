@@ -3,6 +3,7 @@ import { registerBackendCapabilitiesCommand } from './commands/backend-capabilit
 import { registerInspectCommand } from './commands/inspect.js';
 import { registerPublishCommand } from './commands/publish.js';
 import { registerRestoreCommand } from './commands/restore.js';
+import { registerValidateCommand } from './commands/validate.js';
 import { readPackageVersion } from './utils/package-version.js';
 
 const PACKAGE_VERSION = readPackageVersion();
@@ -15,6 +16,7 @@ function createProgram(): Command {
 	registerInspectCommand(program);
 	registerPublishCommand(program);
 	registerRestoreCommand(program);
+	registerValidateCommand(program);
 	registerBackendCapabilitiesCommand(program);
 
 	program.addHelpText(

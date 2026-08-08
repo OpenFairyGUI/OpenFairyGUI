@@ -1,3 +1,6 @@
+import type { Document } from '../document.js';
+import type { ProjectDiagnostic } from '../validation.js';
+
 export interface ProjectReadOptions {
 	/**
 	 * Load primary source bytes for image, sound, misc, font, movie-clip,
@@ -5,6 +8,12 @@ export interface ProjectReadOptions {
 	 * inspection reads lightweight.
 	 */
 	hydrateResourceBytes?: boolean;
+}
+
+export interface ProjectReadResult {
+	document: Document | null;
+	diagnostics: ProjectDiagnostic[];
+	complete: boolean;
 }
 
 export interface ProjectWriteOptions {

@@ -25,6 +25,8 @@ const io = new NodeIO();
 const doc = await io.readProject('./MyProject/MyProject.fairy');
 ```
 
+Use `readProjectDetailed(..., { hydrateResourceBytes: true })` when a caller must retain parse, skipped-file, and source-read diagnostics instead of failing or silently omitting partial content.
+
 Browser project I/O:
 
 ```ts

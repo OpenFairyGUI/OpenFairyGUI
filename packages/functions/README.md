@@ -13,12 +13,13 @@ npm install --save @openfairygui/core @openfairygui/functions
 ```ts
 import { NodeIO } from '@openfairygui/core/node';
 import { inspect } from '@openfairygui/functions';
-import { publishNode, restoreNode } from '@openfairygui/functions/node';
+import { publishNode, restoreNode, validateProjectNode } from '@openfairygui/functions/node';
 
 const io = new NodeIO();
 const doc = await io.readProject('./MyProject/MyProject.fairy');
 
 const report = inspect(doc);
+const validation = await validateProjectNode('./MyProject/MyProject.fairy');
 await publishNode({ document: doc, output: './release' });
 
 await restoreNode({
@@ -27,17 +28,19 @@ await restoreNode({
 });
 ```
 
-`publishNode` owns the standard Node filesystem, Sharp raster backend, and project plugin discovery. `restoreNode` owns the Node filesystem and Sharp image extraction required by trusted-local artifact recovery. The root `publish()` and `restore()` exports remain the lower-level capability-injected workflows for custom hosts.
+`validateProjectNode` combines detailed project reads, UAM integrity checks, source checks, and Sharp image decoding without writing files. `publishNode` owns the standard Node filesystem, Sharp raster backend, and project plugin discovery. `restoreNode` owns the Node filesystem and Sharp image extraction required by trusted-local artifact recovery. The root `validateProject()`, `publish()`, and `restore()` exports remain lower-level workflows for custom hosts.
 
 ## Browser LayaBox publish
 
 Use `@openfairygui/core/web` to read the raw project, then publish through the browser-only entry. Both filesystems are caller-owned, so they can be File System Access, OPFS, IndexedDB, ZIP, or memory adapters.
 
 ```ts
+import { liftDocumentToUamProject } from '@openfairygui/core';
 import { WebIO } from '@openfairygui/core/web';
-import { publishBrowser } from '@openfairygui/functions/web';
+import { publishBrowser, validateProjectWeb } from '@openfairygui/functions/web';
 
-const document = await new WebIO(sourceFileSystem).readProject('Project.fairy');
+const document = await new WebIO(sourceFileSystem).readProject('Project.fairy', { hydrateResourceBytes: true });
+const validation = await validateProjectWeb(liftDocumentToUamProject(document));
 const result = await publishBrowser({
 	document,
 	sourceFileSystem,

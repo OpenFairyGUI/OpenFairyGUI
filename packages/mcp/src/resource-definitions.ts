@@ -24,6 +24,7 @@ export const OPENFAIRYGUI_BACKEND_CAPABILITIES_RESOURCE_URI = 'openfairygui://ba
 
 export const OPENFAIRYGUI_BACKEND_RESOURCE_TEMPLATES = [
 	'openfairygui://backend/session/{sessionId}',
+	'openfairygui://backend/session/{sessionId}/outline',
 	'openfairygui://backend/cache/{sessionId}',
 	'openfairygui://backend/job/{sessionId}/{jobId}',
 ] as const;
@@ -49,6 +50,19 @@ export function registerOpenFairyGuiBackendResources(server: McpServer, runtime:
 			mimeType: JSON_MIME_TYPE,
 		},
 		(uri: URL, variables) => jsonResource(uri, runtime.getSession({
+			sessionId: firstVariable(variables.sessionId),
+		})),
+	);
+
+	server.registerResource(
+		'openfairygui_backend_project_outline',
+		new ResourceTemplate('openfairygui://backend/session/{sessionId}/outline', { list: undefined }),
+		{
+			title: 'OpenFairyGUI Project Outline',
+			description: 'Read a revision-bound project identity outline without source bytes or full property payloads.',
+			mimeType: JSON_MIME_TYPE,
+		},
+		(uri: URL, variables) => jsonResource(uri, runtime.getProjectOutline({
 			sessionId: firstVariable(variables.sessionId),
 		})),
 	);

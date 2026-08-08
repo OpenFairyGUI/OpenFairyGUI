@@ -33,6 +33,7 @@ export default withMermaid(defineConfig({
 							text: '参考文档',
 							items: [
 								{ text: '架构图说明', link: '/architecture-overview' },
+								{ text: '工程验证', link: '/project-validation' },
 								{ text: '编辑器发布设置', link: '/editor-publish-settings' },
 								{ text: 'Publish 插件', link: '/publish-plugins' },
 								{ text: '发布产物还原限制', link: '/published-project-restore-limitations' },

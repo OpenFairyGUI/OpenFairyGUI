@@ -30,6 +30,7 @@ Use it to:
 | Project I/O | Read, modify, and write `.fairy` project directories and assets |
 | Binary protocol | Read and write `.fui` / `_fui.bytes` publish packages |
 | Headless authoring | Apply batch changes through `Document` or UAM transactions |
+| Project validation | Check project reads, UAM constraints, references, path collisions, and available source bytes |
 | Publish and recovery | Publish runtime assets and perform limited recovery from trusted local artifacts |
 | Tool integration | Use the CLI, stateful backend runtime, or MCP adapter |
 
@@ -69,6 +70,7 @@ See [Getting Started](https://fairygui.dev/en/guide/getting-started) for project
 npm install --global @openfairygui/cli
 
 ofgui inspect ./MyProject
+ofgui validate ./MyProject
 ofgui publish ./MyProject --output ./release
 ```
 
@@ -99,6 +101,7 @@ See [Packages and Tools](https://fairygui.dev/en/guide/packages) for package ent
 - [Getting Started](https://fairygui.dev/en/guide/getting-started)
 - [API Reference](https://fairygui.dev/api/)
 - [Architecture and Package Boundaries](./docs/en/architecture-overview.md)
+- [Project Validation](./docs/project-validation.md)
 - [Editor Publish Settings](./docs/en/editor-publish-settings.md)
 - [Project XML Attribute Protocol](./docs/en/project-xml-attribute-reference.md)
 - [FairyGUI Binary Package Format](./docs/en/fairygui-binary-package-format.md)

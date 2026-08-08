@@ -1,6 +1,6 @@
 import type { Document } from '../document.js';
 import type { FileSystem } from './file-system.js';
-import { ProjectReader, type ProjectReadOptions } from './project-reader.js';
+import { ProjectReader, type ProjectReadOptions, type ProjectReadResult } from './project-reader.js';
 import { ProjectWriter, type ProjectWriteOptions } from './project-writer.js';
 
 export interface FileSystemAccessFileLike {
@@ -187,6 +187,10 @@ export class WebIO {
 
 	public async readProject(projectPath: string, options?: ProjectReadOptions): Promise<Document> {
 		return new ProjectReader(this._fs).read(projectPath, options);
+	}
+
+	public async readProjectDetailed(projectPath: string, options?: ProjectReadOptions): Promise<ProjectReadResult> {
+		return new ProjectReader(this._fs).readDetailed(projectPath, options);
 	}
 
 	public async writeProject(doc: Document, projectPath: string, options?: ProjectWriteOptions): Promise<void> {

@@ -4,12 +4,14 @@ import type { Property } from '../properties/property.js';
 import type { Controller } from '../properties/controller.js';
 import type { ProjectSettings } from '../types/settings.js';
 import type { ILogger } from '../utils/logger.js';
+import type { ProjectDiagnostic } from '../validation.js';
 
 export class ReaderContext {
 	public readonly document: Document;
 	public readonly logger: ILogger;
 	public readonly basePath: string;
 	public readonly settings: ProjectSettings = {};
+	public readonly diagnostics: ProjectDiagnostic[];
 
 	/** packageId → Package */
 	public readonly packageMap = new Map<string, Package>();
@@ -20,10 +22,15 @@ export class ReaderContext {
 	/** packageId+controllerName → Controller (for gear resolution within a component) */
 	public readonly controllerMap = new Map<string, Controller>();
 
-	constructor(document: Document, basePath: string) {
+	constructor(document: Document, basePath: string, diagnostics: ProjectDiagnostic[] = []) {
 		this.document = document;
 		this.logger = document.getLogger();
 		this.basePath = basePath;
+		this.diagnostics = diagnostics;
+	}
+
+	public addDiagnostic(diagnostic: ProjectDiagnostic): void {
+		this.diagnostics.push(diagnostic);
 	}
 
 	public registerResource(packageId: string, resourceId: string, property: Property): void {

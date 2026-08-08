@@ -6,10 +6,23 @@
 
 Release comparisons:
 
-- Stable line (`main`): [v0.2.6...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.2.6...main)
-- Prerelease line (`next`): [v0.3.0-alpha.4...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.0-alpha.4...next)
+- Stable line (`main`): [v0.3.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.0...main)
+- Development line (`next`): [v0.3.0...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.0...next)
 
 ## v0.3.x
+
+Prerelease builds from `v0.3.0-alpha.1` through `v0.3.0-alpha.4` are consolidated into the stable release below. `v0.3.0` also contains every stable fix through `v0.2.6`.
+
+### v0.3.0 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.3.0))
+
+Features:
+
+- functions,cli: Add project validation with `valid`, `invalid`, and `incomplete` results, desktop-compatible geometry checks, diagnostics, and JSON output. [#96](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/96) [#99](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/99) [#101](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/101)
+- mcp: Add `openfairygui_backend_get_project_outline` for compact, revision-bound project structure discovery. [#93](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/93)
+
+Fixes:
+
+- core: Preserve cross-package image `packageId` values through UAM lift/materialization and Project XML round trips, and accept the standard SVG namespace while continuing to reject external or scriptable SVG sources. [#124](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/124)
 
 ### v0.3.0-alpha.4 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.3.0-alpha.4))
 

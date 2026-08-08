@@ -27,7 +27,7 @@ test('P2 capabilities and version fields expose events jobs and cache support', 
 	if (!result.ok) return;
 
 	t.is(BACKEND_CONTRACT_VERSION, '1.1.0-p2');
-	t.is(BACKEND_CAPABILITY_SCHEMA_VERSION, 2);
+	t.is(BACKEND_CAPABILITY_SCHEMA_VERSION, 3);
 	t.true(result.data.methods.includes('getEvents'));
 	t.true(result.data.methods.includes('getJob'));
 	t.true(result.data.methods.includes('listJobs'));

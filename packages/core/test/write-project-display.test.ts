@@ -462,6 +462,7 @@ test('writer: uses canonical XML attr names for component root, loader, text nod
 	const group = doc.createGGroup('toolbar');
 	group.setId('g0');
 	group.setAdvanced(true);
+	group.setLayout(1);
 	group.setColumnGap(5);
 	group.setExcludeInvisibles(true);
 
@@ -589,6 +590,7 @@ test('writer: uses canonical XML attr names for component root, loader, text nod
 		t.true(/<inputtext\b[^>]*rotation="15"[^>]*alpha="0.65"[^>]*touchable="false"[^>]*grayed(?:="true")?/.test(componentXml), 'text input writes canonical common display attrs');
 		t.false(componentXml.includes('promptText='), 'text input no longer writes model field name');
 		t.true(componentXml.includes('colGap="5"'), 'group uses canonical colGap attr');
+		t.true(/<group\b[^>]*layout="hz"/.test(componentXml), 'group uses editor layout attr values');
 		t.true(/excludeInvisibles(?:="true")?/.test(componentXml), 'group writes excludeInvisibles attr');
 		t.true(componentXml.includes('colGap="8"'), 'list uses canonical colGap attr');
 		t.true(componentXml.includes('layout="flow_hz"'), 'list uses editor layout attr values');
@@ -626,6 +628,7 @@ test('writer: uses canonical XML attr names for component root, loader, text nod
 		t.is(byId.get('n-1')?.getFill?.(), 1, 'loader fill survives round-trip');
 		t.true(byId.get('n-1')?.getClearOnPublish?.(), 'loader clearOnPublish survives round-trip');
 		t.is(byId.get('g0')?.getColumnGap?.(), 5, 'group colGap survives round-trip');
+		t.is(byId.get('g0')?.getLayout?.(), 1, 'group layout survives round-trip');
 		t.true(byId.get('g0')?.getExcludeInvisibles?.(), 'group excludeInvisibles survives round-trip');
 		t.is(byId.get('n0')?.getAnimationName?.(), 'idle', 'loader3D animation survives round-trip');
 		t.false(byId.get('n0')?.getLoop?.(), 'loader3D loop survives round-trip');

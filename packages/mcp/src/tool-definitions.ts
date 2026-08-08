@@ -7,6 +7,8 @@ export const OPENFAIRYGUI_BACKEND_TOOL_NAMES = [
 	'openfairygui_backend_open_session',
 	'openfairygui_backend_open_project_session',
 	'openfairygui_backend_get_session',
+	'openfairygui_backend_get_project_outline',
+	'openfairygui_backend_validate_session',
 	'openfairygui_backend_apply_transaction',
 	'openfairygui_backend_save_session',
 	'openfairygui_backend_materialize_session',
@@ -26,6 +28,8 @@ export type BackendMethodName =
 	| 'openSession'
 	| 'openProjectSession'
 	| 'getSession'
+	| 'getProjectOutline'
+	| 'validateSession'
 	| 'applyTransaction'
 	| 'saveSession'
 	| 'materializeSession'
@@ -106,6 +110,24 @@ export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
 		backendMethod: 'getSession',
 		title: 'Get Backend Session',
 		description: 'Return a backend session snapshot by session id.',
+		inputSchema: z.object({ sessionId }),
+		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
+		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+	},
+	{
+		name: 'openfairygui_backend_get_project_outline',
+		backendMethod: 'getProjectOutline',
+		title: 'Get Project Outline',
+		description: 'Return a revision-bound project/package/resource/component identity outline without source bytes or full property payloads.',
+		inputSchema: z.object({ sessionId }),
+		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
+		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+	},
+	{
+		name: 'openfairygui_backend_validate_session',
+		backendMethod: 'validateSession',
+		title: 'Validate Project Session',
+		description: 'Validate the current session project structure, references, paths, and available source bytes without writing files.',
 		inputSchema: z.object({ sessionId }),
 		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },

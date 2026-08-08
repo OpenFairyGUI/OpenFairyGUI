@@ -1062,7 +1062,7 @@ export function createDisplayObject(
 				if (groupVisible !== undefined) g.setVisible(parseBool(groupVisible));
 				const groupLayout = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.group.attrs.layout);
 				if (groupLayout) {
-					const layoutMap: Record<string, number> = { none: 0, horizontal: 1, vertical: 2 };
+					const layoutMap: Record<string, number> = { none: 0, hz: 1, vt: 2 };
 					g.setLayout(layoutMap[groupLayout] ?? 0);
 				}
 				const groupLineGap = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.group.attrs.lineGap);

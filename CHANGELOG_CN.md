@@ -6,10 +6,23 @@
 
 发布比较：
 
-- 稳定线（`main`）：[v0.2.6...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.2.6...main)
-- 预发布线（`next`）：[v0.3.0-alpha.4...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.0-alpha.4...next)
+- 稳定线（`main`）：[v0.3.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.0...main)
+- 开发线（`next`）：[v0.3.0...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.0...next)
 
 ## v0.3.x
+
+从 `v0.3.0-alpha.1` 到 `v0.3.0-alpha.4` 的预发布版本统一归入下方正式版记录。`v0.3.0` 同时包含截至 `v0.2.6` 的全部稳定版修复。
+
+### v0.3.0（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.3.0)）
+
+新功能：
+
+- functions,cli：新增工程验证工作流，提供 `valid`、`invalid`、`incomplete` 结果、桌面编辑器兼容的几何校验、诊断信息与 JSON 输出。[#96](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/96) [#99](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/99) [#101](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/101)
+- mcp：新增 `openfairygui_backend_get_project_outline`，用于获取与 revision 绑定的精简工程结构。[#93](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/93)
+
+修复：
+
+- core：在 UAM lift/materialize 与工程 XML 往返过程中保留跨包图片的 `packageId`，并允许标准 SVG namespace，同时继续拒绝外部或可执行脚本的 SVG 来源。[#124](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/124)
 
 ### v0.3.0-alpha.4（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.3.0-alpha.4)）
 

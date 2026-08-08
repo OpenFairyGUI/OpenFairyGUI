@@ -29,6 +29,8 @@ export interface BackendSessionState {
 	sessionLock: BackendSessionLock | null;
 	fileSystem?: BackendFileSystem;
 	project: import('@openfairygui/core/uam').UamProject;
+	readDiagnostics: import('@openfairygui/core').ProjectDiagnostic[];
+	readComplete: boolean;
 	uamFidelity: 'full' | 'unsupported';
 	revision: number;
 	lastSavedRevision: number;

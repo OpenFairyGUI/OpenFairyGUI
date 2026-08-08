@@ -1,4 +1,5 @@
 import type { ApplyUamTransactionAppError } from '@openfairygui/functions/uam';
+import type { ProjectValidationReport } from '@openfairygui/core';
 import type { PathPolicyViolationError } from './path-policy.js';
 import { AuthoringService } from './services/authoring-service.js';
 import { CacheService } from './services/cache-service.js';
@@ -21,6 +22,7 @@ import type {
 	BackendJobNotCancellableError,
 	BackendJobNotFoundError,
 	BackendJobSnapshot,
+	BackendProjectOutline,
 	BackendResult,
 	BackendRuntimeOptions,
 	BackendSessionSnapshot,
@@ -31,6 +33,8 @@ import type {
 	GetEventsInput,
 	GetEventsSnapshot,
 	GetJobInput,
+	GetProjectOutlineInput,
+	ValidateSessionInput,
 	InProcessLockConflictError,
 	ListJobsInput,
 	MaterializeSessionInput,
@@ -111,6 +115,18 @@ export class BackendRuntime {
 
 	public getSession(input: { sessionId: string }): BackendResult<BackendSessionSnapshot, SessionNotFoundError> {
 		return this.readService.getSession(input);
+	}
+
+	public getProjectOutline(
+		input: GetProjectOutlineInput,
+	): BackendResult<BackendProjectOutline, SessionNotFoundError> {
+		return this.readService.getProjectOutline(input);
+	}
+
+	public validateSession(
+		input: ValidateSessionInput,
+	): BackendResult<ProjectValidationReport, SessionNotFoundError> {
+		return this.readService.validateSession(input);
 	}
 
 	public async applyTransaction(
