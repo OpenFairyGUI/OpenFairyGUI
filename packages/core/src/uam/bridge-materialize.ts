@@ -594,7 +594,8 @@ export function materializeDisplayNode(
 		const imageNode = node as UamImageNode;
 		const image = materializeDisplayNodeBase(doc.createGImage(node.name), node)
 			.setGroup(imageNode.group)
-			.setSrc(imageNode.resource.resourceId);
+			.setSrc(imageNode.resource.resourceId)
+			.setPackageId(imageNode.resource.packageId ?? '');
 		return image;
 	}
 

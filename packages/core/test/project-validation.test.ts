@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createMinimalUamProject } from '@openfairygui/test-utils';
 import {
+	readProjectAsUam,
 	writeProjectFromUam,
 	validateTransactionSupport,
 	validateUamProject,
@@ -50,14 +51,66 @@ test('transaction lifecycle preflight reuses project reference checks', (t) => {
 	t.true(issues.some((issue) => issue.code === 'invalid_resource_reference'));
 });
 
-test('source validation rejects SVG external references before host decoding', (t) => {
+test('UAM write/read/validate preserves cross-package image references', async (t) => {
+	const project = createMinimalUamProject('cross-package-image');
+	const ownerPackage = project.packages[0]!;
+	const image = ownerPackage.resources.find((resource) => resource.kind === 'image')!;
+	const component = ownerPackage.resources.find((resource) => resource.kind === 'component')!;
+	if (component.kind !== 'component') throw new Error('Expected component fixture');
+	const imageNode = component.component.displayList[0]!;
+	if (imageNode.kind !== 'image') throw new Error('Expected image node fixture');
+
+	ownerPackage.resources = [component];
+	project.packages.push({
+		...structuredClone(ownerPackage),
+		id: 'pkg002',
+		name: 'Shared',
+		resources: [image],
+	});
+	imageNode.resource = { packageId: 'pkg002', resourceId: image.id };
+	t.deepEqual(validateUamReferences(project), []);
+
+	const root = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-cross-package-image-'));
+	try {
+		const fairyPath = path.join(root, 'CrossPackage.fairy');
+		const io = new NodeIO();
+		await writeProjectFromUam(io, project, fairyPath);
+		const xml = await fs.readFile(path.join(root, 'assets', 'Main', 'MainView.xml'), 'utf8');
+		t.regex(xml, /\bpkg="pkg002"/u);
+
+		const read = await readProjectAsUam(io, fairyPath);
+		const readComponent = read.packages[0]?.resources.find((resource) => resource.id === component.id);
+		if (readComponent?.kind !== 'component') throw new Error('Expected written component');
+		const readImageNode = readComponent.component.displayList[0];
+		if (readImageNode?.kind !== 'image') throw new Error('Expected written image node');
+		t.deepEqual(readImageNode.resource, { packageId: 'pkg002', resourceId: image.id });
+		t.deepEqual(validateUamReferences(read), []);
+	} finally {
+		await fs.rm(root, { recursive: true, force: true });
+	}
+});
+
+test('source validation accepts the standard SVG namespace and rejects external references', (t) => {
 	const project = createMinimalUamProject('validation');
 	const image = project.packages[0]!.resources[0]!;
 	if (image.kind !== 'image') throw new Error('Expected image fixture');
 	image.fileName = 'external.svg';
-	image.sourceBytes = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><image href="https://example.com/x.png"/></svg>');
 
-	t.true(validateUamSourceBytes(project).diagnostics.some((diagnostic) => diagnostic.code === 'corrupt_source'));
+	image.sourceBytes = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>');
+	t.false(validateUamSourceBytes(project).diagnostics.some((diagnostic) => diagnostic.code === 'corrupt_source'));
+
+	for (const source of [
+		'<svg xmlns="http://www.w3.org/2000/svg"><use href="https://example.com/x.svg#shape"/></svg>',
+		'<svg xmlns="http://www.w3.org/2000/svg"><rect src="https://example.com/x.png"/></svg>',
+		'<svg xmlns="http://www.w3.org/2000/svg"><rect fill="url(https://example.com/x.svg#shape)"/></svg>',
+		'<svg xmlns="http://www.w3.org/2000/svg"><use href="javascript:alert(1)"/></svg>',
+	]) {
+		image.sourceBytes = new TextEncoder().encode(source);
+		t.true(
+			validateUamSourceBytes(project).diagnostics.some((diagnostic) => diagnostic.code === 'corrupt_source'),
+			source,
+		);
+	}
 });
 
 test('detailed project reads retain settings and missing-source diagnostics', async (t) => {

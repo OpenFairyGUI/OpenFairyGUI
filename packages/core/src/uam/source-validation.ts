@@ -30,7 +30,8 @@ function validSvg(bytes: Uint8Array): boolean {
 		if (/<(?:a|animate|animatecolor|animatemotion|animatetransform|audio|canvas|discard|embed|feimage|foreignobject|iframe|image|object|script|set|style|video)(?:\s|>)/iu.test(source)) return false;
 		if (/\s(?:on[\w:-]*|style|src)\s*=/iu.test(source)) return false;
 		if (/\s(?:href|xlink:href)\s*=\s*['"](?!#[A-Za-z_][\w:.-]*['"])/iu.test(source)) return false;
-		return !/(?:https?:|file:|javascript:|data:|\/\/)|url\s*\(\s*(?!['"]?#[A-Za-z_])/iu.test(source);
+		const urlSource = source.replace(/\sxmlns\s*=\s*(['"])http:\/\/www\.w3\.org\/2000\/svg\1/giu, '');
+		return !/(?:https?:|file:|javascript:|data:|\/\/)|url\s*\(\s*(?!['"]?#[A-Za-z_])/iu.test(urlSource);
 	} catch {
 		return false;
 	}
