@@ -392,7 +392,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			kind: 'image',
 			...liftDisplayNodeBase(image),
 			group: image.getGroup(),
-			resource: { resourceId: image.getSrc() },
+			resource: { packageId: image.getPackageId(), resourceId: image.getSrc() },
 		};
 	}
 	if (

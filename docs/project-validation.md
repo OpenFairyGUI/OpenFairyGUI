@@ -13,6 +13,8 @@ OpenFairyGUI 的工程验证用于回答：当前工程能否被可靠读取、�
 
 验证不执行自动修复、风格 lint、发布设置预检、图集生成、二进制封包或运行时加载。需要确认发布产物时，仍应单独运行目标宿主的 publish 流程。
 
+SVG 源文件校验接受标准的 `xmlns="http://www.w3.org/2000/svg"` 命名空间声明，同时继续拒绝外部 `href`、`src`、非片段 `url(...)`、脚本 URL、事件属性、DTD/实体和主动内容元素。
+
 ## 报告契约
 
 `ProjectValidationReport` 包含：
