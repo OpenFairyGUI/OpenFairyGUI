@@ -7,7 +7,9 @@ import type {
 	UamControllerModel,
 	UamDisplayNode,
 	UamGearBinding,
+	UamImageProperties,
 	UamImageResourceProperties,
+	UamMovieClipProperties,
 	UamMovieClipResourceProperties,
 	UamPlainTextProperties,
 	UamProject,
@@ -163,6 +165,7 @@ const TEXT_PROPERTY_KEYS = [
 	'autoSize',
 	'singleLine',
 	'autoClearText',
+	'outlineSoftness',
 	'underlaySoftness',
 	'ubbEnabled',
 	'underline',
@@ -219,6 +222,8 @@ export function isValidUamTextProperties(
 			properties.bold,
 			properties.strikethrough,
 		].every((item) => typeof item === 'boolean')
+		&& typeof properties.outlineSoftness === 'number'
+		&& Number.isFinite(properties.outlineSoftness)
 		&& typeof properties.underlaySoftness === 'number'
 		&& Number.isFinite(properties.underlaySoftness)
 		&& typeof properties.strokeSize === 'number'
@@ -257,6 +262,7 @@ function textPropertiesFromNode(
 		autoSize: node.autoSize,
 		singleLine: node.singleLine,
 		autoClearText: node.autoClearText,
+		outlineSoftness: node.outlineSoftness,
 		underlaySoftness: node.underlaySoftness,
 		ubbEnabled: node.ubbEnabled,
 		underline: node.underline,
@@ -275,6 +281,43 @@ function textPropertiesFromNode(
 		templateVarsEnabled: node.templateVarsEnabled,
 		faceDilate: node.faceDilate,
 	};
+}
+
+const IMAGE_PROPERTY_KEYS = [
+	'color',
+	'flip',
+	'fillMethod',
+	'fillOrigin',
+	'fillClockwise',
+	'fillAmount',
+] as const satisfies readonly (keyof UamImageProperties)[];
+
+export function isValidUamImageProperties(value: unknown): value is UamImageProperties {
+	if (typeof value !== 'object' || value === null || !hasExactKeys(value, IMAGE_PROPERTY_KEYS)) return false;
+	const properties = value as UamImageProperties;
+	return isTextColor(properties.color)
+		&& Number.isInteger(properties.flip) && properties.flip >= 0 && properties.flip <= 3
+		&& Number.isInteger(properties.fillMethod) && properties.fillMethod >= 0 && properties.fillMethod <= 5
+		&& Number.isInteger(properties.fillOrigin) && properties.fillOrigin >= 0 && properties.fillOrigin <= 3
+		&& typeof properties.fillClockwise === 'boolean'
+		&& typeof properties.fillAmount === 'number' && Number.isFinite(properties.fillAmount)
+		&& (properties.fillMethod === 0
+			? properties.fillOrigin === 0 && properties.fillClockwise && properties.fillAmount === 100
+			: properties.fillAmount >= 0 && properties.fillAmount <= 1);
+}
+
+const MOVIE_CLIP_PROPERTY_KEYS = [
+	'playing',
+	'frame',
+	'color',
+] as const satisfies readonly (keyof UamMovieClipProperties)[];
+
+export function isValidUamMovieClipProperties(value: unknown): value is UamMovieClipProperties {
+	if (typeof value !== 'object' || value === null || !hasExactKeys(value, MOVIE_CLIP_PROPERTY_KEYS)) return false;
+	const properties = value as UamMovieClipProperties;
+	return typeof properties.playing === 'boolean'
+		&& Number.isInteger(properties.frame) && properties.frame >= 0
+		&& isTextColor(properties.color);
 }
 
 const COMPONENT_PROPERTY_KEYS = [
@@ -301,9 +344,15 @@ const COMPONENT_PROPERTY_KEYS = [
 	'designImageAlpha',
 	'designImageLayer',
 	'designImageOffset',
+	'designImage',
+	'designImageForTest',
+	'pageController',
+	'showSound',
+	'hideSound',
 	'idNum',
 	'initName',
 	'remark',
+	'customExtensionId',
 	'extensionType',
 	'opaque',
 	'buttonMode',
@@ -336,6 +385,8 @@ export function isValidUamComponentProperties(value: unknown): value is UamCompo
 		properties.bgColor,
 		properties.initName,
 		properties.remark,
+		properties.customExtensionId,
+		properties.pageController,
 		properties.extensionType,
 		properties.sound,
 		properties.dropdown,
@@ -346,6 +397,7 @@ export function isValidUamComponentProperties(value: unknown): value is UamCompo
 		properties.pivotAsAnchor,
 		properties.reversedMask,
 		properties.bgColorEnabled,
+		properties.designImageForTest,
 		properties.opaque,
 		properties.reverse,
 		properties.wholeNumbers,
@@ -358,8 +410,6 @@ export function isValidUamComponentProperties(value: unknown): value is UamCompo
 		properties.scrollType,
 		properties.scrollBarDisplay,
 		properties.scrollBarFlags,
-		properties.designImageAlpha,
-		properties.designImageLayer,
 		properties.idNum,
 		properties.buttonMode,
 		properties.soundVolumeScale,
@@ -377,6 +427,15 @@ export function isValidUamComponentProperties(value: unknown): value is UamCompo
 		&& strings.every((item) => typeof item === 'string')
 		&& booleans.every((item) => typeof item === 'boolean')
 		&& numbers.every((item) => typeof item === 'number' && Number.isFinite(item))
+		&& isUiResourceReference(properties.designImage)
+		&& isSoundReference(properties.showSound)
+		&& isSoundReference(properties.hideSound)
+		&& Number.isInteger(properties.designImageAlpha)
+		&& properties.designImageAlpha >= 0
+		&& properties.designImageAlpha <= 100
+		&& Number.isInteger(properties.designImageLayer)
+		&& properties.designImageLayer >= 0
+		&& properties.designImageLayer <= 1
 		&& Array.isArray(properties.customProperties)
 		&& properties.customProperties.every((property) => (
 			property
@@ -390,6 +449,17 @@ export function isValidUamComponentProperties(value: unknown): value is UamCompo
 
 function isNullableString(value: unknown): boolean {
 	return value === null || typeof value === 'string';
+}
+
+function isUiResourceReference(value: unknown): value is string {
+	return typeof value === 'string'
+		&& (value === '' || (value.startsWith('ui://') && value.length > 5 && !/\s/.test(value)));
+}
+
+const isSoundReference = isUiResourceReference;
+
+function isSoundVolume(value: unknown): value is number {
+	return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
 }
 
 export function isValidUamComponentInstanceProperties(
@@ -410,20 +480,32 @@ export function isValidUamComponentInstanceProperties(
 				].every((item) => typeof item === 'string')
 				&& finite(properties.titleFontSize)
 				&& typeof properties.checked === 'boolean'
-				&& finite(properties.soundVolumeScale);
+				&& isSoundReference(properties.sound)
+				&& isSoundVolume(properties.soundVolumeScale);
 		case 'Label':
 			return hasExactKeys(properties, [
 				'extensionType', 'title', 'icon', 'titleColor', 'titleFontSize', 'promptText',
+				'sound', 'soundVolumeScale',
 			])
-				&& [properties.title, properties.icon, properties.titleColor, properties.promptText]
+				&& [properties.title, properties.icon, properties.promptText]
 					.every((item) => typeof item === 'string')
-				&& finite(properties.titleFontSize);
+				&& (properties.titleColor === '' || isTextColor(properties.titleColor))
+				&& finite(properties.titleFontSize)
+				&& isSoundReference(properties.sound)
+				&& isSoundVolume(properties.soundVolumeScale);
 		case 'ComboBox':
 			return hasExactKeys(properties, [
-				'extensionType', 'title', 'icon', 'visibleItemCount', 'selectionController', 'autoClearItems', 'items',
+				'extensionType', 'title', 'icon', 'titleColor', 'popupDirection', 'sound', 'soundVolumeScale',
+				'visibleItemCount', 'selectionController', 'autoClearItems', 'items',
 			])
 				&& [properties.title, properties.icon, properties.selectionController]
 					.every((item) => typeof item === 'string')
+				&& (properties.titleColor === '' || isTextColor(properties.titleColor))
+				&& Number.isInteger(properties.popupDirection)
+				&& properties.popupDirection >= 0
+				&& properties.popupDirection <= 2
+				&& isSoundReference(properties.sound)
+				&& isSoundVolume(properties.soundVolumeScale)
 				&& finite(properties.visibleItemCount)
 				&& typeof properties.autoClearItems === 'boolean'
 				&& Array.isArray(properties.items)
@@ -436,6 +518,12 @@ export function isValidUamComponentInstanceProperties(
 					&& isNullableString(item.icon)
 				));
 		case 'ProgressBar':
+			return hasExactKeys(properties, [
+				'extensionType', 'value', 'max', 'min', 'sound', 'soundVolumeScale',
+			])
+				&& [properties.value, properties.max, properties.min].every(finite)
+				&& isSoundReference(properties.sound)
+				&& isSoundVolume(properties.soundVolumeScale);
 		case 'Slider':
 			return hasExactKeys(properties, ['extensionType', 'value', 'max', 'min'])
 				&& [properties.value, properties.max, properties.min].every(finite);
@@ -521,7 +609,7 @@ function isSafeRelativePath(value: string): boolean {
 }
 
 function assetFileName(resource: UamAssetResource): string {
-	return resource.fileName || (resource.kind === 'image' ? '' : resource.file) || resource.name;
+	return resource.fileName || ('file' in resource ? resource.file : '') || resource.name;
 }
 
 function validatePackageOutputTargets(
@@ -669,6 +757,9 @@ function validateDisplayNode(
 		pushIssue(issues, `${path}.propertyOverrides`, 'Component property overrides must contain a non-empty target, a non-negative integer propertyId, and a string value.');
 	}
 	if (node.kind === 'list' || node.kind === 'tree') {
+		if (!Number.isInteger(node.scrollBarDisplay) || node.scrollBarDisplay < 0 || node.scrollBarDisplay > 3) {
+			pushIssue(issues, `${path}.scrollBarDisplay`, 'List scrollBarDisplay must be an integer between 0 and 3.');
+		}
 		for (const [itemIndex, item] of node.listItems.entries()) {
 			if (item.propertyOverrides !== undefined
 				&& (!Array.isArray(item.propertyOverrides)
@@ -683,6 +774,23 @@ function validateDisplayNode(
 		&& !isValidUamTextProperties(textPropertiesFromNode(node), node.kind)
 	) {
 		pushIssue(issues, path, 'Text properties must be a complete valid snapshot matching the display node kind.');
+	}
+	if (node.kind === 'image' && !isValidUamImageProperties({
+		color: node.color,
+		flip: node.flip,
+		fillMethod: node.fillMethod,
+		fillOrigin: node.fillOrigin,
+		fillClockwise: node.fillClockwise,
+		fillAmount: node.fillAmount,
+	})) {
+		pushIssue(issues, path, 'Image properties must be a complete valid property snapshot.');
+	}
+	if (node.kind === 'movieClip' && !isValidUamMovieClipProperties({
+		playing: node.playing,
+		frame: node.frame,
+		color: node.color,
+	})) {
+		pushIssue(issues, path, 'MovieClip properties must be a complete valid property snapshot.');
 	}
 	if (node.kind === 'loader' || node.kind === 'loader3D') {
 		if ('group' in node) {
@@ -796,10 +904,33 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 					if (pageIds.has(page.id)) pushIssue(issues, `${pagePath}.id`, `Duplicate controller page id "${page.id}".`);
 					pageIds.add(page.id);
 				}
+				if (typeof controller.autoRadioGroupDepth !== 'boolean') {
+					pushIssue(issues, `${controllerPath}.autoRadioGroupDepth`, 'Controller autoRadioGroupDepth must be boolean.');
+				}
+				if (typeof controller.alias !== 'string') pushIssue(issues, `${controllerPath}.alias`, 'Controller alias must be a string.');
+				if (typeof controller.exported !== 'boolean') pushIssue(issues, `${controllerPath}.exported`, 'Controller exported must be boolean.');
+				if (!['default', 'specific', 'branch', 'variable'].includes(controller.homePageType)) {
+					pushIssue(issues, `${controllerPath}.homePageType`, `Unknown controller home page type "${controller.homePageType}".`);
+				} else if (typeof controller.homePage !== 'string') {
+					pushIssue(issues, `${controllerPath}.homePage`, 'Controller homePage must be a string.');
+				} else if (controller.homePageType === 'specific' && !pageIds.has(controller.homePage)) {
+					pushIssue(issues, `${controllerPath}.homePage`, `Unknown controller home page id "${controller.homePage}".`);
+				} else if (controller.homePageType === 'variable' && !controller.homePage) {
+					pushIssue(issues, `${controllerPath}.homePage`, 'Variable controller home page requires a custom property key.');
+				} else if ((controller.homePageType === 'default' || controller.homePageType === 'branch') && controller.homePage) {
+					pushIssue(issues, `${controllerPath}.homePage`, `Controller home page must be empty for "${controller.homePageType}".`);
+				}
 
 				for (const [actionIndex, action] of controller.actions.entries()) {
 					validateControllerAction(action, pageIds, childIds, `${controllerPath}.actions[${actionIndex}]`, issues);
 				}
+			}
+			if (component.properties.pageController && !controllerMap.has(component.properties.pageController)) {
+				pushIssue(
+					issues,
+					`${resourcePath}.component.properties.pageController`,
+					`Unknown page controller "${component.properties.pageController}".`,
+				);
 			}
 
 			for (const [childIndex, child] of component.displayList.entries()) {

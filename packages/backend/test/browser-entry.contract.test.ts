@@ -68,14 +68,15 @@ test('workspace package dependencies resolve to semver for published metadata', 
 				if (dependencyVersion.startsWith('workspace:')) {
 					t.regex(publishedVersion, SEMVER_SPEC, `${manifestPath} ${dependencyName} resolves to ${publishedVersion}`);
 				}
-				if (workspaceVersions.has(dependencyName)) {
+				const workspaceVersion = workspaceVersions.get(dependencyName);
+				if (workspaceVersion !== undefined) {
 					t.true(
 						dependencyVersion.startsWith('workspace:'),
 						`${manifestPath} ${field}.${dependencyName} must use workspace protocol instead of a fixed internal version.`,
 					);
 					t.is(
 						publishedVersion,
-						workspaceVersions.get(dependencyName),
+						workspaceVersion,
 						`${manifestPath} ${field}.${dependencyName} must publish as the current workspace package version.`,
 					);
 				}

@@ -151,12 +151,18 @@ function normalizeComponentInstanceProperties(
 				titleColor: properties.titleColor ?? '',
 				titleFontSize: properties.titleFontSize ?? 0,
 				promptText: properties.promptText ?? '',
+				sound: properties.sound ?? '',
+				soundVolumeScale: properties.soundVolumeScale ?? 1,
 			};
 		case 'ComboBox':
 			return {
 				extensionType: 'ComboBox',
 				title: properties.title ?? '',
 				icon: properties.icon ?? '',
+				titleColor: properties.titleColor ?? '',
+				popupDirection: properties.popupDirection ?? 0,
+				sound: properties.sound ?? '',
+				soundVolumeScale: properties.soundVolumeScale ?? 1,
 				visibleItemCount: properties.visibleItemCount ?? 0,
 				selectionController: properties.selectionController ?? '',
 				autoClearItems: properties.autoClearItems ?? false,
@@ -167,9 +173,17 @@ function normalizeComponentInstanceProperties(
 				})),
 			};
 		case 'ProgressBar':
+			return {
+				extensionType: 'ProgressBar',
+				value: properties.value ?? 0,
+				max: properties.max ?? 0,
+				min: properties.min ?? 0,
+				sound: properties.sound ?? '',
+				soundVolumeScale: properties.soundVolumeScale ?? 1,
+			};
 		case 'Slider':
 			return {
-				extensionType: properties.extensionType,
+				extensionType: 'Slider',
 				value: properties.value ?? 0,
 				max: properties.max ?? 0,
 				min: properties.min ?? 0,
@@ -201,12 +215,18 @@ export function createDefaultUamComponentProperties(): UamComponentProperties {
 		footerRes: '',
 		bgColor: '',
 		bgColorEnabled: false,
-		designImageAlpha: 0,
+		designImageAlpha: 50,
 		designImageLayer: 0,
 		designImageOffset: { x: 0, y: 0 },
+		designImage: '',
+		designImageForTest: false,
+		pageController: '',
+		showSound: '',
+		hideSound: '',
 		idNum: 0,
 		initName: '',
 		remark: '',
+		customExtensionId: '',
 		extensionType: '',
 		opaque: true,
 		buttonMode: 0,
@@ -255,12 +275,18 @@ function normalizeComponentProperties(properties: UamComponentProperties): UamCo
 		footerRes: properties.footerRes ?? '',
 		bgColor: properties.bgColor ?? '',
 		bgColorEnabled: properties.bgColorEnabled ?? false,
-		designImageAlpha: properties.designImageAlpha ?? 0,
+		designImageAlpha: properties.designImageAlpha ?? 50,
 		designImageLayer: properties.designImageLayer ?? 0,
 		designImageOffset: normalizePoint(properties.designImageOffset),
+		designImage: properties.designImage ?? '',
+		designImageForTest: properties.designImageForTest ?? false,
+		pageController: properties.pageController ?? '',
+		showSound: properties.showSound ?? '',
+		hideSound: properties.hideSound ?? '',
 		idNum: properties.idNum ?? 0,
 		initName: properties.initName ?? '',
 		remark: properties.remark ?? '',
+		customExtensionId: properties.customExtensionId ?? '',
 		extensionType: properties.extensionType ?? '',
 		opaque: properties.opaque ?? true,
 		buttonMode: properties.buttonMode ?? 0,
@@ -525,6 +551,7 @@ export function createDefaultUamTextProperties(): UamTextProperties {
 		autoSize: 1,
 		singleLine: false,
 		autoClearText: false,
+		outlineSoftness: 0,
 		underlaySoftness: 0,
 		ubbEnabled: false,
 		underline: false,
@@ -566,6 +593,7 @@ function normalizeTextProperties(properties: UamTextProperties): UamTextProperti
 		autoSize: properties.autoSize,
 		singleLine: properties.singleLine,
 		autoClearText: properties.autoClearText,
+		outlineSoftness: properties.outlineSoftness,
 		underlaySoftness: properties.underlaySoftness,
 		ubbEnabled: properties.ubbEnabled,
 		underline: properties.underline,
@@ -632,6 +660,12 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				...base,
 				group: node.group ?? '',
 				resource: normalizeResourceRef(node.resource),
+				color: node.color ?? '#FFFFFF',
+				flip: node.flip ?? 0,
+				fillMethod: node.fillMethod ?? 0,
+				fillOrigin: node.fillOrigin ?? 0,
+				fillClockwise: node.fillClockwise ?? true,
+				fillAmount: node.fillAmount ?? 100,
 			} satisfies UamImageNode;
 		case 'text':
 			return {
@@ -695,6 +729,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				src: list.src ?? '',
 				overflow: list.overflow ?? 0,
 				scrollType: list.scrollType ?? 1,
+				scrollBarDisplay: list.scrollBarDisplay ?? 0,
 				scrollBarFlags: list.scrollBarFlags ?? 0,
 				scrollBarMargin: normalizeEdgeInsets(list.scrollBarMargin),
 				vtScrollBarRes: list.vtScrollBarRes ?? '',
@@ -768,6 +803,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				shrinkOnly: loader.shrinkOnly ?? false,
 				autoSize: loader.autoSize ?? false,
 				useResize: loader.useResize ?? false,
+				showErrorSign: loader.showErrorSign ?? false,
 				align: loader.align ?? 0,
 				vAlign: loader.vAlign ?? 0,
 				frame: loader.frame ?? 0,
@@ -922,6 +958,7 @@ function normalizeControllerPage(page: UamControllerPage): UamControllerPage {
 	return {
 		id: page.id,
 		name: page.name ?? '',
+		remark: page.remark ?? '',
 	};
 }
 
@@ -942,10 +979,15 @@ function normalizeControllerAction(action: UamControllerAction): UamControllerAc
 }
 
 function normalizeControllerModel(controller: UamControllerModel): UamControllerModel {
+	const homePageType = controller.homePageType ?? 'default';
 	return {
 		name: controller.name,
 		selectedIndex: controller.selectedIndex ?? 0,
 		autoRadioGroupDepth: controller.autoRadioGroupDepth ?? false,
+		alias: controller.alias ?? '',
+		exported: controller.exported ?? false,
+		homePageType,
+		homePage: homePageType === 'specific' || homePageType === 'variable' ? controller.homePage ?? '' : '',
 		pages: (controller.pages ?? []).map(normalizeControllerPage),
 		actions: (controller.actions ?? []).map(normalizeControllerAction),
 	};

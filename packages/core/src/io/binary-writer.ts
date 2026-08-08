@@ -20,6 +20,7 @@ const BinItemType = {
 	Component: 3,
 	Atlas: 4,
 	Font: 5,
+	Swf: 6,
 	Misc: 7,
 	Unknown: 8,
 	Spine: 9,
@@ -38,6 +39,7 @@ const EDITOR_TYPE_STRING: Record<string, string> = {
 	SoundResource: 'sound',
 	Component: 'component',
 	FontResource: 'font',
+	SwfResource: 'swf',
 	SpineResource: 'spine',
 	DragonBonesResource: 'dragonbones',
 };
@@ -382,7 +384,7 @@ export class BinaryWriter {
 						data.writeInt32(grid[1]);
 						data.writeInt32(grid[2]);
 						data.writeInt32(grid[3]);
-						data.writeInt32(0); // tileGridIndice
+						data.writeInt32(res.getTileGridIndice());
 					}
 					data.writeBool(res.getSmoothing());
 					break;
@@ -429,6 +431,17 @@ export class BinaryWriter {
 				}
 				case 'MiscResource': {
 					data.writeUint8(BinItemType.Misc);
+					data.writeS(getPublishedItemId(res));
+					data.writeS(res.getName());
+					data.writeS(res.getPath());
+					data.writeS(getPublishedFileName(res));
+					data.writeBool(res.getExported());
+					data.writeInt32(0);
+					data.writeInt32(0);
+					break;
+				}
+				case 'SwfResource': {
+					data.writeUint8(BinItemType.Swf);
 					data.writeS(getPublishedItemId(res));
 					data.writeS(res.getName());
 					data.writeS(res.getPath());
@@ -601,13 +614,20 @@ export class BinaryWriter {
 				// - trimmed sprites keep offset + original size
 				// - fully transparent direct-output package items keep a 0x0 rect with original size
 				// - generated movieclip frame sprites only emit this payload when they carry trim offsets
-				const hasOriginal = (isPackageItemSprite && sp.rotated) || ox !== 0 || oy !== 0 || isZeroSizedDirectOutput;
+				const originalWidth = ow || (sp.rotated ? sp.h : sp.w);
+				const originalHeight = oh || (sp.rotated ? sp.w : sp.h);
+				const hasOriginal = (isPackageItemSprite && sp.rotated)
+					|| ox !== 0
+					|| oy !== 0
+					|| originalWidth !== (sp.rotated ? sp.h : sp.w)
+					|| originalHeight !== (sp.rotated ? sp.w : sp.h)
+					|| isZeroSizedDirectOutput;
 				data.writeBool(hasOriginal);
 				if (hasOriginal) {
 					data.writeInt32(ox);
 					data.writeInt32(oy);
-					data.writeInt32(ow || (sp.rotated ? sp.h : sp.w));
-					data.writeInt32(oh || (sp.rotated ? sp.w : sp.h));
+					data.writeInt32(originalWidth);
+					data.writeInt32(originalHeight);
 				}
 			}
 

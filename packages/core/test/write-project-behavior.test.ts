@@ -200,6 +200,9 @@ test('round-trip: component extension definition and instance extension attrs su
 	buttonDef.setSoundVolumeScale(0.6);
 	buttonDef.setDownEffect(1);
 	buttonDef.setDownEffectValue(0.75);
+	const transition = doc.createTransition('pulse');
+	transition.setFps(30);
+	buttonDef.addTransition(transition);
 	pkg.addResource(buttonDef);
 
 	const host = doc.createComponent('Host');
@@ -231,6 +234,8 @@ test('round-trip: component extension definition and instance extension attrs su
 	child.setInstanceController('state');
 	child.setInstancePage('1');
 	child.setInstanceChecked(true);
+	child.setInstanceSound('ui://pkg005/click');
+	child.setInstanceSoundVolumeScale(0.45);
 
 	const comboDef = doc.createComponent('ExtendedCombo');
 	comboDef.setId('cmpCombo');
@@ -253,6 +258,10 @@ test('round-trip: component extension definition and instance extension attrs su
 	comboChild.setInstanceExtType('ComboBox');
 	comboChild.setInstanceTitle('选项A');
 	comboChild.setInstanceIcon('ui://pkg005/iconA');
+	comboChild.setInstanceTitleColor('#336699');
+	comboChild.setInstancePopupDirection(2);
+	comboChild.setInstanceSound('ui://pkg005/combo-click');
+	comboChild.setInstanceSoundVolumeScale(0.55);
 	comboChild.setInstanceSelectionController('qualityOption');
 	comboChild.setInstanceVisibleItemCount(6);
 	comboChild.setInstanceComboItems([
@@ -265,6 +274,17 @@ test('round-trip: component extension definition and instance extension attrs su
 	labelChild.setSrc('cmpLabel');
 	labelChild.setInstanceExtType('Label');
 	labelChild.setInstancePromptText('[color=#959595]查找...[/color]');
+	labelChild.setInstanceSound('ui://pkg005/label-click');
+	labelChild.setInstanceSoundVolumeScale(0.65);
+
+	const progressChild = doc.createGComponent('progress-inst');
+	progressChild.setId('n4');
+	progressChild.setInstanceExtType('ProgressBar');
+	progressChild.setInstanceValue(25);
+	progressChild.setInstanceMax(50);
+	progressChild.setInstanceMin(5);
+	progressChild.setInstanceSound('ui://pkg005/progress-click');
+	progressChild.setInstanceSoundVolumeScale(0.75);
 
 	const listChild = doc.createGList('list-inst');
 	listChild.setId('n2');
@@ -276,6 +296,7 @@ test('round-trip: component extension definition and instance extension attrs su
 	host.addChild(comboChild);
 	host.addChild(listChild);
 	host.addChild(labelChild);
+	host.addChild(progressChild);
 	pkg.addResource(host);
 
 	const io = new NodeIO();
@@ -292,8 +313,11 @@ test('round-trip: component extension definition and instance extension attrs su
 		t.true(buttonDefXml.includes('<Button'), 'button definition writes Button extension node');
 		t.true(buttonDefXml.includes('mode="Radio"'), 'button definition writes canonical mode attr');
 		t.true(buttonDefXml.includes('sound="ui://pkg005/click"'), 'button definition writes canonical sound attr');
-		t.true(buttonDefXml.includes('downEffect="1"'), 'button definition writes canonical downEffect attr');
+		t.true(buttonDefXml.includes('volume="60"'), 'button definition writes canonical percent volume attr');
+		t.true(buttonDefXml.includes('downEffect="dark"'), 'button definition writes canonical downEffect enum');
 		t.true(buttonDefXml.includes('downEffectValue="0.75"'), 'button definition writes explicit downEffectValue when downEffect is enabled');
+		t.true(buttonDefXml.includes('<transition name="pulse" frameRate="30"'), 'transition writes canonical frameRate attr');
+		t.false(buttonDefXml.includes(' fps='), 'transition does not write the model field name');
 		t.true(comboDefXml.includes('<ComboBox'), 'combo definition writes ComboBox extension node');
 		t.true(comboDefXml.includes('dropdown="ui://pkg005/dropdown"'), 'combo definition writes canonical dropdown attr');
 		t.true(comboDefXml.includes('selectionController="qualityOption"'), 'combo definition writes canonical selectionController attr');
@@ -309,12 +333,16 @@ test('round-trip: component extension definition and instance extension attrs su
 		t.true(hostXml.includes('titleFontSize="24"'), 'button instance writes canonical titleFontSize attr');
 		t.true(hostXml.includes('page="1"'), 'button instance writes canonical page attr');
 		t.true(hostXml.includes('checked="1"'), 'button instance writes canonical checked attr');
+		t.regex(hostXml, /<Button\b[^>]*sound="ui:\/\/pkg005\/click"[^>]*volume="45"/, 'button instance writes canonical sound and percent volume attrs');
 		t.regex(hostXml, /<Button\b[^>]*title="点我"[^>]*\/>/, 'button instance without children writes a self-closing overlay node');
 		t.true(hostXml.includes('<ComboBox '), 'combo instance writes ComboBox overlay node');
 		t.true(hostXml.includes('selectionController="qualityOption"'), 'combo instance writes canonical selectionController attr');
 		t.true(hostXml.includes('visibleItemCount="6"'), 'combo instance writes canonical visibleItemCount attr');
+		t.regex(hostXml, /<ComboBox\b[^>]*titleColor="#336699"[^>]*direction="down"[^>]*sound="ui:\/\/pkg005\/combo-click"[^>]*volume="55"/, 'combo instance writes all desktop overlay attrs');
 		t.regex(hostXml, /<item\b[^>]*title="A"[^>]*value="1"[^>]*icon="ui:\/\/pkg005\/a"[^>]*\/>/, 'combo instance item writes canonical item attrs');
-		t.true(hostXml.includes('<Label prompt="[color=#959595]查找...[/color]"'), 'label instance writes canonical prompt attr');
+		t.regex(hostXml, /<Label\b[^>]*prompt="\[color=#959595\]查找\.\.\.\[\/color\]"/, 'label instance writes canonical prompt attr');
+		t.regex(hostXml, /<Label\b[^>]*sound="ui:\/\/pkg005\/label-click"[^>]*volume="65"/, 'label instance writes canonical sound attrs');
+		t.regex(hostXml, /<ProgressBar\b[^>]*sound="ui:\/\/pkg005\/progress-click"[^>]*volume="75"/, 'progress instance writes canonical sound attrs');
 
 		const doc2 = await io.readProject(outFairy);
 		const pkg2 = doc2.getRoot().getPackage('Demo5');
@@ -328,6 +356,7 @@ test('round-trip: component extension definition and instance extension attrs su
 		t.is(buttonDef2!.getSoundVolumeScale(), 0.6);
 		t.is(buttonDef2!.getDownEffect(), 1);
 		t.is(buttonDef2!.getDownEffectValue(), 0.75);
+		t.is(buttonDef2!.listTransitions()[0]?.getFps(), 30);
 
 		const comboDef2 = pkg2!.listComponents().find((item) => item.getName() === 'ExtendedCombo');
 		t.truthy(comboDef2, 'ExtendedCombo exists');
@@ -357,12 +386,18 @@ test('round-trip: component extension definition and instance extension attrs su
 		t.is(child2.getInstanceController(), 'state');
 		t.is(child2.getInstancePage(), '1');
 		t.true(child2.getInstanceChecked());
+		t.is(child2.getInstanceSound(), 'ui://pkg005/click');
+		t.is(child2.getInstanceSoundVolumeScale(), 0.45);
 
 		const comboChild2 = host2!.listChildren().find((item) => item.getId() === 'n1') as ReturnType<Document['createGComponent']>;
 		t.truthy(comboChild2, 'combo instance exists');
 		t.is(comboChild2.getInstanceExtType(), 'ComboBox');
 		t.is(comboChild2.getInstanceTitle(), '选项A');
 		t.is(comboChild2.getInstanceIcon(), 'ui://pkg005/iconA');
+		t.is(comboChild2.getInstanceTitleColor(), '#336699');
+		t.is(comboChild2.getInstancePopupDirection(), 2);
+		t.is(comboChild2.getInstanceSound(), 'ui://pkg005/combo-click');
+		t.is(comboChild2.getInstanceSoundVolumeScale(), 0.55);
 		t.is(comboChild2.getInstanceSelectionController(), 'qualityOption');
 		t.is(comboChild2.getInstanceVisibleItemCount(), 6);
 		t.deepEqual(comboChild2.getInstanceComboItems(), [
@@ -374,6 +409,17 @@ test('round-trip: component extension definition and instance extension attrs su
 		t.truthy(labelChild2, 'label instance exists');
 		t.is(labelChild2.getInstanceExtType(), 'Label');
 		t.is(labelChild2.getInstancePromptText(), '[color=#959595]查找...[/color]');
+		t.is(labelChild2.getInstanceSound(), 'ui://pkg005/label-click');
+		t.is(labelChild2.getInstanceSoundVolumeScale(), 0.65);
+
+		const progressChild2 = host2!.listChildren().find((item) => item.getId() === 'n4') as ReturnType<Document['createGComponent']>;
+		t.truthy(progressChild2, 'progress instance exists');
+		t.is(progressChild2.getInstanceExtType(), 'ProgressBar');
+		t.is(progressChild2.getInstanceValue(), 25);
+		t.is(progressChild2.getInstanceMax(), 50);
+		t.is(progressChild2.getInstanceMin(), 5);
+		t.is(progressChild2.getInstanceSound(), 'ui://pkg005/progress-click');
+		t.is(progressChild2.getInstanceSoundVolumeScale(), 0.75);
 
 		const listChild2 = host2!.listChildren().find((item) => item.getId() === 'n2') as ReturnType<Document['createGList']>;
 		t.truthy(listChild2, 'list instance exists');

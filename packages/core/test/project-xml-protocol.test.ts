@@ -622,7 +622,7 @@ test('project XML protocol children maps stay explicit and stable', (t) => {
 		'relation',
 	]);
 	t.deepEqual(collectChildNames('listItem'), ['property']);
-	t.deepEqual(collectChildNames('controller'), ['action']);
+	t.deepEqual(collectChildNames('controller'), ['action', 'remark']);
 	t.deepEqual(collectChildNames('transition'), ['item']);
 	t.deepEqual(collectChildNames('comboBoxExtension'), ['item']);
 	t.deepEqual(collectChildNames('buttonExtension'), []);

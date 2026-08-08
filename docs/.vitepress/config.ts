@@ -1,9 +1,10 @@
 import { defineConfig } from 'vitepress';
+import { withMermaid } from 'vitepress-plugin-mermaid';
 
 const base = process.env.VITEPRESS_BASE ?? '/';
 const siteUrl = process.env.VITEPRESS_SITE_URL?.replace(/\/$/, '');
 
-export default defineConfig({
+export default withMermaid(defineConfig({
 	base,
 	title: 'OpenFairyGUI',
 	locales: {
@@ -104,4 +105,7 @@ export default defineConfig({
 			copyright: 'OpenFairyGUI Contributors',
 		},
 	},
-});
+	mermaid: {
+		securityLevel: 'strict',
+	},
+}));

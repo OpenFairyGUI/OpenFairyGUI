@@ -68,6 +68,7 @@ export function isUamNativeOperation(operation: UamTransactionOperation): boolea
 		|| operation.kind === 'setDisplayNodeProps'
 		|| operation.kind === 'setResourceFavorite'
 		|| operation.kind === 'setResourceFolderFavorite'
+		|| operation.kind === 'setResourceFolderAtlas'
 		|| operation.kind === 'setResourceExported'
 		|| operation.kind === 'setImageResourceProps'
 		|| isResourceFolderLifecycleOperation(operation)
@@ -200,10 +201,10 @@ export function findProjectedResource(
 			}
 			continue;
 		}
-		if (!('selector' in operation) || operation.selector.packageId !== selector.packageId) continue;
+		if (!('selector' in operation) || !('packageId' in operation.selector) || operation.selector.packageId !== selector.packageId) continue;
 		if ('resourceId' in operation.selector && operation.selector.resourceId === selector.resourceId) {
 			if (operation.kind === 'removeResource') resource = null;
-			if (operation.kind === 'replaceResourceBytes' && resource?.kind !== 'component') {
+			if (operation.kind === 'replaceResourceBytes' && resource && resource.kind !== 'component') {
 				resource = { ...resource, sourceBytes: operation.sourceBytes };
 			}
 			if (operation.kind === 'setImageResourceProps' && resource?.kind === 'image') {

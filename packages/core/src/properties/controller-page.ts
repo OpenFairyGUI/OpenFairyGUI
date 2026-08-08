@@ -3,6 +3,7 @@ import { type IProperty, Property } from './property.js';
 
 interface IControllerPage extends IProperty {
 	id: string;
+	remark: string;
 }
 
 /**
@@ -19,9 +20,13 @@ export class ControllerPage extends Property<IControllerPage> {
 	protected getDefaults(): Nullable<IControllerPage> {
 		return Object.assign(super.getDefaults(), {
 			id: '',
+			remark: '',
 		});
 	}
 
 	public getId(): string { return this.get('id'); }
 	public setId(id: string): this { return this.set('id', id); }
+
+	public getRemark(): string { return this.get('remark'); }
+	public setRemark(remark: string): this { return this.set('remark', remark); }
 }

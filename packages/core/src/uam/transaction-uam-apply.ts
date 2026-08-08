@@ -33,7 +33,7 @@ import {
 
 function clonePackageSnapshot(project: UamProject, pkg: UamPackage): UamPackage {
 	const cloned = normalizeUamProject({ ...project, packages: [pkg] }).packages[0]!;
-	for (const resource of cloned.resources) canonicalizeMovieClipSnapshot(resource);
+	for (const resource of cloned.resources) if (resource.kind !== 'component') canonicalizeMovieClipSnapshot(resource);
 	return cloned;
 }
 
@@ -351,6 +351,18 @@ export function applyDisplayNodePropsUpdate(node: UamDisplayNode, props: UamDisp
 		}
 		Object.assign(node, structuredClone(props.groupProperties));
 	}
+	if (props.imageProperties !== undefined) {
+		if (node.kind !== 'image') {
+			throw new Error(`Image display props are not supported on display node kind "${node.kind}".`);
+		}
+		Object.assign(node, structuredClone(props.imageProperties));
+	}
+	if (props.movieClipProperties !== undefined) {
+		if (node.kind !== 'movieClip') {
+			throw new Error(`MovieClip display props are not supported on display node kind "${node.kind}".`);
+		}
+		Object.assign(node, structuredClone(props.movieClipProperties));
+	}
 	if (props.loaderProperties !== undefined) {
 		if (node.kind !== 'loader') {
 			throw new Error(`Loader display props are not supported on display node kind "${node.kind}".`);
@@ -439,6 +451,18 @@ function applyUamNativeOperation(project: UamProject, operation: UamTransactionO
 				throw new Error(`Resource folder "${branch}:${operation.selector.path}" was not found in package "${pkg.id}".`);
 			}
 			folder.favorite = operation.favorite;
+			return;
+		}
+		case 'setResourceFolderAtlas': {
+			const pkg = requirePackageSpec(project, operation.selector.packageId);
+			const branch = operation.selector.branch ?? '';
+			const folder = pkg.folders.find((candidate) => (
+				candidate.branch === branch && candidate.path === operation.selector.path
+			));
+			if (!folder) {
+				throw new Error(`Resource folder "${branch}:${operation.selector.path}" was not found in package "${pkg.id}".`);
+			}
+			folder.atlas = operation.atlas;
 			return;
 		}
 		case 'setResourceExported': {

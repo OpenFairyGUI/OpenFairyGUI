@@ -3,8 +3,10 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import { Document } from '@openfairygui/core';
-import sharp from 'sharp';
-import { publish } from '../src/index.js';
+import sharpImplementation from 'sharp';
+import { publish, type AtlasRasterBackend } from '../src/index.js';
+
+const sharp = sharpImplementation as typeof sharpImplementation & AtlasRasterBackend;
 
 function createFs() {
 	return {
@@ -193,7 +195,7 @@ test('publish: non-Unity project keeps spine sidecar file names unchanged', asyn
 			basePath,
 		}));
 
-		for (const file of ['Loader.bin', 'alien-pma.atlas', 'alien-pro.skel', 'alien-pma.png']) {
+		for (const file of ['Loader.bin', 'Loader_misc001.atlas', 'alien-pro.skel', 'alien-pma.png']) {
 			const stat = await fs.stat(path.join(tmpDir, file)).catch(() => null);
 			t.truthy(stat, `${file} was exported`);
 		}
@@ -205,7 +207,7 @@ test('publish: non-Unity project keeps spine sidecar file names unchanged', asyn
 		const bytes = await fs.readFile(path.join(tmpDir, 'Loader.bin'));
 		const byId = new Map(parsePackageBinary(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)).map((item) => [item.id, item]));
 		t.is(byId.get('spine001')?.file, 'alien-pro.skel', 'spine item keeps original skeleton file name');
-		t.is(byId.get('misc001')?.file, 'alien-pma.atlas', 'misc atlas dependency keeps its original file name');
+		t.is(byId.get('misc001')?.file, 'misc001.atlas', 'misc atlas dependency uses its runtime item id');
 		t.true(byId.has('img001'), 'spine texture image dependency is written as a package item');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });

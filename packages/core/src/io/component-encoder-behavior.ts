@@ -2,6 +2,7 @@ import { ControllerActionType, } from '../constants.js';
 import type { Component } from '../properties/component.js';
 import type { Package } from '../properties/package.js';
 import type {
+	MarginLike,
 	RelationOwner,
 } from './component-encoder-shared.js';
 import {
@@ -116,7 +117,32 @@ export function _writeControllers(buf: WriteBuffer, comp: Component): void {
 			buf.writeSEx(page.getName?.() ?? '', false, false); // cache, empty≠null
 		}
 		// v2: homePageType
-		buf.writeUint8(0); // default
+		switch (ctrl.getHomePageType()) {
+			case 'default':
+				buf.writeUint8(0);
+				break;
+			case 'specific': {
+				const homePageIndex = pages.findIndex((page) => page.getId() === ctrl.getHomePage());
+				if (homePageIndex < 0) {
+					throw new Error(`Controller "${ctrl.getName()}" references unknown home page id "${ctrl.getHomePage()}".`);
+				}
+				buf.writeUint8(1);
+				buf.writeInt16(homePageIndex);
+				break;
+			}
+			case 'branch':
+				buf.writeUint8(2);
+				break;
+			case 'variable':
+				if (!ctrl.getHomePage()) {
+					throw new Error(`Controller "${ctrl.getName()}" requires a custom property key.`);
+				}
+				buf.writeUint8(3);
+				buf.writeS(ctrl.getHomePage());
+				break;
+			default:
+				throw new Error(`Controller "${ctrl.getName()}" has unsupported home page type.`);
+		}
 
 		// Controller Block 2: actions
 		const cb2 = buf.pos - ctrlIndexPos;

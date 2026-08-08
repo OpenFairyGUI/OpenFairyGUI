@@ -1,5 +1,6 @@
 import type { RelationDef } from '../constants.js';
 import type { Component } from '../properties/component.js';
+import type { GComponentPropertyOverride } from '../properties/g-component.js';
 import type { Package } from '../properties/package.js';
 
 export type ChildNode = ReturnType<Component['listChildren']>[number];
@@ -73,11 +74,13 @@ export type EncoderChildLike = ChildNode & {
 	getAutoSizeDisabled?(): boolean;
 	getMainGridIndex?(): number;
 	getUrl?(): string;
+	getClearOnPublish?(): boolean;
 	getFill?(): number;
 	getShrinkOnly?(): boolean;
 	getPlaying?(): boolean;
 	getFrame?(): number;
 	getUseResize?(): boolean;
+	getShowErrorSign?(): boolean;
 	getAnimationName?(): string;
 	getSkinName?(): string;
 	getLoop?(): boolean;
@@ -95,6 +98,10 @@ export type EncoderChildLike = ChildNode & {
 	getScrollItemToViewOnClick?(): boolean;
 	getFoldInvisibleItems?(): boolean;
 	getText?(): string;
+	getAutoClearText?(): boolean;
+	getFaceDilate?(): number;
+	getOutlineSoftness?(): number;
+	getUnderlaySoftness?(): number;
 	getTitle?(): string;
 	getSelectedTitle?(): string;
 	getIcon?(): string;
@@ -114,6 +121,7 @@ export type EncoderChildLike = ChildNode & {
 	getMin?(): number;
 	getDefaultItem?(): string;
 	getListItems?(): ListItemLike[];
+	getAutoClearItems?(): boolean;
 	getIndent?(): number;
 	getClickToExpand?(): number;
 	getPromptText?(): string;
@@ -123,6 +131,7 @@ export type EncoderChildLike = ChildNode & {
 	getKeyboardType?(): number;
 	getPassword?(): boolean;
 	getScrollType?(): number;
+	getScrollBarDisplay?(): number;
 	getScrollBarFlags?(): number;
 	getScrollBarMargin?(): EdgeInsetsLike | null;
 	getVtScrollBarRes?(): string;
@@ -131,6 +140,7 @@ export type EncoderChildLike = ChildNode & {
 	getFooterRes?(): string;
 	getPageController?(): string;
 	getControllerOverrides?(): string;
+	getPropertyOverrides?(): GComponentPropertyOverride[];
 	getInstanceExtType?(): string;
 	getInstanceTitle?(): string;
 	getInstanceSelectedTitle?(): string;
@@ -143,11 +153,13 @@ export type EncoderChildLike = ChildNode & {
 	getInstanceChecked?(): boolean;
 	getInstanceSound?(): string;
 	getInstanceSoundVolumeScale?(): number;
+	getInstancePopupDirection?(): number;
 	getInstanceVisibleItemCount?(): number;
 	getInstanceValue?(): number;
 	getInstanceMax?(): number;
 	getInstanceMin?(): number;
 	getInstanceComboItems?(): ComboItemLike[];
+	getInstanceAutoClearItems?(): boolean;
 	getSelectionController?(): string;
 	getCustomData?(): string;
 	getTooltips?(): string;
@@ -202,6 +214,7 @@ export interface ListItemLike {
 	level?: number;
 	isFolder?: boolean | null;
 	controllers?: string | null;
+	propertyOverrides?: GComponentPropertyOverride[];
 }
 
 export interface ChildEncoderExtras extends Record<string, unknown> {

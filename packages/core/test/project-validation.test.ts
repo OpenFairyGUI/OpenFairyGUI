@@ -25,7 +25,9 @@ test('project validation reports portable path collisions and dangling reference
 	});
 	const component = pkg.resources[1]!;
 	if (component.kind !== 'component') throw new Error('Expected component fixture');
-	component.component.displayList[0]!.resource = { resourceId: 'missing' };
+	const displayNode = component.component.displayList[0]!;
+	if (displayNode.kind !== 'image') throw new Error('Expected image display fixture');
+	displayNode.resource = { resourceId: 'missing' };
 
 	const diagnostics = validateUamProject(project);
 	t.true(diagnostics.some((diagnostic) => diagnostic.code === 'path_collision'));

@@ -766,6 +766,7 @@ export class ProjectWriter {
 			SoundResource: 'sound',
 			FontResource: 'font',
 			MovieClipResource: 'movieclip',
+			SwfResource: 'swf',
 			SpineResource: 'spine',
 			DragonBonesResource: 'dragonbones',
 		};
@@ -780,7 +781,13 @@ export class ProjectWriter {
 			const fileName = (res as WritableImageResource).getFileName?.() ?? '';
 			if (fileName) return fileName;
 		}
-		if (type === 'SoundResource' || type === 'MiscResource' || type === 'SpineResource' || type === 'DragonBonesResource') {
+		if (
+			type === 'SoundResource' ||
+			type === 'MiscResource' ||
+			type === 'SwfResource' ||
+			type === 'SpineResource' ||
+			type === 'DragonBonesResource'
+		) {
 			const fileName = (res as WritableFileResource).getFile?.() ?? '';
 			if (fileName) return fileName;
 		}

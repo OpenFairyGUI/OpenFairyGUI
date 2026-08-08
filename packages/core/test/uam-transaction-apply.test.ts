@@ -2,6 +2,7 @@ import test from 'ava';
 import { createTestMovieClipJta, type TestMovieClipJtaOptions } from '@openfairygui/test-utils';
 import {
 	UamTransactionError,
+	PropertyType,
 	applyUamTransaction,
 	applyUamTransactionAsync,
 	createDefaultUamPlainTextProperties,
@@ -16,6 +17,7 @@ import {
 
 import {
 	createControllerModel,
+	createDisplayNodeBase,
 	createLifecyclePackage,
 	createLookGear,
 	createSupportedProject,
@@ -118,8 +120,8 @@ test('MovieClip materialization keeps stored properties when source JTA cannot b
 	} satisfies UamMovieClipResource);
 
 	const movieClip = materializeUamProject(project).getRoot().getPackage('Main')?.listResources().at(-1);
-	t.is(movieClip?.propertyType, 'MovieClipResource');
-	if (movieClip?.propertyType !== 'MovieClipResource') return;
+	t.is(movieClip?.propertyType, PropertyType.MOVIE_CLIP_RESOURCE);
+	if (movieClip?.propertyType !== PropertyType.MOVIE_CLIP_RESOURCE) return;
 	t.deepEqual(movieClip.getSourceData()?.getData(), sourceBytes);
 	t.deepEqual(
 		[movieClip.getWidth(), movieClip.getHeight(), movieClip.getInterval(), movieClip.getRepeatDelay(), movieClip.getSwing()],
@@ -378,6 +380,69 @@ test('resource folder favorite supports non-empty and branch folders, inverse, a
 	t.is(documentBacked.packages[0]!.resources.find((resource) => resource.id === 'cmp001')?.name, 'RenamedView');
 });
 
+test('resource folder atlas supports projected slots, inverse, both apply paths, and strict preflight', (t) => {
+	const project = createSupportedProject();
+	project.branches = ['mobile'];
+	project.packages[0]!.folders.push({ branch: 'mobile', path: '/branch/', favorite: false, atlas: '' });
+	const original = structuredClone(project);
+	const operations = [
+		{ kind: 'setResourceFolderAtlas' as const, selector: { packageId: 'pkg001', path: '/images/' }, atlas: '2' },
+		{ kind: 'setResourceFolderAtlas' as const, selector: { packageId: 'pkg001', branch: 'mobile', path: '/branch/' }, atlas: '10' },
+	];
+
+	t.deepEqual(validateTransactionSupport(project, operations), []);
+	const result = applyUamTransaction(project, operations);
+	t.is(result.packages[0]!.folders.find((folder) => folder.path === '/images/')?.atlas, '2');
+	t.is(result.packages[0]!.folders.find((folder) => folder.branch === 'mobile')?.atlas, '10');
+	t.deepEqual(project, original);
+	t.deepEqual(applyUamTransaction(result, operations.map((operation) => ({ ...operation, atlas: '' }))), project);
+
+	const documentBacked = applyUamTransaction(project, [
+		operations[0]!,
+		{ kind: 'renameResource', selector: { packageId: 'pkg001', resourceId: 'cmp001' }, newName: 'RenamedView' },
+	]);
+	t.is(documentBacked.packages[0]!.folders.find((folder) => folder.path === '/images/')?.atlas, '2');
+	t.is(documentBacked.packages[0]!.resources.find((resource) => resource.id === 'cmp001')?.name, 'RenamedView');
+
+	const expandedPackage = createLifecyclePackage('pkg001', 'Main');
+	const expandedSettings = {
+		compressPNG: expandedPackage.compressPNG,
+		jpegQuality: expandedPackage.jpegQuality,
+		publish: {
+			...expandedPackage.publish!,
+			maxAtlasIndex: 12,
+			atlases: [{ index: 12, name: 'Effects', compression: false }],
+		},
+	};
+	const expanded = applyUamTransaction(project, [
+		{ kind: 'updatePackageSettings', selector: { packageId: 'pkg001' }, settings: expandedSettings },
+		{ kind: 'setResourceFolderAtlas', selector: { packageId: 'pkg001', path: '/images/' }, atlas: '12' },
+	]);
+	t.is(expanded.packages[0]?.publish?.maxAtlasIndex, 12);
+	t.is(expanded.packages[0]?.folders.find((folder) => folder.path === '/images/')?.atlas, '12');
+
+	for (const atlas of ['atlas0', '01', '11']) {
+		const issues = validateTransactionSupport(project, [{
+			kind: 'setResourceFolderAtlas', selector: { packageId: 'pkg001', path: '/images/' }, atlas,
+		}]);
+		t.is(issues[0]?.code, 'invalid_resource_folder_atlas');
+	}
+	t.is(validateTransactionSupport(project, [{
+		kind: 'setResourceFolderAtlas', selector: { packageId: 'pkg001', path: '/images/' }, atlas: '',
+	}])[0]?.code, 'resource_folder_atlas_unchanged');
+	t.is(validateTransactionSupport(project, [{
+		kind: 'addResourceFolder', selector: { packageId: 'pkg001' }, path: '/invalid-atlas/', atlas: 'atlas0',
+	}])[0]?.code, 'invalid_resource_folder_atlas');
+	t.is(validateTransactionSupport(project, [
+		{ kind: 'setResourceFolderAtlas', selector: { packageId: 'pkg001', path: '/images/' }, atlas: '12' },
+		{ kind: 'updatePackageSettings', selector: { packageId: 'pkg001' }, settings: expandedSettings },
+	])[0]?.code, 'invalid_resource_folder_atlas');
+	t.throws(() => applyUamTransaction(project, [{
+		kind: 'setResourceFolderAtlas', selector: { packageId: 'pkg001', path: '/images/' }, atlas: 'atlas0',
+	}]), { instanceOf: UamTransactionError });
+	t.deepEqual(project, original);
+});
+
 test('resource folder favorite follows sequential folder lifecycle projection', (t) => {
 	const project = createSupportedProject();
 	project.branches = ['mobile'];
@@ -433,7 +498,7 @@ test('resource folder lifecycle supports empty-folder forward, inverse, and atom
 	const project = createSupportedProject();
 	project.packages[0]!.folders = [
 		{ branch: '', path: '/images/', favorite: false, atlas: '' },
-		{ branch: '', path: '/empty/', favorite: true, atlas: 'atlas0' },
+		{ branch: '', path: '/empty/', favorite: true, atlas: '0' },
 	];
 	const originalFolders = structuredClone(project.packages[0]!.folders);
 
@@ -478,7 +543,7 @@ test('resource folder lifecycle supports empty-folder forward, inverse, and atom
 		selector: { packageId: 'pkg001' },
 		path: '/empty/',
 		favorite: true,
-		atlas: 'atlas0',
+		atlas: '0',
 	}]);
 	t.deepEqual(restored.packages[0]!.folders, originalFolders);
 });
@@ -534,8 +599,10 @@ test('resource and display-list operations respect the frozen Phase A contracts'
 			selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
 			atIndex: 1,
 			node: {
+				...createDisplayNodeBase('n2', 'subtitle'),
 				kind: 'text',
 				...createDefaultUamPlainTextProperties(),
+				group: '',
 				id: 'n2',
 				name: 'subtitle',
 				position: { x: 18, y: 52 },
@@ -604,8 +671,10 @@ test('resource and display-list operations respect the frozen Phase A contracts'
 				selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
 				atIndex: 1,
 				node: {
+					...createDisplayNodeBase('n1', 'duplicate'),
 					kind: 'text',
 					...createDefaultUamPlainTextProperties(),
+					group: '',
 					id: 'n1',
 					name: 'duplicate',
 					position: { x: 0, y: 0 },
@@ -646,6 +715,11 @@ test('behavior operations add and update controllers, transitions, and look gear
 			controller: {
 				...createControllerModel('state'),
 				selectedIndex: 1,
+				autoRadioGroupDepth: true,
+				alias: 'Shared state',
+				exported: true,
+				homePageType: 'specific',
+				homePage: '1',
 				actions: [
 					{
 						name: 'activate',
@@ -722,6 +796,10 @@ test('behavior operations add and update controllers, transitions, and look gear
 
 	t.is(componentResource.component.controllers.length, 1);
 	t.is(componentResource.component.controllers[0]?.selectedIndex, 1);
+	t.is(componentResource.component.controllers[0]?.alias, 'Shared state');
+	t.true(componentResource.component.controllers[0]?.exported);
+	t.is(componentResource.component.controllers[0]?.homePageType, 'specific');
+	t.is(componentResource.component.controllers[0]?.homePage, '1');
 	t.is(componentResource.component.controllers[0]?.actions.length, 1);
 
 	t.is(componentResource.component.transitions.length, 1);
@@ -744,6 +822,10 @@ test('behavior operations add and update controllers, transitions, and look gear
 		return;
 	}
 	t.is(roundTrippedComponent.component.controllers[0]?.name, 'state');
+	t.is(roundTrippedComponent.component.controllers[0]?.alias, 'Shared state');
+	t.true(roundTrippedComponent.component.controllers[0]?.exported);
+	t.is(roundTrippedComponent.component.controllers[0]?.homePageType, 'specific');
+	t.is(roundTrippedComponent.component.controllers[0]?.homePage, '1');
 	t.is(roundTrippedComponent.component.transitions[0]?.name, 'intro');
 	t.is(roundTrippedComponent.component.displayList[0]?.gears[0]?.kind, 'look');
 });
@@ -780,6 +862,21 @@ test('text color snapshots canonicalize before save and reload', async (t) => {
 		? reloadedComponent.component.displayList.find((node) => node.id === 'n1')
 		: null;
 	t.like(reloadedText, updatedText);
+});
+
+test('controller metadata preflight rejects invalid home-page payloads', (t) => {
+	const operation = {
+		kind: 'addController' as const,
+		selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: 'state' },
+		controller: {
+			...createControllerModel('state'),
+			homePageType: 'specific' as const,
+			homePage: 'missing',
+		},
+	};
+	const issues = validateTransactionSupport(createSupportedProject(), [operation]);
+	t.true(issues.some((issue) => issue.code === 'invalid_controller_payload'));
+	t.throws(() => applyUamTransaction(createSupportedProject(), [operation]), { instanceOf: UamTransactionError });
 });
 
 test('behavior remove operations remove look gears, transitions, and controllers with frozen selectors', (t) => {
@@ -856,7 +953,7 @@ test('binary resource transactions require hydrated source bytes and survive wri
 		}]),
 		{ instanceOf: UamTransactionError },
 	);
-	t.true(missingBytesError?.issues?.some((issue) => issue.code === 'unavailable_resource_source_bytes') ?? false);
+	t.true(missingBytesError?.issues?.some((issue) => 'code' in issue && issue.code === 'unavailable_resource_source_bytes') ?? false);
 
 	const renamed = applyUamTransaction(createSupportedProject(), [
 		{

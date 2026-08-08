@@ -1029,6 +1029,7 @@ export class ProjectReader {
 				return (resource as { getFileName(): string }).getFileName();
 			case 'SoundResource':
 			case 'MiscResource':
+			case 'SwfResource':
 			case 'SpineResource':
 			case 'DragonBonesResource':
 				return (resource as { getFile(): string }).getFile();
@@ -1141,6 +1142,18 @@ export class ProjectReader {
 				ctx.registerResource(pkg.getId(), id, res);
 				return res;
 			}
+			case 'swf': {
+				const res = doc.createSwfResource(name.replace(/\.swf$/i, ''));
+				res.setId(id);
+				res.setPath(path);
+				res.setBranch(branchName);
+				res.setFile(name);
+				res.setExported(exported);
+				res.setFavorite(favorite);
+				pkg.addResource(res);
+				ctx.registerResource(pkg.getId(), id, res);
+				return res;
+			}
 			case 'font': {
 				const res = doc.createFontResource(name.replace(/\.\w+$/, ''));
 				res.setId(id);
@@ -1223,6 +1236,10 @@ export class ProjectReader {
 				pkg.addResource(res);
 				ctx.registerResource(pkg.getId(), id, res);
 				return res;
+			}
+			case 'atlas': {
+				// Generated atlas entries are not source package resources.
+				return null;
 			}
 			default: {
 				ctx.addDiagnostic({

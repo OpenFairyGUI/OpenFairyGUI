@@ -5,6 +5,7 @@ import type { Controller } from '../properties/controller.js';
 import type { Transition } from '../properties/transition.js';
 import {
 	EXTENSION_PROTOCOL_MAP,
+	formatButtonDownEffect,
 	formatButtonDownEffectValue,
 	formatButtonMode,
 	formatInsets,
@@ -141,6 +142,8 @@ type WritableComponent = Component & {
 	getFooterRes?(): string;
 	getBgColor?(): string;
 	getBgColorEnabled?(): boolean;
+	getDesignImage?(): string;
+	getDesignImageForTest?(): boolean;
 	getDesignImageAlpha?(): number;
 	getDesignImageLayer?(): number;
 	getDesignImageOffsetX?(): number;
@@ -148,6 +151,10 @@ type WritableComponent = Component & {
 	getIdNum?(): number;
 	getInitName?(): string;
 	getRemark?(): string;
+	getCustomExtensionId?(): string;
+	getPageController?(): string;
+	getAddedToStageSound?(): string;
+	getRemovedFromStageSound?(): string;
 	getExtensionType?(): string;
 	getButtonMode?(): number;
 	getSound?(): string;
@@ -215,8 +222,11 @@ export async function writeComponent(
 		if (typedComp.getBgColorEnabled?.()) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.bgColorEnabled, 'true');
 		const bgColor = typedComp.getBgColor?.();
 		if (bgColor) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.bgColor, bgColor);
-		const designImageAlpha = typedComp.getDesignImageAlpha?.() ?? 0;
-		if (designImageAlpha !== 0) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.designImageAlpha, String(designImageAlpha));
+		const designImage = typedComp.getDesignImage?.();
+		if (designImage) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.designImage, designImage);
+		if (typedComp.getDesignImageForTest?.()) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.designImageForTest, 'true');
+		const designImageAlpha = typedComp.getDesignImageAlpha?.() ?? 50;
+		if (designImageAlpha !== 50) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.designImageAlpha, String(designImageAlpha));
 		const designImageLayer = typedComp.getDesignImageLayer?.() ?? 0;
 		if (designImageLayer !== 0) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.designImageLayer, String(designImageLayer));
 		const designImageOffsetX = typedComp.getDesignImageOffsetX?.() ?? 0;
@@ -229,6 +239,14 @@ export async function writeComponent(
 		if (initName) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.initName, initName);
 		const remark = typedComp.getRemark?.();
 		if (remark) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.remark, remark);
+		const customExtensionId = typedComp.getCustomExtensionId?.();
+		if (customExtensionId) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.customExtention, customExtensionId);
+		const pageController = typedComp.getPageController?.();
+		if (pageController) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.pageController, pageController);
+		const showSound = typedComp.getAddedToStageSound?.();
+		if (showSound) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.showSound, showSound);
+		const hideSound = typedComp.getRemovedFromStageSound?.();
+		if (hideSound) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.hideSound, hideSound);
 		const clipSoftness = typedComp.getClipSoftness?.();
 		if (clipSoftness && ((clipSoftness.x ?? 0) !== 0 || (clipSoftness.y ?? 0) !== 0)) {
 			writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.clipSoftness, formatProjectInt32List([
@@ -300,7 +318,7 @@ export async function writeComponent(
 
 		const customProperties = typedComp.getCustomProperties?.() ?? [];
 		const customPropertyChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.componentRoot, 'customProperty');
-		const customPropertyProtocol = PROJECT_XML_PROTOCOL.componentRoot.children?.customProperty;
+		const customPropertyProtocol = PROJECT_XML_PROTOCOL.componentRoot.children!.customProperty!;
 		if (customProperties.length > 0 && customPropertyChildName) {
 			compNode[customPropertyChildName] = customProperties.map((property) => {
 				const attrs: Record<string, unknown> = {};
@@ -319,10 +337,10 @@ export async function writeComponent(
 				case 'Button': {
 					if ((typedComp.getButtonMode?.() ?? 0) !== 0) writeXmlAttr(extAttrs, extSpecs.mode, formatButtonMode(typedComp.getButtonMode?.() ?? 0));
 					if (typedComp.getSound?.()) writeXmlAttr(extAttrs, extSpecs.sound, typedComp.getSound?.());
-					if ((typedComp.getSoundVolumeScale?.() ?? 1) !== 1) writeXmlAttr(extAttrs, extSpecs.soundVolumeScale, String(typedComp.getSoundVolumeScale?.() ?? 1));
+					if ((typedComp.getSoundVolumeScale?.() ?? 1) !== 1) writeXmlAttr(extAttrs, extSpecs.soundVolumeScale, String(Math.round((typedComp.getSoundVolumeScale?.() ?? 1) * 100)));
 					const downEffect = typedComp.getDownEffect?.() ?? 0;
 					if (downEffect !== 0) {
-						writeXmlAttr(extAttrs, extSpecs.downEffect, String(downEffect));
+						writeXmlAttr(extAttrs, extSpecs.downEffect, formatButtonDownEffect(downEffect));
 						writeXmlAttr(extAttrs, extSpecs.downEffectValue, formatButtonDownEffectValue(typedComp.getDownEffectValue?.() ?? 0.8));
 					}
 					break;
@@ -372,6 +390,25 @@ function serializeController(ctrl: Controller): Record<string, unknown> {
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.name, ctrl.getName());
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.pages, pagesStr);
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.selected, String(ctrl.getSelectedIndex()));
+		if (ctrl.getAlias()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.alias, ctrl.getAlias());
+		if (ctrl.getAutoRadioGroupDepth()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.autoRadioGroupDepth, 'true');
+		if (ctrl.getExported()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.exported, 'true');
+		if (ctrl.getHomePageType() !== 'default') {
+			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.homePageType, ctrl.getHomePageType());
+		}
+		if (ctrl.getHomePageType() === 'specific' || ctrl.getHomePageType() === 'variable') {
+			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.controller.attrs.homePage, ctrl.getHomePage());
+		}
+		const remarkProtocol = PROJECT_XML_PROTOCOL.controller.children!.remark!;
+		const remarks = pages.flatMap((page, pageIndex) => {
+			if (!page.getRemark()) return [];
+			const remarkAttrs: Record<string, unknown> = {};
+			writeXmlAttr(remarkAttrs, remarkProtocol.attrs.page, String(pageIndex));
+			writeXmlAttr(remarkAttrs, remarkProtocol.attrs.value, page.getRemark());
+			return [remarkAttrs];
+		});
+		const remarkChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.controller, 'remark');
+		if (remarks.length > 0 && remarkChildName) attrs[remarkChildName] = remarks;
 		const actions = ctrl.listActions().map((action) => serializeControllerAction(action as WritableControllerAction));
 		const actionChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.controller, 'action');
 		if (actions.length > 0 && actionChildName) attrs[actionChildName] = actions;

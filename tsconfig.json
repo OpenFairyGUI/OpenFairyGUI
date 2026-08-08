@@ -25,12 +25,9 @@
 		"allowJs": false,
 		"declaration": true,
 		"stripInternal": true,
+		"strict": true,
 		"verbatimModuleSyntax": true,
-		"useDefineForClassFields": true,
-		"alwaysStrict": true,
-		"strictFunctionTypes": true,
-		"strictBindCallApply": true,
-		"noImplicitThis": true
+		"useDefineForClassFields": true
 	},
 	"exclude": [
 		"packages/*/test/fixtures/**"

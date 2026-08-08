@@ -42,7 +42,8 @@ test('createOpenFairyGuiMcpServer exposes backend P2 tools over MCP transport', 
 		}, CallToolResultSchema);
 		t.false(capabilities.isError ?? false);
 		t.truthy((capabilities.structuredContent as { backendResult?: unknown } | undefined)?.backendResult);
-		const text = capabilities.content[0]?.type === 'text' ? capabilities.content[0].text : '';
+		const [content] = capabilities.content as Array<{ type: string; text?: string }>;
+		const text = content?.type === 'text' ? content.text ?? '' : '';
 		t.true(text.includes('"runtimeOwner": "@openfairygui/backend"'));
 	} finally {
 		await client.close();

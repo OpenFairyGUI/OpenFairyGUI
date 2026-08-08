@@ -9,6 +9,7 @@ import {
 	SoundResource,
 	FontResource,
 	MovieClipResource,
+	SwfResource,
 	SpineResource,
 	DragonBonesResource,
 	Component,
@@ -155,6 +156,10 @@ export class Document {
 
 	createMovieClipResource(name = ''): MovieClipResource {
 		return new MovieClipResource(this._graph, name);
+	}
+
+	createSwfResource(name = ''): SwfResource {
+		return new SwfResource(this._graph, name);
 	}
 
 	createSpineResource(name = ''): SpineResource {

@@ -4,7 +4,9 @@ import type { Component } from '../properties/component.js';
 import type { Package } from '../properties/package.js';
 import { resolveTreeItemIsFolder } from './tree-item-hierarchy.js';
 import type {
+	ComboItemLike,
 	EncoderChildLike,
+	ListItemLike,
 } from './component-encoder-shared.js';
 import {
 	_boolVal,
@@ -226,7 +228,7 @@ export function _writeDisplayList(buf: WriteBuffer, comp: Component, _doc: Docum
 		const isTextInput = childType === 'GTextInput';
 		if (isCompOrList) {
 			cb4 = buf.pos - childIndexPos;
-			_writeChildBlock4Component(buf, child, comp, pkg);
+			_writeChildBlock4Component(buf, child, comp, pkg, version);
 		} else if (isTextInput) {
 			cb4 = buf.pos - childIndexPos;
 			_writeChildBlock4TextInput(buf, child);
@@ -344,9 +346,9 @@ function _writeChildSpecific(buf: WriteBuffer, child: EncoderChildLike, pkg: Pac
 			buf.writeBool(false);
 			if (version >= 3) {
 				buf.writeBool(child.getStrikethrough?.() ?? false);
-				buf.writeFloat32(0);
-				buf.writeFloat32(0);
-				buf.writeFloat32(0);
+				buf.writeFloat32(child.getFaceDilate?.() ?? 0);
+				buf.writeFloat32(child.getOutlineSoftness?.() ?? 0);
+				buf.writeFloat32(child.getUnderlaySoftness?.() ?? 0);
 			}
 			break;
 		}
@@ -414,13 +416,13 @@ function _writeChildSpecific(buf: WriteBuffer, child: EncoderChildLike, pkg: Pac
 			break;
 
 		case 'GLoader': {
-			buf.writeS(remapLocalUiUrl(pkg, child.getUrl?.() ?? null));
+			buf.writeS(remapLocalUiUrl(pkg, child.getClearOnPublish?.() ? null : (child.getUrl?.() ?? null)));
 			buf.writeUint8(child.getAlign?.() ?? 0);
 			buf.writeUint8(child.getVAlign?.() ?? 0);
 			buf.writeUint8(child.getFill?.() ?? 0);
 			buf.writeBool(child.getShrinkOnly?.() ?? false);
 			buf.writeBool(_boolVal(child.getAutoSize?.(), false));
-			buf.writeBool(false); // showErrorSign
+			buf.writeBool(child.getShowErrorSign?.() ?? false);
 			buf.writeBool(child.getPlaying?.() ?? true);
 			buf.writeInt32(child.getFrame?.() ?? 0);
 			const loaderColor = child.getColor?.() ?? null;
@@ -442,7 +444,7 @@ function _writeChildSpecific(buf: WriteBuffer, child: EncoderChildLike, pkg: Pac
 		}
 
 		case 'GLoader3D': {
-			buf.writeS(remapLocalUiUrl(pkg, child.getUrl?.() ?? null));
+			buf.writeS(remapLocalUiUrl(pkg, child.getClearOnPublish?.() ? null : (child.getUrl?.() ?? null)));
 			buf.writeUint8(child.getAlign?.() ?? 0);
 			buf.writeUint8(child.getVAlign?.() ?? 0);
 			buf.writeUint8(child.getFill?.() ?? 0);
@@ -546,7 +548,10 @@ function _writeChildAfterAdd(buf: WriteBuffer, child: EncoderChildLike, comp: Co
 		case 'GRichTextField':
 		case 'GTextInput':
 			// GTextField.setup_afterAdd: readS() → text — noCache
-			buf.writeSEx(remapLocalUiRefsInText(pkg, child.getText?.() ?? null), true);
+			buf.writeSEx(
+				remapLocalUiRefsInText(pkg, child.getAutoClearText?.() ? null : (child.getText?.() ?? null)),
+				true,
+			);
 			break;
 
 		case 'GButton': {
@@ -633,7 +638,9 @@ function _writeChildAfterAdd(buf: WriteBuffer, child: EncoderChildLike, comp: Co
 			buf.writeSEx(child.getTitle?.() ?? null, true); // noCache
 			buf.writeS(remapLocalUiUrl(pkg, child.getIcon?.() ?? null));
 			// titleColor
-			buf.writeBool(false);
+			const comboTitleColor = child.getTitleColor?.() ?? null;
+			buf.writeBool(!!comboTitleColor);
+			if (comboTitleColor) buf.writeColor(comboTitleColor, true);
 			// visibleItemCount
 			buf.writeInt32(child.getVisibleItemCount?.() ?? 10);
 			// popupDirection
@@ -742,13 +749,15 @@ function _writeExtensionInstanceData(
 			buf.writeInt32(child.getInstanceTitleFontSize?.() ?? 0);
 			buf.writeBool(false); // no input settings
 			if (version >= 5) {
-				buf.writeS(null);
-				buf.writeFloat32(1);
+				buf.writeS(remapLocalUiUrl(pkg, child.getInstanceSound?.() ?? null));
+				buf.writeFloat32(child.getInstanceSoundVolumeScale?.() ?? 1);
 			}
 			break;
 		}
 		case 'ComboBox': {
-			const comboItems: ComboItemLike[] = child.getInstanceComboItems?.() ?? [];
+			const comboItems: ComboItemLike[] = child.getInstanceAutoClearItems?.()
+				? []
+				: (child.getInstanceComboItems?.() ?? []);
 			buf.writeInt16(comboItems.length);
 			for (const item of comboItems) {
 				const itemStart = buf.pos;
@@ -768,11 +777,11 @@ function _writeExtensionInstanceData(
 			buf.writeBool(!!comboTitleColor);
 			if (comboTitleColor) buf.writeColor(comboTitleColor, true);
 			buf.writeInt32(child.getInstanceVisibleItemCount?.() ?? 10);
-			buf.writeUint8(0); // popupDirection
+			buf.writeUint8(child.getInstancePopupDirection?.() ?? 0);
 			buf.writeInt16(-1); // selectionController
 			if (version >= 5) {
-				buf.writeS(null);
-				buf.writeFloat32(1);
+				buf.writeS(remapLocalUiUrl(pkg, child.getInstanceSound?.() ?? null));
+				buf.writeFloat32(child.getInstanceSoundVolumeScale?.() ?? 1);
 			}
 			break;
 		}
@@ -782,8 +791,8 @@ function _writeExtensionInstanceData(
 			buf.writeInt32(child.getInstanceMax?.() ?? 100);
 			buf.writeInt32(child.getInstanceMin?.() ?? 0);
 			if (version >= 5 && extType === 'ProgressBar') {
-				buf.writeS(null);
-				buf.writeFloat32(1);
+				buf.writeS(remapLocalUiUrl(pkg, child.getInstanceSound?.() ?? null));
+				buf.writeFloat32(child.getInstanceSoundVolumeScale?.() ?? 1);
 			}
 			break;
 		default:
@@ -795,7 +804,7 @@ function _writeExtensionInstanceData(
 
 function _writeScrollPane(buf: WriteBuffer, child: EncoderChildLike, pkg: Package): void {
 	buf.writeUint8(child.getScrollType?.() ?? 1); // scrollType
-	buf.writeUint8(0); // scrollBarDisplay
+	buf.writeUint8(child.getScrollBarDisplay?.() ?? 0); // scrollBarDisplay
 	buf.writeInt32(child.getScrollBarFlags?.() ?? 0); // flags
 	// scrollBar margin
 	const sbMargin = child.getScrollBarMargin?.();
@@ -818,7 +827,7 @@ function _writeListItems(buf: WriteBuffer, child: EncoderChildLike, pkg: Package
 	buf.writeS(remapLocalUiUrl(pkg, child.getDefaultItem?.() ?? null));
 
 	const isTree = child.propertyType === 'GTree';
-	const listItems: ListItemLike[] = child.getListItems?.() ?? [];
+	const listItems: ListItemLike[] = child.getAutoClearItems?.() ? [] : (child.getListItems?.() ?? []);
 	buf.writeInt16(listItems.length);
 	for (const [index, item] of listItems.entries()) {
 		const itemStart = buf.pos;
@@ -849,7 +858,7 @@ function _writeListItems(buf: WriteBuffer, child: EncoderChildLike, pkg: Package
 		buf.writeInt16(controllerCount);
 		buf.pos = controllerEnd;
 		if (version >= 2) {
-			buf.writeInt16(0); // no property overrides
+			_writePropertyOverrides(buf, item.propertyOverrides ?? []);
 		}
 
 		const itemEnd = buf.pos;
@@ -867,7 +876,13 @@ function _writeTreeSettings(buf: WriteBuffer, child: EncoderChildLike): void {
 
 // ─── Block 4: Component/List child controller overrides ──────────────────
 
-function _writeChildBlock4Component(buf: WriteBuffer, child: EncoderChildLike, comp: Component, _pkg: Package): void {
+function _writeChildBlock4Component(
+	buf: WriteBuffer,
+	child: EncoderChildLike,
+	comp: Component,
+	_pkg: Package,
+	version: number,
+): void {
 	// 1. pageController index
 	const pageCtrlName = child.getPageController?.() ?? null;
 	if (pageCtrlName) {
@@ -902,7 +917,21 @@ function _writeChildBlock4Component(buf: WriteBuffer, child: EncoderChildLike, c
 	}
 
 	// 3. Property overrides (§_-55§)
-	buf.writeInt16(0); // no property overrides in current project data
+	if (version >= 2) {
+		_writePropertyOverrides(buf, child.getPropertyOverrides?.() ?? []);
+	}
+}
+
+function _writePropertyOverrides(
+	buf: WriteBuffer,
+	overrides: Array<{ target: string; propertyId: number; value: string }>,
+): void {
+	buf.writeInt16(overrides.length);
+	for (const property of overrides) {
+		buf.writeS(property.target);
+		buf.writeInt16(property.propertyId);
+		buf.writeSEx(property.value, true);
+	}
 }
 
 function _writeChildBlock4TextInput(buf: WriteBuffer, child: EncoderChildLike): void {

@@ -127,9 +127,24 @@ Notes:
 
 Component root extensions, ComboBox component instances, and List/Tree display nodes use the formal boolean `autoClearItems` property. Its default is `false`, and it is written only when enabled. Ordered `<property target="..." propertyId="..." value="..."/>` children for component instances and static list items are stored in formal UAM properties. Reads, materialization, saves, and reloads preserve their original order and raw string values, including leading/trailing whitespace, whitespace-only values, and empty strings. `target` must be non-empty, `propertyId` must be a non-negative safe integer, and `value` must be present; invalid input is rejected before materialization or write-back.
 
+List/Tree `autoItemSize` defaults by layout: `true` for single column/row and `false` for flow/pagination, and it is written only when it differs from that layout default. Button root extensions store `downEffect` with the `none / dark / scale` string enum. Transitions store non-24 frame rates in `frameRate`.
+
+## Integer geometry fields in component XML
+
+Geometry values that the FairyGUI desktop editor reads as signed 32-bit integers are truncated toward zero when written to Project XML. Non-finite values and values outside `-2147483648` to `2147483647` after truncation are rejected.
+
+Integer geometry fields include:
+
+- Display-node `xy`, `size`, and `restrictSize`.
+- Component-root `size`, `restrictSize`, `margin`, `scrollBarMargin`, `clipSoftness`, and `designImageOffsetX/Y`.
+- List/Tree `margin`, `scrollBarMargin`, and `clipSoftness`.
+- The x/y values of `gearXY` and the width/height values of `gearSize`.
+
+`pivot`, `scale`, `skew`, percentage values in `gearXY`, and scale values in `gearSize` continue to preserve decimals.
+
 ## Project resource-tree metadata
 
-Component and asset resource nodes in `package.xml` and `package_branch.xml` use `exported="true"` and `favorite="true"` to store export and favorite state. The corresponding attribute is omitted when disabled. UAM stores these values as `resource.exported` and `resource.favorite`; public transactions set the target Boolean idempotently through `setResourceExported` and `setResourceFavorite`.
+Component and asset resource nodes in `package.xml` and `package_branch.xml` use `exported="true"` and `favorite="true"` to store export and favorite state. The corresponding attribute is omitted when disabled. SWF uses the formal `SwfResource` model for `<swf>` nodes, and the UAM `swf` resource preserves its source file, export state, and favorite state. UAM stores these values as `resource.exported` and `resource.favorite`; public transactions set the target Boolean idempotently through `setResourceExported` and `setResourceFavorite`.
 
 Each package records its own resource branches in the formal ordered `branchNames` list, persisted as the same-named JSON-array attribute on the `package.xml` root. Project reads use that order to establish mappings; binary publishing uses the same order to define that package's `branchItemIds` slots and must not derive them again from root project branch order. Document calls that do not explicitly set a package-local table derive it from actual branch resources in project branch order before publishing.
 
@@ -138,6 +153,8 @@ The public `addBranch`, `renameBranch`, and `removeBranch` transactions maintain
 ProjectWriter preserves `assets_<branch>/` for every project branch and writes an empty `package_branch.xml` for each empty package-local branch slot. Empty branches and package-local branch subsets therefore survive a ProjectReader reload. After a rename or removal is saved successfully, only the removed controlled branch directories are cleaned up with non-recursive directory deletion.
 
 Resource folders are formally represented by `package.folders` with `branch / path / favorite / atlas`. Folder paths use canonical leading and trailing `/`, and the root is implicit. Actual `assets[/_<branch>]/<package-name>/` directories are the source of truth for existence; `<folder>` nodes store only favorite or atlas metadata that needs persistence. `setResourceFolderFavorite` updates a known folder in the main branch or a resource branch, and one operation changes only the selected folder. To match editor behavior that favorites descendants, callers should explicitly submit favorite operations for descendant folders and resources in the same transaction. Public `addResourceFolder`, `renameResourceFolder`, `moveResourceFolder`, and `removeResourceFolder` transactions operate only on empty folders. The parent must exist, and root, path conflicts, or non-empty operations are rejected before commit. Browser storage adapters must provide non-recursive `rmdir`; removed empty directories are cleaned up only after a successful save.
+
+`setResourceFolderAtlas` updates the source Atlas slot of an existing folder selected by canonical `branch + path`. An empty string clears the override; a non-empty value must be a decimal string without leading zeroes in the `0..maxAtlasIndex` range, and Atlas names are not reference values. `addResourceFolder.atlas` uses the same validation, and the limit defaults to `10` when package publish settings are absent. To expand the range in the same transaction, submit `updatePackageSettings` before the folder Atlas operation. Assigning the current value is rejected as `resource_folder_atlas_unchanged`.
 
 `packageDescription@hasFavorites` in the main `package.xml` is derived from favorite resources and resource folders in the package and is not independently editable. Favorite state affects editor project data only and does not enter the runtime binary publish protocol.
 
@@ -179,7 +196,7 @@ These are OpenFairyGUI's current execution boundaries, not new editor setting fi
 | Images or animation frames need packing | A raster encoder, source-resource path, and atlas output directory are required |
 | Atlas packing, image reads, or composition fail | Publishing aborts instead of returning a successful result with transparent holes or missing pages |
 | The publish set contains a MovieClip | Reads mixed PNG/JPEG textures through the JTA length table. Duplicate texture indices reuse the first referenced frame's sprite, and `-1` means an empty frame. All selected packages finish JTA parsing, strict PNG/JPEG validation, complete decoding of referenced textures, and normalized caching before any built-in OpenFairyGUI output directory or file is created. Out-of-range indices, referenced empty textures, unsupported formats, truncated data, or decode failure abort the entire publish. |
-| Copying a `SoundResource`, `MiscResource`, `SpineResource`, `DragonBonesResource`, or one of their dependencies fails | Publishing aborts instead of downgrading a missing runtime resource to a warning |
+| Copying a `SoundResource`, `MiscResource`, `SwfResource`, `SpineResource`, `DragonBonesResource`, or one of their dependencies fails | Publishing aborts instead of downgrading a missing runtime resource to a warning |
 
 When no output directory is requested, low-level `publish()` may calculate layout only. That is not a file publish and writes no binary or resource files. Standard Node workflows should use `publishNode()`.
 
@@ -270,6 +287,17 @@ The current OpenFairyGUI implementation of `fileExtension` does not reproduce th
 | Other non-Unity project with explicit `fileExtension` | Uses the configured value |
 | Other non-Unity project without explicit `fileExtension` | Falls back to `fui` |
 
+### Explicit CLI target overrides
+
+`ofgui publish --project-type layabox` publishes for the Layabox target instead of only changing the project-type field. After reading the project settings, the command applies these target rules:
+
+- the descriptor extension is `fui`
+- atlas rotation is disabled so the output remains consumable by the current FairyGUI-Layabox runtime
+
+Layabox-supported settings such as `includeHighResolution`, compression, atlas size, paging, and trimming remain project-configured. Without `--project-type`, the project-setting rules in the table above remain unchanged.
+
+The Unity and Cocos Creator runtimes do not inflate binary descriptors, so those targets always emit uncompressed data. An explicit API or CLI request for `compressed=true` / `--compressed` fails publishing, and persisted `compressDesc` cannot override this target constraint. Layabox continues to use the project's compression setting.
+
 The non-Unity binary publish contracts formally covered by the repository include:
 
 - Layabox: sample projects use `binaryFormat=true` and `fileExtension="fui"`, producing `<package-name>.fui`.
@@ -338,6 +366,8 @@ When the editor writes `Publish.json`, current rules include:
 ## Project write-back boundary
 
 Publish settings do not change the authoring-property semantics of `component.xml`. Project I/O independently preserves component root properties, root-component `customProperty` definitions, and `Button`, `Label`, `ComboBox`, `ProgressBar`, `Slider`, and `ScrollBar` instance-extension overrides on component references. See [Project XML Attribute Protocol](./project-xml-attribute-reference.md) for the corresponding XML contract.
+
+The root `designImage`, `designImageForTest`, `pageController`, `showSound`, and `hideSound` fields are formal authoring properties; `designImageAlpha` defaults to `50`. The design reference must target an image resource, show/hide sounds must target sound resources, and `pageController` must name a controller in the same component. Label, ComboBox, and ProgressBar instance sounds use `sound` plus percentage `volume`; ComboBox also stores title color and popup direction through `titleColor` and `direction` (`auto` / `up` / `down`).
 
 Layout, render order, scroll area, static items, and tree-behavior attributes for list and tree nodes are also read and written independently according to that XML contract. `renderOrder="arch"` uses `apex` for the apex child, while tree nodes preserve behavior through `treeView`, `indent`, and `clickToExpand`.
 
