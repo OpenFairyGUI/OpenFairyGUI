@@ -16,7 +16,7 @@ Release comparisons:
 Fixes:
 
 - core: Tighten binary and XML trust boundaries with decompression budgets, numeric range validation, and safe XML escaping, and encode bitmap-font glyph IDs using the unsigned 16-bit runtime contract.
-- backend,mcp: Add allowed project roots with real-path containment, stale-lock recovery, unique session IDs, atomic project saves, bounded MCP inputs, and stable error envelopes that do not leak internals.
+- backend,mcp: Add allowed project roots with real-path containment, whole-tree symbolic-link rejection before opening, stale-lock recovery, unique session IDs, atomic project saves, bounded MCP inputs, and stable error envelopes that do not leak internals.
 - functions: Centralize structured SVG safety validation, abort declared-plugin failures by default, and publish explicit Node output directories through rollback-safe directory swaps.
 
 Other:

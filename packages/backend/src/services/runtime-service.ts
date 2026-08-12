@@ -218,6 +218,7 @@ export class RuntimeService {
 		}
 		const resolved = await resolveCanonicalProjectRoot(fileSystem, input.projectPath);
 		const { fairyPath, canonicalProjectPath, canonicalPathKey } = resolved;
+		await fileSystem.validateProjectRoot?.(canonicalProjectPath);
 		const existingSessionId = this.context.sessionsByPath.get(canonicalPathKey);
 		const lockFilePath = fileSystem.getSessionLockPath?.(canonicalProjectPath)
 			?? fileSystem.join(canonicalProjectPath, '.openfairygui.backend.lock');

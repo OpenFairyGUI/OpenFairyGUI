@@ -36,6 +36,8 @@ export interface BackendFileSystem {
 	writeFileRaw(filePath: string, data: Uint8Array): Promise<void>;
 	mkdir(dirPath: string, options?: { recursive?: boolean }): Promise<void>;
 	resolvePath(filePath: string): Promise<string>;
+	/** Optional host validation before a project is read. Node rejects links anywhere in the project tree. */
+	validateProjectRoot?(projectRoot: string): Promise<void>;
 	/** Optional host-specific lock location. Node keeps it beside the project so directory swaps do not move it. */
 	getSessionLockPath?(canonicalProjectPath: string): string;
 	/** Runs project writes against a staged copy and commits them as one directory swap. */

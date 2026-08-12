@@ -208,6 +208,7 @@ export function createNodeBackendFileSystem(): BackendFileSystem {
 		async resolvePath(filePath: string): Promise<string> {
 			return resolvePathThroughExistingAncestor(filePath);
 		},
+		validateProjectRoot: assertNoSymlinks,
 		getSessionLockPath(canonicalProjectPath: string): string {
 			return path.join(path.dirname(canonicalProjectPath), `.${path.basename(canonicalProjectPath)}.openfairygui.backend.lock`);
 		},
