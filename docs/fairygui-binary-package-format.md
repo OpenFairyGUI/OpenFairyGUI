@@ -159,6 +159,8 @@ Writer 对协议中的 `uint8 / int8 / uint16 / int16 / uint32 / int32`、UTFStr
 | `width` | 资源宽度 |
 | `height` | 资源高度 |
 
+`Font` glyph 数据块以 `uint16` 保存 UTF-16 code unit（`charId`），因此可覆盖完整 BMP 范围；后续图像引用和字形度量按各自的字符串表索引与 `int32` 字段保存。
+
 ### `Spine` / `DragoneBones` item 数据段
 
 `Spine` 与 `DragoneBones` 在通用头部之后追加 skeleton 锚点：

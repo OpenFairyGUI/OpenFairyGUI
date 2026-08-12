@@ -247,7 +247,7 @@ function decodeFontGlyphs(doc: Document, resource: ReturnType<Document['createFo
 	for (let index = 0; index < glyphCount; index += 1) {
 		const chunkSize = buf.getInt16();
 		const nextPos = buf.pos + chunkSize;
-		const charId = buf.getInt16();
+		const charId = buf.getUint16();
 		const glyph = doc.createFontGlyph(`${resource.getId()}_${charId || index}`);
 		glyph
 			.setCharId(charId)

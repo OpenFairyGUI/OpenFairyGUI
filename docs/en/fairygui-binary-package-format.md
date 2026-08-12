@@ -160,6 +160,8 @@ Every package item writes this common header before its type-specific segment:
 | `width` | Resource width |
 | `height` | Resource height |
 
+The `Font` glyph-data block stores its UTF-16 code unit (`charId`) as `uint16`, covering the complete BMP range. Image references and glyph metrics then use their respective string-table indices and `int32` fields.
+
 ### `Spine` / `DragoneBones` item segment
 
 `Spine` and `DragoneBones` append a skeleton anchor after the common header:

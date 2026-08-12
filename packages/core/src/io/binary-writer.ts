@@ -893,7 +893,7 @@ function _encodeFontGlyphs(
 		const glyphStart = buf.pos;
 		buf.writeInt16(0); // placeholder for chunk size
 
-		buf.writeInt16(glyph.charId);
+		buf.writeUint16(glyph.charId);
 		buf.writeS(glyph.img);
 		buf.writeInt32(glyph.x);
 		buf.writeInt32(glyph.y);

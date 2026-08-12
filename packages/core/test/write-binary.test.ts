@@ -1034,6 +1034,9 @@ test('binary writer: font glyphs round-trip as formal properties', async (t) => 
 		.setAdvance(25)
 		.setChannel(15);
 	font.addGlyph(glyphB);
+	const glyphC = doc.createFontGlyph('font001_36753');
+	glyphC.setCharId(36753).setChar('辑').setImg('glyph_c').setAdvance(26);
+	font.addGlyph(glyphC);
 
 	pkg.addResource(font);
 
@@ -1074,6 +1077,7 @@ test('binary writer: font glyphs round-trip as formal properties', async (t) => 
 			[
 				{ charId: 65, char: 'A', img: 'glyph_a', x: 1, y: 2, xOffset: 3, yOffset: 4, width: 20, height: 21, advance: 22, channel: 1 },
 				{ charId: 66, char: 'B', img: '', x: 5, y: 6, xOffset: 7, yOffset: 8, width: 23, height: 24, advance: 25, channel: 15 },
+				{ charId: 36753, char: '辑', img: 'glyph_c', x: 0, y: 0, xOffset: 0, yOffset: 0, width: 0, height: 0, advance: 26, channel: 0 },
 			],
 		);
 	} finally {
