@@ -113,6 +113,8 @@
 
 block 5 的 patch 用于替换 block 4 中相同索引位置的占位字符串。
 
+Writer 对协议中的 `uint8 / int8 / uint16 / int16 / uint32 / int32`、UTFString byte length 与字符串表索引做显式范围检查；超出字段宽度时拒绝写出，不执行 JavaScript `DataView` 的静默截断。字符串表索引不会占用 `65533 / 65534` 两个空串/空值保留位。
+
 ## Block 0：Dependencies
 
 | 字段 | 协议说明 |

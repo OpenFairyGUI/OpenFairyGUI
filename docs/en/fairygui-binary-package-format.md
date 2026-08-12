@@ -114,6 +114,8 @@ Offsets appear in this order:
 
 A block 5 patch replaces the placeholder at the same string-table index in block 4.
 
+The writer validates protocol `uint8 / int8 / uint16 / int16 / uint32 / int32` values, UTFString byte lengths, and string-table indexes before writing. Values wider than their fields are rejected instead of being silently truncated by JavaScript `DataView`; string-table indexes never consume the reserved empty/null slots `65533 / 65534`.
+
 ## Block 0: Dependencies
 
 | Field | Protocol |

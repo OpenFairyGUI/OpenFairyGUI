@@ -1,6 +1,9 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { BackendRuntime } from '@openfairygui/backend';
-import type { OpenFairyGuiBackendToolName } from './tool-definitions.js';
+import {
+	isOpenFairyGuiMcpPayloadWithinBudget,
+	type OpenFairyGuiBackendToolName,
+} from './tool-definitions.js';
 
 export type OpenFairyGuiBackendRuntime = Pick<
 	BackendRuntime,
@@ -23,15 +26,17 @@ export type OpenFairyGuiBackendRuntime = Pick<
 >;
 
 function jsonResult(payload: unknown, isError = false): CallToolResult {
+	const text = JSON.stringify(payload, null, 2);
+	const wirePayload = JSON.parse(text) as unknown;
 	return {
 		content: [
 			{
 				type: 'text',
-				text: JSON.stringify(payload, null, 2),
+				text,
 			},
 		],
 		structuredContent: {
-			backendResult: payload,
+			backendResult: wirePayload,
 		},
 		isError,
 	};
@@ -49,6 +54,9 @@ export async function callOpenFairyGuiBackendTool(
 	name: OpenFairyGuiBackendToolName,
 	input: Record<string, unknown>,
 ): Promise<CallToolResult> {
+	if (!isOpenFairyGuiMcpPayloadWithinBudget(input)) {
+		throw new RangeError('MCP input exceeds the depth, node, key, string, or byte budget.');
+	}
 	let result: unknown;
 	switch (name) {
 		case 'openfairygui_backend_get_capabilities':
@@ -82,13 +90,19 @@ export async function callOpenFairyGuiBackendTool(
 				sessionId: String(input.sessionId),
 			});
 			break;
-		case 'openfairygui_backend_apply_transaction':
+		case 'openfairygui_backend_apply_transaction': {
+			const operations = (input.operations as Parameters<BackendRuntime['applyTransaction']>[0]['operations']).map(
+				(operation) => operation.kind === 'replaceResourceBytes'
+					? { ...operation, sourceBytes: new Uint8Array(operation.sourceBytes) }
+					: operation,
+			);
 			result = await runtime.applyTransaction({
 				sessionId: String(input.sessionId),
 				expectedRevision: Number(input.expectedRevision),
-				operations: input.operations as Parameters<BackendRuntime['applyTransaction']>[0]['operations'],
+				operations,
 			});
 			break;
+		}
 		case 'openfairygui_backend_save_session':
 			result = await runtime.saveSession({
 				sessionId: String(input.sessionId),

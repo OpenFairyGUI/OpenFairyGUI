@@ -60,14 +60,109 @@ const sessionId = z.string().min(1);
 const jobId = z.string().min(1);
 const expectedRevision = z.number().int().nonnegative();
 const limit = z.number().int().nonnegative().optional();
+const identifier = z.string().min(1).max(256);
+export function isOpenFairyGuiMcpPayloadWithinBudget(root: unknown): boolean {
+	const pending: Array<{ value: unknown; depth: number }> = [{ value: root, depth: 0 }];
+	let nodes = 0;
+	while (pending.length > 0) {
+		const { value, depth } = pending.pop()!;
+		nodes += 1;
+		if (nodes > 100_000 || depth > 32) return false;
+		if (value === null || typeof value === 'boolean') continue;
+		if (typeof value === 'number') {
+			if (!Number.isFinite(value)) return false;
+			continue;
+		}
+		if (typeof value === 'string') {
+			if (value.length > 1_000_000) return false;
+			continue;
+		}
+		if (value instanceof Uint8Array) {
+			if (value.byteLength > 8 * 1024 * 1024) return false;
+			continue;
+		}
+		if (Array.isArray(value)) {
+			if (value.length > 10_000) return false;
+			for (const child of value) pending.push({ value: child, depth: depth + 1 });
+			continue;
+		}
+		if (typeof value !== 'object') return false;
+		const entries = Object.entries(value);
+		if (entries.length > 10_000 || entries.some(([key]) => key.length > 256)) return false;
+		for (const [, child] of entries) pending.push({ value: child, depth: depth + 1 });
+	}
+	return true;
+}
+const boundedPayload = z.json();
+const bytes = z.array(z.number().int().min(0).max(255)).max(8 * 1024 * 1024);
+const packageSelector = z.object({ packageId: identifier });
+const resourceSelector = z.object({ packageId: identifier, resourceId: identifier });
+const componentSelector = z.object({ packageId: identifier, componentResourceId: identifier });
+const displayNodeSelector = componentSelector.extend({ displayNodeId: identifier });
+const controllerSelector = componentSelector.extend({ controllerName: identifier });
+const transitionSelector = componentSelector.extend({ transitionName: identifier });
+const folderSelector = packageSelector.extend({ branch: z.string().max(256).optional(), path: z.string().min(1).max(4096) });
+const operationBase = { opId: identifier.optional() };
+const operation = z.discriminatedUnion('kind', [
+	z.object({ ...operationBase, kind: z.literal('updateProjectSettings'), settings: boundedPayload }),
+	z.object({ ...operationBase, kind: z.literal('updatePackageSettings'), selector: packageSelector, settings: boundedPayload }),
+	z.object({ ...operationBase, kind: z.literal('renameResource'), selector: resourceSelector, newName: identifier }),
+	z.object({ ...operationBase, kind: z.literal('moveResource'), selector: resourceSelector, toPath: z.string().max(4096) }),
+	z.object({ ...operationBase, kind: z.literal('setResourceFavorite'), selector: resourceSelector, favorite: z.boolean() }),
+	z.object({ ...operationBase, kind: z.literal('setResourceFolderFavorite'), selector: folderSelector, favorite: z.boolean() }),
+	z.object({ ...operationBase, kind: z.literal('setResourceFolderAtlas'), selector: folderSelector, atlas: z.string().max(32) }),
+	z.object({ ...operationBase, kind: z.literal('setResourceExported'), selector: resourceSelector, exported: z.boolean() }),
+	z.object({ ...operationBase, kind: z.literal('addResourceFolder'), selector: packageSelector, path: z.string().max(4096), branch: z.string().max(256).optional(), favorite: z.boolean().optional(), atlas: z.string().max(32).optional() }),
+	z.object({ ...operationBase, kind: z.literal('renameResourceFolder'), selector: folderSelector, newName: identifier }),
+	z.object({ ...operationBase, kind: z.literal('moveResourceFolder'), selector: folderSelector, toPath: z.string().max(4096) }),
+	z.object({ ...operationBase, kind: z.literal('removeResourceFolder'), selector: folderSelector }),
+	z.object({ ...operationBase, kind: z.literal('setImageResourceProps'), selector: resourceSelector, props: boundedPayload }),
+	z.object({ ...operationBase, kind: z.literal('addResource'), selector: packageSelector, resource: boundedPayload, atIndex: z.number().int().nonnegative().optional() }),
+	z.object({ ...operationBase, kind: z.literal('addBranch'), branch: identifier }),
+	z.object({ ...operationBase, kind: z.literal('renameBranch'), selector: z.object({ branch: identifier }), newName: identifier }),
+	z.object({ ...operationBase, kind: z.literal('removeBranch'), selector: z.object({ branch: identifier }) }),
+	z.object({ ...operationBase, kind: z.literal('addPackage'), package: boundedPayload, atIndex: z.number().int().nonnegative() }),
+	z.object({ ...operationBase, kind: z.literal('renamePackage'), selector: packageSelector, newName: identifier }),
+	z.object({ ...operationBase, kind: z.literal('removePackage'), selector: packageSelector }),
+	z.object({ ...operationBase, kind: z.literal('addComponent'), selector: packageSelector, component: boundedPayload, atIndex: z.number().int().nonnegative() }),
+	z.object({ ...operationBase, kind: z.literal('removeComponent'), selector: componentSelector }),
+	z.object({ ...operationBase, kind: z.literal('moveComponent'), selector: componentSelector, toPackageId: identifier, toIndex: z.number().int().nonnegative() }),
+	z.object({ ...operationBase, kind: z.literal('replaceResourceBytes'), selector: resourceSelector, sourceBytes: bytes }),
+	z.object({ ...operationBase, kind: z.literal('removeResource'), selector: resourceSelector }),
+	z.object({ ...operationBase, kind: z.literal('setDisplayNodeProps'), selector: displayNodeSelector, props: boundedPayload }),
+	z.object({ ...operationBase, kind: z.literal('setComponentProps'), selector: componentSelector, props: boundedPayload }),
+	z.object({ ...operationBase, kind: z.literal('attachDisplayNode'), selector: componentSelector, atIndex: z.number().int().nonnegative(), node: boundedPayload }),
+	z.object({ ...operationBase, kind: z.literal('detachDisplayNode'), selector: displayNodeSelector }),
+	...(['addController', 'updateController'] as const).map((kind) => z.object({ ...operationBase, kind: z.literal(kind), selector: controllerSelector, controller: boundedPayload })),
+	z.object({ ...operationBase, kind: z.literal('removeController'), selector: controllerSelector }),
+	...(['addTransition', 'updateTransition'] as const).map((kind) => z.object({ ...operationBase, kind: z.literal(kind), selector: transitionSelector, transition: boundedPayload })),
+	z.object({ ...operationBase, kind: z.literal('removeTransition'), selector: transitionSelector }),
+	...(['addLookGear', 'updateLookGear', 'addGear', 'updateGear'] as const).map((kind) => z.object({ ...operationBase, kind: z.literal(kind), selector: displayNodeSelector.extend({ kind: identifier, controllerName: identifier }), gear: boundedPayload })),
+	...(['removeLookGear', 'removeGear'] as const).map((kind) => z.object({ ...operationBase, kind: z.literal(kind), selector: displayNodeSelector.extend({ kind: identifier, controllerName: identifier }) })),
+]);
+const project = z.object({
+	projectId: identifier,
+	projectType: z.number().int(),
+	version: z.string().max(256),
+	branches: z.array(z.string().max(256)).max(256),
+	settings: boundedPayload,
+	packages: z.array(z.object({
+		id: identifier,
+		name: identifier,
+		compressPNG: z.boolean().nullable(),
+		jpegQuality: z.number().finite().nullable(),
+		publish: boundedPayload.nullable(),
+		branchNames: z.array(z.string().max(256)).max(256),
+		folders: z.array(boundedPayload).max(10_000),
+		resources: z.array(boundedPayload).max(100_000),
+	})).max(1_000),
+});
 
 export const OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA = z.object({
-	backendResult: z.object({
-		ok: z.boolean(),
-		data: z.unknown().optional(),
-		error: z.unknown().optional(),
-		meta: z.unknown().optional(),
-	}).passthrough(),
+	backendResult: z.discriminatedUnion('ok', [
+		z.object({ ok: z.literal(true), data: boundedPayload, meta: boundedPayload }),
+		z.object({ ok: z.literal(false), error: z.object({ code: identifier, message: z.string().max(1_000_000) }).passthrough(), meta: boundedPayload, session: boundedPayload.optional() }),
+	]),
 });
 
 export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
@@ -97,7 +192,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
 		title: 'Open Project Session',
 		description: 'Open a browser-safe backend session from an already loaded UAM project without filesystem access.',
 		inputSchema: z.object({
-			project: z.unknown(),
+			project,
 			sessionId: z.string().min(1).optional(),
 			canonicalProjectPath: z.string().min(1).optional(),
 			canonicalPathKey: z.string().min(1).optional(),
@@ -136,11 +231,11 @@ export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
 		name: 'openfairygui_backend_apply_transaction',
 		backendMethod: 'applyTransaction',
 		title: 'Apply UAM Transaction',
-		description: 'Apply a backend revision-checked UAM operation batch without redefining selector or operation grammar.',
+		description: 'Apply a bounded, revision-checked UAM operation batch using the Core transaction discriminants.',
 		inputSchema: z.object({
 			sessionId,
 			expectedRevision,
-			operations: z.array(z.unknown()),
+			operations: z.array(operation).min(1).max(1_000),
 		}),
 		outputSchema: OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 		annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
@@ -149,7 +244,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS = [
 		name: 'openfairygui_backend_save_session',
 		backendMethod: 'saveSession',
 		title: 'Save Backend Session',
-		description: 'Write the current backend session back through the backend coordinated non-atomic save path.',
+		description: 'Write the current backend session through its coordinated save path; Node uses an atomic staged directory swap.',
 		inputSchema: z.object({
 			sessionId,
 			expectedRevision: expectedRevision.optional(),

@@ -126,11 +126,11 @@ export class Root extends ExtensibleProperty<IRoot> {
 	}
 
 	public getSettings(): ProjectSettings {
-		return this.get('settings');
+		return structuredClone(this.get('settings'));
 	}
 
 	public setSettings(settings: ProjectSettings): this {
-		return this.set('settings', settings);
+		return this.set('settings', structuredClone(settings));
 	}
 
 	/****** Extensions ******/
