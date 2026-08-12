@@ -96,7 +96,7 @@ export async function genCode(doc, settings, options) {
 onPublishStart -> built-in publish preflight -> atlas / binary publish -> genCode -> onPublishEnd
 ```
 
-`onPublishStart` 接收宿主的可写文件系统，并且会在 OpenFairyGUI 内置发布 preflight 之前执行，以便插件对 `Document` 的修改进入本次发布。插件在这个 hook 中产生的文件或其他外部副作用不属于内置发布的零输出保证，也不会在后续 preflight 或发布失败时自动回滚。需要失败时保持零副作用的插件应延后写入，或自行使用临时目录和提交步骤。
+`onPublishStart` 接收宿主的可写文件系统，并且会在 OpenFairyGUI 内置发布 preflight 之前执行，以便插件对 `Document` 的修改进入本次发布。标准 Node adapter 的显式 `output` 会映射到同级 staging 目录，但插件写到 `basePath`、codegen 路径或其他输出目录外位置的副作用不会自动回滚。需要失败时保持零副作用的插件应只写 `options.output` 下的路径，或自行使用临时目录和提交步骤。
 
 代码生成阶段的规则：
 

@@ -180,7 +180,7 @@ flowchart LR
 
 每个包的发布计划按“显式调用参数 > 包级 atlas 设置 > 全局发布设置”解析图集尺寸、尺寸约束、分页与旋转；`extractAlpha` 和 `maxAtlasIndex` 使用包级正式设置。Layabox 发布计划统一禁用旋转。包级排除列表和组件的发布时清理标记在资源闭包与二进制投影阶段生效，不修改工程源模型。
 
-- `@openfairygui/functions/node` 的 `publishNode()` 组装 Node 文件系统、Sharp 与工程 `plugins/` 自动发现。
+- `@openfairygui/functions/node` 的 `publishNode()` 组装 Node 文件系统、Sharp 与工程 `plugins/` 自动发现；显式 `output` 使用同级 staging 目录完成发布后再切换提交，既有输出中的符号链接会被拒绝。
 - `@openfairygui/functions/web` 的 `publishBrowser()` 接收调用方的源/输出 `FileSystem`，通过独立 `adapters/web/raster.ts` Canvas adapter 生成 atlas PNG，并注入空 hooks。SVG 在解码前经过有尺寸、节点数和输入大小上限的 XML 安全校验；`createImageBitmap` 拒绝已验证 SVG 时仅对 SVG 使用 `HTMLImageElement` Blob URL 回退，并在成功或失败后释放 URL，其他图片格式仍沿用原解码路径。它解析持久化的 Laya 压缩、图集和安全文件扩展名设置，同时保持显式 browser 参数优先；选中包实际请求代码生成或扩展名不安全时，会在 Canvas 检查与输出写入前返回结构化 `unsupported_publish_setting`。失败结果的 `files` 只声明已完成的 `writeFileRaw`，原子提交由宿主文件系统负责。
 - `@openfairygui/functions/node` 的 `restoreNode()` 组装受限 restore 所需的 Node 文件系统与 Sharp 图像提取；CLI 只解析参数并调用该入口。
 

@@ -312,6 +312,37 @@ export function onPublishEnd() {
 	}
 });
 
+test('publishNode: onPublishEnd failure preserves the previous explicit output', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-plugin-end-failure-'));
+	const output = path.join(tmpDir, 'release');
+
+	try {
+		const doc = createCodegenDocument(tmpDir);
+		await fs.mkdir(output);
+		await fs.writeFile(path.join(output, 'previous.txt'), 'previous', 'utf-8');
+		await writePlugin(
+			tmpDir,
+			'end-failure-plugin',
+			`export function onPublishEnd() { throw new Error('end failed'); }`,
+		);
+
+		await t.throwsAsync(
+			publishNode({
+				document: doc,
+				output,
+				assetsPath: path.join(tmpDir, 'assets'),
+				codeGeneration: false,
+			}),
+			{ message: /onPublishEnd failed.*end failed/u },
+		);
+
+		t.is(await fs.readFile(path.join(output, 'previous.txt'), 'utf-8'), 'previous');
+		t.false(await fs.stat(path.join(output, 'DemoPkg_fui.bytes')).then(() => true).catch(() => false));
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('publishNode: code generation plugin failure aborts publish by default', async (t) => {
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-plugin-codegen-failure-'));
 

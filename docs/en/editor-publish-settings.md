@@ -200,7 +200,7 @@ These are OpenFairyGUI's current execution boundaries, not new editor setting fi
 
 When no output directory is requested, low-level `publish()` may calculate layout only. That is not a file publish and writes no binary or resource files. Standard Node workflows should use `publishNode()`.
 
-The zero-output guarantee covers only built-in OpenFairyGUI sound, external-resource, atlas, package-binary, and code-generation output. A Node `onPublishStart` plugin runs before built-in preflight and can perform side effects through the host filesystem; those writes are not staged or rolled back automatically. Plugins requiring zero side effects should defer writes until `onPublishEnd` or implement their own staging and commit policy.
+When the standard Node adapter receives an explicit `output`, it copies that directory to a sibling staging directory and commits it with a directory switch only after the complete publish succeeds. The original output remains unchanged if built-in runtime output or `onPublishEnd` fails. Multiple output directories resolved from project/package settings, custom low-level filesystems, code generation outside the output directory, and plugin side effects through `basePath` or other paths remain outside this directory-level guarantee and require host- or plugin-owned staging and rollback.
 
 ## Current code-generation scope
 

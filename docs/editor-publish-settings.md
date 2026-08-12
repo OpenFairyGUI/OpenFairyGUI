@@ -206,7 +206,7 @@ ProjectWriter 会为每个工程分支保留 `assets_<branch>/`，并为包内�
 
 未请求任何输出目录时，低层 `publish()` 可以只计算 layout；这不是文件发布，也不会写出二进制或资源文件。标准 Node 工作流应使用 `publishNode()`。
 
-这里的零输出保证只覆盖 OpenFairyGUI 内置的 sound、external resource、atlas、package binary 与 codegen 输出。Node `onPublishStart` 插件在内置 preflight 之前运行，并可通过宿主提供的文件系统执行自己的副作用；这些插件写入不会被 staging 或自动回滚。需要零副作用的插件应把写入延后到 `onPublishEnd`，或自行实现临时目录与提交策略。
+标准 Node adapter 在显式传入 `output` 时，会先把该目录复制到同级 staging 目录，完整发布成功后再以目录切换提交；内置 runtime 输出或 `onPublishEnd` 失败时，原输出目录保持不变。按工程/包设置解析出的多个输出目录、自定义低层文件系统、输出目录外的 codegen，以及插件通过 `basePath` 或其他路径产生的副作用不在这项目录级保证内，应由宿主或插件提供自己的 staging/回滚策略。
 
 ## 代码生成的当前实现范围
 

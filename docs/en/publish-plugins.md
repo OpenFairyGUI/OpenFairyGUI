@@ -93,7 +93,7 @@ Current execution order:
 onPublishStart -> built-in publish preflight -> atlas / binary publish -> genCode -> onPublishEnd
 ```
 
-`onPublishStart` receives the host's writable filesystem and runs before the built-in OpenFairyGUI publish preflight so that changes it makes to the `Document` participate in the current publish. Files or other external side effects produced by this hook are outside the built-in zero-output guarantee and are not rolled back when later preflight or publishing fails. A plugin that requires zero side effects on failure must defer writes or provide its own temporary-directory and commit step.
+`onPublishStart` receives the host's writable filesystem and runs before the built-in OpenFairyGUI publish preflight so that changes it makes to the `Document` participate in the current publish. The standard Node adapter maps an explicit `output` to a sibling staging directory, but plugin side effects written through `basePath`, code-generation paths, or any other location outside that output are not rolled back automatically. A plugin that requires zero side effects on failure must write only below `options.output` or provide its own temporary-directory and commit step.
 
 Code-generation behavior:
 
