@@ -1,5 +1,9 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import type { BackendRuntime } from '@openfairygui/backend';
+import {
+	BACKEND_CAPABILITY_SCHEMA_VERSION,
+	BACKEND_CONTRACT_VERSION,
+	type BackendRuntime,
+} from '@openfairygui/backend';
 import {
 	isOpenFairyGuiMcpPayloadWithinBudget,
 	type OpenFairyGuiBackendToolName,
@@ -49,6 +53,25 @@ function isBackendFailure(value: unknown): boolean {
 		&& (value as { ok?: unknown }).ok === false;
 }
 
+function unhandledBackendFailure(startedAt: number): unknown {
+	return {
+		ok: false,
+		meta: {
+			requestId: crypto.randomUUID(),
+			durationMs: Math.max(0, Date.now() - startedAt),
+			warnings: [],
+			diagnostics: [],
+			stage: 'runtime',
+			contractVersion: BACKEND_CONTRACT_VERSION,
+			capabilitySchemaVersion: BACKEND_CAPABILITY_SCHEMA_VERSION,
+		},
+		error: {
+			code: 'backend_unhandled_error',
+			message: 'Backend tool execution failed.',
+		},
+	};
+}
+
 export async function callOpenFairyGuiBackendTool(
 	runtime: OpenFairyGuiBackendRuntime,
 	name: OpenFairyGuiBackendToolName,
@@ -57,8 +80,10 @@ export async function callOpenFairyGuiBackendTool(
 	if (!isOpenFairyGuiMcpPayloadWithinBudget(input)) {
 		throw new RangeError('MCP input exceeds the depth, node, key, string, or byte budget.');
 	}
+	const startedAt = Date.now();
 	let result: unknown;
-	switch (name) {
+	try {
+		switch (name) {
 		case 'openfairygui_backend_get_capabilities':
 			result = runtime.getCapabilities();
 			break;
@@ -163,10 +188,13 @@ export async function callOpenFairyGuiBackendTool(
 				reason: input.reason as Parameters<BackendRuntime['refreshCache']>[0]['reason'],
 			});
 			break;
-		default: {
-			const exhaustive: never = name;
-			throw new Error(`Unknown OpenFairyGUI backend MCP tool: ${exhaustive}`);
+			default: {
+				const exhaustive: never = name;
+				throw new Error(`Unknown OpenFairyGUI backend MCP tool: ${exhaustive}`);
+			}
 		}
+	} catch {
+		return jsonResult(unhandledBackendFailure(startedAt), true);
 	}
 	return jsonResult(result, isBackendFailure(result));
 }

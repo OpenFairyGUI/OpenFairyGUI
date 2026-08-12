@@ -78,6 +78,21 @@ test('MCP P0 preserves backend failure envelopes as structured tool errors', asy
 	t.is(backendResult.error?.code, 'session_not_found');
 });
 
+test('MCP P0 converts thrown backend failures into a stable envelope', async (t) => {
+	const runtime = {
+		getCapabilities(): never {
+			throw new Error('sensitive local path');
+		},
+	} as unknown as OpenFairyGuiBackendRuntime;
+	const result = await callOpenFairyGuiBackendTool(runtime, 'openfairygui_backend_get_capabilities', {});
+	const backendResult = backendResultOf(result);
+
+	t.true(result.isError);
+	t.false(backendResult.ok);
+	t.is(backendResult.error?.code, 'backend_unhandled_error');
+	t.false(JSON.stringify(backendResult).includes('sensitive local path'));
+});
+
 test('MCP P0 tool annotations reflect backend side effects and non-goals', (t) => {
 	const definitionsByMethod = new Map(
 		OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.map((definition) => [definition.backendMethod, definition]),

@@ -6,7 +6,8 @@ import type {
 	PublishFileSystem,
 	PublishSourceFileSystem,
 } from '../../publish/contracts.js';
-import { XMLParser, XMLValidator } from 'fast-xml-parser';
+import { validateSafeSvgSource } from '@openfairygui/core';
+import { XMLParser } from 'fast-xml-parser';
 
 type BrowserCanvas = OffscreenCanvas | HTMLCanvasElement;
 
@@ -41,30 +42,8 @@ interface BrowserRaster {
 	height: number;
 }
 
-const MAX_SVG_SOURCE_BYTES = 8 * 1024 * 1024;
 const MAX_SVG_DIMENSION = 16_384;
 const MAX_SVG_PIXELS = 64 * 1024 * 1024;
-const MAX_SVG_NODES = 50_000;
-const UNSAFE_SVG_ELEMENTS = new Set([
-	'a',
-	'animate',
-	'animatecolor',
-	'animatemotion',
-	'animatetransform',
-	'audio',
-	'canvas',
-	'discard',
-	'embed',
-	'feimage',
-	'foreignobject',
-	'iframe',
-	'image',
-	'object',
-	'script',
-	'set',
-	'style',
-	'video',
-]);
 
 type ParsedSvgEntry = Record<string, unknown> & { ':@'?: Record<string, unknown> };
 
@@ -87,57 +66,16 @@ function parseSvgLength(value: unknown, name: string): number | undefined {
 	return parsed;
 }
 
-function validateSvgAttribute(name: string, value: unknown): void {
-	const normalizedName = name.toLowerCase();
-	if (normalizedName === 'xmlns' || normalizedName.startsWith('xmlns:')) return;
-	const localName = svgLocalName(name);
-	const text = String(value);
-	if (localName.startsWith('on')) unsafeSvg(`event attribute "${name}" is not allowed`);
-	if (localName === 'style' || localName === 'src') unsafeSvg(`attribute "${name}" is not allowed`);
-	if (localName === 'href' && !/^#[A-Za-z_][\w:.-]*$/u.test(text)) {
-		unsafeSvg(`external reference in "${name}" is not allowed`);
-	}
-	if (/(?:^|[\s("'=])(?:https?:|file:|javascript:|data:|\/\/)/iu.test(text)) {
-		unsafeSvg(`external URL in "${name}" is not allowed`);
-	}
-	for (const match of text.matchAll(/url\s*\(([^)]*)\)/giu)) {
-		const reference = (match[1] ?? '').trim().replace(/^(['"])(.*)\1$/u, '$2');
-		if (!/^#[A-Za-z_][\w:.-]*$/u.test(reference)) unsafeSvg(`external url() in "${name}" is not allowed`);
-	}
-}
-
-function visitSvgEntry(entry: ParsedSvgEntry): void {
-	const pending = [entry];
-	let nodeCount = 0;
-	while (pending.length > 0) {
-		const current = pending.pop()!;
-		for (const [name, value] of Object.entries(current)) {
-			if (name === ':@' || name.startsWith('#') || name.startsWith('?')) continue;
-			if (++nodeCount > MAX_SVG_NODES) unsafeSvg('node count exceeds the supported limit');
-			const localName = svgLocalName(name);
-			if (UNSAFE_SVG_ELEMENTS.has(localName)) unsafeSvg(`element <${name}> is not allowed`);
-			for (const [attributeName, attributeValue] of Object.entries(current[':@'] ?? {})) {
-				validateSvgAttribute(attributeName, attributeValue);
-			}
-			if (Array.isArray(value)) {
-				for (const child of value) {
-					if (child && typeof child === 'object' && !Array.isArray(child)) pending.push(child as ParsedSvgEntry);
-				}
-			}
-		}
-	}
-}
-
 function validateSvg(bytes: Uint8Array): void {
-	if (bytes.byteLength === 0 || bytes.byteLength > MAX_SVG_SOURCE_BYTES) unsafeSvg('source size is unsupported');
-	let source: string;
 	try {
-		source = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-	} catch {
-		unsafeSvg('source is not valid UTF-8');
+		const source = validateSafeSvgSource(bytes);
+		validateSvgDimensions(source);
+	} catch (error) {
+		unsafeSvg(error instanceof Error ? error.message : String(error));
 	}
-	if (/<!\s*(?:doctype|entity)\b|<\?xml-stylesheet\b/iu.test(source)) unsafeSvg('DTD, entities, and stylesheets are not allowed');
-	if (XMLValidator.validate(source, { allowBooleanAttributes: false }) !== true) unsafeSvg('source is not well-formed XML');
+}
+
+function validateSvgDimensions(source: string): void {
 	const parsed = new XMLParser({
 		preserveOrder: true,
 		ignoreAttributes: false,
@@ -152,7 +90,6 @@ function validateSvg(bytes: Uint8Array): void {
 		.map((name) => ({ entry, name })));
 	if (roots.length !== 1 || svgLocalName(roots[0]!.name) !== 'svg') unsafeSvg('a single <svg> root is required');
 	const root = roots[0]!.entry;
-	visitSvgEntry(root);
 	const attributes = root[':@'] ?? {};
 	const width = parseSvgLength(attributes.width, 'width');
 	const height = parseSvgLength(attributes.height, 'height');

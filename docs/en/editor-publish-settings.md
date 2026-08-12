@@ -95,7 +95,7 @@ Notes:
 
 When an `image` resource in `package.xml` points to an `.svg` file and declares positive `width` and `height`, publishing rasterizes it at those declared dimensions before optional trimming and atlas composition. The output contains only PNG atlases, while the sprite's original dimensions remain the project-declared values.
 
-Browser publishing rejects SVG with scripts, event attributes, external resource references, DTD/entities, styles, or dimensions and complexity beyond the defined limits before rasterization. If `createImageBitmap` cannot decode a validated SVG, it falls back to `HTMLImageElement` with a Blob URL; the Blob URL is released on both success and failure paths. Publishing fails without writing output when the host has no usable DOM image-decoding capability.
+Before rasterization, browser publishing uses the same structured XML validation as UAM source validation and rejects SVG with scripts, event attributes, external resource references, DTD/entities, styles, non-standard namespaces or prefixed elements, or dimensions and complexity beyond the defined limits. If `createImageBitmap` cannot decode a validated SVG, it falls back to `HTMLImageElement` with a Blob URL; the Blob URL is released on both success and failure paths. Publishing fails without writing output when the host has no usable DOM image-decoding capability.
 
 ## Actual package-level publish properties
 

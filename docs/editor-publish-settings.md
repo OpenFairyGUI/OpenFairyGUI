@@ -94,7 +94,7 @@
 
 当 `package.xml` 的 `image` 资源指向 `.svg`，并声明了正的 `width` 和 `height` 时，发布会先按这两个声明尺寸栅格化，再执行可选裁边和图集合成。发布物只包含 PNG 图集；sprite 的原始尺寸保持为工程声明值。
 
-浏览器发布会在栅格化前拒绝脚本、事件属性、外部资源引用、DTD/实体、样式和超出尺寸或复杂度上限的 SVG。`createImageBitmap` 无法解码已验证 SVG 时，会使用 `HTMLImageElement` 与 Blob URL 回退；Blob URL 在成功和失败路径都会释放。宿主同时缺少可用 DOM 图像解码能力时，发布失败且不写出产物。
+浏览器发布会在栅格化前执行与 UAM source validation 共用的结构化 XML 校验，并拒绝脚本、事件属性、外部资源引用、DTD/实体、样式、非标准命名空间或带前缀元素，以及超出尺寸或复杂度上限的 SVG。`createImageBitmap` 无法解码已验证 SVG 时，会使用 `HTMLImageElement` 与 Blob URL 回退；Blob URL 在成功和失败路径都会释放。宿主同时缺少可用 DOM 图像解码能力时，发布失败且不写出产物。
 
 ## 包级发布设置真实属性
 

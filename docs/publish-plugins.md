@@ -36,7 +36,8 @@ MyProject/
 ```json
 {
   "name": "my-openfairygui-plugin",
-  "main": "index.mjs"
+  "main": "index.mjs",
+  "required": true
 }
 ```
 
@@ -46,9 +47,10 @@ MyProject/
 |---|---|
 | `name` | 必填，用于日志和插件标识 |
 | `main` | 必填，必须解析到当前插件目录内部 |
+| `required` | 可选；`true` 时覆盖 `failureMode` 并在加载或执行失败时中止发布 |
+| `failureMode` | 可选，`abort`（默认）或 `warn`；`warn` 仅适用于允许失败后继续发布的可选插件 |
 
-缺少必要字段、入口越界、入口加载失败或不符合 OpenFairyGUI 插件 API 的目录会被跳过。
-跳过插件不会阻断发布流程。
+缺少 `main` 的非 OpenFairyGUI 插件目录会被跳过，因此 FairyGUI 编辑器插件仍可共存。已声明 `main` 的插件若入口越界、入口加载失败或执行失败，默认中止发布；只有显式设置 `failureMode: "warn"` 才记录 warning 并继续。
 
 ## 插件 API
 
@@ -102,9 +104,9 @@ onPublishStart -> built-in publish preflight -> atlas / binary publish -> genCod
 |---|---|
 | 没有 `genCode` 插件 | 使用 OpenFairyGUI 内置代码生成 |
 | 至少一个 `genCode` 插件成功执行 | 视为插件已接管代码生成，跳过内置代码生成 |
-| `genCode` 插件执行失败 | 记录 warning，继续尝试其他插件 |
-| 所有 `genCode` 插件都失败 | 回退到内置代码生成 |
-| publish hook 执行失败 | 记录 warning，不阻断发布 |
+| `genCode` 插件执行失败 | 默认中止发布；`failureMode: "warn"` 时记录 warning 并继续 |
+| 所有 `failureMode: "warn"` 的 `genCode` 插件都失败 | 回退到内置代码生成 |
+| publish hook 执行失败 | 默认中止发布；`failureMode: "warn"` 时记录 warning 并继续 |
 
 ## 与 FairyGUI 编辑器插件的关系
 

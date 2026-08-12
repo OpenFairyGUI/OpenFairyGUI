@@ -106,6 +106,8 @@ test('source validation accepts the standard SVG namespace and rejects external 
 		'<svg xmlns="http://www.w3.org/2000/svg"><rect src="https://example.com/x.png"/></svg>',
 		'<svg xmlns="http://www.w3.org/2000/svg"><rect fill="url(https://example.com/x.svg#shape)"/></svg>',
 		'<svg xmlns="http://www.w3.org/2000/svg"><use href="javascript:alert(1)"/></svg>',
+		'<svg xmlns="http://www.w3.org/2000/svg" xmlns:x="http://www.w3.org/2000/svg"><x:script>alert(1)</x:script></svg>',
+		'<svg xmlns="http://www.w3.org/2000/svg"><rect evil:onload="alert(1)"/></svg>',
 	]) {
 		image.sourceBytes = new TextEncoder().encode(source);
 		t.true(

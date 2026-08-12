@@ -12,7 +12,7 @@ import {
 	UNITY_BINDER_TEMPLATE,
 	UNITY_COMPONENT_TEMPLATE,
 } from './codegen-templates.js';
-import { formatPluginError, type LoadedPlugin } from './plugins/types.js';
+import { formatPluginError, type LoadedPlugin, shouldAbortPluginFailure } from './plugins/types.js';
 import { dirname, isAbsolutePathLike, trimTrailingSlashes } from './path-utils.js';
 import type { PublishFileSystem } from './publish/contracts.js';
 import type { CliCodeGenerationSettings, RootProjectSettings } from './shared-types.js';
@@ -119,7 +119,9 @@ export async function publishCodeGeneration(doc: Document, options: PublishCodeG
 				handled = true;
 				logger.info(`publish: Generated code using plugin "${plugin.name}"`);
 			} catch (error) {
-				logger.warn(`publish: Code generation plugin "${plugin.name}" failed: ${formatPluginError(error)}`);
+				const message = `publish: Code generation plugin "${plugin.name}" failed: ${formatPluginError(error)}`;
+				if (shouldAbortPluginFailure(plugin)) throw new Error(message);
+				logger.warn(message);
 			}
 		}
 		if (handled) {
