@@ -178,7 +178,7 @@ export class AuthoringService {
 		private readonly eventService: EventService,
 	) {}
 
-	private async runSessionExclusive<T>(sessionId: string, operation: () => Promise<T>): Promise<T> {
+	public async runSessionExclusive<T>(sessionId: string, operation: () => Promise<T>): Promise<T> {
 		const previous = this.sessionOperations.get(sessionId) ?? Promise.resolve();
 		let release = (): void => undefined;
 		const current = new Promise<void>((resolve) => {

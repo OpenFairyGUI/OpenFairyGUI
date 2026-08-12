@@ -319,3 +319,62 @@ test('saveSession serializes a concurrent transaction behind the saved revision'
 		await fixture.cleanup();
 	}
 });
+
+test('closeSession waits for an in-flight save before releasing its lock', async (t) => {
+	const fixture = await createTempBackendProject();
+	try {
+		const base = createNodeBackendFileSystem();
+		let releaseWrite = (): void => undefined;
+		const writeGate = new Promise<void>((resolve) => {
+			releaseWrite = resolve;
+		});
+		let signalWriteStarted = (): void => undefined;
+		const writeStarted = new Promise<void>((resolve) => {
+			signalWriteStarted = resolve;
+		});
+		let delayNextWrite = true;
+		const delayedFileSystem = {
+			...base,
+			async writeFile(filePath: string, content: string): Promise<void> {
+				if (delayNextWrite) {
+					delayNextWrite = false;
+					signalWriteStarted();
+					await writeGate;
+				}
+				await base.writeFile(filePath, content);
+			},
+		};
+		const runtime = createBackendRuntime({ fileSystem: delayedFileSystem });
+		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
+		t.true(opened.ok);
+		if (!opened.ok) return;
+		const applied = await runtime.applyTransaction({
+			sessionId: opened.data.sessionId,
+			expectedRevision: 0,
+			operations: [{
+				kind: 'setDisplayNodeProps',
+				selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+				props: { text: 'Saved before close' },
+			}],
+		});
+		t.true(applied.ok);
+		if (!applied.ok) return;
+
+		const saving = runtime.saveSession({ sessionId: opened.data.sessionId });
+		await writeStarted;
+		let closeSettled = false;
+		const closing = runtime.closeSession({ sessionId: opened.data.sessionId }).finally(() => {
+			closeSettled = true;
+		});
+		await Promise.resolve();
+		t.false(closeSettled);
+		await fs.stat(path.join(fixture.rootDir, '.openfairygui.backend.lock'));
+
+		releaseWrite();
+		t.true((await saving).ok);
+		t.true((await closing).ok);
+		await t.throwsAsync(fs.stat(path.join(fixture.rootDir, '.openfairygui.backend.lock')));
+	} finally {
+		await fixture.cleanup();
+	}
+});

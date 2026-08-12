@@ -753,6 +753,9 @@ test('binary round-trip: compressed output works', async (t) => {
 
 	try {
 		await io.writeBinary(doc, outPath, { compressed: true });
+		await t.throwsAsync(io.readBinary(outPath, { limits: { maxDecompressedBytes: 1 } }), {
+			message: /decompressed data exceeds the configured 1 byte budget/,
+		});
 
 		const doc2 = await io.readBinary(outPath);
 		const pkg1 = doc.getRoot().listPackages()[0];
@@ -2164,6 +2167,37 @@ test('binary writer: component child blocks round-trip into formal child propert
 		await t.throwsAsync(() => io.writeBinary(doc, outPath), { message: /unsupported filter "blur"/ });
 		image.setFilter('').setBlendMode('overlay');
 		await t.throwsAsync(() => io.writeBinary(doc, outPath), { message: /unsupported blend mode "overlay"/ });
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('binary writer re-encodes a decoded component after graph edits', async (t) => {
+	const source = new Document();
+	const pkg = source.createPackage('DirtyPkg').setId('dirtypkg');
+	const component = source.createComponent('Main').setId('main').setSize(100, 80);
+	const child = source.createGTextField('title').setId('title').setText('before');
+	component.addChild(child);
+	pkg.addResource(component);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-binary-dirty-'));
+	const sourcePath = path.join(tmpDir, 'source.bytes');
+	const editedPath = path.join(tmpDir, 'edited.bytes');
+	try {
+		await io.writeBinary(source, sourcePath);
+		const decoded = await io.readBinary(sourcePath);
+		const decodedComponent = decoded.getRoot().getPackage('DirtyPkg')?.getComponent('Main');
+		t.truthy(decodedComponent);
+		decodedComponent?.setSize(320, 240);
+		decodedComponent?.getChild('title')?.setName('edited-title');
+
+		await io.writeBinary(decoded, editedPath);
+		const roundTripped = await io.readBinary(editedPath);
+		const edited = roundTripped.getRoot().getPackage('DirtyPkg')?.getComponent('Main');
+		t.is(edited?.getWidth(), 320);
+		t.is(edited?.getHeight(), 240);
+		t.truthy(edited?.getChild('edited-title'));
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

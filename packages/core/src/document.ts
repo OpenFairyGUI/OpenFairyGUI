@@ -76,6 +76,7 @@ export class Document {
 	private _root: Root = new Root(this._graph);
 	private _logger: ILogger = Logger.DEFAULT_INSTANCE;
 	private _projectDir = '';
+	private _hasBinaryComponents = false;
 
 	private static _GRAPH_DOCUMENTS = new WeakMap<Graph<Property>, Document>();
 
@@ -85,6 +86,26 @@ export class Document {
 
 	public constructor() {
 		Document._GRAPH_DOCUMENTS.set(this._graph, this);
+		this._graph.addEventListener('node:change', (event) => {
+			if (!this._hasBinaryComponents) return;
+			const pending = [event.target as Property];
+			const visited = new Set<Property>();
+			while (pending.length > 0) {
+				const current = pending.pop()!;
+				if (visited.has(current)) continue;
+				visited.add(current);
+				if (current instanceof Component) {
+					current._markBinaryDirty();
+					continue;
+				}
+				pending.push(...current.listParents());
+			}
+		});
+	}
+
+	/** @internal */
+	public _trackBinaryComponent(): void {
+		this._hasBinaryComponents = true;
 	}
 
 	public getRoot(): Root {

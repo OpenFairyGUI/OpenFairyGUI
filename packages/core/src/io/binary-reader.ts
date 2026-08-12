@@ -1,4 +1,4 @@
-import { inflateRaw } from 'pako';
+import { Inflate } from 'pako';
 import { Document } from '../document.js';
 import { FGUI_MAGIC } from '../constants.js';
 import type { ImageResource } from '../properties/image-resource.js';
@@ -6,6 +6,60 @@ import type { Package } from '../properties/package.js';
 import { ByteBuffer } from './byte-buffer.js';
 import { decodeComponentDefinition } from './component-decoder.js';
 import type { FileSystem } from './file-system.js';
+
+export interface BinaryReadLimits {
+	maxCompressedBytes: number;
+	maxDecompressedBytes: number;
+	maxCompressionRatio: number;
+}
+
+export interface BinaryReaderOptions {
+	limits?: Partial<BinaryReadLimits>;
+}
+
+const DEFAULT_BINARY_READ_LIMITS: BinaryReadLimits = {
+	maxCompressedBytes: 64 * 1024 * 1024,
+	maxDecompressedBytes: 256 * 1024 * 1024,
+	maxCompressionRatio: 200,
+};
+
+function readLimits(options: BinaryReaderOptions): BinaryReadLimits {
+	const limits = { ...DEFAULT_BINARY_READ_LIMITS, ...options.limits };
+	for (const [name, value] of Object.entries(limits)) {
+		if (!Number.isFinite(value) || value <= 0) throw new RangeError(`${name} must be a positive finite number.`);
+	}
+	return limits;
+}
+
+function inflateRawWithLimits(input: Uint8Array, limits: BinaryReadLimits): Uint8Array {
+	if (input.byteLength > limits.maxCompressedBytes) {
+		throw new Error(`FairyGUI binary compressed data exceeds ${limits.maxCompressedBytes} bytes.`);
+	}
+	const maxOutputBytes = Math.min(
+		limits.maxDecompressedBytes,
+		Math.floor(input.byteLength * limits.maxCompressionRatio),
+	);
+	const chunks: Uint8Array[] = [];
+	let outputLength = 0;
+	const inflater = new Inflate({ raw: true });
+	inflater.onData = (chunk) => {
+		if (!(chunk instanceof Uint8Array)) throw new Error('FairyGUI binary inflate returned non-binary data.');
+		outputLength += chunk.byteLength;
+		if (outputLength > maxOutputBytes) {
+			throw new Error(`FairyGUI binary decompressed data exceeds the configured ${maxOutputBytes} byte budget.`);
+		}
+		chunks.push(chunk);
+	};
+	inflater.push(input, true);
+	if (inflater.err !== 0) throw new Error(`Invalid compressed FairyGUI binary data: ${inflater.msg}`);
+	const output = new Uint8Array(outputLength);
+	let offset = 0;
+	for (const chunk of chunks) {
+		output.set(chunk, offset);
+		offset += chunk.byteLength;
+	}
+	return output;
+}
 
 /**
  * Binary item type codes as used in the .fui format.
@@ -224,9 +278,11 @@ function decodeFontGlyphs(doc: Document, resource: ReturnType<Document['createFo
  */
 export class BinaryReader {
 	private readonly _fs: FileSystem;
+	private readonly _limits: BinaryReadLimits;
 
-	constructor(fs: FileSystem) {
+	constructor(fs: FileSystem, options: BinaryReaderOptions = {}) {
 		this._fs = fs;
+		this._limits = readLimits(options);
 	}
 
 	async read(filePath: string): Promise<Document> {
@@ -269,9 +325,12 @@ export class BinaryReader {
 				outer.byteOffset + outer.pos,
 				outer.byteLength - outer.pos,
 			);
-			const decompressed = inflateRaw(remaining);
+			const decompressed = inflateRawWithLimits(remaining, this._limits);
 			buf = new ByteBuffer(decompressed.buffer, 0, decompressed.byteLength);
 		} else {
+			if (outer.byteLength - outer.pos > this._limits.maxDecompressedBytes) {
+				throw new Error(`FairyGUI binary data exceeds ${this._limits.maxDecompressedBytes} bytes.`);
+			}
 			buf = outer;
 		}
 		buf.version = outer.version;
@@ -434,6 +493,8 @@ export class BinaryReader {
 						...getComponentExtras(res),
 						_rawBinary: toRawBinarySlice(rawData),
 					});
+					res._markBinaryClean();
+					doc._trackBinaryComponent();
 					pkg.addResource(res);
 					createdResource = res;
 					break;

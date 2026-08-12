@@ -19,7 +19,7 @@ flowchart LR
     subgraph IO["协议适配与 I/O"]
         FS["PlatformIO / NodeIO / WebIO / BackendStorageFS"]
         PR["ProjectReader"]
-        BR["BinaryReader"]
+        BR["BinaryReader<br/>bounded raw-deflate"]
         PW["ProjectWriter"]
         BW["BinaryWriter"]
     end
@@ -63,7 +63,7 @@ flowchart LR
         RU["runtime/admin services"]
         SS["session registry / revision / dirty"]
         LK["canonical path / session lock lease"]
-        SV["per-session serialized save (non-atomic)"]
+        SV["per-session serialized authoring / save / close (non-atomic)"]
         CAP["capability planes / version surface"]
         EV["runtime events<br/>polling cursor / retention"]
         JOB["in-memory jobs<br/>cache.refresh / cooperative cancel"]
@@ -155,7 +155,7 @@ flowchart LR
 - `packages/backend/src/storage.ts` 当前提供 browser-safe 的 async storage adapter factory：`createBackendStorageFileSystem()` 把 OPFS、IndexedDB、ZIP 虚拟文件系统或 File System Access API bridge 适配为 backend/core project writer 可共用的文件系统面，并要求 storage 提供 `unlink`。默认浏览器 session lock 使用 Web Locks API，活跃标签之间原子互斥，页面刷新或异常终止时由平台释放，且不把持久 `.openfairygui.backend.lock` 文件作为锁事实；不提供 Web Locks 的宿主必须通过 `BackendAsyncStorageAdapter.acquireSessionLock()` 注入具备相同跨上下文原子性和 owner-termination 恢复语义的租约。写回时先写新的工程内容和 primary resource bytes，只有全部写入成功后才按结构化 package source reference 删除已被 rename/move/remove 替换的旧 source files；dirty `saveSession` 始终写回 session 绑定的文件系统。
 - `packages/backend/src/runtime.ts` 的 capability authoring scope 当前声明正式 UAM lift/materialize 与 transaction 覆盖面；`authoring.transactionScope` 单独声明 `applyTransaction` 的正式 operation 范围，避免把全量 UAM display node 建模误解成任意字段 mutation 能力。
 - `packages/backend/src/node.ts` 当前只承接 Node 默认装配：Node filesystem adapter、持久 advisory lock file/metadata，以及 `createNodeBackendRuntime()`。根入口不再默认导入 Node 文件系统。
-- `packages/backend/src/services/*.ts` 当前把 backend 进一步分成 `read / authoring / artifact / runtime` 四类内部服务面；`authoring` plane 以 per-session 队列串行化 transaction、save 与 materialize，共用 `session-project-writer.ts` 的工程写回与 source cleanup，使一次写盘完成后的 `dirty / lastSavedRevision / stale source path` 只对应实际落盘 revision。`materializeSession` 可在不推进普通 edit revision 的情况下把可保真 clean session 完整写入 project storage，并返回 `writtenPaths / skippedPaths / diagnostics / lastSavedRevision`；`artifact` plane 不执行 `publish` / `restore`，而是通过 capability manifest 声明它们需要 `@openfairygui/backend/node` 侧的 Node bridge boundary。
+- `packages/backend/src/services/*.ts` 当前把 backend 进一步分成 `read / authoring / artifact / runtime` 四类内部服务面；`authoring` plane 以 per-session 队列串行化 transaction、save 与 materialize，`closeSession` 复用同一队列，因此只会在更早的写盘结束后释放 session lock。写回共用 `session-project-writer.ts` 的工程写回与 source cleanup，使一次写盘完成后的 `dirty / lastSavedRevision / stale source path` 只对应实际落盘 revision。`materializeSession` 可在不推进普通 edit revision 的情况下把可保真 clean session 完整写入 project storage，并返回 `writtenPaths / skippedPaths / diagnostics / lastSavedRevision`；`artifact` plane 不执行 `publish` / `restore`，而是通过 capability manifest 声明它们需要 `@openfairygui/backend/node` 侧的 Node bridge boundary。
 - `packages/backend/src/contracts.ts` 当前提供 backend contract version、capability schema version、compatibility policy，以及统一 response metadata / diagnostics 面；当前 metadata 至少覆盖 `requestId / sessionId / revision / durationMs / warnings / diagnostics / stage`，失败 envelope 会稳定把错误码/消息镜像到 `meta.diagnostics`。Transaction failure diagnostics 额外保留稳定 `code / path / nodeKind / operationKind` 字段，供浏览器编辑器禁用对应操作或定位提示。
 - `packages/backend/src/services/event-service.ts` 当前提供 per-runtime monotonic sequence 的 polling event snapshot，事件按 session 绑定并保留最近 1000 条；不提供 subscription 或 transport-specific cursor。
 - `packages/backend/src/services/job-service.ts` 当前只支持 `cache.refresh` in-memory job，提供 queued/running/completed/failed/cancelled 状态、active/terminal 查询、cooperative cancel，以及每 session 最近 100 个终态 job 保留。
@@ -164,7 +164,7 @@ flowchart LR
 - `packages/mcp/src/resource-definitions.ts` 当前只提供 identity-addressable read-only snapshots：capabilities、session、cache、job；`getEvents` 与 `listJobs` 仍保持 tool 形式，不引入 MCP URI query grammar。
 - `packages/mcp/src/prompt-definitions.ts` 当前只提供 guidance prompts，引导客户端使用既有 backend tools；prompts 不定义 transaction grammar、selector grammar 或具体 operation payload。
 - `@openfairygui/mcp` 不拥有 transaction grammar、selector grammar、path policy、job semantics、cache semantics 或 artifact publish/restore；MCP roots 只作为客户端上下文说明，路径安全仍由 backend path policy 决定。
-- `BinaryReader` / `BinaryWriter` 仍然是二进制读写入口；`component-decoder.ts` 与 `component-encoder.ts` 保留稳定 facade，component child、behavior、transition/gear block 以及共享值转换分别拆到同名前缀的内部域模块，对外调用面不变。
+- `BinaryReader` / `BinaryWriter` 仍然是二进制读写入口；Reader 对 raw-deflate 输入、解压输出和压缩比设置默认资源预算，并允许调用方通过 `BinaryReaderOptions.limits` 收紧或放宽。二进制读取保留的原始 Component buffer 只用于未修改组件的精确写回；Property Graph 中组件自身或任意后代发生变化后，Writer 改用结构化 encoder。`component-decoder.ts` 与 `component-encoder.ts` 保留稳定 facade，component child、behavior、transition/gear block 以及共享值转换分别拆到同名前缀的内部域模块。
 - `@openfairygui/functions` 仍以 workflow composition 为主，不重新定义底层协议；当前 `publish` 与 `restore` 仍主要围绕图物化后的内部表示执行，新 authoring seam 也明确不包装 `publish` / `restore`。publish options、package context、external resources 与 resource references 分别位于 `publish/*.ts`；atlas 输入收集、packing、JTA/FNT codec 位于 `atlas/*.ts`；restore 输出事务与 FNT/JTA 重建位于 `restore-internals/*.ts`。这些模块只服务对应 facade，不增加新的公开 workflow。
 - `@openfairygui/backend` 不拥有 transaction grammar / selector grammar / support semantics；它只承接 stateful runtime concerns，并保持 transport-neutral。根入口是 browser-safe API 面，Node 文件系统与必须 Node 执行的 artifact 能力通过 `@openfairygui/backend/node` 明确桥接。
 - `@openfairygui/core` 根入口当前保持 browser-safe，不再导出 `NodeIO` 或 `WebIO`；Node 默认工程 I/O 只从 `@openfairygui/core/node` 暴露，浏览器工程目录读写只从 `@openfairygui/core/web` 暴露。需要 project reader / writer adapter 类型但不能引入平台文件系统实现时，使用 `@openfairygui/core/project-io`。

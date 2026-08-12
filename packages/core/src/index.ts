@@ -313,6 +313,8 @@ export {
 	BinaryReader,
 	BinaryWriter,
 	ReaderContext,
+	type BinaryReadLimits,
+	type BinaryReaderOptions,
 	type BinaryWriterOptions,
 	type FileSystem,
 	type ProjectReadOptions,

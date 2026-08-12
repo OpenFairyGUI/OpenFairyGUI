@@ -180,7 +180,7 @@ export class BackendRuntime {
 	public async closeSession(input: {
 		sessionId: string;
 	}): Promise<BackendResult<{ sessionId: string; closed: true }, SessionNotFoundError>> {
-		return this.runtimeService.closeSession(input);
+		return this.authoringService.runSessionExclusive(input.sessionId, () => this.runtimeService.closeSession(input));
 	}
 
 	public getEvents(

@@ -369,6 +369,9 @@ Unity 与 Cocos Creator 运行时不解压二进制描述文件，因此这两�
 
 ## 工程写回联动边界
 
+工程根 `.fairy` 文件的 `projectDescription.id / type / version` 统一通过 XML 属性渲染器写出；引号、
+尖括号、换行和 `&` 等字符会转义，并在再次读取时还原为原属性值，不会形成额外 XML 属性。
+
 发布设置不改变 `component.xml` 的 authoring 属性语义。工程读写会独立保留组件根属性、根组件
 `customProperty` 定义，以及组件引用的 `Button`、`Label`、`ComboBox`、`ProgressBar`、`Slider`、
 `ScrollBar` 实例扩展覆盖；对应 XML 协议见 [Project XML 属性协议](./project-xml-attribute-reference.md)。

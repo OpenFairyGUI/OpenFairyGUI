@@ -468,7 +468,7 @@ export class BinaryWriter {
 					const compExtras = res.getExtras() as ComponentBinaryExtras;
 					const extType = (res as ComponentWithExtensionType).getExtensionType?.() ?? compExtras.extensionType;
 					data.writeUint8(extType ? (extTypeMap[extType] ?? 0) : 0);
-					if (compExtras?._rawBinary) {
+					if (compExtras?._rawBinary && !res._isBinaryDirty()) {
 						// From BinaryReader round-trip: use stored raw binary
 						data.writeBuffer(toUint8Array(compExtras._rawBinary));
 					} else {
