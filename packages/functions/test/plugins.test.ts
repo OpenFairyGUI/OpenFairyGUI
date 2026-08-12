@@ -35,7 +35,12 @@ function createCodegenDocument(projectDir: string): Document {
 	return doc;
 }
 
-async function writePlugin(projectDir: string, pluginName: string, source: string): Promise<void> {
+async function writePlugin(
+	projectDir: string,
+	pluginName: string,
+	source: string,
+	manifest: Record<string, unknown> = {},
+): Promise<void> {
 	const pluginDir = path.join(projectDir, 'plugins', pluginName);
 	await fs.mkdir(pluginDir, { recursive: true });
 	await fs.writeFile(
@@ -43,6 +48,7 @@ async function writePlugin(projectDir: string, pluginName: string, source: strin
 		JSON.stringify({
 			name: pluginName,
 			main: 'index.mjs',
+			...manifest,
 		}),
 		'utf-8',
 	);
@@ -248,7 +254,7 @@ test('publishNode: non OpenFairyGUI plugins can share the plugins directory with
 	}
 });
 
-test('publishNode: broken plugin load does not block publish', async (t) => {
+test('publishNode: broken plugin load aborts publish by default', async (t) => {
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-broken-plugin-'));
 
 	try {
@@ -261,25 +267,20 @@ throw new Error('bad plugin');
 `,
 		);
 
-		await publishNode({
-			document: doc,
-			output: path.join(tmpDir, 'release'),
-			assetsPath: path.join(tmpDir, 'assets'),
-		});
-
-		t.true(
-			await fs
-				.stat(path.join(tmpDir, 'generated', 'DemoPkg', 'UI_Main.cs'))
-				.then(() => true)
-				.catch(() => false),
-			'broken plugins are skipped and built-in codegen still runs',
+		await t.throwsAsync(
+			publishNode({
+				document: doc,
+				output: path.join(tmpDir, 'release'),
+				assetsPath: path.join(tmpDir, 'assets'),
+			}),
+			{ message: /Failed to load plugin "broken-plugin".*bad plugin/u },
 		);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 });
 
-test('publishNode: plugin hook failure does not block publish', async (t) => {
+test('publishNode: plugin hook failure aborts publish by default', async (t) => {
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-plugin-hook-failure-'));
 
 	try {
@@ -298,25 +299,51 @@ export function onPublishEnd() {
 `,
 		);
 
-		await publishNode({
-			document: doc,
-			output: path.join(tmpDir, 'release'),
-			assetsPath: path.join(tmpDir, 'assets'),
-		});
-
-		t.true(
-			await fs
-				.stat(path.join(tmpDir, 'generated', 'DemoPkg', 'UI_Main.cs'))
-				.then(() => true)
-				.catch(() => false),
-			'failing hooks do not stop built-in codegen',
+		await t.throwsAsync(
+			publishNode({
+				document: doc,
+				output: path.join(tmpDir, 'release'),
+				assetsPath: path.join(tmpDir, 'assets'),
+			}),
+			{ message: /onPublishStart failed.*start failed/u },
 		);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 });
 
-test('publishNode: code generation plugin failure falls back to built-in codegen', async (t) => {
+test('publishNode: onPublishEnd failure preserves the previous explicit output', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-plugin-end-failure-'));
+	const output = path.join(tmpDir, 'release');
+
+	try {
+		const doc = createCodegenDocument(tmpDir);
+		await fs.mkdir(output);
+		await fs.writeFile(path.join(output, 'previous.txt'), 'previous', 'utf-8');
+		await writePlugin(
+			tmpDir,
+			'end-failure-plugin',
+			`export function onPublishEnd() { throw new Error('end failed'); }`,
+		);
+
+		await t.throwsAsync(
+			publishNode({
+				document: doc,
+				output,
+				assetsPath: path.join(tmpDir, 'assets'),
+				codeGeneration: false,
+			}),
+			{ message: /onPublishEnd failed.*end failed/u },
+		);
+
+		t.is(await fs.readFile(path.join(output, 'previous.txt'), 'utf-8'), 'previous');
+		t.false(await fs.stat(path.join(output, 'DemoPkg_fui.bytes')).then(() => true).catch(() => false));
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publishNode: code generation plugin failure aborts publish by default', async (t) => {
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-plugin-codegen-failure-'));
 
 	try {
@@ -331,19 +358,38 @@ export function genCode() {
 `,
 		);
 
+		await t.throwsAsync(
+			publishNode({
+				document: doc,
+				output: path.join(tmpDir, 'release'),
+				assetsPath: path.join(tmpDir, 'assets'),
+			}),
+			{ message: /Code generation plugin "codegen-failure-plugin" failed.*codegen failed/u },
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publishNode: failureMode warn explicitly preserves fallback behavior', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-warning-plugin-'));
+
+	try {
+		const doc = createCodegenDocument(tmpDir);
+		await writePlugin(
+			tmpDir,
+			'warning-plugin',
+			`export function genCode() { throw new Error('optional failure'); }`,
+			{ failureMode: 'warn' },
+		);
+
 		await publishNode({
 			document: doc,
 			output: path.join(tmpDir, 'release'),
 			assetsPath: path.join(tmpDir, 'assets'),
 		});
 
-		t.true(
-			await fs
-				.stat(path.join(tmpDir, 'generated', 'DemoPkg', 'UI_Main.cs'))
-				.then(() => true)
-				.catch(() => false),
-			'failing codegen plugins do not suppress built-in codegen',
-		);
+		t.truthy(await fs.stat(path.join(tmpDir, 'generated', 'DemoPkg', 'UI_Main.cs')));
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

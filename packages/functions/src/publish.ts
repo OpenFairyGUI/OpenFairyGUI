@@ -13,7 +13,7 @@ import { prepareMovieClipResource } from './atlas/inputs.js';
 import type { PreparedJtaData } from './atlas/jta.js';
 import { publishCodeGeneration, resolveProjectBasePath } from './codegen.js';
 import { dirname, isAbsolutePathLike, trimTrailingSlashes } from './path-utils.js';
-import { formatPluginError, type LoadedPlugin } from './plugins/types.js';
+import { formatPluginError, type LoadedPlugin, shouldAbortPluginFailure } from './plugins/types.js';
 import type { PublishFileSystem } from './publish/contracts.js';
 import {
 	annotatePackagePublishArtifacts,
@@ -75,7 +75,9 @@ async function runPublishPluginHook(
 		try {
 			await fn(doc, options);
 		} catch (error) {
-			logger.warn(`publish: Plugin "${plugin.name}" ${hook} failed: ${formatPluginError(error)}`);
+			const message = `publish: Plugin "${plugin.name}" ${hook} failed: ${formatPluginError(error)}`;
+			if (shouldAbortPluginFailure(plugin)) throw new Error(message);
+			logger.warn(message);
 		}
 	}
 }

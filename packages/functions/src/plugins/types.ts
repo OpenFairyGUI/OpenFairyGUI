@@ -15,6 +15,8 @@ export interface PluginManifest {
 	};
 	icon?: string;
 	main: string;
+	required?: boolean;
+	failureMode?: 'abort' | 'warn';
 }
 
 export interface ICodeWriterConfig {
@@ -47,10 +49,15 @@ export interface Plugin {
 export interface LoadedPlugin {
 	name: string;
 	plugin: Plugin;
+	failureMode?: 'abort' | 'warn';
 }
 
 export type PluginModule = Plugin & { default?: Plugin };
 
 export function formatPluginError(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
+}
+
+export function shouldAbortPluginFailure(plugin: LoadedPlugin): boolean {
+	return plugin.failureMode !== 'warn';
 }

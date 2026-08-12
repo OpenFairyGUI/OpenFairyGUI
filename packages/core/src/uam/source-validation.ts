@@ -1,7 +1,7 @@
-import { XMLValidator } from 'fast-xml-parser';
 import type { ProjectDiagnostic } from '../validation.js';
 import { probeRasterImage } from '../utils/image-info.js';
 import { deriveMovieClipModelFromJta } from '../utils/jta-parser.js';
+import { validateSafeSvgSource } from '../utils/svg-validation.js';
 import type { UamAssetResource, UamProject } from './model.js';
 import { defaultAssetSourcePath } from './project-source-files.js';
 
@@ -22,16 +22,8 @@ function sourceExtension(resource: UamAssetResource): string {
 
 function validSvg(bytes: Uint8Array): boolean {
 	try {
-		if (bytes.byteLength === 0 || bytes.byteLength > 8 * 1024 * 1024) return false;
-		const source = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-		if (XMLValidator.validate(source, { allowBooleanAttributes: false }) !== true) return false;
-		if (!/<svg(?:\s|>)/i.test(source)) return false;
-		if (/<!\s*(?:doctype|entity)\b|<\?xml-stylesheet\b/iu.test(source)) return false;
-		if (/<(?:a|animate|animatecolor|animatemotion|animatetransform|audio|canvas|discard|embed|feimage|foreignobject|iframe|image|object|script|set|style|video)(?:\s|>)/iu.test(source)) return false;
-		if (/\s(?:on[\w:-]*|style|src)\s*=/iu.test(source)) return false;
-		if (/\s(?:href|xlink:href)\s*=\s*['"](?!#[A-Za-z_][\w:.-]*['"])/iu.test(source)) return false;
-		const urlSource = source.replace(/\sxmlns\s*=\s*(['"])http:\/\/www\.w3\.org\/2000\/svg\1/giu, '');
-		return !/(?:https?:|file:|javascript:|data:|\/\/)|url\s*\(\s*(?!['"]?#[A-Za-z_])/iu.test(urlSource);
+		validateSafeSvgSource(bytes);
+		return true;
 	} catch {
 		return false;
 	}

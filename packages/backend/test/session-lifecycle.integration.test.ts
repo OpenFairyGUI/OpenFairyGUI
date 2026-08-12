@@ -1,5 +1,5 @@
 import test from 'ava';
-import { createBackendRuntime, createTempBackendProject } from './helpers.js';
+import { createBackendFixtureProject, createBackendRuntime, createTempBackendProject } from './helpers.js';
 
 test('openSession -> getSession -> closeSession reports revision and dirty state', async (t) => {
 	const fixture = await createTempBackendProject();
@@ -45,5 +45,25 @@ test('openSession -> getSession -> closeSession reports revision and dirty state
 		t.true(closed.ok);
 	} finally {
 		await fixture.cleanup();
+	}
+});
+
+test('openProjectSession rejects duplicate caller-provided session ids', (t) => {
+	const runtime = createBackendRuntime();
+	const first = runtime.openProjectSession({
+		project: createBackendFixtureProject(),
+		sessionId: 'stable-session',
+		canonicalProjectPath: 'memory://first',
+	});
+	t.true(first.ok);
+	const second = runtime.openProjectSession({
+		project: createBackendFixtureProject(),
+		sessionId: 'stable-session',
+		canonicalProjectPath: 'memory://second',
+	});
+	t.false(second.ok);
+	if (!second.ok) {
+		t.is(second.error.code, 'session_id_conflict');
+		t.true(runtime.getSession({ sessionId: 'stable-session' }).ok);
 	}
 });

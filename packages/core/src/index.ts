@@ -13,6 +13,7 @@ export {
 	type ProjectDiagnosticSeverity,
 	type ProjectValidationReport,
 } from './validation.js';
+export { validateSafeSvgSource } from './utils/svg-validation.js';
 
 // Unified Authoring Model (Gate A)
 export {
@@ -313,6 +314,8 @@ export {
 	BinaryReader,
 	BinaryWriter,
 	ReaderContext,
+	type BinaryReadLimits,
+	type BinaryReaderOptions,
 	type BinaryWriterOptions,
 	type FileSystem,
 	type ProjectReadOptions,

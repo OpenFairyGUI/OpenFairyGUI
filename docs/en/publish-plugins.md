@@ -33,7 +33,8 @@ Each OpenFairyGUI publish plugin must live in its own subdirectory and provide a
 ```json
 {
   "name": "my-openfairygui-plugin",
-  "main": "index.mjs"
+  "main": "index.mjs",
+  "required": true
 }
 ```
 
@@ -43,8 +44,10 @@ Current rules:
 |---|---|
 | `name` | Required; used for logging and plugin identity. |
 | `main` | Required; must resolve inside the plugin's own directory. |
+| `required` | Optional; when `true`, overrides `failureMode` and aborts publishing on load or execution failure. |
+| `failureMode` | Optional, `abort` (default) or `warn`; use `warn` only for an optional plugin that may fail without invalidating the publish. |
 
-A directory is skipped when required fields are missing, the entrypoint escapes its plugin directory, loading fails, or the module does not implement the OpenFairyGUI plugin API. Skipping a plugin does not stop publishing.
+A non-OpenFairyGUI plugin directory without `main` is skipped, allowing FairyGUI Editor plugins to coexist. Once `main` is declared, an escaping entrypoint or load/execution failure aborts publishing by default. Only `failureMode: "warn"` records a warning and continues.
 
 ## Plugin API
 
@@ -90,7 +93,7 @@ Current execution order:
 onPublishStart -> built-in publish preflight -> atlas / binary publish -> genCode -> onPublishEnd
 ```
 
-`onPublishStart` receives the host's writable filesystem and runs before the built-in OpenFairyGUI publish preflight so that changes it makes to the `Document` participate in the current publish. Files or other external side effects produced by this hook are outside the built-in zero-output guarantee and are not rolled back when later preflight or publishing fails. A plugin that requires zero side effects on failure must defer writes or provide its own temporary-directory and commit step.
+`onPublishStart` receives the host's writable filesystem and runs before the built-in OpenFairyGUI publish preflight so that changes it makes to the `Document` participate in the current publish. The standard Node adapter maps an explicit `output` to a sibling staging directory, but plugin side effects written through `basePath`, code-generation paths, or any other location outside that output are not rolled back automatically. A plugin that requires zero side effects on failure must write only below `options.output` or provide its own temporary-directory and commit step.
 
 Code-generation behavior:
 
@@ -98,9 +101,9 @@ Code-generation behavior:
 |---|---|
 | No plugin provides `genCode` | Use the built-in OpenFairyGUI code generator. |
 | At least one `genCode` plugin succeeds | Treat code generation as plugin-owned and skip the built-in generator. |
-| A `genCode` plugin fails | Record a warning and continue with the remaining plugins. |
-| Every `genCode` plugin fails | Fall back to the built-in generator. |
-| A publish hook fails | Record a warning without stopping the publish. |
+| A `genCode` plugin fails | Abort publishing by default; with `failureMode: "warn"`, record a warning and continue. |
+| Every `failureMode: "warn"` `genCode` plugin fails | Fall back to the built-in generator. |
+| A publish hook fails | Abort publishing by default; with `failureMode: "warn"`, record a warning and continue. |
 
 ## Relationship to FairyGUI Editor plugins
 

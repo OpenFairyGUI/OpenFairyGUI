@@ -52,6 +52,19 @@ test('MCP P0 tool definitions exactly map backend P2 methods', (t) => {
 	}
 });
 
+test('MCP schemas reject unknown transaction kinds and oversized batches', (t) => {
+	const byMethod = new Map(OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.map((definition) => [definition.backendMethod, definition]));
+	const applySchema = byMethod.get('applyTransaction')!.inputSchema;
+	t.false(applySchema.safeParse({ sessionId: 's', expectedRevision: 0, operations: [{ kind: 'notAnOperation' }] }).success);
+	t.false(applySchema.safeParse({ sessionId: 's', expectedRevision: 0, operations: Array.from({ length: 1_001 }, () => ({ kind: 'removeBranch', selector: { branch: 'x' } })) }).success);
+	t.true(applySchema.safeParse({ sessionId: 's', expectedRevision: 0, operations: [{ kind: 'setDisplayNodeProps', selector: { packageId: 'p', componentResourceId: 'c', displayNodeId: 'n' }, props: { text: 'ok' } }] }).success);
+	t.true(applySchema.safeParse({ sessionId: 's', expectedRevision: 0, operations: [{ kind: 'replaceResourceBytes', selector: { packageId: 'p', resourceId: 'r' }, sourceBytes: [0, 255] }] }).success);
+
+	const projectSchema = byMethod.get('openProjectSession')!.inputSchema;
+	t.false(projectSchema.safeParse({ project: { projectId: 'p' } }).success);
+	t.true(projectSchema.safeParse({ project: createMcpFixtureProject() }).success);
+});
+
 test('MCP P0 preserves backend failure envelopes as structured tool errors', async (t) => {
 	const runtime = new BrowserSafeBackendRuntime();
 	const result = await callOpenFairyGuiBackendTool(runtime, 'openfairygui_backend_get_session', {
@@ -63,6 +76,21 @@ test('MCP P0 preserves backend failure envelopes as structured tool errors', asy
 	t.false(backendResult.ok);
 	t.truthy(backendResult.meta);
 	t.is(backendResult.error?.code, 'session_not_found');
+});
+
+test('MCP P0 converts thrown backend failures into a stable envelope', async (t) => {
+	const runtime = {
+		getCapabilities(): never {
+			throw new Error('sensitive local path');
+		},
+	} as unknown as OpenFairyGuiBackendRuntime;
+	const result = await callOpenFairyGuiBackendTool(runtime, 'openfairygui_backend_get_capabilities', {});
+	const backendResult = backendResultOf(result);
+
+	t.true(result.isError);
+	t.false(backendResult.ok);
+	t.is(backendResult.error?.code, 'backend_unhandled_error');
+	t.false(JSON.stringify(backendResult).includes('sensitive local path'));
 });
 
 test('MCP P0 tool annotations reflect backend side effects and non-goals', (t) => {

@@ -94,7 +94,7 @@
 
 当 `package.xml` 的 `image` 资源指向 `.svg`，并声明了正的 `width` 和 `height` 时，发布会先按这两个声明尺寸栅格化，再执行可选裁边和图集合成。发布物只包含 PNG 图集；sprite 的原始尺寸保持为工程声明值。
 
-浏览器发布会在栅格化前拒绝脚本、事件属性、外部资源引用、DTD/实体、样式和超出尺寸或复杂度上限的 SVG。`createImageBitmap` 无法解码已验证 SVG 时，会使用 `HTMLImageElement` 与 Blob URL 回退；Blob URL 在成功和失败路径都会释放。宿主同时缺少可用 DOM 图像解码能力时，发布失败且不写出产物。
+浏览器发布会在栅格化前执行与 UAM source validation 共用的结构化 XML 校验，并拒绝脚本、事件属性、外部资源引用、DTD/实体、样式、非标准命名空间或带前缀元素，以及超出尺寸或复杂度上限的 SVG。`createImageBitmap` 无法解码已验证 SVG 时，会使用 `HTMLImageElement` 与 Blob URL 回退；Blob URL 在成功和失败路径都会释放。宿主同时缺少可用 DOM 图像解码能力时，发布失败且不写出产物。
 
 ## 包级发布设置真实属性
 
@@ -170,7 +170,7 @@ ProjectWriter 会为每个工程分支保留 `assets_<branch>/`，并为包内�
 
 图片 source bytes 通过 `replaceResourceBytes` 更新时，当前只支持 PNG 与常见 8-bit Huffman JPEG。preflight 会检查 PNG 的 chunk CRC、zlib/scanline 边界和容器顺序；JPEG 除检查 quantization/Huffman table、frame/scan 顺序及编码约束外，还会完成像素解码。两者都会核对实际格式与操作时、最终文件扩展名；畸形或不匹配返回 `invalid_resource_bytes`，SVG、WebP、GIF、PSD、TGA 等未支持格式返回 `unsupported_resource_mutation`。浏览器 backend 通过 `applyUamTransactionAsync` 在包内 Web Worker 中执行相同的严格校验，browser 环境误用同步入口会直接拒绝而不会在主线程扫描或解码。消费端 bundler 必须把公开入口 `@openfairygui/core/image-validation-worker` 再打成与主 bundle 相邻的 self-contained ESM `image-validation-worker.js`；仅重打主入口或只复制 worker 文件不会带上其解码 chunk。Worker 无响应会在 10 秒后终止。浏览器 source 上限为 8 MiB，decoded raster 上限为 8,388,608 pixels；Node/CLI 同步校验的 source/PNG decoded bytes 上限为 128 MiB，JPEG 严格解码另限 8,388,608 pixels 与 64 MiB。
 
-有效替换会从 bytes 派生新的 raster 宽高，并在同一内存 transaction 中原子投影到 UAM 与 Document。后续 Save 仍沿用现有多文件写回，不承诺文件系统级 `atomicSave`。`ProjectReader` 在请求 `hydrateResourceBytes` 时以可解析且字段合法的 PNG IHDR / JPEG SOF header 覆盖陈旧 XML 尺寸，不在批量水合时扫描完整容器或重复执行像素解码；SVG 继续使用工程声明尺寸。
+有效替换会从 bytes 派生新的 raster 宽高，并在同一内存 transaction 中原子投影到 UAM 与 Document。后续 Node Backend Save 在同级 staging 中完成全工程写回，并仅在全部成功后切换目录；浏览器 storage 是否具备同等级别的文件系统原子性由 adapter 的 `runProjectWriteTransaction` 能力决定。`ProjectReader` 在请求 `hydrateResourceBytes` 时以可解析且字段合法的 PNG IHDR / JPEG SOF header 覆盖陈旧 XML 尺寸，不在批量水合时扫描完整容器或重复执行像素解码；SVG 继续使用工程声明尺寸。
 
 ## 工程 MovieClip 资源属性与 JTA 事务
 
@@ -206,7 +206,7 @@ ProjectWriter 会为每个工程分支保留 `assets_<branch>/`，并为包内�
 
 未请求任何输出目录时，低层 `publish()` 可以只计算 layout；这不是文件发布，也不会写出二进制或资源文件。标准 Node 工作流应使用 `publishNode()`。
 
-这里的零输出保证只覆盖 OpenFairyGUI 内置的 sound、external resource、atlas、package binary 与 codegen 输出。Node `onPublishStart` 插件在内置 preflight 之前运行，并可通过宿主提供的文件系统执行自己的副作用；这些插件写入不会被 staging 或自动回滚。需要零副作用的插件应把写入延后到 `onPublishEnd`，或自行实现临时目录与提交策略。
+标准 Node adapter 在显式传入 `output` 时，会先把该目录复制到同级 staging 目录，完整发布成功后再以目录切换提交；内置 runtime 输出或 `onPublishEnd` 失败时，原输出目录保持不变。按工程/包设置解析出的多个输出目录、自定义低层文件系统、输出目录外的 codegen，以及插件通过 `basePath` 或其他路径产生的副作用不在这项目录级保证内，应由宿主或插件提供自己的 staging/回滚策略。
 
 ## 代码生成的当前实现范围
 
@@ -368,6 +368,9 @@ Unity 与 Cocos Creator 运行时不解压二进制描述文件，因此这两�
 | `compressPNG` / `jpegQuality` | 仅项目不支持 atlas 时写出 |
 
 ## 工程写回联动边界
+
+工程根 `.fairy` 文件的 `projectDescription.id / type / version` 统一通过 XML 属性渲染器写出；引号、
+尖括号、换行和 `&` 等字符会转义，并在再次读取时还原为原属性值，不会形成额外 XML 属性。
 
 发布设置不改变 `component.xml` 的 authoring 属性语义。工程读写会独立保留组件根属性、根组件
 `customProperty` 定义，以及组件引用的 `Button`、`Label`、`ComboBox`、`ProgressBar`、`Slider`、

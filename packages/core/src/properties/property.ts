@@ -134,11 +134,11 @@ export abstract class Property<T extends IProperty = IProperty> extends GraphNod
 	}
 
 	public getExtras(): Record<string, unknown> {
-		return (this as Property).get('extras');
+		return structuredClone((this as Property).get('extras'));
 	}
 
 	public setExtras(extras: Record<string, unknown>): this {
-		return (this as Property).set('extras', extras) as this;
+		return (this as Property).set('extras', structuredClone(extras)) as this;
 	}
 
 	public clone(): this {

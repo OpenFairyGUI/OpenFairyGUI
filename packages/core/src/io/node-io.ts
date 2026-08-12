@@ -40,18 +40,9 @@ export class NodeIO extends PlatformIO {
 			},
 			async readdir(dirPath: string): Promise<string[]> {
 				const entries = await fs.readdir(dirPath, { withFileTypes: true });
-				const directoryEntries = await Promise.all(entries.map(async (entry) => {
-					if (entry.isDirectory()) return entry.name;
-					if (!entry.isSymbolicLink()) return null;
-
-					try {
-						const stats = await fs.stat(path.join(dirPath, entry.name));
-						return stats.isDirectory() ? entry.name : null;
-					} catch {
-						return null;
-					}
-				}));
-				return directoryEntries.filter((entry): entry is string => entry !== null);
+				const symlink = entries.find((entry) => entry.isSymbolicLink());
+				if (symlink) throw new Error(`Symbolic links are not supported in project directories: ${path.join(dirPath, symlink.name)}`);
+				return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
 			},
 			async exists(filePath: string): Promise<boolean> {
 				try {

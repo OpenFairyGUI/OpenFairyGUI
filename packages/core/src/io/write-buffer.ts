@@ -19,6 +19,11 @@ export class WriteBuffer {
 	private _strings: string[];
 	/** Raw custom strings written to block 5, keyed by string table index. */
 	private _customStrings: Array<{ index: number; value: string }>;
+	private static _assertInteger(value: number, min: number, max: number, type: string): void {
+		if (!Number.isSafeInteger(value) || value < min || value > max) {
+			throw new RangeError(`${type} value is out of range: ${value}`);
+		}
+	}
 
 	constructor(initialSize = 4096, parent?: WriteBuffer) {
 		this._buf = new ArrayBuffer(initialSize);
@@ -55,37 +60,44 @@ export class WriteBuffer {
 	}
 
 	writeUint8(v: number): void {
+		WriteBuffer._assertInteger(v, 0, 0xff, 'uint8');
 		this._ensure(1);
 		this._view.setUint8(this._pos++, v);
 	}
 	writeInt8(v: number): void {
+		WriteBuffer._assertInteger(v, -0x80, 0x7f, 'int8');
 		this._ensure(1);
 		this._view.setInt8(this._pos++, v);
 	}
 
 	writeUint16(v: number): void {
+		WriteBuffer._assertInteger(v, 0, 0xffff, 'uint16');
 		this._ensure(2);
 		this._view.setUint16(this._pos, v, false);
 		this._pos += 2;
 	}
 	writeInt16(v: number): void {
+		WriteBuffer._assertInteger(v, -0x8000, 0x7fff, 'int16');
 		this._ensure(2);
 		this._view.setInt16(this._pos, v, false);
 		this._pos += 2;
 	}
 
 	writeUint32(v: number): void {
+		WriteBuffer._assertInteger(v, 0, 0xffffffff, 'uint32');
 		this._ensure(4);
 		this._view.setUint32(this._pos, v, false);
 		this._pos += 4;
 	}
 	writeInt32(v: number): void {
+		WriteBuffer._assertInteger(v, -0x80000000, 0x7fffffff, 'int32');
 		this._ensure(4);
 		this._view.setInt32(this._pos, v, false);
 		this._pos += 4;
 	}
 
 	writeFloat32(v: number): void {
+		if (!Number.isFinite(v)) throw new RangeError(`float32 value must be finite: ${v}`);
 		this._ensure(4);
 		this._view.setFloat32(this._pos, v, false);
 		this._pos += 4;
@@ -98,6 +110,7 @@ export class WriteBuffer {
 	/** Write a uint16-prefixed UTF-8 string. */
 	writeUTFString(s: string): void {
 		const encoded = new TextEncoder().encode(s);
+		if (encoded.byteLength > 0xffff) throw new RangeError(`UTF string exceeds uint16 byte length: ${encoded.byteLength}`);
 		this.writeUint16(encoded.byteLength);
 		this._ensure(encoded.byteLength);
 		new Uint8Array(this._buf, this._pos, encoded.byteLength).set(encoded);
@@ -127,6 +140,7 @@ export class WriteBuffer {
 		const existing = this._stringMap.get(s);
 		if (existing !== undefined) return existing;
 		const index = this._strings.length;
+		if (index >= EMPTY_STRING_INDEX) throw new RangeError(`String table exceeds protocol index limit: ${index + 1}`);
 		this._strings.push(s);
 		this._stringMap.set(s, index);
 		return index;
@@ -171,6 +185,7 @@ export class WriteBuffer {
 			// No cache: allocate a unique string-table slot without deduplication.
 			// Editor-aligned UI strings still live in the main string table.
 			const index = this._strings.length;
+			if (index >= EMPTY_STRING_INDEX) throw new RangeError(`String table exceeds protocol index limit: ${index + 1}`);
 			this._strings.push(s);
 			this.writeUint16(index);
 		}

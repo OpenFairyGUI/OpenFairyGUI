@@ -1,6 +1,13 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import type { BackendRuntime } from '@openfairygui/backend';
-import type { OpenFairyGuiBackendToolName } from './tool-definitions.js';
+import {
+	BACKEND_CAPABILITY_SCHEMA_VERSION,
+	BACKEND_CONTRACT_VERSION,
+	type BackendRuntime,
+} from '@openfairygui/backend';
+import {
+	isOpenFairyGuiMcpPayloadWithinBudget,
+	type OpenFairyGuiBackendToolName,
+} from './tool-definitions.js';
 
 export type OpenFairyGuiBackendRuntime = Pick<
 	BackendRuntime,
@@ -23,15 +30,17 @@ export type OpenFairyGuiBackendRuntime = Pick<
 >;
 
 function jsonResult(payload: unknown, isError = false): CallToolResult {
+	const text = JSON.stringify(payload, null, 2);
+	const wirePayload = JSON.parse(text) as unknown;
 	return {
 		content: [
 			{
 				type: 'text',
-				text: JSON.stringify(payload, null, 2),
+				text,
 			},
 		],
 		structuredContent: {
-			backendResult: payload,
+			backendResult: wirePayload,
 		},
 		isError,
 	};
@@ -44,13 +53,37 @@ function isBackendFailure(value: unknown): boolean {
 		&& (value as { ok?: unknown }).ok === false;
 }
 
+function unhandledBackendFailure(startedAt: number): unknown {
+	return {
+		ok: false,
+		meta: {
+			requestId: crypto.randomUUID(),
+			durationMs: Math.max(0, Date.now() - startedAt),
+			warnings: [],
+			diagnostics: [],
+			stage: 'runtime',
+			contractVersion: BACKEND_CONTRACT_VERSION,
+			capabilitySchemaVersion: BACKEND_CAPABILITY_SCHEMA_VERSION,
+		},
+		error: {
+			code: 'backend_unhandled_error',
+			message: 'Backend tool execution failed.',
+		},
+	};
+}
+
 export async function callOpenFairyGuiBackendTool(
 	runtime: OpenFairyGuiBackendRuntime,
 	name: OpenFairyGuiBackendToolName,
 	input: Record<string, unknown>,
 ): Promise<CallToolResult> {
+	if (!isOpenFairyGuiMcpPayloadWithinBudget(input)) {
+		throw new RangeError('MCP input exceeds the depth, node, key, string, or byte budget.');
+	}
+	const startedAt = Date.now();
 	let result: unknown;
-	switch (name) {
+	try {
+		switch (name) {
 		case 'openfairygui_backend_get_capabilities':
 			result = runtime.getCapabilities();
 			break;
@@ -82,13 +115,19 @@ export async function callOpenFairyGuiBackendTool(
 				sessionId: String(input.sessionId),
 			});
 			break;
-		case 'openfairygui_backend_apply_transaction':
+		case 'openfairygui_backend_apply_transaction': {
+			const operations = (input.operations as Parameters<BackendRuntime['applyTransaction']>[0]['operations']).map(
+				(operation) => operation.kind === 'replaceResourceBytes'
+					? { ...operation, sourceBytes: new Uint8Array(operation.sourceBytes) }
+					: operation,
+			);
 			result = await runtime.applyTransaction({
 				sessionId: String(input.sessionId),
 				expectedRevision: Number(input.expectedRevision),
-				operations: input.operations as Parameters<BackendRuntime['applyTransaction']>[0]['operations'],
+				operations,
 			});
 			break;
+		}
 		case 'openfairygui_backend_save_session':
 			result = await runtime.saveSession({
 				sessionId: String(input.sessionId),
@@ -149,10 +188,13 @@ export async function callOpenFairyGuiBackendTool(
 				reason: input.reason as Parameters<BackendRuntime['refreshCache']>[0]['reason'],
 			});
 			break;
-		default: {
-			const exhaustive: never = name;
-			throw new Error(`Unknown OpenFairyGUI backend MCP tool: ${exhaustive}`);
+			default: {
+				const exhaustive: never = name;
+				throw new Error(`Unknown OpenFairyGUI backend MCP tool: ${exhaustive}`);
+			}
 		}
+	} catch {
+		return jsonResult(unhandledBackendFailure(startedAt), true);
 	}
 	return jsonResult(result, isBackendFailure(result));
 }

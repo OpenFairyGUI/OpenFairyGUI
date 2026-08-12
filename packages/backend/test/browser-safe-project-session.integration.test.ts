@@ -3504,7 +3504,7 @@ test('applyTransaction snapshots queued operations and shared source bytes befor
 	if (resource?.kind === 'misc') t.deepEqual([...(resource.sourceBytes ?? [])], [1, 2, 3]);
 });
 
-test.serial('applyTransaction rejects when its session closes during browser image validation', async (t) => {
+test.serial('closeSession waits for browser image validation transaction completion', async (t) => {
 	const workerDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Worker');
 	let releaseValidation = (): void => undefined;
 	let markValidationStarted = (): void => undefined;
@@ -3561,12 +3561,18 @@ test.serial('applyTransaction rejects when its session closes during browser ima
 			],
 		});
 		await validationStarted;
-		t.true((await runtime.closeSession({ sessionId: opened.data.sessionId })).ok);
+		let closeSettled = false;
+		const closing = runtime.closeSession({ sessionId: opened.data.sessionId }).finally(() => {
+			closeSettled = true;
+		});
+		await Promise.resolve();
+		t.false(closeSettled);
 		releaseValidation();
 
 		const applied = await applying;
-		t.false(applied.ok);
-		if (!applied.ok) t.is(backendFailure(applied).error.code, 'session_not_found');
+		t.true(applied.ok);
+		if (applied.ok) t.is(applied.data.revision, 1);
+		t.true((await closing).ok);
 		t.false(runtime.getSession({ sessionId: opened.data.sessionId }).ok);
 	} finally {
 		if (workerDescriptor) Object.defineProperty(globalThis, 'Worker', workerDescriptor);

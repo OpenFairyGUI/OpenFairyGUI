@@ -29,3 +29,4 @@ export {
 	type RasterImageFormat,
 	type RasterImageInfo,
 } from './image-info.js';
+export { validateSafeSvgSource } from './svg-validation.js';

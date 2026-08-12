@@ -6,10 +6,22 @@
 
 发布比较：
 
-- 稳定线（`main`）：[v0.3.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.0...main)
-- 开发线（`next`）：[v0.3.0...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.0...next)
+- 稳定线（`main`）：[v0.3.1...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.1...main)
+- 开发线（`next`）：[v0.3.1...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.1...next)
 
 ## v0.3.x
+
+### v0.3.1（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.3.1)）
+
+修复：
+
+- core：收紧二进制与 XML 信任边界，加入解压资源预算、数值范围校验和安全 XML 转义，并将位图字体 glyph ID 按无符号 16 位协议读写。
+- backend,mcp：加入工程根目录白名单与真实路径 containment、打开前全树符号链接拒绝、陈旧锁恢复、唯一会话 ID、原子工程保存、有界 MCP 入参以及稳定且不泄漏内部信息的错误封装。
+- functions：统一结构化 SVG 安全校验，使声明的插件在加载或 hook 失败时默认中止发布，并对显式 Node 输出目录采用可回滚的目录切换。
+
+其他：
+
+- workspace：统一要求 Node.js 20 及以上，扩展 Node 20/22/24 CI、跨平台清理与 lint 覆盖，并记录公开 API 稳定性边界和发布事务限制。
 
 从 `v0.3.0-alpha.1` 到 `v0.3.0-alpha.4` 的预发布版本统一归入下方正式版记录。`v0.3.0` 同时包含截至 `v0.2.6` 的全部稳定版修复。
 

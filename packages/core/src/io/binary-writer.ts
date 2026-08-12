@@ -468,7 +468,7 @@ export class BinaryWriter {
 					const compExtras = res.getExtras() as ComponentBinaryExtras;
 					const extType = (res as ComponentWithExtensionType).getExtensionType?.() ?? compExtras.extensionType;
 					data.writeUint8(extType ? (extTypeMap[extType] ?? 0) : 0);
-					if (compExtras?._rawBinary) {
+					if (compExtras?._rawBinary && !res._isBinaryDirty()) {
 						// From BinaryReader round-trip: use stored raw binary
 						data.writeBuffer(toUint8Array(compExtras._rawBinary));
 					} else {
@@ -893,7 +893,7 @@ function _encodeFontGlyphs(
 		const glyphStart = buf.pos;
 		buf.writeInt16(0); // placeholder for chunk size
 
-		buf.writeInt16(glyph.charId);
+		buf.writeUint16(glyph.charId);
 		buf.writeS(glyph.img);
 		buf.writeInt32(glyph.x);
 		buf.writeInt32(glyph.y);

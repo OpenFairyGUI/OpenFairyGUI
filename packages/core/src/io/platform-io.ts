@@ -2,7 +2,7 @@ import type { Document } from '../document.js';
 import type { FileSystem } from './file-system.js';
 import { ProjectReader, type ProjectReadOptions, type ProjectReadResult } from './project-reader.js';
 import { ProjectWriter, type ProjectWriteOptions } from './project-writer.js';
-import { BinaryReader } from './binary-reader.js';
+import { BinaryReader, type BinaryReaderOptions } from './binary-reader.js';
 import { BinaryWriter, type BinaryWriterOptions } from './binary-writer.js';
 
 /**
@@ -33,9 +33,9 @@ export abstract class PlatformIO {
 		return writer.write(doc, projectPath, options);
 	}
 
-	public async readBinary(filePath: string): Promise<Document> {
+	public async readBinary(filePath: string, options?: BinaryReaderOptions): Promise<Document> {
 		const fs = this.createFileSystem();
-		const reader = new BinaryReader(fs);
+		const reader = new BinaryReader(fs, options);
 		return reader.read(filePath);
 	}
 

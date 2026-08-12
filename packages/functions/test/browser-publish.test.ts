@@ -191,6 +191,7 @@ test.serial('publishBrowser rejects unsafe SVG before decode and leaves output u
 			'<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2" onload="alert(1)"><rect width="2" height="2"/></svg>',
 			'<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><script>alert(1)</script></svg>',
 			'<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><use href="https://example.com/icon.svg#shape"/></svg>',
+			'<svg xmlns="http://www.w3.org/2000/svg" xmlns:x="http://www.w3.org/2000/svg" width="2" height="2"><x:script>alert(1)</x:script></svg>',
 			'<svg xmlns="http://www.w3.org/2000/svg" width="20000" height="2"><rect width="2" height="2"/></svg>',
 		]) {
 			const source = new MemoryFileSystem();

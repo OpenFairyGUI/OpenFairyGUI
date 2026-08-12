@@ -19,7 +19,7 @@ flowchart LR
     subgraph IO["协议适配与 I/O"]
         FS["PlatformIO / NodeIO / WebIO / BackendStorageFS"]
         PR["ProjectReader"]
-        BR["BinaryReader"]
+        BR["BinaryReader<br/>bounded raw-deflate"]
         PW["ProjectWriter"]
         BW["BinaryWriter"]
     end
@@ -62,8 +62,8 @@ flowchart LR
         AR["artifact bridge manifest<br/>publish / restore Node boundary"]
         RU["runtime/admin services"]
         SS["session registry / revision / dirty"]
-        LK["canonical path / session lock lease"]
-        SV["per-session serialized save (non-atomic)"]
+        LK["realpath containment / recoverable session lock lease"]
+        SV["per-session serialized authoring / save / close<br/>Node staged directory swap"]
         CAP["capability planes / version surface"]
         EV["runtime events<br/>polling cursor / retention"]
         JOB["in-memory jobs<br/>cache.refresh / cooperative cancel"]
@@ -154,17 +154,17 @@ flowchart LR
 - `packages/backend/src/runtime.ts` 当前提供 browser-safe 的第一层 **stateful backend runtime** 并只负责 runtime 装配；公开 runtime contract 与 capability manifest 分别由 `runtime/contracts.ts`、`runtime/capabilities.ts` 承载。它通过 `functions.applyUamTransactionApp` 包装既有 authoring seam，支持 `openProjectSession` 从作为事实来源的 UAM project 建立纯内存 session，并可在 session 级注入 browser-safe async project storage 作为 clean session `materializeSession` 与 dirty session `saveSession` 的写回目标。注入 `BackendFileSystem` 后，`openSession` 同时适用于 Node 与 browser async storage 中的现有工程：它会获取覆盖完整 session 生命周期的排他锁租约，显式水合资源 primary source bytes，并比较原始 `Document` 与 UAM 往返后的完整 `ProjectWriter` 输出；存在未建模写回差异时，session 标记为 `uamFidelity: unsupported`，实际写盘返回 `uam_fidelity_unsupported`。现有工程不得先手工 lift 再通过 `openProjectSession` 导入，因为该入口以调用方提供的 UAM 为正式事实来源。
 - `packages/backend/src/storage.ts` 当前提供 browser-safe 的 async storage adapter factory：`createBackendStorageFileSystem()` 把 OPFS、IndexedDB、ZIP 虚拟文件系统或 File System Access API bridge 适配为 backend/core project writer 可共用的文件系统面，并要求 storage 提供 `unlink`。默认浏览器 session lock 使用 Web Locks API，活跃标签之间原子互斥，页面刷新或异常终止时由平台释放，且不把持久 `.openfairygui.backend.lock` 文件作为锁事实；不提供 Web Locks 的宿主必须通过 `BackendAsyncStorageAdapter.acquireSessionLock()` 注入具备相同跨上下文原子性和 owner-termination 恢复语义的租约。写回时先写新的工程内容和 primary resource bytes，只有全部写入成功后才按结构化 package source reference 删除已被 rename/move/remove 替换的旧 source files；dirty `saveSession` 始终写回 session 绑定的文件系统。
 - `packages/backend/src/runtime.ts` 的 capability authoring scope 当前声明正式 UAM lift/materialize 与 transaction 覆盖面；`authoring.transactionScope` 单独声明 `applyTransaction` 的正式 operation 范围，避免把全量 UAM display node 建模误解成任意字段 mutation 能力。
-- `packages/backend/src/node.ts` 当前只承接 Node 默认装配：Node filesystem adapter、持久 advisory lock file/metadata，以及 `createNodeBackendRuntime()`。根入口不再默认导入 Node 文件系统。
-- `packages/backend/src/services/*.ts` 当前把 backend 进一步分成 `read / authoring / artifact / runtime` 四类内部服务面；`authoring` plane 以 per-session 队列串行化 transaction、save 与 materialize，共用 `session-project-writer.ts` 的工程写回与 source cleanup，使一次写盘完成后的 `dirty / lastSavedRevision / stale source path` 只对应实际落盘 revision。`materializeSession` 可在不推进普通 edit revision 的情况下把可保真 clean session 完整写入 project storage，并返回 `writtenPaths / skippedPaths / diagnostics / lastSavedRevision`；`artifact` plane 不执行 `publish` / `restore`，而是通过 capability manifest 声明它们需要 `@openfairygui/backend/node` 侧的 Node bridge boundary。
+- `packages/backend/src/node.ts` 当前只承接 Node 默认装配：Node filesystem adapter、持久 advisory lock file/metadata，以及 `createNodeBackendRuntime()`。Node 锁位于工程目录同级，metadata 包含进程身份与随机 owner token；仅同主机、已确认 owner 进程失效或 PID 已复用的有效锁可自动回收，损坏、空白、跨主机或仍活跃的锁保持冲突。Node adapter 通过可选 `BackendFileSystem.validateProjectRoot` 在 `openSession` 读取前递归拒绝工程树内任何符号链接，backend reader/writer 还会在每次操作前解析最近存在祖先的 realpath，拒绝逃出已打开工程根。根入口不再默认导入 Node 文件系统。
+- `packages/backend/src/services/*.ts` 当前把 backend 进一步分成 `read / authoring / artifact / runtime` 四类内部服务面；`authoring` plane 以 per-session 队列串行化 transaction、save 与 materialize，`closeSession` 复用同一队列，因此只会在更早的写盘结束后释放 session lock。写回共用 `session-project-writer.ts` 的工程写回与 source cleanup；Node adapter 把完整工程复制到同级 staging 后写入，通过原目录到 backup、staging 到原目录的两步 rename 提交，并在写入或切换失败时恢复原树。未提供 `runProjectWriteTransaction` 的浏览器 storage 仍使用 adapter 自身的一致性语义，capability 中不声明 `atomicSave`。一次写盘完成后的 `dirty / lastSavedRevision / stale source path` 只对应实际落盘 revision。`materializeSession` 可在不推进普通 edit revision 的情况下把可保真 clean session 完整写入 project storage，并返回 `writtenPaths / skippedPaths / diagnostics / lastSavedRevision`；`artifact` plane 不执行 `publish` / `restore`，而是通过 capability manifest 声明它们需要 `@openfairygui/backend/node` 侧的 Node bridge boundary。
 - `packages/backend/src/contracts.ts` 当前提供 backend contract version、capability schema version、compatibility policy，以及统一 response metadata / diagnostics 面；当前 metadata 至少覆盖 `requestId / sessionId / revision / durationMs / warnings / diagnostics / stage`，失败 envelope 会稳定把错误码/消息镜像到 `meta.diagnostics`。Transaction failure diagnostics 额外保留稳定 `code / path / nodeKind / operationKind` 字段，供浏览器编辑器禁用对应操作或定位提示。
 - `packages/backend/src/services/event-service.ts` 当前提供 per-runtime monotonic sequence 的 polling event snapshot，事件按 session 绑定并保留最近 1000 条；不提供 subscription 或 transport-specific cursor。
 - `packages/backend/src/services/job-service.ts` 当前只支持 `cache.refresh` in-memory job，提供 queued/running/completed/failed/cancelled 状态、active/terminal 查询、cooperative cancel，以及每 session 最近 100 个终态 job 保留。
 - `packages/backend/src/services/cache-service.ts` 当前提供 revision-bound derived read-only cache snapshot；cache 只作为运行时索引和摘要，不作为 source of truth。
-- `packages/mcp/src/*` 当前提供 **thin backend P2 MCP adapter**；它完整映射 backend 的 `getCapabilities / openSession / getSession / applyTransaction / saveSession / materializeSession / closeSession / getEvents / getJob / listJobs / cancelJob / getCacheSnapshot / refreshCache`，并为这些工具提供共享 backend envelope output schema。
+- `packages/mcp/src/*` 当前提供 **thin backend P2 MCP adapter**；它完整映射 backend 的 `getCapabilities / openSession / openProjectSession / getSession / getProjectOutline / validateSession / applyTransaction / saveSession / materializeSession / closeSession / getEvents / getJob / listJobs / cancelJob / getCacheSnapshot / refreshCache`。`openProjectSession` input schema 固定 UAM 顶层工程/包形状与数量预算，`applyTransaction` 使用按 `kind` 区分的 operation union，并限制 batch、source bytes、递归深度、节点数、字符串和对象 key；共享 output schema 固定成功/失败 backend envelope，不再以 `z.unknown()` 表达核心边界。默认 Node runtime 仅允许打开进程当前工作目录下的工程；stdio 可通过平台路径分隔符连接的 `OPENFAIRYGUI_ALLOWED_PROJECT_ROOTS` 显式配置多个 canonical allowed roots。
 - `packages/mcp/src/resource-definitions.ts` 当前只提供 identity-addressable read-only snapshots：capabilities、session、cache、job；`getEvents` 与 `listJobs` 仍保持 tool 形式，不引入 MCP URI query grammar。
 - `packages/mcp/src/prompt-definitions.ts` 当前只提供 guidance prompts，引导客户端使用既有 backend tools；prompts 不定义 transaction grammar、selector grammar 或具体 operation payload。
 - `@openfairygui/mcp` 不拥有 transaction grammar、selector grammar、path policy、job semantics、cache semantics 或 artifact publish/restore；MCP roots 只作为客户端上下文说明，路径安全仍由 backend path policy 决定。
-- `BinaryReader` / `BinaryWriter` 仍然是二进制读写入口；`component-decoder.ts` 与 `component-encoder.ts` 保留稳定 facade，component child、behavior、transition/gear block 以及共享值转换分别拆到同名前缀的内部域模块，对外调用面不变。
+- `BinaryReader` / `BinaryWriter` 仍然是二进制读写入口；Reader 对 raw-deflate 输入、解压输出和压缩比设置默认资源预算，并允许调用方通过 `BinaryReaderOptions.limits` 收紧或放宽。Writer 在共享 `WriteBuffer` 边界验证所有窄整数、有限浮点、UTFString byte length 与字符串表保留索引，超界时拒绝而不是静默截断。二进制读取保留的原始 Component buffer 只用于未修改组件的精确写回；Property Graph 中组件自身或任意后代发生变化后，Writer 改用结构化 encoder。`settings / extras` 的公开 getter/setter 使用防御性深复制，外部嵌套修改不能绕过 Graph 变更事件。`component-decoder.ts` 与 `component-encoder.ts` 保留稳定 facade，component child、behavior、transition/gear block 以及共享值转换分别拆到同名前缀的内部域模块。
 - `@openfairygui/functions` 仍以 workflow composition 为主，不重新定义底层协议；当前 `publish` 与 `restore` 仍主要围绕图物化后的内部表示执行，新 authoring seam 也明确不包装 `publish` / `restore`。publish options、package context、external resources 与 resource references 分别位于 `publish/*.ts`；atlas 输入收集、packing、JTA/FNT codec 位于 `atlas/*.ts`；restore 输出事务与 FNT/JTA 重建位于 `restore-internals/*.ts`。这些模块只服务对应 facade，不增加新的公开 workflow。
 - `@openfairygui/backend` 不拥有 transaction grammar / selector grammar / support semantics；它只承接 stateful runtime concerns，并保持 transport-neutral。根入口是 browser-safe API 面，Node 文件系统与必须 Node 执行的 artifact 能力通过 `@openfairygui/backend/node` 明确桥接。
 - `@openfairygui/core` 根入口当前保持 browser-safe，不再导出 `NodeIO` 或 `WebIO`；Node 默认工程 I/O 只从 `@openfairygui/core/node` 暴露，浏览器工程目录读写只从 `@openfairygui/core/web` 暴露。需要 project reader / writer adapter 类型但不能引入平台文件系统实现时，使用 `@openfairygui/core/project-io`。
@@ -180,7 +180,7 @@ flowchart LR
 
 每个包的发布计划按“显式调用参数 > 包级 atlas 设置 > 全局发布设置”解析图集尺寸、尺寸约束、分页与旋转；`extractAlpha` 和 `maxAtlasIndex` 使用包级正式设置。Layabox 发布计划统一禁用旋转。包级排除列表和组件的发布时清理标记在资源闭包与二进制投影阶段生效，不修改工程源模型。
 
-- `@openfairygui/functions/node` 的 `publishNode()` 组装 Node 文件系统、Sharp 与工程 `plugins/` 自动发现。
+- `@openfairygui/functions/node` 的 `publishNode()` 组装 Node 文件系统、Sharp 与工程 `plugins/` 自动发现；显式 `output` 使用同级 staging 目录完成发布后再切换提交，既有输出中的符号链接会被拒绝。
 - `@openfairygui/functions/web` 的 `publishBrowser()` 接收调用方的源/输出 `FileSystem`，通过独立 `adapters/web/raster.ts` Canvas adapter 生成 atlas PNG，并注入空 hooks。SVG 在解码前经过有尺寸、节点数和输入大小上限的 XML 安全校验；`createImageBitmap` 拒绝已验证 SVG 时仅对 SVG 使用 `HTMLImageElement` Blob URL 回退，并在成功或失败后释放 URL，其他图片格式仍沿用原解码路径。它解析持久化的 Laya 压缩、图集和安全文件扩展名设置，同时保持显式 browser 参数优先；选中包实际请求代码生成或扩展名不安全时，会在 Canvas 检查与输出写入前返回结构化 `unsupported_publish_setting`。失败结果的 `files` 只声明已完成的 `writeFileRaw`，原子提交由宿主文件系统负责。
 - `@openfairygui/functions/node` 的 `restoreNode()` 组装受限 restore 所需的 Node 文件系统与 Sharp 图像提取；CLI 只解析参数并调用该入口。
 
