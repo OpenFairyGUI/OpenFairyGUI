@@ -49,7 +49,10 @@ export function createFailingFileSystem(shouldFail: (filePath: string) => boolea
 	};
 }
 
-export function createBackendRuntime(options: { fileSystem?: BackendFileSystem } = {}): BackendRuntime {
+export function createBackendRuntime(options: {
+	fileSystem?: BackendFileSystem;
+	allowedProjectRoots?: readonly string[];
+} = {}): BackendRuntime {
 	return createNodeBackendRuntime(options);
 }
 

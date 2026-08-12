@@ -522,7 +522,21 @@ export type BackendError =
 	| BackendJobCancelledError
 	| CacheRefreshFailedError
 	| BackendCapabilityUnavailableError
+	| ProjectRootNotAllowedError
+	| ProjectOpenFailedError
 	| ApplyUamTransactionAppError;
+
+export interface ProjectRootNotAllowedError {
+	code: 'project_root_not_allowed';
+	message: string;
+	projectPath: string;
+}
+
+export interface ProjectOpenFailedError {
+	code: 'project_open_failed';
+	message: string;
+	projectPath: string;
+}
 
 export interface ApplySessionTransactionInput {
 	sessionId: string;
@@ -577,4 +591,6 @@ export interface MaterializeSessionInput {
 export interface BackendRuntimeOptions {
 	fileSystem?: BackendFileSystem;
 	host?: BackendHostAdapter;
+	/** Canonical filesystem roots available to file-backed sessions. Omit for unrestricted library use. */
+	allowedProjectRoots?: readonly string[];
 }

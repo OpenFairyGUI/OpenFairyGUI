@@ -14,6 +14,7 @@ import type {
 	BackendSessionSnapshot,
 	InProcessLockConflictError,
 	OpenProjectSessionInput,
+	ProjectRootNotAllowedError,
 	SessionIdConflictError,
 	SessionNotFoundError,
 } from '../runtime.js';
@@ -188,7 +189,7 @@ export class RuntimeService {
 	}): Promise<
 		BackendResult<
 			BackendSessionSnapshot,
-			InProcessLockConflictError | AdvisoryLockConflictError | BackendCapabilityUnavailableError
+			InProcessLockConflictError | AdvisoryLockConflictError | BackendCapabilityUnavailableError | ProjectRootNotAllowedError
 		>
 	> {
 		const startedAt = Date.now();
@@ -196,6 +197,25 @@ export class RuntimeService {
 			return failure('runtime', startedAt, createCapabilityUnavailableError('fileSystem'));
 		}
 		const fileSystem = this.context.fileSystem;
+		if (this.context.allowedProjectRoots?.length) {
+			let allowed = false;
+			for (const root of this.context.allowedProjectRoots) {
+				try {
+					await assertProjectPathContained(fileSystem, root, input.projectPath);
+					allowed = true;
+					break;
+				} catch (error) {
+					if ((error as { code?: unknown }).code !== 'EACCES') throw error;
+				}
+			}
+			if (!allowed) {
+				return failure('runtime', startedAt, {
+					code: 'project_root_not_allowed',
+					message: 'Project path is outside the configured allowed roots.',
+					projectPath: input.projectPath,
+				});
+			}
+		}
 		const resolved = await resolveCanonicalProjectRoot(fileSystem, input.projectPath);
 		const { fairyPath, canonicalProjectPath, canonicalPathKey } = resolved;
 		const existingSessionId = this.context.sessionsByPath.get(canonicalPathKey);

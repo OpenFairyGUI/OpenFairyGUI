@@ -40,12 +40,26 @@ test('openSession rejects symbolic links inside a Node project', async (t) => {
 			}
 			throw error;
 		}
-		await t.throwsAsync(createBackendRuntime().openSession({ projectPath: fixture.rootDir }), {
-			message: /Symbolic links are not supported/,
-		});
+		const opened = await createBackendRuntime().openSession({ projectPath: fixture.rootDir });
+		t.false(opened.ok);
+		if (!opened.ok) t.is(opened.error.code, 'project_open_failed');
 	} finally {
 		await fixture.cleanup();
 		await fs.rm(outside, { recursive: true, force: true });
+	}
+});
+
+test('openSession enforces canonical allowed project roots before project reads', async (t) => {
+	const allowed = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-allowed-'));
+	const fixture = await createTempBackendProject();
+	try {
+		const runtime = createBackendRuntime({ allowedProjectRoots: [allowed] });
+		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
+		t.false(opened.ok);
+		if (!opened.ok) t.is(opened.error.code, 'project_root_not_allowed');
+	} finally {
+		await fixture.cleanup();
+		await fs.rm(allowed, { recursive: true, force: true });
 	}
 });
 

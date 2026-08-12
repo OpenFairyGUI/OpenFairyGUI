@@ -16,6 +16,8 @@
 
 OpenFairyGUI is a FairyGUI project SDK for Node.js and automation workflows. It provides composable TypeScript packages for project I/O, document transforms, publishing, and backend sessions, together with CLI and MCP entrypoints.
 
+Serializable, validated UAM transactions are the stable public authoring entrypoint. `Document` / Property Graph remains a mutable low-level API for protocol I/O and lower-level workflows and does not provide the same transaction invariants as UAM.
+
 Use it to:
 
 - Inspect or update FairyGUI projects in batches

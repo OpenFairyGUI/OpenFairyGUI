@@ -3,7 +3,7 @@ import type { ProjectValidationReport } from '@openfairygui/core';
 import type { PathPolicyViolationError } from './path-policy.js';
 import { AuthoringService } from './services/authoring-service.js';
 import { CacheService } from './services/cache-service.js';
-import type { BackendContext, BackendSessionState } from './services/context.js';
+import { type BackendContext, type BackendSessionState, failure } from './services/context.js';
 import { EventService } from './services/event-service.js';
 import { JobService } from './services/job-service.js';
 import { ReadService } from './services/read-service.js';
@@ -42,6 +42,8 @@ import type {
 	MaterializeValidationFailedError,
 	MaterializeWriteFailedError,
 	OpenProjectSessionInput,
+	ProjectOpenFailedError,
+	ProjectRootNotAllowedError,
 	RefreshCacheInput,
 	SavePartialFailureError,
 	SaveSessionInput,
@@ -76,6 +78,7 @@ export class BackendRuntime {
 		this.context = {
 			fileSystem: this.fileSystem,
 			host: options.host,
+			allowedProjectRoots: options.allowedProjectRoots,
 			capabilities: this.capabilities,
 			sessions: this.sessions,
 			sessionsByPath: this.sessionsByPath,
@@ -104,10 +107,23 @@ export class BackendRuntime {
 	}): Promise<
 		BackendResult<
 			BackendSessionSnapshot,
-			InProcessLockConflictError | AdvisoryLockConflictError | BackendCapabilityUnavailableError
+			InProcessLockConflictError
+			| AdvisoryLockConflictError
+			| BackendCapabilityUnavailableError
+			| ProjectRootNotAllowedError
+			| ProjectOpenFailedError
 		>
 	> {
-		return this.runtimeService.openSession(input);
+		const startedAt = Date.now();
+		try {
+			return await this.runtimeService.openSession(input);
+		} catch {
+			return failure('runtime', startedAt, {
+				code: 'project_open_failed',
+				message: 'Unable to open project.',
+				projectPath: input.projectPath,
+			});
+		}
 	}
 
 	public openProjectSession(

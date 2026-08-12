@@ -57,6 +57,8 @@ export {
 	type MaterializeValidationFailedError,
 	type MaterializeWriteFailedError,
 	type OpenProjectSessionInput,
+	type ProjectOpenFailedError,
+	type ProjectRootNotAllowedError,
 	type RefreshCacheInput,
 	type SavePartialFailureError,
 	type SaveSessionInput,
