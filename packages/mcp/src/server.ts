@@ -35,12 +35,16 @@ const PACKAGE_VERSION = readPackageVersion();
 
 export interface CreateOpenFairyGuiMcpServerOptions {
 	runtime?: OpenFairyGuiBackendRuntime;
+	/** Filesystem roots exposed by the default Node backend runtime. Defaults to process.cwd(). */
+	allowedProjectRoots?: readonly string[];
 	name?: string;
 	version?: string;
 }
 
 export function createOpenFairyGuiMcpServer(options: CreateOpenFairyGuiMcpServerOptions = {}): McpServer {
-	const runtime = options.runtime ?? createNodeBackendRuntime();
+	const runtime = options.runtime ?? createNodeBackendRuntime({
+		allowedProjectRoots: options.allowedProjectRoots ?? [process.cwd()],
+	});
 	const server = new McpServer({
 		name: options.name ?? 'openfairygui-mcp',
 		version: options.version ?? PACKAGE_VERSION,

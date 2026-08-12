@@ -41,6 +41,24 @@ export function createRuntimePathPolicy(): BackendCapabilities['runtime']['pathP
 	};
 }
 
+export async function assertProjectPathContained(
+	fileSystem: BackendFileSystem,
+	projectRoot: string,
+	targetPath: string,
+): Promise<void> {
+	const [resolvedRoot, resolvedTarget] = await Promise.all([
+		fileSystem.resolvePath(projectRoot),
+		fileSystem.resolvePath(targetPath),
+	]);
+	const root = normalizeComparablePath(resolvedRoot);
+	const target = normalizeComparablePath(resolvedTarget);
+	if (root === '.' && !target.startsWith('/') && !/^[a-z]:\//i.test(target)) return;
+	if (target === root || target.startsWith(`${root}/`)) return;
+	const error = new Error(`Project path escapes the opened root: ${targetPath}`) as Error & { code: string };
+	error.code = 'EACCES';
+	throw error;
+}
+
 export async function resolveFairyPath(fileSystem: BackendFileSystem, input: string): Promise<string> {
 	const resolvedInput = fileSystem.resolve(input);
 	const stat = await fileSystem.stat(resolvedInput);

@@ -106,9 +106,27 @@ interface IComponent extends IExtensibleProperty {
  */
 export class Component extends ExtensibleProperty<IComponent> {
 	public declare propertyType: PropertyType.COMPONENT;
+	private _binaryDirty = true;
 
 	protected init(): void {
 		this.propertyType = PropertyType.COMPONENT;
+	}
+
+	/** @internal */
+	public _markBinaryClean(): this {
+		this._binaryDirty = false;
+		return this;
+	}
+
+	/** @internal */
+	public _markBinaryDirty(): this {
+		this._binaryDirty = true;
+		return this;
+	}
+
+	/** @internal */
+	public _isBinaryDirty(): boolean {
+		return this._binaryDirty;
 	}
 
 	protected getDefaults(): Nullable<IComponent> {

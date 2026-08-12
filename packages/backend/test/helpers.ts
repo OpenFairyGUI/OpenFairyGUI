@@ -21,6 +21,7 @@ export async function createTempBackendProject() {
 		rootDir: tmpDir,
 		fairyPath,
 		async cleanup(): Promise<void> {
+			await fs.rm(path.join(path.dirname(tmpDir), `.${path.basename(tmpDir)}.openfairygui.backend.lock`), { force: true });
 			await fs.rm(tmpDir, { recursive: true, force: true });
 		},
 	};
@@ -28,24 +29,30 @@ export async function createTempBackendProject() {
 
 export function createFailingFileSystem(shouldFail: (filePath: string) => boolean): BackendFileSystem {
 	const base = createNodeBackendFileSystem();
-	return {
-		...base,
+	const injectFailure = (fileSystem: BackendFileSystem): BackendFileSystem => ({
+		...fileSystem,
+		runProjectWriteTransaction: undefined,
 		async writeFile(filePath: string, content: string): Promise<void> {
-			if (shouldFail(filePath)) {
-				throw new Error(`Injected write failure for ${filePath}`);
-			}
-			await base.writeFile(filePath, content);
+			if (shouldFail(filePath)) throw new Error(`Injected write failure for ${filePath}`);
+			await fileSystem.writeFile(filePath, content);
 		},
 		async writeFileRaw(filePath: string, data: Uint8Array): Promise<void> {
-			if (shouldFail(filePath)) {
-				throw new Error(`Injected raw write failure for ${filePath}`);
-			}
-			await base.writeFileRaw(filePath, data);
+			if (shouldFail(filePath)) throw new Error(`Injected raw write failure for ${filePath}`);
+			await fileSystem.writeFileRaw(filePath, data);
+		},
+	});
+	return {
+		...base,
+		async runProjectWriteTransaction(projectRoot, write) {
+			await base.runProjectWriteTransaction!(projectRoot, (staged) => write(injectFailure(staged)));
 		},
 	};
 }
 
-export function createBackendRuntime(options: { fileSystem?: BackendFileSystem } = {}): BackendRuntime {
+export function createBackendRuntime(options: {
+	fileSystem?: BackendFileSystem;
+	allowedProjectRoots?: readonly string[];
+} = {}): BackendRuntime {
 	return createNodeBackendRuntime(options);
 }
 

@@ -124,7 +124,11 @@ export class ProjectWriter {
 
 		// 1. Write .fairy file
 		const fairyXml = `<?xml version="1.0" encoding="utf-8"?>\n`
-			+ `<projectDescription id="${root.getProjectId()}" type="${this._projectTypeName(root.getProjectType())}" version="${root.getVersion() || '3.0'}"/>\n`;
+			+ `<projectDescription${renderXmlAttrs({
+				id: root.getProjectId(),
+				type: this._projectTypeName(root.getProjectType()),
+				version: root.getVersion() || '3.0',
+			})}/>\n`;
 		await fs.writeFile(projectPath, fairyXml);
 
 		// 2. Write settings

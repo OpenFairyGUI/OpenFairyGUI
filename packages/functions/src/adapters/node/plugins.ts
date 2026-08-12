@@ -7,10 +7,7 @@ import {
 	type PluginModule,
 } from '../../plugins/types.js';
 
-interface PluginPackageJson extends Partial<PluginManifest> {
-	name?: string;
-	main?: string;
-}
+interface PluginPackageJson extends Partial<PluginManifest> {}
 
 // Keep Node builtins out of the neutral bundle resolver while still loading plugins in Node.
 const importNative = new Function('id', 'return import(id)') as <T>(id: string) => Promise<T>;
@@ -31,15 +28,35 @@ export async function loadPlugins(doc: Document, pluginsDir: string): Promise<Lo
 	for (const entry of entries) {
 		if (!entry.isDirectory()) continue;
 		const pluginDir = path.join(pluginsDir, entry.name);
+		let manifest: PluginManifest | null;
 		try {
-			const manifest = await readPluginManifest(fs, path, pluginDir);
-			if (!manifest) continue;
-
-			const mainPath = resolvePluginMain(path, pluginDir, manifest);
-			const plugin = await loadPlugin(mainPath);
-			plugins.push({ name: manifest.name, plugin });
+			manifest = await readPluginManifest(fs, path, pluginDir);
 		} catch (error) {
 			doc.getLogger().warn(`publish: Plugin "${entry.name}" was skipped: ${formatPluginError(error)}`);
+			continue;
+		}
+		if (!manifest) continue;
+		if (!manifest.main) {
+			const error = new Error(`Codegen plugin "${manifest.name}" is missing package.json main.`);
+			if (manifest.required) throw error;
+			doc.getLogger().warn(`publish: Plugin "${manifest.name}" was skipped: ${error.message}`);
+			continue;
+		}
+
+		try {
+			const mainPath = resolvePluginMain(path, pluginDir, manifest);
+			const plugin = await loadPlugin(mainPath);
+			plugins.push({
+				name: manifest.name,
+				plugin,
+				failureMode: manifest.required ? 'abort' : manifest.failureMode,
+			});
+		} catch (error) {
+			if (!manifest.required && manifest.failureMode === 'warn') {
+				doc.getLogger().warn(`publish: Plugin "${manifest.name}" was skipped: ${formatPluginError(error)}`);
+				continue;
+			}
+			throw new Error(`publish: Failed to load plugin "${manifest.name}": ${formatPluginError(error)}`);
 		}
 	}
 
@@ -55,7 +72,6 @@ async function readPluginManifest(
 	const content = await fs.readFile(manifestPath, 'utf-8');
 	const manifest = JSON.parse(content) as PluginPackageJson;
 	if (!manifest.name) throw new Error(`Codegen plugin at ${pluginDir} is missing package.json name.`);
-	if (!manifest.main) throw new Error(`Codegen plugin "${manifest.name}" is missing package.json main.`);
 	return manifest as PluginManifest;
 }
 

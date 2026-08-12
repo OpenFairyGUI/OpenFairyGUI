@@ -83,6 +83,70 @@ async function loadNodePublishPlugins(document: Document, assetsPath: string | u
 	return loadPlugins(document, path.join(projectDir, 'plugins'));
 }
 
+async function publishToStagedOutput(output: string, run: (staging: string) => Promise<void>): Promise<void> {
+	const [fs, path, { randomUUID }] = await Promise.all([
+		importNative<typeof import('node:fs/promises')>('node:fs/promises'),
+		importNative<typeof import('node:path')>('node:path'),
+		importNative<typeof import('node:crypto')>('node:crypto'),
+	]);
+	const target = path.resolve(output);
+	const parent = path.dirname(target);
+	const name = path.basename(target);
+	const staging = path.join(parent, `.${name}.publish-${randomUUID()}`);
+	const backup = path.join(parent, `.${name}.publish-backup-${randomUUID()}`);
+	await fs.mkdir(parent, { recursive: true });
+	let existed = false;
+	try {
+		const stat = await fs.lstat(target);
+		if (stat.isSymbolicLink() || !stat.isDirectory()) throw new Error(`publishNode: output must be a regular directory: ${target}`);
+		await assertNoSymlinks(fs, path, target);
+		existed = true;
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+	}
+	try {
+		if (existed) await fs.cp(target, staging, { recursive: true, errorOnExist: true, force: false });
+		else await fs.mkdir(staging);
+	} catch (error) {
+		await fs.rm(staging, { recursive: true, force: true });
+		throw error;
+	}
+
+	try {
+		await run(staging);
+	} catch (error) {
+		await fs.rm(staging, { recursive: true, force: true });
+		throw error;
+	}
+	if (!existed) {
+		await fs.rename(staging, target);
+		return;
+	}
+
+	// ponytail: two-step rename preserves rollback; use directory exchange if zero reader gap becomes required.
+	await fs.rename(target, backup);
+	try {
+		await fs.rename(staging, target);
+	} catch (error) {
+		await fs.rename(backup, target);
+		await fs.rm(staging, { recursive: true, force: true });
+		throw error;
+	}
+	await fs.rm(backup, { recursive: true, force: true }).catch(() => undefined);
+}
+
+async function assertNoSymlinks(
+	fs: typeof import('node:fs/promises'),
+	path: typeof import('node:path'),
+	directory: string,
+): Promise<void> {
+	for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
+		const entryPath = path.join(directory, entry.name);
+		if (entry.isSymbolicLink()) throw new Error(`publishNode: symbolic links are not supported in output directories: ${entryPath}`);
+		if (entry.isDirectory()) await assertNoSymlinks(fs, path, entryPath);
+	}
+}
+
 /**
  * Publish a FairyGUI project through the standard Node host adapter.
  *
@@ -114,9 +178,10 @@ export async function publishNode(options: PublishNodeOptions): Promise<void> {
 		throw new Error('publishNode: Sharp is required for a complete publish. Install sharp or provide an encoder.');
 	}
 
-	await document.transform(
-		publish({
+	const run = async (output: string | undefined): Promise<void> => {
+		await document.transform(publish({
 			...publishOptions,
+			output,
 			basePath: assetsPath,
 			encoder,
 			atlas: {
@@ -125,6 +190,11 @@ export async function publishNode(options: PublishNodeOptions): Promise<void> {
 			},
 			fs: fileSystem,
 			plugins,
-		}),
-	);
+		}));
+	};
+	if (publishOptions.output) {
+		await publishToStagedOutput(publishOptions.output, run);
+		return;
+	}
+	await run(undefined);
 }

@@ -16,6 +16,8 @@
 
 OpenFairyGUI 是一个面向 Node.js 和自动化工作流的 FairyGUI 工程 SDK。它把工程读写、文档变换、发布以及后端会话能力拆分为可组合的 TypeScript 包，同时提供 CLI 与 MCP 接入方式。
 
+公共 authoring 以可序列化、可验证的 UAM transaction 为稳定入口；`Document` / Property Graph 是供协议读写和底层工作流使用的可变低层 API，不提供与 UAM 相同的事务不变量。
+
 它适合：
 
 - 批量检查或修改 FairyGUI 工程

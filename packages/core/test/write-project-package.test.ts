@@ -117,6 +117,25 @@ test('round-trip: .fairy file content is valid XML with projectDescription', asy
 	}
 });
 
+test('round-trip: .fairy project attributes are XML escaped', async (t) => {
+	const io = new NodeIO();
+	const doc = new Document();
+	const projectId = 'project" injected="yes&<';
+	const version = '3.0" injectedVersion="yes';
+	doc.getRoot().setProjectId(projectId).setVersion(version);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-project-attrs-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+	try {
+		await io.writeProject(doc, outFairy);
+		const roundTripped = await io.readProject(outFairy);
+		t.is(roundTripped.getRoot().getProjectId(), projectId);
+		t.is(roundTripped.getRoot().getVersion(), version);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('round-trip: font fileName and textureId survive package.xml write→read', async (t) => {
 	const doc = new Document();
 	doc.getRoot().setProjectId('font-project').setProjectType(0).setVersion('3.0');

@@ -36,7 +36,8 @@ MyProject/
 ```json
 {
   "name": "my-openfairygui-plugin",
-  "main": "index.mjs"
+  "main": "index.mjs",
+  "required": true
 }
 ```
 
@@ -46,9 +47,10 @@ MyProject/
 |---|---|
 | `name` | 必填，用于日志和插件标识 |
 | `main` | 必填，必须解析到当前插件目录内部 |
+| `required` | 可选；`true` 时覆盖 `failureMode` 并在加载或执行失败时中止发布 |
+| `failureMode` | 可选，`abort`（默认）或 `warn`；`warn` 仅适用于允许失败后继续发布的可选插件 |
 
-缺少必要字段、入口越界、入口加载失败或不符合 OpenFairyGUI 插件 API 的目录会被跳过。
-跳过插件不会阻断发布流程。
+缺少 `main` 的非 OpenFairyGUI 插件目录会被跳过，因此 FairyGUI 编辑器插件仍可共存。已声明 `main` 的插件若入口越界、入口加载失败或执行失败，默认中止发布；只有显式设置 `failureMode: "warn"` 才记录 warning 并继续。
 
 ## 插件 API
 
@@ -94,7 +96,7 @@ export async function genCode(doc, settings, options) {
 onPublishStart -> built-in publish preflight -> atlas / binary publish -> genCode -> onPublishEnd
 ```
 
-`onPublishStart` 接收宿主的可写文件系统，并且会在 OpenFairyGUI 内置发布 preflight 之前执行，以便插件对 `Document` 的修改进入本次发布。插件在这个 hook 中产生的文件或其他外部副作用不属于内置发布的零输出保证，也不会在后续 preflight 或发布失败时自动回滚。需要失败时保持零副作用的插件应延后写入，或自行使用临时目录和提交步骤。
+`onPublishStart` 接收宿主的可写文件系统，并且会在 OpenFairyGUI 内置发布 preflight 之前执行，以便插件对 `Document` 的修改进入本次发布。标准 Node adapter 的显式 `output` 会映射到同级 staging 目录，但插件写到 `basePath`、codegen 路径或其他输出目录外位置的副作用不会自动回滚。需要失败时保持零副作用的插件应只写 `options.output` 下的路径，或自行使用临时目录和提交步骤。
 
 代码生成阶段的规则：
 
@@ -102,9 +104,9 @@ onPublishStart -> built-in publish preflight -> atlas / binary publish -> genCod
 |---|---|
 | 没有 `genCode` 插件 | 使用 OpenFairyGUI 内置代码生成 |
 | 至少一个 `genCode` 插件成功执行 | 视为插件已接管代码生成，跳过内置代码生成 |
-| `genCode` 插件执行失败 | 记录 warning，继续尝试其他插件 |
-| 所有 `genCode` 插件都失败 | 回退到内置代码生成 |
-| publish hook 执行失败 | 记录 warning，不阻断发布 |
+| `genCode` 插件执行失败 | 默认中止发布；`failureMode: "warn"` 时记录 warning 并继续 |
+| 所有 `failureMode: "warn"` 的 `genCode` 插件都失败 | 回退到内置代码生成 |
+| publish hook 执行失败 | 默认中止发布；`failureMode: "warn"` 时记录 warning 并继续 |
 
 ## 与 FairyGUI 编辑器插件的关系
 

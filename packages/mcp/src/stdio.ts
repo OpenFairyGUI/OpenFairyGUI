@@ -1,9 +1,14 @@
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createOpenFairyGuiMcpServer } from './server.js';
 
 export async function connectOpenFairyGuiMcpStdio(): Promise<void> {
-	const server = createOpenFairyGuiMcpServer();
+	const configuredRoots = process.env.OPENFAIRYGUI_ALLOWED_PROJECT_ROOTS
+		?.split(path.delimiter)
+		.map((value) => value.trim())
+		.filter(Boolean);
+	const server = createOpenFairyGuiMcpServer({ allowedProjectRoots: configuredRoots });
 	await server.connect(new StdioServerTransport());
 }
 

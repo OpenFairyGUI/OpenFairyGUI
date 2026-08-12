@@ -1,6 +1,6 @@
 {
 	"name": "@openfairygui/backend",
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"description": "FairyGUI Headless Authoring SDK — stateful backend runtime and session services.",
 	"author": "OpenFairyGUI Contributors",
 	"license": "MIT",
@@ -11,7 +11,10 @@
 	},
 	"homepage": "https://github.com/OpenFairyGUI/OpenFairyGUI#readme",
 	"bugs": {
-		"url": "https://github.com/OpenFairyGUI/OpenFairYGUI/issues"
+		"url": "https://github.com/OpenFairyGUI/OpenFairyGUI/issues"
+	},
+	"engines": {
+		"node": ">=20"
 	},
 	"type": "module",
 	"sideEffects": false,

@@ -4,6 +4,7 @@ import {
 	UAM_SUPPORTED_TRANSACTION_SCOPE,
 } from '@openfairygui/core/uam';
 import { BackendRuntime } from '../src/index.js';
+import { createNodeBackendRuntime } from '../src/node.js';
 
 test('getCapabilities reports derived ownership and runtime capabilities', (t) => {
 	const runtime = new BackendRuntime();
@@ -53,4 +54,9 @@ test('getCapabilities reports derived ownership and runtime capabilities', (t) =
 	t.deepEqual(result.data.runtime.jobs.supportedKinds, ['cache.refresh']);
 	t.false(result.data.runtime.jobs.artifactJobs);
 	t.true(result.data.runtime.cache.derivedReadOnly);
+});
+
+test('Node runtime advertises atomic project saves', (t) => {
+	const result = createNodeBackendRuntime().getCapabilities();
+	t.true(result.ok && result.data.runtime.atomicSave);
 });

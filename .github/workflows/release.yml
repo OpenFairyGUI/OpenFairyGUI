@@ -37,26 +37,23 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Verify release ref and package versions
+        env:
+          RELEASE_REF_TYPE: ${{ github.ref_type }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node --input-type=module -e "import fs from 'node:fs'; if (process.env.RELEASE_REF_TYPE !== 'tag') throw new Error('Release must run from a tag.'); for (const dir of ['core','functions','backend','cli','mcp']) { const { name, version } = JSON.parse(fs.readFileSync('packages/' + dir + '/package.json', 'utf8')); if ('v' + version !== process.env.RELEASE_TAG) throw new Error(name + '@' + version + ' does not match ' + process.env.RELEASE_TAG); }"
+
+      - name: Lint
+        run: pnpm lint:ci
+
+      - name: Typecheck
+        run: pnpm typecheck
+
       - name: Build workspace
         run: pnpm build
 
-      # NOTE:
-      # The repository still contains a small number of local-only referer baselines
-      # outside git control. Release CI runs the repository-contained test subset here.
-      - name: Run release-safe test suite
-        run: >
-          pnpm exec ava --no-worker-threads
-          packages/core/test/read-project.test.ts
-          packages/core/test/write-project.test.ts
-          packages/core/test/write-project-display-metadata.test.ts
-          packages/core/test/restore-published-project.test.ts
-          packages/core/test/write-binary-pixel-hit-test.test.ts
-          packages/functions/test/atlas.test.ts
-          packages/functions/test/functions.test.ts
-          packages/functions/test/publish.test.ts
-          packages/cli/test/*.test.ts
-          packages/backend/test/*.integration.test.ts
-          packages/mcp/test/*.test.ts
+      - name: Test
+        run: pnpm test
 
       - name: Pack publish artifacts
         run: |
