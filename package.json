@@ -11,13 +11,16 @@
 	"bugs": {
 		"url": "https://github.com/OpenFairyGUI/OpenFairyGUI/issues"
 	},
+	"engines": {
+		"node": ">=20"
+	},
 	"type": "module",
 	"scripts": {
 		"build": "pnpm -r --if-present run build",
 		"build:cli-deps": "pnpm --filter @openfairygui/core build && pnpm --filter @openfairygui/functions build && pnpm --filter @openfairygui/backend build && pnpm --filter @openfairygui/cli build",
 		"build:watch": "pnpm -r --parallel --stream --if-present run build:watch",
-		"clean:dist": "rm -rf packages/*/dist/** | true",
-		"clean:deps": "rm -rf packages/*/node_modules/** | true",
+		"clean:dist": "node scripts/clean.mjs dist",
+		"clean:deps": "node scripts/clean.mjs node_modules",
 		"dev:cli": "tsx packages/cli/src/cli.ts",
 		"test": "ava --no-worker-threads",
 		"test:debug": "ava debug --no-worker-threads",
@@ -28,8 +31,8 @@
 		"docs:build": "vitepress build docs",
 		"docs:dev": "vitepress dev docs",
 		"docs:preview": "vitepress preview docs",
-		"lint": "biome lint packages",
-		"lint:ci": "biome lint packages",
+		"lint": "biome lint packages scripts docs/.vitepress/config.ts docs/.vitepress/theme",
+		"lint:ci": "biome lint packages scripts docs/.vitepress/config.ts docs/.vitepress/theme",
 		"typecheck": "tsc --noEmit --declaration false"
 	},
 	"devDependencies": {

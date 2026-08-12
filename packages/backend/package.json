@@ -11,7 +11,10 @@
 	},
 	"homepage": "https://github.com/OpenFairyGUI/OpenFairyGUI#readme",
 	"bugs": {
-		"url": "https://github.com/OpenFairyGUI/OpenFairYGUI/issues"
+		"url": "https://github.com/OpenFairyGUI/OpenFairyGUI/issues"
+	},
+	"engines": {
+		"node": ">=20"
 	},
 	"type": "module",
 	"sideEffects": false,
