@@ -38,6 +38,11 @@ export interface BackendFileSystem {
 	resolvePath(filePath: string): Promise<string>;
 	/** Optional host-specific lock location. Node keeps it beside the project so directory swaps do not move it. */
 	getSessionLockPath?(canonicalProjectPath: string): string;
+	/** Runs project writes against a staged copy and commits them as one directory swap. */
+	runProjectWriteTransaction?(
+		projectRoot: string,
+		write: (stagedFileSystem: BackendFileSystem) => Promise<void>,
+	): Promise<void>;
 	acquireSessionLock(lockPath: string): Promise<BackendSessionLock>;
 	unlink(filePath: string): Promise<void>;
 	rmdir(dirPath: string): Promise<void>;
@@ -146,7 +151,7 @@ export interface BackendCapabilities {
 		sessionRuntime: true;
 		advisoryLocking: true;
 		coordinatedSave: true;
-		atomicSave: false;
+		atomicSave: boolean;
 		staleRevisionProtection: true;
 		pathPolicy: {
 			canonicalization: 'realpath+normalized-casefold';
@@ -293,7 +298,7 @@ export interface SavePartialFailureError {
 	lastSavedRevision: number;
 	committedPaths: string[];
 	failedPaths: string[];
-	diskMayBePartiallyUpdated: true;
+	diskMayBePartiallyUpdated: boolean;
 }
 
 export interface UamFidelityUnsupportedError {
@@ -323,7 +328,7 @@ export interface MaterializeWriteFailedError {
 	failedPaths: string[];
 	skippedPaths: string[];
 	diagnostics: BackendDiagnostic[];
-	diskMayBePartiallyUpdated: true;
+	diskMayBePartiallyUpdated: boolean;
 }
 
 export type BackendEventKind =

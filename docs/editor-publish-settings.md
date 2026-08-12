@@ -170,7 +170,7 @@ ProjectWriter 会为每个工程分支保留 `assets_<branch>/`，并为包内�
 
 图片 source bytes 通过 `replaceResourceBytes` 更新时，当前只支持 PNG 与常见 8-bit Huffman JPEG。preflight 会检查 PNG 的 chunk CRC、zlib/scanline 边界和容器顺序；JPEG 除检查 quantization/Huffman table、frame/scan 顺序及编码约束外，还会完成像素解码。两者都会核对实际格式与操作时、最终文件扩展名；畸形或不匹配返回 `invalid_resource_bytes`，SVG、WebP、GIF、PSD、TGA 等未支持格式返回 `unsupported_resource_mutation`。浏览器 backend 通过 `applyUamTransactionAsync` 在包内 Web Worker 中执行相同的严格校验，browser 环境误用同步入口会直接拒绝而不会在主线程扫描或解码。消费端 bundler 必须把公开入口 `@openfairygui/core/image-validation-worker` 再打成与主 bundle 相邻的 self-contained ESM `image-validation-worker.js`；仅重打主入口或只复制 worker 文件不会带上其解码 chunk。Worker 无响应会在 10 秒后终止。浏览器 source 上限为 8 MiB，decoded raster 上限为 8,388,608 pixels；Node/CLI 同步校验的 source/PNG decoded bytes 上限为 128 MiB，JPEG 严格解码另限 8,388,608 pixels 与 64 MiB。
 
-有效替换会从 bytes 派生新的 raster 宽高，并在同一内存 transaction 中原子投影到 UAM 与 Document。后续 Save 仍沿用现有多文件写回，不承诺文件系统级 `atomicSave`。`ProjectReader` 在请求 `hydrateResourceBytes` 时以可解析且字段合法的 PNG IHDR / JPEG SOF header 覆盖陈旧 XML 尺寸，不在批量水合时扫描完整容器或重复执行像素解码；SVG 继续使用工程声明尺寸。
+有效替换会从 bytes 派生新的 raster 宽高，并在同一内存 transaction 中原子投影到 UAM 与 Document。后续 Node Backend Save 在同级 staging 中完成全工程写回，并仅在全部成功后切换目录；浏览器 storage 是否具备同等级别的文件系统原子性由 adapter 的 `runProjectWriteTransaction` 能力决定。`ProjectReader` 在请求 `hydrateResourceBytes` 时以可解析且字段合法的 PNG IHDR / JPEG SOF header 覆盖陈旧 XML 尺寸，不在批量水合时扫描完整容器或重复执行像素解码；SVG 继续使用工程声明尺寸。
 
 ## 工程 MovieClip 资源属性与 JTA 事务
 

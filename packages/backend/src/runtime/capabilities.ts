@@ -38,7 +38,7 @@ const ARTIFACT_BRIDGE_CAPABILITY = {
 	reason: 'publish/restore require explicit Node-hosted filesystem and artifact execution.',
 } as const satisfies BackendArtifactBridgeCapability;
 
-export function createCapabilities(): BackendCapabilities {
+export function createCapabilities(atomicSave = false): BackendCapabilities {
 	return {
 		contractVersion: BACKEND_CONTRACT_VERSION,
 		capabilitySchemaVersion: BACKEND_CAPABILITY_SCHEMA_VERSION,
@@ -102,7 +102,7 @@ export function createCapabilities(): BackendCapabilities {
 			sessionRuntime: true,
 			advisoryLocking: true,
 			coordinatedSave: true,
-			atomicSave: false,
+			atomicSave,
 			staleRevisionProtection: true,
 			pathPolicy: createRuntimePathPolicy(),
 			events: {

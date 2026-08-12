@@ -65,17 +65,23 @@ export async function writeSessionProject(input: {
 	writtenPaths: string[];
 	failedPaths: string[];
 }): Promise<void> {
-	const writer = new ProjectWriter(
-		createWriterFileSystem(
-			input.fileSystem,
-			input.fileSystem.dirname(input.fairyPath),
-			input.writtenPaths,
-			input.failedPaths,
-		),
-	);
-	await writer.write(input.document, input.fairyPath, {
-		staleSourceFiles: input.staleSourceFiles,
-		staleResourceFolders: input.staleResourceFolders,
-		staleBranchDirectories: input.staleBranchDirectories,
-	});
+	const projectRoot = input.fileSystem.dirname(input.fairyPath);
+	const write = async (fileSystem: BackendFileSystem): Promise<void> => {
+		const writer = new ProjectWriter(
+			createWriterFileSystem(fileSystem, projectRoot, input.writtenPaths, input.failedPaths),
+		);
+		await writer.write(input.document, input.fairyPath, {
+			staleSourceFiles: input.staleSourceFiles,
+			staleResourceFolders: input.staleResourceFolders,
+			staleBranchDirectories: input.staleBranchDirectories,
+		});
+	};
+
+	if (!input.fileSystem.runProjectWriteTransaction) return write(input.fileSystem);
+	try {
+		await input.fileSystem.runProjectWriteTransaction(projectRoot, write);
+	} catch (error) {
+		input.writtenPaths.length = 0;
+		throw error;
+	}
 }

@@ -81,6 +81,99 @@ async function resolvePathThroughExistingAncestor(filePath: string): Promise<str
 	}
 }
 
+async function pathExists(filePath: string): Promise<boolean> {
+	return fs.stat(filePath).then(
+		() => true,
+		(error: NodeJS.ErrnoException) => {
+			if (error.code === 'ENOENT') return false;
+			throw error;
+		},
+	);
+}
+
+async function assertNoSymlinks(dirPath: string): Promise<void> {
+	for (const entry of await fs.readdir(dirPath, { withFileTypes: true })) {
+		const entryPath = path.join(dirPath, entry.name);
+		if (entry.isSymbolicLink()) throw new Error(`Symbolic links are not supported in project directories: ${entryPath}`);
+		if (entry.isDirectory()) await assertNoSymlinks(entryPath);
+	}
+}
+
+function createStagedNodeFileSystem(projectRoot: string, stagingRoot: string): BackendFileSystem {
+	const { runProjectWriteTransaction: _, ...base } = createNodeBackendFileSystem();
+	const translate = (filePath: string): string => {
+		const relative = path.relative(projectRoot, path.resolve(filePath));
+		if (relative.startsWith('..') || path.isAbsolute(relative)) {
+			const error = new Error(`Project path escapes the staged root: ${filePath}`) as Error & { code: string };
+			error.code = 'EACCES';
+			throw error;
+		}
+		return path.join(stagingRoot, relative);
+	};
+	return {
+		...base,
+		stat: (filePath) => fs.stat(translate(filePath)),
+		async readdir(dirPath) {
+			const entries = await fs.readdir(translate(dirPath), { withFileTypes: true });
+			const symlink = entries.find((entry) => entry.isSymbolicLink());
+			if (symlink) throw new Error(`Symbolic links are not supported in project directories: ${path.join(dirPath, symlink.name)}`);
+			return entries.map((entry) => entry.name);
+		},
+		readFile: (filePath) => fs.readFile(translate(filePath), 'utf-8'),
+		async readFileRaw(filePath) {
+			const buffer = await fs.readFile(translate(filePath));
+			return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+		},
+		writeFile: (filePath, content) => fs.writeFile(translate(filePath), content, 'utf-8'),
+		writeFileRaw: (filePath, data) => fs.writeFile(translate(filePath), data),
+		async mkdir(dirPath, options) {
+			await fs.mkdir(translate(dirPath), { recursive: options?.recursive ?? false });
+		},
+		resolvePath: (filePath) => resolvePathThroughExistingAncestor(translate(filePath)),
+		unlink: (filePath) => fs.unlink(translate(filePath)),
+		rmdir: (dirPath) => fs.rmdir(translate(dirPath)),
+	};
+}
+
+async function runNodeProjectWriteTransaction(
+	projectRoot: string,
+	write: (stagedFileSystem: BackendFileSystem) => Promise<void>,
+): Promise<void> {
+	const root = path.resolve(projectRoot);
+	const parent = path.dirname(root);
+	const name = path.basename(root);
+	const staging = path.join(parent, `.${name}.save-${randomUUID()}`);
+	const backup = path.join(parent, `.${name}.save-backup-${randomUUID()}`);
+	const existed = await pathExists(root);
+	if (existed) {
+		await assertNoSymlinks(root);
+		await fs.cp(root, staging, { recursive: true, errorOnExist: true, force: false });
+	} else {
+		await fs.mkdir(staging, { recursive: true });
+	}
+	try {
+		await write(createStagedNodeFileSystem(root, staging));
+	} catch (error) {
+		await fs.rm(staging, { recursive: true, force: true });
+		throw error;
+	}
+	if (!existed) {
+		await fs.rename(staging, root);
+		return;
+	}
+
+	// ponytail: two-step rename preserves rollback; use directory exchange if zero reader gap becomes required.
+	await fs.rename(root, backup);
+	try {
+		await fs.rename(staging, root);
+	} catch (error) {
+		await fs.rename(backup, root);
+		await fs.rm(staging, { recursive: true, force: true });
+		throw error;
+	}
+	await fs.rm(backup, { recursive: true, force: true }).catch(() => undefined);
+}
+
 export function createNodeBackendFileSystem(): BackendFileSystem {
 	return {
 		stat(filePath: string): Promise<BackendFileStat> {
@@ -118,6 +211,7 @@ export function createNodeBackendFileSystem(): BackendFileSystem {
 		getSessionLockPath(canonicalProjectPath: string): string {
 			return path.join(path.dirname(canonicalProjectPath), `.${path.basename(canonicalProjectPath)}.openfairygui.backend.lock`);
 		},
+		runProjectWriteTransaction: runNodeProjectWriteTransaction,
 		async acquireSessionLock(filePath: string): Promise<BackendSessionLock> {
 			let handle: Awaited<ReturnType<typeof fs.open>>;
 			try {

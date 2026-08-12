@@ -10,7 +10,7 @@ It owns:
 
 - project/session lifecycle
 - revisioned request handling
-- coordinated but non-atomic save semantics
+- coordinated save semantics, with atomic staged directory swaps on the Node adapter
 - browser-safe project sessions
 - browser-safe async project storage adapter
 - adapter-backed file sessions and backend-local session locking

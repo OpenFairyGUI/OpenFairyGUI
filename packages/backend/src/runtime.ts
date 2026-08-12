@@ -72,7 +72,7 @@ export class BackendRuntime {
 
 	public constructor(options: BackendRuntimeOptions = {}) {
 		this.fileSystem = options.fileSystem;
-		this.capabilities = createCapabilities();
+		this.capabilities = createCapabilities(Boolean(options.fileSystem?.runProjectWriteTransaction));
 		this.context = {
 			fileSystem: this.fileSystem,
 			host: options.host,

@@ -77,11 +77,12 @@ test('file sessions preserve display pivot and anchor through apply, save, and r
 	}
 });
 
-test('saveSession partial failure keeps dirty state and reports partial update risk', async (t) => {
+test('saveSession failure rolls back the Node project tree', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
 		const failingFs = createFailingFileSystem((filePath) => filePath.endsWith(`${path.sep}package.xml`));
 		const runtime = createBackendRuntime({ fileSystem: failingFs });
+		const before = await fs.readFile(path.join(fixture.rootDir, 'assets', 'Main', 'MainView.xml'), 'utf8');
 		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(opened.ok);
 		if (!opened.ok) return;
@@ -103,11 +104,13 @@ test('saveSession partial failure keeps dirty state and reports partial update r
 		const saved = await runtime.saveSession({ sessionId: opened.data.sessionId });
 		t.false(saved.ok);
 		if (saved.ok) return;
-		const failure = saved as Extract<typeof saved, { ok: false }> & {
-			error: { diskMayBePartiallyUpdated: true };
-		};
+		const failure = saved as Extract<typeof saved, { ok: false }>;
 		t.is(failure.error.code, 'save_partial_failure');
-		t.true(failure.error.diskMayBePartiallyUpdated);
+		if (failure.error.code === 'save_partial_failure') {
+			t.false(failure.error.diskMayBePartiallyUpdated);
+			t.deepEqual(failure.error.committedPaths, []);
+		}
+		t.is(await fs.readFile(path.join(fixture.rootDir, 'assets', 'Main', 'MainView.xml'), 'utf8'), before);
 		t.truthy(failure.session);
 		t.true(failure.session?.dirty ?? false);
 		t.is(failure.session?.lastSavedRevision, 0);
@@ -136,7 +139,7 @@ test('materializeSession reports write_failed and keeps session dirty state stab
 		const materializeFailure = materialized as Extract<typeof materialized, { ok: false }>;
 		t.is(materializeFailure.error.code, 'write_failed');
 		if (materializeFailure.error.code === 'write_failed') {
-			t.true(materializeFailure.error.diskMayBePartiallyUpdated);
+			t.false(materializeFailure.error.diskMayBePartiallyUpdated);
 			t.true(
 				materializeFailure.error.failedPaths.some((filePath) => filePath.endsWith(`${path.sep}package.xml`)),
 			);
@@ -247,6 +250,7 @@ test('saveSession serializes a concurrent transaction behind the saved revision'
 		let delayNextWrite = true;
 		const delayedFileSystem = {
 			...base,
+			runProjectWriteTransaction: undefined,
 			async writeFile(filePath: string, content: string): Promise<void> {
 				if (delayNextWrite) {
 					delayNextWrite = false;
@@ -335,6 +339,7 @@ test('closeSession waits for an in-flight save before releasing its lock', async
 		let delayNextWrite = true;
 		const delayedFileSystem = {
 			...base,
+			runProjectWriteTransaction: undefined,
 			async writeFile(filePath: string, content: string): Promise<void> {
 				if (delayNextWrite) {
 					delayNextWrite = false;
@@ -368,12 +373,13 @@ test('closeSession waits for an in-flight save before releasing its lock', async
 		});
 		await Promise.resolve();
 		t.false(closeSettled);
-		await fs.stat(path.join(fixture.rootDir, '.openfairygui.backend.lock'));
+		const lockPath = path.join(path.dirname(fixture.rootDir), `.${path.basename(fixture.rootDir)}.openfairygui.backend.lock`);
+		await fs.stat(lockPath);
 
 		releaseWrite();
 		t.true((await saving).ok);
 		t.true((await closing).ok);
-		await t.throwsAsync(fs.stat(path.join(fixture.rootDir, '.openfairygui.backend.lock')));
+		await t.throwsAsync(fs.stat(lockPath));
 	} finally {
 		await fixture.cleanup();
 	}

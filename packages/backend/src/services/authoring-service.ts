@@ -465,7 +465,7 @@ export class AuthoringService {
 					lastSavedRevision: session.lastSavedRevision,
 					committedPaths,
 					failedPaths,
-					diskMayBePartiallyUpdated: true,
+					diskMayBePartiallyUpdated: !fileSystem.runProjectWriteTransaction,
 				},
 				toSessionSnapshot(session, this.context.capabilities),
 				{
@@ -744,7 +744,7 @@ export class AuthoringService {
 					failedPaths,
 					skippedPaths,
 					diagnostics: diagnosticsFromError,
-					diskMayBePartiallyUpdated: true,
+					diskMayBePartiallyUpdated: !fileSystem.runProjectWriteTransaction,
 				},
 				toSessionSnapshot(session, this.context.capabilities),
 				{
