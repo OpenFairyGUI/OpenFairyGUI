@@ -60,6 +60,7 @@ export {
 	type RefreshCacheInput,
 	type SavePartialFailureError,
 	type SaveSessionInput,
+	type SessionIdConflictError,
 	type SessionNotFoundError,
 	type SessionStaleWriteError,
 	type UamFidelityUnsupportedError,

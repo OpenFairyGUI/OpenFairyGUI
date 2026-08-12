@@ -45,6 +45,7 @@ import type {
 	RefreshCacheInput,
 	SavePartialFailureError,
 	SaveSessionInput,
+	SessionIdConflictError,
 	SessionNotFoundError,
 	SessionStaleWriteError,
 	UamFidelityUnsupportedError,
@@ -109,7 +110,9 @@ export class BackendRuntime {
 		return this.runtimeService.openSession(input);
 	}
 
-	public openProjectSession(input: OpenProjectSessionInput): BackendResult<BackendSessionSnapshot> {
+	public openProjectSession(
+		input: OpenProjectSessionInput,
+	): BackendResult<BackendSessionSnapshot, InProcessLockConflictError | SessionIdConflictError> {
 		return this.runtimeService.openProjectSession(input);
 	}
 

@@ -1,5 +1,7 @@
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import {
 	BackendRuntime,
 	type BackendFileStat,
@@ -9,13 +11,90 @@ import {
 	type BackendSessionLock,
 } from './runtime.js';
 
+const PROCESS_START_TIME = Math.trunc(Date.now() - process.uptime() * 1000);
+
+interface NodeLockMetadata {
+	schemaVersion: 1;
+	pid: number;
+	processStartTime: number;
+	hostname: string;
+	token: string;
+}
+
+function parseLockMetadata(content: string): NodeLockMetadata | null {
+	try {
+		const value = JSON.parse(content) as Partial<NodeLockMetadata>;
+		if (
+			value.schemaVersion !== 1
+			|| !Number.isSafeInteger(value.pid)
+			|| !Number.isFinite(value.processStartTime)
+			|| typeof value.hostname !== 'string'
+			|| typeof value.token !== 'string'
+		) return null;
+		return value as NodeLockMetadata;
+	} catch {
+		return null;
+	}
+}
+
+function isProcessAlive(metadata: NodeLockMetadata): boolean {
+	if (metadata.hostname !== os.hostname()) return true;
+	if (metadata.pid === process.pid) return Math.abs(metadata.processStartTime - PROCESS_START_TIME) < 1000;
+	try {
+		process.kill(metadata.pid, 0);
+		return true;
+	} catch (error) {
+		return (error as NodeJS.ErrnoException).code !== 'ESRCH';
+	}
+}
+
+async function recoverStaleLock(filePath: string): Promise<boolean> {
+	let before: string;
+	try {
+		before = await fs.readFile(filePath, 'utf-8');
+	} catch {
+		return false;
+	}
+	const metadata = parseLockMetadata(before);
+	if (!metadata || isProcessAlive(metadata)) return false;
+	const current = parseLockMetadata(await fs.readFile(filePath, 'utf-8').catch(() => ''));
+	if (!current || current.token !== metadata.token) return false;
+	await fs.unlink(filePath);
+	return true;
+}
+
+async function resolvePathThroughExistingAncestor(filePath: string): Promise<string> {
+	const missing: string[] = [];
+	let candidate = path.resolve(filePath);
+	for (;;) {
+		try {
+			const resolved = await fs.realpath(candidate);
+			return path.join(resolved, ...missing);
+		} catch (error) {
+			const code = (error as NodeJS.ErrnoException).code;
+			if (code !== 'ENOENT' && code !== 'ENOTDIR') throw error;
+			const parent = path.dirname(candidate);
+			if (parent === candidate) return path.resolve(filePath);
+			missing.unshift(path.basename(candidate));
+			candidate = parent;
+		}
+	}
+}
+
 export function createNodeBackendFileSystem(): BackendFileSystem {
 	return {
 		stat(filePath: string): Promise<BackendFileStat> {
 			return fs.stat(filePath);
 		},
-		readdir(dirPath: string): Promise<string[]> {
-			return fs.readdir(dirPath);
+		async readdir(dirPath: string): Promise<string[]> {
+			const entries = await fs.readdir(dirPath, { withFileTypes: true });
+			const symlink = entries.find((entry) => entry.isSymbolicLink());
+			if (symlink) {
+				const error = new Error(`Symbolic links are not supported in project directories: ${path.join(dirPath, symlink.name)}`) as Error & { code: string };
+				error.code = 'ELOOP';
+				throw error;
+			}
+			return entries.map((entry) => entry.name);
 		},
 		readFile(filePath: string): Promise<string> {
 			return fs.readFile(filePath, 'utf-8');
@@ -34,16 +113,30 @@ export function createNodeBackendFileSystem(): BackendFileSystem {
 			await fs.mkdir(dirPath, { recursive: options?.recursive ?? false });
 		},
 		async resolvePath(filePath: string): Promise<string> {
-			try {
-				return await fs.realpath(filePath);
-			} catch {
-				return path.resolve(filePath);
-			}
+			return resolvePathThroughExistingAncestor(filePath);
+		},
+		getSessionLockPath(canonicalProjectPath: string): string {
+			return path.join(path.dirname(canonicalProjectPath), `.${path.basename(canonicalProjectPath)}.openfairygui.backend.lock`);
 		},
 		async acquireSessionLock(filePath: string): Promise<BackendSessionLock> {
-			const handle = await fs.open(filePath, 'wx');
+			let handle: Awaited<ReturnType<typeof fs.open>>;
+			try {
+				handle = await fs.open(filePath, 'wx');
+			} catch (error) {
+				if ((error as NodeJS.ErrnoException).code !== 'EEXIST' || !(await recoverStaleLock(filePath))) throw error;
+				handle = await fs.open(filePath, 'wx');
+			}
+			const owner = {
+				schemaVersion: 1 as const,
+				pid: process.pid,
+				processStartTime: PROCESS_START_TIME,
+				hostname: os.hostname(),
+				token: randomUUID(),
+				createdAt: new Date().toISOString(),
+			};
 			let closed = false;
 			let released = false;
+			let metadataWritten = false;
 			const closeHandle = async (): Promise<void> => {
 				if (closed) return;
 				await handle.close();
@@ -51,15 +144,28 @@ export function createNodeBackendFileSystem(): BackendFileSystem {
 			};
 			return {
 				async writeMetadata(content: string): Promise<void> {
-					await handle.writeFile(content, 'utf-8');
+					let supplied: Record<string, unknown> = {};
+					try {
+						const parsed = JSON.parse(content) as unknown;
+						if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) supplied = parsed as Record<string, unknown>;
+					} catch {
+						// Host metadata is optional; ownership metadata remains authoritative.
+					}
+					await handle.writeFile(JSON.stringify({ ...supplied, ...owner }, null, 2), 'utf-8');
+					metadataWritten = true;
 					await closeHandle();
 				},
 				async release(): Promise<void> {
 					if (released) return;
 					await closeHandle();
-					await fs.unlink(filePath).catch((error: NodeJS.ErrnoException) => {
-						if (error.code !== 'ENOENT') throw error;
-					});
+					const current = metadataWritten
+						? parseLockMetadata(await fs.readFile(filePath, 'utf-8').catch(() => ''))
+						: null;
+					if (!metadataWritten || current?.token === owner.token) {
+						await fs.unlink(filePath).catch((error: NodeJS.ErrnoException) => {
+							if (error.code !== 'ENOENT') throw error;
+						});
+					}
 					released = true;
 				},
 			};
@@ -86,8 +192,6 @@ export function createNodeBackendHostAdapter(): BackendHostAdapter {
 	return {
 		lockMetadata(input) {
 			return {
-				pid: process.pid,
-				createdAt: new Date().toISOString(),
 				canonicalPathKey: input.canonicalPathKey,
 			};
 		},

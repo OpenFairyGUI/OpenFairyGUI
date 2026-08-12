@@ -1,15 +1,21 @@
 import type { Document } from '@openfairygui/core';
 import { type FileSystem, type ProjectBranchDirectory, type ProjectSourceFile, ProjectWriter } from '@openfairygui/core/project-io';
 import type { BackendFileSystem } from '../runtime.js';
+import { assertProjectPathContained } from '../path-policy.js';
 
 function createWriterFileSystem(
 	fileSystem: BackendFileSystem,
+	projectRoot: string,
 	writtenPaths: string[],
 	failedPaths: string[],
 ): FileSystem {
+	const contained = async <T>(targetPath: string, operation: () => Promise<T>): Promise<T> => {
+		await assertProjectPathContained(fileSystem, projectRoot, targetPath);
+		return operation();
+	};
 	async function trackWrite<T>(targetPath: string, write: () => Promise<T>): Promise<T> {
 		try {
-			const result = await write();
+			const result = await contained(targetPath, write);
 			writtenPaths.push(targetPath);
 			return result;
 		} catch (error) {
@@ -19,8 +25,8 @@ function createWriterFileSystem(
 	}
 
 	return {
-		readFile: (path) => fileSystem.readFile(path),
-		readFileRaw: (path) => fileSystem.readFileRaw(path),
+		readFile: (path) => contained(path, () => fileSystem.readFile(path)),
+		readFileRaw: (path) => contained(path, () => fileSystem.readFileRaw(path)),
 		writeFile: (path, content) =>
 			trackWrite(path, async () => {
 				await fileSystem.mkdir(fileSystem.dirname(path), { recursive: true });
@@ -31,9 +37,10 @@ function createWriterFileSystem(
 				await fileSystem.mkdir(fileSystem.dirname(path), { recursive: true });
 				await fileSystem.writeFileRaw(path, data);
 			}),
-		mkdir: (path) => fileSystem.mkdir(path, { recursive: true }),
-		readdir: (path) => fileSystem.readdir(path),
+		mkdir: (path) => contained(path, () => fileSystem.mkdir(path, { recursive: true })),
+		readdir: (path) => contained(path, () => fileSystem.readdir(path)),
 		async exists(path): Promise<boolean> {
+			await assertProjectPathContained(fileSystem, projectRoot, path);
 			try {
 				await fileSystem.stat(path);
 				return true;
@@ -59,7 +66,12 @@ export async function writeSessionProject(input: {
 	failedPaths: string[];
 }): Promise<void> {
 	const writer = new ProjectWriter(
-		createWriterFileSystem(input.fileSystem, input.writtenPaths, input.failedPaths),
+		createWriterFileSystem(
+			input.fileSystem,
+			input.fileSystem.dirname(input.fairyPath),
+			input.writtenPaths,
+			input.failedPaths,
+		),
 	);
 	await writer.write(input.document, input.fairyPath, {
 		staleSourceFiles: input.staleSourceFiles,

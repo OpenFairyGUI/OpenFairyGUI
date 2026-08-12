@@ -21,6 +21,7 @@ export async function createTempBackendProject() {
 		rootDir: tmpDir,
 		fairyPath,
 		async cleanup(): Promise<void> {
+			await fs.rm(path.join(path.dirname(tmpDir), `.${path.basename(tmpDir)}.openfairygui.backend.lock`), { force: true });
 			await fs.rm(tmpDir, { recursive: true, force: true });
 		},
 	};

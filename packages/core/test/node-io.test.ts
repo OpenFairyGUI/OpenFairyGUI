@@ -10,7 +10,7 @@ class ExposedNodeIO extends NodeIO {
 	}
 }
 
-test('NodeIO readdir follows directory symlinks', async (t) => {
+test('NodeIO readdir rejects symbolic links', async (t) => {
 	const root = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-node-io-'));
 	t.teardown(async () => {
 		await fs.rm(root, { recursive: true, force: true });
@@ -33,7 +33,5 @@ test('NodeIO readdir follows directory symlinks', async (t) => {
 	}
 
 	const fileSystem = new ExposedNodeIO().fileSystem();
-	const entries = (await fileSystem.readdir(root)).sort((a, b) => a.localeCompare(b));
-
-	t.deepEqual(entries, ['linked-dir', 'real-dir', 'target-dir']);
+	await t.throwsAsync(fileSystem.readdir(root), { message: /Symbolic links are not supported/ });
 });

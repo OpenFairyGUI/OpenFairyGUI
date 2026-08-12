@@ -5,7 +5,7 @@ import {
 	normalizeUamProject,
 	type UamProject,
 } from '@openfairygui/core/uam';
-import { normalizeComparablePath, resolveCanonicalProjectRoot } from '../path-policy.js';
+import { assertProjectPathContained, normalizeComparablePath, resolveCanonicalProjectRoot } from '../path-policy.js';
 import type {
 	AdvisoryLockConflictError,
 	BackendCapabilityUnavailableError,
@@ -14,6 +14,7 @@ import type {
 	BackendSessionSnapshot,
 	InProcessLockConflictError,
 	OpenProjectSessionInput,
+	SessionIdConflictError,
 	SessionNotFoundError,
 } from '../runtime.js';
 import type { CacheService } from './cache-service.js';
@@ -23,7 +24,7 @@ import type { JobService } from './job-service.js';
 import { createSessionNotFoundError, toSessionSnapshot } from './session-utils.js';
 
 function randomId(): string {
-	return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+	return crypto.randomUUID();
 }
 
 function createCapabilityUnavailableError(
@@ -42,29 +43,36 @@ function createCapabilityUnavailableError(
 	};
 }
 
-function createProjectReaderFileSystem(fileSystem: NonNullable<BackendContext['fileSystem']>): FileSystem {
+function createProjectReaderFileSystem(
+	fileSystem: NonNullable<BackendContext['fileSystem']>,
+	projectRoot: string,
+): FileSystem {
+	const contained = async <T>(filePath: string, operation: () => Promise<T>): Promise<T> => {
+		await assertProjectPathContained(fileSystem, projectRoot, filePath);
+		return operation();
+	};
 	return {
 		readFile(filePath: string): Promise<string> {
-			return fileSystem.readFile(filePath);
+			return contained(filePath, () => fileSystem.readFile(filePath));
 		},
 		readFileRaw(filePath: string): Promise<Uint8Array> {
-			return fileSystem.readFileRaw(filePath);
+			return contained(filePath, () => fileSystem.readFileRaw(filePath));
 		},
 		writeFile(filePath: string, content: string): Promise<void> {
-			return fileSystem.writeFile(filePath, content);
+			return contained(filePath, () => fileSystem.writeFile(filePath, content));
 		},
 		writeFileRaw(filePath: string, data: Uint8Array): Promise<void> {
-			return fileSystem.writeFileRaw(filePath, data);
+			return contained(filePath, () => fileSystem.writeFileRaw(filePath, data));
 		},
 		async mkdir(dirPath: string): Promise<void> {
-			await fileSystem.mkdir(dirPath, { recursive: true });
+			await contained(dirPath, () => fileSystem.mkdir(dirPath, { recursive: true }));
 		},
 		readdir(dirPath: string): Promise<string[]> {
-			return fileSystem.readdir(dirPath);
+			return contained(dirPath, () => fileSystem.readdir(dirPath));
 		},
 		async exists(filePath: string): Promise<boolean> {
 			try {
-				await fileSystem.stat(filePath);
+				await contained(filePath, () => fileSystem.stat(filePath));
 				return true;
 			} catch {
 				return false;
@@ -191,7 +199,8 @@ export class RuntimeService {
 		const resolved = await resolveCanonicalProjectRoot(fileSystem, input.projectPath);
 		const { fairyPath, canonicalProjectPath, canonicalPathKey } = resolved;
 		const existingSessionId = this.context.sessionsByPath.get(canonicalPathKey);
-		const lockFilePath = fileSystem.join(canonicalProjectPath, '.openfairygui.backend.lock');
+		const lockFilePath = fileSystem.getSessionLockPath?.(canonicalProjectPath)
+			?? fileSystem.join(canonicalProjectPath, '.openfairygui.backend.lock');
 
 		if (existingSessionId) {
 			return failure('runtime', startedAt, {
@@ -219,7 +228,7 @@ export class RuntimeService {
 					},
 				),
 			);
-			const reader = new ProjectReader(createProjectReaderFileSystem(fileSystem));
+			const reader = new ProjectReader(createProjectReaderFileSystem(fileSystem, canonicalProjectPath));
 			const read = await reader.readDetailed(fairyPath, { hydrateResourceBytes: true });
 			if (!read.document) throw new Error(read.diagnostics[0]?.message ?? `Unable to read project: ${fairyPath}`);
 			const document = read.document;
@@ -276,9 +285,18 @@ export class RuntimeService {
 		}
 	}
 
-	public openProjectSession(input: OpenProjectSessionInput): BackendResult<BackendSessionSnapshot> {
+	public openProjectSession(
+		input: OpenProjectSessionInput,
+	): BackendResult<BackendSessionSnapshot, InProcessLockConflictError | SessionIdConflictError> {
 		const startedAt = Date.now();
 		const sessionId = input.sessionId ?? randomId();
+		if (this.context.sessions.has(sessionId)) {
+			return failure('runtime', startedAt, {
+				code: 'session_id_conflict',
+				message: `Session id is already in use: ${sessionId}`,
+				sessionId,
+			});
+		}
 		const storage = input.storage;
 		const memoryProjectPath = `memory://${sessionId}`;
 		const canonicalProjectPath =
