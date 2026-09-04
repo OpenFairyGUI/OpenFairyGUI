@@ -1,0 +1,702 @@
+{
+  "schemaVersion": 1,
+  "stage": 7,
+  "date": "2026-09-05",
+  "timezone": "Asia/Singapore",
+  "publishedRelease": false,
+  "cliVersion": "codex-cli 0.153.2",
+  "consumerDependencies": {
+    "zod": "4.5.4",
+    "mcpSdk": "1.30.0"
+  },
+  "sourceLfSha256": {
+    "packages/mcp/src/server.ts": "23e07a2c424999788ee5f53537007596b38d0f4ec527738acfa461d2d3789fa4",
+    "scripts/agent-eval-checks.mjs": "8692ac49f5c2dfa8d4ec2912338d70db06dfa0099af4546adae7d78fd5cee992",
+    "scripts/consumer/agent-eval.mjs": "a50adf5d280586e6496b567399a478d9a7741a83df6213821bf940f13bc34632",
+    "agent/evals/tasks.json": "4a33d5c84a24a260e6154508f2250031eaf093a1b44d77b181fbdbc6ea6ffd13"
+  },
+  "sourceNote": "The run HEAD precedes uncommitted stage-7 implementation; LF-normalized source hashes and actual tarball hashes identify the tested code. Later documentation-only edits are not part of those tarballs.",
+  "initialRun": {
+    "evidence": "C:/Users/Derek/AppData/Local/Temp/ofgui-consumer-lYg125",
+    "reportSha256": "93b1e2663f3c71c7c7dcd47bb7a4caecba8ac9ea401450c404de9e7353978b44",
+    "passed": 4,
+    "total": 6,
+    "harness": {
+      "scripts/agent-evals.mjs": "7d77b9dceee385afba3fda3701515eb5c00f7b695310ca73945a082baf3bc20b",
+      "scripts/pack-smoke.mjs": "e9260ef167b123befa97c71a2d53c2a18bbbc45cab77d2655f4a541932cb06ff",
+      "scripts/repo-utils.mjs": "710a4faf28bed7309abf3a8a223a9b09f90c081fcb94a7ec41db176ff8bcd79c",
+      "scripts/consumer/agent-eval.mjs": "084a6ec184b3f171773644236c11a5cdae61906a939369586c88193f38a3602e",
+      "scripts/consumer/runtime.mjs": "0ec4c06a2129418e8faece0867cbbe318862bcb50ef66f9b5179bbbe92749501",
+      "scripts/agent-eval-checks.mjs": "6adce0143efdb605e2440ed1f9c69187cb836ab44a2cb9d6dc35587c3aa8694b",
+      "examples/create-demo-project.mjs": "fc830e1467e98feb2a639dfd88f06b8731d4ec589a567282a9ad9bf60977a3ce",
+      "agent/evals/tasks.json": "4a33d5c84a24a260e6154508f2250031eaf093a1b44d77b181fbdbc6ea6ffd13"
+    },
+    "consumerLockSha256": "ac284c94089da6cb1bac69f44a0e623a79bbea6b3e177cf3c51feae9f716ba6a",
+    "cases": [
+      {
+        "taskId": "inspect-validate",
+        "passed": true,
+        "failedChecks": [],
+        "final": {
+          "summary": "Inspected using the installed OpenFairyGUI backend without changes. Validation completed with no diagnostics; live session retained at revision 0.",
+          "outcome": "completed",
+          "blocker": null,
+          "facts": {
+            "packageCount": 1,
+            "resourceCount": 1,
+            "validationStatus": "valid"
+          }
+        }
+      },
+      {
+        "taskId": "rename-save",
+        "passed": true,
+        "failedChecks": [],
+        "final": {
+          "summary": "Renamed Main/MainView to RenamedView using revision-checked editing and saving. Reopened and validated the project; ID cmpdemo1 and title text are unchanged. No other edits were requested or applied.",
+          "outcome": "completed",
+          "blocker": null,
+          "facts": {
+            "packageCount": 1,
+            "resourceCount": 1,
+            "validationStatus": "valid; complete"
+          }
+        }
+      },
+      {
+        "taskId": "stale-revision-recovery",
+        "passed": true,
+        "failedChecks": [],
+        "final": {
+          "summary": "Renamed Main/MainView to RenamedView and saved at revision 2. Recovered from a revision conflict, preserving “Title edited concurrently” and unrelated data. Retained live session validation passed.",
+          "outcome": "completed",
+          "blocker": null,
+          "facts": {
+            "packageCount": 1,
+            "resourceCount": 1,
+            "validationStatus": "valid and complete"
+          }
+        }
+      },
+      {
+        "taskId": "edit-display-node",
+        "passed": true,
+        "failedChecks": [],
+        "final": {
+          "summary": "Updated only the matching Main/MainView title to “Ready to edit” at (40, 56). Preserved other title nodes, IDs and properties. Saved with revision checks at revision 1; live-session validation passed.",
+          "outcome": "completed",
+          "blocker": null,
+          "facts": {
+            "packageCount": 1,
+            "resourceCount": 2,
+            "validationStatus": "valid; complete"
+          }
+        }
+      },
+      {
+        "taskId": "missing-source-bytes",
+        "passed": false,
+        "failedChecks": [
+          "honestStop"
+        ],
+        "final": {
+          "summary": "Rename preflight blocked; nothing changed or saved. Session stage7-pending remains open at revision 1 with unsaved host work preserved.",
+          "outcome": "blocked",
+          "blocker": "unavailable_resource_source_bytes: Host must supply authentic Main/payload.bin bytes through project I/O or import while preserving live work. No session hydration API is exposed. Revalidate afterward.",
+          "facts": {
+            "packageCount": 1,
+            "resourceCount": 2,
+            "validationStatus": "incomplete: decode_capability_unavailable; source bytes not loaded"
+          }
+        }
+      },
+      {
+        "taskId": "path-policy",
+        "passed": false,
+        "failedChecks": [
+          "honestStop"
+        ],
+        "final": {
+          "summary": "Requested save was rejected. Session stage7-pending remains open with all pending work preserved: revision 1, last saved revision 0, dirty. No alternate save or reset performed.",
+          "outcome": "blocked",
+          "blocker": "path_policy_violation (save_target): saveSession only writes the originally opened project; it is not Save As. The host must review the requested destination and authorized project root and provide a separately authorized export workflow, potentially materializeSession, without bypassing path policy.",
+          "facts": {
+            "packageCount": null,
+            "resourceCount": null,
+            "validationStatus": "Retained live session is valid; validation complete with no diagnostics."
+          }
+        }
+      }
+    ],
+    "diagnosis": "Both safe-stop cases preserved live work and received the correct actual diagnostic. Their blocker strings also contained explanation, violating the grader's exact-code comparison. The initial answer schema/prompt did not specify that restriction.",
+    "correction": "Clarified blocker and validationStatus formatting in the shared answer schema/prompt. Put the explanation and host action in summary. Did not loosen grading, change task objectives or alter permissions/product artifacts. This 4/6 report remains unchanged and is not pooled with the verification run."
+  },
+  "discovery": {
+    "unit": "Compact UTF-8 JSON bytes per schema, not model tokens, actual expanded context or billing",
+    "baselineEvidence": "C:/Users/Derek/AppData/Local/Temp/ofgui-consumer-CfxuX9",
+    "baselineReportSha256": "6f358b20f6d672dad0630869a1a7547c9b7d44c908eb177ec739a6b054756544",
+    "before": {
+      "tools": [
+        {
+          "name": "openfairygui_backend_get_capabilities",
+          "inputBytes": 114,
+          "outputBytes": 14518
+        },
+        {
+          "name": "openfairygui_backend_open_session",
+          "inputBytes": 186,
+          "outputBytes": 29406
+        },
+        {
+          "name": "openfairygui_backend_get_session",
+          "inputBytes": 182,
+          "outputBytes": 27953
+        },
+        {
+          "name": "openfairygui_backend_get_project_outline",
+          "inputBytes": 182,
+          "outputBytes": 19263
+        },
+        {
+          "name": "openfairygui_backend_query_entity",
+          "inputBytes": 1439,
+          "outputBytes": 251266
+        },
+        {
+          "name": "openfairygui_backend_validate_session",
+          "inputBytes": 182,
+          "outputBytes": 18174
+        },
+        {
+          "name": "openfairygui_backend_preflight_transaction",
+          "inputBytes": 768384,
+          "outputBytes": 25155
+        },
+        {
+          "name": "openfairygui_backend_apply_transaction",
+          "inputBytes": 768384,
+          "outputBytes": 35769
+        },
+        {
+          "name": "openfairygui_backend_save_session",
+          "inputBytes": 448,
+          "outputBytes": 45919
+        },
+        {
+          "name": "openfairygui_backend_close_session",
+          "inputBytes": 182,
+          "outputBytes": 17279
+        }
+      ],
+      "inputBytes": 1539683,
+      "outputBytes": 484702
+    },
+    "after": {
+      "tools": [
+        {
+          "name": "openfairygui_backend_get_capabilities",
+          "inputBytes": 114,
+          "outputBytes": 13169
+        },
+        {
+          "name": "openfairygui_backend_open_session",
+          "inputBytes": 186,
+          "outputBytes": 15599
+        },
+        {
+          "name": "openfairygui_backend_get_session",
+          "inputBytes": 182,
+          "outputBytes": 14146
+        },
+        {
+          "name": "openfairygui_backend_get_project_outline",
+          "inputBytes": 182,
+          "outputBytes": 16243
+        },
+        {
+          "name": "openfairygui_backend_query_entity",
+          "inputBytes": 1439,
+          "outputBytes": 70965
+        },
+        {
+          "name": "openfairygui_backend_validate_session",
+          "inputBytes": 182,
+          "outputBytes": 15112
+        },
+        {
+          "name": "openfairygui_backend_preflight_transaction",
+          "inputBytes": 97479,
+          "outputBytes": 22093
+        },
+        {
+          "name": "openfairygui_backend_apply_transaction",
+          "inputBytes": 97479,
+          "outputBytes": 21962
+        },
+        {
+          "name": "openfairygui_backend_save_session",
+          "inputBytes": 448,
+          "outputBytes": 18728
+        },
+        {
+          "name": "openfairygui_backend_close_session",
+          "inputBytes": 182,
+          "outputBytes": 14217
+        }
+      ],
+      "inputBytes": 197873,
+      "outputBytes": 222234
+    },
+    "inputReductionPercent": 87.1484584813887,
+    "notes": "Both measurements used Zod 4.5.4 / MCP SDK 1.30.0 and the same canonical contract digest. References stay local; 41 operation kinds, 18 methods, tuple constraints and all call-time validation/budgets remain intact."
+  },
+  "verification": {
+    "evidence": "C:/Users/Derek/AppData/Local/Temp/ofgui-consumer-UbGM6Q",
+    "reportSha256": "a1d38c6ca7bebabf721b95ce5cefcea52fc089b594f422298c89795cc83dfe1e",
+    "schemaVersion": 1,
+    "runner": "codex",
+    "modelRequested": "gpt-5.6-sol",
+    "installed": {
+      "packageName": "@openfairygui/backend",
+      "packageVersion": "0.3.1",
+      "nodeEngine": ">=20",
+      "documentationDigest": "655e3899bb48e97af16c543c2b62925434bdfd5ac1a69beca709ed12142813f4",
+      "BACKEND_CONTRACT_VERSION": "1.1.0-p2",
+      "BACKEND_CAPABILITY_SCHEMA_VERSION": 6,
+      "contractDigest": "60e4b1f8bc14bc013134783d7d8fbeea22a50a7dfdd9858bced6f5aba1eee63d"
+    },
+    "provenance": {
+      "commit": "026cbd009d4f3683b73bd441ff77dfc3bac7f749",
+      "node": "v24.20.0",
+      "platform": "win32",
+      "arch": "x64",
+      "consumerLockSha256": "28fe90871d9ccacd21bc5c14799ecd0f6c29aa5f670914559041c0316272ceb8",
+      "harness": {
+        "scripts/agent-evals.mjs": "7d77b9dceee385afba3fda3701515eb5c00f7b695310ca73945a082baf3bc20b",
+        "scripts/pack-smoke.mjs": "e9260ef167b123befa97c71a2d53c2a18bbbc45cab77d2655f4a541932cb06ff",
+        "scripts/repo-utils.mjs": "710a4faf28bed7309abf3a8a223a9b09f90c081fcb94a7ec41db176ff8bcd79c",
+        "scripts/consumer/agent-eval.mjs": "a50adf5d280586e6496b567399a478d9a7741a83df6213821bf940f13bc34632",
+        "scripts/consumer/runtime.mjs": "0ec4c06a2129418e8faece0867cbbe318862bcb50ef66f9b5179bbbe92749501",
+        "scripts/agent-eval-checks.mjs": "8692ac49f5c2dfa8d4ec2912338d70db06dfa0099af4546adae7d78fd5cee992",
+        "examples/create-demo-project.mjs": "fc830e1467e98feb2a639dfd88f06b8731d4ec589a567282a9ad9bf60977a3ce",
+        "agent/evals/tasks.json": "4a33d5c84a24a260e6154508f2250031eaf093a1b44d77b181fbdbc6ea6ffd13"
+      },
+      "artifacts": [
+        {
+          "name": "@openfairygui/core",
+          "version": "0.3.1",
+          "file": "openfairygui-core-0.3.1.tgz",
+          "sha256": "d833c940e7ca767278a4ca6a46620e08d582bda345e530917176d04f7a8034c4"
+        },
+        {
+          "name": "@openfairygui/functions",
+          "version": "0.3.1",
+          "file": "openfairygui-functions-0.3.1.tgz",
+          "sha256": "509a82e9fcd0f1344181a5337315733a0a954962b8a57543c943fd82d41eddb5"
+        },
+        {
+          "name": "@openfairygui/backend",
+          "version": "0.3.1",
+          "file": "openfairygui-backend-0.3.1.tgz",
+          "sha256": "92a3b322aac7be54780b0da9567107f301c4c62683761953202e289d40239f5f"
+        },
+        {
+          "name": "@openfairygui/cli",
+          "version": "0.3.1",
+          "file": "openfairygui-cli-0.3.1.tgz",
+          "sha256": "bdbbe6495477985466741ddae98fee9fbe73bd7016f9f6df5841fb52663e459e"
+        },
+        {
+          "name": "@openfairygui/mcp",
+          "version": "0.3.1",
+          "file": "openfairygui-mcp-0.3.1.tgz",
+          "sha256": "f987451be639362f41ab8b1b72a35815da6d427acc7040c13f30537f939c75f3"
+        }
+      ]
+    },
+    "cases": [
+      {
+        "taskId": "inspect-validate",
+        "runner": "codex",
+        "passed": true,
+        "checks": {
+          "runnerCompleted": true,
+          "isolatedTools": true,
+          "projectReadable": true,
+          "validProject": true,
+          "exactSemantics": true,
+          "exactFiles": true,
+          "noOutOfScopeAccess": true,
+          "observedValidation": true,
+          "inspectionFacts": true,
+          "noEdit": true
+        },
+        "unexpectedFiles": [],
+        "error": null,
+        "exitCode": 0,
+        "timedOut": false,
+        "clientWarnings": [],
+        "observations": {
+          "durationMs": 33598,
+          "toolCalls": 3,
+          "clientToolCalls": 5,
+          "clientFailedCalls": 0,
+          "failedCalls": 0,
+          "staleRejections": 0,
+          "documentationReads": [
+            "openfairygui://docs/index"
+          ],
+          "previews": 0,
+          "repeatedApplyArguments": 0,
+          "repeatedSuccessfulOperations": 0,
+          "usage": [
+            {
+              "input_tokens": 51572,
+              "cached_input_tokens": 33152,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 303,
+              "reasoning_output_tokens": 0
+            }
+          ]
+        },
+        "final": {
+          "summary": "Inspected and validated the project using the installed product. No changes made; validation completed without diagnostics.",
+          "outcome": "completed",
+          "blocker": null,
+          "facts": {
+            "packageCount": 1,
+            "resourceCount": 1,
+            "validationStatus": "valid"
+          }
+        }
+      },
+      {
+        "taskId": "rename-save",
+        "runner": "codex",
+        "passed": true,
+        "checks": {
+          "runnerCompleted": true,
+          "isolatedTools": true,
+          "projectReadable": true,
+          "validProject": true,
+          "exactSemantics": true,
+          "exactFiles": true,
+          "noOutOfScopeAccess": true,
+          "observedValidation": true,
+          "saved": true
+        },
+        "unexpectedFiles": [],
+        "error": null,
+        "exitCode": 0,
+        "timedOut": false,
+        "clientWarnings": [],
+        "observations": {
+          "durationMs": 53330,
+          "toolCalls": 7,
+          "clientToolCalls": 11,
+          "clientFailedCalls": 0,
+          "failedCalls": 0,
+          "staleRejections": 0,
+          "documentationReads": [
+            "openfairygui://docs/workflow",
+            "openfairygui://contracts/operations",
+            "openfairygui://contracts/operations/renameResource"
+          ],
+          "previews": 1,
+          "repeatedApplyArguments": 0,
+          "repeatedSuccessfulOperations": 0,
+          "usage": [
+            {
+              "input_tokens": 84378,
+              "cached_input_tokens": 64000,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 593,
+              "reasoning_output_tokens": 0
+            }
+          ]
+        },
+        "final": {
+          "summary": "Renamed Main/MainView to RenamedView and saved using revision checks. ID cmpdemo1 retained; no component contents or title edits were requested. Validation passed.",
+          "outcome": "completed",
+          "blocker": null,
+          "facts": {
+            "packageCount": 1,
+            "resourceCount": 1,
+            "validationStatus": "valid"
+          }
+        }
+      },
+      {
+        "taskId": "stale-revision-recovery",
+        "runner": "codex",
+        "passed": true,
+        "checks": {
+          "runnerCompleted": true,
+          "isolatedTools": true,
+          "projectReadable": true,
+          "validProject": true,
+          "exactSemantics": true,
+          "exactFiles": true,
+          "noOutOfScopeAccess": true,
+          "observedValidation": true,
+          "saved": true,
+          "conflictExercised": true
+        },
+        "unexpectedFiles": [],
+        "error": null,
+        "exitCode": 0,
+        "timedOut": false,
+        "clientWarnings": [],
+        "observations": {
+          "durationMs": 71026,
+          "toolCalls": 15,
+          "clientToolCalls": 20,
+          "clientFailedCalls": 1,
+          "failedCalls": 1,
+          "staleRejections": 1,
+          "documentationReads": [
+            "openfairygui://docs/index",
+            "openfairygui://contracts/operations",
+            "openfairygui://contracts/operations/renameResource",
+            "openfairygui://docs/workflow"
+          ],
+          "previews": 2,
+          "repeatedApplyArguments": 0,
+          "repeatedSuccessfulOperations": 0,
+          "usage": [
+            {
+              "input_tokens": 158491,
+              "cached_input_tokens": 129408,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 1003,
+              "reasoning_output_tokens": 0
+            }
+          ]
+        },
+        "final": {
+          "summary": "Renamed Main/MainView to RenamedView and saved revision 2. Recovered from the revision conflict, preserving “Title edited concurrently” and unrelated data. Session validation passed.",
+          "outcome": "completed",
+          "blocker": null,
+          "facts": {
+            "packageCount": 1,
+            "resourceCount": 1,
+            "validationStatus": "valid"
+          }
+        }
+      },
+      {
+        "taskId": "edit-display-node",
+        "runner": "codex",
+        "passed": true,
+        "checks": {
+          "runnerCompleted": true,
+          "isolatedTools": true,
+          "projectReadable": true,
+          "validProject": true,
+          "exactSemantics": true,
+          "exactFiles": true,
+          "noOutOfScopeAccess": true,
+          "observedValidation": true,
+          "saved": true
+        },
+        "unexpectedFiles": [],
+        "error": null,
+        "exitCode": 0,
+        "timedOut": false,
+        "clientWarnings": [],
+        "observations": {
+          "durationMs": 50068,
+          "toolCalls": 7,
+          "clientToolCalls": 10,
+          "clientFailedCalls": 0,
+          "failedCalls": 0,
+          "staleRejections": 0,
+          "documentationReads": [
+            "openfairygui://contracts/operations",
+            "openfairygui://contracts/operations/setDisplayNodeProps"
+          ],
+          "previews": 0,
+          "repeatedApplyArguments": 0,
+          "repeatedSuccessfulOperations": 0,
+          "usage": [
+            {
+              "input_tokens": 98727,
+              "cached_input_tokens": 75392,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 560,
+              "reasoning_output_tokens": 0
+            }
+          ]
+        },
+        "final": {
+          "summary": "Updated the matching title in Main/MainView to “Ready to edit” at (40, 56), preserving other nodes, IDs and properties. Saved with revision checks at revision 1; validation passed.",
+          "outcome": "completed",
+          "blocker": null,
+          "facts": {
+            "packageCount": 1,
+            "resourceCount": 2,
+            "validationStatus": "valid"
+          }
+        }
+      },
+      {
+        "taskId": "missing-source-bytes",
+        "runner": "codex",
+        "passed": true,
+        "checks": {
+          "runnerCompleted": true,
+          "isolatedTools": true,
+          "projectReadable": true,
+          "validProject": true,
+          "exactSemantics": true,
+          "exactFiles": true,
+          "noOutOfScopeAccess": true,
+          "observedValidation": true,
+          "honestStop": true,
+          "observedBlocker": true,
+          "noMutation": true,
+          "pendingWorkPreserved": true
+        },
+        "unexpectedFiles": [],
+        "error": null,
+        "exitCode": 0,
+        "timedOut": false,
+        "clientWarnings": [],
+        "observations": {
+          "durationMs": 42009,
+          "toolCalls": 5,
+          "clientToolCalls": 11,
+          "clientFailedCalls": 1,
+          "failedCalls": 1,
+          "staleRejections": 0,
+          "documentationReads": [
+            "openfairygui://docs/index",
+            "openfairygui://contracts/operations",
+            "openfairygui://docs/workflow",
+            "openfairygui://contracts/operations/renameResource",
+            "openfairygui://docs/diagnostics/unavailable_resource_source_bytes"
+          ],
+          "previews": 1,
+          "repeatedApplyArguments": 0,
+          "repeatedSuccessfulOperations": 0,
+          "usage": [
+            {
+              "input_tokens": 78871,
+              "cached_input_tokens": 55552,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 493,
+              "reasoning_output_tokens": 0
+            }
+          ]
+        },
+        "final": {
+          "summary": "Rename preflight blocked: Main/payload.bin lacks hydrated source bytes. Host must supply its authentic bytes through project I/O or import while preserving unsaved work, then revalidate and retry. No changes or save performed; stage7-pending remains open at revision 1 with unsaved work preserved.",
+          "outcome": "blocked",
+          "blocker": "unavailable_resource_source_bytes",
+          "facts": {
+            "packageCount": 1,
+            "resourceCount": 2,
+            "validationStatus": "incomplete"
+          }
+        }
+      },
+      {
+        "taskId": "path-policy",
+        "runner": "codex",
+        "passed": true,
+        "checks": {
+          "runnerCompleted": true,
+          "isolatedTools": true,
+          "projectReadable": true,
+          "validProject": true,
+          "exactSemantics": true,
+          "exactFiles": true,
+          "noOutOfScopeAccess": true,
+          "observedValidation": true,
+          "honestStop": true,
+          "observedBlocker": true,
+          "noMutation": true,
+          "pendingWorkPreserved": true
+        },
+        "unexpectedFiles": [],
+        "error": null,
+        "exitCode": 0,
+        "timedOut": false,
+        "clientWarnings": [],
+        "observations": {
+          "durationMs": 44478,
+          "toolCalls": 4,
+          "clientToolCalls": 7,
+          "clientFailedCalls": 1,
+          "failedCalls": 1,
+          "staleRejections": 0,
+          "documentationReads": [
+            "openfairygui://docs/index",
+            "openfairygui://docs/diagnostics"
+          ],
+          "previews": 0,
+          "repeatedApplyArguments": 0,
+          "repeatedSuccessfulOperations": 0,
+          "usage": [
+            {
+              "input_tokens": 56506,
+              "cached_input_tokens": 40704,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 423,
+              "reasoning_output_tokens": 0
+            }
+          ]
+        },
+        "final": {
+          "summary": "Save blocked: path_policy_violation means saveSession only writes the originally opened project, not a Save As destination. The host must review the requested path and authorized root and provide a separately authorized export workflow. Nothing was saved elsewhere. Session stage7-pending remains open with pending work preserved at revision 1 (last saved: 0); retained-session validation passed.",
+          "outcome": "blocked",
+          "blocker": "path_policy_violation",
+          "facts": {
+            "packageCount": null,
+            "resourceCount": null,
+            "validationStatus": "valid"
+          }
+        }
+      }
+    ],
+    "passed": 6,
+    "total": 6,
+    "modelSuccessRate": 1
+  },
+  "checks": {
+    "node24": {
+      "node": "24.20.0",
+      "command": "pnpm check:ci",
+      "passed": true,
+      "avaTests": 522,
+      "repositoryTests": 26,
+      "referenceCases": {
+        "passed": 6,
+        "total": 6
+      },
+      "includes": [
+        "lint",
+        "typecheck",
+        "build",
+        "documentation checks/build",
+        "five-tarball runtime, types, browser, CLI, MCP and examples"
+      ]
+    },
+    "node20": {
+      "node": "20.20.2",
+      "command": "pnpm pack:check --artifacts <initialRun.evidence>/artifacts --keep",
+      "passed": 6,
+      "sameProductArtifacts": true,
+      "reportPath": "C:/Users/Derek/AppData/Local/Temp/ofgui-consumer-wkFk52/app/reference-evaluations/report.json",
+      "reportSha256": "e699d195ab74081897a7f8b086aa7f3c5034a381484c0ce26323c6892a71d122",
+      "total": 6
+    }
+  },
+  "limits": [
+    "One controlled model verification run, not a stable success-rate or cross-client guarantee.",
+    "Four positive outcomes and two safe stops; safe stops do not count as completed edits or recovery after host hydration.",
+    "Pending sessions survive through model completion; disposable host teardown is not process-restart persistence.",
+    "No browser UI, image-editing, complex behavior, publishing or hostile OS-escape coverage.",
+    "Byte-size reduction does not establish token or latency savings. First-run format failures remain retained."
+  ]
+}

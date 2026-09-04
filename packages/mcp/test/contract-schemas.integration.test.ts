@@ -50,15 +50,46 @@ test('wire schemas use uniform items for fixed numeric tuples without weakening 
 	await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
 	try {
 		const { tools } = await client.listTools();
+		t.is(tools.length, 18);
+		t.deepEqual(tools.map((tool) => tool.name), OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.map((tool) => tool.name));
 		function checkItems(value: unknown): void {
 			if (!value || typeof value !== 'object') return;
 			const schema = value as Record<string, unknown>;
 			if (schema.type === 'array') assert(!Array.isArray(schema.items), 'Positional items make Codex skip the whole tool');
 			for (const child of Object.values(value)) checkItems(child);
 		}
-		for (const tool of tools) checkItems(tool.inputSchema);
+		for (const tool of tools) {
+			checkItems(tool.inputSchema);
+			for (const schema of [tool.inputSchema, tool.outputSchema!]) {
+				function checkRefs(value: unknown): void {
+					if (!value || typeof value !== 'object') return;
+					if ('$ref' in value) {
+						assert(typeof value.$ref === 'string' && (value.$ref === '#' || value.$ref.startsWith('#/definitions/')), 'Only self-contained references are allowed');
+						assert(value.$ref.split('/').slice(1).reduce((node: unknown, key) => (node as Record<string, unknown>)?.[key.replaceAll('~1', '/').replaceAll('~0', '~')], schema));
+					}
+					for (const child of Object.values(value)) checkRefs(child);
+				}
+				checkRefs(schema);
+			}
+		}
 		for (const method of ['apply_transaction', 'preflight_transaction']) {
-			const schema = z.fromJSONSchema(tools.find((tool) => tool.name.endsWith(`_${method}`))!.inputSchema as Parameters<typeof z.fromJSONSchema>[0]);
+			const wire = tools.find((tool) => tool.name.endsWith(`_${method}`))!;
+			const definition = OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.find((entry) => entry.name === wire.name)!;
+			const inline = z.toJSONSchema(definition.inputSchema, { target: 'draft-07', io: 'input', reused: 'inline' });
+			t.true(Buffer.byteLength(JSON.stringify(wire.inputSchema)) < Buffer.byteLength(JSON.stringify(inline)) / 4, 'Discovery must not re-expand shared transaction schemas');
+			const schema = z.fromJSONSchema(wire.inputSchema as Parameters<typeof z.fromJSONSchema>[0]);
+			const kinds = new Set<string>();
+			function collectKinds(value: unknown): void {
+				if (!value || typeof value !== 'object') return;
+				const properties = (value as { properties?: { kind?: { const?: string } } }).properties;
+				if (properties?.kind?.const) kinds.add(properties.kind.const);
+				for (const child of Object.values(value)) collectKinds(child);
+			}
+			collectKinds(wire.inputSchema);
+			for (const { kind } of getOpenFairyGuiOperationCatalog().operations) t.true(kinds.has(kind), `Missing operation: ${kind}`);
+			const rename = { sessionId: 's', expectedRevision: 0, operations: [{ kind: 'renameResource', selector: { packageId: 'p', resourceId: 'r' }, newName: 'After' }] };
+			t.true(schema.safeParse(rename).success);
+			for (const invalid of [{ ...rename, expectedRevision: -1 }, { ...rename, operations: [] }, { ...rename, operations: [{ kind: 'invented' }] }, { ...rename, operations: [{ kind: 'setDisplayNodeProps', selector: { packageId: 'p', componentResourceId: 'c', displayNodeId: 'n' }, props: { position: { x: 'wrong', y: 0 } } }] }]) t.false(schema.safeParse(invalid).success);
 			for (const operation of [
 				{ kind: 'setImageResourceProps', selector: { packageId: 'p', resourceId: 'r' } },
 				{ kind: 'setDisplayNodeProps', selector: { packageId: 'p', componentResourceId: 'c', displayNodeId: 'n' } },
@@ -104,6 +135,7 @@ test('MCP discovery and four representative operations preserve semantics throug
 	}
 	try {
 		const catalog = await client.readResource({ uri: OPENFAIRYGUI_OPERATION_CATALOG_URI });
+		await client.listTools(); // SDK validates actual output envelopes against compact discovery schemas.
 		t.true('text' in catalog.contents[0] && catalog.contents[0].text.includes('addComponent'));
 		const resource = await client.readResource({ uri: `${OPENFAIRYGUI_OPERATION_CATALOG_URI}/addComponent` });
 		t.true('text' in resource.contents[0] && resource.contents[0].text.includes('displayList'));

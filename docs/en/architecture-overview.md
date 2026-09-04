@@ -4,6 +4,8 @@ See the [development guide](./guide/development.md) for setup, references and qu
 
 ## Summary
 
+The fixed Backend MCP catalog uses existing Zod support to advertise repeated structures as self-contained draft-07 `definitions`/`$ref` in `tools/list`. Call validators, input budgets and Backend dispatch remain unchanged. Six installed-package agent evaluations check precise node edits, concurrent recovery and safe stopping with pending work intact in repository tooling, without new product repair or permission-bypass interfaces.
+
 Backend enriches response metadata and events with first-batch diagnostic ownership, documentation URIs and recovery guidance. Core errors and validation reports remain unchanged. The typed catalog also generates per-code documentation; MCP exposes it read-only without repair or weaker revision/path/save guards. See [Diagnostics and Recovery](./guide/diagnostics.md).
 
 Backend's `ReadService.queryEntity` returns a fixed resource, component-property or display-node projection using formal ID selectors. It binds the actual session revision, excludes source bytes, checks response budgets and detaches returned objects. MCP's `openfairygui_backend_query_entity` only maps that method; capabilities and input/output schemas use the same contract-generation chain.

@@ -4,6 +4,8 @@
 
 ## 结论
 
+MCP 固定 Backend 工具目录的 `tools/list` 复用现有 Zod 把重复结构表示为自包含的 draft-07 `definitions`/`$ref`；实际调用的结构校验器、输入预算与 Backend 分发不变。六类安装包 Agent 评测在仓库工具层检查精确节点编辑、并发恢复和保留未保存工作的安全停止，不新增产品修复或权限绕过接口。
+
 Backend 在统一 response meta 与事件出口补充首批诊断的归属、文档 URI 和恢复建议，保留 Core 错误与校验报告正文。带类型的目录同时生成逐码文档，MCP 只读该目录，不执行修复或放宽 revision/路径/保存规则，见[诊断与恢复](./guide/diagnostics.md)。
 
 Backend 的 `ReadService.queryEntity` 以正式 ID selector 返回资源、组件属性或显示节点的固定投影，绑定实际 session revision，排除源字节并检查响应预算；返回值不共享会话对象。MCP 的 `openfairygui_backend_query_entity` 仅映射该方法，能力与输入/输出由同一契约生成链更新。

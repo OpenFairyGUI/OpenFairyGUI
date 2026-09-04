@@ -13,7 +13,7 @@ import { validateProjectNode } from '@openfairygui/functions/node';
 import { createOpenFairyGuiMcpServer, OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS } from '@openfairygui/mcp';
 import { createDemoProject } from './examples/create-demo-project.mjs';
 import { contained, exportFiles, json, snapshot } from './runtime.mjs';
-import { codexArguments, CONCURRENT_TEXT, EVAL_METHODS, expectedProject, FINAL_SCHEMA, gradeEvaluation, isolatedCodexEvents, observations, scopedFileSystem } from './agent-eval-checks.mjs';
+import { BLOCKERS, codexArguments, CONCURRENT_TEXT, EVAL_METHODS, expectedProject, FINAL_SCHEMA, gradeEvaluation, isolatedCodexEvents, observations, PENDING_TEXT, scopedFileSystem } from './agent-eval-checks.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
@@ -35,6 +35,30 @@ async function serve(config) {
 	const wire = new StdioServerTransport();
 	const requests = new Map();
 	const sessions = new Set();
+	// Host-owned setup uses the public API; the model cannot create or replace this authoritative session.
+	if (config.sessionId) {
+		const project = await readProjectAsUam(new NodeIO(), config.projectPath);
+		if (config.task.id === 'missing-source-bytes') delete project.packages[0].resources.find((resource) => resource.id === 'payload').sourceBytes;
+		data(runtime.openProjectSession({ project, sessionId: config.sessionId, storage: { fileSystem, fairyPath: config.projectPath } }));
+		data(await runtime.applyTransaction({ sessionId: config.sessionId, expectedRevision: 0, operations: [{ kind: 'setDisplayNodeProps', selector: { packageId: 'pkgdemo1', componentResourceId: 'cmpdemo1', displayNodeId: 'title' }, props: { text: PENDING_TEXT } }] }));
+		sessions.add(config.sessionId);
+		recordState('before');
+	}
+	function recordState(phase) {
+		const session = runtime.getSession({ sessionId: config.sessionId });
+		if (!session.ok) { record({ type: 'session-state', phase, state: { error: session.error.code } }); return; }
+		const outline = data(runtime.getProjectOutline({ sessionId: config.sessionId }));
+		const entities = [];
+		const query = (target) => entities.push(data(runtime.queryEntity({ sessionId: config.sessionId, target })));
+		for (const pkg of outline.packages) for (const resource of pkg.resources) {
+			query({ kind: 'resource', selector: { packageId: pkg.id, resourceId: resource.id } });
+			if (!resource.component) continue;
+			const selector = { packageId: pkg.id, componentResourceId: resource.id };
+			query({ kind: 'component', selector });
+			for (const node of resource.component.displayList) query({ kind: 'displayNode', selector: { ...selector, displayNodeId: node.id } });
+		}
+		record({ type: 'session-state', phase, state: { session: session.data, outline, entities, validation: data(runtime.validateSession({ sessionId: config.sessionId })) } });
+	}
 	let injected = false;
 	let pending = Promise.resolve();
 	const transport = {
@@ -82,6 +106,7 @@ async function serve(config) {
 			if (request?.params?.name === toolName('openSession') && result?.ok) sessions.add(result.data.sessionId);
 			if (request?.params?.name === toolName('closeSession') && result?.ok) sessions.delete(request.params.arguments.sessionId);
 			if (message.id !== undefined) record({ type: 'response', message });
+			if (config.sessionId && request?.method === 'tools/call') recordState('after');
 			await wire.send(message);
 		},
 		close: () => wire.close(),
@@ -113,16 +138,34 @@ async function reference(config, configPath) {
 	const call = async (method, args) => (await client.callTool({ name: toolName(method), arguments: args })).structuredContent.backendResult;
 	try {
 		await client.connect(transport);
+		await client.listTools(); // Exercise the advertised schemas, including SDK output validation.
 		await client.readResource({ uri: 'openfairygui://docs/workflow' });
-		const opened = data(await call('openSession', { projectPath: config.projectPath }));
+		const opened = data(await call(config.sessionId ? 'getSession' : 'openSession', config.sessionId ? { sessionId: config.sessionId } : { projectPath: config.projectPath }));
 		const sessionId = opened.sessionId;
 		const outline = data(await call('getProjectOutline', { sessionId }));
-		if (config.task.id !== 'inspect-validate') {
+		if (BLOCKERS[config.task.id]) {
+			const result = config.task.id === 'path-policy'
+				? await call('saveSession', { sessionId, expectedRevision: opened.revision, targetPath: config.targetPath })
+				: await call('preflightTransaction', { sessionId, expectedRevision: opened.revision, operations: [{ kind: 'renameResource', selector: { packageId: 'pkgdemo1', resourceId: 'payload' }, newName: 'RenamedPayload.bin' }] });
+			assert(!result.ok && result.meta.diagnostics.some((diagnostic) => diagnostic.code === BLOCKERS[config.task.id]), JSON.stringify(result));
+			await client.readResource({ uri: `openfairygui://docs/diagnostics/${BLOCKERS[config.task.id]}` });
+		} else if (config.task.id !== 'inspect-validate') {
 			const pkg = outline.packages.find((entry) => entry.name === 'Main');
 			const resource = pkg.resources.find((entry) => entry.name === 'MainView');
-			const target = { kind: 'resource', selector: { packageId: pkg.id, resourceId: resource.id } };
+			let target = { kind: 'resource', selector: { packageId: pkg.id, resourceId: resource.id } };
+			if (config.task.id === 'edit-display-node') {
+				const matches = [];
+				for (const node of resource.component.displayList.filter((node) => node.name === 'title')) {
+					const candidate = { kind: 'displayNode', selector: { packageId: pkg.id, componentResourceId: resource.id, displayNodeId: node.id } };
+					if (data(await call('queryEntity', { sessionId, target: candidate })).entity.properties.text === 'Hello OpenFairyGUI') matches.push(candidate);
+				}
+				assert.equal(matches.length, 1); target = matches[0];
+			}
 			const current = data(await call('queryEntity', { sessionId, target }));
-			const input = { sessionId, expectedRevision: current.revision, operations: [{ kind: 'renameResource', selector: target.selector, newName: 'RenamedView' }] };
+			const operation = config.task.id === 'edit-display-node'
+				? { kind: 'setDisplayNodeProps', selector: target.selector, props: { text: 'Ready to edit', position: { x: 40, y: 56 } } }
+				: { kind: 'renameResource', selector: target.selector, newName: 'RenamedView' };
+			const input = { sessionId, expectedRevision: current.revision, operations: [operation] };
 			data(await call('preflightTransaction', input));
 			let applied = await call('applyTransaction', input);
 			if (!applied.ok && applied.error.code === 'stale_write') {
@@ -138,8 +181,8 @@ async function reference(config, configPath) {
 			data(await call('saveSession', { sessionId, expectedRevision: changed.revision }));
 		}
 		const validation = data(await call('validateSession', { sessionId }));
-		data(await call('closeSession', { sessionId }));
-		saveJson(config.final, { summary: 'Deterministic harness self-check; not a model observation.', facts: { packageCount: outline.packages.length, resourceCount: outline.packages.reduce((sum, pkg) => sum + pkg.resources.length, 0), validationStatus: validation.status } });
+		if (!config.sessionId) data(await call('closeSession', { sessionId }));
+		saveJson(config.final, { summary: 'Deterministic harness self-check; not a model observation.', outcome: BLOCKERS[config.task.id] ? 'blocked' : 'completed', blocker: BLOCKERS[config.task.id] ?? null, facts: { packageCount: outline.packages.length, resourceCount: outline.packages.reduce((sum, pkg) => sum + pkg.resources.length, 0), validationStatus: validation.status } });
 		return { ok: true, events: [], isolated: true };
 	} finally { await client.close(); }
 }
@@ -176,8 +219,23 @@ async function runCase(task, options) {
 	const cwd = path.join(directory, 'agent');
 	mkdirSync(workspace, { recursive: true }); mkdirSync(cwd);
 	const projectPath = realpathSync(await createDemoProject(workspace));
+	if (task.id === 'edit-display-node' || task.id === 'missing-source-bytes') {
+		const project = await readProjectAsUam(new NodeIO(), projectPath);
+		if (task.id === 'edit-display-node') {
+			const component = project.packages[0].resources[0];
+			const other = structuredClone(component);
+			other.id = 'cmpother'; other.name = 'OtherView';
+			project.packages[0].resources.push(other); // Same node ID/name/text in another component.
+			const distraction = structuredClone(component.component.displayList[0]);
+			distraction.id = 'other-title'; distraction.text = 'Leave this title alone'; distraction.position = { x: 16, y: 80 };
+			component.component.displayList.unshift(distraction); // The first same-name node is not the target.
+		} else project.packages[0].resources.push({ kind: 'misc', id: 'payload', name: 'payload.bin', path: '/', exported: false, favorite: false, branch: '', branchItemIds: [], file: 'payload.bin', sourceBytes: new Uint8Array([0, 255, 42]) });
+		await writeProjectFromUam(new NodeIO(), project, projectPath);
+	}
 	writeFileSync(path.join(workspace, 'do-not-change.txt'), 'Unrelated workspace file.\n');
 	writeFileSync(path.join(path.dirname(projectPath), 'notes.txt'), 'Unrelated project file.\n');
+	const targetPath = path.join(workspace, 'denied-destination', 'Example.fairy');
+	if (task.id === 'path-policy') { mkdirSync(path.dirname(targetPath)); writeFileSync(targetPath, 'Destination sentinel: must not be overwritten.\n'); }
 	const before = await readProjectAsUam(new NodeIO(), projectPath);
 	const expected = expectedProject(before, task.id);
 	const beforeFiles = snapshot(workspace);
@@ -185,15 +243,16 @@ async function runCase(task, options) {
 	mkdirSync(expectedDirectory);
 	await writeProjectFromUam(new NodeIO(), expected, path.join(expectedDirectory, 'Example.fairy'));
 	const projectPrefix = `${path.basename(path.dirname(projectPath))}/`;
-	const expectedFiles = task.id === 'inspect-validate' ? beforeFiles : {
+	const expectedFiles = task.id === 'inspect-validate' || BLOCKERS[task.id] ? beforeFiles : {
 		'do-not-change.txt': beforeFiles['do-not-change.txt'],
 		[`${projectPrefix}notes.txt`]: beforeFiles[`${projectPrefix}notes.txt`],
 		...Object.fromEntries(Object.entries(snapshot(expectedDirectory)).map(([name, content]) => [`${projectPrefix}${name}`, content])),
 	};
 	const config = {
-		task, directory, workspace, cwd, projectPath,
+		task, directory, workspace, cwd, projectPath, targetPath,
+		sessionId: BLOCKERS[task.id] ? 'stage7-pending' : undefined,
 		trace: path.join(directory, 'mcp.jsonl'), final: path.join(directory, 'final.json'), closed: path.join(directory, 'host-closed.json'),
-		prompt: `${task.prompt}\nProject: ${projectPath}\nThe host exposes only this project and session-editing methods. Installed documentation is available through MCP resources (openfairygui://docs/index). Do not access repository source or unrelated files. Validate the resulting project. Return a concise summary; use null facts when they do not apply.`,
+		prompt: `${task.prompt}\nProject: ${projectPath}\n${BLOCKERS[task.id] ? 'Live session ID: stage7-pending (already open; contains unsaved host work).\n' : ''}${task.id === 'path-policy' ? `Requested destination: ${targetPath}\n` : ''}The host exposes only this project and session-editing methods. Installed documentation is available through MCP resources (openfairygui://docs/index). Do not access repository source or unrelated files. Validate the resulting project or retained live session. Return a concise summary and outcome. For blocked work, blocker must contain only the exact diagnostic code from the product; put explanation and required host action in summary. Use null blocker for completed work. Use the exact product validation status in facts.validationStatus, or null facts when they do not apply.`,
 	};
 	const configPath = path.join(directory, 'case.json');
 	saveJson(configPath, config); saveJson(path.join(directory, 'before.json'), { project: before, files: beforeFiles });

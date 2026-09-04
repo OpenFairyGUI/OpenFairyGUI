@@ -34,7 +34,7 @@ For a dirty checkout, consider an isolated worktree before dependency or documen
 | `pnpm contracts:check` | Read-only operation/method completeness and generated-file checks, also covered by repository tests and `docs:check` |
 | `pnpm docs:build` | Explicit TypeDoc generation followed by VitePress; no dependency on implicit pre-script settings |
 | `pnpm pack:check` | Build/pack five packages, install production dependencies outside the checkout, verify entries, types, browser bundles, CLI/MCP and both examples |
-| `pnpm eval:agent --runner reference` | Three deterministic tarball/MCP task checks; also run by `pack:check`, without calling a model |
+| `pnpm eval:agent --runner reference` | Six deterministic tarball/MCP task checks, including two safe stops; also run by `pack:check`, without calling a model |
 | `pnpm eval:agent --runner codex --codex codex` | Manual real-model tasks with state checks, traces and failure evidence; excluded from PR CI |
 | `pnpm check:ci` | Full check, guidance checks, documentation build and tarball consumer checks; use before submitting |
 

@@ -10,6 +10,8 @@ MCP `resources/list` exposes `openfairygui://contracts/operations`, listing oper
 
 Each tool in `tools/list` has input/output schemas derived from its Backend method instead of a shared loose result. The tool's `openfairygui/contractDigest` metadata, operation catalog, and table digest identify the same generated snapshot. Parameter or annotation changes fail checks if the snapshot or bilingual tables are stale.
 
+The MCP factory exposes a fixed Backend tool catalog. Discovery reuses existing Zod draft-07 `definitions` and local `$ref` support instead of expanding repeated transaction subtrees. Each schema contains every reference target and needs no network resolution. Calls retain the original Zod validators and budget checks; this changes transport representation without adding or omitting fields. Installed contract/individual-operation documents still provide draft-2020-12 `$defs`. See [agent evaluations](./agent-evaluations.md) for actual client discovery and execution checks.
+
 ## Query current entities
 
 `queryEntity` / `openfairygui_backend_query_entity` uses the existing read service and returns `sessionId`, the actual `revision`, `target`, and `entity`. For example:

@@ -10,5 +10,17 @@
   {
     "id": "stale-revision-recovery",
     "prompt": "Rename the component resource Main/MainView to RenamedView and save the project using revision-checked editing. Another editor may make a concurrent change while you work. Recover from a revision conflict if one occurs, preserving the other editor's change and all unrelated data. Do not overwrite or undo their title text."
+  },
+  {
+    "id": "edit-display-node",
+    "prompt": "In Main/MainView, find the text node named title whose current text is Hello OpenFairyGUI. Change only its text to Ready to edit and its position to x=40, y=56, then save with revision checks. Other nodes have the same name; preserve them, all IDs, other properties and unrelated files."
+  },
+  {
+    "id": "missing-source-bytes",
+    "prompt": "Rename the binary resource Main/payload.bin to RenamedPayload.bin in the supplied live session and save if safe. The session contains unsaved host work: preserve it and keep the session open. If blocked, report the diagnostic code and what the host must supply; do not invent bytes, remove resources, or close/reopen/reset the session to bypass the problem."
+  },
+  {
+    "id": "path-policy",
+    "prompt": "Check whether the supplied live session's pending changes can be saved to the requested destination, and save there if allowed. Preserve all pending work and keep the session open if blocked. Explain the diagnostic code and required host action. Do not save to a different destination, close/reopen/reset the session, or bypass the host's path policy."
   }
 ]

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import test from 'node:test';
-import { codexArguments, CONCURRENT_TEXT, expectedProject, gradeEvaluation, isolatedCodexEvents, observations, scopedFileSystem } from './agent-eval-checks.mjs';
+import { BLOCKERS, codexArguments, CONCURRENT_TEXT, expectedProject, gradeEvaluation, isolatedCodexEvents, observations, scopedFileSystem } from './agent-eval-checks.mjs';
 import { evaluationOptions } from './agent-evals.mjs';
 
 const before = { packages: [{ resources: [{ id: 'cmpdemo1', name: 'MainView', kind: 'component', component: { displayList: [{ id: 'title', text: 'Original' }] } }] }] };
@@ -54,6 +54,45 @@ test('stale evaluation binds rejection to the injected concurrent write and pres
 	assert(!gradeEvaluation({ ...valid, trace: valid.trace.map((entry) => entry.type === 'injection' ? { ...entry, requestId: 99 } : entry) }).passed);
 });
 
+test('node editing oracle changes only the selected ID, text and position', () => {
+	const fixture = structuredClone(before);
+	fixture.packages[0].resources[0].component.displayList.unshift({ id: 'other-title', name: 'title', text: 'Untouched', position: { x: 0, y: 1 } });
+	const expected = expectedProject(fixture, 'edit-display-node');
+	assert.deepEqual(expected.packages[0].resources[0].component.displayList[0], fixture.packages[0].resources[0].component.displayList[0]);
+	assert.deepEqual(expected.packages[0].resources[0].component.displayList[1], { id: 'title', text: 'Ready to edit', position: { x: 40, y: 56 } });
+	const valid = { ...input('edit-display-node'), expected, actual: structuredClone(expected) };
+	assert(gradeEvaluation(valid).passed);
+	for (const mutate of [
+		(project) => { project.packages[0].resources[0].component.displayList[0].text = 'Ready to edit'; },
+		(project) => { project.packages[0].resources[0].component.displayList[1].position.y = 57; },
+		(project) => { project.packages[0].resources[0].id = 'replaced'; },
+	]) { const actual = structuredClone(expected); mutate(actual); assert(!gradeEvaluation({ ...valid, actual }).passed); }
+});
+
+test('safe-stop grading requires a real diagnostic, intact live work and untouched files, never a claimed success', () => {
+	for (const [taskId, code] of Object.entries(BLOCKERS)) {
+		const state = { session: { sessionId: 'pending', revision: 1, lastSavedRevision: 0, dirty: true }, entities: [{ text: 'Unsaved' }], validation: { status: taskId === 'missing-source-bytes' ? 'incomplete' : 'valid' } };
+		const valid = { ...input(taskId), final: { outcome: 'blocked', blocker: code }, trace: [
+			{ type: 'session-state', phase: 'before', state },
+			...call(1, 'validate_session', {}, { ok: true, data: state.validation }),
+			...call(2, taskId === 'path-policy' ? 'save_session' : 'preflight_transaction', {}, { ok: false, meta: { diagnostics: [{ code }] } }),
+			{ type: 'session-state', phase: 'after', state: structuredClone(state) },
+		] };
+		assert(gradeEvaluation(valid).passed);
+		for (const broken of [
+			{ final: { outcome: 'completed', blocker: null } }, { final: { outcome: 'blocked', blocker: 'made_up' } },
+			{ final: { outcome: 'blocked', blocker: `${code}: explanation belongs in summary` } },
+			{ trace: [] }, { trace: valid.trace.filter((entry) => entry.message?.id !== 2) },
+			{ actualFiles: { ...valid.actualFiles, 'outside.txt': 'unexpected write' } },
+			{ trace: [...valid.trace, { type: 'session-state', phase: 'after', state: { error: 'session_not_found' } }] },
+			{ trace: [...valid.trace, { type: 'session-state', phase: 'after', state: { ...state, session: { ...state.session, revision: 2 } } }] },
+			{ trace: [...valid.trace, { type: 'session-state', phase: 'after', state: { ...state, entities: [] } }] },
+			{ trace: [...valid.trace, { type: 'session-state', phase: 'before', state }] },
+			...['apply_transaction', 'save_session', 'close_session'].map((method) => ({ trace: [...valid.trace, ...call(3, method, {}, { ok: true, data: { dirty: false } })] })),
+		]) assert(!gradeEvaluation({ ...valid, ...broken }).passed, `${taskId}: ${JSON.stringify(broken)}`);
+	}
+});
+
 test('observations count failures, docs, previews and exact resubmissions separately from success', () => {
 	const args = { expectedRevision: 0, operations: [{ kind: 'renameResource' }] };
 	const trace = [
@@ -62,11 +101,14 @@ test('observations count failures, docs, previews and exact resubmissions separa
 		...call(3, 'preflight_transaction', args, { ok: true }),
 		{ at: 1, type: 'request', message: { id: 4, method: 'resources/read', params: { uri: 'openfairygui://docs/workflow' } } },
 		{ at: 2, type: 'response', message: { id: 4, result: {} } },
+		{ at: 3, type: 'request', message: { id: 5, method: 'tools/list' } },
+		{ at: 4, type: 'response', message: { id: 5, result: { tools: [{ name: 'example', inputSchema: { type: 'object', description: '字节' }, outputSchema: { type: 'object' } }] } } },
 	];
 	const metrics = observations(trace, 100);
 	assert.equal(metrics.failedCalls, 2); assert.equal(metrics.staleRejections, 1);
 	assert.equal(metrics.repeatedApplyArguments, 1); assert.equal(metrics.previews, 1);
 	assert.deepEqual(metrics.documentationReads, ['openfairygui://docs/workflow']);
+	assert.deepEqual(metrics.discoveries, [{ tools: [{ name: 'example', inputBytes: Buffer.byteLength(JSON.stringify({ type: 'object', description: '字节' })), outputBytes: 17 }], inputBytes: 40, outputBytes: 17 }]);
 });
 
 test('evaluation host rejects realpath escapes, including staged callbacks, before invoking filesystem writes', async () => {
@@ -89,7 +131,7 @@ test('manual model execution is explicit, bounded, tool-only and shell-free', ()
 	assert.throws(() => evaluationOptions({ runner: 'codex', codex: 'codex.cmd' }), /shell interpolation/);
 	assert.throws(() => evaluationOptions({ runner: 'reference', case: '../escape' }), /Unknown --case/);
 	assert.throws(() => evaluationOptions({ runner: 'reference', 'timeout-seconds': '0' }), /integer/);
-	assert.equal(evaluationOptions({ runner: 'reference' }).tasks.length, 3);
+	assert.equal(evaluationOptions({ runner: 'reference' }).tasks.length, 6);
 	const args = codexArguments({ cwd: '/isolated/agent', server: ['/isolated/host.mjs', '--serve', '/isolated/task.json'], schema: '/answer.json', output: '/final.json', instructions: '/instructions.txt', enabledTools: ['read'] });
 	for (const flag of ['--ignore-user-config', '--ephemeral', '--skip-git-repo-check']) assert(args.includes(flag));
 	assert(args.includes('project_doc_max_bytes=0'));

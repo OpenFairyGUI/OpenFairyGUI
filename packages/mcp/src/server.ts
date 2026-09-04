@@ -1,6 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { ListToolsRequestSchema, ToolSchema, type Tool } from '@modelcontextprotocol/sdk/types.js';
 import { createNodeBackendRuntime } from '@openfairygui/backend/node';
 import { createRequire } from 'node:module';
+import { z } from 'zod';
 import { registerOpenFairyGuiBackendPrompts } from './prompt-definitions.js';
 import { registerOpenFairyGuiBackendResources } from './resource-definitions.js';
 import { CONTRACT_SNAPSHOT } from './contract-schema.js';
@@ -51,24 +53,35 @@ export function createOpenFairyGuiMcpServer(options: CreateOpenFairyGuiMcpServer
 		version: options.version ?? PACKAGE_VERSION,
 	});
 
+	const tools: Tool[] = [];
 	for (const definition of OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS) {
+		const metadata = {
+			name: definition.name, title: definition.title, description: definition.description,
+			annotations: definition.annotations,
+			_meta: {
+				'openfairygui/backendMethod': definition.backendMethod,
+				'openfairygui/adapter': 'thin-backend-p2',
+				'openfairygui/contractDigest': CONTRACT_SNAPSHOT.digest,
+			},
+		};
 		server.registerTool(
 			definition.name,
 			{
-				title: definition.title,
-				description: definition.description,
+				...metadata,
 				inputSchema: definition.inputSchema,
 				outputSchema: definition.outputSchema,
-				annotations: definition.annotations,
-				_meta: {
-					'openfairygui/backendMethod': definition.backendMethod,
-					'openfairygui/adapter': 'thin-backend-p2',
-					'openfairygui/contractDigest': CONTRACT_SNAPSHOT.digest,
-				},
 			},
 			async (args: Record<string, unknown>) => callOpenFairyGuiBackendTool(runtime, definition.name as OpenFairyGuiBackendToolName, args),
 		);
+		tools.push(ToolSchema.parse({
+			...metadata,
+			inputSchema: z.toJSONSchema(definition.inputSchema, { target: 'draft-07', io: 'input', reused: 'ref' }),
+			outputSchema: z.toJSONSchema(definition.outputSchema, { target: 'draft-07', io: 'output', reused: 'ref' }),
+		}));
 	}
+	// The installed Backend catalog is fixed. Reuse local definitions in discovery only;
+	// registered Zod schemas and the handler's structural/budget validation remain unchanged.
+	server.server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: structuredClone(tools) }));
 
 	registerOpenFairyGuiBackendResources(server, runtime);
 	registerOpenFairyGuiBackendPrompts(server);

@@ -10,6 +10,8 @@ MCP `resources/list` 提供 `openfairygui://contracts/operations`，列出正式
 
 `tools/list` 的每个工具使用对应 Backend 方法的输入/输出 schema，不再共享宽泛的结果定义。工具 `_meta` 中的 `openfairygui/contractDigest`、operation catalog 和下表摘要对应同一份生成快照。参数或注解变化后，未更新快照或双语表格会使检查失败。
 
+MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 Zod 的 draft-07 `definitions` 与本地 `$ref` 复用重复结构，不展开整份事务子树。所有引用包含在单个 schema 内，无需网络解析。调用继续使用原 Zod 校验器和预算检查；这是传输表达优化，不新增或省略字段。原始安装契约/单项操作文档仍提供 draft-2020-12 `$defs`。真实客户端的发现和执行检查见[Agent 评测](./agent-evaluations.md)。
+
 ## 查询当前实体
 
 `queryEntity` / `openfairygui_backend_query_entity` 在现有只读服务中查询当前值，返回 `sessionId`、实际 `revision`、`target` 和 `entity`。例如：

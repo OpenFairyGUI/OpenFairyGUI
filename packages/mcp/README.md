@@ -13,7 +13,9 @@ It maps the backend P2 runtime surface into MCP tools:
 - `openProjectSession`
 - `getSession`
 - `getProjectOutline`
+- `queryEntity`
 - `validateSession`
+- `preflightTransaction`
 - `applyTransaction`
 - `saveSession`
 - `materializeSession`
@@ -25,12 +27,14 @@ It maps the backend P2 runtime surface into MCP tools:
 - `getCacheSnapshot`
 - `refreshCache`
 
-Each tool exposes a shared output schema for `structuredContent.backendResult`, preserving the backend envelope shape:
+Each tool exposes a method-specific output schema for `structuredContent.backendResult`, preserving the backend envelope shape:
 
 - `ok`
 - `data?`
 - `error?`
 - `meta?`
+
+The factory advertises the fixed 18-method Backend catalog. Input/output schemas come from the canonical installed contract; discovery uses self-contained draft-07 `definitions`/`$ref` to reuse repeated structures without loosening the 41-operation union, call validators or input budgets. Installed operation documentation remains available through `openfairygui://contracts/operations` and `openfairygui://docs/index`.
 
 P1 also registers MCP-native ergonomics around the same backend surface:
 
