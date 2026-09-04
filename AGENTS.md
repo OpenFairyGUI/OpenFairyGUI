@@ -7,6 +7,7 @@
 - 先读[开发指南](docs/guide/development.md)的环境、术语和参考资料规则；用户 API 入口见[包与工具](docs/guide/packages.md)。
 - 快速反馈用 `pnpm check:fast`；PR 差异可用 `pnpm test:changed --base origin/next --list` 显示范围（base 换成实际目标分支）。快速检查不是完整回归。
 - `pnpm pack:check` 在仓库外安装当前五包 tarball，验证公开入口、类型、CLI/MCP 与可运行示例；已包含在 `check:ci`。发布前用 `--artifacts .release` 验证将要发布的同一组文件。
+- 契约类型由 Core/Backend 拥有；修改后运行 `pnpm contracts:generate`，`pnpm contracts:check` 拒绝映射遗漏与生成物漂移。MCP 参数与操作查询见[契约指南](docs/guide/contracts.md)。不手改生成快照或文档标记区。
 - `pnpm repo:doctor --json` 只诊断，不安装、不改配置、不写测试文件。`pnpm refs:status` 查看语料状态，`pnpm refs:verify` 验证必需 fixture。
 - 不直接编辑 dist、API 页面或站点输出；它们分别由 build、docs:api、docs:build 生成。修改生成器或源文件。
 

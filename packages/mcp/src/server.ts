@@ -3,6 +3,7 @@ import { createNodeBackendRuntime } from '@openfairygui/backend/node';
 import { createRequire } from 'node:module';
 import { registerOpenFairyGuiBackendPrompts } from './prompt-definitions.js';
 import { registerOpenFairyGuiBackendResources } from './resource-definitions.js';
+import { CONTRACT_SNAPSHOT } from './generated/contracts.js';
 import { callOpenFairyGuiBackendTool, type OpenFairyGuiBackendRuntime } from './tool-handler.js';
 import {
 	OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS,
@@ -62,6 +63,7 @@ export function createOpenFairyGuiMcpServer(options: CreateOpenFairyGuiMcpServer
 				_meta: {
 					'openfairygui/backendMethod': definition.backendMethod,
 					'openfairygui/adapter': 'thin-backend-p2',
+					'openfairygui/contractDigest': CONTRACT_SNAPSHOT.digest,
 				},
 			},
 			async (args: Record<string, unknown>) => callOpenFairyGuiBackendTool(runtime, definition.name as OpenFairyGuiBackendToolName, args),

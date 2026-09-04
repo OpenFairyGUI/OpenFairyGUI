@@ -9,9 +9,9 @@ import {
 } from '../contracts.js';
 import { createRuntimePathPolicy } from '../path-policy.js';
 import { createArtifactCapabilities } from '../services/artifact-service.js';
-import type { BackendArtifactBridgeCapability, BackendCapabilities } from './contracts.js';
+import type { BackendArtifactBridgeCapability, BackendCapabilities, BackendMethodName } from './contracts.js';
 
-const BACKEND_METHODS = [
+export const BACKEND_METHODS = [
 	'getCapabilities',
 	'openSession',
 	'openProjectSession',
@@ -28,7 +28,7 @@ const BACKEND_METHODS = [
 	'cancelJob',
 	'getCacheSnapshot',
 	'refreshCache',
-] as const;
+] as const satisfies readonly BackendMethodName[];
 
 const ARTIFACT_BRIDGE_CAPABILITY = {
 	available: false,

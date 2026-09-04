@@ -32,6 +32,7 @@ export {
 	type BackendJobProgress,
 	type BackendJobSnapshot,
 	type BackendJobStatus,
+	type BackendMethodName,
 	type BackendProjectOutline,
 	type BackendProjectOutlinePackage,
 	type BackendProjectOutlineResource,

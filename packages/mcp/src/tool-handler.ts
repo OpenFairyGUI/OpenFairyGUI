@@ -3,34 +3,22 @@ import {
 	BACKEND_CAPABILITY_SCHEMA_VERSION,
 	BACKEND_CONTRACT_VERSION,
 	type BackendRuntime,
+	type BackendMethodName,
 } from '@openfairygui/backend';
 import {
 	isOpenFairyGuiMcpPayloadWithinBudget,
+	OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS,
 	type OpenFairyGuiBackendToolName,
 } from './tool-definitions.js';
 
-export type OpenFairyGuiBackendRuntime = Pick<
-	BackendRuntime,
-	| 'getCapabilities'
-	| 'openSession'
-	| 'openProjectSession'
-	| 'getSession'
-	| 'getProjectOutline'
-	| 'validateSession'
-	| 'applyTransaction'
-	| 'saveSession'
-	| 'materializeSession'
-	| 'closeSession'
-	| 'getEvents'
-	| 'getJob'
-	| 'listJobs'
-	| 'cancelJob'
-	| 'getCacheSnapshot'
-	| 'refreshCache'
->;
+import { decodeToolBytes } from './contract-schema.js';
+import { CONTRACT_SNAPSHOT } from './generated/contracts.js';
+import type { McpUnhandledFailure } from './tool-metadata.js';
+
+export type OpenFairyGuiBackendRuntime = Pick<BackendRuntime, BackendMethodName>;
 
 function jsonResult(payload: unknown, isError = false): CallToolResult {
-	const text = JSON.stringify(payload, null, 2);
+	const text = JSON.stringify(payload, (_key, value) => value instanceof Uint8Array ? [...value] : value, 2);
 	const wirePayload = JSON.parse(text) as unknown;
 	return {
 		content: [
@@ -53,7 +41,7 @@ function isBackendFailure(value: unknown): boolean {
 		&& (value as { ok?: unknown }).ok === false;
 }
 
-function unhandledBackendFailure(startedAt: number): unknown {
+function unhandledBackendFailure(startedAt: number): McpUnhandledFailure {
 	return {
 		ok: false,
 		meta: {
@@ -80,121 +68,17 @@ export async function callOpenFairyGuiBackendTool(
 	if (!isOpenFairyGuiMcpPayloadWithinBudget(input)) {
 		throw new RangeError('MCP input exceeds the depth, node, key, string, or byte budget.');
 	}
+	const definition = OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.find((entry) => entry.name === name);
+	if (!definition) throw new RangeError(`Unknown OpenFairyGUI backend MCP tool: ${name}`);
+	const parsed = definition.inputSchema.parse(input) as Record<string, unknown>;
+	const decoded = decodeToolBytes(parsed, CONTRACT_SNAPSHOT.tools[definition.backendMethod].bytePaths);
 	const startedAt = Date.now();
-	let result: unknown;
 	try {
-		switch (name) {
-		case 'openfairygui_backend_get_capabilities':
-			result = runtime.getCapabilities();
-			break;
-		case 'openfairygui_backend_open_session':
-			result = await runtime.openSession({
-				projectPath: String(input.projectPath),
-			});
-			break;
-		case 'openfairygui_backend_open_project_session':
-			result = runtime.openProjectSession({
-				project: input.project as Parameters<BackendRuntime['openProjectSession']>[0]['project'],
-				sessionId: input.sessionId === undefined ? undefined : String(input.sessionId),
-				canonicalProjectPath: input.canonicalProjectPath === undefined ? undefined : String(input.canonicalProjectPath),
-				canonicalPathKey: input.canonicalPathKey === undefined ? undefined : String(input.canonicalPathKey),
-			});
-			break;
-		case 'openfairygui_backend_get_session':
-			result = runtime.getSession({
-				sessionId: String(input.sessionId),
-			});
-			break;
-		case 'openfairygui_backend_get_project_outline':
-			result = runtime.getProjectOutline({
-				sessionId: String(input.sessionId),
-			});
-			break;
-		case 'openfairygui_backend_validate_session':
-			result = runtime.validateSession({
-				sessionId: String(input.sessionId),
-			});
-			break;
-		case 'openfairygui_backend_apply_transaction': {
-			const operations = (input.operations as Parameters<BackendRuntime['applyTransaction']>[0]['operations']).map(
-				(operation) => operation.kind === 'replaceResourceBytes'
-					? { ...operation, sourceBytes: new Uint8Array(operation.sourceBytes) }
-					: operation,
-			);
-			result = await runtime.applyTransaction({
-				sessionId: String(input.sessionId),
-				expectedRevision: Number(input.expectedRevision),
-				operations,
-			});
-			break;
-		}
-		case 'openfairygui_backend_save_session':
-			result = await runtime.saveSession({
-				sessionId: String(input.sessionId),
-				expectedRevision: input.expectedRevision === undefined ? undefined : Number(input.expectedRevision),
-				targetPath: input.targetPath === undefined ? undefined : String(input.targetPath),
-				force: input.force === undefined ? undefined : Boolean(input.force),
-				mode: input.mode as Parameters<BackendRuntime['saveSession']>[0]['mode'],
-			});
-			break;
-		case 'openfairygui_backend_materialize_session':
-			result = await runtime.materializeSession({
-				sessionId: String(input.sessionId),
-				expectedRevision: input.expectedRevision === undefined ? undefined : Number(input.expectedRevision),
-				mode: input.mode as Parameters<BackendRuntime['materializeSession']>[0]['mode'],
-				reason: input.reason === undefined ? undefined : String(input.reason),
-			});
-			break;
-		case 'openfairygui_backend_close_session':
-			result = await runtime.closeSession({
-				sessionId: String(input.sessionId),
-			});
-			break;
-		case 'openfairygui_backend_get_events':
-			result = runtime.getEvents({
-				sessionId: String(input.sessionId),
-				after: input.after === undefined ? undefined : String(input.after),
-				limit: input.limit === undefined ? undefined : Number(input.limit),
-			});
-			break;
-		case 'openfairygui_backend_get_job':
-			result = runtime.getJob({
-				sessionId: String(input.sessionId),
-				jobId: String(input.jobId),
-			});
-			break;
-		case 'openfairygui_backend_list_jobs':
-			result = runtime.listJobs({
-				sessionId: String(input.sessionId),
-				status: input.status as Parameters<BackendRuntime['listJobs']>[0]['status'],
-				kind: input.kind as Parameters<BackendRuntime['listJobs']>[0]['kind'],
-				limit: input.limit === undefined ? undefined : Number(input.limit),
-			});
-			break;
-		case 'openfairygui_backend_cancel_job':
-			result = runtime.cancelJob({
-				sessionId: String(input.sessionId),
-				jobId: String(input.jobId),
-			});
-			break;
-		case 'openfairygui_backend_get_cache_snapshot':
-			result = runtime.getCacheSnapshot({
-				sessionId: String(input.sessionId),
-			});
-			break;
-		case 'openfairygui_backend_refresh_cache':
-			result = runtime.refreshCache({
-				sessionId: String(input.sessionId),
-				reason: input.reason as Parameters<BackendRuntime['refreshCache']>[0]['reason'],
-			});
-			break;
-			default: {
-				const exhaustive: never = name;
-				throw new Error(`Unknown OpenFairyGUI backend MCP tool: ${exhaustive}`);
-			}
-		}
+		const result = await Reflect.apply(runtime[definition.backendMethod], runtime, definition.backendMethod === 'getCapabilities' ? [] : [decoded]);
+		const response = jsonResult(result, isBackendFailure(result));
+		definition.outputSchema.parse(response.structuredContent);
+		return response;
 	} catch {
 		return jsonResult(unhandledBackendFailure(startedAt), true);
 	}
-	return jsonResult(result, isBackendFailure(result));
 }

@@ -29,7 +29,9 @@ pnpm check:ci
 | `pnpm test:changed --base origin/next --list` | 只输出选择计划；base 应换成实际 PR 目标，不执行测试 |
 | `pnpm check:fast` | lint、typecheck、仓库自测、指引检查；选中 AVA 测试时先构建工作区再运行测试；不构建文档站，不等于全量 |
 | `pnpm check` | fixture 验证、lint、typecheck、构建、仓库自测、完整 AVA 测试 |
-| `pnpm docs:check` | 本地链接、指令路径/命令、影响表、公开源码入口、双语导航及 Changelog 结构 |
+| `pnpm docs:check` | 本地链接、指令路径/命令、影响表、公开源码入口、双语导航、Changelog 结构和契约漂移 |
+| `pnpm contracts:generate` | 从 Core/Backend 类型生成 MCP 结构契约、操作目录、快照与双语表格 |
+| `pnpm contracts:check` | 只读检查 operation/方法映射和生成物漂移；仓库自测与 `docs:check` 均覆盖 |
 | `pnpm docs:build` | 显式先生成 TypeDoc API，再构建 VitePress；不依赖隐式 pre-script 配置 |
 | `pnpm pack:check` | 构建并打包五包，在仓库外安装生产依赖，验证入口、类型、浏览器打包、CLI/MCP 和两个可运行示例 |
 | `pnpm check:ci` | 完整 `check`、`docs:check`、文档构建和 tarball 消费者检查；提交前使用此入口 |

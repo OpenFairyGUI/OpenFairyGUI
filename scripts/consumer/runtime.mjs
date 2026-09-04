@@ -47,7 +47,7 @@ function cli(args) {
 	return execFileSync(...bin('ofgui', '@openfairygui/cli', args), { cwd: root, encoding: 'utf8', timeout: 30_000 });
 }
 
-async function mcpSmoke(expectedVersion, expectedTools) {
+async function mcpSmoke(expectedVersion, expectedTools, expectedCatalog, expectedSchema) {
 	const child = spawn(...bin('ofgui-mcp', '@openfairygui/mcp'), { cwd: root, stdio: ['pipe', 'pipe', 'pipe'] });
 	let stderr = '';
 	let buffer = '';
@@ -77,6 +77,13 @@ async function mcpSmoke(expectedVersion, expectedTools) {
 						} else if (response.id === 2) {
 							assert.deepEqual(response.result.tools.map((tool) => tool.name).sort(), [...expectedTools].sort());
 							assert(response.result.tools.length > 0);
+							assert(response.result.tools.every((tool) => tool._meta?.['openfairygui/contractDigest'] === expectedCatalog.digest));
+							send({ id: 3, method: 'resources/read', params: { uri: 'openfairygui://contracts/operations' } });
+						} else if (response.id === 3) {
+							assert.deepEqual(JSON.parse(response.result.contents[0].text), expectedCatalog);
+							send({ id: 4, method: 'resources/read', params: { uri: 'openfairygui://contracts/operations/addComponent' } });
+						} else if (response.id === 4) {
+							assert.deepEqual(JSON.parse(response.result.contents[0].text), expectedSchema);
 							clearTimeout(timer); resolve();
 						}
 					} catch (error) { fail(error); }
@@ -171,7 +178,8 @@ export async function runtimeSmoke() {
 		assert.deepEqual(snapshot(projectRoot), afterFiles);
 	} finally { assert((await runtime.closeSession({ sessionId: reopened.data.sessionId })).ok); }
 	const mcp = await import('@openfairygui/mcp');
-	await mcpSmoke(expected.find((entry) => entry.name === '@openfairygui/mcp').version, mcp.OPENFAIRYGUI_BACKEND_TOOL_NAMES);
+	await mcpSmoke(expected.find((entry) => entry.name === '@openfairygui/mcp').version, mcp.OPENFAIRYGUI_BACKEND_TOOL_NAMES,
+		mcp.getOpenFairyGuiOperationCatalog(), mcp.getOpenFairyGuiOperationSchema('addComponent'));
 	// Execute the documented no-argument commands too; keep their generated projects inside this consumer.
 	for (const name of ['node-inspect-validate', 'revision-checked-edit-save']) {
 		const output = execFileSync(process.execPath, [`examples/${name}/index.mjs`], {

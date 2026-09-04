@@ -4,6 +4,8 @@ See the [development guide](./guide/development.md) for setup, references and qu
 
 ## Summary
 
+Contract authority remains in Core's UAM types/transaction entrypoint and Backend's public method signatures. The existing TypeScript compiler generates MCP structural schemas, operation catalogs, and documentation tables during development. MCP declares transport metadata, host-field exclusions, and input budgets; one mapping drives dispatch and declared-byte conversion. The original transaction kernel still performs semantic validation. The snapshot ships through MCP builds without adding Zod to Core; see [Contract Sources and Operation Discovery](./guide/contracts.md).
+
 At **Gate A**, the repository is best understood as a seven-stage structure: `input sources -> protocol adapters -> Unified Authoring Model -> internal graph materialization -> workflows / backend runtime -> thin MCP adapter -> outputs`.
 
 The new primary source of truth is the **Unified Authoring Model (UAM)**. `Document + Property Graph` still exists, and most established workflows still operate around it, but it is now an internal execution, storage, and adaptation layer rather than the long-term public authoring center.

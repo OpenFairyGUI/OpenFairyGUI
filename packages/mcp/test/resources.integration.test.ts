@@ -6,6 +6,7 @@ import {
 	createOpenFairyGuiMcpServer,
 	OPENFAIRYGUI_BACKEND_CAPABILITIES_RESOURCE_URI,
 	OPENFAIRYGUI_BACKEND_RESOURCE_TEMPLATES,
+	OPENFAIRYGUI_OPERATION_CATALOG_URI,
 } from '../src/index.js';
 import { createTempMcpProject } from './helpers.js';
 
@@ -49,7 +50,7 @@ test('MCP P1 resources expose only identity-addressable backend snapshots', asyn
 		const resources = await client.listResources();
 		t.deepEqual(
 			resources.resources.map((resource) => resource.uri),
-			[OPENFAIRYGUI_BACKEND_CAPABILITIES_RESOURCE_URI],
+			[OPENFAIRYGUI_OPERATION_CATALOG_URI, OPENFAIRYGUI_BACKEND_CAPABILITIES_RESOURCE_URI],
 		);
 
 		const templates = await client.listResourceTemplates();

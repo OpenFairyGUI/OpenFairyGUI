@@ -29,7 +29,9 @@ For a dirty checkout, consider an isolated worktree before dependency or documen
 | `pnpm test:changed --base origin/next --list` | Print a plan only; replace the base with the actual PR target |
 | `pnpm check:fast` | Lint, typecheck, repository-tool tests and guidance checks; build the workspace before any selected AVA tests; not a full regression or documentation build |
 | `pnpm check` | Fixture verification, lint, typecheck, build, repository-tool tests and all AVA tests |
-| `pnpm docs:check` | Local links, agent paths/commands, impact-table drift, public source mappings, bilingual entries and Changelog structure |
+| `pnpm docs:check` | Local links, agent paths/commands, impact-table drift, public source mappings, bilingual entries, Changelog structure and contract drift |
+| `pnpm contracts:generate` | Generate MCP structural contracts, operation catalog, snapshot and bilingual tables from Core/Backend types |
+| `pnpm contracts:check` | Read-only operation/method completeness and generated-file checks, also covered by repository tests and `docs:check` |
 | `pnpm docs:build` | Explicit TypeDoc generation followed by VitePress; no dependency on implicit pre-script settings |
 | `pnpm pack:check` | Build/pack five packages, install production dependencies outside the checkout, verify entries, types, browser bundles, CLI/MCP and both examples |
 | `pnpm check:ci` | Full check, guidance checks, documentation build and tarball consumer checks; use before submitting |

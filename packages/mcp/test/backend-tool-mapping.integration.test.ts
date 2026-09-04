@@ -5,7 +5,6 @@ import {
 	callOpenFairyGuiBackendTool,
 	OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS,
 	OPENFAIRYGUI_BACKEND_TOOL_NAMES,
-	OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 	type OpenFairyGuiBackendRuntime,
 	type OpenFairyGuiBackendToolName,
 } from '../src/index.js';
@@ -45,7 +44,7 @@ test('MCP P0 tool definitions exactly map backend P2 methods', (t) => {
 	t.deepEqual(mappedMethods, [...capabilities.data.methods]);
 	t.deepEqual(OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.map((definition) => definition.name), [...OPENFAIRYGUI_BACKEND_TOOL_NAMES]);
 	t.is(new Set(OPENFAIRYGUI_BACKEND_TOOL_NAMES).size, capabilities.data.methods.length);
-	t.true(OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.every((definition) => definition.outputSchema === OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA));
+	t.is(new Set(OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.map((definition) => definition.outputSchema)).size, mappedMethods.length);
 	t.false(OPENFAIRYGUI_BACKEND_TOOL_NAMES.some((name) => name.includes('artifact')));
 	for (const name of OPENFAIRYGUI_BACKEND_TOOL_NAMES) {
 		t.true(name.startsWith('openfairygui_backend_'));

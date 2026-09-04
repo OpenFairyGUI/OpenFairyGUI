@@ -102,6 +102,7 @@ ofgui publish ./MyProject --output ./release
 
 - [仓库开发与验证](./docs/guide/development.md)
 - [可运行示例与消费者验证](./docs/guide/examples.md)
+- [契约事实源与操作查询](./docs/guide/contracts.md)
 - [快速开始](https://fairygui.dev/guide/getting-started)
 - [API Reference](https://fairygui.dev/api/)
 - [架构与包边界](./docs/architecture-overview.md)

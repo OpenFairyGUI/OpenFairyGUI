@@ -1,0 +1,109 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import test from 'ava';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { BackendRuntime } from '@openfairygui/backend';
+import { createNodeBackendRuntime } from '@openfairygui/backend/node';
+import { NodeIO } from '@openfairygui/core/node';
+import { readProjectAsUam } from '@openfairygui/core';
+import { z } from 'zod';
+import { createOpenFairyGuiMcpServer, callOpenFairyGuiBackendTool, getOpenFairyGuiOperationCatalog, getOpenFairyGuiOperationSchema, OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS, OPENFAIRYGUI_OPERATION_CATALOG_URI } from '../src/index.js';
+import { createMcpFixtureProject, createTempMcpProject } from './helpers.js';
+
+test('operation discovery returns precise, isolated schemas including nested properties and byte arrays', (t) => {
+	const catalog = getOpenFairyGuiOperationCatalog();
+	t.is(catalog.operations.length, 41);
+	for (const { kind, schemaUri } of catalog.operations) {
+		t.is(schemaUri, `${OPENFAIRYGUI_OPERATION_CATALOG_URI}/${kind}`);
+		const schema = getOpenFairyGuiOperationSchema(kind);
+		t.notThrows(() => z.fromJSONSchema(schema));
+	}
+	t.throws(() => getOpenFairyGuiOperationSchema('__proto__'), { instanceOf: RangeError });
+	const schema = getOpenFairyGuiOperationSchema('renameResource');
+	schema.$defs = {};
+	t.true(Object.keys(getOpenFairyGuiOperationSchema('renameResource').$defs ?? {}).length > 0);
+	const apply = OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.find((entry) => entry.backendMethod === 'applyTransaction')!.inputSchema;
+	const input = { sessionId: 's', expectedRevision: 0, operations: [{ kind: 'setDisplayNodeProps', selector: { packageId: 'p', componentResourceId: 'c', displayNodeId: 'n' }, props: { position: { x: 'wrong', y: 0 } } }] };
+	t.false(apply.safeParse(input).success);
+	t.false(apply.safeParse({ ...input, operations: [] }).success);
+	t.false(apply.safeParse({ ...input, expectedRevision: -1 }).success);
+	const open = OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.find((entry) => entry.backendMethod === 'openProjectSession')!.inputSchema;
+	t.false(open.safeParse({ project: createMcpFixtureProject(), storage: {} }).success);
+});
+
+test('each generated output schema validates its own data and error types', (t) => {
+	const runtime = new BackendRuntime();
+	const getCapabilities = OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.find((entry) => entry.backendMethod === 'getCapabilities')!;
+	const getSession = OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.find((entry) => entry.backendMethod === 'getSession')!;
+	t.true(getCapabilities.outputSchema.safeParse({ backendResult: runtime.getCapabilities() }).success);
+	t.false(getSession.outputSchema.safeParse({ backendResult: runtime.getCapabilities() }).success);
+	t.true(getSession.outputSchema.safeParse({ backendResult: runtime.getSession({ sessionId: 'missing' }) }).success);
+	t.false(getSession.outputSchema.safeParse({ backendResult: { ok: false, meta: {}, error: { code: 'made_up', message: 'bad' } } }).success);
+});
+
+test('direct calls reject structural and budget violations before reaching Backend', async (t) => {
+	const runtime = new BackendRuntime();
+	let calls = 0;
+	runtime.applyTransaction = async () => { calls++; throw new Error('Must not be called'); };
+	await t.throwsAsync(callOpenFairyGuiBackendTool(runtime, 'openfairygui_backend_apply_transaction', { sessionId: 's', expectedRevision: 0, operations: [{ kind: 'invented' }] }));
+	let nested: unknown = null;
+	for (let i = 0; i < 35; i++) nested = [nested];
+	await t.throwsAsync(callOpenFairyGuiBackendTool(runtime, 'openfairygui_backend_apply_transaction', { nested }), { instanceOf: RangeError });
+	t.is(calls, 0);
+});
+
+test('MCP discovery and four representative operations preserve semantics through save and reread', async (t) => {
+	const fixture = await createTempMcpProject();
+	const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+	const server = createOpenFairyGuiMcpServer({ runtime: createNodeBackendRuntime({ allowedProjectRoots: [fixture.rootDir] }) });
+	const client = new Client({ name: 'contract-roundtrip', version: 'test' });
+	await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+	let sessionId: string | undefined;
+	async function call(method: string, input: Record<string, unknown>) {
+		const result = await client.callTool({ name: `openfairygui_backend_${method}`, arguments: input });
+		const structured = result.structuredContent as {
+			backendResult?: { ok: boolean; error?: unknown; data: { sessionId: string; revision: number; dirty: boolean } };
+		} | undefined;
+		assert(!result.isError, JSON.stringify(structured?.backendResult?.error ?? result.content));
+		const envelope = structured?.backendResult;
+		assert(envelope?.ok);
+		return envelope.data;
+	}
+	try {
+		const catalog = await client.readResource({ uri: OPENFAIRYGUI_OPERATION_CATALOG_URI });
+		t.true('text' in catalog.contents[0] && catalog.contents[0].text.includes('addComponent'));
+		const resource = await client.readResource({ uri: `${OPENFAIRYGUI_OPERATION_CATALOG_URI}/addComponent` });
+		t.true('text' in resource.contents[0] && resource.contents[0].text.includes('displayList'));
+		const opened = await call('open_session', { projectPath: fixture.rootDir });
+		sessionId = opened.sessionId;
+		const project = await readProjectAsUam(new NodeIO(), fixture.fairyPath);
+		const component = structuredClone(project.packages[0].resources.find((entry) => entry.kind === 'component')!);
+		component.id = 'cmp002'; component.name = 'Copy';
+		const renamed = await call('apply_transaction', { sessionId, expectedRevision: opened.revision, operations: [
+			{ kind: 'renameResource', selector: { packageId: 'pkg001', resourceId: 'cmp001' }, newName: 'Renamed' },
+		] });
+		const applied = await call('apply_transaction', { sessionId, expectedRevision: renamed.revision, operations: [
+			{ kind: 'setDisplayNodeProps', selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' }, props: { text: 'Contract-backed edit' } },
+			{ kind: 'addComponent', selector: { packageId: 'pkg001' }, component, atIndex: 2 },
+			{ kind: 'addResource', selector: { packageId: 'pkg001' }, resource: { kind: 'misc', id: 'data001', name: 'data', path: '/', exported: false, favorite: false, branch: '', branchItemIds: [], file: 'data.bin', sourceBytes: [1, 2, 3] } },
+		] });
+		const replaced = await call('apply_transaction', { sessionId, expectedRevision: applied.revision, operations: [
+			{ kind: 'replaceResourceBytes', selector: { packageId: 'pkg001', resourceId: 'data001' }, sourceBytes: [0, 255, 42] },
+		] });
+		const saved = await call('save_session', { sessionId, expectedRevision: replaced.revision });
+		t.false(saved.dirty);
+		const reread = await readProjectAsUam(new NodeIO(), fixture.fairyPath);
+		const resources = reread.packages[0].resources;
+		const edited = resources.find((entry) => entry.id === 'cmp001');
+		t.is(edited?.name, 'Renamed');
+		assert(edited?.kind === 'component');
+		t.is(edited.component.displayList.find((entry) => entry.kind === 'text')?.text, 'Contract-backed edit');
+		t.deepEqual(resources.find((entry) => entry.id === 'cmp002'), component);
+		t.deepEqual([...await fs.readFile(path.join(fixture.rootDir, 'assets', project.packages[0].name, 'data.bin'))], [0, 255, 42]);
+	} finally {
+		if (sessionId) await call('close_session', { sessionId });
+		await client.close(); await server.close(); await fixture.cleanup();
+	}
+});

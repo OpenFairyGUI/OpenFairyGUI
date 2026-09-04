@@ -13,6 +13,10 @@ import type {
 	BackendResponseMeta,
 } from '../contracts.js';
 import type { PathPolicyViolationError } from '../path-policy.js';
+import type { BACKEND_METHODS } from './capabilities.js';
+import type { BackendRuntime } from '../runtime.js';
+
+export type BackendMethodName = keyof BackendRuntime;
 
 /** An exclusive lock owned for the lifetime of one backend session. */
 export interface BackendSessionLock {
@@ -103,24 +107,7 @@ export interface BackendCapabilities {
 	transactionKernelOwner: '@openfairygui/core';
 	appSeamOwner: '@openfairygui/functions';
 	runtimeOwner: '@openfairygui/backend';
-	methods: readonly [
-		'getCapabilities',
-		'openSession',
-		'openProjectSession',
-		'getSession',
-		'getProjectOutline',
-		'validateSession',
-		'applyTransaction',
-		'saveSession',
-		'materializeSession',
-		'closeSession',
-		'getEvents',
-		'getJob',
-		'listJobs',
-		'cancelJob',
-		'getCacheSnapshot',
-		'refreshCache',
-	];
+	methods: typeof BACKEND_METHODS;
 	read: {
 		capabilitySnapshot: true;
 		sessionSnapshot: true;

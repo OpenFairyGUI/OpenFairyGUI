@@ -30,6 +30,8 @@ export function packSmoke({ artifacts, keep = false } = {}) {
 	const json = (file, value) => writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
 	let passed = false;
 	try {
+		console.log('[consumer] Verify canonical contract snapshot and documentation');
+		pnpm(ROOT, ['contracts:check']);
 		const expected = PACKAGES.map((name) => readJson(path.join(ROOT, 'packages', name, 'package.json')));
 		const directory = artifacts ? path.resolve(ROOT, artifacts) : path.join(temporary, 'artifacts');
 		if (!artifacts) {
