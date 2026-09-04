@@ -4,6 +4,8 @@
 
 ## 结论
 
+Backend 在统一 response meta 与事件出口补充首批诊断的归属、文档 URI 和恢复建议，保留 Core 错误与校验报告正文。带类型的目录同时生成逐码文档，MCP 只读该目录，不执行修复或放宽 revision/路径/保存规则，见[诊断与恢复](./guide/diagnostics.md)。
+
 Backend 的 `ReadService.queryEntity` 以正式 ID selector 返回资源、组件属性或显示节点的固定投影，绑定实际 session revision，排除源字节并检查响应预算；返回值不共享会话对象。MCP 的 `openfairygui_backend_query_entity` 仅映射该方法，能力与输入/输出由同一契约生成链更新。
 
 `AuthoringService.preflightTransaction` 在现有会话队列中检查 revision，复制工程和源字节后复用 Functions/Core 的异步事务入口，执行后丢弃，不提交工程、推进 revision、变更缓存或发出业务事件。MCP 只映射此只读方法。后续 apply 仍重新检查 revision，保存继续走原有独立的存储与回滚边界。

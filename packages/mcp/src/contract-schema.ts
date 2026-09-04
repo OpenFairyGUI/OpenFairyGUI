@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { BackendDiagnosticGuide } from '@openfairygui/backend';
 import type { BackendToolMetadata } from './tool-metadata.js';
 import { CONTRACT_SNAPSHOT } from './generated/contracts.js';
 
@@ -10,6 +11,7 @@ export interface ContractSnapshot {
 	operations: Record<string, ContractSchema>;
 	tools: Record<string, BackendToolMetadata & { input: ContractSchema; output: ContractSchema; bytePaths: string[][] }>;
 	$defs: Record<string, ContractSchema>;
+	diagnostics: BackendDiagnosticGuide[];
 }
 
 export const OPENFAIRYGUI_OPERATION_CATALOG_URI = 'openfairygui://contracts/operations';

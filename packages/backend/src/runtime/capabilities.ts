@@ -100,6 +100,8 @@ export function createCapabilities(atomicSave = false): BackendCapabilities {
 			diagnostics: {
 				stableCodes: true,
 				errorDiagnosticMirror: true,
+				recoveryGuides: 'first-batch',
+				automaticRepair: false,
 			},
 		},
 		compatibilityPolicy: BACKEND_COMPATIBILITY_POLICY,

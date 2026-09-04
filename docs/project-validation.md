@@ -68,6 +68,8 @@ CLI 退出码为：`0` 有效、`1` 无效、`2` 验证不完整。`--json` 只�
 
 Backend 的 `validateSession({ sessionId })` 验证当前 revision 的 authoritative UAM，并把同一批诊断镜像到 response meta。MCP 工具 `openfairygui_backend_validate_session` 只做该方法的薄映射，不建立第二套规则。
 
+镜像到 Backend meta 的首批诊断附加归属、文档 URI 与结构化恢复建议；原始 `ProjectValidationReport` 的错误分类、完整性和正文保持不变。未知 code 不猜测修复方式，详见[诊断与恢复](./guide/diagnostics.md)。
+
 ## 事务支持检查、执行预演与工程验证
 
 | 入口 | 回答的问题 | 边界 |

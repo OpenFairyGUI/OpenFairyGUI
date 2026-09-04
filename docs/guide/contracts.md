@@ -48,7 +48,7 @@ MCP `resources/list` 提供 `openfairygui://contracts/operations`，列出正式
 
 预演不预留 revision，不证明后续 apply/save 或发布一定成功。正式 apply 必须再次提交 `expectedRevision`；期间若有编辑，应重新查询并规划，不能把旧预演当作授权凭证。预演复用当前事务执行路径，不额外执行工程保存、文件权限/目标校验或发布检查；缺少文件系统的内存会话也可以预演。
 
-能力通过 `authoring.preflightTransaction` 声明为 `mode: 'execute-and-discard'`、`reservesRevision: false`。当前能力 schema 版本为 5；新增查询和预演不改变原有事务契约版本。
+能力通过 `authoring.preflightTransaction` 声明为 `mode: 'execute-and-discard'`、`reservesRevision: false`。当前能力 schema 版本为 6，包含首批[诊断恢复指引](./diagnostics.md)；原有事务契约版本不变。
 
 ## 传输与语义边界
 
@@ -64,7 +64,7 @@ MCP `resources/list` 提供 `openfairygui://contracts/operations`，列出正式
 下表只摘要顶层参数；嵌套字段和具体结果请读取对应 schema。SHA-256 变化表示生成契约发生变化，不等同于包版本号。
 
 <!-- contracts:start -->
-SHA-256: `c3af2571c2be7ae206fee9ef5bd940a552cef0729a329ee478d1a98335e5f386`
+SHA-256: `a707a63e5cc43430968a630de348da18bdd128d6fddaf64caae49865c6211f00`
 
 | 操作 | 参数（`?` 表示可选） |
 |---|---|

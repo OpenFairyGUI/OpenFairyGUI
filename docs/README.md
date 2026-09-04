@@ -11,6 +11,7 @@
 | [仓库开发与验证](./guide/development.md) | 可复现启动、参考语料、任务路由、验证范围与 PR 门禁 |
 | [可运行示例与消费者验证](./guide/examples.md) | tarball 隔离安装、公开入口验证、inspect/validate 与 revision-checked edit/save |
 | [契约事实源与操作查询](./guide/contracts.md) | Core/Backend 类型生成的 operation、MCP 输入输出、二进制传输与漂移检查 |
+| [诊断与恢复](./guide/diagnostics.md) | 诊断归属、逐码文档与只读恢复起点；不自动修复 |
 | [快速开始](./guide/getting-started.md) | 安装 SDK 并读取首个工程 |
 | [包与工具](./guide/packages.md) | 选择公开包与宿主入口 |
 | [版本变更记录](https://github.com/OpenFairyGUI/OpenFairyGUI/blob/main/CHANGELOG_CN.md) | 按发布版本汇总公开功能、修复、破坏性变更与维护事项 |

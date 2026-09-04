@@ -1,6 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import test from 'ava';
+import { BACKEND_DIAGNOSTICS_URI, getBackendDiagnosticCatalog, getBackendDiagnosticGuide } from '@openfairygui/backend';
 import { createNodeBackendRuntime } from '@openfairygui/backend/node';
 import {
 	createOpenFairyGuiMcpServer,
@@ -50,7 +51,7 @@ test('MCP P1 resources expose only identity-addressable backend snapshots', asyn
 		const resources = await client.listResources();
 		t.deepEqual(
 			resources.resources.map((resource) => resource.uri),
-			[OPENFAIRYGUI_OPERATION_CATALOG_URI, OPENFAIRYGUI_BACKEND_CAPABILITIES_RESOURCE_URI],
+			[BACKEND_DIAGNOSTICS_URI, OPENFAIRYGUI_OPERATION_CATALOG_URI, OPENFAIRYGUI_BACKEND_CAPABILITIES_RESOURCE_URI],
 		);
 
 		const templates = await client.listResourceTemplates();
@@ -65,6 +66,16 @@ test('MCP P1 resources expose only identity-addressable backend snapshots', asyn
 		].join('\n');
 		t.false(allResourceUris.includes('events'));
 		t.false(allResourceUris.includes('listJobs'));
+	});
+});
+
+test('MCP diagnostic URIs resolve the same typed catalog and reject unknown codes', async (t) => {
+	await withClient(async (client) => {
+		t.deepEqual(parseJsonResource(await client.readResource({ uri: BACKEND_DIAGNOSTICS_URI })), getBackendDiagnosticCatalog());
+		for (const guide of getBackendDiagnosticCatalog()) {
+			t.deepEqual(parseJsonResource(await client.readResource({ uri: guide.docsUri })), getBackendDiagnosticGuide(guide.code));
+		}
+		await t.throwsAsync(client.readResource({ uri: `${BACKEND_DIAGNOSTICS_URI}/unknown_code` }));
 	});
 });
 

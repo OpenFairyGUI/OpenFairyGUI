@@ -1,5 +1,5 @@
 export const BACKEND_CONTRACT_VERSION = '1.1.0-p2' as const;
-export const BACKEND_CAPABILITY_SCHEMA_VERSION = 5 as const;
+export const BACKEND_CAPABILITY_SCHEMA_VERSION = 6 as const;
 export const BACKEND_COMPATIBILITY_POLICY = {
 	incompatibleChange: 'requires contractVersion bump',
 	capabilitySchemaChange: 'requires capabilitySchemaVersion bump',
@@ -25,6 +25,17 @@ export interface BackendDiagnostic {
 	operationKind?: string;
 	opIndex?: number;
 	opId?: string;
+	/** Present for catalogued diagnostics only; original codes and classification are preserved. */
+	owner?: 'backend' | 'core.transaction' | 'core.validation';
+	docsUri?: string;
+	remediation?: BackendDiagnosticRemediation;
+}
+
+export interface BackendDiagnosticRemediation {
+	kind: 'refresh-and-replan' | 'revise-selector' | 'host-action';
+	message: string;
+	/** A read-only starting point, never permission to retry or mutate. */
+	read?: { method: 'getProjectOutline'; input: { sessionId: string } };
 }
 
 export interface BackendResponseMeta {

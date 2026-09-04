@@ -240,6 +240,9 @@ export function generateContract(program = createContractProgram()) {
 		versions[name] = constantValue(checker, checker.getTypeOfSymbolAtLocation(entry.symbol, entry.declaration));
 	}
 	const snapshot = { schemaVersion: 1, versions, operations, tools, $defs: emitter.definitions };
+	const guides = exported(program, 'packages/backend/src/diagnostics.ts', 'BACKEND_DIAGNOSTIC_GUIDES');
+	snapshot.diagnostics = constantValue(checker, checker.getTypeOfSymbolAtLocation(guides.symbol, guides.declaration));
+	assert.equal(new Set(snapshot.diagnostics.map((guide) => guide.code)).size, snapshot.diagnostics.length, 'Duplicate diagnostic recovery guide');
 	return { ...snapshot, digest: createHash('sha256').update(JSON.stringify(snapshot)).digest('hex') };
 }
 
@@ -270,6 +273,17 @@ export function generatedFiles(contract, root = ROOT) {
 		const marker = /<!-- contracts:start -->\n[\s\S]*?\n<!-- contracts:end -->/g;
 		assert.equal([...source.matchAll(marker)].length, 1, `Missing/duplicate contract section: ${file}`);
 		files[file] = source.replace(marker, `<!-- contracts:start -->\n${contractTables(contract, english)}\n<!-- contracts:end -->`);
+	}
+	for (const file of ['docs/guide/diagnostics.md', 'docs/en/guide/diagnostics.md']) {
+		const source = readFileSync(path.join(root, file), 'utf8').replaceAll('\r\n', '\n');
+		const marker = /<!-- diagnostics:start -->\n[\s\S]*?\n<!-- diagnostics:end -->/g;
+		assert.equal([...source.matchAll(marker)].length, 1, `Missing/duplicate diagnostics section: ${file}`);
+		const guides = contract.diagnostics.map((guide) => [
+			`### ${guide.code}`, '',
+			`Owner: \`${guide.owner}\` · Recovery: \`${guide.remediation.kind}\``, '',
+			`URI: \`openfairygui://docs/diagnostics/${guide.code}\``, '', guide.remediation.message,
+		].join('\n')).join('\n\n');
+		files[file] = source.replace(marker, `<!-- diagnostics:start -->\n${guides}\n<!-- diagnostics:end -->`);
 	}
 	return files;
 }

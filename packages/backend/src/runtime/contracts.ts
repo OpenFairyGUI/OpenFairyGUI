@@ -140,6 +140,8 @@ export interface BackendCapabilityManifest {
 	diagnostics: {
 		stableCodes: true;
 		errorDiagnosticMirror: true;
+		recoveryGuides: 'first-batch';
+		automaticRepair: false;
 	};
 }
 

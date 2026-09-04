@@ -103,6 +103,7 @@ See [Packages and Tools](https://fairygui.dev/en/guide/packages) for package ent
 - [Repository Development and Verification](./docs/en/guide/development.md)
 - [Runnable Examples and Consumer Verification](./docs/en/guide/examples.md)
 - [Contract Sources and Operation Discovery](./docs/en/guide/contracts.md)
+- [Diagnostics and Recovery](./docs/en/guide/diagnostics.md)
 - [Getting Started](https://fairygui.dev/en/guide/getting-started)
 - [API Reference](https://fairygui.dev/api/)
 - [Architecture and Package Boundaries](./docs/en/architecture-overview.md)

@@ -48,7 +48,7 @@ Recommended flow: discover IDs with the outline → queryEntity for current prop
 
 A preview reserves no revision and does not guarantee later apply/save or publication. Apply must check `expectedRevision` again; if edits intervened, query and re-plan instead of treating an old preview as an authorization token. Preview reuses the current transaction execution path without adding project saves, file permission/target checks or publishing checks. In-memory sessions without a filesystem can preview too.
 
-`authoring.preflightTransaction` advertises `mode: 'execute-and-discard'` and `reservesRevision: false`. The current capability schema version is 5; these additive query/preview methods leave the transaction contract version unchanged.
+`authoring.preflightTransaction` advertises `mode: 'execute-and-discard'` and `reservesRevision: false`. Capability schema version 6 includes first-batch [diagnostic recovery guides](./diagnostics.md); the transaction contract version remains unchanged.
 
 ## Transport and semantic boundaries
 
@@ -64,7 +64,7 @@ A preview reserves no revision and does not guarantee later apply/save or public
 The tables summarize top-level parameters only; read schemas for nested fields and concrete results. SHA-256 identifies generated contract content, not a package version.
 
 <!-- contracts:start -->
-SHA-256: `c3af2571c2be7ae206fee9ef5bd940a552cef0729a329ee478d1a98335e5f386`
+SHA-256: `a707a63e5cc43430968a630de348da18bdd128d6fddaf64caae49865c6211f00`
 
 | Operation | Parameters (`?` = optional) |
 |---|---|

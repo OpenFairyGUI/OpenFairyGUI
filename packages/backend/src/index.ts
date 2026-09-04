@@ -3,10 +3,18 @@ export {
 	BACKEND_COMPATIBILITY_POLICY,
 	BACKEND_CONTRACT_VERSION,
 	type BackendDiagnostic,
+	type BackendDiagnosticRemediation,
 	type BackendMessage,
 	type BackendResponseMeta,
 	type BackendStage,
 } from './contracts.js';
+export {
+	BACKEND_DIAGNOSTICS_URI,
+	BACKEND_DIAGNOSTIC_TEMPLATE,
+	getBackendDiagnosticCatalog,
+	getBackendDiagnosticGuide,
+	type BackendDiagnosticGuide,
+} from './diagnostics.js';
 export {
 	type AdvisoryLockConflictError,
 	type ApplySessionTransactionInput,

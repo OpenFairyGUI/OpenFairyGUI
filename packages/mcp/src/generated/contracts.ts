@@ -4,7 +4,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 	"schemaVersion": 1,
 	"versions": {
 		"BACKEND_CONTRACT_VERSION": "1.1.0-p2",
-		"BACKEND_CAPABILITY_SCHEMA_VERSION": 5
+		"BACKEND_CAPABILITY_SCHEMA_VERSION": 6
 	},
 	"operations": {
 		"updateProjectSettings": {
@@ -10359,7 +10359,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
-					"const": 5
+					"const": 6
 				}
 			},
 			"required": [
@@ -10440,12 +10440,77 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"opId": {
 					"type": "string"
+				},
+				"owner": {
+					"enum": [
+						"backend",
+						"core.transaction",
+						"core.validation"
+					]
+				},
+				"docsUri": {
+					"type": "string"
+				},
+				"remediation": {
+					"$ref": "#/$defs/BackendDiagnosticRemediation_e560eda704"
 				}
 			},
 			"required": [
 				"code",
 				"message",
 				"severity"
+			],
+			"additionalProperties": false
+		},
+		"BackendDiagnosticRemediation_e560eda704": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"enum": [
+						"refresh-and-replan",
+						"revise-selector",
+						"host-action"
+					]
+				},
+				"message": {
+					"type": "string"
+				},
+				"read": {
+					"$ref": "#/$defs/__type_14c05f1448"
+				}
+			},
+			"required": [
+				"kind",
+				"message"
+			],
+			"additionalProperties": false
+		},
+		"__type_14c05f1448": {
+			"type": "object",
+			"properties": {
+				"method": {
+					"type": "string",
+					"const": "getProjectOutline"
+				},
+				"input": {
+					"$ref": "#/$defs/__type_fb9676efb1"
+				}
+			},
+			"required": [
+				"method",
+				"input"
+			],
+			"additionalProperties": false
+		},
+		"__type_fb9676efb1": {
+			"type": "object",
+			"properties": {
+				"sessionId": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"sessionId"
 			],
 			"additionalProperties": false
 		},
@@ -10496,7 +10561,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
-					"const": 5
+					"const": 6
 				},
 				"transactionKernelOwner": {
 					"type": "string",
@@ -10892,7 +10957,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/__type_0766415c9e"
 				},
 				"diagnostics": {
-					"$ref": "#/$defs/__type_b983200be8"
+					"$ref": "#/$defs/__type_5e686885c8"
 				}
 			},
 			"required": [
@@ -11064,7 +11129,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"__type_b983200be8": {
+		"__type_5e686885c8": {
 			"type": "object",
 			"properties": {
 				"stableCodes": {
@@ -11074,11 +11139,21 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"errorDiagnosticMirror": {
 					"type": "boolean",
 					"const": true
+				},
+				"recoveryGuides": {
+					"type": "string",
+					"const": "first-batch"
+				},
+				"automaticRepair": {
+					"type": "boolean",
+					"const": false
 				}
 			},
 			"required": [
 				"stableCodes",
-				"errorDiagnosticMirror"
+				"errorDiagnosticMirror",
+				"recoveryGuides",
+				"automaticRepair"
 			],
 			"additionalProperties": false
 		},
@@ -14638,5 +14713,151 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			]
 		}
 	},
-	"digest": "c3af2571c2be7ae206fee9ef5bd940a552cef0729a329ee478d1a98335e5f386"
+	"diagnostics": [
+		{
+			"code": "stale_write",
+			"owner": "backend",
+			"remediation": {
+				"kind": "refresh-and-replan",
+				"message": "Refresh the outline and affected entities, then replan from their current revision and preflight again. A preview reserves no revision. Never replace expectedRevision and blindly retry the original transaction or save."
+			}
+		},
+		{
+			"code": "entity_query_failed",
+			"owner": "backend",
+			"remediation": {
+				"kind": "host-action",
+				"message": "Inspect error.reason: invalid_query requires correcting the target; not_found/ambiguous requires current exact identifiers; response_budget_exceeded/non_json_value requires host inspection of the entity. Do not broaden queries or mutate data to evade the response limits."
+			}
+		},
+		{
+			"code": "session_not_found",
+			"owner": "backend",
+			"remediation": {
+				"kind": "host-action",
+				"message": "Ask the host to confirm the runtime and project, recover any unsaved state, then explicitly open a new session if appropriate. Session IDs are runtime-local. Read its new revision and replan; never reuse an expired session or assume disk contains unsaved changes."
+			}
+		},
+		{
+			"code": "path_policy_violation",
+			"owner": "backend",
+			"remediation": {
+				"kind": "host-action",
+				"message": "Ask the host to review the attempted path and authorized project root. saveSession only writes the original project; it is not Save As. Do not widen allowed roots or bypass path checks. A separately authorized export may use materializeSession."
+			}
+		},
+		{
+			"code": "project_root_not_allowed",
+			"owner": "backend",
+			"remediation": {
+				"kind": "host-action",
+				"message": "Ask the host to review the attempted path and authorized project root. saveSession only writes the original project; it is not Save As. Do not widen allowed roots or bypass path checks. A separately authorized export may use materializeSession."
+			}
+		},
+		{
+			"code": "invalid_package_selector",
+			"owner": "core.transaction",
+			"remediation": {
+				"kind": "revise-selector",
+				"message": "Read the current outline and query the relevant entity. Use its exact identifiers, inspect the reported selector path, then rebuild and preflight the transaction. Do not guess identifiers or retry the unchanged transaction."
+			}
+		},
+		{
+			"code": "invalid_component_selector",
+			"owner": "core.transaction",
+			"remediation": {
+				"kind": "revise-selector",
+				"message": "Read the current outline and query the relevant entity. Use its exact identifiers, inspect the reported selector path, then rebuild and preflight the transaction. Do not guess identifiers or retry the unchanged transaction."
+			}
+		},
+		{
+			"code": "invalid_resource_selector",
+			"owner": "core.transaction",
+			"remediation": {
+				"kind": "revise-selector",
+				"message": "Read the current outline and query the relevant entity. Use its exact identifiers, inspect the reported selector path, then rebuild and preflight the transaction. Do not guess identifiers or retry the unchanged transaction."
+			}
+		},
+		{
+			"code": "invalid_display_node_selector",
+			"owner": "core.transaction",
+			"remediation": {
+				"kind": "revise-selector",
+				"message": "Read the current outline and query the relevant entity. Use its exact identifiers, inspect the reported selector path, then rebuild and preflight the transaction. Do not guess identifiers or retry the unchanged transaction."
+			}
+		},
+		{
+			"code": "invalid_resource_folder_selector",
+			"owner": "core.transaction",
+			"remediation": {
+				"kind": "revise-selector",
+				"message": "Read the current outline and query the relevant entity. Use its exact identifiers, inspect the reported selector path, then rebuild and preflight the transaction. Do not guess identifiers or retry the unchanged transaction."
+			}
+		},
+		{
+			"code": "invalid_branch_selector",
+			"owner": "core.transaction",
+			"remediation": {
+				"kind": "revise-selector",
+				"message": "Read the current outline and query the relevant entity. Use its exact identifiers, inspect the reported selector path, then rebuild and preflight the transaction. Do not guess identifiers or retry the unchanged transaction."
+			}
+		},
+		{
+			"code": "invalid_gear_selector",
+			"owner": "core.transaction",
+			"remediation": {
+				"kind": "revise-selector",
+				"message": "Read the current outline and query the relevant entity. Use its exact identifiers, inspect the reported selector path, then rebuild and preflight the transaction. Do not guess identifiers or retry the unchanged transaction."
+			}
+		},
+		{
+			"code": "invalid_look_gear_selector",
+			"owner": "core.transaction",
+			"remediation": {
+				"kind": "revise-selector",
+				"message": "Read the current outline and query the relevant entity. Use its exact identifiers, inspect the reported selector path, then rebuild and preflight the transaction. Do not guess identifiers or retry the unchanged transaction."
+			}
+		},
+		{
+			"code": "selector_ambiguity",
+			"owner": "core.transaction",
+			"remediation": {
+				"kind": "revise-selector",
+				"message": "Read the current outline and query the relevant entity. Use its exact identifiers, inspect the reported selector path, then rebuild and preflight the transaction. Do not guess identifiers or retry the unchanged transaction."
+			}
+		},
+		{
+			"code": "unavailable_resource_source_bytes",
+			"owner": "core.transaction",
+			"remediation": {
+				"kind": "host-action",
+				"message": "Ask the host to inspect the reported source and hydrate its bytes through project I/O or import. Preserve unsaved work; reopening disk state can discard it. No session hydration/repair API is exposed. Revalidate and replan after the host has supplied a complete project."
+			}
+		},
+		{
+			"code": "missing_source",
+			"owner": "core.validation",
+			"remediation": {
+				"kind": "host-action",
+				"message": "Ask the host to inspect the reported source and hydrate its bytes through project I/O or import. Preserve unsaved work; reopening disk state can discard it. No session hydration/repair API is exposed. Revalidate and replan after the host has supplied a complete project."
+			}
+		},
+		{
+			"code": "unreadable_source",
+			"owner": "core.validation",
+			"remediation": {
+				"kind": "host-action",
+				"message": "Ask the host to inspect the reported source and hydrate its bytes through project I/O or import. Preserve unsaved work; reopening disk state can discard it. No session hydration/repair API is exposed. Revalidate and replan after the host has supplied a complete project."
+			}
+		},
+		{
+			"code": "decode_capability_unavailable",
+			"owner": "core.validation",
+			"remediation": {
+				"kind": "host-action",
+				"message": "Validation is incomplete, not passed. Inspect whether source bytes are unloaded or a decoder is unavailable. Ask the host to hydrate sources or provide the required decoder (Node image validation uses optional Sharp), then validate again. Do not install dependencies or change the project automatically."
+			}
+		}
+	],
+	"digest": "a707a63e5cc43430968a630de348da18bdd128d6fddaf64caae49865c6211f00"
 };
