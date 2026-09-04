@@ -105,6 +105,7 @@ See [Packages and Tools](https://fairygui.dev/en/guide/packages) for package ent
 - [Contract Sources and Operation Discovery](./docs/en/guide/contracts.md)
 - [Diagnostics and Recovery](./docs/en/guide/diagnostics.md)
 - [Installed Documentation and Product Diagnosis](./docs/en/guide/installed-docs.md)
+- [Real Agent Task Evaluations](./docs/en/guide/agent-evaluations.md)
 - [Getting Started](https://fairygui.dev/en/guide/getting-started)
 - [API Reference](https://fairygui.dev/api/)
 - [Architecture and Package Boundaries](./docs/en/architecture-overview.md)

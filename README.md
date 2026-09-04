@@ -105,6 +105,7 @@ ofgui publish ./MyProject --output ./release
 - [契约事实源与操作查询](./docs/guide/contracts.md)
 - [诊断与恢复](./docs/guide/diagnostics.md)
 - [安装版本文档与产品诊断](./docs/guide/installed-docs.md)
+- [真实 Agent 任务评测](./docs/guide/agent-evaluations.md)
 - [快速开始](https://fairygui.dev/guide/getting-started)
 - [API Reference](https://fairygui.dev/api/)
 - [架构与包边界](./docs/architecture-overview.md)

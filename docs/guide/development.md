@@ -34,6 +34,8 @@ pnpm check:ci
 | `pnpm contracts:check` | 只读检查 operation/方法映射和生成物漂移；仓库自测与 `docs:check` 均覆盖 |
 | `pnpm docs:build` | 显式先生成 TypeDoc API，再构建 VitePress；不依赖隐式 pre-script 配置 |
 | `pnpm pack:check` | 构建并打包五包，在仓库外安装生产依赖，验证入口、类型、浏览器打包、CLI/MCP 和两个可运行示例 |
+| `pnpm eval:agent --runner reference` | 三个真实 tarball/MCP 任务的确定性宿主自测；`pack:check` 也执行，不调用模型 |
+| `pnpm eval:agent --runner codex --codex codex` | 手动真实模型任务，保存状态判定、调用轨迹与失败现场；不进入 PR CI |
 | `pnpm check:ci` | 完整 `check`、`docs:check`、文档构建和 tarball 消费者检查；提交前使用此入口 |
 
 doctor 不安装、不下载、不写文件。它只检查导出文件是否存在，不证明构建新鲜度或浏览器行为；临时目录只做权限检查，不证明磁盘容量。缺少原生图片能力会警告，图片相关任务仍需实际验证。推荐 Node 不匹配仅警告；低于包支持范围、pnpm 不匹配、缺少必需 fixture/构建产物则失败。
@@ -54,6 +56,8 @@ doctor 不安装、不下载、不写文件。它只检查导出文件是否存�
 PR CI 的 quality job 在三个 Node 主版本执行 `check`；documentation job 在推荐 Node 上检查并构建文档；consumer job 在推荐 Node 的 Linux/Windows 环境执行 `pack:check`。文档与消费者 job 不下载 fixture。三类 job 合起来对应本地 `check:ci`；`check:fast` 和 `check` 不包含 tarball 安装。远端链接、Markdown 标题锚点、翻译含义和协议解释仍需人工审查。
 
 消费者检查会联网安装依赖，成功清理自身临时目录，失败保留现场；`--keep` 可保留成功现场。发布前用 `pnpm pack:check --artifacts .release` 检查同一组已打包文件。入口、示例及验证限制见[可运行示例与消费者验证](./examples.md)。
+
+Agent 评测共用 tarball 安装流程，确定性自测进入消费者门禁，模型成功率只作手动观察。任务、隔离、Windows 可执行文件要求和复现方法见[真实 Agent 任务评测](./agent-evaluations.md)。
 
 ## 参考资料与取证
 

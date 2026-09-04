@@ -1,0 +1,141 @@
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
+
+export const EVAL_METHODS = ['getCapabilities', 'openSession', 'getSession', 'getProjectOutline', 'queryEntity', 'validateSession', 'preflightTransaction', 'applyTransaction', 'saveSession', 'closeSession'];
+export const CONCURRENT_TEXT = 'Title edited concurrently';
+export const FINAL_SCHEMA = {
+	type: 'object', additionalProperties: false, required: ['summary', 'facts'],
+	properties: {
+		summary: { type: 'string' },
+		facts: {
+			type: 'object', additionalProperties: false, required: ['packageCount', 'resourceCount', 'validationStatus'],
+			properties: { packageCount: { type: ['integer', 'null'] }, resourceCount: { type: ['integer', 'null'] }, validationStatus: { type: ['string', 'null'] } },
+		},
+	},
+};
+
+export function assertWithin(root, candidate) {
+	const relative = path.relative(root, candidate);
+	assert(relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative), `Evaluation scope violation: ${candidate}`);
+}
+
+export function scopedFileSystem(base, workspace, record) {
+	const guarded = { ...base };
+	async function check(file) {
+		try { assertWithin(workspace, await base.resolvePath(file)); }
+		catch (error) { record({ type: 'scope-violation', file, message: error.message }); throw error; }
+	}
+	for (const method of ['stat', 'readdir', 'readFile', 'readFileRaw', 'writeFile', 'writeFileRaw', 'mkdir', 'unlink', 'rmdir', 'validateProjectRoot', 'acquireSessionLock']) {
+		if (!base[method]) continue;
+		guarded[method] = async (file, ...args) => {
+			await check(file);
+			if (/^(write|mkdir|unlink|rmdir|acquire)/.test(method)) record({ type: 'filesystem-write', method, file });
+			return base[method](file, ...args);
+		};
+	}
+	if (base.runProjectWriteTransaction) guarded.runProjectWriteTransaction = async (root, write) => {
+		await check(root);
+		record({ type: 'filesystem-write', method: 'runProjectWriteTransaction', file: root });
+		return base.runProjectWriteTransaction(root, (staged) => write(scopedFileSystem(staged, workspace, record)));
+	};
+	return guarded;
+}
+
+export function expectedProject(before, taskId) {
+	assert(['inspect-validate', 'rename-save', 'stale-revision-recovery'].includes(taskId), `No oracle for task: ${taskId}`);
+	const project = structuredClone(before);
+	const component = project.packages[0].resources[0];
+	assert.equal(component.kind, 'component');
+	if (taskId !== 'inspect-validate') component.name = 'RenamedView';
+	if (taskId === 'stale-revision-recovery') component.component.displayList[0].text = CONCURRENT_TEXT;
+	return project;
+}
+
+export function changedPaths(before, after) {
+	return [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((key) => before[key] !== after[key]).sort();
+}
+
+export function completedCalls(trace) {
+	const requests = new Map();
+	const calls = [];
+	for (const entry of trace) {
+		if (entry.type === 'request') requests.set(entry.message.id, entry);
+		if (entry.type !== 'response') continue;
+		const request = requests.get(entry.message.id);
+		if (request) calls.push({ request: request.message, response: entry.message, durationMs: entry.at - request.at });
+	}
+	return calls;
+}
+
+function stable(value) {
+	if (Array.isArray(value)) return value.map(stable);
+	if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map((key) => [key, stable(value[key])]));
+	return value;
+}
+
+export function observations(trace, durationMs, events = []) {
+	const calls = completedCalls(trace);
+	const tools = calls.filter((call) => call.request.method === 'tools/call');
+	const submissions = tools.filter((call) => call.request.params.name.endsWith('_apply_transaction'));
+	const duplicates = (values) => values.length - new Set(values.map((value) => JSON.stringify(stable(value)))).size;
+	return {
+		durationMs, toolCalls: tools.length,
+		clientToolCalls: events.filter((event) => event.type === 'item.completed' && event.item?.type === 'mcp_tool_call').length,
+		clientFailedCalls: events.filter((event) => event.type === 'item.completed' && event.item?.type === 'mcp_tool_call' && (event.item.error || event.item.status === 'failed')).length,
+		failedCalls: calls.filter(({ response }) => response.error || response.result?.isError).length,
+		staleRejections: tools.filter(({ response }) => response.result?.structuredContent?.backendResult?.error?.code === 'stale_write').length,
+		documentationReads: calls.filter(({ request, response }) => request.method === 'resources/read' && /openfairygui:\/\/(docs|contracts)\//.test(request.params.uri) && !response.error).map(({ request }) => request.params.uri),
+		previews: tools.filter((call) => call.request.params.name.endsWith('_preflight_transaction')).length,
+		repeatedApplyArguments: duplicates(submissions.map((call) => call.request.params.arguments)),
+		repeatedSuccessfulOperations: duplicates(submissions.filter((call) => call.response.result?.structuredContent?.backendResult?.ok).map((call) => call.request.params.arguments.operations)),
+		usage: events.filter((event) => event.type === 'turn.completed').map((event) => event.usage),
+	};
+}
+
+export function isolatedCodexEvents(events) {
+	const allowed = new Set(['agent_message', 'reasoning', 'mcp_tool_call', 'plan_update', 'error']);
+	return events.every(({ item }) => {
+		if (!item) return true;
+		if (!allowed.has(item.type)) return false;
+		if (item.type !== 'mcp_tool_call' || item.server === 'ofgui') return true;
+		// Codex labels its own MCP discovery helpers as server=codex, not the target server.
+		return item.server === 'codex' && ['list_mcp_resources', 'list_mcp_resource_templates'].includes(item.tool) && (!item.arguments?.server || item.arguments.server === 'ofgui');
+	});
+}
+
+export function gradeEvaluation({ taskId, expected, actual, expectedFiles, actualFiles, trace, final, runnerOk, isolated, validation }) {
+	const calls = completedCalls(trace);
+	const backend = calls.map((call) => ({ ...call, result: call.response.result?.structuredContent?.backendResult }));
+	const changes = changedPaths(expectedFiles, actualFiles);
+	const injection = trace.find((entry) => entry.type === 'injection');
+	const checks = {
+		runnerCompleted: runnerOk,
+		isolatedTools: isolated,
+		projectReadable: actual !== null,
+		validProject: validation === 'valid',
+		exactSemantics: isDeepStrictEqual(expected, actual),
+		exactFiles: changes.length === 0,
+		noOutOfScopeAccess: !trace.some((entry) => entry.type === 'scope-violation'),
+		observedValidation: backend.some((call) => call.request.params?.name?.endsWith('_validate_session') && call.result?.ok && call.result.data.status === 'valid'),
+	};
+	if (taskId === 'inspect-validate') {
+		checks.inspectionFacts = isDeepStrictEqual(final?.facts, { packageCount: actual?.packages.length, resourceCount: actual?.packages.reduce((sum, pkg) => sum + pkg.resources.length, 0), validationStatus: validation });
+		checks.noEdit = !backend.some((call) => /_(apply_transaction|save_session)$/.test(call.request.params?.name) && call.result?.ok);
+	} else {
+		checks.saved = backend.some((call) => call.request.params?.name?.endsWith('_save_session') && call.result?.ok && !call.result.data.dirty);
+	}
+	if (taskId === 'stale-revision-recovery') {
+		checks.conflictExercised = !!injection?.ok && injection.revision === injection.previousRevision + 1 && backend.some((call) => call.request.id === injection.requestId && call.result?.error?.code === 'stale_write');
+	}
+	return { passed: Object.values(checks).every(Boolean), checks, unexpectedFiles: changes };
+}
+
+export function codexArguments({ cwd, server, schema, output, instructions, model, enabledTools }) {
+	const args = ['exec', '--ignore-user-config', '--ignore-rules', '--ephemeral', '--skip-git-repo-check', '--sandbox', 'read-only', '--json', '-C', cwd, '--output-schema', schema, '-o', output];
+	if (model) args.push('--model', model);
+	for (const feature of ['shell_tool', 'unified_exec', 'shell_snapshot', 'plugins', 'apps', 'memories', 'multi_agent', 'multi_agent_v2', 'browser_use', 'browser_use_external', 'browser_use_full_cdp_access', 'computer_use', 'in_app_browser', 'image_generation', 'hooks', 'skill_search', 'skill_mcp_dependency_install', 'workspace_dependencies', 'goals', 'sleep_tool']) args.push('--disable', feature);
+	args.push('--enable', 'skip_host_skill_discovery', '--enable', 'code_mode_host');
+	for (const config of ['approval_policy="never"', 'web_search="disabled"', 'tools.view_image=false', 'project_doc_max_bytes=0', 'history.persistence="none"', 'suppress_unstable_features_warning=true', `model_instructions_file=${JSON.stringify(instructions)}`, `mcp_servers.ofgui={command=${JSON.stringify(process.execPath)},args=${JSON.stringify(server)},required=true,enabled_tools=${JSON.stringify(enabledTools)},default_tools_approval_mode="approve",tool_timeout_sec=60}`]) args.push('-c', config);
+	return [...args, '-'];
+}

@@ -16,7 +16,7 @@ export function artifactName(manifest) {
 	return `${manifest.name.replace(/^@/, '').replaceAll('/', '-')}-${manifest.version}.tgz`;
 }
 
-export function packSmoke({ artifacts, keep = false } = {}) {
+export function preparePackedConsumer({ artifacts } = {}) {
 	const pnpmCli = process.env.npm_execpath;
 	pnpmInvocation(pnpmCli, []); // Fail before creating files when invoked without pnpm.
 	const temporary = realpathSync(mkdtempSync(path.join(tmpdir(), 'ofgui-consumer-')));
@@ -28,7 +28,6 @@ export function packSmoke({ artifacts, keep = false } = {}) {
 	});
 	const pnpm = (cwd, args) => command(cwd, ...pnpmInvocation(pnpmCli, args));
 	const json = (file, value) => writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
-	let passed = false;
 	try {
 		console.log('[consumer] Verify canonical contract snapshot and documentation');
 		pnpm(ROOT, ['contracts:check']);
@@ -53,13 +52,28 @@ export function packSmoke({ artifacts, keep = false } = {}) {
 		json(path.join(consumer, 'package.json'), { name: 'ofgui-isolated-consumer', private: true, type: 'module', dependencies, pnpm: { overrides: dependencies } });
 		writeFileSync(path.join(consumer, '.npmrc'), 'hoist=false\nlink-workspace-packages=false\nprefer-workspace-packages=false\n');
 		json(path.join(consumer, 'expected.json'), expected);
-		for (const name of ['runtime.mjs', 'tooling.mjs']) cpSync(path.join(ROOT, 'scripts/consumer', name), path.join(consumer, name));
+		for (const name of ['runtime.mjs', 'tooling.mjs', 'agent-eval.mjs']) cpSync(path.join(ROOT, 'scripts/consumer', name), path.join(consumer, name));
+		cpSync(path.join(ROOT, 'scripts/agent-eval-checks.mjs'), path.join(consumer, 'agent-eval-checks.mjs'));
+		cpSync(path.join(ROOT, 'agent/evals/tasks.json'), path.join(consumer, 'evaluation-tasks.json'));
 		cpSync(path.join(ROOT, 'examples'), path.join(consumer, 'examples'), {
 			recursive: true, filter: (file) => !file.split(path.sep).some((part) => part === 'node_modules' || part === 'package-lock.json' || part === 'pnpm-lock.yaml'),
 		});
 		console.log('[consumer] Install tarballs and production dependencies (no workspace or test tools)');
 		pnpm(consumer, ['install', '--prod', '--ignore-scripts', '--no-frozen-lockfile']);
+		return { temporary, consumer, expected, directory, command, pnpm };
+	} catch (error) {
+		console.error(`[consumer] Preserved diagnostic project: ${temporary}`);
+		throw error;
+	}
+}
+
+export function packSmoke({ artifacts, keep = false } = {}) {
+	const { temporary, consumer, command, pnpm } = preparePackedConsumer({ artifacts });
+	const json = (file, value) => writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
+	let passed = false;
+	try {
 		console.log(command(consumer, process.execPath, ['runtime.mjs']).trim());
+		console.log(command(consumer, process.execPath, ['agent-eval.mjs', '--reference']).trim());
 		const require = createRequire(import.meta.url);
 		const compiler = require('typescript/package.json');
 		const viteRequire = createRequire(createRequire(require.resolve('vitepress')).resolve('vite'));
@@ -74,7 +88,7 @@ export function packSmoke({ artifacts, keep = false } = {}) {
 		// esbuild needs its own install script; all packages are ordinary public registry dependencies.
 		pnpm(consumer, ['install', '--no-frozen-lockfile', '--config.ignore-scripts=false']);
 		console.log(command(consumer, process.execPath, ['tooling.mjs']).trim());
-		console.log('[consumer] PASS: five tarballs, Node ESM/CJS, types, browser bundles, CLI, MCP and example round-trip');
+		console.log('[consumer] PASS: five tarballs, Node ESM/CJS, types, browser bundles, CLI, MCP, examples and deterministic evaluation checks');
 		passed = true;
 	} finally {
 		if (!passed || keep) console.log(`[consumer] Preserved diagnostic project: ${temporary}`);

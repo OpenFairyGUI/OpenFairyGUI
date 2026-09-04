@@ -1,0 +1,14 @@
+[
+  {
+    "id": "inspect-validate",
+    "prompt": "Inspect and validate the supplied FairyGUI project without changing it. Report its package count, resource count and validation status in the final facts object. Use evidence from the installed product, not assumptions about the fixture."
+  },
+  {
+    "id": "rename-save",
+    "prompt": "Rename the component resource Main/MainView to RenamedView and save the project. Use revision-checked editing. Preserve its ID, all component contents and every unrelated file. Do not change the title text."
+  },
+  {
+    "id": "stale-revision-recovery",
+    "prompt": "Rename the component resource Main/MainView to RenamedView and save the project using revision-checked editing. Another editor may make a concurrent change while you work. Recover from a revision conflict if one occurs, preserving the other editor's change and all unrelated data. Do not overwrite or undo their title text."
+  }
+]

@@ -34,6 +34,8 @@ For a dirty checkout, consider an isolated worktree before dependency or documen
 | `pnpm contracts:check` | Read-only operation/method completeness and generated-file checks, also covered by repository tests and `docs:check` |
 | `pnpm docs:build` | Explicit TypeDoc generation followed by VitePress; no dependency on implicit pre-script settings |
 | `pnpm pack:check` | Build/pack five packages, install production dependencies outside the checkout, verify entries, types, browser bundles, CLI/MCP and both examples |
+| `pnpm eval:agent --runner reference` | Three deterministic tarball/MCP task checks; also run by `pack:check`, without calling a model |
+| `pnpm eval:agent --runner codex --codex codex` | Manual real-model tasks with state checks, traces and failure evidence; excluded from PR CI |
 | `pnpm check:ci` | Full check, guidance checks, documentation build and tarball consumer checks; use before submitting |
 
 Doctor does not install, download, configure or write files. Export-file presence does not prove build freshness or browser behavior. Its temporary-directory permission check does not prove free space. Missing native image support produces a warning; image tasks still need actual verification. A non-recommended Node major warns; an unsupported Node version, mismatched pnpm or missing required fixtures/build output fails.
@@ -54,6 +56,8 @@ Doctor does not install, download, configure or write files. Export-file presenc
 PR quality jobs run `check` on all three Node majors. Documentation runs guidance checks and builds on the recommended Node; consumer jobs run `pack:check` on Linux/Windows with that Node major. Documentation and consumer jobs do not download fixtures. Together these three job types correspond to local `check:ci`; `check:fast` and `check` do not install tarballs. Remote URLs, heading anchors, translation meaning and protocol accuracy still require review.
 
 Consumer checks install dependencies over the network, remove their temporary directory on success and preserve failures; `--keep` preserves successful runs too. Release uses `pnpm pack:check --artifacts .release` to check the same packed files. See [Runnable Examples and Consumer Verification](./examples.md) for entrypoints, examples and limits.
+
+Agent evaluations share that tarball installation. Deterministic host checks gate consumer verification; model success rates are manual observations only. See [Real Agent Task Evaluations](./agent-evaluations.md) for tasks, isolation, Windows executable requirements and reproduction.
 
 ## Reference evidence
 
