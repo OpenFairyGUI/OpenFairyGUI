@@ -173,6 +173,13 @@ export async function runtimeSmoke() {
 	const reopened = await runtime.openSession({ projectPath });
 	assert(reopened.ok, 'Example must release its session lock');
 	try {
+		const component = beforeProject.packages[0].resources.find((entry) => entry.kind === 'component');
+		const queried = runtime.queryEntity({ sessionId: reopened.data.sessionId, target: {
+			kind: 'displayNode', selector: { packageId: beforeProject.packages[0].id, componentResourceId: component.id, displayNodeId: target.id },
+		} });
+		assert(queried.ok && queried.data.entity.kind === 'displayNode');
+		assert.equal(queried.data.revision, reopened.data.revision);
+		assert.deepEqual(queried.data.entity.properties, target);
 		const stale = await runtime.applyTransaction({ sessionId: reopened.data.sessionId, expectedRevision: 99, operations: [] });
 		assert.equal(stale.ok, false); assert.equal(stale.error.code, 'stale_write');
 		assert.deepEqual(snapshot(projectRoot), afterFiles);

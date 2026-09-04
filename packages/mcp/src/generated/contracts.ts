@@ -4,7 +4,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 	"schemaVersion": 1,
 	"versions": {
 		"BACKEND_CONTRACT_VERSION": "1.1.0-p2",
-		"BACKEND_CAPABILITY_SCHEMA_VERSION": 3
+		"BACKEND_CAPABILITY_SCHEMA_VERSION": 4
 	},
 	"operations": {
 		"updateProjectSettings": {
@@ -351,6 +351,54 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"anyOf": [
 							{
 								"$ref": "#/$defs/BackendResult_7af844ebf4"
+							},
+							{
+								"$ref": "#/$defs/McpUnhandledFailure_fcecd3763a"
+							}
+						]
+					}
+				},
+				"required": [
+					"backendResult"
+				],
+				"additionalProperties": false
+			},
+			"bytePaths": []
+		},
+		"queryEntity": {
+			"name": "openfairygui_backend_query_entity",
+			"backendMethod": "queryEntity",
+			"title": "Query Entity Properties",
+			"description": "Read a revision-bound resource, component-property, or display-node snapshot using formal selectors. No source bytes; fixed projection with explicit response limits.",
+			"annotations": {
+				"readOnlyHint": true,
+				"idempotentHint": true,
+				"openWorldHint": false
+			},
+			"input": {
+				"type": "object",
+				"properties": {
+					"sessionId": {
+						"type": "string",
+						"minLength": 1
+					},
+					"target": {
+						"$ref": "#/$defs/BackendEntityTarget_b5c1eb0e3d"
+					}
+				},
+				"required": [
+					"sessionId",
+					"target"
+				],
+				"additionalProperties": false
+			},
+			"output": {
+				"type": "object",
+				"properties": {
+					"backendResult": {
+						"anyOf": [
+							{
+								"$ref": "#/$defs/BackendResult_31436e4e14"
 							},
 							{
 								"$ref": "#/$defs/McpUnhandledFailure_fcecd3763a"
@@ -10233,7 +10281,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
-					"const": 3
+					"const": 4
 				}
 			},
 			"required": [
@@ -10370,7 +10418,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
-					"const": 3
+					"const": 4
 				},
 				"transactionKernelOwner": {
 					"type": "string",
@@ -10385,10 +10433,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": "@openfairygui/backend"
 				},
 				"methods": {
-					"$ref": "#/$defs/Shape_b2b85a4c31"
+					"$ref": "#/$defs/Shape_68a1e16c9d"
 				},
 				"read": {
-					"$ref": "#/$defs/__type_4a411eedd9"
+					"$ref": "#/$defs/__type_71336d3d3a"
 				},
 				"authoring": {
 					"$ref": "#/$defs/__type_29714a4b45"
@@ -10422,7 +10470,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"Shape_b2b85a4c31": {
+		"Shape_68a1e16c9d": {
 			"type": "array",
 			"prefixItems": [
 				{
@@ -10444,6 +10492,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				{
 					"type": "string",
 					"const": "getProjectOutline"
+				},
+				{
+					"type": "string",
+					"const": "queryEntity"
 				},
 				{
 					"type": "string",
@@ -10490,11 +10542,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": "refreshCache"
 				}
 			],
-			"minItems": 16,
-			"maxItems": 16,
+			"minItems": 17,
+			"maxItems": 17,
 			"items": false
 		},
-		"__type_4a411eedd9": {
+		"__type_71336d3d3a": {
 			"type": "object",
 			"properties": {
 				"capabilitySnapshot": {
@@ -10509,6 +10561,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean",
 					"const": true
 				},
+				"entityQuery": {
+					"$ref": "#/$defs/__type_7a99512ce7"
+				},
 				"projectValidation": {
 					"type": "boolean",
 					"const": true
@@ -10518,7 +10573,53 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"capabilitySnapshot",
 				"sessionSnapshot",
 				"projectOutline",
+				"entityQuery",
 				"projectValidation"
+			],
+			"additionalProperties": false
+		},
+		"__type_7a99512ce7": {
+			"type": "object",
+			"properties": {
+				"projection": {
+					"type": "string",
+					"const": "properties"
+				},
+				"sourceBytes": {
+					"type": "boolean",
+					"const": false
+				},
+				"limits": {
+					"$ref": "#/$defs/__object_b1d67b008f"
+				}
+			},
+			"required": [
+				"projection",
+				"sourceBytes",
+				"limits"
+			],
+			"additionalProperties": false
+		},
+		"__object_b1d67b008f": {
+			"type": "object",
+			"properties": {
+				"maxBytes": {
+					"type": "number",
+					"const": 262144
+				},
+				"maxDepth": {
+					"type": "number",
+					"const": 32
+				},
+				"maxNodes": {
+					"type": "number",
+					"const": 100000
+				}
+			},
+			"required": [
+				"maxBytes",
+				"maxDepth",
+				"maxNodes"
 			],
 			"additionalProperties": false
 		},
@@ -11812,6 +11913,547 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			},
 			"required": [
 				"name"
+			],
+			"additionalProperties": false
+		},
+		"BackendEntityTarget_b5c1eb0e3d": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_d457e5aa01"
+				},
+				{
+					"$ref": "#/$defs/__type_1b4cb0c5b9"
+				},
+				{
+					"$ref": "#/$defs/__type_b1c1f2274b"
+				}
+			]
+		},
+		"__type_d457e5aa01": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "resource"
+				},
+				"selector": {
+					"type": "object",
+					"properties": {
+						"packageId": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 256
+						},
+						"resourceId": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 256
+						}
+					},
+					"required": [
+						"packageId",
+						"resourceId"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"kind",
+				"selector"
+			],
+			"additionalProperties": false
+		},
+		"__type_1b4cb0c5b9": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "component"
+				},
+				"selector": {
+					"type": "object",
+					"properties": {
+						"packageId": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 256
+						},
+						"componentResourceId": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 256
+						}
+					},
+					"required": [
+						"packageId",
+						"componentResourceId"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"kind",
+				"selector"
+			],
+			"additionalProperties": false
+		},
+		"__type_b1c1f2274b": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "displayNode"
+				},
+				"selector": {
+					"type": "object",
+					"properties": {
+						"displayNodeId": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 256
+						},
+						"packageId": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 256
+						},
+						"componentResourceId": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 256
+						}
+					},
+					"required": [
+						"displayNodeId",
+						"packageId",
+						"componentResourceId"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"kind",
+				"selector"
+			],
+			"additionalProperties": false
+		},
+		"BackendResult_31436e4e14": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/BackendSuccess_4adc42f37a"
+				},
+				{
+					"$ref": "#/$defs/BackendFailure_c6f2a9c77b"
+				}
+			]
+		},
+		"BackendSuccess_4adc42f37a": {
+			"type": "object",
+			"properties": {
+				"ok": {
+					"type": "boolean",
+					"const": true
+				},
+				"meta": {
+					"$ref": "#/$defs/BackendResponseMeta_bbbdb18c02"
+				},
+				"data": {
+					"$ref": "#/$defs/BackendEntitySnapshot_93f1b07c1e"
+				}
+			},
+			"required": [
+				"ok",
+				"meta",
+				"data"
+			],
+			"additionalProperties": false
+		},
+		"BackendEntitySnapshot_93f1b07c1e": {
+			"type": "object",
+			"properties": {
+				"sessionId": {
+					"type": "string"
+				},
+				"revision": {
+					"type": "number"
+				},
+				"target": {
+					"$ref": "#/$defs/BackendEntityTarget_b5c1eb0e3d"
+				},
+				"entity": {
+					"$ref": "#/$defs/Shape_df33de394d"
+				}
+			},
+			"required": [
+				"sessionId",
+				"revision",
+				"target",
+				"entity"
+			],
+			"additionalProperties": false
+		},
+		"Shape_df33de394d": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_a07c5ad5c1"
+				},
+				{
+					"$ref": "#/$defs/__type_ec21f8f35f"
+				},
+				{
+					"$ref": "#/$defs/__type_85a3319ed2"
+				}
+			]
+		},
+		"__type_a07c5ad5c1": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "resource"
+				},
+				"properties": {
+					"$ref": "#/$defs/BackendResourceSnapshot_5415398554"
+				}
+			},
+			"required": [
+				"kind",
+				"properties"
+			],
+			"additionalProperties": false
+		},
+		"BackendResourceSnapshot_5415398554": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/ResourceQueryFields_f6bf29abb3"
+				},
+				{
+					"$ref": "#/$defs/ResourceQueryFields_7f224beacc"
+				},
+				{
+					"$ref": "#/$defs/ResourceQueryFields_d6d58556a9"
+				},
+				{
+					"$ref": "#/$defs/ResourceQueryFields_fd0a9d9aa7"
+				}
+			]
+		},
+		"ResourceQueryFields_f6bf29abb3": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"image": {
+					"$ref": "#/$defs/UamImageResourceProperties_cfb7584659"
+				},
+				"path": {
+					"type": "string"
+				},
+				"branch": {
+					"type": "string"
+				},
+				"exported": {
+					"type": "boolean"
+				},
+				"kind": {
+					"type": "string",
+					"const": "image"
+				},
+				"favorite": {
+					"type": "boolean"
+				},
+				"branchItemIds": {
+					"$ref": "#/$defs/Array_5444db1618"
+				},
+				"fileName": {
+					"type": "string"
+				},
+				"dimensions": {
+					"$ref": "#/$defs/Shape_348b454846"
+				}
+			},
+			"required": [
+				"name",
+				"id",
+				"image",
+				"path",
+				"branch",
+				"exported",
+				"kind",
+				"favorite",
+				"branchItemIds"
+			],
+			"additionalProperties": false
+		},
+		"ResourceQueryFields_7f224beacc": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"path": {
+					"type": "string"
+				},
+				"branch": {
+					"type": "string"
+				},
+				"exported": {
+					"type": "boolean"
+				},
+				"movieClip": {
+					"$ref": "#/$defs/UamMovieClipResourceProperties_7891e3deb2"
+				},
+				"kind": {
+					"type": "string",
+					"const": "movieClip"
+				},
+				"favorite": {
+					"type": "boolean"
+				},
+				"branchItemIds": {
+					"$ref": "#/$defs/Array_5444db1618"
+				},
+				"fileName": {
+					"type": "string"
+				},
+				"dimensions": {
+					"$ref": "#/$defs/UamDimensions_78dd3aa7d8"
+				}
+			},
+			"required": [
+				"name",
+				"id",
+				"path",
+				"branch",
+				"exported",
+				"movieClip",
+				"kind",
+				"favorite",
+				"branchItemIds",
+				"dimensions"
+			],
+			"additionalProperties": false
+		},
+		"ResourceQueryFields_d6d58556a9": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"file": {
+					"type": "string"
+				},
+				"path": {
+					"type": "string"
+				},
+				"branch": {
+					"type": "string"
+				},
+				"exported": {
+					"type": "boolean"
+				},
+				"kind": {
+					"enum": [
+						"font",
+						"sound",
+						"misc",
+						"swf",
+						"spine",
+						"dragonBones"
+					]
+				},
+				"favorite": {
+					"type": "boolean"
+				},
+				"branchItemIds": {
+					"$ref": "#/$defs/Array_5444db1618"
+				},
+				"fileName": {
+					"type": "string"
+				},
+				"dimensions": {
+					"$ref": "#/$defs/Shape_348b454846"
+				}
+			},
+			"required": [
+				"name",
+				"id",
+				"path",
+				"branch",
+				"exported",
+				"kind",
+				"favorite",
+				"branchItemIds"
+			],
+			"additionalProperties": false
+		},
+		"ResourceQueryFields_fd0a9d9aa7": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"path": {
+					"type": "string"
+				},
+				"branch": {
+					"type": "string"
+				},
+				"exported": {
+					"type": "boolean"
+				},
+				"kind": {
+					"type": "string",
+					"const": "component"
+				},
+				"favorite": {
+					"type": "boolean"
+				},
+				"branchItemIds": {
+					"$ref": "#/$defs/Array_5444db1618"
+				}
+			},
+			"required": [
+				"name",
+				"id",
+				"path",
+				"branch",
+				"exported",
+				"kind",
+				"favorite",
+				"branchItemIds"
+			],
+			"additionalProperties": false
+		},
+		"__type_ec21f8f35f": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "component"
+				},
+				"properties": {
+					"$ref": "#/$defs/BackendComponentSnapshot_cbd012fc2d"
+				}
+			},
+			"required": [
+				"kind",
+				"properties"
+			],
+			"additionalProperties": false
+		},
+		"BackendComponentSnapshot_cbd012fc2d": {
+			"type": "object",
+			"properties": {
+				"size": {
+					"$ref": "#/$defs/UamSize_fcba86f12a"
+				},
+				"customData": {
+					"type": "string"
+				},
+				"properties": {
+					"$ref": "#/$defs/UamComponentProperties_d7c39dde47"
+				}
+			},
+			"required": [
+				"size",
+				"customData",
+				"properties"
+			],
+			"additionalProperties": false
+		},
+		"__type_85a3319ed2": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "displayNode"
+				},
+				"properties": {
+					"$ref": "#/$defs/UamDisplayNode_0f29e80218"
+				}
+			},
+			"required": [
+				"kind",
+				"properties"
+			],
+			"additionalProperties": false
+		},
+		"BackendFailure_c6f2a9c77b": {
+			"type": "object",
+			"properties": {
+				"ok": {
+					"type": "boolean",
+					"const": false
+				},
+				"meta": {
+					"$ref": "#/$defs/BackendResponseMeta_bbbdb18c02"
+				},
+				"error": {
+					"$ref": "#/$defs/Shape_e4df85a6db"
+				},
+				"session": {
+					"$ref": "#/$defs/BackendSessionSnapshot_e59c685fc8"
+				}
+			},
+			"required": [
+				"ok",
+				"meta",
+				"error"
+			],
+			"additionalProperties": false
+		},
+		"Shape_e4df85a6db": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/SessionNotFoundError_878fae4543"
+				},
+				{
+					"$ref": "#/$defs/EntityQueryError_5b50efde28"
+				}
+			]
+		},
+		"EntityQueryError_5b50efde28": {
+			"type": "object",
+			"properties": {
+				"code": {
+					"type": "string",
+					"const": "entity_query_failed"
+				},
+				"message": {
+					"type": "string"
+				},
+				"sessionId": {
+					"type": "string"
+				},
+				"reason": {
+					"enum": [
+						"invalid_query",
+						"not_found",
+						"ambiguous",
+						"response_budget_exceeded",
+						"non_json_value"
+					]
+				}
+			},
+			"required": [
+				"code",
+				"message",
+				"sessionId",
+				"reason"
 			],
 			"additionalProperties": false
 		},
@@ -13425,6 +14067,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/SessionNotFoundError_878fae4543"
 				},
 				{
+					"$ref": "#/$defs/EntityQueryError_5b50efde28"
+				},
+				{
 					"$ref": "#/$defs/SessionIdConflictError_e0a264826e"
 				},
 				{
@@ -13837,5 +14482,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			]
 		}
 	},
-	"digest": "6bdbfc2f3253843c8f27531b06810727532f7232fc3c1ab82bc489fd72d7cd83"
+	"digest": "6311a75d017f4e0628265815627b83ea4d5852a1cb1cdc5ded32a4e1b6a8a1fe"
 };

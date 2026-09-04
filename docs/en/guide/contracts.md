@@ -10,6 +10,32 @@ MCP `resources/list` exposes `openfairygui://contracts/operations`, listing oper
 
 Each tool in `tools/list` has input/output schemas derived from its Backend method instead of a shared loose result. The tool's `openfairygui/contractDigest` metadata, operation catalog, and table digest identify the same generated snapshot. Parameter or annotation changes fail checks if the snapshot or bilingual tables are stale.
 
+## Query current entities
+
+`queryEntity` / `openfairygui_backend_query_entity` uses the existing read service and returns `sessionId`, the actual `revision`, `target`, and `entity`. For example:
+
+```json
+{
+  "sessionId": "current session ID",
+  "target": {
+    "kind": "displayNode",
+    "selector": { "packageId": "pkg001", "componentResourceId": "cmp001", "displayNodeId": "n1" }
+  }
+}
+```
+
+The initial projection is fixed, without arbitrary field expressions:
+
+| target.kind | Formal selector | entity.properties |
+|---|---|---|
+| `resource` | `packageId`, `resourceId` | Identity, name, path, export/favorite/branch fields, plus existing filenames, dimensions and image/movieClip properties; no source bytes, sourcePath, arbitrary metadata or component contents |
+| `component` | `packageId`, `componentResourceId` | Component `size`, `properties`, `customData`; excludes displayList, controllers and transitions |
+| `displayNode` | `packageId`, `componentResourceId`, `displayNodeId` | Formal UAM node properties, including modeled references, relations and gears |
+
+Queries leave the project, revision, dirty state, cache and business events unchanged. Results are deeply detached from the session. Selectors use exact IDs, never fuzzy names. Invalid structure, missing entities and non-unique IDs return `entity_query_failed` with `reason` set to `invalid_query`, `not_found` or `ambiguous`; closed/missing sessions return `session_not_found`.
+
+Compact JSON `data` is limited to 262144 UTF-8 bytes, traversal depth 32 and 100000 nodes, advertised under `read.entityQuery.limits`. Properties are never truncated: excess returns `response_budget_exceeded`, and non-JSON values return `non_json_value`, as `entity_query_failed.reason`. Checks run before cloning; MCP envelopes and text copies are outside this data budget. Capability schema version is 4; the additive query leaves the transaction contract version unchanged.
+
 ## Transport and semantic boundaries
 
 - Core binary values remain `Uint8Array`. MCP represents declared binary fields as integer arrays (0–255) and explicitly restores them through generated field paths. Replacement operations, resource/package snapshots, and imported projects share this conversion. A same-named `sourceBytes` field in arbitrary JSON metadata is not rewritten.
@@ -24,7 +50,7 @@ Each tool in `tools/list` has input/output schemas derived from its Backend meth
 The tables summarize top-level parameters only; read schemas for nested fields and concrete results. SHA-256 identifies generated contract content, not a package version.
 
 <!-- contracts:start -->
-SHA-256: `6bdbfc2f3253843c8f27531b06810727532f7232fc3c1ab82bc489fd72d7cd83`
+SHA-256: `6311a75d017f4e0628265815627b83ea4d5852a1cb1cdc5ded32a4e1b6a8a1fe`
 
 | Operation | Parameters (`?` = optional) |
 |---|---|
@@ -77,6 +103,7 @@ SHA-256: `6bdbfc2f3253843c8f27531b06810727532f7232fc3c1ab82bc489fd72d7cd83`
 | `openProjectSession` | `openfairygui_backend_open_project_session` | `project`, `sessionId?`, `canonicalProjectPath?`, `canonicalPathKey?` | `false` |
 | `getSession` | `openfairygui_backend_get_session` | `sessionId` | `true` |
 | `getProjectOutline` | `openfairygui_backend_get_project_outline` | `sessionId` | `true` |
+| `queryEntity` | `openfairygui_backend_query_entity` | `sessionId`, `target` | `true` |
 | `validateSession` | `openfairygui_backend_validate_session` | `sessionId` | `true` |
 | `applyTransaction` | `openfairygui_backend_apply_transaction` | `sessionId`, `expectedRevision`, `operations` | `false` |
 | `saveSession` | `openfairygui_backend_save_session` | `sessionId`, `expectedRevision?`, `targetPath?`, `force?`, `mode?` | `false` |

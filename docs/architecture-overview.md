@@ -4,6 +4,8 @@
 
 ## 结论
 
+Backend 的 `ReadService.queryEntity` 以正式 ID selector 返回资源、组件属性或显示节点的固定投影，绑定实际 session revision，排除源字节并检查响应预算；返回值不共享会话对象。MCP 的 `openfairygui_backend_query_entity` 仅映射该方法，能力与输入/输出由同一契约生成链更新。
+
 契约事实源保持在 Core 的 UAM 类型与事务入口、Backend 的公开方法签名；开发时用已有 TypeScript 编译器生成 MCP 结构 schema、操作目录及文档表格。MCP 只声明传输元数据、宿主字段排除与输入预算，通过同一映射分发和转换正式字节字段；结构校验之后仍由原事务内核执行语义检查。生成快照随 MCP 构建，Core 不增加 Zod 依赖，详见[契约事实源与操作查询](./guide/contracts.md)。
 
 当前仓库在 **Gate A** 阶段更适合理解成七段式结构：`输入源 -> 协议适配 -> 统一声明式 Authoring Model -> 内部图物化层 -> 工作流 / 后端运行时 -> MCP 薄适配 -> 输出物`。  
@@ -164,7 +166,7 @@ flowchart LR
 - `packages/backend/src/services/event-service.ts` 当前提供 per-runtime monotonic sequence 的 polling event snapshot，事件按 session 绑定并保留最近 1000 条；不提供 subscription 或 transport-specific cursor。
 - `packages/backend/src/services/job-service.ts` 当前只支持 `cache.refresh` in-memory job，提供 queued/running/completed/failed/cancelled 状态、active/terminal 查询、cooperative cancel，以及每 session 最近 100 个终态 job 保留。
 - `packages/backend/src/services/cache-service.ts` 当前提供 revision-bound derived read-only cache snapshot；cache 只作为运行时索引和摘要，不作为 source of truth。
-- `packages/mcp/src/*` 当前提供 **thin backend P2 MCP adapter**；它完整映射 backend 的 `getCapabilities / openSession / openProjectSession / getSession / getProjectOutline / validateSession / applyTransaction / saveSession / materializeSession / closeSession / getEvents / getJob / listJobs / cancelJob / getCacheSnapshot / refreshCache`。`openProjectSession` input schema 固定 UAM 顶层工程/包形状与数量预算，`applyTransaction` 使用按 `kind` 区分的 operation union，并限制 batch、source bytes、递归深度、节点数、字符串和对象 key；共享 output schema 固定成功/失败 backend envelope，不再以 `z.unknown()` 表达核心边界。默认 Node runtime 仅允许打开进程当前工作目录下的工程；stdio 可通过平台路径分隔符连接的 `OPENFAIRYGUI_ALLOWED_PROJECT_ROOTS` 显式配置多个 canonical allowed roots。
+- `packages/mcp/src/*` 当前提供 **thin backend P2 MCP adapter**；它完整映射 backend 的 `getCapabilities / openSession / openProjectSession / getSession / getProjectOutline / queryEntity / validateSession / applyTransaction / saveSession / materializeSession / closeSession / getEvents / getJob / listJobs / cancelJob / getCacheSnapshot / refreshCache`。`openProjectSession` input schema 固定 UAM 顶层工程/包形状与数量预算，`applyTransaction` 使用按 `kind` 区分的 operation union，并限制 batch、source bytes、递归深度、节点数、字符串和对象 key；各工具的精确 input/output schema 从 Core/Backend 正式类型生成，并保留成功/失败 backend envelope。默认 Node runtime 仅允许打开进程当前工作目录下的工程；stdio 可通过平台路径分隔符连接的 `OPENFAIRYGUI_ALLOWED_PROJECT_ROOTS` 显式配置多个 canonical allowed roots。
 - `packages/mcp/src/resource-definitions.ts` 当前只提供 identity-addressable read-only snapshots：capabilities、session、cache、job；`getEvents` 与 `listJobs` 仍保持 tool 形式，不引入 MCP URI query grammar。
 - `packages/mcp/src/prompt-definitions.ts` 当前只提供 guidance prompts，引导客户端使用既有 backend tools；prompts 不定义 transaction grammar、selector grammar 或具体 operation payload。
 - `@openfairygui/mcp` 不拥有 transaction grammar、selector grammar、path policy、job semantics、cache semantics 或 artifact publish/restore；MCP roots 只作为客户端上下文说明，路径安全仍由 backend path policy 决定。

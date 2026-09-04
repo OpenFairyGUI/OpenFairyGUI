@@ -10,6 +10,32 @@ MCP `resources/list` 提供 `openfairygui://contracts/operations`，列出正式
 
 `tools/list` 的每个工具使用对应 Backend 方法的输入/输出 schema，不再共享宽泛的结果定义。工具 `_meta` 中的 `openfairygui/contractDigest`、operation catalog 和下表摘要对应同一份生成快照。参数或注解变化后，未更新快照或双语表格会使检查失败。
 
+## 查询当前实体
+
+`queryEntity` / `openfairygui_backend_query_entity` 在现有只读服务中查询当前值，返回 `sessionId`、实际 `revision`、`target` 和 `entity`。例如：
+
+```json
+{
+  "sessionId": "当前会话 ID",
+  "target": {
+    "kind": "displayNode",
+    "selector": { "packageId": "pkg001", "componentResourceId": "cmp001", "displayNodeId": "n1" }
+  }
+}
+```
+
+首版只提供固定的属性投影，不接受任意字段表达式：
+
+| target.kind | 正式 selector | entity.properties |
+|---|---|---|
+| `resource` | `packageId`、`resourceId` | 资源身份、名称、路径、导出/收藏/分支，以及存在的文件名、尺寸、image/movieClip 属性；不含 source bytes、sourcePath、任意 metadata 或组件内容 |
+| `component` | `packageId`、`componentResourceId` | 组件 `size`、`properties`、`customData`；不展开 displayList、controllers、transitions |
+| `displayNode` | `packageId`、`componentResourceId`、`displayNodeId` | 正式 UAM 节点属性（含已建模的引用、relations、gears） |
+
+查询不改变工程、revision、dirty、缓存或业务事件，返回对象与会话深度隔离。selector 不猜测、不按名称模糊匹配：结构不正确、目标不存在或 ID 不唯一时返回 `entity_query_failed`，`reason` 分别为 `invalid_query`、`not_found`、`ambiguous`；关闭或失效会话返回 `session_not_found`。
+
+`data` 的紧凑 JSON UTF-8 大小不得超过 262144 字节，遍历深度不得超过 32，节点数不得超过 100000；边界已在 `read.entityQuery.limits` 中声明。不截断属性：超限返回 `response_budget_exceeded`，非 JSON 值返回 `non_json_value`，均位于 `entity_query_failed.reason`。预算在克隆前检查，MCP envelope 和文本副本不计入此数据预算。能力 schema 版本为 4；新增查询不改变原有事务契约版本。
+
 ## 传输与语义边界
 
 - Core 中的二进制仍是 `Uint8Array`。MCP 的正式二进制字段使用整数数组（0–255），通过生成的字段路径显式还原；`replaceResourceBytes`、资源/包快照和导入工程使用同一转换。扩展 JSON 中同名的 `sourceBytes` 不会被改写。
@@ -24,7 +50,7 @@ MCP `resources/list` 提供 `openfairygui://contracts/operations`，列出正式
 下表只摘要顶层参数；嵌套字段和具体结果请读取对应 schema。SHA-256 变化表示生成契约发生变化，不等同于包版本号。
 
 <!-- contracts:start -->
-SHA-256: `6bdbfc2f3253843c8f27531b06810727532f7232fc3c1ab82bc489fd72d7cd83`
+SHA-256: `6311a75d017f4e0628265815627b83ea4d5852a1cb1cdc5ded32a4e1b6a8a1fe`
 
 | 操作 | 参数（`?` 表示可选） |
 |---|---|
@@ -77,6 +103,7 @@ SHA-256: `6bdbfc2f3253843c8f27531b06810727532f7232fc3c1ab82bc489fd72d7cd83`
 | `openProjectSession` | `openfairygui_backend_open_project_session` | `project`, `sessionId?`, `canonicalProjectPath?`, `canonicalPathKey?` | `false` |
 | `getSession` | `openfairygui_backend_get_session` | `sessionId` | `true` |
 | `getProjectOutline` | `openfairygui_backend_get_project_outline` | `sessionId` | `true` |
+| `queryEntity` | `openfairygui_backend_query_entity` | `sessionId`, `target` | `true` |
 | `validateSession` | `openfairygui_backend_validate_session` | `sessionId` | `true` |
 | `applyTransaction` | `openfairygui_backend_apply_transaction` | `sessionId`, `expectedRevision`, `operations` | `false` |
 | `saveSession` | `openfairygui_backend_save_session` | `sessionId`, `expectedRevision?`, `targetPath?`, `force?`, `mode?` | `false` |

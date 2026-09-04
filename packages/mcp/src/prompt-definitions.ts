@@ -56,6 +56,7 @@ export const OPENFAIRYGUI_BACKEND_PROMPT_DEFINITIONS = [
 		description: 'Guide a client through backend-owned revision checks without inventing operation grammar.',
 		text: [
 			'Use openfairygui_backend_get_session to read the current revision before mutation.',
+			'Use openfairygui_backend_get_project_outline for identities, then openfairygui_backend_query_entity for current properties at the returned revision.',
 			'Read openfairygui://contracts/operations and openfairygui://contracts/operations/{kind} for the current operation names and exact JSON parameters.',
 			'Call openfairygui_backend_apply_transaction with sessionId, expectedRevision, and backend/UAM-owned operations.',
 			'If the backend returns a stale revision error, refresh the session snapshot and re-plan against the new revision.',

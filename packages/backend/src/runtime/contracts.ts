@@ -1,5 +1,14 @@
 import type {
 	UamDisplayNodeKind,
+	UamDisplayNode,
+	UamDisplayNodeSelector,
+	UamComponentModel,
+	UamComponentSelector,
+	UamResourceSelector,
+	UamImageResource,
+	UamMovieClipResource,
+	UamGenericAssetResource,
+	UamComponentResource,
 	UamProject,
 	UamResource,
 	UamTransactionOperation,
@@ -17,6 +26,39 @@ import type { BACKEND_METHODS } from './capabilities.js';
 import type { BackendRuntime } from '../runtime.js';
 
 export type BackendMethodName = keyof BackendRuntime;
+
+export const BACKEND_ENTITY_QUERY_LIMITS = { maxBytes: 262144, maxDepth: 32, maxNodes: 100000 } as const;
+/** Fixed resource projection. Binary content, source bookkeeping and arbitrary metadata are excluded. */
+export const BACKEND_RESOURCE_QUERY_FIELDS = [
+	'kind', 'id', 'name', 'path', 'exported', 'favorite', 'branch', 'branchItemIds',
+	'fileName', 'file', 'dimensions', 'image', 'movieClip',
+] as const;
+type ResourceQueryFields<T> = Pick<T, Extract<keyof T, typeof BACKEND_RESOURCE_QUERY_FIELDS[number]>>;
+export type BackendResourceSnapshot = ResourceQueryFields<UamImageResource> | ResourceQueryFields<UamMovieClipResource>
+	| ResourceQueryFields<UamGenericAssetResource> | ResourceQueryFields<UamComponentResource>;
+export type BackendComponentSnapshot = Pick<UamComponentModel, 'size' | 'properties' | 'customData'>;
+export type BackendEntityTarget =
+	| { kind: 'resource'; selector: UamResourceSelector }
+	| { kind: 'component'; selector: UamComponentSelector }
+	| { kind: 'displayNode'; selector: UamDisplayNodeSelector };
+export interface QueryEntityInput {
+	sessionId: string;
+	target: BackendEntityTarget;
+}
+export interface BackendEntitySnapshot {
+	sessionId: string;
+	revision: number;
+	target: BackendEntityTarget;
+	entity: { kind: 'resource'; properties: BackendResourceSnapshot }
+		| { kind: 'component'; properties: BackendComponentSnapshot }
+		| { kind: 'displayNode'; properties: UamDisplayNode };
+}
+export interface EntityQueryError {
+	code: 'entity_query_failed';
+	message: string;
+	sessionId: string;
+	reason: 'invalid_query' | 'not_found' | 'ambiguous' | 'response_budget_exceeded' | 'non_json_value';
+}
 
 /** An exclusive lock owned for the lifetime of one backend session. */
 export interface BackendSessionLock {
@@ -112,6 +154,7 @@ export interface BackendCapabilities {
 		capabilitySnapshot: true;
 		sessionSnapshot: true;
 		projectOutline: true;
+		entityQuery: { projection: 'properties'; sourceBytes: false; limits: typeof BACKEND_ENTITY_QUERY_LIMITS };
 		projectValidation: true;
 	};
 	authoring: {
@@ -496,6 +539,7 @@ export interface RefreshCacheInput {
 
 export type BackendError =
 	| SessionNotFoundError
+	| EntityQueryError
 	| SessionIdConflictError
 	| SessionStaleWriteError
 	| InProcessLockConflictError

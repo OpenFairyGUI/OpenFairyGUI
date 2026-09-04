@@ -34,6 +34,9 @@ import type {
 	GetEventsSnapshot,
 	GetJobInput,
 	GetProjectOutlineInput,
+	QueryEntityInput,
+	BackendEntitySnapshot,
+	EntityQueryError,
 	ValidateSessionInput,
 	InProcessLockConflictError,
 	ListJobsInput,
@@ -140,6 +143,10 @@ export class BackendRuntime {
 		input: GetProjectOutlineInput,
 	): BackendResult<BackendProjectOutline, SessionNotFoundError> {
 		return this.readService.getProjectOutline(input);
+	}
+
+	public queryEntity(input: QueryEntityInput): BackendResult<BackendEntitySnapshot, SessionNotFoundError | EntityQueryError> {
+		return this.readService.queryEntity(input);
 	}
 
 	public validateSession(

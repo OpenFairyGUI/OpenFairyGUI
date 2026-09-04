@@ -139,6 +139,9 @@ function boundInput(shape, definitions, operation = false) {
 		for (const name of ['sessionId', 'jobId', 'projectPath', 'canonicalProjectPath', 'canonicalPathKey', 'targetPath', 'reason']) constrain(shape, name, { minLength: 1 });
 		for (const name of ['expectedRevision', 'limit']) constrain(shape, name, { type: 'integer', minimum: 0 });
 		constrain(shape, 'operations', { minItems: 1, maxItems: 1000 });
+		if (shape.properties.target) {
+			for (const variant of dereference(shape.properties.target, definitions).anyOf ?? []) boundInput(dereference(variant, definitions), definitions, true);
+		}
 		if (shape.properties.project) {
 			const project = dereference(shape.properties.project, definitions);
 			constrain(project, 'projectId', identifier);
