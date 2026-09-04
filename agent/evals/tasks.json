@@ -16,6 +16,14 @@
     "prompt": "In Main/MainView, find the text node named title whose current text is Hello OpenFairyGUI. Change only its text to Ready to edit and its position to x=40, y=56, then save with revision checks. Other nodes have the same name; preserve them, all IDs, other properties and unrelated files."
   },
   {
+    "id": "edit-controller",
+    "prompt": "In Main/MainView, query the controller named state and rename only its page named Active to Ready, then save with revision checks. Preserve the page ID, page order, remarks, controller settings and actions, every gear/reference, and all unrelated data and files. Other components have a controller with the same name; do not modify them."
+  },
+  {
+    "id": "edit-transition",
+    "prompt": "In Main/MainView, query the transition named intro and change only the tween item labelled move-title: set duration to 18 and endValue to [120, 64], then save with revision checks. Preserve its target reference, all other item fields and items, transition settings, controller actions, gears and unrelated data/files. Other components have a transition with the same name; do not modify them."
+  },
+  {
     "id": "missing-source-bytes",
     "prompt": "Rename the binary resource Main/payload.bin to RenamedPayload.bin in the supplied live session and save if safe. The session contains unsaved host work: preserve it and keep the session open. If blocked, report the diagnostic code and what the host must supply; do not invent bytes, remove resources, or close/reopen/reset the session to bypass the problem."
   },

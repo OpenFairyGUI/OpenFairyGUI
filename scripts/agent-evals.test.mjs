@@ -93,6 +93,44 @@ test('safe-stop grading requires a real diagnostic, intact live work and untouch
 	}
 });
 
+test('complex editing oracles preserve page IDs, actions, item order, targets and gears, and require the real query', () => {
+	const fixture = structuredClone(before);
+	fixture.packages[0].id = 'pkgdemo1';
+	const component = fixture.packages[0].resources[0].component;
+	component.controllers = [{ name: 'state', pages: [{ id: '0', name: 'Idle', remark: 'Keep' }, { id: '1', name: 'Active', remark: 'Keep too' }], actions: [{ toPageIds: ['1'], transitionName: 'intro' }] }];
+	component.transitions = [{ name: 'intro', items: [{ label: 'keep', targetNodeId: 'title' }, { label: 'move-title', targetNodeId: 'title', duration: 12, endValue: ['96', '48'] }] }];
+	component.displayList[0].gears = [{ controllerName: 'state', visibleOnPageIds: ['1'] }];
+	fixture.packages[0].resources.push({ ...structuredClone(fixture.packages[0].resources[0]), id: 'cmpother' });
+	for (const taskId of ['edit-controller', 'edit-transition']) {
+		const expected = expectedProject(fixture, taskId);
+		const kind = taskId === 'edit-controller' ? 'controller' : 'transition';
+		const target = { kind, selector: { packageId: 'pkgdemo1', componentResourceId: 'cmpdemo1', [kind === 'controller' ? 'controllerName' : 'transitionName']: kind === 'controller' ? 'state' : 'intro' } };
+		const valid = { ...input(), taskId, expected, actual: structuredClone(expected) };
+		assert(!gradeEvaluation(valid).passed);
+		valid.trace.push(...call(3, 'query_entity', { target }, { ok: true, data: { target, entity: { kind } } }));
+		assert(gradeEvaluation(valid).passed);
+		const planned = structuredClone(fixture);
+		const model = planned.packages[0].resources[0].component;
+		if (kind === 'controller') model.controllers[0].pages[1].name = 'Ready';
+		else Object.assign(model.transitions[0].items[1], { duration: 18, endValue: ['120', '64'] });
+		assert.deepEqual(expected, planned);
+		for (const mutate of [
+			(model) => { model.controllers[0].pages[1].id = 'replaced'; },
+			(model) => { model.controllers[0].pages[0].remark = ''; },
+			(model) => { model.controllers[0].actions[0].toPageIds = []; },
+			(model) => { model.transitions[0].items.reverse(); },
+			(model) => { model.transitions[0].items[1].targetNodeId = ''; },
+			(model) => { model.displayList[0].gears = []; },
+		]) {
+			const actual = structuredClone(expected); mutate(actual.packages[0].resources[0].component);
+			assert(!gradeEvaluation({ ...valid, actual }).passed);
+		}
+		const wrongScope = structuredClone(valid);
+		wrongScope.trace.at(-1).message.result.structuredContent.backendResult.data.target.selector.componentResourceId = 'cmpother';
+		assert(!gradeEvaluation(wrongScope).passed);
+	}
+});
+
 test('observations count failures, docs, previews and exact resubmissions separately from success', () => {
 	const args = { expectedRevision: 0, operations: [{ kind: 'renameResource' }] };
 	const trace = [
@@ -131,7 +169,7 @@ test('manual model execution is explicit, bounded, tool-only and shell-free', ()
 	assert.throws(() => evaluationOptions({ runner: 'codex', codex: 'codex.cmd' }), /shell interpolation/);
 	assert.throws(() => evaluationOptions({ runner: 'reference', case: '../escape' }), /Unknown --case/);
 	assert.throws(() => evaluationOptions({ runner: 'reference', 'timeout-seconds': '0' }), /integer/);
-	assert.equal(evaluationOptions({ runner: 'reference' }).tasks.length, 6);
+	assert.equal(evaluationOptions({ runner: 'reference' }).tasks.length, 8);
 	const args = codexArguments({ cwd: '/isolated/agent', server: ['/isolated/host.mjs', '--serve', '/isolated/task.json'], schema: '/answer.json', output: '/final.json', instructions: '/instructions.txt', enabledTools: ['read'] });
 	for (const flag of ['--ignore-user-config', '--ephemeral', '--skip-git-repo-check']) assert(args.includes(flag));
 	assert(args.includes('project_doc_max_bytes=0'));

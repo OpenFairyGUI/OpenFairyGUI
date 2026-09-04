@@ -26,15 +26,21 @@ The MCP factory exposes a fixed Backend tool catalog. Discovery reuses existing 
 }
 ```
 
-The initial projection is fixed, without arbitrary field expressions:
+Projections are fixed, without arbitrary field expressions. Supported kinds are advertised in `read.entityQuery.kinds`:
 
 | target.kind | Formal selector | entity.properties |
 |---|---|---|
 | `resource` | `packageId`, `resourceId` | Identity, name, path, export/favorite/branch fields, plus existing filenames, dimensions and image/movieClip properties; no source bytes, sourcePath, arbitrary metadata or component contents |
 | `component` | `packageId`, `componentResourceId` | Component `size`, `properties`, `customData`; excludes displayList, controllers and transitions |
 | `displayNode` | `packageId`, `componentResourceId`, `displayNodeId` | Formal UAM node properties, including modeled references, relations and gears |
+| `controller` | `packageId`, `componentResourceId`, `controllerName` | Complete `UamControllerModel`, including selection, home-page settings, pages (IDs/names/remarks) and actions |
+| `transition` | `packageId`, `componentResourceId`, `transitionName` | Complete `UamTransitionModel`, including playback settings, fps and ordered items (target references, start/end values and more) |
 
-Queries leave the project, revision, dirty state, cache and business events unchanged. Results are deeply detached from the session. Selectors use exact IDs, never fuzzy names. Invalid structure, missing entities and non-unique IDs return `entity_query_failed` with `reason` set to `invalid_query`, `not_found` or `ambiguous`; closed/missing sessions return `session_not_found`.
+Queries leave the project, revision, dirty state, cache and business events unchanged. Results are deeply detached from the session. Controllers and transitions use exact, case-sensitive names scoped to the selected component, not invented IDs or fuzzy matches. Identical names in different components do not conflict. Invalid structure, missing entities and non-unique identities within the selected scope return `entity_query_failed` with `reason` set to `invalid_query`, `not_found` or `ambiguous`; closed/missing sessions return `session_not_found`.
+
+`updateController` and `updateTransition` accept complete snapshots, not partial patches. Copy queried `entity.properties` and change only requested fields; preserve page IDs/order/remarks, actions, item order and target references. Submit the original selector and queried revision. Updates preserve untouched page remarks and the transition's position in its component. After stale_write, query and replan the complete snapshot instead of blindly substituting a revision. A successful query does not prove references are valid; preview and validation remain separate. Gears already come with displayNode queries and need no separate tool.
+
+Transition item `startValue` / `endValue` retain Core's `unknown[]`; queries do not infer action types or coerce numbers. The current XML reader reads CSV values as string arrays: numeric `[120, 64]` saves and rereads as `["120", "64"]`. Preserve untouched representations and compare acceptance against the authoritative saved/reread result.
 
 Compact JSON `data` is limited to 262144 UTF-8 bytes, traversal depth 32 and 100000 nodes, advertised under `read.entityQuery.limits`. Properties are never truncated: excess returns `response_budget_exceeded`, and non-JSON values return `non_json_value`, as `entity_query_failed.reason`. Checks run before cloning; MCP envelopes and text copies are outside this data budget.
 
@@ -50,7 +56,7 @@ Recommended flow: discover IDs with the outline → queryEntity for current prop
 
 A preview reserves no revision and does not guarantee later apply/save or publication. Apply must check `expectedRevision` again; if edits intervened, query and re-plan instead of treating an old preview as an authorization token. Preview reuses the current transaction execution path without adding project saves, file permission/target checks or publishing checks. In-memory sessions without a filesystem can preview too.
 
-`authoring.preflightTransaction` advertises `mode: 'execute-and-discard'` and `reservesRevision: false`. Capability schema version 6 includes first-batch [diagnostic recovery guides](./diagnostics.md); the transaction contract version remains unchanged.
+`authoring.preflightTransaction` advertises `mode: 'execute-and-discard'` and `reservesRevision: false`. Capability schema version 7 advertises five entity-query kinds and includes first-batch [diagnostic recovery guides](./diagnostics.md); the transaction contract version remains unchanged.
 
 ## Transport and semantic boundaries
 
@@ -67,7 +73,7 @@ A preview reserves no revision and does not guarantee later apply/save or public
 The tables summarize top-level parameters only; read schemas for nested fields and concrete results. SHA-256 identifies generated contract content, not a package version.
 
 <!-- contracts:start -->
-SHA-256: `60e4b1f8bc14bc013134783d7d8fbeea22a50a7dfdd9858bced6f5aba1eee63d`
+SHA-256: `7c4a5d5d1a61620fd439322d376a3393df3ed0416a50b66976f845e5bd37c80e`
 
 | Operation | Parameters (`?` = optional) |
 |---|---|

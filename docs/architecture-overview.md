@@ -4,11 +4,13 @@
 
 ## 结论
 
-MCP 固定 Backend 工具目录的 `tools/list` 复用现有 Zod 把重复结构表示为自包含的 draft-07 `definitions`/`$ref`；实际调用的结构校验器、输入预算与 Backend 分发不变。六类安装包 Agent 评测在仓库工具层检查精确节点编辑、并发恢复和保留未保存工作的安全停止，不新增产品修复或权限绕过接口。
+MCP 固定 Backend 工具目录的 `tools/list` 复用现有 Zod 把重复结构表示为自包含的 draft-07 `definitions`/`$ref`；实际调用的结构校验器、输入预算与 Backend 分发不变。八类安装包 Agent 评测在仓库工具层检查精确节点/控制器/动画编辑、并发恢复和保留未保存工作的安全停止，不新增产品修复或权限绕过接口。
 
 Backend 在统一 response meta 与事件出口补充首批诊断的归属、文档 URI 和恢复建议，保留 Core 错误与校验报告正文。带类型的目录同时生成逐码文档，MCP 只读该目录，不执行修复或放宽 revision/路径/保存规则，见[诊断与恢复](./guide/diagnostics.md)。
 
-Backend 的 `ReadService.queryEntity` 以正式 ID selector 返回资源、组件属性或显示节点的固定投影，绑定实际 session revision，排除源字节并检查响应预算；返回值不共享会话对象。MCP 的 `openfairygui_backend_query_entity` 仅映射该方法，能力与输入/输出由同一契约生成链更新。
+Backend 的 `ReadService.queryEntity` 以 Core 正式 selector 返回资源、组件属性、显示节点、控制器（含 pages/actions）或动画（含 items）的固定投影。控制器/动画按 packageId + componentResourceId + 精确名称定位；查询绑定实际 session revision，排除源字节并检查响应预算，返回值不共享会话对象，缺失或歧义不猜测。MCP 的 `openfairygui_backend_query_entity` 仅映射该方法，能力与输入/输出由同一契约生成链更新。gears 继续随节点投影返回，不增加查询语言或独立服务。
+
+控制器/动画更新仍复用 Core 的完整快照事务：页面 ID、备注、actions 和 gears 引用按正式模型保留；动画替换保持原组件内顺序。查询后只修改授权字段，再预演、提交、保存和回读；查询成功本身不替代语义验证。
 
 `AuthoringService.preflightTransaction` 在现有会话队列中检查 revision，复制工程和源字节后复用 Functions/Core 的异步事务入口，执行后丢弃，不提交工程、推进 revision、变更缓存或发出业务事件。MCP 只映射此只读方法。后续 apply 仍重新检查 revision，保存继续走原有独立的存储与回滚边界。
 

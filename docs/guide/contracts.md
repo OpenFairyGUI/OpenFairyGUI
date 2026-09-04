@@ -26,15 +26,21 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 }
 ```
 
-首版只提供固定的属性投影，不接受任意字段表达式：
+只提供固定的属性投影，不接受任意字段表达式；支持的类型由 `read.entityQuery.kinds` 声明：
 
 | target.kind | 正式 selector | entity.properties |
 |---|---|---|
 | `resource` | `packageId`、`resourceId` | 资源身份、名称、路径、导出/收藏/分支，以及存在的文件名、尺寸、image/movieClip 属性；不含 source bytes、sourcePath、任意 metadata 或组件内容 |
 | `component` | `packageId`、`componentResourceId` | 组件 `size`、`properties`、`customData`；不展开 displayList、controllers、transitions |
 | `displayNode` | `packageId`、`componentResourceId`、`displayNodeId` | 正式 UAM 节点属性（含已建模的引用、relations、gears） |
+| `controller` | `packageId`、`componentResourceId`、`controllerName` | 完整 `UamControllerModel`，含当前选择、初始页设置、pages（ID/名称/备注）和 actions |
+| `transition` | `packageId`、`componentResourceId`、`transitionName` | 完整 `UamTransitionModel`，含播放设置、fps 和有序 items（目标引用、起止值等） |
 
-查询不改变工程、revision、dirty、缓存或业务事件，返回对象与会话深度隔离。selector 不猜测、不按名称模糊匹配：结构不正确、目标不存在或 ID 不唯一时返回 `entity_query_failed`，`reason` 分别为 `invalid_query`、`not_found`、`ambiguous`；关闭或失效会话返回 `session_not_found`。
+查询不改变工程、revision、dirty、缓存或业务事件，返回对象与会话深度隔离。selector 不猜测、不按名称模糊匹配：控制器和动画使用组件范围内区分大小写的精确名称，不虚构 ID；不同组件中的同名对象不冲突。结构不正确、目标不存在或指定范围内身份不唯一时返回 `entity_query_failed`，`reason` 分别为 `invalid_query`、`not_found`、`ambiguous`；关闭或失效会话返回 `session_not_found`。
+
+`updateController` 和 `updateTransition` 接收完整快照，而非局部 patch。复制查询的 `entity.properties`，仅修改请求字段；保留页面 ID、顺序、备注、actions、动画 items 顺序及目标引用，使用原 selector 和查询 revision 提交。事务更新保留未修改页面备注及动画在组件内的顺序。出现 stale_write 后重新查询、重新规划完整快照，不盲目替换 revision。读取成功不代表引用有效；预演与正式校验仍独立执行。gears 已随 displayNode 返回，不需要独立查询工具。
+
+动画 item 的 `startValue` / `endValue` 沿用 Core 的 `unknown[]`，查询不会猜测动作类型或强制数值化。当前 XML 读取器将 CSV 值读为字符串数组；例如数值 `[120, 64]` 写入后回读为 `["120", "64"]`。修改时保留未授权字段的原始表示，验收按正式保存回读结果比较。
 
 `data` 的紧凑 JSON UTF-8 大小不得超过 262144 字节，遍历深度不得超过 32，节点数不得超过 100000；边界已在 `read.entityQuery.limits` 中声明。不截断属性：超限返回 `response_budget_exceeded`，非 JSON 值返回 `non_json_value`，均位于 `entity_query_failed.reason`。预算在克隆前检查，MCP envelope 和文本副本不计入此数据预算。
 
@@ -50,7 +56,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 
 预演不预留 revision，不证明后续 apply/save 或发布一定成功。正式 apply 必须再次提交 `expectedRevision`；期间若有编辑，应重新查询并规划，不能把旧预演当作授权凭证。预演复用当前事务执行路径，不额外执行工程保存、文件权限/目标校验或发布检查；缺少文件系统的内存会话也可以预演。
 
-能力通过 `authoring.preflightTransaction` 声明为 `mode: 'execute-and-discard'`、`reservesRevision: false`。当前能力 schema 版本为 6，包含首批[诊断恢复指引](./diagnostics.md)；原有事务契约版本不变。
+能力通过 `authoring.preflightTransaction` 声明为 `mode: 'execute-and-discard'`、`reservesRevision: false`。当前能力 schema 版本为 7，声明五类实体查询，并包含首批[诊断恢复指引](./diagnostics.md)；原有事务契约版本不变。
 
 ## 传输与语义边界
 
@@ -67,7 +73,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 下表只摘要顶层参数；嵌套字段和具体结果请读取对应 schema。SHA-256 变化表示生成契约发生变化，不等同于包版本号。
 
 <!-- contracts:start -->
-SHA-256: `60e4b1f8bc14bc013134783d7d8fbeea22a50a7dfdd9858bced6f5aba1eee63d`
+SHA-256: `7c4a5d5d1a61620fd439322d376a3393df3ed0416a50b66976f845e5bd37c80e`
 
 | 操作 | 参数（`?` 表示可选） |
 |---|---|

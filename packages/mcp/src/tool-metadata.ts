@@ -67,7 +67,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_METADATA = [
 		name: 'openfairygui_backend_query_entity',
 		backendMethod: 'queryEntity',
 		title: 'Query Entity Properties',
-		description: 'Read a revision-bound resource, component-property, or display-node snapshot using formal selectors. No source bytes; fixed projection with explicit response limits.',
+		description: 'Read a revision-bound resource, component-property, display-node, controller (including pages/actions), or transition (including items) snapshot using formal selectors. No source bytes; fixed projection with explicit response limits.',
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 	},
 	{

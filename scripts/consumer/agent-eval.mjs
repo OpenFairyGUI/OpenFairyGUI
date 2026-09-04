@@ -56,6 +56,8 @@ async function serve(config) {
 			const selector = { packageId: pkg.id, componentResourceId: resource.id };
 			query({ kind: 'component', selector });
 			for (const node of resource.component.displayList) query({ kind: 'displayNode', selector: { ...selector, displayNodeId: node.id } });
+			for (const controller of resource.component.controllers) query({ kind: 'controller', selector: { ...selector, controllerName: controller.name } });
+			for (const transition of resource.component.transitions) query({ kind: 'transition', selector: { ...selector, transitionName: transition.name } });
 		}
 		record({ type: 'session-state', phase, state: { session: session.data, outline, entities, validation: data(runtime.validateSession({ sessionId: config.sessionId })) } });
 	}
@@ -161,10 +163,24 @@ async function reference(config, configPath) {
 				}
 				assert.equal(matches.length, 1); target = matches[0];
 			}
+			if (config.task.id === 'edit-controller') target = { kind: 'controller', selector: { packageId: pkg.id, componentResourceId: resource.id, controllerName: 'state' } };
+			if (config.task.id === 'edit-transition') target = { kind: 'transition', selector: { packageId: pkg.id, componentResourceId: resource.id, transitionName: 'intro' } };
 			const current = data(await call('queryEntity', { sessionId, target }));
-			const operation = config.task.id === 'edit-display-node'
+			let operation = config.task.id === 'edit-display-node'
 				? { kind: 'setDisplayNodeProps', selector: target.selector, props: { text: 'Ready to edit', position: { x: 40, y: 56 } } }
 				: { kind: 'renameResource', selector: target.selector, newName: 'RenamedView' };
+			if (target.kind === 'controller') {
+				const controller = current.entity.properties;
+				const pages = controller.pages.filter((page) => page.name === 'Active');
+				assert.equal(pages.length, 1); pages[0].name = 'Ready';
+				operation = { kind: 'updateController', selector: target.selector, controller };
+			}
+			if (target.kind === 'transition') {
+				const transition = current.entity.properties;
+				const items = transition.items.filter((item) => item.label === 'move-title');
+				assert.equal(items.length, 1); Object.assign(items[0], { duration: 18, endValue: [120, 64] });
+				operation = { kind: 'updateTransition', selector: target.selector, transition };
+			}
 			const input = { sessionId, expectedRevision: current.revision, operations: [operation] };
 			data(await call('preflightTransaction', input));
 			let applied = await call('applyTransaction', input);
@@ -219,6 +235,27 @@ async function runCase(task, options) {
 	const cwd = path.join(directory, 'agent');
 	mkdirSync(workspace, { recursive: true }); mkdirSync(cwd);
 	const projectPath = realpathSync(await createDemoProject(workspace));
+	if (task.id === 'edit-controller' || task.id === 'edit-transition') {
+		const project = await readProjectAsUam(new NodeIO(), projectPath);
+		const resource = project.packages[0].resources[0];
+		const component = resource.component;
+		component.controllers = [{
+			name: 'state', selectedIndex: 0, autoRadioGroupDepth: true, alias: 'View state', exported: true,
+			homePageType: 'specific', homePage: '0', pages: [{ id: '0', name: 'Idle', remark: 'Keep idle' }, { id: '1', name: 'Active', remark: 'Keep active' }],
+			actions: [{ name: 'play-intro', actionType: 0, fromPageIds: ['0'], toPageIds: ['1'], transitionName: 'intro', playTimes: 2, delay: 0.25, stopOnExit: true, targetNodeId: '', controllerName: '', targetPage: '' }],
+		}];
+		const item = { name: 'move', time: 0, actionType: 0, targetNodeId: 'title', tween: true, duration: 12, startValue: [16, 18], endValue: [96, 48], easeType: 5, repeat: 0, yoyo: false, label: 'move-title', endLabel: 'done', path: '', customEasePath: '' };
+		component.transitions = [{ name: 'intro', autoPlay: false, autoPlayTimes: 2, autoPlayDelay: 0.25, options: 1, fps: 24,
+			items: [{ ...structuredClone(item), name: 'keep', time: 24, label: 'keep-title', endLabel: 'keep-done' }, item],
+		}];
+		component.displayList[0].gears = [{ kind: 'display', name: 'display', controllerName: 'state', visibleOnPageIds: ['0', '1'] }];
+		component.controllers.unshift({ ...structuredClone(component.controllers[0]), name: 'other-state' });
+		component.transitions.push({ ...structuredClone(component.transitions[0]), name: 'other-intro' });
+		const other = structuredClone(resource);
+		other.id = 'cmpother'; other.name = 'OtherView';
+		project.packages[0].resources.push(other); // Same controller/transition names and node IDs in another component.
+		await writeProjectFromUam(new NodeIO(), project, projectPath);
+	}
 	if (task.id === 'edit-display-node' || task.id === 'missing-source-bytes') {
 		const project = await readProjectAsUam(new NodeIO(), projectPath);
 		if (task.id === 'edit-display-node') {

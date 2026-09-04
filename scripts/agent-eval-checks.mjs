@@ -47,13 +47,16 @@ export function scopedFileSystem(base, workspace, record) {
 }
 
 export function expectedProject(before, taskId) {
-	assert(['inspect-validate', 'rename-save', 'stale-revision-recovery', 'edit-display-node', ...Object.keys(BLOCKERS)].includes(taskId), `No oracle for task: ${taskId}`);
+	assert(['inspect-validate', 'rename-save', 'stale-revision-recovery', 'edit-display-node', 'edit-controller', 'edit-transition', ...Object.keys(BLOCKERS)].includes(taskId), `No oracle for task: ${taskId}`);
 	const project = structuredClone(before);
 	const component = project.packages[0].resources[0];
 	assert.equal(component.kind, 'component');
 	if (['rename-save', 'stale-revision-recovery'].includes(taskId)) component.name = 'RenamedView';
 	if (taskId === 'stale-revision-recovery') component.component.displayList[0].text = CONCURRENT_TEXT;
 	if (taskId === 'edit-display-node') Object.assign(component.component.displayList.find((node) => node.id === 'title'), { text: 'Ready to edit', position: { x: 40, y: 56 } });
+	if (taskId === 'edit-controller') component.component.controllers.find((controller) => controller.name === 'state').pages.find((page) => page.id === '1').name = 'Ready';
+	// XML reads CSV transition values as strings; the oracle compares the saved/reread UAM, not the in-memory edit payload.
+	if (taskId === 'edit-transition') Object.assign(component.component.transitions.find((transition) => transition.name === 'intro').items.find((item) => item.label === 'move-title'), { duration: 18, endValue: ['120', '64'] });
 	return project;
 }
 
@@ -148,6 +151,14 @@ export function gradeEvaluation({ taskId, expected, actual, expectedFiles, actua
 	}
 	if (taskId === 'stale-revision-recovery') {
 		checks.conflictExercised = !!injection?.ok && injection.revision === injection.previousRevision + 1 && backend.some((call) => call.request.id === injection.requestId && call.result?.error?.code === 'stale_write');
+	}
+	if (taskId === 'edit-controller' || taskId === 'edit-transition') {
+		const kind = taskId === 'edit-controller' ? 'controller' : 'transition';
+		checks.observedEntityQuery = backend.some((call) => call.request.params?.name?.endsWith('_query_entity') && call.result?.ok
+			&& call.result.data.entity.kind === kind && call.result.data.target.kind === kind
+			&& call.result.data.target.selector.packageId === expected.packages[0].id
+			&& call.result.data.target.selector.componentResourceId === expected.packages[0].resources[0].id
+			&& (kind === 'controller' ? call.result.data.target.selector.controllerName === 'state' : call.result.data.target.selector.transitionName === 'intro'));
 	}
 	return { passed: Object.values(checks).every(Boolean), checks, unexpectedFiles: changes };
 }

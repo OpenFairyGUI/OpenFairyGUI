@@ -126,7 +126,9 @@ export class ReadService {
 		if (!target || typeof target !== 'object' || Array.isArray(target) || Object.keys(target).some((key) => key !== 'kind' && key !== 'selector')) return reject('invalid_query');
 		const keys = target.kind === 'resource' ? ['packageId', 'resourceId']
 			: target.kind === 'component' ? ['packageId', 'componentResourceId']
-			: target.kind === 'displayNode' ? ['packageId', 'componentResourceId', 'displayNodeId'] : [];
+			: target.kind === 'displayNode' ? ['packageId', 'componentResourceId', 'displayNodeId']
+			: target.kind === 'controller' ? ['packageId', 'componentResourceId', 'controllerName']
+			: target.kind === 'transition' ? ['packageId', 'componentResourceId', 'transitionName'] : [];
 		const selector = target.selector as unknown as Record<string, unknown>;
 		if (!keys.length || !selector || typeof selector !== 'object' || Array.isArray(selector)
 			|| Object.keys(selector).length !== keys.length
@@ -146,6 +148,14 @@ export class ReadService {
 			if (target.kind === 'component') {
 				const { size, properties, customData } = resource.component;
 				entity = { kind: 'component', properties: { size, properties, customData } };
+			} else if (target.kind === 'controller') {
+				const controllers = resource.component.controllers.filter((controller) => controller.name === selector.controllerName);
+				if (controllers.length !== 1) return reject(controllers.length ? 'ambiguous' : 'not_found');
+				entity = { kind: 'controller', properties: controllers[0] };
+			} else if (target.kind === 'transition') {
+				const transitions = resource.component.transitions.filter((transition) => transition.name === selector.transitionName);
+				if (transitions.length !== 1) return reject(transitions.length ? 'ambiguous' : 'not_found');
+				entity = { kind: 'transition', properties: transitions[0] };
 			} else {
 				const nodes = resource.component.displayList.filter((node) => node.id === selector.displayNodeId);
 				if (nodes.length !== 1) return reject(nodes.length ? 'ambiguous' : 'not_found');

@@ -4,6 +4,10 @@ import type {
 	UamDisplayNodeSelector,
 	UamComponentModel,
 	UamComponentSelector,
+	UamControllerModel,
+	UamControllerSelector,
+	UamTransitionModel,
+	UamTransitionSelector,
 	UamResourceSelector,
 	UamImageResource,
 	UamMovieClipResource,
@@ -40,7 +44,9 @@ export type BackendComponentSnapshot = Pick<UamComponentModel, 'size' | 'propert
 export type BackendEntityTarget =
 	| { kind: 'resource'; selector: UamResourceSelector }
 	| { kind: 'component'; selector: UamComponentSelector }
-	| { kind: 'displayNode'; selector: UamDisplayNodeSelector };
+	| { kind: 'displayNode'; selector: UamDisplayNodeSelector }
+	| { kind: 'controller'; selector: UamControllerSelector }
+	| { kind: 'transition'; selector: UamTransitionSelector };
 export interface QueryEntityInput {
 	sessionId: string;
 	target: BackendEntityTarget;
@@ -51,7 +57,9 @@ export interface BackendEntitySnapshot {
 	target: BackendEntityTarget;
 	entity: { kind: 'resource'; properties: BackendResourceSnapshot }
 		| { kind: 'component'; properties: BackendComponentSnapshot }
-		| { kind: 'displayNode'; properties: UamDisplayNode };
+		| { kind: 'displayNode'; properties: UamDisplayNode }
+		| { kind: 'controller'; properties: UamControllerModel }
+		| { kind: 'transition'; properties: UamTransitionModel };
 }
 export interface EntityQueryError {
 	code: 'entity_query_failed';
@@ -156,7 +164,7 @@ export interface BackendCapabilities {
 		capabilitySnapshot: true;
 		sessionSnapshot: true;
 		projectOutline: true;
-		entityQuery: { projection: 'properties'; sourceBytes: false; limits: typeof BACKEND_ENTITY_QUERY_LIMITS };
+		entityQuery: { kinds: readonly BackendEntityTarget['kind'][]; projection: 'properties'; sourceBytes: false; limits: typeof BACKEND_ENTITY_QUERY_LIMITS };
 		projectValidation: true;
 	};
 	authoring: {

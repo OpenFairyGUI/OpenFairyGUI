@@ -3,13 +3,38 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
 import test from 'ava';
-import { normalizeUamProject, validateTransactionSupport, type UamTransactionOperation } from '@openfairygui/core/uam';
+import { liftDocumentToUamProject, materializeUamProject, normalizeUamProject, validateTransactionSupport, type UamTransactionOperation } from '@openfairygui/core/uam';
 import { BackendRuntime, BACKEND_ENTITY_QUERY_LIMITS, type ApplySessionTransactionInput, type QueryEntityInput } from '../src/index.js';
 import type { BackendContext } from '../src/services/context.js';
 import type { AuthoringService } from '../src/services/authoring-service.js';
 import { createBackendFixtureProject, createBackendRuntime, createTempBackendProject } from './helpers.js';
 
 const nodeTarget = { kind: 'displayNode', selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' } } as const;
+const controllerTarget = { kind: 'controller', selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: 'state' } } as const;
+const transitionTarget = { kind: 'transition', selector: { packageId: 'pkg001', componentResourceId: 'cmp001', transitionName: 'intro' } } as const;
+
+function complexQueryProject() {
+	const project = liftDocumentToUamProject(materializeUamProject(createBackendFixtureProject()));
+	const resource = project.packages[0].resources[1];
+	assert(resource.kind === 'component');
+	resource.component.controllers = [{
+		name: 'state', selectedIndex: 0, autoRadioGroupDepth: true, alias: 'State', exported: true,
+		homePageType: 'specific', homePage: '0', pages: [{ id: '0', name: 'Idle', remark: 'Keep' }, { id: '1', name: 'Active', remark: 'Also keep' }],
+		actions: [{ name: 'play', actionType: 0, fromPageIds: ['0'], toPageIds: ['1'], transitionName: 'intro', playTimes: 2, delay: 0.25, stopOnExit: true, targetNodeId: '', controllerName: '', targetPage: '' }],
+	}];
+	resource.component.transitions = [{
+		name: 'intro', autoPlay: false, autoPlayTimes: 2, autoPlayDelay: 0.25, options: 1, fps: 24,
+		items: [{ name: 'move', time: 0, actionType: 0, targetNodeId: 'n1', tween: true, duration: 0.5, startValue: [16, 18], endValue: [96, 48], easeType: 5, repeat: 0, yoyo: false, label: 'move-title', endLabel: 'done', path: '', customEasePath: '' }],
+	}];
+	resource.component.displayList[1].gears = [{ kind: 'display', name: 'display', controllerName: 'state', visibleOnPageIds: ['0', '1'] }];
+	resource.component.transitions.push({ ...structuredClone(resource.component.transitions[0]), name: 'outro' });
+	const other = structuredClone(resource);
+	other.id = 'other-component'; other.name = 'OtherView';
+	other.component.controllers[0].alias = 'Other state';
+	other.component.transitions[0].autoPlayDelay = 9;
+	project.packages[0].resources.unshift(other);
+	return { project, component: resource.component };
+}
 
 function sessionState(runtime: BackendRuntime, sessionId: string) {
 	// Inspect authoritative state, not just the public outline, to catch hidden preview writes.
@@ -149,6 +174,116 @@ test('entity query applies UTF-8 response budgets and rejects non-JSON native pa
 		t.false('data' in result);
 		t.deepEqual(runtime.getSession({ sessionId }).ok, true);
 		t.deepEqual(opened.data.capabilities.read.entityQuery.limits, BACKEND_ENTITY_QUERY_LIMITS);
+		await runtime.closeSession({ sessionId });
+	}
+});
+
+test('complex queries retain complete pages/actions/items and gears, detach deeply, and follow clean/dirty revisions without side effects', async (t) => {
+	const { project, component } = complexQueryProject();
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({ project });
+	assert(opened.ok);
+	const sessionId = opened.data.sessionId;
+	t.deepEqual(opened.data.capabilities.read.entityQuery.kinds, ['resource', 'component', 'displayNode', 'controller', 'transition']);
+	try {
+		for (const revision of [0, 1]) {
+			const before = sessionState(runtime, sessionId);
+			const controller = runtime.queryEntity({ sessionId, target: controllerTarget });
+			const transition = runtime.queryEntity({ sessionId, target: transitionTarget });
+			const node = runtime.queryEntity({ sessionId, target: nodeTarget });
+			assert(controller.ok && controller.data.entity.kind === 'controller');
+			assert(transition.ok && transition.data.entity.kind === 'transition');
+			assert(node.ok && node.data.entity.kind === 'displayNode');
+			t.deepEqual(controller.data.entity.properties, component.controllers[0]);
+			t.deepEqual(transition.data.entity.properties, component.transitions[0]);
+			t.deepEqual(node.data.entity.properties.gears, component.displayList[1].gears);
+			for (const result of [controller, transition]) {
+				t.is(result.data.revision, revision); t.is(result.meta.revision, revision);
+				t.is(result.data.sessionId, sessionId);
+				result.data.target.selector.packageId = 'outside';
+			}
+			controller.data.entity.properties.pages[0].name = 'outside';
+			controller.data.entity.properties.actions[0].fromPageIds.push('outside');
+			transition.data.entity.properties.items[0].endValue[0] = { outside: true };
+			node.data.entity.properties.gears.length = 0;
+			t.deepEqual(sessionState(runtime, sessionId), before);
+			if (revision === 0) {
+				component.controllers[0].alias = 'Updated state';
+				component.transitions[0].autoPlayDelay = 0.5;
+				const expected = normalizeUamProject(project);
+				const result = await runtime.applyTransaction({ sessionId, expectedRevision: 0, operations: [
+					{ kind: 'updateController', selector: controllerTarget.selector, controller: component.controllers[0] },
+					{ kind: 'updateTransition', selector: transitionTarget.selector, transition: component.transitions[0] },
+				] });
+				assert(result.ok, JSON.stringify(result)); t.true(result.data.dirty);
+				t.deepEqual(sessionState(runtime, sessionId).project, expected);
+			}
+		}
+	} finally { await runtime.closeSession({ sessionId }); }
+});
+
+test('complex selectors are exact, component-scoped and reject missing or ambiguous identities without writes', async (t) => {
+	for (const target of [controllerTarget, transitionTarget]) {
+		const field = target.kind === 'controller' ? 'controllerName' : 'transitionName';
+		const { project, component } = complexQueryProject();
+		const runtime = new BackendRuntime();
+		const opened = runtime.openProjectSession({ project });
+		assert(opened.ok);
+		const sessionId = opened.data.sessionId;
+		const before = sessionState(runtime, sessionId);
+		for (const [selector, reason] of [
+			[{ packageId: 'pkg001', componentResourceId: 'cmp001' }, 'invalid_query'],
+			[{ ...target.selector, [field]: '' }, 'invalid_query'],
+			[{ ...target.selector, [field]: 'x'.repeat(257) }, 'invalid_query'],
+			[{ ...target.selector, [field]: 1 }, 'invalid_query'],
+			[{ ...target.selector, displayNodeId: 'n1' }, 'invalid_query'],
+			[{ ...target.selector, [field]: 'missing' }, 'not_found'],
+			[{ ...target.selector, [field]: target.kind === 'controller' ? 'State' : 'Intro' }, 'not_found'],
+			[{ ...target.selector, packageId: 'missing' }, 'not_found'],
+			[{ ...target.selector, componentResourceId: 'img001' }, 'not_found'],
+		] as const) {
+			const result = runtime.queryEntity({ sessionId, target: { kind: target.kind, selector } } as QueryEntityInput);
+			assert(!result.ok && result.error.code === 'entity_query_failed');
+			t.is(result.error.reason, reason); t.is(result.meta.revision, 0); t.false('data' in result);
+		}
+		t.deepEqual(sessionState(runtime, sessionId), before);
+		await runtime.closeSession({ sessionId });
+		const closed = runtime.queryEntity({ sessionId, target });
+		assert(!closed.ok); t.is(closed.error.code, 'session_not_found');
+		if (target.kind === 'controller') component.controllers.push(structuredClone(component.controllers[0]));
+		else component.transitions.push(structuredClone(component.transitions[0]));
+		const duplicate = runtime.openProjectSession({ project });
+		assert(duplicate.ok);
+		const duplicateId = duplicate.data.sessionId;
+		const duplicateBefore = sessionState(runtime, duplicateId);
+		const ambiguous = runtime.queryEntity({ sessionId: duplicateId, target });
+		assert(!ambiguous.ok && ambiguous.error.code === 'entity_query_failed');
+		t.is(ambiguous.error.reason, 'ambiguous');
+		t.deepEqual(sessionState(runtime, duplicateId), duplicateBefore);
+		await runtime.closeSession({ sessionId: duplicateId });
+	}
+});
+
+test('complex nested payloads share response limits and non-JSON refusal without truncation or mutation', async (t) => {
+	const deep = Array.from({ length: BACKEND_ENTITY_QUERY_LIMITS.maxDepth + 1 }).reduce((value: unknown) => [value], 0);
+	for (const target of [controllerTarget, transitionTarget]) for (const [value, reason] of [
+		['你'.repeat(100000), 'response_budget_exceeded'],
+		[new Array(BACKEND_ENTITY_QUERY_LIMITS.maxNodes + 1), 'response_budget_exceeded'],
+		[deep, 'response_budget_exceeded'],
+		[new Uint8Array([1]), 'non_json_value'], [Infinity, 'non_json_value'], [1n, 'non_json_value'],
+	] as const) {
+		const { project, component } = complexQueryProject();
+		if (target.kind === 'controller') component.controllers[0].actions[0].fromPageIds = [value as string];
+		else component.transitions[0].items[0].startValue = [value];
+		const runtime = new BackendRuntime();
+		const opened = runtime.openProjectSession({ project });
+		assert(opened.ok);
+		const sessionId = opened.data.sessionId;
+		const before = sessionState(runtime, sessionId);
+		const result = runtime.queryEntity({ sessionId, target });
+		assert(!result.ok && result.error.code === 'entity_query_failed');
+		t.is(result.error.reason, reason); t.false('data' in result);
+		t.deepEqual(sessionState(runtime, sessionId), before);
 		await runtime.closeSession({ sessionId });
 	}
 });

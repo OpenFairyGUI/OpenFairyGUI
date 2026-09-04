@@ -4,7 +4,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { BackendEntitySnapshot, BackendResult, BackendTransactionPreview, BackendSessionSnapshot } from '@openfairygui/backend';
 import { createNodeBackendRuntime } from '@openfairygui/backend/node';
-import { readProjectAsUam } from '@openfairygui/core';
+import { composeController, composeTransition, materializeUamProject, liftDocumentToUamProject, readProjectAsUam, writeProjectFromUam } from '@openfairygui/core';
 import { NodeIO } from '@openfairygui/core/node';
 import { createOpenFairyGuiMcpServer } from '../src/index.js';
 import { createTempMcpProject } from './helpers.js';
@@ -87,5 +87,73 @@ test('MCP queries, previews, applies and saves with generated schemas and revisi
 	} finally {
 		await client.close(); await server.close(); await runtime.closeSession({ sessionId: opened.data.sessionId });
 		await fixture.cleanup();
+	}
+});
+
+test('MCP complex queries validate formal selectors and round-trip full snapshots without losing untouched data', async (t) => {
+	const fixture = await createTempMcpProject();
+	const io = new NodeIO();
+	const doc = materializeUamProject(await readProjectAsUam(io, fixture.fairyPath));
+	const component = doc.getRoot().getPackage('Main')!.getResourceById('cmp001');
+	assert(component && 'addController' in component);
+	composeController(doc, component, { name: 'state', pages: [{ id: '0', name: 'Idle', remark: 'Preserve me' }, { id: '1', name: 'Active' }],
+		actions: [{ actionType: 0, fromPage: ['0'], toPage: ['1'], transitionName: 'intro' }],
+	});
+	composeTransition(doc, component, { name: 'intro', items: [{ name: 'move', time: 0, actionType: 0, target: 'n1', tween: true, duration: 12, startValue: [16, 18], endValue: [96, 48] }] });
+	composeTransition(doc, component, { name: 'outro' });
+	await writeProjectFromUam(io, liftDocumentToUamProject(doc), fixture.fairyPath);
+	const expected = await readProjectAsUam(io, fixture.fairyPath);
+	const runtime = createNodeBackendRuntime();
+	const opened = await runtime.openSession({ projectPath: fixture.fairyPath });
+	assert(opened.ok);
+	const sessionId = opened.data.sessionId;
+	const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+	const server = createOpenFairyGuiMcpServer({ runtime });
+	const client = new Client({ name: 'complex-editing', version: 'test' });
+	await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+	try {
+		await client.listTools(); // The SDK validates actual output against the advertised schema.
+		for (const kind of ['controller', 'transition'] as const) {
+			const key = kind === 'controller' ? 'controllerName' : 'transitionName';
+			const target = { kind, selector: { packageId: 'pkg001', componentResourceId: 'cmp001', [key]: kind === 'controller' ? 'state' : 'intro' } };
+			const result = await client.callTool({ name: 'openfairygui_backend_query_entity', arguments: { sessionId, target } });
+			t.false(result.isError);
+			const queried = (result.structuredContent as { backendResult: BackendResult<BackendEntitySnapshot> }).backendResult;
+			assert(queried.ok);
+			const expectedComponent = expected.packages[0].resources.find((entry) => entry.id === 'cmp001');
+			assert(expectedComponent?.kind === 'component');
+			let operation;
+			if (queried.data.entity.kind === 'controller') {
+				t.deepEqual(queried.data.entity.properties, expectedComponent.component.controllers[0]);
+				queried.data.entity.properties.pages[1].name = 'Ready';
+				expectedComponent.component.controllers[0].pages[1].name = 'Ready';
+				operation = { kind: 'updateController', selector: target.selector, controller: queried.data.entity.properties };
+			} else {
+				assert(queried.data.entity.kind === 'transition');
+				t.deepEqual(queried.data.entity.properties, expectedComponent.component.transitions[0]);
+				queried.data.entity.properties.items[0].duration = 18;
+				queried.data.entity.properties.items[0].endValue = [120, 64];
+				expectedComponent.component.transitions[0].items[0].duration = 18;
+				expectedComponent.component.transitions[0].items[0].endValue = ['120', '64']; // Current XML reader's CSV representation.
+				operation = { kind: 'updateTransition', selector: target.selector, transition: queried.data.entity.properties };
+			}
+			const before = runtime.getSession({ sessionId });
+			assert(before.ok);
+			for (const selector of [{ packageId: 'pkg001', componentResourceId: 'cmp001' }, { ...target.selector, [key]: '' }, { ...target.selector, [key]: 'x'.repeat(257) }, { ...target.selector, inventedId: 'x' }]) {
+				t.true((await client.callTool({ name: 'openfairygui_backend_query_entity', arguments: { sessionId, target: { kind, selector } } })).isError);
+			}
+			const absent = await client.callTool({ name: 'openfairygui_backend_query_entity', arguments: { sessionId, target: { kind, selector: { ...target.selector, [key]: 'absent' } } } });
+			const failure = (absent.structuredContent as { backendResult: BackendResult<BackendEntitySnapshot> }).backendResult;
+			assert(!failure.ok && failure.error.code === 'entity_query_failed'); t.is(failure.error.reason, 'not_found');
+			const after = runtime.getSession({ sessionId }); assert(after.ok); t.deepEqual(after.data, before.data);
+			const transaction = { sessionId, expectedRevision: queried.data.revision, operations: [operation] };
+			t.false((await client.callTool({ name: 'openfairygui_backend_preflight_transaction', arguments: transaction })).isError);
+			t.false((await client.callTool({ name: 'openfairygui_backend_apply_transaction', arguments: transaction })).isError);
+			t.true((await client.callTool({ name: 'openfairygui_backend_apply_transaction', arguments: transaction })).isError);
+		}
+		t.false((await client.callTool({ name: 'openfairygui_backend_save_session', arguments: { sessionId, expectedRevision: 2 } })).isError);
+		t.deepEqual(await readProjectAsUam(io, fixture.fairyPath), expected);
+	} finally {
+		await client.close(); await server.close(); await runtime.closeSession({ sessionId }); await fixture.cleanup();
 	}
 });
