@@ -3,6 +3,46 @@ import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 
 export const EVAL_METHODS = ['getCapabilities', 'openSession', 'getSession', 'getProjectOutline', 'queryEntity', 'validateSession', 'preflightTransaction', 'applyTransaction', 'saveSession', 'closeSession'];
+// A separate evaluation-only host, not new Backend methods or shell access for editing tasks.
+export const ARTIFACT_TOOLS = [
+	['context', 'Read fixed host input/output destinations and installed-version documentation.'],
+	['publish', 'Run installed ofgui publish --json on the fixed project into the fixed release directory (Layabox target).'],
+	['restore', 'Run installed ofgui restore --json on the trusted fixed release into a separate new directory; no force overwrite.'],
+	['inspect', 'Read and decode published binaries/atlas pixels or reread and validate the restored project.'],
+].map(([action, description]) => ({ name: `ofgui_artifact_${action}`, description, inputSchema: action === 'inspect'
+	? { type: 'object', additionalProperties: false, required: ['target'], properties: { target: { type: 'string', enum: ['published', 'restored'] } } }
+	: { type: 'object', additionalProperties: false, properties: {} } }));
+
+export function assertArtifactTool(taskId, name, args) {
+	assert(ARTIFACT_TOOLS.some((tool) => tool.name === name), 'Artifact host does not expose this tool');
+	assert(args && typeof args === 'object' && !Array.isArray(args), 'Tool arguments must be an object');
+	if (name === 'ofgui_artifact_inspect') assert(Object.keys(args).length === 1 && ['published', 'restored'].includes(args.target), 'Choose only the published or restored target');
+	else assert(Object.keys(args).length === 0, 'Artifact host does not accept paths, commands or options');
+	assert(taskId !== 'restore-trusted' || name !== 'ofgui_artifact_publish', 'Restore task cannot recreate or replace its input');
+}
+
+export function gradeArtifactEvaluation({ expected, actual, beforeFiles, actualFiles, trace, final, runnerOk, isolated, publishTask }) {
+	const calls = completedCalls(trace).filter((call) => call.request.method === 'tools/call');
+	const successful = (name) => calls.some((call) => call.request.params.name === `ofgui_artifact_${name}` && !call.response.result?.isError && call.response.result?.structuredContent?.artifactResult?.success === true);
+	const inspected = (target) => calls.some((call) => call.request.params.name === 'ofgui_artifact_inspect' && call.request.params.arguments.target === target && !call.response.result?.isError && call.response.result?.structuredContent?.artifactResult?.success === true);
+	const changes = changedPaths(beforeFiles, actualFiles);
+	const checks = {
+		runnerCompleted: runnerOk, isolatedTools: isolated,
+		noOutOfScopeAccess: !trace.some((entry) => entry.type === 'scope-violation'),
+		inputFilesPreserved: Object.keys(beforeFiles).every((file) => beforeFiles[file] === actualFiles[file]),
+		onlyArtifactOutputs: changes.every((file) => !Object.hasOwn(beforeFiles, file) && (file.startsWith('restored/') || (publishTask && file.startsWith('release/')))),
+		publishedSemantics: isDeepStrictEqual(actual?.published?.semantics, expected),
+		restoredSemantics: isDeepStrictEqual(actual?.restored?.semantics, expected),
+		decodedPixels: actual?.published?.pixelsMatch === true && actual?.restored?.pixelsMatch === true,
+		validRestoredProject: actual?.restored?.validation?.status === 'valid' && actual.restored.validation.complete === true,
+		exactOutputFiles: actual?.exactOutputFiles === true,
+		realPublish: !publishTask || successful('publish'), realRestore: successful('restore'),
+		observedPublishedRead: inspected('published'), observedRestoredRead: inspected('restored'),
+		honestCompletion: final?.outcome === 'completed' && final?.blocker === null
+			&& isDeepStrictEqual(final?.facts, { packageCount: expected.length, resourceCount: expected.reduce((sum, pkg) => sum + pkg.resources.length, 0), validationStatus: 'valid' }),
+	};
+	return { passed: Object.values(checks).every(Boolean), checks, changedFiles: changes };
+}
 export const CONCURRENT_TEXT = 'Title edited concurrently';
 export const PENDING_TEXT = 'Unsaved host work';
 export const BLOCKERS = { 'missing-source-bytes': 'unavailable_resource_source_bytes', 'path-policy': 'path_policy_violation' };

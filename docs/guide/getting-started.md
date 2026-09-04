@@ -21,7 +21,7 @@ console.log(report.projectType, report.totals.packages);
 
 ## 接下来
 
-- [可运行示例](./examples.md)：inspect/validate 与带 revision 的 edit/save；代码随 tarball 消费者检查执行。
+- [可运行示例](./examples.md)：inspect/validate、带 revision 的 edit/save、发布与受限恢复；代码随 tarball 消费者检查执行。
 - 需要批处理或在终端中执行操作：使用 [`@openfairygui/cli`](https://www.npmjs.com/package/@openfairygui/cli)。
 - 需要把有状态工程会话提供给智能体或客户端：使用 [`@openfairygui/mcp`](https://www.npmjs.com/package/@openfairygui/mcp)。
 - 需要理解工程、发布或协议层的正式边界：进入[参考文档](/architecture-overview)。

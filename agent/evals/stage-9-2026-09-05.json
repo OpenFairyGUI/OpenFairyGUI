@@ -1,0 +1,726 @@
+{
+  "schemaVersion": 1,
+  "stage": 9,
+  "date": "2026-09-05",
+  "timezone": "Asia/Singapore",
+  "publishedRelease": false,
+  "cliVersion": "codex-cli 0.153.2",
+  "zod": "4.5.4",
+  "mcpSdk": "1.30.0",
+  "sourceLfSha256": {
+    "packages/functions/src/adapters/node/publish.ts": "2d560139078fe6f963234acd891d6692d77ea1074fada78b725182f805c2a33c",
+    "packages/functions/src/atlas.ts": "fdb0334900c05398e323d20926478cb9b98e2045e7c7051be002a775896f4171",
+    "packages/functions/src/atlas/packing.ts": "2cd51c5fc8e5f8e64136bafc7c386790545c265fb64731af3441c3be0cb10067",
+    "packages/functions/src/publish.ts": "7e30d258c99ca89239e8a9d8af9d48b7f127727e54ea967f94cdbcc070458b13",
+    "packages/functions/src/node.ts": "972bc063c03bcbcd178ab2737a1419156245170104d996238d0f4ebe885e2ca5",
+    "packages/cli/src/cli.ts": "cfcb273eb62b37b336035dd9e2a3bf8b9400261af098609754060d9cea2454c7",
+    "packages/cli/src/commands/publish.ts": "ee2cb2efa1b6c55d41c0dba614472995b4f8b759038abd873c1db24ec6bc3e8c",
+    "packages/cli/src/commands/restore.ts": "0d2a818057be3f9015442127db7db335461d79917fc39c32d80439bf35bab480",
+    "packages/cli/src/utils/artifact-output.ts": "de16781c972bfd82b03a84917a45fd96173a3450d1486e954ab0963b3af11d57",
+    "packages/backend/docs/workflow.md": "56234b2940f55505ee13ec9279390ba0c5e576477df248e7108983301a934a55",
+    "packages/backend/src/docs.ts": "6e01adccd0a23b0e670f237f4dfffb71cffb057c1194e76872f8f100232adf8d",
+    "packages/backend/src/generated/docs.ts": "54212864ec4deb7ca8ffcee30f7af5e206c28975fe1195dd99d98544bec7a098",
+    "packages/mcp/src/resource-definitions.ts": "207800d4c9adb79ac6318f84f0f506c892a9a433cea4b2bdcbee3a9fa70a321b",
+    "scripts/generate-contracts.mjs": "0da1f3c1d26617e8da4f7218e923b75d63ae4d2a7b5a15f68c85b7eaef1e1232",
+    "scripts/consumer/artifact-eval.mjs": "0f3951a6a0cf814a5130ce93d71ca6d38dcd5a051ecfd9008975b689db072765",
+    "scripts/agent-eval-checks.mjs": "fabe3058e64809dc424d1cbd10d621e73cdeddd9c7256f87673c24d09d45a79a",
+    "scripts/agent-evals.test.mjs": "fc0222939adb8422ef0b98e6ac2ff191f4c1a0afd6712d5eb386678b1452e804",
+    "scripts/contracts.test.mjs": "da039725b1d3c182c37697e3b2665194fbf709885db00b5342fb90486f464eed",
+    "examples/publish-restore/index.mjs": "5b738ad5448703250f62ffe2fd11f873001e5e20d78ee2acd8eaa0da286c888c",
+    "agent/evals/tasks.json": "fbba3cb00e6abe82090076a31e0619c7a4aeece6a0d2770981c38a047acda0ee",
+    "docs/published-project-restore-limitations.md": "740d57552e167286ce7f5725ee5517c6ce9c4388e284426f57d13426a12c77e6"
+  },
+  "sourceNote": "The full model report records the pre-stage-9 Git HEAD. Final LF-normalized source hashes, harness hashes and five actual tarball hashes identify tested work. The later fix only adds an empty resource-template listing to the evaluation host; product tarballs, task prompts, grading and tool permissions remain unchanged. Website/evidence edits do not change installed artifacts.",
+  "preModelConsumerFailures": [
+    {
+      "directory": "C:/Users/Derek/AppData/Local/Temp/ofgui-consumer-93vC6P",
+      "phase": "pre-model installed consumer smoke",
+      "reason": "Unsettled top-level await (exit 13): runtime smoke dynamically imported the artifact helper that imported runtime helpers. Replaced only the main entry await with a handled promise."
+    },
+    {
+      "directory": "C:/Users/Derek/AppData/Local/Temp/ofgui-consumer-GKiXGw",
+      "phase": "pre-model installed consumer smoke",
+      "reason": "The new consumer counted an empty dependency placeholder from a single binary read as an extra package. It now merges actual packages and placeholders by stable package ID."
+    },
+    {
+      "directory": "C:/Users/Derek/AppData/Local/Temp/ofgui-consumer-iFzaOv",
+      "phase": "pre-model installed consumer smoke",
+      "reason": "The new consumer incorrectly opened atlas0.png directly. It now follows the pinned Layabox runtime rule: binary basename plus underscore plus the atlas item file."
+    },
+    {
+      "directory": "C:/Users/Derek/AppData/Local/Temp/ofgui-consumer-syQtBW",
+      "phase": "pre-model installed consumer smoke",
+      "reason": "The new restored-pixel check passed absent source bytes to Sharp. Its public UAM read now explicitly requests resource-byte hydration."
+    }
+  ],
+  "preModelReference": {
+    "report": "C:/Users/Derek/AppData/Local/Temp/ofgui-consumer-t7EbYL/app/reference-evaluations/report.json",
+    "reportSha256": "9fb1bf9c77b7a16793c2b2d1fcc73fafb5b87b8b9d06f41070603e59133b17d7",
+    "passed": 10,
+    "total": 10,
+    "note": "Deterministic self-check, not a model run. This used earlier retained development tarballs; the full model run below rebuilt all five packages."
+  },
+  "modelRun": {
+    "report": "C:/Users/Derek/AppData/Local/Temp/ofgui-consumer-OjDxqf/evaluations/report.json",
+    "reportSha256": "dd6cb44eaeefc8c1cef5453de5c94f1ae6c04c45079ce0b770e079fcabcf972b",
+    "modelRequested": "gpt-5.6-sol",
+    "installed": {
+      "packageName": "@openfairygui/backend",
+      "packageVersion": "0.3.1",
+      "nodeEngine": ">=20",
+      "documentationDigest": "b002d23451bfa5e77a9fe9c5e5dda3c428f25541543a0c14e73d41e64b5ff23e",
+      "BACKEND_CONTRACT_VERSION": "1.1.0-p2",
+      "BACKEND_CAPABILITY_SCHEMA_VERSION": 7,
+      "contractDigest": "7c4a5d5d1a61620fd439322d376a3393df3ed0416a50b66976f845e5bd37c80e"
+    },
+    "provenance": {
+      "commit": "984cf3117796001323d7d1bb9ce91d9aeef3df88",
+      "node": "v24.20.0",
+      "platform": "win32",
+      "arch": "x64",
+      "consumerLockSha256": "29541c945623543c1042c9fb23426a052672961824fbd82a19cd8a1534f84f48",
+      "harness": {
+        "scripts/agent-evals.mjs": "168241683802300f5585e1d837a0491e8da4a4f8bbc04b21bc09f33b0f8724a5",
+        "scripts/pack-smoke.mjs": "bd8a8d2dbb9f74f31f5325ad148ab5a962195e50bbbb02256821aa6fe9e9eabd",
+        "scripts/repo-utils.mjs": "710a4faf28bed7309abf3a8a223a9b09f90c081fcb94a7ec41db176ff8bcd79c",
+        "scripts/consumer/agent-eval.mjs": "c030b9ac87bd4fe051db7a34341cf1c7a40829c78176e6613929e75c102a4938",
+        "scripts/consumer/artifact-eval.mjs": "e7414233e2a2fef1a51d04028def852e532e7bac55b0096d1f2ed55907d31f48",
+        "scripts/consumer/runtime.mjs": "845a840bd74a7d538fd84d4831932e8914c413c3eb4e9046c9e40e57c8c1a304",
+        "scripts/agent-eval-checks.mjs": "fabe3058e64809dc424d1cbd10d621e73cdeddd9c7256f87673c24d09d45a79a",
+        "examples/create-demo-project.mjs": "fc830e1467e98feb2a639dfd88f06b8731d4ec589a567282a9ad9bf60977a3ce",
+        "examples/publish-restore/index.mjs": "5b738ad5448703250f62ffe2fd11f873001e5e20d78ee2acd8eaa0da286c888c",
+        "agent/evals/tasks.json": "fbba3cb00e6abe82090076a31e0619c7a4aeece6a0d2770981c38a047acda0ee"
+      },
+      "artifacts": [
+        {
+          "name": "@openfairygui/core",
+          "version": "0.3.1",
+          "file": "openfairygui-core-0.3.1.tgz",
+          "sha256": "c279c0175a652252a98ef9d9bb4337d967b82f2f6b93dbf75e11813ab8f3c6ae"
+        },
+        {
+          "name": "@openfairygui/functions",
+          "version": "0.3.1",
+          "file": "openfairygui-functions-0.3.1.tgz",
+          "sha256": "4e1a919e9cb581a8f1df8ef53e1a2b266e288e57e38a70950f6b4e618a09555b"
+        },
+        {
+          "name": "@openfairygui/backend",
+          "version": "0.3.1",
+          "file": "openfairygui-backend-0.3.1.tgz",
+          "sha256": "604bd1b8eaabf09ba998e6b58d579560997c62fa6105261f44730cff0fd82de0"
+        },
+        {
+          "name": "@openfairygui/cli",
+          "version": "0.3.1",
+          "file": "openfairygui-cli-0.3.1.tgz",
+          "sha256": "80cd938d45faf0b11c2e4d7497d119d20b9d68d6f73c36462a081c1783ff9684"
+        },
+        {
+          "name": "@openfairygui/mcp",
+          "version": "0.3.1",
+          "file": "openfairygui-mcp-0.3.1.tgz",
+          "sha256": "336252e2652e4c6c8d77390094161cda41d3d55a1c74cfdbe1689f21041407f8"
+        }
+      ]
+    },
+    "passed": 10,
+    "total": 10,
+    "cases": [
+      {
+        "taskId": "inspect-validate",
+        "passed": true,
+        "checks": {
+          "runnerCompleted": true,
+          "isolatedTools": true,
+          "projectReadable": true,
+          "validProject": true,
+          "exactSemantics": true,
+          "exactFiles": true,
+          "noOutOfScopeAccess": true,
+          "observedValidation": true,
+          "inspectionFacts": true,
+          "noEdit": true
+        },
+        "durationMs": 32112,
+        "toolCalls": 3,
+        "failedCalls": 0,
+        "clientFailedCalls": 0,
+        "documentationReads": [],
+        "previews": 0,
+        "staleRejections": 0,
+        "repeatedSuccessfulOperations": 0,
+        "clientWarnings": [],
+        "error": null,
+        "exitCode": 0,
+        "timedOut": false,
+        "final": {
+          "summary": "Inspected and validated the project using OpenFairyGUI. Validation completed without diagnostics; no changes were made.",
+          "outcome": "completed",
+          "blocker": null,
+          "facts": {
+            "packageCount": 1,
+            "resourceCount": 1,
+            "validationStatus": "valid"
+          }
+        }
+      },
+      {
+        "taskId": "rename-save",
+        "passed": true,
+        "checks": {
+          "runnerCompleted": true,
+          "isolatedTools": true,
+          "projectReadable": true,
+          "validProject": true,
+          "exactSemantics": true,
+          "exactFiles": true,
+          "noOutOfScopeAccess": true,
+          "observedValidation": true,
+          "saved": true
+        },
+        "durationMs": 45346,
+        "toolCalls": 7,
+        "failedCalls": 0,
+        "clientFailedCalls": 0,
+        "documentationReads": [
+          "openfairygui://docs/workflow",
+          "openfairygui://contracts/operations",
+          "openfairygui://contracts/operations/renameResource"
+        ],
+        "previews": 1,
+        "staleRejections": 0,
+        "repeatedSuccessfulOperations": 0,
+        "clientWarnings": [],
+        "error": null,
+        "exitCode": 0,
+        "timedOut": false,
+        "final": {
+          "summary": "Renamed Main/MainView to RenamedView and saved using revision checks. ID cmpdemo1 retained; no content or title edits requested. Validation passed completely.",
+          "outcome": "completed",
+          "blocker": null,
+          "facts": {
+            "packageCount": 1,
+            "resourceCount": 1,
+            "validationStatus": "valid"
+          }
+        }
+      },
+      {
+        "taskId": "stale-revision-recovery",
+        "passed": true,
+        "checks": {
+          "runnerCompleted": true,
+          "isolatedTools": true,
+          "projectReadable": true,
+          "validProject": true,
+          "exactSemantics": true,
+          "exactFiles": true,
+          "noOutOfScopeAccess": true,
+          "observedValidation": true,
+          "saved": true,
+          "conflictExercised": true
+        },
+        "durationMs": 67103,
+        "toolCalls": 13,
+        "failedCalls": 1,
+        "clientFailedCalls": 1,
+        "documentationReads": [
+          "openfairygui://docs/workflow",
+          "openfairygui://contracts/operations",
+          "openfairygui://contracts/operations/renameResource"
+        ],
+        "previews": 1,
+        "staleRejections": 1,
+        "repeatedSuccessfulOperations": 0,
+        "clientWarnings": [],
+        "error": null,
+        "exitCode": 0,
+        "timedOut": false,
+        "final": {
+          "summary": "Renamed Main/MainView to RenamedView and saved at revision 2. Recovered from a revision conflict, preserving “Title edited concurrently” and unrelated data. Validation passed.",
+          "outcome": "completed",
+          "blocker": null,
+          "facts": {
+            "packageCount": 1,
+            "resourceCount": 1,
+            "validationStatus": "valid"
+          }
+        }
+      },
+      {
+        "taskId": "edit-display-node",
+        "passed": true,
+        "checks": {
+          "runnerCompleted": true,
+          "isolatedTools": true,
+          "projectReadable": true,
+          "validProject": true,
+          "exactSemantics": true,
+          "exactFiles": true,
+          "noOutOfScopeAccess": true,
+          "observedValidation": true,
+          "saved": true
+        },
+        "durationMs": 49066,
+        "toolCalls": 7,
+        "failedCalls": 0,
+        "clientFailedCalls": 0,
+        "documentationReads": [
+          "openfairygui://contracts/operations",
+          "openfairygui://contracts/operations/setDisplayNodeProps"
+        ],
+        "previews": 0,
+        "staleRejections": 0,
+        "repeatedSuccessfulOperations": 0,
+        "clientWarnings": [],
+        "error": null,
+        "exitCode": 0,
+        "timedOut": false,
+        "final": {
+          "summary": "Updated only the matching title in Main/MainView to “Ready to edit” at (40, 56). Saved revision 1 with revision checks; validation passed.",
+          "outcome": "completed",
+          "blocker": null,
+          "facts": {
+            "packageCount": 1,
+            "resourceCount": 2,
+            "validationStatus": "valid"
+          }
+        }
+      },
+      {
+        "taskId": "edit-controller",
+        "passed": true,
+        "checks": {
+          "runnerCompleted": true,
+          "isolatedTools": true,
+          "projectReadable": true,
+          "validProject": true,
+          "exactSemantics": true,
+          "exactFiles": true,
+          "noOutOfScopeAccess": true,
+          "observedValidation": true,
+          "saved": true,
+          "observedEntityQuery": true
+        },
+        "durationMs": 61294,
+        "toolCalls": 7,
+        "failedCalls": 0,
+        "clientFailedCalls": 0,
+        "documentationReads": [
+          "openfairygui://contracts/operations",
+          "openfairygui://contracts/operations/updateController"
+        ],
+        "previews": 1,
+        "staleRejections": 0,
+        "repeatedSuccessfulOperations": 0,
+        "clientWarnings": [],
+        "error": null,
+        "exitCode": 0,
+        "timedOut": false,
+        "final": {
+          "summary": "Renamed only Main/MainView’s state page Active to Ready, preserving its ID, order, remarks and all other data. Saved with revision checks at revision 1; validation passed.",
+          "outcome": "completed",
+          "blocker": null,
+          "facts": {
+            "packageCount": 1,
+            "resourceCount": 2,
+            "validationStatus": "valid"
+          }
+        }
+      },
+      {
+        "taskId": "edit-transition",
+        "passed": true,
+        "checks": {
+          "runnerCompleted": true,
+          "isolatedTools": true,
+          "projectReadable": true,
+          "validProject": true,
+          "exactSemantics": true,
+          "exactFiles": true,
+          "noOutOfScopeAccess": true,
+          "observedValidation": true,
+          "saved": true,
+          "observedEntityQuery": true
+        },
+        "durationMs": 57831,
+        "toolCalls": 7,
+        "failedCalls": 0,
+        "clientFailedCalls": 0,
+        "documentationReads": [
+          "openfairygui://contracts/operations",
+          "openfairygui://contracts/operations/updateTransition"
+        ],
+        "previews": 0,
+        "staleRejections": 0,
+        "repeatedSuccessfulOperations": 0,
+        "clientWarnings": [],
+        "error": null,
+        "exitCode": 0,
+        "timedOut": false,
+        "final": {
+          "summary": "Updated only Main/MainView → intro → move-title: duration 18, endValue [120, 64]. Preserved remaining data. Saved with revision checks at revision 1 and validated successfully.",
+          "outcome": "completed",
+          "blocker": null,
+          "facts": {
+            "packageCount": 1,
+            "resourceCount": 2,
+            "validationStatus": "valid"
+          }
+        }
+      },
+      {
+        "taskId": "missing-source-bytes",
+        "passed": true,
+        "checks": {
+          "runnerCompleted": true,
+          "isolatedTools": true,
+          "projectReadable": true,
+          "validProject": true,
+          "exactSemantics": true,
+          "exactFiles": true,
+          "noOutOfScopeAccess": true,
+          "observedValidation": true,
+          "honestStop": true,
+          "observedBlocker": true,
+          "noMutation": true,
+          "pendingWorkPreserved": true
+        },
+        "durationMs": 45040,
+        "toolCalls": 5,
+        "failedCalls": 1,
+        "clientFailedCalls": 1,
+        "documentationReads": [
+          "openfairygui://docs/index",
+          "openfairygui://docs/workflow",
+          "openfairygui://contracts/operations",
+          "openfairygui://contracts/operations/renameResource",
+          "openfairygui://docs/diagnostics/unavailable_resource_source_bytes"
+        ],
+        "previews": 1,
+        "staleRejections": 0,
+        "repeatedSuccessfulOperations": 0,
+        "clientWarnings": [],
+        "error": null,
+        "exitCode": 0,
+        "timedOut": false,
+        "final": {
+          "summary": "Rename preflight blocked: Main/payload.bin lacks hydrated source bytes. Host must supply its actual bytes through project I/O or import while preserving unsaved work. No changes or save performed; stage7-pending remains open. Retained-session validation is incomplete.",
+          "outcome": "blocked",
+          "blocker": "unavailable_resource_source_bytes",
+          "facts": {
+            "packageCount": 1,
+            "resourceCount": 2,
+            "validationStatus": "incomplete"
+          }
+        }
+      },
+      {
+        "taskId": "path-policy",
+        "passed": true,
+        "checks": {
+          "runnerCompleted": true,
+          "isolatedTools": true,
+          "projectReadable": true,
+          "validProject": true,
+          "exactSemantics": true,
+          "exactFiles": true,
+          "noOutOfScopeAccess": true,
+          "observedValidation": true,
+          "honestStop": true,
+          "observedBlocker": true,
+          "noMutation": true,
+          "pendingWorkPreserved": true
+        },
+        "durationMs": 37691,
+        "toolCalls": 4,
+        "failedCalls": 1,
+        "clientFailedCalls": 1,
+        "documentationReads": [
+          "openfairygui://docs/index",
+          "openfairygui://docs/diagnostics"
+        ],
+        "previews": 0,
+        "staleRejections": 0,
+        "repeatedSuccessfulOperations": 0,
+        "clientWarnings": [],
+        "error": null,
+        "exitCode": 0,
+        "timedOut": false,
+        "final": {
+          "summary": "Save blocked: saveSession permits only the originally opened project, not Save As. The host must review the destination and authorize a separate export workflow without bypassing path policy. Nothing was saved elsewhere; stage7-pending remains open with pending work intact at revision 1. Retained session validation passed.",
+          "outcome": "blocked",
+          "blocker": "path_policy_violation",
+          "facts": {
+            "packageCount": null,
+            "resourceCount": null,
+            "validationStatus": "valid"
+          }
+        }
+      },
+      {
+        "taskId": "publish-consume",
+        "passed": true,
+        "checks": {
+          "runnerCompleted": true,
+          "isolatedTools": true,
+          "noOutOfScopeAccess": true,
+          "inputFilesPreserved": true,
+          "onlyArtifactOutputs": true,
+          "publishedSemantics": true,
+          "restoredSemantics": true,
+          "decodedPixels": true,
+          "validRestoredProject": true,
+          "exactOutputFiles": true,
+          "realPublish": true,
+          "realRestore": true,
+          "observedPublishedRead": true,
+          "observedRestoredRead": true,
+          "honestCompletion": true
+        },
+        "durationMs": 37178,
+        "toolCalls": 5,
+        "failedCalls": 1,
+        "clientFailedCalls": 0,
+        "documentationReads": [
+          "openfairygui://docs/workflow",
+          "openfairygui://docs/restore-limits"
+        ],
+        "previews": 0,
+        "staleRejections": 0,
+        "repeatedSuccessfulOperations": 0,
+        "clientWarnings": [],
+        "error": null,
+        "exitCode": 0,
+        "timedOut": false,
+        "final": {
+          "summary": "Published for Layabox through the authorized host and restored into separate restored/restored.fairy without force overwrite. Host inspection decoded both outputs: package semantics and image pixels match; validation is complete with no diagnostics. Source and unrelated files were not targeted. Recovery reconstructs published semantics and assets, not original source XML, unpublished content, original filenames, precision, or editor-local state.",
+          "outcome": "completed",
+          "blocker": null,
+          "facts": {
+            "packageCount": 2,
+            "resourceCount": 4,
+            "validationStatus": "valid"
+          }
+        }
+      },
+      {
+        "taskId": "restore-trusted",
+        "passed": true,
+        "checks": {
+          "runnerCompleted": true,
+          "isolatedTools": true,
+          "noOutOfScopeAccess": true,
+          "inputFilesPreserved": true,
+          "onlyArtifactOutputs": true,
+          "publishedSemantics": true,
+          "restoredSemantics": true,
+          "decodedPixels": true,
+          "validRestoredProject": true,
+          "exactOutputFiles": true,
+          "realPublish": true,
+          "realRestore": true,
+          "observedPublishedRead": true,
+          "observedRestoredRead": true,
+          "honestCompletion": true
+        },
+        "durationMs": 33481,
+        "toolCalls": 4,
+        "failedCalls": 1,
+        "clientFailedCalls": 0,
+        "documentationReads": [
+          "openfairygui://docs/workflow",
+          "openfairygui://docs/restore-limits"
+        ],
+        "previews": 0,
+        "staleRejections": 0,
+        "repeatedSuccessfulOperations": 0,
+        "clientWarnings": [],
+        "error": null,
+        "exitCode": 0,
+        "timedOut": false,
+        "final": {
+          "summary": "Recovered into the host-authorized separate restored/restored.fairy project without republishing, force overwrite, or changing destinations; input and unrelated files were preserved. Inspected published packages and atlas pixels, then reread restored output: semantics matched, pixels matched, and validation was complete with no diagnostics. Recovery cannot reproduce unpublished resources/actions, original filenames/extensions, project ID, workspace/settings, discarded editor grouping/controller/easing information, or exact XML formatting and float precision.",
+          "outcome": "completed",
+          "blocker": null,
+          "facts": {
+            "packageCount": 2,
+            "resourceCount": 4,
+            "validationStatus": "valid"
+          }
+        }
+      }
+    ]
+  },
+  "artifactDiscoveryRepair": {
+    "reason": "Both artifact tasks passed in the full model run but their resources/templates/list probes returned JSON-RPC -32601. The evaluation host now returns the standard empty resourceTemplates list, with a reference-client regression assertion. No task, grader, product artifact or tool permission changed.",
+    "targetedModelRuns": [
+      {
+        "report": "C:/Users/Derek/AppData/Local/Temp/ofgui-consumer-vevTWL/evaluations/report.json",
+        "reportSha256": "598cee3104c76230e51844bc275236a11d009541856cbd8104f39ae3ff206174",
+        "modelRequested": "gpt-5.6-sol",
+        "node": "v24.20.0",
+        "consumerLockSha256": "720d134a8e38361e6a4fc9802c5561124f26e8d4088ee20a271d34c56383c8c9",
+        "harness": {
+          "scripts/agent-evals.mjs": "168241683802300f5585e1d837a0491e8da4a4f8bbc04b21bc09f33b0f8724a5",
+          "scripts/pack-smoke.mjs": "bd8a8d2dbb9f74f31f5325ad148ab5a962195e50bbbb02256821aa6fe9e9eabd",
+          "scripts/repo-utils.mjs": "710a4faf28bed7309abf3a8a223a9b09f90c081fcb94a7ec41db176ff8bcd79c",
+          "scripts/consumer/agent-eval.mjs": "c030b9ac87bd4fe051db7a34341cf1c7a40829c78176e6613929e75c102a4938",
+          "scripts/consumer/artifact-eval.mjs": "0f3951a6a0cf814a5130ce93d71ca6d38dcd5a051ecfd9008975b689db072765",
+          "scripts/consumer/runtime.mjs": "845a840bd74a7d538fd84d4831932e8914c413c3eb4e9046c9e40e57c8c1a304",
+          "scripts/agent-eval-checks.mjs": "fabe3058e64809dc424d1cbd10d621e73cdeddd9c7256f87673c24d09d45a79a",
+          "examples/create-demo-project.mjs": "fc830e1467e98feb2a639dfd88f06b8731d4ec589a567282a9ad9bf60977a3ce",
+          "examples/publish-restore/index.mjs": "5b738ad5448703250f62ffe2fd11f873001e5e20d78ee2acd8eaa0da286c888c",
+          "agent/evals/tasks.json": "fbba3cb00e6abe82090076a31e0619c7a4aeece6a0d2770981c38a047acda0ee"
+        },
+        "sameArtifactsAsFullRun": true,
+        "passed": 1,
+        "total": 1,
+        "cases": [
+          {
+            "taskId": "publish-consume",
+            "passed": true,
+            "checks": {
+              "runnerCompleted": true,
+              "isolatedTools": true,
+              "noOutOfScopeAccess": true,
+              "inputFilesPreserved": true,
+              "onlyArtifactOutputs": true,
+              "publishedSemantics": true,
+              "restoredSemantics": true,
+              "decodedPixels": true,
+              "validRestoredProject": true,
+              "exactOutputFiles": true,
+              "realPublish": true,
+              "realRestore": true,
+              "observedPublishedRead": true,
+              "observedRestoredRead": true,
+              "honestCompletion": true
+            },
+            "durationMs": 38374,
+            "toolCalls": 5,
+            "failedCalls": 0,
+            "clientFailedCalls": 0,
+            "documentationReads": [
+              "openfairygui://docs/workflow",
+              "openfairygui://docs/restore-limits"
+            ],
+            "previews": 0,
+            "staleRejections": 0,
+            "repeatedSuccessfulOperations": 0,
+            "clientWarnings": [],
+            "error": null,
+            "exitCode": 0,
+            "timedOut": false,
+            "final": {
+              "summary": "Published for Layabox and recovered into the separate authorized output project without force overwrite or source edits. Host inspection decoded both packages and atlas images; published and restored semantics matched, and pixelsMatch was true for both. Restored validation was complete with no diagnostics. Recovery reconstructs supported published semantics and assets—not original source XML, unpublished content, original filenames/precision, or editor-local state.",
+              "outcome": "completed",
+              "blocker": null,
+              "facts": {
+                "packageCount": 2,
+                "resourceCount": 4,
+                "validationStatus": "valid"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "report": "C:/Users/Derek/AppData/Local/Temp/ofgui-consumer-eczov9/evaluations/report.json",
+        "reportSha256": "27c11b15e9711142bb975689f2e1fff9c9715027d00a15a042413571c4b8bdd3",
+        "modelRequested": "gpt-5.6-sol",
+        "node": "v24.20.0",
+        "consumerLockSha256": "720d134a8e38361e6a4fc9802c5561124f26e8d4088ee20a271d34c56383c8c9",
+        "harness": {
+          "scripts/agent-evals.mjs": "168241683802300f5585e1d837a0491e8da4a4f8bbc04b21bc09f33b0f8724a5",
+          "scripts/pack-smoke.mjs": "bd8a8d2dbb9f74f31f5325ad148ab5a962195e50bbbb02256821aa6fe9e9eabd",
+          "scripts/repo-utils.mjs": "710a4faf28bed7309abf3a8a223a9b09f90c081fcb94a7ec41db176ff8bcd79c",
+          "scripts/consumer/agent-eval.mjs": "c030b9ac87bd4fe051db7a34341cf1c7a40829c78176e6613929e75c102a4938",
+          "scripts/consumer/artifact-eval.mjs": "0f3951a6a0cf814a5130ce93d71ca6d38dcd5a051ecfd9008975b689db072765",
+          "scripts/consumer/runtime.mjs": "845a840bd74a7d538fd84d4831932e8914c413c3eb4e9046c9e40e57c8c1a304",
+          "scripts/agent-eval-checks.mjs": "fabe3058e64809dc424d1cbd10d621e73cdeddd9c7256f87673c24d09d45a79a",
+          "examples/create-demo-project.mjs": "fc830e1467e98feb2a639dfd88f06b8731d4ec589a567282a9ad9bf60977a3ce",
+          "examples/publish-restore/index.mjs": "5b738ad5448703250f62ffe2fd11f873001e5e20d78ee2acd8eaa0da286c888c",
+          "agent/evals/tasks.json": "fbba3cb00e6abe82090076a31e0619c7a4aeece6a0d2770981c38a047acda0ee"
+        },
+        "sameArtifactsAsFullRun": true,
+        "passed": 1,
+        "total": 1,
+        "cases": [
+          {
+            "taskId": "restore-trusted",
+            "passed": true,
+            "checks": {
+              "runnerCompleted": true,
+              "isolatedTools": true,
+              "noOutOfScopeAccess": true,
+              "inputFilesPreserved": true,
+              "onlyArtifactOutputs": true,
+              "publishedSemantics": true,
+              "restoredSemantics": true,
+              "decodedPixels": true,
+              "validRestoredProject": true,
+              "exactOutputFiles": true,
+              "realPublish": true,
+              "realRestore": true,
+              "observedPublishedRead": true,
+              "observedRestoredRead": true,
+              "honestCompletion": true
+            },
+            "durationMs": 34745,
+            "toolCalls": 4,
+            "failedCalls": 0,
+            "clientFailedCalls": 0,
+            "documentationReads": [
+              "openfairygui://docs/workflow",
+              "openfairygui://docs/restore-limits"
+            ],
+            "previews": 0,
+            "staleRejections": 0,
+            "repeatedSuccessfulOperations": 0,
+            "clientWarnings": [],
+            "error": null,
+            "exitCode": 0,
+            "timedOut": false,
+            "final": {
+              "summary": "Recovered into the host-authorized separate restored/restored.fairy project without republishing, force overwrite, destination changes, or modifying input/unrelated files. Host inspection of published and reread restored outputs confirmed matching semantics and atlas pixels: 2 packages, 4 resources. Validation is valid and complete, with no diagnostics. Recovery cannot reproduce unpublished resources/actions, original filenames/extensions, project ID, workspace/settings, editor-only groups/controller state/export flags, lost easing details, original float precision, or byte-identical XML. Those require original source/workspace files or mapping records.",
+              "outcome": "completed",
+              "blocker": null,
+              "facts": {
+                "packageCount": 2,
+                "resourceCount": 4,
+                "validationStatus": "valid"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "node20Verification": {
+    "report": "C:/Users/Derek/AppData/Local/Temp/ofgui-consumer-tQ365P/app/reference-evaluations/report.json",
+    "reportSha256": "a2e6a40a5a6b76cb2a134f25899180eef2d763da00ea292793b74a9ec272f10b",
+    "node": "20.20.2",
+    "packCheck": true,
+    "passed": 10,
+    "total": 10,
+    "modelSuccessRate": null,
+    "sameArtifactsAsFullRun": true,
+    "artifactHarnessSha256": "0f3951a6a0cf814a5130ce93d71ca6d38dcd5a051ecfd9008975b689db072765"
+  },
+  "ci": {
+    "exitCode": 0,
+    "node": "24.20.0",
+    "avaTests": 528,
+    "repositoryTests": 29,
+    "referenceCases": 10
+  },
+  "limits": [
+    "Ten passes mean six read/edit objectives, two publish/recovery objectives and two correct safe stops, not ten successful edits.",
+    "The two-package Layabox fixture checks decoded binary semantics, component geometry/text, resource references, atlas and recovered RGBA pixels, and complete restored validation. It does not recover absent source/editor information or promise arbitrary formats.",
+    "The example consumer separately checks corrupt-atlas forced-restore failure preserves the complete previous target. The model host never offers force, arbitrary paths or commands.",
+    "No browser interaction, runtime rendering, arbitrary untrusted artifact ingestion, source-hydration recovery or new release was exercised.",
+    "The first complete model run and two targeted discovery-fix reruns are separate observations, not a combined success rate or retry-until-pass."
+  ]
+}

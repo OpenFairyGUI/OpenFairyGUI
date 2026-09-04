@@ -105,6 +105,9 @@ export interface AtlasOptions {
 	 */
 	mkdir?: (path: string) => Promise<void>;
 
+	/** Host notification after an atlas file is successfully written. @internal */
+	onFileWritten?: (path: string) => void;
+
 	/**
 	 * Optional raw file reader for reading .jta MovieClip files.
 	 * Required for MovieClip frame atlas packing.
@@ -146,7 +149,7 @@ export interface AtlasOptions {
 const ATLAS_DEFAULTS: Required<
 	Omit<
 		AtlasOptions,
-		'packages' | 'encoder' | 'basePath' | 'outputPath' | 'mkdir' | 'readFileRaw' | 'preparedMovieClips'
+		'packages' | 'encoder' | 'basePath' | 'outputPath' | 'mkdir' | 'readFileRaw' | 'preparedMovieClips' | 'onFileWritten'
 	>
 > = {
 	maxSize: 2048,

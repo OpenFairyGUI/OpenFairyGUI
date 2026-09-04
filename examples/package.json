@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "inspect": "node node-inspect-validate/index.mjs",
-    "edit": "node revision-checked-edit-save/index.mjs"
+    "edit": "node revision-checked-edit-save/index.mjs",
+    "publish": "node publish-restore/index.mjs"
   },
   "dependencies": {
     "@openfairygui/core": "^0.3.1",

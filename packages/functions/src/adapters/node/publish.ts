@@ -11,6 +11,11 @@ interface NodePublishFileSystem extends PublishFileSystem {
 	readFileRaw(path: string): Promise<Uint8Array>;
 }
 
+export interface PublishNodeResult {
+	/** Files written through the publish filesystem or atlas writer; final absolute paths and byte sizes. */
+	files: Array<{ path: string; size: number }>;
+}
+
 export interface PublishNodeOptions extends Omit<PublishOptions, 'atlas' | 'basePath' | 'encoder' | 'fs' | 'plugins'> {
 	document: Document;
 	/**
@@ -28,7 +33,7 @@ export interface PublishNodeOptions extends Omit<PublishOptions, 'atlas' | 'base
 	atlas?: Omit<NonNullable<PublishOptions['atlas']>, 'readFileRaw'>;
 }
 
-async function createNodePublishFileSystem(): Promise<NodePublishFileSystem> {
+async function createNodePublishFileSystem(files: Set<string>): Promise<NodePublishFileSystem> {
 	const [fs, path] = await Promise.all([
 		importNative<typeof import('node:fs/promises')>('node:fs/promises'),
 		importNative<typeof import('node:path')>('node:path'),
@@ -42,6 +47,7 @@ async function createNodePublishFileSystem(): Promise<NodePublishFileSystem> {
 		async writeFileRaw(filePath: string, data: Uint8Array): Promise<void> {
 			await fs.mkdir(path.dirname(filePath), { recursive: true });
 			await fs.writeFile(filePath, data);
+			files.add(path.resolve(filePath));
 		},
 		async mkdir(dirPath: string): Promise<void> {
 			await fs.mkdir(dirPath, { recursive: true });
@@ -51,6 +57,7 @@ async function createNodePublishFileSystem(): Promise<NodePublishFileSystem> {
 		},
 		async deleteFile(filePath: string): Promise<void> {
 			await fs.rm(filePath, { force: true });
+			files.delete(path.resolve(filePath));
 		},
 		join(...paths: string[]): string {
 			return path.join(...paths);
@@ -154,7 +161,7 @@ async function assertNoSymlinks(
  * For custom environments, use the lower-level `publish()` core with explicit
  * capabilities instead.
  */
-export async function publishNode(options: PublishNodeOptions): Promise<void> {
+export async function publishNode(options: PublishNodeOptions): Promise<PublishNodeResult> {
 	const {
 		document,
 		assetsPath: configuredAssetsPath,
@@ -163,8 +170,13 @@ export async function publishNode(options: PublishNodeOptions): Promise<void> {
 		plugins: configuredPlugins,
 		...publishOptions
 	} = options;
+	const files = new Set<string>();
+	const [fs, path] = await Promise.all([
+		importNative<typeof import('node:fs/promises')>('node:fs/promises'),
+		importNative<typeof import('node:path')>('node:path'),
+	]);
 	const [fileSystem, assetsPath] = await Promise.all([
-		createNodePublishFileSystem(),
+		createNodePublishFileSystem(files),
 		resolveNodeAssetsPath(document, configuredAssetsPath),
 	]);
 	const [encoder, plugins] = await Promise.all([
@@ -178,6 +190,7 @@ export async function publishNode(options: PublishNodeOptions): Promise<void> {
 		throw new Error('publishNode: Sharp is required for a complete publish. Install sharp or provide an encoder.');
 	}
 
+	const result: PublishNodeResult = { files: [] };
 	const run = async (output: string | undefined): Promise<void> => {
 		await document.transform(publish({
 			...publishOptions,
@@ -187,14 +200,25 @@ export async function publishNode(options: PublishNodeOptions): Promise<void> {
 			atlas: {
 				...atlas,
 				readFileRaw: fileSystem.readFileRaw,
+				onFileWritten(file) {
+					files.add(path.resolve(file));
+					atlas?.onFileWritten?.(file);
+				},
 			},
 			fs: fileSystem,
 			plugins,
 		}));
+		// Measure before commit so a failed manifest read also preserves the previous explicit output.
+		result.files = await Promise.all([...files].sort().map(async (file) => {
+			const relative = output ? path.relative(output, file) : null;
+			const staged = relative !== null && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+			return { path: staged ? path.resolve(publishOptions.output!, relative) : file, size: (await fs.stat(file)).size };
+		}));
 	};
 	if (publishOptions.output) {
 		await publishToStagedOutput(publishOptions.output, run);
-		return;
+	} else {
+		await run(undefined);
 	}
-	await run(undefined);
+	return result;
 }

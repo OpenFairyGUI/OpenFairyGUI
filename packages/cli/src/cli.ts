@@ -1,4 +1,5 @@
-import { Command } from 'commander';
+import { Command, CommanderError } from 'commander';
+import { artifactJsonCommand, configureArtifactJson, printArtifactJson } from './utils/artifact-output.js';
 import { registerBackendCapabilitiesCommand } from './commands/backend-capabilities.js';
 import { registerInspectCommand } from './commands/inspect.js';
 import { registerPublishCommand } from './commands/publish.js';
@@ -12,6 +13,7 @@ const PACKAGE_VERSION = readPackageVersion();
 
 function createProgram(): Command {
 	const program = new Command('ofgui');
+	if (artifactJsonCommand(process.argv)) configureArtifactJson(program);
 
 	program.description('FairyGUI Headless Authoring CLI').version(PACKAGE_VERSION).showHelpAfterError();
 
@@ -43,6 +45,9 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-	console.error(err instanceof Error ? err.message : String(err));
-	process.exit(1);
+	const command = artifactJsonCommand(process.argv);
+	const message = err instanceof Error ? err.message : String(err);
+	if (command) printArtifactJson(command, undefined, { code: err instanceof CommanderError ? 'invalid_arguments' : `${command}_failed`, message });
+	else console.error(message);
+	process.exitCode = command && err instanceof CommanderError ? 2 : 1;
 });

@@ -101,7 +101,7 @@ See [Packages and Tools](https://fairygui.dev/en/guide/packages) for package ent
 ## Documentation
 
 - [Repository Development and Verification](./docs/en/guide/development.md)
-- [Runnable Examples and Consumer Verification](./docs/en/guide/examples.md)
+- [Runnable Examples: Inspect, Edit, Publish and Limited Recovery](./docs/en/guide/examples.md)
 - [Contract Sources and Operation Discovery](./docs/en/guide/contracts.md)
 - [Diagnostics and Recovery](./docs/en/guide/diagnostics.md)
 - [Installed Documentation and Product Diagnosis](./docs/en/guide/installed-docs.md)

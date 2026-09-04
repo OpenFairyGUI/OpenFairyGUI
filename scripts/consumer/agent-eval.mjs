@@ -13,7 +13,8 @@ import { validateProjectNode } from '@openfairygui/functions/node';
 import { createOpenFairyGuiMcpServer, OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS } from '@openfairygui/mcp';
 import { createDemoProject } from './examples/create-demo-project.mjs';
 import { contained, exportFiles, json, snapshot } from './runtime.mjs';
-import { BLOCKERS, codexArguments, CONCURRENT_TEXT, EVAL_METHODS, expectedProject, FINAL_SCHEMA, gradeEvaluation, isolatedCodexEvents, observations, PENDING_TEXT, scopedFileSystem } from './agent-eval-checks.mjs';
+import { ARTIFACT_TOOLS, BLOCKERS, codexArguments, CONCURRENT_TEXT, EVAL_METHODS, expectedProject, FINAL_SCHEMA, gradeEvaluation, isolatedCodexEvents, observations, PENDING_TEXT, scopedFileSystem } from './agent-eval-checks.mjs';
+import { referenceArtifact, runArtifactCase, serveArtifact } from './artifact-eval.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
@@ -27,6 +28,7 @@ const lines = (file) => existsSync(file) ? readFileSync(file, 'utf8').split(/\r?
 
 // This process hosts the installed product, not a second implementation of its editing protocol.
 async function serve(config) {
+	if (config.task.lane === 'artifact') return serveArtifact(config);
 	const record = (entry) => appendFileSync(config.trace, `${JSON.stringify({ at: Date.now(), ...entry })}\n`);
 	const fileSystem = scopedFileSystem(createNodeBackendFileSystem(), config.workspace, record);
 	const runtime = createNodeBackendRuntime({ allowedProjectRoots: [path.dirname(config.projectPath)], fileSystem });
@@ -141,6 +143,7 @@ async function reference(config, configPath) {
 	try {
 		await client.connect(transport);
 		await client.listTools(); // Exercise the advertised schemas, including SDK output validation.
+		if (config.task.lane === 'artifact') return await referenceArtifact(client, config);
 		await client.readResource({ uri: 'openfairygui://docs/workflow' });
 		const opened = data(await call(config.sessionId ? 'getSession' : 'openSession', config.sessionId ? { sessionId: config.sessionId } : { projectPath: config.projectPath }));
 		const sessionId = opened.sessionId;
@@ -208,7 +211,8 @@ async function codex(config, configPath, options) {
 	const instructions = path.join(config.directory, 'instructions.txt');
 	saveJson(schema, FINAL_SCHEMA);
 	writeFileSync(instructions, 'You are an OpenFairyGUI consumer. Complete the user task using only the supplied MCP tools and installed documentation resources. Repository source, shell, internet, personal skills and other applications are not available. Explain any blocker honestly.\n');
-	const args = codexArguments({ cwd: config.cwd, server: [fileURLToPath(import.meta.url), '--serve', configPath], schema, output: config.final, instructions, model: options.model, enabledTools: definitions.map((entry) => entry.name) });
+	const enabledTools = config.task.lane === 'artifact' ? ARTIFACT_TOOLS.filter((tool) => config.task.id !== 'restore-trusted' || tool.name !== 'ofgui_artifact_publish') : definitions;
+	const args = codexArguments({ cwd: config.cwd, server: [fileURLToPath(import.meta.url), '--serve', configPath], schema, output: config.final, instructions, model: options.model, enabledTools: enabledTools.map((entry) => entry.name) });
 	saveJson(path.join(config.directory, 'runner.json'), { executable: options.codex, args, modelRequested: options.model ?? null, version: execFileSync(options.codex, ['--version'], { encoding: 'utf8', timeout: 10_000 }).trim() });
 	const child = spawn(options.codex, args, { cwd: config.cwd, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
 	let stdout = '';
@@ -230,6 +234,7 @@ async function codex(config, configPath, options) {
 }
 
 async function runCase(task, options) {
+	if (task.lane === 'artifact') return runArtifactCase(task, options, (config, configPath) => options.runner === 'reference' ? reference(config, configPath) : codex(config, configPath, options));
 	const directory = path.join(options.output, task.id);
 	const workspace = path.join(directory, 'workspace');
 	const cwd = path.join(directory, 'agent');

@@ -29,7 +29,7 @@ export function exportFiles(directory, manifest) {
 	for (const value of Object.values(manifest.exports ?? {})) visit(value);
 }
 
-function bin(name, packageName, args = []) {
+export function bin(name, packageName, args = []) {
 	const directory = path.join(root, 'node_modules', packageName);
 	const manifest = json(path.join(directory, 'package.json'));
 	assert(manifest.bin?.[name], `Missing bin: ${name}`);
@@ -151,6 +151,8 @@ export async function runtimeSmoke() {
 	const { createDemoProject } = await import('./examples/create-demo-project.mjs');
 	const { inspectAndValidate } = await import('./examples/node-inspect-validate/index.mjs');
 	const { editAndSave } = await import('./examples/revision-checked-edit-save/index.mjs');
+	const { artifactSmoke } = await import('./artifact-eval.mjs');
+	await artifactSmoke();
 	const projectPath = await createDemoProject(root);
 	const projectRoot = path.dirname(projectPath);
 	const beforeFiles = snapshot(projectRoot);
@@ -179,6 +181,10 @@ export async function runtimeSmoke() {
 		assert.equal(docs.readInstalledDocumentation(id).text, source);
 		assert.equal(JSON.parse(cli(['docs', 'cat', id, '--json'])).text, source);
 	}
+	const restoreLimits = docs.readInstalledDocumentation('restore-limits');
+	assert.equal(restoreLimits.mimeType, 'text/markdown');
+	assert.equal(JSON.parse(cli(['docs', 'cat', 'restore-limits', '--json'])).text, restoreLimits.text);
+	assert(restoreLimits.text.includes('projectId') && restoreLimits.text.includes('--force'));
 	assert(JSON.parse(cli(['docs', 'find', 'stale_write', '--json'])).documents.some((entry) => entry.id === 'diagnostics/stale_write'));
 	assert.deepEqual(JSON.parse(JSON.parse(cli(['docs', 'schema', 'setDisplayNodeProps', '--json'])).text), docs.getOpenFairyGuiOperationSchema('setDisplayNodeProps'));
 	for (const id of ['../package.json', 'constructor', 'methods/unknown']) {
@@ -242,7 +248,7 @@ export async function runtimeSmoke() {
 	await mcpSmoke(expected.find((entry) => entry.name === '@openfairygui/mcp').version, mcp.OPENFAIRYGUI_BACKEND_TOOL_NAMES,
 		mcp.getOpenFairyGuiOperationCatalog(), mcp.getOpenFairyGuiOperationSchema('addComponent'), expectedDocs);
 	// Execute the documented no-argument commands too; keep their generated projects inside this consumer.
-	for (const name of ['node-inspect-validate', 'revision-checked-edit-save']) {
+	for (const name of ['node-inspect-validate', 'revision-checked-edit-save', 'publish-restore']) {
 		const output = execFileSync(process.execPath, [`examples/${name}/index.mjs`], {
 			cwd: root, encoding: 'utf8', timeout: 30_000,
 			env: { ...process.env, TMPDIR: root, TMP: root, TEMP: root },
@@ -253,4 +259,6 @@ export async function runtimeSmoke() {
 	console.log(`[consumer] Runtime PASS: ${esmCount} ESM / ${cjsCount} CJS entries; CLI JSON; MCP discovery; read/edit/save/reread`);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) await runtimeSmoke();
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+	runtimeSmoke().catch((error) => { console.error(error); process.exitCode = 1; });
+}

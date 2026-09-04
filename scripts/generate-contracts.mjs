@@ -278,6 +278,7 @@ export function generatedFiles(contract, root = ROOT) {
 	const docs = {
 		version: { packageName: backend.name, packageVersion: backend.version, nodeEngine: backend.engines.node },
 		workflow: readFileSync(path.join(root, 'packages/backend/docs/workflow.md'), 'utf8').replaceAll('\r\n', '\n'),
+		restoreLimits: readFileSync(path.join(root, 'docs/published-project-restore-limitations.md'), 'utf8').replaceAll('\r\n', '\n'),
 		skill: readFileSync(path.join(root, 'packages/backend/docs/skills/openfairygui/SKILL.md'), 'utf8').replaceAll('\r\n', '\n'),
 	};
 	docs.version.documentationDigest = createHash('sha256').update(JSON.stringify(docs)).update(contract.digest).digest('hex');

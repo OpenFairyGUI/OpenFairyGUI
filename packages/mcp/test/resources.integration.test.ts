@@ -52,7 +52,7 @@ test('MCP P1 resources expose only identity-addressable backend snapshots', asyn
 		const resources = await client.listResources();
 		t.deepEqual(
 			resources.resources.map((resource) => resource.uri),
-			[OPENFAIRYGUI_DOCS_INDEX_URI, 'openfairygui://docs/workflow', 'openfairygui://docs/skill', 'openfairygui://docs/contracts', BACKEND_DIAGNOSTICS_URI, OPENFAIRYGUI_OPERATION_CATALOG_URI, OPENFAIRYGUI_BACKEND_CAPABILITIES_RESOURCE_URI],
+			[OPENFAIRYGUI_DOCS_INDEX_URI, 'openfairygui://docs/workflow', 'openfairygui://docs/restore-limits', 'openfairygui://docs/skill', 'openfairygui://docs/contracts', BACKEND_DIAGNOSTICS_URI, OPENFAIRYGUI_OPERATION_CATALOG_URI, OPENFAIRYGUI_BACKEND_CAPABILITIES_RESOURCE_URI],
 		);
 
 		const templates = await client.listResourceTemplates();

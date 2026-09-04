@@ -30,5 +30,15 @@
   {
     "id": "path-policy",
     "prompt": "Check whether the supplied live session's pending changes can be saved to the requested destination, and save there if allowed. Preserve all pending work and keep the session open if blocked. Explain the diagnostic code and required host action. Do not save to a different destination, close/reopen/reset the session, or bypass the host's path policy."
+  },
+  {
+    "id": "publish-consume",
+    "lane": "artifact",
+    "prompt": "Publish the saved project for Layabox through the authorized artifact host, inspect and decode the generated packages and atlas images, then recover these trusted local artifacts into the separate output project and validate it. Preserve the source and unrelated files. Report package/resource counts and the restored validation status. Explain the limits of recovery; do not claim original source XML or editor-local state was recovered."
+  },
+  {
+    "id": "restore-trusted",
+    "lane": "artifact",
+    "prompt": "Recover the supplied trusted local published backup into the host's separate new project directory. First inspect its packages and atlas images, then reread and validate the recovered project. Preserve all input and unrelated files; do not republish, force overwrite or change destinations. Report package/resource counts and validation status, and explain what editor/source information cannot be recovered."
   }
 ]

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import test from 'node:test';
-import { BLOCKERS, codexArguments, CONCURRENT_TEXT, expectedProject, gradeEvaluation, isolatedCodexEvents, observations, scopedFileSystem } from './agent-eval-checks.mjs';
+import { ARTIFACT_TOOLS, assertArtifactTool, BLOCKERS, codexArguments, CONCURRENT_TEXT, EVAL_METHODS, expectedProject, gradeArtifactEvaluation, gradeEvaluation, isolatedCodexEvents, observations, scopedFileSystem } from './agent-eval-checks.mjs';
 import { evaluationOptions } from './agent-evals.mjs';
 
 const before = { packages: [{ resources: [{ id: 'cmpdemo1', name: 'MainView', kind: 'component', component: { displayList: [{ id: 'title', text: 'Original' }] } }] }] };
@@ -169,7 +169,7 @@ test('manual model execution is explicit, bounded, tool-only and shell-free', ()
 	assert.throws(() => evaluationOptions({ runner: 'codex', codex: 'codex.cmd' }), /shell interpolation/);
 	assert.throws(() => evaluationOptions({ runner: 'reference', case: '../escape' }), /Unknown --case/);
 	assert.throws(() => evaluationOptions({ runner: 'reference', 'timeout-seconds': '0' }), /integer/);
-	assert.equal(evaluationOptions({ runner: 'reference' }).tasks.length, 8);
+	assert.equal(evaluationOptions({ runner: 'reference' }).tasks.length, 10);
 	const args = codexArguments({ cwd: '/isolated/agent', server: ['/isolated/host.mjs', '--serve', '/isolated/task.json'], schema: '/answer.json', output: '/final.json', instructions: '/instructions.txt', enabledTools: ['read'] });
 	for (const flag of ['--ignore-user-config', '--ephemeral', '--skip-git-repo-check']) assert(args.includes(flag));
 	assert(args.includes('project_doc_max_bytes=0'));
@@ -181,4 +181,43 @@ test('manual model execution is explicit, bounded, tool-only and shell-free', ()
 	assert(!isolatedCodexEvents([{ item: { type: 'command_execution' } }]));
 	assert(!isolatedCodexEvents([{ item: { type: 'mcp_tool_call', server: 'other' } }]));
 	assert(!isolatedCodexEvents([{ item: { type: 'mcp_tool_call', server: 'codex', tool: 'list_mcp_resources', arguments: { server: 'other' } } }]));
+});
+
+test('artifact host never widens editing tools or accepts arbitrary execution inputs', () => {
+	assert.equal(EVAL_METHODS.length, 10);
+	assert(!EVAL_METHODS.some((method) => /publish|restore|exec/.test(method)));
+	for (const tool of ARTIFACT_TOOLS) assertArtifactTool('publish-consume', tool.name, tool.name.endsWith('_inspect') ? { target: 'published' } : {});
+	for (const [name, args] of [
+		['ofgui_artifact_publish', { output: '../escape' }], ['ofgui_artifact_restore', { force: true }],
+		['ofgui_artifact_context', { command: 'anything' }], ['ofgui_artifact_inspect', { target: '../escape' }],
+		['ofgui_artifact_inspect', { target: 'published', path: '/other' }], ['openfairygui_backend_open_session', {}],
+	]) assert.throws(() => assertArtifactTool('publish-consume', name, args));
+	assert.throws(() => assertArtifactTool('restore-trusted', 'ofgui_artifact_publish', {}));
+});
+
+test('artifact grading needs real commands, decoded pixels, supported semantics and untouched inputs', () => {
+	const expected = [{ id: 'pkg', resources: [{ id: 'component', reference: 'image' }, { id: 'image' }] }];
+	const trace = [];
+	for (const [index, [name, args]] of [['publish', {}], ['restore', {}], ['inspect', { target: 'published' }], ['inspect', { target: 'restored' }]].entries()) {
+		trace.push({ type: 'request', message: { id: index, method: 'tools/call', params: { name: `ofgui_artifact_${name}`, arguments: args } } },
+			{ type: 'response', message: { id: index, result: { structuredContent: { artifactResult: { success: true } } } } });
+	}
+	const valid = { expected, actual: { published: { semantics: expected, pixelsMatch: true }, restored: { semantics: expected, pixelsMatch: true, validation: { status: 'valid', complete: true } }, exactOutputFiles: true },
+		beforeFiles: { 'source/keep': 'keep' }, actualFiles: { 'source/keep': 'keep', 'release/package.fui': 'binary', 'restored/project.fairy': 'project' },
+		trace, final: { outcome: 'completed', blocker: null, facts: { packageCount: 1, resourceCount: 2, validationStatus: 'valid' } }, runnerOk: true, isolated: true, publishTask: true };
+	assert(gradeArtifactEvaluation(valid).passed);
+	for (const broken of [
+		{ trace: [] }, { runnerOk: false }, { isolated: false }, { final: null },
+		{ trace: trace.map((entry) => entry.type === 'response' ? { ...entry, message: { ...entry.message, result: { ...entry.message.result, isError: true } } } : entry) },
+		{ trace: [...trace, { type: 'scope-violation' }] },
+		{ actualFiles: { ...valid.actualFiles, 'source/keep': 'changed' } },
+		{ actualFiles: { ...valid.actualFiles, '.restored.restore-staging/extra': 'leak' } },
+		{ actual: { ...valid.actual, exactOutputFiles: false } },
+		{ actual: { ...valid.actual, published: { semantics: expected, pixelsMatch: false } } },
+		{ actual: { ...valid.actual, restored: { ...valid.actual.restored, semantics: [] } } },
+		{ actual: { ...valid.actual, restored: { ...valid.actual.restored, validation: { status: 'valid', complete: false } } } },
+	]) assert(!gradeArtifactEvaluation({ ...valid, ...broken }).passed, JSON.stringify(broken));
+	const restoreOnly = { ...valid, publishTask: false, beforeFiles: { ...valid.beforeFiles, 'release/package.fui': 'binary' }, trace: trace.filter((entry) => entry.message.id !== 0) };
+	assert(gradeArtifactEvaluation(restoreOnly).passed);
+	assert(!gradeArtifactEvaluation({ ...restoreOnly, actualFiles: { ...valid.actualFiles, 'release/package.fui': 'replaced' } }).passed);
 });

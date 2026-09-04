@@ -198,6 +198,10 @@ flowchart LR
 - `@openfairygui/functions/web` 的 `publishBrowser()` 接收调用方的源/输出 `FileSystem`，通过独立 `adapters/web/raster.ts` Canvas adapter 生成 atlas PNG，并注入空 hooks。SVG 在解码前经过有尺寸、节点数和输入大小上限的 XML 安全校验；`createImageBitmap` 拒绝已验证 SVG 时仅对 SVG 使用 `HTMLImageElement` Blob URL 回退，并在成功或失败后释放 URL，其他图片格式仍沿用原解码路径。它解析持久化的 Laya 压缩、图集和安全文件扩展名设置，同时保持显式 browser 参数优先；选中包实际请求代码生成或扩展名不安全时，会在 Canvas 检查与输出写入前返回结构化 `unsupported_publish_setting`。失败结果的 `files` 只声明已完成的 `writeFileRaw`，原子提交由宿主文件系统负责。
 - `@openfairygui/functions/node` 的 `restoreNode()` 组装受限 restore 所需的 Node 文件系统与 Sharp 图像提取；CLI 只解析参数并调用该入口。
 
+`publishNode()` 的文件清单由 Node 文件系统写入与 atlas writer 完成通知共同记录，暂存提交前测量，提交后返回最终绝对路径与字节长度；不枚举旧目录来假定哪些文件由本次生成。CLI 的 `publish/restore --json` 仅包装正式 workflow 结果，统一单一 JSON stdout、错误码与退出码，日志走 stderr。恢复限制文档从正式 `docs/published-project-restore-limitations.md` 生成到安装语料，CLI/MCP 共用 `restore-limits`。
+
+消费者评测新增独立 artifact 宿主，只把固定输入与固定目录的安装后 CLI publish/restore，以及产物读取/像素解码/恢复验证映射成无路径参数的评测工具；恢复任务不能重新发布输入。它不是产品 MCP 的新服务，也不激活 Backend artifact plane。原十个编辑工具及其权限保持不变；模型仍无任意终端或文件执行权限。判定器独立读取发布物、检查受支持语义与 RGBA、验证恢复工程和文件集合，并确认源工程、发布输入及无关文件保留。
+
 两种宿主都复用 `publish -> atlas / BinaryWriter` 主链；Web 入口不经过 backend Node bridge。
 
 ## 当前工程 XML 协议元数据结构

@@ -8,6 +8,7 @@
 ofgui docs ls --json
 ofgui docs find "selector" --json
 ofgui docs cat workflow
+ofgui docs cat restore-limits --json
 ofgui docs cat methods/queryEntity --json
 ofgui docs schema setDisplayNodeProps --json
 ofgui docs diagnostic stale_write --json
@@ -37,4 +38,4 @@ ofgui doctor ./MyProject --json
 
 `pnpm contracts:generate` 从 Core/Backend 类型、MCP 传输元数据、Backend 包版本及上述 Markdown 生成 `packages/backend/src/generated/`。修改版本或原文后必须重新生成；`contracts:check` 拒绝漂移。发布流程仍检查即将发布的同一组 tarball，不能以网站或另一次 build 替代安装产物证据。
 
-`pack:check` 在仓库外安装五包，验证文档/Skill 存在、包版本与摘要一致、CLI/MCP 正文一致、doctor 只读及缺少解码器时的 incomplete 退出码，并继续运行 inspect/edit/save/reread 示例。源码测试和安装消费者验证分开保留。
+`pack:check` 在仓库外安装五包，验证文档/Skill 存在、包版本与摘要一致、CLI/MCP 正文一致、doctor 只读及缺少解码器时的 incomplete 退出码，并运行 inspect/edit/save/reread 及 publish/restore 示例；`restore-limits` 正文直接由正式恢复边界文档生成并随包分发。源码测试和安装消费者验证分开保留。

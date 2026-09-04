@@ -8,6 +8,7 @@ Use this project's installed `ofgui` (`ofgui.cmd` on Windows), verify `--version
 ofgui docs ls --json
 ofgui docs find "selector" --json
 ofgui docs cat workflow
+ofgui docs cat restore-limits --json
 ofgui docs cat methods/queryEntity --json
 ofgui docs schema setDisplayNodeProps --json
 ofgui docs diagnostic stale_write --json
@@ -37,4 +38,4 @@ Backend ships the source workflow at `docs/workflow.md` and the skill at `docs/s
 
 `pnpm contracts:generate` generates `packages/backend/src/generated/` from Core/Backend types, MCP transport metadata, Backend package version and those Markdown files. Regenerate after version or content changes; `contracts:check` rejects drift. Release verification uses the exact tarballs being published, not a website or a separate build as proof.
 
-`pack:check` installs five tarballs outside the repository and verifies documentation/skill presence, package versions/digests, identical CLI/MCP content, read-only doctor behavior and incomplete exit codes when decoding is unavailable. It still executes inspect/edit/save/reread examples. Source tests and installed-consumer verification remain distinct.
+`pack:check` installs five tarballs outside the repository and verifies documentation/skill presence, package versions/digests, identical CLI/MCP content, read-only doctor behavior and incomplete exit codes when decoding is unavailable. It also executes inspect/edit/save/reread and publish/restore examples. The installed `restore-limits` document is generated directly from the canonical recovery-boundary document. Source tests and installed-consumer verification remain distinct.

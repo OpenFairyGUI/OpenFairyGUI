@@ -33,8 +33,8 @@ pnpm check:ci
 | `pnpm contracts:generate` | 从 Core/Backend 类型生成 MCP 结构契约、操作目录、快照与双语表格 |
 | `pnpm contracts:check` | 只读检查 operation/方法映射和生成物漂移；仓库自测与 `docs:check` 均覆盖 |
 | `pnpm docs:build` | 显式先生成 TypeDoc API，再构建 VitePress；不依赖隐式 pre-script 配置 |
-| `pnpm pack:check` | 构建并打包五包，在仓库外安装生产依赖，验证入口、类型、浏览器打包、CLI/MCP 和两个可运行示例 |
-| `pnpm eval:agent --runner reference` | 八个真实 tarball/MCP 任务的确定性宿主自测，含控制器/动画编辑和两类安全停止；`pack:check` 也执行，不调用模型 |
+| `pnpm pack:check` | 构建并打包五包，在仓库外安装生产依赖，验证入口、类型、浏览器打包、CLI/MCP 和三个可运行示例 |
+| `pnpm eval:agent --runner reference` | 十个真实 tarball/MCP 任务的确定性宿主自测，含编辑、安全停止和独立发布/恢复任务；`pack:check` 也执行，不调用模型 |
 | `pnpm eval:agent --runner codex --codex codex` | 手动真实模型任务，保存状态判定、调用轨迹与失败现场；不进入 PR CI |
 | `pnpm check:ci` | 完整 `check`、`docs:check`、文档构建和 tarball 消费者检查；提交前使用此入口 |
 

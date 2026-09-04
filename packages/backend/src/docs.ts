@@ -60,6 +60,7 @@ export function getInstalledDocumentationIndex() {
 		...getInstalledDocumentationVersion(),
 		documents: [
 			{ id: 'workflow', title: 'Safe editing workflow and installation checks', uri: 'openfairygui://docs/workflow' },
+			{ id: 'restore-limits', title: 'Trusted artifact recovery scope and unrecoverable editor information', uri: 'openfairygui://docs/restore-limits' },
 			{ id: 'skill', title: 'Thin installed-version navigation skill', uri: 'openfairygui://docs/skill' },
 			{ id: 'contracts', title: 'Operation catalog and Backend/MCP method mapping', uri: 'openfairygui://docs/contracts' },
 			...Object.keys(CONTRACT_SNAPSHOT.operations).map((kind) => ({ id: `operations/${kind}`, title: `UAM operation: ${kind}`, uri: `${OPENFAIRYGUI_OPERATION_CATALOG_URI}/${kind}` })),
@@ -75,6 +76,7 @@ export function readInstalledDocumentation(id: string) {
 	if (!entry) throw new RangeError(`Unknown installed documentation ID: ${id}`);
 	let content: unknown;
 	if (id === 'workflow') content = INSTALLED_DOCS.workflow;
+	else if (id === 'restore-limits') content = INSTALLED_DOCS.restoreLimits;
 	else if (id === 'skill') content = INSTALLED_DOCS.skill;
 	else if (id === 'contracts') content = {
 		...getOpenFairyGuiOperationCatalog(),
@@ -88,7 +90,7 @@ export function readInstalledDocumentation(id: string) {
 	}
 	return {
 		...getInstalledDocumentationVersion(), ...entry,
-		mimeType: id === 'workflow' || id === 'skill' ? 'text/markdown' : 'application/json',
+		mimeType: typeof content === 'string' ? 'text/markdown' : 'application/json',
 		text: typeof content === 'string' ? content : JSON.stringify(content, null, 2),
 	};
 }

@@ -50,7 +50,7 @@ export function registerOpenFairyGuiBackendResources(server: McpServer, runtime:
 		const document = readInstalledDocumentation(id);
 		return { contents: [{ uri: uri.toString(), mimeType: document.mimeType, text: document.text }] };
 	}
-	for (const id of ['workflow', 'skill', 'contracts']) {
+	for (const id of ['workflow', 'restore-limits', 'skill', 'contracts']) {
 		server.registerResource(
 			`openfairygui_docs_${id}`, `openfairygui://docs/${id}`,
 			{ title: `Installed ${id}`, description: 'Read the installed-version corpus without repository or network access.', mimeType: id === 'contracts' ? JSON_MIME_TYPE : 'text/markdown' },

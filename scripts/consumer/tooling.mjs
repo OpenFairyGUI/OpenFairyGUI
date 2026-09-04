@@ -15,9 +15,16 @@ for (const [extension, selected] of [['mts', entries], ['cts', entries.filter((e
 	assert(selected.length > 0);
 	writeFileSync(`entries.${extension}`, selected.map(({ specifier }, index) => `import * as entry${index} from '${specifier}'; void entry${index};`).join('\n'));
 }
+writeFileSync('publish-result.mts', `import { publishNode, type PublishNodeOptions, type PublishNodeResult } from '@openfairygui/functions/node';
+async function publish(options: PublishNodeOptions): Promise<PublishNodeResult> {
+  const result = await publishNode(options);
+  for (const file of result.files) { const path: string = file.path; const size: number = file.size; void path; void size; }
+  return result;
+}
+void publish;\n`);
 writeFileSync('tsconfig.json', JSON.stringify({
 	compilerOptions: { target: 'ES2022', module: 'NodeNext', moduleResolution: 'NodeNext', strict: true, skipLibCheck: false, noEmit: true, types: ['node'], lib: ['ES2022', 'DOM', 'DOM.Iterable'] },
-	files: ['entries.mts', 'entries.cts'],
+	files: ['entries.mts', 'entries.cts', 'publish-result.mts'],
 }));
 // The repository compiler is an npm alias; use its declared binary, not an assumed bin/tsc path.
 const compilerBin = Object.values(json('node_modules/typescript/package.json').bin)[0];

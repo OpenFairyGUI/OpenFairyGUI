@@ -64,6 +64,7 @@ test('installed documentation is bound to the package version, source text and g
 	assert.equal(index.nodeEngine, manifest.engines.node);
 	assert.equal(index.contractDigest, contract.digest);
 	assert.equal(readInstalledDocumentation('workflow').text, readFileSync(path.join(ROOT, 'packages/backend/docs/workflow.md'), 'utf8').replaceAll('\r\n', '\n'));
+	assert.equal(readInstalledDocumentation('restore-limits').text, readFileSync(path.join(ROOT, 'docs/published-project-restore-limitations.md'), 'utf8').replaceAll('\r\n', '\n'));
 	assert.equal(new Set(index.documents.map((entry) => entry.id)).size, index.documents.length);
 	assert.deepEqual(getInstalledContractSnapshot().diagnostics, contract.diagnostics);
 	const copy = getInstalledContractSnapshot();
