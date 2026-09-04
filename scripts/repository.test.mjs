@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, w
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { changedFiles, impactTable, selectTests } from './test-changed.mjs';
+import { avaInvocation, changedFiles, impactTable, selectTests } from './test-changed.mjs';
 import { checkCommands, checkGuidance, changelogStructure, markdownCode, markdownLinks, resolveLink } from './check-guidance.mjs';
 import { inspectBuilds, inspectEnvironment, inspectReferences } from './repo-doctor.mjs';
 import { git, matches, readJson, ROOT, testFiles } from './repo-utils.mjs';
@@ -80,6 +80,13 @@ test('invalid comparison base produces a non-empty full plan via the real CLI', 
 	const result = JSON.parse(execFileSync(process.execPath, ['scripts/test-changed.mjs', '--base', 'refs/heads/does-not-exist', '--list'], { cwd: ROOT, encoding: 'utf8' }));
 	assert.equal(result.scope, 'full');
 	assert.deepEqual(result.tests, available);
+});
+
+test('AVA selection preserves pnpm shims instead of executing the raw JS entrypoint', () => {
+	const files = ['packages/backend/test/browser-entry.contract.test.ts'];
+	assert.deepEqual(avaInvocation('/tools/pnpm.cjs', files), [process.execPath, ['/tools/pnpm.cjs', 'exec', 'ava', '--no-worker-threads', ...files]]);
+	assert.deepEqual(avaInvocation('/tools/pnpm', files), ['/tools/pnpm', ['exec', 'ava', '--no-worker-threads', ...files]]);
+	assert.throws(() => avaInvocation(undefined, files), /pnpm test:changed/);
 });
 
 test('local links cover Markdown and HTML, ignore code examples and reject broken/escaping paths', (t) => {

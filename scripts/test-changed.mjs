@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { git, isMain, matches, nulLines, readJson, ROOT, runNode, testFiles } from './repo-utils.mjs';
+import { git, isMain, matches, nulLines, readJson, ROOT, runCommand, testFiles } from './repo-utils.mjs';
 import { inspectReferences } from './repo-doctor.mjs';
 
 export function changedFiles(root, base) {
@@ -54,6 +54,13 @@ export function impactTable(map) {
 	].join('\n');
 }
 
+export function avaInvocation(pnpmCli, files) {
+	if (!pnpmCli) throw new Error('Execute tests through pnpm test:changed; direct node invocation only supports --list / --matrix.');
+	// pnpm's AVA shim supplies NODE_PATH needed by existing isolated-build tests. Do not bypass it.
+	const args = ['exec', 'ava', '--no-worker-threads', ...files];
+	return /\.[cm]?js$/i.test(pnpmCli) ? [process.execPath, [pnpmCli, ...args]] : [pnpmCli, args];
+}
+
 if (isMain(import.meta.url)) {
 	try {
 		const { values } = parseArgs({ options: { base: { type: 'string' }, list: { type: 'boolean' }, matrix: { type: 'boolean' } } });
@@ -67,13 +74,12 @@ if (isMain(import.meta.url)) {
 			const plan = selectTests(map, files, testFiles(ROOT), reason);
 			console.log(JSON.stringify(plan, null, 2));
 			if (!values.list) {
-				runNode(ROOT, ['--test', 'scripts/repository.test.mjs']);
-				runNode(ROOT, ['scripts/check-guidance.mjs']);
+				runCommand(ROOT, process.execPath, ['--test', 'scripts/repository.test.mjs']);
+				runCommand(ROOT, process.execPath, ['scripts/check-guidance.mjs']);
 				if (plan.tests.length > 0) {
 					const refs = inspectReferences(ROOT);
 					if (!refs.ok) throw new Error('Required fixtures are not ready. Run pnpm refs:status, then pnpm refs:sync / pnpm refs:verify.');
-					const manifest = readJson(path.join(ROOT, 'node_modules/ava/package.json'));
-					runNode(ROOT, [path.join(ROOT, 'node_modules/ava', manifest.bin.ava), '--no-worker-threads', ...plan.tests]);
+					runCommand(ROOT, ...avaInvocation(process.env.npm_execpath, plan.tests));
 				}
 			}
 		}

@@ -40,8 +40,8 @@ export function testFiles(root) {
 	return files.sort();
 }
 
-export function runNode(root, args) {
-	const result = spawnSync(process.execPath, args, { cwd: root, stdio: 'inherit' });
+export function runCommand(root, command, args) {
+	const result = spawnSync(command, args, { cwd: root, stdio: 'inherit' });
 	if (result.error) throw result.error;
-	if (result.status !== 0) throw new Error(`Node check failed (${result.signal ?? result.status}): ${args[0]}`);
+	if (result.status !== 0) throw new Error(`Check failed (${result.signal ?? result.status}): ${command} ${args[0]}`);
 }

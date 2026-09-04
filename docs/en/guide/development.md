@@ -45,6 +45,7 @@ Doctor does not install, download, configure or write files. Export-file presenc
 - Unknown paths, dependency/shared configuration changes, unavailable bases/shallow history and no changes fall back to the entire suite, never an empty success.
 - Recognized documentation-only work may use repository-only mode, which still runs tooling tests and guidance checks. `check:ci` additionally builds the documentation.
 - Every selected test group must match files. Listed documents are review prompts, not a demand to rewrite unrelated protocol descriptions.
+- Tests use pnpm's AVA shim, preserving the environment required by existing isolated-build tests. Do not call AVA's raw JS entrypoint. Direct Node invocation of the selection script supports plan/matrix inspection only.
 
 PR quality jobs run `check` on all three Node majors. A separate documentation job runs `docs:check` and `docs:build` on the recommended Node without downloading fixtures. Together they correspond to local `check:ci`. Structural checks do not crawl remote URLs or validate heading anchors, translation meaning or protocol accuracy; those still require review.
 
