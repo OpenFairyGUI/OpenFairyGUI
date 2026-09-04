@@ -35,14 +35,30 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        run: pnpm lint:ci
+      - name: Full repository checks
+        run: pnpm check
 
-      - name: Typecheck
-        run: pnpm typecheck
+  documentation:
+    name: Guidance and documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Build
-        run: pnpm build
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
-      - name: Test
-        run: pnpm test
+      - name: Setup development Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify instructions, links and bilingual structure
+        run: pnpm docs:check
+
+      - name: Build documentation including API
+        run: pnpm docs:build

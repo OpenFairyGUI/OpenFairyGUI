@@ -8,6 +8,9 @@
 
 | 文档 | 说明 |
 |---|---|
+| [仓库开发与验证](./guide/development.md) | 可复现启动、参考语料、任务路由、验证范围与 PR 门禁 |
+| [快速开始](./guide/getting-started.md) | 安装 SDK 并读取首个工程 |
+| [包与工具](./guide/packages.md) | 选择公开包与宿主入口 |
 | [版本变更记录](https://github.com/OpenFairyGUI/OpenFairyGUI/blob/main/CHANGELOG_CN.md) | 按发布版本汇总公开功能、修复、破坏性变更与维护事项 |
 | [架构图说明](./architecture-overview.md) | 说明 monorepo 包职责、模块边界、核心数据流，以及 `backend` 的 browser-safe storage adapter、`materializeSession`、stateful runtime、service-layer、events/jobs/cache 与 `mcp` 薄适配 / resources / prompts 定位 |
 | [工程验证](./project-validation.md) | 说明工程读取、UAM 完整性、资源与宿主解码验证，以及 API、CLI、Backend、MCP 的统一报告契约 |

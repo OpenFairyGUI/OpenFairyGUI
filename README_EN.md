@@ -100,6 +100,7 @@ See [Packages and Tools](https://fairygui.dev/en/guide/packages) for package ent
 
 ## Documentation
 
+- [Repository Development and Verification](./docs/en/guide/development.md)
 - [Getting Started](https://fairygui.dev/en/guide/getting-started)
 - [API Reference](https://fairygui.dev/api/)
 - [Architecture and Package Boundaries](./docs/en/architecture-overview.md)
@@ -121,11 +122,11 @@ The [documentation site](https://fairygui.dev/en/) defines the current implement
 
 ## Local development
 
+Prepare Git, the Node version recommended in `.node-version`, and pnpm from `package.json`. See the [development guide](./docs/en/guide/development.md) for submodules, diagnostics and verification scopes.
+
 ```bash
-pnpm install
-pnpm build
-pnpm test
-pnpm lint
+pnpm repo:setup
+pnpm check:ci
 ```
 
 ## License

@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+Other:
+
+- workspace: Add reproducible development guidance, pinned-fixture verification, read-only environment diagnostics, impact-selected tests and unified quality entrypoints, with PR checks for documentation builds, guidance links and bilingual record structure.
+
 Release comparisons:
 
 - Stable line (`main`): [v0.3.1...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.1...main)

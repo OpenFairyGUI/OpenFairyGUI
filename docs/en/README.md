@@ -2,10 +2,14 @@
 
 This directory contains the English documentation used by the static website. It describes only the current implementation and does not preserve obsolete compatibility layers, temporary migrations, or unimplemented plans.
 
+[中文文档](../README.md)
+
 ## Documentation index
 
 | Document | Description |
 |---|---|
+| [Repository Development and Verification](./guide/development.md) | Reproducible setup, references, task routing, verification scope and PR gates. |
+| [Project Validation](../project-validation.md) | Shared project validation reports and API/CLI/Backend/MCP behavior. |
 | [Changelog](https://github.com/OpenFairyGUI/OpenFairyGUI/blob/main/CHANGELOG.md) | Public features, fixes, breaking changes, and maintenance work by release. |
 | [Architecture Overview](./architecture-overview.md) | Package responsibilities, UAM and backend boundaries, host adapters, and primary data flows. |
 | [Editor Publish Settings](./editor-publish-settings.md) | Actual editor setting files, properties, defaults, output resolution, and current publish behavior. |

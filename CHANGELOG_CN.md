@@ -4,6 +4,10 @@
 
 ## 未发布
 
+其他：
+
+- workspace：加入可复现开发指引、固定 fixture 校验、只读环境诊断、变更影响测试选择与统一质量入口，并在 PR 中检查文档构建、指令链接和双语记录结构。
+
 发布比较：
 
 - 稳定线（`main`）：[v0.3.1...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.1...main)

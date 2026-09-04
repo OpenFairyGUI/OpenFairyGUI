@@ -1,0 +1,61 @@
+{
+  "submodules": [
+    {
+      "path": "packages/test-utils/test/fixtures/FairyGUI-Editor",
+      "authority": "Current editor settings, plugin API and UI project; not legacy binary exporter authority.",
+      "probe": "ui/FairyGUI-Editor.fairy"
+    },
+    {
+      "path": "packages/test-utils/test/fixtures/FairyGUI-layabox",
+      "authority": "Layabox runtime consumption and paired demo source/published resources.",
+      "probe": "demo/UIProject/FairyGUI-layabox-demo.fairy"
+    },
+    {
+      "path": "packages/test-utils/test/fixtures/FairyGUI-unity",
+      "authority": "Unity runtime consumption and paired example source/published resources.",
+      "probe": "UIProject/FairyGUI-Unity-Examples.fairy"
+    }
+  ],
+  "local": [
+    {
+      "id": "official-docs",
+      "paths": ["referer/Docs"],
+      "source": null,
+      "revision": null,
+      "authority": "Official terminology and user-visible editor behavior.",
+      "acquire": "Ask the maintainer for the original source URL and version. Record provenance before citing this optional local copy."
+    },
+    {
+      "id": "legacy-editor",
+      "paths": ["referer/Editor/scripts/fairygui/editor", "referer/Editor/scripts/fairygui/editor/worker"],
+      "source": null,
+      "revision": null,
+      "authority": "Legacy AS3/AIR editor project I/O, publishing settings and exporters.",
+      "acquire": "Maintainer-supplied historical source; provenance and redistribution permission are not recorded. Do not automatically download or substitute the newer editor UI repository."
+    },
+    {
+      "id": "legacy-pairs",
+      "paths": ["referer/UIProject", "referer/Release"],
+      "source": null,
+      "revision": null,
+      "authority": "Paired legacy source projects and published artifacts; inspect matching projects together.",
+      "acquire": "Ask the maintainer for the paired corpus, its source and editor version. Missing pairs block conclusions about the legacy exporter."
+    },
+    {
+      "id": "local-runtime-editor",
+      "paths": ["referer/Runtimes", "referer/FairyGUI-Editor"],
+      "source": null,
+      "revision": null,
+      "authority": "Optional runtime/editor copies. Prefer the pinned fixture submodules for reproducible runtime and current editor evidence.",
+      "acquire": "Use the registered submodules unless this local copy is specifically needed; record its provenance separately."
+    },
+    {
+      "id": "supplementary",
+      "paths": ["referer/API", "referer/fgui-restore", "referer/glTF-Transform"],
+      "source": null,
+      "revision": null,
+      "authority": "Supplementary API lookup, parser sanity checks and architecture examples; not FairyGUI protocol authority.",
+      "acquire": "Optional maintainer-local material. Identify its source/version before use; never require it for ordinary development."
+    }
+  ]
+}

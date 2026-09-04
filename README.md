@@ -100,6 +100,7 @@ ofgui publish ./MyProject --output ./release
 
 ## 文档
 
+- [仓库开发与验证](./docs/guide/development.md)
 - [快速开始](https://fairygui.dev/guide/getting-started)
 - [API Reference](https://fairygui.dev/api/)
 - [架构与包边界](./docs/architecture-overview.md)
@@ -122,11 +123,11 @@ ofgui publish ./MyProject --output ./release
 
 ## 本地开发
 
+先准备 Git、`.node-version` 推荐的 Node 和 `package.json` 指定的 pnpm。子模块、环境诊断与验证范围见[开发指南](./docs/guide/development.md)。
+
 ```bash
-pnpm install
-pnpm build
-pnpm test
-pnpm lint
+pnpm repo:setup
+pnpm check:ci
 ```
 
 ## License

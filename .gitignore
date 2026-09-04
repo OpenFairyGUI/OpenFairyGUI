@@ -37,6 +37,7 @@ Thumbs.db
 .env.*
 !.env.example
 
-# AI agent
-AGENTS.md
+# Personal agent overrides (not automatically loaded as repository instructions)
+AGENTS.local.md
+.agents.local/
 .omx
