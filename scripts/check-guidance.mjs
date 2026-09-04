@@ -77,7 +77,7 @@ export function changelogStructure(text) {
 			section.categories.push(category);
 		} else if (category && /^- /.test(line)) category.count += 1;
 	}
-	if (result.length < 2) throw new Error('Changelog must include Unreleased and at least one version.');
+	if (result[0]?.version !== 'unreleased' || result.length < 2) throw new Error('Changelog must start with Unreleased and include at least one version.');
 	return result;
 }
 

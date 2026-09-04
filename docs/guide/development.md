@@ -27,7 +27,7 @@ pnpm check:ci
 | `pnpm refs:verify` | 必需 fixture 的提交、工作区状态和探针文件检查；不通过时非零退出 |
 | `pnpm test:repo` | 无需产品构建或外部语料的 Node 内置测试，覆盖仓库脚本 |
 | `pnpm test:changed --base origin/next --list` | 只输出选择计划；base 应换成实际 PR 目标，不执行测试 |
-| `pnpm check:fast` | lint、typecheck、仓库自测、指引检查和影响映射选择的 AVA 测试；不构建文档站，不等于全量 |
+| `pnpm check:fast` | lint、typecheck、仓库自测、指引检查；选中 AVA 测试时先构建工作区再运行测试；不构建文档站，不等于全量 |
 | `pnpm check` | fixture 验证、lint、typecheck、构建、仓库自测、完整 AVA 测试 |
 | `pnpm docs:check` | 本地链接、指令路径/命令、影响表、公开源码入口、双语导航及 Changelog 结构 |
 | `pnpm docs:build` | 显式先生成 TypeDoc API，再构建 VitePress；不依赖隐式 pre-script 配置 |
@@ -45,6 +45,7 @@ doctor 不安装、不下载、不写文件。它只检查导出文件是否存�
 - 未知路径、依赖/公共配置变化、无法解析基准或浅历史、无变更时回退全量；不能静默选择零个测试。
 - 只有已识别的纯文档变更可以采用 repository-only 模式；仍运行仓库自测与指引检查。完整文档构建由 `check:ci` 保证。
 - 每个选中测试组必须匹配文件。计划中的文档是审查提示，不意味着只改注释也必须重写协议文档。
+- 执行选中的 AVA 测试前统一运行工作区构建，确保 CLI/MCP/Backend 的构建测试不会加载旧依赖产物；构建失败立即停止。纯文档模式及 `--list`/`--matrix` 不触发构建。
 - 测试通过 pnpm 的 AVA 启动器运行，保留现有隔离构建测试需要的环境；不要直接调用 AVA 的 JS 文件。直接用 Node 调用选择脚本仅支持查看计划/矩阵。
 
 PR CI 的 quality job 在三个 Node 主版本执行 `check`，独立 documentation job 在推荐 Node 上执行 `docs:check` 与 `docs:build`；文档 job 不需要下载 fixture。两类 job 合起来对应本地 `check:ci`。远端链接、Markdown 标题锚点、翻译含义和协议解释不由结构检查证明，仍需人工审查。

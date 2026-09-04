@@ -54,11 +54,17 @@ export function impactTable(map) {
 	].join('\n');
 }
 
-export function avaInvocation(pnpmCli, files) {
+export function pnpmInvocation(pnpmCli, args) {
 	if (!pnpmCli) throw new Error('Execute tests through pnpm test:changed; direct node invocation only supports --list / --matrix.');
 	// pnpm's AVA shim supplies NODE_PATH needed by existing isolated-build tests. Do not bypass it.
-	const args = ['exec', 'ava', '--no-worker-threads', ...files];
 	return /\.[cm]?js$/i.test(pnpmCli) ? [process.execPath, [pnpmCli, ...args]] : [pnpmCli, args];
+}
+
+export function runSelectedTests(root, pnpmCli, files) {
+	if (files.length === 0) return;
+	// Built CLI/MCP/backend tests also load workspace dependencies from dist.
+	runCommand(root, ...pnpmInvocation(pnpmCli, ['build']));
+	runCommand(root, ...pnpmInvocation(pnpmCli, ['exec', 'ava', '--no-worker-threads', ...files]));
 }
 
 if (isMain(import.meta.url)) {
@@ -79,7 +85,7 @@ if (isMain(import.meta.url)) {
 				if (plan.tests.length > 0) {
 					const refs = inspectReferences(ROOT);
 					if (!refs.ok) throw new Error('Required fixtures are not ready. Run pnpm refs:status, then pnpm refs:sync / pnpm refs:verify.');
-					runCommand(ROOT, ...avaInvocation(process.env.npm_execpath, plan.tests));
+					runSelectedTests(ROOT, process.env.npm_execpath, plan.tests);
 				}
 			}
 		}

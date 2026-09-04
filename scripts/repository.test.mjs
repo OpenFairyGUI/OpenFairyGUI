@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, w
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { avaInvocation, changedFiles, impactTable, selectTests } from './test-changed.mjs';
+import { changedFiles, impactTable, pnpmInvocation, runSelectedTests, selectTests } from './test-changed.mjs';
 import { checkCommands, checkGuidance, changelogStructure, markdownCode, markdownLinks, resolveLink } from './check-guidance.mjs';
 import { inspectBuilds, inspectEnvironment, inspectReferences } from './repo-doctor.mjs';
 import { git, matches, readJson, ROOT, testFiles } from './repo-utils.mjs';
@@ -83,10 +83,29 @@ test('invalid comparison base produces a non-empty full plan via the real CLI', 
 });
 
 test('AVA selection preserves pnpm shims instead of executing the raw JS entrypoint', () => {
+	const args = ['exec', 'ava', '--no-worker-threads', 'packages/backend/test/browser-entry.contract.test.ts'];
+	assert.deepEqual(pnpmInvocation('/tools/pnpm.cjs', args), [process.execPath, ['/tools/pnpm.cjs', ...args]]);
+	assert.deepEqual(pnpmInvocation('/tools/pnpm', args), ['/tools/pnpm', args]);
+	assert.throws(() => pnpmInvocation(undefined, args), /pnpm test:changed/);
+});
+
+test('selected tests build dependencies first, stop on build failure and skip builds for documentation-only plans', (t) => {
+	const root = temporaryRepository(t);
+	write(root, 'fake pnpm.cjs', `const fs = require('node:fs');
+const args = process.argv.slice(2);
+fs.appendFileSync('calls.jsonl', JSON.stringify(args) + '\\n');
+if (args[0] === 'build' && fs.existsSync('fail-build')) process.exit(1);
+`);
+	const cli = path.join(root, 'fake pnpm.cjs');
 	const files = ['packages/backend/test/browser-entry.contract.test.ts'];
-	assert.deepEqual(avaInvocation('/tools/pnpm.cjs', files), [process.execPath, ['/tools/pnpm.cjs', 'exec', 'ava', '--no-worker-threads', ...files]]);
-	assert.deepEqual(avaInvocation('/tools/pnpm', files), ['/tools/pnpm', ['exec', 'ava', '--no-worker-threads', ...files]]);
-	assert.throws(() => avaInvocation(undefined, files), /pnpm test:changed/);
+	const calls = () => readFileSync(path.join(root, 'calls.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+	runSelectedTests(root, cli, files);
+	assert.deepEqual(calls(), [['build'], ['exec', 'ava', '--no-worker-threads', ...files]]);
+	write(root, 'fail-build', '');
+	assert.throws(() => runSelectedTests(root, cli, files), /Check failed \(1\)/);
+	assert.deepEqual(calls(), [['build'], ['exec', 'ava', '--no-worker-threads', ...files], ['build']]);
+	runSelectedTests(root, undefined, []);
+	assert.equal(calls().length, 3);
 });
 
 test('local links cover Markdown and HTML, ignore code examples and reject broken/escaping paths', (t) => {
@@ -116,6 +135,8 @@ test('bilingual changelog checks versions, release URLs, categories and item cou
 	assert.notDeepEqual(changelogStructure(en), changelogStructure(`${cn}\n- 额外项目`));
 	assert.throws(() => changelogStructure(cn.replace('tag/v1.2.3', 'tag/v1.2.2')), /release link/);
 	assert.throws(() => changelogStructure(`${en}\n### v1.2.3 ([Release](https://github.com/a/b/releases/tag/v1.2.3))`), /Duplicate/);
+	const releaseOnly = en.slice(en.indexOf('### v1.2.3'));
+	assert.throws(() => changelogStructure(`${releaseOnly}\n${releaseOnly.replaceAll('v1.2.3', 'v1.2.2')}`), /must start with Unreleased/);
 });
 
 function referenceFixture(t, initialized = true) {

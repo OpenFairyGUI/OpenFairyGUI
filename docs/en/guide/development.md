@@ -27,7 +27,7 @@ For a dirty checkout, consider an isolated worktree before dependency or documen
 | `pnpm refs:verify` | Required fixture commits, working trees and probe files; nonzero exit on failure |
 | `pnpm test:repo` | Built-in Node tests for repository tooling, without product builds or external fixtures |
 | `pnpm test:changed --base origin/next --list` | Print a plan only; replace the base with the actual PR target |
-| `pnpm check:fast` | Lint, typecheck, repository-tool tests, guidance checks and impact-selected AVA tests; not a full regression or documentation build |
+| `pnpm check:fast` | Lint, typecheck, repository-tool tests and guidance checks; build the workspace before any selected AVA tests; not a full regression or documentation build |
 | `pnpm check` | Fixture verification, lint, typecheck, build, repository-tool tests and all AVA tests |
 | `pnpm docs:check` | Local links, agent paths/commands, impact-table drift, public source mappings, bilingual entries and Changelog structure |
 | `pnpm docs:build` | Explicit TypeDoc generation followed by VitePress; no dependency on implicit pre-script settings |
@@ -45,6 +45,7 @@ Doctor does not install, download, configure or write files. Export-file presenc
 - Unknown paths, dependency/shared configuration changes, unavailable bases/shallow history and no changes fall back to the entire suite, never an empty success.
 - Recognized documentation-only work may use repository-only mode, which still runs tooling tests and guidance checks. `check:ci` additionally builds the documentation.
 - Every selected test group must match files. Listed documents are review prompts, not a demand to rewrite unrelated protocol descriptions.
+- Selected AVA tests always follow a workspace build so built CLI/MCP/backend tests cannot load stale dependency output; build failures stop execution. Documentation-only mode and `--list`/`--matrix` do not build.
 - Tests use pnpm's AVA shim, preserving the environment required by existing isolated-build tests. Do not call AVA's raw JS entrypoint. Direct Node invocation of the selection script supports plan/matrix inspection only.
 
 PR quality jobs run `check` on all three Node majors. A separate documentation job runs `docs:check` and `docs:build` on the recommended Node without downloading fixtures. Together they correspond to local `check:ci`. Structural checks do not crawl remote URLs or validate heading anchors, translation meaning or protocol accuracy; those still require review.
