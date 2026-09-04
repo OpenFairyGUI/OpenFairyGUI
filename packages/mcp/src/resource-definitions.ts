@@ -1,6 +1,7 @@
 import { ResourceTemplate, type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
 import { BACKEND_DIAGNOSTICS_URI, BACKEND_DIAGNOSTIC_TEMPLATE, getBackendDiagnosticCatalog, getBackendDiagnosticGuide } from '@openfairygui/backend';
+import { getInstalledDocumentationIndex, readInstalledDocumentation, OPENFAIRYGUI_DOCS_INDEX_URI } from '@openfairygui/backend/docs';
 import type { OpenFairyGuiBackendRuntime } from './tool-handler.js';
 import {
 	getOpenFairyGuiOperationCatalog,
@@ -30,6 +31,7 @@ function jsonResource(uri: URL, backendResult: unknown): ReadResourceResult {
 export const OPENFAIRYGUI_BACKEND_CAPABILITIES_RESOURCE_URI = 'openfairygui://backend/capabilities';
 
 export const OPENFAIRYGUI_BACKEND_RESOURCE_TEMPLATES = [
+	'openfairygui://docs/methods/{method}',
 	BACKEND_DIAGNOSTIC_TEMPLATE,
 	OPENFAIRYGUI_OPERATION_SCHEMA_TEMPLATE,
 	'openfairygui://backend/session/{sessionId}',
@@ -39,6 +41,27 @@ export const OPENFAIRYGUI_BACKEND_RESOURCE_TEMPLATES = [
 ] as const;
 
 export function registerOpenFairyGuiBackendResources(server: McpServer, runtime: OpenFairyGuiBackendRuntime): void {
+	server.registerResource(
+		'openfairygui_docs_index', OPENFAIRYGUI_DOCS_INDEX_URI,
+		{ title: 'Installed Documentation', description: 'Offline documentation IDs, URIs, installed package version and contract digest shared with the CLI.', mimeType: JSON_MIME_TYPE },
+		(uri) => jsonResource(uri, getInstalledDocumentationIndex()),
+	);
+	function installedDocument(uri: URL, id: string): ReadResourceResult {
+		const document = readInstalledDocumentation(id);
+		return { contents: [{ uri: uri.toString(), mimeType: document.mimeType, text: document.text }] };
+	}
+	for (const id of ['workflow', 'skill', 'contracts']) {
+		server.registerResource(
+			`openfairygui_docs_${id}`, `openfairygui://docs/${id}`,
+			{ title: `Installed ${id}`, description: 'Read the installed-version corpus without repository or network access.', mimeType: id === 'contracts' ? JSON_MIME_TYPE : 'text/markdown' },
+			(uri) => installedDocument(uri, id),
+		);
+	}
+	server.registerResource(
+		'openfairygui_docs_method', new ResourceTemplate('openfairygui://docs/methods/{method}', { list: undefined }),
+		{ title: 'Installed Method Contract', description: 'Read self-contained Backend/MCP wire input/output schemas and metadata.', mimeType: JSON_MIME_TYPE },
+		(uri, variables) => installedDocument(uri, `methods/${firstVariable(variables.method)}`),
+	);
 	server.registerResource(
 		'openfairygui_diagnostic_catalog', BACKEND_DIAGNOSTICS_URI,
 		{ title: 'Diagnostic Recovery Catalog', description: 'First-batch diagnostic ownership and recovery guidance; never automatic repair.', mimeType: JSON_MIME_TYPE },

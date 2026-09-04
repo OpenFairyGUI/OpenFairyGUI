@@ -12,6 +12,7 @@ This directory contains the English documentation used by the static website. It
 | [Runnable Examples and Consumer Verification](./guide/examples.md) | Isolated tarballs, public entrypoints, inspect/validate and revision-checked edit/save. |
 | [Contract Sources and Operation Discovery](./guide/contracts.md) | Core/Backend-derived operations, MCP input/output schemas, binary transport and drift checks. |
 | [Diagnostics and Recovery](./guide/diagnostics.md) | Diagnostic ownership, per-code guides and read-only recovery starting points; no automatic repair. |
+| [Installed Documentation and Product Diagnosis](./guide/installed-docs.md) | CLI/MCP shared offline corpus, thin skill and read-only product doctor. |
 | [Project Validation](../project-validation.md) | Shared project validation reports and API/CLI/Backend/MCP behavior. |
 | [Changelog](https://github.com/OpenFairyGUI/OpenFairyGUI/blob/main/CHANGELOG.md) | Public features, fixes, breaking changes, and maintenance work by release. |
 | [Architecture Overview](./architecture-overview.md) | Package responsibilities, UAM and backend boundaries, host adapters, and primary data flows. |

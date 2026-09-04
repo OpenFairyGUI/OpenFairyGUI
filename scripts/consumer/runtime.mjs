@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { accessSync, constants, existsSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -47,7 +47,7 @@ function cli(args) {
 	return execFileSync(...bin('ofgui', '@openfairygui/cli', args), { cwd: root, encoding: 'utf8', timeout: 30_000 });
 }
 
-async function mcpSmoke(expectedVersion, expectedTools, expectedCatalog, expectedSchema) {
+async function mcpSmoke(expectedVersion, expectedTools, expectedCatalog, expectedSchema, expectedDocs) {
 	const child = spawn(...bin('ofgui-mcp', '@openfairygui/mcp'), { cwd: root, stdio: ['pipe', 'pipe', 'pipe'] });
 	let stderr = '';
 	let buffer = '';
@@ -84,6 +84,15 @@ async function mcpSmoke(expectedVersion, expectedTools, expectedCatalog, expecte
 							send({ id: 4, method: 'resources/read', params: { uri: 'openfairygui://contracts/operations/addComponent' } });
 						} else if (response.id === 4) {
 							assert.deepEqual(JSON.parse(response.result.contents[0].text), expectedSchema);
+							send({ id: 5, method: 'resources/read', params: { uri: 'openfairygui://docs/index' } });
+						} else if (response.id === 5) {
+							assert.deepEqual(JSON.parse(response.result.contents[0].text), expectedDocs.index);
+							send({ id: 6, method: 'resources/read', params: { uri: 'openfairygui://docs/workflow' } });
+						} else if (response.id === 6) {
+							assert.equal(response.result.contents[0].text, expectedDocs.workflow.text);
+							send({ id: 7, method: 'resources/read', params: { uri: 'openfairygui://docs/diagnostics/stale_write' } });
+						} else if (response.id === 7) {
+							assert.equal(response.result.contents[0].text, expectedDocs.diagnostic.text);
 							clearTimeout(timer); resolve();
 						}
 					} catch (error) { fail(error); }
@@ -155,9 +164,53 @@ export async function runtimeSmoke() {
 	assert.equal(cli(['--version']).trim(), expected.find((entry) => entry.name === '@openfairygui/cli').version);
 	assert.deepEqual(JSON.parse(cli(['inspect', projectRoot, '--json'])), report.inspection);
 	assert.equal(JSON.parse(cli(['validate', projectRoot, '--json'])).status, 'valid');
-	assert.equal(execFileSync(...bin('openfairygui', '@openfairygui/cli', ['--version']), { encoding: 'utf8' }).trim(), expected[0].version);
+	const docs = await import('@openfairygui/backend/docs');
+	const expectedDocs = {
+		index: JSON.parse(cli(['docs', 'ls', '--json'])),
+		workflow: JSON.parse(cli(['docs', 'cat', 'workflow', '--json'])),
+		diagnostic: JSON.parse(cli(['docs', 'diagnostic', 'stale_write', '--json'])),
+	};
+	assert.deepEqual(expectedDocs.index, docs.getInstalledDocumentationIndex());
+	assert.equal(expectedDocs.index.packageVersion, expected.find((entry) => entry.name === '@openfairygui/backend').version);
+	assert.match(expectedDocs.index.documentationDigest, /^[a-f0-9]{64}$/);
+	const backendDirectory = path.join(root, 'node_modules/@openfairygui/backend');
+	for (const [id, file] of [['workflow', 'docs/workflow.md'], ['skill', 'docs/skills/openfairygui/SKILL.md']]) {
+		const source = readFileSync(path.join(backendDirectory, file), 'utf8').replaceAll('\r\n', '\n');
+		assert.equal(docs.readInstalledDocumentation(id).text, source);
+		assert.equal(JSON.parse(cli(['docs', 'cat', id, '--json'])).text, source);
+	}
+	assert(JSON.parse(cli(['docs', 'find', 'stale_write', '--json'])).documents.some((entry) => entry.id === 'diagnostics/stale_write'));
+	assert.deepEqual(JSON.parse(JSON.parse(cli(['docs', 'schema', 'setDisplayNodeProps', '--json'])).text), docs.getOpenFairyGuiOperationSchema('setDisplayNodeProps'));
+	for (const id of ['../package.json', 'constructor', 'methods/unknown']) {
+		assert.throws(() => cli(['docs', 'cat', id, '--json']), (error) => error.status === 1 && JSON.parse(error.stdout).error.code === 'documentation_unavailable');
+	}
+	const doctor = JSON.parse(cli(['doctor', projectRoot, '--json']));
+	assert.equal(doctor.status, 'ready'); assert.equal(doctor.project.status, 'valid'); assert(doctor.project.complete);
+	assert.equal(doctor.packageVersion, doctor.cliVersion);
+	const noProject = JSON.parse(cli(['doctor', '--json']));
+	assert.equal(noProject.project, null); assert.equal(noProject.scope, 'installed-product');
 	const { NodeIO } = await import('@openfairygui/core/node');
-	const { readProjectAsUam } = await import('@openfairygui/core');
+	const { readProjectAsUam, liftDocumentToUamProject, writeProjectFromUam } = await import('@openfairygui/core');
+	const decoderProjectPath = await createDemoProject(root);
+	const decoderDocument = await new NodeIO().readProject(decoderProjectPath);
+	decoderDocument.getRoot().listPackages()[0].addResource(decoderDocument.createImageResource('pixel.png').setId('pixel').setPath('/').setFileName('pixel.png'));
+	const decoderProject = liftDocumentToUamProject(decoderDocument);
+	decoderProject.packages[0].resources.find((entry) => entry.kind === 'image').sourceBytes = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'));
+	await writeProjectFromUam(new NodeIO(), decoderProject, decoderProjectPath);
+	assert.equal(JSON.parse(cli(['doctor', decoderProjectPath, '--json'])).status, 'ready');
+	const decoderBefore = snapshot(path.dirname(decoderProjectPath));
+	// Simulate the optional decoder being absent without modifying the installed package tree.
+	const loader = `data:text/javascript,${encodeURIComponent("export async function resolve(id, context, next) { if (id === 'sharp') throw new Error('Decoder unavailable in this consumer check'); return next(id, context); }")}`;
+	const register = `data:text/javascript,${encodeURIComponent(`import { register } from 'node:module'; register(${JSON.stringify(loader)});`)}`;
+	// The CLI bootstrap spawns Node, so explicitly pass the test loader to its child as well.
+	const incomplete = spawnSync(...bin('ofgui', '@openfairygui/cli', ['doctor', decoderProjectPath, '--json']), { cwd: root, encoding: 'utf8', timeout: 30_000, env: { ...process.env, NODE_OPTIONS: `--import=${register}` } });
+	assert.equal(incomplete.status, 2, incomplete.stderr);
+	const incompleteReport = JSON.parse(incomplete.stdout);
+	assert.equal(incompleteReport.status, 'incomplete'); assert.equal(incompleteReport.project.complete, false);
+	assert(incompleteReport.project.diagnostics.some((entry) => entry.code === 'decode_capability_unavailable'));
+	assert.deepEqual(snapshot(path.dirname(decoderProjectPath)), decoderBefore);
+	assert.deepEqual(snapshot(projectRoot), beforeFiles, 'Product diagnosis and documentation must not change project files');
+	assert.equal(execFileSync(...bin('openfairygui', '@openfairygui/cli', ['--version']), { encoding: 'utf8' }).trim(), expected[0].version);
 	const beforeProject = await readProjectAsUam(new NodeIO(), projectPath);
 	const edited = await editAndSave(projectPath, 'Saved by a tarball consumer');
 	assert.equal(edited.revision, 1); assert.equal(edited.dirty, false);
@@ -173,6 +226,7 @@ export async function runtimeSmoke() {
 	const reopened = await runtime.openSession({ projectPath });
 	assert(reopened.ok, 'Example must release its session lock');
 	try {
+		assert.equal(JSON.parse(cli(['doctor', projectRoot, '--json'])).status, 'ready', 'Doctor must not contend with a session lock');
 		const component = beforeProject.packages[0].resources.find((entry) => entry.kind === 'component');
 		const queried = runtime.queryEntity({ sessionId: reopened.data.sessionId, target: {
 			kind: 'displayNode', selector: { packageId: beforeProject.packages[0].id, componentResourceId: component.id, displayNodeId: target.id },
@@ -186,7 +240,7 @@ export async function runtimeSmoke() {
 	} finally { assert((await runtime.closeSession({ sessionId: reopened.data.sessionId })).ok); }
 	const mcp = await import('@openfairygui/mcp');
 	await mcpSmoke(expected.find((entry) => entry.name === '@openfairygui/mcp').version, mcp.OPENFAIRYGUI_BACKEND_TOOL_NAMES,
-		mcp.getOpenFairyGuiOperationCatalog(), mcp.getOpenFairyGuiOperationSchema('addComponent'));
+		mcp.getOpenFairyGuiOperationCatalog(), mcp.getOpenFairyGuiOperationSchema('addComponent'), expectedDocs);
 	// Execute the documented no-argument commands too; keep their generated projects inside this consumer.
 	for (const name of ['node-inspect-validate', 'revision-checked-edit-save']) {
 		const output = execFileSync(process.execPath, [`examples/${name}/index.mjs`], {

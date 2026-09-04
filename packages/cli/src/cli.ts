@@ -4,6 +4,8 @@ import { registerInspectCommand } from './commands/inspect.js';
 import { registerPublishCommand } from './commands/publish.js';
 import { registerRestoreCommand } from './commands/restore.js';
 import { registerValidateCommand } from './commands/validate.js';
+import { registerDocsCommand } from './commands/docs.js';
+import { registerDoctorCommand } from './commands/doctor.js';
 import { readPackageVersion } from './utils/package-version.js';
 
 const PACKAGE_VERSION = readPackageVersion();
@@ -18,6 +20,8 @@ function createProgram(): Command {
 	registerRestoreCommand(program);
 	registerValidateCommand(program);
 	registerBackendCapabilitiesCommand(program);
+	registerDocsCommand(program);
+	registerDoctorCommand(program);
 
 	program.addHelpText(
 		'after',

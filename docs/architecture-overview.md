@@ -10,7 +10,7 @@ Backend 的 `ReadService.queryEntity` 以正式 ID selector 返回资源、组�
 
 `AuthoringService.preflightTransaction` 在现有会话队列中检查 revision，复制工程和源字节后复用 Functions/Core 的异步事务入口，执行后丢弃，不提交工程、推进 revision、变更缓存或发出业务事件。MCP 只映射此只读方法。后续 apply 仍重新检查 revision，保存继续走原有独立的存储与回滚边界。
 
-契约事实源保持在 Core 的 UAM 类型与事务入口、Backend 的公开方法签名；开发时用已有 TypeScript 编译器生成 MCP 结构 schema、操作目录及文档表格。MCP 只声明传输元数据、宿主字段排除与输入预算，通过同一映射分发和转换正式字节字段；结构校验之后仍由原事务内核执行语义检查。生成快照随 MCP 构建，Core 不增加 Zod 依赖，详见[契约事实源与操作查询](./guide/contracts.md)。
+契约事实源保持在 Core 的 UAM 类型与事务入口、Backend 的公开方法签名；开发时用已有 TypeScript 编译器生成 MCP 结构 schema、操作目录及文档表格。MCP 只声明传输元数据、宿主字段排除与输入预算，通过同一映射分发和转换正式字节字段；结构校验之后仍由原事务内核执行语义检查。生成快照和最小版本绑定语料通过独立的 `@openfairygui/backend/docs` 分发；MCP 取同一快照构建 Zod 校验器，CLI/MCP 共用离线文档，不增加反向运行时依赖或 Core Zod 依赖。产品 `ofgui doctor` 复用 Node 能力声明与 `validateProjectNode`，不开 session/锁。详见[契约查询](./guide/contracts.md)与[安装版本文档](./guide/installed-docs.md)。
 
 当前仓库在 **Gate A** 阶段更适合理解成七段式结构：`输入源 -> 协议适配 -> 统一声明式 Authoring Model -> 内部图物化层 -> 工作流 / 后端运行时 -> MCP 薄适配 -> 输出物`。  
 其中新的主真相层是 **Unified Authoring Model (UAM)**；`Document + Property Graph` 仍然存在，并且当前大多数既有流程仍围绕它执行，但在架构定位上已经进入内部执行 / 存储 / 适配层，而不是长期公开的 authoring 中心。  

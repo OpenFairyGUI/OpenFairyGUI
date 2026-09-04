@@ -1,21 +1,8 @@
 import { z } from 'zod';
-import type { BackendDiagnosticGuide } from '@openfairygui/backend';
-import type { BackendToolMetadata } from './tool-metadata.js';
-import { CONTRACT_SNAPSHOT } from './generated/contracts.js';
+import { getInstalledContractSnapshot, type ContractSchema } from '@openfairygui/backend/docs';
+export { getOpenFairyGuiOperationCatalog, getOpenFairyGuiOperationSchema, OPENFAIRYGUI_OPERATION_CATALOG_URI, OPENFAIRYGUI_OPERATION_SCHEMA_TEMPLATE } from '@openfairygui/backend/docs';
 
-export type ContractSchema = z.core.JSONSchema.JSONSchema;
-export interface ContractSnapshot {
-	digest: string;
-	schemaVersion: number;
-	versions: { BACKEND_CONTRACT_VERSION: string; BACKEND_CAPABILITY_SCHEMA_VERSION: number };
-	operations: Record<string, ContractSchema>;
-	tools: Record<string, BackendToolMetadata & { input: ContractSchema; output: ContractSchema; bytePaths: string[][] }>;
-	$defs: Record<string, ContractSchema>;
-	diagnostics: BackendDiagnosticGuide[];
-}
-
-export const OPENFAIRYGUI_OPERATION_CATALOG_URI = 'openfairygui://contracts/operations';
-export const OPENFAIRYGUI_OPERATION_SCHEMA_TEMPLATE = `${OPENFAIRYGUI_OPERATION_CATALOG_URI}/{kind}`;
+export const CONTRACT_SNAPSHOT = getInstalledContractSnapshot();
 
 export function contractObjectSchema(schema: ContractSchema): z.ZodObject {
 	const result = z.fromJSONSchema({ ...schema, $defs: CONTRACT_SNAPSHOT.$defs });
@@ -39,32 +26,4 @@ export function decodeToolBytes(input: Record<string, unknown>, paths: string[][
 	}
 	for (const parts of paths) visit(result, parts);
 	return result;
-}
-
-export function getOpenFairyGuiOperationCatalog() {
-	return {
-		digest: CONTRACT_SNAPSHOT.digest,
-		schemaVersion: CONTRACT_SNAPSHOT.schemaVersion,
-		...CONTRACT_SNAPSHOT.versions,
-		operations: Object.keys(CONTRACT_SNAPSHOT.operations).map((kind) => ({ kind, schemaUri: `${OPENFAIRYGUI_OPERATION_CATALOG_URI}/${kind}` })),
-	};
-}
-
-/** A self-contained schema with only the definitions reachable from this operation. */
-export function getOpenFairyGuiOperationSchema(kind: string): ContractSchema {
-	if (!Object.hasOwn(CONTRACT_SNAPSHOT.operations, kind)) throw new RangeError(`Unknown UAM operation: ${kind}`);
-	const schema = CONTRACT_SNAPSHOT.operations[kind];
-	const definitions: Record<string, ContractSchema> = {};
-	function visit(value: unknown): void {
-		if (!value || typeof value !== 'object') return;
-		const ref = (value as ContractSchema).$ref;
-		if (ref) {
-			const key = ref.slice('#/$defs/'.length);
-			if (Object.hasOwn(definitions, key)) return;
-			definitions[key] = CONTRACT_SNAPSHOT.$defs[key];
-			visit(definitions[key]);
-		} else for (const child of Object.values(value)) visit(child);
-	}
-	visit(schema);
-	return structuredClone({ $schema: 'https://json-schema.org/draft/2020-12/schema', ...schema, $defs: definitions });
 }

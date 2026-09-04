@@ -28,6 +28,7 @@ Start with `core` and `functions` when you only need to read, update, or publish
 | `@openfairygui/functions/web` | Browser adapter `publishBrowser()`; it does not load Node plugins. |
 | `@openfairygui/backend` | Host-injected backend runtime, sessions, storage, and capability contracts. |
 | `@openfairygui/backend/node` | Default Node filesystem, lock, and backend runtime adapters. |
+| `@openfairygui/backend/docs` | Independent browser-safe installed documentation, operation/method schemas and diagnostics shared by CLI/MCP; see [installed docs](./installed-docs.md). |
 | `@openfairygui/mcp` | MCP server, tools, resources, and prompts adapter for the backend runtime. |
 | `@openfairygui/mcp/stdio` | Local MCP stdio transport entrypoint. |
 | `@openfairygui/cli` | The `ofgui` command-line program; it has no library subpath entrypoints. |

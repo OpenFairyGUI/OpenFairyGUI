@@ -91,6 +91,10 @@ pnpm refs:verify --require legacy-editor
 
 发布命名差异先查 exporter；发布设置结合文档、settings JSON 和编辑器源码；字段落点先统计 source XML 的标签分布。旧版 UIProject/Release 与新版 editor/runtime 样本要区分。二进制优先源工程/发布物成对验证，不凭单个包或包头 Version 差异下结论。API/插件问题先查插件接口，再回查源码。Unity Library、缓存和静态哈希页面不作为优先扫描对象。
 
+## 产品文档与仓库诊断
+
+安装包使用 `ofgui docs` 和 `ofgui doctor --json`，不依赖仓库。语料与契约统一由 `pnpm contracts:generate` 更新到 `packages/backend/src/generated/`；包版本、工作流或薄 Skill 变化也必须生成并运行 `pnpm contracts:check`。`pnpm pack:check` 验证离线 CLI/MCP 语料一致性、版本、doctor 与随包 Skill。仓库环境诊断仍用 `pnpm repo:doctor`，完整区别见[安装版本文档](./installed-docs.md)。
+
 ## 最小术语表
 
 | 术语 | 本仓库含义 |

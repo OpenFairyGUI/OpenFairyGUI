@@ -28,6 +28,7 @@
 | `@openfairygui/functions/web` | 浏览器发布适配器 `publishBrowser()`；不加载 Node 插件。 |
 | `@openfairygui/backend` | 使用宿主注入能力的 backend runtime、会话、存储与能力契约。 |
 | `@openfairygui/backend/node` | Node 文件系统、锁与 backend runtime 默认适配器。 |
+| `@openfairygui/backend/docs` | 独立的 browser-safe 安装版本文档、操作/方法 schema 与诊断查询；CLI/MCP 共用，见[安装版本文档](./installed-docs.md)。 |
 | `@openfairygui/mcp` | backend runtime 的 MCP server、tools、resources 与 prompts 适配层。 |
 | `@openfairygui/mcp/stdio` | 本地 MCP stdio transport 入口。 |
 | `@openfairygui/cli` | `ofgui` 命令行程序，不提供库式子路径入口。 |

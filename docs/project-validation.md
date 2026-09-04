@@ -70,6 +70,8 @@ Backend 的 `validateSession({ sessionId })` 验证当前 revision 的 authorita
 
 镜像到 Backend meta 的首批诊断附加归属、文档 URI 与结构化恢复建议；原始 `ProjectValidationReport` 的错误分类、完整性和正文保持不变。未知 code 不猜测修复方式，详见[诊断与恢复](./guide/diagnostics.md)。
 
+`ofgui doctor [project] --json` 组合安装版本/能力诊断与现有 Node 工程验证。传入工程时返回磁盘的原始验证报告，不代表当前 session 的未保存状态；无工程时不测试源字节或原生解码。它不开会话、不取锁、不写探针，0/1/2 分别为本次检查完成/错误/验证不完整，详见[安装版本文档与产品诊断](./guide/installed-docs.md)。
+
 ## 事务支持检查、执行预演与工程验证
 
 | 入口 | 回答的问题 | 边界 |

@@ -91,6 +91,10 @@ Use official documentation first, editor source including worker code second, pa
 
 Check exporters for output-naming differences. Establish settings through documentation, sample JSON and editor source; establish field ownership through real XML tags. Distinguish legacy source/artifact pairs from newer editor/runtime samples. Prefer paired semantic binary checks, not a lone package or header Version difference. Check plugin interfaces before consulting supplementary API pages. Do not prioritize Unity Library, caches or hashed static pages.
 
+## Product documentation and repository diagnosis
+
+Installed packages use `ofgui docs` and `ofgui doctor --json` without a checkout. `pnpm contracts:generate` updates contracts and corpus under `packages/backend/src/generated/`; package-version, workflow and thin-skill changes also require regeneration and `pnpm contracts:check`. `pnpm pack:check` verifies CLI/MCP corpus parity, versions, doctor and the packaged skill. Repository prerequisites still use `pnpm repo:doctor`; see [installed docs](./installed-docs.md).
+
 ## Small glossary
 
 | Term | Meaning here |

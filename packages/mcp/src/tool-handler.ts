@@ -11,8 +11,7 @@ import {
 	type OpenFairyGuiBackendToolName,
 } from './tool-definitions.js';
 
-import { decodeToolBytes } from './contract-schema.js';
-import { CONTRACT_SNAPSHOT } from './generated/contracts.js';
+import { decodeToolBytes, CONTRACT_SNAPSHOT } from './contract-schema.js';
 import type { McpUnhandledFailure } from './tool-metadata.js';
 
 export type OpenFairyGuiBackendRuntime = Pick<BackendRuntime, BackendMethodName>;

@@ -1,7 +1,6 @@
 import type { z } from 'zod';
 import type { BackendMethodName } from '@openfairygui/backend';
-import { contractObjectSchema } from './contract-schema.js';
-import { CONTRACT_SNAPSHOT } from './generated/contracts.js';
+import { contractObjectSchema, CONTRACT_SNAPSHOT } from './contract-schema.js';
 import { OPENFAIRYGUI_BACKEND_TOOL_METADATA, type BackendToolMetadata } from './tool-metadata.js';
 
 export const OPENFAIRYGUI_BACKEND_TOOL_PREFIX = 'openfairygui_backend_';

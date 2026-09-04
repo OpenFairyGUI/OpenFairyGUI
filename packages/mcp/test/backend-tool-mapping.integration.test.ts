@@ -9,7 +9,7 @@ import {
 	type OpenFairyGuiBackendToolName,
 } from '../src/index.js';
 import { createMcpFixtureProject, createTempMcpProject } from './helpers.js';
-import { CONTRACT_SNAPSHOT } from '../src/generated/contracts.js';
+import { CONTRACT_SNAPSHOT } from '../src/contract-schema.js';
 
 interface BackendToolResult {
 	ok: boolean;

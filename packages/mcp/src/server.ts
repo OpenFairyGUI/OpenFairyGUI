@@ -3,7 +3,7 @@ import { createNodeBackendRuntime } from '@openfairygui/backend/node';
 import { createRequire } from 'node:module';
 import { registerOpenFairyGuiBackendPrompts } from './prompt-definitions.js';
 import { registerOpenFairyGuiBackendResources } from './resource-definitions.js';
-import { CONTRACT_SNAPSHOT } from './generated/contracts.js';
+import { CONTRACT_SNAPSHOT } from './contract-schema.js';
 import { callOpenFairyGuiBackendTool, type OpenFairyGuiBackendRuntime } from './tool-handler.js';
 import {
 	OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS,
