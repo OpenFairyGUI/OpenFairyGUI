@@ -20,7 +20,7 @@ The corresponding machine-facing CLI commands are `ofgui inspect <project-path> 
 
 ## Revision-checked edit, save and reread
 
-The example obtains resource IDs and the revision from the outline, edits one text node, saves using the transaction's returned revision, rereads through public Node I/O, and releases the session lock. Errors stop execution; stale writes are not blindly retried.
+The example obtains IDs from the outline, then reads current properties and the revision with queryEntity. It previews and applies the same text edit, validates the current project, saves using the transaction's returned revision, rereads through public Node I/O, and releases the session lock. Preview reserves no revision. Errors or incomplete validation stop execution; stale writes are not blindly retried.
 
 <<< ../../../examples/revision-checked-edit-save/index.mjs {js}
 

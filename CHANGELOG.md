@@ -6,7 +6,8 @@
 
 Features:
 
-- backend, mcp: Add revision-bound, isolated resource/component/node property queries with fixed projections, explicit response budgets and selector errors; capability schema version is 4.
+- backend, mcp: Add revision-bound, isolated resource/component/node property queries with fixed projections, explicit response budgets and selector errors; capability schema version is 5.
+- backend, mcp: Preview transactions by executing and discarding isolated snapshots through the existing async transaction entrypoint, preserving diagnostics without changing session state or disk; previews reserve no revision and do not guarantee saving.
 - cli: Add `inspect --json` using the existing inspection report without terminal logs.
 - mcp: Expose Core-derived operation schemas and catalog resources, with method-specific Backend input/output contracts and explicit JSON byte conversion for resource snapshots.
 

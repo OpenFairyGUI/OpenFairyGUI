@@ -20,6 +20,7 @@ export const BACKEND_METHODS = [
 	'getProjectOutline',
 	'queryEntity',
 	'validateSession',
+	'preflightTransaction',
 	'applyTransaction',
 	'saveSession',
 	'materializeSession',
@@ -56,6 +57,7 @@ export function createCapabilities(atomicSave = false): BackendCapabilities {
 			projectValidation: true,
 		},
 		authoring: {
+			preflightTransaction: { mode: 'execute-and-discard', reservesRevision: false },
 			applyTransaction: true,
 			saveSession: true,
 			resourceKinds: [...UAM_SUPPORTED_MATERIALIZATION_SCOPE.resourceKinds],

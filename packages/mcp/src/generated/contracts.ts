@@ -4,7 +4,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 	"schemaVersion": 1,
 	"versions": {
 		"BACKEND_CONTRACT_VERSION": "1.1.0-p2",
-		"BACKEND_CAPABILITY_SCHEMA_VERSION": 4
+		"BACKEND_CAPABILITY_SCHEMA_VERSION": 5
 	},
 	"operations": {
 		"updateProjectSettings": {
@@ -456,6 +456,84 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"additionalProperties": false
 			},
 			"bytePaths": []
+		},
+		"preflightTransaction": {
+			"name": "openfairygui_backend_preflight_transaction",
+			"backendMethod": "preflightTransaction",
+			"title": "Preview UAM Transaction",
+			"description": "Execute a revision-checked operation batch on an isolated project snapshot and discard the result. Returns the base revision and Core diagnostics; does not write, reserve a revision, or guarantee a later apply/save.",
+			"annotations": {
+				"readOnlyHint": true,
+				"idempotentHint": true,
+				"openWorldHint": false
+			},
+			"input": {
+				"type": "object",
+				"properties": {
+					"sessionId": {
+						"type": "string",
+						"minLength": 1
+					},
+					"expectedRevision": {
+						"type": "integer",
+						"minimum": 0
+					},
+					"operations": {
+						"type": "array",
+						"items": {
+							"$ref": "#/$defs/UamTransactionOperation_e59799c94d"
+						},
+						"minItems": 1,
+						"maxItems": 1000
+					}
+				},
+				"required": [
+					"sessionId",
+					"expectedRevision",
+					"operations"
+				],
+				"additionalProperties": false
+			},
+			"output": {
+				"type": "object",
+				"properties": {
+					"backendResult": {
+						"anyOf": [
+							{
+								"$ref": "#/$defs/BackendResult_515933faa6"
+							},
+							{
+								"$ref": "#/$defs/McpUnhandledFailure_fcecd3763a"
+							}
+						]
+					}
+				},
+				"required": [
+					"backendResult"
+				],
+				"additionalProperties": false
+			},
+			"bytePaths": [
+				[
+					"operations",
+					"*",
+					"resource",
+					"sourceBytes"
+				],
+				[
+					"operations",
+					"*",
+					"package",
+					"resources",
+					"*",
+					"sourceBytes"
+				],
+				[
+					"operations",
+					"*",
+					"sourceBytes"
+				]
+			]
 		},
 		"applyTransaction": {
 			"name": "openfairygui_backend_apply_transaction",
@@ -10281,7 +10359,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
-					"const": 4
+					"const": 5
 				}
 			},
 			"required": [
@@ -10418,7 +10496,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
-					"const": 4
+					"const": 5
 				},
 				"transactionKernelOwner": {
 					"type": "string",
@@ -10433,13 +10511,13 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": "@openfairygui/backend"
 				},
 				"methods": {
-					"$ref": "#/$defs/Shape_68a1e16c9d"
+					"$ref": "#/$defs/Shape_549da6da36"
 				},
 				"read": {
 					"$ref": "#/$defs/__type_71336d3d3a"
 				},
 				"authoring": {
-					"$ref": "#/$defs/__type_29714a4b45"
+					"$ref": "#/$defs/__type_1d56ba12a7"
 				},
 				"artifact": {
 					"$ref": "#/$defs/__type_c24c67cf7f"
@@ -10470,7 +10548,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"Shape_68a1e16c9d": {
+		"Shape_549da6da36": {
 			"type": "array",
 			"prefixItems": [
 				{
@@ -10500,6 +10578,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				{
 					"type": "string",
 					"const": "validateSession"
+				},
+				{
+					"type": "string",
+					"const": "preflightTransaction"
 				},
 				{
 					"type": "string",
@@ -10542,8 +10624,8 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": "refreshCache"
 				}
 			],
-			"minItems": 17,
-			"maxItems": 17,
+			"minItems": 18,
+			"maxItems": 18,
 			"items": false
 		},
 		"__type_71336d3d3a": {
@@ -10623,9 +10705,12 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"__type_29714a4b45": {
+		"__type_1d56ba12a7": {
 			"type": "object",
 			"properties": {
+				"preflightTransaction": {
+					"$ref": "#/$defs/__type_8ac3ea45e5"
+				},
 				"applyTransaction": {
 					"type": "boolean",
 					"const": true
@@ -10651,6 +10736,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				}
 			},
 			"required": [
+				"preflightTransaction",
 				"applyTransaction",
 				"saveSession",
 				"resourceKinds",
@@ -10658,6 +10744,24 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"gearKinds",
 				"transactionScope",
 				"unsupported"
+			],
+			"additionalProperties": false
+		},
+		"__type_8ac3ea45e5": {
+			"type": "object",
+			"properties": {
+				"mode": {
+					"type": "string",
+					"const": "execute-and-discard"
+				},
+				"reservesRevision": {
+					"type": "boolean",
+					"const": false
+				}
+			},
+			"required": [
+				"mode",
+				"reservesRevision"
 			],
 			"additionalProperties": false
 		},
@@ -12711,15 +12815,57 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				}
 			]
 		},
-		"BackendResult_13b88469d0": {
+		"BackendResult_515933faa6": {
 			"anyOf": [
 				{
-					"$ref": "#/$defs/BackendSuccess_ecbb234b1b"
+					"$ref": "#/$defs/BackendSuccess_e2ed9133ae"
 				},
 				{
 					"$ref": "#/$defs/BackendFailure_e3b44ea65d"
 				}
 			]
+		},
+		"BackendSuccess_e2ed9133ae": {
+			"type": "object",
+			"properties": {
+				"ok": {
+					"type": "boolean",
+					"const": true
+				},
+				"meta": {
+					"$ref": "#/$defs/BackendResponseMeta_bbbdb18c02"
+				},
+				"data": {
+					"$ref": "#/$defs/BackendTransactionPreview_7d174907bf"
+				}
+			},
+			"required": [
+				"ok",
+				"meta",
+				"data"
+			],
+			"additionalProperties": false
+		},
+		"BackendTransactionPreview_7d174907bf": {
+			"type": "object",
+			"properties": {
+				"sessionId": {
+					"type": "string"
+				},
+				"baseRevision": {
+					"type": "number"
+				},
+				"mode": {
+					"type": "string",
+					"const": "execute-and-discard"
+				}
+			},
+			"required": [
+				"sessionId",
+				"baseRevision",
+				"mode"
+			],
+			"additionalProperties": false
 		},
 		"BackendFailure_e3b44ea65d": {
 			"type": "object",
@@ -13283,6 +13429,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"actualRevision"
 			],
 			"additionalProperties": false
+		},
+		"BackendResult_13b88469d0": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/BackendFailure_e3b44ea65d"
+				},
+				{
+					"$ref": "#/$defs/BackendSuccess_ecbb234b1b"
+				}
+			]
 		},
 		"BackendResult_9adc02b4ed": {
 			"anyOf": [
@@ -14482,5 +14638,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			]
 		}
 	},
-	"digest": "6311a75d017f4e0628265815627b83ea4d5852a1cb1cdc5ded32a4e1b6a8a1fe"
+	"digest": "c3af2571c2be7ae206fee9ef5bd940a552cef0729a329ee478d1a98335e5f386"
 };

@@ -158,6 +158,7 @@ export interface BackendCapabilities {
 		projectValidation: true;
 	};
 	authoring: {
+		preflightTransaction: { mode: 'execute-and-discard'; reservesRevision: false };
 		applyTransaction: true;
 		saveSession: true;
 		resourceKinds: readonly string[];
@@ -575,6 +576,12 @@ export interface ApplySessionTransactionInput {
 	sessionId: string;
 	expectedRevision: number;
 	operations: UamTransactionOperation[];
+}
+
+export interface BackendTransactionPreview {
+	sessionId: string;
+	baseRevision: number;
+	mode: 'execute-and-discard';
 }
 
 export interface GetProjectOutlineInput {

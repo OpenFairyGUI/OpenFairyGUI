@@ -67,3 +67,13 @@ ofgui validate ./MyProject --json
 CLI 退出码为：`0` 有效、`1` 无效、`2` 验证不完整。`--json` 只向标准输出写入报告。
 
 Backend 的 `validateSession({ sessionId })` 验证当前 revision 的 authoritative UAM，并把同一批诊断镜像到 response meta。MCP 工具 `openfairygui_backend_validate_session` 只做该方法的薄映射，不建立第二套规则。
+
+## 事务支持检查、执行预演与工程验证
+
+| 入口 | 回答的问题 | 边界 |
+|---|---|---|
+| Core `validateTransactionSupport` | 当前模型/操作是否落在支持范围，参数与投影约束是否满足 | 不等同于完整执行成功 |
+| Backend `preflightTransaction` | 当前 revision 上这批操作经正式事务入口执行是否成功 | 在隔离工程上执行并丢弃；不修改会话，不预留 revision，不检查保存目标或承诺落盘成功 |
+| Backend `validateSession` | 当前已提交到会话的工程是否有效，已有读取/源文件检查是否完整 | 不预演待执行操作，不保存或发布 |
+
+安全编辑先通过 `queryEntity` 获取当前属性和 revision，再预演、正式 apply、验证并保存；正式 apply 和 save 仍各自检查 revision。预演失败沿用 Core/Functions 的事务诊断，不能把支持检查通过或预演成功当作工程验证报告。参数与只读边界见[契约指南](./guide/contracts.md#预演一次事务)。

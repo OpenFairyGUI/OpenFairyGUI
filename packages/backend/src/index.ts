@@ -50,6 +50,7 @@ export {
 	type BackendSessionLock,
 	type BackendSessionSnapshot,
 	type BackendSuccess,
+	type BackendTransactionPreview,
 	type CacheRefreshFailedError,
 	type CancelJobInput,
 	type EventCursorInvalidError,

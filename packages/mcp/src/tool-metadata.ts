@@ -78,6 +78,13 @@ export const OPENFAIRYGUI_BACKEND_TOOL_METADATA = [
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 	},
 	{
+		name: 'openfairygui_backend_preflight_transaction',
+		backendMethod: 'preflightTransaction',
+		title: 'Preview UAM Transaction',
+		description: 'Execute a revision-checked operation batch on an isolated project snapshot and discard the result. Returns the base revision and Core diagnostics; does not write, reserve a revision, or guarantee a later apply/save.',
+		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+	},
+	{
 		name: 'openfairygui_backend_apply_transaction',
 		backendMethod: 'applyTransaction',
 		title: 'Apply UAM Transaction',

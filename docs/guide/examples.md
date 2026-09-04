@@ -20,7 +20,7 @@ CLI 的对应机器入口是 `ofgui inspect <工程路径> --json` 与 `ofgui va
 
 ## 带 revision 的修改、保存与回读
 
-示例从 outline 获取资源 ID 和 revision，修改一个文本节点，使用事务返回的 revision 保存，再通过公开 Node I/O 重新读取工程，最后释放会话锁。失败直接终止，不盲目重试 stale write。
+示例从 outline 获取资源 ID，再用 queryEntity 读取当前属性与 revision；将同一批文本修改先预演、再正式 apply，验证当前工程后使用事务返回的 revision 保存，通过公开 Node I/O 重新读取工程，最后释放会话锁。预演不预留 revision。失败或验证不完整直接终止，不盲目重试 stale write。
 
 <<< ../../examples/revision-checked-edit-save/index.mjs {js}
 

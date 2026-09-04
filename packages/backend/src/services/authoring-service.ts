@@ -17,6 +17,7 @@ import type {
 	BackendFileSystem,
 	BackendResult,
 	BackendSessionSnapshot,
+	BackendTransactionPreview,
 	InProcessLockConflictError,
 	MaterializeSessionInput,
 	MaterializeSessionSnapshot,
@@ -193,6 +194,37 @@ export class AuthoringService {
 			release();
 			if (this.sessionOperations.get(sessionId) === tail) this.sessionOperations.delete(sessionId);
 		}
+	}
+
+	public async preflightTransaction(
+		input: ApplySessionTransactionInput,
+	): Promise<BackendResult<BackendTransactionPreview, SessionNotFoundError | SessionStaleWriteError | ApplyUamTransactionAppError>> {
+		const queuedInput = structuredClone(input);
+		detachSharedByteViews(queuedInput);
+		return this.runSessionExclusive(queuedInput.sessionId, async () => {
+			const startedAt = Date.now();
+			const session = this.context.sessions.get(queuedInput.sessionId);
+			if (!session || session.closed) return failure('authoring', startedAt, createSessionNotFoundError(queuedInput.sessionId));
+			const meta = { sessionId: session.sessionId, revision: session.revision };
+			if (queuedInput.expectedRevision !== session.revision) {
+				return failure('authoring', startedAt, createStaleWriteError(session, queuedInput.expectedRevision),
+					toSessionSnapshot(session, this.context.capabilities), meta);
+			}
+			// The authoritative session, including source bytes, never enters the preview executor.
+			const project = structuredClone(session.project);
+			detachSharedByteViews(project);
+			const result = await applyUamTransactionAppAsync({ project, operations: queuedInput.operations });
+			if (this.context.sessions.get(queuedInput.sessionId) !== session || session.closed) {
+				return failure('authoring', startedAt, createSessionNotFoundError(queuedInput.sessionId));
+			}
+			if (!result.ok) {
+				return failure('authoring', startedAt, result.error, toSessionSnapshot(session, this.context.capabilities),
+					{ ...meta, diagnostics: toBackendDiagnostics(result.error) });
+			}
+			return success('authoring', startedAt, {
+				sessionId: session.sessionId, baseRevision: meta.revision, mode: 'execute-and-discard' as const,
+			}, meta);
+		});
 	}
 
 	public async applyTransaction(

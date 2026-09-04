@@ -34,7 +34,21 @@ The initial projection is fixed, without arbitrary field expressions:
 
 Queries leave the project, revision, dirty state, cache and business events unchanged. Results are deeply detached from the session. Selectors use exact IDs, never fuzzy names. Invalid structure, missing entities and non-unique IDs return `entity_query_failed` with `reason` set to `invalid_query`, `not_found` or `ambiguous`; closed/missing sessions return `session_not_found`.
 
-Compact JSON `data` is limited to 262144 UTF-8 bytes, traversal depth 32 and 100000 nodes, advertised under `read.entityQuery.limits`. Properties are never truncated: excess returns `response_budget_exceeded`, and non-JSON values return `non_json_value`, as `entity_query_failed.reason`. Checks run before cloning; MCP envelopes and text copies are outside this data budget. Capability schema version is 4; the additive query leaves the transaction contract version unchanged.
+Compact JSON `data` is limited to 262144 UTF-8 bytes, traversal depth 32 and 100000 nodes, advertised under `read.entityQuery.limits`. Properties are never truncated: excess returns `response_budget_exceeded`, and non-JSON values return `non_json_value`, as `entity_query_failed.reason`. Checks run before cloning; MCP envelopes and text copies are outside this data budget.
+
+## Preview a transaction
+
+`preflightTransaction` / `openfairygui_backend_preflight_transaction` accepts the same `{ sessionId, expectedRevision, operations }` as `applyTransaction`. This is not merely a support check: Backend's `AuthoringService` checks the revision in its existing per-session exclusive queue, deeply copies the project and source bytes, calls the authoritative `applyUamTransactionAppAsync`, then discards the resulting project.
+
+Success returns `ok: true` with `data: { sessionId, baseRevision, mode: 'execute-and-discard' }`. Failures preserve transaction `error.code`, `stage`, operation locations and `meta.diagnostics`. `meta.revision` identifies the evaluated baseline; missing/closed sessions return `session_not_found`, and revision mismatches return `stale_write`. Inputs are copied before queuing, including detachment of SharedArrayBuffer-backed bytes.
+
+Neither success nor failure changes the authoritative project, revision, dirty state, pending file cleanup, caches, jobs or business events, or writes to disk. No uncomputed entity diff or file-impact list is returned.
+
+Recommended flow: discover IDs with the outline → queryEntity for current properties and revision → preflightTransaction → applyTransaction with the same batch → validateSession → saveSession. See the executable [revision-checked edit, save and reread example](./examples.md#revision-checked-edit-save-and-reread).
+
+A preview reserves no revision and does not guarantee later apply/save or publication. Apply must check `expectedRevision` again; if edits intervened, query and re-plan instead of treating an old preview as an authorization token. Preview reuses the current transaction execution path without adding project saves, file permission/target checks or publishing checks. In-memory sessions without a filesystem can preview too.
+
+`authoring.preflightTransaction` advertises `mode: 'execute-and-discard'` and `reservesRevision: false`. The current capability schema version is 5; these additive query/preview methods leave the transaction contract version unchanged.
 
 ## Transport and semantic boundaries
 
@@ -42,7 +56,7 @@ Compact JSON `data` is limited to 262144 UTF-8 bytes, traversal depth 32 and 100
 - Host objects are not tool inputs: `openProjectSession.storage`, `saveSession.fileSystem`, and `materializeSession.storage/fileSystem/targetPath` remain excluded. Host injection uses Backend APIs.
 - Schemas preserve open fields declared by the actual types, including extension settings, resource metadata, and some dynamic values. They do not invent missing protocol definitions. Unknown fields on closed objects are rejected instead of silently dropped.
 - Inputs retain batch limits (1–1000), integer revisions, selector lengths, and aggregate node/depth/string budgets. General limits are depth 32, 100000 nodes, 10000 entries per array/object, 1000000 characters per string, and 256 per key. JSON byte arrays also obey the general array limit; per-field schemas do not replace aggregate limits.
-- Structural validity does not replace Core checks for references, resource content, field applicability, or legal operation batches, and does not guarantee execution or saving. MCP adds neither a second transaction kernel nor execution preview.
+- Structural validity does not replace Core checks for references, resource content, field applicability, or legal operation batches, and does not guarantee execution or saving. MCP adds no second transaction kernel; preview only maps the authoritative Backend entrypoint.
 - Method-specific outputs preserve Backend error categories. Unhandled adapter errors use `backend_unhandled_error` without exposing internal exceptions. Structural schemas do not promise response budgets or diagnostic recovery policies.
 
 ## Generated catalog
@@ -50,7 +64,7 @@ Compact JSON `data` is limited to 262144 UTF-8 bytes, traversal depth 32 and 100
 The tables summarize top-level parameters only; read schemas for nested fields and concrete results. SHA-256 identifies generated contract content, not a package version.
 
 <!-- contracts:start -->
-SHA-256: `6311a75d017f4e0628265815627b83ea4d5852a1cb1cdc5ded32a4e1b6a8a1fe`
+SHA-256: `c3af2571c2be7ae206fee9ef5bd940a552cef0729a329ee478d1a98335e5f386`
 
 | Operation | Parameters (`?` = optional) |
 |---|---|
@@ -105,6 +119,7 @@ SHA-256: `6311a75d017f4e0628265815627b83ea4d5852a1cb1cdc5ded32a4e1b6a8a1fe`
 | `getProjectOutline` | `openfairygui_backend_get_project_outline` | `sessionId` | `true` |
 | `queryEntity` | `openfairygui_backend_query_entity` | `sessionId`, `target` | `true` |
 | `validateSession` | `openfairygui_backend_validate_session` | `sessionId` | `true` |
+| `preflightTransaction` | `openfairygui_backend_preflight_transaction` | `sessionId`, `expectedRevision`, `operations` | `true` |
 | `applyTransaction` | `openfairygui_backend_apply_transaction` | `sessionId`, `expectedRevision`, `operations` | `false` |
 | `saveSession` | `openfairygui_backend_save_session` | `sessionId`, `expectedRevision?`, `targetPath?`, `force?`, `mode?` | `false` |
 | `materializeSession` | `openfairygui_backend_materialize_session` | `sessionId`, `expectedRevision?`, `mode?`, `reason?` | `false` |

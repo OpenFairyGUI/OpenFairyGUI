@@ -34,7 +34,21 @@ MCP `resources/list` 提供 `openfairygui://contracts/operations`，列出正式
 
 查询不改变工程、revision、dirty、缓存或业务事件，返回对象与会话深度隔离。selector 不猜测、不按名称模糊匹配：结构不正确、目标不存在或 ID 不唯一时返回 `entity_query_failed`，`reason` 分别为 `invalid_query`、`not_found`、`ambiguous`；关闭或失效会话返回 `session_not_found`。
 
-`data` 的紧凑 JSON UTF-8 大小不得超过 262144 字节，遍历深度不得超过 32，节点数不得超过 100000；边界已在 `read.entityQuery.limits` 中声明。不截断属性：超限返回 `response_budget_exceeded`，非 JSON 值返回 `non_json_value`，均位于 `entity_query_failed.reason`。预算在克隆前检查，MCP envelope 和文本副本不计入此数据预算。能力 schema 版本为 4；新增查询不改变原有事务契约版本。
+`data` 的紧凑 JSON UTF-8 大小不得超过 262144 字节，遍历深度不得超过 32，节点数不得超过 100000；边界已在 `read.entityQuery.limits` 中声明。不截断属性：超限返回 `response_budget_exceeded`，非 JSON 值返回 `non_json_value`，均位于 `entity_query_failed.reason`。预算在克隆前检查，MCP envelope 和文本副本不计入此数据预算。
+
+## 预演一次事务
+
+`preflightTransaction` / `openfairygui_backend_preflight_transaction` 接受与 `applyTransaction` 相同的 `{ sessionId, expectedRevision, operations }`。它不是仅查询支持范围：Backend 的 `AuthoringService` 在现有会话排他队列中检查 revision，深度复制工程和源字节，再调用正式的 `applyUamTransactionAppAsync`，执行后丢弃新工程。
+
+成功返回 `ok: true`，`data` 为 `{ sessionId, baseRevision, mode: 'execute-and-discard' }`；失败保留正式事务的 `error.code`、`stage`、operation 定位及 `meta.diagnostics`。当前基准见 `meta.revision`；失效或关闭会话返回 `session_not_found`，revision 不匹配返回 `stale_write`。输入参数在排队前复制，SharedArrayBuffer 支撑的字节也会脱离共享内存。
+
+成功和失败都不改变 authoritative 工程、revision、dirty、待清理文件记录、缓存、任务或业务事件，也不写入磁盘。不返回未经计算的实体差异或文件影响列表。
+
+推荐工作流：outline 发现 ID → queryEntity 读取当前属性与 revision → preflightTransaction 预演 → applyTransaction 提交相同批次 → validateSession 检查当前工程 → saveSession 保存。完整可运行代码见[带 revision 的修改、保存与回读](./examples.md#带-revision-的修改、保存与回读)。
+
+预演不预留 revision，不证明后续 apply/save 或发布一定成功。正式 apply 必须再次提交 `expectedRevision`；期间若有编辑，应重新查询并规划，不能把旧预演当作授权凭证。预演复用当前事务执行路径，不额外执行工程保存、文件权限/目标校验或发布检查；缺少文件系统的内存会话也可以预演。
+
+能力通过 `authoring.preflightTransaction` 声明为 `mode: 'execute-and-discard'`、`reservesRevision: false`。当前能力 schema 版本为 5；新增查询和预演不改变原有事务契约版本。
 
 ## 传输与语义边界
 
@@ -42,7 +56,7 @@ MCP `resources/list` 提供 `openfairygui://contracts/operations`，列出正式
 - MCP 不接受宿主对象：`openProjectSession.storage`、`saveSession.fileSystem`、`materializeSession.storage/fileSystem/targetPath` 不在工具输入中。宿主注入继续通过 Backend API 完成。
 - 结构 schema 保留正式类型声明的开放字段，例如扩展设置、资源 metadata 和部分动态值；它们不是凭空补齐的协议。未知的封闭对象字段会被拒绝，不静默丢弃。
 - 输入继续受批次上限（1–1000）、revision 整数、selector 长度及总节点/深度/字符串预算约束。通用预算为深度 32、节点 100000、单个数组/对象 10000 项、单个字符串 1000000 字符、键长 256；JSON 字节数组也受通用数组预算限制。schema 中的单字段限制不覆盖总预算。
-- schema 不替代 Core 的引用、资源内容、字段适用性和合法批次检查；校验成功不表示事务可执行或保存会成功。MCP 不增加第二套事务内核，也不提供执行预演。
+- schema 不替代 Core 的引用、资源内容、字段适用性和合法批次检查；校验成功不表示事务可执行或保存会成功。MCP 不增加第二套事务内核，预演也只映射 Backend 的正式入口。
 - 方法专属结果保留 Backend 的错误分类；适配层抛出的未处理错误使用 `backend_unhandled_error`，不暴露内部异常详情。响应预算及诊断修复策略不由结构 schema 承诺。
 
 ## 当前生成目录
@@ -50,7 +64,7 @@ MCP `resources/list` 提供 `openfairygui://contracts/operations`，列出正式
 下表只摘要顶层参数；嵌套字段和具体结果请读取对应 schema。SHA-256 变化表示生成契约发生变化，不等同于包版本号。
 
 <!-- contracts:start -->
-SHA-256: `6311a75d017f4e0628265815627b83ea4d5852a1cb1cdc5ded32a4e1b6a8a1fe`
+SHA-256: `c3af2571c2be7ae206fee9ef5bd940a552cef0729a329ee478d1a98335e5f386`
 
 | 操作 | 参数（`?` 表示可选） |
 |---|---|
@@ -105,6 +119,7 @@ SHA-256: `6311a75d017f4e0628265815627b83ea4d5852a1cb1cdc5ded32a4e1b6a8a1fe`
 | `getProjectOutline` | `openfairygui_backend_get_project_outline` | `sessionId` | `true` |
 | `queryEntity` | `openfairygui_backend_query_entity` | `sessionId`, `target` | `true` |
 | `validateSession` | `openfairygui_backend_validate_session` | `sessionId` | `true` |
+| `preflightTransaction` | `openfairygui_backend_preflight_transaction` | `sessionId`, `expectedRevision`, `operations` | `true` |
 | `applyTransaction` | `openfairygui_backend_apply_transaction` | `sessionId`, `expectedRevision`, `operations` | `false` |
 | `saveSession` | `openfairygui_backend_save_session` | `sessionId`, `expectedRevision?`, `targetPath?`, `force?`, `mode?` | `false` |
 | `materializeSession` | `openfairygui_backend_materialize_session` | `sessionId`, `expectedRevision?`, `mode?`, `reason?` | `false` |

@@ -28,6 +28,7 @@ function queryResponseProblem(value: unknown): EntityQueryError['reason'] | unde
 		if (value === undefined || value === null || typeof value === 'string' || typeof value === 'boolean') continue;
 		if (typeof value === 'number') { if (!Number.isFinite(value)) return 'non_json_value'; continue; }
 		if (typeof value !== 'object' || (!Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) return 'non_json_value';
+		if (Array.isArray(value) && value.length + pending.length + nodes > BACKEND_ENTITY_QUERY_LIMITS.maxNodes) return 'response_budget_exceeded';
 		const entries = Object.entries(value);
 		if (entries.length + pending.length + nodes > BACKEND_ENTITY_QUERY_LIMITS.maxNodes) return 'response_budget_exceeded';
 		for (const [key, child] of entries) {

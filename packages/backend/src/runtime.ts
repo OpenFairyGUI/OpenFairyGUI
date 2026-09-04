@@ -27,6 +27,7 @@ import type {
 	BackendRuntimeOptions,
 	BackendSessionSnapshot,
 	BackendSuccess,
+	BackendTransactionPreview,
 	CancelJobInput,
 	EventCursorInvalidError,
 	GetCacheSnapshotInput,
@@ -153,6 +154,12 @@ export class BackendRuntime {
 		input: ValidateSessionInput,
 	): BackendResult<ProjectValidationReport, SessionNotFoundError> {
 		return this.readService.validateSession(input);
+	}
+
+	public async preflightTransaction(
+		input: ApplySessionTransactionInput,
+	): Promise<BackendResult<BackendTransactionPreview, SessionNotFoundError | SessionStaleWriteError | ApplyUamTransactionAppError>> {
+		return this.authoringService.preflightTransaction(input);
 	}
 
 	public async applyTransaction(

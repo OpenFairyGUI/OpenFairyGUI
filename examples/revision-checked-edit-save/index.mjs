@@ -22,10 +22,16 @@ export async function editAndSave(projectPath, text = 'Saved by a consumer') {
 		const title = component?.component?.displayList.find((entry) => entry.name === 'title' && entry.kind === 'text');
 		if (!title) throw new Error('This example expects Main/MainView with a text node named title.');
 		const selector = { packageId: pkg.id, componentResourceId: component.id, displayNodeId: title.id };
-		const changed = data(await runtime.applyTransaction({
-			sessionId, expectedRevision: outline.revision,
+		const current = data(runtime.queryEntity({ sessionId, target: { kind: 'displayNode', selector } }));
+		const transaction = {
+			sessionId, expectedRevision: current.revision,
 			operations: [{ kind: 'setDisplayNodeProps', selector, props: { text } }],
-		}));
+		};
+		// Preview executes on an isolated snapshot; apply still rechecks this revision.
+		data(await runtime.preflightTransaction(transaction));
+		const changed = data(await runtime.applyTransaction(transaction));
+		const validation = data(runtime.validateSession({ sessionId }));
+		if (validation.status !== 'valid') throw new Error(`Project validation is ${validation.status}.`);
 		const saved = data(await runtime.saveSession({ sessionId, expectedRevision: changed.revision }));
 		const project = await readProjectAsUam(new NodeIO(), projectPath);
 		return { selector, revision: saved.revision, dirty: saved.dirty, project };
