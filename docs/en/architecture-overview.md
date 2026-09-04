@@ -1,6 +1,6 @@
 # OpenFairyGUI Architecture Overview
 
-See the [development guide](./guide/development.md) for setup, reference evidence and quality gates. Root/package AGENTS route work to existing owners; `agent/impact-map.json` drives test selection and the guidance table. Multi-version full checks plus the separate PR documentation build correspond to local `pnpm check:ci`. These repository tools are not shipped in product packages and do not change the runtime boundaries below.
+See the [development guide](./guide/development.md) for setup, references and quality gates. Root/package AGENTS route work to existing owners; `agent/impact-map.json` drives test selection and the guidance table. Multi-version quality checks, documentation builds and isolated tarball consumers correspond to local `pnpm check:ci`. Consumers reuse the [runnable examples](./guide/examples.md); release checks the same five packed tarballs before publishing. Repository tools and examples are not shipped in product packages and do not change the runtime boundaries below.
 
 ## Summary
 

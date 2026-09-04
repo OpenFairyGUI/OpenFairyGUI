@@ -4,9 +4,18 @@
 
 ## 未发布
 
+新功能：
+
+- cli：新增 `inspect --json`，复用现有检查报告且不混入终端日志。
+
+修复：
+
+- core：保留图片校验 Worker 在公开入口被打包消费时的消息监听器初始化。
+
 其他：
 
 - workspace：加入可复现开发指引、固定 fixture 校验、只读环境诊断、变更影响测试选择与统一质量入口，并在 PR 中检查文档构建、指令链接和双语记录结构。
+- workspace：发布前在隔离的生产消费者中验证五包 tarball，覆盖导出、ESM/CJS 类型、浏览器打包、CLI/MCP，以及与文档共享的可运行 inspect/validate 和 revision-checked edit/save 示例。
 
 发布比较：
 

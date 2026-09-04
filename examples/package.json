@@ -1,0 +1,14 @@
+{
+  "name": "openfairygui-examples",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "inspect": "node node-inspect-validate/index.mjs",
+    "edit": "node revision-checked-edit-save/index.mjs"
+  },
+  "dependencies": {
+    "@openfairygui/core": "^0.3.1",
+    "@openfairygui/functions": "^0.3.1",
+    "@openfairygui/backend": "^0.3.1"
+  }
+}

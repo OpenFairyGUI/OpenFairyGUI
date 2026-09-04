@@ -8,15 +8,19 @@ export function registerInspectCommand(program: Command): void {
 		.command('inspect')
 		.description('Show project contents report')
 		.argument('<project-dir>', 'Project root directory or .fairy file')
-		.action(async (projectDir: string) => {
+		.option('--json', 'Print the machine-readable inspection report')
+		.action(async (projectDir: string, options: { json?: boolean }) => {
 			const fairyPath = await resolveFairyPath(projectDir);
-			console.log(`Project: ${fairyPath}\n`);
 
 			const io = new NodeIO();
 			const doc = await io.readProject(fairyPath);
 			const report = inspect(doc);
 
-			printReport(report);
+			if (options.json) console.log(JSON.stringify(report, null, 2));
+			else {
+				console.log(`Project: ${fairyPath}\n`);
+				printReport(report);
+			}
 		});
 }
 

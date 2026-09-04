@@ -31,7 +31,8 @@ For a dirty checkout, consider an isolated worktree before dependency or documen
 | `pnpm check` | Fixture verification, lint, typecheck, build, repository-tool tests and all AVA tests |
 | `pnpm docs:check` | Local links, agent paths/commands, impact-table drift, public source mappings, bilingual entries and Changelog structure |
 | `pnpm docs:build` | Explicit TypeDoc generation followed by VitePress; no dependency on implicit pre-script settings |
-| `pnpm check:ci` | Full check, guidance checks and documentation build; use before submitting |
+| `pnpm pack:check` | Build/pack five packages, install production dependencies outside the checkout, verify entries, types, browser bundles, CLI/MCP and both examples |
+| `pnpm check:ci` | Full check, guidance checks, documentation build and tarball consumer checks; use before submitting |
 
 Doctor does not install, download, configure or write files. Export-file presence does not prove build freshness or browser behavior. Its temporary-directory permission check does not prove free space. Missing native image support produces a warning; image tasks still need actual verification. A non-recommended Node major warns; an unsupported Node version, mismatched pnpm or missing required fixtures/build output fails.
 
@@ -48,7 +49,9 @@ Doctor does not install, download, configure or write files. Export-file presenc
 - Selected AVA tests always follow a workspace build so built CLI/MCP/backend tests cannot load stale dependency output; build failures stop execution. Documentation-only mode and `--list`/`--matrix` do not build.
 - Tests use pnpm's AVA shim, preserving the environment required by existing isolated-build tests. Do not call AVA's raw JS entrypoint. Direct Node invocation of the selection script supports plan/matrix inspection only.
 
-PR quality jobs run `check` on all three Node majors. A separate documentation job runs `docs:check` and `docs:build` on the recommended Node without downloading fixtures. Together they correspond to local `check:ci`. Structural checks do not crawl remote URLs or validate heading anchors, translation meaning or protocol accuracy; those still require review.
+PR quality jobs run `check` on all three Node majors. Documentation runs guidance checks and builds on the recommended Node; consumer jobs run `pack:check` on Linux/Windows with that Node major. Documentation and consumer jobs do not download fixtures. Together these three job types correspond to local `check:ci`; `check:fast` and `check` do not install tarballs. Remote URLs, heading anchors, translation meaning and protocol accuracy still require review.
+
+Consumer checks install dependencies over the network, remove their temporary directory on success and preserve failures; `--keep` preserves successful runs too. Release uses `pnpm pack:check --artifacts .release` to check the same packed files. See [Runnable Examples and Consumer Verification](./examples.md) for entrypoints, examples and limits.
 
 ## Reference evidence
 

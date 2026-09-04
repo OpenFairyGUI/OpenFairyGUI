@@ -4,9 +4,18 @@
 
 ## Unreleased
 
+Features:
+
+- cli: Add `inspect --json` using the existing inspection report without terminal logs.
+
+Fixes:
+
+- core: Preserve the image-validation Worker's listener initialization when bundlers consume its public entrypoint.
+
 Other:
 
 - workspace: Add reproducible development guidance, pinned-fixture verification, read-only environment diagnostics, impact-selected tests and unified quality entrypoints, with PR checks for documentation builds, guidance links and bilingual record structure.
+- workspace: Verify five packed packages in an isolated production consumer before release, covering exports, ESM/CJS types, browser bundles, CLI/MCP, and executable inspect/validate and revision-checked edit/save examples shared with documentation.
 
 Release comparisons:
 

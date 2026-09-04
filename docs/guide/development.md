@@ -31,7 +31,8 @@ pnpm check:ci
 | `pnpm check` | fixture 验证、lint、typecheck、构建、仓库自测、完整 AVA 测试 |
 | `pnpm docs:check` | 本地链接、指令路径/命令、影响表、公开源码入口、双语导航及 Changelog 结构 |
 | `pnpm docs:build` | 显式先生成 TypeDoc API，再构建 VitePress；不依赖隐式 pre-script 配置 |
-| `pnpm check:ci` | 完整 `check`、`docs:check` 和文档构建；提交前使用此入口 |
+| `pnpm pack:check` | 构建并打包五包，在仓库外安装生产依赖，验证入口、类型、浏览器打包、CLI/MCP 和两个可运行示例 |
+| `pnpm check:ci` | 完整 `check`、`docs:check`、文档构建和 tarball 消费者检查；提交前使用此入口 |
 
 doctor 不安装、不下载、不写文件。它只检查导出文件是否存在，不证明构建新鲜度或浏览器行为；临时目录只做权限检查，不证明磁盘容量。缺少原生图片能力会警告，图片相关任务仍需实际验证。推荐 Node 不匹配仅警告；低于包支持范围、pnpm 不匹配、缺少必需 fixture/构建产物则失败。
 
@@ -48,7 +49,9 @@ doctor 不安装、不下载、不写文件。它只检查导出文件是否存�
 - 执行选中的 AVA 测试前统一运行工作区构建，确保 CLI/MCP/Backend 的构建测试不会加载旧依赖产物；构建失败立即停止。纯文档模式及 `--list`/`--matrix` 不触发构建。
 - 测试通过 pnpm 的 AVA 启动器运行，保留现有隔离构建测试需要的环境；不要直接调用 AVA 的 JS 文件。直接用 Node 调用选择脚本仅支持查看计划/矩阵。
 
-PR CI 的 quality job 在三个 Node 主版本执行 `check`，独立 documentation job 在推荐 Node 上执行 `docs:check` 与 `docs:build`；文档 job 不需要下载 fixture。两类 job 合起来对应本地 `check:ci`。远端链接、Markdown 标题锚点、翻译含义和协议解释不由结构检查证明，仍需人工审查。
+PR CI 的 quality job 在三个 Node 主版本执行 `check`；documentation job 在推荐 Node 上检查并构建文档；consumer job 在推荐 Node 的 Linux/Windows 环境执行 `pack:check`。文档与消费者 job 不下载 fixture。三类 job 合起来对应本地 `check:ci`；`check:fast` 和 `check` 不包含 tarball 安装。远端链接、Markdown 标题锚点、翻译含义和协议解释仍需人工审查。
+
+消费者检查会联网安装依赖，成功清理自身临时目录，失败保留现场；`--keep` 可保留成功现场。发布前用 `pnpm pack:check --artifacts .release` 检查同一组已打包文件。入口、示例及验证限制见[可运行示例与消费者验证](./examples.md)。
 
 ## 参考资料与取证
 

@@ -4,10 +4,12 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, w
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { changedFiles, impactTable, pnpmInvocation, runSelectedTests, selectTests } from './test-changed.mjs';
+import { changedFiles, impactTable, runSelectedTests, selectTests } from './test-changed.mjs';
 import { checkCommands, checkGuidance, changelogStructure, markdownCode, markdownLinks, resolveLink } from './check-guidance.mjs';
 import { inspectBuilds, inspectEnvironment, inspectReferences } from './repo-doctor.mjs';
-import { git, matches, readJson, ROOT, testFiles } from './repo-utils.mjs';
+import { git, matches, pnpmInvocation, readJson, ROOT, testFiles } from './repo-utils.mjs';
+import { artifactName, consumerEnvironment, PACKAGES } from './pack-smoke.mjs';
+import { contained, exportFiles, snapshot } from './consumer/runtime.mjs';
 
 function temporaryRepository(t) {
 	const root = mkdtempSync(path.join(tmpdir(), 'ofgui-repo-test-'));
@@ -51,6 +53,7 @@ test('impact selection includes downstream consumers and conservatively falls ba
 	assert.deepEqual(selectTests(map, [], available, 'base unavailable').tests, available);
 	assert.equal(selectTests(map, ['docs/guide/getting-started.md'], available).scope, 'repository-only');
 	assert.deepEqual(selectTests(map, ['docs/.vitepress/config.ts'], available).tests, available);
+	assert.deepEqual(selectTests(map, ['examples/node-inspect-validate/index.mjs'], available).tests, available);
 });
 
 test('empty, unknown and incomplete full-test groups are errors', () => {
@@ -119,6 +122,26 @@ test('local links cover Markdown and HTML, ignore code examples and reject broke
 	assert.equal(resolveLink(root, 'docs/guide/development.md', '/api/'), null);
 	assert.throws(() => resolveLink(root, 'README.md', 'missing.md'), /Broken link/);
 	assert.throws(() => resolveLink(root, 'README.md', '../outside.md'), /escapes repository/);
+	assert.deepEqual(markdownLinks('<<< ../../examples/demo.mjs#example'), ['../../examples/demo.mjs']);
+	assert.throws(() => resolveLink(root, 'docs/guide/examples.md', markdownLinks('<<< ../../examples/missing.mjs')[0]), /Broken link/);
+});
+
+test('consumer checks reject ambient loaders, source exports, missing declarations and paths outside their package', (t) => {
+	assert.deepEqual(PACKAGES, ['core', 'functions', 'backend', 'cli', 'mcp']);
+	assert.equal(artifactName({ name: '@openfairygui/core', version: '1.0.0-next.1' }), 'openfairygui-core-1.0.0-next.1.tgz');
+	assert.deepEqual(consumerEnvironment({ PATH: 'tools', NODE_PATH: 'workspace', Node_Options: '--import=tsx', TSX_TSCONFIG_PATH: 'tsconfig.json', OPENFAIRYGUI_ALLOWED_PROJECT_ROOTS: 'other-project' }), { PATH: 'tools' });
+	const root = temporaryRepository(t);
+	write(root, 'dist/index.js', 'export {};');
+	write(root, 'dist/index.d.ts', 'export {};');
+	const manifest = { name: '@test/core', exports: { '.': { types: './dist/index.d.ts', default: './dist/index.js' } } };
+	exportFiles(root, manifest);
+	assert.throws(() => exportFiles(root, { ...manifest, exports: { '.': './src/index.ts' } }), /Non-dist/);
+	rmSync(path.join(root, 'dist/index.d.ts'));
+	assert.throws(() => exportFiles(root, manifest), /ENOENT/);
+	const outside = temporaryRepository(t);
+	write(outside, 'index.js', 'export {};');
+	assert.throws(() => contained(root, path.join(outside, 'index.js')), /outside consumer/);
+	assert.deepEqual(snapshot(path.join(root, 'dist')), { 'index.js': Buffer.from('export {};').toString('base64') });
 });
 
 test('only documented code commands are checked, not prose mentioning pnpm', () => {

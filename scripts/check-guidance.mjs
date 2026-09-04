@@ -21,6 +21,7 @@ export function markdownLinks(markdown) {
 		...text.matchAll(/\]\(\s*(?:<([^>\n]+)>|([^\s)]+))/g),
 		...text.matchAll(/^\s*\[[^\]\n]+\]:\s*(?:<([^>\n]+)>|(\S+))/gm),
 		...text.matchAll(/\b(?:src|href)=["']([^"']+)["']/g),
+		...text.matchAll(/^<<<[ \t]+([^\s#]+)(?:#[\w-]+)?/gm),
 	].map((match) => match[1] ?? match[2]);
 }
 

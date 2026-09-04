@@ -21,7 +21,7 @@ Start with `core` and `functions` when you only need to read, update, or publish
 | `@openfairygui/core/project-io` | Project I/O through a caller-provided `FileSystem`, without binding to Node.js or a browser host. |
 | `@openfairygui/core/node` | Node.js filesystem entrypoint exposing `NodeIO`. |
 | `@openfairygui/core/web` | Browser project I/O through `WebIO` and the File System Access API adapter. |
-| `@openfairygui/core/image-validation-worker` | Standalone bundler entry for the browser image-validation Worker, not a regular application module. |
+| `@openfairygui/core/image-validation-worker` | Standalone bundler entry for the browser image-validation Worker, not a regular application module; package metadata preserves its message-listener initialization side effect. |
 | `@openfairygui/functions` | Runtime-neutral inspection, validation, transforms, publish kernel, code generation, and limited recovery workflows. |
 | `@openfairygui/functions/uam` | Application-oriented structured results for UAM transaction failures. |
 | `@openfairygui/functions/node` | Node adapters `publishNode()` and `restoreNode()`; Node publish plugins are loaded only here. |

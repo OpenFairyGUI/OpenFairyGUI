@@ -33,7 +33,7 @@
       "docs": ["docs/architecture-overview.md"]
     },
     {
-      "paths": ["docs/.vitepress/**", "scripts/**", "agent/**", "references.json", ".github/**", ".node-version"],
+      "paths": ["docs/.vitepress/**", "scripts/**", "examples/**", "agent/**", "references.json", ".github/**", ".node-version"],
       "tests": ["core", "functions", "backend", "cli", "mcp"],
       "docs": ["docs/guide/development.md", "docs/en/guide/development.md"]
     },

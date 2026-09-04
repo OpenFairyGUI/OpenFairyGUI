@@ -25,6 +25,7 @@ export default withMermaid(defineConfig({
 							items: [
 								{ text: '快速开始', link: '/guide/getting-started' },
 								{ text: '包与工具', link: '/guide/packages' },
+								{ text: '可运行示例', link: '/guide/examples' },
 								{ text: '仓库开发与验证', link: '/guide/development' },
 							],
 						},
@@ -65,6 +66,7 @@ export default withMermaid(defineConfig({
 							items: [
 								{ text: 'Quick Start', link: '/en/guide/getting-started' },
 								{ text: 'Packages and Tools', link: '/en/guide/packages' },
+								{ text: 'Runnable Examples', link: '/en/guide/examples' },
 								{ text: 'Repository Development', link: '/en/guide/development' },
 							],
 						},

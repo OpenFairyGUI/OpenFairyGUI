@@ -40,8 +40,18 @@ export function testFiles(root) {
 	return files.sort();
 }
 
-export function runCommand(root, command, args) {
-	const result = spawnSync(command, args, { cwd: root, stdio: 'inherit' });
+export function pnpmInvocation(pnpmCli, args) {
+	if (!pnpmCli) throw new Error('Execute through pnpm test:changed or pnpm pack:check; direct Node invocation is for inspection only.');
+	return /\.[cm]?js$/i.test(pnpmCli) ? [process.execPath, [pnpmCli, ...args]] : [pnpmCli, args];
+}
+
+export function runCommand(root, command, args, options = {}) {
+	const result = spawnSync(command, args, { cwd: root, stdio: 'inherit', ...options });
 	if (result.error) throw result.error;
-	if (result.status !== 0) throw new Error(`Check failed (${result.signal ?? result.status}): ${command} ${args[0]}`);
+	if (result.status !== 0) {
+		if (result.stdout) process.stdout.write(result.stdout);
+		if (result.stderr) process.stderr.write(result.stderr);
+		throw new Error(`Check failed (${result.signal ?? result.status}): ${command} ${args[0]}`);
+	}
+	return result.stdout;
 }

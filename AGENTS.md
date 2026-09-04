@@ -6,6 +6,7 @@
 - 准备 Git、Node 与指定 pnpm 后，在仓库根目录运行 `pnpm repo:setup`，再运行 `pnpm check:ci`。不需要个人机器路径或 `referer/`。
 - 先读[开发指南](docs/guide/development.md)的环境、术语和参考资料规则；用户 API 入口见[包与工具](docs/guide/packages.md)。
 - 快速反馈用 `pnpm check:fast`；PR 差异可用 `pnpm test:changed --base origin/next --list` 显示范围（base 换成实际目标分支）。快速检查不是完整回归。
+- `pnpm pack:check` 在仓库外安装当前五包 tarball，验证公开入口、类型、CLI/MCP 与可运行示例；已包含在 `check:ci`。发布前用 `--artifacts .release` 验证将要发布的同一组文件。
 - `pnpm repo:doctor --json` 只诊断，不安装、不改配置、不写测试文件。`pnpm refs:status` 查看语料状态，`pnpm refs:verify` 验证必需 fixture。
 - 不直接编辑 dist、API 页面或站点输出；它们分别由 build、docs:api、docs:build 生成。修改生成器或源文件。
 
@@ -20,7 +21,7 @@
 | mcp | [Backend 的 MCP 薄适配](packages/mcp/AGENTS.md) |
 | test-utils | [测试辅助与固定版本 fixture](packages/test-utils/AGENTS.md) |
 
-验证映射的唯一数据源是 `agent/impact-map.json`。下表由 `pnpm test:changed --matrix` 输出，`pnpm docs:check` 检查漂移。每次选择都运行仓库脚本自测与指引检查；下列文档是审查提示，并非要求无关改动也重写文档。
+验证映射的唯一数据源是 `agent/impact-map.json`。下表由 `pnpm test:changed --matrix` 输出，`pnpm docs:check` 检查漂移。执行选中测试时先运行仓库脚本自测与指引检查；`--list`/`--matrix` 仅查看计划。下列文档是审查提示，并非要求无关改动也重写文档。
 
 <!-- impact-map:start -->
 | 改动路径 | AVA 测试组（含下游） | 需审查的文档 |
@@ -30,7 +31,7 @@
 | `packages/backend/**` | backend, cli, mcp | `docs/architecture-overview.md`, `docs/project-validation.md` |
 | `packages/cli/**` | cli, backend | `docs/guide/getting-started.md`, `docs/project-validation.md` |
 | `packages/mcp/**` | mcp | `docs/architecture-overview.md` |
-| `docs/.vitepress/**`, `scripts/**`, `agent/**`, `references.json`, `.github/**`, `.node-version` | core, functions, backend, cli, mcp | `docs/guide/development.md`, `docs/en/guide/development.md` |
+| `docs/.vitepress/**`, `scripts/**`, `examples/**`, `agent/**`, `references.json`, `.github/**`, `.node-version` | core, functions, backend, cli, mcp | `docs/guide/development.md`, `docs/en/guide/development.md` |
 | `docs/**`, `AGENTS.md`, `README.md`, `README_EN.md`, `CHANGELOG.md`, `CHANGELOG_CN.md` | 仅仓库检查 | `docs/README.md`, `docs/en/README.md` |
 <!-- impact-map:end -->
 

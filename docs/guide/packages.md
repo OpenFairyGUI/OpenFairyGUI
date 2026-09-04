@@ -21,7 +21,7 @@
 | `@openfairygui/core/project-io` | 使用调用方提供的 `FileSystem` 读写工程，不绑定 Node 或浏览器宿主。 |
 | `@openfairygui/core/node` | Node.js 文件系统入口 `NodeIO`。 |
 | `@openfairygui/core/web` | 浏览器工程读写入口 `WebIO` 与 File System Access API 适配器。 |
-| `@openfairygui/core/image-validation-worker` | 浏览器图片校验 Worker 的独立打包入口，不是普通业务模块入口。 |
+| `@openfairygui/core/image-validation-worker` | 浏览器图片校验 Worker 的独立打包入口，不是普通业务模块入口；包元数据保留其消息监听器初始化副作用。 |
 | `@openfairygui/functions` | 运行时无关的检查、校验、变换、发布内核、代码生成与受限恢复流程。 |
 | `@openfairygui/functions/uam` | 将 UAM 事务错误转换为适合应用消费的结构化结果。 |
 | `@openfairygui/functions/node` | Node 发布与恢复适配器 `publishNode()`、`restoreNode()`；Node publish 插件也只在此入口加载。 |

@@ -9,6 +9,7 @@ This directory contains the English documentation used by the static website. It
 | Document | Description |
 |---|---|
 | [Repository Development and Verification](./guide/development.md) | Reproducible setup, references, task routing, verification scope and PR gates. |
+| [Runnable Examples and Consumer Verification](./guide/examples.md) | Isolated tarballs, public entrypoints, inspect/validate and revision-checked edit/save. |
 | [Project Validation](../project-validation.md) | Shared project validation reports and API/CLI/Backend/MCP behavior. |
 | [Changelog](https://github.com/OpenFairyGUI/OpenFairyGUI/blob/main/CHANGELOG.md) | Public features, fixes, breaking changes, and maintenance work by release. |
 | [Architecture Overview](./architecture-overview.md) | Package responsibilities, UAM and backend boundaries, host adapters, and primary data flows. |

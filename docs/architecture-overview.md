@@ -1,6 +1,6 @@
 # OpenFairyGUI 架构图说明
 
-仓库工程的启动、参考资料与质量门禁见[开发指南](./guide/development.md)。根/包级 AGENTS 路由到现有包职责，`agent/impact-map.json` 同时驱动测试选择与指引表；PR 的多版本完整质量检查和单独文档构建对应本地 `pnpm check:ci`。这些开发工具不进入发布包，不改变以下产品运行时边界。
+仓库工程的启动、参考资料与质量门禁见[开发指南](./guide/development.md)。根/包级 AGENTS 路由到现有包职责，`agent/impact-map.json` 同时驱动测试选择与指引表；PR 的多版本质量检查、文档构建和隔离 tarball 消费者检查对应本地 `pnpm check:ci`。消费者复用[可运行示例](./guide/examples.md)，发布链路在打包后、publish 前检查同一组五包 tarball。开发工具与示例不进入发布包，不改变以下产品运行时边界。
 
 ## 结论
 

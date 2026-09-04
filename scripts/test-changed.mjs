@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { git, isMain, matches, nulLines, readJson, ROOT, runCommand, testFiles } from './repo-utils.mjs';
+import { git, isMain, matches, nulLines, pnpmInvocation, readJson, ROOT, runCommand, testFiles } from './repo-utils.mjs';
 import { inspectReferences } from './repo-doctor.mjs';
 
 export function changedFiles(root, base) {
@@ -54,16 +54,11 @@ export function impactTable(map) {
 	].join('\n');
 }
 
-export function pnpmInvocation(pnpmCli, args) {
-	if (!pnpmCli) throw new Error('Execute tests through pnpm test:changed; direct node invocation only supports --list / --matrix.');
-	// pnpm's AVA shim supplies NODE_PATH needed by existing isolated-build tests. Do not bypass it.
-	return /\.[cm]?js$/i.test(pnpmCli) ? [process.execPath, [pnpmCli, ...args]] : [pnpmCli, args];
-}
-
 export function runSelectedTests(root, pnpmCli, files) {
 	if (files.length === 0) return;
 	// Built CLI/MCP/backend tests also load workspace dependencies from dist.
 	runCommand(root, ...pnpmInvocation(pnpmCli, ['build']));
+	// pnpm's AVA shim supplies NODE_PATH needed by existing isolated-build tests.
 	runCommand(root, ...pnpmInvocation(pnpmCli, ['exec', 'ava', '--no-worker-threads', ...files]));
 }
 
