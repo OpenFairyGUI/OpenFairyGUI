@@ -43,6 +43,37 @@ test('each generated output schema validates its own data and error types', (t) 
 	t.false(getSession.outputSchema.safeParse({ backendResult: { ok: false, meta: {}, error: { code: 'made_up', message: 'bad' } } }).success);
 });
 
+test('wire schemas use uniform items for fixed numeric tuples without weakening their validation', async (t) => {
+	const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+	const server = createOpenFairyGuiMcpServer({ runtime: new BackendRuntime() });
+	const client = new Client({ name: 'tuple-schema', version: 'test' });
+	await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+	try {
+		const { tools } = await client.listTools();
+		function checkItems(value: unknown): void {
+			if (!value || typeof value !== 'object') return;
+			const schema = value as Record<string, unknown>;
+			if (schema.type === 'array') assert(!Array.isArray(schema.items), 'Positional items make Codex skip the whole tool');
+			for (const child of Object.values(value)) checkItems(child);
+		}
+		for (const tool of tools) checkItems(tool.inputSchema);
+		for (const method of ['apply_transaction', 'preflight_transaction']) {
+			const schema = z.fromJSONSchema(tools.find((tool) => tool.name.endsWith(`_${method}`))!.inputSchema as Parameters<typeof z.fromJSONSchema>[0]);
+			for (const operation of [
+				{ kind: 'setImageResourceProps', selector: { packageId: 'p', resourceId: 'r' } },
+				{ kind: 'setDisplayNodeProps', selector: { packageId: 'p', componentResourceId: 'c', displayNodeId: 'n' } },
+			]) {
+				const parse = (value: unknown) => schema.safeParse({ sessionId: 's', expectedRevision: 0, operations: [{ ...operation, props: operation.kind === 'setImageResourceProps'
+					? { textureSetMode: '', qualityOption: '', quality: 90, smoothing: true, duplicatePadding: false, scaleOption: 1, scale9Grid: value, tileGridIndice: 0 }
+					: { graphProperties: { graphType: 1, lineSize: 1, lineColor: '#000000', fillColor: '#ffffff', cornerRadius: value, points: null, sides: 4, startAngle: 0, distances: null } },
+				}] }).success;
+				for (const value of [null, [0, 1, 2, 3]]) t.true(parse(value), `${method}: ${operation.kind} ${JSON.stringify(value)}`);
+				for (const value of [[], [1, 2, 3], [1, 2, 3, 4, 5], [1, 2, 3, '4']]) t.false(parse(value), `${method}: ${operation.kind} ${JSON.stringify(value)}`);
+			}
+		}
+	} finally { await client.close(); await server.close(); }
+});
+
 test('direct calls reject structural and budget violations before reaching Backend', async (t) => {
 	const runtime = new BackendRuntime();
 	let calls = 0;

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { parseArgs } from 'node:util';
+import { isDeepStrictEqual, parseArgs } from 'node:util';
 import ts from 'typescript';
 import { isMain, ROOT } from './repo-utils.mjs';
 
@@ -66,6 +66,11 @@ export function createSchemaEmitter(checker, root = ROOT) {
 			assert(type.target.elementFlags.every((flag) => flag === ts.ElementFlags.Required), `Unsupported optional/rest tuple: ${label}`);
 			const prefixItems = checker.getTypeArguments(type).map(schema);
 			result = { type: 'array', prefixItems, minItems: prefixItems.length, maxItems: prefixItems.length, items: false };
+			// Uniform fixed tuples need no positional schema (which some MCP clients cannot read).
+			if (prefixItems.length && prefixItems.every((item) => isDeepStrictEqual(item, prefixItems[0]))) {
+				delete result.prefixItems;
+				result.items = prefixItems[0];
+			}
 		} else if (checker.isArrayType(type) || type.symbol?.name === 'ReadonlyArray') {
 			result = { type: 'array', items: schema(checker.getTypeArguments(type)[0]) };
 		} else if (type.flags & ts.TypeFlags.Object) {

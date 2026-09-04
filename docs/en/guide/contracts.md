@@ -55,6 +55,7 @@ A preview reserves no revision and does not guarantee later apply/save or public
 - Core binary values remain `Uint8Array`. MCP represents declared binary fields as integer arrays (0–255) and explicitly restores them through generated field paths. Replacement operations, resource/package snapshots, and imported projects share this conversion. A same-named `sourceBytes` field in arbitrary JSON metadata is not rewritten.
 - Host objects are not tool inputs: `openProjectSession.storage`, `saveSession.fileSystem`, and `materializeSession.storage/fileSystem/targetPath` remain excluded. Host injection uses Backend APIs.
 - Schemas preserve open fields declared by the actual types, including extension settings, resource metadata, and some dynamic values. They do not invent missing protocol definitions. Unknown fields on closed objects are rejected instead of silently dropped.
+- Homogeneous fixed tuples (such as the four numbers in `scale9Grid` / `cornerRadius`) use a single `items` schema with equal `minItems` / `maxItems`. MCP discovery does not need positional item arrays; element types and exact lengths stay enforced. Heterogeneous tuples retain their per-position constraints.
 - Inputs retain batch limits (1–1000), integer revisions, selector lengths, and aggregate node/depth/string budgets. General limits are depth 32, 100000 nodes, 10000 entries per array/object, 1000000 characters per string, and 256 per key. JSON byte arrays also obey the general array limit; per-field schemas do not replace aggregate limits.
 - Structural validity does not replace Core checks for references, resource content, field applicability, or legal operation batches, and does not guarantee execution or saving. MCP adds no second transaction kernel; preview only maps the authoritative Backend entrypoint.
 - Method-specific outputs preserve Backend error categories. Unhandled adapter errors use `backend_unhandled_error` without exposing internal exceptions. Structural schemas do not promise response budgets or diagnostic recovery policies.
@@ -64,7 +65,7 @@ A preview reserves no revision and does not guarantee later apply/save or public
 The tables summarize top-level parameters only; read schemas for nested fields and concrete results. SHA-256 identifies generated contract content, not a package version.
 
 <!-- contracts:start -->
-SHA-256: `a707a63e5cc43430968a630de348da18bdd128d6fddaf64caae49865c6211f00`
+SHA-256: `60e4b1f8bc14bc013134783d7d8fbeea22a50a7dfdd9858bced6f5aba1eee63d`
 
 | Operation | Parameters (`?` = optional) |
 |---|---|

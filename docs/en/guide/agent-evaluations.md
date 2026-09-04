@@ -73,6 +73,22 @@ Real models run manually only: no model calls in PR CI, no schedules and no auto
 | rename/save | Failed: client skipped editing tools | 49.570 s | 4 / 2 / 0 |
 | stale recovery | Conflict execution not reached: client skipped editing tools | 57.397 s | 6 / 4 / 0 |
 
-Raw stderr reports `invalid type: map, expected a string` while Codex converts the apply/preflight MCP schemas, then skips both tools. The host's `tools/list` includes the actual tools. The model's claim that the host does not expose them is therefore not proof that the product has no such methods. The exact schema node/client implementation cause is not yet established; this stage does not fix that parsing failure.
+Raw stderr reports `invalid type: map, expected a string` while Codex converts the apply/preflight MCP schemas, then skips both tools. The host's `tools/list` includes the actual tools. The model's claim that the host does not expose them is therefore not proof that the product has no such methods. This failed record remains unchanged; the diagnosis and post-fix verification follow below.
 
 Independent comparisons confirm all three projects and unrelated files remained unchanged, with no scope violation. The model did not falsely claim a successful save. Task completion was 1/3, but this cannot establish its rename or conflict-recovery ability. Deterministic reference runs passed 3/3 through real MCP consumers on Node 20 and 24, including rename, save, concurrent injection and stale rejection. This difference is concrete client-integration evidence beyond unit and consumer tests.
+
+## Post-fix verification
+
+The [2026-09-04 verification record](../../../agent/evals/verification-2026-09-04.json) uses the same CLI, model, task prompts and grading conditions, with freshly packed artifacts installed in a new workspace. The first full post-fix run passed 3/3. The product-code fix changes only the contract emitter and generated artifacts, not the tasks, grader or model permissions; the client was not upgraded.
+
+A minimal reproduction established that Codex CLI 0.153.2 rejects draft-7 positional tuples such as `items: [{ type: 'number' }, ...]`, dropping the entire containing tool. The emitter now represents homogeneous fixed tuples with one `items` schema and equal `minItems` / `maxItems`. The accepted input set is unchanged, retaining length, element-type, revision and save checks. A real `tools/list` regression checks every tool input and exercises valid values, invalid lengths and invalid element types for four-number tuples in apply/preflight.
+
+| Task | Real-model result | Duration | Host tool calls / document reads / previews |
+|---|---|---|---|
+| inspect/validate | Passed | 48.122 s | 4 / 2 / 0 |
+| rename/save | Passed | 61.369 s | 7 / 3 / 1 |
+| stale recovery | Passed, with one actual `stale_write` | 71.043 s | 15 / 3 / 2 |
+
+Both editing tasks saved successfully and matched the complete expected project and file bytes. The conflict task recovered from the rejected revision-0 write, refreshed its queries, previewed again and committed at revision 2, preserving `Title edited concurrently`. There were no skipped-tool warnings, scope violations or repeated successful submissions. The single failed call is the expected real conflict rejection and remains in the failure count.
+
+Node 24 `check:ci` passed (522 AVA tests, 24 repository tests, documentation and tarball checks). Node 20.20.2 `pack:check` also passed using the exact same five tarballs as this model run; both checks included 3/3 deterministic reference tasks. Package versions remain development-branch 0.3.1; source, artifact and contract hashes identify the actual fix. This is neither a published-release claim nor a long-term model success-rate guarantee.

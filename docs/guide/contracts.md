@@ -55,6 +55,7 @@ MCP `resources/list` 提供 `openfairygui://contracts/operations`，列出正式
 - Core 中的二进制仍是 `Uint8Array`。MCP 的正式二进制字段使用整数数组（0–255），通过生成的字段路径显式还原；`replaceResourceBytes`、资源/包快照和导入工程使用同一转换。扩展 JSON 中同名的 `sourceBytes` 不会被改写。
 - MCP 不接受宿主对象：`openProjectSession.storage`、`saveSession.fileSystem`、`materializeSession.storage/fileSystem/targetPath` 不在工具输入中。宿主注入继续通过 Backend API 完成。
 - 结构 schema 保留正式类型声明的开放字段，例如扩展设置、资源 metadata 和部分动态值；它们不是凭空补齐的协议。未知的封闭对象字段会被拒绝，不静默丢弃。
+- 同类型定长元组（例如四个数值的 `scale9Grid` / `cornerRadius`）生成单一 `items` schema，并保留相等的 `minItems` / `maxItems`；MCP 工具发现无需解析位置数组，元素类型和固定长度约束不变。不同类型的位置元组仍保留逐位置约束。
 - 输入继续受批次上限（1–1000）、revision 整数、selector 长度及总节点/深度/字符串预算约束。通用预算为深度 32、节点 100000、单个数组/对象 10000 项、单个字符串 1000000 字符、键长 256；JSON 字节数组也受通用数组预算限制。schema 中的单字段限制不覆盖总预算。
 - schema 不替代 Core 的引用、资源内容、字段适用性和合法批次检查；校验成功不表示事务可执行或保存会成功。MCP 不增加第二套事务内核，预演也只映射 Backend 的正式入口。
 - 方法专属结果保留 Backend 的错误分类；适配层抛出的未处理错误使用 `backend_unhandled_error`，不暴露内部异常详情。响应预算及诊断修复策略不由结构 schema 承诺。
@@ -64,7 +65,7 @@ MCP `resources/list` 提供 `openfairygui://contracts/operations`，列出正式
 下表只摘要顶层参数；嵌套字段和具体结果请读取对应 schema。SHA-256 变化表示生成契约发生变化，不等同于包版本号。
 
 <!-- contracts:start -->
-SHA-256: `a707a63e5cc43430968a630de348da18bdd128d6fddaf64caae49865c6211f00`
+SHA-256: `60e4b1f8bc14bc013134783d7d8fbeea22a50a7dfdd9858bced6f5aba1eee63d`
 
 | 操作 | 参数（`?` 表示可选） |
 |---|---|

@@ -2213,23 +2213,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		"Shape_208406a252": {
 			"type": "array",
-			"prefixItems": [
-				{
-					"type": "number"
-				},
-				{
-					"type": "number"
-				},
-				{
-					"type": "number"
-				},
-				{
-					"type": "number"
-				}
-			],
 			"minItems": 4,
 			"maxItems": 4,
-			"items": false
+			"items": {
+				"type": "number"
+			}
 		},
 		"AddResourceOperation_db35916153": {
 			"type": "object",
@@ -11093,15 +11081,12 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		"Shape_f956924063": {
 			"type": "array",
-			"prefixItems": [
-				{
-					"type": "string",
-					"const": "advisoryLockMetadata"
-				}
-			],
 			"minItems": 1,
 			"maxItems": 1,
-			"items": false
+			"items": {
+				"type": "string",
+				"const": "advisoryLockMetadata"
+			}
 		},
 		"__type_0766415c9e": {
 			"type": "object",
@@ -11328,15 +11313,12 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		"Shape_d356aad25c": {
 			"type": "array",
-			"prefixItems": [
-				{
-					"type": "string",
-					"const": "cache.refresh"
-				}
-			],
 			"minItems": 1,
 			"maxItems": 1,
-			"items": false
+			"items": {
+				"type": "string",
+				"const": "cache.refresh"
+			}
 		},
 		"__type_b3bf9852d7": {
 			"type": "object",
@@ -14859,5 +14841,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "a707a63e5cc43430968a630de348da18bdd128d6fddaf64caae49865c6211f00"
+	"digest": "60e4b1f8bc14bc013134783d7d8fbeea22a50a7dfdd9858bced6f5aba1eee63d"
 };
