@@ -1,12 +1,13 @@
 # 可运行示例与消费者验证
 
-三个 Node 示例和一个浏览器存储示例只使用安装后的公开包，不依赖仓库源码别名、`referer/` 或测试工具包。把仓库的 `examples/` 目录复制到仓库外，在复制后的目录执行：
+四个 Node 示例和一个浏览器存储示例只使用安装后的公开包，不依赖仓库源码别名、`referer/` 或测试工具包。把仓库的 `examples/` 目录复制到仓库外，在复制后的目录执行：
 
 ```bash
 npm install
 node node-inspect-validate/index.mjs
 node revision-checked-edit-save/index.mjs
 node publish-restore/index.mjs
+node mcp-stdio-client/index.mjs
 ```
 
 不传参数时会创建独立的临时工程，并在 JSON 输出中给出 `projectPath`；文件保留供检查。前两个示例也可传入 `.fairy` 路径。第二个示例会修改传入的工程，且要求 `Main/MainView/title` 结构，请只对工程副本执行。第三个命令只创建自己的示例，不接受用户目录覆盖；验证当前分支未发布的代码请用下方 `pack:check`，不能把 registry 版本当作当前源码。
@@ -37,6 +38,14 @@ CLI 的对应机器入口是 `ofgui inspect <工程路径> --json` 与 `ofgui va
 
 恢复只接受可信本地产物；输出必须为独立目录，默认拒绝覆盖，`--force` 也须等暂存恢复完成才替换旧目录。完整限制见[恢复边界](../published-project-restore-limitations.md)，安装后可离线读 `ofgui docs cat restore-limits --json`。不承诺还原发布物未携带的源码信息。
 
+## MCP stdio 客户端
+
+第四个命令复用正式 MCP SDK 启动安装后的 `@openfairygui/mcp/stdio`，不依赖全局可执行文件、shell 命令拼接或 HTTP 端口。它发现工具和版本绑定文档，显式限制 `OPENFAIRYGUI_ALLOWED_PROJECT_ROOTS`，从 outline 取得 `Main/MainView/title` 的精确 ID，读取当前 revision 并预演文本修改。它不执行 apply/save，断言查询结果和干净会话保持不变，并在 finally 中关闭会话和 stdio 连接。
+
+可传入有上述结构的 `.fairy` 文件；没有参数时新建独立样例。打开文件会话仍需短暂持有锁，不会绕过已有锁。`pack:check` 直接执行此文件，核对完整工程文件未变，并由后续会话打开证明锁已释放。SDK 是示例显式声明的消费者依赖，不加入产品的新抽象层。
+
+<<< ../../examples/mcp-stdio-client/index.mjs#example {js}
+
 ## 真实浏览器存储
 
 在上述仓库外的 `examples/` 副本执行 `npm run browser`，用 Chromium 打开终端显示的 localhost 地址。示例只在当前 origin 的 OPFS 中首次创建 `openfairygui-example/`，不请求本地目录权限、不覆盖已有示例；清除站点数据会删除该存储。点击 Open → Preview & apply → Save → 刷新 → Open，可看到保存后的 title、revision 和 dirty；未保存时 Close 拒绝丢弃编辑，但刷新仍可能丢失内存修改。Validate saved files 显式水合源字节并调用 `validateProjectWeb`，不能用没有图片字节的检查冒充完整验证。
@@ -63,12 +72,12 @@ pnpm pack:check --artifacts .release
 - 用五个本地 tarball 安装生产依赖，并将内部包依赖固定到这些 tarball；禁止 workspace link，清除环境中的 Node loader/源码解析配置。
 - 按真实 `exports` 检查打包文件、ESM import、CJS require、Node/Web 入口；Worker 单独作为浏览器入口，不在 Node 主线程导入。
 - 验证安装后的 CLI/bin、版本、inspect/validate JSON，以及 MCP stdio initialize 和工具发现。
-- 运行本页三个示例，检查读操作不写盘、保存后只改变目标文本与对应 XML、无新增无关文件、会话锁释放、stale revision 被拒绝。
+- 运行本页四个 Node 示例（包括真实 stdio 客户端），检查读/预演不写盘、保存后只改变目标文本与对应 XML、无新增无关文件、会话锁释放、stale revision 被拒绝。
 - 发布示例额外核对实际 manifest/文件字节长度、二进制组件与跨包引用、图集红蓝 RGBA 像素、恢复后素材与工程验证；损坏图集下强制恢复失败须保留完整旧目录。发布/恢复真实 Agent 任务使用独立受限宿主，见[评测指南](./agent-evaluations.md)。
 - 生产运行通过后，再声明并安装锁定版本的 TypeScript、Node 类型、esbuild 和 Playwright，严格编译 `.mts`/`.cts` 消费者，不启用 `skipLibCheck` 或源码 alias；浏览器/Worker 无 Node external 打包后，执行上述真实 Chromium 页面验证。
 
 成功后自动删除检查器创建的临时目录；失败保留现场并打印路径。`pnpm pack:check --keep` 可以保留成功现场。安装需要 registry 和匹配 Chromium 的网络或缓存；浏览器下载失败/启动失败不算通过。Playwright 与 Chromium 安装版本绑定，见 [浏览器安装说明](https://playwright.dev/docs/browsers)。默认不安装系统依赖；Linux CI 显式使用 `--browser-deps` 安装 Chromium 所需系统包（可能需要 sudo），Windows 忽略该系统依赖选项。浏览器缓存位于仓库外，不随消费者临时目录删除。
 
-这些检查证明包入口、类型、最小 Node 工作流及真实 Chromium 存储页面行为，不证明本地目录权限、完整编辑器 UI、所有图片格式或全部发布/恢复格式。项目测试与用户示例分别维护；本页四个示例均纳入消费者验证。
+这些检查证明包入口、类型、最小 Node 工作流及真实 Chromium 存储页面行为，不证明本地目录权限、完整编辑器 UI、所有图片格式或全部发布/恢复格式。项目测试与用户示例分别维护；本页五个示例均纳入消费者验证。
 
 验证入口和 CI 范围见[开发指南](./development.md)，产品入口见[包与工具](./packages.md)。

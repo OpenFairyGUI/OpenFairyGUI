@@ -42,11 +42,11 @@ export function preparePackedConsumer({ artifacts } = {}) {
 				pnpm(path.join(ROOT, manifest.repository.directory), ['pack', '--out', path.join(directory, artifactName(manifest))]);
 			}
 		}
-		const dependencies = Object.fromEntries(expected.map((manifest) => {
+		const dependencies = { ...readJson(path.join(ROOT, 'examples/package.json')).dependencies, ...Object.fromEntries(expected.map((manifest) => {
 			const archive = path.join(directory, artifactName(manifest));
 			assert(existsSync(archive), `Missing release artifact: ${archive}`);
 			return [manifest.name, `file:${archive.replaceAll('\\', '/')}`];
-		}));
+		})) };
 		const consumer = path.join(temporary, 'app');
 		mkdirSync(consumer);
 		json(path.join(consumer, 'package.json'), { name: 'ofgui-isolated-consumer', private: true, type: 'module', dependencies, pnpm: { overrides: dependencies } });

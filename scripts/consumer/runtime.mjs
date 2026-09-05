@@ -168,11 +168,17 @@ export async function runtimeSmoke() {
 	const { createDemoProject } = await import('./examples/create-demo-project.mjs');
 	const { inspectAndValidate } = await import('./examples/node-inspect-validate/index.mjs');
 	const { editAndSave } = await import('./examples/revision-checked-edit-save/index.mjs');
+	const { inspectThroughMcp } = await import('./examples/mcp-stdio-client/index.mjs');
 	const { artifactSmoke } = await import('./artifact-eval.mjs');
 	await artifactSmoke();
 	const projectPath = await createDemoProject(root);
 	const projectRoot = path.dirname(projectPath);
 	const beforeFiles = snapshot(projectRoot);
+	const mcpExample = await inspectThroughMcp(projectPath);
+	assert.equal(mcpExample.session.dirty, false); assert.equal(mcpExample.current.revision, 0);
+	assert.equal(mcpExample.preview.projectedRevision, 1);
+	assert.deepEqual(mcpExample.preview.impact.files, [{ path: 'assets/Main/MainView.xml', kind: 'file', change: 'updated' }]);
+	assert.deepEqual(snapshot(projectRoot), beforeFiles, 'The public MCP example must not apply or save its preview');
 	const report = await inspectAndValidate(projectPath);
 	assert.equal(report.validation.status, 'valid'); assert.equal(report.validation.complete, true);
 	assert.equal(report.inspection.totals.packages, 1); assert.equal(report.inspection.totals.components, 1);
@@ -215,6 +221,13 @@ export async function runtimeSmoke() {
 	assert.equal(noProject.project, null); assert.equal(noProject.scope, 'installed-product');
 	const { NodeIO } = await import('@openfairygui/core/node');
 	const { readProjectAsUam, liftDocumentToUamProject, writeProjectFromUam } = await import('@openfairygui/core');
+	const unsupportedPath = await createDemoProject(root);
+	const unsupportedProject = await readProjectAsUam(new NodeIO(), unsupportedPath);
+	unsupportedProject.packages[0].resources.find((resource) => resource.kind === 'component').component.displayList[0].name = 'not-title';
+	await writeProjectFromUam(new NodeIO(), unsupportedProject, unsupportedPath);
+	const unsupportedBefore = snapshot(path.dirname(unsupportedPath));
+	await assert.rejects(inspectThroughMcp(unsupportedPath), /This example expects Main\/MainView\/title/);
+	assert.deepEqual(snapshot(path.dirname(unsupportedPath)), unsupportedBefore, 'A failed MCP example must preserve the source');
 	const decoderProjectPath = await createDemoProject(root);
 	const decoderDocument = await new NodeIO().readProject(decoderProjectPath);
 	decoderDocument.getRoot().listPackages()[0].addResource(decoderDocument.createImageResource('pixel.png').setId('pixel').setPath('/').setFileName('pixel.png'));
@@ -250,6 +263,10 @@ export async function runtimeSmoke() {
 	assert.equal(JSON.parse(cli(['validate', projectRoot, '--json'])).result.status, 'valid');
 	const { createNodeBackendRuntime } = await import('@openfairygui/backend/node');
 	const runtime = createNodeBackendRuntime({ allowedProjectRoots: [projectRoot] });
+	const failureRuntime = createNodeBackendRuntime({ allowedProjectRoots: [path.dirname(unsupportedPath)] });
+	const afterFailure = await failureRuntime.openSession({ projectPath: unsupportedPath });
+	assert(afterFailure.ok, 'A failed MCP example must release its session lock');
+	assert((await failureRuntime.closeSession({ sessionId: afterFailure.data.sessionId })).ok);
 	const reopened = await runtime.openSession({ projectPath });
 	assert(reopened.ok, 'Example must release its session lock');
 	try {
@@ -269,7 +286,7 @@ export async function runtimeSmoke() {
 	await mcpSmoke(expected.find((entry) => entry.name === '@openfairygui/mcp').version, mcp.OPENFAIRYGUI_BACKEND_TOOL_NAMES,
 		mcp.getOpenFairyGuiOperationCatalog(), mcp.getOpenFairyGuiOperationSchema('addComponent'), expectedDocs);
 	// Execute the documented no-argument commands too; keep their generated projects inside this consumer.
-	for (const name of ['node-inspect-validate', 'revision-checked-edit-save', 'publish-restore']) {
+	for (const name of ['node-inspect-validate', 'revision-checked-edit-save', 'publish-restore', 'mcp-stdio-client']) {
 		const output = execFileSync(process.execPath, [`examples/${name}/index.mjs`], {
 			cwd: root, encoding: 'utf8', timeout: 30_000,
 			env: { ...process.env, TMPDIR: root, TMP: root, TEMP: root },
