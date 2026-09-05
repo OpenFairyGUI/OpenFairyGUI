@@ -25,13 +25,16 @@ MCP 读取 `openfairygui://docs/index` 后按条目 URI 读取同一份正文。
 ```bash
 ofgui doctor --json
 ofgui doctor ./MyProject --json
+ofgui doctor ./MyProject --output-dir ./Release --json
 ```
 
-不传工程时检查 Node 最低版本、CLI/文档版本一致性，并读取 Node Backend 能力声明；不声称已验证源字节或 Sharp。传入工程时复用 `validateProjectNode` 的只读路径解析、工程读取与现有图片解码检查；不创建 Backend session/锁，不安装、不写探针、不改配置、不修复。
+每次检查 Node 最低版本、CLI/文档版本一致性、Node Backend 能力声明、Sharp 的内存 PNG/JPEG 编码与像素解码，以及临时目录访问标志。传入工程时另复用 `validateProjectNode` 的只读路径解析、工程读取与图片解码检查；不创建 Backend session/锁，不安装、不写探针、不改配置、不修复。
 
-退出码 0 表示本次请求的检查完成；1 表示错误；2 表示参数错误；3 表示工程验证不完整。完整报告始终放在 `result`，错误/不完整同时返回 `success:false` 与 `error`。报告 `scope` 为 `installed-product`，包含 `status`、`errors`、能力 envelope、原始 `project` 验证报告及 `limits`。不传工程时 `project` 为 null；能力声明不等于写权限、发布或运行时渲染验证。会话已有未保存编辑时，CLI doctor 只检查磁盘工程；当前内存状态应使用 `validateSession`。
+`--output-dir` 仅检查显式给出的目录；不存在时向上查找最近的现有祖先，报告原始绝对 `path`、解析链接后的 `inspectedPath` 和 `exists`（无法确定时为 null），不创建目录。文件、悬空链接和访问错误返回失败。临时目录必须已经存在。不执行项目插件，也不自动检查项目中配置的其他发布/代码输出路径。
 
-仓库开发环境仍使用 `pnpm repo:doctor`：它诊断 Git、pnpm、构建存在性、临时目录权限及 fixture；产品 doctor 不检查这些仓库前置条件。
+退出码 0 表示本次请求的检查完成；1 表示错误；2 表示参数错误；3 表示原生图片能力不可用/测试失败或工程验证不完整。完整报告始终放在 `result`，错误/不完整同时返回 `success:false` 与 `error`。报告 `scope` 为 `installed-product`，包含 `status`、`errors`、逐项 `checks`、能力 envelope、原始 `project` 验证报告及 `limits`。不传工程时 `project` 为 null，图片样本检查不证明工程源文件可用。访问标志不保证 ACL、磁盘容量、后续创建/写入/rename/回滚或持续授权；这些检查不等于 publish/restore 或运行时渲染验证。会话已有未保存编辑时，CLI doctor 只检查磁盘工程；当前内存状态应使用 `validateSession`。
+
+仓库开发环境仍使用 `pnpm repo:doctor`：它另诊断 Git、pnpm、构建存在性及 fixture；产品 doctor 不检查这些仓库前置条件。
 
 ## 随包与维护
 

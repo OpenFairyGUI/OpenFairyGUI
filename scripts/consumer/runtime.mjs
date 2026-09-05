@@ -217,8 +217,24 @@ export async function runtimeSmoke() {
 	const doctor = JSON.parse(cli(['doctor', projectRoot, '--json'])).result;
 	assert.equal(doctor.status, 'ready'); assert.equal(doctor.project.status, 'valid'); assert(doctor.project.complete);
 	assert.equal(doctor.packageVersion, doctor.cliVersion);
-	const noProject = JSON.parse(cli(['doctor', '--json'])).result;
+	assert.deepEqual(doctor.checks.map((check) => [check.id, check.status]), [['native-images', 'ok'], ['temp-directory', 'ok']]);
+	const outputDirectory = path.join(projectRoot, 'not-created', 'release');
+	const noProject = JSON.parse(cli(['doctor', '--output-dir', outputDirectory, '--json'])).result;
 	assert.equal(noProject.project, null); assert.equal(noProject.scope, 'installed-product');
+	const outputCheck = noProject.checks.find((check) => check.id === 'output-directory');
+	assert.equal(outputCheck.path, outputDirectory); assert.equal(outputCheck.inspectedPath, realpathSync(projectRoot));
+	assert.equal(outputCheck.status, 'ok'); assert.equal(outputCheck.exists, false);
+	assert(!existsSync(path.dirname(outputDirectory)), 'Doctor must not create a missing output directory');
+	assert.throws(() => cli(['doctor', '--output-dir', projectPath, '--json']), (error) => error.status === 1 && JSON.parse(error.stdout).result.checks.some((check) => check.id === 'output-directory' && check.status === 'error'));
+	assert.throws(() => cli(['doctor', '--output-dir=', '--json']), (error) => error.status === 2 && JSON.parse(error.stdout).error.code === 'invalid_arguments');
+	// Exercise a broken temp path through the installed CLI, without a source loader needing its own temp cache.
+	const badTemp = spawnSync(...bin('ofgui', '@openfairygui/cli', ['doctor', '--json']), { cwd: root, encoding: 'utf8', timeout: 30_000,
+		env: { ...process.env, TEMP: projectPath, TMP: projectPath, TMPDIR: projectPath },
+	});
+	assert.equal(badTemp.status, 1, badTemp.stderr);
+	const badTempEnvelope = JSON.parse(badTemp.stdout);
+	assertCliEnvelope(badTempEnvelope, badTemp.status);
+	assert.equal(badTempEnvelope.result.checks.find((check) => check.id === 'temp-directory').status, 'error');
 	const { NodeIO } = await import('@openfairygui/core/node');
 	const { readProjectAsUam, liftDocumentToUamProject, writeProjectFromUam } = await import('@openfairygui/core');
 	const unsupportedPath = await createDemoProject(root);
@@ -243,11 +259,18 @@ export async function runtimeSmoke() {
 	const incomplete = spawnSync(...bin('ofgui', '@openfairygui/cli', ['doctor', decoderProjectPath, '--json']), { cwd: root, encoding: 'utf8', timeout: 30_000, env: { ...process.env, NODE_OPTIONS: `--import=${register}` } });
 	assert.equal(incomplete.status, 3, incomplete.stderr);
 	const incompleteEnvelope = JSON.parse(incomplete.stdout);
+	assertCliEnvelope(incompleteEnvelope, incomplete.status);
 	assert.equal(incompleteEnvelope.success, false);
 	assert.equal(incompleteEnvelope.error.code, 'doctor_incomplete');
 	const incompleteReport = incompleteEnvelope.result;
 	assert.equal(incompleteReport.status, 'incomplete'); assert.equal(incompleteReport.project.complete, false);
+	assert.equal(incompleteReport.checks[0].status, 'incomplete');
 	assert(incompleteReport.project.diagnostics.some((entry) => entry.code === 'decode_capability_unavailable'));
+	const noDecoder = spawnSync(...bin('ofgui', '@openfairygui/cli', ['doctor', '--json']), { cwd: root, encoding: 'utf8', timeout: 30_000, env: { ...process.env, NODE_OPTIONS: `--import=${register}` } });
+	assert.equal(noDecoder.status, 3, noDecoder.stderr);
+	const noDecoderEnvelope = JSON.parse(noDecoder.stdout);
+	assertCliEnvelope(noDecoderEnvelope, noDecoder.status);
+	assert.equal(noDecoderEnvelope.result.project, null); assert.equal(noDecoderEnvelope.result.checks[0].status, 'incomplete');
 	assert.deepEqual(snapshot(path.dirname(decoderProjectPath)), decoderBefore);
 	assert.deepEqual(snapshot(projectRoot), beforeFiles, 'Product diagnosis and documentation must not change project files');
 	assert.equal(execFileSync(...bin('openfairygui', '@openfairygui/cli', ['--version']), { encoding: 'utf8' }).trim(), expected[0].version);

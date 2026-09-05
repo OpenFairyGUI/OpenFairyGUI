@@ -194,6 +194,8 @@ flowchart LR
 
 机器输出的统一入口是 CLI 的 `contracts.ts` 与 `utils/json-output.ts`；工作流报告仍由 Core/Functions/Backend 拥有。现有 TypeScript 生成器同时收集 CLI 输出、Core/Backend 契约与全部正式诊断码，生成独立 `@openfairygui/backend/docs` 数据供 CLI/MCP 离线读取，不增加 Backend 对 CLI 的运行时依赖。诊断目录列举共享码的全部 owners，响应保留实际来源；没有新的自动修复层。
 
+CLI doctor 在 Node 边界直接检查可选 Sharp 的内存 PNG/JPEG 编解码、临时目录与显式输出目录的访问标志；工程诊断仍复用 Functions 的只读验证。它不创建会话、锁或探针文件，不运行插件、发布或恢复，也不将访问标志视为写入/回滚保证。逐项结果属于 CLI 报告，由同一生成链随包提供 schema。
+
 浏览器消费者示例使用原生 OPFS directory handle → Core File System Access adapter → Backend storage bridge → `BackendRuntime.openSession`，经正式预演、编辑和保存后由 WebIO 水合回读并执行 Web 验证。`pack:check` 在仓库外安装 tarball、打包该公开示例并用真实 Chromium 验证存储、图片字节和 Web Locks；不是 Node 内存文件系统模拟，也不代表用户目录权限或渲染器验证。
 
 ## Publish / Restore 宿主边界

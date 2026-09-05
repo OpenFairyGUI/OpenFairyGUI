@@ -33,12 +33,12 @@ pnpm check:ci
 | `pnpm contracts:generate` | 从 Core/Backend/CLI 类型生成 MCP/CLI 结构契约、操作目录、完整诊断指引、快照与双语表格 |
 | `pnpm contracts:check` | 只读检查 operation/方法映射、正式诊断码覆盖/归属和生成物漂移；仓库自测另检查 CLI 命令注册覆盖 |
 | `pnpm docs:build` | 显式先生成 TypeDoc API，再构建 VitePress；不依赖隐式 pre-script 配置 |
-| `pnpm pack:check` | 构建五包并在仓库外安装，验证公开入口、类型、CLI/MCP、三个 Node 示例及真实 Chromium OPFS 编辑/保存/刷新/锁/路径与图片字节；首次下载匹配浏览器 |
+| `pnpm pack:check` | 构建五包并在仓库外安装，验证公开入口、类型、CLI/MCP、四个 Node 示例及真实 Chromium OPFS 编辑/保存/刷新/锁/路径与图片字节；首次下载匹配浏览器 |
 | `pnpm eval:agent --runner reference` | 十个真实 tarball/MCP 任务的确定性宿主自测，含编辑、安全停止和独立发布/恢复任务；`pack:check` 也执行，不调用模型 |
 | `pnpm eval:agent --runner codex --codex codex` | 手动真实模型任务，保存状态判定、调用轨迹与失败现场；不进入 PR CI |
 | `pnpm check:ci` | 完整 `check`、`docs:check`、文档构建和 tarball 消费者检查；提交前使用此入口 |
 
-doctor 不安装、不下载、不写文件。它只检查导出文件是否存在，不证明构建新鲜度或浏览器行为；临时目录只做权限检查，不证明磁盘容量。缺少原生图片能力会警告，图片相关任务仍需实际验证。推荐 Node 不匹配仅警告；低于包支持范围、pnpm 不匹配、缺少必需 fixture/构建产物则失败。
+doctor 不安装、不下载、不写文件；子模块状态查询也禁用 Git 可选的索引刷新写入。它只检查导出文件是否存在，不证明构建新鲜度或 Node/Web 运行行为；实际消费者边界由 `pack:check` 验证。Sharp 检查会在内存完成 PNG/JPEG 编码和像素解码，而非只读取版本；不可用或失败会警告，不能据此宣称已验证真实 publish/restore。临时路径必须是可访问目录，但访问标志不证明 ACL、磁盘容量、后续写入或回滚。推荐 Node 不匹配仅警告；低于包支持范围、pnpm 不匹配、缺少必需 fixture/构建产物则失败。
 
 ### 变更选择规则
 

@@ -16102,6 +16102,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"errors": {
 					"$ref": "#/$defs/Array_a98b34d025"
 				},
+				"checks": {
+					"$ref": "#/$defs/Array_e8c088258f"
+				},
 				"capabilities": {
 					"$ref": "#/$defs/BackendSuccess_96cb6be703"
 				},
@@ -16142,6 +16145,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"nodeVersion",
 				"status",
 				"errors",
+				"checks",
 				"capabilities",
 				"projectPath",
 				"project",
@@ -16178,6 +16182,87 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			},
 			"required": [
 				"code",
+				"message"
+			],
+			"additionalProperties": false
+		},
+		"Array_e8c088258f": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/Shape_af550ea90c"
+			}
+		},
+		"Shape_af550ea90c": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_dc6430b4c8"
+				},
+				{
+					"$ref": "#/$defs/__type_8fc444f096"
+				}
+			]
+		},
+		"__type_dc6430b4c8": {
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "string",
+					"const": "native-images"
+				},
+				"status": {
+					"enum": [
+						"ok",
+						"incomplete"
+					]
+				},
+				"message": {
+					"type": "string"
+				},
+				"version": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"id",
+				"status",
+				"message"
+			],
+			"additionalProperties": false
+		},
+		"__type_8fc444f096": {
+			"type": "object",
+			"properties": {
+				"id": {
+					"enum": [
+						"temp-directory",
+						"output-directory"
+					]
+				},
+				"status": {
+					"enum": [
+						"error",
+						"ok"
+					]
+				},
+				"path": {
+					"type": "string"
+				},
+				"inspectedPath": {
+					"type": "string"
+				},
+				"exists": {
+					"$ref": "#/$defs/Shape_e3070b8c30"
+				},
+				"message": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"id",
+				"status",
+				"path",
+				"inspectedPath",
+				"exists",
 				"message"
 			],
 			"additionalProperties": false
@@ -17774,5 +17859,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "a2cd2ae71eeb9918a61f4a0fbf32b76f75dfc6434561cbaf766f45abbf170848"
+	"digest": "f7d97431178200ad46a58117724e9ad812820c61bea2113fbc3d699fc79e2fa8"
 };

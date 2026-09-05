@@ -25,13 +25,16 @@ Read `openfairygui://docs/index` in MCP, then follow its content URIs. Operation
 ```bash
 ofgui doctor --json
 ofgui doctor ./MyProject --json
+ofgui doctor ./MyProject --output-dir ./Release --json
 ```
 
-Without a project, checks cover the minimum Node version, CLI/documentation version agreement and the Node Backend capability declaration, not source bytes or Sharp. With a project, the command reuses `validateProjectNode` for read-only path resolution, project reading and existing image decoding checks. It creates no Backend session/lock, installs nothing, writes no probes, changes no configuration and performs no repair.
+Every invocation checks the minimum Node version, CLI/documentation version agreement, Node Backend capability declaration, in-memory Sharp PNG/JPEG encoding and pixel decoding, and temporary-directory access flags. With a project, the command additionally reuses `validateProjectNode` for read-only path resolution, project reading and image decoding checks. It creates no Backend session/lock, installs nothing, writes no probes, changes no configuration and performs no repair.
 
-Exit 0 means the requested checks completed; 1 means an error; 2 means argument errors; 3 means incomplete project validation. The full report stays in `result`; errors/incomplete checks also return `success:false` and `error`. The report has `scope: installed-product`, `status`, `errors`, the capability envelope, original `project` validation report and `limits`. Without a project, `project` is null. Capability declarations do not prove write permissions, publishing or runtime rendering. CLI doctor checks disk state only; use `validateSession` for unsaved in-memory edits.
+`--output-dir` inspects only the explicit directory. If absent, it checks the nearest existing ancestor, reporting the original absolute `path`, link-resolved `inspectedPath` and `exists` (null when unknown), without creating directories. Files, dangling links and access errors fail. The temporary directory must already exist. Project plugins are not executed, and other configured publish/code destinations are not inspected automatically.
 
-Maintainers still use `pnpm repo:doctor` for Git, pnpm, build existence, temporary-directory permissions and fixtures. Product doctor does not check repository prerequisites.
+Exit 0 means the requested checks completed; 1 means an error; 2 means argument errors; 3 means native image capability is unavailable/failed or project validation is incomplete. The full report stays in `result`; errors/incomplete checks also return `success:false` and `error`. The report has `scope: installed-product`, `status`, `errors`, individual `checks`, the capability envelope, original `project` validation report and `limits`. Without a project, `project` is null; sample image checks do not prove project sources are available. Access flags do not guarantee effective ACL permissions, space, later creation/writes/rename/rollback or continued authorization. These checks do not prove publish/restore or runtime rendering. CLI doctor checks disk state only; use `validateSession` for unsaved in-memory edits.
+
+Maintainers still use `pnpm repo:doctor` to additionally check Git, pnpm, build existence and fixtures. Product doctor does not check repository prerequisites.
 
 ## Packaging and maintenance
 

@@ -6,7 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { changedFiles, impactTable, runSelectedTests, selectTests } from './test-changed.mjs';
 import { checkCommands, checkGuidance, changelogStructure, markdownCode, markdownLinks, resolveLink } from './check-guidance.mjs';
-import { inspectBuilds, inspectEnvironment, inspectReferences } from './repo-doctor.mjs';
+import { doctor, inspectBuilds, inspectEnvironment, inspectReferences } from './repo-doctor.mjs';
 import { git, matches, pnpmInvocation, readJson, ROOT, testFiles } from './repo-utils.mjs';
 import { artifactName, consumerEnvironment, PACKAGES } from './pack-smoke.mjs';
 import { contained, exportFiles, snapshot } from './consumer/runtime.mjs';
@@ -230,6 +230,20 @@ test('doctor separates recommendation from support and detects missing export ou
 	mkdirSync(path.join(root, 'packages/cli/dist'));
 	assert(inspectBuilds(root).find((entry) => entry.id === 'build:@openfairygui/cli').missing.includes('dist/cli.mjs'));
 	assert(!existsSync(path.join(root, 'node_modules')));
+});
+
+test('repo doctor exercises native codecs rather than accepting version metadata as capability proof', async (t) => {
+	const { root } = referenceFixture(t);
+	write(root, 'package.json', JSON.stringify({ engines: { node: '>=20' }, packageManager: 'pnpm@10.14.0' }));
+	write(root, '.node-version', '24\n');
+	mkdirSync(path.join(root, 'packages'));
+	// Loadable metadata with a failing codec must not be reported as a working native capability.
+	write(root, 'node_modules/sharp/index.js', "module.exports = Object.assign(() => { throw new Error('Codec failed'); }, { versions: { sharp: 'test' } });");
+	const before = snapshot(root);
+	const report = await doctor(root);
+	const native = report.checks.find((check) => check.id === 'sharp');
+	assert.equal(native.status, 'warning'); assert.match(native.message, /Codec failed/);
+	assert.deepEqual(snapshot(root), before, 'Repository diagnosis must not modify files');
 });
 
 test('current guidance, public source mappings and bilingual documentation are consistent', () => {

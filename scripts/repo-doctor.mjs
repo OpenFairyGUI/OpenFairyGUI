@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { accessSync, constants, existsSync, readFileSync, readdirSync } from 'node:fs';
+import { accessSync, constants, existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -24,7 +24,7 @@ export function inspectReferences(root, requiredLocal) {
 			actualCommit = git(path.join(root, config.path), ['rev-parse', 'HEAD']).trim();
 			status = actualCommit !== expectedCommit ? 'mismatch'
 				: !existsSync(path.join(root, config.path, entry.probe)) ? 'incomplete'
-					: git(path.join(root, config.path), ['status', '--porcelain']).trim() ? 'dirty' : 'ready';
+					: git(path.join(root, config.path), ['--no-optional-locks', 'status', '--porcelain']).trim() ? 'dirty' : 'ready';
 		}
 		return { path: config.path, url, expectedCommit, actualCommit, status, authority: entry?.authority };
 	});
@@ -80,7 +80,7 @@ export function inspectBuilds(root) {
 	return checks;
 }
 
-export function doctor(root) {
+export async function doctor(root) {
 	let pnpmVersion = /\bpnpm\/([^ ]+)/.exec(process.env.npm_config_user_agent ?? '')?.[1];
 	if (!pnpmVersion) {
 		try { pnpmVersion = execFileSync('pnpm', ['--version'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 10_000 }).trim(); }
@@ -91,19 +91,25 @@ export function doctor(root) {
 	checks.push(...inspectBuilds(root));
 	try {
 		const sharp = createRequire(path.join(root, 'package.json'))('sharp');
-		checks.push({ id: 'sharp', status: 'ok', version: sharp.versions.sharp });
-	} catch {
-		checks.push({ id: 'sharp', status: 'warning', message: 'Native image capability unavailable; publish/image checks are not proven. Restore dependencies before those tasks.' });
+		for (const format of ['png', 'jpeg']) {
+			const encoded = await sharp({ create: { width: 1, height: 1, channels: 3, background: '#204060' } }).toFormat(format).toBuffer();
+			const { data, info } = await sharp(encoded).raw().toBuffer({ resolveWithObject: true });
+			if (info.width !== 1 || info.height !== 1 || info.channels !== 3 || data.length !== 3) throw new Error(`${format} pixel decoding returned unexpected dimensions.`);
+		}
+		checks.push({ id: 'sharp', status: 'ok', version: sharp.versions.sharp, message: 'In-memory PNG/JPEG encoding and pixel decoding passed.' });
+	} catch (error) {
+		checks.push({ id: 'sharp', status: 'warning', message: `Native image capability unavailable or failed; ask the host to check dependencies before image/publish/restore tasks. ${error.message}` });
 	}
 	try {
-		accessSync(tmpdir(), constants.W_OK);
-		checks.push({ id: 'temp-directory', status: 'ok', message: 'Permission check only; doctor does not create files.' });
-	} catch { checks.push({ id: 'temp-directory', status: 'error' }); }
+		if (!statSync(tmpdir()).isDirectory()) throw new Error('Temporary path is not a directory.');
+		accessSync(tmpdir(), constants.R_OK | constants.W_OK | constants.X_OK);
+		checks.push({ id: 'temp-directory', status: 'ok', path: tmpdir(), message: 'Directory access flags only; doctor does not create files or prove ACL permissions, space or later writes.' });
+	} catch (error) { checks.push({ id: 'temp-directory', status: 'error', path: tmpdir(), message: error.message }); }
 	const references = inspectReferences(root);
 	return {
 		ok: references.ok && !checks.some((check) => check.status === 'error'), checks, references,
 		next: references.ok ? 'pnpm check:ci (full) or pnpm check:fast (impact-selected; not full)' : 'pnpm refs:status; pnpm refs:sync; pnpm refs:verify',
-		boundary: 'Export files checked only. Node/Web behavior is covered by package tests, not by doctor.',
+		boundary: 'Export existence and in-memory PNG/JPEG only; no build freshness, publish/restore or runtime-rendering proof. Use pnpm pack:check for actual Node/Web consumer boundaries.',
 	};
 }
 
@@ -116,7 +122,7 @@ if (isMain(import.meta.url)) {
 		if (positionals.length > 1 || (positionals[0] && positionals[0] !== 'refs')) throw new Error('Usage: repo-doctor.mjs [refs] [--json] [--strict] [--require reference-id]');
 		const refsOnly = positionals[0] === 'refs';
 		if (!refsOnly && (values.strict || values.require)) throw new Error('--strict and --require apply to refs only.');
-		const report = refsOnly ? inspectReferences(ROOT, values.require) : doctor(ROOT);
+		const report = refsOnly ? inspectReferences(ROOT, values.require) : await doctor(ROOT);
 		if (json) console.log(JSON.stringify(report, null, 2));
 		else {
 			for (const check of report.checks ?? []) console.log(`${check.status}: ${check.id} ${JSON.stringify(check)}`);

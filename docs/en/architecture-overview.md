@@ -195,6 +195,8 @@ Additional details:
 
 CLI `contracts.ts` and `utils/json-output.ts` own the uniform machine envelope; workflow reports remain owned by Core/Functions/Backend. The existing TypeScript generator collects CLI outputs, Core/Backend contracts and every formal diagnostic code into the independent `@openfairygui/backend/docs` data entry for offline CLI/MCP access. There is no runtime Backend-to-CLI dependency. Catalogs list every owner of shared codes; responses retain the actual origin. No automatic-repair layer is introduced.
 
+CLI doctor directly checks optional Sharp in-memory PNG/JPEG codecs and access flags for the temporary and explicit output directories at the Node boundary; project diagnosis still reuses Functions' read-only validation. It creates no sessions, locks or probe files, runs no plugins/publish/restore and does not treat access flags as write/rollback guarantees. Individual checks belong to the CLI report and its schema ships through the same generator.
+
 The browser consumer follows native OPFS directory handle → Core File System Access adapter → Backend storage bridge → `BackendRuntime.openSession`. After formal preview/edit/save, WebIO hydrates saved sources for Web validation. `pack:check` installs tarballs outside the checkout, bundles the public example and executes real Chromium storage, image-byte and Web Locks checks. This is not a Node in-memory filesystem simulation and does not prove user-folder permissions or rendering.
 
 ## Publish / Restore host boundaries

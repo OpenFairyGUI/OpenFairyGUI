@@ -10,6 +10,10 @@ export interface DoctorReport extends ReturnType<typeof getInstalledDocumentatio
 	nodeVersion: string;
 	status: 'ready' | 'error' | 'incomplete';
 	errors: { code: 'installed_version_mismatch' | 'unsupported_node_version' | 'project_check_failed'; message: string }[];
+	checks: (
+		| { id: 'native-images'; status: 'ok' | 'incomplete'; message: string; version?: string }
+		| { id: 'temp-directory' | 'output-directory'; status: 'ok' | 'error'; path: string; inspectedPath: string; exists: boolean | null; message: string }
+	)[];
 	capabilities: ReturnType<BackendRuntime['getCapabilities']>;
 	projectPath: string | null;
 	project: ProjectValidationReport | null;
