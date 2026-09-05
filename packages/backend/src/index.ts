@@ -3,6 +3,8 @@ export {
 	BACKEND_COMPATIBILITY_POLICY,
 	BACKEND_CONTRACT_VERSION,
 	type BackendDiagnostic,
+	type BackendDiagnosticCode,
+	type BackendDiagnosticOwner,
 	type BackendDiagnosticRemediation,
 	type BackendMessage,
 	type BackendResponseMeta,

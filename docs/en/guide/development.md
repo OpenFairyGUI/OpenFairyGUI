@@ -30,10 +30,10 @@ For a dirty checkout, consider an isolated worktree before dependency or documen
 | `pnpm check:fast` | Lint, typecheck, repository-tool tests and guidance checks; build the workspace before any selected AVA tests; not a full regression or documentation build |
 | `pnpm check` | Fixture verification, lint, typecheck, build, repository-tool tests and all AVA tests |
 | `pnpm docs:check` | Local links, agent paths/commands, impact-table drift, public source mappings, bilingual entries, Changelog structure and contract drift |
-| `pnpm contracts:generate` | Generate MCP structural contracts, operation catalog, snapshot and bilingual tables from Core/Backend types |
-| `pnpm contracts:check` | Read-only operation/method completeness and generated-file checks, also covered by repository tests and `docs:check` |
+| `pnpm contracts:generate` | Generate MCP/CLI structural contracts, operations, complete diagnostic guides, snapshots and bilingual tables from Core/Backend/CLI types |
+| `pnpm contracts:check` | Read-only operation/method mapping, formal diagnostic coverage/ownership and generated-drift checks; repository tests also check CLI registrations |
 | `pnpm docs:build` | Explicit TypeDoc generation followed by VitePress; no dependency on implicit pre-script settings |
-| `pnpm pack:check` | Build/pack five packages, install production dependencies outside the checkout, verify entries, types, browser bundles, CLI/MCP and three examples |
+| `pnpm pack:check` | Build/install five tarballs outside the checkout; verify public entries, types, CLI/MCP, three Node examples and real Chromium OPFS edits/save/reload/locks/paths/image bytes; download the matching browser on first use |
 | `pnpm eval:agent --runner reference` | Ten deterministic tarball/MCP task checks, including editing, safe stops and separate publish/recovery tasks; also run by `pack:check`, without calling a model |
 | `pnpm eval:agent --runner codex --codex codex` | Manual real-model tasks with state checks, traces and failure evidence; excluded from PR CI |
 | `pnpm check:ci` | Full check, guidance checks, documentation build and tarball consumer checks; use before submitting |

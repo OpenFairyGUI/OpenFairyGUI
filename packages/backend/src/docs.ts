@@ -10,6 +10,7 @@ export interface ContractSnapshot {
 	versions: { BACKEND_CONTRACT_VERSION: string; BACKEND_CAPABILITY_SCHEMA_VERSION: number };
 	operations: Record<string, ContractSchema>;
 	tools: Record<string, { input: ContractSchema; output: ContractSchema; bytePaths: string[][]; [metadata: string]: unknown }>;
+	cli: Record<string, ContractSchema>;
 	$defs: Record<string, ContractSchema>;
 	diagnostics: BackendDiagnosticGuide[];
 }
@@ -65,6 +66,7 @@ export function getInstalledDocumentationIndex() {
 			{ id: 'contracts', title: 'Operation catalog and Backend/MCP method mapping', uri: 'openfairygui://docs/contracts' },
 			...Object.keys(CONTRACT_SNAPSHOT.operations).map((kind) => ({ id: `operations/${kind}`, title: `UAM operation: ${kind}`, uri: `${OPENFAIRYGUI_OPERATION_CATALOG_URI}/${kind}` })),
 			...Object.keys(CONTRACT_SNAPSHOT.tools).map((method) => ({ id: `methods/${method}`, title: `Backend/MCP wire method: ${method}`, uri: `openfairygui://docs/methods/${method}` })),
+			...Object.keys(CONTRACT_SNAPSHOT.cli).map((command) => ({ id: `cli/${command}`, title: `CLI JSON output: ${command}`, uri: `openfairygui://docs/cli/${encodeURIComponent(command)}` })),
 			...getBackendDiagnosticCatalog().map((guide) => ({ id: `diagnostics/${guide.code}`, title: `Recovery: ${guide.code}`, uri: guide.docsUri })),
 		],
 	};
@@ -81,9 +83,11 @@ export function readInstalledDocumentation(id: string) {
 	else if (id === 'contracts') content = {
 		...getOpenFairyGuiOperationCatalog(),
 		methods: Object.entries(CONTRACT_SNAPSHOT.tools).map(([method, { input, output, bytePaths, ...metadata }]) => ({ method, ...metadata, docsUri: `openfairygui://docs/methods/${method}` })),
+		cli: Object.keys(CONTRACT_SNAPSHOT.cli).map((command) => ({ command, docsUri: `openfairygui://docs/cli/${encodeURIComponent(command)}` })),
 	};
 	else if (id.startsWith('operations/')) content = getOpenFairyGuiOperationSchema(id.slice('operations/'.length));
 	else if (id.startsWith('diagnostics/')) content = getBackendDiagnosticGuide(id.slice('diagnostics/'.length));
+	else if (id.startsWith('cli/')) content = standaloneSchema(CONTRACT_SNAPSHOT.cli[id.slice('cli/'.length)]);
 	else {
 		const tool = CONTRACT_SNAPSHOT.tools[id.slice('methods/'.length)];
 		content = { ...tool, input: standaloneSchema(tool.input), output: standaloneSchema(tool.output) };

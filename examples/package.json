@@ -5,7 +5,11 @@
   "scripts": {
     "inspect": "node node-inspect-validate/index.mjs",
     "edit": "node revision-checked-edit-save/index.mjs",
-    "publish": "node publish-restore/index.mjs"
+    "publish": "node publish-restore/index.mjs",
+    "browser": "node browser-project-storage/serve.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.21.5"
   },
   "dependencies": {
     "@openfairygui/core": "^0.3.1",

@@ -184,7 +184,7 @@ export class ReadService {
 		return success('read', startedAt, report, {
 			sessionId: session.sessionId,
 			revision: session.revision,
-			diagnostics: report.diagnostics.map(({ code, message, severity, path }) => ({ code, message, severity, path })),
+			diagnostics: report.diagnostics.map(({ code, message, severity, path }) => ({ code, message, severity, path, owner: 'core.validation' })),
 		});
 	}
 }

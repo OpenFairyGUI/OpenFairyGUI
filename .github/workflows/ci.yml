@@ -86,5 +86,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Verify packed consumers and executable examples
-        run: pnpm pack:check
+      - name: Verify packed consumers and real Chromium storage
+        run: pnpm pack:check --browser-deps

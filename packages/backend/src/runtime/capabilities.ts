@@ -100,7 +100,7 @@ export function createCapabilities(atomicSave = false): BackendCapabilities {
 			diagnostics: {
 				stableCodes: true,
 				errorDiagnosticMirror: true,
-				recoveryGuides: 'first-batch',
+				recoveryGuides: 'all-formal-codes',
 				automaticRepair: false,
 			},
 		},

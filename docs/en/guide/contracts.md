@@ -1,8 +1,16 @@
 # Contract sources and operation discovery
 
-Core's `UamTransactionOperation` and UAM models own parameter structure and transaction semantics. Backend's public method signatures own session inputs, results, and error types. MCP owns only tool metadata, JSON transport conversion, and input budgets.
+Core's `UamTransactionOperation` and UAM models own parameter structure and transaction semantics. Backend's public signatures own session inputs, results and errors. CLI owns process JSON envelopes while reusing workflow result types. MCP owns only tool metadata, JSON transport conversion and input budgets.
 
 `pnpm contracts:generate` uses the existing TypeScript compiler to read those types and generate MCP structural schemas, the operation catalog, a contract snapshot, and the tables below. MCP reuses Zod to create validators from JSON Schema; Core does not depend on Zod. The read-only `pnpm contracts:check` verifies mapping completeness and generated-file drift through repository tests and `docs:check`.
+
+## CLI machine output
+
+Every business command and `docs` subcommand uses the same shape: `{schemaVersion:1,command,success:true,result}` on success, or `{schemaVersion:1,command,success:false,error:{code,message},result?}` on failure. `command` is the canonical path, such as `docs cat`; unknown top-level commands use `ofgui`. Invalid/incomplete validation and error/incomplete doctor responses retain the complete report in `result`; startup/read exceptions do not fabricate a result.
+
+Exit codes are 0 for success, 1 for workflow failure, 2 for argument errors and 3 for incomplete validation. `--json` works before or after the command; stdout contains one JSON document and human logs go to stderr. Help/version remain text. Human mode keeps its reports and uses the same exit codes.
+
+`packages/cli/src/contracts.ts` owns output types. Generation covers 13 command paths, including parser-only `ofgui`/`docs` failures. `test:repo` checks registration coverage and installed consumers validate actual outputs against generated schemas. Read `ofgui docs schema cli/validate --json` or `ofgui docs cat "cli/docs cat" --json`; the self-contained schema is in `result.text`. MCP exposes `openfairygui://docs/cli/{command}`, with spaces encoded as `%20`. Type collection adds no runtime Backend-to-CLI dependency.
 
 ## Discover exact parameters
 
@@ -56,7 +64,7 @@ Recommended flow: discover IDs with the outline → queryEntity for current prop
 
 A preview reserves no revision and does not guarantee later apply/save or publication. Apply must check `expectedRevision` again; if edits intervened, query and re-plan instead of treating an old preview as an authorization token. Preview reuses the current transaction execution path without adding project saves, file permission/target checks or publishing checks. In-memory sessions without a filesystem can preview too.
 
-`authoring.preflightTransaction` advertises `mode: 'execute-and-discard'` and `reservesRevision: false`. Capability schema version 7 advertises five entity-query kinds and includes first-batch [diagnostic recovery guides](./diagnostics.md); the transaction contract version remains unchanged.
+`authoring.preflightTransaction` advertises `mode: 'execute-and-discard'` and `reservesRevision: false`. Capability schema version 8 advertises five entity-query kinds and complete formal [diagnostic recovery guides](./diagnostics.md); the transaction contract version remains unchanged.
 
 ## Transport and semantic boundaries
 
@@ -73,7 +81,7 @@ A preview reserves no revision and does not guarantee later apply/save or public
 The tables summarize top-level parameters only; read schemas for nested fields and concrete results. SHA-256 identifies generated contract content, not a package version.
 
 <!-- contracts:start -->
-SHA-256: `7c4a5d5d1a61620fd439322d376a3393df3ed0416a50b66976f845e5bd37c80e`
+SHA-256: `304f24a1b1bbc754016e6f1650a2ac44df408143b9aaf30539fb19ba3539b7f3`
 
 | Operation | Parameters (`?` = optional) |
 |---|---|
@@ -139,6 +147,22 @@ SHA-256: `7c4a5d5d1a61620fd439322d376a3393df3ed0416a50b66976f845e5bd37c80e`
 | `cancelJob` | `openfairygui_backend_cancel_job` | `sessionId`, `jobId` | `false` |
 | `getCacheSnapshot` | `openfairygui_backend_get_cache_snapshot` | `sessionId` | `true` |
 | `refreshCache` | `openfairygui_backend_refresh_cache` | `sessionId`, `reason?` | `false` |
+
+| CLI command | Installed output schema |
+|---|---|
+| `publish` | `cli/publish` |
+| `ofgui` | `cli/ofgui` |
+| `docs` | `cli/docs` |
+| `inspect` | `cli/inspect` |
+| `validate` | `cli/validate` |
+| `restore` | `cli/restore` |
+| `doctor` | `cli/doctor` |
+| `backend-capabilities` | `cli/backend-capabilities` |
+| `docs ls` | `cli/docs ls` |
+| `docs find` | `cli/docs find` |
+| `docs cat` | `cli/docs cat` |
+| `docs diagnostic` | `cli/docs diagnostic` |
+| `docs schema` | `cli/docs schema` |
 <!-- contracts:end -->
 
 Unsupported TypeScript constructs fail generation instead of becoming arbitrary payloads. New methods must appear in both Backend capabilities and MCP metadata; operations come directly from the Core union. After editing, run `pnpm contracts:generate` and `pnpm check:ci`. See the [development guide](./development.md) for verification scope.

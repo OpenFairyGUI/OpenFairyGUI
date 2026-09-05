@@ -64,7 +64,7 @@ ofgui validate ./MyProject
 ofgui validate ./MyProject --json
 ```
 
-CLI 退出码为：`0` 有效、`1` 无效、`2` 验证不完整。`--json` 只向标准输出写入报告。
+CLI 退出码为：`0` 有效、`1` 无效/读取失败、`2` 参数错误、`3` 验证不完整。`--json` 只向标准输出写入一个统一 envelope；完整报告位于 `result`，无效/不完整同时带 `success:false` 与 `error`。见 [CLI 机器输出](./guide/contracts.md#cli-机器输出)。
 
 Backend 的 `validateSession({ sessionId })` 验证当前 revision 的 authoritative UAM，并把同一批诊断镜像到 response meta。MCP 工具 `openfairygui_backend_validate_session` 只做该方法的薄映射，不建立第二套规则。
 

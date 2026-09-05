@@ -4,7 +4,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 	"schemaVersion": 1,
 	"versions": {
 		"BACKEND_CONTRACT_VERSION": "1.1.0-p2",
-		"BACKEND_CAPABILITY_SCHEMA_VERSION": 7
+		"BACKEND_CAPABILITY_SCHEMA_VERSION": 8
 	},
 	"operations": {
 		"updateProjectSettings": {
@@ -1082,6 +1082,47 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"additionalProperties": false
 			},
 			"bytePaths": []
+		}
+	},
+	"cli": {
+		"publish": {
+			"$ref": "#/$defs/CliEnvelope_605d1f5dcd"
+		},
+		"ofgui": {
+			"$ref": "#/$defs/CliEnvelope_e114e8964e"
+		},
+		"docs": {
+			"$ref": "#/$defs/CliEnvelope_9749346e3a"
+		},
+		"inspect": {
+			"$ref": "#/$defs/CliEnvelope_54f391b1e9"
+		},
+		"validate": {
+			"$ref": "#/$defs/CliEnvelope_dde966be7c"
+		},
+		"restore": {
+			"$ref": "#/$defs/CliEnvelope_a2522f4864"
+		},
+		"doctor": {
+			"$ref": "#/$defs/CliEnvelope_5faeabe7ff"
+		},
+		"backend-capabilities": {
+			"$ref": "#/$defs/CliEnvelope_708c085e05"
+		},
+		"docs ls": {
+			"$ref": "#/$defs/CliEnvelope_6fb21a60c4"
+		},
+		"docs find": {
+			"$ref": "#/$defs/CliEnvelope_c1319166b8"
+		},
+		"docs cat": {
+			"$ref": "#/$defs/CliEnvelope_82e85ce3fb"
+		},
+		"docs diagnostic": {
+			"$ref": "#/$defs/CliEnvelope_bedeeb256a"
+		},
+		"docs schema": {
+			"$ref": "#/$defs/CliEnvelope_fbfa36bc2a"
 		}
 	},
 	"$defs": {
@@ -10347,7 +10388,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
-					"const": 7
+					"const": 8
 				}
 			},
 			"required": [
@@ -10393,7 +10434,109 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"type": "object",
 			"properties": {
 				"code": {
-					"type": "string"
+					"enum": [
+						"invalid_project_xml",
+						"invalid_package_xml",
+						"invalid_branch_package_xml",
+						"invalid_component_xml",
+						"invalid_project_value",
+						"desktop_incompatible_geometry",
+						"invalid_settings_json",
+						"invalid_uam",
+						"duplicate_package_id",
+						"duplicate_package_name",
+						"duplicate_resource_id",
+						"path_collision",
+						"unsafe_path",
+						"dangling_resource_reference",
+						"missing_source",
+						"unreadable_source",
+						"corrupt_source",
+						"unsupported_resource_kind",
+						"decode_capability_unavailable",
+						"unsupported_operation",
+						"invalid_project_settings",
+						"project_settings_unchanged",
+						"invalid_package_settings",
+						"package_settings_unchanged",
+						"unsupported_display_node_kind",
+						"unsupported_cross_package_image_ref",
+						"unsupported_gear_kind",
+						"duplicate_look_gear_controller",
+						"duplicate_transition_name",
+						"unsupported_resource_mutation",
+						"unsupported_display_node_mutation",
+						"unsupported_text_field_target",
+						"unsupported_display_node_field",
+						"invalid_display_node_payload",
+						"display_node_props_unchanged",
+						"invalid_resource_name",
+						"invalid_resource_path",
+						"invalid_resource_folder_selector",
+						"invalid_resource_folder_path",
+						"invalid_resource_folder_atlas",
+						"resource_folder_atlas_unchanged",
+						"resource_folder_conflict",
+						"resource_folder_not_empty",
+						"invalid_attach_index",
+						"invalid_controller_payload",
+						"invalid_transition_payload",
+						"invalid_look_gear_selector",
+						"invalid_look_gear_payload",
+						"duplicate_look_gear_state_page",
+						"duplicate_gear_controller",
+						"invalid_gear_selector",
+						"invalid_gear_payload",
+						"duplicate_gear_state_page",
+						"invalid_resource_payload",
+						"invalid_resource_bytes",
+						"invalid_movie_clip_jta",
+						"invalid_resource_selector",
+						"invalid_resource_index",
+						"invalid_resource_reference",
+						"invalid_display_node_selector",
+						"invalid_branch_name",
+						"invalid_branch_selector",
+						"duplicate_branch_name",
+						"branch_not_empty",
+						"branch_referenced",
+						"unavailable_resource_source_bytes",
+						"invalid_package_selector",
+						"invalid_package_payload",
+						"invalid_package_index",
+						"invalid_component_selector",
+						"invalid_component_reference",
+						"invalid_group_reference",
+						"invalid_component_payload",
+						"duplicate_component_id",
+						"invalid_component_index",
+						"invalid_component_move",
+						"package_referenced",
+						"component_referenced",
+						"component_has_package_dependencies",
+						"unsupported_operation_batch",
+						"transaction_unsupported",
+						"selector_ambiguity",
+						"execution_failure",
+						"path_policy_violation",
+						"session_not_found",
+						"entity_query_failed",
+						"session_id_conflict",
+						"stale_write",
+						"lock_conflict",
+						"save_partial_failure",
+						"uam_fidelity_unsupported",
+						"materialize_validation_failed",
+						"write_failed",
+						"event_cursor_invalid",
+						"job_not_found",
+						"job_not_cancellable",
+						"job_cancelled",
+						"cache_refresh_failed",
+						"capability_unavailable",
+						"project_root_not_allowed",
+						"project_open_failed"
+					]
 				},
 				"message": {
 					"type": "string"
@@ -10457,6 +10600,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"enum": [
 						"refresh-and-replan",
 						"revise-selector",
+						"revise-operation",
 						"host-action"
 					]
 				},
@@ -10549,7 +10693,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
-					"const": 7
+					"const": 8
 				},
 				"transactionKernelOwner": {
 					"type": "string",
@@ -10961,7 +11105,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/__type_0766415c9e"
 				},
 				"diagnostics": {
-					"$ref": "#/$defs/__type_5e686885c8"
+					"$ref": "#/$defs/__type_2b8accd959"
 				}
 			},
 			"required": [
@@ -11130,7 +11274,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"__type_5e686885c8": {
+		"__type_2b8accd959": {
 			"type": "object",
 			"properties": {
 				"stableCodes": {
@@ -11143,7 +11287,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"recoveryGuides": {
 					"type": "string",
-					"const": "first-batch"
+					"const": "all-formal-codes"
 				},
 				"automaticRepair": {
 					"type": "boolean",
@@ -13513,7 +13657,77 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"type": "object",
 			"properties": {
 				"code": {
-					"type": "string"
+					"enum": [
+						"invalid_uam",
+						"duplicate_package_id",
+						"duplicate_package_name",
+						"duplicate_resource_id",
+						"unsupported_resource_kind",
+						"unsupported_operation",
+						"invalid_project_settings",
+						"project_settings_unchanged",
+						"invalid_package_settings",
+						"package_settings_unchanged",
+						"unsupported_display_node_kind",
+						"unsupported_cross_package_image_ref",
+						"unsupported_gear_kind",
+						"duplicate_look_gear_controller",
+						"duplicate_transition_name",
+						"unsupported_resource_mutation",
+						"unsupported_display_node_mutation",
+						"unsupported_text_field_target",
+						"unsupported_display_node_field",
+						"invalid_display_node_payload",
+						"display_node_props_unchanged",
+						"invalid_resource_name",
+						"invalid_resource_path",
+						"invalid_resource_folder_selector",
+						"invalid_resource_folder_path",
+						"invalid_resource_folder_atlas",
+						"resource_folder_atlas_unchanged",
+						"resource_folder_conflict",
+						"resource_folder_not_empty",
+						"invalid_attach_index",
+						"invalid_controller_payload",
+						"invalid_transition_payload",
+						"invalid_look_gear_selector",
+						"invalid_look_gear_payload",
+						"duplicate_look_gear_state_page",
+						"duplicate_gear_controller",
+						"invalid_gear_selector",
+						"invalid_gear_payload",
+						"duplicate_gear_state_page",
+						"invalid_resource_payload",
+						"invalid_resource_bytes",
+						"invalid_movie_clip_jta",
+						"invalid_resource_selector",
+						"invalid_resource_index",
+						"invalid_resource_reference",
+						"invalid_display_node_selector",
+						"invalid_branch_name",
+						"invalid_branch_selector",
+						"duplicate_branch_name",
+						"branch_not_empty",
+						"branch_referenced",
+						"unavailable_resource_source_bytes",
+						"invalid_package_selector",
+						"invalid_package_payload",
+						"invalid_package_index",
+						"invalid_component_selector",
+						"invalid_component_reference",
+						"invalid_group_reference",
+						"invalid_component_payload",
+						"duplicate_component_id",
+						"invalid_component_index",
+						"invalid_component_move",
+						"package_referenced",
+						"component_referenced",
+						"component_has_package_dependencies",
+						"unsupported_operation_batch",
+						"transaction_unsupported",
+						"selector_ambiguity",
+						"execution_failure"
+					]
 				},
 				"message": {
 					"type": "string"
@@ -14835,12 +15049,1416 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/BackendSuccess_18811b74a4"
 				}
 			]
+		},
+		"CliEnvelope_605d1f5dcd": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_283ead9e79"
+				},
+				{
+					"$ref": "#/$defs/__type_6afbdcd4e3"
+				}
+			]
+		},
+		"__type_283ead9e79": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "publish"
+				},
+				"success": {
+					"type": "boolean",
+					"const": true
+				},
+				"result": {
+					"$ref": "#/$defs/PublishNodeResult_84ec936acd"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"result"
+			],
+			"additionalProperties": false
+		},
+		"PublishNodeResult_84ec936acd": {
+			"type": "object",
+			"properties": {
+				"files": {
+					"$ref": "#/$defs/Array_c7cb5c5238"
+				}
+			},
+			"required": [
+				"files"
+			],
+			"additionalProperties": false
+		},
+		"Array_c7cb5c5238": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__type_d04fe52f03"
+			}
+		},
+		"__type_d04fe52f03": {
+			"type": "object",
+			"properties": {
+				"path": {
+					"type": "string"
+				},
+				"size": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"path",
+				"size"
+			],
+			"additionalProperties": false
+		},
+		"__type_6afbdcd4e3": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "publish"
+				},
+				"success": {
+					"type": "boolean",
+					"const": false
+				},
+				"error": {
+					"$ref": "#/$defs/CliError_53076daab4"
+				},
+				"result": {
+					"$ref": "#/$defs/PublishNodeResult_84ec936acd"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"error"
+			],
+			"additionalProperties": false
+		},
+		"CliError_53076daab4": {
+			"type": "object",
+			"properties": {
+				"code": {
+					"enum": [
+						"invalid_arguments",
+						"command_failed",
+						"publish_failed",
+						"restore_failed",
+						"documentation_unavailable",
+						"validation_failed",
+						"validation_incomplete",
+						"doctor_failed",
+						"doctor_incomplete"
+					]
+				},
+				"message": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"code",
+				"message"
+			],
+			"additionalProperties": false
+		},
+		"CliEnvelope_e114e8964e": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_5c642f8bd3"
+				},
+				{
+					"$ref": "#/$defs/__type_c094f5ecce"
+				}
+			]
+		},
+		"__type_5c642f8bd3": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "ofgui"
+				},
+				"success": {
+					"type": "boolean",
+					"const": true
+				},
+				"result": {
+					"not": {}
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"result"
+			],
+			"additionalProperties": false
+		},
+		"__type_c094f5ecce": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "ofgui"
+				},
+				"success": {
+					"type": "boolean",
+					"const": false
+				},
+				"error": {
+					"$ref": "#/$defs/CliError_53076daab4"
+				},
+				"result": {
+					"not": {}
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"error"
+			],
+			"additionalProperties": false
+		},
+		"CliEnvelope_9749346e3a": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_57fde40281"
+				},
+				{
+					"$ref": "#/$defs/__type_aef4813838"
+				}
+			]
+		},
+		"__type_57fde40281": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "docs"
+				},
+				"success": {
+					"type": "boolean",
+					"const": true
+				},
+				"result": {
+					"not": {}
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"result"
+			],
+			"additionalProperties": false
+		},
+		"__type_aef4813838": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "docs"
+				},
+				"success": {
+					"type": "boolean",
+					"const": false
+				},
+				"error": {
+					"$ref": "#/$defs/CliError_53076daab4"
+				},
+				"result": {
+					"not": {}
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"error"
+			],
+			"additionalProperties": false
+		},
+		"CliEnvelope_54f391b1e9": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_7e665d3dec"
+				},
+				{
+					"$ref": "#/$defs/__type_efd5bc8713"
+				}
+			]
+		},
+		"__type_7e665d3dec": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "inspect"
+				},
+				"success": {
+					"type": "boolean",
+					"const": true
+				},
+				"result": {
+					"$ref": "#/$defs/InspectReport_55a7994c5a"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"result"
+			],
+			"additionalProperties": false
+		},
+		"InspectReport_55a7994c5a": {
+			"type": "object",
+			"properties": {
+				"projectId": {
+					"type": "string"
+				},
+				"projectType": {
+					"type": "number"
+				},
+				"version": {
+					"type": "string"
+				},
+				"packages": {
+					"$ref": "#/$defs/Array_e92efe2f91"
+				},
+				"totals": {
+					"$ref": "#/$defs/__type_d3553de5d4"
+				}
+			},
+			"required": [
+				"projectId",
+				"projectType",
+				"version",
+				"packages",
+				"totals"
+			],
+			"additionalProperties": false
+		},
+		"Array_e92efe2f91": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__type_31cfcda78c"
+			}
+		},
+		"__type_31cfcda78c": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"publishName": {
+					"type": "string"
+				},
+				"resources": {
+					"$ref": "#/$defs/__type_1fdeefbc79"
+				},
+				"componentDetails": {
+					"$ref": "#/$defs/Array_41195aa75b"
+				}
+			},
+			"required": [
+				"name",
+				"id",
+				"publishName",
+				"resources",
+				"componentDetails"
+			],
+			"additionalProperties": false
+		},
+		"__type_1fdeefbc79": {
+			"type": "object",
+			"properties": {
+				"images": {
+					"$ref": "#/$defs/InspectCategoryReport_cbba4d501e"
+				},
+				"sounds": {
+					"$ref": "#/$defs/InspectCategoryReport_cbba4d501e"
+				},
+				"fonts": {
+					"$ref": "#/$defs/InspectCategoryReport_cbba4d501e"
+				},
+				"movieClips": {
+					"$ref": "#/$defs/InspectCategoryReport_cbba4d501e"
+				},
+				"components": {
+					"$ref": "#/$defs/InspectCategoryReport_cbba4d501e"
+				}
+			},
+			"required": [
+				"images",
+				"sounds",
+				"fonts",
+				"movieClips",
+				"components"
+			],
+			"additionalProperties": false
+		},
+		"InspectCategoryReport_cbba4d501e": {
+			"type": "object",
+			"properties": {
+				"count": {
+					"type": "number"
+				},
+				"details": {
+					"$ref": "#/$defs/Array_16326e9364"
+				}
+			},
+			"required": [
+				"count",
+				"details"
+			],
+			"additionalProperties": false
+		},
+		"Array_16326e9364": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__type_895e5d9711"
+			}
+		},
+		"__type_895e5d9711": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"path": {
+					"type": "string"
+				},
+				"exported": {
+					"$ref": "#/$defs/Shape_6b49a92435"
+				}
+			},
+			"required": [
+				"name",
+				"id"
+			],
+			"additionalProperties": false
+		},
+		"Array_41195aa75b": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__type_d93579e814"
+			}
+		},
+		"__type_d93579e814": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"childCount": {
+					"type": "number"
+				},
+				"controllerCount": {
+					"type": "number"
+				},
+				"transitionCount": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"name",
+				"id",
+				"childCount",
+				"controllerCount",
+				"transitionCount"
+			],
+			"additionalProperties": false
+		},
+		"__type_d3553de5d4": {
+			"type": "object",
+			"properties": {
+				"packages": {
+					"type": "number"
+				},
+				"images": {
+					"type": "number"
+				},
+				"sounds": {
+					"type": "number"
+				},
+				"fonts": {
+					"type": "number"
+				},
+				"movieClips": {
+					"type": "number"
+				},
+				"components": {
+					"type": "number"
+				},
+				"displayObjects": {
+					"type": "number"
+				},
+				"gears": {
+					"type": "number"
+				},
+				"controllers": {
+					"type": "number"
+				},
+				"transitions": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"packages",
+				"images",
+				"sounds",
+				"fonts",
+				"movieClips",
+				"components",
+				"displayObjects",
+				"gears",
+				"controllers",
+				"transitions"
+			],
+			"additionalProperties": false
+		},
+		"__type_efd5bc8713": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "inspect"
+				},
+				"success": {
+					"type": "boolean",
+					"const": false
+				},
+				"error": {
+					"$ref": "#/$defs/CliError_53076daab4"
+				},
+				"result": {
+					"$ref": "#/$defs/InspectReport_55a7994c5a"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"error"
+			],
+			"additionalProperties": false
+		},
+		"CliEnvelope_dde966be7c": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_b6f4b50841"
+				},
+				{
+					"$ref": "#/$defs/__type_9373122fc6"
+				}
+			]
+		},
+		"__type_b6f4b50841": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "validate"
+				},
+				"success": {
+					"type": "boolean",
+					"const": true
+				},
+				"result": {
+					"$ref": "#/$defs/ProjectValidationReport_fb414efc68"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"result"
+			],
+			"additionalProperties": false
+		},
+		"__type_9373122fc6": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "validate"
+				},
+				"success": {
+					"type": "boolean",
+					"const": false
+				},
+				"error": {
+					"$ref": "#/$defs/CliError_53076daab4"
+				},
+				"result": {
+					"$ref": "#/$defs/ProjectValidationReport_fb414efc68"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"error"
+			],
+			"additionalProperties": false
+		},
+		"CliEnvelope_a2522f4864": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_b6b531a0e9"
+				},
+				{
+					"$ref": "#/$defs/__type_215ae441f7"
+				}
+			]
+		},
+		"__type_b6b531a0e9": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "restore"
+				},
+				"success": {
+					"type": "boolean",
+					"const": true
+				},
+				"result": {
+					"$ref": "#/$defs/__type_2f01710413"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"result"
+			],
+			"additionalProperties": false
+		},
+		"__type_2f01710413": {
+			"type": "object",
+			"properties": {
+				"projectPath": {
+					"type": "string"
+				},
+				"packages": {
+					"$ref": "#/$defs/Array_3ee146c367"
+				},
+				"warnings": {
+					"$ref": "#/$defs/Array_5444db1618"
+				}
+			},
+			"required": [
+				"projectPath",
+				"packages",
+				"warnings"
+			],
+			"additionalProperties": false
+		},
+		"__type_215ae441f7": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "restore"
+				},
+				"success": {
+					"type": "boolean",
+					"const": false
+				},
+				"error": {
+					"$ref": "#/$defs/CliError_53076daab4"
+				},
+				"result": {
+					"$ref": "#/$defs/__type_2f01710413"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"error"
+			],
+			"additionalProperties": false
+		},
+		"CliEnvelope_5faeabe7ff": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_a23bb2b7d7"
+				},
+				{
+					"$ref": "#/$defs/__type_3fff4b68d6"
+				}
+			]
+		},
+		"__type_a23bb2b7d7": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "doctor"
+				},
+				"success": {
+					"type": "boolean",
+					"const": true
+				},
+				"result": {
+					"$ref": "#/$defs/DoctorReport_f6957bc480"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"result"
+			],
+			"additionalProperties": false
+		},
+		"DoctorReport_f6957bc480": {
+			"type": "object",
+			"properties": {
+				"scope": {
+					"type": "string",
+					"const": "installed-product"
+				},
+				"cliVersion": {
+					"type": "string"
+				},
+				"nodeVersion": {
+					"type": "string"
+				},
+				"status": {
+					"enum": [
+						"error",
+						"ready",
+						"incomplete"
+					]
+				},
+				"errors": {
+					"$ref": "#/$defs/Array_a98b34d025"
+				},
+				"capabilities": {
+					"$ref": "#/$defs/BackendSuccess_96cb6be703"
+				},
+				"projectPath": {
+					"$ref": "#/$defs/Shape_5eeb3f060e"
+				},
+				"project": {
+					"$ref": "#/$defs/Shape_75b23ac9b6"
+				},
+				"limits": {
+					"$ref": "#/$defs/Array_5444db1618"
+				},
+				"contractDigest": {
+					"type": "string"
+				},
+				"BACKEND_CONTRACT_VERSION": {
+					"type": "string"
+				},
+				"BACKEND_CAPABILITY_SCHEMA_VERSION": {
+					"type": "number"
+				},
+				"packageName": {
+					"type": "string"
+				},
+				"packageVersion": {
+					"type": "string"
+				},
+				"nodeEngine": {
+					"type": "string"
+				},
+				"documentationDigest": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"scope",
+				"cliVersion",
+				"nodeVersion",
+				"status",
+				"errors",
+				"capabilities",
+				"projectPath",
+				"project",
+				"limits",
+				"contractDigest",
+				"BACKEND_CONTRACT_VERSION",
+				"BACKEND_CAPABILITY_SCHEMA_VERSION",
+				"packageName",
+				"packageVersion",
+				"nodeEngine",
+				"documentationDigest"
+			],
+			"additionalProperties": false
+		},
+		"Array_a98b34d025": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__type_147e3a1d9b"
+			}
+		},
+		"__type_147e3a1d9b": {
+			"type": "object",
+			"properties": {
+				"code": {
+					"enum": [
+						"installed_version_mismatch",
+						"unsupported_node_version",
+						"project_check_failed"
+					]
+				},
+				"message": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"code",
+				"message"
+			],
+			"additionalProperties": false
+		},
+		"Shape_75b23ac9b6": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/ProjectValidationReport_fb414efc68"
+				}
+			]
+		},
+		"__type_3fff4b68d6": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "doctor"
+				},
+				"success": {
+					"type": "boolean",
+					"const": false
+				},
+				"error": {
+					"$ref": "#/$defs/CliError_53076daab4"
+				},
+				"result": {
+					"$ref": "#/$defs/DoctorReport_f6957bc480"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"error"
+			],
+			"additionalProperties": false
+		},
+		"CliEnvelope_708c085e05": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_42441d8470"
+				},
+				{
+					"$ref": "#/$defs/__type_09084398c3"
+				}
+			]
+		},
+		"__type_42441d8470": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "backend-capabilities"
+				},
+				"success": {
+					"type": "boolean",
+					"const": true
+				},
+				"result": {
+					"$ref": "#/$defs/BackendCapabilities_830909a2de"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"result"
+			],
+			"additionalProperties": false
+		},
+		"__type_09084398c3": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "backend-capabilities"
+				},
+				"success": {
+					"type": "boolean",
+					"const": false
+				},
+				"error": {
+					"$ref": "#/$defs/CliError_53076daab4"
+				},
+				"result": {
+					"$ref": "#/$defs/BackendCapabilities_830909a2de"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"error"
+			],
+			"additionalProperties": false
+		},
+		"CliEnvelope_6fb21a60c4": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_ab3335801b"
+				},
+				{
+					"$ref": "#/$defs/__type_771e998e81"
+				}
+			]
+		},
+		"__type_ab3335801b": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "docs ls"
+				},
+				"success": {
+					"type": "boolean",
+					"const": true
+				},
+				"result": {
+					"$ref": "#/$defs/__object_467c637867"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"result"
+			],
+			"additionalProperties": false
+		},
+		"__object_467c637867": {
+			"type": "object",
+			"properties": {
+				"documents": {
+					"$ref": "#/$defs/Array_4b491c131a"
+				},
+				"contractDigest": {
+					"type": "string"
+				},
+				"BACKEND_CONTRACT_VERSION": {
+					"type": "string"
+				},
+				"BACKEND_CAPABILITY_SCHEMA_VERSION": {
+					"type": "number"
+				},
+				"packageName": {
+					"type": "string"
+				},
+				"packageVersion": {
+					"type": "string"
+				},
+				"nodeEngine": {
+					"type": "string"
+				},
+				"documentationDigest": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"documents",
+				"contractDigest",
+				"BACKEND_CONTRACT_VERSION",
+				"BACKEND_CAPABILITY_SCHEMA_VERSION",
+				"packageName",
+				"packageVersion",
+				"nodeEngine",
+				"documentationDigest"
+			],
+			"additionalProperties": false
+		},
+		"Array_4b491c131a": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__object_38bbe2a9dd"
+			}
+		},
+		"__object_38bbe2a9dd": {
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "string"
+				},
+				"title": {
+					"type": "string"
+				},
+				"uri": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"id",
+				"title",
+				"uri"
+			],
+			"additionalProperties": false
+		},
+		"__type_771e998e81": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "docs ls"
+				},
+				"success": {
+					"type": "boolean",
+					"const": false
+				},
+				"error": {
+					"$ref": "#/$defs/CliError_53076daab4"
+				},
+				"result": {
+					"$ref": "#/$defs/__object_467c637867"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"error"
+			],
+			"additionalProperties": false
+		},
+		"CliEnvelope_c1319166b8": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_8df9161e68"
+				},
+				{
+					"$ref": "#/$defs/__type_ac636a75a4"
+				}
+			]
+		},
+		"__type_8df9161e68": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "docs find"
+				},
+				"success": {
+					"type": "boolean",
+					"const": true
+				},
+				"result": {
+					"$ref": "#/$defs/__object_467c637867"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"result"
+			],
+			"additionalProperties": false
+		},
+		"__type_ac636a75a4": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "docs find"
+				},
+				"success": {
+					"type": "boolean",
+					"const": false
+				},
+				"error": {
+					"$ref": "#/$defs/CliError_53076daab4"
+				},
+				"result": {
+					"$ref": "#/$defs/__object_467c637867"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"error"
+			],
+			"additionalProperties": false
+		},
+		"CliEnvelope_82e85ce3fb": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_24620691b9"
+				},
+				{
+					"$ref": "#/$defs/__type_573e88f39b"
+				}
+			]
+		},
+		"__type_24620691b9": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "docs cat"
+				},
+				"success": {
+					"type": "boolean",
+					"const": true
+				},
+				"result": {
+					"$ref": "#/$defs/__object_9cdfc5254f"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"result"
+			],
+			"additionalProperties": false
+		},
+		"__object_9cdfc5254f": {
+			"type": "object",
+			"properties": {
+				"mimeType": {
+					"type": "string"
+				},
+				"text": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"title": {
+					"type": "string"
+				},
+				"uri": {
+					"type": "string"
+				},
+				"contractDigest": {
+					"type": "string"
+				},
+				"BACKEND_CONTRACT_VERSION": {
+					"type": "string"
+				},
+				"BACKEND_CAPABILITY_SCHEMA_VERSION": {
+					"type": "number"
+				},
+				"packageName": {
+					"type": "string"
+				},
+				"packageVersion": {
+					"type": "string"
+				},
+				"nodeEngine": {
+					"type": "string"
+				},
+				"documentationDigest": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"mimeType",
+				"text",
+				"id",
+				"title",
+				"uri",
+				"contractDigest",
+				"BACKEND_CONTRACT_VERSION",
+				"BACKEND_CAPABILITY_SCHEMA_VERSION",
+				"packageName",
+				"packageVersion",
+				"nodeEngine",
+				"documentationDigest"
+			],
+			"additionalProperties": false
+		},
+		"__type_573e88f39b": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "docs cat"
+				},
+				"success": {
+					"type": "boolean",
+					"const": false
+				},
+				"error": {
+					"$ref": "#/$defs/CliError_53076daab4"
+				},
+				"result": {
+					"$ref": "#/$defs/__object_9cdfc5254f"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"error"
+			],
+			"additionalProperties": false
+		},
+		"CliEnvelope_bedeeb256a": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_9e28efd9b0"
+				},
+				{
+					"$ref": "#/$defs/__type_55b53c5d66"
+				}
+			]
+		},
+		"__type_9e28efd9b0": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "docs diagnostic"
+				},
+				"success": {
+					"type": "boolean",
+					"const": true
+				},
+				"result": {
+					"$ref": "#/$defs/__object_9cdfc5254f"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"result"
+			],
+			"additionalProperties": false
+		},
+		"__type_55b53c5d66": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "docs diagnostic"
+				},
+				"success": {
+					"type": "boolean",
+					"const": false
+				},
+				"error": {
+					"$ref": "#/$defs/CliError_53076daab4"
+				},
+				"result": {
+					"$ref": "#/$defs/__object_9cdfc5254f"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"error"
+			],
+			"additionalProperties": false
+		},
+		"CliEnvelope_fbfa36bc2a": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_c7f60874b8"
+				},
+				{
+					"$ref": "#/$defs/__type_4ab50b7539"
+				}
+			]
+		},
+		"__type_c7f60874b8": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "docs schema"
+				},
+				"success": {
+					"type": "boolean",
+					"const": true
+				},
+				"result": {
+					"$ref": "#/$defs/__object_9cdfc5254f"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"result"
+			],
+			"additionalProperties": false
+		},
+		"__type_4ab50b7539": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "docs schema"
+				},
+				"success": {
+					"type": "boolean",
+					"const": false
+				},
+				"error": {
+					"$ref": "#/$defs/CliError_53076daab4"
+				},
+				"result": {
+					"$ref": "#/$defs/__object_9cdfc5254f"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"error"
+			],
+			"additionalProperties": false
 		}
 	},
 	"diagnostics": [
 		{
 			"code": "stale_write",
-			"owner": "backend",
+			"owners": [
+				"backend"
+			],
 			"remediation": {
 				"kind": "refresh-and-replan",
 				"message": "Refresh the outline and affected entities, then replan from their current revision and preflight again. A preview reserves no revision. Never replace expectedRevision and blindly retry the original transaction or save."
@@ -14848,7 +16466,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		{
 			"code": "entity_query_failed",
-			"owner": "backend",
+			"owners": [
+				"backend"
+			],
 			"remediation": {
 				"kind": "host-action",
 				"message": "Inspect error.reason: invalid_query requires correcting the target; not_found/ambiguous requires current exact identifiers; response_budget_exceeded/non_json_value requires host inspection of the entity. Do not broaden queries or mutate data to evade the response limits."
@@ -14856,7 +16476,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		{
 			"code": "session_not_found",
-			"owner": "backend",
+			"owners": [
+				"backend"
+			],
 			"remediation": {
 				"kind": "host-action",
 				"message": "Ask the host to confirm the runtime and project, recover any unsaved state, then explicitly open a new session if appropriate. Session IDs are runtime-local. Read its new revision and replan; never reuse an expired session or assume disk contains unsaved changes."
@@ -14864,7 +16486,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		{
 			"code": "path_policy_violation",
-			"owner": "backend",
+			"owners": [
+				"backend"
+			],
 			"remediation": {
 				"kind": "host-action",
 				"message": "Ask the host to review the attempted path and authorized project root. saveSession only writes the original project; it is not Save As. Do not widen allowed roots or bypass path checks. A separately authorized export may use materializeSession."
@@ -14872,7 +16496,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		{
 			"code": "project_root_not_allowed",
-			"owner": "backend",
+			"owners": [
+				"backend"
+			],
 			"remediation": {
 				"kind": "host-action",
 				"message": "Ask the host to review the attempted path and authorized project root. saveSession only writes the original project; it is not Save As. Do not widen allowed roots or bypass path checks. A separately authorized export may use materializeSession."
@@ -14880,7 +16506,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		{
 			"code": "invalid_package_selector",
-			"owner": "core.transaction",
+			"owners": [
+				"core.transaction"
+			],
 			"remediation": {
 				"kind": "revise-selector",
 				"message": "Read the current outline and query the relevant entity. Use its exact identifiers, inspect the reported selector path, then rebuild and preflight the transaction. Do not guess identifiers or retry the unchanged transaction."
@@ -14888,7 +16516,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		{
 			"code": "invalid_component_selector",
-			"owner": "core.transaction",
+			"owners": [
+				"core.transaction"
+			],
 			"remediation": {
 				"kind": "revise-selector",
 				"message": "Read the current outline and query the relevant entity. Use its exact identifiers, inspect the reported selector path, then rebuild and preflight the transaction. Do not guess identifiers or retry the unchanged transaction."
@@ -14896,7 +16526,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		{
 			"code": "invalid_resource_selector",
-			"owner": "core.transaction",
+			"owners": [
+				"core.transaction"
+			],
 			"remediation": {
 				"kind": "revise-selector",
 				"message": "Read the current outline and query the relevant entity. Use its exact identifiers, inspect the reported selector path, then rebuild and preflight the transaction. Do not guess identifiers or retry the unchanged transaction."
@@ -14904,7 +16536,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		{
 			"code": "invalid_display_node_selector",
-			"owner": "core.transaction",
+			"owners": [
+				"core.transaction"
+			],
 			"remediation": {
 				"kind": "revise-selector",
 				"message": "Read the current outline and query the relevant entity. Use its exact identifiers, inspect the reported selector path, then rebuild and preflight the transaction. Do not guess identifiers or retry the unchanged transaction."
@@ -14912,7 +16546,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		{
 			"code": "invalid_resource_folder_selector",
-			"owner": "core.transaction",
+			"owners": [
+				"core.transaction"
+			],
 			"remediation": {
 				"kind": "revise-selector",
 				"message": "Read the current outline and query the relevant entity. Use its exact identifiers, inspect the reported selector path, then rebuild and preflight the transaction. Do not guess identifiers or retry the unchanged transaction."
@@ -14920,7 +16556,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		{
 			"code": "invalid_branch_selector",
-			"owner": "core.transaction",
+			"owners": [
+				"core.transaction"
+			],
 			"remediation": {
 				"kind": "revise-selector",
 				"message": "Read the current outline and query the relevant entity. Use its exact identifiers, inspect the reported selector path, then rebuild and preflight the transaction. Do not guess identifiers or retry the unchanged transaction."
@@ -14928,7 +16566,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		{
 			"code": "invalid_gear_selector",
-			"owner": "core.transaction",
+			"owners": [
+				"core.transaction"
+			],
 			"remediation": {
 				"kind": "revise-selector",
 				"message": "Read the current outline and query the relevant entity. Use its exact identifiers, inspect the reported selector path, then rebuild and preflight the transaction. Do not guess identifiers or retry the unchanged transaction."
@@ -14936,7 +16576,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		{
 			"code": "invalid_look_gear_selector",
-			"owner": "core.transaction",
+			"owners": [
+				"core.transaction"
+			],
 			"remediation": {
 				"kind": "revise-selector",
 				"message": "Read the current outline and query the relevant entity. Use its exact identifiers, inspect the reported selector path, then rebuild and preflight the transaction. Do not guess identifiers or retry the unchanged transaction."
@@ -14944,7 +16586,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		{
 			"code": "selector_ambiguity",
-			"owner": "core.transaction",
+			"owners": [
+				"core.transaction"
+			],
 			"remediation": {
 				"kind": "revise-selector",
 				"message": "Read the current outline and query the relevant entity. Use its exact identifiers, inspect the reported selector path, then rebuild and preflight the transaction. Do not guess identifiers or retry the unchanged transaction."
@@ -14952,7 +16596,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		{
 			"code": "unavailable_resource_source_bytes",
-			"owner": "core.transaction",
+			"owners": [
+				"core.transaction"
+			],
 			"remediation": {
 				"kind": "host-action",
 				"message": "Ask the host to inspect the reported source and hydrate its bytes through project I/O or import. Preserve unsaved work; reopening disk state can discard it. No session hydration/repair API is exposed. Revalidate and replan after the host has supplied a complete project."
@@ -14960,7 +16606,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		{
 			"code": "missing_source",
-			"owner": "core.validation",
+			"owners": [
+				"core.validation"
+			],
 			"remediation": {
 				"kind": "host-action",
 				"message": "Ask the host to inspect the reported source and hydrate its bytes through project I/O or import. Preserve unsaved work; reopening disk state can discard it. No session hydration/repair API is exposed. Revalidate and replan after the host has supplied a complete project."
@@ -14968,7 +16616,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		{
 			"code": "unreadable_source",
-			"owner": "core.validation",
+			"owners": [
+				"core.validation"
+			],
 			"remediation": {
 				"kind": "host-action",
 				"message": "Ask the host to inspect the reported source and hydrate its bytes through project I/O or import. Preserve unsaved work; reopening disk state can discard it. No session hydration/repair API is exposed. Revalidate and replan after the host has supplied a complete project."
@@ -14976,12 +16626,849 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		{
 			"code": "decode_capability_unavailable",
-			"owner": "core.validation",
+			"owners": [
+				"core.validation"
+			],
 			"remediation": {
 				"kind": "host-action",
 				"message": "Validation is incomplete, not passed. Inspect whether source bytes are unloaded or a decoder is unavailable. Ask the host to hydrate sources or provide the required decoder (Node image validation uses optional Sharp), then validate again. Do not install dependencies or change the project automatically."
 			}
+		},
+		{
+			"code": "session_id_conflict",
+			"owners": [
+				"backend"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Use getSession to inspect the existing session. Reuse it only for the intended project, or choose a new session ID; do not close another owner\\u0027s session to make room."
+			}
+		},
+		{
+			"code": "lock_conflict",
+			"owners": [
+				"backend"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Another owner holds the project lock. Preserve unsaved work and ask that owner to close its session, then explicitly reopen. Never remove a live lock, force-close a peer, or bypass locking."
+			}
+		},
+		{
+			"code": "event_cursor_invalid",
+			"owners": [
+				"backend"
+			],
+			"remediation": {
+				"kind": "refresh-and-replan",
+				"message": "Read the error and getEvents cursor bounds. Request a fresh bounded event page without the invalid cursor and refresh the current outline before replanning; missing retained history is not evidence that nothing changed."
+			}
+		},
+		{
+			"code": "corrupt_source",
+			"owners": [
+				"core.validation"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Ask the host to inspect the reported source and hydrate its bytes through project I/O or import. Preserve unsaved work; reopening disk state can discard it. No session hydration/repair API is exposed. Revalidate and replan after the host has supplied a complete project."
+			}
+		},
+		{
+			"code": "unsupported_operation",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Read the operation schema, capabilities and reported target kind/field. Stop unsupported work or replan using supported operations with equivalent intended semantics. Never silently drop fields or objects to make a transaction pass."
+			}
+		},
+		{
+			"code": "transaction_unsupported",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Read the operation schema, capabilities and reported target kind/field. Stop unsupported work or replan using supported operations with equivalent intended semantics. Never silently drop fields or objects to make a transaction pass."
+			}
+		},
+		{
+			"code": "unsupported_display_node_kind",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Read the operation schema, capabilities and reported target kind/field. Stop unsupported work or replan using supported operations with equivalent intended semantics. Never silently drop fields or objects to make a transaction pass."
+			}
+		},
+		{
+			"code": "unsupported_cross_package_image_ref",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Read the operation schema, capabilities and reported target kind/field. Stop unsupported work or replan using supported operations with equivalent intended semantics. Never silently drop fields or objects to make a transaction pass."
+			}
+		},
+		{
+			"code": "unsupported_gear_kind",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Read the operation schema, capabilities and reported target kind/field. Stop unsupported work or replan using supported operations with equivalent intended semantics. Never silently drop fields or objects to make a transaction pass."
+			}
+		},
+		{
+			"code": "unsupported_resource_mutation",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Read the operation schema, capabilities and reported target kind/field. Stop unsupported work or replan using supported operations with equivalent intended semantics. Never silently drop fields or objects to make a transaction pass."
+			}
+		},
+		{
+			"code": "unsupported_display_node_mutation",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Read the operation schema, capabilities and reported target kind/field. Stop unsupported work or replan using supported operations with equivalent intended semantics. Never silently drop fields or objects to make a transaction pass."
+			}
+		},
+		{
+			"code": "unsupported_text_field_target",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Read the operation schema, capabilities and reported target kind/field. Stop unsupported work or replan using supported operations with equivalent intended semantics. Never silently drop fields or objects to make a transaction pass."
+			}
+		},
+		{
+			"code": "unsupported_display_node_field",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Read the operation schema, capabilities and reported target kind/field. Stop unsupported work or replan using supported operations with equivalent intended semantics. Never silently drop fields or objects to make a transaction pass."
+			}
+		},
+		{
+			"code": "unsupported_operation_batch",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Read the operation schema, capabilities and reported target kind/field. Stop unsupported work or replan using supported operations with equivalent intended semantics. Never silently drop fields or objects to make a transaction pass."
+			}
+		},
+		{
+			"code": "unsupported_resource_kind",
+			"owners": [
+				"core.transaction",
+				"core.validation"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Read the operation schema, capabilities and reported target kind/field. Stop unsupported work or replan using supported operations with equivalent intended semantics. Never silently drop fields or objects to make a transaction pass."
+			}
+		},
+		{
+			"code": "invalid_project_settings",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_package_settings",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_display_node_payload",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_resource_name",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_resource_path",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_resource_folder_path",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_resource_folder_atlas",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_attach_index",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_controller_payload",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_transition_payload",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_look_gear_payload",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_gear_payload",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_resource_payload",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_resource_bytes",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_movie_clip_jta",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_resource_index",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_branch_name",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_package_payload",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_package_index",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_component_payload",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_component_index",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_component_move",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "invalid_uam",
+			"owners": [
+				"core.transaction",
+				"core.validation"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
+			"code": "project_settings_unchanged",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "refresh-and-replan",
+				"message": "Query current settings/entity and compare with the request. If already satisfied, report no change; otherwise replan from the current revision. Do not manufacture a mutation or resubmit the same no-op."
+			}
+		},
+		{
+			"code": "package_settings_unchanged",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "refresh-and-replan",
+				"message": "Query current settings/entity and compare with the request. If already satisfied, report no change; otherwise replan from the current revision. Do not manufacture a mutation or resubmit the same no-op."
+			}
+		},
+		{
+			"code": "display_node_props_unchanged",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "refresh-and-replan",
+				"message": "Query current settings/entity and compare with the request. If already satisfied, report no change; otherwise replan from the current revision. Do not manufacture a mutation or resubmit the same no-op."
+			}
+		},
+		{
+			"code": "resource_folder_atlas_unchanged",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "refresh-and-replan",
+				"message": "Query current settings/entity and compare with the request. If already satisfied, report no change; otherwise replan from the current revision. Do not manufacture a mutation or resubmit the same no-op."
+			}
+		},
+		{
+			"code": "duplicate_look_gear_controller",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query current entities and resolve the conflicting ID, name or page explicitly. Choose an unused value only when authorized by the intended edit, then preflight. Never overwrite or delete an existing entity to clear the conflict."
+			}
+		},
+		{
+			"code": "duplicate_transition_name",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query current entities and resolve the conflicting ID, name or page explicitly. Choose an unused value only when authorized by the intended edit, then preflight. Never overwrite or delete an existing entity to clear the conflict."
+			}
+		},
+		{
+			"code": "duplicate_look_gear_state_page",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query current entities and resolve the conflicting ID, name or page explicitly. Choose an unused value only when authorized by the intended edit, then preflight. Never overwrite or delete an existing entity to clear the conflict."
+			}
+		},
+		{
+			"code": "duplicate_gear_controller",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query current entities and resolve the conflicting ID, name or page explicitly. Choose an unused value only when authorized by the intended edit, then preflight. Never overwrite or delete an existing entity to clear the conflict."
+			}
+		},
+		{
+			"code": "duplicate_gear_state_page",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query current entities and resolve the conflicting ID, name or page explicitly. Choose an unused value only when authorized by the intended edit, then preflight. Never overwrite or delete an existing entity to clear the conflict."
+			}
+		},
+		{
+			"code": "duplicate_branch_name",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query current entities and resolve the conflicting ID, name or page explicitly. Choose an unused value only when authorized by the intended edit, then preflight. Never overwrite or delete an existing entity to clear the conflict."
+			}
+		},
+		{
+			"code": "duplicate_component_id",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query current entities and resolve the conflicting ID, name or page explicitly. Choose an unused value only when authorized by the intended edit, then preflight. Never overwrite or delete an existing entity to clear the conflict."
+			}
+		},
+		{
+			"code": "resource_folder_conflict",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query current entities and resolve the conflicting ID, name or page explicitly. Choose an unused value only when authorized by the intended edit, then preflight. Never overwrite or delete an existing entity to clear the conflict."
+			}
+		},
+		{
+			"code": "duplicate_resource_id",
+			"owners": [
+				"core.transaction",
+				"core.validation"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query current entities and resolve the conflicting ID, name or page explicitly. Choose an unused value only when authorized by the intended edit, then preflight. Never overwrite or delete an existing entity to clear the conflict."
+			}
+		},
+		{
+			"code": "duplicate_package_id",
+			"owners": [
+				"core.transaction",
+				"core.validation"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query current entities and resolve the conflicting ID, name or page explicitly. Choose an unused value only when authorized by the intended edit, then preflight. Never overwrite or delete an existing entity to clear the conflict."
+			}
+		},
+		{
+			"code": "duplicate_package_name",
+			"owners": [
+				"core.transaction",
+				"core.validation"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query current entities and resolve the conflicting ID, name or page explicitly. Choose an unused value only when authorized by the intended edit, then preflight. Never overwrite or delete an existing entity to clear the conflict."
+			}
+		},
+		{
+			"code": "resource_folder_not_empty",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query affected entities and references before editing, moving or removing anything. Replan intended dependent changes together and preflight. Do not delete dependent objects or strip references without authorization."
+			}
+		},
+		{
+			"code": "branch_not_empty",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query affected entities and references before editing, moving or removing anything. Replan intended dependent changes together and preflight. Do not delete dependent objects or strip references without authorization."
+			}
+		},
+		{
+			"code": "branch_referenced",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query affected entities and references before editing, moving or removing anything. Replan intended dependent changes together and preflight. Do not delete dependent objects or strip references without authorization."
+			}
+		},
+		{
+			"code": "invalid_resource_reference",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query affected entities and references before editing, moving or removing anything. Replan intended dependent changes together and preflight. Do not delete dependent objects or strip references without authorization."
+			}
+		},
+		{
+			"code": "invalid_component_reference",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query affected entities and references before editing, moving or removing anything. Replan intended dependent changes together and preflight. Do not delete dependent objects or strip references without authorization."
+			}
+		},
+		{
+			"code": "invalid_group_reference",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query affected entities and references before editing, moving or removing anything. Replan intended dependent changes together and preflight. Do not delete dependent objects or strip references without authorization."
+			}
+		},
+		{
+			"code": "package_referenced",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query affected entities and references before editing, moving or removing anything. Replan intended dependent changes together and preflight. Do not delete dependent objects or strip references without authorization."
+			}
+		},
+		{
+			"code": "component_referenced",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query affected entities and references before editing, moving or removing anything. Replan intended dependent changes together and preflight. Do not delete dependent objects or strip references without authorization."
+			}
+		},
+		{
+			"code": "component_has_package_dependencies",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query affected entities and references before editing, moving or removing anything. Replan intended dependent changes together and preflight. Do not delete dependent objects or strip references without authorization."
+			}
+		},
+		{
+			"code": "dangling_resource_reference",
+			"owners": [
+				"core.validation"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Query affected entities and references before editing, moving or removing anything. Replan intended dependent changes together and preflight. Do not delete dependent objects or strip references without authorization."
+			}
+		},
+		{
+			"code": "invalid_project_xml",
+			"owners": [
+				"core.validation"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Inspect the project path and validation diagnostics with the host. Correct source XML/settings or unsupported geometry using authoritative project data; preserve originals and unsaved work before reopening or validating. Do not guess missing structure or discard rejected content."
+			}
+		},
+		{
+			"code": "invalid_package_xml",
+			"owners": [
+				"core.validation"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Inspect the project path and validation diagnostics with the host. Correct source XML/settings or unsupported geometry using authoritative project data; preserve originals and unsaved work before reopening or validating. Do not guess missing structure or discard rejected content."
+			}
+		},
+		{
+			"code": "invalid_branch_package_xml",
+			"owners": [
+				"core.validation"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Inspect the project path and validation diagnostics with the host. Correct source XML/settings or unsupported geometry using authoritative project data; preserve originals and unsaved work before reopening or validating. Do not guess missing structure or discard rejected content."
+			}
+		},
+		{
+			"code": "invalid_component_xml",
+			"owners": [
+				"core.validation"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Inspect the project path and validation diagnostics with the host. Correct source XML/settings or unsupported geometry using authoritative project data; preserve originals and unsaved work before reopening or validating. Do not guess missing structure or discard rejected content."
+			}
+		},
+		{
+			"code": "invalid_project_value",
+			"owners": [
+				"core.validation"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Inspect the project path and validation diagnostics with the host. Correct source XML/settings or unsupported geometry using authoritative project data; preserve originals and unsaved work before reopening or validating. Do not guess missing structure or discard rejected content."
+			}
+		},
+		{
+			"code": "desktop_incompatible_geometry",
+			"owners": [
+				"core.validation"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Inspect the project path and validation diagnostics with the host. Correct source XML/settings or unsupported geometry using authoritative project data; preserve originals and unsaved work before reopening or validating. Do not guess missing structure or discard rejected content."
+			}
+		},
+		{
+			"code": "invalid_settings_json",
+			"owners": [
+				"core.validation"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Inspect the project path and validation diagnostics with the host. Correct source XML/settings or unsupported geometry using authoritative project data; preserve originals and unsaved work before reopening or validating. Do not guess missing structure or discard rejected content."
+			}
+		},
+		{
+			"code": "path_collision",
+			"owners": [
+				"core.validation"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Ask the host to review the attempted path and authorized project root. saveSession only writes the original project; it is not Save As. Do not widen allowed roots or bypass path checks. A separately authorized export may use materializeSession."
+			}
+		},
+		{
+			"code": "unsafe_path",
+			"owners": [
+				"core.validation"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Ask the host to review the attempted path and authorized project root. saveSession only writes the original project; it is not Save As. Do not widen allowed roots or bypass path checks. A separately authorized export may use materializeSession."
+			}
+		},
+		{
+			"code": "capability_unavailable",
+			"owners": [
+				"backend"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Read capability/error details. Ask the host to provide the required filesystem, decoder or complete UAM adapter. Preserve the session and unsaved work; do not substitute a lossy path or bypass checks."
+			}
+		},
+		{
+			"code": "uam_fidelity_unsupported",
+			"owners": [
+				"backend"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Read capability/error details. Ask the host to provide the required filesystem, decoder or complete UAM adapter. Preserve the session and unsaved work; do not substitute a lossy path or bypass checks."
+			}
+		},
+		{
+			"code": "save_partial_failure",
+			"owners": [
+				"backend"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Preserve the dirty session and inspect the error, actual target files and permissions with the host. Partial writes may have changed files: verify or recover them before a newly authorized save. Do not clear dirty state, discard memory or blindly retry."
+			}
+		},
+		{
+			"code": "write_failed",
+			"owners": [
+				"backend"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Preserve the dirty session and inspect the error, actual target files and permissions with the host. Partial writes may have changed files: verify or recover them before a newly authorized save. Do not clear dirty state, discard memory or blindly retry."
+			}
+		},
+		{
+			"code": "project_open_failed",
+			"owners": [
+				"backend"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Inspect the project path and validation diagnostics with the host. Correct source XML/settings or unsupported geometry using authoritative project data; preserve originals and unsaved work before reopening or validating. Do not guess missing structure or discard rejected content."
+			}
+		},
+		{
+			"code": "materialize_validation_failed",
+			"owners": [
+				"backend"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Inspect the project path and validation diagnostics with the host. Correct source XML/settings or unsupported geometry using authoritative project data; preserve originals and unsaved work before reopening or validating. Do not guess missing structure or discard rejected content."
+			}
+		},
+		{
+			"code": "execution_failure",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Inspect the execution/cache failure and current session/revision. Preserve sources and unsaved work and report the cause to the host. Replan after resolution; failed execution or cache work is not a completed edit."
+			}
+		},
+		{
+			"code": "cache_refresh_failed",
+			"owners": [
+				"backend"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Inspect the execution/cache failure and current session/revision. Preserve sources and unsaved work and report the cause to the host. Replan after resolution; failed execution or cache work is not a completed edit."
+			}
+		},
+		{
+			"code": "job_not_found",
+			"owners": [
+				"backend"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Inspect the job ID and status with getJob/listJobs. Do not fabricate, restart or force-cancel a missing, terminal or non-cancellable job. Ask the host before scheduling new work; cancellation is not success."
+			}
+		},
+		{
+			"code": "job_not_cancellable",
+			"owners": [
+				"backend"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Inspect the job ID and status with getJob/listJobs. Do not fabricate, restart or force-cancel a missing, terminal or non-cancellable job. Ask the host before scheduling new work; cancellation is not success."
+			}
+		},
+		{
+			"code": "job_cancelled",
+			"owners": [
+				"backend"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Inspect the job ID and status with getJob/listJobs. Do not fabricate, restart or force-cancel a missing, terminal or non-cancellable job. Ask the host before scheduling new work; cancellation is not success."
+			}
 		}
 	],
-	"digest": "7c4a5d5d1a61620fd439322d376a3393df3ed0416a50b66976f845e5bd37c80e"
+	"digest": "304f24a1b1bbc754016e6f1650a2ac44df408143b9aaf30539fb19ba3539b7f3"
 };

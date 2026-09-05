@@ -6,7 +6,7 @@
 - 准备 Git、Node 与指定 pnpm 后，在仓库根目录运行 `pnpm repo:setup`，再运行 `pnpm check:ci`。不需要个人机器路径或 `referer/`。
 - 先读[开发指南](docs/guide/development.md)的环境、术语和参考资料规则；用户 API 入口见[包与工具](docs/guide/packages.md)。
 - 快速反馈用 `pnpm check:fast`；PR 差异可用 `pnpm test:changed --base origin/next --list` 显示范围（base 换成实际目标分支）。快速检查不是完整回归。
-- `pnpm pack:check` 在仓库外安装当前五包 tarball，验证公开入口、类型、CLI/MCP 与可运行示例；已包含在 `check:ci`。发布前用 `--artifacts .release` 验证将要发布的同一组文件。
+- `pnpm pack:check` 在仓库外安装当前五包 tarball，验证公开入口、类型、CLI/MCP、Node 示例与真实 Chromium OPFS 存储/安全失败；已包含在 `check:ci`。首次下载匹配浏览器；Linux CI 显式加 `--browser-deps` 安装系统依赖。发布前用 `--artifacts .release` 验证将要发布的同一组文件。
 - `pnpm eval:agent --runner reference` 自测十个真实消费者任务（含编辑、安全停止及独立发布/恢复宿主）；模型评测显式用 `--runner codex --codex <可执行文件>` 手动运行。模型分数不进入 PR 门禁，失败现场保留在仓库外，见[评测指南](docs/guide/agent-evaluations.md)。
 - 契约类型由 Core/Backend 拥有；修改后运行 `pnpm contracts:generate`，`pnpm contracts:check` 拒绝映射遗漏与生成物漂移。MCP 参数与操作查询见[契约指南](docs/guide/contracts.md)。不手改生成快照或文档标记区。
 - `pnpm repo:doctor --json` 只诊断，不安装、不改配置、不写测试文件。`pnpm refs:status` 查看语料状态，`pnpm refs:verify` 验证必需 fixture。

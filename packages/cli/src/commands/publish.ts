@@ -5,7 +5,7 @@ import { publishNode } from '@openfairygui/functions/node';
 import type { Command } from 'commander';
 import { resolveFairyPath } from '../utils/project-input.js';
 import { parseProjectType } from '../utils/project-type.js';
-import { printArtifactJson } from '../utils/artifact-output.js';
+import { printJson } from '../utils/json-output.js';
 
 type PublishCommandOptions = {
 	output?: string;
@@ -65,7 +65,7 @@ export function registerPublishCommand(program: Command): void {
 				atlas: resolved.atlas,
 				branch: options.branch,
 			});
-			if (options.json) { printArtifactJson('publish', result); return; }
+			if (options.json) { printJson('publish', result); return; }
 
 			console.log(`\nDone!${outputDir ? ` Output override: ${outputDir}` : ''}`);
 		});

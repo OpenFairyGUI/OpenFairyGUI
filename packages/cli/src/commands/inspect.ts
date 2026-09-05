@@ -2,6 +2,7 @@ import type { Command } from 'commander';
 import { inspect, type InspectReport } from '@openfairygui/functions';
 import { NodeIO } from '@openfairygui/core/node';
 import { resolveFairyPath } from '../utils/project-input.js';
+import { printJson } from '../utils/json-output.js';
 
 export function registerInspectCommand(program: Command): void {
 	program
@@ -16,7 +17,7 @@ export function registerInspectCommand(program: Command): void {
 			const doc = await io.readProject(fairyPath);
 			const report = inspect(doc);
 
-			if (options.json) console.log(JSON.stringify(report, null, 2));
+			if (options.json) printJson('inspect', report);
 			else {
 				console.log(`Project: ${fairyPath}\n`);
 				printReport(report);

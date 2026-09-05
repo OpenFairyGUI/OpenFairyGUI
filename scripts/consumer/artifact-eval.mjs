@@ -10,7 +10,7 @@ import { NodeIO } from '@openfairygui/core/node';
 import { getInstalledDocumentationIndex, getInstalledDocumentationVersion, readInstalledDocumentation } from '@openfairygui/backend/docs';
 import { validateProjectNode } from '@openfairygui/functions/node';
 import { createPublishProject, IMAGE_BYTES, mergePublishedPackages, publishAndRestore, supportedSemantics } from './examples/publish-restore/index.mjs';
-import { bin, json, snapshot } from './runtime.mjs';
+import { assertCliEnvelope, bin, json, snapshot } from './runtime.mjs';
 import { ARTIFACT_TOOLS, assertArtifactTool, assertWithin, gradeArtifactEvaluation, observations } from './agent-eval-checks.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -28,6 +28,7 @@ export function artifactCommand(args, record = () => {}) {
 	record({ type: 'artifact-command', args, exitCode: child.status, stdout: child.stdout, stderr: child.stderr });
 	if (child.error) throw child.error;
 	const report = JSON.parse(child.stdout); // Mixed logging or a missing JSON error is a harness failure.
+	assertCliEnvelope(report, child.status);
 	assert.equal(report.schemaVersion, 1);
 	assert.equal(report.command, args[0]);
 	assert.equal(child.status, report.success ? 0 : report.error.code === 'invalid_arguments' ? 2 : 1);

@@ -32,6 +32,7 @@ export const OPENFAIRYGUI_BACKEND_CAPABILITIES_RESOURCE_URI = 'openfairygui://ba
 
 export const OPENFAIRYGUI_BACKEND_RESOURCE_TEMPLATES = [
 	'openfairygui://docs/methods/{method}',
+	'openfairygui://docs/cli/{command}',
 	BACKEND_DIAGNOSTIC_TEMPLATE,
 	OPENFAIRYGUI_OPERATION_SCHEMA_TEMPLATE,
 	'openfairygui://backend/session/{sessionId}',
@@ -64,8 +65,13 @@ export function registerOpenFairyGuiBackendResources(server: McpServer, runtime:
 	);
 	server.registerResource(
 		'openfairygui_diagnostic_catalog', BACKEND_DIAGNOSTICS_URI,
-		{ title: 'Diagnostic Recovery Catalog', description: 'First-batch diagnostic ownership and recovery guidance; never automatic repair.', mimeType: JSON_MIME_TYPE },
+		{ title: 'Diagnostic Recovery Catalog', description: 'Complete formal diagnostic ownership and recovery guidance; never automatic repair.', mimeType: JSON_MIME_TYPE },
 		(uri) => jsonResource(uri, getBackendDiagnosticCatalog()),
+	);
+	server.registerResource(
+		'openfairygui_docs_cli', new ResourceTemplate('openfairygui://docs/cli/{command}', { list: undefined }),
+		{ title: 'Installed CLI Output Contract', description: 'Read a generated, self-contained CLI JSON envelope schema.', mimeType: JSON_MIME_TYPE },
+		(uri, variables) => installedDocument(uri, `cli/${decodeURIComponent(firstVariable(variables.command))}`),
 	);
 	server.registerResource(
 		'openfairygui_diagnostic_guide', new ResourceTemplate(BACKEND_DIAGNOSTIC_TEMPLATE, { list: undefined }),

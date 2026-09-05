@@ -19,5 +19,5 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
 	const projectPath = process.argv[2] ?? await createDemoProject();
 	const result = await inspectAndValidate(projectPath);
 	console.log(JSON.stringify({ projectPath, ...result }, null, 2));
-	process.exitCode = result.validation.status === 'valid' ? 0 : result.validation.status === 'invalid' ? 1 : 2;
+	process.exitCode = result.validation.status === 'valid' ? 0 : result.validation.status === 'invalid' ? 1 : 3;
 }

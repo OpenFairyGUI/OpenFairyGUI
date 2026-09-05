@@ -4,6 +4,8 @@ import { getInstalledDocumentationVersion } from '@openfairygui/backend/docs';
 import { validateProjectNode } from '@openfairygui/functions/node';
 import { readPackageVersion } from '../utils/package-version.js';
 import { resolveFairyPath } from '../utils/project-input.js';
+import type { DoctorReport } from '../contracts.js';
+import { printJson } from '../utils/json-output.js';
 
 export function registerDoctorCommand(program: Command): void {
 	program.command('doctor').description('Diagnose installed versions/capabilities and optionally validate a project; never write or repair')
@@ -11,7 +13,7 @@ export function registerDoctorCommand(program: Command): void {
 		.option('--json', 'Print the complete machine-readable product diagnosis')
 		.action(async (projectDir: string | undefined, options: { json?: boolean }) => {
 			const version = getInstalledDocumentationVersion();
-			const errors: Array<{ code: string; message: string }> = [];
+			const errors: DoctorReport['errors'] = [];
 			const cliVersion = readPackageVersion();
 			if (cliVersion !== version.packageVersion) errors.push({ code: 'installed_version_mismatch', message: 'CLI and documentation versions differ; ask the host to reconcile the installation.' });
 			const minimumMajor = /^>=(\d+)$/u.exec(version.nodeEngine)?.[1];
@@ -26,7 +28,7 @@ export function registerDoctorCommand(program: Command): void {
 				} catch (error) { errors.push({ code: 'project_check_failed', message: error instanceof Error ? error.message : String(error) }); }
 			}
 			const status = errors.length || !capabilities.ok || project?.status === 'invalid' ? 'error' : project?.status === 'incomplete' ? 'incomplete' : 'ready';
-			const report = {
+			const report: DoctorReport = {
 				scope: 'installed-product', ...version, cliVersion, nodeVersion: process.versions.node,
 				status, errors, capabilities, projectPath, project,
 				limits: [
@@ -35,7 +37,9 @@ export function registerDoctorCommand(program: Command): void {
 					'Capabilities are declarations, not proof of filesystem permissions, publish or runtime rendering.',
 				],
 			};
-			if (options.json) console.log(JSON.stringify(report, null, 2));
+			if (options.json) printJson('doctor', report, status === 'ready' ? undefined : {
+				code: status === 'error' ? 'doctor_failed' : 'doctor_incomplete', message: `Product diagnosis is ${status}; inspect result.errors and result.project.`,
+			});
 			else {
 				console.log(`${status.toUpperCase()}: OpenFairyGUI ${cliVersion} (documentation ${version.packageVersion}, Node ${report.nodeVersion})`);
 				for (const error of errors) console.log(`${error.code}: ${error.message}`);
@@ -45,6 +49,6 @@ export function registerDoctorCommand(program: Command): void {
 				}
 				console.log(report.limits.join('\n'));
 			}
-			process.exitCode = status === 'ready' ? 0 : status === 'error' ? 1 : 2;
+			process.exitCode = status === 'ready' ? 0 : status === 'error' ? 1 : 3;
 		});
 }

@@ -2,7 +2,7 @@ import path from 'node:path';
 import { restoreNode } from '@openfairygui/functions/node';
 import type { Command } from 'commander';
 import { parseProjectType } from '../utils/project-type.js';
-import { printArtifactJson } from '../utils/artifact-output.js';
+import { printJson } from '../utils/json-output.js';
 
 type RestoreCommandOptions = {
 	output: string;
@@ -44,7 +44,7 @@ export function registerRestoreCommand(program: Command): void {
 
 			const packages = result.document.getRoot().listPackages();
 			if (options.json) {
-				printArtifactJson('restore', { projectPath: result.projectPath, packages: packages.map((pkg) => ({ id: pkg.getId(), name: pkg.getName() })), warnings: result.warnings });
+				printJson('restore', { projectPath: result.projectPath, packages: packages.map((pkg) => ({ id: pkg.getId(), name: pkg.getName() })), warnings: result.warnings });
 				return;
 			}
 			console.log(`\nDone! Output: ${result.projectPath}`);

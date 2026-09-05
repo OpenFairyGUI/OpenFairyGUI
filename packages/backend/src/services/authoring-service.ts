@@ -75,10 +75,11 @@ function recordStaleProjectFiles(
 
 function toBackendDiagnostics(error: ApplyUamTransactionAppError): BackendDiagnostic[] {
 	return error.diagnostics.length > 0
-		? error.diagnostics.map((diagnostic) => ({ ...diagnostic }))
+		? error.diagnostics.map((diagnostic) => ({ ...diagnostic, owner: 'core.transaction' }))
 		: [
 				{
 					code: error.code,
+					owner: 'core.transaction',
 					message: error.message,
 					severity: 'error',
 					operationKind: error.operationKind,

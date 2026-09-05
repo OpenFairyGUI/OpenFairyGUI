@@ -23,16 +23,16 @@ async function cli(args: string[]) {
 test('CLI installed documentation exposes exact shared content, help and bounded IDs', async (t) => {
 	t.true((await cli(['--help'])).stdout.includes('doctor'));
 	t.true((await cli(['docs', '--help'])).stdout.includes('diagnostic'));
-	t.deepEqual(JSON.parse((await cli(['docs', 'ls', '--json'])).stdout), getInstalledDocumentationIndex());
+	t.deepEqual(JSON.parse((await cli(['docs', 'ls', '--json'])).stdout).result, getInstalledDocumentationIndex());
 	for (const [command, value, id] of [
 		['cat', 'workflow', 'workflow'], ['schema', 'setDisplayNodeProps', 'operations/setDisplayNodeProps'],
 		['diagnostic', 'stale_write', 'diagnostics/stale_write'], ['cat', 'methods/queryEntity', 'methods/queryEntity'],
 	]) {
 		const result = await cli(['docs', command, value, '--json']);
 		t.is(result.code, 0);
-		t.deepEqual(JSON.parse(result.stdout), readInstalledDocumentation(id));
+		t.deepEqual(JSON.parse(result.stdout).result, readInstalledDocumentation(id));
 	}
-	const found = JSON.parse((await cli(['docs', 'find', 'stale_write', '--json'])).stdout);
+	const found = JSON.parse((await cli(['docs', 'find', 'stale_write', '--json'])).stdout).result;
 	t.true(found.documents.some((entry: { id: string }) => entry.id === 'diagnostics/stale_write'));
 	for (const id of ['../package.json', 'constructor', 'operations/unknown']) {
 		const result = await cli(['docs', 'cat', id, '--json']);
@@ -62,7 +62,7 @@ test('product doctor is read-only even with an active session and distinguishes 
 		const before = await contents();
 		const checked = await cli(['doctor', root, '--json']);
 		t.is(checked.code, 0, checked.stderr);
-		const report = JSON.parse(checked.stdout);
+		const report = JSON.parse(checked.stdout).result;
 		t.is(report.scope, 'installed-product');
 		t.is(report.status, 'ready');
 		t.is(report.project.status, 'valid');
@@ -71,12 +71,12 @@ test('product doctor is read-only even with an active session and distinguishes 
 		t.deepEqual(await contents(), before);
 		const session = runtime.getSession({ sessionId });
 		if (session.ok) t.deepEqual(session.data, opened.data);
-		const noProject = JSON.parse((await cli(['doctor', '--json'])).stdout);
+		const noProject = JSON.parse((await cli(['doctor', '--json'])).stdout).result;
 		t.is(noProject.project, null);
 		t.true(noProject.limits.some((limit: string) => limit.includes('Without a project')));
 		const missing = await cli(['doctor', path.join(root, 'missing'), '--json']);
 		t.is(missing.code, 1);
-		t.is(JSON.parse(missing.stdout).errors[0].code, 'project_check_failed');
+		t.is(JSON.parse(missing.stdout).result.errors[0].code, 'project_check_failed');
 	} finally {
 		if (sessionId) await runtime.closeSession({ sessionId });
 		await fs.rm(root, { recursive: true, force: true });

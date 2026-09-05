@@ -148,7 +148,7 @@ export interface BackendCapabilityManifest {
 	diagnostics: {
 		stableCodes: true;
 		errorDiagnosticMirror: true;
-		recoveryGuides: 'first-batch';
+		recoveryGuides: 'all-formal-codes';
 		automaticRepair: false;
 	};
 }

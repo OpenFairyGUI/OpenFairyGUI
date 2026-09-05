@@ -10,6 +10,39 @@ import { ROOT } from './repo-utils.mjs';
 const { z } = createRequire(new URL('../packages/mcp/package.json', import.meta.url))('zod');
 const contract = generateContract();
 
+test('CLI schemas cover every registered command and reject malformed envelopes; new diagnostic codes fail closed', async () => {
+	const { createProgram } = await tsImport('../packages/cli/src/cli.ts', import.meta.url);
+	const paths = ['ofgui'];
+	function visit(command, prefix = '') {
+		for (const child of command.commands) {
+			const name = `${prefix}${child.name()}`;
+			paths.push(name); visit(child, `${name} `);
+		}
+	}
+	visit(createProgram());
+	assert.deepEqual(Object.keys(contract.cli).sort(), paths.sort());
+	for (const [command, output] of Object.entries(contract.cli)) {
+		assert(z.fromJSONSchema({ ...output, $defs: contract.$defs }).safeParse({
+			schemaVersion: 1, command, success: false, error: { code: 'invalid_arguments', message: 'Invalid arguments' },
+		}).success, `CLI failure schema: ${command}`);
+	}
+	const schema = z.fromJSONSchema({ ...contract.cli.validate, $defs: contract.$defs });
+	const report = { schemaVersion: 1, command: 'validate', success: true, result: { status: 'valid', complete: true, diagnostics: [] } };
+	assert(schema.safeParse(report).success);
+	assert(!schema.safeParse({ ...report, result: { status: 'ready' } }).success);
+	assert(!schema.safeParse({ ...report, command: 'inspect' }).success);
+	assert(!schema.safeParse({ ...report, success: false }).success);
+	assert(!schema.safeParse({ ...report, result: { ...report.result, diagnostics: [{ code: 'invented', message: 'x', severity: 'error', path: '' }] } }).success);
+	const file = 'packages/core/src/validation.ts';
+	const before = readFileSync(path.join(ROOT, file), 'utf8');
+	assert.throws(() => generateContract(createContractProgram(ROOT, { [file]: before.replace("| 'invalid_project_xml'", "| 'contract_probe' | 'invalid_project_xml'") })), /every formal diagnostic code/);
+	const cli = 'packages/cli/src/contracts.ts';
+	const source = readFileSync(path.join(ROOT, cli), 'utf8');
+	const changed = generateContract(createContractProgram(ROOT, { [cli]: source.replace('schemaVersion: 1;', 'schemaVersion: 2;') }));
+	assert.notEqual(changed.digest, contract.digest);
+	assert.throws(() => checkGeneratedFiles(generatedFiles(changed)), /Generated contract drift/);
+});
+
 test('canonical types generate precise schemas for the four representative operations', async () => {
 	const schema = (kind) => z.fromJSONSchema({ ...contract.operations[kind], $defs: contract.$defs });
 	const { createMcpFixtureProject } = await tsImport('../packages/mcp/test/helpers.ts', import.meta.url);

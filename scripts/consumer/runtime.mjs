@@ -43,8 +43,25 @@ export function bin(name, packageName, args = []) {
 	return process.platform === 'win32' ? [process.execPath, [target, ...args]] : [shim, args];
 }
 
+export function assertCliEnvelope(envelope, status) {
+	const { getInstalledContractSnapshot } = require('@openfairygui/backend/docs');
+	const { z } = createRequire(require.resolve('@openfairygui/mcp'))('zod');
+	const contract = getInstalledContractSnapshot();
+	assert(Object.hasOwn(contract.cli, envelope.command), `Unknown CLI command: ${envelope.command}`);
+	const validated = z.fromJSONSchema({ ...contract.cli[envelope.command], $defs: contract.$defs }).safeParse(envelope);
+	assert(validated.success, JSON.stringify(validated.error));
+	assert.equal(envelope.success, status === 0);
+}
+
 function cli(args) {
-	return execFileSync(...bin('ofgui', '@openfairygui/cli', args), { cwd: root, encoding: 'utf8', timeout: 30_000 });
+	try {
+		const output = execFileSync(...bin('ofgui', '@openfairygui/cli', args), { cwd: root, encoding: 'utf8', timeout: 30_000 });
+		if (args.includes('--json')) assertCliEnvelope(JSON.parse(output), 0);
+		return output;
+	} catch (error) {
+		if (error.stdout && args.includes('--json')) assertCliEnvelope(JSON.parse(error.stdout), error.status);
+		throw error;
+	}
 }
 
 async function mcpSmoke(expectedVersion, expectedTools, expectedCatalog, expectedSchema, expectedDocs) {
@@ -164,13 +181,14 @@ export async function runtimeSmoke() {
 	assert(cli(['--help']).includes('inspect'));
 	assert(cli(['inspect', '--help']).includes('--json'));
 	assert.equal(cli(['--version']).trim(), expected.find((entry) => entry.name === '@openfairygui/cli').version);
-	assert.deepEqual(JSON.parse(cli(['inspect', projectRoot, '--json'])), report.inspection);
-	assert.equal(JSON.parse(cli(['validate', projectRoot, '--json'])).status, 'valid');
+	assert.deepEqual(JSON.parse(cli(['inspect', projectRoot, '--json'])).result, report.inspection);
+	assert.equal(JSON.parse(cli(['validate', projectRoot, '--json'])).result.status, 'valid');
+	assert.equal(JSON.parse(cli(['backend-capabilities', projectRoot, '--json'])).result.runtimeOwner, '@openfairygui/backend');
 	const docs = await import('@openfairygui/backend/docs');
 	const expectedDocs = {
-		index: JSON.parse(cli(['docs', 'ls', '--json'])),
-		workflow: JSON.parse(cli(['docs', 'cat', 'workflow', '--json'])),
-		diagnostic: JSON.parse(cli(['docs', 'diagnostic', 'stale_write', '--json'])),
+		index: JSON.parse(cli(['docs', 'ls', '--json'])).result,
+		workflow: JSON.parse(cli(['docs', 'cat', 'workflow', '--json'])).result,
+		diagnostic: JSON.parse(cli(['docs', 'diagnostic', 'stale_write', '--json'])).result,
 	};
 	assert.deepEqual(expectedDocs.index, docs.getInstalledDocumentationIndex());
 	assert.equal(expectedDocs.index.packageVersion, expected.find((entry) => entry.name === '@openfairygui/backend').version);
@@ -179,21 +197,21 @@ export async function runtimeSmoke() {
 	for (const [id, file] of [['workflow', 'docs/workflow.md'], ['skill', 'docs/skills/openfairygui/SKILL.md']]) {
 		const source = readFileSync(path.join(backendDirectory, file), 'utf8').replaceAll('\r\n', '\n');
 		assert.equal(docs.readInstalledDocumentation(id).text, source);
-		assert.equal(JSON.parse(cli(['docs', 'cat', id, '--json'])).text, source);
+		assert.equal(JSON.parse(cli(['docs', 'cat', id, '--json'])).result.text, source);
 	}
 	const restoreLimits = docs.readInstalledDocumentation('restore-limits');
 	assert.equal(restoreLimits.mimeType, 'text/markdown');
-	assert.equal(JSON.parse(cli(['docs', 'cat', 'restore-limits', '--json'])).text, restoreLimits.text);
+	assert.equal(JSON.parse(cli(['docs', 'cat', 'restore-limits', '--json'])).result.text, restoreLimits.text);
 	assert(restoreLimits.text.includes('projectId') && restoreLimits.text.includes('--force'));
-	assert(JSON.parse(cli(['docs', 'find', 'stale_write', '--json'])).documents.some((entry) => entry.id === 'diagnostics/stale_write'));
-	assert.deepEqual(JSON.parse(JSON.parse(cli(['docs', 'schema', 'setDisplayNodeProps', '--json'])).text), docs.getOpenFairyGuiOperationSchema('setDisplayNodeProps'));
+	assert(JSON.parse(cli(['docs', 'find', 'stale_write', '--json'])).result.documents.some((entry) => entry.id === 'diagnostics/stale_write'));
+	assert.deepEqual(JSON.parse(JSON.parse(cli(['docs', 'schema', 'setDisplayNodeProps', '--json'])).result.text), docs.getOpenFairyGuiOperationSchema('setDisplayNodeProps'));
 	for (const id of ['../package.json', 'constructor', 'methods/unknown']) {
 		assert.throws(() => cli(['docs', 'cat', id, '--json']), (error) => error.status === 1 && JSON.parse(error.stdout).error.code === 'documentation_unavailable');
 	}
-	const doctor = JSON.parse(cli(['doctor', projectRoot, '--json']));
+	const doctor = JSON.parse(cli(['doctor', projectRoot, '--json'])).result;
 	assert.equal(doctor.status, 'ready'); assert.equal(doctor.project.status, 'valid'); assert(doctor.project.complete);
 	assert.equal(doctor.packageVersion, doctor.cliVersion);
-	const noProject = JSON.parse(cli(['doctor', '--json']));
+	const noProject = JSON.parse(cli(['doctor', '--json'])).result;
 	assert.equal(noProject.project, null); assert.equal(noProject.scope, 'installed-product');
 	const { NodeIO } = await import('@openfairygui/core/node');
 	const { readProjectAsUam, liftDocumentToUamProject, writeProjectFromUam } = await import('@openfairygui/core');
@@ -203,15 +221,18 @@ export async function runtimeSmoke() {
 	const decoderProject = liftDocumentToUamProject(decoderDocument);
 	decoderProject.packages[0].resources.find((entry) => entry.kind === 'image').sourceBytes = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'));
 	await writeProjectFromUam(new NodeIO(), decoderProject, decoderProjectPath);
-	assert.equal(JSON.parse(cli(['doctor', decoderProjectPath, '--json'])).status, 'ready');
+	assert.equal(JSON.parse(cli(['doctor', decoderProjectPath, '--json'])).result.status, 'ready');
 	const decoderBefore = snapshot(path.dirname(decoderProjectPath));
 	// Simulate the optional decoder being absent without modifying the installed package tree.
 	const loader = `data:text/javascript,${encodeURIComponent("export async function resolve(id, context, next) { if (id === 'sharp') throw new Error('Decoder unavailable in this consumer check'); return next(id, context); }")}`;
 	const register = `data:text/javascript,${encodeURIComponent(`import { register } from 'node:module'; register(${JSON.stringify(loader)});`)}`;
 	// The CLI bootstrap spawns Node, so explicitly pass the test loader to its child as well.
 	const incomplete = spawnSync(...bin('ofgui', '@openfairygui/cli', ['doctor', decoderProjectPath, '--json']), { cwd: root, encoding: 'utf8', timeout: 30_000, env: { ...process.env, NODE_OPTIONS: `--import=${register}` } });
-	assert.equal(incomplete.status, 2, incomplete.stderr);
-	const incompleteReport = JSON.parse(incomplete.stdout);
+	assert.equal(incomplete.status, 3, incomplete.stderr);
+	const incompleteEnvelope = JSON.parse(incomplete.stdout);
+	assert.equal(incompleteEnvelope.success, false);
+	assert.equal(incompleteEnvelope.error.code, 'doctor_incomplete');
+	const incompleteReport = incompleteEnvelope.result;
 	assert.equal(incompleteReport.status, 'incomplete'); assert.equal(incompleteReport.project.complete, false);
 	assert(incompleteReport.project.diagnostics.some((entry) => entry.code === 'decode_capability_unavailable'));
 	assert.deepEqual(snapshot(path.dirname(decoderProjectPath)), decoderBefore);
@@ -226,13 +247,13 @@ export async function runtimeSmoke() {
 	const afterFiles = snapshot(projectRoot);
 	assert.deepEqual(Object.keys(afterFiles).sort(), Object.keys(beforeFiles).sort(), 'No extra project files');
 	assert.deepEqual(Object.keys(afterFiles).filter((file) => beforeFiles[file] !== afterFiles[file]), ['assets/Main/MainView.xml']);
-	assert.equal(JSON.parse(cli(['validate', projectRoot, '--json'])).status, 'valid');
+	assert.equal(JSON.parse(cli(['validate', projectRoot, '--json'])).result.status, 'valid');
 	const { createNodeBackendRuntime } = await import('@openfairygui/backend/node');
 	const runtime = createNodeBackendRuntime({ allowedProjectRoots: [projectRoot] });
 	const reopened = await runtime.openSession({ projectPath });
 	assert(reopened.ok, 'Example must release its session lock');
 	try {
-		assert.equal(JSON.parse(cli(['doctor', projectRoot, '--json'])).status, 'ready', 'Doctor must not contend with a session lock');
+		assert.equal(JSON.parse(cli(['doctor', projectRoot, '--json'])).result.status, 'ready', 'Doctor must not contend with a session lock');
 		const component = beforeProject.packages[0].resources.find((entry) => entry.kind === 'component');
 		const queried = runtime.queryEntity({ sessionId: reopened.data.sessionId, target: {
 			kind: 'displayNode', selector: { packageId: beforeProject.packages[0].id, componentResourceId: component.id, displayNodeId: target.id },

@@ -189,6 +189,12 @@ Additional details:
 - Unity, Layabox, and Cocos Creator currently share the same `publish -> atlas / binary / codegen` main path. Their differences are primarily descriptor extensions and code-generation lane selection, not separate workflows.
 - `@openfairygui/cli` is an entry layer and does not own protocol or Node artifact-processing details. `cli.ts` handles only program registration and process lifecycle; separate command modules assemble inspect, publish, restore, and backend-capability operations. The publish command passes an explicit `--project-type` to the functions option resolver, which applies the `.fui` and no-atlas-rotation rules for a Layabox target; without an explicit target it keeps the project settings. The restore command delegates Node filesystem and Sharp image processing to `restoreNode()`.
 
+## Contracts and consumer verification
+
+CLI `contracts.ts` and `utils/json-output.ts` own the uniform machine envelope; workflow reports remain owned by Core/Functions/Backend. The existing TypeScript generator collects CLI outputs, Core/Backend contracts and every formal diagnostic code into the independent `@openfairygui/backend/docs` data entry for offline CLI/MCP access. There is no runtime Backend-to-CLI dependency. Catalogs list every owner of shared codes; responses retain the actual origin. No automatic-repair layer is introduced.
+
+The browser consumer follows native OPFS directory handle → Core File System Access adapter → Backend storage bridge → `BackendRuntime.openSession`. After formal preview/edit/save, WebIO hydrates saved sources for Web validation. `pack:check` installs tarballs outside the checkout, bundles the public example and executes real Chromium storage, image-byte and Web Locks checks. This is not a Node in-memory filesystem simulation and does not prove user-folder permissions or rendering.
+
 ## Publish / Restore host boundaries
 
 `publish.ts` only coordinates publish settings, the resource closure, atlas generation, binary output, and general code generation. The host supplies the filesystem, raster backend, and publish hooks.

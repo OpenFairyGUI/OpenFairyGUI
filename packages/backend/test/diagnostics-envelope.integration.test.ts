@@ -18,7 +18,7 @@ test('backend responses carry unified diagnostics metadata', async (t) => {
 		t.deepEqual(opened.meta.warnings, []);
 		t.deepEqual(opened.meta.diagnostics, []);
 		t.is(opened.meta.contractVersion, '1.1.0-p2');
-		t.is(opened.meta.capabilitySchemaVersion, 7);
+		t.is(opened.meta.capabilitySchemaVersion, 8);
 
 		const stale = await runtime.applyTransaction({
 			sessionId: opened.data.sessionId,
@@ -119,6 +119,7 @@ test('recovery keeps invalid selectors, source validation and unknown diagnostic
 	t.is(validation.meta.diagnostics.find((entry) => entry.code === 'decode_capability_unavailable')?.owner, 'core.validation');
 	t.false(JSON.stringify(validation.data).includes('remediation'));
 	const unknown = { code: 'host_extension_error', message: 'Host detail', severity: 'warning' as const, path: 'custom' };
+	// @ts-expect-error Unknown host extensions are outside the formal diagnostic contract.
 	t.deepEqual(createMeta('read', Date.now(), { diagnostics: [unknown] }).diagnostics, [unknown]);
 	const after = runtime.getSession({ sessionId });
 	if (before.ok && after.ok) t.deepEqual(after.data, before.data);
@@ -148,9 +149,11 @@ test('path denial recovery never grants wider access; catalog is detached and fa
 		await runtime.closeSession({ sessionId: opened.data.sessionId });
 	} finally { await fixture.cleanup(); }
 	const catalog = getBackendDiagnosticCatalog();
-	t.is(new Set(catalog.map((guide) => guide.code)).size, 18);
+	t.is(new Set(catalog.map((guide) => guide.code)).size, 101);
 	for (const guide of catalog) t.deepEqual(getBackendDiagnosticGuide(guide.code), guide);
 	catalog.pop();
-	t.is(getBackendDiagnosticCatalog().length, 18);
+	t.is(getBackendDiagnosticCatalog().length, 101);
+	t.deepEqual(getBackendDiagnosticGuide('invalid_uam').owners, ['core.transaction', 'core.validation']);
+	t.is(createMeta('read', Date.now(), { diagnostics: [{ code: 'invalid_uam', severity: 'error', message: 'Invalid source', owner: 'core.validation' }] }).diagnostics[0]?.owner, 'core.validation');
 	t.throws(() => getBackendDiagnosticGuide('constructor'), { instanceOf: RangeError });
 });

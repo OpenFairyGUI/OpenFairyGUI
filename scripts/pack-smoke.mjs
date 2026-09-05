@@ -52,7 +52,7 @@ export function preparePackedConsumer({ artifacts } = {}) {
 		json(path.join(consumer, 'package.json'), { name: 'ofgui-isolated-consumer', private: true, type: 'module', dependencies, pnpm: { overrides: dependencies } });
 		writeFileSync(path.join(consumer, '.npmrc'), 'hoist=false\nlink-workspace-packages=false\nprefer-workspace-packages=false\n');
 		json(path.join(consumer, 'expected.json'), expected);
-		for (const name of ['runtime.mjs', 'tooling.mjs', 'agent-eval.mjs', 'artifact-eval.mjs']) cpSync(path.join(ROOT, 'scripts/consumer', name), path.join(consumer, name));
+		for (const name of ['runtime.mjs', 'tooling.mjs', 'agent-eval.mjs', 'artifact-eval.mjs', 'browser-check.mjs']) cpSync(path.join(ROOT, 'scripts/consumer', name), path.join(consumer, name));
 		cpSync(path.join(ROOT, 'scripts/agent-eval-checks.mjs'), path.join(consumer, 'agent-eval-checks.mjs'));
 		cpSync(path.join(ROOT, 'agent/evals/tasks.json'), path.join(consumer, 'evaluation-tasks.json'));
 		cpSync(path.join(ROOT, 'examples'), path.join(consumer, 'examples'), {
@@ -67,7 +67,7 @@ export function preparePackedConsumer({ artifacts } = {}) {
 	}
 }
 
-export function packSmoke({ artifacts, keep = false } = {}) {
+export function packSmoke({ artifacts, keep = false, 'browser-deps': browserDeps = false } = {}) {
 	const { temporary, consumer, command, pnpm } = preparePackedConsumer({ artifacts });
 	const json = (file, value) => writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
 	let passed = false;
@@ -81,6 +81,7 @@ export function packSmoke({ artifacts, keep = false } = {}) {
 			typescript: `npm:${compiler.name}@${compiler.version}`,
 			'@types/node': require('@types/node/package.json').version,
 			esbuild: viteRequire('esbuild/package.json').version,
+			playwright: '1.63.0',
 		};
 		const manifest = readJson(path.join(consumer, 'package.json'));
 		json(path.join(consumer, 'package.json'), { ...manifest, devDependencies });
@@ -88,7 +89,10 @@ export function packSmoke({ artifacts, keep = false } = {}) {
 		// esbuild needs its own install script; all packages are ordinary public registry dependencies.
 		pnpm(consumer, ['install', '--no-frozen-lockfile', '--config.ignore-scripts=false']);
 		console.log(command(consumer, process.execPath, ['tooling.mjs']).trim());
-		console.log('[consumer] PASS: five tarballs, Node ESM/CJS, types, browser bundles, CLI, MCP, examples and deterministic evaluation checks');
+		console.log('[consumer] Install pinned Chromium headless shell (external browser cache)');
+		pnpm(consumer, ['exec', 'playwright', 'install', 'chromium', '--only-shell', ...(browserDeps && process.platform === 'linux' ? ['--with-deps'] : [])]);
+		console.log(command(consumer, process.execPath, ['browser-check.mjs']).trim());
+		console.log('[consumer] PASS: five tarballs, Node ESM/CJS, types, real Chromium storage, CLI, MCP, examples and deterministic evaluation checks');
 		passed = true;
 	} finally {
 		if (!passed || keep) console.log(`[consumer] Preserved diagnostic project: ${temporary}`);
@@ -98,7 +102,7 @@ export function packSmoke({ artifacts, keep = false } = {}) {
 
 if (isMain(import.meta.url)) {
 	try {
-		const { values } = parseArgs({ options: { artifacts: { type: 'string' }, keep: { type: 'boolean' } } });
+		const { values } = parseArgs({ options: { artifacts: { type: 'string' }, keep: { type: 'boolean' }, 'browser-deps': { type: 'boolean' } } });
 		packSmoke(values);
 	} catch (error) { console.error(error.message); process.exitCode = 1; }
 }

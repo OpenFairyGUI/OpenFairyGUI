@@ -1,8 +1,16 @@
 # 契约事实源与操作查询
 
-Core 的 `UamTransactionOperation` 与 UAM 模型拥有参数结构和事务语义；Backend 的公开方法签名拥有会话输入、结果和错误类型；MCP 只拥有工具元数据、JSON 传输转换及输入预算。
+Core 的 `UamTransactionOperation` 与 UAM 模型拥有参数结构和事务语义；Backend 的公开方法签名拥有会话输入、结果和错误类型；CLI 拥有进程 JSON envelope，各 result 复用原工作流类型；MCP 只拥有工具元数据、JSON 传输转换及输入预算。
 
 `pnpm contracts:generate` 使用仓库已有 TypeScript 编译器读取这些类型，生成 MCP 的结构 schema、operation catalog、契约快照和本页表格。MCP 复用已有 Zod 从 JSON Schema 创建校验器；Core 不依赖 Zod。`pnpm contracts:check` 只比较、不写文件，检查映射完整性和生成物漂移，已接入仓库自测与 `docs:check`。
+
+## CLI 机器输出
+
+所有业务命令和 `docs` 子命令使用同一结构：成功为 `{schemaVersion:1,command,success:true,result}`；失败为 `{schemaVersion:1,command,success:false,error:{code,message},result?}`。`command` 是规范命令路径（如 `docs cat`），未知顶层命令为 `ofgui`。`validate` 无效/不完整和 `doctor` 错误/不完整仍在 `result` 保留完整报告；启动/读取异常没有伪造 result。
+
+退出码统一为 0 成功、1 工作流失败、2 参数错误、3 验证不完整。`--json` 可位于命令前后；stdout 只有一个 JSON，普通日志进入 stderr。帮助和版本仍为文本。无 `--json` 时保留人类报告，使用同一退出码。
+
+`packages/cli/src/contracts.ts` 是输出事实源。生成器提供 13 个命令路径（含 `ofgui`/`docs` 的解析失败）的 schema，`test:repo` 检查命令注册遗漏，消费者按生成 schema 校验真实输出。运行 `ofgui docs schema cli/validate --json` 或 `ofgui docs cat "cli/docs cat" --json` 读取自包含 schema；内容位于 envelope 的 `result.text`。MCP 对应 `openfairygui://docs/cli/{command}`，空格用 `%20` 编码。生成快照只收集类型，不增加 Backend 到 CLI 的运行时依赖。
 
 ## 查询精确参数
 
@@ -56,7 +64,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 
 预演不预留 revision，不证明后续 apply/save 或发布一定成功。正式 apply 必须再次提交 `expectedRevision`；期间若有编辑，应重新查询并规划，不能把旧预演当作授权凭证。预演复用当前事务执行路径，不额外执行工程保存、文件权限/目标校验或发布检查；缺少文件系统的内存会话也可以预演。
 
-能力通过 `authoring.preflightTransaction` 声明为 `mode: 'execute-and-discard'`、`reservesRevision: false`。当前能力 schema 版本为 7，声明五类实体查询，并包含首批[诊断恢复指引](./diagnostics.md)；原有事务契约版本不变。
+能力通过 `authoring.preflightTransaction` 声明为 `mode: 'execute-and-discard'`、`reservesRevision: false`。当前能力 schema 版本为 8，声明五类实体查询，并包含完整正式[诊断恢复指引](./diagnostics.md)；事务契约版本不变。
 
 ## 传输与语义边界
 
@@ -73,7 +81,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 下表只摘要顶层参数；嵌套字段和具体结果请读取对应 schema。SHA-256 变化表示生成契约发生变化，不等同于包版本号。
 
 <!-- contracts:start -->
-SHA-256: `7c4a5d5d1a61620fd439322d376a3393df3ed0416a50b66976f845e5bd37c80e`
+SHA-256: `304f24a1b1bbc754016e6f1650a2ac44df408143b9aaf30539fb19ba3539b7f3`
 
 | 操作 | 参数（`?` 表示可选） |
 |---|---|
@@ -139,6 +147,22 @@ SHA-256: `7c4a5d5d1a61620fd439322d376a3393df3ed0416a50b66976f845e5bd37c80e`
 | `cancelJob` | `openfairygui_backend_cancel_job` | `sessionId`, `jobId` | `false` |
 | `getCacheSnapshot` | `openfairygui_backend_get_cache_snapshot` | `sessionId` | `true` |
 | `refreshCache` | `openfairygui_backend_refresh_cache` | `sessionId`, `reason?` | `false` |
+
+| CLI 命令 | 已安装输出 Schema |
+|---|---|
+| `publish` | `cli/publish` |
+| `ofgui` | `cli/ofgui` |
+| `docs` | `cli/docs` |
+| `inspect` | `cli/inspect` |
+| `validate` | `cli/validate` |
+| `restore` | `cli/restore` |
+| `doctor` | `cli/doctor` |
+| `backend-capabilities` | `cli/backend-capabilities` |
+| `docs ls` | `cli/docs ls` |
+| `docs find` | `cli/docs find` |
+| `docs cat` | `cli/docs cat` |
+| `docs diagnostic` | `cli/docs diagnostic` |
+| `docs schema` | `cli/docs schema` |
 <!-- contracts:end -->
 
 新增不支持的 TypeScript 构造会使生成失败，不能降级成任意 payload。新增方法必须同时进入 Backend capability 列表和 MCP 元数据；新增 operation 自动来自 Core union。修改后运行 `pnpm contracts:generate`、`pnpm check:ci`，验证范围见[开发指南](./development.md)。

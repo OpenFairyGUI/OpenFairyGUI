@@ -9,6 +9,7 @@ import { isMain, ROOT } from './repo-utils.mjs';
 const CORE = 'packages/core/src/uam/transaction-contracts.ts';
 const BACKEND = 'packages/backend/src/runtime.ts';
 const METADATA = 'packages/mcp/src/tool-metadata.ts';
+const CLI = 'packages/cli/src/contracts.ts';
 const GENERATED = 'packages/backend/src/generated/contracts.ts';
 
 export function createContractProgram(root = ROOT, sourceOverrides = {}) {
@@ -18,8 +19,13 @@ export function createContractProgram(root = ROOT, sourceOverrides = {}) {
 	const options = { ...parsed.options, types: ['node'], noEmit: true };
 	const host = ts.createCompilerHost(options);
 	const read = host.readFile.bind(host);
-	host.readFile = (file) => sourceOverrides[path.relative(root, file).replaceAll('\\', '/')] ?? read(file);
-	const program = ts.createProgram([CORE, BACKEND, METADATA].map((file) => path.join(root, file)), options, host);
+	host.readFile = (file) => {
+		const relative = path.relative(root, file).replaceAll('\\', '/');
+		// Canonical types must not depend on whether yesterday's generated value still typechecks.
+		if (relative === GENERATED) return "import type { ContractSnapshot } from '../docs.js'; export declare const CONTRACT_SNAPSHOT: ContractSnapshot;";
+		return sourceOverrides[relative] ?? read(file);
+	};
+	const program = ts.createProgram([CORE, BACKEND, METADATA, CLI].map((file) => path.join(root, file)), options, host);
 	const diagnostics = ts.getPreEmitDiagnostics(program);
 	if (diagnostics.length) throw new Error(ts.formatDiagnosticsWithColorAndContext(diagnostics, {
 		getCanonicalFileName: (file) => file, getCurrentDirectory: () => root, getNewLine: () => '\n',
@@ -35,7 +41,7 @@ export function createSchemaEmitter(checker, root = ROOT) {
 	const describe = (type) => checker.typeToString(type, undefined, ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseAliasDefinedOutsideCurrentScope).replaceAll(root.replaceAll('\\', '/'), '.');
 	function schema(type) {
 		if (type.flags & ts.TypeFlags.Unknown) return {};
-		if (type.flags & ts.TypeFlags.Never) return { not: {} };
+		if (type.flags & (ts.TypeFlags.Never | ts.TypeFlags.Undefined)) return { not: {} };
 		if (type.flags & ts.TypeFlags.StringLiteral) return { type: 'string', const: type.value };
 		if (type.flags & ts.TypeFlags.NumberLiteral) return { type: 'number', const: type.value };
 		if (type.flags & ts.TypeFlags.BooleanLiteral) return { type: 'boolean', const: type.intrinsicName === 'true' };
@@ -244,10 +250,30 @@ export function generateContract(program = createContractProgram()) {
 		const entry = exported(program, 'packages/backend/src/contracts.ts', name);
 		versions[name] = constantValue(checker, checker.getTypeOfSymbolAtLocation(entry.symbol, entry.declaration));
 	}
-	const snapshot = { schemaVersion: 1, versions, operations, tools, $defs: emitter.definitions };
+	const cli = {};
+	const cliContracts = exported(program, CLI, 'CliOutputContracts');
+	for (const command of checker.getPropertiesOfType(cliContracts.type)) {
+		cli[command.name] = emitter.schema(checker.getTypeOfSymbolAtLocation(command, cliContracts.declaration));
+	}
+	const snapshot = { schemaVersion: 1, versions, operations, tools, cli, $defs: emitter.definitions };
 	const guides = exported(program, 'packages/backend/src/diagnostics.ts', 'BACKEND_DIAGNOSTIC_GUIDES');
 	snapshot.diagnostics = constantValue(checker, checker.getTypeOfSymbolAtLocation(guides.symbol, guides.declaration));
 	assert.equal(new Set(snapshot.diagnostics.map((guide) => guide.code)).size, snapshot.diagnostics.length, 'Duplicate diagnostic recovery guide');
+	const literals = (type) => (type.isUnion() ? type.types : [type]).map((part) => {
+		assert(part.isStringLiteral(), `Diagnostic codes must be literal strings: ${checker.typeToString(part)}`);
+		return part.value;
+	});
+	const codes = (file, name) => literals(exported(program, file, name).type);
+	const formalCodes = codes('packages/backend/src/contracts.ts', 'BackendDiagnosticCode');
+	assert.deepEqual(snapshot.diagnostics.map((guide) => guide.code).sort(), formalCodes.sort(), 'Recovery guides must cover every formal diagnostic code exactly once');
+	const transaction = new Set([...codes(CORE, 'UamTransactionErrorCode'), ...codes(CORE, 'UamTransactionSupportIssueCode')]);
+	const validation = new Set(codes('packages/core/src/validation.ts', 'ProjectDiagnosticCode'));
+	const backendError = exported(program, 'packages/backend/src/runtime/contracts.ts', 'BackendError').type;
+	const backend = new Set(literals(checker.getTypeOfPropertyOfType(backendError, 'code')).filter((code) => !transaction.has(code)));
+	for (const guide of snapshot.diagnostics) {
+		const owners = [['backend', backend], ['core.transaction', transaction], ['core.validation', validation]].filter(([, codes]) => codes.has(guide.code)).map(([owner]) => owner);
+		assert.deepEqual([...guide.owners].sort(), owners.sort(), `Incorrect diagnostic owners: ${guide.code}`);
+	}
 	return { ...snapshot, digest: createHash('sha256').update(JSON.stringify(snapshot)).digest('hex') };
 }
 
@@ -268,6 +294,8 @@ export function contractTables(contract, english = false) {
 		english ? '| Backend method | MCP tool | Parameters | Read-only hint |' : '| Backend 方法 | MCP 工具 | 参数 | 只读提示 |',
 		'|---|---|---|---|',
 		...Object.entries(contract.tools).map(([method, tool]) => `| \`${method}\` | \`${tool.name}\` | ${fields(tool.input)} | \`${tool.annotations.readOnlyHint}\` |`),
+		'', english ? '| CLI command | Installed output schema |' : '| CLI 命令 | 已安装输出 Schema |', '|---|---|',
+		...Object.keys(contract.cli).map((command) => `| \`${command}\` | \`cli/${command}\` |`),
 	].join('\n');
 }
 
@@ -295,7 +323,7 @@ export function generatedFiles(contract, root = ROOT) {
 		assert.equal([...source.matchAll(marker)].length, 1, `Missing/duplicate diagnostics section: ${file}`);
 		const guides = contract.diagnostics.map((guide) => [
 			`### ${guide.code}`, '',
-			`Owner: \`${guide.owner}\` · Recovery: \`${guide.remediation.kind}\``, '',
+			`Owners: ${guide.owners.map((owner) => `\`${owner}\``).join(', ')} · Recovery: \`${guide.remediation.kind}\``, '',
 			`URI: \`openfairygui://docs/diagnostics/${guide.code}\``, '', guide.remediation.message,
 		].join('\n')).join('\n\n');
 		files[file] = source.replace(marker, `<!-- diagnostics:start -->\n${guides}\n<!-- diagnostics:end -->`);

@@ -9,7 +9,7 @@ This directory contains the English documentation used by the static website. It
 | Document | Description |
 |---|---|
 | [Repository Development and Verification](./guide/development.md) | Reproducible setup, references, task routing, verification scope and PR gates. |
-| [Runnable Examples and Consumer Verification](./guide/examples.md) | Isolated tarballs, public entrypoints, inspect/validate, revision-checked edit/save, and publish/limited recovery. |
+| [Runnable Examples and Consumer Verification](./guide/examples.md) | Isolated tarballs, CLI contracts, real browser storage, revision-checked edit/save, and publish/limited recovery. |
 | [Contract Sources and Operation Discovery](./guide/contracts.md) | Core/Backend-derived operations, MCP input/output schemas, binary transport and drift checks. |
 | [Diagnostics and Recovery](./guide/diagnostics.md) | Diagnostic ownership, per-code guides and read-only recovery starting points; no automatic repair. |
 | [Installed Documentation and Product Diagnosis](./guide/installed-docs.md) | CLI/MCP shared offline corpus, thin skill and read-only product doctor. |

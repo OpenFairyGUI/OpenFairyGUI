@@ -19,7 +19,7 @@ test('inspect --json returns the existing report without human logs; default out
 		const args = ['--import', 'tsx/esm', path.resolve('packages/cli/src/cli.ts')];
 		const expected = inspect(await new NodeIO().readProject(fairyPath));
 		const json = await run(process.execPath, [...args, 'inspect', root, '--json']);
-		t.deepEqual(JSON.parse(json.stdout), expected);
+		t.deepEqual(JSON.parse(json.stdout).result, expected);
 		t.is(json.stderr, '');
 		const human = await run(process.execPath, [...args, 'inspect', fairyPath]);
 		t.true(human.stdout.includes('Project:'));
@@ -28,7 +28,7 @@ test('inspect --json returns the existing report without human logs; default out
 		t.true(help.stdout.includes('--json'));
 		const missing = await t.throwsAsync(run(process.execPath, [...args, 'inspect', path.join(root, 'missing'), '--json']));
 		t.is((missing as { code?: number }).code, 1);
-		t.is((missing as { stdout?: string }).stdout, '');
+		t.is(JSON.parse((missing as Error & { stdout: string }).stdout).error.code, 'command_failed');
 	} finally {
 		await fs.rm(root, { recursive: true, force: true });
 	}

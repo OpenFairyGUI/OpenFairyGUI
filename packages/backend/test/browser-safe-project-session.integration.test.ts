@@ -599,7 +599,7 @@ test('root backend entry opens pure UAM project sessions without a filesystem ad
 	if (saveFailure.error.code === 'capability_unavailable') {
 		t.is(saveFailure.error.capability, 'fileSystem');
 	}
-	t.deepEqual(saveFailure.meta.diagnostics, [
+	t.deepEqual(saveFailure.meta.diagnostics.map(({ owner, docsUri, remediation, ...diagnostic }) => diagnostic), [
 		{
 			code: 'capability_unavailable',
 			message: 'saveSession requires an injected BackendFileSystem adapter.',

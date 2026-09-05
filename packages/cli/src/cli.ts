@@ -1,5 +1,7 @@
 import { Command, CommanderError } from 'commander';
-import { artifactJsonCommand, configureArtifactJson, printArtifactJson } from './utils/artifact-output.js';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { configureJson, parsedCommand, printJsonError, wantsJson } from './utils/json-output.js';
 import { registerBackendCapabilitiesCommand } from './commands/backend-capabilities.js';
 import { registerInspectCommand } from './commands/inspect.js';
 import { registerPublishCommand } from './commands/publish.js';
@@ -11,9 +13,9 @@ import { readPackageVersion } from './utils/package-version.js';
 
 const PACKAGE_VERSION = readPackageVersion();
 
-function createProgram(): Command {
+export function createProgram(): Command {
 	const program = new Command('ofgui');
-	if (artifactJsonCommand(process.argv)) configureArtifactJson(program);
+	configureJson(program);
 
 	program.description('FairyGUI Headless Authoring CLI').version(PACKAGE_VERSION).showHelpAfterError();
 
@@ -40,14 +42,15 @@ function createProgram(): Command {
 	return program;
 }
 
-async function main(): Promise<void> {
-	await createProgram().parseAsync(process.argv);
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+	const program = createProgram();
+	program.parseAsync(process.argv).catch((err) => {
+		if (err instanceof CommanderError && err.exitCode === 0) return;
+		const command = parsedCommand(program);
+		const message = err instanceof Error ? err.message : String(err);
+		if (wantsJson(process.argv)) printJsonError(command, { code: err instanceof CommanderError ? 'invalid_arguments'
+			: command === 'publish' || command === 'restore' ? `${command}_failed` : 'command_failed', message });
+		else console.error(message);
+		process.exitCode = err instanceof CommanderError ? 2 : 1;
+	});
 }
-
-main().catch((err) => {
-	const command = artifactJsonCommand(process.argv);
-	const message = err instanceof Error ? err.message : String(err);
-	if (command) printArtifactJson(command, undefined, { code: err instanceof CommanderError ? 'invalid_arguments' : `${command}_failed`, message });
-	else console.error(message);
-	process.exitCode = command && err instanceof CommanderError ? 2 : 1;
-});

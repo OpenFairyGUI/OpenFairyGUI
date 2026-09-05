@@ -188,6 +188,12 @@ flowchart LR
 - 当前 Unity、Layabox、Cocos Creator 共用同一条 `publish -> atlas / binary / codegen` 主链；差异主要体现在描述文件扩展名和代码生成 lane 选择，而不是工作流分叉。
 - `@openfairygui/cli` 是入口层，不下沉协议或 Node artifact 处理细节；`cli.ts` 只负责 program 注册和进程生命周期，`inspect`、`publish`、`restore`、backend capabilities 分别由独立 command 模块装配。publish command 将显式 `--project-type` 传给 functions 选项解析器；该解析器在 Layabox 目标下应用 `.fui` 与禁止 atlas 旋转规则，未显式指定目标时继续使用工程设置。restore command 将 Node 文件系统与 Sharp 图像处理委托给 `restoreNode()`。
 
+## 契约与消费者验证
+
+机器输出的统一入口是 CLI 的 `contracts.ts` 与 `utils/json-output.ts`；工作流报告仍由 Core/Functions/Backend 拥有。现有 TypeScript 生成器同时收集 CLI 输出、Core/Backend 契约与全部正式诊断码，生成独立 `@openfairygui/backend/docs` 数据供 CLI/MCP 离线读取，不增加 Backend 对 CLI 的运行时依赖。诊断目录列举共享码的全部 owners，响应保留实际来源；没有新的自动修复层。
+
+浏览器消费者示例使用原生 OPFS directory handle → Core File System Access adapter → Backend storage bridge → `BackendRuntime.openSession`，经正式预演、编辑和保存后由 WebIO 水合回读并执行 Web 验证。`pack:check` 在仓库外安装 tarball、打包该公开示例并用真实 Chromium 验证存储、图片字节和 Web Locks；不是 Node 内存文件系统模拟，也不代表用户目录权限或渲染器验证。
+
 ## Publish / Restore 宿主边界
 
 `publish.ts` 只编排发布设置、资源闭包、atlas、二进制写出与通用代码生成；文件系统、raster backend 与 publish hooks 都由宿主提供。

@@ -7,11 +7,14 @@ This is a minimal offline companion, not the full website. Read `ofgui docs ls -
 - `ofgui docs find "selector" --json` searches this installed corpus.
 - `ofgui docs cat contracts --json` lists Core operations and Backend/MCP mappings.
 - `ofgui docs schema setDisplayNodeProps --json` reads one self-contained operation schema.
+- `ofgui docs schema cli/validate --json` reads the installed CLI output schema; `cli/docs cat` is a valid exact document ID for the nested command.
 - `ofgui docs cat methods/queryEntity --json` reads precise input/output wire schemas.
 - `ofgui docs diagnostic stale_write --json` reads recovery guidance.
 - MCP `resources/read` at `openfairygui://docs/index` provides the same index and content URIs. MCP is local stdio, not an assumed HTTP port.
 
 The generated schemas describe JSON wire structure and input budgets, not semantic validity. Native SDK byte fields remain Uint8Array; MCP transports declared byte fields as integer arrays. Arbitrary extension data is not converted. Host objects/functions are omitted from MCP wire schemas; use SDK declarations for host injection, not guessed JSON fields.
+
+All CLI JSON uses `{schemaVersion:1,command,success:true,result}` or `{schemaVersion:1,command,success:false,error:{code,message},result?}`. Documentation version/index/body fields are inside `result`; read `result.text` for document content. Invalid/incomplete validate and doctor responses retain their full report under `result`. Help/version are text; other JSON-mode stdout contains exactly one document and human logs use stderr. Exit codes: 0 success, 1 workflow failure, 2 arguments, 3 incomplete validation. CLI owns envelopes, not new workflow semantics.
 
 ## Edit safely
 
@@ -29,9 +32,9 @@ updateController and updateTransition replace complete snapshots, not partial pa
 
 `ofgui doctor --json` checks the installed CLI/documentation version and the Node Backend capability snapshot. `ofgui doctor <project-directory-or-fairy-file> --json` additionally runs the existing Node project validation, including source reads and available image decoding. It opens no Backend session, creates no lock, installs nothing, writes no probe files and changes no configuration.
 
-Exit 0 means the requested checks completed; exit 1 means a detected error; exit 2 means project validation is incomplete. Without a project, source bytes and native image decoding are not exercised. The capability manifest is a declaration, not a filesystem permission, decoder, publish or runtime-rendering test. This product doctor does not inspect Git, pnpm, repository builds or fixture submodules; maintainers use pnpm repo:doctor for those.
+Exit 0 means the requested checks completed; exit 1 means a detected error; exit 2 means invalid arguments; exit 3 means project validation is incomplete. Without a project, source bytes and native image decoding are not exercised. The capability manifest is a declaration, not a filesystem permission, decoder, publish or runtime-rendering test. This product doctor does not inspect Git, pnpm, repository builds or fixture submodules; maintainers use pnpm repo:doctor for those.
 
-Read diagnostic guides for ownership and recovery boundaries. Missing bytes/decoders, rejected paths and expired sessions require host action; do not invent repair/hydration tools, widen roots, discard unsaved work, or turn incomplete validation into success.
+Read diagnostic guides for ownership and recovery boundaries. Every formal Core/Backend diagnostic code is covered; shared codes list all `owners`, while response `owner` identifies the actual source. Missing bytes/decoders, rejected paths and expired sessions require host action; do not invent repair/hydration tools, widen roots, discard unsaved work, or turn incomplete validation into success. Invalid/unsupported operations require schema-based replanning, live locks cannot be removed, and write failures require preserving dirty state and inspecting actual files.
 
 ## Publish and recover trusted local artifacts
 
