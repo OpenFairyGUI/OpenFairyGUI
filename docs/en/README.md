@@ -9,11 +9,12 @@ This directory contains the English documentation used by the static website. It
 | Document | Description |
 |---|---|
 | [Repository Development and Verification](./guide/development.md) | Reproducible setup, references, task routing, verification scope and PR gates. |
+| [Development Task Recipes](./guide/task-recipes.md) | XML fields, UAM operations, Backend/MCP integration, publish diagnosis and protocol evidence routes. |
 | [Runnable Examples and Consumer Verification](./guide/examples.md) | Isolated tarballs, CLI contracts, real browser storage, revision-checked edit/save, and publish/limited recovery. |
 | [Contract Sources and Operation Discovery](./guide/contracts.md) | Core/Backend-derived operations, MCP input/output schemas, binary transport and drift checks. |
 | [Diagnostics and Recovery](./guide/diagnostics.md) | Diagnostic ownership, per-code guides and read-only recovery starting points; no automatic repair. |
 | [Installed Documentation and Product Diagnosis](./guide/installed-docs.md) | CLI/MCP shared offline corpus, thin skill and read-only product doctor. |
-| [Real Agent Task Evaluations](./guide/agent-evaluations.md) | Three real-tarball tasks, deterministic oracles, manual model observations and failure reproduction. |
+| [Real Agent Task Evaluations](./guide/agent-evaluations.md) | Ten real-tarball tasks, deterministic oracles, manual model observations and failure reproduction. |
 | [Project Validation](../project-validation.md) | Shared project validation reports and API/CLI/Backend/MCP behavior. |
 | [Changelog](https://github.com/OpenFairyGUI/OpenFairyGUI/blob/main/CHANGELOG.md) | Public features, fixes, breaking changes, and maintenance work by release. |
 | [Architecture Overview](./architecture-overview.md) | Package responsibilities, UAM and backend boundaries, host adapters, and primary data flows. |

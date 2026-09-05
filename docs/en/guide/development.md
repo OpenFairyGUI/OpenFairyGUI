@@ -25,6 +25,7 @@ For a dirty checkout, consider an isolated worktree before dependency or documen
 | `pnpm refs:status` | Observe required fixtures and optional references; missing material alone does not fail a status query |
 | `pnpm refs:sync` | Native Git submodule initialization at gitlinks; no remote-tip tracking or forced overwrite |
 | `pnpm refs:verify` | Required fixture commits, working trees and probe files; nonzero exit on failure |
+| `pnpm refs:grep "literal text"` | Verify required fixtures, then use Git to search tracked text for a case-sensitive literal; repository-relative paths and line numbers; 0 match, 1 no match, 2 error |
 | `pnpm test:repo` | Built-in Node tests for repository tooling, without product builds or external fixtures |
 | `pnpm test:changed --base origin/next --list` | Print a plan only; replace the base with the actual PR target |
 | `pnpm check:fast` | Lint, typecheck, repository-tool tests and guidance checks; build the workspace before any selected AVA tests; not a full regression or documentation build |
@@ -71,6 +72,8 @@ Agent evaluations share that tarball installation. Deterministic host checks gat
 
 URLs come only from `.gitmodules`; commits come only from Git gitlinks. `pnpm refs:sync` retrieves those versions. Ordinary builds and complete tests do not require `referer/`. The tracked FairyGUI-Experiments project and generated minimal test objects remain controlled fixtures in their current locations.
 
+`refs:grep` reuses that registration and verification, searching only tracked text in the three submodules. It skips binaries, untracked/ignored files and unverified `referer/` copies. Missing, dirty, mismatched or incomplete fixtures and Git search failures prevent partial success; resolve the reported problem without automatic synchronization or overwrites. A path/line match locates evidence; it does not make that source authoritative for legacy exporters. For a particular source or richer queries, first verify its status and role with `refs:status`, then use native Git/rg in that directory.
+
 Null `source`/`revision` values for local references mean unknown provenance, not pinned versions. Status distinguishes missing from unverified; restoring a folder does not make it authoritative. Restricted evidence tasks can explicitly run:
 
 ```bash
@@ -113,3 +116,5 @@ Installed packages use `ofgui docs` and `ofgui doctor --json` without a checkout
 | Semantic round-trip | Preservation of supported meaning, not byte-for-byte XML or binary equality |
 
 Root and package AGENTS own package rules and public-contract pointers. The [architecture overview](../architecture-overview.md) explains actual data flows. Do not edit `packages/*/dist/`, `docs/public/api/` or `docs/.vitepress/dist/` directly. New key documentation must update both root READMEs and documentation indexes; releases update both Changelogs. Structural checks do not replace semantic review.
+
+See [Development Task Recipes](./task-recipes.md) for concrete entrypoints, evidence requirements and acceptance checks. It navigates existing implementation, not a second protocol or operation grammar.

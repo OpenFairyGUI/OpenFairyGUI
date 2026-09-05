@@ -5,11 +5,13 @@
 - 推荐开发 Node 版本见 `.node-version`；包的最低支持范围仍以 `package.json` 的 `engines` 为准，pnpm 版本以 `packageManager` 为准。
 - 准备 Git、Node 与指定 pnpm 后，在仓库根目录运行 `pnpm repo:setup`，再运行 `pnpm check:ci`。不需要个人机器路径或 `referer/`。
 - 先读[开发指南](docs/guide/development.md)的环境、术语和参考资料规则；用户 API 入口见[包与工具](docs/guide/packages.md)。
+- XML 字段、UAM operation、Backend 方法、MCP 工具与发布排查的修改路径见[开发任务指引](docs/guide/task-recipes.md)，只展开当前任务需要的模块。
 - 快速反馈用 `pnpm check:fast`；PR 差异可用 `pnpm test:changed --base origin/next --list` 显示范围（base 换成实际目标分支）。快速检查不是完整回归。
 - `pnpm pack:check` 在仓库外安装当前五包 tarball，验证公开入口、类型、CLI/MCP、Node 示例与真实 Chromium OPFS 存储/安全失败；已包含在 `check:ci`。首次下载匹配浏览器；Linux CI 显式加 `--browser-deps` 安装系统依赖。发布前用 `--artifacts .release` 验证将要发布的同一组文件。
 - `pnpm eval:agent --runner reference` 自测十个真实消费者任务（含编辑、安全停止及独立发布/恢复宿主）；模型评测显式用 `--runner codex --codex <可执行文件>` 手动运行。模型分数不进入 PR 门禁，失败现场保留在仓库外，见[评测指南](docs/guide/agent-evaluations.md)。
 - 契约类型由 Core/Backend 拥有；修改后运行 `pnpm contracts:generate`，`pnpm contracts:check` 拒绝映射遗漏与生成物漂移。MCP 参数与操作查询见[契约指南](docs/guide/contracts.md)。不手改生成快照或文档标记区。
 - `pnpm repo:doctor --json` 只诊断，不安装、不改配置、不写测试文件。`pnpm refs:status` 查看语料状态，`pnpm refs:verify` 验证必需 fixture。
+- `pnpm refs:grep "literal text"` 只读搜索通过版本/状态检查的 fixture 跟踪文本；0 命中、1 无匹配、2 前置条件或搜索失败，不把缺少资料当作无匹配。
 - 不直接编辑 dist、API 页面或站点输出；它们分别由 build、docs:api、docs:build 生成。修改生成器或源文件。
 
 ## 任务路由

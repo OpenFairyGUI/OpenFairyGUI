@@ -7,6 +7,7 @@ import test from 'node:test';
 import { changedFiles, impactTable, runSelectedTests, selectTests } from './test-changed.mjs';
 import { checkCommands, checkGuidance, changelogStructure, markdownCode, markdownLinks, resolveLink } from './check-guidance.mjs';
 import { doctor, inspectBuilds, inspectEnvironment, inspectReferences } from './repo-doctor.mjs';
+import { grepReferences } from './refs-grep.mjs';
 import { git, matches, pnpmInvocation, readJson, ROOT, testFiles } from './repo-utils.mjs';
 import { artifactName, consumerEnvironment, PACKAGES } from './pack-smoke.mjs';
 import { contained, exportFiles, snapshot } from './consumer/runtime.mjs';
@@ -210,6 +211,34 @@ test('missing, dirty, mismatched and incomplete required fixtures cannot pass', 
 	git(root, ['update-index', '--cacheinfo', `160000,${incomplete},${fixturePath}`]);
 	assert.equal(inspectReferences(root).submodules[0].status, 'incomplete');
 	assert.equal(inspectReferences(root).ok, false);
+});
+
+test('reference search is literal, tracked-only, read-only and refuses unverified fixture state', (t) => {
+	const { root, child, fixturePath } = referenceFixture(t);
+	write(child, 'notes 中文.txt', '--needle.* 中文\n--needle OTHER 中文\n');
+	write(child, '.gitignore', 'cache.txt\n');
+	const sha = commit(child);
+	git(root, ['update-index', '--cacheinfo', `160000,${sha},${fixturePath}`]);
+	write(child, 'cache.txt', '--needle.* 中文');
+	write(root, 'referer/unknown.txt', '--needle.* 中文');
+	git(child, ['config', 'grep.column', 'true']);
+	git(child, ['config', 'grep.heading', 'true']);
+	git(child, ['config', 'grep.break', 'true']);
+	const before = snapshot(root);
+	assert.deepEqual(grepReferences(root, '--needle.* 中文'), [`${fixturePath}/notes 中文.txt:1:--needle.* 中文`]);
+	assert.deepEqual(grepReferences(root, 'no such text'), []);
+	assert.deepEqual(snapshot(root), before);
+	for (const pattern of ['', 'two\nlines', 'null\0byte']) assert.throws(() => grepReferences(root, pattern), /single-line/);
+	write(child, 'notes 中文.txt', 'changed');
+	assert.throws(() => grepReferences(root, 'changed'), /not ready/);
+	commit(child);
+	assert.throws(() => grepReferences(root, 'changed'), /not ready/);
+	write(child, 'large.txt', `--needle ${'x'.repeat(64 * 1024)}`);
+	const largeSha = commit(child);
+	git(root, ['update-index', '--cacheinfo', `160000,${largeSha},${fixturePath}`]);
+	assert.throws(() => grepReferences(root, '--needle'), /exceed 64 KiB/);
+	assert.throws(() => grepReferences(referenceFixture(t, false).root, 'fixture'), /not ready/);
+	assert.throws(() => execFileSync(process.execPath, ['scripts/refs-grep.mjs'], { cwd: ROOT, stdio: 'pipe' }), (error) => error.status === 2 && /Usage/.test(error.stderr));
 });
 
 test('doctor separates recommendation from support and detects missing export output', (t) => {

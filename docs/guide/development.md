@@ -25,6 +25,7 @@ pnpm check:ci
 | `pnpm refs:status` | 查看必需 fixture 与可选资料；普通状态查询不因资料缺失返回失败 |
 | `pnpm refs:sync` | 原生 Git submodule 初始化/更新到 gitlink，不追踪远端最新版本，不强制覆盖修改 |
 | `pnpm refs:verify` | 必需 fixture 的提交、工作区状态和探针文件检查；不通过时非零退出 |
+| `pnpm refs:grep "literal text"` | 验证必需 fixture 后用 Git 搜索其跟踪文本；区分大小写的字面量，输出仓库相对路径与行号；0 命中、1 无匹配、2 错误 |
 | `pnpm test:repo` | 无需产品构建或外部语料的 Node 内置测试，覆盖仓库脚本 |
 | `pnpm test:changed --base origin/next --list` | 只输出选择计划；base 应换成实际 PR 目标，不执行测试 |
 | `pnpm check:fast` | lint、typecheck、仓库自测、指引检查；选中 AVA 测试时先构建工作区再运行测试；不构建文档站，不等于全量 |
@@ -71,6 +72,8 @@ Agent 评测共用 tarball 安装流程，确定性自测进入消费者门禁�
 
 普通构建和完整测试不要求 `referer/`。Git 跟踪的 FairyGUI-Experiments 以及代码生成的最小测试对象仍作为受控 fixture 使用，不移动现有目录。
 
+`refs:grep` 复用上述登记与版本检查，只搜索三个子模块各自 Git 跟踪的文本，跳过二进制、未跟踪/忽略文件和来源未知的 `referer/`。缺失、dirty、mismatch、探针不完整或 Git 搜索失败时不返回部分成功；先处理报告的问题，不自动同步或覆盖修改。返回的路径/行号只是定位结果，不代表该来源能证明旧版 exporter 行为。需要特定来源或更复杂条件时，先用 `refs:status` 核对来源与职责，再在对应目录使用原生 Git/rg。
+
 本地资料登记的 `source`/`revision` 为 null 时表示来源未知，不是锁定版本。`refs:status` 会区分 missing 与 unverified；即使把目录放回来，也不会自动视为可信。受限任务可显式运行：
 
 ```bash
@@ -113,3 +116,5 @@ pnpm refs:verify --require legacy-editor
 | Semantic round-trip | 往返后保持受支持语义，不要求 XML 文本或整个二进制逐字节相同 |
 
 包职责、公开契约入口和不可改变的不变量由根及包级 AGENTS 维护；[架构总览](../architecture-overview.md)解释实际数据流。不要手改 `packages/*/dist/`、`docs/public/api/`、`docs/.vitepress/dist/`。新增关键文档同步中英文 README 与文档索引；发布时同步双语 Changelog。结构检查不替代语义审查。
+
+具体修改起点、证据要求与验收清单见[开发任务指引](./task-recipes.md)。该页只导航现有实现，不维护第二份协议或 operation grammar。

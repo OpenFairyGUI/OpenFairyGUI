@@ -101,6 +101,7 @@ ofgui publish ./MyProject --output ./release
 ## 文档
 
 - [仓库开发与验证](./docs/guide/development.md)
+- [开发任务指引](./docs/guide/task-recipes.md)
 - [可运行示例：读取、编辑、浏览器存储、发布与受限恢复](./docs/guide/examples.md)
 - [契约事实源与操作查询](./docs/guide/contracts.md)
 - [诊断与恢复](./docs/guide/diagnostics.md)

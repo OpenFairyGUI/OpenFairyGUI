@@ -21,6 +21,7 @@
 		"refs:status": "node scripts/repo-doctor.mjs refs",
 		"refs:verify": "node scripts/repo-doctor.mjs refs --strict",
 		"refs:sync": "git submodule update --init --recursive",
+		"refs:grep": "node scripts/refs-grep.mjs",
 		"check:fast": "pnpm lint:ci && pnpm typecheck && pnpm test:changed",
 		"check": "pnpm refs:verify && pnpm lint:ci && pnpm typecheck && pnpm build && pnpm test:repo && pnpm test",
 		"check:ci": "pnpm check && pnpm docs:check && pnpm docs:build && pnpm pack:check",
