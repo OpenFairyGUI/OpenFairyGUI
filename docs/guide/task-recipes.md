@@ -21,7 +21,7 @@ pnpm check:ci
 ## 增加 UAM operation
 
 1. 从 `packages/core/src/uam/transaction-contracts.ts` 定义正式输入与 selector，检查 `model.ts` 的支持范围；复用同类操作，不增加 MCP 专属事务语法。
-2. 从稳定门面 `transaction.ts` 追踪到 `transaction-preflight.ts` 和现有 UAM-native / Document 执行路径（`transaction-uam-apply.ts`、`transaction-document-apply.ts`），只修改实际涉及的路径。必须保留失败不修改输入、sourceBytes、批次顺序与引用约束；支持检查不能冒充完整执行预演。
+2. 从稳定门面 `transaction.ts` 追踪到 `transaction-preflight.ts` 和现有 UAM-native / Document 执行路径（`transaction-uam-apply.ts`、`transaction-document-apply.ts`），只修改实际涉及的路径。预校验按职责定位 `packages/core/src/uam/preflight/` 的 settings、display、behaviors、resources、resource-folders；同批结构投影归 lifecycle，最终引用检查归 projected-state。必须保留失败不修改输入、sourceBytes、批次顺序、诊断顺序与引用约束；支持检查不能冒充完整执行预演。
 3. 参考 `packages/core/test/uam-transaction-support.test.ts`、`uam-transaction-apply.test.ts`、`uam-transaction-lifecycle.test.ts` 验证成功、非法 selector、同批依赖与原子失败。新增诊断同时维护 Core 类型及 `packages/backend/src/diagnostics.ts` 的归属/恢复指引。生成[契约](./contracts.md)，再检查 Backend 预演、保存重读和 MCP wire bytes。
 
 ## 增加 Backend 方法

@@ -21,7 +21,7 @@ Replace the base with the actual target branch. The plan includes downstream tes
 ## Add a UAM operation
 
 1. Define formal input and selectors in `packages/core/src/uam/transaction-contracts.ts`; inspect the support scope in `model.ts`. Reuse similar operations without MCP-specific grammar.
-2. Trace the stable `transaction.ts` facade into `transaction-preflight.ts` and the existing UAM-native / Document paths (`transaction-uam-apply.ts`, `transaction-document-apply.ts`), changing only applicable paths. Preserve input immutability on failure, sourceBytes, batch ordering and reference constraints. Support checking is not full execution preview.
+2. Trace the stable `transaction.ts` facade into `transaction-preflight.ts` and the existing UAM-native / Document paths (`transaction-uam-apply.ts`, `transaction-document-apply.ts`), changing only applicable paths. Under `packages/core/src/uam/preflight/`, locate settings, display, behaviors, resources or resource-folders by invariant; lifecycle owns ordered structural projection and projected-state owns final reference checks. Preserve input immutability on failure, sourceBytes, batch ordering, diagnostic ordering and reference constraints. Support checking is not full execution preview.
 3. Start from `packages/core/test/uam-transaction-support.test.ts`, `uam-transaction-apply.test.ts` and `uam-transaction-lifecycle.test.ts` for success, invalid selectors, same-batch dependencies and atomic failure. New diagnostics require Core types and ownership/recovery guidance in `packages/backend/src/diagnostics.ts`. Generate [contracts](./contracts.md), then check Backend preview, save/reread and MCP wire bytes.
 
 ## Add a Backend method
