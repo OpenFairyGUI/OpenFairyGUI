@@ -26,7 +26,7 @@ Backend 的带类型诊断目录覆盖正式错误码，记录共享码的全部
 ## 当前最关键的数据流
 
 ```mermaid
-flowchart LR
+flowchart TD
     SOURCE["工程文件"] --> READER["ProjectReader"] --> DOC["Document / Property Graph"]
     BINARY["二进制包"] --> BR["BinaryReader"] --> DOC
     DOC -->|lift| UAM["UamProject"]

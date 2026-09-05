@@ -58,6 +58,8 @@ PR quality jobs run `check` on all three Node majors. Documentation runs guidanc
 
 Consumer checks install dependencies over the network, remove their temporary directory on success and preserve failures; `--keep` preserves successful runs too. Release uses `pnpm pack:check --artifacts .release` to check the same packed files. See [Runnable Examples and Consumer Verification](./examples.md) for entrypoints, examples and limits.
 
+Use the repository's `.github/pull_request_template.md` to identify affected packages, UAM/Backend/MCP/CLI contracts, version handling, documentation and bilingual changelogs, together with the actual tested base, commands and failed/unrun checks. The template records review evidence; checkboxes neither replace CI nor authorize publication or prove verification.
+
 Agent evaluations share that tarball installation. Deterministic host checks gate consumer verification; model success rates are manual observations only. See [Real Agent Task Evaluations](./agent-evaluations.md) for tasks, isolation, Windows executable requirements and reproduction.
 
 ## Reference evidence

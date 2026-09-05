@@ -26,7 +26,7 @@ Backend's typed diagnostic catalog covers formal error codes, recording every ow
 ## Primary data flow
 
 ```mermaid
-flowchart LR
+flowchart TD
     SOURCE["Project files"] --> READER["ProjectReader"] --> DOC["Document / Property Graph"]
     BINARY["Binary package"] --> BR["BinaryReader"] --> DOC
     DOC -->|lift| UAM["UamProject"]

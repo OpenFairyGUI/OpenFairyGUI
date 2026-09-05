@@ -58,6 +58,8 @@ PR CI 的 quality job 在三个 Node 主版本执行 `check`；documentation job
 
 消费者检查会联网安装依赖，成功清理自身临时目录，失败保留现场；`--keep` 可保留成功现场。发布前用 `pnpm pack:check --artifacts .release` 检查同一组已打包文件。入口、示例及验证限制见[可运行示例与消费者验证](./examples.md)。
 
+提交 PR 时使用仓库的 `.github/pull_request_template.md`，逐项说明影响包、UAM/Backend/MCP/CLI 契约、版本处理、文档与双语发布日志，以及真实执行的验证基准、命令、失败/未运行项。模板是审查记录，不替代 CI，也不把勾选框当作发布授权或验证通过。
+
 Agent 评测共用 tarball 安装流程，确定性自测进入消费者门禁，模型成功率只作手动观察。任务、隔离、Windows 可执行文件要求和复现方法见[真实 Agent 任务评测](./agent-evaluations.md)。
 
 ## 参考资料与取证
