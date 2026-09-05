@@ -27,6 +27,7 @@ import type {
 	SaveSessionInput,
 	SessionNotFoundError,
 	SessionStaleWriteError,
+	TransactionPreviewError,
 	UamFidelityUnsupportedError,
 } from '../runtime.js';
 import type { CacheService } from './cache-service.js';
@@ -34,6 +35,7 @@ import { type BackendContext, failure, success } from './context.js';
 import type { EventService } from './event-service.js';
 import { writeSessionProject } from './session-project-writer.js';
 import { createSessionNotFoundError, createStaleWriteError, toSessionSnapshot } from './session-utils.js';
+import { PreviewBudgetError, previewTransactionImpact } from './transaction-preview.js';
 
 function sourceFileKey(source: ProjectSourceFile): string {
 	return [source.branch, source.packageName, source.path, source.fileName].join('\0');
@@ -199,7 +201,7 @@ export class AuthoringService {
 
 	public async preflightTransaction(
 		input: ApplySessionTransactionInput,
-	): Promise<BackendResult<BackendTransactionPreview, SessionNotFoundError | SessionStaleWriteError | ApplyUamTransactionAppError>> {
+	): Promise<BackendResult<BackendTransactionPreview, SessionNotFoundError | SessionStaleWriteError | ApplyUamTransactionAppError | TransactionPreviewError>> {
 		const queuedInput = structuredClone(input);
 		detachSharedByteViews(queuedInput);
 		return this.runSessionExclusive(queuedInput.sessionId, async () => {
@@ -222,9 +224,19 @@ export class AuthoringService {
 				return failure('authoring', startedAt, result.error, toSessionSnapshot(session, this.context.capabilities),
 					{ ...meta, diagnostics: toBackendDiagnostics(result.error) });
 			}
-			return success('authoring', startedAt, {
-				sessionId: session.sessionId, baseRevision: meta.revision, mode: 'execute-and-discard' as const,
-			}, meta);
+			try {
+				const preview = await previewTransactionImpact({ ...session, project }, result.project, Boolean(session.fileSystem ?? this.context.fileSystem));
+				if (this.context.sessions.get(queuedInput.sessionId) !== session || session.closed) {
+					return failure('authoring', startedAt, createSessionNotFoundError(queuedInput.sessionId));
+				}
+				return success('authoring', startedAt, preview, meta);
+			} catch (error) {
+				return failure('authoring', startedAt, {
+					code: 'transaction_preview_failed' as const, sessionId: session.sessionId,
+					reason: error instanceof PreviewBudgetError ? 'response_budget_exceeded' as const : 'projection_failed' as const,
+					message: error instanceof Error ? error.message : String(error),
+				}, toSessionSnapshot(session, this.context.capabilities), meta);
+			}
 		});
 	}
 

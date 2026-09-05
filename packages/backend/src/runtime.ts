@@ -54,6 +54,7 @@ import type {
 	SessionIdConflictError,
 	SessionNotFoundError,
 	SessionStaleWriteError,
+	TransactionPreviewError,
 	UamFidelityUnsupportedError,
 } from './runtime/contracts.js';
 
@@ -158,7 +159,7 @@ export class BackendRuntime {
 
 	public async preflightTransaction(
 		input: ApplySessionTransactionInput,
-	): Promise<BackendResult<BackendTransactionPreview, SessionNotFoundError | SessionStaleWriteError | ApplyUamTransactionAppError>> {
+	): Promise<BackendResult<BackendTransactionPreview, SessionNotFoundError | SessionStaleWriteError | ApplyUamTransactionAppError | TransactionPreviewError>> {
 		return this.authoringService.preflightTransaction(input);
 	}
 

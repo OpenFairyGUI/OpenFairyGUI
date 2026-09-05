@@ -56,15 +56,21 @@ Compact JSON `data` is limited to 262144 UTF-8 bytes, traversal depth 32 and 100
 
 `preflightTransaction` / `openfairygui_backend_preflight_transaction` accepts the same `{ sessionId, expectedRevision, operations }` as `applyTransaction`. This is not merely a support check: Backend's `AuthoringService` checks the revision in its existing per-session exclusive queue, deeply copies the project and source bytes, calls the authoritative `applyUamTransactionAppAsync`, then discards the resulting project.
 
-Success returns `ok: true` with `data: { sessionId, baseRevision, mode: 'execute-and-discard' }`. Failures preserve transaction `error.code`, `stage`, operation locations and `meta.diagnostics`. `meta.revision` identifies the evaluated baseline; missing/closed sessions return `session_not_found`, and revision mismatches return `stale_write`. Inputs are copied before queuing, including detachment of SharedArrayBuffer-backed bytes.
+Success returns `ok: true` with `data` containing `sessionId`, `baseRevision`, `projectedRevision` (after applying, not reserved), `mode: 'execute-and-discard'`, `impact` and `persistence`. Failures preserve transaction `error.code`, `stage`, operation locations and `meta.diagnostics`. `meta.revision` identifies the evaluated baseline; missing/closed sessions return `session_not_found`, and revision mismatches return `stale_write`. Inputs are copied before queuing, including detachment of SharedArrayBuffer-backed bytes.
 
-Neither success nor failure changes the authoritative project, revision, dirty state, pending file cleanup, caches, jobs or business events, or writes to disk. No uncomputed entity diff or file-impact list is returned.
+Neither success nor failure changes the authoritative project, revision, dirty state, pending file cleanup, caches, jobs or business events, or writes to disk.
+
+`impact.entities` compares current and projected formal UAM: each entry has an exact `target`, `change` (added/removed/updated) and changed top-level `fields`, without property values or source bytes. Packages and the project have their own targets. Parent collections compare ordered IDs/names; nodes, controllers and transitions compare their own properties separately. Reference normalization/rewrites performed by execution appear too, not just input selectors.
+
+`impact.files` serializes both UAM snapshots through the real ProjectWriter in memory, then compares file contents and empty directories, returning project-relative `path`, `kind` and `change`. This is a current-revision-to-projection model diff, not cumulative dirty changes since the last save, a disk inventory, actual write list or deletion authorization. Real save rewrites the full project and cleans controlled files under its path policy.
+
+`persistence.requiredAfterApply` is true (even an empty SDK batch advances revision and marks dirty). Storage-bound sessions suggest `saveSession`; memory sessions with only a runtime adapter need explicit host-supplied `materializeSession.storage`; unavailable adapters or unsupported UAM fidelity require `host-action`. `writeVerified` is always false. In-memory serialization failures return `transaction_preview_failed.reason: projection_failed`; more than 2000 impact entries or 262144 UTF-8 bytes of compact `data` JSON returns `response_budget_exceeded`. No truncated success is returned.
 
 Recommended flow: discover IDs with the outline → queryEntity for current properties and revision → preflightTransaction → applyTransaction with the same batch → validateSession → saveSession. See the executable [revision-checked edit, save and reread example](./examples.md#revision-checked-edit-save-and-reread).
 
 A preview reserves no revision and does not guarantee later apply/save or publication. Apply must check `expectedRevision` again; if edits intervened, query and re-plan instead of treating an old preview as an authorization token. Preview reuses the current transaction execution path without adding project saves, file permission/target checks or publishing checks. In-memory sessions without a filesystem can preview too.
 
-`authoring.preflightTransaction` advertises `mode: 'execute-and-discard'` and `reservesRevision: false`. Capability schema version 8 advertises five entity-query kinds and complete formal [diagnostic recovery guides](./diagnostics.md); the transaction contract version remains unchanged.
+`authoring.preflightTransaction` advertises `mode: 'execute-and-discard'` `reservesRevision: false`, `impact: 'model-diff'` and summary `limits`. Capability schema version 9 advertises five entity-query kinds and complete formal [diagnostic recovery guides](./diagnostics.md); the transaction contract version remains unchanged.
 
 ## Transport and semantic boundaries
 
@@ -81,7 +87,7 @@ A preview reserves no revision and does not guarantee later apply/save or public
 The tables summarize top-level parameters only; read schemas for nested fields and concrete results. SHA-256 identifies generated contract content, not a package version.
 
 <!-- contracts:start -->
-SHA-256: `304f24a1b1bbc754016e6f1650a2ac44df408143b9aaf30539fb19ba3539b7f3`
+SHA-256: `a2cd2ae71eeb9918a61f4a0fbf32b76f75dfc6434561cbaf766f45abbf170848`
 
 | Operation | Parameters (`?` = optional) |
 |---|---|

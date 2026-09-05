@@ -33,6 +33,10 @@ const job = { kind: 'host-action', message: "Inspect the job ID and status with 
 
 /** Exhaustiveness and exact ownership are checked against the canonical unions. */
 export const BACKEND_DIAGNOSTIC_GUIDES = [
+	{ code: 'transaction_preview_failed', owners: ['backend'], remediation: {
+		kind: 'host-action',
+		message: 'No complete preview is available. Inspect error.reason with the host: response_budget_exceeded requires a smaller independently meaningful authorized batch; projection_failed requires inspecting the project serialization failure. Preserve the session and never treat a missing or truncated impact as approval to apply or save.',
+	} },
 	{ code: 'stale_write', owners: ['backend'], remediation: {
 		kind: 'refresh-and-replan',
 		message: 'Refresh the outline and affected entities, then replan from their current revision and preflight again. A preview reserves no revision. Never replace expectedRevision and blindly retry the original transaction or save.',

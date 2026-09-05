@@ -4,7 +4,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 	"schemaVersion": 1,
 	"versions": {
 		"BACKEND_CONTRACT_VERSION": "1.1.0-p2",
-		"BACKEND_CAPABILITY_SCHEMA_VERSION": 8
+		"BACKEND_CAPABILITY_SCHEMA_VERSION": 9
 	},
 	"operations": {
 		"updateProjectSettings": {
@@ -500,7 +500,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"backendResult": {
 						"anyOf": [
 							{
-								"$ref": "#/$defs/BackendResult_515933faa6"
+								"$ref": "#/$defs/BackendResult_44c1d577cb"
 							},
 							{
 								"$ref": "#/$defs/McpUnhandledFailure_fcecd3763a"
@@ -10388,7 +10388,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
-					"const": 8
+					"const": 9
 				}
 			},
 			"required": [
@@ -10520,6 +10520,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"execution_failure",
 						"path_policy_violation",
 						"session_not_found",
+						"transaction_preview_failed",
 						"entity_query_failed",
 						"session_id_conflict",
 						"stale_write",
@@ -10693,7 +10694,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
-					"const": 8
+					"const": 9
 				},
 				"transactionKernelOwner": {
 					"type": "string",
@@ -10714,7 +10715,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/__type_53a9654aac"
 				},
 				"authoring": {
-					"$ref": "#/$defs/__type_1d56ba12a7"
+					"$ref": "#/$defs/__type_cea960ae37"
 				},
 				"artifact": {
 					"$ref": "#/$defs/__type_c24c67cf7f"
@@ -10918,11 +10919,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"__type_1d56ba12a7": {
+		"__type_cea960ae37": {
 			"type": "object",
 			"properties": {
 				"preflightTransaction": {
-					"$ref": "#/$defs/__type_8ac3ea45e5"
+					"$ref": "#/$defs/__type_0ef32327a8"
 				},
 				"applyTransaction": {
 					"type": "boolean",
@@ -10960,7 +10961,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"__type_8ac3ea45e5": {
+		"__type_0ef32327a8": {
 			"type": "object",
 			"properties": {
 				"mode": {
@@ -10970,11 +10971,38 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"reservesRevision": {
 					"type": "boolean",
 					"const": false
+				},
+				"impact": {
+					"type": "string",
+					"const": "model-diff"
+				},
+				"limits": {
+					"$ref": "#/$defs/__object_1df76a57f1"
 				}
 			},
 			"required": [
 				"mode",
-				"reservesRevision"
+				"reservesRevision",
+				"impact",
+				"limits"
+			],
+			"additionalProperties": false
+		},
+		"__object_1df76a57f1": {
+			"type": "object",
+			"properties": {
+				"maxBytes": {
+					"type": "number",
+					"const": 262144
+				},
+				"maxEntries": {
+					"type": "number",
+					"const": 2000
+				}
+			},
+			"required": [
+				"maxBytes",
+				"maxEntries"
 			],
 			"additionalProperties": false
 		},
@@ -13158,13 +13186,13 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				}
 			]
 		},
-		"BackendResult_515933faa6": {
+		"BackendResult_44c1d577cb": {
 			"anyOf": [
 				{
 					"$ref": "#/$defs/BackendSuccess_e2ed9133ae"
 				},
 				{
-					"$ref": "#/$defs/BackendFailure_e3b44ea65d"
+					"$ref": "#/$defs/BackendFailure_3615b62782"
 				}
 			]
 		},
@@ -13198,19 +13226,214 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"baseRevision": {
 					"type": "number"
 				},
+				"projectedRevision": {
+					"type": "number"
+				},
 				"mode": {
 					"type": "string",
 					"const": "execute-and-discard"
+				},
+				"impact": {
+					"$ref": "#/$defs/__type_0ab93660f8"
+				},
+				"persistence": {
+					"$ref": "#/$defs/__type_3f8b6750ff"
 				}
 			},
 			"required": [
 				"sessionId",
 				"baseRevision",
-				"mode"
+				"projectedRevision",
+				"mode",
+				"impact",
+				"persistence"
 			],
 			"additionalProperties": false
 		},
-		"BackendFailure_e3b44ea65d": {
+		"__type_0ab93660f8": {
+			"type": "object",
+			"properties": {
+				"entities": {
+					"$ref": "#/$defs/Array_b2cf240a4f"
+				},
+				"files": {
+					"$ref": "#/$defs/Array_ea2a0cc77f"
+				}
+			},
+			"required": [
+				"entities",
+				"files"
+			],
+			"additionalProperties": false
+		},
+		"Array_b2cf240a4f": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/BackendTransactionEntityChange_c2ec417961"
+			}
+		},
+		"BackendTransactionEntityChange_c2ec417961": {
+			"type": "object",
+			"properties": {
+				"target": {
+					"$ref": "#/$defs/Shape_5a1a3c687a"
+				},
+				"change": {
+					"enum": [
+						"removed",
+						"added",
+						"updated"
+					]
+				},
+				"fields": {
+					"$ref": "#/$defs/Array_5444db1618"
+				}
+			},
+			"required": [
+				"target",
+				"change",
+				"fields"
+			],
+			"additionalProperties": false
+		},
+		"Shape_5a1a3c687a": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_d457e5aa01"
+				},
+				{
+					"$ref": "#/$defs/__type_1b4cb0c5b9"
+				},
+				{
+					"$ref": "#/$defs/__type_b1c1f2274b"
+				},
+				{
+					"$ref": "#/$defs/__type_5f36820e75"
+				},
+				{
+					"$ref": "#/$defs/__type_2e01571d4b"
+				},
+				{
+					"$ref": "#/$defs/__type_d93b879b98"
+				},
+				{
+					"$ref": "#/$defs/__type_224f7bb4a4"
+				}
+			]
+		},
+		"__type_d93b879b98": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "project"
+				}
+			},
+			"required": [
+				"kind"
+			],
+			"additionalProperties": false
+		},
+		"__type_224f7bb4a4": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "package"
+				},
+				"selector": {
+					"$ref": "#/$defs/__type_0fdffbdb6c"
+				}
+			},
+			"required": [
+				"kind",
+				"selector"
+			],
+			"additionalProperties": false
+		},
+		"__type_0fdffbdb6c": {
+			"type": "object",
+			"properties": {
+				"packageId": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"packageId"
+			],
+			"additionalProperties": false
+		},
+		"Array_ea2a0cc77f": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__type_fad89f2f80"
+			}
+		},
+		"__type_fad89f2f80": {
+			"type": "object",
+			"properties": {
+				"path": {
+					"type": "string"
+				},
+				"kind": {
+					"enum": [
+						"file",
+						"directory"
+					]
+				},
+				"change": {
+					"enum": [
+						"removed",
+						"added",
+						"updated"
+					]
+				}
+			},
+			"required": [
+				"path",
+				"kind",
+				"change"
+			],
+			"additionalProperties": false
+		},
+		"__type_3f8b6750ff": {
+			"type": "object",
+			"properties": {
+				"requiredAfterApply": {
+					"type": "boolean",
+					"const": true
+				},
+				"nextAction": {
+					"enum": [
+						"host-action",
+						"saveSession",
+						"materializeSession"
+					]
+				},
+				"fileSystemAvailable": {
+					"type": "boolean"
+				},
+				"uamFidelity": {
+					"enum": [
+						"full",
+						"unsupported"
+					]
+				},
+				"writeVerified": {
+					"type": "boolean",
+					"const": false
+				}
+			},
+			"required": [
+				"requiredAfterApply",
+				"nextAction",
+				"fileSystemAvailable",
+				"uamFidelity",
+				"writeVerified"
+			],
+			"additionalProperties": false
+		},
+		"BackendFailure_3615b62782": {
 			"type": "object",
 			"properties": {
 				"ok": {
@@ -13221,7 +13444,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/BackendResponseMeta_bbbdb18c02"
 				},
 				"error": {
-					"$ref": "#/$defs/Shape_840acf0b32"
+					"$ref": "#/$defs/Shape_b02fe318db"
 				},
 				"session": {
 					"$ref": "#/$defs/BackendSessionSnapshot_e59c685fc8"
@@ -13234,13 +13457,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"Shape_840acf0b32": {
+		"Shape_b02fe318db": {
 			"anyOf": [
 				{
 					"$ref": "#/$defs/ApplyUamTransactionAppError_af2a5ddf50"
 				},
 				{
 					"$ref": "#/$defs/SessionNotFoundError_878fae4543"
+				},
+				{
+					"$ref": "#/$defs/TransactionPreviewError_5424ca8f17"
 				},
 				{
 					"$ref": "#/$defs/SessionStaleWriteError_4120bade9d"
@@ -13810,6 +14036,34 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
+		"TransactionPreviewError_5424ca8f17": {
+			"type": "object",
+			"properties": {
+				"code": {
+					"type": "string",
+					"const": "transaction_preview_failed"
+				},
+				"message": {
+					"type": "string"
+				},
+				"sessionId": {
+					"type": "string"
+				},
+				"reason": {
+					"enum": [
+						"response_budget_exceeded",
+						"projection_failed"
+					]
+				}
+			},
+			"required": [
+				"code",
+				"message",
+				"sessionId",
+				"reason"
+			],
+			"additionalProperties": false
+		},
 		"SessionStaleWriteError_4120bade9d": {
 			"type": "object",
 			"properties": {
@@ -13846,10 +14100,47 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		"BackendResult_13b88469d0": {
 			"anyOf": [
 				{
-					"$ref": "#/$defs/BackendFailure_e3b44ea65d"
+					"$ref": "#/$defs/BackendSuccess_ecbb234b1b"
 				},
 				{
-					"$ref": "#/$defs/BackendSuccess_ecbb234b1b"
+					"$ref": "#/$defs/BackendFailure_e3b44ea65d"
+				}
+			]
+		},
+		"BackendFailure_e3b44ea65d": {
+			"type": "object",
+			"properties": {
+				"ok": {
+					"type": "boolean",
+					"const": false
+				},
+				"meta": {
+					"$ref": "#/$defs/BackendResponseMeta_bbbdb18c02"
+				},
+				"error": {
+					"$ref": "#/$defs/Shape_840acf0b32"
+				},
+				"session": {
+					"$ref": "#/$defs/BackendSessionSnapshot_e59c685fc8"
+				}
+			},
+			"required": [
+				"ok",
+				"meta",
+				"error"
+			],
+			"additionalProperties": false
+		},
+		"Shape_840acf0b32": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/ApplyUamTransactionAppError_af2a5ddf50"
+				},
+				{
+					"$ref": "#/$defs/SessionNotFoundError_878fae4543"
+				},
+				{
+					"$ref": "#/$defs/SessionStaleWriteError_4120bade9d"
 				}
 			]
 		},
@@ -14634,6 +14925,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				{
 					"$ref": "#/$defs/SessionNotFoundError_878fae4543"
+				},
+				{
+					"$ref": "#/$defs/TransactionPreviewError_5424ca8f17"
 				},
 				{
 					"$ref": "#/$defs/EntityQueryError_5b50efde28"
@@ -16455,6 +16749,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 	},
 	"diagnostics": [
 		{
+			"code": "transaction_preview_failed",
+			"owners": [
+				"backend"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "No complete preview is available. Inspect error.reason with the host: response_budget_exceeded requires a smaller independently meaningful authorized batch; projection_failed requires inspecting the project serialization failure. Preserve the session and never treat a missing or truncated impact as approval to apply or save."
+			}
+		},
+		{
 			"code": "stale_write",
 			"owners": [
 				"backend"
@@ -17470,5 +17774,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "304f24a1b1bbc754016e6f1650a2ac44df408143b9aaf30539fb19ba3539b7f3"
+	"digest": "a2cd2ae71eeb9918a61f4a0fbf32b76f75dfc6434561cbaf766f45abbf170848"
 };

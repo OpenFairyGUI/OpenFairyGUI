@@ -10,7 +10,7 @@ import {
 import { createRuntimePathPolicy } from '../path-policy.js';
 import { createArtifactCapabilities } from '../services/artifact-service.js';
 import type { BackendArtifactBridgeCapability, BackendCapabilities, BackendMethodName } from './contracts.js';
-import { BACKEND_ENTITY_QUERY_LIMITS } from './contracts.js';
+import { BACKEND_ENTITY_QUERY_LIMITS, BACKEND_TRANSACTION_PREVIEW_LIMITS } from './contracts.js';
 
 export const BACKEND_METHODS = [
 	'getCapabilities',
@@ -57,7 +57,7 @@ export function createCapabilities(atomicSave = false): BackendCapabilities {
 			projectValidation: true,
 		},
 		authoring: {
-			preflightTransaction: { mode: 'execute-and-discard', reservesRevision: false },
+			preflightTransaction: { mode: 'execute-and-discard', reservesRevision: false, impact: 'model-diff', limits: BACKEND_TRANSACTION_PREVIEW_LIMITS },
 			applyTransaction: true,
 			saveSession: true,
 			resourceKinds: [...UAM_SUPPORTED_MATERIALIZATION_SCOPE.resourceKinds],

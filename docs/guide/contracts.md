@@ -56,15 +56,21 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 
 `preflightTransaction` / `openfairygui_backend_preflight_transaction` 接受与 `applyTransaction` 相同的 `{ sessionId, expectedRevision, operations }`。它不是仅查询支持范围：Backend 的 `AuthoringService` 在现有会话排他队列中检查 revision，深度复制工程和源字节，再调用正式的 `applyUamTransactionAppAsync`，执行后丢弃新工程。
 
-成功返回 `ok: true`，`data` 为 `{ sessionId, baseRevision, mode: 'execute-and-discard' }`；失败保留正式事务的 `error.code`、`stage`、operation 定位及 `meta.diagnostics`。当前基准见 `meta.revision`；失效或关闭会话返回 `session_not_found`，revision 不匹配返回 `stale_write`。输入参数在排队前复制，SharedArrayBuffer 支撑的字节也会脱离共享内存。
+成功返回 `ok: true`，`data` 包含 `sessionId`、`baseRevision`、`projectedRevision`（正式 apply 后的 revision，未预留）、`mode: 'execute-and-discard'`、`impact` 和 `persistence`；失败保留正式事务的 `error.code`、`stage`、operation 定位及 `meta.diagnostics`。当前基准见 `meta.revision`；失效或关闭会话返回 `session_not_found`，revision 不匹配返回 `stale_write`。输入参数在排队前复制，SharedArrayBuffer 支撑的字节也会脱离共享内存。
 
-成功和失败都不改变 authoritative 工程、revision、dirty、待清理文件记录、缓存、任务或业务事件，也不写入磁盘。不返回未经计算的实体差异或文件影响列表。
+成功和失败都不改变 authoritative 工程、revision、dirty、待清理文件记录、缓存、任务或业务事件，也不写入磁盘。
+
+`impact.entities` 比较当前与预演后的正式 UAM：每项包含精确 `target`、`change`（added/removed/updated）和变更的顶层 `fields`，不返回属性值或源字节。包与工程有各自 target；子集合在父实体上比较 ID/名称顺序，节点、控制器、动画分别比较自身属性。正式执行产生的引用补全/重写也会列出，不只照抄输入 selector。
+
+`impact.files` 使用正式 ProjectWriter 在内存中分别序列化两份 UAM，再比较文件内容及空目录，返回工程相对 `path`、`kind` 和 `change`。它只表示当前 revision 到预演结果的模型差异，不是自上次保存以来的累计 dirty 差异，也不是磁盘清单、实际写入列表或删除授权；实际 save 会重写完整工程并按路径策略清理受控文件。
+
+`persistence.requiredAfterApply` 为 true（空批次 apply 也会增加 revision 并标 dirty）。已有存储会话建议 `saveSession`；只有运行时适配器的内存会话需宿主显式指定 `materializeSession.storage`；缺少适配器或 UAM fidelity 不支持时为 `host-action`。`writeVerified` 始终 false。两份内存序列化失败返回 `transaction_preview_failed.reason: projection_failed`；完整摘要超过 2000 项或 `data` 紧凑 JSON 超过 262144 UTF-8 字节时返回 `response_budget_exceeded`，不截断、不伪造成功。
 
 推荐工作流：outline 发现 ID → queryEntity 读取当前属性与 revision → preflightTransaction 预演 → applyTransaction 提交相同批次 → validateSession 检查当前工程 → saveSession 保存。完整可运行代码见[带 revision 的修改、保存与回读](./examples.md#带-revision-的修改、保存与回读)。
 
 预演不预留 revision，不证明后续 apply/save 或发布一定成功。正式 apply 必须再次提交 `expectedRevision`；期间若有编辑，应重新查询并规划，不能把旧预演当作授权凭证。预演复用当前事务执行路径，不额外执行工程保存、文件权限/目标校验或发布检查；缺少文件系统的内存会话也可以预演。
 
-能力通过 `authoring.preflightTransaction` 声明为 `mode: 'execute-and-discard'`、`reservesRevision: false`。当前能力 schema 版本为 8，声明五类实体查询，并包含完整正式[诊断恢复指引](./diagnostics.md)；事务契约版本不变。
+能力通过 `authoring.preflightTransaction` 声明为 `mode: 'execute-and-discard'`、`reservesRevision: false`、`impact: 'model-diff'` 和摘要 `limits`。当前能力 schema 版本为 9，声明五类实体查询，并包含完整正式[诊断恢复指引](./diagnostics.md)；事务契约版本不变。
 
 ## 传输与语义边界
 
@@ -81,7 +87,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 下表只摘要顶层参数；嵌套字段和具体结果请读取对应 schema。SHA-256 变化表示生成契约发生变化，不等同于包版本号。
 
 <!-- contracts:start -->
-SHA-256: `304f24a1b1bbc754016e6f1650a2ac44df408143b9aaf30539fb19ba3539b7f3`
+SHA-256: `a2cd2ae71eeb9918a61f4a0fbf32b76f75dfc6434561cbaf766f45abbf170848`
 
 | 操作 | 参数（`?` 表示可选） |
 |---|---|

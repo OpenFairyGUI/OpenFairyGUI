@@ -18,7 +18,7 @@ test('backend responses carry unified diagnostics metadata', async (t) => {
 		t.deepEqual(opened.meta.warnings, []);
 		t.deepEqual(opened.meta.diagnostics, []);
 		t.is(opened.meta.contractVersion, '1.1.0-p2');
-		t.is(opened.meta.capabilitySchemaVersion, 8);
+		t.is(opened.meta.capabilitySchemaVersion, 9);
 
 		const stale = await runtime.applyTransaction({
 			sessionId: opened.data.sessionId,
@@ -149,10 +149,10 @@ test('path denial recovery never grants wider access; catalog is detached and fa
 		await runtime.closeSession({ sessionId: opened.data.sessionId });
 	} finally { await fixture.cleanup(); }
 	const catalog = getBackendDiagnosticCatalog();
-	t.is(new Set(catalog.map((guide) => guide.code)).size, 101);
+	t.is(new Set(catalog.map((guide) => guide.code)).size, 102);
 	for (const guide of catalog) t.deepEqual(getBackendDiagnosticGuide(guide.code), guide);
 	catalog.pop();
-	t.is(getBackendDiagnosticCatalog().length, 101);
+	t.is(getBackendDiagnosticCatalog().length, 102);
 	t.deepEqual(getBackendDiagnosticGuide('invalid_uam').owners, ['core.transaction', 'core.validation']);
 	t.is(createMeta('read', Date.now(), { diagnostics: [{ code: 'invalid_uam', severity: 'error', message: 'Invalid source', owner: 'core.validation' }] }).diagnostics[0]?.owner, 'core.validation');
 	t.throws(() => getBackendDiagnosticGuide('constructor'), { instanceOf: RangeError });

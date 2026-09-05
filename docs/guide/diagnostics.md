@@ -2,9 +2,9 @@
 
 Backend 自有错误由 Backend 定义；事务错误与 support issue 来自 Core，工程读取/验证诊断来自 Core 的 `ProjectDiagnosticCode`。Functions 编排和 MCP 透传不改变这些归属。`meta.diagnostics` 和事件诊断保留原有 `code`、`severity`、路径和操作定位；Core 错误与验证报告正文不被改写。
 
-`BackendDiagnostic.code` 由 Backend 错误、Core 事务错误/support issue、Core 工程验证码的正式联合类型约束；当前 101 个唯一码全部有指引。`contracts:check` 对照这些事实源拒绝遗漏、重复、未知码和错误归属。目录的 `owners` 列出同名码的全部正式来源，响应的 `owner` 保留实际来源；例如 `invalid_uam` 同时用于事务和工程验证。
+`BackendDiagnostic.code` 由 Backend 错误、Core 事务错误/support issue、Core 工程验证码的正式联合类型约束；当前 102 个唯一码全部有指引。`contracts:check` 对照这些事实源拒绝遗漏、重复、未知码和错误归属。目录的 `owners` 列出同名码的全部正式来源，响应的 `owner` 保留实际来源；例如 `invalid_uam` 同时用于事务和工程验证。
 
-正式诊断增加 `owner`、`docsUri`、`remediation { kind, message, read? }`。不在类型契约中的宿主输入若出现未知码，仍保留原错误，不承诺恢复指引。capability schema 为 8，`manifest.diagnostics.recoveryGuides` 为 `all-formal-codes`，`automaticRepair` 为 false。CLI 进程错误由独立的 [CLI 输出契约](./contracts.md#cli-机器输出)约束，不冒充 Backend 诊断。
+正式诊断增加 `owner`、`docsUri`、`remediation { kind, message, read? }`。不在类型契约中的宿主输入若出现未知码，仍保留原错误，不承诺恢复指引。capability schema 为 9，`manifest.diagnostics.recoveryGuides` 为 `all-formal-codes`，`automaticRepair` 为 false。CLI 进程错误由独立的 [CLI 输出契约](./contracts.md#cli-机器输出)约束，不冒充 Backend 诊断。
 
 `read` 仅是可执行的只读起点：`getProjectOutline({ sessionId })`。MCP 对应 `openfairygui_backend_get_project_outline`，方法映射见[契约指南](./contracts.md)。随后通过精确查询读取实际属性并重新规划；不能只替换 `expectedRevision` 重发原事务。预演不预留 revision，保存仍独立检查。
 
@@ -19,6 +19,14 @@ SDK：`getBackendDiagnosticCatalog()` / `getBackendDiagnosticGuide(code)`。MCP�
 以下内容由 `pnpm contracts:generate` 从 Backend 的带类型目录生成；不要手改。
 
 <!-- diagnostics:start -->
+### transaction_preview_failed
+
+Owners: `backend` · Recovery: `host-action`
+
+URI: `openfairygui://docs/diagnostics/transaction_preview_failed`
+
+No complete preview is available. Inspect error.reason with the host: response_budget_exceeded requires a smaller independently meaningful authorized batch; projection_failed requires inspecting the project serialization failure. Preserve the session and never treat a missing or truncated impact as approval to apply or save.
+
 ### stale_write
 
 Owners: `backend` · Recovery: `refresh-and-replan`

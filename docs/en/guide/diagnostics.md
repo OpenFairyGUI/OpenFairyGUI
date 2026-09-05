@@ -2,9 +2,9 @@
 
 Backend owns session/runtime errors. Core owns transaction errors/support issues and `ProjectDiagnosticCode` read/validation diagnostics. Functions orchestration and MCP transport do not change that ownership. Backend metadata and events preserve codes, severity, paths and operation locations; Core errors and validation report bodies remain unchanged.
 
-`BackendDiagnostic.code` is the canonical union of Backend errors, Core transaction errors/support issues and Core project-validation codes. All 101 unique codes have guides. `contracts:check` rejects missing, duplicate, unknown and incorrectly owned codes against those sources. Catalog `owners` lists every canonical origin of a shared code; response `owner` retains its actual origin, including transaction versus project-validation uses of `invalid_uam`.
+`BackendDiagnostic.code` is the canonical union of Backend errors, Core transaction errors/support issues and Core project-validation codes. All 102 unique codes have guides. `contracts:check` rejects missing, duplicate, unknown and incorrectly owned codes against those sources. Catalog `owners` lists every canonical origin of a shared code; response `owner` retains its actual origin, including transaction versus project-validation uses of `invalid_uam`.
 
-Formal diagnostics add `owner`, `docsUri` and `remediation { kind, message, read? }`. Unknown host inputs outside the typed contract preserve their original error without promised guidance. Capability schema 8 declares `manifest.diagnostics.recoveryGuides: all-formal-codes` and `automaticRepair: false`. CLI process errors have a separate [CLI output contract](./contracts.md#cli-machine-output), not Backend diagnostic identities.
+Formal diagnostics add `owner`, `docsUri` and `remediation { kind, message, read? }`. Unknown host inputs outside the typed contract preserve their original error without promised guidance. Capability schema 9 declares `manifest.diagnostics.recoveryGuides: all-formal-codes` and `automaticRepair: false`. CLI process errors have a separate [CLI output contract](./contracts.md#cli-machine-output), not Backend diagnostic identities.
 
 `read` is only an executable read-only starting point: `getProjectOutline({ sessionId })`, mapped to `openfairygui_backend_get_project_outline` by MCP. See [contracts](./contracts.md). Query current properties and replan; never merely replace `expectedRevision` on the original transaction. Previews reserve no revision; saving has its own guard.
 
@@ -19,6 +19,14 @@ SDK: `getBackendDiagnosticCatalog()` / `getBackendDiagnosticGuide(code)`. MCP: r
 Generated from Backend's typed catalog by `pnpm contracts:generate`; do not edit the marked section.
 
 <!-- diagnostics:start -->
+### transaction_preview_failed
+
+Owners: `backend` · Recovery: `host-action`
+
+URI: `openfairygui://docs/diagnostics/transaction_preview_failed`
+
+No complete preview is available. Inspect error.reason with the host: response_budget_exceeded requires a smaller independently meaningful authorized batch; projection_failed requires inspecting the project serialization failure. Preserve the session and never treat a missing or truncated impact as approval to apply or save.
+
 ### stale_write
 
 Owners: `backend` · Recovery: `refresh-and-replan`

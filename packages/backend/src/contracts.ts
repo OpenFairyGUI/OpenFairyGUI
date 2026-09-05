@@ -3,7 +3,7 @@ import type { UamTransactionSupportIssueCode } from '@openfairygui/core/uam';
 import type { BackendError } from './runtime.js';
 
 export const BACKEND_CONTRACT_VERSION = '1.1.0-p2' as const;
-export const BACKEND_CAPABILITY_SCHEMA_VERSION = 8 as const;
+export const BACKEND_CAPABILITY_SCHEMA_VERSION = 9 as const;
 export const BACKEND_COMPATIBILITY_POLICY = {
 	incompatibleChange: 'requires contractVersion bump',
 	capabilitySchemaChange: 'requires capabilitySchemaVersion bump',

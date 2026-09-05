@@ -32,6 +32,7 @@ import type { BackendRuntime } from '../runtime.js';
 export type BackendMethodName = keyof BackendRuntime;
 
 export const BACKEND_ENTITY_QUERY_LIMITS = { maxBytes: 262144, maxDepth: 32, maxNodes: 100000 } as const;
+export const BACKEND_TRANSACTION_PREVIEW_LIMITS = { maxBytes: 262144, maxEntries: 2000 } as const;
 /** Fixed resource projection. Binary content, source bookkeeping and arbitrary metadata are excluded. */
 export const BACKEND_RESOURCE_QUERY_FIELDS = [
 	'kind', 'id', 'name', 'path', 'exported', 'favorite', 'branch', 'branchItemIds',
@@ -168,7 +169,7 @@ export interface BackendCapabilities {
 		projectValidation: true;
 	};
 	authoring: {
-		preflightTransaction: { mode: 'execute-and-discard'; reservesRevision: false };
+		preflightTransaction: { mode: 'execute-and-discard'; reservesRevision: false; impact: 'model-diff'; limits: typeof BACKEND_TRANSACTION_PREVIEW_LIMITS };
 		applyTransaction: true;
 		saveSession: true;
 		resourceKinds: readonly string[];
@@ -550,6 +551,7 @@ export interface RefreshCacheInput {
 
 export type BackendError =
 	| SessionNotFoundError
+	| TransactionPreviewError
 	| EntityQueryError
 	| SessionIdConflictError
 	| SessionStaleWriteError
@@ -591,7 +593,37 @@ export interface ApplySessionTransactionInput {
 export interface BackendTransactionPreview {
 	sessionId: string;
 	baseRevision: number;
+	/** Revision after applying this batch at baseRevision, including an empty batch. Not reserved. */
+	projectedRevision: number;
 	mode: 'execute-and-discard';
+	/** Complete, bounded comparison of current and projected UAM, not unsaved changes since last save. */
+	impact: {
+		entities: BackendTransactionEntityChange[];
+		/** Project-relative paths from the actual ProjectWriter, including empty directories. Not a disk write plan. */
+		files: Array<{ path: string; kind: 'file' | 'directory'; change: 'added' | 'removed' | 'updated' }>;
+	};
+	persistence: {
+		requiredAfterApply: true;
+		nextAction: 'saveSession' | 'materializeSession' | 'host-action';
+		fileSystemAvailable: boolean;
+		uamFidelity: BackendSessionSnapshot['uamFidelity'];
+		/** Preflight never verifies filesystem permissions, materialize destinations or actual disk state. */
+		writeVerified: false;
+	};
+}
+
+export interface BackendTransactionEntityChange {
+	target: BackendEntityTarget | { kind: 'project' } | { kind: 'package'; selector: { packageId: string } };
+	change: 'added' | 'removed' | 'updated';
+	/** Changed top-level property names; child collections contain identities and preserve their order. */
+	fields: string[];
+}
+
+export interface TransactionPreviewError {
+	code: 'transaction_preview_failed';
+	message: string;
+	sessionId: string;
+	reason: 'response_budget_exceeded' | 'projection_failed';
 }
 
 export interface GetProjectOutlineInput {

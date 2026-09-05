@@ -4,7 +4,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 import test from 'ava';
 import { liftDocumentToUamProject, materializeUamProject, normalizeUamProject, validateTransactionSupport, type UamTransactionOperation } from '@openfairygui/core/uam';
-import { BackendRuntime, BACKEND_ENTITY_QUERY_LIMITS, type ApplySessionTransactionInput, type QueryEntityInput } from '../src/index.js';
+import { BackendRuntime, BACKEND_ENTITY_QUERY_LIMITS, BACKEND_TRANSACTION_PREVIEW_LIMITS, type ApplySessionTransactionInput, type QueryEntityInput } from '../src/index.js';
 import type { BackendContext } from '../src/services/context.js';
 import type { AuthoringService } from '../src/services/authoring-service.js';
 import { createBackendFixtureProject, createBackendRuntime, createTempBackendProject } from './helpers.js';
@@ -302,7 +302,20 @@ test('transaction preview executes and discards on clean and dirty file-backed s
 			const before = sessionState(runtime, sessionId);
 			const preview = await runtime.preflightTransaction(input);
 			assert(preview.ok, JSON.stringify(preview));
-			t.deepEqual(preview.data, { sessionId, baseRevision: expectedRevision, mode: 'execute-and-discard' });
+			t.is(preview.data.sessionId, sessionId);
+			t.is(preview.data.baseRevision, expectedRevision);
+			t.is(preview.data.projectedRevision, expectedRevision + 1);
+			t.is(preview.data.mode, 'execute-and-discard');
+			t.deepEqual(preview.data.persistence, { requiredAfterApply: true, nextAction: 'saveSession', fileSystemAvailable: true, uamFidelity: 'full', writeVerified: false });
+			t.deepEqual(preview.data.impact.entities, expectedRevision === 0
+				? [{ target: { kind: 'resource', selector: { packageId: 'pkg001', resourceId: 'cmp001' } }, change: 'updated', fields: ['name'] },
+					{ target: { kind: 'displayNode', selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n0' } }, change: 'updated', fields: ['resource'] }]
+				: [{ target: nodeTarget, change: 'updated', fields: ['text'] }]);
+			t.deepEqual(preview.data.impact.files, expectedRevision === 0 ? [
+				{ path: 'assets/Main/MainView.xml', kind: 'file', change: 'removed' },
+				{ path: 'assets/Main/RenamedView.xml', kind: 'file', change: 'added' },
+				{ path: 'assets/Main/package.xml', kind: 'file', change: 'updated' },
+			] : [{ path: 'assets/Main/RenamedView.xml', kind: 'file', change: 'updated' }]);
 			t.is(preview.meta.revision, expectedRevision);
 			t.deepEqual(preview.meta.diagnostics, []);
 			t.deepEqual(sessionState(runtime, sessionId), before);
@@ -320,6 +333,10 @@ test('transaction preview executes and discards on clean and dirty file-backed s
 			operations[0] = { kind: 'setDisplayNodeProps', selector: nodeTarget.selector, props: { text: 'committed only by apply' } };
 		}
 		t.deepEqual(await diskState(fixture.rootDir), files);
+		const saved = await runtime.saveSession({ sessionId, expectedRevision: 2 }); assert(saved.ok);
+		const disk = new Map(await diskState(fixture.rootDir) as Array<[string, Buffer | null]>);
+		t.false(disk.has(path.join('assets', 'Main', 'MainView.xml')));
+		t.true(disk.get(path.join('assets', 'Main', 'RenamedView.xml'))!.toString().includes('committed only by apply'));
 	} finally {
 		await runtime.closeSession({ sessionId }); await fixture.cleanup();
 	}
@@ -393,6 +410,8 @@ test('preview reserves no revision and does not promise save capabilities', asyn
 	const input: ApplySessionTransactionInput = { sessionId, expectedRevision: 0, operations: [{ kind: 'setDisplayNodeProps', selector: nodeTarget.selector, props: { text: 'planned' } }] };
 	const preview = await runtime.preflightTransaction(input);
 	assert(preview.ok);
+	t.is(preview.data.persistence.nextAction, 'host-action');
+	t.false(preview.data.persistence.fileSystemAvailable);
 	t.true((await runtime.applyTransaction({ ...input, operations: [{ kind: 'setDisplayNodeProps', selector: nodeTarget.selector, props: { text: 'intervening edit' } }] })).ok);
 	const before = sessionState(runtime, sessionId);
 	const stalePreview = await runtime.preflightTransaction(input);
@@ -414,6 +433,56 @@ test('preview reserves no revision and does not promise save capabilities', asyn
 	await runtime.closeSession({ sessionId });
 	const closed = await runtime.preflightTransaction(input);
 	assert(!closed.ok); t.is(closed.error.code, 'session_not_found');
+});
+
+test('preview summarizes complex snapshots, empty batches, source bytes and fail-closed budgets', async (t) => {
+	const { project, component } = complexQueryProject();
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({ project });
+	assert(opened.ok);
+	const sessionId = opened.data.sessionId;
+	const before = sessionState(runtime, sessionId);
+	try {
+		const empty = await runtime.preflightTransaction({ sessionId, expectedRevision: 0, operations: [] });
+		assert(empty.ok, JSON.stringify(empty));
+		t.deepEqual(empty.data.impact, { entities: [], files: [] });
+		t.is(empty.data.projectedRevision, 1);
+		const controller = structuredClone(component.controllers[0]); controller.alias = 'New alias';
+		const transition = structuredClone(component.transitions[0]); transition.autoPlayDelay = 1;
+		const preview = await runtime.preflightTransaction({ sessionId, expectedRevision: 0, operations: [
+			{ kind: 'updateController', selector: controllerTarget.selector, controller },
+			{ kind: 'updateTransition', selector: transitionTarget.selector, transition },
+			{ kind: 'addResource', selector: { packageId: 'pkg001' }, resource: {
+				kind: 'misc', id: 'added', name: 'new.bin', path: '/', file: 'new.bin', exported: false, favorite: false,
+				branch: '', branchItemIds: [], sourceBytes: new Uint8Array([17, 23]),
+			} },
+		] });
+		assert(preview.ok, JSON.stringify(preview));
+		t.true(preview.data.impact.entities.some((entry) => entry.target.kind === 'controller' && entry.fields.join() === 'alias'));
+		t.true(preview.data.impact.entities.some((entry) => entry.target.kind === 'transition' && entry.fields.join() === 'autoPlayDelay'));
+		t.true(preview.data.impact.files.some((entry) => entry.path === 'assets/Main/new.bin' && entry.change === 'added'));
+		t.false(JSON.stringify(preview.data).includes('[17,23]'));
+		preview.data.impact.entities.length = 0;
+		t.deepEqual(sessionState(runtime, sessionId), before);
+	} finally { await runtime.closeSession({ sessionId }); }
+	const large = createBackendFixtureProject();
+	const resource = large.packages[0].resources[1]; assert(resource.kind === 'component');
+	for (let i = 0; i < BACKEND_TRANSACTION_PREVIEW_LIMITS.maxEntries; i++) {
+		const node = structuredClone(resource.component.displayList[1]); node.id = `extra${i}`; node.name = `Extra${i}`;
+		resource.component.displayList.push(node);
+	}
+	const largeSession = runtime.openProjectSession({ project: large }); assert(largeSession.ok);
+	const largeId = largeSession.data.sessionId;
+	const largeBefore = sessionState(runtime, largeId);
+	try {
+		const rejected = await runtime.preflightTransaction({ sessionId: largeId, expectedRevision: 0, operations: [
+			{ kind: 'removeComponent', selector: { packageId: 'pkg001', componentResourceId: 'cmp001' } },
+		] });
+		assert(!rejected.ok && rejected.error.code === 'transaction_preview_failed', JSON.stringify(rejected));
+		t.is(rejected.error.reason, 'response_budget_exceeded'); t.false('data' in rejected);
+		t.is(rejected.meta.diagnostics[0].owner, 'backend');
+		t.deepEqual(sessionState(runtime, largeId), largeBefore);
+	} finally { await runtime.closeSession({ sessionId: largeId }); }
 });
 
 test('preview snapshots queued input and shared bytes before waiting for the session', async (t) => {

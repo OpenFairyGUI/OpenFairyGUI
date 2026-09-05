@@ -63,6 +63,11 @@ test('MCP queries, previews, applies and saves with generated schemas and revisi
 		assert(preview.ok);
 		t.is(preview.data.baseRevision, snapshot.revision);
 		t.is(preview.data.mode, 'execute-and-discard');
+		t.is(preview.data.projectedRevision, snapshot.revision + 1);
+		t.deepEqual(preview.data.impact.entities.find((entry) => entry.target.kind === 'displayNode' && entry.target.selector.displayNodeId === 'n1'),
+			{ target: snapshot.target, change: 'updated', fields: ['text'] });
+		t.deepEqual(preview.data.impact.files, [{ path: 'assets/Main/MainView.xml', kind: 'file', change: 'updated' }]);
+		t.is(preview.data.persistence.nextAction, 'saveSession');
 		const eventsAfter = runtime.getEvents({ sessionId: opened.data.sessionId });
 		assert(events.ok && eventsAfter.ok);
 		t.deepEqual(eventsAfter.data, events.data);

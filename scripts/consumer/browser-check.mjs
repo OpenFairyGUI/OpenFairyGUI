@@ -43,6 +43,11 @@ try {
 	const transaction = { sessionId: await page.evaluate(() => example.sessionId), expectedRevision: initial.revision, operations: [{ kind: 'setDisplayNodeProps', selector: initial.selector, props: { text: 'Saved in Chromium' } }] };
 	const preview = await page.evaluate((input) => example.runtime.preflightTransaction(input), transaction);
 	assert(preview.ok, JSON.stringify(preview));
+	assert.equal(preview.data.projectedRevision, initial.revision + 1);
+	assert.deepEqual(preview.data.impact.entities.find((entry) => entry.target.kind === 'displayNode' && entry.target.selector.displayNodeId === initial.selector.displayNodeId),
+		{ target: { kind: 'displayNode', selector: initial.selector }, change: 'updated', fields: ['text'] });
+	assert.deepEqual(preview.data.impact.files, [{ path: 'assets/Main/MainView.xml', kind: 'file', change: 'updated' }]);
+	assert.equal(preview.data.persistence.nextAction, 'saveSession');
 	assert.deepEqual(await snapshot(page), before);
 	assert.deepEqual(await page.evaluate(() => example.read()), initial);
 	await page.getByLabel('Title text').fill('Saved in Chromium');
