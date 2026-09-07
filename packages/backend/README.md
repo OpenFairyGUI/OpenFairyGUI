@@ -29,6 +29,7 @@ It also provides:
 - `cache.refresh` in-memory jobs with cooperative cancel and terminal retention
 - revision-bound derived read-only cache snapshots
 - revision-bound project identity outlines for transaction planning
+- bounded, detached public UAM model and primary resource-byte reads with edit-revision checks
 - revision-bound read-only project validation reports
 - explicit Node bridge boundaries for publish/restore
 

@@ -14,6 +14,8 @@ It maps the backend P2 runtime surface into MCP tools:
 - `getSession`
 - `getProjectOutline`
 - `queryEntity`
+- `readSessionState`
+- `readResourceBytes`
 - `validateSession`
 - `preflightTransaction`
 - `applyTransaction`
@@ -34,7 +36,7 @@ Each tool exposes a method-specific output schema for `structuredContent.backend
 - `error?`
 - `meta?`
 
-The factory advertises the fixed 18-method Backend catalog. Input/output schemas come from the canonical installed contract; discovery uses self-contained draft-07 `definitions`/`$ref` to reuse repeated structures without loosening the 41-operation union, call validators or input budgets. Installed operation documentation remains available through `openfairygui://contracts/operations` and `openfairygui://docs/index`.
+The factory advertises the fixed 20-method Backend catalog. Input/output schemas come from the canonical installed contract; discovery uses self-contained draft-07 `definitions`/`$ref` to reuse repeated structures without loosening the 41-operation union, call validators or input budgets. Installed operation documentation remains available through `openfairygui://contracts/operations` and `openfairygui://docs/index`.
 
 P1 also registers MCP-native ergonomics around the same backend surface:
 
@@ -48,6 +50,8 @@ P1 also registers MCP-native ergonomics around the same backend surface:
 
 Resources return `application/json` text containing the unchanged backend result envelope. Parameterized polling remains tool-based: `getEvents` and `listJobs` are not exposed as resource URI query grammars.
 The project outline is revision-bound and exposes package, resource, folder, display-node, controller-page, and transition identities for transaction planning. It intentionally omits source bytes and full property payloads. `validateSession` returns the backend-owned read-only project validation report; the MCP adapter does not reinterpret its diagnostics.
+
+`readSessionState` returns a detached public UAM model without primary asset bytes, plus the current edit revision and source-read diagnostics. `readResourceBytes` reads one already-loaded primary asset with a required matching revision. Neither reads storage or changes the session. Both tools enforce their native response limits and a separate 16 MiB complete MCP response limit; see the installed method schemas and [workflow](../backend/docs/workflow.md).
 
 It does **not** redefine transaction selectors, transaction operations, path policy, session semantics, job semantics, cache semantics, or backend error envelopes. Those remain owned by `@openfairygui/backend`, `@openfairygui/functions`, and `@openfairygui/core`.
 
