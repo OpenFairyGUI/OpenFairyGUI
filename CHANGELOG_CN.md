@@ -4,6 +4,9 @@
 
 ## 未发布
 
+新功能：
+- 新增 Backend/MCP 当前已提交公开 UAM 模型与单资源主文件字节的有界读取，返回独立副本、校验编辑 revision 并如实保留源读取诊断。能力 schema 版本为 11，包版本不变。
+
 发布比较：
 
 - 稳定线（`main`）：[v0.4.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...main)

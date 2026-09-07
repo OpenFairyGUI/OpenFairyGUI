@@ -4,6 +4,9 @@
 
 ## Unreleased
 
+Features:
+- Add bounded Backend/MCP reads of the committed public UAM model and individual primary resource bytes, with detached results, edit-revision checks and faithful source diagnostics. Capability schema version is 11; package versions are unchanged.
+
 Release comparisons:
 
 - Stable line (`main`): [v0.4.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...main)

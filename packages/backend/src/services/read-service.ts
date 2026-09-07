@@ -10,34 +10,46 @@ import type {
 	BackendResourceSnapshot,
 	EntityQueryError,
 	SessionNotFoundError,
+	ReadSessionStateInput,
+	ReadResourceBytesInput,
+	BackendSessionStateSnapshot,
+	BackendResourceBytesSnapshot,
+	SessionReadError,
+	SessionStaleReadError,
 } from '../runtime.js';
 import { createSessionNotFoundError, toSessionSnapshot } from './session-utils.js';
 import { validateProject } from '@openfairygui/functions';
 import type { ProjectValidationReport } from '@openfairygui/core';
-import { BACKEND_ENTITY_QUERY_LIMITS, BACKEND_RESOURCE_QUERY_FIELDS } from '../runtime/contracts.js';
+import { BACKEND_ENTITY_QUERY_LIMITS, BACKEND_RESOURCE_QUERY_FIELDS, BACKEND_SESSION_READ_LIMITS } from '../runtime/contracts.js';
 
 /** Bound traversal before serialization or cloning, including non-JSON values on a malformed native input. */
-function queryResponseProblem(value: unknown): EntityQueryError['reason'] | undefined {
+function queryResponseProblem(value: unknown, limits: { maxBytes: number; maxNodes: number; maxDepth: number } = BACKEND_ENTITY_QUERY_LIMITS): 'response_budget_exceeded' | 'non_json_value' | undefined {
 	const pending = [{ value, depth: 0 }];
 	let nodes = 0;
 	let stringUnits = 0;
 	while (pending.length) {
 		const { value, depth } = pending.pop()!;
-		if (++nodes > BACKEND_ENTITY_QUERY_LIMITS.maxNodes || depth > BACKEND_ENTITY_QUERY_LIMITS.maxDepth) return 'response_budget_exceeded';
-		if (typeof value === 'string' && (stringUnits += value.length) > BACKEND_ENTITY_QUERY_LIMITS.maxBytes) return 'response_budget_exceeded';
+		if (++nodes > limits.maxNodes || depth > limits.maxDepth) return 'response_budget_exceeded';
+		if (typeof value === 'string' && (stringUnits += value.length) > limits.maxBytes) return 'response_budget_exceeded';
 		if (value === undefined || value === null || typeof value === 'string' || typeof value === 'boolean') continue;
 		if (typeof value === 'number') { if (!Number.isFinite(value)) return 'non_json_value'; continue; }
 		if (typeof value !== 'object' || (!Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) return 'non_json_value';
-		if (Array.isArray(value) && value.length + pending.length + nodes > BACKEND_ENTITY_QUERY_LIMITS.maxNodes) return 'response_budget_exceeded';
+		if (Array.isArray(value) && value.length + pending.length + nodes > limits.maxNodes) return 'response_budget_exceeded';
 		const entries = Object.entries(value);
-		if (entries.length + pending.length + nodes > BACKEND_ENTITY_QUERY_LIMITS.maxNodes) return 'response_budget_exceeded';
+		if (entries.length + pending.length + nodes > limits.maxNodes) return 'response_budget_exceeded';
 		for (const [key, child] of entries) {
-			if (!Array.isArray(value) && (stringUnits += key.length) > BACKEND_ENTITY_QUERY_LIMITS.maxBytes) return 'response_budget_exceeded';
+			if (!Array.isArray(value) && (stringUnits += key.length) > limits.maxBytes) return 'response_budget_exceeded';
 			pending.push({ value: child, depth: depth + 1 });
 		}
 	}
-	if (new TextEncoder().encode(JSON.stringify(value)).byteLength > BACKEND_ENTITY_QUERY_LIMITS.maxBytes) return 'response_budget_exceeded';
+	if (new TextEncoder().encode(JSON.stringify(value)).byteLength > limits.maxBytes) return 'response_budget_exceeded';
 	return undefined;
+}
+
+function readFailure(startedAt: number, sessionId: string, reason: SessionReadError['reason'], revision?: number) {
+	return failure('read', startedAt, {
+		code: 'session_read_failed' as const, sessionId, reason, message: `Session read failed: ${reason}.`,
+	}, undefined, { sessionId, revision });
 }
 
 function toProjectOutline(session: BackendSessionState): BackendProjectOutline {
@@ -178,6 +190,66 @@ export class ReadService {
 			}
 		}
 		return respond(entity);
+	}
+
+	private resolveReadSession(input: ReadSessionStateInput, startedAt: number): BackendResult<BackendSessionState, SessionNotFoundError | SessionReadError | SessionStaleReadError> {
+		if (!input || typeof input.sessionId !== 'string' || !input.sessionId.length || input.sessionId.length > 256
+			|| (input.expectedRevision !== undefined && (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0))) {
+			return readFailure(startedAt, typeof input?.sessionId === 'string' ? input.sessionId : '', 'invalid_query');
+		}
+		const session = this.context.sessions.get(input.sessionId);
+		if (!session || session.closed) return failure('read', startedAt, createSessionNotFoundError(input.sessionId));
+		const meta = { sessionId: session.sessionId, revision: session.revision };
+		if (input.expectedRevision !== undefined && input.expectedRevision !== session.revision) return failure('read', startedAt, {
+			code: 'stale_read', sessionId: session.sessionId, expectedRevision: input.expectedRevision, actualRevision: session.revision,
+			message: 'The session edit revision changed. Restart the model and resource read.',
+		}, undefined, meta);
+		return success('read', startedAt, session, meta);
+	}
+
+	public readSessionState(input: ReadSessionStateInput): BackendResult<BackendSessionStateSnapshot, SessionNotFoundError | SessionReadError | SessionStaleReadError> {
+		const startedAt = Date.now();
+		const resolved = this.resolveReadSession(input, startedAt);
+		if (!resolved.ok) return resolved;
+		const session = resolved.data;
+		const meta = { sessionId: session.sessionId, revision: session.revision };
+		// Capture synchronously: pending transactions have not committed; save bookkeeping may change without an edit revision.
+		const data: BackendSessionStateSnapshot = {
+			...meta, dirty: session.dirty, lastSavedRevision: session.lastSavedRevision,
+			uamFidelity: session.uamFidelity, readComplete: session.readComplete, readDiagnostics: session.readDiagnostics,
+			project: { ...session.project, packages: session.project.packages.map((pkg) => ({
+				...pkg, resources: pkg.resources.map((resource) => {
+					if (resource.kind === 'component') return resource;
+					const { sourceBytes: _sourceBytes, ...model } = resource;
+					return model;
+				}),
+			})) },
+		};
+		const problem = queryResponseProblem(data, BACKEND_SESSION_READ_LIMITS.model);
+		return problem ? readFailure(startedAt, session.sessionId, problem, session.revision)
+			: success('read', startedAt, structuredClone(data), meta);
+	}
+
+	public readResourceBytes(input: ReadResourceBytesInput): BackendResult<BackendResourceBytesSnapshot, SessionNotFoundError | SessionReadError | SessionStaleReadError> {
+		const startedAt = Date.now();
+		const resolved = this.resolveReadSession(input, startedAt);
+		if (!resolved.ok) return resolved;
+		const session = resolved.data;
+		const reject = (reason: SessionReadError['reason']) => readFailure(startedAt, session.sessionId, reason, session.revision);
+		const selector = input.selector;
+		if (input.expectedRevision === undefined || !selector || typeof selector !== 'object' || Array.isArray(selector)
+			|| Object.keys(selector).length !== 2 || ['packageId', 'resourceId'].some((key) => !Object.hasOwn(selector, key))
+			|| [selector.packageId, selector.resourceId].some((value) => typeof value !== 'string' || !value.length || value.length > 256)) return reject('invalid_query');
+		const packages = session.project.packages.filter((pkg) => pkg.id === selector.packageId);
+		if (packages.length !== 1) return reject(packages.length ? 'ambiguous' : 'not_found');
+		const resources = packages[0].resources.filter((resource) => resource.id === selector.resourceId);
+		if (resources.length !== 1) return reject(resources.length ? 'ambiguous' : 'not_found');
+		const resource = resources[0];
+		if (resource.kind === 'component') return reject('unsupported_resource');
+		if (!(resource.sourceBytes instanceof Uint8Array)) return reject('bytes_unavailable');
+		if (resource.sourceBytes.byteLength > BACKEND_SESSION_READ_LIMITS.resourceBytes) return reject('response_budget_exceeded');
+		const meta = { sessionId: session.sessionId, revision: session.revision };
+		return success('read', startedAt, { ...meta, selector: { ...selector }, sourceBytes: new Uint8Array(resource.sourceBytes) }, meta);
 	}
 
 	public validateSession(

@@ -33,6 +33,7 @@ flowchart TD
     UAM -->|materialize| DOC
     MCP["MCP / Backend API"] --> SESSION["Backend 会话与 revision"]
     SESSION --> APP["Functions authoring"] --> TX["Core transaction"]
+    SESSION -->|readSessionState / readResourceBytes| READ["公开 UAM 模型与主文件字节副本"]
     UAM --> TX
     TX -->|UAM-native 工作副本| UAM
     TX -->|Document 工作副本| DOC
@@ -73,6 +74,7 @@ flowchart TD
 | 操作 | 状态与副作用 |
 |---|---|
 | `queryEntity` | 七类固定投影：project、package、resource、component、displayNode、controller、transition；工程无需 selector，其余精确选择；返回实际 revision，脱离会话且有界，不含源字节 |
+| `readSessionState` / `readResourceBytes` | 同步捕获当前已提交模型与单资源主文件字节，返回独立副本与实际编辑 revision；资源读取必须核对模型 revision，不重新水合、不修复、不写入 |
 | `preflightTransaction` | 同一会话队列检查 revision，复制工程/字节并执行后丢弃；不改工程、dirty、revision、缓存或业务事件，不写盘 |
 | `applyTransaction` | 再次检查 expectedRevision；成功替换会话工程，revision 加一并标 dirty；失败保留工程与 revision，可发出拒绝事件 |
 | `saveSession` | 用会话绑定的文件系统保存；成功才更新 lastSavedRevision、清 dirty 与待清理路径；不推进编辑 revision |
@@ -80,6 +82,8 @@ flowchart TD
 | `closeSession` | 排在此前事务/写入之后释放锁；不自动保存未提交工作 |
 
 项目与包设置查询复用 `ReadService` 的固定投影、JSON 预算检查和深度复制，返回身份与完整 `settings`。调用方只修改所需字段，再把完整设置及查询 revision 交给既有 `updateProjectSettings` / `updatePackageSettings` 事务；MCP 直接映射此查询和事务链路。
+
+完整状态读取同样归 `ReadService`，直接派生公开 UAM 模型、排除 asset resource 主文件 `sourceBytes`，通过另一读取方法提供已有字节。模型保留 sourcePath 与 JSON 扩展数据；源读取完整性、诊断及保真标记如实返回，不等价于字节齐全或下游能力承诺。两次读取之间的编辑会导致 `stale_read`，调用方重新开始，不引入历史快照、租约或 Viewer 逻辑。保存可在同一编辑 revision 更新 sourcePath 和 dirty，因此完整原始 UAM 不由 revision 永久唯一标识。Backend 限制模型与原始字节；MCP 独立限制新工具完整响应，并仅对完整读取模型使用可扩展的输出对象 schema。详见[会话读取契约](./guide/contracts.md#读取当前会话模型与资源字节)。
 
 预演比较两份正式 UAM 得到实体/字段影响，并复用内存捕获文件系统与 ProjectWriter 得到工程相对文件/目录差异。它反映当前 revision 到预演结果，不是上次保存以来的累计差异、磁盘写入清单或删除授权。摘要超预算时完整拒绝，不截断为成功；保存提示的 `writeVerified` 始终 false，projected revision 不被预留。详见[事务预演](./guide/contracts.md#预演一次事务)。
 

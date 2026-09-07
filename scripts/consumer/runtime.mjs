@@ -139,6 +139,68 @@ export function snapshot(directory) {
 	return result;
 }
 
+async function sessionReadSmoke() {
+	const { createPublishProject, IMAGE_BYTES } = await import('./examples/publish-restore/index.mjs');
+	const { createNodeBackendRuntime } = await import('@openfairygui/backend/node');
+	const { OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS } = await import('@openfairygui/mcp');
+	const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
+	const { StdioClientTransport } = await import('@modelcontextprotocol/sdk/client/stdio.js');
+	const projectPath = await createPublishProject(root);
+	const projectRoot = path.dirname(projectPath);
+	const beforeFiles = snapshot(projectRoot);
+	const selector = { packageId: 'pkgshare', resourceId: 'red' };
+	const replacement = Uint8Array.from(Buffer.from(IMAGE_BYTES.blue, 'base64'));
+	for (const mode of ['sdk', 'mcp']) {
+		const runtime = mode === 'sdk' ? createNodeBackendRuntime({ allowedProjectRoots: [projectRoot] }) : null;
+		const client = mode === 'mcp' ? new Client({ name: 'installed-session-reader', version: '1.0.0' }) : null;
+		let sessionId;
+		const call = async (method, input) => {
+			if (runtime) return runtime[method](input);
+			const name = OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.find((entry) => entry.backendMethod === method).name;
+			const result = await client.callTool({ name, arguments: input });
+			const backend = result.structuredContent.backendResult;
+			assert.deepEqual(JSON.parse(result.content[0].text), backend);
+			assert.equal(Boolean(result.isError), !backend.ok);
+			return backend;
+		};
+		try {
+			if (client) {
+				await client.connect(new StdioClientTransport({ command: process.execPath,
+					args: ['--input-type=module', '--eval', 'const m = await import(process.argv[1]); await m.connectOpenFairyGuiMcpStdio();', import.meta.resolve('@openfairygui/mcp/stdio')],
+					env: { OPENFAIRYGUI_ALLOWED_PROJECT_ROOTS: projectRoot }, stderr: 'inherit',
+				}));
+				await client.listTools();
+			}
+			const opened = await call('openSession', { projectPath }); assert(opened.ok, JSON.stringify(opened));
+			sessionId = opened.data.sessionId;
+			const initial = await call('readSessionState', { sessionId }); assert(initial.ok);
+			assert.equal(initial.data.revision, 0); assert.equal(initial.data.dirty, false);
+			const applied = await call('applyTransaction', { sessionId, expectedRevision: 0, operations: [
+				{ kind: 'setDisplayNodeProps', selector: { packageId: 'pkgdemo1', componentResourceId: 'cmpdemo1', displayNodeId: 'title' }, props: { text: 'unsaved consumer read' } },
+				{ kind: 'replaceResourceBytes', selector, sourceBytes: runtime ? replacement : [...replacement] },
+			] }); assert(applied.ok, JSON.stringify(applied));
+			const state = await call('readSessionState', { sessionId, expectedRevision: applied.data.revision }); assert(state.ok, JSON.stringify(state));
+			assert.equal(state.data.revision, 1); assert.equal(state.data.lastSavedRevision, 0); assert.equal(state.data.dirty, true);
+			assert.equal(state.data.uamFidelity, 'full'); assert.equal(state.data.readComplete, true); assert.deepEqual(state.data.readDiagnostics, []);
+			const main = state.data.project.packages.find((pkg) => pkg.id === 'pkgdemo1').resources.find((resource) => resource.id === 'cmpdemo1');
+			assert.equal(main.component.displayList.find((node) => node.id === 'title').text, 'unsaved consumer read');
+			for (const pkg of state.data.project.packages) for (const resource of pkg.resources) assert(!Object.hasOwn(resource, 'sourceBytes'));
+			const bytes = await call('readResourceBytes', { sessionId, expectedRevision: state.data.revision, selector }); assert(bytes.ok, JSON.stringify(bytes));
+			assert.equal(bytes.data.revision, state.data.revision); assert.deepEqual([...bytes.data.sourceBytes], [...replacement]);
+			for (const method of ['readSessionState', 'readResourceBytes']) {
+				const stale = await call(method, { sessionId, expectedRevision: 0, ...(method === 'readResourceBytes' ? { selector } : {}) });
+				assert.equal(stale.ok, false); assert.equal(stale.error.code, 'stale_read'); assert.equal(stale.error.actualRevision, 1);
+			}
+			const after = await call('getSession', { sessionId }); assert(after.ok); assert.deepEqual(after.data, applied.data);
+			assert.deepEqual(snapshot(projectRoot), beforeFiles, `${mode} reads must expose unsaved bytes without saving or changing source files`);
+		} finally {
+			try { if (sessionId) await call('closeSession', { sessionId }); }
+			finally { if (client) await client.close(); }
+		}
+		assert.deepEqual(snapshot(projectRoot), beforeFiles);
+	}
+}
+
 export async function runtimeSmoke() {
 	assert(!process.env.NODE_PATH && !process.env.NODE_OPTIONS, 'Ambient Node resolution must be disabled');
 	for (const name of ['@openfairygui/test-utils', 'tsx', 'typescript']) assert.throws(() => require.resolve(name), `Unexpected development dependency: ${name}`);
@@ -171,6 +233,7 @@ export async function runtimeSmoke() {
 	const { inspectThroughMcp } = await import('./examples/mcp-stdio-client/index.mjs');
 	const { artifactSmoke } = await import('./artifact-eval.mjs');
 	await artifactSmoke();
+	await sessionReadSmoke();
 	const projectPath = await createDemoProject(root);
 	const projectRoot = path.dirname(projectPath);
 	const beforeFiles = snapshot(projectRoot);
