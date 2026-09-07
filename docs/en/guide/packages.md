@@ -10,7 +10,11 @@
 
 ## Choose an entrypoint
 
-Start with `core` and `functions` when you only need to read, update, or publish projects. Install `@openfairygui/cli` for command-line batch processing. Add `backend` and `mcp` when you need sessions, capability discovery, or MCP client integration.
+- Agent integration: install `mcp` and discover bundled documentation and tools to query, preview, and edit projects. The `cli` provides the same documentation and independent terminal workflows. See [Getting Started](./getting-started.md) for setup.
+- Scripts and CI: use `cli` for inspection, validation, publishing, and limited recovery of trusted local artifacts. Library-based Node workflows use `core` and `functions`.
+- Editors and custom hosts: use `backend` for sessions, revisions, and saving, and edit through UAM transactions. `core` provides the lower-level model and I/O.
+
+MCP adapts Backend session capabilities; publishing and recovery use explicitly authorized CLI / Node workflows. Keep installed OpenFairyGUI packages on the same version and channel.
 
 ## Public entrypoints
 

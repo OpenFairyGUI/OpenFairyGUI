@@ -15,7 +15,7 @@
 | [诊断与恢复](./guide/diagnostics.md) | 诊断归属、逐码文档与只读恢复起点；不自动修复 |
 | [安装版本文档与产品诊断](./guide/installed-docs.md) | CLI/MCP 共用离线语料、薄 Skill 与只读产品 doctor |
 | [真实 Agent 任务评测](./guide/agent-evaluations.md) | 十个真实 tarball 任务、确定性结果判定、手动模型观察与失败复现 |
-| [快速开始](./guide/getting-started.md) | 安装 SDK 并读取首个工程 |
+| [快速开始](./guide/getting-started.md) | 本地 MCP 接入、安装版本核对、首个可验证编辑任务与 CLI / SDK 入口 |
 | [包与工具](./guide/packages.md) | 选择公开包与宿主入口 |
 | [版本变更记录](https://github.com/OpenFairyGUI/OpenFairyGUI/blob/main/CHANGELOG_CN.md) | 按发布版本汇总公开功能、修复、破坏性变更与维护事项 |
 | [架构图说明](./architecture-overview.md) | 说明 monorepo 包职责、模块边界、核心数据流，以及 `backend` 的 browser-safe storage adapter、`materializeSession`、stateful runtime、service-layer、events/jobs/cache 与 `mcp` 薄适配 / resources / prompts 定位 |
@@ -32,7 +32,7 @@
 
 | 项目 | 说明 |
 |---|---|
-| 适用对象 | 仓库维护者、后续实现者、协议补齐与发布链路开发者 |
+| 适用对象 | Agent 与工具使用者、编辑器宿主开发者、仓库维护者及协议贡献者 |
 | 文档口径 | 只写当前正式口径；文档同步要求以 `AGENTS.md` 为准 |
 | README 入口 | 根目录 `README.md` 与 `README_EN.md` 只承担导航，不承载协议正文 |
 | 官网构建 | `pnpm docs:dev` 用于本地预览；`pnpm docs:build` 会生成公开 API 参考和静态站点 |
