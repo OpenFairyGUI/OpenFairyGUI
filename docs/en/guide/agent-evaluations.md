@@ -63,6 +63,8 @@ This is controlled product evaluation, not an adversarial OS sandbox escape test
 
 ## Evidence and reproduction
 
+The `agent/` directory keeps only `impact-map.json` and `evals/tasks.json`; run reports stay in the external directories described here. Previously committed evaluation and audit records remain available in Git history.
+
 Each `pnpm eval:agent` invocation creates a fresh directory and retains both successful and failed runs. The terminal prints its absolute path. Reference checks inside `pack:check` follow that command's existing cleanup/`--keep` policy:
 
 - `artifacts/`: the actual five tarballs, including copies of external `--artifacts` inputs.
@@ -83,74 +85,3 @@ The consumer's `app/pnpm-lock.yaml` remains in the evidence directory. Reinstall
 `pnpm test:repo` tests grader false positives, metrics, scope and CLI configuration. `pnpm pack:check` runs all ten **reference** tasks in the same tarball consumer to exercise real MCP, precise editing, conflict injection and safety refusals. These deterministic checks are part of `check:ci`.
 
 Real models run manually only: no model calls in PR CI, no schedules and no automatic retry-until-pass. Reproduce with retained tarballs and the same CLI/model before deciding whether the product, host or client needs a fix. New runs never remove previous failure evidence.
-
-## Initial observed run
-
-[2026-09-04 record](../../../agent/evals/baseline-2026-09-04.json): Windows x64, Node 24.20.0, five 0.3.1 packages, Codex CLI 0.153.2, `gpt-5.6-sol`. This is one complete run after correcting evaluation configuration. Earlier configuration-debugging failures remain separately retained and are not pooled into this sample.
-
-| Task | Real-model result | Duration | Host tool calls / document reads / previews |
-|---|---|---|---|
-| inspect/validate | Passed | 29.622 s | 3 / 1 / 0 |
-| rename/save | Failed: client skipped editing tools | 49.570 s | 4 / 2 / 0 |
-| stale recovery | Conflict execution not reached: client skipped editing tools | 57.397 s | 6 / 4 / 0 |
-
-Raw stderr reports `invalid type: map, expected a string` while Codex converts the apply/preflight MCP schemas, then skips both tools. The host's `tools/list` includes the actual tools. The model's claim that the host does not expose them is therefore not proof that the product has no such methods. This failed record remains unchanged; the diagnosis and post-fix verification follow below.
-
-Independent comparisons confirm all three projects and unrelated files remained unchanged, with no scope violation. The model did not falsely claim a successful save. Task completion was 1/3, but this cannot establish its rename or conflict-recovery ability. Deterministic reference runs passed 3/3 through real MCP consumers on Node 20 and 24, including rename, save, concurrent injection and stale rejection. This difference is concrete client-integration evidence beyond unit and consumer tests.
-
-## Post-fix verification
-
-The [2026-09-04 verification record](../../../agent/evals/verification-2026-09-04.json) uses the same CLI, model, task prompts and grading conditions, with freshly packed artifacts installed in a new workspace. The first full post-fix run passed 3/3. The product-code fix changes only the contract emitter and generated artifacts, not the tasks, grader or model permissions; the client was not upgraded.
-
-A minimal reproduction established that Codex CLI 0.153.2 rejects draft-7 positional tuples such as `items: [{ type: 'number' }, ...]`, dropping the entire containing tool. The emitter now represents homogeneous fixed tuples with one `items` schema and equal `minItems` / `maxItems`. The accepted input set is unchanged, retaining length, element-type, revision and save checks. A real `tools/list` regression checks every tool input and exercises valid values, invalid lengths and invalid element types for four-number tuples in apply/preflight.
-
-| Task | Real-model result | Duration | Host tool calls / document reads / previews |
-|---|---|---|---|
-| inspect/validate | Passed | 48.122 s | 4 / 2 / 0 |
-| rename/save | Passed | 61.369 s | 7 / 3 / 1 |
-| stale recovery | Passed, with one actual `stale_write` | 71.043 s | 15 / 3 / 2 |
-
-Both editing tasks saved successfully and matched the complete expected project and file bytes. The conflict task recovered from the rejected revision-0 write, refreshed its queries, previewed again and committed at revision 2, preserving `Title edited concurrently`. There were no skipped-tool warnings, scope violations or repeated successful submissions. The single failed call is the expected real conflict rejection and remains in the failure count.
-
-Node 24 `check:ci` passed (522 AVA tests, 24 repository tests, documentation and tarball checks). Node 20.20.2 `pack:check` also passed using the exact same five tarballs as this model run; both checks included 3/3 deterministic reference tasks. Package versions remain development-branch 0.3.1; source, artifact and contract hashes identify the actual fix. This is neither a published-release claim nor a long-term model success-rate guarantee.
-
-## Stage 7 verification
-
-The [2026-09-05 stage-7 record](../../../agent/evals/stage-7-2026-09-05.json) retains both model runs, complete-report hashes, artifact/source hashes and discovery sizes. The environment remains Windows x64, Node 24.20.0, Codex CLI 0.153.2 and `gpt-5.6-sol`; the actual consumer resolved Zod 4.5.4 / MCP SDK 1.30.0.
-
-The first run scored **4/6**. Both safe-stop cases obtained real diagnostics and preserved every file and pending edit, but included explanation alongside the code in `blocker`. The grader required an exact code, which the initial output contract had not specified. After clarifying only the shared answer schema/prompt, verification with the exact same five tarballs passed **6/6**. Grading, task objectives and model permissions were not loosened. The original failed run remains unchanged and is not pooled with verification.
-
-| Task | Verification result | Duration | Host tool calls / document reads / previews |
-|---|---|---|---|
-| inspect/validate | Passed | 33.598 s | 3 / 1 / 0 |
-| rename/save | Passed | 53.330 s | 7 / 3 / 1 |
-| stale recovery | Passed, with actual conflict recovery | 71.026 s | 15 / 4 / 2 |
-| edit-display-node | Passed, distracting nodes untouched | 50.068 s | 7 / 2 / 0 |
-| missing-source-bytes | Correctly blocked; session remains revision 1 / dirty | 42.009 s | 5 / 5 / 1 |
-| path-policy | Correctly blocked; destination and pending work unchanged | 44.478 s | 4 / 2 / 0 |
-
-Input schemas for the ten exposed tools fell from **1,539,683** to **197,873** bytes (about **87.1%**); apply/preflight each fell from **768,384** to **97,479** bytes. Total output-schema size fell from 484,702 to 222,234 bytes. Both sides used the same Zod/SDK versions and canonical contract digest. Actual discovery and editing calls passed without skipped-tool warnings. The three failed calls are the expected stale, missing-bytes and path refusals, not hidden successes.
-
-Final Node 24 `check:ci` passed (522 AVA tests, 26 repository tests, documentation build, six reference cases and tarball checks). Node 20.20.2 passed `pack:check` and 6/6 reference cases using the model run's exact five tarballs. No new version was released. Resuming after host hydration, browser interaction and more complex edits remain outside this round's coverage.
-
-## Stage 8 verification
-
-The [2026-09-05 stage-8 record](../../../agent/evals/stage-8-2026-09-05.json) retains full-report hashes, original failure evidence, source hashes and five-package artifact hashes. The first real-model run passed **8/8**, still using Windows x64, Node 24.20.0, Codex CLI 0.153.2 and `gpt-5.6-sol`. The installed consumer resolved Zod 4.5.4 / MCP SDK 1.30.0, with capability schema 7. No new version was released.
-
-The new controller task took 54.789 seconds and 7 host tool calls; the transition task took 64.747 seconds and 8 calls. Both actually queried, edited, previewed and saved the target, passing independent complete UAM/file reread comparisons. Page IDs/remarks, actions, gears, transition/item order, target references and same-name distractions survived. The other six tasks also passed, with no skipped-tool warnings, scope violations or repeated successful submissions. Three failed calls were the expected stale, missing-bytes and path refusals and remain counted.
-
-Regression coverage exposed and fixed existing transaction loss of page remarks and transition order. The first deterministic reference run scored **7/8**: transition file bytes were correct, but the new oracle incorrectly expected numeric end values instead of the XML reader's strings. Correcting only those expected values yielded **8/8** with the same five artifacts. Full semantics/file comparisons, task prompts and product artifacts were not relaxed or replaced; the original failed evidence remains. Only one real-model run followed that correction.
-
-Final Node 24 `check:ci` passed (526 AVA tests, 27 repository tests, documentation build and eight reference cases). Node 20.20.2 passed `pack:check` and 8/8 reference cases using the model run's exact five tarballs. This verifies the declared controller/transition objectives, not arbitrary complex editing, animation rendering, browser interaction, host hydration recovery or publishing.
-
-## Stage 9 verification
-
-The [2026-09-05 stage-9 record](../../../agent/evals/stage-9-2026-09-05.json) retains the full model run, two targeted reruns, report/source/artifact hashes and earlier consumer-debugging directories. The first real-model run passed **10/10** on Windows x64, Node 24.20.0, Codex CLI 0.153.2 and `gpt-5.6-sol`, with installed Zod 4.5.4 / MCP SDK 1.30.0.
-
-Both new tasks actually invoked the installed CLI, read published binaries/atlases, restored into a separate directory and reread the project. Supported semantics, cross-package references and red/blue RGBA matched for two packages and four resources; restored validation was valid/complete. Source, backup and unrelated bytes remained intact. Both final answers explicitly excluded original XML, unpublished content and editor-local state from recovery claims.
-
-Each artifact task initially recorded one `resources/templates/list` probe returning `-32601`. Tasks still completed, and these calls remain counted as failures. Adding only the standard empty template list to the evaluation host, plus a reference assertion, was followed by separate **1/1** reruns using the same five tarballs, with zero failed calls. Product artifacts, prompts, grading and tool permissions were unchanged; the reruns are not combined with the initial success rate. The publish rerun took 38.374 seconds and 5 host tool calls; recovery took 34.745 seconds and 4 calls. The original eight tasks retained three expected failures: stale revision, missing bytes and path refusal.
-
-Before model execution, consumer debugging corrected a top-level-await cycle, empty dependency placeholders from single-package reads, the atlas filename prefix and missing explicit source-byte hydration. All original directories remain. These were new-check issues, not model failures or publish/restore protocol changes. The installed consumer additionally verified that failed forced recovery with a corrupt atlas preserves the complete old target; workflow tests covered manifests for direct, atlas, alpha and workflow-generated code outputs.
-
-Final Node 24 `check:ci` passed (528 AVA tests, 29 repository tests, documentation build, ten reference cases, public types and tarball checks). Node 20.20.2 passed `pack:check` and **10/10 reference** using the model run's exact five tarballs and final host. Packages remain development-branch version 0.3.1; no new version was released. Coverage is the declared trusted-local Layabox consumer round trip, not arbitrary third-party artifacts, every publish format, browser rendering, original editor state or session recovery after host hydration.

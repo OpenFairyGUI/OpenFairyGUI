@@ -6,7 +6,7 @@
 
 新功能：
 
-- backend、mcp：新增绑定 revision 且与会话隔离的资源/组件/节点属性查询，采用固定投影、显式响应预算与 selector 错误；能力 schema 版本为 5。
+- backend、mcp：新增绑定 revision 且与会话隔离的资源/组件/节点属性查询，采用固定投影、显式响应预算与 selector 错误；能力 schema 版本为 9。
 - backend、mcp：通过现有异步事务入口在隔离快照上执行并丢弃预演结果，保留诊断且不改变会话或磁盘；预演不预留 revision，也不保证保存成功。
 - cli：新增 `inspect --json`，复用现有检查报告且不混入终端日志。
 - mcp：提供从 Core 类型生成的操作 schema 与目录资源，按 Backend 方法生成精确输入/输出，并对资源快照的 JSON 字节进行显式转换。

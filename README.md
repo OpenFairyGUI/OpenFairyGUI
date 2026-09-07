@@ -119,7 +119,7 @@ ofgui publish ./MyProject --output ./release
 
 ## 当前状态与边界
 
-项目当前维护 `0.2.x` 稳定线与 `0.3.x` 预发布线；0.x API 仍可能继续演进，版本变化以[更新日志](./CHANGELOG_CN.md)为准。
+0.x API 仍可能继续演进；稳定版、预发布版及其变更以[更新日志](./CHANGELOG_CN.md)为准。
 
 - Node.js 自动化流程是当前主要使用方式；浏览器宿主使用明确的 `/web` 入口和注入能力。
 - UAM 无法保真写回时会拒绝保存，不会静默覆盖源工程。

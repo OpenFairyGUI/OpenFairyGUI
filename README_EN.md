@@ -118,7 +118,7 @@ See [Packages and Tools](https://fairygui.dev/en/guide/packages) for package ent
 
 ## Status and boundaries
 
-The project currently maintains a stable `0.2.x` line and a `0.3.x` prerelease line. The 0.x APIs may continue to evolve; see the [Changelog](./CHANGELOG.md) for version changes.
+The 0.x APIs may continue to evolve; see the [Changelog](./CHANGELOG.md) for stable releases, prereleases, and their changes.
 
 - Node.js automation is the primary workflow; browser hosts use explicit `/web` entrypoints and injected capabilities.
 - UAM writeback is rejected when the project cannot be preserved faithfully, preventing silent source overwrites.
