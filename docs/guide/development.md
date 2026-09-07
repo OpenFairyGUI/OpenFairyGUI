@@ -54,7 +54,9 @@ doctor 不安装、不下载、不写文件；子模块状态查询也禁用 Git
 - 执行选中的 AVA 测试前统一运行工作区构建，确保 CLI/MCP/Backend 的构建测试不会加载旧依赖产物；构建失败立即停止。纯文档模式及 `--list`/`--matrix` 不触发构建。
 - 测试通过 pnpm 的 AVA 启动器运行，保留现有隔离构建测试需要的环境；不要直接调用 AVA 的 JS 文件。直接用 Node 调用选择脚本仅支持查看计划/矩阵。
 
-PR CI 的 quality job 在三个 Node 主版本执行 `check`；documentation job 在推荐 Node 上检查并构建文档；consumer job 在推荐 Node 的 Linux/Windows 环境执行 `pack:check`。文档与消费者 job 不下载 fixture。三类 job 合起来对应本地 `check:ci`；`check:fast` 和 `check` 不包含 tarball 安装。远端链接、Markdown 标题锚点、翻译含义和协议解释仍需人工审查。
+PR CI 先获取完整 Git 历史，使用 PR 目标提交与 `test:changed --list` 的现有影响映射判定范围。仅 `repository-only` 计划跳过 quality/consumer jobs；documentation job 仍执行 `scripts/repository.test.mjs` 仓库脚本自测、`docs:check` 与 `docs:build`。代码、站点配置、脚本、依赖、未知路径、无变更或无法确认比较基准时执行全量；范围判定 job 失败也不会静默跳过产品检查。工作流保持触发，跳过的是具体 job。
+
+全量 CI 的 quality job 在三个 Node 主版本执行 `check`；documentation job 在推荐 Node 上检查并构建文档；consumer job 在推荐 Node 的 Linux/Windows 环境执行 `pack:check`。文档与消费者 job 不下载 fixture。全量三类 job 合起来对应本地 `check:ci`；纯文档分流不等于完整回归，`check:fast` 和 `check` 不包含 tarball 安装。主分支 push 始终运行全量；同一 PR 的新运行会取消旧运行，主分支各次 push 不互相取消。远端链接、Markdown 标题锚点、翻译含义和协议解释仍需人工审查。
 
 消费者检查会联网安装依赖，成功清理自身临时目录，失败保留现场；`--keep` 可保留成功现场。发布前用 `pnpm pack:check --artifacts .release` 检查同一组已打包文件。入口、示例及验证限制见[可运行示例与消费者验证](./examples.md)。
 

@@ -52,9 +52,12 @@ test('impact selection includes downstream consumers and conservatively falls ba
 		assert.deepEqual(plan.tests, available);
 	}
 	assert.deepEqual(selectTests(map, [], available, 'base unavailable').tests, available);
-	assert.equal(selectTests(map, ['docs/guide/getting-started.md'], available).scope, 'repository-only');
-	assert.deepEqual(selectTests(map, ['docs/.vitepress/config.ts'], available).tests, available);
-	assert.deepEqual(selectTests(map, ['examples/node-inspect-validate/index.mjs'], available).tests, available);
+	const documentation = ['docs/guide/getting-started.md', 'docs/en/guide/development.md', 'README.md', 'README_EN.md', 'AGENTS.md', 'CHANGELOG.md', 'CHANGELOG_CN.md'];
+	assert.equal(selectTests(map, documentation, available).scope, 'repository-only');
+	for (const file of ['docs/.vitepress/config.ts', 'docs/.vitepress/theme/index.ts', 'examples/node-inspect-validate/index.mjs', 'scripts/test-changed.mjs', 'agent/impact-map.json', '.github/workflows/ci.yml', '.node-version', 'pnpm-lock.yaml']) {
+		assert.deepEqual(selectTests(map, [...documentation, file], available).tests, available);
+	}
+	assert.notEqual(selectTests(map, [...documentation, 'packages/mcp/src/index.ts'], available).scope, 'repository-only');
 });
 
 test('empty, unknown and incomplete full-test groups are errors', () => {
@@ -84,6 +87,23 @@ test('invalid comparison base produces a non-empty full plan via the real CLI', 
 	const result = JSON.parse(execFileSync(process.execPath, ['scripts/test-changed.mjs', '--base', 'refs/heads/does-not-exist', '--list'], { cwd: ROOT, encoding: 'utf8' }));
 	assert.equal(result.scope, 'full');
 	assert.deepEqual(result.tests, available);
+});
+
+test('documentation-only Git changes cannot hide deleted or renamed product code', (t) => {
+	const root = temporaryRepository(t);
+	write(root, 'docs/old.md', 'old documentation');
+	write(root, 'packages/mcp/src/example.ts', 'export {};');
+	const base = commit(root);
+	rmSync(path.join(root, 'docs/old.md'));
+	write(root, 'docs/new.md', 'new documentation');
+	commit(root);
+	assert.equal(selectTests(map, changedFiles(root, base), available).scope, 'repository-only');
+	renameSync(path.join(root, 'packages/mcp/src/example.ts'), path.join(root, 'docs/example.md'));
+	commit(root);
+	const files = changedFiles(root, base);
+	assert(files.includes('packages/mcp/src/example.ts'));
+	assert(files.includes('docs/example.md'));
+	assert.notEqual(selectTests(map, files, available).scope, 'repository-only');
 });
 
 test('AVA selection preserves pnpm shims instead of executing the raw JS entrypoint', () => {
