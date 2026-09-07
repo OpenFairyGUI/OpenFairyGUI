@@ -10,6 +10,16 @@ export function contractObjectSchema(schema: ContractSchema): z.ZodObject {
 	return result;
 }
 
+/** Keep SDK discovery dynamic without expanding shared contract definitions. */
+export function compactToolSchema(schema: z.ZodObject, io: 'input' | 'output'): z.ZodObject {
+	// Zod metadata supplies the wire schema; validation still delegates to the original schema.
+	// A separate object avoids Zod's cycle extraction overwriting the metadata's definitions.
+	return z.looseObject({}).superRefine((value, context) => {
+		const parsed = schema.safeParse(value);
+		if (!parsed.success) for (const issue of parsed.error.issues) context.addIssue({ ...issue });
+	}).meta(z.toJSONSchema(schema, { target: 'draft-07', io, reused: 'ref' }));
+}
+
 /** Decode only generated Uint8Array locations; arbitrary JSON metadata is not rewritten. */
 export function decodeToolBytes(input: Record<string, unknown>, paths: string[][]): Record<string, unknown> {
 	if (!paths.length) return input;

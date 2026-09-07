@@ -36,7 +36,7 @@ Each tool exposes a method-specific output schema for `structuredContent.backend
 - `error?`
 - `meta?`
 
-The factory advertises the fixed 20-method Backend catalog. Input/output schemas come from the canonical installed contract; discovery uses self-contained draft-07 `definitions`/`$ref` to reuse repeated structures without loosening the 41-operation union, call validators or input budgets. Installed operation documentation remains available through `openfairygui://contracts/operations` and `openfairygui://docs/index`.
+The factory registers the 20-method Backend catalog. The SDK owns dynamic discovery and dispatch, including Host tools added through `server.registerTool()`. Input/output schemas come from the canonical installed contract; discovery uses self-contained draft-07 `definitions`/`$ref` to reuse repeated structures without loosening the 41-operation union, call validators or input budgets. Installed operation documentation remains available through `openfairygui://contracts/operations` and `openfairygui://docs/index`.
 
 P1 also registers MCP-native ergonomics around the same backend surface:
 
@@ -70,6 +70,47 @@ For stdio clients, use the package binary:
 ```bash
 ofgui-mcp
 ```
+
+### Host composition
+
+Pass `instructions` to the factory to publish Host guidance in the SDK initialize handshake.
+
+Use `toolPolicies` to gate selected tools before Backend executes. Each policy declares a synchronous Zod `failureSchema` and a `beforeCall` callback. The callback receives a detached copy of the validated wire input and may be async. Returning `undefined` invokes the original Backend method once with the original input; returning a declared `ok: false` envelope stops the call and produces matching text/`structuredContent.backendResult` with `isError: true`.
+
+```ts
+import { createOpenFairyGuiMcpServer, type OpenFairyGuiMcpToolPolicy } from '@openfairygui/mcp';
+import { z } from 'zod';
+
+const policy: OpenFairyGuiMcpToolPolicy = {
+  failureSchema: z.strictObject({
+    ok: z.literal(false),
+    error: z.strictObject({
+      code: z.literal('save_approval_required'),
+      approvalRequestId: z.string(),
+      approvalPath: z.string(),
+    }),
+  }),
+  beforeCall(input) {
+    // Host-owned grant store: bind the grant to session, revision, operation and all options.
+    if (hostGrants.consume('saveSession', input)) return undefined;
+    return { ok: false, error: {
+      code: 'save_approval_required',
+      approvalRequestId: hostGrants.request('saveSession', input),
+      approvalPath: '/#save-approvals',
+    } };
+  },
+};
+const server = createOpenFairyGuiMcpServer({ runtime, instructions: 'Host writes require owner approval.', toolPolicies: {
+  openfairygui_backend_save_session: policy,
+} });
+server.registerTool('host_probe', { inputSchema: z.object({}) }, async () => ({
+  content: [{ type: 'text', text: 'ok' }],
+}));
+```
+
+`runtime` and `hostGrants` belong to the embedding Host. Configure `materialize_session` separately when it also requires approval; grants must distinguish the two operations. The policy must consume approval before allowing the call and must not call the Backend write itself. Backend still checks revision, paths and disk state after approval; failures are not retried automatically. Read tools without policies do not require grants.
+
+The selected tool's advertised output includes its declared Host failure branch. `_meta['openfairygui/hostPolicy']` marks that extension; the contract digest and installed documentation describe the unchanged Backend branch. Host failures do not become Backend error codes. Unknown tool-policy names fail server construction. Invalid inputs never reach the policy; throwing policies or invalid policy results stop before Backend and return `backend_unhandled_error`. Backend results always pass their canonical schema, even if a Host schema would accept them. Method response budgets also apply to policy failures. The direct `callOpenFairyGuiBackendTool(runtime, name, input, policy)` entry accepts the same policy as its optional fourth argument.
 
 Example local MCP client configuration:
 

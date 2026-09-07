@@ -23,6 +23,8 @@ Core owns transaction semantics, Functions composes workflows, Backend manages s
 
 Backend's typed diagnostic catalog covers formal error codes, recording every owner of shared codes, documentation URIs and recovery guidance. Responses retain the actual origin and original error fields. CLI/MCP share offline content and a thin Skill shipped with the installed version. Exact fields, versions and digests belong in [contracts](./guide/contracts.md), [diagnostics](./guide/diagnostics.md) and [installed docs](./guide/installed-docs.md).
 
+The SDK owns MCP tool discovery and dispatch; Hosts can add tools to the same server through public `registerTool()`. `toolPolicies` run Host checks after input validation and before Backend execution. A declared Host failure stops the call; allowing it invokes Backend once with the original input. Authorization and grant consumption belong to the Host; revision, path and disk guards remain in Backend. Discovery retains bounded `$ref` schemas. Host output extensions do not alter the installed Backend contracts or documentation.
+
 ## Primary data flow
 
 ```mermaid

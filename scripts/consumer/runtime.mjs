@@ -139,6 +139,72 @@ export function snapshot(directory) {
 	return result;
 }
 
+async function hostCompositionSmoke() {
+	const { createDemoProject } = await import('./examples/create-demo-project.mjs');
+	const { createNodeBackendRuntime } = await import('@openfairygui/backend/node');
+	const { createOpenFairyGuiMcpServer } = await import('@openfairygui/mcp');
+	const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
+	const { InMemoryTransport } = await import('@modelcontextprotocol/sdk/inMemory.js');
+	const { z } = createRequire(require.resolve('@openfairygui/mcp'))('zod');
+	const projectPath = await createDemoProject(root);
+	const before = snapshot(path.dirname(projectPath));
+	const runtime = createNodeBackendRuntime({ allowedProjectRoots: [path.dirname(projectPath)] });
+	let grant = false;
+	let saveCalls = 0;
+	let backendResult;
+	const saveSession = runtime.saveSession.bind(runtime);
+	runtime.saveSession = async (input) => { saveCalls++; return backendResult = await saveSession(input); };
+	const failure = { ok: false, error: { code: 'save_approval_required', approvalRequestId: 'owner-request', approvalPath: '/#save-approvals' } };
+	const policy = {
+		failureSchema: z.strictObject({ ok: z.literal(false), error: z.strictObject({ code: z.literal('save_approval_required'), approvalRequestId: z.string(), approvalPath: z.string() }) }),
+		beforeCall() { if (grant) { grant = false; return; } return failure; },
+	};
+	const server = createOpenFairyGuiMcpServer({ runtime, instructions: 'Host writes require owner approval.', toolPolicies: {
+		openfairygui_backend_save_session: policy, openfairygui_backend_materialize_session: policy,
+	} });
+	server.registerTool('host_probe', { inputSchema: z.object({}) }, async () => ({ content: [{ type: 'text', text: 'ok' }] }));
+	const client = new Client({ name: 'installed-host-composition', version: '1' });
+	const [ct, st] = InMemoryTransport.createLinkedPair();
+	let sessionId;
+	const call = (method, input) => client.callTool({ name: `openfairygui_backend_${method}`, arguments: input });
+	try {
+		await Promise.all([client.connect(ct), server.connect(st)]);
+		assert.equal(client.getInstructions(), 'Host writes require owner approval.');
+		const { tools } = await client.listTools();
+		assert.equal(tools.length, 21); assert(tools.some(({ name }) => name === 'host_probe'));
+		assert.equal((await client.callTool({ name: 'host_probe', arguments: {} })).content[0].text, 'ok');
+		assert((await client.readResource({ uri: 'openfairygui://docs/workflow' })).contents[0].text.length > 0);
+		assert((await client.getPrompt({ name: 'openfairygui_save_session' })).messages.length > 0);
+		const opened = (await call('open_session', { projectPath })).structuredContent.backendResult;
+		assert(opened.ok); sessionId = opened.data.sessionId;
+		assert(!(await call('apply_transaction', { sessionId, expectedRevision: 0, operations: [{ kind: 'renameResource', selector: { packageId: 'pkgdemo1', resourceId: 'cmpdemo1' }, newName: 'Approved' }] })).isError);
+		const input = { sessionId, expectedRevision: 1 };
+		assert(!(await call('read_session_state', input)).isError);
+		for (const method of ['save_session', 'materialize_session']) {
+			const pending = await call(method, input);
+			assert.equal(pending.isError, true); assert.deepEqual(pending.structuredContent, { backendResult: failure });
+			assert.deepEqual(JSON.parse(pending.content[0].text), failure);
+			assert(z.fromJSONSchema(tools.find(({ name }) => name.endsWith(`_${method}`)).outputSchema).safeParse(pending.structuredContent).success);
+		}
+		assert.equal(saveCalls, 0); assert.deepEqual(snapshot(path.dirname(projectPath)), before);
+		grant = true; // Only the fixture owner approves; the policy does not execute Backend itself.
+		const saved = await call('save_session', input);
+		assert(!saved.isError); assert.equal(saveCalls, 1);
+		assert.deepEqual(saved.structuredContent, { backendResult });
+		assert(existsSync(path.join(path.dirname(projectPath), 'assets/Main/Approved.xml')));
+		assert.equal((await call('save_session', input)).structuredContent.backendResult.error.code, 'save_approval_required');
+		assert.equal(saveCalls, 1);
+		grant = true;
+		const stale = await call('save_session', { sessionId, expectedRevision: 0 });
+		assert.equal(stale.structuredContent.backendResult.error.code, 'stale_write');
+		assert.deepEqual(stale.structuredContent, { backendResult }); assert.equal(saveCalls, 2);
+		console.log('[consumer] Host composition PASS: SDK discovery, installed docs/prompts, declared approval failure, one approved save and original Backend errors');
+	} finally {
+		if (sessionId) await runtime.closeSession({ sessionId });
+		await client.close(); await server.close();
+	}
+}
+
 async function sessionReadSmoke() {
 	const { createPublishProject, IMAGE_BYTES } = await import('./examples/publish-restore/index.mjs');
 	const { createNodeBackendRuntime } = await import('@openfairygui/backend/node');
@@ -431,6 +497,7 @@ export async function runtimeSmoke() {
 	const mcp = await import('@openfairygui/mcp');
 	await mcpSmoke(expected.find((entry) => entry.name === '@openfairygui/mcp').version, mcp.OPENFAIRYGUI_BACKEND_TOOL_NAMES,
 		mcp.getOpenFairyGuiOperationCatalog(), mcp.getOpenFairyGuiOperationSchema('addComponent'), expectedDocs);
+	await hostCompositionSmoke();
 	// Execute the documented no-argument commands too; keep their generated projects inside this consumer.
 	for (const name of ['node-inspect-validate', 'revision-checked-edit-save', 'publish-restore', 'mcp-stdio-client']) {
 		const output = execFileSync(process.execPath, [`examples/${name}/index.mjs`], {

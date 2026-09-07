@@ -7,9 +7,24 @@
 发布比较：
 
 - 稳定线（`main`）：[v0.4.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...main)
-- 开发线（`next`）：[v0.5.0-alpha.1...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0-alpha.1...next)
+- 开发线（`next`）：[v0.5.0-alpha.2...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0-alpha.2...next)
 
 ## v0.5.x
+
+### v0.5.0-alpha.2（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.2)）
+
+新功能：
+
+- mcp：新增按工具声明失败 schema 的 Host 策略、单次 Backend 委托和公开初始化 instructions。Host 失败保留结构化详情，不扩大 Backend 契约。[#138](https://github.com/OpenFairyGUI/OpenFairyGUI/issues/138)
+
+缺陷修复：
+
+- mcp：恢复 SDK 原生工具发现，包含连接前后注册的 Host 工具及公开注册句柄的生命周期变更，同时保留紧凑契约 schema。
+
+其他：
+
+- workspace：通过 SDK 集成测试与隔离 tarball 消费者验证 Host 组合、审批后真实写入、instructions 和随包文档。
+- docs：精简双语 README，将 Agent 接入流程集中到快速开始指南。
 
 ### v0.5.0-alpha.1（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.1)）
 

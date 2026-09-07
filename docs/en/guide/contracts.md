@@ -123,6 +123,7 @@ A preview reserves no revision and does not guarantee later apply/save or public
 - Inputs retain batch limits (1–1000), integer revisions, selector lengths, and aggregate node/depth/string budgets. General limits are depth 32, 100000 nodes, 10000 entries per array/object, 1000000 characters per string, and 256 per key. JSON byte arrays also obey the general array limit; per-field schemas do not replace aggregate limits.
 - Structural validity does not replace Core checks for references, resource content, field applicability, or legal operation batches, and does not guarantee execution or saving. MCP adds no second transaction kernel; preview only maps the authoritative Backend entrypoint.
 - Method-specific outputs preserve Backend error categories. Unhandled adapter errors use `backend_unhandled_error` without exposing internal exceptions. Structural schemas do not promise response budgets or diagnostic recovery policies.
+- The MCP factory's `toolPolicies` declare a Host `failureSchema` and `beforeCall` check for selected tools. Checks receive detached validated wire input; returning `undefined` invokes Backend once with the original input, while a declared `ok: false` branch stops the call. Tool response budgets also apply to Host failures; Backend results always use the canonical schema. SDK discovery includes subsequently registered Host tools and policy output extensions, marked by `openfairygui/hostPolicy` metadata. The fixed contract digest and installed corpus describe only the Backend branch.
 
 ## Generated catalog
 

@@ -123,6 +123,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 - 输入继续受批次上限（1–1000）、revision 整数、selector 长度及总节点/深度/字符串预算约束。通用预算为深度 32、节点 100000、单个数组/对象 10000 项、单个字符串 1000000 字符、键长 256；JSON 字节数组也受通用数组预算限制。schema 中的单字段限制不覆盖总预算。
 - schema 不替代 Core 的引用、资源内容、字段适用性和合法批次检查；校验成功不表示事务可执行或保存会成功。MCP 不增加第二套事务内核，预演也只映射 Backend 的正式入口。
 - 方法专属结果保留 Backend 的错误分类；适配层抛出的未处理错误使用 `backend_unhandled_error`，不暴露内部异常详情。响应预算及诊断修复策略不由结构 schema 承诺。
+- MCP 工厂的 `toolPolicies` 可为指定工具声明 Host `failureSchema` 和 `beforeCall` 检查。检查在输入校验后收到独立的 wire 参数副本；返回 `undefined` 以原参数调用 Backend 一次，返回已声明的 `ok: false` 分支则停止。Host 失败同样受工具响应预算约束；Backend 返回值始终按正式 schema 校验。SDK 动态发现包含后注册的 Host 工具及对应策略的输出扩展，`openfairygui/hostPolicy` 元数据标识策略；固定契约摘要和随包语料仅描述 Backend 分支。
 
 ## 当前生成目录
 
