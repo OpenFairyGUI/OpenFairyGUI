@@ -41,6 +41,8 @@ export interface CreateOpenFairyGuiMcpServerOptions {
 	allowedProjectRoots?: readonly string[];
 	name?: string;
 	version?: string;
+	/** Host guidance returned by the SDK initialize handshake. */
+	instructions?: string;
 	/** Per-tool Host failures do not change the canonical Backend contracts. */
 	toolPolicies?: Partial<Record<OpenFairyGuiBackendToolName, OpenFairyGuiMcpToolPolicy>>;
 }
@@ -57,7 +59,7 @@ export function createOpenFairyGuiMcpServer(options: CreateOpenFairyGuiMcpServer
 	const server = new McpServer({
 		name: options.name ?? 'openfairygui-mcp',
 		version: options.version ?? PACKAGE_VERSION,
-	});
+	}, { instructions: options.instructions });
 
 	for (const definition of OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS) {
 		const policy = options.toolPolicies?.[definition.name];

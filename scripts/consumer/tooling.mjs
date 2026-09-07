@@ -28,7 +28,7 @@ const policy: OpenFairyGuiMcpToolPolicy = {
   failureSchema: z.strictObject({ ok: z.literal(false), error: z.strictObject({ code: z.literal('owner_confirmation_required') }) }),
   beforeCall(input) { const sessionId: unknown = input.sessionId; void sessionId; return { ok: false, error: { code: 'owner_confirmation_required' } }; },
 };
-const server = createOpenFairyGuiMcpServer({ toolPolicies: { openfairygui_backend_save_session: policy } });
+const server = createOpenFairyGuiMcpServer({ instructions: 'Host approval required.', toolPolicies: { openfairygui_backend_save_session: policy } });
 server.registerTool('host_probe', { inputSchema: z.object({}) }, async () => ({ content: [{ type: 'text', text: 'ok' }] }));
 void server;\n`);
 writeFileSync('tsconfig.json', JSON.stringify({

@@ -73,6 +73,8 @@ ofgui-mcp
 
 ### Host composition
 
+Pass `instructions` to the factory to publish Host guidance in the SDK initialize handshake.
+
 Use `toolPolicies` to gate selected tools before Backend executes. Each policy declares a synchronous Zod `failureSchema` and a `beforeCall` callback. The callback receives a detached copy of the validated wire input and may be async. Returning `undefined` invokes the original Backend method once with the original input; returning a declared `ok: false` envelope stops the call and produces matching text/`structuredContent.backendResult` with `isError: true`.
 
 ```ts
@@ -98,7 +100,7 @@ const policy: OpenFairyGuiMcpToolPolicy = {
     } };
   },
 };
-const server = createOpenFairyGuiMcpServer({ runtime, toolPolicies: {
+const server = createOpenFairyGuiMcpServer({ runtime, instructions: 'Host writes require owner approval.', toolPolicies: {
   openfairygui_backend_save_session: policy,
 } });
 server.registerTool('host_probe', { inputSchema: z.object({}) }, async () => ({

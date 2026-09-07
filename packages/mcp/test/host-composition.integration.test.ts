@@ -28,12 +28,14 @@ const approvalFailure = (sessionId: string, revision: number) => ({
 });
 
 test('SDK discovery includes Host tools before and after connection and follows public handles', async (t) => {
-	const server = createOpenFairyGuiMcpServer({ runtime: new BackendRuntime() });
+	const instructions = 'Host writes require owner approval.';
+	const server = createOpenFairyGuiMcpServer({ runtime: new BackendRuntime(), instructions });
 	const probe = server.registerTool('host_probe', { inputSchema: z.object({}) }, async () => ({ content: [{ type: 'text', text: 'ok' }] }));
 	const client = new Client({ name: 'host-discovery', version: 'test' });
 	const [ct, st] = InMemoryTransport.createLinkedPair();
 	await Promise.all([client.connect(ct), server.connect(st)]);
 	try {
+		t.is(client.getInstructions(), instructions);
 		t.is((await client.listTools()).tools.length, 21);
 		t.deepEqual((await client.callTool({ name: 'host_probe', arguments: {} })).content, [{ type: 'text', text: 'ok' }]);
 		probe.disable();

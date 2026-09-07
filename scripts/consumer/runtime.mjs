@@ -159,7 +159,7 @@ async function hostCompositionSmoke() {
 		failureSchema: z.strictObject({ ok: z.literal(false), error: z.strictObject({ code: z.literal('save_approval_required'), approvalRequestId: z.string(), approvalPath: z.string() }) }),
 		beforeCall() { if (grant) { grant = false; return; } return failure; },
 	};
-	const server = createOpenFairyGuiMcpServer({ runtime, toolPolicies: {
+	const server = createOpenFairyGuiMcpServer({ runtime, instructions: 'Host writes require owner approval.', toolPolicies: {
 		openfairygui_backend_save_session: policy, openfairygui_backend_materialize_session: policy,
 	} });
 	server.registerTool('host_probe', { inputSchema: z.object({}) }, async () => ({ content: [{ type: 'text', text: 'ok' }] }));
@@ -169,6 +169,7 @@ async function hostCompositionSmoke() {
 	const call = (method, input) => client.callTool({ name: `openfairygui_backend_${method}`, arguments: input });
 	try {
 		await Promise.all([client.connect(ct), server.connect(st)]);
+		assert.equal(client.getInstructions(), 'Host writes require owner approval.');
 		const { tools } = await client.listTools();
 		assert.equal(tools.length, 21); assert(tools.some(({ name }) => name === 'host_probe'));
 		assert.equal((await client.callTool({ name: 'host_probe', arguments: {} })).content[0].text, 'ok');
