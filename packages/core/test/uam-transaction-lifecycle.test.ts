@@ -6,6 +6,10 @@ import {
 	UamTransactionError,
 	applyUamTransaction,
 	validateTransactionSupport,
+	validateUamProject,
+	liftDocumentToUamProject,
+	materializeUamProject,
+	type UamProject,
 	type UamComponentRefNode,
 	type UamTransactionOperation,
 } from '../src/index.js';
@@ -19,6 +23,7 @@ import {
 	createDisplayNodeBase,
 	createLifecycleComponent,
 	createLifecyclePackage,
+	createLookGear,
 	createNonLookGears,
 	createSupportedProject,
 	createTransitionModel,
@@ -819,6 +824,90 @@ test('controller and display gear page changes can commit in one transaction', (
 		? updatedComponent.component.displayList[0]?.gears.find((candidate) => candidate.kind === 'display')
 		: null;
 	t.deepEqual(gear?.kind === 'display' ? gear.visibleOnPageIds : null, ['2']);
+});
+
+test('gear kinds are unique across controllers and can be rebound by remove then add', async (t) => {
+	const seeded = applyUamTransaction(createSupportedProject(), ['a', 'b'].map((controllerName) => ({
+		kind: 'addController' as const,
+		selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName },
+		controller: createControllerModel(controllerName),
+	})));
+	for (const gear of [...createNonLookGears('a'), createLookGear('a')]) {
+		const selector = { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n0', kind: gear.kind, controllerName: 'a' };
+		const first: UamTransactionOperation = { kind: 'addGear', selector, gear };
+		const second: UamTransactionOperation = {
+			kind: 'addGear', selector: { ...selector, controllerName: 'b' }, gear: { ...gear, controllerName: 'b' },
+		};
+		const before = structuredClone(seeded);
+		t.throws(() => applyUamTransaction(seeded, [first, second]), { instanceOf: UamTransactionError });
+		t.deepEqual(seeded, before, gear.kind);
+		const added = applyUamTransaction(seeded, [first]);
+		t.throws(() => applyUamTransaction(added, [second]), { instanceOf: UamTransactionError });
+		const duplicate = structuredClone(added);
+		const duplicateComponent = duplicate.packages[0]!.resources.find((resource) => resource.id === 'cmp001');
+		if (duplicateComponent?.kind !== 'component') throw new Error('Expected component');
+		duplicateComponent.component.displayList[0]!.gears.push({ ...gear, controllerName: 'b' });
+		t.true(validateUamProject(duplicate).some((issue) => issue.message.includes('only have one')), gear.kind);
+		const rebound = applyUamTransaction(added, [{ kind: 'removeGear', selector }, second]);
+		const round = await roundTripCommittedProject(rebound);
+		const roundComponent = round.packages[0]!.resources.find((resource) => resource.id === 'cmp001');
+		if (roundComponent?.kind !== 'component') throw new Error('Expected component');
+		t.deepEqual(roundComponent.component.displayList[0]!.gears, [{ ...gear, name: '', controllerName: 'b' }], gear.kind);
+	}
+	const visibilityGears = createNonLookGears('a').filter((gear) => gear.kind === 'display' || gear.kind === 'display2');
+	t.notThrows(() => applyUamTransaction(seeded, visibilityGears.map((gear) => ({
+		kind: 'addGear',
+		selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n0', kind: gear.kind, controllerName: gear.controllerName },
+		gear,
+	}))));
+});
+
+test('percentage XY gears preserve px/py through transactions, project XML and binary', async (t) => {
+	const seeded = applyUamTransaction(createSupportedProject(), [{
+		kind: 'addController',
+		selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: 'state' },
+		controller: createControllerModel('state'),
+	}]);
+	const gear = createNonLookGears().find((candidate) => candidate.kind === 'xy')!;
+	gear.name = '';
+	gear.positionsInPercent = true;
+	gear.states = [
+		{ pageId: '0', value: { x: 80, y: 45, px: 0.25, py: 0.25 } },
+		{ pageId: '1', value: { x: 160, y: 90, px: 0.5, py: 0.5 } },
+	];
+	gear.defaultValue = { x: 0, y: 0, px: 0, py: 0 };
+	const selector = { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n0', kind: 'xy', controllerName: 'state' } as const;
+	const getGear = (project: UamProject) => {
+		const component = project.packages[0]!.resources.find((resource) => resource.id === 'cmp001');
+		if (component?.kind !== 'component') throw new Error('Expected component');
+		return component.component.displayList[0]!.gears.find((candidate) => candidate.kind === 'xy');
+	};
+	const applied = applyUamTransaction(seeded, [{ kind: 'addGear', selector, gear }]);
+	t.deepEqual(getGear(applied), gear);
+	t.deepEqual(getGear(await roundTripCommittedProject(applied)), gear);
+	const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-xy-gear-'));
+	t.teardown(() => fs.rm(tempDir, { recursive: true, force: true }));
+	const io = new NodeIO();
+	const binaryPath = path.join(tempDir, 'Main.fui');
+	await io.writeBinary(materializeUamProject(applied), binaryPath);
+	const binaryGear = getGear(liftDocumentToUamProject(await io.readBinary(binaryPath)));
+	t.deepEqual(binaryGear?.states, gear.states);
+	t.deepEqual(binaryGear?.defaultValue, gear.defaultValue);
+	t.true(binaryGear?.positionsInPercent);
+	const noDefaultGear = { ...gear, defaultValue: null };
+	const noDefault = applyUamTransaction(applied, [{ kind: 'updateGear', selector, gear: noDefaultGear }]);
+	t.deepEqual(getGear(noDefault), noDefaultGear);
+	t.deepEqual(getGear(await roundTripCommittedProject(noDefault)), noDefaultGear);
+	await io.writeBinary(materializeUamProject(noDefault), binaryPath);
+	t.is(getGear(liftDocumentToUamProject(await io.readBinary(binaryPath)))?.defaultValue, null);
+	for (const value of [{ x: 1, y: 2 }, { x: 1, y: 2, px: 0.25 }, { x: 1, y: 2, px: Number.NaN, py: 0.5 }]) {
+		const invalid = { ...gear, states: [{ pageId: '0', value }] };
+		t.true(validateTransactionSupport(seeded, [{ kind: 'addGear', selector, gear: invalid }]).some((issue) => issue.code === 'invalid_gear_payload'));
+		t.throws(() => applyUamTransaction(seeded, [{ kind: 'addGear', selector, gear: invalid }]), { instanceOf: UamTransactionError });
+		const invalidProject = structuredClone(applied);
+		getGear(invalidProject)!.defaultValue = value;
+		t.true(validateUamProject(invalidProject).some((issue) => issue.message.includes('px/py')));
+	}
 });
 
 test('non-look gear transactions validate references and persist every supported gear kind', async (t) => {

@@ -900,11 +900,16 @@ export function parseLookGearValue(value: string | null) {
 }
 
 export function parseGenericGearValue(kind: UamGenericValueGearBinding['kind'], value: string | null) {
+	if (kind === 'text') return value === null ? null : { text: value };
+	if (kind === 'icon') return value === null ? null : { icon: value };
 	if (!value || value === '-') return null;
 	const parts = value.split(',');
 	switch (kind) {
 		case 'xy':
-			return { x: parseNumber(parts[0], 0), y: parseNumber(parts[1], 0) };
+			return {
+				x: parseNumber(parts[0], 0), y: parseNumber(parts[1], 0),
+				...(parts.length > 2 ? { px: Number(parts[2]), py: Number(parts[3]) } : {}),
+			};
 		case 'size':
 			return {
 				width: parseNumber(parts[0], 0),
@@ -924,10 +929,6 @@ export function parseGenericGearValue(kind: UamGenericValueGearBinding['kind'], 
 				animationName: parts[2] ?? '',
 				skinName: parts[3] ?? '',
 			};
-		case 'text':
-			return { text: value };
-		case 'icon':
-			return { icon: value };
 		case 'fontSize':
 			return { fontSize: parseNumber(parts[0], 12) };
 	}
@@ -977,8 +978,8 @@ function serializeGenericGearValue(kind: UamGenericValueGearBinding['kind'], val
 	if (!value) return '-';
 	switch (kind) {
 		case 'xy': {
-			const xy = value as { x?: number; y?: number };
-			return `${xy.x ?? 0},${xy.y ?? 0}`;
+			const xy = value as { x?: number; y?: number; px?: number; py?: number };
+			return `${xy.x ?? 0},${xy.y ?? 0}${xy.px !== undefined || xy.py !== undefined ? `,${xy.px},${xy.py}` : ''}`;
 		}
 		case 'size': {
 			const size = value as { width?: number; height?: number; scaleX?: number; scaleY?: number };
@@ -1060,8 +1061,6 @@ function materializeGenericValueGear(
 		.setGearType(genericGearKindToType(gear.kind))
 		.setController(controller)
 		.setPages(gear.states.map((state) => state.pageId).join(','))
-		.setValues(gear.states.map((state) => serializeGenericGearValue(gear.kind, state.value)).join('|'))
-		.setDefaultValue(serializeGenericGearValue(gear.kind, gear.defaultValue))
 		.setCondition(gear.condition)
 		.setPositionsInPercent(gear.positionsInPercent)
 		.setTween(gear.tween)
@@ -1069,6 +1068,18 @@ function materializeGenericValueGear(
 		.setTweenDelay(gear.tweenDelay)
 		.setEaseType(gear.easeType)
 		.setCustomEasePath(gear.customEasePath);
+	if (gear.kind === 'text' || gear.kind === 'icon') {
+		materialized
+			.setPageValues(Object.fromEntries(gear.states.map((state) => [
+				state.pageId,
+				state.value === null ? null : serializeGenericGearValue(gear.kind, state.value),
+			])))
+			.setDefaultValue(gear.defaultValue === null ? null : serializeGenericGearValue(gear.kind, gear.defaultValue));
+	} else {
+		materialized
+			.setValues(gear.states.map((state) => serializeGenericGearValue(gear.kind, state.value)).join('|'))
+			.setDefaultValue(gear.defaultValue === null ? null : serializeGenericGearValue(gear.kind, gear.defaultValue));
+	}
 	target.addGear(materialized);
 }
 

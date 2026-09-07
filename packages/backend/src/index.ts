@@ -49,6 +49,8 @@ export {
 	type BackendEntitySnapshot,
 	type BackendResourceSnapshot,
 	type BackendComponentSnapshot,
+	type BackendProjectSnapshot,
+	type BackendPackageSnapshot,
 	type QueryEntityInput,
 	type EntityQueryError,
 	type BackendProjectOutline,

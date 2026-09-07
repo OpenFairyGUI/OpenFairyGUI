@@ -3,8 +3,8 @@ import type { ContractSnapshot } from '../docs.js';
 export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 	"schemaVersion": 1,
 	"versions": {
-		"BACKEND_CONTRACT_VERSION": "1.1.0-p2",
-		"BACKEND_CAPABILITY_SCHEMA_VERSION": 9
+		"BACKEND_CONTRACT_VERSION": "2.0.0-p2",
+		"BACKEND_CAPABILITY_SCHEMA_VERSION": 10
 	},
 	"operations": {
 		"updateProjectSettings": {
@@ -369,7 +369,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"name": "openfairygui_backend_query_entity",
 			"backendMethod": "queryEntity",
 			"title": "Query Entity Properties",
-			"description": "Read a revision-bound resource, component-property, display-node, controller (including pages/actions), or transition (including items) snapshot using formal selectors. No source bytes; fixed projection with explicit response limits.",
+			"description": "Read revision-bound project/package settings, resource, component-property, display-node, controller (including pages/actions), or transition (including items) snapshots. Project queries use only kind; other queries use formal selectors. Settings snapshots include the complete settings payload for updateProjectSettings/updatePackageSettings. No source bytes; fixed projection with explicit response limits.",
 			"annotations": {
 				"readOnlyHint": true,
 				"idempotentHint": true,
@@ -3707,7 +3707,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/Array_f4ce911974"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/UamXYGearValue_22ca68eeec"
+					"$ref": "#/$defs/Shape_ddacff5c0d"
 				},
 				"condition": {
 					"type": "string"
@@ -3782,6 +3782,12 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		"UamXYGearValue_22ca68eeec": {
 			"type": "object",
 			"properties": {
+				"px": {
+					"type": "number"
+				},
+				"py": {
+					"type": "number"
+				},
 				"x": {
 					"type": "number"
 				},
@@ -4153,7 +4159,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/Array_e68d70de11"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/UamTextGearValue_9d786778d5"
+					"$ref": "#/$defs/Shape_4391f013f2"
 				},
 				"condition": {
 					"type": "string"
@@ -4254,7 +4260,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/Array_0bd75ccf9b"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/UamIconGearValue_a708aa25aa"
+					"$ref": "#/$defs/Shape_6dc9e9b23e"
 				},
 				"condition": {
 					"type": "string"
@@ -10384,11 +10390,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"contractVersion": {
 					"type": "string",
-					"const": "1.1.0-p2"
+					"const": "2.0.0-p2"
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
-					"const": 9
+					"const": 10
 				}
 			},
 			"required": [
@@ -10690,11 +10696,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"properties": {
 				"contractVersion": {
 					"type": "string",
-					"const": "1.1.0-p2"
+					"const": "2.0.0-p2"
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
-					"const": 9
+					"const": 10
 				},
 				"transactionKernelOwner": {
 					"type": "string",
@@ -10712,7 +10718,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/Shape_549da6da36"
 				},
 				"read": {
-					"$ref": "#/$defs/__type_53a9654aac"
+					"$ref": "#/$defs/__type_844d088bf1"
 				},
 				"authoring": {
 					"$ref": "#/$defs/__type_cea960ae37"
@@ -10826,7 +10832,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"maxItems": 18,
 			"items": false
 		},
-		"__type_53a9654aac": {
+		"__type_844d088bf1": {
 			"type": "object",
 			"properties": {
 				"capabilitySnapshot": {
@@ -10842,7 +10848,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": true
 				},
 				"entityQuery": {
-					"$ref": "#/$defs/__type_38ebb87013"
+					"$ref": "#/$defs/__type_de79aa70a9"
 				},
 				"projectValidation": {
 					"type": "boolean",
@@ -10858,11 +10864,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"__type_38ebb87013": {
+		"__type_de79aa70a9": {
 			"type": "object",
 			"properties": {
 				"kinds": {
-					"$ref": "#/$defs/ReadonlyArray_4a31c2a0ab"
+					"$ref": "#/$defs/ReadonlyArray_3ceb2b0864"
 				},
 				"projection": {
 					"type": "string",
@@ -10884,14 +10890,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"ReadonlyArray_4a31c2a0ab": {
+		"ReadonlyArray_3ceb2b0864": {
 			"type": "array",
 			"items": {
 				"enum": [
 					"transition",
 					"component",
 					"resource",
+					"package",
 					"controller",
+					"project",
 					"displayNode"
 				]
 			}
@@ -12268,6 +12276,12 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		"BackendEntityTarget_b5c1eb0e3d": {
 			"anyOf": [
 				{
+					"$ref": "#/$defs/__type_d93b879b98"
+				},
+				{
+					"$ref": "#/$defs/__type_879da0f1c5"
+				},
+				{
 					"$ref": "#/$defs/__type_d457e5aa01"
 				},
 				{
@@ -12283,6 +12297,47 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/__type_2e01571d4b"
 				}
 			]
+		},
+		"__type_d93b879b98": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "project"
+				}
+			},
+			"required": [
+				"kind"
+			],
+			"additionalProperties": false
+		},
+		"__type_879da0f1c5": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "package"
+				},
+				"selector": {
+					"type": "object",
+					"properties": {
+						"packageId": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 256
+						}
+					},
+					"required": [
+						"packageId"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"kind",
+				"selector"
+			],
+			"additionalProperties": false
 		},
 		"__type_d457e5aa01": {
 			"type": "object",
@@ -12516,7 +12571,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/BackendEntityTarget_b5c1eb0e3d"
 				},
 				"entity": {
-					"$ref": "#/$defs/Shape_3666eb003a"
+					"$ref": "#/$defs/Shape_4bca68b07d"
 				}
 			},
 			"required": [
@@ -12527,8 +12582,14 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"Shape_3666eb003a": {
+		"Shape_4bca68b07d": {
 			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_c89e6f2137"
+				},
+				{
+					"$ref": "#/$defs/__type_335f10aa7c"
+				},
 				{
 					"$ref": "#/$defs/__type_a07c5ad5c1"
 				},
@@ -12545,6 +12606,76 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/__type_cc0d87e4dd"
 				}
 			]
+		},
+		"__type_c89e6f2137": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "project"
+				},
+				"properties": {
+					"$ref": "#/$defs/BackendProjectSnapshot_193659dcff"
+				}
+			},
+			"required": [
+				"kind",
+				"properties"
+			],
+			"additionalProperties": false
+		},
+		"BackendProjectSnapshot_193659dcff": {
+			"type": "object",
+			"properties": {
+				"settings": {
+					"$ref": "#/$defs/ProjectSettings_eb04257954"
+				},
+				"projectId": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"settings",
+				"projectId"
+			],
+			"additionalProperties": false
+		},
+		"__type_335f10aa7c": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "package"
+				},
+				"properties": {
+					"$ref": "#/$defs/BackendPackageSnapshot_56e2030ddf"
+				}
+			},
+			"required": [
+				"kind",
+				"properties"
+			],
+			"additionalProperties": false
+		},
+		"BackendPackageSnapshot_56e2030ddf": {
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"settings": {
+					"$ref": "#/$defs/UamPackageSettings_b7506a6655"
+				}
+			},
+			"required": [
+				"id",
+				"name",
+				"settings"
+			],
+			"additionalProperties": false
 		},
 		"__type_a07c5ad5c1": {
 			"type": "object",
@@ -13276,7 +13407,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"type": "object",
 			"properties": {
 				"target": {
-					"$ref": "#/$defs/Shape_5a1a3c687a"
+					"$ref": "#/$defs/BackendEntityTarget_b5c1eb0e3d"
 				},
 				"change": {
 					"enum": [
@@ -13293,73 +13424,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"target",
 				"change",
 				"fields"
-			],
-			"additionalProperties": false
-		},
-		"Shape_5a1a3c687a": {
-			"anyOf": [
-				{
-					"$ref": "#/$defs/__type_d457e5aa01"
-				},
-				{
-					"$ref": "#/$defs/__type_1b4cb0c5b9"
-				},
-				{
-					"$ref": "#/$defs/__type_b1c1f2274b"
-				},
-				{
-					"$ref": "#/$defs/__type_5f36820e75"
-				},
-				{
-					"$ref": "#/$defs/__type_2e01571d4b"
-				},
-				{
-					"$ref": "#/$defs/__type_d93b879b98"
-				},
-				{
-					"$ref": "#/$defs/__type_224f7bb4a4"
-				}
-			]
-		},
-		"__type_d93b879b98": {
-			"type": "object",
-			"properties": {
-				"kind": {
-					"type": "string",
-					"const": "project"
-				}
-			},
-			"required": [
-				"kind"
-			],
-			"additionalProperties": false
-		},
-		"__type_224f7bb4a4": {
-			"type": "object",
-			"properties": {
-				"kind": {
-					"type": "string",
-					"const": "package"
-				},
-				"selector": {
-					"$ref": "#/$defs/__type_0fdffbdb6c"
-				}
-			},
-			"required": [
-				"kind",
-				"selector"
-			],
-			"additionalProperties": false
-		},
-		"__type_0fdffbdb6c": {
-			"type": "object",
-			"properties": {
-				"packageId": {
-					"type": "string"
-				}
-			},
-			"required": [
-				"packageId"
 			],
 			"additionalProperties": false
 		},
@@ -17859,5 +17923,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "f7d97431178200ad46a58117724e9ad812820c61bea2113fbc3d699fc79e2fa8"
+	"digest": "2477d35b672c5a719b82d51714b9564a2e179d6ca65c4348ea2332d65b1e22ef"
 };

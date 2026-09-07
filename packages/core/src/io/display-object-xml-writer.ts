@@ -1361,6 +1361,7 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 		const objectProtocol = DISPLAY_OBJECT_PROTOCOL_BY_TYPE[type] ?? PROJECT_XML_PROTOCOL.componentInstance;
 		writeCommonDisplayState(attrs, typedObj, objectProtocol);
 		const gearChildNameSet = getProtocolGearChildNameSet(objectProtocol);
+		assertDisplayObjectGearXmlValues(obj);
 		for (const gear of obj.listGears()) {
 			const gearTag = GEAR_TAG[gear.getGearType()];
 			if (!gearTag || !gearChildNameSet.has(gearTag)) continue;
@@ -1397,12 +1398,42 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 		return attrs;
 	}
 
+export function assertDisplayObjectGearXmlValues(obj: GObject): void {
+	const types = new Set<number>();
+	for (const gear of obj.listGears()) {
+		const type = gear.getGearType();
+		if (types.has(type)) throw new Error(`Display node "${obj.getId()}" has duplicate ${GEAR_TAG[type] ?? type} bindings.`);
+		types.add(type);
+		assertTextGearXmlValues(gear);
+	}
+}
+
+function assertTextGearXmlValues(gear: Gear): void {
+	if (gear.getGearType() !== GearType.Text && gear.getGearType() !== GearType.Icon) return;
+	const values = gear.getPageValues();
+	for (const page of gear.getPages() ? gear.getPages().split(',') : []) {
+		if (values[page]?.includes('|')) {
+			throw new Error(`Project XML cannot represent "|" in Text/Icon gear page "${page}"; no verified delimiter escape is available.`);
+		}
+	}
+}
+
 function serializeGear(gear: Gear, ownerType?: string, ownerName?: string | null): Record<string, unknown> {
 		const ctrl = gear.getController();
 		const attrs: Record<string, unknown> = {};
 		if (ctrl) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.controller, ctrl.getName());
-		if (gear.getPages()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.pages, gear.getPages());
-		if (gear.getValues()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.values, normalizeGearXmlValue(gear.getGearType(), gear.getValues(), ownerType, ownerName ?? undefined, gear));
+		if (gear.getGearType() === GearType.Text || gear.getGearType() === GearType.Icon) {
+			assertTextGearXmlValues(gear);
+			const values = gear.getPageValues();
+			const pages = (gear.getPages() ? gear.getPages().split(',') : []).filter((page) => values[page] != null);
+			if (pages.length > 0) {
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.pages, pages.join(','));
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.values, pages.map((page) => values[page]).join('|'));
+			}
+		} else {
+			if (gear.getPages()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.pages, gear.getPages());
+			if (gear.getValues()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.values, normalizeGearXmlValue(gear.getGearType(), gear.getValues(), ownerType, ownerName ?? undefined, gear));
+		}
 		if (gear.getDefaultValue() !== null) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.default, normalizeGearXmlValue(gear.getGearType(), gear.getDefaultValue(), ownerType, ownerName ?? undefined, gear));
 		if (gear.getTween()) {
 			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.tween, 'true');

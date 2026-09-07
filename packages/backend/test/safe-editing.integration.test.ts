@@ -98,6 +98,7 @@ test('fixed entity projections are revision-bound, byte-free and detached withou
 	const originalText = node.entity.properties.text;
 	node.entity.properties.text = 'outside mutation';
 	node.entity.properties.position.x = 900;
+	assert(node.target.kind === 'displayNode');
 	node.target.selector.packageId = 'outside';
 	const again = query(nodeTarget);
 	assert(again.entity.kind === 'displayNode' && again.entity.properties.kind === 'text');
@@ -128,6 +129,9 @@ test('entity query rejects invalid, missing and ambiguous selectors, and closed 
 	const sessionId = opened.data.sessionId;
 	for (const [target, reason] of [
 		[Object.assign([], nodeTarget), 'invalid_query'],
+		[{ kind: 'project', selector: {} }, 'invalid_query'],
+		[{ kind: 'package', selector: {} }, 'invalid_query'],
+		[{ kind: 'package', selector: { packageId: 'missing' } }, 'not_found'],
 		[{ kind: 'resource', selector: { packageId: 'pkg001' } }, 'invalid_query'],
 		[{ ...nodeTarget, selector: { ...nodeTarget.selector, invented: true } }, 'invalid_query'],
 		[{ ...nodeTarget, selector: { ...nodeTarget.selector, displayNodeId: 'missing' } }, 'not_found'],
@@ -148,6 +152,91 @@ test('entity query rejects invalid, missing and ambiguous selectors, and closed 
 	assert(!ambiguous.ok && ambiguous.error.code === 'entity_query_failed');
 	t.is(ambiguous.error.reason, 'ambiguous');
 	await runtime.closeSession({ sessionId: duplicate.data.sessionId });
+});
+
+test('settings queries provide detached complete payloads for revision-checked project and package updates', async (t) => {
+	const project = liftDocumentToUamProject(materializeUamProject(createBackendFixtureProject()));
+	project.settings = {
+		publish: { compressDesc: true, codeGeneration: { codePath: './generated', packageName: 'ui' } },
+		common: { font: 'PreserveFont', fontSize: 18 },
+		adaptation: { designResolutionX: 1280, designResolutionY: 720 },
+		customProperties: { theme: { accents: ['blue', 'green'] } },
+	};
+	const pkg = project.packages[0];
+	pkg.compressPNG = true; pkg.jpegQuality = 85;
+	assert(pkg.publish);
+	pkg.publish.atlases = [{ index: 0, name: 'main', compression: true }];
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({ project });
+	assert(opened.ok);
+	const sessionId = opened.data.sessionId;
+	try {
+		const before = sessionState(runtime, sessionId);
+		const projectQuery = runtime.queryEntity({ sessionId, target: { kind: 'project' } });
+		const packageQuery = runtime.queryEntity({ sessionId, target: { kind: 'package', selector: { packageId: pkg.id } } });
+		assert(projectQuery.ok && projectQuery.data.entity.kind === 'project');
+		assert(packageQuery.ok && packageQuery.data.entity.kind === 'package');
+		t.deepEqual(projectQuery.data.entity.properties, { projectId: project.projectId, settings: project.settings });
+		t.deepEqual(packageQuery.data.entity.properties, {
+			id: pkg.id, name: pkg.name, settings: { compressPNG: pkg.compressPNG, jpegQuality: pkg.jpegQuality, publish: pkg.publish },
+		});
+		for (const result of [projectQuery, packageQuery]) {
+			t.is(result.meta.revision, 0); t.is(result.data.revision, 0); t.is(result.data.sessionId, sessionId);
+		}
+		const projectSettings = projectQuery.data.entity.properties.settings;
+		const packageSettings = packageQuery.data.entity.properties.settings;
+		assert(projectSettings.common && packageSettings.publish);
+		projectSettings.common.fontSize = 24;
+		packageSettings.publish.atlases[0].name = 'edited';
+		t.deepEqual(sessionState(runtime, sessionId), before);
+		const transaction: ApplySessionTransactionInput = { sessionId, expectedRevision: projectQuery.data.revision, operations: [
+			{ kind: 'updateProjectSettings', settings: projectSettings },
+			{ kind: 'updatePackageSettings', selector: { packageId: pkg.id }, settings: packageSettings },
+		] };
+		const applied = await runtime.applyTransaction(transaction);
+		assert(applied.ok);
+		t.true(applied.data.dirty);
+		const projectAgain = runtime.queryEntity({ sessionId, target: projectQuery.data.target });
+		const packageAgain = runtime.queryEntity({ sessionId, target: packageQuery.data.target });
+		assert(projectAgain.ok && projectAgain.data.entity.kind === 'project');
+		assert(packageAgain.ok && packageAgain.data.entity.kind === 'package');
+		t.is(projectAgain.data.revision, 1); t.is(packageAgain.meta.revision, 1);
+		t.deepEqual(projectAgain.data.entity.properties.settings, projectSettings);
+		t.deepEqual(packageAgain.data.entity.properties.settings, packageSettings);
+		const stale = await runtime.applyTransaction(transaction);
+		assert(!stale.ok); t.is(stale.error.code, 'stale_write');
+	} finally { await runtime.closeSession({ sessionId }); }
+	project.packages.push(structuredClone(pkg));
+	const duplicate = runtime.openProjectSession({ project });
+	assert(duplicate.ok);
+	try {
+		const result = runtime.queryEntity({ sessionId: duplicate.data.sessionId, target: { kind: 'package', selector: { packageId: pkg.id } } });
+		assert(!result.ok && result.error.code === 'entity_query_failed');
+		t.is(result.error.reason, 'ambiguous');
+	} finally { await runtime.closeSession({ sessionId: duplicate.data.sessionId }); }
+});
+
+test('settings queries retain response budgets and reject non-JSON native settings', async (t) => {
+	for (const kind of ['project', 'package'] as const) {
+		for (const [value, reason] of [['你'.repeat(100000), 'response_budget_exceeded'], [new Uint8Array([1]), 'non_json_value']] as const) {
+			const project = liftDocumentToUamProject(materializeUamProject(createBackendFixtureProject()));
+			assert(project.packages[0].publish);
+			if (kind === 'project') project.settings.common = { font: value as string };
+			else project.packages[0].publish.codePath = value as string;
+			const runtime = new BackendRuntime();
+			const opened = runtime.openProjectSession({ project });
+			assert(opened.ok);
+			const sessionId = opened.data.sessionId;
+			try {
+				const before = sessionState(runtime, sessionId);
+				const target: QueryEntityInput['target'] = kind === 'project' ? { kind } : { kind, selector: { packageId: 'pkg001' } };
+				const result = runtime.queryEntity({ sessionId, target });
+				assert(!result.ok && result.error.code === 'entity_query_failed');
+				t.is(result.error.reason, reason); t.false('data' in result);
+				t.deepEqual(sessionState(runtime, sessionId), before);
+			} finally { await runtime.closeSession({ sessionId }); }
+		}
+	}
 });
 
 test('entity query applies UTF-8 response budgets and rejects non-JSON native payloads without truncation', async (t) => {
@@ -184,7 +273,7 @@ test('complex queries retain complete pages/actions/items and gears, detach deep
 	const opened = runtime.openProjectSession({ project });
 	assert(opened.ok);
 	const sessionId = opened.data.sessionId;
-	t.deepEqual(opened.data.capabilities.read.entityQuery.kinds, ['resource', 'component', 'displayNode', 'controller', 'transition']);
+	t.deepEqual(opened.data.capabilities.read.entityQuery.kinds, ['project', 'package', 'resource', 'component', 'displayNode', 'controller', 'transition']);
 	try {
 		for (const revision of [0, 1]) {
 			const before = sessionState(runtime, sessionId);
@@ -200,6 +289,7 @@ test('complex queries retain complete pages/actions/items and gears, detach deep
 			for (const result of [controller, transition]) {
 				t.is(result.data.revision, revision); t.is(result.meta.revision, revision);
 				t.is(result.data.sessionId, sessionId);
+				assert(result.data.target.kind !== 'project');
 				result.data.target.selector.packageId = 'outside';
 			}
 			controller.data.entity.properties.pages[0].name = 'outside';

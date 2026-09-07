@@ -356,6 +356,8 @@ This block stores the child list:
 | Target | Resolved by child index first |
 | Relation pairs | Each target has multiple relation-type and `usePercent` pairs |
 
+Component-root and child relation targets use indexes into the same published child list. Ordinary Groups (`advanced=false`) occupy no slot; advanced Groups retain their slots. A parent target uses `-1`.
+
 #### Block 4: Advanced properties
 
 | Field | Description |
@@ -547,6 +549,10 @@ This preserves hierarchy semantics for leaf nodes without icons or URLs. Icons a
 | Tween | Ease, duration, delay, and custom-ease path |
 | Extended state | Conditional fields such as GearXY percentages and GearAnimation extended state |
 
+Each child has one slot per Gear type, regardless of its controller binding; Display and Display2 are separate types. The XY percentage extension stores floating-point `px/py` coordinates relative to the parent size (`0.5` means 50%). Size scales and Look alpha may be `0`.
+
+For Text/Icon, empty strings, `-`, and strings containing `|` are complete state values. A null page carries no state payload. A separate Boolean records default-value presence, distinguishing an absent default override from an explicit empty string.
+
 #### Transition
 
 | Content | Requirement |
@@ -555,6 +561,8 @@ This preserves hierarchy semantics for leaf nodes without icons or URLs. Icons a
 | Tween | `duration`, `easeType`, `repeat`, `yoyo`, `endLabel` |
 | Value | `value` / `startValue` / `endValue` |
 | Path | `path`, custom-ease path |
+
+Scale `0` is a valid scale. Sound volume `0` means silence, and a nested Transition play count of `0` means stop; these values are not replaced by defaults.
 
 #### ScrollPane
 

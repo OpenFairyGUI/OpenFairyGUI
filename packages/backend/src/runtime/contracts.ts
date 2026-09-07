@@ -14,6 +14,8 @@ import type {
 	UamGenericAssetResource,
 	UamComponentResource,
 	UamProject,
+	UamPackageSettings,
+	UamPackageSelector,
 	UamResource,
 	UamTransactionOperation,
 } from '@openfairygui/core/uam';
@@ -42,7 +44,15 @@ type ResourceQueryFields<T> = Pick<T, Extract<keyof T, typeof BACKEND_RESOURCE_Q
 export type BackendResourceSnapshot = ResourceQueryFields<UamImageResource> | ResourceQueryFields<UamMovieClipResource>
 	| ResourceQueryFields<UamGenericAssetResource> | ResourceQueryFields<UamComponentResource>;
 export type BackendComponentSnapshot = Pick<UamComponentModel, 'size' | 'properties' | 'customData'>;
+export type BackendProjectSnapshot = Pick<UamProject, 'projectId' | 'settings'>;
+export interface BackendPackageSnapshot {
+	id: string;
+	name: string;
+	settings: UamPackageSettings;
+}
 export type BackendEntityTarget =
+	| { kind: 'project' }
+	| { kind: 'package'; selector: UamPackageSelector }
 	| { kind: 'resource'; selector: UamResourceSelector }
 	| { kind: 'component'; selector: UamComponentSelector }
 	| { kind: 'displayNode'; selector: UamDisplayNodeSelector }
@@ -56,7 +66,9 @@ export interface BackendEntitySnapshot {
 	sessionId: string;
 	revision: number;
 	target: BackendEntityTarget;
-	entity: { kind: 'resource'; properties: BackendResourceSnapshot }
+	entity: { kind: 'project'; properties: BackendProjectSnapshot }
+		| { kind: 'package'; properties: BackendPackageSnapshot }
+		| { kind: 'resource'; properties: BackendResourceSnapshot }
 		| { kind: 'component'; properties: BackendComponentSnapshot }
 		| { kind: 'displayNode'; properties: UamDisplayNode }
 		| { kind: 'controller'; properties: UamControllerModel }
@@ -613,7 +625,7 @@ export interface BackendTransactionPreview {
 }
 
 export interface BackendTransactionEntityChange {
-	target: BackendEntityTarget | { kind: 'project' } | { kind: 'package'; selector: { packageId: string } };
+	target: BackendEntityTarget;
 	change: 'added' | 'removed' | 'updated';
 	/** Changed top-level property names; child collections contain identities and preserve their order. */
 	fields: string[];
@@ -638,7 +650,9 @@ export interface OpenProjectSessionInput {
 	/** Authoritative UAM project. Use BackendRuntime.openSession() when importing an existing project from storage. */
 	project: UamProject;
 	sessionId?: string;
+	/** Session identity only; without explicit storage or a per-call filesystem this grants no filesystem access. */
 	canonicalProjectPath?: string;
+	/** Host-defined session identity; not a filesystem authorization or an allowed-root override. */
 	canonicalPathKey?: string;
 	/** Optional writeback target for the authoritative UAM project; this is not an import source. */
 	storage?: BackendProjectSessionStorage;

@@ -755,7 +755,11 @@ export interface UamLookGearValue {
 	touchable: boolean;
 }
 
-export interface UamXYGearValue extends UamPoint {}
+export interface UamXYGearValue extends UamPoint {
+	/** Parent-relative coordinates: 0.5 means 50%. Required when positionsInPercent is true. */
+	px?: number;
+	py?: number;
+}
 
 export interface UamSizeGearValue extends UamSize {
 	scaleX: number;
@@ -786,12 +790,12 @@ export interface UamFontSizeGearValue {
 	fontSize: number;
 }
 
-interface UamValueBoundGear<TKind extends string, TValue> {
+interface UamValueBoundGear<TKind extends string, TValue, TDefault = TValue> {
 	kind: TKind;
 	name: string;
 	controllerName: string;
 	states: UamGearPageState<TValue>[];
-	defaultValue: TValue;
+	defaultValue: TDefault;
 	condition: string;
 	positionsInPercent: boolean;
 	tween: boolean;
@@ -817,12 +821,12 @@ export interface UamDisplay2GearBinding {
 }
 
 export type UamLookGearBinding = UamValueBoundGear<'look', UamLookGearValue>;
-export type UamXYGearBinding = UamValueBoundGear<'xy', UamXYGearValue>;
+export type UamXYGearBinding = UamValueBoundGear<'xy', UamXYGearValue, UamXYGearValue | null>;
 export type UamSizeGearBinding = UamValueBoundGear<'size', UamSizeGearValue>;
 export type UamColorGearBinding = UamValueBoundGear<'color', UamColorGearValue>;
 export type UamAnimationGearBinding = UamValueBoundGear<'animation', UamAnimationGearValue>;
-export type UamTextGearBinding = UamValueBoundGear<'text', UamTextGearValue>;
-export type UamIconGearBinding = UamValueBoundGear<'icon', UamIconGearValue>;
+export type UamTextGearBinding = UamValueBoundGear<'text', UamTextGearValue, UamTextGearValue | null>;
+export type UamIconGearBinding = UamValueBoundGear<'icon', UamIconGearValue, UamIconGearValue | null>;
 export type UamFontSizeGearBinding = UamValueBoundGear<'fontSize', UamFontSizeGearValue>;
 
 export type UamGearBinding =

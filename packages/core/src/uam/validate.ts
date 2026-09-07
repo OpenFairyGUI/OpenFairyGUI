@@ -37,6 +37,13 @@ export function isFiniteUamPoint(value: unknown): boolean {
 		&& Number.isFinite(point.y);
 }
 
+export function isValidUamXYGearValue(value: unknown, positionsInPercent: boolean): boolean {
+	if (!isFiniteUamPoint(value)) return false;
+	const { px, py } = value as { px?: unknown; py?: unknown };
+	if (!positionsInPercent && px === undefined && py === undefined) return true;
+	return typeof px === 'number' && Number.isFinite(px) && typeof py === 'number' && Number.isFinite(py);
+}
+
 function isFiniteUamSize(value: unknown): boolean {
 	if (typeof value !== 'object' || value === null) return false;
 	const size = value as { width?: unknown; height?: unknown };
@@ -562,6 +569,16 @@ function validateGearBinding(
 	path: string,
 	issues: UamValidationIssue[],
 ): void {
+	if (gear.kind === 'xy') {
+		for (const [valuePath, value] of [
+			[`${path}.defaultValue`, gear.defaultValue],
+			...gear.states.filter((state) => state.value !== null).map((state) => [`${path}.states.${state.pageId}.value`, state.value] as const),
+		] as const) {
+			if (value !== null && !isValidUamXYGearValue(value, gear.positionsInPercent)) {
+				pushIssue(issues, valuePath, 'XY gear values require finite x/y and paired finite px/py; percentage mode requires px/py.');
+			}
+		}
+	}
 	const controller = controllerMap.get(gear.controllerName);
 	if (!controller) {
 		pushIssue(issues, `${path}.controllerName`, `Unknown gear controller "${gear.controllerName}".`);
@@ -803,7 +820,12 @@ function validateDisplayNode(
 			pushIssue(issues, `${path}.group`, `Group reference "${node.group}" must target another group in the same component.`);
 		}
 	}
+	const gearKinds = new Set<UamGearBinding['kind']>();
 	for (const [gearIndex, gear] of node.gears.entries()) {
+		if (gearKinds.has(gear.kind)) {
+			pushIssue(issues, `${path}.gears[${gearIndex}]`, `A display node may only have one ${gear.kind} gear.`);
+		}
+		gearKinds.add(gear.kind);
 		validateGearBinding(gear, controllerMap, `${path}.gears[${gearIndex}]`, issues);
 	}
 	for (const [relationIndex, relation] of node.relations.entries()) {

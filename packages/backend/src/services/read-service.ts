@@ -124,7 +124,18 @@ export class ReadService {
 		}, undefined, meta);
 		const target = input.target;
 		if (!target || typeof target !== 'object' || Array.isArray(target) || Object.keys(target).some((key) => key !== 'kind' && key !== 'selector')) return reject('invalid_query');
-		const keys = target.kind === 'resource' ? ['packageId', 'resourceId']
+		const respond = (entity: BackendEntitySnapshot['entity']) => {
+			const data = { ...meta, target, entity };
+			const problem = queryResponseProblem(data);
+			return problem ? reject(problem) : success('read', startedAt, structuredClone(data), meta);
+		};
+		if (target.kind === 'project') {
+			if (Object.hasOwn(target, 'selector')) return reject('invalid_query');
+			const { projectId, settings } = session.project;
+			return respond({ kind: 'project', properties: { projectId, settings } });
+		}
+		const keys = target.kind === 'package' ? ['packageId']
+			: target.kind === 'resource' ? ['packageId', 'resourceId']
 			: target.kind === 'component' ? ['packageId', 'componentResourceId']
 			: target.kind === 'displayNode' ? ['packageId', 'componentResourceId', 'displayNodeId']
 			: target.kind === 'controller' ? ['packageId', 'componentResourceId', 'controllerName']
@@ -135,6 +146,10 @@ export class ReadService {
 			|| keys.some((key) => !Object.hasOwn(selector, key) || typeof selector[key] !== 'string' || !(selector[key] as string).length || (selector[key] as string).length > 256)) return reject('invalid_query');
 		const packages = session.project.packages.filter((pkg) => pkg.id === selector.packageId);
 		if (packages.length !== 1) return reject(packages.length ? 'ambiguous' : 'not_found');
+		if (target.kind === 'package') {
+			const { id, name, compressPNG, jpegQuality, publish } = packages[0];
+			return respond({ kind: 'package', properties: { id, name, settings: { compressPNG, jpegQuality, publish } } });
+		}
 		const resources = packages[0].resources.filter((resource) => resource.id === (target.kind === 'resource' ? selector.resourceId : selector.componentResourceId));
 		if (resources.length !== 1) return reject(resources.length ? 'ambiguous' : 'not_found');
 		const resource = resources[0];
@@ -162,10 +177,7 @@ export class ReadService {
 				entity = { kind: 'displayNode', properties: nodes[0] };
 			}
 		}
-		const data = { ...meta, target, entity };
-		const problem = queryResponseProblem(data);
-		if (problem) return reject(problem);
-		return success('read', startedAt, structuredClone(data), meta);
+		return respond(entity);
 	}
 
 	public validateSession(

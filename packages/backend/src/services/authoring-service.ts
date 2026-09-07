@@ -225,7 +225,7 @@ export class AuthoringService {
 					{ ...meta, diagnostics: toBackendDiagnostics(result.error) });
 			}
 			try {
-				const preview = await previewTransactionImpact({ ...session, project }, result.project, Boolean(session.fileSystem ?? this.context.fileSystem));
+				const preview = await previewTransactionImpact({ ...session, project }, result.project, Boolean(session.fileSystem));
 				if (this.context.sessions.get(queuedInput.sessionId) !== session || session.closed) {
 					return failure('authoring', startedAt, createSessionNotFoundError(queuedInput.sessionId));
 				}
@@ -389,7 +389,7 @@ export class AuthoringService {
 		if (!session || session.closed) {
 			return failure('authoring', startedAt, createSessionNotFoundError(input.sessionId));
 		}
-		const fileSystem = session.fileSystem ?? input.fileSystem ?? this.context.fileSystem;
+		const fileSystem = session.fileSystem ?? input.fileSystem;
 		if (!fileSystem) {
 			return failure(
 				'authoring',
@@ -574,7 +574,7 @@ export class AuthoringService {
 
 		const storageTarget = input.storage ? storageCanonicalTarget(input.storage) : null;
 		const fileSystem =
-			storageTarget?.fileSystem ?? input.fileSystem ?? session.fileSystem ?? this.context.fileSystem;
+			storageTarget?.fileSystem ?? input.fileSystem ?? session.fileSystem;
 		if (!fileSystem) {
 			return failure(
 				'authoring',

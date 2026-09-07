@@ -68,7 +68,7 @@ export function validateSupportedDisplayNode(
 		);
 	}
 
-	const gearControllers = new Set<string>();
+	const gearKinds = new Set<string>();
 	for (const [gearIndex, gear] of node.gears.entries()) {
 		if (!UAM_SUPPORTED_TRANSACTION_SCOPE.gearKinds.includes(gear.kind as never)) {
 			pushSupportIssue(
@@ -80,17 +80,16 @@ export function validateSupportedDisplayNode(
 			);
 			continue;
 		}
-		const key = `${gear.kind}\u0000${gear.controllerName}`;
-		if (gearControllers.has(key)) {
+		if (gearKinds.has(gear.kind)) {
 			pushSupportIssue(
 				issues,
 				gear.kind === 'look' ? 'duplicate_look_gear_controller' : 'duplicate_gear_controller',
 				`${path}.gears[${gearIndex}]`,
-				`A display node may only have one ${gear.kind} gear per controller ("${gear.controllerName}").`,
+				`A display node may only have one ${gear.kind} gear, regardless of its controller.`,
 				{ ...details, nodeKind: node.kind, gearKind: gear.kind },
 			);
 		}
-		gearControllers.add(key);
+		gearKinds.add(gear.kind);
 	}
 }
 

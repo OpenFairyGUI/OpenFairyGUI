@@ -4,6 +4,7 @@ import type { Package, PackageResourceFolder } from '../properties/package.js';
 import { resourceFolderName, resourceFolderParentPath } from '../utils/resource-folder.js';
 import { renderXmlAttrs } from '../utils/xml-utils.js';
 import { writeComponent } from './component-xml-writer.js';
+import { assertDisplayObjectGearXmlValues } from './display-object-xml-writer.js';
 import type { FileSystem } from './file-system.js';
 import type { ProjectBranchDirectory, ProjectResourceFolder, ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr } from './project-xml-protocol.js';
@@ -107,7 +108,14 @@ export class ProjectWriter {
 		if (staleBranchDirectoryPaths.size > 0 && !fs.rmdir) {
 			throw new Error('Project branch cleanup requires a FileSystem.rmdir() implementation.');
 		}
-		for (const pkg of root.listPackages()) this._assertPackageOutputTargets(pkg);
+		for (const pkg of root.listPackages()) {
+			this._assertPackageOutputTargets(pkg);
+			for (const component of pkg.listComponents()) {
+				for (const child of component.listChildren()) {
+					assertDisplayObjectGearXmlValues(child);
+				}
+			}
+		}
 		const settings = root.getSettings?.() ?? {};
 		const settingsPath = fs.join(basePath, 'settings');
 		const staleOptionalSettings: string[] = [];

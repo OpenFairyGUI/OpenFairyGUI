@@ -142,6 +142,12 @@ Integer geometry fields include:
 
 `pivot`, `scale`, `skew`, percentage values in `gearXY`, and scale values in `gearSize` continue to preserve decimals.
 
+UAM XY Gear states and defaults use `x/y` and optional `px/py`. Enabling `positionsInPercent` requires paired finite `px/py` coordinates in explicit values; `0.5` means 50%. A `null` default means no default override and remains omitted on save. Each display node allows one binding per Gear type. Rebind a controller by removing the gear and adding it again; Display and Display2 may coexist.
+
+Text/Icon Gear page values preserve absent overrides, empty strings, and literal `-` text. Defaults also distinguish an absent override from explicit clearing. Project XML separates page `values` with `|`; no verified official lossless representation is available for a page value containing `|`, so ProjectWriter rejects that output before any write. A default containing `|` has no such delimiter restriction; UAM, Document, and binary retain complete strings.
+
+The published resource closure includes component-root `showSound` / `hideSound`: referenced unexported sounds in the same package are published with the component, and sounds in other packages create package dependencies.
+
 ## Project resource-tree metadata
 
 Component and asset resource nodes in `package.xml` and `package_branch.xml` use `exported="true"` and `favorite="true"` to store export and favorite state. The corresponding attribute is omitted when disabled. SWF uses the formal `SwfResource` model for `<swf>` nodes, and the UAM `swf` resource preserves its source file, export state, and favorite state. UAM stores these values as `resource.exported` and `resource.favorite`; public transactions set the target Boolean idempotently through `setResourceExported` and `setResourceFavorite`.

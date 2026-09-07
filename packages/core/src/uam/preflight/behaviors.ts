@@ -17,6 +17,7 @@ import type {
 	UpdateGearOperation,
 } from '../transaction-contracts.js';
 import { findComponentSpec, findDisplayNodeSpec } from '../transaction-shared.js';
+import { isValidUamXYGearValue } from '../validate.js';
 import { pushSupportIssue, validateTouchedDisplayNodeKind } from './support.js';
 
 function validateControllerActionTargets(
@@ -355,6 +356,11 @@ function validateGearPayload(
 	issues: UamTransactionSupportIssue[],
 	operationKind: UamTransactionOperation['kind'],
 ): void {
+	if (gear.kind === 'xy' && [gear.defaultValue, ...gear.states.map((state) => state.value)]
+		.some((value) => value !== null && !isValidUamXYGearValue(value, gear.positionsInPercent))) {
+		pushSupportIssue(issues, 'invalid_gear_payload', `${path}.gear`,
+			'XY gear values require finite x/y and paired finite px/py; percentage mode requires px/py.', { operationKind, gearKind: gear.kind });
+	}
 	const controller = validateGearSelector(project, operations, operationIndex, selector, `${path}.selector`, issues, operationKind);
 	if (gear.kind !== selector.kind) {
 		pushSupportIssue(
@@ -406,15 +412,14 @@ function validateGearPayload(
 	}
 }
 
-function projectedGearExists(
+function projectedGearControllers(
 	project: UamProject,
 	operations: UamTransactionOperation[],
 	operationIndex: number,
 	selector: UamGearSelector,
-): boolean {
-	let exists = findDisplayNodeSpec(project, selector)?.gears.some((gear) => (
-		gear.kind === selector.kind && gear.controllerName === selector.controllerName
-	)) ?? false;
+): Set<string> {
+	const controllers = new Set(findDisplayNodeSpec(project, selector)?.gears
+		.filter((gear) => gear.kind === selector.kind).map((gear) => gear.controllerName));
 	for (let index = 0; index < operationIndex; index += 1) {
 		const operation = operations[index]!;
 		if (!('selector' in operation)) continue;
@@ -428,12 +433,11 @@ function projectedGearExists(
 			|| candidate.componentResourceId !== selector.componentResourceId
 			|| candidate.displayNodeId !== selector.displayNodeId
 			|| candidate.kind !== selector.kind
-			|| candidate.controllerName !== selector.controllerName
 		) continue;
-		if (operation.kind === 'addGear' || operation.kind === 'addLookGear') exists = true;
-		if (operation.kind === 'removeGear' || operation.kind === 'removeLookGear') exists = false;
+		if (operation.kind === 'addGear' || operation.kind === 'addLookGear') controllers.add(candidate.controllerName);
+		if (operation.kind === 'removeGear' || operation.kind === 'removeLookGear') controllers.delete(candidate.controllerName);
 	}
-	return exists;
+	return controllers;
 }
 
 function validateAddGearDoesNotDuplicate(
@@ -445,12 +449,12 @@ function validateAddGearDoesNotDuplicate(
 	issues: UamTransactionSupportIssue[],
 	operationKind: UamTransactionOperation['kind'],
 ): void {
-	if (!projectedGearExists(project, operations, operationIndex, selector)) return;
+	if (projectedGearControllers(project, operations, operationIndex, selector).size === 0) return;
 	pushSupportIssue(
 		issues,
 		selector.kind === 'look' ? 'duplicate_look_gear_controller' : 'duplicate_gear_controller',
 		path,
-		`A ${selector.kind} gear already exists for controller "${selector.controllerName}" on this display node.`,
+		`A ${selector.kind} gear already exists on this display node; each gear kind can bind only one controller.`,
 		{ operationKind, gearKind: selector.kind },
 	);
 }
@@ -464,7 +468,7 @@ function validateExistingGear(
 	issues: UamTransactionSupportIssue[],
 	operationKind: UamTransactionOperation['kind'],
 ): void {
-	if (projectedGearExists(project, operations, operationIndex, selector)) return;
+	if (projectedGearControllers(project, operations, operationIndex, selector).has(selector.controllerName)) return;
 	pushSupportIssue(
 		issues,
 		'invalid_gear_selector',

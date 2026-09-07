@@ -1,8 +1,45 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import test from 'ava';
+import { NodeIO } from '@openfairygui/core/node';
 import { createNodeBackendFileSystem } from '../src/node.js';
 import { createBackendRuntime, createFailingFileSystem, createTempBackendProject } from './helpers.js';
+
+test('percentage XY source sessions remain fully editable and save all four coordinates', async (t) => {
+	const fixture = await createTempBackendProject();
+	t.teardown(() => fixture.cleanup());
+	const io = new NodeIO();
+	const document = await io.readProject(fixture.fairyPath);
+	const component = document.getRoot().getPackage('Main')!.getComponent('MainView')!;
+	const controller = document.createController('state');
+	controller.addPage(document.createControllerPage('Idle').setId('0'));
+	controller.addPage(document.createControllerPage('Active').setId('1'));
+	component.addController(controller);
+	const values = '80,45,0.25,0.25|160,90,0.5,0.5';
+	component.listChildren().find((child) => child.getId() === 'n1')!.addGear(document.createGear('')
+		.setGearType(1).setController(controller).setPages('0,1').setValues(values)
+		.setDefaultValue('0,0,0,0').setPositionsInPercent(true));
+	await io.writeProject(document, fixture.fairyPath);
+	const runtime = createBackendRuntime();
+	const opened = await runtime.openSession({ projectPath: fixture.rootDir });
+	t.true(opened.ok);
+	if (!opened.ok) return;
+	t.is(opened.data.uamFidelity, 'full');
+	const applied = await runtime.applyTransaction({
+		sessionId: opened.data.sessionId, expectedRevision: 0,
+		operations: [{ kind: 'setDisplayNodeProps', selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' }, props: { text: 'Still editable' } }],
+	});
+	t.true(applied.ok);
+	const saved = await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: 1 });
+	t.true(saved.ok);
+	await runtime.closeSession({ sessionId: opened.data.sessionId });
+	const reloaded = await io.readProject(fixture.fairyPath);
+	const gear = reloaded.getRoot().getPackage('Main')!.getComponent('MainView')!.listChildren()
+		.find((child) => child.getId() === 'n1')!.listGears()[0]!;
+	t.is(gear.getValues(), values);
+	t.is(gear.getDefaultValue(), '0,0,0,0');
+	t.true(gear.getPositionsInPercent());
+});
 
 test('saveSession success updates lastSavedRevision and clears dirty state', async (t) => {
 	const fixture = await createTempBackendProject();

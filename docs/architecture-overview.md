@@ -68,14 +68,18 @@ flowchart TD
 
 现有文件工程用 `openSession`：获取覆盖会话生命周期的锁、水合资源字节，并比较原 Document 与 UAM 往返后的完整 ProjectWriter 输出。未建模的写回差异标记为 `uamFidelity: unsupported`，实际写入会拒绝。只有调用方 UAM 本身就是事实来源时，才用 `openProjectSession` 与 `materializeSession` 建立新 workspace。
 
+纯内存会话的 `canonicalProjectPath` / `canonicalPathKey` 仅标识会话。保存和物化使用会话已绑定的存储或宿主本次显式提供的适配器，不自动取得 runtime 全局文件系统；预演也按实际绑定情况报告保存能力。
+
 | 操作 | 状态与副作用 |
 |---|---|
-| `queryEntity` | 五类固定投影：resource、component、displayNode、controller、transition；精确 selector、实际 revision、脱离会话且有界；不含源字节 |
+| `queryEntity` | 七类固定投影：project、package、resource、component、displayNode、controller、transition；工程无需 selector，其余精确选择；返回实际 revision，脱离会话且有界，不含源字节 |
 | `preflightTransaction` | 同一会话队列检查 revision，复制工程/字节并执行后丢弃；不改工程、dirty、revision、缓存或业务事件，不写盘 |
 | `applyTransaction` | 再次检查 expectedRevision；成功替换会话工程，revision 加一并标 dirty；失败保留工程与 revision，可发出拒绝事件 |
 | `saveSession` | 用会话绑定的文件系统保存；成功才更新 lastSavedRevision、清 dirty 与待清理路径；不推进编辑 revision |
 | `materializeSession` | 显式目标和适配器下的完整首次写回；保留路径、保真与验证门禁，不用它绕过 dirty 保存 |
 | `closeSession` | 排在此前事务/写入之后释放锁；不自动保存未提交工作 |
+
+项目与包设置查询复用 `ReadService` 的固定投影、JSON 预算检查和深度复制，返回身份与完整 `settings`。调用方只修改所需字段，再把完整设置及查询 revision 交给既有 `updateProjectSettings` / `updatePackageSettings` 事务；MCP 直接映射此查询和事务链路。
 
 预演比较两份正式 UAM 得到实体/字段影响，并复用内存捕获文件系统与 ProjectWriter 得到工程相对文件/目录差异。它反映当前 revision 到预演结果，不是上次保存以来的累计差异、磁盘写入清单或删除授权。摘要超预算时完整拒绝，不截断为成功；保存提示的 `writeVerified` 始终 false，projected revision 不被预留。详见[事务预演](./guide/contracts.md#预演一次事务)。
 

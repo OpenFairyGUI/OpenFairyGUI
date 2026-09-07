@@ -38,11 +38,15 @@ Projections are fixed, without arbitrary field expressions. Supported kinds are 
 
 | target.kind | Formal selector | entity.properties |
 |---|---|---|
+| `project` | No selector; target is only `{ "kind": "project" }` | `projectId` and complete project `settings` |
+| `package` | `packageId` | Package `id`, `name` and complete `settings` (`compressPNG`, `jpegQuality`, `publish`) |
 | `resource` | `packageId`, `resourceId` | Identity, name, path, export/favorite/branch fields, plus existing filenames, dimensions and image/movieClip properties; no source bytes, sourcePath, arbitrary metadata or component contents |
 | `component` | `packageId`, `componentResourceId` | Component `size`, `properties`, `customData`; excludes displayList, controllers and transitions |
 | `displayNode` | `packageId`, `componentResourceId`, `displayNodeId` | Formal UAM node properties, including modeled references, relations and gears |
 | `controller` | `packageId`, `componentResourceId`, `controllerName` | Complete `UamControllerModel`, including selection, home-page settings, pages (IDs/names/remarks) and actions |
 | `transition` | `packageId`, `componentResourceId`, `transitionName` | Complete `UamTransitionModel`, including playback settings, fps and ordered items (target references, start/end values and more) |
+
+`updateProjectSettings` and `updatePackageSettings` replace complete settings snapshots. Query the corresponding `project` or `package`, copy `entity.properties.settings`, change only requested fields and retain all other nested settings and optional fields. Submit the complete `settings` with the queried revision; package settings also require the original `packageId` selector. After `stale_write`, query and replan to avoid overwriting other edits with an old snapshot. Settings queries share the same response budgets as other entities.
 
 Queries leave the project, revision, dirty state, cache and business events unchanged. Results are deeply detached from the session. Controllers and transitions use exact, case-sensitive names scoped to the selected component, not invented IDs or fuzzy matches. Identical names in different components do not conflict. Invalid structure, missing entities and non-unique identities within the selected scope return `entity_query_failed` with `reason` set to `invalid_query`, `not_found` or `ambiguous`; closed/missing sessions return `session_not_found`.
 
@@ -70,7 +74,7 @@ Recommended flow: discover IDs with the outline → queryEntity for current prop
 
 A preview reserves no revision and does not guarantee later apply/save or publication. Apply must check `expectedRevision` again; if edits intervened, query and re-plan instead of treating an old preview as an authorization token. Preview reuses the current transaction execution path without adding project saves, file permission/target checks or publishing checks. In-memory sessions without a filesystem can preview too.
 
-`authoring.preflightTransaction` advertises `mode: 'execute-and-discard'` `reservesRevision: false`, `impact: 'model-diff'` and summary `limits`. Capability schema version 9 advertises five entity-query kinds and complete formal [diagnostic recovery guides](./diagnostics.md); the transaction contract version remains unchanged.
+`authoring.preflightTransaction` advertises `mode: 'execute-and-discard'` `reservesRevision: false`, `impact: 'model-diff'` and summary `limits`. `read.entityQuery.kinds` advertises seven entity-query kinds, alongside complete formal [diagnostic recovery guides](./diagnostics.md). Read the current contract and capability schema versions from `getCapabilities`.
 
 ## Transport and semantic boundaries
 
@@ -87,7 +91,7 @@ A preview reserves no revision and does not guarantee later apply/save or public
 The tables summarize top-level parameters only; read schemas for nested fields and concrete results. SHA-256 identifies generated contract content, not a package version.
 
 <!-- contracts:start -->
-SHA-256: `f7d97431178200ad46a58117724e9ad812820c61bea2113fbc3d699fc79e2fa8`
+SHA-256: `2477d35b672c5a719b82d51714b9564a2e179d6ca65c4348ea2332d65b1e22ef`
 
 | Operation | Parameters (`?` = optional) |
 |---|---|
