@@ -3,34 +3,33 @@ layout: home
 
 hero:
   name: OpenFairyGUI
-  text: A Node.js SDK for FairyGUI projects
-  tagline: Read, inspect, transform, publish, and restore FairyGUI projects from code, automation workflows, and developer tools.
+  text: FairyGUI tools for AI agents
+  tagline: Read, edit, validate, and publish projects through MCP, the CLI, and TypeScript SDKs for AI agents, automation scripts, and editor hosts.
   image:
     src: /logo.svg
     alt: OpenFairyGUI logo
   actions:
     - theme: brand
-      text: Get Started
+      text: Connect an Agent
       link: /en/guide/getting-started
     - theme: alt
-      text: Browse API
-      link: /api/
-      target: _self
+      text: Runnable Examples
+      link: /en/guide/examples
 
 features:
-  - title: Project and package workflows
-    details: Read and write project directories, publish binary packages, and restore published artifacts into editable projects.
-  - title: Automation first
-    details: Connect TypeScript APIs, the CLI, and MCP adapters to scripts, CI pipelines, browser tools, and agent workflows.
-  - title: Protocol references
-    details: Follow documented contracts for the current implementation, Project XML, publish settings, and binary formats.
+  - title: Discover the installed contract
+    details: The CLI and MCP share bundled workflows, precise schemas, and diagnostic guides so agents can query the current contract before constructing operations.
+  - title: Query, preview, and edit
+    details: Plan from actual properties and revisions, inspect preview impact, check revisions independently on apply/save, and report conflicts and incomplete results faithfully.
+  - title: Fit your existing workflow
+    details: MCP provides stateful project editing. The CLI and Node SDKs handle inspection, publishing, and limited recovery of trusted local artifacts; browser hosts inject capabilities.
 ---
 
-## Start with a project
+## Start with a task
 
-Read a FairyGUI project, then inspect, transform, publish, or write it through a `Document`. See [Getting Started](/en/guide/getting-started) for a complete example.
+Ask an agent to update a specific component's text, query and preview the change, then apply, validate, save, and reread with revision checks. [Getting Started](/en/guide/getting-started) provides local MCP configuration and a task example; the [runnable examples](/en/guide/examples) verify edits and saves in independent temporary projects.
 
-Use the [documentation index](/en/README) to explore the translated reference material, or open the <a href="/api/" target="_self">API Reference</a> for public symbols.
+For scripts and editor integrations, choose CLI, Backend, or SDK entrypoints in [Packages and Tools](/en/guide/packages). Explore formats and public symbols through the [documentation index](/en/README) and <a href="/api/" target="_self">API Reference</a>.
 
 ## Recommended Project
 
