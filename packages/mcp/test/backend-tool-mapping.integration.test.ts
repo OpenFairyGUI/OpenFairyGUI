@@ -1,6 +1,6 @@
 import test from 'ava';
 import { BackendRuntime as BrowserSafeBackendRuntime } from '@openfairygui/backend';
-import { createNodeBackendRuntime } from '@openfairygui/backend/node';
+import { createNodeBackendFileSystem, createNodeBackendRuntime } from '@openfairygui/backend/node';
 import {
 	callOpenFairyGuiBackendTool,
 	OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS,
@@ -64,6 +64,41 @@ test('MCP schemas reject unknown transaction kinds and oversized batches', (t) =
 	const projectSchema = byMethod.get('openProjectSession')!.inputSchema;
 	t.false(projectSchema.safeParse({ project: { projectId: 'p' } }).success);
 	t.true(projectSchema.safeParse({ project: createMcpFixtureProject() }).success);
+});
+
+test('MCP pure UAM sessions cannot materialize or save through the runtime filesystem', async (t) => {
+	const calls: string[] = [];
+	const fileSystem = new Proxy(createNodeBackendFileSystem(), {
+		get(target, key, receiver) {
+			const value = Reflect.get(target, key, receiver);
+			return typeof value === 'function' ? () => {
+				calls.push(String(key));
+				throw new Error('No runtime filesystem operation is allowed for this memory session.');
+			} : value;
+		},
+	});
+	const runtime = createNodeBackendRuntime({ fileSystem });
+	const opened = await callTool(runtime, 'openfairygui_backend_open_project_session', {
+		project: createMcpFixtureProject(), canonicalProjectPath: 'memory://mcp-project',
+	});
+	t.true(opened.ok);
+	const sessionId = (opened.data as { sessionId: string }).sessionId;
+	try {
+		const applied = await callTool(runtime, 'openfairygui_backend_apply_transaction', { sessionId, expectedRevision: 0, operations: [{
+			kind: 'setDisplayNodeProps',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+			props: { text: 'Memory only' },
+		}] });
+		t.true(applied.ok);
+		for (const name of ['openfairygui_backend_save_session', 'openfairygui_backend_materialize_session'] as const) {
+			const result = await callOpenFairyGuiBackendTool(runtime, name, { sessionId, expectedRevision: 1 });
+			t.true(result.isError);
+			t.is(backendResultOf(result).error?.code, 'capability_unavailable');
+		}
+		t.deepEqual(calls, [], 'the injected Node adapter is never called');
+	} finally {
+		await callTool(runtime, 'openfairygui_backend_close_session', { sessionId });
+	}
 });
 
 test('MCP P0 preserves backend failure envelopes as structured tool errors', async (t) => {

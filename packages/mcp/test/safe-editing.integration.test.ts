@@ -9,6 +9,75 @@ import { NodeIO } from '@openfairygui/core/node';
 import { createOpenFairyGuiMcpServer } from '../src/index.js';
 import { createTempMcpProject } from './helpers.js';
 
+test('MCP reads complete project and package settings before editing only the requested fields', async (t) => {
+	const fixture = await createTempMcpProject();
+	const io = new NodeIO();
+	const project = await readProjectAsUam(io, fixture.fairyPath);
+	project.settings = {
+		publish: { compressDesc: true, codeGeneration: { codePath: './generated', packageName: 'ui' } },
+		common: { font: 'PreserveFont', fontSize: 18 },
+		adaptation: { designResolutionX: 1280, designResolutionY: 720 },
+		customProperties: { theme: { accents: ['blue', 'green'] } },
+	};
+	const pkg = project.packages[0];
+	pkg.compressPNG = true; pkg.jpegQuality = 85;
+	assert(pkg.publish);
+	pkg.publish.atlases = [{ index: 0, name: 'main', compression: true }];
+	await writeProjectFromUam(io, project, fixture.fairyPath);
+	const expected = await readProjectAsUam(io, fixture.fairyPath);
+	const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+	const server = createOpenFairyGuiMcpServer({ allowedProjectRoots: [fixture.rootDir] });
+	const client = new Client({ name: 'settings-editing', version: 'test' });
+	await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+	let sessionId: string | undefined;
+	async function call<T>(method: string, input: Record<string, unknown>): Promise<T> {
+		const result = await client.callTool({ name: `openfairygui_backend_${method}`, arguments: input });
+		t.false(result.isError, JSON.stringify(result));
+		const backend = (result.structuredContent as { backendResult: BackendResult<T> }).backendResult;
+		assert(backend.ok, JSON.stringify(backend));
+		return backend.data;
+	}
+	try {
+		await client.listTools(); // Validate responses against the advertised, generated wire schemas.
+		const opened = await call<BackendSessionSnapshot>('open_session', { projectPath: fixture.fairyPath });
+		sessionId = opened.sessionId;
+		for (const target of [{ kind: 'project', selector: {} }, { kind: 'package', selector: {} }]) {
+			t.true((await client.callTool({ name: 'openfairygui_backend_query_entity', arguments: { sessionId, target } })).isError);
+		}
+		const projectQuery = await call<BackendEntitySnapshot>('query_entity', { sessionId, target: { kind: 'project' } });
+		const packageQuery = await call<BackendEntitySnapshot>('query_entity', { sessionId, target: { kind: 'package', selector: { packageId: pkg.id } } });
+		assert(projectQuery.entity.kind === 'project' && packageQuery.entity.kind === 'package');
+		t.deepEqual(projectQuery.entity.properties.settings, expected.settings);
+		t.deepEqual(packageQuery.entity.properties.settings, {
+			compressPNG: expected.packages[0].compressPNG, jpegQuality: expected.packages[0].jpegQuality, publish: expected.packages[0].publish,
+		});
+		assert(projectQuery.entity.properties.settings.common && expected.settings.common);
+		projectQuery.entity.properties.settings.common.fontSize = 24;
+		packageQuery.entity.properties.settings.jpegQuality = 90;
+		expected.settings.common.fontSize = 24; expected.packages[0].jpegQuality = 90;
+		const transaction = { sessionId, expectedRevision: projectQuery.revision, operations: [
+			{ kind: 'updateProjectSettings', settings: projectQuery.entity.properties.settings },
+			{ kind: 'updatePackageSettings', selector: { packageId: pkg.id }, settings: packageQuery.entity.properties.settings },
+		] };
+		const applied = await call<BackendSessionSnapshot>('apply_transaction', transaction);
+		t.is(applied.revision, projectQuery.revision + 1);
+		const projectAgain = await call<BackendEntitySnapshot>('query_entity', { sessionId, target: projectQuery.target });
+		const packageAgain = await call<BackendEntitySnapshot>('query_entity', { sessionId, target: packageQuery.target });
+		assert(projectAgain.entity.kind === 'project' && packageAgain.entity.kind === 'package');
+		t.is(projectAgain.revision, applied.revision); t.is(packageAgain.revision, applied.revision);
+		t.deepEqual(projectAgain.entity.properties.settings, expected.settings);
+		t.deepEqual(packageAgain.entity.properties.settings, packageQuery.entity.properties.settings);
+		const stale = await client.callTool({ name: 'openfairygui_backend_apply_transaction', arguments: transaction });
+		t.true(stale.isError);
+		t.is((stale.structuredContent as { backendResult: { error: { code: string } } }).backendResult.error.code, 'stale_write');
+		await call('save_session', { sessionId, expectedRevision: applied.revision });
+		t.deepEqual(await readProjectAsUam(io, fixture.fairyPath), expected);
+	} finally {
+		if (sessionId) await call('close_session', { sessionId });
+		await client.close(); await server.close(); await fixture.cleanup();
+	}
+});
+
 test('MCP queries, previews, applies and saves with generated schemas and revision checks', async (t) => {
 	const fixture = await createTempMcpProject();
 	const runtime = createNodeBackendRuntime();

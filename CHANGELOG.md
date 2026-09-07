@@ -6,7 +6,7 @@
 
 Features:
 
-- backend, mcp: Add revision-bound, isolated resource/component/node property queries with fixed projections, explicit response budgets and selector errors; capability schema version is 9.
+- backend, mcp: Add revision-bound, isolated project/package settings and entity property queries with fixed projections, explicit response budgets and selector errors; capability schema version is 10.
 - backend, mcp: Preview transactions by executing and discarding isolated snapshots through the existing async transaction entrypoint, preserving diagnostics without changing session state or disk; previews reserve no revision and do not guarantee saving.
 - cli: Add `inspect --json` using the existing inspection report without terminal logs.
 - mcp: Expose Core-derived operation schemas and catalog resources, with method-specific Backend input/output contracts and explicit JSON byte conversion for resource snapshots.
@@ -14,6 +14,9 @@ Features:
 Fixes:
 
 - core: Preserve the image-validation Worker's listener initialization when bundlers consume its public entrypoint.
+- core: Resolve relation indexes against published children, preserve valid zero values in transitions and gears, and reject duplicate Gear types on a display node.
+- core: Model XY Gear percentage coordinates; preserve empty values, `-`, and strings containing `|` in Text/Icon gears, explicitly rejecting page delimiters that cannot be written losslessly to Project XML before any write.
+- functions: Read canonical Gear page values during dependency and atlas scans, and include component added/removed-stage sounds in the resource closure.
 
 Other:
 
@@ -23,7 +26,8 @@ Other:
 
 Breaking changes:
 
-- mcp: Reject unknown fields on closed contract objects and invalid nested payloads. Replace the shared `OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA` export with each tool definition's precise `outputSchema`; Backend transaction semantics and contract version are unchanged.
+- mcp: Reject unknown fields on closed contract objects and invalid nested payloads. Replace the shared `OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA` export with each tool definition's precise `outputSchema`.
+- core, backend: Allow `null` XY/Text/Icon Gear defaults to represent absent overrides; Backend contract version is `2.0.0-p2`. Saving or materializing pure in-memory sessions requires explicitly bound host storage or a per-call filesystem; path labels no longer acquire runtime filesystem capabilities automatically.
 
 Release comparisons:
 

@@ -38,11 +38,15 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 
 | target.kind | 正式 selector | entity.properties |
 |---|---|---|
+| `project` | 不传 selector，target 仅为 `{ "kind": "project" }` | `projectId` 和完整工程 `settings` |
+| `package` | `packageId` | 包 `id`、`name` 和完整 `settings`（`compressPNG`、`jpegQuality`、`publish`） |
 | `resource` | `packageId`、`resourceId` | 资源身份、名称、路径、导出/收藏/分支，以及存在的文件名、尺寸、image/movieClip 属性；不含 source bytes、sourcePath、任意 metadata 或组件内容 |
 | `component` | `packageId`、`componentResourceId` | 组件 `size`、`properties`、`customData`；不展开 displayList、controllers、transitions |
 | `displayNode` | `packageId`、`componentResourceId`、`displayNodeId` | 正式 UAM 节点属性（含已建模的引用、relations、gears） |
 | `controller` | `packageId`、`componentResourceId`、`controllerName` | 完整 `UamControllerModel`，含当前选择、初始页设置、pages（ID/名称/备注）和 actions |
 | `transition` | `packageId`、`componentResourceId`、`transitionName` | 完整 `UamTransitionModel`，含播放设置、fps 和有序 items（目标引用、起止值等） |
+
+`updateProjectSettings` 和 `updatePackageSettings` 都替换完整设置快照。先查询对应的 `project` 或 `package`，复制 `entity.properties.settings`，仅修改请求字段，保留其余嵌套设置和可选字段；将完整 `settings` 与查询得到的 revision 一起提交。包设置还需使用原 `packageId` selector。出现 `stale_write` 后重新查询并规划，避免用旧快照覆盖其他编辑。设置查询与其他实体共享相同的响应预算。
 
 查询不改变工程、revision、dirty、缓存或业务事件，返回对象与会话深度隔离。selector 不猜测、不按名称模糊匹配：控制器和动画使用组件范围内区分大小写的精确名称，不虚构 ID；不同组件中的同名对象不冲突。结构不正确、目标不存在或指定范围内身份不唯一时返回 `entity_query_failed`，`reason` 分别为 `invalid_query`、`not_found`、`ambiguous`；关闭或失效会话返回 `session_not_found`。
 
@@ -70,7 +74,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 
 预演不预留 revision，不证明后续 apply/save 或发布一定成功。正式 apply 必须再次提交 `expectedRevision`；期间若有编辑，应重新查询并规划，不能把旧预演当作授权凭证。预演复用当前事务执行路径，不额外执行工程保存、文件权限/目标校验或发布检查；缺少文件系统的内存会话也可以预演。
 
-能力通过 `authoring.preflightTransaction` 声明为 `mode: 'execute-and-discard'`、`reservesRevision: false`、`impact: 'model-diff'` 和摘要 `limits`。当前能力 schema 版本为 9，声明五类实体查询，并包含完整正式[诊断恢复指引](./diagnostics.md)；事务契约版本不变。
+能力通过 `authoring.preflightTransaction` 声明为 `mode: 'execute-and-discard'`、`reservesRevision: false`、`impact: 'model-diff'` 和摘要 `limits`。`read.entityQuery.kinds` 声明七类实体查询，并包含完整正式[诊断恢复指引](./diagnostics.md)；当前契约与能力 schema 版本以 `getCapabilities` 返回值为准。
 
 ## 传输与语义边界
 
@@ -87,7 +91,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 下表只摘要顶层参数；嵌套字段和具体结果请读取对应 schema。SHA-256 变化表示生成契约发生变化，不等同于包版本号。
 
 <!-- contracts:start -->
-SHA-256: `f7d97431178200ad46a58117724e9ad812820c61bea2113fbc3d699fc79e2fa8`
+SHA-256: `2477d35b672c5a719b82d51714b9564a2e179d6ca65c4348ea2332d65b1e22ef`
 
 | 操作 | 参数（`?` 表示可选） |
 |---|---|

@@ -608,6 +608,88 @@ test('root backend entry opens pure UAM project sessions without a filesystem ad
 	]);
 });
 
+test('pure UAM sessions do not inherit runtime storage and can bind explicit host storage later', async (t) => {
+	const ambientCalls: string[] = [];
+	const ambientFileSystem = new Proxy(createBackendStorageFileSystem(new MemoryBrowserStorage()), {
+		get(target, key, receiver) {
+			const value = Reflect.get(target, key, receiver);
+			return typeof value === 'function' ? () => {
+				ambientCalls.push(String(key));
+				throw new Error('A pure UAM session must not access the runtime filesystem.');
+			} : value;
+		},
+	});
+	const runtime = new BackendRuntime({ fileSystem: ambientFileSystem });
+	const opened = runtime.openProjectSession({ project: createBackendFixtureProject(), canonicalProjectPath: 'memory://browser-project' });
+	t.true(opened.ok);
+	if (!opened.ok) return;
+	const sessionId = opened.data.sessionId;
+	const transaction = { sessionId, expectedRevision: 0, operations: [{
+		kind: 'setDisplayNodeProps' as const,
+		selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+		props: { text: 'Host-owned storage required' },
+	}] };
+	t.true(runtime.getProjectOutline({ sessionId }).ok);
+	t.true(runtime.queryEntity({ sessionId, target: { kind: 'project' } }).ok);
+	t.true(runtime.validateSession({ sessionId }).ok);
+	const preview = await runtime.preflightTransaction(transaction);
+	t.true(preview.ok);
+	if (preview.ok) {
+		t.false(preview.data.persistence.fileSystemAvailable);
+		t.is(preview.data.persistence.nextAction, 'host-action');
+	}
+	t.true((await runtime.applyTransaction(transaction)).ok);
+	for (const result of [
+		await runtime.saveSession({ sessionId, expectedRevision: 1 }),
+		await runtime.saveSession({ sessionId, expectedRevision: 1, force: true }),
+		await runtime.materializeSession({ sessionId, expectedRevision: 1 }),
+	]) {
+		t.false(result.ok);
+		if (!result.ok) t.is(result.error.code, 'capability_unavailable');
+	}
+	const unchanged = runtime.getSession({ sessionId });
+	t.true(unchanged.ok);
+	if (unchanged.ok) {
+		t.is(unchanged.data.revision, 1);
+		t.is(unchanged.data.lastSavedRevision, 0);
+		t.true(unchanged.data.dirty);
+	}
+	t.deepEqual(ambientCalls, []);
+	const storage = new MemoryBrowserStorage();
+	const materialized = await runtime.materializeSession({
+		sessionId, expectedRevision: 1,
+		storage: { fileSystem: createBackendStorageFileSystem(storage), fairyPath: 'Project.fairy' },
+	});
+	t.true(materialized.ok);
+	t.true(storage.hasFile('Project.fairy'));
+	t.true((await runtime.applyTransaction({ ...transaction, expectedRevision: 1, operations: [{
+		...transaction.operations[0], props: { text: 'Saved through bound storage' },
+	}] })).ok);
+	t.true((await runtime.saveSession({ sessionId, expectedRevision: 2 })).ok);
+	t.deepEqual(ambientCalls, []);
+	await runtime.closeSession({ sessionId });
+});
+
+test('pure UAM sessions retain explicit per-call filesystem materialize and save', async (t) => {
+	const runtime = new BackendRuntime();
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const opened = runtime.openProjectSession({ project: createBackendFixtureProject(), canonicalProjectPath: 'Project.fairy' });
+	t.true(opened.ok);
+	if (!opened.ok) return;
+	const sessionId = opened.data.sessionId;
+	t.true((await runtime.materializeSession({ sessionId, expectedRevision: 0, fileSystem })).ok);
+	t.true(storage.hasFile('Project.fairy'));
+	t.true((await runtime.applyTransaction({ sessionId, expectedRevision: 0, operations: [{
+		kind: 'setDisplayNodeProps',
+		selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+		props: { text: 'Explicit host save' },
+	}] })).ok);
+	t.true((await runtime.saveSession({ sessionId, expectedRevision: 1, fileSystem })).ok);
+	t.true((await runtime.saveSession({ sessionId, expectedRevision: 1 })).ok);
+	await runtime.closeSession({ sessionId });
+});
+
 test('file-backed openSession declares the missing filesystem capability instead of loading Node', async (t) => {
 	const runtime = new BackendRuntime();
 	const opened = await runtime.openSession({ projectPath: './Project' });

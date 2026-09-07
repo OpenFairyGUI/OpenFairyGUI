@@ -53,7 +53,7 @@ export function createCapabilities(atomicSave = false): BackendCapabilities {
 			capabilitySnapshot: true,
 			sessionSnapshot: true,
 			projectOutline: true,
-			entityQuery: { kinds: ['resource', 'component', 'displayNode', 'controller', 'transition'], projection: 'properties', sourceBytes: false, limits: BACKEND_ENTITY_QUERY_LIMITS },
+			entityQuery: { kinds: ['project', 'package', 'resource', 'component', 'displayNode', 'controller', 'transition'], projection: 'properties', sourceBytes: false, limits: BACKEND_ENTITY_QUERY_LIMITS },
 			projectValidation: true,
 		},
 		authoring: {

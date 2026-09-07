@@ -42,7 +42,6 @@ function colorFilterValues(child: EncoderChildLike): number[] | null {
 	return values;
 }
 import {
-	_createChildIndexMap,
 	_writeRelations,
 } from './component-encoder-behavior.js';
 import { _writeGear } from './component-encoder-transition-gear.js';
@@ -217,7 +216,7 @@ export function _writeDisplayList(buf: WriteBuffer, comp: Component, _doc: Docum
 
 		// --- Child Block 3: relations ---
 		const cb3 = buf.pos - childIndexPos;
-		_writeRelations(buf, child, _createChildIndexMap(comp));
+		_writeRelations(buf, child, childIndexMap);
 
 		// --- Child Block 4: page controller (for GComponent/GList children only) ---
 		let cb4 = 0;

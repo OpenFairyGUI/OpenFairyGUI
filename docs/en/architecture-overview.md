@@ -70,16 +70,20 @@ Use `openSession` for an existing file project: it acquires a session-lifetime l
 
 | Operation | State and effects |
 |---|---|
-| `queryEntity` | Five fixed projections: resource, component, displayNode, controller and transition; exact selectors, actual revision, detached and bounded values; no source bytes |
+| `queryEntity` | Seven fixed projections: project, package, resource, component, displayNode, controller and transition; no selector for the project, exact selectors otherwise; actual revision, detached and bounded values, no source bytes |
 | `preflightTransaction` | Checks revision in the same session queue, copies project/bytes, executes and discards; no project/dirty/revision/cache/business-event changes or disk writes |
 | `applyTransaction` | Rechecks expectedRevision; success replaces the project, increments revision and marks dirty; failure retains project/revision and may emit rejection events |
 | `saveSession` | Saves through the session-bound filesystem; only success updates lastSavedRevision and clears dirty/pending cleanup; does not advance edit revision |
 | `materializeSession` | Explicit target/adapter for complete first write; retains path, fidelity and validation gates rather than bypassing dirty saves |
 | `closeSession` | Releases the lock after earlier transactions/writes; does not automatically save pending work |
 
+Project and package settings queries reuse `ReadService` fixed projections, JSON budget checks and deep copying, returning identity and complete `settings`. Callers change requested fields and pass the complete settings with the queried revision to existing `updateProjectSettings` / `updatePackageSettings` transactions. MCP directly maps this query and transaction flow.
+
 Preview compares two formal UAM snapshots for entity/field impacts and reuses the capture filesystem plus ProjectWriter for project-relative file/folder differences. It represents current revision → preview result, not cumulative changes since the last save, a disk-write list or deletion authority. Over-budget summaries fail completely rather than truncate into success; persistence hints always report `writeVerified: false`, and projected revision is not reserved. See [transaction previews](./guide/contracts.md#preview-a-transaction).
 
 The session queue serializes preview, apply, save, materialize and close. Events are bounded polling logs; jobs support only in-memory `cache.refresh` with cooperative cancellation; cache is revision-bound derived data, not a source of truth. The artifact plane declares host capabilities without executing publish/restore.
+
+Pure in-memory session `canonicalProjectPath` / `canonicalPathKey` values identify a session only. Save and materialize use session-bound storage or an adapter explicitly provided by the host for that call; they do not automatically acquire the runtime filesystem. Preview persistence hints reflect the actual session binding.
 
 ## Node / Web and path boundaries
 
