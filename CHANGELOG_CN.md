@@ -4,6 +4,15 @@
 
 ## 未发布
 
+发布比较：
+
+- 稳定线（`main`）：[v0.4.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...main)
+- 开发线（`next`）：[v0.4.0...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...next)
+
+## v0.4.x
+
+### v0.4.0（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.4.0)）
+
 新功能：
 
 - backend、mcp：新增绑定 revision 且与会话隔离的工程/包设置与实体属性查询，采用固定投影、显式响应预算与 selector 错误；能力 schema 版本为 10。
@@ -29,11 +38,6 @@
 - workspace：最低要求 Node.js 22，停止支持 Node 20。CI、文档部署和发布流程统一使用 Node 22，保留 Linux/Windows 消费者检查。
 - mcp：拒绝封闭契约对象的未知字段和无效嵌套 payload。移除共享的 `OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA` 导出，改用各工具定义的精确 `outputSchema`。
 - core、backend：XY/Text/Icon Gear 默认值允许 `null` 表示未覆盖，Backend 契约版本为 `2.0.0-p2`。纯内存会话保存或物化需要宿主显式绑定存储或提供文件系统，路径标签不再自动取得 runtime 文件系统能力。
-
-发布比较：
-
-- 稳定线（`main`）：[v0.3.1...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.1...main)
-- 开发线（`next`）：[v0.3.1...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.1...next)
 
 ## v0.3.x
 
