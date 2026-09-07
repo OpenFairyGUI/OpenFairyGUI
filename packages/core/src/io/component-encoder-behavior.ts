@@ -6,6 +6,7 @@ import type {
 	RelationOwner,
 } from './component-encoder-shared.js';
 import {
+	getRuntimeChildIndexMap,
 	getRuntimeChildren,
 	remapLocalUiUrl,
 } from './component-encoder-shared.js';
@@ -204,7 +205,7 @@ export function _writeControllers(buf: WriteBuffer, comp: Component): void {
 /** Map property type to GObject type index used in binary format. */
 
 export function _writeComponentRelations(buf: WriteBuffer, comp: Component): void {
-	_writeRelations(buf, comp as RelationOwner, _createChildIndexMap(comp));
+	_writeRelations(buf, comp as RelationOwner, getRuntimeChildIndexMap(comp));
 }
 
 export function _writeRelations(
@@ -233,16 +234,6 @@ export function _writeRelations(
 			buf.writeBool(sp.usePercent);
 		}
 	}
-}
-
-export function _createChildIndexMap(comp: Component): Map<string, number> {
-	const childIndexById = new Map<string, number>();
-	const children = comp.listChildren();
-	for (const [index, child] of children.entries()) {
-		const childId = child.getId?.();
-		if (childId) childIndexById.set(childId, index);
-	}
-	return childIndexById;
 }
 
 function _resolveRelationTargetIndex(

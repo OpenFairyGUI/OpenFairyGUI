@@ -2529,6 +2529,90 @@ test('binary writer: list and tree child blocks round-trip into formal list prop
 	}
 });
 
+test('binary writer: relations retain their targets when ordinary groups are omitted', async (t) => {
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-group-relations-'));
+	try {
+		for (const groupIndex of [-1, 0, 1, 3]) {
+			const doc = new Document();
+			const pkg = doc.createPackage('Relations').setId('relation');
+			const comp = doc.createComponent('Host').setId('host').setSize(100, 100);
+			const children = ['a', 'b', 'c'].map((id) => doc.createGGraph(id).setId(id));
+			const group = doc.createGGroup('ordinary').setId('group').setAdvanced(false);
+			for (let index = 0; index <= children.length; index++) {
+				if (index === groupIndex) comp.addChild(group);
+				if (children[index]) comp.addChild(children[index]);
+			}
+			const relations = children.map((child) => ({ target: child.getId(), type: 0, usePercent: false }));
+			comp.setRelations(relations);
+			children[0].setRelations(relations.slice(1));
+			pkg.addResource(comp);
+
+			const outPath = path.join(tmpDir, `group-${groupIndex}.fui`);
+			await io.writeBinary(doc, outPath);
+			const decoded = (await io.readBinary(outPath)).getRoot().getPackage('Relations')!.getComponent('Host')!;
+			t.deepEqual(decoded.listChildren().map((child) => child.getId()), ['a', 'b', 'c']);
+			t.deepEqual(decoded.getRelations(), relations, `root relations with group at ${groupIndex}`);
+			t.deepEqual(decoded.listChildren()[0].getRelations(), relations.slice(1), `child relations with group at ${groupIndex}`);
+		}
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('binary writer: transition and size gear zeros survive while omitted values keep defaults', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('ZeroValues').setId('zeropkg1');
+	const comp = doc.createComponent('Host').setId('host').setSize(100, 100);
+	pkg.addResource(comp);
+	const child = doc.createGGraph('shape').setId('shape');
+	comp.addChild(child);
+	const controller = doc.createController('state');
+	for (const id of ['zero', 'omitted', 'empty']) controller.addPage(doc.createControllerPage(id).setId(id));
+	comp.addController(controller);
+	child.addGear(doc.createGear('size')
+		.setGearType(2).setController(controller).setPages('zero,omitted,empty')
+		.setValues('10,20,0,0|10,20|10,20,,').setDefaultValue('30,40,0,0'));
+	const transition = doc.createTransition('main');
+	transition.addItem(doc.createTransitionItem('scale').setLabel('scale').setActionType(2)
+		.setTargetId('shape').setTween(true).setDuration(1).setStartValue(['0', '0']).setEndValue([]));
+	for (const [name, type, value] of [
+		['silent', 9, ['ui://zeropkg1sound', '0']],
+		['defaultSound', 9, ['ui://zeropkg1sound']],
+		['emptySound', 9, ['ui://zeropkg1sound', '']],
+		['stop', 10, ['nested', '0']],
+		['defaultPlay', 10, ['nested']],
+		['emptyPlay', 10, ['nested', '']],
+	] as const) {
+		transition.addItem(doc.createTransitionItem(name).setLabel(name).setActionType(type).setStartValue([...value]));
+	}
+	comp.addTransition(transition);
+	comp.addTransition(doc.createTransition('nested'));
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-binary-zero-'));
+	try {
+		const outPath = path.join(tmpDir, 'zeros.fui');
+		await io.writeBinary(doc, outPath);
+		const decoded = (await io.readBinary(outPath)).getRoot().getPackage('ZeroValues')!.getComponent('Host')!;
+		const items = decoded.listTransitions()[0].listItems();
+		t.deepEqual(items.map((item) => [item.getLabel(), item.getStartValue()]), [
+			['scale', ['0', '0']],
+			['silent', ['ui://zeropkg1sound', '0']],
+			['defaultSound', ['ui://zeropkg1sound', '100']],
+			['emptySound', ['ui://zeropkg1sound', '100']],
+			['stop', ['nested', '0']],
+			['defaultPlay', ['nested', '1']],
+			['emptyPlay', ['nested', '1']],
+		]);
+		t.deepEqual(items[0].getEndValue(), ['1', '1']);
+		const gear = decoded.listChildren()[0].listGears()[0];
+		t.is(gear.getValues(), '10,20,0,0|10,20,1,1|10,20,1,1');
+		t.is(gear.getDefaultValue(), '30,40,0,0');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('binary writer: component structured objects round-trip into formal models', async (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('StructuredPkg');

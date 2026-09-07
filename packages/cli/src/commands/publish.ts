@@ -5,6 +5,7 @@ import { publishNode } from '@openfairygui/functions/node';
 import type { Command } from 'commander';
 import { resolveFairyPath } from '../utils/project-input.js';
 import { parseProjectType } from '../utils/project-type.js';
+import { printJson } from '../utils/json-output.js';
 
 type PublishCommandOptions = {
 	output?: string;
@@ -12,6 +13,7 @@ type PublishCommandOptions = {
 	packages?: string;
 	branch?: string;
 	projectType?: string;
+	json?: boolean;
 };
 
 export function registerPublishCommand(program: Command): void {
@@ -19,6 +21,7 @@ export function registerPublishCommand(program: Command): void {
 		.command('publish')
 		.description('Publish project to binary outputs and configured generated code')
 		.argument('<project-dir>', 'Project root directory or .fairy file')
+		.option('--json', 'Print one JSON result or error (exit 0: success, 1: workflow failure, 2: invalid arguments)')
 		.option('-o, --output <dir>', 'Override project or package publish output directory')
 		.option('-c, --compressed', 'Compress binary data (overrides project setting)')
 		.option('-p, --packages <a,b,c>', 'Only publish specific packages (comma-separated)')
@@ -52,7 +55,7 @@ export function registerPublishCommand(program: Command): void {
 				console.log(`Active branch: ${options.branch}`);
 			}
 
-			await publishNode({
+			const result = await publishNode({
 				document: doc,
 				output: outputDir,
 				compressed: resolved.compressed,
@@ -62,6 +65,7 @@ export function registerPublishCommand(program: Command): void {
 				atlas: resolved.atlas,
 				branch: options.branch,
 			});
+			if (options.json) { printJson('publish', result); return; }
 
 			console.log(`\nDone!${outputDir ? ` Output override: ${outputDir}` : ''}`);
 		});

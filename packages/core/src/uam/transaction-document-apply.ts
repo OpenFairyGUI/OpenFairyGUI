@@ -331,7 +331,7 @@ function replaceControllerModel(
 	for (const action of [...controller.listActions()]) controller.removeAction(action);
 	for (const page of [...controller.listPages()]) controller.removePage(page);
 	for (const page of model.pages) {
-		controller.addPage(doc.createControllerPage(page.name).setId(page.id));
+		controller.addPage(doc.createControllerPage(page.name).setId(page.id).setRemark(page.remark));
 	}
 	for (const actionModel of model.actions) {
 		controller.addAction(
@@ -356,6 +356,8 @@ function replaceTransitionModel(
 	transition: Transition,
 	model: UamComponentModel['transitions'][number],
 ): void {
+	const transitions = component.listTransitions();
+	const following = transitions.slice(transitions.indexOf(transition) + 1);
 	component.removeTransition(transition);
 	composeTransition(doc, component, {
 		name: model.name,
@@ -382,6 +384,8 @@ function replaceTransitionModel(
 			customEasePath: item.customEasePath,
 		})),
 	});
+	// Composition appends; restore the original slot without replacing unrelated transitions.
+	for (const sibling of following) { component.removeTransition(sibling); component.addTransition(sibling); }
 }
 
 type ResourceSourceData = {

@@ -599,13 +599,95 @@ test('root backend entry opens pure UAM project sessions without a filesystem ad
 	if (saveFailure.error.code === 'capability_unavailable') {
 		t.is(saveFailure.error.capability, 'fileSystem');
 	}
-	t.deepEqual(saveFailure.meta.diagnostics, [
+	t.deepEqual(saveFailure.meta.diagnostics.map(({ owner, docsUri, remediation, ...diagnostic }) => diagnostic), [
 		{
 			code: 'capability_unavailable',
 			message: 'saveSession requires an injected BackendFileSystem adapter.',
 			severity: 'error',
 		},
 	]);
+});
+
+test('pure UAM sessions do not inherit runtime storage and can bind explicit host storage later', async (t) => {
+	const ambientCalls: string[] = [];
+	const ambientFileSystem = new Proxy(createBackendStorageFileSystem(new MemoryBrowserStorage()), {
+		get(target, key, receiver) {
+			const value = Reflect.get(target, key, receiver);
+			return typeof value === 'function' ? () => {
+				ambientCalls.push(String(key));
+				throw new Error('A pure UAM session must not access the runtime filesystem.');
+			} : value;
+		},
+	});
+	const runtime = new BackendRuntime({ fileSystem: ambientFileSystem });
+	const opened = runtime.openProjectSession({ project: createBackendFixtureProject(), canonicalProjectPath: 'memory://browser-project' });
+	t.true(opened.ok);
+	if (!opened.ok) return;
+	const sessionId = opened.data.sessionId;
+	const transaction = { sessionId, expectedRevision: 0, operations: [{
+		kind: 'setDisplayNodeProps' as const,
+		selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+		props: { text: 'Host-owned storage required' },
+	}] };
+	t.true(runtime.getProjectOutline({ sessionId }).ok);
+	t.true(runtime.queryEntity({ sessionId, target: { kind: 'project' } }).ok);
+	t.true(runtime.validateSession({ sessionId }).ok);
+	const preview = await runtime.preflightTransaction(transaction);
+	t.true(preview.ok);
+	if (preview.ok) {
+		t.false(preview.data.persistence.fileSystemAvailable);
+		t.is(preview.data.persistence.nextAction, 'host-action');
+	}
+	t.true((await runtime.applyTransaction(transaction)).ok);
+	for (const result of [
+		await runtime.saveSession({ sessionId, expectedRevision: 1 }),
+		await runtime.saveSession({ sessionId, expectedRevision: 1, force: true }),
+		await runtime.materializeSession({ sessionId, expectedRevision: 1 }),
+	]) {
+		t.false(result.ok);
+		if (!result.ok) t.is(result.error.code, 'capability_unavailable');
+	}
+	const unchanged = runtime.getSession({ sessionId });
+	t.true(unchanged.ok);
+	if (unchanged.ok) {
+		t.is(unchanged.data.revision, 1);
+		t.is(unchanged.data.lastSavedRevision, 0);
+		t.true(unchanged.data.dirty);
+	}
+	t.deepEqual(ambientCalls, []);
+	const storage = new MemoryBrowserStorage();
+	const materialized = await runtime.materializeSession({
+		sessionId, expectedRevision: 1,
+		storage: { fileSystem: createBackendStorageFileSystem(storage), fairyPath: 'Project.fairy' },
+	});
+	t.true(materialized.ok);
+	t.true(storage.hasFile('Project.fairy'));
+	t.true((await runtime.applyTransaction({ ...transaction, expectedRevision: 1, operations: [{
+		...transaction.operations[0], props: { text: 'Saved through bound storage' },
+	}] })).ok);
+	t.true((await runtime.saveSession({ sessionId, expectedRevision: 2 })).ok);
+	t.deepEqual(ambientCalls, []);
+	await runtime.closeSession({ sessionId });
+});
+
+test('pure UAM sessions retain explicit per-call filesystem materialize and save', async (t) => {
+	const runtime = new BackendRuntime();
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const opened = runtime.openProjectSession({ project: createBackendFixtureProject(), canonicalProjectPath: 'Project.fairy' });
+	t.true(opened.ok);
+	if (!opened.ok) return;
+	const sessionId = opened.data.sessionId;
+	t.true((await runtime.materializeSession({ sessionId, expectedRevision: 0, fileSystem })).ok);
+	t.true(storage.hasFile('Project.fairy'));
+	t.true((await runtime.applyTransaction({ sessionId, expectedRevision: 0, operations: [{
+		kind: 'setDisplayNodeProps',
+		selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+		props: { text: 'Explicit host save' },
+	}] })).ok);
+	t.true((await runtime.saveSession({ sessionId, expectedRevision: 1, fileSystem })).ok);
+	t.true((await runtime.saveSession({ sessionId, expectedRevision: 1 })).ok);
+	await runtime.closeSession({ sessionId });
 });
 
 test('file-backed openSession declares the missing filesystem capability instead of loading Node', async (t) => {
@@ -3504,78 +3586,83 @@ test('applyTransaction snapshots queued operations and shared source bytes befor
 	if (resource?.kind === 'misc') t.deepEqual([...(resource.sourceBytes ?? [])], [1, 2, 3]);
 });
 
-test.serial('closeSession waits for browser image validation transaction completion', async (t) => {
-	const workerDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Worker');
-	let releaseValidation = (): void => undefined;
-	let markValidationStarted = (): void => undefined;
-	const validationStarted = new Promise<void>((resolve) => {
-		markValidationStarted = resolve;
+for (const method of ['applyTransaction', 'preflightTransaction'] as const) {
+	test.serial(`${method}: closeSession waits for browser image validation completion`, async (t) => {
+		const workerDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Worker');
+		let releaseValidation = (): void => undefined;
+		let markValidationStarted = (): void => undefined;
+		const validationStarted = new Promise<void>((resolve) => {
+			markValidationStarted = resolve;
+		});
+		class PausingImageWorker {
+			public onmessage: ((event: MessageEvent<{ format: 'png'; width: number; height: number }>) => void) | null = null;
+			public onerror: (() => void) | null = null;
+
+			public postMessage(): void {
+				markValidationStarted();
+				releaseValidation = () => {
+					this.onmessage?.({ data: { format: 'png', width: 1, height: 1 } } as MessageEvent<{
+						format: 'png';
+						width: number;
+						height: number;
+					}>);
+				};
+			}
+
+			public terminate(): void {}
+		}
+
+		try {
+			Object.defineProperty(globalThis, 'Worker', {
+				configurable: true,
+				value: PausingImageWorker,
+			});
+			const project = createBackendFixtureProject();
+			const image = project.packages[0]?.resources.find((resource) => resource.id === 'img001');
+			if (image?.kind !== 'image') {
+				t.fail('expected fixture image resource');
+				return;
+			}
+			image.sourceBytes = new Uint8Array([1]);
+			const runtime = new BackendRuntime();
+			const opened = runtime.openProjectSession({
+				project,
+				canonicalProjectPath: 'memory://close-during-image-validation',
+			});
+			t.true(opened.ok);
+			if (!opened.ok) return;
+
+			const applying = runtime[method]({
+				sessionId: opened.data.sessionId,
+				expectedRevision: 0,
+				operations: [
+					{
+						kind: 'replaceResourceBytes',
+						selector: { packageId: 'pkg001', resourceId: 'img001' },
+						sourceBytes: new Uint8Array([1, 2, 3, 4, 5]),
+					},
+				],
+			});
+			await validationStarted;
+			let closeSettled = false;
+			const closing = runtime.closeSession({ sessionId: opened.data.sessionId }).finally(() => {
+				closeSettled = true;
+			});
+			await Promise.resolve();
+			t.false(closeSettled);
+			releaseValidation();
+
+			const applied = await applying;
+			t.true(applied.ok);
+			if (applied.ok) {
+				if ('baseRevision' in applied.data) t.is(applied.data.baseRevision, 0);
+				else t.is(applied.data.revision, 1);
+			}
+			t.true((await closing).ok);
+			t.false(runtime.getSession({ sessionId: opened.data.sessionId }).ok);
+		} finally {
+			if (workerDescriptor) Object.defineProperty(globalThis, 'Worker', workerDescriptor);
+			else Reflect.deleteProperty(globalThis, 'Worker');
+		}
 	});
-	class PausingImageWorker {
-		public onmessage: ((event: MessageEvent<{ format: 'png'; width: number; height: number }>) => void) | null = null;
-		public onerror: (() => void) | null = null;
-
-		public postMessage(): void {
-			markValidationStarted();
-			releaseValidation = () => {
-				this.onmessage?.({ data: { format: 'png', width: 1, height: 1 } } as MessageEvent<{
-					format: 'png';
-					width: number;
-					height: number;
-				}>);
-			};
-		}
-
-		public terminate(): void {}
-	}
-
-	try {
-		Object.defineProperty(globalThis, 'Worker', {
-			configurable: true,
-			value: PausingImageWorker,
-		});
-		const project = createBackendFixtureProject();
-		const image = project.packages[0]?.resources.find((resource) => resource.id === 'img001');
-		if (image?.kind !== 'image') {
-			t.fail('expected fixture image resource');
-			return;
-		}
-		image.sourceBytes = new Uint8Array([1]);
-		const runtime = new BackendRuntime();
-		const opened = runtime.openProjectSession({
-			project,
-			canonicalProjectPath: 'memory://close-during-image-validation',
-		});
-		t.true(opened.ok);
-		if (!opened.ok) return;
-
-		const applying = runtime.applyTransaction({
-			sessionId: opened.data.sessionId,
-			expectedRevision: 0,
-			operations: [
-				{
-					kind: 'replaceResourceBytes',
-					selector: { packageId: 'pkg001', resourceId: 'img001' },
-					sourceBytes: new Uint8Array([1, 2, 3, 4, 5]),
-				},
-			],
-		});
-		await validationStarted;
-		let closeSettled = false;
-		const closing = runtime.closeSession({ sessionId: opened.data.sessionId }).finally(() => {
-			closeSettled = true;
-		});
-		await Promise.resolve();
-		t.false(closeSettled);
-		releaseValidation();
-
-		const applied = await applying;
-		t.true(applied.ok);
-		if (applied.ok) t.is(applied.data.revision, 1);
-		t.true((await closing).ok);
-		t.false(runtime.getSession({ sessionId: opened.data.sessionId }).ok);
-	} finally {
-		if (workerDescriptor) Object.defineProperty(globalThis, 'Worker', workerDescriptor);
-		else Reflect.deleteProperty(globalThis, 'Worker');
-	}
-});
+}

@@ -148,6 +148,12 @@ FairyGUI 工程 XML 中由桌面编辑器按有符号 32 位整数读取的几�
 
 `pivot`、`scale`、`skew`、`gearXY` 的百分比和 `gearSize` 的缩放值继续保留小数。
 
+UAM 的 XY Gear 状态与默认值使用 `x/y` 和可选的 `px/py`；启用 `positionsInPercent` 时，显式状态值必须提供成对的有限 `px/py`，比例 `0.5` 表示 50%。默认值 `null` 表示未提供默认覆盖，保存时保持省略。每个显示节点的同一种 Gear 只允许绑定一次；需要更换控制器时移除后重新添加，Display 和 Display2 可共存。
+
+Text/Icon Gear 按页保留未覆盖值、空字符串和普通 `-` 文本，默认值也区分未覆盖与显式清空。工程 XML 的 `values` 以 `|` 分隔页面；每页文本含 `|` 尚无已验证的官方无损表示，ProjectWriter 在任何写入前拒绝该类输出。默认值中的 `|` 不受此分隔限制；UAM、Document 与二进制保留完整字符串。
+
+发布资源闭包包含组件根的 `showSound` / `hideSound`：同包未导出音效会随引用组件发布，跨包音效形成包依赖。
+
 ## 工程资源树元数据
 
 `package.xml` 与 `package_branch.xml` 的 component/asset 资源节点使用 `exported="true"` 与 `favorite="true"` 记录导出和收藏状态；未导出、未收藏时省略对应属性。SWF 使用正式的 `SwfResource` 模型读写 `<swf>` 节点，并通过 UAM `swf` 资源保留源文件、导出状态与收藏状态。UAM 通过 `resource.exported`、`resource.favorite` 承载这些字段，公开事务分别使用幂等的 `setResourceExported`、`setResourceFavorite` 设置目标布尔值。
@@ -207,6 +213,8 @@ ProjectWriter 会为每个工程分支保留 `assets_<branch>/`，并为包内�
 未请求任何输出目录时，低层 `publish()` 可以只计算 layout；这不是文件发布，也不会写出二进制或资源文件。标准 Node 工作流应使用 `publishNode()`。
 
 标准 Node adapter 在显式传入 `output` 时，会先把该目录复制到同级 staging 目录，完整发布成功后再以目录切换提交；内置 runtime 输出或 `onPublishEnd` 失败时，原输出目录保持不变。按工程/包设置解析出的多个输出目录、自定义低层文件系统、输出目录外的 codegen，以及插件通过 `basePath` 或其他路径产生的副作用不在这项目录级保证内，应由宿主或插件提供自己的 staging/回滚策略。
+
+`publishNode()` 成功返回 `{ files: [{ path, size }] }`，记录内置文件系统与图集 writer 实际写入的文件，路径为提交后的绝对路径、size 为字节数；测量在暂存目录提交前完成。清单包含经 publish 文件系统写入的代码，不含旧目录未改动文件、删除项或插件绕开该文件系统的任意 I/O。失败仍抛错，不返回成功清单。CLI `publish --json` 直接包装这一结果，不自行推测输出文件名；机器输出与退出码见[可运行示例](./guide/examples.md)。文件命名与二进制协议未因此改变。
 
 ## 代码生成的当前实现范围
 

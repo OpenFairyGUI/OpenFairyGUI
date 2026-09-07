@@ -6,8 +6,38 @@
 
 Release comparisons:
 
-- Stable line (`main`): [v0.3.1...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.1...main)
-- Development line (`next`): [v0.3.1...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.1...next)
+- Stable line (`main`): [v0.4.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...main)
+- Development line (`next`): [v0.4.0...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...next)
+
+## v0.4.x
+
+### v0.4.0 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.4.0))
+
+Features:
+
+- backend, mcp: Add revision-bound, isolated project/package settings and entity property queries with fixed projections, explicit response budgets and selector errors; capability schema version is 10.
+- backend, mcp: Preview transactions by executing and discarding isolated snapshots through the existing async transaction entrypoint, preserving diagnostics without changing session state or disk; previews reserve no revision and do not guarantee saving.
+- cli: Add `inspect --json` using the existing inspection report without terminal logs.
+- mcp: Expose Core-derived operation schemas and catalog resources, with method-specific Backend input/output contracts and explicit JSON byte conversion for resource snapshots.
+
+Fixes:
+
+- core: Preserve the image-validation Worker's listener initialization when bundlers consume its public entrypoint.
+- core: Resolve relation indexes against published children, preserve valid zero values in transitions and gears, and reject duplicate Gear types on a display node.
+- core: Model XY Gear percentage coordinates; preserve empty values, `-`, and strings containing `|` in Text/Icon gears, explicitly rejecting page delimiters that cannot be written losslessly to Project XML before any write.
+- functions: Read canonical Gear page values during dependency and atlas scans, and include component added/removed-stage sounds in the resource closure.
+
+Other:
+
+- workspace: Add reproducible development guidance, pinned-fixture verification, read-only environment diagnostics, impact-selected tests and unified quality entrypoints, with PR checks for documentation builds, guidance links and bilingual record structure.
+- workspace: Verify five packed packages in an isolated production consumer before release, covering exports, ESM/CJS types, browser bundles, CLI/MCP, and executable inspect/validate and revision-checked edit/save examples shared with documentation.
+- workspace: Generate contract snapshots and bilingual catalogs from canonical TypeScript types; reject incomplete method mappings and generated-file drift in repository and documentation checks.
+
+Breaking changes:
+
+- workspace: Require Node.js 22 or newer, dropping Node 20 support. Use Node 22 for CI, documentation deployment and releases while retaining Linux/Windows consumer checks.
+- mcp: Reject unknown fields on closed contract objects and invalid nested payloads. Replace the shared `OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA` export with each tool definition's precise `outputSchema`.
+- core, backend: Allow `null` XY/Text/Icon Gear defaults to represent absent overrides; Backend contract version is `2.0.0-p2`. Saving or materializing pure in-memory sessions requires explicitly bound host storage or a per-call filesystem; path labels no longer acquire runtime filesystem capabilities automatically.
 
 ## v0.3.x
 

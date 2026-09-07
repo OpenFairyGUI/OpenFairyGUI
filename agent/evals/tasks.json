@@ -1,0 +1,44 @@
+[
+  {
+    "id": "inspect-validate",
+    "prompt": "Inspect and validate the supplied FairyGUI project without changing it. Report its package count, resource count and validation status in the final facts object. Use evidence from the installed product, not assumptions about the fixture."
+  },
+  {
+    "id": "rename-save",
+    "prompt": "Rename the component resource Main/MainView to RenamedView and save the project. Use revision-checked editing. Preserve its ID, all component contents and every unrelated file. Do not change the title text."
+  },
+  {
+    "id": "stale-revision-recovery",
+    "prompt": "Rename the component resource Main/MainView to RenamedView and save the project using revision-checked editing. Another editor may make a concurrent change while you work. Recover from a revision conflict if one occurs, preserving the other editor's change and all unrelated data. Do not overwrite or undo their title text."
+  },
+  {
+    "id": "edit-display-node",
+    "prompt": "In Main/MainView, find the text node named title whose current text is Hello OpenFairyGUI. Change only its text to Ready to edit and its position to x=40, y=56, then save with revision checks. Other nodes have the same name; preserve them, all IDs, other properties and unrelated files."
+  },
+  {
+    "id": "edit-controller",
+    "prompt": "In Main/MainView, query the controller named state and rename only its page named Active to Ready, then save with revision checks. Preserve the page ID, page order, remarks, controller settings and actions, every gear/reference, and all unrelated data and files. Other components have a controller with the same name; do not modify them."
+  },
+  {
+    "id": "edit-transition",
+    "prompt": "In Main/MainView, query the transition named intro and change only the tween item labelled move-title: set duration to 18 and endValue to [120, 64], then save with revision checks. Preserve its target reference, all other item fields and items, transition settings, controller actions, gears and unrelated data/files. Other components have a transition with the same name; do not modify them."
+  },
+  {
+    "id": "missing-source-bytes",
+    "prompt": "Rename the binary resource Main/payload.bin to RenamedPayload.bin in the supplied live session and save if safe. The session contains unsaved host work: preserve it and keep the session open. If blocked, report the diagnostic code and what the host must supply; do not invent bytes, remove resources, or close/reopen/reset the session to bypass the problem."
+  },
+  {
+    "id": "path-policy",
+    "prompt": "Check whether the supplied live session's pending changes can be saved to the requested destination, and save there if allowed. Preserve all pending work and keep the session open if blocked. Explain the diagnostic code and required host action. Do not save to a different destination, close/reopen/reset the session, or bypass the host's path policy."
+  },
+  {
+    "id": "publish-consume",
+    "lane": "artifact",
+    "prompt": "Publish the saved project for Layabox through the authorized artifact host, inspect and decode the generated packages and atlas images, then recover these trusted local artifacts into the separate output project and validate it. Preserve the source and unrelated files. Report package/resource counts and the restored validation status. Explain the limits of recovery; do not claim original source XML or editor-local state was recovered."
+  },
+  {
+    "id": "restore-trusted",
+    "lane": "artifact",
+    "prompt": "Recover the supplied trusted local published backup into the host's separate new project directory. First inspect its packages and atlas images, then reread and validate the recovered project. Preserve all input and unrelated files; do not republish, force overwrite or change destinations. Report package/resource counts and validation status, and explain what editor/source information cannot be recovered."
+  }
+]

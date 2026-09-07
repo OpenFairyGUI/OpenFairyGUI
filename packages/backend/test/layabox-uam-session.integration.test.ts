@@ -139,7 +139,7 @@ test('real LayaBox UIProject supports browser-safe UAM session edit with undo an
 	}
 	t.is(saveFailure.session?.revision, 1);
 	t.true(saveFailure.session?.dirty);
-	t.deepEqual(saveFailure.meta.diagnostics, [
+	t.deepEqual(saveFailure.meta.diagnostics.map(({ owner, docsUri, remediation, ...diagnostic }) => diagnostic), [
 		{
 			code: 'capability_unavailable',
 			message: 'saveSession requires an injected BackendFileSystem adapter.',

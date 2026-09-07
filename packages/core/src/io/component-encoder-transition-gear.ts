@@ -227,8 +227,8 @@ function _writeTransitionValue(buf: WriteBuffer, item: TransitionItemNode, value
 			break;
 		}
 		case 'Scale': {
-			buf.writeFloat32(parseFloat(parts[0]) || 1);
-			buf.writeFloat32(parseFloat(parts[1]) || 1);
+			buf.writeFloat32(_numberToken(parts[0], 1));
+			buf.writeFloat32(_numberToken(parts[1], 1));
 			break;
 		}
 		case 'Alpha':
@@ -258,12 +258,12 @@ function _writeTransitionValue(buf: WriteBuffer, item: TransitionItemNode, value
 		}
 		case 'Sound': {
 			buf.writeSEx(parts[0] || null, false, false);
-			buf.writeFloat32((parseInt(parts[1], 10) || 100) / 100);
+			buf.writeFloat32(Math.trunc(_numberToken(parts[1], 100)) / 100);
 			break;
 		}
 		case 'Transition': {
 			buf.writeSEx(parts[0] || null, false, false);
-			buf.writeInt32(parseInt(parts[1], 10) || 1);
+			buf.writeInt32(Math.trunc(_numberToken(parts[1], 1)));
 			break;
 		}
 		case 'Shake': {
@@ -306,11 +306,15 @@ export function _writeGear(buf: WriteBuffer, gear: GearNode, gearType: number, c
 
 	// Parse page values from formal gear fields.
 	const pagesStr = _strVal(gear.getPages?.()) ?? '';
-	const valuesStr = _strVal(gear.getValues?.()) ?? '';
-	const defaultStr = _strVal(gear.getDefaultValue?.()) ?? '';
+	const stringValues = gearType === 6 || gearType === 7;
+	const defaultValue = gear.getDefaultValue?.();
+	const defaultStr = _strVal(defaultValue) ?? '';
 
 	const pages = pagesStr ? pagesStr.split(',') : [];
-	const values = valuesStr ? valuesStr.split('|') : [];
+	const pageValues = gear.getPageValues();
+	const values = stringValues
+		? pages.map((page) => pageValues[page] ?? null)
+		: ((_strVal(gear.getValues?.()) ?? '').split('|'));
 	const pageCount = pages.length;
 
 	if (gearType === 0 || gearType === 8) {
@@ -325,8 +329,8 @@ export function _writeGear(buf: WriteBuffer, gear: GearNode, gearType: number, c
 		// (or '-' for non-text/icon gears), and omits the status payload.
 		buf.writeInt16(pageCount);
 		for (let i = 0; i < pageCount; i++) {
-			const value = values[i] ?? '';
-			if (_shouldWriteNullGearPage(gearType, value)) {
+			const value = values[i] ?? null;
+			if (value === null || _shouldWriteNullGearPage(gearType, value)) {
 				buf.writeS(null);
 				continue;
 			}
@@ -335,7 +339,7 @@ export function _writeGear(buf: WriteBuffer, gear: GearNode, gearType: number, c
 			_writeGearStatus(buf, gearType, value, version);
 		}
 		// Default value
-		const hasDefault = defaultStr !== '';
+		const hasDefault = stringValues ? defaultValue !== null && defaultValue !== undefined : defaultStr !== '';
 		buf.writeBool(hasDefault);
 		if (hasDefault) {
 			_writeGearStatus(buf, gearType, defaultStr, version);
@@ -418,8 +422,8 @@ function _writeGearStatus(buf: WriteBuffer, gearType: number, valueStr: string, 
 		case 2: // GearSize: w,h,sx,sy
 			buf.writeInt32(parseInt(parts[0], 10) || 0);
 			buf.writeInt32(parseInt(parts[1], 10) || 0);
-			buf.writeFloat32(parseFloat(parts[2]) || 1);
-			buf.writeFloat32(parseFloat(parts[3]) || 1);
+			buf.writeFloat32(_numberToken(parts[2], 1));
+			buf.writeFloat32(_numberToken(parts[3], 1));
 			break;
 		case 3: // GearLook: alpha,rotation,grayed,touchable
 			buf.writeFloat32(_numberToken(parts[0], 1));

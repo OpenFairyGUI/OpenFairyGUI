@@ -6,8 +6,38 @@
 
 发布比较：
 
-- 稳定线（`main`）：[v0.3.1...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.1...main)
-- 开发线（`next`）：[v0.3.1...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.1...next)
+- 稳定线（`main`）：[v0.4.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...main)
+- 开发线（`next`）：[v0.4.0...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...next)
+
+## v0.4.x
+
+### v0.4.0（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.4.0)）
+
+新功能：
+
+- backend、mcp：新增绑定 revision 且与会话隔离的工程/包设置与实体属性查询，采用固定投影、显式响应预算与 selector 错误；能力 schema 版本为 10。
+- backend、mcp：通过现有异步事务入口在隔离快照上执行并丢弃预演结果，保留诊断且不改变会话或磁盘；预演不预留 revision，也不保证保存成功。
+- cli：新增 `inspect --json`，复用现有检查报告且不混入终端日志。
+- mcp：提供从 Core 类型生成的操作 schema 与目录资源，按 Backend 方法生成精确输入/输出，并对资源快照的 JSON 字节进行显式转换。
+
+修复：
+
+- core：保留图片校验 Worker 在公开入口被打包消费时的消息监听器初始化。
+- core：按发布后的子节点列表计算关联索引，保留动效和 Gear 的合法零值，并拒绝同节点重复 Gear 类型。
+- core：正式建模 XY Gear 的百分比坐标；Text/Icon Gear 保留空值、`-` 和包含 `|` 的字符串，无法无损写入工程 XML 的每页分隔符在写入前明确拒绝。
+- functions：发布依赖与图集扫描读取正式 Gear 按页值，组件出场/退场音效进入资源闭包。
+
+其他：
+
+- workspace：加入可复现开发指引、固定 fixture 校验、只读环境诊断、变更影响测试选择与统一质量入口，并在 PR 中检查文档构建、指令链接和双语记录结构。
+- workspace：发布前在隔离的生产消费者中验证五包 tarball，覆盖导出、ESM/CJS 类型、浏览器打包、CLI/MCP，以及与文档共享的可运行 inspect/validate 和 revision-checked edit/save 示例。
+- workspace：从正式 TypeScript 类型生成契约快照与双语目录，在仓库和文档检查中拒绝方法映射遗漏及生成物漂移。
+
+破坏性变更：
+
+- workspace：最低要求 Node.js 22，停止支持 Node 20。CI、文档部署和发布流程统一使用 Node 22，保留 Linux/Windows 消费者检查。
+- mcp：拒绝封闭契约对象的未知字段和无效嵌套 payload。移除共享的 `OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA` 导出，改用各工具定义的精确 `outputSchema`。
+- core、backend：XY/Text/Icon Gear 默认值允许 `null` 表示未覆盖，Backend 契约版本为 `2.0.0-p2`。纯内存会话保存或物化需要宿主显式绑定存储或提供文件系统，路径标签不再自动取得 runtime 文件系统能力。
 
 ## v0.3.x
 

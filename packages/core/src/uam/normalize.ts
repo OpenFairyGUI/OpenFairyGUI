@@ -346,6 +346,8 @@ function normalizeXYValue(value: UamXYGearValue | null | undefined): UamXYGearVa
 	return {
 		x: value.x ?? 0,
 		y: value.y ?? 0,
+		...(value.px !== undefined ? { px: value.px } : {}),
+		...(value.py !== undefined ? { py: value.py } : {}),
 	};
 }
 
@@ -436,7 +438,7 @@ function normalizeGearBinding(gear: UamGearBinding): UamGearBinding {
 				name: gear.name ?? '',
 				controllerName: gear.controllerName,
 				states: normalizeStates(gear.states),
-				defaultValue: normalizeXYValue(gear.defaultValue)!,
+				defaultValue: normalizeXYValue(gear.defaultValue),
 				condition: gear.condition ?? '',
 				positionsInPercent: gear.positionsInPercent ?? false,
 				tween: gear.tween ?? false,
@@ -496,7 +498,7 @@ function normalizeGearBinding(gear: UamGearBinding): UamGearBinding {
 				name: gear.name ?? '',
 				controllerName: gear.controllerName,
 				states: normalizeStates(gear.states),
-				defaultValue: normalizeTextValue(gear.defaultValue)!,
+				defaultValue: normalizeTextValue(gear.defaultValue),
 				condition: gear.condition ?? '',
 				positionsInPercent: gear.positionsInPercent ?? false,
 				tween: gear.tween ?? false,
@@ -511,7 +513,7 @@ function normalizeGearBinding(gear: UamGearBinding): UamGearBinding {
 				name: gear.name ?? '',
 				controllerName: gear.controllerName,
 				states: normalizeStates(gear.states),
-				defaultValue: normalizeIconValue(gear.defaultValue)!,
+				defaultValue: normalizeIconValue(gear.defaultValue),
 				condition: gear.condition ?? '',
 				positionsInPercent: gear.positionsInPercent ?? false,
 				tween: gear.tween ?? false,

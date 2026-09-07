@@ -1,5 +1,9 @@
-export const BACKEND_CONTRACT_VERSION = '1.1.0-p2' as const;
-export const BACKEND_CAPABILITY_SCHEMA_VERSION = 3 as const;
+import type { ProjectDiagnosticCode } from '@openfairygui/core';
+import type { UamTransactionSupportIssueCode } from '@openfairygui/core/uam';
+import type { BackendError } from './runtime.js';
+
+export const BACKEND_CONTRACT_VERSION = '2.0.0-p2' as const;
+export const BACKEND_CAPABILITY_SCHEMA_VERSION = 10 as const;
 export const BACKEND_COMPATIBILITY_POLICY = {
 	incompatibleChange: 'requires contractVersion bump',
 	capabilitySchemaChange: 'requires capabilitySchemaVersion bump',
@@ -13,8 +17,11 @@ export interface BackendMessage {
 	message: string;
 }
 
+export type BackendDiagnosticCode = BackendError['code'] | UamTransactionSupportIssueCode | ProjectDiagnosticCode;
+export type BackendDiagnosticOwner = 'backend' | 'core.transaction' | 'core.validation';
+
 export interface BackendDiagnostic {
-	code: string;
+	code: BackendDiagnosticCode;
 	message: string;
 	severity: 'info' | 'warning' | 'error';
 	path?: string;
@@ -25,6 +32,17 @@ export interface BackendDiagnostic {
 	operationKind?: string;
 	opIndex?: number;
 	opId?: string;
+	/** Present for catalogued diagnostics only; original codes and classification are preserved. */
+	owner?: BackendDiagnosticOwner;
+	docsUri?: string;
+	remediation?: BackendDiagnosticRemediation;
+}
+
+export interface BackendDiagnosticRemediation {
+	kind: 'refresh-and-replan' | 'revise-selector' | 'revise-operation' | 'host-action';
+	message: string;
+	/** A read-only starting point, never permission to retry or mutate. */
+	read?: { method: 'getProjectOutline'; input: { sessionId: string } };
 }
 
 export interface BackendResponseMeta {

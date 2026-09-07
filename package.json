@@ -12,10 +12,27 @@
 		"url": "https://github.com/OpenFairyGUI/OpenFairyGUI/issues"
 	},
 	"engines": {
-		"node": ">=20"
+		"node": ">=22"
 	},
 	"type": "module",
 	"scripts": {
+		"repo:setup": "pnpm refs:sync && pnpm install --frozen-lockfile && pnpm build && pnpm test:repo && pnpm repo:doctor",
+		"repo:doctor": "node scripts/repo-doctor.mjs",
+		"refs:status": "node scripts/repo-doctor.mjs refs",
+		"refs:verify": "node scripts/repo-doctor.mjs refs --strict",
+		"refs:sync": "git submodule update --init --recursive",
+		"refs:grep": "node scripts/refs-grep.mjs",
+		"check:fast": "pnpm lint:ci && pnpm typecheck && pnpm test:changed",
+		"check": "pnpm refs:verify && pnpm lint:ci && pnpm typecheck && pnpm build && pnpm test:repo && pnpm test",
+		"check:ci": "pnpm check && pnpm docs:check && pnpm docs:build && pnpm pack:check",
+		"pack:check": "node scripts/pack-smoke.mjs",
+		"eval:agent": "node scripts/agent-evals.mjs",
+		"check:agent-links": "node scripts/check-guidance.mjs",
+		"docs:check": "pnpm check:agent-links && pnpm contracts:check",
+		"contracts:generate": "node scripts/generate-contracts.mjs",
+		"contracts:check": "node scripts/generate-contracts.mjs --check",
+		"test:repo": "node --test scripts/repository.test.mjs scripts/contracts.test.mjs scripts/agent-evals.test.mjs",
+		"test:changed": "node scripts/test-changed.mjs",
 		"build": "pnpm -r --if-present run build",
 		"build:cli-deps": "pnpm --filter @openfairygui/core build && pnpm --filter @openfairygui/functions build && pnpm --filter @openfairygui/backend build && pnpm --filter @openfairygui/cli build",
 		"build:watch": "pnpm -r --parallel --stream --if-present run build:watch",
@@ -26,13 +43,11 @@
 		"test:debug": "ava debug --no-worker-threads",
 		"coverage": "c8 --reporter=lcov --reporter=text pnpm test -- --tap",
 		"docs:api": "typedoc",
-		"predocs:build": "pnpm docs:api",
-		"predocs:dev": "pnpm docs:api",
-		"docs:build": "vitepress build docs",
-		"docs:dev": "vitepress dev docs",
+		"docs:build": "pnpm docs:api && vitepress build docs",
+		"docs:dev": "pnpm docs:api && vitepress dev docs",
 		"docs:preview": "vitepress preview docs",
-		"lint": "biome lint packages scripts docs/.vitepress/config.ts docs/.vitepress/theme",
-		"lint:ci": "biome lint packages scripts docs/.vitepress/config.ts docs/.vitepress/theme",
+		"lint": "biome lint packages scripts examples docs/.vitepress/config.ts docs/.vitepress/theme",
+		"lint:ci": "biome lint packages scripts examples docs/.vitepress/config.ts docs/.vitepress/theme",
 		"typecheck": "tsc --noEmit --declaration false"
 	},
 	"devDependencies": {

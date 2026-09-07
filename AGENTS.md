@@ -1,5 +1,46 @@
 # OpenFairyGUI Maintainer Notes
 
+## 从这里开始
+
+- 推荐开发 Node 版本见 `.node-version`；包的最低支持范围仍以 `package.json` 的 `engines` 为准，pnpm 版本以 `packageManager` 为准。
+- 准备 Git、Node 与指定 pnpm 后，在仓库根目录运行 `pnpm repo:setup`，再运行 `pnpm check:ci`。不需要个人机器路径。
+- 先读[开发指南](docs/guide/development.md)的环境、术语和参考资料规则；用户 API 入口见[包与工具](docs/guide/packages.md)。
+- XML 字段、UAM operation、Backend 方法、MCP 工具与发布排查的修改路径见[开发任务指引](docs/guide/task-recipes.md)，只展开当前任务需要的模块。
+- 快速反馈用 `pnpm check:fast`；PR 差异可用 `pnpm test:changed --base origin/next --list` 显示范围（base 换成实际目标分支）。快速检查不是完整回归。
+- `pnpm pack:check` 在仓库外安装当前五包 tarball，验证公开入口、类型、CLI/MCP、Node 示例与真实 Chromium OPFS 存储/安全失败；已包含在 `check:ci`。首次下载匹配浏览器；Linux CI 显式加 `--browser-deps` 安装系统依赖。发布前用 `--artifacts .release` 验证将要发布的同一组文件。
+- `pnpm eval:agent --runner reference` 自测十个真实消费者任务（含编辑、安全停止及独立发布/恢复宿主）；模型评测显式用 `--runner codex --codex <可执行文件>` 手动运行。模型分数不进入 PR 门禁，失败现场保留在仓库外，见[评测指南](docs/guide/agent-evaluations.md)。
+- 契约类型由 Core/Backend 拥有；修改后运行 `pnpm contracts:generate`，`pnpm contracts:check` 拒绝映射遗漏与生成物漂移。MCP 参数与操作查询见[契约指南](docs/guide/contracts.md)。不手改生成快照或文档标记区。
+- `pnpm repo:doctor --json` 只诊断，不安装、不改配置、不写测试文件。`pnpm refs:status` 查看公开 fixture 状态，`pnpm refs:verify` 验证必需 fixture。
+- `pnpm refs:grep "literal text"` 只读搜索通过版本/状态检查的 fixture 跟踪文本；0 命中、1 无匹配、2 前置条件或搜索失败，不把缺少资料当作无匹配。
+- 不直接编辑 dist、API 页面或站点输出；它们分别由 build、docs:api、docs:build 生成。修改生成器或源文件。
+
+## 任务路由
+
+| 包 | 职责与局部指引 |
+|---|---|
+| core | [模型、UAM、协议与 I/O](packages/core/AGENTS.md) |
+| functions | [工作流、发布与恢复](packages/functions/AGENTS.md) |
+| backend | [会话、revision、存储与宿主能力](packages/backend/AGENTS.md) |
+| cli | [终端命令与机器输出](packages/cli/AGENTS.md) |
+| mcp | [Backend 的 MCP 薄适配](packages/mcp/AGENTS.md) |
+| test-utils | [测试辅助与固定版本 fixture](packages/test-utils/AGENTS.md) |
+
+验证映射的唯一数据源是 `agent/impact-map.json`。下表由 `pnpm test:changed --matrix` 输出，`pnpm docs:check` 检查漂移。执行选中测试时先运行仓库脚本自测与指引检查；`--list`/`--matrix` 仅查看计划。下列文档是审查提示，并非要求无关改动也重写文档。
+
+<!-- impact-map:start -->
+| 改动路径 | AVA 测试组（含下游） | 需审查的文档 |
+|---|---|---|
+| `packages/core/**`, `packages/test-utils/**` | core, functions, backend, cli, mcp | `docs/architecture-overview.md`, `docs/editor-publish-settings.md`, `docs/fairygui-binary-package-format.md` |
+| `packages/functions/**` | functions, backend, cli, mcp | `docs/architecture-overview.md`, `docs/project-validation.md`, `docs/editor-publish-settings.md`, `docs/published-project-restore-limitations.md` |
+| `packages/backend/**` | backend, cli, mcp | `docs/architecture-overview.md`, `docs/project-validation.md` |
+| `packages/cli/**` | cli, backend | `docs/guide/getting-started.md`, `docs/project-validation.md` |
+| `packages/mcp/**` | mcp | `docs/architecture-overview.md` |
+| `docs/.vitepress/**`, `scripts/**`, `examples/**`, `agent/**`, `references.json`, `.github/**`, `.node-version` | core, functions, backend, cli, mcp | `docs/guide/development.md`, `docs/en/guide/development.md` |
+| `docs/**`, `AGENTS.md`, `README.md`, `README_EN.md`, `CHANGELOG.md`, `CHANGELOG_CN.md` | 仅仓库检查 | `docs/README.md`, `docs/en/README.md` |
+<!-- impact-map:end -->
+
+规则按首个匹配项选择；依赖/公共配置等未登记路径、无法解析的比较基准、没有变更，都回退完整测试。新增测试必须进入映射，空测试组会失败。具体命令与覆盖限制见开发指南。
+
 ## 核心约束
 
 | 事项 | 规则 |
@@ -51,45 +92,11 @@
 | Reader / Writer / BinaryEncoder 调整 | 优先补齐正式属性模型，再同步读写逻辑和测试 |
 | 新协议字段 | 优先在 `properties/*.ts` 中定义属性和访问器 |
 | 字段归属判断 | 先检查真实工程样本中的标签分布，再决定字段应落到具体组件类、最小共享抽象层还是扩展块协议。因为工程 XML 不存在通用 `displayObject` 节点，默认不要提升到 `GObject`；只有在协议和样本都能稳定证明它是公共字段时，才允许保留在通用层。 |
-| 证据来源优先级 | 当样本不足以确定字段语义、默认值、枚举值或归属时，优先查 `referer/Editor/scripts/fairygui/editor` 中的编辑器源码和 `referer/Docs` 中的官方文档，再决定正式模型；不要只凭样本名或内部实现猜测字段含义。 |
 | 临时桥接字段 | 若必须先放 `extras`，应在后续任务中明确收口计划 |
 | 二进制文件对比 | 对比 `.fui/.bytes` 时，不要把包头 `Version` 差异直接视为问题依据；FairyGUI 运行时对该版本字段向下兼容，判断偏差应优先看反序列化后的语义、block 结构和字段内容 |
 
-## referer 取证指南
+## 参考资料与取证
 
-### 查证顺序
+`references.json` 只登记三个公开 fixture 子模块的用途与探针；URL 只从 `.gitmodules` 读取，提交只从 Git gitlink 读取，不复制一份版本锁。`pnpm refs:sync` 获取这些固定版本，`pnpm refs:verify` 检查其完整性与工作区状态。
 
-1. 先看 `referer/Docs`，确认官方概念、编辑器行为、术语和用户可见规则。
-2. 再看 `referer/Editor/scripts/fairygui/editor` 与 `referer/Editor/scripts/fairygui/editor/worker`，确认旧版编辑器真实实现、工程读写和发布链路。
-3. 需要验证字段落点、资源命名或封包结果时，对照 `referer/UIProject` 与 `referer/Release` 的同名样例做工程/产物配对检查。
-4. 需要确认运行时如何消费资源时，再看 `referer/Runtimes`。
-5. 需要确认新版编辑器插件接口、界面工程或设置样例时，看 `referer/FairyGUI-Editor`。
-6. `referer/API`、`referer/fgui-restore`、`referer/glTF-Transform` 仅作补充参考，不替代前面的主证据链。
-
-### 目录职责
-
-| 目录 | 用途 | 使用规则 |
-|---|---|---|
-| `referer/Docs` | 官方中英文文档，覆盖编辑器、发布、组件、SDK、Unity/Lua 等说明 | 优先用于确认术语、默认行为、用户可见规则；文档与样本冲突时，再用源码核实实现细节 |
-| `referer/Editor/scripts/fairygui/editor` | 旧版编辑器 AS3/AIR 源码，是工程结构、发布设置、封包流程的重要实现依据 | 优先看 `publish/exporter`、`settings`、`gui`、`api`；协议、命名、写回规则以这里的实现为关键证据 |
-| `referer/Editor/scripts/fairygui/editor/worker` | 旧版编辑器的 worker 侧消息与转换逻辑 | 主线程源码找不到的发布/转换细节，要补查这里，不要只看 `editor` 主目录就下结论 |
-| `referer/UIProject` | 旧版编辑器工程样例 | 用于观察真实 XML 标签分布、字段出现条件、设置写法；判断字段归属时优先基于这里的真实工程 |
-| `referer/Release` | 与 `referer/UIProject` 对应的旧版发布产物 | 用于核对旧版发布后的文件命名、资源拆分、二进制输出；应与 UI 工程配对分析，不要脱离源工程单独猜协议 |
-| `referer/Runtimes` | Unity、Layabox 等运行时代码和 demo，内含新版编辑器导出的 UIProject | 用于确认运行时如何消费资源、对哪些产物结构敏感；它是消费侧证据，不是编辑器协议建模的一手来源 |
-| `referer/FairyGUI-Editor` | 新版编辑器界面工程、设置样例、插件示例、TS/Lua 插件接口 | 用于确认新版编辑器的设置 JSON 形状、插件 API、Inspector/界面组织；不要单靠它反推底层二进制协议 |
-| `referer/API` | 静态 API 文档页面 | 适合快速查类名、方法名、接口面；页面文件名是哈希，检索成本高，源码和官方文档优先级更高 |
-| `referer/fgui-restore` | 小型二进制样本和恢复脚本 | 适合做 parser sanity check、回归夹具和旧版产物快速解包验证，不作为正式协议定义来源 |
-| `referer/glTF-Transform` | 参考项目 | 仅借鉴分包、命名、测试、API 设计风格；不要把这里的架构或实现习惯当作 FairyGUI 协议依据 |
-
-### 具体约束
-
-| 场景 | 默认做法 |
-|---|---|
-| 发布产物命名差异 | 先查 `referer/Editor/scripts/fairygui/editor/publish/exporter`；命名差异通常是 exporter 分支差异，不代表协议不同 |
-| 发布设置字段含义 | 先看 `referer/Docs` 的发布文档，再对照 `referer/UIProject/*/settings/*.json`、`referer/FairyGUI-Editor/ui/settings/*.json` 和编辑器源码 |
-| 工程 XML 字段归属 | 先在 `referer/UIProject` 与 `referer/Runtimes/*/UIProject` 中统计真实标签分布，再决定是否进入正式属性 |
-| 新旧编辑器差异 | 先区分样本来自旧版还是新版：`referer/UIProject`/`referer/Release` 主要是旧版，`referer/FairyGUI-Editor` 与 `referer/Runtimes/*/UIProject` 更接近新版 |
-| 二进制回归验证 | 优先做“工程样例 -> 发布产物”成对对照；不要只拿单个 `.bin`、`.bytes` 或 `_fui.bytes` 文件推断完整规则 |
-| 运行时兼容性判断 | 先看 `referer/Runtimes` 的消费代码与 demo，再回头核对导出规则；运行时能兼容不等于上游协议应该照搬历史写法 |
-| API/插件问题 | 先看 `referer/FairyGUI-Editor/plugin` 和 `referer/API`；若接口行为不清楚，再回查编辑器源码或官方文档 |
-| 噪声目录处理 | `referer/Runtimes/Unity/Library`、缓存文件、静态页面哈希文件不作为优先分析对象，除非任务明确要求 |
+协议修改必须有可核验的来源、对应版本及测试证据。缺少能确定字段归属、默认值、发布命名或封包规则的必要证据时，明确标为未验证，停止该项协议判断并说明缺失材料；不猜测、不把跳过算作通过，可继续不依赖该结论的工作。资料职责与获取办法见[开发指南](docs/guide/development.md#参考资料与取证)。

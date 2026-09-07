@@ -444,13 +444,17 @@ async function writeAtlasPageImage(
 	if (options.extractAlpha) {
 		const atlasBuffer = await atlasPipeline.png().toBuffer();
 		await encoder(atlasBuffer).removeAlpha().png().toFile(outputFile);
+		options.onFileWritten?.(outputFile);
 		const alphaBuffer = await encoder(atlasBuffer).extractChannel('alpha').png().toBuffer();
+		const alphaFile = `${options.outputPath}/${insertFileNameSuffix(atlasFileName, '!a')}`;
 		await encoder(alphaBuffer)
 			.joinChannel([alphaBuffer, alphaBuffer])
 			.png()
-			.toFile(`${options.outputPath}/${insertFileNameSuffix(atlasFileName, '!a')}`);
+			.toFile(alphaFile);
+		options.onFileWritten?.(alphaFile);
 	} else {
 		await atlasPipeline.toFile(outputFile);
+		options.onFileWritten?.(outputFile);
 	}
 
 	logger.info(`atlas: Generated ${atlasFileName} (${page.width}x${page.height}, ${page.outputRects.length} sprites)`);
@@ -578,6 +582,7 @@ async function emitDirectImageOutput(
 				.png()
 				.toFile(outputFile);
 		}
+		options.onFileWritten?.(outputFile);
 	} catch {
 		const message = `atlas: Could not write direct-output atlas "${atlasFileName}".`;
 		if (options.strictOutput) throw new Error(message);

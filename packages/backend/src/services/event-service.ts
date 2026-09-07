@@ -1,4 +1,5 @@
 import { failure, success, type BackendContext } from './context.js';
+import { enrichBackendDiagnostic } from '../diagnostics.js';
 import { createSessionNotFoundError } from './session-utils.js';
 import type {
 	BackendEvent,
@@ -21,7 +22,7 @@ export class EventService {
 			...event,
 			sequence: this.context.nextEventSequence(),
 			timestamp: new Date().toISOString(),
-			diagnostics: event.diagnostics ?? [],
+			diagnostics: (event.diagnostics ?? []).map((entry) => enrichBackendDiagnostic(entry, event.sessionId)),
 		};
 		const sessionId = event.sessionId;
 		if (!sessionId) return emitted;

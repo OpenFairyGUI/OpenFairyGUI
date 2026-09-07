@@ -1,11 +1,14 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import test from 'ava';
+import { BACKEND_DIAGNOSTICS_URI, getBackendDiagnosticCatalog, getBackendDiagnosticGuide } from '@openfairygui/backend';
+import { getInstalledDocumentationIndex, readInstalledDocumentation, OPENFAIRYGUI_DOCS_INDEX_URI } from '@openfairygui/backend/docs';
 import { createNodeBackendRuntime } from '@openfairygui/backend/node';
 import {
 	createOpenFairyGuiMcpServer,
 	OPENFAIRYGUI_BACKEND_CAPABILITIES_RESOURCE_URI,
 	OPENFAIRYGUI_BACKEND_RESOURCE_TEMPLATES,
+	OPENFAIRYGUI_OPERATION_CATALOG_URI,
 } from '../src/index.js';
 import { createTempMcpProject } from './helpers.js';
 
@@ -49,7 +52,7 @@ test('MCP P1 resources expose only identity-addressable backend snapshots', asyn
 		const resources = await client.listResources();
 		t.deepEqual(
 			resources.resources.map((resource) => resource.uri),
-			[OPENFAIRYGUI_BACKEND_CAPABILITIES_RESOURCE_URI],
+			[OPENFAIRYGUI_DOCS_INDEX_URI, 'openfairygui://docs/workflow', 'openfairygui://docs/restore-limits', 'openfairygui://docs/skill', 'openfairygui://docs/contracts', BACKEND_DIAGNOSTICS_URI, OPENFAIRYGUI_OPERATION_CATALOG_URI, OPENFAIRYGUI_BACKEND_CAPABILITIES_RESOURCE_URI],
 		);
 
 		const templates = await client.listResourceTemplates();
@@ -64,6 +67,31 @@ test('MCP P1 resources expose only identity-addressable backend snapshots', asyn
 		].join('\n');
 		t.false(allResourceUris.includes('events'));
 		t.false(allResourceUris.includes('listJobs'));
+	});
+});
+
+test('MCP diagnostic URIs resolve the same typed catalog and reject unknown codes', async (t) => {
+	await withClient(async (client) => {
+		t.deepEqual(parseJsonResource(await client.readResource({ uri: BACKEND_DIAGNOSTICS_URI })), getBackendDiagnosticCatalog());
+		for (const guide of getBackendDiagnosticCatalog()) {
+			t.deepEqual(parseJsonResource(await client.readResource({ uri: guide.docsUri })), getBackendDiagnosticGuide(guide.code));
+		}
+		await t.throwsAsync(client.readResource({ uri: `${BACKEND_DIAGNOSTICS_URI}/unknown_code` }));
+	});
+});
+
+test('every installed document is readable through MCP with the same offline content', async (t) => {
+	await withClient(async (client) => {
+		const index = getInstalledDocumentationIndex();
+		t.deepEqual(parseJsonResource(await client.readResource({ uri: OPENFAIRYGUI_DOCS_INDEX_URI })), index);
+		for (const entry of index.documents) {
+			const response = await client.readResource({ uri: entry.uri });
+			const content = response.contents[0]!;
+			const expected = readInstalledDocumentation(entry.id);
+			t.is(content.mimeType, expected.mimeType);
+			t.is('text' in content ? content.text : '', expected.text, entry.id);
+		}
+		await t.throwsAsync(client.readResource({ uri: 'openfairygui://docs/methods/constructor' }));
 	});
 });
 

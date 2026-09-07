@@ -20,7 +20,8 @@ const doc = await io.readProject('./MyProject/MyProject.fairy');
 
 const report = inspect(doc);
 const validation = await validateProjectNode('./MyProject/MyProject.fairy');
-await publishNode({ document: doc, output: './release' });
+const published = await publishNode({ document: doc, output: './release' });
+console.log(published.files); // Actual writes: final absolute paths and byte sizes.
 
 await restoreNode({
 	inputDir: './release',

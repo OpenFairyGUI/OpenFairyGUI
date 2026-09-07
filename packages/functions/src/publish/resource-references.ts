@@ -1,4 +1,4 @@
-import type { Component, Package } from '@openfairygui/core';
+import { GearType, type Component, type Gear, type Package } from '@openfairygui/core';
 import type { HasOptionalFont } from '../shared-types.js';
 
 interface ReferenceItem {
@@ -6,11 +6,6 @@ interface ReferenceItem {
 	selectedIcon?: string | null;
 	url?: string | null;
 	propertyOverrides?: Array<{ value: string }>;
-}
-
-interface ReferenceGear {
-	getValues?(): string;
-	getDefaultValue?(): unknown;
 }
 
 interface ReferenceTransitionItem {
@@ -46,11 +41,13 @@ interface ReferenceChild extends HasOptionalFont {
 	getListItems?(): ReferenceItem[];
 	getAutoClearItems?(): boolean;
 	getPropertyOverrides?(): Array<{ value: string }>;
-	listGears?(): ReferenceGear[];
+	listGears?(): Gear[];
 }
 
 interface ReferenceComponent {
 	listChildren(): ReferenceChild[];
+	getAddedToStageSound?(): string;
+	getRemovedFromStageSound?(): string;
 	getDropdown?(): string;
 	getHeaderRes?(): string;
 	getFooterRes?(): string;
@@ -181,13 +178,18 @@ function collectComponentReferences(
 			child.getPropertyOverrides?.().map((property) => property.value),
 		);
 		for (const gear of child.listGears?.() ?? []) {
-			addUnknownReferences(target, ownerPackageId, gear.getValues?.());
+			const values = gear.getGearType() === GearType.Text || gear.getGearType() === GearType.Icon
+				? Object.values(gear.getPageValues())
+				: gear.getValues();
+			addUnknownReferences(target, ownerPackageId, values);
 			addUnknownReferences(target, ownerPackageId, gear.getDefaultValue?.());
 		}
 	}
 
 	addFontReferences(target, ownerPackageId, referenceComponent.getFont?.());
 	for (const reference of [
+		referenceComponent.getAddedToStageSound?.(),
+		referenceComponent.getRemovedFromStageSound?.(),
 		referenceComponent.getDropdown?.(),
 		referenceComponent.getHeaderRes?.(),
 		referenceComponent.getFooterRes?.(),

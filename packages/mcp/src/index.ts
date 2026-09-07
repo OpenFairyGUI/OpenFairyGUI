@@ -21,9 +21,14 @@ export {
 export {
 	OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS,
 	OPENFAIRYGUI_BACKEND_TOOL_NAMES,
-	OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 	OPENFAIRYGUI_BACKEND_TOOL_PREFIX,
 	type BackendMethodName,
 	type OpenFairyGuiBackendToolDefinition,
 	type OpenFairyGuiBackendToolName,
 } from './tool-definitions.js';
+export {
+	getOpenFairyGuiOperationCatalog,
+	getOpenFairyGuiOperationSchema,
+	OPENFAIRYGUI_OPERATION_CATALOG_URI,
+	OPENFAIRYGUI_OPERATION_SCHEMA_TEMPLATE,
+} from './contract-schema.js';

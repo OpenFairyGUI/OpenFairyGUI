@@ -821,7 +821,7 @@ function decodeChildBlock2(
 		}
 
 		const pages: string[] = [];
-		const values: string[] = [];
+		const values: Array<string | null> = [];
 		let defaultValue: string | null = null;
 
 		if (gearType === GearType.Display || gearType === GearType.Display2) {
@@ -835,9 +835,11 @@ function decodeChildBlock2(
 			for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
 				if (remainingBytes(childBuf) < 2) break;
 				const rawPageId = childBuf.readS();
+				// Text/Icon null entries have no payload or recoverable page ID.
+				if (rawPageId === null && (gearType === GearType.Text || gearType === GearType.Icon)) continue;
 				const pageId = rawPageId ?? controllerPages[pageIndex]?.getId() ?? '';
 				pages.push(pageId);
-				if (rawPageId === null && gearType !== GearType.Text && gearType !== GearType.Icon) {
+				if (rawPageId === null) {
 					values.push('-');
 					continue;
 				}
@@ -902,7 +904,9 @@ function decodeChildBlock2(
 		}
 
 		if (pages.length > 0) gear.setPages(pages.join(','));
-		if (values.length > 0) gear.setValues(values.join('|'));
+		if (gearType === GearType.Text || gearType === GearType.Icon) {
+			gear.setPageValues(Object.fromEntries(pages.map((page, index) => [page, values[index] ?? null])));
+		} else if (values.length > 0) gear.setValues(values.join('|'));
 		gear.setDefaultValue(defaultValue);
 		child.addGear(gear);
 		childBuf.pos = nextPos;

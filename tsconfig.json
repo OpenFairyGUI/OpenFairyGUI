@@ -11,6 +11,7 @@
 			"@openfairygui/functions/node": ["./packages/functions/src/node.ts"],
 			"@openfairygui/functions/web": ["./packages/functions/src/web.ts"],
 			"@openfairygui/backend": ["./packages/backend/src/index.ts"],
+			"@openfairygui/backend/docs": ["./packages/backend/src/docs.ts"],
 			"@openfairygui/backend/node": ["./packages/backend/src/node.ts"],
 			"@openfairygui/mcp": ["./packages/mcp/src/index.ts"],
 			"@openfairygui/cli": ["./packages/cli/src/cli.ts"],

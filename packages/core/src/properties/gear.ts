@@ -10,7 +10,7 @@ interface IGear extends IProperty {
 	values: string;
 	condition: string;
 	defaultValue: unknown;
-	pageValues: Record<string, unknown>;
+	pageValues: Record<string, string | null>;
 	positionsInPercent: boolean;
 	tween: boolean;
 	tweenDuration: number;
@@ -52,16 +52,54 @@ export class Gear extends Property<IGear> {
 	}
 
 	public getGearType(): number { return this.get('gearType'); }
-	public setGearType(v: number): this { return this.set('gearType', v); }
+	public setGearType(v: number): this {
+		const stringValues = v === GearType.Text || v === GearType.Icon;
+		if (stringValues === this.hasStringValues()) return this.set('gearType', v);
+		const values = this.getValues();
+		const pageValues = stringValues ? this.parseDelimitedValues(values) : {};
+		this.set('gearType', v);
+		this.set('values', stringValues ? '' : values);
+		return this.set('pageValues', pageValues);
+	}
 
 	public getController(): Controller | null { return this.getRef('controller' as never) as Controller | null; }
 	public setController(ctrl: Controller | null): this { return this.setRef('controller' as never, ctrl as never); }
 
 	public getPages(): string { return this.get('pages'); }
-	public setPages(v: string): this { return this.set('pages', v); }
+	public setPages(v: string): this {
+		this.set('pages', v);
+		if (this.hasStringValues()) {
+			const values = this.getPageValues();
+			this.setPageValues(Object.fromEntries((v ? v.split(',') : []).map((page) => [page, values[page] ?? null])));
+		}
+		return this;
+	}
 
-	public getValues(): string { return this.get('values'); }
-	public setValues(v: string): this { return this.set('values', v); }
+	/** Delimited protocol values. Text/Icon states are owned by pageValues. */
+	public getValues(): string {
+		if (!this.hasStringValues()) return this.get('values');
+		const values = this.getPageValues();
+		return (this.getPages() ? this.getPages().split(',') : []).map((page) => {
+			const value = values[page];
+			if (value === null || value === undefined || value.includes('|')) {
+				throw new Error('Text/Icon gear states containing null or "|" require getPageValues().');
+			}
+			return value;
+		}).join('|');
+	}
+	public setValues(v: string): this {
+		if (!this.hasStringValues()) return this.set('values', v);
+		return this.setPageValues(this.parseDelimitedValues(v));
+	}
+
+	private parseDelimitedValues(v: string): Record<string, string | null> {
+		const pages = this.getPages() ? this.getPages().split(',') : [];
+		const values = v.split('|');
+		if (v !== '' && values.length > pages.length) {
+			throw new Error('Text/Icon gear delimited values require a matching page for every value.');
+		}
+		return Object.fromEntries(pages.map((page, index) => [page, values[index] ?? '']));
+	}
 
 	public getCondition(): string { return this.get('condition'); }
 	public setCondition(v: string): this { return this.set('condition', v); }
@@ -69,16 +107,25 @@ export class Gear extends Property<IGear> {
 	public getDefaultValue(): unknown { return this.get('defaultValue' as never) as unknown; }
 	public setDefaultValue(v: unknown): this { return this.set('defaultValue' as never, v as never); }
 
-	public getPageValues(): Record<string, unknown> { return this.get('pageValues'); }
-	public setPageValues(v: Record<string, unknown>): this { return this.set('pageValues', v); }
+	public getPageValues(): Record<string, string | null> { return { ...this.get('pageValues') }; }
+	public setPageValues(v: Record<string, string | null>): this {
+		if (Object.values(v).some((value) => value !== null && typeof value !== 'string')) {
+			throw new Error('Gear page values must be strings or null.');
+		}
+		return this.set('pageValues', { ...v });
+	}
 
-	public setPageValue(pageId: string, value: unknown): this {
+	public setPageValue(pageId: string, value: string | null): this {
 		const values = { ...this.getPageValues(), [pageId]: value };
-		return this.set('pageValues', values);
+		return this.setPageValues(values);
 	}
 
 	public getPageValue(pageId: string): unknown {
 		return this.getPageValues()[pageId] ?? this.getDefaultValue();
+	}
+
+	private hasStringValues(): boolean {
+		return this.getGearType() === GearType.Text || this.getGearType() === GearType.Icon;
 	}
 
 	public getPositionsInPercent(): boolean { return this.get('positionsInPercent'); }

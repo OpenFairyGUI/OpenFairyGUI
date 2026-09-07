@@ -1,6 +1,7 @@
 import {
 	type Component,
 	type Document,
+	type Gear,
 	GearType,
 	type Package,
 	type MovieClipResource,
@@ -105,6 +106,9 @@ export interface AtlasOptions {
 	 */
 	mkdir?: (path: string) => Promise<void>;
 
+	/** Host notification after an atlas file is successfully written. @internal */
+	onFileWritten?: (path: string) => void;
+
 	/**
 	 * Optional raw file reader for reading .jta MovieClip files.
 	 * Required for MovieClip frame atlas packing.
@@ -146,7 +150,7 @@ export interface AtlasOptions {
 const ATLAS_DEFAULTS: Required<
 	Omit<
 		AtlasOptions,
-		'packages' | 'encoder' | 'basePath' | 'outputPath' | 'mkdir' | 'readFileRaw' | 'preparedMovieClips'
+		'packages' | 'encoder' | 'basePath' | 'outputPath' | 'mkdir' | 'readFileRaw' | 'preparedMovieClips' | 'onFileWritten'
 	>
 > = {
 	maxSize: 2048,
@@ -171,12 +175,6 @@ interface AtlasReferenceItem {
 	selectedIcon?: string | null;
 	url?: string | null;
 	propertyOverrides?: Array<{ value: string }>;
-}
-
-interface GearWithAtlasRefs {
-	getGearType?(): number;
-	getValues?(): string;
-	getDefaultValue?(): unknown;
 }
 
 interface TransitionItemWithAtlasRefs {
@@ -210,7 +208,7 @@ interface ChildWithReferenceUrls extends HasOptionalSrc, HasOptionalUrl {
 	getListItems?(): AtlasReferenceItem[];
 	getAutoClearItems?(): boolean;
 	getPropertyOverrides?(): Array<{ value: string }>;
-	listGears?(): GearWithAtlasRefs[];
+	listGears?(): Gear[];
 }
 
 interface PackageAtlasExtras extends ExtrasMap {
@@ -290,13 +288,10 @@ async function resolveEditorCompatibleResourceOrder(
 		await addResource(resourceMap.get(resourceId));
 	}
 
-	async function addGearIconResources(gear: GearWithAtlasRefs): Promise<void> {
-		if (gear.getGearType?.() !== GearType.Icon) return;
-		const values = gear.getValues?.();
-		if (typeof values === 'string' && values) {
-			for (const value of values.split('|')) {
-				await addResourceByLocalUiUrl(value.trim());
-			}
+	async function addGearIconResources(gear: Gear): Promise<void> {
+		if (gear.getGearType() !== GearType.Icon) return;
+		for (const value of Object.values(gear.getPageValues())) {
+			await addResourceByLocalUiUrl(value);
 		}
 		const defaultValue = gear.getDefaultValue?.();
 		if (typeof defaultValue === 'string') {

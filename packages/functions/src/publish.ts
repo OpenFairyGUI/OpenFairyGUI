@@ -283,6 +283,7 @@ export function publish(options: PublishOptions): Transform {
 				basePath: options.basePath,
 				outputPath: options.fs ? plan.outputDir : undefined,
 				mkdir: options.fs ? options.fs.mkdir : undefined,
+				onFileWritten: options.atlas?.onFileWritten,
 				readFileRaw: options.atlas?.readFileRaw ?? options.fs?.readFileRaw,
 				strictOutput: options.fs !== undefined,
 				preparedMovieClips,

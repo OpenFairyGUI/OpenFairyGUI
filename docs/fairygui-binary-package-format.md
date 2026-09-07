@@ -352,6 +352,8 @@ Writer 对协议中的 `uint8 / int8 / uint16 / int16 / uint32 / int32`、UTFStr
 | target | 优先按 child index 解析 |
 | relation pairs | 每个 target 下有多个 relation type + `usePercent` 组合 |
 
+组件根和 child 的 relation target 使用同一份已发布 child 列表的索引。普通 Group（`advanced=false`）不占据该列表的槽位；advanced Group 保留槽位。父级目标使用 `-1`。
+
 #### Block 4：Advanced properties
 
 | 字段 | 说明 |
@@ -544,6 +546,10 @@ Tree 项的 `isFolder` 在二进制中没有 `null` 表示，因此编码时按�
 | tween | ease、duration、delay、custom ease path |
 | 扩展状态 | GearXY percent、GearAnimation 扩展状态等条件字段 |
 
+每个 child 的每种 Gear 类型只有一个槽位，绑定哪个 controller 不改变该约束；Display 与 Display2 是独立类型。XY 百分比扩展保存相对父级尺寸的 `px/py` 浮点值（`0.5` 表示 50%）。Size 的缩放值和 Look 的 alpha 允许为 `0`。
+
+Text/Icon 的空字符串、`-` 和含 `|` 的字符串均是完整状态值。null page 不携带状态 payload；default 的存在由独立布尔值表示，因此未提供默认覆盖与显式空字符串不同。
+
 #### Transition
 
 | 内容 | 要求 |
@@ -552,6 +558,8 @@ Tree 项的 `isFolder` 在二进制中没有 `null` 表示，因此编码时按�
 | tween | `duration`、`easeType`、`repeat`、`yoyo`、`endLabel` |
 | value | `value` / `startValue` / `endValue` |
 | path | `path`、custom ease path |
+
+Scale 的 `0` 是有效缩放值。Sound 的音量 `0` 表示静音，嵌套 Transition 的播放次数 `0` 表示停止；这些值不使用缺省值替换。
 
 #### ScrollPane
 

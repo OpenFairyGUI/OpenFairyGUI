@@ -1650,8 +1650,8 @@ function parseGear(
 			gear.setPages(pages);
 		}
 		const values = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.gear.attrs.values);
-		if (values) {
-			gear.setValues(values);
+		if (gearType === GearType.Text || gearType === GearType.Icon || values) {
+			gear.setValues(values ?? '');
 		}
 		const defaultValue = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.gear.attrs.default);
 		if (defaultValue !== undefined) {

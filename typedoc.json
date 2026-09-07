@@ -10,6 +10,7 @@
 		"packages/functions/src/uam-transaction.ts",
 		"packages/functions/src/web.ts",
 		"packages/backend/src/index.ts",
+		"packages/backend/src/docs.ts",
 		"packages/backend/src/node.ts",
 		"packages/mcp/src/index.ts",
 		"packages/mcp/src/stdio.ts"

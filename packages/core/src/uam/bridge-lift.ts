@@ -334,16 +334,18 @@ function liftGears(gears: ReturnType<GObject['listGears']>): UamGearBinding[] {
 			if (!kind) {
 				throw new Error(`UAM lift does not support gear type "${gear.getGearType()}" in Gate A.`);
 			}
-			const values = gear.getValues() ? gear.getValues().split('|') : [];
-			const defaultValue = `${gear.getDefaultValue() ?? ''}`;
+			const stringValues = kind === 'text' || kind === 'icon';
+			const pageValues = gear.getPageValues();
+			const values = stringValues ? [] : (gear.getValues() ? gear.getValues().split('|') : []);
+			const defaultValue = gear.getDefaultValue() === null ? null : `${gear.getDefaultValue()}`;
 			const base = {
 				name: gear.getName(),
 				controllerName: gear.getController()?.getName() ?? '',
 				states: pages.map((pageId, index) => ({
 					pageId,
-					value: parseGenericGearValue(kind, values[index] ?? null),
+					value: parseGenericGearValue(kind, stringValues ? (pageValues[pageId] ?? null) : (values[index] ?? null)),
 				})),
-				defaultValue: parseGenericGearValue(kind, defaultValue) ?? defaultGenericGearValue(kind),
+				defaultValue: parseGenericGearValue(kind, defaultValue) ?? (stringValues || kind === 'xy' ? null : defaultGenericGearValue(kind)),
 				condition: gear.getCondition(),
 				positionsInPercent: gear.getPositionsInPercent(),
 				tween: gear.getTween(),

@@ -100,6 +100,13 @@ ofgui publish ./MyProject --output ./release
 
 ## 文档
 
+- [仓库开发与验证](./docs/guide/development.md)
+- [开发任务指引](./docs/guide/task-recipes.md)
+- [可运行示例：读取、编辑、浏览器存储、发布与受限恢复](./docs/guide/examples.md)
+- [契约事实源与操作查询](./docs/guide/contracts.md)
+- [诊断与恢复](./docs/guide/diagnostics.md)
+- [安装版本文档与产品诊断](./docs/guide/installed-docs.md)
+- [真实 Agent 任务评测](./docs/guide/agent-evaluations.md)
 - [快速开始](https://fairygui.dev/guide/getting-started)
 - [API Reference](https://fairygui.dev/api/)
 - [架构与包边界](./docs/architecture-overview.md)
@@ -112,7 +119,7 @@ ofgui publish ./MyProject --output ./release
 
 ## 当前状态与边界
 
-项目当前维护 `0.2.x` 稳定线与 `0.3.x` 预发布线；0.x API 仍可能继续演进，版本变化以[更新日志](./CHANGELOG_CN.md)为准。
+0.x API 仍可能继续演进；稳定版、预发布版及其变更以[更新日志](./CHANGELOG_CN.md)为准。
 
 - Node.js 自动化流程是当前主要使用方式；浏览器宿主使用明确的 `/web` 入口和注入能力。
 - UAM 无法保真写回时会拒绝保存，不会静默覆盖源工程。
@@ -122,11 +129,11 @@ ofgui publish ./MyProject --output ./release
 
 ## 本地开发
 
+先准备 Git、`.node-version` 推荐的 Node 和 `package.json` 指定的 pnpm。子模块、环境诊断与验证范围见[开发指南](./docs/guide/development.md)。
+
 ```bash
-pnpm install
-pnpm build
-pnpm test
-pnpm lint
+pnpm repo:setup
+pnpm check:ci
 ```
 
 ## License

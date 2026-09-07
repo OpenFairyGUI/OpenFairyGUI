@@ -1,0 +1,22 @@
+{
+  "name": "openfairygui-examples",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "inspect": "node node-inspect-validate/index.mjs",
+    "edit": "node revision-checked-edit-save/index.mjs",
+    "publish": "node publish-restore/index.mjs",
+    "mcp": "node mcp-stdio-client/index.mjs",
+    "browser": "node browser-project-storage/serve.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.21.5"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@openfairygui/core": "^0.4.0",
+    "@openfairygui/functions": "^0.4.0",
+    "@openfairygui/backend": "^0.4.0",
+    "@openfairygui/mcp": "^0.4.0"
+  }
+}

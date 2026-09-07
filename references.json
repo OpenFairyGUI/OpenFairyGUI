@@ -1,0 +1,19 @@
+{
+  "submodules": [
+    {
+      "path": "packages/test-utils/test/fixtures/FairyGUI-Editor",
+      "authority": "Current editor settings, plugin API and UI project; not legacy binary exporter authority.",
+      "probe": "ui/FairyGUI-Editor.fairy"
+    },
+    {
+      "path": "packages/test-utils/test/fixtures/FairyGUI-layabox",
+      "authority": "Layabox runtime consumption and paired demo source/published resources.",
+      "probe": "demo/UIProject/FairyGUI-layabox-demo.fairy"
+    },
+    {
+      "path": "packages/test-utils/test/fixtures/FairyGUI-unity",
+      "authority": "Unity runtime consumption and paired example source/published resources.",
+      "probe": "UIProject/FairyGUI-Unity-Examples.fairy"
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { Document } from '@openfairygui/core';
 import type { RootProjectSettings } from '../src/index.js';
 import { publishNode } from '../src/node.js';
+import sharp from 'sharp';
 
 function createCodegenDocument(projectDir: string): Document {
 	const doc = new Document();
@@ -34,6 +35,37 @@ function createCodegenDocument(projectDir: string): Document {
 
 	return doc;
 }
+
+test('publishNode returns actual final writes across direct, paged, alpha and generated-code outputs', async (t) => {
+	const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-publish-manifest-'));
+	try {
+		for (const [index, [count, alpha]] of [[1, false], [2, false], [2, true]].entries()) {
+			const projectDir = path.join(root, String(index));
+			const doc = createCodegenDocument(projectDir);
+			const pkg = doc.getRoot().listPackages()[0]!;
+			const source = path.join(projectDir, 'assets', pkg.getName());
+			await fs.mkdir(source, { recursive: true });
+			for (let image = 0; image < Number(count); image++) {
+				const name = `image${image}.png`;
+				pkg.addResource(doc.createImageResource(name).setId(`img${image}`).setFileName(name).setPath('/').setWidth(2).setHeight(2).setExported(true));
+				await sharp({ create: { width: 2, height: 2, channels: 4, background: '#ff000080' } }).png().toFile(path.join(source, name));
+			}
+			const output = path.join(projectDir, 'release');
+			await fs.mkdir(output); await fs.writeFile(path.join(output, 'untouched.txt'), 'keep');
+			const result = await publishNode({ document: doc, output, plugins: [], atlas: { extractAlpha: Boolean(alpha), trimImage: false } });
+			t.false(result.files.some((file) => file.path.includes('.publish-') || file.path.endsWith('untouched.txt')));
+			t.true(result.files.some((file) => file.path.endsWith('_fui.bytes')));
+			t.true(result.files.some((file) => file.path.endsWith('.cs')));
+			t.is(result.files.filter((file) => file.path.endsWith('.png')).length, alpha ? 2 : 1);
+			for (const file of result.files) t.is((await fs.stat(file.path)).size, file.size);
+			t.deepEqual((await fs.readdir(output)).filter((name) => name !== 'untouched.txt').sort(), result.files.filter((file) => path.dirname(file.path) === output).map((file) => path.basename(file.path)).sort());
+		}
+		const doc = createCodegenDocument(root);
+		doc.getRoot().listPackages()[0]!.setPublishPath('configured-release');
+		const result = await publishNode({ document: doc, plugins: [], codeGeneration: false });
+		t.deepEqual(result.files.map((file) => file.path), [path.join(root, 'configured-release', 'DemoPkg_fui.bytes')]);
+	} finally { await fs.rm(root, { recursive: true, force: true }); }
+});
 
 async function writePlugin(
 	projectDir: string,
