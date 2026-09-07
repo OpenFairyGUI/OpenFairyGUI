@@ -7,9 +7,24 @@
 Release comparisons:
 
 - Stable line (`main`): [v0.4.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...main)
-- Development line (`next`): [v0.5.0-alpha.1...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0-alpha.1...next)
+- Development line (`next`): [v0.5.0-alpha.2...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0-alpha.2...next)
 
 ## v0.5.x
+
+### v0.5.0-alpha.2 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.2))
+
+Features:
+
+- mcp: Add per-tool Host policies with declared failure schemas, single-call Backend delegation and public initialize instructions. Host failures retain their structured details without widening Backend contracts. [#138](https://github.com/OpenFairyGUI/OpenFairyGUI/issues/138)
+
+Bug Fixes:
+
+- mcp: Restore SDK-native discovery for Host tools registered before or after connection, including public registration lifecycle changes, while preserving compact contract schemas.
+
+Other:
+
+- workspace: Verify Host composition, approval-gated real writes, instructions and installed documentation through SDK integration tests and isolated tarball consumers.
+- docs: Simplify both READMEs and centralize Agent onboarding in the getting-started guides.
 
 ### v0.5.0-alpha.1 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.1))
 
