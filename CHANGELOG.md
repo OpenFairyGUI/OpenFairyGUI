@@ -4,13 +4,22 @@
 
 ## Unreleased
 
-Features:
-- Add bounded Backend/MCP reads of the committed public UAM model and individual primary resource bytes, with detached results, edit-revision checks and faithful source diagnostics. Capability schema version is 11; package versions are unchanged.
-
 Release comparisons:
 
 - Stable line (`main`): [v0.4.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...main)
-- Development line (`next`): [v0.4.0...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...next)
+- Development line (`next`): [v0.5.0-alpha.1...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0-alpha.1...next)
+
+## v0.5.x
+
+### v0.5.0-alpha.1 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.1))
+
+Features:
+
+- backend, mcp: Add bounded reads of the committed public UAM model and individual primary resource bytes, with detached results, edit-revision checks and faithful source diagnostics. Capability schema version is 11. [#136](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/136)
+
+Other:
+
+- workspace: Verify unsaved model and resource-byte reads through installed SDK and stdio MCP consumers, including stale revisions and unchanged source files; synchronize the public method catalog documentation.
 
 ## v0.4.x
 

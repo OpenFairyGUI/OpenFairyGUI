@@ -74,7 +74,7 @@ Codex 非交互参数、JSONL 事件与配置覆盖依据[官方非交互文档]
 
 观察项包括耗时（不含构建安装和最终判定）、完成的工具调用数、失败调用数（包括预期的 stale 拒绝）、文档 URI、预演次数、完全相同 apply 参数的重试次数、成功提交相同 operations 的次数以及 CLI 返回的 token usage。对象字段顺序不影响重复计数。宿主 `failedCalls` 包含 MCP 协议/工具错误；`clientToolCalls` / `clientFailedCalls` 另外记录客户端层的发现、批准拒绝等调用，不相加计算。模型服务错误在 runner 结果和 stderr 中记录，客户端跳过工具的告警另列为 `clientWarnings`。
 
-`observations.discoveries` 记录每次真实 `tools/list` 中各工具及合计的输入/输出 schema 紧凑 JSON UTF-8 字节数。它不是 token 数、模型实际上下文长度或计费估算。MCP 复用现有 Zod 的本地 `definitions`/`$ref` 表达重复结构，保留完整的 41 类操作和 18 个方法；服务端结构校验、预算与 Backend 安全边界不变。具体客户端可能自行展开引用，字节下降不能直接换算为 token 节省。
+`observations.discoveries` 记录每次真实 `tools/list` 中各工具及合计的输入/输出 schema 紧凑 JSON UTF-8 字节数。它不是 token 数、模型实际上下文长度或计费估算。MCP 复用现有 Zod 的本地 `definitions`/`$ref` 表达重复结构，完整产品目录提供 41 类操作和 20 个方法，评测宿主只开放上述受限子集；服务端结构校验、预算与 Backend 安全边界不变。具体客户端可能自行展开引用，字节下降不能直接换算为 token 节省。
 
 消费者的 `app/pnpm-lock.yaml` 也保留在现场。重跑同一 tarball 仍可能解析到新的传递依赖，比较结果时须核对消费者锁文件和 Node/CLI 版本；需要字节级重现安装环境时使用保留现场的锁文件与 frozen 安装，而不是仅比较 tarball 版本号。
 

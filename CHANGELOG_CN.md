@@ -4,13 +4,22 @@
 
 ## 未发布
 
-新功能：
-- 新增 Backend/MCP 当前已提交公开 UAM 模型与单资源主文件字节的有界读取，返回独立副本、校验编辑 revision 并如实保留源读取诊断。能力 schema 版本为 11，包版本不变。
-
 发布比较：
 
 - 稳定线（`main`）：[v0.4.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...main)
-- 开发线（`next`）：[v0.4.0...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...next)
+- 开发线（`next`）：[v0.5.0-alpha.1...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0-alpha.1...next)
+
+## v0.5.x
+
+### v0.5.0-alpha.1（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.1)）
+
+新功能：
+
+- backend、mcp：新增当前已提交公开 UAM 模型与单资源主文件字节的有界读取，返回独立副本、校验编辑 revision 并如实保留源读取诊断。能力 schema 版本为 11。[#136](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/136)
+
+其他：
+
+- workspace：通过安装后的 SDK 与 stdio MCP 消费者验证未保存模型及资源字节读取，覆盖陈旧 revision 拒绝和源文件保持不变，并同步公开方法目录文档。
 
 ## v0.4.x
 
