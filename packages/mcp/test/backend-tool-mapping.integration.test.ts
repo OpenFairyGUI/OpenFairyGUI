@@ -5,11 +5,11 @@ import {
 	callOpenFairyGuiBackendTool,
 	OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS,
 	OPENFAIRYGUI_BACKEND_TOOL_NAMES,
-	OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA,
 	type OpenFairyGuiBackendRuntime,
 	type OpenFairyGuiBackendToolName,
 } from '../src/index.js';
 import { createMcpFixtureProject, createTempMcpProject } from './helpers.js';
+import { CONTRACT_SNAPSHOT } from '../src/contract-schema.js';
 
 interface BackendToolResult {
 	ok: boolean;
@@ -45,7 +45,7 @@ test('MCP P0 tool definitions exactly map backend P2 methods', (t) => {
 	t.deepEqual(mappedMethods, [...capabilities.data.methods]);
 	t.deepEqual(OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.map((definition) => definition.name), [...OPENFAIRYGUI_BACKEND_TOOL_NAMES]);
 	t.is(new Set(OPENFAIRYGUI_BACKEND_TOOL_NAMES).size, capabilities.data.methods.length);
-	t.true(OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.every((definition) => definition.outputSchema === OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA));
+	t.is(new Set(OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.map((definition) => definition.outputSchema)).size, mappedMethods.length);
 	t.false(OPENFAIRYGUI_BACKEND_TOOL_NAMES.some((name) => name.includes('artifact')));
 	for (const name of OPENFAIRYGUI_BACKEND_TOOL_NAMES) {
 		t.true(name.startsWith('openfairygui_backend_'));
@@ -55,6 +55,7 @@ test('MCP P0 tool definitions exactly map backend P2 methods', (t) => {
 test('MCP schemas reject unknown transaction kinds and oversized batches', (t) => {
 	const byMethod = new Map(OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.map((definition) => [definition.backendMethod, definition]));
 	const applySchema = byMethod.get('applyTransaction')!.inputSchema;
+	t.deepEqual(CONTRACT_SNAPSHOT.tools.preflightTransaction.input, CONTRACT_SNAPSHOT.tools.applyTransaction.input);
 	t.false(applySchema.safeParse({ sessionId: 's', expectedRevision: 0, operations: [{ kind: 'notAnOperation' }] }).success);
 	t.false(applySchema.safeParse({ sessionId: 's', expectedRevision: 0, operations: Array.from({ length: 1_001 }, () => ({ kind: 'removeBranch', selector: { branch: 'x' } })) }).success);
 	t.true(applySchema.safeParse({ sessionId: 's', expectedRevision: 0, operations: [{ kind: 'setDisplayNodeProps', selector: { packageId: 'p', componentResourceId: 'c', displayNodeId: 'n' }, props: { text: 'ok' } }] }).success);
@@ -102,7 +103,9 @@ test('MCP P0 tool annotations reflect backend side effects and non-goals', (t) =
 		'getCapabilities',
 		'getSession',
 		'getProjectOutline',
+		'queryEntity',
 		'validateSession',
+		'preflightTransaction',
 		'getEvents',
 		'getJob',
 		'listJobs',
@@ -154,10 +157,14 @@ test('MCP P0 direct tool handler can call every backend P2 method without redefi
 		const outline = await callTool(runtime, 'openfairygui_backend_get_project_outline', { sessionId });
 		t.true(outline.ok);
 		t.is((outline.data as { revision: number }).revision, 0);
+		const entity = await callTool(runtime, 'openfairygui_backend_query_entity', {
+			sessionId, target: { kind: 'displayNode', selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' } },
+		});
+		t.true(entity.ok);
 		const validation = await callTool(runtime, 'openfairygui_backend_validate_session', { sessionId });
 		t.true(validation.ok);
 
-		const applied = await callTool(runtime, 'openfairygui_backend_apply_transaction', {
+		const transaction = {
 			sessionId,
 			expectedRevision: 0,
 			operations: [
@@ -167,7 +174,11 @@ test('MCP P0 direct tool handler can call every backend P2 method without redefi
 					props: { text: 'MCP P0' },
 				},
 			],
-		});
+		};
+		const preview = await callTool(runtime, 'openfairygui_backend_preflight_transaction', transaction);
+		t.true(preview.ok);
+		t.is((preview.data as { baseRevision: number }).baseRevision, 0);
+		const applied = await callTool(runtime, 'openfairygui_backend_apply_transaction', transaction);
 		t.true(applied.ok);
 		const updatedOutline = await callTool(runtime, 'openfairygui_backend_get_project_outline', { sessionId });
 		t.true(updatedOutline.ok);

@@ -27,6 +27,7 @@ import type {
 	BackendRuntimeOptions,
 	BackendSessionSnapshot,
 	BackendSuccess,
+	BackendTransactionPreview,
 	CancelJobInput,
 	EventCursorInvalidError,
 	GetCacheSnapshotInput,
@@ -34,6 +35,9 @@ import type {
 	GetEventsSnapshot,
 	GetJobInput,
 	GetProjectOutlineInput,
+	QueryEntityInput,
+	BackendEntitySnapshot,
+	EntityQueryError,
 	ValidateSessionInput,
 	InProcessLockConflictError,
 	ListJobsInput,
@@ -50,6 +54,7 @@ import type {
 	SessionIdConflictError,
 	SessionNotFoundError,
 	SessionStaleWriteError,
+	TransactionPreviewError,
 	UamFidelityUnsupportedError,
 } from './runtime/contracts.js';
 
@@ -142,10 +147,20 @@ export class BackendRuntime {
 		return this.readService.getProjectOutline(input);
 	}
 
+	public queryEntity(input: QueryEntityInput): BackendResult<BackendEntitySnapshot, SessionNotFoundError | EntityQueryError> {
+		return this.readService.queryEntity(input);
+	}
+
 	public validateSession(
 		input: ValidateSessionInput,
 	): BackendResult<ProjectValidationReport, SessionNotFoundError> {
 		return this.readService.validateSession(input);
+	}
+
+	public async preflightTransaction(
+		input: ApplySessionTransactionInput,
+	): Promise<BackendResult<BackendTransactionPreview, SessionNotFoundError | SessionStaleWriteError | ApplyUamTransactionAppError | TransactionPreviewError>> {
+		return this.authoringService.preflightTransaction(input);
 	}
 
 	public async applyTransaction(

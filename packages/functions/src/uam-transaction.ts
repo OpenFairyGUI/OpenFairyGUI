@@ -6,6 +6,7 @@ import {
 	type UamTransactionErrorCode,
 	type UamTransactionOperation,
 	type UamTransactionSupportIssue,
+	type UamTransactionSupportIssueCode,
 	type UamValidationIssue,
 } from '@openfairygui/core/uam';
 
@@ -45,7 +46,7 @@ function mapTransactionErrorStage(error: UamTransactionError): ApplyUamTransacti
 }
 
 export interface ApplyUamTransactionAppDiagnostic {
-	code: string;
+	code: UamTransactionErrorCode | UamTransactionSupportIssueCode;
 	message: string;
 	severity: 'error';
 	path?: string;

@@ -9,9 +9,43 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
+  changes:
+    name: Change scope
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      docs-only: ${{ steps.scope.outputs.docs-only }}
+    steps:
+      - name: Checkout comparison history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup development Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+
+      - name: Classify changes using the impact map
+        id: scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          node scripts/test-changed.mjs --base "$BASE_SHA" --list > "$RUNNER_TEMP/ci-scope.json"
+          cat "$RUNNER_TEMP/ci-scope.json"
+          docs_only=$(jq -r '.scope == "repository-only"' "$RUNNER_TEMP/ci-scope.json")
+          echo "docs-only=$docs_only" >> "$GITHUB_OUTPUT"
+
   quality:
     name: Node ${{ matrix.node-version }}
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.docs-only != 'true') }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -35,14 +69,64 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        run: pnpm lint:ci
+      - name: Full repository checks
+        run: pnpm check
 
-      - name: Typecheck
-        run: pnpm typecheck
+  documentation:
+    name: Guidance and documentation
+    needs: changes
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Build
-        run: pnpm build
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
-      - name: Test
-        run: pnpm test
+      - name: Setup development Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Repository script checks for documentation-only changes
+        if: needs.changes.result == 'success' && needs.changes.outputs.docs-only == 'true'
+        run: node --test scripts/repository.test.mjs
+
+      - name: Verify instructions, links and bilingual structure
+        run: pnpm docs:check
+
+      - name: Build documentation including API
+        run: pnpm docs:build
+
+  consumer:
+    name: Installed consumer (${{ matrix.os }})
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.docs-only != 'true') }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup development Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify packed consumers and real Chromium storage
+        run: pnpm pack:check --browser-deps

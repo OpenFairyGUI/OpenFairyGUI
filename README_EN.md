@@ -100,6 +100,13 @@ See [Packages and Tools](https://fairygui.dev/en/guide/packages) for package ent
 
 ## Documentation
 
+- [Repository Development and Verification](./docs/en/guide/development.md)
+- [Development Task Recipes](./docs/en/guide/task-recipes.md)
+- [Runnable Examples: Inspect, Edit, Browser Storage, Publish and Limited Recovery](./docs/en/guide/examples.md)
+- [Contract Sources and Operation Discovery](./docs/en/guide/contracts.md)
+- [Diagnostics and Recovery](./docs/en/guide/diagnostics.md)
+- [Installed Documentation and Product Diagnosis](./docs/en/guide/installed-docs.md)
+- [Real Agent Task Evaluations](./docs/en/guide/agent-evaluations.md)
 - [Getting Started](https://fairygui.dev/en/guide/getting-started)
 - [API Reference](https://fairygui.dev/api/)
 - [Architecture and Package Boundaries](./docs/en/architecture-overview.md)
@@ -111,7 +118,7 @@ See [Packages and Tools](https://fairygui.dev/en/guide/packages) for package ent
 
 ## Status and boundaries
 
-The project currently maintains a stable `0.2.x` line and a `0.3.x` prerelease line. The 0.x APIs may continue to evolve; see the [Changelog](./CHANGELOG.md) for version changes.
+The 0.x APIs may continue to evolve; see the [Changelog](./CHANGELOG.md) for stable releases, prereleases, and their changes.
 
 - Node.js automation is the primary workflow; browser hosts use explicit `/web` entrypoints and injected capabilities.
 - UAM writeback is rejected when the project cannot be preserved faithfully, preventing silent source overwrites.
@@ -121,11 +128,11 @@ The [documentation site](https://fairygui.dev/en/) defines the current implement
 
 ## Local development
 
+Prepare Git, the Node version recommended in `.node-version`, and pnpm from `package.json`. See the [development guide](./docs/en/guide/development.md) for submodules, diagnostics and verification scopes.
+
 ```bash
-pnpm install
-pnpm build
-pnpm test
-pnpm lint
+pnpm repo:setup
+pnpm check:ci
 ```
 
 ## License

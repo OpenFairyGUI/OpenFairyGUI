@@ -599,7 +599,7 @@ test('root backend entry opens pure UAM project sessions without a filesystem ad
 	if (saveFailure.error.code === 'capability_unavailable') {
 		t.is(saveFailure.error.capability, 'fileSystem');
 	}
-	t.deepEqual(saveFailure.meta.diagnostics, [
+	t.deepEqual(saveFailure.meta.diagnostics.map(({ owner, docsUri, remediation, ...diagnostic }) => diagnostic), [
 		{
 			code: 'capability_unavailable',
 			message: 'saveSession requires an injected BackendFileSystem adapter.',
@@ -3504,78 +3504,83 @@ test('applyTransaction snapshots queued operations and shared source bytes befor
 	if (resource?.kind === 'misc') t.deepEqual([...(resource.sourceBytes ?? [])], [1, 2, 3]);
 });
 
-test.serial('closeSession waits for browser image validation transaction completion', async (t) => {
-	const workerDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Worker');
-	let releaseValidation = (): void => undefined;
-	let markValidationStarted = (): void => undefined;
-	const validationStarted = new Promise<void>((resolve) => {
-		markValidationStarted = resolve;
+for (const method of ['applyTransaction', 'preflightTransaction'] as const) {
+	test.serial(`${method}: closeSession waits for browser image validation completion`, async (t) => {
+		const workerDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Worker');
+		let releaseValidation = (): void => undefined;
+		let markValidationStarted = (): void => undefined;
+		const validationStarted = new Promise<void>((resolve) => {
+			markValidationStarted = resolve;
+		});
+		class PausingImageWorker {
+			public onmessage: ((event: MessageEvent<{ format: 'png'; width: number; height: number }>) => void) | null = null;
+			public onerror: (() => void) | null = null;
+
+			public postMessage(): void {
+				markValidationStarted();
+				releaseValidation = () => {
+					this.onmessage?.({ data: { format: 'png', width: 1, height: 1 } } as MessageEvent<{
+						format: 'png';
+						width: number;
+						height: number;
+					}>);
+				};
+			}
+
+			public terminate(): void {}
+		}
+
+		try {
+			Object.defineProperty(globalThis, 'Worker', {
+				configurable: true,
+				value: PausingImageWorker,
+			});
+			const project = createBackendFixtureProject();
+			const image = project.packages[0]?.resources.find((resource) => resource.id === 'img001');
+			if (image?.kind !== 'image') {
+				t.fail('expected fixture image resource');
+				return;
+			}
+			image.sourceBytes = new Uint8Array([1]);
+			const runtime = new BackendRuntime();
+			const opened = runtime.openProjectSession({
+				project,
+				canonicalProjectPath: 'memory://close-during-image-validation',
+			});
+			t.true(opened.ok);
+			if (!opened.ok) return;
+
+			const applying = runtime[method]({
+				sessionId: opened.data.sessionId,
+				expectedRevision: 0,
+				operations: [
+					{
+						kind: 'replaceResourceBytes',
+						selector: { packageId: 'pkg001', resourceId: 'img001' },
+						sourceBytes: new Uint8Array([1, 2, 3, 4, 5]),
+					},
+				],
+			});
+			await validationStarted;
+			let closeSettled = false;
+			const closing = runtime.closeSession({ sessionId: opened.data.sessionId }).finally(() => {
+				closeSettled = true;
+			});
+			await Promise.resolve();
+			t.false(closeSettled);
+			releaseValidation();
+
+			const applied = await applying;
+			t.true(applied.ok);
+			if (applied.ok) {
+				if ('baseRevision' in applied.data) t.is(applied.data.baseRevision, 0);
+				else t.is(applied.data.revision, 1);
+			}
+			t.true((await closing).ok);
+			t.false(runtime.getSession({ sessionId: opened.data.sessionId }).ok);
+		} finally {
+			if (workerDescriptor) Object.defineProperty(globalThis, 'Worker', workerDescriptor);
+			else Reflect.deleteProperty(globalThis, 'Worker');
+		}
 	});
-	class PausingImageWorker {
-		public onmessage: ((event: MessageEvent<{ format: 'png'; width: number; height: number }>) => void) | null = null;
-		public onerror: (() => void) | null = null;
-
-		public postMessage(): void {
-			markValidationStarted();
-			releaseValidation = () => {
-				this.onmessage?.({ data: { format: 'png', width: 1, height: 1 } } as MessageEvent<{
-					format: 'png';
-					width: number;
-					height: number;
-				}>);
-			};
-		}
-
-		public terminate(): void {}
-	}
-
-	try {
-		Object.defineProperty(globalThis, 'Worker', {
-			configurable: true,
-			value: PausingImageWorker,
-		});
-		const project = createBackendFixtureProject();
-		const image = project.packages[0]?.resources.find((resource) => resource.id === 'img001');
-		if (image?.kind !== 'image') {
-			t.fail('expected fixture image resource');
-			return;
-		}
-		image.sourceBytes = new Uint8Array([1]);
-		const runtime = new BackendRuntime();
-		const opened = runtime.openProjectSession({
-			project,
-			canonicalProjectPath: 'memory://close-during-image-validation',
-		});
-		t.true(opened.ok);
-		if (!opened.ok) return;
-
-		const applying = runtime.applyTransaction({
-			sessionId: opened.data.sessionId,
-			expectedRevision: 0,
-			operations: [
-				{
-					kind: 'replaceResourceBytes',
-					selector: { packageId: 'pkg001', resourceId: 'img001' },
-					sourceBytes: new Uint8Array([1, 2, 3, 4, 5]),
-				},
-			],
-		});
-		await validationStarted;
-		let closeSettled = false;
-		const closing = runtime.closeSession({ sessionId: opened.data.sessionId }).finally(() => {
-			closeSettled = true;
-		});
-		await Promise.resolve();
-		t.false(closeSettled);
-		releaseValidation();
-
-		const applied = await applying;
-		t.true(applied.ok);
-		if (applied.ok) t.is(applied.data.revision, 1);
-		t.true((await closing).ok);
-		t.false(runtime.getSession({ sessionId: opened.data.sessionId }).ok);
-	} finally {
-		if (workerDescriptor) Object.defineProperty(globalThis, 'Worker', workerDescriptor);
-		else Reflect.deleteProperty(globalThis, 'Worker');
-	}
-});
+}

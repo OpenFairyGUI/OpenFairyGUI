@@ -466,6 +466,49 @@ test('assertTransactionSupported accepts current materialization scope and rejec
 	);
 });
 
+test('preflight preserves cross-domain issue order, public errors, and binary inputs', (t) => {
+	const project = createSupportedProject();
+	const controller = createControllerModel();
+	controller.pages[1]!.id = controller.pages[0]!.id;
+	const operations: UamTransactionOperation[] = [
+		{ kind: 'updateProjectSettings', settings: structuredClone(project.settings) },
+		{ kind: 'renameResource', selector: { packageId: 'pkg001', resourceId: 'img001' }, newName: '../escape.png' },
+		{
+			kind: 'addController',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: controller.name },
+			controller,
+		},
+		{
+			kind: 'replaceResourceBytes',
+			selector: { packageId: 'pkg001', resourceId: 'img001' },
+			sourceBytes: new Uint8Array([0]),
+		},
+		{
+			kind: 'setComponentProps',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
+			props: { size: { width: -1, height: 10 } },
+		},
+	];
+	const before = structuredClone({ project, operations });
+	const issues = validateTransactionSupport(project, operations);
+	t.deepEqual(issues.map(({ code, path }) => ({ code, path })), [
+		{ code: 'project_settings_unchanged', path: 'operations[0].settings' },
+		{ code: 'invalid_resource_name', path: 'operations[1].newName' },
+		{ code: 'invalid_controller_payload', path: 'operations[2].controller.pages[1].id' },
+		{ code: 'invalid_resource_bytes', path: 'operations[3].sourceBytes' },
+		{ code: 'invalid_component_payload', path: 'operations[4].props.size' },
+	]);
+	const expectedMessage = `Phase A transaction support check failed:\n${issues.map((issue) => `- ${issue.path}: ${issue.message}`).join('\n')}`;
+	for (const run of [assertTransactionSupported, applyUamTransaction]) {
+		const error = t.throws(() => run(project, operations), { instanceOf: UamTransactionError });
+		t.is(error?.code, 'transaction_unsupported');
+		t.is(error?.message, expectedMessage);
+		t.deepEqual(error?.issues, issues);
+	}
+	t.deepEqual({ project, operations }, before);
+	t.deepEqual(validateTransactionSupport(project), [], 'full-project inspection is independent of an invalid batch');
+});
+
 test('validateTransactionSupport accepts supported baseline nodes and fields', (t) => {
 	const project = createSupportedProject();
 	const componentResource = project.packages[0]!.resources[1];

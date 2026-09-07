@@ -6,6 +6,7 @@ import {
 	type BackendResponseMeta,
 	type BackendStage,
 } from '../contracts.js';
+import { enrichBackendDiagnostic } from '../diagnostics.js';
 import type {
 	BackendCacheEntry,
 	BackendCapabilities,
@@ -87,7 +88,7 @@ export function createMeta(
 		revision: options?.revision,
 		durationMs: Math.max(0, Date.now() - startedAt),
 		warnings: options?.warnings ?? [],
-		diagnostics: options?.diagnostics ?? [],
+		diagnostics: (options?.diagnostics ?? []).map((entry) => enrichBackendDiagnostic(entry, options?.sessionId)),
 		stage,
 		contractVersion: BACKEND_CONTRACT_VERSION,
 		capabilitySchemaVersion: BACKEND_CAPABILITY_SCHEMA_VERSION,

@@ -8,6 +8,15 @@
 
 | 文档 | 说明 |
 |---|---|
+| [仓库开发与验证](./guide/development.md) | 可复现启动、参考语料、任务路由、验证范围与 PR 门禁 |
+| [开发任务指引](./guide/task-recipes.md) | XML 字段、UAM operation、Backend/MCP 接入、发布排查与协议取证路径 |
+| [可运行示例与消费者验证](./guide/examples.md) | tarball 隔离安装、CLI 契约、真实浏览器存储、revision-checked edit/save 与发布/受限恢复 |
+| [契约事实源与操作查询](./guide/contracts.md) | Core/Backend 类型生成的 operation、MCP 输入输出、二进制传输与漂移检查 |
+| [诊断与恢复](./guide/diagnostics.md) | 诊断归属、逐码文档与只读恢复起点；不自动修复 |
+| [安装版本文档与产品诊断](./guide/installed-docs.md) | CLI/MCP 共用离线语料、薄 Skill 与只读产品 doctor |
+| [真实 Agent 任务评测](./guide/agent-evaluations.md) | 十个真实 tarball 任务、确定性结果判定、手动模型观察与失败复现 |
+| [快速开始](./guide/getting-started.md) | 安装 SDK 并读取首个工程 |
+| [包与工具](./guide/packages.md) | 选择公开包与宿主入口 |
 | [版本变更记录](https://github.com/OpenFairyGUI/OpenFairyGUI/blob/main/CHANGELOG_CN.md) | 按发布版本汇总公开功能、修复、破坏性变更与维护事项 |
 | [架构图说明](./architecture-overview.md) | 说明 monorepo 包职责、模块边界、核心数据流，以及 `backend` 的 browser-safe storage adapter、`materializeSession`、stateful runtime、service-layer、events/jobs/cache 与 `mcp` 薄适配 / resources / prompts 定位 |
 | [工程验证](./project-validation.md) | 说明工程读取、UAM 完整性、资源与宿主解码验证，以及 API、CLI、Backend、MCP 的统一报告契约 |

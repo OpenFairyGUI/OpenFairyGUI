@@ -68,6 +68,9 @@ jobs:
           pack_package packages/cli
           pack_package packages/mcp
 
+      - name: Verify the exact tarballs before publishing
+        run: pnpm pack:check --artifacts .release --browser-deps
+
       - name: Publish to npmjs
         run: |
           npm_dist_tag_for_version() {

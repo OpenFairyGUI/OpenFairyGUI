@@ -21,4 +21,9 @@ export default defineConfig([
 		entry: { node: 'src/node.ts' },
 		clean: false,
 	},
+	{
+		...common,
+		entry: { docs: 'src/docs.ts' },
+		clean: false,
+	},
 ]);

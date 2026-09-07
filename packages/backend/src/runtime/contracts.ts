@@ -1,5 +1,18 @@
 import type {
 	UamDisplayNodeKind,
+	UamDisplayNode,
+	UamDisplayNodeSelector,
+	UamComponentModel,
+	UamComponentSelector,
+	UamControllerModel,
+	UamControllerSelector,
+	UamTransitionModel,
+	UamTransitionSelector,
+	UamResourceSelector,
+	UamImageResource,
+	UamMovieClipResource,
+	UamGenericAssetResource,
+	UamComponentResource,
 	UamProject,
 	UamResource,
 	UamTransactionOperation,
@@ -13,6 +26,48 @@ import type {
 	BackendResponseMeta,
 } from '../contracts.js';
 import type { PathPolicyViolationError } from '../path-policy.js';
+import type { BACKEND_METHODS } from './capabilities.js';
+import type { BackendRuntime } from '../runtime.js';
+
+export type BackendMethodName = keyof BackendRuntime;
+
+export const BACKEND_ENTITY_QUERY_LIMITS = { maxBytes: 262144, maxDepth: 32, maxNodes: 100000 } as const;
+export const BACKEND_TRANSACTION_PREVIEW_LIMITS = { maxBytes: 262144, maxEntries: 2000 } as const;
+/** Fixed resource projection. Binary content, source bookkeeping and arbitrary metadata are excluded. */
+export const BACKEND_RESOURCE_QUERY_FIELDS = [
+	'kind', 'id', 'name', 'path', 'exported', 'favorite', 'branch', 'branchItemIds',
+	'fileName', 'file', 'dimensions', 'image', 'movieClip',
+] as const;
+type ResourceQueryFields<T> = Pick<T, Extract<keyof T, typeof BACKEND_RESOURCE_QUERY_FIELDS[number]>>;
+export type BackendResourceSnapshot = ResourceQueryFields<UamImageResource> | ResourceQueryFields<UamMovieClipResource>
+	| ResourceQueryFields<UamGenericAssetResource> | ResourceQueryFields<UamComponentResource>;
+export type BackendComponentSnapshot = Pick<UamComponentModel, 'size' | 'properties' | 'customData'>;
+export type BackendEntityTarget =
+	| { kind: 'resource'; selector: UamResourceSelector }
+	| { kind: 'component'; selector: UamComponentSelector }
+	| { kind: 'displayNode'; selector: UamDisplayNodeSelector }
+	| { kind: 'controller'; selector: UamControllerSelector }
+	| { kind: 'transition'; selector: UamTransitionSelector };
+export interface QueryEntityInput {
+	sessionId: string;
+	target: BackendEntityTarget;
+}
+export interface BackendEntitySnapshot {
+	sessionId: string;
+	revision: number;
+	target: BackendEntityTarget;
+	entity: { kind: 'resource'; properties: BackendResourceSnapshot }
+		| { kind: 'component'; properties: BackendComponentSnapshot }
+		| { kind: 'displayNode'; properties: UamDisplayNode }
+		| { kind: 'controller'; properties: UamControllerModel }
+		| { kind: 'transition'; properties: UamTransitionModel };
+}
+export interface EntityQueryError {
+	code: 'entity_query_failed';
+	message: string;
+	sessionId: string;
+	reason: 'invalid_query' | 'not_found' | 'ambiguous' | 'response_budget_exceeded' | 'non_json_value';
+}
 
 /** An exclusive lock owned for the lifetime of one backend session. */
 export interface BackendSessionLock {
@@ -94,6 +149,8 @@ export interface BackendCapabilityManifest {
 	diagnostics: {
 		stableCodes: true;
 		errorDiagnosticMirror: true;
+		recoveryGuides: 'all-formal-codes';
+		automaticRepair: false;
 	};
 }
 
@@ -103,31 +160,16 @@ export interface BackendCapabilities {
 	transactionKernelOwner: '@openfairygui/core';
 	appSeamOwner: '@openfairygui/functions';
 	runtimeOwner: '@openfairygui/backend';
-	methods: readonly [
-		'getCapabilities',
-		'openSession',
-		'openProjectSession',
-		'getSession',
-		'getProjectOutline',
-		'validateSession',
-		'applyTransaction',
-		'saveSession',
-		'materializeSession',
-		'closeSession',
-		'getEvents',
-		'getJob',
-		'listJobs',
-		'cancelJob',
-		'getCacheSnapshot',
-		'refreshCache',
-	];
+	methods: typeof BACKEND_METHODS;
 	read: {
 		capabilitySnapshot: true;
 		sessionSnapshot: true;
 		projectOutline: true;
+		entityQuery: { kinds: readonly BackendEntityTarget['kind'][]; projection: 'properties'; sourceBytes: false; limits: typeof BACKEND_ENTITY_QUERY_LIMITS };
 		projectValidation: true;
 	};
 	authoring: {
+		preflightTransaction: { mode: 'execute-and-discard'; reservesRevision: false; impact: 'model-diff'; limits: typeof BACKEND_TRANSACTION_PREVIEW_LIMITS };
 		applyTransaction: true;
 		saveSession: true;
 		resourceKinds: readonly string[];
@@ -509,6 +551,8 @@ export interface RefreshCacheInput {
 
 export type BackendError =
 	| SessionNotFoundError
+	| TransactionPreviewError
+	| EntityQueryError
 	| SessionIdConflictError
 	| SessionStaleWriteError
 	| InProcessLockConflictError
@@ -544,6 +588,42 @@ export interface ApplySessionTransactionInput {
 	sessionId: string;
 	expectedRevision: number;
 	operations: UamTransactionOperation[];
+}
+
+export interface BackendTransactionPreview {
+	sessionId: string;
+	baseRevision: number;
+	/** Revision after applying this batch at baseRevision, including an empty batch. Not reserved. */
+	projectedRevision: number;
+	mode: 'execute-and-discard';
+	/** Complete, bounded comparison of current and projected UAM, not unsaved changes since last save. */
+	impact: {
+		entities: BackendTransactionEntityChange[];
+		/** Project-relative paths from the actual ProjectWriter, including empty directories. Not a disk write plan. */
+		files: Array<{ path: string; kind: 'file' | 'directory'; change: 'added' | 'removed' | 'updated' }>;
+	};
+	persistence: {
+		requiredAfterApply: true;
+		nextAction: 'saveSession' | 'materializeSession' | 'host-action';
+		fileSystemAvailable: boolean;
+		uamFidelity: BackendSessionSnapshot['uamFidelity'];
+		/** Preflight never verifies filesystem permissions, materialize destinations or actual disk state. */
+		writeVerified: false;
+	};
+}
+
+export interface BackendTransactionEntityChange {
+	target: BackendEntityTarget | { kind: 'project' } | { kind: 'package'; selector: { packageId: string } };
+	change: 'added' | 'removed' | 'updated';
+	/** Changed top-level property names; child collections contain identities and preserve their order. */
+	fields: string[];
+}
+
+export interface TransactionPreviewError {
+	code: 'transaction_preview_failed';
+	message: string;
+	sessionId: string;
+	reason: 'response_budget_exceeded' | 'projection_failed';
 }
 
 export interface GetProjectOutlineInput {

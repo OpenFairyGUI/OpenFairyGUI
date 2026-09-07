@@ -21,6 +21,7 @@ console.log(report.projectType, report.totals.packages);
 
 ## Next steps
 
+- [Runnable Examples](./examples.md): inspect/validate, revision-checked edit/save and publish/limited recovery, executed by the tarball consumer check.
 - For batch processing and terminal workflows, use [`@openfairygui/cli`](https://www.npmjs.com/package/@openfairygui/cli).
 - To expose stateful project sessions to agents or clients, use [`@openfairygui/mcp`](https://www.npmjs.com/package/@openfairygui/mcp).
 - For the current boundaries of project handling, publishing, and protocols, open the [documentation index](/en/README).

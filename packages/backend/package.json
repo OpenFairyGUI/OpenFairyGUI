@@ -32,6 +32,10 @@
 				"default": "./dist/index.mjs"
 			}
 		},
+		"./docs": {
+			"require": { "types": "./dist/docs.d.cts", "default": "./dist/docs.cjs" },
+			"default": { "types": "./dist/docs.d.mts", "default": "./dist/docs.mjs" }
+		},
 		"./node": {
 			"require": {
 				"types": "./dist/node.d.cts",
@@ -48,6 +52,7 @@
 		"build:watch": "tsdown --watch"
 	},
 	"files": [
+		"docs/",
 		"dist/",
 		"src/"
 	],

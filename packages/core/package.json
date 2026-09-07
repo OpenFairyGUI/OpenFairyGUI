@@ -17,7 +17,7 @@
 		"node": ">=20"
 	},
 	"type": "module",
-	"sideEffects": false,
+	"sideEffects": ["./dist/image-validation-worker.js", "./dist/image-validation-worker.cjs"],
 	"main": "./dist/index.cjs",
 	"module": "./dist/index.js",
 	"types": "./dist/index.d.ts",

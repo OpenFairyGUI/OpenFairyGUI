@@ -2,21 +2,26 @@ import type { Command } from 'commander';
 import { inspect, type InspectReport } from '@openfairygui/functions';
 import { NodeIO } from '@openfairygui/core/node';
 import { resolveFairyPath } from '../utils/project-input.js';
+import { printJson } from '../utils/json-output.js';
 
 export function registerInspectCommand(program: Command): void {
 	program
 		.command('inspect')
 		.description('Show project contents report')
 		.argument('<project-dir>', 'Project root directory or .fairy file')
-		.action(async (projectDir: string) => {
+		.option('--json', 'Print the machine-readable inspection report')
+		.action(async (projectDir: string, options: { json?: boolean }) => {
 			const fairyPath = await resolveFairyPath(projectDir);
-			console.log(`Project: ${fairyPath}\n`);
 
 			const io = new NodeIO();
 			const doc = await io.readProject(fairyPath);
 			const report = inspect(doc);
 
-			printReport(report);
+			if (options.json) printJson('inspect', report);
+			else {
+				console.log(`Project: ${fairyPath}\n`);
+				printReport(report);
+			}
 		});
 }
 

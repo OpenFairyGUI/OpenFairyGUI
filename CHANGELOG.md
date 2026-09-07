@@ -4,6 +4,27 @@
 
 ## Unreleased
 
+Features:
+
+- backend, mcp: Add revision-bound, isolated resource/component/node property queries with fixed projections, explicit response budgets and selector errors; capability schema version is 9.
+- backend, mcp: Preview transactions by executing and discarding isolated snapshots through the existing async transaction entrypoint, preserving diagnostics without changing session state or disk; previews reserve no revision and do not guarantee saving.
+- cli: Add `inspect --json` using the existing inspection report without terminal logs.
+- mcp: Expose Core-derived operation schemas and catalog resources, with method-specific Backend input/output contracts and explicit JSON byte conversion for resource snapshots.
+
+Fixes:
+
+- core: Preserve the image-validation Worker's listener initialization when bundlers consume its public entrypoint.
+
+Other:
+
+- workspace: Add reproducible development guidance, pinned-fixture verification, read-only environment diagnostics, impact-selected tests and unified quality entrypoints, with PR checks for documentation builds, guidance links and bilingual record structure.
+- workspace: Verify five packed packages in an isolated production consumer before release, covering exports, ESM/CJS types, browser bundles, CLI/MCP, and executable inspect/validate and revision-checked edit/save examples shared with documentation.
+- workspace: Generate contract snapshots and bilingual catalogs from canonical TypeScript types; reject incomplete method mappings and generated-file drift in repository and documentation checks.
+
+Breaking changes:
+
+- mcp: Reject unknown fields on closed contract objects and invalid nested payloads. Replace the shared `OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA` export with each tool definition's precise `outputSchema`; Backend transaction semantics and contract version are unchanged.
+
 Release comparisons:
 
 - Stable line (`main`): [v0.3.1...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.1...main)
