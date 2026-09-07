@@ -23,6 +23,8 @@ Core 拥有事务语义，Functions 组合工作流，Backend 管理会话状态
 
 Backend 的带类型诊断目录覆盖正式错误码，记录共享码的全部 owners、文档 URI 和恢复建议；响应保留实际来源与原错误字段。CLI/MCP 共用随安装版本发布的离线语料与薄 Skill。精确字段、版本和摘要见[契约查询](./guide/contracts.md)、[诊断与恢复](./guide/diagnostics.md)、[安装版本文档](./guide/installed-docs.md)。
 
+MCP 的工具发现与分发由 SDK 管理，Host 可通过公开 `registerTool()` 在同一 server 添加工具。`toolPolicies` 在输入校验后、Backend 调用前运行 Host 检查；已声明的 Host 失败分支终止调用，放行则用原输入调用 Backend 一次。授权及 grant 消费归 Host，revision、路径和写盘保护仍归 Backend。工具发现保持有界 `$ref` schema；Host 输出扩展不修改随包 Backend 契约或文档。
+
 ## 当前最关键的数据流
 
 ```mermaid

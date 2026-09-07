@@ -80,6 +80,7 @@ export function packSmoke({ artifacts, keep = false, 'browser-deps': browserDeps
 		const devDependencies = {
 			typescript: `npm:${compiler.name}@${compiler.version}`,
 			'@types/node': require('@types/node/package.json').version,
+			zod: createRequire(realpathSync(path.join(consumer, 'node_modules/@openfairygui/mcp/package.json')))('zod/package.json').version,
 			esbuild: viteRequire('esbuild/package.json').version,
 			playwright: '1.63.0',
 		};
