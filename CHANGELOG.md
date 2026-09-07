@@ -4,6 +4,15 @@
 
 ## Unreleased
 
+Release comparisons:
+
+- Stable line (`main`): [v0.4.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...main)
+- Development line (`next`): [v0.4.0...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...next)
+
+## v0.4.x
+
+### v0.4.0 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.4.0))
+
 Features:
 
 - backend, mcp: Add revision-bound, isolated project/package settings and entity property queries with fixed projections, explicit response budgets and selector errors; capability schema version is 10.
@@ -29,11 +38,6 @@ Breaking changes:
 - workspace: Require Node.js 22 or newer, dropping Node 20 support. Use Node 22 for CI, documentation deployment and releases while retaining Linux/Windows consumer checks.
 - mcp: Reject unknown fields on closed contract objects and invalid nested payloads. Replace the shared `OPENFAIRYGUI_BACKEND_TOOL_OUTPUT_SCHEMA` export with each tool definition's precise `outputSchema`.
 - core, backend: Allow `null` XY/Text/Icon Gear defaults to represent absent overrides; Backend contract version is `2.0.0-p2`. Saving or materializing pure in-memory sessions requires explicitly bound host storage or a per-call filesystem; path labels no longer acquire runtime filesystem capabilities automatically.
-
-Release comparisons:
-
-- Stable line (`main`): [v0.3.1...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.1...main)
-- Development line (`next`): [v0.3.1...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.3.1...next)
 
 ## v0.3.x
 
