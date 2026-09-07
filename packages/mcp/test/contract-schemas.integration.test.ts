@@ -50,7 +50,7 @@ test('wire schemas use uniform items for fixed numeric tuples without weakening 
 	await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
 	try {
 		const { tools } = await client.listTools();
-		t.is(tools.length, 18);
+		t.is(tools.length, 20);
 		t.deepEqual(tools.map((tool) => tool.name), OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.map((tool) => tool.name));
 		function checkItems(value: unknown): void {
 			if (!value || typeof value !== 'object') return;

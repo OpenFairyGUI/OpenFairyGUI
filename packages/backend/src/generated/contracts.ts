@@ -4,7 +4,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 	"schemaVersion": 1,
 	"versions": {
 		"BACKEND_CONTRACT_VERSION": "2.0.0-p2",
-		"BACKEND_CAPABILITY_SCHEMA_VERSION": 10
+		"BACKEND_CAPABILITY_SCHEMA_VERSION": 11
 	},
 	"operations": {
 		"updateProjectSettings": {
@@ -402,6 +402,115 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 							},
 							{
 								"$ref": "#/$defs/McpUnhandledFailure_fcecd3763a"
+							}
+						]
+					}
+				},
+				"required": [
+					"backendResult"
+				],
+				"additionalProperties": false
+			},
+			"bytePaths": []
+		},
+		"readSessionState": {
+			"name": "openfairygui_backend_read_session_state",
+			"backendMethod": "readSessionState",
+			"title": "Read Session State",
+			"description": "Read a detached copy of the currently committed public UAM model without primary asset sourceBytes, with revision, dirty state and source-read diagnostics. Optional expectedRevision rejects stale reads. Does not hydrate, write, reserve history or guarantee downstream usability. Complete tool response is limited to 16 MiB.",
+			"maxResponseBytes": 16777216,
+			"annotations": {
+				"readOnlyHint": true,
+				"idempotentHint": true,
+				"openWorldHint": false
+			},
+			"input": {
+				"type": "object",
+				"properties": {
+					"sessionId": {
+						"type": "string",
+						"minLength": 1
+					},
+					"expectedRevision": {
+						"type": "integer",
+						"minimum": 0
+					}
+				},
+				"required": [
+					"sessionId"
+				],
+				"additionalProperties": false
+			},
+			"output": {
+				"type": "object",
+				"properties": {
+					"backendResult": {
+						"anyOf": [
+							{
+								"$ref": "#/$defs/BackendResult_cb2883923d"
+							},
+							{
+								"$ref": "#/$defs/McpUnhandledFailure_fcecd3763a"
+							},
+							{
+								"$ref": "#/$defs/McpResponseBudgetFailure_c087f9a0fb"
+							}
+						]
+					}
+				},
+				"required": [
+					"backendResult"
+				],
+				"additionalProperties": false
+			},
+			"bytePaths": []
+		},
+		"readResourceBytes": {
+			"name": "openfairygui_backend_read_resource_bytes",
+			"backendMethod": "readResourceBytes",
+			"title": "Read Resource Bytes",
+			"description": "Read a detached copy of one asset resource primary sourceBytes already held in the session, using exact packageId/resourceId and the required model edit revision. No filesystem hydration or auxiliary-file discovery. Stale reads require restarting the model/bytes read. Complete tool response is limited to 16 MiB.",
+			"maxResponseBytes": 16777216,
+			"annotations": {
+				"readOnlyHint": true,
+				"idempotentHint": true,
+				"openWorldHint": false
+			},
+			"input": {
+				"type": "object",
+				"properties": {
+					"sessionId": {
+						"type": "string",
+						"minLength": 1
+					},
+					"expectedRevision": {
+						"type": "integer",
+						"minimum": 0
+					},
+					"selector": {
+						"$ref": "#/$defs/UamResourceSelector_0dbeb5faa6"
+					}
+				},
+				"required": [
+					"sessionId",
+					"expectedRevision",
+					"selector"
+				],
+				"additionalProperties": false
+			},
+			"output": {
+				"type": "object",
+				"properties": {
+					"backendResult": {
+						"anyOf": [
+							{
+								"$ref": "#/$defs/BackendResult_265e2fb654"
+							},
+							{
+								"$ref": "#/$defs/McpUnhandledFailure_fcecd3763a"
+							},
+							{
+								"$ref": "#/$defs/McpResponseBudgetFailure_c087f9a0fb"
 							}
 						]
 					}
@@ -10394,7 +10503,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
-					"const": 10
+					"const": 11
 				}
 			},
 			"required": [
@@ -10528,6 +10637,8 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"session_not_found",
 						"transaction_preview_failed",
 						"entity_query_failed",
+						"session_read_failed",
+						"stale_read",
 						"session_id_conflict",
 						"stale_write",
 						"lock_conflict",
@@ -10670,6 +10781,48 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
+		"McpResponseBudgetFailure_c087f9a0fb": {
+			"type": "object",
+			"properties": {
+				"ok": {
+					"type": "boolean",
+					"const": false
+				},
+				"meta": {
+					"$ref": "#/$defs/BackendResponseMeta_bbbdb18c02"
+				},
+				"error": {
+					"$ref": "#/$defs/__type_8b1193f905"
+				}
+			},
+			"required": [
+				"ok",
+				"meta",
+				"error"
+			],
+			"additionalProperties": false
+		},
+		"__type_8b1193f905": {
+			"type": "object",
+			"properties": {
+				"code": {
+					"type": "string",
+					"const": "mcp_response_budget_exceeded"
+				},
+				"message": {
+					"type": "string"
+				},
+				"maxBytes": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"code",
+				"message",
+				"maxBytes"
+			],
+			"additionalProperties": false
+		},
 		"BackendSuccess_96cb6be703": {
 			"type": "object",
 			"properties": {
@@ -10700,7 +10853,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
-					"const": 10
+					"const": 11
 				},
 				"transactionKernelOwner": {
 					"type": "string",
@@ -10715,10 +10868,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": "@openfairygui/backend"
 				},
 				"methods": {
-					"$ref": "#/$defs/Shape_549da6da36"
+					"$ref": "#/$defs/Shape_e30134abaa"
 				},
 				"read": {
-					"$ref": "#/$defs/__type_844d088bf1"
+					"$ref": "#/$defs/__type_81b96969f6"
 				},
 				"authoring": {
 					"$ref": "#/$defs/__type_cea960ae37"
@@ -10752,7 +10905,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"Shape_549da6da36": {
+		"Shape_e30134abaa": {
 			"type": "array",
 			"prefixItems": [
 				{
@@ -10778,6 +10931,14 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				{
 					"type": "string",
 					"const": "queryEntity"
+				},
+				{
+					"type": "string",
+					"const": "readSessionState"
+				},
+				{
+					"type": "string",
+					"const": "readResourceBytes"
 				},
 				{
 					"type": "string",
@@ -10828,11 +10989,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": "refreshCache"
 				}
 			],
-			"minItems": 18,
-			"maxItems": 18,
+			"minItems": 20,
+			"maxItems": 20,
 			"items": false
 		},
-		"__type_844d088bf1": {
+		"__type_81b96969f6": {
 			"type": "object",
 			"properties": {
 				"capabilitySnapshot": {
@@ -10850,6 +11011,12 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"entityQuery": {
 					"$ref": "#/$defs/__type_de79aa70a9"
 				},
+				"sessionState": {
+					"$ref": "#/$defs/__type_21fe9bfc0c"
+				},
+				"resourceBytes": {
+					"$ref": "#/$defs/__type_0e06fdec06"
+				},
 				"projectValidation": {
 					"type": "boolean",
 					"const": true
@@ -10860,6 +11027,8 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"sessionSnapshot",
 				"projectOutline",
 				"entityQuery",
+				"sessionState",
+				"resourceBytes",
 				"projectValidation"
 			],
 			"additionalProperties": false
@@ -10924,6 +11093,69 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"maxBytes",
 				"maxDepth",
 				"maxNodes"
+			],
+			"additionalProperties": false
+		},
+		"__type_21fe9bfc0c": {
+			"type": "object",
+			"properties": {
+				"sourceBytes": {
+					"type": "boolean",
+					"const": false
+				},
+				"limits": {
+					"$ref": "#/$defs/__object_27165daf3c"
+				}
+			},
+			"required": [
+				"sourceBytes",
+				"limits"
+			],
+			"additionalProperties": false
+		},
+		"__object_27165daf3c": {
+			"type": "object",
+			"properties": {
+				"maxBytes": {
+					"type": "number",
+					"const": 4194304
+				},
+				"maxDepth": {
+					"type": "number",
+					"const": 64
+				},
+				"maxNodes": {
+					"type": "number",
+					"const": 500000
+				}
+			},
+			"required": [
+				"maxBytes",
+				"maxDepth",
+				"maxNodes"
+			],
+			"additionalProperties": false
+		},
+		"__type_0e06fdec06": {
+			"type": "object",
+			"properties": {
+				"expectedRevisionRequired": {
+					"type": "boolean",
+					"const": true
+				},
+				"hydration": {
+					"type": "boolean",
+					"const": false
+				},
+				"maxBytes": {
+					"type": "number",
+					"const": 1048576
+				}
+			},
+			"required": [
+				"expectedRevisionRequired",
+				"hydration",
+				"maxBytes"
 			],
 			"additionalProperties": false
 		},
@@ -13063,17 +13295,116 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"BackendResult_532033df8b": {
+		"BackendResult_cb2883923d": {
 			"anyOf": [
 				{
-					"$ref": "#/$defs/BackendFailure_4a72809733"
+					"$ref": "#/$defs/BackendFailure_c83c55897b"
 				},
 				{
-					"$ref": "#/$defs/BackendSuccess_dce64b347b"
+					"$ref": "#/$defs/BackendSuccess_80b7cdfd39"
 				}
 			]
 		},
-		"BackendSuccess_dce64b347b": {
+		"BackendFailure_c83c55897b": {
+			"type": "object",
+			"properties": {
+				"ok": {
+					"type": "boolean",
+					"const": false
+				},
+				"meta": {
+					"$ref": "#/$defs/BackendResponseMeta_bbbdb18c02"
+				},
+				"error": {
+					"$ref": "#/$defs/Shape_1d7dde9cb5"
+				},
+				"session": {
+					"$ref": "#/$defs/BackendSessionSnapshot_e59c685fc8"
+				}
+			},
+			"required": [
+				"ok",
+				"meta",
+				"error"
+			],
+			"additionalProperties": false
+		},
+		"Shape_1d7dde9cb5": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/SessionNotFoundError_878fae4543"
+				},
+				{
+					"$ref": "#/$defs/SessionReadError_ae519948af"
+				},
+				{
+					"$ref": "#/$defs/SessionStaleReadError_ebb253f443"
+				}
+			]
+		},
+		"SessionReadError_ae519948af": {
+			"type": "object",
+			"properties": {
+				"code": {
+					"type": "string",
+					"const": "session_read_failed"
+				},
+				"message": {
+					"type": "string"
+				},
+				"sessionId": {
+					"type": "string"
+				},
+				"reason": {
+					"enum": [
+						"invalid_query",
+						"not_found",
+						"ambiguous",
+						"unsupported_resource",
+						"bytes_unavailable",
+						"response_budget_exceeded",
+						"non_json_value"
+					]
+				}
+			},
+			"required": [
+				"code",
+				"message",
+				"sessionId",
+				"reason"
+			],
+			"additionalProperties": false
+		},
+		"SessionStaleReadError_ebb253f443": {
+			"type": "object",
+			"properties": {
+				"code": {
+					"type": "string",
+					"const": "stale_read"
+				},
+				"message": {
+					"type": "string"
+				},
+				"sessionId": {
+					"type": "string"
+				},
+				"expectedRevision": {
+					"type": "number"
+				},
+				"actualRevision": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"code",
+				"message",
+				"sessionId",
+				"expectedRevision",
+				"actualRevision"
+			],
+			"additionalProperties": false
+		},
+		"BackendSuccess_80b7cdfd39": {
 			"type": "object",
 			"properties": {
 				"ok": {
@@ -13084,7 +13415,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/BackendResponseMeta_bbbdb18c02"
 				},
 				"data": {
-					"$ref": "#/$defs/ProjectValidationReport_fb414efc68"
+					"$ref": "#/$defs/BackendSessionStateSnapshot_1d8780daea"
 				}
 			},
 			"required": [
@@ -13094,27 +13425,288 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"ProjectValidationReport_fb414efc68": {
+		"BackendSessionStateSnapshot_1d8780daea": {
 			"type": "object",
 			"properties": {
-				"status": {
-					"enum": [
-						"invalid",
-						"valid",
-						"incomplete"
-					]
+				"project": {
+					"$ref": "#/$defs/BackendSessionProjectModel_6724369185"
 				},
-				"complete": {
+				"readDiagnostics": {
+					"$ref": "#/$defs/Array_1839f529ce"
+				},
+				"readComplete": {
 					"type": "boolean"
 				},
-				"diagnostics": {
-					"$ref": "#/$defs/Array_1839f529ce"
+				"sessionId": {
+					"type": "string"
+				},
+				"revision": {
+					"type": "number"
+				},
+				"uamFidelity": {
+					"enum": [
+						"full",
+						"unsupported"
+					]
+				},
+				"lastSavedRevision": {
+					"type": "number"
+				},
+				"dirty": {
+					"type": "boolean"
 				}
 			},
 			"required": [
-				"status",
-				"complete",
-				"diagnostics"
+				"project",
+				"readDiagnostics",
+				"readComplete",
+				"sessionId",
+				"revision",
+				"uamFidelity",
+				"lastSavedRevision",
+				"dirty"
+			],
+			"additionalProperties": false
+		},
+		"BackendSessionProjectModel_6724369185": {
+			"$ref": "#/$defs/BackendSessionProjectModel_6724369185_read"
+		},
+		"Array_ad8392e934": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/BackendSessionPackageModel_95a6cda673"
+			}
+		},
+		"BackendSessionPackageModel_95a6cda673": {
+			"type": "object",
+			"properties": {
+				"resources": {
+					"$ref": "#/$defs/Array_92fe6a02f4"
+				},
+				"name": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"publish": {
+					"$ref": "#/$defs/Shape_ed4dd118ce"
+				},
+				"compressPNG": {
+					"$ref": "#/$defs/Shape_e3070b8c30"
+				},
+				"jpegQuality": {
+					"$ref": "#/$defs/Shape_c0aa748fff"
+				},
+				"branchNames": {
+					"$ref": "#/$defs/Array_5444db1618"
+				},
+				"folders": {
+					"$ref": "#/$defs/Array_b86c274617"
+				}
+			},
+			"required": [
+				"resources",
+				"name",
+				"id",
+				"publish",
+				"compressPNG",
+				"jpegQuality",
+				"branchNames",
+				"folders"
+			],
+			"additionalProperties": false
+		},
+		"Array_92fe6a02f4": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/BackendSessionResourceModel_274e188ce4"
+			}
+		},
+		"BackendSessionResourceModel_274e188ce4": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/UamComponentResource_7a6f14a3c8"
+				},
+				{
+					"$ref": "#/$defs/Omit_c9f8dc1509"
+				},
+				{
+					"$ref": "#/$defs/Omit_6479c7d601"
+				},
+				{
+					"$ref": "#/$defs/Omit_c2923cbde6"
+				}
+			]
+		},
+		"Omit_c9f8dc1509": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"image": {
+					"$ref": "#/$defs/UamImageResourceProperties_cfb7584659"
+				},
+				"path": {
+					"type": "string"
+				},
+				"branch": {
+					"type": "string"
+				},
+				"exported": {
+					"type": "boolean"
+				},
+				"kind": {
+					"type": "string",
+					"const": "image"
+				},
+				"favorite": {
+					"type": "boolean"
+				},
+				"sourcePath": {
+					"type": "string"
+				},
+				"branchItemIds": {
+					"$ref": "#/$defs/Array_5444db1618"
+				},
+				"fileName": {
+					"type": "string"
+				},
+				"dimensions": {
+					"$ref": "#/$defs/Shape_348b454846"
+				}
+			},
+			"required": [
+				"name",
+				"id",
+				"image",
+				"path",
+				"branch",
+				"exported",
+				"kind",
+				"favorite",
+				"branchItemIds"
+			],
+			"additionalProperties": false
+		},
+		"Omit_6479c7d601": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"path": {
+					"type": "string"
+				},
+				"branch": {
+					"type": "string"
+				},
+				"exported": {
+					"type": "boolean"
+				},
+				"movieClip": {
+					"$ref": "#/$defs/UamMovieClipResourceProperties_7891e3deb2"
+				},
+				"kind": {
+					"type": "string",
+					"const": "movieClip"
+				},
+				"favorite": {
+					"type": "boolean"
+				},
+				"sourcePath": {
+					"type": "string"
+				},
+				"branchItemIds": {
+					"$ref": "#/$defs/Array_5444db1618"
+				},
+				"fileName": {
+					"type": "string"
+				},
+				"dimensions": {
+					"$ref": "#/$defs/UamDimensions_78dd3aa7d8"
+				}
+			},
+			"required": [
+				"name",
+				"id",
+				"path",
+				"branch",
+				"exported",
+				"movieClip",
+				"kind",
+				"favorite",
+				"branchItemIds",
+				"dimensions"
+			],
+			"additionalProperties": false
+		},
+		"Omit_c2923cbde6": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"file": {
+					"type": "string"
+				},
+				"metadata": {
+					"$ref": "#/$defs/Shape_c7da9a8476"
+				},
+				"path": {
+					"type": "string"
+				},
+				"branch": {
+					"type": "string"
+				},
+				"exported": {
+					"type": "boolean"
+				},
+				"kind": {
+					"enum": [
+						"font",
+						"sound",
+						"misc",
+						"swf",
+						"spine",
+						"dragonBones"
+					]
+				},
+				"favorite": {
+					"type": "boolean"
+				},
+				"sourcePath": {
+					"type": "string"
+				},
+				"branchItemIds": {
+					"$ref": "#/$defs/Array_5444db1618"
+				},
+				"fileName": {
+					"type": "string"
+				},
+				"dimensions": {
+					"$ref": "#/$defs/Shape_348b454846"
+				}
+			},
+			"required": [
+				"name",
+				"id",
+				"path",
+				"branch",
+				"exported",
+				"kind",
+				"favorite",
+				"branchItemIds"
 			],
 			"additionalProperties": false
 		},
@@ -13181,6 +13773,116 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"code",
 				"path",
 				"message"
+			],
+			"additionalProperties": false
+		},
+		"BackendResult_265e2fb654": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/BackendFailure_c83c55897b"
+				},
+				{
+					"$ref": "#/$defs/BackendSuccess_c25225583c"
+				}
+			]
+		},
+		"BackendSuccess_c25225583c": {
+			"type": "object",
+			"properties": {
+				"ok": {
+					"type": "boolean",
+					"const": true
+				},
+				"meta": {
+					"$ref": "#/$defs/BackendResponseMeta_bbbdb18c02"
+				},
+				"data": {
+					"$ref": "#/$defs/BackendResourceBytesSnapshot_9747ee46c6"
+				}
+			},
+			"required": [
+				"ok",
+				"meta",
+				"data"
+			],
+			"additionalProperties": false
+		},
+		"BackendResourceBytesSnapshot_9747ee46c6": {
+			"type": "object",
+			"properties": {
+				"sessionId": {
+					"type": "string"
+				},
+				"revision": {
+					"type": "number"
+				},
+				"selector": {
+					"$ref": "#/$defs/UamResourceSelector_0dbeb5faa6"
+				},
+				"sourceBytes": {
+					"$ref": "#/$defs/Uint8Array_edafc29bf9"
+				}
+			},
+			"required": [
+				"sessionId",
+				"revision",
+				"selector",
+				"sourceBytes"
+			],
+			"additionalProperties": false
+		},
+		"BackendResult_532033df8b": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/BackendFailure_4a72809733"
+				},
+				{
+					"$ref": "#/$defs/BackendSuccess_dce64b347b"
+				}
+			]
+		},
+		"BackendSuccess_dce64b347b": {
+			"type": "object",
+			"properties": {
+				"ok": {
+					"type": "boolean",
+					"const": true
+				},
+				"meta": {
+					"$ref": "#/$defs/BackendResponseMeta_bbbdb18c02"
+				},
+				"data": {
+					"$ref": "#/$defs/ProjectValidationReport_fb414efc68"
+				}
+			},
+			"required": [
+				"ok",
+				"meta",
+				"data"
+			],
+			"additionalProperties": false
+		},
+		"ProjectValidationReport_fb414efc68": {
+			"type": "object",
+			"properties": {
+				"status": {
+					"enum": [
+						"invalid",
+						"valid",
+						"incomplete"
+					]
+				},
+				"complete": {
+					"type": "boolean"
+				},
+				"diagnostics": {
+					"$ref": "#/$defs/Array_1839f529ce"
+				}
+			},
+			"required": [
+				"status",
+				"complete",
+				"diagnostics"
 			],
 			"additionalProperties": false
 		},
@@ -14997,6 +15699,12 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/EntityQueryError_5b50efde28"
 				},
 				{
+					"$ref": "#/$defs/SessionReadError_ae519948af"
+				},
+				{
+					"$ref": "#/$defs/SessionStaleReadError_ebb253f443"
+				},
+				{
 					"$ref": "#/$defs/SessionIdConflictError_e0a264826e"
 				},
 				{
@@ -15407,6 +16115,6133 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/BackendSuccess_18811b74a4"
 				}
 			]
+		},
+		"BackendSessionProjectModel_6724369185_read": {
+			"type": "object",
+			"properties": {
+				"packages": {
+					"$ref": "#/$defs/Array_ad8392e934_read"
+				},
+				"settings": {
+					"$ref": "#/$defs/ProjectSettings_eb04257954_read"
+				},
+				"branches": {
+					"$ref": "#/$defs/Array_5444db1618_read"
+				},
+				"projectId": {
+					"type": "string"
+				},
+				"projectType": {
+					"type": "number"
+				},
+				"version": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"packages",
+				"settings",
+				"branches",
+				"projectId",
+				"projectType",
+				"version"
+			],
+			"additionalProperties": true
+		},
+		"Array_ad8392e934_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/BackendSessionPackageModel_95a6cda673_read"
+			}
+		},
+		"BackendSessionPackageModel_95a6cda673_read": {
+			"type": "object",
+			"properties": {
+				"resources": {
+					"$ref": "#/$defs/Array_92fe6a02f4_read"
+				},
+				"name": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"publish": {
+					"$ref": "#/$defs/Shape_ed4dd118ce_read"
+				},
+				"compressPNG": {
+					"$ref": "#/$defs/Shape_e3070b8c30_read"
+				},
+				"jpegQuality": {
+					"$ref": "#/$defs/Shape_c0aa748fff_read"
+				},
+				"branchNames": {
+					"$ref": "#/$defs/Array_5444db1618_read"
+				},
+				"folders": {
+					"$ref": "#/$defs/Array_b86c274617_read"
+				}
+			},
+			"required": [
+				"resources",
+				"name",
+				"id",
+				"publish",
+				"compressPNG",
+				"jpegQuality",
+				"branchNames",
+				"folders"
+			],
+			"additionalProperties": true
+		},
+		"Array_92fe6a02f4_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/BackendSessionResourceModel_274e188ce4_read"
+			}
+		},
+		"BackendSessionResourceModel_274e188ce4_read": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/UamComponentResource_7a6f14a3c8_read"
+				},
+				{
+					"$ref": "#/$defs/Omit_c9f8dc1509_read"
+				},
+				{
+					"$ref": "#/$defs/Omit_6479c7d601_read"
+				},
+				{
+					"$ref": "#/$defs/Omit_c2923cbde6_read"
+				}
+			]
+		},
+		"UamComponentResource_7a6f14a3c8_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "component"
+				},
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"path": {
+					"type": "string"
+				},
+				"exported": {
+					"type": "boolean"
+				},
+				"favorite": {
+					"type": "boolean"
+				},
+				"branch": {
+					"type": "string"
+				},
+				"branchItemIds": {
+					"$ref": "#/$defs/Array_5444db1618_read"
+				},
+				"component": {
+					"$ref": "#/$defs/UamComponentModel_dbb5865ef3_read"
+				}
+			},
+			"required": [
+				"kind",
+				"id",
+				"name",
+				"path",
+				"exported",
+				"favorite",
+				"branch",
+				"branchItemIds",
+				"component"
+			],
+			"additionalProperties": true
+		},
+		"Array_5444db1618_read": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			}
+		},
+		"UamComponentModel_dbb5865ef3_read": {
+			"type": "object",
+			"properties": {
+				"size": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"properties": {
+					"$ref": "#/$defs/UamComponentProperties_d7c39dde47_read"
+				},
+				"customData": {
+					"type": "string"
+				},
+				"displayList": {
+					"$ref": "#/$defs/Array_467ca5fd71_read"
+				},
+				"controllers": {
+					"$ref": "#/$defs/Array_33931a1f70_read"
+				},
+				"transitions": {
+					"$ref": "#/$defs/Array_40451c0a9c_read"
+				}
+			},
+			"required": [
+				"size",
+				"properties",
+				"customData",
+				"displayList",
+				"controllers",
+				"transitions"
+			],
+			"additionalProperties": true
+		},
+		"UamSize_fcba86f12a_read": {
+			"type": "object",
+			"properties": {
+				"width": {
+					"type": "number"
+				},
+				"height": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"width",
+				"height"
+			],
+			"additionalProperties": true
+		},
+		"UamComponentProperties_d7c39dde47_read": {
+			"type": "object",
+			"properties": {
+				"minSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"maxSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"pivot": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"pivotAsAnchor": {
+					"type": "boolean"
+				},
+				"overflow": {
+					"type": "number"
+				},
+				"margin": {
+					"$ref": "#/$defs/UamEdgeInsets_c3197c8668_read"
+				},
+				"clipSoftness": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"hitTest": {
+					"type": "string"
+				},
+				"mask": {
+					"type": "string"
+				},
+				"reversedMask": {
+					"type": "boolean"
+				},
+				"scrollType": {
+					"type": "number"
+				},
+				"scrollBarDisplay": {
+					"type": "number"
+				},
+				"scrollBarFlags": {
+					"type": "number"
+				},
+				"scrollBarMargin": {
+					"$ref": "#/$defs/UamEdgeInsets_c3197c8668_read"
+				},
+				"vtScrollBarRes": {
+					"type": "string"
+				},
+				"hzScrollBarRes": {
+					"type": "string"
+				},
+				"headerRes": {
+					"type": "string"
+				},
+				"footerRes": {
+					"type": "string"
+				},
+				"bgColor": {
+					"type": "string"
+				},
+				"bgColorEnabled": {
+					"type": "boolean"
+				},
+				"designImageAlpha": {
+					"type": "number"
+				},
+				"designImageLayer": {
+					"type": "number"
+				},
+				"designImageOffset": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"designImage": {
+					"type": "string"
+				},
+				"designImageForTest": {
+					"type": "boolean"
+				},
+				"pageController": {
+					"type": "string"
+				},
+				"showSound": {
+					"type": "string"
+				},
+				"hideSound": {
+					"type": "string"
+				},
+				"idNum": {
+					"type": "number"
+				},
+				"initName": {
+					"type": "string"
+				},
+				"remark": {
+					"type": "string"
+				},
+				"customExtensionId": {
+					"type": "string"
+				},
+				"extensionType": {
+					"type": "string"
+				},
+				"opaque": {
+					"type": "boolean"
+				},
+				"buttonMode": {
+					"type": "number"
+				},
+				"sound": {
+					"type": "string"
+				},
+				"soundVolumeScale": {
+					"type": "number"
+				},
+				"downEffect": {
+					"type": "number"
+				},
+				"downEffectValue": {
+					"type": "number"
+				},
+				"dropdown": {
+					"type": "string"
+				},
+				"promptText": {
+					"type": "string"
+				},
+				"selectionController": {
+					"type": "string"
+				},
+				"titleType": {
+					"type": "number"
+				},
+				"reverse": {
+					"type": "boolean"
+				},
+				"wholeNumbers": {
+					"type": "boolean"
+				},
+				"changeOnClick": {
+					"type": "boolean"
+				},
+				"fixedGripSize": {
+					"type": "boolean"
+				},
+				"autoClearItems": {
+					"type": "boolean"
+				},
+				"customProperties": {
+					"$ref": "#/$defs/Array_e690da8127_read"
+				}
+			},
+			"required": [
+				"minSize",
+				"maxSize",
+				"pivot",
+				"pivotAsAnchor",
+				"overflow",
+				"margin",
+				"clipSoftness",
+				"hitTest",
+				"mask",
+				"reversedMask",
+				"scrollType",
+				"scrollBarDisplay",
+				"scrollBarFlags",
+				"scrollBarMargin",
+				"vtScrollBarRes",
+				"hzScrollBarRes",
+				"headerRes",
+				"footerRes",
+				"bgColor",
+				"bgColorEnabled",
+				"designImageAlpha",
+				"designImageLayer",
+				"designImageOffset",
+				"designImage",
+				"designImageForTest",
+				"pageController",
+				"showSound",
+				"hideSound",
+				"idNum",
+				"initName",
+				"remark",
+				"customExtensionId",
+				"extensionType",
+				"opaque",
+				"buttonMode",
+				"sound",
+				"soundVolumeScale",
+				"downEffect",
+				"downEffectValue",
+				"dropdown",
+				"promptText",
+				"selectionController",
+				"titleType",
+				"reverse",
+				"wholeNumbers",
+				"changeOnClick",
+				"fixedGripSize",
+				"autoClearItems",
+				"customProperties"
+			],
+			"additionalProperties": true
+		},
+		"UamPoint_600bb96bb9_read": {
+			"type": "object",
+			"properties": {
+				"x": {
+					"type": "number"
+				},
+				"y": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"x",
+				"y"
+			],
+			"additionalProperties": true
+		},
+		"UamEdgeInsets_c3197c8668_read": {
+			"type": "object",
+			"properties": {
+				"top": {
+					"type": "number"
+				},
+				"bottom": {
+					"type": "number"
+				},
+				"left": {
+					"type": "number"
+				},
+				"right": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"top",
+				"bottom",
+				"left",
+				"right"
+			],
+			"additionalProperties": true
+		},
+		"Array_e690da8127_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamComponentCustomProperty_25bde4aacf_read"
+			}
+		},
+		"UamComponentCustomProperty_25bde4aacf_read": {
+			"type": "object",
+			"properties": {
+				"target": {
+					"type": "string"
+				},
+				"propertyId": {
+					"enum": [
+						0,
+						1
+					]
+				},
+				"label": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"target",
+				"propertyId",
+				"label"
+			],
+			"additionalProperties": true
+		},
+		"Array_467ca5fd71_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamDisplayNode_0f29e80218_read"
+			}
+		},
+		"UamDisplayNode_0f29e80218_read": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/UamImageNode_6d7f87f630_read"
+				},
+				{
+					"$ref": "#/$defs/UamTextNode_85783c6389_read"
+				},
+				{
+					"$ref": "#/$defs/UamRichTextNode_f95a8b7bf3_read"
+				},
+				{
+					"$ref": "#/$defs/UamTextInputNode_883228a038_read"
+				},
+				{
+					"$ref": "#/$defs/UamComponentRefNode_fba1f50b74_read"
+				},
+				{
+					"$ref": "#/$defs/UamListNode_02caa92ee3_read"
+				},
+				{
+					"$ref": "#/$defs/UamTreeNode_766f6fba35_read"
+				},
+				{
+					"$ref": "#/$defs/UamGraphNode_4bd58a17d4_read"
+				},
+				{
+					"$ref": "#/$defs/UamGroupNode_7f8e4b5101_read"
+				},
+				{
+					"$ref": "#/$defs/UamLoaderNode_1f097f3724_read"
+				},
+				{
+					"$ref": "#/$defs/UamLoader3DNode_f53e4afa5e_read"
+				},
+				{
+					"$ref": "#/$defs/UamMovieClipNode_77dce6d447_read"
+				},
+				{
+					"$ref": "#/$defs/UamButtonNode_f2028f1d63_read"
+				},
+				{
+					"$ref": "#/$defs/UamLabelNode_745844563c_read"
+				},
+				{
+					"$ref": "#/$defs/UamComboBoxNode_fae3458a32_read"
+				},
+				{
+					"$ref": "#/$defs/UamProgressBarNode_54cbbca18d_read"
+				},
+				{
+					"$ref": "#/$defs/UamSliderNode_3dc285cb59_read"
+				},
+				{
+					"$ref": "#/$defs/UamScrollBarNode_6521c99a04_read"
+				}
+			]
+		},
+		"UamImageNode_6d7f87f630_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "image"
+				},
+				"resource": {
+					"$ref": "#/$defs/UamResourceRef_3486136f6c_read"
+				},
+				"group": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"position": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"size": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"locked": {
+					"type": "boolean"
+				},
+				"aspect": {
+					"type": "boolean"
+				},
+				"minSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"maxSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"pivot": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"pivotAsAnchor": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"scale": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"skew": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"visible": {
+					"type": "boolean"
+				},
+				"touchable": {
+					"type": "boolean"
+				},
+				"grayed": {
+					"type": "boolean"
+				},
+				"alpha": {
+					"type": "number"
+				},
+				"rotation": {
+					"type": "number"
+				},
+				"tooltips": {
+					"type": "string"
+				},
+				"blendMode": {
+					"enum": [
+						"add",
+						"none",
+						"normal",
+						"multiply",
+						"screen",
+						"erase"
+					]
+				},
+				"filter": {
+					"type": "string"
+				},
+				"filterData": {
+					"type": "string"
+				},
+				"customData": {
+					"type": "string"
+				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_read"
+				},
+				"gears": {
+					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+				},
+				"color": {
+					"type": "string"
+				},
+				"flip": {
+					"type": "number"
+				},
+				"fillMethod": {
+					"type": "number"
+				},
+				"fillOrigin": {
+					"type": "number"
+				},
+				"fillClockwise": {
+					"type": "boolean"
+				},
+				"fillAmount": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"kind",
+				"resource",
+				"group",
+				"id",
+				"name",
+				"position",
+				"size",
+				"locked",
+				"aspect",
+				"minSize",
+				"maxSize",
+				"scale",
+				"skew",
+				"visible",
+				"touchable",
+				"grayed",
+				"alpha",
+				"rotation",
+				"tooltips",
+				"blendMode",
+				"filter",
+				"filterData",
+				"customData",
+				"relations",
+				"gears",
+				"color",
+				"flip",
+				"fillMethod",
+				"fillOrigin",
+				"fillClockwise",
+				"fillAmount"
+			],
+			"additionalProperties": true
+		},
+		"UamResourceRef_3486136f6c_read": {
+			"type": "object",
+			"properties": {
+				"packageId": {
+					"type": "string"
+				},
+				"resourceId": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"resourceId"
+			],
+			"additionalProperties": true
+		},
+		"Shape_6b49a92435_read": {
+			"anyOf": [
+				{
+					"type": "boolean",
+					"const": false
+				},
+				{
+					"type": "boolean",
+					"const": true
+				}
+			]
+		},
+		"Array_9d4803aa29_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamRelation_05734287d5_read"
+			}
+		},
+		"UamRelation_05734287d5_read": {
+			"type": "object",
+			"properties": {
+				"targetNodeId": {
+					"type": "string"
+				},
+				"type": {
+					"type": "number"
+				},
+				"usePercent": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"targetNodeId",
+				"type",
+				"usePercent"
+			],
+			"additionalProperties": true
+		},
+		"Array_aa00fd9a0a_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamGearBinding_02d8315877_read"
+			}
+		},
+		"UamGearBinding_02d8315877_read": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/UamDisplayGearBinding_639c9f984b_read"
+				},
+				{
+					"$ref": "#/$defs/UamDisplay2GearBinding_07dd5cb9d4_read"
+				},
+				{
+					"$ref": "#/$defs/UamLookGearBinding_4c8d5d296f_read"
+				},
+				{
+					"$ref": "#/$defs/UamXYGearBinding_68e0a5a986_read"
+				},
+				{
+					"$ref": "#/$defs/UamSizeGearBinding_f34aa6dd02_read"
+				},
+				{
+					"$ref": "#/$defs/UamColorGearBinding_d4f848dd3a_read"
+				},
+				{
+					"$ref": "#/$defs/UamAnimationGearBinding_f6f5f06994_read"
+				},
+				{
+					"$ref": "#/$defs/UamTextGearBinding_96d3f53293_read"
+				},
+				{
+					"$ref": "#/$defs/UamIconGearBinding_8b66ab7f2c_read"
+				},
+				{
+					"$ref": "#/$defs/UamFontSizeGearBinding_4491b976c1_read"
+				}
+			]
+		},
+		"UamDisplayGearBinding_639c9f984b_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "display"
+				},
+				"name": {
+					"type": "string"
+				},
+				"controllerName": {
+					"type": "string"
+				},
+				"visibleOnPageIds": {
+					"$ref": "#/$defs/Array_5444db1618_read"
+				}
+			},
+			"required": [
+				"kind",
+				"name",
+				"controllerName",
+				"visibleOnPageIds"
+			],
+			"additionalProperties": true
+		},
+		"UamDisplay2GearBinding_07dd5cb9d4_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "display2"
+				},
+				"name": {
+					"type": "string"
+				},
+				"controllerName": {
+					"type": "string"
+				},
+				"visibleOnPageIds": {
+					"$ref": "#/$defs/Array_5444db1618_read"
+				},
+				"condition": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"kind",
+				"name",
+				"controllerName",
+				"visibleOnPageIds",
+				"condition"
+			],
+			"additionalProperties": true
+		},
+		"UamLookGearBinding_4c8d5d296f_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "look"
+				},
+				"name": {
+					"type": "string"
+				},
+				"controllerName": {
+					"type": "string"
+				},
+				"states": {
+					"$ref": "#/$defs/Array_f0a51bde56_read"
+				},
+				"defaultValue": {
+					"$ref": "#/$defs/UamLookGearValue_4691602999_read"
+				},
+				"condition": {
+					"type": "string"
+				},
+				"positionsInPercent": {
+					"type": "boolean"
+				},
+				"tween": {
+					"type": "boolean"
+				},
+				"tweenDuration": {
+					"type": "number"
+				},
+				"tweenDelay": {
+					"type": "number"
+				},
+				"easeType": {
+					"type": "number"
+				},
+				"customEasePath": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"kind",
+				"name",
+				"controllerName",
+				"states",
+				"defaultValue",
+				"condition",
+				"positionsInPercent",
+				"tween",
+				"tweenDuration",
+				"tweenDelay",
+				"easeType",
+				"customEasePath"
+			],
+			"additionalProperties": true
+		},
+		"Array_f0a51bde56_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamGearPageState_5d308908f8_read"
+			}
+		},
+		"UamGearPageState_5d308908f8_read": {
+			"type": "object",
+			"properties": {
+				"pageId": {
+					"type": "string"
+				},
+				"value": {
+					"$ref": "#/$defs/Shape_46b9d1c0a2_read"
+				}
+			},
+			"required": [
+				"pageId",
+				"value"
+			],
+			"additionalProperties": true
+		},
+		"Shape_46b9d1c0a2_read": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/UamLookGearValue_4691602999_read"
+				}
+			]
+		},
+		"UamLookGearValue_4691602999_read": {
+			"type": "object",
+			"properties": {
+				"alpha": {
+					"type": "number"
+				},
+				"rotation": {
+					"type": "number"
+				},
+				"grayed": {
+					"type": "boolean"
+				},
+				"touchable": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"alpha",
+				"rotation",
+				"grayed",
+				"touchable"
+			],
+			"additionalProperties": true
+		},
+		"UamXYGearBinding_68e0a5a986_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "xy"
+				},
+				"name": {
+					"type": "string"
+				},
+				"controllerName": {
+					"type": "string"
+				},
+				"states": {
+					"$ref": "#/$defs/Array_f4ce911974_read"
+				},
+				"defaultValue": {
+					"$ref": "#/$defs/Shape_ddacff5c0d_read"
+				},
+				"condition": {
+					"type": "string"
+				},
+				"positionsInPercent": {
+					"type": "boolean"
+				},
+				"tween": {
+					"type": "boolean"
+				},
+				"tweenDuration": {
+					"type": "number"
+				},
+				"tweenDelay": {
+					"type": "number"
+				},
+				"easeType": {
+					"type": "number"
+				},
+				"customEasePath": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"kind",
+				"name",
+				"controllerName",
+				"states",
+				"defaultValue",
+				"condition",
+				"positionsInPercent",
+				"tween",
+				"tweenDuration",
+				"tweenDelay",
+				"easeType",
+				"customEasePath"
+			],
+			"additionalProperties": true
+		},
+		"Array_f4ce911974_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamGearPageState_ec1cf9ab55_read"
+			}
+		},
+		"UamGearPageState_ec1cf9ab55_read": {
+			"type": "object",
+			"properties": {
+				"pageId": {
+					"type": "string"
+				},
+				"value": {
+					"$ref": "#/$defs/Shape_ddacff5c0d_read"
+				}
+			},
+			"required": [
+				"pageId",
+				"value"
+			],
+			"additionalProperties": true
+		},
+		"Shape_ddacff5c0d_read": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/UamXYGearValue_22ca68eeec_read"
+				}
+			]
+		},
+		"UamXYGearValue_22ca68eeec_read": {
+			"type": "object",
+			"properties": {
+				"px": {
+					"type": "number"
+				},
+				"py": {
+					"type": "number"
+				},
+				"x": {
+					"type": "number"
+				},
+				"y": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"x",
+				"y"
+			],
+			"additionalProperties": true
+		},
+		"UamSizeGearBinding_f34aa6dd02_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "size"
+				},
+				"name": {
+					"type": "string"
+				},
+				"controllerName": {
+					"type": "string"
+				},
+				"states": {
+					"$ref": "#/$defs/Array_a6f523d7be_read"
+				},
+				"defaultValue": {
+					"$ref": "#/$defs/UamSizeGearValue_ff75a42f3e_read"
+				},
+				"condition": {
+					"type": "string"
+				},
+				"positionsInPercent": {
+					"type": "boolean"
+				},
+				"tween": {
+					"type": "boolean"
+				},
+				"tweenDuration": {
+					"type": "number"
+				},
+				"tweenDelay": {
+					"type": "number"
+				},
+				"easeType": {
+					"type": "number"
+				},
+				"customEasePath": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"kind",
+				"name",
+				"controllerName",
+				"states",
+				"defaultValue",
+				"condition",
+				"positionsInPercent",
+				"tween",
+				"tweenDuration",
+				"tweenDelay",
+				"easeType",
+				"customEasePath"
+			],
+			"additionalProperties": true
+		},
+		"Array_a6f523d7be_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamGearPageState_036372b975_read"
+			}
+		},
+		"UamGearPageState_036372b975_read": {
+			"type": "object",
+			"properties": {
+				"pageId": {
+					"type": "string"
+				},
+				"value": {
+					"$ref": "#/$defs/Shape_ba9a349e2f_read"
+				}
+			},
+			"required": [
+				"pageId",
+				"value"
+			],
+			"additionalProperties": true
+		},
+		"Shape_ba9a349e2f_read": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/UamSizeGearValue_ff75a42f3e_read"
+				}
+			]
+		},
+		"UamSizeGearValue_ff75a42f3e_read": {
+			"type": "object",
+			"properties": {
+				"scaleX": {
+					"type": "number"
+				},
+				"scaleY": {
+					"type": "number"
+				},
+				"width": {
+					"type": "number"
+				},
+				"height": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"scaleX",
+				"scaleY",
+				"width",
+				"height"
+			],
+			"additionalProperties": true
+		},
+		"UamColorGearBinding_d4f848dd3a_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "color"
+				},
+				"name": {
+					"type": "string"
+				},
+				"controllerName": {
+					"type": "string"
+				},
+				"states": {
+					"$ref": "#/$defs/Array_8a4bf84a05_read"
+				},
+				"defaultValue": {
+					"$ref": "#/$defs/UamColorGearValue_6a39902a4e_read"
+				},
+				"condition": {
+					"type": "string"
+				},
+				"positionsInPercent": {
+					"type": "boolean"
+				},
+				"tween": {
+					"type": "boolean"
+				},
+				"tweenDuration": {
+					"type": "number"
+				},
+				"tweenDelay": {
+					"type": "number"
+				},
+				"easeType": {
+					"type": "number"
+				},
+				"customEasePath": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"kind",
+				"name",
+				"controllerName",
+				"states",
+				"defaultValue",
+				"condition",
+				"positionsInPercent",
+				"tween",
+				"tweenDuration",
+				"tweenDelay",
+				"easeType",
+				"customEasePath"
+			],
+			"additionalProperties": true
+		},
+		"Array_8a4bf84a05_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamGearPageState_f965f29d9e_read"
+			}
+		},
+		"UamGearPageState_f965f29d9e_read": {
+			"type": "object",
+			"properties": {
+				"pageId": {
+					"type": "string"
+				},
+				"value": {
+					"$ref": "#/$defs/Shape_2062560efc_read"
+				}
+			},
+			"required": [
+				"pageId",
+				"value"
+			],
+			"additionalProperties": true
+		},
+		"Shape_2062560efc_read": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/UamColorGearValue_6a39902a4e_read"
+				}
+			]
+		},
+		"UamColorGearValue_6a39902a4e_read": {
+			"type": "object",
+			"properties": {
+				"color": {
+					"type": "string"
+				},
+				"outlineColor": {
+					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+				}
+			},
+			"required": [
+				"color",
+				"outlineColor"
+			],
+			"additionalProperties": true
+		},
+		"Shape_5eeb3f060e_read": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"type": "string"
+				}
+			]
+		},
+		"UamAnimationGearBinding_f6f5f06994_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "animation"
+				},
+				"name": {
+					"type": "string"
+				},
+				"controllerName": {
+					"type": "string"
+				},
+				"states": {
+					"$ref": "#/$defs/Array_40093b7bc7_read"
+				},
+				"defaultValue": {
+					"$ref": "#/$defs/UamAnimationGearValue_bc75e89741_read"
+				},
+				"condition": {
+					"type": "string"
+				},
+				"positionsInPercent": {
+					"type": "boolean"
+				},
+				"tween": {
+					"type": "boolean"
+				},
+				"tweenDuration": {
+					"type": "number"
+				},
+				"tweenDelay": {
+					"type": "number"
+				},
+				"easeType": {
+					"type": "number"
+				},
+				"customEasePath": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"kind",
+				"name",
+				"controllerName",
+				"states",
+				"defaultValue",
+				"condition",
+				"positionsInPercent",
+				"tween",
+				"tweenDuration",
+				"tweenDelay",
+				"easeType",
+				"customEasePath"
+			],
+			"additionalProperties": true
+		},
+		"Array_40093b7bc7_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamGearPageState_40b7b56fcc_read"
+			}
+		},
+		"UamGearPageState_40b7b56fcc_read": {
+			"type": "object",
+			"properties": {
+				"pageId": {
+					"type": "string"
+				},
+				"value": {
+					"$ref": "#/$defs/Shape_34b927db3a_read"
+				}
+			},
+			"required": [
+				"pageId",
+				"value"
+			],
+			"additionalProperties": true
+		},
+		"Shape_34b927db3a_read": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/UamAnimationGearValue_bc75e89741_read"
+				}
+			]
+		},
+		"UamAnimationGearValue_bc75e89741_read": {
+			"type": "object",
+			"properties": {
+				"frame": {
+					"type": "number"
+				},
+				"playing": {
+					"type": "boolean"
+				},
+				"animationName": {
+					"type": "string"
+				},
+				"skinName": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"frame",
+				"playing",
+				"animationName",
+				"skinName"
+			],
+			"additionalProperties": true
+		},
+		"UamTextGearBinding_96d3f53293_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "text"
+				},
+				"name": {
+					"type": "string"
+				},
+				"controllerName": {
+					"type": "string"
+				},
+				"states": {
+					"$ref": "#/$defs/Array_e68d70de11_read"
+				},
+				"defaultValue": {
+					"$ref": "#/$defs/Shape_4391f013f2_read"
+				},
+				"condition": {
+					"type": "string"
+				},
+				"positionsInPercent": {
+					"type": "boolean"
+				},
+				"tween": {
+					"type": "boolean"
+				},
+				"tweenDuration": {
+					"type": "number"
+				},
+				"tweenDelay": {
+					"type": "number"
+				},
+				"easeType": {
+					"type": "number"
+				},
+				"customEasePath": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"kind",
+				"name",
+				"controllerName",
+				"states",
+				"defaultValue",
+				"condition",
+				"positionsInPercent",
+				"tween",
+				"tweenDuration",
+				"tweenDelay",
+				"easeType",
+				"customEasePath"
+			],
+			"additionalProperties": true
+		},
+		"Array_e68d70de11_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamGearPageState_245215dbde_read"
+			}
+		},
+		"UamGearPageState_245215dbde_read": {
+			"type": "object",
+			"properties": {
+				"pageId": {
+					"type": "string"
+				},
+				"value": {
+					"$ref": "#/$defs/Shape_4391f013f2_read"
+				}
+			},
+			"required": [
+				"pageId",
+				"value"
+			],
+			"additionalProperties": true
+		},
+		"Shape_4391f013f2_read": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/UamTextGearValue_9d786778d5_read"
+				}
+			]
+		},
+		"UamTextGearValue_9d786778d5_read": {
+			"type": "object",
+			"properties": {
+				"text": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"text"
+			],
+			"additionalProperties": true
+		},
+		"UamIconGearBinding_8b66ab7f2c_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "icon"
+				},
+				"name": {
+					"type": "string"
+				},
+				"controllerName": {
+					"type": "string"
+				},
+				"states": {
+					"$ref": "#/$defs/Array_0bd75ccf9b_read"
+				},
+				"defaultValue": {
+					"$ref": "#/$defs/Shape_6dc9e9b23e_read"
+				},
+				"condition": {
+					"type": "string"
+				},
+				"positionsInPercent": {
+					"type": "boolean"
+				},
+				"tween": {
+					"type": "boolean"
+				},
+				"tweenDuration": {
+					"type": "number"
+				},
+				"tweenDelay": {
+					"type": "number"
+				},
+				"easeType": {
+					"type": "number"
+				},
+				"customEasePath": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"kind",
+				"name",
+				"controllerName",
+				"states",
+				"defaultValue",
+				"condition",
+				"positionsInPercent",
+				"tween",
+				"tweenDuration",
+				"tweenDelay",
+				"easeType",
+				"customEasePath"
+			],
+			"additionalProperties": true
+		},
+		"Array_0bd75ccf9b_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamGearPageState_30eefa6937_read"
+			}
+		},
+		"UamGearPageState_30eefa6937_read": {
+			"type": "object",
+			"properties": {
+				"pageId": {
+					"type": "string"
+				},
+				"value": {
+					"$ref": "#/$defs/Shape_6dc9e9b23e_read"
+				}
+			},
+			"required": [
+				"pageId",
+				"value"
+			],
+			"additionalProperties": true
+		},
+		"Shape_6dc9e9b23e_read": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/UamIconGearValue_a708aa25aa_read"
+				}
+			]
+		},
+		"UamIconGearValue_a708aa25aa_read": {
+			"type": "object",
+			"properties": {
+				"icon": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"icon"
+			],
+			"additionalProperties": true
+		},
+		"UamFontSizeGearBinding_4491b976c1_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "fontSize"
+				},
+				"name": {
+					"type": "string"
+				},
+				"controllerName": {
+					"type": "string"
+				},
+				"states": {
+					"$ref": "#/$defs/Array_645f922ea6_read"
+				},
+				"defaultValue": {
+					"$ref": "#/$defs/UamFontSizeGearValue_89031fdbfc_read"
+				},
+				"condition": {
+					"type": "string"
+				},
+				"positionsInPercent": {
+					"type": "boolean"
+				},
+				"tween": {
+					"type": "boolean"
+				},
+				"tweenDuration": {
+					"type": "number"
+				},
+				"tweenDelay": {
+					"type": "number"
+				},
+				"easeType": {
+					"type": "number"
+				},
+				"customEasePath": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"kind",
+				"name",
+				"controllerName",
+				"states",
+				"defaultValue",
+				"condition",
+				"positionsInPercent",
+				"tween",
+				"tweenDuration",
+				"tweenDelay",
+				"easeType",
+				"customEasePath"
+			],
+			"additionalProperties": true
+		},
+		"Array_645f922ea6_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamGearPageState_d83347980b_read"
+			}
+		},
+		"UamGearPageState_d83347980b_read": {
+			"type": "object",
+			"properties": {
+				"pageId": {
+					"type": "string"
+				},
+				"value": {
+					"$ref": "#/$defs/Shape_d727f9067a_read"
+				}
+			},
+			"required": [
+				"pageId",
+				"value"
+			],
+			"additionalProperties": true
+		},
+		"Shape_d727f9067a_read": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/UamFontSizeGearValue_89031fdbfc_read"
+				}
+			]
+		},
+		"UamFontSizeGearValue_89031fdbfc_read": {
+			"type": "object",
+			"properties": {
+				"fontSize": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"fontSize"
+			],
+			"additionalProperties": true
+		},
+		"UamTextNode_85783c6389_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "text"
+				},
+				"group": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"position": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"size": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"locked": {
+					"type": "boolean"
+				},
+				"aspect": {
+					"type": "boolean"
+				},
+				"minSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"maxSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"pivot": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"pivotAsAnchor": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"scale": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"skew": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"visible": {
+					"type": "boolean"
+				},
+				"touchable": {
+					"type": "boolean"
+				},
+				"grayed": {
+					"type": "boolean"
+				},
+				"alpha": {
+					"type": "number"
+				},
+				"rotation": {
+					"type": "number"
+				},
+				"tooltips": {
+					"type": "string"
+				},
+				"blendMode": {
+					"enum": [
+						"add",
+						"none",
+						"normal",
+						"multiply",
+						"screen",
+						"erase"
+					]
+				},
+				"filter": {
+					"type": "string"
+				},
+				"filterData": {
+					"type": "string"
+				},
+				"customData": {
+					"type": "string"
+				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_read"
+				},
+				"gears": {
+					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+				},
+				"demoText": {
+					"type": "string"
+				},
+				"templateVarsEnabled": {
+					"type": "boolean"
+				},
+				"faceDilate": {
+					"type": "number"
+				},
+				"text": {
+					"type": "string"
+				},
+				"font": {
+					"type": "string"
+				},
+				"fontSize": {
+					"type": "number"
+				},
+				"color": {
+					"type": "string"
+				},
+				"align": {
+					"type": "number"
+				},
+				"vAlign": {
+					"type": "number"
+				},
+				"leading": {
+					"type": "number"
+				},
+				"letterSpacing": {
+					"type": "number"
+				},
+				"autoSize": {
+					"type": "number"
+				},
+				"singleLine": {
+					"type": "boolean"
+				},
+				"autoClearText": {
+					"type": "boolean"
+				},
+				"outlineSoftness": {
+					"type": "number"
+				},
+				"underlaySoftness": {
+					"type": "number"
+				},
+				"ubbEnabled": {
+					"type": "boolean"
+				},
+				"underline": {
+					"type": "boolean"
+				},
+				"italic": {
+					"type": "boolean"
+				},
+				"bold": {
+					"type": "boolean"
+				},
+				"strikethrough": {
+					"type": "boolean"
+				},
+				"strokeColor": {
+					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+				},
+				"strokeSize": {
+					"type": "number"
+				},
+				"shadowColor": {
+					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+				},
+				"shadowOffset": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				}
+			},
+			"required": [
+				"kind",
+				"group",
+				"id",
+				"name",
+				"position",
+				"size",
+				"locked",
+				"aspect",
+				"minSize",
+				"maxSize",
+				"scale",
+				"skew",
+				"visible",
+				"touchable",
+				"grayed",
+				"alpha",
+				"rotation",
+				"tooltips",
+				"blendMode",
+				"filter",
+				"filterData",
+				"customData",
+				"relations",
+				"gears",
+				"demoText",
+				"templateVarsEnabled",
+				"faceDilate",
+				"text",
+				"font",
+				"fontSize",
+				"color",
+				"align",
+				"vAlign",
+				"leading",
+				"letterSpacing",
+				"autoSize",
+				"singleLine",
+				"autoClearText",
+				"outlineSoftness",
+				"underlaySoftness",
+				"ubbEnabled",
+				"underline",
+				"italic",
+				"bold",
+				"strikethrough",
+				"strokeColor",
+				"strokeSize",
+				"shadowColor",
+				"shadowOffset"
+			],
+			"additionalProperties": true
+		},
+		"UamRichTextNode_f95a8b7bf3_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "richText"
+				},
+				"group": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"position": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"size": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"locked": {
+					"type": "boolean"
+				},
+				"aspect": {
+					"type": "boolean"
+				},
+				"minSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"maxSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"pivot": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"pivotAsAnchor": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"scale": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"skew": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"visible": {
+					"type": "boolean"
+				},
+				"touchable": {
+					"type": "boolean"
+				},
+				"grayed": {
+					"type": "boolean"
+				},
+				"alpha": {
+					"type": "number"
+				},
+				"rotation": {
+					"type": "number"
+				},
+				"tooltips": {
+					"type": "string"
+				},
+				"blendMode": {
+					"enum": [
+						"add",
+						"none",
+						"normal",
+						"multiply",
+						"screen",
+						"erase"
+					]
+				},
+				"filter": {
+					"type": "string"
+				},
+				"filterData": {
+					"type": "string"
+				},
+				"customData": {
+					"type": "string"
+				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_read"
+				},
+				"gears": {
+					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+				},
+				"text": {
+					"type": "string"
+				},
+				"font": {
+					"type": "string"
+				},
+				"fontSize": {
+					"type": "number"
+				},
+				"color": {
+					"type": "string"
+				},
+				"align": {
+					"type": "number"
+				},
+				"vAlign": {
+					"type": "number"
+				},
+				"leading": {
+					"type": "number"
+				},
+				"letterSpacing": {
+					"type": "number"
+				},
+				"autoSize": {
+					"type": "number"
+				},
+				"singleLine": {
+					"type": "boolean"
+				},
+				"autoClearText": {
+					"type": "boolean"
+				},
+				"outlineSoftness": {
+					"type": "number"
+				},
+				"underlaySoftness": {
+					"type": "number"
+				},
+				"ubbEnabled": {
+					"type": "boolean"
+				},
+				"underline": {
+					"type": "boolean"
+				},
+				"italic": {
+					"type": "boolean"
+				},
+				"bold": {
+					"type": "boolean"
+				},
+				"strikethrough": {
+					"type": "boolean"
+				},
+				"strokeColor": {
+					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+				},
+				"strokeSize": {
+					"type": "number"
+				},
+				"shadowColor": {
+					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+				},
+				"shadowOffset": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				}
+			},
+			"required": [
+				"kind",
+				"group",
+				"id",
+				"name",
+				"position",
+				"size",
+				"locked",
+				"aspect",
+				"minSize",
+				"maxSize",
+				"scale",
+				"skew",
+				"visible",
+				"touchable",
+				"grayed",
+				"alpha",
+				"rotation",
+				"tooltips",
+				"blendMode",
+				"filter",
+				"filterData",
+				"customData",
+				"relations",
+				"gears",
+				"text",
+				"font",
+				"fontSize",
+				"color",
+				"align",
+				"vAlign",
+				"leading",
+				"letterSpacing",
+				"autoSize",
+				"singleLine",
+				"autoClearText",
+				"outlineSoftness",
+				"underlaySoftness",
+				"ubbEnabled",
+				"underline",
+				"italic",
+				"bold",
+				"strikethrough",
+				"strokeColor",
+				"strokeSize",
+				"shadowColor",
+				"shadowOffset"
+			],
+			"additionalProperties": true
+		},
+		"UamTextInputNode_883228a038_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "textInput"
+				},
+				"promptText": {
+					"type": "string"
+				},
+				"maxLength": {
+					"type": "number"
+				},
+				"restrict": {
+					"type": "string"
+				},
+				"password": {
+					"type": "boolean"
+				},
+				"keyboardType": {
+					"type": "number"
+				},
+				"group": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"position": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"size": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"locked": {
+					"type": "boolean"
+				},
+				"aspect": {
+					"type": "boolean"
+				},
+				"minSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"maxSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"pivot": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"pivotAsAnchor": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"scale": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"skew": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"visible": {
+					"type": "boolean"
+				},
+				"touchable": {
+					"type": "boolean"
+				},
+				"grayed": {
+					"type": "boolean"
+				},
+				"alpha": {
+					"type": "number"
+				},
+				"rotation": {
+					"type": "number"
+				},
+				"tooltips": {
+					"type": "string"
+				},
+				"blendMode": {
+					"enum": [
+						"add",
+						"none",
+						"normal",
+						"multiply",
+						"screen",
+						"erase"
+					]
+				},
+				"filter": {
+					"type": "string"
+				},
+				"filterData": {
+					"type": "string"
+				},
+				"customData": {
+					"type": "string"
+				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_read"
+				},
+				"gears": {
+					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+				},
+				"demoText": {
+					"type": "string"
+				},
+				"templateVarsEnabled": {
+					"type": "boolean"
+				},
+				"faceDilate": {
+					"type": "number"
+				},
+				"text": {
+					"type": "string"
+				},
+				"font": {
+					"type": "string"
+				},
+				"fontSize": {
+					"type": "number"
+				},
+				"color": {
+					"type": "string"
+				},
+				"align": {
+					"type": "number"
+				},
+				"vAlign": {
+					"type": "number"
+				},
+				"leading": {
+					"type": "number"
+				},
+				"letterSpacing": {
+					"type": "number"
+				},
+				"autoSize": {
+					"type": "number"
+				},
+				"singleLine": {
+					"type": "boolean"
+				},
+				"autoClearText": {
+					"type": "boolean"
+				},
+				"outlineSoftness": {
+					"type": "number"
+				},
+				"underlaySoftness": {
+					"type": "number"
+				},
+				"ubbEnabled": {
+					"type": "boolean"
+				},
+				"underline": {
+					"type": "boolean"
+				},
+				"italic": {
+					"type": "boolean"
+				},
+				"bold": {
+					"type": "boolean"
+				},
+				"strikethrough": {
+					"type": "boolean"
+				},
+				"strokeColor": {
+					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+				},
+				"strokeSize": {
+					"type": "number"
+				},
+				"shadowColor": {
+					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+				},
+				"shadowOffset": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				}
+			},
+			"required": [
+				"kind",
+				"promptText",
+				"maxLength",
+				"restrict",
+				"password",
+				"keyboardType",
+				"group",
+				"id",
+				"name",
+				"position",
+				"size",
+				"locked",
+				"aspect",
+				"minSize",
+				"maxSize",
+				"scale",
+				"skew",
+				"visible",
+				"touchable",
+				"grayed",
+				"alpha",
+				"rotation",
+				"tooltips",
+				"blendMode",
+				"filter",
+				"filterData",
+				"customData",
+				"relations",
+				"gears",
+				"demoText",
+				"templateVarsEnabled",
+				"faceDilate",
+				"text",
+				"font",
+				"fontSize",
+				"color",
+				"align",
+				"vAlign",
+				"leading",
+				"letterSpacing",
+				"autoSize",
+				"singleLine",
+				"autoClearText",
+				"outlineSoftness",
+				"underlaySoftness",
+				"ubbEnabled",
+				"underline",
+				"italic",
+				"bold",
+				"strikethrough",
+				"strokeColor",
+				"strokeSize",
+				"shadowColor",
+				"shadowOffset"
+			],
+			"additionalProperties": true
+		},
+		"UamComponentRefNode_fba1f50b74_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "component"
+				},
+				"resource": {
+					"$ref": "#/$defs/UamResourceRef_3486136f6c_read"
+				},
+				"instanceProperties": {
+					"$ref": "#/$defs/Shape_8a3021d271_read"
+				},
+				"propertyOverrides": {
+					"$ref": "#/$defs/Array_7c27bc0bce_read"
+				},
+				"group": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"position": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"size": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"locked": {
+					"type": "boolean"
+				},
+				"aspect": {
+					"type": "boolean"
+				},
+				"minSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"maxSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"pivot": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"pivotAsAnchor": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"scale": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"skew": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"visible": {
+					"type": "boolean"
+				},
+				"touchable": {
+					"type": "boolean"
+				},
+				"grayed": {
+					"type": "boolean"
+				},
+				"alpha": {
+					"type": "number"
+				},
+				"rotation": {
+					"type": "number"
+				},
+				"tooltips": {
+					"type": "string"
+				},
+				"blendMode": {
+					"enum": [
+						"add",
+						"none",
+						"normal",
+						"multiply",
+						"screen",
+						"erase"
+					]
+				},
+				"filter": {
+					"type": "string"
+				},
+				"filterData": {
+					"type": "string"
+				},
+				"customData": {
+					"type": "string"
+				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_read"
+				},
+				"gears": {
+					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+				}
+			},
+			"required": [
+				"kind",
+				"resource",
+				"group",
+				"id",
+				"name",
+				"position",
+				"size",
+				"locked",
+				"aspect",
+				"minSize",
+				"maxSize",
+				"scale",
+				"skew",
+				"visible",
+				"touchable",
+				"grayed",
+				"alpha",
+				"rotation",
+				"tooltips",
+				"blendMode",
+				"filter",
+				"filterData",
+				"customData",
+				"relations",
+				"gears"
+			],
+			"additionalProperties": true
+		},
+		"Shape_8a3021d271_read": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_006774ed57_read"
+				},
+				{
+					"$ref": "#/$defs/__type_799f950837_read"
+				},
+				{
+					"$ref": "#/$defs/__type_aafd35036e_read"
+				},
+				{
+					"$ref": "#/$defs/__type_8584fb13b4_read"
+				},
+				{
+					"$ref": "#/$defs/__type_f9094ab4f6_read"
+				},
+				{
+					"$ref": "#/$defs/__type_18e05aa3c9_read"
+				}
+			]
+		},
+		"__type_006774ed57_read": {
+			"type": "object",
+			"properties": {
+				"extensionType": {
+					"type": "string",
+					"const": "Button"
+				},
+				"title": {
+					"type": "string"
+				},
+				"selectedTitle": {
+					"type": "string"
+				},
+				"icon": {
+					"type": "string"
+				},
+				"selectedIcon": {
+					"type": "string"
+				},
+				"titleColor": {
+					"type": "string"
+				},
+				"titleFontSize": {
+					"type": "number"
+				},
+				"controller": {
+					"type": "string"
+				},
+				"page": {
+					"type": "string"
+				},
+				"checked": {
+					"type": "boolean"
+				},
+				"sound": {
+					"type": "string"
+				},
+				"soundVolumeScale": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"extensionType",
+				"title",
+				"selectedTitle",
+				"icon",
+				"selectedIcon",
+				"titleColor",
+				"titleFontSize",
+				"controller",
+				"page",
+				"checked",
+				"sound",
+				"soundVolumeScale"
+			],
+			"additionalProperties": true
+		},
+		"__type_799f950837_read": {
+			"type": "object",
+			"properties": {
+				"extensionType": {
+					"type": "string",
+					"const": "Label"
+				},
+				"title": {
+					"type": "string"
+				},
+				"icon": {
+					"type": "string"
+				},
+				"titleColor": {
+					"type": "string"
+				},
+				"titleFontSize": {
+					"type": "number"
+				},
+				"promptText": {
+					"type": "string"
+				},
+				"sound": {
+					"type": "string"
+				},
+				"soundVolumeScale": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"extensionType",
+				"title",
+				"icon",
+				"titleColor",
+				"titleFontSize",
+				"promptText",
+				"sound",
+				"soundVolumeScale"
+			],
+			"additionalProperties": true
+		},
+		"__type_aafd35036e_read": {
+			"type": "object",
+			"properties": {
+				"extensionType": {
+					"type": "string",
+					"const": "ComboBox"
+				},
+				"title": {
+					"type": "string"
+				},
+				"icon": {
+					"type": "string"
+				},
+				"titleColor": {
+					"type": "string"
+				},
+				"popupDirection": {
+					"type": "number"
+				},
+				"sound": {
+					"type": "string"
+				},
+				"soundVolumeScale": {
+					"type": "number"
+				},
+				"visibleItemCount": {
+					"type": "number"
+				},
+				"selectionController": {
+					"type": "string"
+				},
+				"autoClearItems": {
+					"type": "boolean"
+				},
+				"items": {
+					"$ref": "#/$defs/Array_869b7b43cc_read"
+				}
+			},
+			"required": [
+				"extensionType",
+				"title",
+				"icon",
+				"titleColor",
+				"popupDirection",
+				"sound",
+				"soundVolumeScale",
+				"visibleItemCount",
+				"selectionController",
+				"autoClearItems",
+				"items"
+			],
+			"additionalProperties": true
+		},
+		"Array_869b7b43cc_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamComponentInstanceComboItem_121d45b924_read"
+			}
+		},
+		"UamComponentInstanceComboItem_121d45b924_read": {
+			"type": "object",
+			"properties": {
+				"title": {
+					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+				},
+				"value": {
+					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+				},
+				"icon": {
+					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+				}
+			},
+			"required": [
+				"title",
+				"value",
+				"icon"
+			],
+			"additionalProperties": true
+		},
+		"__type_8584fb13b4_read": {
+			"type": "object",
+			"properties": {
+				"extensionType": {
+					"type": "string",
+					"const": "ProgressBar"
+				},
+				"value": {
+					"type": "number"
+				},
+				"max": {
+					"type": "number"
+				},
+				"min": {
+					"type": "number"
+				},
+				"sound": {
+					"type": "string"
+				},
+				"soundVolumeScale": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"extensionType",
+				"value",
+				"max",
+				"min",
+				"sound",
+				"soundVolumeScale"
+			],
+			"additionalProperties": true
+		},
+		"__type_f9094ab4f6_read": {
+			"type": "object",
+			"properties": {
+				"extensionType": {
+					"type": "string",
+					"const": "Slider"
+				},
+				"value": {
+					"type": "number"
+				},
+				"max": {
+					"type": "number"
+				},
+				"min": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"extensionType",
+				"value",
+				"max",
+				"min"
+			],
+			"additionalProperties": true
+		},
+		"__type_18e05aa3c9_read": {
+			"type": "object",
+			"properties": {
+				"extensionType": {
+					"type": "string",
+					"const": "ScrollBar"
+				}
+			},
+			"required": [
+				"extensionType"
+			],
+			"additionalProperties": true
+		},
+		"Array_7c27bc0bce_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamComponentPropertyOverride_0ffab02aad_read"
+			}
+		},
+		"UamComponentPropertyOverride_0ffab02aad_read": {
+			"type": "object",
+			"properties": {
+				"target": {
+					"type": "string"
+				},
+				"propertyId": {
+					"type": "number"
+				},
+				"value": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"target",
+				"propertyId",
+				"value"
+			],
+			"additionalProperties": true
+		},
+		"UamListNode_02caa92ee3_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "list"
+				},
+				"group": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"position": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"size": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"locked": {
+					"type": "boolean"
+				},
+				"aspect": {
+					"type": "boolean"
+				},
+				"minSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"maxSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"pivot": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"pivotAsAnchor": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"scale": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"skew": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"visible": {
+					"type": "boolean"
+				},
+				"touchable": {
+					"type": "boolean"
+				},
+				"grayed": {
+					"type": "boolean"
+				},
+				"alpha": {
+					"type": "number"
+				},
+				"rotation": {
+					"type": "number"
+				},
+				"tooltips": {
+					"type": "string"
+				},
+				"blendMode": {
+					"enum": [
+						"add",
+						"none",
+						"normal",
+						"multiply",
+						"screen",
+						"erase"
+					]
+				},
+				"filter": {
+					"type": "string"
+				},
+				"filterData": {
+					"type": "string"
+				},
+				"customData": {
+					"type": "string"
+				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_read"
+				},
+				"gears": {
+					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+				},
+				"layout": {
+					"type": "number"
+				},
+				"align": {
+					"type": "number"
+				},
+				"vAlign": {
+					"type": "number"
+				},
+				"lineGap": {
+					"type": "number"
+				},
+				"columnGap": {
+					"type": "number"
+				},
+				"lineCount": {
+					"type": "number"
+				},
+				"columnCount": {
+					"type": "number"
+				},
+				"selectionMode": {
+					"type": "number"
+				},
+				"defaultItem": {
+					"type": "string"
+				},
+				"autoResizeItem": {
+					"type": "boolean"
+				},
+				"childrenRenderOrder": {
+					"type": "number"
+				},
+				"apexIndex": {
+					"type": "number"
+				},
+				"src": {
+					"type": "string"
+				},
+				"overflow": {
+					"type": "number"
+				},
+				"scrollType": {
+					"type": "number"
+				},
+				"scrollBarDisplay": {
+					"type": "number"
+				},
+				"scrollBarFlags": {
+					"type": "number"
+				},
+				"scrollBarMargin": {
+					"$ref": "#/$defs/UamEdgeInsets_c3197c8668_read"
+				},
+				"vtScrollBarRes": {
+					"type": "string"
+				},
+				"hzScrollBarRes": {
+					"type": "string"
+				},
+				"headerRes": {
+					"type": "string"
+				},
+				"footerRes": {
+					"type": "string"
+				},
+				"margin": {
+					"$ref": "#/$defs/UamEdgeInsets_c3197c8668_read"
+				},
+				"clipSoftness": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"scrollItemToViewOnClick": {
+					"type": "boolean"
+				},
+				"foldInvisibleItems": {
+					"type": "boolean"
+				},
+				"autoClearItems": {
+					"type": "boolean"
+				},
+				"listItems": {
+					"$ref": "#/$defs/Array_4178092e1f_read"
+				},
+				"pageController": {
+					"type": "string"
+				},
+				"controllerOverrides": {
+					"type": "string"
+				},
+				"selectionController": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"kind",
+				"group",
+				"id",
+				"name",
+				"position",
+				"size",
+				"locked",
+				"aspect",
+				"minSize",
+				"maxSize",
+				"scale",
+				"skew",
+				"visible",
+				"touchable",
+				"grayed",
+				"alpha",
+				"rotation",
+				"tooltips",
+				"blendMode",
+				"filter",
+				"filterData",
+				"customData",
+				"relations",
+				"gears",
+				"layout",
+				"align",
+				"vAlign",
+				"lineGap",
+				"columnGap",
+				"lineCount",
+				"columnCount",
+				"selectionMode",
+				"defaultItem",
+				"autoResizeItem",
+				"childrenRenderOrder",
+				"apexIndex",
+				"src",
+				"overflow",
+				"scrollType",
+				"scrollBarDisplay",
+				"scrollBarFlags",
+				"scrollBarMargin",
+				"vtScrollBarRes",
+				"hzScrollBarRes",
+				"headerRes",
+				"footerRes",
+				"margin",
+				"clipSoftness",
+				"scrollItemToViewOnClick",
+				"foldInvisibleItems",
+				"autoClearItems",
+				"listItems",
+				"pageController",
+				"controllerOverrides",
+				"selectionController"
+			],
+			"additionalProperties": true
+		},
+		"Array_4178092e1f_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamListItemData_8e91379cee_read"
+			}
+		},
+		"UamListItemData_8e91379cee_read": {
+			"type": "object",
+			"properties": {
+				"title": {
+					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+				},
+				"icon": {
+					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+				},
+				"url": {
+					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+				},
+				"name": {
+					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+				},
+				"selectedTitle": {
+					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+				},
+				"selectedIcon": {
+					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+				},
+				"level": {
+					"type": "number"
+				},
+				"isFolder": {
+					"$ref": "#/$defs/Shape_e3070b8c30_read"
+				},
+				"controllers": {
+					"$ref": "#/$defs/Shape_416ae97aa3_read"
+				},
+				"propertyOverrides": {
+					"$ref": "#/$defs/Array_7c27bc0bce_read"
+				}
+			},
+			"required": [
+				"title",
+				"icon",
+				"url",
+				"name",
+				"selectedTitle",
+				"selectedIcon",
+				"level",
+				"isFolder"
+			],
+			"additionalProperties": true
+		},
+		"Shape_e3070b8c30_read": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"type": "boolean",
+					"const": false
+				},
+				{
+					"type": "boolean",
+					"const": true
+				}
+			]
+		},
+		"Shape_416ae97aa3_read": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"type": "string"
+				}
+			]
+		},
+		"UamTreeNode_766f6fba35_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "tree"
+				},
+				"group": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"position": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"size": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"locked": {
+					"type": "boolean"
+				},
+				"aspect": {
+					"type": "boolean"
+				},
+				"minSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"maxSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"pivot": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"pivotAsAnchor": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"scale": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"skew": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"visible": {
+					"type": "boolean"
+				},
+				"touchable": {
+					"type": "boolean"
+				},
+				"grayed": {
+					"type": "boolean"
+				},
+				"alpha": {
+					"type": "number"
+				},
+				"rotation": {
+					"type": "number"
+				},
+				"tooltips": {
+					"type": "string"
+				},
+				"blendMode": {
+					"enum": [
+						"add",
+						"none",
+						"normal",
+						"multiply",
+						"screen",
+						"erase"
+					]
+				},
+				"filter": {
+					"type": "string"
+				},
+				"filterData": {
+					"type": "string"
+				},
+				"customData": {
+					"type": "string"
+				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_read"
+				},
+				"gears": {
+					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+				},
+				"treeView": {
+					"type": "boolean"
+				},
+				"indent": {
+					"type": "number"
+				},
+				"clickToExpand": {
+					"type": "number"
+				},
+				"layout": {
+					"type": "number"
+				},
+				"align": {
+					"type": "number"
+				},
+				"vAlign": {
+					"type": "number"
+				},
+				"lineGap": {
+					"type": "number"
+				},
+				"columnGap": {
+					"type": "number"
+				},
+				"lineCount": {
+					"type": "number"
+				},
+				"columnCount": {
+					"type": "number"
+				},
+				"selectionMode": {
+					"type": "number"
+				},
+				"defaultItem": {
+					"type": "string"
+				},
+				"autoResizeItem": {
+					"type": "boolean"
+				},
+				"childrenRenderOrder": {
+					"type": "number"
+				},
+				"apexIndex": {
+					"type": "number"
+				},
+				"src": {
+					"type": "string"
+				},
+				"overflow": {
+					"type": "number"
+				},
+				"scrollType": {
+					"type": "number"
+				},
+				"scrollBarDisplay": {
+					"type": "number"
+				},
+				"scrollBarFlags": {
+					"type": "number"
+				},
+				"scrollBarMargin": {
+					"$ref": "#/$defs/UamEdgeInsets_c3197c8668_read"
+				},
+				"vtScrollBarRes": {
+					"type": "string"
+				},
+				"hzScrollBarRes": {
+					"type": "string"
+				},
+				"headerRes": {
+					"type": "string"
+				},
+				"footerRes": {
+					"type": "string"
+				},
+				"margin": {
+					"$ref": "#/$defs/UamEdgeInsets_c3197c8668_read"
+				},
+				"clipSoftness": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"scrollItemToViewOnClick": {
+					"type": "boolean"
+				},
+				"foldInvisibleItems": {
+					"type": "boolean"
+				},
+				"autoClearItems": {
+					"type": "boolean"
+				},
+				"listItems": {
+					"$ref": "#/$defs/Array_4178092e1f_read"
+				},
+				"pageController": {
+					"type": "string"
+				},
+				"controllerOverrides": {
+					"type": "string"
+				},
+				"selectionController": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"kind",
+				"group",
+				"id",
+				"name",
+				"position",
+				"size",
+				"locked",
+				"aspect",
+				"minSize",
+				"maxSize",
+				"scale",
+				"skew",
+				"visible",
+				"touchable",
+				"grayed",
+				"alpha",
+				"rotation",
+				"tooltips",
+				"blendMode",
+				"filter",
+				"filterData",
+				"customData",
+				"relations",
+				"gears",
+				"treeView",
+				"indent",
+				"clickToExpand",
+				"layout",
+				"align",
+				"vAlign",
+				"lineGap",
+				"columnGap",
+				"lineCount",
+				"columnCount",
+				"selectionMode",
+				"defaultItem",
+				"autoResizeItem",
+				"childrenRenderOrder",
+				"apexIndex",
+				"src",
+				"overflow",
+				"scrollType",
+				"scrollBarDisplay",
+				"scrollBarFlags",
+				"scrollBarMargin",
+				"vtScrollBarRes",
+				"hzScrollBarRes",
+				"headerRes",
+				"footerRes",
+				"margin",
+				"clipSoftness",
+				"scrollItemToViewOnClick",
+				"foldInvisibleItems",
+				"autoClearItems",
+				"listItems",
+				"pageController",
+				"controllerOverrides",
+				"selectionController"
+			],
+			"additionalProperties": true
+		},
+		"UamGraphNode_4bd58a17d4_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "graph"
+				},
+				"pivot": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"pivotAsAnchor": {
+					"type": "boolean"
+				},
+				"group": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"position": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"size": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"locked": {
+					"type": "boolean"
+				},
+				"aspect": {
+					"type": "boolean"
+				},
+				"minSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"maxSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"scale": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"skew": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"visible": {
+					"type": "boolean"
+				},
+				"touchable": {
+					"type": "boolean"
+				},
+				"grayed": {
+					"type": "boolean"
+				},
+				"alpha": {
+					"type": "number"
+				},
+				"rotation": {
+					"type": "number"
+				},
+				"tooltips": {
+					"type": "string"
+				},
+				"blendMode": {
+					"enum": [
+						"add",
+						"none",
+						"normal",
+						"multiply",
+						"screen",
+						"erase"
+					]
+				},
+				"filter": {
+					"type": "string"
+				},
+				"filterData": {
+					"type": "string"
+				},
+				"customData": {
+					"type": "string"
+				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_read"
+				},
+				"gears": {
+					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+				},
+				"graphType": {
+					"type": "number"
+				},
+				"lineSize": {
+					"type": "number"
+				},
+				"lineColor": {
+					"type": "string"
+				},
+				"fillColor": {
+					"type": "string"
+				},
+				"cornerRadius": {
+					"$ref": "#/$defs/Shape_901551dc98_read"
+				},
+				"points": {
+					"$ref": "#/$defs/Shape_3bb3fc0cfc_read"
+				},
+				"sides": {
+					"type": "number"
+				},
+				"startAngle": {
+					"type": "number"
+				},
+				"distances": {
+					"$ref": "#/$defs/Shape_3bb3fc0cfc_read"
+				}
+			},
+			"required": [
+				"kind",
+				"pivot",
+				"pivotAsAnchor",
+				"group",
+				"id",
+				"name",
+				"position",
+				"size",
+				"locked",
+				"aspect",
+				"minSize",
+				"maxSize",
+				"scale",
+				"skew",
+				"visible",
+				"touchable",
+				"grayed",
+				"alpha",
+				"rotation",
+				"tooltips",
+				"blendMode",
+				"filter",
+				"filterData",
+				"customData",
+				"relations",
+				"gears",
+				"graphType",
+				"lineSize",
+				"lineColor",
+				"fillColor",
+				"cornerRadius",
+				"points",
+				"sides",
+				"startAngle",
+				"distances"
+			],
+			"additionalProperties": true
+		},
+		"Shape_901551dc98_read": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/Shape_208406a252_read"
+				}
+			]
+		},
+		"Shape_208406a252_read": {
+			"type": "array",
+			"minItems": 4,
+			"maxItems": 4,
+			"items": {
+				"type": "number"
+			}
+		},
+		"Shape_3bb3fc0cfc_read": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/Array_84dc8cbe6b_read"
+				}
+			]
+		},
+		"Array_84dc8cbe6b_read": {
+			"type": "array",
+			"items": {
+				"type": "number"
+			}
+		},
+		"UamGroupNode_7f8e4b5101_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "group"
+				},
+				"group": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"position": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"size": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"locked": {
+					"type": "boolean"
+				},
+				"aspect": {
+					"type": "boolean"
+				},
+				"minSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"maxSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"pivot": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"pivotAsAnchor": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"scale": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"skew": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"visible": {
+					"type": "boolean"
+				},
+				"touchable": {
+					"type": "boolean"
+				},
+				"grayed": {
+					"type": "boolean"
+				},
+				"alpha": {
+					"type": "number"
+				},
+				"rotation": {
+					"type": "number"
+				},
+				"tooltips": {
+					"type": "string"
+				},
+				"blendMode": {
+					"enum": [
+						"add",
+						"none",
+						"normal",
+						"multiply",
+						"screen",
+						"erase"
+					]
+				},
+				"filter": {
+					"type": "string"
+				},
+				"filterData": {
+					"type": "string"
+				},
+				"customData": {
+					"type": "string"
+				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_read"
+				},
+				"gears": {
+					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+				},
+				"layout": {
+					"type": "number"
+				},
+				"lineGap": {
+					"type": "number"
+				},
+				"columnGap": {
+					"type": "number"
+				},
+				"advanced": {
+					"type": "boolean"
+				},
+				"excludeInvisibles": {
+					"type": "boolean"
+				},
+				"autoSizeDisabled": {
+					"type": "boolean"
+				},
+				"mainGridIndex": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"kind",
+				"group",
+				"id",
+				"name",
+				"position",
+				"size",
+				"locked",
+				"aspect",
+				"minSize",
+				"maxSize",
+				"scale",
+				"skew",
+				"visible",
+				"touchable",
+				"grayed",
+				"alpha",
+				"rotation",
+				"tooltips",
+				"blendMode",
+				"filter",
+				"filterData",
+				"customData",
+				"relations",
+				"gears",
+				"layout",
+				"lineGap",
+				"columnGap",
+				"advanced",
+				"excludeInvisibles",
+				"autoSizeDisabled",
+				"mainGridIndex"
+			],
+			"additionalProperties": true
+		},
+		"UamLoaderNode_1f097f3724_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "loader"
+				},
+				"pivot": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"position": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"size": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"locked": {
+					"type": "boolean"
+				},
+				"aspect": {
+					"type": "boolean"
+				},
+				"minSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"maxSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"pivotAsAnchor": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"scale": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"skew": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"visible": {
+					"type": "boolean"
+				},
+				"touchable": {
+					"type": "boolean"
+				},
+				"grayed": {
+					"type": "boolean"
+				},
+				"alpha": {
+					"type": "number"
+				},
+				"rotation": {
+					"type": "number"
+				},
+				"tooltips": {
+					"type": "string"
+				},
+				"blendMode": {
+					"enum": [
+						"add",
+						"none",
+						"normal",
+						"multiply",
+						"screen",
+						"erase"
+					]
+				},
+				"filter": {
+					"type": "string"
+				},
+				"filterData": {
+					"type": "string"
+				},
+				"customData": {
+					"type": "string"
+				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_read"
+				},
+				"gears": {
+					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+				},
+				"url": {
+					"type": "string"
+				},
+				"fill": {
+					"type": "number"
+				},
+				"shrinkOnly": {
+					"type": "boolean"
+				},
+				"autoSize": {
+					"type": "boolean"
+				},
+				"useResize": {
+					"type": "boolean"
+				},
+				"showErrorSign": {
+					"type": "boolean"
+				},
+				"align": {
+					"type": "number"
+				},
+				"vAlign": {
+					"type": "number"
+				},
+				"frame": {
+					"type": "number"
+				},
+				"playing": {
+					"type": "boolean"
+				},
+				"color": {
+					"type": "string"
+				},
+				"fillMethod": {
+					"type": "number"
+				},
+				"fillOrigin": {
+					"type": "number"
+				},
+				"fillClockwise": {
+					"type": "boolean"
+				},
+				"fillAmount": {
+					"type": "number"
+				},
+				"clearOnPublish": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"kind",
+				"pivot",
+				"id",
+				"name",
+				"position",
+				"size",
+				"locked",
+				"aspect",
+				"minSize",
+				"maxSize",
+				"scale",
+				"skew",
+				"visible",
+				"touchable",
+				"grayed",
+				"alpha",
+				"rotation",
+				"tooltips",
+				"blendMode",
+				"filter",
+				"filterData",
+				"customData",
+				"relations",
+				"gears",
+				"url",
+				"fill",
+				"shrinkOnly",
+				"autoSize",
+				"useResize",
+				"showErrorSign",
+				"align",
+				"vAlign",
+				"frame",
+				"playing",
+				"color",
+				"fillMethod",
+				"fillOrigin",
+				"fillClockwise",
+				"fillAmount",
+				"clearOnPublish"
+			],
+			"additionalProperties": true
+		},
+		"UamLoader3DNode_f53e4afa5e_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "loader3D"
+				},
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"position": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"size": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"locked": {
+					"type": "boolean"
+				},
+				"aspect": {
+					"type": "boolean"
+				},
+				"minSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"maxSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"pivot": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"pivotAsAnchor": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"scale": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"skew": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"visible": {
+					"type": "boolean"
+				},
+				"touchable": {
+					"type": "boolean"
+				},
+				"grayed": {
+					"type": "boolean"
+				},
+				"alpha": {
+					"type": "number"
+				},
+				"rotation": {
+					"type": "number"
+				},
+				"tooltips": {
+					"type": "string"
+				},
+				"blendMode": {
+					"enum": [
+						"add",
+						"none",
+						"normal",
+						"multiply",
+						"screen",
+						"erase"
+					]
+				},
+				"filter": {
+					"type": "string"
+				},
+				"filterData": {
+					"type": "string"
+				},
+				"customData": {
+					"type": "string"
+				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_read"
+				},
+				"gears": {
+					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+				},
+				"url": {
+					"type": "string"
+				},
+				"fill": {
+					"type": "number"
+				},
+				"shrinkOnly": {
+					"type": "boolean"
+				},
+				"autoSize": {
+					"type": "boolean"
+				},
+				"align": {
+					"type": "number"
+				},
+				"vAlign": {
+					"type": "number"
+				},
+				"animationName": {
+					"type": "string"
+				},
+				"skinName": {
+					"type": "string"
+				},
+				"playing": {
+					"type": "boolean"
+				},
+				"frame": {
+					"type": "number"
+				},
+				"loop": {
+					"type": "boolean"
+				},
+				"color": {
+					"type": "string"
+				},
+				"clearOnPublish": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"kind",
+				"id",
+				"name",
+				"position",
+				"size",
+				"locked",
+				"aspect",
+				"minSize",
+				"maxSize",
+				"scale",
+				"skew",
+				"visible",
+				"touchable",
+				"grayed",
+				"alpha",
+				"rotation",
+				"tooltips",
+				"blendMode",
+				"filter",
+				"filterData",
+				"customData",
+				"relations",
+				"gears",
+				"url",
+				"fill",
+				"shrinkOnly",
+				"autoSize",
+				"align",
+				"vAlign",
+				"animationName",
+				"skinName",
+				"playing",
+				"frame",
+				"loop",
+				"color",
+				"clearOnPublish"
+			],
+			"additionalProperties": true
+		},
+		"UamMovieClipNode_77dce6d447_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "movieClip"
+				},
+				"resource": {
+					"$ref": "#/$defs/UamResourceRef_3486136f6c_read"
+				},
+				"fileName": {
+					"type": "string"
+				},
+				"group": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"position": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"size": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"locked": {
+					"type": "boolean"
+				},
+				"aspect": {
+					"type": "boolean"
+				},
+				"minSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"maxSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"pivot": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"pivotAsAnchor": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"scale": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"skew": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"visible": {
+					"type": "boolean"
+				},
+				"touchable": {
+					"type": "boolean"
+				},
+				"grayed": {
+					"type": "boolean"
+				},
+				"alpha": {
+					"type": "number"
+				},
+				"rotation": {
+					"type": "number"
+				},
+				"tooltips": {
+					"type": "string"
+				},
+				"blendMode": {
+					"enum": [
+						"add",
+						"none",
+						"normal",
+						"multiply",
+						"screen",
+						"erase"
+					]
+				},
+				"filter": {
+					"type": "string"
+				},
+				"filterData": {
+					"type": "string"
+				},
+				"customData": {
+					"type": "string"
+				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_read"
+				},
+				"gears": {
+					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+				},
+				"playing": {
+					"type": "boolean"
+				},
+				"frame": {
+					"type": "number"
+				},
+				"color": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"kind",
+				"resource",
+				"fileName",
+				"group",
+				"id",
+				"name",
+				"position",
+				"size",
+				"locked",
+				"aspect",
+				"minSize",
+				"maxSize",
+				"scale",
+				"skew",
+				"visible",
+				"touchable",
+				"grayed",
+				"alpha",
+				"rotation",
+				"tooltips",
+				"blendMode",
+				"filter",
+				"filterData",
+				"customData",
+				"relations",
+				"gears",
+				"playing",
+				"frame",
+				"color"
+			],
+			"additionalProperties": true
+		},
+		"UamButtonNode_f2028f1d63_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "button"
+				},
+				"selectedTitle": {
+					"type": "string"
+				},
+				"selectedIcon": {
+					"type": "string"
+				},
+				"mode": {
+					"type": "number"
+				},
+				"downEffect": {
+					"type": "number"
+				},
+				"downEffectValue": {
+					"type": "number"
+				},
+				"title": {
+					"type": "string"
+				},
+				"icon": {
+					"type": "string"
+				},
+				"titleColor": {
+					"type": "string"
+				},
+				"titleFontSize": {
+					"type": "number"
+				},
+				"sound": {
+					"type": "string"
+				},
+				"soundVolumeScale": {
+					"type": "number"
+				},
+				"src": {
+					"type": "string"
+				},
+				"packageId": {
+					"type": "string"
+				},
+				"group": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"position": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"size": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"locked": {
+					"type": "boolean"
+				},
+				"aspect": {
+					"type": "boolean"
+				},
+				"minSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"maxSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"pivot": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"pivotAsAnchor": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"scale": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"skew": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"visible": {
+					"type": "boolean"
+				},
+				"touchable": {
+					"type": "boolean"
+				},
+				"grayed": {
+					"type": "boolean"
+				},
+				"alpha": {
+					"type": "number"
+				},
+				"rotation": {
+					"type": "number"
+				},
+				"tooltips": {
+					"type": "string"
+				},
+				"blendMode": {
+					"enum": [
+						"add",
+						"none",
+						"normal",
+						"multiply",
+						"screen",
+						"erase"
+					]
+				},
+				"filter": {
+					"type": "string"
+				},
+				"filterData": {
+					"type": "string"
+				},
+				"customData": {
+					"type": "string"
+				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_read"
+				},
+				"gears": {
+					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+				}
+			},
+			"required": [
+				"kind",
+				"selectedTitle",
+				"selectedIcon",
+				"mode",
+				"downEffect",
+				"downEffectValue",
+				"title",
+				"icon",
+				"titleColor",
+				"titleFontSize",
+				"sound",
+				"soundVolumeScale",
+				"src",
+				"packageId",
+				"group",
+				"id",
+				"name",
+				"position",
+				"size",
+				"locked",
+				"aspect",
+				"minSize",
+				"maxSize",
+				"scale",
+				"skew",
+				"visible",
+				"touchable",
+				"grayed",
+				"alpha",
+				"rotation",
+				"tooltips",
+				"blendMode",
+				"filter",
+				"filterData",
+				"customData",
+				"relations",
+				"gears"
+			],
+			"additionalProperties": true
+		},
+		"UamLabelNode_745844563c_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "label"
+				},
+				"title": {
+					"type": "string"
+				},
+				"icon": {
+					"type": "string"
+				},
+				"titleColor": {
+					"type": "string"
+				},
+				"titleFontSize": {
+					"type": "number"
+				},
+				"sound": {
+					"type": "string"
+				},
+				"soundVolumeScale": {
+					"type": "number"
+				},
+				"src": {
+					"type": "string"
+				},
+				"packageId": {
+					"type": "string"
+				},
+				"group": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"position": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"size": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"locked": {
+					"type": "boolean"
+				},
+				"aspect": {
+					"type": "boolean"
+				},
+				"minSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"maxSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"pivot": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"pivotAsAnchor": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"scale": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"skew": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"visible": {
+					"type": "boolean"
+				},
+				"touchable": {
+					"type": "boolean"
+				},
+				"grayed": {
+					"type": "boolean"
+				},
+				"alpha": {
+					"type": "number"
+				},
+				"rotation": {
+					"type": "number"
+				},
+				"tooltips": {
+					"type": "string"
+				},
+				"blendMode": {
+					"enum": [
+						"add",
+						"none",
+						"normal",
+						"multiply",
+						"screen",
+						"erase"
+					]
+				},
+				"filter": {
+					"type": "string"
+				},
+				"filterData": {
+					"type": "string"
+				},
+				"customData": {
+					"type": "string"
+				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_read"
+				},
+				"gears": {
+					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+				}
+			},
+			"required": [
+				"kind",
+				"title",
+				"icon",
+				"titleColor",
+				"titleFontSize",
+				"sound",
+				"soundVolumeScale",
+				"src",
+				"packageId",
+				"group",
+				"id",
+				"name",
+				"position",
+				"size",
+				"locked",
+				"aspect",
+				"minSize",
+				"maxSize",
+				"scale",
+				"skew",
+				"visible",
+				"touchable",
+				"grayed",
+				"alpha",
+				"rotation",
+				"tooltips",
+				"blendMode",
+				"filter",
+				"filterData",
+				"customData",
+				"relations",
+				"gears"
+			],
+			"additionalProperties": true
+		},
+		"UamComboBoxNode_fae3458a32_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "comboBox"
+				},
+				"items": {
+					"$ref": "#/$defs/Array_5444db1618_read"
+				},
+				"icons": {
+					"$ref": "#/$defs/Array_5444db1618_read"
+				},
+				"values": {
+					"$ref": "#/$defs/Array_5444db1618_read"
+				},
+				"selectedIndex": {
+					"type": "number"
+				},
+				"visibleItemCount": {
+					"type": "number"
+				},
+				"popupDirection": {
+					"type": "number"
+				},
+				"title": {
+					"type": "string"
+				},
+				"icon": {
+					"type": "string"
+				},
+				"titleColor": {
+					"type": "string"
+				},
+				"titleFontSize": {
+					"type": "number"
+				},
+				"sound": {
+					"type": "string"
+				},
+				"soundVolumeScale": {
+					"type": "number"
+				},
+				"src": {
+					"type": "string"
+				},
+				"packageId": {
+					"type": "string"
+				},
+				"group": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"position": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"size": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"locked": {
+					"type": "boolean"
+				},
+				"aspect": {
+					"type": "boolean"
+				},
+				"minSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"maxSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"pivot": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"pivotAsAnchor": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"scale": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"skew": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"visible": {
+					"type": "boolean"
+				},
+				"touchable": {
+					"type": "boolean"
+				},
+				"grayed": {
+					"type": "boolean"
+				},
+				"alpha": {
+					"type": "number"
+				},
+				"rotation": {
+					"type": "number"
+				},
+				"tooltips": {
+					"type": "string"
+				},
+				"blendMode": {
+					"enum": [
+						"add",
+						"none",
+						"normal",
+						"multiply",
+						"screen",
+						"erase"
+					]
+				},
+				"filter": {
+					"type": "string"
+				},
+				"filterData": {
+					"type": "string"
+				},
+				"customData": {
+					"type": "string"
+				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_read"
+				},
+				"gears": {
+					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+				}
+			},
+			"required": [
+				"kind",
+				"items",
+				"icons",
+				"values",
+				"selectedIndex",
+				"visibleItemCount",
+				"popupDirection",
+				"title",
+				"icon",
+				"titleColor",
+				"titleFontSize",
+				"sound",
+				"soundVolumeScale",
+				"src",
+				"packageId",
+				"group",
+				"id",
+				"name",
+				"position",
+				"size",
+				"locked",
+				"aspect",
+				"minSize",
+				"maxSize",
+				"scale",
+				"skew",
+				"visible",
+				"touchable",
+				"grayed",
+				"alpha",
+				"rotation",
+				"tooltips",
+				"blendMode",
+				"filter",
+				"filterData",
+				"customData",
+				"relations",
+				"gears"
+			],
+			"additionalProperties": true
+		},
+		"UamProgressBarNode_54cbbca18d_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "progressBar"
+				},
+				"titleType": {
+					"type": "number"
+				},
+				"min": {
+					"type": "number"
+				},
+				"max": {
+					"type": "number"
+				},
+				"value": {
+					"type": "number"
+				},
+				"reverse": {
+					"type": "boolean"
+				},
+				"sound": {
+					"type": "string"
+				},
+				"soundVolumeScale": {
+					"type": "number"
+				},
+				"src": {
+					"type": "string"
+				},
+				"packageId": {
+					"type": "string"
+				},
+				"group": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"position": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"size": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"locked": {
+					"type": "boolean"
+				},
+				"aspect": {
+					"type": "boolean"
+				},
+				"minSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"maxSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"pivot": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"pivotAsAnchor": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"scale": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"skew": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"visible": {
+					"type": "boolean"
+				},
+				"touchable": {
+					"type": "boolean"
+				},
+				"grayed": {
+					"type": "boolean"
+				},
+				"alpha": {
+					"type": "number"
+				},
+				"rotation": {
+					"type": "number"
+				},
+				"tooltips": {
+					"type": "string"
+				},
+				"blendMode": {
+					"enum": [
+						"add",
+						"none",
+						"normal",
+						"multiply",
+						"screen",
+						"erase"
+					]
+				},
+				"filter": {
+					"type": "string"
+				},
+				"filterData": {
+					"type": "string"
+				},
+				"customData": {
+					"type": "string"
+				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_read"
+				},
+				"gears": {
+					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+				}
+			},
+			"required": [
+				"kind",
+				"titleType",
+				"min",
+				"max",
+				"value",
+				"reverse",
+				"sound",
+				"soundVolumeScale",
+				"src",
+				"packageId",
+				"group",
+				"id",
+				"name",
+				"position",
+				"size",
+				"locked",
+				"aspect",
+				"minSize",
+				"maxSize",
+				"scale",
+				"skew",
+				"visible",
+				"touchable",
+				"grayed",
+				"alpha",
+				"rotation",
+				"tooltips",
+				"blendMode",
+				"filter",
+				"filterData",
+				"customData",
+				"relations",
+				"gears"
+			],
+			"additionalProperties": true
+		},
+		"UamSliderNode_3dc285cb59_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "slider"
+				},
+				"titleType": {
+					"type": "number"
+				},
+				"min": {
+					"type": "number"
+				},
+				"max": {
+					"type": "number"
+				},
+				"value": {
+					"type": "number"
+				},
+				"wholeNumbers": {
+					"type": "boolean"
+				},
+				"src": {
+					"type": "string"
+				},
+				"packageId": {
+					"type": "string"
+				},
+				"group": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"position": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"size": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"locked": {
+					"type": "boolean"
+				},
+				"aspect": {
+					"type": "boolean"
+				},
+				"minSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"maxSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"pivot": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"pivotAsAnchor": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"scale": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"skew": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"visible": {
+					"type": "boolean"
+				},
+				"touchable": {
+					"type": "boolean"
+				},
+				"grayed": {
+					"type": "boolean"
+				},
+				"alpha": {
+					"type": "number"
+				},
+				"rotation": {
+					"type": "number"
+				},
+				"tooltips": {
+					"type": "string"
+				},
+				"blendMode": {
+					"enum": [
+						"add",
+						"none",
+						"normal",
+						"multiply",
+						"screen",
+						"erase"
+					]
+				},
+				"filter": {
+					"type": "string"
+				},
+				"filterData": {
+					"type": "string"
+				},
+				"customData": {
+					"type": "string"
+				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_read"
+				},
+				"gears": {
+					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+				}
+			},
+			"required": [
+				"kind",
+				"titleType",
+				"min",
+				"max",
+				"value",
+				"wholeNumbers",
+				"src",
+				"packageId",
+				"group",
+				"id",
+				"name",
+				"position",
+				"size",
+				"locked",
+				"aspect",
+				"minSize",
+				"maxSize",
+				"scale",
+				"skew",
+				"visible",
+				"touchable",
+				"grayed",
+				"alpha",
+				"rotation",
+				"tooltips",
+				"blendMode",
+				"filter",
+				"filterData",
+				"customData",
+				"relations",
+				"gears"
+			],
+			"additionalProperties": true
+		},
+		"UamScrollBarNode_6521c99a04_read": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"const": "scrollBar"
+				},
+				"fixedGripSize": {
+					"type": "boolean"
+				},
+				"src": {
+					"type": "string"
+				},
+				"packageId": {
+					"type": "string"
+				},
+				"group": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"position": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"size": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"locked": {
+					"type": "boolean"
+				},
+				"aspect": {
+					"type": "boolean"
+				},
+				"minSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"maxSize": {
+					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+				},
+				"pivot": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"pivotAsAnchor": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"scale": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"skew": {
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+				},
+				"visible": {
+					"type": "boolean"
+				},
+				"touchable": {
+					"type": "boolean"
+				},
+				"grayed": {
+					"type": "boolean"
+				},
+				"alpha": {
+					"type": "number"
+				},
+				"rotation": {
+					"type": "number"
+				},
+				"tooltips": {
+					"type": "string"
+				},
+				"blendMode": {
+					"enum": [
+						"add",
+						"none",
+						"normal",
+						"multiply",
+						"screen",
+						"erase"
+					]
+				},
+				"filter": {
+					"type": "string"
+				},
+				"filterData": {
+					"type": "string"
+				},
+				"customData": {
+					"type": "string"
+				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_read"
+				},
+				"gears": {
+					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+				}
+			},
+			"required": [
+				"kind",
+				"fixedGripSize",
+				"src",
+				"packageId",
+				"group",
+				"id",
+				"name",
+				"position",
+				"size",
+				"locked",
+				"aspect",
+				"minSize",
+				"maxSize",
+				"scale",
+				"skew",
+				"visible",
+				"touchable",
+				"grayed",
+				"alpha",
+				"rotation",
+				"tooltips",
+				"blendMode",
+				"filter",
+				"filterData",
+				"customData",
+				"relations",
+				"gears"
+			],
+			"additionalProperties": true
+		},
+		"Array_33931a1f70_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamControllerModel_d2c7df213c_read"
+			}
+		},
+		"UamControllerModel_d2c7df213c_read": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"selectedIndex": {
+					"type": "number"
+				},
+				"autoRadioGroupDepth": {
+					"type": "boolean"
+				},
+				"alias": {
+					"type": "string"
+				},
+				"exported": {
+					"type": "boolean"
+				},
+				"homePageType": {
+					"enum": [
+						"default",
+						"variable",
+						"specific",
+						"branch"
+					]
+				},
+				"homePage": {
+					"type": "string"
+				},
+				"pages": {
+					"$ref": "#/$defs/Array_3cddeaf305_read"
+				},
+				"actions": {
+					"$ref": "#/$defs/Array_9ca78e6812_read"
+				}
+			},
+			"required": [
+				"name",
+				"selectedIndex",
+				"autoRadioGroupDepth",
+				"alias",
+				"exported",
+				"homePageType",
+				"homePage",
+				"pages",
+				"actions"
+			],
+			"additionalProperties": true
+		},
+		"Array_3cddeaf305_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamControllerPage_f4ec4b78c2_read"
+			}
+		},
+		"UamControllerPage_f4ec4b78c2_read": {
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"remark": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"id",
+				"name",
+				"remark"
+			],
+			"additionalProperties": true
+		},
+		"Array_9ca78e6812_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamControllerAction_e2543de88e_read"
+			}
+		},
+		"UamControllerAction_e2543de88e_read": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"actionType": {
+					"type": "number"
+				},
+				"fromPageIds": {
+					"$ref": "#/$defs/Array_5444db1618_read"
+				},
+				"toPageIds": {
+					"$ref": "#/$defs/Array_5444db1618_read"
+				},
+				"transitionName": {
+					"type": "string"
+				},
+				"playTimes": {
+					"type": "number"
+				},
+				"delay": {
+					"type": "number"
+				},
+				"stopOnExit": {
+					"type": "boolean"
+				},
+				"targetNodeId": {
+					"type": "string"
+				},
+				"controllerName": {
+					"type": "string"
+				},
+				"targetPage": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"name",
+				"actionType",
+				"fromPageIds",
+				"toPageIds",
+				"transitionName",
+				"playTimes",
+				"delay",
+				"stopOnExit",
+				"targetNodeId",
+				"controllerName",
+				"targetPage"
+			],
+			"additionalProperties": true
+		},
+		"Array_40451c0a9c_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamTransitionModel_467f6dc47d_read"
+			}
+		},
+		"UamTransitionModel_467f6dc47d_read": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"autoPlay": {
+					"type": "boolean"
+				},
+				"autoPlayTimes": {
+					"type": "number"
+				},
+				"autoPlayDelay": {
+					"type": "number"
+				},
+				"options": {
+					"type": "number"
+				},
+				"fps": {
+					"type": "number"
+				},
+				"items": {
+					"$ref": "#/$defs/Array_e00c02f0d2_read"
+				}
+			},
+			"required": [
+				"name",
+				"autoPlay",
+				"autoPlayTimes",
+				"autoPlayDelay",
+				"options",
+				"fps",
+				"items"
+			],
+			"additionalProperties": true
+		},
+		"Array_e00c02f0d2_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamTransitionItem_6740c9ff04_read"
+			}
+		},
+		"UamTransitionItem_6740c9ff04_read": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"time": {
+					"type": "number"
+				},
+				"actionType": {
+					"type": "number"
+				},
+				"targetNodeId": {
+					"type": "string"
+				},
+				"tween": {
+					"type": "boolean"
+				},
+				"duration": {
+					"type": "number"
+				},
+				"startValue": {
+					"$ref": "#/$defs/Array_b0089278cf_read"
+				},
+				"endValue": {
+					"$ref": "#/$defs/Array_b0089278cf_read"
+				},
+				"easeType": {
+					"type": "number"
+				},
+				"repeat": {
+					"type": "number"
+				},
+				"yoyo": {
+					"type": "boolean"
+				},
+				"label": {
+					"type": "string"
+				},
+				"endLabel": {
+					"type": "string"
+				},
+				"path": {
+					"type": "string"
+				},
+				"customEasePath": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"name",
+				"time",
+				"actionType",
+				"targetNodeId",
+				"tween",
+				"duration",
+				"startValue",
+				"endValue",
+				"easeType",
+				"repeat",
+				"yoyo",
+				"label",
+				"endLabel",
+				"path",
+				"customEasePath"
+			],
+			"additionalProperties": true
+		},
+		"Array_b0089278cf_read": {
+			"type": "array",
+			"items": {}
+		},
+		"Omit_c9f8dc1509_read": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"image": {
+					"$ref": "#/$defs/UamImageResourceProperties_cfb7584659_read"
+				},
+				"path": {
+					"type": "string"
+				},
+				"branch": {
+					"type": "string"
+				},
+				"exported": {
+					"type": "boolean"
+				},
+				"kind": {
+					"type": "string",
+					"const": "image"
+				},
+				"favorite": {
+					"type": "boolean"
+				},
+				"sourcePath": {
+					"type": "string"
+				},
+				"branchItemIds": {
+					"$ref": "#/$defs/Array_5444db1618_read"
+				},
+				"fileName": {
+					"type": "string"
+				},
+				"dimensions": {
+					"$ref": "#/$defs/Shape_348b454846_read"
+				},
+				"sourceBytes": {
+					"not": {}
+				}
+			},
+			"required": [
+				"name",
+				"id",
+				"image",
+				"path",
+				"branch",
+				"exported",
+				"kind",
+				"favorite",
+				"branchItemIds"
+			],
+			"additionalProperties": true
+		},
+		"UamImageResourceProperties_cfb7584659_read": {
+			"type": "object",
+			"properties": {
+				"textureSetMode": {
+					"type": "string"
+				},
+				"qualityOption": {
+					"type": "string"
+				},
+				"quality": {
+					"type": "number"
+				},
+				"smoothing": {
+					"type": "boolean"
+				},
+				"duplicatePadding": {
+					"type": "boolean"
+				},
+				"scaleOption": {
+					"enum": [
+						0,
+						2,
+						1
+					]
+				},
+				"scale9Grid": {
+					"$ref": "#/$defs/Shape_901551dc98_read"
+				},
+				"tileGridIndice": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"textureSetMode",
+				"qualityOption",
+				"quality",
+				"smoothing",
+				"duplicatePadding",
+				"scaleOption",
+				"scale9Grid",
+				"tileGridIndice"
+			],
+			"additionalProperties": true
+		},
+		"Shape_348b454846_read": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/UamDimensions_78dd3aa7d8_read"
+				}
+			]
+		},
+		"UamDimensions_78dd3aa7d8_read": {
+			"type": "object",
+			"properties": {
+				"width": {
+					"type": "number"
+				},
+				"height": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"width",
+				"height"
+			],
+			"additionalProperties": true
+		},
+		"Omit_6479c7d601_read": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"path": {
+					"type": "string"
+				},
+				"branch": {
+					"type": "string"
+				},
+				"exported": {
+					"type": "boolean"
+				},
+				"movieClip": {
+					"$ref": "#/$defs/UamMovieClipResourceProperties_7891e3deb2_read"
+				},
+				"kind": {
+					"type": "string",
+					"const": "movieClip"
+				},
+				"favorite": {
+					"type": "boolean"
+				},
+				"sourcePath": {
+					"type": "string"
+				},
+				"branchItemIds": {
+					"$ref": "#/$defs/Array_5444db1618_read"
+				},
+				"fileName": {
+					"type": "string"
+				},
+				"dimensions": {
+					"$ref": "#/$defs/UamDimensions_78dd3aa7d8_read"
+				},
+				"sourceBytes": {
+					"not": {}
+				}
+			},
+			"required": [
+				"name",
+				"id",
+				"path",
+				"branch",
+				"exported",
+				"movieClip",
+				"kind",
+				"favorite",
+				"branchItemIds",
+				"dimensions"
+			],
+			"additionalProperties": true
+		},
+		"UamMovieClipResourceProperties_7891e3deb2_read": {
+			"type": "object",
+			"properties": {
+				"interval": {
+					"type": "number"
+				},
+				"repeatDelay": {
+					"type": "number"
+				},
+				"swing": {
+					"type": "boolean"
+				},
+				"smoothing": {
+					"type": "boolean"
+				},
+				"frames": {
+					"$ref": "#/$defs/Array_f511a7c33d_read"
+				}
+			},
+			"required": [
+				"interval",
+				"repeatDelay",
+				"swing",
+				"smoothing",
+				"frames"
+			],
+			"additionalProperties": true
+		},
+		"Array_f511a7c33d_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamMovieClipFrame_be4b7bc991_read"
+			}
+		},
+		"UamMovieClipFrame_be4b7bc991_read": {
+			"type": "object",
+			"properties": {
+				"rectX": {
+					"type": "number"
+				},
+				"rectY": {
+					"type": "number"
+				},
+				"rectWidth": {
+					"type": "number"
+				},
+				"rectHeight": {
+					"type": "number"
+				},
+				"addDelay": {
+					"type": "number"
+				},
+				"spriteId": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"rectX",
+				"rectY",
+				"rectWidth",
+				"rectHeight",
+				"addDelay",
+				"spriteId"
+			],
+			"additionalProperties": true
+		},
+		"Omit_c2923cbde6_read": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"id": {
+					"type": "string"
+				},
+				"file": {
+					"type": "string"
+				},
+				"metadata": {
+					"$ref": "#/$defs/Shape_c7da9a8476_read"
+				},
+				"path": {
+					"type": "string"
+				},
+				"branch": {
+					"type": "string"
+				},
+				"exported": {
+					"type": "boolean"
+				},
+				"kind": {
+					"enum": [
+						"font",
+						"sound",
+						"misc",
+						"swf",
+						"spine",
+						"dragonBones"
+					]
+				},
+				"favorite": {
+					"type": "boolean"
+				},
+				"sourcePath": {
+					"type": "string"
+				},
+				"branchItemIds": {
+					"$ref": "#/$defs/Array_5444db1618_read"
+				},
+				"fileName": {
+					"type": "string"
+				},
+				"dimensions": {
+					"$ref": "#/$defs/Shape_348b454846_read"
+				},
+				"sourceBytes": {
+					"not": {}
+				}
+			},
+			"required": [
+				"name",
+				"id",
+				"path",
+				"branch",
+				"exported",
+				"kind",
+				"favorite",
+				"branchItemIds"
+			],
+			"additionalProperties": true
+		},
+		"Shape_c7da9a8476_read": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/Record_00831351dc_read"
+				}
+			]
+		},
+		"Record_00831351dc_read": {
+			"type": "object",
+			"properties": {},
+			"required": [],
+			"additionalProperties": {}
+		},
+		"Shape_ed4dd118ce_read": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/UamPackagePublish_852ce0ef37_read"
+				}
+			]
+		},
+		"UamPackagePublish_852ce0ef37_read": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"path": {
+					"type": "string"
+				},
+				"branchPath": {
+					"type": "string"
+				},
+				"packageCount": {
+					"type": "number"
+				},
+				"genCode": {
+					"type": "boolean"
+				},
+				"codePath": {
+					"type": "string"
+				},
+				"useGlobalAtlasSettings": {
+					"type": "boolean"
+				},
+				"maxAtlasSize": {
+					"type": "number"
+				},
+				"sizeOption": {
+					"enum": [
+						"pot",
+						"npot",
+						"mof"
+					]
+				},
+				"forceSquare": {
+					"type": "boolean"
+				},
+				"allowRotation": {
+					"type": "boolean"
+				},
+				"paging": {
+					"type": "boolean"
+				},
+				"extractAlpha": {
+					"type": "boolean"
+				},
+				"maxAtlasIndex": {
+					"type": "number"
+				},
+				"atlases": {
+					"$ref": "#/$defs/Array_efaaa7a0c6_read"
+				},
+				"excludedResourceIds": {
+					"$ref": "#/$defs/Array_5444db1618_read"
+				}
+			},
+			"required": [
+				"name",
+				"path",
+				"branchPath",
+				"packageCount",
+				"genCode",
+				"codePath",
+				"useGlobalAtlasSettings",
+				"maxAtlasSize",
+				"sizeOption",
+				"forceSquare",
+				"allowRotation",
+				"paging",
+				"extractAlpha",
+				"maxAtlasIndex",
+				"atlases",
+				"excludedResourceIds"
+			],
+			"additionalProperties": true
+		},
+		"Array_efaaa7a0c6_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamPackagePublishAtlas_058e9ab725_read"
+			}
+		},
+		"UamPackagePublishAtlas_058e9ab725_read": {
+			"type": "object",
+			"properties": {
+				"index": {
+					"type": "number"
+				},
+				"name": {
+					"type": "string"
+				},
+				"compression": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"index",
+				"name",
+				"compression"
+			],
+			"additionalProperties": true
+		},
+		"Shape_c0aa748fff_read": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"type": "number"
+				}
+			]
+		},
+		"Array_b86c274617_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamResourceFolder_1fd3e19c3b_read"
+			}
+		},
+		"UamResourceFolder_1fd3e19c3b_read": {
+			"type": "object",
+			"properties": {
+				"branch": {
+					"type": "string"
+				},
+				"path": {
+					"type": "string"
+				},
+				"favorite": {
+					"type": "boolean"
+				},
+				"atlas": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"branch",
+				"path",
+				"favorite",
+				"atlas"
+			],
+			"additionalProperties": true
+		},
+		"ProjectSettings_eb04257954_read": {
+			"type": "object",
+			"properties": {
+				"publish": {
+					"$ref": "#/$defs/PublishSettings_07cce4fce4_read"
+				},
+				"common": {
+					"$ref": "#/$defs/CommonSettings_d2df7b88a0_read"
+				},
+				"adaptation": {
+					"$ref": "#/$defs/AdaptationSettings_bc44aaaacd_read"
+				},
+				"customProperties": {
+					"$ref": "#/$defs/CustomPropertiesSettings_998d45f13a_read"
+				},
+				"i18n": {
+					"$ref": "#/$defs/I18nSettings_ba25aa71d9_read"
+				}
+			},
+			"required": [],
+			"additionalProperties": {}
+		},
+		"PublishSettings_07cce4fce4_read": {
+			"type": "object",
+			"properties": {
+				"binaryFormat": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"compressDesc": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"fileExtension": {
+					"type": "string"
+				},
+				"path": {
+					"type": "string"
+				},
+				"branchPath": {
+					"type": "string"
+				},
+				"includeHighResolution": {
+					"type": "number"
+				},
+				"branchProcessing": {
+					"type": "number"
+				},
+				"seperatedAtlasForBranch": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"packageCount": {
+					"type": "number"
+				},
+				"atlasSetting": {
+					"$ref": "#/$defs/__type_3e7e0f03d2_read"
+				},
+				"codeGeneration": {
+					"$ref": "#/$defs/__type_d4a3b6df84_read"
+				}
+			},
+			"required": [],
+			"additionalProperties": true
+		},
+		"__type_3e7e0f03d2_read": {
+			"type": "object",
+			"properties": {
+				"maxSize": {
+					"type": "number"
+				},
+				"paging": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"sizeOption": {
+					"type": "string"
+				},
+				"forceSquare": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"fast": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"allowRotation": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"padding": {
+					"type": "number"
+				},
+				"trimImage": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"extractAlpha": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				}
+			},
+			"required": [],
+			"additionalProperties": true
+		},
+		"__type_d4a3b6df84_read": {
+			"type": "object",
+			"properties": {
+				"allowGenCode": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"classNamePrefix": {
+					"type": "string"
+				},
+				"codePath": {
+					"type": "string"
+				},
+				"codeType": {
+					"type": "string"
+				},
+				"getMemberByName": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"ignoreNoname": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
+				"memberNamePrefix": {
+					"type": "string"
+				},
+				"packageName": {
+					"type": "string"
+				}
+			},
+			"required": [],
+			"additionalProperties": true
+		},
+		"CommonSettings_d2df7b88a0_read": {
+			"type": "object",
+			"properties": {
+				"font": {
+					"type": "string"
+				},
+				"fontSize": {
+					"type": "number"
+				},
+				"textColor": {
+					"type": "string"
+				},
+				"buttonClickSound": {
+					"type": "string"
+				},
+				"scrollBars": {
+					"$ref": "#/$defs/__type_27493ca38f_read"
+				},
+				"pivot": {
+					"type": "string"
+				},
+				"colorScheme": {
+					"$ref": "#/$defs/Array_5444db1618_read"
+				},
+				"fontScheme": {
+					"$ref": "#/$defs/Array_5444db1618_read"
+				},
+				"fontSizeScheme": {
+					"$ref": "#/$defs/Array_5444db1618_read"
+				},
+				"tipsRes": {
+					"type": "string"
+				}
+			},
+			"required": [],
+			"additionalProperties": true
+		},
+		"__type_27493ca38f_read": {
+			"type": "object",
+			"properties": {
+				"defaultDisplay": {
+					"type": "string"
+				},
+				"horizontal": {
+					"type": "string"
+				},
+				"vertical": {
+					"type": "string"
+				}
+			},
+			"required": [],
+			"additionalProperties": true
+		},
+		"AdaptationSettings_bc44aaaacd_read": {
+			"type": "object",
+			"properties": {
+				"designResolutionX": {
+					"type": "number"
+				},
+				"designResolutionY": {
+					"type": "number"
+				},
+				"scaleMode": {
+					"type": "string"
+				},
+				"screenMathMode": {
+					"type": "string"
+				},
+				"devices": {
+					"$ref": "#/$defs/Array_b0089278cf_read"
+				}
+			},
+			"required": [],
+			"additionalProperties": true
+		},
+		"CustomPropertiesSettings_998d45f13a_read": {
+			"type": "object",
+			"properties": {},
+			"required": [],
+			"additionalProperties": {
+				"$ref": "#/$defs/JsonValue_2e8ca24927_read"
+			}
+		},
+		"JsonValue_2e8ca24927_read": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"type": "string"
+				},
+				{
+					"type": "number"
+				},
+				{
+					"type": "boolean",
+					"const": false
+				},
+				{
+					"type": "boolean",
+					"const": true
+				},
+				{
+					"$ref": "#/$defs/Array_0ed736b115_read"
+				},
+				{
+					"$ref": "#/$defs/__type_9a0811c5dd_read"
+				}
+			]
+		},
+		"Array_0ed736b115_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/JsonValue_2e8ca24927_read"
+			}
+		},
+		"__type_9a0811c5dd_read": {
+			"type": "object",
+			"properties": {},
+			"required": [],
+			"additionalProperties": {
+				"$ref": "#/$defs/JsonValue_2e8ca24927_read"
+			}
+		},
+		"I18nSettings_ba25aa71d9_read": {
+			"type": "object",
+			"properties": {
+				"langFiles": {
+					"$ref": "#/$defs/Array_2a467c4753_read"
+				}
+			},
+			"required": [
+				"langFiles"
+			],
+			"additionalProperties": true
+		},
+		"Array_2a467c4753_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__type_4d3a96bb12_read"
+			}
+		},
+		"__type_4d3a96bb12_read": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"path": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"name",
+				"path"
+			],
+			"additionalProperties": true
 		},
 		"CliEnvelope_605d1f5dcd": {
 			"anyOf": [
@@ -16898,6 +23733,26 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 	},
 	"diagnostics": [
 		{
+			"code": "stale_read",
+			"owners": [
+				"backend"
+			],
+			"remediation": {
+				"kind": "refresh-and-replan",
+				"message": "Discard the incomplete model/bytes read and restart with readSessionState. Use its revision for every readResourceBytes call. No historical state is retained or reserved; do not combine resources from different edit revisions."
+			}
+		},
+		{
+			"code": "session_read_failed",
+			"owners": [
+				"backend"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "Inspect error.reason: invalid_query requires valid inputs; not_found/ambiguous requires exact current resource identifiers; unsupported_resource/bytes_unavailable means primary bytes cannot be read from this session. Budget or non-JSON failures require host inspection. Preserve unsaved work; do not save, reopen, repair or mutate the model merely to obtain a read."
+			}
+		},
+		{
 			"code": "transaction_preview_failed",
 			"owners": [
 				"backend"
@@ -17923,5 +24778,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "2477d35b672c5a719b82d51714b9564a2e179d6ca65c4348ea2332d65b1e22ef"
+	"digest": "0b7c8034f3637eb0b8ff39de94bc5f1ae4deab1ef5fb978c8dbe2bb56ffc56bb"
 };

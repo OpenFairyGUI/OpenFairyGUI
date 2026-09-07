@@ -4,7 +4,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 import test from 'ava';
 import { liftDocumentToUamProject, materializeUamProject, normalizeUamProject, validateTransactionSupport, type UamTransactionOperation } from '@openfairygui/core/uam';
-import { BackendRuntime, BACKEND_ENTITY_QUERY_LIMITS, BACKEND_TRANSACTION_PREVIEW_LIMITS, type ApplySessionTransactionInput, type QueryEntityInput } from '../src/index.js';
+import { BackendRuntime, BACKEND_ENTITY_QUERY_LIMITS, BACKEND_SESSION_READ_LIMITS, BACKEND_TRANSACTION_PREVIEW_LIMITS, type ApplySessionTransactionInput, type QueryEntityInput, type ReadResourceBytesInput } from '../src/index.js';
 import type { BackendContext } from '../src/services/context.js';
 import type { AuthoringService } from '../src/services/authoring-service.js';
 import { createBackendFixtureProject, createBackendRuntime, createTempBackendProject } from './helpers.js';
@@ -12,6 +12,130 @@ import { createBackendFixtureProject, createBackendRuntime, createTempBackendPro
 const nodeTarget = { kind: 'displayNode', selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' } } as const;
 const controllerTarget = { kind: 'controller', selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: 'state' } } as const;
 const transitionTarget = { kind: 'transition', selector: { packageId: 'pkg001', componentResourceId: 'cmp001', transitionName: 'intro' } } as const;
+
+test('session reads capture committed unsaved UAM and detached primary bytes without changing any state', async (t) => {
+	const { project } = complexQueryProject();
+	const image = project.packages[0].resources.find((entry) => entry.kind === 'image');
+	assert(image?.kind === 'image');
+	project.settings.customProperties = { sourceBytes: [7, 8], nested: { sourcePath: 'keep' } };
+	image.sourcePath = 'assets/Main/original.png';
+	image.sourceBytes = new Uint8Array(await sharp({ create: { width: 320, height: 180, channels: 4, background: '#123456' } }).png().toBuffer());
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({ project });
+	assert(opened.ok);
+	const sessionId = opened.data.sessionId;
+	try {
+		const selector = { packageId: 'pkg001', resourceId: image.id };
+		const before = sessionState(runtime, sessionId);
+		const state = runtime.readSessionState({ sessionId });
+		const bytes = runtime.readResourceBytes({ sessionId, expectedRevision: 0, selector });
+		assert(state.ok && bytes.ok);
+		const expected = structuredClone(before.project);
+		for (const pkg of expected.packages) for (const resource of pkg.resources) if (resource.kind !== 'component') delete resource.sourceBytes;
+		t.deepEqual(state.data.project, expected);
+		t.is(state.data.revision, 0); t.is(state.data.lastSavedRevision, 0); t.false(state.data.dirty);
+		t.true(state.data.readComplete); t.is(state.data.uamFidelity, 'full'); t.deepEqual(state.data.readDiagnostics, []);
+		t.deepEqual(bytes.data.sourceBytes, image.sourceBytes);
+		state.data.project.packages[0].resources.length = 0; bytes.data.sourceBytes.fill(0); bytes.data.selector.resourceId = 'caller mutation';
+		t.deepEqual(sessionState(runtime, sessionId), before);
+		const { authoringService } = runtime as unknown as { authoringService: AuthoringService };
+		let release = (): void => undefined;
+		const blocking = authoringService.runSessionExclusive(sessionId, () => new Promise<void>((resolve) => { release = resolve; }));
+		await Promise.resolve();
+		const applying = runtime.applyTransaction({ sessionId, expectedRevision: 0, operations: [{ kind: 'setDisplayNodeProps', selector: nodeTarget.selector, props: { text: 'unsaved read' } }] });
+		t.deepEqual(runtime.readSessionState({ sessionId }).ok && sessionState(runtime, sessionId), before);
+		release(); await blocking;
+		assert((await applying).ok);
+		const current = runtime.readSessionState({ sessionId, expectedRevision: 1 });
+		assert(current.ok);
+		t.is(current.data.revision, 1); t.true(current.data.dirty); t.is(current.data.lastSavedRevision, 0);
+		const component = current.data.project.packages[0].resources.find((entry) => entry.id === 'cmp001');
+		assert(component?.kind === 'component');
+		const title = component.component.displayList.find((entry) => entry.id === 'n1');
+		assert(title?.kind === 'text'); t.is(title.text, 'unsaved read');
+		for (const result of [runtime.readSessionState({ sessionId, expectedRevision: 0 }), runtime.readResourceBytes({ sessionId, expectedRevision: 0, selector })]) {
+			assert(!result.ok && result.error.code === 'stale_read');
+			t.is(result.error.actualRevision, 1); t.is(result.error.expectedRevision, 0); t.is(result.meta.revision, 1);
+		}
+		t.true(runtime.readResourceBytes({ sessionId, expectedRevision: 1, selector }).ok);
+	} finally { await runtime.closeSession({ sessionId }); }
+	t.false(runtime.readSessionState({ sessionId }).ok);
+	const closed = runtime.readResourceBytes({ sessionId, expectedRevision: 1, selector: { packageId: 'pkg001', resourceId: image.id } });
+	assert(!closed.ok); t.is(closed.error.code, 'session_not_found');
+});
+
+test('session reads reject invalid inputs, unavailable bytes and ambiguous identities without hydration', async (t) => {
+	const runtime = new BackendRuntime();
+	const project = createBackendFixtureProject();
+	const image = project.packages[0].resources[0]; assert(image.kind === 'image'); delete image.sourceBytes;
+	const opened = runtime.openProjectSession({ project }); assert(opened.ok);
+	const sessionId = opened.data.sessionId;
+	try {
+		const before = sessionState(runtime, sessionId);
+		for (const [input, reason] of [
+			[{ selector: { packageId: 'pkg001', resourceId: 'img001' } }, 'bytes_unavailable'],
+			[{ expectedRevision: undefined, selector: { packageId: 'pkg001', resourceId: 'img001' } }, 'invalid_query'],
+			[{ expectedRevision: -1, selector: { packageId: 'pkg001', resourceId: 'img001' } }, 'invalid_query'],
+			[{ selector: { packageId: 'pkg001', resourceId: 'img001', extra: true } }, 'invalid_query'],
+			[{ selector: { packageId: 'pkg001', resourceId: 'cmp001' } }, 'unsupported_resource'],
+			[{ selector: { packageId: 'missing', resourceId: 'img001' } }, 'not_found'],
+			[{ selector: { packageId: 'pkg001', resourceId: 'missing' } }, 'not_found'],
+		] as const) {
+			const result = runtime.readResourceBytes({ sessionId, expectedRevision: 0, ...input } as ReadResourceBytesInput);
+			assert(!result.ok && result.error.code === 'session_read_failed'); t.is(result.error.reason, reason);
+		}
+		for (const expectedRevision of [-1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+			const result = runtime.readSessionState({ sessionId, expectedRevision });
+			assert(!result.ok && result.error.code === 'session_read_failed'); t.is(result.error.reason, 'invalid_query');
+		}
+		t.true(runtime.readSessionState({ sessionId }).ok);
+		t.deepEqual(sessionState(runtime, sessionId), before);
+	} finally { await runtime.closeSession({ sessionId }); }
+	for (const duplicate of ['package', 'resource']) {
+		const ambiguous = structuredClone(project);
+		if (duplicate === 'package') ambiguous.packages.push(structuredClone(ambiguous.packages[0]));
+		else ambiguous.packages[0].resources.push(structuredClone(ambiguous.packages[0].resources[0]));
+		const session = runtime.openProjectSession({ project: ambiguous }); assert(session.ok);
+		const result = runtime.readResourceBytes({ sessionId: session.data.sessionId, expectedRevision: 0, selector: { packageId: 'pkg001', resourceId: 'img001' } });
+		assert(!result.ok && result.error.code === 'session_read_failed'); t.is(result.error.reason, 'ambiguous');
+		await runtime.closeSession({ sessionId: session.data.sessionId });
+	}
+});
+
+test('session model budgets and fidelity failures are explicit; resource buffers are bounded independently', async (t) => {
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({ project: createBackendFixtureProject() }); assert(opened.ok);
+	const sessionId = opened.data.sessionId;
+	const { context } = runtime as unknown as { context: BackendContext };
+	const session = context.sessions.get(sessionId)!;
+	const image = session.project.packages[0].resources[0]; assert(image.kind === 'image');
+	try {
+		session.readComplete = false; session.uamFidelity = 'unsupported';
+		session.readDiagnostics = [{ code: 'unreadable_source', severity: 'error', path: 'source.png', message: 'Retain source diagnostic' }];
+		const read = runtime.readSessionState({ sessionId }); assert(read.ok);
+		t.false(read.data.readComplete); t.is(read.data.uamFidelity, 'unsupported'); t.deepEqual(read.data.readDiagnostics, session.readDiagnostics);
+		read.data.readDiagnostics.length = 0; t.is(session.readDiagnostics.length, 1);
+		let deep: unknown = 'leaf'; for (let i = 0; i < 65; i++) deep = { deep };
+		for (const [metadata, reason] of [
+			[{ large: '界'.repeat(BACKEND_SESSION_READ_LIMITS.model.maxBytes / 2) }, 'response_budget_exceeded'],
+			[{ large: Array(BACKEND_SESSION_READ_LIMITS.model.maxNodes).fill(0) }, 'response_budget_exceeded'],
+			[deep, 'response_budget_exceeded'], [{ big: 1n }, 'non_json_value'], [{ number: Infinity }, 'non_json_value'],
+		] as const) {
+			session.project.settings.customProperties = { probe: metadata } as typeof session.project.settings.customProperties;
+			const result = runtime.readSessionState({ sessionId });
+			assert(!result.ok && result.error.code === 'session_read_failed'); t.is(result.error.reason, reason);
+		}
+		session.project.settings.customProperties = {};
+		for (const size of [0, BACKEND_SESSION_READ_LIMITS.resourceBytes, BACKEND_SESSION_READ_LIMITS.resourceBytes + 1]) {
+			image.sourceBytes = new Uint8Array(size);
+			const result = runtime.readResourceBytes({ sessionId, expectedRevision: 0, selector: { packageId: 'pkg001', resourceId: 'img001' } });
+			if (size > BACKEND_SESSION_READ_LIMITS.resourceBytes) {
+				assert(!result.ok && result.error.code === 'session_read_failed'); t.is(result.error.reason, 'response_budget_exceeded');
+			} else { assert(result.ok); t.is(result.data.sourceBytes.length, size); }
+			t.true(runtime.readSessionState({ sessionId }).ok);
+		}
+	} finally { await runtime.closeSession({ sessionId }); }
+});
 
 function complexQueryProject() {
 	const project = liftDocumentToUamProject(materializeUamProject(createBackendFixtureProject()));

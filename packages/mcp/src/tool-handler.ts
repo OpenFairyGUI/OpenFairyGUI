@@ -12,12 +12,12 @@ import {
 } from './tool-definitions.js';
 
 import { decodeToolBytes, CONTRACT_SNAPSHOT } from './contract-schema.js';
-import type { McpUnhandledFailure } from './tool-metadata.js';
+import type { McpUnhandledFailure, McpResponseBudgetFailure } from './tool-metadata.js';
 
 export type OpenFairyGuiBackendRuntime = Pick<BackendRuntime, BackendMethodName>;
 
-function jsonResult(payload: unknown, isError = false): CallToolResult {
-	const text = JSON.stringify(payload, (_key, value) => value instanceof Uint8Array ? [...value] : value, 2);
+function jsonResult(payload: unknown, isError = false, compact = false): CallToolResult {
+	const text = JSON.stringify(payload, (_key, value) => value instanceof Uint8Array ? [...value] : value, compact ? undefined : 2);
 	const wirePayload = JSON.parse(text) as unknown;
 	return {
 		content: [
@@ -74,7 +74,13 @@ export async function callOpenFairyGuiBackendTool(
 	const startedAt = Date.now();
 	try {
 		const result = await Reflect.apply(runtime[definition.backendMethod], runtime, definition.backendMethod === 'getCapabilities' ? [] : [decoded]);
-		const response = jsonResult(result, isBackendFailure(result));
+		let response = jsonResult(result, isBackendFailure(result), definition.maxResponseBytes !== undefined);
+		if (definition.maxResponseBytes !== undefined && new TextEncoder().encode(JSON.stringify(response)).byteLength > definition.maxResponseBytes) {
+			response = jsonResult({
+				...unhandledBackendFailure(startedAt),
+				error: { code: 'mcp_response_budget_exceeded', message: 'The complete MCP tool response exceeds its byte limit.', maxBytes: definition.maxResponseBytes },
+			} satisfies McpResponseBudgetFailure, true);
+		}
 		definition.outputSchema.parse(response.structuredContent);
 		return response;
 	} catch {

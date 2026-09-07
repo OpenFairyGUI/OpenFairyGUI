@@ -33,6 +33,14 @@ const job = { kind: 'host-action', message: "Inspect the job ID and status with 
 
 /** Exhaustiveness and exact ownership are checked against the canonical unions. */
 export const BACKEND_DIAGNOSTIC_GUIDES = [
+	{ code: 'stale_read', owners: ['backend'], remediation: {
+		kind: 'refresh-and-replan',
+		message: 'Discard the incomplete model/bytes read and restart with readSessionState. Use its revision for every readResourceBytes call. No historical state is retained or reserved; do not combine resources from different edit revisions.',
+	} },
+	{ code: 'session_read_failed', owners: ['backend'], remediation: {
+		kind: 'host-action',
+		message: 'Inspect error.reason: invalid_query requires valid inputs; not_found/ambiguous requires exact current resource identifiers; unsupported_resource/bytes_unavailable means primary bytes cannot be read from this session. Budget or non-JSON failures require host inspection. Preserve unsaved work; do not save, reopen, repair or mutate the model merely to obtain a read.',
+	} },
 	{ code: 'transaction_preview_failed', owners: ['backend'], remediation: {
 		kind: 'host-action',
 		message: 'No complete preview is available. Inspect error.reason with the host: response_budget_exceeded requires a smaller independently meaningful authorized batch; projection_failed requires inspecting the project serialization failure. Preserve the session and never treat a missing or truncated impact as approval to apply or save.',

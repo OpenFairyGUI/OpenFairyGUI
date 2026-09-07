@@ -10,7 +10,7 @@ import {
 import { createRuntimePathPolicy } from '../path-policy.js';
 import { createArtifactCapabilities } from '../services/artifact-service.js';
 import type { BackendArtifactBridgeCapability, BackendCapabilities, BackendMethodName } from './contracts.js';
-import { BACKEND_ENTITY_QUERY_LIMITS, BACKEND_TRANSACTION_PREVIEW_LIMITS } from './contracts.js';
+import { BACKEND_ENTITY_QUERY_LIMITS, BACKEND_SESSION_READ_LIMITS, BACKEND_TRANSACTION_PREVIEW_LIMITS } from './contracts.js';
 
 export const BACKEND_METHODS = [
 	'getCapabilities',
@@ -19,6 +19,8 @@ export const BACKEND_METHODS = [
 	'getSession',
 	'getProjectOutline',
 	'queryEntity',
+	'readSessionState',
+	'readResourceBytes',
 	'validateSession',
 	'preflightTransaction',
 	'applyTransaction',
@@ -54,6 +56,8 @@ export function createCapabilities(atomicSave = false): BackendCapabilities {
 			sessionSnapshot: true,
 			projectOutline: true,
 			entityQuery: { kinds: ['project', 'package', 'resource', 'component', 'displayNode', 'controller', 'transition'], projection: 'properties', sourceBytes: false, limits: BACKEND_ENTITY_QUERY_LIMITS },
+			sessionState: { sourceBytes: false, limits: BACKEND_SESSION_READ_LIMITS.model },
+			resourceBytes: { expectedRevisionRequired: true, hydration: false, maxBytes: BACKEND_SESSION_READ_LIMITS.resourceBytes },
 			projectValidation: true,
 		},
 		authoring: {

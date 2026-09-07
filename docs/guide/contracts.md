@@ -1,8 +1,46 @@
 # 契约事实源与操作查询
 
-Core 的 `UamTransactionOperation` 与 UAM 模型拥有参数结构和事务语义；Backend 的公开方法签名拥有会话输入、结果和错误类型；CLI 拥有进程 JSON envelope，各 result 复用原工作流类型；MCP 只拥有工具元数据、JSON 传输转换及输入预算。
+Core 的 `UamTransactionOperation` 与 UAM 模型拥有参数结构和事务语义；Backend 的公开方法签名拥有会话输入、结果和错误类型；CLI 拥有进程 JSON envelope，各 result 复用原工作流类型；MCP 只拥有工具元数据、JSON 传输转换及传输预算。
 
 `pnpm contracts:generate` 使用仓库已有 TypeScript 编译器读取这些类型，生成 MCP 的结构 schema、operation catalog、契约快照和本页表格。MCP 复用已有 Zod 从 JSON Schema 创建校验器；Core 不依赖 Zod。`pnpm contracts:check` 只比较、不写文件，检查映射完整性和生成物漂移，已接入仓库自测与 `docs:check`。
+
+## 读取当前会话模型与资源字节
+
+需要消费当前完整 UAM 时，调用 `readSessionState({ sessionId, expectedRevision? })`；只需局部属性时使用下文的 `queryEntity`。完整读取返回本次调用时已提交状态的独立副本，包含 `project`、实际 `revision`、`dirty`、`lastSavedRevision`、`readComplete`、`readDiagnostics` 和 `uamFidelity`。
+
+`project` 直接派生自 Core 的公开 UAM 类型，只移除每个 asset resource 的正式 `sourceBytes` 字段，保留 `sourcePath`、组件完整内容及 Reader 保留的 JSON 扩展字段。不会按属性名递归删除扩展数据中的 `sourceBytes`。只有这份完整只读模型的输出 schema 允许未列名的对象字段；已列名字段仍保留正式类型，事务输入及现有查询契约不变。读取不重新验证引用、不规范化或修复工程，也不返回内部 Document、锁、文件系统、缓存或清理队列。
+
+通过 `readResourceBytes({ sessionId, expectedRevision, selector: { packageId, resourceId } })` 获取单个 asset resource 已在会话中的主文件字节。返回实际 revision、selector 和独立 `Uint8Array`；MCP 对应数字数组。不读取磁盘、不加载辅助文件、不补齐缺失字节；component 不提供此字节读取。
+
+```ts
+const state = runtime.readSessionState({ sessionId });
+if (!state.ok) throw new Error(state.error.code);
+const bytes = runtime.readResourceBytes({
+  sessionId,
+  expectedRevision: state.data.revision,
+  selector: { packageId, resourceId },
+});
+if (!bytes.ok) throw new Error(bytes.error.code);
+```
+
+每次资源读取必须携带模型的 revision。`stale_read` 同时返回 `expectedRevision` 和 `actualRevision`；出现后丢弃这一轮未完成的模型/字节组合并重新读取，不能混用不同编辑 revision 的资源。读取不等待尚未提交的事务、不保留历史版本、不预留 revision。保存会更新公开 `sourcePath`、dirty 等状态，但不推进编辑 revision，因此相同 sessionId + revision 不代表永远相同的完整原始 UAM。
+
+`readComplete` 与 `uamFidelity` 如实反映现有会话标记；纯内存会话即使未提供资源字节也可能是 `true` / `full`。这些字段不证明字节齐全、可渲染或可保存。失效/关闭会话返回 `session_not_found`；其他拒绝使用 `session_read_failed.reason`：`invalid_query`、`not_found`、`ambiguous`、`unsupported_resource`、`bytes_unavailable`、`response_budget_exceeded` 或 `non_json_value`。失败不会截断数据为成功结果。
+
+| 预算 | 上限 |
+|---|---|
+| `read.sessionState.limits` | 完整 `data` 的紧凑 JSON UTF-8 为 4 MiB，深度 64，节点 500000；克隆前检查 |
+| `read.resourceBytes.maxBytes` | 单个主文件 1 MiB；复制前检查，空字节数组可以读取 |
+| 两个新 MCP 工具 | 每个完整 `CallToolResult` 序列化为 JSON 后为 16 MiB，包含紧凑文本和 structuredContent 两份内容；超限返回 `mcp_response_budget_exceeded`，不改变 Backend 预算或其他工具 |
+
+仓库固定 fixture 的实测规模如下（字节；模型为 `readSessionState.data`，响应为完整 `CallToolResult`，请求 ID 长度等可造成小幅变化）。这决定了模型与资源分开读取的粒度；不是无限工程大小的承诺。
+
+| 工程 | 模型 JSON | 模型 MCP 响应 | 最大主文件 | 该资源 MCP 响应 |
+|---|---:|---:|---:|---:|
+| FairyGUI-Experiments | 15357 | 33882 | 460259 | 3254840 |
+| FairyGUI-layabox demo | 938862 | 2049115 | 254483 | 1818508 |
+| FairyGUI-unity UIProject | 1173851 | 2561306 | 350200 | 2049424 |
+| FairyGUI-Editor ui | 2717892 | 5935515 | 18048 | 114842 |
 
 ## CLI 机器输出
 
@@ -91,7 +129,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 下表只摘要顶层参数；嵌套字段和具体结果请读取对应 schema。SHA-256 变化表示生成契约发生变化，不等同于包版本号。
 
 <!-- contracts:start -->
-SHA-256: `2477d35b672c5a719b82d51714b9564a2e179d6ca65c4348ea2332d65b1e22ef`
+SHA-256: `0b7c8034f3637eb0b8ff39de94bc5f1ae4deab1ef5fb978c8dbe2bb56ffc56bb`
 
 | 操作 | 参数（`?` 表示可选） |
 |---|---|
@@ -145,6 +183,8 @@ SHA-256: `2477d35b672c5a719b82d51714b9564a2e179d6ca65c4348ea2332d65b1e22ef`
 | `getSession` | `openfairygui_backend_get_session` | `sessionId` | `true` |
 | `getProjectOutline` | `openfairygui_backend_get_project_outline` | `sessionId` | `true` |
 | `queryEntity` | `openfairygui_backend_query_entity` | `sessionId`, `target` | `true` |
+| `readSessionState` | `openfairygui_backend_read_session_state` | `sessionId`, `expectedRevision?` | `true` |
+| `readResourceBytes` | `openfairygui_backend_read_resource_bytes` | `sessionId`, `expectedRevision`, `selector` | `true` |
 | `validateSession` | `openfairygui_backend_validate_session` | `sessionId` | `true` |
 | `preflightTransaction` | `openfairygui_backend_preflight_transaction` | `sessionId`, `expectedRevision`, `operations` | `true` |
 | `applyTransaction` | `openfairygui_backend_apply_transaction` | `sessionId`, `expectedRevision`, `operations` | `false` |

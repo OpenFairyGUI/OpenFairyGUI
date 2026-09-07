@@ -30,6 +30,16 @@ updateProjectSettings and updatePackageSettings replace complete settings snapsh
 
 updateController and updateTransition replace complete snapshots, not partial patches. Copy the queried entity.properties, change only the requested fields, preserve page IDs/remarks/actions, item order/targets, settings and references, and submit the original selector with the queried revision. A stale_write requires refreshing and replanning the full snapshot for all these replacement operations. Querying does not validate references or grant permission to edit them.
 
+## Consume the committed session state
+
+For complete public UAM consumption, use readSessionState({sessionId, expectedRevision?}); use queryEntity for targeted properties. The detached model excludes only asset resources' primary sourceBytes, retaining sourcePath and JSON extensions. It includes revision, dirty, lastSavedRevision, readComplete, readDiagnostics and uamFidelity. Only this read-model output schema accepts unnamed object fields; transaction input contracts remain unchanged.
+
+Read each asset with readResourceBytes({sessionId, expectedRevision: state.revision, selector:{packageId,resourceId}}). Bytes are detached Uint8Array values in the SDK and integer arrays in MCP, limited to the primary file already held in memory. There is no disk hydration or auxiliary-file discovery. Components are unsupported; unavailable bytes produce session_read_failed with reason bytes_unavailable.
+
+On stale_read, discard the incomplete model/bytes collection and restart from readSessionState. Reads do not wait for uncommitted transactions, retain historical versions, or reserve revisions. Saving can update sourcePath and dirty without increasing the edit revision; the same revision does not identify permanently identical complete UAM. Completeness/fidelity flags preserve existing meaning and do not guarantee bytes, rendering or saving. Preserve failed reads as failures; never save or repair merely to obtain a read.
+
+Capabilities advertise a 4 MiB compact JSON data limit (depth 64, 500000 nodes) for the model and 1 MiB per primary resource. Both new MCP tools additionally limit the complete JSON CallToolResult, including compact text and structuredContent, to 16 MiB; excess returns mcp_response_budget_exceeded. Native model/buffer overflow returns session_read_failed with reason response_budget_exceeded, without truncation. Read the installed methods/readSessionState and methods/readResourceBytes schemas for precise inputs, results and errors.
+
 ## Diagnose without repair
 
 `ofgui doctor --json` checks installed CLI/documentation versions, the Node Backend capability snapshot, in-memory Sharp PNG/JPEG encoding and pixel decoding, and temporary-directory access flags. `ofgui doctor <project-directory-or-fairy-file> --json` additionally runs existing Node project validation, including source reads and available image decoding. Optional `--output-dir <directory>` checks an explicit destination or its nearest existing ancestor, without creating it. Directory checks return the absolute requested `path`, link-resolved `inspectedPath` and `exists` (null when unknown); files, dangling links and access errors fail. The temporary directory must exist. It opens no Backend session, creates no lock, installs nothing, writes no probe files and changes no configuration.
