@@ -111,11 +111,6 @@ export function checkGuidance(root) {
 	for (const entry of references.submodules) {
 		if (!entry.authority || !entry.probe) throw new Error(`Incomplete reference metadata: ${entry.path}`);
 	}
-	for (const entry of references.local) {
-		if (!entry.id || !entry.authority || !entry.acquire || !entry.paths.length || !Object.hasOwn(entry, 'source') || !Object.hasOwn(entry, 'revision')) {
-			throw new Error('Local references must declare provenance (null when unknown), authority and acquisition limits.');
-		}
-	}
 	const paths = readJson(path.join(root, 'tsconfig.json')).compilerOptions.paths;
 	for (const [name, targets] of Object.entries(paths)) {
 		for (const target of targets) if (!existsSync(path.resolve(root, target))) throw new Error(`Stale public source mapping: ${name} -> ${target}`);

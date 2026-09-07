@@ -167,8 +167,7 @@ function referenceFixture(t, initialized = true) {
 	const root = temporaryRepository(t);
 	const fixturePath = 'fixtures/sample';
 	const child = path.join(root, fixturePath);
-	const manifest = { submodules: [{ path: fixturePath, probe: 'project.fairy', authority: 'fixture' }],
-		local: [{ id: 'legacy-editor', paths: ['referer/Editor'], source: null, revision: null, authority: 'legacy', acquire: 'Ask maintainer' }] };
+	const manifest = { submodules: [{ path: fixturePath, probe: 'project.fairy', authority: 'fixture' }] };
 	write(root, 'references.json', JSON.stringify(manifest));
 	write(root, '.gitmodules', `[submodule "named-reference"]\n\tpath = ${fixturePath}\n\turl = https://example.invalid/fixture.git\n`);
 	let sha = '1'.repeat(40);
@@ -183,17 +182,22 @@ function referenceFixture(t, initialized = true) {
 	return { root, child, fixturePath };
 }
 
-test('references use gitlinks and .gitmodules; missing optional corpus does not block ordinary checks', (t) => {
+test('references need only registered submodules with Git-owned URLs and commits', (t) => {
 	const { root } = referenceFixture(t);
+	const before = snapshot(root);
 	const report = inspectReferences(root);
 	assert.equal(report.ok, true);
+	assert.deepEqual(Object.keys(report).sort(), ['ok', 'submodules']);
 	assert.equal(report.submodules[0].url, 'https://example.invalid/fixture.git');
 	assert.equal(report.submodules[0].expectedCommit, report.submodules[0].actualCommit);
-	assert.equal(report.local[0].status, 'missing');
-	assert.equal(inspectReferences(root, 'legacy-editor').ok, false);
-	mkdirSync(path.join(root, 'referer/Editor'), { recursive: true });
-	assert.equal(inspectReferences(root, 'legacy-editor').local[0].status, 'unverified');
-	assert.throws(() => inspectReferences(root, 'typo'), /Unknown reference/);
+	assert.deepEqual(snapshot(root), before, 'Reference diagnosis must not modify files');
+});
+
+test('reference CLI rejects the removed local-reference option', () => {
+	assert.throws(() => execFileSync(process.execPath, ['scripts/repo-doctor.mjs', 'refs', '--require', 'sample', '--json'], { cwd: ROOT, stdio: 'pipe' }), (error) => {
+		const report = JSON.parse(error.stdout);
+		return error.status === 1 && report.ok === false && /Unknown option '--require'/.test(report.error);
+	});
 });
 
 test('missing, dirty, mismatched and incomplete required fixtures cannot pass', (t) => {
@@ -220,7 +224,7 @@ test('reference search is literal, tracked-only, read-only and refuses unverifie
 	const sha = commit(child);
 	git(root, ['update-index', '--cacheinfo', `160000,${sha},${fixturePath}`]);
 	write(child, 'cache.txt', '--needle.* 中文');
-	write(root, 'referer/unknown.txt', '--needle.* 中文');
+	write(root, 'unregistered/unknown.txt', '--needle.* 中文');
 	git(child, ['config', 'grep.column', 'true']);
 	git(child, ['config', 'grep.heading', 'true']);
 	git(child, ['config', 'grep.break', 'true']);

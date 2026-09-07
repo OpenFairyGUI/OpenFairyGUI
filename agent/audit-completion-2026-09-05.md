@@ -6,7 +6,7 @@
 
 | 原审查主题 | 当前实现与验收依据 |
 |---|---|
-| 1. 可复现指令与参考资料 | [references.json](../references.json) 记录资料职责与获取限制，URL/gitlink 仍由 Git 唯一拥有；[repo doctor](../scripts/repo-doctor.mjs) 与 [refs:grep](../scripts/refs-grep.mjs) 区分缺失、未核验、dirty 与版本不符；普通开发不依赖 referer，规范 AGENTS 不被忽略。仓库测试覆盖拒绝部分成功、字面量检索和只读行为。 |
+| 1. 可复现指令与参考资料 | [references.json](../references.json) 只登记公开 fixture 的职责与探针，URL/gitlink 由 Git 唯一拥有；[repo doctor](../scripts/repo-doctor.mjs) 与 [refs:grep](../scripts/refs-grep.mjs) 检查登记、缺失、dirty、版本不符与探针完整性；规范 AGENTS 不被忽略。仓库测试覆盖拒绝部分成功、字面量检索和只读行为。 |
 | 2. 任务路由与最小上下文 | [根 AGENTS](../AGENTS.md) 和六个包级指引定位所有包；[开发指南](../docs/guide/development.md) 提供启动与术语；[双语任务指引](../docs/guide/task-recipes.md) 覆盖 XML、UAM、Backend、MCP、发布/恢复与取证。复用两页指引，不再复制 CONTEXT/CONTRIBUTING 与六套说明。 |
 | 3. 统一验证入口与 impact map | [package.json](../package.json) 提供 check:fast/check/check:ci；[impact-map.json](./impact-map.json) 同时驱动 [test:changed](../scripts/test-changed.mjs) 和 AGENTS 表，包含下游，未知路径/基准及空选择不能静默通过。 |
 | 4. 文档自动门禁 | [check-guidance](../scripts/check-guidance.mjs) 检查路径、命令、链接、导出源码映射、双语入口/Changelog 结构；契约生成区与随包 Skill 有漂移检查；[PR CI](../.github/workflows/ci.yml) 构建 TypeDoc/VitePress 并执行安装示例。字段含义与翻译仍须人工审查；[PR 模板](../.github/pull_request_template.md) 显式记录这些影响和未验证项。 |
@@ -28,5 +28,5 @@
 - 两个安装消费者均运行真实 Chromium 153.0.8010.12：OPFS 精确预演/修改/保存/刷新、RGBA、活跃标签互斥、终止释放锁和路径拒绝；不冒充用户 Folder 交互授权或 FairyGUI 渲染验证。
 - 本地保留现场为 `C:/Users/Derek/AppData/Local/Temp/ofgui-consumer-cwkyFL`（Node 24 与原始 artifacts）和 `C:/Users/Derek/AppData/Local/Temp/ofgui-consumer-YQVpcl`（同组 artifacts 的 Node 20）。`app/reference-evaluations/report.json` 与 `app/browser-evidence.json` 是原始证据，不需要这些机器路径才能运行仓库。
 - 真实模型 10/10 属于已提交的阶段 9 历史记录，不能算成本次新版本/新归档的模型复验，也不能换算为长期成功率。
-- 可选旧编辑器/配对语料仍缺少可核验来源；依赖它们的未来协议结论必须停止。此边界不是把缺失材料当作验证通过，也不要求普通 CI 获取受限资料。
+- 协议结论仍需可公开核验的对应版本来源及测试证据；公开 fixture 状态通过不代表所有协议已获验证。缺少决定性证据时明确标为未验证并停止该项判断，不把跳过算作通过。
 - 不采用示例目录的机械复制、逐 operation 工具膨胀、AVA 迁移或新 registry 调度层。已完成可发现、可运行、可防漂移与真实消费者验证的工程闭环；没有执行 push、merge、tag 或发布。

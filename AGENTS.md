@@ -3,14 +3,14 @@
 ## 从这里开始
 
 - 推荐开发 Node 版本见 `.node-version`；包的最低支持范围仍以 `package.json` 的 `engines` 为准，pnpm 版本以 `packageManager` 为准。
-- 准备 Git、Node 与指定 pnpm 后，在仓库根目录运行 `pnpm repo:setup`，再运行 `pnpm check:ci`。不需要个人机器路径或 `referer/`。
+- 准备 Git、Node 与指定 pnpm 后，在仓库根目录运行 `pnpm repo:setup`，再运行 `pnpm check:ci`。不需要个人机器路径。
 - 先读[开发指南](docs/guide/development.md)的环境、术语和参考资料规则；用户 API 入口见[包与工具](docs/guide/packages.md)。
 - XML 字段、UAM operation、Backend 方法、MCP 工具与发布排查的修改路径见[开发任务指引](docs/guide/task-recipes.md)，只展开当前任务需要的模块。
 - 快速反馈用 `pnpm check:fast`；PR 差异可用 `pnpm test:changed --base origin/next --list` 显示范围（base 换成实际目标分支）。快速检查不是完整回归。
 - `pnpm pack:check` 在仓库外安装当前五包 tarball，验证公开入口、类型、CLI/MCP、Node 示例与真实 Chromium OPFS 存储/安全失败；已包含在 `check:ci`。首次下载匹配浏览器；Linux CI 显式加 `--browser-deps` 安装系统依赖。发布前用 `--artifacts .release` 验证将要发布的同一组文件。
 - `pnpm eval:agent --runner reference` 自测十个真实消费者任务（含编辑、安全停止及独立发布/恢复宿主）；模型评测显式用 `--runner codex --codex <可执行文件>` 手动运行。模型分数不进入 PR 门禁，失败现场保留在仓库外，见[评测指南](docs/guide/agent-evaluations.md)。
 - 契约类型由 Core/Backend 拥有；修改后运行 `pnpm contracts:generate`，`pnpm contracts:check` 拒绝映射遗漏与生成物漂移。MCP 参数与操作查询见[契约指南](docs/guide/contracts.md)。不手改生成快照或文档标记区。
-- `pnpm repo:doctor --json` 只诊断，不安装、不改配置、不写测试文件。`pnpm refs:status` 查看语料状态，`pnpm refs:verify` 验证必需 fixture。
+- `pnpm repo:doctor --json` 只诊断，不安装、不改配置、不写测试文件。`pnpm refs:status` 查看公开 fixture 状态，`pnpm refs:verify` 验证必需 fixture。
 - `pnpm refs:grep "literal text"` 只读搜索通过版本/状态检查的 fixture 跟踪文本；0 命中、1 无匹配、2 前置条件或搜索失败，不把缺少资料当作无匹配。
 - 不直接编辑 dist、API 页面或站点输出；它们分别由 build、docs:api、docs:build 生成。修改生成器或源文件。
 
@@ -92,14 +92,11 @@
 | Reader / Writer / BinaryEncoder 调整 | 优先补齐正式属性模型，再同步读写逻辑和测试 |
 | 新协议字段 | 优先在 `properties/*.ts` 中定义属性和访问器 |
 | 字段归属判断 | 先检查真实工程样本中的标签分布，再决定字段应落到具体组件类、最小共享抽象层还是扩展块协议。因为工程 XML 不存在通用 `displayObject` 节点，默认不要提升到 `GObject`；只有在协议和样本都能稳定证明它是公共字段时，才允许保留在通用层。 |
-| 证据来源优先级 | 当样本不足以确定字段语义、默认值、枚举值或归属时，优先查 `referer/Editor/scripts/fairygui/editor` 中的编辑器源码和 `referer/Docs` 中的官方文档，再决定正式模型；不要只凭样本名或内部实现猜测字段含义。 |
 | 临时桥接字段 | 若必须先放 `extras`，应在后续任务中明确收口计划 |
 | 二进制文件对比 | 对比 `.fui/.bytes` 时，不要把包头 `Version` 差异直接视为问题依据；FairyGUI 运行时对该版本字段向下兼容，判断偏差应优先看反序列化后的语义、block 结构和字段内容 |
 
 ## 参考资料与取证
 
-`references.json` 登记资料用途与获取限制；三个公开 fixture 子模块的 URL 只从 `.gitmodules` 读取，提交只从 Git gitlink 读取，不复制一份版本锁。普通开发只要求这些 fixture，不要求维护者本地语料。
+`references.json` 只登记三个公开 fixture 子模块的用途与探针；URL 只从 `.gitmodules` 读取，提交只从 Git gitlink 读取，不复制一份版本锁。`pnpm refs:sync` 获取这些固定版本，`pnpm refs:verify` 检查其完整性与工作区状态。
 
-协议任务仍按“官方文档 → 编辑器实现（包括 worker）→ 同名工程/发布物配对 → 运行时消费代码 → 补充材料”取证。先确认旧/新版来源；新版 UI 工程和运行时代码不能替代旧版 exporter 的一手证据。
-
-原 referer 路径是可选本地语料，目录存在不代表来源或版本已核验。缺少能确定字段归属、默认值、发布命名或封包规则的必要证据时，停止该项协议判断并说明缺失材料；不猜测、不把跳过算作通过。用 `pnpm refs:verify --require legacy-editor` 可以显式检查受限任务的前置条件。完整目录职责与获取办法见[开发指南](docs/guide/development.md#参考资料与取证)。
+协议修改必须有可核验的来源、对应版本及测试证据。缺少能确定字段归属、默认值、发布命名或封包规则的必要证据时，明确标为未验证，停止该项协议判断并说明缺失材料；不猜测、不把跳过算作通过，可继续不依赖该结论的工作。资料职责与获取办法见[开发指南](docs/guide/development.md#参考资料与取证)。

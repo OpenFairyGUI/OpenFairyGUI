@@ -13,7 +13,7 @@ pnpm repo:setup
 pnpm check:ci
 ```
 
-`repo:setup` 依次初始化 Git 固定提交的子模块、执行 frozen-lockfile 安装、构建、运行仓库脚本自测和 doctor。它不修改锁文件、切换 Node、安装全局工具或获取受限本地语料；会写入依赖、构建产物并初始化子模块。使用 `repo:setup` 而非 pnpm 自带的环境配置命令 `setup`。
+`repo:setup` 依次初始化 Git 固定提交的子模块、执行 frozen-lockfile 安装、构建、运行仓库脚本自测和 doctor。它不修改锁文件、切换 Node 或安装全局工具；会写入依赖、构建产物并初始化子模块。使用 `repo:setup` 而非 pnpm 自带的环境配置命令 `setup`。
 
 仓库已有未提交工作时，先判断是否需要隔离 worktree；不要通过清空 node_modules、重置工作区或重建锁文件“修复”环境。子模块网络/TLS 失败应先作为资料获取问题报告，不归咎于 Node 或产品代码。
 
@@ -22,7 +22,7 @@ pnpm check:ci
 | 命令 | 实际覆盖 |
 |---|---|
 | `pnpm repo:doctor --json` | 只读环境报告：Node/pnpm、依赖、公开导出文件、原生图片能力、临时目录权限与参考资料状态 |
-| `pnpm refs:status` | 查看必需 fixture 与可选资料；普通状态查询不因资料缺失返回失败 |
+| `pnpm refs:status` | 查看已登记的公开 fixture；普通状态查询不因资料缺失返回失败 |
 | `pnpm refs:sync` | 原生 Git submodule 初始化/更新到 gitlink，不追踪远端最新版本，不强制覆盖修改 |
 | `pnpm refs:verify` | 必需 fixture 的提交、工作区状态和探针文件检查；不通过时非零退出 |
 | `pnpm refs:grep "literal text"` | 验证必需 fixture 后用 Git 搜索其跟踪文本；区分大小写的字面量，输出仓库相对路径与行号；0 命中、1 无匹配、2 错误 |
@@ -64,7 +64,7 @@ Agent 评测共用 tarball 安装流程，确定性自测进入消费者门禁�
 
 ## 参考资料与取证
 
-`references.json` 登记材料职责、探针和获取限制。三个必需上游仓库位于 `packages/test-utils/test/fixtures/`：
+`references.json` 只登记公开 fixture 的职责与探针。三个必需上游仓库位于 `packages/test-utils/test/fixtures/`：
 
 | 子模块 | 可证明的内容 | 版本与获取 |
 |---|---|---|
@@ -72,33 +72,13 @@ Agent 评测共用 tarball 安装流程，确定性自测进入消费者门禁�
 | FairyGUI-layabox | Layabox 消费代码和对应 demo 源工程/发布资源 | 同上 |
 | FairyGUI-unity | Unity 消费代码和对应示例源工程/发布资源 | 同上 |
 
-普通构建和完整测试不要求 `referer/`。Git 跟踪的 FairyGUI-Experiments 以及代码生成的最小测试对象仍作为受控 fixture 使用，不移动现有目录。
+构建与测试使用这些公开子模块、Git 跟踪的 FairyGUI-Experiments 以及代码生成的最小测试对象。
 
-`refs:grep` 复用上述登记与版本检查，只搜索三个子模块各自 Git 跟踪的文本，跳过二进制、未跟踪/忽略文件和来源未知的 `referer/`。缺失、dirty、mismatch、探针不完整或 Git 搜索失败时不返回部分成功；先处理报告的问题，不自动同步或覆盖修改。返回的路径/行号只是定位结果，不代表该来源能证明旧版 exporter 行为。需要特定来源或更复杂条件时，先用 `refs:status` 核对来源与职责，再在对应目录使用原生 Git/rg。
+`refs:grep` 复用上述登记与版本检查，只搜索三个子模块各自 Git 跟踪的文本，跳过二进制、未跟踪/忽略文件及登记范围外的文件。缺失、dirty、mismatch、探针不完整或 Git 搜索失败时不返回部分成功；先处理报告的问题，不自动同步或覆盖修改。返回的路径/行号只是定位结果，不代表该来源能证明旧版 exporter 行为。需要特定来源或更复杂条件时，先用 `refs:status` 核对来源与职责，再在对应目录使用原生 Git/rg。
 
-本地资料登记的 `source`/`revision` 为 null 时表示来源未知，不是锁定版本。`refs:status` 会区分 missing 与 unverified；即使把目录放回来，也不会自动视为可信。受限任务可显式运行：
+协议判断依据仓库内正式文档、固定版本的公开 fixture 及可公开核验的一手资料，记录来源、适用版本及测试证据。缺少能决定正式字段或发布规则的必要证据时，明确标为未验证，停止该项判断并报告缺失项，可继续不依赖该结论的工作。公开 fixture 的状态检查不代表所有协议已获验证。
 
-```bash
-pnpm refs:verify --require legacy-editor
-```
-
-当前本地语料没有可自动验证的来源记录，因此显式 require 会失败。应向维护者索取来源、版本、成对样本及分发权限，并完成任务级核验；不要下载猜测来源、伪造 commit，或让普通 CI 等待无法分发的旧源码。
-
-取证顺序保持：官方文档 → 编辑器实现（含 worker）→ 同名源工程/发布物配对 → 运行时消费代码 → 补充参考。缺少能决定正式字段或发布规则的必要证据时，停止该项判断，报告缺失项；可继续不依赖该证据的工作。
-
-| 可选本地路径 | 职责与约束 |
-|---|---|
-| `referer/Docs` | 官方中英文概念、术语、默认行为与用户可见规则；文档与样本冲突时用源码核实 |
-| `referer/Editor/scripts/fairygui/editor` | 旧版 AS3/AIR 编辑器的工程 I/O、设置和 exporter；优先查 publish/exporter、settings、gui、api |
-| `referer/Editor/scripts/fairygui/editor/worker` | 主线程找不到的发布/转换细节；不能漏查 worker |
-| `referer/UIProject` 与 `referer/Release` | 旧版源工程与发布物配对；字段归属统计真实 XML 标签，命名与封包结合源工程核对 |
-| `referer/Runtimes` | 消费侧证据；优先用已锁定的 Unity/Layabox 子模块，运行时兼容不代表编辑器应复制历史写法 |
-| `referer/FairyGUI-Editor` | 新版设置 JSON、UI 工程与插件接口；优先用对应子模块，不反推底层二进制协议 |
-| `referer/API` | 静态 API 页面仅补充接口查询；哈希页面不是首选证据 |
-| `referer/fgui-restore` | parser sanity check 与小型回归样本，不是正式协议定义 |
-| `referer/glTF-Transform` | 仅参考分包、命名、测试和 API 设计，不作为 FairyGUI 语义依据 |
-
-发布命名差异先查 exporter；发布设置结合文档、settings JSON 和编辑器源码；字段落点先统计 source XML 的标签分布。旧版 UIProject/Release 与新版 editor/runtime 样本要区分。二进制优先源工程/发布物成对验证，不凭单个包或包头 Version 差异下结论。API/插件问题先查插件接口，再回查源码。Unity Library、缓存和静态哈希页面不作为优先扫描对象。
+发布命名与设置结合对应版本的公开文档、工程样本和配对发布物核对；字段落点先统计 source XML 的标签分布。不同版本的行为应分别验证，运行时兼容性不能单独证明工程或发布协议。二进制优先源工程/发布物成对验证，不凭单个包或包头 Version 差异下结论。
 
 ## 产品文档与仓库诊断
 

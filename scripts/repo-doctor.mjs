@@ -6,7 +6,7 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { git, isMain, readJson, ROOT } from './repo-utils.mjs';
 
-export function inspectReferences(root, requiredLocal) {
+export function inspectReferences(root) {
 	const manifest = readJson(path.join(root, 'references.json'));
 	const configured = git(root, ['config', '-f', '.gitmodules', '--get-regexp', '^submodule[.].*[.]path$'])
 		.trim().split('\n').map((line) => {
@@ -31,16 +31,9 @@ export function inspectReferences(root, requiredLocal) {
 	for (const entry of manifest.submodules) {
 		if (!entries.some((item) => item.path === entry.path)) entries.push({ path: entry.path, status: 'unregistered' });
 	}
-	const local = manifest.local.map((entry) => ({
-		...entry,
-		// Local copies have no recorded provenance. Presence alone is never evidence of a verified version.
-		status: entry.paths.every((file) => existsSync(path.join(root, file))) ? 'unverified' : 'missing',
-	}));
-	if (requiredLocal && !local.some((entry) => entry.id === requiredLocal)) throw new Error(`Unknown reference id: ${requiredLocal}`);
 	return {
-		ok: entries.length > 0 && entries.every((entry) => entry.status === 'ready') && !requiredLocal,
-		submodules: entries, local,
-		...(requiredLocal ? { blocked: `Reference ${requiredLocal} requires maintainer provenance and task-specific verification; local presence is not sufficient.` } : {}),
+		ok: entries.length > 0 && entries.every((entry) => entry.status === 'ready'),
+		submodules: entries,
 	};
 }
 
@@ -117,22 +110,20 @@ if (isMain(import.meta.url)) {
 	const json = process.argv.includes('--json');
 	try {
 		const { values, positionals } = parseArgs({ allowPositionals: true, options: {
-			json: { type: 'boolean' }, strict: { type: 'boolean' }, require: { type: 'string' },
+			json: { type: 'boolean' }, strict: { type: 'boolean' },
 		} });
-		if (positionals.length > 1 || (positionals[0] && positionals[0] !== 'refs')) throw new Error('Usage: repo-doctor.mjs [refs] [--json] [--strict] [--require reference-id]');
+		if (positionals.length > 1 || (positionals[0] && positionals[0] !== 'refs')) throw new Error('Usage: repo-doctor.mjs [refs] [--json] [--strict]');
 		const refsOnly = positionals[0] === 'refs';
-		if (!refsOnly && (values.strict || values.require)) throw new Error('--strict and --require apply to refs only.');
-		const report = refsOnly ? inspectReferences(ROOT, values.require) : await doctor(ROOT);
+		if (!refsOnly && values.strict) throw new Error('--strict applies to refs only.');
+		const report = refsOnly ? inspectReferences(ROOT) : await doctor(ROOT);
 		if (json) console.log(JSON.stringify(report, null, 2));
 		else {
 			for (const check of report.checks ?? []) console.log(`${check.status}: ${check.id} ${JSON.stringify(check)}`);
 			const refs = refsOnly ? report : report.references;
 			for (const entry of refs.submodules) console.log(`${entry.status}: ${entry.path} (expected ${entry.expectedCommit ?? 'gitlink missing'})`);
-			for (const entry of refs.local) console.log(`optional/${entry.status}: ${entry.id} — ${entry.acquire}`);
-			if (report.blocked) console.log(report.blocked);
 			console.log(report.next ?? 'Sources: .gitmodules; pins: Git index gitlinks. Use pnpm refs:sync to initialize, never --remote.');
 		}
-		if ((!refsOnly || values.strict || values.require) && !report.ok) process.exitCode = 1;
+		if ((!refsOnly || values.strict) && !report.ok) process.exitCode = 1;
 	} catch (error) {
 		if (json) console.log(JSON.stringify({ ok: false, error: error.message }));
 		else console.error(error.message);

@@ -13,7 +13,7 @@ pnpm repo:setup
 pnpm check:ci
 ```
 
-`repo:setup` initializes submodules at their Git-recorded commits, installs with the frozen lockfile, builds, runs repository-tool tests and runs doctor. It writes dependencies/build output and initializes submodules; it does not rewrite the lockfile, select Node, install global tools or fetch restricted local references. Use `repo:setup`, not pnpm's built-in `setup` environment command.
+`repo:setup` initializes submodules at their Git-recorded commits, installs with the frozen lockfile, builds, runs repository-tool tests and runs doctor. It writes dependencies/build output and initializes submodules; it does not rewrite the lockfile, select Node or install global tools. Use `repo:setup`, not pnpm's built-in `setup` environment command.
 
 For a dirty checkout, consider an isolated worktree before dependency or documentation work. Do not reset user changes, delete dependencies or regenerate the lockfile to work around an environment problem. Submodule network/TLS failures are acquisition failures, not evidence of a Node or product regression.
 
@@ -22,7 +22,7 @@ For a dirty checkout, consider an isolated worktree before dependency or documen
 | Command | Coverage |
 |---|---|
 | `pnpm repo:doctor --json` | Read-only Node/pnpm, dependencies, exported files, native image capability, temporary-directory permission and reference status |
-| `pnpm refs:status` | Observe required fixtures and optional references; missing material alone does not fail a status query |
+| `pnpm refs:status` | Observe registered public fixtures; missing material alone does not fail a status query |
 | `pnpm refs:sync` | Native Git submodule initialization at gitlinks; no remote-tip tracking or forced overwrite |
 | `pnpm refs:verify` | Required fixture commits, working trees and probe files; nonzero exit on failure |
 | `pnpm refs:grep "literal text"` | Verify required fixtures, then use Git to search tracked text for a case-sensitive literal; repository-relative paths and line numbers; 0 match, 1 no match, 2 error |
@@ -64,7 +64,7 @@ Agent evaluations share that tarball installation. Deterministic host checks gat
 
 ## Reference evidence
 
-`references.json` records authority, probe files and acquisition limits. The three required upstream submodules live under `packages/test-utils/test/fixtures/`:
+`references.json` records only public fixture roles and probe files. The three required upstream submodules live under `packages/test-utils/test/fixtures/`:
 
 | Submodule | Authority |
 |---|---|
@@ -72,33 +72,13 @@ Agent evaluations share that tarball installation. Deterministic host checks gat
 | FairyGUI-layabox | Layabox consumption code and paired demo source/published resources |
 | FairyGUI-unity | Unity consumption code and paired example source/published resources |
 
-URLs come only from `.gitmodules`; commits come only from Git gitlinks. `pnpm refs:sync` retrieves those versions. Ordinary builds and complete tests do not require `referer/`. The tracked FairyGUI-Experiments project and generated minimal test objects remain controlled fixtures in their current locations.
+URLs come only from `.gitmodules`; commits come only from Git gitlinks. `pnpm refs:sync` retrieves those versions. Builds and tests use these public submodules, the tracked FairyGUI-Experiments project and generated minimal test objects.
 
-`refs:grep` reuses that registration and verification, searching only tracked text in the three submodules. It skips binaries, untracked/ignored files and unverified `referer/` copies. Missing, dirty, mismatched or incomplete fixtures and Git search failures prevent partial success; resolve the reported problem without automatic synchronization or overwrites. A path/line match locates evidence; it does not make that source authoritative for legacy exporters. For a particular source or richer queries, first verify its status and role with `refs:status`, then use native Git/rg in that directory.
+`refs:grep` reuses that registration and verification, searching only tracked text in the three submodules. It skips binaries, untracked/ignored files and files outside the registered scope. Missing, dirty, mismatched or incomplete fixtures and Git search failures prevent partial success; resolve the reported problem without automatic synchronization or overwrites. A path/line match locates evidence; it does not make that source authoritative for legacy exporters. For a particular source or richer queries, first verify its status and role with `refs:status`, then use native Git/rg in that directory.
 
-Null `source`/`revision` values for local references mean unknown provenance, not pinned versions. Status distinguishes missing from unverified; restoring a folder does not make it authoritative. Restricted evidence tasks can explicitly run:
+Base protocol conclusions on maintained repository documentation, pinned public fixtures and publicly verifiable primary sources. Record sources, applicable versions and test evidence. If decisive evidence for a field or publishing rule is missing, mark that conclusion unverified, stop it and identify the missing material; unrelated work can continue. Public fixture status checks do not establish every protocol rule.
 
-```bash
-pnpm refs:verify --require legacy-editor
-```
-
-Local corpus provenance cannot currently be verified automatically, so explicit require fails. Ask the maintainer for the original source, version, paired samples and redistribution permission, and perform task-specific verification. Do not guess download locations or commits, substitute a newer UI repository for old exporter code, or make ordinary CI depend on restricted source.
-
-Use official documentation first, editor source including worker code second, paired source/published samples third, runtime consumption fourth and supplementary material last. If decisive evidence is missing, stop that protocol conclusion and identify the missing material; unrelated work can continue.
-
-| Optional local path | Role and constraint |
-|---|---|
-| `referer/Docs` | Official concepts, terms, defaults and visible behavior; resolve conflicts using source evidence |
-| `referer/Editor/scripts/fairygui/editor` | Legacy AS3/AIR project I/O, settings and exporters; prioritize publish/exporter, settings, gui and api |
-| `referer/Editor/scripts/fairygui/editor/worker` | Publishing/conversion details absent from the main-thread source |
-| `referer/UIProject` and `referer/Release` | Paired legacy projects/artifacts; measure actual XML tag distributions and inspect matching outputs |
-| `referer/Runtimes` | Consumption-side evidence; prefer pinned fixture repositories, not an unversioned copy |
-| `referer/FairyGUI-Editor` | Current settings/UI/plugin examples; prefer the pinned submodule, not binary-protocol inference |
-| `referer/API` | Supplementary interface lookup; hashed static pages are not the first evidence source |
-| `referer/fgui-restore` | Parser sanity checks and small regressions, not protocol authority |
-| `referer/glTF-Transform` | Packaging, naming, testing and API design inspiration only |
-
-Check exporters for output-naming differences. Establish settings through documentation, sample JSON and editor source; establish field ownership through real XML tags. Distinguish legacy source/artifact pairs from newer editor/runtime samples. Prefer paired semantic binary checks, not a lone package or header Version difference. Check plugin interfaces before consulting supplementary API pages. Do not prioritize Unity Library, caches or hashed static pages.
+Check output naming and settings against public documentation, source projects and paired published artifacts for the relevant version; establish field ownership through real XML tags. Verify behavior separately for each version; runtime compatibility alone does not establish a project or publishing protocol. Prefer paired semantic binary checks, not a lone package or header Version difference.
 
 ## Product documentation and repository diagnosis
 

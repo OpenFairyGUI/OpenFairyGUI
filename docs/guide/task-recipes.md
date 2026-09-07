@@ -52,4 +52,4 @@ pnpm refs:grep "public class UIPackage"
 
 `refs:grep` 只接受一个非空、单行、区分大小写的字面量；`-` 开头及正则元字符也按文本处理。先验证必需 fixture，再搜索 Git 跟踪文本并输出路径/行号。0 表示命中，1 表示没有匹配，2 表示参数、资料或搜索错误；失败不会返回部分成功，也不自动安装、下载或重置。总结果超过 64 KiB 或 Git 输出预算时也会失败，应缩小搜索词或在已核验的来源目录使用原生 Git/rg。
 
-来源 URL 看 `.gitmodules`，固定提交看 gitlink 和 `refs:status`，资料职责看 `references.json`。搜索结果不是协议结论。取证顺序为官方文档 → 编辑器实现（含 worker）→ 同名工程/发布物配对 → 运行时消费 → 补充材料；新版 UI 与 runtime 不能替代旧 exporter。可选本地资料仍需维护者来源与版本证明，缺少决定性材料就停止该项判断，不把跳过算作通过。
+公开 fixture 的来源 URL 看 `.gitmodules`，固定提交看 gitlink 和 `refs:status`，资料职责看 `references.json`。搜索结果不是协议结论。资料选择、版本核验及缺失证据的处理见[开发指南](./development.md#参考资料与取证)。

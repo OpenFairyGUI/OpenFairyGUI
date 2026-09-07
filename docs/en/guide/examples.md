@@ -1,6 +1,6 @@
 # Runnable examples and consumer verification
 
-The four Node examples and one browser-storage example use installed public packages, not source aliases, `referer/`, or test utilities. Copy the repository's `examples/` directory outside the checkout and run inside that copy:
+The four Node examples and one browser-storage example use installed public packages, not source aliases or test utilities. Copy the repository's `examples/` directory outside the checkout and run inside that copy:
 
 ```bash
 npm install
