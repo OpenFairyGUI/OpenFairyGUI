@@ -1,6 +1,6 @@
 # Getting Started
 
-OpenFairyGUI targets Node.js and automation workflows. Install the core scripting packages first:
+OpenFairyGUI targets Node.js and automation workflows. Node.js hosts require version 22 or newer. Install the core scripting packages first:
 
 ```bash
 npm install @openfairygui/core @openfairygui/functions

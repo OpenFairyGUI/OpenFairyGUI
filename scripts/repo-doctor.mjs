@@ -46,7 +46,7 @@ export function inspectEnvironment(root, { nodeVersion, pnpmVersion }) {
 	return [
 		{ id: 'node', status: major >= minimum ? 'ok' : 'error', actual: nodeVersion, required: manifest.engines.node },
 		{ id: 'development-node', status: major === Number(recommended) ? 'ok' : 'warning', recommended,
-			message: 'Recommended development major; the package support range and CI matrix remain separate.' },
+			message: 'Recommended development major; package support is defined by engines.node.' },
 		{ id: 'pnpm', status: pnpmVersion === expectedPnpm ? 'ok' : 'error', actual: pnpmVersion ?? 'unavailable', required: expectedPnpm },
 	];
 }

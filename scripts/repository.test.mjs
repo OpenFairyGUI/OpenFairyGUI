@@ -267,13 +267,14 @@ test('reference search is literal, tracked-only, read-only and refuses unverifie
 
 test('doctor separates recommendation from support and detects missing export output', (t) => {
 	const root = temporaryRepository(t);
-	write(root, 'package.json', JSON.stringify({ engines: { node: '>=20' }, packageManager: 'pnpm@10.14.0' }));
-	write(root, '.node-version', '24\n');
+	write(root, 'package.json', JSON.stringify({ engines: { node: '>=22' }, packageManager: 'pnpm@10.14.0' }));
+	write(root, '.node-version', '22\n');
 	const checks = inspectEnvironment(root, { nodeVersion: 'v22.22.2', pnpmVersion: '10.14.0' });
 	assert.equal(checks[0].status, 'ok');
-	assert.equal(checks[1].status, 'warning');
+	assert.equal(checks[1].status, 'ok');
 	assert.equal(checks[2].status, 'ok');
-	assert.equal(inspectEnvironment(root, { nodeVersion: 'v18.0.0' })[0].status, 'error');
+	assert.equal(inspectEnvironment(root, { nodeVersion: 'v20.0.0' })[0].status, 'error');
+	assert.deepEqual(inspectEnvironment(root, { nodeVersion: 'v24.0.0' }).slice(0, 2).map((check) => check.status), ['ok', 'warning']);
 	write(root, 'packages/core/package.json', JSON.stringify({ name: '@test/core', scripts: { build: 'build' }, exports: { '.': './dist/index.js' } }));
 	assert.equal(inspectBuilds(root)[0].status, 'error');
 	write(root, 'packages/core/dist/index.js', 'export {};');
@@ -287,8 +288,8 @@ test('doctor separates recommendation from support and detects missing export ou
 
 test('repo doctor exercises native codecs rather than accepting version metadata as capability proof', async (t) => {
 	const { root } = referenceFixture(t);
-	write(root, 'package.json', JSON.stringify({ engines: { node: '>=20' }, packageManager: 'pnpm@10.14.0' }));
-	write(root, '.node-version', '24\n');
+	write(root, 'package.json', JSON.stringify({ engines: { node: '>=22' }, packageManager: 'pnpm@10.14.0' }));
+	write(root, '.node-version', '22\n');
 	mkdirSync(path.join(root, 'packages'));
 	// Loadable metadata with a failing codec must not be reported as a working native capability.
 	write(root, 'node_modules/sharp/index.js', "module.exports = Object.assign(() => { throw new Error('Codec failed'); }, { versions: { sharp: 'test' } });");

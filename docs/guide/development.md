@@ -4,8 +4,8 @@
 
 ## 首次启动
 
-1. 准备 Git、Node.js 和 pnpm。推荐开发 Node 主版本由 `.node-version` 指定（24），pnpm 精确版本由根 `package.json` 的 `packageManager` 指定（10.14.0）。使用本机已有版本管理方式切换，不要求全局工具或个人配置文件。
-2. 包的 `engines.node` 仍为 `>=20`；CI 验证 20、22、24，开发推荐版本并不缩小支持范围。开发依赖还可能要求相应主版本的较新补丁版。
+1. 准备 Git、Node.js 和 pnpm。推荐开发 Node 主版本由 `.node-version` 指定（22），pnpm 精确版本由根 `package.json` 的 `packageManager` 指定（10.14.0）。使用本机已有版本管理方式切换，不要求全局工具或个人配置文件。
+2. 包的 `engines.node` 为 `>=22`；CI、文档部署和发布流程统一使用 `.node-version` 中的 Node 22。更高主版本满足包的声明范围，但不进入持续验证。开发依赖还可能要求 Node 22 的较新补丁版。
 3. 在已有 checkout 中运行：
 
 ```bash
@@ -56,7 +56,9 @@ doctor 不安装、不下载、不写文件；子模块状态查询也禁用 Git
 
 PR CI 先获取完整 Git 历史，使用 PR 目标提交与 `test:changed --list` 的现有影响映射判定范围。仅 `repository-only` 计划跳过 quality/consumer jobs；documentation job 仍执行 `scripts/repository.test.mjs` 仓库脚本自测、`docs:check` 与 `docs:build`。代码、站点配置、脚本、依赖、未知路径、无变更或无法确认比较基准时执行全量；范围判定 job 失败也不会静默跳过产品检查。工作流保持触发，跳过的是具体 job。
 
-全量 CI 的 quality job 在三个 Node 主版本执行 `check`；documentation job 在推荐 Node 上检查并构建文档；consumer job 在推荐 Node 的 Linux/Windows 环境执行 `pack:check`。文档与消费者 job 不下载 fixture。全量三类 job 合起来对应本地 `check:ci`；纯文档分流不等于完整回归，`check:fast` 和 `check` 不包含 tarball 安装。主分支 push 始终运行全量；同一 PR 的新运行会取消旧运行，主分支各次 push 不互相取消。远端链接、Markdown 标题锚点、翻译含义和协议解释仍需人工审查。
+全量 CI 的 quality job 在 Node 22 执行 `check`；documentation job 在同一 Node 主版本上检查并构建文档；consumer job 在同一 Node 主版本的 Linux/Windows 环境执行 `pack:check`。文档与消费者 job 不下载 fixture。全量三类 job 合起来对应本地 `check:ci`；纯文档分流不等于完整回归，`check:fast` 和 `check` 不包含 tarball 安装。主分支 push 始终运行全量；同一 PR 的新运行会取消旧运行，主分支各次 push 不互相取消。远端链接、Markdown 标题锚点、翻译含义和协议解释仍需人工审查。
+
+发布工作流在 Node 22 上单独安装 npm 11，以满足 [npm 可信发布](https://docs.npmjs.com/trusted-publishers/)的 CLI 要求；仓库依赖安装和验证仍使用指定的 pnpm。
 
 消费者检查会联网安装依赖，成功清理自身临时目录，失败保留现场；`--keep` 可保留成功现场。发布前用 `pnpm pack:check --artifacts .release` 检查同一组已打包文件。入口、示例及验证限制见[可运行示例与消费者验证](./examples.md)。
 

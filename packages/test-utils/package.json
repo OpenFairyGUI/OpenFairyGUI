@@ -15,7 +15,7 @@
 		"url": "https://github.com/OpenFairyGUI/OpenFairyGUI/issues"
 	},
 	"engines": {
-		"node": ">=20"
+		"node": ">=22"
 	},
 	"type": "module",
 	"sideEffects": false,
