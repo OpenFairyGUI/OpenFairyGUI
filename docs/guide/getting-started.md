@@ -1,6 +1,6 @@
 # 快速开始
 
-OpenFairyGUI 面向 Node.js 与自动化工作流。先安装脚本侧的核心包：
+OpenFairyGUI 面向 Node.js 与自动化工作流，Node.js 宿主要求 22 及以上版本。先安装脚本侧的核心包：
 
 ```bash
 npm install @openfairygui/core @openfairygui/functions

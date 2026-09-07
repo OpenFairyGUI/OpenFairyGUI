@@ -4,9 +4,9 @@ This guide is for contributors and agents. SDK users should start with [Getting 
 
 ## First checkout
 
-Prepare Git, Node.js and pnpm using your existing version-management tools. `.node-version` selects the recommended development major (24); the root `packageManager` selects the exact pnpm version (10.14.0). No personal machine paths or global agent configuration are required.
+Prepare Git, Node.js and pnpm using your existing version-management tools. `.node-version` selects the recommended development major (22); the root `packageManager` selects the exact pnpm version (10.14.0). No personal machine paths or global agent configuration are required.
 
-Package metadata still declares Node `>=20`, and CI tests 20, 22 and 24. The development recommendation does not narrow that range. Development dependencies can require newer patch releases within those majors.
+Package metadata declares Node `>=22`. CI, documentation deployment and releases all use Node 22 from `.node-version`. Newer majors satisfy the declared package range but are not continuously verified. Development dependencies can require newer patch releases of Node 22.
 
 ```bash
 pnpm repo:setup
@@ -56,7 +56,9 @@ Doctor does not install, download, configure or write files; submodule status qu
 
 PR CI first fetches full Git history and classifies changes against the PR base commit using the existing impact map through `test:changed --list`. Only a `repository-only` plan skips quality/consumer jobs; documentation still runs the repository script checks in `scripts/repository.test.mjs`, `docs:check` and `docs:build`. Code, site configuration, scripts, dependencies, unknown paths, no changes or an unavailable comparison base select full checks. A failed scope job also does not silently skip product checks. The workflow remains triggered; only individual jobs are skipped.
 
-Full CI runs `check` on all three Node majors. Documentation runs guidance checks and builds on the recommended Node; consumer jobs run `pack:check` on Linux/Windows with that Node major. Documentation and consumer jobs do not download fixtures. These three full job types correspond to local `check:ci`; documentation-only routing is not a full regression, and `check:fast` and `check` do not install tarballs. Pushes to main always run full checks. A new run for the same PR cancels its older run; separate pushes to main do not cancel each other. Remote URLs, heading anchors, translation meaning and protocol accuracy still require review.
+Full CI runs `check` on Node 22. Documentation runs guidance checks and builds on the same Node major; consumer jobs run `pack:check` on Linux/Windows with that Node major. Documentation and consumer jobs do not download fixtures. These three full job types correspond to local `check:ci`; documentation-only routing is not a full regression, and `check:fast` and `check` do not install tarballs. Pushes to main always run full checks. A new run for the same PR cancels its older run; separate pushes to main do not cancel each other. Remote URLs, heading anchors, translation meaning and protocol accuracy still require review.
+
+The release workflow installs npm 11 separately on Node 22 to meet the CLI requirements for [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/). Repository dependency installation and verification still use the pinned pnpm version.
 
 Consumer checks install dependencies over the network, remove their temporary directory on success and preserve failures; `--keep` preserves successful runs too. Release uses `pnpm pack:check --artifacts .release` to check the same packed files. See [Runnable Examples and Consumer Verification](./examples.md) for entrypoints, examples and limits.
 
