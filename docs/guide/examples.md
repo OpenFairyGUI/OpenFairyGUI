@@ -22,7 +22,9 @@ CLI 的对应机器入口是 `ofgui inspect <工程路径> --json` 与 `ofgui va
 
 ## 带 revision 的修改、保存与回读
 
-示例从 outline 获取资源 ID，再用 queryEntity 读取当前属性与 revision；将同一批文本修改先预演、再正式 apply，验证当前工程后使用事务返回的 revision 保存，通过公开 Node I/O 重新读取工程，最后释放会话锁。预演不预留 revision。失败或验证不完整直接终止，不盲目重试 stale write。
+示例从 outline 获取资源 ID，再用 queryEntity 读取当前属性与 revision；将同一批文本修改先预演、再正式 apply，要求验证结果为 `valid` 且 `complete: true`，使用事务返回的 revision 保存，通过公开 Node I/O 重新读取工程，最后释放会话锁。预演不预留 revision。失败或验证不完整直接终止，不盲目重试 stale write。
+
+提交后的验证、保存或回读失败会保留打开的会话，并抛出带有 `recovery: { runtime, sessionId, projectPath }` 的错误；`cause` 链保留原始错误及 Backend/验证报告。导入 `editAndSave` 的宿主应捕获错误，处理故障后用同一会话重新验证、明确保存，再关闭；可通过第三个参数传入宿主的 runtime。提交前失败会关闭干净会话。恢复句柄仅在当前进程内有效，独立命令失败退出后不会持久保存内存编辑。
 
 <<< ../../examples/revision-checked-edit-save/index.mjs {js}
 
@@ -72,7 +74,7 @@ pnpm pack:check --artifacts .release
 - 用五个本地 tarball 安装生产依赖，并将内部包依赖固定到这些 tarball；禁止 workspace link，清除环境中的 Node loader/源码解析配置。
 - 按真实 `exports` 检查打包文件、ESM import、CJS require、Node/Web 入口；Worker 单独作为浏览器入口，不在 Node 主线程导入。
 - 验证安装后的 CLI/bin、版本、inspect/validate JSON，以及 MCP stdio initialize 和工具发现。
-- 运行本页四个 Node 示例（包括真实 stdio 客户端），检查读/预演不写盘、保存后只改变目标文本与对应 XML、无新增无关文件、会话锁释放、stale revision 被拒绝。
+- 运行本页四个 Node 示例（包括真实 stdio 客户端），检查读/预演不写盘、保存后只改变目标文本与对应 XML、无新增无关文件、会话锁释放、stale revision 被拒绝。编辑示例的验证失败和暂存写入失败须保留 revision、dirty、诊断及锁，原文件不变；故障解除后用同一会话明确保存并回读。
 - 发布示例额外核对实际 manifest/文件字节长度、二进制组件与跨包引用、图集红蓝 RGBA 像素、恢复后素材与工程验证；损坏图集下强制恢复失败须保留完整旧目录。发布/恢复真实 Agent 任务使用独立受限宿主，见[评测指南](./agent-evaluations.md)。
 - 生产运行通过后，再声明并安装锁定版本的 TypeScript、Node 类型、esbuild 和 Playwright，严格编译 `.mts`/`.cts` 消费者，不启用 `skipLibCheck` 或源码 alias；浏览器/Worker 无 Node external 打包后，执行上述真实 Chromium 页面验证。
 

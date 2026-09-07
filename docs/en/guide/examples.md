@@ -22,7 +22,9 @@ The corresponding CLI commands are `ofgui inspect <project-path> --json` and `of
 
 ## Revision-checked edit, save and reread
 
-The example obtains IDs from the outline, then reads current properties and the revision with queryEntity. It previews and applies the same text edit, validates the current project, saves using the transaction's returned revision, rereads through public Node I/O, and releases the session lock. Preview reserves no revision. Errors or incomplete validation stop execution; stale writes are not blindly retried.
+The example obtains IDs from the outline, then reads current properties and the revision with queryEntity. It previews and applies the same text edit, requires validation to be `valid` and `complete: true`, saves using the transaction's returned revision, rereads through public Node I/O, and releases the session lock. Preview reserves no revision. Errors or incomplete validation stop execution; stale writes are not blindly retried.
+
+Validation, save or reread failures after apply keep the session open and throw an error with `recovery: { runtime, sessionId, projectPath }`; the `cause` chain preserves the original error and Backend/validation report. A host importing `editAndSave` must catch that error, resolve the fault, validate and explicitly save the same session, then close it. The optional third argument accepts a host-owned runtime. Failures before apply close the clean session. Recovery handles live only in the current process; the standalone command does not persist in-memory edits after exiting on failure.
 
 <<< ../../../examples/revision-checked-edit-save/index.mjs {js}
 
@@ -72,7 +74,7 @@ Checks run in a fresh directory outside the checkout:
 - Install production dependencies from the five local tarballs, overriding internal package resolutions to those same files; disallow workspace links and clear ambient Node loader/source-resolution settings.
 - Inspect actual `exports`, packed files, ESM imports, CJS requires, and Node/Web entrypoints. The Worker is a separate browser entry, not imported in the Node main thread.
 - Verify installed CLI/bin mappings, versions, inspect/validate JSON, and MCP stdio initialization and tool discovery.
-- Execute all four Node examples, including the real stdio client, and assert read-only inspection/preview, the requested semantic edit and corresponding XML change only, no unrelated new files, released session locks, and rejected stale revisions.
+- Execute all four Node examples, including the real stdio client, and assert read-only inspection/preview, the requested semantic edit and corresponding XML change only, no unrelated new files, released session locks, and rejected stale revisions. Failed validation or staged writes in the editing example must preserve the revision, dirty state, diagnostics, lock and original files; explicit recovery saves and rereads the same session after the fault is resolved.
 - Additionally check the actual manifest/file sizes, binary components and cross-package references, red/blue atlas RGBA pixels, recovered assets and project validation. Failed forced recovery with a corrupt atlas must preserve the entire previous target. Real artifact tasks use a separate restricted host; see [agent evaluations](./agent-evaluations.md).
 - Only after production execution passes, install pinned TypeScript, Node types, esbuild and Playwright. Compile strict `.mts`/`.cts` consumers without `skipLibCheck` or source aliases, bundle browser/Worker exports without Node externals, then execute the real Chromium page checks above.
 

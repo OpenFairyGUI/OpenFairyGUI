@@ -243,7 +243,8 @@ export async function runtimeSmoke() {
 	await writeProjectFromUam(new NodeIO(), unsupportedProject, unsupportedPath);
 	const unsupportedBefore = snapshot(path.dirname(unsupportedPath));
 	await assert.rejects(inspectThroughMcp(unsupportedPath), /This example expects Main\/MainView\/title/);
-	assert.deepEqual(snapshot(path.dirname(unsupportedPath)), unsupportedBefore, 'A failed MCP example must preserve the source');
+	await assert.rejects(editAndSave(unsupportedPath), /This example expects Main\/MainView with a text node named title/);
+	assert.deepEqual(snapshot(path.dirname(unsupportedPath)), unsupportedBefore, 'Examples failing before apply must preserve the source');
 	const decoderProjectPath = await createDemoProject(root);
 	const decoderDocument = await new NodeIO().readProject(decoderProjectPath);
 	decoderDocument.getRoot().listPackages()[0].addResource(decoderDocument.createImageResource('pixel.png').setId('pixel').setPath('/').setFileName('pixel.png'));
@@ -284,11 +285,11 @@ export async function runtimeSmoke() {
 	assert.deepEqual(Object.keys(afterFiles).sort(), Object.keys(beforeFiles).sort(), 'No extra project files');
 	assert.deepEqual(Object.keys(afterFiles).filter((file) => beforeFiles[file] !== afterFiles[file]), ['assets/Main/MainView.xml']);
 	assert.equal(JSON.parse(cli(['validate', projectRoot, '--json'])).result.status, 'valid');
-	const { createNodeBackendRuntime } = await import('@openfairygui/backend/node');
+	const { createNodeBackendFileSystem, createNodeBackendRuntime } = await import('@openfairygui/backend/node');
 	const runtime = createNodeBackendRuntime({ allowedProjectRoots: [projectRoot] });
 	const failureRuntime = createNodeBackendRuntime({ allowedProjectRoots: [path.dirname(unsupportedPath)] });
 	const afterFailure = await failureRuntime.openSession({ projectPath: unsupportedPath });
-	assert(afterFailure.ok, 'A failed MCP example must release its session lock');
+	assert(afterFailure.ok, 'Examples failing before apply must release their session locks');
 	assert((await failureRuntime.closeSession({ sessionId: afterFailure.data.sessionId })).ok);
 	const reopened = await runtime.openSession({ projectPath });
 	assert(reopened.ok, 'Example must release its session lock');
@@ -305,6 +306,65 @@ export async function runtimeSmoke() {
 		assert.equal(stale.ok, false); assert.equal(stale.error.code, 'stale_write');
 		assert.deepEqual(snapshot(projectRoot), afterFiles);
 	} finally { assert((await runtime.closeSession({ sessionId: reopened.data.sessionId })).ok); }
+	for (const failureKind of ['invalid', 'incomplete', 'valid-but-incomplete', 'save']) {
+		const recoveryPath = await createDemoProject(root);
+		const recoveryRoot = path.dirname(recoveryPath);
+		const originalFiles = snapshot(recoveryRoot);
+		const fileSystem = createNodeBackendFileSystem();
+		const atomicWrite = fileSystem.runProjectWriteTransaction;
+		let injectFailure = true;
+		let saveCalls = 0;
+		fileSystem.runProjectWriteTransaction = (directory, write) => atomicWrite(directory, (staged) => write({
+			...staged,
+			async writeFile(file, content) {
+				if (injectFailure && failureKind === 'save') throw Object.assign(new Error('Injected consumer write failure'), { code: 'EACCES' });
+				return staged.writeFile(file, content);
+			},
+		}));
+		const recoveryRuntime = createNodeBackendRuntime({ allowedProjectRoots: [recoveryRoot], fileSystem });
+		const validateSession = recoveryRuntime.validateSession.bind(recoveryRuntime);
+		const saveSession = recoveryRuntime.saveSession.bind(recoveryRuntime);
+		recoveryRuntime.validateSession = (input) => {
+			const result = validateSession(input);
+			assert(result.ok);
+			return injectFailure && failureKind !== 'save' ? { ...result, data: {
+				...result.data, status: failureKind === 'valid-but-incomplete' ? 'valid' : failureKind, complete: failureKind === 'invalid',
+			} } : result;
+		};
+		recoveryRuntime.saveSession = (input) => { saveCalls++; return saveSession(input); };
+		let failure;
+		await assert.rejects(editAndSave(recoveryPath, 'Recover the unsaved edit', recoveryRuntime), (error) => {
+			failure = error;
+			return error.recovery?.runtime === recoveryRuntime && error.recovery.projectPath === recoveryPath;
+		});
+		const { sessionId } = failure.recovery;
+		try {
+			const retained = recoveryRuntime.getSession({ sessionId });
+			assert(retained.ok, 'The example must leave its failed edit recoverable');
+			assert.equal(retained.data.dirty, true); assert.equal(retained.data.revision, 1); assert.equal(retained.data.lastSavedRevision, 0);
+			assert.equal(retained.data.lockHeld, true);
+			assert.equal(saveCalls, failureKind === 'save' ? 1 : 0, 'No save after failed validation or automatic retry after a write failure');
+			assert.deepEqual(snapshot(recoveryRoot), originalFiles, 'Failed validation or staged writes must preserve the original files');
+			if (failureKind === 'save') {
+				assert.equal(failure.cause.cause.error.code, 'save_partial_failure');
+				assert(failure.cause.cause.error.failedPaths.length > 0, 'Preserve the backend recovery report');
+			} else assert.equal(failure.cause.cause.complete, failureKind === 'invalid');
+			const peer = await createNodeBackendRuntime({ allowedProjectRoots: [recoveryRoot] }).openSession({ projectPath: recoveryPath });
+			assert(!peer.ok && peer.error.code === 'lock_conflict', 'The dirty session must retain its project lock');
+			// The host resolves the fault, validates, then explicitly saves the same revision without reapplying.
+			injectFailure = false;
+			const validation = recoveryRuntime.validateSession({ sessionId });
+			assert(validation.ok && validation.data.status === 'valid' && validation.data.complete);
+			const saved = await recoveryRuntime.saveSession({ sessionId, expectedRevision: retained.data.revision });
+			assert(saved.ok && !saved.data.dirty); assert.equal(saved.data.revision, 1);
+			const restored = await readProjectAsUam(new NodeIO(), recoveryPath);
+			assert.equal(restored.packages[0].resources.find((resource) => resource.kind === 'component').component.displayList[0].text, 'Recover the unsaved edit');
+		} finally { assert((await recoveryRuntime.closeSession({ sessionId })).ok); }
+		const unlocked = await recoveryRuntime.openSession({ projectPath: recoveryPath });
+		assert(unlocked.ok, 'Explicit recovery cleanup must release the lock');
+		assert((await recoveryRuntime.closeSession({ sessionId: unlocked.data.sessionId })).ok);
+	}
+	console.log('[consumer] Edit recovery PASS: failed validation/write retain revision, dirty state, diagnostics and lock; explicit recovery saves the same session');
 	const mcp = await import('@openfairygui/mcp');
 	await mcpSmoke(expected.find((entry) => entry.name === '@openfairygui/mcp').version, mcp.OPENFAIRYGUI_BACKEND_TOOL_NAMES,
 		mcp.getOpenFairyGuiOperationCatalog(), mcp.getOpenFairyGuiOperationSchema('addComponent'), expectedDocs);

@@ -15,9 +15,11 @@ node mcp-stdio-client/index.mjs
 With no arguments, each command creates its own small project in the system temporary directory and prints its path. The files are kept so you can inspect them. / 不传参数时，每个命令会新建独立的临时工程并打印路径，保留文件供检查。
 
 - [inspect/validate](./node-inspect-validate/index.mjs): accepts an optional `.fairy` path; reads without modifying it. Exit codes are 0/1/3 for valid/invalid/incomplete.
-- [revision-checked edit/save](./revision-checked-edit-save/index.mjs): accepts an optional `.fairy` path and replacement text; **modifies that project**. It expects `Main/MainView/title`, uses IDs from the outline and actual revisions, saves, rereads, and closes the session. An error stops execution; it never retries a stale write blindly.
+- [revision-checked edit/save](./revision-checked-edit-save/index.mjs): accepts an optional `.fairy` path and replacement text; **modifies that project**. It expects `Main/MainView/title`, uses IDs from the outline and actual revisions, requires valid and complete validation, saves, rereads, and closes the session. An error stops execution; it never retries a stale write blindly. After apply, failures keep the session open and throw an error with `recovery: { runtime, sessionId, projectPath }` and the original `cause`. An importing host must catch it and handle recovery before closing; it can supply its own runtime as the third `editAndSave` argument.
 
 第二个示例传入路径时会修改该工程；仅用于具有 `Main/MainView/title` 结构的工程副本。默认不传参最安全。
+
+提交后的失败通过 `error.recovery` 交回仍然打开的 runtime、sessionId 和工程路径，`cause` 链保留原始错误和验证报告。导入函数的宿主应捕获错误，处理故障后使用同一会话验证、保存，再明确关闭；第三个参数可传入宿主的 runtime。恢复句柄仅在当前进程中有效：独立命令失败退出后不会持久保留内存编辑。/ Recovery handles live only in the current process; the standalone command does not persist in-memory edits after exiting on failure.
 
 - [MCP stdio client](./mcp-stdio-client/index.mjs): uses the official SDK and installed public stdio entry, reads tools/version-bound docs, opens a root-restricted session, queries an exact node and previews without applying/saving. It closes the clean session and transport even on failure. Accepts an optional `.fairy` path with `Main/MainView/title`; otherwise creates a new demo. / 使用正式 SDK 与安装包 stdio 入口，发现工具/版本文档、限定工程根、精确查询和预演；不提交、不保存，失败也关闭干净会话和连接。不传参时新建样例；已有工程需上述结构。
 
