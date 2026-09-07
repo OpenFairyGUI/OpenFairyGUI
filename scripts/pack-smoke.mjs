@@ -19,8 +19,8 @@ export function artifactName(manifest) {
 export function preparePackedConsumer({ artifacts } = {}) {
 	const pnpmCli = process.env.npm_execpath;
 	pnpmInvocation(pnpmCli, []); // Fail before creating files when invoked without pnpm.
-	const temporary = realpathSync(mkdtempSync(path.join(tmpdir(), 'ofgui-consumer-')));
-	const relative = path.relative(realpathSync(ROOT), temporary);
+	const temporary = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'ofgui-consumer-')));
+	const relative = path.relative(realpathSync.native(ROOT), temporary);
 	assert(relative.startsWith('..') || path.isAbsolute(relative), 'Consumer must be outside the repository');
 	const env = consumerEnvironment();
 	const command = (cwd, binary, args) => runCommand(cwd, binary, args, {

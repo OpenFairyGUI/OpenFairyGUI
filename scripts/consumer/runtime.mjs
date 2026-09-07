@@ -222,7 +222,7 @@ export async function runtimeSmoke() {
 	const noProject = JSON.parse(cli(['doctor', '--output-dir', outputDirectory, '--json'])).result;
 	assert.equal(noProject.project, null); assert.equal(noProject.scope, 'installed-product');
 	const outputCheck = noProject.checks.find((check) => check.id === 'output-directory');
-	assert.equal(outputCheck.path, outputDirectory); assert.equal(outputCheck.inspectedPath, realpathSync(projectRoot));
+	assert.equal(outputCheck.path, outputDirectory); assert.equal(outputCheck.inspectedPath, realpathSync.native(projectRoot));
 	assert.equal(outputCheck.status, 'ok'); assert.equal(outputCheck.exists, false);
 	assert(!existsSync(path.dirname(outputDirectory)), 'Doctor must not create a missing output directory');
 	assert.throws(() => cli(['doctor', '--output-dir', projectPath, '--json']), (error) => error.status === 1 && JSON.parse(error.stdout).result.checks.some((check) => check.id === 'output-directory' && check.status === 'error'));
