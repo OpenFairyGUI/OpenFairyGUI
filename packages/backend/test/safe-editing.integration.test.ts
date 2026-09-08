@@ -8,10 +8,34 @@ import { BackendRuntime, BACKEND_ENTITY_QUERY_LIMITS, BACKEND_SESSION_READ_LIMIT
 import type { BackendContext } from '../src/services/context.js';
 import type { AuthoringService } from '../src/services/authoring-service.js';
 import { createBackendFixtureProject, createBackendRuntime, createTempBackendProject } from './helpers.js';
+import { createNodeBackendFileSystem } from '../src/node.js';
 
 const nodeTarget = { kind: 'displayNode', selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' } } as const;
 const controllerTarget = { kind: 'controller', selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: 'state' } } as const;
 const transitionTarget = { kind: 'transition', selector: { packageId: 'pkg001', componentResourceId: 'cmp001', transitionName: 'intro' } } as const;
+
+test('preview can repair invalid references while strict materialization and save still validate', async (t) => {
+	const fixture = await createTempBackendProject();
+	const runtime = createBackendRuntime();
+	const project = createBackendFixtureProject();
+	const component = project.packages[0].resources.find((resource) => resource.kind === 'component'); assert(component?.kind === 'component');
+	const node = component.component.displayList.find((child) => child.id === 'n1'); assert(node?.kind === 'text'); node.group = 'removed-group';
+	t.throws(() => materializeUamProject(project), { message: /Group reference/ });
+	const opened = runtime.openProjectSession({ project }); assert(opened.ok);
+	const sessionId = opened.data.sessionId;
+	const before = sessionState(runtime, sessionId);
+	try {
+		const input = { sessionId, expectedRevision: 0, operations: [{ kind: 'setDisplayNodeProps' as const, selector: nodeTarget.selector, props: { group: '' } }] };
+		const preview = await runtime.preflightTransaction(input); assert(preview.ok, JSON.stringify(preview));
+		t.deepEqual(preview.data.impact.entities, [{ target: nodeTarget, change: 'updated', fields: ['group'] }]);
+		t.deepEqual(preview.data.impact.files, [{ path: 'assets/Main/MainView.xml', kind: 'file', change: 'updated' }]);
+		t.deepEqual(sessionState(runtime, sessionId), before);
+		const applied = await runtime.applyTransaction(input); assert(applied.ok);
+		t.notThrows(() => materializeUamProject(sessionState(runtime, sessionId).project));
+		const saved = await runtime.materializeSession({ sessionId, expectedRevision: 1, storage: { fileSystem: createNodeBackendFileSystem(), fairyPath: fixture.fairyPath } });
+		t.true(saved.ok, JSON.stringify(saved));
+	} finally { await runtime.closeSession({ sessionId }); await fixture.cleanup(); }
+});
 
 test('session reads capture committed unsaved UAM and detached primary bytes without changing any state', async (t) => {
 	const { project } = complexQueryProject();

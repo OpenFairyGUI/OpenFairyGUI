@@ -3,7 +3,7 @@ import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
 import { serveBrowserExample } from './examples/browser-project-storage/serve.mjs';
-import { contained } from './runtime.mjs';
+import { contained } from './helpers.mjs';
 
 const host = await serveBrowserExample(0);
 let browser;

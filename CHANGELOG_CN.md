@@ -7,9 +7,27 @@
 发布比较：
 
 - 稳定线（`main`）：[v0.4.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...main)
-- 开发线（`next`）：[v0.5.0-alpha.3...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0-alpha.3...next)
+- 开发线（`next`）：[v0.5.0-alpha.4...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0-alpha.4...next)
 
 ## v0.5.x
+
+### v0.5.0-alpha.4（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.4)）
+
+缺陷修复：
+
+- core：在 UAM 与工程 XML 往返中保留缺省 Gear 默认值和组件实例控制器覆盖。
+- functions：发布时包含位图字体纹理和字形图片，统一解析源字体路径，并将外部字体编码为字体名而不发布其源资源。
+- functions：展开发布和代码生成路径中的工程变量，将中文标识符转写为拼音，并避免生成的类名与成员名冲突。
+- backend、mcp：允许预览修复已有失效引用的事务，同时验证预览结果；按 schema 识别 JSON 字节数组，并执行合计 8 MiB 的输入字节限制。
+
+其他：
+
+- core、functions、backend：统一公共 XML 状态和 Loader3D 属性赋值，删除未使用的资源过滤代码，分离恢复流程的字体准备逻辑，并复用保存成功后的收尾逻辑。
+- workspace：移除消费者辅助函数对运行入口的反向依赖，扩充回归验证，并同步双语协议与架构文档。
+
+破坏性变更：
+
+- core、backend：所有带值 UAM Gear 的默认值均可为 `null`，以保留对象初始值；消费者需要在 Look、Size、Color、Animation 和 FontSize Gear 中处理该情况。Backend 契约版本为 `2.0.0-p3`。
 
 ### v0.5.0-alpha.3（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.3)）
 

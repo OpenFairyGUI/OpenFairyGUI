@@ -766,6 +766,9 @@ function validateDisplayNode(
 			pushIssue(issues, `${path}.pivotAsAnchor`, 'Display node pivotAsAnchor must be boolean.');
 		}
 	}
+	if (node.kind === 'component' && node.controllerOverrides !== undefined && typeof node.controllerOverrides !== 'string') {
+		pushIssue(issues, `${path}.controllerOverrides`, 'Component controller overrides must be a string of controller name/page ID pairs.');
+	}
 	if (node.kind === 'component'
 		&& node.propertyOverrides !== undefined
 		&& (!Array.isArray(node.propertyOverrides)

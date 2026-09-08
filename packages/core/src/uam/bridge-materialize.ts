@@ -32,6 +32,7 @@ import type {
 	UamListNode,
 	UamListProperties,
 	UamLoader3DNode,
+	UamLoader3DProperties,
 	UamLoaderNode,
 	UamLoaderProperties,
 	UamLookGearBinding,
@@ -185,6 +186,26 @@ export function materializeUamLoaderProperties(
 		.setFillOrigin(properties.fillOrigin)
 		.setFillClockwise(properties.fillClockwise)
 		.setFillAmount(properties.fillAmount)
+		.setClearOnPublish(properties.clearOnPublish);
+}
+
+export function materializeUamLoader3DProperties(
+	loader: ReturnType<Document['createGLoader3D']>,
+	properties: UamLoader3DProperties,
+): void {
+	loader
+		.setUrl(properties.url)
+		.setFill(properties.fill)
+		.setShrinkOnly(properties.shrinkOnly)
+		.setAutoSize(properties.autoSize)
+		.setAlign(properties.align)
+		.setVAlign(properties.vAlign)
+		.setAnimationName(properties.animationName)
+		.setSkinName(properties.skinName)
+		.setPlaying(properties.playing)
+		.setFrame(properties.frame)
+		.setLoop(properties.loop)
+		.setColor(properties.color)
 		.setClearOnPublish(properties.clearOnPublish);
 }
 
@@ -684,6 +705,7 @@ export function materializeDisplayNode(
 			.setGroup(componentNode.group)
 			.setSrc(componentNode.resource.resourceId)
 			.setPackageId(componentNode.resource.packageId ?? '')
+			.setControllerOverrides(componentNode.controllerOverrides ?? '')
 			.setPropertyOverrides((componentNode.propertyOverrides ?? []).map((property) => ({ ...property })));
 		materializeUamComponentInstanceProperties(component, componentNode.instanceProperties);
 		return component;
@@ -723,20 +745,8 @@ export function materializeDisplayNode(
 
 	if (node.kind === 'loader3D') {
 		const loaderNode = node as UamLoader3DNode;
-		const loader = materializeDisplayNodeBase(doc.createGLoader3D(node.name), node)
-			.setUrl(loaderNode.url)
-			.setFill(loaderNode.fill)
-			.setShrinkOnly(loaderNode.shrinkOnly)
-			.setAutoSize(loaderNode.autoSize)
-			.setAlign(loaderNode.align)
-			.setVAlign(loaderNode.vAlign)
-			.setAnimationName(loaderNode.animationName)
-			.setSkinName(loaderNode.skinName)
-			.setPlaying(loaderNode.playing)
-			.setFrame(loaderNode.frame)
-			.setLoop(loaderNode.loop)
-			.setColor(loaderNode.color)
-			.setClearOnPublish(loaderNode.clearOnPublish);
+		const loader = materializeDisplayNodeBase(doc.createGLoader3D(node.name), node);
+		materializeUamLoader3DProperties(loader, loaderNode);
 		return loader;
 	}
 
@@ -873,85 +883,6 @@ type UamGenericValueGearBinding =
 	| UamTextGearBinding
 	| UamIconGearBinding
 	| UamFontSizeGearBinding;
-
-function parseNumber(raw: string | undefined, fallback: number): number {
-	if (raw === undefined || raw === '') return fallback;
-	const value = Number(raw);
-	return Number.isFinite(value) ? value : fallback;
-}
-
-function parseBool(raw: string | undefined, fallback: boolean): boolean {
-	if (raw === undefined || raw === '') return fallback;
-	const normalized = raw.toLowerCase();
-	if (normalized === '1' || normalized === 'true' || normalized === 'p') return true;
-	if (normalized === '0' || normalized === 'false' || normalized === 's') return false;
-	return fallback;
-}
-
-export function parseLookGearValue(value: string | null) {
-	if (!value || value === '-') return null;
-	const parts = value.split(',');
-	return {
-		alpha: parseNumber(parts[0], 1),
-		rotation: parseNumber(parts[1], 0),
-		grayed: parseBool(parts[2], false),
-		touchable: parseBool(parts[3], true),
-	};
-}
-
-export function parseGenericGearValue(kind: UamGenericValueGearBinding['kind'], value: string | null) {
-	if (kind === 'text') return value === null ? null : { text: value };
-	if (kind === 'icon') return value === null ? null : { icon: value };
-	if (!value || value === '-') return null;
-	const parts = value.split(',');
-	switch (kind) {
-		case 'xy':
-			return {
-				x: parseNumber(parts[0], 0), y: parseNumber(parts[1], 0),
-				...(parts.length > 2 ? { px: Number(parts[2]), py: Number(parts[3]) } : {}),
-			};
-		case 'size':
-			return {
-				width: parseNumber(parts[0], 0),
-				height: parseNumber(parts[1], 0),
-				scaleX: parseNumber(parts[2], 1),
-				scaleY: parseNumber(parts[3], 1),
-			};
-		case 'color':
-			return {
-				color: parts[0] || '#ffffff',
-				outlineColor: parts[1] || null,
-			};
-		case 'animation':
-			return {
-				frame: parseNumber(parts[0], 0),
-				playing: parseBool(parts[1], true),
-				animationName: parts[2] ?? '',
-				skinName: parts[3] ?? '',
-			};
-		case 'fontSize':
-			return { fontSize: parseNumber(parts[0], 12) };
-	}
-}
-
-export function defaultGenericGearValue(kind: UamGenericValueGearBinding['kind']) {
-	switch (kind) {
-		case 'xy':
-			return { x: 0, y: 0 };
-		case 'size':
-			return { width: 0, height: 0, scaleX: 1, scaleY: 1 };
-		case 'color':
-			return { color: '#ffffff', outlineColor: null };
-		case 'animation':
-			return { frame: 0, playing: true, animationName: '', skinName: '' };
-		case 'text':
-			return { text: '' };
-		case 'icon':
-			return { icon: '' };
-		case 'fontSize':
-			return { fontSize: 12 };
-	}
-}
 
 function genericGearKindToType(kind: UamGenericValueGearBinding['kind']): GearType {
 	switch (kind) {
@@ -1137,8 +1068,9 @@ function materializeComponentResource(doc: Document, resource: UamComponentResou
 	return component;
 }
 
-export function materializeUamProject(project: UamProject): Document {
-	assertValidUamProject(project);
+/** Disable validation only to inspect an existing invalid snapshot; persistence must use the default. */
+export function materializeUamProject(project: UamProject, options: { validate?: boolean } = {}): Document {
+	if (options.validate !== false) assertValidUamProject(project);
 	const doc = new Document();
 	doc.getRoot()
 		.setProjectId(project.projectId)

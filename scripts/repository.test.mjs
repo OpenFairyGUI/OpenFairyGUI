@@ -10,7 +10,7 @@ import { doctor, inspectBuilds, inspectEnvironment, inspectReferences } from './
 import { grepReferences } from './refs-grep.mjs';
 import { git, matches, pnpmInvocation, readJson, ROOT, testFiles } from './repo-utils.mjs';
 import { artifactName, consumerEnvironment, PACKAGES } from './pack-smoke.mjs';
-import { contained, exportFiles, snapshot } from './consumer/runtime.mjs';
+import { contained, exportFiles, snapshot } from './consumer/helpers.mjs';
 
 function temporaryRepository(t) {
 	const root = mkdtempSync(path.join(tmpdir(), 'ofgui-repo-test-'));

@@ -675,6 +675,7 @@
 | `condition` |  | gear 条件 |
 | `ease` |  | 缓动类型 |
 | `duration` |  | 时长 |
+| `delay` |  | 补间延迟，单位秒，默认 0 |
 
 ### `<controller>`
 

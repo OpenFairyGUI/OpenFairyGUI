@@ -675,6 +675,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `condition` |  | Gear condition |
 | `ease` |  | Easing type |
 | `duration` |  | Duration |
+| `delay` |  | Tween delay in seconds, default 0 |
 
 ### `<controller>`
 

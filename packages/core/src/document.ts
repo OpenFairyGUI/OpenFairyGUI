@@ -43,7 +43,7 @@ import {
 	FontGlyph,
 	MovieFrame,
 } from './properties/index.js';
-import { type ILogger, Logger } from './utils/index.js';
+import { type ILogger, Logger } from './utils/logger.js';
 
 export interface TransformContext {
 	stack: string[];

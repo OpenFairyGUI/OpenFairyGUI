@@ -12,7 +12,7 @@ import { getInstalledDocumentationVersion } from '@openfairygui/backend/docs';
 import { validateProjectNode } from '@openfairygui/functions/node';
 import { createOpenFairyGuiMcpServer, OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS } from '@openfairygui/mcp';
 import { createDemoProject } from './examples/create-demo-project.mjs';
-import { contained, exportFiles, json, snapshot } from './runtime.mjs';
+import { contained, exportFiles, json, snapshot } from './helpers.mjs';
 import { ARTIFACT_TOOLS, BLOCKERS, codexArguments, CONCURRENT_TEXT, EVAL_METHODS, expectedProject, FINAL_SCHEMA, gradeEvaluation, isolatedCodexEvents, observations, PENDING_TEXT, scopedFileSystem } from './agent-eval-checks.mjs';
 import { referenceArtifact, runArtifactCase, serveArtifact } from './artifact-eval.mjs';
 

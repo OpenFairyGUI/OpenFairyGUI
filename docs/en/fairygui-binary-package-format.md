@@ -162,6 +162,8 @@ Every package item writes this common header before its type-specific segment:
 
 The `Font` glyph-data block stores its UTF-16 code unit (`charId`) as `uint16`, covering the complete BMP range. Image references and glyph metrics then use their respective string-table indices and `int32` fields.
 
+Bitmap glyph image references must resolve in the same package's resource and sprite tables. A whole-font texture is addressed by the font ID in the sprite table. After branch merging, glyph image IDs refer to merged resources. Imported TTF/TTC/OTF fonts use their engine font name in text `font` fields and are not encoded as bitmap `Font` resources.
+
 ### `Spine` / `DragoneBones` item segment
 
 `Spine` and `DragoneBones` append a skeleton anchor after the common header:
@@ -550,6 +552,8 @@ This preserves hierarchy semantics for leaf nodes without icons or URLs. Icons a
 | Extended state | Conditional fields such as GearXY percentages and GearAnimation extended state |
 
 Each child has one slot per Gear type, regardless of its controller binding; Display and Display2 are separate types. The XY percentage extension stores floating-point `px/py` coordinates relative to the parent size (`0.5` means 50%). Size scales and Look alpha may be `0`.
+
+XY, Size, Look, Color, Animation, FontSize, Text, and Icon store the presence of a default state in a separate Boolean. Without that payload, the runtime retains the default captured from the owner's initial properties. Unconfigured pages return to that state instead of a fixed zero size, white color, or font size.
 
 For Text/Icon, empty strings, `-`, and strings containing `|` are complete state values. A null page carries no state payload. A separate Boolean records default-value presence, distinguishing an absent default override from an explicit empty string.
 

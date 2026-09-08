@@ -83,7 +83,7 @@ export interface LookGearBindingOptions {
 	name?: string;
 	controller: Controller;
 	states: LookGearBindingState[];
-	defaultValue: LookGearBindingValue;
+	defaultValue: LookGearBindingValue | null;
 	condition?: string;
 	positionsInPercent?: boolean;
 	tween?: boolean;
@@ -317,7 +317,7 @@ export function bindLookGear(
 		.setController(options.controller)
 		.setPages(statePageIds.join(','))
 		.setValues(options.states.map((state) => serializeOptionalLookGearValue(state.value)).join('|'))
-		.setDefaultValue(serializeLookGearValue(options.defaultValue))
+		.setDefaultValue(options.defaultValue === null ? null : serializeLookGearValue(options.defaultValue))
 		.setCondition(options.condition ?? '')
 		.setPositionsInPercent(options.positionsInPercent ?? false)
 		.setTween(options.tween ?? false)

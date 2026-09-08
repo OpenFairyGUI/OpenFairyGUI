@@ -21,7 +21,7 @@ test('getCapabilities reports derived ownership and runtime capabilities', (t) =
 	t.is(result.data.transactionKernelOwner, '@openfairygui/core');
 	t.is(result.data.appSeamOwner, '@openfairygui/functions');
 	t.is(result.data.runtimeOwner, '@openfairygui/backend');
-	t.is(result.data.contractVersion, '2.0.0-p2');
+	t.is(result.data.contractVersion, '2.0.0-p3');
 	t.is(result.data.capabilitySchemaVersion, 11);
 	t.is(result.data.manifest.diagnostics.recoveryGuides, 'all-formal-codes');
 	t.false(result.data.manifest.diagnostics.automaticRepair);

@@ -1,4 +1,4 @@
-import { GearType, type Component, type Gear, type Package } from '@openfairygui/core';
+import { GearType, parseURL, type Component, type Document, type Gear, type Package } from '@openfairygui/core';
 import type { HasOptionalFont } from '../shared-types.js';
 
 interface ReferenceItem {
@@ -121,18 +121,21 @@ function addFontReferences(
 	target: PackageResourceReferences,
 	ownerPackageId: string,
 	value: string | string[] | null | undefined,
+	doc?: Document,
 ): void {
-	if (Array.isArray(value)) {
-		for (const entry of value) addUiReference(target, ownerPackageId, entry);
-		return;
+	for (const entry of Array.isArray(value) ? value : [value]) {
+		const reference = entry ? parseURL(entry) : null;
+		const resource = reference && doc?.getRoot().getPackageById(reference.packageId)?.getResourceById(reference.resourceId);
+		if (resource?.propertyType === 'FontResource' && resource.isExternalFont()) continue;
+		addUiReference(target, ownerPackageId, entry);
 	}
-	addUiReference(target, ownerPackageId, value);
 }
 
 function collectComponentReferences(
 	target: PackageResourceReferences,
 	ownerPackageId: string,
 	component: Component,
+	doc?: Document,
 ): void {
 	const referenceComponent = component as unknown as ReferenceComponent;
 	for (const child of referenceComponent.listChildren()) {
@@ -144,7 +147,7 @@ function collectComponentReferences(
 		const sourcePackageId = child.getPackageId?.()?.trim();
 		if (sourcePackageId && sourcePackageId !== ownerPackageId) target.packageIds.add(sourcePackageId);
 
-		addFontReferences(target, ownerPackageId, child.getFont?.());
+		addFontReferences(target, ownerPackageId, child.getFont?.(), doc);
 		if (!child.getAutoClearText?.()) addTextReferences(target, ownerPackageId, child.getText?.());
 		for (const reference of [
 			child.getClearOnPublish?.() ? undefined : child.getUrl?.(),
@@ -186,7 +189,7 @@ function collectComponentReferences(
 		}
 	}
 
-	addFontReferences(target, ownerPackageId, referenceComponent.getFont?.());
+	addFontReferences(target, ownerPackageId, referenceComponent.getFont?.(), doc);
 	for (const reference of [
 		referenceComponent.getAddedToStageSound?.(),
 		referenceComponent.getRemovedFromStageSound?.(),
@@ -212,7 +215,7 @@ function collectComponentReferences(
  * component content. Callers retain policy decisions such as atlas selection
  * and dependency ordering.
  */
-export function collectPackageResourceReferences(pkg: Package): PackageResourceReferences {
+export function collectPackageResourceReferences(pkg: Package, doc?: Document): PackageResourceReferences {
 	const references: PackageResourceReferences = {
 		localResourceIds: new Set<string>(),
 		packageIds: new Set<string>(),
@@ -220,7 +223,7 @@ export function collectPackageResourceReferences(pkg: Package): PackageResourceR
 	const excludedResourceIds = new Set(pkg.getSourceAtlasSettings().excludedResourceIds);
 	for (const resource of pkg.listResources()) {
 		if (resource.propertyType === 'Component' && !excludedResourceIds.has(resource.getId())) {
-			collectComponentReferences(references, pkg.getId(), resource);
+			collectComponentReferences(references, pkg.getId(), resource, doc);
 		}
 	}
 	return references;

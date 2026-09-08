@@ -448,6 +448,8 @@ export interface UamTextInputNode extends UamGroupableDisplayNodeBase, UamPlainT
 export interface UamComponentRefNode extends UamGroupableDisplayNodeBase {
 	kind: 'component';
 	resource: UamResourceRef;
+	/** Comma-separated controller name/page ID pairs configured on this instance. */
+	controllerOverrides?: string;
 	instanceProperties?: UamComponentInstanceProperties;
 	propertyOverrides?: UamComponentPropertyOverride[];
 }
@@ -790,12 +792,13 @@ export interface UamFontSizeGearValue {
 	fontSize: number;
 }
 
-interface UamValueBoundGear<TKind extends string, TValue, TDefault = TValue> {
+interface UamValueBoundGear<TKind extends string, TValue> {
 	kind: TKind;
 	name: string;
 	controllerName: string;
 	states: UamGearPageState<TValue>[];
-	defaultValue: TDefault;
+	/** Null preserves the owner's initial property value on pages without an explicit state. */
+	defaultValue: TValue | null;
 	condition: string;
 	positionsInPercent: boolean;
 	tween: boolean;
@@ -821,12 +824,12 @@ export interface UamDisplay2GearBinding {
 }
 
 export type UamLookGearBinding = UamValueBoundGear<'look', UamLookGearValue>;
-export type UamXYGearBinding = UamValueBoundGear<'xy', UamXYGearValue, UamXYGearValue | null>;
+export type UamXYGearBinding = UamValueBoundGear<'xy', UamXYGearValue>;
 export type UamSizeGearBinding = UamValueBoundGear<'size', UamSizeGearValue>;
 export type UamColorGearBinding = UamValueBoundGear<'color', UamColorGearValue>;
 export type UamAnimationGearBinding = UamValueBoundGear<'animation', UamAnimationGearValue>;
-export type UamTextGearBinding = UamValueBoundGear<'text', UamTextGearValue, UamTextGearValue | null>;
-export type UamIconGearBinding = UamValueBoundGear<'icon', UamIconGearValue, UamIconGearValue | null>;
+export type UamTextGearBinding = UamValueBoundGear<'text', UamTextGearValue>;
+export type UamIconGearBinding = UamValueBoundGear<'icon', UamIconGearValue>;
 export type UamFontSizeGearBinding = UamValueBoundGear<'fontSize', UamFontSizeGearValue>;
 
 export type UamGearBinding =

@@ -16,6 +16,7 @@ import {
 	isFontResource,
 	isImageResource,
 	isMovieClipResource,
+	resolveFontPath,
 	resolveImageFileName,
 	resolveImagePath,
 } from '../publish/package-context.js';
@@ -60,10 +61,6 @@ interface FontSpriteAlias {
 
 export interface FontResourceExtras extends ExtrasMap {
 	_fontSpriteAlias?: FontSpriteAlias;
-}
-
-export function resolveFontFileName(fontName: string): string {
-	return /\.fnt$/i.test(fontName) ? fontName : `${fontName}.fnt`;
 }
 
 /**
@@ -381,6 +378,7 @@ export async function collectFontTexture(
 	pkg: Package,
 	options: AtlasOptions,
 ): Promise<void> {
+	if (fontRes.isExternalFont()) return;
 	const textureId = fontRes.getTextureId?.() ?? '';
 
 	if (textureId) {
@@ -392,12 +390,9 @@ export async function collectFontTexture(
 	}
 
 	// Parse .fnt file for glyph data (needed for binary encoding)
-	// This applies to ALL fonts, not just those with a textureId
+	// Bitmap fonts may reference individual glyph images without a textureId.
 	if (options.readFileRaw && options.basePath) {
-		const fontName = resolveFontFileName(fontRes.getName());
-		const fontPath = fontRes.getPath() ?? '/';
-		const pkgName = pkg.getName();
-		const fntFile = `${options.basePath}/${pkgName}${fontPath}${fontName}`;
+		const fntFile = resolveFontPath(fontRes, pkg, options.basePath);
 		try {
 			const fntData = await options.readFileRaw(fntFile);
 			const fntText = new TextDecoder().decode(fntData);
@@ -437,7 +432,7 @@ export async function collectFontTexture(
 }
 
 export function isPackableResource(resource: PackageResource): resource is PackableResource {
-	return isImageResource(resource) || isMovieClipResource(resource) || isFontResource(resource);
+	return isImageResource(resource) || isMovieClipResource(resource) || (isFontResource(resource) && !resource.isExternalFont());
 }
 
 function isResolvedBuffer(value: Uint8Array | AtlasRasterResolvedBuffer): value is AtlasRasterResolvedBuffer {
