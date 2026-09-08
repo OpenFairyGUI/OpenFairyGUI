@@ -10,7 +10,7 @@
 |---|---|
 | [仓库开发与验证](./guide/development.md) | 可复现启动、参考语料、任务路由、验证范围与 PR 门禁 |
 | [开发任务指引](./guide/task-recipes.md) | XML 字段、UAM operation、Backend/MCP 接入、发布排查与协议取证路径 |
-| [可运行示例与消费者验证](./guide/examples.md) | tarball 隔离安装、CLI 契约、真实浏览器存储、revision-checked edit/save 与发布/受限恢复 |
+| [可运行示例与消费者验证](./guide/examples.md) | 奖励面板状态、布局动画与模板生成卡片、SDK/MCP 编辑验收、tarball 隔离安装、真实浏览器存储与发布/受限恢复 |
 | [契约事实源与操作查询](./guide/contracts.md) | Core/Backend 类型生成的 operation、MCP 输入输出、二进制传输与漂移检查 |
 | [诊断与恢复](./guide/diagnostics.md) | 诊断归属、逐码文档与只读恢复起点；不自动修复 |
 | [安装版本文档与产品诊断](./guide/installed-docs.md) | CLI/MCP 共用离线语料、薄 Skill 与只读产品 doctor |

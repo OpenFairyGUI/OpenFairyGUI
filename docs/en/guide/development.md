@@ -34,7 +34,7 @@ For a dirty checkout, consider an isolated worktree before dependency or documen
 | `pnpm contracts:generate` | Generate MCP/CLI structural contracts, operations, complete diagnostic guides, snapshots and bilingual tables from Core/Backend/CLI types |
 | `pnpm contracts:check` | Read-only operation/method mapping, formal diagnostic coverage/ownership and generated-drift checks; repository tests also check CLI registrations |
 | `pnpm docs:build` | Explicit TypeDoc generation followed by VitePress; no dependency on implicit pre-script settings |
-| `pnpm pack:check` | Build/install five tarballs outside the checkout; verify public entries, types, CLI/MCP, four Node examples and real Chromium OPFS edits/save/reload/locks/paths/image bytes; download the matching browser on first use |
+| `pnpm pack:check` | Build/install five tarballs outside the checkout; verify public entries, types, CLI/MCP, seven Node examples and real Chromium OPFS edits/save/reload/locks/paths/image bytes; download the matching browser on first use |
 | `pnpm eval:agent --runner reference` | Ten deterministic tarball/MCP task checks, including editing, safe stops and separate publish/recovery tasks; also run by `pack:check`, without calling a model |
 | `pnpm eval:agent --runner codex --codex codex` | Manual real-model tasks with state checks, traces and failure evidence; excluded from PR CI |
 | `pnpm check:ci` | Full check, guidance checks, documentation build and tarball consumer checks; use before submitting |

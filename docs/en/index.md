@@ -27,7 +27,7 @@ features:
 
 ## Start with a task
 
-Ask an agent to update a specific component's text, query and preview the change, then apply, validate, save, and reread with revision checks. [Getting Started](/en/guide/getting-started) provides local MCP configuration and a task example; the [runnable examples](/en/guide/examples) verify edits and saves in independent temporary projects.
+Ask an agent to configure a three-state reward panel, coordinating button text, interaction, and the claimed indicator. Preview the whole batch, then apply, validate, save, and reread. [Getting Started](/en/guide/getting-started) moves from a connection check to the main editing task and advanced examples. The [runnable example](/en/guide/examples#three-state-reward-panel) verifies SDK and real MCP edits; continue with [layout and entrance animation](/en/guide/examples#reward-panel-layout-and-entrance-animation) or [card generation from a template](/en/guide/examples#generate-reward-cards-from-a-template).
 
 For scripts and editor integrations, choose CLI, Backend, or SDK entrypoints in [Packages and Tools](/en/guide/packages). Explore formats and public symbols through the [documentation index](/en/README) and <a href="/api/" target="_self">API Reference</a>.
 

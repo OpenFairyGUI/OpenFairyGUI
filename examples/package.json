@@ -5,6 +5,9 @@
   "scripts": {
     "inspect": "node node-inspect-validate/index.mjs",
     "edit": "node revision-checked-edit-save/index.mjs",
+    "reward": "node reward-panel-states/index.mjs",
+    "reward-layout": "node reward-panel-layout/index.mjs",
+    "reward-cards": "node reward-card-generation/index.mjs",
     "publish": "node publish-restore/index.mjs",
     "mcp": "node mcp-stdio-client/index.mjs",
     "browser": "node browser-project-storage/serve.mjs"
