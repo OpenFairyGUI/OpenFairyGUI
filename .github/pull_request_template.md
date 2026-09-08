@@ -36,7 +36,7 @@
 - Not run or failed, and why / 未运行或失败项及原因：
 - Consumer/runtime scope not proven / 尚未证明的消费端或运行时行为：
 
-- [ ] Ran `pnpm check:ci`; any missing or failed check is explicitly recorded above.
+- [ ] Recorded checks appropriate to the change: `pnpm docs:check` for ordinary documentation, `pnpm check:fast --base origin/next` with the actual PR target for code, or `pnpm check:ci` for broad changes/package-specific requirements. Any missing or failed check is recorded above; required CI must pass before merge.
 - [ ] For publication, `pnpm pack:check --artifacts <release-directory>` passed on the exact five tarballs to be published; otherwise not applicable.
 
 See [development and verification](../docs/guide/development.md). This checklist records evidence; checking boxes does not replace automated checks or authorize publication.

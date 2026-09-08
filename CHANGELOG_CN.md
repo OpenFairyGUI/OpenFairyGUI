@@ -7,9 +7,20 @@
 发布比较：
 
 - 稳定线（`main`）：[v0.4.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...main)
-- 开发线（`next`）：[v0.5.0-alpha.2...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0-alpha.2...next)
+- 开发线（`next`）：[v0.5.0-alpha.3...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0-alpha.3...next)
 
 ## v0.5.x
+
+### v0.5.0-alpha.3（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.3)）
+
+新功能：
+
+- examples、docs：新增奖励面板状态、布局与入场动画、可复用奖励卡生成三个可执行 Agent 编辑流程，通过 SDK/MCP 消费者验证保存与独立回读。
+
+其他：
+
+- workspace：在 PR 环境之外要求快速检查提供 PR 比较基准，预览计划不执行检查，并移除本地完整验证中重复的工作区构建与契约检查。
+- docs：按四种常用场景组织验证入口，同步双语接入与开发指南，并在 PR 模板中记录符合改动范围的检查。
 
 ### v0.5.0-alpha.2（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.2)）
 
