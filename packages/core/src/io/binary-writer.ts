@@ -1,7 +1,6 @@
 import { deflateRaw } from 'pako';
 import type { Document } from '../document.js';
 import type { Atlas } from '../properties/atlas.js';
-import type { Component } from '../properties/component.js';
 import type { Package } from '../properties/package.js';
 import type { ImageResource } from '../properties/image-resource.js';
 import { FGUI_MAGIC } from '../constants.js';
@@ -147,20 +146,6 @@ function getRuntimeAtlasFileName(file: string, index: number): string {
 	const markerIndex = file.lastIndexOf('_atlas');
 	if (markerIndex >= 0) return file.slice(markerIndex + 1);
 	return file;
-}
-
-interface ChildWithOptionalUrls {
-	getSrc?(): string;
-	getUrl?(): string;
-	getDefaultItem?(): string;
-	getIcon?(): string;
-	getSelectedIcon?(): string;
-	getDropdown?(): string;
-	getSound?(): string;
-	getInstanceIcon?(): string;
-	getInstanceSelectedIcon?(): string;
-	getInstanceComboItems?(): Array<{ icon: string | null }>;
-	getListItems?(): Array<{ icon: string | null; url: string | null }>;
 }
 
 interface SizeLike {
@@ -734,63 +719,6 @@ export class BinaryWriter {
 }
 
 /**
- * Filter resources to only include those that are exported or referenced.
- * The editor prunes unreferenced COMPONENTS from the binary output.
- * Non-component resources (images, fonts, sounds, etc.) are always included.
- * @internal
- */
-function _filterReferencedResources(resources: PackageResource[]): PackageResource[] {
-	const referencedIds = new Set<string>();
-	let hasAnyChildren = false;
-
-	function scanUrl(url: string | null | undefined): void {
-		if (!url || typeof url !== 'string' || !url.startsWith('ui://')) return;
-		if (url.length > 13) referencedIds.add(url.slice(13));
-	}
-
-	for (const r of resources) {
-		if (!isComponentResource(r)) continue;
-		const children = r.listChildren();
-		if (children.length > 0) hasAnyChildren = true;
-		for (const child of children) {
-			const refChild = child as ChildWithOptionalUrls;
-			const src = refChild.getSrc?.();
-			if (src) referencedIds.add(src);
-			// GLoader url, GList defaultItem
-			scanUrl(refChild.getUrl?.());
-			scanUrl(refChild.getDefaultItem?.());
-			for (const ref of [
-				refChild.getIcon?.(),
-				refChild.getSelectedIcon?.(),
-				refChild.getDropdown?.(),
-				refChild.getSound?.(),
-				refChild.getInstanceIcon?.(),
-				refChild.getInstanceSelectedIcon?.(),
-			]) {
-				scanUrl(ref);
-			}
-			for (const item of refChild.getInstanceComboItems?.() ?? []) scanUrl(item.icon);
-			for (const item of refChild.getListItems?.() ?? []) {
-				scanUrl(item.icon);
-				scanUrl(item.url);
-			}
-		}
-		// Component-level extension
-		scanUrl(r.getDropdown?.());
-	}
-
-	if (!hasAnyChildren) return resources;
-
-	return resources.filter((r) => {
-		const type = r.propertyType;
-		if (type !== 'Component') return true;
-		if (r.getExported()) return true;
-		const id = r.getId();
-		return referencedIds.has(id);
-	});
-}
-
-/**
  * Encode MovieClip frame data into the binary format.
  *
  * Format: 2-block structure with uint32 offsets
@@ -919,10 +847,6 @@ function _encodeFontGlyphs(
 	buf.pos = savedPos;
 
 	return buf.toUint8Array();
-}
-
-function isComponentResource(resource: PackageResource): resource is Component {
-	return resource.propertyType === 'Component';
 }
 
 function getPublishedFileName(resource: {

@@ -3114,6 +3114,11 @@ test('materializeSession writes a clean browser-safe session without advancing e
 	t.true(materialized.data.writtenPaths.some((filePath) => filePath.endsWith('Project.fairy')));
 	t.true(storage.hasFile('Workspace/Project.fairy'));
 	t.deepEqual(materialized.meta.diagnostics, []);
+	const events = runtime.getEvents({ sessionId: opened.data.sessionId });
+	t.true(events.ok);
+	if (events.ok) {
+		t.deepEqual(events.data.events.slice(-3).map((event) => event.kind), ['save.started', 'save.completed', 'cache.updated']);
+	}
 
 	const reloaded = normalizeUamProject(liftDocumentToUamProject(await new ProjectReader(fileSystem).read('Workspace/Project.fairy')));
 	t.deepEqual(reloaded.packages.map((pkg) => pkg.id), ['pkg001']);

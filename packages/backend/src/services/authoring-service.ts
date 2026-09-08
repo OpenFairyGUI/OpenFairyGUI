@@ -368,6 +368,25 @@ export class AuthoringService {
 		return this.runSessionExclusive(input.sessionId, () => this.saveSessionExclusive(input));
 	}
 
+	private finishSuccessfulSave(session: Parameters<typeof toSessionSnapshot>[0]): void {
+		session.lastSavedRevision = session.revision;
+		session.dirty = false;
+		const cacheEntry = this.cacheService.refreshSession(session);
+		this.eventService.emit({
+			kind: 'save.completed',
+			sessionId: session.sessionId,
+			canonicalPathKey: session.canonicalPathKey,
+			revision: session.revision,
+		});
+		this.eventService.emit({
+			kind: 'cache.updated',
+			sessionId: session.sessionId,
+			canonicalPathKey: session.canonicalPathKey,
+			revision: session.revision,
+			cacheRevision: cacheEntry.revision,
+		});
+	}
+
 	private async saveSessionExclusive(
 		input: SaveSessionInput,
 	): Promise<
@@ -470,22 +489,7 @@ export class AuthoringService {
 			session.pendingStaleResourceFolders.clear();
 			session.pendingStaleBranchDirectories.clear();
 			commitUamProjectSourcePaths(session.project);
-			session.lastSavedRevision = session.revision;
-			session.dirty = false;
-			const cacheEntry = this.cacheService.refreshSession(session);
-			this.eventService.emit({
-				kind: 'save.completed',
-				sessionId: session.sessionId,
-				canonicalPathKey: session.canonicalPathKey,
-				revision: session.revision,
-			});
-			this.eventService.emit({
-				kind: 'cache.updated',
-				sessionId: session.sessionId,
-				canonicalPathKey: session.canonicalPathKey,
-				revision: session.revision,
-				cacheRevision: cacheEntry.revision,
-			});
+			this.finishSuccessfulSave(session);
 			return success('authoring', startedAt, toSessionSnapshot(session, this.context.capabilities), {
 				sessionId: session.sessionId,
 				revision: session.revision,
@@ -727,22 +731,7 @@ export class AuthoringService {
 				session.canonicalPathKey = storageTarget.canonicalPathKey;
 				this.context.sessionsByPath.set(session.canonicalPathKey, session.sessionId);
 			}
-			session.lastSavedRevision = session.revision;
-			session.dirty = false;
-			const cacheEntry = this.cacheService.refreshSession(session);
-			this.eventService.emit({
-				kind: 'save.completed',
-				sessionId: session.sessionId,
-				canonicalPathKey: session.canonicalPathKey,
-				revision: session.revision,
-			});
-			this.eventService.emit({
-				kind: 'cache.updated',
-				sessionId: session.sessionId,
-				canonicalPathKey: session.canonicalPathKey,
-				revision: session.revision,
-				cacheRevision: cacheEntry.revision,
-			});
+			this.finishSuccessfulSave(session);
 			return success(
 				'authoring',
 				startedAt,

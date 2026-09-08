@@ -34,7 +34,7 @@ export function agentEvaluations(values) {
 			provenance: {
 				commit: git(ROOT, ['rev-parse', 'HEAD']).trim(), node: process.version, platform: process.platform, arch: process.arch,
 				consumerLockSha256: digest(path.join(consumer, 'pnpm-lock.yaml')),
-				harness: Object.fromEntries(['scripts/agent-evals.mjs', 'scripts/pack-smoke.mjs', 'scripts/repo-utils.mjs', 'scripts/consumer/agent-eval.mjs', 'scripts/consumer/artifact-eval.mjs', 'scripts/consumer/runtime.mjs', 'scripts/agent-eval-checks.mjs', 'examples/create-demo-project.mjs', 'examples/publish-restore/index.mjs', 'agent/evals/tasks.json'].map((file) => [file, digest(path.join(ROOT, file))])),
+				harness: Object.fromEntries(['scripts/agent-evals.mjs', 'scripts/pack-smoke.mjs', 'scripts/repo-utils.mjs', 'scripts/consumer/agent-eval.mjs', 'scripts/consumer/artifact-eval.mjs', 'scripts/consumer/runtime.mjs', 'scripts/consumer/helpers.mjs', 'scripts/agent-eval-checks.mjs', 'examples/create-demo-project.mjs', 'examples/publish-restore/index.mjs', 'agent/evals/tasks.json'].map((file) => [file, digest(path.join(ROOT, file))])),
 				artifacts: expected.map((manifest) => ({ name: manifest.name, version: manifest.version, file: artifactName(manifest), sha256: digest(path.join(directory, artifactName(manifest))) })),
 			},
 		};

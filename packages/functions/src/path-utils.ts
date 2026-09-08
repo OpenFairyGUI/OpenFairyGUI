@@ -46,3 +46,16 @@ export function normalizeComparablePath(value: string): string {
 	const comparable = drivePrefix ? `${drivePrefix}/${joined}` : hasRoot ? `/${joined}` : joined || '.';
 	return comparable.replace(/\/$/, '').toLowerCase();
 }
+
+export function normalizeRestoreResourcePath(path: string | undefined): string {
+	const raw = (path ?? '').trim();
+	if (!raw || raw === '/') return '';
+	if (raw.includes('\0') || raw.startsWith('\\') || raw.startsWith('//') || /^[a-z]:/iu.test(raw)) {
+		throw new Error(`restore: Invalid resource path "${raw}".`);
+	}
+	const segments = raw.replace(/\\/g, '/').split('/').filter(Boolean);
+	if (segments.some((segment) => segment === '.' || segment === '..' || segment.includes(':'))) {
+		throw new Error(`restore: Invalid resource path "${raw}".`);
+	}
+	return segments.join('/');
+}

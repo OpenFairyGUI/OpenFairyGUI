@@ -29,6 +29,7 @@ import {
 	materializeUamImageResourceProperties,
 	materializeUamListProperties,
 	materializeUamLoaderProperties,
+	materializeUamLoader3DProperties,
 	materializeUamMovieClipProperties,
 	materializeUamTextProperties,
 } from './bridge-materialize.js';
@@ -778,21 +779,7 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 				if (node.propertyType !== PropertyType.G_LOADER_3D) {
 					throw new Error(`Loader3D display props are not supported on display node type "${node.propertyType}".`);
 				}
-				const properties = operation.props.loader3DProperties;
-				(node as GLoader3D)
-					.setUrl(properties.url)
-					.setFill(properties.fill)
-					.setShrinkOnly(properties.shrinkOnly)
-					.setAutoSize(properties.autoSize)
-					.setAlign(properties.align)
-					.setVAlign(properties.vAlign)
-					.setAnimationName(properties.animationName)
-					.setSkinName(properties.skinName)
-					.setPlaying(properties.playing)
-					.setFrame(properties.frame)
-					.setLoop(properties.loop)
-					.setColor(properties.color)
-					.setClearOnPublish(properties.clearOnPublish);
+				materializeUamLoader3DProperties(node as GLoader3D, operation.props.loader3DProperties);
 			}
 			if (operation.props.componentInstanceProperties !== undefined) {
 				if (node.propertyType !== PropertyType.G_COMPONENT) {

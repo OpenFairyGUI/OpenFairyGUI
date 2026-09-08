@@ -579,7 +579,7 @@ test('writer: uses canonical XML attr names for component root, loader, text nod
 		t.true(componentXml.includes('strokeColor="#ffffff"'), 'richtext writes canonical strokeColor attr');
 		t.true(componentXml.includes('shadowColor="#000000"'), 'text shadowColor attrs are normalized to lowercase');
 		t.true(componentXml.includes('shadowOffset="1,2"'), 'richtext writes canonical shadowOffset attr');
-		t.true(/<richtext\b[^>]*rotation="30"[^>]*alpha="0.55"[^>]*touchable="false"[^>]*grayed(?:="true")?/.test(componentXml), 'richtext writes canonical common display attrs');
+		t.true(/<richtext\b(?=[^>]*rotation="30")(?=[^>]*alpha="0.55")(?=[^>]*touchable="false")(?=[^>]*grayed="true")/.test(componentXml), 'richtext writes canonical common display attrs');
 		t.true(componentXml.includes('animation="idle"'), 'loader3D uses canonical animation attr');
 		t.false(componentXml.includes('animationName='), 'loader3D no longer writes model field name');
 		t.false(/<loader3d\b[^>]*\balign=/.test(componentXml), 'loader3D omits default align attr');
@@ -587,7 +587,7 @@ test('writer: uses canonical XML attr names for component root, loader, text nod
 		t.true(componentXml.includes('prompt="Search here"'), 'text input uses canonical prompt attr');
 		t.true(/<inputtext\b[^>]*text=""[^>]*color="#ff3300"/.test(componentXml), 'text input preserves explicit empty text and lowercases color attrs');
 		t.true(/<inputtext\b[^>]*autoClearText(?:="true")?/.test(componentXml), 'text input writes canonical autoClearText attr');
-		t.true(/<inputtext\b[^>]*rotation="15"[^>]*alpha="0.65"[^>]*touchable="false"[^>]*grayed(?:="true")?/.test(componentXml), 'text input writes canonical common display attrs');
+		t.true(/<inputtext\b(?=[^>]*rotation="15")(?=[^>]*alpha="0.65")(?=[^>]*touchable="false")(?=[^>]*grayed="true")/.test(componentXml), 'text input writes canonical common display attrs');
 		t.false(componentXml.includes('promptText='), 'text input no longer writes model field name');
 		t.true(componentXml.includes('colGap="5"'), 'group uses canonical colGap attr');
 		t.true(/<group\b[^>]*layout="hz"/.test(componentXml), 'group uses editor layout attr values');

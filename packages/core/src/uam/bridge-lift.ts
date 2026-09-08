@@ -39,10 +39,6 @@ import {
 	liftEdgeInsets,
 	liftRelations,
 } from './bridge-shared.js';
-import {
-	parseGenericGearValue,
-	parseLookGearValue,
-} from './bridge-materialize.js';
 
 type LiftableDisplayNodeBase = {
 	getId(): string;
@@ -297,6 +293,66 @@ function liftAssetResource(resource: LiftableAssetResource): UamAssetResource {
 		};
 	}
 	throw new Error(`UAM lift does not support resource type "${resource.propertyType}" in Gate A.`);
+}
+
+function parseNumber(raw: string | undefined, fallback: number): number {
+	if (raw === undefined || raw === '') return fallback;
+	const value = Number(raw);
+	return Number.isFinite(value) ? value : fallback;
+}
+
+function parseBool(raw: string | undefined, fallback: boolean): boolean {
+	if (raw === undefined || raw === '') return fallback;
+	const normalized = raw.toLowerCase();
+	if (normalized === '1' || normalized === 'true' || normalized === 'p') return true;
+	if (normalized === '0' || normalized === 'false' || normalized === 's') return false;
+	return fallback;
+}
+
+function parseLookGearValue(value: string | null) {
+	if (!value || value === '-') return null;
+	const parts = value.split(',');
+	return {
+		alpha: parseNumber(parts[0], 1),
+		rotation: parseNumber(parts[1], 0),
+		grayed: parseBool(parts[2], false),
+		touchable: parseBool(parts[3], true),
+	};
+}
+
+function parseGenericGearValue(kind: Exclude<UamGearBinding['kind'], 'display' | 'display2' | 'look'>, value: string | null) {
+	if (kind === 'text') return value === null ? null : { text: value };
+	if (kind === 'icon') return value === null ? null : { icon: value };
+	if (!value || value === '-') return null;
+	const parts = value.split(',');
+	switch (kind) {
+		case 'xy':
+			return {
+				x: parseNumber(parts[0], 0), y: parseNumber(parts[1], 0),
+				...(parts.length > 2 ? { px: Number(parts[2]), py: Number(parts[3]) } : {}),
+			};
+		case 'size':
+			return {
+				width: parseNumber(parts[0], 0),
+				height: parseNumber(parts[1], 0),
+				scaleX: parseNumber(parts[2], 1),
+				scaleY: parseNumber(parts[3], 1),
+			};
+		case 'color':
+			return {
+				color: parts[0] || '#ffffff',
+				outlineColor: parts[1] || null,
+			};
+		case 'animation':
+			return {
+				frame: parseNumber(parts[0], 0),
+				playing: parseBool(parts[1], true),
+				animationName: parts[2] ?? '',
+				skinName: parts[3] ?? '',
+			};
+		case 'fontSize':
+			return { fontSize: parseNumber(parts[0], 12) };
+	}
 }
 
 function liftGears(gears: ReturnType<GObject['listGears']>): UamGearBinding[] {

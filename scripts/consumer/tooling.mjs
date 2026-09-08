@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { build } from 'esbuild';
-import { contained, json } from './runtime.mjs';
+import { contained, json } from './helpers.mjs';
 
 const root = process.cwd();
 const manifests = json('expected.json');

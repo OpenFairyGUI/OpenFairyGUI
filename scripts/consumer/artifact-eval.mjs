@@ -10,7 +10,7 @@ import { NodeIO } from '@openfairygui/core/node';
 import { getInstalledDocumentationIndex, getInstalledDocumentationVersion, readInstalledDocumentation } from '@openfairygui/backend/docs';
 import { validateProjectNode } from '@openfairygui/functions/node';
 import { createPublishProject, IMAGE_BYTES, mergePublishedPackages, publishAndRestore, supportedSemantics } from './examples/publish-restore/index.mjs';
-import { assertCliEnvelope, bin, json, snapshot } from './runtime.mjs';
+import { assertCliEnvelope, bin, json, snapshot } from './helpers.mjs';
 import { ARTIFACT_TOOLS, assertArtifactTool, assertWithin, gradeArtifactEvaluation, observations } from './agent-eval-checks.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));

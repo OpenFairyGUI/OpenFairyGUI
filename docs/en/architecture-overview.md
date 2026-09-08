@@ -48,6 +48,8 @@ flowchart TD
 
 `bridge.ts` remains the lift/materialize facade, with implementations in `bridge-lift.ts`, `bridge-materialize.ts` and `bridge-shared.ts`; controlled source-file enumeration belongs to `project-source-files.ts`. Binary content uses `Uint8Array`, preserved in conversions and transaction working copies without JSON cloning.
 
+Gear string parsing belongs to `bridge-lift.ts`; Document setter mappings for specific properties belong to `bridge-materialize.ts` and are reused by creation and transaction updates. Document imports its logger leaf directly. XML readers and writers invoke the common-state handler once using the concrete tag protocol, leaving other tag-specific fields in their branches. Reading common state precedes Gear default capture and does not widen formal property ownership.
+
 Project reading, UAM checks and source validation are layered: `readProjectDetailed` reports read completeness, `validateUamProject` checks the model, and Functions composes the formal validation report. `invalid` means a definite error; `incomplete` means missing capability or data. See [project validation](../project-validation.md).
 
 ## Transactions and support preflight
@@ -89,6 +91,8 @@ Preview compares two formal UAM snapshots for entity/field impacts and reuses th
 
 The session queue serializes preview, apply, save, materialize and close. Events are bounded polling logs; jobs support only in-memory `cache.refresh` with cooperative cancellation; cache is revision-bound derived data, not a source of truth. The artifact plane declares host capabilities without executing publish/restore.
 
+Save and materialize share an internal AuthoringService completion step: update the saved revision, clear dirty, refresh cache, then emit `save.completed` followed by `cache.updated`. Each path retains its own validation, storage binding and error results; both remain serialized by the same session queue.
+
 Pure in-memory session `canonicalProjectPath` / `canonicalPathKey` values identify a session only. Save and materialize use session-bound storage or an adapter explicitly provided by the host for that call; they do not automatically acquire the runtime filesystem. Preview persistence hints reflect the actual session binding.
 
 ## Node / Web and path boundaries
@@ -110,6 +114,8 @@ Pure in-memory session `canonicalProjectPath` / `canonicalPathKey` values identi
 - `publishBrowser()` injects caller filesystems, a Canvas raster adapter and empty hooks, rejecting unsupported settings before writing. Output atomicity belongs to the host; failure lists contain only completed writes.
 - `restoreNode()` restores only trusted local published directories into separate project directories, reusing path checks, reconstruction and output transactions in `restore.ts` and `restore-internals/`. It does not guarantee original XML, editor settings, unpublished content or local state, and does not decide whether unknown inputs are trustworthy.
 
+`restore.ts` owns preparation order and filesystem asset restoration. Font textures, glyph images, name associations and defaults are reconstructed in `restore-internals/font.ts`; these steps mutate Document without I/O. Both reuse restore resource-path validation from the existing `path-utils.ts`; the font module does not import the restore entry.
+
 CLI only parses arguments, invokes formal Node entrypoints and wraps results. Product MCP exposes no publish/restore execution tools. Evaluation-only artifact hosts use constrained tools with fixed inputs/directories without widening product permissions.
 
 ## Protocol and behavior references
@@ -125,6 +131,8 @@ CLI only parses arguments, invokes formal Node entrypoints and wraps results. Pr
 ## Contracts and consumer verification
 
 `agent/impact-map.json` drives test selection and the AGENTS guidance table. `check:ci` combines full tests, contract/documentation checks, documentation builds and external five-package installed consumers. Release checks the exact tarballs about to be published, not workspace links.
+
+`scripts/consumer/helpers.mjs` owns shared consumer checks for file containment, public exports, bins, CLI envelopes and directory snapshots. Acceptance scenarios and repository self-tests depend directly on this leaf. Both the isolated-consumer copy inventory and Agent evaluation harness digest include it; shared helpers are not imported from the runtime scenario entry.
 
 Consumers run public Node/MCP stdio examples and real Chromium OPFS → Core adapter → Backend session → preview/edit/save → hydrated WebIO reread. Checks cover source bytes, Web Locks, refresh recovery and path rejection, not interactive user-folder authorization, renderers or every browser.
 
