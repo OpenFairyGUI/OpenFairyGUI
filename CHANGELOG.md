@@ -7,9 +7,27 @@
 Release comparisons:
 
 - Stable line (`main`): [v0.4.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...main)
-- Development line (`next`): [v0.5.0-alpha.3...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0-alpha.3...next)
+- Development line (`next`): [v0.5.0-alpha.4...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0-alpha.4...next)
 
 ## v0.5.x
+
+### v0.5.0-alpha.4 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.4))
+
+Bug Fixes:
+
+- core: Preserve absent Gear defaults and component-instance controller overrides through UAM and Project XML round trips.
+- functions: Include bitmap-font textures and glyph images in publishing, resolve source font paths consistently, and encode external font names without publishing their source resources.
+- functions: Expand project variables in publish and code-generation paths, transliterate Chinese identifiers, and prevent generated class and member name collisions.
+- backend, mcp: Allow previews that repair existing broken references while validating the projected result, and accept schema-declared JSON byte arrays within the aggregate 8 MiB input budget.
+
+Other:
+
+- core, functions, backend: Consolidate common XML state and Loader3D assignment, remove unused resource filtering, isolate restore font preparation, and reuse successful-save completion logic.
+- workspace: Remove reverse dependencies from consumer helpers to their runner, expand regression coverage, and synchronize bilingual protocol and architecture documentation.
+
+Breaking changes:
+
+- core, backend: All value-bearing UAM Gears can now have a `null` default to retain the owner's initial value; consumers must handle this in Look, Size, Color, Animation, and FontSize gears. Backend contract version is `2.0.0-p3`.
 
 ### v0.5.0-alpha.3 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.3))
 
