@@ -22,7 +22,7 @@ macOS / Linux 可直接使用上面的命令；Windows PowerShell 将 `./node_mo
 
 核对 CLI 版本与文档索引的 `result.packageVersion`；索引同时给出契约版本、能力 schema 和正文 URI。版本不一致时先由宿主统一安装，再进行编辑。
 
-需要试用预发布能力时，将安装命令中的两个包换成 `@openfairygui/cli@next`、`@openfairygui/mcp@next`，仍保存精确版本。`readSessionState` / `readResourceBytes` 从 `0.5.0-alpha.1` 起提供。各包应使用同一版本与通道，操作依据来自当前安装语料。
+正式版 `0.5.0` 已提供 `readSessionState` / `readResourceBytes`。需要试用预发布版本时，将安装命令中的两个包换成 `@openfairygui/cli@next`、`@openfairygui/mcp@next`，仍保存精确版本。各包应使用同一版本与通道，操作依据来自当前安装语料。
 
 ## 连接本地 MCP
 
@@ -61,7 +61,7 @@ macOS / Linux 可直接使用上面的命令；Windows PowerShell 将 `./node_mo
 
 ## 完成首个编辑任务
 
-主任务是把一个静态奖励面板改成由控制器驱动的三状态组件，一次编辑同时覆盖控制器、文字、按钮交互和显示条件。稳定版 `0.4.0` 已支持本任务，无需预发布的完整状态读取能力。
+主任务是把一个静态奖励面板改成由控制器驱动的三状态组件，一次编辑同时覆盖控制器、文字、按钮交互和显示条件。使用稳定版 `0.5.0` 即可完成本任务。
 
 ### 准备待编辑工程
 
@@ -113,7 +113,7 @@ node reward-panel-states/index.mjs --create
 | B · 视觉改版 | [布局与入场动画示例](./examples.md#奖励面板布局与入场动画)：将面板调整为 420 × 320，一批七个操作修改布局并新增 0.4 秒入场动画，保留三状态配置；提供前后发布产物、实际渲染截图与验收表。 |
 | C · 组件生成 | [模板生成奖励卡片示例](./examples.md#从模板生成奖励卡片)：以三个 `addComponent` 生成不同标题和图标的导出组件，共用一个 Label 模板与现有图片；包含原模板/文件保持不变的独立比较及实际渲染截图。 |
 
-若宿主需要读取生成后尚未保存的完整模型，`0.5.0-alpha.1` 起可用 `readSessionState`，再按返回 revision 调用 `readResourceBytes` 读取所需主资源。组件生成本身不要求升级；响应预算、读取诊断与 `stale_read` 的处理见[契约指南](./contracts.md)。
+若宿主需要读取生成后尚未保存的完整模型，正式版 `0.5.0` 可用 `readSessionState`，再按返回 revision 调用 `readResourceBytes` 读取所需主资源。响应预算、读取诊断与 `stale_read` 的处理见[契约指南](./contracts.md)。
 
 ## 终端工作流
 

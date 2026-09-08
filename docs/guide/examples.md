@@ -17,7 +17,7 @@ node reward-card-generation/index.mjs
 
 ## 三状态奖励面板
 
-这是[首个编辑任务](./getting-started.md#完成首个编辑任务)的完整 SDK 实现，稳定版 `0.4.0` 即可运行。创建两包临时工程后，从 outline 获取 `Main/RewardPanel`、`claimButton` 和 `claimedMark` 的唯一 ID，用一个事务新增 `rewardState` 控制器和 `text` / `look` / `display` 三个 gear，控制未达成、可领取、已领取三种状态。现有布局、其他组件和 Shared 包图片均保留。
+这是[首个编辑任务](./getting-started.md#完成首个编辑任务)的完整 SDK 实现，稳定版 `0.5.0` 即可运行。创建两包临时工程后，从 outline 获取 `Main/RewardPanel`、`claimButton` 和 `claimedMark` 的唯一 ID，用一个事务新增 `rewardState` 控制器和 `text` / `look` / `display` 三个 gear，控制未达成、可领取、已领取三种状态。现有布局、其他组件和 Shared 包图片均保留。
 
 让 Agent 自己完成任务时，只创建待编辑工程：
 
@@ -35,7 +35,7 @@ node reward-panel-states/index.mjs --create
 
 ## 奖励面板布局与入场动画
 
-进阶任务 B 复用 A 已保存的三状态面板，调整留白、尺寸与位置，并新增一次性入场动画。稳定版 `0.4.0` 即可运行；控制器、gear、文案及图片字节保持不变。
+进阶任务 B 复用 A 已保存的三状态面板，调整留白、尺寸与位置，并新增一次性入场动画。稳定版 `0.5.0` 即可运行；控制器、gear、文案及图片字节保持不变。
 
 让 Agent 完成 B 时，先创建一份已经完成 A、尚未改版的工程：
 
@@ -83,7 +83,7 @@ node reward-panel-layout/index.mjs --create
 
 ## 从模板生成奖励卡片
 
-任务 C 从已有 `Main/RewardCardTemplate` 生成三个导出的组件，稳定版 `0.4.0` 即可运行。每个新组件只有一个引用模板的 Label 实例，以正式实例属性设置标题与图标；模板的子节点保持在原组件中。图标引用现有 Shared 包的两张 2 × 2 红蓝 PNG，它们是用于验证资源复用的色块。
+任务 C 从已有 `Main/RewardCardTemplate` 生成三个导出的组件，稳定版 `0.5.0` 即可运行。每个新组件只有一个引用模板的 Label 实例，以正式实例属性设置标题与图标；模板的子节点保持在原组件中。图标引用现有 Shared 包的两张 2 × 2 红蓝 PNG，它们是用于验证资源复用的色块。
 
 先创建包含模板与图片、尚未生成卡片的独立工程（不要求先运行 A/B）：
 
