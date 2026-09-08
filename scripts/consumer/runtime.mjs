@@ -112,7 +112,7 @@ async function hostCompositionSmoke() {
 		await Promise.all([client.connect(ct), server.connect(st)]);
 		assert.equal(client.getInstructions(), 'Host writes require owner approval.');
 		const { tools } = await client.listTools();
-		assert.equal(tools.length, 21); assert(tools.some(({ name }) => name === 'host_probe'));
+		assert.equal(tools.length, 18); assert(tools.some(({ name }) => name === 'host_probe'));
 		assert.equal((await client.callTool({ name: 'host_probe', arguments: {} })).content[0].text, 'ok');
 		assert((await client.readResource({ uri: 'openfairygui://docs/workflow' })).contents[0].text.length > 0);
 		assert((await client.getPrompt({ name: 'openfairygui_save_session' })).messages.length > 0);

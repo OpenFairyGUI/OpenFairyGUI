@@ -701,9 +701,12 @@ test('root extension children in fixture samples require matching extention attr
 });
 
 test('protocolized project XML fields do not regress to legacy direct access patterns', async (t) => {
-	const readerPath = path.resolve(__dirname, '../src/io/project-reader.ts');
 	const writerPath = path.resolve(__dirname, '../src/io/project-writer.ts');
-	const readerSource = await fs.readFile(readerPath, 'utf-8');
+	const readerSource = (await Promise.all([
+		'project-reader.ts', 'component-xml-reader.ts', 'display-object-xml-reader.ts',
+		'display-object-xml-text.ts', 'display-object-xml-list.ts', 'display-object-xml-instance.ts',
+		'display-object-xml-behaviors.ts', 'display-object-xml-shared.ts',
+	].map((file) => fs.readFile(path.resolve(__dirname, '../src/io', file), 'utf8')))).join('\n');
 	const writerSource = await fs.readFile(writerPath, 'utf-8');
 
 	const forbiddenReaderSnippets = [

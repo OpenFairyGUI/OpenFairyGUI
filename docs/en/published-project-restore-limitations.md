@@ -30,6 +30,8 @@ In this document, “not recoverable” means:
 
 ## Confirmed unrecoverable information
 
+Inferred image dimensions support resource reconstruction but are omitted from `package.xml` as original declarations. `RestoreResult.document` retains this write hint when passed to a new `ProjectWriter` or `NodeIO.writeProject()`. Hints are in-memory serialization controls and do not propagate through UAM conversion or reloading. To explicitly write an image's current dimensions, clear its hint with `ProjectWriter.setImageWriteHints(image, {})`.
+
 ### 1. Resources or actions absent from the published package
 
 | Category | Unrecoverable information | Reason | Current sample evidence |

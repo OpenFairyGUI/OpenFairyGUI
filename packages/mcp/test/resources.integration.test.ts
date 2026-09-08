@@ -66,7 +66,7 @@ test('MCP P1 resources expose only identity-addressable backend snapshots', asyn
 			...templates.resourceTemplates.map((template) => template.uriTemplate),
 		].join('\n');
 		t.false(allResourceUris.includes('events'));
-		t.false(allResourceUris.includes('listJobs'));
+		t.false(allResourceUris.includes('jobs'));
 	});
 });
 
@@ -137,12 +137,9 @@ test('MCP P1 resources read unchanged backend envelopes as JSON content', async 
 				arguments: { sessionId, reason: 'manual' },
 			});
 			const refreshedEnvelope = (refreshed.structuredContent as { backendResult?: BackendEnvelope }).backendResult;
-			const jobId = (refreshedEnvelope?.data as { jobId: string }).jobId;
-
-			const job = parseJsonResource(await client.readResource({
-				uri: `openfairygui://backend/job/${sessionId}/${jobId}`,
-			}));
-			t.true(job.ok);
+			t.true(refreshedEnvelope?.ok);
+			const refreshedCache = parseJsonResource(await client.readResource({ uri: `openfairygui://backend/cache/${sessionId}` }));
+			t.deepEqual(refreshedCache.data, refreshedEnvelope?.data);
 
 			const missingSession = parseJsonResource(await client.readResource({
 				uri: 'openfairygui://backend/session/missing-session',
@@ -156,11 +153,7 @@ test('MCP P1 resources read unchanged backend envelopes as JSON content', async 
 			t.false(missingOutline.ok);
 			t.is(missingOutline.error?.code, 'session_not_found');
 
-			const missingJob = parseJsonResource(await client.readResource({
-				uri: `openfairygui://backend/job/${sessionId}/missing-job`,
-			}));
-			t.false(missingJob.ok);
-			t.is(missingJob.error?.code, 'job_not_found');
+			await t.throwsAsync(client.readResource({ uri: `openfairygui://backend/job/${sessionId}/missing-job` }));
 		});
 	} finally {
 		await fixture.cleanup();

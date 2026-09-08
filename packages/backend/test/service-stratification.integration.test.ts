@@ -1,5 +1,29 @@
 import test from 'ava';
-import { createBackendRuntime, createTempBackendProject } from './helpers.js';
+import { createBackendFixtureProject, createBackendRuntime, createTempBackendProject } from './helpers.js';
+import { cloneReadData, readView, type SessionReadView } from '../src/services/context.js';
+
+test('borrowed read views deny nested writes and only detached data becomes writable', (t) => {
+	const assertReadPermissions = (view: SessionReadView) => {
+		// @ts-expect-error Read services do not own revisions.
+		view.revision += 1;
+		// @ts-expect-error Read services cannot change the project through nested arrays.
+		view.project.packages.length = 0;
+		// @ts-expect-error Host filesystem capabilities are not part of a read view.
+		view.fileSystem.writeFile('Project.fairy', '');
+		const resource = view.project.packages[0].resources[0];
+		if (resource.kind === 'image' && resource.sourceBytes) {
+			// @ts-expect-error Primary resource bytes are also borrowed read-only.
+			resource.sourceBytes[0] = 0;
+		}
+	};
+	void assertReadPermissions;
+	const project = createBackendFixtureProject();
+	const view = readView(project);
+	t.true(Object.is(view, project));
+	const detached = cloneReadData<typeof project>(view);
+	detached.packages[0].resources.length = 0;
+	t.is(project.packages[0].resources.length, 2);
+});
 
 test('requests are tagged by service concern via meta.stage', async (t) => {
 	const fixture = await createTempBackendProject();

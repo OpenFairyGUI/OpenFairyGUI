@@ -449,7 +449,7 @@ function liftGears(gears: ReturnType<GObject['listGears']>): UamGearBinding[] {
 	});
 }
 
-function liftDisplayNode(child: GObject): UamDisplayNode {
+export function liftDisplayNode(child: GObject): UamDisplayNode {
 	if (child.propertyType === PropertyType.G_IMAGE) {
 		const image = child as ReturnType<Document['createGImage']>;
 		return {

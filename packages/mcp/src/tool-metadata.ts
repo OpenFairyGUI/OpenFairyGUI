@@ -144,27 +144,6 @@ export const OPENFAIRYGUI_BACKEND_TOOL_METADATA = [
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 	},
 	{
-		name: 'openfairygui_backend_get_job',
-		backendMethod: 'getJob',
-		title: 'Get Runtime Job',
-		description: 'Return a backend runtime job snapshot by session and backend-local job id.',
-		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-	},
-	{
-		name: 'openfairygui_backend_list_jobs',
-		backendMethod: 'listJobs',
-		title: 'List Runtime Jobs',
-		description: 'List backend runtime jobs for a session with backend P2 status/kind filters.',
-		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-	},
-	{
-		name: 'openfairygui_backend_cancel_job',
-		backendMethod: 'cancelJob',
-		title: 'Cancel Runtime Job',
-		description: 'Request cooperative cancellation for a backend runtime job.',
-		annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },
-	},
-	{
 		name: 'openfairygui_backend_get_cache_snapshot',
 		backendMethod: 'getCacheSnapshot',
 		title: 'Get Cache Snapshot',
@@ -175,7 +154,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_METADATA = [
 		name: 'openfairygui_backend_refresh_cache',
 		backendMethod: 'refreshCache',
 		title: 'Refresh Cache',
-		description: 'Create a backend P2 cache.refresh job for the session cache snapshot.',
+		description: 'Synchronously refresh the derived session cache and return its revision-bound snapshot.',
 		annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },
 	},
 ] as const satisfies readonly BackendToolMetadata[];

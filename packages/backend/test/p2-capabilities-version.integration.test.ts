@@ -11,35 +11,29 @@ interface MutableCapabilitiesProbe {
 		events: {
 			polling: boolean;
 		};
-		jobs: {
-			supportedKinds: string[];
-		};
 		cache: {
 			sourceOfTruth: boolean;
 		};
 	};
 }
 
-test('P2 capabilities and version fields expose events jobs and cache support', (t) => {
+test('P2 capabilities and version fields expose events and synchronous cache refresh support', (t) => {
 	const runtime = createBackendRuntime();
 	const result = runtime.getCapabilities();
 	t.true(result.ok);
 	if (!result.ok) return;
 
-	t.is(BACKEND_CONTRACT_VERSION, '2.0.0-p3');
-	t.is(BACKEND_CAPABILITY_SCHEMA_VERSION, 11);
+	t.is(BACKEND_CONTRACT_VERSION, '3.0.0');
+	t.is(BACKEND_CAPABILITY_SCHEMA_VERSION, 12);
 	t.true(result.data.methods.includes('getEvents'));
-	t.true(result.data.methods.includes('getJob'));
-	t.true(result.data.methods.includes('listJobs'));
-	t.true(result.data.methods.includes('cancelJob'));
 	t.true(result.data.methods.includes('getCacheSnapshot'));
 	t.true(result.data.methods.includes('refreshCache'));
+	for (const method of ['getJob', 'listJobs', 'cancelJob']) t.false(method in runtime);
+	t.false('jobs' in result.data.runtime);
+	t.is(result.data.runtime.cache.refreshMode, 'synchronous');
+	t.is(result.data.runtime.cache.keyedBy, 'sessionId');
 	t.true(result.data.runtime.events.polling);
 	t.false(result.data.runtime.events.subscriptions);
-	t.true(result.data.runtime.jobs.inMemory);
-	t.true(result.data.runtime.jobs.cooperativeCancel);
-	t.false(result.data.runtime.jobs.persistent);
-	t.false(result.data.runtime.jobs.artifactJobs);
 	t.true(result.data.runtime.cache.derivedReadOnly);
 	t.false(result.data.runtime.cache.sourceOfTruth);
 });
@@ -53,7 +47,6 @@ test('P2 capability snapshots are isolated from external mutation', (t) => {
 	const mutable = result.data as unknown as MutableCapabilitiesProbe;
 	mutable.methods.length = 0;
 	mutable.runtime.events.polling = false;
-	mutable.runtime.jobs.supportedKinds.push('artifact.publish');
 	mutable.runtime.cache.sourceOfTruth = true;
 
 	const again = runtime.getCapabilities();
@@ -61,7 +54,6 @@ test('P2 capability snapshots are isolated from external mutation', (t) => {
 	if (!again.ok) return;
 	t.true(again.data.methods.includes('refreshCache'));
 	t.true(again.data.runtime.events.polling);
-	t.deepEqual(again.data.runtime.jobs.supportedKinds, ['cache.refresh']);
 	t.false(again.data.runtime.cache.sourceOfTruth);
 });
 
@@ -76,7 +68,6 @@ test('session capability snapshots are isolated from external mutation', async (
 		const mutable = opened.data.capabilities as unknown as MutableCapabilitiesProbe;
 		mutable.methods.length = 0;
 		mutable.runtime.events.polling = false;
-		mutable.runtime.jobs.supportedKinds.push('artifact.publish');
 		mutable.runtime.cache.sourceOfTruth = true;
 
 		const session = runtime.getSession({ sessionId: opened.data.sessionId });
@@ -84,7 +75,6 @@ test('session capability snapshots are isolated from external mutation', async (
 		if (!session.ok) return;
 		t.true(session.data.capabilities.methods.includes('refreshCache'));
 		t.true(session.data.capabilities.runtime.events.polling);
-		t.deepEqual(session.data.capabilities.runtime.jobs.supportedKinds, ['cache.refresh']);
 		t.false(session.data.capabilities.runtime.cache.sourceOfTruth);
 	} finally {
 		await fixture.cleanup();

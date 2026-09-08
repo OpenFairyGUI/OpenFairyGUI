@@ -6,7 +6,7 @@ import test from 'ava';
 import { liftDocumentToUamProject, materializeUamProject, normalizeUamProject, validateTransactionSupport, type UamTransactionOperation } from '@openfairygui/core/uam';
 import { BackendRuntime, BACKEND_ENTITY_QUERY_LIMITS, BACKEND_SESSION_READ_LIMITS, BACKEND_TRANSACTION_PREVIEW_LIMITS, type ApplySessionTransactionInput, type QueryEntityInput, type ReadResourceBytesInput } from '../src/index.js';
 import type { BackendContext } from '../src/services/context.js';
-import type { AuthoringService } from '../src/services/authoring-service.js';
+import type { SessionOperationQueue } from '../src/services/session-operation-queue.js';
 import { createBackendFixtureProject, createBackendRuntime, createTempBackendProject } from './helpers.js';
 import { createNodeBackendFileSystem } from '../src/node.js';
 
@@ -62,9 +62,9 @@ test('session reads capture committed unsaved UAM and detached primary bytes wit
 		t.deepEqual(bytes.data.sourceBytes, image.sourceBytes);
 		state.data.project.packages[0].resources.length = 0; bytes.data.sourceBytes.fill(0); bytes.data.selector.resourceId = 'caller mutation';
 		t.deepEqual(sessionState(runtime, sessionId), before);
-		const { authoringService } = runtime as unknown as { authoringService: AuthoringService };
+		const { sessionOperations } = runtime as unknown as { sessionOperations: SessionOperationQueue };
 		let release = (): void => undefined;
-		const blocking = authoringService.runSessionExclusive(sessionId, () => new Promise<void>((resolve) => { release = resolve; }));
+		const blocking = sessionOperations.run(sessionId, () => new Promise<void>((resolve) => { release = resolve; }));
 		await Promise.resolve();
 		const applying = runtime.applyTransaction({ sessionId, expectedRevision: 0, operations: [{ kind: 'setDisplayNodeProps', selector: nodeTarget.selector, props: { text: 'unsaved read' } }] });
 		t.deepEqual(runtime.readSessionState({ sessionId }).ok && sessionState(runtime, sessionId), before);
@@ -186,16 +186,20 @@ function complexQueryProject() {
 
 function sessionState(runtime: BackendRuntime, sessionId: string) {
 	// Inspect authoritative state, not just the public outline, to catch hidden preview writes.
-	const { context, eventSequence } = runtime as unknown as { context: BackendContext; eventSequence: number };
+	const { context, eventService } = runtime as unknown as { context: BackendContext; eventService: { sequence: number } };
 	const session = context.sessions.get(sessionId);
 	assert(session);
 	const snapshot = runtime.getSession({ sessionId });
 	assert(snapshot.ok);
+	const cache = runtime.getCacheSnapshot({ sessionId });
+	const events = runtime.getEvents({ sessionId });
+	assert(cache.ok && events.ok);
 	return structuredClone({
 		snapshot: snapshot.data, project: session.project,
 		pendingFiles: session.pendingStaleSourceFiles, pendingFolders: session.pendingStaleResourceFolders,
 		pendingBranches: session.pendingStaleBranchDirectories,
-		cache: context.cacheBySession, events: context.eventsBySession, jobs: context.jobsBySession, eventSequence,
+		cache: cache.data, events: events.data,
+		eventSequence: eventService.sequence,
 	});
 }
 
@@ -218,7 +222,7 @@ test('fixed entity projections are revision-bound, byte-free and detached withou
 	const opened = runtime.openProjectSession({ project });
 	assert(opened.ok);
 	const sessionId = opened.data.sessionId;
-	const state = () => [runtime.getSession({ sessionId }), runtime.getProjectOutline({ sessionId }), runtime.getCacheSnapshot({ sessionId }), runtime.getEvents({ sessionId }), runtime.listJobs({ sessionId })].map((result) => {
+	const state = () => [runtime.getSession({ sessionId }), runtime.getProjectOutline({ sessionId }), runtime.getCacheSnapshot({ sessionId }), runtime.getEvents({ sessionId })].map((result) => {
 		assert(result.ok); return result.data;
 	});
 	const before = state();
@@ -737,8 +741,8 @@ test('preview snapshots queued input and shared bytes before waiting for the ses
 	const before = sessionState(runtime, sessionId);
 	let release = (): void => undefined;
 	const gate = new Promise<void>((resolve) => { release = resolve; });
-	const { authoringService } = runtime as unknown as { authoringService: AuthoringService };
-	const blocking = authoringService.runSessionExclusive(sessionId, () => gate);
+	const { sessionOperations } = runtime as unknown as { sessionOperations: SessionOperationQueue };
+	const blocking = sessionOperations.run(sessionId, () => gate);
 	const input: ApplySessionTransactionInput = { sessionId, expectedRevision: 0, operations: [
 		{ kind: 'replaceResourceBytes', selector: { packageId: 'pkg001', resourceId: 'img001' }, sourceBytes: bytes },
 	] };

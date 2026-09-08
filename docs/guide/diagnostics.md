@@ -818,36 +818,4 @@ Owners: `core.transaction` · Recovery: `host-action`
 URI: `openfairygui://docs/diagnostics/execution_failure`
 
 Inspect the execution/cache failure and current session/revision. Preserve sources and unsaved work and report the cause to the host. Replan after resolution; failed execution or cache work is not a completed edit.
-
-### cache_refresh_failed
-
-Owners: `backend` · Recovery: `host-action`
-
-URI: `openfairygui://docs/diagnostics/cache_refresh_failed`
-
-Inspect the execution/cache failure and current session/revision. Preserve sources and unsaved work and report the cause to the host. Replan after resolution; failed execution or cache work is not a completed edit.
-
-### job_not_found
-
-Owners: `backend` · Recovery: `host-action`
-
-URI: `openfairygui://docs/diagnostics/job_not_found`
-
-Inspect the job ID and status with getJob/listJobs. Do not fabricate, restart or force-cancel a missing, terminal or non-cancellable job. Ask the host before scheduling new work; cancellation is not success.
-
-### job_not_cancellable
-
-Owners: `backend` · Recovery: `host-action`
-
-URI: `openfairygui://docs/diagnostics/job_not_cancellable`
-
-Inspect the job ID and status with getJob/listJobs. Do not fabricate, restart or force-cancel a missing, terminal or non-cancellable job. Ask the host before scheduling new work; cancellation is not success.
-
-### job_cancelled
-
-Owners: `backend` · Recovery: `host-action`
-
-URI: `openfairygui://docs/diagnostics/job_cancelled`
-
-Inspect the job ID and status with getJob/listJobs. Do not fabricate, restart or force-cancel a missing, terminal or non-cancellable job. Ask the host before scheduling new work; cancellation is not success.
 <!-- diagnostics:end -->

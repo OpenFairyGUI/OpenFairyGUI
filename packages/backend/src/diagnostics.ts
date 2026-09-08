@@ -29,7 +29,6 @@ const project = { kind: 'host-action', message: "Inspect the project path and va
 const capability = { kind: 'host-action', message: "Read capability/error details. Ask the host to provide the required filesystem, decoder or complete UAM adapter. Preserve the session and unsaved work; do not substitute a lossy path or bypass checks." } as const;
 const write = { kind: 'host-action', message: "Preserve the dirty session and inspect the error, actual target files and permissions with the host. Partial writes may have changed files: verify or recover them before a newly authorized save. Do not clear dirty state, discard memory or blindly retry." } as const;
 const execution = { kind: 'host-action', message: "Inspect the execution/cache failure and current session/revision. Preserve sources and unsaved work and report the cause to the host. Replan after resolution; failed execution or cache work is not a completed edit." } as const;
-const job = { kind: 'host-action', message: "Inspect the job ID and status with getJob/listJobs. Do not fabricate, restart or force-cancel a missing, terminal or non-cancellable job. Ask the host before scheduling new work; cancellation is not success." } as const;
 
 /** Exhaustiveness and exact ownership are checked against the canonical unions. */
 export const BACKEND_DIAGNOSTIC_GUIDES = [
@@ -154,10 +153,6 @@ export const BACKEND_DIAGNOSTIC_GUIDES = [
 	{ code: 'project_open_failed', owners: ["backend"], remediation: project },
 	{ code: 'materialize_validation_failed', owners: ["backend"], remediation: project },
 	{ code: 'execution_failure', owners: ["core.transaction"], remediation: execution },
-	{ code: 'cache_refresh_failed', owners: ["backend"], remediation: execution },
-	{ code: 'job_not_found', owners: ["backend"], remediation: job },
-	{ code: 'job_not_cancellable', owners: ["backend"], remediation: job },
-	{ code: 'job_cancelled', owners: ["backend"], remediation: job },
 ] as const satisfies readonly BackendDiagnosticGuide[];
 
 export const BACKEND_DIAGNOSTICS_URI = 'openfairygui://docs/diagnostics';

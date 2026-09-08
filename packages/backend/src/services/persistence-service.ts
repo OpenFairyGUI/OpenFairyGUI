@@ -1,0 +1,534 @@
+import { commitUamProjectSourcePaths, materializeUamProject, validateUamProject } from '@openfairygui/core/uam';
+import type { BackendDiagnostic } from '../contracts.js';
+import { normalizeComparablePath, type PathPolicyViolationError, validateSaveTarget } from '../path-policy.js';
+import type {
+	BackendCapabilityUnavailableError,
+	BackendFileSystem,
+	BackendResult,
+	BackendSessionSnapshot,
+	InProcessLockConflictError,
+	MaterializeSessionInput,
+	MaterializeSessionSnapshot,
+	MaterializeValidationFailedError,
+	MaterializeWriteFailedError,
+	SavePartialFailureError,
+	SaveSessionInput,
+	SessionNotFoundError,
+	SessionStaleWriteError,
+	UamFidelityUnsupportedError,
+} from '../runtime/contracts.js';
+import type { CacheService } from './cache-service.js';
+import { type BackendContext, type BackendSessionState, failure, success } from './context.js';
+import type { EventService } from './event-service.js';
+import type { SessionOperationQueue } from './session-operation-queue.js';
+import { createSessionNotFoundError, createStaleWriteError, toSessionSnapshot } from './session-utils.js';
+import { writeSessionProject } from './session-project-writer.js';
+
+function createCapabilityUnavailableError(message: string): BackendCapabilityUnavailableError {
+	return {
+		code: 'capability_unavailable',
+		message,
+		capability: 'fileSystem',
+		requiredAdapter: 'BackendFileSystem',
+	};
+}
+
+function createUamFidelityUnsupportedError(session: BackendSessionState): UamFidelityUnsupportedError {
+	return {
+		code: 'uam_fidelity_unsupported',
+		message: 'The source project contains formal properties that the current UAM cannot preserve.',
+		sessionId: session.sessionId,
+		canonicalPathKey: session.canonicalPathKey,
+	};
+}
+
+function validationDiagnostics(sessionProject: Parameters<typeof validateUamProject>[0]): BackendDiagnostic[] {
+	const issues = validateUamProject(sessionProject);
+	return issues.map((issue) => ({
+		code: 'materialize_validation_failed',
+		message: issue.message,
+		severity: 'error',
+		path: issue.path,
+		operationKind: 'materializeSession',
+	}));
+}
+
+function toMaterializeSnapshot(
+	session: BackendSessionState,
+	capabilities: Parameters<typeof toSessionSnapshot>[1],
+	input: {
+		reason?: string;
+		writtenPaths: string[];
+		skippedPaths: string[];
+		diagnostics: BackendDiagnostic[];
+	},
+): MaterializeSessionSnapshot {
+	return {
+		...toSessionSnapshot(session, capabilities),
+		mode: 'fullProject',
+		reason: input.reason,
+		materializeRevision: session.revision,
+		saveRevision: session.lastSavedRevision,
+		writtenPaths: [...input.writtenPaths],
+		skippedPaths: [...input.skippedPaths],
+		diagnostics: input.diagnostics.map((diagnostic) => ({ ...diagnostic })),
+	};
+}
+
+function storageCanonicalTarget(input: NonNullable<MaterializeSessionInput['storage']>): {
+	fileSystem: BackendFileSystem;
+	fairyPath: string;
+	canonicalProjectPath: string;
+	canonicalPathKey: string;
+} {
+	const canonicalProjectPath = input.canonicalProjectPath ?? (input.fileSystem.dirname(input.fairyPath) || '.');
+	return {
+		fileSystem: input.fileSystem,
+		fairyPath: input.fairyPath,
+		canonicalProjectPath,
+		canonicalPathKey: input.canonicalPathKey ?? normalizeComparablePath(canonicalProjectPath),
+	};
+}
+
+export class PersistenceService {
+	public constructor(
+		private readonly context: Pick<BackendContext, 'capabilities'> & {
+			sessions: Pick<BackendContext['sessions'], 'get' | 'reserve'>;
+		},
+		private readonly cacheService: CacheService,
+		private readonly eventService: EventService,
+		private readonly sessionOperations: SessionOperationQueue,
+	) {}
+
+	public async saveSession(
+		input: SaveSessionInput,
+	): Promise<
+		BackendResult<
+			BackendSessionSnapshot | MaterializeSessionSnapshot,
+			| SessionNotFoundError
+			| SessionStaleWriteError
+			| SavePartialFailureError
+			| UamFidelityUnsupportedError
+			| MaterializeValidationFailedError
+			| MaterializeWriteFailedError
+			| PathPolicyViolationError
+			| InProcessLockConflictError
+			| BackendCapabilityUnavailableError
+		>
+	> {
+		if (input.force === true || input.mode === 'materializeCleanSession') {
+			return this.materializeSession({
+				sessionId: input.sessionId,
+				expectedRevision: input.expectedRevision,
+				targetPath: input.targetPath,
+				fileSystem: input.fileSystem,
+				mode: 'fullProject',
+				reason: 'force_save',
+			});
+		}
+		return this.sessionOperations.run(input.sessionId, () => this.saveSessionExclusive(input));
+	}
+
+	private finishSuccessfulSave(session: BackendSessionState): void {
+		session.lastSavedRevision = session.revision;
+		session.dirty = false;
+		const cacheEntry = this.cacheService.refreshSession(session);
+		this.eventService.emit({
+			kind: 'save.completed',
+			sessionId: session.sessionId,
+			canonicalPathKey: session.canonicalPathKey,
+			revision: session.revision,
+		});
+		this.eventService.emit({
+			kind: 'cache.updated',
+			sessionId: session.sessionId,
+			canonicalPathKey: session.canonicalPathKey,
+			revision: session.revision,
+			cacheRevision: cacheEntry.revision,
+		});
+	}
+
+	private async saveSessionExclusive(
+		input: SaveSessionInput,
+	): Promise<
+		BackendResult<
+			BackendSessionSnapshot | MaterializeSessionSnapshot,
+			| SessionNotFoundError
+			| SessionStaleWriteError
+			| SavePartialFailureError
+			| UamFidelityUnsupportedError
+			| MaterializeValidationFailedError
+			| MaterializeWriteFailedError
+			| PathPolicyViolationError
+			| InProcessLockConflictError
+			| BackendCapabilityUnavailableError
+		>
+	> {
+		const startedAt = Date.now();
+		const session = this.context.sessions.get(input.sessionId);
+		if (!session || session.closed) {
+			return failure('authoring', startedAt, createSessionNotFoundError(input.sessionId));
+		}
+		const fileSystem = session.fileSystem ?? input.fileSystem;
+		if (!fileSystem) {
+			return failure(
+				'authoring',
+				startedAt,
+				createCapabilityUnavailableError('saveSession requires an injected BackendFileSystem adapter.'),
+				toSessionSnapshot(session, this.context.capabilities),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+				},
+			);
+		}
+		if (input.expectedRevision !== undefined && input.expectedRevision !== session.revision) {
+			return failure(
+				'authoring',
+				startedAt,
+				createStaleWriteError(session, input.expectedRevision),
+				toSessionSnapshot(session, this.context.capabilities),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+				},
+			);
+		}
+		const targetViolation = await validateSaveTarget(fileSystem, session.fairyPath, input.targetPath);
+		if (targetViolation) {
+			return failure(
+				'authoring',
+				startedAt,
+				targetViolation,
+				toSessionSnapshot(session, this.context.capabilities),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+				},
+			);
+		}
+		if (!session.dirty) {
+			return success('authoring', startedAt, toSessionSnapshot(session, this.context.capabilities), {
+				sessionId: session.sessionId,
+				revision: session.revision,
+			});
+		}
+		if (session.uamFidelity === 'unsupported') {
+			return failure(
+				'authoring',
+				startedAt,
+				createUamFidelityUnsupportedError(session),
+				toSessionSnapshot(session, this.context.capabilities),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+				},
+			);
+		}
+
+		const committedPaths: string[] = [];
+		const failedPaths: string[] = [];
+		this.eventService.emit({
+			kind: 'save.started',
+			sessionId: session.sessionId,
+			canonicalPathKey: session.canonicalPathKey,
+			revision: session.revision,
+		});
+		try {
+			await writeSessionProject({
+				fileSystem,
+				document: materializeUamProject(session.project),
+				fairyPath: session.fairyPath,
+				staleSourceFiles: [...session.pendingStaleSourceFiles.values()],
+				staleResourceFolders: [...session.pendingStaleResourceFolders.values()],
+				staleBranchDirectories: [...session.pendingStaleBranchDirectories.values()],
+				writtenPaths: committedPaths,
+				failedPaths,
+			});
+			session.fileSystem ??= fileSystem;
+			session.pendingStaleSourceFiles.clear();
+			session.pendingStaleResourceFolders.clear();
+			session.pendingStaleBranchDirectories.clear();
+			commitUamProjectSourcePaths(session.project);
+			this.finishSuccessfulSave(session);
+			return success('authoring', startedAt, toSessionSnapshot(session, this.context.capabilities), {
+				sessionId: session.sessionId,
+				revision: session.revision,
+			});
+		} catch (error) {
+			this.cacheService.invalidateSession(session);
+			this.eventService.emit({
+				kind: 'save.failed',
+				sessionId: session.sessionId,
+				canonicalPathKey: session.canonicalPathKey,
+				revision: session.revision,
+			});
+			return failure(
+				'authoring',
+				startedAt,
+				{
+					code: 'save_partial_failure',
+					message: error instanceof Error ? error.message : String(error),
+					sessionId: session.sessionId,
+					canonicalPathKey: session.canonicalPathKey,
+					attemptedRevision: session.revision,
+					lastSavedRevision: session.lastSavedRevision,
+					committedPaths,
+					failedPaths,
+					diskMayBePartiallyUpdated: !fileSystem.runProjectWriteTransaction,
+				},
+				toSessionSnapshot(session, this.context.capabilities),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+				},
+			);
+		}
+	}
+
+	public async materializeSession(
+		input: MaterializeSessionInput,
+	): Promise<
+		BackendResult<
+			MaterializeSessionSnapshot,
+			| SessionNotFoundError
+			| SessionStaleWriteError
+			| UamFidelityUnsupportedError
+			| MaterializeValidationFailedError
+			| MaterializeWriteFailedError
+			| PathPolicyViolationError
+			| InProcessLockConflictError
+			| BackendCapabilityUnavailableError
+		>
+	> {
+		return this.sessionOperations.run(input.sessionId, () => this.materializeSessionExclusive(input));
+	}
+
+	private async materializeSessionExclusive(
+		input: MaterializeSessionInput,
+	): Promise<
+		BackendResult<
+			MaterializeSessionSnapshot,
+			| SessionNotFoundError
+			| SessionStaleWriteError
+			| UamFidelityUnsupportedError
+			| MaterializeValidationFailedError
+			| MaterializeWriteFailedError
+			| PathPolicyViolationError
+			| InProcessLockConflictError
+			| BackendCapabilityUnavailableError
+		>
+	> {
+		const startedAt = Date.now();
+		const session = this.context.sessions.get(input.sessionId);
+		if (!session || session.closed) {
+			return failure('authoring', startedAt, createSessionNotFoundError(input.sessionId));
+		}
+		if (input.expectedRevision !== undefined && input.expectedRevision !== session.revision) {
+			return failure(
+				'authoring',
+				startedAt,
+				createStaleWriteError(session, input.expectedRevision),
+				toSessionSnapshot(session, this.context.capabilities),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+				},
+			);
+		}
+
+		const storageTarget = input.storage ? storageCanonicalTarget(input.storage) : null;
+		const fileSystem = storageTarget?.fileSystem ?? input.fileSystem ?? session.fileSystem;
+		if (!fileSystem) {
+			return failure(
+				'authoring',
+				startedAt,
+				createCapabilityUnavailableError('materializeSession requires an injected BackendFileSystem adapter.'),
+				toSessionSnapshot(session, this.context.capabilities),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+				},
+			);
+		}
+
+		const fairyPath = storageTarget?.fairyPath ?? session.fairyPath;
+		const targetViolation = await validateSaveTarget(fileSystem, fairyPath, input.targetPath);
+		if (targetViolation) {
+			return failure(
+				'authoring',
+				startedAt,
+				targetViolation,
+				toSessionSnapshot(session, this.context.capabilities),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+				},
+			);
+		}
+
+		if (session.uamFidelity === 'unsupported') {
+			return failure(
+				'authoring',
+				startedAt,
+				createUamFidelityUnsupportedError(session),
+				toSessionSnapshot(session, this.context.capabilities),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+				},
+			);
+		}
+
+		const diagnostics = validationDiagnostics(session.project);
+		if (diagnostics.length > 0) {
+			const error: MaterializeValidationFailedError = {
+				code: 'materialize_validation_failed',
+				message: `UAM materialize validation failed with ${diagnostics.length} issue(s).`,
+				sessionId: session.sessionId,
+				canonicalPathKey: session.canonicalPathKey,
+				issueCount: diagnostics.length,
+				diagnostics,
+			};
+			return failure('authoring', startedAt, error, toSessionSnapshot(session, this.context.capabilities), {
+				sessionId: session.sessionId,
+				revision: session.revision,
+				diagnostics,
+			});
+		}
+
+		let document: ReturnType<typeof materializeUamProject>;
+		try {
+			document = materializeUamProject(session.project);
+		} catch (error) {
+			const diagnosticsFromError: BackendDiagnostic[] = [
+				{
+					code: 'materialize_validation_failed',
+					message: error instanceof Error ? error.message : String(error),
+					severity: 'error',
+					operationKind: 'materializeSession',
+				},
+			];
+			return failure(
+				'authoring',
+				startedAt,
+				{
+					code: 'materialize_validation_failed',
+					message: error instanceof Error ? error.message : String(error),
+					sessionId: session.sessionId,
+					canonicalPathKey: session.canonicalPathKey,
+					issueCount: diagnosticsFromError.length,
+					diagnostics: diagnosticsFromError,
+				},
+				toSessionSnapshot(session, this.context.capabilities),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+					diagnostics: diagnosticsFromError,
+				},
+			);
+		}
+
+		const writtenPaths: string[] = [];
+		const failedPaths: string[] = [];
+		const skippedPaths: string[] = [];
+		const reservation = storageTarget ? this.context.sessions.reserve(session.sessionId, storageTarget) : null;
+		if (reservation && 'code' in reservation) {
+			return failure('authoring', startedAt, reservation, toSessionSnapshot(session, this.context.capabilities), {
+				sessionId: session.sessionId,
+				revision: session.revision,
+			});
+		}
+		this.eventService.emit({
+			kind: 'save.started',
+			sessionId: session.sessionId,
+			canonicalPathKey: storageTarget?.canonicalPathKey ?? session.canonicalPathKey,
+			revision: session.revision,
+		});
+		try {
+			const isSessionStorageTarget = fileSystem === session.fileSystem && fairyPath === session.fairyPath;
+			await writeSessionProject({
+				fileSystem,
+				document,
+				fairyPath,
+				staleSourceFiles: isSessionStorageTarget ? [...session.pendingStaleSourceFiles.values()] : [],
+				staleResourceFolders: isSessionStorageTarget ? [...session.pendingStaleResourceFolders.values()] : [],
+				staleBranchDirectories: isSessionStorageTarget
+					? [...session.pendingStaleBranchDirectories.values()]
+					: [],
+				writtenPaths,
+				failedPaths,
+			});
+			if (isSessionStorageTarget) {
+				session.pendingStaleSourceFiles.clear();
+				session.pendingStaleResourceFolders.clear();
+				session.pendingStaleBranchDirectories.clear();
+			}
+			if (storageTarget && !isSessionStorageTarget) {
+				session.pendingStaleSourceFiles.clear();
+				session.pendingStaleResourceFolders.clear();
+				session.pendingStaleBranchDirectories.clear();
+			}
+			if (isSessionStorageTarget || storageTarget) commitUamProjectSourcePaths(session.project);
+			reservation?.commit(session);
+			this.finishSuccessfulSave(session);
+			return success(
+				'authoring',
+				startedAt,
+				toMaterializeSnapshot(session, this.context.capabilities, {
+					reason: input.reason,
+					writtenPaths,
+					skippedPaths,
+					diagnostics: [],
+				}),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+				},
+			);
+		} catch (error) {
+			const diagnosticsFromError: BackendDiagnostic[] = [
+				{
+					code: 'write_failed',
+					message: error instanceof Error ? error.message : String(error),
+					severity: 'error',
+					path: failedPaths[0],
+					operationKind: 'materializeSession',
+				},
+			];
+			this.cacheService.invalidateSession(session);
+			this.eventService.emit({
+				kind: 'save.failed',
+				sessionId: session.sessionId,
+				canonicalPathKey: session.canonicalPathKey,
+				revision: session.revision,
+				diagnostics: diagnosticsFromError,
+			});
+			return failure(
+				'authoring',
+				startedAt,
+				{
+					code: 'write_failed',
+					message: error instanceof Error ? error.message : String(error),
+					sessionId: session.sessionId,
+					canonicalPathKey: session.canonicalPathKey,
+					attemptedRevision: session.revision,
+					lastSavedRevision: session.lastSavedRevision,
+					writtenPaths,
+					failedPaths,
+					skippedPaths,
+					diagnostics: diagnosticsFromError,
+					diskMayBePartiallyUpdated: !fileSystem.runProjectWriteTransaction,
+				},
+				toSessionSnapshot(session, this.context.capabilities),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+					diagnostics: diagnosticsFromError,
+				},
+			);
+		} finally {
+			reservation?.release();
+		}
+	}
+}

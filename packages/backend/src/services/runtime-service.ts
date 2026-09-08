@@ -22,7 +22,6 @@ import type {
 import type { CacheService } from './cache-service.js';
 import { type BackendContext, type BackendSessionState, failure, success } from './context.js';
 import type { EventService } from './event-service.js';
-import type { JobService } from './job-service.js';
 import { createSessionNotFoundError, toSessionSnapshot } from './session-utils.js';
 
 function randomId(): string {
@@ -117,7 +116,6 @@ export class RuntimeService {
 		private readonly context: BackendContext,
 		private readonly cacheService: CacheService,
 		private readonly eventService: EventService,
-		private readonly jobService: JobService,
 	) {}
 
 	public async openSession(input: {
@@ -155,20 +153,11 @@ export class RuntimeService {
 		const resolved = await resolveCanonicalProjectRoot(fileSystem, input.projectPath);
 		const { fairyPath, canonicalProjectPath, canonicalPathKey } = resolved;
 		await fileSystem.validateProjectRoot?.(canonicalProjectPath);
-		const existingSessionId = this.context.sessionsByPath.get(canonicalPathKey);
 		const lockFilePath = fileSystem.getSessionLockPath?.(canonicalProjectPath)
 			?? fileSystem.join(canonicalProjectPath, '.openfairygui.backend.lock');
-
-		if (existingSessionId) {
-			return failure('runtime', startedAt, {
-				code: 'lock_conflict',
-				kind: 'in_process_session_exists',
-				message: `Project is already open in this backend runtime: ${canonicalProjectPath}`,
-				canonicalPathKey,
-				holderSessionId: existingSessionId,
-				lockFilePath,
-			});
-		}
+		const sessionId = randomId();
+		const reservation = this.context.sessions.reserve(sessionId, { canonicalPathKey, canonicalProjectPath, lockFilePath });
+		if ('code' in reservation) return failure('runtime', startedAt, reservation);
 
 		let sessionLock: BackendSessionLock | null = null;
 		try {
@@ -190,7 +179,6 @@ export class RuntimeService {
 			if (!read.document) throw new Error(read.diagnostics[0]?.message ?? `Unable to read project: ${fairyPath}`);
 			const document = read.document;
 			const project = liftDocumentToUamProject(document);
-			const sessionId = randomId();
 			const session: BackendSessionState = {
 				sessionId,
 				fairyPath,
@@ -212,8 +200,7 @@ export class RuntimeService {
 				lockHeld: true,
 				closed: false,
 			};
-			this.context.sessions.set(sessionId, session);
-			this.context.sessionsByPath.set(canonicalPathKey, sessionId);
+			reservation.commit(session);
 			this.cacheService.refreshSession(session);
 			this.eventService.emit({ kind: 'session.opened', sessionId, canonicalPathKey, revision: session.revision });
 
@@ -239,6 +226,8 @@ export class RuntimeService {
 				});
 			}
 			throw error;
+		} finally {
+			reservation.release();
 		}
 	}
 
@@ -264,16 +253,10 @@ export class RuntimeService {
 			storage?.canonicalPathKey ??
 			input.canonicalPathKey ??
 			(storage ? normalizeComparablePath(canonicalProjectPath) : canonicalProjectPath.toLowerCase());
-		const existingSessionId = this.context.sessionsByPath.get(canonicalPathKey);
-		if (existingSessionId) {
-			return failure('runtime', startedAt, {
-				code: 'lock_conflict',
-				kind: 'in_process_session_exists',
-				message: `Project is already open in this backend runtime: ${canonicalProjectPath}`,
-				canonicalPathKey,
-				holderSessionId: existingSessionId,
-			});
-		}
+		// Normalize before claiming a path: malformed native input must not leave a reservation behind.
+		const project = normalizeUamProject(input.project);
+		const reservation = this.context.sessions.reserve(sessionId, { canonicalPathKey, canonicalProjectPath });
+		if ('code' in reservation) return failure('runtime', startedAt, reservation);
 
 		const session: BackendSessionState = {
 			sessionId,
@@ -283,7 +266,7 @@ export class RuntimeService {
 			lockFilePath: '',
 			sessionLock: null,
 			fileSystem: storage?.fileSystem,
-			project: normalizeUamProject(input.project),
+			project,
 			readDiagnostics: [],
 			readComplete: true,
 			uamFidelity: 'full',
@@ -296,8 +279,7 @@ export class RuntimeService {
 			lockHeld: false,
 			closed: false,
 		};
-		this.context.sessions.set(sessionId, session);
-		this.context.sessionsByPath.set(canonicalPathKey, sessionId);
+		reservation.commit(session);
 		this.cacheService.refreshSession(session);
 		this.eventService.emit({ kind: 'session.opened', sessionId, canonicalPathKey, revision: session.revision });
 
@@ -326,10 +308,8 @@ export class RuntimeService {
 		session.sessionLock = null;
 		session.lockHeld = false;
 		session.closed = true;
-		this.context.sessions.delete(session.sessionId);
-		this.context.sessionsByPath.delete(session.canonicalPathKey);
+		this.context.sessions.remove(session);
 		this.cacheService.removeSession(session.sessionId);
-		this.jobService.removeSession(session.sessionId);
 		this.eventService.emit({
 			kind: 'session.closed',
 			sessionId: session.sessionId,

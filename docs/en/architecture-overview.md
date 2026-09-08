@@ -21,6 +21,8 @@ Core owns transaction semantics, Functions composes workflows, Backend manages s
 
 `scripts/generate-contracts.mjs` uses the existing TypeScript compiler to generate structural schemas, operation catalogs, version-bound content and documentation tables from Core/Backend/CLI types. MCP uses existing Zod structural validation; Core then validates semantics. The independent `@openfairygui/backend/docs` entry distributes generated data without a runtime Backend → CLI dependency or Zod in Core.
 
+The generator entry owns contract assembly and command options. `scripts/contracts/schema.mjs` owns the type program and schema inference, `transport.mjs` owns input budgets and byte paths, and `output.mjs` owns bilingual tables, installed documentation and generated-file drift checks.
+
 Core's formal UAM retains component-instance controller overrides and absent Gear defaults. Functions loads bitmap fonts from their resource branches before publish selection and builds image dependencies; Core encodes font names, glyphs, and published IDs. Code-generation name allocation belongs to Functions; MCP does not fill protocol gaps.
 
 Backend preview materializes a potentially invalid existing snapshot only in memory to compare file changes for repair transactions. Projected state and persistence entrypoints remain strictly validated. MCP applies an aggregate 8 MiB binary input budget only at generated contract byte paths; other JSON retains general structural limits.
@@ -50,6 +52,8 @@ flowchart TD
 
 Gear string parsing belongs to `bridge-lift.ts`; Document setter mappings for specific properties belong to `bridge-materialize.ts` and are reused by creation and transaction updates. Document imports its logger leaf directly. XML readers and writers invoke the common-state handler once using the concrete tag protocol, leaving other tag-specific fields in their branches. Reading common state precedes Gear default capture and does not widen formal property ownership.
 
+`display-object-xml-reader.ts` keeps tag dispatch and common-state reading. Its sibling `display-object-xml-text.ts`, `display-object-xml-list.ts`, `display-object-xml-behaviors.ts` and `display-object-xml-instance.ts` own text, lists, Gear/relations and instance overlays respectively. The order is specific properties → common state → Gear → relations → property overrides → extension overlays. Shared XML shapes and property-override parsing live in `display-object-xml-shared.ts`.
+
 Project reading, UAM checks and source validation are layered: `readProjectDetailed` reports read completeness, `validateUamProject` checks the model, and Functions composes the formal validation report. `invalid` means a definite error; `incomplete` means missing capability or data. See [project validation](../project-validation.md).
 
 ## Transactions and support preflight
@@ -72,6 +76,8 @@ Lifecycle projection reuses actual UAM apply helpers, not another executor. Doma
 
 Execution follows existing operation capabilities into `transaction-uam-apply.ts` or `transaction-document-apply.ts`, discarding private working copies on failure and returning new normalized UAM on success. Materialization support does not imply arbitrary field mutation, and atomic lifecycle batches are not unrestricted operation combinations. See [contracts](./guide/contracts.md) for exact grammar, scope and discovery.
 
+`property-updates.ts` owns display-property update rules shared by preflight projections and both execution paths. The Document path lifts the target node's properties, applies the update and writes through the bridge onto the existing object, preserving Gear and Controller object bindings. Ordered preflight owns Controller payload validation; the executor resolves live references and reuses bridge Controller creation and Gear type mapping. `uam-transaction-parity.test.ts` triggers the Document path with Controller operations whose net effect is empty, then compares shared-operation results, diagnostics and input immutability.
+
 ## Backend sessions and persistence
 
 Use `openSession` for an existing file project: it acquires a session-lifetime lock, hydrates source bytes and compares complete ProjectWriter output before and after the original Document's UAM round-trip. Unmodeled write-back differences mark `uamFidelity: unsupported`; actual writes are rejected. Use `openProjectSession` and `materializeSession` to bootstrap a new workspace only when caller-provided UAM itself is authoritative.
@@ -89,9 +95,13 @@ Project and package settings queries reuse `ReadService` fixed projections, JSON
 
 Preview compares two formal UAM snapshots for entity/field impacts and reuses the capture filesystem plus ProjectWriter for project-relative file/folder differences. It represents current revision → preview result, not cumulative changes since the last save, a disk-write list or deletion authority. Over-budget summaries fail completely rather than truncate into success; persistence hints always report `writeVerified: false`, and projected revision is not reserved. See [transaction previews](./guide/contracts.md#preview-a-transaction).
 
-The session queue serializes preview, apply, save, materialize and close. Events are bounded polling logs; jobs support only in-memory `cache.refresh` with cooperative cancellation; cache is revision-bound derived data, not a source of truth. The artifact plane declares host capabilities without executing publish/restore.
+`SessionOperationQueue` serializes preview, apply, save, materialize and close for one session without blocking other sessions. `SessionRegistry` exclusively owns session and path indexes: opening and materializing into new storage reserve the target before asynchronous I/O, commit the binding after success, and release only their own reservation on failure. Failed rebinding retains the original binding. Host locks across runtimes and storage transactions retain their respective responsibilities.
 
-Save and materialize share an internal AuthoringService completion step: update the saved revision, clear dirty, refresh cache, then emit `save.completed` followed by `cache.updated`. Each path retains its own validation, storage binding and error results; both remain serialized by the same session queue.
+`ReadService` receives only session views with deeply read-only UAM and detaches responses after checking their budgets. `AuthoringService` receives transaction session lookup, cache/event commands and the queue. `RuntimeService` opens and closes sessions; `PersistenceService` saves and materializes through the existing `session-project-writer.ts`. `EventService` and `CacheService` exclusively own event sequences/logs and cache entries, querying only the session fields they need.
+
+Events are bounded polling logs. Cache entries are keyed by sessionId and contain revision-bound derived data, not source truth. `refreshCache` computes counts synchronously, emits one `cache.updated` event and directly returns `BackendCacheSnapshot`, without changing edit or saved revisions. The Backend contract version is `3.0.0` and capability schema is `12`. The artifact plane declares host capabilities without executing publish/restore.
+
+Save and materialize share an internal PersistenceService completion step: update the saved revision, clear dirty, refresh cache, then emit `save.completed` followed by `cache.updated`. Each path retains its own validation, storage binding and error results; both remain serialized by the same session queue.
 
 Pure in-memory session `canonicalProjectPath` / `canonicalPathKey` values identify a session only. Save and materialize use session-bound storage or an adapter explicitly provided by the host for that call; they do not automatically acquire the runtime filesystem. Preview persistence hints reflect the actual session binding.
 
@@ -114,7 +124,9 @@ Pure in-memory session `canonicalProjectPath` / `canonicalPathKey` values identi
 - `publishBrowser()` injects caller filesystems, a Canvas raster adapter and empty hooks, rejecting unsupported settings before writing. Output atomicity belongs to the host; failure lists contain only completed writes.
 - `restoreNode()` restores only trusted local published directories into separate project directories, reusing path checks, reconstruction and output transactions in `restore.ts` and `restore-internals/`. It does not guarantee original XML, editor settings, unpublished content or local state, and does not decide whether unknown inputs are trustworthy.
 
-`restore.ts` owns preparation order and filesystem asset restoration. Font textures, glyph images, name associations and defaults are reconstructed in `restore-internals/font.ts`; these steps mutate Document without I/O. Both reuse restore resource-path validation from the existing `path-utils.ts`; the font module does not import the restore entry.
+`restore.ts` keeps preparation, writing and commit order. `restore-internals/resource-paths.ts` owns controlled source lookup and output paths, reusing resource-path validation from `path-utils.ts`. `skeleton.ts` owns skeleton type repair, sidecars and dependency links; `asset-output.ts` owns atlas cropping, generated files and loose-file output. Font and MovieClip reconstruction reuse `font.ts` and `movie-clip.ts`, with concrete Core resource types.
+
+Core owns image serialization hints through `ProjectWriter.setImageWriteHints(image, { omitPackageSize: true })`. Hints follow image object identity without entering properties or `extras`. Restore marks inferred dimensions; a new Writer still honors the hints on the returned `Document`, and empty hints restore normal writing. Hints do not propagate across UAM conversion, reloading or resource object replacement.
 
 CLI only parses arguments, invokes formal Node entrypoints and wraps results. Product MCP exposes no publish/restore execution tools. Evaluation-only artifact hosts use constrained tools with fixed inputs/directories without widening product permissions.
 

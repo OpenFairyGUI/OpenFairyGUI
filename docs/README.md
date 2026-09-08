@@ -18,7 +18,7 @@
 | [快速开始](./guide/getting-started.md) | 本地 MCP 接入、安装版本核对、首个可验证编辑任务与 CLI / SDK 入口 |
 | [包与工具](./guide/packages.md) | 选择公开包与宿主入口 |
 | [版本变更记录](https://github.com/OpenFairyGUI/OpenFairyGUI/blob/main/CHANGELOG_CN.md) | 按发布版本汇总公开功能、修复、破坏性变更与维护事项 |
-| [架构图说明](./architecture-overview.md) | 说明 monorepo 包职责、模块边界、核心数据流，以及 `backend` 的 browser-safe storage adapter、`materializeSession`、stateful runtime、service-layer、events/jobs/cache 与 `mcp` 薄适配 / resources / prompts 定位 |
+| [架构图说明](./architecture-overview.md) | 说明 monorepo 包职责、模块边界、核心数据流，以及 `backend` 的 browser-safe storage adapter、`materializeSession`、stateful runtime、service-layer、events/cache 与 `mcp` 薄适配 / resources / prompts 定位 |
 | [工程验证](./project-validation.md) | 说明工程读取、UAM 完整性、资源与宿主解码验证，以及 API、CLI、Backend、MCP 的统一报告契约 |
 | [编辑器发布设置](./editor-publish-settings.md) | 说明 FairyGUI 编辑器发布设置的结构、字段、默认值与写回规则 |
 | [Publish 插件](./publish-plugins.md) | 说明 OpenFairyGUI publish 插件目录、manifest、生命周期、降级规则，以及与 FairyGUI 编辑器插件的关系 |

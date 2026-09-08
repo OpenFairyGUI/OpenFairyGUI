@@ -212,6 +212,11 @@ test('restore published project: directory batch restores packages, assets, and 
 		const soundPath = resourcePath(path.join(outputDir, 'assets', 'Basics'), sound.getPath(), sound.getFile());
 		t.truthy(await fs.stat(soundPath).catch(() => null), 'sound file is copied without publish prefix');
 		const basicsPackageXml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'package.xml'), 'utf-8');
+		const rewrittenDirectory = path.join(tmpDir, 'Rewritten');
+		await fs.mkdir(rewrittenDirectory);
+		await new NodeIO().writeProject(result.document, path.join(rewrittenDirectory, 'Rewritten.fairy'));
+		t.is(await fs.readFile(path.join(rewrittenDirectory, 'assets', 'Basics', 'package.xml'), 'utf8'), basicsPackageXml,
+			'returned Document retains image serialization hints when written by a new Writer');
 		t.true(basicsPackageXml.includes('name="tabswitch.wav"'), 'package.xml references restored editor-facing sound file name');
 		t.true(basicsPackageXml.includes('exported="true"'), 'package.xml writes explicit true boolean attributes');
 		t.true(basicsPackageXml.includes('id="rpmb7" name="b1.png.png" path="/images/"'), 'dotted image resource names are restored by appending png to the resource name');

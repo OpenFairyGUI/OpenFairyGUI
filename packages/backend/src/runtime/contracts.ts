@@ -274,17 +274,10 @@ export interface BackendCapabilities {
 			retentionLimit: 1000;
 			sequenceScope: 'runtime';
 		};
-		jobs: {
-			inMemory: true;
-			cooperativeCancel: true;
-			persistent: false;
-			supportedKinds: readonly ['cache.refresh'];
-			artifactJobs: false;
-			completedRetentionLimit: 100;
-		};
 		cache: {
 			derivedReadOnly: true;
-			keyedBy: 'canonicalPathKey';
+			keyedBy: 'sessionId';
+			refreshMode: 'synchronous';
 			sourceOfTruth: false;
 			refreshMethod: 'refreshCache';
 		};
@@ -449,14 +442,7 @@ export type BackendEventKind =
 	| 'session.closeRequested'
 	| 'session.closed'
 	| 'cache.invalidated'
-	| 'cache.updated'
-	| 'job.created'
-	| 'job.started'
-	| 'job.progress'
-	| 'job.cancelRequested'
-	| 'job.cancelled'
-	| 'job.completed'
-	| 'job.failed';
+	| 'cache.updated';
 
 export interface BackendEvent {
 	sequence: number;
@@ -466,7 +452,6 @@ export interface BackendEvent {
 	canonicalPathKey?: string;
 	revision?: number;
 	cacheRevision?: number;
-	jobId?: string;
 	diagnostics: BackendDiagnostic[];
 	payload?: unknown;
 }
@@ -491,84 +476,6 @@ export interface EventCursorInvalidError {
 	after: string;
 }
 
-export type BackendJobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
-export type BackendJobKind = 'cache.refresh';
-export type BackendJobListStatusFilter = BackendJobStatus | 'active' | 'terminal';
-
-export interface BackendJobProgress {
-	completed: number;
-	total?: number;
-	message?: string;
-}
-
-export interface BackendJobSnapshot {
-	jobId: string;
-	kind: BackendJobKind;
-	status: BackendJobStatus;
-	createdAt: string;
-	startedAt?: string;
-	finishedAt?: string;
-	sessionId?: string;
-	canonicalPathKey?: string;
-	revision?: number;
-	cacheRevision?: number;
-	diagnostics: BackendDiagnostic[];
-	progress?: BackendJobProgress;
-	result?: unknown;
-	error?: BackendError;
-}
-
-export interface BackendJobListSnapshot {
-	jobs: BackendJobSnapshot[];
-}
-
-export interface GetJobInput {
-	sessionId: string;
-	jobId: string;
-}
-
-export interface ListJobsInput {
-	sessionId: string;
-	status?: BackendJobListStatusFilter;
-	kind?: BackendJobKind;
-	limit?: number;
-}
-
-export interface CancelJobInput {
-	sessionId: string;
-	jobId: string;
-}
-
-export interface BackendJobNotFoundError {
-	code: 'job_not_found';
-	message: string;
-	sessionId: string;
-	jobId: string;
-}
-
-export interface BackendJobNotCancellableError {
-	code: 'job_not_cancellable';
-	message: string;
-	sessionId: string;
-	jobId: string;
-	status: 'completed' | 'failed' | 'cancelled';
-}
-
-export interface BackendJobCancelledError {
-	code: 'job_cancelled';
-	message: string;
-	sessionId: string;
-	jobId: string;
-}
-
-export interface CacheRefreshFailedError {
-	code: 'cache_refresh_failed';
-	message: string;
-	sessionId: string;
-	jobId: string;
-	causeCode?: string;
-}
-
 export interface BackendCapabilityUnavailableError {
 	code: 'capability_unavailable';
 	message: string;
@@ -577,12 +484,6 @@ export interface BackendCapabilityUnavailableError {
 	requiredHost?: 'node';
 	bridgeBoundary?: 'external-bridge';
 }
-
-export type BackendJobErrors =
-	| BackendJobNotFoundError
-	| BackendJobNotCancellableError
-	| BackendJobCancelledError
-	| CacheRefreshFailedError;
 
 export interface BackendCacheSnapshot {
 	cacheRevision: number;
@@ -629,10 +530,6 @@ export type BackendError =
 	| MaterializeWriteFailedError
 	| PathPolicyViolationError
 	| EventCursorInvalidError
-	| BackendJobNotFoundError
-	| BackendJobNotCancellableError
-	| BackendJobCancelledError
-	| CacheRefreshFailedError
 	| BackendCapabilityUnavailableError
 	| ProjectRootNotAllowedError
 	| ProjectOpenFailedError

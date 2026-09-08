@@ -100,7 +100,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 
 成功返回 `ok: true`，`data` 包含 `sessionId`、`baseRevision`、`projectedRevision`（正式 apply 后的 revision，未预留）、`mode: 'execute-and-discard'`、`impact` 和 `persistence`；失败保留正式事务的 `error.code`、`stage`、operation 定位及 `meta.diagnostics`。当前基准见 `meta.revision`；失效或关闭会话返回 `session_not_found`，revision 不匹配返回 `stale_write`。输入参数在排队前复制，SharedArrayBuffer 支撑的字节也会脱离共享内存。
 
-成功和失败都不改变 authoritative 工程、revision、dirty、待清理文件记录、缓存、任务或业务事件，也不写入磁盘。
+成功和失败都不改变 authoritative 工程、revision、dirty、待清理文件记录、缓存或业务事件，也不写入磁盘。
 
 `impact.entities` 比较当前与预演后的正式 UAM：每项包含精确 `target`、`change`（added/removed/updated）和变更的顶层 `fields`，不返回属性值或源字节。包与工程有各自 target；子集合在父实体上比较 ID/名称顺序，节点、控制器、动画分别比较自身属性。正式执行产生的引用补全/重写也会列出，不只照抄输入 selector。
 
@@ -132,7 +132,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 下表只摘要顶层参数；嵌套字段和具体结果请读取对应 schema。SHA-256 变化表示生成契约发生变化，不等同于包版本号。
 
 <!-- contracts:start -->
-SHA-256: `cba5c0427b91c5d28c7c4277dcbb4a16f48e9fedf91fa1f66375495f8bfc71b0`
+SHA-256: `bca2577811c82f4d17f1f5f2833ea617415b8166086178cfc48888cc1cab587c`
 
 | 操作 | 参数（`?` 表示可选） |
 |---|---|
@@ -195,9 +195,6 @@ SHA-256: `cba5c0427b91c5d28c7c4277dcbb4a16f48e9fedf91fa1f66375495f8bfc71b0`
 | `materializeSession` | `openfairygui_backend_materialize_session` | `sessionId`, `expectedRevision?`, `mode?`, `reason?` | `false` |
 | `closeSession` | `openfairygui_backend_close_session` | `sessionId` | `false` |
 | `getEvents` | `openfairygui_backend_get_events` | `sessionId`, `after?`, `limit?` | `true` |
-| `getJob` | `openfairygui_backend_get_job` | `sessionId`, `jobId` | `true` |
-| `listJobs` | `openfairygui_backend_list_jobs` | `sessionId`, `status?`, `kind?`, `limit?` | `true` |
-| `cancelJob` | `openfairygui_backend_cancel_job` | `sessionId`, `jobId` | `false` |
 | `getCacheSnapshot` | `openfairygui_backend_get_cache_snapshot` | `sessionId` | `true` |
 | `refreshCache` | `openfairygui_backend_refresh_cache` | `sessionId`, `reason?` | `false` |
 
@@ -205,10 +202,10 @@ SHA-256: `cba5c0427b91c5d28c7c4277dcbb4a16f48e9fedf91fa1f66375495f8bfc71b0`
 |---|---|
 | `publish` | `cli/publish` |
 | `validate` | `cli/validate` |
+| `restore` | `cli/restore` |
 | `ofgui` | `cli/ofgui` |
 | `docs` | `cli/docs` |
 | `inspect` | `cli/inspect` |
-| `restore` | `cli/restore` |
 | `doctor` | `cli/doctor` |
 | `backend-capabilities` | `cli/backend-capabilities` |
 | `docs ls` | `cli/docs ls` |

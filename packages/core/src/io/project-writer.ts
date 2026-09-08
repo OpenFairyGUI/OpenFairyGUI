@@ -1,15 +1,16 @@
 import type { Document } from '../document.js';
 import type { Component } from '../properties/component.js';
+import type { ImageResource } from '../properties/image-resource.js';
 import type { Package, PackageResourceFolder } from '../properties/package.js';
 import { resourceFolderName, resourceFolderParentPath } from '../utils/resource-folder.js';
 import { renderXmlAttrs } from '../utils/xml-utils.js';
 import { writeComponent } from './component-xml-writer.js';
 import { assertDisplayObjectGearXmlValues } from './display-object-xml-writer.js';
 import type { FileSystem } from './file-system.js';
-import type { ProjectBranchDirectory, ProjectResourceFolder, ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
+import type { ProjectBranchDirectory, ProjectImageWriteHints, ProjectResourceFolder, ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr } from './project-xml-protocol.js';
 
-export type { ProjectBranchDirectory, ProjectResourceFolder, ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
+export type { ProjectBranchDirectory, ProjectImageWriteHints, ProjectResourceFolder, ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
 
 type PackageResource = ReturnType<Package['listResources']>[number];
 
@@ -74,9 +75,7 @@ type WritableComponent = Component & {
 	getPath?(): string;
 };
 
-function shouldWritePackageImageSize(resource: WritableImageResource): boolean {
-	return resource.getExtras?.()?._suppressPackageSize !== true;
-}
+const imageSizeOmissions = new WeakSet<ImageResource>();
 
 function compareResourceIdSequence(a: string, b: string): number {
 	const left = a.toLowerCase();
@@ -87,6 +86,12 @@ function compareResourceIdSequence(a: string, b: string): number {
 
 export class ProjectWriter {
 	private readonly _fs: FileSystem;
+
+	/** Applies to every subsequent write of this image, including another Writer instance. */
+	static setImageWriteHints(resource: ImageResource, hints: ProjectImageWriteHints): void {
+		if (hints.omitPackageSize === true) imageSizeOmissions.add(resource);
+		else imageSizeOmissions.delete(resource);
+	}
 
 	constructor(fs: FileSystem) {
 		this._fs = fs;
@@ -715,7 +720,7 @@ export class ProjectWriter {
 				} else if (scaleOpt === 2) {
 					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.scale, 'tile');
 				}
-				if (shouldWritePackageImageSize(imgRes)) {
+				if (!imageSizeOmissions.has(res)) {
 					const width = imgRes.getWidth?.() ?? 0;
 					if (width !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.width, String(width));
 					const height = imgRes.getHeight?.() ?? 0;

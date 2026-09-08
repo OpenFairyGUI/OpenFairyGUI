@@ -1,4 +1,4 @@
-import { failure, success, type BackendContext } from './context.js';
+import { failure, success, type BackendSessionState } from './context.js';
 import { enrichBackendDiagnostic } from '../diagnostics.js';
 import { createSessionNotFoundError } from './session-utils.js';
 import type {
@@ -13,33 +13,35 @@ import type {
 const DEFAULT_EVENT_RETENTION_LIMIT = 1000;
 
 export class EventService {
-	public constructor(private readonly context: BackendContext) {}
+	private readonly eventsBySession = new Map<string, BackendEvent[]>();
+	private sequence = 0;
+	public constructor(private readonly getSession: (sessionId: string) => Readonly<Pick<BackendSessionState, 'sessionId' | 'revision' | 'closed'>> | undefined) {}
 
 	public emit(event: Omit<BackendEvent, 'sequence' | 'timestamp' | 'diagnostics'> & {
 		diagnostics?: BackendEvent['diagnostics'];
 	}): BackendEvent {
 		const emitted: BackendEvent = {
 			...event,
-			sequence: this.context.nextEventSequence(),
+			sequence: ++this.sequence,
 			timestamp: new Date().toISOString(),
 			diagnostics: (event.diagnostics ?? []).map((entry) => enrichBackendDiagnostic(entry, event.sessionId)),
 		};
 		const sessionId = event.sessionId;
 		if (!sessionId) return emitted;
-		const events = this.context.eventsBySession.get(sessionId) ?? [];
+		const events = this.eventsBySession.get(sessionId) ?? [];
 		events.push(emitted);
 		while (events.length > DEFAULT_EVENT_RETENTION_LIMIT) events.shift();
-		this.context.eventsBySession.set(sessionId, events);
+		this.eventsBySession.set(sessionId, events);
 		return emitted;
 	}
 
 	public getEvents(input: GetEventsInput): BackendResult<GetEventsSnapshot, SessionNotFoundError | EventCursorInvalidError> {
 		const startedAt = Date.now();
-		const session = this.context.sessions.get(input.sessionId);
+		const session = this.getSession(input.sessionId);
 		if (!session || session.closed) {
 			return failure('runtime', startedAt, createSessionNotFoundError(input.sessionId));
 		}
-		const events = this.context.eventsBySession.get(input.sessionId) ?? [];
+		const events = this.eventsBySession.get(input.sessionId) ?? [];
 		const oldestSequence = events[0]?.sequence ?? (events.length === 0 ? 1 : 0);
 		const currentSequence = events.at(-1)?.sequence ?? 0;
 		const after = input.after === undefined ? 0 : Number(input.after);
@@ -79,6 +81,6 @@ export class EventService {
 	}
 
 	public removeSession(sessionId: string): void {
-		this.context.eventsBySession.delete(sessionId);
+		this.eventsBySession.delete(sessionId);
 	}
 }

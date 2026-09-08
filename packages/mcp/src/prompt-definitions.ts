@@ -26,7 +26,7 @@ export const OPENFAIRYGUI_BACKEND_PROMPT_DEFINITIONS = [
 		text: [
 			'Use openfairygui_backend_get_capabilities first.',
 			'Read contractVersion, capabilitySchemaVersion, capability planes, methods, and runtime non-goals from the backend envelope.',
-			'Do not infer artifact publish/restore, subscriptions, persistent jobs, or cache source-of-truth support when the backend marks them unsupported.',
+			'Do not infer artifact publish/restore, subscriptions, or cache source-of-truth support when the backend marks them unsupported.',
 		].join('\n'),
 	},
 	{
@@ -79,12 +79,11 @@ export const OPENFAIRYGUI_BACKEND_PROMPT_DEFINITIONS = [
 	{
 		name: 'openfairygui_poll_runtime_state',
 		title: 'Poll OpenFairyGUI Runtime State',
-		description: 'Guide a client through event, job, and cache polling tools.',
+		description: 'Guide a client through event polling and synchronous cache snapshots.',
 		text: [
 			'Use openfairygui_backend_get_events for polling events with the backend cursor contract.',
-			'Use openfairygui_backend_list_jobs and openfairygui_backend_get_job for in-memory job snapshots.',
-			'Use openfairygui_backend_get_cache_snapshot and openfairygui_backend_refresh_cache for derived read-only cache state.',
-			'Subscriptions, persistent jobs, artifact jobs, and cache-as-source-of-truth behavior are not supported by backend P2.',
+			'Use openfairygui_backend_get_cache_snapshot for derived read-only cache state; openfairygui_backend_refresh_cache returns the refreshed snapshot synchronously.',
+			'Subscriptions and cache-as-source-of-truth behavior are not supported by the backend.',
 		].join('\n'),
 	},
 ] as const satisfies readonly OpenFairyGuiBackendPromptDefinition[];
