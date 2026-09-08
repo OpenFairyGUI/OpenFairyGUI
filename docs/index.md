@@ -27,7 +27,7 @@ features:
 
 ## 从一个任务开始
 
-让 Agent 修改指定组件的文案，先查询和预演，再按 revision 提交、验证、保存并回读。[快速开始](/guide/getting-started)提供本地 MCP 配置与任务示例，[可运行示例](/guide/examples)用独立临时工程验证编辑与保存结果。
+让 Agent 为奖励面板配置三状态控制器，联动按钮文字、交互与已领取标记，先预演整批操作，再提交、验证、保存并回读。[快速开始](/guide/getting-started)按连接检查、主编辑任务和进阶案例组织；[可运行示例](/guide/examples#三状态奖励面板)验证 SDK 与真实 MCP 编辑结果，还可继续[调整布局与入场动画](/guide/examples#奖励面板布局与入场动画)、[从模板生成卡片](/guide/examples#从模板生成奖励卡片)。
 
 脚本与编辑器集成从[包与工具](/guide/packages)选择 CLI、Backend 或 SDK 入口；底层格式与公开符号见[文档索引](/README)和 <a href="/api/" target="_self">API Reference</a>。
 

@@ -23,9 +23,9 @@ Let an agent update a specific component's text, position, or controller setting
 
 ## An example agent task
 
-> Change the specified component's title to "Start game" in the authorized project, preserving everything else. Query and preview before applying, validating, saving, and rereading. Stop and report ambiguous targets, revision conflicts, or incomplete validation.
+> Configure the authorized project's reward panel with Locked, Claimable, and Claimed states. Use a controller and gears to coordinate button text, interaction, and the claimed indicator, preserving everything else. Query and preview the whole batch before applying, validating, saving, and rereading. Stop and report ambiguous targets, revision conflicts, or incomplete validation.
 
-The [setup guide](./docs/en/guide/getting-started.md#complete-your-first-edit) provides a concrete target, a sample project, and the complete acceptance steps. The [runnable examples](./docs/en/guide/examples.md) run in installed-package consumer checks.
+The [setup guide](./docs/en/guide/getting-started.md#complete-your-first-edit) provides an unedited project and a three-state acceptance table. The [reward panel](./docs/en/guide/examples.md#three-state-reward-panel), [layout and entrance animation](./docs/en/guide/examples.md#reward-panel-layout-and-entrance-animation), and [card generation](./docs/en/guide/examples.md#generate-reward-cards-from-a-template) examples run in SDK and real MCP consumer checks.
 
 ## Built for agent workflows
 

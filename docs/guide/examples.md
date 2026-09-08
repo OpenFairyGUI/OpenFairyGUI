@@ -1,6 +1,6 @@
 # 可运行示例与消费者验证
 
-四个 Node 示例和一个浏览器存储示例只使用安装后的公开包，不依赖仓库源码别名或测试工具包。把仓库的 `examples/` 目录复制到仓库外，在复制后的目录执行：
+七个 Node 示例和一个浏览器存储示例只使用安装后的公开包，不依赖仓库源码别名或测试工具包。把仓库的 `examples/` 目录复制到仓库外，在复制后的目录执行：
 
 ```bash
 npm install
@@ -8,9 +8,114 @@ node node-inspect-validate/index.mjs
 node revision-checked-edit-save/index.mjs
 node publish-restore/index.mjs
 node mcp-stdio-client/index.mjs
+node reward-panel-states/index.mjs
+node reward-panel-layout/index.mjs
+node reward-card-generation/index.mjs
 ```
 
-不传参数时会创建独立的临时工程，并在 JSON 输出中给出 `projectPath`；文件保留供检查。前两个示例也可传入 `.fairy` 路径。第二个示例会修改传入的工程，且要求 `Main/MainView/title` 结构，请只对工程副本执行。第三个命令只创建自己的示例，不接受用户目录覆盖；验证当前分支未发布的代码请用下方 `pack:check`，不能把 registry 版本当作当前源码。
+不传参数时会创建独立的临时工程，并在 JSON 输出中给出 `projectPath`；文件保留供检查。前两个示例也可传入 `.fairy` 路径。第二个示例会修改传入的工程，且要求 `Main/MainView/title` 结构，请只对工程副本执行。第三、第五至第七个命令只创建自己的示例，不接受用户目录覆盖；验证当前分支未发布的代码请用下方 `pack:check`，不能把 registry 版本当作当前源码。
+
+## 三状态奖励面板
+
+这是[首个编辑任务](./getting-started.md#完成首个编辑任务)的完整 SDK 实现，稳定版 `0.4.0` 即可运行。创建两包临时工程后，从 outline 获取 `Main/RewardPanel`、`claimButton` 和 `claimedMark` 的唯一 ID，用一个事务新增 `rewardState` 控制器和 `text` / `look` / `display` 三个 gear，控制未达成、可领取、已领取三种状态。现有布局、其他组件和 Shared 包图片均保留。
+
+让 Agent 自己完成任务时，只创建待编辑工程：
+
+```bash
+node reward-panel-states/index.mjs --create
+```
+
+运行 `node reward-panel-states/index.mjs`（或 `npm run reward`）则会新建另一份独立工程并完成 SDK 编辑、验证、保存和 UAM 回读。两种命令均输出实际 `projectPath`；无参数命令不会继续编辑上一次 `--create` 的工程。
+
+<<< ../../examples/reward-panel-states/index.mjs#example {js}
+
+导入 `editRewardPanel(projectPath, runtime?)` 可由宿主驱动同一流程。提交后的验证、保存或回读失败保留会话并抛出 `recovery: { runtime, sessionId, projectPath }`，`cause` 保留失败报告；按下方单字段编辑示例的恢复规则处理。再次执行同一任务会因已有控制器而拒绝，宿主应先查询并重新规划。
+
+消费者检查在 SDK 与真实 MCP stdio 上分别执行这段编辑函数：预演不写盘，保存后独立对比完整 UAM，仅允许新增指定控制器和三组 gear；完整文件清单不变，仅 `assets/Main/RewardPanel.xml` 字节改变，其他文件（包括 PNG）不变；重新打开可查询控制器，重复任务被拒绝且不改文件。这些检查不包含 FairyGUI 渲染或实际点击，视觉验收按[三状态表与流程](./getting-started.md#完成首个编辑任务)在编辑器或运行时执行。
+
+## 奖励面板布局与入场动画
+
+进阶任务 B 复用 A 已保存的三状态面板，调整留白、尺寸与位置，并新增一次性入场动画。稳定版 `0.4.0` 即可运行；控制器、gear、文案及图片字节保持不变。
+
+让 Agent 完成 B 时，先创建一份已经完成 A、尚未改版的工程：
+
+```bash
+node reward-panel-layout/index.mjs --create
+```
+
+按[接入指南](./getting-started.md#完成首个编辑任务)将输出 `projectPath` 的父目录加入 MCP 授权范围并重启连接，再交给 Agent：
+
+> 将 `<projectPath>` 中 `Main/RewardPanel` 改为 420 × 320，按下表调整五个子节点的布局。新增 `intro` 动画：30 fps，第 0 帧同时开始两个 12 帧的 QuadOut tween，让面板自身透明度从 0 到 1、位置偏移从 (0, 24) 到 (0, 0)，入场自动播放一次，无延迟。保留三页 `rewardState`、全部 gear、文案、其他组件和资源字节。查询精确 ID 与当前 revision 后，以同一批七个操作预演、提交、验证、保存并重新打开核对。目标不唯一、缺少 A 的控制器、已有 `intro`、revision 冲突或验证不完整时停止并报告，保留已提交但未保存的工作。
+
+| 节点 | 原位置 → 新位置 | 原尺寸 → 新尺寸 |
+|---|---|---|
+| `background` | (0, 0) → (0, 0) | 360 × 280 → 420 × 320 |
+| `title` | (24, 24) → (32, 28) | 312 × 32 → 356 × 36 |
+| `rewardIcon` | (152, 80) → (178, 104) | 56 × 56 → 64 × 64 |
+| `claimButton` | (80, 160) → (110, 204) | 200 × 48，保持不变 |
+| `claimedMark` | (24, 228) → (32, 272) | 312 × 28 → 356 × 28 |
+
+七个操作为一个 `setComponentProps`、五个 `setDisplayNodeProps` 和一个 `addTransition`。UAM 动画时间与 duration 使用帧；12 / 30 = 0.4 秒。两个 item 的 `targetNodeId` 为空，作用于面板自身；位移相对于宿主放置面板的位置。动画不负责奖励发放或控制器切页。
+
+<<< ../../examples/reward-panel-layout/index.mjs#example {js}
+
+`redesignRewardPanel(projectPath, runtime?)` 可由宿主导入；提交后失败的恢复句柄和处理方式与 A 相同。直接运行 `node reward-panel-layout/index.mjs`（或 `npm run reward-layout`）则会创建另一份独立工程，完成 B，并分别发布修改前后的 `.fui` 和图集。JSON 的 `before.files` / `after.files` 给出真实文件路径；两个发布目录在工程目录之外，不覆盖原工程，也不会继续编辑先前 `--create` 的结果。
+
+### 渲染与动画验收
+
+在已有 FairyGUI/LayaAir 宿主中，分别加载两个发布目录的包，创建 `Main/RewardPanel`；先设置宿主位置，再加入舞台。修改后自动播放一次 `intro`，也可用 `panel.getTransition('intro').play()` 重播。编辑器可直接打开 `projectPath` 检查工程和时间轴。
+
+下图为同一 520 × 420 视口、`Claimable` 页的真实发布产物截图，使用 OpenFairyGUI `0.4.0`、LayaAir `3.3.10` / FairyGUI 和 Chromium `151.0.7922.34`：
+
+| 修改前 | 修改后 | 动画中点（0.2 秒） |
+|---|---|---|
+| ![360 × 280 原面板](../assets/reward-panel-layout/before.png) | ![420 × 320 改版面板](../assets/reward-panel-layout/after.png) | ![透明度 0.75，向下偏移 6 的动画中点](../assets/reward-panel-layout/intro-midpoint.png) |
+
+| 动画时间 | 面板透明度 | 相对宿主位置的偏移 |
+|---|---|---|
+| 0 秒 | 0 | (0, 24) |
+| 0.2 秒 | 0.75 | (0, 6) |
+| 0.4 秒 | 1 | (0, 0) |
+
+该次原生运行时验收已检查自动播放结束、上述时间点、A 的全部三页，以及只有 `Claimable` 页响应真实鼠标点击；控制台无错误。更换工程、样式或运行时后，应重新执行这些视觉检查。
+
+`pack:check` 中的 B 检查覆盖 SDK 与真实 MCP 的查询、预演、保存回读、完整 UAM/文件比较、重复任务拒绝，以及发布二进制中的尺寸和 0.4 秒动画。B 仅改变 `assets/Main/RewardPanel.xml`，其他文件字节不变。上述 FairyGUI 截图验收是单独执行的；消费者门禁中的 Chromium 测试仍是下方 OPFS 存储页面，不能混为一项渲染门禁。
+
+## 从模板生成奖励卡片
+
+任务 C 从已有 `Main/RewardCardTemplate` 生成三个导出的组件，稳定版 `0.4.0` 即可运行。每个新组件只有一个引用模板的 Label 实例，以正式实例属性设置标题与图标；模板的子节点保持在原组件中。图标引用现有 Shared 包的两张 2 × 2 红蓝 PNG，它们是用于验证资源复用的色块。
+
+先创建包含模板与图片、尚未生成卡片的独立工程（不要求先运行 A/B）：
+
+```bash
+node reward-card-generation/index.mjs --create
+```
+
+按[接入指南](./getting-started.md#完成首个编辑任务)授权实际 `projectPath` 后，将下列任务和配置表交给 Agent：
+
+> 在 `<projectPath>` 的 Main 包中新增表中的三个导出组件。查询 `RewardCardTemplate` 和 Shared 图片的唯一 ID，核实模板为含 `title` 文本及 `icon` Loader 的 Label，图片已经导出。每个新组件与模板同尺寸（示例为 240 × 180），仅包含位于 (0, 0)、同尺寸的 `card` 组件实例，引用原模板并配置 Label 的 title/icon；图标 URL 使用实际包与资源 ID。保留已有资源，不复制模板子节点或图片。查询结果需属于同一 revision，以三个 `addComponent` 一次预演、提交，完整验证后保存并重新打开核对。目标不唯一、ID/名称已占用、revision 冲突或验证不完整时停止并报告，保留已提交但未保存的工作。
+
+| 新组件 | 稳定资源 ID | 标题 | 现有图片 |
+|---|---|---|---|
+| `DailyRewardCard` | `cardday1` | 每日奖励 ×100 | `Shared/red` |
+| `WeeklyRewardCard` | `cardweek` | 连签奖励 ×500 | `Shared/blue` |
+| `BonusRewardCard` | `cardbon1` | 额外奖励 ×20 | `Shared/red` |
+
+<<< ../../examples/reward-card-generation/index.mjs#example {js}
+
+宿主可导入 `generateRewardCards(projectPath, runtime?)`；提交后失败的恢复方式与 A 相同。无参数运行 `node reward-card-generation/index.mjs`（或 `npm run reward-cards`）会新建另一份工程，完成生成、验证、保存、回读并发布；JSON 的 `generated` 给出新组件 ID/名称，`published.files` 给出 `.fui` 与图集路径。发布目录在工程目录外，不会继续编辑先前 `--create` 的结果。
+
+### 生成结构与渲染验收
+
+消费者检查在 SDK 与真实 MCP stdio 中分别运行生成函数：预演不写盘；仅新增三个组件 XML，并更新 `assets/Main/package.xml`。独立回读后移除三个新增组件，完整 UAM 必须等于生成前；所有已有文件（除 Main 的资源清单）逐字节不变，包括模板 XML、其他组件和 PNG。另行检查生成结构、标题、图标与模板引用、重新打开后的查询、重复任务拒绝，以及发布二进制中的引用与实例属性。
+
+在实际 FairyGUI/LayaAir 宿主加载发布的 Shared/Main 包，分别创建模板与三个新组件。下图使用 OpenFairyGUI `0.4.0`、LayaAir `3.3.10` / FairyGUI、Chromium `151.0.7922.34`，按左上模板、右上每日奖励、左下连签奖励、右下额外奖励排列：
+
+![原模板与三个引用模板的奖励卡片](../assets/reward-card-generation/cards.png)
+
+该次运行时验收核对了四个对象的文字、尺寸、模板 URL 和图标中心的红蓝 RGBA 像素；修改每日奖励的实例文字后，其他卡片与模板文字不变，控制台无错误。实例保留模板引用，模板样式的后续修改会影响全部实例；外层组件尺寸是生成时的模板尺寸，不自动跟随后续改尺寸。示例不包含奖励发放逻辑。
+
+截图验收单独执行，未纳入 `pack:check` 的浏览器渲染门禁；更换模板、资源或运行时后需重新检查。UAM、XML、二进制或 `dirty: false` 检查不能代替实际渲染。
 
 ## 读取与校验
 
@@ -74,12 +179,12 @@ pnpm pack:check --artifacts .release
 - 用五个本地 tarball 安装生产依赖，并将内部包依赖固定到这些 tarball；禁止 workspace link，清除环境中的 Node loader/源码解析配置。
 - 按真实 `exports` 检查打包文件、ESM import、CJS require、Node/Web 入口；Worker 单独作为浏览器入口，不在 Node 主线程导入。
 - 验证安装后的 CLI/bin、版本、inspect/validate JSON，以及 MCP stdio initialize 和工具发现。
-- 运行本页四个 Node 示例（包括真实 stdio 客户端），检查读/预演不写盘、保存后只改变目标文本与对应 XML、无新增无关文件、会话锁释放、stale revision 被拒绝。编辑示例的验证失败和暂存写入失败须保留 revision、dirty、诊断及锁，原文件不变；故障解除后用同一会话明确保存并回读。
+- 运行本页七个 Node 示例（包括真实 stdio 客户端），检查读/预演不写盘、保存后只改变预期字段与对应 XML、无新增无关文件、会话锁释放、stale revision 被拒绝；A/B/C 额外执行上述 SDK/MCP 完整语义、文件、发布动画及生成组件引用比较。单字段编辑示例的验证失败和暂存写入失败须保留 revision、dirty、诊断及锁，原文件不变；故障解除后用同一会话明确保存并回读。
 - 发布示例额外核对实际 manifest/文件字节长度、二进制组件与跨包引用、图集红蓝 RGBA 像素、恢复后素材与工程验证；损坏图集下强制恢复失败须保留完整旧目录。发布/恢复真实 Agent 任务使用独立受限宿主，见[评测指南](./agent-evaluations.md)。
 - 生产运行通过后，再声明并安装锁定版本的 TypeScript、Node 类型、esbuild 和 Playwright，严格编译 `.mts`/`.cts` 消费者，不启用 `skipLibCheck` 或源码 alias；浏览器/Worker 无 Node external 打包后，执行上述真实 Chromium 页面验证。
 
 成功后自动删除检查器创建的临时目录；失败保留现场并打印路径。`pnpm pack:check --keep` 可以保留成功现场。安装需要 registry 和匹配 Chromium 的网络或缓存；浏览器下载失败/启动失败不算通过。Playwright 与 Chromium 安装版本绑定，见 [浏览器安装说明](https://playwright.dev/docs/browsers)。默认不安装系统依赖；Linux CI 显式使用 `--browser-deps` 安装 Chromium 所需系统包（可能需要 sudo），Windows 忽略该系统依赖选项。浏览器缓存位于仓库外，不随消费者临时目录删除。
 
-这些检查证明包入口、类型、最小 Node 工作流及真实 Chromium 存储页面行为，不证明本地目录权限、完整编辑器 UI、所有图片格式或全部发布/恢复格式。项目测试与用户示例分别维护；本页五个示例均纳入消费者验证。
+这些检查证明包入口、类型、Node 工作流及真实 Chromium 存储页面行为，不证明本地目录权限、完整编辑器 UI、所有图片格式或全部发布/恢复格式。项目测试与用户示例分别维护；本页八个示例均纳入消费者验证。
 
 验证入口和 CI 范围见[开发指南](./development.md)，产品入口见[包与工具](./packages.md)。
