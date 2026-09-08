@@ -64,7 +64,10 @@ export function runSelectedTests(root, pnpmCli, files) {
 
 if (isMain(import.meta.url)) {
 	try {
-		const { values } = parseArgs({ options: { base: { type: 'string' }, list: { type: 'boolean' }, matrix: { type: 'boolean' } } });
+		const { values } = parseArgs({ options: { base: { type: 'string' }, list: { type: 'boolean' }, matrix: { type: 'boolean' }, check: { type: 'boolean' } } });
+		if (values.check && !values.matrix && !values.base && !process.env.GITHUB_BASE_REF) {
+			throw new Error('check:fast requires --base <PR target>, for example --base origin/next. Add --list to preview the same plan without running checks.');
+		}
 		const map = readJson(path.join(ROOT, 'agent/impact-map.json'));
 		if (values.matrix) console.log(impactTable(map));
 		else {
@@ -75,6 +78,9 @@ if (isMain(import.meta.url)) {
 			const plan = selectTests(map, files, testFiles(ROOT), reason);
 			console.log(JSON.stringify(plan, null, 2));
 			if (!values.list) {
+				if (values.check) {
+					for (const command of ['lint:ci', 'typecheck']) runCommand(ROOT, ...pnpmInvocation(process.env.npm_execpath, [command]));
+				}
 				runCommand(ROOT, process.execPath, ['--test', 'scripts/repository.test.mjs']);
 				runCommand(ROOT, process.execPath, ['scripts/check-guidance.mjs']);
 				if (plan.tests.length > 0) {
