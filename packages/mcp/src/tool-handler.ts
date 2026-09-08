@@ -74,13 +74,14 @@ export async function callOpenFairyGuiBackendTool(
 	input: Record<string, unknown>,
 	policy?: OpenFairyGuiMcpToolPolicy,
 ): Promise<CallToolResult> {
-	if (!isOpenFairyGuiMcpPayloadWithinBudget(input)) {
-		throw new RangeError('MCP input exceeds the depth, node, key, string, or byte budget.');
-	}
 	const definition = OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.find((entry) => entry.name === name);
 	if (!definition) throw new RangeError(`Unknown OpenFairyGUI backend MCP tool: ${name}`);
+	const bytePaths = CONTRACT_SNAPSHOT.tools[definition.backendMethod].bytePaths;
+	if (!isOpenFairyGuiMcpPayloadWithinBudget(input, bytePaths)) {
+		throw new RangeError('MCP input exceeds the depth, node, key, string, or byte budget.');
+	}
 	const parsed = definition.inputSchema.parse(input) as Record<string, unknown>;
-	const decoded = decodeToolBytes(parsed, CONTRACT_SNAPSHOT.tools[definition.backendMethod].bytePaths);
+	const decoded = decodeToolBytes(parsed, bytePaths);
 	const startedAt = Date.now();
 	try {
 		let hostFailure = await policy?.beforeCall(structuredClone(parsed));

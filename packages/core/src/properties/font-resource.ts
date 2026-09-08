@@ -27,7 +27,7 @@ interface IFontResource extends IExtensibleProperty {
 }
 
 /**
- * A bitmap font resource within a FairyGUI package.
+ * A bitmap font or imported engine font resource within a FairyGUI package.
  * @category Properties
  */
 export class FontResource extends ExtensibleProperty<IFontResource> {
@@ -75,6 +75,8 @@ export class FontResource extends ExtensibleProperty<IFontResource> {
 
 	public getFileName(): string { return this.get('fileName'); }
 	public setFileName(fileName: string): this { return this.set('fileName', fileName); }
+	/** Imported TTF/TTC/OTF assets are resolved by font name in the host engine, not embedded as bitmap fonts. */
+	public isExternalFont(): boolean { return /\.(?:ttf|ttc|otf)$/i.test(this.getFileName()); }
 
 	public getTextureId(): string { return this.get('textureId'); }
 	public setTextureId(textureId: string): this { return this.set('textureId', textureId); }

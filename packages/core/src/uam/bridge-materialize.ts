@@ -684,6 +684,7 @@ export function materializeDisplayNode(
 			.setGroup(componentNode.group)
 			.setSrc(componentNode.resource.resourceId)
 			.setPackageId(componentNode.resource.packageId ?? '')
+			.setControllerOverrides(componentNode.controllerOverrides ?? '')
 			.setPropertyOverrides((componentNode.propertyOverrides ?? []).map((property) => ({ ...property })));
 		materializeUamComponentInstanceProperties(component, componentNode.instanceProperties);
 		return component;
@@ -934,25 +935,6 @@ export function parseGenericGearValue(kind: UamGenericValueGearBinding['kind'], 
 	}
 }
 
-export function defaultGenericGearValue(kind: UamGenericValueGearBinding['kind']) {
-	switch (kind) {
-		case 'xy':
-			return { x: 0, y: 0 };
-		case 'size':
-			return { width: 0, height: 0, scaleX: 1, scaleY: 1 };
-		case 'color':
-			return { color: '#ffffff', outlineColor: null };
-		case 'animation':
-			return { frame: 0, playing: true, animationName: '', skinName: '' };
-		case 'text':
-			return { text: '' };
-		case 'icon':
-			return { icon: '' };
-		case 'fontSize':
-			return { fontSize: 12 };
-	}
-}
-
 function genericGearKindToType(kind: UamGenericValueGearBinding['kind']): GearType {
 	switch (kind) {
 		case 'xy':
@@ -1137,8 +1119,9 @@ function materializeComponentResource(doc: Document, resource: UamComponentResou
 	return component;
 }
 
-export function materializeUamProject(project: UamProject): Document {
-	assertValidUamProject(project);
+/** Disable validation only to inspect an existing invalid snapshot; persistence must use the default. */
+export function materializeUamProject(project: UamProject, options: { validate?: boolean } = {}): Document {
+	if (options.validate !== false) assertValidUamProject(project);
 	const doc = new Document();
 	doc.getRoot()
 		.setProjectId(project.projectId)

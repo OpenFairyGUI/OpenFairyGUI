@@ -40,7 +40,6 @@ import {
 	liftRelations,
 } from './bridge-shared.js';
 import {
-	defaultGenericGearValue,
 	parseGenericGearValue,
 	parseLookGearValue,
 } from './bridge-materialize.js';
@@ -345,7 +344,7 @@ function liftGears(gears: ReturnType<GObject['listGears']>): UamGearBinding[] {
 					pageId,
 					value: parseGenericGearValue(kind, stringValues ? (pageValues[pageId] ?? null) : (values[index] ?? null)),
 				})),
-				defaultValue: parseGenericGearValue(kind, defaultValue) ?? (stringValues || kind === 'xy' ? null : defaultGenericGearValue(kind)),
+				defaultValue: parseGenericGearValue(kind, defaultValue),
 				condition: gear.getCondition(),
 				positionsInPercent: gear.getPositionsInPercent(),
 				tween: gear.getTween(),
@@ -382,7 +381,7 @@ function liftGears(gears: ReturnType<GObject['listGears']>): UamGearBinding[] {
 				pageId,
 				value: parseLookGearValue(values[index] ?? null),
 			})),
-			defaultValue: parseLookGearValue(defaultValue) ?? { alpha: 1, rotation: 0, grayed: false, touchable: true },
+			defaultValue: parseLookGearValue(defaultValue),
 			condition: gear.getCondition(),
 			positionsInPercent: gear.getPositionsInPercent(),
 			tween: gear.getTween(),
@@ -477,6 +476,7 @@ function liftDisplayNode(child: GObject): UamDisplayNode {
 			...liftDisplayNodeBase(component),
 			group: component.getGroup(),
 			resource: { packageId: component.getPackageId(), resourceId: component.getSrc() },
+			...(component.getControllerOverrides() ? { controllerOverrides: component.getControllerOverrides() } : {}),
 			...(propertyOverrides.length > 0 ? { propertyOverrides } : {}),
 			...(instanceProperties ? { instanceProperties } : {}),
 		};

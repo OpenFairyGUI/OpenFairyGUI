@@ -1,3 +1,4 @@
+import pinyin from 'tiny-pinyin';
 import {
 	type Component,
 	type Document,
@@ -13,7 +14,7 @@ import {
 	UNITY_COMPONENT_TEMPLATE,
 } from './codegen-templates.js';
 import { formatPluginError, type LoadedPlugin, shouldAbortPluginFailure } from './plugins/types.js';
-import { dirname, isAbsolutePathLike, trimTrailingSlashes } from './path-utils.js';
+import { dirname, expandPathVariables, isAbsolutePathLike, trimTrailingSlashes } from './path-utils.js';
 import type { PublishFileSystem } from './publish/contracts.js';
 import type { CliCodeGenerationSettings, RootProjectSettings } from './shared-types.js';
 
@@ -132,7 +133,7 @@ export async function publishCodeGeneration(doc: Document, options: PublishCodeG
 	for (const pkg of options.packages) {
 		if (!pkg.getGenCode()) continue;
 
-		const plan = resolvePackageCodegenPlan(pkg, settings, options);
+		const plan = resolvePackageCodegenPlan(pkg, settings, options, doc.getRoot().getSettings().customProperties);
 		if (!plan) {
 			logger.warn(`publish: Code generation skipped for package "${pkg.getName()}" because no codePath was resolved.`);
 			continue;
@@ -183,8 +184,11 @@ export function resolveCodeGenerationSettings(doc: Document): Required<CliCodeGe
 	};
 }
 
-export function resolvePackageCodegenPlan(pkg: Package, settings: Required<CliCodeGenerationSettings>, options: PublishCodeGenerationOptions): ResolvedPackageCodegenPlan | null {
-	const rawCodePath = (pkg.getCodePath() || settings.codePath || '').trim();
+export function resolvePackageCodegenPlan(
+	pkg: Package, settings: Required<CliCodeGenerationSettings>, options: PublishCodeGenerationOptions,
+	customProperties: Record<string, unknown> = {},
+): ResolvedPackageCodegenPlan | null {
+	const rawCodePath = expandPathVariables(pkg.getCodePath() || settings.codePath || '', customProperties).trim();
 	if (!rawCodePath) return null;
 
 	const packageFolderName = normalizeTypeName(pkg.getName()) || 'Package';
@@ -299,9 +303,10 @@ async function cleanupGeneratedFiles(directory: string, fs: PublishFileSystem, e
 export function buildCodegenClasses(doc: Document, pkg: Package, plan: ResolvedPackageCodegenPlan): CodegenClass[] {
 	const codegenComponents = pkg.listComponents().sort((left, right) => left.getId().localeCompare(right.getId()));
 	const generatedById = new Map<string, CodegenClass>();
+	const usedClassNames = new Set([plan.binderClassName.toLowerCase()]);
 
 	for (const component of codegenComponents) {
-		const encodedClassName = `${plan.settings.classNamePrefix}${normalizeTypeName(component.getName()) || 'Component'}`;
+		const encodedClassName = claimName(`${plan.settings.classNamePrefix}${normalizeTypeName(component.getName()) || 'Component'}`, usedClassNames, true);
 		generatedById.set(component.getId(), {
 			classId: component.getId(),
 			className: component.getName(),
@@ -371,15 +376,10 @@ function buildCodegenMembers(
 		members.push(createMember(ownerType, 'transition', 'Transition', transition.getName(), transitionIndex++, plan));
 	}
 
-	const usedNames = new Map<string, number>();
+	const usedNames = new Set<string>();
 	for (const member of members) {
 		if (member.ignored) continue;
-		const key = applyMemberNamePrefix(member.originalName, plan.settings.memberNamePrefix);
-		const current = usedNames.get(key) ?? 0;
-		if (current > 0) {
-			member.name = `${key}_${current + 1}`;
-		}
-		usedNames.set(key, current + 1);
+		member.name = claimName(member.name, usedNames);
 	}
 
 	return members;
@@ -632,14 +632,26 @@ function applyMemberNamePrefix(name: string, prefix: string): string {
 	return prefix ? `${prefix}${normalized}` : normalized;
 }
 
+function claimName(base: string, used: Set<string>, ignoreCase = false): string {
+	let name = base, suffix = 2;
+	while (used.has(ignoreCase ? name.toLowerCase() : name)) name = `${base}_${suffix++}`;
+	used.add(ignoreCase ? name.toLowerCase() : name);
+	return name;
+}
+
+function transliterateName(value: string): string {
+	return pinyin.parse(value).map((token) => token.type === 2
+		? token.target.charAt(0) + token.target.slice(1).toLowerCase() : token.source).join('');
+}
+
 function normalizeMemberName(value: string): string {
-	const cleaned = value.replace(/[^0-9A-Za-z_]+/g, '_').replace(/^_+|_+$/g, '');
+	const cleaned = transliterateName(value).replace(/[^0-9A-Za-z_]+/g, '_').replace(/^_+|_+$/g, '');
 	if (!cleaned) return '';
 	return /^[0-9]/.test(cleaned) ? `_${cleaned}` : cleaned;
 }
 
 function normalizeTypeName(value: string): string {
-	const cleaned = value.replace(/[^0-9A-Za-z_]+/g, '_').replace(/^_+|_+$/g, '');
+	const cleaned = transliterateName(value).replace(/[^0-9A-Za-z_]+/g, '_').replace(/^_+|_+$/g, '');
 	if (!cleaned) return '';
 	const parts = cleaned.split(/_+/).filter(Boolean);
 	const normalized = parts.map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join('');

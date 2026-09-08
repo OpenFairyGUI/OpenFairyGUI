@@ -521,6 +521,7 @@ const GEAR_ATTRS = {
 	condition: { canonical: 'condition' },
 	ease: { canonical: 'ease' },
 	duration: { canonical: 'duration' },
+	delay: { canonical: 'delay' },
 } satisfies XmlAttrMap;
 
 const CONTROLLER_ATTRS = {

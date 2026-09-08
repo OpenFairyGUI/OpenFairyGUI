@@ -257,9 +257,9 @@ export class BinaryWriter {
 			: null;
 		const includeBranches = extras.publishedIncludeBranches ?? true;
 		const resources = sortResources(
-			publishedResourceIds
-				? pkg.listResources().filter((resource) => publishedResourceIds.has(resource.getId()))
-				: pkg.listResources(),
+			pkg.listResources().filter((resource) =>
+				(!publishedResourceIds || publishedResourceIds.has(resource.getId()))
+				&& !(resource.propertyType === 'FontResource' && resource.isExternalFont())),
 		);
 		const dependencies: BinaryDependency[] = pkg
 			.listDependencies()
@@ -497,7 +497,7 @@ export class BinaryWriter {
 						lineHeight: res.getLineHeight(),
 						glyphs: res.listGlyphs().map((glyph) => ({
 							charId: glyph.getCharId() || glyph.getChar().codePointAt(0) || 0,
-							img: glyph.getImg() || null,
+							img: publishedItemIdMap.get(glyph.getImg()) ?? (glyph.getImg() || null),
 							x: glyph.getX(),
 							y: glyph.getY(),
 							xoffset: glyph.getXOffset(),

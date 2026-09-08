@@ -1669,6 +1669,10 @@ function parseGear(
 		if (duration !== undefined) {
 			gear.setTweenDuration(parseFloat2(duration));
 		}
+		const delay = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.gear.attrs.delay);
+		if (delay !== undefined) {
+			gear.setTweenDelay(parseFloat2(delay));
+		}
 
 		obj.addGear(gear);
 	}

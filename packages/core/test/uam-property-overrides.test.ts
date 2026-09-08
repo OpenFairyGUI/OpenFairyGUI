@@ -29,7 +29,7 @@ const COMPONENT_XML = `<?xml version="1.0" encoding="utf-8"?>
         <property target="empty" propertyId="2" value=""/>
       </item>
     </list>
-    <component id="instance1" src="template1">
+    <component id="instance1" src="template1" controller="mode,1">
       <property target="title" propertyId="0" value=" Instance override "/>
       <property target="space" propertyId="1" value=" "/>
       <property target="empty" propertyId="2" value=""/>
@@ -41,7 +41,9 @@ const COMPONENT_XML = `<?xml version="1.0" encoding="utf-8"?>
 `;
 
 const TEMPLATE_XML = `<?xml version="1.0" encoding="utf-8"?>
-<component size="100,40"/>
+<component size="100,40">
+  <controller name="mode" pages="0,Idle,1,Active" exported="true"/>
+</component>
 `;
 
 async function createSourceProject(): Promise<{ directory: string; projectPath: string }> {
@@ -67,6 +69,7 @@ function fidelitySnapshot(project: UamProject) {
 		listAutoClearItems: list.autoClearItems,
 		listItemOverrides: list.listItems[0]?.propertyOverrides,
 		instanceOverrides: instance.propertyOverrides,
+		instanceControllerOverrides: instance.controllerOverrides,
 		instanceAutoClearItems: instance.instanceProperties?.extensionType === 'ComboBox'
 			? instance.instanceProperties.autoClearItems
 			: false,
@@ -93,6 +96,7 @@ test('project UAM round-trip preserves ordered property overrides and autoClearI
 				{ target: 'empty', propertyId: 2, value: '' },
 			],
 			instanceAutoClearItems: true,
+			instanceControllerOverrides: 'mode,1',
 		});
 
 		const outputPath = path.join(source.directory, 'output', 'Overrides.fairy');

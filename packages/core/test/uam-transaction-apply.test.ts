@@ -809,6 +809,7 @@ test('behavior operations add and update controllers, transitions, and look gear
 	const lookGear = componentResource.component.displayList[0]?.gears[0];
 	t.is(lookGear?.kind, 'look');
 	if (lookGear?.kind === 'look') {
+		if (!lookGear.defaultValue) throw new Error('Expected the explicit look default.');
 		t.is(lookGear.controllerName, 'state');
 		t.true(Math.abs(lookGear.tweenDuration - 0.75) < 1e-6);
 		t.true(Math.abs(lookGear.defaultValue.alpha - 0.9) < 1e-6);

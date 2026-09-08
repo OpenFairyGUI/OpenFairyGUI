@@ -106,6 +106,8 @@ Neither success nor failure changes the authoritative project, revision, dirty s
 
 `impact.files` serializes both UAM snapshots through the real ProjectWriter in memory, then compares file contents and empty directories, returning project-relative `path`, `kind` and `change`. This is a current-revision-to-projection model diff, not cumulative dirty changes since the last save, a disk inventory, actual write list or deletion authorization. Real save rewrites the full project and cleans controlled files under its path policy.
 
+The existing pre-transaction snapshot may contain the invalid reference being repaired; its materialization is used only for in-memory comparison. The projected snapshot remains strictly validated. Core `materializeUamProject` validates by default; explicit `{ validate: false }` is for inspecting invalid snapshots only. `writeProjectFromUam`, Backend Save, and Materialize never skip validation. Snapshots that cannot be represented or serialized still return `projection_failed`.
+
 `persistence.requiredAfterApply` is true (even an empty SDK batch advances revision and marks dirty). Storage-bound sessions suggest `saveSession`; memory sessions with only a runtime adapter need explicit host-supplied `materializeSession.storage`; unavailable adapters or unsupported UAM fidelity require `host-action`. `writeVerified` is always false. In-memory serialization failures return `transaction_preview_failed.reason: projection_failed`; more than 2000 impact entries or 262144 UTF-8 bytes of compact `data` JSON returns `response_budget_exceeded`. No truncated success is returned.
 
 Recommended flow: discover IDs with the outline → queryEntity for current properties and revision → preflightTransaction → applyTransaction with the same batch → validateSession → saveSession. See the executable [revision-checked edit, save and reread example](./examples.md#revision-checked-edit-save-and-reread).
@@ -120,7 +122,7 @@ A preview reserves no revision and does not guarantee later apply/save or public
 - Host objects are not tool inputs: `openProjectSession.storage`, `saveSession.fileSystem`, and `materializeSession.storage/fileSystem/targetPath` remain excluded. Host injection uses Backend APIs.
 - Schemas preserve open fields declared by the actual types, including extension settings, resource metadata, and some dynamic values. They do not invent missing protocol definitions. Unknown fields on closed objects are rejected instead of silently dropped.
 - Homogeneous fixed tuples (such as the four numbers in `scale9Grid` / `cornerRadius`) use a single `items` schema with equal `minItems` / `maxItems`. MCP discovery does not need positional item arrays; element types and exact lengths stay enforced. Heterogeneous tuples retain their per-position constraints.
-- Inputs retain batch limits (1–1000), integer revisions, selector lengths, and aggregate node/depth/string budgets. General limits are depth 32, 100000 nodes, 10000 entries per array/object, 1000000 characters per string, and 256 per key. JSON byte arrays also obey the general array limit; per-field schemas do not replace aggregate limits.
+- Inputs retain batch limits (1–1000), integer revisions, selector lengths, and aggregate node/depth/string budgets. General limits are depth 32, 100000 nodes, 10000 entries per array/object, 1000000 characters per string, and 256 per key. Only generated contract byte paths accept integer 0–255 arrays outside the general array-length and per-byte node limits; all byte fields together are limited to 8 MiB. Same-named fields in arbitrary metadata receive no exemption. Per-field schemas do not replace aggregate limits.
 - Structural validity does not replace Core checks for references, resource content, field applicability, or legal operation batches, and does not guarantee execution or saving. MCP adds no second transaction kernel; preview only maps the authoritative Backend entrypoint.
 - Method-specific outputs preserve Backend error categories. Unhandled adapter errors use `backend_unhandled_error` without exposing internal exceptions. Structural schemas do not promise response budgets or diagnostic recovery policies.
 - The MCP factory's `toolPolicies` declare a Host `failureSchema` and `beforeCall` check for selected tools. Checks receive detached validated wire input; returning `undefined` invokes Backend once with the original input, while a declared `ok: false` branch stops the call. Tool response budgets also apply to Host failures; Backend results always use the canonical schema. SDK discovery includes subsequently registered Host tools and policy output extensions, marked by `openfairygui/hostPolicy` metadata. The fixed contract digest and installed corpus describe only the Backend branch.
@@ -130,7 +132,7 @@ A preview reserves no revision and does not guarantee later apply/save or public
 The tables summarize top-level parameters only; read schemas for nested fields and concrete results. SHA-256 identifies generated contract content, not a package version.
 
 <!-- contracts:start -->
-SHA-256: `0b7c8034f3637eb0b8ff39de94bc5f1ae4deab1ef5fb978c8dbe2bb56ffc56bb`
+SHA-256: `cba5c0427b91c5d28c7c4277dcbb4a16f48e9fedf91fa1f66375495f8bfc71b0`
 
 | Operation | Parameters (`?` = optional) |
 |---|---|
@@ -202,10 +204,10 @@ SHA-256: `0b7c8034f3637eb0b8ff39de94bc5f1ae4deab1ef5fb978c8dbe2bb56ffc56bb`
 | CLI command | Installed output schema |
 |---|---|
 | `publish` | `cli/publish` |
+| `validate` | `cli/validate` |
 | `ofgui` | `cli/ofgui` |
 | `docs` | `cli/docs` |
 | `inspect` | `cli/inspect` |
-| `validate` | `cli/validate` |
 | `restore` | `cli/restore` |
 | `doctor` | `cli/doctor` |
 | `backend-capabilities` | `cli/backend-capabilities` |

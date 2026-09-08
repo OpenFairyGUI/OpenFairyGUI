@@ -3,7 +3,7 @@ import type { ContractSnapshot } from '../docs.js';
 export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 	"schemaVersion": 1,
 	"versions": {
-		"BACKEND_CONTRACT_VERSION": "2.0.0-p2",
+		"BACKEND_CONTRACT_VERSION": "2.0.0-p3",
 		"BACKEND_CAPABILITY_SCHEMA_VERSION": 11
 	},
 	"operations": {
@@ -1197,6 +1197,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		"publish": {
 			"$ref": "#/$defs/CliEnvelope_605d1f5dcd"
 		},
+		"validate": {
+			"$ref": "#/$defs/CliEnvelope_dde966be7c"
+		},
 		"ofgui": {
 			"$ref": "#/$defs/CliEnvelope_e114e8964e"
 		},
@@ -1205,9 +1208,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		"inspect": {
 			"$ref": "#/$defs/CliEnvelope_54f391b1e9"
-		},
-		"validate": {
-			"$ref": "#/$defs/CliEnvelope_dde966be7c"
 		},
 		"restore": {
 			"$ref": "#/$defs/CliEnvelope_a2522f4864"
@@ -3703,7 +3703,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/Array_f0a51bde56"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/UamLookGearValue_4691602999"
+					"$ref": "#/$defs/Shape_46b9d1c0a2"
 				},
 				"condition": {
 					"type": "string"
@@ -3927,7 +3927,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/Array_a6f523d7be"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/UamSizeGearValue_ff75a42f3e"
+					"$ref": "#/$defs/Shape_ba9a349e2f"
 				},
 				"condition": {
 					"type": "string"
@@ -4040,7 +4040,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/Array_8a4bf84a05"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/UamColorGearValue_6a39902a4e"
+					"$ref": "#/$defs/Shape_2062560efc"
 				},
 				"condition": {
 					"type": "string"
@@ -4155,7 +4155,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/Array_40093b7bc7"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/UamAnimationGearValue_bc75e89741"
+					"$ref": "#/$defs/Shape_34b927db3a"
 				},
 				"condition": {
 					"type": "string"
@@ -4470,7 +4470,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/Array_645f922ea6"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/UamFontSizeGearValue_89031fdbfc"
+					"$ref": "#/$defs/Shape_d727f9067a"
 				},
 				"condition": {
 					"type": "string"
@@ -5225,6 +5225,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"resource": {
 					"$ref": "#/$defs/UamResourceRef_3486136f6c"
+				},
+				"controllerOverrides": {
+					"type": "string"
 				},
 				"instanceProperties": {
 					"$ref": "#/$defs/Shape_8a3021d271"
@@ -10499,7 +10502,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"contractVersion": {
 					"type": "string",
-					"const": "2.0.0-p2"
+					"const": "2.0.0-p3"
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
@@ -10849,7 +10852,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"properties": {
 				"contractVersion": {
 					"type": "string",
-					"const": "2.0.0-p2"
+					"const": "2.0.0-p3"
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
@@ -16962,7 +16965,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/Array_f0a51bde56_read"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/UamLookGearValue_4691602999_read"
+					"$ref": "#/$defs/Shape_46b9d1c0a2_read"
 				},
 				"condition": {
 					"type": "string"
@@ -17186,7 +17189,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/Array_a6f523d7be_read"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/UamSizeGearValue_ff75a42f3e_read"
+					"$ref": "#/$defs/Shape_ba9a349e2f_read"
 				},
 				"condition": {
 					"type": "string"
@@ -17299,7 +17302,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/Array_8a4bf84a05_read"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/UamColorGearValue_6a39902a4e_read"
+					"$ref": "#/$defs/Shape_2062560efc_read"
 				},
 				"condition": {
 					"type": "string"
@@ -17414,7 +17417,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/Array_40093b7bc7_read"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/UamAnimationGearValue_bc75e89741_read"
+					"$ref": "#/$defs/Shape_34b927db3a_read"
 				},
 				"condition": {
 					"type": "string"
@@ -17729,7 +17732,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/Array_645f922ea6_read"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/UamFontSizeGearValue_89031fdbfc_read"
+					"$ref": "#/$defs/Shape_d727f9067a_read"
 				},
 				"condition": {
 					"type": "string"
@@ -18484,6 +18487,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"resource": {
 					"$ref": "#/$defs/UamResourceRef_3486136f6c_read"
+				},
+				"controllerOverrides": {
+					"type": "string"
 				},
 				"instanceProperties": {
 					"$ref": "#/$defs/Shape_8a3021d271_read"
@@ -22370,6 +22376,73 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
+		"CliEnvelope_dde966be7c": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_b6f4b50841"
+				},
+				{
+					"$ref": "#/$defs/__type_9373122fc6"
+				}
+			]
+		},
+		"__type_b6f4b50841": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "validate"
+				},
+				"success": {
+					"type": "boolean",
+					"const": true
+				},
+				"result": {
+					"$ref": "#/$defs/ProjectValidationReport_fb414efc68"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"result"
+			],
+			"additionalProperties": false
+		},
+		"__type_9373122fc6": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "validate"
+				},
+				"success": {
+					"type": "boolean",
+					"const": false
+				},
+				"error": {
+					"$ref": "#/$defs/CliError_53076daab4"
+				},
+				"result": {
+					"$ref": "#/$defs/ProjectValidationReport_fb414efc68"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"error"
+			],
+			"additionalProperties": false
+		},
 		"CliEnvelope_e114e8964e": {
 			"anyOf": [
 				{
@@ -22777,73 +22850,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"result": {
 					"$ref": "#/$defs/InspectReport_55a7994c5a"
-				}
-			},
-			"required": [
-				"schemaVersion",
-				"command",
-				"success",
-				"error"
-			],
-			"additionalProperties": false
-		},
-		"CliEnvelope_dde966be7c": {
-			"anyOf": [
-				{
-					"$ref": "#/$defs/__type_b6f4b50841"
-				},
-				{
-					"$ref": "#/$defs/__type_9373122fc6"
-				}
-			]
-		},
-		"__type_b6f4b50841": {
-			"type": "object",
-			"properties": {
-				"schemaVersion": {
-					"type": "number",
-					"const": 1
-				},
-				"command": {
-					"type": "string",
-					"const": "validate"
-				},
-				"success": {
-					"type": "boolean",
-					"const": true
-				},
-				"result": {
-					"$ref": "#/$defs/ProjectValidationReport_fb414efc68"
-				}
-			},
-			"required": [
-				"schemaVersion",
-				"command",
-				"success",
-				"result"
-			],
-			"additionalProperties": false
-		},
-		"__type_9373122fc6": {
-			"type": "object",
-			"properties": {
-				"schemaVersion": {
-					"type": "number",
-					"const": 1
-				},
-				"command": {
-					"type": "string",
-					"const": "validate"
-				},
-				"success": {
-					"type": "boolean",
-					"const": false
-				},
-				"error": {
-					"$ref": "#/$defs/CliError_53076daab4"
-				},
-				"result": {
-					"$ref": "#/$defs/ProjectValidationReport_fb414efc68"
 				}
 			},
 			"required": [
@@ -24778,5 +24784,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "0b7c8034f3637eb0b8ff39de94bc5f1ae4deab1ef5fb978c8dbe2bb56ffc56bb"
+	"digest": "cba5c0427b91c5d28c7c4277dcbb4a16f48e9fedf91fa1f66375495f8bfc71b0"
 };

@@ -1,3 +1,11 @@
+/** Substitute named project settings without interpreting replacement-string tokens. */
+export function expandPathVariables(value: string, variables: Record<string, unknown>): string {
+	for (const [name, replacement] of Object.entries(variables)) {
+		value = value.replaceAll(`{${name}}`, () => String(replacement));
+	}
+	return value;
+}
+
 export function trimTrailingSlashes(value: string): string {
 	return value.replace(/[/\\]+$/, '');
 }

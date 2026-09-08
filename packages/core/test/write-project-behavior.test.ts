@@ -116,7 +116,7 @@ test('round-trip: gear pages values and condition survive write→read', async (
 
 		const componentXml = await fs.readFile(path.join(tmpDir, 'assets', 'Demo4', 'GearHost.xml'), 'utf-8');
 		t.true(/<gearText\b[^>]*tween(?:="true")?/.test(componentXml), 'gear writes tween attr');
-		t.true(componentXml.includes('ease="Quad.Out"'), 'gear writes canonical ease attr');
+		t.false(componentXml.includes('ease="Quad.Out"'), 'editor omits the default ease even with a non-default duration');
 		t.true(componentXml.includes('duration="0.5"'), 'gear writes canonical duration attr');
 		t.true(componentXml.includes('<gearLook controller="state" pages="1" values="0.54,180,0,0" default="1,0,0"'), 'gearLook compresses bool payload to editor-style numeric tokens');
 		t.true(componentXml.includes('<gearColor controller="state" pages="1" values="#66ff99" default="#ffffff"'), 'gearColor omits redundant black outline payload for non-text objects');

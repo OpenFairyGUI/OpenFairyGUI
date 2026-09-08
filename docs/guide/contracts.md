@@ -106,6 +106,8 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 
 `impact.files` 使用正式 ProjectWriter 在内存中分别序列化两份 UAM，再比较文件内容及空目录，返回工程相对 `path`、`kind` 和 `change`。它只表示当前 revision 到预演结果的模型差异，不是自上次保存以来的累计 dirty 差异，也不是磁盘清单、实际写入列表或删除授权；实际 save 会重写完整工程并按路径策略清理受控文件。
 
+事务前的已有快照允许含待修复的无效引用，其物化只用于内存比较；事务后的快照仍严格校验。Core `materializeUamProject` 默认校验，显式 `{ validate: false }` 仅供检查无效快照。`writeProjectFromUam`、Backend Save 和 Materialize 不跳过校验。无法表示或序列化的快照仍返回 `projection_failed`。
+
 `persistence.requiredAfterApply` 为 true（空批次 apply 也会增加 revision 并标 dirty）。已有存储会话建议 `saveSession`；只有运行时适配器的内存会话需宿主显式指定 `materializeSession.storage`；缺少适配器或 UAM fidelity 不支持时为 `host-action`。`writeVerified` 始终 false。两份内存序列化失败返回 `transaction_preview_failed.reason: projection_failed`；完整摘要超过 2000 项或 `data` 紧凑 JSON 超过 262144 UTF-8 字节时返回 `response_budget_exceeded`，不截断、不伪造成功。
 
 推荐工作流：outline 发现 ID → queryEntity 读取当前属性与 revision → preflightTransaction 预演 → applyTransaction 提交相同批次 → validateSession 检查当前工程 → saveSession 保存。完整可运行代码见[带 revision 的修改、保存与回读](./examples.md#带-revision-的修改、保存与回读)。
@@ -120,7 +122,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 - MCP 不接受宿主对象：`openProjectSession.storage`、`saveSession.fileSystem`、`materializeSession.storage/fileSystem/targetPath` 不在工具输入中。宿主注入继续通过 Backend API 完成。
 - 结构 schema 保留正式类型声明的开放字段，例如扩展设置、资源 metadata 和部分动态值；它们不是凭空补齐的协议。未知的封闭对象字段会被拒绝，不静默丢弃。
 - 同类型定长元组（例如四个数值的 `scale9Grid` / `cornerRadius`）生成单一 `items` schema，并保留相等的 `minItems` / `maxItems`；MCP 工具发现无需解析位置数组，元素类型和固定长度约束不变。不同类型的位置元组仍保留逐位置约束。
-- 输入继续受批次上限（1–1000）、revision 整数、selector 长度及总节点/深度/字符串预算约束。通用预算为深度 32、节点 100000、单个数组/对象 10000 项、单个字符串 1000000 字符、键长 256；JSON 字节数组也受通用数组预算限制。schema 中的单字段限制不覆盖总预算。
+- 输入继续受批次上限（1–1000）、revision 整数、selector 长度及总节点/深度/字符串预算约束。通用预算为深度 32、节点 100000、单个数组/对象 10000 项、单个字符串 1000000 字符、键长 256。仅生成契约声明的字节路径使用整数 0–255 数组，绕过通用数组长度和逐字节节点计数；所有字节字段合计最多 8 MiB。任意 metadata 中同名字节字段不获此豁免。schema 中的单字段限制不覆盖总预算。
 - schema 不替代 Core 的引用、资源内容、字段适用性和合法批次检查；校验成功不表示事务可执行或保存会成功。MCP 不增加第二套事务内核，预演也只映射 Backend 的正式入口。
 - 方法专属结果保留 Backend 的错误分类；适配层抛出的未处理错误使用 `backend_unhandled_error`，不暴露内部异常详情。响应预算及诊断修复策略不由结构 schema 承诺。
 - MCP 工厂的 `toolPolicies` 可为指定工具声明 Host `failureSchema` 和 `beforeCall` 检查。检查在输入校验后收到独立的 wire 参数副本；返回 `undefined` 以原参数调用 Backend 一次，返回已声明的 `ok: false` 分支则停止。Host 失败同样受工具响应预算约束；Backend 返回值始终按正式 schema 校验。SDK 动态发现包含后注册的 Host 工具及对应策略的输出扩展，`openfairygui/hostPolicy` 元数据标识策略；固定契约摘要和随包语料仅描述 Backend 分支。
@@ -130,7 +132,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 下表只摘要顶层参数；嵌套字段和具体结果请读取对应 schema。SHA-256 变化表示生成契约发生变化，不等同于包版本号。
 
 <!-- contracts:start -->
-SHA-256: `0b7c8034f3637eb0b8ff39de94bc5f1ae4deab1ef5fb978c8dbe2bb56ffc56bb`
+SHA-256: `cba5c0427b91c5d28c7c4277dcbb4a16f48e9fedf91fa1f66375495f8bfc71b0`
 
 | 操作 | 参数（`?` 表示可选） |
 |---|---|
@@ -202,10 +204,10 @@ SHA-256: `0b7c8034f3637eb0b8ff39de94bc5f1ae4deab1ef5fb978c8dbe2bb56ffc56bb`
 | CLI 命令 | 已安装输出 Schema |
 |---|---|
 | `publish` | `cli/publish` |
+| `validate` | `cli/validate` |
 | `ofgui` | `cli/ofgui` |
 | `docs` | `cli/docs` |
 | `inspect` | `cli/inspect` |
-| `validate` | `cli/validate` |
 | `restore` | `cli/restore` |
 | `doctor` | `cli/doctor` |
 | `backend-capabilities` | `cli/backend-capabilities` |

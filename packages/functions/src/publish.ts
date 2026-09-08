@@ -9,15 +9,16 @@ import {
 	type Transform,
 } from '@openfairygui/core';
 import { atlas } from './atlas.js';
-import { prepareMovieClipResource } from './atlas/inputs.js';
+import { collectFontTexture, prepareMovieClipResource } from './atlas/inputs.js';
 import type { PreparedJtaData } from './atlas/jta.js';
 import { publishCodeGeneration, resolveProjectBasePath } from './codegen.js';
-import { dirname, isAbsolutePathLike, trimTrailingSlashes } from './path-utils.js';
+import { dirname, expandPathVariables, isAbsolutePathLike, trimTrailingSlashes } from './path-utils.js';
 import { formatPluginError, type LoadedPlugin, shouldAbortPluginFailure } from './plugins/types.js';
 import type { PublishFileSystem } from './publish/contracts.js';
 import {
 	annotatePackagePublishArtifacts,
 	getAnnotatedPublishedResourceIds,
+	isFontResource,
 	isMovieClipResource,
 } from './publish/package-context.js';
 import {
@@ -178,6 +179,8 @@ export function publish(options: PublishOptions): Transform {
 			config: ResolvedProjectPublishConfig,
 			projectBasePath?: string,
 		): ResolvedPackagePublishPlan => {
+			const publishName = pkg.getPublishName() || pkg.getName();
+			const customProperties = doc.getRoot().getSettings().customProperties ?? {};
 			let outputDir: string | undefined;
 
 			if (options.output) {
@@ -190,13 +193,15 @@ export function publish(options: PublishOptions): Transform {
 				candidates.push(pkg.getPublishPath(), config.globalOutputPath);
 
 				for (const candidate of candidates) {
-					const resolved = resolveConfiguredOutputPath(candidate, projectBasePath);
+					const expanded = expandPathVariables(
+						expandPathVariables(candidate ?? '', { publish_file_name: publishName }), customProperties,
+					);
+					const resolved = resolveConfiguredOutputPath(expanded, projectBasePath);
 					if (!resolved) continue;
 					outputDir = resolved;
 					break;
 				}
 			}
-			const publishName = pkg.getPublishName() || pkg.getName();
 			const sourceAtlas = pkg.getSourceAtlasSettings();
 			const usePackageAtlas = !sourceAtlas.useGlobal;
 			const atlas: ResolvedPublishAtlasOptions = {
@@ -334,6 +339,12 @@ export function publish(options: PublishOptions): Transform {
 		}
 
 		for (const pkg of allPackages) {
+			// Font image dependencies must be known before selecting resources and merging branches.
+			for (const font of pkg.listResources().filter(isFontResource)) {
+				await collectFontTexture(doc, font, pkg, {
+					basePath: options.basePath, readFileRaw: options.atlas?.readFileRaw ?? options.fs?.readFileRaw,
+				});
+			}
 			// Compute dependency list and selected publish artifacts before atlas packing,
 			// so merged-branch publishes can pack the overridden resources with main IDs.
 			_computeDependencies(doc, pkg, pkgMap);
@@ -440,7 +451,7 @@ export function publish(options: PublishOptions): Transform {
  * @internal
  */
 function _computeDependencies(doc: Document, pkg: Package, pkgMap: Map<string, Package>): void {
-	const referencedPkgIds = collectPackageResourceReferences(pkg).packageIds;
+	const referencedPkgIds = collectPackageResourceReferences(pkg, doc).packageIds;
 	const packageOrder = new Map(
 		doc
 			.getRoot()

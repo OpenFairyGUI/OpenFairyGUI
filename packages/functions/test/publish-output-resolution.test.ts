@@ -30,6 +30,27 @@ function createFs() {
 	};
 }
 
+test('publish expands built-in and custom variables in global, package and branch paths', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-path-vars-'));
+	t.teardown(() => fs.rm(tmpDir, { recursive: true, force: true }));
+	for (const scope of ['global', 'package', 'branch-global', 'branch-package', 'override']) {
+		const doc = new Document();
+		const branch = scope.startsWith('branch');
+		doc.getRoot().setProjectType(7).setSettings({
+			customProperties: { channel: 'test-$&', number: 7 },
+			publish: { path: '{channel}/{publish_file_name}/{number}', branchPath: 'branch/{channel}/{publish_file_name}', branchProcessing: branch ? 1 : 0 },
+		});
+		const pkg = doc.createPackage('Main').setId('pathpkg1').setPublishName('Renamed');
+		if (scope === 'package') pkg.setPublishPath('package/{channel}/{publish_file_name}');
+		if (scope === 'branch-package') pkg.setPublishBranchPath('package-branch/{channel}/{publish_file_name}/{unknown}');
+		const output = scope === 'override' ? path.join(tmpDir, scope, '{channel}') : undefined;
+		await doc.transform(publish({ fs: createFs(), basePath: path.join(tmpDir, scope, 'assets'), branch: branch ? 'en' : undefined, output }));
+		const expected = scope === 'global' ? 'test-$&/Renamed/7' : scope === 'package' ? 'package/test-$&/Renamed'
+			: scope === 'branch-global' ? 'branch/test-$&/Renamed' : scope === 'branch-package' ? 'package-branch/test-$&/Renamed/{unknown}' : '{channel}';
+		t.truthy(await fs.stat(path.join(tmpDir, scope, expected, 'Renamed.fui')));
+	}
+});
+
 test('publish: uses global publish.path when output override is omitted', async (t) => {
 	const doc = new Document();
 	doc.getRoot().setProjectType(7);

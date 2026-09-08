@@ -15,6 +15,7 @@ import {
 	isImageResource,
 	isMovieClipResource,
 	isSkeletonResource,
+	getFontDependencyImageIds,
 } from './publish/package-context.js';
 import { collectPackageResourceReferences } from './publish/resource-references.js';
 import type { ExtrasMap, HasOptionalSrc, HasOptionalUrl } from './shared-types.js';
@@ -24,7 +25,6 @@ import {
 	collectImage,
 	collectMovieClipFrames,
 	isPackableResource,
-	resolveFontFileName,
 	type InputItem,
 	type PackageResource,
 } from './atlas/inputs.js';
@@ -232,7 +232,6 @@ function getSelectedSkeletonDependencyImageIds(resources: PackageResource[]): Se
 async function resolveEditorCompatibleResourceOrder(
 	pkg: Package,
 	allResources: PackageResource[],
-	options: AtlasOptions,
 ): Promise<PackageResource[]> {
 	const pkgId = pkg.getId();
 	const resourceMap = new Map(allResources.map((resource) => [resource.getId(), resource]));
@@ -247,22 +246,7 @@ async function resolveEditorCompatibleResourceOrder(
 		added.add(resourceId);
 		ordered.push(resource);
 		if (isFontResource(resource)) {
-			await addResource(resourceMap.get(resource.getTextureId?.() ?? ''));
-			if (options.readFileRaw && options.basePath) {
-				const fontName = resolveFontFileName(resource.getName());
-				const fontPath = resource.getPath() ?? '/';
-				const fntFile = `${options.basePath}/${pkg.getName()}${fontPath}${fontName}`;
-				try {
-					const fntData = await options.readFileRaw(fntFile);
-					const fntText = new TextDecoder().decode(fntData);
-					for (const line of fntText.split(/\r?\n/)) {
-						const imgMatch = line.match(/\bimg=(\w+)/);
-						if (imgMatch) await addResource(resourceMap.get(imgMatch[1] ?? ''));
-					}
-				} catch {
-					/* ignore */
-				}
-			}
+			for (const imageId of getFontDependencyImageIds(resource)) await addResource(resourceMap.get(imageId));
 		}
 		if (isComponentResource(resource)) {
 			componentStack.push(resource);
@@ -423,9 +407,10 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 				hasPublishSelection
 					? pkg.listResources().filter((resource) => selectedPublishIds.has(resource.getId()))
 					: pkg.listResources();
+			for (const font of allResources.filter(isFontResource)) await collectFontTexture(doc, font, pkg, options);
 			const skeletonDependencyImageIds = getSelectedSkeletonDependencyImageIds(allResources);
 			// Process resources in declaration order (matching editor behavior)
-			const orderedResources = await resolveEditorCompatibleResourceOrder(pkg, allResources, options);
+			const orderedResources = await resolveEditorCompatibleResourceOrder(pkg, allResources);
 			const resourceOrder = new Map(orderedResources.map((resource, index) => [resource.getId(), index]));
 			const inputOrder = new Map(allResources.map((resource, index) => [resource.getId(), index]));
 			const orderedAllResources = sortResourcesByOrder(allResources, resourceOrder, inputOrder);
@@ -448,24 +433,7 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 				}
 				// Font texture references and glyph image references
 				if (isFontResource(res)) {
-					const textureId = res.getTextureId?.() ?? '';
-					if (textureId) referencedIds.add(textureId);
-					// Parse .fnt file for glyph image references
-					if (options.readFileRaw && options.basePath) {
-						const fontName = resolveFontFileName(res.getName());
-						const fontPath = res.getPath() ?? '/';
-						const fntFile = `${options.basePath}/${pkg.getName()}${fontPath}${fontName}`;
-						try {
-							const fntData = await options.readFileRaw(fntFile);
-							const fntText = new TextDecoder().decode(fntData);
-							for (const line of fntText.split(/\r?\n/)) {
-								const match = line.match(/img=(\w+)/);
-								if (match) referencedIds.add(match[1]);
-							}
-						} catch {
-							/* .fnt file not found — OK */
-						}
-					}
+					for (const imageId of getFontDependencyImageIds(res)) referencedIds.add(imageId);
 				}
 			}
 
@@ -492,16 +460,6 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 					)
 						continue;
 					await collectMovieClipFrames(doc, res, pkg, inputs, encoder, options, logger);
-				} else if (isFontResource(res)) {
-					const resId = res.getId();
-					if (
-						selectedPublishIds.size === 0 &&
-						!res.getExported() &&
-						referencedIds.size > 0 &&
-						!referencedIds.has(resId)
-					)
-						continue;
-					await collectFontTexture(doc, res, pkg, options);
 				}
 			}
 

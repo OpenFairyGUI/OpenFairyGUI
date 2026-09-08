@@ -83,7 +83,9 @@ export async function previewTransactionImpact(
 	const fairyFileName = session.fileSystem ? session.fairyPath.replace(/\\/g, '/').split('/').at(-1)! : 'Project.fairy';
 	// ponytail: two full in-memory serializations reuse the writer; add writer-level incremental planning only if measured cost requires it.
 	const [previousFiles, nextFiles] = await Promise.all([
-		captureProject(materializeUamProject(session.project), fairyFileName),
+		// The existing snapshot may contain the broken reference this transaction repairs.
+		// It is serialized only into memory; the projected state and every save remain validated.
+		captureProject(materializeUamProject(session.project, { validate: false }), fairyFileName),
 		captureProject(materializeUamProject(project), fairyFileName),
 	]);
 	for (const path of new Set([...previousFiles.files.keys(), ...nextFiles.files.keys()])) {
