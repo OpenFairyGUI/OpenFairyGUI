@@ -10,7 +10,7 @@ This directory contains the English documentation used by the static website. It
 |---|---|
 | [Repository Development and Verification](./guide/development.md) | Reproducible setup, references, task routing, verification scope and PR gates. |
 | [Development Task Recipes](./guide/task-recipes.md) | XML fields, UAM operations, Backend/MCP integration, publish diagnosis and protocol evidence routes. |
-| [Runnable Examples and Consumer Verification](./guide/examples.md) | Isolated tarballs, CLI contracts, real browser storage, revision-checked edit/save, and publish/limited recovery. |
+| [Runnable Examples and Consumer Verification](./guide/examples.md) | Reward panel states, layout animation, and card generation, SDK/MCP edit verification, isolated tarballs, real browser storage, and publish/limited recovery. |
 | [Contract Sources and Operation Discovery](./guide/contracts.md) | Core/Backend-derived operations, MCP input/output schemas, binary transport and drift checks. |
 | [Diagnostics and Recovery](./guide/diagnostics.md) | Diagnostic ownership, per-code guides and read-only recovery starting points; no automatic repair. |
 | [Installed Documentation and Product Diagnosis](./guide/installed-docs.md) | CLI/MCP shared offline corpus, thin skill and read-only product doctor. |
@@ -24,7 +24,7 @@ This directory contains the English documentation used by the static website. It
 | [Project XML Attribute Protocol](./project-xml-attribute-reference.md) | Canonical Project XML attributes, aliases, and node-level semantics. |
 | [Project XML DisplayList Tag Alignment](./project-xml-displaylist-variants.md) | Alignment among raw XML tags, protocol variants, and editor `DisplayListItem.type` values. |
 | [FairyGUI Binary Package Format](./fairygui-binary-package-format.md) | V7 package blocks, component decoding, child records, and runtime-phase mapping. |
-| [Getting Started](./guide/getting-started.md) | Install the SDK and read your first FairyGUI project. |
+| [Getting Started](./guide/getting-started.md) | Local MCP setup, installed-version checks, a first verifiable edit, and CLI / SDK entrypoints. |
 | [Packages and Tools](./guide/packages.md) | Choose the right package and runtime entrypoint. |
 | [Website Home](./index.md) | Entry points for guides, translated references, and the API. |
 
@@ -32,7 +32,7 @@ This directory contains the English documentation used by the static website. It
 
 | Item | Policy |
 |---|---|
-| Audience | Repository maintainers, implementers, protocol contributors, and publishing-tool authors. |
+| Audience | Agent and tool users, editor-host developers, repository maintainers, and protocol contributors. |
 | Source of truth | Documentation follows the current repository implementation; synchronization requirements are defined in `AGENTS.md`. |
 | Root READMEs | `README.md` and `README_EN.md` provide navigation rather than protocol specifications. |
 | Website build | Use `pnpm docs:dev` for local development. `pnpm docs:build` generates the public API reference and static site. |

@@ -17,7 +17,16 @@ import {
 	resolveOutputProjectPath,
 	trimTrailingSlashes,
 } from './restore-internals/output-transaction.js';
-import { serializeFont, type RestorableFontGlyph } from './restore-internals/font.js';
+import {
+	initializeFontGlyphImageResources,
+	initializeFontTextureImageResources,
+	initializePublishedFontDefaults,
+	initializePublishedFontTextureIds,
+	initializePublishedTextFontResources,
+	serializeFont,
+	type RestorableFontGlyph,
+} from './restore-internals/font.js';
+import { normalizeRestoreResourcePath } from './path-utils.js';
 import { serializeMovieClip, type RestorableMovieFrame } from './restore-internals/movie-clip.js';
 
 export interface RestoreImageCropInput {
@@ -85,8 +94,6 @@ type RestorableResource = ReturnType<Package['listResources']>[number] & {
 	getLineHeight?(): number;
 	getPath?(): string;
 	getRepeatDelay?(): number;
-	getRenderMode?(): string;
-	getSamplePointSize?(): number;
 	getSwing?(): boolean;
 	getTtf?(): boolean;
 	getExported?(): boolean;
@@ -109,9 +116,7 @@ type RestorableResource = ReturnType<Package['listResources']>[number] & {
 	setHeight?(height: number): unknown;
 	listFrames?(): RestorableMovieFrame[];
 	listGlyphs?(): RestorableFontGlyph[];
-	setRenderMode?(renderMode: string): unknown;
 	setRequireIds?(ids: string[]): unknown;
-	setSamplePointSize?(size: number): unknown;
 	setFileName?(fileName: string): unknown;
 	setPath?(path: string): unknown;
 	setId?(id: string): unknown;
@@ -132,13 +137,6 @@ interface RestorableSprite {
 	getOriginalHeight(): number;
 }
 
-type RestorableFontResource = RestorableResource & {
-	listGlyphs(): RestorableFontGlyph[];
-	getBranch?(): string;
-	getPath?(): string;
-	getTextureId?(): string;
-};
-
 interface SpriteLookupEntry {
 	sourceAtlas: string;
 	sprite: RestorableSprite;
@@ -146,11 +144,9 @@ interface SpriteLookupEntry {
 
 interface RestorableDisplayObject {
 	getFileName?(): string;
-	getFont?(): string;
 	getPackageId?(): string;
 	getSrc?(): string;
 	setFileName?(fileName: string): unknown;
-	setFont?(font: string): unknown;
 }
 
 const TRANSPARENT_PNG_1X1 = Uint8Array.from([
@@ -169,19 +165,6 @@ function assertSafeRestoreSegment(value: string, label: string): void {
 	if (!value || value === '.' || value === '..' || value.includes('\0') || /[\\/:]/u.test(value)) {
 		throw new Error(`restore: Invalid ${label} "${value}".`);
 	}
-}
-
-function normalizeVirtualPath(path: string | undefined): string {
-	const raw = (path ?? '').trim();
-	if (!raw || raw === '/') return '';
-	if (raw.includes('\0') || raw.startsWith('\\') || raw.startsWith('//') || /^[a-z]:/iu.test(raw)) {
-		throw new Error(`restore: Invalid resource path "${raw}".`);
-	}
-	const segments = raw.replace(/\\/g, '/').split('/').filter(Boolean);
-	if (segments.some((segment) => segment === '.' || segment === '..' || segment.includes(':'))) {
-		throw new Error(`restore: Invalid resource path "${raw}".`);
-	}
-	return segments.join('/');
 }
 
 function resourceFileName(resource: RestorableResource): string {
@@ -233,7 +216,7 @@ function resourceInstanceFileName(resource: RestorableResource): string {
 	const fileName = rawFileName.replace(/\\/g, '/').replace(/^\/+/, '');
 	if (!fileName) return '';
 	if (fileName.includes('/')) return fileName;
-	const virtualPath = normalizeVirtualPath(resource.getPath?.());
+	const virtualPath = normalizeRestoreResourcePath(resource.getPath?.());
 	return virtualPath ? `${virtualPath}/${fileName}` : fileName;
 }
 
@@ -241,86 +224,12 @@ function isSyntheticFontGlyphResource(resource: RestorableResource): boolean {
 	return resource.getExtras?.()?._syntheticFontGlyph === true;
 }
 
-function glyphDisplayChar(glyph: RestorableFontGlyph): string {
-	const char = glyph.getChar();
-	if (char) return char;
-	const charId = glyph.getCharId();
-	if (charId <= 0) return '';
-	try {
-		return String.fromCodePoint(charId);
-	} catch {
-		return '';
-	}
-}
-
-function sanitizeGlyphFileSegment(char: string): string {
-	if (!char) return 'glyph';
-	const cleaned = char
-		.replace(/\s/gu, 'space')
-		.replace(/[\\/:*?"<>|]/gu, '_')
-		.replace(/\./gu, '_')
-		.split('')
-		.filter((item) => {
-			const code = item.codePointAt(0) ?? 0;
-			return code >= 0x20;
-		})
-		.join('');
-	return cleaned || 'glyph';
-}
-
 function defaultSyntheticFontGlyphFileName(resourceId: string): string {
 	return `${resourceId}.png`;
 }
 
-function syntheticFontGlyphVirtualPath(pkg: Package, font: RestorableFontResource): string {
-	const pkgName = pkg.getName?.() ?? '';
-	const fontBase = stripExtension(resourceFileName(font)).toLowerCase();
-	if (pkgName === 'EmitNumbers') return '/';
-	if (pkgName === 'Transition' && fontBase === 'number3') return '/';
-	return '/images/';
-}
-
-function syntheticFontGlyphFileName(
-	pkg: Package,
-	font: RestorableFontResource,
-	glyph: RestorableFontGlyph,
-	index: number,
-	glyphCount: number,
-): string {
-	const pkgName = pkg.getName?.() ?? '';
-	const char = glyphDisplayChar(glyph);
-	const fontBase = stripExtension(resourceFileName(font));
-	if (/^(hitnumber|number3)$/i.test(fontBase) && /^[0-9]$/u.test(char)) {
-		return `h${char}.png`;
-	}
-	if (/^cdtime$/i.test(fontBase) && /^[0-9]$/u.test(char)) {
-		return `${char}(4)_png.png`;
-	}
-	if (pkgName === 'EmitNumbers' && /^number1$/i.test(fontBase)) {
-		if (/^[0-9]$/u.test(char)) return `${char}(2)5_png.png`;
-		if (char === '-') return 'm2_png.png';
-	}
-	if (pkgName === 'EmitNumbers' && /^number2$/i.test(fontBase)) {
-		if (/^[0-9]$/u.test(char)) return `${char}(4)_png.png`;
-		if (char === '-') return 'm1_png.png';
-	}
-	if (pkgName === 'Transition' && /^number1$/i.test(fontBase)) {
-		const display = char === '0' && index === glyphCount - 1 ? '0-' : sanitizeGlyphFileSegment(char);
-		return `${String(index).padStart(4, '0')}_${display}_png.png`;
-	}
-	if (pkgName === 'Transition' && /^number2$/i.test(fontBase)) {
-		return `${String(index).padStart(4, '0')}_${sanitizeGlyphFileSegment(char)}.png`;
-	}
-	const display = sanitizeGlyphFileSegment(char);
-	return `${String(index).padStart(4, '0')}_${display}.png`;
-}
-
-function syntheticFontTextureFileName(font: RestorableFontResource): string {
-	return `${stripExtension(resourceFileName(font)) || font.getId?.() || 'font'}_atlas.png`;
-}
-
 function sameVirtualPath(a: RestorableResource, b: RestorableResource): boolean {
-	return normalizeVirtualPath(a.getPath?.()) === normalizeVirtualPath(b.getPath?.());
+	return normalizeRestoreResourcePath(a.getPath?.()) === normalizeRestoreResourcePath(b.getPath?.());
 }
 
 function imageFileName(resource: RestorableResource): string {
@@ -420,12 +329,12 @@ class RestoreWorkflow {
 		this._assertDocumentPaths(doc);
 		await this._synthesizeLooseSkeletonResources(doc, options.sourceDir);
 		this._initializeRestoredResourceRelations(doc);
-		this._initializePublishedFontTextureIds(doc);
-		this._initializeFontTextureImageResources(doc);
-		this._initializeFontGlyphImageResources(doc);
-		this._initializePublishedTextFontResources(doc);
+		initializePublishedFontTextureIds(doc);
+		initializeFontTextureImageResources(doc);
+		initializeFontGlyphImageResources(doc);
+		initializePublishedTextFontResources(doc);
 		this._initializeDisplayObjectFileNames(doc);
-		this._initializePublishedFontDefaults(doc);
+		initializePublishedFontDefaults(doc);
 		this._assertDocumentPaths(doc);
 		return doc;
 	}
@@ -441,7 +350,7 @@ class RestoreWorkflow {
 			assertSafeRestoreSegment(pkg.getName(), 'package name');
 			assertSafeRestoreSegment(pkg.getPublishName() || pkg.getName(), 'package publish name');
 			for (const resource of pkg.listResources() as RestorableResource[]) {
-				normalizeVirtualPath(resource.getPath?.());
+				normalizeRestoreResourcePath(resource.getPath?.());
 				const branch = resource.getBranch?.() ?? '';
 				if (branch) assertSafeRestoreSegment(branch, 'branch name');
 				const fileName = resourceFileName(resource);
@@ -673,61 +582,6 @@ class RestoreWorkflow {
 		}
 	}
 
-	private _initializeFontGlyphImageResources(doc: Document): void {
-		for (const pkg of doc.getRoot().listPackages()) {
-			for (const resource of [...pkg.listResources()] as RestorableFontResource[]) {
-				if (resource.propertyType !== 'FontResource') continue;
-				const glyphEntries = new Map<string, { glyph: RestorableFontGlyph; index: number }>();
-				for (const [index, glyph] of resource.listGlyphs().entries()) {
-					const glyphId = glyph.getImg?.() ?? '';
-					if (!glyphId || glyphEntries.has(glyphId)) continue;
-					glyphEntries.set(glyphId, { glyph, index });
-				}
-				for (const [glyphId, entry] of glyphEntries) {
-					if (pkg.getResourceById(glyphId)) continue;
-					const image = doc.createImageResource(glyphId);
-					image
-						.setId(glyphId)
-						.setPath(syntheticFontGlyphVirtualPath(pkg, resource))
-						.setBranch(resource.getBranch?.() ?? '')
-						.setFileName(syntheticFontGlyphFileName(pkg, resource, entry.glyph, entry.index, glyphEntries.size))
-						.setExtras({
-							...(image.getExtras?.() ?? {}),
-							_syntheticFontGlyph: true,
-							_packageOrderAfterId: resource.getId?.() ?? '',
-							_packageOrderWeight: 1,
-							_suppressPackageSize: true,
-						});
-					pkg.addResource(image);
-				}
-			}
-		}
-	}
-
-	private _initializeFontTextureImageResources(doc: Document): void {
-		for (const pkg of doc.getRoot().listPackages()) {
-			for (const resource of [...pkg.listResources()] as RestorableFontResource[]) {
-				if (resource.propertyType !== 'FontResource') continue;
-				const textureId = resource.getTextureId?.() ?? '';
-				if (!textureId || pkg.getResourceById(textureId)) continue;
-				const image = doc.createImageResource(textureId);
-				image
-					.setId(textureId)
-					.setPath(resource.getPath?.() ?? '/')
-					.setBranch(resource.getBranch?.() ?? '')
-					.setFileName(syntheticFontTextureFileName(resource))
-					.setExtras({
-						...(image.getExtras?.() ?? {}),
-						_syntheticFontTexture: true,
-						_packageOrderAfterId: resource.getId?.() ?? '',
-						_packageOrderWeight: 0,
-						_suppressPackageSize: true,
-					});
-				pkg.addResource(image);
-			}
-		}
-	}
-
 	private _resolveDisplayObjectResource(
 		doc: Document,
 		pkg: Package,
@@ -781,75 +635,6 @@ class RestoreWorkflow {
 				&& sameVirtualPath(owner, resource)
 				&& fileBaseName(resourceFileName(resource)).toLowerCase() === expected;
 		}) ?? null;
-	}
-
-	private _initializePublishedFontDefaults(doc: Document): void {
-		for (const pkg of doc.getRoot().listPackages()) {
-			for (const resource of pkg.listResources() as RestorableResource[]) {
-				if (resource.propertyType !== 'FontResource') continue;
-				const fileName = resourceFileName(resource);
-				if (!/\bsdf\b/i.test(fileName)) continue;
-				if (!resource.getRenderMode?.()) resource.setRenderMode?.('sdfaa');
-				if (!resource.getSamplePointSize?.()) resource.setSamplePointSize?.(60);
-			}
-		}
-	}
-
-	private _initializePublishedTextFontResources(doc: Document): void {
-		for (const pkg of doc.getRoot().listPackages()) {
-			const fontResources = (pkg.listResources() as RestorableResource[]).filter((resource) => resource.propertyType === 'FontResource');
-			const fontByFileName = new Map(
-				fontResources.map((resource) => [resourceFileName(resource).toLowerCase(), resource] as const),
-			);
-			const fontByDisplayName = new Map(
-				fontResources.map((resource) => [stripExtension(resourceFileName(resource)).toLowerCase(), resource] as const),
-			);
-
-			for (const component of pkg.listComponents()) {
-				for (const child of component.listChildren() as RestorableDisplayObject[]) {
-					const font = child.getFont?.() ?? '';
-					if (!font || font.startsWith('ui://')) continue;
-					if (!/\bsdf\b/i.test(font)) continue;
-
-					const normalized = font.trim().toLowerCase();
-					let resource = fontByDisplayName.get(normalized) ?? fontByFileName.get(`${normalized}.ttf`);
-					if (!resource) {
-						resource = doc.createFontResource(font.trim());
-						resource
-							.setId(generateId())
-							.setPath('/font/')
-							.setFileName(`${font.trim()}.ttf`)
-							.setExported(false)
-							.setRenderMode('sdfaa')
-							.setSamplePointSize(60)
-							.setTtf(true);
-						pkg.addResource(resource as never);
-						fontByDisplayName.set(normalized, resource);
-						fontByFileName.set(`${normalized}.ttf`, resource);
-					}
-
-					child.setFont?.(`ui://${pkg.getId()}${resource.getId?.() ?? ''}`);
-				}
-			}
-		}
-	}
-
-	private _initializePublishedFontTextureIds(doc: Document): void {
-		for (const pkg of doc.getRoot().listPackages()) {
-			const resources = pkg.listResources() as RestorableResource[];
-			for (const resource of resources) {
-				if (resource.propertyType !== 'FontResource') continue;
-				if (resource.getTextureId?.()) continue;
-				if (resource.getTtf?.() !== true) continue;
-				const expectedFileName = syntheticFontTextureFileName(resource).toLowerCase();
-				const texture = resources.find((candidate) => {
-					return candidate.propertyType === 'ImageResource'
-						&& sameVirtualPath(resource, candidate)
-						&& fileBaseName(resourceFileName(candidate)).toLowerCase() === expectedFileName;
-				});
-				if (texture?.getId?.()) resource.setTextureId?.(texture.getId());
-			}
-		}
 	}
 
 	private async _restoreAssets(
@@ -1075,7 +860,7 @@ class RestoreWorkflow {
 		if (branch) assertSafeRestoreSegment(branch, 'branch name');
 		assertSafeRestoreSegment(fileName, 'resource file name');
 		const assetsDir = branch ? `assets_${branch}` : 'assets';
-		const virtualPath = normalizeVirtualPath(resource.getPath?.());
+		const virtualPath = normalizeRestoreResourcePath(resource.getPath?.());
 		const pkgDir = this._fs.join(basePath, assetsDir, pkg.getName());
 		return virtualPath
 			? this._fs.join(pkgDir, virtualPath, fileName)

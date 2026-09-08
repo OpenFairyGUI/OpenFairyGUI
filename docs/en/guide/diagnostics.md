@@ -19,6 +19,22 @@ SDK: `getBackendDiagnosticCatalog()` / `getBackendDiagnosticGuide(code)`. MCP: r
 Generated from Backend's typed catalog by `pnpm contracts:generate`; do not edit the marked section.
 
 <!-- diagnostics:start -->
+### stale_read
+
+Owners: `backend` · Recovery: `refresh-and-replan`
+
+URI: `openfairygui://docs/diagnostics/stale_read`
+
+Discard the incomplete model/bytes read and restart with readSessionState. Use its revision for every readResourceBytes call. No historical state is retained or reserved; do not combine resources from different edit revisions.
+
+### session_read_failed
+
+Owners: `backend` · Recovery: `host-action`
+
+URI: `openfairygui://docs/diagnostics/session_read_failed`
+
+Inspect error.reason: invalid_query requires valid inputs; not_found/ambiguous requires exact current resource identifiers; unsupported_resource/bytes_unavailable means primary bytes cannot be read from this session. Budget or non-JSON failures require host inspection. Preserve unsaved work; do not save, reopen, repair or mutate the model merely to obtain a read.
+
 ### transaction_preview_failed
 
 Owners: `backend` · Recovery: `host-action`

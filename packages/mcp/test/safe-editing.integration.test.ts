@@ -1,13 +1,134 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
 import test from 'ava';
+import sharp from 'sharp';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import type { BackendEntitySnapshot, BackendResult, BackendTransactionPreview, BackendSessionSnapshot } from '@openfairygui/backend';
+import { BackendRuntime, type BackendEntitySnapshot, type BackendResult, type BackendTransactionPreview, type BackendSessionSnapshot, type BackendSessionStateSnapshot } from '@openfairygui/backend';
 import { createNodeBackendRuntime } from '@openfairygui/backend/node';
 import { composeController, composeTransition, materializeUamProject, liftDocumentToUamProject, readProjectAsUam, writeProjectFromUam } from '@openfairygui/core';
 import { NodeIO } from '@openfairygui/core/node';
-import { createOpenFairyGuiMcpServer } from '../src/index.js';
-import { createTempMcpProject } from './helpers.js';
+import { getFixturePath } from '@openfairygui/test-utils';
+import { isOpenFairyGuiMcpPayloadWithinBudget } from '../src/tool-definitions.js';
+import { createOpenFairyGuiMcpServer, callOpenFairyGuiBackendTool, OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS } from '../src/index.js';
+import { createTempMcpProject, createMcpFixtureProject } from './helpers.js';
+
+test('MCP round-trips a real image above the generic array budget through read, preview and apply', async (t) => {
+	const project = createMcpFixtureProject();
+	const sourceBytes = new Uint8Array(await fs.readFile(getFixturePath('FairyGUI-unity', 'UIProject', 'assets', 'VirtualList', '8.png')));
+	t.true(sourceBytes.length > 10_000);
+	const image = project.packages[0].resources[0]; assert(image.kind === 'image'); image.sourceBytes = sourceBytes;
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({ project }); assert(opened.ok);
+	const sessionId = opened.data.sessionId, selector = { packageId: 'pkg001', resourceId: 'img001' };
+	const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+	const server = createOpenFairyGuiMcpServer({ runtime });
+	const client = new Client({ name: 'image-roundtrip', version: 'test' });
+	await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+	try {
+		await client.listTools();
+		const read = await client.callTool({ name: 'openfairygui_backend_read_resource_bytes', arguments: { sessionId, expectedRevision: 0, selector } });
+		t.false(read.isError);
+		const wireBytes = (read.structuredContent as { backendResult: { data: { sourceBytes: number[] } } }).backendResult.data.sourceBytes;
+		t.deepEqual(wireBytes, [...sourceBytes]);
+		const input = { sessionId, expectedRevision: 0, operations: [{ kind: 'replaceResourceBytes', selector, sourceBytes: wireBytes }] };
+		for (const method of ['preflight_transaction', 'apply_transaction']) {
+			const result = await client.callTool({ name: `openfairygui_backend_${method}`, arguments: input });
+			t.false(result.isError, JSON.stringify(result));
+		}
+		const current = runtime.readResourceBytes({ sessionId, expectedRevision: 1, selector }); assert(current.ok);
+		t.deepEqual(current.data.sourceBytes, sourceBytes);
+	} finally { await runtime.closeSession({ sessionId }); await client.close(); await server.close(); }
+});
+
+test('MCP byte allowances are schema-scoped, integer-only and bounded in aggregate', (t) => {
+	const bytePaths = [['operations', '*', 'sourceBytes']];
+	const payload = (bytes: unknown) => ({ operations: [{ sourceBytes: bytes }] });
+	t.true(isOpenFairyGuiMcpPayloadWithinBudget(payload(Array(100_001).fill(255)), bytePaths));
+	t.false(isOpenFairyGuiMcpPayloadWithinBudget(payload(Array(10_001).fill(0))));
+	t.false(isOpenFairyGuiMcpPayloadWithinBudget({ metadata: { sourceBytes: Array(10_001).fill(0) } }, bytePaths));
+	for (const value of [-1, 256, 0.5, NaN, '1']) t.false(isOpenFairyGuiMcpPayloadWithinBudget(payload([value]), bytePaths));
+	t.false(isOpenFairyGuiMcpPayloadWithinBudget(payload(new Array(8 * 1024 * 1024 + 1)), bytePaths));
+	t.false(isOpenFairyGuiMcpPayloadWithinBudget({ operations: [
+		{ sourceBytes: new Uint8Array(5 * 1024 * 1024) }, { sourceBytes: new Uint8Array(5 * 1024 * 1024) },
+	] }, bytePaths));
+});
+
+test('MCP session reads expose current unsaved state and primary bytes at one revision', async (t) => {
+	const fixture = await createTempMcpProject();
+	const project = createMcpFixtureProject();
+	const image = project.packages[0].resources[0]; assert(image.kind === 'image');
+	image.sourceBytes = new Uint8Array(await sharp({ create: { width: 320, height: 180, channels: 4, background: '#123456' } }).png().toBuffer());
+	project.settings.publish = Object.assign({ compressDesc: false }, { include2x: true });
+	project.settings.customProperties = { extension: { sourceBytes: [7, 8] } };
+	await writeProjectFromUam(new NodeIO(), project, fixture.fairyPath);
+	const runtime = createNodeBackendRuntime({ allowedProjectRoots: [fixture.rootDir] });
+	const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+	const server = createOpenFairyGuiMcpServer({ runtime });
+	const client = new Client({ name: 'session-state-reader', version: 'test' });
+	await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+	let sessionId: string | undefined;
+	try {
+		const { tools } = await client.listTools();
+		for (const name of ['read_session_state', 'read_resource_bytes']) {
+			const tool = tools.find((entry) => entry.name === `openfairygui_backend_${name}`);
+			assert(tool); t.true(tool.annotations?.readOnlyHint); t.true(tool.annotations?.idempotentHint);
+		}
+		const opened = await runtime.openSession({ projectPath: fixture.fairyPath }); assert(opened.ok);
+		sessionId = opened.data.sessionId;
+		const before = runtime.readSessionState({ sessionId }); assert(before.ok);
+		const applied = await runtime.applyTransaction({ sessionId, expectedRevision: before.data.revision, operations: [
+			{ kind: 'setDisplayNodeProps', selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' }, props: { text: 'Read before save' } },
+		] }); assert(applied.ok);
+		const result = await client.callTool({ name: 'openfairygui_backend_read_session_state', arguments: { sessionId } });
+		t.false(result.isError);
+		const backend = (result.structuredContent as { backendResult: BackendResult<BackendSessionStateSnapshot> }).backendResult;
+		assert(backend.ok); t.is(backend.data.revision, 1); t.true(backend.data.dirty); t.is(backend.data.lastSavedRevision, 0);
+		const native = runtime.readSessionState({ sessionId, expectedRevision: 1 }); assert(native.ok);
+		t.deepEqual(backend.data, JSON.parse(JSON.stringify(native.data)));
+		t.deepEqual(backend.data.project.settings.customProperties, project.settings.customProperties);
+		t.true((backend.data.project.settings.publish as Record<string, unknown>).include2x);
+		const definition = OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.find((entry) => entry.backendMethod === 'readSessionState')!;
+		const invalid = structuredClone(backend);
+		Object.assign(invalid.data.project.packages[0].resources.find((entry) => entry.kind === 'image')!, { sourceBytes: [1, 2] });
+		t.false(definition.outputSchema.safeParse({ backendResult: invalid }).success);
+		const text = (result.content as Array<{ type: string; text: string }>)[0]; assert(text.type === 'text'); t.deepEqual(JSON.parse(text.text), backend);
+		const selector = { packageId: 'pkg001', resourceId: 'img001' };
+		const bytes = await client.callTool({ name: 'openfairygui_backend_read_resource_bytes', arguments: { sessionId, expectedRevision: 1, selector } });
+		t.false(bytes.isError);
+		const source = runtime.readResourceBytes({ sessionId, expectedRevision: 1, selector }); assert(source.ok);
+		t.deepEqual((bytes.structuredContent as { backendResult: { data: unknown } }).backendResult.data, { ...source.data, sourceBytes: [...source.data.sourceBytes] });
+		for (const method of ['read_session_state', 'read_resource_bytes']) {
+			const stale = await client.callTool({ name: `openfairygui_backend_${method}`, arguments: { sessionId, expectedRevision: 0, ...(method === 'read_resource_bytes' ? { selector } : {}) } });
+			t.true(stale.isError); t.is((stale.structuredContent as { backendResult: { error: { code: string } } }).backendResult.error.code, 'stale_read');
+		}
+		t.true((await client.callTool({ name: 'openfairygui_backend_read_resource_bytes', arguments: { sessionId, selector } })).isError);
+		const after = runtime.readSessionState({ sessionId }); assert(after.ok); t.deepEqual(after.data, native.data);
+	} finally {
+		if (sessionId) await runtime.closeSession({ sessionId });
+		await client.close(); await server.close(); await fixture.cleanup();
+	}
+});
+
+test('MCP bounds the full session-read response independently of Backend limits', async (t) => {
+	const runtime = new BackendRuntime();
+	const opened = runtime.openProjectSession({ project: createMcpFixtureProject() }); assert(opened.ok);
+	const sessionId = opened.data.sessionId;
+	try {
+		const native = runtime.readSessionState({ sessionId }); assert(native.ok);
+		// Simulate a Backend adapter exceeding the transport budget, including both response representations.
+		native.data.project.settings.customProperties = { content: 'x'.repeat(9 * 1024 * 1024) };
+		runtime.readSessionState = () => native;
+		const result = await callOpenFairyGuiBackendTool(runtime, 'openfairygui_backend_read_session_state', { sessionId });
+		t.true(result.isError);
+		const definition = OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.find((entry) => entry.backendMethod === 'readSessionState')!;
+		assert(definition.maxResponseBytes !== undefined);
+		t.notThrows(() => definition.outputSchema.parse(result.structuredContent));
+		const error = (result.structuredContent as { backendResult: { error: { code: string; maxBytes: number } } }).backendResult.error;
+		t.is(error.code, 'mcp_response_budget_exceeded'); t.is(error.maxBytes, definition.maxResponseBytes);
+		t.true(Buffer.byteLength(JSON.stringify(result)) < 2000);
+	} finally { await runtime.closeSession({ sessionId }); }
+});
 
 test('MCP reads complete project and package settings before editing only the requested fields', async (t) => {
 	const fixture = await createTempMcpProject();

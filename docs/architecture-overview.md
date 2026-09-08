@@ -8,6 +8,10 @@ UAM 是公开的声明式 authoring 契约；`Document + Property Graph` 是 Cor
 
 Core 拥有事务语义，Functions 组合工作流，Backend 管理会话状态与保存，CLI/MCP 只做入口适配。可读取、可物化、可编辑、可保存和可发布是不同能力；查询或预演成功不授予后续写入权限，也不保证保存或发布成功。
 
+Core 的正式 UAM 保留组件实例 controller 覆盖及 Gear 默认值缺省语义。Functions 在发布筛选前按资源分支读取位图字体，建立图像依赖；Core 编码字体名称、字形与发布 ID。代码生成名称分配归 Functions，MCP 不参与协议补齐。
+
+Backend 预演只在内存中物化可能含无效引用的已有快照，以支持修复事务的文件差异比较；结果状态和保存入口仍严格校验。MCP 仅按生成契约的字节路径应用合计 8 MiB 的二进制输入预算，其他 JSON 继续使用通用结构预算。
+
 ## 模块边界与事实源
 
 | 模块 | 拥有的职责与修改入口 | 不拥有的职责 |
@@ -23,6 +27,8 @@ Core 拥有事务语义，Functions 组合工作流，Backend 管理会话状态
 
 Backend 的带类型诊断目录覆盖正式错误码，记录共享码的全部 owners、文档 URI 和恢复建议；响应保留实际来源与原错误字段。CLI/MCP 共用随安装版本发布的离线语料与薄 Skill。精确字段、版本和摘要见[契约查询](./guide/contracts.md)、[诊断与恢复](./guide/diagnostics.md)、[安装版本文档](./guide/installed-docs.md)。
 
+MCP 的工具发现与分发由 SDK 管理，Host 可通过公开 `registerTool()` 在同一 server 添加工具。`toolPolicies` 在输入校验后、Backend 调用前运行 Host 检查；已声明的 Host 失败分支终止调用，放行则用原输入调用 Backend 一次。授权及 grant 消费归 Host，revision、路径和写盘保护仍归 Backend。工具发现保持有界 `$ref` schema；Host 输出扩展不修改随包 Backend 契约或文档。
+
 ## 当前最关键的数据流
 
 ```mermaid
@@ -33,6 +39,7 @@ flowchart TD
     UAM -->|materialize| DOC
     MCP["MCP / Backend API"] --> SESSION["Backend 会话与 revision"]
     SESSION --> APP["Functions authoring"] --> TX["Core transaction"]
+    SESSION -->|readSessionState / readResourceBytes| READ["公开 UAM 模型与主文件字节副本"]
     UAM --> TX
     TX -->|UAM-native 工作副本| UAM
     TX -->|Document 工作副本| DOC
@@ -41,6 +48,8 @@ flowchart TD
 ```
 
 `bridge.ts` 保持 lift/materialize 门面；实现分别位于 `bridge-lift.ts`、`bridge-materialize.ts`、`bridge-shared.ts`，受控源文件枚举归 `project-source-files.ts`。二进制使用 `Uint8Array`，转换和事务工作副本保留字节，不经过 JSON clone。
+
+Gear 字符串解析归 `bridge-lift.ts`；具体属性的 Document setter 映射归 `bridge-materialize.ts`，创建与事务更新复用同一映射。Document 的日志依赖直接指向 logger 叶模块。XML 读写按具体标签协议调用一次共有状态 handler，标签分支只处理其余专属字段；共有状态在 Gear 默认值捕获之前读取，不改变正式属性的标签归属。
 
 工程读取、UAM 检查与源数据验证分层：`readProjectDetailed` 报告读取完整性，`validateUamProject` 检查模型，Functions 组合为正式验证报告。`invalid` 是确定错误，`incomplete` 是能力或数据不足；详见[工程验证](./project-validation.md)。
 
@@ -73,6 +82,7 @@ flowchart TD
 | 操作 | 状态与副作用 |
 |---|---|
 | `queryEntity` | 七类固定投影：project、package、resource、component、displayNode、controller、transition；工程无需 selector，其余精确选择；返回实际 revision，脱离会话且有界，不含源字节 |
+| `readSessionState` / `readResourceBytes` | 同步捕获当前已提交模型与单资源主文件字节，返回独立副本与实际编辑 revision；资源读取必须核对模型 revision，不重新水合、不修复、不写入 |
 | `preflightTransaction` | 同一会话队列检查 revision，复制工程/字节并执行后丢弃；不改工程、dirty、revision、缓存或业务事件，不写盘 |
 | `applyTransaction` | 再次检查 expectedRevision；成功替换会话工程，revision 加一并标 dirty；失败保留工程与 revision，可发出拒绝事件 |
 | `saveSession` | 用会话绑定的文件系统保存；成功才更新 lastSavedRevision、清 dirty 与待清理路径；不推进编辑 revision |
@@ -81,9 +91,13 @@ flowchart TD
 
 项目与包设置查询复用 `ReadService` 的固定投影、JSON 预算检查和深度复制，返回身份与完整 `settings`。调用方只修改所需字段，再把完整设置及查询 revision 交给既有 `updateProjectSettings` / `updatePackageSettings` 事务；MCP 直接映射此查询和事务链路。
 
+完整状态读取同样归 `ReadService`，直接派生公开 UAM 模型、排除 asset resource 主文件 `sourceBytes`，通过另一读取方法提供已有字节。模型保留 sourcePath 与 JSON 扩展数据；源读取完整性、诊断及保真标记如实返回，不等价于字节齐全或下游能力承诺。两次读取之间的编辑会导致 `stale_read`，调用方重新开始，不引入历史快照、租约或 Viewer 逻辑。保存可在同一编辑 revision 更新 sourcePath 和 dirty，因此完整原始 UAM 不由 revision 永久唯一标识。Backend 限制模型与原始字节；MCP 独立限制新工具完整响应，并仅对完整读取模型使用可扩展的输出对象 schema。详见[会话读取契约](./guide/contracts.md#读取当前会话模型与资源字节)。
+
 预演比较两份正式 UAM 得到实体/字段影响，并复用内存捕获文件系统与 ProjectWriter 得到工程相对文件/目录差异。它反映当前 revision 到预演结果，不是上次保存以来的累计差异、磁盘写入清单或删除授权。摘要超预算时完整拒绝，不截断为成功；保存提示的 `writeVerified` 始终 false，projected revision 不被预留。详见[事务预演](./guide/contracts.md#预演一次事务)。
 
 会话队列串行化预演、提交、保存、物化和关闭。事件是有界轮询日志；job 只支持内存 `cache.refresh` 与协作取消；cache 是 revision-bound 派生数据，不是事实源。artifact plane 只声明宿主能力，不执行 publish/restore。
+
+保存与物化共用 AuthoringService 内部的成功完成步骤：更新 saved revision、清除 dirty、刷新 cache，然后依次发送 `save.completed` 与 `cache.updated`。前置校验、存储绑定和错误结果保留在各自路径，两条路径仍由同一个会话队列串行化。
 
 ## Node / Web 与路径边界
 
@@ -104,6 +118,8 @@ flowchart TD
 - `publishBrowser()` 注入调用方文件系统、Canvas raster adapter 和空 hooks；不支持的设置在写入前拒绝。输出原子性由宿主负责，失败清单仅包含已完成的写入。
 - `restoreNode()` 只从可信本地发布目录恢复到独立工程目录，复用 `restore.ts` 与 `restore-internals/` 的路径检查、重建和输出事务。它不保证恢复原 XML、编辑器设置、未发布内容或本地状态，也不判定未知输入是否可信。
 
+`restore.ts` 保持准备顺序与文件系统资产恢复的编排；字体纹理、字形图像、名称关联和默认值重建归 `restore-internals/font.ts`，这些步骤修改 Document，不执行 I/O。恢复资源路径校验由现有 `path-utils.ts` 复用，字体模块不反向依赖恢复入口。
+
 CLI 只解析参数、调用正式 Node 入口并包装结果。产品 MCP 不提供 publish/restore 执行工具；评测中的独立 artifact 宿主使用固定输入/目录的受限工具，不扩大产品权限。
 
 ## 协议与行为细节索引
@@ -119,6 +135,8 @@ CLI 只解析参数、调用正式 Node 入口并包装结果。产品 MCP 不�
 ## 契约与消费者验证
 
 `agent/impact-map.json` 驱动变更测试与 AGENTS 指引表；`check:ci` 组合完整测试、契约/文档检查、文档构建和仓库外五包安装消费者。发布前检查将要发布的同一组 tarball，不用 workspace 链接替代。
+
+`scripts/consumer/helpers.mjs` 拥有消费者共用的文件边界、公开导出、bin、CLI 信封和目录快照检查；各验收场景及仓库自测直接依赖该叶模块。隔离消费者拷贝清单和 Agent 评测 harness 摘要都包含它，共用 helper 不从 runtime 场景入口导入。
 
 消费者运行公开 Node / MCP stdio 示例，并在真实 Chromium 中执行 OPFS → Core adapter → Backend session → 预演/编辑/保存 → WebIO 水合回读；验证源字节、Web Locks、刷新恢复与路径拒绝。它不代表用户 Folder 交互授权、渲染器或所有浏览器已经验证。
 

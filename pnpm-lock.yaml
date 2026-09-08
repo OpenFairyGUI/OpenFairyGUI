@@ -127,6 +127,9 @@ importers:
       jiti:
         specifier: ^2.6.1
         version: 2.7.0
+      tiny-pinyin:
+        specifier: 1.3.2
+        version: 1.3.2
     devDependencies:
       ava:
         specifier: ^7.0.0
@@ -3041,6 +3044,9 @@ packages:
   time-zone@1.0.0:
     resolution: {integrity: sha512-TIsDdtKo6+XrPtiTm1ssmMngN1sAhyKnTO2kunQWqNPWIVvCm15Wmw4SWInwTVgJ5u/Tr04+8Ei9TNcw4x4ONA==}
     engines: {node: '>=4'}
+
+  tiny-pinyin@1.3.2:
+    resolution: {integrity: sha512-uHNGu4evFt/8eNLldazeAM1M8JrMc1jshhJJfVRARTN3yT8HEEibofeQ7QETWQ5ISBjd6fKtTVBCC/+mGS6FpA==}
 
   tinyexec@1.0.4:
     resolution: {integrity: sha512-u9r3uZC0bdpGOXtlxUIdwf9pkmvhqJdrVCH9fapQtgy/OeTTMZ1nqH7agtvEfmGui6e1XxjcdrlxvxJvc3sMqw==}
@@ -6098,6 +6104,8 @@ snapshots:
       minimatch: 10.2.5
 
   time-zone@1.0.0: {}
+
+  tiny-pinyin@1.3.2: {}
 
   tinyexec@1.0.4: {}
 

@@ -3,34 +3,33 @@ layout: home
 
 hero:
   name: OpenFairyGUI
-  text: FairyGUI 工程的 Node.js SDK
-  tagline: 以代码读取、检查、转换、发布和还原 FairyGUI 工程，适合自动化工作流与工具集成。
+  text: 面向 Agent 的 FairyGUI 工具链
+  tagline: 通过 MCP、CLI 和 TypeScript SDK 读取、编辑、验证与发布工程，接入 AI Agent、自动化脚本与编辑器宿主。
   image:
     src: /logo.svg
     alt: OpenFairyGUI logo
   actions:
     - theme: brand
-      text: 快速开始
+      text: 接入 Agent
       link: /guide/getting-started
     - theme: alt
-      text: 浏览 API
-      link: /api/
-      target: _self
+      text: 可运行示例
+      link: /guide/examples
 
 features:
-  - title: 工程与发布包双向处理
-    details: 读取和写入工程目录、发布二进制包，并将已发布产物还原为可继续编辑的工程。
-  - title: 自动化优先
-    details: 通过 TypeScript API、CLI 与 MCP 适配层，将工程处理接入脚本和智能体工作流。
-  - title: 正式协议参考
-    details: 当前实现、项目 XML、发布设置与二进制格式均有明确的参考文档与源码入口。
+  - title: 按安装版本发现能力
+    details: CLI 与 MCP 共用随包工作流、精确 schema 和诊断文档，Agent 可以先查询当前契约再构造操作。
+  - title: 查询、预演与事务编辑
+    details: 从真实属性和 revision 规划修改，检查预演影响，提交与保存分别校验版本，并如实报告冲突和不完整结果。
+  - title: 接入现有工作流
+    details: MCP 提供有状态工程编辑；CLI 与 Node SDK 执行检查、发布及可信本地产物的受限恢复，浏览器宿主使用注入能力。
 ---
 
-## 从一个工程开始
+## 从一个任务开始
 
-先读取 FairyGUI 工程，再围绕 `Document` 进行检查、变换、发布或写回。完整步骤见[快速开始](/guide/getting-started)。
+让 Agent 为奖励面板配置三状态控制器，联动按钮文字、交互与已领取标记，先预演整批操作，再提交、验证、保存并回读。[快速开始](/guide/getting-started)按连接检查、主编辑任务和进阶案例组织；[可运行示例](/guide/examples#三状态奖励面板)验证 SDK 与真实 MCP 编辑结果，还可继续[调整布局与入场动画](/guide/examples#奖励面板布局与入场动画)、[从模板生成卡片](/guide/examples#从模板生成奖励卡片)。
 
-如果你正在补齐工程格式或发布链路，请从[参考文档](/architecture-overview)开始；如果你需要查看可调用的公开符号，请打开 <a href="/api/" target="_self">API Reference</a>。
+脚本与编辑器集成从[包与工具](/guide/packages)选择 CLI、Backend 或 SDK 入口；底层格式与公开符号见[文档索引](/README)和 <a href="/api/" target="_self">API Reference</a>。
 
 ## 推荐项目
 

@@ -6,8 +6,92 @@
 
 发布比较：
 
-- 稳定线（`main`）：[v0.4.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...main)
-- 开发线（`next`）：[v0.4.0...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...next)
+- 稳定线（`main`）：[v0.5.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0...main)
+- 开发线（`next`）：[v0.5.0...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0...next)
+
+## v0.5.x
+
+### v0.5.0（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0)）
+
+本正式版包含 `0.5.0-alpha.1` 至 `0.5.0-alpha.4` 的全部变更。
+
+新功能：
+
+- backend、mcp：新增当前已提交公开 UAM 模型与主资源字节的有界读取，返回独立副本、校验 revision 并如实保留源读取诊断。能力 schema 版本为 11。
+- mcp：新增按工具声明失败 schema 的 Host 策略、单次 Backend 委托和公开初始化 instructions。Host 失败保留结构化详情，不扩大 Backend 契约。
+- examples、docs：新增奖励面板状态、布局与入场动画、可复用奖励卡生成的可执行 Agent 流程，通过 SDK/MCP 验证保存与独立回读。
+
+缺陷修复：
+
+- core：在 UAM 与工程 XML 往返中保留缺省 Gear 默认值和组件实例控制器覆盖。
+- functions：发布时包含位图字体纹理和字形图片，统一解析源字体路径，并将外部字体编码为字体名而不发布其源资源。
+- functions：展开发布和代码生成路径中的工程变量，将中文标识符转写为拼音，并避免生成的类名与成员名冲突。
+- backend：允许预览修复已有失效引用的事务，同时验证预览结果。
+- mcp：恢复 SDK 原生 Host 工具发现及注册生命周期变更；按 schema 识别 JSON 字节数组，并执行合计 8 MiB 的输入字节限制。
+
+其他：
+
+- core、functions、backend：统一公共 XML 状态、Loader3D 属性赋值和保存成功后的收尾逻辑，分离恢复流程的字体准备逻辑，并删除未使用的资源过滤代码。
+- workspace：移除消费者辅助函数对运行入口的依赖，在 PR 环境之外要求快速检查提供明确比较基准，并避免本地完整验证中重复的构建和契约检查。
+- docs：同步双语协议、架构与验证指引，集中 Agent 接入流程，并将示例与安装指南更新到正式版 `0.5.0`。
+
+破坏性变更：
+
+- core、backend：所有带值 UAM Gear 的默认值均可为 `null`，以保留对象初始值；消费者需要在 Look、Size、Color、Animation 和 FontSize Gear 中处理该情况。Backend 契约版本为 `2.0.0-p3`。
+
+### v0.5.0-alpha.4（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.4)）
+
+缺陷修复：
+
+- core：在 UAM 与工程 XML 往返中保留缺省 Gear 默认值和组件实例控制器覆盖。
+- functions：发布时包含位图字体纹理和字形图片，统一解析源字体路径，并将外部字体编码为字体名而不发布其源资源。
+- functions：展开发布和代码生成路径中的工程变量，将中文标识符转写为拼音，并避免生成的类名与成员名冲突。
+- backend、mcp：允许预览修复已有失效引用的事务，同时验证预览结果；按 schema 识别 JSON 字节数组，并执行合计 8 MiB 的输入字节限制。
+
+其他：
+
+- core、functions、backend：统一公共 XML 状态和 Loader3D 属性赋值，删除未使用的资源过滤代码，分离恢复流程的字体准备逻辑，并复用保存成功后的收尾逻辑。
+- workspace：移除消费者辅助函数对运行入口的反向依赖，扩充回归验证，并同步双语协议与架构文档。
+
+破坏性变更：
+
+- core、backend：所有带值 UAM Gear 的默认值均可为 `null`，以保留对象初始值；消费者需要在 Look、Size、Color、Animation 和 FontSize Gear 中处理该情况。Backend 契约版本为 `2.0.0-p3`。
+
+### v0.5.0-alpha.3（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.3)）
+
+新功能：
+
+- examples、docs：新增奖励面板状态、布局与入场动画、可复用奖励卡生成三个可执行 Agent 编辑流程，通过 SDK/MCP 消费者验证保存与独立回读。
+
+其他：
+
+- workspace：在 PR 环境之外要求快速检查提供 PR 比较基准，预览计划不执行检查，并移除本地完整验证中重复的工作区构建与契约检查。
+- docs：按四种常用场景组织验证入口，同步双语接入与开发指南，并在 PR 模板中记录符合改动范围的检查。
+
+### v0.5.0-alpha.2（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.2)）
+
+新功能：
+
+- mcp：新增按工具声明失败 schema 的 Host 策略、单次 Backend 委托和公开初始化 instructions。Host 失败保留结构化详情，不扩大 Backend 契约。[#138](https://github.com/OpenFairyGUI/OpenFairyGUI/issues/138)
+
+缺陷修复：
+
+- mcp：恢复 SDK 原生工具发现，包含连接前后注册的 Host 工具及公开注册句柄的生命周期变更，同时保留紧凑契约 schema。
+
+其他：
+
+- workspace：通过 SDK 集成测试与隔离 tarball 消费者验证 Host 组合、审批后真实写入、instructions 和随包文档。
+- docs：精简双语 README，将 Agent 接入流程集中到快速开始指南。
+
+### v0.5.0-alpha.1（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.1)）
+
+新功能：
+
+- backend、mcp：新增当前已提交公开 UAM 模型与单资源主文件字节的有界读取，返回独立副本、校验编辑 revision 并如实保留源读取诊断。能力 schema 版本为 11。[#136](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/136)
+
+其他：
+
+- workspace：通过安装后的 SDK 与 stdio MCP 消费者验证未保存模型及资源字节读取，覆盖陈旧 revision 拒绝和源文件保持不变，并同步公开方法目录文档。
 
 ## v0.4.x
 

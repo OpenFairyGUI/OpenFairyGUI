@@ -52,7 +52,7 @@ export function preparePackedConsumer({ artifacts } = {}) {
 		json(path.join(consumer, 'package.json'), { name: 'ofgui-isolated-consumer', private: true, type: 'module', dependencies, pnpm: { overrides: dependencies } });
 		writeFileSync(path.join(consumer, '.npmrc'), 'hoist=false\nlink-workspace-packages=false\nprefer-workspace-packages=false\n');
 		json(path.join(consumer, 'expected.json'), expected);
-		for (const name of ['runtime.mjs', 'tooling.mjs', 'agent-eval.mjs', 'artifact-eval.mjs', 'browser-check.mjs']) cpSync(path.join(ROOT, 'scripts/consumer', name), path.join(consumer, name));
+		for (const name of ['runtime.mjs', 'helpers.mjs', 'tooling.mjs', 'agent-eval.mjs', 'artifact-eval.mjs', 'browser-check.mjs']) cpSync(path.join(ROOT, 'scripts/consumer', name), path.join(consumer, name));
 		cpSync(path.join(ROOT, 'scripts/agent-eval-checks.mjs'), path.join(consumer, 'agent-eval-checks.mjs'));
 		cpSync(path.join(ROOT, 'agent/evals/tasks.json'), path.join(consumer, 'evaluation-tasks.json'));
 		cpSync(path.join(ROOT, 'examples'), path.join(consumer, 'examples'), {
@@ -80,6 +80,7 @@ export function packSmoke({ artifacts, keep = false, 'browser-deps': browserDeps
 		const devDependencies = {
 			typescript: `npm:${compiler.name}@${compiler.version}`,
 			'@types/node': require('@types/node/package.json').version,
+			zod: createRequire(realpathSync(path.join(consumer, 'node_modules/@openfairygui/mcp/package.json')))('zod/package.json').version,
 			esbuild: viteRequire('esbuild/package.json').version,
 			playwright: '1.63.0',
 		};

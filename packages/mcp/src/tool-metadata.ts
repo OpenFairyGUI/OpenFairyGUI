@@ -5,6 +5,8 @@ export interface BackendToolMetadata {
 	backendMethod: BackendMethodName;
 	title: string;
 	description: string;
+	/** Bound the complete CallToolResult JSON; bounded reads use compact text JSON. */
+	maxResponseBytes?: number;
 	annotations: {
 		readOnlyHint?: boolean;
 		destructiveHint?: boolean;
@@ -18,6 +20,12 @@ export interface McpUnhandledFailure {
 	ok: false;
 	meta: BackendResponseMeta;
 	error: { code: 'backend_unhandled_error'; message: string };
+}
+
+export interface McpResponseBudgetFailure {
+	ok: false;
+	meta: BackendResponseMeta;
+	error: { code: 'mcp_response_budget_exceeded'; message: string; maxBytes: number };
 }
 
 /** Host objects cannot cross JSON; materialize keeps its existing MCP target boundary. */
@@ -68,6 +76,22 @@ export const OPENFAIRYGUI_BACKEND_TOOL_METADATA = [
 		backendMethod: 'queryEntity',
 		title: 'Query Entity Properties',
 		description: 'Read revision-bound project/package settings, resource, component-property, display-node, controller (including pages/actions), or transition (including items) snapshots. Project queries use only kind; other queries use formal selectors. Settings snapshots include the complete settings payload for updateProjectSettings/updatePackageSettings. No source bytes; fixed projection with explicit response limits.',
+		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+	},
+	{
+		name: 'openfairygui_backend_read_session_state',
+		backendMethod: 'readSessionState',
+		title: 'Read Session State',
+		description: 'Read a detached copy of the currently committed public UAM model without primary asset sourceBytes, with revision, dirty state and source-read diagnostics. Optional expectedRevision rejects stale reads. Does not hydrate, write, reserve history or guarantee downstream usability. Complete tool response is limited to 16 MiB.',
+		maxResponseBytes: 16777216,
+		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+	},
+	{
+		name: 'openfairygui_backend_read_resource_bytes',
+		backendMethod: 'readResourceBytes',
+		title: 'Read Resource Bytes',
+		description: 'Read a detached copy of one asset resource primary sourceBytes already held in the session, using exact packageId/resourceId and the required model edit revision. No filesystem hydration or auxiliary-file discovery. Stale reads require restarting the model/bytes read. Complete tool response is limited to 16 MiB.',
+		maxResponseBytes: 16777216,
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 	},
 	{

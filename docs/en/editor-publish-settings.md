@@ -146,6 +146,8 @@ UAM XY Gear states and defaults use `x/y` and optional `px/py`. Enabling `positi
 
 Text/Icon Gear page values preserve absent overrides, empty strings, and literal `-` text. Defaults also distinguish an absent override from explicit clearing. Project XML separates page `values` with `|`; no verified official lossless representation is available for a page value containing `|`, so ProjectWriter rejects that output before any write. A default containing `|` has no such delimiter restriction; UAM, Document, and binary retain complete strings.
 
+Size, Look, Color, Animation, and FontSize gears also use `defaultValue: null` for an absent override, without substituting a fixed state. XML `delay` is preserved as `tweenDelay`; disabling tweening still preserves non-default ease, duration, and delay. A component instance's `controller` attribute is retained in the formal UAM `controllerOverrides` field, including controller and page selections.
+
 The published resource closure includes component-root `showSound` / `hideSound`: referenced unexported sounds in the same package are published with the component, and sounds in other packages create package dependencies.
 
 ## Project resource-tree metadata
@@ -190,9 +192,13 @@ An explicitly supplied output directory takes priority over settings. Without on
 
 The selected relative path resolves against the project root. If none is configured, publishing does not implicitly choose an output directory.
 
+Project and package `path` / `branchPath` first replace `{publish_file_name}` with the publish name without its extension, then replace `{name}` in `CustomProperties.json` property order before resolving relative paths. Unknown variables remain literal; explicit `output` is used directly as the caller's path. Project and package `codePath` also expand custom variables.
+
 Browser Laya publishing never uses project or package desktop output paths beneath an explicit `output`. Explicit `branch`, `packages`, `compressed`, and `atlas` parameters also remain authoritative. Without an explicit override, persisted compression, atlas, and safe file-extension settings directly drive output. The current browser host does not provide code generation. If global settings allow it and any selected package enables `genCode`, publishing rejects with `unsupported_publish_setting`, including `setting` and `path`, before Canvas checks or file writes. On failure, `files` contains only files whose `writeFileRaw` completed. Therefore, `success=false` with a non-empty list means built-in output was written partially; hosts requiring atomic publication must provide a transactional or staging output filesystem.
 
 ## Current publish completeness requirements
+
+Bitmap fonts load their branch's `.fnt` before resource selection. Texture and glyph images form the publication dependency closure, including images not explicitly exported; merged branches remap glyph references to published IDs. Fonts in `assets_<branch>` do not read the main branch's same-named `.fnt`. TTF/TTC/OTF resources are engine fonts: text stores the font resource name, without an empty bitmap Font item or a package dependency caused by that font URL.
 
 These are OpenFairyGUI's current execution boundaries, not new editor setting fields:
 
@@ -223,6 +229,8 @@ OpenFairyGUI has integrated code generation into the existing `publish` workflow
 | Other project types | Currently unimplemented; generation is skipped |
 
 The current formal code-generation contract is:
+
+Chinese characters in package, component, and member names become character-by-character pinyin; ASCII names retain the existing case rules, and polyphonic characters use the dictionary's default reading. Components receive names in ID order. Class names that collide within a package, including case-only collisions or the Binder name, receive `_2`, `_3`, and further suffixes. Member collisions also receive unique suffixes. Referenced types, filenames, and the Binder share the same final class names.
 
 | Lane | Output item | Current behavior |
 |---|---|---|
@@ -370,6 +378,8 @@ When the editor writes `Publish.json`, current rules include:
 | `compressPNG` / `jpegQuality` | Written only for projects that do not support atlases |
 
 ## Project write-back boundary
+
+Component XML round-trips preserve supported attribute values and ordered child nodes without promising the source text's attribute arrangement. Attribute order carries no semantics; Gear, relation, extension overrides and list items still follow their respective child-order rules.
 
 Publish settings do not change the authoring-property semantics of `component.xml`. Project I/O independently preserves component root properties, root-component `customProperty` definitions, and `Button`, `Label`, `ComboBox`, `ProgressBar`, `Slider`, and `ScrollBar` instance-extension overrides on component references. See [Project XML Attribute Protocol](./project-xml-attribute-reference.md) for the corresponding XML contract.
 

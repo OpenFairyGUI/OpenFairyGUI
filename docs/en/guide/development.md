@@ -10,7 +10,6 @@ Package metadata declares Node `>=22`. CI, documentation deployment and releases
 
 ```bash
 pnpm repo:setup
-pnpm check:ci
 ```
 
 `repo:setup` initializes submodules at their Git-recorded commits, installs with the frozen lockfile, builds, runs repository-tool tests and runs doctor. It writes dependencies/build output and initializes submodules; it does not rewrite the lockfile, select Node or install global tools. Use `repo:setup`, not pnpm's built-in `setup` environment command.
@@ -19,25 +18,29 @@ For a dirty checkout, consider an isolated worktree before dependency or documen
 
 ## Verification entrypoints
 
-| Command | Coverage |
-|---|---|
-| `pnpm repo:doctor --json` | Read-only Node/pnpm, dependencies, exported files, native image capability, temporary-directory permission and reference status |
-| `pnpm refs:status` | Observe registered public fixtures; missing material alone does not fail a status query |
-| `pnpm refs:sync` | Native Git submodule initialization at gitlinks; no remote-tip tracking or forced overwrite |
-| `pnpm refs:verify` | Required fixture commits, working trees and probe files; nonzero exit on failure |
-| `pnpm refs:grep "literal text"` | Verify required fixtures, then use Git to search tracked text for a case-sensitive literal; repository-relative paths and line numbers; 0 match, 1 no match, 2 error |
-| `pnpm test:repo` | Built-in Node tests for repository tooling, without product builds or external fixtures |
-| `pnpm test:changed --base origin/next --list` | Print a plan only; replace the base with the actual PR target |
-| `pnpm check:fast` | Lint, typecheck, repository-tool tests and guidance checks; build the workspace before any selected AVA tests; not a full regression or documentation build |
-| `pnpm check` | Fixture verification, lint, typecheck, build, repository-tool tests and all AVA tests |
-| `pnpm docs:check` | Local links, agent paths/commands, impact-table drift, public source mappings, bilingual entries, Changelog structure and contract drift |
-| `pnpm contracts:generate` | Generate MCP/CLI structural contracts, operations, complete diagnostic guides, snapshots and bilingual tables from Core/Backend/CLI types |
-| `pnpm contracts:check` | Read-only operation/method mapping, formal diagnostic coverage/ownership and generated-drift checks; repository tests also check CLI registrations |
-| `pnpm docs:build` | Explicit TypeDoc generation followed by VitePress; no dependency on implicit pre-script settings |
-| `pnpm pack:check` | Build/install five tarballs outside the checkout; verify public entries, types, CLI/MCP, four Node examples and real Chromium OPFS edits/save/reload/locks/paths/image bytes; download the matching browser on first use |
-| `pnpm eval:agent --runner reference` | Ten deterministic tarball/MCP task checks, including editing, safe stops and separate publish/recovery tasks; also run by `pack:check`, without calling a model |
-| `pnpm eval:agent --runner codex --codex codex` | Manual real-model tasks with state checks, traces and failure evidence; excluded from PR CI |
-| `pnpm check:ci` | Full check, guidance checks, documentation build and tarball consumer checks; use before submitting |
+Choose one entrypoint for the task, rather than running every command in order. Use `check:ci` when package-level AGENTS require full checks.
+
+| Task | Command | Coverage |
+|---|---|---|
+| First checkout | `pnpm repo:setup` | Pinned fixtures, installation, build, repository-tool tests and environment diagnosis; ready to start development |
+| Code changes | `pnpm check:fast --base origin/next` | Lint, typecheck, basic repository-tool tests and guidance checks; build before selected AVA tests. Replace the base with the actual PR target |
+| Ordinary documentation changes | `pnpm docs:check` | Local links, agent paths/commands, impact-table drift, public source mappings, bilingual entries, Changelog structure and contract drift |
+| Broad changes or full CI reproduction | `pnpm check:ci` | Fixtures, lint, typecheck, guidance/contracts, build, all repository-tool and AVA tests, tarball consumers and documentation build |
+
+Use the same base for preview and execution. `--list` only prints a plan; it does not run lint, typecheck or builds:
+
+```bash
+pnpm check:fast --base origin/next --list
+pnpm check:fast --base origin/next
+```
+
+Fast checks are not a full regression. Ordinary documentation excludes site configuration and theme code under `docs/.vitepress/`. Run `pnpm docs:build` when you need a page preview; it explicitly generates TypeDoc API pages before building VitePress. CI still checks and builds documentation.
+
+### Focused checks and environment diagnosis
+
+`pnpm test:repo` runs built-in Node tests for repository tooling without product builds or external fixtures. `pnpm check` is the product-check composition used by CI's quality job (fixtures, lint, typecheck, build, repository-tool tests and all AVA tests). For daily work, choose from the table rather than stacking these commands.
+
+`pnpm repo:doctor --json` reports read-only Node/pnpm, dependency, exported-file, native-image, temporary-directory permission and reference status.
 
 Doctor does not install, download, configure or write files; submodule status queries also disable Git's optional index-refresh writes. Export-file presence does not prove build freshness or Node/Web runtime behavior; `pack:check` verifies actual consumer boundaries. Sharp checks exercise in-memory PNG/JPEG encoding and pixel decoding, not just version metadata; unavailable or failed codecs warn, without proving real publish/restore workflows. The temporary path must be an accessible directory, but access flags do not prove ACL permissions, free space, later writes or rollback. A non-recommended Node major warns; an unsupported Node version, mismatched pnpm or missing required fixtures/build output fails.
 
@@ -45,7 +48,7 @@ Doctor does not install, download, configure or write files; submodule status qu
 
 `agent/impact-map.json` is the only mapping source. `pnpm test:changed --matrix` renders the marked table in root AGENTS, and guidance checks reject drift.
 
-- The base comes from `--base`, then PR `GITHUB_BASE_REF`, then local `origin/HEAD`. No automatic fetch occurs; the ref must exist locally.
+- `check:fast` requires an explicit `--base` or PR `GITHUB_BASE_REF`; if both are missing, it fails with usage guidance. The lower-level `test:changed` can still fall back to local `origin/HEAD`. No automatic fetch occurs; the ref must exist locally. An explicitly supplied but unavailable base still selects the full suite.
 - The plan combines branch changes since merge-base, staged, unstaged and untracked paths. Renames include old and new paths; deletions are included.
 - The first matching rule wins. Core/test-utils cover all downstream packages; functions/backend cover their consumers. CLI also selects Backend's bootstrap tests.
 - Unknown paths, dependency/shared configuration changes, unavailable bases/shallow history and no changes fall back to the entire suite, never an empty success.
@@ -58,13 +61,15 @@ PR CI first fetches full Git history and classifies changes against the PR base 
 
 Full CI runs `check` on Node 22. Documentation runs guidance checks and builds on the same Node major; consumer jobs run `pack:check` on Linux/Windows with that Node major. Documentation and consumer jobs do not download fixtures. These three full job types correspond to local `check:ci`; documentation-only routing is not a full regression, and `check:fast` and `check` do not install tarballs. Pushes to main always run full checks. A new run for the same PR cancels its older run; separate pushes to main do not cancel each other. Remote URLs, heading anchors, translation meaning and protocol accuracy still require review.
 
+Local `check:ci` verifies fixtures, lint, types and guidance, then runs `pack:check`, followed by all repository-tool tests, AVA and documentation builds. `pack:check` performs the contract check and workspace build once each; AVA uses that run's output, without caches or skip flags. Standalone `pack:check` still checks contracts and builds for itself. Separate remote CI jobs prepare their own required output.
+
 The release workflow installs npm 11 separately on Node 22 to meet the CLI requirements for [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/). Repository dependency installation and verification still use the pinned pnpm version.
 
-Consumer checks install dependencies over the network, remove their temporary directory on success and preserve failures; `--keep` preserves successful runs too. Release uses `pnpm pack:check --artifacts .release` to check the same packed files. See [Runnable Examples and Consumer Verification](./examples.md) for entrypoints, examples and limits.
+`pnpm pack:check` builds and installs five tarballs outside the checkout, verifying public entries, types, CLI/MCP, Node examples and real Chromium OPFS edits/save/reload/locks/paths/image bytes. It installs dependencies over the network and downloads the matching browser on first use; successful runs remove their temporary directory, failures preserve it, and `--keep` preserves successful runs too. Release uses `pnpm pack:check --artifacts .release` to check the same packed files. See [Runnable Examples and Consumer Verification](./examples.md) for entrypoints, examples and limits.
 
 Use the repository's `.github/pull_request_template.md` to identify affected packages, UAM/Backend/MCP/CLI contracts, version handling, documentation and bilingual changelogs, together with the actual tested base, commands and failed/unrun checks. The template records review evidence; checkboxes neither replace CI nor authorize publication or prove verification.
 
-Agent evaluations share that tarball installation. Deterministic host checks gate consumer verification; model success rates are manual observations only. See [Real Agent Task Evaluations](./agent-evaluations.md) for tasks, isolation, Windows executable requirements and reproduction.
+Agent evaluations share that tarball installation. `pnpm eval:agent --runner reference` runs ten deterministic tasks, including editing, safe stops and separate publish/recovery tasks; these already gate consumer verification. `pnpm eval:agent --runner codex --codex codex` runs real-model tasks manually, with success rates used only as observations. See [Real Agent Task Evaluations](./agent-evaluations.md) for tasks, isolation, Windows executable requirements and reproduction.
 
 ## Reference evidence
 
@@ -78,6 +83,8 @@ Agent evaluations share that tarball installation. Deterministic host checks gat
 
 URLs come only from `.gitmodules`; commits come only from Git gitlinks. `pnpm refs:sync` retrieves those versions. Builds and tests use these public submodules, the tracked FairyGUI-Experiments project and generated minimal test objects.
 
+`pnpm refs:status` observes status without failing for missing material; `pnpm refs:sync` initializes/updates to gitlinks without tracking remote tips or forcing overwrites; `pnpm refs:verify` strictly checks required fixture commits, working trees and probe files. `pnpm refs:grep "literal text"` verifies before searching for a case-sensitive literal, returning repository-relative paths and line numbers; exit codes are 0 for matches, 1 for no match and 2 for errors.
+
 `refs:grep` reuses that registration and verification, searching only tracked text in the three submodules. It skips binaries, untracked/ignored files and files outside the registered scope. Missing, dirty, mismatched or incomplete fixtures and Git search failures prevent partial success; resolve the reported problem without automatic synchronization or overwrites. A path/line match locates evidence; it does not make that source authoritative for legacy exporters. For a particular source or richer queries, first verify its status and role with `refs:status`, then use native Git/rg in that directory.
 
 Base protocol conclusions on maintained repository documentation, pinned public fixtures and publicly verifiable primary sources. Record sources, applicable versions and test evidence. If decisive evidence for a field or publishing rule is missing, mark that conclusion unverified, stop it and identify the missing material; unrelated work can continue. Public fixture status checks do not establish every protocol rule.
@@ -87,6 +94,8 @@ Check output naming and settings against public documentation, source projects a
 ## Product documentation and repository diagnosis
 
 Installed packages use `ofgui docs` and `ofgui doctor --json` without a checkout. `pnpm contracts:generate` updates contracts and corpus under `packages/backend/src/generated/`; package-version, workflow and thin-skill changes also require regeneration and `pnpm contracts:check`. `pnpm pack:check` verifies CLI/MCP corpus parity, versions, doctor and the packaged skill. Repository prerequisites still use `pnpm repo:doctor`; see [installed docs](./installed-docs.md).
+
+Contract generation uses Core/Backend/CLI types to update MCP/CLI structures, operations, diagnostic guides, snapshots and bilingual tables. `contracts:check` checks mappings, formal diagnostic coverage/ownership and generated drift without writing; repository tests separately check CLI command registration coverage. See the [contract guide](./contracts.md) for change entrypoints.
 
 ## Small glossary
 

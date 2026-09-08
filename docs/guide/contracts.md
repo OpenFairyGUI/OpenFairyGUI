@@ -1,8 +1,46 @@
 # 契约事实源与操作查询
 
-Core 的 `UamTransactionOperation` 与 UAM 模型拥有参数结构和事务语义；Backend 的公开方法签名拥有会话输入、结果和错误类型；CLI 拥有进程 JSON envelope，各 result 复用原工作流类型；MCP 只拥有工具元数据、JSON 传输转换及输入预算。
+Core 的 `UamTransactionOperation` 与 UAM 模型拥有参数结构和事务语义；Backend 的公开方法签名拥有会话输入、结果和错误类型；CLI 拥有进程 JSON envelope，各 result 复用原工作流类型；MCP 只拥有工具元数据、JSON 传输转换及传输预算。
 
 `pnpm contracts:generate` 使用仓库已有 TypeScript 编译器读取这些类型，生成 MCP 的结构 schema、operation catalog、契约快照和本页表格。MCP 复用已有 Zod 从 JSON Schema 创建校验器；Core 不依赖 Zod。`pnpm contracts:check` 只比较、不写文件，检查映射完整性和生成物漂移，已接入仓库自测与 `docs:check`。
+
+## 读取当前会话模型与资源字节
+
+需要消费当前完整 UAM 时，调用 `readSessionState({ sessionId, expectedRevision? })`；只需局部属性时使用下文的 `queryEntity`。完整读取返回本次调用时已提交状态的独立副本，包含 `project`、实际 `revision`、`dirty`、`lastSavedRevision`、`readComplete`、`readDiagnostics` 和 `uamFidelity`。
+
+`project` 直接派生自 Core 的公开 UAM 类型，只移除每个 asset resource 的正式 `sourceBytes` 字段，保留 `sourcePath`、组件完整内容及 Reader 保留的 JSON 扩展字段。不会按属性名递归删除扩展数据中的 `sourceBytes`。只有这份完整只读模型的输出 schema 允许未列名的对象字段；已列名字段仍保留正式类型，事务输入及现有查询契约不变。读取不重新验证引用、不规范化或修复工程，也不返回内部 Document、锁、文件系统、缓存或清理队列。
+
+通过 `readResourceBytes({ sessionId, expectedRevision, selector: { packageId, resourceId } })` 获取单个 asset resource 已在会话中的主文件字节。返回实际 revision、selector 和独立 `Uint8Array`；MCP 对应数字数组。不读取磁盘、不加载辅助文件、不补齐缺失字节；component 不提供此字节读取。
+
+```ts
+const state = runtime.readSessionState({ sessionId });
+if (!state.ok) throw new Error(state.error.code);
+const bytes = runtime.readResourceBytes({
+  sessionId,
+  expectedRevision: state.data.revision,
+  selector: { packageId, resourceId },
+});
+if (!bytes.ok) throw new Error(bytes.error.code);
+```
+
+每次资源读取必须携带模型的 revision。`stale_read` 同时返回 `expectedRevision` 和 `actualRevision`；出现后丢弃这一轮未完成的模型/字节组合并重新读取，不能混用不同编辑 revision 的资源。读取不等待尚未提交的事务、不保留历史版本、不预留 revision。保存会更新公开 `sourcePath`、dirty 等状态，但不推进编辑 revision，因此相同 sessionId + revision 不代表永远相同的完整原始 UAM。
+
+`readComplete` 与 `uamFidelity` 如实反映现有会话标记；纯内存会话即使未提供资源字节也可能是 `true` / `full`。这些字段不证明字节齐全、可渲染或可保存。失效/关闭会话返回 `session_not_found`；其他拒绝使用 `session_read_failed.reason`：`invalid_query`、`not_found`、`ambiguous`、`unsupported_resource`、`bytes_unavailable`、`response_budget_exceeded` 或 `non_json_value`。失败不会截断数据为成功结果。
+
+| 预算 | 上限 |
+|---|---|
+| `read.sessionState.limits` | 完整 `data` 的紧凑 JSON UTF-8 为 4 MiB，深度 64，节点 500000；克隆前检查 |
+| `read.resourceBytes.maxBytes` | 单个主文件 1 MiB；复制前检查，空字节数组可以读取 |
+| 两个新 MCP 工具 | 每个完整 `CallToolResult` 序列化为 JSON 后为 16 MiB，包含紧凑文本和 structuredContent 两份内容；超限返回 `mcp_response_budget_exceeded`，不改变 Backend 预算或其他工具 |
+
+仓库固定 fixture 的实测规模如下（字节；模型为 `readSessionState.data`，响应为完整 `CallToolResult`，请求 ID 长度等可造成小幅变化）。这决定了模型与资源分开读取的粒度；不是无限工程大小的承诺。
+
+| 工程 | 模型 JSON | 模型 MCP 响应 | 最大主文件 | 该资源 MCP 响应 |
+|---|---:|---:|---:|---:|
+| FairyGUI-Experiments | 15357 | 33882 | 460259 | 3254840 |
+| FairyGUI-layabox demo | 938862 | 2049115 | 254483 | 1818508 |
+| FairyGUI-unity UIProject | 1173851 | 2561306 | 350200 | 2049424 |
+| FairyGUI-Editor ui | 2717892 | 5935515 | 18048 | 114842 |
 
 ## CLI 机器输出
 
@@ -68,6 +106,8 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 
 `impact.files` 使用正式 ProjectWriter 在内存中分别序列化两份 UAM，再比较文件内容及空目录，返回工程相对 `path`、`kind` 和 `change`。它只表示当前 revision 到预演结果的模型差异，不是自上次保存以来的累计 dirty 差异，也不是磁盘清单、实际写入列表或删除授权；实际 save 会重写完整工程并按路径策略清理受控文件。
 
+事务前的已有快照允许含待修复的无效引用，其物化只用于内存比较；事务后的快照仍严格校验。Core `materializeUamProject` 默认校验，显式 `{ validate: false }` 仅供检查无效快照。`writeProjectFromUam`、Backend Save 和 Materialize 不跳过校验。无法表示或序列化的快照仍返回 `projection_failed`。
+
 `persistence.requiredAfterApply` 为 true（空批次 apply 也会增加 revision 并标 dirty）。已有存储会话建议 `saveSession`；只有运行时适配器的内存会话需宿主显式指定 `materializeSession.storage`；缺少适配器或 UAM fidelity 不支持时为 `host-action`。`writeVerified` 始终 false。两份内存序列化失败返回 `transaction_preview_failed.reason: projection_failed`；完整摘要超过 2000 项或 `data` 紧凑 JSON 超过 262144 UTF-8 字节时返回 `response_budget_exceeded`，不截断、不伪造成功。
 
 推荐工作流：outline 发现 ID → queryEntity 读取当前属性与 revision → preflightTransaction 预演 → applyTransaction 提交相同批次 → validateSession 检查当前工程 → saveSession 保存。完整可运行代码见[带 revision 的修改、保存与回读](./examples.md#带-revision-的修改、保存与回读)。
@@ -82,16 +122,17 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 - MCP 不接受宿主对象：`openProjectSession.storage`、`saveSession.fileSystem`、`materializeSession.storage/fileSystem/targetPath` 不在工具输入中。宿主注入继续通过 Backend API 完成。
 - 结构 schema 保留正式类型声明的开放字段，例如扩展设置、资源 metadata 和部分动态值；它们不是凭空补齐的协议。未知的封闭对象字段会被拒绝，不静默丢弃。
 - 同类型定长元组（例如四个数值的 `scale9Grid` / `cornerRadius`）生成单一 `items` schema，并保留相等的 `minItems` / `maxItems`；MCP 工具发现无需解析位置数组，元素类型和固定长度约束不变。不同类型的位置元组仍保留逐位置约束。
-- 输入继续受批次上限（1–1000）、revision 整数、selector 长度及总节点/深度/字符串预算约束。通用预算为深度 32、节点 100000、单个数组/对象 10000 项、单个字符串 1000000 字符、键长 256；JSON 字节数组也受通用数组预算限制。schema 中的单字段限制不覆盖总预算。
+- 输入继续受批次上限（1–1000）、revision 整数、selector 长度及总节点/深度/字符串预算约束。通用预算为深度 32、节点 100000、单个数组/对象 10000 项、单个字符串 1000000 字符、键长 256。仅生成契约声明的字节路径使用整数 0–255 数组，绕过通用数组长度和逐字节节点计数；所有字节字段合计最多 8 MiB。任意 metadata 中同名字节字段不获此豁免。schema 中的单字段限制不覆盖总预算。
 - schema 不替代 Core 的引用、资源内容、字段适用性和合法批次检查；校验成功不表示事务可执行或保存会成功。MCP 不增加第二套事务内核，预演也只映射 Backend 的正式入口。
 - 方法专属结果保留 Backend 的错误分类；适配层抛出的未处理错误使用 `backend_unhandled_error`，不暴露内部异常详情。响应预算及诊断修复策略不由结构 schema 承诺。
+- MCP 工厂的 `toolPolicies` 可为指定工具声明 Host `failureSchema` 和 `beforeCall` 检查。检查在输入校验后收到独立的 wire 参数副本；返回 `undefined` 以原参数调用 Backend 一次，返回已声明的 `ok: false` 分支则停止。Host 失败同样受工具响应预算约束；Backend 返回值始终按正式 schema 校验。SDK 动态发现包含后注册的 Host 工具及对应策略的输出扩展，`openfairygui/hostPolicy` 元数据标识策略；固定契约摘要和随包语料仅描述 Backend 分支。
 
 ## 当前生成目录
 
 下表只摘要顶层参数；嵌套字段和具体结果请读取对应 schema。SHA-256 变化表示生成契约发生变化，不等同于包版本号。
 
 <!-- contracts:start -->
-SHA-256: `2477d35b672c5a719b82d51714b9564a2e179d6ca65c4348ea2332d65b1e22ef`
+SHA-256: `cba5c0427b91c5d28c7c4277dcbb4a16f48e9fedf91fa1f66375495f8bfc71b0`
 
 | 操作 | 参数（`?` 表示可选） |
 |---|---|
@@ -145,6 +186,8 @@ SHA-256: `2477d35b672c5a719b82d51714b9564a2e179d6ca65c4348ea2332d65b1e22ef`
 | `getSession` | `openfairygui_backend_get_session` | `sessionId` | `true` |
 | `getProjectOutline` | `openfairygui_backend_get_project_outline` | `sessionId` | `true` |
 | `queryEntity` | `openfairygui_backend_query_entity` | `sessionId`, `target` | `true` |
+| `readSessionState` | `openfairygui_backend_read_session_state` | `sessionId`, `expectedRevision?` | `true` |
+| `readResourceBytes` | `openfairygui_backend_read_resource_bytes` | `sessionId`, `expectedRevision`, `selector` | `true` |
 | `validateSession` | `openfairygui_backend_validate_session` | `sessionId` | `true` |
 | `preflightTransaction` | `openfairygui_backend_preflight_transaction` | `sessionId`, `expectedRevision`, `operations` | `true` |
 | `applyTransaction` | `openfairygui_backend_apply_transaction` | `sessionId`, `expectedRevision`, `operations` | `false` |
@@ -161,10 +204,10 @@ SHA-256: `2477d35b672c5a719b82d51714b9564a2e179d6ca65c4348ea2332d65b1e22ef`
 | CLI 命令 | 已安装输出 Schema |
 |---|---|
 | `publish` | `cli/publish` |
+| `validate` | `cli/validate` |
 | `ofgui` | `cli/ofgui` |
 | `docs` | `cli/docs` |
 | `inspect` | `cli/inspect` |
-| `validate` | `cli/validate` |
 | `restore` | `cli/restore` |
 | `doctor` | `cli/doctor` |
 | `backend-capabilities` | `cli/backend-capabilities` |

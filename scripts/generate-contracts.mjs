@@ -34,7 +34,7 @@ export function createContractProgram(root = ROOT, sourceOverrides = {}) {
 }
 
 /** Only the data types used by our public contracts; unsupported constructs fail closed. */
-export function createSchemaEmitter(checker, root = ROOT) {
+export function createSchemaEmitter(checker, root = ROOT, openObjects = false) {
 	const definitions = {};
 	const references = new Map();
 	const labels = new Map();
@@ -57,7 +57,7 @@ export function createSchemaEmitter(checker, root = ROOT) {
 		if (references.has(type)) return { $ref: references.get(type) };
 		const label = describe(type);
 		const prefix = (type.aliasSymbol?.name ?? type.symbol?.name ?? 'Shape').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 64);
-		const name = `${prefix}_${createHash('sha256').update(label).digest('hex').slice(0, 10)}`;
+		const name = `${prefix}_${createHash('sha256').update(label).digest('hex').slice(0, 10)}${openObjects ? '_read' : ''}`;
 		assert(!labels.has(name) || labels.get(name) === label, `Schema name collision: ${name}`);
 		labels.set(name, label);
 		const reference = `#/$defs/${name}`;
@@ -91,7 +91,9 @@ export function createSchemaEmitter(checker, root = ROOT) {
 			}
 			const index = checker.getIndexTypeOfType(type, ts.IndexKind.String);
 			assert(!checker.getIndexTypeOfType(type, ts.IndexKind.Number), `Unsupported numeric object index: ${label}`);
-			result = { type: 'object', properties, required, additionalProperties: index ? schema(index) : false };
+			result = { type: 'object', properties, required, additionalProperties: index ? schema(index) : openObjects };
+			// Omitted primary bytes stay forbidden even in the extensible read model.
+			if (openObjects && type.aliasSymbol?.name === 'Omit' && type.aliasTypeArguments?.[1]?.value === 'sourceBytes') properties.sourceBytes = { not: {} };
 		} else throw new Error(`Unsupported contract type: ${label} (flags ${type.flags})`);
 		definitions[name] = result;
 		return { $ref: reference };
@@ -221,6 +223,7 @@ export function generateContract(program = createContractProgram()) {
 	const omitted = constantValue(checker, checker.getTypeOfSymbolAtLocation(omittedExport.symbol, omittedExport.declaration));
 	for (const name of Object.keys(omitted)) assert(methods.some((method) => method.name.text === name), `Stale MCP method omission: ${name}`);
 	const unhandled = emitter.schema(exported(program, METADATA, 'McpUnhandledFailure').type);
+	const responseBudgetFailure = emitter.schema(exported(program, METADATA, 'McpResponseBudgetFailure').type);
 	const tools = {};
 	for (const [index, method] of methods.entries()) {
 		const signature = checker.getSignatureFromDeclaration(method);
@@ -239,9 +242,18 @@ export function generateContract(program = createContractProgram()) {
 		}
 		boundInput(input, emitter.definitions);
 		const returnType = checker.getAwaitedType(checker.getReturnTypeOfSignature(signature));
-		const output = { type: 'object', properties: { backendResult: { anyOf: [emitter.schema(returnType), unhandled] } }, required: ['backendResult'], additionalProperties: false };
+		const failures = metadata[index].maxResponseBytes === undefined ? [unhandled] : [unhandled, responseBudgetFailure];
+		const output = { type: 'object', properties: { backendResult: { anyOf: [emitter.schema(returnType), ...failures] } }, required: ['backendResult'], additionalProperties: false };
 		tools[method.name.text] = { ...metadata[index], input, output, bytePaths: nativeBytePaths(input, emitter.definitions) };
 	}
+	// Reader-retained settings/extensions are valid output even when not named in a structural UAM type.
+	// Only this read model gets open object schemas; shared operation inputs and other outputs stay strict.
+	const modelType = exported(program, 'packages/backend/src/runtime/contracts.ts', 'BackendSessionProjectModel').type;
+	const readEmitter = createSchemaEmitter(checker, ROOT, true);
+	const modelReference = emitter.schema(modelType);
+	const readReference = readEmitter.schema(modelType);
+	Object.assign(emitter.definitions, readEmitter.definitions);
+	emitter.definitions[modelReference.$ref.slice('#/$defs/'.length)] = readReference;
 	const capabilitiesType = exported(program, 'packages/backend/src/runtime/contracts.ts', 'BackendCapabilities').type;
 	const methodsProperty = capabilitiesType.getProperty('methods');
 	assert.deepEqual(constantValue(checker, checker.getTypeOfSymbolAtLocation(methodsProperty, methodsProperty.valueDeclaration)), Object.keys(tools), 'Backend capabilities must list exactly the public methods');

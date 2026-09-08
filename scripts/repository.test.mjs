@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -10,7 +10,7 @@ import { doctor, inspectBuilds, inspectEnvironment, inspectReferences } from './
 import { grepReferences } from './refs-grep.mjs';
 import { git, matches, pnpmInvocation, readJson, ROOT, testFiles } from './repo-utils.mjs';
 import { artifactName, consumerEnvironment, PACKAGES } from './pack-smoke.mjs';
-import { contained, exportFiles, snapshot } from './consumer/runtime.mjs';
+import { contained, exportFiles, snapshot } from './consumer/helpers.mjs';
 
 function temporaryRepository(t) {
 	const root = mkdtempSync(path.join(tmpdir(), 'ofgui-repo-test-'));
@@ -87,6 +87,50 @@ test('invalid comparison base produces a non-empty full plan via the real CLI', 
 	const result = JSON.parse(execFileSync(process.execPath, ['scripts/test-changed.mjs', '--base', 'refs/heads/does-not-exist', '--list'], { cwd: ROOT, encoding: 'utf8' }));
 	assert.equal(result.scope, 'full');
 	assert.deepEqual(result.tests, available);
+});
+
+test('check:fast forwards its base, keeps previews read-only and stops when quality checks fail', (t) => {
+	const root = temporaryRepository(t);
+	for (const file of ['test-changed.mjs', 'repo-utils.mjs', 'repo-doctor.mjs']) {
+		write(root, `scripts/${file}`, readFileSync(path.join(ROOT, 'scripts', file)));
+	}
+	write(root, 'agent/impact-map.json', JSON.stringify(map));
+	for (const group of Object.keys(map.tests)) write(root, `packages/${group}/test/example.test.ts`, '');
+	write(root, '.gitignore', 'calls.jsonl\nfail-lint\n');
+	write(root, 'record.cjs', `const fs = require('node:fs');
+fs.appendFileSync('calls.jsonl', process.argv[2] + '\\n');
+if (process.argv[2] === 'lint' && fs.existsSync('fail-lint')) process.exit(1);
+`);
+	write(root, 'scripts/repository.test.mjs', "import { appendFileSync } from 'node:fs'; appendFileSync('calls.jsonl', 'repository\\n');");
+	write(root, 'scripts/check-guidance.mjs', "import { appendFileSync } from 'node:fs'; appendFileSync('calls.jsonl', 'guidance\\n');");
+	const manifest = readJson(path.join(ROOT, 'package.json'));
+	write(root, 'package.json', JSON.stringify({ packageManager: manifest.packageManager, scripts: {
+		'check:fast': manifest.scripts['check:fast'], 'lint:ci': 'node record.cjs lint', typecheck: 'node record.cjs types',
+	} }));
+	const base = commit(root);
+	write(root, 'docs/change.md', 'documentation only');
+	const env = { ...process.env };
+	delete env.GITHUB_BASE_REF;
+	delete env.NODE_TEST_CONTEXT;
+	// Use the shell to resolve pnpm's platform launcher, including pnpm.cmd on Windows.
+	const run = (args) => execSync(`pnpm --silent check:fast ${args}`, { cwd: root, env, encoding: 'utf8', stdio: 'pipe' });
+	const calls = () => readFileSync(path.join(root, 'calls.jsonl'), 'utf8').trim().split('\n');
+	assert.throws(() => run('--list'), (error) => error.status === 1 && /requires --base/.test(error.stderr));
+	env.GITHUB_BASE_REF = 'unavailable-target';
+	const preview = JSON.parse(run(`--base ${base} --list`));
+	assert.equal(preview.scope, 'repository-only');
+	assert.deepEqual(preview.changedFiles, ['docs/change.md']);
+	assert.deepEqual(preview.tests, []);
+	const fallback = JSON.parse(run('--list'));
+	assert.equal(fallback.scope, 'full');
+	assert.equal(fallback.tests.length, Object.keys(map.tests).length);
+	assert.equal(JSON.parse(run('--base unavailable-target --list')).scope, 'full');
+	assert(!existsSync(path.join(root, 'calls.jsonl')), 'Preview must not execute any checks');
+	run(`--base ${base}`);
+	assert.deepEqual(calls(), ['lint', 'types', 'repository', 'guidance']);
+	write(root, 'fail-lint', '');
+	assert.throws(() => run(`--base ${base}`));
+	assert.deepEqual(calls(), ['lint', 'types', 'repository', 'guidance', 'lint']);
 });
 
 test('documentation-only Git changes cannot hide deleted or renamed product code', (t) => {

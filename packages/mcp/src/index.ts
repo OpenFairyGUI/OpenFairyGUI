@@ -8,6 +8,7 @@ export {
 export {
 	callOpenFairyGuiBackendTool,
 	type OpenFairyGuiBackendRuntime,
+	type OpenFairyGuiMcpToolPolicy,
 } from './tool-handler.js';
 export {
 	OPENFAIRYGUI_BACKEND_PROMPT_DEFINITIONS,

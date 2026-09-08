@@ -2,6 +2,7 @@ import { ObjectType } from '../constants.js';
 import type { Document } from '../document.js';
 import type { Component } from '../properties/component.js';
 import type { Package } from '../properties/package.js';
+import { parseURL } from '../utils/id-utils.js';
 import { resolveTreeItemIsFolder } from './tree-item-hierarchy.js';
 import type {
 	ComboItemLike,
@@ -72,7 +73,7 @@ function _resolveChildObjectType(child: EncoderChildLike): number {
 	return OBJECT_TYPE_MAP[child.propertyType as string] ?? 2;
 }
 
-export function _writeDisplayList(buf: WriteBuffer, comp: Component, _doc: Document, pkg: Package, version: number): void {
+export function _writeDisplayList(buf: WriteBuffer, comp: Component, doc: Document, pkg: Package, version: number): void {
 	const children = getRuntimeChildren(comp);
 	const childIndexMap = getRuntimeChildIndexMap(comp);
 	buf.writeInt16(children.length);
@@ -237,7 +238,7 @@ export function _writeDisplayList(buf: WriteBuffer, comp: Component, _doc: Docum
 
 		// --- Child Block 5: child-type-specific extension ---
 		const cb5 = buf.pos - childIndexPos;
-		_writeChildSpecific(buf, child, pkg, version);
+		_writeChildSpecific(buf, child, doc, pkg, version);
 
 		// --- Child Block 6: afterAdd text/icon (for GTextField, GButton, etc.) ---
 		const cb6 = buf.pos - childIndexPos;
@@ -286,7 +287,14 @@ export function _writeDisplayList(buf: WriteBuffer, comp: Component, _doc: Docum
 // ─── Block 3: Component relations ────────────────────────────────────────
 
 
-function _writeChildSpecific(buf: WriteBuffer, child: EncoderChildLike, pkg: Package, version: number): void {
+function resolveFontName(doc: Document, value: string): string {
+	const reference = parseURL(value);
+	if (!reference) return value;
+	const resource = doc.getRoot().getPackageById(reference.packageId)?.getResourceById(reference.resourceId);
+	return resource?.propertyType === 'FontResource' && resource.isExternalFont() ? resource.getName() : value;
+}
+
+function _writeChildSpecific(buf: WriteBuffer, child: EncoderChildLike, doc: Document, pkg: Package, version: number): void {
 	const type = child.propertyType as string;
 
 	switch (type) {
@@ -310,7 +318,7 @@ function _writeChildSpecific(buf: WriteBuffer, child: EncoderChildLike, pkg: Pac
 		case 'GTextField':
 		case 'GRichTextField':
 		case 'GTextInput': {
-			buf.writeS(child.getFont?.() || null);
+			buf.writeS(resolveFontName(doc, child.getFont?.() ?? '') || null);
 			buf.writeInt16(child.getFontSize?.() ?? 12);
 			buf.writeColor(child.getColor?.() ?? '#000000', false);
 			buf.writeUint8(child.getAlign?.() ?? 0);

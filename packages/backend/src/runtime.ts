@@ -38,6 +38,12 @@ import type {
 	QueryEntityInput,
 	BackendEntitySnapshot,
 	EntityQueryError,
+	ReadSessionStateInput,
+	ReadResourceBytesInput,
+	BackendSessionStateSnapshot,
+	BackendResourceBytesSnapshot,
+	SessionReadError,
+	SessionStaleReadError,
 	ValidateSessionInput,
 	InProcessLockConflictError,
 	ListJobsInput,
@@ -149,6 +155,14 @@ export class BackendRuntime {
 
 	public queryEntity(input: QueryEntityInput): BackendResult<BackendEntitySnapshot, SessionNotFoundError | EntityQueryError> {
 		return this.readService.queryEntity(input);
+	}
+
+	public readSessionState(input: ReadSessionStateInput): BackendResult<BackendSessionStateSnapshot, SessionNotFoundError | SessionReadError | SessionStaleReadError> {
+		return this.readService.readSessionState(input);
+	}
+
+	public readResourceBytes(input: ReadResourceBytesInput): BackendResult<BackendResourceBytesSnapshot, SessionNotFoundError | SessionReadError | SessionStaleReadError> {
+		return this.readService.readResourceBytes(input);
 	}
 
 	public validateSession(

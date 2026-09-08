@@ -150,6 +150,8 @@ FairyGUI 工程 XML 中由桌面编辑器按有符号 32 位整数读取的几�
 
 UAM 的 XY Gear 状态与默认值使用 `x/y` 和可选的 `px/py`；启用 `positionsInPercent` 时，显式状态值必须提供成对的有限 `px/py`，比例 `0.5` 表示 50%。默认值 `null` 表示未提供默认覆盖，保存时保持省略。每个显示节点的同一种 Gear 只允许绑定一次；需要更换控制器时移除后重新添加，Display 和 Display2 可共存。
 
+Size、Look、Color、Animation 与 FontSize Gear 同样以 `defaultValue: null` 表示未提供默认覆盖，不以固定状态替代。XML 的 `delay` 保留为 `tweenDelay`；关闭补间也保留非默认的 ease、duration 和 delay。组件实例的 `controller` 属性通过正式 UAM `controllerOverrides` 保留，含其控制器及页面选择。
+
 Text/Icon Gear 按页保留未覆盖值、空字符串和普通 `-` 文本，默认值也区分未覆盖与显式清空。工程 XML 的 `values` 以 `|` 分隔页面；每页文本含 `|` 尚无已验证的官方无损表示，ProjectWriter 在任何写入前拒绝该类输出。默认值中的 `|` 不受此分隔限制；UAM、Document 与二进制保留完整字符串。
 
 发布资源闭包包含组件根的 `showSound` / `hideSound`：同包未导出音效会随引用组件发布，跨包音效形成包依赖。
@@ -196,9 +198,13 @@ ProjectWriter 会为每个工程分支保留 `assets_<branch>/`，并为包内�
 
 选中的相对路径以工程根目录为基准；若以上都未配置，发布不会隐式选择输出目录。
 
+工程及包级 `path` / `branchPath` 先以发布名称替换 `{publish_file_name}`（不含扩展名），再按 `CustomProperties.json` 的属性顺序替换 `{变量名}`，最后解析相对路径。未知变量保持原样；显式 `output` 作为调用方路径直接使用。工程及包级 `codePath` 同样展开自定义变量。
+
 浏览器 Laya 发布在显式 `output` 下不会使用工程或包内的桌面输出路径；显式 `branch`、`packages`、`compressed` 与 `atlas` 也保持调用参数优先。未显式覆盖时，持久化的压缩、图集和安全文件扩展名设置直接驱动输出。当前浏览器宿主不提供代码生成；全局允许且任一选中包启用 `genCode` 时，发布会在 Canvas 检查和文件写入前以 `unsupported_publish_setting`（含 `setting` 与 `path`）拒绝。失败结果的 `files` 只包含已经完成 `writeFileRaw` 的文件，因此 `success=false` 且列表非空表示内置输出已部分写入；需要原子发布的宿主必须提供事务式或 staging 输出文件系统。
 
 ## 当前发布完整性要求
+
+位图字体在资源筛选前读取所属分支的 `.fnt`，由纹理及字形图片建立发布依赖闭包，包含未显式导出的图片；合并分支时字形引用同步映射到发布 ID。`assets_<branch>` 字体不读取主分支同名 `.fnt`。TTF/TTC/OTF 是引擎字体：文本写入字体资源名称，不生成空位图 Font 项，也不因该字体 URL 增加包依赖。
 
 这些要求是 OpenFairyGUI 当前发布执行时的能力边界，不是新增的编辑器设置字段：
 
@@ -231,6 +237,8 @@ OpenFairyGUI 当前已经把“代码生成”接入现有 `publish` 流程，�
 | 其他项目类型 | 当前未实现，跳过生成 |
 
 当前正式落地的代码生成口径如下：
+
+包名、组件名和成员名中的汉字转为逐字拼音，ASCII 名称保持原有大小写规则；多音字采用词典默认读音。组件按 ID 排序后分配名称；同一包内重名或仅大小写不同的类名依次加 `_2`、`_3`，并避开 Binder 名称。成员名冲突也分配唯一后缀。引用类型、文件名和 Binder 使用同一组最终类名。
 
 | Lane | 输出项 | 当前行为 |
 |---|---|---|
@@ -376,6 +384,8 @@ Unity 与 Cocos Creator 运行时不解压二进制描述文件，因此这两�
 | `compressPNG` / `jpegQuality` | 仅项目不支持 atlas 时写出 |
 
 ## 工程写回联动边界
+
+组件 XML 往返保留受支持的属性值和有序子节点，不承诺保留源文本的属性排列。属性排列不承载语义；Gear、relation、扩展覆盖及列表条目等子节点仍按各自协议顺序处理。
 
 工程根 `.fairy` 文件的 `projectDescription.id / type / version` 统一通过 XML 属性渲染器写出；引号、
 尖括号、换行和 `&` 等字符会转义，并在再次读取时还原为原属性值，不会形成额外 XML 属性。

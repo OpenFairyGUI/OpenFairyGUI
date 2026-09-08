@@ -6,8 +6,92 @@
 
 Release comparisons:
 
-- Stable line (`main`): [v0.4.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...main)
-- Development line (`next`): [v0.4.0...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...next)
+- Stable line (`main`): [v0.5.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0...main)
+- Development line (`next`): [v0.5.0...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0...next)
+
+## v0.5.x
+
+### v0.5.0 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0))
+
+This stable release includes all changes from `0.5.0-alpha.1` through `0.5.0-alpha.4`.
+
+Features:
+
+- backend, mcp: Add bounded reads of the committed public UAM model and primary resource bytes, with detached results, revision checks and faithful source diagnostics. Capability schema version is 11.
+- mcp: Add per-tool Host policies with declared failure schemas, single-call Backend delegation and public initialize instructions. Host failures retain their structured details without widening Backend contracts.
+- examples, docs: Add executable Agent workflows for reward-panel states, layout and entrance animation, and reusable reward-card generation, with SDK/MCP save and independent readback verification.
+
+Bug Fixes:
+
+- core: Preserve absent Gear defaults and component-instance controller overrides through UAM and Project XML round trips.
+- functions: Include bitmap-font textures and glyph images in publishing, resolve source font paths consistently, and encode external font names without publishing their source resources.
+- functions: Expand project variables in publish and code-generation paths, transliterate Chinese identifiers, and prevent generated class and member name collisions.
+- backend: Allow previews that repair existing broken references while validating the projected result.
+- mcp: Restore SDK-native Host tool discovery and registration lifecycle changes; accept schema-declared JSON byte arrays within the aggregate 8 MiB input budget.
+
+Other:
+
+- core, functions, backend: Consolidate common XML state, Loader3D assignment and successful-save completion; isolate restore font preparation and remove unused resource filtering.
+- workspace: Remove consumer helper dependencies on their runner, require an explicit comparison base for fast checks outside PR environments, and avoid duplicate builds and contract checks in full local verification.
+- docs: Synchronize bilingual protocol, architecture and verification guidance, centralize Agent onboarding, and update examples and installation guidance for stable `0.5.0`.
+
+Breaking changes:
+
+- core, backend: All value-bearing UAM Gears can have a `null` default to retain the owner's initial value; consumers must handle this in Look, Size, Color, Animation, and FontSize gears. Backend contract version is `2.0.0-p3`.
+
+### v0.5.0-alpha.4 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.4))
+
+Bug Fixes:
+
+- core: Preserve absent Gear defaults and component-instance controller overrides through UAM and Project XML round trips.
+- functions: Include bitmap-font textures and glyph images in publishing, resolve source font paths consistently, and encode external font names without publishing their source resources.
+- functions: Expand project variables in publish and code-generation paths, transliterate Chinese identifiers, and prevent generated class and member name collisions.
+- backend, mcp: Allow previews that repair existing broken references while validating the projected result, and accept schema-declared JSON byte arrays within the aggregate 8 MiB input budget.
+
+Other:
+
+- core, functions, backend: Consolidate common XML state and Loader3D assignment, remove unused resource filtering, isolate restore font preparation, and reuse successful-save completion logic.
+- workspace: Remove reverse dependencies from consumer helpers to their runner, expand regression coverage, and synchronize bilingual protocol and architecture documentation.
+
+Breaking changes:
+
+- core, backend: All value-bearing UAM Gears can now have a `null` default to retain the owner's initial value; consumers must handle this in Look, Size, Color, Animation, and FontSize gears. Backend contract version is `2.0.0-p3`.
+
+### v0.5.0-alpha.3 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.3))
+
+Features:
+
+- examples, docs: Add three executable Agent authoring workflows for reward-panel states, layout and entrance animation, and reusable reward-card generation, with SDK/MCP consumers verifying saves and independent readback.
+
+Other:
+
+- workspace: Require a PR comparison base for fast checks outside PR environments, keep plan previews free of check execution, and remove duplicate workspace builds and contract checks from full local verification.
+- docs: Organize verification around four common scenarios, synchronize bilingual onboarding and development guides, and record scope-appropriate checks in the PR template.
+
+### v0.5.0-alpha.2 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.2))
+
+Features:
+
+- mcp: Add per-tool Host policies with declared failure schemas, single-call Backend delegation and public initialize instructions. Host failures retain their structured details without widening Backend contracts. [#138](https://github.com/OpenFairyGUI/OpenFairyGUI/issues/138)
+
+Bug Fixes:
+
+- mcp: Restore SDK-native discovery for Host tools registered before or after connection, including public registration lifecycle changes, while preserving compact contract schemas.
+
+Other:
+
+- workspace: Verify Host composition, approval-gated real writes, instructions and installed documentation through SDK integration tests and isolated tarball consumers.
+- docs: Simplify both READMEs and centralize Agent onboarding in the getting-started guides.
+
+### v0.5.0-alpha.1 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.1))
+
+Features:
+
+- backend, mcp: Add bounded reads of the committed public UAM model and individual primary resource bytes, with detached results, edit-revision checks and faithful source diagnostics. Capability schema version is 11. [#136](https://github.com/OpenFairyGUI/OpenFairyGUI/pull/136)
+
+Other:
+
+- workspace: Verify unsaved model and resource-byte reads through installed SDK and stdio MCP consumers, including stale revisions and unchanged source files; synchronize the public method catalog documentation.
 
 ## v0.4.x
 

@@ -10,7 +10,11 @@
 
 ## 选择入口
 
-只需读取、修改或发布工程时，从 `core` 和 `functions` 开始。需要 CLI 批处理时安装 `@openfairygui/cli`；需要会话、能力发现或 MCP 客户端集成时，再接入 `backend` 与 `mcp`。
+- Agent 接入：安装 `mcp`，通过随包文档和工具发现查询、预演并编辑工程；`cli` 提供同一份文档与独立终端工作流。配置见[快速开始](./getting-started.md)。
+- 脚本与 CI：使用 `cli` 执行检查、验证、发布及可信本地产物的受限恢复；库式 Node 工作流使用 `core` 和 `functions`。
+- 编辑器与自定义宿主：使用 `backend` 管理 session、revision 与保存，通过 UAM transaction 编辑；`core` 提供底层模型与 I/O。
+
+MCP 是 Backend 会话能力的适配层；发布与恢复使用显式授权的 CLI / Node 工作流。保持 OpenFairyGUI 包的安装版本与通道一致。
 
 ## 公开入口
 

@@ -161,6 +161,8 @@ Writer 对协议中的 `uint8 / int8 / uint16 / int16 / uint32 / int32`、UTFStr
 
 `Font` glyph 数据块以 `uint16` 保存 UTF-16 code unit（`charId`），因此可覆盖完整 BMP 范围；后续图像引用和字形度量按各自的字符串表索引与 `int32` 字段保存。
 
+位图字体的字形图像引用必须可在同包资源与精灵表中解析；使用整张字体纹理时，精灵以字体 ID 寻址。合并分支后的 glyph 图像 ID 指向合并后的资源。导入的 TTF/TTC/OTF 使用引擎字体名称作为文本的 `font`，不编码为位图 `Font` 资源。
+
 ### `Spine` / `DragoneBones` item 数据段
 
 `Spine` 与 `DragoneBones` 在通用头部之后追加 skeleton 锚点：
@@ -547,6 +549,8 @@ Tree 项的 `isFolder` 在二进制中没有 `null` 表示，因此编码时按�
 | 扩展状态 | GearXY percent、GearAnimation 扩展状态等条件字段 |
 
 每个 child 的每种 Gear 类型只有一个槽位，绑定哪个 controller 不改变该约束；Display 与 Display2 是独立类型。XY 百分比扩展保存相对父级尺寸的 `px/py` 浮点值（`0.5` 表示 50%）。Size 的缩放值和 Look 的 alpha 允许为 `0`。
+
+XY、Size、Look、Color、Animation、FontSize、Text 和 Icon 的默认状态是否存在由独立布尔值表示。省略默认状态时，运行时保留从对象初始属性捕获的默认值；未配置页面回到该状态，不替换为零尺寸、白色或固定字号。
 
 Text/Icon 的空字符串、`-` 和含 `|` 的字符串均是完整状态值。null page 不携带状态 payload；default 的存在由独立布尔值表示，因此未提供默认覆盖与显式空字符串不同。
 

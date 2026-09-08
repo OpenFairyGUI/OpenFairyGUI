@@ -14,6 +14,7 @@ import type {
 	UamGenericAssetResource,
 	UamComponentResource,
 	UamProject,
+	UamPackage,
 	UamPackageSettings,
 	UamPackageSelector,
 	UamResource,
@@ -34,6 +35,55 @@ import type { BackendRuntime } from '../runtime.js';
 export type BackendMethodName = keyof BackendRuntime;
 
 export const BACKEND_ENTITY_QUERY_LIMITS = { maxBytes: 262144, maxDepth: 32, maxNodes: 100000 } as const;
+export const BACKEND_SESSION_READ_LIMITS = {
+	model: { maxBytes: 4194304, maxDepth: 64, maxNodes: 500000 },
+	resourceBytes: 1048576,
+} as const;
+
+/** The public UAM model, excluding only each asset resource's primary sourceBytes. */
+export type BackendSessionResourceModel = UamComponentResource | Omit<UamImageResource, 'sourceBytes'>
+	| Omit<UamMovieClipResource, 'sourceBytes'> | Omit<UamGenericAssetResource, 'sourceBytes'>;
+export interface BackendSessionPackageModel extends Omit<UamPackage, 'resources'> {
+	resources: BackendSessionResourceModel[];
+}
+export interface BackendSessionProjectModel extends Omit<UamProject, 'packages'> {
+	packages: BackendSessionPackageModel[];
+}
+export interface ReadSessionStateInput {
+	sessionId: string;
+	expectedRevision?: number;
+}
+export interface ReadResourceBytesInput {
+	sessionId: string;
+	expectedRevision: number;
+	selector: UamResourceSelector;
+}
+export interface BackendSessionStateSnapshot extends Pick<BackendSessionSnapshot, 'sessionId' | 'revision' | 'lastSavedRevision' | 'dirty' | 'uamFidelity'> {
+	project: BackendSessionProjectModel;
+	readDiagnostics: import('@openfairygui/core').ProjectDiagnostic[];
+	/** Source-read completeness, not a guarantee of resource bytes or downstream usability. */
+	readComplete: boolean;
+}
+export interface BackendResourceBytesSnapshot {
+	sessionId: string;
+	revision: number;
+	selector: UamResourceSelector;
+	/** Only primary bytes already held in this session; no filesystem hydration. */
+	sourceBytes: Uint8Array;
+}
+export interface SessionReadError {
+	code: 'session_read_failed';
+	message: string;
+	sessionId: string;
+	reason: 'invalid_query' | 'not_found' | 'ambiguous' | 'unsupported_resource' | 'bytes_unavailable' | 'response_budget_exceeded' | 'non_json_value';
+}
+export interface SessionStaleReadError {
+	code: 'stale_read';
+	message: string;
+	sessionId: string;
+	expectedRevision: number;
+	actualRevision: number;
+}
 export const BACKEND_TRANSACTION_PREVIEW_LIMITS = { maxBytes: 262144, maxEntries: 2000 } as const;
 /** Fixed resource projection. Binary content, source bookkeeping and arbitrary metadata are excluded. */
 export const BACKEND_RESOURCE_QUERY_FIELDS = [
@@ -178,6 +228,8 @@ export interface BackendCapabilities {
 		sessionSnapshot: true;
 		projectOutline: true;
 		entityQuery: { kinds: readonly BackendEntityTarget['kind'][]; projection: 'properties'; sourceBytes: false; limits: typeof BACKEND_ENTITY_QUERY_LIMITS };
+		sessionState: { sourceBytes: false; limits: typeof BACKEND_SESSION_READ_LIMITS.model };
+		resourceBytes: { expectedRevisionRequired: true; hydration: false; maxBytes: typeof BACKEND_SESSION_READ_LIMITS.resourceBytes };
 		projectValidation: true;
 	};
 	authoring: {
@@ -565,6 +617,8 @@ export type BackendError =
 	| SessionNotFoundError
 	| TransactionPreviewError
 	| EntityQueryError
+	| SessionReadError
+	| SessionStaleReadError
 	| SessionIdConflictError
 	| SessionStaleWriteError
 	| InProcessLockConflictError

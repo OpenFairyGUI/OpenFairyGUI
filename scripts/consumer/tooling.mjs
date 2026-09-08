@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { build } from 'esbuild';
-import { contained, json } from './runtime.mjs';
+import { contained, json } from './helpers.mjs';
 
 const root = process.cwd();
 const manifests = json('expected.json');
@@ -22,9 +22,18 @@ async function publish(options: PublishNodeOptions): Promise<PublishNodeResult> 
   return result;
 }
 void publish;\n`);
+writeFileSync('host-composition.mts', `import { createOpenFairyGuiMcpServer, type OpenFairyGuiMcpToolPolicy } from '@openfairygui/mcp';
+import { z } from 'zod';
+const policy: OpenFairyGuiMcpToolPolicy = {
+  failureSchema: z.strictObject({ ok: z.literal(false), error: z.strictObject({ code: z.literal('owner_confirmation_required') }) }),
+  beforeCall(input) { const sessionId: unknown = input.sessionId; void sessionId; return { ok: false, error: { code: 'owner_confirmation_required' } }; },
+};
+const server = createOpenFairyGuiMcpServer({ instructions: 'Host approval required.', toolPolicies: { openfairygui_backend_save_session: policy } });
+server.registerTool('host_probe', { inputSchema: z.object({}) }, async () => ({ content: [{ type: 'text', text: 'ok' }] }));
+void server;\n`);
 writeFileSync('tsconfig.json', JSON.stringify({
 	compilerOptions: { target: 'ES2022', module: 'NodeNext', moduleResolution: 'NodeNext', strict: true, skipLibCheck: false, noEmit: true, types: ['node'], lib: ['ES2022', 'DOM', 'DOM.Iterable'] },
-	files: ['entries.mts', 'entries.cts', 'publish-result.mts'],
+	files: ['entries.mts', 'entries.cts', 'publish-result.mts', 'host-composition.mts'],
 }));
 // The repository compiler is an npm alias; use its declared binary, not an assumed bin/tsc path.
 const compilerBin = Object.values(json('node_modules/typescript/package.json').bin)[0];

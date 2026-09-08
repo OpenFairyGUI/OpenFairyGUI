@@ -66,6 +66,10 @@ export function isFontResource(resource: ReturnType<Package['listResources']>[nu
 	return resource.propertyType === 'FontResource';
 }
 
+export function getFontDependencyImageIds(font: FontResource): string[] {
+	return [font.getTextureId(), ...font.listGlyphs().map((glyph) => glyph.getImg())].filter(Boolean);
+}
+
 export function isSoundResource(resource: ReturnType<Package['listResources']>[number]): resource is SoundResource {
 	return resource.propertyType === 'SoundResource';
 }
@@ -112,6 +116,11 @@ export function resolveImagePath(resource: ImageResource, pkg: Package, basePath
 export function resolveImageFileName(resource: ImageResource): string {
 	const extras = (resource.getExtras() as ImageResourceExtras | undefined) ?? {};
 	return resource.getFileName() || extras._fileName || resource.getName();
+}
+
+export function resolveFontPath(resource: FontResource, pkg: Package, basePath: string): string {
+	const fileName = resource.getFileName() || (/\.fnt$/i.test(resource.getName()) ? resource.getName() : `${resource.getName()}.fnt`);
+	return `${resolvePackageAssetsBasePath(basePath, resource)}/${pkg.getName()}${resource.getPath() || '/'}${fileName}`;
 }
 
 export function resolveSoundPath(resource: SoundResource, pkg: Package, basePath: string): string {
@@ -324,8 +333,10 @@ function collectPackagePublishContext(
 					continue;
 				}
 				const resource = resourcesById.get(resourceId);
-				if (!resource || !isSkeletonResource(resource)) continue;
-				for (const requiredId of resource.getRequireIds()) {
+				if (!resource) continue;
+				const requiredIds = isSkeletonResource(resource) ? resource.getRequireIds()
+					: isFontResource(resource) ? getFontDependencyImageIds(resource) : [];
+				for (const requiredId of requiredIds) {
 					if (!requiredId || excludedResourceIds.has(requiredId) || exportedResourceIds.has(requiredId)) continue;
 					exportedResourceIds.add(requiredId);
 					changed = true;
@@ -390,7 +401,7 @@ function collectPackagePublishContext(
 			continue;
 		}
 		if (isFontResource(resource)) {
-			if (resource.getExported() || referencedIds.has(resourceId)) {
+			if (!resource.isExternalFont() && (resource.getExported() || referencedIds.has(resourceId))) {
 				publishedResourceIds.add(resourceId);
 			}
 			continue;

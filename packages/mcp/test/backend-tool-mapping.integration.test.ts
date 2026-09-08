@@ -139,6 +139,8 @@ test('MCP P0 tool annotations reflect backend side effects and non-goals', (t) =
 		'getSession',
 		'getProjectOutline',
 		'queryEntity',
+		'readSessionState',
+		'readResourceBytes',
 		'validateSession',
 		'preflightTransaction',
 		'getEvents',
