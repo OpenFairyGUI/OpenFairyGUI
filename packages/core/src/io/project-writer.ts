@@ -75,7 +75,7 @@ type WritableComponent = Component & {
 	getPath?(): string;
 };
 
-const imageSizeOmissions = new WeakSet<ImageResource>();
+const imageWriteHints = new WeakMap<ImageResource, ProjectImageWriteHints>();
 
 function compareResourceIdSequence(a: string, b: string): number {
 	const left = a.toLowerCase();
@@ -87,10 +87,16 @@ function compareResourceIdSequence(a: string, b: string): number {
 export class ProjectWriter {
 	private readonly _fs: FileSystem;
 
-	/** Applies to every subsequent write of this image, including another Writer instance. */
+	/** Replaces hints for every subsequent write of this image, including another Writer instance. */
 	static setImageWriteHints(resource: ImageResource, hints: ProjectImageWriteHints): void {
-		if (hints.omitPackageSize === true) imageSizeOmissions.add(resource);
-		else imageSizeOmissions.delete(resource);
+		if (hints.packageOrder && (typeof hints.packageOrder.afterId !== 'string' || !Number.isFinite(hints.packageOrder.weight))) {
+			throw new TypeError('Image package order requires a string afterId and finite weight.');
+		}
+		if (hints.omitPackageSize === true || hints.packageOrder) imageWriteHints.set(resource, {
+			omitPackageSize: hints.omitPackageSize,
+			packageOrder: hints.packageOrder && { ...hints.packageOrder },
+		});
+		else imageWriteHints.delete(resource);
 	}
 
 	constructor(fs: FileSystem) {
@@ -637,33 +643,32 @@ export class ProjectWriter {
 				(a as WritableResource).getId?.() ?? '',
 				(b as WritableResource).getId?.() ?? '',
 			));
-		const syntheticAfter = new Map<string, Array<{ resource: PackageResource; weight: number }>>();
+		const orderOf = (resource: PackageResource) => resource.propertyType === 'ImageResource'
+			? imageWriteHints.get(resource)?.packageOrder : undefined;
+		const anchors = new Set(original.filter((resource) => !orderOf(resource)).map((resource) => resource.getId()));
+		const resourcesAfter = new Map<string, Array<{ resource: PackageResource; weight: number }>>();
 		const trailing: Array<{ resource: PackageResource; weight: number }> = [];
 
 		for (const resource of original) {
-			const extras = (resource as WritableResource).getExtras?.() ?? {};
-			const afterId = typeof extras._packageOrderAfterId === 'string' ? extras._packageOrderAfterId : '';
-			const weight = typeof extras._packageOrderWeight === 'number' ? extras._packageOrderWeight : 0;
+			const order = orderOf(resource);
+			if (!order) continue;
+			const { afterId, weight } = order;
 			if (afterId) {
-				const bucket = syntheticAfter.get(afterId) ?? [];
+				if (!anchors.has(afterId)) throw new Error(`Invalid image package order anchor "${afterId}" for "${resource.getId()}".`);
+				const bucket = resourcesAfter.get(afterId) ?? [];
 				bucket.push({ resource, weight });
-				syntheticAfter.set(afterId, bucket);
+				resourcesAfter.set(afterId, bucket);
 				continue;
 			}
-			if (extras._syntheticFontGlyph === true || extras._syntheticFontTexture === true) {
-				trailing.push({ resource, weight });
-			}
+			trailing.push({ resource, weight });
 		}
 
 		const result: PackageResource[] = [];
 		for (const resource of original) {
-			const extras = (resource as WritableResource).getExtras?.() ?? {};
-			if (extras._packageOrderAfterId || extras._syntheticFontGlyph === true || extras._syntheticFontTexture === true) {
-				continue;
-			}
+			if (orderOf(resource)) continue;
 			result.push(resource);
 			const id = (resource as WritableResource).getId?.() ?? '';
-			const bucket = syntheticAfter.get(id) ?? [];
+			const bucket = resourcesAfter.get(id) ?? [];
 			bucket.sort((a, b) =>
 				a.weight - b.weight
 				|| compareResourceIdSequence((a.resource as WritableResource).getId?.() ?? '', (b.resource as WritableResource).getId?.() ?? ''),
@@ -720,7 +725,7 @@ export class ProjectWriter {
 				} else if (scaleOpt === 2) {
 					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.scale, 'tile');
 				}
-				if (!imageSizeOmissions.has(res)) {
+				if (imageWriteHints.get(res)?.omitPackageSize !== true) {
 					const width = imgRes.getWidth?.() ?? 0;
 					if (width !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.width, String(width));
 					const height = imgRes.getHeight?.() ?? 0;

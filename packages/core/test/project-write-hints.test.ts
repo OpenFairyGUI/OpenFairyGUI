@@ -30,3 +30,38 @@ test('image write hints survive Writer replacement, stay local to the image, and
 		await fs.rm(directory, { recursive: true, force: true });
 	}
 });
+
+test('image ordering hints group by anchor and weight across Writer instances without extras', async (t) => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-order-hints-'));
+	try {
+		const doc = new Document();
+		const pkg = doc.createPackage('Images').setId('images');
+		const font = doc.createFontResource('font.fnt').setId('f');
+		const images = ['a', 'b', 'd', 'e', 'z'].map((id) => doc.createImageResource(`${id}.png`).setId(id));
+		pkg.addResource(font);
+		for (const image of images) pkg.addResource(image);
+		const textureOrder = { afterId: 'f', weight: 0 };
+		ProjectWriter.setImageWriteHints(images[0]!, { packageOrder: textureOrder });
+		ProjectWriter.setImageWriteHints(images[2]!, { packageOrder: { afterId: 'f', weight: 1 } });
+		ProjectWriter.setImageWriteHints(images[3]!, { packageOrder: { afterId: 'f', weight: 1 } });
+		ProjectWriter.setImageWriteHints(images[4]!, { packageOrder: { afterId: '', weight: 0 } });
+		textureOrder.afterId = 'missing';
+		const writeIds = async () => {
+			await new NodeIO().writeProject(doc, path.join(directory, 'Images.fairy'));
+			const xml = await fs.readFile(path.join(directory, 'assets', 'Images', 'package.xml'), 'utf8');
+			return [...xml.matchAll(/^\s*<(?:font|image)\b[^>]*\bid="([^"]+)"/gm)].map((match) => match[1]);
+		};
+		t.deepEqual(await writeIds(), ['b', 'f', 'a', 'd', 'e', 'z']);
+		t.deepEqual(await writeIds(), ['b', 'f', 'a', 'd', 'e', 'z']);
+		for (const image of images) t.deepEqual(image.getExtras(), {});
+		const originalResources = pkg.listResources();
+		t.throws(() => ProjectWriter.setImageWriteHints(images[0]!, { packageOrder: { afterId: 'f', weight: NaN } }), { instanceOf: TypeError });
+		ProjectWriter.setImageWriteHints(images[0]!, { packageOrder: { afterId: 'missing', weight: 0 } });
+		await t.throwsAsync(writeIds, { message: /package order anchor/ });
+		t.deepEqual(pkg.listResources(), originalResources, 'invalid hints must not remove resources');
+		for (const image of images) ProjectWriter.setImageWriteHints(image, {});
+		t.deepEqual(await writeIds(), ['a', 'b', 'd', 'e', 'f', 'z']);
+	} finally {
+		await fs.rm(directory, { recursive: true, force: true });
+	}
+});

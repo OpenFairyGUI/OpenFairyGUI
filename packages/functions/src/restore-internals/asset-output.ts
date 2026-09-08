@@ -1,6 +1,6 @@
 import type { Document, Package, Sprite, ImageResource, FontResource, MovieClipResource } from '@openfairygui/core';
 import type { RestoreFileSystem, RestoreExecutionOptions } from '../restore.js';
-import { serializeFont } from './font.js';
+import { isSyntheticFontGlyphImage, serializeFont } from './font.js';
 import { serializeMovieClip } from './movie-clip.js';
 import {
 	resourceFileName,
@@ -202,7 +202,7 @@ async function writeSyntheticFontGlyphImages(
 	outputProjectPath: string,
 ): Promise<void> {
 	for (const resource of pkg.listResources()) {
-		if (resource.propertyType !== 'ImageResource' || resource.getExtras()._syntheticFontGlyph !== true) continue;
+		if (resource.propertyType !== 'ImageResource' || !isSyntheticFontGlyphImage(resource)) continue;
 		const fileName = resourceFileName(resource) || `${resource.getId() ?? 'glyph'}.png`;
 		const outputPath = resourceOutputPath(fs, outputProjectPath, pkg, resource, fileName);
 		await fs.mkdir(fs.dirname(outputPath));

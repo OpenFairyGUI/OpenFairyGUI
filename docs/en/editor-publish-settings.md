@@ -383,6 +383,8 @@ Component XML round-trips preserve supported attribute values and ordered child 
 
 Restored images may omit `width` and `height` in `package.xml` so dimensions inferred from published resources are not presented as original declarations. Image reconstruction retains usable dimensions. This omission does not change write-back of declared dimensions in ordinary projects.
 
+Generated font textures and glyph images follow their font within the same package and branch, with textures before glyphs and resource-ID ordering within each group. This does not change resource IDs, references or image contents.
+
 Publish settings do not change the authoring-property semantics of `component.xml`. Project I/O independently preserves component root properties, root-component `customProperty` definitions, and `Button`, `Label`, `ComboBox`, `ProgressBar`, `Slider`, and `ScrollBar` instance-extension overrides on component references. See [Project XML Attribute Protocol](./project-xml-attribute-reference.md) for the corresponding XML contract.
 
 The root `designImage`, `designImageForTest`, `pageController`, `showSound`, and `hideSound` fields are formal authoring properties; `designImageAlpha` defaults to `50`. The design reference must target an image resource, show/hide sounds must target sound resources, and `pageController` must name a controller in the same component. Label, ComboBox, and ProgressBar instance sounds use `sound` plus percentage `volume`; ComboBox also stores title color and popup direction through `titleColor` and `direction` (`auto` / `up` / `down`).

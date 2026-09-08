@@ -30,7 +30,7 @@ In this document, “not recoverable” means:
 
 ## Confirmed unrecoverable information
 
-Inferred image dimensions support resource reconstruction but are omitted from `package.xml` as original declarations. `RestoreResult.document` retains this write hint when passed to a new `ProjectWriter` or `NodeIO.writeProject()`. Hints are in-memory serialization controls and do not propagate through UAM conversion or reloading. To explicitly write an image's current dimensions, clear its hint with `ProjectWriter.setImageWriteHints(image, {})`.
+Inferred image dimensions support reconstruction but are omitted from `package.xml` as original declarations; generated font textures and glyph images follow their font in order. `RestoreResult.document` retains both dimension and ordering hints when passed to a new `ProjectWriter` or `NodeIO.writeProject()`. Hints are in-memory serialization controls and do not propagate through UAM conversion or reloading. `ProjectWriter.setImageWriteHints(image, {})` clears all hints for that image, restoring normal dimension writing and resource ordering. To retain ordering, set `{ packageOrder: { afterId, weight } }`, anchored to an unhinted resource in the same package and branch.
 
 ### 1. Resources or actions absent from the published package
 

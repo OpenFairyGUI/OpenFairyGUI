@@ -6,6 +6,8 @@ import { NodeIO } from '@openfairygui/core/node';
 import { getFixturePath, getFixtureProjectPath } from '@openfairygui/test-utils';
 import test from 'ava';
 import sharpImplementation from 'sharp';
+import { initializeFontGlyphImageResources, initializeFontTextureImageResources } from '../src/restore-internals/font.js';
+import { restoreAssets } from '../src/restore-internals/asset-output.js';
 import {
 	atlas,
 	type AtlasRasterBackend,
@@ -21,6 +23,35 @@ const sharp = sharpImplementation as typeof sharpImplementation & AtlasRasterBac
 
 const UNITY_RELEASE_DIR = getFixturePath('FairyGUI-unity', 'Assets', 'Examples', 'Resources', 'UI');
 const EXPERIMENTS_FAIRY = getFixtureProjectPath('FairyGUI-Experiments');
+
+test('synthesized font images retain typed ordering and placeholder output without extras', async (t) => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-font-order-'));
+	try {
+		const doc = new Document();
+		const pkg = doc.createPackage('FontImages').setId('fonts');
+		const font = doc.createFontResource('font.fnt').setId('zfont').setFileName('font.fnt').setTextureId('a');
+		font.addGlyph(doc.createFontGlyph('A').setChar('A').setCharId(65).setImg('b'));
+		pkg.addResource(font).addResource(doc.createImageResource('original.png').setId('m'));
+		initializeFontTextureImageResources(doc);
+		initializeFontGlyphImageResources(doc);
+		const outputProjectPath = path.join(directory, 'Fonts.fairy');
+		const write = async () => {
+			await new NodeIO().writeProject(doc, outputProjectPath);
+			return fs.readFile(path.join(directory, 'assets', 'FontImages', 'package.xml'), 'utf8');
+		};
+		const first = await write();
+		t.deepEqual([...first.matchAll(/^\s*<(?:font|image)\b[^>]*\bid="([^"]+)"/gm)].map((match) => match[1]), ['m', 'zfont', 'a', 'b']);
+		t.is(await write(), first);
+		for (const image of pkg.listImageResources()) t.deepEqual(image.getExtras(), {});
+		await restoreAssets(createRestoreFs(), doc, { binaryPaths: [], sourceDir: directory, outputProjectPath }, []);
+		const glyph = pkg.listImageResources().find((image) => image.getId() === 'b')!;
+		const glyphPath = resourcePath(path.join(directory, 'assets', 'FontImages'), glyph.getPath(), glyph.getFileName());
+		const metadata = await sharp(glyphPath).metadata();
+		t.deepEqual([metadata.width, metadata.height, metadata.hasAlpha], [1, 1, true]);
+	} finally {
+		await fs.rm(directory, { recursive: true, force: true });
+	}
+});
 
 function resourcePath(basePath: string, resourcePath: string, fileName: string): string {
 	const subDir = resourcePath.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '');
@@ -216,7 +247,14 @@ test('restore published project: directory batch restores packages, assets, and 
 		await fs.mkdir(rewrittenDirectory);
 		await new NodeIO().writeProject(result.document, path.join(rewrittenDirectory, 'Rewritten.fairy'));
 		t.is(await fs.readFile(path.join(rewrittenDirectory, 'assets', 'Basics', 'package.xml'), 'utf8'), basicsPackageXml,
-			'returned Document retains image serialization hints when written by a new Writer');
+			'returned Document retains image dimensions and ordering hints when written by a new Writer');
+		for (const pkg of result.document.getRoot().listPackages()) {
+			for (const resource of pkg.listResources()) {
+				for (const key of ['_packageOrderAfterId', '_packageOrderWeight', '_syntheticFontGlyph', '_syntheticFontTexture']) {
+					t.false(key in resource.getExtras(), `${resource.getId()} does not encode serialization hints in extras`);
+				}
+			}
+		}
 		t.true(basicsPackageXml.includes('name="tabswitch.wav"'), 'package.xml references restored editor-facing sound file name');
 		t.true(basicsPackageXml.includes('exported="true"'), 'package.xml writes explicit true boolean attributes');
 		t.true(basicsPackageXml.includes('id="rpmb7" name="b1.png.png" path="/images/"'), 'dotted image resource names are restored by appending png to the resource name');

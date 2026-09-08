@@ -130,7 +130,7 @@ Gear 字符串解析归 `bridge-lift.ts`；具体属性的 Document setter 映�
 
 `restore.ts` 保持准备、写出与提交的阶段顺序。`restore-internals/resource-paths.ts` 拥有受控文件定位和输出路径，复用 `path-utils.ts` 的资源路径校验；`skeleton.ts` 拥有骨骼类型修复、附属资源与依赖关联；`asset-output.ts` 拥有图集裁剪、生成文件及 loose 文件输出。字体与 MovieClip 分别复用 `font.ts`、`movie-clip.ts`，资源参数使用 Core 的具体类型。
 
-图片尺寸的序列化提示由 Core 的 `ProjectWriter.setImageWriteHints(image, { omitPackageSize: true })` 拥有，按图片对象身份保存，不进入属性模型或 `extras`。Restore 为推导尺寸设置提示；返回的同一 `Document` 交给新的 Writer 时仍生效，传入空提示可恢复普通写入。提示不跨 UAM 转换、重新读取或资源对象替换传播。
+图片序列化提示由 Core 的 `ProjectWriter.setImageWriteHints()` 拥有，按图片对象身份保存，不进入属性模型或 `extras`。`omitPackageSize` 控制推导尺寸省略，`packageOrder: { afterId, weight }` 控制写出顺序；目标必须是同包、同分支且未设置排序提示的资源，空 ID 表示放到末尾，同组按有限权重和资源 ID 排序，无效目标会拒绝写入。Restore 的字体纹理和字形共用这一契约；占位字形图像由 Functions 内部按对象身份记录，Writer 不识别字体恢复专用标记。设置提示会复制并替换原提示；返回的同一 `Document` 交给新的 Writer 时仍生效，空提示恢复普通写入。提示不跨 UAM 转换、重新读取或资源对象替换传播。
 
 CLI 只解析参数、调用正式 Node 入口并包装结果。产品 MCP 不提供 publish/restore 执行工具；评测中的独立 artifact 宿主使用固定输入/目录的受限工具，不扩大产品权限。
 

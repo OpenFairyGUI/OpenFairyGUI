@@ -1,5 +1,11 @@
-import { type Document, type FontResource, type FontGlyph, GTextField, type Package, generateId, ProjectWriter } from '@openfairygui/core';
+import { type Document, type FontResource, type FontGlyph, type ImageResource, GTextField, type Package, generateId, ProjectWriter } from '@openfairygui/core';
 import { normalizeRestoreResourcePath } from '../path-utils.js';
+
+const syntheticFontGlyphImages = new WeakSet<ImageResource>();
+
+export function isSyntheticFontGlyphImage(image: ImageResource): boolean {
+	return syntheticFontGlyphImages.has(image);
+}
 
 function resourceFileName(resource: FontResource | ReturnType<Package['listResources']>[number]): string {
 	const file = 'getFileName' in resource ? resource.getFileName() : 'getFile' in resource ? resource.getFile() : '';
@@ -159,14 +165,9 @@ export function initializeFontGlyphImageResources(doc: Document): void {
 					.setId(glyphId)
 					.setPath(syntheticFontGlyphVirtualPath(pkg, resource))
 					.setBranch(resource.getBranch() ?? '')
-					.setFileName(syntheticFontGlyphFileName(pkg, resource, entry.glyph, entry.index, glyphEntries.size))
-					.setExtras({
-						...(image.getExtras() ?? {}),
-						_syntheticFontGlyph: true,
-						_packageOrderAfterId: resource.getId() ?? '',
-						_packageOrderWeight: 1,
-					});
-				ProjectWriter.setImageWriteHints(image, { omitPackageSize: true });
+					.setFileName(syntheticFontGlyphFileName(pkg, resource, entry.glyph, entry.index, glyphEntries.size));
+				ProjectWriter.setImageWriteHints(image, { omitPackageSize: true, packageOrder: { afterId: resource.getId(), weight: 1 } });
+				syntheticFontGlyphImages.add(image);
 				pkg.addResource(image);
 			}
 		}
@@ -184,14 +185,8 @@ export function initializeFontTextureImageResources(doc: Document): void {
 				.setId(textureId)
 				.setPath(resource.getPath() ?? '/')
 				.setBranch(resource.getBranch() ?? '')
-				.setFileName(syntheticFontTextureFileName(resource))
-				.setExtras({
-					...(image.getExtras() ?? {}),
-					_syntheticFontTexture: true,
-					_packageOrderAfterId: resource.getId() ?? '',
-					_packageOrderWeight: 0,
-				});
-			ProjectWriter.setImageWriteHints(image, { omitPackageSize: true });
+				.setFileName(syntheticFontTextureFileName(resource));
+			ProjectWriter.setImageWriteHints(image, { omitPackageSize: true, packageOrder: { afterId: resource.getId(), weight: 0 } });
 			pkg.addResource(image);
 		}
 	}

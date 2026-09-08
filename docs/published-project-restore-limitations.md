@@ -30,7 +30,7 @@
 
 ## 当前已确认的不可还原项
 
-恢复时推导出的图片尺寸用于资源重建，但不作为原始声明尺寸写入 `package.xml`。`RestoreResult.document` 保留这一写入提示；把该 Document 交给新的 `ProjectWriter` 或 `NodeIO.writeProject()` 仍会省略这些尺寸。提示属于内存中的序列化控制，不随 UAM 转换或重新读取传播。需要显式写出某张图片的当前尺寸时，调用 `ProjectWriter.setImageWriteHints(image, {})` 清除提示。
+恢复时推导出的图片尺寸用于资源重建，但不作为原始声明尺寸写入 `package.xml`；生成的字体纹理和字形图片按顺序跟随对应字体。`RestoreResult.document` 保留尺寸省略与资源排序两种写入提示，交给新的 `ProjectWriter` 或 `NodeIO.writeProject()` 仍生效。提示属于内存中的序列化控制，不随 UAM 转换或重新读取传播。`ProjectWriter.setImageWriteHints(image, {})` 清除该图片的全部提示，恢复普通尺寸写回和资源排序；需要保留排序时，设置 `{ packageOrder: { afterId, weight } }`，其中目标是同包、同分支且未设置排序提示的资源。
 
 ### 1. 发布包中根本不存在的资源或动作
 
