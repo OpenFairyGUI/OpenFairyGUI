@@ -5,12 +5,11 @@
 ## 公共验证步骤
 
 ```bash
-pnpm test:changed --base origin/next --list
-pnpm check:fast
-pnpm check:ci
+pnpm check:fast --base origin/next --list
+pnpm check:fast --base origin/next
 ```
 
-把 base 换成实际目标分支。选择计划会包含下游和文档审查提示；快速检查不是完整回归。修改公开类型、MCP 元数据、逐码指引或随包文档后，先运行 `pnpm contracts:generate`，再验证漂移。不要手改生成快照、dist 或 API 页面。以下测试文件是定位入口，不替代影响映射选出的其他测试。
+把两次命令的 base 都换成实际目标分支。选择计划会包含下游和文档审查提示；快速检查不是完整回归。普通文档修改用 `pnpm docs:check`；大范围修改、包级指引要求或完整 CI 复现用 `pnpm check:ci`，不必先重复运行快速检查。修改公开类型、MCP 元数据、逐码指引或随包文档后，先运行 `pnpm contracts:generate`，再验证漂移。不要手改生成快照、dist 或 API 页面。以下测试文件是定位入口，不替代影响映射选出的其他测试。
 
 ## 增加 Project XML 字段
 

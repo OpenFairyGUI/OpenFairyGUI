@@ -7,9 +7,20 @@
 Release comparisons:
 
 - Stable line (`main`): [v0.4.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.4.0...main)
-- Development line (`next`): [v0.5.0-alpha.2...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0-alpha.2...next)
+- Development line (`next`): [v0.5.0-alpha.3...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0-alpha.3...next)
 
 ## v0.5.x
+
+### v0.5.0-alpha.3 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.3))
+
+Features:
+
+- examples, docs: Add three executable Agent authoring workflows for reward-panel states, layout and entrance animation, and reusable reward-card generation, with SDK/MCP consumers verifying saves and independent readback.
+
+Other:
+
+- workspace: Require a PR comparison base for fast checks outside PR environments, keep plan previews free of check execution, and remove duplicate workspace builds and contract checks from full local verification.
+- docs: Organize verification around four common scenarios, synchronize bilingual onboarding and development guides, and record scope-appropriate checks in the PR template.
 
 ### v0.5.0-alpha.2 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.5.0-alpha.2))
 

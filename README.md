@@ -77,8 +77,9 @@ MCP 提供 Backend 会话编辑能力；发布已保存工程与可信本地产�
 
 ```bash
 pnpm repo:setup
-pnpm check:ci
 ```
+
+日常修改按[开发指南](./docs/guide/development.md#验证入口)选择验证入口；完整 CI 复现使用 `pnpm check:ci`。
 
 ## License
 

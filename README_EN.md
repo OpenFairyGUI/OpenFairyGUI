@@ -77,8 +77,9 @@ Prepare Git, the Node version recommended in `.node-version`, and pnpm from `pac
 
 ```bash
 pnpm repo:setup
-pnpm check:ci
 ```
+
+Choose checks for daily changes in the [development guide](./docs/en/guide/development.md#verification-entrypoints); use `pnpm check:ci` to reproduce full CI.
 
 ## License
 

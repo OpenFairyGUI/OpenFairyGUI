@@ -5,12 +5,11 @@ Complete [environment and reference checks](./development.md), then follow only 
 ## Shared verification
 
 ```bash
-pnpm test:changed --base origin/next --list
-pnpm check:fast
-pnpm check:ci
+pnpm check:fast --base origin/next --list
+pnpm check:fast --base origin/next
 ```
 
-Replace the base with the actual target branch. The plan includes downstream tests and documentation review hints; fast checks are not full regression. After changing public types, MCP metadata, per-code guidance or installed documentation, run `pnpm contracts:generate` before checking drift. Never hand-edit snapshots, dist or API pages. Test files below are entrypoints, not replacements for the impact-selected suite.
+Use the same actual target branch in both commands. The plan includes downstream tests and documentation review hints; fast checks are not full regression. Use `pnpm docs:check` for ordinary documentation changes. Use `pnpm check:ci` for broad changes, package-specific requirements or full CI reproduction, without first repeating fast checks. After changing public types, MCP metadata, per-code guidance or installed documentation, run `pnpm contracts:generate` before checking drift. Never hand-edit snapshots, dist or API pages. Test files below are entrypoints, not replacements for the impact-selected suite.
 
 ## Add a Project XML field
 
