@@ -57,6 +57,8 @@ Gear 字符串解析归 `bridge-lift.ts`；具体属性的 Document setter 映�
 
 XML 写入的共有格式化、协议辅助和 property 覆盖节点序列化位于 `project-xml-writer-utils.ts`。`display-object-xml-text-writer.ts` 使用 `GTextField`、`GTextInput` 写出文本与输入框属性；`display-object-xml-list-writer.ts` 使用 `GList`、`GTree` 写出列表属性和条目；`display-object-xml-instance-writer.ts` 使用 `GComponent` 写出实例引用、property 覆盖及扩展数据。条目和属性覆盖复用正式模型类型。`display-object-xml-behaviors-writer.ts` 拥有 Gear 值格式化、标签允许项筛选和 relation 分组序列化，其 Gear 校验由工程写入前检查和显示列表输出共同调用。`display-object-xml-writer.ts` 保留标签分发、图片/图形/Loader 等具体类型序列化函数、共有状态和节点顺序编排；共有状态接口仅将部分标签缺少的状态 getter 设为可选，不承载控件专属属性；列表条目与实例 property 覆盖先于 Gear/relation，实例扩展节点由入口最后追加。
 
+ProjectWriter 在写盘前构建一次包/分支输出描述，固定描述文件、资源文件与文件夹目标，以及描述文件中的资源排序。目标冲突检查和保存共用这份描述；组件与源字节仍按原有顺序逐项写入，不缓存整份工程的序列化字节。全部包写入成功后，清理阶段重新核对实际路径身份，保护仍被当前输出占用的旧路径。
+
 工程读取、UAM 检查与源数据验证分层：`readProjectDetailed` 报告读取完整性，`validateUamProject` 检查模型，Functions 组合为正式验证报告。`invalid` 是确定错误，`incomplete` 是能力或数据不足；详见[工程验证](./project-validation.md)。
 
 ## 事务与预校验

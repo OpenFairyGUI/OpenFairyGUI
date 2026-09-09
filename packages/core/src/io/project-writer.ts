@@ -14,6 +14,20 @@ export type { ProjectBranchDirectory, ProjectImageWriteHints, ProjectResourceFol
 
 type PackageResource = ReturnType<Package['listResources']>[number];
 
+interface BranchOutputPlan {
+	branch: string;
+	directory: string;
+	descriptorPath: string;
+	folders: Array<{ folder: PackageResourceFolder; relativePath: string; targetPath: string }>;
+	resources: Array<{ resource: PackageResource; relativePath: string; targetPath: string }>;
+	orderedResources: PackageResource[];
+}
+
+interface PackageOutputPlan {
+	package: Package;
+	branches: BranchOutputPlan[];
+}
+
 type WritableResource = PackageResource & {
 	getId?(): string;
 	getPath?(): string;
@@ -119,8 +133,10 @@ export class ProjectWriter {
 		if (staleBranchDirectoryPaths.size > 0 && !fs.rmdir) {
 			throw new Error('Project branch cleanup requires a FileSystem.rmdir() implementation.');
 		}
-		for (const pkg of root.listPackages()) {
-			this._assertPackageOutputTargets(pkg);
+		const packagePlans = root.listPackages().map((pkg) => this._buildPackageOutputPlan(pkg, basePath));
+		for (const plan of packagePlans) {
+			this._assertPackageOutputTargets(plan);
+			const pkg = plan.package;
 			for (const component of pkg.listComponents()) {
 				for (const child of component.listChildren()) {
 					assertDisplayObjectGearXmlValues(child);
@@ -178,11 +194,9 @@ export class ProjectWriter {
 			await fs.mkdir(branchPath);
 			currentBranchDirectoryPaths.add(branchPath);
 		}
-		for (const pkg of root.listPackages()) {
+		for (const plan of packagePlans) {
 			await this._writePackage(
-				doc,
-				pkg,
-				assetsPath,
+				plan,
 				currentSourceFilePaths,
 				currentResourceFolderPaths,
 				currentBranchDirectoryPaths,
@@ -198,35 +212,15 @@ export class ProjectWriter {
 	}
 
 	private async _writePackage(
-		_doc: Document,
-		pkg: Package,
-		assetsPath: string,
+		plan: PackageOutputPlan,
 		currentSourceFilePaths: Set<string>,
 		currentResourceFolderPaths: Set<string>,
 		currentBranchDirectoryPaths: Set<string>,
 	): Promise<void> {
 		const fs = this._fs;
-		this._assertSafePathSegment(pkg.getName(), 'package name');
-		const pkgDir = fs.join(assetsPath, pkg.getName());
-		await fs.mkdir(pkgDir);
-		const basePath = fs.dirname(assetsPath);
-		const resourcesByBranch = new Map<string, PackageResource[]>();
-		const foldersByBranch = new Map<string, PackageResourceFolder[]>();
-		for (const res of pkg.listResources()) {
-			const branchName = (res as WritableResource).getBranch?.() ?? '';
-			const bucket = resourcesByBranch.get(branchName) ?? [];
-			bucket.push(res);
-			resourcesByBranch.set(branchName, bucket);
-		}
-		for (const folder of pkg.listResourceFolders()) {
-			const bucket = foldersByBranch.get(folder.branch) ?? [];
-			bucket.push(folder);
-			foldersByBranch.set(folder.branch, bucket);
-		}
-
-		// Build package.xml object
-		const mainResources = resourcesByBranch.get('') ?? [];
-		const mainFolders = foldersByBranch.get('') ?? [];
+		const pkg = plan.package;
+		const [main, ...branches] = plan.branches;
+		await fs.mkdir(main.directory);
 		const publishName = pkg.getPublishName() || pkg.getName();
 		const publishPath = pkg.getPublishPath();
 		const publishBranchPath = pkg.getPublishBranchPath();
@@ -326,83 +320,39 @@ export class ProjectWriter {
 		if (publishAtlases.length > 0) {
 			publishAttrs.atlas = publishAtlases;
 		}
-		const preserveResourceOrder = pkg.getExtras()._preservePackageResourceOrder === true;
-		const packageDescriptorPath = fs.join(pkgDir, 'package.xml');
-		await fs.writeFile(
-			packageDescriptorPath,
-			this._renderPackageDescriptionXml(
-				packageDescriptionAttrs,
-				mainFolders,
-				mainResources,
-				publishAttrs,
-				preserveResourceOrder,
-			),
-		);
-		currentSourceFilePaths.add(packageDescriptorPath);
-		await this._writeResourceFolders(mainFolders, pkgDir, currentResourceFolderPaths);
-
-		// Write main-branch component XML files
-		for (const comp of mainResources.filter((resource): resource is Component => resource.propertyType === 'Component')) {
-			currentSourceFilePaths.add(fs.join(pkgDir, this._componentSourceRelativePath(comp)));
-			await writeComponent(this._fs, comp, pkgDir, this._componentSourceRelativePath(comp));
-		}
-		await this._writeResourceSourceFiles(mainResources, pkgDir, currentSourceFilePaths);
-
-		const branchNames = new Set([...pkg.listBranchNames(), ...resourcesByBranch.keys(), ...foldersByBranch.keys()]);
-		for (const branchName of branchNames) {
-			if (!branchName) continue;
-			const branchResources = resourcesByBranch.get(branchName) ?? [];
-			const branchFolders = foldersByBranch.get(branchName) ?? [];
-			this._assertSafePathSegment(branchName, 'branch name');
-			const branchPkgDir = fs.join(basePath, `assets_${branchName}`, pkg.getName());
-			await fs.mkdir(branchPkgDir);
-			currentBranchDirectoryPaths.add(branchPkgDir);
-			const branchDescriptorPath = fs.join(branchPkgDir, 'package_branch.xml');
-			await fs.writeFile(
-				branchDescriptorPath,
-				this._renderBranchDescriptionXml(branchFolders, branchResources, preserveResourceOrder),
-			);
-			currentSourceFilePaths.add(branchDescriptorPath);
-			await this._writeResourceFolders(branchFolders, branchPkgDir, currentResourceFolderPaths);
-
-			for (const comp of branchResources.filter((resource): resource is Component => resource.propertyType === 'Component')) {
-				currentSourceFilePaths.add(fs.join(branchPkgDir, this._componentSourceRelativePath(comp)));
-				await writeComponent(this._fs, comp, branchPkgDir, this._componentSourceRelativePath(comp));
-			}
-			await this._writeResourceSourceFiles(branchResources, branchPkgDir, currentSourceFilePaths);
+		await fs.writeFile(main.descriptorPath, this._renderPackageDescriptionXml(
+			packageDescriptionAttrs, main.folders.map(({ folder }) => folder), main.orderedResources, publishAttrs,
+		));
+		currentSourceFilePaths.add(main.descriptorPath);
+		await this._writeBranchContents(main, currentSourceFilePaths, currentResourceFolderPaths);
+		for (const branch of branches) {
+			await fs.mkdir(branch.directory);
+			currentBranchDirectoryPaths.add(branch.directory);
+			await fs.writeFile(branch.descriptorPath, this._renderBranchDescriptionXml(
+				branch.folders.map(({ folder }) => folder), branch.orderedResources,
+			));
+			currentSourceFilePaths.add(branch.descriptorPath);
+			await this._writeBranchContents(branch, currentSourceFilePaths, currentResourceFolderPaths);
 		}
 	}
 
-	private async _writeResourceFolders(
-		folders: PackageResourceFolder[],
-		packageDir: string,
-		currentResourceFolderPaths: Set<string>,
-	): Promise<void> {
-		for (const folder of folders) {
-			const relativePath = this._normalizeSourceRelativePath(folder.path);
-			const targetPath = this._fs.join(packageDir, relativePath);
-			await this._fs.mkdir(targetPath);
-			currentResourceFolderPaths.add(targetPath);
-		}
-	}
-
-	private async _writeResourceSourceFiles(
-		resources: PackageResource[],
-		packageDir: string,
-		currentSourceFilePaths: Set<string>,
+	private async _writeBranchContents(
+		plan: BranchOutputPlan, currentSourceFilePaths: Set<string>, currentResourceFolderPaths: Set<string>,
 	): Promise<void> {
 		const fs = this._fs;
-		for (const resource of resources) {
-			if (resource.propertyType === 'Component') continue;
-			const fileName = this._resourceFileName(resource as WritableResource);
-			if (!fileName) continue;
-			const relativePath = this._resourceSourceRelativePath(resource as WritableResource, fileName);
-			const targetPath = fs.join(packageDir, relativePath);
+		for (const { targetPath } of plan.folders) {
+			await fs.mkdir(targetPath);
+			currentResourceFolderPaths.add(targetPath);
+		}
+		for (const { resource, relativePath, targetPath } of plan.resources) {
+			if (resource.propertyType !== 'Component') continue;
 			currentSourceFilePaths.add(targetPath);
-
-			const sourceData = (resource as WritableSourceDataResource).getSourceData?.();
-			if (!sourceData) continue;
-			const data = sourceData.getData();
+			await writeComponent(fs, resource, plan.directory, relativePath);
+		}
+		for (const { resource, targetPath } of plan.resources) {
+			if (resource.propertyType === 'Component' || !targetPath) continue;
+			currentSourceFilePaths.add(targetPath);
+			const data = (resource as WritableSourceDataResource).getSourceData?.()?.getData();
 			if (!data) continue;
 			await fs.mkdir(fs.dirname(targetPath));
 			await fs.writeFileRaw(targetPath, new Uint8Array(data));
@@ -465,7 +415,7 @@ export class ProjectWriter {
 		}
 	}
 
-	private _assertPackageOutputTargets(pkg: Package): void {
+	private _buildPackageOutputPlan(pkg: Package, basePath: string): PackageOutputPlan {
 		this._assertSafePathSegment(pkg.getName(), 'package name');
 		const resourcesByBranch = new Map<string, PackageResource[]>();
 		const foldersByBranch = new Map<string, PackageResourceFolder[]>();
@@ -481,31 +431,45 @@ export class ProjectWriter {
 			foldersByBranch.set(folder.branch, bucket);
 		}
 
-		for (const branchName of new Set([...pkg.listBranchNames(), ...resourcesByBranch.keys(), ...foldersByBranch.keys()])) {
-			const resources = resourcesByBranch.get(branchName) ?? [];
-			this._orderedPackageResources(resources, pkg.getExtras()._preservePackageResourceOrder === true);
-			if (branchName) this._assertSafePathSegment(branchName, 'branch name');
-			const descriptorName = branchName ? 'package_branch.xml' : 'package.xml';
-			const targets = new Map<string, string>([[descriptorName, 'package descriptor']]);
-			for (const folder of foldersByBranch.get(branchName) ?? []) {
-				const target = this._normalizeSourceRelativePath(folder.path);
+		const branches: BranchOutputPlan[] = [];
+		for (const branch of new Set(['', ...pkg.listBranchNames(), ...resourcesByBranch.keys(), ...foldersByBranch.keys()])) {
+			if (branch) this._assertSafePathSegment(branch, 'branch name');
+			const directory = this._fs.join(basePath, branch ? 'assets_' + branch : 'assets', pkg.getName());
+			const resources = resourcesByBranch.get(branch) ?? [];
+			branches.push({
+				branch, directory,
+				descriptorPath: this._fs.join(directory, branch ? 'package_branch.xml' : 'package.xml'),
+				orderedResources: this._orderedPackageResources(resources, pkg.getExtras()._preservePackageResourceOrder === true),
+				folders: (foldersByBranch.get(branch) ?? []).map((folder) => {
+					const relativePath = this._normalizeSourceRelativePath(folder.path);
+					return { folder, relativePath, targetPath: this._fs.join(directory, relativePath) };
+				}),
+				resources: resources.map((resource) => {
+					const relativePath = resource.propertyType === 'Component'
+						? this._componentSourceRelativePath(resource)
+						: this._resourceSourceRelativePath(resource as WritableResource, this._resourceFileName(resource as WritableResource));
+					return { resource, relativePath, targetPath: relativePath ? this._fs.join(directory, relativePath) : '' };
+				}),
+			});
+		}
+		return { package: pkg, branches };
+	}
+
+	private _assertPackageOutputTargets(plan: PackageOutputPlan): void {
+		const pkg = plan.package;
+		for (const branch of plan.branches) {
+			const targets = new Map<string, string>([[branch.descriptorPath, 'package descriptor']]);
+			for (const { folder, relativePath: target, targetPath } of branch.folders) {
 				if (!target) throw new Error(`Package "${pkg.getName()}" cannot declare the resource root as a folder.`);
-				const previous = targets.get(target);
-				if (previous) {
-					throw new Error(`Package "${pkg.getName()}" output "${target}" conflicts with ${previous}.`);
-				}
-				targets.set(target, `resource folder "${folder.path}"`);
+				const previous = targets.get(targetPath);
+				if (previous) throw new Error(`Package "${pkg.getName()}" output "${target}" conflicts with ${previous}.`);
+				targets.set(targetPath, `resource folder "${folder.path}"`);
 			}
-			for (const resource of resources) {
-				const target = resource.propertyType === 'Component'
-					? this._componentSourceRelativePath(resource as Component)
-					: this._resourceSourceRelativePath(resource as WritableResource, this._resourceFileName(resource as WritableResource));
+			for (const { resource, relativePath: target, targetPath } of branch.resources) {
 				if (!target) continue;
-				const previous = targets.get(target);
-				if (previous) {
-					throw new Error(`Package "${pkg.getName()}" output "${target}" conflicts with ${previous}.`);
-				}
-				targets.set(target, `resource "${(resource as WritableResource).getId?.() ?? resource.getName()}"`);
+				const previous = targets.get(targetPath);
+				if (previous) throw new Error(`Package "${pkg.getName()}" output "${target}" conflicts with ${previous}.`);
+				targets.set(targetPath, `resource "${resource.getId() ?? resource.getName()}"`);
 			}
 		}
 	}
@@ -577,7 +541,6 @@ export class ProjectWriter {
 		folders: PackageResourceFolder[],
 		resources: PackageResource[],
 		publishAttrs: Record<string, unknown>,
-		preserveResourceOrder: boolean,
 	): string {
 		const publishNodeAttrs = Object.fromEntries(
 			Object.entries(publishAttrs).filter(([key]) => key !== 'atlas'),
@@ -587,7 +550,7 @@ export class ProjectWriter {
 			`<packageDescription${renderXmlAttrs(packageDescriptionAttrs)}>`,
 			'  <resources>',
 			...this._renderPackageResourceFolderLines(folders, '    '),
-			...this._renderPackageResourceLines(resources, '    ', preserveResourceOrder),
+			...this._renderPackageResourceLines(resources, '    '),
 			'  </resources>',
 			`  <publish${renderXmlAttrs(publishNodeAttrs)}>`,
 		];
@@ -603,14 +566,13 @@ export class ProjectWriter {
 	private _renderBranchDescriptionXml(
 		folders: PackageResourceFolder[],
 		resources: PackageResource[],
-		preserveResourceOrder: boolean,
 	): string {
 		const lines = [
 			'<?xml version="1.0" encoding="utf-8"?>',
 			'<branchDescription>',
 			'  <resources>',
 			...this._renderPackageResourceFolderLines(folders, '    '),
-			...this._renderPackageResourceLines(resources, '    ', preserveResourceOrder),
+			...this._renderPackageResourceLines(resources, '    '),
 			'  </resources>',
 			'</branchDescription>',
 		];
@@ -636,9 +598,8 @@ export class ProjectWriter {
 	private _renderPackageResourceLines(
 		resources: PackageResource[],
 		indent: string,
-		preserveResourceOrder: boolean,
 	): string[] {
-		return this._orderedPackageResources(resources, preserveResourceOrder)
+		return resources
 			.map((resource) => {
 				const serialized = this._serializePackageResourceEntry(resource);
 				if (!serialized) return null;
