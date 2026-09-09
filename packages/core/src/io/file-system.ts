@@ -10,7 +10,7 @@ export interface FileSystem {
 	writeFileRaw(path: string, data: Uint8Array): Promise<void>;
 	mkdir(path: string): Promise<void>;
 	readdir(path: string): Promise<string[]>;
-	/** Distinguishes files from directories when readdir returns both kinds of entry. */
+	/** Optional directory probe; without it, mixed readdir entries must reject file enumeration with ENOTDIR or TypeMismatchError. */
 	stat?(path: string): Promise<{ isDirectory(): boolean }>;
 	exists(path: string): Promise<boolean>;
 	join(...paths: string[]): string;

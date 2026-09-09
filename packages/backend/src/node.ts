@@ -257,13 +257,15 @@ export function createNodeBackendFileSystem(): BackendFileSystem {
 				async release(): Promise<void> {
 					if (released) return;
 					await closeHandle();
-					const current = metadataWritten
-						? parseLockMetadata(await fs.readFile(filePath, 'utf-8').catch(() => ''))
-						: null;
-					if (!metadataWritten || current?.token === owner.token) {
-						await fs.unlink(filePath).catch((error: NodeJS.ErrnoException) => {
-							if (error.code !== 'ENOENT') throw error;
-						});
+					try {
+						if (metadataWritten) {
+							const current = parseLockMetadata(await fs.readFile(filePath, 'utf-8'));
+							if (!current) throw new Error('Cannot release session lock: invalid ownership metadata');
+							if (current.token !== owner.token) throw new Error('Cannot release session lock: ownership token changed');
+						}
+						await fs.unlink(filePath);
+					} catch (error) {
+						if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
 					}
 					released = true;
 				},

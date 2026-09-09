@@ -553,7 +553,7 @@ export class ProjectReader {
 
 		// 3. Scan packages
 		const assetsPath = fs.join(basePath, 'assets');
-		const packageDirs = await this._readDirectory(ctx, assetsPath, diagnostics !== undefined, true);
+		const packageDirs = await this._readDirectory(ctx, assetsPath, diagnostics !== undefined, true) ?? [];
 
 		for (const dirName of packageDirs) {
 			const pkgXmlPath = fs.join(assetsPath, dirName, 'package.xml');
@@ -639,7 +639,7 @@ export class ProjectReader {
 		collectDiagnostics = false,
 	): Promise<string[]> {
 		const fs = this._fs;
-		const dirNames = await this._readDirectory(ctx, ctx.basePath, collectDiagnostics);
+		const dirNames = await this._readDirectory(ctx, ctx.basePath, collectDiagnostics) ?? [];
 
 		const branchNames = dirNames
 			.filter((dirName) => dirName.startsWith('assets_') && dirName.length > 'assets_'.length)
@@ -648,7 +648,7 @@ export class ProjectReader {
 
 		for (const branchName of branchNames) {
 			const branchAssetsPath = fs.join(ctx.basePath, `assets_${branchName}`);
-			const packageDirs = await this._readDirectory(ctx, branchAssetsPath, collectDiagnostics);
+			const packageDirs = await this._readDirectory(ctx, branchAssetsPath, collectDiagnostics) ?? [];
 
 			for (const dirName of packageDirs) {
 				const pkgXmlPath = fs.join(branchAssetsPath, dirName, 'package_branch.xml');
@@ -671,11 +671,12 @@ export class ProjectReader {
 		return branchNames;
 	}
 
-	private async _readDirectory(ctx: ReaderContext, path: string, collectDiagnostics: boolean, optional = false): Promise<string[]> {
+	private async _readDirectory(ctx: ReaderContext, path: string, collectDiagnostics: boolean, optional = false, probe = false): Promise<string[] | null> {
 		try {
 			return await this._fs.readdir(path);
 		} catch (error) {
 			const failure = error as { code?: string; name?: string } | null;
+			if (probe && (failure?.code === 'ENOTDIR' || failure?.name === 'TypeMismatchError')) return null;
 			if (optional && (failure?.code === 'ENOENT' || failure?.name === 'NotFoundError')) return [];
 			if (!collectDiagnostics) throw error;
 			ctx.addDiagnostic({
@@ -685,7 +686,7 @@ export class ProjectReader {
 				message: `Failed to enumerate project directory: ${error instanceof Error ? error.message : String(error)}`,
 				sourcePath: path,
 			});
-			return [];
+			return null;
 		}
 	}
 
@@ -896,11 +897,12 @@ export class ProjectReader {
 		}));
 		const folders = pkg.listResourceFolders();
 		const visit = async (directory: string, parentPath: string, entries?: string[]): Promise<void> => {
-			const names = entries ?? await this._readDirectory(ctx, directory, collectDiagnostics);
+			const names = entries ?? await this._readDirectory(ctx, directory, collectDiagnostics) ?? [];
 			for (const name of [...names].sort((left, right) => left.localeCompare(right))) {
 				const childDirectory = this._fs.join(directory, name);
 				if (this._fs.stat && !(await this._fs.stat(childDirectory)).isDirectory()) continue;
-				const childEntries = await this._readDirectory(ctx, childDirectory, collectDiagnostics);
+				const childEntries = await this._readDirectory(ctx, childDirectory, collectDiagnostics, false, !this._fs.stat);
+				if (childEntries === null) continue;
 				const path = normalizeResourceFolderPath(`${parentPath}/${name}`);
 				const attrs = metadata.get(path);
 				folders.push({

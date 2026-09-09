@@ -23,34 +23,62 @@ test('an unreadable asset directory cannot become a writable empty session', asy
 	await runtime.closeSession({ sessionId: opened.data.sessionId });
 });
 
-test('a failed lock release keeps the session retryable and blocks a second owner', async (t) => {
+test.serial('Node lock read failures keep the session retryable and block a second owner', async (t) => {
 	const fixture = await createTempBackendProject();
 	t.teardown(() => fixture.cleanup());
 	const base = createNodeBackendFileSystem();
-	let failRelease = true;
-	const runtime = createBackendRuntime({ fileSystem: { ...base, acquireSessionLock: async (lockPath) => {
-		const lock = await base.acquireSessionLock(lockPath);
-		return { ...lock, release: async () => {
-			if (failRelease) throw new Error('injected lock release failure');
-			await lock.release();
-		} };
-	} } });
+	const runtime = createBackendRuntime({ fileSystem: base });
 	const opened = await runtime.openSession({ projectPath: fixture.fairyPath });
 	t.true(opened.ok);
 	if (!opened.ok) return;
 	const input = { sessionId: opened.data.sessionId };
-	const failed = await runtime.closeSession(input);
-	t.false(failed.ok);
-	if (!failed.ok) t.is(failed.error.code, 'session_close_failed');
-	const retained = runtime.getSession(input);
-	t.true(retained.ok && retained.data.lockHeld);
-	t.false((await createBackendRuntime().openSession({ projectPath: fixture.fairyPath })).ok);
-	failRelease = false;
+	const lockPath = base.getSessionLockPath!(opened.data.canonicalProjectPath!);
+	const readFile = fs.readFile;
+	for (const code of ['EIO', 'EACCES']) {
+		fs.readFile = ((...args: Parameters<typeof fs.readFile>) => {
+			if (args[0] === lockPath) return Promise.reject(Object.assign(new Error('injected lock read failure'), { code }));
+			return readFile(...args);
+		}) as typeof fs.readFile;
+		try {
+			const failed = await runtime.closeSession(input);
+			t.false(failed.ok);
+			if (!failed.ok) t.is(failed.error.code, 'session_close_failed');
+		} finally {
+			fs.readFile = readFile;
+		}
+		const retained = runtime.getSession(input);
+		t.true(retained.ok && retained.data.lockHeld);
+		t.true((await fs.stat(lockPath)).isFile());
+		t.false((await createBackendRuntime().openSession({ projectPath: fixture.fairyPath })).ok);
+	}
 	t.true((await runtime.closeSession(input)).ok);
 	const next = createBackendRuntime();
 	const reopened = await next.openSession({ projectPath: fixture.fairyPath });
 	t.true(reopened.ok);
 	if (reopened.ok) await next.closeSession({ sessionId: reopened.data.sessionId });
+});
+
+test('Node lock release rejects corrupt or foreign metadata without unlinking and tolerates a missing lock', async (t) => {
+	const fixture = await createTempBackendProject();
+	t.teardown(() => fixture.cleanup());
+	const base = createNodeBackendFileSystem();
+	const lockPath = base.getSessionLockPath!(fixture.rootDir);
+	const lock = await base.acquireSessionLock(lockPath);
+	await lock.writeMetadata('{}');
+	const original = await fs.readFile(lockPath, 'utf8');
+	for (const content of ['invalid json', JSON.stringify({ ...JSON.parse(original), token: 'another-owner' })]) {
+		await fs.writeFile(lockPath, content);
+		await t.throwsAsync(lock.release(), { message: /Cannot release session lock:/ });
+		t.is(await fs.readFile(lockPath, 'utf8'), content);
+	}
+	await fs.writeFile(lockPath, original);
+	await lock.release();
+	await t.throwsAsync(fs.stat(lockPath), { code: 'ENOENT' });
+	const missing = await base.acquireSessionLock(lockPath);
+	await missing.writeMetadata('{}');
+	await fs.unlink(lockPath);
+	await t.notThrowsAsync(missing.release());
+	await t.notThrowsAsync(missing.release());
 });
 
 test('a locked file session rejects storage rebinding before writing the new target', async (t) => {

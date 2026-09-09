@@ -103,7 +103,7 @@ Gear 字符串解析归 `bridge-lift.ts`；具体属性的 Document setter 映�
 
 `SessionOperationQueue` 串行化同一会话的预演、提交、保存、物化和关闭，不阻塞其他会话。`SessionRegistry` 独占会话与路径索引：打开工程和物化到新存储在异步 I/O 前预占目标，成功后提交绑定，失败只释放自己的预占。重新绑定失败保留原绑定；宿主提供的跨运行时锁和存储事务仍负责各自边界。
 
-排队前复制保存、物化和关闭的请求值；存储适配器保持原对象身份。UAM 规范化独立持有 Gear 状态值、资源元数据和源字节。目录枚举失败产生不完整读取，文件会话不能将其当作完整 UAM 写回。已持有文件锁的会话拒绝改绑存储；`closeSession` 释放锁失败返回 `session_close_failed`，保留会话和锁记录，修正故障后可重试关闭。
+排队前复制保存、物化和关闭的请求值；存储适配器保持原对象身份。UAM 规范化独立持有 Gear 状态值、资源元数据和源字节。目录枚举失败产生不完整读取，文件会话不能将其当作完整 UAM 写回。已持有文件锁的会话拒绝改绑存储；`closeSession` 释放锁失败返回 `session_close_failed`，保留会话和锁记录，修正故障后可重试关闭。Node 仅将锁文件不存在视为已释放；锁元数据读取失败、损坏或 token 不匹配都会报错并保留锁文件。
 
 `ReadService` 只接收包含嵌套只读 UAM 的会话视图，检查响应预算后返回脱离会话的数据；`AuthoringService` 只持有事务所需的会话查询、缓存/事件命令与队列。`RuntimeService` 负责打开和关闭，`PersistenceService` 负责保存和物化，实际工程写入复用 `session-project-writer.ts`。`EventService` 和 `CacheService` 分别独占事件序列/日志和缓存集合，只查询各自所需的会话字段。
 
