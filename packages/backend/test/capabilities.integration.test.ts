@@ -21,8 +21,8 @@ test('getCapabilities reports derived ownership and runtime capabilities', (t) =
 	t.is(result.data.transactionKernelOwner, '@openfairygui/core');
 	t.is(result.data.appSeamOwner, '@openfairygui/functions');
 	t.is(result.data.runtimeOwner, '@openfairygui/backend');
-	t.is(result.data.contractVersion, '2.0.0-p3');
-	t.is(result.data.capabilitySchemaVersion, 11);
+	t.is(result.data.contractVersion, '3.0.0');
+	t.is(result.data.capabilitySchemaVersion, 12);
 	t.is(result.data.manifest.diagnostics.recoveryGuides, 'all-formal-codes');
 	t.false(result.data.manifest.diagnostics.automaticRepair);
 	t.true(result.data.read.capabilitySnapshot);
@@ -53,8 +53,6 @@ test('getCapabilities reports derived ownership and runtime capabilities', (t) =
 	t.is(result.data.runtime.pathPolicy.saveTarget, 'opened-project-only');
 	t.true(result.data.runtime.events.polling);
 	t.false(result.data.runtime.events.subscriptions);
-	t.deepEqual(result.data.runtime.jobs.supportedKinds, ['cache.refresh']);
-	t.false(result.data.runtime.jobs.artifactJobs);
 	t.true(result.data.runtime.cache.derivedReadOnly);
 });
 

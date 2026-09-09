@@ -199,7 +199,7 @@ export async function writeComponent(
 		const [w, h] = [typedComp.getWidth?.() ?? 0, typedComp.getHeight?.() ?? 0];
 		if (w || h) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.size, formatProjectInt32List([w, h], 'component size'));
 		const [pivotX, pivotY] = [typedComp.getPivotX?.() ?? 0, typedComp.getPivotY?.() ?? 0];
-		if (pivotX !== 0 || pivotY !== 0) {
+		if (pivotX !== 0 || pivotY !== 0 || typedComp.getPivotAsAnchor?.()) {
 			writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.pivot, `${pivotX},${pivotY}`);
 			if (typedComp.getPivotAsAnchor?.()) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.anchor, 'true');
 		}

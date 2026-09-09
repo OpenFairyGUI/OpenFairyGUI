@@ -144,6 +144,25 @@ export interface BackendFileStat {
 	isDirectory(): boolean;
 }
 
+/** A failed staged write with an explicit outcome for the original project. */
+export class ProjectWriteTransactionError extends Error {
+	public readonly code = 'project_write_transaction_failed';
+
+	/** Recognizes the same contract across separately bundled Node/root or ESM/CJS entries. */
+	public static is(error: unknown): error is ProjectWriteTransactionError {
+		if (typeof error !== 'object' || error === null) return false;
+		const value = error as Partial<ProjectWriteTransactionError>;
+		return value.code === 'project_write_transaction_failed' && typeof value.message === 'string'
+			&& typeof value.diskMayBePartiallyUpdated === 'boolean'
+			&& Array.isArray(value.recoveryPaths) && value.recoveryPaths.every((path) => typeof path === 'string');
+	}
+
+	constructor(cause: unknown, public readonly diskMayBePartiallyUpdated: boolean, public readonly recoveryPaths: string[] = []) {
+		super(cause instanceof Error ? cause.message : String(cause), { cause });
+		this.name = 'ProjectWriteTransactionError';
+	}
+}
+
 export interface BackendFileSystem {
 	stat(filePath: string): Promise<BackendFileStat>;
 	readdir(dirPath: string): Promise<string[]>;
@@ -157,7 +176,7 @@ export interface BackendFileSystem {
 	validateProjectRoot?(projectRoot: string): Promise<void>;
 	/** Optional host-specific lock location. Node keeps it beside the project so directory swaps do not move it. */
 	getSessionLockPath?(canonicalProjectPath: string): string;
-	/** Runs project writes against a staged copy and commits them as one directory swap. */
+	/** Stages project writes. On failure, throw ProjectWriteTransactionError to report rollback and recovery paths. */
 	runProjectWriteTransaction?(
 		projectRoot: string,
 		write: (stagedFileSystem: BackendFileSystem) => Promise<void>,
@@ -274,17 +293,10 @@ export interface BackendCapabilities {
 			retentionLimit: 1000;
 			sequenceScope: 'runtime';
 		};
-		jobs: {
-			inMemory: true;
-			cooperativeCancel: true;
-			persistent: false;
-			supportedKinds: readonly ['cache.refresh'];
-			artifactJobs: false;
-			completedRetentionLimit: 100;
-		};
 		cache: {
 			derivedReadOnly: true;
-			keyedBy: 'canonicalPathKey';
+			keyedBy: 'sessionId';
+			refreshMode: 'synchronous';
 			sourceOfTruth: false;
 			refreshMethod: 'refreshCache';
 		};
@@ -364,6 +376,13 @@ export interface SessionNotFoundError {
 	sessionId: string;
 }
 
+export interface SessionCloseFailedError {
+	code: 'session_close_failed';
+	message: string;
+	sessionId: string;
+	lockFilePath: string;
+}
+
 export interface SessionStaleWriteError {
 	code: 'stale_write';
 	message: string;
@@ -407,6 +426,7 @@ export interface SavePartialFailureError {
 	committedPaths: string[];
 	failedPaths: string[];
 	diskMayBePartiallyUpdated: boolean;
+	recoveryPaths?: string[];
 }
 
 export interface UamFidelityUnsupportedError {
@@ -437,6 +457,7 @@ export interface MaterializeWriteFailedError {
 	skippedPaths: string[];
 	diagnostics: BackendDiagnostic[];
 	diskMayBePartiallyUpdated: boolean;
+	recoveryPaths?: string[];
 }
 
 export type BackendEventKind =
@@ -449,14 +470,7 @@ export type BackendEventKind =
 	| 'session.closeRequested'
 	| 'session.closed'
 	| 'cache.invalidated'
-	| 'cache.updated'
-	| 'job.created'
-	| 'job.started'
-	| 'job.progress'
-	| 'job.cancelRequested'
-	| 'job.cancelled'
-	| 'job.completed'
-	| 'job.failed';
+	| 'cache.updated';
 
 export interface BackendEvent {
 	sequence: number;
@@ -466,7 +480,6 @@ export interface BackendEvent {
 	canonicalPathKey?: string;
 	revision?: number;
 	cacheRevision?: number;
-	jobId?: string;
 	diagnostics: BackendDiagnostic[];
 	payload?: unknown;
 }
@@ -491,84 +504,6 @@ export interface EventCursorInvalidError {
 	after: string;
 }
 
-export type BackendJobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
-export type BackendJobKind = 'cache.refresh';
-export type BackendJobListStatusFilter = BackendJobStatus | 'active' | 'terminal';
-
-export interface BackendJobProgress {
-	completed: number;
-	total?: number;
-	message?: string;
-}
-
-export interface BackendJobSnapshot {
-	jobId: string;
-	kind: BackendJobKind;
-	status: BackendJobStatus;
-	createdAt: string;
-	startedAt?: string;
-	finishedAt?: string;
-	sessionId?: string;
-	canonicalPathKey?: string;
-	revision?: number;
-	cacheRevision?: number;
-	diagnostics: BackendDiagnostic[];
-	progress?: BackendJobProgress;
-	result?: unknown;
-	error?: BackendError;
-}
-
-export interface BackendJobListSnapshot {
-	jobs: BackendJobSnapshot[];
-}
-
-export interface GetJobInput {
-	sessionId: string;
-	jobId: string;
-}
-
-export interface ListJobsInput {
-	sessionId: string;
-	status?: BackendJobListStatusFilter;
-	kind?: BackendJobKind;
-	limit?: number;
-}
-
-export interface CancelJobInput {
-	sessionId: string;
-	jobId: string;
-}
-
-export interface BackendJobNotFoundError {
-	code: 'job_not_found';
-	message: string;
-	sessionId: string;
-	jobId: string;
-}
-
-export interface BackendJobNotCancellableError {
-	code: 'job_not_cancellable';
-	message: string;
-	sessionId: string;
-	jobId: string;
-	status: 'completed' | 'failed' | 'cancelled';
-}
-
-export interface BackendJobCancelledError {
-	code: 'job_cancelled';
-	message: string;
-	sessionId: string;
-	jobId: string;
-}
-
-export interface CacheRefreshFailedError {
-	code: 'cache_refresh_failed';
-	message: string;
-	sessionId: string;
-	jobId: string;
-	causeCode?: string;
-}
-
 export interface BackendCapabilityUnavailableError {
 	code: 'capability_unavailable';
 	message: string;
@@ -577,12 +512,6 @@ export interface BackendCapabilityUnavailableError {
 	requiredHost?: 'node';
 	bridgeBoundary?: 'external-bridge';
 }
-
-export type BackendJobErrors =
-	| BackendJobNotFoundError
-	| BackendJobNotCancellableError
-	| BackendJobCancelledError
-	| CacheRefreshFailedError;
 
 export interface BackendCacheSnapshot {
 	cacheRevision: number;
@@ -615,6 +544,7 @@ export interface RefreshCacheInput {
 
 export type BackendError =
 	| SessionNotFoundError
+	| SessionCloseFailedError
 	| TransactionPreviewError
 	| EntityQueryError
 	| SessionReadError
@@ -629,10 +559,6 @@ export type BackendError =
 	| MaterializeWriteFailedError
 	| PathPolicyViolationError
 	| EventCursorInvalidError
-	| BackendJobNotFoundError
-	| BackendJobNotCancellableError
-	| BackendJobCancelledError
-	| CacheRefreshFailedError
 	| BackendCapabilityUnavailableError
 	| ProjectRootNotAllowedError
 	| ProjectOpenFailedError

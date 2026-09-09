@@ -7,26 +7,24 @@ import {
 	type BackendStage,
 } from '../contracts.js';
 import { enrichBackendDiagnostic } from '../diagnostics.js';
+import type { SessionRegistry } from './session-registry.js';
 import type {
-	BackendCacheEntry,
 	BackendCapabilities,
 	BackendError,
-	BackendEvent,
 	BackendFailure,
 	BackendFileSystem,
 	BackendHostAdapter,
-	BackendJobSnapshot,
 	BackendSessionLock,
 	BackendSessionSnapshot,
 	BackendSuccess,
 } from '../runtime.js';
 
 export interface BackendSessionState {
-	sessionId: string;
-	fairyPath: string;
-	canonicalProjectPath: string;
-	canonicalPathKey: string;
-	lockFilePath: string;
+	readonly sessionId: string;
+	readonly fairyPath: string;
+	readonly canonicalProjectPath: string;
+	readonly canonicalPathKey: string;
+	readonly lockFilePath: string;
 	sessionLock: BackendSessionLock | null;
 	fileSystem?: BackendFileSystem;
 	project: import('@openfairygui/core/uam').UamProject;
@@ -51,12 +49,27 @@ export interface BackendContext {
 	host?: BackendHostAdapter;
 	allowedProjectRoots?: readonly string[];
 	capabilities: BackendCapabilities;
-	sessions: Map<string, BackendSessionState>;
-	sessionsByPath: Map<string, string>;
-	eventsBySession: Map<string, BackendEvent[]>;
-	jobsBySession: Map<string, BackendJobSnapshot[]>;
-	cacheBySession: Map<string, BackendCacheEntry>;
-	nextEventSequence: () => number;
+	sessions: SessionRegistry;
+}
+
+/** Borrowed data is read-only, including nested arrays and primary resource bytes. */
+export type ReadonlyData<T> = unknown extends T ? T : T extends Uint8Array
+	? Readonly<Pick<Uint8Array, 'length' | 'byteLength' | typeof Symbol.iterator>> & { readonly [index: number]: number }
+	: { readonly [K in keyof T]: ReadonlyData<T[K]> };
+
+export type SessionReadView = ReadonlyData<Pick<BackendSessionState,
+	'sessionId' | 'canonicalProjectPath' | 'canonicalPathKey' | 'project' | 'readDiagnostics' | 'readComplete'
+	| 'uamFidelity' | 'revision' | 'lastSavedRevision' | 'dirty' | 'lockHeld' | 'closed'>>;
+export type SessionLookup = (sessionId: string) => SessionReadView | undefined;
+
+/** Borrow without copying the entire project before a read has checked its response budget. */
+export function readView<T>(value: T): ReadonlyData<T> {
+	return value as ReadonlyData<T>;
+}
+
+/** A detached copy is writable again; this is the only conversion from a borrowed read view. */
+export function cloneReadData<T>(value: ReadonlyData<T>): T {
+	return structuredClone(value) as T;
 }
 
 function diagnosticFromError(error: BackendError): BackendDiagnostic {

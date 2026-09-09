@@ -1,15 +1,16 @@
 import type { Document } from '../document.js';
 import type { Component } from '../properties/component.js';
+import type { ImageResource } from '../properties/image-resource.js';
 import type { Package, PackageResourceFolder } from '../properties/package.js';
 import { resourceFolderName, resourceFolderParentPath } from '../utils/resource-folder.js';
 import { renderXmlAttrs } from '../utils/xml-utils.js';
 import { writeComponent } from './component-xml-writer.js';
 import { assertDisplayObjectGearXmlValues } from './display-object-xml-writer.js';
 import type { FileSystem } from './file-system.js';
-import type { ProjectBranchDirectory, ProjectResourceFolder, ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
+import type { ProjectBranchDirectory, ProjectImageWriteHints, ProjectResourceFolder, ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr } from './project-xml-protocol.js';
 
-export type { ProjectBranchDirectory, ProjectResourceFolder, ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
+export type { ProjectBranchDirectory, ProjectImageWriteHints, ProjectResourceFolder, ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
 
 type PackageResource = ReturnType<Package['listResources']>[number];
 
@@ -74,9 +75,7 @@ type WritableComponent = Component & {
 	getPath?(): string;
 };
 
-function shouldWritePackageImageSize(resource: WritableImageResource): boolean {
-	return resource.getExtras?.()?._suppressPackageSize !== true;
-}
+const imageWriteHints = new WeakMap<ImageResource, ProjectImageWriteHints>();
 
 function compareResourceIdSequence(a: string, b: string): number {
 	const left = a.toLowerCase();
@@ -87,6 +86,18 @@ function compareResourceIdSequence(a: string, b: string): number {
 
 export class ProjectWriter {
 	private readonly _fs: FileSystem;
+
+	/** Replaces hints for every subsequent write of this image, including another Writer instance. */
+	static setImageWriteHints(resource: ImageResource, hints: ProjectImageWriteHints): void {
+		if (hints.packageOrder && (typeof hints.packageOrder.afterId !== 'string' || !Number.isFinite(hints.packageOrder.weight))) {
+			throw new TypeError('Image package order requires a string afterId and finite weight.');
+		}
+		if (hints.omitPackageSize === true || hints.packageOrder) imageWriteHints.set(resource, {
+			omitPackageSize: hints.omitPackageSize,
+			packageOrder: hints.packageOrder && { ...hints.packageOrder },
+		});
+		else imageWriteHints.delete(resource);
+	}
 
 	constructor(fs: FileSystem) {
 		this._fs = fs;
@@ -398,12 +409,24 @@ export class ProjectWriter {
 		}
 	}
 
+	private async _stalePaths(currentPaths: Set<string>, stalePaths: Set<string>): Promise<string[]> {
+		const fs = this._fs;
+		const identity = async (path: string): Promise<string> => fs.resolvePath && await fs.exists(path)
+			? fs.resolvePath(path) : path;
+		const current = new Set(await Promise.all([...currentPaths].map(identity)));
+		const candidates: string[] = [];
+		for (const path of stalePaths) {
+			if (!current.has(await identity(path))) candidates.push(path);
+		}
+		return candidates;
+	}
+
 	private async _removeStaleSourceFiles(
 		currentSourceFilePaths: Set<string>,
 		staleSourceFilePaths: Set<string>,
 	): Promise<void> {
 		const fs = this._fs;
-		const candidates = [...staleSourceFilePaths].filter((filePath) => !currentSourceFilePaths.has(filePath));
+		const candidates = await this._stalePaths(currentSourceFilePaths, staleSourceFilePaths);
 		if (candidates.length === 0) return;
 		if (!fs.unlink) {
 			throw new Error('Project source cleanup requires a FileSystem.unlink() implementation.');
@@ -418,8 +441,7 @@ export class ProjectWriter {
 		currentResourceFolderPaths: Set<string>,
 		staleResourceFolderPaths: Set<string>,
 	): Promise<void> {
-		const candidates = [...staleResourceFolderPaths]
-			.filter((folderPath) => !currentResourceFolderPaths.has(folderPath))
+		const candidates = (await this._stalePaths(currentResourceFolderPaths, staleResourceFolderPaths))
 			.sort((left, right) => right.length - left.length);
 		if (candidates.length === 0) return;
 		if (!this._fs.rmdir) {
@@ -435,8 +457,7 @@ export class ProjectWriter {
 		currentBranchDirectoryPaths: Set<string>,
 		staleBranchDirectoryPaths: Set<string>,
 	): Promise<void> {
-		const candidates = [...staleBranchDirectoryPaths]
-			.filter((directoryPath) => !currentBranchDirectoryPaths.has(directoryPath))
+		const candidates = (await this._stalePaths(currentBranchDirectoryPaths, staleBranchDirectoryPaths))
 			.sort((left, right) => right.length - left.length);
 		for (const directoryPath of candidates) {
 			if (!(await this._fs.exists(directoryPath))) continue;
@@ -462,6 +483,7 @@ export class ProjectWriter {
 
 		for (const branchName of new Set([...pkg.listBranchNames(), ...resourcesByBranch.keys(), ...foldersByBranch.keys()])) {
 			const resources = resourcesByBranch.get(branchName) ?? [];
+			this._orderedPackageResources(resources, pkg.getExtras()._preservePackageResourceOrder === true);
 			if (branchName) this._assertSafePathSegment(branchName, 'branch name');
 			const descriptorName = branchName ? 'package_branch.xml' : 'package.xml';
 			const targets = new Map<string, string>([[descriptorName, 'package descriptor']]);
@@ -632,33 +654,32 @@ export class ProjectWriter {
 				(a as WritableResource).getId?.() ?? '',
 				(b as WritableResource).getId?.() ?? '',
 			));
-		const syntheticAfter = new Map<string, Array<{ resource: PackageResource; weight: number }>>();
+		const orderOf = (resource: PackageResource) => resource.propertyType === 'ImageResource'
+			? imageWriteHints.get(resource)?.packageOrder : undefined;
+		const anchors = new Set(original.filter((resource) => !orderOf(resource)).map((resource) => resource.getId()));
+		const resourcesAfter = new Map<string, Array<{ resource: PackageResource; weight: number }>>();
 		const trailing: Array<{ resource: PackageResource; weight: number }> = [];
 
 		for (const resource of original) {
-			const extras = (resource as WritableResource).getExtras?.() ?? {};
-			const afterId = typeof extras._packageOrderAfterId === 'string' ? extras._packageOrderAfterId : '';
-			const weight = typeof extras._packageOrderWeight === 'number' ? extras._packageOrderWeight : 0;
+			const order = orderOf(resource);
+			if (!order) continue;
+			const { afterId, weight } = order;
 			if (afterId) {
-				const bucket = syntheticAfter.get(afterId) ?? [];
+				if (!anchors.has(afterId)) throw new Error(`Invalid image package order anchor "${afterId}" for "${resource.getId()}".`);
+				const bucket = resourcesAfter.get(afterId) ?? [];
 				bucket.push({ resource, weight });
-				syntheticAfter.set(afterId, bucket);
+				resourcesAfter.set(afterId, bucket);
 				continue;
 			}
-			if (extras._syntheticFontGlyph === true || extras._syntheticFontTexture === true) {
-				trailing.push({ resource, weight });
-			}
+			trailing.push({ resource, weight });
 		}
 
 		const result: PackageResource[] = [];
 		for (const resource of original) {
-			const extras = (resource as WritableResource).getExtras?.() ?? {};
-			if (extras._packageOrderAfterId || extras._syntheticFontGlyph === true || extras._syntheticFontTexture === true) {
-				continue;
-			}
+			if (orderOf(resource)) continue;
 			result.push(resource);
 			const id = (resource as WritableResource).getId?.() ?? '';
-			const bucket = syntheticAfter.get(id) ?? [];
+			const bucket = resourcesAfter.get(id) ?? [];
 			bucket.sort((a, b) =>
 				a.weight - b.weight
 				|| compareResourceIdSequence((a.resource as WritableResource).getId?.() ?? '', (b.resource as WritableResource).getId?.() ?? ''),
@@ -715,7 +736,7 @@ export class ProjectWriter {
 				} else if (scaleOpt === 2) {
 					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.scale, 'tile');
 				}
-				if (shouldWritePackageImageSize(imgRes)) {
+				if (imageWriteHints.get(res)?.omitPackageSize !== true) {
 					const width = imgRes.getWidth?.() ?? 0;
 					if (width !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.width, String(width));
 					const height = imgRes.getHeight?.() ?? 0;
@@ -820,8 +841,9 @@ export class ProjectWriter {
 		const names: Record<number, string> = {
 			0: 'Unity', 1: 'Flash', 2: 'Starling', 3: 'CocosCreator',
 			4: 'Layabox', 5: 'Egret', 6: 'Haxe', 7: 'Pixi',
-			8: 'LibGDX', 9: 'Unreal',
+			8: 'LibGDX', 9: 'Unreal', 10: 'CryEngine', 11: 'MonoGame', 12: 'Vision',
 		};
-		return names[type] ?? 'Unity';
+		if (names[type] === undefined) throw new Error(`Unsupported project type "${type}".`);
+		return names[type];
 	}
 }

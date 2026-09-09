@@ -16,6 +16,17 @@ export interface ProjectReadResult {
 	complete: boolean;
 }
 
+/** In-memory serialization hints attached to an image's identity, not project protocol fields. */
+export interface ProjectImageWriteHints {
+	/** Omit inferred dimensions from package.xml while retaining them on the image resource. */
+	omitPackageSize?: boolean;
+	/**
+	 * Insert after an unhinted resource in the same package/branch; an empty afterId appends.
+	 * Images sharing an anchor sort by finite weight, then resource ID.
+	 */
+	packageOrder?: { afterId: string; weight: number };
+}
+
 export interface ProjectWriteOptions {
 	/**
 	 * Previous package-controlled files to remove only after every new project file

@@ -1,3 +1,4 @@
+import { applyDisplayNodePropsUpdate } from '../property-updates.js';
 import type { UamComponentResource, UamDisplayNode, UamPackage, UamProject } from '../model.js';
 import { deriveMovieClipModelFromJta } from '../../utils/jta-parser.js';
 import {
@@ -19,7 +20,6 @@ import {
 	isResourceFolderLifecycleOperation,
 } from '../transaction-shared.js';
 import {
-	applyDisplayNodePropsUpdate,
 	applyUamDisplayListRewriteOperation,
 	applyUamLifecycleOperation,
 	applyUamResourceLifecycleOperation,

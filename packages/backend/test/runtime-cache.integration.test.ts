@@ -1,7 +1,7 @@
 import test from 'ava';
-import { createBackendRuntime, createTempBackendProject, waitForBackendJobStatus } from './helpers.js';
+import { createBackendRuntime, createTempBackendProject } from './helpers.js';
 
-test('cache is derived, revision-bound, invalidated by transaction, and refreshed by job', async (t) => {
+test('cache is derived, revision-bound, invalidated by transaction, and refreshed synchronously', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {
 		const runtime = createBackendRuntime();
@@ -46,10 +46,13 @@ test('cache is derived, revision-bound, invalidated by transaction, and refreshe
 		const refresh = runtime.refreshCache({ sessionId: opened.data.sessionId });
 		t.true(refresh.ok);
 		if (!refresh.ok) return;
-		t.is(refresh.data.kind, 'cache.refresh');
-		t.is(refresh.data.status, 'queued');
-		const completed = await waitForBackendJobStatus(runtime, opened.data.sessionId, refresh.data.jobId, 'completed');
-		t.is(completed.status, 'completed');
+		t.is(refresh.data.cacheRevision, 1);
+		t.true(refresh.data.entries[0]?.valid);
+		t.true(refresh.data.entries[0]?.dirty);
+		t.is(refresh.data.entries[0]?.lastSavedRevision, 0);
+		refresh.data.entries[0]!.summary.resourceCount = -1;
+		const events = runtime.getEvents({ sessionId: opened.data.sessionId });
+		if (events.ok) t.deepEqual(events.data.events.map((event) => event.kind), ['session.opened', 'transaction.applied', 'cache.invalidated', 'cache.updated']);
 
 		const refreshed = runtime.getCacheSnapshot({ sessionId: opened.data.sessionId });
 		t.true(refreshed.ok);
@@ -75,6 +78,9 @@ test('closeSession removes session-bound cache entry', async (t) => {
 
 		const cache = runtime.getCacheSnapshot({ sessionId: opened.data.sessionId });
 		t.false(cache.ok);
+		const refresh = runtime.refreshCache({ sessionId: opened.data.sessionId });
+		t.false(refresh.ok);
+		if (!refresh.ok) t.is((refresh as Extract<typeof refresh, { ok: false }>).error.code, 'session_not_found');
 		if (!cache.ok) {
 			const failure = cache as Extract<typeof cache, { ok: false }>;
 			t.is(failure.error.code, 'session_not_found');

@@ -26,7 +26,7 @@ It also provides:
 - backend contract versioning surface
 - compatibility policy
 - polling runtime events with per-runtime monotonic sequence and bounded retention
-- `cache.refresh` in-memory jobs with cooperative cancel and terminal retention
+- synchronous cache refresh returning a detached revision-bound snapshot
 - revision-bound derived read-only cache snapshots
 - revision-bound project identity outlines for transaction planning
 - bounded, detached public UAM model and primary resource-byte reads with edit-revision checks
@@ -53,7 +53,7 @@ unrepresented persisted properties expose `uamFidelity: 'unsupported'`, and writ
 `uam_fidelity_unsupported`. Existing projects in browser storage must be opened through this path by
 injecting `createBackendStorageFileSystem(storage)` into `BackendRuntime`; `openProjectSession` is only
 for sessions whose supplied UAM project is authoritative. Transactions, saves, and materialization are
-serialized per session.
+serialized per session together with close. Opening and storage rebinding reserve the canonical target before asynchronous I/O; failed rebinding retains the original session binding.
 
 ## Relationship to other packages
 
@@ -145,7 +145,7 @@ console.log(capabilities.data.compatibilityPolicy.incompatibleChange);
 
 const refresh = runtime.refreshCache({ sessionId: opened.data.sessionId });
 if (refresh.ok) {
-	console.log(refresh.data.kind, refresh.data.status);
+	console.log(refresh.data.cacheRevision, refresh.data.entries);
 }
 
 await runtime.closeSession({ sessionId: opened.data.sessionId });

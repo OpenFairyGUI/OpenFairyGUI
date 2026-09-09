@@ -1,9 +1,15 @@
+import { assertDocumentPaths, assertSafeRestoreSegment, imageFileName, replaceLooseResourceBaseName, resourceInstanceFileName, type RestoreResource } from './restore-internals/resource-paths.js';
+import { synthesizeLooseSkeletonResources, initializeRestoredResourceRelations } from './restore-internals/skeleton.js';
+import { restoreAssets } from './restore-internals/asset-output.js';
 import {
 	BinaryReader,
 	type Document,
 	type FileSystem,
 	generateId,
 	type Package,
+	GComponent,
+	GImage,
+	GMovieClip,
 	ProjectType,
 	ProjectWriter,
 } from '@openfairygui/core';
@@ -12,7 +18,6 @@ import {
 	basename,
 	commitRestoreOutput,
 	createRestoreStagingDir,
-	isPathWithin,
 	normalizeRestoreOutputDir,
 	resolveOutputProjectPath,
 	trimTrailingSlashes,
@@ -23,11 +28,7 @@ import {
 	initializePublishedFontDefaults,
 	initializePublishedFontTextureIds,
 	initializePublishedTextFontResources,
-	serializeFont,
-	type RestorableFontGlyph,
 } from './restore-internals/font.js';
-import { normalizeRestoreResourcePath } from './path-utils.js';
-import { serializeMovieClip, type RestorableMovieFrame } from './restore-internals/movie-clip.js';
 
 export interface RestoreImageCropInput {
 	sourcePath: string;
@@ -47,7 +48,7 @@ export type RestoreImageCropper = (input: RestoreImageCropInput) => Promise<void
 export type RestoreImageExtractInput = Omit<RestoreImageCropInput, 'outputPath'>;
 export type RestoreImageExtractor = (input: RestoreImageExtractInput) => Promise<Uint8Array>;
 
-interface RestoreExecutionOptions {
+export interface RestoreExecutionOptions {
 	binaryPaths: string[];
 	sourceDir: string;
 	outputProjectPath: string;
@@ -81,171 +82,7 @@ export interface RestoreOptions {
 	extractImage?: RestoreImageExtractor;
 }
 
-type RestorableResource = ReturnType<Package['listResources']>[number] & {
-	propertyType: string;
-	getName?(): string;
-	getBranch?(): string;
-	getBranchItemIds?(): string[];
-	getExtras?(): Record<string, unknown>;
-	getFile?(): string;
-	getFileName?(): string;
-	getId?(): string;
-	getInterval?(): number;
-	getLineHeight?(): number;
-	getPath?(): string;
-	getRepeatDelay?(): number;
-	getSwing?(): boolean;
-	getTtf?(): boolean;
-	getExported?(): boolean;
-	getTint?(): boolean;
-	getTextureId?(): string;
-	getRequireIds?(): string[];
-	getAtlasNames?(): string[];
-	getAnchorX?(): number;
-	getAnchorY?(): number;
-	getFontSize?(): number;
-	setExtras?(extras: Record<string, unknown>): unknown;
-	setAtlasNames?(names: string[]): unknown;
-	setBranch?(branch: string): unknown;
-	setBranchItemIds?(ids: string[]): unknown;
-	setExported?(exported: boolean): unknown;
-	setFile?(file: string): unknown;
-	getWidth?(): number;
-	getHeight?(): number;
-	setWidth?(width: number): unknown;
-	setHeight?(height: number): unknown;
-	listFrames?(): RestorableMovieFrame[];
-	listGlyphs?(): RestorableFontGlyph[];
-	setRequireIds?(ids: string[]): unknown;
-	setFileName?(fileName: string): unknown;
-	setPath?(path: string): unknown;
-	setId?(id: string): unknown;
-	setAnchor?(x: number, y: number): unknown;
-	setTextureId?(textureId: string): unknown;
-};
-
-interface RestorableSprite {
-	getItemId(): string;
-	getRectX(): number;
-	getRectY(): number;
-	getRectWidth(): number;
-	getRectHeight(): number;
-	getRotated(): boolean;
-	getOffsetX(): number;
-	getOffsetY(): number;
-	getOriginalWidth(): number;
-	getOriginalHeight(): number;
-}
-
-interface SpriteLookupEntry {
-	sourceAtlas: string;
-	sprite: RestorableSprite;
-}
-
-interface RestorableDisplayObject {
-	getFileName?(): string;
-	getPackageId?(): string;
-	getSrc?(): string;
-	setFileName?(fileName: string): unknown;
-}
-
-const TRANSPARENT_PNG_1X1 = Uint8Array.from([
-	137, 80, 78, 71, 13, 10, 26, 10,
-	0, 0, 0, 13, 73, 72, 68, 82,
-	0, 0, 0, 1, 0, 0, 0, 1,
-	8, 6, 0, 0, 0, 31, 21, 196,
-	137, 0, 0, 0, 13, 73, 68, 65,
-	84, 120, 156, 99, 96, 0, 0, 0,
-	2, 0, 1, 229, 39, 212, 138, 0,
-	0, 0, 0, 73, 69, 78, 68, 174,
-	66, 96, 130,
-]);
-
-function assertSafeRestoreSegment(value: string, label: string): void {
-	if (!value || value === '.' || value === '..' || value.includes('\0') || /[\\/:]/u.test(value)) {
-		throw new Error(`restore: Invalid ${label} "${value}".`);
-	}
-}
-
-function resourceFileName(resource: RestorableResource): string {
-	return resource.getFileName?.() || resource.getFile?.() || resource.getName?.() || '';
-}
-
-function resourcePublishedFileName(resource: RestorableResource): string {
-	const extras = resource.getExtras?.() ?? {};
-	const publishedFile = extras._publishedFile;
-	return typeof publishedFile === 'string' ? publishedFile : resourceFileName(resource);
-}
-
-function normalizePublishedLooseResourceFileName(resource: RestorableResource, fileName: string): string {
-	if (resource.propertyType === 'MiscResource' && /\.atlas\.txt$/i.test(fileName)) {
-		return fileName.replace(/\.atlas\.txt$/i, '.atlas');
-	}
-	if (resource.propertyType === 'SpineResource' && /\.skel\.bytes$/i.test(fileName)) {
-		return fileName.replace(/\.skel\.bytes$/i, '.skel');
-	}
-	return fileName;
-}
-
-function replaceLooseResourceBaseName(resource: RestorableResource, fileName: string): string {
-	const normalized = normalizePublishedLooseResourceFileName(resource, fileName);
-	const displayName = resource.getName?.() ?? '';
-	if (!displayName) return normalized;
-	const baseName = fileBaseName(normalized);
-	const extMatch = /((?:\.[^.\\/]+)+)$/u.exec(baseName);
-	const ext = extMatch?.[1] ?? '';
-	const currentBaseName = ext ? baseName.slice(0, -ext.length) : baseName;
-	const resourceId = resource.getId?.() ?? '';
-	if (!resourceId || currentBaseName.toLowerCase() !== resourceId.toLowerCase()) return normalized;
-	const dir = normalized.slice(0, normalized.length - baseName.length);
-	return `${dir}${displayName}${ext}`;
-}
-
-function fileBaseName(fileName: string): string {
-	return fileName.split(/[\\/]/).pop() ?? fileName;
-}
-
-function stripExtension(fileName: string): string {
-	return fileBaseName(fileName).replace(/\.[^.]+$/u, '');
-}
-
-function resourceInstanceFileName(resource: RestorableResource): string {
-	const rawFileName = resource.propertyType === 'Component'
-		? `${resource.getName?.() ?? resource.getId?.() ?? 'component'}.xml`
-		: resourceFileName(resource);
-	const fileName = rawFileName.replace(/\\/g, '/').replace(/^\/+/, '');
-	if (!fileName) return '';
-	if (fileName.includes('/')) return fileName;
-	const virtualPath = normalizeRestoreResourcePath(resource.getPath?.());
-	return virtualPath ? `${virtualPath}/${fileName}` : fileName;
-}
-
-function isSyntheticFontGlyphResource(resource: RestorableResource): boolean {
-	return resource.getExtras?.()?._syntheticFontGlyph === true;
-}
-
-function defaultSyntheticFontGlyphFileName(resourceId: string): string {
-	return `${resourceId}.png`;
-}
-
-function sameVirtualPath(a: RestorableResource, b: RestorableResource): boolean {
-	return normalizeRestoreResourcePath(a.getPath?.()) === normalizeRestoreResourcePath(b.getPath?.());
-}
-
-function imageFileName(resource: RestorableResource): string {
-	const current = resource.getFileName?.() ?? '';
-	if (current) return current;
-	const name = resource.getName?.() ?? resource.getId?.() ?? 'image';
-	const fileName = /\.[a-z0-9]+$/i.test(name) ? name : `${name}.png`;
-	resource.setFileName?.(fileName);
-	return fileName;
-}
-
-function findImageResource(pkg: Package, itemId: string): RestorableResource | null {
-	return (pkg.listResources() as RestorableResource[]).find((resource) => {
-		return resource.propertyType === 'ImageResource' && resource.getId?.() === itemId;
-	}) ?? null;
-}
+type ReferencedDisplayObject = GComponent | GImage | GMovieClip;
 
 function isPublishedBinaryFile(fileName: string): boolean {
 	return /_fui\.bytes$/i.test(fileName) || /\.fui$/i.test(fileName) || /\.bin$/i.test(fileName);
@@ -322,43 +159,27 @@ class RestoreWorkflow {
 	async prepare(options: RestoreExecutionOptions): Promise<Document> {
 		const reader = new BinaryReader(this._fs);
 		const doc = await reader.readMany(options.binaryPaths);
-		this._assertDocumentPaths(doc);
+		assertDocumentPaths(doc);
 		this._initializeProjectDefaults(doc, options.projectType);
 		this._initializeImageFileNames(doc);
 		this._initializeLooseResourceFileNames(doc);
-		this._assertDocumentPaths(doc);
-		await this._synthesizeLooseSkeletonResources(doc, options.sourceDir);
-		this._initializeRestoredResourceRelations(doc);
+		assertDocumentPaths(doc);
+		await synthesizeLooseSkeletonResources(this._fs, doc, options.sourceDir);
+		initializeRestoredResourceRelations(doc);
 		initializePublishedFontTextureIds(doc);
 		initializeFontTextureImageResources(doc);
 		initializeFontGlyphImageResources(doc);
 		initializePublishedTextFontResources(doc);
 		this._initializeDisplayObjectFileNames(doc);
 		initializePublishedFontDefaults(doc);
-		this._assertDocumentPaths(doc);
+		assertDocumentPaths(doc);
 		return doc;
 	}
 
 	async write(doc: Document, options: RestoreExecutionOptions, warnings: string[]): Promise<void> {
 		const writer = new ProjectWriter(this._fs);
 		await writer.write(doc, options.outputProjectPath);
-		await this._restoreAssets(doc, options, warnings);
-	}
-
-	private _assertDocumentPaths(doc: Document): void {
-		for (const pkg of doc.getRoot().listPackages()) {
-			assertSafeRestoreSegment(pkg.getName(), 'package name');
-			assertSafeRestoreSegment(pkg.getPublishName() || pkg.getName(), 'package publish name');
-			for (const resource of pkg.listResources() as RestorableResource[]) {
-				normalizeRestoreResourcePath(resource.getPath?.());
-				const branch = resource.getBranch?.() ?? '';
-				if (branch) assertSafeRestoreSegment(branch, 'branch name');
-				const fileName = resourceFileName(resource);
-				if (fileName) assertSafeRestoreSegment(fileName, 'resource file name');
-				const publishedFileName = resourcePublishedFileName(resource);
-				if (publishedFileName) assertSafeRestoreSegment(publishedFileName, 'published resource file name');
-			}
-		}
+		await restoreAssets(this._fs, doc, options, warnings);
 	}
 
 	private _initializeProjectDefaults(doc: Document, projectType?: number): void {
@@ -389,191 +210,32 @@ class RestoreWorkflow {
 
 	private _initializeImageFileNames(doc: Document): void {
 		for (const pkg of doc.getRoot().listPackages()) {
-			for (const resource of pkg.listResources() as RestorableResource[]) {
+			for (const resource of pkg.listResources()) {
 				if (resource.propertyType !== 'ImageResource') continue;
 				imageFileName(resource);
-				resource.setExtras?.({
-					...(resource.getExtras?.() ?? {}),
-					_suppressPackageSize: true,
-				});
+				ProjectWriter.setImageWriteHints(resource, { omitPackageSize: true });
 			}
 		}
 	}
 
 	private _initializeLooseResourceFileNames(doc: Document): void {
 		for (const pkg of doc.getRoot().listPackages()) {
-			for (const resource of pkg.listResources() as RestorableResource[]) {
-				if (!['MiscResource', 'SpineResource', 'DragonBonesResource', 'SoundResource'].includes(resource.propertyType)) continue;
-				const current = resource.getFile?.() ?? '';
+			for (const resource of pkg.listResources()) {
+				if (resource.propertyType !== 'MiscResource' && resource.propertyType !== 'SpineResource'
+					&& resource.propertyType !== 'DragonBonesResource' && resource.propertyType !== 'SoundResource') continue;
+				const current = resource.getFile() ?? '';
 				if (!current) continue;
 				const normalized = replaceLooseResourceBaseName(resource, current);
-				if (normalized !== current) resource.setFile?.(normalized);
+				if (normalized !== current) resource.setFile(normalized);
 			}
 		}
-	}
-
-	private async _synthesizeLooseSkeletonResources(doc: Document, sourceDir: string): Promise<void> {
-		for (const pkg of doc.getRoot().listPackages()) {
-			for (const resource of [...(pkg.listResources() as RestorableResource[])]) {
-				let current = resource;
-				if (resource.propertyType === 'DragonBonesResource' && /\.skel\.bytes$/i.test(resourceFileName(resource))) {
-					const normalizedFile = resourceFileName(resource).replace(/\.skel\.bytes$/i, '.skel');
-					const skeletonBase = stripExtension(normalizedFile);
-					const atlasBase = skeletonBase.replace(/-(?:pro|ess)$/i, '-pma');
-					const atlasSource = await this._resolveLooseSourceFile(pkg, sourceDir, `${atlasBase}.atlas`);
-					if (atlasSource) current = this._replaceSkeletonResourceType(doc, pkg, resource, 'SpineResource', normalizedFile);
-				}
-
-				if (current.propertyType === 'SpineResource') {
-					await this._ensureSpineSidecarResources(doc, pkg, current, sourceDir);
-				} else if (current.propertyType === 'DragonBonesResource') {
-					await this._ensureDragonBonesSidecarResources(doc, pkg, current, sourceDir);
-				}
-			}
-		}
-	}
-
-	private _initializeRestoredResourceRelations(doc: Document): void {
-		for (const pkg of doc.getRoot().listPackages()) {
-			const resources = pkg.listResources() as RestorableResource[];
-			for (const resource of resources) {
-				if (resource.propertyType === 'SpineResource') {
-					this._initializeSpineResourceRelation(resource, resources);
-				} else if (resource.propertyType === 'DragonBonesResource') {
-					this._initializeDragonBonesResourceRelation(resource, resources);
-				}
-			}
-		}
-	}
-
-	private _replaceSkeletonResourceType(
-		doc: Document,
-		pkg: Package,
-		resource: RestorableResource,
-		targetType: 'SpineResource' | 'DragonBonesResource',
-		fileName: string,
-	): RestorableResource {
-		const replacement = targetType === 'SpineResource'
-			? doc.createSpineResource(resource.getName?.() ?? '')
-			: doc.createDragonBonesResource(resource.getName?.() ?? '');
-
-		replacement
-			.setId?.(resource.getId?.() ?? '')
-			.setPath?.(resource.getPath?.() ?? '/')
-			.setFile?.(fileName)
-			.setExported?.(resource.getExported?.() ?? false)
-			.setWidth?.(resource.getWidth?.() ?? 0)
-			.setHeight?.(resource.getHeight?.() ?? 0)
-			.setRequireIds?.(resource.getRequireIds?.() ?? [])
-			.setAtlasNames?.(resource.getAtlasNames?.() ?? [])
-			.setAnchor?.(resource.getAnchorX?.() ?? 0, resource.getAnchorY?.() ?? 0)
-			.setBranch?.(resource.getBranch?.() ?? '')
-			.setBranchItemIds?.(resource.getBranchItemIds?.() ?? []);
-		replacement.setExtras?.({ ...(resource.getExtras?.() ?? {}) });
-
-		pkg.removeResource(resource as never);
-		pkg.addResource(replacement as never);
-		return replacement as RestorableResource;
-	}
-
-	private async _ensureSpineSidecarResources(
-		doc: Document,
-		pkg: Package,
-		resource: RestorableResource,
-		sourceDir: string,
-	): Promise<void> {
-		const fileName = resourceFileName(resource).replace(/\.skel\.bytes$/i, '.skel');
-		const skeletonBase = stripExtension(fileName);
-		if (!skeletonBase) return;
-		const atlasBase = skeletonBase.replace(/-(?:pro|ess)$/i, '-pma');
-		const atlas = await this._ensureLooseMiscResource(doc, pkg, resource, sourceDir, `${atlasBase}.atlas`);
-		const texture = await this._ensureLooseImageResource(doc, pkg, resource, sourceDir, `${atlasBase}.png`);
-		const requireIds = [atlas?.getId?.(), texture?.getId?.()].filter((id): id is string => !!id);
-		if (requireIds.length > 0) resource.setRequireIds?.(requireIds);
-		if (atlas) resource.setAtlasNames?.([atlasBase]);
-	}
-
-	private async _ensureDragonBonesSidecarResources(
-		doc: Document,
-		pkg: Package,
-		resource: RestorableResource,
-		sourceDir: string,
-	): Promise<void> {
-		const skeletonBase = stripExtension(resourceFileName(resource)).replace(/_ske$/i, '');
-		if (!skeletonBase) return;
-		const textureJson = await this._ensureLooseMiscResource(doc, pkg, resource, sourceDir, `${skeletonBase}_tex.json`);
-		const textureImage = await this._ensureLooseImageResource(doc, pkg, resource, sourceDir, `${skeletonBase}.png`);
-		const requireIds = [textureJson?.getId?.(), textureImage?.getId?.()].filter((id): id is string => !!id);
-		if (requireIds.length > 0) resource.setRequireIds?.(requireIds);
-	}
-
-	private async _ensureLooseMiscResource(
-		doc: Document,
-		pkg: Package,
-		owner: RestorableResource,
-		sourceDir: string,
-		fileName: string,
-	): Promise<RestorableResource | null> {
-		const resources = pkg.listResources() as RestorableResource[];
-		const existing = this._findResourceByFile(resources, owner, 'MiscResource', fileName);
-		if (existing) return existing;
-		const sourcePath = await this._resolveLooseSourceFile(pkg, sourceDir, fileName);
-		if (!sourcePath) return null;
-		const resource = doc.createMiscResource(stripExtension(fileName));
-		resource
-			.setId(generateId())
-			.setPath(owner.getPath?.() ?? '/')
-			.setBranch(owner.getBranch?.() ?? '')
-			.setBranchItemIds(owner.getBranchItemIds?.() ?? [])
-			.setExported(false)
-			.setFile(fileName);
-		resource.setExtras?.({ ...(resource.getExtras?.() ?? {}), _publishedFile: fileBaseName(sourcePath) });
-		pkg.addResource(resource);
-		return resource as RestorableResource;
-	}
-
-	private async _ensureLooseImageResource(
-		doc: Document,
-		pkg: Package,
-		owner: RestorableResource,
-		sourceDir: string,
-		fileName: string,
-	): Promise<RestorableResource | null> {
-		const resources = pkg.listResources() as RestorableResource[];
-		const existing = this._findResourceByFile(resources, owner, 'ImageResource', fileName);
-		const sourcePath = await this._resolveLooseSourceFile(pkg, sourceDir, fileName);
-		if (!sourcePath) return existing ?? null;
-		if (existing) {
-			existing.setExtras?.({
-				...(existing.getExtras?.() ?? {}),
-				_publishedFile: fileBaseName(sourcePath),
-				_restoreAsLooseImage: true,
-			});
-			return existing;
-		}
-		const resource = doc.createImageResource(stripExtension(fileName));
-		resource
-			.setId(generateId())
-			.setPath(owner.getPath?.() ?? '/')
-			.setBranch(owner.getBranch?.() ?? '')
-			.setBranchItemIds(owner.getBranchItemIds?.() ?? [])
-			.setExported(false)
-			.setFileName(fileName);
-		resource.setExtras?.({
-			...(resource.getExtras?.() ?? {}),
-			_publishedFile: fileBaseName(sourcePath),
-			_suppressPackageSize: true,
-			_restoreAsLooseImage: true,
-		});
-		pkg.addResource(resource);
-		return resource as RestorableResource;
 	}
 
 	private _initializeDisplayObjectFileNames(doc: Document): void {
 		for (const pkg of doc.getRoot().listPackages()) {
 			for (const component of pkg.listComponents()) {
-				for (const child of component.listChildren() as RestorableDisplayObject[]) {
-					if (!child.setFileName || child.getFileName?.()) continue;
+				for (const child of component.listChildren()) {
+					if (!(child instanceof GComponent || child instanceof GImage || child instanceof GMovieClip) || child.getFileName()) continue;
 					const resource = this._resolveDisplayObjectResource(doc, pkg, child);
 					const fileName = resource ? resourceInstanceFileName(resource) : '';
 					if (fileName) child.setFileName(fileName);
@@ -585,289 +247,14 @@ class RestoreWorkflow {
 	private _resolveDisplayObjectResource(
 		doc: Document,
 		pkg: Package,
-		child: RestorableDisplayObject,
-	): RestorableResource | null {
-		const src = child.getSrc?.() ?? '';
+		child: ReferencedDisplayObject,
+	): RestoreResource | null {
+		const src = child.getSrc() ?? '';
 		if (!src) return null;
-		const targetPackage = child.getPackageId?.()
-			? doc.getRoot().getPackageById(child.getPackageId?.() ?? '')
+		const targetPackage = child.getPackageId()
+			? doc.getRoot().getPackageById(child.getPackageId() ?? '')
 			: pkg;
-		return (targetPackage?.getResourceById(src) as RestorableResource | null) ?? null;
+		return targetPackage?.getResourceById(src) ?? null;
 	}
 
-	private _initializeSpineResourceRelation(resource: RestorableResource, resources: RestorableResource[]): void {
-		const fileName = resourceFileName(resource);
-		const skeletonBase = stripExtension(fileName);
-		if (!skeletonBase) return;
-		const atlasBase = skeletonBase.replace(/-(?:pro|ess)$/i, '-pma');
-		const requireIds: string[] = [];
-
-		const atlas = this._findResourceByFile(resources, resource, 'MiscResource', `${atlasBase}.atlas`);
-		const texture = this._findResourceByFile(resources, resource, 'ImageResource', `${atlasBase}.png`);
-		if (atlas?.getId?.()) requireIds.push(atlas.getId());
-		if (texture?.getId?.()) requireIds.push(texture.getId());
-		if (requireIds.length > 0) resource.setRequireIds?.(requireIds);
-		if (atlas) resource.setAtlasNames?.([atlasBase]);
-	}
-
-	private _initializeDragonBonesResourceRelation(resource: RestorableResource, resources: RestorableResource[]): void {
-		const fileName = resourceFileName(resource);
-		const skeletonBase = stripExtension(fileName).replace(/_ske$/i, '');
-		if (!skeletonBase) return;
-		const requireIds: string[] = [];
-
-		const textureJson = this._findResourceByFile(resources, resource, 'MiscResource', `${skeletonBase}_tex.json`);
-		const textureImage = this._findResourceByFile(resources, resource, 'ImageResource', `${skeletonBase}.png`);
-		if (textureJson?.getId?.()) requireIds.push(textureJson.getId());
-		if (textureImage?.getId?.()) requireIds.push(textureImage.getId());
-		if (requireIds.length > 0) resource.setRequireIds?.(requireIds);
-	}
-
-	private _findResourceByFile(
-		resources: RestorableResource[],
-		owner: RestorableResource,
-		propertyType: string,
-		fileName: string,
-	): RestorableResource | null {
-		const expected = fileName.toLowerCase();
-		return resources.find((resource) => {
-			return resource.propertyType === propertyType
-				&& sameVirtualPath(owner, resource)
-				&& fileBaseName(resourceFileName(resource)).toLowerCase() === expected;
-		}) ?? null;
-	}
-
-	private async _restoreAssets(
-		doc: Document,
-		options: RestoreExecutionOptions,
-		warnings: string[],
-	): Promise<void> {
-		for (const pkg of doc.getRoot().listPackages()) {
-			await this._restoreAtlasImages(pkg, options);
-			await this._writeGeneratedResources(pkg, options, warnings);
-			await this._copyLooseResources(pkg, options, warnings);
-		}
-	}
-
-	private async _restoreAtlasImages(pkg: Package, options: RestoreExecutionOptions): Promise<void> {
-		if (!options.cropImage) return;
-		for (const atlas of pkg.listAtlases()) {
-			const sourceAtlas = await this._resolveSourceFile(options.sourceDir, this._sourceFileCandidates(pkg, atlas.getFile()));
-			if (!sourceAtlas) {
-				throw new Error(`Atlas image not found for package "${pkg.getName()}": ${this._sourceFileCandidates(pkg, atlas.getFile()).join(', ')}`);
-			}
-			for (const sprite of atlas.listSprites() as RestorableSprite[]) {
-				const image = findImageResource(pkg, sprite.getItemId());
-				if (!image) continue;
-				if (sprite.getRectWidth() <= 0 || sprite.getRectHeight() <= 0) continue;
-				const outputPath = this._resourceOutputPath(options.outputProjectPath, pkg, image, imageFileName(image));
-				const imageWidth = image.getWidth?.() ?? 0;
-				const imageHeight = image.getHeight?.() ?? 0;
-				const spriteWidth = sprite.getRotated() ? sprite.getRectHeight() : sprite.getRectWidth();
-				const spriteHeight = sprite.getRotated() ? sprite.getRectWidth() : sprite.getRectHeight();
-				await this._mkdirForFile(outputPath);
-				await options.cropImage({
-					sourcePath: sourceAtlas,
-					outputPath,
-					left: sprite.getRectX(),
-					top: sprite.getRectY(),
-					width: sprite.getRectWidth(),
-					height: sprite.getRectHeight(),
-					rotated: sprite.getRotated(),
-					offsetX: sprite.getOffsetX(),
-					offsetY: sprite.getOffsetY(),
-					expectedWidth: Math.max(imageWidth, sprite.getOriginalWidth(), spriteWidth),
-					expectedHeight: Math.max(imageHeight, sprite.getOriginalHeight(), spriteHeight),
-				});
-			}
-		}
-	}
-
-	private async _copyLooseResources(
-		pkg: Package,
-		options: RestoreExecutionOptions,
-		warnings: string[],
-	): Promise<void> {
-		for (const resource of pkg.listResources() as RestorableResource[]) {
-			const restoreAsLooseImage = resource.getExtras?.()?._restoreAsLooseImage === true;
-			if (!['SoundResource', 'MiscResource', 'SpineResource', 'DragonBonesResource'].includes(resource.propertyType) && !restoreAsLooseImage) {
-				continue;
-			}
-			const fileName = resourceFileName(resource);
-			if (!fileName) continue;
-			const sourcePath = await this._resolveSourceFile(
-				options.sourceDir,
-				this._sourceFileCandidates(pkg, resourcePublishedFileName(resource), fileName),
-			);
-			if (!sourcePath) {
-				warnings.push(`Loose resource not found for package "${pkg.getName()}": ${fileName}`);
-				continue;
-			}
-			const outputPath = this._resourceOutputPath(options.outputProjectPath, pkg, resource, fileName);
-			await this._mkdirForFile(outputPath);
-			await this._fs.writeFileRaw(outputPath, await this._fs.readFileRaw(sourcePath));
-		}
-	}
-
-	private async _writeGeneratedResources(
-		pkg: Package,
-		options: RestoreExecutionOptions,
-		warnings: string[],
-	): Promise<void> {
-		for (const resource of pkg.listResources() as RestorableResource[]) {
-			if (resource.propertyType === 'FontResource') {
-				await this._writeFontFile(pkg, resource, options.outputProjectPath);
-			} else if (resource.propertyType === 'MovieClipResource') {
-				await this._writeMovieClipFile(pkg, resource, options, warnings);
-			}
-		}
-		await this._writeSyntheticFontGlyphImages(pkg, options.outputProjectPath);
-	}
-
-	private async _writeFontFile(pkg: Package, resource: RestorableResource, outputProjectPath: string): Promise<void> {
-		const fileName = resourceFileName(resource);
-		if (!/\.fnt$/i.test(fileName)) return;
-		const glyphs = resource.listGlyphs?.() ?? [];
-		if (glyphs.length === 0) return;
-
-		const outputPath = this._resourceOutputPath(outputProjectPath, pkg, resource, fileName);
-		await this._mkdirForFile(outputPath);
-		await this._fs.writeFile(outputPath, serializeFont(pkg, resource, glyphs));
-	}
-
-	private async _writeMovieClipFile(
-		pkg: Package,
-		resource: RestorableResource,
-		options: RestoreExecutionOptions,
-		warnings: string[],
-	): Promise<void> {
-		const fileName = resourceFileName(resource);
-		if (!/\.jta$/i.test(fileName)) return;
-		const frames = resource.listFrames?.() ?? [];
-		if (frames.length === 0) return;
-		if (!options.extractImage) {
-			warnings.push(`MovieClip file not generated for package "${pkg.getName()}": ${fileName}`);
-			return;
-		}
-
-		const sprites = await this._buildSpriteLookup(pkg, options);
-		const textures: Uint8Array[] = [];
-		for (const [index, frame] of frames.entries()) {
-			const spriteEntry = sprites.get(frame.getSpriteId());
-			if (!spriteEntry) {
-				warnings.push(`MovieClip frame sprite not found for package "${pkg.getName()}": ${fileName} frame ${index}`);
-				return;
-			}
-			const sprite = spriteEntry.sprite;
-			if (sprite.getRectWidth() <= 0 || sprite.getRectHeight() <= 0) {
-				textures.push(new Uint8Array(0));
-				continue;
-			}
-			textures.push(await options.extractImage({
-				sourcePath: spriteEntry.sourceAtlas,
-				left: sprite.getRectX(),
-				top: sprite.getRectY(),
-				width: sprite.getRectWidth(),
-				height: sprite.getRectHeight(),
-				rotated: sprite.getRotated(),
-				offsetX: 0,
-				offsetY: 0,
-				expectedWidth: sprite.getRotated() ? sprite.getRectHeight() : sprite.getRectWidth(),
-				expectedHeight: sprite.getRotated() ? sprite.getRectWidth() : sprite.getRectHeight(),
-			}));
-		}
-
-		const outputPath = this._resourceOutputPath(options.outputProjectPath, pkg, resource, fileName);
-		await this._mkdirForFile(outputPath);
-		await this._fs.writeFileRaw(outputPath, serializeMovieClip(resource, frames, textures));
-	}
-
-	private async _writeSyntheticFontGlyphImages(pkg: Package, outputProjectPath: string): Promise<void> {
-		for (const resource of pkg.listResources() as RestorableResource[]) {
-			if (resource.propertyType !== 'ImageResource' || !isSyntheticFontGlyphResource(resource)) continue;
-			const fileName = resourceFileName(resource) || defaultSyntheticFontGlyphFileName(resource.getId?.() ?? 'glyph');
-			const outputPath = this._resourceOutputPath(outputProjectPath, pkg, resource, fileName);
-			await this._mkdirForFile(outputPath);
-			await this._fs.writeFileRaw(outputPath, TRANSPARENT_PNG_1X1);
-		}
-	}
-
-	private async _buildSpriteLookup(
-		pkg: Package,
-		options: RestoreExecutionOptions,
-	): Promise<Map<string, SpriteLookupEntry>> {
-		const sprites = new Map<string, SpriteLookupEntry>();
-		for (const atlas of pkg.listAtlases()) {
-			const sourceAtlas = await this._resolveSourceFile(options.sourceDir, this._sourceFileCandidates(pkg, atlas.getFile()));
-			if (!sourceAtlas) {
-				throw new Error(`Atlas image not found for package "${pkg.getName()}": ${this._sourceFileCandidates(pkg, atlas.getFile()).join(', ')}`);
-			}
-			for (const sprite of atlas.listSprites() as RestorableSprite[]) {
-				sprites.set(sprite.getItemId(), { sourceAtlas, sprite });
-			}
-		}
-		return sprites;
-	}
-
-	private _sourceFileCandidates(pkg: Package, fileName: string, outputFileName = fileName): string[] {
-		const publishName = pkg.getPublishName() || pkg.getName();
-		assertSafeRestoreSegment(publishName, 'package publish name');
-		assertSafeRestoreSegment(fileName, 'published source file name');
-		assertSafeRestoreSegment(outputFileName, 'published source file name');
-		const candidates = Array.from(new Set([
-			`${publishName}_${fileName}`,
-			fileName,
-			`${publishName}_${outputFileName}`,
-			outputFileName,
-		]));
-		for (const candidate of candidates) assertSafeRestoreSegment(candidate, 'published source file name');
-		return candidates;
-	}
-
-	private async _resolveLooseSourceFile(pkg: Package, sourceDir: string, outputFileName: string): Promise<string | null> {
-		const candidates = outputFileName.endsWith('.atlas')
-			? this._sourceFileCandidates(pkg, `${outputFileName}.txt`, outputFileName)
-			: outputFileName.endsWith('.skel')
-				? this._sourceFileCandidates(pkg, `${outputFileName}.bytes`, outputFileName)
-				: this._sourceFileCandidates(pkg, outputFileName);
-		return this._resolveSourceFile(sourceDir, candidates);
-	}
-
-	private async _resolveSourceFile(sourceDir: string, candidates: string[]): Promise<string | null> {
-		const resolvedSourceDir = await Promise.resolve(this._fs.resolvePath(sourceDir));
-		for (const candidate of candidates) {
-			assertSafeRestoreSegment(candidate, 'published source file name');
-			const sourcePath = this._fs.join(sourceDir, candidate);
-			if (!(await this._fs.isFile(sourcePath))) continue;
-			const resolvedSourcePath = await Promise.resolve(this._fs.resolvePath(sourcePath));
-			if (!isPathWithin(resolvedSourceDir, resolvedSourcePath)) {
-				throw new Error(`restore: Published source file resolves outside the input directory: ${candidate}.`);
-			}
-			return resolvedSourcePath;
-		}
-		return null;
-	}
-
-	private _resourceOutputPath(
-		outputProjectPath: string,
-		pkg: Package,
-		resource: RestorableResource,
-		fileName: string,
-	): string {
-		const basePath = this._fs.dirname(outputProjectPath);
-		const branch = resource.getBranch?.() ?? '';
-		assertSafeRestoreSegment(pkg.getName(), 'package name');
-		if (branch) assertSafeRestoreSegment(branch, 'branch name');
-		assertSafeRestoreSegment(fileName, 'resource file name');
-		const assetsDir = branch ? `assets_${branch}` : 'assets';
-		const virtualPath = normalizeRestoreResourcePath(resource.getPath?.());
-		const pkgDir = this._fs.join(basePath, assetsDir, pkg.getName());
-		return virtualPath
-			? this._fs.join(pkgDir, virtualPath, fileName)
-			: this._fs.join(pkgDir, fileName);
-	}
-
-	private async _mkdirForFile(filePath: string): Promise<void> {
-		await this._fs.mkdir(this._fs.dirname(filePath));
-	}
 }

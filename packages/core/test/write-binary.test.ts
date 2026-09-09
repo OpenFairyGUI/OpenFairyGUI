@@ -15,6 +15,27 @@ const BASICS_FUI = getFixturePath(
 	'Basics_fui.bytes',
 );
 
+test('truncated binary views reject identically regardless of bytes beyond the view', async (t) => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-binary-view-'));
+	t.teardown(() => fs.rm(directory, { recursive: true, force: true }));
+	const doc = new Document();
+	const pkg = doc.createPackage('Bounds').setId('bounds');
+	const comp = doc.createComponent('Panel').setId('panel');
+	comp.addChild(doc.createGTextField('text').setId('text').setText('KEEP THIS TEXT'));
+	pkg.addResource(comp);
+	const target = path.join(directory, 'Bounds.bytes');
+	await new NodeIO().writeBinary(doc, target);
+	const bytes = new Uint8Array(await fs.readFile(target));
+	for (const raw of [bytes.subarray(0, -1), bytes.slice(0, -1)]) {
+		class ViewIO extends NodeIO {
+			protected override createFileSystem() {
+				return { ...super.createFileSystem(), readFileRaw: async () => raw };
+			}
+		}
+		await t.throwsAsync(new ViewIO().readBinary(target), { instanceOf: RangeError });
+	}
+});
+
 function readUtfString(bytes: Uint8Array, state: { pos: number }): string {
 	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 	const len = view.getUint16(state.pos, false);

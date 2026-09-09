@@ -323,6 +323,7 @@ export {
 	type ProjectBranchDirectory,
 	type ProjectSourceFile,
 	type ProjectWriteOptions,
+	type ProjectImageWriteHints,
 } from './io/index.js';
 
 // Types

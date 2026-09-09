@@ -222,6 +222,7 @@ class FailingMemoryBrowserStorage extends MemoryBrowserStorage {
 }
 
 class PausingMemoryBrowserStorage extends MemoryBrowserStorage {
+	public writeAttempts = 0;
 	private releaseWrite = (): void => undefined;
 	private readonly resumeWrite = new Promise<void>((resolve) => {
 		this.releaseWrite = resolve;
@@ -237,6 +238,7 @@ class PausingMemoryBrowserStorage extends MemoryBrowserStorage {
 	}
 
 	public override async writeFileRaw(filePath: string, data: Uint8Array): Promise<void> {
+		this.writeAttempts += 1;
 		if (this.paused) {
 			this.paused = false;
 			this.markWriteStarted();
@@ -3481,6 +3483,169 @@ test('browser-safe clean save preserves property overrides and autoClearItems', 
 	t.true(reloadedInstance?.kind === 'component'
 		&& reloadedInstance.instanceProperties?.extensionType === 'ComboBox'
 		&& reloadedInstance.instanceProperties.autoClearItems);
+});
+
+test('case-sensitive storage removes the old source after a case-only rename', async (t) => {
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const runtime = new BackendRuntime();
+	t.true(runtime.openProjectSession({ sessionId: 'case', project: createBackendFixtureProject(), storage: { fileSystem, fairyPath: 'Case/Project.fairy' } }).ok);
+	t.true((await runtime.materializeSession({ sessionId: 'case' })).ok);
+	t.true((await runtime.applyTransaction({ sessionId: 'case', expectedRevision: 0, operations: [
+		{ kind: 'renameResource', selector: { packageId: 'pkg001', resourceId: 'cmp001' }, newName: 'mainview' },
+	] })).ok);
+	t.true((await runtime.saveSession({ sessionId: 'case', expectedRevision: 1 })).ok);
+	t.true(storage.hasFile('Case/assets/Main/mainview.xml'));
+	t.false(storage.hasFile('Case/assets/Main/MainView.xml'));
+});
+
+test('queued materialization captures its caller-owned target and revision', async (t) => {
+	const storage = new PausingMemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const runtime = new BackendRuntime();
+	t.true(runtime.openProjectSession({ sessionId: 'capture', project: createBackendFixtureProject() }).ok);
+	const first = runtime.materializeSession({ sessionId: 'capture', storage: { fileSystem, fairyPath: 'first/Project.fairy' } });
+	await storage.writeStarted;
+	const input = { sessionId: 'capture', expectedRevision: 0, storage: { fileSystem, fairyPath: 'intended/Project.fairy' } };
+	const queued = runtime.materializeSession(input);
+	input.sessionId = 'changed';
+	input.expectedRevision = 99;
+	input.storage.fairyPath = 'changed/Project.fairy';
+	storage.continueWrite();
+	t.true((await first).ok);
+	t.true((await queued).ok);
+	t.true(storage.hasFile('intended/Project.fairy'));
+	t.false(storage.hasFile('changed/Project.fairy'));
+});
+
+test('materializeSession reserves its target before another session can write', async (t) => {
+	const storage = new PausingMemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const runtime = new BackendRuntime();
+	for (const sessionId of ['first', 'second']) {
+		t.true(runtime.openProjectSession({ sessionId, project: createBackendFixtureProject() }).ok);
+	}
+	const target = { fileSystem, fairyPath: 'Project.fairy' };
+	const first = runtime.materializeSession({ sessionId: 'first', storage: target });
+	await storage.writeStarted;
+	try {
+		const attempts = storage.writeAttempts;
+		const second = await runtime.materializeSession({ sessionId: 'second', storage: target });
+		t.false(second.ok);
+		if (!second.ok) t.is(backendFailure(second).error.code, 'lock_conflict');
+		t.is(storage.writeAttempts, attempts, 'the losing session must not enter the writer');
+	} finally {
+		storage.continueWrite();
+	}
+	t.true((await first).ok);
+	t.true((await runtime.closeSession({ sessionId: 'first' })).ok);
+	t.true((await runtime.materializeSession({ sessionId: 'second', storage: target })).ok);
+});
+
+test('opening reserves the path and session id before awaiting the storage lock', async (t) => {
+	const storage = new MemoryBrowserStorage();
+	const base = createBackendStorageFileSystem(storage);
+	let continueOpen = (): void => undefined;
+	let markOpening = (): void => undefined;
+	const gate = new Promise<void>((resolve) => { continueOpen = resolve; });
+	const openingStarted = new Promise<void>((resolve) => { markOpening = resolve; });
+	let lockAttempts = 0;
+	const fileSystem = {
+		...base,
+		async acquireSessionLock(lockPath: string) {
+			lockAttempts += 1;
+			markOpening();
+			await gate;
+			return base.acquireSessionLock(lockPath);
+		},
+	};
+	const runtime = new BackendRuntime({ fileSystem });
+	const target = { fileSystem, fairyPath: 'Project.fairy' };
+	t.true(runtime.openProjectSession({ sessionId: 'seed', project: createBackendFixtureProject(), storage: target }).ok);
+	t.true((await runtime.materializeSession({ sessionId: 'seed' })).ok);
+	await runtime.closeSession({ sessionId: 'seed' });
+	t.true(runtime.openProjectSession({ sessionId: 'other', project: createBackendFixtureProject() }).ok);
+	const opening = runtime.openSession({ projectPath: 'Project.fairy' });
+	await openingStarted;
+	try {
+		const duplicate = await runtime.openSession({ projectPath: 'Project.fairy' });
+		t.false(duplicate.ok);
+		if (!duplicate.ok) {
+			const error = backendFailure(duplicate).error;
+			t.is(error.code, 'lock_conflict');
+			if (error.code === 'lock_conflict' && error.kind === 'in_process_session_exists') {
+				const idConflict = runtime.openProjectSession({ sessionId: error.holderSessionId, project: createBackendFixtureProject() });
+				t.false(idConflict.ok);
+				if (!idConflict.ok) t.is(backendFailure(idConflict).error.code, 'session_id_conflict');
+			}
+		}
+		t.is(lockAttempts, 1);
+		const before = storage.snapshot();
+		const materialized = await runtime.materializeSession({ sessionId: 'other', storage: target });
+		t.false(materialized.ok);
+		if (!materialized.ok) t.is(backendFailure(materialized).error.code, 'lock_conflict');
+		t.deepEqual(storage.snapshot(), before);
+		const bound = runtime.openProjectSession({ project: createBackendFixtureProject(), storage: target });
+		t.false(bound.ok);
+	} finally {
+		continueOpen();
+	}
+	const opened = await opening;
+	t.true(opened.ok);
+	if (opened.ok) await runtime.closeSession({ sessionId: opened.data.sessionId });
+	t.true((await runtime.materializeSession({ sessionId: 'other', storage: target })).ok);
+});
+
+test('failed storage rebinding releases the target and preserves the original binding', async (t) => {
+	const storage = new FailingMemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const runtime = new BackendRuntime();
+	const oldTarget = { fileSystem, fairyPath: 'old/Project.fairy' };
+	const newTarget = { fileSystem, fairyPath: 'new/Project.fairy' };
+	t.true(runtime.openProjectSession({ sessionId: 'first', project: createBackendFixtureProject(), storage: oldTarget }).ok);
+	t.true((await runtime.materializeSession({ sessionId: 'first' })).ok);
+	const before = runtime.getSession({ sessionId: 'first' });
+	storage.failRawWritesAt('new/Project.fairy');
+	const failed = await runtime.materializeSession({ sessionId: 'first', storage: newTarget });
+	t.false(failed.ok);
+	if (!failed.ok) t.is(backendFailure(failed).error.code, 'write_failed');
+	const after = runtime.getSession({ sessionId: 'first' });
+	if (before.ok && after.ok) t.deepEqual(after.data, before.data);
+	t.false(runtime.openProjectSession({ project: createBackendFixtureProject(), storage: oldTarget }).ok);
+	storage.failRawWritesAt('unused');
+	t.true(runtime.openProjectSession({ sessionId: 'second', project: createBackendFixtureProject() }).ok);
+	t.true((await runtime.materializeSession({ sessionId: 'second', storage: newTarget })).ok);
+	await runtime.closeSession({ sessionId: 'first' });
+	t.false(runtime.openProjectSession({ project: createBackendFixtureProject(), storage: newTarget }).ok);
+	t.true(runtime.openProjectSession({ project: createBackendFixtureProject(), storage: oldTarget }).ok);
+});
+
+test('a failed open releases its reservation and unrelated targets can write while another target is paused', async (t) => {
+	const storage = new PausingMemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const runtime = new BackendRuntime({ fileSystem });
+	for (const sessionId of ['first', 'second']) {
+		t.true(runtime.openProjectSession({ sessionId, project: createBackendFixtureProject() }).ok);
+	}
+	const first = runtime.materializeSession({ sessionId: 'first', storage: { fileSystem, fairyPath: 'first/Project.fairy' } });
+	await storage.writeStarted;
+	try {
+		t.true((await runtime.materializeSession({ sessionId: 'second', storage: { fileSystem, fairyPath: 'second/Project.fairy' } })).ok);
+	} finally {
+		storage.continueWrite();
+	}
+	t.true((await first).ok);
+	await runtime.closeSession({ sessionId: 'second' });
+	const acquire = fileSystem.acquireSessionLock;
+	fileSystem.acquireSessionLock = async (lockPath) => ({
+		...await acquire(lockPath),
+		async writeMetadata() { throw new Error('Injected lock metadata failure'); },
+	});
+	t.false((await runtime.openSession({ projectPath: 'second/Project.fairy' })).ok);
+	fileSystem.acquireSessionLock = acquire;
+	const reopened = await runtime.openSession({ projectPath: 'second/Project.fairy' });
+	t.true(reopened.ok);
+	if (reopened.ok) await runtime.closeSession({ sessionId: reopened.data.sessionId });
 });
 
 test('materializeSession reports stable validation diagnostics before write', async (t) => {

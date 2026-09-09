@@ -38,7 +38,6 @@ export const OPENFAIRYGUI_BACKEND_RESOURCE_TEMPLATES = [
 	'openfairygui://backend/session/{sessionId}',
 	'openfairygui://backend/session/{sessionId}/outline',
 	'openfairygui://backend/cache/{sessionId}',
-	'openfairygui://backend/job/{sessionId}/{jobId}',
 ] as const;
 
 export function registerOpenFairyGuiBackendResources(server: McpServer, runtime: OpenFairyGuiBackendRuntime): void {
@@ -139,17 +138,4 @@ export function registerOpenFairyGuiBackendResources(server: McpServer, runtime:
 		})),
 	);
 
-	server.registerResource(
-		'openfairygui_backend_job',
-		new ResourceTemplate('openfairygui://backend/job/{sessionId}/{jobId}', { list: undefined }),
-		{
-			title: 'OpenFairyGUI Backend Job Snapshot',
-			description: 'Read a backend runtime job envelope by session id and job id.',
-			mimeType: JSON_MIME_TYPE,
-		},
-		(uri: URL, variables) => jsonResource(uri, runtime.getJob({
-			sessionId: firstVariable(variables.sessionId),
-			jobId: firstVariable(variables.jobId),
-		})),
-	);
 }

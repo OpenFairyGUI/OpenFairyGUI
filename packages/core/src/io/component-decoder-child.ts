@@ -1,7 +1,7 @@
 import { GearType } from '../constants.js';
 import type { Document } from '../document.js';
 import type { GComponentPropertyOverride } from '../properties/g-component.js';
-import { ByteBuffer } from './byte-buffer.js';
+import type { ByteBuffer } from './byte-buffer.js';
 import {
 	COMPONENT_EXTENSION_TYPE_NAMES,
 	formatBinaryNumber,
@@ -926,9 +926,7 @@ export function decodeComponentDisplayList(
 	for (let index = 0; index < childCount && remainingBytes(buf) >= 2; index += 1) {
 		const chunkSize = buf.getInt16();
 		const nextPos = buf.pos + chunkSize;
-		const childBuf = new ByteBuffer(buf.buffer, buf.byteOffset + buf.pos, chunkSize);
-		childBuf.stringTable = buf.stringTable;
-		childBuf.version = buf.version;
+		const childBuf = buf.readBuffer(chunkSize);
 
 		const child = decodeChildBlock0(doc, childBuf);
 		if (child) {

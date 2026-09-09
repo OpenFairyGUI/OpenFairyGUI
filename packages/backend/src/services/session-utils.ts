@@ -4,11 +4,11 @@ import type {
 	SessionNotFoundError,
 	SessionStaleWriteError,
 } from '../runtime.js';
-import type { BackendSessionState } from './context.js';
+import { cloneReadData, type ReadonlyData, type BackendSessionState, type SessionReadView } from './context.js';
 
 export function toSessionSnapshot(
-	session: BackendSessionState,
-	capabilities: BackendCapabilities,
+	session: Pick<SessionReadView, 'sessionId' | 'canonicalProjectPath' | 'revision' | 'lastSavedRevision' | 'dirty' | 'uamFidelity' | 'lockHeld'>,
+	capabilities: ReadonlyData<BackendCapabilities>,
 ): BackendSessionSnapshot {
 	return {
 		sessionId: session.sessionId,
@@ -18,7 +18,7 @@ export function toSessionSnapshot(
 		dirty: session.dirty,
 		uamFidelity: session.uamFidelity,
 		lockHeld: session.lockHeld,
-		capabilities: structuredClone(capabilities),
+		capabilities: cloneReadData<BackendCapabilities>(capabilities),
 	};
 }
 

@@ -17,7 +17,7 @@ Without arguments, each command creates a separate temporary project and prints 
 
 ## Three-state reward panel
 
-This is the complete SDK implementation of the [first editing task](./getting-started.md#complete-your-first-edit), runnable on stable `0.5.0`. After creating a temporary two-package project, it obtains unique IDs for `Main/RewardPanel`, `claimButton`, and `claimedMark` from the outline. One transaction adds a `rewardState` controller and three gears (`text`, `look`, and `display`) for Locked, Claimable, and Claimed states. Existing layout, other components, and Shared package images are preserved.
+This is the complete SDK implementation of the [first editing task](./getting-started.md#complete-your-first-edit), runnable on stable `0.6.0`. After creating a temporary two-package project, it obtains unique IDs for `Main/RewardPanel`, `claimButton`, and `claimedMark` from the outline. One transaction adds a `rewardState` controller and three gears (`text`, `look`, and `display`) for Locked, Claimable, and Claimed states. Existing layout, other components, and Shared package images are preserved.
 
 To let an agent perform the task, create only the unedited project:
 
@@ -35,7 +35,7 @@ Consumer checks execute this editing function against both the SDK and real MCP 
 
 ## Reward panel layout and entrance animation
 
-Advanced task B starts from A's saved three-state panel, adjusts spacing, dimensions, and positions, and adds a one-shot entrance animation. Stable `0.5.0` supports it. Controllers, gears, text, and image bytes remain unchanged.
+Advanced task B starts from A's saved three-state panel, adjusts spacing, dimensions, and positions, and adds a one-shot entrance animation. Stable `0.6.0` supports it. Controllers, gears, text, and image bytes remain unchanged.
 
 To let an agent perform B, create a project with A completed and the original layout intact:
 
@@ -83,7 +83,7 @@ B's `pack:check` coverage includes SDK and real MCP queries, previews, save/rere
 
 ## Generate reward cards from a template
 
-Task C generates three exported components from an existing `Main/RewardCardTemplate`, using stable `0.5.0`. Each new component contains one Label instance referencing the template, with formal instance properties for title and icon. The template's children remain in the original component. Icons reference the Shared package's existing 2 × 2 red and blue PNG test swatches.
+Task C generates three exported components from an existing `Main/RewardCardTemplate`, using stable `0.6.0`. Each new component contains one Label instance referencing the template, with formal instance properties for title and icon. The template's children remain in the original component. Icons reference the Shared package's existing 2 × 2 red and blue PNG test swatches.
 
 Create an independent project containing the template and images, without generated cards (A/B are not prerequisites):
 

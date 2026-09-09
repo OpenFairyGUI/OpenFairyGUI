@@ -1,4 +1,25 @@
 import test from 'ava';
+import { createLifecycleComponent, createLookGear, createSupportedProject } from './uam-transaction-fixtures.js';
+
+test('normalization owns gear values and binary resource data independently of its input', (t) => {
+	const project = createSupportedProject();
+	const component = createLifecycleComponent();
+	const gear = createLookGear();
+	component.component.displayList[0]!.gears = [gear];
+	project.packages[0]!.resources.push(component);
+	const metadata = { nested: { value: 1 }, bytes: new Uint8Array([1]) };
+	project.packages[0]!.resources.push({ kind: 'misc', id: 'metadata', name: 'Meta', path: '/', exported: false,
+		favorite: false, branch: '', branchItemIds: [], metadata });
+	const normalized = normalizeUamProject(project);
+	const expected = structuredClone(normalized);
+	gear.states[0]!.value!.alpha = 0.125;
+	gear.defaultValue!.alpha = 0.25;
+	metadata.nested.value = 2;
+	metadata.bytes[0] = 2;
+	const image = project.packages[0]!.resources[0]!;
+	if (image.kind === 'image') image.sourceBytes![0] = 0;
+	t.deepEqual(normalized, expected);
+});
 import {
 	createDefaultUamComponentProperties,
 	createDefaultUamImageResourceProperties,

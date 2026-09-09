@@ -35,7 +35,7 @@ export function _writeComponentHeader(buf: WriteBuffer, comp: Component): void {
 	// Pivot
 	const pivotX = comp.getPivotX?.() ?? 0;
 	const pivotY = comp.getPivotY?.() ?? 0;
-	const hasPivot = pivotX !== 0 || pivotY !== 0;
+	const hasPivot = pivotX !== 0 || pivotY !== 0 || comp.getPivotAsAnchor();
 	buf.writeBool(hasPivot);
 	if (hasPivot) {
 		buf.writeFloat32(pivotX);

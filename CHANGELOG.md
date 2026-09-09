@@ -6,8 +6,31 @@
 
 Release comparisons:
 
-- Stable line (`main`): [v0.5.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0...main)
-- Development line (`next`): [v0.5.0...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0...next)
+- Stable line (`main`): [v0.6.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.0...main)
+- Development line (`next`): [v0.6.0...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.0...next)
+
+## v0.6.x
+
+### v0.6.0 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.0))
+
+Bug Fixes:
+
+- backend: Reserve materialization targets before asynchronous writes, capture queued request values, reject rebinding locked sessions, and retain sessions when lock release fails. Node lock metadata read errors and ownership mismatches no longer report successful closure.
+- backend: Report uncertain disk state and retained recovery directories when both commit and rollback fail; recognize transaction results across separately bundled package entries.
+- core: Preserve case-only source renames, all supported project types and zero-pivot anchors; reject invalid resource-order hints before writing any files. Own nested Gear values and resource metadata instead of sharing caller references.
+- core: Keep directory enumeration failures incomplete, support mixed file/directory adapters without stat, and enforce binary reads within the supplied view and string table.
+- functions: Make repeated atlas publication deterministic with failed-attempt cleanup, and generate collision-free restored glyph filenames from stable image IDs.
+
+Other:
+
+- backend: Centralize session ownership and operation queues, separate persistence from authoring, and simplify cache refresh.
+- core, functions: Share display-property update rules, split XML and restore responsibilities, and use typed Core image write hints for restored resource ordering.
+- workspace, docs: Split contract generation by responsibility, expand fault-injection and installed-consumer coverage, and synchronize bilingual contracts, architecture and usage guidance.
+
+Breaking changes:
+
+- backend, mcp: Backend contract version is `3.0.0` and capability schema version is `12`. `refreshCache` returns a snapshot synchronously; `getJob`, `listJobs`, `cancelJob` and their MCP surfaces are removed. Hosts must update their discovery and cache-refresh integrations.
+- core: Custom filesystem adapters must distinguish absent optional directories (`ENOENT` / `NotFoundError`) from read failures. Without `stat`, mixed-entry directory probes must report ordinary files as `ENOTDIR` / `TypeMismatchError`.
 
 ## v0.5.x
 

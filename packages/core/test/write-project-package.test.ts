@@ -8,6 +8,23 @@ import { NodeIO } from '../src/node.js';
 
 const PROJECT_PATH = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
 
+test('every supported project type survives XML write and read', async (t) => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-project-types-'));
+	t.teardown(() => fs.rm(directory, { recursive: true, force: true }));
+	const target = path.join(directory, 'Types.fairy');
+	const io = new NodeIO();
+	const doc = new Document();
+	for (let type = 0; type <= 12; type++) {
+		doc.getRoot().setProjectType(type);
+		await io.writeProject(doc, target);
+		t.is((await io.readProject(target)).getRoot().getProjectType(), type);
+	}
+	const original = await fs.readFile(target, 'utf8');
+	doc.getRoot().setProjectType(99);
+	await t.throwsAsync(io.writeProject(doc, target), { message: /Unsupported project type/ });
+	t.is(await fs.readFile(target, 'utf8'), original);
+});
+
 // ─── Round-trip: read → write → read ──────────────────────────────────────
 
 test('round-trip: written project preserves package count', async (t) => {

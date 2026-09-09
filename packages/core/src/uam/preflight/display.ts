@@ -23,7 +23,7 @@ import type {
 	UamTransactionSupportIssue,
 } from '../transaction-contracts.js';
 import { findDisplayNodeSpec, GROUPABLE_DISPLAY_NODE_KINDS, TEXT_DISPLAY_NODE_KINDS } from '../transaction-shared.js';
-import { applyDisplayNodePropsUpdate } from '../transaction-uam-apply.js';
+import { applyDisplayNodePropsUpdate } from '../property-updates.js';
 import { pushSupportIssue } from './support.js';
 import { hasExactKeys, isFiniteNumber, stableJson, isIntegerBetween } from './values.js';
 

@@ -96,6 +96,8 @@
 
 ## 字符串表
 
+长度前缀字符串、子缓冲区和块偏移必须位于所属缓冲区范围内；字符串表索引必须指向现有条目或协议定义的空值哨兵，越界索引不是空字符串。
+
 ### Block 4
 
 | 内容 | 协议说明 |
@@ -297,6 +299,8 @@ Writer 对协议中的 `uint8 / int8 / uint16 / int16 / uint32 / int32`、UTFStr
 | margin | `top`、`bottom`、`left`、`right` |
 | overflow | `Visible` / `Hidden` / `Scroll` |
 | clipSoftness | `x`、`y` |
+
+Component header 和 child 的 pivot 存在标志在任一坐标非零或 `pivotAsAnchor=true` 时成立；`(0,0,true)` 与缺省 pivot 不同。
 
 #### Block 1：Controllers
 

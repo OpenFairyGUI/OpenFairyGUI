@@ -112,7 +112,7 @@ async function hostCompositionSmoke() {
 		await Promise.all([client.connect(ct), server.connect(st)]);
 		assert.equal(client.getInstructions(), 'Host writes require owner approval.');
 		const { tools } = await client.listTools();
-		assert.equal(tools.length, 21); assert(tools.some(({ name }) => name === 'host_probe'));
+		assert.equal(tools.length, 18); assert(tools.some(({ name }) => name === 'host_probe'));
 		assert.equal((await client.callTool({ name: 'host_probe', arguments: {} })).content[0].text, 'ok');
 		assert((await client.readResource({ uri: 'openfairygui://docs/workflow' })).contents[0].text.length > 0);
 		assert((await client.getPrompt({ name: 'openfairygui_save_session' })).messages.length > 0);
@@ -581,6 +581,7 @@ export async function runtimeSmoke() {
 	assert.deepEqual(Object.keys(afterFiles).filter((file) => beforeFiles[file] !== afterFiles[file]), ['assets/Main/MainView.xml']);
 	assert.equal(JSON.parse(cli(['validate', projectRoot, '--json'])).result.status, 'valid');
 	const { createNodeBackendFileSystem, createNodeBackendRuntime } = await import('@openfairygui/backend/node');
+	const { BackendRuntime } = await import('@openfairygui/backend');
 	const runtime = createNodeBackendRuntime({ allowedProjectRoots: [projectRoot] });
 	const failureRuntime = createNodeBackendRuntime({ allowedProjectRoots: [path.dirname(unsupportedPath)] });
 	const afterFailure = await failureRuntime.openSession({ projectPath: unsupportedPath });
@@ -616,7 +617,7 @@ export async function runtimeSmoke() {
 				return staged.writeFile(file, content);
 			},
 		}));
-		const recoveryRuntime = createNodeBackendRuntime({ allowedProjectRoots: [recoveryRoot], fileSystem });
+		const recoveryRuntime = new BackendRuntime({ allowedProjectRoots: [recoveryRoot], fileSystem });
 		const validateSession = recoveryRuntime.validateSession.bind(recoveryRuntime);
 		const saveSession = recoveryRuntime.saveSession.bind(recoveryRuntime);
 		recoveryRuntime.validateSession = (input) => {
@@ -642,6 +643,7 @@ export async function runtimeSmoke() {
 			assert.deepEqual(snapshot(recoveryRoot), originalFiles, 'Failed validation or staged writes must preserve the original files');
 			if (failureKind === 'save') {
 				assert.equal(failure.cause.cause.error.code, 'save_partial_failure');
+				assert.equal(failure.cause.cause.error.diskMayBePartiallyUpdated, false, 'Root runtime recognizes rollback from the separately bundled Node adapter');
 				assert(failure.cause.cause.error.failedPaths.length > 0, 'Preserve the backend recovery report');
 			} else assert.equal(failure.cause.cause.complete, failureKind === 'invalid');
 			const peer = await createNodeBackendRuntime({ allowedProjectRoots: [recoveryRoot] }).openSession({ projectPath: recoveryPath });

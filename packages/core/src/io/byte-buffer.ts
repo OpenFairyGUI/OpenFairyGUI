@@ -21,12 +21,21 @@ export class ByteBuffer {
 	}
 
 	get pos(): number { return this._pos; }
-	set pos(v: number) { this._pos = v; }
+	set pos(v: number) {
+		if (!Number.isInteger(v) || v < 0 || v > this.byteLength) throw new RangeError('Binary buffer position is out of bounds.');
+		this._pos = v;
+	}
 	get buffer(): ArrayBufferLike { return this._view.buffer; }
 	get byteOffset(): number { return this._view.byteOffset; }
 	get byteLength(): number { return this._view.byteLength; }
 
-	skip(count: number): void { this._pos += count; }
+	skip(count: number): void { this.pos = this._pos + count; }
+
+	private assertAvailable(count: number): void {
+		if (!Number.isInteger(count) || count < 0 || count > this.byteLength - this._pos) {
+			throw new RangeError('Binary buffer read is out of bounds.');
+		}
+	}
 
 	getUint8(): number { return this._view.getUint8(this._pos++); }
 	getInt8(): number { return this._view.getInt8(this._pos++); }
@@ -65,13 +74,12 @@ export class ByteBuffer {
 	/** Read a uint16-prefixed UTF-8 string. */
 	readUTFString(): string {
 		const len = this.getUint16();
-		const bytes = new Uint8Array(this._view.buffer, this._view.byteOffset + this._pos, len);
-		this._pos += len;
-		return new TextDecoder('utf-8').decode(bytes);
+		return this.getCustomString(len);
 	}
 
 	/** Read a raw UTF-8 string of exactly `len` bytes (no length prefix). */
 	getCustomString(len: number): string {
+		this.assertAvailable(len);
 		const bytes = new Uint8Array(this._view.buffer, this._view.byteOffset + this._pos, len);
 		this._pos += len;
 		return new TextDecoder('utf-8').decode(bytes);
@@ -85,7 +93,8 @@ export class ByteBuffer {
 		const index = this.getUint16();
 		if (index === NULL_STRING_INDEX) return null;
 		if (index === EMPTY_STRING_INDEX) return '';
-		return this.stringTable[index] ?? null;
+		if (index >= this.stringTable.length) throw new RangeError(`Invalid string table index ${index}.`);
+		return this.stringTable[index]!;
 	}
 
 	readSArray(cnt: number): string[] {
@@ -95,8 +104,8 @@ export class ByteBuffer {
 	}
 
 	/** Read a uint32-prefixed sub-buffer slice (shares the same underlying ArrayBuffer). */
-	readBuffer(): ByteBuffer {
-		const count = this.getUint32();
+	readBuffer(count = this.getUint32()): ByteBuffer {
+		this.assertAvailable(count);
 		const ba = new ByteBuffer(this._view.buffer, this._view.byteOffset + this._pos, count);
 		this._pos += count;
 		ba.stringTable = this.stringTable;
@@ -116,20 +125,21 @@ export class ByteBuffer {
 	 */
 	seek(indexTablePos: number, blockIndex: number): boolean {
 		const saved = this._pos;
-		this._pos = indexTablePos;
+		if (!Number.isInteger(blockIndex) || blockIndex < 0) throw new RangeError('Invalid block index.');
+		this.pos = indexTablePos;
 		const segCount = this.getUint8();
 		if (blockIndex < segCount) {
 			const useShort = this.getUint8() === 1;
 			let newPos: number;
 			if (useShort) {
-				this._pos += 2 * blockIndex;
+				this.skip(2 * blockIndex);
 				newPos = this.getUint16();
 			} else {
-				this._pos += 4 * blockIndex;
+				this.skip(4 * blockIndex);
 				newPos = this.getUint32();
 			}
 			if (newPos > 0) {
-				this._pos = indexTablePos + newPos;
+				this.pos = indexTablePos + newPos;
 				return true;
 			}
 		}
