@@ -130,6 +130,10 @@ ProjectWriter 在写盘前构建一次包/分支输出描述，固定描述文�
 
 `packages/functions/src/publish.ts` 编排设置、资源闭包、atlas、二进制与代码生成；选项/资源域归 `publish/`，packing 与 JTA/FNT codec 归 `atlas/`。Node/Web 复用主链，不从 Backend 会话隐式启动。
 
+每次调用在现有包发布计划中持有独立的 `PackagePublishContext`：资源选择、有效 ID、外部文件名和分支策略由 `publish/package-context.ts` 计算，外部资源写出直接读取上下文，Atlas 接收按资源身份建立的选择/ID 映射。Core 定义窄输入 `BinaryPackageEncodingContext`，由 `BinaryWriterOptions.packageContext` 传入；组件编码只接收本包 ID 和有效资源 ID 映射。发布阶段不把这些派生状态写入包或资源的 `extras`，也不复制 Document。高分辨率关联、像素命中数据和 Atlas/Sprite 仍按发布阶段更新正式模型。
+
+单独调用 BinaryWriter 并省略上下文时，使用当前模型的全部可编码资源、正式 ID 和分支，外部字体仍按既有规则排除。BinaryReader 的原始二进制切片、sprite 数据和文件名元数据仍用于二进制往返；显式上下文中的文件名只覆盖本次编码，不替换源元数据。
+
 代码生成入口 `codegen.ts` 负责插件与包级编排；`codegen-settings.ts` 解析设置与输出计划，`codegen-model.ts` 构建命名及成员模型，`codegen-render.ts` 只渲染文件名和文本，`codegen-output.ts` 统一执行包目录清理与顺序写入。
 
 - `publishNode()` 注入 Node 文件系统、Sharp 和工程插件；显式 output 使用同级 staging 后提交，拒绝既有输出中的符号链接。返回文件清单来自本次实际写入与 atlas 完成记录，不枚举旧目录推测。

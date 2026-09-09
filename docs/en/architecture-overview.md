@@ -126,6 +126,10 @@ Pure in-memory session `canonicalProjectPath` / `canonicalPathKey` values identi
 
 `packages/functions/src/publish.ts` orchestrates settings, resource closure, atlas, binary output and code generation. Option/resource domains live in `publish/`; packing and JTA/FNT codecs live in `atlas/`. Node/Web reuse the main workflow without implicit execution from Backend sessions.
 
+Each call holds an independent `PackagePublishContext` in the existing package publish plan. `publish/package-context.ts` computes resource selection, effective IDs, external filenames and branch policy. External-resource writers consume that context; Atlas receives a selection/ID map keyed by resource identity. Core owns the narrow `BinaryPackageEncodingContext`, passed through `BinaryWriterOptions.packageContext`; component encoding receives only the package ID and effective resource ID map. These derived values are not written to package or resource `extras`, and the Document is not copied. High-resolution links, pixel-hit data and Atlas/Sprite nodes still update the formal model in their publish stages.
+
+Standalone BinaryWriter calls without a context encode all encodable resources, formal IDs and branches in the current model, retaining the existing external-font exclusion. BinaryReader's raw binary slices, sprite data and filename metadata remain available for binary round trips. Explicit context filenames override only the current encoding and do not replace source metadata.
+
 The `codegen.ts` entrypoint coordinates plugins and packages. `codegen-settings.ts` resolves settings and output plans; `codegen-model.ts` builds names and members; `codegen-render.ts` renders filenames and text without filesystem access; `codegen-output.ts` shares package cleanup and sequential writes across languages.
 
 - `publishNode()` injects Node filesystem, Sharp and project plugins. Explicit output uses sibling staging before commit and rejects symlinks in existing output. Its returned file list comes from actual writes and atlas completion records, not enumeration of old output.

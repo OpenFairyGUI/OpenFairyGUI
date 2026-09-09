@@ -2,8 +2,7 @@ import type { Package } from '@openfairygui/core';
 import type { PublishFileSystem } from './contracts.js';
 import {
 	extname,
-	getAnnotatedExportedResourceIds,
-	getAnnotatedPublishedResourceIds,
+	type PackagePublishContext,
 	getPublishedId,
 	getPublishedSkeletonDependencyImageIds,
 	isImageResource,
@@ -17,18 +16,15 @@ import {
 	resolveSoundPath,
 } from './package-context.js';
 
-interface PublishFileExtras extends Record<string, unknown> {
-	_publishedFile?: string;
-}
-
 export async function exportPackageSounds(
 	pkg: Package,
+	context: PackagePublishContext,
 	outputDir: string,
 	basePath: string | undefined,
 	fs: PublishFileSystem,
 	readFileRaw: PublishFileSystem['readFileRaw'] | undefined,
 ): Promise<void> {
-	const publishedResourceIds = getAnnotatedPublishedResourceIds(pkg);
+	const { publishedResourceIds } = context;
 	if (publishedResourceIds.size === 0) return;
 	if (!basePath || !readFileRaw) {
 		const hasPublishedSound = pkg.listResources().some((resource) => {
@@ -47,7 +43,7 @@ export async function exportPackageSounds(
 		if (!publishedResourceIds.has(resource.getId())) continue;
 
 		const sourcePath = resolveSoundPath(resource, pkg, basePath);
-		const targetName = `${pkg.getPublishName() || pkg.getName()}_${getPublishedId(resource)}${extname(resource.getFile() || '')}`;
+		const targetName = `${pkg.getPublishName() || pkg.getName()}_${getPublishedId(resource, context.effectiveResourceIds)}${extname(resource.getFile() || '')}`;
 		const targetPath = fs.join(outputDir, targetName);
 
 		try {
@@ -61,12 +57,13 @@ export async function exportPackageSounds(
 
 export async function exportPackageExternalResources(
 	pkg: Package,
+	context: PackagePublishContext,
 	outputDir: string,
 	basePath: string | undefined,
 	fs: PublishFileSystem,
 	readFileRaw: PublishFileSystem['readFileRaw'] | undefined,
 ): Promise<void> {
-	const exportedResourceIds = getAnnotatedExportedResourceIds(pkg);
+	const { exportedResourceIds } = context;
 	const skeletonDependencyImageIds = getPublishedSkeletonDependencyImageIds(pkg, exportedResourceIds);
 	if (exportedResourceIds.size === 0) return;
 	if (!basePath || !readFileRaw) {
@@ -101,7 +98,7 @@ export async function exportPackageExternalResources(
 		} else if (isMiscResource(resource) || isSwfResource(resource) || isSkeletonResource(resource)) {
 			sourcePath = resolveGenericResourcePath(resource, pkg, basePath);
 			const publishedFile =
-				((resource.getExtras() as PublishFileExtras | undefined) ?? {})._publishedFile ?? resource.getFile();
+				context.publishedFiles.get(resource.getId()) ?? resource.getFile();
 			targetName =
 				isMiscResource(resource) || isSwfResource(resource)
 					? `${pkg.getPublishName() || pkg.getName()}_${publishedFile}`

@@ -38,7 +38,7 @@ export interface PublishOptions {
 	/**
 	 * Atlas packing options.
 	 */
-	atlas?: Omit<AtlasOptions, 'encoder' | 'basePath' | 'outputPath'>;
+	atlas?: Omit<AtlasOptions, 'encoder' | 'basePath' | 'outputPath' | 'publishResources'>;
 
 	/**
 	 * Filter which packages to publish by name. If not set, all packages are published.

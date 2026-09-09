@@ -317,6 +317,7 @@ export {
 	type BinaryReadLimits,
 	type BinaryReaderOptions,
 	type BinaryWriterOptions,
+	type BinaryPackageEncodingContext,
 	type FileSystem,
 	type ProjectReadOptions,
 	type ProjectReadResult,
