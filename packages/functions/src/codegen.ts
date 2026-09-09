@@ -57,4 +57,3 @@ export async function publishCodeGeneration(doc: Document, options: PublishCodeG
 		logger.info(`publish: Generated code for package "${pkg.getName()}" into ${plan.outputDir}`);
 	}
 }
-

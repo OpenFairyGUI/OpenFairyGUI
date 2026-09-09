@@ -82,6 +82,8 @@ Lifecycle projection reuses actual UAM apply helpers, not another executor. Doma
 
 Execution follows existing operation capabilities into `transaction-uam-apply.ts` or `transaction-document-apply.ts`, discarding private working copies on failure and returning new normalized UAM on success. Materialization support does not imply arbitrary field mutation, and atomic lifecycle batches are not unrestricted operation combinations. See [contracts](./guide/contracts.md) for exact grammar, scope and discovery.
 
+`uam/property-rules/` groups shared rules by text, image/MovieClip and component instance, checking complete snapshot shapes, numeric ranges and local consistency. Whole-project validation and display transaction preflight use these rules directly. `validate.ts` retains project traversal, global references and diagnostic ordering; preflight retains selectors, current state and operation support. Transaction-specific list and Loader constraints remain in preflight and do not become restrictions on reading existing projects.
+
 `property-updates.ts` owns display-property update rules shared by preflight projections and both execution paths. The Document path lifts the target node's properties, applies the update and writes through the bridge onto the existing object, preserving Gear and Controller object bindings. Ordered preflight owns Controller payload validation; the executor resolves live references and reuses bridge Controller creation and Gear type mapping. `uam-transaction-parity.test.ts` triggers the Document path with Controller operations whose net effect is empty, then compares shared-operation results, diagnostics and input immutability.
 
 ## Backend sessions and persistence

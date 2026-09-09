@@ -83,6 +83,8 @@ ProjectWriter 在写盘前构建一次包/分支输出描述，固定描述文�
 
 执行按现有操作能力进入 `transaction-uam-apply.ts` 或 `transaction-document-apply.ts`，失败丢弃私有工作副本，成功返回新的规范 UAM。物化支持范围不等于任意字段 mutation；原子生命周期批次也不是任意 operation 的自由组合。精确语法、支持范围与查询入口见[契约指南](./guide/contracts.md)。
 
+`uam/property-rules/` 按文本、图片与 MovieClip、组件实例划分共用属性规则，检查完整快照的结构、数值范围和局部一致性；全项目校验与显示事务预检直接复用。`validate.ts` 保留工程遍历、全局引用与诊断顺序，事务预检保留 selector、当前状态和操作支持范围。列表、Loader 等事务专用约束仍由预检拥有，不扩大为既有工程读取限制。
+
 `property-updates.ts` 是显示属性更新规则的共同实现，供预校验投影和两条执行路径复用。Document 路径读取目标节点的 UAM 属性、应用更新后，通过 bridge 写回原对象，保留 Gear 与 Controller 的对象绑定。Controller payload 校验由有序预校验拥有，执行器解析当前引用；Controller 创建和 Gear 类型映射复用 bridge。`uam-transaction-parity.test.ts` 通过净效果为空的 Controller 批次触发 Document 路径，比较共同操作的结果、诊断和输入不变性。
 
 ## Backend 会话与保存

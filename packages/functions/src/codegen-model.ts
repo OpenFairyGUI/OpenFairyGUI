@@ -242,4 +242,3 @@ export function normalizeTypeName(value: string): string {
 	const normalized = parts.map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join('');
 	return /^[0-9]/.test(normalized) ? `_${normalized}` : normalized;
 }
-

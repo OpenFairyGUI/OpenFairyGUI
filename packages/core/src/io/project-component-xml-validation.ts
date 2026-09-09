@@ -324,4 +324,3 @@ export function validateComponentXmlValues(
 		}
 	}
 }
-

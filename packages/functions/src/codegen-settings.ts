@@ -99,4 +99,3 @@ export function resolveProjectBasePath(basePath: string | undefined): string {
 	if (assetsMatch?.[1]) return assetsMatch[1];
 	return dirname(normalized);
 }
-

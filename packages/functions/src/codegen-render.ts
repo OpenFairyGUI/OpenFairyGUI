@@ -230,4 +230,3 @@ function escapeCSharpString(value: string): string {
 function escapeTypeScriptString(value: string): string {
 	return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
-

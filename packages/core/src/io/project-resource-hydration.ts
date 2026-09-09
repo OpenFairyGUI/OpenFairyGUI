@@ -135,4 +135,3 @@ function _asSourceDataResource(resource: ReturnType<Package['listResources']>[nu
 		setSourceData(buffer: ReturnType<Document['createBuffer']>): unknown;
 	};
 }
-

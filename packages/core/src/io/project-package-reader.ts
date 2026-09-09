@@ -502,4 +502,3 @@ function createResourceFromXML(
 		}
 	}
 }
-
