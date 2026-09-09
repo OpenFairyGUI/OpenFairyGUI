@@ -12,6 +12,82 @@ import {
 	validateUamSourceBytes,
 } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
+import { readProjectDirectory, readProjectSubdirectory } from '../src/io/project-reader-discovery.js';
+import type { ProjectDiagnostic } from '../src/validation.js';
+
+test('directory discovery distinguishes optional absence, ordinary files, and unreadable directories', async (t) => {
+	for (const failure of [
+		{ code: 'ENOENT' }, { name: 'NotFoundError' },
+		{ code: 'ENOTDIR' }, { name: 'TypeMismatchError' },
+		{ code: 'EACCES' }, { name: 'NotAllowedError' },
+	]) {
+		const error = Object.assign(new Error('blocked'), failure);
+		const source = { readdir: async (): Promise<string[]> => { throw error; } };
+		const diagnostics: ProjectDiagnostic[] = [];
+		const optional = 'code' in failure ? failure.code === 'ENOENT' : failure.name === 'NotFoundError';
+		const file = 'code' in failure ? failure.code === 'ENOTDIR' : failure.name === 'TypeMismatchError';
+		t.deepEqual(await readProjectDirectory(source, 'assets', { optional: true, probe: true, diagnostics }), optional ? [] : null);
+		t.deepEqual(diagnostics, optional || file ? [] : [{
+			severity: 'error', code: 'unreadable_source', path: 'packages',
+			message: 'Failed to enumerate project directory: blocked', sourcePath: 'assets',
+		}]);
+		t.is(await t.throwsAsync(readProjectDirectory(source, 'required')), error, 'required reads preserve the original error');
+		if (file) t.is(await readProjectSubdirectory(source, 'file'), null);
+	}
+	let enumerated = false;
+	t.is(await readProjectSubdirectory({
+		stat: async () => ({ isDirectory: () => false }),
+		readdir: async () => { enumerated = true; return []; },
+	}, 'file'), null);
+	t.false(enumerated, 'a stat-confirmed file is not enumerated');
+});
+
+test('Reader phase boundaries preserve diagnostic order and corrupt source bytes with or without stat', async (t) => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-reader-phases-'));
+	t.teardown(() => fs.rm(directory, { recursive: true, force: true }));
+	const packageDir = path.join(directory, 'assets', 'Main');
+	await fs.mkdir(packageDir, { recursive: true });
+	await fs.mkdir(path.join(directory, 'settings'));
+	await fs.writeFile(path.join(directory, 'settings', 'Common.json'), '{bad');
+	const target = path.join(directory, 'Main.fairy');
+	await fs.writeFile(target, '<projectDescription id="phases" type="Unity" version="3.0"/>');
+	await fs.writeFile(path.join(packageDir, 'package.xml'), '<packageDescription id="main"><resources>'
+		+ '<component id="panel" name="Bad.xml"/><misc id="missing" name="missing.bin"/>'
+		+ '<movieclip id="clip" name="bad.jta"/><misc id="denied" name="denied.bin"/>'
+		+ '<unknown id="unknown" name="unknown.bin"/></resources></packageDescription>');
+	await fs.writeFile(path.join(packageDir, 'Bad.xml'), '<component><broken>');
+	const corrupt = new Uint8Array([0, 1, 2]);
+	await fs.writeFile(path.join(packageDir, 'bad.jta'), corrupt);
+	const deniedPath = path.join(packageDir, 'denied.bin');
+	await fs.writeFile(deniedPath, new Uint8Array([3]));
+	for (const withStat of [true, false]) {
+		class SourceIO extends NodeIO {
+			protected override createFileSystem() {
+				const base = super.createFileSystem();
+				return { ...base, stat: withStat ? base.stat : undefined, readdir: fs.readdir,
+					readFileRaw: async (file: string) => {
+						if (file === deniedPath) throw Object.assign(new Error('denied'), { code: 'EACCES' });
+						return base.readFileRaw(file);
+					},
+				};
+			}
+		}
+		const io = new SourceIO();
+		const detailed = await io.readProjectDetailed(target, { hydrateResourceBytes: true });
+		t.false(detailed.complete);
+		t.deepEqual(detailed.diagnostics.map((diagnostic) => diagnostic.code), [
+			'invalid_settings_json', 'unsupported_resource_kind', 'missing_source', 'corrupt_source',
+			'unreadable_source', 'invalid_component_xml',
+		]);
+		for (const doc of [detailed.document!, await io.readProject(target, { hydrateResourceBytes: true })]) {
+			const pkg = doc.getRoot().listPackages()[0]!;
+			t.truthy(pkg.getResourceById('panel'), 'component metadata remains registered when its XML cannot be parsed');
+			const clip = pkg.getResourceById('clip');
+			if (clip?.propertyType !== 'MovieClipResource') throw new Error('missing MovieClip metadata');
+			t.deepEqual(clip.getSourceData()?.getData(), corrupt);
+		}
+	}
+});
 
 test('mixed readdir without stat skips files and preserves directory read failures', async (t) => {
 	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-mixed-scan-'));

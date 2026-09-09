@@ -1,3 +1,5 @@
+export { getXmlNode } from '../utils/xml-utils.js';
+import { getXmlNode } from '../utils/xml-utils.js';
 import type { GComponentPropertyOverride } from '../properties/g-component.js';
 import { ensureArray } from '../utils/xml-utils.js';
 import { PROJECT_XML_PROTOCOL, readXmlAttr, type XmlNodeProtocol } from './project-xml-protocol.js';
@@ -191,11 +193,6 @@ export interface DisplayObjectXmlNode extends Record<string, unknown> {
 	ScrollBar?: ExtensionXmlNode | ExtensionXmlNode[];
 }
 
-export function getXmlNode<T extends XmlNode>(value: unknown): T | null {
-	const node = Array.isArray(value) ? value[0] : value;
-	if (!node || typeof node !== 'object' || Array.isArray(node)) return null;
-	return node as T;
-}
 
 export function getProtocolChildName(protocol: XmlNodeProtocol, childName: string): string | null {
 	return protocol.children?.[childName] ? childName : null;
