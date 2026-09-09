@@ -553,12 +553,7 @@ export class ProjectReader {
 
 		// 3. Scan packages
 		const assetsPath = fs.join(basePath, 'assets');
-		let packageDirs: string[];
-		try {
-			packageDirs = await fs.readdir(assetsPath);
-		} catch {
-			packageDirs = [];
-		}
+		const packageDirs = await this._readDirectory(ctx, assetsPath, diagnostics !== undefined, true);
 
 		for (const dirName of packageDirs) {
 			const pkgXmlPath = fs.join(assetsPath, dirName, 'package.xml');
@@ -644,12 +639,7 @@ export class ProjectReader {
 		collectDiagnostics = false,
 	): Promise<string[]> {
 		const fs = this._fs;
-		let dirNames: string[] = [];
-		try {
-			dirNames = await fs.readdir(ctx.basePath);
-		} catch {
-			return [];
-		}
+		const dirNames = await this._readDirectory(ctx, ctx.basePath, collectDiagnostics);
 
 		const branchNames = dirNames
 			.filter((dirName) => dirName.startsWith('assets_') && dirName.length > 'assets_'.length)
@@ -658,12 +648,7 @@ export class ProjectReader {
 
 		for (const branchName of branchNames) {
 			const branchAssetsPath = fs.join(ctx.basePath, `assets_${branchName}`);
-			let packageDirs: string[] = [];
-			try {
-				packageDirs = await fs.readdir(branchAssetsPath);
-			} catch {
-				continue;
-			}
+			const packageDirs = await this._readDirectory(ctx, branchAssetsPath, collectDiagnostics);
 
 			for (const dirName of packageDirs) {
 				const pkgXmlPath = fs.join(branchAssetsPath, dirName, 'package_branch.xml');
@@ -684,6 +669,24 @@ export class ProjectReader {
 		}
 
 		return branchNames;
+	}
+
+	private async _readDirectory(ctx: ReaderContext, path: string, collectDiagnostics: boolean, optional = false): Promise<string[]> {
+		try {
+			return await this._fs.readdir(path);
+		} catch (error) {
+			const failure = error as { code?: string; name?: string } | null;
+			if (optional && (failure?.code === 'ENOENT' || failure?.name === 'NotFoundError')) return [];
+			if (!collectDiagnostics) throw error;
+			ctx.addDiagnostic({
+				severity: 'error',
+				code: 'unreadable_source',
+				path: 'packages',
+				message: `Failed to enumerate project directory: ${error instanceof Error ? error.message : String(error)}`,
+				sourcePath: path,
+			});
+			return [];
+		}
 	}
 
 	private async _readSettings(ctx: ReaderContext): Promise<void> {
@@ -845,7 +848,7 @@ export class ProjectReader {
 		const folderEntries = orderedResources.length > 0
 			? orderedResources.filter((entry) => entry.tagName === 'folder').map((entry) => entry.attrs)
 			: ensureArray(resources?.folder).map((entry) => getXmlNode<ResourceXmlAttrs>(entry)).filter((entry): entry is ResourceXmlAttrs => !!entry);
-		await this._readPackageFolders(pkg, packageDir, branchName, folderEntries);
+		await this._readPackageFolders(ctx, pkg, packageDir, branchName, folderEntries, validateSyntax);
 		if (!resources) return;
 
 		const createdResources: Array<ReturnType<Package['listResources']>[number]> = [];
@@ -879,10 +882,12 @@ export class ProjectReader {
 	}
 
 	private async _readPackageFolders(
+		ctx: ReaderContext,
 		pkg: Package,
 		packageDir: string,
 		branch: string,
 		metadataEntries: ResourceXmlAttrs[],
+		collectDiagnostics: boolean,
 	): Promise<void> {
 		const metadata = new Map(metadataEntries.map((attrs) => {
 			const path = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.path) ?? '/';
@@ -891,22 +896,11 @@ export class ProjectReader {
 		}));
 		const folders = pkg.listResourceFolders();
 		const visit = async (directory: string, parentPath: string, entries?: string[]): Promise<void> => {
-			let names = entries;
-			if (!names) {
-				try {
-					names = await this._fs.readdir(directory);
-				} catch {
-					return;
-				}
-			}
+			const names = entries ?? await this._readDirectory(ctx, directory, collectDiagnostics);
 			for (const name of [...names].sort((left, right) => left.localeCompare(right))) {
 				const childDirectory = this._fs.join(directory, name);
-				let childEntries: string[];
-				try {
-					childEntries = await this._fs.readdir(childDirectory);
-				} catch {
-					continue;
-				}
+				if (this._fs.stat && !(await this._fs.stat(childDirectory)).isDirectory()) continue;
+				const childEntries = await this._readDirectory(ctx, childDirectory, collectDiagnostics);
 				const path = normalizeResourceFolderPath(`${parentPath}/${name}`);
 				const attrs = metadata.get(path);
 				folders.push({

@@ -869,7 +869,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"backendResult": {
 						"anyOf": [
 							{
-								"$ref": "#/$defs/BackendResult_0bdb207dae"
+								"$ref": "#/$defs/BackendResult_01bd3005ba"
 							},
 							{
 								"$ref": "#/$defs/McpUnhandledFailure_fcecd3763a"
@@ -10477,6 +10477,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"execution_failure",
 						"path_policy_violation",
 						"session_not_found",
+						"session_close_failed",
 						"transaction_preview_failed",
 						"entity_query_failed",
 						"session_read_failed",
@@ -14918,6 +14919,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"diskMayBePartiallyUpdated": {
 					"type": "boolean"
+				},
+				"recoveryPaths": {
+					"$ref": "#/$defs/Array_5444db1618"
 				}
 			},
 			"required": [
@@ -15027,6 +15031,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"diskMayBePartiallyUpdated": {
 					"type": "boolean"
+				},
+				"recoveryPaths": {
+					"$ref": "#/$defs/Array_5444db1618"
 				}
 			},
 			"required": [
@@ -15127,15 +15134,74 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				}
 			]
 		},
-		"BackendResult_0bdb207dae": {
+		"BackendResult_01bd3005ba": {
 			"anyOf": [
 				{
-					"$ref": "#/$defs/BackendFailure_4a72809733"
+					"$ref": "#/$defs/BackendFailure_44bf2b498a"
 				},
 				{
 					"$ref": "#/$defs/BackendSuccess_a36da64ce4"
 				}
 			]
+		},
+		"BackendFailure_44bf2b498a": {
+			"type": "object",
+			"properties": {
+				"ok": {
+					"type": "boolean",
+					"const": false
+				},
+				"meta": {
+					"$ref": "#/$defs/BackendResponseMeta_bbbdb18c02"
+				},
+				"error": {
+					"$ref": "#/$defs/Shape_387b06a626"
+				},
+				"session": {
+					"$ref": "#/$defs/BackendSessionSnapshot_e59c685fc8"
+				}
+			},
+			"required": [
+				"ok",
+				"meta",
+				"error"
+			],
+			"additionalProperties": false
+		},
+		"Shape_387b06a626": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/SessionNotFoundError_878fae4543"
+				},
+				{
+					"$ref": "#/$defs/SessionCloseFailedError_a32cd3d7ef"
+				}
+			]
+		},
+		"SessionCloseFailedError_a32cd3d7ef": {
+			"type": "object",
+			"properties": {
+				"code": {
+					"type": "string",
+					"const": "session_close_failed"
+				},
+				"message": {
+					"type": "string"
+				},
+				"sessionId": {
+					"type": "string"
+				},
+				"lockFilePath": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"code",
+				"message",
+				"sessionId",
+				"lockFilePath"
+			],
+			"additionalProperties": false
 		},
 		"BackendSuccess_a36da64ce4": {
 			"type": "object",
@@ -23134,6 +23200,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		},
 		{
+			"code": "session_close_failed",
+			"owners": [
+				"backend"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "The session and lock ownership remain registered. Inspect the reported lock release failure, correct the storage problem, then retry closeSession with the same session ID. Do not remove the lock file or open a replacement session to bypass the owner."
+			}
+		},
+		{
 			"code": "path_policy_violation",
 			"owners": [
 				"backend"
@@ -24079,5 +24155,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "bca2577811c82f4d17f1f5f2833ea617415b8166086178cfc48888cc1cab587c"
+	"digest": "758763ae4b6724a25a82dc0edbe10c7c13478589bdabf84b847dd2d7b745331d"
 };

@@ -1,6 +1,6 @@
 import { GearType, TransitionActionType } from '../constants.js';
 import type { Document } from '../document.js';
-import { ByteBuffer } from './byte-buffer.js';
+import type { ByteBuffer } from './byte-buffer.js';
 import {
 	decodeRelationBlock,
 	formatBinaryNumber,
@@ -181,9 +181,7 @@ export function decodeComponentTransitions(
 		for (let itemIndex = 0; itemIndex < itemCount && remainingBytes(buf) >= 2; itemIndex += 1) {
 			const itemSize = buf.getInt16();
 			const itemNextPos = buf.pos + itemSize;
-			const itemBuf = new ByteBuffer(buf.buffer, buf.byteOffset + buf.pos, itemSize);
-			itemBuf.stringTable = buf.stringTable;
-			itemBuf.version = buf.version;
+			const itemBuf = buf.readBuffer(itemSize);
 			const item = doc.createTransitionItem(`${transition.getName()}_${itemIndex}`);
 
 			if (itemBuf.seek(0, 0) && remainingBytes(itemBuf) >= 10) {

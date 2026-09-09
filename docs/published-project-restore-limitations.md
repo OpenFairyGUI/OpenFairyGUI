@@ -34,6 +34,8 @@
 
 ### 1. 发布包中根本不存在的资源或动作
 
+发布物中缺失独立资源项的字形图像使用稳定 glyph 图像 ID 的 UTF-8 十六进制生成 `images/glyph-<id>.png`，不同字体的不同图像 ID 不会因字符相同而重名。已有资源项保留发布物中的名称和路径；生成名称不代表原始源文件名，不依据示例包名或字体名称猜测。
+
 | 类别 | 不可还原内容 | 原因 | 当前样本证据 |
 |---|---|---|---|
 | 组件资源 | 原工程存在、但发布包未携带的组件 XML | 发布产物没有资源定义，restore 无法凭空生成真实内容 | `HitTest/component1.xml`、`PullToRefresh/Button1.xml`、`PullToRefresh/Button2.xml`、`TurnPage/Button3.xml` |

@@ -67,6 +67,14 @@ URI: `openfairygui://docs/diagnostics/session_not_found`
 
 Ask the host to confirm the runtime and project, recover any unsaved state, then explicitly open a new session if appropriate. Session IDs are runtime-local. Read its new revision and replan; never reuse an expired session or assume disk contains unsaved changes.
 
+### session_close_failed
+
+Owners: `backend` · Recovery: `host-action`
+
+URI: `openfairygui://docs/diagnostics/session_close_failed`
+
+The session and lock ownership remain registered. Inspect the reported lock release failure, correct the storage problem, then retry closeSession with the same session ID. Do not remove the lock file or open a replacement session to bypass the owner.
+
 ### path_policy_violation
 
 Owners: `backend` · Recovery: `host-action`

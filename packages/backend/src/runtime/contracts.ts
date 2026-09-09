@@ -144,6 +144,25 @@ export interface BackendFileStat {
 	isDirectory(): boolean;
 }
 
+/** A failed staged write with an explicit outcome for the original project. */
+export class ProjectWriteTransactionError extends Error {
+	public readonly code = 'project_write_transaction_failed';
+
+	/** Recognizes the same contract across separately bundled Node/root or ESM/CJS entries. */
+	public static is(error: unknown): error is ProjectWriteTransactionError {
+		if (typeof error !== 'object' || error === null) return false;
+		const value = error as Partial<ProjectWriteTransactionError>;
+		return value.code === 'project_write_transaction_failed' && typeof value.message === 'string'
+			&& typeof value.diskMayBePartiallyUpdated === 'boolean'
+			&& Array.isArray(value.recoveryPaths) && value.recoveryPaths.every((path) => typeof path === 'string');
+	}
+
+	constructor(cause: unknown, public readonly diskMayBePartiallyUpdated: boolean, public readonly recoveryPaths: string[] = []) {
+		super(cause instanceof Error ? cause.message : String(cause), { cause });
+		this.name = 'ProjectWriteTransactionError';
+	}
+}
+
 export interface BackendFileSystem {
 	stat(filePath: string): Promise<BackendFileStat>;
 	readdir(dirPath: string): Promise<string[]>;
@@ -157,7 +176,7 @@ export interface BackendFileSystem {
 	validateProjectRoot?(projectRoot: string): Promise<void>;
 	/** Optional host-specific lock location. Node keeps it beside the project so directory swaps do not move it. */
 	getSessionLockPath?(canonicalProjectPath: string): string;
-	/** Runs project writes against a staged copy and commits them as one directory swap. */
+	/** Stages project writes. On failure, throw ProjectWriteTransactionError to report rollback and recovery paths. */
 	runProjectWriteTransaction?(
 		projectRoot: string,
 		write: (stagedFileSystem: BackendFileSystem) => Promise<void>,
@@ -357,6 +376,13 @@ export interface SessionNotFoundError {
 	sessionId: string;
 }
 
+export interface SessionCloseFailedError {
+	code: 'session_close_failed';
+	message: string;
+	sessionId: string;
+	lockFilePath: string;
+}
+
 export interface SessionStaleWriteError {
 	code: 'stale_write';
 	message: string;
@@ -400,6 +426,7 @@ export interface SavePartialFailureError {
 	committedPaths: string[];
 	failedPaths: string[];
 	diskMayBePartiallyUpdated: boolean;
+	recoveryPaths?: string[];
 }
 
 export interface UamFidelityUnsupportedError {
@@ -430,6 +457,7 @@ export interface MaterializeWriteFailedError {
 	skippedPaths: string[];
 	diagnostics: BackendDiagnostic[];
 	diskMayBePartiallyUpdated: boolean;
+	recoveryPaths?: string[];
 }
 
 export type BackendEventKind =
@@ -516,6 +544,7 @@ export interface RefreshCacheInput {
 
 export type BackendError =
 	| SessionNotFoundError
+	| SessionCloseFailedError
 	| TransactionPreviewError
 	| EntityQueryError
 	| SessionReadError

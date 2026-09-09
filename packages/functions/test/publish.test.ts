@@ -17,6 +17,36 @@ const UNITY_BRANCH_LOADER_FAIRY = getFixtureProjectPath('FairyGUI-Experiments');
 const LAYABOX_EXAMPLES_FAIRY = getFixtureProjectPath('FairyGUI-layabox', 'demo/UIProject/FairyGUI-layabox-demo.fairy');
 const LAYABOX_RELEASE_DIR = getFixturePath('FairyGUI-layabox', 'demo', 'assets', 'resources', 'ui');
 
+test('republishing replaces derived atlases, recovers failed attempts, and drops deselected images', async (t) => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-republish-'));
+	t.teardown(() => fs.rm(directory, { recursive: true, force: true }));
+	const doc = new Document();
+	const pkg = doc.createPackage('Repeat').setId('repeat');
+	const image = doc.createImageResource('icon.png').setId('icon').setPath('/').setWidth(8).setHeight(8).setExported(true);
+	pkg.addResource(image);
+	await fs.mkdir(path.join(directory, 'Repeat'));
+	await sharp({ create: { width: 8, height: 8, channels: 4, background: { r: 255, g: 0, b: 0, alpha: 1 } } }).png().toFile(path.join(directory, 'Repeat', 'icon.png'));
+	const output = path.join(directory, 'out');
+	const options = { output, fs: createFs(), encoder: sharp, basePath: directory };
+	await doc.transform(publish(options));
+	const first = await fs.readFile(path.join(output, 'Repeat_fui.bytes'));
+	const png = await fs.readFile(path.join(output, 'Repeat_atlas0.png'));
+	await doc.transform(publish(options));
+	t.is(pkg.listAtlases().length, 1);
+	t.is(pkg.listAtlases()[0]!.listSprites().length, 1);
+	t.deepEqual(await fs.readFile(path.join(output, 'Repeat_fui.bytes')), first);
+	t.deepEqual(await fs.readFile(path.join(output, 'Repeat_atlas0.png')), png);
+	const previous = pkg.listAtlases();
+	await t.throwsAsync(doc.transform(publish({ ...options, atlas: { onFileWritten: () => { throw new Error('injected atlas output failure'); } } })));
+	t.deepEqual(pkg.listAtlases(), previous, 'failed atlas generation preserves the last complete model');
+	await doc.transform(publish(options));
+	t.deepEqual(await fs.readFile(path.join(output, 'Repeat_fui.bytes')), first);
+	image.setExported(false);
+	await doc.transform(publish(options));
+	t.is(pkg.listAtlases().length, 0);
+	t.false(parsePackageBinary(await fs.readFile(path.join(output, 'Repeat_fui.bytes'))).items.some((item) => item.id === 'icon'));
+});
+
 async function readReferenceReleaseNames(dirPath: string): Promise<string[]> {
 	return (await fs.readdir(dirPath))
 		.filter((name) => !name.endsWith('.meta'))

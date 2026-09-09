@@ -27,6 +27,8 @@ SVG 源文件校验接受标准的 `xmlns="http://www.w3.org/2000/svg"` 命名�
 
 原始 component XML 的 `size`、`xy`、`restrictSize`、边距、`clipSoftness`、设计图偏移及 `gearXY` / `gearSize` 整数部分若不是有符号 32 位整数，会报告 `desktop_incompatible_geometry`。缩放、旋转、透明度、pivot、skew 和 gear 百分比等浮点字段不受此规则限制；检查只报告问题，不修改源工程。
 
+工程根、`assets`、分支或资源子目录枚举失败会产生 `unreadable_source`，详细读取返回 `complete: false`；只有可选 `assets` 目录明确不存在时才按空目录处理。返回混合文件/目录条目的适配器通过 `stat` 区分目录。Backend 将不完整文件读取标记为不支持完整写回，避免用部分模型覆盖源工程。
+
 当前纳入严格检查的已建模字段在进入宽松读取器前执行词法检查：布尔值接受 `true`、`false`、`1`、`0`；浮点值必须是有限十进制数，元组长度必须准确；透明度必须在 `0..1`；整数必须符合字段的 `Int32` 约束；枚举必须是当前读取器正式支持的取值。失败时报告 `invalid_project_value`，避免 `parseInt`、`parseFloat` 或默认枚举分支把错误值静默改成看似有效的 UAM。
 
 ## API

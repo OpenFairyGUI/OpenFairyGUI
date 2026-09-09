@@ -5,6 +5,28 @@ import path from 'node:path';
 import { Document, ProjectWriter } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
 
+test('invalid image order hints fail before creating or replacing project files', async (t) => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-invalid-hints-'));
+	t.teardown(() => fs.rm(directory, { recursive: true, force: true }));
+	const target = path.join(directory, 'Images.fairy');
+	await fs.writeFile(target, 'original');
+	for (const scenario of ['missing', 'package', 'branch', 'cycle']) {
+		const doc = new Document();
+		const pkg = doc.createPackage('Images').setId('images');
+		const image = doc.createImageResource('a.png').setId('a');
+		const anchor = doc.createImageResource('b.png').setId('b');
+		pkg.addResource(image);
+		if (scenario === 'package') doc.createPackage('Other').setId('other').addResource(anchor);
+		else if (scenario !== 'missing') pkg.addResource(anchor);
+		if (scenario === 'branch') anchor.setBranch('mobile');
+		if (scenario === 'cycle') ProjectWriter.setImageWriteHints(anchor, { packageOrder: { afterId: 'a', weight: 0 } });
+		ProjectWriter.setImageWriteHints(image, { packageOrder: { afterId: 'b', weight: 0 } });
+		await t.throwsAsync(new NodeIO().writeProject(doc, target), { message: /package order anchor/ });
+		t.is(await fs.readFile(target, 'utf8'), 'original');
+		t.deepEqual(await fs.readdir(directory), ['Images.fairy']);
+	}
+});
+
 test('image write hints survive Writer replacement, stay local to the image, and can be cleared', async (t) => {
 	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-write-hints-'));
 	try {

@@ -149,10 +149,10 @@ test('path denial recovery never grants wider access; catalog is detached and fa
 		await runtime.closeSession({ sessionId: opened.data.sessionId });
 	} finally { await fixture.cleanup(); }
 	const catalog = getBackendDiagnosticCatalog();
-	t.is(new Set(catalog.map((guide) => guide.code)).size, 100);
+	t.is(new Set(catalog.map((guide) => guide.code)).size, 101);
 	for (const guide of catalog) t.deepEqual(getBackendDiagnosticGuide(guide.code), guide);
 	catalog.pop();
-	t.is(getBackendDiagnosticCatalog().length, 100);
+	t.is(getBackendDiagnosticCatalog().length, 101);
 	t.deepEqual(getBackendDiagnosticGuide('invalid_uam').owners, ['core.transaction', 'core.validation']);
 	t.is(createMeta('read', Date.now(), { diagnostics: [{ code: 'invalid_uam', severity: 'error', message: 'Invalid source', owner: 'core.validation' }] }).diagnostics[0]?.owner, 'core.validation');
 	t.throws(() => getBackendDiagnosticGuide('constructor'), { instanceOf: RangeError });

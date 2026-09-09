@@ -18,6 +18,7 @@ import type {
 	ProjectRootNotAllowedError,
 	SessionIdConflictError,
 	SessionNotFoundError,
+	SessionCloseFailedError,
 } from '../runtime.js';
 import type { CacheService } from './cache-service.js';
 import { type BackendContext, type BackendSessionState, failure, success } from './context.js';
@@ -53,6 +54,7 @@ function createProjectReaderFileSystem(
 		return operation();
 	};
 	return {
+		stat: (path) => contained(path, () => fileSystem.stat(path)),
 		readFile(filePath: string): Promise<string> {
 			return contained(filePath, () => fileSystem.readFile(filePath));
 		},
@@ -190,7 +192,7 @@ export class RuntimeService {
 				project,
 				readDiagnostics: read.diagnostics,
 				readComplete: read.complete,
-				uamFidelity: (await hasFullUamFidelity(document, project)) ? 'full' : 'unsupported',
+				uamFidelity: read.complete && (await hasFullUamFidelity(document, project)) ? 'full' : 'unsupported',
 				revision: 0,
 				lastSavedRevision: 0,
 				pendingStaleSourceFiles: new Map(),
@@ -291,7 +293,7 @@ export class RuntimeService {
 
 	public async closeSession(input: {
 		sessionId: string;
-	}): Promise<BackendResult<{ sessionId: string; closed: true }, SessionNotFoundError>> {
+	}): Promise<BackendResult<{ sessionId: string; closed: true }, SessionNotFoundError | SessionCloseFailedError>> {
 		const startedAt = Date.now();
 		const session = this.context.sessions.get(input.sessionId);
 		if (!session || session.closed) {
@@ -304,7 +306,16 @@ export class RuntimeService {
 			canonicalPathKey: session.canonicalPathKey,
 			revision: session.revision,
 		});
-		await session.sessionLock?.release().catch(() => undefined);
+		try {
+			await session.sessionLock?.release();
+		} catch (error) {
+			return failure('runtime', startedAt, {
+				code: 'session_close_failed',
+				message: error instanceof Error ? error.message : String(error),
+				sessionId: session.sessionId,
+				lockFilePath: session.lockFilePath,
+			}, toSessionSnapshot(session, this.context.capabilities), { sessionId: session.sessionId, revision: session.revision });
+		}
 		session.sessionLock = null;
 		session.lockHeld = false;
 		session.closed = true;

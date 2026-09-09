@@ -142,6 +142,8 @@ Integer geometry fields include:
 
 `pivot`, `scale`, `skew`, percentage values in `gearXY`, and scale values in `gearSize` continue to preserve decimals.
 
+Component roots and display tags supporting pivots preserve `pivot="0,0"` when `anchor="true"`; zero coordinates do not cancel anchor semantics. `.fairy` writing preserves all 13 formal project types from `Unity` through `Vision`, rejecting unknown types before writing.
+
 UAM XY Gear states and defaults use `x/y` and optional `px/py`. Enabling `positionsInPercent` requires paired finite `px/py` coordinates in explicit values; `0.5` means 50%. A `null` default means no default override and remains omitted on save. Each display node allows one binding per Gear type. Rebind a controller by removing the gear and adding it again; Display and Display2 may coexist.
 
 Text/Icon Gear page values preserve absent overrides, empty strings, and literal `-` text. Defaults also distinguish an absent override from explicit clearing. Project XML separates page `values` with `|`; no verified official lossless representation is available for a page value containing `|`, so ProjectWriter rejects that output before any write. A default containing `|` has no such delimiter restriction; UAM, Document, and binary retain complete strings.
@@ -159,6 +161,8 @@ Each package records its own resource branches in the formal ordered `branchName
 The public `addBranch`, `renameBranch`, and `removeBranch` transactions maintain the project branch registry sorted by name. Rename atomically updates resources, resource folders, and package-local branch tables while preserving each package's existing slot positions. Removal is allowed only for an empty branch with no variant-ID mapping. A branch name must be a safe, non-reserved single path segment. The branch currently active in the editor is local UI state and is not changed by these project transactions.
 
 ProjectWriter preserves `assets_<branch>/` for every project branch and writes an empty `package_branch.xml` for each empty package-local branch slot. Empty branches and package-local branch subsets therefore survive a ProjectReader reload. After a rename or removal is saved successfully, only the removed controlled branch directories are cleaned up with non-recursive directory deletion.
+
+Stale-file and directory cleanup uses the storage adapter's existing-path identities. Case aliases resolving to a current output are retained, while case-sensitive storage still distinguishes separate files. All image ordering hints are checked before the first file write: missing, cross-package, cross-branch and cyclic anchors reject writing.
 
 Resource folders are formally represented by `package.folders` with `branch / path / favorite / atlas`. Folder paths use canonical leading and trailing `/`, and the root is implicit. Actual `assets[/_<branch>]/<package-name>/` directories are the source of truth for existence; `<folder>` nodes store only favorite or atlas metadata that needs persistence. `setResourceFolderFavorite` updates a known folder in the main branch or a resource branch, and one operation changes only the selected folder. To match editor behavior that favorites descendants, callers should explicitly submit favorite operations for descendant folders and resources in the same transaction. Public `addResourceFolder`, `renameResourceFolder`, `moveResourceFolder`, and `removeResourceFolder` transactions operate only on empty folders. The parent must exist, and root, path conflicts, or non-empty operations are rejected before commit. Browser storage adapters must provide non-recursive `rmdir`; removed empty directories are cleaned up only after a successful save.
 
@@ -199,6 +203,8 @@ Browser Laya publishing never uses project or package desktop output paths benea
 ## Current publish completeness requirements
 
 Bitmap fonts load their branch's `.fnt` before resource selection. Texture and glyph images form the publication dependency closure, including images not explicitly exported; merged branches remap glyph references to published IDs. Fonts in `assets_<branch>` do not read the main branch's same-named `.fnt`. TTF/TTC/OTF resources are engine fonts: text stores the font resource name, without an empty bitmap Font item or a package dependency caused by that font URL.
+
+Republishing the same Document replaces old Atlas/Sprite nodes after successful generation and retains the previous complete atlas model on generation failure. The publication set is recomputed from export flags and dependencies; previously generated sprites do not become new publication inputs.
 
 These are OpenFairyGUI's current execution boundaries, not new editor setting fields:
 

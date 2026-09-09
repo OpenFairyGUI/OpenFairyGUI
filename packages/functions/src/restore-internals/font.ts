@@ -74,74 +74,9 @@ export function serializeFont(
 	return `${lines.join('\n')}\n`;
 }
 
-function glyphDisplayChar(glyph: FontGlyph): string {
-	const char = glyph.getChar();
-	if (char) return char;
-	const charId = glyph.getCharId();
-	if (charId <= 0) return '';
-	try {
-		return String.fromCodePoint(charId);
-	} catch {
-		return '';
-	}
-}
-
-function sanitizeGlyphFileSegment(char: string): string {
-	if (!char) return 'glyph';
-	const cleaned = char
-		.replace(/\s/gu, 'space')
-		.replace(/[\\/:*?"<>|]/gu, '_')
-		.replace(/\./gu, '_')
-		.split('')
-		.filter((item) => {
-			const code = item.codePointAt(0) ?? 0;
-			return code >= 0x20;
-		})
-		.join('');
-	return cleaned || 'glyph';
-}
-
-function syntheticFontGlyphVirtualPath(pkg: Package, font: FontResource): string {
-	const pkgName = pkg.getName() ?? '';
-	const fontBase = stripExtension(resourceFileName(font)).toLowerCase();
-	if (pkgName === 'EmitNumbers') return '/';
-	if (pkgName === 'Transition' && fontBase === 'number3') return '/';
-	return '/images/';
-}
-
-function syntheticFontGlyphFileName(
-	pkg: Package,
-	font: FontResource,
-	glyph: FontGlyph,
-	index: number,
-	glyphCount: number,
-): string {
-	const pkgName = pkg.getName() ?? '';
-	const char = glyphDisplayChar(glyph);
-	const fontBase = stripExtension(resourceFileName(font));
-	if (/^(hitnumber|number3)$/i.test(fontBase) && /^[0-9]$/u.test(char)) {
-		return `h${char}.png`;
-	}
-	if (/^cdtime$/i.test(fontBase) && /^[0-9]$/u.test(char)) {
-		return `${char}(4)_png.png`;
-	}
-	if (pkgName === 'EmitNumbers' && /^number1$/i.test(fontBase)) {
-		if (/^[0-9]$/u.test(char)) return `${char}(2)5_png.png`;
-		if (char === '-') return 'm2_png.png';
-	}
-	if (pkgName === 'EmitNumbers' && /^number2$/i.test(fontBase)) {
-		if (/^[0-9]$/u.test(char)) return `${char}(4)_png.png`;
-		if (char === '-') return 'm1_png.png';
-	}
-	if (pkgName === 'Transition' && /^number1$/i.test(fontBase)) {
-		const display = char === '0' && index === glyphCount - 1 ? '0-' : sanitizeGlyphFileSegment(char);
-		return `${String(index).padStart(4, '0')}_${display}_png.png`;
-	}
-	if (pkgName === 'Transition' && /^number2$/i.test(fontBase)) {
-		return `${String(index).padStart(4, '0')}_${sanitizeGlyphFileSegment(char)}.png`;
-	}
-	const display = sanitizeGlyphFileSegment(char);
-	return `${String(index).padStart(4, '0')}_${display}.png`;
+function syntheticFontGlyphFileName(glyphId: string): string {
+	const id = Array.from(new TextEncoder().encode(glyphId), (byte) => byte.toString(16).padStart(2, '0')).join('');
+	return `glyph-${id}.png`;
 }
 
 function syntheticFontTextureFileName(font: FontResource): string {
@@ -152,20 +87,15 @@ export function initializeFontGlyphImageResources(doc: Document): void {
 	for (const pkg of doc.getRoot().listPackages()) {
 		for (const resource of [...pkg.listResources()]) {
 			if (resource.propertyType !== 'FontResource') continue;
-			const glyphEntries = new Map<string, { glyph: FontGlyph; index: number }>();
-			for (const [index, glyph] of resource.listGlyphs().entries()) {
-				const glyphId = glyph.getImg() ?? '';
-				if (!glyphId || glyphEntries.has(glyphId)) continue;
-				glyphEntries.set(glyphId, { glyph, index });
-			}
-			for (const [glyphId, entry] of glyphEntries) {
+			const glyphIds = new Set(resource.listGlyphs().map((glyph) => glyph.getImg()).filter(Boolean));
+			for (const glyphId of glyphIds) {
 				if (pkg.getResourceById(glyphId)) continue;
 				const image = doc.createImageResource(glyphId);
 				image
 					.setId(glyphId)
-					.setPath(syntheticFontGlyphVirtualPath(pkg, resource))
+					.setPath('/images/')
 					.setBranch(resource.getBranch() ?? '')
-					.setFileName(syntheticFontGlyphFileName(pkg, resource, entry.glyph, entry.index, glyphEntries.size));
+					.setFileName(syntheticFontGlyphFileName(glyphId));
 				ProjectWriter.setImageWriteHints(image, { omitPackageSize: true, packageOrder: { afterId: resource.getId(), weight: 1 } });
 				syntheticFontGlyphImages.add(image);
 				pkg.addResource(image);

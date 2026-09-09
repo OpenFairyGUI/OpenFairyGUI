@@ -24,7 +24,6 @@ import {
 	collectFontTexture,
 	collectImage,
 	collectMovieClipFrames,
-	isPackableResource,
 	type InputItem,
 	type PackageResource,
 } from './atlas/inputs.js';
@@ -414,11 +413,6 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 			const resourceOrder = new Map(orderedResources.map((resource, index) => [resource.getId(), index]));
 			const inputOrder = new Map(allResources.map((resource, index) => [resource.getId(), index]));
 			const orderedAllResources = sortResourcesByOrder(allResources, resourceOrder, inputOrder);
-			const hasPackable = allResources.some((resource) => {
-				if (isImageResource(resource) && skeletonDependencyImageIds.has(resource.getId())) return false;
-				return isPackableResource(resource);
-			});
-			if (!hasPackable) continue;
 
 			// Collect packable items in declaration order
 			const inputs: InputItem[] = [];
@@ -463,13 +457,25 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 				}
 			}
 
-			if (inputs.length === 0) continue;
-			if (options.strictOutput && (!encoder || !options.basePath || !options.outputPath)) {
+			if (inputs.length > 0 && options.strictOutput && (!encoder || !options.basePath || !options.outputPath)) {
 				throw new Error(
 					`atlas: Package "${pkg.getName()}" requires encoder, basePath, and outputPath for complete raster output.`,
 				);
 			}
-			await emitAtlasInputs({ doc, pkg, allResources, inputs, options, encoder, logger });
+			const previousAtlases = pkg.listAtlases();
+			try {
+				await emitAtlasInputs({ doc, pkg, allResources, inputs, options, encoder, logger });
+			} catch (error) {
+				for (const atlas of pkg.listAtlases().filter((item) => !previousAtlases.includes(item))) {
+					for (const sprite of atlas.listSprites()) sprite.dispose();
+					atlas.dispose();
+				}
+				throw error;
+			}
+			for (const atlas of previousAtlases) {
+				for (const sprite of atlas.listSprites()) sprite.dispose();
+				atlas.dispose();
+			}
 		}
 	});
 }

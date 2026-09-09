@@ -148,6 +148,8 @@ FairyGUI 工程 XML 中由桌面编辑器按有符号 32 位整数读取的几�
 
 `pivot`、`scale`、`skew`、`gearXY` 的百分比和 `gearSize` 的缩放值继续保留小数。
 
+组件根及支持 pivot 的显示标签在 `anchor="true"` 时保留 `pivot="0,0"`，零坐标不取消锚点语义。`.fairy` 的工程类型完整写回 `Unity` 至 `Vision` 的 13 种正式类型；未知类型在写入前拒绝。
+
 UAM 的 XY Gear 状态与默认值使用 `x/y` 和可选的 `px/py`；启用 `positionsInPercent` 时，显式状态值必须提供成对的有限 `px/py`，比例 `0.5` 表示 50%。默认值 `null` 表示未提供默认覆盖，保存时保持省略。每个显示节点的同一种 Gear 只允许绑定一次；需要更换控制器时移除后重新添加，Display 和 Display2 可共存。
 
 Size、Look、Color、Animation 与 FontSize Gear 同样以 `defaultValue: null` 表示未提供默认覆盖，不以固定状态替代。XML 的 `delay` 保留为 `tweenDelay`；关闭补间也保留非默认的 ease、duration 和 delay。组件实例的 `controller` 属性通过正式 UAM `controllerOverrides` 保留，含其控制器及页面选择。
@@ -165,6 +167,8 @@ Text/Icon Gear 按页保留未覆盖值、空字符串和普通 `-` 文本，默
 公开事务 `addBranch`、`renameBranch`、`removeBranch` 维护按名称排序的工程分支注册表。重命名会原子更新资源、资源文件夹和包内分支表，但保持每个包已有槽位位置不变；删除只允许空且没有变体 ID 映射的分支。分支名必须是安全、非保留的单个路径段。编辑器当前激活分支属于本地界面状态，不在这些工程事务中修改。
 
 ProjectWriter 会为每个工程分支保留 `assets_<branch>/`，并为包内空分支槽位写出空的 `package_branch.xml`，因此空分支和包内分支子集都能在 ProjectReader reload 后恢复。重命名或删除成功保存后，仅以非递归目录删除清理已移除的受控分支目录。
+
+旧文件与目录清理使用存储适配器提供的现有路径身份；大小写别名解析到当前输出时不删除，大小写敏感存储仍区分不同文件。包和分支的全部图片排序提示在首次文件写入前验证，缺失、跨包、跨分支或循环锚点均拒绝写入。
 
 资源文件夹由 `package.folders` 正式承载 `branch / path / favorite / atlas`。文件夹路径使用以 `/` 开头和结尾的规范形式，根目录是隐式节点；实际 `assets[/_<branch>]/<包名>/` 目录是存在性的事实来源，`<folder>` 节点只写入需要持久化的收藏或图集元数据。`setResourceFolderFavorite` 可更新既有主分支或资源分支文件夹的收藏状态，且单个操作只修改 selector 指定的文件夹；需要匹配编辑器的后代收藏行为时，调用方应在同一事务中显式提交后代文件夹与资源收藏操作。公开事务 `addResourceFolder`、`renameResourceFolder`、`moveResourceFolder`、`removeResourceFolder` 只操作空文件夹；父目录必须存在，根目录、路径冲突和非空操作会在提交前拒绝。浏览器存储适配器须提供非递归 `rmdir`，保存成功后才清理被移除的空目录。
 
@@ -205,6 +209,8 @@ ProjectWriter 会为每个工程分支保留 `assets_<branch>/`，并为包内�
 ## 当前发布完整性要求
 
 位图字体在资源筛选前读取所属分支的 `.fnt`，由纹理及字形图片建立发布依赖闭包，包含未显式导出的图片；合并分支时字形引用同步映射到发布 ID。`assets_<branch>` 字体不读取主分支同名 `.fnt`。TTF/TTC/OTF 是引擎字体：文本写入字体资源名称，不生成空位图 Font 项，也不因该字体 URL 增加包依赖。
+
+同一 Document 重复发布时，图集成功生成后替换旧 Atlas/Sprite，生成失败保留之前完整的图集。发布集合由资源导出状态和依赖重新计算，之前生成的 Sprite 不构成新的发布依据。
 
 这些要求是 OpenFairyGUI 当前发布执行时的能力边界，不是新增的编辑器设置字段：
 

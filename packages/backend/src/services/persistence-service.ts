@@ -1,5 +1,6 @@
 import { commitUamProjectSourcePaths, materializeUamProject, validateUamProject } from '@openfairygui/core/uam';
 import type { BackendDiagnostic } from '../contracts.js';
+import { ProjectWriteTransactionError } from '../runtime/contracts.js';
 import { normalizeComparablePath, type PathPolicyViolationError, validateSaveTarget } from '../path-policy.js';
 import type {
 	BackendCapabilityUnavailableError,
@@ -126,7 +127,8 @@ export class PersistenceService {
 				reason: 'force_save',
 			});
 		}
-		return this.sessionOperations.run(input.sessionId, () => this.saveSessionExclusive(input));
+		const captured = { ...input };
+		return this.sessionOperations.run(captured.sessionId, () => this.saveSessionExclusive(captured));
 	}
 
 	private finishSuccessfulSave(session: BackendSessionState): void {
@@ -275,7 +277,8 @@ export class PersistenceService {
 					lastSavedRevision: session.lastSavedRevision,
 					committedPaths,
 					failedPaths,
-					diskMayBePartiallyUpdated: !fileSystem.runProjectWriteTransaction,
+					diskMayBePartiallyUpdated: !ProjectWriteTransactionError.is(error) || error.diskMayBePartiallyUpdated,
+					...(ProjectWriteTransactionError.is(error) && error.recoveryPaths.length ? { recoveryPaths: error.recoveryPaths } : {}),
 				},
 				toSessionSnapshot(session, this.context.capabilities),
 				{
@@ -301,7 +304,8 @@ export class PersistenceService {
 			| BackendCapabilityUnavailableError
 		>
 	> {
-		return this.sessionOperations.run(input.sessionId, () => this.materializeSessionExclusive(input));
+		const captured = { ...input, storage: input.storage && { ...input.storage } };
+		return this.sessionOperations.run(captured.sessionId, () => this.materializeSessionExclusive(captured));
 	}
 
 	private async materializeSessionExclusive(
@@ -353,6 +357,17 @@ export class PersistenceService {
 		}
 
 		const fairyPath = storageTarget?.fairyPath ?? session.fairyPath;
+		if (session.lockHeld && (fileSystem !== session.fileSystem || fairyPath !== session.fairyPath
+			|| (storageTarget && (storageTarget.canonicalPathKey !== session.canonicalPathKey
+				|| storageTarget.canonicalProjectPath !== session.canonicalProjectPath)))) {
+			return failure('authoring', startedAt, {
+				code: 'path_policy_violation',
+				message: 'A locked file-backed session must keep its opened storage binding.',
+				policy: 'save_target',
+				attemptedPath: fairyPath,
+				allowedPath: session.fairyPath,
+			}, toSessionSnapshot(session, this.context.capabilities), { sessionId: session.sessionId, revision: session.revision });
+		}
 		const targetViolation = await validateSaveTarget(fileSystem, fairyPath, input.targetPath);
 		if (targetViolation) {
 			return failure(
@@ -518,7 +533,8 @@ export class PersistenceService {
 					failedPaths,
 					skippedPaths,
 					diagnostics: diagnosticsFromError,
-					diskMayBePartiallyUpdated: !fileSystem.runProjectWriteTransaction,
+					diskMayBePartiallyUpdated: !ProjectWriteTransactionError.is(error) || error.diskMayBePartiallyUpdated,
+					...(ProjectWriteTransactionError.is(error) && error.recoveryPaths.length ? { recoveryPaths: error.recoveryPaths } : {}),
 				},
 				toSessionSnapshot(session, this.context.capabilities),
 				{

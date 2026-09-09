@@ -581,6 +581,7 @@ export async function runtimeSmoke() {
 	assert.deepEqual(Object.keys(afterFiles).filter((file) => beforeFiles[file] !== afterFiles[file]), ['assets/Main/MainView.xml']);
 	assert.equal(JSON.parse(cli(['validate', projectRoot, '--json'])).result.status, 'valid');
 	const { createNodeBackendFileSystem, createNodeBackendRuntime } = await import('@openfairygui/backend/node');
+	const { BackendRuntime } = await import('@openfairygui/backend');
 	const runtime = createNodeBackendRuntime({ allowedProjectRoots: [projectRoot] });
 	const failureRuntime = createNodeBackendRuntime({ allowedProjectRoots: [path.dirname(unsupportedPath)] });
 	const afterFailure = await failureRuntime.openSession({ projectPath: unsupportedPath });
@@ -616,7 +617,7 @@ export async function runtimeSmoke() {
 				return staged.writeFile(file, content);
 			},
 		}));
-		const recoveryRuntime = createNodeBackendRuntime({ allowedProjectRoots: [recoveryRoot], fileSystem });
+		const recoveryRuntime = new BackendRuntime({ allowedProjectRoots: [recoveryRoot], fileSystem });
 		const validateSession = recoveryRuntime.validateSession.bind(recoveryRuntime);
 		const saveSession = recoveryRuntime.saveSession.bind(recoveryRuntime);
 		recoveryRuntime.validateSession = (input) => {
@@ -642,6 +643,7 @@ export async function runtimeSmoke() {
 			assert.deepEqual(snapshot(recoveryRoot), originalFiles, 'Failed validation or staged writes must preserve the original files');
 			if (failureKind === 'save') {
 				assert.equal(failure.cause.cause.error.code, 'save_partial_failure');
+				assert.equal(failure.cause.cause.error.diskMayBePartiallyUpdated, false, 'Root runtime recognizes rollback from the separately bundled Node adapter');
 				assert(failure.cause.cause.error.failedPaths.length > 0, 'Preserve the backend recovery report');
 			} else assert.equal(failure.cause.cause.complete, failureKind === 'invalid');
 			const peer = await createNodeBackendRuntime({ allowedProjectRoots: [recoveryRoot] }).openSession({ projectPath: recoveryPath });

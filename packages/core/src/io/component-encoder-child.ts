@@ -157,7 +157,7 @@ export function _writeDisplayList(buf: WriteBuffer, comp: Component, doc: Docume
 		// Pivot
 		const px = child.getPivotX?.() ?? 0;
 		const py = child.getPivotY?.() ?? 0;
-		const hasPivot = px !== 0 || py !== 0;
+		const hasPivot = px !== 0 || py !== 0 || (child.getPivotAsAnchor?.() ?? false);
 		buf.writeBool(hasPivot);
 		if (hasPivot) {
 			buf.writeFloat32(px);

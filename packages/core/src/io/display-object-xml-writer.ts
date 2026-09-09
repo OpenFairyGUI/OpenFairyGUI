@@ -532,7 +532,7 @@ function writeCommonDisplayState(
 	if (specs.aspect && object.getAspect?.()) writeXmlAttr(target, specs.aspect, 'true');
 	const pivotX = object.getPivotX?.() ?? 0;
 	const pivotY = object.getPivotY?.() ?? 0;
-	if (specs.pivot && (pivotX !== 0 || pivotY !== 0)) {
+	if (specs.pivot && (pivotX !== 0 || pivotY !== 0 || object.getPivotAsAnchor?.())) {
 		writeXmlAttr(target, specs.pivot, `${pivotX},${pivotY}`);
 		if (specs.anchor && object.getPivotAsAnchor?.()) writeXmlAttr(target, specs.anchor, 'true');
 	}

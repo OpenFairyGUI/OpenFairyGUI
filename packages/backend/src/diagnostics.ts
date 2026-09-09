@@ -56,6 +56,10 @@ export const BACKEND_DIAGNOSTIC_GUIDES = [
 		kind: 'host-action',
 		message: 'Ask the host to confirm the runtime and project, recover any unsaved state, then explicitly open a new session if appropriate. Session IDs are runtime-local. Read its new revision and replan; never reuse an expired session or assume disk contains unsaved changes.',
 	} },
+	{ code: 'session_close_failed', owners: ['backend'], remediation: {
+		kind: 'host-action',
+		message: 'The session and lock ownership remain registered. Inspect the reported lock release failure, correct the storage problem, then retry closeSession with the same session ID. Do not remove the lock file or open a replacement session to bypass the owner.',
+	} },
 	{ code: 'path_policy_violation', owners: ['backend'], remediation: path },
 	{ code: 'project_root_not_allowed', owners: ['backend'], remediation: path },
 	{ code: 'invalid_package_selector', owners: ['core.transaction'], remediation: selector },

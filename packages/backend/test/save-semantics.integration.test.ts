@@ -5,6 +5,72 @@ import { NodeIO } from '@openfairygui/core/node';
 import { createNodeBackendFileSystem } from '../src/node.js';
 import { createBackendRuntime, createFailingFileSystem, createTempBackendProject } from './helpers.js';
 
+test('case-only component rename preserves the new source through staged save and reopen', async (t) => {
+	const fixture = await createTempBackendProject();
+	t.teardown(() => fixture.cleanup());
+	const runtime = createBackendRuntime();
+	const opened = await runtime.openSession({ projectPath: fixture.fairyPath });
+	t.true(opened.ok);
+	if (!opened.ok) return;
+	const sessionId = opened.data.sessionId;
+	t.true((await runtime.applyTransaction({ sessionId, expectedRevision: 0, operations: [
+		{ kind: 'renameResource', selector: { packageId: 'pkg001', resourceId: 'cmp001' }, newName: 'mainview' },
+	] })).ok);
+	t.true((await runtime.saveSession({ sessionId, expectedRevision: 1 })).ok);
+	t.regex(await fs.readFile(path.join(fixture.rootDir, 'assets', 'Main', 'mainview.xml'), 'utf8'), /<component/);
+	t.true((await runtime.closeSession({ sessionId })).ok);
+	const reopened = await runtime.openSession({ projectPath: fixture.fairyPath });
+	t.true(reopened.ok);
+	if (reopened.ok) {
+		t.is(reopened.data.uamFidelity, 'full');
+		await runtime.closeSession({ sessionId: reopened.data.sessionId });
+	}
+});
+
+test.serial('commit plus rollback failure reports recovery directories and uncertain disk state', async (t) => {
+	for (const method of ['save', 'materialize']) {
+		const fixture = await createTempBackendProject();
+		const runtime = createBackendRuntime();
+		const opened = await runtime.openSession({ projectPath: fixture.fairyPath });
+		t.true(opened.ok);
+		if (!opened.ok) { await fixture.cleanup(); continue; }
+		const sessionId = opened.data.sessionId;
+		t.true((await runtime.applyTransaction({ sessionId, expectedRevision: 0, operations: [
+			{ kind: 'renameResource', selector: { packageId: 'pkg001', resourceId: 'cmp001' }, newName: 'Changed' },
+		] })).ok);
+		const rename = fs.rename;
+		const recoveries: string[] = [];
+		fs.rename = async (from, to) => {
+			if (String(to) === fixture.rootDir && String(from).includes('.save-')) {
+				recoveries.push(String(from));
+				throw new Error('injected rename failure');
+			}
+			return rename(from, to);
+		};
+		try {
+			const result = method === 'save'
+				? await runtime.saveSession({ sessionId, expectedRevision: 1 })
+				: await runtime.materializeSession({ sessionId, expectedRevision: 1 });
+			t.false(result.ok);
+			if (!result.ok && (result.error.code === 'save_partial_failure' || result.error.code === 'write_failed')) {
+				t.true(result.error.diskMayBePartiallyUpdated);
+				t.deepEqual([...(result.error.recoveryPaths ?? [])].sort(), [...recoveries].sort());
+				t.true(result.session?.dirty);
+				t.is(result.session?.lastSavedRevision, 0);
+				for (const directory of result.error.recoveryPaths ?? []) t.true((await fs.stat(directory)).isDirectory());
+			} else t.fail('expected structured write failure');
+			await t.throwsAsync(fs.stat(fixture.rootDir), { code: 'ENOENT' });
+		} finally {
+			fs.rename = rename;
+			const backup = recoveries.find((item) => item.includes('.save-backup-'));
+			if (backup) await fs.rename(backup, fixture.rootDir);
+			for (const directory of recoveries.filter((item) => item !== backup)) await fs.rm(directory, { recursive: true, force: true });
+			await runtime.closeSession({ sessionId });
+			await fixture.cleanup();
+		}
+	}
+});
+
 test('percentage XY source sessions remain fully editable and save all four coordinates', async (t) => {
 	const fixture = await createTempBackendProject();
 	t.teardown(() => fixture.cleanup());

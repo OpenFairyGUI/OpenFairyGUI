@@ -22,6 +22,7 @@ import type { FileSystem } from './file-system.js';
 export class NodeIO extends PlatformIO {
 	protected createFileSystem(): FileSystem {
 		return {
+			resolvePath: (filePath) => fs.realpath(filePath),
 			async readFile(filePath: string): Promise<string> {
 				return fs.readFile(filePath, 'utf-8');
 			},

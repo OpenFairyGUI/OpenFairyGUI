@@ -103,6 +103,8 @@ Gear 字符串解析归 `bridge-lift.ts`；具体属性的 Document setter 映�
 
 `SessionOperationQueue` 串行化同一会话的预演、提交、保存、物化和关闭，不阻塞其他会话。`SessionRegistry` 独占会话与路径索引：打开工程和物化到新存储在异步 I/O 前预占目标，成功后提交绑定，失败只释放自己的预占。重新绑定失败保留原绑定；宿主提供的跨运行时锁和存储事务仍负责各自边界。
 
+排队前复制保存、物化和关闭的请求值；存储适配器保持原对象身份。UAM 规范化独立持有 Gear 状态值、资源元数据和源字节。目录枚举失败产生不完整读取，文件会话不能将其当作完整 UAM 写回。已持有文件锁的会话拒绝改绑存储；`closeSession` 释放锁失败返回 `session_close_failed`，保留会话和锁记录，修正故障后可重试关闭。
+
 `ReadService` 只接收包含嵌套只读 UAM 的会话视图，检查响应预算后返回脱离会话的数据；`AuthoringService` 只持有事务所需的会话查询、缓存/事件命令与队列。`RuntimeService` 负责打开和关闭，`PersistenceService` 负责保存和物化，实际工程写入复用 `session-project-writer.ts`。`EventService` 和 `CacheService` 分别独占事件序列/日志和缓存集合，只查询各自所需的会话字段。
 
 事件是有界轮询日志；cache 按 sessionId 保存 revision-bound 派生数据，不是事实源。`refreshCache` 同步计算计数、发送一次 `cache.updated` 并直接返回 `BackendCacheSnapshot`，不改变编辑或保存 revision。Backend 契约版本为 `3.0.0`，能力 schema 为 `12`。artifact plane 只声明宿主能力，不执行 publish/restore。
@@ -113,7 +115,7 @@ Gear 字符串解析归 `bridge-lift.ts`；具体属性的 Document setter 映�
 
 - Core、Backend 根入口保持 browser-safe；平台 I/O 从 `@openfairygui/core/node` 或 `/web` 获取，仅需适配器类型时用 `/project-io`。`@openfairygui/functions/uam` 是 Backend 浏览器入口所用的窄事务工作流。
 - Node 默认装配位于 `packages/backend/src/node.ts`。打开前拒绝工程树中的符号链接，每次路径操作还检查最近存在祖先的 realpath；allowed roots 由 Backend 执行，MCP roots 不授予权限。
-- Node 持久锁只自动回收同主机且能确认 owner 已失效/PID 复用的有效记录；损坏、跨主机或活跃锁仍冲突。保存使用同级 staging、backup 与目录切换，失败恢复原树。
+- Node 持久锁只自动回收同主机且能确认 owner 已失效/PID 复用的有效记录；损坏、跨主机或活跃锁仍冲突。保存使用同级 staging、backup 与目录切换；提交失败时尝试恢复原树。`ProjectWriteTransactionError` 明确报告磁盘状态；只有确认原树未改变或已恢复时才报告 `diskMayBePartiallyUpdated: false`。回滚也失败时保留备份和暂存目录，并在保存错误的 `recoveryPaths` 中返回它们。
 - 浏览器通过 `createBackendStorageFileSystem` 注入异步存储，提供 `unlink` 和非递归 `rmdir`。Web Locks 原子排斥活跃标签，刷新/终止由浏览器释放；无 Web Locks 时须注入等价租约。持久锁文件不是浏览器锁事实源。
 - 通用浏览器适配器不自动获得 Node 的原子保存语义；未提供 `runProjectWriteTransaction` 时不声明 `atomicSave`。旧源文件与空目录仅在新的工程写入全部完成后按受控清单清理。
 - 浏览器图片替换通过异步事务与公开 `@openfairygui/core/image-validation-worker` 入口进行严格验证；宿主须将 worker 及其依赖打成相邻的独立 ESM 文件。同步 browser 入口拒绝图片替换；MovieClip 使用同一 JTA 解析路径。
@@ -129,6 +131,8 @@ Gear 字符串解析归 `bridge-lift.ts`；具体属性的 Document setter 映�
 - `restoreNode()` 只从可信本地发布目录恢复到独立工程目录，复用 `restore.ts` 与 `restore-internals/` 的路径检查、重建和输出事务。它不保证恢复原 XML、编辑器设置、未发布内容或本地状态，也不判定未知输入是否可信。
 
 `restore.ts` 保持准备、写出与提交的阶段顺序。`restore-internals/resource-paths.ts` 拥有受控文件定位和输出路径，复用 `path-utils.ts` 的资源路径校验；`skeleton.ts` 拥有骨骼类型修复、附属资源与依赖关联；`asset-output.ts` 拥有图集裁剪、生成文件及 loose 文件输出。字体与 MovieClip 分别复用 `font.ts`、`movie-clip.ts`，资源参数使用 Core 的具体类型。
+
+图集生成成功后替换该包的旧 Atlas/Sprite；生成失败移除本次新节点，保留之前完整的图集。发布资源选择只依据正式资源导出状态和依赖，不让先前生成的 Sprite 扩大下一次发布集合。ProjectWriter 在首次写盘前验证所有包和分支的图片排序提示；清理旧文件和目录时使用适配器的真实路径身份，避免大小写别名指向当前输出。
 
 图片序列化提示由 Core 的 `ProjectWriter.setImageWriteHints()` 拥有，按图片对象身份保存，不进入属性模型或 `extras`。`omitPackageSize` 控制推导尺寸省略，`packageOrder: { afterId, weight }` 控制写出顺序；目标必须是同包、同分支且未设置排序提示的资源，空 ID 表示放到末尾，同组按有限权重和资源 ID 排序，无效目标会拒绝写入。Restore 的字体纹理和字形共用这一契约；占位字形图像由 Functions 内部按对象身份记录，Writer 不识别字体恢复专用标记。设置提示会复制并替换原提示；返回的同一 `Document` 交给新的 Writer 时仍生效，空提示恢复普通写入。提示不跨 UAM 转换、重新读取或资源对象替换传播。
 

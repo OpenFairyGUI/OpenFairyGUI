@@ -1,5 +1,76 @@
 import test from 'ava';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { createNodeBackendFileSystem } from '../src/node.js';
 import { createBackendFixtureProject, createBackendRuntime, createTempBackendProject } from './helpers.js';
+
+test('an unreadable asset directory cannot become a writable empty session', async (t) => {
+	const fixture = await createTempBackendProject();
+	t.teardown(() => fixture.cleanup());
+	const base = createNodeBackendFileSystem();
+	const runtime = createBackendRuntime({ fileSystem: { ...base, readdir: async (directory) => {
+		if (directory === path.join(fixture.rootDir, 'assets')) throw Object.assign(new Error('permission denied'), { code: 'EACCES' });
+		return base.readdir(directory);
+	} } });
+	const opened = await runtime.openSession({ projectPath: fixture.fairyPath });
+	t.true(opened.ok);
+	if (!opened.ok) return;
+	t.is(opened.data.uamFidelity, 'unsupported');
+	const saved = await runtime.materializeSession({ sessionId: opened.data.sessionId });
+	t.false(saved.ok);
+	if (!saved.ok) t.is(saved.error.code, 'uam_fidelity_unsupported');
+	t.true((await fs.stat(path.join(fixture.rootDir, 'assets', 'Main', 'MainView.xml'))).isFile());
+	await runtime.closeSession({ sessionId: opened.data.sessionId });
+});
+
+test('a failed lock release keeps the session retryable and blocks a second owner', async (t) => {
+	const fixture = await createTempBackendProject();
+	t.teardown(() => fixture.cleanup());
+	const base = createNodeBackendFileSystem();
+	let failRelease = true;
+	const runtime = createBackendRuntime({ fileSystem: { ...base, acquireSessionLock: async (lockPath) => {
+		const lock = await base.acquireSessionLock(lockPath);
+		return { ...lock, release: async () => {
+			if (failRelease) throw new Error('injected lock release failure');
+			await lock.release();
+		} };
+	} } });
+	const opened = await runtime.openSession({ projectPath: fixture.fairyPath });
+	t.true(opened.ok);
+	if (!opened.ok) return;
+	const input = { sessionId: opened.data.sessionId };
+	const failed = await runtime.closeSession(input);
+	t.false(failed.ok);
+	if (!failed.ok) t.is(failed.error.code, 'session_close_failed');
+	const retained = runtime.getSession(input);
+	t.true(retained.ok && retained.data.lockHeld);
+	t.false((await createBackendRuntime().openSession({ projectPath: fixture.fairyPath })).ok);
+	failRelease = false;
+	t.true((await runtime.closeSession(input)).ok);
+	const next = createBackendRuntime();
+	const reopened = await next.openSession({ projectPath: fixture.fairyPath });
+	t.true(reopened.ok);
+	if (reopened.ok) await next.closeSession({ sessionId: reopened.data.sessionId });
+});
+
+test('a locked file session rejects storage rebinding before writing the new target', async (t) => {
+	const fixture = await createTempBackendProject();
+	t.teardown(() => fixture.cleanup());
+	const fileSystem = createNodeBackendFileSystem();
+	const runtime = createBackendRuntime({ fileSystem });
+	const opened = await runtime.openSession({ projectPath: fixture.fairyPath });
+	t.true(opened.ok);
+	if (!opened.ok) return;
+	const target = path.join(fixture.rootDir, 'other', 'Other.fairy');
+	const result = await runtime.materializeSession({ sessionId: opened.data.sessionId, storage: { fileSystem, fairyPath: target } });
+	t.false(result.ok);
+	if (!result.ok) t.is(result.error.code, 'path_policy_violation');
+	await t.throwsAsync(fs.stat(path.dirname(target)), { code: 'ENOENT' });
+	const session = runtime.getSession({ sessionId: opened.data.sessionId });
+	t.true(session.ok && session.data.lockHeld && session.data.canonicalProjectPath === opened.data.canonicalProjectPath);
+	t.false((await createBackendRuntime().openSession({ projectPath: fixture.fairyPath })).ok);
+	t.true((await runtime.closeSession({ sessionId: opened.data.sessionId })).ok);
+});
 
 test('openSession -> getSession -> closeSession reports revision and dirty state', async (t) => {
 	const fixture = await createTempBackendProject();

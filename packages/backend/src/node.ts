@@ -4,6 +4,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import {
 	BackendRuntime,
+	ProjectWriteTransactionError,
 	type BackendFileStat,
 	type BackendFileSystem,
 	type BackendHostAdapter,
@@ -145,33 +146,36 @@ async function runNodeProjectWriteTransaction(
 	const staging = path.join(parent, `.${name}.save-${randomUUID()}`);
 	const backup = path.join(parent, `.${name}.save-backup-${randomUUID()}`);
 	const existed = await pathExists(root);
-	if (existed) {
-		await assertNoSymlinks(root);
-		await fs.cp(root, staging, { recursive: true, errorOnExist: true, force: false });
-	} else {
-		await fs.mkdir(staging, { recursive: true });
-	}
 	try {
+		if (existed) {
+			await assertNoSymlinks(root);
+			await fs.cp(root, staging, { recursive: true, errorOnExist: true, force: false });
+		} else {
+			await fs.mkdir(staging, { recursive: true });
+		}
 		await write(createStagedNodeFileSystem(root, staging));
+		// ponytail: two-step rename preserves rollback; use directory exchange if zero reader gap becomes required.
+		if (existed) await fs.rename(root, backup);
+		try {
+			await fs.rename(staging, root);
+		} catch (commitError) {
+			if (existed) {
+				try {
+					await fs.rename(backup, root);
+				} catch (rollbackError) {
+					throw new ProjectWriteTransactionError(
+						new AggregateError([commitError, rollbackError], 'Project commit and rollback both failed.'), true, [backup, staging],
+					);
+				}
+			}
+			throw commitError;
+		}
 	} catch (error) {
-		await fs.rm(staging, { recursive: true, force: true });
-		throw error;
+		if (ProjectWriteTransactionError.is(error)) throw error;
+		await fs.rm(staging, { recursive: true, force: true }).catch(() => undefined);
+		throw new ProjectWriteTransactionError(error, false);
 	}
-	if (!existed) {
-		await fs.rename(staging, root);
-		return;
-	}
-
-	// ponytail: two-step rename preserves rollback; use directory exchange if zero reader gap becomes required.
-	await fs.rename(root, backup);
-	try {
-		await fs.rename(staging, root);
-	} catch (error) {
-		await fs.rename(backup, root);
-		await fs.rm(staging, { recursive: true, force: true });
-		throw error;
-	}
-	await fs.rm(backup, { recursive: true, force: true }).catch(() => undefined);
+	if (existed) await fs.rm(backup, { recursive: true, force: true }).catch(() => undefined);
 }
 
 export function createNodeBackendFileSystem(): BackendFileSystem {

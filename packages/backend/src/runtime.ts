@@ -52,6 +52,7 @@ import type {
 	SaveSessionInput,
 	SessionIdConflictError,
 	SessionNotFoundError,
+	SessionCloseFailedError,
 	SessionStaleWriteError,
 	TransactionPreviewError,
 	UamFidelityUnsupportedError,
@@ -209,8 +210,9 @@ export class BackendRuntime {
 
 	public async closeSession(input: {
 		sessionId: string;
-	}): Promise<BackendResult<{ sessionId: string; closed: true }, SessionNotFoundError>> {
-		return this.sessionOperations.run(input.sessionId, () => this.runtimeService.closeSession(input));
+	}): Promise<BackendResult<{ sessionId: string; closed: true }, SessionNotFoundError | SessionCloseFailedError>> {
+		const captured = { ...input };
+		return this.sessionOperations.run(captured.sessionId, () => this.runtimeService.closeSession(captured));
 	}
 
 	public getEvents(

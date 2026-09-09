@@ -3485,6 +3485,39 @@ test('browser-safe clean save preserves property overrides and autoClearItems', 
 		&& reloadedInstance.instanceProperties.autoClearItems);
 });
 
+test('case-sensitive storage removes the old source after a case-only rename', async (t) => {
+	const storage = new MemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const runtime = new BackendRuntime();
+	t.true(runtime.openProjectSession({ sessionId: 'case', project: createBackendFixtureProject(), storage: { fileSystem, fairyPath: 'Case/Project.fairy' } }).ok);
+	t.true((await runtime.materializeSession({ sessionId: 'case' })).ok);
+	t.true((await runtime.applyTransaction({ sessionId: 'case', expectedRevision: 0, operations: [
+		{ kind: 'renameResource', selector: { packageId: 'pkg001', resourceId: 'cmp001' }, newName: 'mainview' },
+	] })).ok);
+	t.true((await runtime.saveSession({ sessionId: 'case', expectedRevision: 1 })).ok);
+	t.true(storage.hasFile('Case/assets/Main/mainview.xml'));
+	t.false(storage.hasFile('Case/assets/Main/MainView.xml'));
+});
+
+test('queued materialization captures its caller-owned target and revision', async (t) => {
+	const storage = new PausingMemoryBrowserStorage();
+	const fileSystem = createBackendStorageFileSystem(storage);
+	const runtime = new BackendRuntime();
+	t.true(runtime.openProjectSession({ sessionId: 'capture', project: createBackendFixtureProject() }).ok);
+	const first = runtime.materializeSession({ sessionId: 'capture', storage: { fileSystem, fairyPath: 'first/Project.fairy' } });
+	await storage.writeStarted;
+	const input = { sessionId: 'capture', expectedRevision: 0, storage: { fileSystem, fairyPath: 'intended/Project.fairy' } };
+	const queued = runtime.materializeSession(input);
+	input.sessionId = 'changed';
+	input.expectedRevision = 99;
+	input.storage.fairyPath = 'changed/Project.fairy';
+	storage.continueWrite();
+	t.true((await first).ok);
+	t.true((await queued).ok);
+	t.true(storage.hasFile('intended/Project.fairy'));
+	t.false(storage.hasFile('changed/Project.fairy'));
+});
+
 test('materializeSession reserves its target before another session can write', async (t) => {
 	const storage = new PausingMemoryBrowserStorage();
 	const fileSystem = createBackendStorageFileSystem(storage);

@@ -316,7 +316,6 @@ function collectPackagePublishContext(
 	const resourceMap = new Map(resources.map((resource) => [resource.getId(), resource]));
 	const referencedIds = collectPackageResourceReferences(pkg).localResourceIds;
 	const pixelHitTestImageIds = new Set<string>();
-	const spriteItemIds = new Set<string>();
 	const collectExportedResourceIds = (
 		sourceResources: ReturnType<Package['listResources']>,
 		sourcePublishedResourceIds: Set<string>,
@@ -346,12 +345,6 @@ function collectPackagePublishContext(
 		return exportedResourceIds;
 	};
 
-	for (const atlas of pkg.listAtlases()) {
-		for (const sprite of atlas.listSprites()) {
-			if (!excludedResourceIds.has(sprite.getItemId())) spriteItemIds.add(sprite.getItemId());
-		}
-	}
-
 	for (const resource of resources) {
 		if (!isComponentResource(resource)) continue;
 		const component = resource;
@@ -371,7 +364,7 @@ function collectPackagePublishContext(
 		}
 	}
 
-	const publishedResourceIds = new Set<string>(spriteItemIds);
+	const publishedResourceIds = new Set<string>();
 	for (const resource of resources) {
 		const resourceId = resource.getId();
 		if (!resourceId || excludedResourceIds.has(resourceId)) continue;
@@ -385,7 +378,6 @@ function collectPackagePublishContext(
 			if (
 				resource.getExported() ||
 				referencedIds.has(resourceId) ||
-				spriteItemIds.has(resourceId) ||
 				pixelHitTestImageIds.has(resourceId)
 			) {
 				publishedResourceIds.add(resourceId);

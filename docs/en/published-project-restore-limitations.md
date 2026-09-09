@@ -34,6 +34,8 @@ Inferred image dimensions support reconstruction but are omitted from `package.x
 
 ### 1. Resources or actions absent from the published package
 
+Glyph images lacking standalone published resource items receive `images/glyph-<id>.png`, with the stable glyph image ID encoded as UTF-8 hexadecimal. Different image IDs from different fonts do not collide because they share a character. Existing items retain their published names and paths. Generated names do not claim original source filenames and do not depend on example package or font names.
+
 | Category | Unrecoverable information | Reason | Current sample evidence |
 |---|---|---|---|
 | Component resources | Component XML present in the source project but omitted from the published package. | The published artifact contains no resource definition, so `restore` cannot recreate real content. | `HitTest/component1.xml`, `PullToRefresh/Button1.xml`, `PullToRefresh/Button2.xml`, `TurnPage/Button3.xml` |

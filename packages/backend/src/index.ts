@@ -19,6 +19,7 @@ export {
 } from './diagnostics.js';
 export {
 	type AdvisoryLockConflictError,
+	ProjectWriteTransactionError,
 	type ApplySessionTransactionInput,
 	type BackendArtifactBridgeCapability,
 	type BackendCacheEntry,
@@ -85,6 +86,7 @@ export {
 	type SaveSessionInput,
 	type SessionIdConflictError,
 	type SessionNotFoundError,
+	type SessionCloseFailedError,
 	type SessionStaleWriteError,
 	type UamFidelityUnsupportedError,
 	type ValidateSessionInput,

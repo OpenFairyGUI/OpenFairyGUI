@@ -13,6 +13,47 @@ import {
 } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
 
+test('directory enumeration failures make detailed reads incomplete while absent assets remain optional', async (t) => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-scan-failure-'));
+	t.teardown(() => fs.rm(directory, { recursive: true, force: true }));
+	const target = path.join(directory, 'Empty.fairy');
+	await fs.writeFile(target, '<projectDescription id="empty" type="Unity" version="3.0"/>');
+	for (const failingPath of [directory, path.join(directory, 'assets'), path.join(directory, 'assets_mobile')]) {
+		class FailingIO extends NodeIO {
+			protected override createFileSystem() {
+				const base = super.createFileSystem();
+				return { ...base, readdir: async (dir: string) => {
+					if (dir === failingPath) throw Object.assign(new Error('permission denied'), { code: 'EACCES' });
+					if (dir === directory) return ['assets_mobile'];
+					return base.readdir(dir);
+				} };
+			}
+		}
+		const result = await new FailingIO().readProjectDetailed(target);
+		t.false(result.complete);
+		t.true(result.diagnostics.some((item) => item.code === 'unreadable_source' && item.sourcePath === failingPath));
+		await t.throwsAsync(new FailingIO().readProject(target), { message: 'permission denied' });
+	}
+	t.true((await new NodeIO().readProjectDetailed(target)).complete);
+	await fs.mkdir(path.join(directory, 'assets', 'Main', 'nested'), { recursive: true });
+	await fs.writeFile(path.join(directory, 'assets', 'Main', 'package.xml'), '<packageDescription id="main"><resources/></packageDescription>');
+	for (const failingPath of [path.join(directory, 'assets', 'Main'), path.join(directory, 'assets', 'Main', 'nested')]) {
+		class FailingFolderIO extends NodeIO {
+			protected override createFileSystem() {
+				const base = super.createFileSystem();
+				return { ...base, readdir: async (dir: string) => {
+					if (dir === failingPath) throw Object.assign(new Error('permission denied'), { code: 'EACCES' });
+					return base.readdir(dir);
+				} };
+			}
+		}
+		const result = await new FailingFolderIO().readProjectDetailed(target);
+		t.false(result.complete);
+		t.true(result.diagnostics.some((item) => item.code === 'unreadable_source' && item.sourcePath === failingPath));
+		await t.throwsAsync(new FailingFolderIO().readProject(target), { message: 'permission denied' });
+	}
+});
+
 test('project validation reports portable path collisions and dangling references', (t) => {
 	const project = createMinimalUamProject('validation');
 	const pkg = project.packages[0]!;

@@ -97,6 +97,8 @@ Offsets appear in this order:
 
 ## String table
 
+Length-prefixed strings, sub-buffers and block offsets must remain within their containing buffer. A string-table index must identify an existing entry or a protocol-defined null/empty sentinel; an out-of-range index is not an empty string.
+
 ### Block 4
 
 | Content | Protocol |
@@ -301,6 +303,8 @@ Required decode order:
 | Margin | `top`, `bottom`, `left`, `right` |
 | Overflow | `Visible` / `Hidden` / `Scroll` |
 | Clip softness | `x`, `y` |
+
+The component-header and child pivot presence flag is set when either coordinate is nonzero or `pivotAsAnchor=true`; `(0,0,true)` differs from an absent pivot.
 
 #### Block 1: Controllers
 

@@ -10,9 +10,13 @@ export interface FileSystem {
 	writeFileRaw(path: string, data: Uint8Array): Promise<void>;
 	mkdir(path: string): Promise<void>;
 	readdir(path: string): Promise<string[]>;
+	/** Distinguishes files from directories when readdir returns both kinds of entry. */
+	stat?(path: string): Promise<{ isDirectory(): boolean }>;
 	exists(path: string): Promise<boolean>;
 	join(...paths: string[]): string;
 	dirname(path: string): string;
+	/** Canonical spelling of an existing path, used to protect live files during stale-source cleanup. */
+	resolvePath?(path: string): string | Promise<string>;
 	/** Removes a file when the adapter supports project-source cleanup. */
 	unlink?(path: string): Promise<void>;
 	/** Removes an empty directory when the adapter supports resource-folder cleanup. */
