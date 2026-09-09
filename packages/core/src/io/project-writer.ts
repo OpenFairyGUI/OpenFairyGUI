@@ -5,7 +5,7 @@ import type { Package, PackageResourceFolder } from '../properties/package.js';
 import { resourceFolderName, resourceFolderParentPath } from '../utils/resource-folder.js';
 import { renderXmlAttrs } from '../utils/xml-utils.js';
 import { writeComponent } from './component-xml-writer.js';
-import { assertDisplayObjectGearXmlValues } from './display-object-xml-writer.js';
+import { assertDisplayObjectGearXmlValues } from './display-object-xml-behaviors-writer.js';
 import type { FileSystem } from './file-system.js';
 import type { ProjectBranchDirectory, ProjectImageWriteHints, ProjectResourceFolder, ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr } from './project-xml-protocol.js';
