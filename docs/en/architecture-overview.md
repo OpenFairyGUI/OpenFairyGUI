@@ -124,6 +124,8 @@ Pure in-memory session `canonicalProjectPath` / `canonicalPathKey` values identi
 
 `packages/functions/src/publish.ts` orchestrates settings, resource closure, atlas, binary output and code generation. Option/resource domains live in `publish/`; packing and JTA/FNT codecs live in `atlas/`. Node/Web reuse the main workflow without implicit execution from Backend sessions.
 
+The `codegen.ts` entrypoint coordinates plugins and packages. `codegen-settings.ts` resolves settings and output plans; `codegen-model.ts` builds names and members; `codegen-render.ts` renders filenames and text without filesystem access; `codegen-output.ts` shares package cleanup and sequential writes across languages.
+
 - `publishNode()` injects Node filesystem, Sharp and project plugins. Explicit output uses sibling staging before commit and rejects symlinks in existing output. Its returned file list comes from actual writes and atlas completion records, not enumeration of old output.
 - `publishBrowser()` injects caller filesystems, a Canvas raster adapter and empty hooks, rejecting unsupported settings before writing. Output atomicity belongs to the host; failure lists contain only completed writes.
 - `restoreNode()` restores only trusted local published directories into separate project directories, reusing path checks, reconstruction and output transactions in `restore.ts` and `restore-internals/`. It does not guarantee original XML, editor settings, unpublished content or local state, and does not decide whether unknown inputs are trustworthy.

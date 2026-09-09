@@ -128,6 +128,8 @@ XML 写入的共有格式化、协议辅助和 property 覆盖节点序列化位
 
 `packages/functions/src/publish.ts` 编排设置、资源闭包、atlas、二进制与代码生成；选项/资源域归 `publish/`，packing 与 JTA/FNT codec 归 `atlas/`。Node/Web 复用主链，不从 Backend 会话隐式启动。
 
+代码生成入口 `codegen.ts` 负责插件与包级编排；`codegen-settings.ts` 解析设置与输出计划，`codegen-model.ts` 构建命名及成员模型，`codegen-render.ts` 只渲染文件名和文本，`codegen-output.ts` 统一执行包目录清理与顺序写入。
+
 - `publishNode()` 注入 Node 文件系统、Sharp 和工程插件；显式 output 使用同级 staging 后提交，拒绝既有输出中的符号链接。返回文件清单来自本次实际写入与 atlas 完成记录，不枚举旧目录推测。
 - `publishBrowser()` 注入调用方文件系统、Canvas raster adapter 和空 hooks；不支持的设置在写入前拒绝。输出原子性由宿主负责，失败清单仅包含已完成的写入。
 - `restoreNode()` 只从可信本地发布目录恢复到独立工程目录，复用 `restore.ts` 与 `restore-internals/` 的路径检查、重建和输出事务。它不保证恢复原 XML、编辑器设置、未发布内容或本地状态，也不判定未知输入是否可信。
