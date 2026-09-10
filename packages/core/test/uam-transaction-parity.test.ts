@@ -7,8 +7,13 @@ import {
 	liftDocumentToUamProject,
 	materializeUamProject,
 	UamTransactionError,
+	validateTransactionSupport,
+	validateUamProject,
 	type UamTransactionOperation,
 } from '../src/index.js';
+import { isValidUamTextProperties } from '../src/uam/property-rules/text.js';
+import { isValidUamImageProperties } from '../src/uam/property-rules/image.js';
+import { isValidUamComponentInstanceProperties, isValidUamComponentPropertyOverride } from '../src/uam/property-rules/component-instance.js';
 import { canApplyOperationsInUam } from '../src/uam/transaction-uam-apply.js';
 import { createControllerModel, createLookGear, createSupportedProject } from './uam-transaction-fixtures.js';
 
@@ -202,4 +207,73 @@ test('both routes report the same ordered failure and leave the input unchanged'
 	})!;
 	t.deepEqual({ ...mixed, message: mixed.message }, { ...native, message: native.message });
 	t.deepEqual(project, baseline);
+});
+
+
+test('shared property rules preserve ordered diagnostics and rejected transaction inputs', (t) => {
+	const project = parityProject();
+	const baseline = structuredClone(project);
+	const invalid = structuredClone(project);
+	const resource = invalid.packages[0]!.resources.find((entry) => entry.id === 'cmp001')!;
+	if (resource.kind !== 'component') throw new Error('Missing parity component');
+	const operations: UamTransactionOperation[] = [];
+	const expectedProjectPaths: string[] = [];
+	const fields: string[] = [];
+	for (const [index, node] of resource.component.displayList.entries()) {
+		let props: Extract<UamTransactionOperation, { kind: 'setDisplayNodeProps' }>['props'];
+		if (node.id === 'n0' && node.kind === 'image') {
+			node.fillAmount = 0;
+			props = { imageProperties: { color: node.color, flip: node.flip, fillMethod: 0, fillOrigin: 0, fillClockwise: true, fillAmount: 0 } };
+		} else if (node.id === 'n1' && node.kind === 'text') {
+			node.fontSize = 0;
+			props = { textProperties: { ...createDefaultUamPlainTextProperties(), fontSize: 0 } };
+		} else if (node.id === 'clip' && node.kind === 'movieClip') {
+			node.frame = -1;
+			props = { movieClipProperties: { playing: node.playing, frame: -1, color: node.color } };
+		} else if (node.id === 'instance' && node.kind === 'component') {
+			node.instanceProperties = { extensionType: 'Slider', value: Number.NaN, min: 0, max: 1 };
+			props = { componentInstanceProperties: node.instanceProperties };
+		} else continue;
+		operations.push({ kind: 'setDisplayNodeProps', selector: { ...selector, displayNodeId: node.id }, props });
+		fields.push(Object.keys(props)[0]!);
+		expectedProjectPaths.push('packages[0].resources[1].component.displayList[' + index + ']' + (node.kind === 'component' ? '.instanceProperties' : ''));
+	}
+	const invalidBaseline = structuredClone(invalid);
+	t.deepEqual(validateUamProject(invalid).map(({ code, path }) => ({ code, path })),
+		expectedProjectPaths.map((path) => ({ code: 'invalid_uam', path })));
+	const operationBaseline = structuredClone(operations);
+	const issues = validateTransactionSupport(project, operations);
+	t.deepEqual(issues.map(({ code, path }) => ({ code, path })),
+		fields.map((field, index) => ({ code: 'invalid_display_node_payload', path: 'operations[' + index + '].props.' + field })));
+	for (const batch of [operations, [...operations, ...documentRoute]]) {
+		t.throws(() => applyUamTransaction(project, batch), { instanceOf: UamTransactionError });
+	}
+	t.deepEqual(project, baseline);
+	t.deepEqual(invalid, invalidBaseline);
+	t.deepEqual(operations, operationBaseline);
+});
+
+
+test('property rule leaves distinguish missing fields, explicit defaults and extension snapshots', (t) => {
+	const text = createDefaultUamPlainTextProperties();
+	const image = { color: '#ffffff', flip: 0, fillMethod: 0, fillOrigin: 0, fillClockwise: true, fillAmount: 100 };
+	const instance = { extensionType: 'Slider', value: 0, min: 0, max: 1 };
+	const override = { target: 'label', propertyId: 0, value: '' };
+	const baseline = structuredClone({ text, image, instance, override });
+	t.true(isValidUamTextProperties(text, 'text'));
+	t.true(isValidUamTextProperties(text, 'textInput'));
+	t.false(isValidUamTextProperties(text, 'richText'));
+	t.false(isValidUamTextProperties({ ...text, strokeSize: 0 }, 'text'));
+	t.true(isValidUamTextProperties({ ...text, strokeColor: '#ffffff00', strokeSize: 0 }, 'text'));
+	t.true(isValidUamImageProperties(image));
+	t.false(isValidUamImageProperties({ ...image, fillAmount: 1 }));
+	t.true(isValidUamImageProperties({ ...image, fillMethod: 1, fillAmount: 0 }));
+	t.true(isValidUamComponentInstanceProperties(instance));
+	t.false(isValidUamComponentInstanceProperties({ ...instance, max: undefined }));
+	t.false(isValidUamComponentInstanceProperties({ ...instance, extra: true }));
+	t.true(isValidUamComponentInstanceProperties({ extensionType: 'ScrollBar' }));
+	t.false(isValidUamComponentInstanceProperties(null));
+	t.true(isValidUamComponentPropertyOverride(override));
+	t.false(isValidUamComponentPropertyOverride({ ...override, target: '' }));
+	t.deepEqual({ text, image, instance, override }, baseline);
 });

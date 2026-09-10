@@ -1,6 +1,7 @@
 import test from 'ava';
 import { Document, ProjectType } from '@openfairygui/core';
 import {
+	AUTO_GENERATED_CODE_MARK,
 	buildCodegenClasses,
 	publishCodeGeneration,
 	type CodegenMember,
@@ -8,7 +9,7 @@ import {
 } from '../src/codegen.js';
 
 test('Chinese code generation preserves distinct files, bindings and member types on Unity and Laya', async (t) => {
-	for (const projectType of [ProjectType.Unity, ProjectType.LayaBox]) {
+	for (const projectType of [ProjectType.Unity, ProjectType.LayaBox, ProjectType.CocosCreator]) {
 		const doc = new Document();
 		doc.getRoot().setProjectType(projectType).setSettings({
 			customProperties: { root: 'generated-$&' }, publish: { codeGeneration: { codePath: '{root}' } },
@@ -417,3 +418,36 @@ test('buildCodegenClasses uses component base types for all referenced component
 		}
 	}
 });
+
+	test('code generation cleans only marked language files before writing and propagates output failure', async (t) => {
+		for (const projectType of [ProjectType.Unity, ProjectType.LayaBox, ProjectType.CocosCreator]) {
+			const doc = new Document();
+			doc.getRoot().setProjectType(projectType).setSettings({ publish: { codeGeneration: { codePath: 'generated' } } });
+			const pkg = doc.createPackage('Demo').setId('codepkg1').setGenCode(true);
+			pkg.addResource(doc.createComponent('Main').setId('main').addChild(doc.createGTextField('title').setId('n0')));
+			const extension = projectType === ProjectType.Unity ? '.cs' : '.ts';
+			const otherExtension = extension === '.cs' ? '.ts' : '.cs';
+			const events: string[] = [];
+			const files = new Map([
+				['Stale' + extension, AUTO_GENERATED_CODE_MARK + '\nold'],
+				['Keep' + extension, 'user code'],
+				['Other' + otherExtension, AUTO_GENERATED_CODE_MARK],
+			]);
+			await t.throwsAsync(publishCodeGeneration(doc, { packages: [pkg], fs: {
+				join: (...parts: string[]) => parts.join('/'),
+				async mkdir(path) { events.push('mkdir:' + path); },
+				async readdir() { return [...files.keys(), 'Unreadable' + extension]; },
+				async readFileRaw(path) {
+					const content = files.get(path.split('/').at(-1)!);
+					if (content === undefined) throw new Error('unreadable');
+					return new TextEncoder().encode(content);
+				},
+				async deleteFile(path) { events.push('delete:' + path); },
+				async writeFileRaw(path) { events.push('write:' + path); throw new Error('write failed'); },
+			} }), { message: 'write failed' });
+			t.deepEqual(events, [
+				'mkdir:generated', 'mkdir:generated/Demo',
+				'delete:generated/Demo/Stale' + extension, 'write:generated/Demo/UI_Main' + extension,
+			]);
+		}
+	});

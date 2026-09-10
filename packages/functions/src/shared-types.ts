@@ -41,13 +41,6 @@ export interface PublishDependency {
 	name: string;
 }
 
-export interface PackagePublishArtifactsExtras extends ExtrasMap {
-	publishedResourceIds?: string[];
-	exportedResourceIds?: string[];
-	publishedIncludeBranches?: boolean;
-	publishedEffectiveResourceIds?: Record<string, string>;
-}
-
 export interface HasOptionalFont {
 	getFont?(): string | string[] | null | undefined;
 }

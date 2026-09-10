@@ -1,7 +1,6 @@
 import type { RelationDef } from '../constants.js';
 import type { Component } from '../properties/component.js';
 import type { GComponentPropertyOverride } from '../properties/g-component.js';
-import type { Package } from '../properties/package.js';
 
 export type ChildNode = ReturnType<Component['listChildren']>[number];
 export type TransitionNode = ReturnType<Component['listTransitions']>[number];
@@ -227,8 +226,9 @@ export interface ChildEncoderExtras extends Record<string, unknown> {
 	scrollBarDisplay?: number;
 }
 
-export interface PackagePublishExtras extends Record<string, unknown> {
-	publishedEffectiveResourceIds?: Record<string, string>;
+export interface ResourceReferenceEncodingContext {
+	packageId: string;
+	effectiveResourceIds?: ReadonlyMap<string, string>;
 }
 
 export interface RelationOwner {
@@ -239,24 +239,20 @@ export function getChildExtras(child: { getExtras?(): Record<string, unknown> })
 	return (child.getExtras?.() as ChildEncoderExtras | undefined) ?? {};
 }
 
-export function getPublishedResourceIdMap(pkg: Package): Record<string, string> {
-	return ((pkg.getExtras?.() as PackagePublishExtras | undefined) ?? {}).publishedEffectiveResourceIds ?? {};
-}
-
-export function remapLocalResourceId(pkg: Package, value: string | null | undefined): string | null {
+export function remapLocalResourceId(context: ResourceReferenceEncodingContext, value: string | null | undefined): string | null {
 	if (!value) return null;
-	return getPublishedResourceIdMap(pkg)[value] ?? value;
+	return context.effectiveResourceIds?.get(value) ?? value;
 }
 
 export function resolveChildResourceRef(
-	pkg: Package,
+	context: ResourceReferenceEncodingContext,
 	child: Pick<EncoderChildLike, 'getSrc' | 'getPackageId'>,
 ): { src: string | null; packageId: string | null } {
 	const src = child.getSrc?.() ?? null;
 	const packageId = child.getPackageId?.() ?? '';
-	if (!packageId || packageId === pkg.getId()) {
+	if (!packageId || packageId === context.packageId) {
 		return {
-			src: remapLocalResourceId(pkg, src),
+			src: remapLocalResourceId(context, src),
 			packageId: null,
 		};
 	}
@@ -266,23 +262,23 @@ export function resolveChildResourceRef(
 	};
 }
 
-export function remapLocalUiUrl(pkg: Package, value: string | null | undefined): string | null {
+export function remapLocalUiUrl(context: ResourceReferenceEncodingContext, value: string | null | undefined): string | null {
 	if (!value || !value.startsWith('ui://')) return value ?? null;
-	const pkgId = pkg.getId();
+	const pkgId = context.packageId;
 	const raw = value.slice(5);
 	if (raw.startsWith(`${pkgId}/`)) return value;
 	if (!raw.startsWith(pkgId) || raw.length <= pkgId.length) return value;
 	const resourceId = raw.slice(pkgId.length);
-	const mappedResourceId = remapLocalResourceId(pkg, resourceId);
+	const mappedResourceId = remapLocalResourceId(context, resourceId);
 	if (!mappedResourceId) return value;
 	return `ui://${pkgId}${mappedResourceId}`;
 }
 
-export function remapLocalUiRefsInText(pkg: Package, value: string | null | undefined): string | null {
+export function remapLocalUiRefsInText(context: ResourceReferenceEncodingContext, value: string | null | undefined): string | null {
 	if (!value) return value ?? null;
-	const pkgId = pkg.getId();
+	const pkgId = context.packageId;
 	return value.replace(new RegExp(`ui://${pkgId}([0-9a-z]+)`, 'gi'), (_match, resourceId: string) => {
-		const mapped = remapLocalResourceId(pkg, resourceId);
+		const mapped = remapLocalResourceId(context, resourceId);
 		return `ui://${pkgId}${mapped ?? resourceId}`;
 	});
 }

@@ -14,8 +14,8 @@ import {
 	formatTitleType,
 	getProtocolChildName,
 	hasNonZeroInsets,
-	serializeDisplayList,
-} from './display-object-xml-writer.js';
+} from './project-xml-writer-utils.js';
+import { serializeDisplayList } from './display-object-xml-writer.js';
 import type { FileSystem } from './file-system.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr } from './project-xml-protocol.js';
 

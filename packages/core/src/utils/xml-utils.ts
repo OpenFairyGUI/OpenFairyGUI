@@ -1,4 +1,4 @@
-import { XMLParser } from 'fast-xml-parser';
+import { XMLParser, XMLValidator } from 'fast-xml-parser';
 
 const defaultOptions = {
 	ignoreAttributes: false,
@@ -156,4 +156,15 @@ export function parseSidePair(sidePair: string): Array<{ type: number; usePercen
 export function ensureArray<T>(v: T | T[] | undefined): T[] {
 	if (v === undefined || v === null) return [];
 	return Array.isArray(v) ? v : [v];
+}
+
+export function assertWellFormedXml(content: string): void {
+	const result = XMLValidator.validate(content, { allowBooleanAttributes: true });
+	if (result !== true) throw new Error(result.err.msg);
+}
+
+export function getXmlNode<T extends Record<string, unknown>>(value: unknown): T | null {
+	const node = Array.isArray(value) ? value[0] : value;
+	if (!node || typeof node !== 'object' || Array.isArray(node)) return null;
+	return node as T;
 }

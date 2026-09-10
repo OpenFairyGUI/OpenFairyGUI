@@ -55,6 +55,12 @@ Gear 字符串解析归 `bridge-lift.ts`；具体属性的 Document setter 映�
 
 `display-object-xml-reader.ts` 保留标签分发与共有状态读取；同目录的 `display-object-xml-text.ts`、`display-object-xml-list.ts`、`display-object-xml-behaviors.ts`、`display-object-xml-instance.ts` 分别拥有文本、列表、Gear/relation、实例覆盖。执行顺序为专属属性 → 共有状态 → Gear → relation → property 覆盖 → 扩展覆盖；共享 XML 形状和属性覆盖解析位于 `display-object-xml-shared.ts`。
 
+ProjectReader 保持工程设置、主包与分支、分支关联、组件第二遍解析的全局顺序。`project-reader-discovery.ts` 分离目录探测结果与可选目录/文件探测的诊断策略，不创建资源；`project-package-reader.ts` 读取包描述、目录元数据并登记资源；`project-resource-hydration.ts` 负责图像尺寸、源字节和 MovieClip 派生数据；`project-component-xml-validation.ts` 只检查组件 XML 属性值。共享 XML 节点提取与语法检查归 `utils/xml-utils.ts`。入口仍拥有读取错误分类和完整性判定，组件解析始终在全部资源登记之后执行。
+
+XML 写入的共有格式化、协议辅助和 property 覆盖节点序列化位于 `project-xml-writer-utils.ts`。`display-object-xml-text-writer.ts` 使用 `GTextField`、`GTextInput` 写出文本与输入框属性；`display-object-xml-list-writer.ts` 使用 `GList`、`GTree` 写出列表属性和条目；`display-object-xml-instance-writer.ts` 使用 `GComponent` 写出实例引用、property 覆盖及扩展数据。条目和属性覆盖复用正式模型类型。`display-object-xml-behaviors-writer.ts` 拥有 Gear 值格式化、标签允许项筛选和 relation 分组序列化，其 Gear 校验由工程写入前检查和显示列表输出共同调用。`display-object-xml-writer.ts` 保留标签分发、图片/图形/Loader 等具体类型序列化函数、共有状态和节点顺序编排；共有状态接口仅将部分标签缺少的状态 getter 设为可选，不承载控件专属属性；列表条目与实例 property 覆盖先于 Gear/relation，实例扩展节点由入口最后追加。
+
+ProjectWriter 在写盘前构建一次包/分支输出描述，固定描述文件、资源文件与文件夹目标，以及描述文件中的资源排序。目标冲突检查和保存共用这份描述；组件与源字节仍按原有顺序逐项写入，不缓存整份工程的序列化字节。全部包写入成功后，清理阶段重新核对实际路径身份，保护仍被当前输出占用的旧路径。
+
 工程读取、UAM 检查与源数据验证分层：`readProjectDetailed` 报告读取完整性，`validateUamProject` 检查模型，Functions 组合为正式验证报告。`invalid` 是确定错误，`incomplete` 是能力或数据不足；详见[工程验证](./project-validation.md)。
 
 ## 事务与预校验
@@ -76,6 +82,8 @@ Gear 字符串解析归 `bridge-lift.ts`；具体属性的 Document setter 映�
 生命周期投影复用实际 UAM apply helper，不另建执行器。领域函数不能各自遍历并重排整个批次；错误码、路径、诊断顺序与失败不修改输入必须保持。`uam-transaction-support.test.ts`、`uam-transaction-apply.test.ts`、`uam-transaction-lifecycle.test.ts` 覆盖这些职责和跨域批次。
 
 执行按现有操作能力进入 `transaction-uam-apply.ts` 或 `transaction-document-apply.ts`，失败丢弃私有工作副本，成功返回新的规范 UAM。物化支持范围不等于任意字段 mutation；原子生命周期批次也不是任意 operation 的自由组合。精确语法、支持范围与查询入口见[契约指南](./guide/contracts.md)。
+
+`uam/property-rules/` 按文本、图片与 MovieClip、组件实例划分共用属性规则，检查完整快照的结构、数值范围和局部一致性；全项目校验与显示事务预检直接复用。`validate.ts` 保留工程遍历、全局引用与诊断顺序，事务预检保留 selector、当前状态和操作支持范围。列表、Loader 等事务专用约束仍由预检拥有，不扩大为既有工程读取限制。
 
 `property-updates.ts` 是显示属性更新规则的共同实现，供预校验投影和两条执行路径复用。Document 路径读取目标节点的 UAM 属性、应用更新后，通过 bridge 写回原对象，保留 Gear 与 Controller 的对象绑定。Controller payload 校验由有序预校验拥有，执行器解析当前引用；Controller 创建和 Gear 类型映射复用 bridge。`uam-transaction-parity.test.ts` 通过净效果为空的 Controller 批次触发 Document 路径，比较共同操作的结果、诊断和输入不变性。
 
@@ -125,6 +133,12 @@ Gear 字符串解析归 `bridge-lift.ts`；具体属性的 Document setter 映�
 ## Publish / Restore 宿主边界
 
 `packages/functions/src/publish.ts` 编排设置、资源闭包、atlas、二进制与代码生成；选项/资源域归 `publish/`，packing 与 JTA/FNT codec 归 `atlas/`。Node/Web 复用主链，不从 Backend 会话隐式启动。
+
+每次调用在现有包发布计划中持有独立的 `PackagePublishContext`：资源选择、有效 ID、外部文件名和分支策略由 `publish/package-context.ts` 计算，外部资源写出直接读取上下文，Atlas 接收按资源身份建立的选择/ID 映射。Core 定义窄输入 `BinaryPackageEncodingContext`，由 `BinaryWriterOptions.packageContext` 传入；组件编码只接收本包 ID 和有效资源 ID 映射。发布阶段不把这些派生状态写入包或资源的 `extras`，也不复制 Document。高分辨率关联、像素命中数据和 Atlas/Sprite 仍按发布阶段更新正式模型。
+
+单独调用 BinaryWriter 并省略上下文时，使用当前模型的全部可编码资源、正式 ID 和分支，外部字体仍按既有规则排除。BinaryReader 的原始二进制切片、sprite 数据和文件名元数据仍用于二进制往返；显式上下文中的文件名只覆盖本次编码，不替换源元数据。
+
+代码生成入口 `codegen.ts` 负责插件与包级编排；`codegen-settings.ts` 解析设置与输出计划，`codegen-model.ts` 构建命名及成员模型，`codegen-render.ts` 只渲染文件名和文本，`codegen-output.ts` 统一执行包目录清理与顺序写入。
 
 - `publishNode()` 注入 Node 文件系统、Sharp 和工程插件；显式 output 使用同级 staging 后提交，拒绝既有输出中的符号链接。返回文件清单来自本次实际写入与 atlas 完成记录，不枚举旧目录推测。
 - `publishBrowser()` 注入调用方文件系统、Canvas raster adapter 和空 hooks；不支持的设置在写入前拒绝。输出原子性由宿主负责，失败清单仅包含已完成的写入。

@@ -6,10 +6,21 @@
 
 发布比较：
 
-- 稳定线（`main`）：[v0.6.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.0...main)
-- 开发线（`next`）：[v0.6.0...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.0...next)
+- 稳定线（`main`）：[v0.6.1...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.1...main)
+- 开发线（`next`）：[v0.6.1...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.1...next)
 
 ## v0.6.x
+
+### v0.6.1（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.1)）
+
+其他：
+
+- core：使用具体 XML 序列化类型，分离文本、列表、组件实例和行为写入，同时保留默认值及节点顺序。
+- core：目标校验和实际写入共用包输出计划；分离工程发现、包描述、资源加载和组件 XML 值校验。
+- core、functions：通过显式上下文向外部资源、图集和二进制编码传递本次发布的资源选择、有效 ID 与文件名。独立 BinaryWriter 不再读取前次发布遗留的选择；覆盖 Document 顺序复用，不承诺并发发布安全。
+- functions：分离代码生成设置、模型、渲染和文件输出，保留生成内容与清理顺序。
+- core：全项目校验和事务预检共享文本、图片/MovieClip 与组件实例属性规则，保留诊断、默认值及失败输入不变性。
+- workspace、docs：扩充重复发布、文件系统失败与属性快照回归覆盖，同步双语架构、示例和随包文档。
 
 ### v0.6.0（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.0)）
 

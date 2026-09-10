@@ -6,10 +6,21 @@
 
 Release comparisons:
 
-- Stable line (`main`): [v0.6.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.0...main)
-- Development line (`next`): [v0.6.0...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.0...next)
+- Stable line (`main`): [v0.6.1...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.1...main)
+- Development line (`next`): [v0.6.1...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.1...next)
 
 ## v0.6.x
+
+### v0.6.1 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.1))
+
+Other:
+
+- core: Use concrete XML serializer types and separate text, list, component-instance and behavior writing while preserving defaults and node order.
+- core: Share package output plans between validation and writing; separate project discovery, package descriptions, resource hydration and component XML validation.
+- core, functions: Pass per-publish resource selection, effective IDs and filenames through explicit contexts to external resources, atlases and binary encoding. Standalone BinaryWriter no longer reads selection left by an earlier publish; sequential Document reuse remains covered, without claiming concurrent publishing safety.
+- functions: Separate code-generation settings, models, rendering and file output while preserving generated contents and cleanup order.
+- core: Share text, image/MovieClip and component-instance property rules between whole-project validation and transaction preflight, preserving diagnostics, defaults and rejected-input immutability.
+- workspace, docs: Expand regression coverage for repeated publishing, filesystem failures and property snapshots; synchronize bilingual architecture, examples and installed documentation.
 
 ### v0.6.0 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.0))
 

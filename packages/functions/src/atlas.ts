@@ -18,7 +18,7 @@ import {
 	getFontDependencyImageIds,
 } from './publish/package-context.js';
 import { collectPackageResourceReferences } from './publish/resource-references.js';
-import type { ExtrasMap, HasOptionalSrc, HasOptionalUrl } from './shared-types.js';
+import type { HasOptionalSrc, HasOptionalUrl } from './shared-types.js';
 import { createTransform } from './utils.js';
 import {
 	collectFontTexture,
@@ -31,6 +31,8 @@ import { emitAtlasInputs, sortResourcesByOrder } from './atlas/packing.js';
 import type { PreparedJtaData } from './atlas/jta.js';
 
 export interface AtlasOptions {
+	/** Explicit resource selection and effective IDs for this transform. @internal */
+	publishResources?: ReadonlyMap<PackageResource, string>;
 	/**
 	 * Limit atlas generation to specific package names.
 	 * When omitted, all packages are processed.
@@ -149,7 +151,7 @@ export interface AtlasOptions {
 const ATLAS_DEFAULTS: Required<
 	Omit<
 		AtlasOptions,
-		'packages' | 'encoder' | 'basePath' | 'outputPath' | 'mkdir' | 'readFileRaw' | 'preparedMovieClips' | 'onFileWritten'
+		'publishResources' | 'packages' | 'encoder' | 'basePath' | 'outputPath' | 'mkdir' | 'readFileRaw' | 'preparedMovieClips' | 'onFileWritten'
 	>
 > = {
 	maxSize: 2048,
@@ -208,10 +210,6 @@ interface ChildWithReferenceUrls extends HasOptionalSrc, HasOptionalUrl {
 	getAutoClearItems?(): boolean;
 	getPropertyOverrides?(): Array<{ value: string }>;
 	listGears?(): Gear[];
-}
-
-interface PackageAtlasExtras extends ExtrasMap {
-	publishedResourceIds?: string[];
 }
 
 function getSelectedSkeletonDependencyImageIds(resources: PackageResource[]): Set<string> {
@@ -397,14 +395,13 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 
 		for (const pkg of root.listPackages()) {
 			if (packageFilter && !packageFilter.has(pkg.getName())) continue;
-			// Publish annotations select merged resources; only strict output treats an empty selection as explicit.
-			const publishedResourceIds = (pkg.getExtras() as PackageAtlasExtras | undefined)?.publishedResourceIds;
-			const selectedPublishIds = new Set(publishedResourceIds);
+			// Only strict output treats an empty publish selection as explicit.
+			const selectedResources = options.publishResources;
 			const hasPublishSelection =
-				publishedResourceIds !== undefined && (options.strictOutput || selectedPublishIds.size > 0);
+				selectedResources !== undefined && (options.strictOutput || selectedResources.size > 0);
 			const allResources =
 				hasPublishSelection
-					? pkg.listResources().filter((resource) => selectedPublishIds.has(resource.getId()))
+					? pkg.listResources().filter((resource) => selectedResources!.has(resource))
 					: pkg.listResources();
 			for (const font of allResources.filter(isFontResource)) await collectFontTexture(doc, font, pkg, options);
 			const skeletonDependencyImageIds = getSelectedSkeletonDependencyImageIds(allResources);
@@ -437,7 +434,7 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 					const resId = res.getId();
 					if (skeletonDependencyImageIds.has(resId)) continue;
 					if (
-						selectedPublishIds.size === 0 &&
+						!selectedResources?.size &&
 						!res.getExported() &&
 						referencedIds.size > 0 &&
 						!referencedIds.has(resId)
@@ -447,7 +444,7 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 				} else if (isMovieClipResource(res)) {
 					const resId = res.getId();
 					if (
-						selectedPublishIds.size === 0 &&
+						!selectedResources?.size &&
 						!res.getExported() &&
 						referencedIds.size > 0 &&
 						!referencedIds.has(resId)

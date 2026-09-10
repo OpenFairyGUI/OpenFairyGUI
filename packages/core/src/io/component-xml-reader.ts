@@ -1,3 +1,4 @@
+import { getXmlNode } from '../utils/xml-utils.js';
 import { ControllerActionType } from '../constants.js';
 import type { Component } from '../properties/component.js';
 import type { Controller, ControllerHomePageType } from '../properties/controller.js';
@@ -261,11 +262,6 @@ function escapeRegExp(value: string): string {
 }
 
 
-function getXmlNode<T extends XmlNode>(value: unknown): T | null {
-	const node = Array.isArray(value) ? value[0] : value;
-	if (!node || typeof node !== 'object' || Array.isArray(node)) return null;
-	return node as T;
-}
 
 
 function parseButtonMode(value: unknown): number {
