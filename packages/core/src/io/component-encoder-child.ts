@@ -1,7 +1,7 @@
 import { ObjectType } from '../constants.js';
 import type { Document } from '../document.js';
 import type { Component } from '../properties/component.js';
-import type { Package } from '../properties/package.js';
+import type { ResourceReferenceEncodingContext } from './component-encoder-shared.js';
 import { parseURL } from '../utils/id-utils.js';
 import { resolveTreeItemIsFolder } from './tree-item-hierarchy.js';
 import type {
@@ -73,7 +73,7 @@ function _resolveChildObjectType(child: EncoderChildLike): number {
 	return OBJECT_TYPE_MAP[child.propertyType as string] ?? 2;
 }
 
-export function _writeDisplayList(buf: WriteBuffer, comp: Component, doc: Document, pkg: Package, version: number): void {
+export function _writeDisplayList(buf: WriteBuffer, comp: Component, doc: Document, context: ResourceReferenceEncodingContext, version: number): void {
 	const children = getRuntimeChildren(comp);
 	const childIndexMap = getRuntimeChildIndexMap(comp);
 	buf.writeInt16(children.length);
@@ -98,7 +98,7 @@ export function _writeDisplayList(buf: WriteBuffer, comp: Component, doc: Docume
 
 		// --- Child Block 0: beforeAdd ---
 		const cb0 = buf.pos - childIndexPos;
-		const resourceRef = resolveChildResourceRef(pkg, child);
+		const resourceRef = resolveChildResourceRef(context, child);
 		buf.writeUint8(objType);
 		buf.writeS(resourceRef.src);
 		buf.writeS(resourceRef.packageId);
@@ -157,7 +157,7 @@ export function _writeDisplayList(buf: WriteBuffer, comp: Component, doc: Docume
 		// Pivot
 		const px = child.getPivotX?.() ?? 0;
 		const py = child.getPivotY?.() ?? 0;
-		const hasPivot = px !== 0 || py !== 0;
+		const hasPivot = px !== 0 || py !== 0 || (child.getPivotAsAnchor?.() ?? false);
 		buf.writeBool(hasPivot);
 		if (hasPivot) {
 			buf.writeFloat32(px);
@@ -228,7 +228,7 @@ export function _writeDisplayList(buf: WriteBuffer, comp: Component, doc: Docume
 		const isTextInput = childType === 'GTextInput';
 		if (isCompOrList) {
 			cb4 = buf.pos - childIndexPos;
-			_writeChildBlock4Component(buf, child, comp, pkg, version);
+			_writeChildBlock4Component(buf, child, comp, context, version);
 		} else if (isTextInput) {
 			cb4 = buf.pos - childIndexPos;
 			_writeChildBlock4TextInput(buf, child);
@@ -238,11 +238,11 @@ export function _writeDisplayList(buf: WriteBuffer, comp: Component, doc: Docume
 
 		// --- Child Block 5: child-type-specific extension ---
 		const cb5 = buf.pos - childIndexPos;
-		_writeChildSpecific(buf, child, doc, pkg, version);
+		_writeChildSpecific(buf, child, doc, context, version);
 
 		// --- Child Block 6: afterAdd text/icon (for GTextField, GButton, etc.) ---
 		const cb6 = buf.pos - childIndexPos;
-			_writeChildAfterAdd(buf, child, comp, pkg, version);
+			_writeChildAfterAdd(buf, child, comp, context, version);
 
 		// --- GList extra blocks ---
 		let cb7 = 0, cb8 = 0, cb9 = 0;
@@ -251,12 +251,12 @@ export function _writeDisplayList(buf: WriteBuffer, comp: Component, doc: Docume
 			const overflow = child.getOverflow?.() ?? 0;
 			if (overflow === 2) { // Scroll
 				cb7 = buf.pos - childIndexPos;
-				_writeScrollPane(buf, child, pkg);
+				_writeScrollPane(buf, child, context);
 			}
 
 			// Block 8: static list items
 			cb8 = buf.pos - childIndexPos;
-			_writeListItems(buf, child, pkg, version);
+			_writeListItems(buf, child, context, version);
 
 			if (isTree) {
 				cb9 = buf.pos - childIndexPos;
@@ -294,7 +294,7 @@ function resolveFontName(doc: Document, value: string): string {
 	return resource?.propertyType === 'FontResource' && resource.isExternalFont() ? resource.getName() : value;
 }
 
-function _writeChildSpecific(buf: WriteBuffer, child: EncoderChildLike, doc: Document, pkg: Package, version: number): void {
+function _writeChildSpecific(buf: WriteBuffer, child: EncoderChildLike, doc: Document, context: ResourceReferenceEncodingContext, version: number): void {
 	const type = child.propertyType as string;
 
 	switch (type) {
@@ -423,7 +423,7 @@ function _writeChildSpecific(buf: WriteBuffer, child: EncoderChildLike, doc: Doc
 			break;
 
 		case 'GLoader': {
-			buf.writeS(remapLocalUiUrl(pkg, child.getClearOnPublish?.() ? null : (child.getUrl?.() ?? null)));
+			buf.writeS(remapLocalUiUrl(context, child.getClearOnPublish?.() ? null : (child.getUrl?.() ?? null)));
 			buf.writeUint8(child.getAlign?.() ?? 0);
 			buf.writeUint8(child.getVAlign?.() ?? 0);
 			buf.writeUint8(child.getFill?.() ?? 0);
@@ -451,7 +451,7 @@ function _writeChildSpecific(buf: WriteBuffer, child: EncoderChildLike, doc: Doc
 		}
 
 		case 'GLoader3D': {
-			buf.writeS(remapLocalUiUrl(pkg, child.getClearOnPublish?.() ? null : (child.getUrl?.() ?? null)));
+			buf.writeS(remapLocalUiUrl(context, child.getClearOnPublish?.() ? null : (child.getUrl?.() ?? null)));
 			buf.writeUint8(child.getAlign?.() ?? 0);
 			buf.writeUint8(child.getVAlign?.() ?? 0);
 			buf.writeUint8(child.getFill?.() ?? 0);
@@ -547,7 +547,7 @@ function _writeChildSpecific(buf: WriteBuffer, child: EncoderChildLike, doc: Doc
  * Write child afterAdd data (block 6).
  * Must match the runtime's setup_afterAdd binary format exactly.
  */
-function _writeChildAfterAdd(buf: WriteBuffer, child: EncoderChildLike, comp: Component, pkg: Package, version: number): void {
+function _writeChildAfterAdd(buf: WriteBuffer, child: EncoderChildLike, comp: Component, context: ResourceReferenceEncodingContext, version: number): void {
 	const type = child.propertyType as string;
 
 	switch (type) {
@@ -556,7 +556,7 @@ function _writeChildAfterAdd(buf: WriteBuffer, child: EncoderChildLike, comp: Co
 		case 'GTextInput':
 			// GTextField.setup_afterAdd: readS() → text — noCache
 			buf.writeSEx(
-				remapLocalUiRefsInText(pkg, child.getAutoClearText?.() ? null : (child.getText?.() ?? null)),
+				remapLocalUiRefsInText(context, child.getAutoClearText?.() ? null : (child.getText?.() ?? null)),
 				true,
 			);
 			break;
@@ -566,8 +566,8 @@ function _writeChildAfterAdd(buf: WriteBuffer, child: EncoderChildLike, comp: Co
 			buf.writeUint8(12); // EXT_BUTTON
 			buf.writeSEx(child.getTitle?.() ?? null, true); // noCache
 			buf.writeSEx(child.getSelectedTitle?.() ?? null, true); // noCache
-			buf.writeS(remapLocalUiUrl(pkg, child.getIcon?.() ?? null));
-			buf.writeS(remapLocalUiUrl(pkg, child.getSelectedIcon?.() ?? null));
+			buf.writeS(remapLocalUiUrl(context, child.getIcon?.() ?? null));
+			buf.writeS(remapLocalUiUrl(context, child.getSelectedIcon?.() ?? null));
 			// titleColor
 			const titleColor = child.getTitleColor?.() ?? null;
 			const hasTitleColor = titleColor && titleColor !== '#000000';
@@ -588,7 +588,7 @@ function _writeChildAfterAdd(buf: WriteBuffer, child: EncoderChildLike, comp: Co
 			// relatedPageId
 			buf.writeS(btnExtras?.page ?? null);
 			// sound override
-			buf.writeSEx(remapLocalUiUrl(pkg, _strVal(btnExtras?.sound)) ?? null, false, false);
+			buf.writeSEx(remapLocalUiUrl(context, _strVal(btnExtras?.sound)) ?? null, false, false);
 			// soundVolume override
 			const btnVolume = btnExtras?.volume;
 			if (btnVolume !== undefined && btnVolume !== null) {
@@ -606,7 +606,7 @@ function _writeChildAfterAdd(buf: WriteBuffer, child: EncoderChildLike, comp: Co
 			// GLabel.setup_afterAdd: block 6
 			buf.writeUint8(11); // EXT_LABEL
 			buf.writeSEx(child.getTitle?.() ?? null, true); // noCache
-			buf.writeS(remapLocalUiUrl(pkg, child.getIcon?.() ?? null));
+			buf.writeS(remapLocalUiUrl(context, child.getIcon?.() ?? null));
 			// titleColor
 			const labelTitleColor = child.getTitleColor?.() ?? null;
 			const hasLabelColor = labelTitleColor && labelTitleColor !== '#000000';
@@ -617,7 +617,7 @@ function _writeChildAfterAdd(buf: WriteBuffer, child: EncoderChildLike, comp: Co
 			// input settings flag
 			buf.writeBool(false);
 			if (version >= 5) {
-				buf.writeS(remapLocalUiUrl(pkg, child.getSound?.() ?? null));
+				buf.writeS(remapLocalUiUrl(context, child.getSound?.() ?? null));
 				buf.writeFloat32(child.getSoundVolumeScale?.() ?? 1);
 			}
 			break;
@@ -635,7 +635,7 @@ function _writeChildAfterAdd(buf: WriteBuffer, child: EncoderChildLike, comp: Co
 				buf.writeInt16(0); // placeholder
 				buf.writeSEx(items[i] ?? null, true, false); // noCache, empty≠null
 				buf.writeSEx(values[i] ?? null, false, false); // cache, empty≠null
-				buf.writeS(remapLocalUiUrl(pkg, icons[i] ?? null));
+				buf.writeS(remapLocalUiUrl(context, icons[i] ?? null));
 				const itemEnd = buf.pos;
 				const saved = buf.pos;
 				buf.pos = itemStart;
@@ -643,7 +643,7 @@ function _writeChildAfterAdd(buf: WriteBuffer, child: EncoderChildLike, comp: Co
 				buf.pos = saved;
 			}
 			buf.writeSEx(child.getTitle?.() ?? null, true); // noCache
-			buf.writeS(remapLocalUiUrl(pkg, child.getIcon?.() ?? null));
+			buf.writeS(remapLocalUiUrl(context, child.getIcon?.() ?? null));
 			// titleColor
 			const comboTitleColor = child.getTitleColor?.() ?? null;
 			buf.writeBool(!!comboTitleColor);
@@ -655,7 +655,7 @@ function _writeChildAfterAdd(buf: WriteBuffer, child: EncoderChildLike, comp: Co
 			// selectionController
 			buf.writeInt16(-1);
 			if (version >= 5) {
-				buf.writeS(remapLocalUiUrl(pkg, child.getSound?.() ?? null));
+				buf.writeS(remapLocalUiUrl(context, child.getSound?.() ?? null));
 				buf.writeFloat32(child.getSoundVolumeScale?.() ?? 1);
 			}
 			break;
@@ -670,7 +670,7 @@ function _writeChildAfterAdd(buf: WriteBuffer, child: EncoderChildLike, comp: Co
 			// v2: min
 			buf.writeInt32(child.getMin?.() ?? 0);
 			if (version >= 5 && child.propertyType === 'GProgressBar') {
-				buf.writeS(remapLocalUiUrl(pkg, child.getSound?.() ?? null));
+				buf.writeS(remapLocalUiUrl(context, child.getSound?.() ?? null));
 				buf.writeFloat32(child.getSoundVolumeScale?.() ?? 1);
 			}
 			break;
@@ -694,7 +694,7 @@ function _writeChildAfterAdd(buf: WriteBuffer, child: EncoderChildLike, comp: Co
 			// e.g. <component><Button title="点我" icon="ui://..."/></component>
 			const instExtType = child.getInstanceExtType?.() ?? null;
 			if (instExtType && extTypeCodeMap[instExtType]) {
-				_writeExtensionInstanceData(buf, instExtType, child, comp, pkg, version);
+				_writeExtensionInstanceData(buf, instExtType, child, comp, context, version);
 			}
 			break;
 		}
@@ -713,7 +713,7 @@ function _writeExtensionInstanceData(
 	extType: string,
 	child: EncoderChildLike,
 	comp: Component,
-	pkg: Package,
+	context: ResourceReferenceEncodingContext,
 	version: number,
 ): void {
 	buf.writeUint8(extTypeCodeMap[extType] ?? 0);
@@ -721,8 +721,8 @@ function _writeExtensionInstanceData(
 		case 'Button': {
 			buf.writeSEx(child.getInstanceTitle?.() ?? null, true); // noCache
 			buf.writeSEx(child.getInstanceSelectedTitle?.() ?? null, true); // noCache
-			buf.writeS(remapLocalUiUrl(pkg, child.getInstanceIcon?.() ?? null));
-			buf.writeS(remapLocalUiUrl(pkg, child.getInstanceSelectedIcon?.() ?? null));
+			buf.writeS(remapLocalUiUrl(context, child.getInstanceIcon?.() ?? null));
+			buf.writeS(remapLocalUiUrl(context, child.getInstanceSelectedIcon?.() ?? null));
 			const titleColor = child.getInstanceTitleColor?.() ?? null;
 			buf.writeBool(!!titleColor);
 			if (titleColor) buf.writeColor(titleColor, true);
@@ -736,7 +736,7 @@ function _writeExtensionInstanceData(
 			}
 			buf.writeS(child.getInstancePage?.() ?? null); // relatedPageId
 			const sound = child.getInstanceSound?.() ?? null;
-			buf.writeSEx(remapLocalUiUrl(pkg, sound) ?? null, false, false);
+			buf.writeSEx(remapLocalUiUrl(context, sound) ?? null, false, false);
 			const soundVolume = child.getInstanceSoundVolumeScale?.();
 			if (soundVolume !== undefined && soundVolume !== null && soundVolume !== 1) {
 				buf.writeBool(true);
@@ -749,14 +749,14 @@ function _writeExtensionInstanceData(
 		}
 		case 'Label': {
 			buf.writeSEx(child.getInstanceTitle?.() ?? null, true); // noCache
-			buf.writeS(remapLocalUiUrl(pkg, child.getInstanceIcon?.() ?? null));
+			buf.writeS(remapLocalUiUrl(context, child.getInstanceIcon?.() ?? null));
 			const labelTitleColor = child.getInstanceTitleColor?.() ?? null;
 			buf.writeBool(!!labelTitleColor);
 			if (labelTitleColor) buf.writeColor(labelTitleColor, true);
 			buf.writeInt32(child.getInstanceTitleFontSize?.() ?? 0);
 			buf.writeBool(false); // no input settings
 			if (version >= 5) {
-				buf.writeS(remapLocalUiUrl(pkg, child.getInstanceSound?.() ?? null));
+				buf.writeS(remapLocalUiUrl(context, child.getInstanceSound?.() ?? null));
 				buf.writeFloat32(child.getInstanceSoundVolumeScale?.() ?? 1);
 			}
 			break;
@@ -771,7 +771,7 @@ function _writeExtensionInstanceData(
 				buf.writeInt16(0); // placeholder
 				buf.writeSEx(item.title ?? null, true, false); // noCache, empty≠null
 				buf.writeSEx(item.value ?? null, false, false); // cache, empty≠null
-				buf.writeS(remapLocalUiUrl(pkg, item.icon ?? null));
+				buf.writeS(remapLocalUiUrl(context, item.icon ?? null));
 				const itemEnd = buf.pos;
 				const saved = buf.pos;
 				buf.pos = itemStart;
@@ -779,7 +779,7 @@ function _writeExtensionInstanceData(
 				buf.pos = saved;
 			}
 			buf.writeSEx(child.getInstanceTitle?.() ?? null, true); // noCache
-			buf.writeS(remapLocalUiUrl(pkg, child.getInstanceIcon?.() ?? null));
+			buf.writeS(remapLocalUiUrl(context, child.getInstanceIcon?.() ?? null));
 			const comboTitleColor = child.getInstanceTitleColor?.() ?? null;
 			buf.writeBool(!!comboTitleColor);
 			if (comboTitleColor) buf.writeColor(comboTitleColor, true);
@@ -787,7 +787,7 @@ function _writeExtensionInstanceData(
 			buf.writeUint8(child.getInstancePopupDirection?.() ?? 0);
 			buf.writeInt16(-1); // selectionController
 			if (version >= 5) {
-				buf.writeS(remapLocalUiUrl(pkg, child.getInstanceSound?.() ?? null));
+				buf.writeS(remapLocalUiUrl(context, child.getInstanceSound?.() ?? null));
 				buf.writeFloat32(child.getInstanceSoundVolumeScale?.() ?? 1);
 			}
 			break;
@@ -798,7 +798,7 @@ function _writeExtensionInstanceData(
 			buf.writeInt32(child.getInstanceMax?.() ?? 100);
 			buf.writeInt32(child.getInstanceMin?.() ?? 0);
 			if (version >= 5 && extType === 'ProgressBar') {
-				buf.writeS(remapLocalUiUrl(pkg, child.getInstanceSound?.() ?? null));
+				buf.writeS(remapLocalUiUrl(context, child.getInstanceSound?.() ?? null));
 				buf.writeFloat32(child.getInstanceSoundVolumeScale?.() ?? 1);
 			}
 			break;
@@ -809,7 +809,7 @@ function _writeExtensionInstanceData(
 
 // ─── ScrollPane (block 7) ────────────────────────────────────────────────
 
-function _writeScrollPane(buf: WriteBuffer, child: EncoderChildLike, pkg: Package): void {
+function _writeScrollPane(buf: WriteBuffer, child: EncoderChildLike, context: ResourceReferenceEncodingContext): void {
 	buf.writeUint8(child.getScrollType?.() ?? 1); // scrollType
 	buf.writeUint8(child.getScrollBarDisplay?.() ?? 0); // scrollBarDisplay
 	buf.writeInt32(child.getScrollBarFlags?.() ?? 0); // flags
@@ -822,16 +822,16 @@ function _writeScrollPane(buf: WriteBuffer, child: EncoderChildLike, pkg: Packag
 		buf.writeInt32(sbMargin.left ?? 0);
 		buf.writeInt32(sbMargin.right ?? 0);
 	}
-	buf.writeSEx(remapLocalUiUrl(pkg, child.getVtScrollBarRes?.() ?? null)); // vtScrollBarRes
-	buf.writeSEx(remapLocalUiUrl(pkg, child.getHzScrollBarRes?.() ?? null)); // hzScrollBarRes
-	buf.writeSEx(remapLocalUiUrl(pkg, child.getHeaderRes?.() ?? null)); // headerRes
-	buf.writeSEx(remapLocalUiUrl(pkg, child.getFooterRes?.() ?? null)); // footerRes
+	buf.writeSEx(remapLocalUiUrl(context, child.getVtScrollBarRes?.() ?? null)); // vtScrollBarRes
+	buf.writeSEx(remapLocalUiUrl(context, child.getHzScrollBarRes?.() ?? null)); // hzScrollBarRes
+	buf.writeSEx(remapLocalUiUrl(context, child.getHeaderRes?.() ?? null)); // headerRes
+	buf.writeSEx(remapLocalUiUrl(context, child.getFooterRes?.() ?? null)); // footerRes
 }
 
 // ─── GList items (block 8) ───────────────────────────────────────────────
 
-function _writeListItems(buf: WriteBuffer, child: EncoderChildLike, pkg: Package, version: number): void {
-	buf.writeS(remapLocalUiUrl(pkg, child.getDefaultItem?.() ?? null));
+function _writeListItems(buf: WriteBuffer, child: EncoderChildLike, context: ResourceReferenceEncodingContext, version: number): void {
+	buf.writeS(remapLocalUiUrl(context, child.getDefaultItem?.() ?? null));
 
 	const isTree = child.propertyType === 'GTree';
 	const listItems: ListItemLike[] = child.getAutoClearItems?.() ? [] : (child.getListItems?.() ?? []);
@@ -839,15 +839,15 @@ function _writeListItems(buf: WriteBuffer, child: EncoderChildLike, pkg: Package
 	for (const [index, item] of listItems.entries()) {
 		const itemStart = buf.pos;
 		buf.writeInt16(0); // placeholder
-		buf.writeS(remapLocalUiUrl(pkg, item.url ?? null));
+		buf.writeS(remapLocalUiUrl(context, item.url ?? null));
 		if (isTree) {
 			buf.writeBool(resolveTreeItemIsFolder(listItems, index));
 			buf.writeUint8(Math.max(0, item.level ?? 0));
 		}
 		buf.writeSEx(item.title ?? null, true); // noCache
 		buf.writeSEx(item.selectedTitle ?? null, true); // noCache
-		buf.writeS(remapLocalUiUrl(pkg, item.icon ?? null));
-		buf.writeS(remapLocalUiUrl(pkg, item.selectedIcon ?? null));
+		buf.writeS(remapLocalUiUrl(context, item.icon ?? null));
+		buf.writeS(remapLocalUiUrl(context, item.selectedIcon ?? null));
 		buf.writeS(item.name ?? null);
 		const controllerParts = item.controllers?.split(',') ?? [];
 		const controllerCountPos = buf.pos;
@@ -887,7 +887,7 @@ function _writeChildBlock4Component(
 	buf: WriteBuffer,
 	child: EncoderChildLike,
 	comp: Component,
-	_pkg: Package,
+	_context: ResourceReferenceEncodingContext,
 	version: number,
 ): void {
 	// 1. pageController index

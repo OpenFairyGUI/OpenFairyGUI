@@ -144,8 +144,6 @@ test('MCP P0 tool annotations reflect backend side effects and non-goals', (t) =
 		'validateSession',
 		'preflightTransaction',
 		'getEvents',
-		'getJob',
-		'listJobs',
 		'getCacheSnapshot',
 	] as const) {
 		t.true(definitionsByMethod.get(method)?.annotations.readOnlyHint);
@@ -158,7 +156,6 @@ test('MCP P0 tool annotations reflect backend side effects and non-goals', (t) =
 		'saveSession',
 		'materializeSession',
 		'closeSession',
-		'cancelJob',
 		'refreshCache',
 	] as const) {
 		t.false(definitionsByMethod.get(method)?.annotations.readOnlyHint ?? false);
@@ -240,19 +237,9 @@ test('MCP P0 direct tool handler can call every backend P2 method without redefi
 
 		const refresh = await callTool(runtime, 'openfairygui_backend_refresh_cache', { sessionId, reason: 'manual' });
 		t.true(refresh.ok);
-		const jobId = (refresh.data as { jobId: string }).jobId;
-
-		const job = await callTool(runtime, 'openfairygui_backend_get_job', { sessionId, jobId });
-		t.true(job.ok);
-
-		const jobs = await callTool(runtime, 'openfairygui_backend_list_jobs', { sessionId, kind: 'cache.refresh' });
-		t.true(jobs.ok);
-
-		const cancellableRefresh = await callTool(runtime, 'openfairygui_backend_refresh_cache', { sessionId, reason: 'manual' });
-		t.true(cancellableRefresh.ok);
-		const cancellableJobId = (cancellableRefresh.data as { jobId: string }).jobId;
-		const cancelled = await callTool(runtime, 'openfairygui_backend_cancel_job', { sessionId, jobId: cancellableJobId });
-		t.true(cancelled.ok);
+		t.is((refresh.data as { cacheRevision: number }).cacheRevision, 1);
+		const refreshedCache = await callTool(runtime, 'openfairygui_backend_get_cache_snapshot', { sessionId });
+		t.deepEqual(refreshedCache.data, refresh.data);
 
 		const closed = await callTool(runtime, 'openfairygui_backend_close_session', { sessionId });
 		t.true(closed.ok);

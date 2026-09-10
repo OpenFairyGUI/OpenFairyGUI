@@ -69,7 +69,7 @@ test('canonical types generate precise schemas for the four representative opera
 
 test('current snapshot and bilingual tables match; a canonical field change fails drift checks without editing files', () => {
 	checkGeneratedFiles(generatedFiles(contract));
-	assert.match(contractTables(contract), /\| `listJobs` .*`kind\?`/);
+	assert.match(contractTables(contract), /\| `refreshCache` .*`reason\?`/);
 	const file = 'packages/core/src/uam/transaction-contracts.ts';
 	const before = readFileSync(path.join(ROOT, file), 'utf8');
 	const edited = before.replace('newName: string;', 'newName: string; contractProbe?: boolean;');

@@ -1,6 +1,7 @@
 import type { Document } from '@openfairygui/core';
 import { type FileSystem, type ProjectBranchDirectory, type ProjectSourceFile, ProjectWriter } from '@openfairygui/core/project-io';
 import type { BackendFileSystem } from '../runtime.js';
+import { ProjectWriteTransactionError } from '../runtime/contracts.js';
 import { assertProjectPathContained } from '../path-policy.js';
 
 function createWriterFileSystem(
@@ -25,6 +26,7 @@ function createWriterFileSystem(
 	}
 
 	return {
+		resolvePath: (path) => contained(path, () => fileSystem.resolvePath(path)),
 		readFile: (path) => contained(path, () => fileSystem.readFile(path)),
 		readFileRaw: (path) => contained(path, () => fileSystem.readFileRaw(path)),
 		writeFile: (path, content) =>
@@ -81,7 +83,7 @@ export async function writeSessionProject(input: {
 	try {
 		await input.fileSystem.runProjectWriteTransaction(projectRoot, write);
 	} catch (error) {
-		input.writtenPaths.length = 0;
+		if (ProjectWriteTransactionError.is(error) && !error.diskMayBePartiallyUpdated) input.writtenPaths.length = 0;
 		throw error;
 	}
 }

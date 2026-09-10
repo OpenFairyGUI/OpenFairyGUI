@@ -18,13 +18,12 @@ import {
 	getFontDependencyImageIds,
 } from './publish/package-context.js';
 import { collectPackageResourceReferences } from './publish/resource-references.js';
-import type { ExtrasMap, HasOptionalSrc, HasOptionalUrl } from './shared-types.js';
+import type { HasOptionalSrc, HasOptionalUrl } from './shared-types.js';
 import { createTransform } from './utils.js';
 import {
 	collectFontTexture,
 	collectImage,
 	collectMovieClipFrames,
-	isPackableResource,
 	type InputItem,
 	type PackageResource,
 } from './atlas/inputs.js';
@@ -32,6 +31,8 @@ import { emitAtlasInputs, sortResourcesByOrder } from './atlas/packing.js';
 import type { PreparedJtaData } from './atlas/jta.js';
 
 export interface AtlasOptions {
+	/** Explicit resource selection and effective IDs for this transform. @internal */
+	publishResources?: ReadonlyMap<PackageResource, string>;
 	/**
 	 * Limit atlas generation to specific package names.
 	 * When omitted, all packages are processed.
@@ -150,7 +151,7 @@ export interface AtlasOptions {
 const ATLAS_DEFAULTS: Required<
 	Omit<
 		AtlasOptions,
-		'packages' | 'encoder' | 'basePath' | 'outputPath' | 'mkdir' | 'readFileRaw' | 'preparedMovieClips' | 'onFileWritten'
+		'publishResources' | 'packages' | 'encoder' | 'basePath' | 'outputPath' | 'mkdir' | 'readFileRaw' | 'preparedMovieClips' | 'onFileWritten'
 	>
 > = {
 	maxSize: 2048,
@@ -209,10 +210,6 @@ interface ChildWithReferenceUrls extends HasOptionalSrc, HasOptionalUrl {
 	getAutoClearItems?(): boolean;
 	getPropertyOverrides?(): Array<{ value: string }>;
 	listGears?(): Gear[];
-}
-
-interface PackageAtlasExtras extends ExtrasMap {
-	publishedResourceIds?: string[];
 }
 
 function getSelectedSkeletonDependencyImageIds(resources: PackageResource[]): Set<string> {
@@ -398,14 +395,13 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 
 		for (const pkg of root.listPackages()) {
 			if (packageFilter && !packageFilter.has(pkg.getName())) continue;
-			// Publish annotations select merged resources; only strict output treats an empty selection as explicit.
-			const publishedResourceIds = (pkg.getExtras() as PackageAtlasExtras | undefined)?.publishedResourceIds;
-			const selectedPublishIds = new Set(publishedResourceIds);
+			// Only strict output treats an empty publish selection as explicit.
+			const selectedResources = options.publishResources;
 			const hasPublishSelection =
-				publishedResourceIds !== undefined && (options.strictOutput || selectedPublishIds.size > 0);
+				selectedResources !== undefined && (options.strictOutput || selectedResources.size > 0);
 			const allResources =
 				hasPublishSelection
-					? pkg.listResources().filter((resource) => selectedPublishIds.has(resource.getId()))
+					? pkg.listResources().filter((resource) => selectedResources!.has(resource))
 					: pkg.listResources();
 			for (const font of allResources.filter(isFontResource)) await collectFontTexture(doc, font, pkg, options);
 			const skeletonDependencyImageIds = getSelectedSkeletonDependencyImageIds(allResources);
@@ -414,11 +410,6 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 			const resourceOrder = new Map(orderedResources.map((resource, index) => [resource.getId(), index]));
 			const inputOrder = new Map(allResources.map((resource, index) => [resource.getId(), index]));
 			const orderedAllResources = sortResourcesByOrder(allResources, resourceOrder, inputOrder);
-			const hasPackable = allResources.some((resource) => {
-				if (isImageResource(resource) && skeletonDependencyImageIds.has(resource.getId())) return false;
-				return isPackableResource(resource);
-			});
-			if (!hasPackable) continue;
 
 			// Collect packable items in declaration order
 			const inputs: InputItem[] = [];
@@ -443,7 +434,7 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 					const resId = res.getId();
 					if (skeletonDependencyImageIds.has(resId)) continue;
 					if (
-						selectedPublishIds.size === 0 &&
+						!selectedResources?.size &&
 						!res.getExported() &&
 						referencedIds.size > 0 &&
 						!referencedIds.has(resId)
@@ -453,7 +444,7 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 				} else if (isMovieClipResource(res)) {
 					const resId = res.getId();
 					if (
-						selectedPublishIds.size === 0 &&
+						!selectedResources?.size &&
 						!res.getExported() &&
 						referencedIds.size > 0 &&
 						!referencedIds.has(resId)
@@ -463,13 +454,25 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 				}
 			}
 
-			if (inputs.length === 0) continue;
-			if (options.strictOutput && (!encoder || !options.basePath || !options.outputPath)) {
+			if (inputs.length > 0 && options.strictOutput && (!encoder || !options.basePath || !options.outputPath)) {
 				throw new Error(
 					`atlas: Package "${pkg.getName()}" requires encoder, basePath, and outputPath for complete raster output.`,
 				);
 			}
-			await emitAtlasInputs({ doc, pkg, allResources, inputs, options, encoder, logger });
+			const previousAtlases = pkg.listAtlases();
+			try {
+				await emitAtlasInputs({ doc, pkg, allResources, inputs, options, encoder, logger });
+			} catch (error) {
+				for (const atlas of pkg.listAtlases().filter((item) => !previousAtlases.includes(item))) {
+					for (const sprite of atlas.listSprites()) sprite.dispose();
+					atlas.dispose();
+				}
+				throw error;
+			}
+			for (const atlas of previousAtlases) {
+				for (const sprite of atlas.listSprites()) sprite.dispose();
+				atlas.dispose();
+			}
 		}
 	});
 }

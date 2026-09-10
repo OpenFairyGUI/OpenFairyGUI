@@ -1,6 +1,6 @@
 import { ControllerActionType } from '../constants.js';
 import type { Document } from '../document.js';
-import { ByteBuffer } from './byte-buffer.js';
+import type { ByteBuffer } from './byte-buffer.js';
 import {
 	decodeRelationBlock,
 	remainingBytes,
@@ -16,9 +16,7 @@ export function decodeComponentControllers(
 	for (let controllerIndex = 0; controllerIndex < controllerCount && remainingBytes(buf) >= 2; controllerIndex += 1) {
 		const chunkSize = buf.getInt16();
 		const nextPos = buf.pos + chunkSize;
-		const controllerBuf = new ByteBuffer(buf.buffer, buf.byteOffset + buf.pos, chunkSize);
-		controllerBuf.stringTable = buf.stringTable;
-		controllerBuf.version = buf.version;
+		const controllerBuf = buf.readBuffer(chunkSize);
 		const controller = doc.createController(`controller${controllerIndex}`);
 
 		if (controllerBuf.seek(0, 0) && remainingBytes(controllerBuf) >= 2) {
@@ -80,9 +78,7 @@ export function decodeComponentControllers(
 			for (let actionIndex = 0; actionIndex < actionCount && remainingBytes(controllerBuf) >= 2; actionIndex += 1) {
 				const actionSize = controllerBuf.getInt16();
 				const actionNextPos = controllerBuf.pos + actionSize;
-				const actionBuf = new ByteBuffer(controllerBuf.buffer, controllerBuf.byteOffset + controllerBuf.pos, actionSize);
-				actionBuf.stringTable = controllerBuf.stringTable;
-				actionBuf.version = controllerBuf.version;
+				const actionBuf = controllerBuf.readBuffer(actionSize);
 				const action = doc.createControllerAction(`${controller.getName()}_action${actionIndex}`);
 				if (remainingBytes(actionBuf) >= 1) {
 					const actionType = actionBuf.getUint8();

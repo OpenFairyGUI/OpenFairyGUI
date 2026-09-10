@@ -17,7 +17,7 @@ test('runtime events are monotonic and reflect transaction/save/close ordering',
 		t.is(initialEvents.data.currentSequence, 1);
 		const mutableInitialEvent = initialEvents.data.events[0];
 		if (!mutableInitialEvent) return;
-		mutableInitialEvent.kind = 'job.failed';
+		mutableInitialEvent.kind = 'save.failed';
 		mutableInitialEvent.diagnostics.push({ code: 'execution_failure', message: 'external mutation', severity: 'error' });
 		const initialEventsAgain = runtime.getEvents({ sessionId: opened.data.sessionId });
 		t.true(initialEventsAgain.ok);

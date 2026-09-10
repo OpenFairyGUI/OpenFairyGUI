@@ -327,7 +327,7 @@ function normalizeListItems(items: UamListItemData[] | undefined): UamListItemDa
 function normalizeStates<TValue>(states: UamGearPageState<TValue>[] | undefined): UamGearPageState<TValue>[] {
 	return (states ?? []).map((state) => ({
 		pageId: state.pageId,
-		value: state.value ?? null,
+		value: structuredClone(state.value ?? null),
 	}));
 }
 
@@ -1146,7 +1146,7 @@ function normalizeAssetResource(resource: UamAssetResource): UamAssetResource {
 		dimensions: resource.dimensions
 			? { width: resource.dimensions.width ?? 0, height: resource.dimensions.height ?? 0 }
 			: null,
-		metadata: resource.metadata ?? null,
+		metadata: structuredClone(resource.metadata ?? null),
 	};
 }
 

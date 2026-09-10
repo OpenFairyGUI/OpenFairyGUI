@@ -641,8 +641,8 @@ export class BinaryReader {
 				const pixelWidth = buf.getInt32();
 				const scaleDenominator = buf.getUint8();
 				const byteLength = buf.getInt32();
-				const pixels = new Uint8Array(buf.buffer, buf.byteOffset + buf.pos, byteLength).slice();
-				buf.skip(byteLength);
+				const pixelBuffer = buf.readBuffer(byteLength);
+				const pixels = new Uint8Array(pixelBuffer.buffer, pixelBuffer.byteOffset, pixelBuffer.byteLength).slice();
 				if (itemId) {
 					pixelHitTests.set(itemId, {
 						itemId,

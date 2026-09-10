@@ -1,23 +1,8 @@
+import type { MovieFrame, MovieClipResource } from '@openfairygui/core';
+
 const JTA_FILE_MARK = 'yytou';
 const JTA_VERSION = 102;
 const JTA_DEFAULT_FPS = 24;
-
-export interface RestorableMovieFrame {
-	getRectX(): number;
-	getRectY(): number;
-	getRectWidth(): number;
-	getRectHeight(): number;
-	getAddDelay(): number;
-	getSpriteId(): string;
-}
-
-interface RestorableMovieClipResource {
-	getHeight?(): number;
-	getInterval?(): number;
-	getRepeatDelay?(): number;
-	getSwing?(): boolean;
-	getWidth?(): number;
-}
 
 function scaledFrameDelay(milliseconds: number): number {
 	return milliseconds <= 0 ? 0 : Math.max(1, Math.round(milliseconds / (1000 / JTA_DEFAULT_FPS)));
@@ -66,8 +51,8 @@ function encodeJtaUtf(value: string): Uint8Array {
 }
 
 export function serializeMovieClip(
-	resource: RestorableMovieClipResource,
-	frames: RestorableMovieFrame[],
+	resource: MovieClipResource,
+	frames: MovieFrame[],
 	textures: Uint8Array[],
 ): Uint8Array {
 	const chunks: Uint8Array[] = [
@@ -79,11 +64,11 @@ export function serializeMovieClip(
 		writeByte(0),
 		writeUint16(0),
 		writeUint16(0),
-		writeUint16(resource.getWidth?.() ?? 0),
-		writeUint16(resource.getHeight?.() ?? 0),
-		writeByte(jtaSpeed(resource.getInterval?.() ?? 0)),
-		writeByte(scaledFrameDelay(resource.getRepeatDelay?.() ?? 0)),
-		writeByte(resource.getSwing?.() ? 1 : 0),
+		writeUint16(resource.getWidth() ?? 0),
+		writeUint16(resource.getHeight() ?? 0),
+		writeByte(jtaSpeed(resource.getInterval() ?? 0)),
+		writeByte(scaledFrameDelay(resource.getRepeatDelay() ?? 0)),
+		writeByte(resource.getSwing() ? 1 : 0),
 		writeInt16(frames.length),
 	];
 

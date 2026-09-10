@@ -6,6 +6,8 @@ import { NodeIO } from '@openfairygui/core/node';
 import { getFixturePath, getFixtureProjectPath } from '@openfairygui/test-utils';
 import test from 'ava';
 import sharpImplementation from 'sharp';
+import { initializeFontGlyphImageResources, initializeFontTextureImageResources } from '../src/restore-internals/font.js';
+import { restoreAssets } from '../src/restore-internals/asset-output.js';
 import {
 	atlas,
 	type AtlasRasterBackend,
@@ -21,6 +23,59 @@ const sharp = sharpImplementation as typeof sharpImplementation & AtlasRasterBac
 
 const UNITY_RELEASE_DIR = getFixturePath('FairyGUI-unity', 'Assets', 'Examples', 'Resources', 'UI');
 const EXPERIMENTS_FAIRY = getFixtureProjectPath('FairyGUI-Experiments');
+
+test('distinct fonts with the same character restore separate deterministic glyph images', async (t) => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-font-collision-'));
+	t.teardown(() => fs.rm(directory, { recursive: true, force: true }));
+	const doc = new Document();
+	const pkg = doc.createPackage('Fonts').setId('fonts');
+	for (const [id, name] of [['first', 'Heading'], ['second', 'Body']]) {
+		const font = doc.createFontResource(`${name}.fnt`).setId(id).setFileName(`${name}.fnt`);
+		font.addGlyph(doc.createFontGlyph('A').setChar('A').setCharId(65).setImg(`${id}Image`));
+		pkg.addResource(font);
+	}
+	initializeFontGlyphImageResources(doc);
+	const images = pkg.listImageResources();
+	t.is(new Set(images.map((image) => image.getFileName().toLowerCase())).size, 2);
+	const names = images.map((image) => image.getFileName());
+	initializeFontGlyphImageResources(doc);
+	t.deepEqual(pkg.listImageResources().map((image) => image.getFileName()), names);
+	const outputProjectPath = path.join(directory, 'Fonts.fairy');
+	await new NodeIO().writeProject(doc, outputProjectPath);
+	await restoreAssets(createRestoreFs(), doc, { binaryPaths: [], sourceDir: directory, outputProjectPath }, []);
+	for (const image of images) t.true((await fs.stat(path.join(directory, 'assets', 'Fonts', 'images', image.getFileName()))).isFile());
+	const restored = (await new NodeIO().readProject(outputProjectPath)).getRoot().listPackages()[0]!;
+	t.deepEqual(restored.listImageResources().map((image) => image.getFileName()), names);
+});
+
+test('synthesized font images retain typed ordering and placeholder output without extras', async (t) => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-font-order-'));
+	try {
+		const doc = new Document();
+		const pkg = doc.createPackage('FontImages').setId('fonts');
+		const font = doc.createFontResource('font.fnt').setId('zfont').setFileName('font.fnt').setTextureId('a');
+		font.addGlyph(doc.createFontGlyph('A').setChar('A').setCharId(65).setImg('b'));
+		pkg.addResource(font).addResource(doc.createImageResource('original.png').setId('m'));
+		initializeFontTextureImageResources(doc);
+		initializeFontGlyphImageResources(doc);
+		const outputProjectPath = path.join(directory, 'Fonts.fairy');
+		const write = async () => {
+			await new NodeIO().writeProject(doc, outputProjectPath);
+			return fs.readFile(path.join(directory, 'assets', 'FontImages', 'package.xml'), 'utf8');
+		};
+		const first = await write();
+		t.deepEqual([...first.matchAll(/^\s*<(?:font|image)\b[^>]*\bid="([^"]+)"/gm)].map((match) => match[1]), ['m', 'zfont', 'a', 'b']);
+		t.is(await write(), first);
+		for (const image of pkg.listImageResources()) t.deepEqual(image.getExtras(), {});
+		await restoreAssets(createRestoreFs(), doc, { binaryPaths: [], sourceDir: directory, outputProjectPath }, []);
+		const glyph = pkg.listImageResources().find((image) => image.getId() === 'b')!;
+		const glyphPath = resourcePath(path.join(directory, 'assets', 'FontImages'), glyph.getPath(), glyph.getFileName());
+		const metadata = await sharp(glyphPath).metadata();
+		t.deepEqual([metadata.width, metadata.height, metadata.hasAlpha], [1, 1, true]);
+	} finally {
+		await fs.rm(directory, { recursive: true, force: true });
+	}
+});
 
 function resourcePath(basePath: string, resourcePath: string, fileName: string): string {
 	const subDir = resourcePath.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '');
@@ -212,6 +267,18 @@ test('restore published project: directory batch restores packages, assets, and 
 		const soundPath = resourcePath(path.join(outputDir, 'assets', 'Basics'), sound.getPath(), sound.getFile());
 		t.truthy(await fs.stat(soundPath).catch(() => null), 'sound file is copied without publish prefix');
 		const basicsPackageXml = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'package.xml'), 'utf-8');
+		const rewrittenDirectory = path.join(tmpDir, 'Rewritten');
+		await fs.mkdir(rewrittenDirectory);
+		await new NodeIO().writeProject(result.document, path.join(rewrittenDirectory, 'Rewritten.fairy'));
+		t.is(await fs.readFile(path.join(rewrittenDirectory, 'assets', 'Basics', 'package.xml'), 'utf8'), basicsPackageXml,
+			'returned Document retains image dimensions and ordering hints when written by a new Writer');
+		for (const pkg of result.document.getRoot().listPackages()) {
+			for (const resource of pkg.listResources()) {
+				for (const key of ['_packageOrderAfterId', '_packageOrderWeight', '_syntheticFontGlyph', '_syntheticFontTexture']) {
+					t.false(key in resource.getExtras(), `${resource.getId()} does not encode serialization hints in extras`);
+				}
+			}
+		}
 		t.true(basicsPackageXml.includes('name="tabswitch.wav"'), 'package.xml references restored editor-facing sound file name');
 		t.true(basicsPackageXml.includes('exported="true"'), 'package.xml writes explicit true boolean attributes');
 		t.true(basicsPackageXml.includes('id="rpmb7" name="b1.png.png" path="/images/"'), 'dotted image resource names are restored by appending png to the resource name');
@@ -226,7 +293,7 @@ test('restore published project: directory batch restores packages, assets, and 
 			basicsPackageXml.indexOf('id="rpmbz"') < basicsPackageXml.indexOf('id="rpmb10"'),
 			'package.xml resource order follows editor-like id sequence instead of read order',
 		);
-		t.true(basicsPackageXml.includes('id="duef6n" name="h0.png"'), 'digit font glyph resources use readable synthesized file names');
+		t.true(basicsPackageXml.includes('id="duef6n" name="h0.png"'), 'existing glyph image names are preserved from published items');
 		const hitNumberFnt = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'font', 'HitNumber.fnt'), 'utf-8');
 		t.true(hitNumberFnt.includes('char id=48 img=duef6n xoffset=0 yoffset=0 xadvance=33'), 'bitmap font file is regenerated from published glyphs');
 		const bmFontTestFnt = await fs.readFile(path.join(outputDir, 'assets', 'Basics', 'font', 'BMFontTest.fnt'), 'utf-8');
@@ -338,21 +405,12 @@ test('restore published project: directory batch restores packages, assets, and 
 		t.truthy(transitionPkg.getResourceById('fou917'), 'additional font-derived image resource is synthesized into package.xml');
 		const transitionPackageXml = await fs.readFile(path.join(transitionOutputDir, 'assets', 'Transition', 'package.xml'), 'utf-8');
 		t.true(transitionPackageXml.includes('id="nra4g"'), 'transition package.xml includes derived glyph image resource ids');
-		t.true(transitionPackageXml.includes('id="fou917"'), 'transition package.xml includes root-path derived glyph image resource ids');
-		t.true(
-			transitionPackageXml.includes('id="nra4g" name="0000_9_png.png"'),
-			'transition digit glyph resources restore editor-facing numbered glyph file names',
-		);
-		t.true(
-			transitionPackageXml.includes('id="fou917" name="h0.png"'),
-			'transition hit-number glyph resources use h-prefixed synthesized file names',
-		);
-		t.true(
-			transitionPackageXml.includes('id="fou917" name="h0.png" path="/"'),
-			'transition number3 glyph resources restore root virtual path',
-		);
-		t.truthy(await fs.stat(path.join(transitionOutputDir, 'assets', 'Transition', 'images', '0000_9_png.png')).catch(() => null), 'derived glyph placeholder image is written with editor-facing file name');
-		t.truthy(await fs.stat(path.join(transitionOutputDir, 'assets', 'Transition', 'h0.png')).catch(() => null), 'root font glyph placeholder image is written at root virtual path');
+		for (const [id, fileName, virtualPath] of [['nra4g', '0000_9_png.png', '/images/'], ['fou917', 'h0.png', '/']]) {
+			const glyph = transitionPkg.listImageResources().find((image) => image.getId() === id)!;
+			t.is(glyph.getFileName(), fileName, 'preserve an existing published glyph image name');
+			t.is(glyph.getPath(), virtualPath);
+			t.true((await fs.stat(resourcePath(path.join(transitionOutputDir, 'assets', 'Transition'), virtualPath, fileName))).isFile());
+		}
 		const powerUpXml = await fs.readFile(path.join(transitionOutputDir, 'assets', 'Transition', 'PowerUp.xml'), 'utf-8');
 		t.true(powerUpXml.includes('<jta id="n5"'), 'restored Transition/PowerUp writes movie clips with jta display tags');
 		t.false(/<jta\b[^>]*color="#ffffff"/.test(powerUpXml), 'restored Transition/PowerUp omits default white jta color');

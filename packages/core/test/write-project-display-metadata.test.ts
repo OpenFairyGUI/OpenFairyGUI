@@ -4,10 +4,111 @@ import path from 'node:path';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
 import test from 'ava';
 import { Document, GearType } from '../src/index.js';
-import { formatProjectInt32 } from '../src/io/display-object-xml-writer.js';
+import { serializeDisplayList } from '../src/io/display-object-xml-writer.js';
+import { formatProjectInt32 } from '../src/io/project-xml-writer-utils.js';
 import { NodeIO } from '../src/node.js';
 
 const _PROJECT_PATH = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
+
+test('text XML preserves empty values, tag-specific attributes and Gear order', (t) => {
+	const doc = new Document();
+	const plain = doc.createGTextField('plain').setId('t').setText('').setFontSize(0)
+		.setLeading(0).setVisible(false).setTouchable(false)
+		.setShadowColor('#ABCDEF').setShadowOffsetX(0).setShadowOffsetY(0)
+		.setAutoClearText(true).setDemoText('A&B').setTemplateVarsEnabled(true).setFaceDilate(0.25);
+	const rich = doc.createGRichTextField('rich').setId('r').setText('[b]<&>[/b]')
+		.setDemoText('omitted').setTemplateVarsEnabled(true).setFaceDilate(0.5)
+		.setOutlineSoftness(0.2).setUnderlaySoftness(0.3).setUbbEnabled(true);
+	const input = doc.createGTextInput('input').setId('i').setText('0')
+		.setPromptText('say "hi"').setMaxLength(5).setRestrict('0-9').setPassword(true).setKeyboardType(2);
+	plain.addGear(doc.createGear().setGearType(GearType.Text).setDefaultValue(''));
+
+	t.is(serializeDisplayList([plain, rich, input]), '\n' + [
+		'    <text id="t" name="plain" autoClearText="true" demoText="A&amp;B" vars="true" faceDilate="0.25" text="" leading="0" shadowColor="#abcdef" shadowOffset="0,0" xy="0,0" visible="false" touchable="false">',
+		'      <gearText default=""/>',
+		'    </text>',
+		'    <richtext id="r" name="rich" outlineSoftness="0.2" underlaySoftness="0.3" text="[b]&lt;&amp;&gt;[/b]" fontSize="12" ubb="true" xy="0,0"/>',
+		'    <inputtext id="i" name="input" text="0" fontSize="12" prompt="say &quot;hi&quot;" maxLength="5" restrict="0-9" password="true" keyboardType="2" xy="0,0"/>',
+	].join('\n') + '\n  ');
+});
+
+test('list XML preserves nullable items, tree levels and ordered property overrides', (t) => {
+	const doc = new Document();
+	const list = doc.createGList('list').setId('l').setSrc('source')
+		.setControllerOverrides('c,0').setPageController('p').setScrollItemToViewOnClick(false)
+		.setListItems([
+			{
+				title: '', icon: null, url: '', name: '', selectedTitle: '', selectedIcon: null,
+				level: 0, isFolder: false, controllers: '',
+				propertyOverrides: [
+					{ target: 'title', propertyId: 0, value: '' },
+					{ target: 'title', propertyId: 0, value: '0' },
+				],
+			},
+			{
+				title: 'A&B', icon: '', url: null, name: null, selectedTitle: null, selectedIcon: '',
+				level: 1, isFolder: true,
+			},
+		]);
+	list.addGear(doc.createGear().setGearType(GearType.Text).setDefaultValue(''));
+	list.setRelations([{ target: '', type: 14, usePercent: false }]);
+	const tree = doc.createGTree('tree').setId('t').setIndent(0).setClickToExpand(2)
+		.setListItems(list.getListItems());
+
+	t.is(serializeDisplayList([list, tree]), '\n' + [
+		'    <list id="l" name="list" src="source" controller="c,0" pageController="p" scrollItemToViewOnClick="false" xy="0,0">',
+		'      <item title="" url="" name="" selectedTitle="" isFolder="false" controllers="">',
+		'        <property target="title" propertyId="0" value=""/>',
+		'        <property target="title" propertyId="0" value="0"/>',
+		'      </item>',
+		'      <item title="A&amp;B" icon="" selectedIcon="" level="1" isFolder="true"/>',
+		'      <gearText default=""/>',
+		'      <relation target="" sidePair="width-width"/>',
+		'    </list>',
+		'    <list id="t" name="tree" treeView="true" indent="0" clickToExpand="2" xy="0,0">',
+		'      <item title="" url="" name="" selectedTitle="" level="0" isFolder="false" controllers="">',
+		'        <property target="title" propertyId="0" value=""/>',
+		'        <property target="title" propertyId="0" value="0"/>',
+		'      </item>',
+		'      <item title="A&amp;B" icon="" selectedIcon="" level="1" isFolder="true"/>',
+		'    </list>',
+	].join('\n') + '\n  ');
+});
+
+test('instance XML keeps overrides before Gear and relations and extensions last', (t) => {
+	const doc = new Document();
+	const combo = doc.createGComponent('combo').setId('c').setSrc('source')
+		.setControllerOverrides('c,0').setPageController('p').setFileName('Combo.xml').setPackageId('pkg')
+		.setInstanceExtType('ComboBox').setInstancePopupDirection(2).setInstanceAutoClearItems(true)
+		.setPropertyOverrides([
+			{ target: 'title', propertyId: 0, value: '' },
+			{ target: 'title', propertyId: 0, value: '0' },
+		])
+		.setInstanceComboItems([{ title: '', value: '', icon: null }, { title: 'A&B', value: '0', icon: '' }]);
+	combo.addGear(doc.createGear().setGearType(GearType.Text).setDefaultValue(''));
+	combo.setRelations([{ target: '', type: 14, usePercent: true }]);
+
+	t.is(serializeDisplayList([combo]), '\n' + [
+		'    <component id="c" name="combo" src="source" controller="c,0" pageController="p" fileName="Combo.xml" pkg="pkg" xy="0,0">',
+		'      <property target="title" propertyId="0" value=""/>',
+		'      <property target="title" propertyId="0" value="0"/>',
+		'      <gearText default=""/>',
+		'      <relation target="" sidePair="width-width%"/>',
+		'      <ComboBox direction="down" autoClearItems="true">',
+		'        <item title="" value=""/>',
+		'        <item title="A&amp;B" value="0" icon=""/>',
+		'      </ComboBox>',
+		'    </component>',
+	].join('\n') + '\n  ');
+
+	for (const extension of ['Button', 'Label', 'ComboBox', 'ProgressBar', 'Slider', 'ScrollBar']) {
+		const instance = doc.createGComponent('default').setId('d').setInstanceExtType(extension);
+		t.is(serializeDisplayList([instance]), `\n    <component id="d" name="default" xy="0,0">\n      <${extension}/>\n    </component>\n  `);
+	}
+	const button = doc.createGComponent('button').setId('b').setInstanceExtType('Button')
+		.setInstanceChecked(false).setInstanceTitle('').setInstanceSoundVolumeScale(0);
+	t.is(serializeDisplayList([button]), '\n    <component id="b" name="button" xy="0,0">\n      <Button volume="0"/>\n    </component>\n  ');
+});
 
 // ─── Round-trip: read → write → read ──────────────────────────────────────
 

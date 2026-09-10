@@ -1,36 +1,28 @@
-import { GearType } from '../constants.js';
+import type { GImage } from '../properties/g-image.js';
+import type { GGraph } from '../properties/g-graph.js';
+import type { GGroup } from '../properties/g-group.js';
+import type { GLoader } from '../properties/g-loader.js';
+import type { GLoader3D } from '../properties/g-loader-3d.js';
+import type { GMovieClip } from '../properties/g-movie-clip.js';
+import type { GComponent } from '../properties/g-component.js';
+import type { GList } from '../properties/g-list.js';
+import type { GTree } from '../properties/g-tree.js';
+import { writeDisplayObjectBehaviors } from './display-object-xml-behaviors-writer.js';
+import { writeListXmlNode } from './display-object-xml-list-writer.js';
+import { writeComponentInstanceXmlNode } from './display-object-xml-instance-writer.js';
+import type { GTextField } from '../properties/g-text-field.js';
+import type { GTextInput } from '../properties/g-text-input.js';
+import { writeTextXmlAttributes, writeTextInputXmlAttributes } from './display-object-xml-text-writer.js';
+import {
+	formatProjectInt32List,
+	formatTrimmedFixed,
+	sameColor,
+	formatXmlColor,
+	isDefaultWhiteColor,
+} from './project-xml-writer-utils.js';
 import type { GObject } from '../properties/g-object.js';
-import type { Gear } from '../properties/gear.js';
-import { getDefaultListAutoResizeItem } from '../properties/g-list.js';
 import { renderXmlAttrs } from '../utils/xml-utils.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr, type XmlNodeProtocol } from './project-xml-protocol.js';
-
-const GEAR_TAG: Record<number, string> = {
-	[GearType.Display]: 'gearDisplay',
-	[GearType.XY]: 'gearXY',
-	[GearType.Size]: 'gearSize',
-	[GearType.Look]: 'gearLook',
-	[GearType.Color]: 'gearColor',
-	[GearType.Animation]: 'gearAni',
-	[GearType.Text]: 'gearText',
-	[GearType.Icon]: 'gearIcon',
-	[GearType.Display2]: 'gearDisplay2',
-	[GearType.FontSize]: 'gearFontSize',
-};
-
-const RELATION_TYPE_NAME: Record<number, string> = {
-	0: 'left-left', 1: 'left-center', 2: 'left-right',
-	3: 'center-center',
-	4: 'right-left', 5: 'right-center', 6: 'right-right',
-	7: 'top-top', 8: 'top-middle', 9: 'top-bottom',
-	10: 'middle-middle',
-	11: 'bottom-top', 12: 'bottom-middle', 13: 'bottom-bottom',
-	14: 'width-width', 15: 'height-height',
-	16: 'leftext-left', 17: 'leftext-right',
-	18: 'rightext-left', 19: 'rightext-right',
-	20: 'topext-top', 21: 'topext-bottom',
-	22: 'bottomext-top', 23: 'bottomext-bottom',
-};
 
 const DISPLAY_TAG: Record<string, string> = {
 	GImage: 'image',
@@ -62,15 +54,6 @@ const EXTENSION_TYPE: Record<string, string> = {
 	GScrollBar: 'ScrollBar',
 };
 
-export const EXTENSION_PROTOCOL_MAP = {
-	Button: PROJECT_XML_PROTOCOL.buttonExtension,
-	Label: PROJECT_XML_PROTOCOL.labelExtension,
-	ComboBox: PROJECT_XML_PROTOCOL.comboBoxExtension,
-	ProgressBar: PROJECT_XML_PROTOCOL.progressBarExtension,
-	Slider: PROJECT_XML_PROTOCOL.sliderExtension,
-	ScrollBar: PROJECT_XML_PROTOCOL.scrollBarExtension,
-} as const;
-
 const DISPLAY_OBJECT_PROTOCOL_BY_TYPE: Record<string, XmlNodeProtocol> = {
 	GImage: PROJECT_XML_PROTOCOL.image,
 	GTextField: PROJECT_XML_PROTOCOL.text,
@@ -98,48 +81,6 @@ if (!DISPLAY_LIST_CONTAINER) {
 }
 
 const DISPLAY_LIST_ALLOWED_VARIANTS = new Set(Object.keys(DISPLAY_LIST_CONTAINER.items));
-
-function stringifyEaseType(easeType: number): string {
-	const names: Record<number, string> = {
-		0: 'Linear', 1: 'Sine.In', 2: 'Sine.Out', 3: 'Sine.InOut',
-		4: 'Quad.In', 5: 'Quad.Out', 6: 'Quad.InOut',
-		7: 'Cubic.In', 8: 'Cubic.Out', 9: 'Cubic.InOut',
-		10: 'Quart.In', 11: 'Quart.Out', 12: 'Quart.InOut',
-		13: 'Quint.In', 14: 'Quint.Out', 15: 'Quint.InOut',
-		16: 'Expo.In', 17: 'Expo.Out', 18: 'Expo.InOut',
-		19: 'Circ.In', 20: 'Circ.Out', 21: 'Circ.InOut',
-		22: 'Elastic.In', 23: 'Elastic.Out', 24: 'Elastic.InOut',
-		25: 'Back.In', 26: 'Back.Out', 27: 'Back.InOut',
-		28: 'Bounce.In', 29: 'Bounce.Out', 30: 'Bounce.InOut',
-		31: 'Custom',
-	};
-	return names[easeType] ?? 'Quad.Out';
-}
-
-function sameColor(a: string | undefined, b: string): boolean {
-	return (a ?? '').toLowerCase() === b.toLowerCase();
-}
-
-function formatXmlColor(color: string): string {
-	return color.toLowerCase();
-}
-
-export function formatButtonDownEffectValue(value: number): string {
-	return value.toFixed(2);
-}
-
-function almostEqual(a: number, b: number, epsilon = 0.000001): boolean {
-	return Math.abs(a - b) < epsilon;
-}
-
-function isDefaultWhiteColor(color: string | undefined): boolean {
-	return sameColor(color, '#FFFFFF') || sameColor(color, '#FFFFFFFF');
-}
-
-function isDefaultBlackColor(color: string | undefined): boolean {
-	return sameColor(color, '#000000') || sameColor(color, '#FF000000');
-}
-
 
 function renderXmlText(value: unknown): string {
 	return String(value)
@@ -184,29 +125,6 @@ function renderXmlNode(tagName: string, node: unknown, indent: string): string {
 }
 
 
-function formatTrimmedFixed(value: number, precision = 2): string {
-	if (!Number.isFinite(value)) return String(value);
-	if (precision === 0) return value.toFixed(0);
-	const fixed = value.toFixed(precision);
-	return fixed.replace(/(?:\.0+|(\.\d*?[1-9])0+)$/, '$1');
-}
-
-const INT32_MIN = -2_147_483_648;
-const INT32_MAX = 2_147_483_647;
-
-export function formatProjectInt32(value: number, field = 'project XML integer'): string {
-	if (!Number.isFinite(value)) throw new Error(`${field} must be finite.`);
-	const normalized = Math.trunc(value);
-	if (normalized < INT32_MIN || normalized > INT32_MAX) {
-		throw new Error(`${field} must fit a signed 32-bit integer.`);
-	}
-	return Object.is(normalized, -0) ? '0' : String(normalized);
-}
-
-export function formatProjectInt32List(values: readonly number[], field: string): string {
-	return values.map((value) => formatProjectInt32(value, field)).join(',');
-}
-
 function formatDisplayAlpha(value: number): string {
 	return formatTrimmedFixed(value, 2);
 }
@@ -224,287 +142,16 @@ function formatImageFlip(value: number): string {
 	}
 }
 
-function formatGearLookAlpha(value: string | undefined, fixedAlpha: boolean): string {
-	if (value === undefined) return '';
-	const numeric = Number(value);
-	if (!Number.isFinite(numeric)) return value;
-	return fixedAlpha ? numeric.toFixed(2) : formatTrimmedFixed(numeric, 2);
-}
-
-function normalizeGearLookSegment(segment: string, fixedAlpha: boolean): string {
-	if (!segment || segment === '-') return segment;
-	const parts = segment.split(',');
-	if (parts.length < 3) return segment;
-	const normalizeFlag = (value: string | undefined, fallback: string): string => {
-		if (value === undefined || value === '') return fallback;
-		const lower = value.trim().toLowerCase();
-		if (lower === 'true') return '1';
-		if (lower === 'false') return '0';
-		return value;
-	};
-	const normalized = [
-		formatGearLookAlpha(parts[0], fixedAlpha),
-		formatTrimmedFixed(Number(parts[1] ?? 0), 2),
-		normalizeFlag(parts[2], '0'),
-	];
-	if (parts.length >= 4) {
-		const touchable = normalizeFlag(parts[3], '1');
-		if (touchable !== '1') normalized.push(touchable);
-	}
-	return normalized.join(',');
-}
-
-function normalizeGearColorSegment(segment: string, compactOutline: boolean): string {
-	if (!segment || segment === '-') return segment;
-	const parts = segment.split(',');
-	if (parts.length === 1) return formatXmlColor(parts[0] ?? '');
-	const normalized = parts.map((part) => formatXmlColor(part));
-	if (compactOutline && normalized.length >= 2 && isDefaultBlackColor(normalized[1])) {
-		return normalized[0] ?? '';
-	}
-	return normalized.join(',');
-}
-
-function isIdentityGearSizeScale(segment: string): boolean {
-	if (!segment || segment === '-') return true;
-	const parts = segment.split(',');
-	if (parts.length < 4) return true;
-	return almostEqual(Number(parts[2] ?? 1), 1) && almostEqual(Number(parts[3] ?? 1), 1);
-}
-
-function normalizeGearSizeSegment(segment: string, fixedScale: boolean, omitIdentityScale: boolean): string {
-	if (!segment || segment === '-') return segment;
-	const parts = segment.split(',');
-	if (parts.length < 2) return segment;
-	const normalized = [
-		formatProjectInt32(Number(parts[0] ?? 0), 'gearSize width'),
-		formatProjectInt32(Number(parts[1] ?? 0), 'gearSize height'),
-	];
-	if (parts.length >= 4) {
-		if (omitIdentityScale && isIdentityGearSizeScale(segment)) {
-			return normalized.join(',');
-		}
-		const scaleFormatter = fixedScale
-			? (value: string | undefined) => {
-				const numeric = Number(value);
-				return Number.isFinite(numeric) ? numeric.toFixed(2) : String(value ?? '');
-			}
-			: (value: string | undefined) => formatTrimmedFixed(Number(value ?? 0), 2);
-		normalized.push(scaleFormatter(parts[2]), scaleFormatter(parts[3]));
-	}
-	return normalized.join(',');
-}
-
-function normalizeGearXYSegment(segment: string): string {
-	if (!segment || segment === '-') return segment;
-	const parts = segment.split(',');
-	if (parts.length < 2) return segment;
-	return [
-		formatProjectInt32(Number(parts[0] ?? 0), 'gearXY x'),
-		formatProjectInt32(Number(parts[1] ?? 0), 'gearXY y'),
-		...parts.slice(2),
-	].join(',');
-}
-
-function shouldCompactTextGearColor(ownerType?: string, ownerName?: string): boolean {
-	return (ownerType === 'GTextField' || ownerType === 'GRichTextField' || ownerType === 'GTextInput')
-		&& ownerName === 'title';
-}
-
-function normalizeGearXmlValue(gearType: number, value: unknown, ownerType?: string, ownerName?: string, gear?: Gear): string {
-	const raw = String(value ?? '');
-	switch (gearType) {
-		case GearType.XY:
-			return raw.split('|').map((segment) => normalizeGearXYSegment(segment)).join('|');
-		case GearType.Size: {
-			const fixedScale = !gear?.getTween();
-			const segments = raw.split('|');
-			const omitIdentityScale = fixedScale
-				&& ownerName !== 'bg'
-				&& segments.every((segment) => isIdentityGearSizeScale(segment));
-			return segments.map((segment) => normalizeGearSizeSegment(segment, fixedScale, omitIdentityScale)).join('|');
-		}
-		case GearType.Look: {
-			const fixedAlpha = ownerType === 'GLoader'
-				|| Boolean(gear?.getTween() && !almostEqual(gear.getTweenDuration(), 0.3));
-			return raw.split('|').map((segment) => normalizeGearLookSegment(segment, fixedAlpha)).join('|');
-		}
-		case GearType.Color: {
-			const textLike = ownerType === 'GTextField' || ownerType === 'GRichTextField' || ownerType === 'GTextInput';
-			const compactOutline = !textLike || shouldCompactTextGearColor(ownerType, ownerName);
-			return raw.split('|').map((segment) => normalizeGearColorSegment(segment, compactOutline)).join('|');
-		}
-		default:
-			return raw;
-	}
-}
-
-
-type WritableChild = GObject & {
-	getX?(): number;
-	getY?(): number;
-	getWidth?(): number;
-	getHeight?(): number;
-	getPivotX?(): number;
-	getPivotY?(): number;
-	getPivotAsAnchor?(): boolean;
-	getScaleX?(): number;
-	getScaleY?(): number;
-	getLocked?(): boolean;
-	getMinWidth?(): number;
-	getMaxWidth?(): number;
-	getMinHeight?(): number;
-	getMaxHeight?(): number;
-	getAutoClearText?(): boolean;
-	getDemoText?(): string;
-	getTemplateVarsEnabled?(): boolean;
-	getFaceDilate?(): number;
-	getOutlineSoftness?(): number;
-	getUnderlaySoftness?(): number;
-	getSrc?(): string;
-	getAspect?(): boolean;
-	getGroup?(): string;
-	getAlpha?(): number;
-	getRotation?(): number;
-	getVisible?(): boolean;
-	getTouchable?(): boolean;
-	getGrayed?(): boolean;
-	getTooltips?(): string;
-	getBlendMode?(): string;
-	getCustomData?(): string;
-	getFileName?(): string;
-	getPackageId?(): string;
-	getFilter?(): string;
-	getFilterData?(): string;
-	getUrl?(): string;
-	getText?(): string;
-	getFont?(): string;
-	getFontSize?(): number;
-	getColor?(): string;
-	getLeading?(): number;
-	getLetterSpacing?(): number;
-	getSingleLine?(): boolean;
-	getUbbEnabled?(): boolean;
-	getUnderline?(): boolean;
-	getItalic?(): boolean;
-	getBold?(): boolean;
-	getStrokeColor?(): string | null;
-	getStrokeSize?(): number;
-	getShadowColor?(): string | null;
-	getShadowOffsetX?(): number;
-	getShadowOffsetY?(): number;
-	getStrikethrough?(): boolean;
-	getAlign?(): number;
-	getVAlign?(): number;
-	getFill?(): number;
-	getShrinkOnly?(): boolean;
-	getAutoSize?(): number | boolean;
-	getUseResize?(): boolean;
-	getShowErrorSign?(): boolean;
-	getAnimationName?(): string;
-	getSkinName?(): string;
-	getLoop?(): boolean;
-	getPlaying?(): boolean;
-	getFrame?(): number;
-	getFlip?(): number;
-	getFillMethod?(): number;
-	getFillOrigin?(): number;
-	getFillClockwise?(): boolean;
-	getFillAmount?(): number;
-	getClearOnPublish?(): boolean;
-	getGraphType?(): number;
-	getLineSize?(): number;
-	getLineColor?(): string;
-	getFillColor?(): string;
-	getCornerRadius?(): [number, number, number, number] | null;
-	getPoints?(): number[] | null;
-	getSkewX?(): number;
-	getSkewY?(): number;
-	getSides?(): number;
-	getStartAngle?(): number;
-	getDistances?(): number[] | null;
-	getLayout?(): number;
-	getLineGap?(): number;
-	getColumnGap?(): number;
-	getAdvanced?(): boolean;
-	getExcludeInvisibles?(): boolean;
-	getAutoSizeDisabled?(): boolean;
-	getMainGridIndex?(): number;
-	getSelectionMode?(): number;
-	getSelectionController?(): string;
-	getDefaultItem?(): string;
-	getLineCount?(): number;
-	getColumnCount?(): number;
-	getAutoResizeItem?(): boolean;
-	getChildrenRenderOrder?(): number;
-	getApexIndex?(): number;
-	getOverflow?(): number;
-	getScrollType?(): number;
-	getScrollBarDisplay?(): number;
-	getScrollBarFlags?(): number;
-	getScrollBarMargin?(): { top?: number; bottom?: number; left?: number; right?: number };
-	getVtScrollBarRes?(): string;
-	getHzScrollBarRes?(): string;
-	getHeaderRes?(): string;
-	getFooterRes?(): string;
-	getMargin?(): { top?: number; bottom?: number; left?: number; right?: number };
-	getClipSoftness?(): { x?: number; y?: number };
-	getListItems?(): Array<{
-		title?: string | null;
-		icon?: string | null;
-		url?: string | null;
-		name?: string | null;
-		selectedTitle?: string | null;
-		selectedIcon?: string | null;
-		level?: number;
-		isFolder?: boolean | null;
-		controllers?: string | null;
-		propertyOverrides?: Array<{ target: string; propertyId: number; value: string }>;
-	}>;
-	getIndent?(): number;
-	getClickToExpand?(): number;
-	getScrollItemToViewOnClick?(): boolean;
-	getFoldInvisibleItems?(): boolean;
-	getAutoClearItems?(): boolean;
-	getPageController?(): string;
-	getControllerOverrides?(): string;
-	getPromptText?(): string;
-	getMaxLength?(): number;
-	getRestrict?(): string;
-	getPassword?(): boolean;
-	getKeyboardType?(): number;
-	getInstanceExtType?(): string;
-	getInstanceTitle?(): string;
-	getInstanceSelectedTitle?(): string;
-	getInstanceIcon?(): string;
-	getInstanceSelectedIcon?(): string;
-	getInstanceTitleColor?(): string;
-	getInstanceTitleFontSize?(): number;
-	getInstanceController?(): string;
-	getInstancePage?(): string;
-	getInstanceChecked?(): boolean;
-	getInstanceSound?(): string;
-	getInstanceSoundVolumeScale?(): number;
-	getInstancePopupDirection?(): number;
-	getInstancePromptText?(): string;
-	getInstanceSelectionController?(): string;
-	getInstanceVisibleItemCount?(): number;
-	getInstanceAutoClearItems?(): boolean;
-	getInstanceValue?(): number;
-	getInstanceMax?(): number;
-	getInstanceMin?(): number;
-	getInstanceComboItems?(): Array<{
-		title?: string | null;
-		value?: string | null;
-		icon?: string | null;
-	}>;
-	getPropertyOverrides?(): Array<{ target: string; propertyId: number; value: string }>;
-};
+// Some concrete tags lack these state fields; all other accessors belong to GObject.
+type CommonDisplayState = GObject & Partial<Pick<GImage,
+	'getX' | 'getY' | 'getWidth' | 'getHeight' | 'getGroup' |
+	'getAlpha' | 'getRotation' | 'getVisible' | 'getTouchable' | 'getGrayed'
+>>;
 
 
 function writeCommonDisplayState(
 	target: Record<string, unknown>,
-	object: WritableChild,
+	object: CommonDisplayState,
 	protocol: XmlNodeProtocol,
 ): void {
 	const specs = protocol.attrs;
@@ -519,30 +166,30 @@ function writeCommonDisplayState(
 	if (specs.size && (width !== 0 || height !== 0)) {
 		writeXmlAttr(target, specs.size, formatProjectInt32List([width, height], 'display object size'));
 	}
-	if (specs.locked && object.getLocked?.()) writeXmlAttr(target, specs.locked, 'true');
+	if (specs.locked && object.getLocked()) writeXmlAttr(target, specs.locked, 'true');
 	const restrictSize = [
-		object.getMinWidth?.() ?? 0,
-		object.getMaxWidth?.() ?? 0,
-		object.getMinHeight?.() ?? 0,
-		object.getMaxHeight?.() ?? 0,
+		object.getMinWidth() ?? 0,
+		object.getMaxWidth() ?? 0,
+		object.getMinHeight() ?? 0,
+		object.getMaxHeight() ?? 0,
 	];
 	if (specs.restrictSize && restrictSize.some((value) => value !== 0)) {
 		writeXmlAttr(target, specs.restrictSize, formatProjectInt32List(restrictSize, 'display object restrictSize'));
 	}
-	if (specs.aspect && object.getAspect?.()) writeXmlAttr(target, specs.aspect, 'true');
-	const pivotX = object.getPivotX?.() ?? 0;
-	const pivotY = object.getPivotY?.() ?? 0;
-	if (specs.pivot && (pivotX !== 0 || pivotY !== 0)) {
+	if (specs.aspect && object.getAspect()) writeXmlAttr(target, specs.aspect, 'true');
+	const pivotX = object.getPivotX() ?? 0;
+	const pivotY = object.getPivotY() ?? 0;
+	if (specs.pivot && (pivotX !== 0 || pivotY !== 0 || object.getPivotAsAnchor())) {
 		writeXmlAttr(target, specs.pivot, `${pivotX},${pivotY}`);
-		if (specs.anchor && object.getPivotAsAnchor?.()) writeXmlAttr(target, specs.anchor, 'true');
+		if (specs.anchor && object.getPivotAsAnchor()) writeXmlAttr(target, specs.anchor, 'true');
 	}
-	const scaleX = object.getScaleX?.() ?? 1;
-	const scaleY = object.getScaleY?.() ?? 1;
+	const scaleX = object.getScaleX() ?? 1;
+	const scaleY = object.getScaleY() ?? 1;
 	if (specs.scale && (scaleX !== 1 || scaleY !== 1)) {
 		writeXmlAttr(target, specs.scale, `${scaleX},${scaleY}`);
 	}
-	const skewX = object.getSkewX?.() ?? 0;
-	const skewY = object.getSkewY?.() ?? 0;
+	const skewX = object.getSkewX() ?? 0;
+	const skewY = object.getSkewY() ?? 0;
 	if (specs.skew && (skewX !== 0 || skewY !== 0)) {
 		writeXmlAttr(target, specs.skew, `${skewX},${skewY}`);
 	}
@@ -562,28 +209,12 @@ function writeCommonDisplayState(
 	if (specs.grayed && object.getGrayed?.()) {
 		writeXmlAttr(target, specs.grayed, 'true');
 	}
-	if (specs.tooltips && object.getTooltips?.()) writeXmlAttr(target, specs.tooltips, object.getTooltips?.());
-	if (specs.customData && object.getCustomData?.()) writeXmlAttr(target, specs.customData, object.getCustomData?.());
-	const blendMode = object.getBlendMode?.() ?? 'normal';
+	if (specs.tooltips && object.getTooltips()) writeXmlAttr(target, specs.tooltips, object.getTooltips());
+	if (specs.customData && object.getCustomData()) writeXmlAttr(target, specs.customData, object.getCustomData());
+	const blendMode = object.getBlendMode() ?? 'normal';
 	if (specs.blendMode && blendMode !== 'normal') writeXmlAttr(target, specs.blendMode, blendMode);
-	if (specs.filter && object.getFilter?.()) writeXmlAttr(target, specs.filter, object.getFilter?.());
-	if (specs.filterData && object.getFilterData?.()) writeXmlAttr(target, specs.filterData, object.getFilterData?.());
-}
-
-export function hasNonZeroInsets(value: { top?: number; bottom?: number; left?: number; right?: number } | null | undefined): boolean {
-	return !!value && !!(value.top || value.bottom || value.left || value.right);
-}
-
-export function formatInsets(
-	value: { top?: number; bottom?: number; left?: number; right?: number },
-	field = 'margin',
-): string {
-	return formatProjectInt32List([
-		value.top ?? 0,
-		value.bottom ?? 0,
-		value.left ?? 0,
-		value.right ?? 0,
-	], field);
+	if (specs.filter && object.getFilter()) writeXmlAttr(target, specs.filter, object.getFilter());
+	if (specs.filterData && object.getFilterData()) writeXmlAttr(target, specs.filterData, object.getFilterData());
 }
 
 function formatFillMethod(fillMethod: number): string {
@@ -596,100 +227,6 @@ function formatFillMethod(fillMethod: number): string {
 		5: 'radial360',
 	};
 	return fillMethodName[fillMethod] ?? 'none';
-}
-
-export function formatButtonMode(mode: number): string {
-	const map: Record<number, string> = {
-		0: 'Common',
-		1: 'Check',
-		2: 'Radio',
-	};
-	return map[mode] ?? 'Common';
-}
-
-export function formatButtonDownEffect(effect: number): string {
-	return ['none', 'dark', 'scale'][effect] ?? 'none';
-}
-
-export function formatTitleType(titleType: number): string {
-	const map: Record<number, string> = {
-		0: 'percent',
-		1: 'valueAndmax',
-		2: 'value',
-		3: 'max',
-	};
-	return map[titleType] ?? 'percent';
-}
-
-function serializeListItemXmlNode(item: {
-	title?: string | null;
-	icon?: string | null;
-	url?: string | null;
-	name?: string | null;
-	selectedTitle?: string | null;
-	selectedIcon?: string | null;
-	level?: number;
-	isFolder?: boolean | null;
-	controllers?: string | null;
-	propertyOverrides?: Array<{ target: string; propertyId: number; value: string }>;
-}, options?: {
-	forceLevel?: boolean;
-}): Record<string, unknown> {
-	const attrs: Record<string, unknown> = {};
-	const specs = PROJECT_XML_PROTOCOL.listItem.attrs;
-	if (item.title !== undefined && item.title !== null) writeXmlAttr(attrs, specs.title, item.title);
-	if (item.icon !== undefined && item.icon !== null) writeXmlAttr(attrs, specs.icon, item.icon);
-	if (item.url !== undefined && item.url !== null) writeXmlAttr(attrs, specs.url, item.url);
-	if (item.name !== undefined && item.name !== null) writeXmlAttr(attrs, specs.name, item.name);
-	if (item.selectedTitle !== undefined && item.selectedTitle !== null) writeXmlAttr(attrs, specs.selectedTitle, item.selectedTitle);
-	if (item.selectedIcon !== undefined && item.selectedIcon !== null) writeXmlAttr(attrs, specs.selectedIcon, item.selectedIcon);
-	if (item.level !== undefined && item.level !== null && ((options?.forceLevel ?? false) || item.level !== 0 || item.isFolder === true)) {
-		writeXmlAttr(attrs, specs.level, String(item.level));
-	}
-	if (item.isFolder !== undefined && item.isFolder !== null) {
-		writeXmlAttr(attrs, specs.isFolder, item.isFolder ? 'true' : 'false');
-	}
-	if (item.controllers !== undefined && item.controllers !== null) writeXmlAttr(attrs, specs.controllers, item.controllers);
-	const propertyChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.listItem, 'property');
-	if (propertyChildName && item.propertyOverrides?.length) {
-		attrs[propertyChildName] = item.propertyOverrides.map(serializePropertyOverrideXmlNode);
-	}
-	return attrs;
-}
-
-function serializePropertyOverrideXmlNode(property: {
-	target: string;
-	propertyId: number;
-	value: string;
-}): Record<string, unknown> {
-	const attrs: Record<string, unknown> = {};
-	const specs = PROJECT_XML_PROTOCOL.propertyOverride.attrs;
-	writeXmlAttr(attrs, specs.target, property.target);
-	writeXmlAttr(attrs, specs.propertyId, String(property.propertyId));
-	writeXmlAttr(attrs, specs.value, property.value);
-	return attrs;
-}
-
-function serializeComboBoxItemXmlNode(item: {
-	title?: string | null;
-	value?: string | null;
-	icon?: string | null;
-}): Record<string, unknown> {
-	const attrs: Record<string, unknown> = {};
-	const specs = PROJECT_XML_PROTOCOL.comboBoxItem.attrs;
-	if (item.title !== undefined && item.title !== null) writeXmlAttr(attrs, specs.title, item.title);
-	if (item.value !== undefined && item.value !== null) writeXmlAttr(attrs, specs.value, item.value);
-	if (item.icon !== undefined && item.icon !== null) writeXmlAttr(attrs, specs.icon, item.icon);
-	return attrs;
-}
-
-export function getProtocolChildName(protocol: XmlNodeProtocol, childName: string): string | null {
-	return protocol.children?.[childName] ? childName : null;
-}
-
-function getProtocolGearChildNameSet(protocol: XmlNodeProtocol): Set<string> {
-	const gearTagNames = new Set(Object.values(GEAR_TAG));
-	return new Set(Object.keys(protocol.children ?? {}).filter((name) => gearTagNames.has(name)));
 }
 
 function getDisplayListVariantName(propertyType: string, tagName: string): string {
@@ -715,543 +252,230 @@ function assertDisplayListVariantAllowed(propertyType: string, tagName: string, 
  */
 
 export function serializeDisplayList(children: GObject[]): string {
-		const lines: string[] = [];
-		for (const child of children) {
-			const propertyType = child.propertyType as string;
-			const tag = DISPLAY_TAG[propertyType] ?? 'component';
-			assertDisplayListVariantAllowed(propertyType, tag, child.getName() || child.getId() || propertyType);
-			lines.push(renderXmlNode(tag, serializeChild(child), '    '));
-		}
-		return `\n${lines.join('\n')}\n  `;
+	const lines: string[] = [];
+	for (const child of children) {
+		const propertyType = child.propertyType as string;
+		const tag = DISPLAY_TAG[propertyType] ?? 'component';
+		assertDisplayListVariantAllowed(propertyType, tag, child.getName() || child.getId() || propertyType);
+		lines.push(renderXmlNode(tag, serializeChild(child), '    '));
 	}
+	return `\n${lines.join('\n')}\n  `;
+}
 
 function serializeChild(obj: GObject): Record<string, unknown> {
-		const typedObj = obj as WritableChild;
-		const attrs: Record<string, unknown> = {};
-		let extensionChildName: string | undefined;
-		let extensionValue: Record<string, unknown> | string | undefined;
-		if (obj.getId()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.id, obj.getId());
-		if (obj.getName()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.name, obj.getName());
+	const attrs: Record<string, unknown> = {};
+	if (obj.getId()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.id, obj.getId());
+	if (obj.getName()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.name, obj.getName());
 
-		// Type-specific attributes
-		const type = obj.propertyType as string;
-		if (type === 'GImage' || type === 'GMovieClip' || type === 'GComponent'
-			|| type === 'GList' || type === 'GTree'
-			|| EXTENSION_TYPE[type]) {
-			const src = typedObj.getSrc?.();
-			if (src) {
-				if (type === 'GComponent' || EXTENSION_TYPE[type]) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.src, src);
-				else if (type === 'GMovieClip') writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.src, src);
-				else if (type === 'GList' || type === 'GTree') writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.src, src);
-				else writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.src, src);
-			}
-		}
-		if ((type === 'GComponent' || type === 'GList' || type === 'GTree') && typedObj.getControllerOverrides?.()) {
-			if (type === 'GComponent') writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.controllerOverrides, typedObj.getControllerOverrides?.());
-			else writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.controllerOverrides, typedObj.getControllerOverrides?.());
-		}
-		if ((type === 'GComponent' || type === 'GList' || type === 'GTree') && typedObj.getPageController?.()) {
-			if (type === 'GComponent') writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.pageController, typedObj.getPageController?.());
-			else writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.pageController, typedObj.getPageController?.());
-		}
-		if (type === 'GComponent' || EXTENSION_TYPE[type]) {
-			if (typedObj.getFileName?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.fileName, typedObj.getFileName?.());
-			if (typedObj.getPackageId?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.pkg, typedObj.getPackageId?.());
-		}
-		if (type === 'GImage') {
-			if (typedObj.getPackageId?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.pkg, typedObj.getPackageId?.());
-			const imageColor = typedObj.getColor?.();
-			if (imageColor && !isDefaultWhiteColor(imageColor)) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.color, imageColor);
-			const flip = typedObj.getFlip?.() ?? 0;
-			if (flip !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.flip, formatImageFlip(flip));
-			const fillMethod = typedObj.getFillMethod?.() ?? 0;
-			if (fillMethod !== 0) {
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.fillMethod, formatFillMethod(fillMethod));
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.fillOrigin, String(typedObj.getFillOrigin?.() ?? 0));
-				if (typedObj.getFillClockwise?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.fillClockwise, 'false');
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.fillAmount, String(Math.round((typedObj.getFillAmount?.() ?? 0) * 100)));
-			}
-		}
-		if (type === 'GGraph') {
-			const graphType = typedObj.getGraphType?.() ?? 0;
-			if (graphType !== 0) {
-				const graphTypeName: Record<number, string> = {
-					1: 'rect',
-					2: 'ellipse',
-					3: 'polygon',
-					4: 'regularpolygon',
-				};
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.type, graphTypeName[graphType] ?? 'rect');
-			}
-			if ((typedObj.getLineSize?.() ?? 1) !== 1) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.lineSize, String(typedObj.getLineSize?.() ?? 1));
-			const lineColor = typedObj.getLineColor?.();
-			if (lineColor && !sameColor(lineColor, '#000000') && !sameColor(lineColor, '#ff000000')) {
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.lineColor, formatXmlColor(lineColor));
-			}
-			const fillColor = typedObj.getFillColor?.();
-			if (fillColor && !sameColor(fillColor, '#FFFFFF') && !sameColor(fillColor, '#FFFFFFFF')) {
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.fillColor, formatXmlColor(fillColor));
-			}
-			const cornerRadius = typedObj.getCornerRadius?.();
-			if (cornerRadius) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.corner, cornerRadius.join(','));
-			const points = typedObj.getPoints?.();
-			if (points?.length) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.points, points.join(','));
-			const sides = typedObj.getSides?.() ?? 0;
-			if (sides > 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.sides, String(sides));
-			const startAngle = typedObj.getStartAngle?.() ?? 0;
-			if (startAngle !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.startAngle, String(startAngle));
-			const distances = typedObj.getDistances?.();
-			if (distances?.length) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.distances, distances.join(','));
-		}
-		if (type === 'GLoader') {
-			const url = typedObj.getUrl?.();
-			if (url) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.url, url);
-			const align = typedObj.getAlign?.();
-			if (align !== undefined && align !== 0) {
-				const alignName: Record<number, string> = { 0: 'left', 1: 'center', 2: 'right' };
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.align, alignName[align] ?? 'left');
-			}
-			const vAlign = typedObj.getVAlign?.();
-			if (vAlign !== undefined && vAlign !== 0) {
-				const vAlignName: Record<number, string> = { 0: 'top', 1: 'middle', 2: 'bottom' };
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.vAlign, vAlignName[vAlign] ?? 'top');
-			}
-			const fill = typedObj.getFill?.();
-			if (fill !== undefined && fill !== 0) {
-				const fillName: Record<number, string> = {
-					0: 'none',
-					1: 'scale',
-					2: 'scaleMatchHeight',
-					3: 'scaleMatchWidth',
-					4: 'scaleFree',
-					5: 'scaleNoBorder',
-				};
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fill, fillName[fill] ?? 'none');
-			}
-			if (typedObj.getShrinkOnly?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.shrinkOnly, '1');
-			if (typedObj.getAutoSize?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.autoSize, '1');
-			if (typedObj.getUseResize?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.useResize, '1');
-			if (typedObj.getShowErrorSign?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.errorSign, 'true');
-			const loaderColor = typedObj.getColor?.();
-			if (loaderColor && !isDefaultWhiteColor(loaderColor)) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.color, loaderColor);
-			if (typedObj.getPlaying?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.playing, 'false');
-			const frame = typedObj.getFrame?.() ?? 0;
-			if (frame !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.frame, String(frame));
-			const fillMethod = typedObj.getFillMethod?.() ?? 0;
-			if (fillMethod !== 0) {
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fillMethod, formatFillMethod(fillMethod));
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fillOrigin, String(typedObj.getFillOrigin?.() ?? 0));
-				if (typedObj.getFillClockwise?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fillClockwise, 'false');
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fillAmount, String(Math.round((typedObj.getFillAmount?.() ?? 0) * 100)));
-			}
-			if (typedObj.getClearOnPublish?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.clearOnPublish, 'true');
-		}
-		if (type === 'GMovieClip') {
-			if (typedObj.getFileName?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.fileName, typedObj.getFileName?.());
-			if (typedObj.getPackageId?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.pkg, typedObj.getPackageId?.());
-		}
-		if (type === 'GTextField' || type === 'GRichTextField' || type === 'GTextInput') {
-			if (typedObj.getAutoClearText?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.autoClearText, 'true');
-			if (type !== 'GRichTextField') {
-				const demoText = typedObj.getDemoText?.();
-				if (demoText !== undefined && demoText !== '') writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.demoText, demoText);
-				if (typedObj.getTemplateVarsEnabled?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.vars, 'true');
-				const faceDilate = typedObj.getFaceDilate?.() ?? 0;
-				if (faceDilate !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.faceDilate, String(faceDilate));
-				const outlineSoftness = typedObj.getOutlineSoftness?.() ?? 0;
-				if (outlineSoftness !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.outlineSoftness, String(outlineSoftness));
-				const underlaySoftness = typedObj.getUnderlaySoftness?.() ?? 0;
-				if (underlaySoftness !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.underlaySoftness, String(underlaySoftness));
-			}
-			if (type === 'GRichTextField') {
-				const outlineSoftness = typedObj.getOutlineSoftness?.() ?? 0;
-				if (outlineSoftness !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.richText.attrs.outlineSoftness, String(outlineSoftness));
-				const underlaySoftness = typedObj.getUnderlaySoftness?.() ?? 0;
-				if (underlaySoftness !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.richText.attrs.underlaySoftness, String(underlaySoftness));
-			}
-		}
-		if (type === 'GLoader3D') {
-			const url = typedObj.getUrl?.();
-			if (url) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.url, url);
-			const align = typedObj.getAlign?.();
-			if (align !== undefined && align !== 0) {
-				const alignName: Record<number, string> = { 0: 'left', 1: 'center', 2: 'right' };
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.align, alignName[align] ?? 'left');
-			}
-			const vAlign = typedObj.getVAlign?.();
-			if (vAlign !== undefined && vAlign !== 0) {
-				const vAlignName: Record<number, string> = { 0: 'top', 1: 'middle', 2: 'bottom' };
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.vAlign, vAlignName[vAlign] ?? 'top');
-			}
-			const fill = typedObj.getFill?.();
-			if (fill !== undefined) {
-				const fillName: Record<number, string> = {
-					0: 'none',
-					1: 'scale',
-					2: 'scaleMatchHeight',
-					3: 'scaleMatchWidth',
-					4: 'scaleFree',
-					5: 'scaleNoBorder',
-				};
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.fill, fillName[fill] ?? 'none');
-			}
-			if (typedObj.getShrinkOnly?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.shrinkOnly, '1');
-			if (typedObj.getAutoSize?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.autoSize, '1');
-			const animationName = typedObj.getAnimationName?.();
-			if (animationName) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.animation, animationName);
-			const skinName = typedObj.getSkinName?.();
-			if (skinName) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.skinName, skinName);
-			if (typedObj.getPlaying?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.playing, 'false');
-			const frame = typedObj.getFrame?.() ?? 0;
-			if (frame !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.frame, String(frame));
-			if (typedObj.getLoop?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.loop, 'false');
-			const loaderColor = typedObj.getColor?.();
-			if (loaderColor) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.color, loaderColor);
-			if (typedObj.getClearOnPublish?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.clearOnPublish, 'true');
-		}
-		if (type === 'GMovieClip') {
-			if (typedObj.getPlaying?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.playing, 'false');
-			const frame = typedObj.getFrame?.() ?? 0;
-			if (frame !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.frame, String(frame));
-			const movieClipColor = typedObj.getColor?.();
-			if (movieClipColor && !isDefaultWhiteColor(movieClipColor)) {
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.color, formatXmlColor(movieClipColor));
-			}
-		}
-		if (type === 'GGroup') {
-			const layout = typedObj.getLayout?.();
-			if (layout !== undefined && layout !== 0) {
-				const layoutName: Record<number, string> = { 0: 'none', 1: 'hz', 2: 'vt' };
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.layout, layoutName[layout] ?? 'none');
-			}
-			const lineGap = typedObj.getLineGap?.() ?? 0;
-			if (lineGap !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.lineGap, String(lineGap));
-			const columnGap = typedObj.getColumnGap?.() ?? 0;
-			if (columnGap !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.columnGap, String(columnGap));
-			if (typedObj.getAdvanced?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.advanced, 'true');
-			if (typedObj.getExcludeInvisibles?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.excludeInvisibles, 'true');
-			if (typedObj.getAutoSizeDisabled?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.autoSizeDisabled, 'true');
-			const mainGridIndex = typedObj.getMainGridIndex?.() ?? -1;
-			if (mainGridIndex >= 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.mainGridIndex, String(mainGridIndex));
-		}
-		if (type === 'GList' || type === 'GTree') {
-			const isTree = type === 'GTree';
-			const layout = typedObj.getLayout?.();
-			if (layout !== undefined && layout !== 0) {
-				const layoutName: Record<number, string> = {
-					1: 'row',
-					2: 'flow_hz',
-					3: 'flow_vt',
-					4: 'pagination',
-				};
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.layout, layoutName[layout] ?? 'row');
-			}
-			const lineGap = typedObj.getLineGap?.() ?? 0;
-			if (lineGap !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineGap, String(lineGap));
-			const columnGap = typedObj.getColumnGap?.() ?? 0;
-			if (columnGap !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.columnGap, String(columnGap));
-			const align = typedObj.getAlign?.();
-			if (align !== undefined && align !== 0) {
-				const alignName: Record<number, string> = { 0: 'left', 1: 'center', 2: 'right' };
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.align, alignName[align] ?? 'left');
-			}
-			const vAlign = typedObj.getVAlign?.();
-			if (vAlign !== undefined && vAlign !== 0) {
-				const vAlignName: Record<number, string> = { 0: 'top', 1: 'middle', 2: 'bottom' };
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.vAlign, vAlignName[vAlign] ?? 'top');
-			}
-			const lineCount = typedObj.getLineCount?.() ?? 0;
-			const columnCount = typedObj.getColumnCount?.() ?? 0;
-			if ((layout === 2 || layout === 4) && columnCount !== 0) {
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineItemCount, String(columnCount));
-			} else if (layout === 3 && lineCount !== 0) {
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineItemCount, String(lineCount));
-			}
-			if (layout === 4 && lineCount !== 0) {
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.lineItemCount2, String(lineCount));
-			}
-			const autoResizeItem = typedObj.getAutoResizeItem?.() ?? true;
-			if (autoResizeItem !== getDefaultListAutoResizeItem(layout ?? 0)) {
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.autoResizeItem, String(autoResizeItem));
-			}
-			const childrenRenderOrder = typedObj.getChildrenRenderOrder?.() ?? 0;
-			if (childrenRenderOrder !== 0) {
-				const renderOrderName: Record<number, string> = { 0: 'ascent', 1: 'descent', 2: 'arch' };
-				writeXmlAttr(
-					attrs,
-					PROJECT_XML_PROTOCOL.list.attrs.childrenRenderOrder,
-					renderOrderName[childrenRenderOrder] ?? 'ascent',
-				);
-				const apexIndex = typedObj.getApexIndex?.() ?? 0;
-				if (childrenRenderOrder === 2 && apexIndex !== 0) {
-					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.apexIndex, String(apexIndex));
-				}
-			}
-			const selectionMode = typedObj.getSelectionMode?.();
-			if (selectionMode !== undefined && selectionMode !== 0) {
-				const selectionName: Record<number, string> = {
-					0: 'single',
-					1: 'multiple',
-					2: 'multipleSingleClick',
-					3: 'none',
-				};
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.selectionMode, selectionName[selectionMode] ?? 'single');
-			}
-			const defaultItem = typedObj.getDefaultItem?.();
-			if (defaultItem) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.defaultItem, defaultItem);
-			const selectionController = typedObj.getSelectionController?.();
-			if (selectionController) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.selectionController, selectionController);
-			if (isTree) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.treeView, 'true');
-			if (isTree) {
-				const indent = typedObj.getIndent?.() ?? 0;
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.indent, String(indent));
-				const clickToExpand = typedObj.getClickToExpand?.() ?? 0;
-				if (clickToExpand !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.clickToExpand, String(clickToExpand));
-			}
-			const overflow = typedObj.getOverflow?.() ?? 0;
-			if (overflow !== 0) {
-				const overflowName: Record<number, string> = { 0: 'visible', 1: 'hidden', 2: 'scroll' };
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.overflow, overflowName[overflow] ?? 'visible');
-			}
-			const scrollType = typedObj.getScrollType?.();
-			if (scrollType !== undefined && scrollType !== 1) {
-				const scrollTypeName: Record<number, string> = { 0: 'horizontal', 1: 'vertical', 2: 'both' };
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scroll, scrollTypeName[scrollType] ?? 'vertical');
-			}
-			const scrollBarDisplay = typedObj.getScrollBarDisplay?.() ?? 0;
-			if (overflow === 2 && scrollBarDisplay !== 0) {
-				const scrollBarName: Record<number, string> = { 0: 'default', 1: 'visible', 2: 'auto', 3: 'hidden' };
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBar, scrollBarName[scrollBarDisplay] ?? 'default');
-			}
-			const scrollBarFlags = typedObj.getScrollBarFlags?.() ?? 0;
-			if (scrollBarFlags !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarFlags, String(scrollBarFlags));
-			const scrollBarMargin = typedObj.getScrollBarMargin?.();
-			if (hasNonZeroInsets(scrollBarMargin)) {
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarMargin, formatInsets(scrollBarMargin!, 'list scrollBarMargin'));
-			}
-			const vtScrollBarRes = typedObj.getVtScrollBarRes?.() ?? '';
-			const hzScrollBarRes = typedObj.getHzScrollBarRes?.() ?? '';
-			if (vtScrollBarRes || hzScrollBarRes) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarRes, `${vtScrollBarRes},${hzScrollBarRes}`);
-			const headerRes = typedObj.getHeaderRes?.() ?? '';
-			const footerRes = typedObj.getFooterRes?.() ?? '';
-			if (headerRes || footerRes) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.ptrRes, `${headerRes},${footerRes}`);
-			const margin = typedObj.getMargin?.();
-			if (hasNonZeroInsets(margin)) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.margin, formatInsets(margin!, 'list margin'));
-			const clipSoftness = typedObj.getClipSoftness?.();
-			if (clipSoftness && ((clipSoftness.x ?? 0) !== 0 || (clipSoftness.y ?? 0) !== 0)) {
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.clipSoftness, formatProjectInt32List([
-					clipSoftness.x ?? 0,
-					clipSoftness.y ?? 0,
-				], 'list clipSoftness'));
-			}
-			if (typedObj.getScrollItemToViewOnClick?.() === false) {
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollItemToViewOnClick, 'false');
-			}
-			if (typedObj.getFoldInvisibleItems?.() === true) {
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.foldInvisibleItems, 'true');
-			}
-			if (typedObj.getAutoClearItems?.() === true) {
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.autoClearItems, 'true');
-			}
-			const listItems = typedObj.getListItems?.() ?? [];
-			const listItemChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.list, 'item');
-			if (listItems.length > 0 && listItemChildName) {
-			attrs[listItemChildName] = listItems.map((item) => serializeListItemXmlNode(item, { forceLevel: isTree }));
-			}
-		}
-		if (type === 'GTextField' || type === 'GRichTextField' || type === 'GTextInput') {
-			const text = typedObj.getText?.();
-			if (text !== undefined && text !== null) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.text, text);
-			const font = typedObj.getFont?.();
-			if (font) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.font, font);
-			const fontSize = typedObj.getFontSize?.();
-			if (fontSize) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.fontSize, String(fontSize));
-			const color = typedObj.getColor?.();
-			if (color && !isDefaultBlackColor(color)) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.color, formatXmlColor(color));
-			const align = typedObj.getAlign?.();
-			if (align !== undefined && align !== 0) {
-				const alignName: Record<number, string> = { 0: 'left', 1: 'center', 2: 'right' };
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.align, alignName[align] ?? 'left');
-			}
-			const vAlign = typedObj.getVAlign?.();
-			if (vAlign !== undefined && vAlign !== 0) {
-				const vAlignName: Record<number, string> = { 0: 'top', 1: 'middle', 2: 'bottom' };
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.vAlign, vAlignName[vAlign] ?? 'top');
-			}
-			const autoSize = typedObj.getAutoSize?.();
-			if (typeof autoSize === 'number' && autoSize !== 1) {
-				const autoSizeName: Record<number, string> = { 0: 'none', 1: 'both', 2: 'height', 3: 'shrink', 4: 'ellipsis' };
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.autoSize, autoSizeName[autoSize] ?? 'both');
-			}
-			if (typedObj.getSingleLine?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.singleLine, 'true');
-			if (typedObj.getUbbEnabled?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.ubb, 'true');
-			const leading = typedObj.getLeading?.() ?? 3;
-			if (leading !== 3) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.leading, String(leading));
-			const letterSpacing = typedObj.getLetterSpacing?.() ?? 0;
-			if (letterSpacing !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.letterSpacing, String(letterSpacing));
-			if (typedObj.getUnderline?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.underline, 'true');
-			if (typedObj.getItalic?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.italic, 'true');
-			if (typedObj.getBold?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.bold, 'true');
-			if (typedObj.getStrikethrough?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.strikethrough, '1');
-			const strokeColor = typedObj.getStrokeColor?.();
-			if (strokeColor) {
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.strokeColor, formatXmlColor(strokeColor));
-				const strokeSize = typedObj.getStrokeSize?.() ?? 1;
-				if (strokeSize !== 1) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.strokeSize, String(strokeSize));
-			}
-			const shadowColor = typedObj.getShadowColor?.();
-			if (shadowColor) {
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.shadowColor, formatXmlColor(shadowColor));
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.shadowOffset, `${typedObj.getShadowOffsetX?.() ?? 1},${typedObj.getShadowOffsetY?.() ?? 1}`);
-			}
-			if (type === 'GTextInput') {
-				const promptText = typedObj.getPromptText?.();
-				if (promptText) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.prompt, promptText);
-				const maxLength = typedObj.getMaxLength?.() ?? 0;
-				if (maxLength !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.maxLength, String(maxLength));
-				const restrict = typedObj.getRestrict?.();
-				if (restrict) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.restrict, restrict);
-				if (typedObj.getPassword?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.password, 'true');
-				const keyboardType = typedObj.getKeyboardType?.() ?? 0;
-				if (keyboardType !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.keyboardType, String(keyboardType));
-			}
-		}
-		if (type === 'GComponent') {
-			const propertyOverrides = typedObj.getPropertyOverrides?.() ?? [];
-			const propertyChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.componentInstance, 'property');
-			if (propertyChildName && propertyOverrides.length > 0) {
-				attrs[propertyChildName] = propertyOverrides.map(serializePropertyOverrideXmlNode);
-			}
-			const instanceExtType = typedObj.getInstanceExtType?.() ?? '';
-			if (instanceExtType) {
-				const extProtocol = EXTENSION_PROTOCOL_MAP[instanceExtType as keyof typeof EXTENSION_PROTOCOL_MAP];
-				const extSpecs = extProtocol.attrs as Record<string, { canonical: string }>;
-				const extAttrs: Record<string, unknown> = {};
-				if (typedObj.getInstanceTitle?.() && extSpecs.title) writeXmlAttr(extAttrs, extSpecs.title, typedObj.getInstanceTitle?.());
-				if (typedObj.getInstanceSelectedTitle?.() && extSpecs.selectedTitle) writeXmlAttr(extAttrs, extSpecs.selectedTitle, typedObj.getInstanceSelectedTitle?.());
-				if (typedObj.getInstanceIcon?.() && extSpecs.icon) writeXmlAttr(extAttrs, extSpecs.icon, typedObj.getInstanceIcon?.());
-				if (typedObj.getInstanceSelectedIcon?.() && extSpecs.selectedIcon) writeXmlAttr(extAttrs, extSpecs.selectedIcon, typedObj.getInstanceSelectedIcon?.());
-				if (typedObj.getInstanceTitleColor?.() && extSpecs.titleColor) writeXmlAttr(extAttrs, extSpecs.titleColor, typedObj.getInstanceTitleColor?.());
-				if ((typedObj.getInstanceTitleFontSize?.() ?? 0) > 0 && extSpecs.titleFontSize) writeXmlAttr(extAttrs, extSpecs.titleFontSize, String(typedObj.getInstanceTitleFontSize?.() ?? 0));
-				if (typedObj.getInstanceController?.() && extSpecs.controller) writeXmlAttr(extAttrs, extSpecs.controller, typedObj.getInstanceController?.());
-				if (typedObj.getInstancePage?.() && extSpecs.page) writeXmlAttr(extAttrs, extSpecs.page, typedObj.getInstancePage?.());
-				if (typedObj.getInstanceChecked?.() && extSpecs.checked) writeXmlAttr(extAttrs, extSpecs.checked, '1');
-				const popupDirection = typedObj.getInstancePopupDirection?.() ?? 0;
-				if (popupDirection !== 0 && extSpecs.popupDirection) {
-					writeXmlAttr(extAttrs, extSpecs.popupDirection, ({ 1: 'up', 2: 'down' } as Record<number, string>)[popupDirection]);
-				}
-				if (typedObj.getInstanceSound?.() && extSpecs.sound) writeXmlAttr(extAttrs, extSpecs.sound, typedObj.getInstanceSound?.());
-				if ((typedObj.getInstanceSoundVolumeScale?.() ?? 1) !== 1 && extSpecs.soundVolumeScale) {
-					writeXmlAttr(extAttrs, extSpecs.soundVolumeScale, formatProjectInt32(
-						Math.round((typedObj.getInstanceSoundVolumeScale?.() ?? 1) * 100),
-						'component instance volume',
-					));
-				}
-				if (typedObj.getInstancePromptText?.() && extSpecs.prompt) writeXmlAttr(extAttrs, extSpecs.prompt, typedObj.getInstancePromptText?.());
-				if (typedObj.getInstanceSelectionController?.() && extSpecs.selectionController) writeXmlAttr(extAttrs, extSpecs.selectionController, typedObj.getInstanceSelectionController?.());
-				if ((typedObj.getInstanceVisibleItemCount?.() ?? 0) > 0 && extSpecs.visibleItemCount) writeXmlAttr(extAttrs, extSpecs.visibleItemCount, String(typedObj.getInstanceVisibleItemCount?.() ?? 0));
-				if (typedObj.getInstanceAutoClearItems?.() && extSpecs.autoClearItems) writeXmlAttr(extAttrs, extSpecs.autoClearItems, 'true');
-				const instanceValue = typedObj.getInstanceValue?.() ?? 0;
-				const instanceMax = typedObj.getInstanceMax?.() ?? 0;
-				const instanceMin = typedObj.getInstanceMin?.() ?? 0;
-				if (instanceValue !== 0 && extSpecs.value) writeXmlAttr(extAttrs, extSpecs.value, String(instanceValue));
-				if (instanceMax !== 0 && extSpecs.max) writeXmlAttr(extAttrs, extSpecs.max, String(instanceMax));
-				if (instanceMin !== 0 && extSpecs.min) writeXmlAttr(extAttrs, extSpecs.min, String(instanceMin));
-				const comboItems = typedObj.getInstanceComboItems?.() ?? [];
-				const comboBoxItemChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.comboBoxExtension, 'item');
-				if (comboItems.length > 0 && comboBoxItemChildName) {
-					extAttrs[comboBoxItemChildName] = comboItems.map((item) => serializeComboBoxItemXmlNode(item));
-				}
-				extensionChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.componentInstance, instanceExtType) ?? undefined;
-				if (extensionChildName) {
-					extensionValue = Object.keys(extAttrs).length > 0 ? extAttrs : '';
-				}
-			}
-		}
-
-		// Gear child elements
-		const objectProtocol = DISPLAY_OBJECT_PROTOCOL_BY_TYPE[type] ?? PROJECT_XML_PROTOCOL.componentInstance;
-		writeCommonDisplayState(attrs, typedObj, objectProtocol);
-		const gearChildNameSet = getProtocolGearChildNameSet(objectProtocol);
-		assertDisplayObjectGearXmlValues(obj);
-		for (const gear of obj.listGears()) {
-			const gearTag = GEAR_TAG[gear.getGearType()];
-			if (!gearTag || !gearChildNameSet.has(gearTag)) continue;
-			attrs[gearTag] = [serializeGear(gear, obj.propertyType, obj.getName?.())];
-		}
-
-		// Relation child elements
-		const relationChildName = getProtocolChildName(objectProtocol, 'relation');
-		const relations = obj.getRelations();
-		if (relations.length > 0) {
-			// Group by target
-			const byTarget = new Map<string, string[]>();
-			for (const rel of relations) {
-				const name = RELATION_TYPE_NAME[rel.type] ?? '';
-				if (!name) continue;
-				const pair = rel.usePercent ? name + '%' : name;
-				if (!byTarget.has(rel.target)) byTarget.set(rel.target, []);
-				byTarget.get(rel.target)!.push(pair);
-			}
-			const relElements = Array.from(byTarget.entries()).map(([target, pairs]) => ({
-				...(() => {
-					const relationAttrs: Record<string, unknown> = {};
-					writeXmlAttr(relationAttrs, PROJECT_XML_PROTOCOL.relation.attrs.target, target);
-					writeXmlAttr(relationAttrs, PROJECT_XML_PROTOCOL.relation.attrs.sidePair, pairs.join(','));
-					return relationAttrs;
-				})(),
-			}));
-			if (relElements.length > 0 && relationChildName) attrs[relationChildName] = relElements;
-		}
-		if (extensionChildName && extensionValue !== undefined) {
-			attrs[extensionChildName] = extensionValue;
-		}
-
-		return attrs;
+	// Type-specific attributes
+	const type = obj.propertyType as string;
+	if (EXTENSION_TYPE[type]) {
+		const instance = obj as GComponent;
+		if (instance.getSrc()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.src, instance.getSrc());
+		if (instance.getFileName()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.fileName, instance.getFileName());
+		if (instance.getPackageId()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.pkg, instance.getPackageId());
+	}
+	if (type === 'GImage') {
+		writeImageXmlAttributes(attrs, obj as GImage);
+	}
+	if (type === 'GGraph') {
+		writeGraphXmlAttributes(attrs, obj as GGraph);
+	}
+	if (type === 'GLoader') {
+		writeLoaderXmlAttributes(attrs, obj as GLoader);
+	}
+	if (type === 'GMovieClip') {
+		writeMovieClipXmlAttributes(attrs, obj as GMovieClip);
+	}
+	if (type === 'GTextField' || type === 'GRichTextField' || type === 'GTextInput') {
+		writeTextXmlAttributes(attrs, obj as GTextField);
+		if (type === 'GTextInput') writeTextInputXmlAttributes(attrs, obj as GTextInput);
+	}
+	if (type === 'GLoader3D') {
+		writeLoader3DXmlAttributes(attrs, obj as GLoader3D);
 	}
 
-export function assertDisplayObjectGearXmlValues(obj: GObject): void {
-	const types = new Set<number>();
-	for (const gear of obj.listGears()) {
-		const type = gear.getGearType();
-		if (types.has(type)) throw new Error(`Display node "${obj.getId()}" has duplicate ${GEAR_TAG[type] ?? type} bindings.`);
-		types.add(type);
-		assertTextGearXmlValues(gear);
+	if (type === 'GGroup') {
+		writeGroupXmlAttributes(attrs, obj as GGroup);
+	}
+	if (type === 'GList' || type === 'GTree') {
+		writeListXmlNode(attrs, obj as GList | GTree);
+	}
+
+	const extension = type === 'GComponent'
+		? writeComponentInstanceXmlNode(attrs, obj as GComponent)
+		: undefined;
+
+	const objectProtocol = DISPLAY_OBJECT_PROTOCOL_BY_TYPE[type] ?? PROJECT_XML_PROTOCOL.componentInstance;
+	writeCommonDisplayState(attrs, obj, objectProtocol);
+	writeDisplayObjectBehaviors(attrs, obj, objectProtocol);
+	if (extension) {
+		attrs[extension.name] = extension.value;
+	}
+
+	return attrs;
+}
+
+function writeImageXmlAttributes(attrs: Record<string, unknown>, object: GImage): void {
+	const src = object.getSrc();
+	if (src) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.src, src);
+	if (object.getPackageId()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.pkg, object.getPackageId());
+	const imageColor = object.getColor();
+	if (imageColor && !isDefaultWhiteColor(imageColor)) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.color, imageColor);
+	const flip = object.getFlip() ?? 0;
+	if (flip !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.flip, formatImageFlip(flip));
+	const fillMethod = object.getFillMethod() ?? 0;
+	if (fillMethod !== 0) {
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.fillMethod, formatFillMethod(fillMethod));
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.fillOrigin, String(object.getFillOrigin() ?? 0));
+		if (object.getFillClockwise() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.fillClockwise, 'false');
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.fillAmount, String(Math.round((object.getFillAmount() ?? 0) * 100)));
 	}
 }
 
-function assertTextGearXmlValues(gear: Gear): void {
-	if (gear.getGearType() !== GearType.Text && gear.getGearType() !== GearType.Icon) return;
-	const values = gear.getPageValues();
-	for (const page of gear.getPages() ? gear.getPages().split(',') : []) {
-		if (values[page]?.includes('|')) {
-			throw new Error(`Project XML cannot represent "|" in Text/Icon gear page "${page}"; no verified delimiter escape is available.`);
-		}
+function writeGraphXmlAttributes(attrs: Record<string, unknown>, object: GGraph): void {
+	const graphType = object.getGraphType() ?? 0;
+	if (graphType !== 0) {
+		const graphTypeName: Record<number, string> = {
+			1: 'rect',
+			2: 'ellipse',
+			3: 'polygon',
+			4: 'regularpolygon',
+		};
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.type, graphTypeName[graphType] ?? 'rect');
 	}
+	if ((object.getLineSize() ?? 1) !== 1) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.lineSize, String(object.getLineSize() ?? 1));
+	const lineColor = object.getLineColor();
+	if (lineColor && !sameColor(lineColor, '#000000') && !sameColor(lineColor, '#ff000000')) {
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.lineColor, formatXmlColor(lineColor));
+	}
+	const fillColor = object.getFillColor();
+	if (fillColor && !sameColor(fillColor, '#FFFFFF') && !sameColor(fillColor, '#FFFFFFFF')) {
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.fillColor, formatXmlColor(fillColor));
+	}
+	const cornerRadius = object.getCornerRadius();
+	if (cornerRadius) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.corner, cornerRadius.join(','));
+	const points = object.getPoints();
+	if (points?.length) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.points, points.join(','));
+	const sides = object.getSides() ?? 0;
+	if (sides > 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.sides, String(sides));
+	const startAngle = object.getStartAngle() ?? 0;
+	if (startAngle !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.startAngle, String(startAngle));
+	const distances = object.getDistances();
+	if (distances?.length) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.distances, distances.join(','));
 }
 
-function serializeGear(gear: Gear, ownerType?: string, ownerName?: string | null): Record<string, unknown> {
-		const ctrl = gear.getController();
-		const attrs: Record<string, unknown> = {};
-		if (ctrl) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.controller, ctrl.getName());
-		if (gear.getGearType() === GearType.Text || gear.getGearType() === GearType.Icon) {
-			assertTextGearXmlValues(gear);
-			const values = gear.getPageValues();
-			const pages = (gear.getPages() ? gear.getPages().split(',') : []).filter((page) => values[page] != null);
-			if (pages.length > 0) {
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.pages, pages.join(','));
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.values, pages.map((page) => values[page]).join('|'));
-			}
-		} else {
-			if (gear.getPages()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.pages, gear.getPages());
-			if (gear.getValues()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.values, normalizeGearXmlValue(gear.getGearType(), gear.getValues(), ownerType, ownerName ?? undefined, gear));
-		}
-		if (gear.getDefaultValue() !== null) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.default, normalizeGearXmlValue(gear.getGearType(), gear.getDefaultValue(), ownerType, ownerName ?? undefined, gear));
-		if (gear.getTween()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.tween, 'true');
-		if (gear.getEaseType() !== 5) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.ease, stringifyEaseType(gear.getEaseType()));
-		if (gear.getTweenDuration() !== 0.3) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.duration, String(gear.getTweenDuration()));
-		if (gear.getTweenDelay() !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.delay, String(gear.getTweenDelay()));
-		if (gear.getPositionsInPercent?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.positionsInPercent, 'true');
-		if (gear.getCondition()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.condition, gear.getCondition());
-		return attrs;
+function writeLoaderXmlAttributes(attrs: Record<string, unknown>, object: GLoader): void {
+	const url = object.getUrl();
+	if (url) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.url, url);
+	const align = object.getAlign();
+	if (align !== undefined && align !== 0) {
+		const alignName: Record<number, string> = { 0: 'left', 1: 'center', 2: 'right' };
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.align, alignName[align] ?? 'left');
 	}
+	const vAlign = object.getVAlign();
+	if (vAlign !== undefined && vAlign !== 0) {
+		const vAlignName: Record<number, string> = { 0: 'top', 1: 'middle', 2: 'bottom' };
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.vAlign, vAlignName[vAlign] ?? 'top');
+	}
+	const fill = object.getFill();
+	if (fill !== undefined && fill !== 0) {
+		const fillName: Record<number, string> = {
+			0: 'none',
+			1: 'scale',
+			2: 'scaleMatchHeight',
+			3: 'scaleMatchWidth',
+			4: 'scaleFree',
+			5: 'scaleNoBorder',
+		};
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fill, fillName[fill] ?? 'none');
+	}
+	if (object.getShrinkOnly()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.shrinkOnly, '1');
+	if (object.getAutoSize()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.autoSize, '1');
+	if (object.getUseResize()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.useResize, '1');
+	if (object.getShowErrorSign()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.errorSign, 'true');
+	const loaderColor = object.getColor();
+	if (loaderColor && !isDefaultWhiteColor(loaderColor)) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.color, loaderColor);
+	if (object.getPlaying() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.playing, 'false');
+	const frame = object.getFrame() ?? 0;
+	if (frame !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.frame, String(frame));
+	const fillMethod = object.getFillMethod() ?? 0;
+	if (fillMethod !== 0) {
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fillMethod, formatFillMethod(fillMethod));
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fillOrigin, String(object.getFillOrigin() ?? 0));
+		if (object.getFillClockwise() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fillClockwise, 'false');
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fillAmount, String(Math.round((object.getFillAmount() ?? 0) * 100)));
+	}
+	if (object.getClearOnPublish()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.clearOnPublish, 'true');
+}
+
+function writeLoader3DXmlAttributes(attrs: Record<string, unknown>, object: GLoader3D): void {
+	const url = object.getUrl();
+	if (url) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.url, url);
+	const align = object.getAlign();
+	if (align !== undefined && align !== 0) {
+		const alignName: Record<number, string> = { 0: 'left', 1: 'center', 2: 'right' };
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.align, alignName[align] ?? 'left');
+	}
+	const vAlign = object.getVAlign();
+	if (vAlign !== undefined && vAlign !== 0) {
+		const vAlignName: Record<number, string> = { 0: 'top', 1: 'middle', 2: 'bottom' };
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.vAlign, vAlignName[vAlign] ?? 'top');
+	}
+	const fill = object.getFill();
+	if (fill !== undefined) {
+		const fillName: Record<number, string> = {
+			0: 'none',
+			1: 'scale',
+			2: 'scaleMatchHeight',
+			3: 'scaleMatchWidth',
+			4: 'scaleFree',
+			5: 'scaleNoBorder',
+		};
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.fill, fillName[fill] ?? 'none');
+	}
+	if (object.getShrinkOnly()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.shrinkOnly, '1');
+	if (object.getAutoSize()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.autoSize, '1');
+	const animationName = object.getAnimationName();
+	if (animationName) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.animation, animationName);
+	const skinName = object.getSkinName();
+	if (skinName) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.skinName, skinName);
+	if (object.getPlaying() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.playing, 'false');
+	const frame = object.getFrame() ?? 0;
+	if (frame !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.frame, String(frame));
+	if (object.getLoop() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.loop, 'false');
+	const loaderColor = object.getColor();
+	if (loaderColor) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.color, loaderColor);
+	if (object.getClearOnPublish()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.clearOnPublish, 'true');
+}
+
+function writeGroupXmlAttributes(attrs: Record<string, unknown>, object: GGroup): void {
+	const layout = object.getLayout();
+	if (layout !== undefined && layout !== 0) {
+		const layoutName: Record<number, string> = { 0: 'none', 1: 'hz', 2: 'vt' };
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.layout, layoutName[layout] ?? 'none');
+	}
+	const lineGap = object.getLineGap() ?? 0;
+	if (lineGap !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.lineGap, String(lineGap));
+	const columnGap = object.getColumnGap() ?? 0;
+	if (columnGap !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.columnGap, String(columnGap));
+	if (object.getAdvanced()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.advanced, 'true');
+	if (object.getExcludeInvisibles()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.excludeInvisibles, 'true');
+	if (object.getAutoSizeDisabled()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.autoSizeDisabled, 'true');
+	const mainGridIndex = object.getMainGridIndex() ?? -1;
+	if (mainGridIndex >= 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.group.attrs.mainGridIndex, String(mainGridIndex));
+}
+
+function writeMovieClipXmlAttributes(attrs: Record<string, unknown>, object: GMovieClip): void {
+	const src = object.getSrc();
+	if (src) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.src, src);
+	if (object.getFileName()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.fileName, object.getFileName());
+	if (object.getPackageId()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.pkg, object.getPackageId());
+	if (object.getPlaying() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.playing, 'false');
+	const frame = object.getFrame() ?? 0;
+	if (frame !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.frame, String(frame));
+	const movieClipColor = object.getColor();
+	if (movieClipColor && !isDefaultWhiteColor(movieClipColor)) {
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.movieClip.attrs.color, formatXmlColor(movieClipColor));
+	}
+}

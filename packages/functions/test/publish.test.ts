@@ -8,6 +8,7 @@ import { getFixturePath, getFixtureProjectPath } from '@openfairygui/test-utils'
 import sharpImplementation from 'sharp';
 import { publish, resolvePublishOptions, type AtlasRasterBackend, type RootProjectSettings } from '../src/index.js';
 import { resolvePublishAtlasRuntimeOptions } from '../src/publish.js';
+import { preparePackagePublishContext } from '../src/publish/package-context.js';
 import { createTestJta } from './test-jta.js';
 
 const sharp = sharpImplementation as typeof sharpImplementation & AtlasRasterBackend;
@@ -16,6 +17,97 @@ const UNITY_EXAMPLES_FAIRY = getFixtureProjectPath('FairyGUI-unity', 'UIProject/
 const UNITY_BRANCH_LOADER_FAIRY = getFixtureProjectPath('FairyGUI-Experiments');
 const LAYABOX_EXAMPLES_FAIRY = getFixtureProjectPath('FairyGUI-layabox', 'demo/UIProject/FairyGUI-layabox-demo.fairy');
 const LAYABOX_RELEASE_DIR = getFixturePath('FairyGUI-layabox', 'demo', 'assets', 'resources', 'ui');
+
+test('publish context computes target filenames without replacing source metadata', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('Files').setId('files001');
+	const main = doc.createMiscResource('layout.atlas').setId('main').setFile('layout.atlas').setExported(true);
+	const variant = doc.createMiscResource('layout.atlas').setId('mobile').setFile('layout.atlas').setExported(true).setBranch('mobile');
+	variant.setExtras({ _publishedFile: 'source-metadata.atlas', note: 'preserved' });
+	pkg.addResource(main).addResource(variant);
+	const options = { projectType: 0, activeBranch: 'mobile', includeBranches: false, includeHighResolution: 0 };
+	const unity = await preparePackagePublishContext(pkg, undefined, undefined, options);
+	t.deepEqual([...unity.publishedResourceIds], ['mobile']);
+	t.deepEqual([...unity.effectiveResourceIds], [['mobile', 'main']]);
+	t.is(unity.publishedFiles.get('mobile'), 'main.atlas.txt');
+	const laya = await preparePackagePublishContext(pkg, undefined, undefined, { ...options, projectType: 4 });
+	t.is(laya.publishedFiles.get('mobile'), 'main.atlas');
+	const branches = await preparePackagePublishContext(pkg, undefined, undefined, { ...options, includeBranches: true });
+	t.deepEqual([...branches.publishedResourceIds], ['main', 'mobile']);
+	t.is(branches.publishedFiles.get('mobile'), 'mobile.atlas.txt');
+	t.is(unity.publishedFiles.get('mobile'), 'main.atlas.txt', 'later preparation leaves the earlier context intact');
+	t.deepEqual(pkg.getExtras(), {});
+	t.deepEqual(variant.getExtras(), { _publishedFile: 'source-metadata.atlas', note: 'preserved' });
+});
+
+test('publish contexts isolate repeated branch and target switches from fresh Documents', async (t) => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-publish-context-'));
+	t.teardown(() => fs.rm(directory, { recursive: true, force: true }));
+	const io = new NodeIO();
+	const reused = await io.readProject(UNITY_BRANCH_LOADER_FAIRY);
+	const pkg = reused.getRoot().getPackage('Branch')!;
+	const extrasBefore = structuredClone([pkg.getExtras(), ...pkg.listResources().map((resource) => resource.getExtras())]);
+	const scenarios = [
+		{ projectType: 0, branch: 'dev', branchProcessing: 1 },
+		{ projectType: 0, branch: 'dev', branchProcessing: 1 },
+		{ projectType: 4, branch: '', branchProcessing: 0 },
+		{ projectType: 3, branch: 'dev', branchProcessing: 1 },
+		{ projectType: 0, branch: '', branchProcessing: 1 },
+	];
+	for (const [index, scenario] of scenarios.entries()) {
+		const render = async (doc: Document, label: string) => {
+			doc.getRoot().setProjectType(scenario.projectType);
+			const settings = doc.getRoot().getSettings();
+			doc.getRoot().setSettings({ ...settings, publish: { ...settings.publish, branchProcessing: scenario.branchProcessing } });
+			const output = path.join(directory, `${index}-${label}`);
+			await doc.transform(publish({
+				output, packages: ['Branch'], branch: scenario.branch,
+				fs: createFs(), encoder: sharp, codeGeneration: false,
+				basePath: path.join(path.dirname(UNITY_BRANCH_LOADER_FAIRY), 'assets'),
+			}));
+			const files = new Map<string, Uint8Array>();
+			for (const name of (await fs.readdir(output)).sort()) files.set(name, await fs.readFile(path.join(output, name)));
+			return files;
+		};
+		t.deepEqual(await render(reused, 'reused'), await render(await io.readProject(UNITY_BRANCH_LOADER_FAIRY), 'fresh'));
+		t.deepEqual([pkg.getExtras(), ...pkg.listResources().map((resource) => resource.getExtras())], extrasBefore);
+	}
+	const standalonePath = path.join(directory, 'standalone.bytes');
+	await io.writeBinary(reused, standalonePath, { packageIndex: reused.getRoot().listPackages().indexOf(pkg) });
+	const standalone = parsePackageBinary(await fs.readFile(standalonePath));
+	t.deepEqual(standalone.branches, ['dev']);
+	for (const id of ['kn7w0', 'kn7w1', 'kn7w2', 'kn7w3']) t.true(standalone.items.some((item) => item.id === id));
+});
+
+test('republishing replaces derived atlases, recovers failed attempts, and drops deselected images', async (t) => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-republish-'));
+	t.teardown(() => fs.rm(directory, { recursive: true, force: true }));
+	const doc = new Document();
+	const pkg = doc.createPackage('Repeat').setId('repeat');
+	const image = doc.createImageResource('icon.png').setId('icon').setPath('/').setWidth(8).setHeight(8).setExported(true);
+	pkg.addResource(image);
+	await fs.mkdir(path.join(directory, 'Repeat'));
+	await sharp({ create: { width: 8, height: 8, channels: 4, background: { r: 255, g: 0, b: 0, alpha: 1 } } }).png().toFile(path.join(directory, 'Repeat', 'icon.png'));
+	const output = path.join(directory, 'out');
+	const options = { output, fs: createFs(), encoder: sharp, basePath: directory };
+	await doc.transform(publish(options));
+	const first = await fs.readFile(path.join(output, 'Repeat_fui.bytes'));
+	const png = await fs.readFile(path.join(output, 'Repeat_atlas0.png'));
+	await doc.transform(publish(options));
+	t.is(pkg.listAtlases().length, 1);
+	t.is(pkg.listAtlases()[0]!.listSprites().length, 1);
+	t.deepEqual(await fs.readFile(path.join(output, 'Repeat_fui.bytes')), first);
+	t.deepEqual(await fs.readFile(path.join(output, 'Repeat_atlas0.png')), png);
+	const previous = pkg.listAtlases();
+	await t.throwsAsync(doc.transform(publish({ ...options, atlas: { onFileWritten: () => { throw new Error('injected atlas output failure'); } } })));
+	t.deepEqual(pkg.listAtlases(), previous, 'failed atlas generation preserves the last complete model');
+	await doc.transform(publish(options));
+	t.deepEqual(await fs.readFile(path.join(output, 'Repeat_fui.bytes')), first);
+	image.setExported(false);
+	await doc.transform(publish(options));
+	t.is(pkg.listAtlases().length, 0);
+	t.false(parsePackageBinary(await fs.readFile(path.join(output, 'Repeat_fui.bytes'))).items.some((item) => item.id === 'icon'));
+});
 
 async function readReferenceReleaseNames(dirPath: string): Promise<string[]> {
 	return (await fs.readdir(dirPath))

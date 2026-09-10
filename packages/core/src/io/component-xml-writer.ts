@@ -14,8 +14,8 @@ import {
 	formatTitleType,
 	getProtocolChildName,
 	hasNonZeroInsets,
-	serializeDisplayList,
-} from './display-object-xml-writer.js';
+} from './project-xml-writer-utils.js';
+import { serializeDisplayList } from './display-object-xml-writer.js';
 import type { FileSystem } from './file-system.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr } from './project-xml-protocol.js';
 
@@ -199,7 +199,7 @@ export async function writeComponent(
 		const [w, h] = [typedComp.getWidth?.() ?? 0, typedComp.getHeight?.() ?? 0];
 		if (w || h) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.size, formatProjectInt32List([w, h], 'component size'));
 		const [pivotX, pivotY] = [typedComp.getPivotX?.() ?? 0, typedComp.getPivotY?.() ?? 0];
-		if (pivotX !== 0 || pivotY !== 0) {
+		if (pivotX !== 0 || pivotY !== 0 || typedComp.getPivotAsAnchor?.()) {
 			writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.pivot, `${pivotX},${pivotY}`);
 			if (typedComp.getPivotAsAnchor?.()) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.anchor, 'true');
 		}

@@ -317,12 +317,14 @@ export {
 	type BinaryReadLimits,
 	type BinaryReaderOptions,
 	type BinaryWriterOptions,
+	type BinaryPackageEncodingContext,
 	type FileSystem,
 	type ProjectReadOptions,
 	type ProjectReadResult,
 	type ProjectBranchDirectory,
 	type ProjectSourceFile,
 	type ProjectWriteOptions,
+	type ProjectImageWriteHints,
 } from './io/index.js';
 
 // Types

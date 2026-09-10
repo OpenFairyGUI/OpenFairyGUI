@@ -8,6 +8,27 @@ import { NodeIO } from '../src/node.js';
 
 const PROJECT_PATH = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
 
+test('zero pivot retains anchor semantics on component roots and display children', async (t) => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-zero-pivot-'));
+	t.teardown(() => fs.rm(directory, { recursive: true, force: true }));
+	const doc = new Document();
+	const pkg = doc.createPackage('Pivot').setId('pivot');
+	const comp = doc.createComponent('Panel').setId('panel').setPivotAsAnchor(true);
+	comp.addChild(doc.createGGraph('shape').setId('shape').setPivot(0, 0, true));
+	pkg.addResource(comp);
+	const io = new NodeIO();
+	const target = path.join(directory, 'Pivot.fairy');
+	await io.writeProject(doc, target);
+	const restored = (await io.readProject(target)).getRoot().listPackages()[0]!.listComponents()[0]!;
+	t.true(restored.getPivotAsAnchor());
+	t.true(restored.listChildren()[0]!.getPivotAsAnchor());
+	const binaryPath = path.join(directory, 'Pivot.bytes');
+	await io.writeBinary(doc, binaryPath);
+	const binaryComponent = (await io.readBinary(binaryPath)).getRoot().listPackages()[0]!.listComponents()[0]!;
+	t.true(binaryComponent.getPivotAsAnchor());
+	t.true(binaryComponent.listChildren()[0]!.getPivotAsAnchor());
+});
+
 // ─── Round-trip: read → write → read ──────────────────────────────────────
 
 test('round-trip: component scrollpane/mask/hittest and image fill attrs survive write→read', async (t) => {

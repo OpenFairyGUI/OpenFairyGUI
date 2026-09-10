@@ -1,4 +1,4 @@
-import { failure, success, type BackendContext, type BackendSessionState } from './context.js';
+import { failure, success, cloneReadData, type ReadonlyData, type SessionLookup, type SessionReadView } from './context.js';
 import type {
 	BackendCapabilities,
 	BackendProjectOutline,
@@ -52,7 +52,7 @@ function readFailure(startedAt: number, sessionId: string, reason: SessionReadEr
 	}, undefined, { sessionId, revision });
 }
 
-function toProjectOutline(session: BackendSessionState): BackendProjectOutline {
+function toProjectOutline(session: SessionReadView): BackendProjectOutline {
 	const project = session.project;
 	// ponytail: full outline is O(project size); add filters or pagination only if payload size becomes a measured problem.
 	return {
@@ -93,19 +93,19 @@ function toProjectOutline(session: BackendSessionState): BackendProjectOutline {
 }
 
 export class ReadService {
-	public constructor(private readonly context: BackendContext) {}
+	public constructor(private readonly getSessionState: SessionLookup, private readonly capabilities: ReadonlyData<BackendCapabilities>) {}
 
 	public getCapabilities(): BackendResult<BackendCapabilities> {
-		return success('read', Date.now(), structuredClone(this.context.capabilities));
+		return success('read', Date.now(), cloneReadData<BackendCapabilities>(this.capabilities));
 	}
 
 	public getSession(input: { sessionId: string }): BackendResult<BackendSessionSnapshot, SessionNotFoundError> {
 		const startedAt = Date.now();
-		const session = this.context.sessions.get(input.sessionId);
+		const session = this.getSessionState(input.sessionId);
 		if (!session || session.closed) {
 			return failure('read', startedAt, createSessionNotFoundError(input.sessionId));
 		}
-		return success('read', startedAt, toSessionSnapshot(session, this.context.capabilities), {
+		return success('read', startedAt, toSessionSnapshot(session, this.capabilities), {
 			sessionId: session.sessionId,
 			revision: session.revision,
 		});
@@ -115,7 +115,7 @@ export class ReadService {
 		input: GetProjectOutlineInput,
 	): BackendResult<BackendProjectOutline, SessionNotFoundError> {
 		const startedAt = Date.now();
-		const session = this.context.sessions.get(input.sessionId);
+		const session = this.getSessionState(input.sessionId);
 		if (!session || session.closed) {
 			return failure('read', startedAt, createSessionNotFoundError(input.sessionId));
 		}
@@ -127,7 +127,7 @@ export class ReadService {
 
 	public queryEntity(input: QueryEntityInput): BackendResult<BackendEntitySnapshot, SessionNotFoundError | EntityQueryError> {
 		const startedAt = Date.now();
-		const session = this.context.sessions.get(input.sessionId);
+		const session = this.getSessionState(input.sessionId);
 		if (!session || session.closed) return failure('read', startedAt, createSessionNotFoundError(input.sessionId));
 		const meta = { sessionId: session.sessionId, revision: session.revision };
 		const reject = (reason: EntityQueryError['reason']) => failure('read', startedAt, {
@@ -136,10 +136,10 @@ export class ReadService {
 		}, undefined, meta);
 		const target = input.target;
 		if (!target || typeof target !== 'object' || Array.isArray(target) || Object.keys(target).some((key) => key !== 'kind' && key !== 'selector')) return reject('invalid_query');
-		const respond = (entity: BackendEntitySnapshot['entity']) => {
+		const respond = (entity: ReadonlyData<BackendEntitySnapshot['entity']>) => {
 			const data = { ...meta, target, entity };
 			const problem = queryResponseProblem(data);
-			return problem ? reject(problem) : success('read', startedAt, structuredClone(data), meta);
+			return problem ? reject(problem) : success('read', startedAt, cloneReadData<BackendEntitySnapshot>(data), meta);
 		};
 		if (target.kind === 'project') {
 			if (Object.hasOwn(target, 'selector')) return reject('invalid_query');
@@ -165,7 +165,7 @@ export class ReadService {
 		const resources = packages[0].resources.filter((resource) => resource.id === (target.kind === 'resource' ? selector.resourceId : selector.componentResourceId));
 		if (resources.length !== 1) return reject(resources.length ? 'ambiguous' : 'not_found');
 		const resource = resources[0];
-		let entity: BackendEntitySnapshot['entity'];
+		let entity: ReadonlyData<BackendEntitySnapshot['entity']>;
 		if (target.kind === 'resource') {
 			const record = resource as unknown as Record<string, unknown>;
 			entity = { kind: 'resource', properties: Object.fromEntries(BACKEND_RESOURCE_QUERY_FIELDS
@@ -192,12 +192,12 @@ export class ReadService {
 		return respond(entity);
 	}
 
-	private resolveReadSession(input: ReadSessionStateInput, startedAt: number): BackendResult<BackendSessionState, SessionNotFoundError | SessionReadError | SessionStaleReadError> {
+	private resolveReadSession(input: ReadSessionStateInput, startedAt: number): BackendResult<SessionReadView, SessionNotFoundError | SessionReadError | SessionStaleReadError> {
 		if (!input || typeof input.sessionId !== 'string' || !input.sessionId.length || input.sessionId.length > 256
 			|| (input.expectedRevision !== undefined && (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0))) {
 			return readFailure(startedAt, typeof input?.sessionId === 'string' ? input.sessionId : '', 'invalid_query');
 		}
-		const session = this.context.sessions.get(input.sessionId);
+		const session = this.getSessionState(input.sessionId);
 		if (!session || session.closed) return failure('read', startedAt, createSessionNotFoundError(input.sessionId));
 		const meta = { sessionId: session.sessionId, revision: session.revision };
 		if (input.expectedRevision !== undefined && input.expectedRevision !== session.revision) return failure('read', startedAt, {
@@ -214,7 +214,7 @@ export class ReadService {
 		const session = resolved.data;
 		const meta = { sessionId: session.sessionId, revision: session.revision };
 		// Capture synchronously: pending transactions have not committed; save bookkeeping may change without an edit revision.
-		const data: BackendSessionStateSnapshot = {
+		const data: ReadonlyData<BackendSessionStateSnapshot> = {
 			...meta, dirty: session.dirty, lastSavedRevision: session.lastSavedRevision,
 			uamFidelity: session.uamFidelity, readComplete: session.readComplete, readDiagnostics: session.readDiagnostics,
 			project: { ...session.project, packages: session.project.packages.map((pkg) => ({
@@ -227,7 +227,7 @@ export class ReadService {
 		};
 		const problem = queryResponseProblem(data, BACKEND_SESSION_READ_LIMITS.model);
 		return problem ? readFailure(startedAt, session.sessionId, problem, session.revision)
-			: success('read', startedAt, structuredClone(data), meta);
+			: success('read', startedAt, cloneReadData<BackendSessionStateSnapshot>(data), meta);
 	}
 
 	public readResourceBytes(input: ReadResourceBytesInput): BackendResult<BackendResourceBytesSnapshot, SessionNotFoundError | SessionReadError | SessionStaleReadError> {
@@ -256,12 +256,12 @@ export class ReadService {
 		input: { sessionId: string },
 	): BackendResult<ProjectValidationReport, SessionNotFoundError> {
 		const startedAt = Date.now();
-		const session = this.context.sessions.get(input.sessionId);
+		const session = this.getSessionState(input.sessionId);
 		if (!session || session.closed) {
 			return failure('read', startedAt, createSessionNotFoundError(input.sessionId));
 		}
-		const report = validateProject(session.project, {
-			readDiagnostics: session.readDiagnostics,
+		const report = validateProject(cloneReadData<import('@openfairygui/core/uam').UamProject>(session.project), {
+			readDiagnostics: cloneReadData<import('@openfairygui/core').ProjectDiagnostic[]>(session.readDiagnostics),
 			complete: session.readComplete,
 			validateSources: true,
 		});

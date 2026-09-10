@@ -26,7 +26,9 @@ export function encodeComponent(
 	pkg: Package,
 	version = 2,
 	parentBuf?: WriteBuffer,
+	effectiveResourceIds?: ReadonlyMap<string, string>,
 ): Uint8Array {
+	const context = { packageId: pkg.getId(), effectiveResourceIds };
 	const buf = parentBuf ? new WriteBuffer(4096, parentBuf) : new WriteBuffer(4096);
 
 	// Write index table header: 8 blocks, uint32 offsets (matches editor format)
@@ -48,7 +50,7 @@ export function encodeComponent(
 
 	// --- Block 2: Display list ---
 	const block2Offset = buf.pos - indexTablePos;
-	_writeDisplayList(buf, comp, doc, pkg, version);
+	_writeDisplayList(buf, comp, doc, context, version);
 
 	// --- Block 3: Component-level relations ---
 	const block3Offset = buf.pos - indexTablePos;
@@ -64,7 +66,7 @@ export function encodeComponent(
 
 	// --- Block 6: Extension definition (Button/Label/ComboBox/etc.) ---
 	const block6Start = buf.pos;
-	_writeExtensionDef(buf, comp, pkg, version);
+	_writeExtensionDef(buf, comp, context, version);
 	const block6Offset = buf.pos > block6Start ? block6Start - indexTablePos : 0;
 
 	// Block 7: ScrollPane (when component has overflow=scroll)
@@ -72,7 +74,7 @@ export function encodeComponent(
 	const compOverflow = comp.getOverflow?.() ?? 0;
 	if (compOverflow === 2) { // scroll
 		block7Offset = buf.pos - indexTablePos;
-		_writeComponentScrollPane(buf, comp, pkg);
+		_writeComponentScrollPane(buf, comp, context);
 	}
 
 	// Patch offsets (uint32)

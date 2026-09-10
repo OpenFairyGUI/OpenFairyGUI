@@ -254,7 +254,7 @@ async function emitStandaloneAtlasGroup(
 
 	for (let pageOffset = 0; pageOffset < pages.length; pageOffset += 1) {
 		const page = pages[pageOffset];
-		const baseFileName = resolveStandaloneAtlasOutputFileName(pkg, group.resource, group.branchName);
+		const baseFileName = resolveStandaloneAtlasOutputFileName(pkg, group.resource, group.branchName, context.options);
 		const atlasFileName = pages.length <= 1 ? baseFileName : insertFileNameSuffix(baseFileName, `_${pageOffset}`);
 		const atlasIndex = context.atlasIndexStart + pageOffset;
 		const atlasNode = doc.createAtlas(`atlas${resolveAtlasIndex(group.branchOrdinal, atlasIndex)}`);
@@ -604,8 +604,8 @@ function resolveAtlasOutputFileName(pkg: Package, pageIndex: number, branchName:
 	return `${pkg.getPublishName() || pkg.getName()}_atlas${pageIndex}${suffix}.png`;
 }
 
-function resolveStandaloneAtlasOutputFileName(pkg: Package, resource: PackInputResource, branchName: string): string {
-	const baseName = `${pkg.getPublishName() || pkg.getName()}_atlas_${getPublishedItemId(resource)}`;
+function resolveStandaloneAtlasOutputFileName(pkg: Package, resource: PackInputResource, branchName: string, options: AtlasOptions): string {
+	const baseName = `${pkg.getPublishName() || pkg.getName()}_atlas_${getPublishedItemId(resource, options.publishResources)}`;
 	const suffix = branchName ? `_${branchName}` : '';
 	if (isImageResource(resource)) {
 		const ext = extname(resolveImageFileName(resource)) || '.png';
@@ -726,7 +726,7 @@ function groupStandaloneInputs(
 		const branchOrdinal = branchOrdinalByName.get(branchName) ?? 0;
 		const mode = getResourceTextureSetMode(input.resource, options.maxAtlasIndex ?? 10);
 		if (mode.kind === 'standalone') {
-			const resourceId = getPublishedItemId(input.resource);
+			const resourceId = getPublishedItemId(input.resource, options.publishResources);
 			const key = `${branchName}\u0000${resourceId}`;
 			const existing = standaloneGroups.get(key);
 			if (existing) {
@@ -769,7 +769,7 @@ function groupStandaloneInputs(
 		standaloneGroups: [...standaloneGroups.values()].sort(
 			(left, right) =>
 				left.branchOrdinal - right.branchOrdinal ||
-				getPublishedItemId(left.resource).localeCompare(getPublishedItemId(right.resource)),
+				getPublishedItemId(left.resource, options.publishResources).localeCompare(getPublishedItemId(right.resource, options.publishResources)),
 		),
 		reservedPageIndexes,
 	};

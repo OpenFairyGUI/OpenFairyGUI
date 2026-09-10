@@ -100,7 +100,7 @@ Compact JSON `data` is limited to 262144 UTF-8 bytes, traversal depth 32 and 100
 
 Success returns `ok: true` with `data` containing `sessionId`, `baseRevision`, `projectedRevision` (after applying, not reserved), `mode: 'execute-and-discard'`, `impact` and `persistence`. Failures preserve transaction `error.code`, `stage`, operation locations and `meta.diagnostics`. `meta.revision` identifies the evaluated baseline; missing/closed sessions return `session_not_found`, and revision mismatches return `stale_write`. Inputs are copied before queuing, including detachment of SharedArrayBuffer-backed bytes.
 
-Neither success nor failure changes the authoritative project, revision, dirty state, pending file cleanup, caches, jobs or business events, or writes to disk.
+Neither success nor failure changes the authoritative project, revision, dirty state, pending file cleanup, caches or business events, or writes to disk.
 
 `impact.entities` compares current and projected formal UAM: each entry has an exact `target`, `change` (added/removed/updated) and changed top-level `fields`, without property values or source bytes. Packages and the project have their own targets. Parent collections compare ordered IDs/names; nodes, controllers and transitions compare their own properties separately. Reference normalization/rewrites performed by execution appear too, not just input selectors.
 
@@ -132,7 +132,7 @@ A preview reserves no revision and does not guarantee later apply/save or public
 The tables summarize top-level parameters only; read schemas for nested fields and concrete results. SHA-256 identifies generated contract content, not a package version.
 
 <!-- contracts:start -->
-SHA-256: `cba5c0427b91c5d28c7c4277dcbb4a16f48e9fedf91fa1f66375495f8bfc71b0`
+SHA-256: `758763ae4b6724a25a82dc0edbe10c7c13478589bdabf84b847dd2d7b745331d`
 
 | Operation | Parameters (`?` = optional) |
 |---|---|
@@ -195,9 +195,6 @@ SHA-256: `cba5c0427b91c5d28c7c4277dcbb4a16f48e9fedf91fa1f66375495f8bfc71b0`
 | `materializeSession` | `openfairygui_backend_materialize_session` | `sessionId`, `expectedRevision?`, `mode?`, `reason?` | `false` |
 | `closeSession` | `openfairygui_backend_close_session` | `sessionId` | `false` |
 | `getEvents` | `openfairygui_backend_get_events` | `sessionId`, `after?`, `limit?` | `true` |
-| `getJob` | `openfairygui_backend_get_job` | `sessionId`, `jobId` | `true` |
-| `listJobs` | `openfairygui_backend_list_jobs` | `sessionId`, `status?`, `kind?`, `limit?` | `true` |
-| `cancelJob` | `openfairygui_backend_cancel_job` | `sessionId`, `jobId` | `false` |
 | `getCacheSnapshot` | `openfairygui_backend_get_cache_snapshot` | `sessionId` | `true` |
 | `refreshCache` | `openfairygui_backend_refresh_cache` | `sessionId`, `reason?` | `false` |
 
@@ -205,10 +202,10 @@ SHA-256: `cba5c0427b91c5d28c7c4277dcbb4a16f48e9fedf91fa1f66375495f8bfc71b0`
 |---|---|
 | `publish` | `cli/publish` |
 | `validate` | `cli/validate` |
+| `restore` | `cli/restore` |
 | `ofgui` | `cli/ofgui` |
 | `docs` | `cli/docs` |
 | `inspect` | `cli/inspect` |
-| `restore` | `cli/restore` |
 | `doctor` | `cli/doctor` |
 | `backend-capabilities` | `cli/backend-capabilities` |
 | `docs ls` | `cli/docs ls` |

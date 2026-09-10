@@ -6,8 +6,42 @@
 
 发布比较：
 
-- 稳定线（`main`）：[v0.5.0...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0...main)
-- 开发线（`next`）：[v0.5.0...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.5.0...next)
+- 稳定线（`main`）：[v0.6.1...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.1...main)
+- 开发线（`next`）：[v0.6.1...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.1...next)
+
+## v0.6.x
+
+### v0.6.1（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.1)）
+
+其他：
+
+- core：使用具体 XML 序列化类型，分离文本、列表、组件实例和行为写入，同时保留默认值及节点顺序。
+- core：目标校验和实际写入共用包输出计划；分离工程发现、包描述、资源加载和组件 XML 值校验。
+- core、functions：通过显式上下文向外部资源、图集和二进制编码传递本次发布的资源选择、有效 ID 与文件名。独立 BinaryWriter 不再读取前次发布遗留的选择；覆盖 Document 顺序复用，不承诺并发发布安全。
+- functions：分离代码生成设置、模型、渲染和文件输出，保留生成内容与清理顺序。
+- core：全项目校验和事务预检共享文本、图片/MovieClip 与组件实例属性规则，保留诊断、默认值及失败输入不变性。
+- workspace、docs：扩充重复发布、文件系统失败与属性快照回归覆盖，同步双语架构、示例和随包文档。
+
+### v0.6.0（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.0)）
+
+缺陷修复：
+
+- backend：在异步写入前预占物化目标，排队前复制请求值，拒绝已加锁会话改绑，并在锁释放失败时保留会话。Node 锁元数据读取失败或所有权不匹配时，不再误报关闭成功。
+- backend：提交和回滚均失败时，如实报告磁盘状态不确定及保留的恢复目录；分别打包的公开入口也能识别事务结果。
+- core：保留仅大小写变化的源文件重命名、全部受支持工程类型及零 pivot 的 anchor；在任何文件写入前拒绝无效资源排序提示。独立持有嵌套 Gear 值与资源元数据，避免共享调用方引用。
+- core：目录枚举失败保持不完整状态，支持未提供 stat 的文件/目录混合枚举适配器，并限制二进制读取不得越过传入视图或字符串表边界。
+- functions：重复图集发布保持确定性并清理失败尝试的新增节点；根据稳定图片 ID 生成无冲突的恢复字形文件名。
+
+其他：
+
+- backend：集中会话所有权与操作队列，将持久化职责从编辑服务分离，并简化缓存刷新。
+- core、functions：共享显示属性更新规则，拆分 XML 与恢复职责，并通过 Core typed image write hints 控制恢复资源顺序。
+- workspace、docs：按职责拆分契约生成器，扩充故障注入和安装包消费者验证，同步双语契约、架构与使用指南。
+
+破坏性变更：
+
+- backend、mcp：Backend 契约版本为 `3.0.0`，能力 schema 版本为 `12`。`refreshCache` 同步返回快照；移除 `getJob`、`listJobs`、`cancelJob` 及对应 MCP 接口。宿主需更新能力发现与缓存刷新接入。
+- core：自定义文件系统适配器必须区分可选目录不存在（`ENOENT` / `NotFoundError`）与读取失败。未提供 `stat` 时，混合条目目录探测必须以 `ENOTDIR` / `TypeMismatchError` 表示普通文件。
 
 ## v0.5.x
 

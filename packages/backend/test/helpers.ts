@@ -4,7 +4,7 @@ import path from 'node:path';
 import { writeProjectFromUam } from '@openfairygui/core';
 import { NodeIO } from '@openfairygui/core/node';
 import { createMinimalUamProject } from '@openfairygui/test-utils';
-import type { BackendFileSystem, BackendJobSnapshot, BackendJobStatus, BackendRuntime } from '../src/index.js';
+import type { BackendFileSystem, BackendRuntime } from '../src/index.js';
 import { createNodeBackendFileSystem, createNodeBackendRuntime } from '../src/node.js';
 
 export function createBackendFixtureProject() {
@@ -54,26 +54,4 @@ export function createBackendRuntime(options: {
 	allowedProjectRoots?: readonly string[];
 } = {}): BackendRuntime {
 	return createNodeBackendRuntime(options);
-}
-
-function sleep(ms: number): Promise<void> {
-	return new Promise((resolve) => {
-		setTimeout(resolve, ms);
-	});
-}
-
-export async function waitForBackendJobStatus(
-	runtime: BackendRuntime,
-	sessionId: string,
-	jobId: string,
-	status: BackendJobStatus,
-): Promise<BackendJobSnapshot> {
-	for (let attempt = 0; attempt < 30; attempt += 1) {
-		const job = runtime.getJob({ sessionId, jobId });
-		if (job.ok && job.data.status === status) return job.data;
-		await sleep(10);
-	}
-	const finalJob = runtime.getJob({ sessionId, jobId });
-	if (finalJob.ok) return finalJob.data;
-	throw new Error(`Job did not become ${status}: ${jobId}`);
 }

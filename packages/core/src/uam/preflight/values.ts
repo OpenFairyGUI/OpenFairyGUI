@@ -1,7 +1,4 @@
-export function hasExactKeys(value: object, keys: readonly string[]): boolean {
-	const actual = Object.keys(value);
-	return actual.length === keys.length && actual.every((key) => keys.includes(key));
-}
+export { hasExactKeys } from '../property-rules/values.js';
 
 export function isFiniteNumber(value: unknown): value is number {
 	return typeof value === 'number' && Number.isFinite(value);

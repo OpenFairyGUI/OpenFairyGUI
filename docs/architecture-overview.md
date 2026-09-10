@@ -25,6 +25,8 @@ Backend 预演只在内存中物化可能含无效引用的已有快照，以支
 
 `scripts/generate-contracts.mjs` 用已有 TypeScript 编译器从 Core/Backend/CLI 类型生成结构 schema、操作目录、版本绑定语料及文档表格；MCP 复用现有 Zod 校验结构，Core 再校验语义。独立的 `@openfairygui/backend/docs` 分发生成数据，不引入 Backend → CLI 的运行时依赖，也不让 Core 依赖 Zod。
 
+生成入口负责契约组装和命令参数；`scripts/contracts/schema.mjs` 拥有类型程序与 schema 推导，`transport.mjs` 拥有输入预算和字节路径，`output.mjs` 拥有双语表格、安装文档及生成漂移检查。
+
 Backend 的带类型诊断目录覆盖正式错误码，记录共享码的全部 owners、文档 URI 和恢复建议；响应保留实际来源与原错误字段。CLI/MCP 共用随安装版本发布的离线语料与薄 Skill。精确字段、版本和摘要见[契约查询](./guide/contracts.md)、[诊断与恢复](./guide/diagnostics.md)、[安装版本文档](./guide/installed-docs.md)。
 
 MCP 的工具发现与分发由 SDK 管理，Host 可通过公开 `registerTool()` 在同一 server 添加工具。`toolPolicies` 在输入校验后、Backend 调用前运行 Host 检查；已声明的 Host 失败分支终止调用，放行则用原输入调用 Backend 一次。授权及 grant 消费归 Host，revision、路径和写盘保护仍归 Backend。工具发现保持有界 `$ref` schema；Host 输出扩展不修改随包 Backend 契约或文档。
@@ -51,6 +53,14 @@ flowchart TD
 
 Gear 字符串解析归 `bridge-lift.ts`；具体属性的 Document setter 映射归 `bridge-materialize.ts`，创建与事务更新复用同一映射。Document 的日志依赖直接指向 logger 叶模块。XML 读写按具体标签协议调用一次共有状态 handler，标签分支只处理其余专属字段；共有状态在 Gear 默认值捕获之前读取，不改变正式属性的标签归属。
 
+`display-object-xml-reader.ts` 保留标签分发与共有状态读取；同目录的 `display-object-xml-text.ts`、`display-object-xml-list.ts`、`display-object-xml-behaviors.ts`、`display-object-xml-instance.ts` 分别拥有文本、列表、Gear/relation、实例覆盖。执行顺序为专属属性 → 共有状态 → Gear → relation → property 覆盖 → 扩展覆盖；共享 XML 形状和属性覆盖解析位于 `display-object-xml-shared.ts`。
+
+ProjectReader 保持工程设置、主包与分支、分支关联、组件第二遍解析的全局顺序。`project-reader-discovery.ts` 分离目录探测结果与可选目录/文件探测的诊断策略，不创建资源；`project-package-reader.ts` 读取包描述、目录元数据并登记资源；`project-resource-hydration.ts` 负责图像尺寸、源字节和 MovieClip 派生数据；`project-component-xml-validation.ts` 只检查组件 XML 属性值。共享 XML 节点提取与语法检查归 `utils/xml-utils.ts`。入口仍拥有读取错误分类和完整性判定，组件解析始终在全部资源登记之后执行。
+
+XML 写入的共有格式化、协议辅助和 property 覆盖节点序列化位于 `project-xml-writer-utils.ts`。`display-object-xml-text-writer.ts` 使用 `GTextField`、`GTextInput` 写出文本与输入框属性；`display-object-xml-list-writer.ts` 使用 `GList`、`GTree` 写出列表属性和条目；`display-object-xml-instance-writer.ts` 使用 `GComponent` 写出实例引用、property 覆盖及扩展数据。条目和属性覆盖复用正式模型类型。`display-object-xml-behaviors-writer.ts` 拥有 Gear 值格式化、标签允许项筛选和 relation 分组序列化，其 Gear 校验由工程写入前检查和显示列表输出共同调用。`display-object-xml-writer.ts` 保留标签分发、图片/图形/Loader 等具体类型序列化函数、共有状态和节点顺序编排；共有状态接口仅将部分标签缺少的状态 getter 设为可选，不承载控件专属属性；列表条目与实例 property 覆盖先于 Gear/relation，实例扩展节点由入口最后追加。
+
+ProjectWriter 在写盘前构建一次包/分支输出描述，固定描述文件、资源文件与文件夹目标，以及描述文件中的资源排序。目标冲突检查和保存共用这份描述；组件与源字节仍按原有顺序逐项写入，不缓存整份工程的序列化字节。全部包写入成功后，清理阶段重新核对实际路径身份，保护仍被当前输出占用的旧路径。
+
 工程读取、UAM 检查与源数据验证分层：`readProjectDetailed` 报告读取完整性，`validateUamProject` 检查模型，Functions 组合为正式验证报告。`invalid` 是确定错误，`incomplete` 是能力或数据不足；详见[工程验证](./project-validation.md)。
 
 ## 事务与预校验
@@ -72,6 +82,10 @@ Gear 字符串解析归 `bridge-lift.ts`；具体属性的 Document setter 映�
 生命周期投影复用实际 UAM apply helper，不另建执行器。领域函数不能各自遍历并重排整个批次；错误码、路径、诊断顺序与失败不修改输入必须保持。`uam-transaction-support.test.ts`、`uam-transaction-apply.test.ts`、`uam-transaction-lifecycle.test.ts` 覆盖这些职责和跨域批次。
 
 执行按现有操作能力进入 `transaction-uam-apply.ts` 或 `transaction-document-apply.ts`，失败丢弃私有工作副本，成功返回新的规范 UAM。物化支持范围不等于任意字段 mutation；原子生命周期批次也不是任意 operation 的自由组合。精确语法、支持范围与查询入口见[契约指南](./guide/contracts.md)。
+
+`uam/property-rules/` 按文本、图片与 MovieClip、组件实例划分共用属性规则，检查完整快照的结构、数值范围和局部一致性；全项目校验与显示事务预检直接复用。`validate.ts` 保留工程遍历、全局引用与诊断顺序，事务预检保留 selector、当前状态和操作支持范围。列表、Loader 等事务专用约束仍由预检拥有，不扩大为既有工程读取限制。
+
+`property-updates.ts` 是显示属性更新规则的共同实现，供预校验投影和两条执行路径复用。Document 路径读取目标节点的 UAM 属性、应用更新后，通过 bridge 写回原对象，保留 Gear 与 Controller 的对象绑定。Controller payload 校验由有序预校验拥有，执行器解析当前引用；Controller 创建和 Gear 类型映射复用 bridge。`uam-transaction-parity.test.ts` 通过净效果为空的 Controller 批次触发 Document 路径，比较共同操作的结果、诊断和输入不变性。
 
 ## Backend 会话与保存
 
@@ -95,15 +109,21 @@ Gear 字符串解析归 `bridge-lift.ts`；具体属性的 Document setter 映�
 
 预演比较两份正式 UAM 得到实体/字段影响，并复用内存捕获文件系统与 ProjectWriter 得到工程相对文件/目录差异。它反映当前 revision 到预演结果，不是上次保存以来的累计差异、磁盘写入清单或删除授权。摘要超预算时完整拒绝，不截断为成功；保存提示的 `writeVerified` 始终 false，projected revision 不被预留。详见[事务预演](./guide/contracts.md#预演一次事务)。
 
-会话队列串行化预演、提交、保存、物化和关闭。事件是有界轮询日志；job 只支持内存 `cache.refresh` 与协作取消；cache 是 revision-bound 派生数据，不是事实源。artifact plane 只声明宿主能力，不执行 publish/restore。
+`SessionOperationQueue` 串行化同一会话的预演、提交、保存、物化和关闭，不阻塞其他会话。`SessionRegistry` 独占会话与路径索引：打开工程和物化到新存储在异步 I/O 前预占目标，成功后提交绑定，失败只释放自己的预占。重新绑定失败保留原绑定；宿主提供的跨运行时锁和存储事务仍负责各自边界。
 
-保存与物化共用 AuthoringService 内部的成功完成步骤：更新 saved revision、清除 dirty、刷新 cache，然后依次发送 `save.completed` 与 `cache.updated`。前置校验、存储绑定和错误结果保留在各自路径，两条路径仍由同一个会话队列串行化。
+排队前复制保存、物化和关闭的请求值；存储适配器保持原对象身份。UAM 规范化独立持有 Gear 状态值、资源元数据和源字节。目录枚举失败产生不完整读取，文件会话不能将其当作完整 UAM 写回。已持有文件锁的会话拒绝改绑存储；`closeSession` 释放锁失败返回 `session_close_failed`，保留会话和锁记录，修正故障后可重试关闭。Node 仅将锁文件不存在视为已释放；锁元数据读取失败、损坏或 token 不匹配都会报错并保留锁文件。
+
+`ReadService` 只接收包含嵌套只读 UAM 的会话视图，检查响应预算后返回脱离会话的数据；`AuthoringService` 只持有事务所需的会话查询、缓存/事件命令与队列。`RuntimeService` 负责打开和关闭，`PersistenceService` 负责保存和物化，实际工程写入复用 `session-project-writer.ts`。`EventService` 和 `CacheService` 分别独占事件序列/日志和缓存集合，只查询各自所需的会话字段。
+
+事件是有界轮询日志；cache 按 sessionId 保存 revision-bound 派生数据，不是事实源。`refreshCache` 同步计算计数、发送一次 `cache.updated` 并直接返回 `BackendCacheSnapshot`，不改变编辑或保存 revision。Backend 契约版本为 `3.0.0`，能力 schema 为 `12`。artifact plane 只声明宿主能力，不执行 publish/restore。
+
+保存与物化共用 PersistenceService 内部的成功完成步骤：更新 saved revision、清除 dirty、刷新 cache，然后依次发送 `save.completed` 与 `cache.updated`。前置校验、存储绑定和错误结果保留在各自路径，两条路径仍由同一个会话队列串行化。
 
 ## Node / Web 与路径边界
 
 - Core、Backend 根入口保持 browser-safe；平台 I/O 从 `@openfairygui/core/node` 或 `/web` 获取，仅需适配器类型时用 `/project-io`。`@openfairygui/functions/uam` 是 Backend 浏览器入口所用的窄事务工作流。
 - Node 默认装配位于 `packages/backend/src/node.ts`。打开前拒绝工程树中的符号链接，每次路径操作还检查最近存在祖先的 realpath；allowed roots 由 Backend 执行，MCP roots 不授予权限。
-- Node 持久锁只自动回收同主机且能确认 owner 已失效/PID 复用的有效记录；损坏、跨主机或活跃锁仍冲突。保存使用同级 staging、backup 与目录切换，失败恢复原树。
+- Node 持久锁只自动回收同主机且能确认 owner 已失效/PID 复用的有效记录；损坏、跨主机或活跃锁仍冲突。保存使用同级 staging、backup 与目录切换；提交失败时尝试恢复原树。`ProjectWriteTransactionError` 明确报告磁盘状态；只有确认原树未改变或已恢复时才报告 `diskMayBePartiallyUpdated: false`。回滚也失败时保留备份和暂存目录，并在保存错误的 `recoveryPaths` 中返回它们。
 - 浏览器通过 `createBackendStorageFileSystem` 注入异步存储，提供 `unlink` 和非递归 `rmdir`。Web Locks 原子排斥活跃标签，刷新/终止由浏览器释放；无 Web Locks 时须注入等价租约。持久锁文件不是浏览器锁事实源。
 - 通用浏览器适配器不自动获得 Node 的原子保存语义；未提供 `runProjectWriteTransaction` 时不声明 `atomicSave`。旧源文件与空目录仅在新的工程写入全部完成后按受控清单清理。
 - 浏览器图片替换通过异步事务与公开 `@openfairygui/core/image-validation-worker` 入口进行严格验证；宿主须将 worker 及其依赖打成相邻的独立 ESM 文件。同步 browser 入口拒绝图片替换；MovieClip 使用同一 JTA 解析路径。
@@ -114,11 +134,21 @@ Gear 字符串解析归 `bridge-lift.ts`；具体属性的 Document setter 映�
 
 `packages/functions/src/publish.ts` 编排设置、资源闭包、atlas、二进制与代码生成；选项/资源域归 `publish/`，packing 与 JTA/FNT codec 归 `atlas/`。Node/Web 复用主链，不从 Backend 会话隐式启动。
 
+每次调用在现有包发布计划中持有独立的 `PackagePublishContext`：资源选择、有效 ID、外部文件名和分支策略由 `publish/package-context.ts` 计算，外部资源写出直接读取上下文，Atlas 接收按资源身份建立的选择/ID 映射。Core 定义窄输入 `BinaryPackageEncodingContext`，由 `BinaryWriterOptions.packageContext` 传入；组件编码只接收本包 ID 和有效资源 ID 映射。发布阶段不把这些派生状态写入包或资源的 `extras`，也不复制 Document。高分辨率关联、像素命中数据和 Atlas/Sprite 仍按发布阶段更新正式模型。
+
+单独调用 BinaryWriter 并省略上下文时，使用当前模型的全部可编码资源、正式 ID 和分支，外部字体仍按既有规则排除。BinaryReader 的原始二进制切片、sprite 数据和文件名元数据仍用于二进制往返；显式上下文中的文件名只覆盖本次编码，不替换源元数据。
+
+代码生成入口 `codegen.ts` 负责插件与包级编排；`codegen-settings.ts` 解析设置与输出计划，`codegen-model.ts` 构建命名及成员模型，`codegen-render.ts` 只渲染文件名和文本，`codegen-output.ts` 统一执行包目录清理与顺序写入。
+
 - `publishNode()` 注入 Node 文件系统、Sharp 和工程插件；显式 output 使用同级 staging 后提交，拒绝既有输出中的符号链接。返回文件清单来自本次实际写入与 atlas 完成记录，不枚举旧目录推测。
 - `publishBrowser()` 注入调用方文件系统、Canvas raster adapter 和空 hooks；不支持的设置在写入前拒绝。输出原子性由宿主负责，失败清单仅包含已完成的写入。
 - `restoreNode()` 只从可信本地发布目录恢复到独立工程目录，复用 `restore.ts` 与 `restore-internals/` 的路径检查、重建和输出事务。它不保证恢复原 XML、编辑器设置、未发布内容或本地状态，也不判定未知输入是否可信。
 
-`restore.ts` 保持准备顺序与文件系统资产恢复的编排；字体纹理、字形图像、名称关联和默认值重建归 `restore-internals/font.ts`，这些步骤修改 Document，不执行 I/O。恢复资源路径校验由现有 `path-utils.ts` 复用，字体模块不反向依赖恢复入口。
+`restore.ts` 保持准备、写出与提交的阶段顺序。`restore-internals/resource-paths.ts` 拥有受控文件定位和输出路径，复用 `path-utils.ts` 的资源路径校验；`skeleton.ts` 拥有骨骼类型修复、附属资源与依赖关联；`asset-output.ts` 拥有图集裁剪、生成文件及 loose 文件输出。字体与 MovieClip 分别复用 `font.ts`、`movie-clip.ts`，资源参数使用 Core 的具体类型。
+
+图集生成成功后替换该包的旧 Atlas/Sprite；生成失败移除本次新节点，保留之前完整的图集。发布资源选择只依据正式资源导出状态和依赖，不让先前生成的 Sprite 扩大下一次发布集合。ProjectWriter 在首次写盘前验证所有包和分支的图片排序提示；清理旧文件和目录时使用适配器的真实路径身份，避免大小写别名指向当前输出。
+
+图片序列化提示由 Core 的 `ProjectWriter.setImageWriteHints()` 拥有，按图片对象身份保存，不进入属性模型或 `extras`。`omitPackageSize` 控制推导尺寸省略，`packageOrder: { afterId, weight }` 控制写出顺序；目标必须是同包、同分支且未设置排序提示的资源，空 ID 表示放到末尾，同组按有限权重和资源 ID 排序，无效目标会拒绝写入。Restore 的字体纹理和字形共用这一契约；占位字形图像由 Functions 内部按对象身份记录，Writer 不识别字体恢复专用标记。设置提示会复制并替换原提示；返回的同一 `Document` 交给新的 Writer 时仍生效，空提示恢复普通写入。提示不跨 UAM 转换、重新读取或资源对象替换传播。
 
 CLI 只解析参数、调用正式 Node 入口并包装结果。产品 MCP 不提供 publish/restore 执行工具；评测中的独立 artifact 宿主使用固定输入/目录的受限工具，不扩大产品权限。
 

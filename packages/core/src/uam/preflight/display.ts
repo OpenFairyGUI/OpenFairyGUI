@@ -9,21 +9,17 @@ import type {
 	UamProject,
 	UamTreeProperties,
 } from '../model.js';
-import {
-	isFiniteUamPoint,
-	isValidUamComponentPropertyOverride,
-	isValidUamComponentInstanceProperties,
-	isValidUamImageProperties,
-	isValidUamMovieClipProperties,
-	isValidUamTextProperties,
-} from '../validate.js';
+import { isFiniteUamPoint, isUamColor as isColor } from '../property-rules/values.js';
+import { isValidUamTextProperties } from '../property-rules/text.js';
+import { isValidUamImageProperties, isValidUamMovieClipProperties } from '../property-rules/image.js';
+import { isValidUamComponentInstanceProperties, isValidUamComponentPropertyOverride } from '../property-rules/component-instance.js';
 import type {
 	UamDisplayNodePropsUpdate,
 	SetDisplayNodePropsOperation,
 	UamTransactionSupportIssue,
 } from '../transaction-contracts.js';
 import { findDisplayNodeSpec, GROUPABLE_DISPLAY_NODE_KINDS, TEXT_DISPLAY_NODE_KINDS } from '../transaction-shared.js';
-import { applyDisplayNodePropsUpdate } from '../transaction-uam-apply.js';
+import { applyDisplayNodePropsUpdate } from '../property-updates.js';
 import { pushSupportIssue } from './support.js';
 import { hasExactKeys, isFiniteNumber, stableJson, isIntegerBetween } from './values.js';
 
@@ -152,10 +148,6 @@ const TREE_PROPERTY_KEYS = [
 	'indent',
 	'clickToExpand',
 ] as const satisfies readonly (keyof UamTreeProperties)[];
-
-function isColor(value: unknown): value is string {
-	return typeof value === 'string' && /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(value);
-}
 
 function isFiniteNumberArrayOrNull(value: unknown, length?: number): value is number[] | null {
 	return value === null || (

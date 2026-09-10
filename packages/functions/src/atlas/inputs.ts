@@ -46,12 +46,8 @@ export type PackageResource = ReturnType<Package['listResources']>[number];
 export type PackableResource = ImageResource | MovieClipResource | FontResource;
 export type PackInputResource = ImageResource | MovieClipResource;
 
-export function getPublishedItemId(resource: { getId(): string; getExtras(): ExtrasMap | undefined }): string {
-	return ((resource.getExtras() as ImageResourceExtras | undefined) ?? {})._publishedId ?? resource.getId();
-}
-
-interface ImageResourceExtras extends ExtrasMap {
-	_publishedId?: string;
+export function getPublishedItemId(resource: PackageResource, publishedResources?: ReadonlyMap<PackageResource, string>): string {
+	return publishedResources?.get(resource) ?? resource.getId();
 }
 
 interface FontSpriteAlias {
@@ -280,7 +276,7 @@ export async function collectImage(
 	}
 
 	inputs.push({
-		id: getPublishedItemId(resource),
+		id: getPublishedItemId(resource, options.publishResources),
 		width: packW,
 		height: packH,
 		originalWidth: origW,

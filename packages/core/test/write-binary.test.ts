@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { getFixturePath } from '@openfairygui/test-utils';
-import { Document, liftDocumentToUamProject, materializeUamProject, PropertyType } from '../src/index.js';
+import { Document, type GLoader, type GComponent, type GTextField, liftDocumentToUamProject, materializeUamProject, PropertyType } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
 
 const BASICS_FUI = getFixturePath(
@@ -14,6 +14,71 @@ const BASICS_FUI = getFixturePath(
 	'UI',
 	'Basics_fui.bytes',
 );
+
+test('binary encoding context is per-call and standalone writes preserve source IDs and binary file metadata', async (t) => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-binary-context-'));
+	t.teardown(() => fs.rm(directory, { recursive: true, force: true }));
+	const doc = new Document();
+	doc.getRoot().addBranch('mobile');
+	const pkg = doc.createPackage('Context').setId('ctxpkg01').setBranchNames(['mobile']);
+	const main = doc.createComponent('Panel').setId('base').setSize(100, 100);
+	const variant = doc.createComponent('Panel').setId('variant').setBranch('mobile').setSize(200, 200);
+	variant.addChild(doc.createGLoader('local').setId('n0').setUrl('ui://ctxpkg01variant'));
+	variant.addChild(doc.createGComponent('instance').setId('n1').setSrc('variant'));
+	variant.addChild(doc.createGTextField('text').setId('n2').setText('[img]ui://ctxpkg01variant[/img]'));
+	const resource = doc.createMiscResource('data').setId('data').setFile('source.dat');
+	resource.setExtras({ _publishedFile: 'original.dat', sourceNote: 'retained' });
+	pkg.addResource(main).addResource(variant).addResource(resource);
+	const io = new NodeIO();
+	const selectedPath = path.join(directory, 'selected.bytes');
+	await io.writeBinary(doc, selectedPath, { packageContext: {
+		publishedResourceIds: new Set(['variant', 'data']),
+		effectiveResourceIds: new Map([['variant', 'base']]),
+		publishedFiles: new Map([['data', 'selected.dat']]),
+		includeBranches: false,
+	} });
+	const selected = (await io.readBinary(selectedPath)).getRoot().listPackages()[0]!;
+	t.deepEqual(selected.listResources().map((item) => item.getId()).sort(), ['base', 'data']);
+	t.deepEqual(selected.listBranchNames(), []);
+	const selectedComponent = selected.listComponents()[0]!;
+	t.is(selectedComponent.getWidth(), 200);
+	const children = selectedComponent.listChildren();
+	t.is(children.find((child): child is GLoader => child.propertyType === 'GLoader')?.getUrl(), 'ui://ctxpkg01base');
+	t.is(children.find((child): child is GComponent => child.propertyType === 'GComponent')?.getSrc(), 'base');
+	t.is(children.find((child): child is GTextField => child.propertyType === 'GTextField')?.getText(), '[img]ui://ctxpkg01base[/img]');
+	t.is(readPackageItems(await fs.readFile(selectedPath)).find((item) => item.id === 'data')?.file, 'selected.dat');
+
+	const standalonePath = path.join(directory, 'standalone.bytes');
+	await io.writeBinary(doc, standalonePath);
+	const standalone = (await io.readBinary(standalonePath)).getRoot().listPackages()[0]!;
+	t.deepEqual(standalone.listResources().map((item) => item.getId()).sort(), ['base', 'data', 'variant']);
+	t.deepEqual(standalone.listBranchNames(), ['mobile']);
+	t.is(readPackageItems(await fs.readFile(standalonePath)).find((item) => item.id === 'data')?.file, 'original.dat');
+	t.deepEqual(resource.getExtras(), { _publishedFile: 'original.dat', sourceNote: 'retained' });
+	t.deepEqual(pkg.getExtras(), {});
+	t.deepEqual(variant.getExtras(), {});
+});
+
+test('truncated binary views reject identically regardless of bytes beyond the view', async (t) => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-binary-view-'));
+	t.teardown(() => fs.rm(directory, { recursive: true, force: true }));
+	const doc = new Document();
+	const pkg = doc.createPackage('Bounds').setId('bounds');
+	const comp = doc.createComponent('Panel').setId('panel');
+	comp.addChild(doc.createGTextField('text').setId('text').setText('KEEP THIS TEXT'));
+	pkg.addResource(comp);
+	const target = path.join(directory, 'Bounds.bytes');
+	await new NodeIO().writeBinary(doc, target);
+	const bytes = new Uint8Array(await fs.readFile(target));
+	for (const raw of [bytes.subarray(0, -1), bytes.slice(0, -1)]) {
+		class ViewIO extends NodeIO {
+			protected override createFileSystem() {
+				return { ...super.createFileSystem(), readFileRaw: async () => raw };
+			}
+		}
+		await t.throwsAsync(new ViewIO().readBinary(target), { instanceOf: RangeError });
+	}
+});
 
 function readUtfString(bytes: Uint8Array, state: { pos: number }): string {
 	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);

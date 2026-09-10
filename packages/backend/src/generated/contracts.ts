@@ -3,8 +3,8 @@ import type { ContractSnapshot } from '../docs.js';
 export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 	"schemaVersion": 1,
 	"versions": {
-		"BACKEND_CONTRACT_VERSION": "2.0.0-p3",
-		"BACKEND_CAPABILITY_SCHEMA_VERSION": 11
+		"BACKEND_CONTRACT_VERSION": "3.0.0",
+		"BACKEND_CAPABILITY_SCHEMA_VERSION": 12
 	},
 	"operations": {
 		"updateProjectSettings": {
@@ -869,7 +869,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"backendResult": {
 						"anyOf": [
 							{
-								"$ref": "#/$defs/BackendResult_0bdb207dae"
+								"$ref": "#/$defs/BackendResult_01bd3005ba"
 							},
 							{
 								"$ref": "#/$defs/McpUnhandledFailure_fcecd3763a"
@@ -935,167 +935,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			},
 			"bytePaths": []
 		},
-		"getJob": {
-			"name": "openfairygui_backend_get_job",
-			"backendMethod": "getJob",
-			"title": "Get Runtime Job",
-			"description": "Return a backend runtime job snapshot by session and backend-local job id.",
-			"annotations": {
-				"readOnlyHint": true,
-				"idempotentHint": true,
-				"openWorldHint": false
-			},
-			"input": {
-				"type": "object",
-				"properties": {
-					"sessionId": {
-						"type": "string",
-						"minLength": 1
-					},
-					"jobId": {
-						"type": "string",
-						"minLength": 1
-					}
-				},
-				"required": [
-					"sessionId",
-					"jobId"
-				],
-				"additionalProperties": false
-			},
-			"output": {
-				"type": "object",
-				"properties": {
-					"backendResult": {
-						"anyOf": [
-							{
-								"$ref": "#/$defs/BackendResult_6867f7c186"
-							},
-							{
-								"$ref": "#/$defs/McpUnhandledFailure_fcecd3763a"
-							}
-						]
-					}
-				},
-				"required": [
-					"backendResult"
-				],
-				"additionalProperties": false
-			},
-			"bytePaths": []
-		},
-		"listJobs": {
-			"name": "openfairygui_backend_list_jobs",
-			"backendMethod": "listJobs",
-			"title": "List Runtime Jobs",
-			"description": "List backend runtime jobs for a session with backend P2 status/kind filters.",
-			"annotations": {
-				"readOnlyHint": true,
-				"idempotentHint": true,
-				"openWorldHint": false
-			},
-			"input": {
-				"type": "object",
-				"properties": {
-					"sessionId": {
-						"type": "string",
-						"minLength": 1
-					},
-					"status": {
-						"enum": [
-							"failed",
-							"active",
-							"completed",
-							"running",
-							"queued",
-							"cancelled",
-							"terminal"
-						]
-					},
-					"kind": {
-						"type": "string",
-						"const": "cache.refresh"
-					},
-					"limit": {
-						"type": "integer",
-						"minimum": 0
-					}
-				},
-				"required": [
-					"sessionId"
-				],
-				"additionalProperties": false
-			},
-			"output": {
-				"type": "object",
-				"properties": {
-					"backendResult": {
-						"anyOf": [
-							{
-								"$ref": "#/$defs/BackendResult_fea5a3c6da"
-							},
-							{
-								"$ref": "#/$defs/McpUnhandledFailure_fcecd3763a"
-							}
-						]
-					}
-				},
-				"required": [
-					"backendResult"
-				],
-				"additionalProperties": false
-			},
-			"bytePaths": []
-		},
-		"cancelJob": {
-			"name": "openfairygui_backend_cancel_job",
-			"backendMethod": "cancelJob",
-			"title": "Cancel Runtime Job",
-			"description": "Request cooperative cancellation for a backend runtime job.",
-			"annotations": {
-				"readOnlyHint": false,
-				"idempotentHint": false,
-				"openWorldHint": false
-			},
-			"input": {
-				"type": "object",
-				"properties": {
-					"sessionId": {
-						"type": "string",
-						"minLength": 1
-					},
-					"jobId": {
-						"type": "string",
-						"minLength": 1
-					}
-				},
-				"required": [
-					"sessionId",
-					"jobId"
-				],
-				"additionalProperties": false
-			},
-			"output": {
-				"type": "object",
-				"properties": {
-					"backendResult": {
-						"anyOf": [
-							{
-								"$ref": "#/$defs/BackendResult_fb76e59f94"
-							},
-							{
-								"$ref": "#/$defs/McpUnhandledFailure_fcecd3763a"
-							}
-						]
-					}
-				},
-				"required": [
-					"backendResult"
-				],
-				"additionalProperties": false
-			},
-			"bytePaths": []
-		},
 		"getCacheSnapshot": {
 			"name": "openfairygui_backend_get_cache_snapshot",
 			"backendMethod": "getCacheSnapshot",
@@ -1144,7 +983,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"name": "openfairygui_backend_refresh_cache",
 			"backendMethod": "refreshCache",
 			"title": "Refresh Cache",
-			"description": "Create a backend P2 cache.refresh job for the session cache snapshot.",
+			"description": "Synchronously refresh the derived session cache and return its revision-bound snapshot.",
 			"annotations": {
 				"readOnlyHint": false,
 				"idempotentHint": false,
@@ -1177,7 +1016,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"backendResult": {
 						"anyOf": [
 							{
-								"$ref": "#/$defs/BackendResult_c0ff465141"
+								"$ref": "#/$defs/BackendResult_9ce39ecd14"
 							},
 							{
 								"$ref": "#/$defs/McpUnhandledFailure_fcecd3763a"
@@ -1200,6 +1039,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		"validate": {
 			"$ref": "#/$defs/CliEnvelope_dde966be7c"
 		},
+		"restore": {
+			"$ref": "#/$defs/CliEnvelope_a2522f4864"
+		},
 		"ofgui": {
 			"$ref": "#/$defs/CliEnvelope_e114e8964e"
 		},
@@ -1208,9 +1050,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		},
 		"inspect": {
 			"$ref": "#/$defs/CliEnvelope_54f391b1e9"
-		},
-		"restore": {
-			"$ref": "#/$defs/CliEnvelope_a2522f4864"
 		},
 		"doctor": {
 			"$ref": "#/$defs/CliEnvelope_5faeabe7ff"
@@ -10502,11 +10341,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"contractVersion": {
 					"type": "string",
-					"const": "2.0.0-p3"
+					"const": "3.0.0"
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
-					"const": 11
+					"const": 12
 				}
 			},
 			"required": [
@@ -10638,6 +10477,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"execution_failure",
 						"path_policy_violation",
 						"session_not_found",
+						"session_close_failed",
 						"transaction_preview_failed",
 						"entity_query_failed",
 						"session_read_failed",
@@ -10650,10 +10490,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"materialize_validation_failed",
 						"write_failed",
 						"event_cursor_invalid",
-						"job_not_found",
-						"job_not_cancellable",
-						"job_cancelled",
-						"cache_refresh_failed",
 						"capability_unavailable",
 						"project_root_not_allowed",
 						"project_open_failed"
@@ -10852,11 +10688,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"properties": {
 				"contractVersion": {
 					"type": "string",
-					"const": "2.0.0-p3"
+					"const": "3.0.0"
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
-					"const": 11
+					"const": 12
 				},
 				"transactionKernelOwner": {
 					"type": "string",
@@ -10871,7 +10707,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": "@openfairygui/backend"
 				},
 				"methods": {
-					"$ref": "#/$defs/Shape_e30134abaa"
+					"$ref": "#/$defs/Shape_ae72a55d5a"
 				},
 				"read": {
 					"$ref": "#/$defs/__type_81b96969f6"
@@ -10889,7 +10725,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/__object_c0c6c6fd1f"
 				},
 				"runtime": {
-					"$ref": "#/$defs/__type_6f3fcdb30d"
+					"$ref": "#/$defs/__type_b85cdf481a"
 				}
 			},
 			"required": [
@@ -10908,7 +10744,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"Shape_e30134abaa": {
+		"Shape_ae72a55d5a": {
 			"type": "array",
 			"prefixItems": [
 				{
@@ -10973,18 +10809,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				{
 					"type": "string",
-					"const": "getJob"
-				},
-				{
-					"type": "string",
-					"const": "listJobs"
-				},
-				{
-					"type": "string",
-					"const": "cancelJob"
-				},
-				{
-					"type": "string",
 					"const": "getCacheSnapshot"
 				},
 				{
@@ -10992,8 +10816,8 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": "refreshCache"
 				}
 			],
-			"minItems": 20,
-			"maxItems": 20,
+			"minItems": 17,
+			"maxItems": 17,
 			"items": false
 		},
 		"__type_81b96969f6": {
@@ -11596,7 +11420,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"__type_6f3fcdb30d": {
+		"__type_b85cdf481a": {
 			"type": "object",
 			"properties": {
 				"sessionRuntime": {
@@ -11624,11 +11448,8 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"events": {
 					"$ref": "#/$defs/__type_95a4d6b6f7"
 				},
-				"jobs": {
-					"$ref": "#/$defs/__type_8501cb15df"
-				},
 				"cache": {
-					"$ref": "#/$defs/__type_b3bf9852d7"
+					"$ref": "#/$defs/__type_5cd47c93eb"
 				}
 			},
 			"required": [
@@ -11639,7 +11460,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"staleRevisionProtection",
 				"pathPolicy",
 				"events",
-				"jobs",
 				"cache"
 			],
 			"additionalProperties": false
@@ -11705,53 +11525,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"__type_8501cb15df": {
-			"type": "object",
-			"properties": {
-				"inMemory": {
-					"type": "boolean",
-					"const": true
-				},
-				"cooperativeCancel": {
-					"type": "boolean",
-					"const": true
-				},
-				"persistent": {
-					"type": "boolean",
-					"const": false
-				},
-				"supportedKinds": {
-					"$ref": "#/$defs/Shape_d356aad25c"
-				},
-				"artifactJobs": {
-					"type": "boolean",
-					"const": false
-				},
-				"completedRetentionLimit": {
-					"type": "number",
-					"const": 100
-				}
-			},
-			"required": [
-				"inMemory",
-				"cooperativeCancel",
-				"persistent",
-				"supportedKinds",
-				"artifactJobs",
-				"completedRetentionLimit"
-			],
-			"additionalProperties": false
-		},
-		"Shape_d356aad25c": {
-			"type": "array",
-			"minItems": 1,
-			"maxItems": 1,
-			"items": {
-				"type": "string",
-				"const": "cache.refresh"
-			}
-		},
-		"__type_b3bf9852d7": {
+		"__type_5cd47c93eb": {
 			"type": "object",
 			"properties": {
 				"derivedReadOnly": {
@@ -11760,7 +11534,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"keyedBy": {
 					"type": "string",
-					"const": "canonicalPathKey"
+					"const": "sessionId"
+				},
+				"refreshMode": {
+					"type": "string",
+					"const": "synchronous"
 				},
 				"sourceOfTruth": {
 					"type": "boolean",
@@ -11774,6 +11552,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"required": [
 				"derivedReadOnly",
 				"keyedBy",
+				"refreshMode",
 				"sourceOfTruth",
 				"refreshMethod"
 			],
@@ -11974,9 +11753,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"capability": {
 					"enum": [
-						"fileSystem",
 						"artifact.publish",
-						"artifact.restore"
+						"artifact.restore",
+						"fileSystem"
 					]
 				},
 				"requiredAdapter": {
@@ -13446,17 +13225,17 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"revision": {
 					"type": "number"
 				},
-				"uamFidelity": {
-					"enum": [
-						"full",
-						"unsupported"
-					]
-				},
 				"lastSavedRevision": {
 					"type": "number"
 				},
 				"dirty": {
 					"type": "boolean"
+				},
+				"uamFidelity": {
+					"enum": [
+						"full",
+						"unsupported"
+					]
 				}
 			},
 			"required": [
@@ -13465,9 +13244,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"readComplete",
 				"sessionId",
 				"revision",
-				"uamFidelity",
 				"lastSavedRevision",
-				"dirty"
+				"dirty",
+				"uamFidelity"
 			],
 			"additionalProperties": false
 		},
@@ -15140,6 +14919,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"diskMayBePartiallyUpdated": {
 					"type": "boolean"
+				},
+				"recoveryPaths": {
+					"$ref": "#/$defs/Array_5444db1618"
 				}
 			},
 			"required": [
@@ -15249,6 +15031,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"diskMayBePartiallyUpdated": {
 					"type": "boolean"
+				},
+				"recoveryPaths": {
+					"$ref": "#/$defs/Array_5444db1618"
 				}
 			},
 			"required": [
@@ -15349,15 +15134,74 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				}
 			]
 		},
-		"BackendResult_0bdb207dae": {
+		"BackendResult_01bd3005ba": {
 			"anyOf": [
 				{
-					"$ref": "#/$defs/BackendFailure_4a72809733"
+					"$ref": "#/$defs/BackendFailure_44bf2b498a"
 				},
 				{
 					"$ref": "#/$defs/BackendSuccess_a36da64ce4"
 				}
 			]
+		},
+		"BackendFailure_44bf2b498a": {
+			"type": "object",
+			"properties": {
+				"ok": {
+					"type": "boolean",
+					"const": false
+				},
+				"meta": {
+					"$ref": "#/$defs/BackendResponseMeta_bbbdb18c02"
+				},
+				"error": {
+					"$ref": "#/$defs/Shape_387b06a626"
+				},
+				"session": {
+					"$ref": "#/$defs/BackendSessionSnapshot_e59c685fc8"
+				}
+			},
+			"required": [
+				"ok",
+				"meta",
+				"error"
+			],
+			"additionalProperties": false
+		},
+		"Shape_387b06a626": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/SessionNotFoundError_878fae4543"
+				},
+				{
+					"$ref": "#/$defs/SessionCloseFailedError_a32cd3d7ef"
+				}
+			]
+		},
+		"SessionCloseFailedError_a32cd3d7ef": {
+			"type": "object",
+			"properties": {
+				"code": {
+					"type": "string",
+					"const": "session_close_failed"
+				},
+				"message": {
+					"type": "string"
+				},
+				"sessionId": {
+					"type": "string"
+				},
+				"lockFilePath": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"code",
+				"message",
+				"sessionId",
+				"lockFilePath"
+			],
+			"additionalProperties": false
 		},
 		"BackendSuccess_a36da64ce4": {
 			"type": "object",
@@ -15475,14 +15319,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"session.closeRequested",
 						"session.closed",
 						"cache.invalidated",
-						"cache.updated",
-						"job.created",
-						"job.started",
-						"job.progress",
-						"job.cancelRequested",
-						"job.cancelled",
-						"job.completed",
-						"job.failed"
+						"cache.updated"
 					]
 				},
 				"timestamp": {
@@ -15499,9 +15336,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"cacheRevision": {
 					"type": "number"
-				},
-				"jobId": {
-					"type": "string"
 				},
 				"diagnostics": {
 					"$ref": "#/$defs/Array_ac22034604"
@@ -15575,436 +15409,13 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"BackendResult_6867f7c186": {
-			"anyOf": [
-				{
-					"$ref": "#/$defs/BackendSuccess_18811b74a4"
-				},
-				{
-					"$ref": "#/$defs/BackendFailure_9d569392b6"
-				}
-			]
-		},
-		"BackendSuccess_18811b74a4": {
-			"type": "object",
-			"properties": {
-				"ok": {
-					"type": "boolean",
-					"const": true
-				},
-				"meta": {
-					"$ref": "#/$defs/BackendResponseMeta_bbbdb18c02"
-				},
-				"data": {
-					"$ref": "#/$defs/BackendJobSnapshot_2b82742685"
-				}
-			},
-			"required": [
-				"ok",
-				"meta",
-				"data"
-			],
-			"additionalProperties": false
-		},
-		"BackendJobSnapshot_2b82742685": {
-			"type": "object",
-			"properties": {
-				"jobId": {
-					"type": "string"
-				},
-				"kind": {
-					"type": "string",
-					"const": "cache.refresh"
-				},
-				"status": {
-					"enum": [
-						"failed",
-						"completed",
-						"running",
-						"queued",
-						"cancelled"
-					]
-				},
-				"createdAt": {
-					"type": "string"
-				},
-				"startedAt": {
-					"type": "string"
-				},
-				"finishedAt": {
-					"type": "string"
-				},
-				"sessionId": {
-					"type": "string"
-				},
-				"canonicalPathKey": {
-					"type": "string"
-				},
-				"revision": {
-					"type": "number"
-				},
-				"cacheRevision": {
-					"type": "number"
-				},
-				"diagnostics": {
-					"$ref": "#/$defs/Array_ac22034604"
-				},
-				"progress": {
-					"$ref": "#/$defs/BackendJobProgress_f7c2c47d75"
-				},
-				"result": {},
-				"error": {
-					"$ref": "#/$defs/Shape_11316b9910"
-				}
-			},
-			"required": [
-				"jobId",
-				"kind",
-				"status",
-				"createdAt",
-				"diagnostics"
-			],
-			"additionalProperties": false
-		},
-		"BackendJobProgress_f7c2c47d75": {
-			"type": "object",
-			"properties": {
-				"completed": {
-					"type": "number"
-				},
-				"total": {
-					"type": "number"
-				},
-				"message": {
-					"type": "string"
-				}
-			},
-			"required": [
-				"completed"
-			],
-			"additionalProperties": false
-		},
-		"Shape_11316b9910": {
-			"anyOf": [
-				{
-					"$ref": "#/$defs/ApplyUamTransactionAppError_af2a5ddf50"
-				},
-				{
-					"$ref": "#/$defs/PathPolicyViolationError_18840ac3f7"
-				},
-				{
-					"$ref": "#/$defs/SessionNotFoundError_878fae4543"
-				},
-				{
-					"$ref": "#/$defs/TransactionPreviewError_5424ca8f17"
-				},
-				{
-					"$ref": "#/$defs/EntityQueryError_5b50efde28"
-				},
-				{
-					"$ref": "#/$defs/SessionReadError_ae519948af"
-				},
-				{
-					"$ref": "#/$defs/SessionStaleReadError_ebb253f443"
-				},
-				{
-					"$ref": "#/$defs/SessionIdConflictError_e0a264826e"
-				},
-				{
-					"$ref": "#/$defs/SessionStaleWriteError_4120bade9d"
-				},
-				{
-					"$ref": "#/$defs/InProcessLockConflictError_8019d8ab87"
-				},
-				{
-					"$ref": "#/$defs/AdvisoryLockConflictError_babfc4d747"
-				},
-				{
-					"$ref": "#/$defs/SavePartialFailureError_ed894aecf1"
-				},
-				{
-					"$ref": "#/$defs/UamFidelityUnsupportedError_5d35d9b9da"
-				},
-				{
-					"$ref": "#/$defs/MaterializeValidationFailedError_8e1dfdb713"
-				},
-				{
-					"$ref": "#/$defs/MaterializeWriteFailedError_886435525e"
-				},
-				{
-					"$ref": "#/$defs/EventCursorInvalidError_a59b20e40d"
-				},
-				{
-					"$ref": "#/$defs/BackendJobNotFoundError_371ea4de62"
-				},
-				{
-					"$ref": "#/$defs/BackendJobNotCancellableError_e8ca5b5a59"
-				},
-				{
-					"$ref": "#/$defs/BackendJobCancelledError_78b983814a"
-				},
-				{
-					"$ref": "#/$defs/CacheRefreshFailedError_affe707933"
-				},
-				{
-					"$ref": "#/$defs/BackendCapabilityUnavailableError_abe9cad766"
-				},
-				{
-					"$ref": "#/$defs/ProjectRootNotAllowedError_91f44c66e5"
-				},
-				{
-					"$ref": "#/$defs/ProjectOpenFailedError_63603bdf5c"
-				}
-			]
-		},
-		"BackendJobNotFoundError_371ea4de62": {
-			"type": "object",
-			"properties": {
-				"code": {
-					"type": "string",
-					"const": "job_not_found"
-				},
-				"message": {
-					"type": "string"
-				},
-				"sessionId": {
-					"type": "string"
-				},
-				"jobId": {
-					"type": "string"
-				}
-			},
-			"required": [
-				"code",
-				"message",
-				"sessionId",
-				"jobId"
-			],
-			"additionalProperties": false
-		},
-		"BackendJobNotCancellableError_e8ca5b5a59": {
-			"type": "object",
-			"properties": {
-				"code": {
-					"type": "string",
-					"const": "job_not_cancellable"
-				},
-				"message": {
-					"type": "string"
-				},
-				"sessionId": {
-					"type": "string"
-				},
-				"jobId": {
-					"type": "string"
-				},
-				"status": {
-					"enum": [
-						"failed",
-						"completed",
-						"cancelled"
-					]
-				}
-			},
-			"required": [
-				"code",
-				"message",
-				"sessionId",
-				"jobId",
-				"status"
-			],
-			"additionalProperties": false
-		},
-		"BackendJobCancelledError_78b983814a": {
-			"type": "object",
-			"properties": {
-				"code": {
-					"type": "string",
-					"const": "job_cancelled"
-				},
-				"message": {
-					"type": "string"
-				},
-				"sessionId": {
-					"type": "string"
-				},
-				"jobId": {
-					"type": "string"
-				}
-			},
-			"required": [
-				"code",
-				"message",
-				"sessionId",
-				"jobId"
-			],
-			"additionalProperties": false
-		},
-		"CacheRefreshFailedError_affe707933": {
-			"type": "object",
-			"properties": {
-				"code": {
-					"type": "string",
-					"const": "cache_refresh_failed"
-				},
-				"message": {
-					"type": "string"
-				},
-				"sessionId": {
-					"type": "string"
-				},
-				"jobId": {
-					"type": "string"
-				},
-				"causeCode": {
-					"type": "string"
-				}
-			},
-			"required": [
-				"code",
-				"message",
-				"sessionId",
-				"jobId"
-			],
-			"additionalProperties": false
-		},
-		"BackendFailure_9d569392b6": {
-			"type": "object",
-			"properties": {
-				"ok": {
-					"type": "boolean",
-					"const": false
-				},
-				"meta": {
-					"$ref": "#/$defs/BackendResponseMeta_bbbdb18c02"
-				},
-				"error": {
-					"$ref": "#/$defs/Shape_9759774074"
-				},
-				"session": {
-					"$ref": "#/$defs/BackendSessionSnapshot_e59c685fc8"
-				}
-			},
-			"required": [
-				"ok",
-				"meta",
-				"error"
-			],
-			"additionalProperties": false
-		},
-		"Shape_9759774074": {
-			"anyOf": [
-				{
-					"$ref": "#/$defs/SessionNotFoundError_878fae4543"
-				},
-				{
-					"$ref": "#/$defs/BackendJobNotFoundError_371ea4de62"
-				}
-			]
-		},
-		"BackendResult_fea5a3c6da": {
-			"anyOf": [
-				{
-					"$ref": "#/$defs/BackendFailure_4a72809733"
-				},
-				{
-					"$ref": "#/$defs/BackendSuccess_a062422afa"
-				}
-			]
-		},
-		"BackendSuccess_a062422afa": {
-			"type": "object",
-			"properties": {
-				"ok": {
-					"type": "boolean",
-					"const": true
-				},
-				"meta": {
-					"$ref": "#/$defs/BackendResponseMeta_bbbdb18c02"
-				},
-				"data": {
-					"$ref": "#/$defs/BackendJobListSnapshot_f7668efb57"
-				}
-			},
-			"required": [
-				"ok",
-				"meta",
-				"data"
-			],
-			"additionalProperties": false
-		},
-		"BackendJobListSnapshot_f7668efb57": {
-			"type": "object",
-			"properties": {
-				"jobs": {
-					"$ref": "#/$defs/Array_0a293bd952"
-				}
-			},
-			"required": [
-				"jobs"
-			],
-			"additionalProperties": false
-		},
-		"Array_0a293bd952": {
-			"type": "array",
-			"items": {
-				"$ref": "#/$defs/BackendJobSnapshot_2b82742685"
-			}
-		},
-		"BackendResult_fb76e59f94": {
-			"anyOf": [
-				{
-					"$ref": "#/$defs/BackendSuccess_18811b74a4"
-				},
-				{
-					"$ref": "#/$defs/BackendFailure_618b0636be"
-				}
-			]
-		},
-		"BackendFailure_618b0636be": {
-			"type": "object",
-			"properties": {
-				"ok": {
-					"type": "boolean",
-					"const": false
-				},
-				"meta": {
-					"$ref": "#/$defs/BackendResponseMeta_bbbdb18c02"
-				},
-				"error": {
-					"$ref": "#/$defs/Shape_0c298f9d73"
-				},
-				"session": {
-					"$ref": "#/$defs/BackendSessionSnapshot_e59c685fc8"
-				}
-			},
-			"required": [
-				"ok",
-				"meta",
-				"error"
-			],
-			"additionalProperties": false
-		},
-		"Shape_0c298f9d73": {
-			"anyOf": [
-				{
-					"$ref": "#/$defs/SessionNotFoundError_878fae4543"
-				},
-				{
-					"$ref": "#/$defs/BackendJobNotFoundError_371ea4de62"
-				},
-				{
-					"$ref": "#/$defs/BackendJobNotCancellableError_e8ca5b5a59"
-				}
-			]
-		},
 		"BackendResult_9ce39ecd14": {
 			"anyOf": [
 				{
-					"$ref": "#/$defs/BackendSuccess_31cc9fb020"
+					"$ref": "#/$defs/BackendFailure_4a72809733"
 				},
 				{
-					"$ref": "#/$defs/BackendFailure_4a72809733"
+					"$ref": "#/$defs/BackendSuccess_31cc9fb020"
 				}
 			]
 		},
@@ -16108,16 +15519,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"diagnostics"
 			],
 			"additionalProperties": false
-		},
-		"BackendResult_c0ff465141": {
-			"anyOf": [
-				{
-					"$ref": "#/$defs/BackendFailure_4a72809733"
-				},
-				{
-					"$ref": "#/$defs/BackendSuccess_18811b74a4"
-				}
-			]
 		},
 		"BackendSessionProjectModel_6724369185_read": {
 			"type": "object",
@@ -22443,6 +21844,93 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
+		"CliEnvelope_a2522f4864": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__type_b6b531a0e9"
+				},
+				{
+					"$ref": "#/$defs/__type_215ae441f7"
+				}
+			]
+		},
+		"__type_b6b531a0e9": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "restore"
+				},
+				"success": {
+					"type": "boolean",
+					"const": true
+				},
+				"result": {
+					"$ref": "#/$defs/__type_2f01710413"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"result"
+			],
+			"additionalProperties": false
+		},
+		"__type_2f01710413": {
+			"type": "object",
+			"properties": {
+				"projectPath": {
+					"type": "string"
+				},
+				"packages": {
+					"$ref": "#/$defs/Array_3ee146c367"
+				},
+				"warnings": {
+					"$ref": "#/$defs/Array_5444db1618"
+				}
+			},
+			"required": [
+				"projectPath",
+				"packages",
+				"warnings"
+			],
+			"additionalProperties": false
+		},
+		"__type_215ae441f7": {
+			"type": "object",
+			"properties": {
+				"schemaVersion": {
+					"type": "number",
+					"const": 1
+				},
+				"command": {
+					"type": "string",
+					"const": "restore"
+				},
+				"success": {
+					"type": "boolean",
+					"const": false
+				},
+				"error": {
+					"$ref": "#/$defs/CliError_53076daab4"
+				},
+				"result": {
+					"$ref": "#/$defs/__type_2f01710413"
+				}
+			},
+			"required": [
+				"schemaVersion",
+				"command",
+				"success",
+				"error"
+			],
+			"additionalProperties": false
+		},
 		"CliEnvelope_e114e8964e": {
 			"anyOf": [
 				{
@@ -22850,93 +22338,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"result": {
 					"$ref": "#/$defs/InspectReport_55a7994c5a"
-				}
-			},
-			"required": [
-				"schemaVersion",
-				"command",
-				"success",
-				"error"
-			],
-			"additionalProperties": false
-		},
-		"CliEnvelope_a2522f4864": {
-			"anyOf": [
-				{
-					"$ref": "#/$defs/__type_b6b531a0e9"
-				},
-				{
-					"$ref": "#/$defs/__type_215ae441f7"
-				}
-			]
-		},
-		"__type_b6b531a0e9": {
-			"type": "object",
-			"properties": {
-				"schemaVersion": {
-					"type": "number",
-					"const": 1
-				},
-				"command": {
-					"type": "string",
-					"const": "restore"
-				},
-				"success": {
-					"type": "boolean",
-					"const": true
-				},
-				"result": {
-					"$ref": "#/$defs/__type_2f01710413"
-				}
-			},
-			"required": [
-				"schemaVersion",
-				"command",
-				"success",
-				"result"
-			],
-			"additionalProperties": false
-		},
-		"__type_2f01710413": {
-			"type": "object",
-			"properties": {
-				"projectPath": {
-					"type": "string"
-				},
-				"packages": {
-					"$ref": "#/$defs/Array_3ee146c367"
-				},
-				"warnings": {
-					"$ref": "#/$defs/Array_5444db1618"
-				}
-			},
-			"required": [
-				"projectPath",
-				"packages",
-				"warnings"
-			],
-			"additionalProperties": false
-		},
-		"__type_215ae441f7": {
-			"type": "object",
-			"properties": {
-				"schemaVersion": {
-					"type": "number",
-					"const": 1
-				},
-				"command": {
-					"type": "string",
-					"const": "restore"
-				},
-				"success": {
-					"type": "boolean",
-					"const": false
-				},
-				"error": {
-					"$ref": "#/$defs/CliError_53076daab4"
-				},
-				"result": {
-					"$ref": "#/$defs/__type_2f01710413"
 				}
 			},
 			"required": [
@@ -23796,6 +23197,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"remediation": {
 				"kind": "host-action",
 				"message": "Ask the host to confirm the runtime and project, recover any unsaved state, then explicitly open a new session if appropriate. Session IDs are runtime-local. Read its new revision and replan; never reuse an expired session or assume disk contains unsaved changes."
+			}
+		},
+		{
+			"code": "session_close_failed",
+			"owners": [
+				"backend"
+			],
+			"remediation": {
+				"kind": "host-action",
+				"message": "The session and lock ownership remain registered. Inspect the reported lock release failure, correct the storage problem, then retry closeSession with the same session ID. Do not remove the lock file or open a replacement session to bypass the owner."
 			}
 		},
 		{
@@ -24742,47 +24153,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"kind": "host-action",
 				"message": "Inspect the execution/cache failure and current session/revision. Preserve sources and unsaved work and report the cause to the host. Replan after resolution; failed execution or cache work is not a completed edit."
 			}
-		},
-		{
-			"code": "cache_refresh_failed",
-			"owners": [
-				"backend"
-			],
-			"remediation": {
-				"kind": "host-action",
-				"message": "Inspect the execution/cache failure and current session/revision. Preserve sources and unsaved work and report the cause to the host. Replan after resolution; failed execution or cache work is not a completed edit."
-			}
-		},
-		{
-			"code": "job_not_found",
-			"owners": [
-				"backend"
-			],
-			"remediation": {
-				"kind": "host-action",
-				"message": "Inspect the job ID and status with getJob/listJobs. Do not fabricate, restart or force-cancel a missing, terminal or non-cancellable job. Ask the host before scheduling new work; cancellation is not success."
-			}
-		},
-		{
-			"code": "job_not_cancellable",
-			"owners": [
-				"backend"
-			],
-			"remediation": {
-				"kind": "host-action",
-				"message": "Inspect the job ID and status with getJob/listJobs. Do not fabricate, restart or force-cancel a missing, terminal or non-cancellable job. Ask the host before scheduling new work; cancellation is not success."
-			}
-		},
-		{
-			"code": "job_cancelled",
-			"owners": [
-				"backend"
-			],
-			"remediation": {
-				"kind": "host-action",
-				"message": "Inspect the job ID and status with getJob/listJobs. Do not fabricate, restart or force-cancel a missing, terminal or non-cancellable job. Ask the host before scheduling new work; cancellation is not success."
-			}
 		}
 	],
-	"digest": "cba5c0427b91c5d28c7c4277dcbb4a16f48e9fedf91fa1f66375495f8bfc71b0"
+	"digest": "758763ae4b6724a25a82dc0edbe10c7c13478589bdabf84b847dd2d7b745331d"
 };

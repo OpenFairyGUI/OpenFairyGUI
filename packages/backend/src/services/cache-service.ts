@@ -1,14 +1,21 @@
-import { failure, success, type BackendContext, type BackendSessionState } from './context.js';
+import { failure, success, type BackendSessionState } from './context.js';
+import type { EventService } from './event-service.js';
 import { createSessionNotFoundError } from './session-utils.js';
 import type {
 	BackendCacheEntry,
 	BackendCacheSnapshot,
 	BackendResult,
 	GetCacheSnapshotInput,
+	RefreshCacheInput,
 	SessionNotFoundError,
 } from '../runtime.js';
 
-function createCacheEntry(session: BackendSessionState, valid: boolean): BackendCacheEntry {
+type CacheSession = Readonly<Pick<BackendSessionState,
+	'sessionId' | 'canonicalPathKey' | 'revision' | 'lastSavedRevision' | 'dirty' | 'closed'>> & {
+	readonly project: { readonly packages: readonly { readonly resources: readonly unknown[] }[] };
+};
+
+function createCacheEntry(session: CacheSession, valid: boolean): BackendCacheEntry {
 	return {
 		canonicalPathKey: session.canonicalPathKey,
 		sessionId: session.sessionId,
@@ -26,34 +33,49 @@ function createCacheEntry(session: BackendSessionState, valid: boolean): Backend
 }
 
 export class CacheService {
-	public constructor(private readonly context: BackendContext) {}
+	private readonly cacheBySession = new Map<string, BackendCacheEntry>();
+	public constructor(private readonly getSession: (sessionId: string) => CacheSession | undefined, private readonly events: EventService) {}
 
 	public getCacheSnapshot(input: GetCacheSnapshotInput): BackendResult<BackendCacheSnapshot, SessionNotFoundError> {
 		const startedAt = Date.now();
-		const session = this.context.sessions.get(input.sessionId);
+		const session = this.getSession(input.sessionId);
 		if (!session || session.closed) {
 			return failure('read', startedAt, createSessionNotFoundError(input.sessionId));
 		}
-		const entry = this.context.cacheBySession.get(input.sessionId);
+		const entry = this.cacheBySession.get(input.sessionId);
 		return success('read', startedAt, {
 			cacheRevision: entry?.revision ?? session.revision,
 			entries: entry ? [structuredClone(entry)] : [],
 		}, { sessionId: session.sessionId, revision: session.revision });
 	}
 
-	public refreshSession(session: BackendSessionState): BackendCacheEntry {
+	public refreshCache(input: RefreshCacheInput): BackendResult<BackendCacheSnapshot, SessionNotFoundError> {
+		const startedAt = Date.now();
+		const session = this.getSession(input.sessionId);
+		if (!session || session.closed) return failure('runtime', startedAt, createSessionNotFoundError(input.sessionId));
+		const entry = this.refreshSession(session);
+		this.events.emit({
+			kind: 'cache.updated', sessionId: session.sessionId, canonicalPathKey: session.canonicalPathKey,
+			revision: session.revision, cacheRevision: entry.revision, payload: { reason: input.reason ?? 'manual' },
+		});
+		return success('runtime', startedAt, {
+			cacheRevision: entry.revision, entries: [structuredClone(entry)],
+		}, { sessionId: session.sessionId, revision: session.revision });
+	}
+
+	public refreshSession(session: CacheSession): BackendCacheEntry {
 		const entry = createCacheEntry(session, true);
-		this.context.cacheBySession.set(session.sessionId, entry);
+		this.cacheBySession.set(session.sessionId, entry);
 		return entry;
 	}
 
-	public invalidateSession(session: BackendSessionState): BackendCacheEntry {
+	public invalidateSession(session: CacheSession): BackendCacheEntry {
 		const entry = createCacheEntry(session, false);
-		this.context.cacheBySession.set(session.sessionId, entry);
+		this.cacheBySession.set(session.sessionId, entry);
 		return entry;
 	}
 
 	public removeSession(sessionId: string): void {
-		this.context.cacheBySession.delete(sessionId);
+		this.cacheBySession.delete(sessionId);
 	}
 }

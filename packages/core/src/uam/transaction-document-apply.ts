@@ -1,11 +1,11 @@
-import { composeController, composeTransition } from '../authoring.js';
-import { GearType, PropertyType } from '../constants.js';
+import { applyDisplayNodePropsUpdate } from './property-updates.js';
+import { liftDisplayNode } from './bridge-lift.js';
+import { composeTransition } from '../authoring.js';
+import { PropertyType } from '../constants.js';
 import type { Document } from '../document.js';
 import type { Component } from '../properties/component.js';
 import type { Controller } from '../properties/controller.js';
 import type { GObject } from '../properties/g-object.js';
-import type { GLoader3D } from '../properties/g-loader-3d.js';
-import type { GTextField } from '../properties/g-text-field.js';
 import type { Package } from '../properties/package.js';
 import type { Transition } from '../properties/transition.js';
 import { probeRasterImageDimensions, rasterImageFormatFromFileName } from '../utils/image-info.js';
@@ -21,17 +21,11 @@ import {
 	materializeUamGear,
 } from './bridge.js';
 import {
-	materializeUamComponentInstanceProperties,
+	materializeDisplayNodeProperties,
+	materializeUamController,
+	gearTypeForKind,
 	materializeUamComponentProperties,
-	materializeUamGraphProperties,
-	materializeUamGroupProperties,
-	materializeUamImageProperties,
 	materializeUamImageResourceProperties,
-	materializeUamListProperties,
-	materializeUamLoaderProperties,
-	materializeUamLoader3DProperties,
-	materializeUamMovieClipProperties,
-	materializeUamTextProperties,
 } from './bridge-materialize.js';
 import type {
 	UamComponentModel,
@@ -41,7 +35,6 @@ import type {
 import type {
 	UamComponentSelector,
 	UamControllerSelector,
-	UamDisplayNodePropsUpdate,
 	UamDisplayNodeSelector,
 	UamGearSelector,
 	UamResourceSelector,
@@ -50,27 +43,11 @@ import type {
 } from './transaction-contracts.js';
 import { UamTransactionError } from './transaction-contracts.js';
 import {
-	COMMON_DISPLAY_PROPERTY_TYPES,
-	GROUPABLE_DISPLAY_PROPERTY_TYPES,
 	selectorDetails,
-	TEXT_DISPLAY_PROPERTY_TYPES,
 	renamedResourceFileName,
 	type UamAttachableDisplayNode,
 	withDefaultOwnPackageRef,
 } from './transaction-shared.js';
-
-type CommonDisplayPropTarget = GObject & {
-	setXY(x: number, y: number): unknown;
-	setSize(width: number, height: number): unknown;
-	setVisible(visible: boolean): unknown;
-	setTouchable(touchable: boolean): unknown;
-	setGrayed(grayed: boolean): unknown;
-	setAlpha(alpha: number): unknown;
-	setRotation(rotation: number): unknown;
-	setCustomData(customData: string): unknown;
-	setGroup(group: string): unknown;
-};
-
 
 function resolvePackage(doc: Document, selector: { packageId: string }): Package {
 	const pkg = doc.getRoot().getPackageById(selector.packageId);
@@ -143,21 +120,6 @@ function resolveUniqueTransition(component: Component, selector: UamTransitionSe
 	return matches[0]!;
 }
 
-function gearTypeForKind(kind: UamGearBinding['kind']): GearType {
-	switch (kind) {
-		case 'display': return GearType.Display;
-		case 'display2': return GearType.Display2;
-		case 'xy': return GearType.XY;
-		case 'size': return GearType.Size;
-		case 'look': return GearType.Look;
-		case 'color': return GearType.Color;
-		case 'animation': return GearType.Animation;
-		case 'text': return GearType.Text;
-		case 'icon': return GearType.Icon;
-		case 'fontSize': return GearType.FontSize;
-	}
-}
-
 function hasControllerGear(node: GObject, selector: UamGearSelector): boolean {
 	return node.listGears().some((gear) => (
 		gear.getGearType() === gearTypeForKind(selector.kind)
@@ -183,47 +145,6 @@ function resolveUniqueGear(node: GObject, selector: UamGearSelector) {
 		);
 	}
 	return matches[0]!;
-}
-
-function applyCommonDisplayProps(target: CommonDisplayPropTarget, props: UamDisplayNodePropsUpdate): void {
-	if (props.position) target.setXY(props.position.x, props.position.y);
-	if (props.size) target.setSize(props.size.width, props.size.height);
-	if (props.locked !== undefined) target.setLocked(props.locked);
-	if (props.aspect !== undefined) target.setAspect(props.aspect);
-	if (props.minSize !== undefined) target.setMinWidth(props.minSize.width).setMinHeight(props.minSize.height);
-	if (props.maxSize !== undefined) target.setMaxWidth(props.maxSize.width).setMaxHeight(props.maxSize.height);
-	if (props.pivot !== undefined || props.pivotAsAnchor !== undefined) {
-		const pivotTarget = target as CommonDisplayPropTarget & {
-			getPivotX(): number;
-			getPivotY(): number;
-			getPivotAsAnchor?(): boolean;
-			setPivot(x: number, y: number, anchor?: boolean): unknown;
-		};
-		if (
-			typeof pivotTarget.getPivotX !== 'function'
-			|| typeof pivotTarget.getPivotY !== 'function'
-			|| typeof pivotTarget.setPivot !== 'function'
-		) {
-			throw new Error(`Display node type "${target.propertyType}" does not support pivot.`);
-		}
-		pivotTarget.setPivot(
-			props.pivot?.x ?? pivotTarget.getPivotX(),
-			props.pivot?.y ?? pivotTarget.getPivotY(),
-			props.pivotAsAnchor ?? pivotTarget.getPivotAsAnchor?.() ?? false,
-		);
-	}
-	if (props.scale !== undefined) target.setScale(props.scale.x, props.scale.y);
-	if (props.skew !== undefined) target.setSkew(props.skew.x, props.skew.y);
-	if (props.visible !== undefined) target.setVisible(props.visible);
-	if (props.touchable !== undefined) target.setTouchable(props.touchable);
-	if (props.grayed !== undefined) target.setGrayed(props.grayed);
-	if (props.alpha !== undefined) target.setAlpha(props.alpha);
-	if (props.rotation !== undefined) target.setRotation(props.rotation);
-	if (props.tooltips !== undefined) target.setTooltips(props.tooltips);
-	if (props.blendMode !== undefined) target.setBlendMode(props.blendMode);
-	if (props.filter !== undefined) target.setFilter(props.filter);
-	if (props.filterData !== undefined) target.setFilterData(props.filterData);
-	if (props.customData !== undefined) target.setCustomData(props.customData);
 }
 
 function createAttachableNode(doc: Document, packageId: string, node: UamAttachableDisplayNode): GObject {
@@ -260,68 +181,11 @@ function insertResourceAtIndex(
 	for (const ordered of resources) pkg.addResource(ordered);
 }
 
-function validateControllerModelAgainstComponent(component: Component, model: UamControllerModel, owner: string): void {
-	if (model.pages.length === 0) {
-		throw new Error(`${owner}: controller "${model.name}" must define at least one page.`);
-	}
-	const seen = new Set<string>();
-	for (const page of model.pages) {
-		if (!page.id) {
-			throw new Error(`${owner}: controller "${model.name}" has a page with an empty id.`);
-		}
-		if (seen.has(page.id)) {
-			throw new Error(`${owner}: controller "${model.name}" has duplicate page id "${page.id}".`);
-		}
-		seen.add(page.id);
-	}
-	if (model.selectedIndex < 0 || model.selectedIndex >= model.pages.length) {
-		throw new Error(`${owner}: controller "${model.name}" selectedIndex is out of range.`);
-	}
-	const pageIds = new Set(model.pages.map((page) => page.id));
-	if (typeof model.autoRadioGroupDepth !== 'boolean') {
-		throw new Error(`${owner}: controller "${model.name}" autoRadioGroupDepth must be boolean.`);
-	}
-	if (typeof model.alias !== 'string') {
-		throw new Error(`${owner}: controller "${model.name}" alias must be a string.`);
-	}
-	if (typeof model.exported !== 'boolean') {
-		throw new Error(`${owner}: controller "${model.name}" exported must be boolean.`);
-	}
-	if (!['default', 'specific', 'branch', 'variable'].includes(model.homePageType)) {
-		throw new Error(`${owner}: controller "${model.name}" has unknown home page type "${model.homePageType}".`);
-	}
-	if (typeof model.homePage !== 'string') {
-		throw new Error(`${owner}: controller "${model.name}" homePage must be a string.`);
-	}
-	if (model.homePageType === 'specific' && !pageIds.has(model.homePage)) {
-		throw new Error(`${owner}: controller "${model.name}" references unknown home page id "${model.homePage}".`);
-	}
-	if (model.homePageType === 'variable' && !model.homePage) {
-		throw new Error(`${owner}: controller "${model.name}" requires a custom property key.`);
-	}
-	if ((model.homePageType === 'default' || model.homePageType === 'branch') && model.homePage) {
-		throw new Error(`${owner}: controller "${model.name}" home page must be empty for "${model.homePageType}".`);
-	}
-	for (const action of model.actions) {
-		for (const pageId of action.fromPageIds) {
-			if (!pageIds.has(pageId)) throw new Error(`${owner}: controller "${model.name}" action references unknown fromPage id "${pageId}".`);
-		}
-		for (const pageId of action.toPageIds) {
-			if (!pageIds.has(pageId)) throw new Error(`${owner}: controller "${model.name}" action references unknown toPage id "${pageId}".`);
-		}
-		if (action.targetNodeId && !component.getChildById(action.targetNodeId)) {
-			throw new Error(`${owner}: controller "${model.name}" action references unknown target node "${action.targetNodeId}".`);
-		}
-	}
-}
-
 function replaceControllerModel(
 	doc: Document,
-	component: Component,
 	controller: Controller,
 	model: UamControllerModel,
 ): void {
-	validateControllerModelAgainstComponent(component, model, 'updateController');
 	controller.setName(model.name);
 	controller.setAutoRadioGroupDepth(model.autoRadioGroupDepth);
 	controller.setAlias(model.alias);
@@ -494,6 +358,7 @@ function replaceGearOnDisplayNode(
 	materializeUamGear(doc, component, node, gear);
 }
 
+// Payload invariants belong to the ordered preflight; this internal executor resolves live references.
 export function applyDocumentOperation(doc: Document, operation: UamTransactionOperation): void {
 	switch (operation.kind) {
 		case 'updateProjectSettings':
@@ -701,95 +566,9 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 		}
 		case 'setDisplayNodeProps': {
 			const node = resolveDisplayNode(doc, operation.selector);
-			if (!COMMON_DISPLAY_PROPERTY_TYPES.has(node.propertyType)) {
-				throw new Error(`setDisplayNodeProps does not support display node type "${node.propertyType}" in Phase A.`);
-			}
-			applyCommonDisplayProps(node as CommonDisplayPropTarget, operation.props);
-			if (operation.props.group !== undefined) {
-				if (!GROUPABLE_DISPLAY_PROPERTY_TYPES.has(node.propertyType)) {
-					throw new Error(`Group references are not supported on display node type "${node.propertyType}".`);
-				}
-				(node as CommonDisplayPropTarget).setGroup(operation.props.group);
-			}
-			if (TEXT_DISPLAY_PROPERTY_TYPES.has(node.propertyType)) {
-				const textNode = node as GTextField;
-				if (operation.props.textProperties !== undefined) {
-					materializeUamTextProperties(textNode, operation.props.textProperties);
-				}
-				if (operation.props.text !== undefined) textNode.setText(operation.props.text);
-				if (operation.props.font !== undefined) textNode.setFont(operation.props.font);
-				if (operation.props.fontSize !== undefined) textNode.setFontSize(operation.props.fontSize);
-				if (operation.props.color !== undefined) textNode.setColor(operation.props.color);
-			}
-			if (operation.props.graphProperties !== undefined) {
-				if (node.propertyType !== PropertyType.G_GRAPH) {
-					throw new Error(`Graph display props are not supported on display node type "${node.propertyType}".`);
-				}
-				materializeUamGraphProperties(
-					node as ReturnType<Document['createGGraph']>,
-					operation.props.graphProperties,
-				);
-			}
-			if (operation.props.groupProperties !== undefined) {
-				if (node.propertyType !== PropertyType.G_GROUP) {
-					throw new Error(`Group display props are not supported on display node type "${node.propertyType}".`);
-				}
-				materializeUamGroupProperties(
-					node as ReturnType<Document['createGGroup']>,
-					operation.props.groupProperties,
-				);
-			}
-			if (operation.props.imageProperties !== undefined) {
-				if (node.propertyType !== PropertyType.G_IMAGE) {
-					throw new Error(`Image display props are not supported on display node type "${node.propertyType}".`);
-				}
-				materializeUamImageProperties(
-					node as ReturnType<Document['createGImage']>,
-					operation.props.imageProperties,
-				);
-			}
-			if (operation.props.movieClipProperties !== undefined) {
-				if (node.propertyType !== PropertyType.G_MOVIE_CLIP) {
-					throw new Error(`MovieClip display props are not supported on display node type "${node.propertyType}".`);
-				}
-				materializeUamMovieClipProperties(
-					node as ReturnType<Document['createGMovieClip']>,
-					operation.props.movieClipProperties,
-				);
-			}
-			if (operation.props.loaderProperties !== undefined) {
-				if (node.propertyType !== PropertyType.G_LOADER) {
-					throw new Error(`Loader display props are not supported on display node type "${node.propertyType}".`);
-				}
-				materializeUamLoaderProperties(
-					node as ReturnType<Document['createGLoader']>,
-					operation.props.loaderProperties,
-				);
-			}
-			if (operation.props.listProperties !== undefined) {
-				if (node.propertyType !== PropertyType.G_LIST && node.propertyType !== PropertyType.G_TREE) {
-					throw new Error(`List display props are not supported on display node type "${node.propertyType}".`);
-				}
-				materializeUamListProperties(
-					node as ReturnType<Document['createGList']> | ReturnType<Document['createGTree']>,
-					operation.props.listProperties,
-				);
-			}
-			if (operation.props.loader3DProperties !== undefined) {
-				if (node.propertyType !== PropertyType.G_LOADER_3D) {
-					throw new Error(`Loader3D display props are not supported on display node type "${node.propertyType}".`);
-				}
-				materializeUamLoader3DProperties(node as GLoader3D, operation.props.loader3DProperties);
-			}
-			if (operation.props.componentInstanceProperties !== undefined) {
-				if (node.propertyType !== PropertyType.G_COMPONENT) {
-					throw new Error(`Component instance props are not supported on display node type "${node.propertyType}".`);
-				}
-				materializeUamComponentInstanceProperties(
-					node as ReturnType<Document['createGComponent']>,
-					operation.props.componentInstanceProperties,
-				);
-			}
+			const projected = liftDisplayNode(node);
+			applyDisplayNodePropsUpdate(projected, operation.props);
+			materializeDisplayNodeProperties(node, projected);
 			return;
 		}
 		case 'attachDisplayNode': {
@@ -821,40 +600,16 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 		}
 		case 'addController': {
 			const component = resolveComponent(doc, operation.selector);
-			validateControllerModelAgainstComponent(component, operation.controller, 'addController');
 			if (component.listControllers().some((controller) => controller.getName() === operation.selector.controllerName)) {
 				throw new Error(`Controller "${operation.selector.controllerName}" already exists in component "${operation.selector.componentResourceId}".`);
 			}
-			composeController(doc, component, {
-				name: operation.controller.name,
-				selectedIndex: operation.controller.selectedIndex,
-				autoRadioGroupDepth: operation.controller.autoRadioGroupDepth,
-				alias: operation.controller.alias,
-				exported: operation.controller.exported,
-				homePageType: operation.controller.homePageType,
-				homePage: operation.controller.homePage,
-				pages: operation.controller.pages.map((page) => ({ id: page.id, name: page.name, remark: page.remark })),
-				actions: operation.controller.actions.map((action) => ({
-					name: action.name,
-					actionType: action.actionType,
-					fromPage: [...action.fromPageIds],
-					toPage: [...action.toPageIds],
-					transitionName: action.transitionName,
-					playTimes: action.playTimes,
-					delay: action.delay,
-					stopOnExit: action.stopOnExit,
-					object: action.targetNodeId || null,
-					controllerName: action.controllerName,
-					targetPage: action.targetPage,
-				})),
-			});
+			materializeUamController(doc, component, operation.controller);
 			return;
 		}
 		case 'updateController': {
 			const component = resolveComponent(doc, operation.selector);
-			validateControllerModelAgainstComponent(component, operation.controller, 'updateController');
 			const controller = resolveUniqueController(component, operation.selector);
-			replaceControllerModel(doc, component, controller, operation.controller);
+			replaceControllerModel(doc, controller, operation.controller);
 			return;
 		}
 		case 'removeController': {

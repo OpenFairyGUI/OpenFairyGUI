@@ -1,6 +1,6 @@
 import { ControllerActionType, } from '../constants.js';
 import type { Component } from '../properties/component.js';
-import type { Package } from '../properties/package.js';
+import type { ResourceReferenceEncodingContext } from './component-encoder-shared.js';
 import type {
 	MarginLike,
 	RelationOwner,
@@ -35,7 +35,7 @@ export function _writeComponentHeader(buf: WriteBuffer, comp: Component): void {
 	// Pivot
 	const pivotX = comp.getPivotX?.() ?? 0;
 	const pivotY = comp.getPivotY?.() ?? 0;
-	const hasPivot = pivotX !== 0 || pivotY !== 0;
+	const hasPivot = pivotX !== 0 || pivotY !== 0 || comp.getPivotAsAnchor();
 	buf.writeBool(hasPivot);
 	if (hasPivot) {
 		buf.writeFloat32(pivotX);
@@ -296,14 +296,14 @@ export function _writeAdvancedProps(buf: WriteBuffer, comp: Component, version: 
 
 // ─── Block 6: Extension definition ───────────────────────────────────────
 
-export function _writeExtensionDef(buf: WriteBuffer, comp: Component, pkg: Package, _version: number): void {
+export function _writeExtensionDef(buf: WriteBuffer, comp: Component, context: ResourceReferenceEncodingContext, _version: number): void {
 	const extType = comp.getExtensionType?.() ?? '';
 	if (!extType) return;
 
 	switch (extType) {
 		case 'Button': {
 			buf.writeUint8(comp.getButtonMode?.() ?? 0); // mode
-			buf.writeS(remapLocalUiUrl(pkg, comp.getSound?.() ?? null)); // sound
+			buf.writeS(remapLocalUiUrl(context, comp.getSound?.() ?? null)); // sound
 			buf.writeFloat32(comp.getSoundVolumeScale?.() ?? 1); // soundVolumeScale
 			buf.writeUint8(comp.getDownEffect?.() ?? 0); // downEffect
 			buf.writeFloat32(comp.getDownEffectValue?.() ?? 0.8); // downEffectValue
@@ -313,7 +313,7 @@ export function _writeExtensionDef(buf: WriteBuffer, comp: Component, pkg: Packa
 			// No definition data
 			break;
 		case 'ComboBox': {
-			buf.writeS(remapLocalUiUrl(pkg, comp.getDropdown?.() ?? null)); // dropdown resource URL
+			buf.writeS(remapLocalUiUrl(context, comp.getDropdown?.() ?? null)); // dropdown resource URL
 			break;
 		}
 		case 'ProgressBar': {
@@ -341,7 +341,7 @@ export function _writeExtensionDef(buf: WriteBuffer, comp: Component, pkg: Packa
 // ─── Block 5: Transitions ───────────────────────────────────────────────
 
 
-export function _writeComponentScrollPane(buf: WriteBuffer, comp: Component, pkg: Package): void {
+export function _writeComponentScrollPane(buf: WriteBuffer, comp: Component, context: ResourceReferenceEncodingContext): void {
 	// scrollType: horizontal=0, vertical=1, both=2
 	buf.writeUint8(comp.getScrollType?.() ?? 1);
 	// scrollBarDisplay: default=0, visible=1, auto=2, hidden=3
@@ -358,9 +358,9 @@ export function _writeComponentScrollPane(buf: WriteBuffer, comp: Component, pkg
 		buf.writeInt32(sbMargin.right ?? 0);
 	}
 	// vtScrollBarRes, hzScrollBarRes
-	buf.writeSEx(remapLocalUiUrl(pkg, comp.getVtScrollBarRes?.() ?? null));
-	buf.writeSEx(remapLocalUiUrl(pkg, comp.getHzScrollBarRes?.() ?? null));
+	buf.writeSEx(remapLocalUiUrl(context, comp.getVtScrollBarRes?.() ?? null));
+	buf.writeSEx(remapLocalUiUrl(context, comp.getHzScrollBarRes?.() ?? null));
 	// headerRes, footerRes (ptrRes in XML)
-	buf.writeSEx(remapLocalUiUrl(pkg, comp.getHeaderRes?.() ?? null));
-	buf.writeSEx(remapLocalUiUrl(pkg, comp.getFooterRes?.() ?? null));
+	buf.writeSEx(remapLocalUiUrl(context, comp.getHeaderRes?.() ?? null));
+	buf.writeSEx(remapLocalUiUrl(context, comp.getFooterRes?.() ?? null));
 }
