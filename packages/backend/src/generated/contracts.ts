@@ -5112,6 +5112,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"controllerOverrides": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"instanceProperties": {
 					"$ref": "#/$defs/Shape_8a3021d271"
 				},
@@ -13995,11 +13998,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"favorite": {
 					"type": "boolean"
 				},
-				"branchItemIds": {
-					"$ref": "#/$defs/Array_5444db1618_wire"
-				},
 				"fileName": {
 					"type": "string"
+				},
+				"branchItemIds": {
+					"$ref": "#/$defs/Array_5444db1618_wire"
 				},
 				"dimensions": {
 					"$ref": "#/$defs/Shape_348b454846_wire"
@@ -14134,11 +14137,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"favorite": {
 					"type": "boolean"
 				},
-				"branchItemIds": {
-					"$ref": "#/$defs/Array_5444db1618_wire"
-				},
 				"fileName": {
 					"type": "string"
+				},
+				"branchItemIds": {
+					"$ref": "#/$defs/Array_5444db1618_wire"
 				},
 				"dimensions": {
 					"$ref": "#/$defs/UamDimensions_78dd3aa7d8_wire"
@@ -14258,11 +14261,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"favorite": {
 					"type": "boolean"
 				},
-				"branchItemIds": {
-					"$ref": "#/$defs/Array_5444db1618_wire"
-				},
 				"fileName": {
 					"type": "string"
+				},
+				"branchItemIds": {
+					"$ref": "#/$defs/Array_5444db1618_wire"
 				},
 				"dimensions": {
 					"$ref": "#/$defs/Shape_348b454846_wire"
@@ -16544,6 +16547,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/UamResourceRef_3486136f6c_wire"
 				},
 				"controllerOverrides": {
+					"type": "string"
+				},
+				"fileName": {
 					"type": "string"
 				},
 				"instanceProperties": {
@@ -19964,14 +19970,14 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"favorite": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"sourcePath": {
 					"type": "string"
 				},
 				"branchItemIds": {
 					"$ref": "#/$defs/Array_5444db1618_wire"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"dimensions": {
 					"$ref": "#/$defs/Shape_348b454846_wire"
@@ -20018,14 +20024,14 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"favorite": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"sourcePath": {
 					"type": "string"
 				},
 				"branchItemIds": {
 					"$ref": "#/$defs/Array_5444db1618_wire"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"dimensions": {
 					"$ref": "#/$defs/UamDimensions_78dd3aa7d8_wire"
@@ -20082,14 +20088,14 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"favorite": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"sourcePath": {
 					"type": "string"
 				},
 				"branchItemIds": {
 					"$ref": "#/$defs/Array_5444db1618_wire"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"dimensions": {
 					"$ref": "#/$defs/Shape_348b454846_wire"
@@ -24435,6 +24441,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"controllerOverrides": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"instanceProperties": {
 					"$ref": "#/$defs/Shape_8a3021d271_read"
 				},
@@ -27464,14 +27473,14 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"favorite": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"sourcePath": {
 					"type": "string"
 				},
 				"branchItemIds": {
 					"$ref": "#/$defs/Array_5444db1618_read"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"dimensions": {
 					"$ref": "#/$defs/Shape_348b454846_read"
@@ -27591,14 +27600,14 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"favorite": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"sourcePath": {
 					"type": "string"
 				},
 				"branchItemIds": {
 					"$ref": "#/$defs/Array_5444db1618_read"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"dimensions": {
 					"$ref": "#/$defs/UamDimensions_78dd3aa7d8_read"
@@ -27724,14 +27733,14 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"favorite": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"sourcePath": {
 					"type": "string"
 				},
 				"branchItemIds": {
 					"$ref": "#/$defs/Array_5444db1618_read"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"dimensions": {
 					"$ref": "#/$defs/Shape_348b454846_read"
@@ -33736,5 +33745,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "881800b43ce7307d218f8610cd2900106b43a2ad182c7633c56240511d8b859c"
+	"digest": "8f9541801d4c47ecc6b32528e6434139025a62ae775a416900738f2b9ad0149d"
 };

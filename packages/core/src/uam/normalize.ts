@@ -702,6 +702,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				group: node.group ?? '',
 				resource: normalizeResourceRef(node.resource),
 				...(node.controllerOverrides ? { controllerOverrides: node.controllerOverrides } : {}),
+				...(node.fileName ? { fileName: node.fileName } : {}),
 				...(node.propertyOverrides?.length
 					? { propertyOverrides: node.propertyOverrides.map((property) => ({ ...property })) }
 					: {}),

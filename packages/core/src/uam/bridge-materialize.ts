@@ -746,6 +746,7 @@ export function materializeDisplayNodeProperties(target: GObject, node: UamDispl
 			.setSrc(componentNode.resource.resourceId)
 			.setPackageId(componentNode.resource.packageId ?? '')
 			.setControllerOverrides(componentNode.controllerOverrides ?? '')
+			.setFileName(componentNode.fileName ?? '')
 			.setPropertyOverrides((componentNode.propertyOverrides ?? []).map((property) => ({ ...property })));
 		materializeUamComponentInstanceProperties(component, componentNode.instanceProperties);
 		return component;
@@ -995,7 +996,8 @@ function serializeGenericGearValue(kind: UamGenericValueGearBinding['kind'], val
 		}
 		case 'color': {
 			const color = value as { color?: string; outlineColor?: string | null };
-			return `${color.color ?? '#ffffff'},${color.outlineColor ?? ''}`;
+			const base = color.color ?? '#ffffff';
+			return color.outlineColor ? `${base},${color.outlineColor}` : base;
 		}
 		case 'animation': {
 			const animation = value as { frame?: number; playing?: boolean; animationName?: string; skinName?: string };

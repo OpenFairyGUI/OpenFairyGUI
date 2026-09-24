@@ -586,6 +586,9 @@ function validateDisplayNode(
 			pushIssue(issues, `${path}.pivotAsAnchor`, 'Display node pivotAsAnchor must be boolean.');
 		}
 	}
+	if (node.kind === 'component' && node.fileName !== undefined && typeof node.fileName !== 'string') {
+		pushIssue(issues, `${path}.fileName`, 'Component file name hint must be a string.');
+	}
 	if (
 		node.kind === 'component' &&
 		node.controllerOverrides !== undefined &&

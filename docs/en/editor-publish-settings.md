@@ -152,6 +152,10 @@ Size, Look, Color, Animation, and FontSize gears also use `defaultValue: null` f
 
 The published resource closure includes component-root `showSound` / `hideSound`: referenced unexported sounds in the same package are published with the component, and sounds in other packages create package dependencies.
 
+A component instance's `fileName` is an editor file hint preserved through project round trips; `src` and optional `pkg` still identify the target. An absent hint remains omitted.
+
+`gearColor` states and defaults are written as a single color when no outline color is configured. An explicitly empty second field is also normalized to a single color. Configured outline colors and `-` states without an override retain their meaning.
+
 ## Project resource-tree metadata
 
 Project source data lives in `.fairy`, `settings/`, `assets/` and `assets_<branch>/`. Project saves preserve unrelated root entries, including `.git` and `Library`; these entries are outside project-tree symlink validation. Symlinks within project assets and settings remain unsupported for reading and saving.

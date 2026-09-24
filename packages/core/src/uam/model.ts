@@ -437,6 +437,8 @@ export interface UamComponentRefNode extends UamGroupableDisplayNodeBase {
 	resource: UamResourceRef;
 	/** Comma-separated controller name/page ID pairs configured on this instance. */
 	controllerOverrides?: string;
+	/** Preserved editor file hint for this component instance; resource identifies the target. */
+	fileName?: string;
 	instanceProperties?: UamComponentInstanceProperties;
 	propertyOverrides?: UamComponentPropertyOverride[];
 }
