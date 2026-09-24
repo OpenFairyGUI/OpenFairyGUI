@@ -5068,6 +5068,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"controllerOverrides": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"instanceProperties": {
 					"$ref": "#/$defs/Shape_8a3021d271"
 				},
@@ -12752,11 +12755,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"favorite": {
 					"type": "boolean"
 				},
-				"branchItemIds": {
-					"$ref": "#/$defs/Array_5444db1618"
-				},
 				"fileName": {
 					"type": "string"
+				},
+				"branchItemIds": {
+					"$ref": "#/$defs/Array_5444db1618"
 				},
 				"dimensions": {
 					"$ref": "#/$defs/Shape_348b454846"
@@ -12803,11 +12806,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"favorite": {
 					"type": "boolean"
 				},
-				"branchItemIds": {
-					"$ref": "#/$defs/Array_5444db1618"
-				},
 				"fileName": {
 					"type": "string"
+				},
+				"branchItemIds": {
+					"$ref": "#/$defs/Array_5444db1618"
 				},
 				"dimensions": {
 					"$ref": "#/$defs/UamDimensions_78dd3aa7d8"
@@ -12861,11 +12864,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"favorite": {
 					"type": "boolean"
 				},
-				"branchItemIds": {
-					"$ref": "#/$defs/Array_5444db1618"
-				},
 				"fileName": {
 					"type": "string"
+				},
+				"branchItemIds": {
+					"$ref": "#/$defs/Array_5444db1618"
 				},
 				"dimensions": {
 					"$ref": "#/$defs/Shape_348b454846"
@@ -13349,14 +13352,14 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"favorite": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"sourcePath": {
 					"type": "string"
 				},
 				"branchItemIds": {
 					"$ref": "#/$defs/Array_5444db1618"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"dimensions": {
 					"$ref": "#/$defs/Shape_348b454846"
@@ -13403,14 +13406,14 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"favorite": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"sourcePath": {
 					"type": "string"
 				},
 				"branchItemIds": {
 					"$ref": "#/$defs/Array_5444db1618"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"dimensions": {
 					"$ref": "#/$defs/UamDimensions_78dd3aa7d8"
@@ -13467,14 +13470,14 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"favorite": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"sourcePath": {
 					"type": "string"
 				},
 				"branchItemIds": {
 					"$ref": "#/$defs/Array_5444db1618"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"dimensions": {
 					"$ref": "#/$defs/Shape_348b454846"
@@ -17892,6 +17895,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"controllerOverrides": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"instanceProperties": {
 					"$ref": "#/$defs/Shape_8a3021d271_read"
 				},
@@ -20909,14 +20915,14 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"favorite": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"sourcePath": {
 					"type": "string"
 				},
 				"branchItemIds": {
 					"$ref": "#/$defs/Array_5444db1618_read"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"dimensions": {
 					"$ref": "#/$defs/Shape_348b454846_read"
@@ -21036,14 +21042,14 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"favorite": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"sourcePath": {
 					"type": "string"
 				},
 				"branchItemIds": {
 					"$ref": "#/$defs/Array_5444db1618_read"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"dimensions": {
 					"$ref": "#/$defs/UamDimensions_78dd3aa7d8_read"
@@ -21169,14 +21175,14 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"favorite": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"sourcePath": {
 					"type": "string"
 				},
 				"branchItemIds": {
 					"$ref": "#/$defs/Array_5444db1618_read"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"dimensions": {
 					"$ref": "#/$defs/Shape_348b454846_read"
@@ -24155,5 +24161,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "758763ae4b6724a25a82dc0edbe10c7c13478589bdabf84b847dd2d7b745331d"
+	"digest": "d3ec1cc02994d7af79610540dec9369f9fe8d03de795c754cd1d12ec8b214581"
 };
