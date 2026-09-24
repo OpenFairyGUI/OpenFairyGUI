@@ -1,6 +1,6 @@
 {
 	"name": "@openfairygui/functions",
-	"version": "0.6.2",
+	"version": "0.6.3",
 	"description": "FairyGUI Headless Authoring SDK — composable transform functions.",
 	"author": "OpenFairyGUI Contributors",
 	"license": "MIT",

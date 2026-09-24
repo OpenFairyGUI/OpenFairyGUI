@@ -6,10 +6,21 @@
 
 Release comparisons:
 
-- Stable line (`main`): [v0.6.2...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.2...main)
-- Development line (`next`): [v0.6.2...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.2...next)
+- Stable line (`main`): [v0.6.3...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.3...main)
+- Development line (`next`): [v0.6.3...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.3...next)
 
 ## v0.6.x
+
+### v0.6.3 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.3))
+
+Bug Fixes:
+
+- core: Preserve component-instance and component-derived page controllers through UAM conversion, binary round trips and project writing, with formal optional fields and reference validation.
+- core: Normalize optional animation and size Gear fields consistently, preventing valid compact values from blocking project saves. Fixes [#152](https://github.com/OpenFairyGUI/OpenFairyGUI/issues/152).
+
+Other:
+
+- backend, docs: Regenerate public schemas and installed documentation; add save/reopen and binary regression coverage, exercise successful LayaBox saves and publication, and synchronize bilingual writing guidance.
 
 ### v0.6.2 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.2))
 
