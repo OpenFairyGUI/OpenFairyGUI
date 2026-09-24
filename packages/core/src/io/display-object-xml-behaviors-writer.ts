@@ -85,7 +85,7 @@ function normalizeGearLookSegment(segment: string, fixedAlpha: boolean): string 
 function normalizeGearColorSegment(segment: string, compactOutline: boolean): string {
 	if (!segment || segment === '-') return segment;
 	const parts = segment.split(',');
-	if (parts.length === 1) return formatXmlColor(parts[0] ?? '');
+	if (parts.length === 1 || (parts.length === 2 && parts[1] === '')) return formatXmlColor(parts[0] ?? '');
 	const normalized = parts.map((part) => formatXmlColor(part));
 	if (compactOutline && normalized.length >= 2 && isDefaultBlackColor(normalized[1])) {
 		return normalized[0] ?? '';
