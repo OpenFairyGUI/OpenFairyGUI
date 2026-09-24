@@ -152,6 +152,10 @@ Size, Look, Color, Animation, and FontSize gears also use `defaultValue: null` f
 
 The published resource closure includes component-root `showSound` / `hideSound`: referenced unexported sounds in the same package are published with the component, and sounds in other packages create package dependencies.
 
+A component instance's `fileName` is an editor file hint preserved through project round trips; `src` and optional `pkg` still identify the target. An absent hint remains omitted.
+
+`gearColor` states and defaults are written as a single color when no outline color is configured. An explicitly empty second field is also normalized to a single color. Configured outline colors and `-` states without an override retain their meaning.
+
 ## Project resource-tree metadata
 
 Component and asset resource nodes in `package.xml` and `package_branch.xml` use `exported="true"` and `favorite="true"` to store export and favorite state. The corresponding attribute is omitted when disabled. SWF uses the formal `SwfResource` model for `<swf>` nodes, and the UAM `swf` resource preserves its source file, export state, and favorite state. UAM stores these values as `resource.exported` and `resource.favorite`; public transactions set the target Boolean idempotently through `setResourceExported` and `setResourceFavorite`.

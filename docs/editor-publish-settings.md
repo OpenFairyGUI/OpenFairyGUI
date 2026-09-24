@@ -158,6 +158,10 @@ Text/Icon Gear 按页保留未覆盖值、空字符串和普通 `-` 文本，默
 
 发布资源闭包包含组件根的 `showSound` / `hideSound`：同包未导出音效会随引用组件发布，跨包音效形成包依赖。
 
+组件实例的 `fileName` 是随工程往返保留的编辑器文件提示，目标引用仍由 `src` 和可选的 `pkg` 标识。未提供提示时保持省略。
+
+`gearColor` 的状态及默认值在未配置描边颜色时写为单个颜色；显式空的第二字段同样规范化为单个颜色。已配置的描边颜色和 `-` 未覆盖状态保持原有含义。
+
 ## 工程资源树元数据
 
 `package.xml` 与 `package_branch.xml` 的 component/asset 资源节点使用 `exported="true"` 与 `favorite="true"` 记录导出和收藏状态；未导出、未收藏时省略对应属性。SWF 使用正式的 `SwfResource` 模型读写 `<swf>` 节点，并通过 UAM `swf` 资源保留源文件、导出状态与收藏状态。UAM 通过 `resource.exported`、`resource.favorite` 承载这些字段，公开事务分别使用幂等的 `setResourceExported`、`setResourceFavorite` 设置目标布尔值。
