@@ -6,10 +6,21 @@
 
 发布比较：
 
-- 稳定线（`main`）：[v0.6.1...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.1...main)
-- 开发线（`next`）：[v0.6.1...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.1...next)
+- 稳定线（`main`）：[v0.6.2...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.2...main)
+- 开发线（`next`）：[v0.6.2...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.2...next)
 
 ## v0.6.x
+
+### v0.6.2（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.2)）
+
+缺陷修复：
+
+- core：通过正式可选字段及校验，在 UAM 提升、规范化和物化过程中保留组件实例的 `fileName` 提示。
+- core：未配置描边颜色时，Color Gear 值不再追加尾逗号，并统一规范化显式空描边字段。受支持工程在编辑、保存及重开后保持完整 UAM 保真度。修复 [#149](https://github.com/OpenFairyGUI/OpenFairyGUI/issues/149)。
+
+其他：
+
+- backend、docs：重新生成公开 schema 和随包文档，新增七个往返及保存回归案例，同步双语工程写回说明。
 
 ### v0.6.1（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.1)）
 
