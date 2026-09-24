@@ -608,6 +608,8 @@ export interface UamMovieClipNode extends UamGroupableDisplayNodeBase, UamMovieC
 }
 
 interface UamComponentDerivedNodeBase extends UamGroupableDisplayNodeBase {
+	/** Parent component controller driving this instance's paged scrolling. */
+	pageController?: string;
 	src: string;
 	packageId: string;
 }

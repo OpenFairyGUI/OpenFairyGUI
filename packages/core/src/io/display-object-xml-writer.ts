@@ -305,6 +305,10 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 	const extension = type === 'GComponent'
 		? writeComponentInstanceXmlNode(attrs, obj as GComponent)
 		: undefined;
+	if (EXTENSION_TYPE[type]) {
+		const pageController = (obj as GComponent).getPageController();
+		if (pageController) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.pageController, pageController);
+	}
 
 	const objectProtocol = DISPLAY_OBJECT_PROTOCOL_BY_TYPE[type] ?? PROJECT_XML_PROTOCOL.componentInstance;
 	writeCommonDisplayState(attrs, obj, objectProtocol);

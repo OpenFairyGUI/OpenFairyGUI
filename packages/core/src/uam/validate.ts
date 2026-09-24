@@ -494,7 +494,9 @@ function validateDisplayNode(
 	if (node.kind === 'component' && node.fileName !== undefined && typeof node.fileName !== 'string') {
 		pushIssue(issues, `${path}.fileName`, 'Component file name hint must be a string.');
 	}
-	if (node.kind === 'component' && node.pageController !== undefined) {
+	if ((node.kind === 'component' || node.kind === 'button' || node.kind === 'label'
+		|| node.kind === 'comboBox' || node.kind === 'progressBar' || node.kind === 'slider'
+		|| node.kind === 'scrollBar') && node.pageController !== undefined) {
 		if (typeof node.pageController !== 'string') {
 			pushIssue(issues, `${path}.pageController`, 'Component page controller must be a string.');
 		} else if (node.pageController && !controllerMap.has(node.pageController)) {

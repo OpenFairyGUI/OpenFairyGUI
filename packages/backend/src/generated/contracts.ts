@@ -6887,6 +6887,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"soundVolumeScale": {
 					"type": "number"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -7041,6 +7044,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"soundVolumeScale": {
 					"type": "number"
+				},
+				"pageController": {
+					"type": "string"
 				},
 				"src": {
 					"type": "string"
@@ -7210,6 +7216,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"soundVolumeScale": {
 					"type": "number"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -7369,6 +7378,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"soundVolumeScale": {
 					"type": "number"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -7517,6 +7529,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"wholeNumbers": {
 					"type": "boolean"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -7650,6 +7665,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"fixedGripSize": {
 					"type": "boolean"
+				},
+				"pageController": {
+					"type": "string"
 				},
 				"src": {
 					"type": "string"
@@ -19750,6 +19768,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"soundVolumeScale": {
 					"type": "number"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -19904,6 +19925,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"soundVolumeScale": {
 					"type": "number"
+				},
+				"pageController": {
+					"type": "string"
 				},
 				"src": {
 					"type": "string"
@@ -20073,6 +20097,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"soundVolumeScale": {
 					"type": "number"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -20232,6 +20259,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"soundVolumeScale": {
 					"type": "number"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -20380,6 +20410,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"wholeNumbers": {
 					"type": "boolean"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -20513,6 +20546,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"fixedGripSize": {
 					"type": "boolean"
+				},
+				"pageController": {
+					"type": "string"
 				},
 				"src": {
 					"type": "string"
@@ -24167,5 +24203,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "132b66770f8489e610d2b97bf7753262bde5dc9ef1ecc7c89a47a0243c773ca2"
+	"digest": "5718c7534651570432e9dda5a5cda367cbc292e71e59f5f6ad2e1c55321dee5a"
 };
