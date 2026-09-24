@@ -1,0 +1,104 @@
+{
+  "requestedAttempts": 20,
+  "execution": "sequential",
+  "case": "inspect-validate",
+  "timeoutSeconds": 180,
+  "intervalSeconds": 30,
+  "runner": "claude",
+  "explicitSettings": true,
+  "modelOverride": null,
+  "status": "cancelled_by_user",
+  "cancelledAt": "2026-09-24T16:34:58.485Z",
+  "completedAttempts": 13,
+  "interruptedAttempt": 14,
+  "notStartedAttempts": [
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "modelSuccessRate": null,
+  "reason": "User reported correcting the configuration and requested one new attempt only.",
+  "attempts": [
+    {
+      "attempt": 1,
+      "report": "attempt-1.json",
+      "passed": 0,
+      "timedOut": true
+    },
+    {
+      "attempt": 2,
+      "report": "attempt-2.json",
+      "passed": 0,
+      "timedOut": true
+    },
+    {
+      "attempt": 3,
+      "report": "attempt-3.json",
+      "passed": 0,
+      "timedOut": true
+    },
+    {
+      "attempt": 4,
+      "report": "attempt-4.json",
+      "passed": 0,
+      "timedOut": true
+    },
+    {
+      "attempt": 5,
+      "report": "attempt-5.json",
+      "passed": 0,
+      "timedOut": true
+    },
+    {
+      "attempt": 6,
+      "report": "attempt-6.json",
+      "passed": 0,
+      "timedOut": true
+    },
+    {
+      "attempt": 7,
+      "report": "attempt-7.json",
+      "passed": 0,
+      "timedOut": true
+    },
+    {
+      "attempt": 8,
+      "report": "attempt-8.json",
+      "passed": 0,
+      "timedOut": true
+    },
+    {
+      "attempt": 9,
+      "report": "attempt-9.json",
+      "passed": 0,
+      "timedOut": true
+    },
+    {
+      "attempt": 10,
+      "report": "attempt-10.json",
+      "passed": 0,
+      "timedOut": true
+    },
+    {
+      "attempt": 11,
+      "report": "attempt-11.json",
+      "passed": 0,
+      "timedOut": true
+    },
+    {
+      "attempt": 12,
+      "report": "attempt-12.json",
+      "passed": 0,
+      "timedOut": true
+    },
+    {
+      "attempt": 13,
+      "report": "attempt-13.json",
+      "passed": 0,
+      "timedOut": true
+    }
+  ]
+}

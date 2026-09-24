@@ -1,0 +1,66 @@
+{
+  "recordedAt": "2026-09-24T16:41:17.289Z",
+  "requestedInvocations": 1,
+  "clientVersion": "2.1.281",
+  "modelReported": "claude-opus-5-5[1m]",
+  "modelRequested": null,
+  "timeoutSeconds": 300,
+  "timedOut": true,
+  "isolatedTools": true,
+  "modelToolCalls": 0,
+  "apiRetries": [
+    {
+      "attempt": 1,
+      "status": 503,
+      "error": "server_error"
+    },
+    {
+      "attempt": 2,
+      "status": 503,
+      "error": "server_error"
+    },
+    {
+      "attempt": 3,
+      "status": 503,
+      "error": "server_error"
+    },
+    {
+      "attempt": 4,
+      "status": 503,
+      "error": "server_error"
+    },
+    {
+      "attempt": 5,
+      "status": 503,
+      "error": "server_error"
+    },
+    {
+      "attempt": 6,
+      "status": 503,
+      "error": "server_error"
+    },
+    {
+      "attempt": 7,
+      "status": 503,
+      "error": "server_error"
+    },
+    {
+      "attempt": 8,
+      "status": 503,
+      "error": "server_error"
+    },
+    {
+      "attempt": 9,
+      "status": 503,
+      "error": "server_error"
+    },
+    {
+      "attempt": 10,
+      "status": 503,
+      "error": "server_error"
+    }
+  ],
+  "modelSuccessRate": null,
+  "status": "no_valid_model_result",
+  "report": "0.6.1-claude-reconfigured-pilot.json"
+}

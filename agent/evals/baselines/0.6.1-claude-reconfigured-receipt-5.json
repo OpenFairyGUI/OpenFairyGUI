@@ -1,0 +1,22 @@
+{
+  "recordedAt": "2026-09-24T17:19:20.313Z",
+  "requestedInvocations": 1,
+  "clientVersion": "2.1.281",
+  "modelReported": "claude-opus-5-5",
+  "modelRequested": null,
+  "timedOut": false,
+  "isolatedTools": true,
+  "status": "passed",
+  "passed": 1,
+  "total": 1,
+  "toolNames": [
+    "mcp__ofgui__openfairygui_backend_open_session",
+    "mcp__ofgui__openfairygui_backend_get_project_outline",
+    "mcp__ofgui__openfairygui_backend_validate_session",
+    "mcp__ofgui__openfairygui_backend_close_session",
+    "StructuredOutput"
+  ],
+  "identicalArtifactsAndTaskHash": true,
+  "scope": "Single inspect-validate pilot, not the full eleven-task suite.",
+  "report": "0.6.1-claude-reconfigured-pilot-5.json"
+}

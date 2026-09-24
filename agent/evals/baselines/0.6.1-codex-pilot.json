@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 1,
+  "runner": "codex",
+  "modelRequested": null,
+  "installed": {
+    "packageName": "@openfairygui/backend",
+    "packageVersion": "0.6.1",
+    "nodeEngine": ">=22",
+    "documentationDigest": "a0a0d1467b5f8ae33060e686e431fa98d512b15564848b36c0c4a0b374cbb219",
+    "BACKEND_CONTRACT_VERSION": "3.0.0",
+    "BACKEND_CAPABILITY_SCHEMA_VERSION": 15,
+    "contractDigest": "881800b43ce7307d218f8610cd2900106b43a2ad182c7633c56240511d8b859c"
+  },
+  "provenance": {
+    "commit": "176dff23be168a084d3831586d686e49163bca2f",
+    "dirty": true,
+    "node": "v24.21.0",
+    "platform": "win32",
+    "arch": "x64",
+    "consumerLockSha256": "c1beea86fce252764e3515e8110974f1f20f1c8ed01519d392a662414afd4869",
+    "harness": {
+      "scripts/agent-evals.mjs": "14b5b46c3b5fcf44e9bbe1d71b6846b43aa08a67b89e7f4d1b079a914e4bd795",
+      "scripts/pack-smoke.mjs": "eb3eae63bbf02b27e951d1c7d70e97aff832087abbf4c4f11e732ff352d0509c",
+      "scripts/repo-utils.mjs": "223a44c07ef6c27edf5802a420d31e046aa88f399184bbef5e819d2a025335e1",
+      "scripts/consumer/agent-eval.mjs": "1b4b4c040bee46c31f13464e357112c63c2760ef9a8b4c04adf177328cdecbd8",
+      "scripts/consumer/artifact-eval.mjs": "ead94d61bb2bd9acba7217ace9af7498771acd6a426645c48d9e0927f53f688d",
+      "scripts/consumer/runtime.mjs": "71e798874e35ce4b588793987076e2caddf9ea5e5143fea4f1045e47443c6f17",
+      "scripts/consumer/helpers.mjs": "d7bf999381dac5855cd9f74abb5c4feac405bec11695bc92c158598a5350f31b",
+      "scripts/agent-eval-checks.mjs": "f62439ec65b2a02fc663a99139a4df0826327df250d9b92794cd8b436c30e5b1",
+      "examples/create-demo-project.mjs": "013b66ec6341da107ebcf4d2b3e89042fe9aae1d7e3521594747f0e29649628c",
+      "examples/publish-restore/index.mjs": "6b6b621be853408c713f44a5706d2778faaab4a71ba11a7d815d35ac39eb713a",
+      "agent/evals/tasks.json": "2e484edc2a7d57b5b7139a027855be85f73c41e5b8b9e8f60cdda168d376af69"
+    },
+    "artifacts": [
+      {
+        "name": "@openfairygui/core",
+        "version": "0.6.1",
+        "file": "openfairygui-core-0.6.1.tgz",
+        "sha256": "89f4cd5dde6fcb09952226a57cefdf6405b15b9728ea0dc783e0faa9ffdc3ec1"
+      },
+      {
+        "name": "@openfairygui/functions",
+        "version": "0.6.1",
+        "file": "openfairygui-functions-0.6.1.tgz",
+        "sha256": "8cbf023cba57d34d4762f333c7bf40b53d94f5199008dd3a4c66878eaf671f8c"
+      },
+      {
+        "name": "@openfairygui/backend",
+        "version": "0.6.1",
+        "file": "openfairygui-backend-0.6.1.tgz",
+        "sha256": "a4b5b12c66cfef020aec4fa68b960d0b86133e4ed1905f367df7855fec9c0813"
+      },
+      {
+        "name": "@openfairygui/cli",
+        "version": "0.6.1",
+        "file": "openfairygui-cli-0.6.1.tgz",
+        "sha256": "4d2b10cdbe808aac4b1b749f7589f8b357d5f54d18ab2ff5bb590db40dba8ae8"
+      },
+      {
+        "name": "@openfairygui/mcp",
+        "version": "0.6.1",
+        "file": "openfairygui-mcp-0.6.1.tgz",
+        "sha256": "88386c23ff9b2ea9f2b2df66b56ce26080be662fc27afa00573a06f1e1a748da"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "taskId": "inspect-validate",
+      "runner": "codex",
+      "passed": true,
+      "checks": {
+        "runnerCompleted": true,
+        "isolatedTools": true,
+        "projectReadable": true,
+        "validProject": true,
+        "exactSemantics": true,
+        "exactFiles": true,
+        "noOutOfScopeAccess": true,
+        "observedValidation": true,
+        "inspectionFacts": true,
+        "noEdit": true
+      },
+      "unexpectedFiles": [],
+      "observations": {
+        "durationMs": 50619,
+        "toolCalls": 11,
+        "discoveries": [
+          {
+            "tools": [
+              {
+                "name": "openfairygui_backend_get_capabilities",
+                "inputBytes": 114,
+                "outputBytes": 20877
+              },
+              {
+                "name": "openfairygui_backend_open_session",
+                "inputBytes": 186,
+                "outputBytes": 23785
+              },
+              {
+                "name": "openfairygui_backend_get_session",
+                "inputBytes": 182,
+                "outputBytes": 21903
+              },
+              {
+                "name": "openfairygui_backend_get_project_outline",
+                "inputBytes": 182,
+                "outputBytes": 24457
+              },
+              {
+                "name": "openfairygui_backend_query_entity",
+                "inputBytes": 2800,
+                "outputBytes": 87684
+              },
+              {
+                "name": "openfairygui_backend_validate_session",
+                "inputBytes": 182,
+                "outputBytes": 23326
+              },
+              {
+                "name": "openfairygui_backend_preflight_transaction",
+                "inputBytes": 97709,
+                "outputBytes": 35542
+              },
+              {
+                "name": "openfairygui_backend_apply_transaction",
+                "inputBytes": 97709,
+                "outputBytes": 31726
+              },
+              {
+                "name": "openfairygui_backend_save_session",
+                "inputBytes": 448,
+                "outputBytes": 26613
+              },
+              {
+                "name": "openfairygui_backend_close_session",
+                "inputBytes": 182,
+                "outputBytes": 22252
+              },
+              {
+                "name": "openfairygui_docs_read",
+                "inputBytes": 155,
+                "outputBytes": 2
+              }
+            ],
+            "inputBytes": 199849,
+            "outputBytes": 318167
+          }
+        ],
+        "clientToolCalls": 12,
+        "clientFailedCalls": 0,
+        "failedCalls": 0,
+        "staleRejections": 0,
+        "documentationReads": [],
+        "previews": 0,
+        "repeatedApplyArguments": 0,
+        "repeatedSuccessfulOperations": 0,
+        "usage": [
+          {
+            "input_tokens": 138765,
+            "cached_input_tokens": 109696,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 448,
+            "reasoning_output_tokens": 0
+          }
+        ]
+      },
+      "error": null,
+      "exitCode": 0,
+      "timedOut": false,
+      "clientWarnings": []
+    }
+  ],
+  "passed": 1,
+  "total": 1,
+  "modelSuccessRate": 1
+}

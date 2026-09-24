@@ -1,0 +1,45 @@
+{
+  "date": "2026-09-25",
+  "sourceCommit": "b40d1a0447c4315a5df35d8102713484f17e001d",
+  "sourceDirty": true,
+  "packageVersion": "0.6.1",
+  "cohort": "integrated next plus bounded MCP error text",
+  "timeoutSeconds": 600,
+  "clients": {
+    "claude": {
+      "version": "2.1.281",
+      "reportedModels": [
+        "claude-opus-5-5"
+      ],
+      "modelRequested": null,
+      "passed": 11,
+      "total": 11
+    },
+    "codex": {
+      "version": "0.154.0",
+      "modelRequested": null,
+      "resolvedModel": "not inferred",
+      "passed": 11,
+      "total": 11
+    },
+    "reference": {
+      "passed": 11,
+      "total": 11,
+      "modelScore": false
+    }
+  },
+  "sameFiveArtifactHashes": true,
+  "sameHarnessHashes": true,
+  "sameInstalledContractAndDocs": true,
+  "firstClaudeRun": {
+    "report": "0.6.1-claude-full.json",
+    "passed": 9,
+    "total": 11,
+    "failures": {
+      "missing-source-bytes": "Incorrect blocker after text-only failed-call response omitted nested diagnostic codes. Fixed in MCP; full suite rerun.",
+      "restore-trusted": "Reported 5 resources instead of 4; real artifacts, semantics and decoded pixels passed."
+    }
+  },
+  "gradingRulesChanged": false,
+  "scope": "One local full run per client on the fixed cohort; not a published-release certification or universal success rate."
+}
