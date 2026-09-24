@@ -1,4 +1,5 @@
 import test from 'ava';
+import sharpImplementation from 'sharp';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -10,9 +11,11 @@ import {
 	type UamDisplayNode,
 	type UamProject,
 } from '@openfairygui/core/uam';
-import { publish } from '@openfairygui/functions';
+import { publish, type AtlasRasterBackend } from '@openfairygui/functions';
 import { BackendRuntime } from '../src/index.js';
 import { createBackendRuntime } from './helpers.js';
+
+const sharp = sharpImplementation as typeof sharpImplementation & AtlasRasterBackend;
 
 const LAYABOX_PROJECT_PATH = getFixtureProjectPath(
 	'FairyGUI-layabox',
@@ -163,7 +166,7 @@ test('real LayaBox UIProject supports browser-safe UAM session edit with undo an
 	t.deepEqual(undoNode.position, originalNode.position);
 });
 
-test('real LayaBox UIProject rejects lossy file-backed UAM saves before writing', async (t) => {
+test('real LayaBox UIProject preserves file-backed UAM edits through save and publish', async (t) => {
 	const sourceRoot = path.dirname(LAYABOX_PROJECT_PATH);
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-layabox-uam-save-'));
 	const projectRoot = path.join(tmpDir, 'UIProject');
@@ -173,7 +176,6 @@ test('real LayaBox UIProject rejects lossy file-backed UAM saves before writing'
 
 	try {
 		await fs.cp(sourceRoot, projectRoot, { recursive: true });
-		const originalFairy = await fs.readFile(fairyPath);
 
 		const io = new NodeIO();
 		const doc = await io.readProject(fairyPath);
@@ -199,7 +201,7 @@ test('real LayaBox UIProject rejects lossy file-backed UAM saves before writing'
 		const opened = await runtime.openSession({ projectPath: projectRoot });
 		t.true(opened.ok);
 		if (!opened.ok) return;
-		t.is(opened.data.uamFidelity, 'unsupported');
+		t.is(opened.data.uamFidelity, 'full');
 		sessionId = opened.data.sessionId;
 
 		const applied = await runtime.applyTransaction({
@@ -230,13 +232,8 @@ test('real LayaBox UIProject rejects lossy file-backed UAM saves before writing'
 		if (!applied.ok) return;
 
 		const saved = await runtime.saveSession({ sessionId });
-		t.false(saved.ok);
-		if (!saved.ok) {
-			const failure = saved as Extract<typeof saved, { ok: false }>;
-			t.is(failure.error.code, 'uam_fidelity_unsupported');
-			t.deepEqual(await fs.readFile(fairyPath), originalFairy);
-			return;
-		}
+		t.true(saved.ok);
+		if (!saved.ok) return;
 		t.false(saved.data.dirty);
 		t.is(saved.data.lastSavedRevision, 1);
 
@@ -257,6 +254,7 @@ test('real LayaBox UIProject rejects lossy file-backed UAM saves before writing'
 		const publishDoc = await io.readProject(fairyPath);
 		await publishDoc.transform(publish({
 			output: publishOut,
+			encoder: sharp,
 			fs: createPublishFs(),
 			basePath: path.join(projectRoot, 'assets'),
 		}));

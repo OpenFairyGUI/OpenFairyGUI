@@ -108,7 +108,7 @@ function normalizeGearSizeSegment(segment: string, fixedScale: boolean, omitIden
 		formatProjectInt32(Number(parts[0] ?? 0), 'gearSize width'),
 		formatProjectInt32(Number(parts[1] ?? 0), 'gearSize height'),
 	];
-	if (parts.length >= 4) {
+	if (parts.length >= 4 || !omitIdentityScale) {
 		if (omitIdentityScale && isIdentityGearSizeScale(segment)) {
 			return normalized.join(',');
 		}
@@ -118,7 +118,7 @@ function normalizeGearSizeSegment(segment: string, fixedScale: boolean, omitIden
 				return Number.isFinite(numeric) ? numeric.toFixed(2) : String(value ?? '');
 			}
 			: (value: string | undefined) => formatTrimmedFixed(Number(value ?? 0), 2);
-		normalized.push(scaleFormatter(parts[2]), scaleFormatter(parts[3]));
+		normalized.push(scaleFormatter(parts[2] ?? '1'), scaleFormatter(parts[3] ?? '1'));
 	}
 	return normalized.join(',');
 }
@@ -132,6 +132,14 @@ function normalizeGearXYSegment(segment: string): string {
 		formatProjectInt32(Number(parts[1] ?? 0), 'gearXY y'),
 		...parts.slice(2),
 	].join(',');
+}
+
+function normalizeGearAnimationSegment(segment: string): string {
+	if (!segment || segment === '-') return segment;
+	const parts = segment.split(',');
+	// Frame and play state are required; only trailing optional names are omitted.
+	while (parts.length > 2 && parts.at(-1) === '') parts.pop();
+	return parts.join(',');
 }
 
 function shouldCompactTextGearColor(ownerType?: string, ownerName?: string): boolean {
@@ -162,6 +170,8 @@ function normalizeGearXmlValue(gearType: number, value: unknown, ownerType?: str
 			const compactOutline = !textLike || shouldCompactTextGearColor(ownerType, ownerName);
 			return raw.split('|').map((segment) => normalizeGearColorSegment(segment, compactOutline)).join('|');
 		}
+		case GearType.Animation:
+			return raw.split('|').map(normalizeGearAnimationSegment).join('|');
 		default:
 			return raw;
 	}

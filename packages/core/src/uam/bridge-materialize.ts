@@ -416,6 +416,7 @@ export function materializeUamComponentProperties(
 type MaterializedComponentDerivedControl = MaterializedDisplayNodeBase & {
 	setSrc(src: string): MaterializedComponentDerivedControl;
 	setPackageId(packageId: string): MaterializedComponentDerivedControl;
+	setPageController(pageController: string): MaterializedComponentDerivedControl;
 };
 
 type MaterializedTitleControl = MaterializedComponentDerivedControl & {
@@ -478,7 +479,8 @@ function materializeComponentDerivedControlBase<TTarget extends MaterializedComp
 ): TTarget {
 	materializeDisplayNodeBase(target, node)
 		.setSrc(node.src)
-		.setPackageId(node.packageId);
+		.setPackageId(node.packageId)
+		.setPageController(node.pageController ?? '');
 	return target;
 }
 
@@ -730,6 +732,7 @@ export function materializeDisplayNodeProperties(
 			.setSrc(componentNode.resource.resourceId)
 			.setPackageId(componentNode.resource.packageId ?? '')
 			.setControllerOverrides(componentNode.controllerOverrides ?? '')
+			.setPageController(componentNode.pageController ?? '')
 			.setFileName(componentNode.fileName ?? '')
 			.setPropertyOverrides((componentNode.propertyOverrides ?? []).map((property) => ({ ...property })));
 		materializeUamComponentInstanceProperties(component, componentNode.instanceProperties);

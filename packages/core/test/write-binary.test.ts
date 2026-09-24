@@ -5,6 +5,53 @@ import path from 'node:path';
 import { getFixturePath } from '@openfairygui/test-utils';
 import { Document, type GLoader, type GComponent, type GTextField, liftDocumentToUamProject, materializeUamProject, PropertyType } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
+import { normalizeUamProject, validateUamProject } from '../src/uam/index.js';
+
+test('component-derived page controllers survive binary decoding and UAM round trips', async (t) => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-derived-page-controller-'));
+	t.teardown(() => fs.rm(directory, { recursive: true, force: true }));
+	const doc = new Document();
+	const pkg = doc.createPackage('Pages').setId('pages001');
+	const host = doc.createComponent('Host').setId('host').setSize(100, 100);
+	pkg.addResource(host);
+	const controller = doc.createController('state');
+	controller.addPage(doc.createControllerPage('First').setId('0'));
+	host.addController(controller);
+	const children = [doc.createGButton('button'), doc.createGLabel('label'),
+		doc.createGComboBox('combo'), doc.createGProgressBar('progress'),
+		doc.createGSlider('slider'), doc.createGScrollBar('scroll')];
+	for (const [index, child] of children.entries()) {
+		host.addChild(child.setId(`n${index}`).setPageController('state'));
+	}
+	const io = new NodeIO();
+	const sourcePath = path.join(directory, 'source.bytes');
+	await io.writeBinary(doc, sourcePath);
+	const decoded = await io.readBinary(sourcePath);
+	const project = normalizeUamProject(liftDocumentToUamProject(decoded));
+	t.deepEqual(validateUamProject(project), []);
+	const resource = project.packages[0]!.resources.find((item) => item.id === 'host');
+	if (resource?.kind !== 'component') return t.fail('Missing host');
+	for (const node of resource.component.displayList) {
+		t.true('pageController' in node);
+		if ('pageController' in node) t.is(node.pageController, 'state');
+	}
+	const materialized = materializeUamProject(project);
+	const projectPath = path.join(directory, 'Pages.fairy');
+	await io.writeProject(materialized, projectPath);
+	const projectRead = await io.readProject(projectPath);
+	for (const child of projectRead.getRoot().listPackages()[0]!.listComponents()[0]!.listChildren()) {
+		t.is((child as GComponent).getPageController(), 'state', `${child.getName()} XML`);
+	}
+	const outputPath = path.join(directory, 'output.bytes');
+	await io.writeBinary(materialized, outputPath);
+	const reread = await io.readBinary(outputPath);
+	const roundTrip = reread.getRoot().listPackages()[0]!.listComponents()[0]!;
+	for (const child of roundTrip.listChildren()) {
+		t.is((child as GComponent).getPageController(), 'state', child.getName());
+	}
+	Object.assign(resource.component.displayList[0]!, { pageController: 'missing' });
+	t.true(validateUamProject(project).some((issue) => issue.path.endsWith('.pageController')));
+});
 
 const BASICS_FUI = getFixturePath(
 	'FairyGUI-unity',
