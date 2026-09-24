@@ -27,6 +27,39 @@ export interface OpenFairyGuiMcpToolPolicy {
 	): { ok: false } | undefined | Promise<{ ok: false } | undefined>;
 }
 
+// Some clients omit structuredContent for failed calls. Keep actionable codes in
+// bounded text without duplicating arbitrary diagnostics or binary payloads.
+function failureText(payload: unknown): string {
+	const record = (value: unknown): Record<string, unknown> =>
+		value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+	const root = record(payload),
+		error = record(root.error),
+		meta = record(root.meta);
+	const bounded = (value: unknown, limit: number) => (typeof value === 'string' ? value.slice(0, limit) : undefined);
+	const codes = new Set<string>();
+	let truncated = false;
+	for (const entries of [error.issues, error.diagnostics, meta.diagnostics]) {
+		if (!Array.isArray(entries)) continue;
+		for (const entry of entries) {
+			const code = bounded(record(entry).code, 128);
+			if (!code || codes.has(code)) continue;
+			if (codes.size === 32) {
+				truncated = true;
+				break;
+			}
+			codes.add(code);
+		}
+	}
+	return JSON.stringify({
+		ok: false,
+		error: { code: bounded(error.code, 128), message: bounded(error.message, 1024) },
+		diagnosticCodes: [...codes],
+		...(truncated ? { diagnosticCodesTruncated: true } : {}),
+		requestId: bounded(meta.requestId, 128),
+		fullResult: 'structuredContent.backendResult',
+	});
+}
+
 function jsonResult(payload: unknown, isError = false, paths: string[][] = []): CallToolResult {
 	const envelope = { backendResult: structuredClone(payload) };
 	function encode(value: unknown, parts: string[]): void {
@@ -46,7 +79,7 @@ function jsonResult(payload: unknown, isError = false, paths: string[][] = []): 
 		content: [
 			{
 				type: 'text',
-				text: 'Result available in structuredContent.backendResult.',
+				text: isError ? failureText(wirePayload) : 'Result available in structuredContent.backendResult.',
 			},
 		],
 		structuredContent: {

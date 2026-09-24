@@ -91,3 +91,5 @@ Codex 非交互参数、JSONL 事件与配置覆盖依据[官方非交互文档]
 可用 `--report agent/evals/baselines/<version>-<runner>.json` 导出版本化结果（失败也保留报告）。报告包含安装版本、tarball/任务集摘要、工作区 dirty 标记和逐项判断；错误栈与完整现场保留在仓库外。
 
 认证设置不会自动从个人配置继承。`bare` 模式不读取订阅 OAuth 登录；可使用客户端支持的 API/provider 环境认证，或显式添加 `--claude-settings <settings.json>`，由 Claude 自己读取该文件（评测器不复制凭据）。只提供本次评测需要的认证/provider 设置，不包含自定义 hooks、plugins 或工具。此参数仅适用于 Claude，保留 bare/restricted、禁用 skills 和内建工具、严格 MCP 清单等约束。认证失败、429 与超时属于运行环境失败；保留原始报告，但不得将其解释为模型能力得分。参见 [Claude 程序化认证说明](https://code.claude.com/docs/en/headless#start-faster-with-bare-mode)。
+
+失败工具调用的文本保留主错误码和嵌套诊断码；评测同时检查模型是否准确汇报阻塞原因以及是否保留未保存工作。

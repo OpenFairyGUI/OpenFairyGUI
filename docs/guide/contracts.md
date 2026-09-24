@@ -221,3 +221,5 @@ SHA-256: `8f9541801d4c47ecc6b32528e6434139025a62ae775a416900738f2b9ad0149d`
 新增不支持的 TypeScript 构造会使生成失败，不能降级成任意 payload。新增方法必须同时进入 Backend capability 列表和 MCP 元数据；新增 operation 自动来自 Core union。修改后运行 `pnpm contracts:generate`、`pnpm check:ci`，验证范围见[开发指南](./development.md)。
 
 CLI 一次性事务：`ofgui tx preflight <project> --ops ops.json --expected-revision 0 --json` 预演；`ofgui tx apply <project> --ops ops.json --expected-revision 0 --json` 在同一锁内预演、提交、完整验证、保存并关闭。每次调用从新会话 revision 0 开始，不能把前一次命令的 revision 当作磁盘版本令牌；跨调用持久会话请用 Backend/MCP。验证失败不保存，进程退出会丢弃内存编辑；保存错误的恢复路径在 result.save 中保留。MCP 二进制输出为 base64，完整结果只在 structuredContent.backendResult；输入字节仍按生成 schema 使用数组。
+
+MCP 失败调用的文本包含有界的主错误码、消息和嵌套诊断码摘要，供不展示结构化错误的客户端使用；完整结果保留在 `structuredContent.backendResult`。

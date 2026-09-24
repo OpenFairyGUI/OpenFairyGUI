@@ -265,7 +265,14 @@ async function sessionReadSmoke() {
 			const name = OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.find((entry) => entry.backendMethod === method).name;
 			const result = await client.callTool({ name, arguments: input });
 			const backend = result.structuredContent.backendResult;
-			assert.equal(result.content[0].text, 'Result available in structuredContent.backendResult.');
+			if (backend.ok) {
+				assert.equal(result.content[0].text, 'Result available in structuredContent.backendResult.');
+			} else {
+				const summary = JSON.parse(result.content[0].text);
+				assert.equal(summary.ok, false);
+				assert.equal(summary.error.code, backend.error.code);
+				assert.equal(summary.fullResult, 'structuredContent.backendResult');
+			}
 			assert.equal(Boolean(result.isError), !backend.ok);
 			return backend;
 		};

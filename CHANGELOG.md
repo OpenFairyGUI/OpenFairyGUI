@@ -13,6 +13,8 @@ Release comparisons:
 
 Bug Fixes:
 
+- mcp: Include bounded error messages and nested diagnostic codes in failed tool text so clients that omit structured errors can report the actual blocker.
+
 - Development and CI: Enforce formatting, test Node 22/24 on Ubuntu/Windows for main/next, build before testing without rebuilding shared outputs inside tests, and gate coverage. Separate release verification from write permissions, validate bilingual notes and publish exact tarballs, deploy docs only after the matching CI succeeds, and pin Actions to SHAs.
 
 - core: Share Button/Label extension instance I/O, retaining Button controller/page/selection and Label prompt. Components always re-encode against the destination string table; resource filenames and ordering use formal properties and source paths remain in reader context.
