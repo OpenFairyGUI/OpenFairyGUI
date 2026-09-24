@@ -17,7 +17,9 @@ export async function resolveFairyPath(input: string): Promise<string> {
 			return path.join(resolved, fairyFiles[0]);
 		}
 		if (fairyFiles.length > 1) {
-			throw new Error(`Multiple .fairy files found in ${resolved}: ${fairyFiles.join(', ')}. Please specify one.`);
+			throw new Error(
+				`Multiple .fairy files found in ${resolved}: ${fairyFiles.join(', ')}. Please specify one.`,
+			);
 		}
 		throw new Error(`No .fairy file found in ${resolved}`);
 	}

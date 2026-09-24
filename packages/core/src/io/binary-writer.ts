@@ -248,9 +248,13 @@ export class BinaryWriter {
 		const publishedResourceIds = context?.publishedResourceIds;
 		const includeBranches = context?.includeBranches ?? true;
 		const resources = sortResources(
-			pkg.listResources().filter((resource) =>
-				(!publishedResourceIds || publishedResourceIds.has(resource.getId()))
-				&& !(resource.propertyType === 'FontResource' && resource.isExternalFont())),
+			pkg
+				.listResources()
+				.filter(
+					(resource) =>
+						(!publishedResourceIds || publishedResourceIds.has(resource.getId())) &&
+						!(resource.propertyType === 'FontResource' && resource.isExternalFont()),
+				),
 		);
 		const dependencies: BinaryDependency[] = pkg
 			.listDependencies()
@@ -261,10 +265,14 @@ export class BinaryWriter {
 			.filter((dep) => !!dep.id);
 		const declaredBranchNames = pkg.listBranchNames();
 		const branchNames = includeBranches
-			? (declaredBranchNames.length > 0 ? declaredBranchNames : getPackageBranchNames(doc, resources))
+			? declaredBranchNames.length > 0
+				? declaredBranchNames
+				: getPackageBranchNames(doc, resources)
 			: [];
 		const branchItemIdsMap = buildBranchItemIdsMap(pkg, branchNames);
-		const publishedItemIdMap = new Map(resources.map((resource) => [resource.getId(), getPublishedItemId(resource, context)]));
+		const publishedItemIdMap = new Map(
+			resources.map((resource) => [resource.getId(), getPublishedItemId(resource, context)]),
+		);
 
 		// Collect sprites from Atlas/Sprite property nodes OR extras.sprites (BinaryReader round-trip)
 		const sprites: BinarySpriteEntry[] = [];
@@ -342,12 +350,14 @@ export class BinaryWriter {
 			getHeight: () => atlas.getHeight?.() ?? 0,
 		}));
 		const allItems: BinaryPackageItem[] = [...resources, ...atlasItems];
-		const packageItemIds = new Set(allItems.map((item) => {
-			if ('getExtras' in item) {
-				return getPublishedItemId(item as PackageResource, context);
-			}
-			return item.getId();
-		}));
+		const packageItemIds = new Set(
+			allItems.map((item) => {
+				if ('getExtras' in item) {
+					return getPublishedItemId(item as PackageResource, context);
+				}
+				return item.getId();
+			}),
+		);
 		data.writeUint16(allItems.length);
 
 		for (const res of allItems) {
@@ -390,19 +400,22 @@ export class BinaryWriter {
 					data.writeInt32(getOptionalNumber(res, 'getWidth'));
 					data.writeInt32(getOptionalNumber(res, 'getHeight'));
 					data.writeBool(res.getSmoothing());
-					const frameData = _encodeMovieClipFrames({
-						interval: res.getInterval(),
-						swing: res.getSwing(),
-						repeatDelay: res.getRepeatDelay(),
-						frames: res.listFrames().map((frame) => ({
-							x: frame.getRectX(),
-							y: frame.getRectY(),
-							width: frame.getRectWidth(),
-							height: frame.getRectHeight(),
-							addDelay: frame.getAddDelay(),
-							spriteId: frame.getSpriteId() || null,
-						})),
-					}, data);
+					const frameData = _encodeMovieClipFrames(
+						{
+							interval: res.getInterval(),
+							swing: res.getSwing(),
+							repeatDelay: res.getRepeatDelay(),
+							frames: res.listFrames().map((frame) => ({
+								x: frame.getRectX(),
+								y: frame.getRectY(),
+								width: frame.getRectWidth(),
+								height: frame.getRectHeight(),
+								addDelay: frame.getAddDelay(),
+								spriteId: frame.getSpriteId() || null,
+							})),
+						},
+						data,
+					);
 					data.writeBuffer(frameData);
 					break;
 				}
@@ -453,11 +466,16 @@ export class BinaryWriter {
 					data.writeInt32(res.getHeight());
 					// Extension type: 0=None, 11=Label, 12=Button, 13=ComboBox, 14=ProgressBar, 15=Slider, 16=ScrollBar
 					const extTypeMap: Record<string, number> = {
-						Label: 11, Button: 12, ComboBox: 13,
-						ProgressBar: 14, Slider: 15, ScrollBar: 16,
+						Label: 11,
+						Button: 12,
+						ComboBox: 13,
+						ProgressBar: 14,
+						Slider: 15,
+						ScrollBar: 16,
 					};
 					const compExtras = res.getExtras() as ComponentBinaryExtras;
-					const extType = (res as ComponentWithExtensionType).getExtensionType?.() ?? compExtras.extensionType;
+					const extType =
+						(res as ComponentWithExtensionType).getExtensionType?.() ?? compExtras.extensionType;
 					data.writeUint8(extType ? (extTypeMap[extType] ?? 0) : 0);
 					if (compExtras?._rawBinary && !res._isBinaryDirty()) {
 						// From BinaryReader round-trip: use stored raw binary
@@ -478,27 +496,30 @@ export class BinaryWriter {
 					data.writeBool(res.getExported());
 					data.writeInt32(0); // width
 					data.writeInt32(0); // height
-					const glyphData = _encodeFontGlyphs({
-						hasFace: res.getTtf(),
-						colored: res.getTint(),
-						resizable: res.getAutoScale(),
-						hasChannel: res.getHasChannel(),
-						fontSize: res.getFontSize(),
-						xadvance: res.getXAdvance(),
-						lineHeight: res.getLineHeight(),
-						glyphs: res.listGlyphs().map((glyph) => ({
-							charId: glyph.getCharId() || glyph.getChar().codePointAt(0) || 0,
-							img: publishedItemIdMap.get(glyph.getImg()) ?? (glyph.getImg() || null),
-							x: glyph.getX(),
-							y: glyph.getY(),
-							xoffset: glyph.getXOffset(),
-							yoffset: glyph.getYOffset(),
-							width: glyph.getWidth(),
-							height: glyph.getHeight(),
-							xadvance: glyph.getAdvance(),
-							channel: glyph.getChannel(),
-						})),
-					}, data);
+					const glyphData = _encodeFontGlyphs(
+						{
+							hasFace: res.getTtf(),
+							colored: res.getTint(),
+							resizable: res.getAutoScale(),
+							hasChannel: res.getHasChannel(),
+							fontSize: res.getFontSize(),
+							xadvance: res.getXAdvance(),
+							lineHeight: res.getLineHeight(),
+							glyphs: res.listGlyphs().map((glyph) => ({
+								charId: glyph.getCharId() || glyph.getChar().codePointAt(0) || 0,
+								img: publishedItemIdMap.get(glyph.getImg()) ?? (glyph.getImg() || null),
+								x: glyph.getX(),
+								y: glyph.getY(),
+								xoffset: glyph.getXOffset(),
+								yoffset: glyph.getYOffset(),
+								width: glyph.getWidth(),
+								height: glyph.getHeight(),
+								xadvance: glyph.getAdvance(),
+								channel: glyph.getChannel(),
+							})),
+						},
+						data,
+					);
 					data.writeBuffer(glyphData);
 					break;
 				}
@@ -607,12 +628,13 @@ export class BinaryWriter {
 				// - generated movieclip frame sprites only emit this payload when they carry trim offsets
 				const originalWidth = ow || (sp.rotated ? sp.h : sp.w);
 				const originalHeight = oh || (sp.rotated ? sp.w : sp.h);
-				const hasOriginal = (isPackageItemSprite && sp.rotated)
-					|| ox !== 0
-					|| oy !== 0
-					|| originalWidth !== (sp.rotated ? sp.h : sp.w)
-					|| originalHeight !== (sp.rotated ? sp.w : sp.h)
-					|| isZeroSizedDirectOutput;
+				const hasOriginal =
+					(isPackageItemSprite && sp.rotated) ||
+					ox !== 0 ||
+					oy !== 0 ||
+					originalWidth !== (sp.rotated ? sp.h : sp.w) ||
+					originalHeight !== (sp.rotated ? sp.w : sp.h) ||
+					isZeroSizedDirectOutput;
 				data.writeBool(hasOriginal);
 				if (hasOriginal) {
 					data.writeInt32(ox);
@@ -733,19 +755,16 @@ export class BinaryWriter {
  *
  * @internal
  */
-function _encodeMovieClipFrames(
-	jtaData: MovieClipFrameData,
-	parentBuf: WriteBuffer,
-): Uint8Array {
+function _encodeMovieClipFrames(jtaData: MovieClipFrameData, parentBuf: WriteBuffer): Uint8Array {
 	const buf = new WriteBuffer(1024, parentBuf);
 
 	// Index table: 2 blocks, uint32 offsets
 	const indexTablePos = buf.pos;
-	buf.writeUint8(2);   // segCount
-	buf.writeUint8(0);   // useShort = false (uint32 offsets)
+	buf.writeUint8(2); // segCount
+	buf.writeUint8(0); // useShort = false (uint32 offsets)
 	const offsetsPos = buf.pos;
-	buf.writeUint32(0);  // block 0 offset placeholder
-	buf.writeUint32(0);  // block 1 offset placeholder
+	buf.writeUint32(0); // block 0 offset placeholder
+	buf.writeUint32(0); // block 1 offset placeholder
 
 	// Block 0: global animation settings
 	const block0Offset = buf.pos - indexTablePos;
@@ -795,10 +814,7 @@ function _encodeMovieClipFrames(
  *
  * @internal
  */
-function _encodeFontGlyphs(
-	fntData: FntData,
-	parentBuf: WriteBuffer,
-): Uint8Array {
+function _encodeFontGlyphs(fntData: FntData, parentBuf: WriteBuffer): Uint8Array {
 	const buf = new WriteBuffer(2048, parentBuf);
 
 	// Index table: 2 blocks, uint32 offsets
@@ -855,11 +871,14 @@ function _encodeFontGlyphs(
 	return buf.toUint8Array();
 }
 
-function getPublishedFileName(resource: {
-	getId(): string;
-	getFile(): string;
-	getExtras?(): Record<string, unknown> | undefined;
-}, context?: BinaryPackageEncodingContext): string {
+function getPublishedFileName(
+	resource: {
+		getId(): string;
+		getFile(): string;
+		getExtras?(): Record<string, unknown> | undefined;
+	},
+	context?: BinaryPackageEncodingContext,
+): string {
 	const extras = (resource.getExtras?.() as PublishFileExtras | undefined) ?? {};
 	return context?.publishedFiles.get(resource.getId()) ?? extras._publishedFile ?? resource.getFile();
 }
@@ -875,9 +894,7 @@ function getItemBranchName(item: BinaryPackageItem): string {
 
 function getPackageBranchNames(doc: Document, resources: PackageResource[]): string[] {
 	const packageBranchNames = new Set(
-		resources
-			.map((resource) => getItemBranchName(resource))
-			.filter((branchName) => !!branchName),
+		resources.map((resource) => getItemBranchName(resource)).filter((branchName) => !!branchName),
 	);
 	const rootBranchNames = doc.getRoot().listBranches();
 	const unknownBranchName = [...packageBranchNames].find((branchName) => !rootBranchNames.includes(branchName));
@@ -926,7 +943,9 @@ function getItemBranchItemIds(
 	const explicitBranchItemIds = branchAware.getBranchItemIds?.() ?? [];
 	if (branchNames.length === 0) {
 		if (explicitBranchItemIds.length > 0) {
-			return explicitBranchItemIds.find((value) => !!value) ? [explicitBranchItemIds.find((value) => !!value) ?? ''] : [];
+			return explicitBranchItemIds.find((value) => !!value)
+				? [explicitBranchItemIds.find((value) => !!value) ?? '']
+				: [];
 		}
 		if (getItemBranchName(item)) return [];
 		const inferred = branchItemIdsMap.get(buildBranchResourceKey(item));
@@ -973,10 +992,7 @@ function toUint8Array(raw: RawBinarySlice): Uint8Array {
 	return new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength);
 }
 
-function getOptionalNumber(
-	value: SizeLike,
-	key: 'getWidth' | 'getHeight',
-): number {
+function getOptionalNumber(value: SizeLike, key: 'getWidth' | 'getHeight'): number {
 	const getter = value[key];
 	return getter?.call(value) ?? 0;
 }

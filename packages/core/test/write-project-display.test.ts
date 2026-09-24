@@ -165,20 +165,20 @@ test('round-trip: loader fill and graph geometry attrs survive write→read', as
 	graphRect.setFillColor('#445566');
 	graphRect.setCornerRadius([1, 2, 3, 4]);
 
-		const graphPolygon = doc.createGGraph('polygon');
-		graphPolygon.setId('n1');
-		graphPolygon.setGraphType(4);
-		graphPolygon.setSides(5);
-		graphPolygon.setStartAngle(12.5);
-		graphPolygon.setDistances([1, 0.8, 0.6]);
+	const graphPolygon = doc.createGGraph('polygon');
+	graphPolygon.setId('n1');
+	graphPolygon.setGraphType(4);
+	graphPolygon.setSides(5);
+	graphPolygon.setStartAngle(12.5);
+	graphPolygon.setDistances([1, 0.8, 0.6]);
 
-		const graphPoints = doc.createGGraph('points');
-		graphPoints.setId('n2');
-		graphPoints.setGraphType(3);
-		graphPoints.setPoints([0, 0, 20, 0, 20, 10]);
+	const graphPoints = doc.createGGraph('points');
+	graphPoints.setId('n2');
+	graphPoints.setGraphType(3);
+	graphPoints.setPoints([0, 0, 20, 0, 20, 10]);
 
-		const loader = doc.createGLoader('loader');
-		loader.setId('n3');
+	const loader = doc.createGLoader('loader');
+	loader.setId('n3');
 	loader.setUrl('ui://pkg002/demo');
 	loader.setAlign(2);
 	loader.setVAlign(1);
@@ -193,10 +193,10 @@ test('round-trip: loader fill and graph geometry attrs survive write→read', as
 	loader.setFillClockwise(false);
 	loader.setFillAmount(0.42);
 
-		comp.addChild(graphRect);
-		comp.addChild(graphPolygon);
-		comp.addChild(graphPoints);
-		comp.addChild(loader);
+	comp.addChild(graphRect);
+	comp.addChild(graphPolygon);
+	comp.addChild(graphPoints);
+	comp.addChild(loader);
 	pkg.addResource(comp);
 
 	const io = new NodeIO();
@@ -207,24 +207,36 @@ test('round-trip: loader fill and graph geometry attrs survive write→read', as
 		await io.writeProject(doc, outFairy);
 
 		const doc2 = await io.readProject(outFairy);
-		const comp2 = doc2.getRoot().getPackage('Demo2')?.listComponents().find((item) => item.getName() === 'Shapes');
+		const comp2 = doc2
+			.getRoot()
+			.getPackage('Demo2')
+			?.listComponents()
+			.find((item) => item.getName() === 'Shapes');
 		t.truthy(comp2, 'Shapes component exists');
 
-		const rect2 = comp2!.listChildren().find((child) => child.getId() === 'n0') as ReturnType<Document['createGGraph']>;
+		const rect2 = comp2!.listChildren().find((child) => child.getId() === 'n0') as ReturnType<
+			Document['createGGraph']
+		>;
 		t.truthy(rect2, 'rect graph exists');
 		t.deepEqual(rect2.getCornerRadius(), [1, 2, 3, 4]);
 
-		const polygon2 = comp2!.listChildren().find((child) => child.getId() === 'n1') as ReturnType<Document['createGGraph']>;
+		const polygon2 = comp2!.listChildren().find((child) => child.getId() === 'n1') as ReturnType<
+			Document['createGGraph']
+		>;
 		t.truthy(polygon2, 'polygon graph exists');
 		t.is(polygon2.getSides(), 5);
 		t.is(polygon2.getStartAngle(), 12.5);
 		t.deepEqual(polygon2.getDistances(), [1, 0.8, 0.6]);
 
-		const points2 = comp2!.listChildren().find((child) => child.getId() === 'n2') as ReturnType<Document['createGGraph']>;
+		const points2 = comp2!.listChildren().find((child) => child.getId() === 'n2') as ReturnType<
+			Document['createGGraph']
+		>;
 		t.truthy(points2, 'points graph exists');
 		t.deepEqual(points2.getPoints(), [0, 0, 20, 0, 20, 10]);
 
-		const loader2 = comp2!.listChildren().find((child) => child.getId() === 'n3') as ReturnType<Document['createGLoader']>;
+		const loader2 = comp2!.listChildren().find((child) => child.getId() === 'n3') as ReturnType<
+			Document['createGLoader']
+		>;
 		t.truthy(loader2, 'loader exists');
 		t.is(loader2.getUrl(), 'ui://pkg002/demo');
 		t.is(loader2.getAlign(), 2);
@@ -313,15 +325,30 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 		t.true(/<text\b[^>]*faceDilate="0.324"/.test(componentXml), 'text writes canonical faceDilate attr');
 		t.true(/<text\b[^>]*outlineSoftness="0.75"/.test(componentXml), 'text writes canonical outlineSoftness attr');
 		t.true(/<text\b[^>]*underlaySoftness="1"/.test(componentXml), 'text writes canonical underlaySoftness attr');
-		t.true(/<richtext\b[^>]*outlineSoftness="0.375"/.test(componentXml), 'richtext writes canonical outlineSoftness attr');
-		t.true(/<richtext\b[^>]*underlaySoftness="0.056"/.test(componentXml), 'richtext writes canonical underlaySoftness attr');
-		t.true(/<inputtext\b[^>]*demoText="input preview"/.test(componentXml), 'input text writes canonical plain-text attrs');
+		t.true(
+			/<richtext\b[^>]*outlineSoftness="0.375"/.test(componentXml),
+			'richtext writes canonical outlineSoftness attr',
+		);
+		t.true(
+			/<richtext\b[^>]*underlaySoftness="0.056"/.test(componentXml),
+			'richtext writes canonical underlaySoftness attr',
+		);
+		t.true(
+			/<inputtext\b[^>]*demoText="input preview"/.test(componentXml),
+			'input text writes canonical plain-text attrs',
+		);
 
 		const doc2 = await io.readProject(outFairy);
-		const comp2 = doc2.getRoot().getPackage('DemoText')?.listComponents().find((item) => item.getName() === 'TextShadow');
+		const comp2 = doc2
+			.getRoot()
+			.getPackage('DemoText')
+			?.listComponents()
+			.find((item) => item.getName() === 'TextShadow');
 		t.truthy(comp2, 'TextShadow component exists');
 
-		const text2 = comp2!.listChildren().find((child) => child.getId() === 'n0') as ReturnType<Document['createGTextField']>;
+		const text2 = comp2!.listChildren().find((child) => child.getId() === 'n0') as ReturnType<
+			Document['createGTextField']
+		>;
 		t.truthy(text2, 'plain text exists');
 		t.is(text2.getDemoText?.(), 'preview');
 		t.true(text2.getTemplateVarsEnabled?.());
@@ -333,7 +360,9 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 		t.is(text2.getShadowColor(), '#112233');
 		t.deepEqual(text2.getShadowOffset(), { x: 0, y: 0 });
 
-		const rich2 = comp2!.listChildren().find((child) => child.getId() === 'n1') as ReturnType<Document['createGRichTextField']>;
+		const rich2 = comp2!.listChildren().find((child) => child.getId() === 'n1') as ReturnType<
+			Document['createGRichTextField']
+		>;
 		t.truthy(rich2, 'rich text exists');
 		t.is(rich2.getOutlineSoftness?.(), 0.375);
 		t.is(rich2.getUnderlaySoftness?.(), 0.056);
@@ -341,7 +370,9 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 		t.is(rich2.getShadowColor(), '#445566');
 		t.deepEqual(rich2.getShadowOffset(), { x: 4, y: 5 });
 
-		const input2 = comp2!.listChildren().find((child) => child.getId() === 'n2') as ReturnType<Document['createGTextInput']>;
+		const input2 = comp2!.listChildren().find((child) => child.getId() === 'n2') as ReturnType<
+			Document['createGTextInput']
+		>;
 		t.is(input2.getDemoText(), 'input preview');
 		t.true(input2.getTemplateVarsEnabled());
 		t.is(input2.getFaceDilate(), 0.125);
@@ -388,7 +419,10 @@ test('writer: display object attribute values escape XML special characters', as
 		await io.writeProject(doc, outFairy);
 		const componentXml = await fs.readFile(path.join(tmpDir, 'assets', 'EscapeXml', 'Escapes.xml'), 'utf-8');
 		t.true(componentXml.includes('text="line1&#xA;line2"'), 'text attrs escape newline as XML entity');
-		t.true(componentXml.includes('text="&lt;a href=&apos;event:xx&apos;&gt;click&lt;/a&gt;"'), 'text attrs escape apostrophes and angle brackets');
+		t.true(
+			componentXml.includes('text="&lt;a href=&apos;event:xx&apos;&gt;click&lt;/a&gt;"'),
+			'text attrs escape apostrophes and angle brackets',
+		);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
@@ -428,14 +462,22 @@ test('round-trip: loader useResize and text strikethrough attrs survive write→
 		await io.writeProject(doc, outFairy);
 
 		const doc2 = await io.readProject(outFairy);
-		const comp2 = doc2.getRoot().getPackage('DemoVersion7')?.listComponents().find((item) => item.getName() === 'Version7Attrs');
+		const comp2 = doc2
+			.getRoot()
+			.getPackage('DemoVersion7')
+			?.listComponents()
+			.find((item) => item.getName() === 'Version7Attrs');
 		t.truthy(comp2, 'Version7Attrs component exists');
 
-		const text2 = comp2!.listChildren().find((child) => child.getId() === 'n0') as ReturnType<Document['createGTextField']>;
+		const text2 = comp2!.listChildren().find((child) => child.getId() === 'n0') as ReturnType<
+			Document['createGTextField']
+		>;
 		t.truthy(text2, 'text exists');
 		t.true(text2.getStrikethrough());
 
-		const loader2 = comp2!.listChildren().find((child) => child.getId() === 'n1') as ReturnType<Document['createGLoader']>;
+		const loader2 = comp2!.listChildren().find((child) => child.getId() === 'n1') as ReturnType<
+			Document['createGLoader']
+		>;
 		t.truthy(loader2, 'loader exists');
 		t.true(loader2.getUseResize());
 	} finally {
@@ -564,51 +606,103 @@ test('writer: uses canonical XML attr names for component root, loader, text nod
 	try {
 		await io.writeProject(doc, outFairy);
 
-		const componentXml = await fs.readFile(path.join(tmpDir, 'assets', 'ProtocolDemo', 'CanonicalAttrs.xml'), 'utf-8');
+		const componentXml = await fs.readFile(
+			path.join(tmpDir, 'assets', 'ProtocolDemo', 'CanonicalAttrs.xml'),
+			'utf-8',
+		);
 		t.true(componentXml.includes('pivot="0.5,0.5"'), 'component root writes canonical pivot attr');
 		t.true(/anchor(?:="true")?/.test(componentXml), 'component root writes canonical anchor attr');
 		t.true(componentXml.includes('restrictSize="120,0,0,0"'), 'component root writes canonical restrictSize attr');
 		t.true(/bgColorEnabled(?:="true")?/.test(componentXml), 'component root writes canonical bgColorEnabled attr');
 		t.true(componentXml.includes('bgColor="#383838"'), 'component root writes canonical bgColor attr');
-		t.true(componentXml.includes('designImage="ui://pkgProtocol/design"'), 'component root writes canonical designImage attr');
-		t.true(/designImageForTest(?:="true")?/.test(componentXml), 'component root writes canonical designImageForTest attr');
-		t.true(componentXml.includes('designImageAlpha="100"'), 'component root writes canonical designImageAlpha attr');
+		t.true(
+			componentXml.includes('designImage="ui://pkgProtocol/design"'),
+			'component root writes canonical designImage attr',
+		);
+		t.true(
+			/designImageForTest(?:="true")?/.test(componentXml),
+			'component root writes canonical designImageForTest attr',
+		);
+		t.true(
+			componentXml.includes('designImageAlpha="100"'),
+			'component root writes canonical designImageAlpha attr',
+		);
 		t.true(componentXml.includes('designImageLayer="1"'), 'component root writes canonical designImageLayer attr');
-		t.true(componentXml.includes('designImageOffsetX="-428"'), 'component root writes canonical designImageOffsetX attr');
-		t.true(componentXml.includes('designImageOffsetY="-238"'), 'component root writes canonical designImageOffsetY attr');
+		t.true(
+			componentXml.includes('designImageOffsetX="-428"'),
+			'component root writes canonical designImageOffsetX attr',
+		);
+		t.true(
+			componentXml.includes('designImageOffsetY="-238"'),
+			'component root writes canonical designImageOffsetY attr',
+		);
 		t.true(componentXml.includes('idnum="7"'), 'component root writes canonical idnum attr');
 		t.true(componentXml.includes('initName="frame"'), 'component root writes canonical initName attr');
-		t.true(componentXml.includes('customExtention="demo.extension"'), 'component root writes canonical customExtention attr');
-		t.true(componentXml.includes('<remark page="0" value="Default page"'), 'controller page remark is written by page index');
+		t.true(
+			componentXml.includes('customExtention="demo.extension"'),
+			'component root writes canonical customExtention attr',
+		);
+		t.true(
+			componentXml.includes('<remark page="0" value="Default page"'),
+			'controller page remark is written by page index',
+		);
 		t.true(componentXml.includes('pageController="page"'), 'component root writes canonical pageController attr');
-		t.true(componentXml.includes('showSound="ui://pkgProtocol/show"'), 'component root writes canonical showSound attr');
-		t.true(componentXml.includes('hideSound="ui://pkgProtocol/hide"'), 'component root writes canonical hideSound attr');
+		t.true(
+			componentXml.includes('showSound="ui://pkgProtocol/show"'),
+			'component root writes canonical showSound attr',
+		);
+		t.true(
+			componentXml.includes('hideSound="ui://pkgProtocol/hide"'),
+			'component root writes canonical hideSound attr',
+		);
 		t.true(componentXml.includes('scrollBarFlags="1184"'), 'component root writes canonical scrollBarFlags attr');
 		t.true(componentXml.includes('<loader'), 'loader node is written');
 		t.true(componentXml.includes('useResize="1"'), 'loader writes canonical useResize attr');
 		t.true(/<loader\b[^>]*errorSign(?:="true")?/.test(componentXml), 'loader writes canonical errorSign attr');
 		t.true(componentXml.includes('fill="scale"'), 'loader writes canonical fill attr');
-		t.true(/<loader\b[^>]*clearOnPublish(?:="true")?/.test(componentXml), 'loader writes canonical clearOnPublish attr');
+		t.true(
+			/<loader\b[^>]*clearOnPublish(?:="true")?/.test(componentXml),
+			'loader writes canonical clearOnPublish attr',
+		);
 		t.false(/<loader\b[^>]*\balign=/.test(componentXml), 'loader omits default align attr');
 		t.false(/<loader\b[^>]*\bvAlign=/.test(componentXml), 'loader omits default vAlign attr');
 		t.true(componentXml.includes('<richtext'), 'richtext node is written');
 		t.true(componentXml.includes('font="ui://pkgProtocol/font"'), 'richtext writes canonical font attr');
 		t.true(componentXml.includes('color="#ccff00"'), 'text color attrs are normalized to lowercase');
 		t.true(/singleLine(?:="true")?/.test(componentXml), 'richtext writes canonical singleLine attr');
-		t.true(/<richtext\b[^>]*autoClearText(?:="true")?/.test(componentXml), 'richtext writes canonical autoClearText attr');
+		t.true(
+			/<richtext\b[^>]*autoClearText(?:="true")?/.test(componentXml),
+			'richtext writes canonical autoClearText attr',
+		);
 		t.true(/ubb(?:="true")?/.test(componentXml), 'richtext writes canonical ubb attr');
 		t.true(componentXml.includes('strokeColor="#ffffff"'), 'richtext writes canonical strokeColor attr');
 		t.true(componentXml.includes('shadowColor="#000000"'), 'text shadowColor attrs are normalized to lowercase');
 		t.true(componentXml.includes('shadowOffset="1,2"'), 'richtext writes canonical shadowOffset attr');
-		t.true(/<richtext\b(?=[^>]*rotation="30")(?=[^>]*alpha="0.55")(?=[^>]*touchable="false")(?=[^>]*grayed="true")/.test(componentXml), 'richtext writes canonical common display attrs');
+		t.true(
+			/<richtext\b(?=[^>]*rotation="30")(?=[^>]*alpha="0.55")(?=[^>]*touchable="false")(?=[^>]*grayed="true")/.test(
+				componentXml,
+			),
+			'richtext writes canonical common display attrs',
+		);
 		t.true(componentXml.includes('animation="idle"'), 'loader3D uses canonical animation attr');
 		t.false(componentXml.includes('animationName='), 'loader3D no longer writes model field name');
 		t.false(/<loader3d\b[^>]*\balign=/.test(componentXml), 'loader3D omits default align attr');
 		t.false(/<loader3d\b[^>]*\bvAlign=/.test(componentXml), 'loader3D omits default vAlign attr');
 		t.true(componentXml.includes('prompt="Search here"'), 'text input uses canonical prompt attr');
-		t.true(/<inputtext\b[^>]*text=""[^>]*color="#ff3300"/.test(componentXml), 'text input preserves explicit empty text and lowercases color attrs');
-		t.true(/<inputtext\b[^>]*autoClearText(?:="true")?/.test(componentXml), 'text input writes canonical autoClearText attr');
-		t.true(/<inputtext\b(?=[^>]*rotation="15")(?=[^>]*alpha="0.65")(?=[^>]*touchable="false")(?=[^>]*grayed="true")/.test(componentXml), 'text input writes canonical common display attrs');
+		t.true(
+			/<inputtext\b[^>]*text=""[^>]*color="#ff3300"/.test(componentXml),
+			'text input preserves explicit empty text and lowercases color attrs',
+		);
+		t.true(
+			/<inputtext\b[^>]*autoClearText(?:="true")?/.test(componentXml),
+			'text input writes canonical autoClearText attr',
+		);
+		t.true(
+			/<inputtext\b(?=[^>]*rotation="15")(?=[^>]*alpha="0.65")(?=[^>]*touchable="false")(?=[^>]*grayed="true")/.test(
+				componentXml,
+			),
+			'text input writes canonical common display attrs',
+		);
 		t.false(componentXml.includes('promptText='), 'text input no longer writes model field name');
 		t.true(componentXml.includes('colGap="5"'), 'group uses canonical colGap attr');
 		t.true(/<group\b[^>]*layout="hz"/.test(componentXml), 'group uses editor layout attr values');
@@ -621,7 +715,11 @@ test('writer: uses canonical XML attr names for component root, loader, text nod
 		t.true(componentXml.includes('selectionController="page"'), 'list writes selectionController attr');
 
 		const doc2 = await io.readProject(outFairy);
-		const comp2 = doc2.getRoot().getPackage('ProtocolDemo')?.listComponents().find((item) => item.getName() === 'CanonicalAttrs');
+		const comp2 = doc2
+			.getRoot()
+			.getPackage('ProtocolDemo')
+			?.listComponents()
+			.find((item) => item.getName() === 'CanonicalAttrs');
 		t.truthy(comp2, 'CanonicalAttrs component exists after round-trip');
 		t.true(comp2?.getPivotAsAnchor?.(), 'component root anchor survives round-trip');
 		t.is(comp2?.getMinWidth?.(), 120, 'component root restrictSize survives round-trip');
@@ -636,10 +734,18 @@ test('writer: uses canonical XML attr names for component root, loader, text nod
 		t.is(comp2?.getIdNum?.(), 7, 'component root idnum survives round-trip');
 		t.is(comp2?.getInitName?.(), 'frame', 'component root initName survives round-trip');
 		t.is(comp2?.getCustomExtensionId?.(), 'demo.extension', 'component root customExtention survives round-trip');
-		t.is(comp2?.getController('page')?.listPages()[0]?.getRemark(), 'Default page', 'controller page remark survives round-trip');
+		t.is(
+			comp2?.getController('page')?.listPages()[0]?.getRemark(),
+			'Default page',
+			'controller page remark survives round-trip',
+		);
 		t.is(comp2?.getPageController?.(), 'page', 'component root pageController survives round-trip');
 		t.is(comp2?.getAddedToStageSound?.(), 'ui://pkgProtocol/show', 'component root showSound survives round-trip');
-		t.is(comp2?.getRemovedFromStageSound?.(), 'ui://pkgProtocol/hide', 'component root hideSound survives round-trip');
+		t.is(
+			comp2?.getRemovedFromStageSound?.(),
+			'ui://pkgProtocol/hide',
+			'component root hideSound survives round-trip',
+		);
 		t.is(comp2?.getOverflow?.(), 2, 'component root overflow survives round-trip');
 		t.is(comp2?.getScrollBarFlags?.(), 1184, 'component root scrollBarFlags survive round-trip');
 
@@ -750,10 +856,16 @@ test('round-trip: list scroll attrs and static items survive write→read', asyn
 		t.true(listXml.includes('scrollBar="hidden"'), 'list writes canonical scrollBar mode');
 
 		const doc2 = await io.readProject(outFairy);
-		const comp2 = doc2.getRoot().getPackage('Demo3')?.listComponents().find((item) => item.getName() === 'Lists');
+		const comp2 = doc2
+			.getRoot()
+			.getPackage('Demo3')
+			?.listComponents()
+			.find((item) => item.getName() === 'Lists');
 		t.truthy(comp2, 'Lists component exists');
 
-		const list2 = comp2!.listChildren().find((child) => child.getId() === 'n0') as ReturnType<Document['createGList']>;
+		const list2 = comp2!.listChildren().find((child) => child.getId() === 'n0') as ReturnType<
+			Document['createGList']
+		>;
 		t.truthy(list2, 'list exists');
 		t.is(list2.getLayout(), 4);
 		t.is(list2.getLineGap(), 6);
@@ -840,15 +952,18 @@ test('round-trip: explicit empty tree folder survives write→read', async (t) =
 
 		const roundTripped = await io.readProject(outFairy);
 		const decodedComp = roundTripped.getRoot().getPackage('TreePkg')?.getComponent('TreeHost');
-		const decodedTree = decodedComp?.listChildren().find((child) => child.getId() === 'tree01') as ReturnType<Document['createGTree']>;
+		const decodedTree = decodedComp?.listChildren().find((child) => child.getId() === 'tree01') as ReturnType<
+			Document['createGTree']
+		>;
 		t.truthy(decodedTree, 'tree exists after round-trip');
-		t.deepEqual(decodedTree.getListItems().map((item) => ({
-			title: item.title,
-			level: item.level,
-			isFolder: item.isFolder,
-		})), [
-			{ title: 'Empty folder', level: 0, isFolder: true },
-		]);
+		t.deepEqual(
+			decodedTree.getListItems().map((item) => ({
+				title: item.title,
+				level: item.level,
+				isFolder: item.isFolder,
+			})),
+			[{ title: 'Empty folder', level: 0, isFolder: true }],
+		);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
@@ -864,37 +979,52 @@ test('round-trip: tree view list attrs and static item hierarchy survive write�
 	try {
 		await io.writeProject(doc, outFairy);
 		const treeXml = await fs.readFile(path.join(tmpDir, 'assets', 'TreeView', 'Main.xml'), 'utf-8');
-		t.true(treeXml.includes('<item title="Folder 1" level="0" isFolder="true"/>'), 'tree root folders keep their inferred folder state');
-		t.true(treeXml.includes('<item title="Folder 2" level="0" isFolder="true"/>'), 'second tree root folder keeps its inferred folder state');
-		t.regex(treeXml, /<item title="Leaf 1"[^>]* level="1" isFolder="false"\/>/, 'tree leaves keep their inferred leaf state');
+		t.true(
+			treeXml.includes('<item title="Folder 1" level="0" isFolder="true"/>'),
+			'tree root folders keep their inferred folder state',
+		);
+		t.true(
+			treeXml.includes('<item title="Folder 2" level="0" isFolder="true"/>'),
+			'second tree root folder keeps its inferred folder state',
+		);
+		t.regex(
+			treeXml,
+			/<item title="Leaf 1"[^>]* level="1" isFolder="false"\/>/,
+			'tree leaves keep their inferred leaf state',
+		);
 
 		const doc2 = await io.readProject(outFairy);
-		const treeViewPkg = doc2.getRoot().listPackages().find((pkg) => pkg.getName() === 'TreeView');
+		const treeViewPkg = doc2
+			.getRoot()
+			.listPackages()
+			.find((pkg) => pkg.getName() === 'TreeView');
 		const main = treeViewPkg?.listComponents().find((comp) => comp.getName() === 'Main');
 		t.truthy(main, 'TreeView/Main exists after round-trip');
 
-		const tree = main?.listChildren().find((child) => child.getName?.() === 'tree') as ReturnType<Document['createGTree']> | undefined;
+		const tree = main?.listChildren().find((child) => child.getName?.() === 'tree') as
+			| ReturnType<Document['createGTree']>
+			| undefined;
 		t.truthy(tree, 'tree list exists after round-trip');
 		t.is(tree?.propertyType, PropertyType.G_TREE);
 		t.true(tree?.getTreeView?.());
 		t.is(tree?.getIndent?.(), 15);
 		t.is(tree?.getClickToExpand?.(), 1);
 		t.deepEqual(
-		tree?.getListItems?.().map((item) => ({
-			title: item.title,
-			level: item.level,
-			isFolder: item.isFolder,
-		})),
-		[
-			{ title: 'Folder 1', level: 0, isFolder: true },
-			{ title: 'Leaf 1', level: 1, isFolder: false },
-			{ title: 'Leaf 2', level: 1, isFolder: false },
-			{ title: 'Leaf 3', level: 1, isFolder: false },
-			{ title: 'Leaf 4', level: 1, isFolder: false },
-			{ title: 'Folder 2', level: 0, isFolder: true },
-			{ title: 'Leaf 1', level: 1, isFolder: false },
-		],
-	);
+			tree?.getListItems?.().map((item) => ({
+				title: item.title,
+				level: item.level,
+				isFolder: item.isFolder,
+			})),
+			[
+				{ title: 'Folder 1', level: 0, isFolder: true },
+				{ title: 'Leaf 1', level: 1, isFolder: false },
+				{ title: 'Leaf 2', level: 1, isFolder: false },
+				{ title: 'Leaf 3', level: 1, isFolder: false },
+				{ title: 'Leaf 4', level: 1, isFolder: false },
+				{ title: 'Folder 2', level: 0, isFolder: true },
+				{ title: 'Leaf 1', level: 1, isFolder: false },
+			],
+		);
 
 		const template = tree?.inspectDefaultItemTemplate(doc2.getRoot());
 		t.truthy(template, 'tree item template still resolves after round-trip');
@@ -907,12 +1037,24 @@ test('round-trip: tree view list attrs and static item hierarchy survive write�
 		const runtimeRoot = tree?.buildRuntimeTree();
 		t.truthy(runtimeRoot, 'runtime tree hierarchy resolves after round-trip');
 		t.is(runtimeRoot?.children.length, 2);
-		t.deepEqual(runtimeRoot?.children.map((node) => node.title), ['Folder 1', 'Folder 2']);
-		t.deepEqual(runtimeRoot?.children[0]?.children.map((node) => node.title), ['Leaf 1', 'Leaf 2', 'Leaf 3', 'Leaf 4']);
-		t.deepEqual(runtimeRoot?.children[1]?.children.map((node) => node.title), ['Leaf 1']);
+		t.deepEqual(
+			runtimeRoot?.children.map((node) => node.title),
+			['Folder 1', 'Folder 2'],
+		);
+		t.deepEqual(
+			runtimeRoot?.children[0]?.children.map((node) => node.title),
+			['Leaf 1', 'Leaf 2', 'Leaf 3', 'Leaf 4'],
+		);
+		t.deepEqual(
+			runtimeRoot?.children[1]?.children.map((node) => node.title),
+			['Leaf 1'],
+		);
 
 		const collapsed = tree?.collapseAll();
-		t.deepEqual(tree?.listVisibleRuntimeNodes(collapsed).map((node) => node.title), ['Folder 1', 'Folder 2']);
+		t.deepEqual(
+			tree?.listVisibleRuntimeNodes(collapsed).map((node) => node.title),
+			['Folder 1', 'Folder 2'],
+		);
 
 		const selectedLeaf = tree?.selectRuntimeNode(collapsed ?? {}, 6);
 		t.deepEqual(selectedLeaf, {
@@ -921,7 +1063,10 @@ test('round-trip: tree view list attrs and static item hierarchy survive write�
 			lastSelectedItemIndex: 6,
 		});
 		t.is(tree?.getSelectedRuntimeNode(selectedLeaf)?.title, 'Leaf 1');
-		t.deepEqual(tree?.listVisibleRuntimeNodes(selectedLeaf).map((node) => node.title), ['Folder 1', 'Folder 2', 'Leaf 1']);
+		t.deepEqual(
+			tree?.listVisibleRuntimeNodes(selectedLeaf).map((node) => node.title),
+			['Folder 1', 'Folder 2', 'Leaf 1'],
+		);
 
 		const keyboardExpand = tree?.navigateRuntimeSelection(tree.selectRuntimeNode(collapsed ?? {}, 0), 'right');
 		t.deepEqual(keyboardExpand, {

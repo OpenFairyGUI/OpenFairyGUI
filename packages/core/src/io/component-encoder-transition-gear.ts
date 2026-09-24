@@ -1,14 +1,6 @@
 import type { Component } from '../properties/component.js';
-import type {
-	GearNode,
-	TransitionItemNode,
-} from './component-encoder-shared.js';
-import {
-	_numVal,
-	_numberToken,
-	_strVal,
-	getRuntimeChildren,
-} from './component-encoder-shared.js';
+import type { GearNode, TransitionItemNode } from './component-encoder-shared.js';
+import { _numVal, _numberToken, _strVal, getRuntimeChildren } from './component-encoder-shared.js';
 import type { WriteBuffer } from './write-buffer.js';
 
 function _writeGearAnimationExtStatus(buf: WriteBuffer, valueStr: string): void {
@@ -103,8 +95,10 @@ export function _writeTransitions(buf: WriteBuffer, comp: Component, version: nu
 				// Patch item offsets
 				const itemSaved = buf.pos;
 				buf.pos = itemOffsetsPos;
-				buf.writeUint16(ib0); buf.writeUint16(ib1);
-				buf.writeUint16(ib2); buf.writeUint16(ib3);
+				buf.writeUint16(ib0);
+				buf.writeUint16(ib1);
+				buf.writeUint16(ib2);
+				buf.writeUint16(ib3);
 				buf.pos = itemSaved;
 			} else {
 				// Editor export still reserves 4 offset slots for non-tween items.
@@ -115,7 +109,10 @@ export function _writeTransitions(buf: WriteBuffer, comp: Component, version: nu
 
 				const itemSaved = buf.pos;
 				buf.pos = itemOffsetsPos;
-				buf.writeUint16(ib0); buf.writeUint16(ib1); buf.writeUint16(ib2); buf.writeUint16(ib3);
+				buf.writeUint16(ib0);
+				buf.writeUint16(ib1);
+				buf.writeUint16(ib2);
+				buf.writeUint16(ib3);
 				buf.pos = itemSaved;
 			}
 
@@ -191,11 +188,32 @@ function _writePathData(buf: WriteBuffer, path: unknown): void {
 function _writeTransitionValue(buf: WriteBuffer, item: TransitionItemNode, value: unknown, version: number): void {
 	// Value can be: string array ['10','20'], comma-separated string, or object
 	const type = item.getActionType?.() ?? 0;
-	const parts: string[] = !value ? [] :
-		Array.isArray(value) ? value.map(String) :
-		typeof value === 'string' ? value.split(',') : [];
+	const parts: string[] = !value
+		? []
+		: Array.isArray(value)
+			? value.map(String)
+			: typeof value === 'string'
+				? value.split(',')
+				: [];
 
-	const ACTION_TYPE_NAMES = ['XY','Size','Scale','Pivot','Alpha','Rotation','Color','Animation','Visible','Sound','Transition','Shake','ColorFilter','Skew','Text','Icon'];
+	const ACTION_TYPE_NAMES = [
+		'XY',
+		'Size',
+		'Scale',
+		'Pivot',
+		'Alpha',
+		'Rotation',
+		'Color',
+		'Animation',
+		'Visible',
+		'Sound',
+		'Transition',
+		'Shake',
+		'ColorFilter',
+		'Skew',
+		'Text',
+		'Icon',
+	];
 	const typeName = ACTION_TYPE_NAMES[type] ?? 'XY';
 
 	switch (typeName) {
@@ -209,8 +227,8 @@ function _writeTransitionValue(buf: WriteBuffer, item: TransitionItemNode, value
 				buf.writeFloat32(parseFloat(parts[2]) || 0);
 				buf.writeFloat32(parseFloat(parts[3]) || 0);
 			} else {
-				buf.writeFloat32(b1 ? (parseFloat(parts[0]) || 0) : 0);
-				buf.writeFloat32(b2 ? (parseFloat(parts[1]) || 0) : 0);
+				buf.writeFloat32(b1 ? parseFloat(parts[0]) || 0 : 0);
+				buf.writeFloat32(b2 ? parseFloat(parts[1]) || 0 : 0);
 			}
 			buf.writeBool(hasPercent);
 			break;
@@ -222,8 +240,8 @@ function _writeTransitionValue(buf: WriteBuffer, item: TransitionItemNode, value
 			const b2 = parts.length > 1 && parts[1] !== '-';
 			buf.writeBool(b1);
 			buf.writeBool(b2);
-			buf.writeFloat32(b1 ? (parseFloat(parts[0]) || 0) : 0);
-			buf.writeFloat32(b2 ? (parseFloat(parts[1]) || 0) : 0);
+			buf.writeFloat32(b1 ? parseFloat(parts[0]) || 0 : 0);
+			buf.writeFloat32(b2 ? parseFloat(parts[1]) || 0 : 0);
 			break;
 		}
 		case 'Scale': {
@@ -314,7 +332,7 @@ export function _writeGear(buf: WriteBuffer, gear: GearNode, gearType: number, c
 	const pageValues = gear.getPageValues();
 	const values = stringValues
 		? pages.map((page) => pageValues[page] ?? null)
-		: ((_strVal(gear.getValues?.()) ?? '').split('|'));
+		: (_strVal(gear.getValues?.()) ?? '').split('|');
 	const pageCount = pages.length;
 
 	if (gearType === 0 || gearType === 8) {

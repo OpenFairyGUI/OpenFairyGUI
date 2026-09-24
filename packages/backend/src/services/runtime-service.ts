@@ -109,8 +109,10 @@ async function hasFullUamFidelity(
 	} catch {
 		return false;
 	}
-	return capturedFilesEqual(sourceFiles, materializedFiles)
-		&& capturedDirectoriesEqual(sourceDirectories, materializedDirectories);
+	return (
+		capturedFilesEqual(sourceFiles, materializedFiles) &&
+		capturedDirectoriesEqual(sourceDirectories, materializedDirectories)
+	);
 }
 
 export class RuntimeService {
@@ -125,7 +127,10 @@ export class RuntimeService {
 	}): Promise<
 		BackendResult<
 			BackendSessionSnapshot,
-			InProcessLockConflictError | AdvisoryLockConflictError | BackendCapabilityUnavailableError | ProjectRootNotAllowedError
+			| InProcessLockConflictError
+			| AdvisoryLockConflictError
+			| BackendCapabilityUnavailableError
+			| ProjectRootNotAllowedError
 		>
 	> {
 		const startedAt = Date.now();
@@ -155,10 +160,15 @@ export class RuntimeService {
 		const resolved = await resolveCanonicalProjectRoot(fileSystem, input.projectPath);
 		const { fairyPath, canonicalProjectPath, canonicalPathKey } = resolved;
 		await fileSystem.validateProjectRoot?.(canonicalProjectPath);
-		const lockFilePath = fileSystem.getSessionLockPath?.(canonicalProjectPath)
-			?? fileSystem.join(canonicalProjectPath, '.openfairygui.backend.lock');
+		const lockFilePath =
+			fileSystem.getSessionLockPath?.(canonicalProjectPath) ??
+			fileSystem.join(canonicalProjectPath, '.openfairygui.backend.lock');
 		const sessionId = randomId();
-		const reservation = this.context.sessions.reserve(sessionId, { canonicalPathKey, canonicalProjectPath, lockFilePath });
+		const reservation = this.context.sessions.reserve(sessionId, {
+			canonicalPathKey,
+			canonicalProjectPath,
+			lockFilePath,
+		});
 		if ('code' in reservation) return failure('runtime', startedAt, reservation);
 
 		let sessionLock: BackendSessionLock | null = null;
@@ -309,12 +319,18 @@ export class RuntimeService {
 		try {
 			await session.sessionLock?.release();
 		} catch (error) {
-			return failure('runtime', startedAt, {
-				code: 'session_close_failed',
-				message: error instanceof Error ? error.message : String(error),
-				sessionId: session.sessionId,
-				lockFilePath: session.lockFilePath,
-			}, toSessionSnapshot(session, this.context.capabilities), { sessionId: session.sessionId, revision: session.revision });
+			return failure(
+				'runtime',
+				startedAt,
+				{
+					code: 'session_close_failed',
+					message: error instanceof Error ? error.message : String(error),
+					sessionId: session.sessionId,
+					lockFilePath: session.lockFilePath,
+				},
+				toSessionSnapshot(session, this.context.capabilities),
+				{ sessionId: session.sessionId, revision: session.revision },
+			);
 		}
 		session.sessionLock = null;
 		session.lockHeld = false;

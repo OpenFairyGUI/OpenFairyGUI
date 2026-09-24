@@ -26,12 +26,13 @@ function parseLockMetadata(content: string): NodeLockMetadata | null {
 	try {
 		const value = JSON.parse(content) as Partial<NodeLockMetadata>;
 		if (
-			value.schemaVersion !== 1
-			|| !Number.isSafeInteger(value.pid)
-			|| !Number.isFinite(value.processStartTime)
-			|| typeof value.hostname !== 'string'
-			|| typeof value.token !== 'string'
-		) return null;
+			value.schemaVersion !== 1 ||
+			!Number.isSafeInteger(value.pid) ||
+			!Number.isFinite(value.processStartTime) ||
+			typeof value.hostname !== 'string' ||
+			typeof value.token !== 'string'
+		)
+			return null;
 		return value as NodeLockMetadata;
 	} catch {
 		return null;
@@ -95,7 +96,8 @@ async function pathExists(filePath: string): Promise<boolean> {
 async function assertNoSymlinks(dirPath: string): Promise<void> {
 	for (const entry of await fs.readdir(dirPath, { withFileTypes: true })) {
 		const entryPath = path.join(dirPath, entry.name);
-		if (entry.isSymbolicLink()) throw new Error(`Symbolic links are not supported in project directories: ${entryPath}`);
+		if (entry.isSymbolicLink())
+			throw new Error(`Symbolic links are not supported in project directories: ${entryPath}`);
 		if (entry.isDirectory()) await assertNoSymlinks(entryPath);
 	}
 }
@@ -117,7 +119,10 @@ function createStagedNodeFileSystem(projectRoot: string, stagingRoot: string): B
 		async readdir(dirPath) {
 			const entries = await fs.readdir(translate(dirPath), { withFileTypes: true });
 			const symlink = entries.find((entry) => entry.isSymbolicLink());
-			if (symlink) throw new Error(`Symbolic links are not supported in project directories: ${path.join(dirPath, symlink.name)}`);
+			if (symlink)
+				throw new Error(
+					`Symbolic links are not supported in project directories: ${path.join(dirPath, symlink.name)}`,
+				);
 			return entries.map((entry) => entry.name);
 		},
 		readFile: (filePath) => fs.readFile(translate(filePath), 'utf-8'),
@@ -164,7 +169,9 @@ async function runNodeProjectWriteTransaction(
 					await fs.rename(backup, root);
 				} catch (rollbackError) {
 					throw new ProjectWriteTransactionError(
-						new AggregateError([commitError, rollbackError], 'Project commit and rollback both failed.'), true, [backup, staging],
+						new AggregateError([commitError, rollbackError], 'Project commit and rollback both failed.'),
+						true,
+						[backup, staging],
 					);
 				}
 			}
@@ -187,7 +194,9 @@ export function createNodeBackendFileSystem(): BackendFileSystem {
 			const entries = await fs.readdir(dirPath, { withFileTypes: true });
 			const symlink = entries.find((entry) => entry.isSymbolicLink());
 			if (symlink) {
-				const error = new Error(`Symbolic links are not supported in project directories: ${path.join(dirPath, symlink.name)}`) as Error & { code: string };
+				const error = new Error(
+					`Symbolic links are not supported in project directories: ${path.join(dirPath, symlink.name)}`,
+				) as Error & { code: string };
 				error.code = 'ELOOP';
 				throw error;
 			}
@@ -214,7 +223,10 @@ export function createNodeBackendFileSystem(): BackendFileSystem {
 		},
 		validateProjectRoot: assertNoSymlinks,
 		getSessionLockPath(canonicalProjectPath: string): string {
-			return path.join(path.dirname(canonicalProjectPath), `.${path.basename(canonicalProjectPath)}.openfairygui.backend.lock`);
+			return path.join(
+				path.dirname(canonicalProjectPath),
+				`.${path.basename(canonicalProjectPath)}.openfairygui.backend.lock`,
+			);
 		},
 		runProjectWriteTransaction: runNodeProjectWriteTransaction,
 		async acquireSessionLock(filePath: string): Promise<BackendSessionLock> {
@@ -222,7 +234,8 @@ export function createNodeBackendFileSystem(): BackendFileSystem {
 			try {
 				handle = await fs.open(filePath, 'wx');
 			} catch (error) {
-				if ((error as NodeJS.ErrnoException).code !== 'EEXIST' || !(await recoverStaleLock(filePath))) throw error;
+				if ((error as NodeJS.ErrnoException).code !== 'EEXIST' || !(await recoverStaleLock(filePath)))
+					throw error;
 				handle = await fs.open(filePath, 'wx');
 			}
 			const owner = {
@@ -246,7 +259,8 @@ export function createNodeBackendFileSystem(): BackendFileSystem {
 					let supplied: Record<string, unknown> = {};
 					try {
 						const parsed = JSON.parse(content) as unknown;
-						if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) supplied = parsed as Record<string, unknown>;
+						if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed))
+							supplied = parsed as Record<string, unknown>;
 					} catch {
 						// Host metadata is optional; ownership metadata remains authoritative.
 					}
@@ -261,7 +275,8 @@ export function createNodeBackendFileSystem(): BackendFileSystem {
 						if (metadataWritten) {
 							const current = parseLockMetadata(await fs.readFile(filePath, 'utf-8'));
 							if (!current) throw new Error('Cannot release session lock: invalid ownership metadata');
-							if (current.token !== owner.token) throw new Error('Cannot release session lock: ownership token changed');
+							if (current.token !== owner.token)
+								throw new Error('Cannot release session lock: ownership token changed');
 						}
 						await fs.unlink(filePath);
 					} catch (error) {

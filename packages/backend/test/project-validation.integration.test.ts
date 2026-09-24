@@ -5,10 +5,12 @@ test('validateSession reports current UAM reference failures without changing re
 	const project = createBackendFixtureProject();
 	const image = project.packages[0]!.resources[0]!;
 	if (image.kind !== 'image') throw new Error('Expected image fixture');
-	image.sourceBytes = Uint8Array.from(Buffer.from(
-		'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
-		'base64',
-	));
+	image.sourceBytes = Uint8Array.from(
+		Buffer.from(
+			'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+			'base64',
+		),
+	);
 	const component = project.packages[0]!.resources[1]!;
 	if (component.kind !== 'component' || component.component.displayList[0]!.kind !== 'image') {
 		throw new Error('Expected image component fixture');

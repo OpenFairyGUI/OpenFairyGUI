@@ -48,8 +48,16 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
 		if (err instanceof CommanderError && err.exitCode === 0) return;
 		const command = parsedCommand(program);
 		const message = err instanceof Error ? err.message : String(err);
-		if (wantsJson(process.argv)) printJsonError(command, { code: err instanceof CommanderError ? 'invalid_arguments'
-			: command === 'publish' || command === 'restore' ? `${command}_failed` : 'command_failed', message });
+		if (wantsJson(process.argv))
+			printJsonError(command, {
+				code:
+					err instanceof CommanderError
+						? 'invalid_arguments'
+						: command === 'publish' || command === 'restore'
+							? `${command}_failed`
+							: 'command_failed',
+				message,
+			});
 		else console.error(message);
 		process.exitCode = err instanceof CommanderError ? 2 : 1;
 	});

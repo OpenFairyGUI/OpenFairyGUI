@@ -22,11 +22,17 @@ export interface OpenFairyGuiMcpToolPolicy {
 	/** Explicit Host-owned failure envelope, carried in structuredContent.backendResult. */
 	failureSchema: z.ZodType<{ ok: false }>;
 	/** Return a declared failure to stop, or undefined to call Backend with the original input. */
-	beforeCall(input: Readonly<Record<string, unknown>>): { ok: false } | undefined | Promise<{ ok: false } | undefined>;
+	beforeCall(
+		input: Readonly<Record<string, unknown>>,
+	): { ok: false } | undefined | Promise<{ ok: false } | undefined>;
 }
 
 function jsonResult(payload: unknown, isError = false, compact = false): CallToolResult {
-	const text = JSON.stringify(payload, (_key, value) => value instanceof Uint8Array ? [...value] : value, compact ? undefined : 2);
+	const text = JSON.stringify(
+		payload,
+		(_key, value) => (value instanceof Uint8Array ? [...value] : value),
+		compact ? undefined : 2,
+	);
 	const wirePayload = JSON.parse(text) as unknown;
 	return {
 		content: [
@@ -43,10 +49,7 @@ function jsonResult(payload: unknown, isError = false, compact = false): CallToo
 }
 
 function isBackendFailure(value: unknown): boolean {
-	return typeof value === 'object'
-		&& value !== null
-		&& 'ok' in value
-		&& (value as { ok?: unknown }).ok === false;
+	return typeof value === 'object' && value !== null && 'ok' in value && (value as { ok?: unknown }).ok === false;
 }
 
 function unhandledBackendFailure(startedAt: number): McpUnhandledFailure {
@@ -89,13 +92,29 @@ export async function callOpenFairyGuiBackendTool(
 			hostFailure = policy!.failureSchema.parse(hostFailure);
 			if (!isBackendFailure(hostFailure)) throw new TypeError('Host policy must return a failure or undefined.');
 		}
-		const result = hostFailure ?? await Reflect.apply(runtime[definition.backendMethod], runtime, definition.backendMethod === 'getCapabilities' ? [] : [decoded]);
+		const result =
+			hostFailure ??
+			(await Reflect.apply(
+				runtime[definition.backendMethod],
+				runtime,
+				definition.backendMethod === 'getCapabilities' ? [] : [decoded],
+			));
 		let response = jsonResult(result, isBackendFailure(result), definition.maxResponseBytes !== undefined);
-		if (definition.maxResponseBytes !== undefined && new TextEncoder().encode(JSON.stringify(response)).byteLength > definition.maxResponseBytes) {
-			response = jsonResult({
-				...unhandledBackendFailure(startedAt),
-				error: { code: 'mcp_response_budget_exceeded', message: 'The complete MCP tool response exceeds its byte limit.', maxBytes: definition.maxResponseBytes },
-			} satisfies McpResponseBudgetFailure, true);
+		if (
+			definition.maxResponseBytes !== undefined &&
+			new TextEncoder().encode(JSON.stringify(response)).byteLength > definition.maxResponseBytes
+		) {
+			response = jsonResult(
+				{
+					...unhandledBackendFailure(startedAt),
+					error: {
+						code: 'mcp_response_budget_exceeded',
+						message: 'The complete MCP tool response exceeds its byte limit.',
+						maxBytes: definition.maxResponseBytes,
+					},
+				} satisfies McpResponseBudgetFailure,
+				true,
+			);
 			hostFailure = undefined;
 		}
 		if (hostFailure === undefined) definition.outputSchema.parse(response.structuredContent);

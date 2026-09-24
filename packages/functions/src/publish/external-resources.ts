@@ -97,8 +97,7 @@ export async function exportPackageExternalResources(
 			targetName = resolveImageFileName(resource);
 		} else if (isMiscResource(resource) || isSwfResource(resource) || isSkeletonResource(resource)) {
 			sourcePath = resolveGenericResourcePath(resource, pkg, basePath);
-			const publishedFile =
-				context.publishedFiles.get(resource.getId()) ?? resource.getFile();
+			const publishedFile = context.publishedFiles.get(resource.getId()) ?? resource.getFile();
 			targetName =
 				isMiscResource(resource) || isSwfResource(resource)
 					? `${pkg.getPublishName() || pkg.getName()}_${publishedFile}`

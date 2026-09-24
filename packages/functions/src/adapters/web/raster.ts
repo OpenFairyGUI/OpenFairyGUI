@@ -85,9 +85,11 @@ function validateSvgDimensions(source: string): void {
 		processEntities: false,
 		trimValues: false,
 	}).parse(source) as ParsedSvgEntry[];
-	const roots = parsed.flatMap((entry) => Object.keys(entry)
-		.filter((name) => name !== ':@' && !name.startsWith('#') && !name.startsWith('?'))
-		.map((name) => ({ entry, name })));
+	const roots = parsed.flatMap((entry) =>
+		Object.keys(entry)
+			.filter((name) => name !== ':@' && !name.startsWith('#') && !name.startsWith('?'))
+			.map((name) => ({ entry, name })),
+	);
 	if (roots.length !== 1 || svgLocalName(roots[0]!.name) !== 'svg') unsafeSvg('a single <svg> root is required');
 	const root = roots[0]!.entry;
 	const attributes = root[':@'] ?? {};
@@ -96,13 +98,22 @@ function validateSvgDimensions(source: string): void {
 	let viewBoxWidth: number | undefined;
 	let viewBoxHeight: number | undefined;
 	if (attributes.viewBox !== undefined) {
-		const viewBox = String(attributes.viewBox).trim().split(/[\s,]+/u).map(Number);
-		if (viewBox.length !== 4 || viewBox.some((value) => !Number.isFinite(value)) || viewBox[2]! <= 0 || viewBox[3]! <= 0) {
+		const viewBox = String(attributes.viewBox)
+			.trim()
+			.split(/[\s,]+/u)
+			.map(Number);
+		if (
+			viewBox.length !== 4 ||
+			viewBox.some((value) => !Number.isFinite(value)) ||
+			viewBox[2]! <= 0 ||
+			viewBox[3]! <= 0
+		) {
 			unsafeSvg('viewBox must contain four finite values with positive dimensions');
 		}
 		viewBoxWidth = viewBox[2];
 		viewBoxHeight = viewBox[3];
-		if (viewBoxWidth > MAX_SVG_DIMENSION || viewBoxHeight > MAX_SVG_DIMENSION) unsafeSvg('viewBox exceeds the supported dimensions');
+		if (viewBoxWidth > MAX_SVG_DIMENSION || viewBoxHeight > MAX_SVG_DIMENSION)
+			unsafeSvg('viewBox exceeds the supported dimensions');
 	}
 	const rasterWidth = width ?? viewBoxWidth ?? 300;
 	const rasterHeight = height ?? viewBoxHeight ?? 150;
@@ -208,9 +219,10 @@ export async function validateBrowserImageSource(bytes: Uint8Array, path: string
 }
 
 async function decodeSvgWithDom(blob: Blob): Promise<BrowserRaster> {
-	if (typeof globalThis.Image !== 'function'
-		|| typeof globalThis.URL?.createObjectURL !== 'function'
-		|| typeof globalThis.URL?.revokeObjectURL !== 'function'
+	if (
+		typeof globalThis.Image !== 'function' ||
+		typeof globalThis.URL?.createObjectURL !== 'function' ||
+		typeof globalThis.URL?.revokeObjectURL !== 'function'
 	) {
 		throw new Error('publishBrowser: createImageBitmap rejected SVG and DOM image decoding is unavailable.');
 	}
@@ -224,11 +236,16 @@ async function decodeSvgWithDom(blob: Blob): Promise<BrowserRaster> {
 		});
 		const width = image.naturalWidth || image.width;
 		const height = image.naturalHeight || image.height;
-		if (!Number.isFinite(width) || !Number.isFinite(height)
-			|| width <= 0 || height <= 0
-			|| width > MAX_SVG_DIMENSION || height > MAX_SVG_DIMENSION
-			|| width * height > MAX_SVG_PIXELS
-		) unsafeSvg('decoded dimensions exceed the supported limit');
+		if (
+			!Number.isFinite(width) ||
+			!Number.isFinite(height) ||
+			width <= 0 ||
+			height <= 0 ||
+			width > MAX_SVG_DIMENSION ||
+			height > MAX_SVG_DIMENSION ||
+			width * height > MAX_SVG_PIXELS
+		)
+			unsafeSvg('decoded dimensions exceed the supported limit');
 		const raster = createRaster(width, height);
 		getBrowserContext(raster.canvas).drawImage(image, 0, 0);
 		return raster;
@@ -280,18 +297,25 @@ class BrowserImagePipeline implements AtlasRasterPipeline {
 	}
 
 	joinChannel(images: Uint8Array[]): this {
-		this.raster = Promise.all([this.raster, ...images.map((image) => this.decode(image))]).then(([source, ...channels]) => {
-			const context = getBrowserContext(source.canvas);
-			const image = context.getImageData(0, 0, source.width, source.height);
-			for (const [channelIndex, channel] of channels.slice(0, 2).entries()) {
-				const channelData = getBrowserContext(channel.canvas).getImageData(0, 0, channel.width, channel.height).data;
-				for (let index = 0; index < image.data.length; index += 4) {
-					image.data[index + channelIndex + 1] = channelData[index] ?? 0;
+		this.raster = Promise.all([this.raster, ...images.map((image) => this.decode(image))]).then(
+			([source, ...channels]) => {
+				const context = getBrowserContext(source.canvas);
+				const image = context.getImageData(0, 0, source.width, source.height);
+				for (const [channelIndex, channel] of channels.slice(0, 2).entries()) {
+					const channelData = getBrowserContext(channel.canvas).getImageData(
+						0,
+						0,
+						channel.width,
+						channel.height,
+					).data;
+					for (let index = 0; index < image.data.length; index += 4) {
+						image.data[index + channelIndex + 1] = channelData[index] ?? 0;
+					}
 				}
-			}
-			context.putImageData(image, 0, 0);
-			return source;
-		});
+				context.putImageData(image, 0, 0);
+				return source;
+			},
+		);
 		return this;
 	}
 

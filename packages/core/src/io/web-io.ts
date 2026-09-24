@@ -39,7 +39,12 @@ function isCoreFileSystem(value: FileSystem | WebIOOptions): value is FileSystem
 }
 
 function normalizePath(path: string): string {
-	return path.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\.\/+/, '').replace(/^\/+/, '').replace(/\/+$/, '');
+	return path
+		.replace(/\\/g, '/')
+		.replace(/\/+/g, '/')
+		.replace(/^\.\/+/, '')
+		.replace(/^\/+/, '')
+		.replace(/\/+$/, '');
 }
 
 function splitPath(path: string): string[] {

@@ -54,7 +54,8 @@ export const OPENFAIRYGUI_BACKEND_TOOL_METADATA = [
 		name: 'openfairygui_backend_open_project_session',
 		backendMethod: 'openProjectSession',
 		title: 'Open Project Session',
-		description: 'Open a browser-safe backend session from an already loaded UAM project without filesystem access.',
+		description:
+			'Open a browser-safe backend session from an already loaded UAM project without filesystem access.',
 		annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },
 	},
 	{
@@ -68,21 +69,24 @@ export const OPENFAIRYGUI_BACKEND_TOOL_METADATA = [
 		name: 'openfairygui_backend_get_project_outline',
 		backendMethod: 'getProjectOutline',
 		title: 'Get Project Outline',
-		description: 'Return a revision-bound project/package/resource/component identity outline without source bytes or full property payloads.',
+		description:
+			'Return a revision-bound project/package/resource/component identity outline without source bytes or full property payloads.',
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 	},
 	{
 		name: 'openfairygui_backend_query_entity',
 		backendMethod: 'queryEntity',
 		title: 'Query Entity Properties',
-		description: 'Read revision-bound project/package settings, resource, component-property, display-node, controller (including pages/actions), or transition (including items) snapshots. Project queries use only kind; other queries use formal selectors. Settings snapshots include the complete settings payload for updateProjectSettings/updatePackageSettings. No source bytes; fixed projection with explicit response limits.',
+		description:
+			'Read revision-bound project/package settings, resource, component-property, display-node, controller (including pages/actions), or transition (including items) snapshots. Project queries use only kind; other queries use formal selectors. Settings snapshots include the complete settings payload for updateProjectSettings/updatePackageSettings. No source bytes; fixed projection with explicit response limits.',
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 	},
 	{
 		name: 'openfairygui_backend_read_session_state',
 		backendMethod: 'readSessionState',
 		title: 'Read Session State',
-		description: 'Read a detached copy of the currently committed public UAM model without primary asset sourceBytes, with revision, dirty state and source-read diagnostics. Optional expectedRevision rejects stale reads. Does not hydrate, write, reserve history or guarantee downstream usability. Complete tool response is limited to 16 MiB.',
+		description:
+			'Read a detached copy of the currently committed public UAM model without primary asset sourceBytes, with revision, dirty state and source-read diagnostics. Optional expectedRevision rejects stale reads. Does not hydrate, write, reserve history or guarantee downstream usability. Complete tool response is limited to 16 MiB.',
 		maxResponseBytes: 16777216,
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 	},
@@ -90,7 +94,8 @@ export const OPENFAIRYGUI_BACKEND_TOOL_METADATA = [
 		name: 'openfairygui_backend_read_resource_bytes',
 		backendMethod: 'readResourceBytes',
 		title: 'Read Resource Bytes',
-		description: 'Read a detached copy of one asset resource primary sourceBytes already held in the session, using exact packageId/resourceId and the required model edit revision. No filesystem hydration or auxiliary-file discovery. Stale reads require restarting the model/bytes read. Complete tool response is limited to 16 MiB.',
+		description:
+			'Read a detached copy of one asset resource primary sourceBytes already held in the session, using exact packageId/resourceId and the required model edit revision. No filesystem hydration or auxiliary-file discovery. Stale reads require restarting the model/bytes read. Complete tool response is limited to 16 MiB.',
 		maxResponseBytes: 16777216,
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 	},
@@ -98,14 +103,16 @@ export const OPENFAIRYGUI_BACKEND_TOOL_METADATA = [
 		name: 'openfairygui_backend_validate_session',
 		backendMethod: 'validateSession',
 		title: 'Validate Project Session',
-		description: 'Validate the current session project structure, references, paths, and available source bytes without writing files.',
+		description:
+			'Validate the current session project structure, references, paths, and available source bytes without writing files.',
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 	},
 	{
 		name: 'openfairygui_backend_preflight_transaction',
 		backendMethod: 'preflightTransaction',
 		title: 'Preview UAM Transaction',
-		description: 'Execute a revision-checked operation batch on an isolated project snapshot and discard the result. Returns the base revision and Core diagnostics; does not write, reserve a revision, or guarantee a later apply/save.',
+		description:
+			'Execute a revision-checked operation batch on an isolated project snapshot and discard the result. Returns the base revision and Core diagnostics; does not write, reserve a revision, or guarantee a later apply/save.',
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 	},
 	{
@@ -119,14 +126,16 @@ export const OPENFAIRYGUI_BACKEND_TOOL_METADATA = [
 		name: 'openfairygui_backend_save_session',
 		backendMethod: 'saveSession',
 		title: 'Save Backend Session',
-		description: 'Write the current backend session through its coordinated save path; Node uses an atomic staged directory swap.',
+		description:
+			'Write the current backend session through its coordinated save path; Node uses an atomic staged directory swap.',
 		annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
 	},
 	{
 		name: 'openfairygui_backend_materialize_session',
 		backendMethod: 'materializeSession',
 		title: 'Materialize Backend Session',
-		description: 'Force materialize the current backend session project through the configured project storage without requiring a dirty edit revision.',
+		description:
+			'Force materialize the current backend session project through the configured project storage without requiring a dirty edit revision.',
 		annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
 	},
 	{

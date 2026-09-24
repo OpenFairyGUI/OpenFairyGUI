@@ -53,7 +53,6 @@ export function decodeChildBlock3(
 	decodeRelationBlock(childBuf, childIds, (relation) => child.addRelation(relation));
 }
 
-
 export function readPathData(buf: ByteBuffer): string {
 	if (remainingBytes(buf) < 4) return '';
 	const pointCount = buf.getInt32();
@@ -92,17 +91,9 @@ function readTransitionValue(actionType: number, buf: ByteBuffer, version: numbe
 			const value2 = buf.getFloat32();
 			const positionsInPercent = buf.readBool();
 			if (positionsInPercent) {
-				return [
-					hasX ? '0' : '-',
-					hasY ? '0' : '-',
-					formatBinaryNumber(value1),
-					formatBinaryNumber(value2),
-				];
+				return [hasX ? '0' : '-', hasY ? '0' : '-', formatBinaryNumber(value1), formatBinaryNumber(value2)];
 			}
-			return [
-				hasX ? formatBinaryNumber(value1) : '-',
-				hasY ? formatBinaryNumber(value2) : '-',
-			];
+			return [hasX ? formatBinaryNumber(value1) : '-', hasY ? formatBinaryNumber(value2) : '-'];
 		}
 		case TransitionActionType.Size:
 		case TransitionActionType.Pivot:
@@ -111,10 +102,7 @@ function readTransitionValue(actionType: number, buf: ByteBuffer, version: numbe
 			const hasY = buf.readBool();
 			const value1 = buf.getFloat32();
 			const value2 = buf.getFloat32();
-			return [
-				hasX ? formatBinaryNumber(value1) : '-',
-				hasY ? formatBinaryNumber(value2) : '-',
-			];
+			return [hasX ? formatBinaryNumber(value1) : '-', hasY ? formatBinaryNumber(value2) : '-'];
 		}
 		case TransitionActionType.Scale:
 			return [formatBinaryNumber(buf.getFloat32()), formatBinaryNumber(buf.getFloat32())];
@@ -186,8 +174,7 @@ export function decodeComponentTransitions(
 
 			if (itemBuf.seek(0, 0) && remainingBytes(itemBuf) >= 10) {
 				const actionType = itemBuf.getUint8();
-				item
-					.setActionType(actionType)
+				item.setActionType(actionType)
 					.setTime(itemBuf.getFloat32() * transition.getFps())
 					.setTargetId(childIds[itemBuf.getInt16()] ?? '')
 					.setLabel(itemBuf.readS() ?? '')
@@ -195,8 +182,7 @@ export function decodeComponentTransitions(
 			}
 
 			if (item.getTween() && itemBuf.seek(0, 1) && remainingBytes(itemBuf) >= 14) {
-				item
-					.setDuration(itemBuf.getFloat32() * transition.getFps())
+				item.setDuration(itemBuf.getFloat32() * transition.getFps())
 					.setEaseType(itemBuf.getUint8())
 					.setRepeat(itemBuf.getInt32())
 					.setYoyo(itemBuf.readBool())

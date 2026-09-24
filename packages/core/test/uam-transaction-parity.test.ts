@@ -13,7 +13,10 @@ import {
 } from '../src/index.js';
 import { isValidUamTextProperties } from '../src/uam/property-rules/text.js';
 import { isValidUamImageProperties } from '../src/uam/property-rules/image.js';
-import { isValidUamComponentInstanceProperties, isValidUamComponentPropertyOverride } from '../src/uam/property-rules/component-instance.js';
+import {
+	isValidUamComponentInstanceProperties,
+	isValidUamComponentPropertyOverride,
+} from '../src/uam/property-rules/component-instance.js';
 import { canApplyOperationsInUam } from '../src/uam/transaction-uam-apply.js';
 import { createControllerModel, createLookGear, createSupportedProject } from './uam-transaction-fixtures.js';
 
@@ -209,7 +212,6 @@ test('both routes report the same ordered failure and leave the input unchanged'
 	t.deepEqual(project, baseline);
 });
 
-
 test('shared property rules preserve ordered diagnostics and rejected transaction inputs', (t) => {
 	const project = parityProject();
 	const baseline = structuredClone(project);
@@ -223,7 +225,16 @@ test('shared property rules preserve ordered diagnostics and rejected transactio
 		let props: Extract<UamTransactionOperation, { kind: 'setDisplayNodeProps' }>['props'];
 		if (node.id === 'n0' && node.kind === 'image') {
 			node.fillAmount = 0;
-			props = { imageProperties: { color: node.color, flip: node.flip, fillMethod: 0, fillOrigin: 0, fillClockwise: true, fillAmount: 0 } };
+			props = {
+				imageProperties: {
+					color: node.color,
+					flip: node.flip,
+					fillMethod: 0,
+					fillOrigin: 0,
+					fillClockwise: true,
+					fillAmount: 0,
+				},
+			};
 		} else if (node.id === 'n1' && node.kind === 'text') {
 			node.fontSize = 0;
 			props = { textProperties: { ...createDefaultUamPlainTextProperties(), fontSize: 0 } };
@@ -236,15 +247,27 @@ test('shared property rules preserve ordered diagnostics and rejected transactio
 		} else continue;
 		operations.push({ kind: 'setDisplayNodeProps', selector: { ...selector, displayNodeId: node.id }, props });
 		fields.push(Object.keys(props)[0]!);
-		expectedProjectPaths.push('packages[0].resources[1].component.displayList[' + index + ']' + (node.kind === 'component' ? '.instanceProperties' : ''));
+		expectedProjectPaths.push(
+			'packages[0].resources[1].component.displayList[' +
+				index +
+				']' +
+				(node.kind === 'component' ? '.instanceProperties' : ''),
+		);
 	}
 	const invalidBaseline = structuredClone(invalid);
-	t.deepEqual(validateUamProject(invalid).map(({ code, path }) => ({ code, path })),
-		expectedProjectPaths.map((path) => ({ code: 'invalid_uam', path })));
+	t.deepEqual(
+		validateUamProject(invalid).map(({ code, path }) => ({ code, path })),
+		expectedProjectPaths.map((path) => ({ code: 'invalid_uam', path })),
+	);
 	const operationBaseline = structuredClone(operations);
 	const issues = validateTransactionSupport(project, operations);
-	t.deepEqual(issues.map(({ code, path }) => ({ code, path })),
-		fields.map((field, index) => ({ code: 'invalid_display_node_payload', path: 'operations[' + index + '].props.' + field })));
+	t.deepEqual(
+		issues.map(({ code, path }) => ({ code, path })),
+		fields.map((field, index) => ({
+			code: 'invalid_display_node_payload',
+			path: 'operations[' + index + '].props.' + field,
+		})),
+	);
 	for (const batch of [operations, [...operations, ...documentRoute]]) {
 		t.throws(() => applyUamTransaction(project, batch), { instanceOf: UamTransactionError });
 	}
@@ -252,7 +275,6 @@ test('shared property rules preserve ordered diagnostics and rejected transactio
 	t.deepEqual(invalid, invalidBaseline);
 	t.deepEqual(operations, operationBaseline);
 });
-
 
 test('property rule leaves distinguish missing fields, explicit defaults and extension snapshots', (t) => {
 	const text = createDefaultUamPlainTextProperties();

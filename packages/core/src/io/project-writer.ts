@@ -7,10 +7,22 @@ import { renderXmlAttrs } from '../utils/xml-utils.js';
 import { writeComponent } from './component-xml-writer.js';
 import { assertDisplayObjectGearXmlValues } from './display-object-xml-behaviors-writer.js';
 import type { FileSystem } from './file-system.js';
-import type { ProjectBranchDirectory, ProjectImageWriteHints, ProjectResourceFolder, ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
+import type {
+	ProjectBranchDirectory,
+	ProjectImageWriteHints,
+	ProjectResourceFolder,
+	ProjectSourceFile,
+	ProjectWriteOptions,
+} from './project-io-contracts.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr } from './project-xml-protocol.js';
 
-export type { ProjectBranchDirectory, ProjectImageWriteHints, ProjectResourceFolder, ProjectSourceFile, ProjectWriteOptions } from './project-io-contracts.js';
+export type {
+	ProjectBranchDirectory,
+	ProjectImageWriteHints,
+	ProjectResourceFolder,
+	ProjectSourceFile,
+	ProjectWriteOptions,
+} from './project-io-contracts.js';
 
 type PackageResource = ReturnType<Package['listResources']>[number];
 
@@ -103,13 +115,17 @@ export class ProjectWriter {
 
 	/** Replaces hints for every subsequent write of this image, including another Writer instance. */
 	static setImageWriteHints(resource: ImageResource, hints: ProjectImageWriteHints): void {
-		if (hints.packageOrder && (typeof hints.packageOrder.afterId !== 'string' || !Number.isFinite(hints.packageOrder.weight))) {
+		if (
+			hints.packageOrder &&
+			(typeof hints.packageOrder.afterId !== 'string' || !Number.isFinite(hints.packageOrder.weight))
+		) {
 			throw new TypeError('Image package order requires a string afterId and finite weight.');
 		}
-		if (hints.omitPackageSize === true || hints.packageOrder) imageWriteHints.set(resource, {
-			omitPackageSize: hints.omitPackageSize,
-			packageOrder: hints.packageOrder && { ...hints.packageOrder },
-		});
+		if (hints.omitPackageSize === true || hints.packageOrder)
+			imageWriteHints.set(resource, {
+				omitPackageSize: hints.omitPackageSize,
+				packageOrder: hints.packageOrder && { ...hints.packageOrder },
+			});
 		else imageWriteHints.delete(resource);
 	}
 
@@ -128,7 +144,9 @@ export class ProjectWriter {
 			(options.staleSourceFiles ?? []).map((source) => this._projectSourceFilePath(basePath, source)),
 		);
 		const staleBranchDirectoryPaths = new Set(
-			(options.staleBranchDirectories ?? []).map((directory) => this._projectBranchDirectoryPath(basePath, directory)),
+			(options.staleBranchDirectories ?? []).map((directory) =>
+				this._projectBranchDirectoryPath(basePath, directory),
+			),
 		);
 		if (staleBranchDirectoryPaths.size > 0 && !fs.rmdir) {
 			throw new Error('Project branch cleanup requires a FileSystem.rmdir() implementation.');
@@ -151,15 +169,16 @@ export class ProjectWriter {
 			['i18n.json', 'i18n'],
 		] as const) {
 			const filePath = fs.join(settingsPath, fileName);
-			if (settings[key] === undefined && await fs.exists(filePath)) staleOptionalSettings.push(filePath);
+			if (settings[key] === undefined && (await fs.exists(filePath))) staleOptionalSettings.push(filePath);
 		}
 		if (staleOptionalSettings.length > 0 && !fs.unlink) {
 			throw new Error('Project settings cleanup requires a FileSystem.unlink() implementation.');
 		}
 
 		// 1. Write .fairy file
-		const fairyXml = `<?xml version="1.0" encoding="utf-8"?>\n`
-			+ `<projectDescription${renderXmlAttrs({
+		const fairyXml =
+			`<?xml version="1.0" encoding="utf-8"?>\n` +
+			`<projectDescription${renderXmlAttrs({
 				id: root.getProjectId(),
 				type: this._projectTypeName(root.getProjectType()),
 				version: root.getVersion() || '3.0',
@@ -177,10 +196,7 @@ export class ProjectWriter {
 		};
 		for (const [fileName, key] of Object.entries(settingFiles)) {
 			if (settings[key]) {
-				await fs.writeFile(
-					fs.join(settingsPath, fileName),
-					JSON.stringify(settings[key], null, '\t'),
-				);
+				await fs.writeFile(fs.join(settingsPath, fileName), JSON.stringify(settings[key], null, '\t'));
 			}
 		}
 		for (const filePath of staleOptionalSettings) await fs.unlink!(filePath);
@@ -206,7 +222,9 @@ export class ProjectWriter {
 		await this._removeStaleSourceFiles(currentSourceFilePaths, staleSourceFilePaths);
 		await this._removeStaleResourceFolders(
 			currentResourceFolderPaths,
-			new Set((options.staleResourceFolders ?? []).map((folder) => this._projectResourceFolderPath(basePath, folder))),
+			new Set(
+				(options.staleResourceFolders ?? []).map((folder) => this._projectResourceFolderPath(basePath, folder)),
+			),
 		);
 		await this._removeStaleBranchDirectories(currentBranchDirectoryPaths, staleBranchDirectoryPaths);
 	}
@@ -235,26 +253,31 @@ export class ProjectWriter {
 			PROJECT_XML_PROTOCOL.packageDescription.attrs.branchNames,
 			packageBranchNames.length > 0 ? JSON.stringify(packageBranchNames) : undefined,
 		);
-		if (pkg.listResources().some((resource) => (resource as WritableResource).getFavorite?.())
-			|| pkg.listResourceFolders().some((folder) => folder.favorite)
+		if (
+			pkg.listResources().some((resource) => (resource as WritableResource).getFavorite?.()) ||
+			pkg.listResourceFolders().some((folder) => folder.favorite)
 		) {
 			writeXmlAttr(packageDescriptionAttrs, PROJECT_XML_PROTOCOL.packageDescription.attrs.hasFavorites, 'true');
 		}
 		const compressPNG = pkg.getCompressPNG();
 		if (compressPNG !== null) {
-			writeXmlAttr(packageDescriptionAttrs, PROJECT_XML_PROTOCOL.packageDescription.attrs.compressPNG, compressPNG ? 'true' : 'false');
+			writeXmlAttr(
+				packageDescriptionAttrs,
+				PROJECT_XML_PROTOCOL.packageDescription.attrs.compressPNG,
+				compressPNG ? 'true' : 'false',
+			);
 		}
 		const jpegQuality = pkg.getJpegQuality();
 		if (jpegQuality !== null) {
-			writeXmlAttr(packageDescriptionAttrs, PROJECT_XML_PROTOCOL.packageDescription.attrs.jpegQuality, String(jpegQuality));
+			writeXmlAttr(
+				packageDescriptionAttrs,
+				PROJECT_XML_PROTOCOL.packageDescription.attrs.jpegQuality,
+				String(jpegQuality),
+			);
 		}
 		const publishAttrs: Record<string, unknown> = {};
 		writeXmlAttr(publishAttrs, PROJECT_XML_PROTOCOL.packagePublish.attrs.name, publishName);
-		writeXmlAttr(
-			publishAttrs,
-			PROJECT_XML_PROTOCOL.packagePublish.attrs.path,
-			publishPath || undefined,
-		);
+		writeXmlAttr(publishAttrs, PROJECT_XML_PROTOCOL.packagePublish.attrs.path, publishPath || undefined);
 		writeXmlAttr(
 			publishAttrs,
 			PROJECT_XML_PROTOCOL.packagePublish.attrs.branchPath,
@@ -265,23 +288,35 @@ export class ProjectWriter {
 			PROJECT_XML_PROTOCOL.packagePublish.attrs.packageCount,
 			publishPackageCount > 0 ? publishPackageCount : undefined,
 		);
-		writeXmlAttr(
-			publishAttrs,
-			PROJECT_XML_PROTOCOL.packagePublish.attrs.genCode,
-			genCode ? 'true' : undefined,
-		);
-		writeXmlAttr(
-			publishAttrs,
-			PROJECT_XML_PROTOCOL.packagePublish.attrs.codePath,
-			codePath || undefined,
-		);
+		writeXmlAttr(publishAttrs, PROJECT_XML_PROTOCOL.packagePublish.attrs.genCode, genCode ? 'true' : undefined);
+		writeXmlAttr(publishAttrs, PROJECT_XML_PROTOCOL.packagePublish.attrs.codePath, codePath || undefined);
 		const sourceAtlasSettings = pkg.getSourceAtlasSettings();
 		if (!sourceAtlasSettings.useGlobal) {
-			writeXmlAttr(publishAttrs, PROJECT_XML_PROTOCOL.packagePublish.attrs.maxAtlasSize, String(sourceAtlasSettings.maxSize));
-			writeXmlAttr(publishAttrs, PROJECT_XML_PROTOCOL.packagePublish.attrs.sizeOption, sourceAtlasSettings.sizeOption);
-			writeXmlAttr(publishAttrs, PROJECT_XML_PROTOCOL.packagePublish.attrs.square, sourceAtlasSettings.forceSquare ? 'true' : 'false');
-			writeXmlAttr(publishAttrs, PROJECT_XML_PROTOCOL.packagePublish.attrs.rotation, sourceAtlasSettings.allowRotation ? 'true' : 'false');
-			writeXmlAttr(publishAttrs, PROJECT_XML_PROTOCOL.packagePublish.attrs.multiPage, sourceAtlasSettings.paging ? 'true' : 'false');
+			writeXmlAttr(
+				publishAttrs,
+				PROJECT_XML_PROTOCOL.packagePublish.attrs.maxAtlasSize,
+				String(sourceAtlasSettings.maxSize),
+			);
+			writeXmlAttr(
+				publishAttrs,
+				PROJECT_XML_PROTOCOL.packagePublish.attrs.sizeOption,
+				sourceAtlasSettings.sizeOption,
+			);
+			writeXmlAttr(
+				publishAttrs,
+				PROJECT_XML_PROTOCOL.packagePublish.attrs.square,
+				sourceAtlasSettings.forceSquare ? 'true' : 'false',
+			);
+			writeXmlAttr(
+				publishAttrs,
+				PROJECT_XML_PROTOCOL.packagePublish.attrs.rotation,
+				sourceAtlasSettings.allowRotation ? 'true' : 'false',
+			);
+			writeXmlAttr(
+				publishAttrs,
+				PROJECT_XML_PROTOCOL.packagePublish.attrs.multiPage,
+				sourceAtlasSettings.paging ? 'true' : 'false',
+			);
 		}
 		writeXmlAttr(
 			publishAttrs,
@@ -304,11 +339,7 @@ export class ProjectWriter {
 			.sort((left, right) => left.index - right.index)
 			.map((atlas) => {
 				const attrs: Record<string, unknown> = {};
-				writeXmlAttr(
-					attrs,
-					PROJECT_XML_PROTOCOL.packagePublishAtlas.attrs.name,
-					atlas.name || undefined,
-				);
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packagePublishAtlas.attrs.name, atlas.name || undefined);
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packagePublishAtlas.attrs.index, String(atlas.index));
 				writeXmlAttr(
 					attrs,
@@ -320,24 +351,36 @@ export class ProjectWriter {
 		if (publishAtlases.length > 0) {
 			publishAttrs.atlas = publishAtlases;
 		}
-		await fs.writeFile(main.descriptorPath, this._renderPackageDescriptionXml(
-			packageDescriptionAttrs, main.folders.map(({ folder }) => folder), main.orderedResources, publishAttrs,
-		));
+		await fs.writeFile(
+			main.descriptorPath,
+			this._renderPackageDescriptionXml(
+				packageDescriptionAttrs,
+				main.folders.map(({ folder }) => folder),
+				main.orderedResources,
+				publishAttrs,
+			),
+		);
 		currentSourceFilePaths.add(main.descriptorPath);
 		await this._writeBranchContents(main, currentSourceFilePaths, currentResourceFolderPaths);
 		for (const branch of branches) {
 			await fs.mkdir(branch.directory);
 			currentBranchDirectoryPaths.add(branch.directory);
-			await fs.writeFile(branch.descriptorPath, this._renderBranchDescriptionXml(
-				branch.folders.map(({ folder }) => folder), branch.orderedResources,
-			));
+			await fs.writeFile(
+				branch.descriptorPath,
+				this._renderBranchDescriptionXml(
+					branch.folders.map(({ folder }) => folder),
+					branch.orderedResources,
+				),
+			);
 			currentSourceFilePaths.add(branch.descriptorPath);
 			await this._writeBranchContents(branch, currentSourceFilePaths, currentResourceFolderPaths);
 		}
 	}
 
 	private async _writeBranchContents(
-		plan: BranchOutputPlan, currentSourceFilePaths: Set<string>, currentResourceFolderPaths: Set<string>,
+		plan: BranchOutputPlan,
+		currentSourceFilePaths: Set<string>,
+		currentResourceFolderPaths: Set<string>,
 	): Promise<void> {
 		const fs = this._fs;
 		for (const { targetPath } of plan.folders) {
@@ -361,8 +404,8 @@ export class ProjectWriter {
 
 	private async _stalePaths(currentPaths: Set<string>, stalePaths: Set<string>): Promise<string[]> {
 		const fs = this._fs;
-		const identity = async (path: string): Promise<string> => fs.resolvePath && await fs.exists(path)
-			? fs.resolvePath(path) : path;
+		const identity = async (path: string): Promise<string> =>
+			fs.resolvePath && (await fs.exists(path)) ? fs.resolvePath(path) : path;
 		const current = new Set(await Promise.all([...currentPaths].map(identity)));
 		const candidates: string[] = [];
 		for (const path of stalePaths) {
@@ -391,8 +434,9 @@ export class ProjectWriter {
 		currentResourceFolderPaths: Set<string>,
 		staleResourceFolderPaths: Set<string>,
 	): Promise<void> {
-		const candidates = (await this._stalePaths(currentResourceFolderPaths, staleResourceFolderPaths))
-			.sort((left, right) => right.length - left.length);
+		const candidates = (await this._stalePaths(currentResourceFolderPaths, staleResourceFolderPaths)).sort(
+			(left, right) => right.length - left.length,
+		);
 		if (candidates.length === 0) return;
 		if (!this._fs.rmdir) {
 			throw new Error('Project resource folder cleanup requires a FileSystem.rmdir() implementation.');
@@ -407,8 +451,9 @@ export class ProjectWriter {
 		currentBranchDirectoryPaths: Set<string>,
 		staleBranchDirectoryPaths: Set<string>,
 	): Promise<void> {
-		const candidates = (await this._stalePaths(currentBranchDirectoryPaths, staleBranchDirectoryPaths))
-			.sort((left, right) => right.length - left.length);
+		const candidates = (await this._stalePaths(currentBranchDirectoryPaths, staleBranchDirectoryPaths)).sort(
+			(left, right) => right.length - left.length,
+		);
 		for (const directoryPath of candidates) {
 			if (!(await this._fs.exists(directoryPath))) continue;
 			await this._fs.rmdir!(directoryPath);
@@ -432,23 +477,40 @@ export class ProjectWriter {
 		}
 
 		const branches: BranchOutputPlan[] = [];
-		for (const branch of new Set(['', ...pkg.listBranchNames(), ...resourcesByBranch.keys(), ...foldersByBranch.keys()])) {
+		for (const branch of new Set([
+			'',
+			...pkg.listBranchNames(),
+			...resourcesByBranch.keys(),
+			...foldersByBranch.keys(),
+		])) {
 			if (branch) this._assertSafePathSegment(branch, 'branch name');
 			const directory = this._fs.join(basePath, branch ? 'assets_' + branch : 'assets', pkg.getName());
 			const resources = resourcesByBranch.get(branch) ?? [];
 			branches.push({
-				branch, directory,
+				branch,
+				directory,
 				descriptorPath: this._fs.join(directory, branch ? 'package_branch.xml' : 'package.xml'),
-				orderedResources: this._orderedPackageResources(resources, pkg.getExtras()._preservePackageResourceOrder === true),
+				orderedResources: this._orderedPackageResources(
+					resources,
+					pkg.getExtras()._preservePackageResourceOrder === true,
+				),
 				folders: (foldersByBranch.get(branch) ?? []).map((folder) => {
 					const relativePath = this._normalizeSourceRelativePath(folder.path);
 					return { folder, relativePath, targetPath: this._fs.join(directory, relativePath) };
 				}),
 				resources: resources.map((resource) => {
-					const relativePath = resource.propertyType === 'Component'
-						? this._componentSourceRelativePath(resource)
-						: this._resourceSourceRelativePath(resource as WritableResource, this._resourceFileName(resource as WritableResource));
-					return { resource, relativePath, targetPath: relativePath ? this._fs.join(directory, relativePath) : '' };
+					const relativePath =
+						resource.propertyType === 'Component'
+							? this._componentSourceRelativePath(resource)
+							: this._resourceSourceRelativePath(
+									resource as WritableResource,
+									this._resourceFileName(resource as WritableResource),
+								);
+					return {
+						resource,
+						relativePath,
+						targetPath: relativePath ? this._fs.join(directory, relativePath) : '',
+					};
 				}),
 			});
 		}
@@ -460,15 +522,18 @@ export class ProjectWriter {
 		for (const branch of plan.branches) {
 			const targets = new Map<string, string>([[branch.descriptorPath, 'package descriptor']]);
 			for (const { folder, relativePath: target, targetPath } of branch.folders) {
-				if (!target) throw new Error(`Package "${pkg.getName()}" cannot declare the resource root as a folder.`);
+				if (!target)
+					throw new Error(`Package "${pkg.getName()}" cannot declare the resource root as a folder.`);
 				const previous = targets.get(targetPath);
-				if (previous) throw new Error(`Package "${pkg.getName()}" output "${target}" conflicts with ${previous}.`);
+				if (previous)
+					throw new Error(`Package "${pkg.getName()}" output "${target}" conflicts with ${previous}.`);
 				targets.set(targetPath, `resource folder "${folder.path}"`);
 			}
 			for (const { resource, relativePath: target, targetPath } of branch.resources) {
 				if (!target) continue;
 				const previous = targets.get(targetPath);
-				if (previous) throw new Error(`Package "${pkg.getName()}" output "${target}" conflicts with ${previous}.`);
+				if (previous)
+					throw new Error(`Package "${pkg.getName()}" output "${target}" conflicts with ${previous}.`);
 				targets.set(targetPath, `resource "${resource.getId() ?? resource.getName()}"`);
 			}
 		}
@@ -478,7 +543,9 @@ export class ProjectWriter {
 		this._assertSafePathSegment(source.packageName, 'stale source package name');
 		if (source.branch) this._assertSafePathSegment(source.branch, 'stale source branch name');
 		this._assertSafePathSegment(source.fileName, 'stale source file name');
-		const relativePath = this._normalizeSourceRelativePath([source.path, source.fileName].filter(Boolean).join('/'));
+		const relativePath = this._normalizeSourceRelativePath(
+			[source.path, source.fileName].filter(Boolean).join('/'),
+		);
 		const assetRoot = source.branch ? `assets_${source.branch}` : 'assets';
 		return this._fs.join(basePath, assetRoot, source.packageName, relativePath);
 	}
@@ -516,13 +583,14 @@ export class ProjectWriter {
 	}
 
 	private _assertSafePathSegment(value: string, label: string): void {
-		if (!value
-			|| value.trim() !== value
-			|| value === '.'
-			|| value === '..'
-			|| /[\\/:]/.test(value)
-			|| /[. ]$/.test(value)
-			|| /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i.test(value)
+		if (
+			!value ||
+			value.trim() !== value ||
+			value === '.' ||
+			value === '..' ||
+			/[\\/:]/.test(value) ||
+			/[. ]$/.test(value) ||
+			/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i.test(value)
 		) {
 			throw new Error(`Invalid ${label} "${value}".`);
 		}
@@ -542,9 +610,7 @@ export class ProjectWriter {
 		resources: PackageResource[],
 		publishAttrs: Record<string, unknown>,
 	): string {
-		const publishNodeAttrs = Object.fromEntries(
-			Object.entries(publishAttrs).filter(([key]) => key !== 'atlas'),
-		);
+		const publishNodeAttrs = Object.fromEntries(Object.entries(publishAttrs).filter(([key]) => key !== 'atlas'));
 		const lines = [
 			'<?xml version="1.0" encoding="utf-8"?>',
 			`<packageDescription${renderXmlAttrs(packageDescriptionAttrs)}>`,
@@ -554,7 +620,9 @@ export class ProjectWriter {
 			'  </resources>',
 			`  <publish${renderXmlAttrs(publishNodeAttrs)}>`,
 		];
-		const publishAtlases = Array.isArray(publishAttrs.atlas) ? publishAttrs.atlas as Record<string, unknown>[] : [];
+		const publishAtlases = Array.isArray(publishAttrs.atlas)
+			? (publishAttrs.atlas as Record<string, unknown>[])
+			: [];
 		for (const atlasAttrs of publishAtlases) {
 			lines.push(`    <atlas${renderXmlAttrs(atlasAttrs)}/>`);
 		}
@@ -563,10 +631,7 @@ export class ProjectWriter {
 		return `${lines.join('\n')}\n`;
 	}
 
-	private _renderBranchDescriptionXml(
-		folders: PackageResourceFolder[],
-		resources: PackageResource[],
-	): string {
+	private _renderBranchDescriptionXml(folders: PackageResourceFolder[], resources: PackageResource[]): string {
 		const lines = [
 			'<?xml version="1.0" encoding="utf-8"?>',
 			'<branchDescription>',
@@ -587,18 +652,25 @@ export class ProjectWriter {
 				const attrs: Record<string, unknown> = {};
 				const id = folder.branch ? `/:${folder.branch}${folder.path}` : folder.path;
 				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.id, id);
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.name, resourceFolderName(folder.path));
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.path, resourceFolderParentPath(folder.path));
-				if (folder.favorite) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.favorite, 'true');
-				if (folder.atlas) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.atlas, folder.atlas);
+				writeXmlAttr(
+					attrs,
+					PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.name,
+					resourceFolderName(folder.path),
+				);
+				writeXmlAttr(
+					attrs,
+					PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.path,
+					resourceFolderParentPath(folder.path),
+				);
+				if (folder.favorite)
+					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.favorite, 'true');
+				if (folder.atlas)
+					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.atlas, folder.atlas);
 				return `${indent}<folder${renderXmlAttrs(attrs)}/>`;
 			});
 	}
 
-	private _renderPackageResourceLines(
-		resources: PackageResource[],
-		indent: string,
-	): string[] {
+	private _renderPackageResourceLines(resources: PackageResource[], indent: string): string[] {
 		return resources
 			.map((resource) => {
 				const serialized = this._serializePackageResourceEntry(resource);
@@ -611,12 +683,14 @@ export class ProjectWriter {
 	private _orderedPackageResources(resources: PackageResource[], preserveResourceOrder: boolean): PackageResource[] {
 		const original = preserveResourceOrder
 			? [...resources]
-			: [...resources].sort((a, b) => compareResourceIdSequence(
-				(a as WritableResource).getId?.() ?? '',
-				(b as WritableResource).getId?.() ?? '',
-			));
-		const orderOf = (resource: PackageResource) => resource.propertyType === 'ImageResource'
-			? imageWriteHints.get(resource)?.packageOrder : undefined;
+			: [...resources].sort((a, b) =>
+					compareResourceIdSequence(
+						(a as WritableResource).getId?.() ?? '',
+						(b as WritableResource).getId?.() ?? '',
+					),
+				);
+		const orderOf = (resource: PackageResource) =>
+			resource.propertyType === 'ImageResource' ? imageWriteHints.get(resource)?.packageOrder : undefined;
 		const anchors = new Set(original.filter((resource) => !orderOf(resource)).map((resource) => resource.getId()));
 		const resourcesAfter = new Map<string, Array<{ resource: PackageResource; weight: number }>>();
 		const trailing: Array<{ resource: PackageResource; weight: number }> = [];
@@ -626,7 +700,8 @@ export class ProjectWriter {
 			if (!order) continue;
 			const { afterId, weight } = order;
 			if (afterId) {
-				if (!anchors.has(afterId)) throw new Error(`Invalid image package order anchor "${afterId}" for "${resource.getId()}".`);
+				if (!anchors.has(afterId))
+					throw new Error(`Invalid image package order anchor "${afterId}" for "${resource.getId()}".`);
 				const bucket = resourcesAfter.get(afterId) ?? [];
 				bucket.push({ resource, weight });
 				resourcesAfter.set(afterId, bucket);
@@ -641,18 +716,26 @@ export class ProjectWriter {
 			result.push(resource);
 			const id = (resource as WritableResource).getId?.() ?? '';
 			const bucket = resourcesAfter.get(id) ?? [];
-			bucket.sort((a, b) =>
-				a.weight - b.weight
-				|| compareResourceIdSequence((a.resource as WritableResource).getId?.() ?? '', (b.resource as WritableResource).getId?.() ?? ''),
+			bucket.sort(
+				(a, b) =>
+					a.weight - b.weight ||
+					compareResourceIdSequence(
+						(a.resource as WritableResource).getId?.() ?? '',
+						(b.resource as WritableResource).getId?.() ?? '',
+					),
 			);
 			for (const entry of bucket) {
 				result.push(entry.resource);
 			}
 		}
 
-		trailing.sort((a, b) =>
-			a.weight - b.weight
-			|| compareResourceIdSequence((a.resource as WritableResource).getId?.() ?? '', (b.resource as WritableResource).getId?.() ?? ''),
+		trailing.sort(
+			(a, b) =>
+				a.weight - b.weight ||
+				compareResourceIdSequence(
+					(a.resource as WritableResource).getId?.() ?? '',
+					(b.resource as WritableResource).getId?.() ?? '',
+				),
 		);
 		for (const entry of trailing) {
 			result.push(entry.resource);
@@ -661,7 +744,9 @@ export class ProjectWriter {
 		return result;
 	}
 
-	private _serializePackageResourceEntry(resource: PackageResource): { tagName: string; attrs: Record<string, unknown> } | null {
+	private _serializePackageResourceEntry(
+		resource: PackageResource,
+	): { tagName: string; attrs: Record<string, unknown> } | null {
 		const serialized = this._serializePackageResources([resource]);
 		const [tagName, entries] = Object.entries(serialized)[0] ?? [];
 		if (!tagName || !entries || entries.length === 0) return null;
@@ -676,42 +761,59 @@ export class ProjectWriter {
 			if (!tagName) continue;
 
 			const typedRes = res as WritableResource;
-			const attrs: Record<string, unknown> = {
-			};
+			const attrs: Record<string, unknown> = {};
 			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.id, typedRes.getId?.() ?? '');
 			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.name, this._resourceFileName(res));
 			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.path, typedRes.getPath?.() ?? '/');
-			if (typedRes.getExported?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.exported, 'true');
-			if (typedRes.getFavorite?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.favorite, 'true');
+			if (typedRes.getExported?.())
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.exported, 'true');
+			if (typedRes.getFavorite?.())
+				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.favorite, 'true');
 
 			// Image-specific
 			if (res.propertyType === 'ImageResource') {
 				const imgRes = res as WritableImageResource;
 				const textureSetMode = imgRes.getTextureSetMode?.() ?? '';
-				if (textureSetMode) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.atlas, textureSetMode);
+				if (textureSetMode)
+					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.atlas, textureSetMode);
 				const scaleOpt = imgRes.getScaleOption?.() ?? 0;
 				if (scaleOpt === 1) {
 					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.scale, '9grid');
 					const g = imgRes.getScale9Grid?.();
-					if (g) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.scale9grid, `${g[0]},${g[1]},${g[2]},${g[3]}`);
+					if (g)
+						writeXmlAttr(
+							attrs,
+							PROJECT_XML_PROTOCOL.packageImageResource.attrs.scale9grid,
+							`${g[0]},${g[1]},${g[2]},${g[3]}`,
+						);
 				} else if (scaleOpt === 2) {
 					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.scale, 'tile');
 				}
 				if (imageWriteHints.get(res)?.omitPackageSize !== true) {
 					const width = imgRes.getWidth?.() ?? 0;
-					if (width !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.width, String(width));
+					if (width !== 0)
+						writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.width, String(width));
 					const height = imgRes.getHeight?.() ?? 0;
-					if (height !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.height, String(height));
+					if (height !== 0)
+						writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.height, String(height));
 				}
 				const gridTile = imgRes.getTileGridIndice?.() ?? 0;
-				if (gridTile !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.gridTile, String(gridTile));
+				if (gridTile !== 0)
+					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.gridTile, String(gridTile));
 				const qualityOption = imgRes.getQualityOption?.() ?? '';
-				if (qualityOption) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.qualityOption, qualityOption);
+				if (qualityOption)
+					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.qualityOption, qualityOption);
 				if (qualityOption === 'custom') {
-					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.quality, String(imgRes.getQuality?.() ?? 80));
+					writeXmlAttr(
+						attrs,
+						PROJECT_XML_PROTOCOL.packageImageResource.attrs.quality,
+						String(imgRes.getQuality?.() ?? 80),
+					);
 				}
-				if (imgRes.getDuplicatePadding?.()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.duplicatePadding, 'true');
-				if (imgRes.getSmoothing?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.smoothing, 'false');
+				if (imgRes.getDuplicatePadding?.())
+					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.duplicatePadding, 'true');
+				if (imgRes.getSmoothing?.() === false)
+					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.smoothing, 'false');
 			}
 
 			// Font-specific: texture reference
@@ -720,24 +822,48 @@ export class ProjectWriter {
 				const texture = fontRes.getTextureId?.() ?? '';
 				if (texture) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageFontResource.attrs.texture, texture);
 				const renderMode = fontRes.getRenderMode?.() ?? '';
-				if (renderMode) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageFontResource.attrs.renderMode, renderMode);
+				if (renderMode)
+					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageFontResource.attrs.renderMode, renderMode);
 				const samplePointSize = fontRes.getSamplePointSize?.() ?? 0;
-				if (samplePointSize !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageFontResource.attrs.samplePointSize, String(samplePointSize));
+				if (samplePointSize !== 0)
+					writeXmlAttr(
+						attrs,
+						PROJECT_XML_PROTOCOL.packageFontResource.attrs.samplePointSize,
+						String(samplePointSize),
+					);
 			}
 
 			if (res.propertyType === 'MovieClipResource') {
 				const movieClipRes = res as WritableMovieClipResource;
 				const textureSetMode = movieClipRes.getTextureSetMode?.() ?? '';
-				if (textureSetMode) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageMovieClipResource.attrs.atlas, textureSetMode);
-				if (movieClipRes.getSmoothing?.() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageMovieClipResource.attrs.smoothing, 'false');
+				if (textureSetMode)
+					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageMovieClipResource.attrs.atlas, textureSetMode);
+				if (movieClipRes.getSmoothing?.() === false)
+					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageMovieClipResource.attrs.smoothing, 'false');
 			}
 
 			if (res.propertyType === 'SpineResource' || res.propertyType === 'DragonBonesResource') {
 				const skeletonRes = res as WritableSkeletonResource;
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.width, String(skeletonRes.getWidth?.() ?? 0));
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.height, String(skeletonRes.getHeight?.() ?? 0));
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.require, (skeletonRes.getRequireIds?.() ?? []).join(',') || undefined);
-				writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.atlasNames, (skeletonRes.getAtlasNames?.() ?? []).join(','));
+				writeXmlAttr(
+					attrs,
+					PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.width,
+					String(skeletonRes.getWidth?.() ?? 0),
+				);
+				writeXmlAttr(
+					attrs,
+					PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.height,
+					String(skeletonRes.getHeight?.() ?? 0),
+				);
+				writeXmlAttr(
+					attrs,
+					PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.require,
+					(skeletonRes.getRequireIds?.() ?? []).join(',') || undefined,
+				);
+				writeXmlAttr(
+					attrs,
+					PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.atlasNames,
+					(skeletonRes.getAtlasNames?.() ?? []).join(','),
+				);
 				writeXmlAttr(
 					attrs,
 					PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.anchor,
@@ -800,9 +926,19 @@ export class ProjectWriter {
 
 	private _projectTypeName(type: number): string {
 		const names: Record<number, string> = {
-			0: 'Unity', 1: 'Flash', 2: 'Starling', 3: 'CocosCreator',
-			4: 'Layabox', 5: 'Egret', 6: 'Haxe', 7: 'Pixi',
-			8: 'LibGDX', 9: 'Unreal', 10: 'CryEngine', 11: 'MonoGame', 12: 'Vision',
+			0: 'Unity',
+			1: 'Flash',
+			2: 'Starling',
+			3: 'CocosCreator',
+			4: 'Layabox',
+			5: 'Egret',
+			6: 'Haxe',
+			7: 'Pixi',
+			8: 'LibGDX',
+			9: 'Unreal',
+			10: 'CryEngine',
+			11: 'MonoGame',
+			12: 'Vision',
 		};
 		if (names[type] === undefined) throw new Error(`Unsupported project type "${type}".`);
 		return names[type];

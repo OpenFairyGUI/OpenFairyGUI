@@ -23,11 +23,7 @@ interface FairyProjectDescriptionNode extends XmlNode {
 	version?: string;
 }
 
-function assignSetting(
-	settings: ProjectSettings,
-	key: ProjectSettingKey,
-	value: unknown,
-): void {
+function assignSetting(settings: ProjectSettings, key: ProjectSettingKey, value: unknown): void {
 	switch (key) {
 		case 'publish':
 			settings.publish = value as ProjectSettings['publish'];
@@ -70,15 +66,17 @@ export class ProjectReader {
 			return {
 				document,
 				diagnostics,
-				complete: !diagnostics.some((diagnostic) => [
-					'invalid_project_xml',
-					'invalid_package_xml',
-					'invalid_branch_package_xml',
-					'invalid_component_xml',
-					'invalid_settings_json',
-					'unreadable_source',
-					'unsupported_resource_kind',
-				].includes(diagnostic.code)),
+				complete: !diagnostics.some((diagnostic) =>
+					[
+						'invalid_project_xml',
+						'invalid_package_xml',
+						'invalid_branch_package_xml',
+						'invalid_component_xml',
+						'invalid_settings_json',
+						'unreadable_source',
+						'unsupported_resource_kind',
+					].includes(diagnostic.code),
+				),
 			};
 		} catch (error) {
 			diagnostics.push({
@@ -128,7 +126,7 @@ export class ProjectReader {
 
 		// 3. Scan packages
 		const assetsPath = fs.join(basePath, 'assets');
-		const packageDirs = await readProjectDirectory(fs, assetsPath, { diagnostics, optional: true }) ?? [];
+		const packageDirs = (await readProjectDirectory(fs, assetsPath, { diagnostics, optional: true })) ?? [];
 
 		for (const dirName of packageDirs) {
 			const pkgXmlPath = fs.join(assetsPath, dirName, 'package.xml');
@@ -174,7 +172,7 @@ export class ProjectReader {
 				ctx.logger.warn(`Failed to parse component: ${compPath} — ${err}`);
 				ctx.addDiagnostic({
 					severity: 'error',
-					code: await fs.exists(compPath) ? 'invalid_component_xml' : 'missing_source',
+					code: (await fs.exists(compPath)) ? 'invalid_component_xml' : 'missing_source',
 					path: `components.${comp.getId()}`,
 					message: `Failed to read component "${comp.getName()}": ${err instanceof Error ? err.message : String(err)}`,
 					resourceId: comp.getId(),
@@ -192,7 +190,10 @@ export class ProjectReader {
 		collectDiagnostics = false,
 	): Promise<string[]> {
 		const fs = this._fs;
-		const dirNames = await readProjectDirectory(fs, ctx.basePath, { diagnostics: collectDiagnostics ? ctx.diagnostics : undefined }) ?? [];
+		const dirNames =
+			(await readProjectDirectory(fs, ctx.basePath, {
+				diagnostics: collectDiagnostics ? ctx.diagnostics : undefined,
+			})) ?? [];
 
 		const branchNames = dirNames
 			.filter((dirName) => dirName.startsWith('assets_') && dirName.length > 'assets_'.length)
@@ -201,7 +202,10 @@ export class ProjectReader {
 
 		for (const branchName of branchNames) {
 			const branchAssetsPath = fs.join(ctx.basePath, `assets_${branchName}`);
-			const packageDirs = await readProjectDirectory(fs, branchAssetsPath, { diagnostics: collectDiagnostics ? ctx.diagnostics : undefined }) ?? [];
+			const packageDirs =
+				(await readProjectDirectory(fs, branchAssetsPath, {
+					diagnostics: collectDiagnostics ? ctx.diagnostics : undefined,
+				})) ?? [];
 
 			for (const dirName of packageDirs) {
 				const pkgXmlPath = fs.join(branchAssetsPath, dirName, 'package_branch.xml');
@@ -258,8 +262,12 @@ export class ProjectReader {
 	}
 
 	private async _readPackage(
-		ctx: ReaderContext, dirName: string, pkgXmlPath: string, branchName = '',
-		options: ProjectReadOptions = {}, validateSyntax = false,
+		ctx: ReaderContext,
+		dirName: string,
+		pkgXmlPath: string,
+		branchName = '',
+		options: ProjectReadOptions = {},
+		validateSyntax = false,
 	): Promise<void> {
 		const parsed = await readPackageDescription(this._fs, ctx, dirName, pkgXmlPath, branchName, validateSyntax);
 		if (!parsed) return;
@@ -272,9 +280,20 @@ export class ProjectReader {
 
 	private _resolveProjectType(typeStr: string): number {
 		const map: Record<string, number> = {
-			Unity: 0, Flash: 1, Starling: 2, CocosCreator: 3,
-			Layabox: 4, LayaBox: 4, Egret: 5, Haxe: 6, Pixi: 7,
-			LibGDX: 8, Unreal: 9, CryEngine: 10, MonoGame: 11, Vision: 12,
+			Unity: 0,
+			Flash: 1,
+			Starling: 2,
+			CocosCreator: 3,
+			Layabox: 4,
+			LayaBox: 4,
+			Egret: 5,
+			Haxe: 6,
+			Pixi: 7,
+			LibGDX: 8,
+			Unreal: 9,
+			CryEngine: 10,
+			MonoGame: 11,
+			Vision: 12,
 		};
 		return map[typeStr] ?? 0;
 	}

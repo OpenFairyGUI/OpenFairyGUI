@@ -193,7 +193,6 @@ export interface DisplayObjectXmlNode extends Record<string, unknown> {
 	ScrollBar?: ExtensionXmlNode | ExtensionXmlNode[];
 }
 
-
 export function getProtocolChildName(protocol: XmlNodeProtocol, childName: string): string | null {
 	return protocol.children?.[childName] ? childName : null;
 }

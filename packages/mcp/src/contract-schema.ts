@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import { getInstalledContractSnapshot, type ContractSchema } from '@openfairygui/backend/docs';
-export { getOpenFairyGuiOperationCatalog, getOpenFairyGuiOperationSchema, OPENFAIRYGUI_OPERATION_CATALOG_URI, OPENFAIRYGUI_OPERATION_SCHEMA_TEMPLATE } from '@openfairygui/backend/docs';
+export {
+	getOpenFairyGuiOperationCatalog,
+	getOpenFairyGuiOperationSchema,
+	OPENFAIRYGUI_OPERATION_CATALOG_URI,
+	OPENFAIRYGUI_OPERATION_SCHEMA_TEMPLATE,
+} from '@openfairygui/backend/docs';
 
 export const CONTRACT_SNAPSHOT = getInstalledContractSnapshot();
 
@@ -14,10 +19,13 @@ export function contractObjectSchema(schema: ContractSchema): z.ZodObject {
 export function compactToolSchema(schema: z.ZodObject, io: 'input' | 'output'): z.ZodObject {
 	// Zod metadata supplies the wire schema; validation still delegates to the original schema.
 	// A separate object avoids Zod's cycle extraction overwriting the metadata's definitions.
-	return z.looseObject({}).superRefine((value, context) => {
-		const parsed = schema.safeParse(value);
-		if (!parsed.success) for (const issue of parsed.error.issues) context.addIssue({ ...issue });
-	}).meta(z.toJSONSchema(schema, { target: 'draft-07', io, reused: 'ref' }));
+	return z
+		.looseObject({})
+		.superRefine((value, context) => {
+			const parsed = schema.safeParse(value);
+			if (!parsed.success) for (const issue of parsed.error.issues) context.addIssue({ ...issue });
+		})
+		.meta(z.toJSONSchema(schema, { target: 'draft-07', io, reused: 'ref' }));
 }
 
 /** Decode only generated Uint8Array locations; arbitrary JSON metadata is not rewritten. */

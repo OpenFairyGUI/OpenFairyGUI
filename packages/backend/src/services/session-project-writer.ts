@@ -1,5 +1,10 @@
 import type { Document } from '@openfairygui/core';
-import { type FileSystem, type ProjectBranchDirectory, type ProjectSourceFile, ProjectWriter } from '@openfairygui/core/project-io';
+import {
+	type FileSystem,
+	type ProjectBranchDirectory,
+	type ProjectSourceFile,
+	ProjectWriter,
+} from '@openfairygui/core/project-io';
 import type { BackendFileSystem } from '../runtime.js';
 import { ProjectWriteTransactionError } from '../runtime/contracts.js';
 import { assertProjectPathContained } from '../path-policy.js';

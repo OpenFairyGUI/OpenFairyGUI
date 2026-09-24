@@ -3,14 +3,7 @@ import { getFixturePath } from '@openfairygui/test-utils';
 import { type Document, PropertyType } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
 
-const BASICS_FUI = getFixturePath(
-	'FairyGUI-unity',
-	'Assets',
-	'Examples',
-	'Resources',
-	'UI',
-	'Basics_fui.bytes',
-);
+const BASICS_FUI = getFixturePath('FairyGUI-unity', 'Assets', 'Examples', 'Resources', 'UI', 'Basics_fui.bytes');
 
 // Shared: read the binary package once.
 let _doc: Awaited<ReturnType<NodeIO['readBinary']>>;
@@ -23,7 +16,12 @@ async function getDoc() {
 }
 
 function getMainPackage(doc: Awaited<ReturnType<NodeIO['readBinary']>>) {
-	return doc.getRoot().listPackages().find((pkg) => pkg.listResources().length > 0) ?? null;
+	return (
+		doc
+			.getRoot()
+			.listPackages()
+			.find((pkg) => pkg.listResources().length > 0) ?? null
+	);
 }
 
 test('binary: reads without error', async (t) => {
@@ -158,7 +156,9 @@ test('binary: GList child blocks decode into formal list properties from sample 
 	const demoList = pkg.getComponent('Demo_List');
 	t.truthy(demoList, 'Demo_List exists');
 
-	const verticalList = demoList?.listChildren().find((child) => child.getId() === 'n0') as ReturnType<Document['createGList']>;
+	const verticalList = demoList?.listChildren().find((child) => child.getId() === 'n0') as ReturnType<
+		Document['createGList']
+	>;
 	t.truthy(verticalList, 'Demo_List vertical list exists');
 	t.is(verticalList.getLayout(), 0);
 	t.is(verticalList.getOverflow(), 2);
@@ -169,7 +169,9 @@ test('binary: GList child blocks decode into formal list properties from sample 
 	t.false(verticalList.getFoldInvisibleItems());
 	t.is(verticalList.getListItems().length, 6);
 
-	const flowHorizontalList = demoList?.listChildren().find((child) => child.getId() === 'n9') as ReturnType<Document['createGList']>;
+	const flowHorizontalList = demoList?.listChildren().find((child) => child.getId() === 'n9') as ReturnType<
+		Document['createGList']
+	>;
 	t.truthy(flowHorizontalList, 'Demo_List flow-horizontal list exists');
 	t.is(flowHorizontalList.getLayout(), 3);
 	t.is(flowHorizontalList.getScrollType(), 0);
@@ -177,7 +179,9 @@ test('binary: GList child blocks decode into formal list properties from sample 
 
 	const demoGrid = pkg.getComponent('Demo_Grid');
 	t.truthy(demoGrid, 'Demo_Grid exists');
-	const multiSelectList = demoGrid?.listChildren().find((child) => child.getId() === 'n30') as ReturnType<Document['createGList']>;
+	const multiSelectList = demoGrid?.listChildren().find((child) => child.getId() === 'n30') as ReturnType<
+		Document['createGList']
+	>;
 	t.truthy(multiSelectList, 'Demo_Grid selectable list exists');
 	t.is(multiSelectList.getSelectionMode(), 3);
 	t.is(multiSelectList.getDefaultItem(), 'ui://9leh0eyfatih7o');

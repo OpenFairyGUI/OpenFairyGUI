@@ -1,8 +1,5 @@
 import test from 'ava';
-import {
-	BACKEND_CAPABILITY_SCHEMA_VERSION,
-	BACKEND_CONTRACT_VERSION,
-} from '../src/index.js';
+import { BACKEND_CAPABILITY_SCHEMA_VERSION, BACKEND_CONTRACT_VERSION } from '../src/index.js';
 import { createBackendRuntime, createTempBackendProject } from './helpers.js';
 
 interface MutableCapabilitiesProbe {

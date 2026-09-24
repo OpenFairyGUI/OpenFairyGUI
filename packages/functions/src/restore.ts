@@ -1,4 +1,11 @@
-import { assertDocumentPaths, assertSafeRestoreSegment, imageFileName, replaceLooseResourceBaseName, resourceInstanceFileName, type RestoreResource } from './restore-internals/resource-paths.js';
+import {
+	assertDocumentPaths,
+	assertSafeRestoreSegment,
+	imageFileName,
+	replaceLooseResourceBaseName,
+	resourceInstanceFileName,
+	type RestoreResource,
+} from './restore-internals/resource-paths.js';
 import { synthesizeLooseSkeletonResources, initializeRestoredResourceRelations } from './restore-internals/skeleton.js';
 import { restoreAssets } from './restore-internals/asset-output.js';
 import {
@@ -63,7 +70,11 @@ export interface RestoreResult {
 	warnings: string[];
 }
 
-export interface RestoreFileSystem extends Pick<FileSystem, 'readFile' | 'readFileRaw' | 'writeFile' | 'writeFileRaw' | 'mkdir' | 'exists' | 'join' | 'dirname'> {
+export interface RestoreFileSystem
+	extends Pick<
+		FileSystem,
+		'readFile' | 'readFileRaw' | 'writeFile' | 'writeFileRaw' | 'mkdir' | 'exists' | 'join' | 'dirname'
+	> {
 	readdir(path: string): Promise<string[]>;
 	isFile(path: string): Promise<boolean>;
 	resolvePath(path: string): string | Promise<string>;
@@ -108,9 +119,11 @@ export async function restore(options: RestoreOptions): Promise<RestoreResult> {
 	const candidateBinaryPaths = binaryNames
 		.map((name) => options.fs.join(sourceDir, name))
 		.sort((left, right) => left.localeCompare(right));
-	const binaryPaths = (await Promise.all(
-		candidateBinaryPaths.map(async (filePath) => (await options.fs.isFile(filePath)) ? filePath : null),
-	))
+	const binaryPaths = (
+		await Promise.all(
+			candidateBinaryPaths.map(async (filePath) => ((await options.fs.isFile(filePath)) ? filePath : null)),
+		)
+	)
 		.filter((filePath): filePath is string => !!filePath)
 		.sort((left, right) => left.localeCompare(right));
 
@@ -131,14 +144,18 @@ export async function restore(options: RestoreOptions): Promise<RestoreResult> {
 	const stagingProjectPath = options.fs.join(stagingDir, basename(outputProjectPath));
 	const warnings: string[] = [];
 	try {
-		await restorer.write(document, {
-			binaryPaths,
-			sourceDir,
-			outputProjectPath: stagingProjectPath,
-			projectType: options.projectType,
-			cropImage: options.cropImage,
-			extractImage: options.extractImage,
-		}, warnings);
+		await restorer.write(
+			document,
+			{
+				binaryPaths,
+				sourceDir,
+				outputProjectPath: stagingProjectPath,
+				projectType: options.projectType,
+				cropImage: options.cropImage,
+				extractImage: options.extractImage,
+			},
+			warnings,
+		);
 		const cleanupWarning = await commitRestoreOutput(stagingDir, outputDir, options.fs);
 		if (cleanupWarning) warnings.push(cleanupWarning);
 	} catch (error) {
@@ -221,8 +238,13 @@ class RestoreWorkflow {
 	private _initializeLooseResourceFileNames(doc: Document): void {
 		for (const pkg of doc.getRoot().listPackages()) {
 			for (const resource of pkg.listResources()) {
-				if (resource.propertyType !== 'MiscResource' && resource.propertyType !== 'SpineResource'
-					&& resource.propertyType !== 'DragonBonesResource' && resource.propertyType !== 'SoundResource') continue;
+				if (
+					resource.propertyType !== 'MiscResource' &&
+					resource.propertyType !== 'SpineResource' &&
+					resource.propertyType !== 'DragonBonesResource' &&
+					resource.propertyType !== 'SoundResource'
+				)
+					continue;
 				const current = resource.getFile() ?? '';
 				if (!current) continue;
 				const normalized = replaceLooseResourceBaseName(resource, current);
@@ -235,7 +257,11 @@ class RestoreWorkflow {
 		for (const pkg of doc.getRoot().listPackages()) {
 			for (const component of pkg.listComponents()) {
 				for (const child of component.listChildren()) {
-					if (!(child instanceof GComponent || child instanceof GImage || child instanceof GMovieClip) || child.getFileName()) continue;
+					if (
+						!(child instanceof GComponent || child instanceof GImage || child instanceof GMovieClip) ||
+						child.getFileName()
+					)
+						continue;
 					const resource = this._resolveDisplayObjectResource(doc, pkg, child);
 					const fileName = resource ? resourceInstanceFileName(resource) : '';
 					if (fileName) child.setFileName(fileName);
@@ -251,10 +277,7 @@ class RestoreWorkflow {
 	): RestoreResource | null {
 		const src = child.getSrc() ?? '';
 		if (!src) return null;
-		const targetPackage = child.getPackageId()
-			? doc.getRoot().getPackageById(child.getPackageId() ?? '')
-			: pkg;
+		const targetPackage = child.getPackageId() ? doc.getRoot().getPackageById(child.getPackageId() ?? '') : pkg;
 		return targetPackage?.getResourceById(src) ?? null;
 	}
-
 }

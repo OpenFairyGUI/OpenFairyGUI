@@ -22,14 +22,41 @@ export async function createPublishProject(parent) {
 	const badge = document.createComponent('Badge').setId('badge').setPath('/').setSize(24, 24).setExported(true);
 	shared.addResource(badge);
 	for (const color of Object.keys(IMAGE_BYTES)) {
-		shared.addResource(document.createImageResource(color).setId(color).setPath('/').setFileName(`${color}.png`).setWidth(2).setHeight(2).setExported(true));
-		badge.addChild(document.createGImage(color).setId(color).setSrc(color).setXY(color === 'red' ? 0 : 4, 0).setSize(2, 2));
+		shared.addResource(
+			document
+				.createImageResource(color)
+				.setId(color)
+				.setPath('/')
+				.setFileName(`${color}.png`)
+				.setWidth(2)
+				.setHeight(2)
+				.setExported(true),
+		);
+		badge.addChild(
+			document
+				.createGImage(color)
+				.setId(color)
+				.setSrc(color)
+				.setXY(color === 'red' ? 0 : 4, 0)
+				.setSize(2, 2),
+		);
 	}
-	main.addChild(document.createGImage('icon').setId('icon').setSrc('red').setPackageId('pkgshare').setXY(8, 8).setSize(2, 2));
-	main.addChild(document.createGComponent('badge').setId('badge-instance').setSrc('badge').setPackageId('pkgshare').setXY(48, 72).setSize(24, 24));
+	main.addChild(
+		document.createGImage('icon').setId('icon').setSrc('red').setPackageId('pkgshare').setXY(8, 8).setSize(2, 2),
+	);
+	main.addChild(
+		document
+			.createGComponent('badge')
+			.setId('badge-instance')
+			.setSrc('badge')
+			.setPackageId('pkgshare')
+			.setXY(48, 72)
+			.setSize(24, 24),
+	);
 	const project = liftDocumentToUamProject(document);
 	for (const resource of project.packages.find((pkg) => pkg.id === 'pkgshare').resources) {
-		if (resource.kind === 'image') resource.sourceBytes = Uint8Array.from(Buffer.from(IMAGE_BYTES[resource.id], 'base64'));
+		if (resource.kind === 'image')
+			resource.sourceBytes = Uint8Array.from(Buffer.from(IMAGE_BYTES[resource.id], 'base64'));
 	}
 	await writeProjectFromUam(new NodeIO(), project, projectPath);
 	return projectPath;
@@ -37,18 +64,41 @@ export async function createPublishProject(parent) {
 
 // Deliberately compares supported runtime semantics, not editor-local state or original XML spelling.
 export function supportedSemantics(document) {
-	return document.getRoot().listPackages().map((pkg) => ({
-		id: pkg.getId(), resources: pkg.listResources().map((resource) => ({
-			id: resource.getId(), kind: resource.propertyType,
-			size: [resource.getWidth(), resource.getHeight()],
-			...(resource.propertyType === 'Component' ? { children: resource.listChildren().map((node) => ({
-				id: node.getId(), kind: node.propertyType, name: node.getName(),
-				position: [node.getX(), node.getY()], size: [node.getWidth(), node.getHeight()],
-				...(node.getText ? { text: node.getText() } : {}),
-				...(node.getSrc?.() ? { reference: { packageId: node.getPackageId() || pkg.getId(), resourceId: node.getSrc() } } : {}),
-			})) } : {}),
-		})).sort((a, b) => a.id.localeCompare(b.id)),
-	})).sort((a, b) => a.id.localeCompare(b.id));
+	return document
+		.getRoot()
+		.listPackages()
+		.map((pkg) => ({
+			id: pkg.getId(),
+			resources: pkg
+				.listResources()
+				.map((resource) => ({
+					id: resource.getId(),
+					kind: resource.propertyType,
+					size: [resource.getWidth(), resource.getHeight()],
+					...(resource.propertyType === 'Component'
+						? {
+								children: resource.listChildren().map((node) => ({
+									id: node.getId(),
+									kind: node.propertyType,
+									name: node.getName(),
+									position: [node.getX(), node.getY()],
+									size: [node.getWidth(), node.getHeight()],
+									...(node.getText ? { text: node.getText() } : {}),
+									...(node.getSrc?.()
+										? {
+												reference: {
+													packageId: node.getPackageId() || pkg.getId(),
+													resourceId: node.getSrc(),
+												},
+											}
+										: {}),
+								})),
+							}
+						: {}),
+				}))
+				.sort((a, b) => a.id.localeCompare(b.id)),
+		}))
+		.sort((a, b) => a.id.localeCompare(b.id));
 }
 
 export function mergePublishedPackages(packages) {
@@ -77,12 +127,21 @@ export async function publishAndRestore(projectPath) {
 	}
 	assert.deepEqual(mergePublishedPackages(packages), expected);
 	// Trusted artifacts produced above; never point this at unknown third-party downloads.
-	const restored = await restoreNode({ inputDir: output, output: path.join(path.dirname(projectPath), 'restored'), projectType: 4 });
+	const restored = await restoreNode({
+		inputDir: output,
+		output: path.join(path.dirname(projectPath), 'restored'),
+		projectType: 4,
+	});
 	assert.deepEqual(supportedSemantics(await io.readProject(restored.projectPath)), expected);
 	const validation = await validateProjectNode(restored.projectPath);
 	assert.equal(validation.status, 'valid');
 	assert.equal(validation.complete, true);
-	return { projectPath, published, restored: { projectPath: restored.projectPath, warnings: restored.warnings }, validation };
+	return {
+		projectPath,
+		published,
+		restored: { projectPath: restored.projectPath, warnings: restored.warnings },
+		validation,
+	};
 }
 // #endregion example
 

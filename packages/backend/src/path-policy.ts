@@ -82,7 +82,10 @@ export async function resolveFairyPath(fileSystem: BackendFileSystem, input: str
 	throw new Error(`Input is not a .fairy file or directory: ${resolvedInput}`);
 }
 
-export async function resolveCanonicalProjectRoot(fileSystem: BackendFileSystem, input: string): Promise<{
+export async function resolveCanonicalProjectRoot(
+	fileSystem: BackendFileSystem,
+	input: string,
+): Promise<{
 	fairyPath: string;
 	canonicalProjectPath: string;
 	canonicalPathKey: string;

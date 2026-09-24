@@ -277,8 +277,11 @@ export class PersistenceService {
 					lastSavedRevision: session.lastSavedRevision,
 					committedPaths,
 					failedPaths,
-					diskMayBePartiallyUpdated: !ProjectWriteTransactionError.is(error) || error.diskMayBePartiallyUpdated,
-					...(ProjectWriteTransactionError.is(error) && error.recoveryPaths.length ? { recoveryPaths: error.recoveryPaths } : {}),
+					diskMayBePartiallyUpdated:
+						!ProjectWriteTransactionError.is(error) || error.diskMayBePartiallyUpdated,
+					...(ProjectWriteTransactionError.is(error) && error.recoveryPaths.length
+						? { recoveryPaths: error.recoveryPaths }
+						: {}),
 				},
 				toSessionSnapshot(session, this.context.capabilities),
 				{
@@ -357,16 +360,27 @@ export class PersistenceService {
 		}
 
 		const fairyPath = storageTarget?.fairyPath ?? session.fairyPath;
-		if (session.lockHeld && (fileSystem !== session.fileSystem || fairyPath !== session.fairyPath
-			|| (storageTarget && (storageTarget.canonicalPathKey !== session.canonicalPathKey
-				|| storageTarget.canonicalProjectPath !== session.canonicalProjectPath)))) {
-			return failure('authoring', startedAt, {
-				code: 'path_policy_violation',
-				message: 'A locked file-backed session must keep its opened storage binding.',
-				policy: 'save_target',
-				attemptedPath: fairyPath,
-				allowedPath: session.fairyPath,
-			}, toSessionSnapshot(session, this.context.capabilities), { sessionId: session.sessionId, revision: session.revision });
+		if (
+			session.lockHeld &&
+			(fileSystem !== session.fileSystem ||
+				fairyPath !== session.fairyPath ||
+				(storageTarget &&
+					(storageTarget.canonicalPathKey !== session.canonicalPathKey ||
+						storageTarget.canonicalProjectPath !== session.canonicalProjectPath)))
+		) {
+			return failure(
+				'authoring',
+				startedAt,
+				{
+					code: 'path_policy_violation',
+					message: 'A locked file-backed session must keep its opened storage binding.',
+					policy: 'save_target',
+					attemptedPath: fairyPath,
+					allowedPath: session.fairyPath,
+				},
+				toSessionSnapshot(session, this.context.capabilities),
+				{ sessionId: session.sessionId, revision: session.revision },
+			);
 		}
 		const targetViolation = await validateSaveTarget(fileSystem, fairyPath, input.targetPath);
 		if (targetViolation) {
@@ -533,8 +547,11 @@ export class PersistenceService {
 					failedPaths,
 					skippedPaths,
 					diagnostics: diagnosticsFromError,
-					diskMayBePartiallyUpdated: !ProjectWriteTransactionError.is(error) || error.diskMayBePartiallyUpdated,
-					...(ProjectWriteTransactionError.is(error) && error.recoveryPaths.length ? { recoveryPaths: error.recoveryPaths } : {}),
+					diskMayBePartiallyUpdated:
+						!ProjectWriteTransactionError.is(error) || error.diskMayBePartiallyUpdated,
+					...(ProjectWriteTransactionError.is(error) && error.recoveryPaths.length
+						? { recoveryPaths: error.recoveryPaths }
+						: {}),
 				},
 				toSessionSnapshot(session, this.context.capabilities),
 				{

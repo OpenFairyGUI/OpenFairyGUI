@@ -165,12 +165,10 @@ export type EncoderChildLike = ChildNode & {
 };
 
 export function getRuntimeChildren(comp: Component): EncoderChildLike[] {
-	return comp
-		.listChildren()
-		.filter((child) => {
-			const typedChild = child as EncoderChildLike;
-			return typedChild.propertyType !== 'GGroup' || typedChild.getAdvanced?.() === true;
-		}) as EncoderChildLike[];
+	return comp.listChildren().filter((child) => {
+		const typedChild = child as EncoderChildLike;
+		return typedChild.propertyType !== 'GGroup' || typedChild.getAdvanced?.() === true;
+	}) as EncoderChildLike[];
 }
 
 export function getRuntimeChildIndexMap(comp: Component): Map<string, number> {
@@ -239,7 +237,10 @@ export function getChildExtras(child: { getExtras?(): Record<string, unknown> })
 	return (child.getExtras?.() as ChildEncoderExtras | undefined) ?? {};
 }
 
-export function remapLocalResourceId(context: ResourceReferenceEncodingContext, value: string | null | undefined): string | null {
+export function remapLocalResourceId(
+	context: ResourceReferenceEncodingContext,
+	value: string | null | undefined,
+): string | null {
 	if (!value) return null;
 	return context.effectiveResourceIds?.get(value) ?? value;
 }
@@ -262,7 +263,10 @@ export function resolveChildResourceRef(
 	};
 }
 
-export function remapLocalUiUrl(context: ResourceReferenceEncodingContext, value: string | null | undefined): string | null {
+export function remapLocalUiUrl(
+	context: ResourceReferenceEncodingContext,
+	value: string | null | undefined,
+): string | null {
 	if (!value || !value.startsWith('ui://')) return value ?? null;
 	const pkgId = context.packageId;
 	const raw = value.slice(5);
@@ -274,7 +278,10 @@ export function remapLocalUiUrl(context: ResourceReferenceEncodingContext, value
 	return `ui://${pkgId}${mappedResourceId}`;
 }
 
-export function remapLocalUiRefsInText(context: ResourceReferenceEncodingContext, value: string | null | undefined): string | null {
+export function remapLocalUiRefsInText(
+	context: ResourceReferenceEncodingContext,
+	value: string | null | undefined,
+): string | null {
 	if (!value) return value ?? null;
 	const pkgId = context.packageId;
 	return value.replace(new RegExp(`ui://${pkgId}([0-9a-z]+)`, 'gi'), (_match, resourceId: string) => {

@@ -36,9 +36,7 @@ function readBlockOffsets(bytes: Uint8Array): number[] {
 	const offsets: number[] = [];
 	for (let i = 0; i < segCount; i++) {
 		offsets.push(
-			useShort === 1
-				? view.getUint16(state.pos + i * 2, false)
-				: view.getUint32(state.pos + i * 4, false),
+			useShort === 1 ? view.getUint16(state.pos + i * 2, false) : view.getUint32(state.pos + i * 4, false),
 		);
 	}
 
@@ -80,11 +78,18 @@ function readBlock5(bytes: Uint8Array, block5Offset: number): Array<{ index: num
 }
 
 function getComponentRawBinary(doc: Document, packageName: string, componentName: string): Uint8Array {
-	const pkg = doc.getRoot().listPackages().find((item) => item.getName() === packageName);
+	const pkg = doc
+		.getRoot()
+		.listPackages()
+		.find((item) => item.getName() === packageName);
 	if (!pkg) throw new Error(`Package not found: ${packageName}`);
-	const comp = pkg.listResources().find((item) => item.propertyType === 'Component' && item.getName() === componentName);
+	const comp = pkg
+		.listResources()
+		.find((item) => item.propertyType === 'Component' && item.getName() === componentName);
 	if (!comp) throw new Error(`Component not found: ${componentName}`);
-	const raw = (comp.getExtras() as { _rawBinary?: { buffer: ArrayBufferLike; byteOffset: number; byteLength: number } })._rawBinary;
+	const raw = (
+		comp.getExtras() as { _rawBinary?: { buffer: ArrayBufferLike; byteOffset: number; byteLength: number } }
+	)._rawBinary;
 	if (!raw) throw new Error(`Component raw binary missing: ${componentName}`);
 	return new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength);
 }
@@ -272,11 +277,7 @@ function readTextInputBlock4(
 	throw new Error(`Text input child not found: ${childName}`);
 }
 
-function readChildRelationTargets(
-	raw: Uint8Array,
-	stringTable: string[],
-	childId: string,
-): number[] {
+function readChildRelationTargets(raw: Uint8Array, stringTable: string[], childId: string): number[] {
 	const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
 	const block2Offset = view.getUint32(2 + 4 * 2, false);
 	let pos = block2Offset;
@@ -600,8 +601,7 @@ test('binary writer: preserves static list item controller overrides', async (t)
 	comp.setSize(300, 200);
 
 	const list = doc.createGList('list');
-	list
-		.setId('n0')
+	list.setId('n0')
 		.setDefaultItem('ui://pkglist1item1')
 		.setListItems([
 			{
@@ -654,7 +654,10 @@ test('binary writer: preserves static list item controller overrides', async (t)
 		await new NodeIO().writeBinary(doc, outPath, { compressed: false, version: 7 });
 		const written = await new NodeIO().readBinary(outPath);
 		const raw = getComponentRawBinary(written, 'ListControllerPkg', 'Host');
-		const writtenPackage = written.getRoot().listPackages().find((candidate) => candidate.getName() === 'ListControllerPkg');
+		const writtenPackage = written
+			.getRoot()
+			.listPackages()
+			.find((candidate) => candidate.getName() === 'ListControllerPkg');
 		const writtenHost = writtenPackage?.listResources().find((resource) => resource.getName() === 'Host') as
 			| ReturnType<Document['createComponent']>
 			| undefined;
@@ -1623,7 +1626,10 @@ test('binary writer: emits version 7 gear xy percent footer', async (t) => {
 test('binary writer: emits null scrollpane ptrRes slots for missing header/footer', async (t) => {
 	const io = new NodeIO();
 	const doc = await io.readProject(PROJECT_PATH);
-	const pkgIndex = doc.getRoot().listPackages().findIndex((item) => item.getName() === 'PullToRefresh');
+	const pkgIndex = doc
+		.getRoot()
+		.listPackages()
+		.findIndex((item) => item.getName() === 'PullToRefresh');
 	t.true(pkgIndex >= 0, 'PullToRefresh package exists');
 
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-scrollpane-ptrres-'));
@@ -1654,7 +1660,10 @@ test('binary writer: emits null scrollpane ptrRes slots for missing header/foote
 test('binary writer: emits null restrict for Basics text input when unset', async (t) => {
 	const io = new NodeIO();
 	const doc = await io.readProject(PROJECT_PATH);
-	const pkgIndex = doc.getRoot().listPackages().findIndex((item) => item.getName() === 'Basics');
+	const pkgIndex = doc
+		.getRoot()
+		.listPackages()
+		.findIndex((item) => item.getName() === 'Basics');
 	t.true(pkgIndex >= 0, 'Basics package exists');
 
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-textinput-restrict-'));
@@ -1745,7 +1754,10 @@ test('binary writer: converts transition frame time and duration using fps', asy
 test('binary writer: maps relation targets from child ids to display-list indexes', async (t) => {
 	const io = new NodeIO();
 	const doc = await io.readProject(PROJECT_PATH);
-	const pkgIndex = doc.getRoot().listPackages().findIndex((item) => item.getName() === 'Emoji');
+	const pkgIndex = doc
+		.getRoot()
+		.listPackages()
+		.findIndex((item) => item.getName() === 'Emoji');
 	t.true(pkgIndex >= 0, 'Emoji package exists');
 
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-emoji-relations-'));
@@ -1784,7 +1796,10 @@ test('binary writer: maps relation targets from child ids to display-list indexe
 test('binary writer: matches Transition component raw lengths from editor baseline', async (t) => {
 	const io = new NodeIO();
 	const doc = await io.readProject(PROJECT_PATH);
-	const pkgIndex = doc.getRoot().listPackages().findIndex((item) => item.getName() === 'Transition');
+	const pkgIndex = doc
+		.getRoot()
+		.listPackages()
+		.findIndex((item) => item.getName() === 'Transition');
 	t.true(pkgIndex >= 0, 'Transition package exists');
 
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-transition-raw-'));
@@ -1794,9 +1809,11 @@ test('binary writer: matches Transition component raw lengths from editor baseli
 		await io.writeBinary(doc, outPath, { compressed: false, version: 2, packageIndex: pkgIndex });
 
 		const actualBytes = new Uint8Array(await fs.readFile(outPath));
-		const expectedBytes = new Uint8Array(await fs.readFile(
-			getFixturePath('FairyGUI-unity', 'Assets', 'Examples', 'Resources', 'UI', 'Transition_fui.bytes'),
-		));
+		const expectedBytes = new Uint8Array(
+			await fs.readFile(
+				getFixturePath('FairyGUI-unity', 'Assets', 'Examples', 'Resources', 'UI', 'Transition_fui.bytes'),
+			),
+		);
 
 		const actualMap = new Map(readComponentRawLengths(actualBytes).map((item) => [item.id, item]));
 		const expectedMap = new Map(readComponentRawLengths(expectedBytes).map((item) => [item.id, item]));

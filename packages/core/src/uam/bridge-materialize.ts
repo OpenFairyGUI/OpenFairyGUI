@@ -1,5 +1,5 @@
 import { bindLookGear, composeController } from '../authoring.js';
-import { GearType, } from '../constants.js';
+import { GearType } from '../constants.js';
 import { Document } from '../document.js';
 import type { GObject } from '../properties/g-object.js';
 import { applyDerivedMovieClipModel, deriveMovieClipModelFromJta } from '../utils/jta-parser.js';
@@ -125,18 +125,14 @@ export function materializeUamMovieClipProperties(
 	movieClip: ReturnType<Document['createGMovieClip']>,
 	properties: UamMovieClipProperties,
 ): void {
-	movieClip
-		.setPlaying(properties.playing)
-		.setFrame(properties.frame)
-		.setColor(properties.color);
+	movieClip.setPlaying(properties.playing).setFrame(properties.frame).setColor(properties.color);
 }
 
 export function materializeUamTextProperties(
 	text: ReturnType<Document['createGTextField']>,
 	properties: UamTextProperties | UamPlainTextProperties,
 ): void {
-	text
-		.setText(properties.text)
+	text.setText(properties.text)
 		.setFont(properties.font)
 		.setFontSize(properties.fontSize)
 		.setColor(properties.color)
@@ -159,8 +155,7 @@ export function materializeUamTextProperties(
 		.setShadowColor(properties.shadowColor)
 		.setShadowOffset(properties.shadowOffset);
 	if ('demoText' in properties) {
-		text
-			.setDemoText(properties.demoText)
+		text.setDemoText(properties.demoText)
 			.setTemplateVarsEnabled(properties.templateVarsEnabled)
 			.setFaceDilate(properties.faceDilate);
 	}
@@ -227,8 +222,7 @@ export function materializeUamListProperties(
 	list: ReturnType<Document['createGList']> | ReturnType<Document['createGTree']>,
 	properties: UamListProperties | UamTreeProperties,
 ): void {
-	list
-		.setLayout(properties.layout)
+	list.setLayout(properties.layout)
 		.setAlign(properties.align)
 		.setVAlign(properties.vAlign)
 		.setLineGap(properties.lineGap)
@@ -343,10 +337,7 @@ export function materializeUamComponentInstanceProperties(
 				.setInstanceSoundVolumeScale(properties.soundVolumeScale);
 			return;
 		case 'Slider':
-			component
-				.setInstanceValue(properties.value)
-				.setInstanceMax(properties.max)
-				.setInstanceMin(properties.min);
+			component.setInstanceValue(properties.value).setInstanceMax(properties.max).setInstanceMin(properties.min);
 			return;
 		case 'ScrollBar':
 			return;
@@ -437,7 +428,6 @@ type UamComponentDerivedControlNode =
 
 type UamTitleControlNode = UamButtonNode | UamLabelNode | UamComboBoxNode;
 
-
 function materializeDisplayNodeBase<TNode extends UamDisplayNode, TTarget extends MaterializedDisplayNodeBase>(
 	target: TTarget,
 	node: TNode,
@@ -476,9 +466,7 @@ function materializeComponentDerivedControlBase<TTarget extends MaterializedComp
 	target: TTarget,
 	node: UamComponentDerivedControlNode,
 ): TTarget {
-	materializeDisplayNodeBase(target, node)
-		.setSrc(node.src)
-		.setPackageId(node.packageId);
+	materializeDisplayNodeBase(target, node).setSrc(node.src).setPackageId(node.packageId);
 	return target;
 }
 
@@ -496,7 +484,6 @@ function materializeTitleControlBase<TTarget extends MaterializedTitleControl>(
 	return target;
 }
 
-
 type MaterializedAssetBase = {
 	setId(id: string): MaterializedAssetBase;
 	setPath(path: string): MaterializedAssetBase;
@@ -510,7 +497,10 @@ type MaterializedSourceDataResource = MaterializedAssetBase & {
 	setSourceData(buffer: ReturnType<Document['createBuffer']> | null): MaterializedSourceDataResource;
 };
 
-function materializeAssetBase<TResource extends MaterializedAssetBase>(asset: TResource, resource: UamAssetResource): TResource {
+function materializeAssetBase<TResource extends MaterializedAssetBase>(
+	asset: TResource,
+	resource: UamAssetResource,
+): TResource {
 	asset
 		.setId(resource.id)
 		.setPath(resource.path)
@@ -521,14 +511,14 @@ function materializeAssetBase<TResource extends MaterializedAssetBase>(asset: TR
 	return asset;
 }
 
-
 function attachAssetSourceData<TResource extends MaterializedSourceDataResource>(
 	doc: Document,
 	asset: TResource,
 	resource: UamAssetResource,
 ): TResource {
 	if (resource.sourceBytes === undefined && !resource.sourcePath) return asset;
-	const buffer = doc.createBuffer()
+	const buffer = doc
+		.createBuffer()
 		.setURI(resource.sourcePath ?? defaultAssetSourcePath(resource))
 		.setData(resource.sourceBytes ? new Uint8Array(resource.sourceBytes) : null);
 	asset.setSourceData(buffer);
@@ -572,13 +562,16 @@ export function materializeUamMovieClipResourceProperties(
 	movieClip: ReturnType<Document['createMovieClipResource']>,
 	properties: UamMovieClipResourceProperties,
 ): void {
-	const frames = properties.frames.map((frame, index) => doc.createMovieFrame(`${movieClip.getId()}_${index}`)
-		.setRectX(frame.rectX)
-		.setRectY(frame.rectY)
-		.setRectWidth(frame.rectWidth)
-		.setRectHeight(frame.rectHeight)
-		.setAddDelay(frame.addDelay)
-		.setSpriteId(frame.spriteId));
+	const frames = properties.frames.map((frame, index) =>
+		doc
+			.createMovieFrame(`${movieClip.getId()}_${index}`)
+			.setRectX(frame.rectX)
+			.setRectY(frame.rectY)
+			.setRectWidth(frame.rectWidth)
+			.setRectHeight(frame.rectHeight)
+			.setAddDelay(frame.addDelay)
+			.setSpriteId(frame.spriteId),
+	);
 	movieClip
 		.setInterval(properties.interval)
 		.setRepeatDelay(properties.repeatDelay)
@@ -637,50 +630,77 @@ export function materializeAssetResource(doc: Document, resource: UamAssetResour
 	if (resource.kind === 'font') {
 		const font = materializeAssetBase(doc.createFontResource(resource.name), resource);
 		if (resource.fileName) font.setFileName(resource.fileName);
-		return attachAssetSourceData(doc, font
-			.setTextureId(`${resource.metadata?.textureId ?? ''}`)
-			.setRenderMode(`${resource.metadata?.renderMode ?? ''}`)
-			.setSamplePointSize(metadataNumber(resource, 'samplePointSize', 0))
-			.setTtf(metadataBoolean(resource, 'ttf', false))
-			.setTint(metadataBoolean(resource, 'tint', false))
-			.setAutoScale(metadataBoolean(resource, 'autoScale', false))
-			.setHasChannel(metadataBoolean(resource, 'hasChannel', false))
-			.setFontSize(metadataNumber(resource, 'fontSize', 0))
-			.setXAdvance(metadataNumber(resource, 'xAdvance', 0))
-			.setLineHeight(metadataNumber(resource, 'lineHeight', 0)), resource);
+		return attachAssetSourceData(
+			doc,
+			font
+				.setTextureId(`${resource.metadata?.textureId ?? ''}`)
+				.setRenderMode(`${resource.metadata?.renderMode ?? ''}`)
+				.setSamplePointSize(metadataNumber(resource, 'samplePointSize', 0))
+				.setTtf(metadataBoolean(resource, 'ttf', false))
+				.setTint(metadataBoolean(resource, 'tint', false))
+				.setAutoScale(metadataBoolean(resource, 'autoScale', false))
+				.setHasChannel(metadataBoolean(resource, 'hasChannel', false))
+				.setFontSize(metadataNumber(resource, 'fontSize', 0))
+				.setXAdvance(metadataNumber(resource, 'xAdvance', 0))
+				.setLineHeight(metadataNumber(resource, 'lineHeight', 0)),
+			resource,
+		);
 	}
-	const skeleton = resource.kind === 'spine'
-		? doc.createSpineResource(resource.name)
-		: doc.createDragonBonesResource(resource.name);
-	return attachAssetSourceData(doc, materializeAssetBase(skeleton, resource)
-		.setFile(resource.file ?? '')
-		.setWidth(resource.dimensions?.width ?? 0)
-		.setHeight(resource.dimensions?.height ?? 0)
-		.setRequireIds(metadataStringArray(resource, 'requireIds'))
-		.setAtlasNames(metadataStringArray(resource, 'atlasNames'))
-		.setAnchor(metadataNumber(resource, 'anchorX', 0), metadataNumber(resource, 'anchorY', 0)), resource);
+	const skeleton =
+		resource.kind === 'spine'
+			? doc.createSpineResource(resource.name)
+			: doc.createDragonBonesResource(resource.name);
+	return attachAssetSourceData(
+		doc,
+		materializeAssetBase(skeleton, resource)
+			.setFile(resource.file ?? '')
+			.setWidth(resource.dimensions?.width ?? 0)
+			.setHeight(resource.dimensions?.height ?? 0)
+			.setRequireIds(metadataStringArray(resource, 'requireIds'))
+			.setAtlasNames(metadataStringArray(resource, 'atlasNames'))
+			.setAnchor(metadataNumber(resource, 'anchorX', 0), metadataNumber(resource, 'anchorY', 0)),
+		resource,
+	);
 }
 
 function createDisplayNode(doc: Document, node: UamDisplayNode): GObject {
 	switch (node.kind) {
-		case 'image': return doc.createGImage(node.name);
-		case 'text': return doc.createGTextField(node.name);
-		case 'richText': return doc.createGRichTextField(node.name);
-		case 'textInput': return doc.createGTextInput(node.name);
-		case 'component': return doc.createGComponent(node.name);
-		case 'list': return doc.createGList(node.name);
-		case 'tree': return doc.createGTree(node.name);
-		case 'graph': return doc.createGGraph(node.name);
-		case 'group': return doc.createGGroup(node.name);
-		case 'loader': return doc.createGLoader(node.name);
-		case 'loader3D': return doc.createGLoader3D(node.name);
-		case 'button': return doc.createGButton(node.name);
-		case 'label': return doc.createGLabel(node.name);
-		case 'comboBox': return doc.createGComboBox(node.name);
-		case 'progressBar': return doc.createGProgressBar(node.name);
-		case 'slider': return doc.createGSlider(node.name);
-		case 'scrollBar': return doc.createGScrollBar(node.name);
-		case 'movieClip': return doc.createGMovieClip(node.name);
+		case 'image':
+			return doc.createGImage(node.name);
+		case 'text':
+			return doc.createGTextField(node.name);
+		case 'richText':
+			return doc.createGRichTextField(node.name);
+		case 'textInput':
+			return doc.createGTextInput(node.name);
+		case 'component':
+			return doc.createGComponent(node.name);
+		case 'list':
+			return doc.createGList(node.name);
+		case 'tree':
+			return doc.createGTree(node.name);
+		case 'graph':
+			return doc.createGGraph(node.name);
+		case 'group':
+			return doc.createGGroup(node.name);
+		case 'loader':
+			return doc.createGLoader(node.name);
+		case 'loader3D':
+			return doc.createGLoader3D(node.name);
+		case 'button':
+			return doc.createGButton(node.name);
+		case 'label':
+			return doc.createGLabel(node.name);
+		case 'comboBox':
+			return doc.createGComboBox(node.name);
+		case 'progressBar':
+			return doc.createGProgressBar(node.name);
+		case 'slider':
+			return doc.createGSlider(node.name);
+		case 'scrollBar':
+			return doc.createGScrollBar(node.name);
+		case 'movieClip':
+			return doc.createGMovieClip(node.name);
 	}
 }
 
@@ -689,10 +709,7 @@ export function materializeDisplayNode(doc: Document, node: UamDisplayNode): GOb
 	return materializeDisplayNodeProperties(createDisplayNode(doc, node), node);
 }
 
-export function materializeDisplayNodeProperties(
-	target: GObject,
-	node: UamDisplayNode,
-): GObject {
+export function materializeDisplayNodeProperties(target: GObject, node: UamDisplayNode): GObject {
 	ensureSupportedNodeKind(node.kind);
 
 	if (node.kind === 'image') {
@@ -708,8 +725,7 @@ export function materializeDisplayNodeProperties(
 	if (node.kind === 'text' || node.kind === 'richText' || node.kind === 'textInput') {
 		const textNode = node as UamTextNode | UamRichTextNode | UamTextInputNode;
 		const text = target as ReturnType<Document['createGTextField']>;
-		materializeDisplayNodeBase(text, node)
-			.setGroup(textNode.group);
+		materializeDisplayNodeBase(text, node).setGroup(textNode.group);
 		materializeUamTextProperties(text, textNode);
 		if (node.kind === 'textInput') {
 			const inputNode = node as UamTextInputNode;
@@ -738,24 +754,25 @@ export function materializeDisplayNodeProperties(
 	if (node.kind === 'list' || node.kind === 'tree') {
 		const listNode = node as UamListNode | UamTreeNode;
 		const list = target as ReturnType<Document['createGList']> | ReturnType<Document['createGTree']>;
-		materializeDisplayNodeBase(list, node)
-			.setGroup(listNode.group);
+		materializeDisplayNodeBase(list, node).setGroup(listNode.group);
 		materializeUamListProperties(list, listNode);
 		return list;
 	}
 
 	if (node.kind === 'graph') {
 		const graphNode = node as UamGraphNode;
-		const graph = materializeDisplayNodeBase(target as ReturnType<Document['createGGraph']>, node)
-			.setGroup(graphNode.group);
+		const graph = materializeDisplayNodeBase(target as ReturnType<Document['createGGraph']>, node).setGroup(
+			graphNode.group,
+		);
 		materializeUamGraphProperties(graph, graphNode);
 		return graph;
 	}
 
 	if (node.kind === 'group') {
 		const groupNode = node as UamGroupNode;
-		const group = materializeDisplayNodeBase(target as ReturnType<Document['createGGroup']>, node)
-			.setGroup(groupNode.group);
+		const group = materializeDisplayNodeBase(target as ReturnType<Document['createGGroup']>, node).setGroup(
+			groupNode.group,
+		);
 		materializeUamGroupProperties(group, groupNode);
 		return group;
 	}
@@ -804,7 +821,10 @@ export function materializeDisplayNodeProperties(
 
 	if (node.kind === 'progressBar') {
 		const progressBarNode = node as UamProgressBarNode;
-		const progressBar = materializeComponentDerivedControlBase(target as ReturnType<Document['createGProgressBar']>, progressBarNode)
+		const progressBar = materializeComponentDerivedControlBase(
+			target as ReturnType<Document['createGProgressBar']>,
+			progressBarNode,
+		)
 			.setTitleType(progressBarNode.titleType)
 			.setMin(progressBarNode.min)
 			.setMax(progressBarNode.max)
@@ -817,7 +837,10 @@ export function materializeDisplayNodeProperties(
 
 	if (node.kind === 'slider') {
 		const sliderNode = node as UamSliderNode;
-		const slider = materializeComponentDerivedControlBase(target as ReturnType<Document['createGSlider']>, sliderNode)
+		const slider = materializeComponentDerivedControlBase(
+			target as ReturnType<Document['createGSlider']>,
+			sliderNode,
+		)
 			.setTitleType(sliderNode.titleType)
 			.setMin(sliderNode.min)
 			.setMax(sliderNode.max)
@@ -828,8 +851,10 @@ export function materializeDisplayNodeProperties(
 
 	if (node.kind === 'scrollBar') {
 		const scrollBarNode = node as UamScrollBarNode;
-		return materializeComponentDerivedControlBase(target as ReturnType<Document['createGScrollBar']>, scrollBarNode)
-			.setFixedGripSize(scrollBarNode.fixedGripSize);
+		return materializeComponentDerivedControlBase(
+			target as ReturnType<Document['createGScrollBar']>,
+			scrollBarNode,
+		).setFixedGripSize(scrollBarNode.fixedGripSize);
 	}
 
 	const movieClipNode = node as UamMovieClipNode;
@@ -842,7 +867,11 @@ export function materializeDisplayNodeProperties(
 	return movieClip;
 }
 
-export function materializeUamController(doc: Document, component: ReturnType<Document['createComponent']>, controller: UamControllerModel): ReturnType<Document['createController']> {
+export function materializeUamController(
+	doc: Document,
+	component: ReturnType<Document['createComponent']>,
+	controller: UamControllerModel,
+): ReturnType<Document['createController']> {
 	return composeController(doc, component, {
 		name: controller.name,
 		selectedIndex: controller.selectedIndex,
@@ -868,34 +897,46 @@ export function materializeUamController(doc: Document, component: ReturnType<Do
 	});
 }
 
-function composeControllers(doc: Document, component: ReturnType<Document['createComponent']>, controllers: UamControllerModel[]): void {
+function composeControllers(
+	doc: Document,
+	component: ReturnType<Document['createComponent']>,
+	controllers: UamControllerModel[],
+): void {
 	for (const controller of controllers) materializeUamController(doc, component, controller);
 }
 
-function composeTransitions(doc: Document, component: ReturnType<Document['createComponent']>, transitions: UamComponentModel['transitions']): void {
+function composeTransitions(
+	doc: Document,
+	component: ReturnType<Document['createComponent']>,
+	transitions: UamComponentModel['transitions'],
+): void {
 	for (const transition of transitions) {
-		const materialized = doc.createTransition(transition.name)
+		const materialized = doc
+			.createTransition(transition.name)
 			.setAutoPlay(transition.autoPlay)
 			.setAutoPlayTimes(transition.autoPlayTimes)
 			.setAutoPlayDelay(transition.autoPlayDelay)
 			.setOptions(transition.options)
 			.setFps(transition.fps);
 		for (const item of transition.items) {
-			materialized.addItem(doc.createTransitionItem(item.name)
-				.setTime(item.time)
-				.setTargetId(item.targetNodeId)
-				.setActionType(item.actionType)
-				.setTween(item.tween)
-				.setDuration(item.duration)
-				.setStartValue([...item.startValue])
-				.setEndValue([...item.endValue])
-				.setEaseType(item.easeType)
-				.setRepeat(item.repeat)
-				.setYoyo(item.yoyo)
-				.setLabel(item.label)
-				.setEndLabel(item.endLabel)
-				.setPath(item.path)
-				.setCustomEasePath(item.customEasePath));
+			materialized.addItem(
+				doc
+					.createTransitionItem(item.name)
+					.setTime(item.time)
+					.setTargetId(item.targetNodeId)
+					.setActionType(item.actionType)
+					.setTween(item.tween)
+					.setDuration(item.duration)
+					.setStartValue([...item.startValue])
+					.setEndValue([...item.endValue])
+					.setEaseType(item.easeType)
+					.setRepeat(item.repeat)
+					.setYoyo(item.yoyo)
+					.setLabel(item.label)
+					.setEndLabel(item.endLabel)
+					.setPath(item.path)
+					.setCustomEasePath(item.customEasePath),
+			);
 		}
 		component.addTransition(materialized);
 	}
@@ -912,16 +953,26 @@ type UamGenericValueGearBinding =
 
 export function gearTypeForKind(kind: UamGearBinding['kind']): GearType {
 	switch (kind) {
-		case 'display': return GearType.Display;
-		case 'display2': return GearType.Display2;
-		case 'xy': return GearType.XY;
-		case 'size': return GearType.Size;
-		case 'look': return GearType.Look;
-		case 'color': return GearType.Color;
-		case 'animation': return GearType.Animation;
-		case 'text': return GearType.Text;
-		case 'icon': return GearType.Icon;
-		case 'fontSize': return GearType.FontSize;
+		case 'display':
+			return GearType.Display;
+		case 'display2':
+			return GearType.Display2;
+		case 'xy':
+			return GearType.XY;
+		case 'size':
+			return GearType.Size;
+		case 'look':
+			return GearType.Look;
+		case 'color':
+			return GearType.Color;
+		case 'animation':
+			return GearType.Animation;
+		case 'text':
+			return GearType.Text;
+		case 'icon':
+			return GearType.Icon;
+		case 'fontSize':
+			return GearType.FontSize;
 	}
 }
 
@@ -944,7 +995,7 @@ function serializeGenericGearValue(kind: UamGenericValueGearBinding['kind'], val
 		}
 		case 'animation': {
 			const animation = value as { frame?: number; playing?: boolean; animationName?: string; skinName?: string };
-			return `${animation.frame ?? 0},${animation.playing ?? true ? 'p' : 's'},${animation.animationName ?? ''},${animation.skinName ?? ''}`;
+			return `${animation.frame ?? 0},${(animation.playing ?? true) ? 'p' : 's'},${animation.animationName ?? ''},${animation.skinName ?? ''}`;
 		}
 		case 'fontSize': {
 			const fontSize = value as { fontSize?: number };
@@ -961,7 +1012,9 @@ function materializeLookGear(
 ): void {
 	const controller = component.getController(gear.controllerName);
 	if (!controller) {
-		throw new Error(`UAM materialization expected controller "${gear.controllerName}" to exist on component "${component.getName()}".`);
+		throw new Error(
+			`UAM materialization expected controller "${gear.controllerName}" to exist on component "${component.getName()}".`,
+		);
 	}
 
 	bindLookGear(doc, component, target, {
@@ -990,9 +1043,12 @@ function materializeDisplayGear(
 ): void {
 	const controller = component.getController(gear.controllerName);
 	if (!controller) {
-		throw new Error(`UAM materialization expected controller "${gear.controllerName}" to exist on component "${component.getName()}".`);
+		throw new Error(
+			`UAM materialization expected controller "${gear.controllerName}" to exist on component "${component.getName()}".`,
+		);
 	}
-	const materialized = doc.createGear(gear.name)
+	const materialized = doc
+		.createGear(gear.name)
 		.setGearType(gear.kind === 'display2' ? GearType.Display2 : GearType.Display)
 		.setController(controller)
 		.setPages(gear.visibleOnPageIds.join(','));
@@ -1008,9 +1064,12 @@ function materializeGenericValueGear(
 ): void {
 	const controller = component.getController(gear.controllerName);
 	if (!controller) {
-		throw new Error(`UAM materialization expected controller "${gear.controllerName}" to exist on component "${component.getName()}".`);
+		throw new Error(
+			`UAM materialization expected controller "${gear.controllerName}" to exist on component "${component.getName()}".`,
+		);
 	}
-	const materialized = doc.createGear(gear.name)
+	const materialized = doc
+		.createGear(gear.name)
 		.setGearType(gearTypeForKind(gear.kind))
 		.setController(controller)
 		.setPages(gear.states.map((state) => state.pageId).join(','))
@@ -1023,15 +1082,23 @@ function materializeGenericValueGear(
 		.setCustomEasePath(gear.customEasePath);
 	if (gear.kind === 'text' || gear.kind === 'icon') {
 		materialized
-			.setPageValues(Object.fromEntries(gear.states.map((state) => [
-				state.pageId,
-				state.value === null ? null : serializeGenericGearValue(gear.kind, state.value),
-			])))
-			.setDefaultValue(gear.defaultValue === null ? null : serializeGenericGearValue(gear.kind, gear.defaultValue));
+			.setPageValues(
+				Object.fromEntries(
+					gear.states.map((state) => [
+						state.pageId,
+						state.value === null ? null : serializeGenericGearValue(gear.kind, state.value),
+					]),
+				),
+			)
+			.setDefaultValue(
+				gear.defaultValue === null ? null : serializeGenericGearValue(gear.kind, gear.defaultValue),
+			);
 	} else {
 		materialized
 			.setValues(gear.states.map((state) => serializeGenericGearValue(gear.kind, state.value)).join('|'))
-			.setDefaultValue(gear.defaultValue === null ? null : serializeGenericGearValue(gear.kind, gear.defaultValue));
+			.setDefaultValue(
+				gear.defaultValue === null ? null : serializeGenericGearValue(gear.kind, gear.defaultValue),
+			);
 	}
 	target.addGear(materialized);
 }
@@ -1063,8 +1130,12 @@ function materializeGears(
 	}
 }
 
-function materializeComponentResource(doc: Document, resource: UamComponentResource): ReturnType<Document['createComponent']> {
-	const component = doc.createComponent(resource.name)
+function materializeComponentResource(
+	doc: Document,
+	resource: UamComponentResource,
+): ReturnType<Document['createComponent']> {
+	const component = doc
+		.createComponent(resource.name)
 		.setId(resource.id)
 		.setPath(resource.path)
 		.setBranch(resource.branch)
@@ -1102,7 +1173,8 @@ export function materializeUamProject(project: UamProject, options: { validate?:
 		.setSettings(cloneSettings(project.settings));
 
 	for (const pkgSpec of project.packages) {
-		const pkg = doc.createPackage(pkgSpec.name)
+		const pkg = doc
+			.createPackage(pkgSpec.name)
 			.setId(pkgSpec.id)
 			.setCompressPNG(pkgSpec.compressPNG)
 			.setJpegQuality(pkgSpec.jpegQuality)
@@ -1110,8 +1182,7 @@ export function materializeUamProject(project: UamProject, options: { validate?:
 			.setResourceFolders(pkgSpec.folders);
 		pkg.setExtras({ ...pkg.getExtras(), _preservePackageResourceOrder: true });
 		if (pkgSpec.publish) {
-			pkg
-				.setPublishName(pkgSpec.publish.name)
+			pkg.setPublishName(pkgSpec.publish.name)
 				.setPublishPath(pkgSpec.publish.path)
 				.setPublishBranchPath(pkgSpec.publish.branchPath)
 				.setPublishPackageCount(pkgSpec.publish.packageCount)

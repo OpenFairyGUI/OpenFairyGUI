@@ -18,9 +18,7 @@ async function directoryExists(directory: string): Promise<boolean> {
 }
 
 async function repoRoot(): Promise<string> {
-	return await directoryExists(path.resolve('packages/mcp'))
-		? path.resolve('.')
-		: path.resolve('../..');
+	return (await directoryExists(path.resolve('packages/mcp'))) ? path.resolve('.') : path.resolve('../..');
 }
 
 test.serial('MCP P1 built stdio entrypoint supports initialize and tools/list', async (t) => {
@@ -42,7 +40,9 @@ test.serial('MCP P1 built stdio entrypoint supports initialize and tools/list', 
 
 	await client.connect(transport);
 	try {
-		const manifest = JSON.parse(await (await import('node:fs/promises')).readFile(path.join(root, 'packages/mcp/package.json'), 'utf8')) as { version: string };
+		const manifest = JSON.parse(
+			await (await import('node:fs/promises')).readFile(path.join(root, 'packages/mcp/package.json'), 'utf8'),
+		) as { version: string };
 		t.is(client.getServerVersion()?.version, manifest.version);
 		const tools = await client.listTools();
 		t.deepEqual(

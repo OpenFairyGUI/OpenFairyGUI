@@ -190,7 +190,11 @@ function getComponentExtras(resource: { getExtras(): Record<string, unknown> }):
 	return resource.getExtras() as ComponentBinaryExtras;
 }
 
-function decodeMovieClipFrames(doc: Document, resource: ReturnType<Document['createMovieClipResource']>, buf: ByteBuffer): void {
+function decodeMovieClipFrames(
+	doc: Document,
+	resource: ReturnType<Document['createMovieClipResource']>,
+	buf: ByteBuffer,
+): void {
 	if (buf.byteLength === 0) return;
 	const indexTablePos = buf.pos;
 
@@ -320,11 +324,7 @@ export class BinaryReader {
 		// --- Decompress remainder if needed ---
 		let buf: ByteBuffer;
 		if (compressed) {
-			const remaining = new Uint8Array(
-				outer.buffer,
-				outer.byteOffset + outer.pos,
-				outer.byteLength - outer.pos,
-			);
+			const remaining = new Uint8Array(outer.buffer, outer.byteOffset + outer.pos, outer.byteLength - outer.pos);
 			const decompressed = inflateRawWithLimits(remaining, this._limits);
 			buf = new ByteBuffer(decompressed.buffer, 0, decompressed.byteLength);
 		} else {
@@ -413,8 +413,7 @@ export class BinaryReader {
 			switch (itemType) {
 				case BinItemType.Image: {
 					const res = doc.createImageResource(itemName);
-					res
-						.setId(itemId)
+					res.setId(itemId)
 						.setFileName(normalizePublishedImageFileName(itemName))
 						.setPath(itemPath)
 						.setExported(exported)
@@ -422,8 +421,10 @@ export class BinaryReader {
 						.setHeight(height);
 					const scaleOpt = buf.readByte();
 					if (scaleOpt === 1) {
-						const x = buf.getInt32(), y = buf.getInt32();
-						const w = buf.getInt32(), h = buf.getInt32();
+						const x = buf.getInt32(),
+							y = buf.getInt32();
+						const w = buf.getInt32(),
+							h = buf.getInt32();
 						const tileGridIndice = buf.getInt32();
 						res.setScaleOption(1).setScale9Grid([x, y, w, h]).setTileGridIndice(tileGridIndice);
 					} else if (scaleOpt === 2) {
@@ -437,8 +438,7 @@ export class BinaryReader {
 
 				case BinItemType.MovieClip: {
 					const res = doc.createMovieClipResource(itemName);
-					res
-						.setId(itemId)
+					res.setId(itemId)
 						.setFileName(`${itemName}.jta`)
 						.setPath(itemPath)
 						.setExported(exported)
@@ -454,8 +454,7 @@ export class BinaryReader {
 
 				case BinItemType.Sound: {
 					const res = doc.createSoundResource(itemName);
-					res
-						.setId(itemId)
+					res.setId(itemId)
 						.setPath(itemPath)
 						.setFile(normalizePublishedSoundFileName(itemName, itemFile))
 						.setExported(exported);
@@ -513,11 +512,7 @@ export class BinaryReader {
 
 				case BinItemType.Atlas: {
 					const atlas = doc.createAtlas(itemId);
-					atlas
-						.setIndex(parseAtlasIndex(itemId))
-						.setFile(itemFile)
-						.setWidth(width)
-						.setHeight(height);
+					atlas.setIndex(parseAtlasIndex(itemId)).setFile(itemFile).setWidth(width).setHeight(height);
 					pkg.addAtlas(atlas);
 					atlasMap.set(itemId, atlas);
 					break;
@@ -525,8 +520,7 @@ export class BinaryReader {
 
 				case BinItemType.Spine: {
 					const res = doc.createSpineResource(itemName);
-					res
-						.setId(itemId)
+					res.setId(itemId)
 						.setPath(itemPath)
 						.setFile(itemFile)
 						.setExported(exported)
@@ -541,8 +535,7 @@ export class BinaryReader {
 
 				case BinItemType.DragonBones: {
 					const res = doc.createDragonBonesResource(itemName);
-					res
-						.setId(itemId)
+					res.setId(itemId)
 						.setPath(itemPath)
 						.setFile(itemFile)
 						.setExported(exported)
@@ -577,7 +570,9 @@ export class BinaryReader {
 					createdResource.setPath(itemPath);
 					createdResource.setBranch(branchName);
 					createdResource.setBranchItemIds(branchItemIds);
-					(createdResource as HighResolutionAwarePackageResource).setHighResolutionItemIds?.(highResolutionItemIds);
+					(createdResource as HighResolutionAwarePackageResource).setHighResolutionItemIds?.(
+						highResolutionItemIds,
+					);
 				}
 			}
 
@@ -593,8 +588,10 @@ export class BinaryReader {
 			const nextPos = buf.getUint16() + buf.pos;
 			const itemId = buf.readS() ?? '';
 			const atlasId = buf.readS() ?? '';
-			const x = buf.getInt32(), y = buf.getInt32();
-			const w = buf.getInt32(), h = buf.getInt32();
+			const x = buf.getInt32(),
+				y = buf.getInt32();
+			const w = buf.getInt32(),
+				h = buf.getInt32();
 			const rotated = buf.readBool();
 			let offsetX = 0;
 			let offsetY = 0;
@@ -642,7 +639,11 @@ export class BinaryReader {
 				const scaleDenominator = buf.getUint8();
 				const byteLength = buf.getInt32();
 				const pixelBuffer = buf.readBuffer(byteLength);
-				const pixels = new Uint8Array(pixelBuffer.buffer, pixelBuffer.byteOffset, pixelBuffer.byteLength).slice();
+				const pixels = new Uint8Array(
+					pixelBuffer.buffer,
+					pixelBuffer.byteOffset,
+					pixelBuffer.byteLength,
+				).slice();
 				if (itemId) {
 					pixelHitTests.set(itemId, {
 						itemId,

@@ -47,7 +47,10 @@ test.serial('built CLI bootstrap reports package version', async (t) => {
 		cwd: path.resolve('.'),
 		shell: process.platform === 'win32',
 	});
-	const { stdout: output } = await execFileAsync(process.execPath, [path.resolve('packages/cli/bin/cli.cjs'), '--version']);
+	const { stdout: output } = await execFileAsync(process.execPath, [
+		path.resolve('packages/cli/bin/cli.cjs'),
+		'--version',
+	]);
 	const expectedVersion = await readPackageVersion('packages/cli/package.json');
 
 	t.is(output.trim(), expectedVersion);

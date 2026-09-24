@@ -1,10 +1,7 @@
 import { type FileSystem, ProjectWriter } from '@openfairygui/core/project-io';
 import type { Document } from '@openfairygui/core';
 
-export function createCaptureFileSystem(
-	files: Map<string, string | Uint8Array>,
-	directories: Set<string>,
-): FileSystem {
+export function createCaptureFileSystem(files: Map<string, string | Uint8Array>, directories: Set<string>): FileSystem {
 	const normalize = (filePath: string): string => filePath.replace(/\\/g, '/').replace(/\/+/g, '/');
 	return {
 		async readFile(filePath: string): Promise<string> {
@@ -46,7 +43,10 @@ export function createCaptureFileSystem(
 	};
 }
 
-export function capturedFilesEqual(left: Map<string, string | Uint8Array>, right: Map<string, string | Uint8Array>): boolean {
+export function capturedFilesEqual(
+	left: Map<string, string | Uint8Array>,
+	right: Map<string, string | Uint8Array>,
+): boolean {
 	if (left.size !== right.size) return false;
 	for (const [filePath, leftValue] of left) {
 		const rightValue = right.get(filePath);

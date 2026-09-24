@@ -17,10 +17,7 @@ test('createOpenFairyGuiMcpServer exposes backend P2 tools over MCP transport', 
 	});
 	const client = new Client({ name: 'openfairygui-mcp-test', version: 'test' });
 
-	await Promise.all([
-		server.connect(serverTransport),
-		client.connect(clientTransport),
-	]);
+	await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
 
 	try {
 		const tools = await client.listTools();
@@ -36,14 +33,17 @@ test('createOpenFairyGuiMcpServer exposes backend P2 tools over MCP transport', 
 			t.truthy(tool?.outputSchema);
 		}
 
-		const capabilities = await client.callTool({
-			name: 'openfairygui_backend_get_capabilities',
-			arguments: {},
-		}, CallToolResultSchema);
+		const capabilities = await client.callTool(
+			{
+				name: 'openfairygui_backend_get_capabilities',
+				arguments: {},
+			},
+			CallToolResultSchema,
+		);
 		t.false(capabilities.isError ?? false);
 		t.truthy((capabilities.structuredContent as { backendResult?: unknown } | undefined)?.backendResult);
 		const [content] = capabilities.content as Array<{ type: string; text?: string }>;
-		const text = content?.type === 'text' ? content.text ?? '' : '';
+		const text = content?.type === 'text' ? (content.text ?? '') : '';
 		t.true(text.includes('"runtimeOwner": "@openfairygui/backend"'));
 	} finally {
 		await client.close();

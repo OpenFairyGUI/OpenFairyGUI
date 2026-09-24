@@ -20,16 +20,27 @@ export class ByteBuffer {
 		this._view = new DataView(buffer, byteOffset, len);
 	}
 
-	get pos(): number { return this._pos; }
+	get pos(): number {
+		return this._pos;
+	}
 	set pos(v: number) {
-		if (!Number.isInteger(v) || v < 0 || v > this.byteLength) throw new RangeError('Binary buffer position is out of bounds.');
+		if (!Number.isInteger(v) || v < 0 || v > this.byteLength)
+			throw new RangeError('Binary buffer position is out of bounds.');
 		this._pos = v;
 	}
-	get buffer(): ArrayBufferLike { return this._view.buffer; }
-	get byteOffset(): number { return this._view.byteOffset; }
-	get byteLength(): number { return this._view.byteLength; }
+	get buffer(): ArrayBufferLike {
+		return this._view.buffer;
+	}
+	get byteOffset(): number {
+		return this._view.byteOffset;
+	}
+	get byteLength(): number {
+		return this._view.byteLength;
+	}
 
-	skip(count: number): void { this.pos = this._pos + count; }
+	skip(count: number): void {
+		this.pos = this._pos + count;
+	}
 
 	private assertAvailable(count: number): void {
 		if (!Number.isInteger(count) || count < 0 || count > this.byteLength - this._pos) {
@@ -37,8 +48,12 @@ export class ByteBuffer {
 		}
 	}
 
-	getUint8(): number { return this._view.getUint8(this._pos++); }
-	getInt8(): number { return this._view.getInt8(this._pos++); }
+	getUint8(): number {
+		return this._view.getUint8(this._pos++);
+	}
+	getInt8(): number {
+		return this._view.getInt8(this._pos++);
+	}
 
 	getUint16(): number {
 		const v = this._view.getUint16(this._pos, false);
@@ -66,10 +81,18 @@ export class ByteBuffer {
 		return v;
 	}
 
-	readByte(): number { return this.getUint8(); }
-	readBool(): boolean { return this.getUint8() === 1; }
-	readInt32(): number { return this.getInt32(); }
-	readUint16(): number { return this.getUint16(); }
+	readByte(): number {
+		return this.getUint8();
+	}
+	readBool(): boolean {
+		return this.getUint8() === 1;
+	}
+	readInt32(): number {
+		return this.getInt32();
+	}
+	readUint16(): number {
+		return this.getUint16();
+	}
 
 	/** Read a uint16-prefixed UTF-8 string. */
 	readUTFString(): string {

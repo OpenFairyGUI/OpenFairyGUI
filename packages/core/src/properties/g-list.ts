@@ -151,13 +151,25 @@ export class GListBase<
 		return self.set(key as never, value as never) as this;
 	}
 
-	public getLayout(): number { return this.getListProp('layout'); }
-	public setLayout(v: number): this { return this.setListProp('layout', v); }
+	public getLayout(): number {
+		return this.getListProp('layout');
+	}
+	public setLayout(v: number): this {
+		return this.setListProp('layout', v);
+	}
 
-	public getX(): number { return this.getListProp('x'); }
-	public getY(): number { return this.getListProp('y'); }
-	public getWidth(): number { return this.getListProp('width'); }
-	public getHeight(): number { return this.getListProp('height'); }
+	public getX(): number {
+		return this.getListProp('x');
+	}
+	public getY(): number {
+		return this.getListProp('y');
+	}
+	public getWidth(): number {
+		return this.getListProp('width');
+	}
+	public getHeight(): number {
+		return this.getListProp('height');
+	}
 	public setXY(x: number, y: number): this {
 		this.setListProp('x', x);
 		return this.setListProp('y', y);
@@ -166,84 +178,184 @@ export class GListBase<
 		this.setListProp('width', w);
 		return this.setListProp('height', h);
 	}
-	public setX(v: number): this { return this.setListProp('x', v); }
-	public setY(v: number): this { return this.setListProp('y', v); }
+	public setX(v: number): this {
+		return this.setListProp('x', v);
+	}
+	public setY(v: number): this {
+		return this.setListProp('y', v);
+	}
 
-	public getPivotX(): number { return this.getListProp('pivotX'); }
-	public getPivotY(): number { return this.getListProp('pivotY'); }
-	public getPivotAsAnchor(): boolean { return this.getListProp('anchor'); }
+	public getPivotX(): number {
+		return this.getListProp('pivotX');
+	}
+	public getPivotY(): number {
+		return this.getListProp('pivotY');
+	}
+	public getPivotAsAnchor(): boolean {
+		return this.getListProp('anchor');
+	}
 	public setPivot(x: number, y: number, anchor = false): this {
 		this.setListProp('pivotX', x);
 		this.setListProp('pivotY', y);
 		return this.setListProp('anchor', anchor);
 	}
-	public setPivotAsAnchor(v: boolean): this { return this.setListProp('anchor', v); }
+	public setPivotAsAnchor(v: boolean): this {
+		return this.setListProp('anchor', v);
+	}
 
-	public getAlpha(): number { return this.getListProp('alpha'); }
-	public setAlpha(v: number): this { return this.setListProp('alpha', v); }
+	public getAlpha(): number {
+		return this.getListProp('alpha');
+	}
+	public setAlpha(v: number): this {
+		return this.setListProp('alpha', v);
+	}
 
-	public getRotation(): number { return this.getListProp('rotation'); }
-	public setRotation(v: number): this { return this.setListProp('rotation', v); }
+	public getRotation(): number {
+		return this.getListProp('rotation');
+	}
+	public setRotation(v: number): this {
+		return this.setListProp('rotation', v);
+	}
 
-	public getVisible(): boolean { return this.getListProp('visible'); }
-	public setVisible(v: boolean): this { return this.setListProp('visible', v); }
+	public getVisible(): boolean {
+		return this.getListProp('visible');
+	}
+	public setVisible(v: boolean): this {
+		return this.setListProp('visible', v);
+	}
 
-	public getGroup(): string { return this.getListProp('group'); }
-	public setGroup(v: string): this { return this.setListProp('group', v); }
+	public getGroup(): string {
+		return this.getListProp('group');
+	}
+	public setGroup(v: string): this {
+		return this.setListProp('group', v);
+	}
 
-	public getTouchable(): boolean { return this.getListProp('touchable'); }
-	public setTouchable(v: boolean): this { return this.setListProp('touchable', v); }
+	public getTouchable(): boolean {
+		return this.getListProp('touchable');
+	}
+	public setTouchable(v: boolean): this {
+		return this.setListProp('touchable', v);
+	}
 
-	public getGrayed(): boolean { return this.getListProp('grayed'); }
-	public setGrayed(v: boolean): this { return this.setListProp('grayed', v); }
+	public getGrayed(): boolean {
+		return this.getListProp('grayed');
+	}
+	public setGrayed(v: boolean): this {
+		return this.setListProp('grayed', v);
+	}
 
-	public getAlign(): number { return this.getListProp('align'); }
-	public setAlign(v: number): this { return this.setListProp('align', v); }
+	public getAlign(): number {
+		return this.getListProp('align');
+	}
+	public setAlign(v: number): this {
+		return this.setListProp('align', v);
+	}
 
-	public getVAlign(): number { return this.getListProp('vAlign'); }
-	public setVAlign(v: number): this { return this.setListProp('vAlign', v); }
+	public getVAlign(): number {
+		return this.getListProp('vAlign');
+	}
+	public setVAlign(v: number): this {
+		return this.setListProp('vAlign', v);
+	}
 
-	public getLineGap(): number { return this.getListProp('lineGap'); }
-	public setLineGap(v: number): this { return this.setListProp('lineGap', v); }
+	public getLineGap(): number {
+		return this.getListProp('lineGap');
+	}
+	public setLineGap(v: number): this {
+		return this.setListProp('lineGap', v);
+	}
 
-	public getColumnGap(): number { return this.getListProp('columnGap'); }
-	public setColumnGap(v: number): this { return this.setListProp('columnGap', v); }
+	public getColumnGap(): number {
+		return this.getListProp('columnGap');
+	}
+	public setColumnGap(v: number): this {
+		return this.setListProp('columnGap', v);
+	}
 
-	public getLineCount(): number { return this.getListProp('lineCount'); }
-	public setLineCount(v: number): this { return this.setListProp('lineCount', v); }
+	public getLineCount(): number {
+		return this.getListProp('lineCount');
+	}
+	public setLineCount(v: number): this {
+		return this.setListProp('lineCount', v);
+	}
 
-	public getColumnCount(): number { return this.getListProp('columnCount'); }
-	public setColumnCount(v: number): this { return this.setListProp('columnCount', v); }
+	public getColumnCount(): number {
+		return this.getListProp('columnCount');
+	}
+	public setColumnCount(v: number): this {
+		return this.setListProp('columnCount', v);
+	}
 
-	public getSelectionMode(): number { return this.getListProp('selectionMode'); }
-	public setSelectionMode(v: number): this { return this.setListProp('selectionMode', v); }
+	public getSelectionMode(): number {
+		return this.getListProp('selectionMode');
+	}
+	public setSelectionMode(v: number): this {
+		return this.setListProp('selectionMode', v);
+	}
 
-	public getDefaultItem(): string { return this.getListProp('defaultItem'); }
-	public setDefaultItem(v: string): this { return this.setListProp('defaultItem', v); }
+	public getDefaultItem(): string {
+		return this.getListProp('defaultItem');
+	}
+	public setDefaultItem(v: string): this {
+		return this.setListProp('defaultItem', v);
+	}
 
-	public getAutoResizeItem(): boolean { return this.getListProp('autoResizeItem'); }
-	public setAutoResizeItem(v: boolean): this { return this.setListProp('autoResizeItem', v); }
+	public getAutoResizeItem(): boolean {
+		return this.getListProp('autoResizeItem');
+	}
+	public setAutoResizeItem(v: boolean): this {
+		return this.setListProp('autoResizeItem', v);
+	}
 
-	public getChildrenRenderOrder(): number { return this.getListProp('childrenRenderOrder'); }
-	public setChildrenRenderOrder(v: number): this { return this.setListProp('childrenRenderOrder', v); }
+	public getChildrenRenderOrder(): number {
+		return this.getListProp('childrenRenderOrder');
+	}
+	public setChildrenRenderOrder(v: number): this {
+		return this.setListProp('childrenRenderOrder', v);
+	}
 
-	public getApexIndex(): number { return this.getListProp('apexIndex'); }
-	public setApexIndex(v: number): this { return this.setListProp('apexIndex', v); }
+	public getApexIndex(): number {
+		return this.getListProp('apexIndex');
+	}
+	public setApexIndex(v: number): this {
+		return this.setListProp('apexIndex', v);
+	}
 
-	public getSrc(): string { return this.getListProp('src'); }
-	public setSrc(v: string): this { return this.setListProp('src', v); }
+	public getSrc(): string {
+		return this.getListProp('src');
+	}
+	public setSrc(v: string): this {
+		return this.setListProp('src', v);
+	}
 
-	public getOverflow(): number { return this.getListProp('overflow'); }
-	public setOverflow(v: number): this { return this.setListProp('overflow', v); }
+	public getOverflow(): number {
+		return this.getListProp('overflow');
+	}
+	public setOverflow(v: number): this {
+		return this.setListProp('overflow', v);
+	}
 
-	public getScrollType(): number { return this.getListProp('scrollType'); }
-	public setScrollType(v: number): this { return this.setListProp('scrollType', v); }
+	public getScrollType(): number {
+		return this.getListProp('scrollType');
+	}
+	public setScrollType(v: number): this {
+		return this.setListProp('scrollType', v);
+	}
 
-	public getScrollBarDisplay(): number { return this.getListProp('scrollBarDisplay'); }
-	public setScrollBarDisplay(v: number): this { return this.setListProp('scrollBarDisplay', v); }
+	public getScrollBarDisplay(): number {
+		return this.getListProp('scrollBarDisplay');
+	}
+	public setScrollBarDisplay(v: number): this {
+		return this.setListProp('scrollBarDisplay', v);
+	}
 
-	public getScrollBarFlags(): number { return this.getListProp('scrollBarFlags'); }
-	public setScrollBarFlags(v: number): this { return this.setListProp('scrollBarFlags', v); }
+	public getScrollBarFlags(): number {
+		return this.getListProp('scrollBarFlags');
+	}
+	public setScrollBarFlags(v: number): this {
+		return this.setListProp('scrollBarFlags', v);
+	}
 
 	public getScrollBarMargin(): EdgeInsetsLike {
 		const margin = this.getListProp('scrollBarMargin');
@@ -261,23 +373,47 @@ export class GListBase<
 		return this.setListProp('scrollBarMargin', [v.top ?? 0, v.bottom ?? 0, v.left ?? 0, v.right ?? 0]);
 	}
 
-	public getVtScrollBarRes(): string { return this.getListProp('vtScrollBarRes'); }
-	public setVtScrollBarRes(v: string): this { return this.setListProp('vtScrollBarRes', v); }
+	public getVtScrollBarRes(): string {
+		return this.getListProp('vtScrollBarRes');
+	}
+	public setVtScrollBarRes(v: string): this {
+		return this.setListProp('vtScrollBarRes', v);
+	}
 
-	public getHzScrollBarRes(): string { return this.getListProp('hzScrollBarRes'); }
-	public setHzScrollBarRes(v: string): this { return this.setListProp('hzScrollBarRes', v); }
+	public getHzScrollBarRes(): string {
+		return this.getListProp('hzScrollBarRes');
+	}
+	public setHzScrollBarRes(v: string): this {
+		return this.setListProp('hzScrollBarRes', v);
+	}
 
-	public getHeaderRes(): string { return this.getListProp('headerRes'); }
-	public setHeaderRes(v: string): this { return this.setListProp('headerRes', v); }
+	public getHeaderRes(): string {
+		return this.getListProp('headerRes');
+	}
+	public setHeaderRes(v: string): this {
+		return this.setListProp('headerRes', v);
+	}
 
-	public getFooterRes(): string { return this.getListProp('footerRes'); }
-	public setFooterRes(v: string): this { return this.setListProp('footerRes', v); }
+	public getFooterRes(): string {
+		return this.getListProp('footerRes');
+	}
+	public setFooterRes(v: string): this {
+		return this.setListProp('footerRes', v);
+	}
 
-	public getPageController(): string { return firstString(this.getListProp('pageController')); }
-	public setPageController(v: string): this { return this.setListProp('pageController', v); }
+	public getPageController(): string {
+		return firstString(this.getListProp('pageController'));
+	}
+	public setPageController(v: string): this {
+		return this.setListProp('pageController', v);
+	}
 
-	public getControllerOverrides(): string { return firstString(this.getListProp('controllerOverrides')); }
-	public setControllerOverrides(v: string): this { return this.setListProp('controllerOverrides', v); }
+	public getControllerOverrides(): string {
+		return firstString(this.getListProp('controllerOverrides'));
+	}
+	public setControllerOverrides(v: string): this {
+		return this.setListProp('controllerOverrides', v);
+	}
 
 	public getMargin(): EdgeInsetsLike {
 		const margin = this.getListProp('margin');
@@ -309,20 +445,40 @@ export class GListBase<
 		return this.setListProp('clipSoftness', [v.x ?? 0, v.y ?? 0]);
 	}
 
-	public getScrollItemToViewOnClick(): boolean { return this.getListProp('scrollItemToViewOnClick'); }
-	public setScrollItemToViewOnClick(v: boolean): this { return this.setListProp('scrollItemToViewOnClick', v); }
+	public getScrollItemToViewOnClick(): boolean {
+		return this.getListProp('scrollItemToViewOnClick');
+	}
+	public setScrollItemToViewOnClick(v: boolean): this {
+		return this.setListProp('scrollItemToViewOnClick', v);
+	}
 
-	public getFoldInvisibleItems(): boolean { return this.getListProp('foldInvisibleItems'); }
-	public setFoldInvisibleItems(v: boolean): this { return this.setListProp('foldInvisibleItems', v); }
+	public getFoldInvisibleItems(): boolean {
+		return this.getListProp('foldInvisibleItems');
+	}
+	public setFoldInvisibleItems(v: boolean): this {
+		return this.setListProp('foldInvisibleItems', v);
+	}
 
-	public getAutoClearItems(): boolean { return this.getListProp('autoClearItems'); }
-	public setAutoClearItems(v: boolean): this { return this.setListProp('autoClearItems', v); }
+	public getAutoClearItems(): boolean {
+		return this.getListProp('autoClearItems');
+	}
+	public setAutoClearItems(v: boolean): this {
+		return this.setListProp('autoClearItems', v);
+	}
 
-	public getListItems(): GListItemData[] { return this.get('listItems' as never) as GListItemData[]; }
-	public setListItems(v: GListItemData[]): this { return this.set('listItems' as never, v as never); }
+	public getListItems(): GListItemData[] {
+		return this.get('listItems' as never) as GListItemData[];
+	}
+	public setListItems(v: GListItemData[]): this {
+		return this.set('listItems' as never, v as never);
+	}
 
-	public getSelectionController(): string { return firstString(this.getListProp('selectionController')); }
-	public setSelectionController(v: string): this { return this.setListProp('selectionController', v); }
+	public getSelectionController(): string {
+		return firstString(this.getListProp('selectionController'));
+	}
+	public setSelectionController(v: string): this {
+		return this.setListProp('selectionController', v);
+	}
 }
 
 /**

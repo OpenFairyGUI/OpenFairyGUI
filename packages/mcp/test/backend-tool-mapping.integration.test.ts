@@ -43,9 +43,15 @@ test('MCP P0 tool definitions exactly map backend P2 methods', (t) => {
 
 	const mappedMethods = OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.map((definition) => definition.backendMethod);
 	t.deepEqual(mappedMethods, [...capabilities.data.methods]);
-	t.deepEqual(OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.map((definition) => definition.name), [...OPENFAIRYGUI_BACKEND_TOOL_NAMES]);
+	t.deepEqual(
+		OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.map((definition) => definition.name),
+		[...OPENFAIRYGUI_BACKEND_TOOL_NAMES],
+	);
 	t.is(new Set(OPENFAIRYGUI_BACKEND_TOOL_NAMES).size, capabilities.data.methods.length);
-	t.is(new Set(OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.map((definition) => definition.outputSchema)).size, mappedMethods.length);
+	t.is(
+		new Set(OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.map((definition) => definition.outputSchema)).size,
+		mappedMethods.length,
+	);
 	t.false(OPENFAIRYGUI_BACKEND_TOOL_NAMES.some((name) => name.includes('artifact')));
 	for (const name of OPENFAIRYGUI_BACKEND_TOOL_NAMES) {
 		t.true(name.startsWith('openfairygui_backend_'));
@@ -53,13 +59,44 @@ test('MCP P0 tool definitions exactly map backend P2 methods', (t) => {
 });
 
 test('MCP schemas reject unknown transaction kinds and oversized batches', (t) => {
-	const byMethod = new Map(OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.map((definition) => [definition.backendMethod, definition]));
+	const byMethod = new Map(
+		OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.map((definition) => [definition.backendMethod, definition]),
+	);
 	const applySchema = byMethod.get('applyTransaction')!.inputSchema;
 	t.deepEqual(CONTRACT_SNAPSHOT.tools.preflightTransaction.input, CONTRACT_SNAPSHOT.tools.applyTransaction.input);
-	t.false(applySchema.safeParse({ sessionId: 's', expectedRevision: 0, operations: [{ kind: 'notAnOperation' }] }).success);
-	t.false(applySchema.safeParse({ sessionId: 's', expectedRevision: 0, operations: Array.from({ length: 1_001 }, () => ({ kind: 'removeBranch', selector: { branch: 'x' } })) }).success);
-	t.true(applySchema.safeParse({ sessionId: 's', expectedRevision: 0, operations: [{ kind: 'setDisplayNodeProps', selector: { packageId: 'p', componentResourceId: 'c', displayNodeId: 'n' }, props: { text: 'ok' } }] }).success);
-	t.true(applySchema.safeParse({ sessionId: 's', expectedRevision: 0, operations: [{ kind: 'replaceResourceBytes', selector: { packageId: 'p', resourceId: 'r' }, sourceBytes: [0, 255] }] }).success);
+	t.false(
+		applySchema.safeParse({ sessionId: 's', expectedRevision: 0, operations: [{ kind: 'notAnOperation' }] })
+			.success,
+	);
+	t.false(
+		applySchema.safeParse({
+			sessionId: 's',
+			expectedRevision: 0,
+			operations: Array.from({ length: 1_001 }, () => ({ kind: 'removeBranch', selector: { branch: 'x' } })),
+		}).success,
+	);
+	t.true(
+		applySchema.safeParse({
+			sessionId: 's',
+			expectedRevision: 0,
+			operations: [
+				{
+					kind: 'setDisplayNodeProps',
+					selector: { packageId: 'p', componentResourceId: 'c', displayNodeId: 'n' },
+					props: { text: 'ok' },
+				},
+			],
+		}).success,
+	);
+	t.true(
+		applySchema.safeParse({
+			sessionId: 's',
+			expectedRevision: 0,
+			operations: [
+				{ kind: 'replaceResourceBytes', selector: { packageId: 'p', resourceId: 'r' }, sourceBytes: [0, 255] },
+			],
+		}).success,
+	);
 
 	const projectSchema = byMethod.get('openProjectSession')!.inputSchema;
 	t.false(projectSchema.safeParse({ project: { projectId: 'p' } }).success);
@@ -71,24 +108,33 @@ test('MCP pure UAM sessions cannot materialize or save through the runtime files
 	const fileSystem = new Proxy(createNodeBackendFileSystem(), {
 		get(target, key, receiver) {
 			const value = Reflect.get(target, key, receiver);
-			return typeof value === 'function' ? () => {
-				calls.push(String(key));
-				throw new Error('No runtime filesystem operation is allowed for this memory session.');
-			} : value;
+			return typeof value === 'function'
+				? () => {
+						calls.push(String(key));
+						throw new Error('No runtime filesystem operation is allowed for this memory session.');
+					}
+				: value;
 		},
 	});
 	const runtime = createNodeBackendRuntime({ fileSystem });
 	const opened = await callTool(runtime, 'openfairygui_backend_open_project_session', {
-		project: createMcpFixtureProject(), canonicalProjectPath: 'memory://mcp-project',
+		project: createMcpFixtureProject(),
+		canonicalProjectPath: 'memory://mcp-project',
 	});
 	t.true(opened.ok);
 	const sessionId = (opened.data as { sessionId: string }).sessionId;
 	try {
-		const applied = await callTool(runtime, 'openfairygui_backend_apply_transaction', { sessionId, expectedRevision: 0, operations: [{
-			kind: 'setDisplayNodeProps',
-			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
-			props: { text: 'Memory only' },
-		}] });
+		const applied = await callTool(runtime, 'openfairygui_backend_apply_transaction', {
+			sessionId,
+			expectedRevision: 0,
+			operations: [
+				{
+					kind: 'setDisplayNodeProps',
+					selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+					props: { text: 'Memory only' },
+				},
+			],
+		});
 		t.true(applied.ok);
 		for (const name of ['openfairygui_backend_save_session', 'openfairygui_backend_materialize_session'] as const) {
 			const result = await callOpenFairyGuiBackendTool(runtime, name, { sessionId, expectedRevision: 1 });
@@ -163,8 +209,20 @@ test('MCP P0 tool annotations reflect backend side effects and non-goals', (t) =
 
 	const applyTransactionAnnotations = definitionsByMethod.get('applyTransaction')?.annotations;
 	const saveSessionAnnotations = definitionsByMethod.get('saveSession')?.annotations;
-	t.true(Boolean(applyTransactionAnnotations && 'destructiveHint' in applyTransactionAnnotations && applyTransactionAnnotations.destructiveHint));
-	t.true(Boolean(saveSessionAnnotations && 'destructiveHint' in saveSessionAnnotations && saveSessionAnnotations.destructiveHint));
+	t.true(
+		Boolean(
+			applyTransactionAnnotations &&
+				'destructiveHint' in applyTransactionAnnotations &&
+				applyTransactionAnnotations.destructiveHint,
+		),
+	);
+	t.true(
+		Boolean(
+			saveSessionAnnotations &&
+				'destructiveHint' in saveSessionAnnotations &&
+				saveSessionAnnotations.destructiveHint,
+		),
+	);
 });
 
 test('MCP P0 direct tool handler can call every backend P2 method without redefining backend semantics', async (t) => {
@@ -192,7 +250,11 @@ test('MCP P0 direct tool handler can call every backend P2 method without redefi
 		t.true(outline.ok);
 		t.is((outline.data as { revision: number }).revision, 0);
 		const entity = await callTool(runtime, 'openfairygui_backend_query_entity', {
-			sessionId, target: { kind: 'displayNode', selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' } },
+			sessionId,
+			target: {
+				kind: 'displayNode',
+				selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+			},
 		});
 		t.true(entity.ok);
 		const validation = await callTool(runtime, 'openfairygui_backend_validate_session', { sessionId });

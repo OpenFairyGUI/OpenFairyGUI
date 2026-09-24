@@ -1,10 +1,7 @@
 import { ControllerActionType } from '../constants.js';
 import type { Document } from '../document.js';
 import type { ByteBuffer } from './byte-buffer.js';
-import {
-	decodeRelationBlock,
-	remainingBytes,
-} from './component-decoder-shared.js';
+import { decodeRelationBlock, remainingBytes } from './component-decoder-shared.js';
 
 export function decodeComponentControllers(
 	doc: Document,
@@ -31,9 +28,7 @@ export function decodeComponentControllers(
 				const pageId = controllerBuf.readS() ?? `page${pageIndex}`;
 				const pageName = controllerBuf.readS() ?? pageId;
 				const page = doc.createControllerPage(pageName);
-				page
-					.setId(pageId)
-					.setName(pageName);
+				page.setId(pageId).setName(pageName);
 				controller.addPage(page);
 			}
 			let homePageIndex = 0;
@@ -75,7 +70,11 @@ export function decodeComponentControllers(
 
 		if (controllerBuf.seek(0, 2) && remainingBytes(controllerBuf) >= 2) {
 			const actionCount = controllerBuf.getInt16();
-			for (let actionIndex = 0; actionIndex < actionCount && remainingBytes(controllerBuf) >= 2; actionIndex += 1) {
+			for (
+				let actionIndex = 0;
+				actionIndex < actionCount && remainingBytes(controllerBuf) >= 2;
+				actionIndex += 1
+			) {
 				const actionSize = controllerBuf.getInt16();
 				const actionNextPos = controllerBuf.pos + actionSize;
 				const actionBuf = controllerBuf.readBuffer(actionSize);
@@ -84,7 +83,9 @@ export function decodeComponentControllers(
 					const actionType = actionBuf.getUint8();
 					action.setActionType(actionType);
 					if (remainingBytes(actionBuf) >= 2) {
-						action.setFromPage(actionBuf.readSArray(actionBuf.getInt16()).filter((pageId) => pageId !== ''));
+						action.setFromPage(
+							actionBuf.readSArray(actionBuf.getInt16()).filter((pageId) => pageId !== ''),
+						);
 					}
 					if (remainingBytes(actionBuf) >= 2) {
 						action.setToPage(actionBuf.readSArray(actionBuf.getInt16()).filter((pageId) => pageId !== ''));
@@ -121,15 +122,11 @@ export function decodeComponentControllers(
 	}
 }
 
-export function decodeComponentRelations(
-	resource: ReturnType<Document['createComponent']>,
-	buf: ByteBuffer,
-): void {
+export function decodeComponentRelations(resource: ReturnType<Document['createComponent']>, buf: ByteBuffer): void {
 	if (!buf.seek(0, 3) || remainingBytes(buf) < 1) return;
 	const childIds = resource.listChildren().map((child) => child.getId());
 	decodeRelationBlock(buf, childIds, (relation) => resource.addRelation(relation));
 }
-
 
 export function decodeComponentHeader(resource: ReturnType<Document['createComponent']>, buf: ByteBuffer): void {
 	if (!buf.seek(0, 0)) return;
@@ -146,19 +143,11 @@ export function decodeComponentHeader(resource: ReturnType<Document['createCompo
 	}
 
 	if (buf.readBool()) {
-		resource
-			.setPivotX(buf.getFloat32())
-			.setPivotY(buf.getFloat32())
-			.setPivotAsAnchor(buf.readBool());
+		resource.setPivotX(buf.getFloat32()).setPivotY(buf.getFloat32()).setPivotAsAnchor(buf.readBool());
 	}
 
 	if (buf.readBool()) {
-		resource.setMargin([
-			buf.getInt32(),
-			buf.getInt32(),
-			buf.getInt32(),
-			buf.getInt32(),
-		]);
+		resource.setMargin([buf.getInt32(), buf.getInt32(), buf.getInt32(), buf.getInt32()]);
 	}
 
 	resource.setOverflow(buf.getUint8());
@@ -172,9 +161,7 @@ export function decodeComponentAdvancedProps(resource: ReturnType<Document['crea
 	if (!buf.seek(0, 4)) return;
 	if (remainingBytes(buf) < 15) return;
 
-	resource
-		.setCustomData(buf.readS() ?? '')
-		.setOpaque(buf.readBool());
+	resource.setCustomData(buf.readS() ?? '').setOpaque(buf.readBool());
 
 	const maskIndex = buf.getInt16();
 	if (maskIndex >= 0) {
@@ -192,9 +179,7 @@ export function decodeComponentAdvancedProps(resource: ReturnType<Document['crea
 	}
 
 	if (buf.version >= 5 && remainingBytes(buf) >= 4) {
-		resource
-			.setAddedToStageSound(buf.readS() ?? '')
-			.setRemovedFromStageSound(buf.readS() ?? '');
+		resource.setAddedToStageSound(buf.readS() ?? '').setRemovedFromStageSound(buf.readS() ?? '');
 	}
 }
 
@@ -222,9 +207,7 @@ export function decodeComponentExtensionDef(
 			break;
 		case 'ProgressBar':
 			if (remainingBytes(buf) < 2) return;
-			resource
-				.setTitleType(buf.getUint8())
-				.setReverse(buf.readBool());
+			resource.setTitleType(buf.getUint8()).setReverse(buf.readBool());
 			break;
 		case 'Slider':
 			if (remainingBytes(buf) < 4) return;
@@ -247,18 +230,10 @@ export function decodeComponentScrollPane(resource: ReturnType<Document['createC
 	if (!buf.seek(0, 7)) return;
 	if (remainingBytes(buf) < 14) return;
 
-	resource
-		.setScrollType(buf.getUint8())
-		.setScrollBarDisplay(buf.getUint8())
-		.setScrollBarFlags(buf.getInt32());
+	resource.setScrollType(buf.getUint8()).setScrollBarDisplay(buf.getUint8()).setScrollBarFlags(buf.getInt32());
 
 	if (buf.readBool()) {
-		resource.setScrollBarMargin([
-			buf.getInt32(),
-			buf.getInt32(),
-			buf.getInt32(),
-			buf.getInt32(),
-		]);
+		resource.setScrollBarMargin([buf.getInt32(), buf.getInt32(), buf.getInt32(), buf.getInt32()]);
 	}
 
 	resource

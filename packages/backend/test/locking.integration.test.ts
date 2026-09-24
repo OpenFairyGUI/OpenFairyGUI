@@ -110,13 +110,17 @@ test('dead Node lock owner is recovered', async (t) => {
 	const fixture = await createTempBackendProject();
 	const lockPath = lockPathFor(fixture.rootDir);
 	try {
-		await fs.writeFile(lockPath, JSON.stringify({
-			schemaVersion: 1,
-			pid: 2_147_483_647,
-			processStartTime: 1,
-			hostname: os.hostname(),
-			token: 'dead-owner',
-		}), 'utf-8');
+		await fs.writeFile(
+			lockPath,
+			JSON.stringify({
+				schemaVersion: 1,
+				pid: 2_147_483_647,
+				processStartTime: 1,
+				hostname: os.hostname(),
+				token: 'dead-owner',
+			}),
+			'utf-8',
+		);
 		const runtime = createBackendRuntime();
 		const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 		t.true(opened.ok);

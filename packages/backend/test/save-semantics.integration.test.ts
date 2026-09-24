@@ -13,9 +13,21 @@ test('case-only component rename preserves the new source through staged save an
 	t.true(opened.ok);
 	if (!opened.ok) return;
 	const sessionId = opened.data.sessionId;
-	t.true((await runtime.applyTransaction({ sessionId, expectedRevision: 0, operations: [
-		{ kind: 'renameResource', selector: { packageId: 'pkg001', resourceId: 'cmp001' }, newName: 'mainview' },
-	] })).ok);
+	t.true(
+		(
+			await runtime.applyTransaction({
+				sessionId,
+				expectedRevision: 0,
+				operations: [
+					{
+						kind: 'renameResource',
+						selector: { packageId: 'pkg001', resourceId: 'cmp001' },
+						newName: 'mainview',
+					},
+				],
+			})
+		).ok,
+	);
 	t.true((await runtime.saveSession({ sessionId, expectedRevision: 1 })).ok);
 	t.regex(await fs.readFile(path.join(fixture.rootDir, 'assets', 'Main', 'mainview.xml'), 'utf8'), /<component/);
 	t.true((await runtime.closeSession({ sessionId })).ok);
@@ -33,11 +45,26 @@ test.serial('commit plus rollback failure reports recovery directories and uncer
 		const runtime = createBackendRuntime();
 		const opened = await runtime.openSession({ projectPath: fixture.fairyPath });
 		t.true(opened.ok);
-		if (!opened.ok) { await fixture.cleanup(); continue; }
+		if (!opened.ok) {
+			await fixture.cleanup();
+			continue;
+		}
 		const sessionId = opened.data.sessionId;
-		t.true((await runtime.applyTransaction({ sessionId, expectedRevision: 0, operations: [
-			{ kind: 'renameResource', selector: { packageId: 'pkg001', resourceId: 'cmp001' }, newName: 'Changed' },
-		] })).ok);
+		t.true(
+			(
+				await runtime.applyTransaction({
+					sessionId,
+					expectedRevision: 0,
+					operations: [
+						{
+							kind: 'renameResource',
+							selector: { packageId: 'pkg001', resourceId: 'cmp001' },
+							newName: 'Changed',
+						},
+					],
+				})
+			).ok,
+		);
 		const rename = fs.rename;
 		const recoveries: string[] = [];
 		fs.rename = async (from, to) => {
@@ -48,23 +75,26 @@ test.serial('commit plus rollback failure reports recovery directories and uncer
 			return rename(from, to);
 		};
 		try {
-			const result = method === 'save'
-				? await runtime.saveSession({ sessionId, expectedRevision: 1 })
-				: await runtime.materializeSession({ sessionId, expectedRevision: 1 });
+			const result =
+				method === 'save'
+					? await runtime.saveSession({ sessionId, expectedRevision: 1 })
+					: await runtime.materializeSession({ sessionId, expectedRevision: 1 });
 			t.false(result.ok);
 			if (!result.ok && (result.error.code === 'save_partial_failure' || result.error.code === 'write_failed')) {
 				t.true(result.error.diskMayBePartiallyUpdated);
 				t.deepEqual([...(result.error.recoveryPaths ?? [])].sort(), [...recoveries].sort());
 				t.true(result.session?.dirty);
 				t.is(result.session?.lastSavedRevision, 0);
-				for (const directory of result.error.recoveryPaths ?? []) t.true((await fs.stat(directory)).isDirectory());
+				for (const directory of result.error.recoveryPaths ?? [])
+					t.true((await fs.stat(directory)).isDirectory());
 			} else t.fail('expected structured write failure');
 			await t.throwsAsync(fs.stat(fixture.rootDir), { code: 'ENOENT' });
 		} finally {
 			fs.rename = rename;
 			const backup = recoveries.find((item) => item.includes('.save-backup-'));
 			if (backup) await fs.rename(backup, fixture.rootDir);
-			for (const directory of recoveries.filter((item) => item !== backup)) await fs.rm(directory, { recursive: true, force: true });
+			for (const directory of recoveries.filter((item) => item !== backup))
+				await fs.rm(directory, { recursive: true, force: true });
 			await runtime.closeSession({ sessionId });
 			await fixture.cleanup();
 		}
@@ -82,9 +112,19 @@ test('percentage XY source sessions remain fully editable and save all four coor
 	controller.addPage(document.createControllerPage('Active').setId('1'));
 	component.addController(controller);
 	const values = '80,45,0.25,0.25|160,90,0.5,0.5';
-	component.listChildren().find((child) => child.getId() === 'n1')!.addGear(document.createGear('')
-		.setGearType(1).setController(controller).setPages('0,1').setValues(values)
-		.setDefaultValue('0,0,0,0').setPositionsInPercent(true));
+	component
+		.listChildren()
+		.find((child) => child.getId() === 'n1')!
+		.addGear(
+			document
+				.createGear('')
+				.setGearType(1)
+				.setController(controller)
+				.setPages('0,1')
+				.setValues(values)
+				.setDefaultValue('0,0,0,0')
+				.setPositionsInPercent(true),
+		);
 	await io.writeProject(document, fixture.fairyPath);
 	const runtime = createBackendRuntime();
 	const opened = await runtime.openSession({ projectPath: fixture.rootDir });
@@ -92,16 +132,28 @@ test('percentage XY source sessions remain fully editable and save all four coor
 	if (!opened.ok) return;
 	t.is(opened.data.uamFidelity, 'full');
 	const applied = await runtime.applyTransaction({
-		sessionId: opened.data.sessionId, expectedRevision: 0,
-		operations: [{ kind: 'setDisplayNodeProps', selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' }, props: { text: 'Still editable' } }],
+		sessionId: opened.data.sessionId,
+		expectedRevision: 0,
+		operations: [
+			{
+				kind: 'setDisplayNodeProps',
+				selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+				props: { text: 'Still editable' },
+			},
+		],
 	});
 	t.true(applied.ok);
 	const saved = await runtime.saveSession({ sessionId: opened.data.sessionId, expectedRevision: 1 });
 	t.true(saved.ok);
 	await runtime.closeSession({ sessionId: opened.data.sessionId });
 	const reloaded = await io.readProject(fixture.fairyPath);
-	const gear = reloaded.getRoot().getPackage('Main')!.getComponent('MainView')!.listChildren()
-		.find((child) => child.getId() === 'n1')!.listGears()[0]!;
+	const gear = reloaded
+		.getRoot()
+		.getPackage('Main')!
+		.getComponent('MainView')!
+		.listChildren()
+		.find((child) => child.getId() === 'n1')!
+		.listGears()[0]!;
 	t.is(gear.getValues(), values);
 	t.is(gear.getDefaultValue(), '0,0,0,0');
 	t.true(gear.getPositionsInPercent());
@@ -154,11 +206,13 @@ test('file sessions preserve display pivot and anchor through apply, save, and r
 		const applied = await runtime.applyTransaction({
 			sessionId: opened.data.sessionId,
 			expectedRevision: 0,
-			operations: [{
-				kind: 'setDisplayNodeProps',
-				selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
-				props: { pivot: { x: 0.25, y: 0.5 }, pivotAsAnchor: true },
-			}],
+			operations: [
+				{
+					kind: 'setDisplayNodeProps',
+					selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+					props: { pivot: { x: 0.25, y: 0.5 }, pivotAsAnchor: true },
+				},
+			],
 		});
 		t.true(applied.ok);
 		if (!applied.ok) return;
@@ -459,11 +513,13 @@ test('closeSession waits for an in-flight save before releasing its lock', async
 		const applied = await runtime.applyTransaction({
 			sessionId: opened.data.sessionId,
 			expectedRevision: 0,
-			operations: [{
-				kind: 'setDisplayNodeProps',
-				selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
-				props: { text: 'Saved before close' },
-			}],
+			operations: [
+				{
+					kind: 'setDisplayNodeProps',
+					selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+					props: { text: 'Saved before close' },
+				},
+			],
 		});
 		t.true(applied.ok);
 		if (!applied.ok) return;
@@ -476,7 +532,10 @@ test('closeSession waits for an in-flight save before releasing its lock', async
 		});
 		await Promise.resolve();
 		t.false(closeSettled);
-		const lockPath = path.join(path.dirname(fixture.rootDir), `.${path.basename(fixture.rootDir)}.openfairygui.backend.lock`);
+		const lockPath = path.join(
+			path.dirname(fixture.rootDir),
+			`.${path.basename(fixture.rootDir)}.openfairygui.backend.lock`,
+		);
 		await fs.stat(lockPath);
 
 		releaseWrite();

@@ -72,7 +72,8 @@ export function encodeComponent(
 	// Block 7: ScrollPane (when component has overflow=scroll)
 	let block7Offset = 0;
 	const compOverflow = comp.getOverflow?.() ?? 0;
-	if (compOverflow === 2) { // scroll
+	if (compOverflow === 2) {
+		// scroll
 		block7Offset = buf.pos - indexTablePos;
 		_writeComponentScrollPane(buf, comp, context);
 	}

@@ -5,9 +5,13 @@ import { fileURLToPath } from 'node:url';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
-export const git = (root, args) => execFileSync('git', args, {
-	cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 16 * 1024 * 1024,
-});
+export const git = (root, args) =>
+	execFileSync('git', args, {
+		cwd: root,
+		encoding: 'utf8',
+		stdio: ['ignore', 'pipe', 'pipe'],
+		maxBuffer: 16 * 1024 * 1024,
+	});
 export const nulLines = (text) => text.split('\0').filter(Boolean);
 export const isMain = (url) => process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(url);
 
@@ -17,10 +21,18 @@ export function repositoryFiles(root) {
 
 export function matches(file, pattern) {
 	// Only *, ** and **/ are supported; the impact map deliberately has no glob-language dependency.
-	const expression = pattern.split(/(\*\*\/|\*\*|\*)/).map((part) => (
-		part === '**/' ? '(?:.*/)?' : part === '**' ? '.*' : part === '*' ? '[^/]*'
-			: part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-	)).join('');
+	const expression = pattern
+		.split(/(\*\*\/|\*\*|\*)/)
+		.map((part) =>
+			part === '**/'
+				? '(?:.*/)?'
+				: part === '**'
+					? '.*'
+					: part === '*'
+						? '[^/]*'
+						: part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+		)
+		.join('');
 	return new RegExp(`^${expression}$`).test(file);
 }
 
@@ -41,7 +53,10 @@ export function testFiles(root) {
 }
 
 export function pnpmInvocation(pnpmCli, args) {
-	if (!pnpmCli) throw new Error('Execute through pnpm test:changed or pnpm pack:check; direct Node invocation is for inspection only.');
+	if (!pnpmCli)
+		throw new Error(
+			'Execute through pnpm test:changed or pnpm pack:check; direct Node invocation is for inspection only.',
+		);
 	return /\.[cm]?js$/i.test(pnpmCli) ? [process.execPath, [pnpmCli, ...args]] : [pnpmCli, args];
 }
 

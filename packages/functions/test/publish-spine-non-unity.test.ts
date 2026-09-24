@@ -157,7 +157,13 @@ test('publish: non-Unity project keeps spine sidecar file names unchanged', asyn
 	pkg.addResource(atlasDep);
 
 	const atlasImage = doc.createImageResource('alien-pma');
-	atlasImage.setId('img001').setPath('/images/').setFileName('alien-pma.png').setWidth(32).setHeight(32).setExported(false);
+	atlasImage
+		.setId('img001')
+		.setPath('/images/')
+		.setFileName('alien-pma.png')
+		.setWidth(32)
+		.setHeight(32)
+		.setExported(false);
 	pkg.addResource(atlasImage);
 
 	const spine = doc.createSpineResource('alien-pro');
@@ -185,15 +191,19 @@ test('publish: non-Unity project keeps spine sidecar file names unchanged', asyn
 				channels: 4,
 				background: { r: 80, g: 120, b: 200, alpha: 1 },
 			},
-		}).png().toFile(path.join(resourceDir, 'alien-pma.png'));
+		})
+			.png()
+			.toFile(path.join(resourceDir, 'alien-pma.png'));
 
-		await doc.transform(publish({
-			output: tmpDir,
-			packages: ['Loader'],
-			fs: createFs(),
-			encoder: sharp,
-			basePath,
-		}));
+		await doc.transform(
+			publish({
+				output: tmpDir,
+				packages: ['Loader'],
+				fs: createFs(),
+				encoder: sharp,
+				basePath,
+			}),
+		);
 
 		for (const file of ['Loader.bin', 'Loader_misc001.atlas', 'alien-pro.skel', 'alien-pma.png']) {
 			const stat = await fs.stat(path.join(tmpDir, file)).catch(() => null);
@@ -205,7 +215,12 @@ test('publish: non-Unity project keeps spine sidecar file names unchanged', asyn
 		}
 
 		const bytes = await fs.readFile(path.join(tmpDir, 'Loader.bin'));
-		const byId = new Map(parsePackageBinary(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)).map((item) => [item.id, item]));
+		const byId = new Map(
+			parsePackageBinary(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)).map((item) => [
+				item.id,
+				item,
+			]),
+		);
 		t.is(byId.get('spine001')?.file, 'alien-pro.skel', 'spine item keeps original skeleton file name');
 		t.is(byId.get('misc001')?.file, 'misc001.atlas', 'misc atlas dependency uses its runtime item id');
 		t.true(byId.has('img001'), 'spine texture image dependency is written as a package item');

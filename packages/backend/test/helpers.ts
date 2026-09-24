@@ -21,7 +21,9 @@ export async function createTempBackendProject() {
 		rootDir: tmpDir,
 		fairyPath,
 		async cleanup(): Promise<void> {
-			await fs.rm(path.join(path.dirname(tmpDir), `.${path.basename(tmpDir)}.openfairygui.backend.lock`), { force: true });
+			await fs.rm(path.join(path.dirname(tmpDir), `.${path.basename(tmpDir)}.openfairygui.backend.lock`), {
+				force: true,
+			});
 			await fs.rm(tmpDir, { recursive: true, force: true });
 		},
 	};
@@ -49,9 +51,8 @@ export function createFailingFileSystem(shouldFail: (filePath: string) => boolea
 	};
 }
 
-export function createBackendRuntime(options: {
-	fileSystem?: BackendFileSystem;
-	allowedProjectRoots?: readonly string[];
-} = {}): BackendRuntime {
+export function createBackendRuntime(
+	options: { fileSystem?: BackendFileSystem; allowedProjectRoots?: readonly string[] } = {},
+): BackendRuntime {
 	return createNodeBackendRuntime(options);
 }

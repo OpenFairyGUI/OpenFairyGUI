@@ -38,21 +38,45 @@ export class GSlider extends GComponent<IGSlider, PropertyType.G_SLIDER> {
 		});
 	}
 
-	public getTitleType(): number { return this.get('titleType' as any); }
-	public setTitleType(v: number): this { return this.set('titleType' as any, v); }
+	public getTitleType(): number {
+		return this.get('titleType' as any);
+	}
+	public setTitleType(v: number): this {
+		return this.set('titleType' as any, v);
+	}
 
-	public getMin(): number { return this.get('min' as any); }
-	public setMin(v: number): this { return this.set('min' as any, v); }
+	public getMin(): number {
+		return this.get('min' as any);
+	}
+	public setMin(v: number): this {
+		return this.set('min' as any, v);
+	}
 
-	public getMax(): number { return this.get('max' as any); }
-	public setMax(v: number): this { return this.set('max' as any, v); }
+	public getMax(): number {
+		return this.get('max' as any);
+	}
+	public setMax(v: number): this {
+		return this.set('max' as any, v);
+	}
 
-	public getValue(): number { return this.get('value' as any); }
-	public setValue(v: number): this { return this.set('value' as any, v); }
+	public getValue(): number {
+		return this.get('value' as any);
+	}
+	public setValue(v: number): this {
+		return this.set('value' as any, v);
+	}
 
-	public getWholeNumbers(): boolean { return this.get('wholeNumbers' as any); }
-	public setWholeNumbers(v: boolean): this { return this.set('wholeNumbers' as any, v); }
+	public getWholeNumbers(): boolean {
+		return this.get('wholeNumbers' as any);
+	}
+	public setWholeNumbers(v: boolean): this {
+		return this.set('wholeNumbers' as any, v);
+	}
 
-	public getSrc(): string { return this.get('src' as any); }
-	public setSrc(v: string): this { return this.set('src' as any, v); }
+	public getSrc(): string {
+		return this.get('src' as any);
+	}
+	public setSrc(v: string): this {
+		return this.set('src' as any, v);
+	}
 }

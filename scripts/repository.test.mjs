@@ -5,7 +5,14 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { changedFiles, impactTable, runSelectedTests, selectTests } from './test-changed.mjs';
-import { checkCommands, checkGuidance, changelogStructure, markdownCode, markdownLinks, resolveLink } from './check-guidance.mjs';
+import {
+	checkCommands,
+	checkGuidance,
+	changelogStructure,
+	markdownCode,
+	markdownLinks,
+	resolveLink,
+} from './check-guidance.mjs';
 import { doctor, inspectBuilds, inspectEnvironment, inspectReferences } from './repo-doctor.mjs';
 import { grepReferences } from './refs-grep.mjs';
 import { git, matches, pnpmInvocation, readJson, ROOT, testFiles } from './repo-utils.mjs';
@@ -27,7 +34,17 @@ function write(root, file, contents) {
 
 function commit(root) {
 	git(root, ['add', '--all']);
-	git(root, ['-c', 'user.name=Repository Test', '-c', 'user.email=repo-test@example.invalid', 'commit', '--quiet', '--no-gpg-sign', '-m', 'test fixture']);
+	git(root, [
+		'-c',
+		'user.name=Repository Test',
+		'-c',
+		'user.email=repo-test@example.invalid',
+		'commit',
+		'--quiet',
+		'--no-gpg-sign',
+		'-m',
+		'test fixture',
+	]);
 	return git(root, ['rev-parse', 'HEAD']).trim();
 }
 
@@ -52,18 +69,47 @@ test('impact selection includes downstream consumers and conservatively falls ba
 		assert.deepEqual(plan.tests, available);
 	}
 	assert.deepEqual(selectTests(map, [], available, 'base unavailable').tests, available);
-	const documentation = ['docs/guide/getting-started.md', 'docs/en/guide/development.md', 'README.md', 'README_EN.md', 'AGENTS.md', 'CHANGELOG.md', 'CHANGELOG_CN.md'];
+	const documentation = [
+		'docs/guide/getting-started.md',
+		'docs/en/guide/development.md',
+		'README.md',
+		'README_EN.md',
+		'AGENTS.md',
+		'CHANGELOG.md',
+		'CHANGELOG_CN.md',
+	];
 	assert.equal(selectTests(map, documentation, available).scope, 'repository-only');
-	for (const file of ['docs/.vitepress/config.ts', 'docs/.vitepress/theme/index.ts', 'examples/node-inspect-validate/index.mjs', 'scripts/test-changed.mjs', 'agent/impact-map.json', '.github/workflows/ci.yml', '.node-version', 'pnpm-lock.yaml']) {
+	for (const file of [
+		'docs/.vitepress/config.ts',
+		'docs/.vitepress/theme/index.ts',
+		'examples/node-inspect-validate/index.mjs',
+		'scripts/test-changed.mjs',
+		'agent/impact-map.json',
+		'.github/workflows/ci.yml',
+		'.node-version',
+		'pnpm-lock.yaml',
+	]) {
 		assert.deepEqual(selectTests(map, [...documentation, file], available).tests, available);
 	}
-	assert.notEqual(selectTests(map, [...documentation, 'packages/mcp/src/index.ts'], available).scope, 'repository-only');
+	assert.notEqual(
+		selectTests(map, [...documentation, 'packages/mcp/src/index.ts'], available).scope,
+		'repository-only',
+	);
 });
 
 test('empty, unknown and incomplete full-test groups are errors', () => {
-	assert.throws(() => selectTests({ ...map, tests: { ...map.tests, typo: 'missing/*.test.ts' } }, [], available), /Empty test group/);
-	assert.throws(() => selectTests({ tests: {}, rules: [{ paths: ['**'], tests: ['typo'], docs: [] }] }, ['x'], available), /Unknown test group/);
-	assert.throws(() => selectTests(map, [], [...available, 'packages/new/test/a.test.ts']), /does not cover every test/);
+	assert.throws(
+		() => selectTests({ ...map, tests: { ...map.tests, typo: 'missing/*.test.ts' } }, [], available),
+		/Empty test group/,
+	);
+	assert.throws(
+		() => selectTests({ tests: {}, rules: [{ paths: ['**'], tests: ['typo'], docs: [] }] }, ['x'], available),
+		/Unknown test group/,
+	);
+	assert.throws(
+		() => selectTests(map, [], [...available, 'packages/new/test/a.test.ts']),
+		/does not cover every test/,
+	);
 	assert(impactTable(map).includes('core, functions, backend, cli, mcp'));
 });
 
@@ -79,12 +125,28 @@ test('Git selection includes committed, staged, unstaged, untracked, renamed and
 	write(root, 'untracked 中文.txt', 'new');
 	renameSync(path.join(root, 'old name.txt'), path.join(root, 'new name.txt'));
 	rmSync(path.join(root, 'deleted.txt'));
-	assert.deepEqual(changedFiles(root, base), ['committed.txt', 'deleted.txt', 'new name.txt', 'old name.txt', 'staged.txt', 'untracked 中文.txt', 'working.txt'].sort());
+	assert.deepEqual(
+		changedFiles(root, base),
+		[
+			'committed.txt',
+			'deleted.txt',
+			'new name.txt',
+			'old name.txt',
+			'staged.txt',
+			'untracked 中文.txt',
+			'working.txt',
+		].sort(),
+	);
 	assert.throws(() => changedFiles(root, 'nonexistent-ref'));
 });
 
 test('invalid comparison base produces a non-empty full plan via the real CLI', () => {
-	const result = JSON.parse(execFileSync(process.execPath, ['scripts/test-changed.mjs', '--base', 'refs/heads/does-not-exist', '--list'], { cwd: ROOT, encoding: 'utf8' }));
+	const result = JSON.parse(
+		execFileSync(process.execPath, ['scripts/test-changed.mjs', '--base', 'refs/heads/does-not-exist', '--list'], {
+			cwd: ROOT,
+			encoding: 'utf8',
+		}),
+	);
 	assert.equal(result.scope, 'full');
 	assert.deepEqual(result.tests, available);
 });
@@ -97,25 +159,50 @@ test('check:fast forwards its base, keeps previews read-only and stops when qual
 	write(root, 'agent/impact-map.json', JSON.stringify(map));
 	for (const group of Object.keys(map.tests)) write(root, `packages/${group}/test/example.test.ts`, '');
 	write(root, '.gitignore', 'calls.jsonl\nfail-lint\n');
-	write(root, 'record.cjs', `const fs = require('node:fs');
+	write(
+		root,
+		'record.cjs',
+		`const fs = require('node:fs');
 fs.appendFileSync('calls.jsonl', process.argv[2] + '\\n');
 if (process.argv[2] === 'lint' && fs.existsSync('fail-lint')) process.exit(1);
-`);
-	write(root, 'scripts/repository.test.mjs', "import { appendFileSync } from 'node:fs'; appendFileSync('calls.jsonl', 'repository\\n');");
-	write(root, 'scripts/check-guidance.mjs', "import { appendFileSync } from 'node:fs'; appendFileSync('calls.jsonl', 'guidance\\n');");
+`,
+	);
+	write(
+		root,
+		'scripts/repository.test.mjs',
+		"import { appendFileSync } from 'node:fs'; appendFileSync('calls.jsonl', 'repository\\n');",
+	);
+	write(
+		root,
+		'scripts/check-guidance.mjs',
+		"import { appendFileSync } from 'node:fs'; appendFileSync('calls.jsonl', 'guidance\\n');",
+	);
 	const manifest = readJson(path.join(ROOT, 'package.json'));
-	write(root, 'package.json', JSON.stringify({ packageManager: manifest.packageManager, scripts: {
-		'check:fast': manifest.scripts['check:fast'], 'lint:ci': 'node record.cjs lint', typecheck: 'node record.cjs types',
-	} }));
+	write(
+		root,
+		'package.json',
+		JSON.stringify({
+			packageManager: manifest.packageManager,
+			scripts: {
+				'check:fast': manifest.scripts['check:fast'],
+				'lint:ci': 'node record.cjs lint',
+				typecheck: 'node record.cjs types',
+			},
+		}),
+	);
 	const base = commit(root);
 	write(root, 'docs/change.md', 'documentation only');
 	const env = { ...process.env };
 	delete env.GITHUB_BASE_REF;
 	delete env.NODE_TEST_CONTEXT;
 	// Use the shell to resolve pnpm's platform launcher, including pnpm.cmd on Windows.
-	const run = (args) => execSync(`pnpm --silent check:fast ${args}`, { cwd: root, env, encoding: 'utf8', stdio: 'pipe' });
+	const run = (args) =>
+		execSync(`pnpm --silent check:fast ${args}`, { cwd: root, env, encoding: 'utf8', stdio: 'pipe' });
 	const calls = () => readFileSync(path.join(root, 'calls.jsonl'), 'utf8').trim().split('\n');
-	assert.throws(() => run('--list'), (error) => error.status === 1 && /requires --base/.test(error.stderr));
+	assert.throws(
+		() => run('--list'),
+		(error) => error.status === 1 && /requires --base/.test(error.stderr),
+	);
 	env.GITHUB_BASE_REF = 'unavailable-target';
 	const preview = JSON.parse(run(`--base ${base} --list`));
 	assert.equal(preview.scope, 'repository-only');
@@ -159,14 +246,22 @@ test('AVA selection preserves pnpm shims instead of executing the raw JS entrypo
 
 test('selected tests build dependencies first, stop on build failure and skip builds for documentation-only plans', (t) => {
 	const root = temporaryRepository(t);
-	write(root, 'fake pnpm.cjs', `const fs = require('node:fs');
+	write(
+		root,
+		'fake pnpm.cjs',
+		`const fs = require('node:fs');
 const args = process.argv.slice(2);
 fs.appendFileSync('calls.jsonl', JSON.stringify(args) + '\\n');
 if (args[0] === 'build' && fs.existsSync('fail-build')) process.exit(1);
-`);
+`,
+	);
 	const cli = path.join(root, 'fake pnpm.cjs');
 	const files = ['packages/backend/test/browser-entry.contract.test.ts'];
-	const calls = () => readFileSync(path.join(root, 'calls.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+	const calls = () =>
+		readFileSync(path.join(root, 'calls.jsonl'), 'utf8')
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line));
 	runSelectedTests(root, cli, files);
 	assert.deepEqual(calls(), [['build'], ['exec', 'ava', '--no-worker-threads', ...files]]);
 	write(root, 'fail-build', '');
@@ -180,7 +275,8 @@ test('local links cover Markdown and HTML, ignore code examples and reject broke
 	const root = temporaryRepository(t);
 	write(root, 'docs/guide/start.md', '# Start');
 	write(root, 'docs/public/logo.svg', '<svg/>');
-	const markdown = '[start](/guide/start)\n[x][id]\n[id]: /guide/start\n<img src="../public/logo.svg">\n```md\n[example](missing.md)\n```';
+	const markdown =
+		'[start](/guide/start)\n[x][id]\n[id]: /guide/start\n<img src="../public/logo.svg">\n```md\n[example](missing.md)\n```';
 	assert.deepEqual(markdownLinks(markdown), ['/guide/start', '/guide/start', '../public/logo.svg']);
 	assert.equal(resolveLink(root, 'docs/guide/development.md', '/guide/start#heading'), 'docs/guide/start.md');
 	assert.equal(resolveLink(root, 'docs/guide/development.md', 'https://example.com'), null);
@@ -188,17 +284,35 @@ test('local links cover Markdown and HTML, ignore code examples and reject broke
 	assert.throws(() => resolveLink(root, 'README.md', 'missing.md'), /Broken link/);
 	assert.throws(() => resolveLink(root, 'README.md', '../outside.md'), /escapes repository/);
 	assert.deepEqual(markdownLinks('<<< ../../examples/demo.mjs#example'), ['../../examples/demo.mjs']);
-	assert.throws(() => resolveLink(root, 'docs/guide/examples.md', markdownLinks('<<< ../../examples/missing.mjs')[0]), /Broken link/);
+	assert.throws(
+		() => resolveLink(root, 'docs/guide/examples.md', markdownLinks('<<< ../../examples/missing.mjs')[0]),
+		/Broken link/,
+	);
 });
 
 test('consumer checks reject ambient loaders, source exports, missing declarations and paths outside their package', (t) => {
 	assert.deepEqual(PACKAGES, ['core', 'functions', 'backend', 'cli', 'mcp']);
-	assert.equal(artifactName({ name: '@openfairygui/core', version: '1.0.0-next.1' }), 'openfairygui-core-1.0.0-next.1.tgz');
-	assert.deepEqual(consumerEnvironment({ PATH: 'tools', NODE_PATH: 'workspace', Node_Options: '--import=tsx', TSX_TSCONFIG_PATH: 'tsconfig.json', OPENFAIRYGUI_ALLOWED_PROJECT_ROOTS: 'other-project' }), { PATH: 'tools' });
+	assert.equal(
+		artifactName({ name: '@openfairygui/core', version: '1.0.0-next.1' }),
+		'openfairygui-core-1.0.0-next.1.tgz',
+	);
+	assert.deepEqual(
+		consumerEnvironment({
+			PATH: 'tools',
+			NODE_PATH: 'workspace',
+			Node_Options: '--import=tsx',
+			TSX_TSCONFIG_PATH: 'tsconfig.json',
+			OPENFAIRYGUI_ALLOWED_PROJECT_ROOTS: 'other-project',
+		}),
+		{ PATH: 'tools' },
+	);
 	const root = temporaryRepository(t);
 	write(root, 'dist/index.js', 'export {};');
 	write(root, 'dist/index.d.ts', 'export {};');
-	const manifest = { name: '@test/core', exports: { '.': { types: './dist/index.d.ts', default: './dist/index.js' } } };
+	const manifest = {
+		name: '@test/core',
+		exports: { '.': { types: './dist/index.d.ts', default: './dist/index.js' } },
+	};
 	exportFiles(root, manifest);
 	assert.throws(() => exportFiles(root, { ...manifest, exports: { '.': './src/index.ts' } }), /Non-dist/);
 	rmSync(path.join(root, 'dist/index.d.ts'));
@@ -211,20 +325,31 @@ test('consumer checks reject ambient loaders, source exports, missing declaratio
 
 test('only documented code commands are checked, not prose mentioning pnpm', () => {
 	const scripts = { check: 'node check.mjs' };
-	checkCommands(markdownCode('Prepare pnpm using local tools. Run `pnpm check`.\n```bash\npnpm install --frozen-lockfile\n```'), scripts);
+	checkCommands(
+		markdownCode('Prepare pnpm using local tools. Run `pnpm check`.\n```bash\npnpm install --frozen-lockfile\n```'),
+		scripts,
+	);
 	assert.throws(() => checkCommands(markdownCode('`pnpm run missing`'), scripts), /Unknown pnpm command/);
 	assert.throws(() => checkCommands(markdownCode('```bash\npnpm missing\n```'), scripts), /Unknown pnpm command/);
 });
 
 test('bilingual changelog checks versions, release URLs, categories and item counts', () => {
-	const en = '## Unreleased\nOther:\n- pending\n### v1.2.3 ([Release](https://github.com/a/b/releases/tag/v1.2.3))\nFixes:\n- fixed';
-	const cn = '## 未发布\n其他：\n- 待发布\n### v1.2.3（[发布页](https://github.com/a/b/releases/tag/v1.2.3)）\n修复：\n- 修复';
+	const en =
+		'## Unreleased\nOther:\n- pending\n### v1.2.3 ([Release](https://github.com/a/b/releases/tag/v1.2.3))\nFixes:\n- fixed';
+	const cn =
+		'## 未发布\n其他：\n- 待发布\n### v1.2.3（[发布页](https://github.com/a/b/releases/tag/v1.2.3)）\n修复：\n- 修复';
 	assert.deepEqual(changelogStructure(en), changelogStructure(cn));
 	assert.notDeepEqual(changelogStructure(en), changelogStructure(`${cn}\n- 额外项目`));
 	assert.throws(() => changelogStructure(cn.replace('tag/v1.2.3', 'tag/v1.2.2')), /release link/);
-	assert.throws(() => changelogStructure(`${en}\n### v1.2.3 ([Release](https://github.com/a/b/releases/tag/v1.2.3))`), /Duplicate/);
+	assert.throws(
+		() => changelogStructure(`${en}\n### v1.2.3 ([Release](https://github.com/a/b/releases/tag/v1.2.3))`),
+		/Duplicate/,
+	);
 	const releaseOnly = en.slice(en.indexOf('### v1.2.3'));
-	assert.throws(() => changelogStructure(`${releaseOnly}\n${releaseOnly.replaceAll('v1.2.3', 'v1.2.2')}`), /must start with Unreleased/);
+	assert.throws(
+		() => changelogStructure(`${releaseOnly}\n${releaseOnly.replaceAll('v1.2.3', 'v1.2.2')}`),
+		/must start with Unreleased/,
+	);
 });
 
 function referenceFixture(t, initialized = true) {
@@ -233,7 +358,11 @@ function referenceFixture(t, initialized = true) {
 	const child = path.join(root, fixturePath);
 	const manifest = { submodules: [{ path: fixturePath, probe: 'project.fairy', authority: 'fixture' }] };
 	write(root, 'references.json', JSON.stringify(manifest));
-	write(root, '.gitmodules', `[submodule "named-reference"]\n\tpath = ${fixturePath}\n\turl = https://example.invalid/fixture.git\n`);
+	write(
+		root,
+		'.gitmodules',
+		`[submodule "named-reference"]\n\tpath = ${fixturePath}\n\turl = https://example.invalid/fixture.git\n`,
+	);
 	let sha = '1'.repeat(40);
 	if (initialized) {
 		mkdirSync(child, { recursive: true });
@@ -258,10 +387,17 @@ test('references need only registered submodules with Git-owned URLs and commits
 });
 
 test('reference CLI rejects the removed local-reference option', () => {
-	assert.throws(() => execFileSync(process.execPath, ['scripts/repo-doctor.mjs', 'refs', '--require', 'sample', '--json'], { cwd: ROOT, stdio: 'pipe' }), (error) => {
-		const report = JSON.parse(error.stdout);
-		return error.status === 1 && report.ok === false && /Unknown option '--require'/.test(report.error);
-	});
+	assert.throws(
+		() =>
+			execFileSync(process.execPath, ['scripts/repo-doctor.mjs', 'refs', '--require', 'sample', '--json'], {
+				cwd: ROOT,
+				stdio: 'pipe',
+			}),
+		(error) => {
+			const report = JSON.parse(error.stdout);
+			return error.status === 1 && report.ok === false && /Unknown option '--require'/.test(report.error);
+		},
+	);
 });
 
 test('missing, dirty, mismatched and incomplete required fixtures cannot pass', (t) => {
@@ -296,7 +432,8 @@ test('reference search is literal, tracked-only, read-only and refuses unverifie
 	assert.deepEqual(grepReferences(root, '--needle.* 中文'), [`${fixturePath}/notes 中文.txt:1:--needle.* 中文`]);
 	assert.deepEqual(grepReferences(root, 'no such text'), []);
 	assert.deepEqual(snapshot(root), before);
-	for (const pattern of ['', 'two\nlines', 'null\0byte']) assert.throws(() => grepReferences(root, pattern), /single-line/);
+	for (const pattern of ['', 'two\nlines', 'null\0byte'])
+		assert.throws(() => grepReferences(root, pattern), /single-line/);
 	write(child, 'notes 中文.txt', 'changed');
 	assert.throws(() => grepReferences(root, 'changed'), /not ready/);
 	commit(child);
@@ -306,7 +443,10 @@ test('reference search is literal, tracked-only, read-only and refuses unverifie
 	git(root, ['update-index', '--cacheinfo', `160000,${largeSha},${fixturePath}`]);
 	assert.throws(() => grepReferences(root, '--needle'), /exceed 64 KiB/);
 	assert.throws(() => grepReferences(referenceFixture(t, false).root, 'fixture'), /not ready/);
-	assert.throws(() => execFileSync(process.execPath, ['scripts/refs-grep.mjs'], { cwd: ROOT, stdio: 'pipe' }), (error) => error.status === 2 && /Usage/.test(error.stderr));
+	assert.throws(
+		() => execFileSync(process.execPath, ['scripts/refs-grep.mjs'], { cwd: ROOT, stdio: 'pipe' }),
+		(error) => error.status === 2 && /Usage/.test(error.stderr),
+	);
 });
 
 test('doctor separates recommendation from support and detects missing export output', (t) => {
@@ -318,15 +458,32 @@ test('doctor separates recommendation from support and detects missing export ou
 	assert.equal(checks[1].status, 'ok');
 	assert.equal(checks[2].status, 'ok');
 	assert.equal(inspectEnvironment(root, { nodeVersion: 'v20.0.0' })[0].status, 'error');
-	assert.deepEqual(inspectEnvironment(root, { nodeVersion: 'v24.0.0' }).slice(0, 2).map((check) => check.status), ['ok', 'warning']);
-	write(root, 'packages/core/package.json', JSON.stringify({ name: '@test/core', scripts: { build: 'build' }, exports: { '.': './dist/index.js' } }));
+	assert.deepEqual(
+		inspectEnvironment(root, { nodeVersion: 'v24.0.0' })
+			.slice(0, 2)
+			.map((check) => check.status),
+		['ok', 'warning'],
+	);
+	write(
+		root,
+		'packages/core/package.json',
+		JSON.stringify({ name: '@test/core', scripts: { build: 'build' }, exports: { '.': './dist/index.js' } }),
+	);
 	assert.equal(inspectBuilds(root)[0].status, 'error');
 	write(root, 'packages/core/dist/index.js', 'export {};');
 	assert.equal(inspectBuilds(root)[0].status, 'ok');
-	write(root, 'packages/cli/package.json', JSON.stringify({ name: '@openfairygui/cli', scripts: { build: 'build' }, bin: { ofgui: 'bin/cli.cjs' } }));
+	write(
+		root,
+		'packages/cli/package.json',
+		JSON.stringify({ name: '@openfairygui/cli', scripts: { build: 'build' }, bin: { ofgui: 'bin/cli.cjs' } }),
+	);
 	write(root, 'packages/cli/bin/cli.cjs', '// bootstrap');
 	mkdirSync(path.join(root, 'packages/cli/dist'));
-	assert(inspectBuilds(root).find((entry) => entry.id === 'build:@openfairygui/cli').missing.includes('dist/cli.mjs'));
+	assert(
+		inspectBuilds(root)
+			.find((entry) => entry.id === 'build:@openfairygui/cli')
+			.missing.includes('dist/cli.mjs'),
+	);
 	assert(!existsSync(path.join(root, 'node_modules')));
 });
 
@@ -336,11 +493,16 @@ test('repo doctor exercises native codecs rather than accepting version metadata
 	write(root, '.node-version', '22\n');
 	mkdirSync(path.join(root, 'packages'));
 	// Loadable metadata with a failing codec must not be reported as a working native capability.
-	write(root, 'node_modules/sharp/index.js', "module.exports = Object.assign(() => { throw new Error('Codec failed'); }, { versions: { sharp: 'test' } });");
+	write(
+		root,
+		'node_modules/sharp/index.js',
+		"module.exports = Object.assign(() => { throw new Error('Codec failed'); }, { versions: { sharp: 'test' } });",
+	);
 	const before = snapshot(root);
 	const report = await doctor(root);
 	const native = report.checks.find((check) => check.id === 'sharp');
-	assert.equal(native.status, 'warning'); assert.match(native.message, /Codec failed/);
+	assert.equal(native.status, 'warning');
+	assert.match(native.message, /Codec failed/);
 	assert.deepEqual(snapshot(root), before, 'Repository diagnosis must not modify files');
 });
 

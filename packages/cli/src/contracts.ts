@@ -2,17 +2,31 @@ import type { ProjectValidationReport } from '@openfairygui/core';
 import type { InspectReport } from '@openfairygui/functions';
 import type { PublishNodeResult } from '@openfairygui/functions/node';
 import type { BackendRuntime } from '@openfairygui/backend';
-import type { getInstalledDocumentationIndex, getInstalledDocumentationVersion, readInstalledDocumentation } from '@openfairygui/backend/docs';
+import type {
+	getInstalledDocumentationIndex,
+	getInstalledDocumentationVersion,
+	readInstalledDocumentation,
+} from '@openfairygui/backend/docs';
 
 export interface DoctorReport extends ReturnType<typeof getInstalledDocumentationVersion> {
 	scope: 'installed-product';
 	cliVersion: string;
 	nodeVersion: string;
 	status: 'ready' | 'error' | 'incomplete';
-	errors: { code: 'installed_version_mismatch' | 'unsupported_node_version' | 'project_check_failed'; message: string }[];
+	errors: {
+		code: 'installed_version_mismatch' | 'unsupported_node_version' | 'project_check_failed';
+		message: string;
+	}[];
 	checks: (
 		| { id: 'native-images'; status: 'ok' | 'incomplete'; message: string; version?: string }
-		| { id: 'temp-directory' | 'output-directory'; status: 'ok' | 'error'; path: string; inspectedPath: string; exists: boolean | null; message: string }
+		| {
+				id: 'temp-directory' | 'output-directory';
+				status: 'ok' | 'error';
+				path: string;
+				inspectedPath: string;
+				exists: boolean | null;
+				message: string;
+		  }
 	)[];
 	capabilities: ReturnType<BackendRuntime['getCapabilities']>;
 	projectPath: string | null;
@@ -39,8 +53,16 @@ export interface CliCommandResults {
 
 export type CliCommand = keyof CliCommandResults;
 export interface CliError {
-	code: 'invalid_arguments' | 'command_failed' | 'publish_failed' | 'restore_failed' | 'documentation_unavailable'
-		| 'validation_failed' | 'validation_incomplete' | 'doctor_failed' | 'doctor_incomplete';
+	code:
+		| 'invalid_arguments'
+		| 'command_failed'
+		| 'publish_failed'
+		| 'restore_failed'
+		| 'documentation_unavailable'
+		| 'validation_failed'
+		| 'validation_incomplete'
+		| 'doctor_failed'
+		| 'doctor_incomplete';
 	message: string;
 }
 export type CliEnvelope<C extends CliCommand> =

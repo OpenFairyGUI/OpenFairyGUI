@@ -88,8 +88,18 @@ export class BackendRuntime {
 		this.eventService = new EventService(getSession);
 		this.cacheService = new CacheService(getSession, this.eventService);
 		this.runtimeService = new RuntimeService(this.context, this.cacheService, this.eventService);
-		this.authoringService = new AuthoringService(this.context, this.cacheService, this.eventService, this.sessionOperations);
-		this.persistenceService = new PersistenceService(this.context, this.cacheService, this.eventService, this.sessionOperations);
+		this.authoringService = new AuthoringService(
+			this.context,
+			this.cacheService,
+			this.eventService,
+			this.sessionOperations,
+		);
+		this.persistenceService = new PersistenceService(
+			this.context,
+			this.cacheService,
+			this.eventService,
+			this.sessionOperations,
+		);
 	}
 
 	public getCapabilities(): BackendSuccess<BackendCapabilities> {
@@ -101,7 +111,7 @@ export class BackendRuntime {
 	}): Promise<
 		BackendResult<
 			BackendSessionSnapshot,
-			InProcessLockConflictError
+			| InProcessLockConflictError
 			| AdvisoryLockConflictError
 			| BackendCapabilityUnavailableError
 			| ProjectRootNotAllowedError
@@ -136,27 +146,36 @@ export class BackendRuntime {
 		return this.readService.getProjectOutline(input);
 	}
 
-	public queryEntity(input: QueryEntityInput): BackendResult<BackendEntitySnapshot, SessionNotFoundError | EntityQueryError> {
+	public queryEntity(
+		input: QueryEntityInput,
+	): BackendResult<BackendEntitySnapshot, SessionNotFoundError | EntityQueryError> {
 		return this.readService.queryEntity(input);
 	}
 
-	public readSessionState(input: ReadSessionStateInput): BackendResult<BackendSessionStateSnapshot, SessionNotFoundError | SessionReadError | SessionStaleReadError> {
+	public readSessionState(
+		input: ReadSessionStateInput,
+	): BackendResult<BackendSessionStateSnapshot, SessionNotFoundError | SessionReadError | SessionStaleReadError> {
 		return this.readService.readSessionState(input);
 	}
 
-	public readResourceBytes(input: ReadResourceBytesInput): BackendResult<BackendResourceBytesSnapshot, SessionNotFoundError | SessionReadError | SessionStaleReadError> {
+	public readResourceBytes(
+		input: ReadResourceBytesInput,
+	): BackendResult<BackendResourceBytesSnapshot, SessionNotFoundError | SessionReadError | SessionStaleReadError> {
 		return this.readService.readResourceBytes(input);
 	}
 
-	public validateSession(
-		input: ValidateSessionInput,
-	): BackendResult<ProjectValidationReport, SessionNotFoundError> {
+	public validateSession(input: ValidateSessionInput): BackendResult<ProjectValidationReport, SessionNotFoundError> {
 		return this.readService.validateSession(input);
 	}
 
 	public async preflightTransaction(
 		input: ApplySessionTransactionInput,
-	): Promise<BackendResult<BackendTransactionPreview, SessionNotFoundError | SessionStaleWriteError | ApplyUamTransactionAppError | TransactionPreviewError>> {
+	): Promise<
+		BackendResult<
+			BackendTransactionPreview,
+			SessionNotFoundError | SessionStaleWriteError | ApplyUamTransactionAppError | TransactionPreviewError
+		>
+	> {
 		return this.authoringService.preflightTransaction(input);
 	}
 

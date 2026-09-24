@@ -93,19 +93,9 @@ export interface UamResourceFolder {
 	atlas: string;
 }
 
-export type UamResource =
-	| UamAssetResource
-	| UamComponentResource;
+export type UamResource = UamAssetResource | UamComponentResource;
 
-export type UamAssetResourceKind =
-	| 'image'
-	| 'sound'
-	| 'misc'
-	| 'swf'
-	| 'font'
-	| 'movieClip'
-	| 'spine'
-	| 'dragonBones';
+export type UamAssetResourceKind = 'image' | 'sound' | 'misc' | 'swf' | 'font' | 'movieClip' | 'spine' | 'dragonBones';
 
 interface UamAssetResourceBase {
 	id: string;
@@ -177,10 +167,7 @@ export interface UamGenericAssetResource extends UamAssetResourceBase {
 	metadata?: Record<string, unknown> | null;
 }
 
-export type UamAssetResource =
-	| UamImageResource
-	| UamMovieClipResource
-	| UamGenericAssetResource;
+export type UamAssetResource = UamImageResource | UamMovieClipResource | UamGenericAssetResource;
 
 export interface UamComponentResource {
 	kind: 'component';
@@ -275,59 +262,59 @@ export interface UamComponentInstanceComboItem {
 
 export type UamComponentInstanceProperties =
 	| {
-		extensionType: 'Button';
-		title: string;
-		selectedTitle: string;
-		icon: string;
-		selectedIcon: string;
-		titleColor: string;
-		titleFontSize: number;
-		controller: string;
-		page: string;
-		checked: boolean;
-		sound: string;
-		soundVolumeScale: number;
-	}
+			extensionType: 'Button';
+			title: string;
+			selectedTitle: string;
+			icon: string;
+			selectedIcon: string;
+			titleColor: string;
+			titleFontSize: number;
+			controller: string;
+			page: string;
+			checked: boolean;
+			sound: string;
+			soundVolumeScale: number;
+	  }
 	| {
-		extensionType: 'Label';
-		title: string;
-		icon: string;
-		titleColor: string;
-		titleFontSize: number;
-		promptText: string;
-		sound: string;
-		soundVolumeScale: number;
-	}
+			extensionType: 'Label';
+			title: string;
+			icon: string;
+			titleColor: string;
+			titleFontSize: number;
+			promptText: string;
+			sound: string;
+			soundVolumeScale: number;
+	  }
 	| {
-		extensionType: 'ComboBox';
-		title: string;
-		icon: string;
-		titleColor: string;
-		popupDirection: number;
-		sound: string;
-		soundVolumeScale: number;
-		visibleItemCount: number;
-		selectionController: string;
-		autoClearItems: boolean;
-		items: UamComponentInstanceComboItem[];
-	}
+			extensionType: 'ComboBox';
+			title: string;
+			icon: string;
+			titleColor: string;
+			popupDirection: number;
+			sound: string;
+			soundVolumeScale: number;
+			visibleItemCount: number;
+			selectionController: string;
+			autoClearItems: boolean;
+			items: UamComponentInstanceComboItem[];
+	  }
 	| {
-		extensionType: 'ProgressBar';
-		value: number;
-		max: number;
-		min: number;
-		sound: string;
-		soundVolumeScale: number;
-	}
+			extensionType: 'ProgressBar';
+			value: number;
+			max: number;
+			min: number;
+			sound: string;
+			soundVolumeScale: number;
+	  }
 	| {
-		extensionType: 'Slider';
-		value: number;
-		max: number;
-		min: number;
-	}
+			extensionType: 'Slider';
+			value: number;
+			max: number;
+			min: number;
+	  }
 	| {
-		extensionType: 'ScrollBar';
-	};
+			extensionType: 'ScrollBar';
+	  };
 
 export type UamDisplayNodeKind =
 	| 'image'

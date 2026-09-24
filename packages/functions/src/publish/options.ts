@@ -161,8 +161,7 @@ export function resolvePublishOptions(
 		overrides.fileExtension ??
 		(explicitLayaboxTarget ? 'fui' : resolveDefaultPublishFileExtension(projectType, publishSettings));
 
-	const runtimeRejectsCompression =
-		projectType === UNITY_PROJECT_TYPE || projectType === COCOS_CREATOR_PROJECT_TYPE;
+	const runtimeRejectsCompression = projectType === UNITY_PROJECT_TYPE || projectType === COCOS_CREATOR_PROJECT_TYPE;
 	if (runtimeRejectsCompression && overrides.compressed === true) {
 		throw new Error('publish: The selected target runtime does not support compressed package data.');
 	}

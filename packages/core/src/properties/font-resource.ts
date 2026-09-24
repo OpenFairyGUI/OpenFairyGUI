@@ -61,64 +61,144 @@ export class FontResource extends ExtensibleProperty<IFontResource> {
 		});
 	}
 
-	public getId(): string { return this.get('id'); }
-	public setId(id: string): this { return this.set('id', id); }
+	public getId(): string {
+		return this.get('id');
+	}
+	public setId(id: string): this {
+		return this.set('id', id);
+	}
 
-	public getPath(): string { return this.get('path'); }
-	public setPath(path: string): this { return this.set('path', path); }
+	public getPath(): string {
+		return this.get('path');
+	}
+	public setPath(path: string): this {
+		return this.set('path', path);
+	}
 
-	public getBranch(): string { return this.get('branch'); }
-	public setBranch(branch: string): this { return this.set('branch', branch); }
+	public getBranch(): string {
+		return this.get('branch');
+	}
+	public setBranch(branch: string): this {
+		return this.set('branch', branch);
+	}
 
-	public getBranchItemIds(): string[] { return [...this.get('branchItemIds')]; }
-	public setBranchItemIds(ids: string[]): this { return this.set('branchItemIds', [...ids]); }
+	public getBranchItemIds(): string[] {
+		return [...this.get('branchItemIds')];
+	}
+	public setBranchItemIds(ids: string[]): this {
+		return this.set('branchItemIds', [...ids]);
+	}
 
-	public getFileName(): string { return this.get('fileName'); }
-	public setFileName(fileName: string): this { return this.set('fileName', fileName); }
+	public getFileName(): string {
+		return this.get('fileName');
+	}
+	public setFileName(fileName: string): this {
+		return this.set('fileName', fileName);
+	}
 	/** Imported TTF/TTC/OTF assets are resolved by font name in the host engine, not embedded as bitmap fonts. */
-	public isExternalFont(): boolean { return /\.(?:ttf|ttc|otf)$/i.test(this.getFileName()); }
+	public isExternalFont(): boolean {
+		return /\.(?:ttf|ttc|otf)$/i.test(this.getFileName());
+	}
 
-	public getTextureId(): string { return this.get('textureId'); }
-	public setTextureId(textureId: string): this { return this.set('textureId', textureId); }
+	public getTextureId(): string {
+		return this.get('textureId');
+	}
+	public setTextureId(textureId: string): this {
+		return this.set('textureId', textureId);
+	}
 
-	public getExported(): boolean { return this.get('exported'); }
-	public setExported(v: boolean): this { return this.set('exported', v); }
+	public getExported(): boolean {
+		return this.get('exported');
+	}
+	public setExported(v: boolean): this {
+		return this.set('exported', v);
+	}
 
-	public getFavorite(): boolean { return this.get('favorite'); }
-	public setFavorite(v: boolean): this { return this.set('favorite', v); }
+	public getFavorite(): boolean {
+		return this.get('favorite');
+	}
+	public setFavorite(v: boolean): this {
+		return this.set('favorite', v);
+	}
 
-	public getRenderMode(): string { return this.get('renderMode'); }
-	public setRenderMode(v: string): this { return this.set('renderMode', v); }
+	public getRenderMode(): string {
+		return this.get('renderMode');
+	}
+	public setRenderMode(v: string): this {
+		return this.set('renderMode', v);
+	}
 
-	public getSamplePointSize(): number { return this.get('samplePointSize'); }
-	public setSamplePointSize(v: number): this { return this.set('samplePointSize', v); }
+	public getSamplePointSize(): number {
+		return this.get('samplePointSize');
+	}
+	public setSamplePointSize(v: number): this {
+		return this.set('samplePointSize', v);
+	}
 
-	public getTtf(): boolean { return this.get('ttf'); }
-	public setTtf(v: boolean): this { return this.set('ttf', v); }
+	public getTtf(): boolean {
+		return this.get('ttf');
+	}
+	public setTtf(v: boolean): this {
+		return this.set('ttf', v);
+	}
 
-	public getTint(): boolean { return this.get('tint'); }
-	public setTint(v: boolean): this { return this.set('tint', v); }
+	public getTint(): boolean {
+		return this.get('tint');
+	}
+	public setTint(v: boolean): this {
+		return this.set('tint', v);
+	}
 
-	public getAutoScale(): boolean { return this.get('autoScale'); }
-	public setAutoScale(v: boolean): this { return this.set('autoScale', v); }
+	public getAutoScale(): boolean {
+		return this.get('autoScale');
+	}
+	public setAutoScale(v: boolean): this {
+		return this.set('autoScale', v);
+	}
 
-	public getHasChannel(): boolean { return this.get('hasChannel'); }
-	public setHasChannel(v: boolean): this { return this.set('hasChannel', v); }
+	public getHasChannel(): boolean {
+		return this.get('hasChannel');
+	}
+	public setHasChannel(v: boolean): this {
+		return this.set('hasChannel', v);
+	}
 
-	public getFontSize(): number { return this.get('fontSize'); }
-	public setFontSize(v: number): this { return this.set('fontSize', v); }
+	public getFontSize(): number {
+		return this.get('fontSize');
+	}
+	public setFontSize(v: number): this {
+		return this.set('fontSize', v);
+	}
 
-	public getXAdvance(): number { return this.get('xAdvance'); }
-	public setXAdvance(v: number): this { return this.set('xAdvance', v); }
+	public getXAdvance(): number {
+		return this.get('xAdvance');
+	}
+	public setXAdvance(v: number): this {
+		return this.set('xAdvance', v);
+	}
 
-	public getLineHeight(): number { return this.get('lineHeight'); }
-	public setLineHeight(v: number): this { return this.set('lineHeight', v); }
+	public getLineHeight(): number {
+		return this.get('lineHeight');
+	}
+	public setLineHeight(v: number): this {
+		return this.set('lineHeight', v);
+	}
 
-	public addGlyph(glyph: FontGlyph): this { return this.addRef('glyphs', glyph); }
-	public removeGlyph(glyph: FontGlyph): this { return this.removeRef('glyphs', glyph); }
-	public listGlyphs(): FontGlyph[] { return this.listRefs('glyphs'); }
+	public addGlyph(glyph: FontGlyph): this {
+		return this.addRef('glyphs', glyph);
+	}
+	public removeGlyph(glyph: FontGlyph): this {
+		return this.removeRef('glyphs', glyph);
+	}
+	public listGlyphs(): FontGlyph[] {
+		return this.listRefs('glyphs');
+	}
 
 	/** Primary source-file bytes for this font resource. */
-	public getSourceData(): FairyBuffer | null { return this.getRef('sourceData' as never) as FairyBuffer | null; }
-	public setSourceData(buffer: FairyBuffer | null): this { return this.setRef('sourceData' as never, buffer as never); }
+	public getSourceData(): FairyBuffer | null {
+		return this.getRef('sourceData' as never) as FairyBuffer | null;
+	}
+	public setSourceData(buffer: FairyBuffer | null): this {
+		return this.setRef('sourceData' as never, buffer as never);
+	}
 }

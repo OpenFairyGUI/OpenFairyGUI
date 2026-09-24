@@ -159,10 +159,16 @@ export type BackendStorageFileSystem = BackendFileSystem & CoreProjectFileSystem
 
 export function createBackendStorageFileSystem(storage: BackendAsyncStorageAdapter): BackendStorageFileSystem {
 	if (typeof storage.unlink !== 'function') {
-		throw createPathError('ENOTSUP', 'Storage adapter must provide unlink() for project resource lifecycle writes.');
+		throw createPathError(
+			'ENOTSUP',
+			'Storage adapter must provide unlink() for project resource lifecycle writes.',
+		);
 	}
 	if (typeof storage.rmdir !== 'function') {
-		throw createPathError('ENOTSUP', 'Storage adapter must provide rmdir() for project resource folder lifecycle writes.');
+		throw createPathError(
+			'ENOTSUP',
+			'Storage adapter must provide rmdir() for project resource folder lifecycle writes.',
+		);
 	}
 	const fileSystem: BackendStorageFileSystem = {
 		stat(filePath: string): Promise<BackendFileStat> {

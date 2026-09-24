@@ -11,9 +11,12 @@ export const COMPONENT_EXTENSION_TYPE_NAMES: Record<number, string> = {
 	16: 'ScrollBar',
 };
 
-export type ComponentDisplayObject = ReturnType<Document['createComponent']> extends { listChildren(): infer T }
-	? T extends Array<infer U> ? U : never
-	: never;
+export type ComponentDisplayObject =
+	ReturnType<Document['createComponent']> extends { listChildren(): infer T }
+		? T extends Array<infer U>
+			? U
+			: never
+		: never;
 
 export function remainingBytes(buf: ByteBuffer): number {
 	return Math.max(0, buf.byteLength - buf.pos);

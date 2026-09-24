@@ -30,7 +30,9 @@ export function formatProjectInt32List(values: readonly number[], field: string)
 	return values.map((value) => formatProjectInt32(value, field)).join(',');
 }
 
-export function hasNonZeroInsets(value: { top?: number; bottom?: number; left?: number; right?: number } | null | undefined): boolean {
+export function hasNonZeroInsets(
+	value: { top?: number; bottom?: number; left?: number; right?: number } | null | undefined,
+): boolean {
 	return !!value && !!(value.top || value.bottom || value.left || value.right);
 }
 
@@ -38,12 +40,7 @@ export function formatInsets(
 	value: { top?: number; bottom?: number; left?: number; right?: number },
 	field = 'margin',
 ): string {
-	return formatProjectInt32List([
-		value.top ?? 0,
-		value.bottom ?? 0,
-		value.left ?? 0,
-		value.right ?? 0,
-	], field);
+	return formatProjectInt32List([value.top ?? 0, value.bottom ?? 0, value.left ?? 0, value.right ?? 0], field);
 }
 
 export function formatButtonMode(mode: number): string {

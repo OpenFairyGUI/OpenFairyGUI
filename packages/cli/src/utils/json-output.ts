@@ -9,9 +9,13 @@ export function wantsJson(argv: string[]): boolean {
 }
 
 export function configureJson(program: Command): void {
-	program.option('--json', 'Print one JSON envelope (exit 0: success, 1: failure, 2: arguments, 3: incomplete)').exitOverride();
+	program
+		.option('--json', 'Print one JSON envelope (exit 0: success, 1: failure, 2: arguments, 3: incomplete)')
+		.exitOverride();
 	if (wantsJson(process.argv)) process.stdout.write = process.stderr.write.bind(process.stderr);
-	program.hook('preAction', (_root, command) => { command.setOptionValue('json', command.optsWithGlobals().json); });
+	program.hook('preAction', (_root, command) => {
+		command.setOptionValue('json', command.optsWithGlobals().json);
+	});
 }
 
 export function parsedCommand(program: Command): CliCommand {

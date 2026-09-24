@@ -21,27 +21,18 @@ type XmlAttrMap = Record<string, XmlAttrSpec>;
 type XmlChildrenMap = Record<string, XmlNodeProtocol>;
 type XmlContainerMap = Record<string, XmlContainerProtocol>;
 
-const mergeAttrs = (...parts: readonly XmlAttrMap[]): XmlAttrMap =>
-	Object.assign({}, ...parts);
+const mergeAttrs = (...parts: readonly XmlAttrMap[]): XmlAttrMap => Object.assign({}, ...parts);
 
-const mergeChildren = (...parts: readonly XmlChildrenMap[]): XmlChildrenMap =>
-	Object.assign({}, ...parts);
+const mergeChildren = (...parts: readonly XmlChildrenMap[]): XmlChildrenMap => Object.assign({}, ...parts);
 
-const mergeContainers = (...parts: readonly XmlContainerMap[]): XmlContainerMap =>
-	Object.assign({}, ...parts);
+const mergeContainers = (...parts: readonly XmlContainerMap[]): XmlContainerMap => Object.assign({}, ...parts);
 
-const defineContainer = (
-	items: Record<string, XmlNodeProtocol>,
-): XmlContainerProtocol => ({
+const defineContainer = (items: Record<string, XmlNodeProtocol>): XmlContainerProtocol => ({
 	kind: 'orderedVariants',
 	items,
 });
 
-const defineNode = (
-	attrs: XmlAttrMap,
-	children?: XmlChildrenMap,
-	containers?: XmlContainerMap,
-): XmlNodeProtocol => ({
+const defineNode = (attrs: XmlAttrMap, children?: XmlChildrenMap, containers?: XmlContainerMap): XmlNodeProtocol => ({
 	attrs,
 	...(children ? { children } : {}),
 	...(containers ? { containers } : {}),
@@ -189,12 +180,7 @@ const GRAYED_ATTRS = {
 	grayed: { canonical: 'grayed' },
 } satisfies XmlAttrMap;
 
-const COMMON_DISPLAY_STATE_ATTRS = mergeAttrs(
-	ROTATION_ALPHA_ATTRS,
-	VISIBLE_ATTRS,
-	TOUCHABLE_ATTRS,
-	GRAYED_ATTRS,
-);
+const COMMON_DISPLAY_STATE_ATTRS = mergeAttrs(ROTATION_ALPHA_ATTRS, VISIBLE_ATTRS, TOUCHABLE_ATTRS, GRAYED_ATTRS);
 
 const INSTANCE_MISC_PANEL_ATTRS = {
 	tooltips: { canonical: 'tooltips' },
@@ -601,23 +587,16 @@ const COMBOBOX_ITEM_ATTRS = {
 const PACKAGE_DESCRIPTION_NODE = defineNode(PACKAGE_DESCRIPTION_ATTRS);
 const BRANCH_DESCRIPTION_NODE = defineNode(BRANCH_DESCRIPTION_ATTRS);
 const PACKAGE_PUBLISH_ATLAS_NODE = defineNode(PACKAGE_PUBLISH_ATLAS_ATTRS);
-const PACKAGE_PUBLISH_NODE = defineNode(
-	PACKAGE_PUBLISH_ATTRS,
-	{
-		atlas: PACKAGE_PUBLISH_ATLAS_NODE,
-	},
-);
+const PACKAGE_PUBLISH_NODE = defineNode(PACKAGE_PUBLISH_ATTRS, {
+	atlas: PACKAGE_PUBLISH_ATLAS_NODE,
+});
 const PACKAGE_RESOURCE_NODE = defineNode(PACKAGE_RESOURCE_BASE_ATTRS);
 const PACKAGE_RESOURCE_FOLDER_NODE = defineNode(PACKAGE_RESOURCE_FOLDER_ATTRS);
 const PACKAGE_IMAGE_RESOURCE_NODE = defineNode(PACKAGE_IMAGE_RESOURCE_ATTRS);
 const PACKAGE_FONT_RESOURCE_NODE = defineNode(PACKAGE_FONT_RESOURCE_ATTRS);
 const PACKAGE_MOVIE_CLIP_RESOURCE_NODE = defineNode(PACKAGE_MOVIE_CLIP_RESOURCE_ATTRS);
 const PACKAGE_SKELETON_RESOURCE_NODE = defineNode(PACKAGE_SKELETON_RESOURCE_ATTRS);
-const DISPLAY_OBJECT_NODE = defineNode(mergeAttrs(
-	DISPLAY_OBJECT_IDENTITY_ATTRS,
-	PIVOT_ATTRS,
-	ANCHOR_ATTRS,
-));
+const DISPLAY_OBJECT_NODE = defineNode(mergeAttrs(DISPLAY_OBJECT_IDENTITY_ATTRS, PIVOT_ATTRS, ANCHOR_ATTRS));
 const BUTTON_EXTENSION_NODE = defineNode(BUTTON_EXTENSION_ATTRS);
 const LABEL_EXTENSION_NODE = defineNode(LABEL_EXTENSION_ATTRS);
 const PROGRESSBAR_EXTENSION_NODE = defineNode(PROGRESSBAR_EXTENSION_ATTRS);
@@ -699,15 +678,9 @@ const WITH_ROOT_EXTENSION_CHILDREN = {
 	ScrollBar: SCROLLBAR_EXTENSION_NODE,
 } satisfies XmlChildrenMap;
 
-const CONTROLLER_NODE = defineNode(
-	mergeAttrs(CONTROLLER_ATTRS),
-	mergeChildren(WITH_CONTROLLER_ACTION_CHILDREN),
-);
+const CONTROLLER_NODE = defineNode(mergeAttrs(CONTROLLER_ATTRS), mergeChildren(WITH_CONTROLLER_ACTION_CHILDREN));
 
-const TRANSITION_NODE = defineNode(
-	mergeAttrs(TRANSITION_ATTRS),
-	mergeChildren(WITH_TRANSITION_ITEM_CHILDREN),
-);
+const TRANSITION_NODE = defineNode(mergeAttrs(TRANSITION_ATTRS), mergeChildren(WITH_TRANSITION_ITEM_CHILDREN));
 
 const IMAGE_NODE = defineNode(
 	mergeAttrs(
@@ -776,12 +749,9 @@ const COMPONENT_INSTANCE_NODE = defineNode(
 		RESOURCE_LINK_ATTRS,
 		FILTER_ATTRS,
 	),
-	mergeChildren(
-		WITH_RELATION_CHILDREN,
-		WITH_GEAR_CHILDREN,
-		WITH_INSTANCE_EXTENSION_CHILDREN,
-		{ property: PROPERTY_OVERRIDE_NODE },
-	),
+	mergeChildren(WITH_RELATION_CHILDREN, WITH_GEAR_CHILDREN, WITH_INSTANCE_EXTENSION_CHILDREN, {
+		property: PROPERTY_OVERRIDE_NODE,
+	}),
 );
 
 const LOADER_NODE = defineNode(
@@ -878,11 +848,7 @@ const LIST_NODE = defineNode(
 		COMMON_DISPLAY_STATE_ATTRS,
 		LIST_PANEL_ATTRS,
 	),
-	mergeChildren(
-		WITH_RELATION_CHILDREN,
-		WITH_GEAR_CHILDREN,
-		WITH_LIST_ITEM_CHILDREN,
-	),
+	mergeChildren(WITH_RELATION_CHILDREN, WITH_GEAR_CHILDREN, WITH_LIST_ITEM_CHILDREN),
 );
 
 const DISPLAY_LIST_CONTAINER = defineContainer({
@@ -902,11 +868,7 @@ const DISPLAY_LIST_CONTAINER = defineContainer({
 });
 
 const COMPONENT_ROOT_NODE = defineNode(
-	mergeAttrs(
-		ROOT_COMPONENT_PANEL_ATTRS,
-		ROOT_DESIGN_PANEL_ATTRS,
-		ROOT_MISC_PANEL_ATTRS,
-	),
+	mergeAttrs(ROOT_COMPONENT_PANEL_ATTRS, ROOT_DESIGN_PANEL_ATTRS, ROOT_MISC_PANEL_ATTRS),
 	mergeChildren(
 		{
 			controller: CONTROLLER_NODE,
@@ -961,10 +923,7 @@ export const PROJECT_XML_PROTOCOL = {
 	comboBoxItem: COMBOBOX_ITEM_NODE,
 } satisfies Record<string, XmlNodeProtocol>;
 
-export function readXmlAttr<T = unknown>(
-	source: XmlAttrSource,
-	spec: XmlAttrSpec,
-): T | undefined {
+export function readXmlAttr<T = unknown>(source: XmlAttrSource, spec: XmlAttrSpec): T | undefined {
 	if (Object.hasOwn(source, spec.canonical)) {
 		return source[spec.canonical] as T;
 	}
@@ -982,17 +941,12 @@ export function hasXmlAttr(source: XmlAttrSource, spec: XmlAttrSpec): boolean {
 	return readXmlAttr(source, spec) !== undefined;
 }
 
-export function writeXmlAttr(
-	target: XmlAttrTarget,
-	spec: XmlAttrSpec,
-	value: unknown,
-): void {
+export function writeXmlAttr(target: XmlAttrTarget, spec: XmlAttrSpec, value: unknown): void {
 	target[`@_${spec.canonical}`] = value;
 }
 
 export function listXmlAttrNames(protocol: XmlNodeProtocol): string[] {
-	return Object.values(protocol.attrs)
-		.flatMap((spec) => [spec.canonical, ...(spec.aliases ?? [])]);
+	return Object.values(protocol.attrs).flatMap((spec) => [spec.canonical, ...(spec.aliases ?? [])]);
 }
 
 export function listXmlChildNames(protocol: XmlNodeProtocol): string[] {
@@ -1003,9 +957,6 @@ export function listXmlContainerNames(protocol: XmlNodeProtocol): string[] {
 	return Object.keys(protocol.containers ?? {});
 }
 
-export function listXmlContainerItemNames(
-	protocol: XmlNodeProtocol,
-	containerName: string,
-): string[] {
+export function listXmlContainerItemNames(protocol: XmlNodeProtocol, containerName: string): string[] {
 	return Object.keys(protocol.containers?.[containerName]?.items ?? {});
 }

@@ -5,11 +5,12 @@ import { z } from 'zod';
 import { registerOpenFairyGuiBackendPrompts } from './prompt-definitions.js';
 import { registerOpenFairyGuiBackendResources } from './resource-definitions.js';
 import { compactToolSchema, CONTRACT_SNAPSHOT } from './contract-schema.js';
-import { callOpenFairyGuiBackendTool, type OpenFairyGuiBackendRuntime, type OpenFairyGuiMcpToolPolicy } from './tool-handler.js';
 import {
-	OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS,
-	type OpenFairyGuiBackendToolName,
-} from './tool-definitions.js';
+	callOpenFairyGuiBackendTool,
+	type OpenFairyGuiBackendRuntime,
+	type OpenFairyGuiMcpToolPolicy,
+} from './tool-handler.js';
+import { OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS, type OpenFairyGuiBackendToolName } from './tool-definitions.js';
 
 const require = createRequire(import.meta.url);
 declare const __OPENFAIRYGUI_PACKAGE_VERSION__: string | undefined;
@@ -53,21 +54,30 @@ export function createOpenFairyGuiMcpServer(options: CreateOpenFairyGuiMcpServer
 			throw new RangeError(`Unknown OpenFairyGUI backend MCP tool policy: ${name}`);
 		}
 	}
-	const runtime = options.runtime ?? createNodeBackendRuntime({
-		allowedProjectRoots: options.allowedProjectRoots ?? [process.cwd()],
-	});
-	const server = new McpServer({
-		name: options.name ?? 'openfairygui-mcp',
-		version: options.version ?? PACKAGE_VERSION,
-	}, { instructions: options.instructions });
+	const runtime =
+		options.runtime ??
+		createNodeBackendRuntime({
+			allowedProjectRoots: options.allowedProjectRoots ?? [process.cwd()],
+		});
+	const server = new McpServer(
+		{
+			name: options.name ?? 'openfairygui-mcp',
+			version: options.version ?? PACKAGE_VERSION,
+		},
+		{ instructions: options.instructions },
+	);
 
 	for (const definition of OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS) {
 		const policy = options.toolPolicies?.[definition.name];
-		const outputSchema = policy ? definition.outputSchema.extend({
-			backendResult: z.union([definition.outputSchema.shape.backendResult, policy.failureSchema]),
-		}) : definition.outputSchema;
+		const outputSchema = policy
+			? definition.outputSchema.extend({
+					backendResult: z.union([definition.outputSchema.shape.backendResult, policy.failureSchema]),
+				})
+			: definition.outputSchema;
 		const metadata = {
-			name: definition.name, title: definition.title, description: definition.description,
+			name: definition.name,
+			title: definition.title,
+			description: definition.description,
 			annotations: definition.annotations,
 			_meta: {
 				'openfairygui/backendMethod': definition.backendMethod,
@@ -83,7 +93,8 @@ export function createOpenFairyGuiMcpServer(options: CreateOpenFairyGuiMcpServer
 				inputSchema: compactToolSchema(definition.inputSchema, 'input'),
 				outputSchema: compactToolSchema(outputSchema, 'output'),
 			},
-			async (args: Record<string, unknown>) => callOpenFairyGuiBackendTool(runtime, definition.name, args, policy),
+			async (args: Record<string, unknown>) =>
+				callOpenFairyGuiBackendTool(runtime, definition.name, args, policy),
 		);
 	}
 

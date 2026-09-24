@@ -17,28 +17,61 @@ import type { ProjectDiagnostic } from '../src/validation.js';
 
 test('directory discovery distinguishes optional absence, ordinary files, and unreadable directories', async (t) => {
 	for (const failure of [
-		{ code: 'ENOENT' }, { name: 'NotFoundError' },
-		{ code: 'ENOTDIR' }, { name: 'TypeMismatchError' },
-		{ code: 'EACCES' }, { name: 'NotAllowedError' },
+		{ code: 'ENOENT' },
+		{ name: 'NotFoundError' },
+		{ code: 'ENOTDIR' },
+		{ name: 'TypeMismatchError' },
+		{ code: 'EACCES' },
+		{ name: 'NotAllowedError' },
 	]) {
 		const error = Object.assign(new Error('blocked'), failure);
-		const source = { readdir: async (): Promise<string[]> => { throw error; } };
+		const source = {
+			readdir: async (): Promise<string[]> => {
+				throw error;
+			},
+		};
 		const diagnostics: ProjectDiagnostic[] = [];
 		const optional = 'code' in failure ? failure.code === 'ENOENT' : failure.name === 'NotFoundError';
 		const file = 'code' in failure ? failure.code === 'ENOTDIR' : failure.name === 'TypeMismatchError';
-		t.deepEqual(await readProjectDirectory(source, 'assets', { optional: true, probe: true, diagnostics }), optional ? [] : null);
-		t.deepEqual(diagnostics, optional || file ? [] : [{
-			severity: 'error', code: 'unreadable_source', path: 'packages',
-			message: 'Failed to enumerate project directory: blocked', sourcePath: 'assets',
-		}]);
-		t.is(await t.throwsAsync(readProjectDirectory(source, 'required')), error, 'required reads preserve the original error');
+		t.deepEqual(
+			await readProjectDirectory(source, 'assets', { optional: true, probe: true, diagnostics }),
+			optional ? [] : null,
+		);
+		t.deepEqual(
+			diagnostics,
+			optional || file
+				? []
+				: [
+						{
+							severity: 'error',
+							code: 'unreadable_source',
+							path: 'packages',
+							message: 'Failed to enumerate project directory: blocked',
+							sourcePath: 'assets',
+						},
+					],
+		);
+		t.is(
+			await t.throwsAsync(readProjectDirectory(source, 'required')),
+			error,
+			'required reads preserve the original error',
+		);
 		if (file) t.is(await readProjectSubdirectory(source, 'file'), null);
 	}
 	let enumerated = false;
-	t.is(await readProjectSubdirectory({
-		stat: async () => ({ isDirectory: () => false }),
-		readdir: async () => { enumerated = true; return []; },
-	}, 'file'), null);
+	t.is(
+		await readProjectSubdirectory(
+			{
+				stat: async () => ({ isDirectory: () => false }),
+				readdir: async () => {
+					enumerated = true;
+					return [];
+				},
+			},
+			'file',
+		),
+		null,
+	);
 	t.false(enumerated, 'a stat-confirmed file is not enumerated');
 });
 
@@ -51,10 +84,13 @@ test('Reader phase boundaries preserve diagnostic order and corrupt source bytes
 	await fs.writeFile(path.join(directory, 'settings', 'Common.json'), '{bad');
 	const target = path.join(directory, 'Main.fairy');
 	await fs.writeFile(target, '<projectDescription id="phases" type="Unity" version="3.0"/>');
-	await fs.writeFile(path.join(packageDir, 'package.xml'), '<packageDescription id="main"><resources>'
-		+ '<component id="panel" name="Bad.xml"/><misc id="missing" name="missing.bin"/>'
-		+ '<movieclip id="clip" name="bad.jta"/><misc id="denied" name="denied.bin"/>'
-		+ '<unknown id="unknown" name="unknown.bin"/></resources></packageDescription>');
+	await fs.writeFile(
+		path.join(packageDir, 'package.xml'),
+		'<packageDescription id="main"><resources>' +
+			'<component id="panel" name="Bad.xml"/><misc id="missing" name="missing.bin"/>' +
+			'<movieclip id="clip" name="bad.jta"/><misc id="denied" name="denied.bin"/>' +
+			'<unknown id="unknown" name="unknown.bin"/></resources></packageDescription>',
+	);
 	await fs.writeFile(path.join(packageDir, 'Bad.xml'), '<component><broken>');
 	const corrupt = new Uint8Array([0, 1, 2]);
 	await fs.writeFile(path.join(packageDir, 'bad.jta'), corrupt);
@@ -64,7 +100,10 @@ test('Reader phase boundaries preserve diagnostic order and corrupt source bytes
 		class SourceIO extends NodeIO {
 			protected override createFileSystem() {
 				const base = super.createFileSystem();
-				return { ...base, stat: withStat ? base.stat : undefined, readdir: fs.readdir,
+				return {
+					...base,
+					stat: withStat ? base.stat : undefined,
+					readdir: fs.readdir,
 					readFileRaw: async (file: string) => {
 						if (file === deniedPath) throw Object.assign(new Error('denied'), { code: 'EACCES' });
 						return base.readFileRaw(file);
@@ -75,13 +114,23 @@ test('Reader phase boundaries preserve diagnostic order and corrupt source bytes
 		const io = new SourceIO();
 		const detailed = await io.readProjectDetailed(target, { hydrateResourceBytes: true });
 		t.false(detailed.complete);
-		t.deepEqual(detailed.diagnostics.map((diagnostic) => diagnostic.code), [
-			'invalid_settings_json', 'unsupported_resource_kind', 'missing_source', 'corrupt_source',
-			'unreadable_source', 'invalid_component_xml',
-		]);
+		t.deepEqual(
+			detailed.diagnostics.map((diagnostic) => diagnostic.code),
+			[
+				'invalid_settings_json',
+				'unsupported_resource_kind',
+				'missing_source',
+				'corrupt_source',
+				'unreadable_source',
+				'invalid_component_xml',
+			],
+		);
 		for (const doc of [detailed.document!, await io.readProject(target, { hydrateResourceBytes: true })]) {
 			const pkg = doc.getRoot().listPackages()[0]!;
-			t.truthy(pkg.getResourceById('panel'), 'component metadata remains registered when its XML cannot be parsed');
+			t.truthy(
+				pkg.getResourceById('panel'),
+				'component metadata remains registered when its XML cannot be parsed',
+			);
 			const clip = pkg.getResourceById('clip');
 			if (clip?.propertyType !== 'MovieClipResource') throw new Error('missing MovieClip metadata');
 			t.deepEqual(clip.getSourceData()?.getData(), corrupt);
@@ -97,16 +146,24 @@ test('mixed readdir without stat skips files and preserves directory read failur
 	await fs.mkdir(images, { recursive: true });
 	const target = path.join(directory, 'Main.fairy');
 	await fs.writeFile(target, '<projectDescription id="mixed" type="Unity" version="3.0"/>');
-	await fs.writeFile(path.join(packageDir, 'package.xml'), '<packageDescription id="main"><resources/></packageDescription>');
+	await fs.writeFile(
+		path.join(packageDir, 'package.xml'),
+		'<packageDescription id="main"><resources/></packageDescription>',
+	);
 	await fs.writeFile(path.join(packageDir, 'MainView.xml'), '<component/>');
 	await fs.writeFile(path.join(images, 'image.png'), 'file');
 	let failure: string | undefined;
 	class MixedIO extends NodeIO {
 		protected override createFileSystem() {
-			return { ...super.createFileSystem(), stat: undefined, readdir: async (dir: string) => {
-				if (dir === images && failure) throw Object.assign(new Error('injected directory failure'), { code: failure });
-				return fs.readdir(dir);
-			} };
+			return {
+				...super.createFileSystem(),
+				stat: undefined,
+				readdir: async (dir: string) => {
+					if (dir === images && failure)
+						throw Object.assign(new Error('injected directory failure'), { code: failure });
+					return fs.readdir(dir);
+				},
+			};
 		}
 	}
 	const io = new MixedIO();
@@ -114,7 +171,14 @@ test('mixed readdir without stat skips files and preserves directory read failur
 	t.true(detailed.complete);
 	t.deepEqual(detailed.diagnostics, []);
 	for (const document of [detailed.document, await io.readProject(target)]) {
-		t.deepEqual(document!.getRoot().listPackages()[0]!.listResourceFolders().map((folder) => folder.path), ['/images/']);
+		t.deepEqual(
+			document!
+				.getRoot()
+				.listPackages()[0]!
+				.listResourceFolders()
+				.map((folder) => folder.path),
+			['/images/'],
+		);
 	}
 	for (failure of ['EACCES', 'EIO']) {
 		const result = await io.readProjectDetailed(target);
@@ -134,11 +198,15 @@ test('directory enumeration failures make detailed reads incomplete while absent
 		class FailingIO extends NodeIO {
 			protected override createFileSystem() {
 				const base = super.createFileSystem();
-				return { ...base, readdir: async (dir: string) => {
-					if (dir === failingPath) throw Object.assign(new Error('permission denied'), { code: 'EACCES' });
-					if (dir === directory) return ['assets_mobile'];
-					return base.readdir(dir);
-				} };
+				return {
+					...base,
+					readdir: async (dir: string) => {
+						if (dir === failingPath)
+							throw Object.assign(new Error('permission denied'), { code: 'EACCES' });
+						if (dir === directory) return ['assets_mobile'];
+						return base.readdir(dir);
+					},
+				};
 			}
 		}
 		const result = await new FailingIO().readProjectDetailed(target);
@@ -148,15 +216,25 @@ test('directory enumeration failures make detailed reads incomplete while absent
 	}
 	t.true((await new NodeIO().readProjectDetailed(target)).complete);
 	await fs.mkdir(path.join(directory, 'assets', 'Main', 'nested'), { recursive: true });
-	await fs.writeFile(path.join(directory, 'assets', 'Main', 'package.xml'), '<packageDescription id="main"><resources/></packageDescription>');
-	for (const failingPath of [path.join(directory, 'assets', 'Main'), path.join(directory, 'assets', 'Main', 'nested')]) {
+	await fs.writeFile(
+		path.join(directory, 'assets', 'Main', 'package.xml'),
+		'<packageDescription id="main"><resources/></packageDescription>',
+	);
+	for (const failingPath of [
+		path.join(directory, 'assets', 'Main'),
+		path.join(directory, 'assets', 'Main', 'nested'),
+	]) {
 		class FailingFolderIO extends NodeIO {
 			protected override createFileSystem() {
 				const base = super.createFileSystem();
-				return { ...base, readdir: async (dir: string) => {
-					if (dir === failingPath) throw Object.assign(new Error('permission denied'), { code: 'EACCES' });
-					return base.readdir(dir);
-				} };
+				return {
+					...base,
+					readdir: async (dir: string) => {
+						if (dir === failingPath)
+							throw Object.assign(new Error('permission denied'), { code: 'EACCES' });
+						return base.readdir(dir);
+					},
+				};
 			}
 		}
 		const result = await new FailingFolderIO().readProjectDetailed(target);
@@ -300,7 +378,9 @@ test('detailed project reads report FairyGUI Desktop-incompatible integer geomet
 		const componentPath = path.join(root, 'assets', 'Main', 'MainView.xml');
 		const io = new NodeIO();
 		await writeProjectFromUam(io, createMinimalUamProject('validation'), fairyPath);
-		await fs.writeFile(componentPath, `<?xml version="1.0" encoding="utf-8"?>
+		await fs.writeFile(
+			componentPath,
+			`<?xml version="1.0" encoding="utf-8"?>
 <component size="320.5,180" scale="1.25,0.75" designImageOffsetX="2147483648">
   <displayList>
     <image id="n0" name="bg" src="img001" xy="2.625,5.25" size="320,180">
@@ -308,19 +388,26 @@ test('detailed project reads report FairyGUI Desktop-incompatible integer geomet
     </image>
     <list id="n1" xy="0,0" size="100,100" margin="1,2.5,3,4"/>
   </displayList>
-</component>`, 'utf8');
+</component>`,
+			'utf8',
+		);
 
 		const read = await io.readProjectDetailed(fairyPath);
-		const geometryDiagnostics = read.diagnostics.filter((diagnostic) => diagnostic.code === 'desktop_incompatible_geometry');
+		const geometryDiagnostics = read.diagnostics.filter(
+			(diagnostic) => diagnostic.code === 'desktop_incompatible_geometry',
+		);
 		t.truthy(read.document);
 		t.true(read.complete);
-		t.deepEqual(geometryDiagnostics.map((diagnostic) => diagnostic.path), [
-			'components.cmp001.component.size',
-			'components.cmp001.component.designImageOffsetX',
-			'components.cmp001.displayList.0.xy',
-			'components.cmp001.displayList.0.gearXY.0.values',
-			'components.cmp001.displayList.1.margin',
-		]);
+		t.deepEqual(
+			geometryDiagnostics.map((diagnostic) => diagnostic.path),
+			[
+				'components.cmp001.component.size',
+				'components.cmp001.component.designImageOffsetX',
+				'components.cmp001.displayList.0.xy',
+				'components.cmp001.displayList.0.gearXY.0.values',
+				'components.cmp001.displayList.1.margin',
+			],
+		);
 		t.true(geometryDiagnostics.every((diagnostic) => diagnostic.sourcePath === componentPath));
 		t.false(geometryDiagnostics.some((diagnostic) => diagnostic.path.endsWith('.scale')));
 	} finally {
@@ -335,37 +422,48 @@ test('detailed project reads report invalid raw component values before tolerant
 		const componentPath = path.join(root, 'assets', 'Main', 'MainView.xml');
 		const io = new NodeIO();
 		await writeProjectFromUam(io, createMinimalUamProject('validation'), fairyPath);
-		await fs.writeFile(componentPath, `<?xml version="1.0" encoding="utf-8"?>
+		await fs.writeFile(
+			componentPath,
+			`<?xml version="1.0" encoding="utf-8"?>
 <component size="320,180" pivot="0.5,NaN" overflow="clip" opaque="yes" designImageAlpha="50.5">
   <displayList>
     <text id="n0" xy="0,0" size="100,20" scale="1.25,0.75" visible="yes" alpha="1.5" rotation="90deg" fontSize="12.5" align="sideways" shadowColor="#000000" shadowOffset="1"/>
     <list id="n1" xy="0,20" size="100,100" layout="grid" autoItemSize="sometimes" lineGap="2.5"/>
     <group id="n2" xy="0,0" size="100,100" advanced="true" layout="hz"/>
   </displayList>
-</component>`, 'utf8');
+</component>`,
+			'utf8',
+		);
 
 		const read = await io.readProjectDetailed(fairyPath);
 		const valueDiagnostics = read.diagnostics.filter((diagnostic) => diagnostic.code === 'invalid_project_value');
 		t.truthy(read.document);
 		t.true(read.complete);
-		t.deepEqual(valueDiagnostics.map((diagnostic) => diagnostic.path).sort(), [
-			'components.cmp001.component.designImageAlpha',
-			'components.cmp001.component.opaque',
-			'components.cmp001.component.overflow',
-			'components.cmp001.component.pivot',
-			'components.cmp001.displayList.0.align',
-			'components.cmp001.displayList.0.alpha',
-			'components.cmp001.displayList.0.fontSize',
-			'components.cmp001.displayList.0.rotation',
-			'components.cmp001.displayList.0.shadowOffset',
-			'components.cmp001.displayList.0.visible',
-			'components.cmp001.displayList.1.autoItemSize',
-			'components.cmp001.displayList.1.layout',
-			'components.cmp001.displayList.1.lineGap',
-		].sort());
+		t.deepEqual(
+			valueDiagnostics.map((diagnostic) => diagnostic.path).sort(),
+			[
+				'components.cmp001.component.designImageAlpha',
+				'components.cmp001.component.opaque',
+				'components.cmp001.component.overflow',
+				'components.cmp001.component.pivot',
+				'components.cmp001.displayList.0.align',
+				'components.cmp001.displayList.0.alpha',
+				'components.cmp001.displayList.0.fontSize',
+				'components.cmp001.displayList.0.rotation',
+				'components.cmp001.displayList.0.shadowOffset',
+				'components.cmp001.displayList.0.visible',
+				'components.cmp001.displayList.1.autoItemSize',
+				'components.cmp001.displayList.1.layout',
+				'components.cmp001.displayList.1.lineGap',
+			].sort(),
+		);
 		t.true(valueDiagnostics.every((diagnostic) => diagnostic.sourcePath === componentPath));
 		t.false(valueDiagnostics.some((diagnostic) => diagnostic.path.endsWith('.scale')));
-		const group = read.document!.getRoot().listPackages()[0]!.listComponents()[0]!.listChildren()
+		const group = read
+			.document!.getRoot()
+			.listPackages()[0]!
+			.listComponents()[0]!
+			.listChildren()
 			.find((child) => child.getId() === 'n2') as { getLayout(): number } | undefined;
 		t.is(group?.getLayout(), 1);
 	} finally {

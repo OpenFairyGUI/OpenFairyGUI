@@ -1,22 +1,15 @@
-import { ControllerActionType, } from '../constants.js';
+import { ControllerActionType } from '../constants.js';
 import type { Component } from '../properties/component.js';
 import type { ResourceReferenceEncodingContext } from './component-encoder-shared.js';
-import type {
-	MarginLike,
-	RelationOwner,
-} from './component-encoder-shared.js';
-import {
-	getRuntimeChildIndexMap,
-	getRuntimeChildren,
-	remapLocalUiUrl,
-} from './component-encoder-shared.js';
+import type { MarginLike, RelationOwner } from './component-encoder-shared.js';
+import { getRuntimeChildIndexMap, getRuntimeChildren, remapLocalUiUrl } from './component-encoder-shared.js';
 import type { WriteBuffer } from './write-buffer.js';
 
 export function _writeComponentHeader(buf: WriteBuffer, comp: Component): void {
 	const w = comp.getWidth?.() ?? 0;
 	const h = comp.getHeight?.() ?? 0;
-	buf.writeInt32(w);  // sourceWidth
-	buf.writeInt32(h);  // sourceHeight
+	buf.writeInt32(w); // sourceWidth
+	buf.writeInt32(h); // sourceHeight
 
 	// Restrict size
 	const minW = comp.getMinWidth?.() ?? 0;
@@ -102,7 +95,9 @@ export function _writeControllers(buf: WriteBuffer, comp: Component): void {
 		buf.writeUint8(3);
 		buf.writeUint8(1); // useShort
 		const ctrlOffsetsPos = buf.pos;
-		buf.writeUint16(0); buf.writeUint16(0); buf.writeUint16(0);
+		buf.writeUint16(0);
+		buf.writeUint16(0);
+		buf.writeUint16(0);
 
 		// Controller Block 0: name
 		const cb0 = buf.pos - ctrlIndexPos;
@@ -125,7 +120,9 @@ export function _writeControllers(buf: WriteBuffer, comp: Component): void {
 			case 'specific': {
 				const homePageIndex = pages.findIndex((page) => page.getId() === ctrl.getHomePage());
 				if (homePageIndex < 0) {
-					throw new Error(`Controller "${ctrl.getName()}" references unknown home page id "${ctrl.getHomePage()}".`);
+					throw new Error(
+						`Controller "${ctrl.getName()}" references unknown home page id "${ctrl.getHomePage()}".`,
+					);
 				}
 				buf.writeUint8(1);
 				buf.writeInt16(homePageIndex);
@@ -189,7 +186,9 @@ export function _writeControllers(buf: WriteBuffer, comp: Component): void {
 		// Patch controller block offsets
 		const ctrlSaved = buf.pos;
 		buf.pos = ctrlOffsetsPos;
-		buf.writeUint16(cb0); buf.writeUint16(cb1); buf.writeUint16(cb2);
+		buf.writeUint16(cb0);
+		buf.writeUint16(cb1);
+		buf.writeUint16(cb2);
 		buf.pos = ctrlSaved;
 
 		// Patch controller nextPos
@@ -213,8 +212,7 @@ export function _writeRelations(
 	obj: RelationOwner,
 	childIndexById?: ReadonlyMap<string, number>,
 ): void {
-	const relationDefs: Array<{ target: string; type: number; usePercent: boolean }>
-		= obj.getRelations?.() ?? [];
+	const relationDefs: Array<{ target: string; type: number; usePercent: boolean }> = obj.getRelations?.() ?? [];
 
 	// Group by target
 	const grouped = new Map<string, Array<{ type: number; usePercent: boolean }>>();
@@ -236,10 +234,7 @@ export function _writeRelations(
 	}
 }
 
-function _resolveRelationTargetIndex(
-	target: string,
-	childIndexById?: ReadonlyMap<string, number>,
-): number {
+function _resolveRelationTargetIndex(target: string, childIndexById?: ReadonlyMap<string, number>): number {
 	if (!target) return -1;
 	const mappedIndex = childIndexById?.get(target);
 	if (mappedIndex !== undefined) return mappedIndex;
@@ -296,7 +291,12 @@ export function _writeAdvancedProps(buf: WriteBuffer, comp: Component, version: 
 
 // ─── Block 6: Extension definition ───────────────────────────────────────
 
-export function _writeExtensionDef(buf: WriteBuffer, comp: Component, context: ResourceReferenceEncodingContext, _version: number): void {
+export function _writeExtensionDef(
+	buf: WriteBuffer,
+	comp: Component,
+	context: ResourceReferenceEncodingContext,
+	_version: number,
+): void {
 	const extType = comp.getExtensionType?.() ?? '';
 	if (!extType) return;
 
@@ -340,8 +340,11 @@ export function _writeExtensionDef(buf: WriteBuffer, comp: Component, context: R
 
 // ─── Block 5: Transitions ───────────────────────────────────────────────
 
-
-export function _writeComponentScrollPane(buf: WriteBuffer, comp: Component, context: ResourceReferenceEncodingContext): void {
+export function _writeComponentScrollPane(
+	buf: WriteBuffer,
+	comp: Component,
+	context: ResourceReferenceEncodingContext,
+): void {
 	// scrollType: horizontal=0, vertical=1, both=2
 	buf.writeUint8(comp.getScrollType?.() ?? 1);
 	// scrollBarDisplay: default=0, visible=1, auto=2, hidden=3

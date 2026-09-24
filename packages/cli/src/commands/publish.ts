@@ -65,7 +65,10 @@ export function registerPublishCommand(program: Command): void {
 				atlas: resolved.atlas,
 				branch: options.branch,
 			});
-			if (options.json) { printJson('publish', result); return; }
+			if (options.json) {
+				printJson('publish', result);
+				return;
+			}
 
 			console.log(`\nDone!${outputDir ? ` Output override: ${outputDir}` : ''}`);
 		});

@@ -128,7 +128,8 @@ export function parseJta(data: Uint8Array): JtaDef {
 	if (fps === 0) fps = 24;
 	cursor.skip(3, 'reserved header');
 
-	let boundsWidth = 0, boundsHeight = 0;
+	let boundsWidth = 0,
+		boundsHeight = 0;
 
 	if (version >= 102) {
 		cursor.skip(4, 'bounds origin');
@@ -197,9 +198,15 @@ export function parseJta(data: Uint8Array): JtaDef {
 	}
 
 	return {
-		version, fps, speed, repeatDelay, swing,
-		boundsWidth, boundsHeight,
-		frames, textures,
+		version,
+		fps,
+		speed,
+		repeatDelay,
+		swing,
+		boundsWidth,
+		boundsHeight,
+		frames,
+		textures,
 	};
 }
 
@@ -233,13 +240,16 @@ export function applyDerivedMovieClipModel(
 	resource: MovieClipResource,
 	model: DerivedMovieClipModel,
 ): void {
-	const frames = model.frames.map((frame, index) => doc.createMovieFrame(`${resource.getId()}_${index}`)
-		.setRectX(frame.rectX)
-		.setRectY(frame.rectY)
-		.setRectWidth(frame.rectWidth)
-		.setRectHeight(frame.rectHeight)
-		.setAddDelay(frame.addDelay)
-		.setSpriteId(''));
+	const frames = model.frames.map((frame, index) =>
+		doc
+			.createMovieFrame(`${resource.getId()}_${index}`)
+			.setRectX(frame.rectX)
+			.setRectY(frame.rectY)
+			.setRectWidth(frame.rectWidth)
+			.setRectHeight(frame.rectHeight)
+			.setAddDelay(frame.addDelay)
+			.setSpriteId(''),
+	);
 
 	for (const frame of resource.listFrames()) resource.removeFrame(frame);
 	resource

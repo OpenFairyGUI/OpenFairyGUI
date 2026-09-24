@@ -44,39 +44,87 @@ export class FontGlyph extends Property<IFontGlyph> {
 		});
 	}
 
-	public getCharId(): number { return this.get('charId'); }
-	public setCharId(v: number): this { return this.set('charId', v); }
+	public getCharId(): number {
+		return this.get('charId');
+	}
+	public setCharId(v: number): this {
+		return this.set('charId', v);
+	}
 
-	public getChar(): string { return this.get('char'); }
-	public setChar(v: string): this { return this.set('char', v); }
+	public getChar(): string {
+		return this.get('char');
+	}
+	public setChar(v: string): this {
+		return this.set('char', v);
+	}
 
-	public getX(): number { return this.get('x'); }
-	public setX(v: number): this { return this.set('x', v); }
+	public getX(): number {
+		return this.get('x');
+	}
+	public setX(v: number): this {
+		return this.set('x', v);
+	}
 
-	public getY(): number { return this.get('y'); }
-	public setY(v: number): this { return this.set('y', v); }
+	public getY(): number {
+		return this.get('y');
+	}
+	public setY(v: number): this {
+		return this.set('y', v);
+	}
 
-	public getXOffset(): number { return this.get('xOffset'); }
-	public setXOffset(v: number): this { return this.set('xOffset', v); }
+	public getXOffset(): number {
+		return this.get('xOffset');
+	}
+	public setXOffset(v: number): this {
+		return this.set('xOffset', v);
+	}
 
-	public getYOffset(): number { return this.get('yOffset'); }
-	public setYOffset(v: number): this { return this.set('yOffset', v); }
+	public getYOffset(): number {
+		return this.get('yOffset');
+	}
+	public setYOffset(v: number): this {
+		return this.set('yOffset', v);
+	}
 
-	public getWidth(): number { return this.get('width'); }
-	public setWidth(v: number): this { return this.set('width', v); }
+	public getWidth(): number {
+		return this.get('width');
+	}
+	public setWidth(v: number): this {
+		return this.set('width', v);
+	}
 
-	public getHeight(): number { return this.get('height'); }
-	public setHeight(v: number): this { return this.set('height', v); }
+	public getHeight(): number {
+		return this.get('height');
+	}
+	public setHeight(v: number): this {
+		return this.set('height', v);
+	}
 
-	public getAdvance(): number { return this.get('advance'); }
-	public setAdvance(v: number): this { return this.set('advance', v); }
+	public getAdvance(): number {
+		return this.get('advance');
+	}
+	public setAdvance(v: number): this {
+		return this.set('advance', v);
+	}
 
-	public getLineHeight(): number { return this.get('lineHeight'); }
-	public setLineHeight(v: number): this { return this.set('lineHeight', v); }
+	public getLineHeight(): number {
+		return this.get('lineHeight');
+	}
+	public setLineHeight(v: number): this {
+		return this.set('lineHeight', v);
+	}
 
-	public getChannel(): number { return this.get('channel'); }
-	public setChannel(v: number): this { return this.set('channel', v); }
+	public getChannel(): number {
+		return this.get('channel');
+	}
+	public setChannel(v: number): this {
+		return this.set('channel', v);
+	}
 
-	public getImg(): string { return this.get('img'); }
-	public setImg(v: string): this { return this.set('img', v); }
+	public getImg(): string {
+		return this.get('img');
+	}
+	public setImg(v: string): this {
+		return this.set('img', v);
+	}
 }

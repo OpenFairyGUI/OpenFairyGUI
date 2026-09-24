@@ -21,10 +21,7 @@ import {
 	isFontResource,
 	isMovieClipResource,
 } from './publish/package-context.js';
-import {
-	exportPackageExternalResources,
-	exportPackageSounds,
-} from './publish/external-resources.js';
+import { exportPackageExternalResources, exportPackageSounds } from './publish/external-resources.js';
 import {
 	resolvePublishAtlasRuntimeOptions,
 	resolvePublishFileName,
@@ -195,7 +192,8 @@ export function publish(options: PublishOptions): Transform {
 
 				for (const candidate of candidates) {
 					const expanded = expandPathVariables(
-						expandPathVariables(candidate ?? '', { publish_file_name: publishName }), customProperties,
+						expandPathVariables(candidate ?? '', { publish_file_name: publishName }),
+						customProperties,
 					);
 					const resolved = resolveConfiguredOutputPath(expanded, projectBasePath);
 					if (!resolved) continue;
@@ -208,20 +206,26 @@ export function publish(options: PublishOptions): Transform {
 			const atlas: ResolvedPublishAtlasOptions = {
 				...config.atlas,
 				maxSize: options.atlas?.maxSize ?? (usePackageAtlas ? sourceAtlas.maxSize : config.atlas.maxSize),
-				allowRotation: config.projectType === ProjectType.LayaBox
-					? false
-					: (options.atlas?.allowRotation ?? (usePackageAtlas ? sourceAtlas.allowRotation : config.atlas.allowRotation)),
-				powerOfTwo: options.atlas?.powerOfTwo
-					?? (usePackageAtlas ? sourceAtlas.sizeOption === 'pot' : config.atlas.powerOfTwo),
+				allowRotation:
+					config.projectType === ProjectType.LayaBox
+						? false
+						: (options.atlas?.allowRotation ??
+							(usePackageAtlas ? sourceAtlas.allowRotation : config.atlas.allowRotation)),
+				powerOfTwo:
+					options.atlas?.powerOfTwo ??
+					(usePackageAtlas ? sourceAtlas.sizeOption === 'pot' : config.atlas.powerOfTwo),
 				maxAtlasIndex: options.atlas?.maxAtlasIndex ?? sourceAtlas.maxIndex,
-				multipleOfFour: options.atlas?.multipleOfFour
-					?? (usePackageAtlas ? sourceAtlas.sizeOption === 'mof' : config.atlas.multipleOfFour),
+				multipleOfFour:
+					options.atlas?.multipleOfFour ??
+					(usePackageAtlas ? sourceAtlas.sizeOption === 'mof' : config.atlas.multipleOfFour),
 				square: options.atlas?.square ?? (usePackageAtlas ? sourceAtlas.forceSquare : config.atlas.square),
 				multiPage: options.atlas?.multiPage ?? (usePackageAtlas ? sourceAtlas.paging : config.atlas.multiPage),
-				extractAlpha: config.projectType === ProjectType.Unity && (
-					options.atlas?.extractAlpha
-					?? (usePackageAtlas || sourceAtlas.extractAlpha ? sourceAtlas.extractAlpha : config.atlas.extractAlpha)
-				),
+				extractAlpha:
+					config.projectType === ProjectType.Unity &&
+					(options.atlas?.extractAlpha ??
+						(usePackageAtlas || sourceAtlas.extractAlpha
+							? sourceAtlas.extractAlpha
+							: config.atlas.extractAlpha)),
 			};
 
 			return {
@@ -295,9 +299,15 @@ export function publish(options: PublishOptions): Transform {
 				readFileRaw: options.atlas?.readFileRaw ?? options.fs?.readFileRaw,
 				strictOutput: options.fs !== undefined,
 				preparedMovieClips,
-				publishResources: new Map(plan.pkg.listResources()
-					.filter((resource) => plan.context.publishedResourceIds.has(resource.getId()))
-					.map((resource) => [resource, plan.context.effectiveResourceIds.get(resource.getId()) ?? resource.getId()])),
+				publishResources: new Map(
+					plan.pkg
+						.listResources()
+						.filter((resource) => plan.context.publishedResourceIds.has(resource.getId()))
+						.map((resource) => [
+							resource,
+							plan.context.effectiveResourceIds.get(resource.getId()) ?? resource.getId(),
+						]),
+				),
 				packages: [plan.pkg.getName()],
 				...atlasRuntimeOptions,
 			})(doc);
@@ -350,22 +360,27 @@ export function publish(options: PublishOptions): Transform {
 			// Font image dependencies must be known before selecting resources and merging branches.
 			for (const font of pkg.listResources().filter(isFontResource)) {
 				await collectFontTexture(doc, font, pkg, {
-					basePath: options.basePath, readFileRaw: options.atlas?.readFileRaw ?? options.fs?.readFileRaw,
+					basePath: options.basePath,
+					readFileRaw: options.atlas?.readFileRaw ?? options.fs?.readFileRaw,
 				});
 			}
 			// Compute dependency list and selected publish artifacts before atlas packing,
 			// so merged-branch publishes can pack the overridden resources with main IDs.
 			_computeDependencies(doc, pkg, pkgMap);
-			contexts.set(pkg, await preparePackagePublishContext(pkg, options.basePath, options.encoder, {
-				projectType: resolved.projectType,
-				includeBranches: resolved.includeBranches,
-				activeBranch: resolved.activeBranch,
-				includeHighResolution: resolved.includeHighResolution,
-			}));
+			contexts.set(
+				pkg,
+				await preparePackagePublishContext(pkg, options.basePath, options.encoder, {
+					projectType: resolved.projectType,
+					includeBranches: resolved.includeBranches,
+					activeBranch: resolved.activeBranch,
+					includeHighResolution: resolved.includeHighResolution,
+				}),
+			);
 		}
 
 		const plans: ResolvedPackagePublishPlan[] = allPackages.map((pkg) => ({
-			...resolvePackagePublishPlan(pkg, resolved, projectBasePath), context: contexts.get(pkg)!,
+			...resolvePackagePublishPlan(pkg, resolved, projectBasePath),
+			context: contexts.get(pkg)!,
 		}));
 
 		if (!options.fs) {

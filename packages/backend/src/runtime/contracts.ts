@@ -41,8 +41,11 @@ export const BACKEND_SESSION_READ_LIMITS = {
 } as const;
 
 /** The public UAM model, excluding only each asset resource's primary sourceBytes. */
-export type BackendSessionResourceModel = UamComponentResource | Omit<UamImageResource, 'sourceBytes'>
-	| Omit<UamMovieClipResource, 'sourceBytes'> | Omit<UamGenericAssetResource, 'sourceBytes'>;
+export type BackendSessionResourceModel =
+	| UamComponentResource
+	| Omit<UamImageResource, 'sourceBytes'>
+	| Omit<UamMovieClipResource, 'sourceBytes'>
+	| Omit<UamGenericAssetResource, 'sourceBytes'>;
 export interface BackendSessionPackageModel extends Omit<UamPackage, 'resources'> {
 	resources: BackendSessionResourceModel[];
 }
@@ -58,7 +61,8 @@ export interface ReadResourceBytesInput {
 	expectedRevision: number;
 	selector: UamResourceSelector;
 }
-export interface BackendSessionStateSnapshot extends Pick<BackendSessionSnapshot, 'sessionId' | 'revision' | 'lastSavedRevision' | 'dirty' | 'uamFidelity'> {
+export interface BackendSessionStateSnapshot
+	extends Pick<BackendSessionSnapshot, 'sessionId' | 'revision' | 'lastSavedRevision' | 'dirty' | 'uamFidelity'> {
 	project: BackendSessionProjectModel;
 	readDiagnostics: import('@openfairygui/core').ProjectDiagnostic[];
 	/** Source-read completeness, not a guarantee of resource bytes or downstream usability. */
@@ -75,7 +79,14 @@ export interface SessionReadError {
 	code: 'session_read_failed';
 	message: string;
 	sessionId: string;
-	reason: 'invalid_query' | 'not_found' | 'ambiguous' | 'unsupported_resource' | 'bytes_unavailable' | 'response_budget_exceeded' | 'non_json_value';
+	reason:
+		| 'invalid_query'
+		| 'not_found'
+		| 'ambiguous'
+		| 'unsupported_resource'
+		| 'bytes_unavailable'
+		| 'response_budget_exceeded'
+		| 'non_json_value';
 }
 export interface SessionStaleReadError {
 	code: 'stale_read';
@@ -87,12 +98,26 @@ export interface SessionStaleReadError {
 export const BACKEND_TRANSACTION_PREVIEW_LIMITS = { maxBytes: 262144, maxEntries: 2000 } as const;
 /** Fixed resource projection. Binary content, source bookkeeping and arbitrary metadata are excluded. */
 export const BACKEND_RESOURCE_QUERY_FIELDS = [
-	'kind', 'id', 'name', 'path', 'exported', 'favorite', 'branch', 'branchItemIds',
-	'fileName', 'file', 'dimensions', 'image', 'movieClip',
+	'kind',
+	'id',
+	'name',
+	'path',
+	'exported',
+	'favorite',
+	'branch',
+	'branchItemIds',
+	'fileName',
+	'file',
+	'dimensions',
+	'image',
+	'movieClip',
 ] as const;
-type ResourceQueryFields<T> = Pick<T, Extract<keyof T, typeof BACKEND_RESOURCE_QUERY_FIELDS[number]>>;
-export type BackendResourceSnapshot = ResourceQueryFields<UamImageResource> | ResourceQueryFields<UamMovieClipResource>
-	| ResourceQueryFields<UamGenericAssetResource> | ResourceQueryFields<UamComponentResource>;
+type ResourceQueryFields<T> = Pick<T, Extract<keyof T, (typeof BACKEND_RESOURCE_QUERY_FIELDS)[number]>>;
+export type BackendResourceSnapshot =
+	| ResourceQueryFields<UamImageResource>
+	| ResourceQueryFields<UamMovieClipResource>
+	| ResourceQueryFields<UamGenericAssetResource>
+	| ResourceQueryFields<UamComponentResource>;
 export type BackendComponentSnapshot = Pick<UamComponentModel, 'size' | 'properties' | 'customData'>;
 export type BackendProjectSnapshot = Pick<UamProject, 'projectId' | 'settings'>;
 export interface BackendPackageSnapshot {
@@ -116,7 +141,8 @@ export interface BackendEntitySnapshot {
 	sessionId: string;
 	revision: number;
 	target: BackendEntityTarget;
-	entity: { kind: 'project'; properties: BackendProjectSnapshot }
+	entity:
+		| { kind: 'project'; properties: BackendProjectSnapshot }
 		| { kind: 'package'; properties: BackendPackageSnapshot }
 		| { kind: 'resource'; properties: BackendResourceSnapshot }
 		| { kind: 'component'; properties: BackendComponentSnapshot }
@@ -152,12 +178,20 @@ export class ProjectWriteTransactionError extends Error {
 	public static is(error: unknown): error is ProjectWriteTransactionError {
 		if (typeof error !== 'object' || error === null) return false;
 		const value = error as Partial<ProjectWriteTransactionError>;
-		return value.code === 'project_write_transaction_failed' && typeof value.message === 'string'
-			&& typeof value.diskMayBePartiallyUpdated === 'boolean'
-			&& Array.isArray(value.recoveryPaths) && value.recoveryPaths.every((path) => typeof path === 'string');
+		return (
+			value.code === 'project_write_transaction_failed' &&
+			typeof value.message === 'string' &&
+			typeof value.diskMayBePartiallyUpdated === 'boolean' &&
+			Array.isArray(value.recoveryPaths) &&
+			value.recoveryPaths.every((path) => typeof path === 'string')
+		);
 	}
 
-	constructor(cause: unknown, public readonly diskMayBePartiallyUpdated: boolean, public readonly recoveryPaths: string[] = []) {
+	constructor(
+		cause: unknown,
+		public readonly diskMayBePartiallyUpdated: boolean,
+		public readonly recoveryPaths: string[] = [],
+	) {
 		super(cause instanceof Error ? cause.message : String(cause), { cause });
 		this.name = 'ProjectWriteTransactionError';
 	}
@@ -246,13 +280,27 @@ export interface BackendCapabilities {
 		capabilitySnapshot: true;
 		sessionSnapshot: true;
 		projectOutline: true;
-		entityQuery: { kinds: readonly BackendEntityTarget['kind'][]; projection: 'properties'; sourceBytes: false; limits: typeof BACKEND_ENTITY_QUERY_LIMITS };
+		entityQuery: {
+			kinds: readonly BackendEntityTarget['kind'][];
+			projection: 'properties';
+			sourceBytes: false;
+			limits: typeof BACKEND_ENTITY_QUERY_LIMITS;
+		};
 		sessionState: { sourceBytes: false; limits: typeof BACKEND_SESSION_READ_LIMITS.model };
-		resourceBytes: { expectedRevisionRequired: true; hydration: false; maxBytes: typeof BACKEND_SESSION_READ_LIMITS.resourceBytes };
+		resourceBytes: {
+			expectedRevisionRequired: true;
+			hydration: false;
+			maxBytes: typeof BACKEND_SESSION_READ_LIMITS.resourceBytes;
+		};
 		projectValidation: true;
 	};
 	authoring: {
-		preflightTransaction: { mode: 'execute-and-discard'; reservesRevision: false; impact: 'model-diff'; limits: typeof BACKEND_TRANSACTION_PREVIEW_LIMITS };
+		preflightTransaction: {
+			mode: 'execute-and-discard';
+			reservesRevision: false;
+			impact: 'model-diff';
+			limits: typeof BACKEND_TRANSACTION_PREVIEW_LIMITS;
+		};
 		applyTransaction: true;
 		saveSession: true;
 		resourceKinds: readonly string[];

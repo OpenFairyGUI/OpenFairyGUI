@@ -198,11 +198,14 @@ export class Package extends ExtensibleProperty<IPackage> {
 	}
 
 	public setSourceAtlasSettings(settings: PackageSourceAtlasSettings): this {
-		return this.set('sourceAtlasSettings' as never, {
-			...settings,
-			atlases: settings.atlases.map((atlas) => ({ ...atlas })),
-			excludedResourceIds: [...settings.excludedResourceIds],
-		} as never);
+		return this.set(
+			'sourceAtlasSettings' as never,
+			{
+				...settings,
+				atlases: settings.atlases.map((atlas) => ({ ...atlas })),
+				excludedResourceIds: [...settings.excludedResourceIds],
+			} as never,
+		);
 	}
 
 	public listBranchNames(): string[] {

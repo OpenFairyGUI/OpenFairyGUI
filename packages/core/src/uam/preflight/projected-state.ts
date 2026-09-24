@@ -26,11 +26,14 @@ function findUiResource(project: UamProject, value: string) {
 		const packageKey = reference.slice(0, slashIndex);
 		const resourceKey = reference.slice(slashIndex + 1);
 		const pkg = project.packages.find((candidate) => candidate.id === packageKey || candidate.name === packageKey);
-		return pkg?.resources.find((resource) => (
-			resource.id === resourceKey
-			|| resource.name === resourceKey
-			|| resource.name.replace(/\.[^.]+$/, '') === resourceKey
-		)) ?? null;
+		return (
+			pkg?.resources.find(
+				(resource) =>
+					resource.id === resourceKey ||
+					resource.name === resourceKey ||
+					resource.name.replace(/\.[^.]+$/, '') === resourceKey,
+			) ?? null
+		);
 	}
 	const pkg = [...project.packages]
 		.sort((left, right) => right.id.length - left.id.length)
@@ -49,9 +52,8 @@ function collectUiReferences(value: unknown): string[] {
 
 function collectProjectedResourceReferenceIssues(project: UamProject): ProjectedResourceReferenceIssue[] {
 	const issues: ProjectedResourceReferenceIssue[] = [];
-	const findResource = (packageId: string, resourceId: string) => (
-		project.packages.find((pkg) => pkg.id === packageId)?.resources.find((resource) => resource.id === resourceId)
-	);
+	const findResource = (packageId: string, resourceId: string) =>
+		project.packages.find((pkg) => pkg.id === packageId)?.resources.find((resource) => resource.id === resourceId);
 	const pushMissing = (
 		key: string,
 		path: string,
@@ -191,7 +193,12 @@ function collectProjectedResourceReferenceIssues(project: UamProject): Projected
 				if (node.kind === 'text' || node.kind === 'richText' || node.kind === 'textInput') {
 					pushMissingUi(`${nodeKey}/font`, `${nodePath}.font`, node.font, ['font']);
 					for (const [referenceIndex, reference] of collectUiReferences(node.text).entries()) {
-						pushMissingUi(`${nodeKey}/text/${reference}`, `${nodePath}.text.${referenceIndex}`, reference, resourceKinds);
+						pushMissingUi(
+							`${nodeKey}/text/${reference}`,
+							`${nodePath}.text.${referenceIndex}`,
+							reference,
+							resourceKinds,
+						);
 					}
 				}
 				if (node.kind === 'loader' || node.kind === 'loader3D') {
@@ -210,28 +217,65 @@ function collectProjectedResourceReferenceIssues(project: UamProject): Projected
 						pushMissingUi(`${nodeKey}/${field}`, `${nodePath}.${field}`, value, componentKinds);
 					}
 					for (const [itemIndex, item] of node.listItems.entries()) {
-						pushMissingUi(`${nodeKey}/items/${itemIndex}/url`, `${nodePath}.listItems.${itemIndex}.url`, item.url ?? '', componentKinds);
-						pushMissingUi(`${nodeKey}/items/${itemIndex}/icon`, `${nodePath}.listItems.${itemIndex}.icon`, item.icon ?? '', visualKinds);
-						pushMissingUi(`${nodeKey}/items/${itemIndex}/selectedIcon`, `${nodePath}.listItems.${itemIndex}.selectedIcon`, item.selectedIcon ?? '', visualKinds);
+						pushMissingUi(
+							`${nodeKey}/items/${itemIndex}/url`,
+							`${nodePath}.listItems.${itemIndex}.url`,
+							item.url ?? '',
+							componentKinds,
+						);
+						pushMissingUi(
+							`${nodeKey}/items/${itemIndex}/icon`,
+							`${nodePath}.listItems.${itemIndex}.icon`,
+							item.icon ?? '',
+							visualKinds,
+						);
+						pushMissingUi(
+							`${nodeKey}/items/${itemIndex}/selectedIcon`,
+							`${nodePath}.listItems.${itemIndex}.selectedIcon`,
+							item.selectedIcon ?? '',
+							visualKinds,
+						);
 					}
 				}
 				if (node.kind === 'component' && node.instanceProperties) {
 					const instance = node.instanceProperties;
 					if ('icon' in instance) {
-						pushMissingUi(`${nodeKey}/instance/icon`, `${nodePath}.instanceProperties.icon`, instance.icon, visualKinds);
+						pushMissingUi(
+							`${nodeKey}/instance/icon`,
+							`${nodePath}.instanceProperties.icon`,
+							instance.icon,
+							visualKinds,
+						);
 					}
 					if (instance.extensionType === 'Button') {
-						pushMissingUi(`${nodeKey}/instance/selectedIcon`, `${nodePath}.instanceProperties.selectedIcon`, instance.selectedIcon, visualKinds);
+						pushMissingUi(
+							`${nodeKey}/instance/selectedIcon`,
+							`${nodePath}.instanceProperties.selectedIcon`,
+							instance.selectedIcon,
+							visualKinds,
+						);
 					}
-					if (instance.extensionType === 'Button'
-						|| instance.extensionType === 'Label'
-						|| instance.extensionType === 'ComboBox'
-						|| instance.extensionType === 'ProgressBar') {
-						pushMissingUi(`${nodeKey}/instance/sound`, `${nodePath}.instanceProperties.sound`, instance.sound, ['sound']);
+					if (
+						instance.extensionType === 'Button' ||
+						instance.extensionType === 'Label' ||
+						instance.extensionType === 'ComboBox' ||
+						instance.extensionType === 'ProgressBar'
+					) {
+						pushMissingUi(
+							`${nodeKey}/instance/sound`,
+							`${nodePath}.instanceProperties.sound`,
+							instance.sound,
+							['sound'],
+						);
 					}
 					if (instance.extensionType === 'ComboBox') {
 						for (const [itemIndex, item] of instance.items.entries()) {
-							pushMissingUi(`${nodeKey}/instance/items/${itemIndex}/icon`, `${nodePath}.instanceProperties.items.${itemIndex}.icon`, item.icon ?? '', visualKinds);
+							pushMissingUi(
+								`${nodeKey}/instance/items/${itemIndex}/icon`,
+								`${nodePath}.instanceProperties.items.${itemIndex}.icon`,
+								item.icon ?? '',
+								visualKinds,
+							);
 						}
 					}
 				}
@@ -239,11 +283,21 @@ function collectProjectedResourceReferenceIssues(project: UamProject): Projected
 					pushMissingUi(`${nodeKey}/icon`, `${nodePath}.icon`, node.icon, visualKinds);
 				}
 				if ('selectedIcon' in node) {
-					pushMissingUi(`${nodeKey}/selectedIcon`, `${nodePath}.selectedIcon`, node.selectedIcon, visualKinds);
+					pushMissingUi(
+						`${nodeKey}/selectedIcon`,
+						`${nodePath}.selectedIcon`,
+						node.selectedIcon,
+						visualKinds,
+					);
 				}
 				if ('icons' in node) {
 					for (const [iconIndex, icon] of node.icons.entries()) {
-						pushMissingUi(`${nodeKey}/icons/${iconIndex}`, `${nodePath}.icons.${iconIndex}`, icon, visualKinds);
+						pushMissingUi(
+							`${nodeKey}/icons/${iconIndex}`,
+							`${nodePath}.icons.${iconIndex}`,
+							icon,
+							visualKinds,
+						);
 					}
 				}
 				if ('sound' in node) {
@@ -251,13 +305,21 @@ function collectProjectedResourceReferenceIssues(project: UamProject): Projected
 				}
 				for (const [gearIndex, gear] of node.gears.entries()) {
 					for (const [referenceIndex, reference] of collectUiReferences(gear).entries()) {
-						pushMissingUi(`${nodeKey}/gears/${gearIndex}/${reference}`, `${nodePath}.gears.${gearIndex}.${referenceIndex}`, reference, resourceKinds);
+						pushMissingUi(
+							`${nodeKey}/gears/${gearIndex}/${reference}`,
+							`${nodePath}.gears.${gearIndex}.${referenceIndex}`,
+							reference,
+							resourceKinds,
+						);
 					}
 				}
 			}
 			for (const [transitionIndex, transition] of resource.component.transitions.entries()) {
 				for (const [itemIndex, item] of transition.items.entries()) {
-					for (const [field, value] of [['startValue', item.startValue], ['endValue', item.endValue]] as const) {
+					for (const [field, value] of [
+						['startValue', item.startValue],
+						['endValue', item.endValue],
+					] as const) {
 						for (const [referenceIndex, reference] of collectUiReferences(value).entries()) {
 							pushMissingUi(
 								`${pkg.id}/${resource.id}/transitions/${transitionIndex}/${itemIndex}/${field}/${reference}`,
@@ -296,14 +358,13 @@ export function validateProjectedState(
 	} catch {
 		return;
 	}
-	const baselineValidationIssues = new Set(validateUamProject(normalizeUamProject(project))
-		.map((issue) => `${issue.path}\0${issue.message}`));
+	const baselineValidationIssues = new Set(
+		validateUamProject(normalizeUamProject(project)).map((issue) => `${issue.path}\0${issue.message}`),
+	);
 	const touchedGroupPaths = collectTouchedGroupPaths(projected, operations);
 	for (const issue of validateUamProject(projected)) {
-		if (
-			baselineValidationIssues.has(`${issue.path}\0${issue.message}`)
-			&& !touchedGroupPaths.has(issue.path)
-		) continue;
+		if (baselineValidationIssues.has(`${issue.path}\0${issue.message}`) && !touchedGroupPaths.has(issue.path))
+			continue;
 		pushSupportIssue(
 			issues,
 			issue.path.endsWith('.group') ? 'invalid_group_reference' : 'invalid_resource_payload',
@@ -312,20 +373,20 @@ export function validateProjectedState(
 		);
 	}
 	if (
-		operations.some(isLifecycleOperation)
-		|| operations.some(isResourceLifecycleOperation)
-		|| operations.some(isDisplayListRewriteOperation)
-		|| operations.some((operation) => (
-			operation.kind === 'setDisplayNodeProps'
-			&& operation.props.componentInstanceProperties !== undefined
-		))
-		|| operations.some((operation) => (
-			operation.kind === 'setComponentProps'
-			&& operation.props.properties !== undefined
-		))
+		operations.some(isLifecycleOperation) ||
+		operations.some(isResourceLifecycleOperation) ||
+		operations.some(isDisplayListRewriteOperation) ||
+		operations.some(
+			(operation) =>
+				operation.kind === 'setDisplayNodeProps' && operation.props.componentInstanceProperties !== undefined,
+		) ||
+		operations.some(
+			(operation) => operation.kind === 'setComponentProps' && operation.props.properties !== undefined,
+		)
 	) {
-		const baselineReferenceKeys = new Set(collectProjectedResourceReferenceIssues(normalizeUamProject(project))
-			.map((issue) => issue.key));
+		const baselineReferenceKeys = new Set(
+			collectProjectedResourceReferenceIssues(normalizeUamProject(project)).map((issue) => issue.key),
+		);
 		for (const issue of collectProjectedResourceReferenceIssues(projected)) {
 			if (baselineReferenceKeys.has(issue.key)) continue;
 			pushSupportIssue(issues, 'invalid_resource_reference', issue.path, issue.message);
@@ -339,16 +400,18 @@ export function validateProjectedGroupState(
 	issues: UamTransactionSupportIssue[],
 ): void {
 	if (issues.length > 0 || operations.every(isUamNativeOperation)) return;
-	const relevantOperations = operations.filter((operation) => (
-		isLifecycleOperation(operation)
-		|| isDisplayListRewriteOperation(operation)
-		|| (operation.kind === 'setDisplayNodeProps' && operation.props.group !== undefined)
-	));
+	const relevantOperations = operations.filter(
+		(operation) =>
+			isLifecycleOperation(operation) ||
+			isDisplayListRewriteOperation(operation) ||
+			(operation.kind === 'setDisplayNodeProps' && operation.props.group !== undefined),
+	);
 	let projected: UamProject;
 	try {
-		projected = relevantOperations.length === 0
-			? normalizeUamProject(project)
-			: applyUamNativeOperations(project, relevantOperations);
+		projected =
+			relevantOperations.length === 0
+				? normalizeUamProject(project)
+				: applyUamNativeOperations(project, relevantOperations);
 	} catch {
 		return;
 	}

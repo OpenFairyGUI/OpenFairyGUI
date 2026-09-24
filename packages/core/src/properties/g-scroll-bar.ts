@@ -25,9 +25,17 @@ export class GScrollBar extends GComponent<IGScrollBar, PropertyType.G_SCROLL_BA
 		});
 	}
 
-	public getSrc(): string { return this.get('src' as any); }
-	public setSrc(v: string): this { return this.set('src' as any, v); }
+	public getSrc(): string {
+		return this.get('src' as any);
+	}
+	public setSrc(v: string): this {
+		return this.set('src' as any, v);
+	}
 
-	public getFixedGripSize(): boolean { return this.get('fixedGripSize' as any); }
-	public setFixedGripSize(v: boolean): this { return this.set('fixedGripSize' as any, v); }
+	public getFixedGripSize(): boolean {
+		return this.get('fixedGripSize' as any);
+	}
+	public setFixedGripSize(v: boolean): this {
+		return this.set('fixedGripSize' as any, v);
+	}
 }
