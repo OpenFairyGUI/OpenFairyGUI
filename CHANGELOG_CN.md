@@ -6,10 +6,21 @@
 
 发布比较：
 
-- 稳定线（`main`）：[v0.6.2...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.2...main)
-- 开发线（`next`）：[v0.6.2...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.2...next)
+- 稳定线（`main`）：[v0.6.3...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.3...main)
+- 开发线（`next`）：[v0.6.3...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.3...next)
 
 ## v0.6.x
+
+### v0.6.3（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.3)）
+
+缺陷修复：
+
+- core：通过正式可选字段和引用校验，在 UAM 转换、二进制往返及工程写回中保留组件实例与派生组件的分页控制器。
+- core：统一规范化动画和尺寸 Gear 的可选字段，避免合法的紧凑值阻止工程保存。修复 [#152](https://github.com/OpenFairyGUI/OpenFairyGUI/issues/152)。
+
+其他：
+
+- backend、docs：重新生成公开 schema 和随包文档；补充保存重开与二进制回归覆盖，验证 LayaBox 保存和发布成功，同步双语写回说明。
 
 ### v0.6.2（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.2)）
 
