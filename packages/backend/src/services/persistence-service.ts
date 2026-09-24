@@ -87,7 +87,9 @@ function storageCanonicalTarget(input: NonNullable<MaterializeSessionInput['stor
 		fileSystem: input.fileSystem,
 		fairyPath: input.fairyPath,
 		canonicalProjectPath,
-		canonicalPathKey: input.canonicalPathKey ?? normalizeComparablePath(canonicalProjectPath),
+		canonicalPathKey:
+			input.canonicalPathKey ??
+			normalizeComparablePath(canonicalProjectPath, input.fileSystem.caseSensitivePaths),
 	};
 }
 
@@ -237,7 +239,7 @@ export class PersistenceService {
 			revision: session.revision,
 		});
 		try {
-			await writeSessionProject({
+			const warnings = await writeSessionProject({
 				fileSystem,
 				document: materializeUamProject(session.project),
 				fairyPath: session.fairyPath,
@@ -256,6 +258,7 @@ export class PersistenceService {
 			return success('authoring', startedAt, toSessionSnapshot(session, this.context.capabilities), {
 				sessionId: session.sessionId,
 				revision: session.revision,
+				warnings,
 			});
 		} catch (error) {
 			this.cacheService.invalidateSession(session);
@@ -476,7 +479,7 @@ export class PersistenceService {
 		});
 		try {
 			const isSessionStorageTarget = fileSystem === session.fileSystem && fairyPath === session.fairyPath;
-			await writeSessionProject({
+			const warnings = await writeSessionProject({
 				fileSystem,
 				document,
 				fairyPath,
@@ -513,6 +516,7 @@ export class PersistenceService {
 				{
 					sessionId: session.sessionId,
 					revision: session.revision,
+					warnings,
 				},
 			);
 		} catch (error) {

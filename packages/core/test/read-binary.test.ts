@@ -59,10 +59,8 @@ test('binary: image resources have scale/smoothing properties', async (t) => {
 test('binary: sprite atlas mapping is stored in extras', async (t) => {
 	const doc = await getDoc();
 	const pkg = getMainPackage(doc)!;
-	const extras = pkg.getExtras() as { sprites?: unknown[] };
-	t.truthy(extras, 'extras is non-null');
-	t.true(Array.isArray(extras?.sprites), 'sprites array is present in extras');
-	t.true((extras.sprites as unknown[]).length > 0, 'sprites array is non-empty');
+	t.true(pkg.listAtlases().flatMap((atlas) => atlas.listSprites()).length > 0);
+	t.is(pkg.getExtras().sprites, undefined);
 });
 
 test('binary: dependencies are attached as formal package relations', async (t) => {
@@ -77,18 +75,18 @@ test('binary: dependencies are attached as formal package relations', async (t) 
 	t.pass('dependencies are represented as formal package relations when present');
 });
 
-test('binary: components have raw binary data in extras', async (t) => {
+test('binary: components expose decoded properties without retaining raw byte slices', async (t) => {
 	const doc = await getDoc();
 	const pkg = getMainPackage(doc)!;
 	const components = pkg.listResources().filter((r) => r.propertyType === 'Component');
 	t.true(components.length > 0, 'package has component resources');
 
-	// Each component should have _rawBinary in extras
+	// Components retain formal properties, never original string-table-bound bytes.
 	const withRaw = components.filter((c) => {
 		const extras = (c as any).getExtras?.() as Record<string, unknown> | null;
 		return extras?._rawBinary != null;
 	});
-	t.is(withRaw.length, components.length, 'all components have _rawBinary in extras');
+	t.is(withRaw.length, 0, 'component writes always encode the current graph');
 });
 
 test('binary: component top-level formal properties decode from sample package', async (t) => {

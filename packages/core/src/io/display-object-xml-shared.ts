@@ -1,3 +1,4 @@
+import { ProjectIOError } from './errors.js';
 export { getXmlNode } from '../utils/xml-utils.js';
 import { getXmlNode } from '../utils/xml-utils.js';
 import type { GComponentPropertyOverride } from '../properties/g-component.js';
@@ -213,7 +214,7 @@ export function parsePropertyOverrides(source: XmlNode, protocol: XmlNodeProtoco
 					: Number.NaN;
 		const value = property ? readXmlAttr<string | number | boolean>(property, specs.value) : undefined;
 		if (!target || !Number.isSafeInteger(propertyId) || propertyId < 0 || value === undefined) {
-			throw new Error(`Invalid property override at ${childName}[${index}].`);
+			throw new ProjectIOError(`Invalid property override at ${childName}[${index}].`);
 		}
 		return { target, propertyId, value: String(value) };
 	});

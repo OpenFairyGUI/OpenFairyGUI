@@ -27,18 +27,26 @@ export interface OpenFairyGuiMcpToolPolicy {
 	): { ok: false } | undefined | Promise<{ ok: false } | undefined>;
 }
 
-function jsonResult(payload: unknown, isError = false, compact = false): CallToolResult {
-	const text = JSON.stringify(
-		payload,
-		(_key, value) => (value instanceof Uint8Array ? [...value] : value),
-		compact ? undefined : 2,
-	);
+function jsonResult(payload: unknown, isError = false, paths: string[][] = []): CallToolResult {
+	const envelope = { backendResult: structuredClone(payload) };
+	function encode(value: unknown, parts: string[]): void {
+		if (!value || typeof value !== 'object') return;
+		const [key, ...rest] = parts;
+		const record = value as Record<string, unknown>;
+		for (const name of key === '*' ? Object.keys(record) : [key]) {
+			if (!Object.hasOwn(record, name)) continue;
+			if (rest.length) encode(record[name], rest);
+			else if (record[name] instanceof Uint8Array) record[name] = Buffer.from(record[name]).toString('base64');
+		}
+	}
+	for (const path of paths) encode(envelope, path);
+	const text = JSON.stringify(envelope.backendResult);
 	const wirePayload = JSON.parse(text) as unknown;
 	return {
 		content: [
 			{
 				type: 'text',
-				text,
+				text: 'Result available in structuredContent.backendResult.',
 			},
 		],
 		structuredContent: {
@@ -99,7 +107,11 @@ export async function callOpenFairyGuiBackendTool(
 				runtime,
 				definition.backendMethod === 'getCapabilities' ? [] : [decoded],
 			));
-		let response = jsonResult(result, isBackendFailure(result), definition.maxResponseBytes !== undefined);
+		let response = jsonResult(
+			result,
+			isBackendFailure(result),
+			CONTRACT_SNAPSHOT.tools[definition.backendMethod].outputBytePaths,
+		);
 		if (
 			definition.maxResponseBytes !== undefined &&
 			new TextEncoder().encode(JSON.stringify(response)).byteLength > definition.maxResponseBytes
@@ -120,7 +132,10 @@ export async function callOpenFairyGuiBackendTool(
 		if (hostFailure === undefined) definition.outputSchema.parse(response.structuredContent);
 		else policy!.failureSchema.parse(response.structuredContent?.backendResult);
 		return response;
-	} catch {
-		return jsonResult(unhandledBackendFailure(startedAt), true);
+	} catch (error) {
+		const failure = unhandledBackendFailure(startedAt);
+		// Callers get a stable envelope without internals; the host keeps the cause on stderr, which stdio leaves free.
+		console.error(`[openfairygui-mcp] ${name} failed (requestId ${failure.meta.requestId}):`, error);
+		return jsonResult(failure, true);
 	}
 }

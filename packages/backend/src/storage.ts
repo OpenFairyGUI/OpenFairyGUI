@@ -1,5 +1,6 @@
 import type { FileSystem as CoreProjectFileSystem } from '@openfairygui/core/project-io';
 import type { BackendFileStat, BackendFileSystem, BackendSessionLock } from './runtime.js';
+import { normalizeComparablePath } from './path-policy.js';
 
 type StorageStatKind = 'file' | 'directory';
 
@@ -11,6 +12,8 @@ export interface BackendStorageStatLike {
 }
 
 export interface BackendAsyncStorageAdapter {
+	/** Whether canonical storage paths distinguish case. Defaults to true (including OPFS). */
+	caseSensitivePaths?: boolean;
 	readFile(filePath: string): Promise<string>;
 	readFileRaw(filePath: string): Promise<Uint8Array>;
 	writeFile(filePath: string, content: string): Promise<void>;
@@ -171,6 +174,7 @@ export function createBackendStorageFileSystem(storage: BackendAsyncStorageAdapt
 		);
 	}
 	const fileSystem: BackendStorageFileSystem = {
+		caseSensitivePaths: storage.caseSensitivePaths ?? true,
 		stat(filePath: string): Promise<BackendFileStat> {
 			return inferStat(storage, fileSystem.resolve(filePath));
 		},
@@ -206,7 +210,10 @@ export function createBackendStorageFileSystem(storage: BackendAsyncStorageAdapt
 			return storage.resolvePath ? storage.resolvePath(resolved) : Promise.resolve(resolved);
 		},
 		async acquireSessionLock(lockPath: string): Promise<BackendSessionLock> {
-			const resolved = fileSystem.resolve(lockPath);
+			const resolved = normalizeComparablePath(
+				await fileSystem.resolvePath(lockPath),
+				fileSystem.caseSensitivePaths,
+			);
 			if (storage.acquireSessionLock) return storage.acquireSessionLock(resolved);
 			const lockManager = getWebLockManager();
 			if (!lockManager) {

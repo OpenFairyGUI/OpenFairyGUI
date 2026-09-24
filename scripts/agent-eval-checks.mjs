@@ -206,6 +206,7 @@ export function expectedProject(before, taskId) {
 		[
 			'inspect-validate',
 			'rename-save',
+			'compound-edit',
 			'stale-revision-recovery',
 			'edit-display-node',
 			'edit-controller',
@@ -217,9 +218,9 @@ export function expectedProject(before, taskId) {
 	const project = structuredClone(before);
 	const component = project.packages[0].resources[0];
 	assert.equal(component.kind, 'component');
-	if (['rename-save', 'stale-revision-recovery'].includes(taskId)) component.name = 'RenamedView';
+	if (['rename-save', 'stale-revision-recovery', 'compound-edit'].includes(taskId)) component.name = 'RenamedView';
 	if (taskId === 'stale-revision-recovery') component.component.displayList[0].text = CONCURRENT_TEXT;
-	if (taskId === 'edit-display-node')
+	if (['edit-display-node', 'compound-edit'].includes(taskId))
 		Object.assign(
 			component.component.displayList.find((node) => node.id === 'title'),
 			{ text: 'Ready to edit', position: { x: 40, y: 56 } },
@@ -412,6 +413,20 @@ export function gradeEvaluation({
 				(call) => call.request.id === injection.requestId && call.result?.error?.code === 'stale_write',
 			);
 	}
+	if (taskId === 'compound-edit') {
+		const saves = backend.filter(
+			(call) =>
+				call.request.params?.name?.endsWith('_save_session') && call.result?.ok && !call.result.data.dirty,
+		);
+		checks.twoSavedRevisions =
+			saves.length >= 2 && saves.at(-1).result.data.revision > saves[0].result.data.revision;
+		checks.requeriedAfterSave = backend.some(
+			(call) =>
+				call.request.params?.name?.endsWith('_query_entity') &&
+				call.result?.ok &&
+				call.result.data.revision === saves[0]?.result.data.revision,
+		);
+	}
 	if (taskId === 'edit-controller' || taskId === 'edit-transition') {
 		const kind = taskId === 'edit-controller' ? 'controller' : 'transition';
 		checks.observedEntityQuery = backend.some(
@@ -484,4 +499,44 @@ export function codexArguments({ cwd, server, schema, output, instructions, mode
 	])
 		args.push('-c', config);
 	return [...args, '-'];
+}
+
+/** Claude Code's documented bare/restricted print mode, with only our explicit MCP host. */
+export function claudeArguments({ server, instructions, model, enabledTools, claudeSettings }) {
+	return [
+		'--bare',
+		'--restricted',
+		'--disable-slash-commands',
+		'--print',
+		'--verbose',
+		'--output-format',
+		'stream-json',
+		'--no-session-persistence',
+		'--tools',
+		'',
+		'--permission-mode',
+		'dontAsk',
+		'--strict-mcp-config',
+		'--mcp-config',
+		JSON.stringify({ mcpServers: { ofgui: { command: process.execPath, args: server } } }),
+		'--allowedTools',
+		enabledTools.map((name) => `mcp__ofgui__${name}`).join(','),
+		'--system-prompt-file',
+		instructions,
+		'--json-schema',
+		JSON.stringify(FINAL_SCHEMA),
+		...(claudeSettings ? ['--settings', claudeSettings] : []),
+		...(model ? ['--model', model] : []),
+	];
+}
+
+export function isolatedClaudeEvents(events, enabledTools) {
+	const allowed = new Set(enabledTools.map((name) => `mcp__ofgui__${name}`));
+	allowed.add('StructuredOutput');
+	allowed.add('EndConversation');
+	const init = events.find((event) => event.type === 'system' && event.subtype === 'init');
+	if (!init || !Array.isArray(init.tools) || init.tools.some((name) => !allowed.has(name))) return false;
+	return events.every((event) =>
+		(event.message?.content ?? []).every((block) => block.type !== 'tool_use' || allowed.has(block.name)),
+	);
 }

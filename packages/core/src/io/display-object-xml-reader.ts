@@ -1,3 +1,4 @@
+import { ProjectIOError } from './errors.js';
 import { createTextDisplayObject } from './display-object-xml-text.js';
 import { createListDisplayObject } from './display-object-xml-list.js';
 import { readDisplayBehaviors } from './display-object-xml-behaviors.js';
@@ -47,7 +48,7 @@ const DISPLAY_OBJECT_PROTOCOL_MAP: Record<string, XmlNodeProtocol> = {
 
 const DISPLAY_LIST_CONTAINER = PROJECT_XML_PROTOCOL.componentRoot.containers?.displayList;
 if (!DISPLAY_LIST_CONTAINER) {
-	throw new Error('PROJECT_XML_PROTOCOL.componentRoot must define containers.displayList');
+	throw new ProjectIOError('PROJECT_XML_PROTOCOL.componentRoot must define containers.displayList');
 }
 
 const DISPLAY_LIST_ALLOWED_VARIANTS = new Set(Object.keys(DISPLAY_LIST_CONTAINER.items));
@@ -68,11 +69,11 @@ function getDisplayListVariantName(tagName: string, attrs: DisplayObjectXmlNode)
 
 export function assertDisplayListTagAllowed(tagName: string, attrs: DisplayObjectXmlNode, componentName: string): void {
 	if (!DISPLAY_TAG_MAP[tagName]) {
-		throw new Error(`Unsupported displayList tag "${tagName}" in component "${componentName}"`);
+		throw new ProjectIOError(`Unsupported displayList tag "${tagName}" in component "${componentName}"`);
 	}
 	const variantName = getDisplayListVariantName(tagName, attrs);
 	if (!DISPLAY_LIST_ALLOWED_VARIANTS.has(variantName)) {
-		throw new Error(
+		throw new ProjectIOError(
 			`displayList variant "${variantName}" derived from tag "${tagName}" is not declared in protocol for component "${componentName}"`,
 		);
 	}
@@ -179,7 +180,7 @@ export function createDisplayObject(
 	attrs: DisplayObjectXmlNode,
 	localControllers: Map<string, Controller>,
 ): GObject | null {
-	const name = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.name) ?? '';
+	const name = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.name) ?? '';
 	let obj: GObject;
 
 	switch (tagName) {
@@ -479,7 +480,7 @@ export function createDisplayObject(
 	}
 
 	// Common GObject attributes
-	const objectId = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.id);
+	const objectId = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.id);
 	obj.setId(objectId || '');
 	const objectProtocol = DISPLAY_OBJECT_PROTOCOL_MAP[tagName];
 	readCommonDisplayState(attrs, obj as WritableCommonDisplayState, objectProtocol);

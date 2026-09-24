@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { git, isMain, readJson, ROOT } from './repo-utils.mjs';
+import { describeGitError, git, isMain, readJson, ROOT } from './repo-utils.mjs';
 
 export function inspectReferences(root) {
 	const manifest = readJson(path.join(root, 'references.json'));
@@ -144,7 +144,14 @@ export async function doctor(root) {
 	} catch (error) {
 		checks.push({ id: 'temp-directory', status: 'error', path: tmpdir(), message: error.message });
 	}
-	const references = inspectReferences(root);
+	let references;
+	try {
+		references = inspectReferences(root);
+	} catch (error) {
+		// Keep the environment report; a refused repository only blocks the fixture section.
+		references = { ok: false, submodules: [], error: describeGitError(error) };
+		checks.push({ id: 'git', status: 'error', message: references.error });
+	}
 	return {
 		ok: references.ok && !checks.some((check) => check.status === 'error'),
 		checks,
@@ -186,8 +193,9 @@ if (isMain(import.meta.url)) {
 		}
 		if ((!refsOnly || values.strict) && !report.ok) process.exitCode = 1;
 	} catch (error) {
-		if (json) console.log(JSON.stringify({ ok: false, error: error.message }));
-		else console.error(error.message);
+		const message = error?.stderr === undefined ? error.message : describeGitError(error);
+		if (json) console.log(JSON.stringify({ ok: false, error: message }));
+		else console.error(message);
 		process.exitCode = 1;
 	}
 }

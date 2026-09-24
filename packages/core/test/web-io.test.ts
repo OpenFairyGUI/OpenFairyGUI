@@ -57,8 +57,8 @@ class FakeDirectoryHandle {
 	async getFileHandle(name: string, options: { create?: boolean } = {}): Promise<FakeFileHandle> {
 		const entry = this.entriesMap.get(name);
 		if (entry instanceof FakeFileHandle) return entry;
-		if (entry) throw new Error(`Path is not a file: ${name}`);
-		if (!options.create) throw new Error(`File not found: ${name}`);
+		if (entry) throw new DOMException(`Path has another type: ${name}`, 'TypeMismatchError');
+		if (!options.create) throw new DOMException(`Not found: ${name}`, 'NotFoundError');
 		const file = new FakeFileHandle(name);
 		this.entriesMap.set(name, file);
 		return file;
@@ -67,8 +67,8 @@ class FakeDirectoryHandle {
 	async getDirectoryHandle(name: string, options: { create?: boolean } = {}): Promise<FakeDirectoryHandle> {
 		const entry = this.entriesMap.get(name);
 		if (entry instanceof FakeDirectoryHandle) return entry;
-		if (entry) throw new Error(`Path is not a directory: ${name}`);
-		if (!options.create) throw new Error(`Directory not found: ${name}`);
+		if (entry) throw new DOMException(`Path has another type: ${name}`, 'TypeMismatchError');
+		if (!options.create) throw new DOMException(`Not found: ${name}`, 'NotFoundError');
 		const dir = new FakeDirectoryHandle(name);
 		this.entriesMap.set(name, dir);
 		return dir;

@@ -26,6 +26,7 @@ export { generatedSource, contractTables, generatedFiles, checkGeneratedFiles } 
 export function generateContract(program = createContractProgram()) {
 	const checker = program.getTypeChecker();
 	const emitter = createSchemaEmitter(checker);
+	const outputEmitter = createSchemaEmitter(checker, ROOT, false, true);
 	const operation = exported(program, CORE, 'UamTransactionOperation').type;
 	assert(operation.isUnion(), 'Operations must remain a discriminated union');
 	const operations = {};
@@ -96,7 +97,7 @@ export function generateContract(program = createContractProgram()) {
 			metadata[index].maxResponseBytes === undefined ? [unhandled] : [unhandled, responseBudgetFailure];
 		const output = {
 			type: 'object',
-			properties: { backendResult: { anyOf: [emitter.schema(returnType), ...failures] } },
+			properties: { backendResult: { anyOf: [outputEmitter.schema(returnType), ...failures] } },
 			required: ['backendResult'],
 			additionalProperties: false,
 		};
@@ -105,13 +106,15 @@ export function generateContract(program = createContractProgram()) {
 			input,
 			output,
 			bytePaths: nativeBytePaths(input, emitter.definitions),
+			outputBytePaths: nativeBytePaths(output, { ...emitter.definitions, ...outputEmitter.definitions }),
 		};
 	}
+	Object.assign(emitter.definitions, outputEmitter.definitions);
 	// Reader-retained settings/extensions are valid output even when not named in a structural UAM type.
 	// Only this read model gets open object schemas; shared operation inputs and other outputs stay strict.
 	const modelType = exported(program, 'packages/backend/src/runtime/contracts.ts', 'BackendSessionProjectModel').type;
 	const readEmitter = createSchemaEmitter(checker, ROOT, true);
-	const modelReference = emitter.schema(modelType);
+	const modelReference = outputEmitter.schema(modelType);
 	const readReference = readEmitter.schema(modelType);
 	Object.assign(emitter.definitions, readEmitter.definitions);
 	emitter.definitions[modelReference.$ref.slice('#/$defs/'.length)] = readReference;
@@ -132,7 +135,7 @@ export function generateContract(program = createContractProgram()) {
 	for (const command of checker.getPropertiesOfType(cliContracts.type)) {
 		cli[command.name] = emitter.schema(checker.getTypeOfSymbolAtLocation(command, cliContracts.declaration));
 	}
-	const snapshot = { schemaVersion: 1, versions, operations, tools, cli, $defs: emitter.definitions };
+	const snapshot = { schemaVersion: 2, versions, operations, tools, cli, $defs: emitter.definitions };
 	const guides = exported(program, 'packages/backend/src/diagnostics.ts', 'BACKEND_DIAGNOSTIC_GUIDES');
 	snapshot.diagnostics = constantValue(checker, checker.getTypeOfSymbolAtLocation(guides.symbol, guides.declaration));
 	assert.equal(

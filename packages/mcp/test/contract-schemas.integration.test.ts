@@ -77,10 +77,10 @@ test('wire schemas use uniform items for fixed numeric tuples without weakening 
 	await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
 	try {
 		const { tools } = await client.listTools();
-		t.is(tools.length, 17);
+		t.is(tools.length, 18);
 		t.deepEqual(
 			tools.map((tool) => tool.name),
-			OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.map((tool) => tool.name),
+			[...OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.map((tool) => tool.name), 'openfairygui_docs_read'],
 		);
 		function checkItems(value: unknown): void {
 			if (!value || typeof value !== 'object') return;
@@ -89,7 +89,7 @@ test('wire schemas use uniform items for fixed numeric tuples without weakening 
 				assert(!Array.isArray(schema.items), 'Positional items make Codex skip the whole tool');
 			for (const child of Object.values(value)) checkItems(child);
 		}
-		for (const tool of tools) {
+		for (const tool of tools.filter((tool) => tool.name.startsWith('openfairygui_backend_'))) {
 			checkItems(tool.inputSchema);
 			for (const schema of [tool.inputSchema, tool.outputSchema!]) {
 				function checkRefs(value: unknown): void {

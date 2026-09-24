@@ -141,6 +141,7 @@ export type EncoderChildLike = ChildNode & {
 	getControllerOverrides?(): string;
 	getPropertyOverrides?(): GComponentPropertyOverride[];
 	getInstanceExtType?(): string;
+	getInstancePromptText?(): string;
 	getInstanceTitle?(): string;
 	getInstanceSelectedTitle?(): string;
 	getInstanceIcon?(): string;

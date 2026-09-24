@@ -170,6 +170,12 @@ export interface BackendFileStat {
 	isDirectory(): boolean;
 }
 
+/** A committed staged write. Cleanup problems after commit are reported here instead of failing the save. */
+export interface ProjectWriteTransactionResult {
+	/** Previous project copies the host could not remove; the committed project is unaffected. */
+	retainedBackupPaths?: string[];
+}
+
 /** A failed staged write with an explicit outcome for the original project. */
 export class ProjectWriteTransactionError extends Error {
 	public readonly code = 'project_write_transaction_failed';
@@ -206,15 +212,17 @@ export interface BackendFileSystem {
 	writeFileRaw(filePath: string, data: Uint8Array): Promise<void>;
 	mkdir(dirPath: string, options?: { recursive?: boolean }): Promise<void>;
 	resolvePath(filePath: string): Promise<string>;
-	/** Optional host validation before a project is read. Node rejects links anywhere in the project tree. */
+	/** Compare resolved paths case-sensitively. Omitted means case-insensitive comparison. */
+	caseSensitivePaths?: boolean;
+	/** Optional host validation before a project is read. Node rejects links in project-owned assets, settings and project files. */
 	validateProjectRoot?(projectRoot: string): Promise<void>;
-	/** Optional host-specific lock location. Node keeps it beside the project so directory swaps do not move it. */
+	/** Optional host-specific lock location. Node keeps it beside the project. */
 	getSessionLockPath?(canonicalProjectPath: string): string;
 	/** Stages project writes. On failure, throw ProjectWriteTransactionError to report rollback and recovery paths. */
 	runProjectWriteTransaction?(
 		projectRoot: string,
 		write: (stagedFileSystem: BackendFileSystem) => Promise<void>,
-	): Promise<void>;
+	): Promise<ProjectWriteTransactionResult>;
 	acquireSessionLock(lockPath: string): Promise<BackendSessionLock>;
 	unlink(filePath: string): Promise<void>;
 	rmdir(dirPath: string): Promise<void>;
@@ -324,12 +332,16 @@ export interface BackendCapabilities {
 	compatibilityPolicy: typeof BACKEND_COMPATIBILITY_POLICY;
 	runtime: {
 		sessionRuntime: true;
+		/** Open and opening sessions allowed at once; further opens fail with session_limit_exceeded. */
+		maxSessions: number;
+		/** Clean idle sessions are closed after this interval; zero disables expiry. Dirty sessions are retained. */
+		idleSessionTimeoutMs: number;
 		advisoryLocking: true;
 		coordinatedSave: true;
 		atomicSave: boolean;
 		staleRevisionProtection: true;
 		pathPolicy: {
-			canonicalization: 'realpath+normalized-casefold';
+			canonicalization: 'realpath+normalized' | 'realpath+normalized-casefold';
 			sessionIdentity: 'project-root';
 			saveTarget: 'opened-project-only';
 			outputTargets: 'deferred';
@@ -456,6 +468,12 @@ export interface AdvisoryLockConflictError {
 	canonicalPathKey: string;
 	holderSessionId?: string;
 	lockFilePath: string;
+}
+
+export interface SessionLimitExceededError {
+	code: 'session_limit_exceeded';
+	message: string;
+	maxSessions: number;
 }
 
 export interface SessionIdConflictError {
@@ -598,6 +616,7 @@ export type BackendError =
 	| SessionReadError
 	| SessionStaleReadError
 	| SessionIdConflictError
+	| SessionLimitExceededError
 	| SessionStaleWriteError
 	| InProcessLockConflictError
 	| AdvisoryLockConflictError
@@ -618,8 +637,20 @@ export interface ProjectRootNotAllowedError {
 	projectPath: string;
 }
 
+export type ProjectOpenFailureReason =
+	| 'project_not_found'
+	| 'not_a_project_file'
+	| 'no_project_file'
+	| 'multiple_project_files'
+	| 'symbolic_link_unsupported'
+	| 'access_denied'
+	| 'project_read_failed'
+	| 'unknown';
+
 export interface ProjectOpenFailedError {
 	code: 'project_open_failed';
+	/** Why the project could not be opened; `unknown` keeps unexpected exception details out of the result. */
+	reason: ProjectOpenFailureReason;
 	message: string;
 	projectPath: string;
 }
@@ -715,6 +746,10 @@ export interface MaterializeSessionInput {
 export interface BackendRuntimeOptions {
 	fileSystem?: BackendFileSystem;
 	host?: BackendHostAdapter;
-	/** Canonical filesystem roots available to file-backed sessions. Omit for unrestricted library use. */
+	/** Canonical filesystem roots available to file-backed sessions. Omit for unrestricted library use; an empty list allows no roots. */
 	allowedProjectRoots?: readonly string[];
+	/** Maximum open sessions, each holding its project in memory. Defaults to 32. */
+	maxSessions?: number;
+	/** Close clean idle sessions after this interval. Defaults to 30 minutes; zero disables expiry. */
+	idleSessionTimeoutMs?: number;
 }

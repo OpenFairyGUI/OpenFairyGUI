@@ -1,5 +1,7 @@
 import { NULL_STRING_INDEX, EMPTY_STRING_INDEX } from '../constants.js';
 
+const UTF8_DECODER = new TextDecoder('utf-8');
+
 /**
  * Big-endian binary buffer reader that mirrors the FairyGUI runtime `ByteBuffer`.
  *
@@ -105,7 +107,7 @@ export class ByteBuffer {
 		this.assertAvailable(len);
 		const bytes = new Uint8Array(this._view.buffer, this._view.byteOffset + this._pos, len);
 		this._pos += len;
-		return new TextDecoder('utf-8').decode(bytes);
+		return UTF8_DECODER.decode(bytes);
 	}
 
 	/**

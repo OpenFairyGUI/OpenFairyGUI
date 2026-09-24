@@ -39,44 +39,44 @@ export class GSlider extends GComponent<IGSlider, PropertyType.G_SLIDER> {
 	}
 
 	public getTitleType(): number {
-		return this.get('titleType' as any);
+		return this.get('titleType');
 	}
 	public setTitleType(v: number): this {
-		return this.set('titleType' as any, v);
+		return this.set('titleType', v);
 	}
 
 	public getMin(): number {
-		return this.get('min' as any);
+		return this.get('min');
 	}
 	public setMin(v: number): this {
-		return this.set('min' as any, v);
+		return this.set('min', v);
 	}
 
 	public getMax(): number {
-		return this.get('max' as any);
+		return this.get('max');
 	}
 	public setMax(v: number): this {
-		return this.set('max' as any, v);
+		return this.set('max', v);
 	}
 
 	public getValue(): number {
-		return this.get('value' as any);
+		return this.get('value');
 	}
 	public setValue(v: number): this {
-		return this.set('value' as any, v);
+		return this.set('value', v);
 	}
 
 	public getWholeNumbers(): boolean {
-		return this.get('wholeNumbers' as any);
+		return this.get('wholeNumbers');
 	}
 	public setWholeNumbers(v: boolean): this {
-		return this.set('wholeNumbers' as any, v);
+		return this.set('wholeNumbers', v);
 	}
 
 	public getSrc(): string {
-		return this.get('src' as any);
+		return this.get('src');
 	}
 	public setSrc(v: string): this {
-		return this.set('src' as any, v);
+		return this.set('src', v);
 	}
 }

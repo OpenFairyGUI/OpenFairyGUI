@@ -62,6 +62,12 @@ test('artifact CLI JSON covers help, syntax, failed workflows and atomic restore
 		t.is(report.result.files[0].path, path.join(output, 'Main.fui'));
 		t.is(report.result.files[0].size, (await fs.stat(path.join(output, 'Main.fui'))).size);
 		t.true(published.stderr.includes('plugin output'));
+		await fs.writeFile(path.join(plugin, 'index.cjs'), 'throw new Error("plugin must not execute");');
+		const disabled = cli(['publish', source, '-o', output, '--no-plugins', '--json']);
+		t.is(disabled.status, 0, disabled.stderr);
+		const unknown = cli(['publish', source, '-o', output, '--no-plugins', '--packages', 'Main,Typo', '--json']);
+		t.is(unknown.status, 1, unknown.stderr);
+		t.regex(JSON.parse(unknown.stdout).error.message, /Unknown package names/);
 		const restored = path.join(root, 'restored');
 		const success = cli(['restore', output, '-o', restored, '--json']);
 		t.is(success.status, 0, success.stderr);

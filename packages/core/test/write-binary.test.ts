@@ -28,7 +28,7 @@ test('binary encoding context is per-call and standalone writes preserve source 
 	variant.addChild(doc.createGComponent('instance').setId('n1').setSrc('variant'));
 	variant.addChild(doc.createGTextField('text').setId('n2').setText('[img]ui://ctxpkg01variant[/img]'));
 	const resource = doc.createMiscResource('data').setId('data').setFile('source.dat');
-	resource.setExtras({ _publishedFile: 'original.dat', sourceNote: 'retained' });
+	resource.setPublishedFile('original.dat').setExtras({ sourceNote: 'retained' });
 	pkg.addResource(main).addResource(variant).addResource(resource);
 	const io = new NodeIO();
 	const selectedPath = path.join(directory, 'selected.bytes');
@@ -72,9 +72,35 @@ test('binary encoding context is per-call and standalone writes preserve source 
 	);
 	t.deepEqual(standalone.listBranchNames(), ['mobile']);
 	t.is(readPackageItems(await fs.readFile(standalonePath)).find((item) => item.id === 'data')?.file, 'original.dat');
-	t.deepEqual(resource.getExtras(), { _publishedFile: 'original.dat', sourceNote: 'retained' });
+	t.deepEqual(resource.getExtras(), { sourceNote: 'retained' });
 	t.deepEqual(pkg.getExtras(), {});
 	t.deepEqual(variant.getExtras(), {});
+});
+
+test('missing optional sprite block does not interpret trailing bytes as sprite records', async (t) => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-missing-sprites-'));
+	t.teardown(() => fs.rm(directory, { recursive: true, force: true }));
+	const doc = new Document();
+	const pkg = doc.createPackage('Sparse').setId('sparse01');
+	pkg.addResource(doc.createComponent('Panel').setId('panel'));
+	const target = path.join(directory, 'Sparse.bytes');
+	const io = new NodeIO();
+	await io.writeBinary(doc, target);
+	const bytes = await fs.readFile(target);
+	const cursor = { pos: 9 };
+	readUtfString(bytes, cursor);
+	readUtfString(bytes, cursor);
+	const table = cursor.pos + 20;
+	t.is(bytes[table + 1], 0);
+	const spriteOffset = bytes.readInt32BE(table + 2 + 2 * 4);
+	bytes.writeUInt16BE(0xffff, table + spriteOffset);
+	bytes.writeInt32BE(0, table + 2 + 2 * 4);
+	await fs.writeFile(target, bytes);
+	const result = await io.readBinary(target);
+	t.is(result.getRoot().listPackages()[0]?.listComponents()[0]?.getName(), 'Panel');
+	bytes.writeUInt32BE(0, 0);
+	await fs.writeFile(target, bytes);
+	await t.throwsAsync(io.readBinary(target), { code: 'binary_format_error' });
 });
 
 test('truncated binary views reject identically regardless of bytes beyond the view', async (t) => {
@@ -828,18 +854,103 @@ test('binary round-trip: sprite atlas mapping is preserved', async (t) => {
 		const pkg1 = doc.getRoot().listPackages()[0];
 		const pkg2 = doc2.getRoot().listPackages()[0];
 
-		const sprites1 = (pkg1.getExtras() as any)?.sprites ?? [];
-		const sprites2 = (pkg2.getExtras() as any)?.sprites ?? [];
-		t.is(sprites2.length, sprites1.length, 'same sprite count after round-trip');
-
-		if (sprites1.length > 0) {
-			t.is(sprites2[0].itemId, sprites1[0].itemId, 'first sprite itemId matches');
-			t.is(sprites2[0].atlasId, sprites1[0].atlasId, 'first sprite atlasId matches');
-		}
+		const sprites1 = pkg1
+			.listAtlases()
+			.flatMap((atlas) =>
+				atlas
+					.listSprites()
+					.map((sprite) => [
+						atlas.getIndex(),
+						sprite.getItemId(),
+						sprite.getRectX(),
+						sprite.getRectY(),
+						sprite.getRectWidth(),
+						sprite.getRectHeight(),
+						sprite.getRotated(),
+					]),
+			);
+		const sprites2 = pkg2
+			.listAtlases()
+			.flatMap((atlas) =>
+				atlas
+					.listSprites()
+					.map((sprite) => [
+						atlas.getIndex(),
+						sprite.getItemId(),
+						sprite.getRectX(),
+						sprite.getRectY(),
+						sprite.getRectWidth(),
+						sprite.getRectHeight(),
+						sprite.getRotated(),
+					]),
+			);
+		t.deepEqual(sprites2, sprites1);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 });
+
+const TRANSITION_FUI = getFixturePath(
+	'FairyGUI-unity',
+	'Assets',
+	'Examples',
+	'Resources',
+	'UI',
+	'Transition_fui.bytes',
+);
+
+function componentChildSemantics(doc: Document): Record<string, unknown[]> {
+	const result: Record<string, unknown[]> = {};
+	for (const resource of doc.getRoot().listPackages()[0]!.listResources()) {
+		if (resource.propertyType !== PropertyType.COMPONENT) continue;
+		const component = resource as ReturnType<Document['createComponent']>;
+		result[component.getName()] = [
+			component.listChildren().map((child) => {
+				const typed = child as typeof child & {
+					getText?(): string;
+					getAdvanced?(): boolean;
+					getGroup?(): string;
+				};
+				return [
+					child.propertyType,
+					child.getId(),
+					child.getName(),
+					typed.getText?.(),
+					typed.getAdvanced?.(),
+					typed.getGroup?.(),
+				];
+			}),
+			component.listControllers().map((controller) => controller.getName()),
+		];
+	}
+	return result;
+}
+
+for (const [label, fixture] of [
+	['Basics', BASICS_FUI],
+	['Transition', TRANSITION_FUI],
+] as const) {
+	test(`binary round-trip: ${label} component children, groups and controllers keep their semantics`, async (t) => {
+		const io = new NodeIO();
+		const doc = await io.readBinary(fixture);
+		const before = componentChildSemantics(doc);
+		const groups = Object.values(before)
+			.flatMap(([children]) => children as unknown[][])
+			.filter((child) => child[0] === 'GGroup');
+		t.true(groups.length > 0, 'fixture contains published groups');
+		t.true(
+			groups.every((child) => child[4] === true),
+			'published groups decode as advanced groups',
+		);
+
+		const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-bw-'));
+		t.teardown(() => fs.rm(tmpDir, { recursive: true, force: true }));
+		const outPath = path.join(tmpDir, 'semantic_fui.bytes');
+		await io.writeBinary(doc, outPath);
+
+		t.deepEqual(componentChildSemantics(await io.readBinary(outPath)), before);
+	});
+}
 
 test('binary round-trip: compressed output works', async (t) => {
 	const io = new NodeIO();
@@ -1762,7 +1873,7 @@ test('binary writer: image and sound resource names keep dotted resource bases o
 			'binary sound restore appends the published sound suffix to the resource name',
 		);
 		t.is(
-			(roundTripSound.getExtras() as Record<string, unknown>)._publishedFile,
+			roundTripSound.getPublishedFile(),
 			'snd001.mp3',
 			'binary sound restore still tracks the published file name for source lookup',
 		);
@@ -2119,10 +2230,7 @@ test('binary writer: component top-level fields round-trip into formal propertie
 		t.is(decodedScroll?.getHzScrollBarRes(), 'ui://comppkg1/hbar');
 		t.is(decodedScroll?.getHeaderRes(), 'ui://comppkg1/header');
 		t.is(decodedScroll?.getFooterRes(), 'ui://comppkg1/footer');
-		t.truthy(
-			(decodedScroll?.getExtras() as Record<string, unknown> | undefined)?._rawBinary,
-			'_rawBinary is still retained for write-back',
-		);
+		t.falsy(decodedScroll?.getExtras()._rawBinary, 'raw component bytes are not retained');
 
 		const decodedButton = roundTripPkg?.getComponent('ButtonHost');
 		t.truthy(decodedButton, 'button component is decoded');
@@ -2132,10 +2240,7 @@ test('binary writer: component top-level fields round-trip into formal propertie
 		t.is(decodedButton?.getSoundVolumeScale(), 0.5);
 		t.is(decodedButton?.getDownEffect(), 1);
 		t.true(Math.abs((decodedButton?.getDownEffectValue() ?? 0) - 0.65) < 1e-6);
-		t.truthy(
-			(decodedButton?.getExtras() as Record<string, unknown> | undefined)?._rawBinary,
-			'_rawBinary is retained for extended components',
-		);
+		t.falsy(decodedButton?.getExtras()._rawBinary, 'raw component bytes are not retained');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

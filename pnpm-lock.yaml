@@ -73,19 +73,18 @@ importers:
       '@openfairygui/backend':
         specifier: workspace:*
         version: link:../backend
-      commander:
-        specifier: ^14.0.2
-        version: 14.0.3
-      jiti:
-        specifier: ^2.7.0
-        version: 2.7.0
-    devDependencies:
       '@openfairygui/core':
         specifier: workspace:*
         version: link:../core
       '@openfairygui/functions':
         specifier: workspace:*
         version: link:../functions
+      commander:
+        specifier: ^14.0.2
+        version: 14.0.3
+      jiti:
+        specifier: ^2.7.0
+        version: 2.7.0
     optionalDependencies:
       sharp:
         specifier: '>=0.33.0'

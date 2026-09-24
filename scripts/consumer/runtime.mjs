@@ -181,7 +181,7 @@ async function hostCompositionSmoke() {
 		await Promise.all([client.connect(ct), server.connect(st)]);
 		assert.equal(client.getInstructions(), 'Host writes require owner approval.');
 		const { tools } = await client.listTools();
-		assert.equal(tools.length, 18);
+		assert.equal(tools.length, 19);
 		assert(tools.some(({ name }) => name === 'host_probe'));
 		assert.equal((await client.callTool({ name: 'host_probe', arguments: {} })).content[0].text, 'ok');
 		assert((await client.readResource({ uri: 'openfairygui://docs/workflow' })).contents[0].text.length > 0);
@@ -210,7 +210,7 @@ async function hostCompositionSmoke() {
 			const pending = await call(method, input);
 			assert.equal(pending.isError, true);
 			assert.deepEqual(pending.structuredContent, { backendResult: failure });
-			assert.deepEqual(JSON.parse(pending.content[0].text), failure);
+			assert.deepEqual(pending.structuredContent.backendResult, failure);
 			assert(
 				z
 					.fromJSONSchema(tools.find(({ name }) => name.endsWith(`_${method}`)).outputSchema)
@@ -265,7 +265,7 @@ async function sessionReadSmoke() {
 			const name = OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.find((entry) => entry.backendMethod === method).name;
 			const result = await client.callTool({ name, arguments: input });
 			const backend = result.structuredContent.backendResult;
-			assert.deepEqual(JSON.parse(result.content[0].text), backend);
+			assert.equal(result.content[0].text, 'Result available in structuredContent.backendResult.');
 			assert.equal(Boolean(result.isError), !backend.ok);
 			return backend;
 		};
@@ -327,7 +327,10 @@ async function sessionReadSmoke() {
 			});
 			assert(bytes.ok, JSON.stringify(bytes));
 			assert.equal(bytes.data.revision, state.data.revision);
-			assert.deepEqual([...bytes.data.sourceBytes], [...replacement]);
+			assert.deepEqual(
+				runtime ? [...bytes.data.sourceBytes] : [...Buffer.from(bytes.data.sourceBytes, 'base64')],
+				[...replacement],
+			);
 			for (const method of ['readSessionState', 'readResourceBytes']) {
 				const stale = await call(method, {
 					sessionId,
@@ -814,12 +817,71 @@ export async function runtimeSmoke() {
 	for (const name of ['@openfairygui/test-utils', 'tsx', 'typescript'])
 		assert.throws(() => require.resolve(name), `Unexpected development dependency: ${name}`);
 	const expected = json(path.join(root, 'expected.json'));
+	// Check the installed artifacts, including both fresh-process load orders.
+	for (const format of ['esm', 'cjs']) {
+		for (const order of [
+			['@openfairygui/backend', '@openfairygui/backend/node'],
+			['@openfairygui/backend/node', '@openfairygui/backend'],
+		]) {
+			const result = spawnSync(
+				process.execPath,
+				[
+					'--trace-warnings',
+					'--input-type=module',
+					'-e',
+					`
+				import assert from 'node:assert/strict';
+				import { createRequire } from 'node:module';
+				const require = createRequire(import.meta.url);
+				const entries = {};
+				for (const name of ${JSON.stringify(order)}) {
+					entries[name] = ${format === 'esm' ? 'await import(name)' : 'require(name)'};
+					if (name === '@openfairygui/backend' && '${format}' === 'cjs' && !entries['@openfairygui/backend/node']) {
+						assert(!require.cache[require.resolve('@openfairygui/backend/node')], 'root loaded Node bridge');
+					}
+				}
+				const root = entries['@openfairygui/backend'];
+				const node = entries['@openfairygui/backend/node'];
+				assert.equal(root.BackendRuntime, node.BackendRuntime);
+				assert(node.createNodeBackendRuntime() instanceof root.BackendRuntime);
+			`,
+				],
+				{ cwd: root, encoding: 'utf8' },
+			);
+			assert.equal(result.status, 0, result.stderr);
+			assert.equal(result.stderr, '', `${format} entry loading must not emit circular-dependency warnings`);
+		}
+	}
+	const cliDirectory = path.join(root, 'node_modules/@openfairygui/cli');
+	const cliManifest = json(path.join(cliDirectory, 'package.json'));
+	const cliBundle = readFileSync(path.join(cliDirectory, 'dist/cli.mjs'), 'utf8');
+	for (const name of ['@openfairygui/core', '@openfairygui/functions']) {
+		assert(cliManifest.dependencies?.[name], `${name} must be a CLI runtime dependency`);
+		assert(cliBundle.includes(`from "${name}"`), `${name} must remain external in the CLI bundle`);
+		const fromCli = createRequire(path.join(cliDirectory, 'dist/cli.mjs'));
+		const fromBackend = createRequire(require.resolve('@openfairygui/backend'));
+		assert.equal(
+			realpathSync(fromCli.resolve(name)),
+			realpathSync(fromBackend.resolve(name)),
+			`${name} must resolve to the same installed copy`,
+		);
+	}
+	assert(Buffer.byteLength(cliBundle) < 100_000, 'CLI unexpectedly contains a private runtime bundle');
+	console.log('[consumer] CLI external dependencies and Backend ESM/CJS entry identity PASS');
 	let esmCount = 0;
 	let cjsCount = 0;
 	for (const source of expected) {
 		const directory = path.join(root, 'node_modules', source.name);
 		contained(root, directory);
 		const manifest = json(path.join(directory, 'package.json'));
+		assert(!existsSync(path.join(directory, 'src')), `${source.name} must not ship duplicate TypeScript sources`);
+		if (['@openfairygui/functions', '@openfairygui/cli'].includes(source.name)) {
+			assert.equal(
+				manifest.optionalDependencies?.sharp,
+				'>=0.33.0 <0.35.0',
+				'Optional sharp support must have a tested upper bound',
+			);
+		}
 		assert.equal(manifest.name, source.name);
 		assert.equal(manifest.version, source.version);
 		assert.deepEqual(manifest.exports, source.exports);
@@ -1196,7 +1258,7 @@ export async function runtimeSmoke() {
 	const mcp = await import('@openfairygui/mcp');
 	await mcpSmoke(
 		expected.find((entry) => entry.name === '@openfairygui/mcp').version,
-		mcp.OPENFAIRYGUI_BACKEND_TOOL_NAMES,
+		[...mcp.OPENFAIRYGUI_BACKEND_TOOL_NAMES, 'openfairygui_docs_read'],
 		mcp.getOpenFairyGuiOperationCatalog(),
 		mcp.getOpenFairyGuiOperationSchema('addComponent'),
 		expectedDocs,

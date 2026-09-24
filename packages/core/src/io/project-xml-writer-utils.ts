@@ -1,3 +1,4 @@
+import { ProjectIOError } from './errors.js';
 import type { GComponentPropertyOverride } from '../properties/g-component.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr, type XmlNodeProtocol } from './project-xml-protocol.js';
 
@@ -18,10 +19,10 @@ const INT32_MIN = -2_147_483_648;
 const INT32_MAX = 2_147_483_647;
 
 export function formatProjectInt32(value: number, field = 'project XML integer'): string {
-	if (!Number.isFinite(value)) throw new Error(`${field} must be finite.`);
+	if (!Number.isFinite(value)) throw new ProjectIOError(`${field} must be finite.`);
 	const normalized = Math.trunc(value);
 	if (normalized < INT32_MIN || normalized > INT32_MAX) {
-		throw new Error(`${field} must fit a signed 32-bit integer.`);
+		throw new ProjectIOError(`${field} must fit a signed 32-bit integer.`);
 	}
 	return Object.is(normalized, -0) ? '0' : String(normalized);
 }

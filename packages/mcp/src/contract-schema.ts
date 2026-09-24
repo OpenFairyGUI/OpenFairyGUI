@@ -16,32 +16,37 @@ export function contractObjectSchema(schema: ContractSchema): z.ZodObject {
 }
 
 /** Keep SDK discovery dynamic without expanding shared contract definitions. */
-export function compactToolSchema(schema: z.ZodObject, io: 'input' | 'output'): z.ZodObject {
+export function compactToolSchema(
+	getSchema: () => z.ZodObject,
+	io: 'input' | 'output',
+	withinBudget?: (value: unknown) => boolean,
+): z.ZodObject {
 	// Zod metadata supplies the wire schema; validation still delegates to the original schema.
 	// A separate object avoids Zod's cycle extraction overwriting the metadata's definitions.
+	// Metadata is read/enumerated by SDK discovery, not tool registration. Defer both
+	// contract compilation and JSON conversion until a tool is called or listed.
+	let metadata: Record<string, unknown> | undefined;
+	const getMetadata = () =>
+		(metadata ??= { ...z.toJSONSchema(getSchema(), { target: 'draft-07', io, reused: 'ref' }) });
+	const lazyMetadata = new Proxy(
+		{},
+		{
+			get: (_target, key) => Reflect.get(getMetadata(), key),
+			ownKeys: () => Reflect.ownKeys(getMetadata()),
+			getOwnPropertyDescriptor: (_target, key) => Object.getOwnPropertyDescriptor(getMetadata(), key),
+		},
+	);
 	return z
 		.looseObject({})
 		.superRefine((value, context) => {
-			const parsed = schema.safeParse(value);
+			if (withinBudget && !withinBudget(value)) {
+				context.addIssue({ code: 'custom', message: 'MCP input exceeds the payload budget.' });
+				return;
+			}
+			const parsed = getSchema().safeParse(value);
 			if (!parsed.success) for (const issue of parsed.error.issues) context.addIssue({ ...issue });
 		})
-		.meta(z.toJSONSchema(schema, { target: 'draft-07', io, reused: 'ref' }));
+		.meta(lazyMetadata);
 }
 
-/** Decode only generated Uint8Array locations; arbitrary JSON metadata is not rewritten. */
-export function decodeToolBytes(input: Record<string, unknown>, paths: string[][]): Record<string, unknown> {
-	if (!paths.length) return input;
-	const result = structuredClone(input);
-	function visit(value: unknown, parts: string[]): unknown {
-		if (!parts.length) return value === null ? value : Uint8Array.from(value as number[]);
-		if (!value || typeof value !== 'object') return value;
-		const [key, ...rest] = parts;
-		const record = value as Record<string, unknown>;
-		for (const name of key === '*' ? Object.keys(record) : [key]) {
-			if (Object.hasOwn(record, name)) record[name] = visit(record[name], rest);
-		}
-		return value;
-	}
-	for (const parts of paths) visit(result, parts);
-	return result;
-}
+export { decodeContractBytes as decodeToolBytes } from '@openfairygui/backend/docs';

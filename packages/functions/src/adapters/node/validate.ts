@@ -7,6 +7,7 @@ import {
 } from '@openfairygui/core';
 import { NodeIO } from '@openfairygui/core/node';
 import { validateProject } from '../../validate.js';
+import { MAX_IMAGE_PIXELS } from './image-limits.js';
 
 const importNative = new Function('id', 'return import(id)') as <T>(id: string) => Promise<T>;
 
@@ -65,7 +66,10 @@ export async function validateProjectNode(projectPath: string): Promise<ProjectV
 	);
 	if (images.length === 0) return base;
 
-	let sharp: (bytes: Uint8Array) => { raw(): { toBuffer(): Promise<unknown> } };
+	let sharp: (
+		bytes: Uint8Array,
+		options: { limitInputPixels: number },
+	) => { raw(): { toBuffer(): Promise<unknown> } };
 	try {
 		const loaded = await importNative<typeof import('sharp')>('sharp');
 		sharp = (loaded as unknown as { default?: typeof loaded }).default ?? loaded;
@@ -93,7 +97,7 @@ export async function validateProjectNode(projectPath: string): Promise<ProjectV
 	for (const { pkg, packageIndex, resource, resourceIndex } of images) {
 		if (resource.kind !== 'image') continue;
 		try {
-			await sharp(resource.sourceBytes!).raw().toBuffer();
+			await sharp(resource.sourceBytes!, { limitInputPixels: MAX_IMAGE_PIXELS }).raw().toBuffer();
 		} catch (error) {
 			diagnostics.push({
 				severity: 'error',

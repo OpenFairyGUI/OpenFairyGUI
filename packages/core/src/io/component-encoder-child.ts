@@ -1,3 +1,5 @@
+import { BinaryFormatError } from './errors.js';
+import { COMPONENT_EXTENSION_TYPE_CODES as extTypeCodeMap } from './component-extension-types.js';
 import { ObjectType } from '../constants.js';
 import type { Document } from '../document.js';
 import type { Component } from '../properties/component.js';
@@ -8,8 +10,6 @@ import type { ComboItemLike, EncoderChildLike, ListItemLike } from './component-
 import {
 	_boolVal,
 	_numVal,
-	_strVal,
-	getChildExtras,
 	getRuntimeChildIndexMap,
 	getRuntimeChildren,
 	remapLocalUiRefsInText,
@@ -30,13 +30,15 @@ function colorFilterValues(child: EncoderChildLike): number[] | null {
 	const filter = child.getFilter?.() ?? '';
 	if (filter === '') return null;
 	if (filter !== 'color') {
-		throw new Error(
+		throw new BinaryFormatError(
 			`Display node "${child.getId?.() ?? child.getName?.() ?? ''}" has unsupported filter "${filter}".`,
 		);
 	}
 	const values = (child.getFilterData?.() ?? '').split(',').map((part) => Number(part.trim()));
 	if (values.length !== 4 || values.some((value) => !Number.isFinite(value))) {
-		throw new Error(`Display node "${child.getId?.() ?? child.getName?.() ?? ''}" has invalid color filterData.`);
+		throw new BinaryFormatError(
+			`Display node "${child.getId?.() ?? child.getName?.() ?? ''}" has invalid color filterData.`,
+		);
 	}
 	return values;
 }
@@ -55,12 +57,12 @@ const OBJECT_TYPE_MAP: Record<string, number> = {
 	GTextInput: 8,
 	GComponent: 9,
 	GList: 10,
-	GLabel: 11,
-	GButton: 12,
-	GComboBox: 13,
-	GProgressBar: 14,
-	GSlider: 15,
-	GScrollBar: 16,
+	GLabel: extTypeCodeMap.Label!,
+	GButton: extTypeCodeMap.Button!,
+	GComboBox: extTypeCodeMap.ComboBox!,
+	GProgressBar: extTypeCodeMap.ProgressBar!,
+	GSlider: extTypeCodeMap.Slider!,
+	GScrollBar: extTypeCodeMap.ScrollBar!,
 	GTree: 17,
 	GLoader3D: 18,
 };
@@ -178,7 +180,7 @@ export function _writeDisplayList(
 		const blendMode = child.getBlendMode?.() ?? 'normal';
 		const blendModeCode = BLEND_MODE_CODE[blendMode];
 		if (blendModeCode === undefined) {
-			throw new Error(
+			throw new BinaryFormatError(
 				`Display node "${child.getId?.() ?? child.getName?.() ?? ''}" has unsupported blend mode "${blendMode}".`,
 			);
 		}
@@ -591,67 +593,10 @@ function _writeChildAfterAdd(
 			);
 			break;
 
-		case 'GButton': {
-			// GButton.setup_afterAdd: block 6
-			buf.writeUint8(12); // EXT_BUTTON
-			buf.writeSEx(child.getTitle?.() ?? null, true); // noCache
-			buf.writeSEx(child.getSelectedTitle?.() ?? null, true); // noCache
-			buf.writeS(remapLocalUiUrl(context, child.getIcon?.() ?? null));
-			buf.writeS(remapLocalUiUrl(context, child.getSelectedIcon?.() ?? null));
-			// titleColor
-			const titleColor = child.getTitleColor?.() ?? null;
-			const hasTitleColor = titleColor && titleColor !== '#000000';
-			buf.writeBool(!!hasTitleColor);
-			if (hasTitleColor) buf.writeColor(titleColor, true);
-			// titleFontSize
-			buf.writeInt32(child.getTitleFontSize?.() ?? 0);
-			// relatedController — resolve name to index
-			const btnExtras = getChildExtras(child);
-			const relCtrlName = btnExtras?.controller ?? null;
-			if (relCtrlName) {
-				const controllers = comp.listControllers();
-				const ctrlIdx = controllers.findIndex((c) => c.getName() === relCtrlName);
-				buf.writeInt16(ctrlIdx >= 0 ? ctrlIdx : -1);
-			} else {
-				buf.writeInt16(-1);
-			}
-			// relatedPageId
-			buf.writeS(btnExtras?.page ?? null);
-			// sound override
-			buf.writeSEx(remapLocalUiUrl(context, _strVal(btnExtras?.sound)) ?? null, false, false);
-			// soundVolume override
-			const btnVolume = btnExtras?.volume;
-			if (btnVolume !== undefined && btnVolume !== null) {
-				buf.writeBool(true);
-				buf.writeFloat32(_numVal(btnVolume, 0) / 100);
-			} else {
-				buf.writeBool(false);
-			}
-			// selected
-			buf.writeBool(child.getSelected?.() ?? _boolVal(btnExtras?.checked, false));
+		case 'GButton':
+		case 'GLabel':
+			_writeExtensionInstanceData(buf, type === 'GButton' ? 'Button' : 'Label', child, comp, context, version);
 			break;
-		}
-
-		case 'GLabel': {
-			// GLabel.setup_afterAdd: block 6
-			buf.writeUint8(11); // EXT_LABEL
-			buf.writeSEx(child.getTitle?.() ?? null, true); // noCache
-			buf.writeS(remapLocalUiUrl(context, child.getIcon?.() ?? null));
-			// titleColor
-			const labelTitleColor = child.getTitleColor?.() ?? null;
-			const hasLabelColor = labelTitleColor && labelTitleColor !== '#000000';
-			buf.writeBool(!!hasLabelColor);
-			if (hasLabelColor) buf.writeColor(labelTitleColor, true);
-			// titleFontSize
-			buf.writeInt32(child.getTitleFontSize?.() ?? 0);
-			// input settings flag
-			buf.writeBool(false);
-			if (version >= 5) {
-				buf.writeS(remapLocalUiUrl(context, child.getSound?.() ?? null));
-				buf.writeFloat32(child.getSoundVolumeScale?.() ?? 1);
-			}
-			break;
-		}
 
 		case 'GComboBox': {
 			// GComboBox.setup_afterAdd: block 6
@@ -735,15 +680,6 @@ function _writeChildAfterAdd(
 
 // ─── Extension instance data ─────────────────────────────────────────────
 
-const extTypeCodeMap: Record<string, number> = {
-	Label: 11,
-	Button: 12,
-	ComboBox: 13,
-	ProgressBar: 14,
-	Slider: 15,
-	ScrollBar: 16,
-};
-
 function _writeExtensionInstanceData(
 	buf: WriteBuffer,
 	extType: string,
@@ -790,7 +726,15 @@ function _writeExtensionInstanceData(
 			buf.writeBool(!!labelTitleColor);
 			if (labelTitleColor) buf.writeColor(labelTitleColor, true);
 			buf.writeInt32(child.getInstanceTitleFontSize?.() ?? 0);
-			buf.writeBool(false); // no input settings
+			const prompt = child.getInstancePromptText?.() ?? '';
+			buf.writeBool(prompt !== '');
+			if (prompt !== '') {
+				buf.writeSEx(prompt, true);
+				buf.writeS(null); // no restrict override
+				buf.writeInt32(0); // no maxLength override
+				buf.writeInt32(0); // no keyboardType override
+				buf.writeBool(false); // no password override
+			}
 			if (version >= 5) {
 				buf.writeS(remapLocalUiUrl(context, child.getInstanceSound?.() ?? null));
 				buf.writeFloat32(child.getInstanceSoundVolumeScale?.() ?? 1);

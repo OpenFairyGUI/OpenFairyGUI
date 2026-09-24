@@ -48,93 +48,93 @@ export class GComboBox extends GComponent<IGComboBox, PropertyType.G_COMBO_BOX> 
 	}
 
 	public getTitle(): string {
-		return this.get('title' as any);
+		return this.get('title');
 	}
 	public setTitle(v: string): this {
-		return this.set('title' as any, v);
+		return this.set('title', v);
 	}
 
 	public getIcon(): string {
-		return this.get('icon' as any);
+		return this.get('icon');
 	}
 	public setIcon(v: string): this {
-		return this.set('icon' as any, v);
+		return this.set('icon', v);
 	}
 
 	public getTitleColor(): string {
-		return this.get('titleColor' as any);
+		return this.get('titleColor');
 	}
 	public setTitleColor(v: string): this {
-		return this.set('titleColor' as any, v);
+		return this.set('titleColor', v);
 	}
 
 	public getTitleFontSize(): number {
-		return this.get('titleFontSize' as any);
+		return this.get('titleFontSize');
 	}
 	public setTitleFontSize(v: number): this {
-		return this.set('titleFontSize' as any, v);
+		return this.set('titleFontSize', v);
 	}
 
 	public getItems(): string[] {
-		return this.get('items' as any);
+		return this.get('items');
 	}
 	public setItems(v: string[]): this {
-		return this.set('items' as any, v);
+		return this.set('items', v);
 	}
 
 	public getIcons(): string[] {
-		return this.get('icons' as any);
+		return this.get('icons');
 	}
 	public setIcons(v: string[]): this {
-		return this.set('icons' as any, v);
+		return this.set('icons', v);
 	}
 
 	public getValues(): string[] {
-		return this.get('values' as any);
+		return this.get('values');
 	}
 	public setValues(v: string[]): this {
-		return this.set('values' as any, v);
+		return this.set('values', v);
 	}
 
 	public getVisibleItemCount(): number {
-		return this.get('visibleItemCount' as any);
+		return this.get('visibleItemCount');
 	}
 	public setVisibleItemCount(v: number): this {
-		return this.set('visibleItemCount' as any, v);
+		return this.set('visibleItemCount', v);
 	}
 
 	public getPopupDirection(): number {
-		return this.get('popupDirection' as any);
+		return this.get('popupDirection');
 	}
 	public setPopupDirection(v: number): this {
-		return this.set('popupDirection' as any, v);
+		return this.set('popupDirection', v);
 	}
 
 	public getSound(): string {
-		return this.get('sound' as any);
+		return this.get('sound');
 	}
 	public setSound(v: string): this {
-		return this.set('sound' as any, v);
+		return this.set('sound', v);
 	}
 
 	public getSoundVolumeScale(): number {
-		return this.get('soundVolumeScale' as any);
+		return this.get('soundVolumeScale');
 	}
 	public setSoundVolumeScale(v: number): this {
-		return this.set('soundVolumeScale' as any, v);
+		return this.set('soundVolumeScale', v);
 	}
 
 	public getSelectedIndex(): number {
-		return this.get('selectedIndex' as any);
+		return this.get('selectedIndex');
 	}
 	public setSelectedIndex(v: number): this {
-		return this.set('selectedIndex' as any, v);
+		return this.set('selectedIndex', v);
 	}
 
 	public getSrc(): string {
-		return this.get('src' as any);
+		return this.get('src');
 	}
 	public setSrc(v: string): this {
-		return this.set('src' as any, v);
+		return this.set('src', v);
 	}
 }

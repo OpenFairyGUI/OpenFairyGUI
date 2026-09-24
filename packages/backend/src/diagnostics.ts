@@ -163,6 +163,15 @@ export const BACKEND_DIAGNOSTIC_GUIDES = [
 		},
 	},
 	{
+		code: 'session_limit_exceeded',
+		owners: ['backend'],
+		remediation: {
+			kind: 'host-action',
+			message:
+				'Close sessions you opened and no longer need with closeSession, then retry. Do not close sessions owned by another task or host; ask the host to raise maxSessions if more concurrent projects are required.',
+		},
+	},
+	{
 		code: 'session_id_conflict',
 		owners: ['backend'],
 		remediation: {
@@ -214,6 +223,15 @@ export const BACKEND_DIAGNOSTIC_GUIDES = [
 	{ code: 'invalid_look_gear_payload', owners: ['core.transaction'], remediation: payload },
 	{ code: 'invalid_gear_payload', owners: ['core.transaction'], remediation: payload },
 	{ code: 'invalid_resource_payload', owners: ['core.transaction'], remediation: payload },
+	{
+		code: 'projection_failed',
+		owners: ['core.transaction'],
+		remediation: {
+			kind: 'host-action',
+			message:
+				'Transaction projection failed. Inspect the project and operation batch; no successful support decision is available and no change has been applied.',
+		},
+	},
 	{ code: 'invalid_resource_bytes', owners: ['core.transaction'], remediation: payload },
 	{ code: 'invalid_movie_clip_jta', owners: ['core.transaction'], remediation: payload },
 	{ code: 'invalid_resource_index', owners: ['core.transaction'], remediation: payload },

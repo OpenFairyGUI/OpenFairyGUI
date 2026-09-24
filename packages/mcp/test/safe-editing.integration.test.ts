@@ -56,13 +56,15 @@ test('MCP round-trips a real image above the generic array budget through read, 
 			arguments: { sessionId, expectedRevision: 0, selector },
 		});
 		t.false(read.isError);
-		const wireBytes = (read.structuredContent as { backendResult: { data: { sourceBytes: number[] } } })
-			.backendResult.data.sourceBytes;
-		t.deepEqual(wireBytes, [...sourceBytes]);
+		const wireBytes = (read.structuredContent as { backendResult: { data: { sourceBytes: string } } }).backendResult
+			.data.sourceBytes;
+		t.is(wireBytes, Buffer.from(sourceBytes).toString('base64'));
 		const input = {
 			sessionId,
 			expectedRevision: 0,
-			operations: [{ kind: 'replaceResourceBytes', selector, sourceBytes: wireBytes }],
+			operations: [
+				{ kind: 'replaceResourceBytes', selector, sourceBytes: [...Buffer.from(wireBytes, 'base64')] },
+			],
 		};
 		for (const method of ['preflight_transaction', 'apply_transaction']) {
 			const result = await client.callTool({ name: `openfairygui_backend_${method}`, arguments: input });
@@ -170,7 +172,7 @@ test('MCP session reads expose current unsaved state and primary bytes at one re
 		t.false(definition.outputSchema.safeParse({ backendResult: invalid }).success);
 		const text = (result.content as Array<{ type: string; text: string }>)[0];
 		assert(text.type === 'text');
-		t.deepEqual(JSON.parse(text.text), backend);
+		t.is(text.text, 'Result available in structuredContent.backendResult.');
 		const selector = { packageId: 'pkg001', resourceId: 'img001' };
 		const bytes = await client.callTool({
 			name: 'openfairygui_backend_read_resource_bytes',
@@ -181,7 +183,7 @@ test('MCP session reads expose current unsaved state and primary bytes at one re
 		assert(source.ok);
 		t.deepEqual((bytes.structuredContent as { backendResult: { data: unknown } }).backendResult.data, {
 			...source.data,
-			sourceBytes: [...source.data.sourceBytes],
+			sourceBytes: Buffer.from(source.data.sourceBytes).toString('base64'),
 		});
 		for (const method of ['read_session_state', 'read_resource_bytes']) {
 			const stale = await client.callTool({
@@ -226,7 +228,7 @@ test('MCP bounds the full session-read response independently of Backend limits'
 		const native = runtime.readSessionState({ sessionId });
 		assert(native.ok);
 		// Simulate a Backend adapter exceeding the transport budget, including both response representations.
-		native.data.project.settings.customProperties = { content: 'x'.repeat(9 * 1024 * 1024) };
+		native.data.project.settings.customProperties = { content: 'x'.repeat(17 * 1024 * 1024) };
 		runtime.readSessionState = () => native;
 		const result = await callOpenFairyGuiBackendTool(runtime, 'openfairygui_backend_read_session_state', {
 			sessionId,

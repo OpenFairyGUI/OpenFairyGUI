@@ -6,6 +6,8 @@ import {
 	assertArtifactTool,
 	BLOCKERS,
 	codexArguments,
+	claudeArguments,
+	isolatedClaudeEvents,
 	CONCURRENT_TEXT,
 	EVAL_METHODS,
 	expectedProject,
@@ -31,6 +33,34 @@ const before = {
 		},
 	],
 };
+
+test('Claude runner permits only explicit MCP tools and rejects extra capabilities', () => {
+	assert.throws(() => evaluationOptions({ runner: 'claude' }), /Supply --claude/);
+	assert.throws(() => evaluationOptions({ runner: 'claude', claude: 'claude.cmd' }), /shell interpolation/);
+	assert.throws(() => evaluationOptions({ runner: 'reference', 'claude-settings': 'auth.json' }), /requires/);
+	assert.throws(
+		() => evaluationOptions({ runner: 'claude', claude: 'claude', 'claude-settings': '__missing_settings__.json' }),
+		/existing settings file/,
+	);
+	const args = claudeArguments({ server: ['host.mjs'], instructions: 'instructions.txt', enabledTools: ['test'] });
+	assert(args.includes('--bare') && args.includes('--restricted') && args.includes('--strict-mcp-config'));
+	assert.equal(args[args.indexOf('--tools') + 1], '');
+	const explicit = claudeArguments({
+		server: ['host.mjs'],
+		instructions: 'instructions.txt',
+		enabledTools: ['test'],
+		claudeSettings: 'C:/auth settings.json',
+	});
+	assert.equal(explicit[explicit.indexOf('--settings') + 1], 'C:/auth settings.json');
+	assert(explicit.includes('--bare') && explicit.includes('--restricted'));
+	const events = [{ type: 'system', subtype: 'init', tools: ['mcp__ofgui__test', 'StructuredOutput'] }];
+	assert(isolatedClaudeEvents(events, ['test']));
+	assert(!isolatedClaudeEvents([], ['test']));
+	assert(!isolatedClaudeEvents([{ ...events[0], tools: ['Bash'] }], ['test']));
+	assert(
+		!isolatedClaudeEvents([...events, { message: { content: [{ type: 'tool_use', name: 'Read' }] } }], ['test']),
+	);
+});
 function call(id, method, args, result) {
 	return [
 		{
@@ -364,7 +394,7 @@ test('manual model execution is explicit, bounded, tool-only and shell-free', ()
 	assert.throws(() => evaluationOptions({ runner: 'codex', codex: 'codex.cmd' }), /shell interpolation/);
 	assert.throws(() => evaluationOptions({ runner: 'reference', case: '../escape' }), /Unknown --case/);
 	assert.throws(() => evaluationOptions({ runner: 'reference', 'timeout-seconds': '0' }), /integer/);
-	assert.equal(evaluationOptions({ runner: 'reference' }).tasks.length, 10);
+	assert.equal(evaluationOptions({ runner: 'reference' }).tasks.length, 11);
 	const args = codexArguments({
 		cwd: '/isolated/agent',
 		server: ['/isolated/host.mjs', '--serve', '/isolated/task.json'],

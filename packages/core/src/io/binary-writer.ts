@@ -1,3 +1,5 @@
+import { BinaryFormatError } from './errors.js';
+import { COMPONENT_EXTENSION_TYPE_CODES as extTypeMap } from './component-extension-types.js';
 import { deflateRaw } from 'pako';
 import type { Document } from '../document.js';
 import type { Atlas } from '../properties/atlas.js';
@@ -50,12 +52,6 @@ interface BinaryDependency {
 	name: string;
 }
 
-interface RawBinarySlice {
-	buffer: ArrayBufferLike;
-	byteOffset: number;
-	byteLength: number;
-}
-
 interface BinarySpriteEntry {
 	itemId: string;
 	atlasId: string;
@@ -68,10 +64,6 @@ interface BinarySpriteEntry {
 	offsetY?: number;
 	originalWidth?: number;
 	originalHeight?: number;
-}
-
-interface PackageBinaryExtras extends Record<string, unknown> {
-	sprites?: BinarySpriteEntry[];
 }
 
 interface MovieClipFrameData {
@@ -110,19 +102,6 @@ interface FntData {
 	xadvance: number;
 	lineHeight: number;
 	glyphs: FntGlyphData[];
-}
-
-interface ComponentBinaryExtras extends Record<string, unknown> {
-	_rawBinary?: RawBinarySlice;
-	extensionType?: string;
-}
-
-interface PublishFileExtras extends Record<string, unknown> {
-	_publishedFile?: string;
-}
-
-interface ComponentWithExtensionType {
-	getExtensionType?(): string;
 }
 
 interface BinaryAtlasItem {
@@ -224,11 +203,11 @@ export class BinaryWriter {
 
 	async write(doc: Document, filePath: string, options: BinaryWriterOptions = {}): Promise<void> {
 		const packages = doc.getRoot().listPackages();
-		if (packages.length === 0) throw new Error('Document has no packages to write.');
+		if (packages.length === 0) throw new BinaryFormatError('Document has no packages to write.');
 
 		const idx = options.packageIndex ?? 0;
 		const pkg = packages[idx];
-		if (!pkg) throw new Error(`Package index ${idx} out of range (${packages.length} packages).`);
+		if (!pkg) throw new BinaryFormatError(`Package index ${idx} out of range (${packages.length} packages).`);
 		const data = this._serializePackage(doc, pkg, options);
 		await this._fs.writeFileRaw(filePath, data);
 	}
@@ -243,7 +222,6 @@ export class BinaryWriter {
 		const data = new WriteBuffer(65536);
 
 		// Pre-register all strings we'll need
-		const extras = pkg.getExtras() as PackageBinaryExtras;
 		const context = options.packageContext;
 		const publishedResourceIds = context?.publishedResourceIds;
 		const includeBranches = context?.includeBranches ?? true;
@@ -274,7 +252,7 @@ export class BinaryWriter {
 			resources.map((resource) => [resource.getId(), getPublishedItemId(resource, context)]),
 		);
 
-		// Collect sprites from Atlas/Sprite property nodes OR extras.sprites (BinaryReader round-trip)
+		// Collect sprites from formal Atlas/Sprite nodes.
 		const sprites: BinarySpriteEntry[] = [];
 
 		const atlases = pkg.listAtlases();
@@ -298,9 +276,6 @@ export class BinaryWriter {
 					});
 				}
 			}
-		} else if (extras.sprites) {
-			// From extras.sprites (BinaryReader round-trip)
-			sprites.push(...extras.sprites);
 		}
 
 		const pixelHitTests = resources
@@ -465,26 +440,9 @@ export class BinaryWriter {
 					data.writeInt32(res.getWidth());
 					data.writeInt32(res.getHeight());
 					// Extension type: 0=None, 11=Label, 12=Button, 13=ComboBox, 14=ProgressBar, 15=Slider, 16=ScrollBar
-					const extTypeMap: Record<string, number> = {
-						Label: 11,
-						Button: 12,
-						ComboBox: 13,
-						ProgressBar: 14,
-						Slider: 15,
-						ScrollBar: 16,
-					};
-					const compExtras = res.getExtras() as ComponentBinaryExtras;
-					const extType =
-						(res as ComponentWithExtensionType).getExtensionType?.() ?? compExtras.extensionType;
-					data.writeUint8(extType ? (extTypeMap[extType] ?? 0) : 0);
-					if (compExtras?._rawBinary && !res._isBinaryDirty()) {
-						// From BinaryReader round-trip: use stored raw binary
-						data.writeBuffer(toUint8Array(compExtras._rawBinary));
-					} else {
-						// From ProjectReader: encode property graph to binary
-						const encoded = encodeComponent(res, doc, pkg, version, data, context?.effectiveResourceIds);
-						data.writeBuffer(encoded);
-					}
+
+					data.writeUint8(extTypeMap[res.getExtensionType()] ?? 0);
+					data.writeBuffer(encodeComponent(res, doc, pkg, version, data, context?.effectiveResourceIds));
 					break;
 				}
 				case 'FontResource': {
@@ -875,12 +833,11 @@ function getPublishedFileName(
 	resource: {
 		getId(): string;
 		getFile(): string;
-		getExtras?(): Record<string, unknown> | undefined;
+		getPublishedFile?(): string;
 	},
 	context?: BinaryPackageEncodingContext,
 ): string {
-	const extras = (resource.getExtras?.() as PublishFileExtras | undefined) ?? {};
-	return context?.publishedFiles.get(resource.getId()) ?? extras._publishedFile ?? resource.getFile();
+	return context?.publishedFiles.get(resource.getId()) ?? (resource.getPublishedFile?.() || resource.getFile());
 }
 
 function getPublishedItemId(item: { getId(): string }, context?: BinaryPackageEncodingContext): string {
@@ -899,7 +856,7 @@ function getPackageBranchNames(doc: Document, resources: PackageResource[]): str
 	const rootBranchNames = doc.getRoot().listBranches();
 	const unknownBranchName = [...packageBranchNames].find((branchName) => !rootBranchNames.includes(branchName));
 	if (unknownBranchName) {
-		throw new Error(`Package resource references unknown branch "${unknownBranchName}".`);
+		throw new BinaryFormatError(`Package resource references unknown branch "${unknownBranchName}".`);
 	}
 	return rootBranchNames.filter((branchName) => packageBranchNames.has(branchName));
 }
@@ -986,10 +943,6 @@ function getItemHighResolutionItemIds(
 
 function getAtlasId(atlas: Atlas): string {
 	return `atlas${atlas.getIndex()}`;
-}
-
-function toUint8Array(raw: RawBinarySlice): Uint8Array {
-	return new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength);
 }
 
 function getOptionalNumber(value: SizeLike, key: 'getWidth' | 'getHeight'): number {

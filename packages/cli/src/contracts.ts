@@ -35,7 +35,18 @@ export interface DoctorReport extends ReturnType<typeof getInstalledDocumentatio
 }
 
 /** CLI owns transport shapes; workflow reports remain owned by their packages. */
+export interface TransactionReport {
+	open: Awaited<ReturnType<BackendRuntime['openSession']>>;
+	preflight: Awaited<ReturnType<BackendRuntime['preflightTransaction']>> | null;
+	apply: Awaited<ReturnType<BackendRuntime['applyTransaction']>> | null;
+	validation: Awaited<ReturnType<BackendRuntime['validateSession']>> | null;
+	save: Awaited<ReturnType<BackendRuntime['saveSession']>> | null;
+	close: Awaited<ReturnType<BackendRuntime['closeSession']>> | null;
+}
 export interface CliCommandResults {
+	tx: never;
+	'tx preflight': TransactionReport;
+	'tx apply': TransactionReport;
 	ofgui: never;
 	docs: never;
 	inspect: InspectReport;

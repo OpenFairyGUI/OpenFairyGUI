@@ -1,3 +1,4 @@
+import { BinaryReader } from '@openfairygui/core/project-io';
 import {
 	assertDocumentPaths,
 	assertSafeRestoreSegment,
@@ -9,7 +10,6 @@ import {
 import { synthesizeLooseSkeletonResources, initializeRestoredResourceRelations } from './restore-internals/skeleton.js';
 import { restoreAssets } from './restore-internals/asset-output.js';
 import {
-	BinaryReader,
 	type Document,
 	type FileSystem,
 	generateId,

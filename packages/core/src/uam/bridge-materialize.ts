@@ -794,6 +794,9 @@ export function materializeDisplayNodeProperties(target: GObject, node: UamDispl
 	if (node.kind === 'button') {
 		const buttonNode = node as UamButtonNode;
 		const button = materializeTitleControlBase(target as ReturnType<Document['createGButton']>, buttonNode)
+			.setController(buttonNode.controller ?? '')
+			.setPage(buttonNode.page ?? '')
+			.setChecked(buttonNode.checked ?? false)
 			.setSelectedTitle(buttonNode.selectedTitle)
 			.setSelectedIcon(buttonNode.selectedIcon)
 			.setMode(buttonNode.mode)
@@ -803,6 +806,7 @@ export function materializeDisplayNodeProperties(target: GObject, node: UamDispl
 	}
 
 	if (node.kind === 'label') {
+		(target as ReturnType<Document['createGLabel']>).setInstancePromptText(node.promptText ?? '');
 		const labelNode = node as UamLabelNode;
 		return materializeTitleControlBase(target as ReturnType<Document['createGLabel']>, labelNode);
 	}
@@ -1180,7 +1184,7 @@ export function materializeUamProject(project: UamProject, options: { validate?:
 			.setJpegQuality(pkgSpec.jpegQuality)
 			.setBranchNames(pkgSpec.branchNames)
 			.setResourceFolders(pkgSpec.folders);
-		pkg.setExtras({ ...pkg.getExtras(), _preservePackageResourceOrder: true });
+		pkg.setPreserveResourceOrder(true);
 		if (pkgSpec.publish) {
 			pkg.setPublishName(pkgSpec.publish.name)
 				.setPublishPath(pkgSpec.publish.path)

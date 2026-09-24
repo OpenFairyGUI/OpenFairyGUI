@@ -62,142 +62,142 @@ export class GMovieClip extends GObject<IGMovieClip, PropertyType.G_MOVIE_CLIP> 
 	}
 
 	public getSrc(): string {
-		return this.get('src' as any);
+		return this.get('src');
 	}
 	public setSrc(v: string): this {
-		return this.set('src' as any, v);
+		return this.set('src', v);
 	}
 
 	public getX(): number {
-		return this.get('x' as any);
+		return this.get('x');
 	}
 	public getY(): number {
-		return this.get('y' as any);
+		return this.get('y');
 	}
 	public getWidth(): number {
-		return this.get('width' as any);
+		return this.get('width');
 	}
 	public getHeight(): number {
-		return this.get('height' as any);
+		return this.get('height');
 	}
 	public setXY(x: number, y: number): this {
-		this.set('x' as any, x);
-		return this.set('y' as any, y);
+		this.set('x', x);
+		return this.set('y', y);
 	}
 	public setSize(w: number, h: number): this {
-		this.set('width' as any, w);
-		return this.set('height' as any, h);
+		this.set('width', w);
+		return this.set('height', h);
 	}
 	public setX(v: number): this {
-		return this.set('x' as any, v);
+		return this.set('x', v);
 	}
 	public setY(v: number): this {
-		return this.set('y' as any, v);
+		return this.set('y', v);
 	}
 
 	public getPivotX(): number {
-		return this.get('pivotX' as any);
+		return this.get('pivotX');
 	}
 	public getPivotY(): number {
-		return this.get('pivotY' as any);
+		return this.get('pivotY');
 	}
 	public getPivotAsAnchor(): boolean {
-		return this.get('anchor' as any);
+		return this.get('anchor');
 	}
 	public setPivot(x: number, y: number, anchor = false): this {
-		this.set('pivotX' as any, x);
-		this.set('pivotY' as any, y);
-		return this.set('anchor' as any, anchor);
+		this.set('pivotX', x);
+		this.set('pivotY', y);
+		return this.set('anchor', anchor);
 	}
 
 	public getGroup(): string {
-		return this.get('group' as any);
+		return this.get('group');
 	}
 	public setGroup(v: string): this {
-		return this.set('group' as any, v);
+		return this.set('group', v);
 	}
 
 	public getAlpha(): number {
-		return this.get('alpha' as any);
+		return this.get('alpha');
 	}
 	public setAlpha(v: number): this {
-		return this.set('alpha' as any, v);
+		return this.set('alpha', v);
 	}
 
 	public getRotation(): number {
-		return this.get('rotation' as any);
+		return this.get('rotation');
 	}
 	public setRotation(v: number): this {
-		return this.set('rotation' as any, v);
+		return this.set('rotation', v);
 	}
 
 	public getVisible(): boolean {
-		return this.get('visible' as any);
+		return this.get('visible');
 	}
 	public setVisible(v: boolean): this {
-		return this.set('visible' as any, v);
+		return this.set('visible', v);
 	}
 
 	public getTouchable(): boolean {
-		return this.get('touchable' as any);
+		return this.get('touchable');
 	}
 	public setTouchable(v: boolean): this {
-		return this.set('touchable' as any, v);
+		return this.set('touchable', v);
 	}
 
 	public getGrayed(): boolean {
-		return this.get('grayed' as any);
+		return this.get('grayed');
 	}
 	public setGrayed(v: boolean): this {
-		return this.set('grayed' as any, v);
+		return this.set('grayed', v);
 	}
 
 	public getFileName(): string {
-		return this.get('fileName' as any);
+		return this.get('fileName');
 	}
 	public setFileName(v: string): this {
-		return this.set('fileName' as any, v);
+		return this.set('fileName', v);
 	}
 
 	public getPackageId(): string {
-		return this.get('packageId' as any);
+		return this.get('packageId');
 	}
 	public setPackageId(v: string): this {
-		return this.set('packageId' as any, v);
+		return this.set('packageId', v);
 	}
 
 	public getFilter(): string {
-		return this.get('filter' as any);
+		return this.get('filter');
 	}
 	public setFilter(v: string): this {
-		return this.set('filter' as any, v);
+		return this.set('filter', v);
 	}
 
 	public getFilterData(): string {
-		return this.get('filterData' as any);
+		return this.get('filterData');
 	}
 	public setFilterData(v: string): this {
-		return this.set('filterData' as any, v);
+		return this.set('filterData', v);
 	}
 
 	public getPlaying(): boolean {
-		return this.get('playing' as any);
+		return this.get('playing');
 	}
 	public setPlaying(v: boolean): this {
-		return this.set('playing' as any, v);
+		return this.set('playing', v);
 	}
 
 	public getFrame(): number {
-		return this.get('frame' as any);
+		return this.get('frame');
 	}
 	public setFrame(v: number): this {
-		return this.set('frame' as any, v);
+		return this.set('frame', v);
 	}
 
 	public getColor(): string {
-		return this.get('color' as any);
+		return this.get('color');
 	}
 	public setColor(v: string): this {
-		return this.set('color' as any, v);
+		return this.set('color', v);
 	}
 }

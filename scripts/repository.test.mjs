@@ -1,21 +1,41 @@
+import { releaseNotes } from './prepare-release.mjs';
+import { ciCommands } from './check-ci.mjs';
 import assert from 'node:assert/strict';
-import { execFileSync, execSync } from 'node:child_process';
+import { execFileSync, execSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { changedFiles, impactTable, runSelectedTests, selectTests } from './test-changed.mjs';
+import { changedFiles, impactTable, runSelectedTests, selectTests, documentationReview } from './test-changed.mjs';
 import {
 	checkCommands,
+	checkProductFacts,
 	checkGuidance,
 	changelogStructure,
 	markdownCode,
 	markdownLinks,
 	resolveLink,
 } from './check-guidance.mjs';
+
+test('documentation review reports untouched related docs and rejects empty waivers or handwritten facts', () => {
+	assert.deepEqual(documentationReview({ docs: ['a.md', 'b.md'], changedFiles: ['a.md'] }), {
+		untouched: ['b.md'],
+		waiver: null,
+	});
+	assert.equal(
+		documentationReview({ docs: [], changedFiles: [] }, 'no public behavior change').waiver,
+		'no public behavior change',
+	);
+	assert.throws(() => documentationReview({ docs: [], changedFiles: [] }, ' '), /reason/);
+	assert.throws(() => checkProductFacts('All 102 unique codes have guides.'), /Handwritten/);
+	assert.throws(() => checkProductFacts('Stable `0.6.1`'), /Handwritten/);
+	assert.doesNotThrow(() =>
+		checkProductFacts('<!-- product-facts:start -->\nPackage: `0.6.1`\n<!-- product-facts:end -->'),
+	);
+});
 import { doctor, inspectBuilds, inspectEnvironment, inspectReferences } from './repo-doctor.mjs';
 import { grepReferences } from './refs-grep.mjs';
-import { git, matches, pnpmInvocation, readJson, ROOT, testFiles } from './repo-utils.mjs';
+import { describeGitError, git, matches, pnpmInvocation, readJson, ROOT, testFiles } from './repo-utils.mjs';
 import { artifactName, consumerEnvironment, PACKAGES } from './pack-smoke.mjs';
 import { contained, exportFiles, snapshot } from './consumer/helpers.mjs';
 
@@ -26,6 +46,17 @@ function temporaryRepository(t) {
 	git(root, ['config', 'core.autocrlf', 'false']);
 	return root;
 }
+
+test('workspace sharp is development-only and published image hosts bound the optional dependency', () => {
+	const root = readJson(path.join(ROOT, 'package.json'));
+	assert(root.devDependencies.sharp);
+	assert.equal(root.dependencies?.sharp, undefined);
+	for (const name of ['functions', 'cli']) {
+		const manifest = readJson(path.join(ROOT, 'packages', name, 'package.json'));
+		assert.equal(manifest.optionalDependencies.sharp, '>=0.33.0 <0.35.0');
+		assert.equal(manifest.dependencies?.sharp, undefined);
+	}
+});
 
 function write(root, file, contents) {
 	mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
@@ -140,6 +171,21 @@ test('Git selection includes committed, staged, unstaged, untracked, renamed and
 	assert.throws(() => changedFiles(root, 'nonexistent-ref'));
 });
 
+test('git failures keep the Git reason and explain how to trust a refused checkout', () => {
+	const refused = Object.assign(new Error('Command failed: git ls-files'), {
+		stderr: "fatal: detected dubious ownership in repository at 'D:/repo'\nTo add an exception for this directory, call:\n",
+	});
+	assert.match(
+		describeGitError(refused),
+		/^fatal: detected dubious ownership in repository at 'D:\/repo' Mark the checkout as safe with: git config --global --add safe\.directory/,
+	);
+	assert.equal(
+		describeGitError(Object.assign(new Error('x'), { stderr: "fatal: bad revision 'nope'\n" })),
+		"fatal: bad revision 'nope'",
+	);
+	assert.equal(describeGitError(new Error('spawn git ENOENT')), 'spawn git ENOENT');
+});
+
 test('invalid comparison base produces a non-empty full plan via the real CLI', () => {
 	const result = JSON.parse(
 		execFileSync(process.execPath, ['scripts/test-changed.mjs', '--base', 'refs/heads/does-not-exist', '--list'], {
@@ -238,7 +284,7 @@ test('documentation-only Git changes cannot hide deleted or renamed product code
 });
 
 test('AVA selection preserves pnpm shims instead of executing the raw JS entrypoint', () => {
-	const args = ['exec', 'ava', '--no-worker-threads', 'packages/backend/test/browser-entry.contract.test.ts'];
+	const args = ['exec', 'ava', 'packages/backend/test/browser-entry.contract.test.ts'];
 	assert.deepEqual(pnpmInvocation('/tools/pnpm.cjs', args), [process.execPath, ['/tools/pnpm.cjs', ...args]]);
 	assert.deepEqual(pnpmInvocation('/tools/pnpm', args), ['/tools/pnpm', args]);
 	assert.throws(() => pnpmInvocation(undefined, args), /pnpm test:changed/);
@@ -263,10 +309,10 @@ if (args[0] === 'build' && fs.existsSync('fail-build')) process.exit(1);
 			.split('\n')
 			.map((line) => JSON.parse(line));
 	runSelectedTests(root, cli, files);
-	assert.deepEqual(calls(), [['build'], ['exec', 'ava', '--no-worker-threads', ...files]]);
+	assert.deepEqual(calls(), [['build'], ['exec', 'ava', ...files]]);
 	write(root, 'fail-build', '');
 	assert.throws(() => runSelectedTests(root, cli, files), /Check failed \(1\)/);
-	assert.deepEqual(calls(), [['build'], ['exec', 'ava', '--no-worker-threads', ...files], ['build']]);
+	assert.deepEqual(calls(), [['build'], ['exec', 'ava', ...files], ['build']]);
 	runSelectedTests(root, undefined, []);
 	assert.equal(calls().length, 3);
 });
@@ -512,4 +558,92 @@ test('current guidance, public source mappings and bilingual documentation are c
 	assert.equal(result.tests, available.length);
 	assert(result.documents > 0);
 	assert(readFileSync(path.join(ROOT, 'AGENTS.md'), 'utf8').includes(impactTable(map)));
+});
+
+test('release notes require matching versions and nonempty bilingual entries', (t) => {
+	const root = temporaryRepository(t);
+	for (const name of ['core', 'functions', 'backend', 'cli', 'mcp']) {
+		write(root, 'packages/' + name + '/package.json', JSON.stringify({ name, version: '1.2.3' }));
+	}
+	const en =
+		'# Changelog\n\n## Unreleased\n\n### v1.2.3 ([Release](https://github.com/a/b/releases/tag/v1.2.3))\n\nBug Fixes:\n\n- Correct behavior.\n\n### v1.2.2 ([Release](https://github.com/a/b/releases/tag/v1.2.2))\n\nOther:\n\n- Earlier.\n';
+	const cn = en
+		.replace('# Changelog', '# 更新日志')
+		.replace('## Unreleased', '## 未发布')
+		.replace('Bug Fixes:', '缺陷修复：')
+		.replace('Other:', '其他：')
+		.replace('Correct behavior.', '修正行为。')
+		.replace('Earlier.', '较早条目。');
+	write(root, 'CHANGELOG.md', en);
+	write(root, 'CHANGELOG_CN.md', cn);
+	const notes = releaseNotes(root, 'v1.2.3');
+	assert.match(notes, /Correct behavior/);
+	assert.match(notes, /修正行为/);
+	assert(!notes.includes('Earlier'));
+	assert(!notes.includes('Unreleased'));
+	assert.throws(() => releaseNotes(root, 'main'), /version tag/);
+	assert.throws(() => releaseNotes(root, 'v1.2.4'), /does not match/);
+	write(root, 'CHANGELOG_CN.md', cn.replace('- 修正行为。', ''));
+	assert.throws(() => releaseNotes(root, 'v1.2.3'), /Bilingual changelog/);
+	write(root, 'CHANGELOG_CN.md', cn.replaceAll('v1.2.3', 'v1.2.4'));
+	assert.throws(() => releaseNotes(root, 'v1.2.3'), /Bilingual changelog/);
+	write(root, 'CHANGELOG.md', en.replace('- Correct behavior.', ''));
+	write(root, 'CHANGELOG_CN.md', cn.replace('- 修正行为。', ''));
+	assert.throws(() => releaseNotes(root, 'v1.2.3'), /nonempty/);
+});
+
+test('refused Git ownership preserves doctor sections and actionable selection failure', () => {
+	const env = {
+		...process.env,
+		GIT_TEST_ASSUME_DIFFERENT_OWNER: '1',
+		GIT_CONFIG_COUNT: '1',
+		GIT_CONFIG_KEY_0: 'safe.directory',
+		GIT_CONFIG_VALUE_0: '',
+	};
+	const result = spawnSync(process.execPath, ['scripts/repo-doctor.mjs', '--json'], {
+		cwd: ROOT,
+		env,
+		encoding: 'utf8',
+	});
+	assert.equal(result.status, 1);
+	const report = JSON.parse(result.stdout);
+	assert(report.checks.some((item) => item.id === 'node'));
+	assert(report.checks.some((item) => item.id === 'temp-directory'));
+	assert.match(report.references.error, /dubious ownership.*safe.directory/);
+	const selection = spawnSync(process.execPath, ['scripts/test-changed.mjs', '--base', 'HEAD', '--list'], {
+		cwd: ROOT,
+		env,
+		encoding: 'utf8',
+	});
+	assert.equal(selection.status, 0);
+	const plan = JSON.parse(selection.stdout);
+	assert.equal(plan.scope, 'full');
+	assert.match(JSON.stringify(plan), /dubious ownership.*safe.directory/);
+	assert(!JSON.stringify(plan).includes('Cannot resolve comparison base'));
+});
+
+test('CI and release gates retain mandatory checks and isolate privileged jobs', () => {
+	assert.deepEqual(
+		ciCommands(true).find((args) => args[0] === 'pack:check'),
+		['pack:check', '--browser-deps'],
+	);
+	assert(ciCommands().some((args) => args[0] === 'test:repo'));
+	assert(ciCommands().some((args) => args[0] === 'docs:build'));
+	const release = readFileSync(path.join(ROOT, '.github/workflows/release.yml'), 'utf8');
+	const publish = release.split('  publish:')[1];
+	assert.match(release, /pnpm check:ci --browser-deps/);
+	assert.match(release, /pnpm release:prepare/);
+	assert.match(release, /--artifacts .release --browser-deps/);
+	assert(!publish.includes('actions/checkout'));
+	assert(!publish.includes('pnpm install'));
+	assert.match(publish, /--ignore-scripts --provenance/);
+	assert.match(publish, /--notes-file .release\/release-notes.md/);
+	for (const file of ['ci.yml', 'release.yml', 'deploy-docs.yml']) {
+		const workflow = readFileSync(path.join(ROOT, '.github/workflows', file), 'utf8');
+		for (const match of workflow.matchAll(/uses: ([^\n]+)/g)) assert.match(match[1], /^[^@]+@[a-f0-9]{40}(?: |$)/);
+	}
+	const docs = readFileSync(path.join(ROOT, '.github/workflows/deploy-docs.yml'), 'utf8');
+	assert.match(docs, /workflow_run:/);
+	assert.match(docs, /conclusion == 'success'/);
+	assert.match(docs, /ref:.*head_sha/);
 });

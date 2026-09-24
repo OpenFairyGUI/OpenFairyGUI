@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import {
+	describeGitError,
 	git,
 	isMain,
 	matches,
@@ -75,12 +76,17 @@ export function impactTable(map) {
 	].join('\n');
 }
 
+export function documentationReview(plan, waiver) {
+	if (waiver !== undefined && !waiver.trim()) throw new Error('--docs-waiver requires a reason.');
+	return { untouched: plan.docs.filter((doc) => !plan.changedFiles.includes(doc)), waiver: waiver?.trim() ?? null };
+}
+
 export function runSelectedTests(root, pnpmCli, files) {
 	if (files.length === 0) return;
 	// Built CLI/MCP/backend tests also load workspace dependencies from dist.
 	runCommand(root, ...pnpmInvocation(pnpmCli, ['build']));
 	// pnpm's AVA shim supplies NODE_PATH needed by existing isolated-build tests.
-	runCommand(root, ...pnpmInvocation(pnpmCli, ['exec', 'ava', '--no-worker-threads', ...files]));
+	runCommand(root, ...pnpmInvocation(pnpmCli, ['exec', 'ava', ...files]));
 }
 
 if (isMain(import.meta.url)) {
@@ -91,6 +97,7 @@ if (isMain(import.meta.url)) {
 				list: { type: 'boolean' },
 				matrix: { type: 'boolean' },
 				check: { type: 'boolean' },
+				'docs-waiver': { type: 'string' },
 			},
 		});
 		if (values.check && !values.matrix && !values.base && !process.env.GITHUB_BASE_REF) {
@@ -105,11 +112,18 @@ if (isMain(import.meta.url)) {
 			let reason;
 			try {
 				files = changedFiles(ROOT, values.base);
-			} catch {
-				reason =
-					'Cannot resolve comparison base/history; selecting the full suite. Use --base with an available Git ref.';
+			} catch (error) {
+				reason = `Git change discovery failed (${describeGitError(error)}); selecting the full suite. Resolve the reported Git error; use --base with an available Git ref for missing history.`;
 			}
 			const plan = selectTests(map, files, testFiles(ROOT), reason);
+			if (values.check) {
+				const review = documentationReview(plan, values['docs-waiver']);
+				console.error(
+					review.waiver
+						? `Documentation review waived: ${review.waiver}`
+						: `Review related untouched documentation: ${review.untouched.join(', ') || '(none)'}`,
+				);
+			}
 			console.log(JSON.stringify(plan, null, 2));
 			if (!values.list) {
 				if (values.check) {

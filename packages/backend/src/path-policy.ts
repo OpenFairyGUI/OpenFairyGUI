@@ -1,6 +1,53 @@
-import type { BackendCapabilities, BackendFileSystem } from './runtime.js';
+import type { BackendCapabilities, BackendFileSystem, ProjectOpenFailureReason } from './runtime.js';
 
-export function normalizeComparablePath(value: string): string {
+/** A classified project-open failure whose message is safe to return to the caller. */
+export class ProjectOpenError extends Error {
+	public constructor(
+		public readonly reason: ProjectOpenFailureReason,
+		message: string,
+	) {
+		super(message);
+	}
+}
+
+const OPEN_FAILURE_MESSAGES: Record<ProjectOpenFailureReason, string> = {
+	project_not_found: 'Project path does not exist.',
+	not_a_project_file: 'Project path is neither a .fairy file nor a directory.',
+	no_project_file: 'Project directory contains no .fairy file.',
+	multiple_project_files:
+		'Project directory contains more than one .fairy file; open the intended .fairy file directly.',
+	symbolic_link_unsupported: 'Project directory contains a symbolic link, which this host does not support.',
+	access_denied: 'Project path could not be accessed.',
+	project_read_failed: 'Project files could not be read.',
+	unknown: 'Unable to open project.',
+};
+
+export function classifyProjectOpenFailure(error: unknown): { reason: ProjectOpenFailureReason; message: string } {
+	if (error instanceof ProjectOpenError) return { reason: error.reason, message: error.message };
+	const code = typeof error === 'object' && error !== null ? (error as { code?: unknown }).code : undefined;
+	const reason: ProjectOpenFailureReason =
+		code === 'ENOENT' || code === 'ENOTDIR' || code === 'NotFoundError'
+			? 'project_not_found'
+			: code === 'ELOOP'
+				? 'symbolic_link_unsupported'
+				: code === 'EACCES' || code === 'EPERM' || code === 'NotAllowedError'
+					? 'access_denied'
+					: 'unknown';
+	return { reason, message: OPEN_FAILURE_MESSAGES[reason] };
+}
+
+function openError(reason: ProjectOpenFailureReason, detail?: string): ProjectOpenError {
+	return new ProjectOpenError(
+		reason,
+		detail ? `${OPEN_FAILURE_MESSAGES[reason]} ${detail}` : OPEN_FAILURE_MESSAGES[reason],
+	);
+}
+
+export function createProjectReadFailure(detail?: string): ProjectOpenError {
+	return openError('project_read_failed', detail);
+}
+
+export function normalizeComparablePath(value: string, caseSensitive = false): string {
 	const normalized = value.replace(/[/\\]+$/, '').replace(/\\/g, '/');
 	const driveMatch = normalized.match(/^([a-z]:)(?:\/(.*))?$/i);
 	const drivePrefix = driveMatch?.[1].toLowerCase() ?? '';
@@ -28,12 +75,12 @@ export function normalizeComparablePath(value: string): string {
 		: hasRoot
 			? `/${joined}`.replace(/\/$/, '')
 			: joined || '.';
-	return comparable.toLowerCase();
+	return caseSensitive ? comparable : comparable.toLowerCase();
 }
 
-export function createRuntimePathPolicy(): BackendCapabilities['runtime']['pathPolicy'] {
+export function createRuntimePathPolicy(caseSensitivePaths = false): BackendCapabilities['runtime']['pathPolicy'] {
 	return {
-		canonicalization: 'realpath+normalized-casefold',
+		canonicalization: caseSensitivePaths ? 'realpath+normalized' : 'realpath+normalized-casefold',
 		sessionIdentity: 'project-root',
 		saveTarget: 'opened-project-only',
 		outputTargets: 'deferred',
@@ -50,8 +97,8 @@ export async function assertProjectPathContained(
 		fileSystem.resolvePath(projectRoot),
 		fileSystem.resolvePath(targetPath),
 	]);
-	const root = normalizeComparablePath(resolvedRoot);
-	const target = normalizeComparablePath(resolvedTarget);
+	const root = normalizeComparablePath(resolvedRoot, fileSystem.caseSensitivePaths);
+	const target = normalizeComparablePath(resolvedTarget, fileSystem.caseSensitivePaths);
 	if (root === '.' && !target.startsWith('/') && !/^[a-z]:\//i.test(target)) return;
 	if (target === root || target.startsWith(`${root}/`)) return;
 	const error = new Error(`Project path escapes the opened root: ${targetPath}`) as Error & { code: string };
@@ -73,13 +120,11 @@ export async function resolveFairyPath(fileSystem: BackendFileSystem, input: str
 		if (fairyFiles.length === 1) {
 			return await fileSystem.resolvePath(fileSystem.join(resolvedInput, fairyFiles[0]!));
 		}
-		if (fairyFiles.length > 1) {
-			throw new Error(`Multiple .fairy files found in ${resolvedInput}: ${fairyFiles.join(', ')}`);
-		}
-		throw new Error(`No .fairy file found in ${resolvedInput}`);
+		if (fairyFiles.length > 1) throw openError('multiple_project_files', `Found: ${fairyFiles.join(', ')}`);
+		throw openError('no_project_file');
 	}
 
-	throw new Error(`Input is not a .fairy file or directory: ${resolvedInput}`);
+	throw openError('not_a_project_file');
 }
 
 export async function resolveCanonicalProjectRoot(
@@ -95,7 +140,7 @@ export async function resolveCanonicalProjectRoot(
 	return {
 		fairyPath,
 		canonicalProjectPath,
-		canonicalPathKey: normalizeComparablePath(canonicalProjectPath),
+		canonicalPathKey: normalizeComparablePath(canonicalProjectPath, fileSystem.caseSensitivePaths),
 	};
 }
 
@@ -115,7 +160,9 @@ export async function validateSaveTarget(
 	if (!targetPath) return null;
 	const attemptedPath = await fileSystem.resolvePath(fileSystem.resolve(targetPath));
 	const allowedPath = await fileSystem.resolvePath(openedFairyPath);
-	if (normalizeComparablePath(attemptedPath) === normalizeComparablePath(allowedPath)) return null;
+	const caseSensitive = fileSystem.caseSensitivePaths;
+	if (normalizeComparablePath(attemptedPath, caseSensitive) === normalizeComparablePath(allowedPath, caseSensitive))
+		return null;
 	return {
 		code: 'path_policy_violation',
 		message: `Save target is restricted to the originally opened project file: ${allowedPath}`,

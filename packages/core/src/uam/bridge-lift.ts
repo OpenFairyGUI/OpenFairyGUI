@@ -674,6 +674,9 @@ export function liftDisplayNode(child: GObject): UamDisplayNode {
 		const button = child as ReturnType<Document['createGButton']>;
 		return {
 			kind: 'button',
+			controller: button.getController(),
+			page: button.getPage(),
+			checked: button.getChecked(),
 			...liftTitleControlBase(button),
 			selectedTitle: button.getSelectedTitle(),
 			selectedIcon: button.getSelectedIcon(),
@@ -686,6 +689,7 @@ export function liftDisplayNode(child: GObject): UamDisplayNode {
 		const label = child as ReturnType<Document['createGLabel']>;
 		return {
 			kind: 'label',
+			promptText: label.getInstancePromptText(),
 			...liftTitleControlBase(label),
 		} satisfies UamLabelNode;
 	}

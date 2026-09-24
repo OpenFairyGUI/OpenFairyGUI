@@ -44,6 +44,23 @@ export function contractTables(contract, english = false) {
 export function generatedFiles(contract, root = ROOT) {
 	const files = { [GENERATED]: generatedSource(contract) };
 	const backend = JSON.parse(readFileSync(path.join(root, 'packages/backend/package.json'), 'utf8'));
+	for (const file of [
+		'README.md',
+		'README_EN.md',
+		'docs/guide/getting-started.md',
+		'docs/en/guide/getting-started.md',
+		'packages/mcp/README.md',
+		'docs/guide/diagnostics.md',
+		'docs/en/guide/diagnostics.md',
+	]) {
+		const source = readFileSync(path.join(root, file), 'utf8').replaceAll('\r\n', '\n');
+		const marker = /<!-- product-facts:start -->\n[\s\S]*?<!-- product-facts:end -->/g;
+		assert.equal([...source.matchAll(marker)].length, 1, `Missing/duplicate product facts: ${file}`);
+		files[file] = source.replace(
+			marker,
+			`<!-- product-facts:start -->\nPackage: \`${backend.version}\` · Backend contract: \`${contract.versions.BACKEND_CONTRACT_VERSION}\` · Capability schema: \`${contract.versions.BACKEND_CAPABILITY_SCHEMA_VERSION}\`\n\nOperations: ${Object.keys(contract.operations).length} · Backend methods: ${Object.keys(contract.tools).length} · CLI commands: ${Object.keys(contract.cli).length} · Diagnostic codes: ${contract.diagnostics.length}\n<!-- product-facts:end -->`,
+		);
+	}
 	assert(
 		/^>=\d+$/.test(backend.engines.node),
 		'Update product doctor Node range handling before changing the engine format',
@@ -70,7 +87,7 @@ export function generatedFiles(contract, root = ROOT) {
 		['docs/guide/contracts.md', false],
 		['docs/en/guide/contracts.md', true],
 	]) {
-		const source = readFileSync(path.join(root, file), 'utf8').replaceAll('\r\n', '\n');
+		const source = files[file] ?? readFileSync(path.join(root, file), 'utf8').replaceAll('\r\n', '\n');
 		const marker = /<!-- contracts:start -->\n[\s\S]*?\n<!-- contracts:end -->/g;
 		assert.equal([...source.matchAll(marker)].length, 1, `Missing/duplicate contract section: ${file}`);
 		files[file] = source.replace(
@@ -79,7 +96,7 @@ export function generatedFiles(contract, root = ROOT) {
 		);
 	}
 	for (const file of ['docs/guide/diagnostics.md', 'docs/en/guide/diagnostics.md']) {
-		const source = readFileSync(path.join(root, file), 'utf8').replaceAll('\r\n', '\n');
+		const source = files[file] ?? readFileSync(path.join(root, file), 'utf8').replaceAll('\r\n', '\n');
 		const marker = /<!-- diagnostics:start -->\n[\s\S]*?\n<!-- diagnostics:end -->/g;
 		assert.equal([...source.matchAll(marker)].length, 1, `Missing/duplicate diagnostics section: ${file}`);
 		const guides = contract.diagnostics

@@ -1,3 +1,4 @@
+import { BinaryFormatError } from './errors.js';
 import { Inflate } from 'pako';
 import { Document } from '../document.js';
 import { FGUI_MAGIC } from '../constants.js';
@@ -33,7 +34,7 @@ function readLimits(options: BinaryReaderOptions): BinaryReadLimits {
 
 function inflateRawWithLimits(input: Uint8Array, limits: BinaryReadLimits): Uint8Array {
 	if (input.byteLength > limits.maxCompressedBytes) {
-		throw new Error(`FairyGUI binary compressed data exceeds ${limits.maxCompressedBytes} bytes.`);
+		throw new BinaryFormatError(`FairyGUI binary compressed data exceeds ${limits.maxCompressedBytes} bytes.`);
 	}
 	const maxOutputBytes = Math.min(
 		limits.maxDecompressedBytes,
@@ -43,15 +44,18 @@ function inflateRawWithLimits(input: Uint8Array, limits: BinaryReadLimits): Uint
 	let outputLength = 0;
 	const inflater = new Inflate({ raw: true });
 	inflater.onData = (chunk) => {
-		if (!(chunk instanceof Uint8Array)) throw new Error('FairyGUI binary inflate returned non-binary data.');
+		if (!(chunk instanceof Uint8Array))
+			throw new BinaryFormatError('FairyGUI binary inflate returned non-binary data.');
 		outputLength += chunk.byteLength;
 		if (outputLength > maxOutputBytes) {
-			throw new Error(`FairyGUI binary decompressed data exceeds the configured ${maxOutputBytes} byte budget.`);
+			throw new BinaryFormatError(
+				`FairyGUI binary decompressed data exceeds the configured ${maxOutputBytes} byte budget.`,
+			);
 		}
 		chunks.push(chunk);
 	};
 	inflater.push(input, true);
-	if (inflater.err !== 0) throw new Error(`Invalid compressed FairyGUI binary data: ${inflater.msg}`);
+	if (inflater.err !== 0) throw new BinaryFormatError(`Invalid compressed FairyGUI binary data: ${inflater.msg}`);
 	const output = new Uint8Array(outputLength);
 	let offset = 0;
 	for (const chunk of chunks) {
@@ -84,12 +88,6 @@ type BinItemType = (typeof BinItemType)[keyof typeof BinItemType];
 interface BinaryDependency {
 	id: string;
 	name: string;
-}
-
-interface RawBinarySlice {
-	buffer: ArrayBufferLike;
-	byteOffset: number;
-	byteLength: number;
 }
 
 interface BinarySpriteEntry {
@@ -159,35 +157,11 @@ function parseAtlasIndex(id: string): number {
 	return match ? Number.parseInt(match[1] ?? '0', 10) : 0;
 }
 
-interface BinaryPackageExtras extends Record<string, unknown> {
-	sprites?: BinarySpriteEntry[];
-}
-
-interface ComponentBinaryExtras extends Record<string, unknown> {
-	_rawBinary?: RawBinarySlice;
-}
-
 interface PixelHitTestEntry {
 	itemId: string;
 	pixelWidth: number;
 	scaleDenominator: number;
 	pixels: Uint8Array;
-}
-
-function toRawBinarySlice(buf: ByteBuffer): RawBinarySlice {
-	return {
-		buffer: buf.buffer,
-		byteOffset: buf.byteOffset,
-		byteLength: buf.byteLength,
-	};
-}
-
-function getPackageExtras(pkg: { getExtras(): Record<string, unknown> }): BinaryPackageExtras {
-	return pkg.getExtras() as BinaryPackageExtras;
-}
-
-function getComponentExtras(resource: { getExtras(): Record<string, unknown> }): ComponentBinaryExtras {
-	return resource.getExtras() as ComponentBinaryExtras;
 }
 
 function decodeMovieClipFrames(
@@ -274,8 +248,8 @@ function decodeFontGlyphs(doc: Document, resource: ReturnType<Document['createFo
  * Reads a published FairyGUI binary package (.fui / _fui.bytes) into a {@link Document}.
  *
  * Package items, sprite atlas mappings, and component structured data are parsed.
- * Component raw binary slices are still retained in extras for write-back, while the reader
- * now also expands controllers, transitions, gears, relations, and common display-list fields
+ * Components are decoded into formal properties and re-encoded for each output string table.
+ * Decoding also expands controllers, transitions, gears, relations, and common display-list fields
  * into the formal property graph.
  *
  * @category I/O
@@ -312,7 +286,7 @@ export class BinaryReader {
 	private _parsePackage(outer: ByteBuffer, doc: Document): Document {
 		// --- Header (always uncompressed) ---
 		if (outer.getUint32() !== FGUI_MAGIC) {
-			throw new Error('Invalid FairyGUI binary file: bad magic');
+			throw new BinaryFormatError('Invalid FairyGUI binary file: bad magic');
 		}
 
 		outer.version = outer.getInt32();
@@ -329,7 +303,7 @@ export class BinaryReader {
 			buf = new ByteBuffer(decompressed.buffer, 0, decompressed.byteLength);
 		} else {
 			if (outer.byteLength - outer.pos > this._limits.maxDecompressedBytes) {
-				throw new Error(`FairyGUI binary data exceeds ${this._limits.maxDecompressedBytes} bytes.`);
+				throw new BinaryFormatError(`FairyGUI binary data exceeds ${this._limits.maxDecompressedBytes} bytes.`);
 			}
 			buf = outer;
 		}
@@ -382,7 +356,7 @@ export class BinaryReader {
 		}
 		const pkg = getOrCreatePackage(doc, packageId, packageName);
 		if (pkg.listResources().length > 0 || pkg.listAtlases().length > 0) {
-			throw new Error(`Package "${packageName}" (${packageId}) has already been read.`);
+			throw new BinaryFormatError(`Package "${packageName}" (${packageId}) has already been read.`);
 		}
 		pkg.setBranchNames(packageBranches);
 		const atlasMap = new Map<string, ReturnType<Document['createAtlas']>>();
@@ -458,7 +432,7 @@ export class BinaryReader {
 						.setPath(itemPath)
 						.setFile(normalizePublishedSoundFileName(itemName, itemFile))
 						.setExported(exported);
-					res.setExtras({ ...res.getExtras(), _publishedFile: itemFile });
+					res.setPublishedFile(itemFile);
 					pkg.addResource(res);
 					createdResource = res;
 					break;
@@ -467,7 +441,7 @@ export class BinaryReader {
 				case BinItemType.Misc: {
 					const res = doc.createMiscResource(itemName);
 					res.setId(itemId).setPath(itemPath).setFile(itemFile).setExported(exported);
-					res.setExtras({ ...res.getExtras(), _publishedFile: itemFile });
+					res.setPublishedFile(itemFile);
 					pkg.addResource(res);
 					createdResource = res;
 					break;
@@ -476,7 +450,7 @@ export class BinaryReader {
 				case BinItemType.Swf: {
 					const res = doc.createSwfResource(itemName);
 					res.setId(itemId).setPath(itemPath).setFile(itemFile).setExported(exported);
-					res.setExtras({ ...res.getExtras(), _publishedFile: itemFile });
+					res.setPublishedFile(itemFile);
 					pkg.addResource(res);
 					createdResource = res;
 					break;
@@ -488,12 +462,6 @@ export class BinaryReader {
 					const extensionTypeCode = buf.readByte();
 					const rawData = buf.readBuffer();
 					decodeComponentDefinition(res, rawData, extensionTypeCode, doc);
-					res.setExtras({
-						...getComponentExtras(res),
-						_rawBinary: toRawBinarySlice(rawData),
-					});
-					res._markBinaryClean();
-					doc._trackBinaryComponent();
 					pkg.addResource(res);
 					createdResource = res;
 					break;
@@ -527,7 +495,7 @@ export class BinaryReader {
 						.setWidth(width)
 						.setHeight(height)
 						.setAnchor(buf.getFloat32(), buf.getFloat32());
-					res.setExtras({ ...res.getExtras(), _publishedFile: itemFile });
+					res.setPublishedFile(itemFile);
 					pkg.addResource(res);
 					createdResource = res;
 					break;
@@ -542,7 +510,7 @@ export class BinaryReader {
 						.setWidth(width)
 						.setHeight(height)
 						.setAnchor(buf.getFloat32(), buf.getFloat32());
-					res.setExtras({ ...res.getExtras(), _publishedFile: itemFile });
+					res.setPublishedFile(itemFile);
 					pkg.addResource(res);
 					createdResource = res;
 					break;
@@ -580,8 +548,7 @@ export class BinaryReader {
 		}
 
 		// --- Sprite atlas mappings (block 2) ---
-		buf.seek(indexTablePos, 2);
-		const spriteCnt = buf.getUint16();
+		const spriteCnt = buf.seek(indexTablePos, 2) ? buf.getUint16() : 0;
 		const sprites: BinarySpriteEntry[] = [];
 
 		for (let i = 0; i < spriteCnt; i++) {
@@ -625,7 +592,6 @@ export class BinaryReader {
 		}
 
 		// Attach sprite map to package extras for consumers
-		pkg.setExtras({ ...getPackageExtras(pkg), sprites });
 
 		// --- PixelHitTest (block 3) ---
 		const pixelHitTests = new Map<string, PixelHitTestEntry>();

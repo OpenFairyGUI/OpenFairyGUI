@@ -1,3 +1,4 @@
+import { ProjectIOError } from './errors.js';
 import { GearType } from '../constants.js';
 import type { GObject } from '../properties/g-object.js';
 import type { Gear } from '../properties/gear.js';
@@ -271,7 +272,7 @@ export function assertDisplayObjectGearXmlValues(obj: GObject): void {
 	for (const gear of obj.listGears()) {
 		const type = gear.getGearType();
 		if (types.has(type))
-			throw new Error(`Display node "${obj.getId()}" has duplicate ${GEAR_TAG[type] ?? type} bindings.`);
+			throw new ProjectIOError(`Display node "${obj.getId()}" has duplicate ${GEAR_TAG[type] ?? type} bindings.`);
 		types.add(type);
 		assertTextGearXmlValues(gear);
 	}
@@ -282,7 +283,7 @@ function assertTextGearXmlValues(gear: Gear): void {
 	const values = gear.getPageValues();
 	for (const page of gear.getPages() ? gear.getPages().split(',') : []) {
 		if (values[page]?.includes('|')) {
-			throw new Error(
+			throw new ProjectIOError(
 				`Project XML cannot represent "|" in Text/Icon gear page "${page}"; no verified delimiter escape is available.`,
 			);
 		}

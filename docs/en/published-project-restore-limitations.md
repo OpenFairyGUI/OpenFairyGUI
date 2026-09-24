@@ -66,7 +66,6 @@ The same geometric path can usually be recovered, but its XML string is not guar
 |---|---|---|---|
 | Transition easing | A specific ease name from the source project. | The relevant samples decode to the default easing, so the binary data cannot prove which non-default ease was authored. | Some `Expo.Out`, `Back.Out`, and `Bounce.Out` entries in `Transition/BOSS.xml`, `TRAP.xml`, and `GoodHit.xml` |
 | Simple Group nodes | `GGroup` nodes used only for editor grouping without additional runtime semantics. | Published component data removes these groups; neither a group node nor a stable ownership index remains in the binary child list. | `Basics/Demo_Clip&Scroll.xml`, `Emoji/Main.xml`, `TurnPage/Book.xml` |
-| Advanced Group mode | `group.advanced="true"` in source XML. | Published group blocks store runtime layout and spacing but not the editor's advanced-mode switch; decoded groups therefore become `advanced=false`. | `Basics/Demo_Grid.xml`, `Transition/Main.xml`, `Transition/PowerUp.xml` |
 | Current controller page | The current `controller.selected` state in source XML. | Published controller blocks stably store `homePageType/homePage`, not the editor's current nonzero page selection. | `bookPos="2"` in `TurnPage/Main.xml`; `style="1"` or `side="1"` in `TurnPage/Page.xml`; `side="1"` in `FrontCover.xml` and `BackCover.xml` |
 | Controller export flag | `controller.exported="true"` in source XML. | The controller publish block stores only `name/pages/homePageType/homePage/actions`. | `TurnPage/BackCover.xml`, `TurnPage/FrontCover.xml`, `TurnPage/Page.xml` |
 | Explicit defaults | Whether a default property was written explicitly in the source project. | Published packages retain semantic values, not whether a default was explicitly present in XML. | Examples include `xy="0,0"`, empty text, and default booleans. |
@@ -118,3 +117,5 @@ If the goal is to approximate original source text or naming rather than rebuild
 | Can published artifacts rebuild a working project? | Yes. |
 | Can published artifacts reproduce the authentic source project? | No. |
 | Should recovery continue to improve? | Yes, but only where published artifacts provide evidence. |
+
+Node image validation, restore decoding and restore canvases use a 16,777,216-pixel limit. Canvas dimensions must be positive safe integers with a product within the limit; oversized canvases are rejected before allocation.

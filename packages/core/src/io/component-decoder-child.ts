@@ -430,11 +430,9 @@ function decodeChildBlock5(child: ComponentDisplayObject, childBuf: ByteBuffer):
 				.setColumnGap(childBuf.getInt32())
 				.setExcludeInvisibles(childBuf.readBool())
 				.setAutoSizeDisabled(childBuf.readBool())
-				.setMainGridIndex(childBuf.getInt16());
-			const group = child as ReturnType<Document['createGGroup']>;
-			if (group.listGears().length > 0 || group.getRelations().length > 0) {
-				group.setAdvanced(true);
-			}
+				.setMainGridIndex(childBuf.getInt16())
+				// Publishing strips ordinary groups, so every group in a component child list is advanced.
+				.setAdvanced(true);
 			break;
 		}
 		case 'GLoader': {
@@ -553,6 +551,8 @@ function decodeChildBlock6(
 				(child as ReturnType<Document['createGTextField']>).setText(childBuf.readS() ?? '');
 			}
 			break;
+		case 'GButton':
+		case 'GLabel':
 		case 'GComponent': {
 			if (remainingBytes(childBuf) < 1) return;
 			const extType = childBuf.getUint8();
@@ -664,50 +664,6 @@ function decodeChildBlock6(
 					break;
 				default:
 					break;
-			}
-			break;
-		}
-		case 'GButton': {
-			if (remainingBytes(childBuf) < 13) return;
-			childBuf.getUint8(); // extType
-			const button = child as ReturnType<Document['createGButton']>;
-			button
-				.setTitle(childBuf.readS() ?? '')
-				.setSelectedTitle(childBuf.readS() ?? '')
-				.setIcon(childBuf.readS() ?? '')
-				.setSelectedIcon(childBuf.readS() ?? '');
-			if (childBuf.readBool()) {
-				button.setTitleColor(readColorValue(childBuf, true));
-			}
-			button.setTitleFontSize(childBuf.getInt32());
-			childBuf.getInt16(); // relatedController index
-			childBuf.readS(); // relatedPageId
-			button.setSound(childBuf.readS() ?? '');
-			if (childBuf.readBool() && remainingBytes(childBuf) >= 4) {
-				button.setSoundVolumeScale(childBuf.getFloat32());
-			}
-			if (remainingBytes(childBuf) >= 1) {
-				childBuf.readBool(); // selected
-			}
-			break;
-		}
-		case 'GLabel': {
-			if (remainingBytes(childBuf) < 10) return;
-			childBuf.getUint8(); // extType
-			const label = child as ReturnType<Document['createGLabel']>;
-			label.setTitle(childBuf.readS() ?? '').setIcon(childBuf.readS() ?? '');
-			if (childBuf.readBool()) {
-				label.setTitleColor(readColorValue(childBuf, true));
-			}
-			label.setTitleFontSize(childBuf.getInt32());
-			if (remainingBytes(childBuf) >= 1) {
-				const hasInputSettings = childBuf.readBool();
-				if (hasInputSettings) {
-					// current writer does not emit this payload
-				}
-			}
-			if (childBuf.version >= 5 && remainingBytes(childBuf) >= 6) {
-				label.setSound(childBuf.readS() ?? '').setSoundVolumeScale(childBuf.getFloat32());
 			}
 			break;
 		}

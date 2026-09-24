@@ -298,6 +298,9 @@ export function assertTransactionSupported(project: UamProject, operations?: Uam
 		`Phase A transaction support check failed:\n${issues.map((issue) => `- ${issue.path}: ${issue.message}`).join('\n')}`,
 		{
 			code: 'transaction_unsupported',
+			opIndex: issues[0].operationIndex,
+			opId: issues[0].operationId,
+			opKind: issues[0].operationKind,
 			issues,
 		},
 	);

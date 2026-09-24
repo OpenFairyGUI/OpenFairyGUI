@@ -2,14 +2,7 @@ import type { RelationDef } from '../constants.js';
 import type { ByteBuffer } from './byte-buffer.js';
 import type { Document } from '../document.js';
 
-export const COMPONENT_EXTENSION_TYPE_NAMES: Record<number, string> = {
-	11: 'Label',
-	12: 'Button',
-	13: 'ComboBox',
-	14: 'ProgressBar',
-	15: 'Slider',
-	16: 'ScrollBar',
-};
+export { COMPONENT_EXTENSION_TYPE_NAMES } from './component-extension-types.js';
 
 export type ComponentDisplayObject =
 	ReturnType<Document['createComponent']> extends { listChildren(): infer T }

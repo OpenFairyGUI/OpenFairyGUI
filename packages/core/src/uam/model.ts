@@ -606,6 +606,9 @@ interface UamTitleControlNodeBase extends UamComponentDerivedNodeBase {
 
 export interface UamButtonNode extends UamTitleControlNodeBase {
 	kind: 'button';
+	controller?: string;
+	page?: string;
+	checked?: boolean;
 	selectedTitle: string;
 	selectedIcon: string;
 	mode: number;
@@ -615,6 +618,7 @@ export interface UamButtonNode extends UamTitleControlNodeBase {
 
 export interface UamLabelNode extends UamTitleControlNodeBase {
 	kind: 'label';
+	promptText?: string;
 }
 
 export interface UamComboBoxNode extends UamTitleControlNodeBase {

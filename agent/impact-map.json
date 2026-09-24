@@ -8,39 +8,128 @@
   },
   "rules": [
     {
-      "paths": ["packages/core/**", "packages/test-utils/**"],
-      "tests": ["core", "functions", "backend", "cli", "mcp"],
-      "docs": ["docs/architecture-overview.md", "docs/editor-publish-settings.md", "docs/fairygui-binary-package-format.md"]
+      "paths": [
+        "packages/core/**",
+        "packages/test-utils/**"
+      ],
+      "tests": [
+        "core",
+        "functions",
+        "backend",
+        "cli",
+        "mcp"
+      ],
+      "docs": [
+        "docs/architecture-overview.md",
+        "docs/editor-publish-settings.md",
+        "docs/fairygui-binary-package-format.md",
+        "docs/project-xml-attribute-reference.md"
+      ]
     },
     {
-      "paths": ["packages/functions/**"],
-      "tests": ["functions", "backend", "cli", "mcp"],
-      "docs": ["docs/architecture-overview.md", "docs/project-validation.md", "docs/editor-publish-settings.md", "docs/published-project-restore-limitations.md"]
+      "paths": [
+        "packages/functions/**"
+      ],
+      "tests": [
+        "functions",
+        "backend",
+        "cli",
+        "mcp"
+      ],
+      "docs": [
+        "docs/architecture-overview.md",
+        "docs/project-validation.md",
+        "docs/editor-publish-settings.md",
+        "docs/published-project-restore-limitations.md",
+        "docs/publish-plugins.md"
+      ]
     },
     {
-      "paths": ["packages/backend/**"],
-      "tests": ["backend", "cli", "mcp"],
-      "docs": ["docs/architecture-overview.md", "docs/project-validation.md"]
+      "paths": [
+        "packages/backend/**"
+      ],
+      "tests": [
+        "backend",
+        "cli",
+        "mcp"
+      ],
+      "docs": [
+        "docs/architecture-overview.md",
+        "docs/project-validation.md",
+        "docs/guide/contracts.md",
+        "docs/guide/diagnostics.md",
+        "docs/guide/installed-docs.md"
+      ]
     },
     {
-      "paths": ["packages/cli/**"],
-      "tests": ["cli", "backend"],
-      "docs": ["docs/guide/getting-started.md", "docs/project-validation.md"]
+      "paths": [
+        "packages/cli/**"
+      ],
+      "tests": [
+        "cli"
+      ],
+      "docs": [
+        "docs/guide/getting-started.md",
+        "docs/project-validation.md",
+        "docs/guide/contracts.md",
+        "docs/guide/diagnostics.md",
+        "docs/guide/installed-docs.md"
+      ]
     },
     {
-      "paths": ["packages/mcp/**"],
-      "tests": ["mcp"],
-      "docs": ["docs/architecture-overview.md"]
+      "paths": [
+        "packages/mcp/**"
+      ],
+      "tests": [
+        "mcp"
+      ],
+      "docs": [
+        "docs/architecture-overview.md",
+        "docs/guide/contracts.md",
+        "docs/guide/diagnostics.md",
+        "docs/guide/installed-docs.md"
+      ]
     },
     {
-      "paths": ["docs/.vitepress/**", "scripts/**", "examples/**", "agent/**", "references.json", ".github/**", ".node-version"],
-      "tests": ["core", "functions", "backend", "cli", "mcp"],
-      "docs": ["docs/guide/development.md", "docs/en/guide/development.md"]
+      "paths": [
+        "docs/.vitepress/**",
+        "scripts/**",
+        "examples/**",
+        "agent/**",
+        "references.json",
+        ".github/**",
+        ".node-version"
+      ],
+      "tests": [
+        "core",
+        "functions",
+        "backend",
+        "cli",
+        "mcp"
+      ],
+      "docs": [
+        "docs/guide/development.md",
+        "docs/en/guide/development.md"
+      ]
     },
     {
-      "paths": ["docs/**", "AGENTS.md", "README.md", "README_EN.md", "CHANGELOG.md", "CHANGELOG_CN.md"],
+      "paths": [
+        "docs/**",
+        "AGENTS.md",
+        "README.md",
+        "README_EN.md",
+        "CHANGELOG.md",
+        "CHANGELOG_CN.md",
+        "CLAUDE.md",
+        "CONTRIBUTING.md",
+        "ROADMAP.md",
+        "ROADMAP_EN.md"
+      ],
       "tests": [],
-      "docs": ["docs/README.md", "docs/en/README.md"]
+      "docs": [
+        "docs/README.md",
+        "docs/en/README.md"
+      ]
     }
   ]
 }

@@ -1,7 +1,11 @@
 import { type UamPackage, type UamProject, UAM_SUPPORTED_TRANSACTION_SCOPE } from '../model.js';
 import { normalizeUamProject } from '../normalize.js';
 import { validateUamProject } from '../validate.js';
-import type { UamTransactionOperation, UamTransactionSupportIssue } from '../transaction-contracts.js';
+import {
+	UamTransactionError,
+	type UamTransactionOperation,
+	type UamTransactionSupportIssue,
+} from '../transaction-contracts.js';
 import {
 	findDisplayNodeSpecWithPath,
 	isDisplayListRewriteOperation,
@@ -355,7 +359,16 @@ export function validateProjectedState(
 	let projected: UamProject;
 	try {
 		projected = applyUamNativeOperations(project, operations);
-	} catch {
+	} catch (error) {
+		pushSupportIssue(
+			issues,
+			'projection_failed',
+			'operations',
+			`Cannot project transaction: ${error instanceof Error ? error.message : String(error)}`,
+			error instanceof UamTransactionError
+				? { operationIndex: error.opIndex, operationId: error.opId, operationKind: error.opKind }
+				: {},
+		);
 		return;
 	}
 	const baselineValidationIssues = new Set(
@@ -412,7 +425,23 @@ export function validateProjectedGroupState(
 			relevantOperations.length === 0
 				? normalizeUamProject(project)
 				: applyUamNativeOperations(project, relevantOperations);
-	} catch {
+	} catch (error) {
+		pushSupportIssue(
+			issues,
+			'projection_failed',
+			'operations',
+			`Cannot project transaction: ${error instanceof Error ? error.message : String(error)}`,
+			error instanceof UamTransactionError
+				? {
+						operationIndex:
+							error.opIndex === undefined
+								? undefined
+								: operations.indexOf(relevantOperations[error.opIndex]),
+						operationId: error.opId,
+						operationKind: error.opKind,
+					}
+				: {},
+		);
 		return;
 	}
 	for (const issue of validateUamProject(projected)) {

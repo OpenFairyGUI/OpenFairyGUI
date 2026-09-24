@@ -160,6 +160,8 @@ Text/Icon Gear 按页保留未覆盖值、空字符串和普通 `-` 文本，默
 
 ## 工程资源树元数据
 
+工程源数据位于 `.fairy`、`settings/`、`assets/` 与 `assets_<branch>/`。工程保存保留根目录下无关文件和目录（包括 `.git`、`Library`）；这些内容不参与工程资源树的符号链接检查。工程资源和设置内的符号链接仍拒绝读取与保存。
+
 `package.xml` 与 `package_branch.xml` 的 component/asset 资源节点使用 `exported="true"` 与 `favorite="true"` 记录导出和收藏状态；未导出、未收藏时省略对应属性。SWF 使用正式的 `SwfResource` 模型读写 `<swf>` 节点，并通过 UAM `swf` 资源保留源文件、导出状态与收藏状态。UAM 通过 `resource.exported`、`resource.favorite` 承载这些字段，公开事务分别使用幂等的 `setResourceExported`、`setResourceFavorite` 设置目标布尔值。
 
 每个 package 通过正式的 `branchNames` 顺序记录自身出现的资源分支，并以 `package.xml` 根节点的同名 JSON 数组属性持久化。工程读取时使用该顺序建立映射；二进制发布时同一顺序定义该 package 的 `branchItemIds` 槽位，不能按工程根分支顺序重新推导。未显式设置包内表的 Document 调用会从实际分支资源按工程分支顺序推导后再发布。
@@ -415,3 +417,5 @@ Unity 与 Cocos Creator 运行时不解压二进制描述文件，因此这两�
 | 本文关注点 | 只记录编辑器真实属性、默认值和序列化规则 |
 | 不写内容 | 不引入项目内部类型、字段映射或实现细节 |
 | 文档边界 | 本页只描述编辑器设置协议本身，不描述具体项目如何消费这些属性 |
+
+包描述中的资源顺序在工程读写后保持。组件实例 `<Button>` 的 controller、page、checked、sound、volume 与 `<Label>` 的 prompt 在读写中保留；未指定 titleColor 表示不覆盖，显式黑色仍作为覆盖写回。

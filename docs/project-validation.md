@@ -83,3 +83,6 @@ Backend 的 `validateSession({ sessionId })` 验证当前 revision 的 authorita
 | Backend `validateSession` | 当前已提交到会话的工程是否有效，已有读取/源文件检查是否完整 | 不预演待执行操作，不保存或发布 |
 
 安全编辑先通过 `queryEntity` 获取当前属性和 revision，再预演、正式 apply、验证并保存；正式 apply 和 save 仍各自检查 revision。预演失败沿用 Core/Functions 的事务诊断，不能把支持检查通过或预演成功当作工程验证报告。参数与只读边界见[契约指南](./guide/contracts.md#预演一次事务)。
+
+
+Node 文件会话按真实文件身份规范化路径，浏览器存储使用声明的 `caseSensitivePaths`。工程路径检查覆盖 `.fairy`、设置与资源目录，不扫描无关根目录内容。`maxSessions` 限制打开及正在打开的会话，`idleSessionTimeoutMs` 仅自动关闭干净且无正在执行操作的空闲会话；脏会话需要显式保存或关闭。保存失败应检查 `diskMayBePartiallyUpdated` 与 `recoveryPaths`，成功但清理失败应检查 `save_backup_retained` 警告。

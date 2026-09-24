@@ -15,6 +15,17 @@ export const git = (root, args) =>
 export const nulLines = (text) => text.split('\0').filter(Boolean);
 export const isMain = (url) => process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(url);
 
+/** One actionable line for a failed git call, keeping Git's own reason instead of a generic failure. */
+export function describeGitError(error) {
+	const stderr = String(error?.stderr ?? '').trim();
+	const lines = stderr.split('\n');
+	const detail = lines.find((line) => line.startsWith('fatal:') || line.startsWith('error:')) ?? lines[0];
+	const message = detail || error?.message || String(error);
+	return /dubious ownership/.test(stderr)
+		? `${message} Mark the checkout as safe with: git config --global --add safe.directory <repository path>`
+		: message;
+}
+
 export function repositoryFiles(root) {
 	return [...new Set(nulLines(git(root, ['ls-files', '-z', '--cached', '--others', '--exclude-standard'])))];
 }

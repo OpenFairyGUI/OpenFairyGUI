@@ -1,3 +1,4 @@
+import { BinaryFormatError } from './errors.js';
 import { ControllerActionType } from '../constants.js';
 import type { Component } from '../properties/component.js';
 import type { ResourceReferenceEncodingContext } from './component-encoder-shared.js';
@@ -120,7 +121,7 @@ export function _writeControllers(buf: WriteBuffer, comp: Component): void {
 			case 'specific': {
 				const homePageIndex = pages.findIndex((page) => page.getId() === ctrl.getHomePage());
 				if (homePageIndex < 0) {
-					throw new Error(
+					throw new BinaryFormatError(
 						`Controller "${ctrl.getName()}" references unknown home page id "${ctrl.getHomePage()}".`,
 					);
 				}
@@ -133,13 +134,13 @@ export function _writeControllers(buf: WriteBuffer, comp: Component): void {
 				break;
 			case 'variable':
 				if (!ctrl.getHomePage()) {
-					throw new Error(`Controller "${ctrl.getName()}" requires a custom property key.`);
+					throw new BinaryFormatError(`Controller "${ctrl.getName()}" requires a custom property key.`);
 				}
 				buf.writeUint8(3);
 				buf.writeS(ctrl.getHomePage());
 				break;
 			default:
-				throw new Error(`Controller "${ctrl.getName()}" has unsupported home page type.`);
+				throw new BinaryFormatError(`Controller "${ctrl.getName()}" has unsupported home page type.`);
 		}
 
 		// Controller Block 2: actions

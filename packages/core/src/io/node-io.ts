@@ -1,3 +1,4 @@
+import { ProjectIOError } from './errors.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { PlatformIO } from './platform-io.js';
@@ -43,7 +44,7 @@ export class NodeIO extends PlatformIO {
 				const entries = await fs.readdir(dirPath, { withFileTypes: true });
 				const symlink = entries.find((entry) => entry.isSymbolicLink());
 				if (symlink)
-					throw new Error(
+					throw new ProjectIOError(
 						`Symbolic links are not supported in project directories: ${path.join(dirPath, symlink.name)}`,
 					);
 				return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
@@ -52,8 +53,13 @@ export class NodeIO extends PlatformIO {
 				try {
 					await fs.access(filePath);
 					return true;
-				} catch {
-					return false;
+				} catch (error) {
+					if (
+						(error as NodeJS.ErrnoException).code === 'ENOENT' ||
+						(error as NodeJS.ErrnoException).code === 'ENOTDIR'
+					)
+						return false;
+					throw error;
 				}
 			},
 			async unlink(filePath: string): Promise<void> {

@@ -1,3 +1,4 @@
+import { ProjectIOError } from './errors.js';
 import type { GImage } from '../properties/g-image.js';
 import type { GGraph } from '../properties/g-graph.js';
 import type { GGroup } from '../properties/g-group.js';
@@ -77,7 +78,7 @@ const DISPLAY_OBJECT_PROTOCOL_BY_TYPE: Record<string, XmlNodeProtocol> = {
 
 const DISPLAY_LIST_CONTAINER = PROJECT_XML_PROTOCOL.componentRoot.containers?.displayList;
 if (!DISPLAY_LIST_CONTAINER) {
-	throw new Error('PROJECT_XML_PROTOCOL.componentRoot must define containers.displayList');
+	throw new ProjectIOError('PROJECT_XML_PROTOCOL.componentRoot must define containers.displayList');
 }
 
 const DISPLAY_LIST_ALLOWED_VARIANTS = new Set(Object.keys(DISPLAY_LIST_CONTAINER.items));
@@ -246,7 +247,7 @@ function getDisplayListVariantName(propertyType: string, tagName: string): strin
 function assertDisplayListVariantAllowed(propertyType: string, tagName: string, childName: string): void {
 	const variantName = getDisplayListVariantName(propertyType, tagName);
 	if (!DISPLAY_LIST_ALLOWED_VARIANTS.has(variantName)) {
-		throw new Error(
+		throw new ProjectIOError(
 			`displayList variant "${variantName}" derived from propertyType "${propertyType}" is not declared in protocol for child "${childName}"`,
 		);
 	}
@@ -272,8 +273,8 @@ export function serializeDisplayList(children: GObject[]): string {
 
 function serializeChild(obj: GObject): Record<string, unknown> {
 	const attrs: Record<string, unknown> = {};
-	if (obj.getId()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.id, obj.getId());
-	if (obj.getName()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.name, obj.getName());
+	if (obj.getId()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.id, obj.getId());
+	if (obj.getName()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.name, obj.getName());
 
 	// Type-specific attributes
 	const type = obj.propertyType as string;
@@ -312,7 +313,9 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 		writeListXmlNode(attrs, obj as GList | GTree);
 	}
 
-	const extension = type === 'GComponent' ? writeComponentInstanceXmlNode(attrs, obj as GComponent) : undefined;
+	const extension = ['GComponent', 'GButton', 'GLabel'].includes(type)
+		? writeComponentInstanceXmlNode(attrs, obj as GComponent)
+		: undefined;
 
 	const objectProtocol = DISPLAY_OBJECT_PROTOCOL_BY_TYPE[type] ?? PROJECT_XML_PROTOCOL.componentInstance;
 	writeCommonDisplayState(attrs, obj, objectProtocol);

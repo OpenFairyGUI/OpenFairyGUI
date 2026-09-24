@@ -393,22 +393,22 @@ test('project XML protocol covers selected tag attrs across fixture samples', as
 		collectAllowedAttrNames('packageResource', 'packageMovieClipResource'),
 	);
 	await assertRootComponentAttrsCovered(t, collectAllowedAttrNames('componentRoot'));
-	await assertNestedComponentAttrsCovered(t, collectAllowedAttrNames('displayObject', 'componentInstance'));
+	await assertNestedComponentAttrsCovered(t, collectAllowedAttrNames('sharedDisplayAttributes', 'componentInstance'));
 	await assertTagAttrsCovered(t, 'Button', collectAllowedAttrNames('buttonExtension'));
 	await assertTagAttrsCovered(t, 'Label', collectAllowedAttrNames('labelExtension'));
 	await assertTagAttrsCovered(t, 'ComboBox', collectAllowedAttrNames('comboBoxExtension'));
 	await assertTagAttrsCovered(t, 'ProgressBar', collectAllowedAttrNames('progressBarExtension'));
 	await assertTagAttrsCovered(t, 'Slider', collectAllowedAttrNames('sliderExtension'));
 	await assertTagAttrsCovered(t, 'ScrollBar', collectAllowedAttrNames('scrollBarExtension'));
-	await assertTagAttrsCovered(t, 'loader', collectAllowedAttrNames('displayObject', 'loader'));
-	await assertTagAttrsCovered(t, 'loader3D', collectAllowedAttrNames('displayObject', 'loader3D'));
-	await assertTagAttrsCovered(t, 'graph', collectAllowedAttrNames('displayObject', 'graph'));
-	await assertTagAttrsCovered(t, 'group', collectAllowedAttrNames('displayObject', 'group'));
-	await assertTagAttrsCovered(t, 'list', collectAllowedAttrNames('displayObject', 'list'));
+	await assertTagAttrsCovered(t, 'loader', collectAllowedAttrNames('sharedDisplayAttributes', 'loader'));
+	await assertTagAttrsCovered(t, 'loader3D', collectAllowedAttrNames('sharedDisplayAttributes', 'loader3D'));
+	await assertTagAttrsCovered(t, 'graph', collectAllowedAttrNames('sharedDisplayAttributes', 'graph'));
+	await assertTagAttrsCovered(t, 'group', collectAllowedAttrNames('sharedDisplayAttributes', 'group'));
+	await assertTagAttrsCovered(t, 'list', collectAllowedAttrNames('sharedDisplayAttributes', 'list'));
 	await assertContextualChildTagAttrsCovered(t, 'list', 'item', collectAllowedAttrNames('listItem'));
-	await assertTagAttrsCovered(t, 'jta', collectAllowedAttrNames('displayObject', 'movieClip'));
-	await assertTagAttrsCovered(t, 'text', collectAllowedAttrNames('displayObject', 'text'));
-	await assertTagAttrsCovered(t, 'richtext', collectAllowedAttrNames('displayObject', 'text', 'richText'));
+	await assertTagAttrsCovered(t, 'jta', collectAllowedAttrNames('sharedDisplayAttributes', 'movieClip'));
+	await assertTagAttrsCovered(t, 'text', collectAllowedAttrNames('sharedDisplayAttributes', 'text'));
+	await assertTagAttrsCovered(t, 'richtext', collectAllowedAttrNames('sharedDisplayAttributes', 'text', 'richText'));
 	await assertContextualChildTagAttrsCovered(t, 'ComboBox', 'item', collectAllowedAttrNames('comboBoxItem'));
 	await assertTagAttrsCovered(t, 'transition', collectAllowedAttrNames('transition'));
 	await assertTagAttrsCovered(t, 'relation', collectAllowedAttrNames('relation'));
@@ -436,7 +436,6 @@ test('project XML protocol children maps stay explicit and stable', (t) => {
 			'componentRoot',
 			'controller',
 			'controllerAction',
-			'displayObject',
 			'gear',
 			'graph',
 			'group',
@@ -461,6 +460,7 @@ test('project XML protocol children maps stay explicit and stable', (t) => {
 			'relation',
 			'richText',
 			'scrollBarExtension',
+			'sharedDisplayAttributes',
 			'sliderExtension',
 			'text',
 			'textInput',
@@ -734,14 +734,14 @@ test('protocolized project XML fields do not regress to legacy direct access pat
 		'obj.setVisible(false)',
 		'obj.setTouchable(false)',
 		'obj.setGrayed(true)',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.size',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.xy',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.locked',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.restrictSize',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.pivot',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.anchor',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.scale',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.group',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.size',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.xy',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.locked',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.restrictSize',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.pivot',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.anchor',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.scale',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.group',
 		'obj.setTooltips(tooltips)',
 		'obj.setCustomData(objectCustomData)',
 		'obj.setSkew(skewX, skewY)',
@@ -823,14 +823,14 @@ test('protocolized project XML fields do not regress to legacy direct access pat
 		"attrs['@_visible']",
 		"attrs['@_touchable']",
 		"attrs['@_grayed']",
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.size',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.xy',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.locked',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.restrictSize',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.pivot',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.anchor',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.scale',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.group',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.size',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.xy',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.locked',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.restrictSize',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.pivot',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.anchor',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.scale',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.group',
 		"attrs['@_tooltips']",
 		"attrs['@_customData']",
 		"attrs['@_skew']",

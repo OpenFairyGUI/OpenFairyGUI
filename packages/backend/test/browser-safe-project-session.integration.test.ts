@@ -29,6 +29,39 @@ import {
 	createBackendStorageFileSystem,
 } from '../src/index.js';
 import { createBackendFixtureProject } from './helpers.js';
+import { assertProjectPathContained } from '../src/path-policy.js';
+
+test('browser storage preserves distinct case-sensitive paths and rejects a case-variant allowed root', async (t) => {
+	const fileSystem = createBackendStorageFileSystem(new MemoryBrowserStorage());
+	t.true(fileSystem.caseSensitivePaths);
+	await t.throwsAsync(assertProjectPathContained(fileSystem, '/Workspace', '/workspace/Project.fairy'), {
+		code: 'EACCES',
+	});
+	const runtime = new BackendRuntime({ fileSystem });
+	t.is(runtime.getCapabilities().data.runtime.pathPolicy.canonicalization, 'realpath+normalized');
+	for (const root of ['/Workspace', '/workspace']) {
+		t.true(
+			runtime.openProjectSession({
+				project: createBackendFixtureProject(),
+				storage: { fileSystem, fairyPath: `${root}/Project.fairy` },
+			}).ok,
+		);
+	}
+	const insensitive = createBackendStorageFileSystem(
+		Object.assign(new MemoryBrowserStorage(), { caseSensitivePaths: false }),
+	);
+	await t.notThrowsAsync(assertProjectPathContained(insensitive, '/Workspace', '/workspace/Project.fairy'));
+	const other = new BackendRuntime({ fileSystem: insensitive });
+	const open = (root: string) =>
+		other.openProjectSession({
+			project: createBackendFixtureProject(),
+			storage: { fileSystem: insensitive, fairyPath: `${root}/Project.fairy` },
+		});
+	t.true(open('/Workspace').ok);
+	const duplicate = open('/workspace');
+	t.false(duplicate.ok);
+	if (!duplicate.ok) t.is(duplicate.error.code, 'lock_conflict');
+});
 
 const LAYABOX_PROJECT_PATH = getFixtureProjectPath('FairyGUI-layabox', 'demo/UIProject/FairyGUI-layabox-demo.fairy');
 
@@ -1324,7 +1357,7 @@ test('browser-safe addResource indexes survive multi-resource inverse save and r
 				.getRoot()
 				.listPackages()
 				.find((candidate) => candidate.getId() === pkg.id)
-				?.getExtras()._preservePackageResourceOrder,
+				?.getPreserveResourceOrder(),
 			true,
 		);
 		await new ProjectWriter(fileSystem).write(reloadedDocument, 'ResourceOrderCopy/Project.fairy');

@@ -77,21 +77,30 @@ function readBlock5(bytes: Uint8Array, block5Offset: number): Array<{ index: num
 	return values;
 }
 
-function getComponentRawBinary(doc: Document, packageName: string, componentName: string): Uint8Array {
-	const pkg = doc
-		.getRoot()
-		.listPackages()
-		.find((item) => item.getName() === packageName);
-	if (!pkg) throw new Error(`Package not found: ${packageName}`);
-	const comp = pkg
-		.listResources()
-		.find((item) => item.propertyType === 'Component' && item.getName() === componentName);
-	if (!comp) throw new Error(`Component not found: ${componentName}`);
-	const raw = (
-		comp.getExtras() as { _rawBinary?: { buffer: ArrayBufferLike; byteOffset: number; byteLength: number } }
-	)._rawBinary;
-	if (!raw) throw new Error(`Component raw binary missing: ${componentName}`);
-	return new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength);
+function getComponentRawBinary(bytes: Uint8Array, _packageName: string, componentName: string): Uint8Array {
+	const offsets = readBlockOffsets(bytes);
+	const strings = readStringTable(bytes, offsets[4]);
+	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+	let pos = offsets[1];
+	const count = view.getUint16(pos, false);
+	pos += 2;
+	for (let i = 0; i < count; i++) {
+		const length = view.getInt32(pos, false);
+		pos += 4;
+		const end = pos + length;
+		const type = view.getUint8(pos++);
+		pos += 2;
+		const name = strings[view.getUint16(pos, false)];
+		pos += 2 + 4 + 1 + 8;
+		if (type === 3 && name === componentName) {
+			pos += 1;
+			const size = view.getInt32(pos, false);
+			pos += 4;
+			return bytes.subarray(pos, pos + size);
+		}
+		pos = end;
+	}
+	throw new Error('Component not found: ' + componentName);
 }
 
 function readStringIndex(view: DataView, state: { pos: number }): number {
@@ -514,8 +523,7 @@ test('binary writer: emits editor-aligned child object types for text input comp
 
 	try {
 		await io.writeBinary(doc, outPath, { compressed: false, packageIndex: 1 });
-		const written = await io.readBinary(outPath);
-		const raw = getComponentRawBinary(written, 'Basics', 'Demo_Text');
+		const raw = getComponentRawBinary(await fs.readFile(outPath), 'Basics', 'Demo_Text');
 		const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
 
 		const segCount = view.getUint8(0);
@@ -577,9 +585,8 @@ test('binary writer: emits version 7 list item property override placeholders', 
 
 	try {
 		await io.writeBinary(doc, outPath, { compressed: false, packageIndex: 1 });
-		const written = await io.readBinary(outPath);
-		const demoListRaw = getComponentRawBinary(written, 'Basics', 'Demo_List');
-		const demoGridRaw = getComponentRawBinary(written, 'Basics', 'Demo_Grid');
+		const demoListRaw = getComponentRawBinary(await fs.readFile(outPath), 'Basics', 'Demo_List');
+		const demoGridRaw = getComponentRawBinary(await fs.readFile(outPath), 'Basics', 'Demo_Grid');
 
 		t.deepEqual(readListItemLengths(demoListRaw, 0), [16, 16, 16, 16, 16, 16]);
 		t.deepEqual(readListItemLengths(demoGridRaw, 2), [16, 16, 16, 16]);
@@ -653,7 +660,7 @@ test('binary writer: preserves static list item controller overrides', async (t)
 	try {
 		await new NodeIO().writeBinary(doc, outPath, { compressed: false, version: 7 });
 		const written = await new NodeIO().readBinary(outPath);
-		const raw = getComponentRawBinary(written, 'ListControllerPkg', 'Host');
+		const raw = getComponentRawBinary(await fs.readFile(outPath), 'ListControllerPkg', 'Host');
 		const writtenPackage = written
 			.getRoot()
 			.listPackages()
@@ -684,15 +691,14 @@ test('binary writer: matches Basics text child layouts from editor baseline', as
 
 	try {
 		await io.writeBinary(doc, outPath, { compressed: false, packageIndex: 1 });
-		const written = await io.readBinary(outPath);
 
-		t.deepEqual(readTextChildLayouts(getComponentRawBinary(written, 'Basics', 'Button')), [
+		t.deepEqual(readTextChildLayouts(getComponentRawBinary(await fs.readFile(outPath), 'Basics', 'Button')), [
 			{ type: 6, dataLen: 113, block5Len: 38 },
 		]);
-		t.deepEqual(readTextChildLayouts(getComponentRawBinary(written, 'Basics', 'Button10')), [
+		t.deepEqual(readTextChildLayouts(getComponentRawBinary(await fs.readFile(outPath), 'Basics', 'Button10')), [
 			{ type: 6, dataLen: 121, block5Len: 46 },
 		]);
-		t.deepEqual(readTextChildLayouts(getComponentRawBinary(written, 'Basics', 'Demo_Text')), [
+		t.deepEqual(readTextChildLayouts(getComponentRawBinary(await fs.readFile(outPath), 'Basics', 'Demo_Text')), [
 			{ type: 6, dataLen: 106, block5Len: 38 },
 			{ type: 6, dataLen: 106, block5Len: 38 },
 			{ type: 6, dataLen: 106, block5Len: 38 },
@@ -760,8 +766,7 @@ test('binary writer: exports only advanced groups and preserves child group ids'
 	try {
 		const io = new NodeIO();
 		await io.writeBinary(doc, outPath, { compressed: false, version: 7 });
-		const written = await io.readBinary(outPath);
-		const children = readChildSummaries(getComponentRawBinary(written, 'GroupPkg', 'Host'));
+		const children = readChildSummaries(getComponentRawBinary(await fs.readFile(outPath), 'GroupPkg', 'Host'));
 
 		t.deepEqual(children, [
 			{ type: 6, dataLen: 98, groupId: -1 },
@@ -811,8 +816,7 @@ test('binary writer: emits version 7 text and loader extension fields', async (t
 		const bytes = await fs.readFile(outPath);
 		t.is(readVersion(bytes), 7, 'binary header version is 7');
 
-		const written = await io.readBinary(outPath);
-		const raw = getComponentRawBinary(written, 'Version7Pkg', 'Host');
+		const raw = getComponentRawBinary(await fs.readFile(outPath), 'Version7Pkg', 'Host');
 		const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
 		const stringTable = readStringTable(bytes, readBlockOffsets(bytes)[4]);
 
@@ -921,8 +925,7 @@ test('binary writer: emits editor-aligned empty graph payloads', async (t) => {
 		const io = new NodeIO();
 		await io.writeBinary(doc, outPath, { compressed: false, version: 7 });
 
-		const written = await io.readBinary(outPath);
-		const raw = getComponentRawBinary(written, 'GraphPkg', 'Host');
+		const raw = getComponentRawBinary(await fs.readFile(outPath), 'GraphPkg', 'Host');
 		const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
 		const block2Offset = view.getUint32(2 + 4 * 2, false);
 		let pos = block2Offset + 2;
@@ -1019,8 +1022,7 @@ test('binary writer: emits version 5 component and extension sound fields', asyn
 		t.is(readVersion(bytes), 5, 'binary header version is 5');
 
 		const stringTable = readStringTable(bytes, readBlockOffsets(bytes)[4]);
-		const written = await io.readBinary(outPath);
-		const raw = getComponentRawBinary(written, 'Version5Pkg', 'Host');
+		const raw = getComponentRawBinary(await fs.readFile(outPath), 'Version5Pkg', 'Host');
 		const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
 
 		const block4Offset = view.getUint32(2 + 4 * 4, false);
@@ -1146,8 +1148,7 @@ test('binary writer: emits combo box instance items with null icon placeholders'
 
 		const bytes = await fs.readFile(outPath);
 		const stringTable = readStringTable(bytes, readBlockOffsets(bytes)[4]);
-		const written = await io.readBinary(outPath);
-		const raw = getComponentRawBinary(written, 'ComboInstancePkg', 'Host');
+		const raw = getComponentRawBinary(await fs.readFile(outPath), 'ComboInstancePkg', 'Host');
 		const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
 
 		const block2Offset = view.getUint32(2 + 4 * 2, false);
@@ -1242,8 +1243,7 @@ test('binary writer: emits version 6 transition and gear animation names', async
 		t.is(readVersion(bytes), 6, 'binary header version is 6');
 
 		const stringTable = readStringTable(bytes, readBlockOffsets(bytes)[4]);
-		const written = await io.readBinary(outPath);
-		const raw = getComponentRawBinary(written, 'Version6Pkg', 'Host');
+		const raw = getComponentRawBinary(await fs.readFile(outPath), 'Version6Pkg', 'Host');
 		const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
 
 		const transitionBlockOffset = view.getUint32(2 + 4 * 5, false);
@@ -1398,8 +1398,7 @@ test('binary writer: emits version 4 transition and gear custom ease paths', asy
 		const bytes = await fs.readFile(outPath);
 		t.is(readVersion(bytes), 4, 'binary header version is 4');
 
-		const written = await io.readBinary(outPath);
-		const raw = getComponentRawBinary(written, 'Version4Pkg', 'Host');
+		const raw = getComponentRawBinary(await fs.readFile(outPath), 'Version4Pkg', 'Host');
 		const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
 
 		const transitionBlockOffset = view.getUint32(2 + 4 * 5, false);
@@ -1507,8 +1506,7 @@ test('binary writer: preserves zero alpha in GearLook status', async (t) => {
 		const io = new NodeIO();
 		await io.writeBinary(doc, outPath, { compressed: false, version: 7 });
 
-		const written = await io.readBinary(outPath);
-		const raw = getComponentRawBinary(written, 'GearLookZeroPkg', 'Host');
+		const raw = getComponentRawBinary(await fs.readFile(outPath), 'GearLookZeroPkg', 'Host');
 		const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
 
 		const block2Offset = view.getUint32(2 + 4 * 2, false);
@@ -1579,8 +1577,7 @@ test('binary writer: emits version 7 gear xy percent footer', async (t) => {
 		const io = new NodeIO();
 		await io.writeBinary(doc, outPath, { compressed: false, version: 7 });
 
-		const written = await io.readBinary(outPath);
-		const raw = getComponentRawBinary(written, 'Version7GearPkg', 'Host');
+		const raw = getComponentRawBinary(await fs.readFile(outPath), 'Version7GearPkg', 'Host');
 		const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
 
 		const block2Offset = view.getUint32(2 + 4 * 2, false);
@@ -1642,8 +1639,7 @@ test('binary writer: emits null scrollpane ptrRes slots for missing header/foote
 		const binaryBytes = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 		const stringTable = readStringTable(binaryBytes, readBlockOffsets(binaryBytes)[4]);
 
-		const written = await io.readBinary(outPath);
-		const raw = getComponentRawBinary(written, 'PullToRefresh', 'Main');
+		const raw = getComponentRawBinary(await fs.readFile(outPath), 'PullToRefresh', 'Main');
 
 		const list1 = readListScrollPaneResourceIndexes(raw, stringTable, 'list1');
 		t.is(stringTable[list1.headerIndex], 'ui://3u9795n0n3qdr');
@@ -1676,8 +1672,7 @@ test('binary writer: emits null restrict for Basics text input when unset', asyn
 		const binaryBytes = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 		const stringTable = readStringTable(binaryBytes, readBlockOffsets(binaryBytes)[4]);
 
-		const written = await io.readBinary(outPath);
-		const raw = getComponentRawBinary(written, 'Basics', 'Demo_Text');
+		const raw = getComponentRawBinary(await fs.readFile(outPath), 'Basics', 'Demo_Text');
 		const input = readTextInputBlock4(raw, stringTable, 'n22');
 
 		t.is(stringTable[input.promptIndex], '[i][color=#999999]Your Name Here[/color][/i]');
@@ -1719,8 +1714,7 @@ test('binary writer: converts transition frame time and duration using fps', asy
 	try {
 		const io = new NodeIO();
 		await io.writeBinary(doc, outPath, { compressed: false, version: 2, packageIndex: 0 });
-		const written = await io.readBinary(outPath);
-		const raw = getComponentRawBinary(written, 'TransitionFps', 'Main');
+		const raw = getComponentRawBinary(await fs.readFile(outPath), 'TransitionFps', 'Main');
 		const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
 
 		const transitionBlockOffset = view.getUint32(2 + 4 * 5, false);
@@ -1769,15 +1763,13 @@ test('binary writer: maps relation targets from child ids to display-list indexe
 		const binaryBytes = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 		const stringTable = readStringTable(binaryBytes, readBlockOffsets(binaryBytes)[4]);
 
-		const written = await io.readBinary(outPath);
-
-		const chatLeftRaw = getComponentRawBinary(written, 'Emoji', 'chatLeft');
+		const chatLeftRaw = getComponentRawBinary(await fs.readFile(outPath), 'Emoji', 'chatLeft');
 		t.deepEqual(
 			readChildRelationTargets(chatLeftRaw, stringTable, 'n0'),
 			[3],
 			'chatLeft child n0 should target sibling index 3 (msg)',
 		);
-		const chatRightRaw = getComponentRawBinary(written, 'Emoji', 'chatRight');
+		const chatRightRaw = getComponentRawBinary(await fs.readFile(outPath), 'Emoji', 'chatRight');
 		t.deepEqual(
 			readChildRelationTargets(chatRightRaw, stringTable, 'n9'),
 			[3, -1],

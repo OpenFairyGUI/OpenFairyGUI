@@ -1,3 +1,4 @@
+import { ProjectIOError } from './errors.js';
 import { Document } from '../document.js';
 import type { Component } from '../properties/component.js';
 import type { ProjectSettings } from '../types/settings.js';
@@ -8,7 +9,7 @@ import { readComponentXml } from './component-xml-reader.js';
 import type { ProjectDiagnostic } from '../validation.js';
 import type { ProjectReadOptions, ProjectReadResult } from './project-io-contracts.js';
 import { readProjectDirectory } from './project-reader-discovery.js';
-import { getProjectComponentExtras, linkPackageBranchItems, readPackageDescription } from './project-package-reader.js';
+import { linkPackageBranchItems, readPackageDescription } from './project-package-reader.js';
 import { hydratePackageImageSizes, hydratePackageResourceBytes } from './project-resource-hydration.js';
 import { validateComponentXmlValues } from './project-component-xml-validation.js';
 
@@ -156,7 +157,7 @@ export class ProjectReader {
 		for (const [_key, resource] of ctx.resourceMap) {
 			if (resource.propertyType !== 'Component') continue;
 			const comp = resource as Component;
-			const compPath = getProjectComponentExtras(comp)._filePath;
+			const compPath = ctx.componentPaths.get(comp);
 			if (!compPath) continue;
 
 			try {
@@ -164,7 +165,8 @@ export class ProjectReader {
 				if (diagnostics) {
 					assertWellFormedXml(compContent);
 					const componentNode = getXmlNode<XmlNode>(parseXML(compContent).component);
-					if (!componentNode) throw new Error('Component XML must contain a component root element.');
+					if (!componentNode)
+						throw new ProjectIOError('Component XML must contain a component root element.');
 					validateComponentXmlValues(ctx, comp, compPath, componentNode);
 				}
 				readComponentXml(ctx, comp, compContent);

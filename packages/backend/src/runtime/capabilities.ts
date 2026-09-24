@@ -41,7 +41,14 @@ const ARTIFACT_BRIDGE_CAPABILITY = {
 	reason: 'publish/restore require explicit Node-hosted filesystem and artifact execution.',
 } as const satisfies BackendArtifactBridgeCapability;
 
-export function createCapabilities(atomicSave = false): BackendCapabilities {
+export const DEFAULT_MAX_SESSIONS = 32;
+
+export function createCapabilities(
+	atomicSave = false,
+	caseSensitivePaths = false,
+	maxSessions = DEFAULT_MAX_SESSIONS,
+	idleSessionTimeoutMs = 30 * 60_000,
+): BackendCapabilities {
 	return {
 		contractVersion: BACKEND_CONTRACT_VERSION,
 		capabilitySchemaVersion: BACKEND_CAPABILITY_SCHEMA_VERSION,
@@ -123,11 +130,13 @@ export function createCapabilities(atomicSave = false): BackendCapabilities {
 		compatibilityPolicy: BACKEND_COMPATIBILITY_POLICY,
 		runtime: {
 			sessionRuntime: true,
+			maxSessions,
+			idleSessionTimeoutMs,
 			advisoryLocking: true,
 			coordinatedSave: true,
 			atomicSave,
 			staleRevisionProtection: true,
-			pathPolicy: createRuntimePathPolicy(),
+			pathPolicy: createRuntimePathPolicy(caseSensitivePaths),
 			events: {
 				polling: true,
 				subscriptions: false,

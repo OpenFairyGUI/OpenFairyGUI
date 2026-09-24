@@ -3,7 +3,7 @@ import type { CliCommand, CliCommandResults, CliEnvelope, CliError } from '../co
 
 // Keep exactly one JSON document on stdout, even if a trusted project plugin logs.
 const stdout = process.stdout.write.bind(process.stdout);
-export function wantsJson(argv: string[]): boolean {
+export function wantsJson(argv: readonly string[]): boolean {
 	const args = argv.slice(2, argv.indexOf('--') < 0 ? undefined : argv.indexOf('--'));
 	return args.includes('--json') && !args.some((arg) => ['--help', '-h', '--version', '-V'].includes(arg));
 }

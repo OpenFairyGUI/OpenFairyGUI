@@ -72,6 +72,8 @@ export function changelogStructure(text) {
 		['新功能：', 'features'],
 		['Fixes:', 'fixes'],
 		['修复：', 'fixes'],
+		['Bug Fixes:', 'fixes'],
+		['缺陷修复：', 'fixes'],
 		['Other:', 'other'],
 		['其他：', 'other'],
 		['Breaking changes:', 'breaking'],
@@ -151,10 +153,33 @@ export function checkGuidance(root) {
 				throw new Error(`Stale public source mapping: ${name} -> ${target}`);
 	}
 	const documents = files.filter((file) => file.endsWith('.md') && !file.includes('/fixtures/'));
+	for (const file of documents.filter(
+		(file) =>
+			file.startsWith('docs/') &&
+			!file.startsWith('docs/en/') &&
+			!file.startsWith('docs/api/') &&
+			!file.startsWith('docs/.'),
+	)) {
+		if (!existsSync(path.join(root, 'docs/en', file.slice(5))))
+			throw new Error(`Missing English counterpart: ${file}`);
+	}
+	const examples = readJson(path.join(root, 'examples/package.json'));
+	for (const [name, version] of Object.entries(examples.dependencies)) {
+		if (
+			name.startsWith('@openfairygui/') &&
+			version !== readJson(path.join(root, 'packages', name.split('/')[1], 'package.json')).version
+		)
+			throw new Error(`Example dependency must use the exact package version: ${name}`);
+	}
 	const links = new Map();
 	for (const file of documents) {
 		const text = readFileSync(path.join(root, file), 'utf8');
 		try {
+			if (
+				['README.md', 'README_EN.md', 'packages/mcp/README.md'].includes(file) ||
+				/^docs\/(en\/)?guide\/(getting-started|diagnostics|agent-evaluations|contracts)\.md$/.test(file)
+			)
+				checkProductFacts(text);
 			checkCommands(markdownCode(text), scripts);
 			links.set(
 				file,
@@ -190,6 +215,20 @@ export function checkGuidance(root) {
 			'Bilingual changelog version/link/category/item-count drift. Translation meaning still requires review.',
 		);
 	return { documents: documents.length, agentFiles: agents.length, tests: available.length };
+}
+
+export function checkProductFacts(markdown) {
+	const text = markdown
+		.replace(/<!-- product-facts:start -->[\s\S]*?<!-- product-facts:end -->/g, '')
+		.replace(/<!-- diagnostics:start -->[\s\S]*?<!-- diagnostics:end -->/g, '');
+	if (
+		/(?:\b\d+[- ](?:method|operation)|\b\d+ (?:unique codes|Backend methods|command paths)|\d+\s*(?:个唯一码|个方法|类操作|个命令路径)|(?:Package|Capability schema|Backend contract):?\s*`?\d)/i.test(
+			text,
+		)
+	)
+		throw new Error('Handwritten product count/version: use the generated product-facts block.');
+	if (/(?:stable|正式版|稳定版)\s*`\d+\.\d+\.\d+/i.test(text))
+		throw new Error('Handwritten package version: use the installed version and generated product-facts block.');
 }
 
 if (isMain(import.meta.url)) {

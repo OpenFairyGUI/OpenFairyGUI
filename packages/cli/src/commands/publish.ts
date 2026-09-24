@@ -14,6 +14,7 @@ type PublishCommandOptions = {
 	branch?: string;
 	projectType?: string;
 	json?: boolean;
+	plugins?: boolean;
 };
 
 export function registerPublishCommand(program: Command): void {
@@ -25,6 +26,7 @@ export function registerPublishCommand(program: Command): void {
 		.option('-o, --output <dir>', 'Override project or package publish output directory')
 		.option('-c, --compressed', 'Compress binary data (overrides project setting)')
 		.option('-p, --packages <a,b,c>', 'Only publish specific packages (comma-separated)')
+		.option('--no-plugins', 'Disable project plugin discovery and execution')
 		.option('-b, --branch <name>', 'Active branch used by "主干合并活跃分支"; omit for main branch')
 		.option(
 			'-t, --project-type <name|id>',
@@ -64,6 +66,7 @@ export function registerPublishCommand(program: Command): void {
 				assetsPath: path.join(projectRootDir, 'assets'),
 				atlas: resolved.atlas,
 				branch: options.branch,
+				plugins: options.plugins === false ? [] : undefined,
 			});
 			if (options.json) {
 				printJson('publish', result);

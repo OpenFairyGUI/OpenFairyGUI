@@ -23,11 +23,6 @@ async function repoRoot(): Promise<string> {
 
 test.serial('MCP P1 built stdio entrypoint supports initialize and tools/list', async (t) => {
 	const root = await repoRoot();
-	const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
-	await execFileAsync(pnpmCommand, ['--filter', '@openfairygui/mcp', 'build'], {
-		cwd: root,
-		shell: process.platform === 'win32',
-	});
 
 	const entry = path.join(root, 'packages/mcp/bin/ofgui-mcp.cjs');
 	const transport = new StdioClientTransport({
@@ -47,9 +42,23 @@ test.serial('MCP P1 built stdio entrypoint supports initialize and tools/list', 
 		const tools = await client.listTools();
 		t.deepEqual(
 			tools.tools.map((tool) => tool.name),
-			[...OPENFAIRYGUI_BACKEND_TOOL_NAMES],
+			[...OPENFAIRYGUI_BACKEND_TOOL_NAMES, 'openfairygui_docs_read'],
 		);
 	} finally {
 		await client.close();
 	}
+});
+
+test.serial('MCP stdio refuses to start when the allowed-roots variable lists no roots', async (t) => {
+	const root = await repoRoot();
+	const entry = path.join(root, 'packages/mcp/bin/ofgui-mcp.cjs');
+	const error = (await t.throwsAsync(
+		execFileAsync(process.execPath, [entry], {
+			cwd: root,
+			env: { ...process.env, OPENFAIRYGUI_ALLOWED_PROJECT_ROOTS: ` ${path.delimiter} ` },
+			timeout: 30_000,
+		}),
+	)) as Error & { code?: number; stderr?: string };
+	t.not(error.code, 0);
+	t.regex(error.stderr ?? '', /OPENFAIRYGUI_ALLOWED_PROJECT_ROOTS is set but lists no project roots/);
 });

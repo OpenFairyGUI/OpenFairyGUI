@@ -49,12 +49,11 @@
 	"scripts": {
 		"build": "tsdown src/index.ts src/stdio.ts --format esm,cjs --platform node --external node:fs --external node:path --external node:fs/promises",
 		"build:watch": "tsdown src/index.ts src/stdio.ts --watch --format esm,cjs --platform node",
-		"test": "ava test/**/*.test.ts --no-worker-threads"
+		"test": "ava test/**/*.test.ts"
 	},
 	"files": [
 		"dist/",
-		"bin/",
-		"src/"
+		"bin/"
 	],
 	"keywords": [
 		"fairygui",
@@ -84,6 +83,7 @@
 		],
 		"files": [
 			"test/**/*.test.ts"
-		]
+		],
+		"workerThreads": false
 	}
 }

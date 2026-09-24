@@ -4,10 +4,42 @@
 
 ## Unreleased
 
+Agent tooling: MCP default guidance/docs tool, base64 structured binary output (transport breaking change), opt-in host publish; CLI one-shot transactions; bilingual governance and Claude evaluation runner.
+
 Release comparisons:
 
 - Stable line (`main`): [v0.6.1...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.1...main)
 - Development line (`next`): [v0.6.1...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.1...next)
+
+Bug Fixes:
+
+- Development and CI: Enforce formatting, test Node 22/24 on Ubuntu/Windows for main/next, build before testing without rebuilding shared outputs inside tests, and gate coverage. Separate release verification from write permissions, validate bilingual notes and publish exact tarballs, deploy docs only after the matching CI succeeds, and pin Actions to SHAs.
+
+- core: Share Button/Label extension instance I/O, retaining Button controller/page/selection and Label prompt. Components always re-encode against the destination string table; resource filenames and ordering use formal properties and source paths remain in reader context.
+- core: Tighten property accessor and XML protocol types, re-export all UAM APIs at the root, provide structured protocol I/O errors and `projection_failed` with operation location, and preserve filesystem access failures in existence checks.
+- cli, functions: Reject unknown publish package names, add `--no-plugins`, share Backend project resolution, and limit Node image validation, restore decoding and canvases to 16,777,216 pixels.
+
+- core: Decode every Group in a published component child list as an advanced Group, so binary read→write→read no longer drops layout Groups.
+- cli: Depend on core and functions at runtime instead of bundling private copies next to the backend's copies.
+- workspace, functions, cli: Keep root sharp development-only and bound optional Functions/CLI sharp support to `>=0.33.0 <0.35.0`. Exclude duplicate TypeScript sources from published packages and import the CLI entry in the current process.
+- mcp: Compile and cache tool contracts on demand instead of converting all schemas during startup and initialization; generate and cache precise discovery JSON schemas on demand while preserving Host policies and SDK dynamic tool management.
+- backend: Share runtime and class identity between the root and `/node` entries within both ESM and CJS; isolate CJS interop helpers so the root never loads the Node bridge indirectly.
+- backend: Canonicalize Node case aliases using file identity and compare exact names; browser storage declares case sensitivity, defaulting to case-sensitive OPFS semantics.
+- backend, mcp: An empty `allowedProjectRoots` list allows no projects, and stdio refuses to start when `OPENFAIRYGUI_ALLOWED_PROJECT_ROOTS` is set but lists no roots.
+- backend: `project_open_failed` carries a `reason` for missing, ambiguous, non-project, symlinked, inaccessible and unreadable projects.
+- backend: Publish complete Node lock metadata atomically; use OS process creation identities to detect PID reuse and serialize concurrent recovery, acquisition and release with process tickets.
+- backend: Stage only project-owned files, settings and assets, leaving unrelated trees and the root directory in place. Roll back managed entries on failure; successful commits with retained backups report `save_backup_retained`.
+- mcp: Bound `validate_session`, `get_project_outline` and `get_events` responses to 16 MiB, and log unhandled tool failures with their requestId to stderr.
+
+Features:
+
+- backend: Limit open sessions with `maxSessions` (default 32) and reclaim clean idle sessions with `idleSessionTimeoutMs` (default 30 minutes; zero disables). Dirty or busy sessions remain open. Capability schema version is 15.
+
+Breaking changes:
+
+- core: Import `BinaryReader` / `BinaryWriter` from `/project-io`; `ReaderContext` is private. Remove original component slice reuse and extras fallbacks for protocol fields.
+
+- backend: `BackendFileSystem.runProjectWriteTransaction` resolves to a `ProjectWriteTransactionResult`; hosts return `{}`, or `retainedBackupPaths` for previous project copies they could not remove.
 
 ## v0.6.x
 

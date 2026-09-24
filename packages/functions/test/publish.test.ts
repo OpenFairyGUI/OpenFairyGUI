@@ -13,6 +13,54 @@ import { createTestJta } from './test-jta.js';
 
 const sharp = sharpImplementation as typeof sharpImplementation & AtlasRasterBackend;
 
+test('unknown package filters fail before publish hooks or output mutation', async (t) => {
+	const document = new Document();
+	document.createPackage('Main').setId('mainpkg1');
+	let hookCalls = 0;
+	const plugins = [
+		{
+			name: 'probe',
+			plugin: {
+				onPublishStart() {
+					hookCalls++;
+				},
+			},
+		},
+	];
+	for (const packages of [['Typo'], ['Main', 'Typo'], ['']]) {
+		await t.throwsAsync(document.transform(publish({ packages, plugins })), { message: /Unknown package names/ });
+	}
+	t.is(hookCalls, 0);
+});
+
+test('publish plans include packages created by onPublishStart', async (t) => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-hook-plan-'));
+	t.teardown(() => fs.rm(directory, { recursive: true, force: true }));
+	const document = new Document();
+	await document.transform(
+		publish({
+			output: directory,
+			fs: createFs(),
+			plugins: [
+				{
+					name: 'create-package',
+					plugin: {
+						onPublishStart(doc) {
+							doc.createPackage('Added')
+								.setId('added001')
+								.addResource(doc.createComponent('Panel').setId('panel').setExported(true));
+						},
+					},
+				},
+			],
+		}),
+	);
+	const files = await fs.readdir(directory);
+	t.is(files.length, 1);
+	const published = await new NodeIO().readBinary(path.join(directory, files[0]));
+	t.is(published.getRoot().listPackages()[0]?.getName(), 'Added');
+});
+
 const UNITY_EXAMPLES_FAIRY = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
 const UNITY_BRANCH_LOADER_FAIRY = getFixtureProjectPath('FairyGUI-Experiments');
 const LAYABOX_EXAMPLES_FAIRY = getFixtureProjectPath('FairyGUI-layabox', 'demo/UIProject/FairyGUI-layabox-demo.fairy');
@@ -28,7 +76,7 @@ test('publish context computes target filenames without replacing source metadat
 		.setFile('layout.atlas')
 		.setExported(true)
 		.setBranch('mobile');
-	variant.setExtras({ _publishedFile: 'source-metadata.atlas', note: 'preserved' });
+	variant.setPublishedFile('source-metadata.atlas').setExtras({ note: 'preserved' });
 	pkg.addResource(main).addResource(variant);
 	const options = { projectType: 0, activeBranch: 'mobile', includeBranches: false, includeHighResolution: 0 };
 	const unity = await preparePackagePublishContext(pkg, undefined, undefined, options);
@@ -45,7 +93,8 @@ test('publish context computes target filenames without replacing source metadat
 	t.is(branches.publishedFiles.get('mobile'), 'mobile.atlas.txt');
 	t.is(unity.publishedFiles.get('mobile'), 'main.atlas.txt', 'later preparation leaves the earlier context intact');
 	t.deepEqual(pkg.getExtras(), {});
-	t.deepEqual(variant.getExtras(), { _publishedFile: 'source-metadata.atlas', note: 'preserved' });
+	t.deepEqual(variant.getExtras(), { note: 'preserved' });
+	t.is(variant.getPublishedFile(), 'source-metadata.atlas');
 });
 
 test('publish contexts isolate repeated branch and target switches from fresh Documents', async (t) => {

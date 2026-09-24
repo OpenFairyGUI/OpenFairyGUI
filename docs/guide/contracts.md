@@ -48,7 +48,7 @@ if (!bytes.ok) throw new Error(bytes.error.code);
 
 退出码统一为 0 成功、1 工作流失败、2 参数错误、3 验证不完整。`--json` 可位于命令前后；stdout 只有一个 JSON，普通日志进入 stderr。帮助和版本仍为文本。无 `--json` 时保留人类报告，使用同一退出码。
 
-`packages/cli/src/contracts.ts` 是输出事实源。生成器提供 13 个命令路径（含 `ofgui`/`docs` 的解析失败）的 schema，`test:repo` 检查命令注册遗漏，消费者按生成 schema 校验真实输出。运行 `ofgui docs schema cli/validate --json` 或 `ofgui docs cat "cli/docs cat" --json` 读取自包含 schema；内容位于 envelope 的 `result.text`。MCP 对应 `openfairygui://docs/cli/{command}`，空格用 `%20` 编码。生成快照只收集类型，不增加 Backend 到 CLI 的运行时依赖。
+`packages/cli/src/contracts.ts` 是输出事实源。生成器提供全部命令路径（含 `ofgui`/`docs` 的解析失败）的 schema，`test:repo` 检查命令注册遗漏，消费者按生成 schema 校验真实输出。运行 `ofgui docs schema cli/validate --json` 或 `ofgui docs cat "cli/docs cat" --json` 读取自包含 schema；内容位于 envelope 的 `result.text`。MCP 对应 `openfairygui://docs/cli/{command}`，空格用 `%20` 编码。生成快照只收集类型，不增加 Backend 到 CLI 的运行时依赖。
 
 ## 查询精确参数
 
@@ -118,7 +118,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 
 ## 传输与语义边界
 
-- Core 中的二进制仍是 `Uint8Array`。MCP 的正式二进制字段使用整数数组（0–255），通过生成的字段路径显式还原；`replaceResourceBytes`、资源/包快照和导入工程使用同一转换。扩展 JSON 中同名的 `sourceBytes` 不会被改写。
+- Core 中的二进制仍是 `Uint8Array`。MCP 的正式输入二进制字段使用整数数组（0–255），输出二进制字段使用 base64 字符串，通过生成的字段路径显式还原；`replaceResourceBytes`、资源/包快照和导入工程使用同一转换。扩展 JSON 中同名的 `sourceBytes` 不会被改写。
 - MCP 不接受宿主对象：`openProjectSession.storage`、`saveSession.fileSystem`、`materializeSession.storage/fileSystem/targetPath` 不在工具输入中。宿主注入继续通过 Backend API 完成。
 - 结构 schema 保留正式类型声明的开放字段，例如扩展设置、资源 metadata 和部分动态值；它们不是凭空补齐的协议。未知的封闭对象字段会被拒绝，不静默丢弃。
 - 同类型定长元组（例如四个数值的 `scale9Grid` / `cornerRadius`）生成单一 `items` schema，并保留相等的 `minItems` / `maxItems`；MCP 工具发现无需解析位置数组，元素类型和固定长度约束不变。不同类型的位置元组仍保留逐位置约束。
@@ -132,7 +132,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 下表只摘要顶层参数；嵌套字段和具体结果请读取对应 schema。SHA-256 变化表示生成契约发生变化，不等同于包版本号。
 
 <!-- contracts:start -->
-SHA-256: `758763ae4b6724a25a82dc0edbe10c7c13478589bdabf84b847dd2d7b745331d`
+SHA-256: `881800b43ce7307d218f8610cd2900106b43a2ad182c7633c56240511d8b859c`
 
 | 操作 | 参数（`?` 表示可选） |
 |---|---|
@@ -203,6 +203,9 @@ SHA-256: `758763ae4b6724a25a82dc0edbe10c7c13478589bdabf84b847dd2d7b745331d`
 | `publish` | `cli/publish` |
 | `validate` | `cli/validate` |
 | `restore` | `cli/restore` |
+| `tx` | `cli/tx` |
+| `tx preflight` | `cli/tx preflight` |
+| `tx apply` | `cli/tx apply` |
 | `ofgui` | `cli/ofgui` |
 | `docs` | `cli/docs` |
 | `inspect` | `cli/inspect` |
@@ -216,3 +219,5 @@ SHA-256: `758763ae4b6724a25a82dc0edbe10c7c13478589bdabf84b847dd2d7b745331d`
 <!-- contracts:end -->
 
 新增不支持的 TypeScript 构造会使生成失败，不能降级成任意 payload。新增方法必须同时进入 Backend capability 列表和 MCP 元数据；新增 operation 自动来自 Core union。修改后运行 `pnpm contracts:generate`、`pnpm check:ci`，验证范围见[开发指南](./development.md)。
+
+CLI 一次性事务：`ofgui tx preflight <project> --ops ops.json --expected-revision 0 --json` 预演；`ofgui tx apply <project> --ops ops.json --expected-revision 0 --json` 在同一锁内预演、提交、完整验证、保存并关闭。每次调用从新会话 revision 0 开始，不能把前一次命令的 revision 当作磁盘版本令牌；跨调用持久会话请用 Backend/MCP。验证失败不保存，进程退出会丢弃内存编辑；保存错误的恢复路径在 result.save 中保留。MCP 二进制输出为 base64，完整结果只在 structuredContent.backendResult；输入字节仍按生成 schema 使用数组。

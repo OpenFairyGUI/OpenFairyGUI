@@ -4,10 +4,42 @@
 
 ## 未发布
 
+Agent 工具：MCP 默认引导/文档工具、base64 结构化二进制输出（传输破坏性变更）、显式宿主发布；CLI 一次性事务、双语治理与 Claude 评测入口。
+
 发布比较：
 
 - 稳定线（`main`）：[v0.6.1...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.1...main)
 - 开发线（`next`）：[v0.6.1...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.1...next)
+
+缺陷修复：
+
+- 开发与 CI：强制格式检查，Node 22/24 与 Ubuntu/Windows 测试矩阵覆盖 main/next；测试入口先构建且不在测试中重建共享产物，新增覆盖率门槛。发布构建校验与写权限分离，验证双语日志并复用精确 tarball，文档部署等待对应提交 CI 成功，Actions 固定 SHA。
+
+- core：统一 Button/Label 扩展实例读写，保留 Button 控制器、页面、选中状态和 Label prompt；组件总是按目标字符串表重新编码，资源文件名与排序使用正式属性，源路径仅存于读取上下文。
+- core：收紧属性访问器与 XML 协议表类型，根入口完整重导出 UAM；协议 I/O 提供结构化错误，投影失败返回 `projection_failed` 并保留操作定位，文件存在检查不再吞掉访问错误。
+- cli、functions：未知发布包名返回失败；增加 `--no-plugins`，CLI 工程定位复用 Backend；Node 图像校验、恢复解码与画布限制为 16,777,216 像素。
+
+- core：发布组件 child 列表中的 Group 一律解码为高级 Group，二进制读→写→读不再丢失布局 Group。
+- cli：运行时依赖 core 与 functions，不再在 Backend 的副本之外打包私有副本。
+- workspace、functions、cli：根目录 sharp 仅作为开发依赖；Functions/CLI 的可选 sharp 范围限定为 `>=0.33.0 <0.35.0`。发布包排除 TypeScript 源码副本，CLI 启动器在当前进程导入入口。
+- mcp：按需编译工具契约并缓存，启动与初始化不转换全部 schema；工具发现按需生成并缓存精确 JSON schema，保留 Host 策略和 SDK 动态工具管理。
+- backend：根入口与 `/node` 入口在 ESM、CJS 各自格式内共享运行时与类身份；CJS 公共辅助代码独立分块，根入口不会间接加载 Node 桥接。
+- backend：Node 按文件身份规范化大小写别名后精确比较；浏览器存储显式声明大小写规则，默认采用 OPFS 的区分大小写语义。
+- backend、mcp：空的 `allowedProjectRoots` 列表不允许任何工程；`OPENFAIRYGUI_ALLOWED_PROJECT_ROOTS` 已设置但未列出目录时，stdio 拒绝启动。
+- backend：`project_open_failed` 带 `reason`，区分路径不存在、多个工程文件、非工程文件、符号链接、无法访问和无法读取。
+- backend：原子发布完整 Node 锁元数据，使用操作系统进程创建身份识别 PID 复用，以进程票据串行化并发回收、获取与释放。
+- backend：仅暂存工程文件、设置与资源，保留无关目录且不移动项目根；失败回滚受控条目，提交成功但备份清理失败时返回 `save_backup_retained`。
+- mcp：`validate_session`、`get_project_outline`、`get_events` 的响应上限为 16 MiB；未处理的工具失败连同 requestId 写入 stderr。
+
+新功能：
+
+- backend：`maxSessions` 默认限制 32 个会话；`idleSessionTimeoutMs` 默认 30 分钟后回收干净空闲会话，0 禁用回收，保留脏会话和忙碌会话。能力 schema 版本为 15。
+
+破坏性变更：
+
+- core：`BinaryReader` / `BinaryWriter` 从 `/project-io` 导入；`ReaderContext` 不再公开。移除原始组件切片复用及协议字段的 extras 回退。
+
+- backend：`BackendFileSystem.runProjectWriteTransaction` 需返回 `ProjectWriteTransactionResult`；宿主返回 `{}`，无法删除旧工程副本时在 `retainedBackupPaths` 中列出。
 
 ## v0.6.x
 

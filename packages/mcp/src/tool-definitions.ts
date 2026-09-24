@@ -68,9 +68,15 @@ export function isOpenFairyGuiMcpPayloadWithinBudget(root: unknown, bytePaths: r
 export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS: readonly OpenFairyGuiBackendToolDefinition[] =
 	OPENFAIRYGUI_BACKEND_TOOL_METADATA.map((metadata) => {
 		const contract = CONTRACT_SNAPSHOT.tools[metadata.backendMethod];
+		let inputSchema: z.ZodObject | undefined;
+		let outputSchema: z.ZodObject | undefined;
 		return {
 			...metadata,
-			inputSchema: contractObjectSchema(contract.input),
-			outputSchema: contractObjectSchema(contract.output),
+			get inputSchema() {
+				return (inputSchema ??= contractObjectSchema(contract.input));
+			},
+			get outputSchema() {
+				return (outputSchema ??= contractObjectSchema(contract.output));
+			},
 		};
 	});

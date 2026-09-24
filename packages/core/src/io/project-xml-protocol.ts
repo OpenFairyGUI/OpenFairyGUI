@@ -1,7 +1,6 @@
 export interface XmlAttrSpec {
 	canonical: string;
 	aliases?: readonly string[];
-	implemented?: boolean;
 }
 
 export interface XmlNodeProtocol {
@@ -21,22 +20,26 @@ type XmlAttrMap = Record<string, XmlAttrSpec>;
 type XmlChildrenMap = Record<string, XmlNodeProtocol>;
 type XmlContainerMap = Record<string, XmlContainerProtocol>;
 
-const mergeAttrs = (...parts: readonly XmlAttrMap[]): XmlAttrMap => Object.assign({}, ...parts);
-
-const mergeChildren = (...parts: readonly XmlChildrenMap[]): XmlChildrenMap => Object.assign({}, ...parts);
-
-const mergeContainers = (...parts: readonly XmlContainerMap[]): XmlContainerMap => Object.assign({}, ...parts);
-
-const defineContainer = (items: Record<string, XmlNodeProtocol>): XmlContainerProtocol => ({
-	kind: 'orderedVariants',
+type Intersection<U> = (U extends unknown ? (value: U) => void : never) extends (value: infer I) => void ? I : never;
+const mergeAttrs = <const T extends readonly XmlAttrMap[]>(...parts: T): Intersection<T[number]> =>
+	Object.assign({}, ...parts);
+const mergeChildren = <const T extends readonly XmlChildrenMap[]>(...parts: T): Intersection<T[number]> =>
+	Object.assign({}, ...parts);
+const mergeContainers = <const T extends readonly XmlContainerMap[]>(...parts: T): Intersection<T[number]> =>
+	Object.assign({}, ...parts);
+const defineContainer = <const T extends Record<string, XmlNodeProtocol>>(items: T) => ({
+	kind: 'orderedVariants' as const,
 	items,
 });
-
-const defineNode = (attrs: XmlAttrMap, children?: XmlChildrenMap, containers?: XmlContainerMap): XmlNodeProtocol => ({
-	attrs,
-	...(children ? { children } : {}),
-	...(containers ? { containers } : {}),
-});
+const defineNode = <
+	const A extends XmlAttrMap,
+	const C extends XmlChildrenMap = XmlChildrenMap,
+	const D extends XmlContainerMap = XmlContainerMap,
+>(
+	attrs: A,
+	children?: C,
+	containers?: D,
+) => ({ attrs, children, containers });
 
 const PACKAGE_DESCRIPTION_ATTRS = {
 	id: { canonical: 'id' },
@@ -893,7 +896,7 @@ export const PROJECT_XML_PROTOCOL = {
 	packageFontResource: PACKAGE_FONT_RESOURCE_NODE,
 	packageMovieClipResource: PACKAGE_MOVIE_CLIP_RESOURCE_NODE,
 	packageSkeletonResource: PACKAGE_SKELETON_RESOURCE_NODE,
-	displayObject: DISPLAY_OBJECT_NODE,
+	sharedDisplayAttributes: DISPLAY_OBJECT_NODE,
 	image: IMAGE_NODE,
 	graph: GRAPH_NODE,
 	movieClip: MOVIE_CLIP_NODE,

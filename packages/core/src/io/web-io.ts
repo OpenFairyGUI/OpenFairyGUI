@@ -1,3 +1,4 @@
+import { ProjectIOError } from './errors.js';
 import type { Document } from '../document.js';
 import type { FileSystem } from './file-system.js';
 import { ProjectReader, type ProjectReadOptions, type ProjectReadResult } from './project-reader.js';
@@ -130,7 +131,9 @@ export function createFileSystemAccessFileSystem(root: FileSystemAccessDirectory
 				}
 				return names;
 			}
-			throw new Error('FileSystemDirectoryHandle-like object must provide entries() or values() for readdir().');
+			throw new ProjectIOError(
+				'FileSystemDirectoryHandle-like object must provide entries() or values() for readdir().',
+			);
 		},
 		async exists(path: string): Promise<boolean> {
 			try {
@@ -141,12 +144,14 @@ export function createFileSystemAccessFileSystem(root: FileSystemAccessDirectory
 				try {
 					await parent.getFileHandle(name);
 					return true;
-				} catch {
+				} catch (error) {
+					if (!['NotFoundError', 'TypeMismatchError'].includes((error as Error).name)) throw error;
 					await parent.getDirectoryHandle(name);
 					return true;
 				}
-			} catch {
-				return false;
+			} catch (error) {
+				if ((error as Error).name === 'NotFoundError') return false;
+				throw error;
 			}
 		},
 		async unlink(path: string): Promise<void> {
@@ -154,7 +159,9 @@ export function createFileSystemAccessFileSystem(root: FileSystemAccessDirectory
 			if (!fileName) throw missingPathError(path);
 			const parent = await getDirectory(root, dirname(path));
 			if (!parent.removeEntry) {
-				throw new Error('FileSystemDirectoryHandle-like object must provide removeEntry() for source cleanup.');
+				throw new ProjectIOError(
+					'FileSystemDirectoryHandle-like object must provide removeEntry() for source cleanup.',
+				);
 			}
 			await parent.removeEntry(fileName);
 		},
@@ -163,7 +170,9 @@ export function createFileSystemAccessFileSystem(root: FileSystemAccessDirectory
 			if (!dirName) throw missingPathError(path);
 			const parent = await getDirectory(root, dirname(path));
 			if (!parent.removeEntry) {
-				throw new Error('FileSystemDirectoryHandle-like object must provide removeEntry() for folder cleanup.');
+				throw new ProjectIOError(
+					'FileSystemDirectoryHandle-like object must provide removeEntry() for folder cleanup.',
+				);
 			}
 			await parent.removeEntry(dirName);
 		},

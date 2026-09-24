@@ -53,7 +53,7 @@ Codex 非交互参数、JSONL 事件与配置覆盖依据[官方非交互文档]
 ## 隔离和判定边界
 
 - 共用 `pack:check` 的五包打包/生产依赖安装流程：临时目录在仓库外，不安装 workspace、tsx、TypeScript 或 test-utils，不提供仓库源码。模型工作目录是独立空目录，题目提供工程路径、必要的会话 ID/目的路径和安装文档入口。
-- 使用安装包的正式 MCP 服务、契约、Backend 和 Node 文件系统。编辑宿主仅开放十个 session 查询/编辑方法，以及正式资源文档；不开放虚拟工程创建、materialize、发布或任意文件命令。
+- 使用安装包的正式 MCP 服务、契约、Backend 和 Node 文件系统。编辑宿主仅开放十个 session 查询/编辑方法，以及只读文档工具与正式资源文档；不开放虚拟工程创建、materialize、发布或任意文件命令。
 - 忽略用户 CLI 配置、规则、AGENTS 和本机 Skill 发现，关闭 shell、原生执行、浏览器、外部应用、插件、记忆和多 Agent 工具。仅自动批准当前受限 MCP 宿主的工具。保留 Code Mode 宿主供模型编排已开放的 MCP 工具；它不是 Node shell。只读 sandbox 是附加限制，不替代 MCP 宿主边界。
 - 编辑案例的 Backend 文件系统包装对真实路径做范围检查，包含 staging 回调；只允许当前案例的 `workspace`。正常保存可以在该目录内创建临时 staging/backup。额外保留工程内、工程外两份无关文件，最终对整个 workspace 做字节比较。越界尝试会记为失败，不仅检查是否留下文件。
 - 编辑案例的判定器独立重读工程、执行 Node 验证，并比对完整 UAM 与预期文件集合。预期 UAM 直接按任务修改，不调用被测事务来生成答案。最终回复参与事实答案和安全停止声明检查，不作为保存或保留未保存工作的唯一证据。
@@ -74,14 +74,20 @@ Codex 非交互参数、JSONL 事件与配置覆盖依据[官方非交互文档]
 
 观察项包括耗时（不含构建安装和最终判定）、完成的工具调用数、失败调用数（包括预期的 stale 拒绝）、文档 URI、预演次数、完全相同 apply 参数的重试次数、成功提交相同 operations 的次数以及 CLI 返回的 token usage。对象字段顺序不影响重复计数。宿主 `failedCalls` 包含 MCP 协议/工具错误；`clientToolCalls` / `clientFailedCalls` 另外记录客户端层的发现、批准拒绝等调用，不相加计算。模型服务错误在 runner 结果和 stderr 中记录，客户端跳过工具的告警另列为 `clientWarnings`。
 
-`observations.discoveries` 记录每次真实 `tools/list` 中各工具及合计的输入/输出 schema 紧凑 JSON UTF-8 字节数。它不是 token 数、模型实际上下文长度或计费估算。MCP 复用现有 Zod 的本地 `definitions`/`$ref` 表达重复结构，完整产品目录提供 41 类操作和 20 个方法，评测宿主只开放上述受限子集；服务端结构校验、预算与 Backend 安全边界不变。具体客户端可能自行展开引用，字节下降不能直接换算为 token 节省。
+`observations.discoveries` 记录每次真实 `tools/list` 中各工具及合计的输入/输出 schema 紧凑 JSON UTF-8 字节数。它不是 token 数、模型实际上下文长度或计费估算。MCP 复用现有 Zod 的本地 `definitions`/`$ref` 表达重复结构，完整产品使用生成的操作和方法目录，评测宿主只开放上述受限子集；服务端结构校验、预算与 Backend 安全边界不变。具体客户端可能自行展开引用，字节下降不能直接换算为 token 节省。
 
 消费者的 `app/pnpm-lock.yaml` 也保留在现场。重跑同一 tarball 仍可能解析到新的传递依赖，比较结果时须核对消费者锁文件和 Node/CLI 版本；需要字节级重现安装环境时使用保留现场的锁文件与 frozen 安装，而不是仅比较 tarball 版本号。
 
-`modelSuccessRate` 只在 `codex` 运行中计算；`reference` 永远为 null。十项全通过意味着六项读取/编辑目标、两项发布/恢复目标达成及两项正确安全停止，不是十次编辑成功。一次小样本不是模型排行榜或稳定成功率保证。缺工具、客户端解析失败、超时与模型执行错误都应结合原始证据分开解释，不能只看汇总分数。
+`modelSuccessRate` 只在真实模型运行中计算；`reference` 永远为 null。全部通过包含读取/编辑、发布/恢复及正确安全停止，不等于全部任务都执行了编辑。一次小样本不是模型排行榜或稳定成功率保证。缺工具、客户端解析失败、超时与模型执行错误都应结合原始证据分开解释，不能只看汇总分数。
 
 ## CI 门禁
 
-`pnpm test:repo` 覆盖判定器的假阳性、统计、范围与 CLI 配置检查；`pnpm pack:check` 在同一 tarball 消费者中运行十个 **reference** 任务，验证真实 MCP 链路、精确编辑、冲突注入和安全拒绝。这些确定性检查已进入 `check:ci`。
+`pnpm test:repo` 覆盖判定器的假阳性、统计、范围与 CLI 配置检查；`pnpm pack:check` 在同一 tarball 消费者中运行全部 **reference** 任务，验证真实 MCP 链路、精确编辑、冲突注入和安全拒绝。这些确定性检查已进入 `check:ci`。
 
 真实模型仅手动运行，不在 PR CI 中调用，不创建定时任务，也不自动重试到通过。复现失败请先使用保留归档和同一 CLI/模型，再决定修复产品、宿主还是客户端兼容问题；新运行不删除旧失败记录。
+
+第二客户端：`pnpm eval:agent --runner claude --claude <native-executable>`。使用 bare/restricted 模式、禁用内建工具、严格 MCP 配置；初始化工具清单或实际调用出现额外能力即判隔离失败。CLI 参数依据 [Claude Code 官方参考](https://code.claude.com/docs/en/cli-reference)。新增 compound-edit 任务要求先编辑并保存，再重新查询、重命名并再次保存。版本化证据见 agent/evals/baselines；reference 结果不是模型成绩。真实客户端运行需要本机可用的认证与兼容 CLI，未运行不得填成功率。
+
+可用 `--report agent/evals/baselines/<version>-<runner>.json` 导出版本化结果（失败也保留报告）。报告包含安装版本、tarball/任务集摘要、工作区 dirty 标记和逐项判断；错误栈与完整现场保留在仓库外。
+
+认证设置不会自动从个人配置继承。`bare` 模式不读取订阅 OAuth 登录；可使用客户端支持的 API/provider 环境认证，或显式添加 `--claude-settings <settings.json>`，由 Claude 自己读取该文件（评测器不复制凭据）。只提供本次评测需要的认证/provider 设置，不包含自定义 hooks、plugins 或工具。此参数仅适用于 Claude，保留 bare/restricted、禁用 skills 和内建工具、严格 MCP 清单等约束。认证失败、429 与超时属于运行环境失败；保留原始报告，但不得将其解释为模型能力得分。参见 [Claude 程序化认证说明](https://code.claude.com/docs/en/headless#start-faster-with-bare-mode)。

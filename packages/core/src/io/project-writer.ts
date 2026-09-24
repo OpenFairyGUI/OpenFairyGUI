@@ -1,3 +1,4 @@
+import { ProjectIOError } from './errors.js';
 import type { Document } from '../document.js';
 import type { Component } from '../properties/component.js';
 import type { ImageResource } from '../properties/image-resource.js';
@@ -149,7 +150,7 @@ export class ProjectWriter {
 			),
 		);
 		if (staleBranchDirectoryPaths.size > 0 && !fs.rmdir) {
-			throw new Error('Project branch cleanup requires a FileSystem.rmdir() implementation.');
+			throw new ProjectIOError('Project branch cleanup requires a FileSystem.rmdir() implementation.');
 		}
 		const packagePlans = root.listPackages().map((pkg) => this._buildPackageOutputPlan(pkg, basePath));
 		for (const plan of packagePlans) {
@@ -172,7 +173,7 @@ export class ProjectWriter {
 			if (settings[key] === undefined && (await fs.exists(filePath))) staleOptionalSettings.push(filePath);
 		}
 		if (staleOptionalSettings.length > 0 && !fs.unlink) {
-			throw new Error('Project settings cleanup requires a FileSystem.unlink() implementation.');
+			throw new ProjectIOError('Project settings cleanup requires a FileSystem.unlink() implementation.');
 		}
 
 		// 1. Write .fairy file
@@ -422,7 +423,7 @@ export class ProjectWriter {
 		const candidates = await this._stalePaths(currentSourceFilePaths, staleSourceFilePaths);
 		if (candidates.length === 0) return;
 		if (!fs.unlink) {
-			throw new Error('Project source cleanup requires a FileSystem.unlink() implementation.');
+			throw new ProjectIOError('Project source cleanup requires a FileSystem.unlink() implementation.');
 		}
 		for (const filePath of candidates) {
 			if (!(await fs.exists(filePath))) continue;
@@ -439,7 +440,7 @@ export class ProjectWriter {
 		);
 		if (candidates.length === 0) return;
 		if (!this._fs.rmdir) {
-			throw new Error('Project resource folder cleanup requires a FileSystem.rmdir() implementation.');
+			throw new ProjectIOError('Project resource folder cleanup requires a FileSystem.rmdir() implementation.');
 		}
 		for (const folderPath of candidates) {
 			if (!(await this._fs.exists(folderPath))) continue;
@@ -490,10 +491,7 @@ export class ProjectWriter {
 				branch,
 				directory,
 				descriptorPath: this._fs.join(directory, branch ? 'package_branch.xml' : 'package.xml'),
-				orderedResources: this._orderedPackageResources(
-					resources,
-					pkg.getExtras()._preservePackageResourceOrder === true,
-				),
+				orderedResources: this._orderedPackageResources(resources, pkg.getPreserveResourceOrder()),
 				folders: (foldersByBranch.get(branch) ?? []).map((folder) => {
 					const relativePath = this._normalizeSourceRelativePath(folder.path);
 					return { folder, relativePath, targetPath: this._fs.join(directory, relativePath) };
@@ -523,17 +521,23 @@ export class ProjectWriter {
 			const targets = new Map<string, string>([[branch.descriptorPath, 'package descriptor']]);
 			for (const { folder, relativePath: target, targetPath } of branch.folders) {
 				if (!target)
-					throw new Error(`Package "${pkg.getName()}" cannot declare the resource root as a folder.`);
+					throw new ProjectIOError(
+						`Package "${pkg.getName()}" cannot declare the resource root as a folder.`,
+					);
 				const previous = targets.get(targetPath);
 				if (previous)
-					throw new Error(`Package "${pkg.getName()}" output "${target}" conflicts with ${previous}.`);
+					throw new ProjectIOError(
+						`Package "${pkg.getName()}" output "${target}" conflicts with ${previous}.`,
+					);
 				targets.set(targetPath, `resource folder "${folder.path}"`);
 			}
 			for (const { resource, relativePath: target, targetPath } of branch.resources) {
 				if (!target) continue;
 				const previous = targets.get(targetPath);
 				if (previous)
-					throw new Error(`Package "${pkg.getName()}" output "${target}" conflicts with ${previous}.`);
+					throw new ProjectIOError(
+						`Package "${pkg.getName()}" output "${target}" conflicts with ${previous}.`,
+					);
 				targets.set(targetPath, `resource "${resource.getId() ?? resource.getName()}"`);
 			}
 		}
@@ -592,14 +596,14 @@ export class ProjectWriter {
 			/[. ]$/.test(value) ||
 			/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i.test(value)
 		) {
-			throw new Error(`Invalid ${label} "${value}".`);
+			throw new ProjectIOError(`Invalid ${label} "${value}".`);
 		}
 	}
 
 	private _normalizeSourceRelativePath(value: string): string {
 		const segments = value.replace(/\\/g, '/').split('/').filter(Boolean);
 		if (segments.some((segment) => segment === '.' || segment === '..' || segment.includes(':'))) {
-			throw new Error(`Invalid project source path "${value}".`);
+			throw new ProjectIOError(`Invalid project source path "${value}".`);
 		}
 		return segments.join('/');
 	}
@@ -701,7 +705,9 @@ export class ProjectWriter {
 			const { afterId, weight } = order;
 			if (afterId) {
 				if (!anchors.has(afterId))
-					throw new Error(`Invalid image package order anchor "${afterId}" for "${resource.getId()}".`);
+					throw new ProjectIOError(
+						`Invalid image package order anchor "${afterId}" for "${resource.getId()}".`,
+					);
 				const bucket = resourcesAfter.get(afterId) ?? [];
 				bucket.push({ resource, weight });
 				resourcesAfter.set(afterId, bucket);
@@ -940,7 +946,7 @@ export class ProjectWriter {
 			11: 'MonoGame',
 			12: 'Vision',
 		};
-		if (names[type] === undefined) throw new Error(`Unsupported project type "${type}".`);
+		if (names[type] === undefined) throw new ProjectIOError(`Unsupported project type "${type}".`);
 		return names[type];
 	}
 }

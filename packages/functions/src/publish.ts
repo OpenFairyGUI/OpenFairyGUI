@@ -1,5 +1,5 @@
+import { BinaryWriter } from '@openfairygui/core/project-io';
 import {
-	BinaryWriter,
 	type BinaryWriterOptions,
 	type Document,
 	type FileSystem,
@@ -108,6 +108,14 @@ function toBinaryWriterFileSystem(fs: PublishFileSystem): FileSystem {
 		join: fs.join,
 		dirname,
 	};
+}
+
+function selectPublishPackages(packages: Package[], requested?: string[]): Package[] {
+	if (!requested?.length) return packages;
+	const names = new Set(requested);
+	const unknown = [...names].filter((name) => !packages.some((pkg) => pkg.getName() === name));
+	if (unknown.length > 0) throw new Error(`publish: Unknown package names: ${unknown.join(', ')}`);
+	return packages.filter((pkg) => names.has(pkg.getName()));
 }
 
 /**
@@ -331,16 +339,12 @@ export function publish(options: PublishOptions): Transform {
 		const logger = doc.getLogger();
 		const projectBasePath = resolveProjectBasePath(options.basePath) || doc.getProjectDir?.() || '';
 		const plugins = options.plugins ?? [];
+
+		// Reject invalid requests before hooks, then include any hook changes in the plan.
+		selectPublishPackages(root.listPackages(), resolveProjectPublishConfig().packages);
 		await runPublishPluginHook(plugins, 'onPublishStart', doc, options);
-
 		const resolved = resolveProjectPublishConfig();
-
-		// Step 1: Determine which packages to publish
-		let allPackages = root.listPackages();
-		if (resolved.packages && resolved.packages.length > 0) {
-			const names = new Set(resolved.packages);
-			allPackages = allPackages.filter((p) => names.has(p.getName()));
-		}
+		const allPackages = selectPublishPackages(root.listPackages(), resolved.packages);
 
 		if (allPackages.length === 0) {
 			logger.warn('publish: No packages to publish.');

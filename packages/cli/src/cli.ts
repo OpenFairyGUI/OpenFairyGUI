@@ -10,6 +10,7 @@ import { registerValidateCommand } from './commands/validate.js';
 import { registerDocsCommand } from './commands/docs.js';
 import { registerDoctorCommand } from './commands/doctor.js';
 import { readPackageVersion } from './utils/package-version.js';
+import { registerTransactionCommands } from './commands/tx.js';
 
 const PACKAGE_VERSION = readPackageVersion();
 
@@ -26,6 +27,7 @@ export function createProgram(): Command {
 	registerBackendCapabilitiesCommand(program);
 	registerDocsCommand(program);
 	registerDoctorCommand(program);
+	registerTransactionCommands(program);
 
 	program.addHelpText(
 		'after',
@@ -42,13 +44,16 @@ export function createProgram(): Command {
 	return program;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+/** Runs the CLI in the current process; the package bin and direct execution both use it. */
+export async function runCli(argv: readonly string[] = process.argv): Promise<void> {
 	const program = createProgram();
-	program.parseAsync(process.argv).catch((err) => {
+	try {
+		await program.parseAsync([...argv]);
+	} catch (err) {
 		if (err instanceof CommanderError && err.exitCode === 0) return;
 		const command = parsedCommand(program);
 		const message = err instanceof Error ? err.message : String(err);
-		if (wantsJson(process.argv))
+		if (wantsJson(argv))
 			printJsonError(command, {
 				code:
 					err instanceof CommanderError
@@ -60,5 +65,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
 			});
 		else console.error(message);
 		process.exitCode = err instanceof CommanderError ? 2 : 1;
-	});
+	}
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+	void runCli();
 }

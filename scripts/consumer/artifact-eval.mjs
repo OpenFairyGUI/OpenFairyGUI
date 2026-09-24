@@ -239,6 +239,7 @@ export async function serveArtifact(config) {
 						restored: config.restored,
 						installed: getInstalledDocumentationVersion(),
 						documentation: ['openfairygui://docs/workflow', 'openfairygui://docs/restore-limits'],
+						documents: ['workflow', 'restore-limits'].map((id) => readInstalledDocumentation(id)),
 					},
 				};
 			else

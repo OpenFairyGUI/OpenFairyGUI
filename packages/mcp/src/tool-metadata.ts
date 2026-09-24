@@ -47,7 +47,8 @@ export const OPENFAIRYGUI_BACKEND_TOOL_METADATA = [
 		name: 'openfairygui_backend_open_session',
 		backendMethod: 'openSession',
 		title: 'Open Backend Session',
-		description: 'Open a FairyGUI project through BackendRuntime and acquire its backend-local session lock.',
+		description:
+			'Open a project directory or .fairy file within allowed roots (stdio: OPENFAIRYGUI_ALLOWED_PROJECT_ROOTS). Acquire a session lock; close the session when finished.',
 		annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },
 	},
 	{
@@ -70,7 +71,8 @@ export const OPENFAIRYGUI_BACKEND_TOOL_METADATA = [
 		backendMethod: 'getProjectOutline',
 		title: 'Get Project Outline',
 		description:
-			'Return a revision-bound project/package/resource/component identity outline without source bytes or full property payloads.',
+			'Return a revision-bound project/package/resource/component identity outline without source bytes or full property payloads. Complete tool response is limited to 16 MiB.',
+		maxResponseBytes: 16777216,
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 	},
 	{
@@ -104,7 +106,8 @@ export const OPENFAIRYGUI_BACKEND_TOOL_METADATA = [
 		backendMethod: 'validateSession',
 		title: 'Validate Project Session',
 		description:
-			'Validate the current session project structure, references, paths, and available source bytes without writing files.',
+			'Validate the current session project structure, references, paths, and available source bytes without writing files. Complete tool response is limited to 16 MiB.',
+		maxResponseBytes: 16777216,
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 	},
 	{
@@ -119,7 +122,8 @@ export const OPENFAIRYGUI_BACKEND_TOOL_METADATA = [
 		name: 'openfairygui_backend_apply_transaction',
 		backendMethod: 'applyTransaction',
 		title: 'Apply UAM Transaction',
-		description: 'Apply a bounded, revision-checked UAM operation batch using the Core transaction discriminants.',
+		description:
+			'Preflight first, then apply the same bounded operation batch with expectedRevision. On stale_write, re-query and reconsider the batch; do not retry blindly. Validate and save afterward.',
 		annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
 	},
 	{
@@ -127,7 +131,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_METADATA = [
 		backendMethod: 'saveSession',
 		title: 'Save Backend Session',
 		description:
-			'Write the current backend session through its coordinated save path; Node uses an atomic staged directory swap.',
+			'Write the current backend session through its coordinated save path; Node stages project-owned files and reports rollback or retained-backup diagnostics.',
 		annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
 	},
 	{
@@ -149,7 +153,9 @@ export const OPENFAIRYGUI_BACKEND_TOOL_METADATA = [
 		name: 'openfairygui_backend_get_events',
 		backendMethod: 'getEvents',
 		title: 'Get Runtime Events',
-		description: 'Poll backend runtime events for a session using the backend P2 event cursor contract.',
+		description:
+			'Poll backend runtime events for a session using the backend event cursor contract. Complete tool response is limited to 16 MiB.',
+		maxResponseBytes: 16777216,
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 	},
 	{

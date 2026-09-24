@@ -14,7 +14,13 @@ export interface ContractSnapshot {
 	operations: Record<string, ContractSchema>;
 	tools: Record<
 		string,
-		{ input: ContractSchema; output: ContractSchema; bytePaths: string[][]; [metadata: string]: unknown }
+		{
+			input: ContractSchema;
+			output: ContractSchema;
+			bytePaths: string[][];
+			outputBytePaths: string[][];
+			[metadata: string]: unknown;
+		}
 	>;
 	cli: Record<string, ContractSchema>;
 	$defs: Record<string, ContractSchema>;
@@ -22,6 +28,31 @@ export interface ContractSnapshot {
 }
 
 export const OPENFAIRYGUI_DOCS_INDEX_URI = 'openfairygui://docs/index';
+
+/** Decode only generated native-byte paths in JSON transport inputs, preserving extension JSON. */
+export function decodeContractBytes(input: Record<string, unknown>, paths: string[][]): Record<string, unknown> {
+	if (!paths.length) return input;
+	const result = structuredClone(input);
+	let bytes = 0;
+	function visit(value: unknown, parts: string[]): unknown {
+		if (!parts.length) {
+			if (value === null || value instanceof Uint8Array) return value;
+			if (!Array.isArray(value) || !value.every((byte) => Number.isInteger(byte) && byte >= 0 && byte <= 255))
+				throw new TypeError('Binary input must be an array of integer bytes.');
+			bytes += value.length;
+			if (bytes > 8 * 1024 * 1024) throw new RangeError('Binary input exceeds 8 MiB.');
+			return Uint8Array.from(value);
+		}
+		if (!value || typeof value !== 'object') return value;
+		const [key, ...rest] = parts;
+		const record = value as Record<string, unknown>;
+		for (const name of key === '*' ? Object.keys(record) : [key])
+			if (Object.hasOwn(record, name)) record[name] = visit(record[name], rest);
+		return value;
+	}
+	for (const parts of paths) visit(result, parts);
+	return result;
+}
 export const OPENFAIRYGUI_OPERATION_CATALOG_URI = 'openfairygui://contracts/operations';
 export const OPENFAIRYGUI_OPERATION_SCHEMA_TEMPLATE = `${OPENFAIRYGUI_OPERATION_CATALOG_URI}/{kind}`;
 

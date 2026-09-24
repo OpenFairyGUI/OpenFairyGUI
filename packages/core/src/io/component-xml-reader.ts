@@ -1,3 +1,4 @@
+import { ProjectIOError } from './errors.js';
 import { getXmlNode } from '../utils/xml-utils.js';
 import { ControllerActionType } from '../constants.js';
 import type { Component } from '../properties/component.js';
@@ -676,7 +677,7 @@ export function readComponentXml(ctx: ReaderContext, comp: Component, xmlContent
 		const homePageType =
 			readXmlAttr<string>(ctrlDef, PROJECT_XML_PROTOCOL.controller.attrs.homePageType) ?? 'default';
 		if (!CONTROLLER_HOME_PAGE_TYPES.has(homePageType as ControllerHomePageType)) {
-			throw new Error(`Controller "${ctrlName}" has unsupported homePageType "${homePageType}".`);
+			throw new ProjectIOError(`Controller "${ctrlName}" has unsupported homePageType "${homePageType}".`);
 		}
 		ctrl.setSelectedIndex(parseInt2(selected))
 			.setAlias(readXmlAttr<string>(ctrlDef, PROJECT_XML_PROTOCOL.controller.attrs.alias) ?? '')

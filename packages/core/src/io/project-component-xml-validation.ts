@@ -185,14 +185,15 @@ export function validateComponentXmlValues(
 		for (const definition of ensureArray(definitions)) {
 			const attrs = getXmlNode<XmlNode>(definition);
 			if (!attrs) continue;
-			const nodeId = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.id);
+			const nodeId = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.id);
 			const nodePath = `${componentPath}.displayList.${nodeIndex++}`;
 			addDiagnostics(attrs, DISPLAY_OBJECT_INT32_RULES, nodePath, nodeId);
 			const normalizedTagName = tagName.toLowerCase();
 			const displayProtocol = Object.entries(
 				PROJECT_XML_PROTOCOL.componentRoot.containers?.displayList?.items ?? {},
 			).find(([name]) => name.toLowerCase() === normalizedTagName)?.[1];
-			const displayAttrs = displayProtocol?.attrs;
+			const displayAttrs: import('./project-xml-protocol.js').XmlNodeProtocol['attrs'] | undefined =
+				displayProtocol?.attrs;
 			if (displayAttrs) {
 				validateBooleanAttrs(
 					attrs,

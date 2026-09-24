@@ -484,7 +484,7 @@ Block 6 用于恢复 afterAdd 阶段写入的数据：
 |---|---|
 | `GTextField` / `GRichTextField` / `GTextInput` | `text` |
 | `GButton` | `title`、`selectedTitle`、`icon`、`selectedIcon`、`titleColor`、`titleFontSize`、`relatedController`、`relatedPageId`、`sound`、`soundVolume`、`selected` |
-| `GLabel` | `title`、`icon`、`titleColor`、`titleFontSize`、输入设置占位、`sound`、`soundVolumeScale` |
+| `GLabel` | `title`、`icon`、`titleColor`、`titleFontSize`、可选输入设置、`sound`、`soundVolumeScale` |
 | `GComboBox` | `items`、`values`、`icons`、`title`、`icon`、`titleColor`、`visibleItemCount`、`popupDirection`、`selectionController`、`sound`、`soundVolumeScale` |
 | `GProgressBar` | `value`、`max`、`min`、`sound`、`soundVolumeScale` |
 | `GSlider` | `value`、`max`、`min` |
@@ -610,3 +610,5 @@ Component 解码完成后，应能直接得到：
 | 正式协议口径 | 本文只定义和说明 V7 |
 | 标准写出值 | 按本文档封包时，包头 `version` 固定为 `7` |
 | 条件字段 | 文中提到的条件字段仅表示字段是否按条件出现，不表示存在并列协议版本 |
+
+Label 的 child block 6 输入设置先写存在标记；存在时依次为 prompt、restrict、maxLength（int32）、keyboardType（int32）、password（bool）。Button 的 relatedController 为父组件 controller 索引，relatedPageId 为页面 ID；selected 独立保存选中状态。titleColor 的存在标记区分不覆盖和显式黑色。

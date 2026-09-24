@@ -24,6 +24,10 @@ export async function createTempBackendProject() {
 			await fs.rm(path.join(path.dirname(tmpDir), `.${path.basename(tmpDir)}.openfairygui.backend.lock`), {
 				force: true,
 			});
+			await fs.rm(
+				path.join(path.dirname(tmpDir), `.${path.basename(tmpDir)}.openfairygui.backend.lock.coordination`),
+				{ recursive: true, force: true },
+			);
 			await fs.rm(tmpDir, { recursive: true, force: true });
 		},
 	};
@@ -46,7 +50,7 @@ export function createFailingFileSystem(shouldFail: (filePath: string) => boolea
 	return {
 		...base,
 		async runProjectWriteTransaction(projectRoot, write) {
-			await base.runProjectWriteTransaction!(projectRoot, (staged) => write(injectFailure(staged)));
+			return await base.runProjectWriteTransaction!(projectRoot, (staged) => write(injectFailure(staged)));
 		},
 	};
 }

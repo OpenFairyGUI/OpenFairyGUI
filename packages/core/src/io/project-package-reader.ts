@@ -1,3 +1,4 @@
+import { ProjectIOError } from './errors.js';
 import type { Document } from '../document.js';
 import type { Package } from '../properties/package.js';
 import { normalizeResourceFolderPath } from '../utils/resource-folder.js';
@@ -94,14 +95,6 @@ function getOrderedPackageResourceItems(xmlContent: string): Array<{ tagName: st
 	});
 }
 
-interface ProjectComponentExtras extends Record<string, unknown> {
-	_filePath?: string;
-}
-
-export function getProjectComponentExtras(comp: { getExtras(): Record<string, unknown> }): ProjectComponentExtras {
-	return comp.getExtras() as ProjectComponentExtras;
-}
-
 export function linkPackageBranchItems(doc: Document): void {
 	for (const pkg of doc.getRoot().listPackages()) {
 		const branchNames = pkg.listBranchNames();
@@ -145,7 +138,7 @@ export async function readPackageDescription(
 		: getXmlNode<PackageDescriptionNode>(xml.packageDescription);
 	if (!desc) {
 		if (validateSyntax)
-			throw new Error(
+			throw new ProjectIOError(
 				`Package XML must contain a ${branchName ? 'branchDescription' : 'packageDescription'} root element.`,
 			);
 		return null;
@@ -156,7 +149,7 @@ export async function readPackageDescription(
 		pkg = ctx.document.createPackage(dirName);
 	}
 	if (branchName) pkg.addBranchName(branchName);
-	pkg.setExtras({ ...pkg.getExtras(), _preservePackageResourceOrder: true });
+	pkg.setPreserveResourceOrder(true);
 
 	if (!branchName) {
 		const packageId = readXmlAttr<string>(desc, PROJECT_XML_PROTOCOL.packageDescription.attrs.id) || '';
@@ -170,14 +163,14 @@ export async function readPackageDescription(
 			try {
 				parsedBranchNames = JSON.parse(serializedBranchNames);
 			} catch {
-				throw new Error(`Invalid package branchNames for "${dirName}".`);
+				throw new ProjectIOError(`Invalid package branchNames for "${dirName}".`);
 			}
 			if (
 				!Array.isArray(parsedBranchNames) ||
 				!parsedBranchNames.every((name): name is string => typeof name === 'string' && name.length > 0) ||
 				new Set(parsedBranchNames).size !== parsedBranchNames.length
 			) {
-				throw new Error(`Invalid package branchNames for "${dirName}".`);
+				throw new ProjectIOError(`Invalid package branchNames for "${dirName}".`);
 			}
 			pkg.setBranchNames(parsedBranchNames);
 		}
@@ -459,7 +452,7 @@ function createResourceFromXML(
 			res.setFavorite(favorite);
 			// Store file path for second-pass parsing
 			const filePath = fs.join(packageDir, path.replace(/^\//, ''), name);
-			res.setExtras({ ...res.getExtras(), _filePath: filePath });
+			ctx.componentPaths.set(res, filePath);
 			pkg.addResource(res);
 			ctx.registerResource(pkg.getId(), id, res);
 			return res;

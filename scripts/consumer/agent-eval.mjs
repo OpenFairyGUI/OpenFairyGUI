@@ -17,6 +17,8 @@ import {
 	ARTIFACT_TOOLS,
 	BLOCKERS,
 	codexArguments,
+	claudeArguments,
+	isolatedClaudeEvents,
 	CONCURRENT_TEXT,
 	EVAL_METHODS,
 	expectedProject,
@@ -136,7 +138,7 @@ async function serve(config) {
 						if (message.method === 'tools/call') {
 							const definition = definitions.find((entry) => entry.name === message.params.name);
 							const input = message.params.arguments ?? {};
-							let denied = !definition;
+							let denied = !definition && message.params.name !== 'openfairygui_docs_read';
 							if (definition?.backendMethod === 'openSession' && typeof input.projectPath === 'string') {
 								try {
 									denied = ![config.projectPath, path.dirname(config.projectPath)].includes(
@@ -162,7 +164,7 @@ async function serve(config) {
 							if (
 								config.task.id === 'stale-revision-recovery' &&
 								!injected &&
-								definition.backendMethod === 'applyTransaction' &&
+								definition?.backendMethod === 'applyTransaction' &&
 								definition.inputSchema.safeParse(input).success
 							) {
 								const current = runtime.getSession({ sessionId: input.sessionId });
@@ -214,8 +216,9 @@ async function serve(config) {
 		async send(message) {
 			const request = requests.get(message.id);
 			if (request?.method === 'tools/list' && message.result?.tools)
-				message.result.tools = message.result.tools.filter((tool) =>
-					definitions.some((entry) => entry.name === tool.name),
+				message.result.tools = message.result.tools.filter(
+					(tool) =>
+						tool.name === 'openfairygui_docs_read' || definitions.some((entry) => entry.name === tool.name),
 				);
 			const result = message.result?.structuredContent?.backendResult;
 			if (request?.params?.name === toolName('openSession') && result?.ok) sessions.add(result.data.sessionId);
@@ -300,7 +303,7 @@ async function reference(config, configPath) {
 			const pkg = outline.packages.find((entry) => entry.name === 'Main');
 			const resource = pkg.resources.find((entry) => entry.name === 'MainView');
 			let target = { kind: 'resource', selector: { packageId: pkg.id, resourceId: resource.id } };
-			if (config.task.id === 'edit-display-node') {
+			if (['edit-display-node', 'compound-edit'].includes(config.task.id)) {
 				const matches = [];
 				for (const node of resource.component.displayList.filter((node) => node.name === 'title')) {
 					const candidate = {
@@ -327,14 +330,13 @@ async function reference(config, configPath) {
 					selector: { packageId: pkg.id, componentResourceId: resource.id, transitionName: 'intro' },
 				};
 			const current = data(await call('queryEntity', { sessionId, target }));
-			let operation =
-				config.task.id === 'edit-display-node'
-					? {
-							kind: 'setDisplayNodeProps',
-							selector: target.selector,
-							props: { text: 'Ready to edit', position: { x: 40, y: 56 } },
-						}
-					: { kind: 'renameResource', selector: target.selector, newName: 'RenamedView' };
+			let operation = ['edit-display-node', 'compound-edit'].includes(config.task.id)
+				? {
+						kind: 'setDisplayNodeProps',
+						selector: target.selector,
+						props: { text: 'Ready to edit', position: { x: 40, y: 56 } },
+					}
+				: { kind: 'renameResource', selector: target.selector, newName: 'RenamedView' };
 			if (target.kind === 'controller') {
 				const controller = current.entity.properties;
 				const pages = controller.pages.filter((page) => page.name === 'Active');
@@ -368,6 +370,29 @@ async function reference(config, configPath) {
 			const changed = data(applied);
 			data(await call('validateSession', { sessionId }));
 			data(await call('saveSession', { sessionId, expectedRevision: changed.revision }));
+			if (config.task.id === 'compound-edit') {
+				const fresh = data(
+					await call('queryEntity', {
+						sessionId,
+						target: { kind: 'resource', selector: { packageId: pkg.id, resourceId: resource.id } },
+					}),
+				);
+				const second = {
+					sessionId,
+					expectedRevision: fresh.revision,
+					operations: [
+						{
+							kind: 'renameResource',
+							selector: { packageId: pkg.id, resourceId: resource.id },
+							newName: 'RenamedView',
+						},
+					],
+				};
+				data(await call('preflightTransaction', second));
+				const appliedAgain = data(await call('applyTransaction', second));
+				data(await call('validateSession', { sessionId }));
+				data(await call('saveSession', { sessionId, expectedRevision: appliedAgain.revision }));
+			}
 		}
 		const validation = data(await call('validateSession', { sessionId }));
 		if (!config.sessionId) data(await call('closeSession', { sessionId }));
@@ -400,23 +425,25 @@ async function codex(config, configPath, options) {
 			? ARTIFACT_TOOLS.filter(
 					(tool) => config.task.id !== 'restore-trusted' || tool.name !== 'ofgui_artifact_publish',
 				)
-			: definitions;
-	const args = codexArguments({
+			: [...definitions, { name: 'openfairygui_docs_read' }];
+	const args = (options.runner === 'claude' ? claudeArguments : codexArguments)({
 		cwd: config.cwd,
 		server: [fileURLToPath(import.meta.url), '--serve', configPath],
 		schema,
 		output: config.final,
 		instructions,
 		model: options.model,
+		claudeSettings: options.claudeSettings,
 		enabledTools: enabledTools.map((entry) => entry.name),
 	});
+	const executable = options.runner === 'claude' ? options.claude : options.codex;
 	saveJson(path.join(config.directory, 'runner.json'), {
-		executable: options.codex,
+		executable,
 		args,
 		modelRequested: options.model ?? null,
-		version: execFileSync(options.codex, ['--version'], { encoding: 'utf8', timeout: 10_000 }).trim(),
+		version: execFileSync(executable, ['--version'], { encoding: 'utf8', timeout: 10_000 }).trim(),
 	});
-	const child = spawn(options.codex, args, { cwd: config.cwd, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
+	const child = spawn(executable, args, { cwd: config.cwd, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
 	let stdout = '';
 	let stderr = '';
 	let timedOut = false;
@@ -448,7 +475,16 @@ async function codex(config, configPath, options) {
 		.filter(Boolean)
 		.map((line) => JSON.parse(line));
 	// Fail closed if a CLI change exposes a native execution path, instead of counting a contaminated run.
-	const isolated = isolatedCodexEvents(events);
+	const isolated =
+		options.runner === 'claude'
+			? isolatedClaudeEvents(
+					events,
+					enabledTools.map((tool) => tool.name),
+				)
+			: isolatedCodexEvents(events);
+	const claudeResult = events.findLast((event) => event.type === 'result');
+	if (options.runner === 'claude' && claudeResult?.structured_output)
+		saveJson(config.final, claudeResult.structured_output);
 	const clientWarnings = [
 		...new Set(
 			stderr
@@ -458,7 +494,11 @@ async function codex(config, configPath, options) {
 		),
 	];
 	return {
-		ok: code === 0 && !timedOut && !events.some((event) => ['turn.failed', 'error'].includes(event.type)),
+		ok:
+			code === 0 &&
+			!timedOut &&
+			!events.some((event) => ['turn.failed', 'error'].includes(event.type)) &&
+			(options.runner !== 'claude' || (claudeResult?.subtype === 'success' && !claudeResult.is_error)),
 		events,
 		isolated,
 		timedOut,
@@ -719,7 +759,7 @@ async function main(options) {
 		cases: results,
 		passed,
 		total: results.length,
-		modelSuccessRate: options.runner === 'codex' ? passed / results.length : null,
+		modelSuccessRate: options.runner !== 'reference' ? passed / results.length : null,
 	};
 	saveJson(path.join(options.output, 'report.json'), report);
 	console.log(`[agent-eval] ${passed}/${results.length}; report: ${path.join(options.output, 'report.json')}`);

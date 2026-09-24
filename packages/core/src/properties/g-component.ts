@@ -13,29 +13,14 @@ export interface IGComponent extends IGObject {
 	y: number;
 	width: number;
 	height: number;
-	locked: boolean;
-	minWidth: number;
-	maxWidth: number;
-	minHeight: number;
-	maxHeight: number;
-	aspect: boolean;
-	pivotX: number;
-	pivotY: number;
-	anchor: boolean;
-	scaleX: number;
-	scaleY: number;
 	group: string;
 	alpha: number;
 	rotation: number;
 	visible: boolean;
 	touchable: boolean;
 	grayed: boolean;
-	tooltips: string;
-	customData: string;
 	fileName: string;
 	packageId: string;
-	filter: string;
-	filterData: string;
 	overflow: number;
 	scrollType: number;
 	scrollBarDisplay: number;
@@ -102,29 +87,14 @@ export class GComponent<
 			y: 0,
 			width: 0,
 			height: 0,
-			locked: false,
-			minWidth: 0,
-			maxWidth: 0,
-			minHeight: 0,
-			maxHeight: 0,
-			aspect: false,
-			pivotX: 0,
-			pivotY: 0,
-			anchor: false,
-			scaleX: 1,
-			scaleY: 1,
 			group: '',
 			alpha: 1,
 			rotation: 0,
 			visible: true,
 			touchable: true,
 			grayed: false,
-			tooltips: '',
-			customData: '',
 			fileName: '',
 			packageId: '',
-			filter: '',
-			filterData: '',
 			overflow: OverflowType.Visible,
 			scrollType: ScrollType.Vertical,
 			scrollBarDisplay: ScrollBarDisplayType.Default,
@@ -528,10 +498,10 @@ export class GComponent<
 	}
 
 	public getInstanceComboItems(): IGComponent['instanceComboItems'] {
-		return this.get('instanceComboItems' as never) as IGComponent['instanceComboItems'];
+		return this.getComponentProp('instanceComboItems');
 	}
 	public setInstanceComboItems(v: IGComponent['instanceComboItems']): this {
-		return this.set('instanceComboItems' as never, v as never);
+		return this.setComponentProp('instanceComboItems', v);
 	}
 
 	public getPropertyOverrides(): GComponentPropertyOverride[] {

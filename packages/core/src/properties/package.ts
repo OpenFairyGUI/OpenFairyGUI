@@ -53,6 +53,7 @@ export interface PackageSourceAtlasSettings {
 }
 
 interface IPackage extends IExtensibleProperty {
+	preserveResourceOrder: boolean;
 	id: string;
 	compressPNG: boolean | null;
 	jpegQuality: number | null;
@@ -81,12 +82,20 @@ interface IPackage extends IExtensibleProperty {
 export class Package extends ExtensibleProperty<IPackage> {
 	public declare propertyType: PropertyType.PACKAGE;
 
+	public getPreserveResourceOrder(): boolean {
+		return this.get('preserveResourceOrder');
+	}
+	public setPreserveResourceOrder(value: boolean): this {
+		return this.set('preserveResourceOrder', value);
+	}
+
 	protected init(): void {
 		this.propertyType = PropertyType.PACKAGE;
 	}
 
 	protected getDefaults(): Nullable<IPackage> {
 		return Object.assign(super.getDefaults(), {
+			preserveResourceOrder: false,
 			id: '',
 			compressPNG: null,
 			jpegQuality: null,

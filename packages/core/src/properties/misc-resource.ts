@@ -9,6 +9,7 @@ interface IMiscResource extends IExtensibleProperty {
 	branch: string;
 	branchItemIds: string[];
 	file: string;
+	publishedFile: string;
 	exported: boolean;
 	favorite: boolean;
 	resourceData: Ref<FairyBuffer>;
@@ -32,6 +33,7 @@ export class MiscResource extends ExtensibleProperty<IMiscResource> {
 			branch: '',
 			branchItemIds: [],
 			file: '',
+			publishedFile: '',
 			exported: false,
 			favorite: false,
 			resourceData: null,
@@ -64,6 +66,13 @@ export class MiscResource extends ExtensibleProperty<IMiscResource> {
 	}
 	public setBranchItemIds(ids: string[]): this {
 		return this.set('branchItemIds', [...ids]);
+	}
+
+	public getPublishedFile(): string {
+		return this.get('publishedFile');
+	}
+	public setPublishedFile(value: string): this {
+		return this.set('publishedFile', value);
 	}
 
 	public getFile(): string {
