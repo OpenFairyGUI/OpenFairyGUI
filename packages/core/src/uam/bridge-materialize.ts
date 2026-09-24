@@ -730,6 +730,7 @@ export function materializeDisplayNodeProperties(
 			.setSrc(componentNode.resource.resourceId)
 			.setPackageId(componentNode.resource.packageId ?? '')
 			.setControllerOverrides(componentNode.controllerOverrides ?? '')
+			.setPageController(componentNode.pageController ?? '')
 			.setFileName(componentNode.fileName ?? '')
 			.setPropertyOverrides((componentNode.propertyOverrides ?? []).map((property) => ({ ...property })));
 		materializeUamComponentInstanceProperties(component, componentNode.instanceProperties);

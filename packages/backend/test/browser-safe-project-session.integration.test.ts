@@ -2711,7 +2711,7 @@ test('bound browser storage is not replaced by a saveSession filesystem override
 	}
 });
 
-test('browser-safe LayaBox storage sessions reject lossy UAM saves before touching storage', async (t) => {
+test('browser-safe LayaBox storage sessions preserve resource and gear edits through saves', async (t) => {
 	const storage = new MemoryBrowserStorage();
 	const projectRoot = 'LayaBoxProject';
 	const fairyPath = `${projectRoot}/${path.basename(LAYABOX_PROJECT_PATH)}`;
@@ -2745,7 +2745,7 @@ test('browser-safe LayaBox storage sessions reject lossy UAM saves before touchi
 		const opened = await runtime.openSession({ projectPath: projectRoot });
 		t.true(opened.ok);
 		if (!opened.ok) return;
-		t.is(opened.data.uamFidelity, 'unsupported');
+		t.is(opened.data.uamFidelity, 'full');
 		sessionId = opened.data.sessionId;
 		let revision = opened.data.revision;
 
@@ -2802,23 +2802,10 @@ test('browser-safe LayaBox storage sessions reject lossy UAM saves before touchi
 		t.true(appliedRename.ok);
 		if (!appliedRename.ok) return;
 		revision = appliedRename.data.revision;
-		const storageBeforeRejectedWrites = storage.snapshot();
+
 		const renamedSave = await runtime.saveSession({ sessionId, expectedRevision: revision });
-		t.false(renamedSave.ok);
-		if (!renamedSave.ok) {
-			t.is(backendFailure(renamedSave).error.code, 'uam_fidelity_unsupported');
-			t.deepEqual(storage.snapshot(), storageBeforeRejectedWrites);
-			const materialized = await runtime.materializeSession({
-				sessionId,
-				expectedRevision: revision,
-				mode: 'fullProject',
-				reason: 'issue_87_fidelity_guard',
-			});
-			t.false(materialized.ok);
-			if (!materialized.ok) t.is(backendFailure(materialized).error.code, 'uam_fidelity_unsupported');
-			t.deepEqual(storage.snapshot(), storageBeforeRejectedWrites);
-			return;
-		}
+		t.true(renamedSave.ok);
+		if (!renamedSave.ok) return;
 
 		const renamedReload = normalizeUamProject(liftDocumentToUamProject(await reader.read(fairyPath, { hydrateResourceBytes: true })));
 		const renamedImage = renamedReload.packages

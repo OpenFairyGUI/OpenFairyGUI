@@ -494,6 +494,13 @@ function validateDisplayNode(
 	if (node.kind === 'component' && node.fileName !== undefined && typeof node.fileName !== 'string') {
 		pushIssue(issues, `${path}.fileName`, 'Component file name hint must be a string.');
 	}
+	if (node.kind === 'component' && node.pageController !== undefined) {
+		if (typeof node.pageController !== 'string') {
+			pushIssue(issues, `${path}.pageController`, 'Component page controller must be a string.');
+		} else if (node.pageController && !controllerMap.has(node.pageController)) {
+			pushIssue(issues, `${path}.pageController`, `Unknown page controller "${node.pageController}".`);
+		}
+	}
 	if (node.kind === 'component' && node.controllerOverrides !== undefined && typeof node.controllerOverrides !== 'string') {
 		pushIssue(issues, `${path}.controllerOverrides`, 'Component controller overrides must be a string of controller name/page ID pairs.');
 	}

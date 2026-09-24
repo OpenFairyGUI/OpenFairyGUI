@@ -5068,6 +5068,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"controllerOverrides": {
 					"type": "string"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"fileName": {
 					"type": "string"
 				},
@@ -17895,6 +17898,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"controllerOverrides": {
 					"type": "string"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"fileName": {
 					"type": "string"
 				},
@@ -24161,5 +24167,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "d3ec1cc02994d7af79610540dec9369f9fe8d03de795c754cd1d12ec8b214581"
+	"digest": "132b66770f8489e610d2b97bf7753262bde5dc9ef1ecc7c89a47a0243c773ca2"
 };

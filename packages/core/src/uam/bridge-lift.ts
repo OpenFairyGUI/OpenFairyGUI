@@ -533,6 +533,7 @@ export function liftDisplayNode(child: GObject): UamDisplayNode {
 			group: component.getGroup(),
 			resource: { packageId: component.getPackageId(), resourceId: component.getSrc() },
 			...(component.getControllerOverrides() ? { controllerOverrides: component.getControllerOverrides() } : {}),
+			...(component.getPageController() ? { pageController: component.getPageController() } : {}),
 			...(component.getFileName() ? { fileName: component.getFileName() } : {}),
 			...(propertyOverrides.length > 0 ? { propertyOverrides } : {}),
 			...(instanceProperties ? { instanceProperties } : {}),
