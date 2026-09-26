@@ -294,6 +294,35 @@ async function sessionReadSmoke() {
 				await client.listTools();
 			}
 			const opened = await call('openSession', { projectPath });
+			if (!opened.ok && process.platform === 'win32') {
+				// Preserve OS-probe evidence when the public error intentionally hides host details.
+				for (const expression of [
+					`(Get-Process -Id ${process.pid} -ErrorAction Stop).StartTime.ToUniversalTime().Ticks`,
+					`[System.Diagnostics.Process]::GetProcessById(${process.pid}).StartTime.ToUniversalTime().Ticks`,
+				]) {
+					const probe = spawnSync(
+						'powershell.exe',
+						[
+							'-NoProfile',
+							'-NonInteractive',
+							'-Command',
+							`[Console]::WriteLine('probe-start'); ${expression}`,
+						],
+						{ input: '', encoding: 'utf8', windowsHide: true, timeout: 10_000 },
+					);
+					console.error(
+						'[consumer] Windows identity probe',
+						JSON.stringify({
+							expression,
+							status: probe.status,
+							signal: probe.signal,
+							error: probe.error?.message,
+							stdout: probe.stdout?.slice(0, 1000),
+							stderr: probe.stderr?.slice(0, 1000),
+						}),
+					);
+				}
+			}
 			assert(opened.ok, JSON.stringify(opened));
 			sessionId = opened.data.sessionId;
 			const initial = await call('readSessionState', { sessionId });
