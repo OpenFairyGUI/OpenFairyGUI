@@ -1,3 +1,8 @@
+import { isValidUamComponentInstanceProperties } from '../src/uam/property-rules/component-instance.js';
+import { encodeComponent } from '../src/io/component-encoder.js';
+import { decodeComponentDefinition } from '../src/io/component-decoder.js';
+import { ByteBuffer } from '../src/io/byte-buffer.js';
+import { WriteBuffer } from '../src/io/write-buffer.js';
 import test from 'ava';
 import fs from 'node:fs/promises';
 import os from 'node:os';
@@ -128,4 +133,113 @@ test('filesystem existence preserves access failures', async (t) => {
 	const node = new InspectableNodeIO().fileSystem();
 	await t.throwsAsync(node.exists('\0'));
 	t.false(await node.exists(path.join(os.tmpdir(), `ofgui-missing-${crypto.randomUUID()}`)));
+});
+
+test('Label input settings preserve null, empty and non-default values through binary and UAM', async (t) => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-label-input-'));
+	t.teardown(() => fs.rm(directory, { recursive: true, force: true }));
+	const inputs = [
+		null,
+		{ promptText: null, restrict: null, maxLength: 0, keyboardType: 0, password: false },
+		{ promptText: '', restrict: '0-9', maxLength: 12, keyboardType: 3, password: true },
+		{ promptText: 'Prompt', restrict: '', maxLength: 5, keyboardType: 2, password: false },
+	];
+	for (const input of inputs) {
+		for (const concrete of [true, false]) {
+			let doc = new root.Document();
+			const pkg = doc.createPackage('Input').setId('input001');
+			const component = doc.createComponent('Host').setId('host');
+			pkg.addResource(component);
+			const child = concrete
+				? doc.createGLabel('label')
+				: doc.createGComponent('label').setInstanceExtType('Label');
+			component.addChild(child.setId('label').setInstanceLabelInputSettings(input));
+			const io = new NodeIO();
+			for (let iteration = 0; iteration < 2; iteration++) {
+				const binary = path.join(directory, 'Input.bytes');
+				await io.writeBinary(doc, binary);
+				doc = await io.readBinary(binary);
+				doc = root.materializeUamProject(root.liftDocumentToUamProject(doc));
+				const actual = doc.getRoot().listPackages()[0].listComponents()[0].listChildren()[0] as root.GComponent;
+				t.deepEqual(actual.getInstanceLabelInputSettings(), input);
+			}
+			if (input)
+				await t.throwsAsync(io.writeProject(doc, path.join(directory, 'Input.fairy')), {
+					message: /cannot be represented losslessly/,
+				});
+		}
+	}
+});
+
+test('published Label input block survives decoding and re-encoding without defaulting fields', (t) => {
+	const doc = new root.Document(),
+		pkg = doc.createPackage('P').setId('pkgtest1');
+	const component = doc.createComponent('Host').setId('host');
+	pkg.addResource(component);
+	component.addChild(doc.createGLabel('L').setId('label').setInstancePromptText('Input'));
+	const parent = new WriteBuffer();
+	const bytes = encodeComponent(component, doc, pkg, 6, parent);
+	const reader = new ByteBuffer(bytes.buffer, bytes.byteOffset, bytes.length);
+	reader.seek(0, 2);
+	reader.getInt16();
+	reader.getInt16();
+	const childStart = reader.pos;
+	reader.seek(childStart, 6);
+	reader.skip(5);
+	if (reader.readBool()) reader.skip(4);
+	reader.skip(4);
+	t.true(reader.readBool());
+	reader.skip(2);
+	const offset = reader.pos;
+	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.length);
+	view.setInt32(offset + 2, 12);
+	view.setInt32(offset + 6, 3);
+	view.setUint8(offset + 10, 1);
+	reader.version = 6;
+	reader.stringTable = parent.getStringTable();
+	const decoded = doc.createComponent('Decoded').setId('decoded');
+	decodeComponentDefinition(decoded, reader, 0, doc);
+	t.deepEqual((decoded.listChildren()[0] as root.GComponent).getInstanceLabelInputSettings(), {
+		promptText: 'Input',
+		restrict: null,
+		maxLength: 12,
+		keyboardType: 3,
+		password: true,
+	});
+	const nextParent = new WriteBuffer();
+	const output = encodeComponent(decoded, doc, pkg, 6, nextParent);
+	const next = new ByteBuffer(output.buffer, output.byteOffset, output.length);
+	next.version = 6;
+	next.stringTable = nextParent.getStringTable();
+	const twice = doc.createComponent('Twice');
+	decodeComponentDefinition(twice, next, 0, doc);
+	t.deepEqual(
+		(twice.listChildren()[0] as root.GComponent).getInstanceLabelInputSettings(),
+		(decoded.listChildren()[0] as root.GComponent).getInstanceLabelInputSettings(),
+	);
+});
+
+test('Label input snapshots reject invalid fields and preserve explicit defaults', (t) => {
+	const base = {
+		extensionType: 'Label',
+		title: '',
+		icon: '',
+		titleColor: '',
+		titleFontSize: 0,
+		sound: '',
+		soundVolumeScale: 1,
+	};
+	const input = { promptText: null, restrict: '', maxLength: 12, keyboardType: 3, password: true };
+	t.true(isValidUamComponentInstanceProperties({ ...base, inputSettings: input }));
+	t.true(isValidUamComponentInstanceProperties({ ...base, inputSettings: null }));
+	for (const patch of [
+		{ maxLength: -1 },
+		{ maxLength: 0.5 },
+		{ keyboardType: 2147483648 },
+		{ password: 'true' },
+		{ restrict: 1 },
+		{ extra: true },
+	]) {
+		t.false(isValidUamComponentInstanceProperties({ ...base, inputSettings: { ...input, ...patch } }));
+	}
 });

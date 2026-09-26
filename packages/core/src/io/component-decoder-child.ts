@@ -598,13 +598,13 @@ function decodeChildBlock6(
 					}
 					component.setInstanceTitleFontSize(childBuf.getInt32());
 					if (remainingBytes(childBuf) >= 1 && childBuf.readBool()) {
-						component.setInstancePromptText(childBuf.readS() ?? '');
-						childBuf.readS(); // restrict
-						if (remainingBytes(childBuf) >= 9) {
-							childBuf.getInt32(); // maxLength
-							childBuf.getInt32(); // keyboardType
-							childBuf.readBool(); // password
-						}
+						component.setInstanceLabelInputSettings({
+							promptText: childBuf.readS(),
+							restrict: childBuf.readS(),
+							maxLength: childBuf.getInt32(),
+							keyboardType: childBuf.getInt32(),
+							password: childBuf.readBool(),
+						});
 					}
 					if (childBuf.version >= 5 && remainingBytes(childBuf) >= 6) {
 						component

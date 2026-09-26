@@ -1,3 +1,5 @@
+import { GComponent } from '../properties/g-component.js';
+import { assertLabelInputXmlSupported } from './display-object-xml-instance-writer.js';
 import { ProjectIOError } from './errors.js';
 import type { Document } from '../document.js';
 import type { Component } from '../properties/component.js';
@@ -159,6 +161,8 @@ export class ProjectWriter {
 			for (const component of pkg.listComponents()) {
 				for (const child of component.listChildren()) {
 					assertDisplayObjectGearXmlValues(child);
+					if (child instanceof GComponent)
+						assertLabelInputXmlSupported(child.getInstanceLabelInputSettings());
 				}
 			}
 		}

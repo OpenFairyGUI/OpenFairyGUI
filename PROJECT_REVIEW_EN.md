@@ -8,6 +8,11 @@ This document records a repository-wide review covering code quality, developmen
 - Line numbers refer to that baseline and may drift after later commits.
 
 
+
+## PR #155 review fixes (2026-09-26)
+
+Synchronized the root sharp dependency category and package Sharp ranges in the lockfile; frozen installation in a clean temporary workspace passed. Formal Label inputSettings preserve all fields, null/empty strings and block presence through binary/UAM. Unverified XML representations are rejected before writing files. Added an independent binary sample, both Label forms and invalid-input regressions. Earlier model 11/11 scores describe the b40d1a0 cohort, not these fixes.
+
 ## Latest delivery verification (2026-09-25)
 
 Formatting, functional fixes, integration with next and MCP error visibility are separate commits. Full `pnpm check:ci` passed: 656 AVA tests, 42 repository tests, five-package consumers, 11/11 reference tasks, four Chromium checks and docs build. `pnpm coverage` passed: lines/statements 93.39%, functions 95.06%, branches 80.62%. Final model results are in the [baseline index](./agent/evals/baselines/README.md); counts below describe their respective earlier stages.

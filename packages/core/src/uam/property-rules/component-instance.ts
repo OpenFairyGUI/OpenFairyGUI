@@ -17,6 +17,29 @@ function isNullableString(value: unknown): boolean {
 	return value === null || typeof value === 'string';
 }
 
+export function isValidLabelInputSettings(value: unknown): boolean {
+	if (value === null) return true;
+	if (
+		typeof value !== 'object' ||
+		!hasExactKeys(value, ['promptText', 'restrict', 'maxLength', 'keyboardType', 'password'])
+	)
+		return false;
+	const v = value as Record<string, unknown>;
+	return (
+		isNullableString(v.promptText) &&
+		isNullableString(v.restrict) &&
+		typeof v.maxLength === 'number' &&
+		Number.isInteger(v.maxLength) &&
+		v.maxLength >= 0 &&
+		v.maxLength <= 2147483647 &&
+		typeof v.keyboardType === 'number' &&
+		Number.isInteger(v.keyboardType) &&
+		v.keyboardType >= 0 &&
+		v.keyboardType <= 2147483647 &&
+		typeof v.password === 'boolean'
+	);
+}
+
 function isSoundVolume(value: unknown): value is number {
 	return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
 }
@@ -59,17 +82,18 @@ export function isValidUamComponentInstanceProperties(value: unknown): value is 
 			);
 		case 'Label':
 			return (
+				isValidLabelInputSettings(properties.inputSettings) &&
 				hasExactKeys(properties, [
 					'extensionType',
 					'title',
 					'icon',
 					'titleColor',
 					'titleFontSize',
-					'promptText',
+					'inputSettings',
 					'sound',
 					'soundVolumeScale',
 				]) &&
-				[properties.title, properties.icon, properties.promptText].every((item) => typeof item === 'string') &&
+				[properties.title, properties.icon].every((item) => typeof item === 'string') &&
 				(properties.titleColor === '' || isUamColor(properties.titleColor)) &&
 				finite(properties.titleFontSize) &&
 				isSoundReference(properties.sound) &&

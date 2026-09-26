@@ -132,7 +132,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 下表只摘要顶层参数；嵌套字段和具体结果请读取对应 schema。SHA-256 变化表示生成契约发生变化，不等同于包版本号。
 
 <!-- contracts:start -->
-SHA-256: `8f9541801d4c47ecc6b32528e6434139025a62ae775a416900738f2b9ad0149d`
+SHA-256: `0149738442b7e33781db0c613515bab0b1431c99f5f6a26260001893155b8d8f`
 
 | 操作 | 参数（`?` 表示可选） |
 |---|---|
@@ -223,3 +223,5 @@ SHA-256: `8f9541801d4c47ecc6b32528e6434139025a62ae775a416900738f2b9ad0149d`
 CLI 一次性事务：`ofgui tx preflight <project> --ops ops.json --expected-revision 0 --json` 预演；`ofgui tx apply <project> --ops ops.json --expected-revision 0 --json` 在同一锁内预演、提交、完整验证、保存并关闭。每次调用从新会话 revision 0 开始，不能把前一次命令的 revision 当作磁盘版本令牌；跨调用持久会话请用 Backend/MCP。验证失败不保存，进程退出会丢弃内存编辑；保存错误的恢复路径在 result.save 中保留。MCP 二进制输出为 base64，完整结果只在 structuredContent.backendResult；输入字节仍按生成 schema 使用数组。
 
 MCP 失败调用的文本包含有界的主错误码、消息和嵌套诊断码摘要，供不展示结构化错误的客户端使用；完整结果保留在 `structuredContent.backendResult`。
+
+Label 与 Label 组件实例使用 inputSettings 表达完整输入覆盖：null 表示无输入块，对象保留可空 promptText/restrict、maxLength、keyboardType 和 password。getInstancePromptText/setInstancePromptText 是该正式对象的便捷访问器。

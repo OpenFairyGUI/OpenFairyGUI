@@ -4,7 +4,7 @@ These are local consumer evaluations of five packed workspace packages, not regi
 
 这些是工作区五包 tarball 的真实消费者评测，不代表 registry 已发布版本。请按报告中的包、任务及脚本摘要识别批次。
 
-## Current integrated cohort / 当前合入后批次
+## Recorded model cohort (b40d1a0) / 已记录模型批次
 
 | Runner | Result / 结果 | Client / 客户端 |
 |---|---|---|
@@ -12,7 +12,7 @@ These are local consumer evaluations of five packed workspace packages, not regi
 | [Codex](./0.6.1-codex-qualified.json) | **11/11 (100%)** | codex-cli 0.154.0; client-selected model, identity not inferred |
 | [reference](./0.6.1-reference-qualified.json) | **11/11** deterministic checks | No model score / 非模型成绩 |
 
-[Qualification receipt / 验收记录](./0.6.1-qualified-receipt.json) verifies identical five tarball hashes, harness hashes and installed contract/documentation metadata. Source: b40d1a0 plus untracked audit/evidence files (dirty=true). Both model runners used a 600-second per-task limit, with no model override.
+[Qualification receipt / 验收记录](./0.6.1-qualified-receipt.json) verifies identical five tarball hashes, harness hashes and installed contract/documentation metadata. Source: b40d1a0 plus untracked audit/evidence files (dirty=true). Subsequent PR review fixes change the Label contract; these model scores describe the recorded cohort, not the later fixes. Both model runners used a 600-second per-task limit, with no model override.
 
 以下 11 项 Claude 任务全部通过；模型评测不作为 PR CI 门禁，也不代表所有模型配置的通用成功率。
 

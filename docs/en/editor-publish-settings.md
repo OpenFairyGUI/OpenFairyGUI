@@ -412,3 +412,5 @@ Layout, render order, scroll area, static items, and tree-behavior attributes fo
 | Boundary | This page describes the editor settings protocol itself, not how a particular project consumes those properties |
 
 Project I/O preserves resource order in package descriptors. Component instance `<Button>` controller, page, checked, sound and volume, and `<Label>` prompt survive read/write. An omitted titleColor leaves the target unchanged; explicit black remains an override.
+
+Label instances can write the verified prompt attribute, including an explicit empty string. Binary input settings with restrict, non-default maxLength/keyboardType/password, or a null prompt have no verified project XML representation; project writing rejects them with project_io_error before modifying files rather than discarding them.

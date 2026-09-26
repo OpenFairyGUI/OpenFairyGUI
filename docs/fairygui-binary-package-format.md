@@ -612,3 +612,5 @@ Component 解码完成后，应能直接得到：
 | 条件字段 | 文中提到的条件字段仅表示字段是否按条件出现，不表示存在并列协议版本 |
 
 Label 的 child block 6 输入设置先写存在标记；存在时依次为 prompt、restrict、maxLength（int32）、keyboardType（int32）、password（bool）。Button 的 relatedController 为父组件 controller 索引，relatedPageId 为页面 ID；selected 独立保存选中状态。titleColor 的存在标记区分不覆盖和显式黑色。
+
+Label 输入设置块的存在标记独立于 prompt 内容。prompt/restrict 的 null 表示不覆盖，空字符串表示显式清空；maxLength、keyboardType 与 password 按字段原值保留，不能以默认值替换。

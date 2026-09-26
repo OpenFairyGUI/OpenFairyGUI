@@ -132,7 +132,7 @@ A preview reserves no revision and does not guarantee later apply/save or public
 The tables summarize top-level parameters only; read schemas for nested fields and concrete results. SHA-256 identifies generated contract content, not a package version.
 
 <!-- contracts:start -->
-SHA-256: `8f9541801d4c47ecc6b32528e6434139025a62ae775a416900738f2b9ad0149d`
+SHA-256: `0149738442b7e33781db0c613515bab0b1431c99f5f6a26260001893155b8d8f`
 
 | Operation | Parameters (`?` = optional) |
 |---|---|
@@ -223,3 +223,5 @@ Unsupported TypeScript constructs fail generation instead of becoming arbitrary 
 One-shot CLI transactions: `ofgui tx preflight <project> --ops ops.json --expected-revision 0 --json` previews; `ofgui tx apply <project> --ops ops.json --expected-revision 0 --json` previews, applies, fully validates, saves and closes under one lock. Each invocation starts a fresh session at revision 0; a prior command revision is not a disk version token. Use Backend/MCP for persistent sessions. Failed validation prevents saving; exit discards in-memory edits. Save recovery paths remain in result.save. MCP binary output is base64 in structuredContent.backendResult; input bytes remain generated arrays.
 
 Failed MCP calls include a bounded text summary of the primary error code, message and nested diagnostic codes for clients that omit structured errors; the complete result remains in `structuredContent.backendResult`.
+
+Labels and Label component instances use inputSettings for the full input override: null means no input block; an object retains nullable promptText/restrict, maxLength, keyboardType and password. getInstancePromptText/setInstancePromptText are convenience accessors over this formal object.

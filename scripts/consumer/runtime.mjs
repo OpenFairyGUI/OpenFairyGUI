@@ -744,7 +744,7 @@ async function rewardCardSmoke(projectPath, runtime, mode) {
 			icon: card.icon,
 			titleColor: '',
 			titleFontSize: 0,
-			promptText: '',
+			inputSettings: null,
 			sound: '',
 			soundVolumeScale: 1,
 		});

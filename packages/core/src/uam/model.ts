@@ -1,3 +1,4 @@
+import type { LabelInputSettings } from '../properties/g-component.js';
 import type { ControllerHomePageType } from '../properties/controller.js';
 import type { ProjectSettings } from '../types/settings.js';
 import type { ProjectDiagnostic } from '../validation.js';
@@ -281,7 +282,7 @@ export type UamComponentInstanceProperties =
 			icon: string;
 			titleColor: string;
 			titleFontSize: number;
-			promptText: string;
+			inputSettings: LabelInputSettings | null;
 			sound: string;
 			soundVolumeScale: number;
 	  }
@@ -620,7 +621,7 @@ export interface UamButtonNode extends UamTitleControlNodeBase {
 
 export interface UamLabelNode extends UamTitleControlNodeBase {
 	kind: 'label';
-	promptText?: string;
+	inputSettings?: LabelInputSettings | null;
 }
 
 export interface UamComboBoxNode extends UamTitleControlNodeBase {

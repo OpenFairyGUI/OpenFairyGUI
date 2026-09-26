@@ -615,3 +615,5 @@ After component decoding, the result should directly provide:
 | Conditional fields | A conditional field appears only under its stated condition; it does not indicate a parallel protocol version |
 
 Label child block 6 input settings begin with a presence flag; when present the fields are prompt, restrict, maxLength (int32), keyboardType (int32), and password (bool). Button relatedController is a parent controller index and relatedPageId is a page ID; selected stores selection independently. The titleColor presence flag distinguishes no override from explicit black.
+
+The Label input-settings presence flag is independent of prompt content. Null prompt/restrict strings mean no override; empty strings explicitly clear the value. maxLength, keyboardType and password retain their encoded values.

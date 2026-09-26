@@ -7,6 +7,14 @@ export interface GComponentPropertyOverride {
 	value: string;
 }
 
+export interface LabelInputSettings {
+	promptText: string | null;
+	restrict: string | null;
+	maxLength: number;
+	keyboardType: number;
+	password: boolean;
+}
+
 export interface IGComponent extends IGObject {
 	src: string;
 	x: number;
@@ -42,7 +50,7 @@ export interface IGComponent extends IGObject {
 	instanceSound: string;
 	instanceSoundVolumeScale: number;
 	instancePopupDirection: number;
-	instancePromptText: string;
+	instanceLabelInputSettings: LabelInputSettings | null;
 	instanceSelectionController: string;
 	instanceVisibleItemCount: number;
 	instanceAutoClearItems: boolean;
@@ -116,7 +124,7 @@ export class GComponent<
 			instanceSound: '',
 			instanceSoundVolumeScale: 1,
 			instancePopupDirection: 0,
-			instancePromptText: '',
+			instanceLabelInputSettings: null,
 			instanceSelectionController: '',
 			instanceVisibleItemCount: 0,
 			instanceAutoClearItems: false,
@@ -448,11 +456,27 @@ export class GComponent<
 		return this.setComponentProp('instancePopupDirection', v);
 	}
 
+	public getInstanceLabelInputSettings(): LabelInputSettings | null {
+		const value = this.getComponentProp('instanceLabelInputSettings');
+		return value ? { ...value } : null;
+	}
+	public setInstanceLabelInputSettings(value: LabelInputSettings | null): this {
+		return this.setComponentProp('instanceLabelInputSettings', value ? { ...value } : null);
+	}
+
 	public getInstancePromptText(): string {
-		return firstString(this.getComponentProp('instancePromptText'));
+		return this.getInstanceLabelInputSettings()?.promptText ?? '';
 	}
 	public setInstancePromptText(v: string): this {
-		return this.setComponentProp('instancePromptText', v);
+		return this.setInstanceLabelInputSettings({
+			...(this.getInstanceLabelInputSettings() ?? {
+				restrict: null,
+				maxLength: 0,
+				keyboardType: 0,
+				password: false,
+			}),
+			promptText: v,
+		});
 	}
 
 	public getInstanceSelectionController(): string {

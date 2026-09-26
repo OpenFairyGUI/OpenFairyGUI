@@ -423,3 +423,5 @@ Unity 与 Cocos Creator 运行时不解压二进制描述文件，因此这两�
 | 文档边界 | 本页只描述编辑器设置协议本身，不描述具体项目如何消费这些属性 |
 
 包描述中的资源顺序在工程读写后保持。组件实例 `<Button>` 的 controller、page、checked、sound、volume 与 `<Label>` 的 prompt 在读写中保留；未指定 titleColor 表示不覆盖，显式黑色仍作为覆盖写回。
+
+Label 实例目前可写回经过验证的 prompt 属性，包括显式空字符串。包含 restrict、非默认 maxLength/keyboardType/password，或 null prompt 的二进制输入设置，尚无已核验的工程 XML 表达；工程写入会在修改文件前抛出 project_io_error，不静默丢弃。

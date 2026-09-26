@@ -150,7 +150,7 @@ function normalizeComponentInstanceProperties(
 				icon: properties.icon ?? '',
 				titleColor: properties.titleColor ?? '',
 				titleFontSize: properties.titleFontSize ?? 0,
-				promptText: properties.promptText ?? '',
+				inputSettings: properties.inputSettings ? { ...properties.inputSettings } : null,
 				sound: properties.sound ?? '',
 				soundVolumeScale: properties.soundVolumeScale ?? 1,
 			};
@@ -880,7 +880,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			return {
 				kind: 'label',
 				...base,
-				promptText: label.promptText ?? '',
+				inputSettings: label.inputSettings ? { ...label.inputSettings } : null,
 				group: label.group ?? '',
 				src: label.src ?? '',
 				packageId: label.packageId ?? '',

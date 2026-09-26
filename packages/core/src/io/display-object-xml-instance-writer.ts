@@ -1,3 +1,5 @@
+import type { LabelInputSettings } from '../properties/g-component.js';
+import { ProjectIOError } from './errors.js';
 import type { GComponent, IGComponent } from '../properties/g-component.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr } from './project-xml-protocol.js';
 import {
@@ -68,8 +70,9 @@ export function writeComponentInstanceXmlNode(
 				),
 			);
 		}
-		if (object.getInstancePromptText() && extSpecs.prompt)
-			writeXmlAttr(extAttrs, extSpecs.prompt, object.getInstancePromptText());
+		const input = object.getInstanceLabelInputSettings();
+		assertLabelInputXmlSupported(input);
+		if (input && extSpecs.prompt) writeXmlAttr(extAttrs, extSpecs.prompt, input.promptText ?? '');
 		if (object.getInstanceSelectionController() && extSpecs.selectionController)
 			writeXmlAttr(extAttrs, extSpecs.selectionController, object.getInstanceSelectionController());
 		if ((object.getInstanceVisibleItemCount() ?? 0) > 0 && extSpecs.visibleItemCount)
@@ -103,4 +106,17 @@ function serializeComboBoxItemXmlNode(item: IGComponent['instanceComboItems'][nu
 	if (item.value !== undefined && item.value !== null) writeXmlAttr(attrs, specs.value, item.value);
 	if (item.icon !== undefined && item.icon !== null) writeXmlAttr(attrs, specs.icon, item.icon);
 	return attrs;
+}
+
+export function assertLabelInputXmlSupported(input: LabelInputSettings | null): void {
+	if (
+		input &&
+		(input.restrict !== null ||
+			input.maxLength !== 0 ||
+			input.keyboardType !== 0 ||
+			input.password ||
+			input.promptText === null)
+	) {
+		throw new ProjectIOError('Label input settings cannot be represented losslessly in supported project XML.');
+	}
 }

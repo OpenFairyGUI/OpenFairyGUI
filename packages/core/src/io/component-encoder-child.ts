@@ -726,14 +726,14 @@ function _writeExtensionInstanceData(
 			buf.writeBool(!!labelTitleColor);
 			if (labelTitleColor) buf.writeColor(labelTitleColor, true);
 			buf.writeInt32(child.getInstanceTitleFontSize?.() ?? 0);
-			const prompt = child.getInstancePromptText?.() ?? '';
-			buf.writeBool(prompt !== '');
-			if (prompt !== '') {
-				buf.writeSEx(prompt, true);
-				buf.writeS(null); // no restrict override
-				buf.writeInt32(0); // no maxLength override
-				buf.writeInt32(0); // no keyboardType override
-				buf.writeBool(false); // no password override
+			const input = child.getInstanceLabelInputSettings?.() ?? null;
+			buf.writeBool(input !== null);
+			if (input) {
+				buf.writeSEx(input.promptText, true, false);
+				buf.writeS(input.restrict);
+				buf.writeInt32(input.maxLength);
+				buf.writeInt32(input.keyboardType);
+				buf.writeBool(input.password);
 			}
 			if (version >= 5) {
 				buf.writeS(remapLocalUiUrl(context, child.getInstanceSound?.() ?? null));

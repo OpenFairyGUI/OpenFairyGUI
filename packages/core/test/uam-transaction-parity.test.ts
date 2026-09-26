@@ -159,7 +159,7 @@ test('both routes clear instance overlays and preserve explicit empty, false and
 		icon: '',
 		titleColor: '#123456',
 		titleFontSize: 24,
-		promptText: 'Prompt',
+		inputSettings: { promptText: 'Prompt', restrict: null, maxLength: 0, keyboardType: 0, password: false },
 		sound: '',
 		soundVolumeScale: 1,
 	};

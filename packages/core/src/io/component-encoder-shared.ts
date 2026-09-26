@@ -1,3 +1,4 @@
+import type { LabelInputSettings } from '../properties/g-component.js';
 import type { RelationDef } from '../constants.js';
 import type { Component } from '../properties/component.js';
 import type { GComponentPropertyOverride } from '../properties/g-component.js';
@@ -141,7 +142,7 @@ export type EncoderChildLike = ChildNode & {
 	getControllerOverrides?(): string;
 	getPropertyOverrides?(): GComponentPropertyOverride[];
 	getInstanceExtType?(): string;
-	getInstancePromptText?(): string;
+	getInstanceLabelInputSettings?(): LabelInputSettings | null;
 	getInstanceTitle?(): string;
 	getInstanceSelectedTitle?(): string;
 	getInstanceIcon?(): string;

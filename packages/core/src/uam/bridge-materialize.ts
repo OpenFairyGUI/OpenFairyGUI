@@ -279,7 +279,7 @@ export function materializeUamComponentInstanceProperties(
 		.setInstanceSound('')
 		.setInstanceSoundVolumeScale(1)
 		.setInstancePopupDirection(0)
-		.setInstancePromptText('')
+		.setInstanceLabelInputSettings(null)
 		.setInstanceSelectionController('')
 		.setInstanceVisibleItemCount(0)
 		.setInstanceAutoClearItems(false)
@@ -311,7 +311,7 @@ export function materializeUamComponentInstanceProperties(
 				.setInstanceIcon(properties.icon)
 				.setInstanceTitleColor(properties.titleColor)
 				.setInstanceTitleFontSize(properties.titleFontSize)
-				.setInstancePromptText(properties.promptText)
+				.setInstanceLabelInputSettings(properties.inputSettings ?? null)
 				.setInstanceSound(properties.sound)
 				.setInstanceSoundVolumeScale(properties.soundVolumeScale);
 			return;
@@ -807,7 +807,7 @@ export function materializeDisplayNodeProperties(target: GObject, node: UamDispl
 	}
 
 	if (node.kind === 'label') {
-		(target as ReturnType<Document['createGLabel']>).setInstancePromptText(node.promptText ?? '');
+		(target as ReturnType<Document['createGLabel']>).setInstanceLabelInputSettings(node.inputSettings ?? null);
 		const labelNode = node as UamLabelNode;
 		return materializeTitleControlBase(target as ReturnType<Document['createGLabel']>, labelNode);
 	}

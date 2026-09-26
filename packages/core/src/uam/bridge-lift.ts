@@ -690,7 +690,7 @@ export function liftDisplayNode(child: GObject): UamDisplayNode {
 		const label = child as ReturnType<Document['createGLabel']>;
 		return {
 			kind: 'label',
-			promptText: label.getInstancePromptText(),
+			inputSettings: label.getInstanceLabelInputSettings(),
 			...liftTitleControlBase(label),
 		} satisfies UamLabelNode;
 	}
@@ -784,7 +784,7 @@ function liftComponentInstanceProperties(
 				icon: component.getInstanceIcon(),
 				titleColor: component.getInstanceTitleColor(),
 				titleFontSize: component.getInstanceTitleFontSize(),
-				promptText: component.getInstancePromptText(),
+				inputSettings: component.getInstanceLabelInputSettings(),
 				sound: component.getInstanceSound(),
 				soundVolumeScale: component.getInstanceSoundVolumeScale(),
 			};

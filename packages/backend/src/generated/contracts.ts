@@ -5239,7 +5239,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/__type_006774ed57"
 				},
 				{
-					"$ref": "#/$defs/__type_799f950837"
+					"$ref": "#/$defs/__type_3ec408e73a"
 				},
 				{
 					"$ref": "#/$defs/__type_aafd35036e"
@@ -5312,7 +5312,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"__type_799f950837": {
+		"__type_3ec408e73a": {
 			"type": "object",
 			"properties": {
 				"extensionType": {
@@ -5331,8 +5331,8 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"titleFontSize": {
 					"type": "number"
 				},
-				"promptText": {
-					"type": "string"
+				"inputSettings": {
+					"$ref": "#/$defs/Shape_3d6e91ae8c"
 				},
 				"sound": {
 					"type": "string"
@@ -5347,9 +5347,47 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"icon",
 				"titleColor",
 				"titleFontSize",
-				"promptText",
+				"inputSettings",
 				"sound",
 				"soundVolumeScale"
+			],
+			"additionalProperties": false
+		},
+		"Shape_3d6e91ae8c": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/LabelInputSettings_0c668731fc"
+				}
+			]
+		},
+		"LabelInputSettings_0c668731fc": {
+			"type": "object",
+			"properties": {
+				"promptText": {
+					"$ref": "#/$defs/Shape_5eeb3f060e"
+				},
+				"restrict": {
+					"$ref": "#/$defs/Shape_5eeb3f060e"
+				},
+				"maxLength": {
+					"type": "number"
+				},
+				"keyboardType": {
+					"type": "number"
+				},
+				"password": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"promptText",
+				"restrict",
+				"maxLength",
+				"keyboardType",
+				"password"
 			],
 			"additionalProperties": false
 		},
@@ -7074,8 +7112,8 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string",
 					"const": "label"
 				},
-				"promptText": {
-					"type": "string"
+				"inputSettings": {
+					"$ref": "#/$defs/Shape_a5f9eea0b6"
 				},
 				"title": {
 					"type": "string"
@@ -7219,6 +7257,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"gears"
 			],
 			"additionalProperties": false
+		},
+		"Shape_a5f9eea0b6": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/LabelInputSettings_0c668731fc"
+				}
+			]
 		},
 		"UamComboBoxNode_fae3458a32": {
 			"type": "object",
@@ -9338,7 +9386,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/__type_006774ed57"
 				},
 				{
-					"$ref": "#/$defs/__type_799f950837"
+					"$ref": "#/$defs/__type_3ec408e73a"
 				},
 				{
 					"$ref": "#/$defs/__type_aafd35036e"
@@ -11502,7 +11550,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/Shape_ae72a55d5a_wire"
 				},
 				"read": {
-					"$ref": "#/$defs/__type_81b96969f6_wire"
+					"$ref": "#/$defs/__type_4c480176a6_wire"
 				},
 				"authoring": {
 					"$ref": "#/$defs/__type_cea960ae37_wire"
@@ -11612,7 +11660,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"maxItems": 17,
 			"items": false
 		},
-		"__type_81b96969f6_wire": {
+		"__type_4c480176a6_wire": {
 			"type": "object",
 			"properties": {
 				"capabilitySnapshot": {
@@ -11628,7 +11676,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": true
 				},
 				"entityQuery": {
-					"$ref": "#/$defs/__type_de79aa70a9_wire"
+					"$ref": "#/$defs/__type_14ef9c17ee_wire"
 				},
 				"sessionState": {
 					"$ref": "#/$defs/__type_21fe9bfc0c_wire"
@@ -11652,11 +11700,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"__type_de79aa70a9_wire": {
+		"__type_14ef9c17ee_wire": {
 			"type": "object",
 			"properties": {
 				"kinds": {
-					"$ref": "#/$defs/ReadonlyArray_3ceb2b0864_wire"
+					"$ref": "#/$defs/ReadonlyArray_d9807c9d64_wire"
 				},
 				"projection": {
 					"type": "string",
@@ -11678,15 +11726,15 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"ReadonlyArray_3ceb2b0864_wire": {
+		"ReadonlyArray_d9807c9d64_wire": {
 			"type": "array",
 			"items": {
 				"enum": [
 					"transition",
+					"controller",
 					"component",
 					"resource",
 					"package",
-					"controller",
 					"project",
 					"displayNode"
 				]
@@ -13991,15 +14039,15 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"exported": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"kind": {
 					"type": "string",
 					"const": "image"
 				},
 				"favorite": {
 					"type": "boolean"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"branchItemIds": {
 					"$ref": "#/$defs/Array_5444db1618_wire"
@@ -14127,6 +14175,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"exported": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"movieClip": {
 					"$ref": "#/$defs/UamMovieClipResourceProperties_7891e3deb2_wire"
 				},
@@ -14136,9 +14187,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"favorite": {
 					"type": "boolean"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"branchItemIds": {
 					"$ref": "#/$defs/Array_5444db1618_wire"
@@ -14248,6 +14296,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"exported": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"kind": {
 					"enum": [
 						"font",
@@ -14260,9 +14311,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"favorite": {
 					"type": "boolean"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"branchItemIds": {
 					"$ref": "#/$defs/Array_5444db1618_wire"
@@ -16676,7 +16724,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/__type_006774ed57_wire"
 				},
 				{
-					"$ref": "#/$defs/__type_799f950837_wire"
+					"$ref": "#/$defs/__type_3ec408e73a_wire"
 				},
 				{
 					"$ref": "#/$defs/__type_aafd35036e_wire"
@@ -16749,7 +16797,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"__type_799f950837_wire": {
+		"__type_3ec408e73a_wire": {
 			"type": "object",
 			"properties": {
 				"extensionType": {
@@ -16768,8 +16816,8 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"titleFontSize": {
 					"type": "number"
 				},
-				"promptText": {
-					"type": "string"
+				"inputSettings": {
+					"$ref": "#/$defs/Shape_3d6e91ae8c_wire"
 				},
 				"sound": {
 					"type": "string"
@@ -16784,9 +16832,47 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"icon",
 				"titleColor",
 				"titleFontSize",
-				"promptText",
+				"inputSettings",
 				"sound",
 				"soundVolumeScale"
+			],
+			"additionalProperties": false
+		},
+		"Shape_3d6e91ae8c_wire": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/LabelInputSettings_0c668731fc_wire"
+				}
+			]
+		},
+		"LabelInputSettings_0c668731fc_wire": {
+			"type": "object",
+			"properties": {
+				"promptText": {
+					"$ref": "#/$defs/Shape_5eeb3f060e_wire"
+				},
+				"restrict": {
+					"$ref": "#/$defs/Shape_5eeb3f060e_wire"
+				},
+				"maxLength": {
+					"type": "number"
+				},
+				"keyboardType": {
+					"type": "number"
+				},
+				"password": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"promptText",
+				"restrict",
+				"maxLength",
+				"keyboardType",
+				"password"
 			],
 			"additionalProperties": false
 		},
@@ -18511,8 +18597,8 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string",
 					"const": "label"
 				},
-				"promptText": {
-					"type": "string"
+				"inputSettings": {
+					"$ref": "#/$defs/Shape_a5f9eea0b6_wire"
 				},
 				"title": {
 					"type": "string"
@@ -18656,6 +18742,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"gears"
 			],
 			"additionalProperties": false
+		},
+		"Shape_a5f9eea0b6_wire": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/LabelInputSettings_0c668731fc_wire"
+				}
+			]
 		},
 		"UamComboBoxNode_fae3458a32_wire": {
 			"type": "object",
@@ -19963,15 +20059,15 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"exported": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"kind": {
 					"type": "string",
 					"const": "image"
 				},
 				"favorite": {
 					"type": "boolean"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"sourcePath": {
 					"type": "string"
@@ -20014,6 +20110,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"exported": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"movieClip": {
 					"$ref": "#/$defs/UamMovieClipResourceProperties_7891e3deb2_wire"
 				},
@@ -20023,9 +20122,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"favorite": {
 					"type": "boolean"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"sourcePath": {
 					"type": "string"
@@ -20075,6 +20171,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"exported": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"kind": {
 					"enum": [
 						"font",
@@ -20087,9 +20186,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"favorite": {
 					"type": "boolean"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"sourcePath": {
 					"type": "string"
@@ -24568,7 +24664,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/__type_006774ed57_read"
 				},
 				{
-					"$ref": "#/$defs/__type_799f950837_read"
+					"$ref": "#/$defs/__type_3ec408e73a_read"
 				},
 				{
 					"$ref": "#/$defs/__type_aafd35036e_read"
@@ -24641,7 +24737,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"__type_799f950837_read": {
+		"__type_3ec408e73a_read": {
 			"type": "object",
 			"properties": {
 				"extensionType": {
@@ -24660,8 +24756,8 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"titleFontSize": {
 					"type": "number"
 				},
-				"promptText": {
-					"type": "string"
+				"inputSettings": {
+					"$ref": "#/$defs/Shape_3d6e91ae8c_read"
 				},
 				"sound": {
 					"type": "string"
@@ -24676,9 +24772,47 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"icon",
 				"titleColor",
 				"titleFontSize",
-				"promptText",
+				"inputSettings",
 				"sound",
 				"soundVolumeScale"
+			],
+			"additionalProperties": true
+		},
+		"Shape_3d6e91ae8c_read": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/LabelInputSettings_0c668731fc_read"
+				}
+			]
+		},
+		"LabelInputSettings_0c668731fc_read": {
+			"type": "object",
+			"properties": {
+				"promptText": {
+					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+				},
+				"restrict": {
+					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+				},
+				"maxLength": {
+					"type": "number"
+				},
+				"keyboardType": {
+					"type": "number"
+				},
+				"password": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"promptText",
+				"restrict",
+				"maxLength",
+				"keyboardType",
+				"password"
 			],
 			"additionalProperties": true
 		},
@@ -26436,8 +26570,8 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string",
 					"const": "label"
 				},
-				"promptText": {
-					"type": "string"
+				"inputSettings": {
+					"$ref": "#/$defs/Shape_a5f9eea0b6_read"
 				},
 				"title": {
 					"type": "string"
@@ -26581,6 +26715,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"gears"
 			],
 			"additionalProperties": true
+		},
+		"Shape_a5f9eea0b6_read": {
+			"anyOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/LabelInputSettings_0c668731fc_read"
+				}
+			]
 		},
 		"UamComboBoxNode_fae3458a32_read": {
 			"type": "object",
@@ -27466,15 +27610,15 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"exported": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"kind": {
 					"type": "string",
 					"const": "image"
 				},
 				"favorite": {
 					"type": "boolean"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"sourcePath": {
 					"type": "string"
@@ -27590,6 +27734,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"exported": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"movieClip": {
 					"$ref": "#/$defs/UamMovieClipResourceProperties_7891e3deb2_read"
 				},
@@ -27599,9 +27746,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"favorite": {
 					"type": "boolean"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"sourcePath": {
 					"type": "string"
@@ -27720,6 +27864,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"exported": {
 					"type": "boolean"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"kind": {
 					"enum": [
 						"font",
@@ -27732,9 +27879,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"favorite": {
 					"type": "boolean"
-				},
-				"fileName": {
-					"type": "string"
 				},
 				"sourcePath": {
 					"type": "string"
@@ -28844,7 +28988,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/Shape_ae72a55d5a"
 				},
 				"read": {
-					"$ref": "#/$defs/__type_81b96969f6"
+					"$ref": "#/$defs/__type_4c480176a6"
 				},
 				"authoring": {
 					"$ref": "#/$defs/__type_cea960ae37"
@@ -28954,7 +29098,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"maxItems": 17,
 			"items": false
 		},
-		"__type_81b96969f6": {
+		"__type_4c480176a6": {
 			"type": "object",
 			"properties": {
 				"capabilitySnapshot": {
@@ -28970,7 +29114,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": true
 				},
 				"entityQuery": {
-					"$ref": "#/$defs/__type_de79aa70a9"
+					"$ref": "#/$defs/__type_14ef9c17ee"
 				},
 				"sessionState": {
 					"$ref": "#/$defs/__type_21fe9bfc0c"
@@ -28994,11 +29138,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"__type_de79aa70a9": {
+		"__type_14ef9c17ee": {
 			"type": "object",
 			"properties": {
 				"kinds": {
-					"$ref": "#/$defs/ReadonlyArray_3ceb2b0864"
+					"$ref": "#/$defs/ReadonlyArray_d9807c9d64"
 				},
 				"projection": {
 					"type": "string",
@@ -29020,15 +29164,15 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"ReadonlyArray_3ceb2b0864": {
+		"ReadonlyArray_d9807c9d64": {
 			"type": "array",
 			"items": {
 				"enum": [
 					"transition",
+					"controller",
 					"component",
 					"resource",
 					"package",
-					"controller",
 					"project",
 					"displayNode"
 				]
@@ -33745,5 +33889,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "8f9541801d4c47ecc6b32528e6434139025a62ae775a416900738f2b9ad0149d"
+	"digest": "0149738442b7e33781db0c613515bab0b1431c99f5f6a26260001893155b8d8f"
 };
