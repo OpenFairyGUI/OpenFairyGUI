@@ -250,7 +250,7 @@ async function sessionReadSmoke() {
 	const { createNodeBackendRuntime, createNodeBackendFileSystem } = await import('@openfairygui/backend/node');
 	const { OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS } = await import('@openfairygui/mcp');
 	const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
-	const { StdioClientTransport } = await import('@modelcontextprotocol/sdk/client/stdio.js');
+	const { StdioClientTransport, getDefaultEnvironment } = await import('@modelcontextprotocol/sdk/client/stdio.js');
 	const projectPath = await createPublishProject(root);
 	const projectRoot = path.dirname(projectPath);
 	const beforeFiles = snapshot(projectRoot);
@@ -306,6 +306,33 @@ async function sessionReadSmoke() {
 			}
 			const opened = await call('openSession', { projectPath });
 			if (!opened.ok && process.platform === 'win32') {
+				console.error('[consumer] Failed session mode:', mode);
+				for (const [environment, env] of [
+					['mcp', getDefaultEnvironment()],
+					['mcp-modules', { ...getDefaultEnvironment(), PSModulePath: process.env.PSModulePath }],
+					['mcp-comspec', { ...getDefaultEnvironment(), ComSpec: process.env.ComSpec }],
+				]) {
+					const probe = spawnSync(
+						'powershell.exe',
+						[
+							'-NoProfile',
+							'-NonInteractive',
+							'-Command',
+							`[Console]::WriteLine('filtered-start'); [System.Diagnostics.Process]::GetProcessById(${process.pid}).StartTime.ToUniversalTime().Ticks`,
+						],
+						{ env, input: '', encoding: 'utf8', windowsHide: true, timeout: 10_000 },
+					);
+					console.error(
+						'[consumer] Filtered Windows identity probe',
+						JSON.stringify({
+							environment,
+							status: probe.status,
+							error: probe.error?.message,
+							stdout: probe.stdout?.slice(0, 1000),
+							stderr: probe.stderr?.slice(0, 1000),
+						}),
+					);
+				}
 				const { execFile } = await import('node:child_process');
 				await new Promise((resolve) => {
 					const child = execFile(
