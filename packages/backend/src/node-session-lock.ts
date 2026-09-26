@@ -65,13 +65,14 @@ async function processIdentity(pid: number): Promise<string | null> {
 			return start ? `linux:${boot.trim()}:${start}` : null;
 		}
 		if (process.platform === 'win32') {
+			// Query the process directly: do not depend on Get-Process cmdlet/module loading in MCP hosts.
 			const pending = execute(
 				'powershell.exe',
 				[
 					'-NoProfile',
 					'-NonInteractive',
 					'-Command',
-					`(Get-Process -Id ${pid} -ErrorAction Stop).StartTime.ToUniversalTime().Ticks`,
+					`[System.Diagnostics.Process]::GetProcessById(${pid}).StartTime.ToUniversalTime().Ticks`,
 				],
 				// Windows PowerShell cold startup can exceed five seconds on hosted runners.
 				{ windowsHide: true, timeout: 15_000 },
