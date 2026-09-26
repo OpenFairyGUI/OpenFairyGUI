@@ -247,7 +247,7 @@ async function hostCompositionSmoke() {
 
 async function sessionReadSmoke() {
 	const { createPublishProject, IMAGE_BYTES } = await import('./examples/publish-restore/index.mjs');
-	const { createNodeBackendRuntime } = await import('@openfairygui/backend/node');
+	const { createNodeBackendRuntime, createNodeBackendFileSystem } = await import('@openfairygui/backend/node');
 	const { OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS } = await import('@openfairygui/mcp');
 	const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
 	const { StdioClientTransport } = await import('@modelcontextprotocol/sdk/client/stdio.js');
@@ -257,7 +257,18 @@ async function sessionReadSmoke() {
 	const selector = { packageId: 'pkgshare', resourceId: 'red' };
 	const replacement = Uint8Array.from(Buffer.from(IMAGE_BYTES.blue, 'base64'));
 	for (const mode of ['sdk', 'mcp']) {
-		const runtime = mode === 'sdk' ? createNodeBackendRuntime({ allowedProjectRoots: [projectRoot] }) : null;
+		const fileSystem = createNodeBackendFileSystem();
+		const acquire = fileSystem.acquireSessionLock;
+		fileSystem.acquireSessionLock = async (lockPath) => {
+			try {
+				return await acquire(lockPath);
+			} catch (error) {
+				console.error('[consumer] Native lock failure', error);
+				throw error;
+			}
+		};
+		const runtime =
+			mode === 'sdk' ? createNodeBackendRuntime({ allowedProjectRoots: [projectRoot], fileSystem }) : null;
 		const client = mode === 'mcp' ? new Client({ name: 'installed-session-reader', version: '1.0.0' }) : null;
 		let sessionId;
 		const call = async (method, input) => {
@@ -295,6 +306,27 @@ async function sessionReadSmoke() {
 			}
 			const opened = await call('openSession', { projectPath });
 			if (!opened.ok && process.platform === 'win32') {
+				const { execFile } = await import('node:child_process');
+				await new Promise((resolve) => {
+					const child = execFile(
+						'powershell.exe',
+						[
+							'-NoProfile',
+							'-NonInteractive',
+							'-Command',
+							`[Console]::WriteLine('async-start'); (Get-Process -Id ${process.pid} -ErrorAction Stop).StartTime.ToUniversalTime().Ticks`,
+						],
+						{ windowsHide: true, timeout: 10_000 },
+						(error, stdout, stderr) => {
+							console.error(
+								'[consumer] Async Windows identity probe',
+								JSON.stringify({ error: error?.message, stdout, stderr }),
+							);
+							resolve();
+						},
+					);
+					child.stdin.end();
+				});
 				// Preserve OS-probe evidence when the public error intentionally hides host details.
 				for (const expression of [
 					`(Get-Process -Id ${process.pid} -ErrorAction Stop).StartTime.ToUniversalTime().Ticks`,
