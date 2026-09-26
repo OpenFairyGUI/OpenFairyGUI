@@ -17,7 +17,10 @@
 		"node": ">=22"
 	},
 	"type": "module",
-	"sideEffects": ["./dist/image-validation-worker.js", "./dist/image-validation-worker.cjs"],
+	"sideEffects": [
+		"./dist/image-validation-worker.js",
+		"./dist/image-validation-worker.cjs"
+	],
 	"main": "./dist/index.cjs",
 	"module": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -90,8 +93,7 @@
 		"fairygui-core"
 	],
 	"files": [
-		"dist/",
-		"src/"
+		"dist/"
 	],
 	"devDependencies": {
 		"@types/pako": "^2.0.0",

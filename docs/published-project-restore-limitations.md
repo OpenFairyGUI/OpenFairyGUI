@@ -66,7 +66,6 @@
 |---|---|---|---|
 | Transition easing | 原工程中的特定 ease 名称 | 当前样本对应二进制读出的就是默认 easing，无法证明原工程曾写过哪个非默认 ease | `Transition/BOSS.xml`、`TRAP.xml`、`GoodHit.xml` 中部分 `Expo.Out` / `Back.Out` / `Bounce.Out` |
 | 简单 Group 节点 | 仅用于编辑器分组、但没有额外运行时语义的 `GGroup` 节点 | 当前样本中的发布组件数据会直接裁掉这类 group，二进制 child list 里既没有 group 节点，也没有可稳定回推的 group 归属索引 | `Basics/Demo_Clip&Scroll.xml`、`Emoji/Main.xml`、`TurnPage/Book.xml` |
-| Group 高级模式 | 原工程 XML 中的 `group.advanced="true"` | 发布 group block写出的是布局与间距等运行时数据，不单独保留编辑器里的高级模式开关；当前样本中二进制读回的 group 会直接落成 `advanced=false` | `Basics/Demo_Grid.xml`、`Transition/Main.xml`、`Transition/PowerUp.xml` |
 | Controller 当前选中页 | 原工程 XML 中的 `controller.selected` 当前页状态 | 发布 controller block稳定保存的是 `homePageType/homePage` 发布首页信息；当前样本中的二进制常写成 `default`，并不保留编辑器工程里当时的非零当前页 | `TurnPage/Main.xml` 的 `bookPos="2"`、`TurnPage/Page.xml` 的 `style="1"` / `side="1"`、`FrontCover.xml` / `BackCover.xml` 的 `side="1"` |
 | Controller 导出标记 | 原工程 XML 中的 `controller.exported="true"` | 当前样本对应的 controller 发布 block只写 `name/pages/homePageType/homePage/actions`，没有独立写出 `exported` | `TurnPage/BackCover.xml`、`TurnPage/FrontCover.xml`、`TurnPage/Page.xml` |
 | 默认值显式性 | 原工程是否显式写出默认属性 | 发布包只保留语义值，不保留“这个默认值当时是否显式写在 XML 里” | 如 `xy="0,0"`、空文本、默认布尔值等 |
@@ -118,3 +117,5 @@
 | 可以从发布产物重建“可工作的工程” | 是 |
 | 可以从发布产物重建“原工程的源码真迹” | 否 |
 | 还原结果是否应该继续优化 | 可以，但应只优化“发布产物里确实有证据的部分” |
+
+Node 图片校验、恢复解码和恢复画布使用 16,777,216 像素上限。画布宽高必须为正安全整数，乘积不得超过上限；超限在分配画布前拒绝。

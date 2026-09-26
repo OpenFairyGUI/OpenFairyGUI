@@ -9,7 +9,7 @@ export const OPENFAIRYGUI_BACKEND_PROMPT_NAMES = [
 	'openfairygui_poll_runtime_state',
 ] as const;
 
-export type OpenFairyGuiBackendPromptName = typeof OPENFAIRYGUI_BACKEND_PROMPT_NAMES[number];
+export type OpenFairyGuiBackendPromptName = (typeof OPENFAIRYGUI_BACKEND_PROMPT_NAMES)[number];
 
 interface OpenFairyGuiBackendPromptDefinition {
 	name: OpenFairyGuiBackendPromptName;

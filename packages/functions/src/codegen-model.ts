@@ -34,7 +34,11 @@ export function buildCodegenClasses(doc: Document, pkg: Package, plan: ResolvedP
 	const usedClassNames = new Set([plan.binderClassName.toLowerCase()]);
 
 	for (const component of codegenComponents) {
-		const encodedClassName = claimName(`${plan.settings.classNamePrefix}${normalizeTypeName(component.getName()) || 'Component'}`, usedClassNames, true);
+		const encodedClassName = claimName(
+			`${plan.settings.classNamePrefix}${normalizeTypeName(component.getName()) || 'Component'}`,
+			usedClassNames,
+			true,
+		);
 		generatedById.set(component.getId(), {
 			classId: component.getId(),
 			className: component.getName(),
@@ -82,26 +86,32 @@ function buildCodegenMembers(
 	let transitionIndex = 0;
 
 	for (const controller of component.listControllers()) {
-		members.push(createMember(ownerType, 'controller', 'Controller', controller.getName(), controllerIndex++, plan));
+		members.push(
+			createMember(ownerType, 'controller', 'Controller', controller.getName(), controllerIndex++, plan),
+		);
 	}
 
 	for (const child of component.listChildren()) {
 		if (!isRuntimeChild(child)) continue;
 		const index = childIndex++;
 		const resolvedChild = resolveChildType(doc, pkg, child, generatedById);
-		members.push(createMember(
-			ownerType,
-			'child',
-			resolvedChild.type,
-			child.getName(),
-			index,
-			plan,
-			resolvedChild.referencedComponent,
-		));
+		members.push(
+			createMember(
+				ownerType,
+				'child',
+				resolvedChild.type,
+				child.getName(),
+				index,
+				plan,
+				resolvedChild.referencedComponent,
+			),
+		);
 	}
 
 	for (const transition of component.listTransitions()) {
-		members.push(createMember(ownerType, 'transition', 'Transition', transition.getName(), transitionIndex++, plan));
+		members.push(
+			createMember(ownerType, 'transition', 'Transition', transition.getName(), transitionIndex++, plan),
+		);
 	}
 
 	const usedNames = new Set<string>();
@@ -156,7 +166,10 @@ function resolveChildType(
 			const rest = src.slice(5);
 			const pkgId = rest.slice(0, 8);
 			const resourceId = rest.slice(8);
-			const targetPackage = doc.getRoot().listPackages().find((candidate) => candidate.getId() === pkgId);
+			const targetPackage = doc
+				.getRoot()
+				.listPackages()
+				.find((candidate) => candidate.getId() === pkgId);
 			const targetResource = targetPackage?.getResourceById(resourceId);
 			if (targetPackage && targetResource?.propertyType === 'Component') {
 				referencedComponent = { component: targetResource, package: targetPackage };
@@ -164,7 +177,10 @@ function resolveChildType(
 		} else {
 			const packageId = (child as GComponent & { getPackageId?(): string }).getPackageId?.();
 			const targetPackage = packageId
-				? doc.getRoot().listPackages().find((candidate) => candidate.getId() === packageId)
+				? doc
+						.getRoot()
+						.listPackages()
+						.find((candidate) => candidate.getId() === packageId)
 				: pkg;
 			const targetResource = targetPackage?.getResourceById(src);
 			if (targetPackage && targetResource?.propertyType === 'Component') {
@@ -173,9 +189,10 @@ function resolveChildType(
 		}
 
 		if (referencedComponent) {
-			const localGeneratedClass = referencedComponent.package === pkg
-				? generatedById.get(referencedComponent.component.getId())
-				: undefined;
+			const localGeneratedClass =
+				referencedComponent.package === pkg
+					? generatedById.get(referencedComponent.component.getId())
+					: undefined;
 			return {
 				type: localGeneratedClass?.encodedClassName ?? resolveComponentBaseType(referencedComponent.component),
 				referencedComponent,
@@ -218,25 +235,34 @@ function applyMemberNamePrefix(name: string, prefix: string): string {
 }
 
 function claimName(base: string, used: Set<string>, ignoreCase = false): string {
-	let name = base, suffix = 2;
+	let name = base,
+		suffix = 2;
 	while (used.has(ignoreCase ? name.toLowerCase() : name)) name = `${base}_${suffix++}`;
 	used.add(ignoreCase ? name.toLowerCase() : name);
 	return name;
 }
 
 function transliterateName(value: string): string {
-	return pinyin.parse(value).map((token) => token.type === 2
-		? token.target.charAt(0) + token.target.slice(1).toLowerCase() : token.source).join('');
+	return pinyin
+		.parse(value)
+		.map((token) =>
+			token.type === 2 ? token.target.charAt(0) + token.target.slice(1).toLowerCase() : token.source,
+		)
+		.join('');
 }
 
 function normalizeMemberName(value: string): string {
-	const cleaned = transliterateName(value).replace(/[^0-9A-Za-z_]+/g, '_').replace(/^_+|_+$/g, '');
+	const cleaned = transliterateName(value)
+		.replace(/[^0-9A-Za-z_]+/g, '_')
+		.replace(/^_+|_+$/g, '');
 	if (!cleaned) return '';
 	return /^[0-9]/.test(cleaned) ? `_${cleaned}` : cleaned;
 }
 
 export function normalizeTypeName(value: string): string {
-	const cleaned = transliterateName(value).replace(/[^0-9A-Za-z_]+/g, '_').replace(/^_+|_+$/g, '');
+	const cleaned = transliterateName(value)
+		.replace(/[^0-9A-Za-z_]+/g, '_')
+		.replace(/^_+|_+$/g, '');
 	if (!cleaned) return '';
 	const parts = cleaned.split(/_+/).filter(Boolean);
 	const normalized = parts.map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join('');

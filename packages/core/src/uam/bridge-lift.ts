@@ -33,12 +33,7 @@ import type {
 	UamTextNode,
 	UamXYGearBinding,
 } from './model.js';
-import {
-	cloneListItems,
-	cloneSettings,
-	liftEdgeInsets,
-	liftRelations,
-} from './bridge-shared.js';
+import { cloneListItems, cloneSettings, liftEdgeInsets, liftRelations } from './bridge-shared.js';
 
 type LiftableDisplayNodeBase = {
 	getId(): string;
@@ -96,7 +91,6 @@ type LiftedComponentDerivedControlBase = LiftedGroupableDisplayNodeBase & Pick<U
 type LiftedTitleControlBase = LiftedComponentDerivedControlBase &
 	Pick<UamButtonNode, 'title' | 'icon' | 'titleColor' | 'titleFontSize' | 'sound' | 'soundVolumeScale'>;
 
-
 function liftDisplayNodeBase(child: LiftableDisplayNodeBase): LiftedDisplayNodeBase {
 	return {
 		id: child.getId(),
@@ -146,7 +140,6 @@ function liftTitleControlBase(child: LiftableTitleControl): LiftedTitleControlBa
 		soundVolumeScale: child.getSoundVolumeScale(),
 	};
 }
-
 
 type LiftableAssetResource = {
 	propertyType: string;
@@ -275,10 +268,16 @@ function liftAssetResource(resource: LiftableAssetResource): UamAssetResource {
 			},
 		};
 	}
-	if (resource.propertyType === PropertyType.SPINE_RESOURCE || resource.propertyType === PropertyType.DRAGON_BONES_RESOURCE) {
+	if (
+		resource.propertyType === PropertyType.SPINE_RESOURCE ||
+		resource.propertyType === PropertyType.DRAGON_BONES_RESOURCE
+	) {
 		const skeleton = resource as ReturnType<Document['createSpineResource']>;
 		return {
-			...baseAssetResource(resource.propertyType === PropertyType.SPINE_RESOURCE ? 'spine' : 'dragonBones', skeleton),
+			...baseAssetResource(
+				resource.propertyType === PropertyType.SPINE_RESOURCE ? 'spine' : 'dragonBones',
+				skeleton,
+			),
 			file: skeleton.getFile(),
 			dimensions: {
 				width: skeleton.getWidth(),
@@ -320,7 +319,10 @@ function parseLookGearValue(value: string | null) {
 	};
 }
 
-function parseGenericGearValue(kind: Exclude<UamGearBinding['kind'], 'display' | 'display2' | 'look'>, value: string | null) {
+function parseGenericGearValue(
+	kind: Exclude<UamGearBinding['kind'], 'display' | 'display2' | 'look'>,
+	value: string | null,
+) {
 	if (kind === 'text') return value === null ? null : { text: value };
 	if (kind === 'icon') return value === null ? null : { icon: value };
 	if (!value || value === '-') return null;
@@ -328,7 +330,8 @@ function parseGenericGearValue(kind: Exclude<UamGearBinding['kind'], 'display' |
 	switch (kind) {
 		case 'xy':
 			return {
-				x: parseNumber(parts[0], 0), y: parseNumber(parts[1], 0),
+				x: parseNumber(parts[0], 0),
+				y: parseNumber(parts[1], 0),
 				...(parts.length > 2 ? { px: Number(parts[2]), py: Number(parts[3]) } : {}),
 			};
 		case 'size':
@@ -391,14 +394,17 @@ function liftGears(gears: ReturnType<GObject['listGears']>): UamGearBinding[] {
 			}
 			const stringValues = kind === 'text' || kind === 'icon';
 			const pageValues = gear.getPageValues();
-			const values = stringValues ? [] : (gear.getValues() ? gear.getValues().split('|') : []);
+			const values = stringValues ? [] : gear.getValues() ? gear.getValues().split('|') : [];
 			const defaultValue = gear.getDefaultValue() === null ? null : `${gear.getDefaultValue()}`;
 			const base = {
 				name: gear.getName(),
 				controllerName: gear.getController()?.getName() ?? '',
 				states: pages.map((pageId, index) => ({
 					pageId,
-					value: parseGenericGearValue(kind, stringValues ? (pageValues[pageId] ?? null) : (values[index] ?? null)),
+					value: parseGenericGearValue(
+						kind,
+						stringValues ? (pageValues[pageId] ?? null) : (values[index] ?? null),
+					),
 				})),
 				defaultValue: parseGenericGearValue(kind, defaultValue),
 				condition: gear.getCondition(),
@@ -466,9 +472,9 @@ export function liftDisplayNode(child: GObject): UamDisplayNode {
 		};
 	}
 	if (
-		child.propertyType === PropertyType.G_TEXT_FIELD
-		|| child.propertyType === PropertyType.G_RICH_TEXT_FIELD
-		|| child.propertyType === PropertyType.G_TEXT_INPUT
+		child.propertyType === PropertyType.G_TEXT_FIELD ||
+		child.propertyType === PropertyType.G_RICH_TEXT_FIELD ||
+		child.propertyType === PropertyType.G_TEXT_INPUT
 	) {
 		const text = child as ReturnType<Document['createGTextField']>;
 		const textProperties = {
@@ -669,6 +675,9 @@ export function liftDisplayNode(child: GObject): UamDisplayNode {
 		const button = child as ReturnType<Document['createGButton']>;
 		return {
 			kind: 'button',
+			controller: button.getController(),
+			page: button.getPage(),
+			checked: button.getChecked(),
 			...liftTitleControlBase(button),
 			selectedTitle: button.getSelectedTitle(),
 			selectedIcon: button.getSelectedIcon(),
@@ -681,6 +690,7 @@ export function liftDisplayNode(child: GObject): UamDisplayNode {
 		const label = child as ReturnType<Document['createGLabel']>;
 		return {
 			kind: 'label',
+			inputSettings: label.getInstanceLabelInputSettings(),
 			...liftTitleControlBase(label),
 		} satisfies UamLabelNode;
 	}
@@ -774,7 +784,7 @@ function liftComponentInstanceProperties(
 				icon: component.getInstanceIcon(),
 				titleColor: component.getInstanceTitleColor(),
 				titleFontSize: component.getInstanceTitleFontSize(),
-				promptText: component.getInstancePromptText(),
+				inputSettings: component.getInstanceLabelInputSettings(),
 				sound: component.getInstanceSound(),
 				soundVolumeScale: component.getInstanceSoundVolumeScale(),
 			};
@@ -894,9 +904,7 @@ function liftComponentResource(resource: ReturnType<Document['createComponent']>
 	};
 }
 
-function liftComponentProperties(
-	resource: ReturnType<Document['createComponent']>,
-): UamComponentProperties {
+function liftComponentProperties(resource: ReturnType<Document['createComponent']>): UamComponentProperties {
 	return {
 		minSize: { width: resource.getMinWidth(), height: resource.getMinHeight() },
 		maxSize: { width: resource.getMaxWidth(), height: resource.getMaxHeight() },

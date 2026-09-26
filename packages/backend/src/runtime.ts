@@ -1,6 +1,6 @@
 import type { ApplyUamTransactionAppError } from '@openfairygui/functions/uam';
 import type { ProjectValidationReport } from '@openfairygui/core';
-import type { PathPolicyViolationError } from './path-policy.js';
+import { classifyProjectOpenFailure, type PathPolicyViolationError } from './path-policy.js';
 import { AuthoringService } from './services/authoring-service.js';
 import { PersistenceService } from './services/persistence-service.js';
 import { CacheService } from './services/cache-service.js';
@@ -10,7 +10,7 @@ import { SessionOperationQueue } from './services/session-operation-queue.js';
 import { EventService } from './services/event-service.js';
 import { ReadService } from './services/read-service.js';
 import { RuntimeService } from './services/runtime-service.js';
-import { createCapabilities } from './runtime/capabilities.js';
+import { createCapabilities, DEFAULT_MAX_SESSIONS } from './runtime/capabilities.js';
 import type {
 	AdvisoryLockConflictError,
 	ApplySessionTransactionInput,
@@ -51,6 +51,7 @@ import type {
 	SavePartialFailureError,
 	SaveSessionInput,
 	SessionIdConflictError,
+	SessionLimitExceededError,
 	SessionNotFoundError,
 	SessionCloseFailedError,
 	SessionStaleWriteError,
@@ -63,7 +64,7 @@ export * from './runtime/contracts.js';
 export class BackendRuntime {
 	private readonly fileSystem?: BackendFileSystem;
 	private readonly capabilities: BackendCapabilities;
-	private readonly sessions = new SessionRegistry();
+	private readonly sessions: SessionRegistry;
 	private readonly sessionOperations = new SessionOperationQueue();
 	private readonly context: BackendContext;
 	private readonly readService: ReadService;
@@ -75,7 +76,22 @@ export class BackendRuntime {
 
 	public constructor(options: BackendRuntimeOptions = {}) {
 		this.fileSystem = options.fileSystem;
-		this.capabilities = createCapabilities(Boolean(options.fileSystem?.runProjectWriteTransaction));
+		const maxSessions = options.maxSessions ?? DEFAULT_MAX_SESSIONS;
+		if (!Number.isSafeInteger(maxSessions) || maxSessions < 1)
+			throw new RangeError(`maxSessions must be a positive integer: ${maxSessions}`);
+		const idleTimeout = options.idleSessionTimeoutMs ?? 30 * 60_000;
+		if (!Number.isSafeInteger(idleTimeout) || idleTimeout < 0 || idleTimeout > 2_147_483_647) {
+			throw new RangeError('idleSessionTimeoutMs must be an integer between 0 and 2147483647.');
+		}
+		this.sessions = new SessionRegistry(maxSessions, idleTimeout, (sessionId, activity) =>
+			this.runtimeService.expireIdleSession(sessionId, activity),
+		);
+		this.capabilities = createCapabilities(
+			Boolean(options.fileSystem?.runProjectWriteTransaction),
+			options.fileSystem?.caseSensitivePaths ?? false,
+			maxSessions,
+			idleTimeout,
+		);
 		this.context = {
 			fileSystem: this.fileSystem,
 			host: options.host,
@@ -87,9 +103,24 @@ export class BackendRuntime {
 		this.readService = new ReadService((sessionId) => readView(getSession(sessionId)), this.capabilities);
 		this.eventService = new EventService(getSession);
 		this.cacheService = new CacheService(getSession, this.eventService);
-		this.runtimeService = new RuntimeService(this.context, this.cacheService, this.eventService);
-		this.authoringService = new AuthoringService(this.context, this.cacheService, this.eventService, this.sessionOperations);
-		this.persistenceService = new PersistenceService(this.context, this.cacheService, this.eventService, this.sessionOperations);
+		this.runtimeService = new RuntimeService(
+			this.context,
+			this.cacheService,
+			this.eventService,
+			this.sessionOperations,
+		);
+		this.authoringService = new AuthoringService(
+			this.context,
+			this.cacheService,
+			this.eventService,
+			this.sessionOperations,
+		);
+		this.persistenceService = new PersistenceService(
+			this.context,
+			this.cacheService,
+			this.eventService,
+			this.sessionOperations,
+		);
 	}
 
 	public getCapabilities(): BackendSuccess<BackendCapabilities> {
@@ -101,20 +132,21 @@ export class BackendRuntime {
 	}): Promise<
 		BackendResult<
 			BackendSessionSnapshot,
-			InProcessLockConflictError
+			| InProcessLockConflictError
 			| AdvisoryLockConflictError
 			| BackendCapabilityUnavailableError
 			| ProjectRootNotAllowedError
 			| ProjectOpenFailedError
+			| SessionLimitExceededError
 		>
 	> {
 		const startedAt = Date.now();
 		try {
 			return await this.runtimeService.openSession(input);
-		} catch {
+		} catch (error) {
 			return failure('runtime', startedAt, {
 				code: 'project_open_failed',
-				message: 'Unable to open project.',
+				...classifyProjectOpenFailure(error),
 				projectPath: input.projectPath,
 			});
 		}
@@ -122,7 +154,10 @@ export class BackendRuntime {
 
 	public openProjectSession(
 		input: OpenProjectSessionInput,
-	): BackendResult<BackendSessionSnapshot, InProcessLockConflictError | SessionIdConflictError> {
+	): BackendResult<
+		BackendSessionSnapshot,
+		InProcessLockConflictError | SessionIdConflictError | SessionLimitExceededError
+	> {
 		return this.runtimeService.openProjectSession(input);
 	}
 
@@ -136,27 +171,36 @@ export class BackendRuntime {
 		return this.readService.getProjectOutline(input);
 	}
 
-	public queryEntity(input: QueryEntityInput): BackendResult<BackendEntitySnapshot, SessionNotFoundError | EntityQueryError> {
+	public queryEntity(
+		input: QueryEntityInput,
+	): BackendResult<BackendEntitySnapshot, SessionNotFoundError | EntityQueryError> {
 		return this.readService.queryEntity(input);
 	}
 
-	public readSessionState(input: ReadSessionStateInput): BackendResult<BackendSessionStateSnapshot, SessionNotFoundError | SessionReadError | SessionStaleReadError> {
+	public readSessionState(
+		input: ReadSessionStateInput,
+	): BackendResult<BackendSessionStateSnapshot, SessionNotFoundError | SessionReadError | SessionStaleReadError> {
 		return this.readService.readSessionState(input);
 	}
 
-	public readResourceBytes(input: ReadResourceBytesInput): BackendResult<BackendResourceBytesSnapshot, SessionNotFoundError | SessionReadError | SessionStaleReadError> {
+	public readResourceBytes(
+		input: ReadResourceBytesInput,
+	): BackendResult<BackendResourceBytesSnapshot, SessionNotFoundError | SessionReadError | SessionStaleReadError> {
 		return this.readService.readResourceBytes(input);
 	}
 
-	public validateSession(
-		input: ValidateSessionInput,
-	): BackendResult<ProjectValidationReport, SessionNotFoundError> {
+	public validateSession(input: ValidateSessionInput): BackendResult<ProjectValidationReport, SessionNotFoundError> {
 		return this.readService.validateSession(input);
 	}
 
 	public async preflightTransaction(
 		input: ApplySessionTransactionInput,
-	): Promise<BackendResult<BackendTransactionPreview, SessionNotFoundError | SessionStaleWriteError | ApplyUamTransactionAppError | TransactionPreviewError>> {
+	): Promise<
+		BackendResult<
+			BackendTransactionPreview,
+			SessionNotFoundError | SessionStaleWriteError | ApplyUamTransactionAppError | TransactionPreviewError
+		>
+	> {
 		return this.authoringService.preflightTransaction(input);
 	}
 

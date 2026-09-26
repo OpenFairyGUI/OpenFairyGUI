@@ -36,17 +36,39 @@ test('publish expands built-in and custom variables in global, package and branc
 	for (const scope of ['global', 'package', 'branch-global', 'branch-package', 'override']) {
 		const doc = new Document();
 		const branch = scope.startsWith('branch');
-		doc.getRoot().setProjectType(7).setSettings({
-			customProperties: { channel: 'test-$&', number: 7 },
-			publish: { path: '{channel}/{publish_file_name}/{number}', branchPath: 'branch/{channel}/{publish_file_name}', branchProcessing: branch ? 1 : 0 },
-		});
+		doc.getRoot()
+			.setProjectType(7)
+			.setSettings({
+				customProperties: { channel: 'test-$&', number: 7 },
+				publish: {
+					path: '{channel}/{publish_file_name}/{number}',
+					branchPath: 'branch/{channel}/{publish_file_name}',
+					branchProcessing: branch ? 1 : 0,
+				},
+			});
 		const pkg = doc.createPackage('Main').setId('pathpkg1').setPublishName('Renamed');
 		if (scope === 'package') pkg.setPublishPath('package/{channel}/{publish_file_name}');
-		if (scope === 'branch-package') pkg.setPublishBranchPath('package-branch/{channel}/{publish_file_name}/{unknown}');
+		if (scope === 'branch-package')
+			pkg.setPublishBranchPath('package-branch/{channel}/{publish_file_name}/{unknown}');
 		const output = scope === 'override' ? path.join(tmpDir, scope, '{channel}') : undefined;
-		await doc.transform(publish({ fs: createFs(), basePath: path.join(tmpDir, scope, 'assets'), branch: branch ? 'en' : undefined, output }));
-		const expected = scope === 'global' ? 'test-$&/Renamed/7' : scope === 'package' ? 'package/test-$&/Renamed'
-			: scope === 'branch-global' ? 'branch/test-$&/Renamed' : scope === 'branch-package' ? 'package-branch/test-$&/Renamed/{unknown}' : '{channel}';
+		await doc.transform(
+			publish({
+				fs: createFs(),
+				basePath: path.join(tmpDir, scope, 'assets'),
+				branch: branch ? 'en' : undefined,
+				output,
+			}),
+		);
+		const expected =
+			scope === 'global'
+				? 'test-$&/Renamed/7'
+				: scope === 'package'
+					? 'package/test-$&/Renamed'
+					: scope === 'branch-global'
+						? 'branch/test-$&/Renamed'
+						: scope === 'branch-package'
+							? 'package-branch/test-$&/Renamed/{unknown}'
+							: '{channel}';
 		t.truthy(await fs.stat(path.join(tmpDir, scope, expected, 'Renamed.fui')));
 	}
 });
@@ -67,10 +89,12 @@ test('publish: uses global publish.path when output override is omitted', async 
 
 	try {
 		await fs.mkdir(basePath, { recursive: true });
-		await doc.transform(publish({
-			basePath,
-			fs: createFs(),
-		}));
+		await doc.transform(
+			publish({
+				basePath,
+				fs: createFs(),
+			}),
+		);
 
 		const stat = await fs.stat(path.join(tmpDir, 'release', 'PkgA.fui')).catch(() => null);
 		t.truthy(stat, 'publish.path drives the binary output directory when --output is omitted');
@@ -107,9 +131,11 @@ test('publish: resolves global publish.path from the document project directory 
 	};
 
 	try {
-		await doc.transform(publish({
-			fs: absoluteFs,
-		}));
+		await doc.transform(
+			publish({
+				fs: absoluteFs,
+			}),
+		);
 
 		t.truthy(
 			await fs.stat(path.join(tmpDir, 'release', 'PkgA.fui')).catch(() => null),
@@ -139,13 +165,21 @@ test('publish: package publishPath overrides global publish.path', async (t) => 
 
 	try {
 		await fs.mkdir(basePath, { recursive: true });
-		await doc.transform(publish({
-			basePath,
-			fs: createFs(),
-		}));
+		await doc.transform(
+			publish({
+				basePath,
+				fs: createFs(),
+			}),
+		);
 
-		t.truthy(await fs.stat(path.join(tmpDir, 'pkg-a-release', 'PkgA.fui')).catch(() => null), 'package publishPath wins');
-		t.truthy(await fs.stat(path.join(tmpDir, 'release', 'PkgB.fui')).catch(() => null), 'global publish.path remains the fallback');
+		t.truthy(
+			await fs.stat(path.join(tmpDir, 'pkg-a-release', 'PkgA.fui')).catch(() => null),
+			'package publishPath wins',
+		);
+		t.truthy(
+			await fs.stat(path.join(tmpDir, 'release', 'PkgB.fui')).catch(() => null),
+			'global publish.path remains the fallback',
+		);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
@@ -170,11 +204,13 @@ test('publish: package publishBranchPath overrides global branchPath for active 
 
 	try {
 		await fs.mkdir(basePath, { recursive: true });
-		await doc.transform(publish({
-			basePath,
-			branch: 'dev',
-			fs: createFs(),
-		}));
+		await doc.transform(
+			publish({
+				basePath,
+				branch: 'dev',
+				fs: createFs(),
+			}),
+		);
 
 		t.truthy(
 			await fs.stat(path.join(tmpDir, 'pkg-branch-release', 'PkgA.fui')).catch(() => null),
@@ -205,16 +241,30 @@ test('publish: output override wins over project and package publish paths', asy
 
 	try {
 		await fs.mkdir(basePath, { recursive: true });
-		await doc.transform(publish({
-			output: overrideOutput,
-			basePath,
-			fs: createFs(),
-		}));
+		await doc.transform(
+			publish({
+				output: overrideOutput,
+				basePath,
+				fs: createFs(),
+			}),
+		);
 
-		t.truthy(await fs.stat(path.join(overrideOutput, 'PkgA.fui')).catch(() => null), 'override output is used for package override paths');
-		t.truthy(await fs.stat(path.join(overrideOutput, 'PkgB.fui')).catch(() => null), 'override output is used for global paths too');
-		t.falsy(await fs.stat(path.join(tmpDir, 'pkg-a-release', 'PkgA.fui')).catch(() => null), 'package publishPath is ignored when override output is set');
-		t.falsy(await fs.stat(path.join(tmpDir, 'release', 'PkgB.fui')).catch(() => null), 'global publish.path is ignored when override output is set');
+		t.truthy(
+			await fs.stat(path.join(overrideOutput, 'PkgA.fui')).catch(() => null),
+			'override output is used for package override paths',
+		);
+		t.truthy(
+			await fs.stat(path.join(overrideOutput, 'PkgB.fui')).catch(() => null),
+			'override output is used for global paths too',
+		);
+		t.falsy(
+			await fs.stat(path.join(tmpDir, 'pkg-a-release', 'PkgA.fui')).catch(() => null),
+			'package publishPath is ignored when override output is set',
+		);
+		t.falsy(
+			await fs.stat(path.join(tmpDir, 'release', 'PkgB.fui')).catch(() => null),
+			'global publish.path is ignored when override output is set',
+		);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

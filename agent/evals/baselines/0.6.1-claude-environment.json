@@ -1,0 +1,149 @@
+{
+  "recordedAt": "2026-09-24T11:21:51.283Z",
+  "runner": "claude",
+  "clientVersion": "2.1.281 (Claude Code)",
+  "evaluationStatus": "blocked_by_client_environment",
+  "modelSuccessRate": null,
+  "notes": [
+    "Diagnostic probes, not scored task runs.",
+    "No credentials, endpoint URL or personal settings content are exported.",
+    "Initial bare pilot failed authentication; ordinary user-settings diagnostic returned HTTP 429; explicit-settings MCP diagnostic timed out after an unknown transport retry."
+  ],
+  "probes": [
+    {
+      "kind": "restricted-without-explicit-auth",
+      "clientVersion": "2.1.281",
+      "modelRequested": null,
+      "modelReported": "claude-opus-5-5[1m]",
+      "initializedTools": [
+        "StructuredOutput",
+        "mcp__ofgui__openfairygui_backend_apply_transaction",
+        "mcp__ofgui__openfairygui_backend_close_session",
+        "mcp__ofgui__openfairygui_backend_get_capabilities",
+        "mcp__ofgui__openfairygui_backend_get_project_outline",
+        "mcp__ofgui__openfairygui_backend_get_session",
+        "mcp__ofgui__openfairygui_backend_open_session",
+        "mcp__ofgui__openfairygui_backend_preflight_transaction",
+        "mcp__ofgui__openfairygui_backend_query_entity",
+        "mcp__ofgui__openfairygui_backend_save_session",
+        "mcp__ofgui__openfairygui_backend_validate_session",
+        "mcp__ofgui__openfairygui_docs_read"
+      ],
+      "mcpServers": [
+        {
+          "name": "ofgui",
+          "status": "connected",
+          "source": "dynamic"
+        }
+      ],
+      "apiRetries": [],
+      "terminalReason": "api_error",
+      "completed": false,
+      "modelSuccessRate": null
+    },
+    {
+      "kind": "safe-mode-diagnostic",
+      "clientVersion": "2.1.281",
+      "modelRequested": null,
+      "modelReported": "claude-opus-5-5[1m]",
+      "initializedTools": [
+        "StructuredOutput"
+      ],
+      "mcpServers": [],
+      "apiRetries": [],
+      "terminalReason": "api_error",
+      "completed": false,
+      "modelSuccessRate": null
+    },
+    {
+      "kind": "user-settings-no-tools-diagnostic",
+      "clientVersion": "2.1.281",
+      "modelRequested": null,
+      "modelReported": "claude-opus-5-5[1m]",
+      "initializedTools": [],
+      "mcpServers": [],
+      "apiRetries": [
+        {
+          "attempt": 1,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 2,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 3,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 4,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 5,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 6,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 7,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 8,
+          "status": 429,
+          "error": "rate_limit"
+        }
+      ],
+      "terminalReason": "local_timeout_120_seconds",
+      "completed": false,
+      "modelSuccessRate": null
+    },
+    {
+      "kind": "bare-restricted-explicit-settings-diagnostic",
+      "clientVersion": "2.1.281",
+      "modelRequested": null,
+      "modelReported": "claude-opus-5-5[1m]",
+      "initializedTools": [
+        "StructuredOutput",
+        "mcp__ofgui__openfairygui_backend_apply_transaction",
+        "mcp__ofgui__openfairygui_backend_close_session",
+        "mcp__ofgui__openfairygui_backend_get_capabilities",
+        "mcp__ofgui__openfairygui_backend_get_project_outline",
+        "mcp__ofgui__openfairygui_backend_get_session",
+        "mcp__ofgui__openfairygui_backend_open_session",
+        "mcp__ofgui__openfairygui_backend_preflight_transaction",
+        "mcp__ofgui__openfairygui_backend_query_entity",
+        "mcp__ofgui__openfairygui_backend_save_session",
+        "mcp__ofgui__openfairygui_backend_validate_session",
+        "mcp__ofgui__openfairygui_docs_read"
+      ],
+      "mcpServers": [
+        {
+          "name": "ofgui",
+          "status": "connected",
+          "source": "dynamic"
+        }
+      ],
+      "apiRetries": [
+        {
+          "attempt": 1,
+          "status": null,
+          "error": "unknown"
+        }
+      ],
+      "terminalReason": "local_timeout_120_seconds",
+      "completed": false,
+      "modelSuccessRate": null
+    }
+  ]
+}

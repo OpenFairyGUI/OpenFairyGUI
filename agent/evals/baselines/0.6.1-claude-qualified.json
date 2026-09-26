@@ -1,0 +1,1113 @@
+{
+  "schemaVersion": 1,
+  "runner": "claude",
+  "modelRequested": null,
+  "installed": {
+    "packageName": "@openfairygui/backend",
+    "packageVersion": "0.6.1",
+    "nodeEngine": ">=22",
+    "documentationDigest": "374791b9068e3107ffd5da50f7c3d641abb4c41818a91ce097e6d2658ae32d84",
+    "BACKEND_CONTRACT_VERSION": "3.0.0",
+    "BACKEND_CAPABILITY_SCHEMA_VERSION": 15,
+    "contractDigest": "8f9541801d4c47ecc6b32528e6434139025a62ae775a416900738f2b9ad0149d"
+  },
+  "provenance": {
+    "commit": "b40d1a0447c4315a5df35d8102713484f17e001d",
+    "dirty": true,
+    "node": "v24.21.0",
+    "platform": "win32",
+    "arch": "x64",
+    "consumerLockSha256": "29fc4b1a34bec7040c11dd31f1b7070c196a5de9064b79335b16ef99e3b866a1",
+    "harness": {
+      "scripts/agent-evals.mjs": "0d9e93826dc353be840724089d01c72a8de269565378a50b56ca774658fde7e6",
+      "scripts/pack-smoke.mjs": "eb3eae63bbf02b27e951d1c7d70e97aff832087abbf4c4f11e732ff352d0509c",
+      "scripts/repo-utils.mjs": "223a44c07ef6c27edf5802a420d31e046aa88f399184bbef5e819d2a025335e1",
+      "scripts/consumer/agent-eval.mjs": "8b7369a139f1f4ff41d70ea20d6ffa137b684cc58296d40b733460aeaa8462d4",
+      "scripts/consumer/artifact-eval.mjs": "ead94d61bb2bd9acba7217ace9af7498771acd6a426645c48d9e0927f53f688d",
+      "scripts/consumer/runtime.mjs": "505f3881c4380159b886b260052720696de3a02d9615d43e318142f8ee1f13fa",
+      "scripts/consumer/helpers.mjs": "d7bf999381dac5855cd9f74abb5c4feac405bec11695bc92c158598a5350f31b",
+      "scripts/agent-eval-checks.mjs": "05bb7db08d095dd2a1e0ce914fef2bd617638a0049d39945f65334c8fc2c20d1",
+      "examples/create-demo-project.mjs": "013b66ec6341da107ebcf4d2b3e89042fe9aae1d7e3521594747f0e29649628c",
+      "examples/publish-restore/index.mjs": "6b6b621be853408c713f44a5706d2778faaab4a71ba11a7d815d35ac39eb713a",
+      "agent/evals/tasks.json": "2e484edc2a7d57b5b7139a027855be85f73c41e5b8b9e8f60cdda168d376af69"
+    },
+    "artifacts": [
+      {
+        "name": "@openfairygui/core",
+        "version": "0.6.1",
+        "file": "openfairygui-core-0.6.1.tgz",
+        "sha256": "c526791f21e3d8dd61bb0a793183a40ba8d354e995c9c8bac761ab98b5a0f6de"
+      },
+      {
+        "name": "@openfairygui/functions",
+        "version": "0.6.1",
+        "file": "openfairygui-functions-0.6.1.tgz",
+        "sha256": "8cbf023cba57d34d4762f333c7bf40b53d94f5199008dd3a4c66878eaf671f8c"
+      },
+      {
+        "name": "@openfairygui/backend",
+        "version": "0.6.1",
+        "file": "openfairygui-backend-0.6.1.tgz",
+        "sha256": "a3c71851bb5def813d870ec219b3709455f709112bc712806961de7093de20e9"
+      },
+      {
+        "name": "@openfairygui/cli",
+        "version": "0.6.1",
+        "file": "openfairygui-cli-0.6.1.tgz",
+        "sha256": "4d2b10cdbe808aac4b1b749f7589f8b357d5f54d18ab2ff5bb590db40dba8ae8"
+      },
+      {
+        "name": "@openfairygui/mcp",
+        "version": "0.6.1",
+        "file": "openfairygui-mcp-0.6.1.tgz",
+        "sha256": "c91dad6c964b434c02661e4a04beaca83a43ad25ae688861aaaeb75b298d6e20"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "taskId": "inspect-validate",
+      "runner": "claude",
+      "passed": true,
+      "checks": {
+        "runnerCompleted": true,
+        "isolatedTools": true,
+        "projectReadable": true,
+        "validProject": true,
+        "exactSemantics": true,
+        "exactFiles": true,
+        "noOutOfScopeAccess": true,
+        "observedValidation": true,
+        "inspectionFacts": true,
+        "noEdit": true
+      },
+      "unexpectedFiles": [],
+      "observations": {
+        "durationMs": 46680,
+        "toolCalls": 4,
+        "discoveries": [
+          {
+            "tools": [
+              {
+                "name": "openfairygui_backend_get_capabilities",
+                "inputBytes": 114,
+                "outputBytes": 20877
+              },
+              {
+                "name": "openfairygui_backend_open_session",
+                "inputBytes": 186,
+                "outputBytes": 23785
+              },
+              {
+                "name": "openfairygui_backend_get_session",
+                "inputBytes": 182,
+                "outputBytes": 21903
+              },
+              {
+                "name": "openfairygui_backend_get_project_outline",
+                "inputBytes": 182,
+                "outputBytes": 24457
+              },
+              {
+                "name": "openfairygui_backend_query_entity",
+                "inputBytes": 2800,
+                "outputBytes": 87713
+              },
+              {
+                "name": "openfairygui_backend_validate_session",
+                "inputBytes": 182,
+                "outputBytes": 23326
+              },
+              {
+                "name": "openfairygui_backend_preflight_transaction",
+                "inputBytes": 97738,
+                "outputBytes": 35542
+              },
+              {
+                "name": "openfairygui_backend_apply_transaction",
+                "inputBytes": 97738,
+                "outputBytes": 31726
+              },
+              {
+                "name": "openfairygui_backend_save_session",
+                "inputBytes": 448,
+                "outputBytes": 26613
+              },
+              {
+                "name": "openfairygui_backend_close_session",
+                "inputBytes": 182,
+                "outputBytes": 22252
+              },
+              {
+                "name": "openfairygui_docs_read",
+                "inputBytes": 155,
+                "outputBytes": 2
+              }
+            ],
+            "inputBytes": 199907,
+            "outputBytes": 318196
+          }
+        ],
+        "clientToolCalls": 0,
+        "clientFailedCalls": 0,
+        "failedCalls": 0,
+        "staleRejections": 0,
+        "documentationReads": [],
+        "previews": 0,
+        "repeatedApplyArguments": 0,
+        "repeatedSuccessfulOperations": 0,
+        "usage": []
+      },
+      "error": null,
+      "exitCode": 0,
+      "timedOut": false,
+      "clientWarnings": []
+    },
+    {
+      "taskId": "rename-save",
+      "runner": "claude",
+      "passed": true,
+      "checks": {
+        "runnerCompleted": true,
+        "isolatedTools": true,
+        "projectReadable": true,
+        "validProject": true,
+        "exactSemantics": true,
+        "exactFiles": true,
+        "noOutOfScopeAccess": true,
+        "observedValidation": true,
+        "saved": true
+      },
+      "unexpectedFiles": [],
+      "observations": {
+        "durationMs": 111776,
+        "toolCalls": 9,
+        "discoveries": [
+          {
+            "tools": [
+              {
+                "name": "openfairygui_backend_get_capabilities",
+                "inputBytes": 114,
+                "outputBytes": 20877
+              },
+              {
+                "name": "openfairygui_backend_open_session",
+                "inputBytes": 186,
+                "outputBytes": 23785
+              },
+              {
+                "name": "openfairygui_backend_get_session",
+                "inputBytes": 182,
+                "outputBytes": 21903
+              },
+              {
+                "name": "openfairygui_backend_get_project_outline",
+                "inputBytes": 182,
+                "outputBytes": 24457
+              },
+              {
+                "name": "openfairygui_backend_query_entity",
+                "inputBytes": 2800,
+                "outputBytes": 87713
+              },
+              {
+                "name": "openfairygui_backend_validate_session",
+                "inputBytes": 182,
+                "outputBytes": 23326
+              },
+              {
+                "name": "openfairygui_backend_preflight_transaction",
+                "inputBytes": 97738,
+                "outputBytes": 35542
+              },
+              {
+                "name": "openfairygui_backend_apply_transaction",
+                "inputBytes": 97738,
+                "outputBytes": 31726
+              },
+              {
+                "name": "openfairygui_backend_save_session",
+                "inputBytes": 448,
+                "outputBytes": 26613
+              },
+              {
+                "name": "openfairygui_backend_close_session",
+                "inputBytes": 182,
+                "outputBytes": 22252
+              },
+              {
+                "name": "openfairygui_docs_read",
+                "inputBytes": 155,
+                "outputBytes": 2
+              }
+            ],
+            "inputBytes": 199907,
+            "outputBytes": 318196
+          }
+        ],
+        "clientToolCalls": 0,
+        "clientFailedCalls": 0,
+        "failedCalls": 0,
+        "staleRejections": 0,
+        "documentationReads": [],
+        "previews": 1,
+        "repeatedApplyArguments": 0,
+        "repeatedSuccessfulOperations": 0,
+        "usage": []
+      },
+      "error": null,
+      "exitCode": 0,
+      "timedOut": false,
+      "clientWarnings": []
+    },
+    {
+      "taskId": "stale-revision-recovery",
+      "runner": "claude",
+      "passed": true,
+      "checks": {
+        "runnerCompleted": true,
+        "isolatedTools": true,
+        "projectReadable": true,
+        "validProject": true,
+        "exactSemantics": true,
+        "exactFiles": true,
+        "noOutOfScopeAccess": true,
+        "observedValidation": true,
+        "saved": true,
+        "conflictExercised": true
+      },
+      "unexpectedFiles": [],
+      "observations": {
+        "durationMs": 131384,
+        "toolCalls": 13,
+        "discoveries": [
+          {
+            "tools": [
+              {
+                "name": "openfairygui_backend_get_capabilities",
+                "inputBytes": 114,
+                "outputBytes": 20877
+              },
+              {
+                "name": "openfairygui_backend_open_session",
+                "inputBytes": 186,
+                "outputBytes": 23785
+              },
+              {
+                "name": "openfairygui_backend_get_session",
+                "inputBytes": 182,
+                "outputBytes": 21903
+              },
+              {
+                "name": "openfairygui_backend_get_project_outline",
+                "inputBytes": 182,
+                "outputBytes": 24457
+              },
+              {
+                "name": "openfairygui_backend_query_entity",
+                "inputBytes": 2800,
+                "outputBytes": 87713
+              },
+              {
+                "name": "openfairygui_backend_validate_session",
+                "inputBytes": 182,
+                "outputBytes": 23326
+              },
+              {
+                "name": "openfairygui_backend_preflight_transaction",
+                "inputBytes": 97738,
+                "outputBytes": 35542
+              },
+              {
+                "name": "openfairygui_backend_apply_transaction",
+                "inputBytes": 97738,
+                "outputBytes": 31726
+              },
+              {
+                "name": "openfairygui_backend_save_session",
+                "inputBytes": 448,
+                "outputBytes": 26613
+              },
+              {
+                "name": "openfairygui_backend_close_session",
+                "inputBytes": 182,
+                "outputBytes": 22252
+              },
+              {
+                "name": "openfairygui_docs_read",
+                "inputBytes": 155,
+                "outputBytes": 2
+              }
+            ],
+            "inputBytes": 199907,
+            "outputBytes": 318196
+          }
+        ],
+        "clientToolCalls": 0,
+        "clientFailedCalls": 0,
+        "failedCalls": 1,
+        "staleRejections": 1,
+        "documentationReads": [],
+        "previews": 2,
+        "repeatedApplyArguments": 0,
+        "repeatedSuccessfulOperations": 0,
+        "usage": []
+      },
+      "error": null,
+      "exitCode": 0,
+      "timedOut": false,
+      "clientWarnings": []
+    },
+    {
+      "taskId": "edit-display-node",
+      "runner": "claude",
+      "passed": true,
+      "checks": {
+        "runnerCompleted": true,
+        "isolatedTools": true,
+        "projectReadable": true,
+        "validProject": true,
+        "exactSemantics": true,
+        "exactFiles": true,
+        "noOutOfScopeAccess": true,
+        "observedValidation": true,
+        "saved": true
+      },
+      "unexpectedFiles": [],
+      "observations": {
+        "durationMs": 102635,
+        "toolCalls": 11,
+        "discoveries": [
+          {
+            "tools": [
+              {
+                "name": "openfairygui_backend_get_capabilities",
+                "inputBytes": 114,
+                "outputBytes": 20877
+              },
+              {
+                "name": "openfairygui_backend_open_session",
+                "inputBytes": 186,
+                "outputBytes": 23785
+              },
+              {
+                "name": "openfairygui_backend_get_session",
+                "inputBytes": 182,
+                "outputBytes": 21903
+              },
+              {
+                "name": "openfairygui_backend_get_project_outline",
+                "inputBytes": 182,
+                "outputBytes": 24457
+              },
+              {
+                "name": "openfairygui_backend_query_entity",
+                "inputBytes": 2800,
+                "outputBytes": 87713
+              },
+              {
+                "name": "openfairygui_backend_validate_session",
+                "inputBytes": 182,
+                "outputBytes": 23326
+              },
+              {
+                "name": "openfairygui_backend_preflight_transaction",
+                "inputBytes": 97738,
+                "outputBytes": 35542
+              },
+              {
+                "name": "openfairygui_backend_apply_transaction",
+                "inputBytes": 97738,
+                "outputBytes": 31726
+              },
+              {
+                "name": "openfairygui_backend_save_session",
+                "inputBytes": 448,
+                "outputBytes": 26613
+              },
+              {
+                "name": "openfairygui_backend_close_session",
+                "inputBytes": 182,
+                "outputBytes": 22252
+              },
+              {
+                "name": "openfairygui_docs_read",
+                "inputBytes": 155,
+                "outputBytes": 2
+              }
+            ],
+            "inputBytes": 199907,
+            "outputBytes": 318196
+          }
+        ],
+        "clientToolCalls": 0,
+        "clientFailedCalls": 0,
+        "failedCalls": 0,
+        "staleRejections": 0,
+        "documentationReads": [],
+        "previews": 1,
+        "repeatedApplyArguments": 0,
+        "repeatedSuccessfulOperations": 0,
+        "usage": []
+      },
+      "error": null,
+      "exitCode": 0,
+      "timedOut": false,
+      "clientWarnings": []
+    },
+    {
+      "taskId": "edit-controller",
+      "runner": "claude",
+      "passed": true,
+      "checks": {
+        "runnerCompleted": true,
+        "isolatedTools": true,
+        "projectReadable": true,
+        "validProject": true,
+        "exactSemantics": true,
+        "exactFiles": true,
+        "noOutOfScopeAccess": true,
+        "observedValidation": true,
+        "saved": true,
+        "observedEntityQuery": true
+      },
+      "unexpectedFiles": [],
+      "observations": {
+        "durationMs": 110742,
+        "toolCalls": 10,
+        "discoveries": [
+          {
+            "tools": [
+              {
+                "name": "openfairygui_backend_get_capabilities",
+                "inputBytes": 114,
+                "outputBytes": 20877
+              },
+              {
+                "name": "openfairygui_backend_open_session",
+                "inputBytes": 186,
+                "outputBytes": 23785
+              },
+              {
+                "name": "openfairygui_backend_get_session",
+                "inputBytes": 182,
+                "outputBytes": 21903
+              },
+              {
+                "name": "openfairygui_backend_get_project_outline",
+                "inputBytes": 182,
+                "outputBytes": 24457
+              },
+              {
+                "name": "openfairygui_backend_query_entity",
+                "inputBytes": 2800,
+                "outputBytes": 87713
+              },
+              {
+                "name": "openfairygui_backend_validate_session",
+                "inputBytes": 182,
+                "outputBytes": 23326
+              },
+              {
+                "name": "openfairygui_backend_preflight_transaction",
+                "inputBytes": 97738,
+                "outputBytes": 35542
+              },
+              {
+                "name": "openfairygui_backend_apply_transaction",
+                "inputBytes": 97738,
+                "outputBytes": 31726
+              },
+              {
+                "name": "openfairygui_backend_save_session",
+                "inputBytes": 448,
+                "outputBytes": 26613
+              },
+              {
+                "name": "openfairygui_backend_close_session",
+                "inputBytes": 182,
+                "outputBytes": 22252
+              },
+              {
+                "name": "openfairygui_docs_read",
+                "inputBytes": 155,
+                "outputBytes": 2
+              }
+            ],
+            "inputBytes": 199907,
+            "outputBytes": 318196
+          }
+        ],
+        "clientToolCalls": 0,
+        "clientFailedCalls": 0,
+        "failedCalls": 0,
+        "staleRejections": 0,
+        "documentationReads": [],
+        "previews": 1,
+        "repeatedApplyArguments": 0,
+        "repeatedSuccessfulOperations": 0,
+        "usage": []
+      },
+      "error": null,
+      "exitCode": 0,
+      "timedOut": false,
+      "clientWarnings": []
+    },
+    {
+      "taskId": "edit-transition",
+      "runner": "claude",
+      "passed": true,
+      "checks": {
+        "runnerCompleted": true,
+        "isolatedTools": true,
+        "projectReadable": true,
+        "validProject": true,
+        "exactSemantics": true,
+        "exactFiles": true,
+        "noOutOfScopeAccess": true,
+        "observedValidation": true,
+        "saved": true,
+        "observedEntityQuery": true
+      },
+      "unexpectedFiles": [],
+      "observations": {
+        "durationMs": 105380,
+        "toolCalls": 10,
+        "discoveries": [
+          {
+            "tools": [
+              {
+                "name": "openfairygui_backend_get_capabilities",
+                "inputBytes": 114,
+                "outputBytes": 20877
+              },
+              {
+                "name": "openfairygui_backend_open_session",
+                "inputBytes": 186,
+                "outputBytes": 23785
+              },
+              {
+                "name": "openfairygui_backend_get_session",
+                "inputBytes": 182,
+                "outputBytes": 21903
+              },
+              {
+                "name": "openfairygui_backend_get_project_outline",
+                "inputBytes": 182,
+                "outputBytes": 24457
+              },
+              {
+                "name": "openfairygui_backend_query_entity",
+                "inputBytes": 2800,
+                "outputBytes": 87713
+              },
+              {
+                "name": "openfairygui_backend_validate_session",
+                "inputBytes": 182,
+                "outputBytes": 23326
+              },
+              {
+                "name": "openfairygui_backend_preflight_transaction",
+                "inputBytes": 97738,
+                "outputBytes": 35542
+              },
+              {
+                "name": "openfairygui_backend_apply_transaction",
+                "inputBytes": 97738,
+                "outputBytes": 31726
+              },
+              {
+                "name": "openfairygui_backend_save_session",
+                "inputBytes": 448,
+                "outputBytes": 26613
+              },
+              {
+                "name": "openfairygui_backend_close_session",
+                "inputBytes": 182,
+                "outputBytes": 22252
+              },
+              {
+                "name": "openfairygui_docs_read",
+                "inputBytes": 155,
+                "outputBytes": 2
+              }
+            ],
+            "inputBytes": 199907,
+            "outputBytes": 318196
+          }
+        ],
+        "clientToolCalls": 0,
+        "clientFailedCalls": 0,
+        "failedCalls": 0,
+        "staleRejections": 0,
+        "documentationReads": [],
+        "previews": 1,
+        "repeatedApplyArguments": 0,
+        "repeatedSuccessfulOperations": 0,
+        "usage": []
+      },
+      "error": null,
+      "exitCode": 0,
+      "timedOut": false,
+      "clientWarnings": []
+    },
+    {
+      "taskId": "missing-source-bytes",
+      "runner": "claude",
+      "passed": true,
+      "checks": {
+        "runnerCompleted": true,
+        "isolatedTools": true,
+        "projectReadable": true,
+        "validProject": true,
+        "exactSemantics": true,
+        "exactFiles": true,
+        "noOutOfScopeAccess": true,
+        "observedValidation": true,
+        "honestStop": true,
+        "observedBlocker": true,
+        "noMutation": true,
+        "pendingWorkPreserved": true
+      },
+      "unexpectedFiles": [],
+      "observations": {
+        "durationMs": 56695,
+        "toolCalls": 4,
+        "discoveries": [
+          {
+            "tools": [
+              {
+                "name": "openfairygui_backend_get_capabilities",
+                "inputBytes": 114,
+                "outputBytes": 20877
+              },
+              {
+                "name": "openfairygui_backend_open_session",
+                "inputBytes": 186,
+                "outputBytes": 23785
+              },
+              {
+                "name": "openfairygui_backend_get_session",
+                "inputBytes": 182,
+                "outputBytes": 21903
+              },
+              {
+                "name": "openfairygui_backend_get_project_outline",
+                "inputBytes": 182,
+                "outputBytes": 24457
+              },
+              {
+                "name": "openfairygui_backend_query_entity",
+                "inputBytes": 2800,
+                "outputBytes": 87713
+              },
+              {
+                "name": "openfairygui_backend_validate_session",
+                "inputBytes": 182,
+                "outputBytes": 23326
+              },
+              {
+                "name": "openfairygui_backend_preflight_transaction",
+                "inputBytes": 97738,
+                "outputBytes": 35542
+              },
+              {
+                "name": "openfairygui_backend_apply_transaction",
+                "inputBytes": 97738,
+                "outputBytes": 31726
+              },
+              {
+                "name": "openfairygui_backend_save_session",
+                "inputBytes": 448,
+                "outputBytes": 26613
+              },
+              {
+                "name": "openfairygui_backend_close_session",
+                "inputBytes": 182,
+                "outputBytes": 22252
+              },
+              {
+                "name": "openfairygui_docs_read",
+                "inputBytes": 155,
+                "outputBytes": 2
+              }
+            ],
+            "inputBytes": 199907,
+            "outputBytes": 318196
+          }
+        ],
+        "clientToolCalls": 0,
+        "clientFailedCalls": 0,
+        "failedCalls": 1,
+        "staleRejections": 0,
+        "documentationReads": [],
+        "previews": 1,
+        "repeatedApplyArguments": 0,
+        "repeatedSuccessfulOperations": 0,
+        "usage": []
+      },
+      "error": null,
+      "exitCode": 0,
+      "timedOut": false,
+      "clientWarnings": []
+    },
+    {
+      "taskId": "path-policy",
+      "runner": "claude",
+      "passed": true,
+      "checks": {
+        "runnerCompleted": true,
+        "isolatedTools": true,
+        "projectReadable": true,
+        "validProject": true,
+        "exactSemantics": true,
+        "exactFiles": true,
+        "noOutOfScopeAccess": true,
+        "observedValidation": true,
+        "honestStop": true,
+        "observedBlocker": true,
+        "noMutation": true,
+        "pendingWorkPreserved": true
+      },
+      "unexpectedFiles": [],
+      "observations": {
+        "durationMs": 55700,
+        "toolCalls": 6,
+        "discoveries": [
+          {
+            "tools": [
+              {
+                "name": "openfairygui_backend_get_capabilities",
+                "inputBytes": 114,
+                "outputBytes": 20877
+              },
+              {
+                "name": "openfairygui_backend_open_session",
+                "inputBytes": 186,
+                "outputBytes": 23785
+              },
+              {
+                "name": "openfairygui_backend_get_session",
+                "inputBytes": 182,
+                "outputBytes": 21903
+              },
+              {
+                "name": "openfairygui_backend_get_project_outline",
+                "inputBytes": 182,
+                "outputBytes": 24457
+              },
+              {
+                "name": "openfairygui_backend_query_entity",
+                "inputBytes": 2800,
+                "outputBytes": 87713
+              },
+              {
+                "name": "openfairygui_backend_validate_session",
+                "inputBytes": 182,
+                "outputBytes": 23326
+              },
+              {
+                "name": "openfairygui_backend_preflight_transaction",
+                "inputBytes": 97738,
+                "outputBytes": 35542
+              },
+              {
+                "name": "openfairygui_backend_apply_transaction",
+                "inputBytes": 97738,
+                "outputBytes": 31726
+              },
+              {
+                "name": "openfairygui_backend_save_session",
+                "inputBytes": 448,
+                "outputBytes": 26613
+              },
+              {
+                "name": "openfairygui_backend_close_session",
+                "inputBytes": 182,
+                "outputBytes": 22252
+              },
+              {
+                "name": "openfairygui_docs_read",
+                "inputBytes": 155,
+                "outputBytes": 2
+              }
+            ],
+            "inputBytes": 199907,
+            "outputBytes": 318196
+          }
+        ],
+        "clientToolCalls": 0,
+        "clientFailedCalls": 0,
+        "failedCalls": 1,
+        "staleRejections": 0,
+        "documentationReads": [],
+        "previews": 0,
+        "repeatedApplyArguments": 0,
+        "repeatedSuccessfulOperations": 0,
+        "usage": []
+      },
+      "error": null,
+      "exitCode": 0,
+      "timedOut": false,
+      "clientWarnings": []
+    },
+    {
+      "taskId": "publish-consume",
+      "runner": "claude",
+      "passed": true,
+      "checks": {
+        "runnerCompleted": true,
+        "isolatedTools": true,
+        "noOutOfScopeAccess": true,
+        "inputFilesPreserved": true,
+        "onlyArtifactOutputs": true,
+        "publishedSemantics": true,
+        "restoredSemantics": true,
+        "decodedPixels": true,
+        "validRestoredProject": true,
+        "exactOutputFiles": true,
+        "realPublish": true,
+        "realRestore": true,
+        "observedPublishedRead": true,
+        "observedRestoredRead": true,
+        "honestCompletion": true
+      },
+      "changedFiles": [
+        "release/Main.fui",
+        "release/Shared.fui",
+        "release/Shared_atlas0.png",
+        "restored/assets/Main/MainView.xml",
+        "restored/assets/Main/package.xml",
+        "restored/assets/Shared/Badge.xml",
+        "restored/assets/Shared/blue.png",
+        "restored/assets/Shared/package.xml",
+        "restored/assets/Shared/red.png",
+        "restored/restored.fairy",
+        "restored/settings/Adaptation.json",
+        "restored/settings/Common.json",
+        "restored/settings/Publish.json"
+      ],
+      "observations": {
+        "durationMs": 31918,
+        "toolCalls": 5,
+        "discoveries": [
+          {
+            "tools": [
+              {
+                "name": "ofgui_artifact_context",
+                "inputBytes": 62,
+                "outputBytes": 2
+              },
+              {
+                "name": "ofgui_artifact_publish",
+                "inputBytes": 62,
+                "outputBytes": 2
+              },
+              {
+                "name": "ofgui_artifact_restore",
+                "inputBytes": 62,
+                "outputBytes": 2
+              },
+              {
+                "name": "ofgui_artifact_inspect",
+                "inputBytes": 142,
+                "outputBytes": 2
+              }
+            ],
+            "inputBytes": 328,
+            "outputBytes": 8
+          }
+        ],
+        "clientToolCalls": 0,
+        "clientFailedCalls": 0,
+        "failedCalls": 0,
+        "staleRejections": 0,
+        "documentationReads": [],
+        "previews": 0,
+        "repeatedApplyArguments": 0,
+        "repeatedSuccessfulOperations": 0,
+        "usage": []
+      },
+      "error": null,
+      "exitCode": 0,
+      "timedOut": false,
+      "clientWarnings": []
+    },
+    {
+      "taskId": "restore-trusted",
+      "runner": "claude",
+      "passed": true,
+      "checks": {
+        "runnerCompleted": true,
+        "isolatedTools": true,
+        "noOutOfScopeAccess": true,
+        "inputFilesPreserved": true,
+        "onlyArtifactOutputs": true,
+        "publishedSemantics": true,
+        "restoredSemantics": true,
+        "decodedPixels": true,
+        "validRestoredProject": true,
+        "exactOutputFiles": true,
+        "realPublish": true,
+        "realRestore": true,
+        "observedPublishedRead": true,
+        "observedRestoredRead": true,
+        "honestCompletion": true
+      },
+      "changedFiles": [
+        "restored/assets/Main/MainView.xml",
+        "restored/assets/Main/package.xml",
+        "restored/assets/Shared/Badge.xml",
+        "restored/assets/Shared/blue.png",
+        "restored/assets/Shared/package.xml",
+        "restored/assets/Shared/red.png",
+        "restored/restored.fairy",
+        "restored/settings/Adaptation.json",
+        "restored/settings/Common.json",
+        "restored/settings/Publish.json"
+      ],
+      "observations": {
+        "durationMs": 31027,
+        "toolCalls": 4,
+        "discoveries": [
+          {
+            "tools": [
+              {
+                "name": "ofgui_artifact_context",
+                "inputBytes": 62,
+                "outputBytes": 2
+              },
+              {
+                "name": "ofgui_artifact_restore",
+                "inputBytes": 62,
+                "outputBytes": 2
+              },
+              {
+                "name": "ofgui_artifact_inspect",
+                "inputBytes": 142,
+                "outputBytes": 2
+              }
+            ],
+            "inputBytes": 266,
+            "outputBytes": 6
+          }
+        ],
+        "clientToolCalls": 0,
+        "clientFailedCalls": 0,
+        "failedCalls": 0,
+        "staleRejections": 0,
+        "documentationReads": [],
+        "previews": 0,
+        "repeatedApplyArguments": 0,
+        "repeatedSuccessfulOperations": 0,
+        "usage": []
+      },
+      "error": null,
+      "exitCode": 0,
+      "timedOut": false,
+      "clientWarnings": []
+    },
+    {
+      "taskId": "compound-edit",
+      "runner": "claude",
+      "passed": true,
+      "checks": {
+        "runnerCompleted": true,
+        "isolatedTools": true,
+        "projectReadable": true,
+        "validProject": true,
+        "exactSemantics": true,
+        "exactFiles": true,
+        "noOutOfScopeAccess": true,
+        "observedValidation": true,
+        "saved": true,
+        "twoSavedRevisions": true,
+        "requeriedAfterSave": true
+      },
+      "unexpectedFiles": [],
+      "observations": {
+        "durationMs": 144910,
+        "toolCalls": 13,
+        "discoveries": [
+          {
+            "tools": [
+              {
+                "name": "openfairygui_backend_get_capabilities",
+                "inputBytes": 114,
+                "outputBytes": 20877
+              },
+              {
+                "name": "openfairygui_backend_open_session",
+                "inputBytes": 186,
+                "outputBytes": 23785
+              },
+              {
+                "name": "openfairygui_backend_get_session",
+                "inputBytes": 182,
+                "outputBytes": 21903
+              },
+              {
+                "name": "openfairygui_backend_get_project_outline",
+                "inputBytes": 182,
+                "outputBytes": 24457
+              },
+              {
+                "name": "openfairygui_backend_query_entity",
+                "inputBytes": 2800,
+                "outputBytes": 87713
+              },
+              {
+                "name": "openfairygui_backend_validate_session",
+                "inputBytes": 182,
+                "outputBytes": 23326
+              },
+              {
+                "name": "openfairygui_backend_preflight_transaction",
+                "inputBytes": 97738,
+                "outputBytes": 35542
+              },
+              {
+                "name": "openfairygui_backend_apply_transaction",
+                "inputBytes": 97738,
+                "outputBytes": 31726
+              },
+              {
+                "name": "openfairygui_backend_save_session",
+                "inputBytes": 448,
+                "outputBytes": 26613
+              },
+              {
+                "name": "openfairygui_backend_close_session",
+                "inputBytes": 182,
+                "outputBytes": 22252
+              },
+              {
+                "name": "openfairygui_docs_read",
+                "inputBytes": 155,
+                "outputBytes": 2
+              }
+            ],
+            "inputBytes": 199907,
+            "outputBytes": 318196
+          }
+        ],
+        "clientToolCalls": 0,
+        "clientFailedCalls": 0,
+        "failedCalls": 0,
+        "staleRejections": 0,
+        "documentationReads": [],
+        "previews": 2,
+        "repeatedApplyArguments": 0,
+        "repeatedSuccessfulOperations": 0,
+        "usage": []
+      },
+      "error": null,
+      "exitCode": 0,
+      "timedOut": false,
+      "clientWarnings": []
+    }
+  ],
+  "passed": 11,
+  "total": 11,
+  "modelSuccessRate": 1
+}

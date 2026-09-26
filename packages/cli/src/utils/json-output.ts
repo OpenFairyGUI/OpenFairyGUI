@@ -3,15 +3,19 @@ import type { CliCommand, CliCommandResults, CliEnvelope, CliError } from '../co
 
 // Keep exactly one JSON document on stdout, even if a trusted project plugin logs.
 const stdout = process.stdout.write.bind(process.stdout);
-export function wantsJson(argv: string[]): boolean {
+export function wantsJson(argv: readonly string[]): boolean {
 	const args = argv.slice(2, argv.indexOf('--') < 0 ? undefined : argv.indexOf('--'));
 	return args.includes('--json') && !args.some((arg) => ['--help', '-h', '--version', '-V'].includes(arg));
 }
 
 export function configureJson(program: Command): void {
-	program.option('--json', 'Print one JSON envelope (exit 0: success, 1: failure, 2: arguments, 3: incomplete)').exitOverride();
+	program
+		.option('--json', 'Print one JSON envelope (exit 0: success, 1: failure, 2: arguments, 3: incomplete)')
+		.exitOverride();
 	if (wantsJson(process.argv)) process.stdout.write = process.stderr.write.bind(process.stderr);
-	program.hook('preAction', (_root, command) => { command.setOptionValue('json', command.optsWithGlobals().json); });
+	program.hook('preAction', (_root, command) => {
+		command.setOptionValue('json', command.optsWithGlobals().json);
+	});
 }
 
 export function parsedCommand(program: Command): CliCommand {

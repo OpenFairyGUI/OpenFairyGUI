@@ -25,9 +25,17 @@ type NullableStringArrayKeys<T> = { [K in keyof T]-?: T[K] extends Array<string 
 type UnknownRef = GraphEdge<Property, Property> | RefList<Property> | RefSet<Property> | RefMap<Property>;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-	return value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof GraphEdge)
-		&& !(value instanceof RefList) && !(value instanceof RefSet) && !(value instanceof RefMap)
-		&& !ArrayBuffer.isView(value) && !(value instanceof ArrayBuffer);
+	return (
+		value !== null &&
+		typeof value === 'object' &&
+		!Array.isArray(value) &&
+		!(value instanceof GraphEdge) &&
+		!(value instanceof RefList) &&
+		!(value instanceof RefSet) &&
+		!(value instanceof RefMap) &&
+		!ArrayBuffer.isView(value) &&
+		!(value instanceof ArrayBuffer)
+	);
 }
 
 function isArray(value: unknown): value is unknown[] {
@@ -39,7 +47,10 @@ function equalsRef(a: Ref<Property> | null, b: Ref<Property> | null): boolean {
 	return a === b;
 }
 
-function equalsRefSet(a: RefSet<Property> | RefList<Property> | null, b: RefSet<Property> | RefList<Property> | null): boolean {
+function equalsRefSet(
+	a: RefSet<Property> | RefList<Property> | null,
+	b: RefSet<Property> | RefList<Property> | null,
+): boolean {
 	if (!a || !b) return a === b;
 	const aValues = [...a.values()];
 	const bValues = [...b.values()];
@@ -186,9 +197,9 @@ export abstract class Property<T extends IProperty = IProperty> extends GraphNod
 			} else if (isPlainObject(otherValue)) {
 				this[$attributes][key] = JSON.parse(JSON.stringify(otherValue));
 			} else if (
-				Array.isArray(otherValue)
-				|| otherValue instanceof ArrayBuffer
-				|| ArrayBuffer.isView(otherValue)
+				Array.isArray(otherValue) ||
+				otherValue instanceof ArrayBuffer ||
+				ArrayBuffer.isView(otherValue)
 			) {
 				this[$attributes][key] = (otherValue as unknown as Uint8Array).slice() as any;
 			} else {

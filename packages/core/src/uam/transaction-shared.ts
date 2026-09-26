@@ -11,10 +11,18 @@ import {
 
 export type UamLifecycleOperation = Extract<
 	UamTransactionOperation,
-	{ kind:
-		| 'addBranch' | 'renameBranch' | 'removeBranch'
-		| 'addPackage' | 'renamePackage' | 'removePackage'
-		| 'addComponent' | 'removeComponent' | 'moveComponent' }
+	{
+		kind:
+			| 'addBranch'
+			| 'renameBranch'
+			| 'removeBranch'
+			| 'addPackage'
+			| 'renamePackage'
+			| 'removePackage'
+			| 'addComponent'
+			| 'removeComponent'
+			| 'moveComponent';
+	}
 >;
 
 export type UamDisplayListRewriteOperation = Extract<
@@ -33,48 +41,58 @@ export type UamResourceFolderLifecycleOperation = Extract<
 >;
 
 export function isLifecycleOperation(operation: UamTransactionOperation): operation is UamLifecycleOperation {
-	return operation.kind === 'addBranch'
-		|| operation.kind === 'renameBranch'
-		|| operation.kind === 'removeBranch'
-		|| operation.kind === 'addPackage'
-		|| operation.kind === 'renamePackage'
-		|| operation.kind === 'removePackage'
-		|| operation.kind === 'addComponent'
-		|| operation.kind === 'removeComponent'
-		|| operation.kind === 'moveComponent';
+	return (
+		operation.kind === 'addBranch' ||
+		operation.kind === 'renameBranch' ||
+		operation.kind === 'removeBranch' ||
+		operation.kind === 'addPackage' ||
+		operation.kind === 'renamePackage' ||
+		operation.kind === 'removePackage' ||
+		operation.kind === 'addComponent' ||
+		operation.kind === 'removeComponent' ||
+		operation.kind === 'moveComponent'
+	);
 }
 
-export function isDisplayListRewriteOperation(operation: UamTransactionOperation): operation is UamDisplayListRewriteOperation {
+export function isDisplayListRewriteOperation(
+	operation: UamTransactionOperation,
+): operation is UamDisplayListRewriteOperation {
 	return operation.kind === 'attachDisplayNode' || operation.kind === 'detachDisplayNode';
 }
 
-export function isResourceLifecycleOperation(operation: UamTransactionOperation): operation is UamResourceLifecycleOperation {
+export function isResourceLifecycleOperation(
+	operation: UamTransactionOperation,
+): operation is UamResourceLifecycleOperation {
 	return operation.kind === 'addResource' || operation.kind === 'removeResource';
 }
 
 export function isResourceFolderLifecycleOperation(
 	operation: UamTransactionOperation,
 ): operation is UamResourceFolderLifecycleOperation {
-	return operation.kind === 'addResourceFolder'
-		|| operation.kind === 'renameResourceFolder'
-		|| operation.kind === 'moveResourceFolder'
-		|| operation.kind === 'removeResourceFolder';
+	return (
+		operation.kind === 'addResourceFolder' ||
+		operation.kind === 'renameResourceFolder' ||
+		operation.kind === 'moveResourceFolder' ||
+		operation.kind === 'removeResourceFolder'
+	);
 }
 
 export function isUamNativeOperation(operation: UamTransactionOperation): boolean {
-	return operation.kind === 'updateProjectSettings'
-		|| operation.kind === 'updatePackageSettings'
-		|| operation.kind === 'setComponentProps'
-		|| operation.kind === 'setDisplayNodeProps'
-		|| operation.kind === 'setResourceFavorite'
-		|| operation.kind === 'setResourceFolderFavorite'
-		|| operation.kind === 'setResourceFolderAtlas'
-		|| operation.kind === 'setResourceExported'
-		|| operation.kind === 'setImageResourceProps'
-		|| isResourceFolderLifecycleOperation(operation)
-		|| isResourceLifecycleOperation(operation)
-		|| isLifecycleOperation(operation)
-		|| isDisplayListRewriteOperation(operation);
+	return (
+		operation.kind === 'updateProjectSettings' ||
+		operation.kind === 'updatePackageSettings' ||
+		operation.kind === 'setComponentProps' ||
+		operation.kind === 'setDisplayNodeProps' ||
+		operation.kind === 'setResourceFavorite' ||
+		operation.kind === 'setResourceFolderFavorite' ||
+		operation.kind === 'setResourceFolderAtlas' ||
+		operation.kind === 'setResourceExported' ||
+		operation.kind === 'setImageResourceProps' ||
+		isResourceFolderLifecycleOperation(operation) ||
+		isResourceLifecycleOperation(operation) ||
+		isLifecycleOperation(operation) ||
+		isDisplayListRewriteOperation(operation)
+	);
 }
 
 export function renamedResourceFileName(previousFileName: string, requestedName: string): string {
@@ -201,7 +219,12 @@ export function findProjectedResource(
 			}
 			continue;
 		}
-		if (!('selector' in operation) || !('packageId' in operation.selector) || operation.selector.packageId !== selector.packageId) continue;
+		if (
+			!('selector' in operation) ||
+			!('packageId' in operation.selector) ||
+			operation.selector.packageId !== selector.packageId
+		)
+			continue;
 		if ('resourceId' in operation.selector && operation.selector.resourceId === selector.resourceId) {
 			if (operation.kind === 'removeResource') resource = null;
 			if (operation.kind === 'replaceResourceBytes' && resource && resource.kind !== 'component') {
@@ -241,7 +264,6 @@ export function findDisplayNodeSpecWithPath(project: UamProject, selector: UamDi
 	};
 }
 
-
 export function asTransactionError(
 	error: unknown,
 	defaults: {
@@ -277,13 +299,9 @@ export function selectorDetails(selector: Record<string, unknown> | undefined): 
 	return selector;
 }
 
-
 export type UamAttachableDisplayNode = Extract<UamTransactionOperation, { kind: 'attachDisplayNode' }>['node'];
 
-export function withDefaultOwnPackageRef(
-	packageId: string,
-	node: UamAttachableDisplayNode,
-): UamAttachableDisplayNode {
+export function withDefaultOwnPackageRef(packageId: string, node: UamAttachableDisplayNode): UamAttachableDisplayNode {
 	if ((node.kind === 'image' || node.kind === 'component') && !node.resource.packageId) {
 		return {
 			...node,

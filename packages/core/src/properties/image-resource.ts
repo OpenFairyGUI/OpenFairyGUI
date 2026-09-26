@@ -12,6 +12,7 @@ export interface PixelHitTestData {
 interface IImageResource extends IExtensibleProperty {
 	id: string;
 	fileName: string;
+	publishedFile: string;
 	path: string;
 	branch: string;
 	branchItemIds: string[];
@@ -49,6 +50,7 @@ export class ImageResource extends ExtensibleProperty<IImageResource> {
 		return Object.assign(super.getDefaults(), {
 			id: '',
 			fileName: '',
+			publishedFile: '',
 			path: '',
 			branch: '',
 			branchItemIds: [],
@@ -72,66 +74,153 @@ export class ImageResource extends ExtensibleProperty<IImageResource> {
 		});
 	}
 
-	public getId(): string { return this.get('id'); }
-	public setId(id: string): this { return this.set('id', id); }
+	public getId(): string {
+		return this.get('id');
+	}
+	public setId(id: string): this {
+		return this.set('id', id);
+	}
 
-	public getFileName(): string { return this.get('fileName'); }
-	public setFileName(fileName: string): this { return this.set('fileName', fileName); }
+	public getPublishedFile(): string {
+		return this.get('publishedFile');
+	}
+	public setPublishedFile(value: string): this {
+		return this.set('publishedFile', value);
+	}
 
-	public getPath(): string { return this.get('path'); }
-	public setPath(path: string): this { return this.set('path', path); }
+	public getFileName(): string {
+		return this.get('fileName');
+	}
+	public setFileName(fileName: string): this {
+		return this.set('fileName', fileName);
+	}
 
-	public getBranch(): string { return this.get('branch'); }
-	public setBranch(branch: string): this { return this.set('branch', branch); }
+	public getPath(): string {
+		return this.get('path');
+	}
+	public setPath(path: string): this {
+		return this.set('path', path);
+	}
 
-	public getBranchItemIds(): string[] { return [...this.get('branchItemIds')]; }
-	public setBranchItemIds(ids: string[]): this { return this.set('branchItemIds', [...ids]); }
+	public getBranch(): string {
+		return this.get('branch');
+	}
+	public setBranch(branch: string): this {
+		return this.set('branch', branch);
+	}
 
-	public getHighResolutionItemIds(): Array<string | null> { return [...this.getExtendedLiteral('highResolutionItemIds')]; }
-	public setHighResolutionItemIds(ids: Array<string | null>): this { return this.setExtendedLiteral('highResolutionItemIds', ids); }
+	public getBranchItemIds(): string[] {
+		return [...this.get('branchItemIds')];
+	}
+	public setBranchItemIds(ids: string[]): this {
+		return this.set('branchItemIds', [...ids]);
+	}
 
-	public getWidth(): number { return this.get('width'); }
-	public setWidth(w: number): this { return this.set('width', w); }
+	public getHighResolutionItemIds(): Array<string | null> {
+		return [...this.getExtendedLiteral('highResolutionItemIds')];
+	}
+	public setHighResolutionItemIds(ids: Array<string | null>): this {
+		return this.setExtendedLiteral('highResolutionItemIds', ids);
+	}
 
-	public getHeight(): number { return this.get('height'); }
-	public setHeight(h: number): this { return this.set('height', h); }
+	public getWidth(): number {
+		return this.get('width');
+	}
+	public setWidth(w: number): this {
+		return this.set('width', w);
+	}
 
-	public getExported(): boolean { return this.get('exported'); }
-	public setExported(v: boolean): this { return this.set('exported', v); }
+	public getHeight(): number {
+		return this.get('height');
+	}
+	public setHeight(h: number): this {
+		return this.set('height', h);
+	}
 
-	public getFavorite(): boolean { return this.get('favorite'); }
-	public setFavorite(v: boolean): this { return this.set('favorite', v); }
+	public getExported(): boolean {
+		return this.get('exported');
+	}
+	public setExported(v: boolean): this {
+		return this.set('exported', v);
+	}
 
-	public getTextureSetMode(): string { return this.get('textureSetMode'); }
-	public setTextureSetMode(v: string): this { return this.set('textureSetMode', v); }
+	public getFavorite(): boolean {
+		return this.get('favorite');
+	}
+	public setFavorite(v: boolean): this {
+		return this.set('favorite', v);
+	}
 
-	public getQualityOption(): string { return this.get('qualityOption'); }
-	public setQualityOption(v: string): this { return this.set('qualityOption', v); }
+	public getTextureSetMode(): string {
+		return this.get('textureSetMode');
+	}
+	public setTextureSetMode(v: string): this {
+		return this.set('textureSetMode', v);
+	}
 
-	public getQuality(): number { return this.get('quality'); }
-	public setQuality(v: number): this { return this.set('quality', v); }
+	public getQualityOption(): string {
+		return this.get('qualityOption');
+	}
+	public setQualityOption(v: string): this {
+		return this.set('qualityOption', v);
+	}
 
-	public getSmoothing(): boolean { return this.get('smoothing'); }
-	public setSmoothing(v: boolean): this { return this.set('smoothing', v); }
+	public getQuality(): number {
+		return this.get('quality');
+	}
+	public setQuality(v: number): this {
+		return this.set('quality', v);
+	}
 
-	public getDuplicatePadding(): boolean { return this.get('duplicatePadding'); }
-	public setDuplicatePadding(v: boolean): this { return this.set('duplicatePadding', v); }
+	public getSmoothing(): boolean {
+		return this.get('smoothing');
+	}
+	public setSmoothing(v: boolean): this {
+		return this.set('smoothing', v);
+	}
 
-	public getScaleOption(): number { return this.get('scaleOption'); }
-	public setScaleOption(v: number): this { return this.set('scaleOption', v); }
+	public getDuplicatePadding(): boolean {
+		return this.get('duplicatePadding');
+	}
+	public setDuplicatePadding(v: boolean): this {
+		return this.set('duplicatePadding', v);
+	}
 
-	public getScale9Grid(): [number, number, number, number] | null { return this.get('scale9Grid'); }
-	public setScale9Grid(v: [number, number, number, number] | null): this { return this.set('scale9Grid', v); }
+	public getScaleOption(): number {
+		return this.get('scaleOption');
+	}
+	public setScaleOption(v: number): this {
+		return this.set('scaleOption', v);
+	}
 
-	public getTileGridIndice(): number { return this.get('tileGridIndice'); }
-	public setTileGridIndice(v: number): this { return this.set('tileGridIndice', v); }
+	public getScale9Grid(): [number, number, number, number] | null {
+		return this.get('scale9Grid');
+	}
+	public setScale9Grid(v: [number, number, number, number] | null): this {
+		return this.set('scale9Grid', v);
+	}
 
-	public getImageData(): FairyBuffer | null { return this.getRef('imageData' as never) as FairyBuffer | null; }
-	public setImageData(buffer: FairyBuffer | null): this { return this.setRef('imageData' as never, buffer as never); }
+	public getTileGridIndice(): number {
+		return this.get('tileGridIndice');
+	}
+	public setTileGridIndice(v: number): this {
+		return this.set('tileGridIndice', v);
+	}
+
+	public getImageData(): FairyBuffer | null {
+		return this.getRef('imageData' as never) as FairyBuffer | null;
+	}
+	public setImageData(buffer: FairyBuffer | null): this {
+		return this.setRef('imageData' as never, buffer as never);
+	}
 
 	/** Primary source-file bytes for this image resource. */
-	public getSourceData(): FairyBuffer | null { return this.getImageData(); }
-	public setSourceData(buffer: FairyBuffer | null): this { return this.setImageData(buffer); }
+	public getSourceData(): FairyBuffer | null {
+		return this.getImageData();
+	}
+	public setSourceData(buffer: FairyBuffer | null): this {
+		return this.setImageData(buffer);
+	}
 
 	public getPixelHitTestData(): PixelHitTestData | null {
 		const pixelWidth = this.get('pixelHitTestPixelWidth');

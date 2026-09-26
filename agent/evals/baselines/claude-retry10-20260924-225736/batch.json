@@ -1,0 +1,366 @@
+{
+  "requestedAttempts": 10,
+  "execution": "sequential",
+  "case": "inspect-validate",
+  "timeoutSeconds": 180,
+  "intervalSeconds": 30,
+  "runner": "claude",
+  "explicitSettings": true,
+  "modelOverride": null,
+  "status": "completed",
+  "completedAt": "2026-09-24T15:40:14.618Z",
+  "evaluationStatus": "blocked_by_service_or_transport",
+  "modelSuccessRate": null,
+  "identicalArtifactsAndTaskHash": true,
+  "totals": {
+    "attempts": 10,
+    "passed": 0,
+    "timedOut": 10,
+    "automaticRetryEvents": 38,
+    "http429": 25,
+    "unknownStatus": 13,
+    "modelToolCalls": 0
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "report": "attempt-1.json",
+      "reportSha256": "5d5de3d530188a7c6a9933ce55a67a91f1a619dd1d3b67de4552b9ef0856f660",
+      "clientVersion": "2.1.281 (Claude Code)",
+      "modelReported": "claude-opus-5-5[1m]",
+      "timeoutSeconds": 180,
+      "timedOut": true,
+      "isolatedTools": true,
+      "passed": false,
+      "apiRetries": [
+        {
+          "attempt": 1,
+          "status": 429,
+          "error": "rate_limit"
+        }
+      ],
+      "modelToolCalls": 0,
+      "modelSuccessRate": null
+    },
+    {
+      "attempt": 2,
+      "report": "attempt-2.json",
+      "reportSha256": "5ce79a6be436e7d1d8be06e3fc70b7be80b035e15e7bcf1b17908edf6b3633fa",
+      "clientVersion": "2.1.281 (Claude Code)",
+      "modelReported": "claude-opus-5-5[1m]",
+      "timeoutSeconds": 180,
+      "timedOut": true,
+      "isolatedTools": true,
+      "passed": false,
+      "apiRetries": [
+        {
+          "attempt": 1,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 2,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 3,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 4,
+          "status": 429,
+          "error": "rate_limit"
+        }
+      ],
+      "modelToolCalls": 0,
+      "modelSuccessRate": null
+    },
+    {
+      "attempt": 3,
+      "report": "attempt-3.json",
+      "reportSha256": "3cda01341d974704e64e08fdd3dce09405836821ca71c7c062c8354acc47166b",
+      "clientVersion": "2.1.281 (Claude Code)",
+      "modelReported": "claude-opus-5-5[1m]",
+      "timeoutSeconds": 180,
+      "timedOut": true,
+      "isolatedTools": true,
+      "passed": false,
+      "apiRetries": [
+        {
+          "attempt": 1,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 2,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 3,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 4,
+          "status": 429,
+          "error": "rate_limit"
+        }
+      ],
+      "modelToolCalls": 0,
+      "modelSuccessRate": null
+    },
+    {
+      "attempt": 4,
+      "report": "attempt-4.json",
+      "reportSha256": "8bced53d21d10f09602eed0f5204d07d486b52d7f97482f0dc706843ea17699e",
+      "clientVersion": "2.1.281 (Claude Code)",
+      "modelReported": "claude-opus-5-5[1m]",
+      "timeoutSeconds": 180,
+      "timedOut": true,
+      "isolatedTools": true,
+      "passed": false,
+      "apiRetries": [
+        {
+          "attempt": 1,
+          "status": null,
+          "error": "unknown"
+        },
+        {
+          "attempt": 2,
+          "status": null,
+          "error": "unknown"
+        },
+        {
+          "attempt": 3,
+          "status": null,
+          "error": "unknown"
+        },
+        {
+          "attempt": 4,
+          "status": null,
+          "error": "unknown"
+        },
+        {
+          "attempt": 5,
+          "status": null,
+          "error": "unknown"
+        },
+        {
+          "attempt": 6,
+          "status": null,
+          "error": "unknown"
+        },
+        {
+          "attempt": 7,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 8,
+          "status": 429,
+          "error": "rate_limit"
+        }
+      ],
+      "modelToolCalls": 0,
+      "modelSuccessRate": null
+    },
+    {
+      "attempt": 5,
+      "report": "attempt-5.json",
+      "reportSha256": "7dedbe205b00316874d09163dae7e057b8eb9cc8b185fb582bab6986a8ee12f1",
+      "clientVersion": "2.1.281 (Claude Code)",
+      "modelReported": "claude-opus-5-5[1m]",
+      "timeoutSeconds": 180,
+      "timedOut": true,
+      "isolatedTools": true,
+      "passed": false,
+      "apiRetries": [
+        {
+          "attempt": 1,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 2,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 3,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 4,
+          "status": 429,
+          "error": "rate_limit"
+        }
+      ],
+      "modelToolCalls": 0,
+      "modelSuccessRate": null
+    },
+    {
+      "attempt": 6,
+      "report": "attempt-6.json",
+      "reportSha256": "a4f1317742e5b6d97e632b7339b269e9ce0b7b12217ac700d6af0dcb7a0cd107",
+      "clientVersion": "2.1.281 (Claude Code)",
+      "modelReported": "claude-opus-5-5[1m]",
+      "timeoutSeconds": 180,
+      "timedOut": true,
+      "isolatedTools": true,
+      "passed": false,
+      "apiRetries": [
+        {
+          "attempt": 1,
+          "status": 429,
+          "error": "rate_limit"
+        }
+      ],
+      "modelToolCalls": 0,
+      "modelSuccessRate": null
+    },
+    {
+      "attempt": 7,
+      "report": "attempt-7.json",
+      "reportSha256": "a4f1317742e5b6d97e632b7339b269e9ce0b7b12217ac700d6af0dcb7a0cd107",
+      "clientVersion": "2.1.281 (Claude Code)",
+      "modelReported": "claude-opus-5-5[1m]",
+      "timeoutSeconds": 180,
+      "timedOut": true,
+      "isolatedTools": true,
+      "passed": false,
+      "apiRetries": [
+        {
+          "attempt": 1,
+          "status": null,
+          "error": "unknown"
+        },
+        {
+          "attempt": 2,
+          "status": null,
+          "error": "unknown"
+        },
+        {
+          "attempt": 3,
+          "status": null,
+          "error": "unknown"
+        },
+        {
+          "attempt": 4,
+          "status": null,
+          "error": "unknown"
+        },
+        {
+          "attempt": 5,
+          "status": null,
+          "error": "unknown"
+        },
+        {
+          "attempt": 6,
+          "status": null,
+          "error": "unknown"
+        },
+        {
+          "attempt": 7,
+          "status": 429,
+          "error": "rate_limit"
+        }
+      ],
+      "modelToolCalls": 0,
+      "modelSuccessRate": null
+    },
+    {
+      "attempt": 8,
+      "report": "attempt-8.json",
+      "reportSha256": "0fc7cd37147f9624245ca91f54be8ecdf7ecb26f6c7d95d452c0a88100960fcc",
+      "clientVersion": "2.1.281 (Claude Code)",
+      "modelReported": "claude-opus-5-5[1m]",
+      "timeoutSeconds": 180,
+      "timedOut": true,
+      "isolatedTools": true,
+      "passed": false,
+      "apiRetries": [
+        {
+          "attempt": 1,
+          "status": null,
+          "error": "unknown"
+        },
+        {
+          "attempt": 2,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 3,
+          "status": 429,
+          "error": "rate_limit"
+        }
+      ],
+      "modelToolCalls": 0,
+      "modelSuccessRate": null
+    },
+    {
+      "attempt": 9,
+      "report": "attempt-9.json",
+      "reportSha256": "f9e55470e67970ccf8cdf018ca087e2a016fe1e1707edbdb9be1a82820c6cea2",
+      "clientVersion": "2.1.281 (Claude Code)",
+      "modelReported": "claude-opus-5-5[1m]",
+      "timeoutSeconds": 180,
+      "timedOut": true,
+      "isolatedTools": true,
+      "passed": false,
+      "apiRetries": [
+        {
+          "attempt": 1,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 2,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 3,
+          "status": 429,
+          "error": "rate_limit"
+        }
+      ],
+      "modelToolCalls": 0,
+      "modelSuccessRate": null
+    },
+    {
+      "attempt": 10,
+      "report": "attempt-10.json",
+      "reportSha256": "8bced53d21d10f09602eed0f5204d07d486b52d7f97482f0dc706843ea17699e",
+      "clientVersion": "2.1.281 (Claude Code)",
+      "modelReported": "claude-opus-5-5[1m]",
+      "timeoutSeconds": 180,
+      "timedOut": true,
+      "isolatedTools": true,
+      "passed": false,
+      "apiRetries": [
+        {
+          "attempt": 1,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 2,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 3,
+          "status": 429,
+          "error": "rate_limit"
+        }
+      ],
+      "modelToolCalls": 0,
+      "modelSuccessRate": null
+    }
+  ]
+}

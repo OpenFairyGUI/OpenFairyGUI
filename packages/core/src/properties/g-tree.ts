@@ -70,14 +70,26 @@ export class GTree extends GListBase<IGTree, PropertyType.G_TREE> {
 		});
 	}
 
-	public getTreeView(): boolean { return this.get('treeView'); }
-	public setTreeView(v: boolean): this { return this.set('treeView', v); }
+	public getTreeView(): boolean {
+		return this.get('treeView');
+	}
+	public setTreeView(v: boolean): this {
+		return this.set('treeView', v);
+	}
 
-	public getIndent(): number { return this.get('indent'); }
-	public setIndent(v: number): this { return this.set('indent', v); }
+	public getIndent(): number {
+		return this.get('indent');
+	}
+	public setIndent(v: number): this {
+		return this.set('indent', v);
+	}
 
-	public getClickToExpand(): number { return this.get('clickToExpand'); }
-	public setClickToExpand(v: number): this { return this.set('clickToExpand', v); }
+	public getClickToExpand(): number {
+		return this.get('clickToExpand');
+	}
+	public setClickToExpand(v: number): this {
+		return this.set('clickToExpand', v);
+	}
 
 	public getDefaultItemComponent(root: Root): Component | null {
 		const parsed = parseURL(this.getDefaultItem());
@@ -85,7 +97,7 @@ export class GTree extends GListBase<IGTree, PropertyType.G_TREE> {
 		const pkg = root.getPackageById(parsed.packageId);
 		if (!pkg) return null;
 		const resource = pkg.getResourceById(parsed.resourceId);
-		return resource?.propertyType === PropertyType.COMPONENT ? resource as Component : null;
+		return resource?.propertyType === PropertyType.COMPONENT ? (resource as Component) : null;
 	}
 
 	public inspectDefaultItemTemplate(root: Root): GTreeItemTemplateInfo | null {
@@ -99,16 +111,15 @@ export class GTree extends GListBase<IGTree, PropertyType.G_TREE> {
 			titleChild: component.getChild('title'),
 			iconChild: component.getChild('icon'),
 			indentChild: component.getChild('indent'),
-			expandButtonChild: expandButton?.propertyType === PropertyType.G_COMPONENT ? expandButton as GComponent : null,
+			expandButtonChild:
+				expandButton?.propertyType === PropertyType.G_COMPONENT ? (expandButton as GComponent) : null,
 		};
 	}
 
 	public createInteractionState(state: Partial<GTreeInteractionState> = {}): GTreeInteractionState {
 		const items = this.getListItems();
 		const folderIndices = new Set(
-			items
-				.map((item, index) => ((item.isFolder ?? false) ? index : -1))
-				.filter((index) => index >= 0),
+			items.map((item, index) => ((item.isFolder ?? false) ? index : -1)).filter((index) => index >= 0),
 		);
 		const expandedItemIndices = state.expandedItemIndices
 			? state.expandedItemIndices.filter((index) => folderIndices.has(index))
@@ -117,7 +128,9 @@ export class GTree extends GListBase<IGTree, PropertyType.G_TREE> {
 		const selectedItemIndices = (state.selectedItemIndices ?? []).filter((index) => validNodeIndices.has(index));
 		const lastSelectedItemIndex = validNodeIndices.has(state.lastSelectedItemIndex ?? -1)
 			? (state.lastSelectedItemIndex as number)
-			: (selectedItemIndices.length > 0 ? selectedItemIndices[selectedItemIndices.length - 1]! : -1);
+			: selectedItemIndices.length > 0
+				? selectedItemIndices[selectedItemIndices.length - 1]!
+				: -1;
 		return {
 			expandedItemIndices: Array.from(new Set(expandedItemIndices)),
 			selectedItemIndices: Array.from(new Set(selectedItemIndices)),
@@ -224,10 +237,7 @@ export class GTree extends GListBase<IGTree, PropertyType.G_TREE> {
 		};
 	}
 
-	public toggleRuntimeNodeExpanded(
-		state: Partial<GTreeInteractionState>,
-		itemIndex: number,
-	): GTreeInteractionState {
+	public toggleRuntimeNodeExpanded(state: Partial<GTreeInteractionState>, itemIndex: number): GTreeInteractionState {
 		const interaction = this.createInteractionState(state);
 		const node = this.getRuntimeNode(itemIndex, interaction);
 		if (!node?.isFolder) return interaction;
@@ -237,7 +247,9 @@ export class GTree extends GListBase<IGTree, PropertyType.G_TREE> {
 	public expandAll(state: Partial<GTreeInteractionState> = {}): GTreeInteractionState {
 		const interaction = this.createInteractionState(state);
 		return {
-			expandedItemIndices: this.listRuntimeNodes(interaction).filter((node) => node.isFolder).map((node) => node.itemIndex),
+			expandedItemIndices: this.listRuntimeNodes(interaction)
+				.filter((node) => node.isFolder)
+				.map((node) => node.itemIndex),
 			selectedItemIndices: interaction.selectedItemIndices.slice(),
 			lastSelectedItemIndex: interaction.lastSelectedItemIndex,
 		};
@@ -270,10 +282,11 @@ export class GTree extends GListBase<IGTree, PropertyType.G_TREE> {
 
 		let selectedItemIndices: number[] = [];
 		if (this.getSelectionMode() !== ListSelectionMode.None) {
-			if (append && (
-				this.getSelectionMode() === ListSelectionMode.Multiple
-				|| this.getSelectionMode() === ListSelectionMode.MultipleSingleClick
-			)) {
+			if (
+				append &&
+				(this.getSelectionMode() === ListSelectionMode.Multiple ||
+					this.getSelectionMode() === ListSelectionMode.MultipleSingleClick)
+			) {
 				selectedItemIndices = Array.from(new Set([...interaction.selectedItemIndices, itemIndex]));
 			} else {
 				selectedItemIndices = [itemIndex];
@@ -287,10 +300,7 @@ export class GTree extends GListBase<IGTree, PropertyType.G_TREE> {
 		};
 	}
 
-	public unselectRuntimeNode(
-		state: Partial<GTreeInteractionState>,
-		itemIndex: number,
-	): GTreeInteractionState {
+	public unselectRuntimeNode(state: Partial<GTreeInteractionState>, itemIndex: number): GTreeInteractionState {
 		const interaction = this.createInteractionState(state);
 		return {
 			expandedItemIndices: interaction.expandedItemIndices.slice(),
@@ -311,8 +321,8 @@ export class GTree extends GListBase<IGTree, PropertyType.G_TREE> {
 	public selectAllVisibleRuntimeNodes(state: Partial<GTreeInteractionState> = {}): GTreeInteractionState {
 		const interaction = this.createInteractionState(state);
 		if (
-			this.getSelectionMode() === ListSelectionMode.None
-			|| this.getSelectionMode() === ListSelectionMode.Single
+			this.getSelectionMode() === ListSelectionMode.None ||
+			this.getSelectionMode() === ListSelectionMode.Single
 		) {
 			return interaction;
 		}
@@ -320,15 +330,18 @@ export class GTree extends GListBase<IGTree, PropertyType.G_TREE> {
 		return {
 			expandedItemIndices: interaction.expandedItemIndices.slice(),
 			selectedItemIndices: visibleNodes.map((node) => node.itemIndex),
-			lastSelectedItemIndex: visibleNodes.length > 0 ? visibleNodes[visibleNodes.length - 1]!.itemIndex : interaction.lastSelectedItemIndex,
+			lastSelectedItemIndex:
+				visibleNodes.length > 0
+					? visibleNodes[visibleNodes.length - 1]!.itemIndex
+					: interaction.lastSelectedItemIndex,
 		};
 	}
 
 	public selectReverseVisibleRuntimeNodes(state: Partial<GTreeInteractionState> = {}): GTreeInteractionState {
 		const interaction = this.createInteractionState(state);
 		if (
-			this.getSelectionMode() === ListSelectionMode.None
-			|| this.getSelectionMode() === ListSelectionMode.Single
+			this.getSelectionMode() === ListSelectionMode.None ||
+			this.getSelectionMode() === ListSelectionMode.Single
 		) {
 			return interaction;
 		}
@@ -340,9 +353,10 @@ export class GTree extends GListBase<IGTree, PropertyType.G_TREE> {
 		return {
 			expandedItemIndices: interaction.expandedItemIndices.slice(),
 			selectedItemIndices,
-			lastSelectedItemIndex: selectedItemIndices.length > 0
-				? selectedItemIndices[selectedItemIndices.length - 1]!
-				: interaction.lastSelectedItemIndex,
+			lastSelectedItemIndex:
+				selectedItemIndices.length > 0
+					? selectedItemIndices[selectedItemIndices.length - 1]!
+					: interaction.lastSelectedItemIndex,
 		};
 	}
 
@@ -354,12 +368,16 @@ export class GTree extends GListBase<IGTree, PropertyType.G_TREE> {
 	): GTreeInteractionState {
 		const interaction = this.createInteractionState(state);
 		if (
-			this.getSelectionMode() === ListSelectionMode.None
-			|| this.getSelectionMode() === ListSelectionMode.Single
+			this.getSelectionMode() === ListSelectionMode.None ||
+			this.getSelectionMode() === ListSelectionMode.Single
 		) {
 			return this.selectRuntimeNode(interaction, itemIndex);
 		}
-		const range = this._collectSelectionRange(interaction, anchorItemIndex ?? interaction.lastSelectedItemIndex, itemIndex);
+		const range = this._collectSelectionRange(
+			interaction,
+			anchorItemIndex ?? interaction.lastSelectedItemIndex,
+			itemIndex,
+		);
 		if (range.length === 0) {
 			return this.selectRuntimeNode(interaction, itemIndex, append);
 		}
@@ -519,5 +537,4 @@ export class GTree extends GListBase<IGTree, PropertyType.G_TREE> {
 		}
 		return this.getSelectedRuntimeNode(state);
 	}
-
 }

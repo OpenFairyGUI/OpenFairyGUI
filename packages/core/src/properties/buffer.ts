@@ -26,12 +26,24 @@ export class FairyBuffer extends Property<IBuffer> {
 		});
 	}
 
-	public getURI(): string { return this.get('uri'); }
-	public setURI(uri: string): this { return this.set('uri', uri); }
+	public getURI(): string {
+		return this.get('uri');
+	}
+	public setURI(uri: string): this {
+		return this.set('uri', uri);
+	}
 
-	public getMimeType(): string { return this.get('mimeType'); }
-	public setMimeType(mimeType: string): this { return this.set('mimeType', mimeType); }
+	public getMimeType(): string {
+		return this.get('mimeType');
+	}
+	public setMimeType(mimeType: string): this {
+		return this.set('mimeType', mimeType);
+	}
 
-	public getData(): Uint8Array | null { return this.get('data'); }
-	public setData(data: Uint8Array | null): this { return this.set('data', data); }
+	public getData(): Uint8Array | null {
+		return this.get('data');
+	}
+	public setData(data: Uint8Array | null): this {
+		return this.set('data', data);
+	}
 }

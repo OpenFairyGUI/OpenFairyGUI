@@ -1,16 +1,14 @@
 #!/usr/bin/env node
 'use strict';
 
-const { execFileSync } = require('child_process');
-const path = require('path');
+const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 
 const entry = path.resolve(__dirname, '../dist/cli.mjs');
 
-try {
-	execFileSync(process.execPath, [entry, ...process.argv.slice(2)], {
-		stdio: 'inherit',
-		env: process.env,
+import(pathToFileURL(entry).href)
+	.then((module) => module.runCli(process.argv))
+	.catch((error) => {
+		console.error(error instanceof Error ? (error.stack ?? error.message) : String(error));
+		process.exitCode = 1;
 	});
-} catch (e) {
-	process.exit(e && e.status ? e.status : 1);
-}

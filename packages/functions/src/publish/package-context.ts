@@ -43,7 +43,9 @@ export function isImageResource(resource: ReturnType<Package['listResources']>[n
 	return resource.propertyType === 'ImageResource';
 }
 
-export function isMovieClipResource(resource: ReturnType<Package['listResources']>[number]): resource is MovieClipResource {
+export function isMovieClipResource(
+	resource: ReturnType<Package['listResources']>[number],
+): resource is MovieClipResource {
 	return resource.propertyType === 'MovieClipResource';
 }
 
@@ -69,9 +71,7 @@ export function isSoundResource(resource: ReturnType<Package['listResources']>[n
 	return resource.propertyType === 'SoundResource';
 }
 
-export function isSwfResource(
-	resource: ReturnType<Package['listResources']>[number],
-): resource is SwfResource {
+export function isSwfResource(resource: ReturnType<Package['listResources']>[number]): resource is SwfResource {
 	return resource.propertyType === 'SwfResource';
 }
 
@@ -114,7 +114,9 @@ export function resolveImageFileName(resource: ImageResource): string {
 }
 
 export function resolveFontPath(resource: FontResource, pkg: Package, basePath: string): string {
-	const fileName = resource.getFileName() || (/\.fnt$/i.test(resource.getName()) ? resource.getName() : `${resource.getName()}.fnt`);
+	const fileName =
+		resource.getFileName() ||
+		(/\.fnt$/i.test(resource.getName()) ? resource.getName() : `${resource.getName()}.fnt`);
 	return `${resolvePackageAssetsBasePath(basePath, resource)}/${pkg.getName()}${resource.getPath() || '/'}${fileName}`;
 }
 
@@ -142,7 +144,11 @@ export function extname(fileName: string): string {
 	return normalized.slice(lastDot);
 }
 
-function resolvePublishedMiscFileName(resource: MiscResource, projectType: number, effectiveResourceIds: ReadonlyMap<string, string>): string {
+function resolvePublishedMiscFileName(
+	resource: MiscResource,
+	projectType: number,
+	effectiveResourceIds: ReadonlyMap<string, string>,
+): string {
 	const fileName = `${getPublishedId(resource, effectiveResourceIds)}${extname(resource.getFile())}`;
 	if (projectType === UNITY_PROJECT_TYPE && fileName.toLowerCase().endsWith('.atlas')) {
 		return `${fileName}.txt`;
@@ -165,7 +171,10 @@ function resolvePublishedSkeletonFileName(resource: SpineResource | DragonBonesR
 	return resource.getFile();
 }
 
-export function getPublishedId(resource: { getId(): string }, effectiveResourceIds: ReadonlyMap<string, string>): string {
+export function getPublishedId(
+	resource: { getId(): string },
+	effectiveResourceIds: ReadonlyMap<string, string>,
+): string {
 	return effectiveResourceIds.get(resource.getId()) ?? resource.getId();
 }
 
@@ -295,10 +304,14 @@ export function collectPackagePublishContext(
 				}
 				const resource = resourcesById.get(resourceId);
 				if (!resource) continue;
-				const requiredIds = isSkeletonResource(resource) ? resource.getRequireIds()
-					: isFontResource(resource) ? getFontDependencyImageIds(resource) : [];
+				const requiredIds = isSkeletonResource(resource)
+					? resource.getRequireIds()
+					: isFontResource(resource)
+						? getFontDependencyImageIds(resource)
+						: [];
 				for (const requiredId of requiredIds) {
-					if (!requiredId || excludedResourceIds.has(requiredId) || exportedResourceIds.has(requiredId)) continue;
+					if (!requiredId || excludedResourceIds.has(requiredId) || exportedResourceIds.has(requiredId))
+						continue;
 					exportedResourceIds.add(requiredId);
 					changed = true;
 				}
@@ -316,7 +329,7 @@ export function collectPackagePublishContext(
 		const hitTest = component.getHitTest?.()?.trim();
 		if (hitTest && !hitTest.includes(',')) {
 			const targetChild = childMap.get(hitTest);
-		const sourceId = (targetChild as { getSrc?(): string } | undefined)?.getSrc?.();
+			const sourceId = (targetChild as { getSrc?(): string } | undefined)?.getSrc?.();
 			if (sourceId && !excludedResourceIds.has(sourceId)) {
 				const sourceResource = resourceMap.get(sourceId);
 				if (sourceResource && isImageResource(sourceResource)) {
@@ -337,11 +350,7 @@ export function collectPackagePublishContext(
 			continue;
 		}
 		if (isImageResource(resource)) {
-			if (
-				resource.getExported() ||
-				referencedIds.has(resourceId) ||
-				pixelHitTestImageIds.has(resourceId)
-			) {
+			if (resource.getExported() || referencedIds.has(resourceId) || pixelHitTestImageIds.has(resourceId)) {
 				publishedResourceIds.add(resourceId);
 			}
 			continue;
@@ -543,7 +552,10 @@ export async function preparePackagePublishContext(
 	const publishedFiles = new Map<string, string>();
 	for (const resource of pkg.listResources()) {
 		if (isMiscResource(resource)) {
-			publishedFiles.set(resource.getId(), resolvePublishedMiscFileName(resource, options.projectType, context.effectiveResourceIds));
+			publishedFiles.set(
+				resource.getId(),
+				resolvePublishedMiscFileName(resource, options.projectType, context.effectiveResourceIds),
+			);
 		} else if (isSwfResource(resource)) {
 			publishedFiles.set(resource.getId(), resolvePublishedSwfFileName(resource, context.effectiveResourceIds));
 		} else if (isSkeletonResource(resource)) {

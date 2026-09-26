@@ -18,10 +18,7 @@ export interface ValidateProjectOptions {
 }
 
 /** Validate one authoritative UAM snapshot without mutating it. */
-export function validateProject(
-	project: UamProject,
-	options: ValidateProjectOptions = {},
-): ProjectValidationReport {
+export function validateProject(project: UamProject, options: ValidateProjectOptions = {}): ProjectValidationReport {
 	const diagnostics = [
 		...(options.readDiagnostics ?? []),
 		...validateUamProject(project),

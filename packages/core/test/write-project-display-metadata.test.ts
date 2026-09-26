@@ -12,102 +12,181 @@ const _PROJECT_PATH = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGU
 
 test('text XML preserves empty values, tag-specific attributes and Gear order', (t) => {
 	const doc = new Document();
-	const plain = doc.createGTextField('plain').setId('t').setText('').setFontSize(0)
-		.setLeading(0).setVisible(false).setTouchable(false)
-		.setShadowColor('#ABCDEF').setShadowOffsetX(0).setShadowOffsetY(0)
-		.setAutoClearText(true).setDemoText('A&B').setTemplateVarsEnabled(true).setFaceDilate(0.25);
-	const rich = doc.createGRichTextField('rich').setId('r').setText('[b]<&>[/b]')
-		.setDemoText('omitted').setTemplateVarsEnabled(true).setFaceDilate(0.5)
-		.setOutlineSoftness(0.2).setUnderlaySoftness(0.3).setUbbEnabled(true);
-	const input = doc.createGTextInput('input').setId('i').setText('0')
-		.setPromptText('say "hi"').setMaxLength(5).setRestrict('0-9').setPassword(true).setKeyboardType(2);
+	const plain = doc
+		.createGTextField('plain')
+		.setId('t')
+		.setText('')
+		.setFontSize(0)
+		.setLeading(0)
+		.setVisible(false)
+		.setTouchable(false)
+		.setShadowColor('#ABCDEF')
+		.setShadowOffsetX(0)
+		.setShadowOffsetY(0)
+		.setAutoClearText(true)
+		.setDemoText('A&B')
+		.setTemplateVarsEnabled(true)
+		.setFaceDilate(0.25);
+	const rich = doc
+		.createGRichTextField('rich')
+		.setId('r')
+		.setText('[b]<&>[/b]')
+		.setDemoText('omitted')
+		.setTemplateVarsEnabled(true)
+		.setFaceDilate(0.5)
+		.setOutlineSoftness(0.2)
+		.setUnderlaySoftness(0.3)
+		.setUbbEnabled(true);
+	const input = doc
+		.createGTextInput('input')
+		.setId('i')
+		.setText('0')
+		.setPromptText('say "hi"')
+		.setMaxLength(5)
+		.setRestrict('0-9')
+		.setPassword(true)
+		.setKeyboardType(2);
 	plain.addGear(doc.createGear().setGearType(GearType.Text).setDefaultValue(''));
 
-	t.is(serializeDisplayList([plain, rich, input]), '\n' + [
-		'    <text id="t" name="plain" autoClearText="true" demoText="A&amp;B" vars="true" faceDilate="0.25" text="" leading="0" shadowColor="#abcdef" shadowOffset="0,0" xy="0,0" visible="false" touchable="false">',
-		'      <gearText default=""/>',
-		'    </text>',
-		'    <richtext id="r" name="rich" outlineSoftness="0.2" underlaySoftness="0.3" text="[b]&lt;&amp;&gt;[/b]" fontSize="12" ubb="true" xy="0,0"/>',
-		'    <inputtext id="i" name="input" text="0" fontSize="12" prompt="say &quot;hi&quot;" maxLength="5" restrict="0-9" password="true" keyboardType="2" xy="0,0"/>',
-	].join('\n') + '\n  ');
+	t.is(
+		serializeDisplayList([plain, rich, input]),
+		'\n' +
+			[
+				'    <text id="t" name="plain" autoClearText="true" demoText="A&amp;B" vars="true" faceDilate="0.25" text="" leading="0" shadowColor="#abcdef" shadowOffset="0,0" xy="0,0" visible="false" touchable="false">',
+				'      <gearText default=""/>',
+				'    </text>',
+				'    <richtext id="r" name="rich" outlineSoftness="0.2" underlaySoftness="0.3" text="[b]&lt;&amp;&gt;[/b]" fontSize="12" ubb="true" xy="0,0"/>',
+				'    <inputtext id="i" name="input" text="0" fontSize="12" prompt="say &quot;hi&quot;" maxLength="5" restrict="0-9" password="true" keyboardType="2" xy="0,0"/>',
+			].join('\n') +
+			'\n  ',
+	);
 });
 
 test('list XML preserves nullable items, tree levels and ordered property overrides', (t) => {
 	const doc = new Document();
-	const list = doc.createGList('list').setId('l').setSrc('source')
-		.setControllerOverrides('c,0').setPageController('p').setScrollItemToViewOnClick(false)
+	const list = doc
+		.createGList('list')
+		.setId('l')
+		.setSrc('source')
+		.setControllerOverrides('c,0')
+		.setPageController('p')
+		.setScrollItemToViewOnClick(false)
 		.setListItems([
 			{
-				title: '', icon: null, url: '', name: '', selectedTitle: '', selectedIcon: null,
-				level: 0, isFolder: false, controllers: '',
+				title: '',
+				icon: null,
+				url: '',
+				name: '',
+				selectedTitle: '',
+				selectedIcon: null,
+				level: 0,
+				isFolder: false,
+				controllers: '',
 				propertyOverrides: [
 					{ target: 'title', propertyId: 0, value: '' },
 					{ target: 'title', propertyId: 0, value: '0' },
 				],
 			},
 			{
-				title: 'A&B', icon: '', url: null, name: null, selectedTitle: null, selectedIcon: '',
-				level: 1, isFolder: true,
+				title: 'A&B',
+				icon: '',
+				url: null,
+				name: null,
+				selectedTitle: null,
+				selectedIcon: '',
+				level: 1,
+				isFolder: true,
 			},
 		]);
 	list.addGear(doc.createGear().setGearType(GearType.Text).setDefaultValue(''));
 	list.setRelations([{ target: '', type: 14, usePercent: false }]);
-	const tree = doc.createGTree('tree').setId('t').setIndent(0).setClickToExpand(2)
-		.setListItems(list.getListItems());
+	const tree = doc.createGTree('tree').setId('t').setIndent(0).setClickToExpand(2).setListItems(list.getListItems());
 
-	t.is(serializeDisplayList([list, tree]), '\n' + [
-		'    <list id="l" name="list" src="source" controller="c,0" pageController="p" scrollItemToViewOnClick="false" xy="0,0">',
-		'      <item title="" url="" name="" selectedTitle="" isFolder="false" controllers="">',
-		'        <property target="title" propertyId="0" value=""/>',
-		'        <property target="title" propertyId="0" value="0"/>',
-		'      </item>',
-		'      <item title="A&amp;B" icon="" selectedIcon="" level="1" isFolder="true"/>',
-		'      <gearText default=""/>',
-		'      <relation target="" sidePair="width-width"/>',
-		'    </list>',
-		'    <list id="t" name="tree" treeView="true" indent="0" clickToExpand="2" xy="0,0">',
-		'      <item title="" url="" name="" selectedTitle="" level="0" isFolder="false" controllers="">',
-		'        <property target="title" propertyId="0" value=""/>',
-		'        <property target="title" propertyId="0" value="0"/>',
-		'      </item>',
-		'      <item title="A&amp;B" icon="" selectedIcon="" level="1" isFolder="true"/>',
-		'    </list>',
-	].join('\n') + '\n  ');
+	t.is(
+		serializeDisplayList([list, tree]),
+		'\n' +
+			[
+				'    <list id="l" name="list" src="source" controller="c,0" pageController="p" scrollItemToViewOnClick="false" xy="0,0">',
+				'      <item title="" url="" name="" selectedTitle="" isFolder="false" controllers="">',
+				'        <property target="title" propertyId="0" value=""/>',
+				'        <property target="title" propertyId="0" value="0"/>',
+				'      </item>',
+				'      <item title="A&amp;B" icon="" selectedIcon="" level="1" isFolder="true"/>',
+				'      <gearText default=""/>',
+				'      <relation target="" sidePair="width-width"/>',
+				'    </list>',
+				'    <list id="t" name="tree" treeView="true" indent="0" clickToExpand="2" xy="0,0">',
+				'      <item title="" url="" name="" selectedTitle="" level="0" isFolder="false" controllers="">',
+				'        <property target="title" propertyId="0" value=""/>',
+				'        <property target="title" propertyId="0" value="0"/>',
+				'      </item>',
+				'      <item title="A&amp;B" icon="" selectedIcon="" level="1" isFolder="true"/>',
+				'    </list>',
+			].join('\n') +
+			'\n  ',
+	);
 });
 
 test('instance XML keeps overrides before Gear and relations and extensions last', (t) => {
 	const doc = new Document();
-	const combo = doc.createGComponent('combo').setId('c').setSrc('source')
-		.setControllerOverrides('c,0').setPageController('p').setFileName('Combo.xml').setPackageId('pkg')
-		.setInstanceExtType('ComboBox').setInstancePopupDirection(2).setInstanceAutoClearItems(true)
+	const combo = doc
+		.createGComponent('combo')
+		.setId('c')
+		.setSrc('source')
+		.setControllerOverrides('c,0')
+		.setPageController('p')
+		.setFileName('Combo.xml')
+		.setPackageId('pkg')
+		.setInstanceExtType('ComboBox')
+		.setInstancePopupDirection(2)
+		.setInstanceAutoClearItems(true)
 		.setPropertyOverrides([
 			{ target: 'title', propertyId: 0, value: '' },
 			{ target: 'title', propertyId: 0, value: '0' },
 		])
-		.setInstanceComboItems([{ title: '', value: '', icon: null }, { title: 'A&B', value: '0', icon: '' }]);
+		.setInstanceComboItems([
+			{ title: '', value: '', icon: null },
+			{ title: 'A&B', value: '0', icon: '' },
+		]);
 	combo.addGear(doc.createGear().setGearType(GearType.Text).setDefaultValue(''));
 	combo.setRelations([{ target: '', type: 14, usePercent: true }]);
 
-	t.is(serializeDisplayList([combo]), '\n' + [
-		'    <component id="c" name="combo" src="source" controller="c,0" pageController="p" fileName="Combo.xml" pkg="pkg" xy="0,0">',
-		'      <property target="title" propertyId="0" value=""/>',
-		'      <property target="title" propertyId="0" value="0"/>',
-		'      <gearText default=""/>',
-		'      <relation target="" sidePair="width-width%"/>',
-		'      <ComboBox direction="down" autoClearItems="true">',
-		'        <item title="" value=""/>',
-		'        <item title="A&amp;B" value="0" icon=""/>',
-		'      </ComboBox>',
-		'    </component>',
-	].join('\n') + '\n  ');
+	t.is(
+		serializeDisplayList([combo]),
+		'\n' +
+			[
+				'    <component id="c" name="combo" src="source" controller="c,0" pageController="p" fileName="Combo.xml" pkg="pkg" xy="0,0">',
+				'      <property target="title" propertyId="0" value=""/>',
+				'      <property target="title" propertyId="0" value="0"/>',
+				'      <gearText default=""/>',
+				'      <relation target="" sidePair="width-width%"/>',
+				'      <ComboBox direction="down" autoClearItems="true">',
+				'        <item title="" value=""/>',
+				'        <item title="A&amp;B" value="0" icon=""/>',
+				'      </ComboBox>',
+				'    </component>',
+			].join('\n') +
+			'\n  ',
+	);
 
 	for (const extension of ['Button', 'Label', 'ComboBox', 'ProgressBar', 'Slider', 'ScrollBar']) {
 		const instance = doc.createGComponent('default').setId('d').setInstanceExtType(extension);
-		t.is(serializeDisplayList([instance]), `\n    <component id="d" name="default" xy="0,0">\n      <${extension}/>\n    </component>\n  `);
+		t.is(
+			serializeDisplayList([instance]),
+			`\n    <component id="d" name="default" xy="0,0">\n      <${extension}/>\n    </component>\n  `,
+		);
 	}
-	const button = doc.createGComponent('button').setId('b').setInstanceExtType('Button')
-		.setInstanceChecked(false).setInstanceTitle('').setInstanceSoundVolumeScale(0);
-	t.is(serializeDisplayList([button]), '\n    <component id="b" name="button" xy="0,0">\n      <Button volume="0"/>\n    </component>\n  ');
+	const button = doc
+		.createGComponent('button')
+		.setId('b')
+		.setInstanceExtType('Button')
+		.setInstanceChecked(false)
+		.setInstanceTitle('')
+		.setInstanceSoundVolumeScale(0);
+	t.is(
+		serializeDisplayList([button]),
+		'\n    <component id="b" name="button" xy="0,0">\n      <Button volume="0"/>\n    </component>\n  ',
+	);
 });
 
 // ─── Round-trip: read → write → read ──────────────────────────────────────
@@ -171,10 +250,17 @@ test('round-trip: display object fileName/pkg/filter metadata survives write→r
 		t.true(/<(?:movieclip|jta)\b[^>]*pkg="pkgC"/.test(hostXml), 'movieclip writes canonical pkg attr');
 		t.true(hostXml.includes('fileName="Button/Button5.xml"'), 'component writes canonical fileName attr');
 		t.true(hostXml.includes('pkg="pkgB"'), 'component writes canonical pkg attr');
-		t.true(/<component\b[^>]*\baspect(?:="true")?(?=[\s>])/.test(hostXml), 'component writes canonical aspect attr');
+		t.true(
+			/<component\b[^>]*\baspect(?:="true")?(?=[\s>])/.test(hostXml),
+			'component writes canonical aspect attr',
+		);
 
 		const doc2 = await io.readProject(outFairy);
-		const host2 = doc2.getRoot().getPackage('DemoMeta')?.listComponents().find((item) => item.getName() === 'Host');
+		const host2 = doc2
+			.getRoot()
+			.getPackage('DemoMeta')
+			?.listComponents()
+			.find((item) => item.getName() === 'Host');
 		t.truthy(host2, 'Host exists after round-trip');
 		const byId = new Map(host2!.listChildren().map((item) => [item.getId(), item as any]));
 
@@ -243,7 +329,11 @@ test('round-trip: component tooltips, text customData, and graph skew survive wr
 		t.true(hostXml.includes('skew="60,30"'), 'graph writes canonical skew attr');
 
 		const doc2 = await io.readProject(outFairy);
-		const host2 = doc2.getRoot().getPackage('SpecificDisplay')?.listComponents().find((item) => item.getName() === 'Host');
+		const host2 = doc2
+			.getRoot()
+			.getPackage('SpecificDisplay')
+			?.listComponents()
+			.find((item) => item.getName() === 'Host');
 		t.truthy(host2, 'Host exists after round-trip');
 		const byId = new Map(host2!.listChildren().map((item) => [item.getId(), item as any]));
 
@@ -337,7 +427,11 @@ test('round-trip: tag-scoped alpha/rotation/visible/touchable/grayed survive wri
 		t.true(/<loader\b[^>]*grayed(?:="true")?/.test(hostXml), 'loader writes grayed on loader tag');
 
 		const doc2 = await io.readProject(outFairy);
-		const host2 = doc2.getRoot().getPackage('DisplayState')?.listComponents().find((item) => item.getName() === 'Host');
+		const host2 = doc2
+			.getRoot()
+			.getPackage('DisplayState')
+			?.listComponents()
+			.find((item) => item.getName() === 'Host');
 		t.truthy(host2, 'Host exists after round-trip');
 		const byId = new Map(host2!.listChildren().map((item) => [item.getId(), item as any]));
 
@@ -422,8 +516,14 @@ test('round-trip: tag-scoped pivot/anchor/scale survive write→read', async (t)
 		t.true(componentXml.includes('pivot="0.5,0.25"'), 'image writes pivot attr');
 		t.true(/<image\b[^>]*anchor(?:="true")?/.test(componentXml), 'image writes anchor attr');
 		t.true(componentXml.includes('scale="1.5,0.75"'), 'image writes scale attr');
-		t.true(/<component\b[^>]*id="n1"[^>]*pivot="0.5,0.5"/.test(componentXml), 'component instance writes pivot attr');
-		t.true(/<component\b[^>]*id="n1"[^>]*anchor(?:="true")?/.test(componentXml), 'component instance writes anchor attr');
+		t.true(
+			/<component\b[^>]*id="n1"[^>]*pivot="0.5,0.5"/.test(componentXml),
+			'component instance writes pivot attr',
+		);
+		t.true(
+			/<component\b[^>]*id="n1"[^>]*anchor(?:="true")?/.test(componentXml),
+			'component instance writes anchor attr',
+		);
 		t.true(/<component\b[^>]*id="n1"[^>]*scale="0.7,1"/.test(componentXml), 'component instance writes scale attr');
 		t.true(/<graph\b[^>]*id="n2"[^>]*pivot="0.5,0.5"/.test(componentXml), 'graph writes pivot attr');
 		t.true(/<graph\b[^>]*id="n2"[^>]*anchor(?:="true")?/.test(componentXml), 'graph writes anchor attr');
@@ -432,7 +532,11 @@ test('round-trip: tag-scoped pivot/anchor/scale survive write→read', async (t)
 		t.true(/<jta\b[^>]*id="n4"[^>]*pivot="0.5,0.5"/.test(componentXml), 'jta writes pivot attr');
 
 		const doc2 = await io.readProject(outFairy);
-		const comp2 = doc2.getRoot().getPackage('DemoPivot')?.listComponents().find((item) => item.getName() === 'PivotAttrs');
+		const comp2 = doc2
+			.getRoot()
+			.getPackage('DemoPivot')
+			?.listComponents()
+			.find((item) => item.getName() === 'PivotAttrs');
 		t.truthy(comp2, 'PivotAttrs component exists');
 
 		const byId = new Map(comp2!.listChildren().map((child) => [child.getId(), child as any]));
@@ -530,7 +634,11 @@ test('round-trip: tag-scoped group survives write→read', async (t) => {
 		t.true(/<jta\b[^>]*id="n6"[^>]*group="groot"/.test(componentXml), 'jta writes group attr');
 
 		const doc2 = await io.readProject(outFairy);
-		const comp2 = doc2.getRoot().getPackage('DemoGroup')?.listComponents().find((item) => item.getName() === 'GroupAttrs');
+		const comp2 = doc2
+			.getRoot()
+			.getPackage('DemoGroup')
+			?.listComponents()
+			.find((item) => item.getName() === 'GroupAttrs');
 		t.truthy(comp2, 'GroupAttrs component exists');
 
 		const byId = new Map(comp2!.listChildren().map((child) => [child.getId(), child as any]));
@@ -642,10 +750,17 @@ test('round-trip: tag-scoped xy survive write→read', async (t) => {
 		t.true(/<jta\b[^>]*id="n8"[^>]*xy="170,180"/.test(componentXml), 'jta writes xy attr');
 		t.true(/<image\b[^>]*id="n9"[^>]*xy="0,0"/.test(componentXml), 'image writes explicit zero xy attr');
 		t.true(/<text\b[^>]*id="n10"[^>]*xy="0,0"/.test(componentXml), 'text writes explicit zero xy attr');
-		t.true(/<component\b[^>]*id="n11"[^>]*xy="0,0"/.test(componentXml), 'component instance writes explicit zero xy attr');
+		t.true(
+			/<component\b[^>]*id="n11"[^>]*xy="0,0"/.test(componentXml),
+			'component instance writes explicit zero xy attr',
+		);
 
 		const doc2 = await io.readProject(outFairy);
-		const comp2 = doc2.getRoot().getPackage('DemoXY')?.listComponents().find((item) => item.getName() === 'XYAttrs');
+		const comp2 = doc2
+			.getRoot()
+			.getPackage('DemoXY')
+			?.listComponents()
+			.find((item) => item.getName() === 'XYAttrs');
 		t.truthy(comp2, 'XYAttrs component exists');
 
 		const byId = new Map(comp2!.listChildren().map((child) => [child.getId(), child as any]));
@@ -760,7 +875,11 @@ test('round-trip: tag-scoped size survive write→read', async (t) => {
 		t.true(/<jta\b[^>]*id="n8"[^>]*size="171,181"/.test(componentXml), 'jta writes size attr');
 
 		const doc2 = await io.readProject(outFairy);
-		const comp2 = doc2.getRoot().getPackage('DemoSize')?.listComponents().find((item) => item.getName() === 'SizeAttrs');
+		const comp2 = doc2
+			.getRoot()
+			.getPackage('DemoSize')
+			?.listComponents()
+			.find((item) => item.getName() === 'SizeAttrs');
 		t.truthy(comp2, 'SizeAttrs component exists');
 
 		const byId = new Map(comp2!.listChildren().map((child) => [child.getId(), child as any]));
@@ -858,14 +977,32 @@ test('round-trip: tag-scoped locked and restrictSize survive write→read', asyn
 
 		const componentXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoMeta', 'MetaAttrs.xml'), 'utf-8');
 		t.true(/<image\b(?=[^>]*id="n0")(?=[^>]*locked(?:="true")?)/.test(componentXml), 'image writes locked attr');
-		t.true(/<component\b(?=[^>]*id="n1")(?=[^>]*locked(?:="true")?)(?=[^>]*restrictSize="10,20,30,40")/.test(componentXml), 'component writes locked and restrictSize attrs');
-		t.true(/<text\b(?=[^>]*id="n2")(?=[^>]*restrictSize="0,60,0,0")/.test(componentXml), 'text writes restrictSize attr');
-		t.true(/<richtext\b(?=[^>]*id="n3")(?=[^>]*restrictSize="1,61,2,62")/.test(componentXml), 'richtext writes restrictSize attr');
-		t.true(/<graph\b(?=[^>]*id="n4")(?=[^>]*locked(?:="true")?)(?=[^>]*restrictSize="0,1,0,0")/.test(componentXml), 'graph writes locked and restrictSize attrs');
+		t.true(
+			/<component\b(?=[^>]*id="n1")(?=[^>]*locked(?:="true")?)(?=[^>]*restrictSize="10,20,30,40")/.test(
+				componentXml,
+			),
+			'component writes locked and restrictSize attrs',
+		);
+		t.true(
+			/<text\b(?=[^>]*id="n2")(?=[^>]*restrictSize="0,60,0,0")/.test(componentXml),
+			'text writes restrictSize attr',
+		);
+		t.true(
+			/<richtext\b(?=[^>]*id="n3")(?=[^>]*restrictSize="1,61,2,62")/.test(componentXml),
+			'richtext writes restrictSize attr',
+		);
+		t.true(
+			/<graph\b(?=[^>]*id="n4")(?=[^>]*locked(?:="true")?)(?=[^>]*restrictSize="0,1,0,0")/.test(componentXml),
+			'graph writes locked and restrictSize attrs',
+		);
 		t.true(/<group\b(?=[^>]*id="n5")(?=[^>]*locked(?:="true")?)/.test(componentXml), 'group writes locked attr');
 
 		const doc2 = await io.readProject(outFairy);
-		const comp2 = doc2.getRoot().getPackage('DemoMeta')?.listComponents().find((item) => item.getName() === 'MetaAttrs');
+		const comp2 = doc2
+			.getRoot()
+			.getPackage('DemoMeta')
+			?.listComponents()
+			.find((item) => item.getName() === 'MetaAttrs');
 		t.truthy(comp2, 'MetaAttrs component exists');
 
 		const byId = new Map(comp2!.listChildren().map((child) => [child.getId(), child as any]));
@@ -952,13 +1089,33 @@ test('writer truncates desktop integer geometry without mutating document values
 
 	try {
 		await io.writeProject(doc, outFairy);
-		const componentXml = await fs.readFile(path.join(tmpDir, 'assets', 'IntegerGeometry', 'Fractional.xml'), 'utf-8');
+		const componentXml = await fs.readFile(
+			path.join(tmpDir, 'assets', 'IntegerGeometry', 'Fractional.xml'),
+			'utf-8',
+		);
 
-		t.regex(componentXml, /<component\b(?=[^>]*size="320,240")(?=[^>]*margin="1,2,-3,-4")(?=[^>]*restrictSize="120,0,0,0")(?=[^>]*designImageOffsetX="-428")(?=[^>]*designImageOffsetY="238")(?=[^>]*clipSoftness="5,-6")(?=[^>]*scrollBarMargin="7,8,-9,-10")/);
-		t.regex(componentXml, /<image\b(?=[^>]*id="n0")(?=[^>]*xy="2,-5")(?=[^>]*size="16,10")(?=[^>]*restrictSize="11,0,0,12")/);
-		t.true(componentXml.includes('<gearXY controller="state" pages="0" values="2,-5,0.125,0.25" default="-3,4,0.5,0.75"'));
-		t.true(componentXml.includes('<gearSize controller="state" pages="0" values="16,10,1.25,0.75" default="-3,4,1.50,0.50"'));
-		t.regex(componentXml, /<list\b(?=[^>]*id="n1")(?=[^>]*margin="13,14,-15,-16")(?=[^>]*scrollBarMargin="17,18,-19,-20")(?=[^>]*clipSoftness="21,-22")/);
+		t.regex(
+			componentXml,
+			/<component\b(?=[^>]*size="320,240")(?=[^>]*margin="1,2,-3,-4")(?=[^>]*restrictSize="120,0,0,0")(?=[^>]*designImageOffsetX="-428")(?=[^>]*designImageOffsetY="238")(?=[^>]*clipSoftness="5,-6")(?=[^>]*scrollBarMargin="7,8,-9,-10")/,
+		);
+		t.regex(
+			componentXml,
+			/<image\b(?=[^>]*id="n0")(?=[^>]*xy="2,-5")(?=[^>]*size="16,10")(?=[^>]*restrictSize="11,0,0,12")/,
+		);
+		t.true(
+			componentXml.includes(
+				'<gearXY controller="state" pages="0" values="2,-5,0.125,0.25" default="-3,4,0.5,0.75"',
+			),
+		);
+		t.true(
+			componentXml.includes(
+				'<gearSize controller="state" pages="0" values="16,10,1.25,0.75" default="-3,4,1.50,0.50"',
+			),
+		);
+		t.regex(
+			componentXml,
+			/<list\b(?=[^>]*id="n1")(?=[^>]*margin="13,14,-15,-16")(?=[^>]*scrollBarMargin="17,18,-19,-20")(?=[^>]*clipSoftness="21,-22")/,
+		);
 
 		t.is(comp.getWidth(), 320.75);
 		t.is(image.getX(), 2.625);

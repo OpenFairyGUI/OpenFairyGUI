@@ -52,7 +52,11 @@ test('resource lifecycle preflight projects batches and rejects unsafe source pa
 	t.true(duplicateIssues.some((issue) => issue.code === 'duplicate_resource_id'));
 	const removedTargetIssues = validateTransactionSupport(createSupportedProject(), [
 		{ kind: 'removeResource', selector: { packageId: 'pkg001', resourceId: 'img001' } },
-		{ kind: 'replaceResourceBytes', selector: { packageId: 'pkg001', resourceId: 'img001' }, sourceBytes: new Uint8Array([2]) },
+		{
+			kind: 'replaceResourceBytes',
+			selector: { packageId: 'pkg001', resourceId: 'img001' },
+			sourceBytes: new Uint8Array([2]),
+		},
 	]);
 	t.true(removedTargetIssues.some((issue) => issue.code === 'invalid_resource_selector'));
 
@@ -70,22 +74,30 @@ test('resource lifecycle preflight projects batches and rejects unsafe source pa
 	]);
 	t.is(replacedId.packages[0]?.resources.find((resource) => resource.id === 'img001')?.kind, 'image');
 
-	const sourcePathIssues = validateTransactionSupport(createSupportedProject(), [{
-		kind: 'addResource',
-		selector: { packageId: 'pkg001' },
-		resource: { ...addResource, sourcePath: '/package.xml' },
-	}]);
+	const sourcePathIssues = validateTransactionSupport(createSupportedProject(), [
+		{
+			kind: 'addResource',
+			selector: { packageId: 'pkg001' },
+			resource: { ...addResource, sourcePath: '/package.xml' },
+		},
+	]);
 	t.true(sourcePathIssues.some((issue) => issue.code === 'invalid_resource_payload'));
 
 	const collisionError = t.throws(
-		() => applyUamTransaction(createSupportedProject(), [{
-			kind: 'addResource',
-			selector: { packageId: 'pkg001' },
-			resource: { ...addResource, id: 'package-descriptor', path: '/', file: 'package.xml' },
-		}]),
+		() =>
+			applyUamTransaction(createSupportedProject(), [
+				{
+					kind: 'addResource',
+					selector: { packageId: 'pkg001' },
+					resource: { ...addResource, id: 'package-descriptor', path: '/', file: 'package.xml' },
+				},
+			]),
 		{ instanceOf: UamTransactionError },
 	);
-	t.true(collisionError?.issues?.some((issue) => issue.message.includes('conflicts with the package descriptor')) ?? false);
+	t.true(
+		collisionError?.issues?.some((issue) => issue.message.includes('conflicts with the package descriptor')) ??
+			false,
+	);
 
 	const referencedSoundProject = createSupportedProject();
 	referencedSoundProject.packages[0]?.resources.push({
@@ -101,25 +113,33 @@ test('resource lifecycle preflight projects batches and rejects unsafe source pa
 		metadata: null,
 		sourceBytes: new Uint8Array([1]),
 	});
-	const referencedSoundComponent = referencedSoundProject.packages[0]?.resources
-		.find((resource) => resource.id === 'cmp001');
+	const referencedSoundComponent = referencedSoundProject.packages[0]?.resources.find(
+		(resource) => resource.id === 'cmp001',
+	);
 	if (referencedSoundComponent?.kind !== 'component') {
 		t.fail('expected referenced sound component fixture');
 		return;
 	}
 	referencedSoundComponent.component.properties.sound = 'ui://pkg001/snd001';
-	t.true(validateTransactionSupport(referencedSoundProject, [{
-		kind: 'removeResource',
-		selector: { packageId: 'pkg001', resourceId: 'snd001' },
-	}]).some((issue) => issue.code === 'invalid_resource_reference'));
-	t.deepEqual(validateTransactionSupport(referencedSoundProject, [
-		{
-			kind: 'setComponentProps',
-			selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
-			props: { properties: { ...referencedSoundComponent.component.properties, sound: '' } },
-		},
-		{ kind: 'removeResource', selector: { packageId: 'pkg001', resourceId: 'snd001' } },
-	]), []);
+	t.true(
+		validateTransactionSupport(referencedSoundProject, [
+			{
+				kind: 'removeResource',
+				selector: { packageId: 'pkg001', resourceId: 'snd001' },
+			},
+		]).some((issue) => issue.code === 'invalid_resource_reference'),
+	);
+	t.deepEqual(
+		validateTransactionSupport(referencedSoundProject, [
+			{
+				kind: 'setComponentProps',
+				selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
+				props: { properties: { ...referencedSoundComponent.component.properties, sound: '' } },
+			},
+			{ kind: 'removeResource', selector: { packageId: 'pkg001', resourceId: 'snd001' } },
+		]),
+		[],
+	);
 
 	for (const source of ['text', 'transition', 'gear'] as const) {
 		const referencedProject = createSupportedProject();
@@ -158,10 +178,15 @@ test('resource lifecycle preflight projects batches and rejects unsafe source pa
 				customEasePath: '',
 			});
 		}
-		t.true(validateTransactionSupport(referencedProject, [{
-			kind: 'removeResource',
-			selector: { packageId: 'pkg001', resourceId: 'embedded' },
-		}]).some((issue) => issue.code === 'invalid_resource_reference'), source);
+		t.true(
+			validateTransactionSupport(referencedProject, [
+				{
+					kind: 'removeResource',
+					selector: { packageId: 'pkg001', resourceId: 'embedded' },
+				},
+			]).some((issue) => issue.code === 'invalid_resource_reference'),
+			source,
+		);
 	}
 });
 
@@ -187,38 +212,81 @@ test('addResource restores exact resource order with optional stable indexes', a
 	const originalOrder = pkg.resources.map((resource) => resource.id);
 	const snapshots = [orderedA, orderedB].map((resource) => structuredClone(resource));
 
-	const removed = applyUamTransaction(project, snapshots.map((resource) => ({
-		kind: 'removeResource' as const,
-		selector: { packageId: pkg.id, resourceId: resource.id },
-	})));
-	const restored = applyUamTransaction(removed, snapshots.map((resource, index) => ({
-		kind: 'addResource' as const,
-		selector: { packageId: pkg.id },
-		resource,
-		atIndex: index === 0 ? 0 : 3,
-	})));
-	t.deepEqual(restored.packages[0]!.resources.map((resource) => resource.id), originalOrder);
+	const removed = applyUamTransaction(
+		project,
+		snapshots.map((resource) => ({
+			kind: 'removeResource' as const,
+			selector: { packageId: pkg.id, resourceId: resource.id },
+		})),
+	);
+	const restored = applyUamTransaction(
+		removed,
+		snapshots.map((resource, index) => ({
+			kind: 'addResource' as const,
+			selector: { packageId: pkg.id },
+			resource,
+			atIndex: index === 0 ? 0 : 3,
+		})),
+	);
+	t.deepEqual(
+		restored.packages[0]!.resources.map((resource) => resource.id),
+		originalOrder,
+	);
 	const roundTripped = await roundTripCommittedProject(restored);
-	t.deepEqual(roundTripped.packages[0]!.resources.map((resource) => resource.id), originalOrder);
+	t.deepEqual(
+		roundTripped.packages[0]!.resources.map((resource) => resource.id),
+		originalOrder,
+	);
 
-	const appended = applyUamTransaction(restored, [{
-		kind: 'addResource',
-		selector: { packageId: pkg.id },
-		resource: createMisc('appended', 3),
-	}]);
+	const appended = applyUamTransaction(restored, [
+		{
+			kind: 'addResource',
+			selector: { packageId: pkg.id },
+			resource: createMisc('appended', 3),
+		},
+	]);
 	t.is(appended.packages[0]!.resources.at(-1)?.id, 'appended');
 
 	const invalidSource = structuredClone(removed);
 	const invalidBefore = structuredClone(invalidSource);
 	const invalidOperations = [
-		{ kind: 'addResource' as const, selector: { packageId: pkg.id }, resource: createMisc('negative', 4), atIndex: -1 },
-		{ kind: 'addResource' as const, selector: { packageId: pkg.id }, resource: createMisc('past-end', 5), atIndex: 99 },
-		{ kind: 'addResource' as const, selector: { packageId: pkg.id }, resource: createMisc('null', 6), atIndex: null as unknown as number },
-		{ kind: 'addResource' as const, selector: { packageId: pkg.id }, resource: createMisc('nan', 7), atIndex: Number.NaN },
-		{ kind: 'addResource' as const, selector: { packageId: pkg.id }, resource: createMisc('fractional', 8), atIndex: 0.5 },
+		{
+			kind: 'addResource' as const,
+			selector: { packageId: pkg.id },
+			resource: createMisc('negative', 4),
+			atIndex: -1,
+		},
+		{
+			kind: 'addResource' as const,
+			selector: { packageId: pkg.id },
+			resource: createMisc('past-end', 5),
+			atIndex: 99,
+		},
+		{
+			kind: 'addResource' as const,
+			selector: { packageId: pkg.id },
+			resource: createMisc('null', 6),
+			atIndex: null as unknown as number,
+		},
+		{
+			kind: 'addResource' as const,
+			selector: { packageId: pkg.id },
+			resource: createMisc('nan', 7),
+			atIndex: Number.NaN,
+		},
+		{
+			kind: 'addResource' as const,
+			selector: { packageId: pkg.id },
+			resource: createMisc('fractional', 8),
+			atIndex: 0.5,
+		},
 	];
-	t.is(validateTransactionSupport(invalidSource, invalidOperations)
-		.filter((issue) => issue.code === 'invalid_resource_index').length, 5);
+	t.is(
+		validateTransactionSupport(invalidSource, invalidOperations).filter(
+			(issue) => issue.code === 'invalid_resource_index',
+		).length,
+		5,
+	);
 	t.throws(() => applyUamTransaction(invalidSource, invalidOperations), { instanceOf: UamTransactionError });
 	t.deepEqual(invalidSource, invalidBefore);
 
@@ -241,26 +309,28 @@ test('addResource restores exact resource order with optional stable indexes', a
 test('UAM-native execution failure leaves the input project unchanged', (t) => {
 	const project = createSupportedProject();
 	const before = structuredClone(project);
-	t.throws(() => applyUamNativeOperations(project, [
-		{
-			kind: 'addResource',
-			selector: { packageId: 'pkg001' },
-			resource: {
-				kind: 'misc',
-				id: 'temporary',
-				name: 'temporary',
-				path: '/',
-				exported: true,
-				favorite: false,
-				branch: '',
-				branchItemIds: [],
-				file: 'temporary.bin',
-				metadata: null,
-				sourceBytes: new Uint8Array([1]),
+	t.throws(() =>
+		applyUamNativeOperations(project, [
+			{
+				kind: 'addResource',
+				selector: { packageId: 'pkg001' },
+				resource: {
+					kind: 'misc',
+					id: 'temporary',
+					name: 'temporary',
+					path: '/',
+					exported: true,
+					favorite: false,
+					branch: '',
+					branchItemIds: [],
+					file: 'temporary.bin',
+					metadata: null,
+					sourceBytes: new Uint8Array([1]),
+				},
 			},
-		},
-		{ kind: 'removeResource', selector: { packageId: 'pkg001', resourceId: 'missing' } },
-	]));
+			{ kind: 'removeResource', selector: { packageId: 'pkg001', resourceId: 'missing' } },
+		]),
+	);
 	t.deepEqual(project, before);
 	t.false(project.packages[0]?.resources.some((resource) => resource.id === 'temporary'));
 });
@@ -280,25 +350,30 @@ test('branch lifecycle preserves package-local slots and rejects unsafe removal'
 	main.folders.push({ branch: 'mobile', path: '/mobile/', favorite: false, atlas: '' });
 	const overlay = createLifecyclePackage();
 	overlay.branchNames = ['alpha', 'mobile'];
-	overlay.resources = [{
-		...structuredClone(main.resources[0]!),
-		id: 'overlayMain',
-		branch: '',
-		branchItemIds: ['', 'overlayMobile'],
-	}, {
-		...structuredClone(main.resources[0]!),
-		id: 'overlayMobile',
-		branch: 'mobile',
-		branchItemIds: [],
-	}];
+	overlay.resources = [
+		{
+			...structuredClone(main.resources[0]!),
+			id: 'overlayMain',
+			branch: '',
+			branchItemIds: ['', 'overlayMobile'],
+		},
+		{
+			...structuredClone(main.resources[0]!),
+			id: 'overlayMobile',
+			branch: 'mobile',
+			branchItemIds: [],
+		},
+	];
 	project.packages.push(overlay);
 	const baseline = applyUamTransaction(project, []);
 
-	const renamed = applyUamTransaction(baseline, [{
-		kind: 'renameBranch',
-		selector: { branch: 'mobile' },
-		newName: 'beta',
-	}]);
+	const renamed = applyUamTransaction(baseline, [
+		{
+			kind: 'renameBranch',
+			selector: { branch: 'mobile' },
+			newName: 'beta',
+		},
+	]);
 	t.deepEqual(renamed.branches, ['alpha', 'beta', 'zulu']);
 	t.deepEqual(renamed.packages[0]!.branchNames, ['beta', 'zulu']);
 	t.deepEqual(renamed.packages[1]!.branchNames, ['alpha', 'beta']);
@@ -309,12 +384,17 @@ test('branch lifecycle preserves package-local slots and rejects unsafe removal'
 	t.deepEqual(reloaded.branches, ['alpha', 'beta', 'zulu']);
 	t.deepEqual(reloaded.packages[0]!.branchNames, ['beta', 'zulu']);
 	t.deepEqual(reloaded.packages[1]!.branchNames, ['alpha', 'beta']);
-	t.deepEqual(reloaded.packages[0]!.resources.find((resource) => resource.id === 'img001')?.branchItemIds, ['mobileImage', '']);
-	const restored = applyUamTransaction(renamed, [{
-		kind: 'renameBranch',
-		selector: { branch: 'beta' },
-		newName: 'mobile',
-	}]);
+	t.deepEqual(reloaded.packages[0]!.resources.find((resource) => resource.id === 'img001')?.branchItemIds, [
+		'mobileImage',
+		'',
+	]);
+	const restored = applyUamTransaction(renamed, [
+		{
+			kind: 'renameBranch',
+			selector: { branch: 'beta' },
+			newName: 'mobile',
+		},
+	]);
 	t.deepEqual(restored, baseline);
 
 	const emptyAdded = applyUamTransaction(baseline, [{ kind: 'addBranch', branch: 'empty' }]);
@@ -328,16 +408,24 @@ test('branch lifecycle preserves package-local slots and rejects unsafe removal'
 		[{ kind: 'removeBranch', selector: { branch: 'missing' } }, 'invalid_branch_selector'],
 		[{ kind: 'removeBranch', selector: { branch: 'mobile' } }, 'branch_not_empty'],
 	] as const) {
-		t.true(validateTransactionSupport(baseline, [operation as UamTransactionOperation]).some((issue) => issue.code === code));
+		t.true(
+			validateTransactionSupport(baseline, [operation as UamTransactionOperation]).some(
+				(issue) => issue.code === code,
+			),
+		);
 	}
 	const referenced = createSupportedProject();
 	referenced.branches = ['mapped'];
 	referenced.packages[0]!.branchNames = ['mapped'];
 	referenced.packages[0]!.resources[0]!.branchItemIds = ['mappedVariant'];
-	t.true(validateTransactionSupport(referenced, [{
-		kind: 'removeBranch',
-		selector: { branch: 'mapped' },
-	}]).some((issue) => issue.code === 'branch_referenced'));
+	t.true(
+		validateTransactionSupport(referenced, [
+			{
+				kind: 'removeBranch',
+				selector: { branch: 'mapped' },
+			},
+		]).some((issue) => issue.code === 'branch_referenced'),
+	);
 });
 
 test('package and component lifecycle transactions survive write, reload, and inverse operations', async (t) => {
@@ -370,8 +458,8 @@ test('package and component lifecycle transactions survive write, reload, and in
 	const reloaded = await roundTripCommittedProject(moved);
 	const movedPackage = reloaded.packages.find((pkg) => pkg.id === 'pkg002');
 	const movedComponent = reloaded.packages
-		.find((pkg) => pkg.id === 'pkg001')?.resources
-		.find((resource) => resource.id === 'cmp002');
+		.find((pkg) => pkg.id === 'pkg001')
+		?.resources.find((resource) => resource.id === 'cmp002');
 	t.is(movedPackage?.name, 'OverlayRenamed');
 	t.is(movedComponent?.kind, 'component');
 
@@ -399,20 +487,22 @@ test('package and component lifecycle transactions survive write, reload, and in
 		{ kind: 'addPackage', package: packageSnapshot, atIndex: 1 },
 	]);
 	const inverseComponent = restoredFromInverse.packages
-		.find((pkg) => pkg.id === 'pkg002')?.resources
-		.find((resource) => resource.id === 'cmp002');
+		.find((pkg) => pkg.id === 'pkg002')
+		?.resources.find((resource) => resource.id === 'cmp002');
 	t.is(inverseComponent?.kind, 'component');
 });
 
 test('package and component lifecycle preflight reports dependency and batch diagnostics', (t) => {
 	const project = createSupportedProject();
 	const host = createLifecycleComponent('cmp003', 'Host');
-	host.component.displayList = [{
-		...createDisplayNodeBase('component-ref', 'component-ref'),
-		kind: 'component',
-		group: '',
-		resource: { packageId: 'pkg001', resourceId: 'cmp001' },
-	}];
+	host.component.displayList = [
+		{
+			...createDisplayNodeBase('component-ref', 'component-ref'),
+			kind: 'component',
+			group: '',
+			resource: { packageId: 'pkg001', resourceId: 'cmp001' },
+		},
+	];
 	project.packages.push({ ...createLifecyclePackage(), resources: [host] });
 
 	const removeIssues = validateTransactionSupport(project, [
@@ -423,27 +513,32 @@ test('package and component lifecycle preflight reports dependency and batch dia
 	t.true(removeIssues.some((issue) => issue.code === 'package_referenced'));
 
 	const movedComponent = project.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
-	const movedImage = movedComponent?.kind === 'component'
-		? movedComponent.component.displayList.find((node) => node.id === 'n0')
-		: null;
+	const movedImage =
+		movedComponent?.kind === 'component'
+			? movedComponent.component.displayList.find((node) => node.id === 'n0')
+			: null;
 	if (movedImage?.kind !== 'image') {
 		t.fail('expected movable image dependency fixture');
 		return;
 	}
 	movedImage.resource.packageId = 'pkg001';
-	const moveIssues = validateTransactionSupport(project, [{
-		kind: 'moveComponent',
-		selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
-		toPackageId: 'pkg002',
-		toIndex: 1,
-	}]);
+	const moveIssues = validateTransactionSupport(project, [
+		{
+			kind: 'moveComponent',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
+			toPackageId: 'pkg002',
+			toIndex: 1,
+		},
+	]);
 	t.true(moveIssues.some((issue) => issue.code === 'component_has_package_dependencies'));
 
-	const addIssues = validateTransactionSupport(createSupportedProject(), [{
-		kind: 'addPackage',
-		package: createLifecyclePackage('pkg001', '../unsafe'),
-		atIndex: -1,
-	}]);
+	const addIssues = validateTransactionSupport(createSupportedProject(), [
+		{
+			kind: 'addPackage',
+			package: createLifecyclePackage('pkg001', '../unsafe'),
+			atIndex: -1,
+		},
+	]);
 	t.true(addIssues.some((issue) => issue.code === 'duplicate_package_id'));
 	t.true(addIssues.some((issue) => issue.code === 'invalid_package_payload'));
 	t.true(addIssues.some((issue) => issue.code === 'invalid_package_index'));
@@ -455,11 +550,15 @@ test('package and component lifecycle preflight reports dependency and batch dia
 			publish: { ...createLifecyclePackage().publish!, maxAtlasSize: 0 },
 		},
 	]) {
-		t.true(validateTransactionSupport(createSupportedProject(), [{
-			kind: 'addPackage',
-			package: invalidPackage,
-			atIndex: 1,
-		}]).some((issue) => issue.code === 'invalid_package_settings'));
+		t.true(
+			validateTransactionSupport(createSupportedProject(), [
+				{
+					kind: 'addPackage',
+					package: invalidPackage,
+					atIndex: 1,
+				},
+			]).some((issue) => issue.code === 'invalid_package_settings'),
+		);
 	}
 
 	const batchIssues = validateTransactionSupport(createSupportedProject(), [
@@ -492,9 +591,12 @@ test('display-list projection validates and applies properties on a newly attach
 	t.deepEqual(validateTransactionSupport(project, operations), []);
 	const updated = applyUamTransaction(project, operations);
 	const component = updated.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
-	t.is(component?.kind === 'component'
-		? component.component.displayList.find((candidate) => candidate.id === node.id)?.alpha
-		: null, 0.5);
+	t.is(
+		component?.kind === 'component'
+			? component.component.displayList.find((candidate) => candidate.id === node.id)?.alpha
+			: null,
+		0.5,
+	);
 });
 
 test('package-local dependencies resolve from a component destination after an atomic copy and move', (t) => {
@@ -561,8 +663,12 @@ test('component lifecycle atomically rewrites inbound display references', async
 	];
 	t.deepEqual(validateTransactionSupport(project, forward), []);
 	const moved = await roundTripCommittedProject(applyUamTransaction(project, forward));
-	const movedTarget = moved.packages.find((pkg) => pkg.id === 'pkg001')?.resources.find((resource) => resource.id === 'cmp002');
-	const movedHost = moved.packages.find((pkg) => pkg.id === 'pkg002')?.resources.find((resource) => resource.id === 'cmp003');
+	const movedTarget = moved.packages
+		.find((pkg) => pkg.id === 'pkg001')
+		?.resources.find((resource) => resource.id === 'cmp002');
+	const movedHost = moved.packages
+		.find((pkg) => pkg.id === 'pkg002')
+		?.resources.find((resource) => resource.id === 'cmp003');
 	t.is(movedTarget?.kind, 'component');
 	if (movedHost?.kind !== 'component') {
 		t.fail('expected moved host component');
@@ -601,17 +707,22 @@ test('component lifecycle atomically rewrites inbound display references', async
 		t.fail('expected restored components');
 		return;
 	}
-	t.deepEqual(restoredHost.component.displayList.find((node) => node.id === 'component-ref'), {
-		...originalReference,
-		pivot: { x: 0, y: 0 },
-		pivotAsAnchor: false,
-		resource: { packageId: 'pkg002', resourceId: 'cmp002' },
-	});
+	t.deepEqual(
+		restoredHost.component.displayList.find((node) => node.id === 'component-ref'),
+		{
+			...originalReference,
+			pivot: { x: 0, y: 0 },
+			pivotAsAnchor: false,
+			resource: { packageId: 'pkg002', resourceId: 'cmp002' },
+		},
+	);
 
-	const unsafeRemove = validateTransactionSupport(restored, [{
-		kind: 'removeComponent',
-		selector: { packageId: 'pkg002', componentResourceId: 'cmp002' },
-	}]);
+	const unsafeRemove = validateTransactionSupport(restored, [
+		{
+			kind: 'removeComponent',
+			selector: { packageId: 'pkg002', componentResourceId: 'cmp002' },
+		},
+	]);
 	t.true(unsafeRemove.some((issue) => issue.code === 'component_referenced'));
 	const implicitReplace = validateTransactionSupport(restored, [
 		{ kind: 'removeComponent', selector: { packageId: 'pkg002', componentResourceId: 'cmp002' } },
@@ -619,43 +730,55 @@ test('component lifecycle atomically rewrites inbound display references', async
 	]);
 	t.true(implicitReplace.some((issue) => issue.code === 'component_referenced'));
 
-	const removed = await roundTripCommittedProject(applyUamTransaction(restored, [
-		{
-			kind: 'detachDisplayNode',
-			selector: { packageId: 'pkg002', componentResourceId: 'cmp003', displayNodeId: 'component-ref' },
-		},
-		{
-			kind: 'removeComponent',
-			selector: { packageId: 'pkg002', componentResourceId: 'cmp002' },
-		},
-	]));
-	t.false(removed.packages.find((pkg) => pkg.id === 'pkg002')?.resources.some((resource) => resource.id === 'cmp002') ?? true);
+	const removed = await roundTripCommittedProject(
+		applyUamTransaction(restored, [
+			{
+				kind: 'detachDisplayNode',
+				selector: { packageId: 'pkg002', componentResourceId: 'cmp003', displayNodeId: 'component-ref' },
+			},
+			{
+				kind: 'removeComponent',
+				selector: { packageId: 'pkg002', componentResourceId: 'cmp002' },
+			},
+		]),
+	);
+	t.false(
+		removed.packages.find((pkg) => pkg.id === 'pkg002')?.resources.some((resource) => resource.id === 'cmp002') ??
+			true,
+	);
 
-	const restoredAfterRemove = await roundTripCommittedProject(applyUamTransaction(removed, [
-		{
-			kind: 'addComponent',
-			selector: { packageId: 'pkg002' },
-			component: restoredTarget,
-			atIndex: 0,
-		},
-		{
-			kind: 'attachDisplayNode',
-			selector: { packageId: 'pkg002', componentResourceId: 'cmp003' },
-			atIndex: 0,
-			node: originalReference,
-		},
-	]));
-	const reattachedHost = restoredAfterRemove.packages.find((pkg) => pkg.id === 'pkg002')?.resources.find((resource) => resource.id === 'cmp003');
+	const restoredAfterRemove = await roundTripCommittedProject(
+		applyUamTransaction(removed, [
+			{
+				kind: 'addComponent',
+				selector: { packageId: 'pkg002' },
+				component: restoredTarget,
+				atIndex: 0,
+			},
+			{
+				kind: 'attachDisplayNode',
+				selector: { packageId: 'pkg002', componentResourceId: 'cmp003' },
+				atIndex: 0,
+				node: originalReference,
+			},
+		]),
+	);
+	const reattachedHost = restoredAfterRemove.packages
+		.find((pkg) => pkg.id === 'pkg002')
+		?.resources.find((resource) => resource.id === 'cmp003');
 	if (reattachedHost?.kind !== 'component') {
 		t.fail('expected reattached host component');
 		return;
 	}
-	t.deepEqual(reattachedHost.component.displayList.find((node) => node.id === 'component-ref'), {
-		...originalReference,
-		pivot: { x: 0, y: 0 },
-		pivotAsAnchor: false,
-		resource: { packageId: 'pkg002', resourceId: 'cmp002' },
-	});
+	t.deepEqual(
+		reattachedHost.component.displayList.find((node) => node.id === 'component-ref'),
+		{
+			...originalReference,
+			pivot: { x: 0, y: 0 },
+			pivotAsAnchor: false,
+			resource: { packageId: 'pkg002', resourceId: 'cmp002' },
+		},
+	);
 
 	const invalidReference = validateTransactionSupport(project, [
 		{
@@ -668,7 +791,11 @@ test('component lifecycle atomically rewrites inbound display references', async
 			kind: 'attachDisplayNode',
 			selector: { packageId: 'pkg002', componentResourceId: 'cmp003' },
 			atIndex: 1,
-			node: { ...originalReference, id: 'missing-component-ref', resource: { packageId: 'pkg002', resourceId: 'missing' } },
+			node: {
+				...originalReference,
+				id: 'missing-component-ref',
+				resource: { packageId: 'pkg002', resourceId: 'missing' },
+			},
 		},
 	]);
 	t.true(invalidReference.some((issue) => issue.code === 'invalid_component_reference'));
@@ -707,20 +834,31 @@ test('resource writes clean only explicit prior project sources and commit their
 		await writeProjectFromUam(io, removed, outFairy, { previousProject: renamed });
 		await t.throwsAsync(fs.access(path.join(tmpDir, 'assets', 'Main', 'moved', 'renamed.png')));
 
-		const withFolder = applyUamTransaction(removed, [{
-			kind: 'addResourceFolder', selector: { packageId: 'pkg001' }, path: '/empty/',
-		}]);
+		const withFolder = applyUamTransaction(removed, [
+			{
+				kind: 'addResourceFolder',
+				selector: { packageId: 'pkg001' },
+				path: '/empty/',
+			},
+		]);
 		await writeProjectFromUam(io, withFolder, outFairy, { previousProject: removed });
 		await fs.access(path.join(tmpDir, 'assets', 'Main', 'empty'));
-		const renamedFolder = applyUamTransaction(withFolder, [{
-			kind: 'renameResourceFolder', selector: { packageId: 'pkg001', path: '/empty/' }, newName: 'renamed',
-		}]);
+		const renamedFolder = applyUamTransaction(withFolder, [
+			{
+				kind: 'renameResourceFolder',
+				selector: { packageId: 'pkg001', path: '/empty/' },
+				newName: 'renamed',
+			},
+		]);
 		await writeProjectFromUam(io, renamedFolder, outFairy, { previousProject: withFolder });
 		await t.throwsAsync(fs.access(path.join(tmpDir, 'assets', 'Main', 'empty')));
 		await fs.access(path.join(tmpDir, 'assets', 'Main', 'renamed'));
-		const withoutFolder = applyUamTransaction(renamedFolder, [{
-			kind: 'removeResourceFolder', selector: { packageId: 'pkg001', path: '/renamed/' },
-		}]);
+		const withoutFolder = applyUamTransaction(renamedFolder, [
+			{
+				kind: 'removeResourceFolder',
+				selector: { packageId: 'pkg001', path: '/renamed/' },
+			},
+		]);
 		await writeProjectFromUam(io, withoutFolder, outFairy, { previousProject: renamedFolder });
 		await t.throwsAsync(fs.access(path.join(tmpDir, 'assets', 'Main', 'renamed')));
 
@@ -730,7 +868,7 @@ test('resource writes clean only explicit prior project sources and commit their
 				kind: 'addComponent',
 				selector: { packageId: 'pkg002' },
 				component: createLifecycleComponent(),
-			atIndex: 0,
+				atIndex: 0,
 			},
 		]);
 		await writeProjectFromUam(io, withPackage, outFairy, { previousProject: withoutFolder });
@@ -771,11 +909,14 @@ test('controller updates cannot leave display gears bound to removed pages', (t)
 		visibleOnPageIds: ['0'],
 	});
 	const error = t.throws(
-		() => applyUamTransaction(project, [{
-			kind: 'updateController',
-			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: 'state' },
-			controller: { ...createControllerModel(), pages: [{ id: '2', name: 'New', remark: '' }] },
-		}]),
+		() =>
+			applyUamTransaction(project, [
+				{
+					kind: 'updateController',
+					selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: 'state' },
+					controller: { ...createControllerModel(), pages: [{ id: '2', name: 'New', remark: '' }] },
+				},
+			]),
 		{ instanceOf: UamTransactionError },
 	);
 	t.true(error?.issues?.some((issue) => issue.message.includes('Unknown gear page id "0"')) ?? false);
@@ -820,23 +961,35 @@ test('controller and display gear page changes can commit in one transaction', (
 		},
 	]);
 	const updatedComponent = updated.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
-	const gear = updatedComponent?.kind === 'component'
-		? updatedComponent.component.displayList[0]?.gears.find((candidate) => candidate.kind === 'display')
-		: null;
+	const gear =
+		updatedComponent?.kind === 'component'
+			? updatedComponent.component.displayList[0]?.gears.find((candidate) => candidate.kind === 'display')
+			: null;
 	t.deepEqual(gear?.kind === 'display' ? gear.visibleOnPageIds : null, ['2']);
 });
 
 test('gear kinds are unique across controllers and can be rebound by remove then add', async (t) => {
-	const seeded = applyUamTransaction(createSupportedProject(), ['a', 'b'].map((controllerName) => ({
-		kind: 'addController' as const,
-		selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName },
-		controller: createControllerModel(controllerName),
-	})));
+	const seeded = applyUamTransaction(
+		createSupportedProject(),
+		['a', 'b'].map((controllerName) => ({
+			kind: 'addController' as const,
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName },
+			controller: createControllerModel(controllerName),
+		})),
+	);
 	for (const gear of [...createNonLookGears('a'), createLookGear('a')]) {
-		const selector = { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n0', kind: gear.kind, controllerName: 'a' };
+		const selector = {
+			packageId: 'pkg001',
+			componentResourceId: 'cmp001',
+			displayNodeId: 'n0',
+			kind: gear.kind,
+			controllerName: 'a',
+		};
 		const first: UamTransactionOperation = { kind: 'addGear', selector, gear };
 		const second: UamTransactionOperation = {
-			kind: 'addGear', selector: { ...selector, controllerName: 'b' }, gear: { ...gear, controllerName: 'b' },
+			kind: 'addGear',
+			selector: { ...selector, controllerName: 'b' },
+			gear: { ...gear, controllerName: 'b' },
 		};
 		const before = structuredClone(seeded);
 		t.throws(() => applyUamTransaction(seeded, [first, second]), { instanceOf: UamTransactionError });
@@ -847,27 +1000,49 @@ test('gear kinds are unique across controllers and can be rebound by remove then
 		const duplicateComponent = duplicate.packages[0]!.resources.find((resource) => resource.id === 'cmp001');
 		if (duplicateComponent?.kind !== 'component') throw new Error('Expected component');
 		duplicateComponent.component.displayList[0]!.gears.push({ ...gear, controllerName: 'b' });
-		t.true(validateUamProject(duplicate).some((issue) => issue.message.includes('only have one')), gear.kind);
+		t.true(
+			validateUamProject(duplicate).some((issue) => issue.message.includes('only have one')),
+			gear.kind,
+		);
 		const rebound = applyUamTransaction(added, [{ kind: 'removeGear', selector }, second]);
 		const round = await roundTripCommittedProject(rebound);
 		const roundComponent = round.packages[0]!.resources.find((resource) => resource.id === 'cmp001');
 		if (roundComponent?.kind !== 'component') throw new Error('Expected component');
-		t.deepEqual(roundComponent.component.displayList[0]!.gears, [{ ...gear, name: '', controllerName: 'b' }], gear.kind);
+		t.deepEqual(
+			roundComponent.component.displayList[0]!.gears,
+			[{ ...gear, name: '', controllerName: 'b' }],
+			gear.kind,
+		);
 	}
-	const visibilityGears = createNonLookGears('a').filter((gear) => gear.kind === 'display' || gear.kind === 'display2');
-	t.notThrows(() => applyUamTransaction(seeded, visibilityGears.map((gear) => ({
-		kind: 'addGear',
-		selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n0', kind: gear.kind, controllerName: gear.controllerName },
-		gear,
-	}))));
+	const visibilityGears = createNonLookGears('a').filter(
+		(gear) => gear.kind === 'display' || gear.kind === 'display2',
+	);
+	t.notThrows(() =>
+		applyUamTransaction(
+			seeded,
+			visibilityGears.map((gear) => ({
+				kind: 'addGear',
+				selector: {
+					packageId: 'pkg001',
+					componentResourceId: 'cmp001',
+					displayNodeId: 'n0',
+					kind: gear.kind,
+					controllerName: gear.controllerName,
+				},
+				gear,
+			})),
+		),
+	);
 });
 
 test('percentage XY gears preserve px/py through transactions, project XML and binary', async (t) => {
-	const seeded = applyUamTransaction(createSupportedProject(), [{
-		kind: 'addController',
-		selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: 'state' },
-		controller: createControllerModel('state'),
-	}]);
+	const seeded = applyUamTransaction(createSupportedProject(), [
+		{
+			kind: 'addController',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: 'state' },
+			controller: createControllerModel('state'),
+		},
+	]);
 	const gear = createNonLookGears().find((candidate) => candidate.kind === 'xy')!;
 	gear.name = '';
 	gear.positionsInPercent = true;
@@ -876,7 +1051,13 @@ test('percentage XY gears preserve px/py through transactions, project XML and b
 		{ pageId: '1', value: { x: 160, y: 90, px: 0.5, py: 0.5 } },
 	];
 	gear.defaultValue = { x: 0, y: 0, px: 0, py: 0 };
-	const selector = { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n0', kind: 'xy', controllerName: 'state' } as const;
+	const selector = {
+		packageId: 'pkg001',
+		componentResourceId: 'cmp001',
+		displayNodeId: 'n0',
+		kind: 'xy',
+		controllerName: 'state',
+	} as const;
 	const getGear = (project: UamProject) => {
 		const component = project.packages[0]!.resources.find((resource) => resource.id === 'cmp001');
 		if (component?.kind !== 'component') throw new Error('Expected component');
@@ -900,10 +1081,20 @@ test('percentage XY gears preserve px/py through transactions, project XML and b
 	t.deepEqual(getGear(await roundTripCommittedProject(noDefault)), noDefaultGear);
 	await io.writeBinary(materializeUamProject(noDefault), binaryPath);
 	t.is(getGear(liftDocumentToUamProject(await io.readBinary(binaryPath)))?.defaultValue, null);
-	for (const value of [{ x: 1, y: 2 }, { x: 1, y: 2, px: 0.25 }, { x: 1, y: 2, px: Number.NaN, py: 0.5 }]) {
+	for (const value of [
+		{ x: 1, y: 2 },
+		{ x: 1, y: 2, px: 0.25 },
+		{ x: 1, y: 2, px: Number.NaN, py: 0.5 },
+	]) {
 		const invalid = { ...gear, states: [{ pageId: '0', value }] };
-		t.true(validateTransactionSupport(seeded, [{ kind: 'addGear', selector, gear: invalid }]).some((issue) => issue.code === 'invalid_gear_payload'));
-		t.throws(() => applyUamTransaction(seeded, [{ kind: 'addGear', selector, gear: invalid }]), { instanceOf: UamTransactionError });
+		t.true(
+			validateTransactionSupport(seeded, [{ kind: 'addGear', selector, gear: invalid }]).some(
+				(issue) => issue.code === 'invalid_gear_payload',
+			),
+		);
+		t.throws(() => applyUamTransaction(seeded, [{ kind: 'addGear', selector, gear: invalid }]), {
+			instanceOf: UamTransactionError,
+		});
 		const invalidProject = structuredClone(applied);
 		getGear(invalidProject)!.defaultValue = value;
 		t.true(validateUamProject(invalidProject).some((issue) => issue.message.includes('px/py')));
@@ -911,35 +1102,51 @@ test('percentage XY gears preserve px/py through transactions, project XML and b
 });
 
 test('non-look gear transactions validate references and persist every supported gear kind', async (t) => {
-	const seeded = applyUamTransaction(createSupportedProject(), [{
-		kind: 'addController',
-		selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: 'state' },
-		controller: createControllerModel('state'),
-	}]);
-	const gears = createNonLookGears();
-	const added = applyUamTransaction(seeded, gears.map((gear): UamTransactionOperation => ({
-		kind: 'addGear',
-		selector: {
-			packageId: 'pkg001',
-			componentResourceId: 'cmp001',
-			displayNodeId: 'n0',
-			kind: gear.kind,
-			controllerName: 'state',
+	const seeded = applyUamTransaction(createSupportedProject(), [
+		{
+			kind: 'addController',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: 'state' },
+			controller: createControllerModel('state'),
 		},
-		gear,
-	})));
+	]);
+	const gears = createNonLookGears();
+	const added = applyUamTransaction(
+		seeded,
+		gears.map(
+			(gear): UamTransactionOperation => ({
+				kind: 'addGear',
+				selector: {
+					packageId: 'pkg001',
+					componentResourceId: 'cmp001',
+					displayNodeId: 'n0',
+					kind: gear.kind,
+					controllerName: 'state',
+				},
+				gear,
+			}),
+		),
+	);
 
 	const duplicateError = t.throws(
-		() => applyUamTransaction(added, [{
-			kind: 'addGear',
-			selector: {
-				packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n0', kind: 'xy', controllerName: 'state',
-			},
-			gear: createNonLookGears().find((gear) => gear.kind === 'xy')!,
-		}]),
+		() =>
+			applyUamTransaction(added, [
+				{
+					kind: 'addGear',
+					selector: {
+						packageId: 'pkg001',
+						componentResourceId: 'cmp001',
+						displayNodeId: 'n0',
+						kind: 'xy',
+						controllerName: 'state',
+					},
+					gear: createNonLookGears().find((gear) => gear.kind === 'xy')!,
+				},
+			]),
 		{ instanceOf: UamTransactionError },
 	);
-	t.true(duplicateError?.issues?.some((issue) => 'code' in issue && issue.code === 'duplicate_gear_controller') ?? false);
+	t.true(
+		duplicateError?.issues?.some((issue) => 'code' in issue && issue.code === 'duplicate_gear_controller') ?? false,
+	);
 
 	const invalidPageGear = createNonLookGears().find((gear) => gear.kind === 'text')!;
 	if (invalidPageGear.kind !== 'text') {
@@ -948,29 +1155,43 @@ test('non-look gear transactions validate references and persist every supported
 	}
 	invalidPageGear.states[0]!.pageId = 'missing';
 	const invalidPageError = t.throws(
-		() => applyUamTransaction(seeded, [{
-			kind: 'addGear',
-			selector: {
-				packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n0', kind: 'text', controllerName: 'state',
-			},
-			gear: invalidPageGear,
-		}]),
+		() =>
+			applyUamTransaction(seeded, [
+				{
+					kind: 'addGear',
+					selector: {
+						packageId: 'pkg001',
+						componentResourceId: 'cmp001',
+						displayNodeId: 'n0',
+						kind: 'text',
+						controllerName: 'state',
+					},
+					gear: invalidPageGear,
+				},
+			]),
 		{ instanceOf: UamTransactionError },
 	);
-	t.true(invalidPageError?.issues?.some((issue) => 'code' in issue && issue.code === 'invalid_gear_payload') ?? false);
+	t.true(
+		invalidPageError?.issues?.some((issue) => 'code' in issue && issue.code === 'invalid_gear_payload') ?? false,
+	);
 
 	const updatedGears = gears.map((gear) => updateNonLookGear(gear));
-	const updated = applyUamTransaction(added, updatedGears.map((gear): UamTransactionOperation => ({
-		kind: 'updateGear',
-		selector: {
-			packageId: 'pkg001',
-			componentResourceId: 'cmp001',
-			displayNodeId: 'n0',
-			kind: gear.kind,
-			controllerName: 'state',
-		},
-		gear,
-	})));
+	const updated = applyUamTransaction(
+		added,
+		updatedGears.map(
+			(gear): UamTransactionOperation => ({
+				kind: 'updateGear',
+				selector: {
+					packageId: 'pkg001',
+					componentResourceId: 'cmp001',
+					displayNodeId: 'n0',
+					kind: gear.kind,
+					controllerName: 'state',
+				},
+				gear,
+			}),
+		),
+	);
 	const reloaded = await roundTripCommittedProject(updated);
 	const reloadedComponent = reloaded.packages[0]!.resources.find((resource) => resource.id === 'cmp001');
 	if (reloadedComponent?.kind !== 'component') {
@@ -996,18 +1217,24 @@ test('non-look gear transactions validate references and persist every supported
 		t.deepEqual(actual.kind === expected.kind ? actual.defaultValue : null, expected.defaultValue);
 	}
 
-	const removed = applyUamTransaction(reloaded, gears.map((gear): UamTransactionOperation => ({
-		kind: 'removeGear',
-		selector: {
-			packageId: 'pkg001',
-			componentResourceId: 'cmp001',
-			displayNodeId: 'n0',
-			kind: gear.kind,
-			controllerName: 'state',
-		},
-	})));
+	const removed = applyUamTransaction(
+		reloaded,
+		gears.map(
+			(gear): UamTransactionOperation => ({
+				kind: 'removeGear',
+				selector: {
+					packageId: 'pkg001',
+					componentResourceId: 'cmp001',
+					displayNodeId: 'n0',
+					kind: gear.kind,
+					controllerName: 'state',
+				},
+			}),
+		),
+	);
 	const removedComponent = removed.packages[0]!.resources.find((resource) => resource.id === 'cmp001');
-	if (removedComponent?.kind === 'component') t.is(removedComponent.component.displayList.find((node) => node.id === 'n0')?.gears.length, 0);
+	if (removedComponent?.kind === 'component')
+		t.is(removedComponent.component.displayList.find((node) => node.id === 'n0')?.gears.length, 0);
 });
 
 test('preflight validation rejects invalid controller references without mutating input', (t) => {
@@ -1015,45 +1242,51 @@ test('preflight validation rejects invalid controller references without mutatin
 	const snapshot = structuredClone(project);
 
 	const error = t.throws(
-		() => applyUamTransaction(project, [
-			{
-				kind: 'renameResource',
-				opId: 'rename-first',
-				selector: { packageId: 'pkg001', resourceId: 'img001' },
-				newName: 'renamed.png',
-			},
-			{
-				kind: 'addController',
-				opId: 'bad-controller',
-				selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: 'state' },
-				controller: {
-					...createControllerModel('state'),
-					actions: [
-						{
-							name: 'bad',
-							actionType: 1,
-							fromPageIds: ['0'],
-							toPageIds: ['1'],
-							transitionName: '',
-							playTimes: 1,
-							delay: 0,
-							stopOnExit: false,
-							targetNodeId: 'missing-node',
-							controllerName: '',
-							targetPage: '',
-						},
-					],
+		() =>
+			applyUamTransaction(project, [
+				{
+					kind: 'renameResource',
+					opId: 'rename-first',
+					selector: { packageId: 'pkg001', resourceId: 'img001' },
+					newName: 'renamed.png',
 				},
-			},
-		]),
+				{
+					kind: 'addController',
+					opId: 'bad-controller',
+					selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: 'state' },
+					controller: {
+						...createControllerModel('state'),
+						actions: [
+							{
+								name: 'bad',
+								actionType: 1,
+								fromPageIds: ['0'],
+								toPageIds: ['1'],
+								transitionName: '',
+								playTimes: 1,
+								delay: 0,
+								stopOnExit: false,
+								targetNodeId: 'missing-node',
+								controllerName: '',
+								targetPage: '',
+							},
+						],
+					},
+				},
+			]),
 		{ instanceOf: UamTransactionError },
 	);
 
 	t.is(error?.code, 'transaction_unsupported');
-	t.true(error?.issues?.some((issue) => (
-		'code' in issue && issue.code === 'invalid_display_node_selector'
-		&& 'operationKind' in issue && issue.operationKind === 'addController'
-	)) ?? false);
+	t.true(
+		error?.issues?.some(
+			(issue) =>
+				'code' in issue &&
+				issue.code === 'invalid_display_node_selector' &&
+				'operationKind' in issue &&
+				issue.operationKind === 'addController',
+		) ?? false,
+	);
 	t.deepEqual(project, snapshot);
 	t.is(project.packages[0]!.resources[0]!.name, 'background.png');
 });
@@ -1078,30 +1311,32 @@ test('updateTransition preflight rejects legacy dangling targets without blockin
 		selector: { packageId: pkg.id, componentResourceId: component.id, transitionName: transition.name },
 		transition: {
 			...structuredClone(transition),
-			items: transition.items.map((item, index) => index === 0 ? { ...item, label: 'preflight-check' } : item),
+			items: transition.items.map((item, index) => (index === 0 ? { ...item, label: 'preflight-check' } : item)),
 		},
 	};
 	const issues = validateTransactionSupport(project, [operation]);
-	t.true(issues.some((issue) => (
-		issue.code === 'invalid_display_node_selector'
-		&& issue.operationKind === 'updateTransition'
-		&& issue.path === 'operations[0].transition.items[2].targetNodeId'
-	)));
+	t.true(
+		issues.some(
+			(issue) =>
+				issue.code === 'invalid_display_node_selector' &&
+				issue.operationKind === 'updateTransition' &&
+				issue.path === 'operations[0].transition.items[2].targetNodeId',
+		),
+	);
 
 	const snapshot = structuredClone(project);
-	const error = t.throws(
-		() => applyUamTransaction(project, [operation]),
-		{ instanceOf: UamTransactionError },
-	);
+	const error = t.throws(() => applyUamTransaction(project, [operation]), { instanceOf: UamTransactionError });
 	t.is(error?.code, 'transaction_unsupported');
 	t.true(error?.issues?.some((issue) => 'code' in issue && issue.code === 'invalid_display_node_selector') ?? false);
 	t.deepEqual(project, snapshot);
 
-	const unrelated = applyUamTransaction(project, [{
-		kind: 'setDisplayNodeProps',
-		selector: { packageId: pkg.id, componentResourceId: component.id, displayNodeId: 'n4' },
-		props: { alpha: 0.9 },
-	}]);
+	const unrelated = applyUamTransaction(project, [
+		{
+			kind: 'setDisplayNodeProps',
+			selector: { packageId: pkg.id, componentResourceId: component.id, displayNodeId: 'n4' },
+			props: { alpha: 0.9 },
+		},
+	]);
 	const unrelatedComponent = unrelated.packages
 		.find((candidate) => candidate.id === pkg.id)
 		?.resources.find((resource) => resource.id === component.id);

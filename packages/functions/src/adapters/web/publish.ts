@@ -2,11 +2,7 @@ import { type Document, type ILogger, ProjectType } from '@openfairygui/core';
 import type { AtlasOptions } from '../../atlas.js';
 import { resolveCodeGenerationSettings } from '../../codegen.js';
 import { publish } from '../../publish.js';
-import type {
-	PublishFileSystem,
-	PublishOutputFileSystem,
-	PublishSourceFileSystem,
-} from '../../publish/contracts.js';
+import type { PublishFileSystem, PublishOutputFileSystem, PublishSourceFileSystem } from '../../publish/contracts.js';
 import { resolvePublishOptions } from '../../publish/options.js';
 import { assertBrowserImageSupport, createBrowserImageEncoder } from './raster.js';
 
@@ -139,24 +135,30 @@ export async function publishBrowser(options: BrowserPublishOptions): Promise<Br
 			atlas: options.atlas,
 		});
 		if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(resolved.fileExtension)) {
-			diagnostics.push(unsupportedSetting(
-				'fileExtension',
-				'settings.publish.fileExtension',
-				`publishBrowser: unsupported fileExtension "${resolved.fileExtension}".`,
-			));
+			diagnostics.push(
+				unsupportedSetting(
+					'fileExtension',
+					'settings.publish.fileExtension',
+					`publishBrowser: unsupported fileExtension "${resolved.fileExtension}".`,
+				),
+			);
 			return toResult(false, files, diagnostics);
 		}
 		const selectedPackageNames = options.packages?.length ? new Set(options.packages) : null;
-		const selectedPackages = root.listPackages().filter((pkg) => !selectedPackageNames || selectedPackageNames.has(pkg.getName()));
+		const selectedPackages = root
+			.listPackages()
+			.filter((pkg) => !selectedPackageNames || selectedPackageNames.has(pkg.getName()));
 		if (resolveCodeGenerationSettings(options.document).allowGenCode) {
 			const packageIndex = selectedPackages.findIndex((pkg) => pkg.getGenCode());
 			if (packageIndex >= 0) {
 				const pkg = selectedPackages[packageIndex]!;
-				diagnostics.push(unsupportedSetting(
-					'codeGeneration',
-					`packages[${root.listPackages().indexOf(pkg)}].publish.genCode`,
-					`publishBrowser: code generation requested by package "${pkg.getName()}" is not supported.`,
-				));
+				diagnostics.push(
+					unsupportedSetting(
+						'codeGeneration',
+						`packages[${root.listPackages().indexOf(pkg)}].publish.genCode`,
+						`publishBrowser: code generation requested by package "${pkg.getName()}" is not supported.`,
+					),
+				);
 				return toResult(false, files, diagnostics);
 			}
 		}

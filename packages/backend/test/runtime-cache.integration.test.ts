@@ -52,7 +52,11 @@ test('cache is derived, revision-bound, invalidated by transaction, and refreshe
 		t.is(refresh.data.entries[0]?.lastSavedRevision, 0);
 		refresh.data.entries[0]!.summary.resourceCount = -1;
 		const events = runtime.getEvents({ sessionId: opened.data.sessionId });
-		if (events.ok) t.deepEqual(events.data.events.map((event) => event.kind), ['session.opened', 'transaction.applied', 'cache.invalidated', 'cache.updated']);
+		if (events.ok)
+			t.deepEqual(
+				events.data.events.map((event) => event.kind),
+				['session.opened', 'transaction.applied', 'cache.invalidated', 'cache.updated'],
+			);
 
 		const refreshed = runtime.getCacheSnapshot({ sessionId: opened.data.sessionId });
 		t.true(refreshed.ok);

@@ -1,0 +1,13 @@
+{
+  "recordedAt": "2026-09-24T16:51:06.259Z",
+  "requestedInvocations": 1,
+  "clientVersion": "2.1.281",
+  "modelReported": "claude-opus-5-5[1m]",
+  "modelRequested": null,
+  "timedOut": false,
+  "isolatedTools": true,
+  "error": "model_not_found",
+  "modelToolCalls": 0,
+  "modelSuccessRate": null,
+  "report": "0.6.1-claude-reconfigured-pilot-3.json"
+}

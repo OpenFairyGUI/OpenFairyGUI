@@ -74,24 +74,14 @@ async function createSourceProject(): Promise<{
 	return { directory, projectPath };
 }
 
-function assertPivotState(
-	t: import('ava').ExecutionContext,
-	doc: Document,
-	epsilon = 0,
-): void {
+function assertPivotState(t: import('ava').ExecutionContext, doc: Document, epsilon = 0): void {
 	const component = doc.getRoot().getPackage('Pivot')?.getComponent('Main');
 	t.truthy(component);
 	for (const [id, [pivotX, pivotY]] of expected) {
 		const child = component?.getChildById(id) as unknown as PivotObject | null;
 		t.truthy(child, `${id} exists`);
-		t.true(
-			Math.abs((child?.getPivotX() ?? Number.NaN) - pivotX) <= epsilon,
-			`${id} pivotX`,
-		);
-		t.true(
-			Math.abs((child?.getPivotY() ?? Number.NaN) - pivotY) <= epsilon,
-			`${id} pivotY`,
-		);
+		t.true(Math.abs((child?.getPivotX() ?? Number.NaN) - pivotX) <= epsilon, `${id} pivotX`);
+		t.true(Math.abs((child?.getPivotY() ?? Number.NaN) - pivotY) <= epsilon, `${id} pivotY`);
 		t.true(child?.getPivotAsAnchor() ?? false, `${id} anchor`);
 	}
 }
@@ -108,12 +98,15 @@ test('all display node pivot/anchor variants survive XML and binary round-trips'
 		assertPivotState(t, doc);
 
 		await io.writeProject(doc, outputProjectPath);
-		const outputXml = await fs.readFile(
-			path.join(outputDirectory, 'assets', 'Pivot', 'Main.xml'),
-			'utf8',
-		);
+		const outputXml = await fs.readFile(path.join(outputDirectory, 'assets', 'Pivot', 'Main.xml'), 'utf8');
 		for (const [id, [pivotX, pivotY]] of expected) {
-			const tag = outputXml.match(new RegExp(`<(?:text|richtext|inputtext|loader|list|group|loader3d|movieclip|jta)\\b[^>]*id="${id}"[^>]*>`, 'i'))?.[0] ?? '';
+			const tag =
+				outputXml.match(
+					new RegExp(
+						`<(?:text|richtext|inputtext|loader|list|group|loader3d|movieclip|jta)\\b[^>]*id="${id}"[^>]*>`,
+						'i',
+					),
+				)?.[0] ?? '';
 			t.regex(tag, new RegExp(`pivot="${pivotX},${pivotY}"`), `${id} writes pivot`);
 			t.regex(tag, /\banchor="true"/, `${id} writes anchor`);
 		}

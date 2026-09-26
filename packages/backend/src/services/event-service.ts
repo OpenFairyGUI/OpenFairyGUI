@@ -15,11 +15,17 @@ const DEFAULT_EVENT_RETENTION_LIMIT = 1000;
 export class EventService {
 	private readonly eventsBySession = new Map<string, BackendEvent[]>();
 	private sequence = 0;
-	public constructor(private readonly getSession: (sessionId: string) => Readonly<Pick<BackendSessionState, 'sessionId' | 'revision' | 'closed'>> | undefined) {}
+	public constructor(
+		private readonly getSession: (
+			sessionId: string,
+		) => Readonly<Pick<BackendSessionState, 'sessionId' | 'revision' | 'closed'>> | undefined,
+	) {}
 
-	public emit(event: Omit<BackendEvent, 'sequence' | 'timestamp' | 'diagnostics'> & {
-		diagnostics?: BackendEvent['diagnostics'];
-	}): BackendEvent {
+	public emit(
+		event: Omit<BackendEvent, 'sequence' | 'timestamp' | 'diagnostics'> & {
+			diagnostics?: BackendEvent['diagnostics'];
+		},
+	): BackendEvent {
 		const emitted: BackendEvent = {
 			...event,
 			sequence: ++this.sequence,
@@ -35,7 +41,9 @@ export class EventService {
 		return emitted;
 	}
 
-	public getEvents(input: GetEventsInput): BackendResult<GetEventsSnapshot, SessionNotFoundError | EventCursorInvalidError> {
+	public getEvents(
+		input: GetEventsInput,
+	): BackendResult<GetEventsSnapshot, SessionNotFoundError | EventCursorInvalidError> {
 		const startedAt = Date.now();
 		const session = this.getSession(input.sessionId);
 		if (!session || session.closed) {
@@ -72,12 +80,17 @@ export class EventService {
 
 		const filtered = events.filter((event) => event.sequence > after);
 		const limit = input.limit === undefined ? filtered.length : Math.max(0, input.limit);
-		return success('runtime', startedAt, {
-			events: filtered.slice(0, limit).map((event) => structuredClone(event)),
-			oldestSequence,
-			currentSequence,
-			cursorExpired: false,
-		}, { sessionId: session.sessionId, revision: session.revision });
+		return success(
+			'runtime',
+			startedAt,
+			{
+				events: filtered.slice(0, limit).map((event) => structuredClone(event)),
+				oldestSequence,
+				currentSequence,
+				cursorExpired: false,
+			},
+			{ sessionId: session.sessionId, revision: session.revision },
+		);
 	}
 
 	public removeSession(sessionId: string): void {

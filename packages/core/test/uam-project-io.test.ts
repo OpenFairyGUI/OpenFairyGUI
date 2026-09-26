@@ -23,13 +23,15 @@ import {
 	type UamTransactionOperation,
 } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
-import { liftDocumentToUamProject, materializeUamProject, readProjectAsUam, writeProjectFromUam } from '../src/uam/index.js';
+import {
+	liftDocumentToUamProject,
+	materializeUamProject,
+	readProjectAsUam,
+	writeProjectFromUam,
+} from '../src/uam/index.js';
 import { createDisplayNodeBase } from './uam-transaction-fixtures.js';
 
-const LAYABOX_PROJECT_PATH = getFixtureProjectPath(
-	'FairyGUI-layabox',
-	'demo/UIProject/FairyGUI-layabox-demo.fairy',
-);
+const LAYABOX_PROJECT_PATH = getFixtureProjectPath('FairyGUI-layabox', 'demo/UIProject/FairyGUI-layabox-demo.fairy');
 const MOTION_PATH = '0,0,0,0,120,40';
 const CUSTOM_EASE_PATH = '2,0,0,0.07,0.5575,0.8925,0.41,1,0,1,1';
 
@@ -123,8 +125,19 @@ function createEngineeringScaleUamProject(): UamProject {
 											name: 'bg-look',
 											controllerName: 'state',
 											states: [
-												{ pageId: '0', value: { alpha: 1, rotation: 0, grayed: false, touchable: true } },
-												{ pageId: '1', value: { alpha: 0.5, rotation: 180, grayed: true, touchable: false } },
+												{
+													pageId: '0',
+													value: { alpha: 1, rotation: 0, grayed: false, touchable: true },
+												},
+												{
+													pageId: '1',
+													value: {
+														alpha: 0.5,
+														rotation: 180,
+														grayed: true,
+														touchable: false,
+													},
+												},
 											],
 											defaultValue: { alpha: 1, rotation: 0, grayed: false, touchable: true },
 											condition: '',
@@ -288,20 +301,23 @@ test('real LayaBox UIProject lift produces a materializable save baseline', asyn
 	const io = new NodeIO();
 	const doc = await io.readProject(LAYABOX_PROJECT_PATH);
 	const project = normalizeUamProject(liftDocumentToUamProject(doc));
-	const components = project.packages.flatMap((pkg) => pkg.resources)
+	const components = project.packages
+		.flatMap((pkg) => pkg.resources)
 		.filter((resource) => resource.kind === 'component');
-	const componentRefs = components.flatMap((resource) => resource.kind === 'component'
-		? resource.component.displayList.filter((node) => node.kind === 'component')
-		: []);
+	const componentRefs = components.flatMap((resource) =>
+		resource.kind === 'component' ? resource.component.displayList.filter((node) => node.kind === 'component') : [],
+	);
 
 	t.deepEqual(validateUamProject(project), []);
 	t.is(components.length, 160);
 	t.is(components.filter((resource) => resource.kind === 'component' && resource.component.properties).length, 160);
 	t.is(componentRefs.length, 156);
 	t.is(componentRefs.filter((node) => node.kind === 'component' && node.instanceProperties).length, 112);
-	t.is(componentRefs.filter((node) => (
-		node.kind === 'component' && node.instanceProperties?.extensionType === 'Button'
-	)).length, 86);
+	t.is(
+		componentRefs.filter((node) => node.kind === 'component' && node.instanceProperties?.extensionType === 'Button')
+			.length,
+		86,
+	);
 	t.notThrows(() => materializeUamProject(project));
 });
 
@@ -309,7 +325,8 @@ test('component root and Button instance properties survive transaction save/rel
 	const doc = new Document();
 	doc.getRoot().setProjectId('issue-25').setVersion('3.0');
 	const pkg = doc.createPackage('Issue25').setId('pkg-issue-25');
-	const component = doc.createComponent('ButtonDefinition')
+	const component = doc
+		.createComponent('ButtonDefinition')
 		.setId('button-definition')
 		.setPath('/')
 		.setExported(true)
@@ -352,29 +369,28 @@ test('component root and Button instance properties survive transaction save/rel
 		.setDownEffect(1)
 		.setDownEffectValue(0.3)
 		.setCustomProperties([{ target: 'title', propertyId: 0, label: 'Caption' }]);
-	const host = doc.createComponent('Host')
-		.setId('host-component')
-		.setPath('/')
-		.setExported(true)
-		.setSize(320, 180);
-	host.addChild(doc.createGComponent('button')
-		.setId('button-instance')
-		.setXY(10, 20)
-		.setSize(120, 40)
-		.setSrc('button-definition')
-		.setPackageId('pkg-issue-25')
-		.setInstanceExtType('Button')
-		.setInstanceTitle('Before')
-		.setInstanceSelectedTitle('Selected before')
-		.setInstanceIcon('icon-before')
-		.setInstanceSelectedIcon('selected-icon-before')
-		.setInstanceTitleColor('#445566')
-		.setInstanceTitleFontSize(16)
-		.setInstanceController('state')
-		.setInstancePage('checked')
-		.setInstanceChecked(true)
-		.setInstanceSound('')
-		.setInstanceSoundVolumeScale(0.75));
+	const host = doc.createComponent('Host').setId('host-component').setPath('/').setExported(true).setSize(320, 180);
+	host.addChild(
+		doc
+			.createGComponent('button')
+			.setId('button-instance')
+			.setXY(10, 20)
+			.setSize(120, 40)
+			.setSrc('button-definition')
+			.setPackageId('pkg-issue-25')
+			.setInstanceExtType('Button')
+			.setInstanceTitle('Before')
+			.setInstanceSelectedTitle('Selected before')
+			.setInstanceIcon('icon-before')
+			.setInstanceSelectedIcon('selected-icon-before')
+			.setInstanceTitleColor('#445566')
+			.setInstanceTitleFontSize(16)
+			.setInstanceController('state')
+			.setInstancePage('checked')
+			.setInstanceChecked(true)
+			.setInstanceSound('')
+			.setInstanceSoundVolumeScale(0.75),
+	);
 	pkg.addResource(component);
 	pkg.addResource(host);
 
@@ -523,25 +539,48 @@ test('component root and Button instance properties survive transaction save/rel
 test('Label, ComboBox, and ProgressBar instance overlays survive UAM transaction round-trips', async (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('Issue108').setId('pkg108');
-	const sound = doc.createSoundResource('click.wav')
+	const sound = doc
+		.createSoundResource('click.wav')
 		.setId('snd108')
 		.setPath('/')
 		.setFile('click.wav')
 		.setSourceData(doc.createBuffer().setData(new Uint8Array([1, 2, 3])));
 	pkg.addResource(sound);
 	const host = doc.createComponent('Host108').setId('host108').setPath('/').setSize(320, 200);
-	const label = doc.createGComponent('label').setId('label108').setInstanceExtType('Label')
-		.setInstanceTitle('Label').setInstanceIcon('').setInstanceTitleColor('#112233')
-		.setInstanceTitleFontSize(14).setInstancePromptText('Prompt')
-		.setInstanceSound('ui://pkg108snd108').setInstanceSoundVolumeScale(0.4);
-	const combo = doc.createGComponent('combo').setId('combo108').setInstanceExtType('ComboBox')
-		.setInstanceTitle('Combo').setInstanceIcon('').setInstanceTitleColor('#445566')
-		.setInstancePopupDirection(2).setInstanceSound('ui://pkg108snd108').setInstanceSoundVolumeScale(0.5)
-		.setInstanceVisibleItemCount(6).setInstanceSelectionController('').setInstanceAutoClearItems(true)
+	const label = doc
+		.createGComponent('label')
+		.setId('label108')
+		.setInstanceExtType('Label')
+		.setInstanceTitle('Label')
+		.setInstanceIcon('')
+		.setInstanceTitleColor('#112233')
+		.setInstanceTitleFontSize(14)
+		.setInstancePromptText('Prompt')
+		.setInstanceSound('ui://pkg108snd108')
+		.setInstanceSoundVolumeScale(0.4);
+	const combo = doc
+		.createGComponent('combo')
+		.setId('combo108')
+		.setInstanceExtType('ComboBox')
+		.setInstanceTitle('Combo')
+		.setInstanceIcon('')
+		.setInstanceTitleColor('#445566')
+		.setInstancePopupDirection(2)
+		.setInstanceSound('ui://pkg108snd108')
+		.setInstanceSoundVolumeScale(0.5)
+		.setInstanceVisibleItemCount(6)
+		.setInstanceSelectionController('')
+		.setInstanceAutoClearItems(true)
 		.setInstanceComboItems([{ title: 'A', value: '1', icon: null }]);
-	const progress = doc.createGComponent('progress').setId('progress108').setInstanceExtType('ProgressBar')
-		.setInstanceValue(25).setInstanceMax(50).setInstanceMin(5)
-		.setInstanceSound('ui://pkg108snd108').setInstanceSoundVolumeScale(0.6);
+	const progress = doc
+		.createGComponent('progress')
+		.setId('progress108')
+		.setInstanceExtType('ProgressBar')
+		.setInstanceValue(25)
+		.setInstanceMax(50)
+		.setInstanceMin(5)
+		.setInstanceSound('ui://pkg108snd108')
+		.setInstanceSoundVolumeScale(0.6);
 	host.addChild(label).addChild(combo).addChild(progress);
 	pkg.addResource(host);
 
@@ -549,7 +588,12 @@ test('Label, ComboBox, and ProgressBar instance overlays survive UAM transaction
 	const getInstances = (project: UamProject) => {
 		const resource = project.packages[0]?.resources.find((item) => item.id === 'host108');
 		if (resource?.kind !== 'component') throw new Error('Issue #108 host fixture was not found.');
-		return Object.fromEntries(resource.component.displayList.map((node) => [node.id, node.kind === 'component' ? node.instanceProperties : undefined]));
+		return Object.fromEntries(
+			resource.component.displayList.map((node) => [
+				node.id,
+				node.kind === 'component' ? node.instanceProperties : undefined,
+			]),
+		);
 	};
 	const baselineInstances = getInstances(baseline);
 	t.deepEqual(getInstances(liftDocumentToUamProject(materializeUamProject(baseline))), baselineInstances);
@@ -559,7 +603,11 @@ test('Label, ComboBox, and ProgressBar instance overlays survive UAM transaction
 		combo108: { ...baselineInstances.combo108, titleColor: '#778899', popupDirection: 1, soundVolumeScale: 0.8 },
 		progress108: { ...baselineInstances.progress108, value: 40, soundVolumeScale: 0.9 },
 	} as Record<string, UamComponentInstanceProperties>;
-	const selector = (displayNodeId: string) => ({ packageId: 'pkg108', componentResourceId: 'host108', displayNodeId });
+	const selector = (displayNodeId: string) => ({
+		packageId: 'pkg108',
+		componentResourceId: 'host108',
+		displayNodeId,
+	});
 	const forward = Object.entries(updated).map(([displayNodeId, componentInstanceProperties]) => ({
 		kind: 'setDisplayNodeProps' as const,
 		selector: selector(displayNodeId),
@@ -588,7 +636,10 @@ test('Label, ComboBox, and ProgressBar instance overlays survive UAM transaction
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 
-	const invalidCombo = baselineInstances.combo108 as Extract<UamComponentInstanceProperties, { extensionType: 'ComboBox' }>;
+	const invalidCombo = baselineInstances.combo108 as Extract<
+		UamComponentInstanceProperties,
+		{ extensionType: 'ComboBox' }
+	>;
 	for (const componentInstanceProperties of [
 		{ ...invalidCombo, popupDirection: 3 },
 		{ ...invalidCombo, soundVolumeScale: 1.1 },
@@ -597,18 +648,22 @@ test('Label, ComboBox, and ProgressBar instance overlays survive UAM transaction
 		{ ...invalidCombo, extensionType: 'Unknown' },
 		{ ...invalidCombo, unexpected: true },
 	]) {
-		const issues = validateTransactionSupport(baseline, [{
-			kind: 'setDisplayNodeProps',
-			selector: selector('combo108'),
-			props: { componentInstanceProperties: componentInstanceProperties as UamComponentInstanceProperties },
-		}]);
+		const issues = validateTransactionSupport(baseline, [
+			{
+				kind: 'setDisplayNodeProps',
+				selector: selector('combo108'),
+				props: { componentInstanceProperties: componentInstanceProperties as UamComponentInstanceProperties },
+			},
+		]);
 		t.true(issues.length > 0);
 	}
-	const unchanged = [{
-		kind: 'setDisplayNodeProps' as const,
-		selector: selector('combo108'),
-		props: { componentInstanceProperties: invalidCombo },
-	}];
+	const unchanged = [
+		{
+			kind: 'setDisplayNodeProps' as const,
+			selector: selector('combo108'),
+			props: { componentInstanceProperties: invalidCombo },
+		},
+	];
 	t.is(validateTransactionSupport(baseline, unchanged)[0]?.code, 'display_node_props_unchanged');
 	t.throws(() => applyUamTransaction(baseline, unchanged), { instanceOf: UamTransactionError });
 });
@@ -616,23 +671,54 @@ test('Label, ComboBox, and ProgressBar instance overlays survive UAM transaction
 test('remaining component-root authoring metadata survives UAM transaction round-trips', async (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('Issue109').setId('pkg109');
-	const png = new Uint8Array(Buffer.from(
-		'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
-		'base64',
-	));
-	for (const [id, name] of [['img109a', 'design-a.png'], ['img109b', 'design-b.png']] as const) {
-		pkg.addResource(doc.createImageResource(name).setId(id).setPath('/').setFileName(name)
-			.setWidth(1).setHeight(1).setSourceData(doc.createBuffer().setData(png)));
+	const png = new Uint8Array(
+		Buffer.from(
+			'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+			'base64',
+		),
+	);
+	for (const [id, name] of [
+		['img109a', 'design-a.png'],
+		['img109b', 'design-b.png'],
+	] as const) {
+		pkg.addResource(
+			doc
+				.createImageResource(name)
+				.setId(id)
+				.setPath('/')
+				.setFileName(name)
+				.setWidth(1)
+				.setHeight(1)
+				.setSourceData(doc.createBuffer().setData(png)),
+		);
 	}
-	for (const [id, name] of [['snd109a', 'sound-a.wav'], ['snd109b', 'sound-b.wav']] as const) {
-		pkg.addResource(doc.createSoundResource(name).setId(id).setPath('/').setFile(name)
-			.setSourceData(doc.createBuffer().setData(new Uint8Array([1, 2, 3]))));
+	for (const [id, name] of [
+		['snd109a', 'sound-a.wav'],
+		['snd109b', 'sound-b.wav'],
+	] as const) {
+		pkg.addResource(
+			doc
+				.createSoundResource(name)
+				.setId(id)
+				.setPath('/')
+				.setFile(name)
+				.setSourceData(doc.createBuffer().setData(new Uint8Array([1, 2, 3]))),
+		);
 	}
-	const component = doc.createComponent('Host109').setId('host109').setPath('/').setSize(320, 200)
-		.setDesignImage('ui://pkg109img109a').setDesignImageForTest(true).setDesignImageAlpha(60)
-		.setDesignImageLayer(1).setDesignImageOffsetX(3).setDesignImageOffsetY(4)
+	const component = doc
+		.createComponent('Host109')
+		.setId('host109')
+		.setPath('/')
+		.setSize(320, 200)
+		.setDesignImage('ui://pkg109img109a')
+		.setDesignImageForTest(true)
+		.setDesignImageAlpha(60)
+		.setDesignImageLayer(1)
+		.setDesignImageOffsetX(3)
+		.setDesignImageOffsetY(4)
 		.setCustomExtensionId('issue109.extension')
-		.setPageController('pageA').setAddedToStageSound('ui://pkg109snd109a')
+		.setPageController('pageA')
+		.setAddedToStageSound('ui://pkg109snd109a')
 		.setRemovedFromStageSound('ui://pkg109snd109a');
 	for (const name of ['pageA', 'pageB']) {
 		const controller = doc.createController(name);
@@ -665,8 +751,12 @@ test('remaining component-root authoring metadata survives UAM transaction round
 		customExtensionId: 'issue109.updated',
 	};
 	const selector = { packageId: 'pkg109', componentResourceId: 'host109' };
-	const forward: UamTransactionOperation[] = [{ kind: 'setComponentProps', selector, props: { properties: updatedProperties } }];
-	const inverse: UamTransactionOperation[] = [{ kind: 'setComponentProps', selector, props: { properties: baselineProperties } }];
+	const forward: UamTransactionOperation[] = [
+		{ kind: 'setComponentProps', selector, props: { properties: updatedProperties } },
+	];
+	const inverse: UamTransactionOperation[] = [
+		{ kind: 'setComponentProps', selector, props: { properties: baselineProperties } },
+	];
 	t.deepEqual(validateTransactionSupport(baseline, forward), []);
 
 	const io = new NodeIO();
@@ -695,49 +785,57 @@ test('remaining component-root authoring metadata survives UAM transaction round
 		{ ...baselineProperties, pageController: 'missing' },
 		{ ...baselineProperties, unexpected: true },
 	]) {
-		const issues = validateTransactionSupport(baseline, [{
-			kind: 'setComponentProps',
-			selector,
-			props: { properties: properties as UamComponentProperties },
-		}]);
+		const issues = validateTransactionSupport(baseline, [
+			{
+				kind: 'setComponentProps',
+				selector,
+				props: { properties: properties as UamComponentProperties },
+			},
+		]);
 		t.true(issues.length > 0);
 	}
-	const unchanged: UamTransactionOperation[] = [{
-		kind: 'setComponentProps',
-		selector,
-		props: { properties: baselineProperties },
-	}];
+	const unchanged: UamTransactionOperation[] = [
+		{
+			kind: 'setComponentProps',
+			selector,
+			props: { properties: baselineProperties },
+		},
+	];
 	t.deepEqual(validateTransactionSupport(baseline, unchanged), []);
 	t.deepEqual(getProperties(applyUamTransaction(baseline, unchanged)), baselineProperties);
 });
 
 test('UAM materialization scope covers every current concrete display node kind', (t) => {
-	t.deepEqual([...UAM_SUPPORTED_MATERIALIZATION_SCOPE.nodeKinds].sort(), [
-		'button',
-		'comboBox',
-		'component',
-		'graph',
-		'group',
-		'image',
-		'label',
-		'list',
-		'loader',
-		'loader3D',
-		'movieClip',
-		'progressBar',
-		'richText',
-		'scrollBar',
-		'slider',
-		'text',
-		'textInput',
-		'tree',
-	].sort());
+	t.deepEqual(
+		[...UAM_SUPPORTED_MATERIALIZATION_SCOPE.nodeKinds].sort(),
+		[
+			'button',
+			'comboBox',
+			'component',
+			'graph',
+			'group',
+			'image',
+			'label',
+			'list',
+			'loader',
+			'loader3D',
+			'movieClip',
+			'progressBar',
+			'richText',
+			'scrollBar',
+			'slider',
+			'text',
+			'textInput',
+			'tree',
+		].sort(),
+	);
 });
 
 test('UAM project lift and materialize preserve component-derived control display nodes', (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('ControlShapes').setId('pkg-controls');
-	const component = doc.createComponent('ControlHost')
+	const component = doc
+		.createComponent('ControlHost')
 		.setId('cmp-control-host')
 		.setPath('/')
 		.setExported(true)
@@ -746,7 +844,8 @@ test('UAM project lift and materialize preserve component-derived control displa
 	controller.addPage(doc.createControllerPage('Idle').setId('idle'));
 	controller.addPage(doc.createControllerPage('Active').setId('active'));
 	component.addController(controller);
-	const buttonControl = doc.createGButton('button')
+	const buttonControl = doc
+		.createGButton('button')
 		.setId('button-node')
 		.setXY(1, 2)
 		.setSize(80, 24)
@@ -770,76 +869,94 @@ test('UAM project lift and materialize preserve component-derived control displa
 		.setMode(2)
 		.setDownEffect(1)
 		.setDownEffectValue(0.25);
-	buttonControl.addGear(doc.createGear('button-look')
-		.setGearType(GearType.Look)
-		.setController(controller)
-		.setPages('idle,active')
-		.setValues('1,0,false,true|0.5,15,true,false')
-		.setDefaultValue('1,0,false,true')
-		.setTween(true)
-		.setTweenDuration(0.2));
+	buttonControl.addGear(
+		doc
+			.createGear('button-look')
+			.setGearType(GearType.Look)
+			.setController(controller)
+			.setPages('idle,active')
+			.setValues('1,0,false,true|0.5,15,true,false')
+			.setDefaultValue('1,0,false,true')
+			.setTween(true)
+			.setTweenDuration(0.2),
+	);
 	component.addChild(buttonControl);
-	component.addChild(doc.createGLabel('label')
-		.setId('label-node')
-		.setXY(3, 4)
-		.setSize(90, 26)
-		.setSrc('label-src')
-		.setPackageId('pkg-controls')
-		.setTitle('Name')
-		.setIcon('label-icon')
-		.setTitleColor('#445566')
-		.setTitleFontSize(16)
-		.setSound('label-sound')
-		.setSoundVolumeScale(0.75));
-	component.addChild(doc.createGComboBox('combo')
-		.setId('combo-node')
-		.setXY(5, 6)
-		.setSize(120, 30)
-		.setSrc('combo-src')
-		.setPackageId('pkg-controls')
-		.setTitle('Two')
-		.setIcon('combo-icon')
-		.setTitleColor('#778899')
-		.setTitleFontSize(12)
-		.setItems(['One', 'Two'])
-		.setIcons(['one-icon', 'two-icon'])
-		.setValues(['1', '2'])
-		.setSelectedIndex(1)
-		.setVisibleItemCount(8)
-		.setPopupDirection(2)
-		.setSound('combo-sound')
-		.setSoundVolumeScale(0.9));
-	component.addChild(doc.createGProgressBar('progress')
-		.setId('progress-node')
-		.setXY(7, 8)
-		.setSize(140, 20)
-		.setSrc('progress-src')
-		.setPackageId('pkg-controls')
-		.setTitleType(3)
-		.setMin(10)
-		.setMax(200)
-		.setValue(120)
-		.setReverse(true)
-		.setSound('progress-sound')
-		.setSoundVolumeScale(0.6));
-	component.addChild(doc.createGSlider('slider')
-		.setId('slider-node')
-		.setXY(9, 10)
-		.setSize(160, 22)
-		.setSrc('slider-src')
-		.setPackageId('pkg-controls')
-		.setTitleType(2)
-		.setMin(1)
-		.setMax(10)
-		.setValue(7)
-		.setWholeNumbers(true));
-	component.addChild(doc.createGScrollBar('scroll')
-		.setId('scroll-node')
-		.setXY(11, 12)
-		.setSize(16, 100)
-		.setSrc('scroll-src')
-		.setPackageId('pkg-controls')
-		.setFixedGripSize(true));
+	component.addChild(
+		doc
+			.createGLabel('label')
+			.setId('label-node')
+			.setXY(3, 4)
+			.setSize(90, 26)
+			.setSrc('label-src')
+			.setPackageId('pkg-controls')
+			.setTitle('Name')
+			.setIcon('label-icon')
+			.setTitleColor('#445566')
+			.setTitleFontSize(16)
+			.setSound('label-sound')
+			.setSoundVolumeScale(0.75),
+	);
+	component.addChild(
+		doc
+			.createGComboBox('combo')
+			.setId('combo-node')
+			.setXY(5, 6)
+			.setSize(120, 30)
+			.setSrc('combo-src')
+			.setPackageId('pkg-controls')
+			.setTitle('Two')
+			.setIcon('combo-icon')
+			.setTitleColor('#778899')
+			.setTitleFontSize(12)
+			.setItems(['One', 'Two'])
+			.setIcons(['one-icon', 'two-icon'])
+			.setValues(['1', '2'])
+			.setSelectedIndex(1)
+			.setVisibleItemCount(8)
+			.setPopupDirection(2)
+			.setSound('combo-sound')
+			.setSoundVolumeScale(0.9),
+	);
+	component.addChild(
+		doc
+			.createGProgressBar('progress')
+			.setId('progress-node')
+			.setXY(7, 8)
+			.setSize(140, 20)
+			.setSrc('progress-src')
+			.setPackageId('pkg-controls')
+			.setTitleType(3)
+			.setMin(10)
+			.setMax(200)
+			.setValue(120)
+			.setReverse(true)
+			.setSound('progress-sound')
+			.setSoundVolumeScale(0.6),
+	);
+	component.addChild(
+		doc
+			.createGSlider('slider')
+			.setId('slider-node')
+			.setXY(9, 10)
+			.setSize(160, 22)
+			.setSrc('slider-src')
+			.setPackageId('pkg-controls')
+			.setTitleType(2)
+			.setMin(1)
+			.setMax(10)
+			.setValue(7)
+			.setWholeNumbers(true),
+	);
+	component.addChild(
+		doc
+			.createGScrollBar('scroll')
+			.setId('scroll-node')
+			.setXY(11, 12)
+			.setSize(16, 100)
+			.setSrc('scroll-src')
+			.setPackageId('pkg-controls')
+			.setFixedGripSize(true),
+	);
 	pkg.addResource(component);
 
 	const lifted = liftDocumentToUamProject(doc);
@@ -873,7 +990,10 @@ test('UAM project lift and materialize preserve component-derived control displa
 			t.is(button.gears[0].controllerName, 'control-state');
 			t.true(button.gears[0].tween);
 			t.true(Math.abs(button.gears[0].tweenDuration - 0.2) < 1e-6);
-			t.deepEqual(button.gears[0].states.map((state) => state.pageId), ['idle', 'active']);
+			t.deepEqual(
+				button.gears[0].states.map((state) => state.pageId),
+				['idle', 'active'],
+			);
 			t.deepEqual(button.gears[0].defaultValue, { alpha: 1, rotation: 0, grayed: false, touchable: true });
 		}
 		t.is(button.src, 'button-src');
@@ -953,17 +1073,20 @@ test('UAM project lift and materialize preserve component-derived control displa
 test('liftDocumentToUamProject preserves component reference display nodes', (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('ComponentRefs').setId('pkg-component-refs');
-	const childComponent = doc.createComponent('Child')
+	const childComponent = doc
+		.createComponent('Child')
 		.setId('child-component')
 		.setPath('/')
 		.setExported(true)
 		.setSize(40, 30);
-	const hostComponent = doc.createComponent('Host')
+	const hostComponent = doc
+		.createComponent('Host')
 		.setId('host-component')
 		.setPath('/')
 		.setExported(true)
 		.setSize(320, 180);
-	const childRef = doc.createGComponent('childRef')
+	const childRef = doc
+		.createGComponent('childRef')
 		.setId('child-ref-node')
 		.setXY(12, 18)
 		.setSize(40, 30)
@@ -988,96 +1111,149 @@ test('liftDocumentToUamProject preserves component reference display nodes', (t)
 test('UAM project lift and materialize preserve list, tree, graph, group, loader, and movie clip display nodes', (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('DisplayNodes').setId('pkg-display-nodes');
-	const component = doc.createComponent('Host')
+	const component = doc
+		.createComponent('Host')
 		.setId('host-component')
 		.setPath('/')
 		.setExported(true)
 		.setSize(640, 480);
-	pkg.addResource(doc.createMovieClipResource('movie.xml')
-		.setId('movie-resource')
-		.setPath('/')
-		.setFileName('movie.xml')
-		.setWidth(96)
-		.setHeight(72));
+	pkg.addResource(
+		doc
+			.createMovieClipResource('movie.xml')
+			.setId('movie-resource')
+			.setPath('/')
+			.setFileName('movie.xml')
+			.setWidth(96)
+			.setHeight(72),
+	);
 
-	component.addChild(doc.createGList('items')
-		.setId('list-node')
-		.setXY(1, 2)
-		.setSize(100, 120)
-		.setCustomData('list-data')
-		.setLayout(2)
-		.setDefaultItem('ui://pkg-display-nodes/item')
-		.setListItems([{ title: 'Item', icon: null, url: null, name: 'item0', selectedTitle: null, selectedIcon: null, level: 0, isFolder: null }]));
-	component.addChild(doc.createGTree('tree')
-		.setId('tree-node')
-		.setXY(3, 4)
-		.setSize(110, 130)
-		.setCustomData('tree-data')
-		.setIndent(24)
-		.setClickToExpand(1)
-		.setListItems([{ title: 'Folder', icon: null, url: null, name: 'folder0', selectedTitle: null, selectedIcon: null, level: 0, isFolder: true }]));
-	component.addChild(doc.createGGraph('shape')
-		.setId('graph-node')
-		.setXY(5, 6)
-		.setSize(20, 30)
-		.setCustomData('graph-data')
-		.setGraphType(1)
-		.setLineColor('#112233')
-		.setFillColor('#445566')
-		.setCornerRadius([1, 2, 3, 4]));
-	component.addChild(doc.createGGroup('group')
-		.setId('group-node')
-		.setXY(7, 8)
-		.setSize(200, 40)
-		.setCustomData('group-data')
-		.setLayout(1)
-		.setAdvanced(true));
-	component.addChild(doc.createGLoader('loader')
-		.setId('loader-node')
-		.setXY(9, 10)
-		.setSize(64, 64)
-		.setCustomData('loader-data')
-		.setUrl('ui://pkg-display-nodes/image')
-		.setColor('#abcdef')
-		.setShowErrorSign(true)
-		.setFillAmount(75));
-	component.addChild(doc.createGLoader3D('loader3d')
-		.setId('loader3d-node')
-		.setXY(11, 12)
-		.setSize(80, 90)
-		.setCustomData('loader3d-data')
-		.setUrl('ui://pkg-display-nodes/spine')
-		.setAnimationName('idle')
-		.setSkinName('default')
-		.setLoop(false));
-	component.addChild(doc.createGMovieClip('movie')
-		.setId('movie-node')
-		.setXY(13, 14)
-		.setSize(96, 72)
-		.setCustomData('movie-data')
-		.setSrc('movie-resource')
-		.setPackageId('pkg-display-nodes')
-		.setFileName('movie.xml')
-		.setPlaying(false)
-		.setFrame(3)
-		.setColor('#123456'));
-	component.addChild(doc.createGRichTextField('rich')
-		.setId('rich-text-node')
-		.setXY(15, 16)
-		.setSize(140, 30)
-		.setText('[b]Rich[/b]')
-		.setFontSize(16)
-		.setColor('#654321'));
-	component.addChild(doc.createGTextInput('input')
-		.setId('text-input-node')
-		.setXY(17, 18)
-		.setSize(160, 32)
-		.setText('typed')
-		.setPromptText('prompt')
-		.setMaxLength(12)
-		.setRestrict('0-9')
-		.setPassword(true)
-		.setKeyboardType(2));
+	component.addChild(
+		doc
+			.createGList('items')
+			.setId('list-node')
+			.setXY(1, 2)
+			.setSize(100, 120)
+			.setCustomData('list-data')
+			.setLayout(2)
+			.setDefaultItem('ui://pkg-display-nodes/item')
+			.setListItems([
+				{
+					title: 'Item',
+					icon: null,
+					url: null,
+					name: 'item0',
+					selectedTitle: null,
+					selectedIcon: null,
+					level: 0,
+					isFolder: null,
+				},
+			]),
+	);
+	component.addChild(
+		doc
+			.createGTree('tree')
+			.setId('tree-node')
+			.setXY(3, 4)
+			.setSize(110, 130)
+			.setCustomData('tree-data')
+			.setIndent(24)
+			.setClickToExpand(1)
+			.setListItems([
+				{
+					title: 'Folder',
+					icon: null,
+					url: null,
+					name: 'folder0',
+					selectedTitle: null,
+					selectedIcon: null,
+					level: 0,
+					isFolder: true,
+				},
+			]),
+	);
+	component.addChild(
+		doc
+			.createGGraph('shape')
+			.setId('graph-node')
+			.setXY(5, 6)
+			.setSize(20, 30)
+			.setCustomData('graph-data')
+			.setGraphType(1)
+			.setLineColor('#112233')
+			.setFillColor('#445566')
+			.setCornerRadius([1, 2, 3, 4]),
+	);
+	component.addChild(
+		doc
+			.createGGroup('group')
+			.setId('group-node')
+			.setXY(7, 8)
+			.setSize(200, 40)
+			.setCustomData('group-data')
+			.setLayout(1)
+			.setAdvanced(true),
+	);
+	component.addChild(
+		doc
+			.createGLoader('loader')
+			.setId('loader-node')
+			.setXY(9, 10)
+			.setSize(64, 64)
+			.setCustomData('loader-data')
+			.setUrl('ui://pkg-display-nodes/image')
+			.setColor('#abcdef')
+			.setShowErrorSign(true)
+			.setFillAmount(75),
+	);
+	component.addChild(
+		doc
+			.createGLoader3D('loader3d')
+			.setId('loader3d-node')
+			.setXY(11, 12)
+			.setSize(80, 90)
+			.setCustomData('loader3d-data')
+			.setUrl('ui://pkg-display-nodes/spine')
+			.setAnimationName('idle')
+			.setSkinName('default')
+			.setLoop(false),
+	);
+	component.addChild(
+		doc
+			.createGMovieClip('movie')
+			.setId('movie-node')
+			.setXY(13, 14)
+			.setSize(96, 72)
+			.setCustomData('movie-data')
+			.setSrc('movie-resource')
+			.setPackageId('pkg-display-nodes')
+			.setFileName('movie.xml')
+			.setPlaying(false)
+			.setFrame(3)
+			.setColor('#123456'),
+	);
+	component.addChild(
+		doc
+			.createGRichTextField('rich')
+			.setId('rich-text-node')
+			.setXY(15, 16)
+			.setSize(140, 30)
+			.setText('[b]Rich[/b]')
+			.setFontSize(16)
+			.setColor('#654321'),
+	);
+	component.addChild(
+		doc
+			.createGTextInput('input')
+			.setId('text-input-node')
+			.setXY(17, 18)
+			.setSize(160, 32)
+			.setText('typed')
+			.setPromptText('prompt')
+			.setMaxLength(12)
+			.setRestrict('0-9')
+			.setPassword(true)
+			.setKeyboardType(2),
+	);
 	pkg.addResource(component);
 
 	const lifted = liftDocumentToUamProject(doc);

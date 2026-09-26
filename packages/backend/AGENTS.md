@@ -8,4 +8,6 @@
 - `packages/backend/src/path-policy.ts` 与 storage 边界负责路径安全。MCP roots 不能替代 allowed roots / realpath 验证。
 - 根入口保持 browser-safe；Node 能力留在 `packages/backend/src/node.ts`。契约或能力变化同步版本策略、MCP 映射测试和架构说明。
 - `packages/backend/src/docs.ts` 是独立随包文档入口；不把整份 schema 引入 runtime 根入口。工作流/薄 Skill 在 `packages/backend/docs/`，包版本或原文修改后运行 `pnpm contracts:generate`，不手改 `src/generated/`。
-- 运行 `pnpm test:changed`，确保包含 Backend、CLI、MCP；完整验收使用 `pnpm check:ci`。
+- 运行 `pnpm check:fast --base origin/next`，确保包含 Backend、CLI、MCP；完整验收使用 `pnpm check:ci`。
+
+验证基准使用实际 PR 目标；离线验证与完整检查的边界见[开发指南](../../docs/guide/development.md#离线验证)。

@@ -54,7 +54,9 @@ export function resolveCodeGenerationSettings(doc: Document): Required<CliCodeGe
 }
 
 export function resolvePackageCodegenPlan(
-	pkg: Package, settings: Required<CliCodeGenerationSettings>, options: PublishCodeGenerationOptions,
+	pkg: Package,
+	settings: Required<CliCodeGenerationSettings>,
+	options: PublishCodeGenerationOptions,
 	customProperties: Record<string, unknown> = {},
 ): ResolvedPackageCodegenPlan | null {
 	const rawCodePath = expandPathVariables(pkg.getCodePath() || settings.codePath || '', customProperties).trim();
@@ -62,9 +64,7 @@ export function resolvePackageCodegenPlan(
 
 	const packageFolderName = normalizeTypeName(pkg.getName()) || 'Package';
 	const outputDir = resolveCodePath(rawCodePath, options.basePath, options.fs);
-	const packageNamespace = settings.packageName
-		? `${settings.packageName}.${packageFolderName}`
-		: packageFolderName;
+	const packageNamespace = settings.packageName ? `${settings.packageName}.${packageFolderName}` : packageFolderName;
 
 	return {
 		outputDir,
@@ -82,11 +82,7 @@ export function supportsCodeGenerationLane(doc: Document, codeType: string): boo
 	return false;
 }
 
-function resolveCodePath(
-	codePath: string,
-	basePath: string | undefined,
-	fs: Pick<PublishFileSystem, 'join'>,
-): string {
+function resolveCodePath(codePath: string, basePath: string | undefined, fs: Pick<PublishFileSystem, 'join'>): string {
 	if (isAbsolutePathLike(codePath)) return trimTrailingSlashes(codePath);
 	const projectBasePath = resolveProjectBasePath(basePath);
 	return projectBasePath ? trimTrailingSlashes(fs.join(projectBasePath, codePath)) : trimTrailingSlashes(codePath);

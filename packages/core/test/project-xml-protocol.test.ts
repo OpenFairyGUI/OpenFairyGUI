@@ -24,14 +24,7 @@ const GROUP_CONDITIONAL_CHILD_NAMES = new Set([
 	'gearText',
 	'gearIcon',
 ]);
-const EXTENSION_CHILD_NAMES = new Set([
-	'Button',
-	'Label',
-	'ComboBox',
-	'ProgressBar',
-	'Slider',
-	'ScrollBar',
-]);
+const EXTENSION_CHILD_NAMES = new Set(['Button', 'Label', 'ComboBox', 'ProgressBar', 'Slider', 'ScrollBar']);
 
 function collectAllowedAttrNames(...protocolKeys: Array<keyof typeof PROJECT_XML_PROTOCOL>): Set<string> {
 	return new Set(protocolKeys.flatMap((key) => listXmlAttrNames(PROJECT_XML_PROTOCOL[key])));
@@ -45,10 +38,7 @@ function collectContainerNames(protocolKey: keyof typeof PROJECT_XML_PROTOCOL): 
 	return [...listXmlContainerNames(PROJECT_XML_PROTOCOL[protocolKey])].sort();
 }
 
-function collectContainerItemNames(
-	protocolKey: keyof typeof PROJECT_XML_PROTOCOL,
-	containerName: string,
-): string[] {
+function collectContainerItemNames(protocolKey: keyof typeof PROJECT_XML_PROTOCOL, containerName: string): string[] {
 	return [...listXmlContainerItemNames(PROJECT_XML_PROTOCOL[protocolKey], containerName)].sort();
 }
 
@@ -59,7 +49,7 @@ async function walkXmlFiles(dirPath: string): Promise<string[]> {
 	for (const entry of entries) {
 		const fullPath = path.join(dirPath, entry.name);
 		if (entry.isDirectory()) {
-			xmlFiles.push(...await walkXmlFiles(fullPath));
+			xmlFiles.push(...(await walkXmlFiles(fullPath)));
 		} else if (entry.isFile() && fullPath.endsWith('.xml')) {
 			xmlFiles.push(fullPath);
 		}
@@ -397,24 +387,28 @@ test('project XML protocol covers selected tag attrs across fixture samples', as
 	);
 	await assertPackageResourceAttrsCovered(t, 'sound', collectAllowedAttrNames('packageResource'));
 	await assertPackageResourceAttrsCovered(t, 'folder', collectAllowedAttrNames('packageResourceFolder'));
-	await assertPackageResourceAttrsCovered(t, 'movieclip', collectAllowedAttrNames('packageResource', 'packageMovieClipResource'));
+	await assertPackageResourceAttrsCovered(
+		t,
+		'movieclip',
+		collectAllowedAttrNames('packageResource', 'packageMovieClipResource'),
+	);
 	await assertRootComponentAttrsCovered(t, collectAllowedAttrNames('componentRoot'));
-	await assertNestedComponentAttrsCovered(t, collectAllowedAttrNames('displayObject', 'componentInstance'));
+	await assertNestedComponentAttrsCovered(t, collectAllowedAttrNames('sharedDisplayAttributes', 'componentInstance'));
 	await assertTagAttrsCovered(t, 'Button', collectAllowedAttrNames('buttonExtension'));
 	await assertTagAttrsCovered(t, 'Label', collectAllowedAttrNames('labelExtension'));
 	await assertTagAttrsCovered(t, 'ComboBox', collectAllowedAttrNames('comboBoxExtension'));
 	await assertTagAttrsCovered(t, 'ProgressBar', collectAllowedAttrNames('progressBarExtension'));
 	await assertTagAttrsCovered(t, 'Slider', collectAllowedAttrNames('sliderExtension'));
 	await assertTagAttrsCovered(t, 'ScrollBar', collectAllowedAttrNames('scrollBarExtension'));
-	await assertTagAttrsCovered(t, 'loader', collectAllowedAttrNames('displayObject', 'loader'));
-	await assertTagAttrsCovered(t, 'loader3D', collectAllowedAttrNames('displayObject', 'loader3D'));
-	await assertTagAttrsCovered(t, 'graph', collectAllowedAttrNames('displayObject', 'graph'));
-	await assertTagAttrsCovered(t, 'group', collectAllowedAttrNames('displayObject', 'group'));
-	await assertTagAttrsCovered(t, 'list', collectAllowedAttrNames('displayObject', 'list'));
+	await assertTagAttrsCovered(t, 'loader', collectAllowedAttrNames('sharedDisplayAttributes', 'loader'));
+	await assertTagAttrsCovered(t, 'loader3D', collectAllowedAttrNames('sharedDisplayAttributes', 'loader3D'));
+	await assertTagAttrsCovered(t, 'graph', collectAllowedAttrNames('sharedDisplayAttributes', 'graph'));
+	await assertTagAttrsCovered(t, 'group', collectAllowedAttrNames('sharedDisplayAttributes', 'group'));
+	await assertTagAttrsCovered(t, 'list', collectAllowedAttrNames('sharedDisplayAttributes', 'list'));
 	await assertContextualChildTagAttrsCovered(t, 'list', 'item', collectAllowedAttrNames('listItem'));
-	await assertTagAttrsCovered(t, 'jta', collectAllowedAttrNames('displayObject', 'movieClip'));
-	await assertTagAttrsCovered(t, 'text', collectAllowedAttrNames('displayObject', 'text'));
-	await assertTagAttrsCovered(t, 'richtext', collectAllowedAttrNames('displayObject', 'text', 'richText'));
+	await assertTagAttrsCovered(t, 'jta', collectAllowedAttrNames('sharedDisplayAttributes', 'movieClip'));
+	await assertTagAttrsCovered(t, 'text', collectAllowedAttrNames('sharedDisplayAttributes', 'text'));
+	await assertTagAttrsCovered(t, 'richtext', collectAllowedAttrNames('sharedDisplayAttributes', 'text', 'richText'));
 	await assertContextualChildTagAttrsCovered(t, 'ComboBox', 'item', collectAllowedAttrNames('comboBoxItem'));
 	await assertTagAttrsCovered(t, 'transition', collectAllowedAttrNames('transition'));
 	await assertTagAttrsCovered(t, 'relation', collectAllowedAttrNames('relation'));
@@ -442,7 +436,6 @@ test('project XML protocol children maps stay explicit and stable', (t) => {
 			'componentRoot',
 			'controller',
 			'controllerAction',
-			'displayObject',
 			'gear',
 			'graph',
 			'group',
@@ -467,6 +460,7 @@ test('project XML protocol children maps stay explicit and stable', (t) => {
 			'relation',
 			'richText',
 			'scrollBarExtension',
+			'sharedDisplayAttributes',
 			'sliderExtension',
 			'text',
 			'textInput',
@@ -702,11 +696,20 @@ test('root extension children in fixture samples require matching extention attr
 
 test('protocolized project XML fields do not regress to legacy direct access patterns', async (t) => {
 	const writerPath = path.resolve(__dirname, '../src/io/project-writer.ts');
-	const readerSource = (await Promise.all([
-		'project-reader.ts', 'component-xml-reader.ts', 'display-object-xml-reader.ts',
-		'display-object-xml-text.ts', 'display-object-xml-list.ts', 'display-object-xml-instance.ts',
-		'display-object-xml-behaviors.ts', 'display-object-xml-shared.ts',
-	].map((file) => fs.readFile(path.resolve(__dirname, '../src/io', file), 'utf8')))).join('\n');
+	const readerSource = (
+		await Promise.all(
+			[
+				'project-reader.ts',
+				'component-xml-reader.ts',
+				'display-object-xml-reader.ts',
+				'display-object-xml-text.ts',
+				'display-object-xml-list.ts',
+				'display-object-xml-instance.ts',
+				'display-object-xml-behaviors.ts',
+				'display-object-xml-shared.ts',
+			].map((file) => fs.readFile(path.resolve(__dirname, '../src/io', file), 'utf8')),
+		)
+	).join('\n');
 	const writerSource = await fs.readFile(writerPath, 'utf-8');
 
 	const forbiddenReaderSnippets = [
@@ -731,50 +734,50 @@ test('protocolized project XML fields do not regress to legacy direct access pat
 		'obj.setVisible(false)',
 		'obj.setTouchable(false)',
 		'obj.setGrayed(true)',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.size',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.xy',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.locked',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.restrictSize',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.pivot',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.anchor',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.scale',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.group',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.size',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.xy',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.locked',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.restrictSize',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.pivot',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.anchor',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.scale',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.group',
 		'obj.setTooltips(tooltips)',
 		'obj.setCustomData(objectCustomData)',
 		'obj.setSkew(skewX, skewY)',
-		'const ctrl = doc.createController(ctrlDef.name || \'\')',
-		'parseControllerPages(ctrlDef.pages || \'\')',
+		"const ctrl = doc.createController(ctrlDef.name || '')",
+		"parseControllerPages(ctrlDef.pages || '')",
 		'const actionType = parseControllerActionType(actionDef.type)',
 		'.setFromPage(parseControllerActionPages(actionDef.fromPage))',
 		'.setTransitionName(getXmlScalar(actionDef.transition))',
 		'.setObjectId(getXmlScalar(actionDef.objectId))',
-		'const trans = doc.createTransition(transDef.name || \'\')',
+		"const trans = doc.createTransition(transDef.name || '')",
 		'trans.setAutoPlay(parseBool(transDef.autoPlay))',
 		'trans.setAutoPlayTimes(parseInt2(transDef.autoPlayTimes, 1))',
 		'ti.setTime(parseFloat2(itemDef.time))',
-		'ti.setTargetId(itemDef.target || \'\')',
-		'const typeStr = (itemDef.type || \'\').toUpperCase()',
+		"ti.setTargetId(itemDef.target || '')",
+		"const typeStr = (itemDef.type || '').toUpperCase()",
 		'if (itemDef.value !== undefined)',
 		'if (attrs.playing !== undefined) g.setPlaying(parseBool(attrs.playing))',
-		'const id = attrs.id || \'\'',
+		"const id = attrs.id || ''",
 		'const exported = parseBool(attrs.exported)',
 		'res.setTextureSetMode(attrs.atlas)',
-		'if (attrs.scale === \'9grid\' && attrs.scale9grid)',
+		"if (attrs.scale === '9grid' && attrs.scale9grid)",
 		'res.setQualityOption(attrs.qualityOption)',
 		'res.setDuplicatePadding(parseBool(attrs.duplicatePadding))',
-		'res.setSmoothing(attrs.smoothing !== \'false\')',
+		"res.setSmoothing(attrs.smoothing !== 'false')",
 		'if (attrs.texture) {',
 		'res.setRenderMode(attrs.renderMode)',
 		'res.setSamplePointSize(parseInt2(attrs.samplePointSize))',
-		'pkg.setId(desc.id || \'\')',
+		"pkg.setId(desc.id || '')",
 		'pkg.setPublishName(publish.name || dirName)',
-		'pkg.setPublishPath(publish.path || \'\')',
-		'pkg.setPublishBranchPath(publish.branchPath || \'\')',
+		"pkg.setPublishPath(publish.path || '')",
+		"pkg.setPublishBranchPath(publish.branchPath || '')",
 		'pkg.setPublishPackageCount(parseInt2(publish.packageCount, 0))',
-		'const sidePairs = parseSidePair(relDef.sidePair || \'\')',
-		'target: relDef.target || \'\'',
+		"const sidePairs = parseSidePair(relDef.sidePair || '')",
+		"target: relDef.target || ''",
 		'gear.setTween(parseBool(attrs.tween))',
-		'const ctrlName = attrs.controller || \'\'',
+		"const ctrlName = attrs.controller || ''",
 		'gear.setPages(attrs.pages)',
 		'gear.setValues(attrs.values)',
 		'title: item.title ?? null,',
@@ -820,14 +823,14 @@ test('protocolized project XML fields do not regress to legacy direct access pat
 		"attrs['@_visible']",
 		"attrs['@_touchable']",
 		"attrs['@_grayed']",
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.size',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.xy',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.locked',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.restrictSize',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.pivot',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.anchor',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.scale',
-		'PROJECT_XML_PROTOCOL.displayObject.attrs.group',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.size',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.xy',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.locked',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.restrictSize',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.pivot',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.anchor',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.scale',
+		'PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.group',
 		"attrs['@_tooltips']",
 		"attrs['@_customData']",
 		"attrs['@_skew']",

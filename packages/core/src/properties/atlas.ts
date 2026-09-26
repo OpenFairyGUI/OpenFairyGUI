@@ -32,19 +32,41 @@ export class Atlas extends ExtensibleProperty<IAtlas> {
 		});
 	}
 
-	public getIndex(): number { return this.get('index'); }
-	public setIndex(v: number): this { return this.set('index', v); }
+	public getIndex(): number {
+		return this.get('index');
+	}
+	public setIndex(v: number): this {
+		return this.set('index', v);
+	}
 
-	public getFile(): string { return this.get('file'); }
-	public setFile(v: string): this { return this.set('file', v); }
+	public getFile(): string {
+		return this.get('file');
+	}
+	public setFile(v: string): this {
+		return this.set('file', v);
+	}
 
-	public getWidth(): number { return this.get('width'); }
-	public setWidth(v: number): this { return this.set('width', v); }
+	public getWidth(): number {
+		return this.get('width');
+	}
+	public setWidth(v: number): this {
+		return this.set('width', v);
+	}
 
-	public getHeight(): number { return this.get('height'); }
-	public setHeight(v: number): this { return this.set('height', v); }
+	public getHeight(): number {
+		return this.get('height');
+	}
+	public setHeight(v: number): this {
+		return this.set('height', v);
+	}
 
-	public addSprite(sprite: Sprite): this { return this.addRef('sprites', sprite); }
-	public removeSprite(sprite: Sprite): this { return this.removeRef('sprites', sprite); }
-	public listSprites(): Sprite[] { return this.listRefs('sprites'); }
+	public addSprite(sprite: Sprite): this {
+		return this.addRef('sprites', sprite);
+	}
+	public removeSprite(sprite: Sprite): this {
+		return this.removeRef('sprites', sprite);
+	}
+	public listSprites(): Sprite[] {
+		return this.listRefs('sprites');
+	}
 }

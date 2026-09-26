@@ -2,6 +2,10 @@
 export class SessionOperationQueue {
 	private readonly operations = new Map<string, Promise<void>>();
 
+	public isBusy(sessionId: string): boolean {
+		return this.operations.has(sessionId);
+	}
+
 	public async run<T>(sessionId: string, operation: () => Promise<T>): Promise<T> {
 		const previous = this.operations.get(sessionId) ?? Promise.resolve();
 		let release = (): void => undefined;

@@ -158,6 +158,8 @@ A component instance's `fileName` is an editor file hint preserved through proje
 
 ## Project resource-tree metadata
 
+Project source data lives in `.fairy`, `settings/`, `assets/` and `assets_<branch>/`. Project saves preserve unrelated root entries, including `.git` and `Library`; these entries are outside project-tree symlink validation. Symlinks within project assets and settings remain unsupported for reading and saving.
+
 Component and asset resource nodes in `package.xml` and `package_branch.xml` use `exported="true"` and `favorite="true"` to store export and favorite state. The corresponding attribute is omitted when disabled. SWF uses the formal `SwfResource` model for `<swf>` nodes, and the UAM `swf` resource preserves its source file, export state, and favorite state. UAM stores these values as `resource.exported` and `resource.favorite`; public transactions set the target Boolean idempotently through `setResourceExported` and `setResourceFavorite`.
 
 Each package records its own resource branches in the formal ordered `branchNames` list, persisted as the same-named JSON-array attribute on the `package.xml` root. Project reads use that order to establish mappings; binary publishing uses the same order to define that package's `branchItemIds` slots and must not derive them again from root project branch order. Document calls that do not explicitly set a package-local table derive it from actual branch resources in project branch order before publishing.
@@ -408,3 +410,7 @@ Layout, render order, scroll area, static items, and tree-behavior attributes fo
 | Focus | Real editor properties, defaults, and serialization rules only |
 | Excluded content | No internal project types, field mappings, or implementation details |
 | Boundary | This page describes the editor settings protocol itself, not how a particular project consumes those properties |
+
+Project I/O preserves resource order in package descriptors. Component instance `<Button>` controller, page, checked, sound and volume, and `<Label>` prompt survive read/write. An omitted titleColor leaves the target unchanged; explicit black remains an override.
+
+Label instances can write the verified prompt attribute, including an explicit empty string. Binary input settings with restrict, non-default maxLength/keyboardType/password, or a null prompt have no verified project XML representation; project writing rejects them with project_io_error before modifying files rather than discarding them.

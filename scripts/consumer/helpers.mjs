@@ -10,7 +10,10 @@ export const json = (file) => JSON.parse(readFileSync(file, 'utf8'));
 
 export function contained(parent, file) {
 	const relative = path.relative(realpathSync(parent), realpathSync(file));
-	assert(relative && !relative.startsWith('..') && !path.isAbsolute(relative), `Path outside consumer package: ${file}`);
+	assert(
+		relative && !relative.startsWith('..') && !path.isAbsolute(relative),
+		`Path outside consumer package: ${file}`,
+	);
 }
 
 export function exportFiles(directory, manifest) {
@@ -37,7 +40,10 @@ export function bin(name, packageName, args = []) {
 	assert(readFileSync(target, 'utf8').startsWith('#!/usr/bin/env node'), `Missing Node shebang: ${name}`);
 	const shim = path.join(root, 'node_modules/.bin', `${name}${process.platform === 'win32' ? '.cmd' : ''}`);
 	assert(existsSync(shim), `Missing installed bin shim: ${name}`);
-	if (process.platform !== 'win32') { accessSync(shim, constants.X_OK); accessSync(target, constants.X_OK); }
+	if (process.platform !== 'win32') {
+		accessSync(shim, constants.X_OK);
+		accessSync(target, constants.X_OK);
+	}
 	// Windows .cmd requires a shell; test its mapped Node bootstrap without shell interpolation.
 	return process.platform === 'win32' ? [process.execPath, [target, ...args]] : [shim, args];
 }
@@ -47,7 +53,9 @@ export function assertCliEnvelope(envelope, status) {
 	const { z } = createRequire(require.resolve('@openfairygui/mcp'))('zod');
 	const contract = getInstalledContractSnapshot();
 	assert(Object.hasOwn(contract.cli, envelope.command), `Unknown CLI command: ${envelope.command}`);
-	const validated = z.fromJSONSchema({ ...contract.cli[envelope.command], $defs: contract.$defs }).safeParse(envelope);
+	const validated = z
+		.fromJSONSchema({ ...contract.cli[envelope.command], $defs: contract.$defs })
+		.safeParse(envelope);
 	assert(validated.success, JSON.stringify(validated.error));
 	assert.equal(envelope.success, status === 0);
 }
@@ -65,4 +73,3 @@ export function snapshot(directory) {
 	visit(directory, '');
 	return result;
 }
-

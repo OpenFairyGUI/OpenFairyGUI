@@ -489,7 +489,7 @@ Block 6 restores data written during the afterAdd phase:
 |---|---|
 | `GTextField` / `GRichTextField` / `GTextInput` | `text` |
 | `GButton` | `title`, `selectedTitle`, `icon`, `selectedIcon`, `titleColor`, `titleFontSize`, `relatedController`, `relatedPageId`, `sound`, `soundVolume`, `selected` |
-| `GLabel` | `title`, `icon`, `titleColor`, `titleFontSize`, input-setting placeholder, `sound`, `soundVolumeScale` |
+| `GLabel` | `title`, `icon`, `titleColor`, `titleFontSize`, optional input settings, `sound`, `soundVolumeScale` |
 | `GComboBox` | `items`, `values`, `icons`, `title`, `icon`, `titleColor`, `visibleItemCount`, `popupDirection`, `selectionController`, `sound`, `soundVolumeScale` |
 | `GProgressBar` | `value`, `max`, `min`, `sound`, `soundVolumeScale` |
 | `GSlider` | `value`, `max`, `min` |
@@ -613,3 +613,7 @@ After component decoding, the result should directly provide:
 | Formal protocol | This document defines and describes V7 only |
 | Standard written value | The package-header `version` is always `7` when encoding according to this document |
 | Conditional fields | A conditional field appears only under its stated condition; it does not indicate a parallel protocol version |
+
+Label child block 6 input settings begin with a presence flag; when present the fields are prompt, restrict, maxLength (int32), keyboardType (int32), and password (bool). Button relatedController is a parent controller index and relatedPageId is a page ID; selected stores selection independently. The titleColor presence flag distinguishes no override from explicit black.
+
+The Label input-settings presence flag is independent of prompt content. Null prompt/restrict strings mean no override; empty strings explicitly clear the value. maxLength, keyboardType and password retain their encoded values.

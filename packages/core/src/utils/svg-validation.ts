@@ -72,7 +72,8 @@ export function validateSafeSvgSource(bytes: Uint8Array): string {
 	if (/<!\s*(?:doctype|entity)\b|<\?xml-stylesheet\b/iu.test(source)) {
 		invalidSvg('DTD, entities, and stylesheets are not allowed');
 	}
-	if (XMLValidator.validate(source, { allowBooleanAttributes: false }) !== true) invalidSvg('source is not well-formed XML');
+	if (XMLValidator.validate(source, { allowBooleanAttributes: false }) !== true)
+		invalidSvg('source is not well-formed XML');
 
 	const parsed = new XMLParser({
 		preserveOrder: true,
@@ -83,9 +84,11 @@ export function validateSafeSvgSource(bytes: Uint8Array): string {
 		processEntities: false,
 		trimValues: false,
 	}).parse(source) as ParsedSvgEntry[];
-	const roots = parsed.flatMap((entry) => Object.keys(entry)
-		.filter((name) => name !== ':@' && !name.startsWith('#') && !name.startsWith('?'))
-		.map((name) => ({ entry, name })));
+	const roots = parsed.flatMap((entry) =>
+		Object.keys(entry)
+			.filter((name) => name !== ':@' && !name.startsWith('#') && !name.startsWith('?'))
+			.map((name) => ({ entry, name })),
+	);
 	if (roots.length !== 1 || roots[0]!.name !== 'svg') invalidSvg('a single unqualified <svg> root is required');
 	if (roots[0]!.entry[':@']?.xmlns !== SVG_NAMESPACE) invalidSvg('the SVG namespace is required');
 
@@ -103,7 +106,8 @@ export function validateSafeSvgSource(bytes: Uint8Array): string {
 			}
 			if (Array.isArray(value)) {
 				for (const child of value) {
-					if (child && typeof child === 'object' && !Array.isArray(child)) pending.push(child as ParsedSvgEntry);
+					if (child && typeof child === 'object' && !Array.isArray(child))
+						pending.push(child as ParsedSvgEntry);
 				}
 			}
 		}

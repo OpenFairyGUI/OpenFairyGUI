@@ -8,8 +8,17 @@ test('normalization owns gear values and binary resource data independently of i
 	component.component.displayList[0]!.gears = [gear];
 	project.packages[0]!.resources.push(component);
 	const metadata = { nested: { value: 1 }, bytes: new Uint8Array([1]) };
-	project.packages[0]!.resources.push({ kind: 'misc', id: 'metadata', name: 'Meta', path: '/', exported: false,
-		favorite: false, branch: '', branchItemIds: [], metadata });
+	project.packages[0]!.resources.push({
+		kind: 'misc',
+		id: 'metadata',
+		name: 'Meta',
+		path: '/',
+		exported: false,
+		favorite: false,
+		branch: '',
+		branchItemIds: [],
+		metadata,
+	});
 	const normalized = normalizeUamProject(project);
 	const expected = structuredClone(normalized);
 	gear.states[0]!.value!.alpha = 0.125;
@@ -99,28 +108,32 @@ test('MovieClip resources normalize and validate a typed model without metadata 
 		version: '3.0',
 		branches: [],
 		settings: {} as never,
-		packages: [{
-			id: 'pkg001',
-			name: 'Main',
-			compressPNG: null,
-			jpegQuality: null,
-			publish: null,
-			branchNames: [],
-			folders: [],
-			resources: [{
-				kind: 'movieClip',
-				id: 'movie001',
-				name: 'Spinner',
-				path: '/',
-				exported: true,
-				favorite: false,
-				branch: '',
-				branchItemIds: [],
-				fileName: 'Spinner.jta',
-				dimensions: { width: 32, height: 25 },
-				movieClip,
-			}],
-		}],
+		packages: [
+			{
+				id: 'pkg001',
+				name: 'Main',
+				compressPNG: null,
+				jpegQuality: null,
+				publish: null,
+				branchNames: [],
+				folders: [],
+				resources: [
+					{
+						kind: 'movieClip',
+						id: 'movie001',
+						name: 'Spinner',
+						path: '/',
+						exported: true,
+						favorite: false,
+						branch: '',
+						branchItemIds: [],
+						fileName: 'Spinner.jta',
+						dimensions: { width: 32, height: 25 },
+						movieClip,
+					},
+				],
+			},
+		],
 	});
 
 	t.deepEqual(validateUamProject(project), []);
@@ -134,14 +147,18 @@ test('MovieClip resources normalize and validate a typed model without metadata 
 
 	const legacyMetadataOnly = normalizeUamProject({
 		...project,
-		packages: [{
-			...project.packages[0]!,
-			resources: [{
-				...normalizedResource,
-				movieClip: undefined,
-				metadata: { interval: 83, frames: movieClip.frames },
-			} as never],
-		}],
+		packages: [
+			{
+				...project.packages[0]!,
+				resources: [
+					{
+						...normalizedResource,
+						movieClip: undefined,
+						metadata: { interval: 83, frames: movieClip.frames },
+					} as never,
+				],
+			},
+		],
 	});
 	const issues = validateUamProject(legacyMetadataOnly);
 	t.true(issues.some((issue) => issue.path === 'packages[0].resources[0].movieClip'));
@@ -202,9 +219,7 @@ test('validateUamProject rejects unknown hard references before graph assembly',
 									alpha: 1,
 									rotation: 0,
 									customData: '',
-									relations: [
-										{ targetNodeId: '', type: 0, usePercent: false },
-									],
+									relations: [{ targetNodeId: '', type: 0, usePercent: false }],
 									gears: [],
 									resource: { packageId: '', resourceId: 'img001' },
 								},
@@ -226,7 +241,12 @@ test('validateUamProject rejects unknown hard references before graph assembly',
 											kind: 'look',
 											name: 'look',
 											controllerName: 'missing-controller',
-											states: [{ pageId: 'missing-page', value: { alpha: 1, rotation: 0, grayed: false, touchable: true } }],
+											states: [
+												{
+													pageId: 'missing-page',
+													value: { alpha: 1, rotation: 0, grayed: false, touchable: true },
+												},
+											],
 											defaultValue: { alpha: 1, rotation: 0, grayed: false, touchable: true },
 											condition: '',
 											positionsInPercent: false,

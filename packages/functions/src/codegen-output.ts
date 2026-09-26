@@ -6,7 +6,10 @@ import type { ResolvedPackageCodegenPlan } from './codegen-settings.js';
 import type { PublishFileSystem } from './publish/contracts.js';
 
 export async function generatePackageCode(
-	doc: Document, pkg: Package, plan: ResolvedPackageCodegenPlan, fs: PublishFileSystem,
+	doc: Document,
+	pkg: Package,
+	plan: ResolvedPackageCodegenPlan,
+	fs: PublishFileSystem,
 ): Promise<void> {
 	const variant = resolveFguiTypescriptVariant(doc);
 	const packageDir = fs.join(plan.outputDir, plan.packageFolderName);

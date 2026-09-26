@@ -22,7 +22,7 @@ On macOS / Linux, use the commands above as written. In Windows PowerShell, repl
 
 Compare the CLI version with `result.packageVersion` in the documentation index. The index also provides contract and capability schema versions and content URIs. If versions differ, the host should reconcile the installation before editing.
 
-Stable `0.6.1` includes `readSessionState` / `readResourceBytes`. To try prereleases, change the two packages to `@openfairygui/cli@next` and `@openfairygui/mcp@next`, still saving exact versions. Keep packages on the same version and channel, and construct operations from the installed documentation.
+The installed version includes `readSessionState` / `readResourceBytes`. To try prereleases, change the two packages to `@openfairygui/cli@next` and `@openfairygui/mcp@next`, still saving exact versions. Keep packages on the same version and channel, and construct operations from the installed documentation.
 
 ## Connect local MCP
 
@@ -44,7 +44,7 @@ Add the following configuration to your MCP client. Replace both absolute paths:
 }
 ```
 
-This is a common JSON client configuration; adapt its format to your client. The client must be able to find `node`; otherwise use Node's absolute path as `command`. The service uses local stdio, with no HTTP port.
+`OPENFAIRYGUI_ALLOWED_PROJECT_ROOTS` lists the project roots that may be opened, separated by the platform path delimiter (`;` on Windows, `:` elsewhere). When it is unset, only the MCP process working directory is allowed; when it is set but lists no directory, the service refuses to start. This is a common JSON client configuration; adapt its format to your client. The client must be able to find `node`; otherwise use Node's absolute path as `command`. The service uses local stdio, with no HTTP port.
 
 ### Minimal connection check
 
@@ -61,7 +61,7 @@ These queries read bundled documentation without visiting a website. `ofgui docs
 
 ## Complete your first edit
 
-Turn a static reward panel into a component with three controller-driven states. One edit covers a controller, text, button interaction, and conditional visibility. Use stable `0.6.1` to complete this task.
+Turn a static reward panel into a component with three controller-driven states. One edit covers a controller, text, button interaction, and conditional visibility. Use the installed version to complete this task.
 
 ### Prepare the project
 
@@ -113,7 +113,7 @@ After the main task, continue with B or run C using its independent template pro
 | B · Visual redesign | [Layout and entrance animation example](./examples.md#reward-panel-layout-and-entrance-animation): resize the panel to 420 × 320, update its layout, and add a 0.4-second entrance animation in one seven-operation batch, preserving the three-state configuration. Includes before/after published artifacts, actual runtime screenshots, and acceptance tables. |
 | C · Component generation | [Template-based reward card example](./examples.md#generate-reward-cards-from-a-template): use three `addComponent` operations to generate exported components with distinct titles and icons, sharing one Label template and existing images. Includes independent template/file preservation checks and an actual runtime screenshot. |
 
-If the host needs the complete generated model before saving, stable `0.6.1` provides `readSessionState`; use its returned revision with `readResourceBytes` for the primary assets you need. See the [contract guide](./contracts.md) for response budgets, read diagnostics, and `stale_read` recovery.
+If the host needs the complete generated model before saving, the installed version provides `readSessionState`; use its returned revision with `readResourceBytes` for the primary assets you need. See the [contract guide](./contracts.md) for response budgets, read diagnostics, and `stale_read` recovery.
 
 ## Terminal workflows
 
@@ -161,3 +161,9 @@ console.log(report.projectType, report.totals.packages);
 ```
 
 `Document` is a mutable low-level API; public editing uses UAM transactions. See [Diagnostics and Recovery](./diagnostics.md) for failure handling and the [documentation index](../README.md) for architecture and protocols.
+
+<!-- product-facts:start -->
+Package: `0.6.1` · Backend contract: `3.0.0` · Capability schema: `15`
+
+Operations: 41 · Backend methods: 17 · CLI commands: 16 · Diagnostic codes: 103
+<!-- product-facts:end -->

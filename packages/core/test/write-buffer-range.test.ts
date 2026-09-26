@@ -11,7 +11,12 @@ test('ByteBuffer bounds are local to the view, including strings and nested buff
 	const parent = new ByteBuffer(bytes.buffer, 2, 2);
 	t.throws(() => parent.readBuffer(3), { instanceOf: RangeError });
 	t.throws(() => parent.skip(3), { instanceOf: RangeError });
-	t.throws(() => { parent.pos = -1; }, { instanceOf: RangeError });
+	t.throws(
+		() => {
+			parent.pos = -1;
+		},
+		{ instanceOf: RangeError },
+	);
 	const index = new ByteBuffer(new Uint8Array([0, 7]).buffer);
 	index.stringTable = ['one'];
 	t.throws(() => index.readS(), { instanceOf: RangeError });

@@ -1,0 +1,103 @@
+{
+  "recordedAt": "2026-09-24T14:22:53.437Z",
+  "status": "blocked_by_service_rate_limit",
+  "modelSuccessRate": null,
+  "notes": [
+    "Two independent processes with explicit authentication settings; 45-second gap after the first attempt.",
+    "Raw harness zeros reflect environment failures, not model capability scores.",
+    "No credentials or endpoint URLs are included."
+  ],
+  "attempts": [
+    {
+      "report": "0.6.1-claude-retry-1.json",
+      "reportSha256": "31a211c9d6b87eff92fd5420097206fc27b1144c9586713f871273516fb6d68a",
+      "clientVersion": "2.1.281 (Claude Code)",
+      "modelReported": "claude-opus-5-5[1m]",
+      "timeoutSeconds": 600,
+      "timedOut": true,
+      "isolatedTools": true,
+      "apiRetries": [
+        {
+          "attempt": 1,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 2,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 3,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 4,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 5,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 6,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 7,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 8,
+          "status": 429,
+          "error": "rate_limit"
+        }
+      ],
+      "modelToolCalls": 0,
+      "modelSuccessRate": null
+    },
+    {
+      "report": "0.6.1-claude-retry-2.json",
+      "reportSha256": "ba1de907bc8e0e1391db02f568069f0482488784b7c241e2011294a892606830",
+      "clientVersion": "2.1.281 (Claude Code)",
+      "modelReported": "claude-opus-5-5[1m]",
+      "timeoutSeconds": 300,
+      "timedOut": true,
+      "isolatedTools": true,
+      "apiRetries": [
+        {
+          "attempt": 1,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 2,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 3,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 4,
+          "status": 429,
+          "error": "rate_limit"
+        },
+        {
+          "attempt": 5,
+          "status": 429,
+          "error": "rate_limit"
+        }
+      ],
+      "modelToolCalls": 0,
+      "modelSuccessRate": null
+    }
+  ]
+}
