@@ -320,3 +320,56 @@ test.serial('Windows retries transient lock publication without losing ownership
 	await lock.release();
 	t.deepEqual(await fs.readdir(lockPath + '.coordination'), []);
 });
+
+test('Windows lock identity survives a failed probe and slow PowerShell startup', async (t) => {
+	if (process.platform !== 'win32') {
+		t.pass('Windows-specific process identity probe');
+		return;
+	}
+	const fixture = await createTempBackendProject();
+	t.teardown(() => fixture.cleanup());
+	const entry = new URL('../src/node-session-lock.ts', import.meta.url).href;
+	const lockPath = lockPathFor(fixture.rootDir);
+	// A separate process starts with an empty identity cache and isolates the OS-probe injection.
+	const script = `
+		import assert from 'node:assert/strict';
+		import cp from 'node:child_process';
+		import fs from 'node:fs/promises';
+		import { syncBuiltinESMExports } from 'node:module';
+		import { promisify } from 'node:util';
+		const original = cp.execFile;
+		const execute = promisify(original);
+		let probes = 0;
+		const wrapped = (...args) => original(...args);
+		wrapped[promisify.custom] = async (file, args, options) => {
+			if (file !== 'powershell.exe') return execute(file, args, options);
+			probes++;
+			if (probes === 1) throw new Error('transient OS identity probe failure');
+			return execute(file, [...args.slice(0, -1), 'Start-Sleep -Seconds 6; ' + args.at(-1)], options);
+		};
+		cp.execFile = wrapped;
+		syncBuiltinESMExports();
+		const { acquireNodeSessionLock } = await import(${JSON.stringify(entry)});
+		const lockPath = ${JSON.stringify(lockPath)};
+		await assert.rejects(acquireNodeSessionLock(lockPath), /owner creation identity/);
+		await assert.rejects(fs.stat(lockPath), { code: 'ENOENT' });
+		const locks = await Promise.all([
+			acquireNodeSessionLock(lockPath),
+			acquireNodeSessionLock(lockPath + '-second'),
+		]);
+		await Promise.all(locks.map(lock => lock.release()));
+		assert.equal(probes, 2, 'successful identity is shared and cached; failure is not cached');
+	`;
+	const child = spawn(process.execPath, ['--import', 'tsx/esm', '--input-type=module', '-e', script], {
+		stdio: ['ignore', 'ignore', 'pipe'],
+		windowsHide: true,
+		timeout: 30_000,
+	});
+	t.teardown(() => child.kill());
+	let stderr = '';
+	child.stderr!.on('data', (chunk) => {
+		stderr += chunk;
+	});
+	const [code] = await once(child, 'exit');
+	t.is(code, 0, stderr);
+});

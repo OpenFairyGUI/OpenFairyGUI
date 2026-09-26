@@ -53,3 +53,5 @@ Backend `validateSession({ sessionId })` checks the current authoritative sessio
 Query properties and revision, preflight, apply, validate, then save. Apply and save each check revision. Neither support checks nor successful preflight replace project validation.
 
 Node sessions normalize real file identity; browser storage declares case sensitivity. Project path checks cover the project file, settings and resources without scanning unrelated root contents. Session limits include pending opens; idle expiry only closes clean, inactive sessions. Dirty sessions require explicit save or close. On save failure inspect `diskMayBePartiallyUpdated` and `recoveryPaths`; successful writes with cleanup failures report `save_backup_retained`.
+
+Node session locks use OS process creation identity to distinguish PID reuse. The Windows PowerShell identity probe waits up to 15 seconds. Successful results are shared within the process; failed results are not cached, so a later open can probe again. An unknown own identity prevents lock acquisition; an unknown identity for another live process preserves its lock.

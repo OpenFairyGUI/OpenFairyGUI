@@ -73,7 +73,8 @@ async function processIdentity(pid: number): Promise<string | null> {
 					'-Command',
 					`(Get-Process -Id ${pid} -ErrorAction Stop).StartTime.ToUniversalTime().Ticks`,
 				],
-				{ windowsHide: true, timeout: 5000 },
+				// Windows PowerShell cold startup can exceed five seconds on hosted runners.
+				{ windowsHide: true, timeout: 15_000 },
 			);
 			return /^\d+$/.test(stdout.trim()) ? `win32:${stdout.trim()}` : null;
 		}
@@ -88,6 +89,14 @@ async function processIdentity(pid: number): Promise<string | null> {
 }
 let ownIdentity: Promise<string | null> | undefined;
 
+async function getOwnIdentity(): Promise<string | null> {
+	const pending = (ownIdentity ??= processIdentity(process.pid));
+	const identity = await pending;
+	// Coalesce concurrent probes, but a transient failure must not poison the process forever.
+	if (identity === null && ownIdentity === pending) ownIdentity = undefined;
+	return identity;
+}
+
 async function isProcessAlive(metadata: NodeLockMetadata): Promise<boolean> {
 	if (metadata.hostname !== os.hostname()) return true;
 	try {
@@ -95,10 +104,7 @@ async function isProcessAlive(metadata: NodeLockMetadata): Promise<boolean> {
 	} catch (error) {
 		return (error as NodeJS.ErrnoException).code !== 'ESRCH';
 	}
-	const identity =
-		metadata.pid === process.pid
-			? await (ownIdentity ??= processIdentity(process.pid))
-			: await processIdentity(metadata.pid);
+	const identity = metadata.pid === process.pid ? await getOwnIdentity() : await processIdentity(metadata.pid);
 	// Permission failures and unavailable OS probes never authorize reclaiming a live PID.
 	return identity === null || identity === metadata.processIdentity;
 }
@@ -110,7 +116,7 @@ async function isProcessAlive(metadata: NodeLockMetadata): Promise<boolean> {
 async function coordinateLock<T>(filePath: string, action: () => Promise<T>): Promise<T> {
 	const directory = `${filePath}.coordination`;
 	await fs.mkdir(directory, { recursive: true });
-	const identity = await (ownIdentity ??= processIdentity(process.pid));
+	const identity = await getOwnIdentity();
 	if (!identity) throw new Error('Unable to determine lock coordination owner identity.');
 	const token = randomUUID();
 	const candidate = path.join(directory, token);
@@ -246,7 +252,7 @@ async function recoverStaleLock(filePath: string): Promise<boolean> {
 }
 
 export async function acquireNodeSessionLock(filePath: string): Promise<BackendSessionLock> {
-	const identity = await (ownIdentity ??= processIdentity(process.pid));
+	const identity = await getOwnIdentity();
 	if (!identity) throw new Error('Unable to determine the Node lock owner creation identity.');
 	const owner: NodeLockMetadata = {
 		schemaVersion: 2,
