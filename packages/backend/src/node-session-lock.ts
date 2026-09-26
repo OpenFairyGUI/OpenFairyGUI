@@ -65,7 +65,7 @@ async function processIdentity(pid: number): Promise<string | null> {
 			return start ? `linux:${boot.trim()}:${start}` : null;
 		}
 		if (process.platform === 'win32') {
-			const { stdout } = await execute(
+			const pending = execute(
 				'powershell.exe',
 				[
 					'-NoProfile',
@@ -76,6 +76,9 @@ async function processIdentity(pid: number): Promise<string | null> {
 				// Windows PowerShell cold startup can exceed five seconds on hosted runners.
 				{ windowsHide: true, timeout: 15_000 },
 			);
+			// This command never reads input. Close the pipe so Windows PowerShell cannot wait for EOF.
+			pending.child?.stdin?.end();
+			const { stdout } = await pending;
 			return /^\d+$/.test(stdout.trim()) ? `win32:${stdout.trim()}` : null;
 		}
 		const { stdout } = await execute('ps', ['-p', String(pid), '-o', 'lstart='], {

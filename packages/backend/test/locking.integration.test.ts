@@ -340,12 +340,15 @@ test('Windows lock identity survives a failed probe and slow PowerShell startup'
 		const original = cp.execFile;
 		const execute = promisify(original);
 		let probes = 0;
+		let closedInputs = 0;
 		const wrapped = (...args) => original(...args);
-		wrapped[promisify.custom] = async (file, args, options) => {
+		wrapped[promisify.custom] = (file, args, options) => {
 			if (file !== 'powershell.exe') return execute(file, args, options);
 			probes++;
 			if (probes === 1) throw new Error('transient OS identity probe failure');
-			return execute(file, [...args.slice(0, -1), 'Start-Sleep -Seconds 6; ' + args.at(-1)], options);
+			const pending = execute(file, [...args.slice(0, -1), 'Start-Sleep -Seconds 6; ' + args.at(-1)], options);
+			pending.child.stdin.once('finish', () => { closedInputs++; });
+			return pending;
 		};
 		cp.execFile = wrapped;
 		syncBuiltinESMExports();
@@ -359,6 +362,7 @@ test('Windows lock identity survives a failed probe and slow PowerShell startup'
 		]);
 		await Promise.all(locks.map(lock => lock.release()));
 		assert.equal(probes, 2, 'successful identity is shared and cached; failure is not cached');
+		assert.equal(closedInputs, 1, 'noninteractive PowerShell receives EOF');
 	`;
 	const child = spawn(process.execPath, ['--import', 'tsx/esm', '--input-type=module', '-e', script], {
 		stdio: ['ignore', 'ignore', 'pipe'],
