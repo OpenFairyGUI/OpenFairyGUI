@@ -1375,7 +1375,7 @@ test('restore published project: nested output directories are rejected before s
 });
 
 test('restore published project: output nested through a resolved input alias is rejected', async (t) => {
-	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-aliased-output-'));
+	const tmpDir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-aliased-output-')));
 	const releaseDir = path.join(tmpDir, 'release');
 	const outputAlias = path.join(tmpDir, 'output-alias');
 
