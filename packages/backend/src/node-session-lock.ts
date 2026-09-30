@@ -8,15 +8,18 @@ import type { BackendSessionLock } from './runtime/contracts.js';
 
 const PROCESS_START_TIME = Math.trunc(Date.now() - process.uptime() * 1000);
 
-async function retryLockIo(operation: () => Promise<void>): Promise<void> {
+/** Windows reports sharing violations and delete-pending files (scanners, concurrent unlinks) with these codes. */
+function isTransientWindowsLockError(error: unknown): boolean {
+	const code = (error as NodeJS.ErrnoException | null)?.code;
+	return process.platform === 'win32' && ['EPERM', 'EACCES', 'EBUSY'].includes(code ?? '');
+}
+
+async function retryLockIo<T>(operation: () => Promise<T>): Promise<T> {
 	for (let attempt = 0; ; attempt++) {
 		try {
-			await operation();
-			return;
+			return await operation();
 		} catch (error) {
-			const code = (error as NodeJS.ErrnoException).code;
-			if (process.platform !== 'win32' || attempt >= 7 || !['EPERM', 'EACCES', 'EBUSY'].includes(code ?? ''))
-				throw error;
+			if (attempt >= 7 || !isTransientWindowsLockError(error)) throw error;
 			await new Promise((resolve) => setTimeout(resolve, 10 * 2 ** attempt));
 		}
 	}
@@ -125,6 +128,8 @@ async function coordinateLock<T>(filePath: string, action: () => Promise<T>): Pr
 	const token = randomUUID();
 	const candidate = path.join(directory, token);
 	const temporary = path.join(directory, `.${token}.tmp`);
+	// A separate staging name: recreating a just-unlinked name can fail while Windows still has it pending delete.
+	const ticketTemporary = path.join(directory, `.${token}.ticket.tmp`);
 	const ticketPath = path.join(directory, `.ticket-${token}`);
 	const owner: NodeLockMetadata & { ticket: number } = {
 		schemaVersion: 2,
@@ -136,21 +141,23 @@ async function coordinateLock<T>(filePath: string, action: () => Promise<T>): Pr
 		ticket: 0,
 	};
 	const publish = async (): Promise<void> => {
-		await fs.writeFile(temporary, JSON.stringify(owner));
+		await retryLockIo(() => fs.writeFile(temporary, JSON.stringify(owner)));
 		await retryLockIo(() => fs.link(temporary, candidate));
 		await retryLockIo(() => fs.unlink(temporary));
 	};
 	const readContender = async (name: string): Promise<(NodeLockMetadata & { ticket: number }) | null> => {
 		try {
-			const content = await fs.readFile(path.join(directory, name), 'utf8');
+			// A departing contender's files may be briefly unreadable on Windows before they disappear.
+			const content = await retryLockIo(() => fs.readFile(path.join(directory, name), 'utf8'));
 			const metadata = parseLockMetadata(content);
 			const ticketFile = path.join(directory, `.ticket-${name}`);
-			const ticket: number = await fs
-				.readFile(ticketFile, 'utf8')
-				.then(Number, (error: NodeJS.ErrnoException) => {
+			const ticket: number = await retryLockIo(() => fs.readFile(ticketFile, 'utf8')).then(
+				Number,
+				(error: NodeJS.ErrnoException) => {
 					if (error.code === 'ENOENT') return 0;
 					throw error;
-				});
+				},
+			);
 			if (!metadata || !Number.isSafeInteger(ticket) || (ticket as number) < 0)
 				throw new Error('Invalid lock coordination record.');
 			if (!(await isProcessAlive(metadata))) {
@@ -172,9 +179,9 @@ async function coordinateLock<T>(filePath: string, action: () => Promise<T>): Pr
 			maximum = Math.max(maximum, (await readContender(name))?.ticket ?? 0);
 		}
 		owner.ticket = maximum + 1;
-		await fs.writeFile(temporary, String(owner.ticket), { flag: 'wx' });
-		await retryLockIo(() => fs.link(temporary, ticketPath));
-		await retryLockIo(() => fs.unlink(temporary));
+		await retryLockIo(() => fs.writeFile(ticketTemporary, String(owner.ticket), { flag: 'wx' }));
+		await retryLockIo(() => fs.link(ticketTemporary, ticketPath));
+		await retryLockIo(() => fs.unlink(ticketTemporary));
 		const deadline = Date.now() + 15_000;
 		for (;;) {
 			let waiting = false;
@@ -200,6 +207,7 @@ async function coordinateLock<T>(filePath: string, action: () => Promise<T>): Pr
 		await retryLockIo(() => fs.unlink(candidate)).catch(() => undefined);
 		await retryLockIo(() => fs.unlink(ticketPath)).catch(() => undefined);
 		await retryLockIo(() => fs.unlink(temporary)).catch(() => undefined);
+		await retryLockIo(() => fs.unlink(ticketTemporary)).catch(() => undefined);
 	}
 }
 
@@ -255,6 +263,12 @@ async function recoverStaleLock(filePath: string): Promise<boolean> {
 	return false;
 }
 
+async function isHeldByLiveForeignOwner(filePath: string, token: string): Promise<boolean> {
+	const current = await readLockFile(filePath);
+	const metadata = current ? parseLockMetadata(current.content) : null;
+	return !!metadata && metadata.token !== token && (await isProcessAlive(metadata));
+}
+
 export async function acquireNodeSessionLock(filePath: string): Promise<BackendSessionLock> {
 	const identity = await getOwnIdentity();
 	if (!identity) throw new Error('Unable to determine the Node lock owner creation identity.');
@@ -266,21 +280,31 @@ export async function acquireNodeSessionLock(filePath: string): Promise<BackendS
 		hostname: os.hostname(),
 		token: randomUUID(),
 	};
-	await coordinateLock(filePath, async () => {
-		const prepared = `${filePath}.owner-${owner.token}`;
-		await fs.writeFile(prepared, JSON.stringify(owner), { flag: 'wx' });
-		try {
+	try {
+		await coordinateLock(filePath, async () => {
+			const prepared = `${filePath}.owner-${owner.token}`;
+			await retryLockIo(() => fs.writeFile(prepared, JSON.stringify(owner), { flag: 'wx' }));
 			try {
-				await retryLockIo(() => fs.link(prepared, filePath));
-			} catch (error) {
-				if ((error as NodeJS.ErrnoException).code !== 'EEXIST' || !(await recoverStaleLock(filePath)))
-					throw error;
-				await retryLockIo(() => fs.link(prepared, filePath));
+				try {
+					await retryLockIo(() => fs.link(prepared, filePath));
+				} catch (error) {
+					if ((error as NodeJS.ErrnoException).code !== 'EEXIST' || !(await recoverStaleLock(filePath)))
+						throw error;
+					await retryLockIo(() => fs.link(prepared, filePath));
+				}
+			} finally {
+				await retryLockIo(() => fs.unlink(prepared));
 			}
-		} finally {
-			await retryLockIo(() => fs.unlink(prepared));
-		}
-	});
+		});
+	} catch (error) {
+		// Windows may still report contention as a sharing violation; a live foreign owner means the lock is taken.
+		if (isTransientWindowsLockError(error) && (await isHeldByLiveForeignOwner(filePath, owner.token)))
+			throw Object.assign(new Error(`Session lock is held by another process: ${filePath}`), {
+				code: 'EEXIST',
+				cause: error,
+			});
+		throw error;
+	}
 	let released = false;
 	const hostMetadataPath = path.join(`${filePath}.coordination`, `.host-${owner.token}`);
 	const assertOwner = async (): Promise<void> => {

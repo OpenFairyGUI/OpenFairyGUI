@@ -321,6 +321,82 @@ test.serial('Windows retries transient lock publication without losing ownership
 	t.deepEqual(await fs.readdir(lockPath + '.coordination'), []);
 });
 
+test.serial('Windows sharing violations against a live foreign lock surface as a lock conflict', async (t) => {
+	if (process.platform !== 'win32') {
+		t.pass('Windows-specific sharing violation');
+		return;
+	}
+	const fixture = await createTempBackendProject();
+	t.teardown(() => fixture.cleanup());
+	const base = createNodeBackendFileSystem();
+	const lockPath = lockPathFor(fixture.rootDir);
+	const link = fs.link;
+	const occupied = async (source: Parameters<typeof link>[0], target: Parameters<typeof link>[1]) => {
+		if (String(target) === lockPath) throw Object.assign(new Error('sharing violation'), { code: 'EPERM' });
+		return link(source, target);
+	};
+	fs.link = occupied;
+	try {
+		// Without an owner, the host error is a real failure and must not be disguised as contention.
+		await t.throwsAsync(base.acquireSessionLock(lockPath), { code: 'EPERM' });
+	} finally {
+		fs.link = link;
+	}
+	const held = await base.acquireSessionLock(lockPath);
+	fs.link = occupied;
+	try {
+		await t.throwsAsync(base.acquireSessionLock(lockPath), { code: 'EEXIST' });
+	} finally {
+		fs.link = link;
+	}
+	await held.release();
+	t.deepEqual(await fs.readdir(lockPath + '.coordination'), []);
+});
+
+test.serial('Windows lock coordination waits out briefly unreadable contender files', async (t) => {
+	if (process.platform !== 'win32') {
+		t.pass('Windows-specific delete-pending files');
+		return;
+	}
+	const fixture = await createTempBackendProject();
+	t.teardown(() => fixture.cleanup());
+	const base = createNodeBackendFileSystem();
+	const lockPath = lockPathFor(fixture.rootDir);
+	const exited = spawn(process.execPath, ['-e', ''], { windowsHide: true });
+	await once(exited, 'exit');
+	const directory = lockPath + '.coordination';
+	const departed = 'departed-contender';
+	await fs.mkdir(directory, { recursive: true });
+	await fs.writeFile(
+		path.join(directory, departed),
+		JSON.stringify({
+			schemaVersion: 2,
+			processIdentity: 'departed',
+			pid: exited.pid,
+			processStartTime: 0,
+			hostname: os.hostname(),
+			token: departed,
+			ticket: 0,
+		}),
+	);
+	const readFile = fs.readFile;
+	let failures = 0;
+	fs.readFile = (async (...args: Parameters<typeof readFile>) => {
+		if (path.basename(String(args[0])) === departed && failures++ < 2)
+			throw Object.assign(new Error('delete pending'), { code: 'EPERM' });
+		return readFile(...args);
+	}) as typeof readFile;
+	let lock;
+	try {
+		lock = await base.acquireSessionLock(lockPath);
+	} finally {
+		fs.readFile = readFile;
+	}
+	t.true(failures >= 2);
+	await lock.release();
+	t.deepEqual(await fs.readdir(directory), []);
+});
+
 test('Windows lock identity survives a failed probe and slow PowerShell startup', async (t) => {
 	if (process.platform !== 'win32') {
 		t.pass('Windows-specific process identity probe');
