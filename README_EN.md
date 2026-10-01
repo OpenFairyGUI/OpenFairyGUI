@@ -91,6 +91,4 @@ Package: `0.6.1` · Backend contract: `3.0.0` · Capability schema: `15`
 Operations: 41 · Backend methods: 17 · CLI commands: 16 · Diagnostic codes: 103
 <!-- product-facts:end -->
 
-[Roadmap](./ROADMAP_EN.md) · [Contributing](./CONTRIBUTING.md)
-
-[Roadmap / 规划](./docs/en/guide/roadmap.md)
+[Contributing](./CONTRIBUTING.md)

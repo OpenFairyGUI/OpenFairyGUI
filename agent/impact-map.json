@@ -121,9 +121,7 @@
         "CHANGELOG.md",
         "CHANGELOG_CN.md",
         "CLAUDE.md",
-        "CONTRIBUTING.md",
-        "ROADMAP.md",
-        "ROADMAP_EN.md"
+        "CONTRIBUTING.md"
       ],
       "tests": [],
       "docs": [

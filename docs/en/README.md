@@ -37,4 +37,4 @@ This directory contains the English documentation used by the static website. It
 | Root READMEs | `README.md` and `README_EN.md` provide navigation rather than protocol specifications. |
 | Website build | Use `pnpm docs:dev` for local development. `pnpm docs:build` generates the public API reference and static site. |
 
-[Roadmap](./guide/roadmap.md) · [Contributing](./guide/development.md#contributing)
+[Contributing](./guide/development.md#contributing)

@@ -38,4 +38,4 @@ flowchart TD
 
 Core/Backend/CLI 的 TypeScript 类型生成 operation/schema/CLI envelope；Backend/docs 分发安装版本语料。MCP 按需编译并缓存 schema，输入预算先于深层结构解析；正式二进制输出采用 base64，完整 payload 只放 structuredContent。扩展 JSON 不改写成字节。Host policy 在输入校验后、Backend 调用前执行。
 
-精确字段、限制和恢复流程见[契约](./guide/contracts.md)、[工程验证](./project-validation.md)、[诊断](./guide/diagnostics.md)、[安装文档](./guide/installed-docs.md)、[发布设置](./editor-publish-settings.md)、[二进制协议](./fairygui-binary-package-format.md)和[插件](./publish-plugins.md)。修改入口见[任务指引](./guide/task-recipes.md)，验证见[开发指南](./guide/development.md)，未实现能力见[路线图](./guide/roadmap.md)。
+精确字段、限制和恢复流程见[契约](./guide/contracts.md)、[工程验证](./project-validation.md)、[诊断](./guide/diagnostics.md)、[安装文档](./guide/installed-docs.md)、[发布设置](./editor-publish-settings.md)、[二进制协议](./fairygui-binary-package-format.md)和[插件](./publish-plugins.md)。修改入口见[任务指引](./guide/task-recipes.md)，验证见[开发指南](./guide/development.md)。

@@ -219,7 +219,7 @@ Suggested priorities:
 | Batch 3 (agent experience) | A1, A2, A5, A6, W1, W2 | Mostly documentation and metadata changes |
 | Batch 4 (robustness) | R3 (decide the policy first), R5, R6, R7, Q11, Q12, Q14 | R3 needs a maintainer decision on the default policy |
 | Batch 5 (quality debt) | Q1–Q10, Q13, Q15, D7–D14, A7, B3 | Can be interleaved; Q1 and Q2 need evidence first |
-| Planning | Section 7, items 1–6 | Schedule after aligning with the root roadmap |
+| Planning | Section 7, items 1–6 | Schedule after evaluation as GitHub issues / milestones |
 
 ## 9. Ruled-out suspicions
 
@@ -286,7 +286,7 @@ Acceptance: pnpm check:ci passed (645 AVA tests, 40 repository tests, five-packa
 | A8 | CLI tx previews or previews/applies/validates/saves/closes in one Backend session, sharing the byte codec with MCP. Fresh invocation revision 0 is not a cross-process disk token. Optional MCP publishing delegates only to an explicitly injected host owning authorization/output/plugin policy. |
 | A9 | Complete evaluation: reference, native Codex and native Claude all passed 11/11 on the same five packages after next integration and the MCP error-summary fix. Claude Code 2.1.281 reported claude-opus-5-5; Codex 0.154.0 used its configured model without an override. The initial Claude 9/11 failures remain recorded; grading was not weakened. See the baseline index. This qualifies a local workspace snapshot, not a published release. |
 | W1–W3 | Generated product-fact blocks and handwritten-fact guards; actual English counterparts including project-validation; exact example versions and complete example navigation. Semantic review remains necessary. |
-| Planning 1–6 | Root bilingual roadmap entries lead to canonical site plans with stages, owner roles and acceptance criteria for 1.0/deprecation, visual verification, capability matrix, consumer entrypoints, dual-client evaluation and maintainer onboarding. Visual hosting and the full feature matrix remain planned, not implemented. |
+| Planning 1–6 | No roadmap file is kept in the repository. 1.0 public surface/deprecation, visual verification, capability matrix, consumer entrypoints, dual-client evaluation and maintainer onboarding move to GitHub issues and enter a milestone after evaluation. Visual hosting and the full feature matrix remain planned, not implemented. |
 
 See [baseline evidence and limits](./agent/evals/baselines/README.md). Configuration/connectivity failures produced no model task results, are not model capability scores and are not kept in the repository. Stage records retain their original validation scope; current delivery follows the latest acceptance.
 

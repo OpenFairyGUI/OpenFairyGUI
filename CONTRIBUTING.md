@@ -8,4 +8,4 @@ Read [AGENTS.md](./AGENTS.md), the [development guide](./docs/en/guide/developme
 4. Update linked documentation and both languages where applicable. Generate contract snapshots with `pnpm contracts:generate`; never edit build output or generated blocks by hand.
 5. Explain the behavior, validation and remaining limitations in the PR. Keep unrelated edits out of your change. Release changes require matching English and Chinese changelogs.
 
-Maintainer onboarding starts with a reviewed contribution and a release rehearsal; permissions follow demonstrated ownership. Planned work and acceptance criteria live in the [roadmap](./ROADMAP_EN.md).
+Maintainer onboarding starts with a reviewed contribution and a release rehearsal; permissions follow demonstrated ownership.

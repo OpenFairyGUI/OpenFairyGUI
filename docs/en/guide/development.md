@@ -128,4 +128,4 @@ With dependencies and pinned fixtures already present, `pnpm check:fast --base o
 
 ## Contributing
 
-Start with translation fixes or isolated regression cases. Explain expected behavior and evidence, follow package ownership, and report validation and limitations in the PR. Protocol work needs pinned sources; releases need bilingual notes. Maintainer onboarding requires a reviewed contribution and release rehearsal before permissions. See the [roadmap](./roadmap.md).
+Start with translation fixes or isolated regression cases. Explain expected behavior and evidence, follow package ownership, and report validation and limitations in the PR. Protocol work needs pinned sources; releases need bilingual notes. Maintainer onboarding requires a reviewed contribution and release rehearsal before permissions.

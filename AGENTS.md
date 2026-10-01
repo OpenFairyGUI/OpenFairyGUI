@@ -36,7 +36,7 @@
 | `packages/cli/**` | cli | `docs/guide/getting-started.md`, `docs/project-validation.md`, `docs/guide/contracts.md`, `docs/guide/diagnostics.md`, `docs/guide/installed-docs.md` |
 | `packages/mcp/**` | mcp | `docs/architecture-overview.md`, `docs/guide/contracts.md`, `docs/guide/diagnostics.md`, `docs/guide/installed-docs.md` |
 | `docs/.vitepress/**`, `scripts/**`, `examples/**`, `agent/**`, `references.json`, `.github/**`, `.node-version` | core, functions, backend, cli, mcp | `docs/guide/development.md`, `docs/en/guide/development.md` |
-| `docs/**`, `AGENTS.md`, `README.md`, `README_EN.md`, `CHANGELOG.md`, `CHANGELOG_CN.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `ROADMAP.md`, `ROADMAP_EN.md` | 仅仓库检查 | `docs/README.md`, `docs/en/README.md` |
+| `docs/**`, `AGENTS.md`, `README.md`, `README_EN.md`, `CHANGELOG.md`, `CHANGELOG_CN.md`, `CLAUDE.md`, `CONTRIBUTING.md` | 仅仓库检查 | `docs/README.md`, `docs/en/README.md` |
 <!-- impact-map:end -->
 
 规则按首个匹配项选择；依赖/公共配置等未登记路径、无法解析的比较基准、没有变更，都回退完整测试。新增测试必须进入映射，空测试组会失败。具体命令与覆盖限制见开发指南。
