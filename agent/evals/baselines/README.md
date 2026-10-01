@@ -50,4 +50,6 @@ MCP 已补充有界文本错误摘要，并通过真实 MCP 回归验证。合�
 
 Run pnpm eval:agent --runner reference --report <report.json> to pack a fresh consumer cohort. Reuse its --artifacts directory with --runner claude --claude <native-executable> --claude-settings <settings.json> --timeout-seconds 600, or --runner codex --codex <native-executable>. Export separate reports. Settings are passed to the client, never copied into public evidence. No model scores gate PR CI.
 
-[Historical attempts / 历史尝试](./history.md) preserves prior authentication, configuration and connectivity attempts. They produced no usable model task result and are not capability scores. The cancelled 20-attempt batch contains 13 completed timeouts, one interrupted attempt and six unstarted attempts.
+Earlier Claude attempts that failed on local authentication, configuration or connectivity produced no model task result and are not capability scores; they are not kept in the repository.
+
+此前因本地认证、配置或网络失败的 Claude 尝试没有产生模型任务结果，不计能力成绩，也不保留在仓库中。
