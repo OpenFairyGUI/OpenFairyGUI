@@ -34,22 +34,48 @@ export class Transition extends ExtensibleProperty<ITransition> {
 		});
 	}
 
-	public getAutoPlay(): boolean { return this.get('autoPlay'); }
-	public setAutoPlay(v: boolean): this { return this.set('autoPlay', v); }
+	public getAutoPlay(): boolean {
+		return this.get('autoPlay');
+	}
+	public setAutoPlay(v: boolean): this {
+		return this.set('autoPlay', v);
+	}
 
-	public getAutoPlayTimes(): number { return this.get('autoPlayTimes'); }
-	public setAutoPlayTimes(v: number): this { return this.set('autoPlayTimes', v); }
+	public getAutoPlayTimes(): number {
+		return this.get('autoPlayTimes');
+	}
+	public setAutoPlayTimes(v: number): this {
+		return this.set('autoPlayTimes', v);
+	}
 
-	public getAutoPlayDelay(): number { return this.get('autoPlayDelay'); }
-	public setAutoPlayDelay(v: number): this { return this.set('autoPlayDelay', v); }
+	public getAutoPlayDelay(): number {
+		return this.get('autoPlayDelay');
+	}
+	public setAutoPlayDelay(v: number): this {
+		return this.set('autoPlayDelay', v);
+	}
 
-	public getOptions(): number { return this.get('options'); }
-	public setOptions(v: number): this { return this.set('options', v); }
+	public getOptions(): number {
+		return this.get('options');
+	}
+	public setOptions(v: number): this {
+		return this.set('options', v);
+	}
 
-	public getFps(): number { return this.get('fps'); }
-	public setFps(v: number): this { return this.set('fps', v); }
+	public getFps(): number {
+		return this.get('fps');
+	}
+	public setFps(v: number): this {
+		return this.set('fps', v);
+	}
 
-	public addItem(item: TransitionItem): this { return this.addRef('items', item); }
-	public removeItem(item: TransitionItem): this { return this.removeRef('items', item); }
-	public listItems(): TransitionItem[] { return this.listRefs('items'); }
+	public addItem(item: TransitionItem): this {
+		return this.addRef('items', item);
+	}
+	public removeItem(item: TransitionItem): this {
+		return this.removeRef('items', item);
+	}
+	public listItems(): TransitionItem[] {
+		return this.listRefs('items');
+	}
 }

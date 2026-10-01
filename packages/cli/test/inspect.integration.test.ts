@@ -26,7 +26,9 @@ test('inspect --json returns the existing report without human logs; default out
 		t.true(human.stdout.includes('Packages: 1'));
 		const help = await run(process.execPath, [...args, 'inspect', '--help']);
 		t.true(help.stdout.includes('--json'));
-		const missing = await t.throwsAsync(run(process.execPath, [...args, 'inspect', path.join(root, 'missing'), '--json']));
+		const missing = await t.throwsAsync(
+			run(process.execPath, [...args, 'inspect', path.join(root, 'missing'), '--json']),
+		);
 		t.is((missing as { code?: number }).code, 1);
 		t.is(JSON.parse((missing as Error & { stdout: string }).stdout).error.code, 'command_failed');
 	} finally {

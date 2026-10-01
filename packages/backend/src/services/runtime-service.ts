@@ -6,7 +6,12 @@ import {
 	normalizeUamProject,
 	type UamProject,
 } from '@openfairygui/core/uam';
-import { assertProjectPathContained, normalizeComparablePath, resolveCanonicalProjectRoot } from '../path-policy.js';
+import {
+	assertProjectPathContained,
+	createProjectReadFailure,
+	normalizeComparablePath,
+	resolveCanonicalProjectRoot,
+} from '../path-policy.js';
 import type {
 	AdvisoryLockConflictError,
 	BackendCapabilityUnavailableError,
@@ -17,12 +22,14 @@ import type {
 	OpenProjectSessionInput,
 	ProjectRootNotAllowedError,
 	SessionIdConflictError,
+	SessionLimitExceededError,
 	SessionNotFoundError,
 	SessionCloseFailedError,
 } from '../runtime.js';
 import type { CacheService } from './cache-service.js';
 import { type BackendContext, type BackendSessionState, failure, success } from './context.js';
 import type { EventService } from './event-service.js';
+import type { SessionOperationQueue } from './session-operation-queue.js';
 import { createSessionNotFoundError, toSessionSnapshot } from './session-utils.js';
 
 function randomId(): string {
@@ -109,8 +116,10 @@ async function hasFullUamFidelity(
 	} catch {
 		return false;
 	}
-	return capturedFilesEqual(sourceFiles, materializedFiles)
-		&& capturedDirectoriesEqual(sourceDirectories, materializedDirectories);
+	return (
+		capturedFilesEqual(sourceFiles, materializedFiles) &&
+		capturedDirectoriesEqual(sourceDirectories, materializedDirectories)
+	);
 }
 
 export class RuntimeService {
@@ -118,14 +127,37 @@ export class RuntimeService {
 		private readonly context: BackendContext,
 		private readonly cacheService: CacheService,
 		private readonly eventService: EventService,
+		private readonly sessionOperations: SessionOperationQueue,
 	) {}
+
+	public async expireIdleSession(sessionId: string, activity: number): Promise<void> {
+		const sessions = this.context.sessions;
+		if (this.sessionOperations.isBusy(sessionId)) {
+			sessions.touch(sessionId);
+			return;
+		}
+		await this.sessionOperations.run(sessionId, async () => {
+			const session = sessions.peek(sessionId);
+			if (!session || !sessions.isIdle(sessionId, activity)) return;
+			if (session.dirty) {
+				sessions.touch(sessionId);
+				return;
+			}
+			const result = await this.closeSession({ sessionId });
+			if (!result.ok) sessions.touch(sessionId);
+		});
+	}
 
 	public async openSession(input: {
 		projectPath: string;
 	}): Promise<
 		BackendResult<
 			BackendSessionSnapshot,
-			InProcessLockConflictError | AdvisoryLockConflictError | BackendCapabilityUnavailableError | ProjectRootNotAllowedError
+			| InProcessLockConflictError
+			| AdvisoryLockConflictError
+			| BackendCapabilityUnavailableError
+			| ProjectRootNotAllowedError
+			| SessionLimitExceededError
 		>
 	> {
 		const startedAt = Date.now();
@@ -133,7 +165,7 @@ export class RuntimeService {
 			return failure('runtime', startedAt, createCapabilityUnavailableError('fileSystem'));
 		}
 		const fileSystem = this.context.fileSystem;
-		if (this.context.allowedProjectRoots?.length) {
+		if (this.context.allowedProjectRoots) {
 			let allowed = false;
 			for (const root of this.context.allowedProjectRoots) {
 				try {
@@ -155,10 +187,17 @@ export class RuntimeService {
 		const resolved = await resolveCanonicalProjectRoot(fileSystem, input.projectPath);
 		const { fairyPath, canonicalProjectPath, canonicalPathKey } = resolved;
 		await fileSystem.validateProjectRoot?.(canonicalProjectPath);
-		const lockFilePath = fileSystem.getSessionLockPath?.(canonicalProjectPath)
-			?? fileSystem.join(canonicalProjectPath, '.openfairygui.backend.lock');
+		const lockFilePath =
+			fileSystem.getSessionLockPath?.(canonicalProjectPath) ??
+			fileSystem.join(canonicalProjectPath, '.openfairygui.backend.lock');
 		const sessionId = randomId();
-		const reservation = this.context.sessions.reserve(sessionId, { canonicalPathKey, canonicalProjectPath, lockFilePath });
+		const limit = this.context.sessions.checkCapacity();
+		if (limit) return failure('runtime', startedAt, limit);
+		const reservation = this.context.sessions.reserve(sessionId, {
+			canonicalPathKey,
+			canonicalProjectPath,
+			lockFilePath,
+		});
 		if ('code' in reservation) return failure('runtime', startedAt, reservation);
 
 		let sessionLock: BackendSessionLock | null = null;
@@ -178,7 +217,7 @@ export class RuntimeService {
 			);
 			const reader = new ProjectReader(createProjectReaderFileSystem(fileSystem, canonicalProjectPath));
 			const read = await reader.readDetailed(fairyPath, { hydrateResourceBytes: true });
-			if (!read.document) throw new Error(read.diagnostics[0]?.message ?? `Unable to read project: ${fairyPath}`);
+			if (!read.document) throw createProjectReadFailure(read.diagnostics[0]?.message);
 			const document = read.document;
 			const project = liftDocumentToUamProject(document);
 			const session: BackendSessionState = {
@@ -235,7 +274,10 @@ export class RuntimeService {
 
 	public openProjectSession(
 		input: OpenProjectSessionInput,
-	): BackendResult<BackendSessionSnapshot, InProcessLockConflictError | SessionIdConflictError> {
+	): BackendResult<
+		BackendSessionSnapshot,
+		InProcessLockConflictError | SessionIdConflictError | SessionLimitExceededError
+	> {
 		const startedAt = Date.now();
 		const sessionId = input.sessionId ?? randomId();
 		if (this.context.sessions.has(sessionId)) {
@@ -254,9 +296,13 @@ export class RuntimeService {
 		const canonicalPathKey =
 			storage?.canonicalPathKey ??
 			input.canonicalPathKey ??
-			(storage ? normalizeComparablePath(canonicalProjectPath) : canonicalProjectPath.toLowerCase());
+			(storage
+				? normalizeComparablePath(canonicalProjectPath, storage.fileSystem.caseSensitivePaths)
+				: canonicalProjectPath.toLowerCase());
 		// Normalize before claiming a path: malformed native input must not leave a reservation behind.
 		const project = normalizeUamProject(input.project);
+		const limit = this.context.sessions.checkCapacity();
+		if (limit) return failure('runtime', startedAt, limit);
 		const reservation = this.context.sessions.reserve(sessionId, { canonicalPathKey, canonicalProjectPath });
 		if ('code' in reservation) return failure('runtime', startedAt, reservation);
 
@@ -309,12 +355,18 @@ export class RuntimeService {
 		try {
 			await session.sessionLock?.release();
 		} catch (error) {
-			return failure('runtime', startedAt, {
-				code: 'session_close_failed',
-				message: error instanceof Error ? error.message : String(error),
-				sessionId: session.sessionId,
-				lockFilePath: session.lockFilePath,
-			}, toSessionSnapshot(session, this.context.capabilities), { sessionId: session.sessionId, revision: session.revision });
+			return failure(
+				'runtime',
+				startedAt,
+				{
+					code: 'session_close_failed',
+					message: error instanceof Error ? error.message : String(error),
+					sessionId: session.sessionId,
+					lockFilePath: session.lockFilePath,
+				},
+				toSessionSnapshot(session, this.context.capabilities),
+				{ sessionId: session.sessionId, revision: session.revision },
+			);
 		}
 		session.sessionLock = null;
 		session.lockHeld = false;

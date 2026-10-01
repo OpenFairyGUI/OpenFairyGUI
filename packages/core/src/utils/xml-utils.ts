@@ -14,12 +14,35 @@ const defaultOptions = {
 };
 
 const ARRAY_TAGS = new Set([
-	'image', 'component', 'font', 'sound', 'movieclip', 'swf', 'atlas', 'misc',
-	'text', 'richtext', 'inputtext', 'graph', 'group', 'loader', 'list',
-	'controller', 'transition', 'item',
+	'image',
+	'component',
+	'font',
+	'sound',
+	'movieclip',
+	'swf',
+	'atlas',
+	'misc',
+	'text',
+	'richtext',
+	'inputtext',
+	'graph',
+	'group',
+	'loader',
+	'list',
+	'controller',
+	'transition',
+	'item',
 	'relation',
-	'gearDisplay', 'gearXY', 'gearSize', 'gearLook', 'gearColor',
-	'gearAni', 'gearText', 'gearIcon', 'gearDisplay2', 'gearFontSize',
+	'gearDisplay',
+	'gearXY',
+	'gearSize',
+	'gearLook',
+	'gearColor',
+	'gearAni',
+	'gearText',
+	'gearIcon',
+	'gearDisplay2',
+	'gearFontSize',
 	'action',
 ]);
 
@@ -100,12 +123,7 @@ export function parseControllerPages(pagesStr: string): Array<{ id: string; name
 export function parseMarginString(v: string | undefined): [number, number, number, number] {
 	if (!v) return [0, 0, 0, 0];
 	const parts = v.split(',');
-	return [
-		parseFloat(parts[0]) || 0,
-		parseFloat(parts[1]) || 0,
-		parseFloat(parts[2]) || 0,
-		parseFloat(parts[3]) || 0,
-	];
+	return [parseFloat(parts[0]) || 0, parseFloat(parts[1]) || 0, parseFloat(parts[2]) || 0, parseFloat(parts[3]) || 0];
 }
 
 export function parseBool(v: string | boolean | undefined): boolean {
@@ -130,17 +148,30 @@ export function parseInt2(v: string | number | undefined, defaultValue = 0): num
 }
 
 const RELATION_TYPE_MAP: Record<string, number> = {
-	'left-left': 0, 'left-center': 1, 'left-right': 2,
+	'left-left': 0,
+	'left-center': 1,
+	'left-right': 2,
 	'center-center': 3,
-	'right-left': 4, 'right-center': 5, 'right-right': 6,
-	'top-top': 7, 'top-middle': 8, 'top-bottom': 9,
+	'right-left': 4,
+	'right-center': 5,
+	'right-right': 6,
+	'top-top': 7,
+	'top-middle': 8,
+	'top-bottom': 9,
 	'middle-middle': 10,
-	'bottom-top': 11, 'bottom-middle': 12, 'bottom-bottom': 13,
-	'width-width': 14, 'height-height': 15,
-	'leftext-left': 16, 'leftext-right': 17,
-	'rightext-left': 18, 'rightext-right': 19,
-	'topext-top': 20, 'topext-bottom': 21,
-	'bottomext-top': 22, 'bottomext-bottom': 23,
+	'bottom-top': 11,
+	'bottom-middle': 12,
+	'bottom-bottom': 13,
+	'width-width': 14,
+	'height-height': 15,
+	'leftext-left': 16,
+	'leftext-right': 17,
+	'rightext-left': 18,
+	'rightext-right': 19,
+	'topext-top': 20,
+	'topext-bottom': 21,
+	'bottomext-top': 22,
+	'bottomext-bottom': 23,
 };
 
 export function parseSidePair(sidePair: string): Array<{ type: number; usePercent: boolean }> {

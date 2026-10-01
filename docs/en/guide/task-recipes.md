@@ -32,7 +32,7 @@ Use the same actual target branch in both commands. The plan includes downstream
 ## Add or change an MCP tool
 
 1. Backend must already own the method. Update method mapping, read/write/destructive annotations, host-field exclusions and input budgets in `packages/mcp/src/tool-metadata.ts`; follow the existing dispatch in `tool-handler.ts`. `tool-definitions.ts` assembles generated schemas, not handwritten operation unions or broad result types.
-2. Generate and check contracts; update resources/prompts when needed. Annotations do not grant authority or weaken roots, revision or byte budgets. MCP does not gain publish/restore host execution.
+2. Generate and check contracts; update resources/prompts when needed. Annotations do not grant authority or weaken roots, revision or byte budgets. Backend mappings do not gain publish/restore authority; a separate opt-in publish tool delegates to an explicitly authorized host callback.
 3. Use `packages/mcp/test/backend-tool-mapping.integration.test.ts`, `contract-schemas.integration.test.ts` and `stdio-smoke.integration.test.ts` for discovery, malformed input, structured errors and actual calls. Verify installed entrypoints with the [public stdio example and tarball consumer](./examples.md). stdout carries protocol only; do not assume an HTTP port.
 
 ## Diagnose publishing and limited recovery
@@ -52,3 +52,5 @@ pnpm refs:grep "public class UIPackage"
 `refs:grep` accepts one non-empty, single-line, case-sensitive literal; leading dashes and regex metacharacters remain text. It first verifies required fixtures, then searches tracked text and prints paths/line numbers. Exit 0 means matches, 1 means no match and 2 means argument/reference/search errors. Failure returns no partial success and never installs, downloads or resets anything. Results exceeding 64 KiB or Git's output budget also fail; narrow the literal or use native Git/rg in a verified source directory.
 
 Read public fixture URLs from `.gitmodules`, fixed commits from gitlinks and `refs:status`, and source roles from `references.json`. Search hits are not protocol conclusions. See the [development guide](./development.md#reference-evidence) for source selection, version verification and missing-evidence handling.
+
+Optional host publishing is registered only through the explicit factory publish callback. It is separate from Backend method mapping; host authorization, output confinement and plugin policy remain required. Default stdio has no publishing tool. Tool-only clients read the installed corpus with openfairygui_docs_read.

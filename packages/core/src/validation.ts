@@ -40,11 +40,12 @@ export interface ProjectValidationReport {
 }
 
 export function sortProjectDiagnostics(diagnostics: readonly ProjectDiagnostic[]): ProjectDiagnostic[] {
-	return [...diagnostics].sort((left, right) => (
-		left.path.localeCompare(right.path)
-		|| left.code.localeCompare(right.code)
-		|| left.message.localeCompare(right.message)
-	));
+	return [...diagnostics].sort(
+		(left, right) =>
+			left.path.localeCompare(right.path) ||
+			left.code.localeCompare(right.code) ||
+			left.message.localeCompare(right.message),
+	);
 }
 
 export function createProjectValidationReport(
@@ -55,7 +56,9 @@ export function createProjectValidationReport(
 	return {
 		status: sorted.some((diagnostic) => diagnostic.severity === 'error')
 			? 'invalid'
-			: complete ? 'valid' : 'incomplete',
+			: complete
+				? 'valid'
+				: 'incomplete',
 		complete,
 		diagnostics: sorted,
 	};

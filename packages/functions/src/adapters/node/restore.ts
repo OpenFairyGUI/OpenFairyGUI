@@ -8,6 +8,7 @@ import type {
 	RestoreResult,
 } from '../../restore.js';
 import { restore } from '../../restore.js';
+import { assertImageDimensions, MAX_IMAGE_PIXELS } from './image-limits.js';
 
 const importNative = new Function('id', 'return import(id)') as <T>(id: string) => Promise<T>;
 
@@ -85,7 +86,8 @@ async function createNodeRestoreFileSystem(): Promise<RestoreFileSystem> {
 	};
 }
 
-async function createRestoreImageProcessors(): Promise<RestoreImageProcessors> {
+/** @internal */
+export async function createRestoreImageProcessors(): Promise<RestoreImageProcessors> {
 	let sharp: any;
 	try {
 		const loaded = await importNative<any>('sharp');
@@ -95,8 +97,11 @@ async function createRestoreImageProcessors(): Promise<RestoreImageProcessors> {
 	}
 
 	async function extractImage(input: RestoreImageExtractInput): Promise<Uint8Array> {
+		assertImageDimensions(input.width, input.height);
+		if (input.expectedWidth !== 0 || input.expectedHeight !== 0)
+			assertImageDimensions(input.expectedWidth, input.expectedHeight);
 		const targetPath = (input as RestoreImageCropInput).outputPath ?? input.sourcePath;
-		let image = sharp(input.sourcePath).extract({
+		let image = sharp(input.sourcePath, { limitInputPixels: MAX_IMAGE_PIXELS }).extract({
 			left: input.left,
 			top: input.top,
 			width: input.width,
@@ -136,10 +141,7 @@ async function createRestoreImageProcessors(): Promise<RestoreImageProcessors> {
 				.composite([{ input: data, left: input.offsetX, top: input.offsetY }])
 				.png()
 				.toBuffer({ resolveWithObject: true });
-			if (
-				composed.info.width !== input.expectedWidth ||
-				composed.info.height !== input.expectedHeight
-			) {
+			if (composed.info.width !== input.expectedWidth || composed.info.height !== input.expectedHeight) {
 				throw new Error(
 					`restore: Cropped image size mismatch for ${targetPath}: ` +
 						`expected ${input.expectedWidth}x${input.expectedHeight}, ` +
@@ -175,10 +177,7 @@ async function createRestoreImageProcessors(): Promise<RestoreImageProcessors> {
 
 /** Restore trusted local published artifacts through the standard Node host adapter. */
 export async function restoreNode(options: RestoreNodeOptions): Promise<RestoreResult> {
-	const [fs, imageProcessors] = await Promise.all([
-		createNodeRestoreFileSystem(),
-		createRestoreImageProcessors(),
-	]);
+	const [fs, imageProcessors] = await Promise.all([createNodeRestoreFileSystem(), createRestoreImageProcessors()]);
 	return restore({
 		...options,
 		fs,

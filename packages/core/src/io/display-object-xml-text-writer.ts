@@ -8,20 +8,25 @@ export function writeTextXmlAttributes(attrs: Record<string, unknown>, object: G
 	if (object.getAutoClearText()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.autoClearText, 'true');
 	if (type !== 'GRichTextField') {
 		const demoText = object.getDemoText();
-		if (demoText !== undefined && demoText !== '') writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.demoText, demoText);
+		if (demoText !== undefined && demoText !== '')
+			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.demoText, demoText);
 		if (object.getTemplateVarsEnabled()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.vars, 'true');
 		const faceDilate = object.getFaceDilate() ?? 0;
 		if (faceDilate !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.faceDilate, String(faceDilate));
 		const outlineSoftness = object.getOutlineSoftness() ?? 0;
-		if (outlineSoftness !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.outlineSoftness, String(outlineSoftness));
+		if (outlineSoftness !== 0)
+			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.outlineSoftness, String(outlineSoftness));
 		const underlaySoftness = object.getUnderlaySoftness() ?? 0;
-		if (underlaySoftness !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.underlaySoftness, String(underlaySoftness));
+		if (underlaySoftness !== 0)
+			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.underlaySoftness, String(underlaySoftness));
 	}
 	if (type === 'GRichTextField') {
 		const outlineSoftness = object.getOutlineSoftness() ?? 0;
-		if (outlineSoftness !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.richText.attrs.outlineSoftness, String(outlineSoftness));
+		if (outlineSoftness !== 0)
+			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.richText.attrs.outlineSoftness, String(outlineSoftness));
 		const underlaySoftness = object.getUnderlaySoftness() ?? 0;
-		if (underlaySoftness !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.richText.attrs.underlaySoftness, String(underlaySoftness));
+		if (underlaySoftness !== 0)
+			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.richText.attrs.underlaySoftness, String(underlaySoftness));
 	}
 	const text = object.getText();
 	if (text !== undefined && text !== null) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.text, text);
@@ -30,7 +35,8 @@ export function writeTextXmlAttributes(attrs: Record<string, unknown>, object: G
 	const fontSize = object.getFontSize();
 	if (fontSize) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.fontSize, String(fontSize));
 	const color = object.getColor();
-	if (color && !isDefaultBlackColor(color)) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.color, formatXmlColor(color));
+	if (color && !isDefaultBlackColor(color))
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.color, formatXmlColor(color));
 	const align = object.getAlign();
 	if (align !== undefined && align !== 0) {
 		const alignName: Record<number, string> = { 0: 'left', 1: 'center', 2: 'right' };
@@ -65,7 +71,11 @@ export function writeTextXmlAttributes(attrs: Record<string, unknown>, object: G
 	const shadowColor = object.getShadowColor();
 	if (shadowColor) {
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.shadowColor, formatXmlColor(shadowColor));
-		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.shadowOffset, `${object.getShadowOffsetX() ?? 1},${object.getShadowOffsetY() ?? 1}`);
+		writeXmlAttr(
+			attrs,
+			PROJECT_XML_PROTOCOL.text.attrs.shadowOffset,
+			`${object.getShadowOffsetX() ?? 1},${object.getShadowOffsetY() ?? 1}`,
+		);
 	}
 }
 
@@ -78,5 +88,6 @@ export function writeTextInputXmlAttributes(attrs: Record<string, unknown>, obje
 	if (restrict) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.restrict, restrict);
 	if (object.getPassword()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.password, 'true');
 	const keyboardType = object.getKeyboardType() ?? 0;
-	if (keyboardType !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.keyboardType, String(keyboardType));
+	if (keyboardType !== 0)
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.keyboardType, String(keyboardType));
 }

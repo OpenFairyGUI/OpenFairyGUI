@@ -10,6 +10,10 @@ Only the Node.js adapter, `publishNode()` from `@openfairygui/functions/node`, a
 - `publishBrowser()` does not inject plugins, so browser-safe publishing never loads Node.js plugins.
 - `genCode` remains a general post-publish capability. The Node.js adapter enables it by default, while the browser adapter disables it by default.
 
+CLI `ofgui publish project.fairy --no-plugins` disables project plugin discovery and execution; the Node SDK uses `publishNode({ plugins: [] })`. Plugins execute JavaScript with the current process privileges, including side effects during module loading; enable them only for trusted projects. Any unknown `--packages` name fails before workflow hooks run, although default plugin module loading still precedes package-name validation.
+
+With `-o`, the Node adapter stages and commits that output directory. Without `-o`, configured output locations are written without a cross-directory atomicity guarantee. Code generation and plugin writes outside the output directory are also outside rollback coverage.
+
 ## Plugin directory
 
 By default, `publishNode()` loads publish plugins from the `plugins/` directory at the project root:

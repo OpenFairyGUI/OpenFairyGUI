@@ -42,22 +42,23 @@ export function isValidUamTextProperties(
 	const keys = nodeKind === 'richText' ? TEXT_PROPERTY_KEYS : PLAIN_TEXT_PROPERTY_KEYS;
 	if (typeof value !== 'object' || value === null || !hasExactKeys(value, keys)) return false;
 	const properties = value as UamPlainTextProperties;
-	const commonValid = [properties.text, properties.font].every((item) => typeof item === 'string')
-		&& Number.isInteger(properties.fontSize)
-		&& properties.fontSize > 0
-		&& isUamColor(properties.color)
-		&& Number.isInteger(properties.align)
-		&& properties.align >= 0
-		&& properties.align <= 2
-		&& Number.isInteger(properties.vAlign)
-		&& properties.vAlign >= 0
-		&& properties.vAlign <= 2
-		&& Number.isInteger(properties.leading)
-		&& Number.isInteger(properties.letterSpacing)
-		&& Number.isInteger(properties.autoSize)
-		&& properties.autoSize >= 0
-		&& properties.autoSize <= 4
-		&& [
+	const commonValid =
+		[properties.text, properties.font].every((item) => typeof item === 'string') &&
+		Number.isInteger(properties.fontSize) &&
+		properties.fontSize > 0 &&
+		isUamColor(properties.color) &&
+		Number.isInteger(properties.align) &&
+		properties.align >= 0 &&
+		properties.align <= 2 &&
+		Number.isInteger(properties.vAlign) &&
+		properties.vAlign >= 0 &&
+		properties.vAlign <= 2 &&
+		Number.isInteger(properties.leading) &&
+		Number.isInteger(properties.letterSpacing) &&
+		Number.isInteger(properties.autoSize) &&
+		properties.autoSize >= 0 &&
+		properties.autoSize <= 4 &&
+		[
 			properties.singleLine,
 			properties.autoClearText,
 			properties.ubbEnabled,
@@ -65,30 +66,26 @@ export function isValidUamTextProperties(
 			properties.italic,
 			properties.bold,
 			properties.strikethrough,
-		].every((item) => typeof item === 'boolean')
-		&& typeof properties.outlineSoftness === 'number'
-		&& Number.isFinite(properties.outlineSoftness)
-		&& typeof properties.underlaySoftness === 'number'
-		&& Number.isFinite(properties.underlaySoftness)
-		&& typeof properties.strokeSize === 'number'
-		&& Number.isFinite(properties.strokeSize)
-		&& properties.strokeSize >= 0
-		&& (
-			properties.strokeColor === null
-				? properties.strokeSize === 1
-				: isUamColor(properties.strokeColor)
-		)
-		&& isFiniteUamPoint(properties.shadowOffset)
-		&& (
-			properties.shadowColor === null
-				? properties.shadowOffset.x === 0 && properties.shadowOffset.y === 0
-				: isUamColor(properties.shadowColor)
-		);
+		].every((item) => typeof item === 'boolean') &&
+		typeof properties.outlineSoftness === 'number' &&
+		Number.isFinite(properties.outlineSoftness) &&
+		typeof properties.underlaySoftness === 'number' &&
+		Number.isFinite(properties.underlaySoftness) &&
+		typeof properties.strokeSize === 'number' &&
+		Number.isFinite(properties.strokeSize) &&
+		properties.strokeSize >= 0 &&
+		(properties.strokeColor === null ? properties.strokeSize === 1 : isUamColor(properties.strokeColor)) &&
+		isFiniteUamPoint(properties.shadowOffset) &&
+		(properties.shadowColor === null
+			? properties.shadowOffset.x === 0 && properties.shadowOffset.y === 0
+			: isUamColor(properties.shadowColor));
 	if (!commonValid || nodeKind === 'richText') return commonValid;
-	return typeof properties.demoText === 'string'
-		&& typeof properties.templateVarsEnabled === 'boolean'
-		&& typeof properties.faceDilate === 'number'
-		&& Number.isFinite(properties.faceDilate);
+	return (
+		typeof properties.demoText === 'string' &&
+		typeof properties.templateVarsEnabled === 'boolean' &&
+		typeof properties.faceDilate === 'number' &&
+		Number.isFinite(properties.faceDilate)
+	);
 }
 
 export function textPropertiesFromNode(

@@ -17,9 +17,7 @@ export function resourceFileName(resource: RestoreResource): string {
 }
 
 export function resourcePublishedFileName(resource: RestoreResource): string {
-	const extras = resource.getExtras() ?? {};
-	const publishedFile = extras._publishedFile;
-	return typeof publishedFile === 'string' ? publishedFile : resourceFileName(resource);
+	return ('getPublishedFile' in resource && resource.getPublishedFile()) || resourceFileName(resource);
 }
 
 function normalizePublishedLooseResourceFileName(resource: RestoreResource, fileName: string): string {

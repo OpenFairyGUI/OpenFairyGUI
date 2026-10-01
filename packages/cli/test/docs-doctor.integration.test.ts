@@ -15,9 +15,15 @@ const run = promisify(execFile);
 const workspace = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 async function cli(args: string[], env = process.env) {
 	try {
-		const result = await run(process.execPath, ['--import', 'tsx/esm', path.join(workspace, 'packages/cli/src/cli.ts'), ...args], { cwd: workspace, env, maxBuffer: 4 * 1024 * 1024 });
+		const result = await run(
+			process.execPath,
+			['--import', 'tsx/esm', path.join(workspace, 'packages/cli/src/cli.ts'), ...args],
+			{ cwd: workspace, env, maxBuffer: 4 * 1024 * 1024 },
+		);
 		return { ...result, code: 0 };
-	} catch (error) { return error as { code: number; stdout: string; stderr: string }; }
+	} catch (error) {
+		return error as { code: number; stdout: string; stderr: string };
+	}
 }
 
 test('CLI installed documentation exposes exact shared content, help and bounded IDs', async (t) => {
@@ -25,8 +31,10 @@ test('CLI installed documentation exposes exact shared content, help and bounded
 	t.true((await cli(['docs', '--help'])).stdout.includes('diagnostic'));
 	t.deepEqual(JSON.parse((await cli(['docs', 'ls', '--json'])).stdout).result, getInstalledDocumentationIndex());
 	for (const [command, value, id] of [
-		['cat', 'workflow', 'workflow'], ['schema', 'setDisplayNodeProps', 'operations/setDisplayNodeProps'],
-		['diagnostic', 'stale_write', 'diagnostics/stale_write'], ['cat', 'methods/queryEntity', 'methods/queryEntity'],
+		['cat', 'workflow', 'workflow'],
+		['schema', 'setDisplayNodeProps', 'operations/setDisplayNodeProps'],
+		['diagnostic', 'stale_write', 'diagnostics/stale_write'],
+		['cat', 'methods/queryEntity', 'methods/queryEntity'],
 	]) {
 		const result = await cli(['docs', command, value, '--json']);
 		t.is(result.code, 0);
@@ -49,7 +57,12 @@ test('product doctor is read-only even with an active session and distinguishes 
 		const project = createMinimalUamProject('doctor');
 		const image = project.packages[0]!.resources[0]!;
 		if (image.kind !== 'image') throw new Error('Expected image fixture');
-		image.sourceBytes = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'));
+		image.sourceBytes = Uint8Array.from(
+			Buffer.from(
+				'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+				'base64',
+			),
+		);
 		const fairyPath = path.join(root, 'Project.fairy');
 		await writeProjectFromUam(new NodeIO(), project, fairyPath);
 		const opened = await runtime.openSession({ projectPath: fairyPath });
@@ -57,7 +70,13 @@ test('product doctor is read-only even with an active session and distinguishes 
 		sessionId = opened.data.sessionId;
 		const contents = async () => {
 			const names = (await fs.readdir(root, { recursive: true })).sort();
-			return Promise.all(names.map(async (name) => (await fs.stat(path.join(root, name))).isFile() ? [name, (await fs.readFile(path.join(root, name))).toString('base64')] : [name]));
+			return Promise.all(
+				names.map(async (name) =>
+					(await fs.stat(path.join(root, name))).isFile()
+						? [name, (await fs.readFile(path.join(root, name))).toString('base64')]
+						: [name],
+				),
+			);
 		};
 		const before = await contents();
 		const checked = await cli(['doctor', root, '--json']);
@@ -68,7 +87,13 @@ test('product doctor is read-only even with an active session and distinguishes 
 		t.is(report.project.status, 'valid');
 		t.true(report.project.complete);
 		t.true(report.capabilities.ok);
-		t.deepEqual(report.checks.map((check: { id: string; status: string }) => [check.id, check.status]), [['native-images', 'ok'], ['temp-directory', 'ok']]);
+		t.deepEqual(
+			report.checks.map((check: { id: string; status: string }) => [check.id, check.status]),
+			[
+				['native-images', 'ok'],
+				['temp-directory', 'ok'],
+			],
+		);
 		t.deepEqual(await contents(), before);
 		const session = runtime.getSession({ sessionId });
 		if (session.ok) t.deepEqual(session.data, opened.data);
@@ -98,8 +123,10 @@ test('product doctor checks directory ancestors without writes and rejects files
 			t.is(checked.code, 0, checked.stderr);
 			const report = JSON.parse(checked.stdout).result;
 			const check = report.checks.find((entry: { id: string }) => entry.id === 'output-directory');
-			t.is(check.status, 'ok'); t.is(check.path, output);
-			t.is(check.inspectedPath, await fs.realpath(root)); t.is(check.exists, output === root);
+			t.is(check.status, 'ok');
+			t.is(check.path, output);
+			t.is(check.inspectedPath, await fs.realpath(root));
+			t.is(check.exists, output === root);
 			t.is(report.project, null);
 		}
 		for (const output of [file, path.join(file, 'child'), dangling, path.join(dangling, 'child')]) {
@@ -107,11 +134,17 @@ test('product doctor checks directory ancestors without writes and rejects files
 			t.is(checked.code, 1);
 			const envelope = JSON.parse(checked.stdout);
 			t.is(envelope.error.code, 'doctor_failed');
-			t.is(envelope.result.checks.find((entry: { id: string }) => entry.id === 'output-directory').status, 'error');
+			t.is(
+				envelope.result.checks.find((entry: { id: string }) => entry.id === 'output-directory').status,
+				'error',
+			);
 		}
 		for (const option of ['--output-dir', '--output-dir=']) t.is((await cli(['doctor', option, '--json'])).code, 2);
-		t.deepEqual(await fs.readdir(root), names); t.is(await fs.readFile(file, 'utf8'), 'unchanged');
-	} finally { await fs.rm(root, { recursive: true, force: true }); }
+		t.deepEqual(await fs.readdir(root), names);
+		t.is(await fs.readFile(file, 'utf8'), 'unchanged');
+	} finally {
+		await fs.rm(root, { recursive: true, force: true });
+	}
 });
 
 test('product doctor reports missing native images without requiring a project', async (t) => {
@@ -121,7 +154,8 @@ test('product doctor reports missing native images without requiring a project',
 	t.is(checked.code, 3, checked.stderr);
 	const envelope = JSON.parse(checked.stdout);
 	t.is(envelope.error.code, 'doctor_incomplete');
-	t.is(envelope.result.status, 'incomplete'); t.is(envelope.result.project, null);
+	t.is(envelope.result.status, 'incomplete');
+	t.is(envelope.result.project, null);
 	t.is(envelope.result.checks[0].status, 'incomplete');
 	t.true(envelope.result.checks[0].message.includes('Native image probe blocked for test'));
 });

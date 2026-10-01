@@ -15,7 +15,7 @@ This directory contains the English documentation used by the static website. It
 | [Diagnostics and Recovery](./guide/diagnostics.md) | Diagnostic ownership, per-code guides and read-only recovery starting points; no automatic repair. |
 | [Installed Documentation and Product Diagnosis](./guide/installed-docs.md) | CLI/MCP shared offline corpus, thin skill and read-only product doctor. |
 | [Real Agent Task Evaluations](./guide/agent-evaluations.md) | Ten real-tarball tasks, deterministic oracles, manual model observations and failure reproduction. |
-| [Project Validation](../project-validation.md) | Shared project validation reports and API/CLI/Backend/MCP behavior. |
+| [Project Validation](./project-validation.md) | Shared project validation reports and API/CLI/Backend/MCP behavior. |
 | [Changelog](https://github.com/OpenFairyGUI/OpenFairyGUI/blob/main/CHANGELOG.md) | Public features, fixes, breaking changes, and maintenance work by release. |
 | [Architecture Overview](./architecture-overview.md) | Package responsibilities, UAM and backend boundaries, host adapters, and primary data flows. |
 | [Editor Publish Settings](./editor-publish-settings.md) | Actual editor setting files, properties, defaults, output resolution, and current publish behavior. |
@@ -36,3 +36,5 @@ This directory contains the English documentation used by the static website. It
 | Source of truth | Documentation follows the current repository implementation; synchronization requirements are defined in `AGENTS.md`. |
 | Root READMEs | `README.md` and `README_EN.md` provide navigation rather than protocol specifications. |
 | Website build | Use `pnpm docs:dev` for local development. `pnpm docs:build` generates the public API reference and static site. |
+
+[Roadmap](./guide/roadmap.md) · [Contributing](./guide/development.md#contributing)

@@ -39,7 +39,11 @@ function createCodegenDocument(projectDir: string): Document {
 test('publishNode returns actual final writes across direct, paged, alpha and generated-code outputs', async (t) => {
 	const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-publish-manifest-'));
 	try {
-		for (const [index, [count, alpha]] of [[1, false], [2, false], [2, true]].entries()) {
+		for (const [index, [count, alpha]] of [
+			[1, false],
+			[2, false],
+			[2, true],
+		].entries()) {
 			const projectDir = path.join(root, String(index));
 			const doc = createCodegenDocument(projectDir);
 			const pkg = doc.getRoot().listPackages()[0]!;
@@ -47,24 +51,54 @@ test('publishNode returns actual final writes across direct, paged, alpha and ge
 			await fs.mkdir(source, { recursive: true });
 			for (let image = 0; image < Number(count); image++) {
 				const name = `image${image}.png`;
-				pkg.addResource(doc.createImageResource(name).setId(`img${image}`).setFileName(name).setPath('/').setWidth(2).setHeight(2).setExported(true));
-				await sharp({ create: { width: 2, height: 2, channels: 4, background: '#ff000080' } }).png().toFile(path.join(source, name));
+				pkg.addResource(
+					doc
+						.createImageResource(name)
+						.setId(`img${image}`)
+						.setFileName(name)
+						.setPath('/')
+						.setWidth(2)
+						.setHeight(2)
+						.setExported(true),
+				);
+				await sharp({ create: { width: 2, height: 2, channels: 4, background: '#ff000080' } })
+					.png()
+					.toFile(path.join(source, name));
 			}
 			const output = path.join(projectDir, 'release');
-			await fs.mkdir(output); await fs.writeFile(path.join(output, 'untouched.txt'), 'keep');
-			const result = await publishNode({ document: doc, output, plugins: [], atlas: { extractAlpha: Boolean(alpha), trimImage: false } });
-			t.false(result.files.some((file) => file.path.includes('.publish-') || file.path.endsWith('untouched.txt')));
+			await fs.mkdir(output);
+			await fs.writeFile(path.join(output, 'untouched.txt'), 'keep');
+			const result = await publishNode({
+				document: doc,
+				output,
+				plugins: [],
+				atlas: { extractAlpha: Boolean(alpha), trimImage: false },
+			});
+			t.false(
+				result.files.some((file) => file.path.includes('.publish-') || file.path.endsWith('untouched.txt')),
+			);
 			t.true(result.files.some((file) => file.path.endsWith('_fui.bytes')));
 			t.true(result.files.some((file) => file.path.endsWith('.cs')));
 			t.is(result.files.filter((file) => file.path.endsWith('.png')).length, alpha ? 2 : 1);
 			for (const file of result.files) t.is((await fs.stat(file.path)).size, file.size);
-			t.deepEqual((await fs.readdir(output)).filter((name) => name !== 'untouched.txt').sort(), result.files.filter((file) => path.dirname(file.path) === output).map((file) => path.basename(file.path)).sort());
+			t.deepEqual(
+				(await fs.readdir(output)).filter((name) => name !== 'untouched.txt').sort(),
+				result.files
+					.filter((file) => path.dirname(file.path) === output)
+					.map((file) => path.basename(file.path))
+					.sort(),
+			);
 		}
 		const doc = createCodegenDocument(root);
 		doc.getRoot().listPackages()[0]!.setPublishPath('configured-release');
 		const result = await publishNode({ document: doc, plugins: [], codeGeneration: false });
-		t.deepEqual(result.files.map((file) => file.path), [path.join(root, 'configured-release', 'DemoPkg_fui.bytes')]);
-	} finally { await fs.rm(root, { recursive: true, force: true }); }
+		t.deepEqual(
+			result.files.map((file) => file.path),
+			[path.join(root, 'configured-release', 'DemoPkg_fui.bytes')],
+		);
+	} finally {
+		await fs.rm(root, { recursive: true, force: true });
+	}
 });
 
 async function writePlugin(
@@ -369,7 +403,12 @@ test('publishNode: onPublishEnd failure preserves the previous explicit output',
 		);
 
 		t.is(await fs.readFile(path.join(output, 'previous.txt'), 'utf-8'), 'previous');
-		t.false(await fs.stat(path.join(output, 'DemoPkg_fui.bytes')).then(() => true).catch(() => false));
+		t.false(
+			await fs
+				.stat(path.join(output, 'DemoPkg_fui.bytes'))
+				.then(() => true)
+				.catch(() => false),
+		);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

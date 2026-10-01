@@ -1,7 +1,4 @@
-import {
-	UAM_SUPPORTED_MATERIALIZATION_SCOPE,
-	UAM_SUPPORTED_TRANSACTION_SCOPE,
-} from '@openfairygui/core/uam';
+import { UAM_SUPPORTED_MATERIALIZATION_SCOPE, UAM_SUPPORTED_TRANSACTION_SCOPE } from '@openfairygui/core/uam';
 import {
 	BACKEND_CAPABILITY_SCHEMA_VERSION,
 	BACKEND_COMPATIBILITY_POLICY,
@@ -10,7 +7,11 @@ import {
 import { createRuntimePathPolicy } from '../path-policy.js';
 import { createArtifactCapabilities } from '../services/artifact-service.js';
 import type { BackendArtifactBridgeCapability, BackendCapabilities, BackendMethodName } from './contracts.js';
-import { BACKEND_ENTITY_QUERY_LIMITS, BACKEND_SESSION_READ_LIMITS, BACKEND_TRANSACTION_PREVIEW_LIMITS } from './contracts.js';
+import {
+	BACKEND_ENTITY_QUERY_LIMITS,
+	BACKEND_SESSION_READ_LIMITS,
+	BACKEND_TRANSACTION_PREVIEW_LIMITS,
+} from './contracts.js';
 
 export const BACKEND_METHODS = [
 	'getCapabilities',
@@ -40,7 +41,14 @@ const ARTIFACT_BRIDGE_CAPABILITY = {
 	reason: 'publish/restore require explicit Node-hosted filesystem and artifact execution.',
 } as const satisfies BackendArtifactBridgeCapability;
 
-export function createCapabilities(atomicSave = false): BackendCapabilities {
+export const DEFAULT_MAX_SESSIONS = 32;
+
+export function createCapabilities(
+	atomicSave = false,
+	caseSensitivePaths = false,
+	maxSessions = DEFAULT_MAX_SESSIONS,
+	idleSessionTimeoutMs = 30 * 60_000,
+): BackendCapabilities {
 	return {
 		contractVersion: BACKEND_CONTRACT_VERSION,
 		capabilitySchemaVersion: BACKEND_CAPABILITY_SCHEMA_VERSION,
@@ -52,13 +60,27 @@ export function createCapabilities(atomicSave = false): BackendCapabilities {
 			capabilitySnapshot: true,
 			sessionSnapshot: true,
 			projectOutline: true,
-			entityQuery: { kinds: ['project', 'package', 'resource', 'component', 'displayNode', 'controller', 'transition'], projection: 'properties', sourceBytes: false, limits: BACKEND_ENTITY_QUERY_LIMITS },
+			entityQuery: {
+				kinds: ['project', 'package', 'resource', 'component', 'displayNode', 'controller', 'transition'],
+				projection: 'properties',
+				sourceBytes: false,
+				limits: BACKEND_ENTITY_QUERY_LIMITS,
+			},
 			sessionState: { sourceBytes: false, limits: BACKEND_SESSION_READ_LIMITS.model },
-			resourceBytes: { expectedRevisionRequired: true, hydration: false, maxBytes: BACKEND_SESSION_READ_LIMITS.resourceBytes },
+			resourceBytes: {
+				expectedRevisionRequired: true,
+				hydration: false,
+				maxBytes: BACKEND_SESSION_READ_LIMITS.resourceBytes,
+			},
 			projectValidation: true,
 		},
 		authoring: {
-			preflightTransaction: { mode: 'execute-and-discard', reservesRevision: false, impact: 'model-diff', limits: BACKEND_TRANSACTION_PREVIEW_LIMITS },
+			preflightTransaction: {
+				mode: 'execute-and-discard',
+				reservesRevision: false,
+				impact: 'model-diff',
+				limits: BACKEND_TRANSACTION_PREVIEW_LIMITS,
+			},
 			applyTransaction: true,
 			saveSession: true,
 			resourceKinds: [...UAM_SUPPORTED_MATERIALIZATION_SCOPE.resourceKinds],
@@ -108,11 +130,13 @@ export function createCapabilities(atomicSave = false): BackendCapabilities {
 		compatibilityPolicy: BACKEND_COMPATIBILITY_POLICY,
 		runtime: {
 			sessionRuntime: true,
+			maxSessions,
+			idleSessionTimeoutMs,
 			advisoryLocking: true,
 			coordinatedSave: true,
 			atomicSave,
 			staleRevisionProtection: true,
-			pathPolicy: createRuntimePathPolicy(),
+			pathPolicy: createRuntimePathPolicy(caseSensitivePaths),
 			events: {
 				polling: true,
 				subscriptions: false,

@@ -93,18 +93,26 @@ export interface LookGearBindingOptions {
 	customEasePath?: string;
 }
 
-function resolveComponentChildId(component: Component, target: GObject | string | null | undefined, owner: string): string {
+function resolveComponentChildId(
+	component: Component,
+	target: GObject | string | null | undefined,
+	owner: string,
+): string {
 	if (!target) return '';
 	if (typeof target === 'string') {
 		const child = component.getChildById(target);
 		if (!child) {
-			throw new Error(`${owner}: target child "${target}" does not belong to component "${component.getName()}".`);
+			throw new Error(
+				`${owner}: target child "${target}" does not belong to component "${component.getName()}".`,
+			);
 		}
 		return target;
 	}
 	const targetId = target.getId();
 	if (!targetId || component.getChildById(targetId) !== target) {
-		throw new Error(`${owner}: target child "${target.getName()}" does not belong to component "${component.getName()}".`);
+		throw new Error(
+			`${owner}: target child "${target.getName()}" does not belong to component "${component.getName()}".`,
+		);
 	}
 	return targetId;
 }
@@ -113,7 +121,9 @@ function ensureUniquePageIds(pages: ControllerPageComposition[], component: Comp
 	const seen = new Set<string>();
 	for (const page of pages) {
 		if (!page.id) {
-			throw new Error(`composeController: page "${page.name}" in component "${component.getName()}" is missing an id.`);
+			throw new Error(
+				`composeController: page "${page.name}" in component "${component.getName()}" is missing an id.`,
+			);
 		}
 		if (seen.has(page.id)) {
 			throw new Error(`composeController: duplicate page id "${page.id}" in component "${component.getName()}".`);
@@ -124,7 +134,9 @@ function ensureUniquePageIds(pages: ControllerPageComposition[], component: Comp
 
 function ensureComponentOwnsController(component: Component, controller: Controller, owner: string): void {
 	if (!component.listControllers().includes(controller)) {
-		throw new Error(`${owner}: controller "${controller.getName()}" does not belong to component "${component.getName()}".`);
+		throw new Error(
+			`${owner}: controller "${controller.getName()}" does not belong to component "${component.getName()}".`,
+		);
 	}
 }
 
@@ -180,7 +192,9 @@ export function composeController(
 	options: ControllerCompositionOptions,
 ): Controller {
 	if (component.getController(options.name)) {
-		throw new Error(`composeController: component "${component.getName()}" already has a controller named "${options.name}".`);
+		throw new Error(
+			`composeController: component "${component.getName()}" already has a controller named "${options.name}".`,
+		);
 	}
 	if (options.pages.length === 0) {
 		throw new Error(`composeController: controller "${options.name}" must define at least one page.`);
@@ -189,7 +203,8 @@ export function composeController(
 	ensureUniquePageIds(options.pages, component);
 	const knownPageIds = new Set(options.pages.map((page) => page.id));
 
-	const controller = doc.createController(options.name)
+	const controller = doc
+		.createController(options.name)
 		.setSelectedIndex(options.selectedIndex ?? 0)
 		.setAutoRadioGroupDepth(options.autoRadioGroupDepth ?? false)
 		.setAlias(options.alias ?? '')
@@ -213,14 +228,23 @@ export function composeController(
 
 	for (const pageInput of options.pages) {
 		controller.addPage(
-			doc.createControllerPage(pageInput.name).setId(pageInput.id).setRemark(pageInput.remark ?? ''),
+			doc
+				.createControllerPage(pageInput.name)
+				.setId(pageInput.id)
+				.setRemark(pageInput.remark ?? ''),
 		);
 	}
 
 	for (const actionInput of options.actions ?? []) {
 		const fromPage = [...(actionInput.fromPage ?? [])];
 		const toPage = [...(actionInput.toPage ?? [])];
-		ensureKnownPageIds('composeController', `controller "${options.name}"`, fromPage, knownPageIds, 'action fromPage');
+		ensureKnownPageIds(
+			'composeController',
+			`controller "${options.name}"`,
+			fromPage,
+			knownPageIds,
+			'action fromPage',
+		);
 		ensureKnownPageIds('composeController', `controller "${options.name}"`, toPage, knownPageIds, 'action toPage');
 
 		const action = doc.createControllerAction(actionInput.name ?? '');
@@ -254,10 +278,13 @@ export function composeTransition(
 	options: TransitionCompositionOptions,
 ): Transition {
 	if (component.getTransition(options.name)) {
-		throw new Error(`composeTransition: component "${component.getName()}" already has a transition named "${options.name}".`);
+		throw new Error(
+			`composeTransition: component "${component.getName()}" already has a transition named "${options.name}".`,
+		);
 	}
 
-	const transition = doc.createTransition(options.name)
+	const transition = doc
+		.createTransition(options.name)
 		.setAutoPlay(options.autoPlay ?? false)
 		.setAutoPlayTimes(options.autoPlayTimes ?? 1)
 		.setAutoPlayDelay(options.autoPlayDelay ?? 0)
@@ -266,8 +293,7 @@ export function composeTransition(
 
 	for (const itemInput of options.items ?? []) {
 		const item: TransitionItem = doc.createTransitionItem(itemInput.name ?? '');
-		item
-			.setTime(itemInput.time)
+		item.setTime(itemInput.time)
 			.setTargetId(resolveComponentChildId(component, itemInput.target, 'composeTransition'))
 			.setActionType(itemInput.actionType)
 			.setTween(itemInput.tween ?? false)
@@ -302,7 +328,9 @@ export function bindLookGear(
 	options: LookGearBindingOptions,
 ): Gear {
 	if (target.getId() === '' || component.getChildById(target.getId()) !== target) {
-		throw new Error(`bindLookGear: target "${target.getName()}" does not belong to component "${component.getName()}".`);
+		throw new Error(
+			`bindLookGear: target "${target.getName()}" does not belong to component "${component.getName()}".`,
+		);
 	}
 
 	ensureComponentOwnsController(component, options.controller, 'bindLookGear');
@@ -310,9 +338,16 @@ export function bindLookGear(
 
 	const knownPageIds = new Set(options.controller.listPages().map((page) => page.getId()));
 	const statePageIds = options.states.map((state) => state.pageId);
-	ensureKnownPageIds('bindLookGear', `controller "${options.controller.getName()}"`, statePageIds, knownPageIds, 'state pageId');
+	ensureKnownPageIds(
+		'bindLookGear',
+		`controller "${options.controller.getName()}"`,
+		statePageIds,
+		knownPageIds,
+		'state pageId',
+	);
 
-	const gear = doc.createGear(options.name ?? '')
+	const gear = doc
+		.createGear(options.name ?? '')
 		.setGearType(GearType.Look)
 		.setController(options.controller)
 		.setPages(statePageIds.join(','))

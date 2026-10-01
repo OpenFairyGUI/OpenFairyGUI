@@ -87,7 +87,9 @@ function storageCanonicalTarget(input: NonNullable<MaterializeSessionInput['stor
 		fileSystem: input.fileSystem,
 		fairyPath: input.fairyPath,
 		canonicalProjectPath,
-		canonicalPathKey: input.canonicalPathKey ?? normalizeComparablePath(canonicalProjectPath),
+		canonicalPathKey:
+			input.canonicalPathKey ??
+			normalizeComparablePath(canonicalProjectPath, input.fileSystem.caseSensitivePaths),
 	};
 }
 
@@ -237,7 +239,7 @@ export class PersistenceService {
 			revision: session.revision,
 		});
 		try {
-			await writeSessionProject({
+			const warnings = await writeSessionProject({
 				fileSystem,
 				document: materializeUamProject(session.project),
 				fairyPath: session.fairyPath,
@@ -256,6 +258,7 @@ export class PersistenceService {
 			return success('authoring', startedAt, toSessionSnapshot(session, this.context.capabilities), {
 				sessionId: session.sessionId,
 				revision: session.revision,
+				warnings,
 			});
 		} catch (error) {
 			this.cacheService.invalidateSession(session);
@@ -277,8 +280,11 @@ export class PersistenceService {
 					lastSavedRevision: session.lastSavedRevision,
 					committedPaths,
 					failedPaths,
-					diskMayBePartiallyUpdated: !ProjectWriteTransactionError.is(error) || error.diskMayBePartiallyUpdated,
-					...(ProjectWriteTransactionError.is(error) && error.recoveryPaths.length ? { recoveryPaths: error.recoveryPaths } : {}),
+					diskMayBePartiallyUpdated:
+						!ProjectWriteTransactionError.is(error) || error.diskMayBePartiallyUpdated,
+					...(ProjectWriteTransactionError.is(error) && error.recoveryPaths.length
+						? { recoveryPaths: error.recoveryPaths }
+						: {}),
 				},
 				toSessionSnapshot(session, this.context.capabilities),
 				{
@@ -357,16 +363,27 @@ export class PersistenceService {
 		}
 
 		const fairyPath = storageTarget?.fairyPath ?? session.fairyPath;
-		if (session.lockHeld && (fileSystem !== session.fileSystem || fairyPath !== session.fairyPath
-			|| (storageTarget && (storageTarget.canonicalPathKey !== session.canonicalPathKey
-				|| storageTarget.canonicalProjectPath !== session.canonicalProjectPath)))) {
-			return failure('authoring', startedAt, {
-				code: 'path_policy_violation',
-				message: 'A locked file-backed session must keep its opened storage binding.',
-				policy: 'save_target',
-				attemptedPath: fairyPath,
-				allowedPath: session.fairyPath,
-			}, toSessionSnapshot(session, this.context.capabilities), { sessionId: session.sessionId, revision: session.revision });
+		if (
+			session.lockHeld &&
+			(fileSystem !== session.fileSystem ||
+				fairyPath !== session.fairyPath ||
+				(storageTarget &&
+					(storageTarget.canonicalPathKey !== session.canonicalPathKey ||
+						storageTarget.canonicalProjectPath !== session.canonicalProjectPath)))
+		) {
+			return failure(
+				'authoring',
+				startedAt,
+				{
+					code: 'path_policy_violation',
+					message: 'A locked file-backed session must keep its opened storage binding.',
+					policy: 'save_target',
+					attemptedPath: fairyPath,
+					allowedPath: session.fairyPath,
+				},
+				toSessionSnapshot(session, this.context.capabilities),
+				{ sessionId: session.sessionId, revision: session.revision },
+			);
 		}
 		const targetViolation = await validateSaveTarget(fileSystem, fairyPath, input.targetPath);
 		if (targetViolation) {
@@ -462,7 +479,7 @@ export class PersistenceService {
 		});
 		try {
 			const isSessionStorageTarget = fileSystem === session.fileSystem && fairyPath === session.fairyPath;
-			await writeSessionProject({
+			const warnings = await writeSessionProject({
 				fileSystem,
 				document,
 				fairyPath,
@@ -499,6 +516,7 @@ export class PersistenceService {
 				{
 					sessionId: session.sessionId,
 					revision: session.revision,
+					warnings,
 				},
 			);
 		} catch (error) {
@@ -533,8 +551,11 @@ export class PersistenceService {
 					failedPaths,
 					skippedPaths,
 					diagnostics: diagnosticsFromError,
-					diskMayBePartiallyUpdated: !ProjectWriteTransactionError.is(error) || error.diskMayBePartiallyUpdated,
-					...(ProjectWriteTransactionError.is(error) && error.recoveryPaths.length ? { recoveryPaths: error.recoveryPaths } : {}),
+					diskMayBePartiallyUpdated:
+						!ProjectWriteTransactionError.is(error) || error.diskMayBePartiallyUpdated,
+					...(ProjectWriteTransactionError.is(error) && error.recoveryPaths.length
+						? { recoveryPaths: error.recoveryPaths }
+						: {}),
 				},
 				toSessionSnapshot(session, this.context.capabilities),
 				{

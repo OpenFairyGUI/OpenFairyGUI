@@ -27,12 +27,15 @@ function createDocument(defaultValue: string | null, lastPageValue = 'A|B'): Doc
 	for (const kind of ['text', 'icon'] as const) {
 		const child = kind === 'text' ? doc.createGTextField(kind) : doc.createGLoader(kind);
 		child.setId(kind);
-		child.addGear(doc.createGear()
-			.setGearType(kind === 'text' ? GearType.Text : GearType.Icon)
-			.setController(controller)
-			.setPages(Object.keys(PAGE_VALUES).join(','))
-			.setPageValues({ ...PAGE_VALUES, '3': lastPageValue })
-			.setDefaultValue(defaultValue));
+		child.addGear(
+			doc
+				.createGear()
+				.setGearType(kind === 'text' ? GearType.Text : GearType.Icon)
+				.setController(controller)
+				.setPages(Object.keys(PAGE_VALUES).join(','))
+				.setPageValues({ ...PAGE_VALUES, '3': lastPageValue })
+				.setDefaultValue(defaultValue),
+		);
 		component.addChild(child);
 	}
 	return doc;
@@ -45,7 +48,12 @@ function getUamComponent(project: UamProject) {
 }
 
 function getGears(doc: Document) {
-	return doc.getRoot().getPackage('Gears')!.getComponent('Host')!.listChildren().map((child) => child.listGears()[0]!);
+	return doc
+		.getRoot()
+		.getPackage('Gears')!
+		.getComponent('Host')!
+		.listChildren()
+		.map((child) => child.listGears()[0]!);
 }
 
 test('Text/Icon gears preserve null, empty, dash and pipe through transactions and binary republishing', async (t) => {
@@ -58,23 +66,43 @@ test('Text/Icon gears preserve null, empty, dash and pipe through transactions a
 		for (const gear of expected) {
 			t.true(gear.kind === 'text' || gear.kind === 'icon');
 			if (gear.kind !== 'text' && gear.kind !== 'icon') continue;
-			t.deepEqual(gear.states, Object.entries(PAGE_VALUES).map(([pageId, value]) => ({
-				pageId, value: value === null ? null : { [gear.kind]: value },
-			})));
+			t.deepEqual(
+				gear.states,
+				Object.entries(PAGE_VALUES).map(([pageId, value]) => ({
+					pageId,
+					value: value === null ? null : { [gear.kind]: value },
+				})),
+			);
 			t.deepEqual(gear.defaultValue, defaultValue === null ? null : { [gear.kind]: defaultValue });
 		}
 		const base = structuredClone(project);
 		for (const child of getUamComponent(base).displayList) child.gears = [];
-		const committed = applyUamTransaction(base, expected.map((gear) => ({
-			kind: 'addGear',
-			selector: { packageId: 'gearpkg1', componentResourceId: 'host', displayNodeId: gear.kind, kind: gear.kind, controllerName: 'state' },
-			gear,
-		})));
-		t.deepEqual(getUamComponent(committed).displayList.map((child) => child.gears[0]), expected);
+		const committed = applyUamTransaction(
+			base,
+			expected.map((gear) => ({
+				kind: 'addGear',
+				selector: {
+					packageId: 'gearpkg1',
+					componentResourceId: 'host',
+					displayNodeId: gear.kind,
+					kind: gear.kind,
+					controllerName: 'state',
+				},
+				gear,
+			})),
+		);
+		t.deepEqual(
+			getUamComponent(committed).displayList.map((child) => child.gears[0]),
+			expected,
+		);
 		let decoded = materializeUamProject(committed);
 		for (let generation = 0; generation < 3; generation += 1) {
 			for (const gear of getGears(decoded)) {
-				t.deepEqual(gear.getPageValues(), generation === 0 ? PAGE_VALUES : { '1': '', '2': '-', '3': 'A|B' }, `states in generation ${generation}`);
+				t.deepEqual(
+					gear.getPageValues(),
+					generation === 0 ? PAGE_VALUES : { '1': '', '2': '-', '3': 'A|B' },
+					`states in generation ${generation}`,
+				);
 				t.is(gear.getDefaultValue(), defaultValue, `default in generation ${generation}`);
 				t.is(gear.getPageValue('0'), defaultValue, `null state uses default in generation ${generation}`);
 			}
@@ -97,7 +125,15 @@ test('binary Text/Icon null entries do not overwrite explicit states when gear p
 		await io.writeBinary(doc, binaryPath);
 		const decoded = await io.readBinary(binaryPath);
 		for (const gear of getGears(decoded)) {
-			t.deepEqual(gear.getPageValues(), Object.fromEntries(pages.split(',').filter((page) => page !== '0').map((page) => [page, page === '1' ? 'keep' : 'last'])));
+			t.deepEqual(
+				gear.getPageValues(),
+				Object.fromEntries(
+					pages
+						.split(',')
+						.filter((page) => page !== '0')
+						.map((page) => [page, page === '1' ? 'keep' : 'last']),
+				),
+			);
 			t.is(gear.getPageValue('0'), 'fallback');
 		}
 	}
@@ -125,11 +161,21 @@ test('project XML rejects pipe page values and duplicate gear types before any f
 	const writer = new ProjectWriter({
 		readFile: async () => '',
 		readFileRaw: async () => new Uint8Array(),
-		writeFile: async (file) => { mutations.push(file); },
-		writeFileRaw: async (file) => { mutations.push(file); },
-		mkdir: async (file) => { mutations.push(file); },
-		unlink: async (file) => { mutations.push(file); },
-		rmdir: async (file) => { mutations.push(file); },
+		writeFile: async (file) => {
+			mutations.push(file);
+		},
+		writeFileRaw: async (file) => {
+			mutations.push(file);
+		},
+		mkdir: async (file) => {
+			mutations.push(file);
+		},
+		unlink: async (file) => {
+			mutations.push(file);
+		},
+		rmdir: async (file) => {
+			mutations.push(file);
+		},
 		exists: async () => true,
 		readdir: async () => [],
 		join: path.join,
@@ -138,12 +184,18 @@ test('project XML rejects pipe page values and duplicate gear types before any f
 	for (const kind of [GearType.Text, GearType.Icon]) {
 		const doc = createDocument(null);
 		for (const gear of getGears(doc)) if (gear.getGearType() !== kind) gear.setPageValue('3', 'plain');
-		await t.throwsAsync(writer.write(doc, path.join(os.tmpdir(), 'gears.fairy')), { message: /Project XML cannot represent "\|"/ });
+		await t.throwsAsync(writer.write(doc, path.join(os.tmpdir(), 'gears.fairy')), {
+			message: /Project XML cannot represent "\|"/,
+		});
 		t.deepEqual(mutations, []);
 	}
 	const duplicate = createDocument(null, 'plain');
 	const component = duplicate.getRoot().getPackage('Gears')!.getComponent('Host')!;
-	component.listChildren()[0]!.addGear(duplicate.createGear().setGearType(GearType.Text).setController(component.listControllers()[0]!));
-	await t.throwsAsync(writer.write(duplicate, path.join(os.tmpdir(), 'gears.fairy')), { message: /duplicate gearText/ });
+	component
+		.listChildren()[0]!
+		.addGear(duplicate.createGear().setGearType(GearType.Text).setController(component.listControllers()[0]!));
+	await t.throwsAsync(writer.write(duplicate, path.join(os.tmpdir(), 'gears.fairy')), {
+		message: /duplicate gearText/,
+	});
 	t.deepEqual(mutations, []);
 });

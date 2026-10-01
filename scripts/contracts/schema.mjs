@@ -43,7 +43,7 @@ export function createContractProgram(root = ROOT, sourceOverrides = {}) {
 }
 
 /** Only the data types used by our public contracts; unsupported constructs fail closed. */
-export function createSchemaEmitter(checker, root = ROOT, openObjects = false) {
+export function createSchemaEmitter(checker, root = ROOT, openObjects = false, base64 = false) {
 	const definitions = {};
 	const references = new Map();
 	const labels = new Map();
@@ -75,7 +75,7 @@ export function createSchemaEmitter(checker, root = ROOT, openObjects = false) {
 		const prefix = (type.aliasSymbol?.name ?? type.symbol?.name ?? 'Shape')
 			.replace(/[^a-zA-Z0-9_]/g, '')
 			.slice(0, 64);
-		const name = `${prefix}_${createHash('sha256').update(label).digest('hex').slice(0, 10)}${openObjects ? '_read' : ''}`;
+		const name = `${prefix}_${createHash('sha256').update(label).digest('hex').slice(0, 10)}${openObjects ? '_read' : ''}${base64 ? '_wire' : ''}`;
 		assert(!labels.has(name) || labels.get(name) === label, `Schema name collision: ${name}`);
 		labels.set(name, label);
 		const reference = `#/$defs/${name}`;
@@ -83,12 +83,20 @@ export function createSchemaEmitter(checker, root = ROOT, openObjects = false) {
 		definitions[name] = {};
 		let result;
 		if (type.symbol?.name === 'Uint8Array') {
-			result = {
-				type: 'array',
-				items: { type: 'integer', minimum: 0, maximum: 255 },
-				maxItems: 8 * 1024 * 1024,
-				'x-openfairygui-native': 'Uint8Array',
-			};
+			result = base64
+				? {
+						type: 'string',
+						contentEncoding: 'base64',
+						pattern: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$',
+						maxLength: 11184812,
+						'x-openfairygui-native': 'Uint8Array',
+					}
+				: {
+						type: 'array',
+						items: { type: 'integer', minimum: 0, maximum: 255 },
+						maxItems: 8 * 1024 * 1024,
+						'x-openfairygui-native': 'Uint8Array',
+					};
 		} else if (type.isUnion()) {
 			result = { anyOf: type.types.filter((member) => !(member.flags & ts.TypeFlags.Undefined)).map(schema) };
 		} else if (checker.isTupleType(type)) {

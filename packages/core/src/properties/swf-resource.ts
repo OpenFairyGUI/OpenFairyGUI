@@ -9,6 +9,7 @@ interface ISwfResource extends IExtensibleProperty {
 	branch: string;
 	branchItemIds: string[];
 	file: string;
+	publishedFile: string;
 	exported: boolean;
 	favorite: boolean;
 	resourceData: Ref<FairyBuffer>;
@@ -29,6 +30,7 @@ export class SwfResource extends ExtensibleProperty<ISwfResource> {
 			branch: '',
 			branchItemIds: [],
 			file: '',
+			publishedFile: '',
 			exported: false,
 			favorite: false,
 			resourceData: null,
@@ -59,6 +61,13 @@ export class SwfResource extends ExtensibleProperty<ISwfResource> {
 	public setBranchItemIds(ids: string[]): this {
 		return this.set('branchItemIds', [...ids]);
 	}
+	public getPublishedFile(): string {
+		return this.get('publishedFile');
+	}
+	public setPublishedFile(value: string): this {
+		return this.set('publishedFile', value);
+	}
+
 	public getFile(): string {
 		return this.get('file');
 	}

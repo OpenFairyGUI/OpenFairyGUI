@@ -23,8 +23,8 @@
 		"refs:sync": "git submodule update --init --recursive",
 		"refs:grep": "node scripts/refs-grep.mjs",
 		"check:fast": "node scripts/test-changed.mjs --check",
-		"check": "pnpm refs:verify && pnpm lint:ci && pnpm typecheck && pnpm build && pnpm test:repo && pnpm test",
-		"check:ci": "pnpm refs:verify && pnpm lint:ci && pnpm typecheck && pnpm check:agent-links && pnpm pack:check && pnpm test:repo && pnpm test && pnpm docs:build",
+		"check": "pnpm refs:verify && pnpm lint:ci && pnpm typecheck && pnpm test:repo && pnpm test",
+		"check:ci": "node scripts/check-ci.mjs",
 		"pack:check": "node scripts/pack-smoke.mjs",
 		"eval:agent": "node scripts/agent-evals.mjs",
 		"check:agent-links": "node scripts/check-guidance.mjs",
@@ -39,24 +39,27 @@
 		"clean:dist": "node scripts/clean.mjs dist",
 		"clean:deps": "node scripts/clean.mjs node_modules",
 		"dev:cli": "tsx packages/cli/src/cli.ts",
-		"test": "ava --no-worker-threads",
-		"test:debug": "ava debug --no-worker-threads",
-		"coverage": "c8 --reporter=lcov --reporter=text pnpm test -- --tap",
+		"test": "pnpm build && ava",
+		"test:debug": "pnpm build && ava debug",
+		"coverage": "pnpm build && c8 --check-coverage --lines=90 --functions=90 --branches=75 --statements=90 --reporter=lcov --reporter=text-summary ava",
 		"docs:api": "typedoc",
 		"docs:build": "pnpm docs:api && vitepress build docs",
 		"docs:dev": "pnpm docs:api && vitepress dev docs",
 		"docs:preview": "vitepress preview docs",
-		"lint": "biome lint packages scripts examples docs/.vitepress/config.ts docs/.vitepress/theme",
-		"lint:ci": "biome lint packages scripts examples docs/.vitepress/config.ts docs/.vitepress/theme",
-		"typecheck": "tsc --noEmit --declaration false"
+		"lint:ci": "biome ci packages scripts examples docs/.vitepress/config.ts docs/.vitepress/theme",
+		"format": "biome format --write packages scripts examples docs/.vitepress/config.ts docs/.vitepress/theme",
+		"format:check": "biome format packages scripts examples docs/.vitepress/config.ts docs/.vitepress/theme",
+		"typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit --declaration false",
+		"release:prepare": "node scripts/prepare-release.mjs"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.9",
-		"@typescript/native": "npm:typescript@^7.0.2",
 		"@types/node": "^22.0.0",
+		"@typescript/native": "npm:typescript@^7.0.2",
 		"ava": "^7.0.0",
 		"c8": "^11.0.0",
 		"mermaid": "11.16.0",
+		"sharp": "^0.34.5",
 		"tsdown": "^0.21.5",
 		"tsx": "^4.21.0",
 		"typedoc": "^0.28.20",
@@ -74,10 +77,23 @@
 		],
 		"files": [
 			"packages/*/test/**/*.test.ts"
-		]
+		],
+		"workerThreads": false,
+		"concurrency": 4
 	},
 	"packageManager": "pnpm@10.14.0",
-	"dependencies": {
-		"sharp": "^0.34.5"
+	"c8": {
+		"all": true,
+		"include": [
+			"packages/*/src/**/*.ts"
+		],
+		"exclude": [
+			"packages/*/src/generated/**"
+		]
+	},
+	"toolchain": {
+		"typecheck": "@typescript/native (TypeScript 7), invoked by explicit path to avoid the shared tsc binary.",
+		"compilerApi": "typescript (TypeScript 6 alias), used by TypeDoc and contract generation; TS7 does not provide the stable compiler API.",
+		"consumerTypes": "TypeScript 6, strict NodeNext ESM/CJS; TypeScript 5 is not a claimed consumer target."
 	}
 }

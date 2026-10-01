@@ -6,7 +6,9 @@ import type { ProjectSettings } from '../types/settings.js';
 import type { ILogger } from '../utils/logger.js';
 import type { ProjectDiagnostic } from '../validation.js';
 
+/** @internal */
 export class ReaderContext {
+	public readonly componentPaths = new Map<Property, string>();
 	public readonly document: Document;
 	public readonly logger: ILogger;
 	public readonly basePath: string;

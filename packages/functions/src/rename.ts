@@ -42,8 +42,9 @@ export function rename(options: RenameOptions): Transform {
 		}
 
 		// Find the resource
-		const resource = pkg.listResources().find((r) => r.getName() === options.resourceName)
-			|| pkg.listComponents().find((c) => c.getName() === options.resourceName);
+		const resource =
+			pkg.listResources().find((r) => r.getName() === options.resourceName) ||
+			pkg.listComponents().find((c) => c.getName() === options.resourceName);
 
 		if (!resource) {
 			logger.warn(`rename: Resource "${options.resourceName}" not found in package "${options.packageName}".`);

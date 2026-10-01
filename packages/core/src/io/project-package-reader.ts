@@ -1,7 +1,18 @@
+import { ProjectIOError } from './errors.js';
 import type { Document } from '../document.js';
 import type { Package } from '../properties/package.js';
 import { normalizeResourceFolderPath } from '../utils/resource-folder.js';
-import { assertWellFormedXml, parseXML, parseXMLPreserveOrder, getXmlNode, parseScale9GridString, parseBool, parseFloat2, parseInt2, ensureArray } from '../utils/xml-utils.js';
+import {
+	assertWellFormedXml,
+	parseXML,
+	parseXMLPreserveOrder,
+	getXmlNode,
+	parseScale9GridString,
+	parseBool,
+	parseFloat2,
+	parseInt2,
+	ensureArray,
+} from '../utils/xml-utils.js';
 import { PROJECT_XML_PROTOCOL, readXmlAttr } from './project-xml-protocol.js';
 import type { FileSystem } from './file-system.js';
 import type { ReaderContext } from './reader-context.js';
@@ -60,12 +71,11 @@ function getOrderedPackageResourceItems(xmlContent: string): Array<{ tagName: st
 	const ordered = parseXMLPreserveOrder(xmlContent);
 	const descriptionEntry = ordered.find((entry) => 'packageDescription' in entry || 'branchDescription' in entry);
 	if (!descriptionEntry) return [];
-	const description = 'packageDescription' in descriptionEntry
-		? descriptionEntry.packageDescription
-		: descriptionEntry.branchDescription;
-	const packageChildren = Array.isArray(description)
-		? (description as OrderedXmlEntry[])
-		: [];
+	const description =
+		'packageDescription' in descriptionEntry
+			? descriptionEntry.packageDescription
+			: descriptionEntry.branchDescription;
+	const packageChildren = Array.isArray(description) ? (description as OrderedXmlEntry[]) : [];
 	const resourcesEntry = packageChildren.find((entry) => 'resources' in entry);
 	if (!resourcesEntry) return [];
 	const resourcesChildren = Array.isArray(resourcesEntry.resources)
@@ -76,19 +86,13 @@ function getOrderedPackageResourceItems(xmlContent: string): Array<{ tagName: st
 		const tagName = Object.keys(entry).find((key) => key !== ':@' && key !== '#text');
 		if (!tagName) return [];
 		const attrs = (entry[':@'] as Record<string, unknown> | undefined) ?? {};
-		return [{
-			tagName,
-			attrs: attrs as ResourceXmlAttrs,
-		}];
+		return [
+			{
+				tagName,
+				attrs: attrs as ResourceXmlAttrs,
+			},
+		];
 	});
-}
-
-interface ProjectComponentExtras extends Record<string, unknown> {
-	_filePath?: string;
-}
-
-export function getProjectComponentExtras(comp: { getExtras(): Record<string, unknown> }): ProjectComponentExtras {
-	return comp.getExtras() as ProjectComponentExtras;
 }
 
 export function linkPackageBranchItems(doc: Document): void {
@@ -106,9 +110,14 @@ export function linkPackageBranchItems(doc: Document): void {
 		}
 		for (const resource of pkg.listResources()) {
 			if (resource.getBranch()) continue;
-			resource.setBranchItemIds(branchNames.map((branchName) => variants.get(
-				`${branchName}\0${resource.propertyType}\0${resource.getPath()}\0${resource.getName()}`,
-			) ?? ''));
+			resource.setBranchItemIds(
+				branchNames.map(
+					(branchName) =>
+						variants.get(
+							`${branchName}\0${resource.propertyType}\0${resource.getPath()}\0${resource.getName()}`,
+						) ?? '',
+				),
+			);
 		}
 	}
 }
@@ -128,7 +137,10 @@ export async function readPackageDescription(
 		? getXmlNode<BranchDescriptionNode>(xml.branchDescription)
 		: getXmlNode<PackageDescriptionNode>(xml.packageDescription);
 	if (!desc) {
-		if (validateSyntax) throw new Error(`Package XML must contain a ${branchName ? 'branchDescription' : 'packageDescription'} root element.`);
+		if (validateSyntax)
+			throw new ProjectIOError(
+				`Package XML must contain a ${branchName ? 'branchDescription' : 'packageDescription'} root element.`,
+			);
 		return null;
 	}
 
@@ -137,7 +149,7 @@ export async function readPackageDescription(
 		pkg = ctx.document.createPackage(dirName);
 	}
 	if (branchName) pkg.addBranchName(branchName);
-	pkg.setExtras({ ...pkg.getExtras(), _preservePackageResourceOrder: true });
+	pkg.setPreserveResourceOrder(true);
 
 	if (!branchName) {
 		const packageId = readXmlAttr<string>(desc, PROJECT_XML_PROTOCOL.packageDescription.attrs.id) || '';
@@ -151,19 +163,26 @@ export async function readPackageDescription(
 			try {
 				parsedBranchNames = JSON.parse(serializedBranchNames);
 			} catch {
-				throw new Error(`Invalid package branchNames for "${dirName}".`);
+				throw new ProjectIOError(`Invalid package branchNames for "${dirName}".`);
 			}
-			if (!Array.isArray(parsedBranchNames)
-				|| !parsedBranchNames.every((name): name is string => typeof name === 'string' && name.length > 0)
-				|| new Set(parsedBranchNames).size !== parsedBranchNames.length
+			if (
+				!Array.isArray(parsedBranchNames) ||
+				!parsedBranchNames.every((name): name is string => typeof name === 'string' && name.length > 0) ||
+				new Set(parsedBranchNames).size !== parsedBranchNames.length
 			) {
-				throw new Error(`Invalid package branchNames for "${dirName}".`);
+				throw new ProjectIOError(`Invalid package branchNames for "${dirName}".`);
 			}
 			pkg.setBranchNames(parsedBranchNames);
 		}
-		const compressPNG = readXmlAttr<string | boolean>(desc, PROJECT_XML_PROTOCOL.packageDescription.attrs.compressPNG);
+		const compressPNG = readXmlAttr<string | boolean>(
+			desc,
+			PROJECT_XML_PROTOCOL.packageDescription.attrs.compressPNG,
+		);
 		if (compressPNG !== undefined) pkg.setCompressPNG(parseBool(compressPNG));
-		const jpegQuality = readXmlAttr<string | number>(desc, PROJECT_XML_PROTOCOL.packageDescription.attrs.jpegQuality);
+		const jpegQuality = readXmlAttr<string | number>(
+			desc,
+			PROJECT_XML_PROTOCOL.packageDescription.attrs.jpegQuality,
+		);
 		if (jpegQuality !== undefined && jpegQuality !== null && jpegQuality !== '') {
 			pkg.setJpegQuality(parseInt2(jpegQuality, 0));
 		}
@@ -174,28 +193,30 @@ export async function readPackageDescription(
 	if (publish) {
 		const publishName = readXmlAttr<string>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.name) || dirName;
 		pkg.setPublishName(publishName);
-		pkg.setPublishPath(
-			readXmlAttr<string>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.path) || '',
-		);
+		pkg.setPublishPath(readXmlAttr<string>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.path) || '');
 		pkg.setPublishBranchPath(
 			readXmlAttr<string>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.branchPath) || '',
 		);
-		pkg.setPublishPackageCount(parseInt2(
-			readXmlAttr<string | number>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.packageCount),
-			0,
-		));
-		pkg.setGenCode(parseBool(
-			readXmlAttr<string | boolean>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.genCode),
-		));
-		pkg.setCodePath(
-			readXmlAttr<string>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.codePath) || '',
+		pkg.setPublishPackageCount(
+			parseInt2(readXmlAttr<string | number>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.packageCount), 0),
 		);
+		pkg.setGenCode(
+			parseBool(readXmlAttr<string | boolean>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.genCode)),
+		);
+		pkg.setCodePath(readXmlAttr<string>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.codePath) || '');
 
 		const globalAtlas = ctx.settings.publish?.atlasSetting;
-		const maxAtlasSize = readXmlAttr<string | number>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.maxAtlasSize);
-		const sizeOption = parseBool(readXmlAttr<string | boolean>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.npot))
+		const maxAtlasSize = readXmlAttr<string | number>(
+			publish,
+			PROJECT_XML_PROTOCOL.packagePublish.attrs.maxAtlasSize,
+		);
+		const sizeOption = parseBool(
+			readXmlAttr<string | boolean>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.npot),
+		)
 			? 'npot'
-			: readXmlAttr<string>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.sizeOption) || globalAtlas?.sizeOption || 'pot';
+			: readXmlAttr<string>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.sizeOption) ||
+				globalAtlas?.sizeOption ||
+				'pot';
 		const square = readXmlAttr<string | boolean>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.square);
 		const rotation = readXmlAttr<string | boolean>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.rotation);
 		const multiPage = readXmlAttr<string | boolean>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.multiPage);
@@ -203,10 +224,12 @@ export async function readPackageDescription(
 			useGlobal: maxAtlasSize === undefined,
 			maxSize: parseInt2(maxAtlasSize, globalAtlas?.maxSize ?? 2048),
 			sizeOption: sizeOption === 'npot' || sizeOption === 'mof' ? sizeOption : 'pot',
-			forceSquare: square === undefined ? globalAtlas?.forceSquare ?? false : parseBool(square),
-			allowRotation: rotation === undefined ? globalAtlas?.allowRotation ?? false : parseBool(rotation),
-			paging: multiPage === undefined ? globalAtlas?.paging ?? true : parseBool(multiPage),
-			extractAlpha: parseBool(readXmlAttr<string | boolean>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.extractAlpha)),
+			forceSquare: square === undefined ? (globalAtlas?.forceSquare ?? false) : parseBool(square),
+			allowRotation: rotation === undefined ? (globalAtlas?.allowRotation ?? false) : parseBool(rotation),
+			paging: multiPage === undefined ? (globalAtlas?.paging ?? true) : parseBool(multiPage),
+			extractAlpha: parseBool(
+				readXmlAttr<string | boolean>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.extractAlpha),
+			),
 			maxIndex: parseInt2(
 				readXmlAttr<string | number>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.maxAtlasIndex),
 				10,
@@ -214,13 +237,24 @@ export async function readPackageDescription(
 			atlases: ensureArray(publish.atlas).flatMap((value) => {
 				const atlas = getXmlNode<XmlNode>(value);
 				if (!atlas) return [];
-				return [{
-					index: parseInt2(readXmlAttr<string | number>(atlas, PROJECT_XML_PROTOCOL.packagePublishAtlas.attrs.index)),
-					name: readXmlAttr<string>(atlas, PROJECT_XML_PROTOCOL.packagePublishAtlas.attrs.name) || '',
-					compression: parseBool(readXmlAttr<string | boolean>(atlas, PROJECT_XML_PROTOCOL.packagePublishAtlas.attrs.compression)),
-				}];
+				return [
+					{
+						index: parseInt2(
+							readXmlAttr<string | number>(atlas, PROJECT_XML_PROTOCOL.packagePublishAtlas.attrs.index),
+						),
+						name: readXmlAttr<string>(atlas, PROJECT_XML_PROTOCOL.packagePublishAtlas.attrs.name) || '',
+						compression: parseBool(
+							readXmlAttr<string | boolean>(
+								atlas,
+								PROJECT_XML_PROTOCOL.packagePublishAtlas.attrs.compression,
+							),
+						),
+					},
+				];
 			}),
-			excludedResourceIds: (readXmlAttr<string>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.excluded) || '')
+			excludedResourceIds: (
+				readXmlAttr<string>(publish, PROJECT_XML_PROTOCOL.packagePublish.attrs.excluded) || ''
+			)
 				.split(',')
 				.filter(Boolean),
 		});
@@ -235,9 +269,12 @@ export async function readPackageDescription(
 		: fs.join(ctx.basePath, 'assets', dirName);
 	const resources = desc.resources;
 	const orderedResources = getOrderedPackageResourceItems(content);
-	const folderEntries = orderedResources.length > 0
-		? orderedResources.filter((entry) => entry.tagName === 'folder').map((entry) => entry.attrs)
-		: ensureArray(resources?.folder).map((entry) => getXmlNode<ResourceXmlAttrs>(entry)).filter((entry): entry is ResourceXmlAttrs => !!entry);
+	const folderEntries =
+		orderedResources.length > 0
+			? orderedResources.filter((entry) => entry.tagName === 'folder').map((entry) => entry.attrs)
+			: ensureArray(resources?.folder)
+					.map((entry) => getXmlNode<ResourceXmlAttrs>(entry))
+					.filter((entry): entry is ResourceXmlAttrs => !!entry);
 	await readPackageFolders(fs, ctx, pkg, packageDir, branchName, folderEntries, validateSyntax);
 	if (!resources) return { pkg, packageDir, resources: [] };
 
@@ -252,7 +289,18 @@ export async function readPackageDescription(
 	}
 
 	// Fallback for non-standard XML parser output.
-	for (const tagName of ['image', 'component', 'font', 'sound', 'movieclip', 'spine', 'dragonbones', 'swf', 'misc', 'atlas']) {
+	for (const tagName of [
+		'image',
+		'component',
+		'font',
+		'sound',
+		'movieclip',
+		'spine',
+		'dragonbones',
+		'swf',
+		'misc',
+		'atlas',
+	]) {
 		const items = ensureArray(resources[tagName]);
 		for (const item of items) {
 			const attrs = getXmlNode<ResourceXmlAttrs>(item);
@@ -273,24 +321,40 @@ async function readPackageFolders(
 	metadataEntries: ResourceXmlAttrs[],
 	collectDiagnostics: boolean,
 ): Promise<void> {
-	const metadata = new Map(metadataEntries.map((attrs) => {
-		const path = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.path) ?? '/';
-		const name = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.name) ?? '';
-		return [normalizeResourceFolderPath(`${path}/${name}`), attrs] as const;
-	}));
+	const metadata = new Map(
+		metadataEntries.map((attrs) => {
+			const path = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.path) ?? '/';
+			const name = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.name) ?? '';
+			return [normalizeResourceFolderPath(`${path}/${name}`), attrs] as const;
+		}),
+	);
 	const folders = pkg.listResourceFolders();
 	const visit = async (directory: string, parentPath: string, entries?: string[]): Promise<void> => {
-		const names = entries ?? await readProjectDirectory(fs, directory, { diagnostics: collectDiagnostics ? ctx.diagnostics : undefined }) ?? [];
+		const names =
+			entries ??
+			(await readProjectDirectory(fs, directory, {
+				diagnostics: collectDiagnostics ? ctx.diagnostics : undefined,
+			})) ??
+			[];
 		for (const name of [...names].sort((left, right) => left.localeCompare(right))) {
 			const childDirectory = fs.join(directory, name);
-			const childEntries = await readProjectSubdirectory(fs, childDirectory, collectDiagnostics ? ctx.diagnostics : undefined);
+			const childEntries = await readProjectSubdirectory(
+				fs,
+				childDirectory,
+				collectDiagnostics ? ctx.diagnostics : undefined,
+			);
 			if (childEntries === null) continue;
 			const path = normalizeResourceFolderPath(`${parentPath}/${name}`);
 			const attrs = metadata.get(path);
 			folders.push({
 				branch,
 				path,
-				favorite: parseBool(readXmlAttr<string | boolean>(attrs ?? {}, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.favorite)),
+				favorite: parseBool(
+					readXmlAttr<string | boolean>(
+						attrs ?? {},
+						PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.favorite,
+					),
+				),
 				atlas: readXmlAttr<string>(attrs ?? {}, PROJECT_XML_PROTOCOL.packageResourceFolder.attrs.atlas) ?? '',
 			});
 			await visit(childDirectory, path, childEntries);
@@ -313,8 +377,12 @@ function createResourceFromXML(
 	const id = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.id) ?? '';
 	const name = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.name) ?? '';
 	const path = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.path) ?? '/';
-	const exported = parseBool(readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.exported));
-	const favorite = parseBool(readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.favorite));
+	const exported = parseBool(
+		readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.exported),
+	);
+	const favorite = parseBool(
+		readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.packageResource.attrs.favorite),
+	);
 
 	switch (tagName) {
 		case 'image': {
@@ -335,18 +403,42 @@ function createResourceFromXML(
 			} else if (scale === 'tile') {
 				res.setScaleOption(2);
 			}
-			const imageWidth = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.width);
+			const imageWidth = readXmlAttr<string | number>(
+				attrs,
+				PROJECT_XML_PROTOCOL.packageImageResource.attrs.width,
+			);
 			if (imageWidth !== undefined) res.setWidth(parseInt2(imageWidth));
-			const imageHeight = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.height);
+			const imageHeight = readXmlAttr<string | number>(
+				attrs,
+				PROJECT_XML_PROTOCOL.packageImageResource.attrs.height,
+			);
 			if (imageHeight !== undefined) res.setHeight(parseInt2(imageHeight));
-			const gridTile = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.gridTile);
+			const gridTile = readXmlAttr<string | number>(
+				attrs,
+				PROJECT_XML_PROTOCOL.packageImageResource.attrs.gridTile,
+			);
 			if (gridTile !== undefined) res.setTileGridIndice(parseInt2(gridTile));
-			const qualityOption = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.qualityOption);
+			const qualityOption = readXmlAttr<string>(
+				attrs,
+				PROJECT_XML_PROTOCOL.packageImageResource.attrs.qualityOption,
+			);
 			if (qualityOption !== undefined) res.setQualityOption(qualityOption);
-			const quality = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.quality);
+			const quality = readXmlAttr<string | number>(
+				attrs,
+				PROJECT_XML_PROTOCOL.packageImageResource.attrs.quality,
+			);
 			if (quality !== undefined) res.setQuality(parseInt2(quality));
-			res.setDuplicatePadding(parseBool(readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.duplicatePadding)));
-			res.setSmoothing(readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.smoothing) !== 'false');
+			res.setDuplicatePadding(
+				parseBool(
+					readXmlAttr<string | boolean>(
+						attrs,
+						PROJECT_XML_PROTOCOL.packageImageResource.attrs.duplicatePadding,
+					),
+				),
+			);
+			res.setSmoothing(
+				readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.smoothing) !== 'false',
+			);
 			pkg.addResource(res);
 			ctx.registerResource(pkg.getId(), id, res);
 			return res;
@@ -360,7 +452,7 @@ function createResourceFromXML(
 			res.setFavorite(favorite);
 			// Store file path for second-pass parsing
 			const filePath = fs.join(packageDir, path.replace(/^\//, ''), name);
-			res.setExtras({ ...res.getExtras(), _filePath: filePath });
+			ctx.componentPaths.set(res, filePath);
 			pkg.addResource(res);
 			ctx.registerResource(pkg.getId(), id, res);
 			return res;
@@ -416,7 +508,10 @@ function createResourceFromXML(
 			}
 			const renderMode = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageFontResource.attrs.renderMode);
 			if (renderMode !== undefined) res.setRenderMode(renderMode);
-			const samplePointSize = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageFontResource.attrs.samplePointSize);
+			const samplePointSize = readXmlAttr<string | number>(
+				attrs,
+				PROJECT_XML_PROTOCOL.packageFontResource.attrs.samplePointSize,
+			);
 			if (samplePointSize !== undefined) res.setSamplePointSize(parseInt2(samplePointSize));
 			pkg.addResource(res);
 			ctx.registerResource(pkg.getId(), id, res);
@@ -430,11 +525,22 @@ function createResourceFromXML(
 			res.setFile(name);
 			res.setExported(exported);
 			res.setFavorite(favorite);
-			res.setWidth(parseInt2(readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.width)));
-			res.setHeight(parseInt2(readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.height)));
+			res.setWidth(
+				parseInt2(
+					readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.width),
+				),
+			);
+			res.setHeight(
+				parseInt2(
+					readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.height),
+				),
+			);
 			const requireValue = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.require);
 			res.setRequireIds(requireValue ? String(requireValue).split(',').filter(Boolean) : []);
-			const atlasNamesValue = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.atlasNames);
+			const atlasNamesValue = readXmlAttr<string>(
+				attrs,
+				PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.atlasNames,
+			);
 			res.setAtlasNames(atlasNamesValue ? String(atlasNamesValue).split(',').filter(Boolean) : []);
 			const anchorValue = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.anchor);
 			if (anchorValue) {
@@ -453,11 +559,22 @@ function createResourceFromXML(
 			res.setFile(name);
 			res.setExported(exported);
 			res.setFavorite(favorite);
-			res.setWidth(parseInt2(readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.width)));
-			res.setHeight(parseInt2(readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.height)));
+			res.setWidth(
+				parseInt2(
+					readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.width),
+				),
+			);
+			res.setHeight(
+				parseInt2(
+					readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.height),
+				),
+			);
 			const requireValue = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.require);
 			res.setRequireIds(requireValue ? String(requireValue).split(',').filter(Boolean) : []);
-			const atlasNamesValue = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.atlasNames);
+			const atlasNamesValue = readXmlAttr<string>(
+				attrs,
+				PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.atlasNames,
+			);
 			res.setAtlasNames(atlasNamesValue ? String(atlasNamesValue).split(',').filter(Boolean) : []);
 			const anchorValue = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageSkeletonResource.attrs.anchor);
 			if (anchorValue) {
@@ -476,7 +593,10 @@ function createResourceFromXML(
 			res.setFileName(name);
 			res.setExported(exported);
 			res.setFavorite(favorite);
-			const textureSetMode = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageMovieClipResource.attrs.atlas);
+			const textureSetMode = readXmlAttr<string>(
+				attrs,
+				PROJECT_XML_PROTOCOL.packageMovieClipResource.attrs.atlas,
+			);
 			if (textureSetMode !== undefined) res.setTextureSetMode(textureSetMode);
 			const smoothing = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.packageMovieClipResource.attrs.smoothing);
 			res.setSmoothing(smoothing !== 'false');

@@ -1,4 +1,4 @@
-import type { Ref } from 'property-graph';
+import type { Ref, LiteralKeys } from 'property-graph';
 import type { Nullable } from '../constants.js';
 import { ExtensibleProperty, type IExtensibleProperty } from './extensible-property.js';
 import type { FairyBuffer } from './buffer.js';
@@ -9,6 +9,7 @@ export interface ISkeletonResourceBase extends IExtensibleProperty {
 	branch: string;
 	branchItemIds: string[];
 	file: string;
+	publishedFile: string;
 	exported: boolean;
 	favorite: boolean;
 	width: number;
@@ -32,6 +33,7 @@ export abstract class SkeletonResourceBase<T extends ISkeletonResourceBase> exte
 			branch: '',
 			branchItemIds: [],
 			file: '',
+			publishedFile: '',
 			exported: false,
 			favorite: false,
 			width: 0,
@@ -44,44 +46,114 @@ export abstract class SkeletonResourceBase<T extends ISkeletonResourceBase> exte
 		}) as Nullable<T>;
 	}
 
-	public getId(): string { return this.get('id' as never) as string; }
-	public setId(id: string): this { return this.set('id' as never, id as never); }
+	protected getSkeletonProp<K extends LiteralKeys<ISkeletonResourceBase>>(key: K): ISkeletonResourceBase[K] {
+		return (this as unknown as SkeletonResourceBase<ISkeletonResourceBase>).get(key);
+	}
+	protected setSkeletonProp<K extends LiteralKeys<ISkeletonResourceBase>>(
+		key: K,
+		value: ISkeletonResourceBase[K],
+	): this {
+		(this as unknown as SkeletonResourceBase<ISkeletonResourceBase>).set(key, value);
+		return this;
+	}
 
-	public getPath(): string { return this.get('path' as never) as string; }
-	public setPath(path: string): this { return this.set('path' as never, path as never); }
+	public getId(): string {
+		return this.getSkeletonProp('id');
+	}
+	public setId(id: string): this {
+		return this.setSkeletonProp('id', id);
+	}
 
-	public getBranch(): string { return this.get('branch' as never) as string; }
-	public setBranch(branch: string): this { return this.set('branch' as never, branch as never); }
+	public getPath(): string {
+		return this.getSkeletonProp('path');
+	}
+	public setPath(path: string): this {
+		return this.setSkeletonProp('path', path);
+	}
 
-	public getBranchItemIds(): string[] { return [...(this.get('branchItemIds' as never) as string[])]; }
-	public setBranchItemIds(ids: string[]): this { return this.set('branchItemIds' as never, [...ids] as never); }
+	public getBranch(): string {
+		return this.getSkeletonProp('branch');
+	}
+	public setBranch(branch: string): this {
+		return this.setSkeletonProp('branch', branch);
+	}
 
-	public getFile(): string { return this.get('file' as never) as string; }
-	public setFile(file: string): this { return this.set('file' as never, file as never); }
+	public getBranchItemIds(): string[] {
+		return [...this.getSkeletonProp('branchItemIds')];
+	}
+	public setBranchItemIds(ids: string[]): this {
+		return this.setSkeletonProp('branchItemIds', [...ids]);
+	}
 
-	public getExported(): boolean { return this.get('exported' as never) as boolean; }
-	public setExported(v: boolean): this { return this.set('exported' as never, v as never); }
+	public getPublishedFile(): string {
+		return this.getSkeletonProp('publishedFile');
+	}
+	public setPublishedFile(value: string): this {
+		return this.setSkeletonProp('publishedFile', value);
+	}
 
-	public getFavorite(): boolean { return this.get('favorite' as never) as boolean; }
-	public setFavorite(v: boolean): this { return this.set('favorite' as never, v as never); }
+	public getFile(): string {
+		return this.getSkeletonProp('file');
+	}
+	public setFile(file: string): this {
+		return this.setSkeletonProp('file', file);
+	}
 
-	public getWidth(): number { return this.get('width' as never) as number; }
-	public setWidth(v: number): this { return this.set('width' as never, v as never); }
+	public getExported(): boolean {
+		return this.getSkeletonProp('exported');
+	}
+	public setExported(v: boolean): this {
+		return this.setSkeletonProp('exported', v);
+	}
 
-	public getHeight(): number { return this.get('height' as never) as number; }
-	public setHeight(v: number): this { return this.set('height' as never, v as never); }
+	public getFavorite(): boolean {
+		return this.getSkeletonProp('favorite');
+	}
+	public setFavorite(v: boolean): this {
+		return this.setSkeletonProp('favorite', v);
+	}
 
-	public getRequireIds(): string[] { return [...(this.get('requireIds' as never) as string[])]; }
-	public setRequireIds(ids: string[]): this { return this.set('requireIds' as never, [...ids] as never); }
+	public getWidth(): number {
+		return this.getSkeletonProp('width');
+	}
+	public setWidth(v: number): this {
+		return this.setSkeletonProp('width', v);
+	}
 
-	public getAtlasNames(): string[] { return [...(this.get('atlasNames' as never) as string[])]; }
-	public setAtlasNames(names: string[]): this { return this.set('atlasNames' as never, [...names] as never); }
+	public getHeight(): number {
+		return this.getSkeletonProp('height');
+	}
+	public setHeight(v: number): this {
+		return this.setSkeletonProp('height', v);
+	}
 
-	public getAnchorX(): number { return this.get('anchorX' as never) as number; }
-	public setAnchorX(v: number): this { return this.set('anchorX' as never, v as never); }
+	public getRequireIds(): string[] {
+		return [...this.getSkeletonProp('requireIds')];
+	}
+	public setRequireIds(ids: string[]): this {
+		return this.setSkeletonProp('requireIds', [...ids]);
+	}
 
-	public getAnchorY(): number { return this.get('anchorY' as never) as number; }
-	public setAnchorY(v: number): this { return this.set('anchorY' as never, v as never); }
+	public getAtlasNames(): string[] {
+		return [...this.getSkeletonProp('atlasNames')];
+	}
+	public setAtlasNames(names: string[]): this {
+		return this.setSkeletonProp('atlasNames', [...names]);
+	}
+
+	public getAnchorX(): number {
+		return this.getSkeletonProp('anchorX');
+	}
+	public setAnchorX(v: number): this {
+		return this.setSkeletonProp('anchorX', v);
+	}
+
+	public getAnchorY(): number {
+		return this.getSkeletonProp('anchorY');
+	}
+	public setAnchorY(v: number): this {
+		return this.setSkeletonProp('anchorY', v);
+	}
 
 	public setAnchor(x: number, y: number): this {
 		this.setAnchorX(x);
@@ -89,6 +161,13 @@ export abstract class SkeletonResourceBase<T extends ISkeletonResourceBase> exte
 	}
 
 	/** Primary source-file bytes for this skeleton resource. */
-	public getSourceData(): FairyBuffer | null { return this.getRef('sourceData' as never) as FairyBuffer | null; }
-	public setSourceData(buffer: FairyBuffer | null): this { return this.setRef('sourceData' as never, buffer as never); }
+	public getSourceData(): FairyBuffer | null {
+		return (this as unknown as SkeletonResourceBase<ISkeletonResourceBase>).getRef(
+			'sourceData' as never,
+		) as FairyBuffer | null;
+	}
+	public setSourceData(buffer: FairyBuffer | null): this {
+		(this as unknown as SkeletonResourceBase<ISkeletonResourceBase>).setRef('sourceData' as never, buffer as never);
+		return this;
+	}
 }

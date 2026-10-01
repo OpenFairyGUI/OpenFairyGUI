@@ -53,13 +53,31 @@ export interface BackendContext {
 }
 
 /** Borrowed data is read-only, including nested arrays and primary resource bytes. */
-export type ReadonlyData<T> = unknown extends T ? T : T extends Uint8Array
-	? Readonly<Pick<Uint8Array, 'length' | 'byteLength' | typeof Symbol.iterator>> & { readonly [index: number]: number }
-	: { readonly [K in keyof T]: ReadonlyData<T[K]> };
+export type ReadonlyData<T> = unknown extends T
+	? T
+	: T extends Uint8Array
+		? Readonly<Pick<Uint8Array, 'length' | 'byteLength' | typeof Symbol.iterator>> & {
+				readonly [index: number]: number;
+			}
+		: { readonly [K in keyof T]: ReadonlyData<T[K]> };
 
-export type SessionReadView = ReadonlyData<Pick<BackendSessionState,
-	'sessionId' | 'canonicalProjectPath' | 'canonicalPathKey' | 'project' | 'readDiagnostics' | 'readComplete'
-	| 'uamFidelity' | 'revision' | 'lastSavedRevision' | 'dirty' | 'lockHeld' | 'closed'>>;
+export type SessionReadView = ReadonlyData<
+	Pick<
+		BackendSessionState,
+		| 'sessionId'
+		| 'canonicalProjectPath'
+		| 'canonicalPathKey'
+		| 'project'
+		| 'readDiagnostics'
+		| 'readComplete'
+		| 'uamFidelity'
+		| 'revision'
+		| 'lastSavedRevision'
+		| 'dirty'
+		| 'lockHeld'
+		| 'closed'
+	>
+>;
 export type SessionLookup = (sessionId: string) => SessionReadView | undefined;
 
 /** Borrow without copying the entire project before a read has checked its response budget. */

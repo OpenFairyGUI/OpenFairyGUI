@@ -50,11 +50,7 @@ test('composeController assembles pages/actions, attaches to the component, and 
 	pkg.setId('pkghelpers1');
 
 	const component = doc.createComponent('Panel');
-	component
-		.setId('cmppanel1')
-		.setPath('/')
-		.setExported(true)
-		.setSize(240, 140);
+	component.setId('cmppanel1').setPath('/').setExported(true).setSize(240, 140);
 
 	const child = doc.createGComponent('content');
 	child.setId('n0');
@@ -87,10 +83,14 @@ test('composeController assembles pages/actions, attaches to the component, and 
 	});
 
 	t.is(component.getController('state'), controller, 'helper should attach controller to the component');
-	t.deepEqual(controller.listPages().map((page) => ({ id: page.getId(), name: page.getName() })), [
-		{ id: '0', name: 'Idle' },
-		{ id: '1', name: 'Active' },
-	], 'helper should replace multi-step page assembly');
+	t.deepEqual(
+		controller.listPages().map((page) => ({ id: page.getId(), name: page.getName() })),
+		[
+			{ id: '0', name: 'Idle' },
+			{ id: '1', name: 'Active' },
+		],
+		'helper should replace multi-step page assembly',
+	);
 	t.is(controller.listActions()[0]?.getObjectId(), 'n0', 'helper should resolve child refs into ids');
 
 	const doc2 = await roundTripProject(doc);
@@ -104,10 +104,13 @@ test('composeController assembles pages/actions, attaches to the component, and 
 	t.true(controller2?.getExported());
 	t.is(controller2?.getHomePageType(), 'specific');
 	t.is(controller2?.getHomePage(), '1');
-	t.deepEqual(controller2?.listPages().map((page) => ({ id: page.getId(), name: page.getName() })), [
-		{ id: '0', name: 'Idle' },
-		{ id: '1', name: 'Active' },
-	]);
+	t.deepEqual(
+		controller2?.listPages().map((page) => ({ id: page.getId(), name: page.getName() })),
+		[
+			{ id: '0', name: 'Idle' },
+			{ id: '1', name: 'Active' },
+		],
+	);
 	t.truthy(action2, 'controller action should survive round-trip');
 	t.is(action2?.getActionType(), ControllerActionType.ChangePage);
 	t.is(action2?.getObjectId(), 'n0');
@@ -121,11 +124,7 @@ test('composeController rejects duplicate page ids before graph assembly', (t) =
 	pkg.setId('pkghelpers2');
 
 	const component = doc.createComponent('Panel');
-	component
-		.setId('cmppanel2')
-		.setPath('/')
-		.setExported(true)
-		.setSize(240, 140);
+	component.setId('cmppanel2').setPath('/').setExported(true).setSize(240, 140);
 	pkg.addResource(component);
 
 	const error = t.throws(() => {
@@ -148,11 +147,7 @@ test('composeController rejects action page refs that do not belong to the contr
 	pkg.setId('pkghelpers-invalid-pages');
 
 	const component = doc.createComponent('Panel');
-	component
-		.setId('cmppanel-invalid-pages')
-		.setPath('/')
-		.setExported(true)
-		.setSize(240, 140);
+	component.setId('cmppanel-invalid-pages').setPath('/').setExported(true).setSize(240, 140);
 
 	const child = doc.createGComponent('content');
 	child.setId('n0');
@@ -189,11 +184,7 @@ test('composeTransition assembles items, resolves child refs, attaches to the co
 	pkg.setId('pkghelpers3');
 
 	const component = doc.createComponent('Animator');
-	component
-		.setId('cmpanimator1')
-		.setPath('/')
-		.setExported(true)
-		.setSize(220, 140);
+	component.setId('cmpanimator1').setPath('/').setExported(true).setSize(220, 140);
 
 	const child = doc.createGImage('hero');
 	child.setId('n0').setXY(0, 0).setSize(100, 100);
@@ -251,11 +242,7 @@ test('composeTransition rejects a target that does not belong to the component',
 	pkg.setId('pkghelpers4');
 
 	const component = doc.createComponent('Animator');
-	component
-		.setId('cmpanimator2')
-		.setPath('/')
-		.setExported(true)
-		.setSize(220, 140);
+	component.setId('cmpanimator2').setPath('/').setExported(true).setSize(220, 140);
 	pkg.addResource(component);
 
 	const foreignChild = doc.createGImage('foreign');
@@ -284,11 +271,7 @@ test('bindLookGear assembles a look gear from structured input, attaches it, and
 	pkg.setId('pkghelpers5');
 
 	const component = doc.createComponent('GearHost');
-	component
-		.setId('cmpgearhost1')
-		.setPath('/')
-		.setExported(true)
-		.setSize(220, 140);
+	component.setId('cmpgearhost1').setPath('/').setExported(true).setSize(220, 140);
 
 	const controller = doc.createController('state');
 	controller.addPage(doc.createControllerPage('Idle').setId('0'));
@@ -322,7 +305,9 @@ test('bindLookGear assembles a look gear from structured input, attaches it, and
 	t.true(Math.abs(gear.getTweenDuration() - 0.5) < 1e-6);
 
 	const doc2 = await roundTripProject(doc);
-	const image2 = doc2.getRoot().getPackage('Helpers')?.getComponent('GearHost')?.getChildById('n0') as ReturnType<Document['createGImage']> | null;
+	const image2 = doc2.getRoot().getPackage('Helpers')?.getComponent('GearHost')?.getChildById('n0') as ReturnType<
+		Document['createGImage']
+	> | null;
 	const gear2 = image2?.listGears()[0];
 
 	t.truthy(gear2, 'gear should survive round-trip');
@@ -341,11 +326,7 @@ test('bindLookGear rejects a controller that does not belong to the component be
 	pkg.setId('pkghelpers6');
 
 	const component = doc.createComponent('GearHost');
-	component
-		.setId('cmpgearhost2')
-		.setPath('/')
-		.setExported(true)
-		.setSize(220, 140);
+	component.setId('cmpgearhost2').setPath('/').setExported(true).setSize(220, 140);
 
 	const foreignController = doc.createController('foreign');
 	foreignController.addPage(doc.createControllerPage('Idle').setId('0'));
@@ -373,11 +354,7 @@ test('bindLookGear rejects state page ids that are not declared on the controlle
 	pkg.setId('pkghelpers7');
 
 	const component = doc.createComponent('GearHost');
-	component
-		.setId('cmpgearhost3')
-		.setPath('/')
-		.setExported(true)
-		.setSize(220, 140);
+	component.setId('cmpgearhost3').setPath('/').setExported(true).setSize(220, 140);
 
 	const controller = doc.createController('state');
 	controller.addPage(doc.createControllerPage('Idle').setId('0'));
@@ -406,11 +383,7 @@ test('bindLookGear rejects a target that does not belong to the component before
 	pkg.setId('pkghelpers8');
 
 	const component = doc.createComponent('GearHost');
-	component
-		.setId('cmpgearhost4')
-		.setPath('/')
-		.setExported(true)
-		.setSize(220, 140);
+	component.setId('cmpgearhost4').setPath('/').setExported(true).setSize(220, 140);
 
 	const controller = doc.createController('state');
 	controller.addPage(doc.createControllerPage('Idle').setId('0'));
@@ -438,11 +411,7 @@ test('bindLookGear rejects duplicate state page ids before attach', (t) => {
 	pkg.setId('pkghelpers9');
 
 	const component = doc.createComponent('GearHost');
-	component
-		.setId('cmpgearhost5')
-		.setPath('/')
-		.setExported(true)
-		.setSize(220, 140);
+	component.setId('cmpgearhost5').setPath('/').setExported(true).setSize(220, 140);
 
 	const controller = doc.createController('state');
 	controller.addPage(doc.createControllerPage('Idle').setId('0'));
@@ -474,11 +443,7 @@ test('bindLookGear serializes a null page state to the gear no-override marker',
 	pkg.setId('pkghelpers10');
 
 	const component = doc.createComponent('GearHost');
-	component
-		.setId('cmpgearhost6')
-		.setPath('/')
-		.setExported(true)
-		.setSize(220, 140);
+	component.setId('cmpgearhost6').setPath('/').setExported(true).setSize(220, 140);
 
 	const controller = doc.createController('state');
 	controller.addPage(doc.createControllerPage('Idle').setId('0'));
@@ -502,7 +467,9 @@ test('bindLookGear serializes a null page state to the gear no-override marker',
 	t.is(gear.getValues(), '1,0,false,true|-', 'helper should centralize null state serialization');
 
 	const doc2 = await roundTripProject(doc);
-	const image2 = doc2.getRoot().getPackage('Helpers')?.getComponent('GearHost')?.getChildById('n0') as ReturnType<Document['createGImage']> | null;
+	const image2 = doc2.getRoot().getPackage('Helpers')?.getComponent('GearHost')?.getChildById('n0') as ReturnType<
+		Document['createGImage']
+	> | null;
 	const gear2 = image2?.listGears()[0];
 
 	t.truthy(gear2, 'gear should survive round-trip');

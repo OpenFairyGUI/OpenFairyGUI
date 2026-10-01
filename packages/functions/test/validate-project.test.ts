@@ -29,10 +29,12 @@ test('validateProjectWeb reports unavailable browser decoding as incomplete', as
 	const project = createMinimalUamProject('validation');
 	const image = project.packages[0]!.resources[0]!;
 	if (image.kind !== 'image') throw new Error('Expected image fixture');
-	image.sourceBytes = Uint8Array.from(Buffer.from(
-		'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
-		'base64',
-	));
+	image.sourceBytes = Uint8Array.from(
+		Buffer.from(
+			'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+			'base64',
+		),
+	);
 
 	const report = await validateProjectWeb(project);
 	t.is(report.status, 'incomplete');

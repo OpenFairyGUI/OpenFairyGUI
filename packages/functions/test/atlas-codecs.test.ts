@@ -6,11 +6,13 @@ import type { AtlasRasterBackend, AtlasRasterPipeline } from '../src/publish/con
 import { createTestJta, TEST_JPEG, TEST_PNG } from './test-jta.js';
 
 test('atlas codecs parse standalone BMFont metadata', (t) => {
-	const font = parseFnt([
-		'info face=Demo size=16 colored=true resizable=true',
-		'common lineHeight=18 xadvance=17',
-		'char id=65 x=1 y=2 width=3 height=4 xoffset=5 yoffset=6 xadvance=7 chnl=4',
-	].join('\n'));
+	const font = parseFnt(
+		[
+			'info face=Demo size=16 colored=true resizable=true',
+			'common lineHeight=18 xadvance=17',
+			'char id=65 x=1 y=2 width=3 height=4 xoffset=5 yoffset=6 xadvance=7 chnl=4',
+		].join('\n'),
+	);
 	t.like(font, {
 		hasFace: true,
 		colored: true,
@@ -20,18 +22,20 @@ test('atlas codecs parse standalone BMFont metadata', (t) => {
 		xadvance: 17,
 		lineHeight: 18,
 	});
-	t.deepEqual(font.glyphs, [{
-		charId: 65,
-		img: null,
-		x: 1,
-		y: 2,
-		xoffset: 5,
-		yoffset: 6,
-		width: 3,
-		height: 4,
-		xadvance: 7,
-		channel: 4,
-	}]);
+	t.deepEqual(font.glyphs, [
+		{
+			charId: 65,
+			img: null,
+			x: 1,
+			y: 2,
+			xoffset: 5,
+			yoffset: 6,
+			width: 3,
+			height: 4,
+			xadvance: 7,
+			channel: 4,
+		},
+	]);
 });
 
 test('JTA extraction follows the authoritative texture table and frame references', async (t) => {
@@ -72,7 +76,7 @@ test('JTA extraction follows the authoritative texture table and frame reference
 				return this;
 			},
 			toBuffer: async () => TEST_PNG,
-			} as unknown as AtlasRasterPipeline;
+		} as unknown as AtlasRasterPipeline;
 	}) as unknown as AtlasRasterBackend;
 	const prepared = await prepareJtaForPublish(jta, encoder, 'Demo/fx.jta');
 	t.deepEqual(
@@ -104,7 +108,8 @@ test('JTA preparation rejects invalid, empty, truncated, and corrupt referenced 
 	t.deepEqual(blankFrame.referencedTextures, [], '`-1` blank frames do not decode an unreferenced empty slot');
 
 	await t.throwsAsync(
-		() => prepareJtaForPublish(createTestJta([new Uint8Array([1])], [{ textureIndex: 1 }]), encoder, 'bad-index.jta'),
+		() =>
+			prepareJtaForPublish(createTestJta([new Uint8Array([1])], [{ textureIndex: 1 }]), encoder, 'bad-index.jta'),
 		{ message: /texture index 1 is outside/ },
 	);
 	await t.throwsAsync(
@@ -112,11 +117,21 @@ test('JTA preparation rejects invalid, empty, truncated, and corrupt referenced 
 		{ message: /references empty texture 0/ },
 	);
 	await t.throwsAsync(
-		() => prepareJtaForPublish(createTestJta([new Uint8Array([0])], [{ textureIndex: 0 }]), encoder, 'unsupported.jta'),
+		() =>
+			prepareJtaForPublish(
+				createTestJta([new Uint8Array([0])], [{ textureIndex: 0 }]),
+				encoder,
+				'unsupported.jta',
+			),
 		{ message: /unsupported raster format; only PNG and JPEG are supported/ },
 	);
 	await t.throwsAsync(
-		() => prepareJtaForPublish(createTestJta([TEST_PNG.subarray(0, 33)], [{ textureIndex: 0 }]), encoder, 'corrupt.jta'),
+		() =>
+			prepareJtaForPublish(
+				createTestJta([TEST_PNG.subarray(0, 33)], [{ textureIndex: 0 }]),
+				encoder,
+				'corrupt.jta',
+			),
 		{ message: /Could not decode MovieClip/ },
 	);
 	const valid = createTestJta([TEST_PNG], [{ textureIndex: 0 }]);
@@ -126,23 +141,27 @@ test('JTA preparation rejects invalid, empty, truncated, and corrupt referenced 
 for (const version of [100, 101, 102] as const) {
 	test(`atlas codec derives complete MovieClip metadata from JTA v${version}`, (t) => {
 		const texture = Uint8Array.from([1, 2, 3, version]);
-		const extracted = extractJtaFrames(createTestMovieClipJta(version, {
-			fps: 25,
-			speed: 2,
-			repeatDelay: 4,
-			swing: true,
-			width: 80,
-			height: 60,
-			frames: [{
-				delay: 3,
-				rectX: -5,
-				rectY: 6,
-				rectWidth: 80,
-				rectHeight: 54,
-				textureIndex: 0,
-			}],
-			textures: [texture],
-		}));
+		const extracted = extractJtaFrames(
+			createTestMovieClipJta(version, {
+				fps: 25,
+				speed: 2,
+				repeatDelay: 4,
+				swing: true,
+				width: 80,
+				height: 60,
+				frames: [
+					{
+						delay: 3,
+						rectX: -5,
+						rectY: 6,
+						rectWidth: 80,
+						rectHeight: 54,
+						textureIndex: 0,
+					},
+				],
+				textures: [texture],
+			}),
+		);
 
 		t.deepEqual(extracted.frames, [texture]);
 		t.deepEqual(extracted.meta, {
@@ -151,14 +170,16 @@ for (const version of [100, 101, 102] as const) {
 			swing: true,
 			width: 80,
 			height: 60,
-			frames: [{
-				addDelay: 120,
-				offsetX: -5,
-				offsetY: 6,
-				width: 80,
-				height: 54,
-				textureIndex: 0,
-			}],
+			frames: [
+				{
+					addDelay: 120,
+					offsetX: -5,
+					offsetY: 6,
+					width: 80,
+					height: 54,
+					textureIndex: 0,
+				},
+			],
 		});
 	});
 }
@@ -168,7 +189,11 @@ test('JTA preparation strictly accepts one-frame PNG/JPEG and rejects truncated 
 		['PNG', TEST_PNG],
 		['JPEG', TEST_JPEG],
 	] as const) {
-		const prepared = await prepareJtaForPublish(createTestJta([texture], [{ textureIndex: 0 }]), undefined, `${name}.jta`);
+		const prepared = await prepareJtaForPublish(
+			createTestJta([texture], [{ textureIndex: 0 }]),
+			undefined,
+			`${name}.jta`,
+		);
 		t.is(prepared.referencedTextures.length, 1, `${name} has one referenced texture`);
 		t.is(prepared.referencedTextures[0]?.width, 1);
 		t.is(prepared.referencedTextures[0]?.height, 1);

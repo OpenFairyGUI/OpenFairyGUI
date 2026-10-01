@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
-import { Document, GearType, } from '../src/index.js';
+import { Document, GearType } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
 import { serializeDisplayList } from '../src/io/display-object-xml-writer.js';
 
@@ -12,12 +12,28 @@ const _PROJECT_PATH = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGU
 test('behavior XML keeps tag filtering, sparse Gear pages and relation target order', (t) => {
 	const doc = new Document();
 	const group = doc.createGGroup('group').setId('g');
-	group.addGear(doc.createGear().setGearType(GearType.Icon).setPages('b,a,c')
-		.setPageValues({ b: '', a: null, c: '-' }).setDefaultValue('A|B'));
+	group.addGear(
+		doc
+			.createGear()
+			.setGearType(GearType.Icon)
+			.setPages('b,a,c')
+			.setPageValues({ b: '', a: null, c: '-' })
+			.setDefaultValue('A|B'),
+	);
 	group.addGear(doc.createGear().setGearType(GearType.Color).setValues('#FFFFFF,#000000'));
-	group.addGear(doc.createGear().setGearType(GearType.XY).setPages('a')
-		.setValues('1.9,-2.9').setDefaultValue('0,0').setPositionsInPercent(true)
-		.setTween(true).setEaseType(0).setTweenDuration(0.5).setTweenDelay(0.1));
+	group.addGear(
+		doc
+			.createGear()
+			.setGearType(GearType.XY)
+			.setPages('a')
+			.setValues('1.9,-2.9')
+			.setDefaultValue('0,0')
+			.setPositionsInPercent(true)
+			.setTween(true)
+			.setEaseType(0)
+			.setTweenDuration(0.5)
+			.setTweenDelay(0.1),
+	);
 	group.setRelations([
 		{ target: 'b', type: 14, usePercent: false },
 		{ target: 'a', type: 0, usePercent: true },
@@ -25,15 +41,20 @@ test('behavior XML keeps tag filtering, sparse Gear pages and relation target or
 		{ target: '', type: 3, usePercent: false },
 	]);
 
-	t.is(serializeDisplayList([group]), '\n' + [
-		'    <group id="g" name="group" xy="0,0">',
-		'      <gearIcon pages="b,c" values="|-" default="A|B"/>',
-		'      <gearXY pages="a" values="1,-2" default="0,0" tween="true" ease="Linear" duration="0.5" delay="0.1" positionsInPercent="true"/>',
-		'      <relation target="b" sidePair="width-width,height-height%"/>',
-		'      <relation target="a" sidePair="left-left%"/>',
-		'      <relation target="" sidePair="center-center"/>',
-		'    </group>',
-	].join('\n') + '\n  ');
+	t.is(
+		serializeDisplayList([group]),
+		'\n' +
+			[
+				'    <group id="g" name="group" xy="0,0">',
+				'      <gearIcon pages="b,c" values="|-" default="A|B"/>',
+				'      <gearXY pages="a" values="1,-2" default="0,0" tween="true" ease="Linear" duration="0.5" delay="0.1" positionsInPercent="true"/>',
+				'      <relation target="b" sidePair="width-width,height-height%"/>',
+				'      <relation target="a" sidePair="left-left%"/>',
+				'      <relation target="" sidePair="center-center"/>',
+				'    </group>',
+			].join('\n') +
+			'\n  ',
+	);
 
 	// Disallowed Gear kinds are still validated before serialization filters them.
 	group.addGear(doc.createGear().setGearType(GearType.Color));
@@ -148,16 +169,40 @@ test('round-trip: gear pages values and condition survive write→read', async (
 
 		const componentXml = await fs.readFile(path.join(tmpDir, 'assets', 'Demo4', 'GearHost.xml'), 'utf-8');
 		t.true(/<gearText\b[^>]*tween(?:="true")?/.test(componentXml), 'gear writes tween attr');
-		t.false(componentXml.includes('ease="Quad.Out"'), 'editor omits the default ease even with a non-default duration');
+		t.false(
+			componentXml.includes('ease="Quad.Out"'),
+			'editor omits the default ease even with a non-default duration',
+		);
 		t.true(componentXml.includes('duration="0.5"'), 'gear writes canonical duration attr');
-		t.true(componentXml.includes('<gearLook controller="state" pages="1" values="0.54,180,0,0" default="1,0,0"'), 'gearLook compresses bool payload to editor-style numeric tokens');
-		t.true(componentXml.includes('<gearColor controller="state" pages="1" values="#66ff99" default="#ffffff"'), 'gearColor omits redundant black outline payload for non-text objects');
-		t.true(componentXml.includes('<gearColor controller="state" pages="0,1" values="#ffffff|-" default="#dfb536"'), 'title text gearColor omits redundant black outline payloads');
-		t.true(componentXml.includes('<gearLook controller="state" pages="0,1" values="1.00,0,0|-" default="1.00,0,1"'), 'loader gearLook keeps editor-style fixed alpha precision');
-		t.true(componentXml.includes('<gearSize controller="state" pages="0,1" values="181,70,1.00,1.00|178,68,1.00,1.00" default="181,70,1.00,1.00"'), 'non-tween gearSize keeps editor-style fixed scale precision');
+		t.true(
+			componentXml.includes('<gearLook controller="state" pages="1" values="0.54,180,0,0" default="1,0,0"'),
+			'gearLook compresses bool payload to editor-style numeric tokens',
+		);
+		t.true(
+			componentXml.includes('<gearColor controller="state" pages="1" values="#66ff99" default="#ffffff"'),
+			'gearColor omits redundant black outline payload for non-text objects',
+		);
+		t.true(
+			componentXml.includes('<gearColor controller="state" pages="0,1" values="#ffffff|-" default="#dfb536"'),
+			'title text gearColor omits redundant black outline payloads',
+		);
+		t.true(
+			componentXml.includes('<gearLook controller="state" pages="0,1" values="1.00,0,0|-" default="1.00,0,1"'),
+			'loader gearLook keeps editor-style fixed alpha precision',
+		);
+		t.true(
+			componentXml.includes(
+				'<gearSize controller="state" pages="0,1" values="181,70,1.00,1.00|178,68,1.00,1.00" default="181,70,1.00,1.00"',
+			),
+			'non-tween gearSize keeps editor-style fixed scale precision',
+		);
 
 		const doc2 = await io.readProject(outFairy);
-		const comp2 = doc2.getRoot().getPackage('Demo4')?.listComponents().find((item) => item.getName() === 'GearHost');
+		const comp2 = doc2
+			.getRoot()
+			.getPackage('Demo4')
+			?.listComponents()
+			.find((item) => item.getName() === 'GearHost');
 		t.truthy(comp2, 'GearHost component exists');
 
 		const image2 = comp2!.listChildren().find((child) => child.getId() === 'n0');
@@ -347,34 +392,86 @@ test('round-trip: component extension definition and instance extension attrs su
 		t.true(buttonDefXml.includes('sound="ui://pkg005/click"'), 'button definition writes canonical sound attr');
 		t.true(buttonDefXml.includes('volume="60"'), 'button definition writes canonical percent volume attr');
 		t.true(buttonDefXml.includes('downEffect="dark"'), 'button definition writes canonical downEffect enum');
-		t.true(buttonDefXml.includes('downEffectValue="0.75"'), 'button definition writes explicit downEffectValue when downEffect is enabled');
-		t.true(buttonDefXml.includes('<transition name="pulse" frameRate="30"'), 'transition writes canonical frameRate attr');
+		t.true(
+			buttonDefXml.includes('downEffectValue="0.75"'),
+			'button definition writes explicit downEffectValue when downEffect is enabled',
+		);
+		t.true(
+			buttonDefXml.includes('<transition name="pulse" frameRate="30"'),
+			'transition writes canonical frameRate attr',
+		);
 		t.false(buttonDefXml.includes(' fps='), 'transition does not write the model field name');
 		t.true(comboDefXml.includes('<ComboBox'), 'combo definition writes ComboBox extension node');
-		t.true(comboDefXml.includes('dropdown="ui://pkg005/dropdown"'), 'combo definition writes canonical dropdown attr');
-		t.true(comboDefXml.includes('selectionController="qualityOption"'), 'combo definition writes canonical selectionController attr');
+		t.true(
+			comboDefXml.includes('dropdown="ui://pkg005/dropdown"'),
+			'combo definition writes canonical dropdown attr',
+		);
+		t.true(
+			comboDefXml.includes('selectionController="qualityOption"'),
+			'combo definition writes canonical selectionController attr',
+		);
 		t.true(labelDefXml.includes('<Label'), 'label definition writes Label extension node');
-		t.true(labelDefXml.includes('prompt="[color=#959595]查找...[/color]"'), 'label definition writes canonical prompt attr');
-		t.true(hostXml.includes('controller="button,1"'), 'component instance writes canonical controller override attr');
+		t.true(
+			labelDefXml.includes('prompt="[color=#959595]查找...[/color]"'),
+			'label definition writes canonical prompt attr',
+		);
+		t.true(
+			hostXml.includes('controller="button,1"'),
+			'component instance writes canonical controller override attr',
+		);
 		t.true(hostXml.includes('pageController="state"'), 'component instance writes canonical pageController attr');
 		t.true(hostXml.includes('<Button '), 'button instance writes Button overlay node');
 		t.true(hostXml.includes('title="点我"'), 'button instance writes canonical title attr');
 		t.true(hostXml.includes('selectedTitle="已选"'), 'button instance writes canonical selectedTitle attr');
-		t.true(hostXml.includes('selectedIcon="ui://pkg005/icon-selected"'), 'button instance writes canonical selectedIcon attr');
+		t.true(
+			hostXml.includes('selectedIcon="ui://pkg005/icon-selected"'),
+			'button instance writes canonical selectedIcon attr',
+		);
 		t.true(hostXml.includes('titleColor="#ffcc00"'), 'button instance writes canonical titleColor attr');
 		t.true(hostXml.includes('titleFontSize="24"'), 'button instance writes canonical titleFontSize attr');
 		t.true(hostXml.includes('page="1"'), 'button instance writes canonical page attr');
 		t.true(hostXml.includes('checked="1"'), 'button instance writes canonical checked attr');
-		t.regex(hostXml, /<Button\b[^>]*sound="ui:\/\/pkg005\/click"[^>]*volume="45"/, 'button instance writes canonical sound and percent volume attrs');
-		t.regex(hostXml, /<Button\b[^>]*title="点我"[^>]*\/>/, 'button instance without children writes a self-closing overlay node');
+		t.regex(
+			hostXml,
+			/<Button\b[^>]*sound="ui:\/\/pkg005\/click"[^>]*volume="45"/,
+			'button instance writes canonical sound and percent volume attrs',
+		);
+		t.regex(
+			hostXml,
+			/<Button\b[^>]*title="点我"[^>]*\/>/,
+			'button instance without children writes a self-closing overlay node',
+		);
 		t.true(hostXml.includes('<ComboBox '), 'combo instance writes ComboBox overlay node');
-		t.true(hostXml.includes('selectionController="qualityOption"'), 'combo instance writes canonical selectionController attr');
+		t.true(
+			hostXml.includes('selectionController="qualityOption"'),
+			'combo instance writes canonical selectionController attr',
+		);
 		t.true(hostXml.includes('visibleItemCount="6"'), 'combo instance writes canonical visibleItemCount attr');
-		t.regex(hostXml, /<ComboBox\b[^>]*titleColor="#336699"[^>]*direction="down"[^>]*sound="ui:\/\/pkg005\/combo-click"[^>]*volume="55"/, 'combo instance writes all desktop overlay attrs');
-		t.regex(hostXml, /<item\b[^>]*title="A"[^>]*value="1"[^>]*icon="ui:\/\/pkg005\/a"[^>]*\/>/, 'combo instance item writes canonical item attrs');
-		t.regex(hostXml, /<Label\b[^>]*prompt="\[color=#959595\]查找\.\.\.\[\/color\]"/, 'label instance writes canonical prompt attr');
-		t.regex(hostXml, /<Label\b[^>]*sound="ui:\/\/pkg005\/label-click"[^>]*volume="65"/, 'label instance writes canonical sound attrs');
-		t.regex(hostXml, /<ProgressBar\b[^>]*sound="ui:\/\/pkg005\/progress-click"[^>]*volume="75"/, 'progress instance writes canonical sound attrs');
+		t.regex(
+			hostXml,
+			/<ComboBox\b[^>]*titleColor="#336699"[^>]*direction="down"[^>]*sound="ui:\/\/pkg005\/combo-click"[^>]*volume="55"/,
+			'combo instance writes all desktop overlay attrs',
+		);
+		t.regex(
+			hostXml,
+			/<item\b[^>]*title="A"[^>]*value="1"[^>]*icon="ui:\/\/pkg005\/a"[^>]*\/>/,
+			'combo instance item writes canonical item attrs',
+		);
+		t.regex(
+			hostXml,
+			/<Label\b[^>]*prompt="\[color=#959595\]查找\.\.\.\[\/color\]"/,
+			'label instance writes canonical prompt attr',
+		);
+		t.regex(
+			hostXml,
+			/<Label\b[^>]*sound="ui:\/\/pkg005\/label-click"[^>]*volume="65"/,
+			'label instance writes canonical sound attrs',
+		);
+		t.regex(
+			hostXml,
+			/<ProgressBar\b[^>]*sound="ui:\/\/pkg005\/progress-click"[^>]*volume="75"/,
+			'progress instance writes canonical sound attrs',
+		);
 
 		const doc2 = await io.readProject(outFairy);
 		const pkg2 = doc2.getRoot().getPackage('Demo5');
@@ -404,7 +501,9 @@ test('round-trip: component extension definition and instance extension attrs su
 		const host2 = pkg2!.listComponents().find((item) => item.getName() === 'Host');
 		t.truthy(host2, 'Host exists');
 
-		const child2 = host2!.listChildren().find((item) => item.getId() === 'n0') as ReturnType<Document['createGComponent']>;
+		const child2 = host2!.listChildren().find((item) => item.getId() === 'n0') as ReturnType<
+			Document['createGComponent']
+		>;
 		t.truthy(child2, 'button instance exists');
 		t.is(child2.getPageController(), 'state');
 		t.is(child2.getControllerOverrides(), 'button,1');
@@ -421,7 +520,9 @@ test('round-trip: component extension definition and instance extension attrs su
 		t.is(child2.getInstanceSound(), 'ui://pkg005/click');
 		t.is(child2.getInstanceSoundVolumeScale(), 0.45);
 
-		const comboChild2 = host2!.listChildren().find((item) => item.getId() === 'n1') as ReturnType<Document['createGComponent']>;
+		const comboChild2 = host2!.listChildren().find((item) => item.getId() === 'n1') as ReturnType<
+			Document['createGComponent']
+		>;
 		t.truthy(comboChild2, 'combo instance exists');
 		t.is(comboChild2.getInstanceExtType(), 'ComboBox');
 		t.is(comboChild2.getInstanceTitle(), '选项A');
@@ -437,14 +538,18 @@ test('round-trip: component extension definition and instance extension attrs su
 			{ title: 'B', value: '2', icon: null },
 		]);
 
-		const labelChild2 = host2!.listChildren().find((item) => item.getId() === 'n3') as ReturnType<Document['createGComponent']>;
+		const labelChild2 = host2!.listChildren().find((item) => item.getId() === 'n3') as ReturnType<
+			Document['createGComponent']
+		>;
 		t.truthy(labelChild2, 'label instance exists');
 		t.is(labelChild2.getInstanceExtType(), 'Label');
 		t.is(labelChild2.getInstancePromptText(), '[color=#959595]查找...[/color]');
 		t.is(labelChild2.getInstanceSound(), 'ui://pkg005/label-click');
 		t.is(labelChild2.getInstanceSoundVolumeScale(), 0.65);
 
-		const progressChild2 = host2!.listChildren().find((item) => item.getId() === 'n4') as ReturnType<Document['createGComponent']>;
+		const progressChild2 = host2!.listChildren().find((item) => item.getId() === 'n4') as ReturnType<
+			Document['createGComponent']
+		>;
 		t.truthy(progressChild2, 'progress instance exists');
 		t.is(progressChild2.getInstanceExtType(), 'ProgressBar');
 		t.is(progressChild2.getInstanceValue(), 25);
@@ -453,7 +558,9 @@ test('round-trip: component extension definition and instance extension attrs su
 		t.is(progressChild2.getInstanceSound(), 'ui://pkg005/progress-click');
 		t.is(progressChild2.getInstanceSoundVolumeScale(), 0.75);
 
-		const listChild2 = host2!.listChildren().find((item) => item.getId() === 'n2') as ReturnType<Document['createGList']>;
+		const listChild2 = host2!.listChildren().find((item) => item.getId() === 'n2') as ReturnType<
+			Document['createGList']
+		>;
 		t.truthy(listChild2, 'list instance exists');
 		t.is(listChild2.getPageController(), 'state');
 		t.is(listChild2.getControllerOverrides(), 'list,0');
@@ -520,9 +627,15 @@ test('writer: extension child nodes require extension metadata before being emit
 
 		t.false(plainXml.includes('<Button'), 'root component without extention must not emit Button extension child');
 		t.true(buttonXml.includes('<Button'), 'root component with Button extention emits Button extension child');
-		t.false(hostXml.includes('不应写出'), 'instance overlay attrs must not be emitted without instance extension type');
+		t.false(
+			hostXml.includes('不应写出'),
+			'instance overlay attrs must not be emitted without instance extension type',
+		);
 		t.true(hostXml.includes('<Button '), 'instance with extension metadata emits overlay child');
-		t.true(hostXml.includes('title="应该写出"'), 'instance overlay attrs are emitted when instance extension type is set');
+		t.true(
+			hostXml.includes('title="应该写出"'),
+			'instance overlay attrs are emitted when instance extension type is set',
+		);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
@@ -564,17 +677,29 @@ test('round-trip: advanced groups survive write→read', async (t) => {
 	try {
 		await io.writeProject(doc, outFairy);
 		const doc2 = await io.readProject(outFairy);
-		const comp2 = doc2.getRoot().getPackage('Demo')?.listComponents().find((item) => item.getName() === 'Host');
+		const comp2 = doc2
+			.getRoot()
+			.getPackage('Demo')
+			?.listComponents()
+			.find((item) => item.getName() === 'Host');
 		t.truthy(comp2, 'Host component exists');
 
 		const groups = comp2!.listChildren().filter((child) => child.propertyType === 'GGroup');
 		t.is(groups.length, 2, 'both editor groups remain in project model');
 		const advanced2 = groups.find((child) => child.getId() === 'g1');
 		const plain2 = groups.find((child) => child.getId() === 'g0');
-		t.true((advanced2 as ReturnType<Document['createGGroup']>)?.getAdvanced?.() ?? false, 'advanced group flag survives');
-		t.false((plain2 as ReturnType<Document['createGGroup']>)?.getAdvanced?.() ?? true, 'plain group stays non-advanced');
+		t.true(
+			(advanced2 as ReturnType<Document['createGGroup']>)?.getAdvanced?.() ?? false,
+			'advanced group flag survives',
+		);
+		t.false(
+			(plain2 as ReturnType<Document['createGGroup']>)?.getAdvanced?.() ?? true,
+			'plain group stays non-advanced',
+		);
 
-		const text2 = comp2!.listChildren().find((child) => child.getId() === 'n0') as ReturnType<Document['createGTextField']> | undefined;
+		const text2 = comp2!.listChildren().find((child) => child.getId() === 'n0') as
+			| ReturnType<Document['createGTextField']>
+			| undefined;
 		t.is(text2?.getGroup(), 'g1', 'child group reference survives');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });

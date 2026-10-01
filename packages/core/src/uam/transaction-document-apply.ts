@@ -15,11 +15,7 @@ import {
 	type DerivedMovieClipModel,
 } from '../utils/jta-parser.js';
 import { normalizeResourceFolderPath, resourceFolderName, resourceFolderParentPath } from '../utils/resource-folder.js';
-import {
-	materializeAssetResource,
-	materializeDisplayNode,
-	materializeUamGear,
-} from './bridge.js';
+import { materializeAssetResource, materializeDisplayNode, materializeUamGear } from './bridge.js';
 import {
 	materializeDisplayNodeProperties,
 	materializeUamController,
@@ -27,11 +23,7 @@ import {
 	materializeUamComponentProperties,
 	materializeUamImageResourceProperties,
 } from './bridge-materialize.js';
-import type {
-	UamComponentModel,
-	UamControllerModel,
-	UamGearBinding,
-} from './model.js';
+import type { UamComponentModel, UamControllerModel, UamGearBinding } from './model.js';
 import type {
 	UamComponentSelector,
 	UamControllerSelector,
@@ -81,59 +73,77 @@ function resolveDisplayNode(doc: Document, selector: UamDisplayNodeSelector): GO
 	const component = resolveComponent(doc, selector);
 	const node = component.getChildById(selector.displayNodeId);
 	if (!node) {
-		throw new Error(`Display node "${selector.displayNodeId}" was not found in component "${selector.componentResourceId}".`);
+		throw new Error(
+			`Display node "${selector.displayNodeId}" was not found in component "${selector.componentResourceId}".`,
+		);
 	}
 	return node;
 }
 
 function resolveUniqueController(component: Component, selector: UamControllerSelector): Controller {
-	const matches = component.listControllers().filter((controller) => controller.getName() === selector.controllerName);
+	const matches = component
+		.listControllers()
+		.filter((controller) => controller.getName() === selector.controllerName);
 	if (matches.length === 0) {
-		throw new Error(`Controller "${selector.controllerName}" was not found in component "${selector.componentResourceId}".`);
+		throw new Error(
+			`Controller "${selector.controllerName}" was not found in component "${selector.componentResourceId}".`,
+		);
 	}
 	if (matches.length > 1) {
-			throw new UamTransactionError(
-				`Controller selector "${selector.controllerName}" is ambiguous in component "${selector.componentResourceId}".`,
-				{
-					code: 'selector_ambiguity',
-					selector: selectorDetails(selector as unknown as Record<string, unknown>),
-				},
-			);
+		throw new UamTransactionError(
+			`Controller selector "${selector.controllerName}" is ambiguous in component "${selector.componentResourceId}".`,
+			{
+				code: 'selector_ambiguity',
+				selector: selectorDetails(selector as unknown as Record<string, unknown>),
+			},
+		);
 	}
 	return matches[0]!;
 }
 
 function resolveUniqueTransition(component: Component, selector: UamTransitionSelector): Transition {
-	const matches = component.listTransitions().filter((transition) => transition.getName() === selector.transitionName);
+	const matches = component
+		.listTransitions()
+		.filter((transition) => transition.getName() === selector.transitionName);
 	if (matches.length === 0) {
-		throw new Error(`Transition "${selector.transitionName}" was not found in component "${selector.componentResourceId}".`);
+		throw new Error(
+			`Transition "${selector.transitionName}" was not found in component "${selector.componentResourceId}".`,
+		);
 	}
 	if (matches.length > 1) {
-			throw new UamTransactionError(
-				`Transition selector "${selector.transitionName}" is ambiguous in component "${selector.componentResourceId}".`,
-				{
-					code: 'selector_ambiguity',
-					selector: selectorDetails(selector as unknown as Record<string, unknown>),
-				},
-			);
+		throw new UamTransactionError(
+			`Transition selector "${selector.transitionName}" is ambiguous in component "${selector.componentResourceId}".`,
+			{
+				code: 'selector_ambiguity',
+				selector: selectorDetails(selector as unknown as Record<string, unknown>),
+			},
+		);
 	}
 	return matches[0]!;
 }
 
 function hasControllerGear(node: GObject, selector: UamGearSelector): boolean {
-	return node.listGears().some((gear) => (
-		gear.getGearType() === gearTypeForKind(selector.kind)
-		&& gear.getController()?.getName() === selector.controllerName
-	));
+	return node
+		.listGears()
+		.some(
+			(gear) =>
+				gear.getGearType() === gearTypeForKind(selector.kind) &&
+				gear.getController()?.getName() === selector.controllerName,
+		);
 }
 
 function resolveUniqueGear(node: GObject, selector: UamGearSelector) {
-	const matches = node.listGears().filter((gear) => (
-		gear.getGearType() === gearTypeForKind(selector.kind)
-		&& gear.getController()?.getName() === selector.controllerName
-	));
+	const matches = node
+		.listGears()
+		.filter(
+			(gear) =>
+				gear.getGearType() === gearTypeForKind(selector.kind) &&
+				gear.getController()?.getName() === selector.controllerName,
+		);
 	if (matches.length === 0) {
-		throw new Error(`${selector.kind} gear for controller "${selector.controllerName}" was not found on node "${selector.displayNodeId}".`);
+		throw new Error(
+			`${selector.kind} gear for controller "${selector.controllerName}" was not found on node "${selector.displayNodeId}".`,
+		);
 	}
 	if (matches.length > 1) {
 		throw new UamTransactionError(
@@ -181,11 +191,7 @@ function insertResourceAtIndex(
 	for (const ordered of resources) pkg.addResource(ordered);
 }
 
-function replaceControllerModel(
-	doc: Document,
-	controller: Controller,
-	model: UamControllerModel,
-): void {
+function replaceControllerModel(doc: Document, controller: Controller, model: UamControllerModel): void {
 	controller.setName(model.name);
 	controller.setAutoRadioGroupDepth(model.autoRadioGroupDepth);
 	controller.setAlias(model.alias);
@@ -200,7 +206,8 @@ function replaceControllerModel(
 	}
 	for (const actionModel of model.actions) {
 		controller.addAction(
-			doc.createControllerAction(actionModel.name)
+			doc
+				.createControllerAction(actionModel.name)
 				.setActionType(actionModel.actionType)
 				.setFromPage([...actionModel.fromPageIds])
 				.setToPage([...actionModel.toPageIds])
@@ -250,7 +257,10 @@ function replaceTransitionModel(
 		})),
 	});
 	// Composition appends; restore the original slot without replacing unrelated transitions.
-	for (const sibling of following) { component.removeTransition(sibling); component.addTransition(sibling); }
+	for (const sibling of following) {
+		component.removeTransition(sibling);
+		component.addTransition(sibling);
+	}
 }
 
 type ResourceSourceData = {
@@ -312,10 +322,9 @@ function replaceBinaryAssetBytes(doc: Document, resource: MutableAssetResource, 
 	if (!previousSource) {
 		throw new Error(`Resource "${resource.getName()}" has no hydrated primary source bytes.`);
 	}
-	const sourcePath = previousSource.getURI() || `/${[resource.getPath(), getAssetFileName(resource)].filter(Boolean).join('/')}`;
-	resource.setSourceData(doc.createBuffer()
-		.setURI(sourcePath)
-		.setData(new Uint8Array(sourceBytes)));
+	const sourcePath =
+		previousSource.getURI() || `/${[resource.getPath(), getAssetFileName(resource)].filter(Boolean).join('/')}`;
+	resource.setSourceData(doc.createBuffer().setURI(sourcePath).setData(new Uint8Array(sourceBytes)));
 }
 
 function addGearToDisplayNode(
@@ -366,12 +375,9 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 			return;
 		case 'updatePackageSettings': {
 			const pkg = resolvePackage(doc, operation.selector);
-			pkg
-				.setCompressPNG(operation.settings.compressPNG)
-				.setJpegQuality(operation.settings.jpegQuality);
+			pkg.setCompressPNG(operation.settings.compressPNG).setJpegQuality(operation.settings.jpegQuality);
 			if (!operation.settings.publish) {
-				pkg
-					.setPublishName('')
+				pkg.setPublishName('')
 					.setPublishPath('')
 					.setPublishBranchPath('')
 					.setPublishPackageCount(0)
@@ -392,8 +398,7 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 				return;
 			}
 			const publish = operation.settings.publish;
-			pkg
-				.setPublishName(publish.name)
+			pkg.setPublishName(publish.name)
 				.setPublishPath(publish.path)
 				.setPublishBranchPath(publish.branchPath)
 				.setPublishPackageCount(publish.packageCount)
@@ -435,9 +440,9 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 			const pkg = resolvePackage(doc, operation.selector);
 			const branch = operation.selector.branch ?? '';
 			const folders = pkg.listResourceFolders();
-			const folder = folders.find((candidate) => (
-				candidate.branch === branch && candidate.path === operation.selector.path
-			));
+			const folder = folders.find(
+				(candidate) => candidate.branch === branch && candidate.path === operation.selector.path,
+			);
 			if (!folder) throw new Error(`Resource folder "${branch}:${operation.selector.path}" was not found.`);
 			folder.favorite = operation.favorite;
 			pkg.setResourceFolders(folders);
@@ -447,9 +452,9 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 			const pkg = resolvePackage(doc, operation.selector);
 			const branch = operation.selector.branch ?? '';
 			const folders = pkg.listResourceFolders();
-			const folder = folders.find((candidate) => (
-				candidate.branch === branch && candidate.path === operation.selector.path
-			));
+			const folder = folders.find(
+				(candidate) => candidate.branch === branch && candidate.path === operation.selector.path,
+			);
 			if (!folder) throw new Error(`Resource folder "${branch}:${operation.selector.path}" was not found.`);
 			folder.atlas = operation.atlas;
 			pkg.setResourceFolders(folders);
@@ -461,12 +466,15 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 		}
 		case 'addResourceFolder': {
 			const pkg = resolvePackage(doc, operation.selector);
-			pkg.setResourceFolders([...pkg.listResourceFolders(), {
-				branch: operation.branch ?? '',
-				path: operation.path,
-				favorite: operation.favorite ?? false,
-				atlas: operation.atlas ?? '',
-			}]);
+			pkg.setResourceFolders([
+				...pkg.listResourceFolders(),
+				{
+					branch: operation.branch ?? '',
+					path: operation.path,
+					favorite: operation.favorite ?? false,
+					atlas: operation.atlas ?? '',
+				},
+			]);
 			return;
 		}
 		case 'renameResourceFolder':
@@ -475,9 +483,9 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 			const pkg = resolvePackage(doc, operation.selector);
 			const branch = operation.selector.branch ?? '';
 			const folders = pkg.listResourceFolders();
-			const index = folders.findIndex((folder) => (
-				folder.branch === branch && folder.path === operation.selector.path
-			));
+			const index = folders.findIndex(
+				(folder) => folder.branch === branch && folder.path === operation.selector.path,
+			);
 			if (index < 0) throw new Error(`Resource folder "${branch}:${operation.selector.path}" was not found.`);
 			if (operation.kind === 'removeResourceFolder') {
 				folders.splice(index, 1);
@@ -496,7 +504,9 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 		case 'setImageResourceProps': {
 			const { resource } = resolveResource(doc, operation.selector);
 			if (resource.propertyType !== PropertyType.IMAGE_RESOURCE) {
-				throw new Error(`setImageResourceProps requires an image resource, received "${resource.propertyType}".`);
+				throw new Error(
+					`setImageResourceProps requires an image resource, received "${resource.propertyType}".`,
+				);
 			}
 			materializeUamImageResourceProperties(
 				resource as ReturnType<Document['createImageResource']>,
@@ -507,7 +517,9 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 		case 'addResource': {
 			const pkg = resolvePackage(doc, operation.selector);
 			if (pkg.getResourceById(operation.resource.id)) {
-				throw new Error(`Resource "${operation.resource.id}" already exists in package "${operation.selector.packageId}".`);
+				throw new Error(
+					`Resource "${operation.resource.id}" already exists in package "${operation.selector.packageId}".`,
+				);
 			}
 			insertResourceAtIndex(
 				pkg,
@@ -574,18 +586,26 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 		case 'attachDisplayNode': {
 			const component = resolveComponent(doc, operation.selector);
 			if (component.getChildById(operation.node.id)) {
-				throw new Error(`attachDisplayNode target component "${component.getId()}" already contains node id "${operation.node.id}".`);
+				throw new Error(
+					`attachDisplayNode target component "${component.getId()}" already contains node id "${operation.node.id}".`,
+				);
 			}
 			const child = createAttachableNode(doc, operation.selector.packageId, operation.node);
 			insertChildAtIndex(component, child, operation.atIndex);
 			for (const gear of operation.node.gears) {
-				addGearToDisplayNode(doc, component, child, {
-					packageId: operation.selector.packageId,
-					componentResourceId: operation.selector.componentResourceId,
-					displayNodeId: operation.node.id,
-					kind: gear.kind,
-					controllerName: gear.controllerName,
-				}, gear);
+				addGearToDisplayNode(
+					doc,
+					component,
+					child,
+					{
+						packageId: operation.selector.packageId,
+						componentResourceId: operation.selector.componentResourceId,
+						displayNodeId: operation.node.id,
+						kind: gear.kind,
+						controllerName: gear.controllerName,
+					},
+					gear,
+				);
 			}
 			return;
 		}
@@ -593,15 +613,23 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 			const component = resolveComponent(doc, operation.selector);
 			const node = component.getChildById(operation.selector.displayNodeId);
 			if (!node) {
-				throw new Error(`Display node "${operation.selector.displayNodeId}" was not found in component "${operation.selector.componentResourceId}".`);
+				throw new Error(
+					`Display node "${operation.selector.displayNodeId}" was not found in component "${operation.selector.componentResourceId}".`,
+				);
 			}
 			component.removeChild(node);
 			return;
 		}
 		case 'addController': {
 			const component = resolveComponent(doc, operation.selector);
-			if (component.listControllers().some((controller) => controller.getName() === operation.selector.controllerName)) {
-				throw new Error(`Controller "${operation.selector.controllerName}" already exists in component "${operation.selector.componentResourceId}".`);
+			if (
+				component
+					.listControllers()
+					.some((controller) => controller.getName() === operation.selector.controllerName)
+			) {
+				throw new Error(
+					`Controller "${operation.selector.controllerName}" already exists in component "${operation.selector.componentResourceId}".`,
+				);
 			}
 			materializeUamController(doc, component, operation.controller);
 			return;
@@ -617,7 +645,9 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 			const controller = resolveUniqueController(component, operation.selector);
 			for (const child of component.listChildren()) {
 				if (child.listGears().some((gear) => gear.getController() === controller)) {
-					throw new Error(`Cannot remove controller "${controller.getName()}" while a child gear still references it.`);
+					throw new Error(
+						`Cannot remove controller "${controller.getName()}" while a child gear still references it.`,
+					);
 				}
 			}
 			component.removeController(controller);
@@ -625,8 +655,14 @@ export function applyDocumentOperation(doc: Document, operation: UamTransactionO
 		}
 		case 'addTransition': {
 			const component = resolveComponent(doc, operation.selector);
-			if (component.listTransitions().some((transition) => transition.getName() === operation.selector.transitionName)) {
-				throw new Error(`Transition "${operation.selector.transitionName}" already exists in component "${operation.selector.componentResourceId}".`);
+			if (
+				component
+					.listTransitions()
+					.some((transition) => transition.getName() === operation.selector.transitionName)
+			) {
+				throw new Error(
+					`Transition "${operation.selector.transitionName}" already exists in component "${operation.selector.componentResourceId}".`,
+				);
 			}
 			composeTransition(doc, component, {
 				name: operation.transition.name,

@@ -3,10 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
-import {
-	GearType,
-	PropertyType,
-} from '../src/index.js';
+import { GearType, PropertyType } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
 
 const PROJECT_PATH = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
@@ -99,7 +96,10 @@ test('Button component has controller, children, and gears', async (t) => {
 
 test('Basics samples preserve gear tween attrs and text demoText', async (t) => {
 	const doc = await getDoc();
-	const basics = doc.getRoot().listPackages().find((p) => p.getName() === 'Basics')!;
+	const basics = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Basics')!;
 
 	const button9 = basics.listComponents().find((c) => c.getName() === 'Button9')!;
 	const button9Image = button9.listChildren().find((child) => child.getId() === 'n1') as any;
@@ -119,7 +119,10 @@ test('Basics samples preserve gear tween attrs and text demoText', async (t) => 
 	t.is(relationDemo.getDesignImageLayer?.(), 1, 'component root designImageLayer survives');
 
 	const builder = await getEditorDoc();
-	const builderPkg = builder.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const builderPkg = builder
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Builder')!;
 	const referenceView = builderPkg.listComponents().find((c) => c.getName() === 'ReferenceView')!;
 	const resultText = referenceView.listChildren().find((child) => child.getName() === 'result') as any;
 	t.truthy(resultText, 'ReferenceView result text exists');
@@ -128,7 +131,10 @@ test('Basics samples preserve gear tween attrs and text demoText', async (t) => 
 
 test('TextMeshPro samples preserve TMP text attrs', async (t) => {
 	const doc = await getDoc();
-	const textMeshPro = doc.getRoot().listPackages().find((p) => p.getName() === 'TextMeshPro')!;
+	const textMeshPro = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'TextMeshPro')!;
 	const main = textMeshPro.listComponents().find((c) => c.getName() === 'Main')!;
 	const byId = new Map(main.listChildren().map((child) => [child.getId(), child as any]));
 
@@ -148,13 +154,19 @@ test('TextMeshPro samples preserve TMP text attrs', async (t) => {
 
 test('package.xml resources preserve image qualityOption and TMP font import attrs', async (t) => {
 	const editorDoc = await getEditorDoc();
-	const builderPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const builderPkg = editorDoc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Builder')!;
 	const editorImage = builderPkg.listResources().find((res) => res.getId?.() === 'au3n10') as any;
 	t.truthy(editorImage, 'Builder image resource exists');
 	t.is(editorImage.getQualityOption?.(), 'source', 'image resource keeps qualityOption');
 
 	const runtimeDoc = await getDoc();
-	const textMeshPro = runtimeDoc.getRoot().listPackages().find((p) => p.getName() === 'TextMeshPro')!;
+	const textMeshPro = runtimeDoc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'TextMeshPro')!;
 	const tmpFont = textMeshPro.listResources().find((res) => res.propertyType === PropertyType.FONT_RESOURCE) as any;
 	t.truthy(tmpFont, 'TMP font resource exists');
 	t.is(tmpFont.getRenderMode?.(), 'sdfaa', 'font resource keeps renderMode');
@@ -163,7 +175,10 @@ test('package.xml resources preserve image qualityOption and TMP font import att
 
 test('package.xml resources preserve image textureSetMode', async (t) => {
 	const editorDoc = await getEditorDoc();
-	const builderPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const builderPkg = editorDoc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Builder')!;
 	const atlasImage = builderPkg.listResources().find((res) => res.getId?.() === 'kpzgiua3') as any;
 	t.truthy(atlasImage, 'Builder atlas-configured image exists');
 	t.is(atlasImage.getTextureSetMode?.(), 'alone_npot', 'image resource keeps textureSetMode');
@@ -171,7 +186,10 @@ test('package.xml resources preserve image textureSetMode', async (t) => {
 
 test('Loader package preserves spine and dragonbones resource attrs', async (t) => {
 	const doc = await getBranchLoaderDoc();
-	const loaderPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Loader')!;
+	const loaderPkg = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Loader')!;
 	t.truthy(loaderPkg, 'Loader package exists');
 
 	const dragon = loaderPkg.listResources().find((res) => res.getId?.() === 'biss6') as any;
@@ -232,7 +250,10 @@ test('Branch package preserves branch resources and root branch list', async (t)
 test('opt-in hydration loads primary source bytes from main and branch packages', async (t) => {
 	const io = new NodeIO();
 	const branchDoc = await io.readProject(BRANCH_LOADER_PROJECT_PATH, { hydrateResourceBytes: true });
-	const branchPkg = branchDoc.getRoot().listPackages().find((pkg) => pkg.getName() === 'Branch');
+	const branchPkg = branchDoc
+		.getRoot()
+		.listPackages()
+		.find((pkg) => pkg.getName() === 'Branch');
 	const mainImage = branchPkg?.getResourceById('kn7w1') as any;
 	const devImage = branchPkg?.getResourceById('kn7w2') as any;
 	t.true(mainImage?.getSourceData?.()?.getData?.() instanceof Uint8Array);
@@ -254,10 +275,11 @@ test('opt-in hydration loads primary source bytes from main and branch packages'
 		const resource = hydratedDocuments
 			.flatMap((doc) => doc.getRoot().listPackages())
 			.flatMap((pkg) => pkg.listResources())
-			.find((candidate) => (
-				candidate.propertyType === propertyType
-				&& (candidate as any).getSourceData?.()?.getData?.() instanceof Uint8Array
-			));
+			.find(
+				(candidate) =>
+					candidate.propertyType === propertyType &&
+					(candidate as any).getSourceData?.()?.getData?.() instanceof Uint8Array,
+			);
 		t.truthy(resource, `expected hydrated ${propertyType} source bytes`);
 	}
 });
@@ -266,24 +288,31 @@ test('opt-in hydration never follows traversal paths from package XML', async (t
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-hydration-path-'));
 	const projectPath = path.join(tmpDir, 'Project.fairy');
 	try {
-		await fs.writeFile(projectPath, '<?xml version="1.0" encoding="utf-8"?><projectDescription id="safe" type="Layabox" version="3.0"/>');
+		await fs.writeFile(
+			projectPath,
+			'<?xml version="1.0" encoding="utf-8"?><projectDescription id="safe" type="Layabox" version="3.0"/>',
+		);
 		await fs.mkdir(path.join(tmpDir, 'assets', 'Demo'), { recursive: true });
 		await fs.writeFile(
 			path.join(tmpDir, 'assets', 'Demo', 'package.xml'),
 			'<?xml version="1.0" encoding="utf-8"?><packageDescription id="pkgDemo"><resources><image id="img" name="secret.bin" path="../../" exported="true"/></resources></packageDescription>',
 		);
-		await fs.writeFile(path.join(tmpDir, 'secret.bin'), new Uint8Array([
-			0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-			0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
-			0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x09,
-		]));
+		await fs.writeFile(
+			path.join(tmpDir, 'secret.bin'),
+			new Uint8Array([
+				0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00,
+				0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x09,
+			]),
+		);
 
 		const doc = await new NodeIO().readProject(projectPath, { hydrateResourceBytes: true });
-		const image = doc.getRoot().getPackage('Demo')?.getResourceById('img') as {
-			getSourceData?(): unknown;
-			getWidth?(): number;
-			getHeight?(): number;
-		} | undefined;
+		const image = doc.getRoot().getPackage('Demo')?.getResourceById('img') as
+			| {
+					getSourceData?(): unknown;
+					getWidth?(): number;
+					getHeight?(): number;
+			  }
+			| undefined;
 		t.is(image?.getSourceData?.() ?? null, null);
 		t.is(image?.getWidth?.() ?? 0, 0);
 		t.is(image?.getHeight?.() ?? 0, 0);
@@ -294,7 +323,10 @@ test('opt-in hydration never follows traversal paths from package XML', async (t
 
 test('package.xml publish preserves packageCount', async (t) => {
 	const layaboxDoc = await getLayaboxDoc();
-	const joystickPkg = layaboxDoc.getRoot().listPackages().find((p) => p.getName() === 'Joystick');
+	const joystickPkg = layaboxDoc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Joystick');
 	t.truthy(joystickPkg, 'Joystick package exists');
 	t.is(joystickPkg?.getPublishName(), 'Joystick', 'publish name survives');
 	t.is(joystickPkg?.getPublishPackageCount?.(), 1, 'publish packageCount survives');

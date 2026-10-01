@@ -9,6 +9,7 @@ interface ISoundResource extends IExtensibleProperty {
 	branch: string;
 	branchItemIds: string[];
 	file: string;
+	publishedFile: string;
 	exported: boolean;
 	favorite: boolean;
 	soundData: Ref<FairyBuffer>;
@@ -32,37 +33,81 @@ export class SoundResource extends ExtensibleProperty<ISoundResource> {
 			branch: '',
 			branchItemIds: [],
 			file: '',
+			publishedFile: '',
 			exported: false,
 			favorite: false,
 			soundData: null,
 		});
 	}
 
-	public getId(): string { return this.get('id'); }
-	public setId(id: string): this { return this.set('id', id); }
+	public getId(): string {
+		return this.get('id');
+	}
+	public setId(id: string): this {
+		return this.set('id', id);
+	}
 
-	public getPath(): string { return this.get('path'); }
-	public setPath(path: string): this { return this.set('path', path); }
+	public getPath(): string {
+		return this.get('path');
+	}
+	public setPath(path: string): this {
+		return this.set('path', path);
+	}
 
-	public getBranch(): string { return this.get('branch'); }
-	public setBranch(branch: string): this { return this.set('branch', branch); }
+	public getBranch(): string {
+		return this.get('branch');
+	}
+	public setBranch(branch: string): this {
+		return this.set('branch', branch);
+	}
 
-	public getBranchItemIds(): string[] { return [...this.get('branchItemIds')]; }
-	public setBranchItemIds(ids: string[]): this { return this.set('branchItemIds', [...ids]); }
+	public getBranchItemIds(): string[] {
+		return [...this.get('branchItemIds')];
+	}
+	public setBranchItemIds(ids: string[]): this {
+		return this.set('branchItemIds', [...ids]);
+	}
 
-	public getFile(): string { return this.get('file'); }
-	public setFile(file: string): this { return this.set('file', file); }
+	public getPublishedFile(): string {
+		return this.get('publishedFile');
+	}
+	public setPublishedFile(value: string): this {
+		return this.set('publishedFile', value);
+	}
 
-	public getExported(): boolean { return this.get('exported'); }
-	public setExported(v: boolean): this { return this.set('exported', v); }
+	public getFile(): string {
+		return this.get('file');
+	}
+	public setFile(file: string): this {
+		return this.set('file', file);
+	}
 
-	public getFavorite(): boolean { return this.get('favorite'); }
-	public setFavorite(v: boolean): this { return this.set('favorite', v); }
+	public getExported(): boolean {
+		return this.get('exported');
+	}
+	public setExported(v: boolean): this {
+		return this.set('exported', v);
+	}
 
-	public getSoundData(): FairyBuffer | null { return this.getRef('soundData' as never) as FairyBuffer | null; }
-	public setSoundData(buffer: FairyBuffer | null): this { return this.setRef('soundData' as never, buffer as never); }
+	public getFavorite(): boolean {
+		return this.get('favorite');
+	}
+	public setFavorite(v: boolean): this {
+		return this.set('favorite', v);
+	}
+
+	public getSoundData(): FairyBuffer | null {
+		return this.getRef('soundData' as never) as FairyBuffer | null;
+	}
+	public setSoundData(buffer: FairyBuffer | null): this {
+		return this.setRef('soundData' as never, buffer as never);
+	}
 
 	/** Primary source-file bytes for this sound resource. */
-	public getSourceData(): FairyBuffer | null { return this.getSoundData(); }
-	public setSourceData(buffer: FairyBuffer | null): this { return this.setSoundData(buffer); }
+	public getSourceData(): FairyBuffer | null {
+		return this.getSoundData();
+	}
+	public setSourceData(buffer: FairyBuffer | null): this {
+		return this.setSoundData(buffer);
+	}
 }

@@ -1,4 +1,10 @@
-import { COMPAT_NODE_RECT_FLAGS, MAX_RECTS_METHOD, MaxRectsCompat, type CompatNodeRect, type CompatPage } from './max-rects-compat.js';
+import {
+	COMPAT_NODE_RECT_FLAGS,
+	MAX_RECTS_METHOD,
+	MaxRectsCompat,
+	type CompatNodeRect,
+	type CompatPage,
+} from './max-rects-compat.js';
 
 interface MaxRectsPackerCompatSettings {
 	pot?: boolean;
@@ -44,7 +50,13 @@ class BinarySearchCompat {
 	private high: number;
 	private current: number;
 
-	public constructor(min: number, max: number, fuzziness: number, private readonly pot: boolean, private readonly mof: boolean) {
+	public constructor(
+		min: number,
+		max: number,
+		fuzziness: number,
+		private readonly pot: boolean,
+		private readonly mof: boolean,
+	) {
 		this.fuzziness = pot ? 0 : fuzziness;
 		if (pot) {
 			this.min = Math.log(MaxRectsPackerCompat.getNextPowerOfTwo(min)) / Math.log(2);
@@ -104,8 +116,12 @@ export class MaxRectsPackerCompat {
 		const rects = inputRects.map(cloneCompatRect);
 		if (this.settings.fast) {
 			const compare = this.settings.preserveInputOrderOnTie
-				? (this.settings.rotation ? compareNodeRectStable : compareNodeRect2Stable)
-				: (this.settings.rotation ? compareNodeRect : compareNodeRect2);
+				? this.settings.rotation
+					? compareNodeRectStable
+					: compareNodeRect2Stable
+				: this.settings.rotation
+					? compareNodeRect
+					: compareNodeRect2;
 			vectorSortCompat(rects, compare);
 		}
 
@@ -161,13 +177,20 @@ export class MaxRectsPackerCompat {
 		let totalArea = 0;
 		for (const rect of rects) totalArea += rect.width * rect.height;
 
-		const candidates = sizeScheme.filter((entry) =>
-			entry.area >= totalArea &&
-			entry.width <= this.settings.maxWidth &&
-			entry.height <= this.settings.maxHeight,
+		const candidates = sizeScheme.filter(
+			(entry) =>
+				entry.area >= totalArea &&
+				entry.width <= this.settings.maxWidth &&
+				entry.height <= this.settings.maxHeight,
 		);
 		if (candidates.length === 0) {
-			candidates.push({ width: this.settings.maxWidth, height: this.settings.maxHeight, area: 0, aspectRatio: 0, len: 0 });
+			candidates.push({
+				width: this.settings.maxWidth,
+				height: this.settings.maxHeight,
+				area: 0,
+				aspectRatio: 0,
+				len: 0,
+			});
 		}
 
 		let page: CompatPage | null = null;
@@ -176,7 +199,12 @@ export class MaxRectsPackerCompat {
 		for (let index = 0; index < candidates.length; index += 1) {
 			selectedWidth = candidates[index].width;
 			selectedHeight = candidates[index].height;
-			page = this.packAtSize(index !== candidates.length - 1, selectedWidth - edgePadding, selectedHeight - edgePadding, rects);
+			page = this.packAtSize(
+				index !== candidates.length - 1,
+				selectedWidth - edgePadding,
+				selectedHeight - edgePadding,
+				rects,
+			);
 			if (page) break;
 		}
 
@@ -185,7 +213,13 @@ export class MaxRectsPackerCompat {
 			if (this.settings.square) {
 				const min = Math.min(selectedWidth / 2, selectedHeight / 2);
 				const max = Math.max(selectedWidth, selectedHeight);
-				const search = new BinarySearchCompat(min, max, this.settings.fast ? 25 : 15, this.settings.pot, this.settings.mof);
+				const search = new BinarySearchCompat(
+					min,
+					max,
+					this.settings.fast ? 25 : 15,
+					this.settings.pot,
+					this.settings.mof,
+				);
 				let current = search.reset();
 				while (current !== -1) {
 					const refined = this.packAtSize(true, current - edgePadding, current - edgePadding, rects);
@@ -193,14 +227,31 @@ export class MaxRectsPackerCompat {
 					current = search.next(refined == null);
 				}
 			} else {
-				const widthSearch = new BinarySearchCompat(selectedWidth / 2, selectedWidth, this.settings.fast ? 25 : 15, this.settings.pot, this.settings.mof);
-				const heightSearch = new BinarySearchCompat(selectedHeight / 2, selectedHeight, this.settings.fast ? 25 : 15, this.settings.pot, this.settings.mof);
+				const widthSearch = new BinarySearchCompat(
+					selectedWidth / 2,
+					selectedWidth,
+					this.settings.fast ? 25 : 15,
+					this.settings.pot,
+					this.settings.mof,
+				);
+				const heightSearch = new BinarySearchCompat(
+					selectedHeight / 2,
+					selectedHeight,
+					this.settings.fast ? 25 : 15,
+					this.settings.pot,
+					this.settings.mof,
+				);
 				let currentHeight = heightSearch.reset();
 				let currentWidth = widthSearch.reset();
 				while (true) {
 					let bestForHeight: CompatPage | null = null;
 					while (currentWidth !== -1) {
-						const refined = this.packAtSize(true, currentWidth - edgePadding, currentHeight - edgePadding, rects);
+						const refined = this.packAtSize(
+							true,
+							currentWidth - edgePadding,
+							currentHeight - edgePadding,
+							rects,
+						);
 						bestForHeight = getBestPage(bestForHeight, refined);
 						currentWidth = widthSearch.next(refined == null);
 					}
@@ -216,8 +267,17 @@ export class MaxRectsPackerCompat {
 		return page;
 	}
 
-	private packAtSize(requireFullFit: boolean, width: number, height: number, rects: CompatNodeRect[]): CompatPage | null {
-		const methods = [MAX_RECTS_METHOD.BestShortSideFit, MAX_RECTS_METHOD.BestLongSideFit, MAX_RECTS_METHOD.BestAreaFit];
+	private packAtSize(
+		requireFullFit: boolean,
+		width: number,
+		height: number,
+		rects: CompatNodeRect[],
+	): CompatPage | null {
+		const methods = [
+			MAX_RECTS_METHOD.BestShortSideFit,
+			MAX_RECTS_METHOD.BestLongSideFit,
+			MAX_RECTS_METHOD.BestAreaFit,
+		];
 		let best: CompatPage | null = null;
 		for (const method of methods) {
 			this.maxRects.init(width, height, this.settings.rotation);
@@ -248,7 +308,10 @@ export class MaxRectsPackerCompat {
 	}
 }
 
-function vectorSortCompat(items: CompatNodeRect[], compare: (left: CompatNodeRect, right: CompatNodeRect) => number): void {
+function vectorSortCompat(
+	items: CompatNodeRect[],
+	compare: (left: CompatNodeRect, right: CompatNodeRect) => number,
+): void {
 	if (items.length <= 1) return;
 	avmQuickSortCompat(items, 0, items.length - 1, compare);
 }
@@ -286,8 +349,10 @@ function avmQuickSortCompat(
 			let left = lo;
 			let right = hi + 1;
 			while (true) {
-				do left += 1; while (left <= hi && compare(items[left], items[lo]) <= 0);
-				do right -= 1; while (right > lo && compare(items[right], items[lo]) >= 0);
+				do left += 1;
+				while (left <= hi && compare(items[left], items[lo]) <= 0);
+				do right -= 1;
+				while (right > lo && compare(items[right], items[lo]) >= 0);
 				if (right < left) break;
 				swapCompat(items, left, right);
 			}

@@ -3,24 +3,63 @@ import { CONTRACT_SNAPSHOT } from './generated/contracts.js';
 import { INSTALLED_DOCS } from './generated/docs.js';
 
 /** JSON Schema data, not another validator or operation grammar. */
-export interface ContractSchema { $ref?: string; [keyword: string]: unknown }
+export interface ContractSchema {
+	$ref?: string;
+	[keyword: string]: unknown;
+}
 export interface ContractSnapshot {
 	digest: string;
 	schemaVersion: number;
 	versions: { BACKEND_CONTRACT_VERSION: string; BACKEND_CAPABILITY_SCHEMA_VERSION: number };
 	operations: Record<string, ContractSchema>;
-	tools: Record<string, { input: ContractSchema; output: ContractSchema; bytePaths: string[][]; [metadata: string]: unknown }>;
+	tools: Record<
+		string,
+		{
+			input: ContractSchema;
+			output: ContractSchema;
+			bytePaths: string[][];
+			outputBytePaths: string[][];
+			[metadata: string]: unknown;
+		}
+	>;
 	cli: Record<string, ContractSchema>;
 	$defs: Record<string, ContractSchema>;
 	diagnostics: BackendDiagnosticGuide[];
 }
 
 export const OPENFAIRYGUI_DOCS_INDEX_URI = 'openfairygui://docs/index';
+
+/** Decode only generated native-byte paths in JSON transport inputs, preserving extension JSON. */
+export function decodeContractBytes(input: Record<string, unknown>, paths: string[][]): Record<string, unknown> {
+	if (!paths.length) return input;
+	const result = structuredClone(input);
+	let bytes = 0;
+	function visit(value: unknown, parts: string[]): unknown {
+		if (!parts.length) {
+			if (value === null || value instanceof Uint8Array) return value;
+			if (!Array.isArray(value) || !value.every((byte) => Number.isInteger(byte) && byte >= 0 && byte <= 255))
+				throw new TypeError('Binary input must be an array of integer bytes.');
+			bytes += value.length;
+			if (bytes > 8 * 1024 * 1024) throw new RangeError('Binary input exceeds 8 MiB.');
+			return Uint8Array.from(value);
+		}
+		if (!value || typeof value !== 'object') return value;
+		const [key, ...rest] = parts;
+		const record = value as Record<string, unknown>;
+		for (const name of key === '*' ? Object.keys(record) : [key])
+			if (Object.hasOwn(record, name)) record[name] = visit(record[name], rest);
+		return value;
+	}
+	for (const parts of paths) visit(result, parts);
+	return result;
+}
 export const OPENFAIRYGUI_OPERATION_CATALOG_URI = 'openfairygui://contracts/operations';
 export const OPENFAIRYGUI_OPERATION_SCHEMA_TEMPLATE = `${OPENFAIRYGUI_OPERATION_CATALOG_URI}/{kind}`;
 
 /** Detached copy for wire adapters; documentation and adapters share one generated snapshot. */
-export function getInstalledContractSnapshot(): ContractSnapshot { return structuredClone(CONTRACT_SNAPSHOT); }
+export function getInstalledContractSnapshot(): ContractSnapshot {
+	return structuredClone(CONTRACT_SNAPSHOT);
+}
 
 export function getInstalledDocumentationVersion() {
 	return { ...INSTALLED_DOCS.version, ...CONTRACT_SNAPSHOT.versions, contractDigest: CONTRACT_SNAPSHOT.digest };
@@ -28,9 +67,13 @@ export function getInstalledDocumentationVersion() {
 
 export function getOpenFairyGuiOperationCatalog() {
 	return {
-		digest: CONTRACT_SNAPSHOT.digest, schemaVersion: CONTRACT_SNAPSHOT.schemaVersion,
+		digest: CONTRACT_SNAPSHOT.digest,
+		schemaVersion: CONTRACT_SNAPSHOT.schemaVersion,
 		...CONTRACT_SNAPSHOT.versions,
-		operations: Object.keys(CONTRACT_SNAPSHOT.operations).map((kind) => ({ kind, schemaUri: `${OPENFAIRYGUI_OPERATION_CATALOG_URI}/${kind}` })),
+		operations: Object.keys(CONTRACT_SNAPSHOT.operations).map((kind) => ({
+			kind,
+			schemaUri: `${OPENFAIRYGUI_OPERATION_CATALOG_URI}/${kind}`,
+		})),
 	};
 }
 
@@ -60,14 +103,42 @@ export function getInstalledDocumentationIndex() {
 	return {
 		...getInstalledDocumentationVersion(),
 		documents: [
-			{ id: 'workflow', title: 'Safe editing workflow and installation checks', uri: 'openfairygui://docs/workflow' },
-			{ id: 'restore-limits', title: 'Trusted artifact recovery scope and unrecoverable editor information', uri: 'openfairygui://docs/restore-limits' },
+			{
+				id: 'workflow',
+				title: 'Safe editing workflow and installation checks',
+				uri: 'openfairygui://docs/workflow',
+			},
+			{
+				id: 'restore-limits',
+				title: 'Trusted artifact recovery scope and unrecoverable editor information',
+				uri: 'openfairygui://docs/restore-limits',
+			},
 			{ id: 'skill', title: 'Thin installed-version navigation skill', uri: 'openfairygui://docs/skill' },
-			{ id: 'contracts', title: 'Operation catalog and Backend/MCP method mapping', uri: 'openfairygui://docs/contracts' },
-			...Object.keys(CONTRACT_SNAPSHOT.operations).map((kind) => ({ id: `operations/${kind}`, title: `UAM operation: ${kind}`, uri: `${OPENFAIRYGUI_OPERATION_CATALOG_URI}/${kind}` })),
-			...Object.keys(CONTRACT_SNAPSHOT.tools).map((method) => ({ id: `methods/${method}`, title: `Backend/MCP wire method: ${method}`, uri: `openfairygui://docs/methods/${method}` })),
-			...Object.keys(CONTRACT_SNAPSHOT.cli).map((command) => ({ id: `cli/${command}`, title: `CLI JSON output: ${command}`, uri: `openfairygui://docs/cli/${encodeURIComponent(command)}` })),
-			...getBackendDiagnosticCatalog().map((guide) => ({ id: `diagnostics/${guide.code}`, title: `Recovery: ${guide.code}`, uri: guide.docsUri })),
+			{
+				id: 'contracts',
+				title: 'Operation catalog and Backend/MCP method mapping',
+				uri: 'openfairygui://docs/contracts',
+			},
+			...Object.keys(CONTRACT_SNAPSHOT.operations).map((kind) => ({
+				id: `operations/${kind}`,
+				title: `UAM operation: ${kind}`,
+				uri: `${OPENFAIRYGUI_OPERATION_CATALOG_URI}/${kind}`,
+			})),
+			...Object.keys(CONTRACT_SNAPSHOT.tools).map((method) => ({
+				id: `methods/${method}`,
+				title: `Backend/MCP wire method: ${method}`,
+				uri: `openfairygui://docs/methods/${method}`,
+			})),
+			...Object.keys(CONTRACT_SNAPSHOT.cli).map((command) => ({
+				id: `cli/${command}`,
+				title: `CLI JSON output: ${command}`,
+				uri: `openfairygui://docs/cli/${encodeURIComponent(command)}`,
+			})),
+			...getBackendDiagnosticCatalog().map((guide) => ({
+				id: `diagnostics/${guide.code}`,
+				title: `Recovery: ${guide.code}`,
+				uri: guide.docsUri,
+			})),
 		],
 	};
 }
@@ -80,11 +151,21 @@ export function readInstalledDocumentation(id: string) {
 	if (id === 'workflow') content = INSTALLED_DOCS.workflow;
 	else if (id === 'restore-limits') content = INSTALLED_DOCS.restoreLimits;
 	else if (id === 'skill') content = INSTALLED_DOCS.skill;
-	else if (id === 'contracts') content = {
-		...getOpenFairyGuiOperationCatalog(),
-		methods: Object.entries(CONTRACT_SNAPSHOT.tools).map(([method, { input, output, bytePaths, ...metadata }]) => ({ method, ...metadata, docsUri: `openfairygui://docs/methods/${method}` })),
-		cli: Object.keys(CONTRACT_SNAPSHOT.cli).map((command) => ({ command, docsUri: `openfairygui://docs/cli/${encodeURIComponent(command)}` })),
-	};
+	else if (id === 'contracts')
+		content = {
+			...getOpenFairyGuiOperationCatalog(),
+			methods: Object.entries(CONTRACT_SNAPSHOT.tools).map(
+				([method, { input, output, bytePaths, ...metadata }]) => ({
+					method,
+					...metadata,
+					docsUri: `openfairygui://docs/methods/${method}`,
+				}),
+			),
+			cli: Object.keys(CONTRACT_SNAPSHOT.cli).map((command) => ({
+				command,
+				docsUri: `openfairygui://docs/cli/${encodeURIComponent(command)}`,
+			})),
+		};
 	else if (id.startsWith('operations/')) content = getOpenFairyGuiOperationSchema(id.slice('operations/'.length));
 	else if (id.startsWith('diagnostics/')) content = getBackendDiagnosticGuide(id.slice('diagnostics/'.length));
 	else if (id.startsWith('cli/')) content = standaloneSchema(CONTRACT_SNAPSHOT.cli[id.slice('cli/'.length)]);
@@ -93,7 +174,8 @@ export function readInstalledDocumentation(id: string) {
 		content = { ...tool, input: standaloneSchema(tool.input), output: standaloneSchema(tool.output) };
 	}
 	return {
-		...getInstalledDocumentationVersion(), ...entry,
+		...getInstalledDocumentationVersion(),
+		...entry,
 		mimeType: typeof content === 'string' ? 'text/markdown' : 'application/json',
 		text: typeof content === 'string' ? content : JSON.stringify(content, null, 2),
 	};
@@ -104,6 +186,10 @@ export function findInstalledDocumentation(query: string) {
 	if (!term) throw new RangeError('Documentation search must not be empty');
 	const index = getInstalledDocumentationIndex();
 	// ponytail: linear search is sufficient for this small installed corpus; index only if it grows materially.
-	return { ...index, documents: index.documents.filter((entry) =>
-		`${entry.id}\n${entry.title}\n${readInstalledDocumentation(entry.id).text}`.toLowerCase().includes(term)) };
+	return {
+		...index,
+		documents: index.documents.filter((entry) =>
+			`${entry.id}\n${entry.title}\n${readInstalledDocumentation(entry.id).text}`.toLowerCase().includes(term),
+		),
+	};
 }

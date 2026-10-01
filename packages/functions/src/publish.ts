@@ -1,5 +1,5 @@
+import { BinaryWriter } from '@openfairygui/core/project-io';
 import {
-	BinaryWriter,
 	type BinaryWriterOptions,
 	type Document,
 	type FileSystem,
@@ -21,10 +21,7 @@ import {
 	isFontResource,
 	isMovieClipResource,
 } from './publish/package-context.js';
-import {
-	exportPackageExternalResources,
-	exportPackageSounds,
-} from './publish/external-resources.js';
+import { exportPackageExternalResources, exportPackageSounds } from './publish/external-resources.js';
 import {
 	resolvePublishAtlasRuntimeOptions,
 	resolvePublishFileName,
@@ -113,6 +110,14 @@ function toBinaryWriterFileSystem(fs: PublishFileSystem): FileSystem {
 	};
 }
 
+function selectPublishPackages(packages: Package[], requested?: string[]): Package[] {
+	if (!requested?.length) return packages;
+	const names = new Set(requested);
+	const unknown = [...names].filter((name) => !packages.some((pkg) => pkg.getName() === name));
+	if (unknown.length > 0) throw new Error(`publish: Unknown package names: ${unknown.join(', ')}`);
+	return packages.filter((pkg) => names.has(pkg.getName()));
+}
+
 /**
  * Publishes a FairyGUI project.
  *
@@ -195,7 +200,8 @@ export function publish(options: PublishOptions): Transform {
 
 				for (const candidate of candidates) {
 					const expanded = expandPathVariables(
-						expandPathVariables(candidate ?? '', { publish_file_name: publishName }), customProperties,
+						expandPathVariables(candidate ?? '', { publish_file_name: publishName }),
+						customProperties,
 					);
 					const resolved = resolveConfiguredOutputPath(expanded, projectBasePath);
 					if (!resolved) continue;
@@ -208,20 +214,26 @@ export function publish(options: PublishOptions): Transform {
 			const atlas: ResolvedPublishAtlasOptions = {
 				...config.atlas,
 				maxSize: options.atlas?.maxSize ?? (usePackageAtlas ? sourceAtlas.maxSize : config.atlas.maxSize),
-				allowRotation: config.projectType === ProjectType.LayaBox
-					? false
-					: (options.atlas?.allowRotation ?? (usePackageAtlas ? sourceAtlas.allowRotation : config.atlas.allowRotation)),
-				powerOfTwo: options.atlas?.powerOfTwo
-					?? (usePackageAtlas ? sourceAtlas.sizeOption === 'pot' : config.atlas.powerOfTwo),
+				allowRotation:
+					config.projectType === ProjectType.LayaBox
+						? false
+						: (options.atlas?.allowRotation ??
+							(usePackageAtlas ? sourceAtlas.allowRotation : config.atlas.allowRotation)),
+				powerOfTwo:
+					options.atlas?.powerOfTwo ??
+					(usePackageAtlas ? sourceAtlas.sizeOption === 'pot' : config.atlas.powerOfTwo),
 				maxAtlasIndex: options.atlas?.maxAtlasIndex ?? sourceAtlas.maxIndex,
-				multipleOfFour: options.atlas?.multipleOfFour
-					?? (usePackageAtlas ? sourceAtlas.sizeOption === 'mof' : config.atlas.multipleOfFour),
+				multipleOfFour:
+					options.atlas?.multipleOfFour ??
+					(usePackageAtlas ? sourceAtlas.sizeOption === 'mof' : config.atlas.multipleOfFour),
 				square: options.atlas?.square ?? (usePackageAtlas ? sourceAtlas.forceSquare : config.atlas.square),
 				multiPage: options.atlas?.multiPage ?? (usePackageAtlas ? sourceAtlas.paging : config.atlas.multiPage),
-				extractAlpha: config.projectType === ProjectType.Unity && (
-					options.atlas?.extractAlpha
-					?? (usePackageAtlas || sourceAtlas.extractAlpha ? sourceAtlas.extractAlpha : config.atlas.extractAlpha)
-				),
+				extractAlpha:
+					config.projectType === ProjectType.Unity &&
+					(options.atlas?.extractAlpha ??
+						(usePackageAtlas || sourceAtlas.extractAlpha
+							? sourceAtlas.extractAlpha
+							: config.atlas.extractAlpha)),
 			};
 
 			return {
@@ -295,9 +307,15 @@ export function publish(options: PublishOptions): Transform {
 				readFileRaw: options.atlas?.readFileRaw ?? options.fs?.readFileRaw,
 				strictOutput: options.fs !== undefined,
 				preparedMovieClips,
-				publishResources: new Map(plan.pkg.listResources()
-					.filter((resource) => plan.context.publishedResourceIds.has(resource.getId()))
-					.map((resource) => [resource, plan.context.effectiveResourceIds.get(resource.getId()) ?? resource.getId()])),
+				publishResources: new Map(
+					plan.pkg
+						.listResources()
+						.filter((resource) => plan.context.publishedResourceIds.has(resource.getId()))
+						.map((resource) => [
+							resource,
+							plan.context.effectiveResourceIds.get(resource.getId()) ?? resource.getId(),
+						]),
+				),
 				packages: [plan.pkg.getName()],
 				...atlasRuntimeOptions,
 			})(doc);
@@ -321,16 +339,12 @@ export function publish(options: PublishOptions): Transform {
 		const logger = doc.getLogger();
 		const projectBasePath = resolveProjectBasePath(options.basePath) || doc.getProjectDir?.() || '';
 		const plugins = options.plugins ?? [];
+
+		// Reject invalid requests before hooks, then include any hook changes in the plan.
+		selectPublishPackages(root.listPackages(), resolveProjectPublishConfig().packages);
 		await runPublishPluginHook(plugins, 'onPublishStart', doc, options);
-
 		const resolved = resolveProjectPublishConfig();
-
-		// Step 1: Determine which packages to publish
-		let allPackages = root.listPackages();
-		if (resolved.packages && resolved.packages.length > 0) {
-			const names = new Set(resolved.packages);
-			allPackages = allPackages.filter((p) => names.has(p.getName()));
-		}
+		const allPackages = selectPublishPackages(root.listPackages(), resolved.packages);
 
 		if (allPackages.length === 0) {
 			logger.warn('publish: No packages to publish.');
@@ -350,22 +364,27 @@ export function publish(options: PublishOptions): Transform {
 			// Font image dependencies must be known before selecting resources and merging branches.
 			for (const font of pkg.listResources().filter(isFontResource)) {
 				await collectFontTexture(doc, font, pkg, {
-					basePath: options.basePath, readFileRaw: options.atlas?.readFileRaw ?? options.fs?.readFileRaw,
+					basePath: options.basePath,
+					readFileRaw: options.atlas?.readFileRaw ?? options.fs?.readFileRaw,
 				});
 			}
 			// Compute dependency list and selected publish artifacts before atlas packing,
 			// so merged-branch publishes can pack the overridden resources with main IDs.
 			_computeDependencies(doc, pkg, pkgMap);
-			contexts.set(pkg, await preparePackagePublishContext(pkg, options.basePath, options.encoder, {
-				projectType: resolved.projectType,
-				includeBranches: resolved.includeBranches,
-				activeBranch: resolved.activeBranch,
-				includeHighResolution: resolved.includeHighResolution,
-			}));
+			contexts.set(
+				pkg,
+				await preparePackagePublishContext(pkg, options.basePath, options.encoder, {
+					projectType: resolved.projectType,
+					includeBranches: resolved.includeBranches,
+					activeBranch: resolved.activeBranch,
+					includeHighResolution: resolved.includeHighResolution,
+				}),
+			);
 		}
 
 		const plans: ResolvedPackagePublishPlan[] = allPackages.map((pkg) => ({
-			...resolvePackagePublishPlan(pkg, resolved, projectBasePath), context: contexts.get(pkg)!,
+			...resolvePackagePublishPlan(pkg, resolved, projectBasePath),
+			context: contexts.get(pkg)!,
 		}));
 
 		if (!options.fs) {

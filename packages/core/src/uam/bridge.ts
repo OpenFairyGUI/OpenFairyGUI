@@ -3,7 +3,12 @@ import type { ProjectReadOptions } from '../io/project-io-contracts.js';
 import type { UamProject } from './model.js';
 import { liftDocumentToUamProject } from './bridge-lift.js';
 import { materializeUamProject } from './bridge-materialize.js';
-import { commitUamProjectSourcePaths, staleBranchDirectories, staleResourceFolders, staleSourceFiles } from './project-source-files.js';
+import {
+	commitUamProjectSourcePaths,
+	staleBranchDirectories,
+	staleResourceFolders,
+	staleSourceFiles,
+} from './project-source-files.js';
 
 export { liftDocumentToUamProject } from './bridge-lift.js';
 export {
@@ -23,7 +28,6 @@ export interface WriteProjectFromUamOptions {
 	/** Previous project state used to safely clean replaced, moved, renamed, or removed package files. */
 	previousProject?: UamProject;
 }
-
 
 export async function writeProjectFromUam(
 	io: Pick<PlatformIO, 'writeProject'>,

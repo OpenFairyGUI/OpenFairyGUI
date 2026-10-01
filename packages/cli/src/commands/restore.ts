@@ -44,7 +44,11 @@ export function registerRestoreCommand(program: Command): void {
 
 			const packages = result.document.getRoot().listPackages();
 			if (options.json) {
-				printJson('restore', { projectPath: result.projectPath, packages: packages.map((pkg) => ({ id: pkg.getId(), name: pkg.getName() })), warnings: result.warnings });
+				printJson('restore', {
+					projectPath: result.projectPath,
+					packages: packages.map((pkg) => ({ id: pkg.getId(), name: pkg.getName() })),
+					warnings: result.warnings,
+				});
 				return;
 			}
 			console.log(`\nDone! Output: ${result.projectPath}`);

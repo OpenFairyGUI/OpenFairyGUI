@@ -197,37 +197,51 @@ export function createNonLookGears(controllerName = 'state'): UamGearBinding[] {
 		{ kind: 'display', name: 'display', controllerName, visibleOnPageIds: ['0'] },
 		{ kind: 'display2', name: 'display2', controllerName, visibleOnPageIds: ['1'], condition: '1' },
 		{
-			kind: 'xy', name: 'xy', ...common,
+			kind: 'xy',
+			name: 'xy',
+			...common,
 			states: [{ pageId: '0', value: { x: 12, y: 18 } }],
 			defaultValue: { x: 0, y: 0 },
 		},
 		{
-			kind: 'size', name: 'size', ...common,
+			kind: 'size',
+			name: 'size',
+			...common,
 			states: [{ pageId: '0', value: { width: 48, height: 36, scaleX: 1.2, scaleY: 0.8 } }],
 			defaultValue: { width: 24, height: 20, scaleX: 1, scaleY: 1 },
 		},
 		{
-			kind: 'color', name: 'color', ...common,
+			kind: 'color',
+			name: 'color',
+			...common,
 			states: [{ pageId: '0', value: { color: '#ff00ff', outlineColor: null } }],
 			defaultValue: { color: '#ffffff', outlineColor: null },
 		},
 		{
-			kind: 'animation', name: 'animation', ...common,
+			kind: 'animation',
+			name: 'animation',
+			...common,
 			states: [{ pageId: '0', value: { frame: 3, playing: false, animationName: 'run', skinName: 'hero' } }],
 			defaultValue: { frame: 0, playing: true, animationName: '', skinName: '' },
 		},
 		{
-			kind: 'text', name: 'text', ...common,
+			kind: 'text',
+			name: 'text',
+			...common,
 			states: [{ pageId: '0', value: { text: 'Alert' } }],
 			defaultValue: { text: 'Idle' },
 		},
 		{
-			kind: 'icon', name: 'icon', ...common,
+			kind: 'icon',
+			name: 'icon',
+			...common,
 			states: [{ pageId: '0', value: { icon: 'ui://pkg001/icon' } }],
 			defaultValue: { icon: '' },
 		},
 		{
-			kind: 'fontSize', name: 'font-size', ...common,
+			kind: 'fontSize',
+			name: 'font-size',
+			...common,
 			states: [{ pageId: '0', value: { fontSize: 28 } }],
 			defaultValue: { fontSize: 16 },
 		},
@@ -243,15 +257,35 @@ export function updateNonLookGear(gear: UamGearBinding): UamGearBinding {
 		case 'xy':
 			return { ...gear, states: [{ pageId: '1', value: { x: 30, y: 40 } }], defaultValue: { x: 3, y: 4 } };
 		case 'size':
-			return { ...gear, states: [{ pageId: '1', value: { width: 60, height: 44, scaleX: 1.1, scaleY: 1.3 } }], defaultValue: { width: 30, height: 28, scaleX: 1, scaleY: 1 } };
+			return {
+				...gear,
+				states: [{ pageId: '1', value: { width: 60, height: 44, scaleX: 1.1, scaleY: 1.3 } }],
+				defaultValue: { width: 30, height: 28, scaleX: 1, scaleY: 1 },
+			};
 		case 'color':
-			return { ...gear, states: [{ pageId: '1', value: { color: '#00ff00', outlineColor: null } }], defaultValue: { color: '#111111', outlineColor: null } };
+			return {
+				...gear,
+				states: [{ pageId: '1', value: { color: '#00ff00', outlineColor: null } }],
+				defaultValue: { color: '#111111', outlineColor: null },
+			};
 		case 'animation':
-			return { ...gear, states: [{ pageId: '1', value: { frame: 7, playing: true, animationName: 'idle', skinName: 'alt' } }], defaultValue: { frame: 1, playing: false, animationName: '', skinName: '' } };
+			return {
+				...gear,
+				states: [{ pageId: '1', value: { frame: 7, playing: true, animationName: 'idle', skinName: 'alt' } }],
+				defaultValue: { frame: 1, playing: false, animationName: '', skinName: '' },
+			};
 		case 'text':
-			return { ...gear, states: [{ pageId: '1', value: { text: 'Updated' } }], defaultValue: { text: 'Default' } };
+			return {
+				...gear,
+				states: [{ pageId: '1', value: { text: 'Updated' } }],
+				defaultValue: { text: 'Default' },
+			};
 		case 'icon':
-			return { ...gear, states: [{ pageId: '1', value: { icon: 'ui://pkg001/updated-icon' } }], defaultValue: { icon: 'ui://pkg001/default-icon' } };
+			return {
+				...gear,
+				states: [{ pageId: '1', value: { icon: 'ui://pkg001/updated-icon' } }],
+				defaultValue: { icon: 'ui://pkg001/default-icon' },
+			};
 		case 'fontSize':
 			return { ...gear, states: [{ pageId: '1', value: { fontSize: 32 } }], defaultValue: { fontSize: 18 } };
 		case 'look':
@@ -261,9 +295,28 @@ export function updateNonLookGear(gear: UamGearBinding): UamGearBinding {
 
 export type UamDisplayNodeBaseFixture = Pick<
 	UamDisplayNode,
-	'id' | 'name' | 'position' | 'size' | 'locked' | 'aspect' | 'minSize' | 'maxSize' | 'scale' | 'skew'
-	| 'visible' | 'touchable' | 'grayed' | 'alpha' | 'rotation' | 'tooltips' | 'blendMode' | 'filter'
-	| 'filterData' | 'customData' | 'relations' | 'gears'
+	| 'id'
+	| 'name'
+	| 'position'
+	| 'size'
+	| 'locked'
+	| 'aspect'
+	| 'minSize'
+	| 'maxSize'
+	| 'scale'
+	| 'skew'
+	| 'visible'
+	| 'touchable'
+	| 'grayed'
+	| 'alpha'
+	| 'rotation'
+	| 'tooltips'
+	| 'blendMode'
+	| 'filter'
+	| 'filterData'
+	| 'customData'
+	| 'relations'
+	| 'gears'
 >;
 
 export function createDisplayNodeBase(id: string, name: string, offset = 0): UamDisplayNodeBaseFixture {
@@ -337,16 +390,18 @@ export function createLifecycleComponent(id = 'cmp002', name = 'Popup'): UamComp
 			size: { width: 160, height: 80 },
 			properties: createDefaultUamComponentProperties(),
 			customData: '',
-			displayList: [{
-				...createDisplayNodeBase('popup-title', 'title'),
-				kind: 'text',
-				group: '',
-				...createDefaultUamPlainTextProperties(),
-				text: 'Popup',
-				font: '',
-				fontSize: 16,
-				color: '#ffffff',
-			}],
+			displayList: [
+				{
+					...createDisplayNodeBase('popup-title', 'title'),
+					kind: 'text',
+					group: '',
+					...createDefaultUamPlainTextProperties(),
+					text: 'Popup',
+					font: '',
+					fontSize: 16,
+					color: '#ffffff',
+				},
+			],
 			controllers: [],
 			transitions: [],
 		},

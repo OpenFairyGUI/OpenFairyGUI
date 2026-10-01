@@ -1,7 +1,10 @@
 import { type Document, ProjectType } from '@openfairygui/core';
 import {
-	AUTO_GENERATED_CODE_MARK, FGUI_TYPESCRIPT_BINDER_TEMPLATE, FGUI_TYPESCRIPT_COMPONENT_TEMPLATE,
-	UNITY_BINDER_TEMPLATE, UNITY_COMPONENT_TEMPLATE,
+	AUTO_GENERATED_CODE_MARK,
+	FGUI_TYPESCRIPT_BINDER_TEMPLATE,
+	FGUI_TYPESCRIPT_COMPONENT_TEMPLATE,
+	UNITY_BINDER_TEMPLATE,
+	UNITY_COMPONENT_TEMPLATE,
 } from './codegen-templates.js';
 import type { CodegenClass, CodegenMember } from './codegen-model.js';
 import type { ResolvedPackageCodegenPlan } from './codegen-settings.js';
@@ -55,13 +58,17 @@ export function resolveFguiTypescriptVariant(doc: Document): FguiTypescriptVaria
 }
 
 export function* renderCodegenFiles(
-	classes: CodegenClass[], plan: ResolvedPackageCodegenPlan, variant: FguiTypescriptVariant | null,
+	classes: CodegenClass[],
+	plan: ResolvedPackageCodegenPlan,
+	variant: FguiTypescriptVariant | null,
 ): Generator<{ name: string; content: string }> {
 	const extension = variant ? '.ts' : '.cs';
 	for (const classInfo of classes) {
 		yield {
 			name: classInfo.encodedClassName + extension,
-			content: variant ? renderFguiTypescriptComponentClass(classInfo, plan, variant) : renderUnityComponentClass(classInfo, plan),
+			content: variant
+				? renderFguiTypescriptComponentClass(classInfo, plan, variant)
+				: renderUnityComponentClass(classInfo, plan),
 		};
 	}
 	yield {
@@ -95,7 +102,10 @@ function renderUnityComponentClass(classInfo: CodegenClass, plan: ResolvedPackag
 
 function renderUnityBinder(classes: CodegenClass[], plan: ResolvedPackageCodegenPlan): string {
 	const bindLines = classes
-		.map((classInfo) => `\t\t\tUIObjectFactory.SetPackageItemExtension(${classInfo.encodedClassName}.URL, typeof(${classInfo.encodedClassName}));`)
+		.map(
+			(classInfo) =>
+				`\t\t\tUIObjectFactory.SetPackageItemExtension(${classInfo.encodedClassName}.URL, typeof(${classInfo.encodedClassName}));`,
+		)
 		.join('\n');
 
 	return renderTemplate(UNITY_BINDER_TEMPLATE, {
@@ -141,7 +151,10 @@ function renderFguiTypescriptBinder(
 	variant: FguiTypescriptVariant,
 ): string {
 	const bindLines = classes
-		.map((classInfo) => `\t\t${variant.runtimeNamespace}.UIObjectFactory.${variant.binderMethod}(${classInfo.encodedClassName}.URL, ${classInfo.encodedClassName});`)
+		.map(
+			(classInfo) =>
+				`\t\t${variant.runtimeNamespace}.UIObjectFactory.${variant.binderMethod}(${classInfo.encodedClassName}.URL, ${classInfo.encodedClassName});`,
+		)
 		.join('\n');
 	const classImports = classes
 		.map((classInfo) => `import ${classInfo.encodedClassName} from "./${classInfo.encodedClassName}";`)

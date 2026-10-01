@@ -28,23 +28,25 @@ type CommonDisplayState = {
 	getGrayed(): boolean;
 };
 
-function setCommonDisplayState<T extends {
-	setXY(x: number, y: number): T;
-	setSize(width: number, height: number): T;
-	setLocked(value: boolean): T;
-	setAspect(value: boolean): T;
-	setMinWidth(value: number): T;
-	setMaxHeight(value: number): T;
-	setPivot(x: number, y: number, anchor: boolean): T;
-	setScale(x: number, y: number): T;
-	setFilter(value: string): T;
-	setFilterData(value: string): T;
-	setAlpha(value: number): T;
-	setRotation(value: number): T;
-	setVisible(value: boolean): T;
-	setTouchable(value: boolean): T;
-	setGrayed(value: boolean): T;
-}>(object: T): T {
+function setCommonDisplayState<
+	T extends {
+		setXY(x: number, y: number): T;
+		setSize(width: number, height: number): T;
+		setLocked(value: boolean): T;
+		setAspect(value: boolean): T;
+		setMinWidth(value: number): T;
+		setMaxHeight(value: number): T;
+		setPivot(x: number, y: number, anchor: boolean): T;
+		setScale(x: number, y: number): T;
+		setFilter(value: string): T;
+		setFilterData(value: string): T;
+		setAlpha(value: number): T;
+		setRotation(value: number): T;
+		setVisible(value: boolean): T;
+		setTouchable(value: boolean): T;
+		setGrayed(value: boolean): T;
+	},
+>(object: T): T {
 	return object
 		.setXY(10, -20)
 		.setSize(80, 40)
@@ -63,18 +65,26 @@ function setCommonDisplayState<T extends {
 		.setGrayed(true);
 }
 
-function assertCommonDisplayState(
-	t: import('ava').ExecutionContext,
-	object: CommonDisplayState,
-	label: string,
-): void {
-	t.deepEqual([object.getX(), object.getY(), object.getWidth(), object.getHeight()], [10, -20, 80, 40], `${label} geometry survives round-trip`);
+function assertCommonDisplayState(t: import('ava').ExecutionContext, object: CommonDisplayState, label: string): void {
+	t.deepEqual(
+		[object.getX(), object.getY(), object.getWidth(), object.getHeight()],
+		[10, -20, 80, 40],
+		`${label} geometry survives round-trip`,
+	);
 	t.true(object.getLocked(), `${label} locked survives round-trip`);
 	t.true(object.getAspect(), `${label} aspect survives round-trip`);
 	t.deepEqual([object.getMinWidth(), object.getMaxHeight()], [5, 200], `${label} size limits survive round-trip`);
-	t.deepEqual([object.getPivotX(), object.getPivotY(), object.getPivotAsAnchor()], [0.5, 0.25, true], `${label} pivot survives round-trip`);
+	t.deepEqual(
+		[object.getPivotX(), object.getPivotY(), object.getPivotAsAnchor()],
+		[0.5, 0.25, true],
+		`${label} pivot survives round-trip`,
+	);
 	t.deepEqual([object.getScaleX(), object.getScaleY()], [2, 3], `${label} scale survives round-trip`);
-	t.deepEqual([object.getFilter(), object.getFilterData()], ['Color', '0.1,0.2,0.3,0.4'], `${label} filter survives round-trip`);
+	t.deepEqual(
+		[object.getFilter(), object.getFilterData()],
+		['Color', '0.1,0.2,0.3,0.4'],
+		`${label} filter survives round-trip`,
+	);
 	t.is(object.getAlpha(), 0.4, `${label} alpha survives round-trip`);
 	t.is(object.getRotation(), 17, `${label} rotation survives round-trip`);
 	t.false(object.getVisible(), `${label} visible survives round-trip`);
@@ -90,9 +100,7 @@ test('XML round-trip preserves every modeled common display state on V1 node typ
 	const component = doc.createComponent('Main');
 	component.setId('main1').setPath('/').setSize(320, 240);
 
-	const image = setCommonDisplayState(doc.createGImage('image'))
-		.setId('n0')
-		.setSkew(3, 4);
+	const image = setCommonDisplayState(doc.createGImage('image')).setId('n0').setSkew(3, 4);
 	const objects = [
 		image,
 		setCommonDisplayState(doc.createGTextField('text')).setId('n1'),
@@ -122,10 +130,7 @@ test('XML round-trip preserves every modeled common display state on V1 node typ
 
 	try {
 		await io.writeProject(doc, outFairy);
-		const xml = await fs.readFile(
-			path.join(tmpDir, 'assets', 'CommonDisplay', 'Main.xml'),
-			'utf8',
-		);
+		const xml = await fs.readFile(path.join(tmpDir, 'assets', 'CommonDisplay', 'Main.xml'), 'utf8');
 
 		for (const id of objects.map((object) => object.getId())) {
 			const tag = xml.match(new RegExp(`<[^>]+\\bid="${id}"[^>]*>`))?.[0];
@@ -152,9 +157,7 @@ test('XML round-trip preserves every modeled common display state on V1 node typ
 		}
 		const imageTag = xml.match(/<image\b[^>]*\bid="n0"[^>]*>/)?.[0];
 		t.regex(imageTag ?? '', /\bskew="3,4"/, 'image writes modeled skew');
-		const roundTripImage = roundTripComponent?.getChildById('n0') as
-			| ReturnType<Document['createGImage']>
-			| null;
+		const roundTripImage = roundTripComponent?.getChildById('n0') as ReturnType<Document['createGImage']> | null;
 		t.is(roundTripImage?.getSkewX(), 3);
 		t.is(roundTripImage?.getSkewY(), 4);
 	} finally {

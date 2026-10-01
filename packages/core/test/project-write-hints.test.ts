@@ -19,7 +19,8 @@ test('invalid image order hints fail before creating or replacing project files'
 		if (scenario === 'package') doc.createPackage('Other').setId('other').addResource(anchor);
 		else if (scenario !== 'missing') pkg.addResource(anchor);
 		if (scenario === 'branch') anchor.setBranch('mobile');
-		if (scenario === 'cycle') ProjectWriter.setImageWriteHints(anchor, { packageOrder: { afterId: 'a', weight: 0 } });
+		if (scenario === 'cycle')
+			ProjectWriter.setImageWriteHints(anchor, { packageOrder: { afterId: 'a', weight: 0 } });
 		ProjectWriter.setImageWriteHints(image, { packageOrder: { afterId: 'b', weight: 0 } });
 		await t.throwsAsync(new NodeIO().writeProject(doc, target), { message: /package order anchor/ });
 		t.is(await fs.readFile(target, 'utf8'), 'original');
@@ -77,7 +78,9 @@ test('image ordering hints group by anchor and weight across Writer instances wi
 		t.deepEqual(await writeIds(), ['b', 'f', 'a', 'd', 'e', 'z']);
 		for (const image of images) t.deepEqual(image.getExtras(), {});
 		const originalResources = pkg.listResources();
-		t.throws(() => ProjectWriter.setImageWriteHints(images[0]!, { packageOrder: { afterId: 'f', weight: NaN } }), { instanceOf: TypeError });
+		t.throws(() => ProjectWriter.setImageWriteHints(images[0]!, { packageOrder: { afterId: 'f', weight: NaN } }), {
+			instanceOf: TypeError,
+		});
 		ProjectWriter.setImageWriteHints(images[0]!, { packageOrder: { afterId: 'missing', weight: 0 } });
 		await t.throwsAsync(writeIds, { message: /package order anchor/ });
 		t.deepEqual(pkg.listResources(), originalResources, 'invalid hints must not remove resources');

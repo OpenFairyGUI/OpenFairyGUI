@@ -4,7 +4,9 @@ import { ExtensibleProperty, type IExtensibleProperty } from './extensible-prope
  * Base class for extension-defined properties that attach to core properties.
  * @category Properties
  */
-export abstract class ExtensionProperty<T extends IExtensibleProperty = IExtensibleProperty> extends ExtensibleProperty<T> {
+export abstract class ExtensionProperty<
+	T extends IExtensibleProperty = IExtensibleProperty,
+> extends ExtensibleProperty<T> {
 	public static EXTENSION_NAME: string;
 	public abstract readonly extensionName: string;
 

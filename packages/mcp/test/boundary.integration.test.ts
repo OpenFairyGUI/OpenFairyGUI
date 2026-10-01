@@ -17,7 +17,7 @@ async function readSourceFiles(directory: string): Promise<Array<{ path: string;
 	for (const entry of entries) {
 		const fullPath = path.join(directory, entry.name);
 		if (entry.isDirectory()) {
-			files.push(...await readSourceFiles(fullPath));
+			files.push(...(await readSourceFiles(fullPath)));
 		} else if (entry.isFile() && entry.name.endsWith('.ts')) {
 			files.push({ path: fullPath, text: await fs.readFile(fullPath, 'utf8') });
 		}
@@ -27,7 +27,7 @@ async function readSourceFiles(directory: string): Promise<Array<{ path: string;
 }
 
 test('MCP P1 keeps roots as docs-only and does not import backend path policy internals', async (t) => {
-	const sourceDirectory = await directoryExists(path.resolve('src'))
+	const sourceDirectory = (await directoryExists(path.resolve('src')))
 		? path.resolve('src')
 		: path.resolve('packages/mcp/src');
 	const files = await readSourceFiles(sourceDirectory);

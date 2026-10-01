@@ -99,9 +99,16 @@ function mapComponentDetail(
 export function inspect(doc: Document): InspectReport {
 	const root = doc.getRoot();
 	const totals = {
-		packages: 0, images: 0, sounds: 0, fonts: 0,
-		movieClips: 0, components: 0, displayObjects: 0,
-		gears: 0, controllers: 0, transitions: 0,
+		packages: 0,
+		images: 0,
+		sounds: 0,
+		fonts: 0,
+		movieClips: 0,
+		components: 0,
+		displayObjects: 0,
+		gears: 0,
+		controllers: 0,
+		transitions: 0,
 	};
 
 	const packages = root.listPackages().map((pkg) => {

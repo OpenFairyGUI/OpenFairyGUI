@@ -9,10 +9,7 @@ interface TreeItemHierarchyLike {
  * Explicit values take precedence. An unspecified item is a folder only when
  * the following item is nested more deeply; trailing items are leaves.
  */
-export function resolveTreeItemIsFolder(
-	items: readonly TreeItemHierarchyLike[],
-	index: number,
-): boolean {
+export function resolveTreeItemIsFolder(items: readonly TreeItemHierarchyLike[], index: number): boolean {
 	const item = items[index];
 	if (!item) return false;
 	if (item.isFolder !== undefined && item.isFolder !== null) return item.isFolder;

@@ -36,3 +36,5 @@
 | 文档口径 | 只写当前正式口径；文档同步要求以 `AGENTS.md` 为准 |
 | README 入口 | 根目录 `README.md` 与 `README_EN.md` 只承担导航，不承载协议正文 |
 | 官网构建 | `pnpm docs:dev` 用于本地预览；`pnpm docs:build` 会生成公开 API 参考和静态站点 |
+
+[路线图](./guide/roadmap.md) · [贡献](./guide/development.md#贡献入口)

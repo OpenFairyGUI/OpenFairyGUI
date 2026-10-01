@@ -1,8 +1,5 @@
 import test from 'ava';
-import {
-	BACKEND_CAPABILITY_SCHEMA_VERSION,
-	BACKEND_CONTRACT_VERSION,
-} from '../src/index.js';
+import { BACKEND_CAPABILITY_SCHEMA_VERSION, BACKEND_CONTRACT_VERSION } from '../src/index.js';
 import { createBackendRuntime, createTempBackendProject } from './helpers.js';
 
 interface MutableCapabilitiesProbe {
@@ -24,7 +21,7 @@ test('P2 capabilities and version fields expose events and synchronous cache ref
 	if (!result.ok) return;
 
 	t.is(BACKEND_CONTRACT_VERSION, '3.0.0');
-	t.is(BACKEND_CAPABILITY_SCHEMA_VERSION, 12);
+	t.is(BACKEND_CAPABILITY_SCHEMA_VERSION, 15);
 	t.true(result.data.methods.includes('getEvents'));
 	t.true(result.data.methods.includes('getCacheSnapshot'));
 	t.true(result.data.methods.includes('refreshCache'));

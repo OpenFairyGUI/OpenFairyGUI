@@ -5,7 +5,7 @@
 ## 首次启动
 
 1. 准备 Git、Node.js 和 pnpm。推荐开发 Node 主版本由 `.node-version` 指定（22），pnpm 精确版本由根 `package.json` 的 `packageManager` 指定（10.14.0）。使用本机已有版本管理方式切换，不要求全局工具或个人配置文件。
-2. 包的 `engines.node` 为 `>=22`；CI、文档部署和发布流程统一使用 `.node-version` 中的 Node 22。更高主版本满足包的声明范围，但不进入持续验证。开发依赖还可能要求 Node 22 的较新补丁版。
+2. 包的 `engines.node` 为 `>=22`；产品检查在 Ubuntu/Windows × Node 22/24 四个组合上运行；文档与发布使用 `.node-version` 中的 Node 22。其他更高主版本满足包的声明范围，但不进入持续验证。开发依赖还可能要求 Node 22 的较新补丁版。
 3. 在已有 checkout 中运行：
 
 ```bash
@@ -50,7 +50,7 @@ doctor 不安装、不下载、不写文件；子模块状态查询也禁用 Git
 
 - `check:fast` 使用显式 `--base` 或 PR 环境的 `GITHUB_BASE_REF`；两者都缺少时直接报错并提示用法。底层 `test:changed` 仍可回退到本地 `origin/HEAD`。不会自动 fetch；目标 ref 必须已在本地。显式提供但无法解析的基准仍回退全量。
 - 基于 merge-base 收集分支提交差异，并合并 staged、unstaged、untracked 文件；rename 以旧/新路径处理，删除也参与选择。
-- 路径按首个规则匹配。Core/test-utils 覆盖全部下游，functions/backend 覆盖各自下游；CLI 还覆盖 Backend 内的 bootstrap 测试。
+- 路径按首个规则匹配。Core/test-utils 覆盖全部下游，functions/backend 覆盖各自下游；CLI bootstrap 测试归属于 CLI，不反向选择 Backend。
 - 未知路径、依赖/公共配置变化、无法解析基准或浅历史、无变更时回退全量；不能静默选择零个测试。
 - 只有已识别的纯文档变更可以采用 repository-only 模式；仍运行仓库自测与指引检查。完整文档构建由 `check:ci` 保证。
 - 每个选中测试组必须匹配文件。计划中的文档是审查提示，不意味着只改注释也必须重写协议文档。
@@ -59,17 +59,17 @@ doctor 不安装、不下载、不写文件；子模块状态查询也禁用 Git
 
 PR CI 先获取完整 Git 历史，使用 PR 目标提交与 `test:changed --list` 的现有影响映射判定范围。仅 `repository-only` 计划跳过 quality/consumer jobs；documentation job 仍执行 `scripts/repository.test.mjs` 仓库脚本自测、`docs:check` 与 `docs:build`。代码、站点配置、脚本、依赖、未知路径、无变更或无法确认比较基准时执行全量；范围判定 job 失败也不会静默跳过产品检查。工作流保持触发，跳过的是具体 job。
 
-全量 CI 的 quality job 在 Node 22 执行 `check`；documentation job 在同一 Node 主版本上检查并构建文档；consumer job 在同一 Node 主版本的 Linux/Windows 环境执行 `pack:check`。文档与消费者 job 不下载 fixture。全量三类 job 合起来对应本地 `check:ci`；纯文档分流不等于完整回归，`check:fast` 和 `check` 不包含 tarball 安装。主分支 push 始终运行全量；同一 PR 的新运行会取消旧运行，主分支各次 push 不互相取消。远端链接、Markdown 标题锚点、翻译含义和协议解释仍需人工审查。
+全量 CI 的 quality job 在 Ubuntu/Windows × Node 22/24 上执行 `check`。Ubuntu / Node 22 另运行覆盖率门禁并上传报告；documentation job 检查并构建文档；consumer job 在 Linux/Windows 上执行 `pack:check`。文档与消费者 job 不下载 fixture。`main` 与 `next` 的 push 始终执行全量；同一 PR 的新运行取消旧运行，不同 push 不互相取消。Pages 仅在 main 的 push CI 成功后，通过 workflow_run 检出该次已验证的 head_sha 构建部署；过期提交跳过部署。远端链接、翻译含义和协议解释仍需人工审查。
 
-本地 `check:ci` 先验证 fixture、lint、typecheck 与指引，再运行 `pack:check`，随后执行全部仓库脚本测试、AVA 与文档构建。契约检查与工作区构建各由 `pack:check` 执行一次，AVA 使用本次构建产物；不使用缓存或跳过开关。独立执行 `pack:check` 仍自行验证契约并构建。远端 CI 的独立 job 各自准备所需产物。
+本地 `check:ci` 先验证 fixture、格式/lint、类型与指引，再运行 `pack:check`、仓库测试、`pnpm test` 和文档构建。`pnpm test` 显式先构建，独立运行也不会读取旧 dist；测试内部不重建共享 CLI/MCP 输出。`pack:check` 为消费者独立检查契约并构建，因此完整流程包含两次构建。Linux CI 用 `pnpm check:ci --browser-deps` 显式准备 Chromium 系统依赖。
 
-发布工作流在 Node 22 上单独安装 npm 11，以满足 [npm 可信发布](https://docs.npmjs.com/trusted-publishers/)的 CLI 要求；仓库依赖安装和验证仍使用指定的 pnpm。
+发布工作流分为只读 verify 与拥有发布权限的 publish job。verify 校验标签、五包版本、双语 CHANGELOG 对应条目，执行完整 check:ci，验证将发布的同一组 tarball 并上传校验和。publish 不检出源码或安装项目依赖，只下载并核验这些产物；npm 11 安装和 tarball 发布均禁用生命周期脚本。Release 正文取自双语 CHANGELOG，不生成替代日志。所有第三方 Actions 固定到提交 SHA；文档构建 job 不拥有 Pages/OIDC 写权限。
 
 `pnpm pack:check` 构建五包并在仓库外安装，验证公开入口、类型、CLI/MCP、Node 示例及真实 Chromium OPFS 编辑/保存/刷新/锁/路径与图片字节。它会联网安装依赖，首次下载匹配浏览器；成功清理自身临时目录，失败保留现场，`--keep` 可保留成功现场。发布前用 `pnpm pack:check --artifacts .release` 检查同一组已打包文件。入口、示例及验证限制见[可运行示例与消费者验证](./examples.md)。
 
 提交 PR 时使用仓库的 `.github/pull_request_template.md`，逐项说明影响包、UAM/Backend/MCP/CLI 契约、版本处理、文档与双语发布日志，以及真实执行的验证基准、命令、失败/未运行项。模板是审查记录，不替代 CI，也不把勾选框当作发布授权或验证通过。
 
-Agent 评测共用 tarball 安装流程。`pnpm eval:agent --runner reference` 运行十个确定性任务，含编辑、安全停止和独立发布/恢复，已进入消费者门禁；`pnpm eval:agent --runner codex --codex codex` 手动运行真实模型任务，成功率只作观察。任务、隔离、Windows 可执行文件要求和复现方法见[真实 Agent 任务评测](./agent-evaluations.md)。
+Agent 评测共用 tarball 安装流程。`pnpm eval:agent --runner reference` 运行确定性任务，含编辑、安全停止和独立发布/恢复，已进入消费者门禁；`pnpm eval:agent --runner codex --codex codex` 手动运行真实模型任务，成功率只作观察。任务、隔离、Windows 可执行文件要求和复现方法见[真实 Agent 任务评测](./agent-evaluations.md)。
 
 ## 参考资料与取证
 
@@ -113,3 +113,19 @@ Agent 评测共用 tarball 安装流程。`pnpm eval:agent --runner reference` �
 包职责、公开契约入口和不可改变的不变量由根及包级 AGENTS 维护；[架构总览](../architecture-overview.md)解释实际数据流。不要手改 `packages/*/dist/`、`docs/public/api/`、`docs/.vitepress/dist/`。新增关键文档同步中英文 README 与文档索引；发布时同步双语 Changelog。结构检查不替代语义审查。
 
 具体修改起点、证据要求与验收清单见[开发任务指引](./task-recipes.md)。该页只导航现有实现，不维护第二份协议或 operation grammar。
+
+## 格式、编译器与覆盖率
+
+`pnpm format` 格式化维护源码；`pnpm lint:ci` 使用 `biome ci` 同时检查格式和规则。生成契约、fixture、dist 与站点产物不参与手工格式化。Node 内置模块导入强制使用 `node:`，src 的显式 any 报 warning。
+
+根 package.json 的 toolchain 字段说明双编译器分工：`typecheck` 显式调用 `@typescript/native/bin/tsc`（TS7），TypeDoc 和契约生成使用 `typescript` 别名提供的 TS6 Compiler API。禁止依赖两个包争用的裸 tsc shim。tarball 类型消费者验证 TS6 的 NodeNext ESM/CJS；TS5 不在当前承诺范围。
+
+`pnpm coverage` 先构建再执行完整 AVA，以 c8 检查维护源码：lines/statements/functions 至少 90%，branches 至少 75%，生成代码不计入分母。输出 coverage/lcov.info 和终端摘要；Ubuntu / Node 22 CI 执行并上传报告，未达到门槛直接失败。AVA 的 workerThreads: false 只在根配置声明，并将并行测试文件上限设为 4，避免 Windows 上大量进程启动导致超时。
+
+## 离线验证
+
+已有依赖和固定 fixture 时，`pnpm check:fast --base origin/next` 与 `pnpm check` 不主动下载浏览器或安装消费者依赖。离线可先运行这些检查，再运行 `pnpm docs:check`；缺少 fixture 时先报告 `pnpm refs:status` 的结果，不能把跳过视为通过。`pnpm check:ci` 的 tarball 消费者安装/浏览器下载仍需网络，恢复网络后补跑，离线结果不替代完整 CI。
+
+## 贡献入口
+
+从翻译修正或独立回归用例开始，说明预期行为和证据；按包职责修改，在 PR 中记录验证与限制。协议需要固定版本样本，发布需要双语日志。维护者培养先完成一次审查与发布演练，再分配权限。阶段与验收见[路线图](./roadmap.md)。

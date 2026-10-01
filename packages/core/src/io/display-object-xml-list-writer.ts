@@ -1,7 +1,13 @@
 import { type GList, type GListItemData, getDefaultListAutoResizeItem } from '../properties/g-list.js';
 import type { GTree } from '../properties/g-tree.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr } from './project-xml-protocol.js';
-import { formatInsets, formatProjectInt32List, getProtocolChildName, hasNonZeroInsets, serializePropertyOverrideXmlNode } from './project-xml-writer-utils.js';
+import {
+	formatInsets,
+	formatProjectInt32List,
+	getProtocolChildName,
+	hasNonZeroInsets,
+	serializePropertyOverrideXmlNode,
+} from './project-xml-writer-utils.js';
 
 export function writeListXmlNode(attrs: Record<string, unknown>, object: GList | GTree): void {
 	const specs = PROJECT_XML_PROTOCOL.list.attrs;
@@ -76,13 +82,15 @@ export function writeListXmlNode(attrs: Record<string, unknown>, object: GList |
 	const defaultItem = object.getDefaultItem();
 	if (defaultItem) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.defaultItem, defaultItem);
 	const selectionController = object.getSelectionController();
-	if (selectionController) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.selectionController, selectionController);
+	if (selectionController)
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.selectionController, selectionController);
 	if (isTree) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.treeView, 'true');
 	if (isTree) {
 		const indent = object.getIndent() ?? 0;
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.indent, String(indent));
 		const clickToExpand = object.getClickToExpand() ?? 0;
-		if (clickToExpand !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.clickToExpand, String(clickToExpand));
+		if (clickToExpand !== 0)
+			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.clickToExpand, String(clickToExpand));
 	}
 	const overflow = object.getOverflow() ?? 0;
 	if (overflow !== 0) {
@@ -100,25 +108,34 @@ export function writeListXmlNode(attrs: Record<string, unknown>, object: GList |
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBar, scrollBarName[scrollBarDisplay] ?? 'default');
 	}
 	const scrollBarFlags = object.getScrollBarFlags() ?? 0;
-	if (scrollBarFlags !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarFlags, String(scrollBarFlags));
+	if (scrollBarFlags !== 0)
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarFlags, String(scrollBarFlags));
 	const scrollBarMargin = object.getScrollBarMargin();
 	if (hasNonZeroInsets(scrollBarMargin)) {
-		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarMargin, formatInsets(scrollBarMargin!, 'list scrollBarMargin'));
+		writeXmlAttr(
+			attrs,
+			PROJECT_XML_PROTOCOL.list.attrs.scrollBarMargin,
+			formatInsets(scrollBarMargin!, 'list scrollBarMargin'),
+		);
 	}
 	const vtScrollBarRes = object.getVtScrollBarRes() ?? '';
 	const hzScrollBarRes = object.getHzScrollBarRes() ?? '';
-	if (vtScrollBarRes || hzScrollBarRes) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarRes, `${vtScrollBarRes},${hzScrollBarRes}`);
+	if (vtScrollBarRes || hzScrollBarRes)
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarRes, `${vtScrollBarRes},${hzScrollBarRes}`);
 	const headerRes = object.getHeaderRes() ?? '';
 	const footerRes = object.getFooterRes() ?? '';
-	if (headerRes || footerRes) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.ptrRes, `${headerRes},${footerRes}`);
+	if (headerRes || footerRes)
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.ptrRes, `${headerRes},${footerRes}`);
 	const margin = object.getMargin();
-	if (hasNonZeroInsets(margin)) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.margin, formatInsets(margin!, 'list margin'));
+	if (hasNonZeroInsets(margin))
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.margin, formatInsets(margin!, 'list margin'));
 	const clipSoftness = object.getClipSoftness();
 	if (clipSoftness && ((clipSoftness.x ?? 0) !== 0 || (clipSoftness.y ?? 0) !== 0)) {
-		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.clipSoftness, formatProjectInt32List([
-			clipSoftness.x ?? 0,
-			clipSoftness.y ?? 0,
-		], 'list clipSoftness'));
+		writeXmlAttr(
+			attrs,
+			PROJECT_XML_PROTOCOL.list.attrs.clipSoftness,
+			formatProjectInt32List([clipSoftness.x ?? 0, clipSoftness.y ?? 0], 'list clipSoftness'),
+		);
 	}
 	if (object.getScrollItemToViewOnClick() === false) {
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollItemToViewOnClick, 'false');
@@ -136,24 +153,34 @@ export function writeListXmlNode(attrs: Record<string, unknown>, object: GList |
 	}
 }
 
-function serializeListItemXmlNode(item: GListItemData, options?: {
-	forceLevel?: boolean;
-}): Record<string, unknown> {
+function serializeListItemXmlNode(
+	item: GListItemData,
+	options?: {
+		forceLevel?: boolean;
+	},
+): Record<string, unknown> {
 	const attrs: Record<string, unknown> = {};
 	const specs = PROJECT_XML_PROTOCOL.listItem.attrs;
 	if (item.title !== undefined && item.title !== null) writeXmlAttr(attrs, specs.title, item.title);
 	if (item.icon !== undefined && item.icon !== null) writeXmlAttr(attrs, specs.icon, item.icon);
 	if (item.url !== undefined && item.url !== null) writeXmlAttr(attrs, specs.url, item.url);
 	if (item.name !== undefined && item.name !== null) writeXmlAttr(attrs, specs.name, item.name);
-	if (item.selectedTitle !== undefined && item.selectedTitle !== null) writeXmlAttr(attrs, specs.selectedTitle, item.selectedTitle);
-	if (item.selectedIcon !== undefined && item.selectedIcon !== null) writeXmlAttr(attrs, specs.selectedIcon, item.selectedIcon);
-	if (item.level !== undefined && item.level !== null && ((options?.forceLevel ?? false) || item.level !== 0 || item.isFolder === true)) {
+	if (item.selectedTitle !== undefined && item.selectedTitle !== null)
+		writeXmlAttr(attrs, specs.selectedTitle, item.selectedTitle);
+	if (item.selectedIcon !== undefined && item.selectedIcon !== null)
+		writeXmlAttr(attrs, specs.selectedIcon, item.selectedIcon);
+	if (
+		item.level !== undefined &&
+		item.level !== null &&
+		((options?.forceLevel ?? false) || item.level !== 0 || item.isFolder === true)
+	) {
 		writeXmlAttr(attrs, specs.level, String(item.level));
 	}
 	if (item.isFolder !== undefined && item.isFolder !== null) {
 		writeXmlAttr(attrs, specs.isFolder, item.isFolder ? 'true' : 'false');
 	}
-	if (item.controllers !== undefined && item.controllers !== null) writeXmlAttr(attrs, specs.controllers, item.controllers);
+	if (item.controllers !== undefined && item.controllers !== null)
+		writeXmlAttr(attrs, specs.controllers, item.controllers);
 	const propertyChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.listItem, 'property');
 	if (propertyChildName && item.propertyOverrides?.length) {
 		attrs[propertyChildName] = item.propertyOverrides.map(serializePropertyOverrideXmlNode);

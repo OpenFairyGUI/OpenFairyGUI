@@ -47,10 +47,7 @@ function createMovieClipJta(
 
 test('parseJta derives v100 bounds when frames stay on the negative axes', (t) => {
 	const parsed = parseJta(createMovieClipJta(100, 20, 10, -30, -20));
-	t.deepEqual(
-		{ width: parsed.boundsWidth, height: parsed.boundsHeight },
-		{ width: 20, height: 10 },
-	);
+	t.deepEqual({ width: parsed.boundsWidth, height: parsed.boundsHeight }, { width: 20, height: 10 });
 });
 
 test('parseJta and the shared MovieClip derivation cover v100, v101, and v102 timing and frames', (t) => {
@@ -77,12 +74,24 @@ test('parseJta and the shared MovieClip derivation cover v100, v101, and v102 ti
 	t.throws(() => parseJta(createMovieClipJta(102, 10, 10, 0, 0, { fps: -1 })), {
 		message: /Invalid \.jta file: negative fps/,
 	});
-	t.throws(() => parseJta(createMovieClipJta(102, 10, 10, 0, 0, {
-		frames: [{ delay: 0, rectX: 0, rectY: 0, rectWidth: 10, rectHeight: 10, textureIndex: 0 }],
-	})), { message: /texture index 0 is outside/ });
-	t.throws(() => parseJta(createMovieClipJta(102, 10, 10, 0, 0, {
-		frames: [{ delay: 0, rectX: 0, rectY: 0, rectWidth: 10, rectHeight: 10, textureIndex: -2 }],
-	})), { message: /texture index -2 is outside/ });
+	t.throws(
+		() =>
+			parseJta(
+				createMovieClipJta(102, 10, 10, 0, 0, {
+					frames: [{ delay: 0, rectX: 0, rectY: 0, rectWidth: 10, rectHeight: 10, textureIndex: 0 }],
+				}),
+			),
+		{ message: /texture index 0 is outside/ },
+	);
+	t.throws(
+		() =>
+			parseJta(
+				createMovieClipJta(102, 10, 10, 0, 0, {
+					frames: [{ delay: 0, rectX: 0, rectY: 0, rectWidth: 10, rectHeight: 10, textureIndex: -2 }],
+				}),
+			),
+		{ message: /texture index -2 is outside/ },
+	);
 	for (const frame of [
 		{ delay: -1, rectX: 0, rectY: 0, rectWidth: 10, rectHeight: 10, textureIndex: -1 },
 		{ delay: 0, rectX: 0, rectY: 0, rectWidth: -1, rectHeight: 10, textureIndex: -1 },
@@ -124,7 +133,13 @@ test('MovieClip materialization keeps stored properties when source JTA cannot b
 	if (movieClip?.propertyType !== PropertyType.MOVIE_CLIP_RESOURCE) return;
 	t.deepEqual(movieClip.getSourceData()?.getData(), sourceBytes);
 	t.deepEqual(
-		[movieClip.getWidth(), movieClip.getHeight(), movieClip.getInterval(), movieClip.getRepeatDelay(), movieClip.getSwing()],
+		[
+			movieClip.getWidth(),
+			movieClip.getHeight(),
+			movieClip.getInterval(),
+			movieClip.getRepeatDelay(),
+			movieClip.getSwing(),
+		],
 		[40, 30, 80, 160, true],
 	);
 	t.false(movieClip.getSmoothing());
@@ -165,7 +180,9 @@ test('project settings transactions validate, detach, preserve unknown JSON, and
 	t.deepEqual(restored.settings, original);
 	const unchanged = validateTransactionSupport(project, [{ kind: 'updateProjectSettings', settings: original }]);
 	t.is(unchanged[0]?.code, 'project_settings_unchanged');
-	const unchangedError = t.throws(() => applyUamTransaction(project, [{ kind: 'updateProjectSettings', settings: original }]));
+	const unchangedError = t.throws(() =>
+		applyUamTransaction(project, [{ kind: 'updateProjectSettings', settings: original }]),
+	);
 	t.true(unchangedError instanceof UamTransactionError);
 
 	const circular: Record<string, unknown> = {};
@@ -247,11 +264,14 @@ test('package settings transactions replace one complete snapshot and support an
 
 	t.deepEqual(validateTransactionSupport(project, [operation]), []);
 	const result = applyUamTransaction(project, [operation]);
-	const mixed = applyUamTransaction(project, [operation, {
-		kind: 'addController',
-		selector: { packageId: pkg.id, componentResourceId: 'cmp001', controllerName: 'state' },
-		controller: createControllerModel('state'),
-	}]);
+	const mixed = applyUamTransaction(project, [
+		operation,
+		{
+			kind: 'addController',
+			selector: { packageId: pkg.id, componentResourceId: 'cmp001', controllerName: 'state' },
+			controller: createControllerModel('state'),
+		},
+	]);
 	t.is(mixed.packages[0]?.jpegQuality, 73);
 	const mixedComponent = mixed.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
 	t.is(mixedComponent?.kind === 'component' ? mixedComponent.component.controllers[0]?.name : undefined, 'state');
@@ -261,22 +281,29 @@ test('package settings transactions replace one complete snapshot and support an
 	t.deepEqual(result.packages[0]?.publish?.excludedResourceIds, ['img001', 'missing-resource']);
 	t.deepEqual({ compressPNG: pkg.compressPNG, jpegQuality: pkg.jpegQuality, publish: pkg.publish }, original);
 
-	const restored = applyUamTransaction(result, [{
-		kind: 'updatePackageSettings',
-		selector: { packageId: pkg.id },
-		settings: original,
-	}]);
-	t.deepEqual({
-		compressPNG: restored.packages[0]?.compressPNG,
-		jpegQuality: restored.packages[0]?.jpegQuality,
-		publish: restored.packages[0]?.publish,
-	}, original);
+	const restored = applyUamTransaction(result, [
+		{
+			kind: 'updatePackageSettings',
+			selector: { packageId: pkg.id },
+			settings: original,
+		},
+	]);
+	t.deepEqual(
+		{
+			compressPNG: restored.packages[0]?.compressPNG,
+			jpegQuality: restored.packages[0]?.jpegQuality,
+			publish: restored.packages[0]?.publish,
+		},
+		original,
+	);
 
-	const unchanged = validateTransactionSupport(project, [{
-		kind: 'updatePackageSettings',
-		selector: { packageId: pkg.id },
-		settings: original,
-	}]);
+	const unchanged = validateTransactionSupport(project, [
+		{
+			kind: 'updatePackageSettings',
+			selector: { packageId: pkg.id },
+			settings: original,
+		},
+	]);
 	t.is(unchanged[0]?.code, 'package_settings_unchanged');
 
 	const valid = structuredClone(original);
@@ -286,28 +313,46 @@ test('package settings transactions replace one complete snapshot and support an
 		{ ...valid, publish: null },
 		{ ...valid, publish: { ...valid.publish!, path: '../escape' } },
 		{ ...valid, publish: { ...valid.publish!, maxAtlasSize: 0 } },
-		{ ...valid, publish: { ...valid.publish!, maxAtlasIndex: 2, atlases: [{ index: 3, name: 'Late', compression: false }] } },
+		{
+			...valid,
+			publish: { ...valid.publish!, maxAtlasIndex: 2, atlases: [{ index: 3, name: 'Late', compression: false }] },
+		},
 		{ ...valid, publish: { ...valid.publish!, excludedResourceIds: ['bad,id'] } },
 	]) {
-		const issues = validateTransactionSupport(project, [{
-			kind: 'updatePackageSettings',
-			selector: { packageId: pkg.id },
-			settings,
-		} as never]);
+		const issues = validateTransactionSupport(project, [
+			{
+				kind: 'updatePackageSettings',
+				selector: { packageId: pkg.id },
+				settings,
+			} as never,
+		]);
 		t.is(issues[0]?.code, 'invalid_package_settings');
 	}
-	t.is(validateTransactionSupport(project, [{
-		kind: 'updatePackageSettings',
-		selector: { packageId: 'missing' },
-		settings: original,
-	}])[0]?.code, 'invalid_package_selector');
+	t.is(
+		validateTransactionSupport(project, [
+			{
+				kind: 'updatePackageSettings',
+				selector: { packageId: 'missing' },
+				settings: original,
+			},
+		])[0]?.code,
+		'invalid_package_selector',
+	);
 });
 
 test('resource exported transactions support assets, components, inverse, and source immutability', (t) => {
 	const project = createSupportedProject();
 	const operations = [
-		{ kind: 'setResourceExported' as const, selector: { packageId: 'pkg001', resourceId: 'img001' }, exported: false },
-		{ kind: 'setResourceExported' as const, selector: { packageId: 'pkg001', resourceId: 'cmp001' }, exported: false },
+		{
+			kind: 'setResourceExported' as const,
+			selector: { packageId: 'pkg001', resourceId: 'img001' },
+			exported: false,
+		},
+		{
+			kind: 'setResourceExported' as const,
+			selector: { packageId: 'pkg001', resourceId: 'cmp001' },
+			exported: false,
+		},
 	];
 
 	t.deepEqual(validateTransactionSupport(project, operations), []);
@@ -317,11 +362,16 @@ test('resource exported transactions support assets, components, inverse, and so
 	t.false(result.packages[0]?.resources.find((resource) => resource.id === 'img001')?.exported);
 	t.false(result.packages[0]?.resources.find((resource) => resource.id === 'cmp001')?.exported);
 
-	const restored = applyUamTransaction(result, operations.map((operation) => ({ ...operation, exported: true })));
+	const restored = applyUamTransaction(
+		result,
+		operations.map((operation) => ({ ...operation, exported: true })),
+	);
 	t.true(restored.packages[0]?.resources.find((resource) => resource.id === 'img001')?.exported);
 	t.true(restored.packages[0]?.resources.find((resource) => resource.id === 'cmp001')?.exported);
 
-	const invalid = validateTransactionSupport(project, [{ ...operations[0]!, exported: 'true' as unknown as boolean }]);
+	const invalid = validateTransactionSupport(project, [
+		{ ...operations[0]!, exported: 'true' as unknown as boolean },
+	]);
 	t.is(invalid[0]?.code, 'invalid_resource_payload');
 	t.is(invalid[0]?.path, 'operations[0].exported');
 
@@ -347,9 +397,21 @@ test('resource folder favorite supports non-empty and branch folders, inverse, a
 		{ branch: 'mobile', path: '/branch/', favorite: false, atlas: '' },
 	);
 	const operations = [
-		{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', path: '/images/' }, favorite: true },
-		{ kind: 'setResourceFavorite' as const, selector: { packageId: 'pkg001', resourceId: 'img001' }, favorite: true },
-		{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', branch: 'mobile', path: '/branch/' }, favorite: true },
+		{
+			kind: 'setResourceFolderFavorite' as const,
+			selector: { packageId: 'pkg001', path: '/images/' },
+			favorite: true,
+		},
+		{
+			kind: 'setResourceFavorite' as const,
+			selector: { packageId: 'pkg001', resourceId: 'img001' },
+			favorite: true,
+		},
+		{
+			kind: 'setResourceFolderFavorite' as const,
+			selector: { packageId: 'pkg001', branch: 'mobile', path: '/branch/' },
+			favorite: true,
+		},
 	];
 
 	t.deepEqual(validateTransactionSupport(project, operations), []);
@@ -361,16 +423,25 @@ test('resource folder favorite supports non-empty and branch folders, inverse, a
 	t.false(result.packages[0]!.folders.find((folder) => folder.path === '/other/')?.favorite);
 	t.true(result.packages[0]!.resources.find((resource) => resource.id === 'img001')?.favorite);
 
-	const restored = applyUamTransaction(result, operations.map((operation) => ({ ...operation, favorite: false })));
+	const restored = applyUamTransaction(
+		result,
+		operations.map((operation) => ({ ...operation, favorite: false })),
+	);
 	t.deepEqual(restored, project);
 
 	const invalid = validateTransactionSupport(project, [
 		{ kind: 'setResourceFolderFavorite', selector: { packageId: 'pkg001', path: '/' }, favorite: true },
 		{ kind: 'setResourceFolderFavorite', selector: { packageId: 'pkg001', path: '/missing/' }, favorite: true },
-		{ kind: 'setResourceFolderFavorite', selector: { packageId: 'pkg001', path: '/images/' }, favorite: 'true' as unknown as boolean },
+		{
+			kind: 'setResourceFolderFavorite',
+			selector: { packageId: 'pkg001', path: '/images/' },
+			favorite: 'true' as unknown as boolean,
+		},
 	]);
 	t.true(invalid.filter((issue) => issue.code === 'invalid_resource_folder_selector').length >= 2);
-	t.true(invalid.some((issue) => issue.path === 'operations[2].favorite' && issue.code === 'invalid_resource_payload'));
+	t.true(
+		invalid.some((issue) => issue.path === 'operations[2].favorite' && issue.code === 'invalid_resource_payload'),
+	);
 
 	const documentBacked = applyUamTransaction(project, [
 		operations[0]!,
@@ -387,7 +458,11 @@ test('resource folder atlas supports projected slots, inverse, both apply paths,
 	const original = structuredClone(project);
 	const operations = [
 		{ kind: 'setResourceFolderAtlas' as const, selector: { packageId: 'pkg001', path: '/images/' }, atlas: '2' },
-		{ kind: 'setResourceFolderAtlas' as const, selector: { packageId: 'pkg001', branch: 'mobile', path: '/branch/' }, atlas: '10' },
+		{
+			kind: 'setResourceFolderAtlas' as const,
+			selector: { packageId: 'pkg001', branch: 'mobile', path: '/branch/' },
+			atlas: '10',
+		},
 	];
 
 	t.deepEqual(validateTransactionSupport(project, operations), []);
@@ -395,7 +470,13 @@ test('resource folder atlas supports projected slots, inverse, both apply paths,
 	t.is(result.packages[0]!.folders.find((folder) => folder.path === '/images/')?.atlas, '2');
 	t.is(result.packages[0]!.folders.find((folder) => folder.branch === 'mobile')?.atlas, '10');
 	t.deepEqual(project, original);
-	t.deepEqual(applyUamTransaction(result, operations.map((operation) => ({ ...operation, atlas: '' }))), project);
+	t.deepEqual(
+		applyUamTransaction(
+			result,
+			operations.map((operation) => ({ ...operation, atlas: '' })),
+		),
+		project,
+	);
 
 	const documentBacked = applyUamTransaction(project, [
 		operations[0]!,
@@ -422,24 +503,54 @@ test('resource folder atlas supports projected slots, inverse, both apply paths,
 	t.is(expanded.packages[0]?.folders.find((folder) => folder.path === '/images/')?.atlas, '12');
 
 	for (const atlas of ['atlas0', '01', '11']) {
-		const issues = validateTransactionSupport(project, [{
-			kind: 'setResourceFolderAtlas', selector: { packageId: 'pkg001', path: '/images/' }, atlas,
-		}]);
+		const issues = validateTransactionSupport(project, [
+			{
+				kind: 'setResourceFolderAtlas',
+				selector: { packageId: 'pkg001', path: '/images/' },
+				atlas,
+			},
+		]);
 		t.is(issues[0]?.code, 'invalid_resource_folder_atlas');
 	}
-	t.is(validateTransactionSupport(project, [{
-		kind: 'setResourceFolderAtlas', selector: { packageId: 'pkg001', path: '/images/' }, atlas: '',
-	}])[0]?.code, 'resource_folder_atlas_unchanged');
-	t.is(validateTransactionSupport(project, [{
-		kind: 'addResourceFolder', selector: { packageId: 'pkg001' }, path: '/invalid-atlas/', atlas: 'atlas0',
-	}])[0]?.code, 'invalid_resource_folder_atlas');
-	t.is(validateTransactionSupport(project, [
-		{ kind: 'setResourceFolderAtlas', selector: { packageId: 'pkg001', path: '/images/' }, atlas: '12' },
-		{ kind: 'updatePackageSettings', selector: { packageId: 'pkg001' }, settings: expandedSettings },
-	])[0]?.code, 'invalid_resource_folder_atlas');
-	t.throws(() => applyUamTransaction(project, [{
-		kind: 'setResourceFolderAtlas', selector: { packageId: 'pkg001', path: '/images/' }, atlas: 'atlas0',
-	}]), { instanceOf: UamTransactionError });
+	t.is(
+		validateTransactionSupport(project, [
+			{
+				kind: 'setResourceFolderAtlas',
+				selector: { packageId: 'pkg001', path: '/images/' },
+				atlas: '',
+			},
+		])[0]?.code,
+		'resource_folder_atlas_unchanged',
+	);
+	t.is(
+		validateTransactionSupport(project, [
+			{
+				kind: 'addResourceFolder',
+				selector: { packageId: 'pkg001' },
+				path: '/invalid-atlas/',
+				atlas: 'atlas0',
+			},
+		])[0]?.code,
+		'invalid_resource_folder_atlas',
+	);
+	t.is(
+		validateTransactionSupport(project, [
+			{ kind: 'setResourceFolderAtlas', selector: { packageId: 'pkg001', path: '/images/' }, atlas: '12' },
+			{ kind: 'updatePackageSettings', selector: { packageId: 'pkg001' }, settings: expandedSettings },
+		])[0]?.code,
+		'invalid_resource_folder_atlas',
+	);
+	t.throws(
+		() =>
+			applyUamTransaction(project, [
+				{
+					kind: 'setResourceFolderAtlas',
+					selector: { packageId: 'pkg001', path: '/images/' },
+					atlas: 'atlas0',
+				},
+			]),
+		{ instanceOf: UamTransactionError },
+	);
 	t.deepEqual(project, original);
 });
 
@@ -453,41 +564,110 @@ test('resource folder favorite follows sequential folder lifecycle projection', 
 	const original = structuredClone(project);
 	const operations = [
 		{ kind: 'addResourceFolder' as const, selector: { packageId: 'pkg001' }, path: '/work/' },
-		{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', path: '/work/' }, favorite: true },
-		{ kind: 'renameResourceFolder' as const, selector: { packageId: 'pkg001', path: '/work/' }, newName: 'renamed' },
-		{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', path: '/renamed/' }, favorite: false },
-		{ kind: 'moveResourceFolder' as const, selector: { packageId: 'pkg001', path: '/renamed/' }, toPath: '/target/' },
-		{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', path: '/target/renamed/' }, favorite: true },
-		{ kind: 'addResourceFolder' as const, selector: { packageId: 'pkg001' }, branch: 'mobile', path: '/branch-root/' },
-		{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', branch: 'mobile', path: '/branch-root/' }, favorite: true },
-		{ kind: 'addResourceFolder' as const, selector: { packageId: 'pkg001' }, branch: 'mobile', path: '/branch-root/nested/' },
-		{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', branch: 'mobile', path: '/branch-root/nested/' }, favorite: true },
+		{
+			kind: 'setResourceFolderFavorite' as const,
+			selector: { packageId: 'pkg001', path: '/work/' },
+			favorite: true,
+		},
+		{
+			kind: 'renameResourceFolder' as const,
+			selector: { packageId: 'pkg001', path: '/work/' },
+			newName: 'renamed',
+		},
+		{
+			kind: 'setResourceFolderFavorite' as const,
+			selector: { packageId: 'pkg001', path: '/renamed/' },
+			favorite: false,
+		},
+		{
+			kind: 'moveResourceFolder' as const,
+			selector: { packageId: 'pkg001', path: '/renamed/' },
+			toPath: '/target/',
+		},
+		{
+			kind: 'setResourceFolderFavorite' as const,
+			selector: { packageId: 'pkg001', path: '/target/renamed/' },
+			favorite: true,
+		},
+		{
+			kind: 'addResourceFolder' as const,
+			selector: { packageId: 'pkg001' },
+			branch: 'mobile',
+			path: '/branch-root/',
+		},
+		{
+			kind: 'setResourceFolderFavorite' as const,
+			selector: { packageId: 'pkg001', branch: 'mobile', path: '/branch-root/' },
+			favorite: true,
+		},
+		{
+			kind: 'addResourceFolder' as const,
+			selector: { packageId: 'pkg001' },
+			branch: 'mobile',
+			path: '/branch-root/nested/',
+		},
+		{
+			kind: 'setResourceFolderFavorite' as const,
+			selector: { packageId: 'pkg001', branch: 'mobile', path: '/branch-root/nested/' },
+			favorite: true,
+		},
 	];
 
 	t.deepEqual(validateTransactionSupport(project, operations), []);
 	const result = applyUamTransaction(project, operations);
 	t.true(result.packages[0]!.folders.find((folder) => folder.path === '/target/renamed/')?.favorite);
-	t.true(result.packages[0]!.folders.find((folder) => folder.branch === 'mobile' && folder.path === '/branch-root/')?.favorite);
-	t.true(result.packages[0]!.folders.find((folder) => folder.branch === 'mobile' && folder.path === '/branch-root/nested/')?.favorite);
+	t.true(
+		result.packages[0]!.folders.find((folder) => folder.branch === 'mobile' && folder.path === '/branch-root/')
+			?.favorite,
+	);
+	t.true(
+		result.packages[0]!.folders.find(
+			(folder) => folder.branch === 'mobile' && folder.path === '/branch-root/nested/',
+		)?.favorite,
+	);
 	t.deepEqual(project, original);
 
 	const staleCases = [
 		[
-			{ kind: 'renameResourceFolder' as const, selector: { packageId: 'pkg001', path: '/empty/' }, newName: 'renamed' },
-			{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', path: '/empty/' }, favorite: true },
+			{
+				kind: 'renameResourceFolder' as const,
+				selector: { packageId: 'pkg001', path: '/empty/' },
+				newName: 'renamed',
+			},
+			{
+				kind: 'setResourceFolderFavorite' as const,
+				selector: { packageId: 'pkg001', path: '/empty/' },
+				favorite: true,
+			},
 		],
 		[
-			{ kind: 'moveResourceFolder' as const, selector: { packageId: 'pkg001', path: '/empty/' }, toPath: '/target/' },
-			{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', path: '/empty/' }, favorite: true },
+			{
+				kind: 'moveResourceFolder' as const,
+				selector: { packageId: 'pkg001', path: '/empty/' },
+				toPath: '/target/',
+			},
+			{
+				kind: 'setResourceFolderFavorite' as const,
+				selector: { packageId: 'pkg001', path: '/empty/' },
+				favorite: true,
+			},
 		],
 		[
 			{ kind: 'removeResourceFolder' as const, selector: { packageId: 'pkg001', path: '/empty/' } },
-			{ kind: 'setResourceFolderFavorite' as const, selector: { packageId: 'pkg001', path: '/empty/' }, favorite: true },
+			{
+				kind: 'setResourceFolderFavorite' as const,
+				selector: { packageId: 'pkg001', path: '/empty/' },
+				favorite: true,
+			},
 		],
 	];
 	for (const stale of staleCases) {
 		const issues = validateTransactionSupport(project, stale);
-		t.true(issues.some((issue) => issue.code === 'invalid_resource_folder_selector' && issue.path === 'operations[1].selector'));
+		t.true(
+			issues.some(
+				(issue) => issue.code === 'invalid_resource_folder_selector' && issue.path === 'operations[1].selector',
+			),
+		);
 		const error = t.throws(() => applyUamTransaction(project, stale), { instanceOf: UamTransactionError });
 		t.is(error?.code, 'transaction_unsupported');
 		t.deepEqual(project, original);
@@ -504,47 +684,91 @@ test('resource folder lifecycle supports empty-folder forward, inverse, and atom
 
 	const atomic = [
 		{ kind: 'addResourceFolder' as const, selector: { packageId: 'pkg001' }, path: '/work/' },
-		{ kind: 'renameResourceFolder' as const, selector: { packageId: 'pkg001', path: '/work/' }, newName: 'renamed' },
-		{ kind: 'moveResourceFolder' as const, selector: { packageId: 'pkg001', path: '/renamed/' }, toPath: '/empty/' },
+		{
+			kind: 'renameResourceFolder' as const,
+			selector: { packageId: 'pkg001', path: '/work/' },
+			newName: 'renamed',
+		},
+		{
+			kind: 'moveResourceFolder' as const,
+			selector: { packageId: 'pkg001', path: '/renamed/' },
+			toPath: '/empty/',
+		},
 		{ kind: 'removeResourceFolder' as const, selector: { packageId: 'pkg001', path: '/empty/renamed/' } },
 	];
 	t.deepEqual(validateTransactionSupport(project, atomic), []);
 	t.deepEqual(applyUamTransaction(project, atomic).packages[0]!.folders, originalFolders);
 	t.deepEqual(project.packages[0]!.folders, originalFolders);
 
-	const added = applyUamTransaction(project, [{
-		kind: 'addResourceFolder', selector: { packageId: 'pkg001' }, path: '/added/',
-	}]);
-	t.deepEqual(applyUamTransaction(added, [{
-		kind: 'removeResourceFolder', selector: { packageId: 'pkg001', path: '/added/' },
-	}]).packages[0]!.folders, originalFolders);
+	const added = applyUamTransaction(project, [
+		{
+			kind: 'addResourceFolder',
+			selector: { packageId: 'pkg001' },
+			path: '/added/',
+		},
+	]);
+	t.deepEqual(
+		applyUamTransaction(added, [
+			{
+				kind: 'removeResourceFolder',
+				selector: { packageId: 'pkg001', path: '/added/' },
+			},
+		]).packages[0]!.folders,
+		originalFolders,
+	);
 
-	const renamed = applyUamTransaction(project, [{
-		kind: 'renameResourceFolder', selector: { packageId: 'pkg001', path: '/empty/' }, newName: 'renamed',
-	}]);
-	t.deepEqual(applyUamTransaction(renamed, [{
-		kind: 'renameResourceFolder', selector: { packageId: 'pkg001', path: '/renamed/' }, newName: 'empty',
-	}]).packages[0]!.folders, originalFolders);
+	const renamed = applyUamTransaction(project, [
+		{
+			kind: 'renameResourceFolder',
+			selector: { packageId: 'pkg001', path: '/empty/' },
+			newName: 'renamed',
+		},
+	]);
+	t.deepEqual(
+		applyUamTransaction(renamed, [
+			{
+				kind: 'renameResourceFolder',
+				selector: { packageId: 'pkg001', path: '/renamed/' },
+				newName: 'empty',
+			},
+		]).packages[0]!.folders,
+		originalFolders,
+	);
 
-	const moved = applyUamTransaction(project, [{
-		kind: 'moveResourceFolder', selector: { packageId: 'pkg001', path: '/empty/' }, toPath: '/images/',
-	}]);
-	t.deepEqual(applyUamTransaction(moved, [{
-		kind: 'moveResourceFolder', selector: { packageId: 'pkg001', path: '/images/empty/' }, toPath: '/',
-	}]).packages[0]!.folders, originalFolders);
+	const moved = applyUamTransaction(project, [
+		{
+			kind: 'moveResourceFolder',
+			selector: { packageId: 'pkg001', path: '/empty/' },
+			toPath: '/images/',
+		},
+	]);
+	t.deepEqual(
+		applyUamTransaction(moved, [
+			{
+				kind: 'moveResourceFolder',
+				selector: { packageId: 'pkg001', path: '/images/empty/' },
+				toPath: '/',
+			},
+		]).packages[0]!.folders,
+		originalFolders,
+	);
 
-	const removed = applyUamTransaction(project, [{
-		kind: 'removeResourceFolder',
-		selector: { packageId: 'pkg001', path: '/empty/' },
-	}]);
+	const removed = applyUamTransaction(project, [
+		{
+			kind: 'removeResourceFolder',
+			selector: { packageId: 'pkg001', path: '/empty/' },
+		},
+	]);
 	t.false(removed.packages[0]!.folders.some((folder) => folder.path === '/empty/'));
-	const restored = applyUamTransaction(removed, [{
-		kind: 'addResourceFolder',
-		selector: { packageId: 'pkg001' },
-		path: '/empty/',
-		favorite: true,
-		atlas: '0',
-	}]);
+	const restored = applyUamTransaction(removed, [
+		{
+			kind: 'addResourceFolder',
+			selector: { packageId: 'pkg001' },
+			path: '/empty/',
+			favorite: true,
+			atlas: '0',
+		},
+	]);
 	t.deepEqual(restored.packages[0]!.folders, originalFolders);
 });
 
@@ -559,7 +783,11 @@ test('resource folder preflight rejects invalid selectors, conflicts, and non-em
 		{ kind: 'addResourceFolder' as const, selector: { packageId: 'pkg001' }, path: '/missing/child/' },
 		{ kind: 'addResourceFolder' as const, selector: { packageId: 'pkg001' }, path: '/empty/' },
 		{ kind: 'addResourceFolder' as const, selector: { packageId: 'pkg001' }, path: '/images/background.png/' },
-		{ kind: 'renameResourceFolder' as const, selector: { packageId: 'pkg001', path: '/images/' }, newName: 'renamed' },
+		{
+			kind: 'renameResourceFolder' as const,
+			selector: { packageId: 'pkg001', path: '/images/' },
+			newName: 'renamed',
+		},
 		{ kind: 'moveResourceFolder' as const, selector: { packageId: 'pkg001', path: '/images/' }, toPath: '/empty/' },
 		{ kind: 'removeResourceFolder' as const, selector: { packageId: 'pkg001', path: '/images/' } },
 	];
@@ -569,7 +797,10 @@ test('resource folder preflight rejects invalid selectors, conflicts, and non-em
 	t.true(issues.some((issue) => issue.code === 'resource_folder_conflict'));
 	t.true(issues.filter((issue) => issue.code === 'resource_folder_not_empty').length >= 3);
 	t.throws(() => applyUamTransaction(project, operations), { instanceOf: UamTransactionError });
-	t.deepEqual(project.packages[0]!.folders.map((folder) => folder.path), ['/images/', '/empty/']);
+	t.deepEqual(
+		project.packages[0]!.folders.map((folder) => folder.path),
+		['/images/', '/empty/'],
+	);
 });
 
 test('resource and display-list operations respect the frozen Phase A contracts', (t) => {
@@ -643,57 +874,62 @@ test('resource and display-list operations respect the frozen Phase A contracts'
 		t.fail('expected component resource after transaction');
 		return;
 	}
-	t.deepEqual(updatedComponent.component.displayList.map((node) => node.id), ['n0', 'n2']);
+	t.deepEqual(
+		updatedComponent.component.displayList.map((node) => node.id),
+		['n0', 'n2'],
+	);
 	const subtitleNode = updatedComponent.component.displayList[1] as UamTextNode | undefined;
 	t.is(subtitleNode?.kind, 'text');
 	t.is(subtitleNode?.text, 'Subtitle');
 
 	const forbiddenFieldError = t.throws(
-		() => applyUamTransaction(project, [
-			{
-				kind: 'setDisplayNodeProps',
-				opId: 'bad-props',
-				selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
-				props: {
-					resource: { resourceId: 'img001' },
-				} as never,
-			},
-		]),
+		() =>
+			applyUamTransaction(project, [
+				{
+					kind: 'setDisplayNodeProps',
+					opId: 'bad-props',
+					selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+					props: {
+						resource: { resourceId: 'img001' },
+					} as never,
+				},
+			]),
 		{ instanceOf: UamTransactionError },
 	);
 	t.is(forbiddenFieldError?.code, 'transaction_unsupported');
 
 	const duplicateAttachError = t.throws(
-		() => applyUamTransaction(project, [
-			{
-				kind: 'attachDisplayNode',
-				opId: 'duplicate-node',
-				selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
-				atIndex: 1,
-				node: {
-					...createDisplayNodeBase('n1', 'duplicate'),
-					kind: 'text',
-					...createDefaultUamPlainTextProperties(),
-					group: '',
-					id: 'n1',
-					name: 'duplicate',
-					position: { x: 0, y: 0 },
-					size: { width: 10, height: 10 },
-					visible: true,
-					touchable: true,
-					grayed: false,
-					alpha: 1,
-					rotation: 0,
-					customData: '',
-					relations: [],
-					gears: [],
-					text: 'dup',
-					font: '',
-					fontSize: 12,
-					color: '#ffffff',
+		() =>
+			applyUamTransaction(project, [
+				{
+					kind: 'attachDisplayNode',
+					opId: 'duplicate-node',
+					selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
+					atIndex: 1,
+					node: {
+						...createDisplayNodeBase('n1', 'duplicate'),
+						kind: 'text',
+						...createDefaultUamPlainTextProperties(),
+						group: '',
+						id: 'n1',
+						name: 'duplicate',
+						position: { x: 0, y: 0 },
+						size: { width: 10, height: 10 },
+						visible: true,
+						touchable: true,
+						grayed: false,
+						alpha: 1,
+						rotation: 0,
+						customData: '',
+						relations: [],
+						gears: [],
+						text: 'dup',
+						font: '',
+						fontSize: 12,
+						color: '#ffffff',
+					},
 				},
-			},
-		]),
+			]),
 		{ instanceOf: UamTransactionError },
 	);
 	t.is(duplicateAttachError?.opIndex, 0);
@@ -840,15 +1076,18 @@ test('text color snapshots canonicalize before save and reload', async (t) => {
 		shadowColor: '#ABCDEF',
 		shadowOffset: { x: 0, y: 0 },
 	};
-	const updated = applyUamTransaction(createSupportedProject(), [{
-		kind: 'setDisplayNodeProps',
-		selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
-		props: { textProperties },
-	}]);
+	const updated = applyUamTransaction(createSupportedProject(), [
+		{
+			kind: 'setDisplayNodeProps',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+			props: { textProperties },
+		},
+	]);
 	const updatedComponent = updated.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
-	const updatedText = updatedComponent?.kind === 'component'
-		? updatedComponent.component.displayList.find((node) => node.id === 'n1')
-		: null;
+	const updatedText =
+		updatedComponent?.kind === 'component'
+			? updatedComponent.component.displayList.find((node) => node.id === 'n1')
+			: null;
 	if (updatedText?.kind !== 'text') {
 		t.fail('expected updated text node');
 		return;
@@ -859,9 +1098,10 @@ test('text color snapshots canonicalize before save and reload', async (t) => {
 
 	const reloaded = await roundTripCommittedProject(updated);
 	const reloadedComponent = reloaded.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
-	const reloadedText = reloadedComponent?.kind === 'component'
-		? reloadedComponent.component.displayList.find((node) => node.id === 'n1')
-		: null;
+	const reloadedText =
+		reloadedComponent?.kind === 'component'
+			? reloadedComponent.component.displayList.find((node) => node.id === 'n1')
+			: null;
 	t.like(reloadedText, updatedText);
 });
 
@@ -947,14 +1187,21 @@ test('binary resource transactions require hydrated source bytes and survive wri
 	}
 	unhydratedImage.sourceBytes = null;
 	const missingBytesError = t.throws(
-		() => applyUamTransaction(unhydrated, [{
-			kind: 'moveResource',
-			selector: { packageId: 'pkg001', resourceId: 'img001' },
-			toPath: '/moved',
-		}]),
+		() =>
+			applyUamTransaction(unhydrated, [
+				{
+					kind: 'moveResource',
+					selector: { packageId: 'pkg001', resourceId: 'img001' },
+					toPath: '/moved',
+				},
+			]),
 		{ instanceOf: UamTransactionError },
 	);
-	t.true(missingBytesError?.issues?.some((issue) => 'code' in issue && issue.code === 'unavailable_resource_source_bytes') ?? false);
+	t.true(
+		missingBytesError?.issues?.some(
+			(issue) => 'code' in issue && issue.code === 'unavailable_resource_source_bytes',
+		) ?? false,
+	);
 
 	const renamed = applyUamTransaction(createSupportedProject(), [
 		{
@@ -976,31 +1223,35 @@ test('binary resource transactions require hydrated source bytes and survive wri
 	t.is(renamedImage.name, 'renamed');
 	t.is(renamedImage.fileName, 'renamed.png');
 	t.is(renamedImage.path, '/moved');
-	t.deepEqual([...renamedImage.sourceBytes ?? []], [0x89, 0x50, 0x4e, 0x47]);
+	t.deepEqual([...(renamedImage.sourceBytes ?? [])], [0x89, 0x50, 0x4e, 0x47]);
 	t.is(renamedImage.sourcePath, '/images/background.png');
 
-	const added = applyUamTransaction(renamed, [{
-		kind: 'addResource',
-		selector: { packageId: 'pkg001' },
-		resource: {
-			kind: 'misc',
-			id: 'misc001',
-			name: 'payload.bin',
-			path: '/generated',
-			exported: true,
-			favorite: false,
-			branch: '',
-			branchItemIds: [],
-			file: 'payload.bin',
-			metadata: null,
-			sourceBytes: new Uint8Array([1, 2, 3]),
+	const added = applyUamTransaction(renamed, [
+		{
+			kind: 'addResource',
+			selector: { packageId: 'pkg001' },
+			resource: {
+				kind: 'misc',
+				id: 'misc001',
+				name: 'payload.bin',
+				path: '/generated',
+				exported: true,
+				favorite: false,
+				branch: '',
+				branchItemIds: [],
+				file: 'payload.bin',
+				metadata: null,
+				sourceBytes: new Uint8Array([1, 2, 3]),
+			},
 		},
-	}]);
-	const replaced = applyUamTransaction(added, [{
-		kind: 'replaceResourceBytes',
-		selector: { packageId: 'pkg001', resourceId: 'misc001' },
-		sourceBytes: new Uint8Array([4, 5, 6]),
-	}]);
+	]);
+	const replaced = applyUamTransaction(added, [
+		{
+			kind: 'replaceResourceBytes',
+			selector: { packageId: 'pkg001', resourceId: 'misc001' },
+			sourceBytes: new Uint8Array([4, 5, 6]),
+		},
+	]);
 	const reloaded = await roundTripCommittedProject(replaced);
 	const reloadedImage = reloaded.packages[0]!.resources.find((resource) => resource.id === 'img001');
 	const reloadedMisc = reloaded.packages[0]!.resources.find((resource) => resource.id === 'misc001');
@@ -1011,13 +1262,15 @@ test('binary resource transactions require hydrated source bytes and survive wri
 	t.is(reloadedImage.name, 'renamed');
 	t.is(reloadedImage.path, '/moved');
 	t.is(reloadedImage.sourcePath, '/moved/renamed.png');
-	t.deepEqual([...reloadedImage.sourceBytes ?? []], [0x89, 0x50, 0x4e, 0x47]);
-	t.deepEqual([...reloadedMisc.sourceBytes ?? []], [4, 5, 6]);
+	t.deepEqual([...(reloadedImage.sourceBytes ?? [])], [0x89, 0x50, 0x4e, 0x47]);
+	t.deepEqual([...(reloadedMisc.sourceBytes ?? [])], [4, 5, 6]);
 
-	const removed = applyUamTransaction(reloaded, [{
-		kind: 'removeResource',
-		selector: { packageId: 'pkg001', resourceId: 'misc001' },
-	}]);
+	const removed = applyUamTransaction(reloaded, [
+		{
+			kind: 'removeResource',
+			selector: { packageId: 'pkg001', resourceId: 'misc001' },
+		},
+	]);
 	const reloadedAfterRemove = await roundTripCommittedProject(removed);
 	t.false(reloadedAfterRemove.packages[0]!.resources.some((resource) => resource.id === 'misc001'));
 });
@@ -1077,11 +1330,13 @@ test('ProjectReader and MovieClip replacement hydrate the complete typed JTA mod
 		],
 		textures: [new Uint8Array([1])],
 	});
-	const replaced = applyUamTransaction(reloaded, [{
-		kind: 'replaceResourceBytes',
-		selector: { packageId: 'pkg001', resourceId: 'movie102' },
-		sourceBytes: replacementBytes,
-	}]);
+	const replaced = applyUamTransaction(reloaded, [
+		{
+			kind: 'replaceResourceBytes',
+			selector: { packageId: 'pkg001', resourceId: 'movie102' },
+			sourceBytes: replacementBytes,
+		},
+	]);
 	const replacedMovieClip = replaced.packages[0]!.resources.find((resource) => resource.id === 'movie102');
 	t.is(replacedMovieClip?.kind, 'movieClip');
 	if (replacedMovieClip?.kind === 'movieClip') {
@@ -1097,15 +1352,24 @@ test('ProjectReader and MovieClip replacement hydrate the complete typed JTA mod
 			],
 		});
 	}
-	t.deepEqual(reloaded.packages[0]!.resources.find((resource) => resource.id === 'movie102'), originalMovie102);
+	t.deepEqual(
+		reloaded.packages[0]!.resources.find((resource) => resource.id === 'movie102'),
+		originalMovie102,
+	);
 	const replacedReloaded = await roundTripCommittedProject(replaced);
-	const replacedReloadedMovieClip = replacedReloaded.packages[0]!.resources.find((resource) => resource.id === 'movie102');
+	const replacedReloadedMovieClip = replacedReloaded.packages[0]!.resources.find(
+		(resource) => resource.id === 'movie102',
+	);
 	if (replacedMovieClip?.kind === 'movieClip' && replacedReloadedMovieClip?.kind === 'movieClip') {
 		t.deepEqual(replacedReloadedMovieClip.dimensions, replacedMovieClip.dimensions);
 		t.deepEqual(replacedReloadedMovieClip.movieClip, replacedMovieClip.movieClip);
 	}
 
-	if (!originalMovie102 || originalMovie102.kind !== 'movieClip' || !(originalMovie102.sourceBytes instanceof Uint8Array)) {
+	if (
+		!originalMovie102 ||
+		originalMovie102.kind !== 'movieClip' ||
+		!(originalMovie102.sourceBytes instanceof Uint8Array)
+	) {
 		t.fail('expected original hydrated MovieClip source');
 		return;
 	}
@@ -1125,11 +1389,13 @@ test('ProjectReader and MovieClip replacement hydrate the complete typed JTA mod
 		},
 		sourceBytes: replacementBytes,
 	};
-	const addedResourceProject = applyUamTransaction(reloaded, [{
-		kind: 'addResource',
-		selector: { packageId: 'pkg001' },
-		resource: staleMovieClip,
-	}]);
+	const addedResourceProject = applyUamTransaction(reloaded, [
+		{
+			kind: 'addResource',
+			selector: { packageId: 'pkg001' },
+			resource: staleMovieClip,
+		},
+	]);
 	const addedResource = addedResourceProject.packages[0]!.resources.find((resource) => resource.id === 'movieAdded');
 	t.is(addedResource?.kind, 'movieClip');
 	if (addedResource?.kind === 'movieClip') {
@@ -1140,14 +1406,16 @@ test('ProjectReader and MovieClip replacement hydrate the complete typed JTA mod
 		t.false(addedResource.movieClip.smoothing);
 	}
 
-	const addedPackageProject = applyUamTransaction(reloaded, [{
-		kind: 'addPackage',
-		atIndex: reloaded.packages.length,
-		package: {
-			...createLifecyclePackage('pkgmovie', 'MoviePackage'),
-			resources: [{ ...staleMovieClip, id: 'moviePackaged', name: 'packaged', fileName: 'packaged.jta' }],
+	const addedPackageProject = applyUamTransaction(reloaded, [
+		{
+			kind: 'addPackage',
+			atIndex: reloaded.packages.length,
+			package: {
+				...createLifecyclePackage('pkgmovie', 'MoviePackage'),
+				resources: [{ ...staleMovieClip, id: 'moviePackaged', name: 'packaged', fileName: 'packaged.jta' }],
+			},
 		},
-	}]);
+	]);
 	const addedPackageResource = addedPackageProject.packages.at(-1)?.resources[0];
 	t.is(addedPackageResource?.kind, 'movieClip');
 	if (addedPackageResource?.kind === 'movieClip') {
@@ -1156,11 +1424,13 @@ test('ProjectReader and MovieClip replacement hydrate the complete typed JTA mod
 		t.is(addedPackageResource.movieClip.frames.length, 2);
 	}
 
-	const restored = applyUamTransaction(replacedReloaded, [{
-		kind: 'replaceResourceBytes',
-		selector: { packageId: 'pkg001', resourceId: 'movie102' },
-		sourceBytes: originalMovie102.sourceBytes,
-	}]);
+	const restored = applyUamTransaction(replacedReloaded, [
+		{
+			kind: 'replaceResourceBytes',
+			selector: { packageId: 'pkg001', resourceId: 'movie102' },
+			sourceBytes: originalMovie102.sourceBytes,
+		},
+	]);
 	const restoredReloaded = await roundTripCommittedProject(restored);
 	const restoredMovieClip = restoredReloaded.packages[0]!.resources.find((resource) => resource.id === 'movie102');
 	if (restoredMovieClip?.kind === 'movieClip') {
@@ -1173,47 +1443,65 @@ test('ProjectReader and MovieClip replacement hydrate the complete typed JTA mod
 
 	const invalidBytes = replacementBytes.subarray(0, replacementBytes.byteLength - 1);
 	const beforeInvalid = structuredClone(replacedReloaded);
-	const invalidError = t.throws(() => applyUamTransaction(replacedReloaded, [{
-		kind: 'replaceResourceBytes',
-		selector: { packageId: 'pkg001', resourceId: 'movie102' },
-		sourceBytes: invalidBytes,
-	}]), { instanceOf: UamTransactionError });
+	const invalidError = t.throws(
+		() =>
+			applyUamTransaction(replacedReloaded, [
+				{
+					kind: 'replaceResourceBytes',
+					selector: { packageId: 'pkg001', resourceId: 'movie102' },
+					sourceBytes: invalidBytes,
+				},
+			]),
+		{ instanceOf: UamTransactionError },
+	);
 	t.true(invalidError?.issues?.some((issue) => 'code' in issue && issue.code === 'invalid_movie_clip_jta') ?? false);
 	t.deepEqual(replacedReloaded, beforeInvalid);
 	const beforeInvalidAdds = structuredClone(reloaded);
-	for (const operation of [{
-		kind: 'addResource' as const,
-		selector: { packageId: 'pkg001' },
-		resource: { ...staleMovieClip, id: 'invalidMovie', name: 'invalid', fileName: 'invalid.jta', sourceBytes: invalidBytes },
-	}, {
-		kind: 'addResource' as const,
-		selector: { packageId: 'pkg001' },
-		resource: {
-			...staleMovieClip,
-			id: 'negativeFrameMovie',
-			name: 'negativeFrame',
-			fileName: 'negative-frame.jta',
-			sourceBytes: createMovieClipJta(102, 10, 10, 0, 0, {
-				frames: [{ delay: -1, rectX: 0, rectY: 0, rectWidth: 10, rectHeight: 10, textureIndex: -1 }],
-			}),
+	for (const operation of [
+		{
+			kind: 'addResource' as const,
+			selector: { packageId: 'pkg001' },
+			resource: {
+				...staleMovieClip,
+				id: 'invalidMovie',
+				name: 'invalid',
+				fileName: 'invalid.jta',
+				sourceBytes: invalidBytes,
+			},
 		},
-	}, {
-		kind: 'addPackage' as const,
-		atIndex: reloaded.packages.length,
-		package: {
-			...createLifecyclePackage('invalidPackage', 'InvalidMoviePackage'),
-			resources: [{ ...staleMovieClip, id: 'invalidPackagedMovie', sourceBytes: invalidBytes }],
+		{
+			kind: 'addResource' as const,
+			selector: { packageId: 'pkg001' },
+			resource: {
+				...staleMovieClip,
+				id: 'negativeFrameMovie',
+				name: 'negativeFrame',
+				fileName: 'negative-frame.jta',
+				sourceBytes: createMovieClipJta(102, 10, 10, 0, 0, {
+					frames: [{ delay: -1, rectX: 0, rectY: 0, rectWidth: 10, rectHeight: 10, textureIndex: -1 }],
+				}),
+			},
 		},
-	}]) {
+		{
+			kind: 'addPackage' as const,
+			atIndex: reloaded.packages.length,
+			package: {
+				...createLifecyclePackage('invalidPackage', 'InvalidMoviePackage'),
+				resources: [{ ...staleMovieClip, id: 'invalidPackagedMovie', sourceBytes: invalidBytes }],
+			},
+		},
+	]) {
 		const error = t.throws(() => applyUamTransaction(reloaded, [operation]), { instanceOf: UamTransactionError });
 		t.true(error?.issues?.some((issue) => 'code' in issue && issue.code === 'invalid_movie_clip_jta') ?? false);
 	}
 	t.deepEqual(reloaded, beforeInvalidAdds);
 
-	const asyncReplaced = await applyUamTransactionAsync(reloaded, [{
-		kind: 'replaceResourceBytes',
-		selector: { packageId: 'pkg001', resourceId: 'movie102' },
-		sourceBytes: replacementBytes,
-	}]);
+	const asyncReplaced = await applyUamTransactionAsync(reloaded, [
+		{
+			kind: 'replaceResourceBytes',
+			selector: { packageId: 'pkg001', resourceId: 'movie102' },
+			sourceBytes: replacementBytes,
+		},
+	]);
 	t.deepEqual(asyncReplaced, replaced);
 });

@@ -1,5 +1,12 @@
 import { RefList } from 'property-graph';
-import { type Nullable, ObjectType, OverflowType, PropertyType, ChildrenRenderOrder, type RelationDef } from '../constants.js';
+import {
+	type Nullable,
+	ObjectType,
+	OverflowType,
+	PropertyType,
+	ChildrenRenderOrder,
+	type RelationDef,
+} from '../constants.js';
 import { ExtensibleProperty, type IExtensibleProperty } from './extensible-property.js';
 import type { GObject } from './g-object.js';
 import type { Controller } from './controller.js';
@@ -106,27 +113,9 @@ interface IComponent extends IExtensibleProperty {
  */
 export class Component extends ExtensibleProperty<IComponent> {
 	public declare propertyType: PropertyType.COMPONENT;
-	private _binaryDirty = true;
 
 	protected init(): void {
 		this.propertyType = PropertyType.COMPONENT;
-	}
-
-	/** @internal */
-	public _markBinaryClean(): this {
-		this._binaryDirty = false;
-		return this;
-	}
-
-	/** @internal */
-	public _markBinaryDirty(): this {
-		this._binaryDirty = true;
-		return this;
-	}
-
-	/** @internal */
-	public _isBinaryDirty(): boolean {
-		return this._binaryDirty;
 	}
 
 	protected getDefaults(): Nullable<IComponent> {
@@ -203,52 +192,116 @@ export class Component extends ExtensibleProperty<IComponent> {
 		});
 	}
 
-	public getId(): string { return this.get('id'); }
-	public setId(id: string): this { return this.set('id', id); }
+	public getId(): string {
+		return this.get('id');
+	}
+	public setId(id: string): this {
+		return this.set('id', id);
+	}
 
-	public getPath(): string { return this.get('path'); }
-	public setPath(path: string): this { return this.set('path', path); }
+	public getPath(): string {
+		return this.get('path');
+	}
+	public setPath(path: string): this {
+		return this.set('path', path);
+	}
 
-	public getBranch(): string { return this.get('branch'); }
-	public setBranch(branch: string): this { return this.set('branch', branch); }
+	public getBranch(): string {
+		return this.get('branch');
+	}
+	public setBranch(branch: string): this {
+		return this.set('branch', branch);
+	}
 
-	public getBranchItemIds(): string[] { return [...this.get('branchItemIds')]; }
-	public setBranchItemIds(ids: string[]): this { return this.set('branchItemIds', [...ids]); }
+	public getBranchItemIds(): string[] {
+		return [...this.get('branchItemIds')];
+	}
+	public setBranchItemIds(ids: string[]): this {
+		return this.set('branchItemIds', [...ids]);
+	}
 
-	public getExported(): boolean { return this.get('exported'); }
-	public setExported(v: boolean): this { return this.set('exported', v); }
+	public getExported(): boolean {
+		return this.get('exported');
+	}
+	public setExported(v: boolean): this {
+		return this.set('exported', v);
+	}
 
-	public getFavorite(): boolean { return this.get('favorite'); }
-	public setFavorite(v: boolean): this { return this.set('favorite', v); }
+	public getFavorite(): boolean {
+		return this.get('favorite');
+	}
+	public setFavorite(v: boolean): this {
+		return this.set('favorite', v);
+	}
 
-	public getWidth(): number { return this.get('width'); }
-	public getHeight(): number { return this.get('height'); }
-	public getMinWidth(): number { return this.get('minWidth'); }
-	public setMinWidth(v: number): this { return this.set('minWidth', v); }
-	public getMaxWidth(): number { return this.get('maxWidth'); }
-	public setMaxWidth(v: number): this { return this.set('maxWidth', v); }
-	public getMinHeight(): number { return this.get('minHeight'); }
-	public setMinHeight(v: number): this { return this.set('minHeight', v); }
-	public getMaxHeight(): number { return this.get('maxHeight'); }
-	public setMaxHeight(v: number): this { return this.set('maxHeight', v); }
+	public getWidth(): number {
+		return this.get('width');
+	}
+	public getHeight(): number {
+		return this.get('height');
+	}
+	public getMinWidth(): number {
+		return this.get('minWidth');
+	}
+	public setMinWidth(v: number): this {
+		return this.set('minWidth', v);
+	}
+	public getMaxWidth(): number {
+		return this.get('maxWidth');
+	}
+	public setMaxWidth(v: number): this {
+		return this.set('maxWidth', v);
+	}
+	public getMinHeight(): number {
+		return this.get('minHeight');
+	}
+	public setMinHeight(v: number): this {
+		return this.set('minHeight', v);
+	}
+	public getMaxHeight(): number {
+		return this.get('maxHeight');
+	}
+	public setMaxHeight(v: number): this {
+		return this.set('maxHeight', v);
+	}
 
 	public setSize(w: number, h: number): this {
 		this.set('width', w);
 		return this.set('height', h);
 	}
 
-	public getPivotX(): number { return this.get('pivotX'); }
-	public setPivotX(v: number): this { return this.set('pivotX', v); }
-	public getPivotY(): number { return this.get('pivotY'); }
-	public setPivotY(v: number): this { return this.set('pivotY', v); }
-	public getPivotAsAnchor(): boolean { return this.get('pivotAsAnchor'); }
-	public setPivotAsAnchor(v: boolean): this { return this.set('pivotAsAnchor', v); }
+	public getPivotX(): number {
+		return this.get('pivotX');
+	}
+	public setPivotX(v: number): this {
+		return this.set('pivotX', v);
+	}
+	public getPivotY(): number {
+		return this.get('pivotY');
+	}
+	public setPivotY(v: number): this {
+		return this.set('pivotY', v);
+	}
+	public getPivotAsAnchor(): boolean {
+		return this.get('pivotAsAnchor');
+	}
+	public setPivotAsAnchor(v: boolean): this {
+		return this.set('pivotAsAnchor', v);
+	}
 
-	public getExtType(): number { return this.get('extType'); }
-	public setExtType(v: number): this { return this.set('extType', v); }
+	public getExtType(): number {
+		return this.get('extType');
+	}
+	public setExtType(v: number): this {
+		return this.set('extType', v);
+	}
 
-	public getOverflow(): number { return this.get('overflow'); }
-	public setOverflow(v: number): this { return this.set('overflow', v); }
+	public getOverflow(): number {
+		return this.get('overflow');
+	}
+	public setOverflow(v: number): this {
+		return this.set('overflow', v);
+	}
 
 	public getMargin(): EdgeInsetsLike {
 		const margin = this.get('margin');
@@ -280,26 +333,54 @@ export class Component extends ExtensibleProperty<IComponent> {
 		return this.set('clipSoftness', [v.x ?? 0, v.y ?? 0]);
 	}
 
-	public getHitTest(): string { return this.get('hitTest'); }
-	public setHitTest(v: string): this { return this.set('hitTest', v); }
+	public getHitTest(): string {
+		return this.get('hitTest');
+	}
+	public setHitTest(v: string): this {
+		return this.set('hitTest', v);
+	}
 
-	public getCustomData(): string { return this.get('customData'); }
-	public setCustomData(v: string): this { return this.set('customData', v); }
+	public getCustomData(): string {
+		return this.get('customData');
+	}
+	public setCustomData(v: string): this {
+		return this.set('customData', v);
+	}
 
-	public getMask(): string { return this.get('mask'); }
-	public setMask(v: string): this { return this.set('mask', v); }
+	public getMask(): string {
+		return this.get('mask');
+	}
+	public setMask(v: string): this {
+		return this.set('mask', v);
+	}
 
-	public getReversedMask(): boolean { return this.get('reversedMask'); }
-	public setReversedMask(v: boolean): this { return this.set('reversedMask', v); }
+	public getReversedMask(): boolean {
+		return this.get('reversedMask');
+	}
+	public setReversedMask(v: boolean): this {
+		return this.set('reversedMask', v);
+	}
 
-	public getScrollType(): number { return this.get('scrollType'); }
-	public setScrollType(v: number): this { return this.set('scrollType', v); }
+	public getScrollType(): number {
+		return this.get('scrollType');
+	}
+	public setScrollType(v: number): this {
+		return this.set('scrollType', v);
+	}
 
-	public getScrollBarDisplay(): number { return this.get('scrollBarDisplay'); }
-	public setScrollBarDisplay(v: number): this { return this.set('scrollBarDisplay', v); }
+	public getScrollBarDisplay(): number {
+		return this.get('scrollBarDisplay');
+	}
+	public setScrollBarDisplay(v: number): this {
+		return this.set('scrollBarDisplay', v);
+	}
 
-	public getScrollBarFlags(): number { return this.get('scrollBarFlags'); }
-	public setScrollBarFlags(v: number): this { return this.set('scrollBarFlags', v); }
+	public getScrollBarFlags(): number {
+		return this.get('scrollBarFlags');
+	}
+	public setScrollBarFlags(v: number): this {
+		return this.set('scrollBarFlags', v);
+	}
 
 	public getScrollBarMargin(): EdgeInsetsLike {
 		const margin = this.get('scrollBarMargin');
@@ -317,129 +398,274 @@ export class Component extends ExtensibleProperty<IComponent> {
 		return this.set('scrollBarMargin', [v.top ?? 0, v.bottom ?? 0, v.left ?? 0, v.right ?? 0]);
 	}
 
-	public getVtScrollBarRes(): string { return this.get('vtScrollBarRes'); }
-	public setVtScrollBarRes(v: string): this { return this.set('vtScrollBarRes', v); }
+	public getVtScrollBarRes(): string {
+		return this.get('vtScrollBarRes');
+	}
+	public setVtScrollBarRes(v: string): this {
+		return this.set('vtScrollBarRes', v);
+	}
 
-	public getHzScrollBarRes(): string { return this.get('hzScrollBarRes'); }
-	public setHzScrollBarRes(v: string): this { return this.set('hzScrollBarRes', v); }
+	public getHzScrollBarRes(): string {
+		return this.get('hzScrollBarRes');
+	}
+	public setHzScrollBarRes(v: string): this {
+		return this.set('hzScrollBarRes', v);
+	}
 
-	public getHeaderRes(): string { return this.get('headerRes'); }
-	public setHeaderRes(v: string): this { return this.set('headerRes', v); }
+	public getHeaderRes(): string {
+		return this.get('headerRes');
+	}
+	public setHeaderRes(v: string): this {
+		return this.set('headerRes', v);
+	}
 
-	public getFooterRes(): string { return this.get('footerRes'); }
-	public setFooterRes(v: string): this { return this.set('footerRes', v); }
+	public getFooterRes(): string {
+		return this.get('footerRes');
+	}
+	public setFooterRes(v: string): this {
+		return this.set('footerRes', v);
+	}
 
-	public getBgColor(): string { return this.get('bgColor'); }
-	public setBgColor(v: string): this { return this.set('bgColor', v); }
+	public getBgColor(): string {
+		return this.get('bgColor');
+	}
+	public setBgColor(v: string): this {
+		return this.set('bgColor', v);
+	}
 
-	public getBgColorEnabled(): boolean { return this.get('bgColorEnabled'); }
-	public setBgColorEnabled(v: boolean): this { return this.set('bgColorEnabled', v); }
+	public getBgColorEnabled(): boolean {
+		return this.get('bgColorEnabled');
+	}
+	public setBgColorEnabled(v: boolean): this {
+		return this.set('bgColorEnabled', v);
+	}
 
-	public getDesignImageAlpha(): number { return this.get('designImageAlpha'); }
-	public setDesignImageAlpha(v: number): this { return this.set('designImageAlpha', v); }
+	public getDesignImageAlpha(): number {
+		return this.get('designImageAlpha');
+	}
+	public setDesignImageAlpha(v: number): this {
+		return this.set('designImageAlpha', v);
+	}
 
-	public getDesignImageLayer(): number { return this.get('designImageLayer'); }
-	public setDesignImageLayer(v: number): this { return this.set('designImageLayer', v); }
+	public getDesignImageLayer(): number {
+		return this.get('designImageLayer');
+	}
+	public setDesignImageLayer(v: number): this {
+		return this.set('designImageLayer', v);
+	}
 
-	public getDesignImageOffsetX(): number { return this.get('designImageOffsetX'); }
-	public setDesignImageOffsetX(v: number): this { return this.set('designImageOffsetX', v); }
+	public getDesignImageOffsetX(): number {
+		return this.get('designImageOffsetX');
+	}
+	public setDesignImageOffsetX(v: number): this {
+		return this.set('designImageOffsetX', v);
+	}
 
-	public getDesignImageOffsetY(): number { return this.get('designImageOffsetY'); }
-	public setDesignImageOffsetY(v: number): this { return this.set('designImageOffsetY', v); }
+	public getDesignImageOffsetY(): number {
+		return this.get('designImageOffsetY');
+	}
+	public setDesignImageOffsetY(v: number): this {
+		return this.set('designImageOffsetY', v);
+	}
 
-	public getDesignImage(): string { return this.get('designImage'); }
-	public setDesignImage(v: string): this { return this.set('designImage', v); }
+	public getDesignImage(): string {
+		return this.get('designImage');
+	}
+	public setDesignImage(v: string): this {
+		return this.set('designImage', v);
+	}
 
-	public getDesignImageForTest(): boolean { return this.get('designImageForTest'); }
-	public setDesignImageForTest(v: boolean): this { return this.set('designImageForTest', v); }
+	public getDesignImageForTest(): boolean {
+		return this.get('designImageForTest');
+	}
+	public setDesignImageForTest(v: boolean): this {
+		return this.set('designImageForTest', v);
+	}
 
-	public getPageController(): string { return this.get('pageController'); }
-	public setPageController(v: string): this { return this.set('pageController', v); }
+	public getPageController(): string {
+		return this.get('pageController');
+	}
+	public setPageController(v: string): this {
+		return this.set('pageController', v);
+	}
 
-	public getIdNum(): number { return this.get('idNum'); }
-	public setIdNum(v: number): this { return this.set('idNum', v); }
+	public getIdNum(): number {
+		return this.get('idNum');
+	}
+	public setIdNum(v: number): this {
+		return this.set('idNum', v);
+	}
 
-	public getInitName(): string { return this.get('initName'); }
-	public setInitName(v: string): this { return this.set('initName', v); }
+	public getInitName(): string {
+		return this.get('initName');
+	}
+	public setInitName(v: string): this {
+		return this.set('initName', v);
+	}
 
-	public getRemark(): string { return this.get('remark'); }
-	public setRemark(v: string): this { return this.set('remark', v); }
+	public getRemark(): string {
+		return this.get('remark');
+	}
+	public setRemark(v: string): this {
+		return this.set('remark', v);
+	}
 
-	public getCustomExtensionId(): string { return this.get('customExtensionId'); }
-	public setCustomExtensionId(v: string): this { return this.set('customExtensionId', v); }
+	public getCustomExtensionId(): string {
+		return this.get('customExtensionId');
+	}
+	public setCustomExtensionId(v: string): this {
+		return this.set('customExtensionId', v);
+	}
 
-	public getExtensionType(): string { return this.get('extensionType'); }
-	public setExtensionType(v: string): this { return this.set('extensionType', v); }
+	public getExtensionType(): string {
+		return this.get('extensionType');
+	}
+	public setExtensionType(v: string): this {
+		return this.set('extensionType', v);
+	}
 
-	public getButtonMode(): number { return this.get('buttonMode'); }
-	public setButtonMode(v: number): this { return this.set('buttonMode', v); }
+	public getButtonMode(): number {
+		return this.get('buttonMode');
+	}
+	public setButtonMode(v: number): this {
+		return this.set('buttonMode', v);
+	}
 
-	public getSound(): string { return this.get('sound'); }
-	public setSound(v: string): this { return this.set('sound', v); }
+	public getSound(): string {
+		return this.get('sound');
+	}
+	public setSound(v: string): this {
+		return this.set('sound', v);
+	}
 
-	public getSoundVolumeScale(): number { return this.get('soundVolumeScale'); }
-	public setSoundVolumeScale(v: number): this { return this.set('soundVolumeScale', v); }
+	public getSoundVolumeScale(): number {
+		return this.get('soundVolumeScale');
+	}
+	public setSoundVolumeScale(v: number): this {
+		return this.set('soundVolumeScale', v);
+	}
 
-	public getAddedToStageSound(): string { return this.get('addedToStageSound'); }
-	public setAddedToStageSound(v: string): this { return this.set('addedToStageSound', v); }
+	public getAddedToStageSound(): string {
+		return this.get('addedToStageSound');
+	}
+	public setAddedToStageSound(v: string): this {
+		return this.set('addedToStageSound', v);
+	}
 
-	public getRemovedFromStageSound(): string { return this.get('removedFromStageSound'); }
-	public setRemovedFromStageSound(v: string): this { return this.set('removedFromStageSound', v); }
+	public getRemovedFromStageSound(): string {
+		return this.get('removedFromStageSound');
+	}
+	public setRemovedFromStageSound(v: string): this {
+		return this.set('removedFromStageSound', v);
+	}
 
-	public getDownEffect(): number { return this.get('downEffect'); }
-	public setDownEffect(v: number): this { return this.set('downEffect', v); }
+	public getDownEffect(): number {
+		return this.get('downEffect');
+	}
+	public setDownEffect(v: number): this {
+		return this.set('downEffect', v);
+	}
 
-	public getDownEffectValue(): number { return this.get('downEffectValue'); }
-	public setDownEffectValue(v: number): this { return this.set('downEffectValue', v); }
+	public getDownEffectValue(): number {
+		return this.get('downEffectValue');
+	}
+	public setDownEffectValue(v: number): this {
+		return this.set('downEffectValue', v);
+	}
 
-	public getDropdown(): string { return this.get('dropdown'); }
-	public setDropdown(v: string): this { return this.set('dropdown', v); }
+	public getDropdown(): string {
+		return this.get('dropdown');
+	}
+	public setDropdown(v: string): this {
+		return this.set('dropdown', v);
+	}
 
-	public getPromptText(): string { return this.get('promptText'); }
-	public setPromptText(v: string): this { return this.set('promptText', v); }
+	public getPromptText(): string {
+		return this.get('promptText');
+	}
+	public setPromptText(v: string): this {
+		return this.set('promptText', v);
+	}
 
-	public getSelectionController(): string { return this.get('selectionController'); }
-	public setSelectionController(v: string): this { return this.set('selectionController', v); }
+	public getSelectionController(): string {
+		return this.get('selectionController');
+	}
+	public setSelectionController(v: string): this {
+		return this.set('selectionController', v);
+	}
 
-	public getTitleType(): number { return this.get('titleType'); }
-	public setTitleType(v: number): this { return this.set('titleType', v); }
+	public getTitleType(): number {
+		return this.get('titleType');
+	}
+	public setTitleType(v: number): this {
+		return this.set('titleType', v);
+	}
 
-	public getReverse(): boolean { return this.get('reverse'); }
-	public setReverse(v: boolean): this { return this.set('reverse', v); }
+	public getReverse(): boolean {
+		return this.get('reverse');
+	}
+	public setReverse(v: boolean): this {
+		return this.set('reverse', v);
+	}
 
-	public getWholeNumbers(): boolean { return this.get('wholeNumbers'); }
-	public setWholeNumbers(v: boolean): this { return this.set('wholeNumbers', v); }
+	public getWholeNumbers(): boolean {
+		return this.get('wholeNumbers');
+	}
+	public setWholeNumbers(v: boolean): this {
+		return this.set('wholeNumbers', v);
+	}
 
-	public getChangeOnClick(): boolean { return this.get('changeOnClick'); }
-	public setChangeOnClick(v: boolean): this { return this.set('changeOnClick', v); }
+	public getChangeOnClick(): boolean {
+		return this.get('changeOnClick');
+	}
+	public setChangeOnClick(v: boolean): this {
+		return this.set('changeOnClick', v);
+	}
 
-	public getFixedGripSize(): boolean { return this.get('fixedGripSize'); }
-	public setFixedGripSize(v: boolean): this { return this.set('fixedGripSize', v); }
+	public getFixedGripSize(): boolean {
+		return this.get('fixedGripSize');
+	}
+	public setFixedGripSize(v: boolean): this {
+		return this.set('fixedGripSize', v);
+	}
 
-	public getAutoClearItems(): boolean { return this.get('autoClearItems'); }
-	public setAutoClearItems(v: boolean): this { return this.set('autoClearItems', v); }
+	public getAutoClearItems(): boolean {
+		return this.get('autoClearItems');
+	}
+	public setAutoClearItems(v: boolean): this {
+		return this.set('autoClearItems', v);
+	}
 
-	public getOpaque(): boolean { return this.get('opaque'); }
-	public setOpaque(v: boolean): this { return this.set('opaque', v); }
+	public getOpaque(): boolean {
+		return this.get('opaque');
+	}
+	public setOpaque(v: boolean): this {
+		return this.set('opaque', v);
+	}
 
 	public getCustomProperties(): ComponentCustomProperty[] {
 		const properties = this.get('customProperties' as never) as ComponentCustomProperty[];
 		return properties.map((property) => ({ ...property }));
 	}
 	public setCustomProperties(properties: ComponentCustomProperty[]): this {
-		return this.set(
-			'customProperties' as never,
-			properties.map((property) => ({ ...property })) as never,
-		);
+		return this.set('customProperties' as never, properties.map((property) => ({ ...property })) as never);
 	}
 
-	public getChildrenRenderOrder(): number { return this.get('childrenRenderOrder'); }
-	public setChildrenRenderOrder(v: number): this { return this.set('childrenRenderOrder', v); }
+	public getChildrenRenderOrder(): number {
+		return this.get('childrenRenderOrder');
+	}
+	public setChildrenRenderOrder(v: number): this {
+		return this.set('childrenRenderOrder', v);
+	}
 
 	/****** Relations ******/
 
-	public getRelations(): RelationDef[] { return this.get('relations' as never) as RelationDef[]; }
-	public setRelations(relations: RelationDef[]): this { return this.set('relations' as never, relations as never); }
+	public getRelations(): RelationDef[] {
+		return this.get('relations' as never) as RelationDef[];
+	}
+	public setRelations(relations: RelationDef[]): this {
+		return this.set('relations' as never, relations as never);
+	}
 	public addRelation(relation: RelationDef): this {
 		const relations = [...this.getRelations(), relation];
 		return this.set('relations' as never, relations as never);
@@ -447,9 +673,15 @@ export class Component extends ExtensibleProperty<IComponent> {
 
 	/****** Display List ******/
 
-	public addChild(child: GObject): this { return this.addRef('displayList', child); }
-	public removeChild(child: GObject): this { return this.removeRef('displayList', child); }
-	public listChildren(): GObject[] { return this.listRefs('displayList'); }
+	public addChild(child: GObject): this {
+		return this.addRef('displayList', child);
+	}
+	public removeChild(child: GObject): this {
+		return this.removeRef('displayList', child);
+	}
+	public listChildren(): GObject[] {
+		return this.listRefs('displayList');
+	}
 
 	public getChild(name: string): GObject | null {
 		return this.listChildren().find((child) => child.getName() === name) || null;
@@ -461,9 +693,15 @@ export class Component extends ExtensibleProperty<IComponent> {
 
 	/****** Controllers ******/
 
-	public addController(ctrl: Controller): this { return this.addRef('controllers', ctrl); }
-	public removeController(ctrl: Controller): this { return this.removeRef('controllers', ctrl); }
-	public listControllers(): Controller[] { return this.listRefs('controllers'); }
+	public addController(ctrl: Controller): this {
+		return this.addRef('controllers', ctrl);
+	}
+	public removeController(ctrl: Controller): this {
+		return this.removeRef('controllers', ctrl);
+	}
+	public listControllers(): Controller[] {
+		return this.listRefs('controllers');
+	}
 
 	public getController(name: string): Controller | null {
 		return this.listControllers().find((c) => c.getName() === name) || null;
@@ -471,9 +709,15 @@ export class Component extends ExtensibleProperty<IComponent> {
 
 	/****** Transitions ******/
 
-	public addTransition(trans: Transition): this { return this.addRef('transitions', trans); }
-	public removeTransition(trans: Transition): this { return this.removeRef('transitions', trans); }
-	public listTransitions(): Transition[] { return this.listRefs('transitions'); }
+	public addTransition(trans: Transition): this {
+		return this.addRef('transitions', trans);
+	}
+	public removeTransition(trans: Transition): this {
+		return this.removeRef('transitions', trans);
+	}
+	public listTransitions(): Transition[] {
+		return this.listRefs('transitions');
+	}
 
 	public getTransition(name: string): Transition | null {
 		return this.listTransitions().find((t) => t.getName() === name) || null;

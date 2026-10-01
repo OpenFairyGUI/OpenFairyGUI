@@ -97,7 +97,10 @@ export function validateBaselineSupport(project: UamProject, issues: UamTransact
 	for (const [packageIndex, pkg] of project.packages.entries()) {
 		for (const [resourceIndex, resource] of pkg.resources.entries()) {
 			const resourcePath = `packages[${packageIndex}].resources[${resourceIndex}]`;
-			if (resource.kind !== 'component' && !UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds.includes(resource.kind as never)) {
+			if (
+				resource.kind !== 'component' &&
+				!UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds.includes(resource.kind as never)
+			) {
 				pushSupportIssue(
 					issues,
 					'unsupported_resource_kind',
@@ -110,7 +113,9 @@ export function validateBaselineSupport(project: UamProject, issues: UamTransact
 
 			if (resource.kind !== 'component') continue;
 
-			const duplicateTransitionNames = countDuplicateNames(resource.component.transitions.map((transition) => transition.name));
+			const duplicateTransitionNames = countDuplicateNames(
+				resource.component.transitions.map((transition) => transition.name),
+			);
 			for (const duplicateName of duplicateTransitionNames) {
 				pushSupportIssue(
 					issues,
@@ -152,7 +157,10 @@ export function validateTouchedResourceKind(
 		);
 		return;
 	}
-	if (resource.kind === 'component' || UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds.includes(resource.kind as never)) {
+	if (
+		resource.kind === 'component' ||
+		UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds.includes(resource.kind as never)
+	) {
 		return;
 	}
 	pushSupportIssue(

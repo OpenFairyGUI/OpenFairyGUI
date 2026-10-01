@@ -2,9 +2,9 @@
 
 Backend 自有错误由 Backend 定义；事务错误与 support issue 来自 Core，工程读取/验证诊断来自 Core 的 `ProjectDiagnosticCode`。Functions 编排和 MCP 透传不改变这些归属。`meta.diagnostics` 和事件诊断保留原有 `code`、`severity`、路径和操作定位；Core 错误与验证报告正文不被改写。
 
-`BackendDiagnostic.code` 由 Backend 错误、Core 事务错误/support issue、Core 工程验证码的正式联合类型约束；当前 102 个唯一码全部有指引。`contracts:check` 对照这些事实源拒绝遗漏、重复、未知码和错误归属。目录的 `owners` 列出同名码的全部正式来源，响应的 `owner` 保留实际来源；例如 `invalid_uam` 同时用于事务和工程验证。
+`BackendDiagnostic.code` 由 Backend 错误、Core 事务错误/support issue、Core 工程验证码的正式联合类型约束；全部正式唯一码都有指引。`contracts:check` 对照这些事实源拒绝遗漏、重复、未知码和错误归属。目录的 `owners` 列出同名码的全部正式来源，响应的 `owner` 保留实际来源；例如 `invalid_uam` 同时用于事务和工程验证。
 
-正式诊断增加 `owner`、`docsUri`、`remediation { kind, message, read? }`。不在类型契约中的宿主输入若出现未知码，仍保留原错误，不承诺恢复指引。capability schema 为 9，`manifest.diagnostics.recoveryGuides` 为 `all-formal-codes`，`automaticRepair` 为 false。CLI 进程错误由独立的 [CLI 输出契约](./contracts.md#cli-机器输出)约束，不冒充 Backend 诊断。
+正式诊断增加 `owner`、`docsUri`、`remediation { kind, message, read? }`。不在类型契约中的宿主输入若出现未知码，仍保留原错误，不承诺恢复指引。capability schema 为 15，`manifest.diagnostics.recoveryGuides` 为 `all-formal-codes`，`automaticRepair` 为 false。CLI 进程错误由独立的 [CLI 输出契约](./contracts.md#cli-机器输出)约束，不冒充 Backend 诊断。
 
 `read` 仅是可执行的只读起点：`getProjectOutline({ sessionId })`。MCP 对应 `openfairygui_backend_get_project_outline`，方法映射见[契约指南](./contracts.md)。随后通过精确查询读取实际属性并重新规划；不能只替换 `expectedRevision` 重发原事务。预演不预留 revision，保存仍独立检查。
 
@@ -194,6 +194,14 @@ Owners: `core.validation` · Recovery: `host-action`
 URI: `openfairygui://docs/diagnostics/decode_capability_unavailable`
 
 Validation is incomplete, not passed. Inspect whether source bytes are unloaded or a decoder is unavailable. Ask the host to hydrate sources or provide the required decoder (Node image validation uses optional Sharp), then validate again. Do not install dependencies or change the project automatically.
+
+### session_limit_exceeded
+
+Owners: `backend` · Recovery: `host-action`
+
+URI: `openfairygui://docs/diagnostics/session_limit_exceeded`
+
+Close sessions you opened and no longer need with closeSession, then retry. Do not close sessions owned by another task or host; ask the host to raise maxSessions if more concurrent projects are required.
 
 ### session_id_conflict
 
@@ -418,6 +426,14 @@ Owners: `core.transaction` · Recovery: `revise-operation`
 URI: `openfairygui://docs/diagnostics/invalid_resource_payload`
 
 Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data.
+
+### projection_failed
+
+Owners: `core.transaction` · Recovery: `host-action`
+
+URI: `openfairygui://docs/diagnostics/projection_failed`
+
+Transaction projection failed. Inspect the project and operation batch; no successful support decision is available and no change has been applied.
 
 ### invalid_resource_bytes
 
@@ -827,3 +843,9 @@ URI: `openfairygui://docs/diagnostics/execution_failure`
 
 Inspect the execution/cache failure and current session/revision. Preserve sources and unsaved work and report the cause to the host. Replan after resolution; failed execution or cache work is not a completed edit.
 <!-- diagnostics:end -->
+
+<!-- product-facts:start -->
+Package: `0.6.1` · Backend contract: `3.0.0` · Capability schema: `15`
+
+Operations: 41 · Backend methods: 17 · CLI commands: 16 · Diagnostic codes: 103
+<!-- product-facts:end -->

@@ -40,5 +40,9 @@
     "id": "restore-trusted",
     "lane": "artifact",
     "prompt": "Recover the supplied trusted local published backup into the host's separate new project directory. First inspect its packages and atlas images, then reread and validate the recovered project. Preserve all input and unrelated files; do not republish, force overwrite or change destinations. Report package/resource counts and validation status, and explain what editor/source information cannot be recovered."
+  },
+  {
+    "id": "compound-edit",
+    "prompt": "In Main/MainView, find the title whose current text is Hello OpenFairyGUI. Set its text to Ready to edit and position to x=40,y=56, validate and save. Then query the resource again and rename MainView to RenamedView in a second revision-checked transaction, validate and save again. Preserve all other state and files."
   }
 ]

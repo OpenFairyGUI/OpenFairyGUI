@@ -1,3 +1,4 @@
+import type { LabelInputSettings } from '../properties/g-component.js';
 import type { ControllerHomePageType } from '../properties/controller.js';
 import type { ProjectSettings } from '../types/settings.js';
 import type { ProjectDiagnostic } from '../validation.js';
@@ -93,19 +94,9 @@ export interface UamResourceFolder {
 	atlas: string;
 }
 
-export type UamResource =
-	| UamAssetResource
-	| UamComponentResource;
+export type UamResource = UamAssetResource | UamComponentResource;
 
-export type UamAssetResourceKind =
-	| 'image'
-	| 'sound'
-	| 'misc'
-	| 'swf'
-	| 'font'
-	| 'movieClip'
-	| 'spine'
-	| 'dragonBones';
+export type UamAssetResourceKind = 'image' | 'sound' | 'misc' | 'swf' | 'font' | 'movieClip' | 'spine' | 'dragonBones';
 
 interface UamAssetResourceBase {
 	id: string;
@@ -177,10 +168,7 @@ export interface UamGenericAssetResource extends UamAssetResourceBase {
 	metadata?: Record<string, unknown> | null;
 }
 
-export type UamAssetResource =
-	| UamImageResource
-	| UamMovieClipResource
-	| UamGenericAssetResource;
+export type UamAssetResource = UamImageResource | UamMovieClipResource | UamGenericAssetResource;
 
 export interface UamComponentResource {
 	kind: 'component';
@@ -275,59 +263,59 @@ export interface UamComponentInstanceComboItem {
 
 export type UamComponentInstanceProperties =
 	| {
-		extensionType: 'Button';
-		title: string;
-		selectedTitle: string;
-		icon: string;
-		selectedIcon: string;
-		titleColor: string;
-		titleFontSize: number;
-		controller: string;
-		page: string;
-		checked: boolean;
-		sound: string;
-		soundVolumeScale: number;
-	}
+			extensionType: 'Button';
+			title: string;
+			selectedTitle: string;
+			icon: string;
+			selectedIcon: string;
+			titleColor: string;
+			titleFontSize: number;
+			controller: string;
+			page: string;
+			checked: boolean;
+			sound: string;
+			soundVolumeScale: number;
+	  }
 	| {
-		extensionType: 'Label';
-		title: string;
-		icon: string;
-		titleColor: string;
-		titleFontSize: number;
-		promptText: string;
-		sound: string;
-		soundVolumeScale: number;
-	}
+			extensionType: 'Label';
+			title: string;
+			icon: string;
+			titleColor: string;
+			titleFontSize: number;
+			inputSettings: LabelInputSettings | null;
+			sound: string;
+			soundVolumeScale: number;
+	  }
 	| {
-		extensionType: 'ComboBox';
-		title: string;
-		icon: string;
-		titleColor: string;
-		popupDirection: number;
-		sound: string;
-		soundVolumeScale: number;
-		visibleItemCount: number;
-		selectionController: string;
-		autoClearItems: boolean;
-		items: UamComponentInstanceComboItem[];
-	}
+			extensionType: 'ComboBox';
+			title: string;
+			icon: string;
+			titleColor: string;
+			popupDirection: number;
+			sound: string;
+			soundVolumeScale: number;
+			visibleItemCount: number;
+			selectionController: string;
+			autoClearItems: boolean;
+			items: UamComponentInstanceComboItem[];
+	  }
 	| {
-		extensionType: 'ProgressBar';
-		value: number;
-		max: number;
-		min: number;
-		sound: string;
-		soundVolumeScale: number;
-	}
+			extensionType: 'ProgressBar';
+			value: number;
+			max: number;
+			min: number;
+			sound: string;
+			soundVolumeScale: number;
+	  }
 	| {
-		extensionType: 'Slider';
-		value: number;
-		max: number;
-		min: number;
-	}
+			extensionType: 'Slider';
+			value: number;
+			max: number;
+			min: number;
+	  }
 	| {
-		extensionType: 'ScrollBar';
-	};
+			extensionType: 'ScrollBar';
+	  };
 
 export type UamDisplayNodeKind =
 	| 'image'
@@ -621,6 +609,9 @@ interface UamTitleControlNodeBase extends UamComponentDerivedNodeBase {
 
 export interface UamButtonNode extends UamTitleControlNodeBase {
 	kind: 'button';
+	controller?: string;
+	page?: string;
+	checked?: boolean;
 	selectedTitle: string;
 	selectedIcon: string;
 	mode: number;
@@ -630,6 +621,7 @@ export interface UamButtonNode extends UamTitleControlNodeBase {
 
 export interface UamLabelNode extends UamTitleControlNodeBase {
 	kind: 'label';
+	inputSettings?: LabelInputSettings | null;
 }
 
 export interface UamComboBoxNode extends UamTitleControlNodeBase {

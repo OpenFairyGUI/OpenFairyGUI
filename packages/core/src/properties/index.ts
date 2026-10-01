@@ -40,7 +40,7 @@ export { GGroup } from './g-group.js';
 export { GLoader } from './g-loader.js';
 export { GLoader3D } from './g-loader-3d.js';
 export { GMovieClip } from './g-movie-clip.js';
-export { GComponent, type GComponentPropertyOverride } from './g-component.js';
+export { GComponent, type GComponentPropertyOverride, type LabelInputSettings } from './g-component.js';
 export { GList, type GListItemData } from './g-list.js';
 export {
 	GTree,

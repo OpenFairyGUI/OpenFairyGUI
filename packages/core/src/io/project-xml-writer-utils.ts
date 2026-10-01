@@ -1,3 +1,4 @@
+import { ProjectIOError } from './errors.js';
 import type { GComponentPropertyOverride } from '../properties/g-component.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr, type XmlNodeProtocol } from './project-xml-protocol.js';
 
@@ -18,10 +19,10 @@ const INT32_MIN = -2_147_483_648;
 const INT32_MAX = 2_147_483_647;
 
 export function formatProjectInt32(value: number, field = 'project XML integer'): string {
-	if (!Number.isFinite(value)) throw new Error(`${field} must be finite.`);
+	if (!Number.isFinite(value)) throw new ProjectIOError(`${field} must be finite.`);
 	const normalized = Math.trunc(value);
 	if (normalized < INT32_MIN || normalized > INT32_MAX) {
-		throw new Error(`${field} must fit a signed 32-bit integer.`);
+		throw new ProjectIOError(`${field} must fit a signed 32-bit integer.`);
 	}
 	return Object.is(normalized, -0) ? '0' : String(normalized);
 }
@@ -30,7 +31,9 @@ export function formatProjectInt32List(values: readonly number[], field: string)
 	return values.map((value) => formatProjectInt32(value, field)).join(',');
 }
 
-export function hasNonZeroInsets(value: { top?: number; bottom?: number; left?: number; right?: number } | null | undefined): boolean {
+export function hasNonZeroInsets(
+	value: { top?: number; bottom?: number; left?: number; right?: number } | null | undefined,
+): boolean {
 	return !!value && !!(value.top || value.bottom || value.left || value.right);
 }
 
@@ -38,12 +41,7 @@ export function formatInsets(
 	value: { top?: number; bottom?: number; left?: number; right?: number },
 	field = 'margin',
 ): string {
-	return formatProjectInt32List([
-		value.top ?? 0,
-		value.bottom ?? 0,
-		value.left ?? 0,
-		value.right ?? 0,
-	], field);
+	return formatProjectInt32List([value.top ?? 0, value.bottom ?? 0, value.left ?? 0, value.right ?? 0], field);
 }
 
 export function formatButtonMode(mode: number): string {

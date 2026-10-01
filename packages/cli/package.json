@@ -26,8 +26,7 @@
 	},
 	"files": [
 		"dist/",
-		"bin/",
-		"src/"
+		"bin/"
 	],
 	"keywords": [
 		"fairygui",
@@ -38,16 +37,14 @@
 		"publish",
 		"restore"
 	],
-	"devDependencies": {
-		"@openfairygui/core": "workspace:*",
-		"@openfairygui/functions": "workspace:*"
-	},
 	"dependencies": {
 		"@openfairygui/backend": "workspace:*",
+		"@openfairygui/core": "workspace:*",
+		"@openfairygui/functions": "workspace:*",
 		"commander": "^14.0.2",
 		"jiti": "^2.7.0"
 	},
 	"optionalDependencies": {
-		"sharp": ">=0.33.0"
+		"sharp": ">=0.33.0 <0.35.0"
 	}
 }

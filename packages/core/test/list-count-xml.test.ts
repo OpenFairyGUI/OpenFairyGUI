@@ -47,9 +47,7 @@ test('reader: canonical list item counts follow the active layout axes', async (
 		const doc = await new NodeIO().readProject(source.projectPath);
 		const component = doc.getRoot().getPackage('Lists')?.getComponent('Main');
 		t.truthy(component);
-		const byId = new Map(
-			component!.listChildren().map((child) => [child.getId(), child as any]),
-		);
+		const byId = new Map(component!.listChildren().map((child) => [child.getId(), child as any]));
 
 		t.is(byId.get('flow-hz')?.getLineCount?.(), 0);
 		t.is(byId.get('flow-hz')?.getColumnCount?.(), 4);
@@ -71,29 +69,13 @@ test('writer: canonical list item counts only serialize layout-relevant axes', a
 	component.setId('main1').setPath('/').setSize(640, 480);
 
 	const flowHorizontal = doc.createGList('flow-horizontal');
-	flowHorizontal
-		.setId('flow-hz')
-		.setLayout(2)
-		.setLineCount(7)
-		.setColumnCount(4);
+	flowHorizontal.setId('flow-hz').setLayout(2).setLineCount(7).setColumnCount(4);
 	const flowVertical = doc.createGList('flow-vertical');
-	flowVertical
-		.setId('flow-vt')
-		.setLayout(3)
-		.setLineCount(5)
-		.setColumnCount(8);
+	flowVertical.setId('flow-vt').setLayout(3).setLineCount(5).setColumnCount(8);
 	const pagination = doc.createGList('pagination');
-	pagination
-		.setId('pagination')
-		.setLayout(4)
-		.setLineCount(2)
-		.setColumnCount(3);
+	pagination.setId('pagination').setLayout(4).setLineCount(2).setColumnCount(3);
 	const singleRow = doc.createGList('single-row');
-	singleRow
-		.setId('single-row')
-		.setLayout(1)
-		.setLineCount(10)
-		.setColumnCount(11);
+	singleRow.setId('single-row').setLayout(1).setLineCount(10).setColumnCount(11);
 
 	component.addChild(flowHorizontal);
 	component.addChild(flowVertical);
@@ -105,12 +87,8 @@ test('writer: canonical list item counts only serialize layout-relevant axes', a
 	const outputProjectPath = path.join(outputDirectory, 'ListCount.fairy');
 	try {
 		await new NodeIO().writeProject(doc, outputProjectPath);
-		const xml = await fs.readFile(
-			path.join(outputDirectory, 'assets', 'Lists', 'Main.xml'),
-			'utf8',
-		);
-		const tag = (id: string): string =>
-			xml.match(new RegExp(`<list\\b[^>]*id="${id}"[^>]*>`))?.[0] ?? '';
+		const xml = await fs.readFile(path.join(outputDirectory, 'assets', 'Lists', 'Main.xml'), 'utf8');
+		const tag = (id: string): string => xml.match(new RegExp(`<list\\b[^>]*id="${id}"[^>]*>`))?.[0] ?? '';
 
 		t.regex(tag('flow-hz'), /lineItemCount="4"/);
 		t.notRegex(tag('flow-hz'), /lineItemCount2=/);
@@ -123,13 +101,8 @@ test('writer: canonical list item counts only serialize layout-relevant axes', a
 		t.notRegex(xml, /\bcolumnCount=/);
 
 		const roundTripped = await new NodeIO().readProject(outputProjectPath);
-		const roundTripComponent = roundTripped
-			.getRoot()
-			.getPackage('Lists')
-			?.getComponent('Main');
-		const byId = new Map(
-			roundTripComponent!.listChildren().map((child) => [child.getId(), child as any]),
-		);
+		const roundTripComponent = roundTripped.getRoot().getPackage('Lists')?.getComponent('Main');
+		const byId = new Map(roundTripComponent!.listChildren().map((child) => [child.getId(), child as any]));
 		t.is(byId.get('flow-hz')?.getColumnCount?.(), 4);
 		t.is(byId.get('flow-vt')?.getLineCount?.(), 5);
 		t.is(byId.get('pagination')?.getLineCount?.(), 2);

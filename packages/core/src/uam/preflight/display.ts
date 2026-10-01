@@ -12,7 +12,10 @@ import type {
 import { isFiniteUamPoint, isUamColor as isColor } from '../property-rules/values.js';
 import { isValidUamTextProperties } from '../property-rules/text.js';
 import { isValidUamImageProperties, isValidUamMovieClipProperties } from '../property-rules/image.js';
-import { isValidUamComponentInstanceProperties, isValidUamComponentPropertyOverride } from '../property-rules/component-instance.js';
+import {
+	isValidUamComponentInstanceProperties,
+	isValidUamComponentPropertyOverride,
+} from '../property-rules/component-instance.js';
 import type {
 	UamDisplayNodePropsUpdate,
 	SetDisplayNodePropsOperation,
@@ -44,12 +47,7 @@ const COMMON_DISPLAY_PROP_KEYS = new Set<keyof UamDisplayNodePropsUpdate>([
 	'customData',
 ]);
 
-const TEXT_DISPLAY_PROP_KEYS = new Set<keyof UamDisplayNodePropsUpdate>([
-	'text',
-	'font',
-	'fontSize',
-	'color',
-]);
+const TEXT_DISPLAY_PROP_KEYS = new Set<keyof UamDisplayNodePropsUpdate>(['text', 'font', 'fontSize', 'color']);
 
 const LOADER_3D_PROPERTY_KEYS = new Set<keyof UamLoader3DProperties>([
 	'url',
@@ -150,10 +148,9 @@ const TREE_PROPERTY_KEYS = [
 ] as const satisfies readonly (keyof UamTreeProperties)[];
 
 function isFiniteNumberArrayOrNull(value: unknown, length?: number): value is number[] | null {
-	return value === null || (
-		Array.isArray(value)
-		&& (length === undefined || value.length === length)
-		&& value.every(isFiniteNumber)
+	return (
+		value === null ||
+		(Array.isArray(value) && (length === undefined || value.length === length) && value.every(isFiniteNumber))
 	);
 }
 
@@ -177,96 +174,114 @@ function isValidListItem(value: unknown): value is UamListItemData {
 	if (!value || typeof value !== 'object') return false;
 	const item = value as UamListItemData;
 	const keys = Object.keys(item);
-	if (keys.length < 8 || keys.length > 10 || keys.some((key) => ![
-		'title',
-		'icon',
-		'url',
-		'name',
-		'selectedTitle',
-		'selectedIcon',
-		'level',
-		'isFolder',
-		'controllers',
-		'propertyOverrides',
-	].includes(key))) return false;
-	return [
-		item.title,
-		item.icon,
-		item.url,
-		item.name,
-		item.selectedTitle,
-		item.selectedIcon,
-	].every(isNullableString)
-		&& Number.isInteger(item.level)
-		&& item.level >= 0
-		&& (item.isFolder === null || typeof item.isFolder === 'boolean')
-		&& (item.controllers === undefined || isNullableString(item.controllers))
-		&& (item.propertyOverrides === undefined
-			|| (Array.isArray(item.propertyOverrides)
-				&& item.propertyOverrides.every(isValidUamComponentPropertyOverride)));
+	if (
+		keys.length < 8 ||
+		keys.length > 10 ||
+		keys.some(
+			(key) =>
+				![
+					'title',
+					'icon',
+					'url',
+					'name',
+					'selectedTitle',
+					'selectedIcon',
+					'level',
+					'isFolder',
+					'controllers',
+					'propertyOverrides',
+				].includes(key),
+		)
+	)
+		return false;
+	return (
+		[item.title, item.icon, item.url, item.name, item.selectedTitle, item.selectedIcon].every(isNullableString) &&
+		Number.isInteger(item.level) &&
+		item.level >= 0 &&
+		(item.isFolder === null || typeof item.isFolder === 'boolean') &&
+		(item.controllers === undefined || isNullableString(item.controllers)) &&
+		(item.propertyOverrides === undefined ||
+			(Array.isArray(item.propertyOverrides) &&
+				item.propertyOverrides.every(isValidUamComponentPropertyOverride)))
+	);
 }
 
 function isValidGraphProperties(value: unknown): value is UamGraphProperties {
 	if (!value || typeof value !== 'object' || !hasExactKeys(value, GRAPH_PROPERTY_KEYS)) return false;
 	const properties = value as UamGraphProperties;
-	return [properties.lineSize, properties.startAngle].every(isFiniteNumber)
-		&& isIntegerBetween(properties.graphType, 0, 4)
-		&& isColor(properties.lineColor)
-		&& isColor(properties.fillColor)
-		&& isFiniteNumberArrayOrNull(properties.cornerRadius, 4)
-		&& isFiniteNumberArrayOrNull(properties.points)
-		&& Number.isInteger(properties.sides)
-		&& properties.sides >= 0
-		&& isFiniteNumberArrayOrNull(properties.distances)
-		&& (properties.sides > 0 || (properties.startAngle === 0 && properties.distances === null));
+	return (
+		[properties.lineSize, properties.startAngle].every(isFiniteNumber) &&
+		isIntegerBetween(properties.graphType, 0, 4) &&
+		isColor(properties.lineColor) &&
+		isColor(properties.fillColor) &&
+		isFiniteNumberArrayOrNull(properties.cornerRadius, 4) &&
+		isFiniteNumberArrayOrNull(properties.points) &&
+		Number.isInteger(properties.sides) &&
+		properties.sides >= 0 &&
+		isFiniteNumberArrayOrNull(properties.distances) &&
+		(properties.sides > 0 || (properties.startAngle === 0 && properties.distances === null))
+	);
 }
 
 function isValidLoaderProperties(value: unknown): value is UamLoaderProperties {
 	if (!value || typeof value !== 'object' || !hasExactKeys(value, LOADER_PROPERTY_KEYS)) return false;
 	const properties = value as UamLoaderProperties;
-	return typeof properties.url === 'string'
-		&& isIntegerBetween(properties.fill, 0, 5)
-		&& [properties.shrinkOnly, properties.autoSize, properties.useResize, properties.showErrorSign, properties.playing,
-			properties.fillClockwise, properties.clearOnPublish].every((item) => typeof item === 'boolean')
-		&& isIntegerBetween(properties.align, 0, 2)
-		&& isIntegerBetween(properties.vAlign, 0, 2)
-		&& Number.isInteger(properties.frame)
-		&& properties.frame >= 0
-		&& isColor(properties.color)
-		&& isIntegerBetween(properties.fillMethod, 0, 5)
-		&& isIntegerBetween(properties.fillOrigin, 0, 3)
-		&& isFiniteNumber(properties.fillAmount)
-		&& (properties.fillMethod !== 0 || (
-			properties.fillOrigin === 0
-			&& properties.fillClockwise
-			&& properties.fillAmount === 100
-		));
+	return (
+		typeof properties.url === 'string' &&
+		isIntegerBetween(properties.fill, 0, 5) &&
+		[
+			properties.shrinkOnly,
+			properties.autoSize,
+			properties.useResize,
+			properties.showErrorSign,
+			properties.playing,
+			properties.fillClockwise,
+			properties.clearOnPublish,
+		].every((item) => typeof item === 'boolean') &&
+		isIntegerBetween(properties.align, 0, 2) &&
+		isIntegerBetween(properties.vAlign, 0, 2) &&
+		Number.isInteger(properties.frame) &&
+		properties.frame >= 0 &&
+		isColor(properties.color) &&
+		isIntegerBetween(properties.fillMethod, 0, 5) &&
+		isIntegerBetween(properties.fillOrigin, 0, 3) &&
+		isFiniteNumber(properties.fillAmount) &&
+		(properties.fillMethod !== 0 ||
+			(properties.fillOrigin === 0 && properties.fillClockwise && properties.fillAmount === 100))
+	);
 }
 
 function isValidGroupProperties(value: unknown): value is UamGroupProperties {
 	if (!value || typeof value !== 'object' || !hasExactKeys(value, GROUP_PROPERTY_KEYS)) return false;
 	const properties = value as UamGroupProperties;
-	if (!isIntegerBetween(properties.layout, 0, 2)
-		|| ![properties.lineGap, properties.columnGap].every(isFiniteNumber)
-		|| ![properties.advanced, properties.excludeInvisibles, properties.autoSizeDisabled]
-			.every((item) => typeof item === 'boolean')
-		|| !Number.isInteger(properties.mainGridIndex)
-		|| properties.mainGridIndex < -1
-	) return false;
+	if (
+		!isIntegerBetween(properties.layout, 0, 2) ||
+		![properties.lineGap, properties.columnGap].every(isFiniteNumber) ||
+		![properties.advanced, properties.excludeInvisibles, properties.autoSizeDisabled].every(
+			(item) => typeof item === 'boolean',
+		) ||
+		!Number.isInteger(properties.mainGridIndex) ||
+		properties.mainGridIndex < -1
+	)
+		return false;
 	if (!properties.advanced) {
-		return properties.layout === 0
-			&& properties.lineGap === 0
-			&& properties.columnGap === 0
-			&& !properties.excludeInvisibles
-			&& !properties.autoSizeDisabled
-			&& properties.mainGridIndex === -1;
+		return (
+			properties.layout === 0 &&
+			properties.lineGap === 0 &&
+			properties.columnGap === 0 &&
+			!properties.excludeInvisibles &&
+			!properties.autoSizeDisabled &&
+			properties.mainGridIndex === -1
+		);
 	}
 	if (properties.layout === 0) {
-		return properties.lineGap === 0
-			&& properties.columnGap === 0
-			&& !properties.excludeInvisibles
-			&& !properties.autoSizeDisabled
-			&& properties.mainGridIndex === -1;
+		return (
+			properties.lineGap === 0 &&
+			properties.columnGap === 0 &&
+			!properties.excludeInvisibles &&
+			!properties.autoSizeDisabled &&
+			properties.mainGridIndex === -1
+		);
 	}
 	return true;
 }
@@ -278,70 +293,92 @@ function isValidListProperties(
 	const keys = nodeKind === 'tree' ? TREE_PROPERTY_KEYS : LIST_PROPERTY_KEYS;
 	if (!value || typeof value !== 'object' || !hasExactKeys(value, keys)) return false;
 	const properties = value as UamTreeProperties;
-	const validCounts = (
-		(properties.layout === 0 || properties.layout === 1)
+	const validCounts =
+		properties.layout === 0 || properties.layout === 1
 			? properties.lineCount === 0 && properties.columnCount === 0
 			: properties.layout === 2
 				? properties.lineCount === 0
 				: properties.layout === 3
 					? properties.columnCount === 0
-					: true
-	);
-	const validListProperties = [
-		properties.defaultItem,
-		properties.src,
-		properties.vtScrollBarRes,
-		properties.hzScrollBarRes,
-		properties.headerRes,
-		properties.footerRes,
-		properties.pageController,
-		properties.controllerOverrides,
-		properties.selectionController,
-	].every((item) => typeof item === 'string')
-		&& isIntegerBetween(properties.layout, 0, 4)
-		&& isIntegerBetween(properties.align, 0, 2)
-		&& isIntegerBetween(properties.vAlign, 0, 2)
-		&& [properties.lineGap, properties.columnGap].every(isFiniteNumber)
-		&& [properties.lineCount, properties.columnCount].every((item) => Number.isInteger(item) && item >= 0)
-		&& validCounts
-		&& isIntegerBetween(properties.selectionMode, 0, 3)
-		&& [properties.autoResizeItem, properties.scrollItemToViewOnClick, properties.foldInvisibleItems, properties.autoClearItems]
-			.every((item) => typeof item === 'boolean')
-		&& isIntegerBetween(properties.childrenRenderOrder, 0, 2)
-		&& Number.isInteger(properties.apexIndex)
-		&& (properties.childrenRenderOrder === 2 || properties.apexIndex === 0)
-		&& isIntegerBetween(properties.overflow, 0, 2)
-		&& isIntegerBetween(properties.scrollType, 0, 2)
-		&& isIntegerBetween(properties.scrollBarDisplay, 0, 3)
-		&& Number.isInteger(properties.scrollBarFlags)
-		&& properties.scrollBarFlags >= 0
-		&& isFiniteEdgeInsets(properties.scrollBarMargin)
-		&& isFiniteEdgeInsets(properties.margin)
-		&& isFiniteUamPoint(properties.clipSoftness)
-		&& Array.isArray(properties.listItems)
-		&& properties.listItems.every(isValidListItem);
+					: true;
+	const validListProperties =
+		[
+			properties.defaultItem,
+			properties.src,
+			properties.vtScrollBarRes,
+			properties.hzScrollBarRes,
+			properties.headerRes,
+			properties.footerRes,
+			properties.pageController,
+			properties.controllerOverrides,
+			properties.selectionController,
+		].every((item) => typeof item === 'string') &&
+		isIntegerBetween(properties.layout, 0, 4) &&
+		isIntegerBetween(properties.align, 0, 2) &&
+		isIntegerBetween(properties.vAlign, 0, 2) &&
+		[properties.lineGap, properties.columnGap].every(isFiniteNumber) &&
+		[properties.lineCount, properties.columnCount].every((item) => Number.isInteger(item) && item >= 0) &&
+		validCounts &&
+		isIntegerBetween(properties.selectionMode, 0, 3) &&
+		[
+			properties.autoResizeItem,
+			properties.scrollItemToViewOnClick,
+			properties.foldInvisibleItems,
+			properties.autoClearItems,
+		].every((item) => typeof item === 'boolean') &&
+		isIntegerBetween(properties.childrenRenderOrder, 0, 2) &&
+		Number.isInteger(properties.apexIndex) &&
+		(properties.childrenRenderOrder === 2 || properties.apexIndex === 0) &&
+		isIntegerBetween(properties.overflow, 0, 2) &&
+		isIntegerBetween(properties.scrollType, 0, 2) &&
+		isIntegerBetween(properties.scrollBarDisplay, 0, 3) &&
+		Number.isInteger(properties.scrollBarFlags) &&
+		properties.scrollBarFlags >= 0 &&
+		isFiniteEdgeInsets(properties.scrollBarMargin) &&
+		isFiniteEdgeInsets(properties.margin) &&
+		isFiniteUamPoint(properties.clipSoftness) &&
+		Array.isArray(properties.listItems) &&
+		properties.listItems.every(isValidListItem);
 	if (!validListProperties || nodeKind !== 'tree') return validListProperties;
-	return properties.treeView === true
-		&& isFiniteNumber(properties.indent)
-		&& properties.indent >= 0
-		&& isIntegerBetween(properties.clickToExpand, 0, 2)
-		&& properties.listItems.every((item) => typeof item.isFolder === 'boolean');
+	return (
+		properties.treeView === true &&
+		isFiniteNumber(properties.indent) &&
+		properties.indent >= 0 &&
+		isIntegerBetween(properties.clickToExpand, 0, 2) &&
+		properties.listItems.every((item) => typeof item.isFolder === 'boolean')
+	);
 }
 
 function isValidLoader3DProperties(value: unknown): value is UamLoader3DProperties {
 	if (!value || typeof value !== 'object') return false;
 	const properties = value as UamLoader3DProperties;
 	const keys = Object.keys(properties);
-	return keys.length === LOADER_3D_PROPERTY_KEYS.size
-		&& keys.every((key) => LOADER_3D_PROPERTY_KEYS.has(key as keyof UamLoader3DProperties))
-		&& [properties.url, properties.animationName, properties.skinName].every((candidate) => typeof candidate === 'string')
-		&& Number.isInteger(properties.fill) && properties.fill >= 0 && properties.fill <= 5
-		&& [properties.shrinkOnly, properties.autoSize, properties.playing, properties.loop, properties.clearOnPublish]
-			.every((candidate) => typeof candidate === 'boolean')
-		&& Number.isInteger(properties.align) && properties.align >= 0 && properties.align <= 2
-		&& Number.isInteger(properties.vAlign) && properties.vAlign >= 0 && properties.vAlign <= 2
-		&& Number.isInteger(properties.frame) && properties.frame >= 0
-		&& isColor(properties.color);
+	return (
+		keys.length === LOADER_3D_PROPERTY_KEYS.size &&
+		keys.every((key) => LOADER_3D_PROPERTY_KEYS.has(key as keyof UamLoader3DProperties)) &&
+		[properties.url, properties.animationName, properties.skinName].every(
+			(candidate) => typeof candidate === 'string',
+		) &&
+		Number.isInteger(properties.fill) &&
+		properties.fill >= 0 &&
+		properties.fill <= 5 &&
+		[
+			properties.shrinkOnly,
+			properties.autoSize,
+			properties.playing,
+			properties.loop,
+			properties.clearOnPublish,
+		].every((candidate) => typeof candidate === 'boolean') &&
+		Number.isInteger(properties.align) &&
+		properties.align >= 0 &&
+		properties.align <= 2 &&
+		Number.isInteger(properties.vAlign) &&
+		properties.vAlign >= 0 &&
+		properties.vAlign <= 2 &&
+		Number.isInteger(properties.frame) &&
+		properties.frame >= 0 &&
+		isColor(properties.color)
+	);
 }
 
 export function validateDisplayPropsPayload(
@@ -364,17 +401,19 @@ export function validateDisplayPropsPayload(
 			{ operationKind: op.kind, nodeKind },
 		);
 	}
-	const commonValueIssue = (field: keyof UamDisplayNodePropsUpdate, message: string) => pushSupportIssue(
-		issues,
-		'invalid_display_node_payload',
-		`${path}.props.${String(field)}`,
-		message,
-		{ operationKind: op.kind, nodeKind, field: String(field) },
-	);
+	const commonValueIssue = (field: keyof UamDisplayNodePropsUpdate, message: string) =>
+		pushSupportIssue(issues, 'invalid_display_node_payload', `${path}.props.${String(field)}`, message, {
+			operationKind: op.kind,
+			nodeKind,
+			field: String(field),
+		});
 	if (op.props.position !== undefined && !isFiniteUamPoint(op.props.position)) {
 		commonValueIssue('position', 'Display node position must contain finite x and y numbers.');
 	}
-	if (op.props.size !== undefined && (!isFiniteSize(op.props.size) || op.props.size.width < 0 || op.props.size.height < 0)) {
+	if (
+		op.props.size !== undefined &&
+		(!isFiniteSize(op.props.size) || op.props.size.width < 0 || op.props.size.height < 0)
+	) {
 		commonValueIssue('size', 'Display node size must contain finite non-negative width and height values.');
 	}
 	for (const field of ['locked', 'aspect', 'visible', 'touchable', 'grayed'] as const) {
@@ -389,7 +428,10 @@ export function validateDisplayPropsPayload(
 	}
 	const minSize = op.props.minSize ?? node?.minSize;
 	const maxSize = op.props.maxSize ?? node?.maxSize;
-	for (const [field, value] of [['minSize', op.props.minSize], ['maxSize', op.props.maxSize]] as const) {
+	for (const [field, value] of [
+		['minSize', op.props.minSize],
+		['maxSize', op.props.maxSize],
+	] as const) {
 		if (value !== undefined && (!isFiniteSize(value) || value.width < 0 || value.height < 0)) {
 			commonValueIssue(field, `Display node ${field} must contain finite non-negative width and height values.`);
 		}
@@ -413,8 +455,9 @@ export function validateDisplayPropsPayload(
 			commonValueIssue(field, `Display node ${field} must be a string.`);
 		}
 	}
-	if (op.props.blendMode !== undefined
-		&& !['normal', 'none', 'add', 'multiply', 'screen', 'erase'].includes(op.props.blendMode)
+	if (
+		op.props.blendMode !== undefined &&
+		!['normal', 'none', 'add', 'multiply', 'screen', 'erase'].includes(op.props.blendMode)
 	) {
 		commonValueIssue('blendMode', `Unsupported display node blendMode "${op.props.blendMode}".`);
 	}
@@ -624,8 +667,9 @@ export function validateDisplayPropsPayload(
 					'Component instance properties are only supported on component reference nodes.',
 					{ operationKind: op.kind, nodeKind, field: key },
 				);
-			} else if (op.props.componentInstanceProperties !== null
-				&& !isValidUamComponentInstanceProperties(op.props.componentInstanceProperties)
+			} else if (
+				op.props.componentInstanceProperties !== null &&
+				!isValidUamComponentInstanceProperties(op.props.componentInstanceProperties)
 			) {
 				pushSupportIssue(
 					issues,
@@ -647,12 +691,9 @@ export function validateDisplayPropsPayload(
 					{ operationKind: op.kind, nodeKind, field: key },
 				);
 			} else if (
-				nodeKind
-				&& TEXT_DISPLAY_NODE_KINDS.has(nodeKind)
-				&& !isValidUamTextProperties(
-					op.props.textProperties,
-					nodeKind as 'text' | 'richText' | 'textInput',
-				)
+				nodeKind &&
+				TEXT_DISPLAY_NODE_KINDS.has(nodeKind) &&
+				!isValidUamTextProperties(op.props.textProperties, nodeKind as 'text' | 'richText' | 'textInput')
 			) {
 				pushSupportIssue(
 					issues,

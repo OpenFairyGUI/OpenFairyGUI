@@ -60,10 +60,14 @@ export interface ApplyUamTransactionAppDiagnostic {
 }
 
 function compactDiagnostic(diagnostic: ApplyUamTransactionAppDiagnostic): ApplyUamTransactionAppDiagnostic {
-	return Object.fromEntries(Object.entries(diagnostic).filter(([, value]) => value !== undefined)) as ApplyUamTransactionAppDiagnostic;
+	return Object.fromEntries(
+		Object.entries(diagnostic).filter(([, value]) => value !== undefined),
+	) as ApplyUamTransactionAppDiagnostic;
 }
 
-function isTransactionSupportIssue(issue: UamValidationIssue | UamTransactionSupportIssue): issue is UamTransactionSupportIssue {
+function isTransactionSupportIssue(
+	issue: UamValidationIssue | UamTransactionSupportIssue,
+): issue is UamTransactionSupportIssue {
 	return !('severity' in issue);
 }
 

@@ -117,7 +117,10 @@ export class Root extends ExtensibleProperty<IRoot> {
 	}
 
 	public setBranches(branches: string[]): this {
-		return this.set('branches', [...new Set(branches)].sort((left, right) => left.localeCompare(right)));
+		return this.set(
+			'branches',
+			[...new Set(branches)].sort((left, right) => left.localeCompare(right)),
+		);
 	}
 
 	public addBranch(branch: string): this {
