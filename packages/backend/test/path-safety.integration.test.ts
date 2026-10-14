@@ -147,6 +147,30 @@ test('Node containment uses actual volume identities for case variants', async (
 	}
 });
 
+test('Node resolvePath reports the stored spelling of existing components and keeps missing ones', async (t) => {
+	const parent = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-spelling-')));
+	t.teardown(() => fs.rm(parent, { recursive: true, force: true }));
+	const stored = path.join(parent, 'Project', 'Assets');
+	await fs.mkdir(stored, { recursive: true });
+	await fs.writeFile(path.join(stored, 'Icon.png'), '');
+	const base = createNodeBackendFileSystem();
+	t.is(await base.resolvePath(stored), stored);
+	t.is(await base.resolvePath(path.join(stored, 'Icon.png')), path.join(stored, 'Icon.png'));
+	t.is(await base.resolvePath(path.join(stored, 'New', 'Sprite.png')), path.join(stored, 'New', 'Sprite.png'));
+
+	const variant = path.join(parent, 'PROJECT', 'assets', 'icon.PNG');
+	const [actual, alias] = await Promise.all([
+		fs.stat(path.join(stored, 'Icon.png')),
+		fs.stat(variant).catch(() => null),
+	]);
+	if (alias && alias.dev === actual.dev && alias.ino === actual.ino) {
+		t.is(await base.resolvePath(variant), path.join(stored, 'Icon.png'));
+		t.is(await base.resolvePath(path.join(parent, 'project', 'ASSETS', 'New.png')), path.join(stored, 'New.png'));
+	} else {
+		t.is(await base.resolvePath(variant), variant);
+	}
+});
+
 test('openSession treats an empty allowed-roots list as allowing no projects', async (t) => {
 	const fixture = await createTempBackendProject();
 	try {

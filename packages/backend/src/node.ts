@@ -13,21 +13,38 @@ import {
 	type ProjectWriteTransactionResult,
 } from './runtime.js';
 
-async function canonicalExistingPath(filePath: string): Promise<string> {
-	const resolved = await fs.realpath(filePath);
-	const parent = path.dirname(resolved);
-	if (parent === resolved) return resolved;
-	const canonicalParent = await canonicalExistingPath(parent);
-	const name = path.basename(resolved);
-	const entries = await fs.readdir(canonicalParent);
-	if (entries.includes(name)) return path.join(canonicalParent, name);
-	const target = await fs.stat(resolved, { bigint: true });
+async function canonicalEntryName(parent: string, name: string): Promise<string> {
+	const variant = name === name.toLowerCase() ? name.toUpperCase() : name.toLowerCase();
+	if (variant === name) return name;
+	const [target, alias] = await Promise.all([
+		fs.stat(path.join(parent, name), { bigint: true }),
+		fs.stat(path.join(parent, variant), { bigint: true }).catch((error: NodeJS.ErrnoException) => {
+			if (error.code === 'ENOENT') return null;
+			throw error;
+		}),
+	]);
+	// A case variant that is missing or names another object proves this directory matches names exactly.
+	if (!alias || alias.dev !== target.dev || alias.ino !== target.ino) return name;
+	const entries = await fs.readdir(parent);
+	if (entries.includes(name)) return name;
 	for (const entry of entries) {
 		if (entry.toLowerCase() !== name.toLowerCase()) continue;
-		const candidate = await fs.stat(path.join(canonicalParent, entry), { bigint: true });
-		if (candidate.dev === target.dev && candidate.ino === target.ino) return path.join(canonicalParent, entry);
+		const candidate = await fs.stat(path.join(parent, entry), { bigint: true });
+		if (candidate.dev === target.dev && candidate.ino === target.ino) return entry;
 	}
 	throw Object.assign(new Error('Unable to establish canonical path identity.'), { code: 'EACCES' });
+}
+
+async function canonicalExistingPath(filePath: string): Promise<string> {
+	const resolved = await fs.realpath(filePath);
+	// Windows realpath (GetFinalPathNameByHandleW) already reports the stored spelling of every component.
+	if (process.platform === 'win32') return resolved;
+	const { root } = path.parse(resolved);
+	let canonical = root;
+	for (const name of resolved.slice(root.length).split(path.sep)) {
+		if (name) canonical = path.join(canonical, await canonicalEntryName(canonical, name));
+	}
+	return canonical;
 }
 
 async function resolvePathThroughExistingAncestor(filePath: string): Promise<string> {
