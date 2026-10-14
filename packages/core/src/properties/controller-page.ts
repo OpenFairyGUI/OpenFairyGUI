@@ -24,9 +24,17 @@ export class ControllerPage extends Property<IControllerPage> {
 		});
 	}
 
-	public getId(): string { return this.get('id'); }
-	public setId(id: string): this { return this.set('id', id); }
+	public getId(): string {
+		return this.get('id');
+	}
+	public setId(id: string): this {
+		return this.set('id', id);
+	}
 
-	public getRemark(): string { return this.get('remark'); }
-	public setRemark(remark: string): this { return this.set('remark', remark); }
+	public getRemark(): string {
+		return this.get('remark');
+	}
+	public setRemark(remark: string): this {
+		return this.set('remark', remark);
+	}
 }

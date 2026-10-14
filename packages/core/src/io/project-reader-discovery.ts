@@ -12,7 +12,8 @@ export async function probeProjectDirectory(fs: Pick<FileSystem, 'readdir'>, pat
 	} catch (error) {
 		const failure = error as { code?: string; name?: string } | null;
 		return {
-			kind: 'failure', error,
+			kind: 'failure',
+			error,
 			notDirectory: failure?.code === 'ENOTDIR' || failure?.name === 'TypeMismatchError',
 			missing: failure?.code === 'ENOENT' || failure?.name === 'NotFoundError',
 		};
@@ -20,7 +21,8 @@ export async function probeProjectDirectory(fs: Pick<FileSystem, 'readdir'>, pat
 }
 
 export async function readProjectDirectory(
-	fs: Pick<FileSystem, 'readdir'>, path: string,
+	fs: Pick<FileSystem, 'readdir'>,
+	path: string,
 	options: { diagnostics?: ProjectDiagnostic[]; optional?: boolean; probe?: boolean } = {},
 ): Promise<string[] | null> {
 	const result = await probeProjectDirectory(fs, path);
@@ -30,7 +32,9 @@ export async function readProjectDirectory(
 	const { error } = result;
 	if (!options.diagnostics) throw error;
 	options.diagnostics.push({
-		severity: 'error', code: 'unreadable_source', path: 'packages',
+		severity: 'error',
+		code: 'unreadable_source',
+		path: 'packages',
 		message: `Failed to enumerate project directory: ${error instanceof Error ? error.message : String(error)}`,
 		sourcePath: path,
 	});
@@ -38,7 +42,9 @@ export async function readProjectDirectory(
 }
 
 export async function readProjectSubdirectory(
-	fs: Pick<FileSystem, 'readdir' | 'stat'>, path: string, diagnostics?: ProjectDiagnostic[],
+	fs: Pick<FileSystem, 'readdir' | 'stat'>,
+	path: string,
+	diagnostics?: ProjectDiagnostic[],
 ): Promise<string[] | null> {
 	if (fs.stat && !(await fs.stat(path)).isDirectory()) return null;
 	return readProjectDirectory(fs, path, { diagnostics, probe: !fs.stat });

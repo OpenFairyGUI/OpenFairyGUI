@@ -39,11 +39,7 @@ test('round-trip: written project preserves package count', async (t) => {
 		await io.writeProject(doc, outFairy);
 
 		const doc2 = await io.readProject(outFairy);
-		t.is(
-			doc2.getRoot().listPackages().length,
-			srcPackages.length,
-			'written project has same package count',
-		);
+		t.is(doc2.getRoot().listPackages().length, srcPackages.length, 'written project has same package count');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
@@ -78,7 +74,10 @@ test('round-trip: written components are re-parseable', async (t) => {
 	const io = new NodeIO();
 	const doc = await io.readProject(PROJECT_PATH);
 
-	const srcBasics = doc.getRoot().listPackages().find((p) => p.getName() === 'Basics')!;
+	const srcBasics = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Basics')!;
 	const srcCompCount = srcBasics.listComponents().length;
 
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-rt-'));
@@ -88,7 +87,10 @@ test('round-trip: written components are re-parseable', async (t) => {
 		await io.writeProject(doc, outFairy);
 
 		const doc2 = await io.readProject(outFairy);
-		const dstBasics = doc2.getRoot().listPackages().find((p) => p.getName() === 'Basics');
+		const dstBasics = doc2
+			.getRoot()
+			.listPackages()
+			.find((p) => p.getName() === 'Basics');
 		t.truthy(dstBasics, 'Basics package exists in round-tripped project');
 		t.is(dstBasics!.listComponents().length, srcCompCount, 'same component count after round-trip');
 	} finally {
@@ -107,7 +109,10 @@ test('round-trip: Button controller pages survive write→read', async (t) => {
 		await io.writeProject(doc, outFairy);
 
 		const doc2 = await io.readProject(outFairy);
-		const basics = doc2.getRoot().listPackages().find((p) => p.getName() === 'Basics')!;
+		const basics = doc2
+			.getRoot()
+			.listPackages()
+			.find((p) => p.getName() === 'Basics')!;
 		const button = basics.listComponents().find((c) => c.getName() === 'Button');
 		t.truthy(button, 'Button exists in round-tripped project');
 		const ctrl = button!.listControllers()[0];
@@ -255,11 +260,20 @@ test('round-trip: misc/spine/dragonbones resources survive package.xml write→r
 		await io.writeProject(doc, outFairy);
 
 		const pkgXml = await fs.readFile(path.join(tmpDir, 'assets', 'Loader', 'package.xml'), 'utf-8');
-		t.true(pkgXml.includes('<misc id="misc001" name="alien-pma.atlas" path="/images/">') || pkgXml.includes('<misc id="misc001" name="alien-pma.atlas" path="/images/"'), 'misc resource writes file name');
+		t.true(
+			pkgXml.includes('<misc id="misc001" name="alien-pma.atlas" path="/images/">') ||
+				pkgXml.includes('<misc id="misc001" name="alien-pma.atlas" path="/images/"'),
+			'misc resource writes file name',
+		);
 		t.true(pkgXml.includes('require="misc001,img001"'), 'spine writes require ids');
 		t.true(pkgXml.includes('atlasNames="alien-pma"'), 'spine writes atlasNames');
 		t.true(pkgXml.includes('anchor="176,380"'), 'spine writes anchor');
-		t.true(pkgXml.includes('<dragonbones id="dragon001" name="dragon_ske.json" path="/images/" width="0" height="0" require="misc002,img002" atlasNames="" anchor="0,0"'), 'dragonbones writes canonical attrs');
+		t.true(
+			pkgXml.includes(
+				'<dragonbones id="dragon001" name="dragon_ske.json" path="/images/" width="0" height="0" require="misc002,img002" atlasNames="" anchor="0,0"',
+			),
+			'dragonbones writes canonical attrs',
+		);
 
 		const doc2 = await io.readProject(outFairy);
 		const pkg2 = doc2.getRoot().getPackage('Loader');
@@ -343,7 +357,10 @@ test('round-trip: branch package resources write into package_branch.xml and sur
 		t.true(mainPackageXml.includes('id="kn7w1"'), 'main package.xml keeps main resource');
 		t.false(mainPackageXml.includes('id="kn7w2"'), 'main package.xml excludes branch resource');
 
-		const branchPackageXml = await fs.readFile(path.join(tmpDir, 'assets_dev', 'Branch', 'package_branch.xml'), 'utf-8');
+		const branchPackageXml = await fs.readFile(
+			path.join(tmpDir, 'assets_dev', 'Branch', 'package_branch.xml'),
+			'utf-8',
+		);
 		t.true(branchPackageXml.includes('<branchDescription>'), 'branchDescription root is written');
 		t.true(branchPackageXml.includes('id="kn7w2"'), 'package_branch.xml keeps branch resource');
 		t.true(branchPackageXml.includes('id="kn7w3"'), 'package_branch.xml keeps branch component resource');
@@ -364,7 +381,9 @@ test('round-trip: branch package resources write into package_branch.xml and sur
 		t.is(roundTripDevComponent?.getBranch?.(), 'dev');
 		t.is(roundTripDevComponent?.getWidth?.(), 320);
 		t.is(roundTripDevComponent?.getHeight?.(), 180);
-		const roundTripDevLoader = roundTripDevComponent?.listChildren?.().find((child: any) => child.getId?.() === 'n0_kn7w');
+		const roundTripDevLoader = roundTripDevComponent
+			?.listChildren?.()
+			.find((child: any) => child.getId?.() === 'n0_kn7w');
 		t.is(roundTripDevLoader?.getUrl?.(), 'ui://branch001kn7w2');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
@@ -375,12 +394,16 @@ test('round-trip: package-local branch order and item slots survive project relo
 	const doc = new Document();
 	doc.getRoot().setProjectId('ordered-branches').setBranches(['desktop', 'mobile']);
 	const pkg = doc.createPackage('Ordered').setId('ordered001').setBranchNames(['mobile', 'desktop']);
-	const main = doc.createImageResource('face.png')
+	const main = doc
+		.createImageResource('face.png')
 		.setId('mainFace')
 		.setPath('/')
 		.setBranchItemIds(['mobileFace', 'desktopFace']);
 	pkg.addResource(main);
-	for (const [branch, id] of [['mobile', 'mobileFace'], ['desktop', 'desktopFace']] as const) {
+	for (const [branch, id] of [
+		['mobile', 'mobileFace'],
+		['desktop', 'desktopFace'],
+	] as const) {
 		pkg.addResource(doc.createImageResource('face.png').setId(id).setPath('/').setBranch(branch));
 	}
 
@@ -393,10 +416,13 @@ test('round-trip: package-local branch order and item slots survive project relo
 		t.true(packageXml.includes('branchNames="[&quot;mobile&quot;,&quot;desktop&quot;]"'));
 		const reloadedPackage = (await io.readProject(outFairy)).getRoot().getPackage('Ordered');
 		t.deepEqual(reloadedPackage?.listBranchNames(), ['mobile', 'desktop']);
-		t.deepEqual(reloadedPackage?.listResources().find((resource) => resource.getId() === 'mainFace')?.getBranchItemIds(), [
-			'mobileFace',
-			'desktopFace',
-		]);
+		t.deepEqual(
+			reloadedPackage
+				?.listResources()
+				.find((resource) => resource.getId() === 'mainFace')
+				?.getBranchItemIds(),
+			['mobileFace', 'desktopFace'],
+		);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
@@ -530,45 +556,86 @@ test('round-trip: sample list ptrRes and transition value attrs survive write→
 
 		const bossXml = await fs.readFile(path.join(tmpDir, 'assets', 'Transition', 'BOSS.xml'), 'utf-8');
 		t.false(/<item\b[^>]*\btarget=""/.test(bossXml), 'transition items omit empty target attr');
-		t.true(bossXml.includes('<item time="0" type="Sound" value="ui://zgmoraj4gkq03"/>'), 'transition sound omits default volume payload');
+		t.true(
+			bossXml.includes('<item time="0" type="Sound" value="ui://zgmoraj4gkq03"/>'),
+			'transition sound omits default volume payload',
+		);
 		t.true(bossXml.includes('ease="Expo.Out"'), 'transition tween preserves dotted ease names');
 		t.true(bossXml.includes('ease="Back.Out"'), 'transition tween preserves non-default ease names');
 
 		const pathDemoXml = await fs.readFile(path.join(tmpDir, 'assets', 'Transition', 'PathDemo.xml'), 'utf-8');
-		t.true(pathDemoXml.includes('<item time="0" type="Transition" value="t1"/>'), 'transition action omits default play-times payload');
+		t.true(
+			pathDemoXml.includes('<item time="0" type="Transition" value="t1"/>'),
+			'transition action omits default play-times payload',
+		);
 		t.true(pathDemoXml.includes('path="2,0,0,'), 'transition path payload is written');
 		t.true(pathDemoXml.includes('ease="Linear"'), 'transition linear ease is written');
-		t.true(pathDemoXml.includes('startValue="0.38,0.00,0.00,0.00"'), 'transition color filter startValue keeps editor-style fixed decimals');
-		t.true(pathDemoXml.includes('endValue="0.00,0.00,0.00,0.00"'), 'transition color filter endValue keeps editor-style fixed decimals');
+		t.true(
+			pathDemoXml.includes('startValue="0.38,0.00,0.00,0.00"'),
+			'transition color filter startValue keeps editor-style fixed decimals',
+		);
+		t.true(
+			pathDemoXml.includes('endValue="0.00,0.00,0.00,0.00"'),
+			'transition color filter endValue keeps editor-style fixed decimals',
+		);
 
 		const powerUpXml = await fs.readFile(path.join(tmpDir, 'assets', 'Transition', 'PowerUp.xml'), 'utf-8');
 		t.true(powerUpXml.includes('label2="end"'), 'transition end label is written');
-		t.true(powerUpXml.includes('<item time="0" type="Alpha" value="1.00"/>'), 'non-tween alpha writes value attr with editor-style fixed decimals');
-		t.true(powerUpXml.includes('<item time="0" type="XY" value="0,0"/>'), 'non-tween XY writes value attr instead of startValue');
+		t.true(
+			powerUpXml.includes('<item time="0" type="Alpha" value="1.00"/>'),
+			'non-tween alpha writes value attr with editor-style fixed decimals',
+		);
+		t.true(
+			powerUpXml.includes('<item time="0" type="XY" value="0,0"/>'),
+			'non-tween XY writes value attr instead of startValue',
+		);
 		t.true(/<jta\b[^>]*id="n5"/.test(powerUpXml), 'movie clip instances write jta display tags');
 
 		const goodHitXml = await fs.readFile(path.join(tmpDir, 'assets', 'Transition', 'GoodHit.xml'), 'utf-8');
-		t.true(goodHitXml.includes('duration="7"'), 'transition duration rounds float noise back to editor frame integers');
-		t.true(goodHitXml.includes('<item time="7" type="Shake" value="3,0.5"/>'), 'transition time rounds float noise back to editor frame integers');
+		t.true(
+			goodHitXml.includes('duration="7"'),
+			'transition duration rounds float noise back to editor frame integers',
+		);
+		t.true(
+			goodHitXml.includes('<item time="7" type="Shake" value="3,0.5"/>'),
+			'transition time rounds float noise back to editor frame integers',
+		);
 
 		const demoListXml = await fs.readFile(path.join(tmpDir, 'assets', 'Basics', 'Demo_List.xml'), 'utf-8');
 		t.false(demoListXml.includes('selectionMode="single"'), 'list omits default selectionMode');
 		t.false(demoListXml.includes('level="0"'), 'list items omit default level');
 
 		const doc2 = await io.readProject(outFairy);
-		const pullToRefresh = doc2.getRoot().listPackages().find((pkg) => pkg.getName() === 'PullToRefresh');
+		const pullToRefresh = doc2
+			.getRoot()
+			.listPackages()
+			.find((pkg) => pkg.getName() === 'PullToRefresh');
 		const main = pullToRefresh?.listComponents().find((comp) => comp.getName() === 'Main');
 		t.truthy(main, 'PullToRefresh/Main exists after round-trip');
-		const list1 = main?.listChildren().find((child) => child.getName?.() === 'list1') as ReturnType<Document['createGList']> | undefined;
-		const list2 = main?.listChildren().find((child) => child.getName?.() === 'list2') as ReturnType<Document['createGList']> | undefined;
+		const list1 = main?.listChildren().find((child) => child.getName?.() === 'list1') as
+			| ReturnType<Document['createGList']>
+			| undefined;
+		const list2 = main?.listChildren().find((child) => child.getName?.() === 'list2') as
+			| ReturnType<Document['createGList']>
+			| undefined;
 		t.is(list1?.getHeaderRes?.(), 'ui://3u9795n0n3qdr');
 		t.is(list2?.getFooterRes?.(), 'ui://3u9795n09sflu');
 
-		const transitionPkg = doc2.getRoot().listPackages().find((pkg) => pkg.getName() === 'Transition');
+		const transitionPkg = doc2
+			.getRoot()
+			.listPackages()
+			.find((pkg) => pkg.getName() === 'Transition');
 		const boss = transitionPkg?.listComponents().find((comp) => comp.getName() === 'BOSS');
-		const soundItem = boss?.listTransitions?.()[0]?.listItems?.().find((item) => item.getActionType() === 9);
+		const soundItem = boss
+			?.listTransitions?.()[0]
+			?.listItems?.()
+			.find((item) => item.getActionType() === 9);
 		t.truthy(soundItem, 'BOSS transition sound action exists after round-trip');
-		t.deepEqual(soundItem?.getStartValue(), ['ui://zgmoraj4gkq03'], 'transition value is parsed through the formal startValue model');
+		t.deepEqual(
+			soundItem?.getStartValue(),
+			['ui://zgmoraj4gkq03'],
+			'transition value is parsed through the formal startValue model',
+		);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

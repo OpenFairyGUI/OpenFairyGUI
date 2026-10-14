@@ -1,8 +1,15 @@
+import { ProjectIOError } from './errors.js';
 import { GearType } from '../constants.js';
 import type { GObject } from '../properties/g-object.js';
 import type { Gear } from '../properties/gear.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr, type XmlNodeProtocol } from './project-xml-protocol.js';
-import { formatProjectInt32, formatTrimmedFixed, formatXmlColor, getProtocolChildName, isDefaultBlackColor } from './project-xml-writer-utils.js';
+import {
+	formatProjectInt32,
+	formatTrimmedFixed,
+	formatXmlColor,
+	getProtocolChildName,
+	isDefaultBlackColor,
+} from './project-xml-writer-utils.js';
 
 const GEAR_TAG: Record<number, string> = {
 	[GearType.Display]: 'gearDisplay',
@@ -18,31 +25,65 @@ const GEAR_TAG: Record<number, string> = {
 };
 
 const RELATION_TYPE_NAME: Record<number, string> = {
-	0: 'left-left', 1: 'left-center', 2: 'left-right',
+	0: 'left-left',
+	1: 'left-center',
+	2: 'left-right',
 	3: 'center-center',
-	4: 'right-left', 5: 'right-center', 6: 'right-right',
-	7: 'top-top', 8: 'top-middle', 9: 'top-bottom',
+	4: 'right-left',
+	5: 'right-center',
+	6: 'right-right',
+	7: 'top-top',
+	8: 'top-middle',
+	9: 'top-bottom',
 	10: 'middle-middle',
-	11: 'bottom-top', 12: 'bottom-middle', 13: 'bottom-bottom',
-	14: 'width-width', 15: 'height-height',
-	16: 'leftext-left', 17: 'leftext-right',
-	18: 'rightext-left', 19: 'rightext-right',
-	20: 'topext-top', 21: 'topext-bottom',
-	22: 'bottomext-top', 23: 'bottomext-bottom',
+	11: 'bottom-top',
+	12: 'bottom-middle',
+	13: 'bottom-bottom',
+	14: 'width-width',
+	15: 'height-height',
+	16: 'leftext-left',
+	17: 'leftext-right',
+	18: 'rightext-left',
+	19: 'rightext-right',
+	20: 'topext-top',
+	21: 'topext-bottom',
+	22: 'bottomext-top',
+	23: 'bottomext-bottom',
 };
 
 function stringifyEaseType(easeType: number): string {
 	const names: Record<number, string> = {
-		0: 'Linear', 1: 'Sine.In', 2: 'Sine.Out', 3: 'Sine.InOut',
-		4: 'Quad.In', 5: 'Quad.Out', 6: 'Quad.InOut',
-		7: 'Cubic.In', 8: 'Cubic.Out', 9: 'Cubic.InOut',
-		10: 'Quart.In', 11: 'Quart.Out', 12: 'Quart.InOut',
-		13: 'Quint.In', 14: 'Quint.Out', 15: 'Quint.InOut',
-		16: 'Expo.In', 17: 'Expo.Out', 18: 'Expo.InOut',
-		19: 'Circ.In', 20: 'Circ.Out', 21: 'Circ.InOut',
-		22: 'Elastic.In', 23: 'Elastic.Out', 24: 'Elastic.InOut',
-		25: 'Back.In', 26: 'Back.Out', 27: 'Back.InOut',
-		28: 'Bounce.In', 29: 'Bounce.Out', 30: 'Bounce.InOut',
+		0: 'Linear',
+		1: 'Sine.In',
+		2: 'Sine.Out',
+		3: 'Sine.InOut',
+		4: 'Quad.In',
+		5: 'Quad.Out',
+		6: 'Quad.InOut',
+		7: 'Cubic.In',
+		8: 'Cubic.Out',
+		9: 'Cubic.InOut',
+		10: 'Quart.In',
+		11: 'Quart.Out',
+		12: 'Quart.InOut',
+		13: 'Quint.In',
+		14: 'Quint.Out',
+		15: 'Quint.InOut',
+		16: 'Expo.In',
+		17: 'Expo.Out',
+		18: 'Expo.InOut',
+		19: 'Circ.In',
+		20: 'Circ.Out',
+		21: 'Circ.InOut',
+		22: 'Elastic.In',
+		23: 'Elastic.Out',
+		24: 'Elastic.InOut',
+		25: 'Back.In',
+		26: 'Back.Out',
+		27: 'Back.InOut',
+		28: 'Bounce.In',
+		29: 'Bounce.Out',
+		30: 'Bounce.InOut',
 		31: 'Custom',
 	};
 	return names[easeType] ?? 'Quad.Out';
@@ -114,9 +155,9 @@ function normalizeGearSizeSegment(segment: string, fixedScale: boolean, omitIden
 		}
 		const scaleFormatter = fixedScale
 			? (value: string | undefined) => {
-				const numeric = Number(value);
-				return Number.isFinite(numeric) ? numeric.toFixed(2) : String(value ?? '');
-			}
+					const numeric = Number(value);
+					return Number.isFinite(numeric) ? numeric.toFixed(2) : String(value ?? '');
+				}
 			: (value: string | undefined) => formatTrimmedFixed(Number(value ?? 0), 2);
 		normalized.push(scaleFormatter(parts[2]), scaleFormatter(parts[3]));
 	}
@@ -135,32 +176,50 @@ function normalizeGearXYSegment(segment: string): string {
 }
 
 function shouldCompactTextGearColor(ownerType?: string, ownerName?: string): boolean {
-	return (ownerType === 'GTextField' || ownerType === 'GRichTextField' || ownerType === 'GTextInput')
-		&& ownerName === 'title';
+	return (
+		(ownerType === 'GTextField' || ownerType === 'GRichTextField' || ownerType === 'GTextInput') &&
+		ownerName === 'title'
+	);
 }
 
-function normalizeGearXmlValue(gearType: number, value: unknown, ownerType?: string, ownerName?: string, gear?: Gear): string {
+function normalizeGearXmlValue(
+	gearType: number,
+	value: unknown,
+	ownerType?: string,
+	ownerName?: string,
+	gear?: Gear,
+): string {
 	const raw = String(value ?? '');
 	switch (gearType) {
 		case GearType.XY:
-			return raw.split('|').map((segment) => normalizeGearXYSegment(segment)).join('|');
+			return raw
+				.split('|')
+				.map((segment) => normalizeGearXYSegment(segment))
+				.join('|');
 		case GearType.Size: {
 			const fixedScale = !gear?.getTween();
 			const segments = raw.split('|');
-			const omitIdentityScale = fixedScale
-				&& ownerName !== 'bg'
-				&& segments.every((segment) => isIdentityGearSizeScale(segment));
-			return segments.map((segment) => normalizeGearSizeSegment(segment, fixedScale, omitIdentityScale)).join('|');
+			const omitIdentityScale =
+				fixedScale && ownerName !== 'bg' && segments.every((segment) => isIdentityGearSizeScale(segment));
+			return segments
+				.map((segment) => normalizeGearSizeSegment(segment, fixedScale, omitIdentityScale))
+				.join('|');
 		}
 		case GearType.Look: {
-			const fixedAlpha = ownerType === 'GLoader'
-				|| Boolean(gear?.getTween() && !almostEqual(gear.getTweenDuration(), 0.3));
-			return raw.split('|').map((segment) => normalizeGearLookSegment(segment, fixedAlpha)).join('|');
+			const fixedAlpha =
+				ownerType === 'GLoader' || Boolean(gear?.getTween() && !almostEqual(gear.getTweenDuration(), 0.3));
+			return raw
+				.split('|')
+				.map((segment) => normalizeGearLookSegment(segment, fixedAlpha))
+				.join('|');
 		}
 		case GearType.Color: {
 			const textLike = ownerType === 'GTextField' || ownerType === 'GRichTextField' || ownerType === 'GTextInput';
 			const compactOutline = !textLike || shouldCompactTextGearColor(ownerType, ownerName);
-			return raw.split('|').map((segment) => normalizeGearColorSegment(segment, compactOutline)).join('|');
+			return raw
+				.split('|')
+				.map((segment) => normalizeGearColorSegment(segment, compactOutline))
+				.join('|');
 		}
 		default:
 			return raw;
@@ -212,7 +271,8 @@ export function assertDisplayObjectGearXmlValues(obj: GObject): void {
 	const types = new Set<number>();
 	for (const gear of obj.listGears()) {
 		const type = gear.getGearType();
-		if (types.has(type)) throw new Error(`Display node "${obj.getId()}" has duplicate ${GEAR_TAG[type] ?? type} bindings.`);
+		if (types.has(type))
+			throw new ProjectIOError(`Display node "${obj.getId()}" has duplicate ${GEAR_TAG[type] ?? type} bindings.`);
 		types.add(type);
 		assertTextGearXmlValues(gear);
 	}
@@ -223,7 +283,9 @@ function assertTextGearXmlValues(gear: Gear): void {
 	const values = gear.getPageValues();
 	for (const page of gear.getPages() ? gear.getPages().split(',') : []) {
 		if (values[page]?.includes('|')) {
-			throw new Error(`Project XML cannot represent "|" in Text/Icon gear page "${page}"; no verified delimiter escape is available.`);
+			throw new ProjectIOError(
+				`Project XML cannot represent "|" in Text/Icon gear page "${page}"; no verified delimiter escape is available.`,
+			);
 		}
 	}
 }
@@ -242,13 +304,26 @@ function serializeGear(gear: Gear, ownerType?: string, ownerName?: string | null
 		}
 	} else {
 		if (gear.getPages()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.pages, gear.getPages());
-		if (gear.getValues()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.values, normalizeGearXmlValue(gear.getGearType(), gear.getValues(), ownerType, ownerName ?? undefined, gear));
+		if (gear.getValues())
+			writeXmlAttr(
+				attrs,
+				PROJECT_XML_PROTOCOL.gear.attrs.values,
+				normalizeGearXmlValue(gear.getGearType(), gear.getValues(), ownerType, ownerName ?? undefined, gear),
+			);
 	}
-	if (gear.getDefaultValue() !== null) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.default, normalizeGearXmlValue(gear.getGearType(), gear.getDefaultValue(), ownerType, ownerName ?? undefined, gear));
+	if (gear.getDefaultValue() !== null)
+		writeXmlAttr(
+			attrs,
+			PROJECT_XML_PROTOCOL.gear.attrs.default,
+			normalizeGearXmlValue(gear.getGearType(), gear.getDefaultValue(), ownerType, ownerName ?? undefined, gear),
+		);
 	if (gear.getTween()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.tween, 'true');
-	if (gear.getEaseType() !== 5) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.ease, stringifyEaseType(gear.getEaseType()));
-	if (gear.getTweenDuration() !== 0.3) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.duration, String(gear.getTweenDuration()));
-	if (gear.getTweenDelay() !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.delay, String(gear.getTweenDelay()));
+	if (gear.getEaseType() !== 5)
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.ease, stringifyEaseType(gear.getEaseType()));
+	if (gear.getTweenDuration() !== 0.3)
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.duration, String(gear.getTweenDuration()));
+	if (gear.getTweenDelay() !== 0)
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.delay, String(gear.getTweenDelay()));
 	if (gear.getPositionsInPercent()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.positionsInPercent, 'true');
 	if (gear.getCondition()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.condition, gear.getCondition());
 	return attrs;

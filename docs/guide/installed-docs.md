@@ -43,3 +43,5 @@ ofgui doctor ./MyProject --output-dir ./Release --json
 `pnpm contracts:generate` 从 Core/Backend/CLI 类型、MCP 传输元数据、Backend 包版本及上述 Markdown 生成 `packages/backend/src/generated/`。CLI 输出 schema 通过 `cli/<命令路径>` ID 和 `openfairygui://docs/cli/{command}` URI 获取，URI 空格用 `%20` 编码。修改版本或原文后必须重新生成；`contracts:check` 拒绝漂移。发布流程仍检查即将发布的同一组 tarball，不能以网站或另一次 build 替代安装产物证据。
 
 `pack:check` 在仓库外安装五包，验证文档/Skill 存在、包版本与摘要一致、CLI/MCP 正文一致、doctor 只读及缺少解码器时的 incomplete 退出码，并运行 inspect/edit/save/reread 及 publish/restore 示例；`restore-limits` 正文直接由正式恢复边界文档生成并随包分发。源码测试和安装消费者验证分开保留。
+
+只支持工具的客户端可调用 `openfairygui_docs_read({id:"index"})`，再使用返回的精确文档 ID。默认 MCP instructions 提供安全编辑顺序。

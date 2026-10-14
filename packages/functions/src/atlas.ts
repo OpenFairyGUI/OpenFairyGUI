@@ -151,7 +151,15 @@ export interface AtlasOptions {
 const ATLAS_DEFAULTS: Required<
 	Omit<
 		AtlasOptions,
-		'publishResources' | 'packages' | 'encoder' | 'basePath' | 'outputPath' | 'mkdir' | 'readFileRaw' | 'preparedMovieClips' | 'onFileWritten'
+		| 'publishResources'
+		| 'packages'
+		| 'encoder'
+		| 'basePath'
+		| 'outputPath'
+		| 'mkdir'
+		| 'readFileRaw'
+		| 'preparedMovieClips'
+		| 'onFileWritten'
 	>
 > = {
 	maxSize: 2048,
@@ -307,7 +315,9 @@ async function resolveEditorCompatibleResourceOrder(
 			]) {
 				await addResourceByLocalUiUrl(ref);
 			}
-			for (const item of refChild.getInstanceAutoClearItems?.() ? [] : (refChild.getInstanceComboItems?.() ?? [])) {
+			for (const item of refChild.getInstanceAutoClearItems?.()
+				? []
+				: (refChild.getInstanceComboItems?.() ?? [])) {
 				await addResourceByLocalUiUrl(item.icon ?? undefined);
 			}
 			for (const item of refChild.getAutoClearItems?.() ? [] : (refChild.getListItems?.() ?? [])) {
@@ -399,10 +409,9 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 			const selectedResources = options.publishResources;
 			const hasPublishSelection =
 				selectedResources !== undefined && (options.strictOutput || selectedResources.size > 0);
-			const allResources =
-				hasPublishSelection
-					? pkg.listResources().filter((resource) => selectedResources!.has(resource))
-					: pkg.listResources();
+			const allResources = hasPublishSelection
+				? pkg.listResources().filter((resource) => selectedResources!.has(resource))
+				: pkg.listResources();
 			for (const font of allResources.filter(isFontResource)) await collectFontTexture(doc, font, pkg, options);
 			const skeletonDependencyImageIds = getSelectedSkeletonDependencyImageIds(allResources);
 			// Process resources in declaration order (matching editor behavior)

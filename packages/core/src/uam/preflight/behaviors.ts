@@ -136,24 +136,72 @@ function validateControllerPayload(
 	}
 	const pageIds = new Set(controller.pages.map((page) => page.id));
 	if (typeof controller.autoRadioGroupDepth !== 'boolean') {
-		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.autoRadioGroupDepth`, 'Controller autoRadioGroupDepth must be boolean.', { operationKind });
+		pushSupportIssue(
+			issues,
+			'invalid_controller_payload',
+			`${path}.controller.autoRadioGroupDepth`,
+			'Controller autoRadioGroupDepth must be boolean.',
+			{ operationKind },
+		);
 	}
 	if (typeof controller.alias !== 'string') {
-		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.alias`, 'Controller alias must be a string.', { operationKind });
+		pushSupportIssue(
+			issues,
+			'invalid_controller_payload',
+			`${path}.controller.alias`,
+			'Controller alias must be a string.',
+			{ operationKind },
+		);
 	}
 	if (typeof controller.exported !== 'boolean') {
-		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.exported`, 'Controller exported must be boolean.', { operationKind });
+		pushSupportIssue(
+			issues,
+			'invalid_controller_payload',
+			`${path}.controller.exported`,
+			'Controller exported must be boolean.',
+			{ operationKind },
+		);
 	}
 	if (!['default', 'specific', 'branch', 'variable'].includes(controller.homePageType)) {
-		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.homePageType`, `Unknown controller home page type "${controller.homePageType}".`, { operationKind });
+		pushSupportIssue(
+			issues,
+			'invalid_controller_payload',
+			`${path}.controller.homePageType`,
+			`Unknown controller home page type "${controller.homePageType}".`,
+			{ operationKind },
+		);
 	} else if (typeof controller.homePage !== 'string') {
-		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.homePage`, 'Controller homePage must be a string.', { operationKind });
+		pushSupportIssue(
+			issues,
+			'invalid_controller_payload',
+			`${path}.controller.homePage`,
+			'Controller homePage must be a string.',
+			{ operationKind },
+		);
 	} else if (controller.homePageType === 'specific' && !pageIds.has(controller.homePage)) {
-		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.homePage`, `Unknown controller home page id "${controller.homePage}".`, { operationKind });
+		pushSupportIssue(
+			issues,
+			'invalid_controller_payload',
+			`${path}.controller.homePage`,
+			`Unknown controller home page id "${controller.homePage}".`,
+			{ operationKind },
+		);
 	} else if (controller.homePageType === 'variable' && !controller.homePage) {
-		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.homePage`, 'Variable controller home page requires a custom property key.', { operationKind });
+		pushSupportIssue(
+			issues,
+			'invalid_controller_payload',
+			`${path}.controller.homePage`,
+			'Variable controller home page requires a custom property key.',
+			{ operationKind },
+		);
 	} else if ((controller.homePageType === 'default' || controller.homePageType === 'branch') && controller.homePage) {
-		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.homePage`, `Controller home page must be empty for "${controller.homePageType}".`, { operationKind });
+		pushSupportIssue(
+			issues,
+			'invalid_controller_payload',
+			`${path}.controller.homePage`,
+			`Controller home page must be empty for "${controller.homePageType}".`,
+			{ operationKind },
+		);
 	}
 	for (const [actionIndex, action] of controller.actions.entries()) {
 		for (const pageId of action.fromPageIds) {
@@ -195,10 +243,14 @@ function projectedDisplayGearsForController(
 	const component = findComponentSpec(project, selector);
 	if (!component) return [];
 
-	const projected = new Map<string, { displayNodeId: string; gear: Extract<UamGearBinding, { kind: 'display' | 'display2' }> }>();
+	const projected = new Map<
+		string,
+		{ displayNodeId: string; gear: Extract<UamGearBinding, { kind: 'display' | 'display2' }> }
+	>();
 	const keyFor = (displayNodeId: string, kind: 'display' | 'display2') => `${displayNodeId}\u0000${kind}`;
 	const include = (displayNodeId: string, gear: UamGearBinding) => {
-		if ((gear.kind !== 'display' && gear.kind !== 'display2') || gear.controllerName !== selector.controllerName) return;
+		if ((gear.kind !== 'display' && gear.kind !== 'display2') || gear.controllerName !== selector.controllerName)
+			return;
 		projected.set(keyFor(displayNodeId, gear.kind), { displayNodeId, gear });
 	};
 
@@ -207,26 +259,31 @@ function projectedDisplayGearsForController(
 	}
 
 	for (const operation of operations) {
-		if (operation.kind === 'attachDisplayNode'
-			&& operation.selector.packageId === selector.packageId
-			&& operation.selector.componentResourceId === selector.componentResourceId
+		if (
+			operation.kind === 'attachDisplayNode' &&
+			operation.selector.packageId === selector.packageId &&
+			operation.selector.componentResourceId === selector.componentResourceId
 		) {
 			for (const gear of operation.node.gears) include(operation.node.id, gear);
 			continue;
 		}
-		if (operation.kind === 'detachDisplayNode'
-			&& operation.selector.packageId === selector.packageId
-			&& operation.selector.componentResourceId === selector.componentResourceId
+		if (
+			operation.kind === 'detachDisplayNode' &&
+			operation.selector.packageId === selector.packageId &&
+			operation.selector.componentResourceId === selector.componentResourceId
 		) {
-			for (const kind of ['display', 'display2'] as const) projected.delete(keyFor(operation.selector.displayNodeId, kind));
+			for (const kind of ['display', 'display2'] as const)
+				projected.delete(keyFor(operation.selector.displayNodeId, kind));
 			continue;
 		}
-		if (!isControllerGearOperation(operation)
-			|| operation.selector.packageId !== selector.packageId
-			|| operation.selector.componentResourceId !== selector.componentResourceId
-			|| operation.selector.controllerName !== selector.controllerName
-			|| (operation.selector.kind !== 'display' && operation.selector.kind !== 'display2')
-		) continue;
+		if (
+			!isControllerGearOperation(operation) ||
+			operation.selector.packageId !== selector.packageId ||
+			operation.selector.componentResourceId !== selector.componentResourceId ||
+			operation.selector.controllerName !== selector.controllerName ||
+			(operation.selector.kind !== 'display' && operation.selector.kind !== 'display2')
+		)
+			continue;
 		const key = keyFor(operation.selector.displayNodeId, operation.selector.kind);
 		if (operation.kind === 'removeGear') projected.delete(key);
 		else include(operation.selector.displayNodeId, operation.gear);
@@ -242,11 +299,15 @@ function isFinalControllerMutation(
 ): boolean {
 	for (let index = operationIndex + 1; index < operations.length; index += 1) {
 		const operation = operations[index]!;
-		if ((operation.kind !== 'addController' && operation.kind !== 'updateController' && operation.kind !== 'removeController')
-			|| operation.selector.packageId !== selector.packageId
-			|| operation.selector.componentResourceId !== selector.componentResourceId
-			|| operation.selector.controllerName !== selector.controllerName
-		) continue;
+		if (
+			(operation.kind !== 'addController' &&
+				operation.kind !== 'updateController' &&
+				operation.kind !== 'removeController') ||
+			operation.selector.packageId !== selector.packageId ||
+			operation.selector.componentResourceId !== selector.componentResourceId ||
+			operation.selector.controllerName !== selector.controllerName
+		)
+			continue;
 		return false;
 	}
 	return true;
@@ -300,17 +361,20 @@ function plannedControllerForOperation(
 	selector: UamGearSelector,
 ): UamControllerModel | null {
 	const component = findComponentSpec(project, selector);
-	let controller = component?.component.controllers.find((candidate) => candidate.name === selector.controllerName) ?? null;
+	let controller =
+		component?.component.controllers.find((candidate) => candidate.name === selector.controllerName) ?? null;
 	for (let index = 0; index < operationIndex; index += 1) {
 		const operation = operations[index]!;
 		if (!('selector' in operation)) continue;
 		const candidate = operation.selector as Partial<UamComponentSelector & UamControllerSelector>;
 		if (
-			candidate.packageId !== selector.packageId
-			|| candidate.componentResourceId !== selector.componentResourceId
-			|| candidate.controllerName !== selector.controllerName
-		) continue;
-		if (operation.kind === 'addController' || operation.kind === 'updateController') controller = operation.controller;
+			candidate.packageId !== selector.packageId ||
+			candidate.componentResourceId !== selector.componentResourceId ||
+			candidate.controllerName !== selector.controllerName
+		)
+			continue;
+		if (operation.kind === 'addController' || operation.kind === 'updateController')
+			controller = operation.controller;
 		if (operation.kind === 'removeController') controller = null;
 	}
 	return controller;
@@ -356,12 +420,29 @@ function validateGearPayload(
 	issues: UamTransactionSupportIssue[],
 	operationKind: UamTransactionOperation['kind'],
 ): void {
-	if (gear.kind === 'xy' && [gear.defaultValue, ...gear.states.map((state) => state.value)]
-		.some((value) => value !== null && !isValidUamXYGearValue(value, gear.positionsInPercent))) {
-		pushSupportIssue(issues, 'invalid_gear_payload', `${path}.gear`,
-			'XY gear values require finite x/y and paired finite px/py; percentage mode requires px/py.', { operationKind, gearKind: gear.kind });
+	if (
+		gear.kind === 'xy' &&
+		[gear.defaultValue, ...gear.states.map((state) => state.value)].some(
+			(value) => value !== null && !isValidUamXYGearValue(value, gear.positionsInPercent),
+		)
+	) {
+		pushSupportIssue(
+			issues,
+			'invalid_gear_payload',
+			`${path}.gear`,
+			'XY gear values require finite x/y and paired finite px/py; percentage mode requires px/py.',
+			{ operationKind, gearKind: gear.kind },
+		);
 	}
-	const controller = validateGearSelector(project, operations, operationIndex, selector, `${path}.selector`, issues, operationKind);
+	const controller = validateGearSelector(
+		project,
+		operations,
+		operationIndex,
+		selector,
+		`${path}.selector`,
+		issues,
+		operationKind,
+	);
 	if (gear.kind !== selector.kind) {
 		pushSupportIssue(
 			issues,
@@ -382,22 +463,21 @@ function validateGearPayload(
 	}
 	if (!controller) return;
 	const pageIds = new Set(controller.pages.map((page) => page.id));
-	const statePageIds = gear.kind === 'display' || gear.kind === 'display2'
-		? gear.visibleOnPageIds
-		: gear.states.map((state) => state.pageId);
+	const statePageIds =
+		gear.kind === 'display' || gear.kind === 'display2'
+			? gear.visibleOnPageIds
+			: gear.states.map((state) => state.pageId);
 	const seen = new Set<string>();
 	for (const [stateIndex, pageId] of statePageIds.entries()) {
-		const statePath = gear.kind === 'display' || gear.kind === 'display2'
-			? `${path}.gear.visibleOnPageIds[${stateIndex}]`
-			: `${path}.gear.states[${stateIndex}]`;
+		const statePath =
+			gear.kind === 'display' || gear.kind === 'display2'
+				? `${path}.gear.visibleOnPageIds[${stateIndex}]`
+				: `${path}.gear.states[${stateIndex}]`;
 		if (!pageIds.has(pageId)) {
-			pushSupportIssue(
-				issues,
-				'invalid_gear_payload',
-				statePath,
-				`Unknown controller page id "${pageId}".`,
-				{ operationKind, gearKind: gear.kind },
-			);
+			pushSupportIssue(issues, 'invalid_gear_payload', statePath, `Unknown controller page id "${pageId}".`, {
+				operationKind,
+				gearKind: gear.kind,
+			});
 		}
 		if (seen.has(pageId)) {
 			pushSupportIssue(
@@ -418,24 +498,34 @@ function projectedGearControllers(
 	operationIndex: number,
 	selector: UamGearSelector,
 ): Set<string> {
-	const controllers = new Set(findDisplayNodeSpec(project, selector)?.gears
-		.filter((gear) => gear.kind === selector.kind).map((gear) => gear.controllerName));
+	const controllers = new Set(
+		findDisplayNodeSpec(project, selector)
+			?.gears.filter((gear) => gear.kind === selector.kind)
+			.map((gear) => gear.controllerName),
+	);
 	for (let index = 0; index < operationIndex; index += 1) {
 		const operation = operations[index]!;
 		if (!('selector' in operation)) continue;
 		if (
-			(operation.kind !== 'addGear' && operation.kind !== 'updateGear' && operation.kind !== 'removeGear'
-				&& operation.kind !== 'addLookGear' && operation.kind !== 'updateLookGear' && operation.kind !== 'removeLookGear')
-		) continue;
+			operation.kind !== 'addGear' &&
+			operation.kind !== 'updateGear' &&
+			operation.kind !== 'removeGear' &&
+			operation.kind !== 'addLookGear' &&
+			operation.kind !== 'updateLookGear' &&
+			operation.kind !== 'removeLookGear'
+		)
+			continue;
 		const candidate = operation.selector as UamGearSelector;
 		if (
-			candidate.packageId !== selector.packageId
-			|| candidate.componentResourceId !== selector.componentResourceId
-			|| candidate.displayNodeId !== selector.displayNodeId
-			|| candidate.kind !== selector.kind
-		) continue;
+			candidate.packageId !== selector.packageId ||
+			candidate.componentResourceId !== selector.componentResourceId ||
+			candidate.displayNodeId !== selector.displayNodeId ||
+			candidate.kind !== selector.kind
+		)
+			continue;
 		if (operation.kind === 'addGear' || operation.kind === 'addLookGear') controllers.add(candidate.controllerName);
-		if (operation.kind === 'removeGear' || operation.kind === 'removeLookGear') controllers.delete(candidate.controllerName);
+		if (operation.kind === 'removeGear' || operation.kind === 'removeLookGear')
+			controllers.delete(candidate.controllerName);
 	}
 	return controllers;
 }
@@ -482,60 +572,241 @@ export function validateBehaviorOperation(
 	project: UamProject,
 	operations: UamTransactionOperation[],
 	operationIndex: number,
-	operation: Extract<UamTransactionOperation, { kind: 'addController' | 'updateController' | 'removeController' | 'addTransition' | 'updateTransition' | 'removeTransition' | 'addLookGear' | 'updateLookGear' | 'removeLookGear' | 'addGear' | 'updateGear' | 'removeGear' }>,
+	operation: Extract<
+		UamTransactionOperation,
+		{
+			kind:
+				| 'addController'
+				| 'updateController'
+				| 'removeController'
+				| 'addTransition'
+				| 'updateTransition'
+				| 'removeTransition'
+				| 'addLookGear'
+				| 'updateLookGear'
+				| 'removeLookGear'
+				| 'addGear'
+				| 'updateGear'
+				| 'removeGear';
+		}
+	>,
 	operationPath: string,
 	issues: UamTransactionSupportIssue[],
 ): void {
 	switch (operation.kind) {
-	case 'addController':
-		validateControllerPayload(operation.selector, operation.controller, operationPath, issues, operation.kind);
-		validateControllerActionTargets(project, operation.selector, operation.controller, `${operationPath}.controller`, issues, operation.kind);
-		break;
-	case 'updateController':
-		validateControllerPayload(operation.selector, operation.controller, operationPath, issues, operation.kind);
-		validateControllerActionTargets(project, operation.selector, operation.controller, `${operationPath}.controller`, issues, operation.kind);
-		if (isFinalControllerMutation(operations, operationIndex, operation.selector)) {
-			validateUpdatedControllerGearBindings(project, operations, operation.selector, operation.controller, operationPath, issues);
-		}
-		break;
-	case 'removeController':
-		break;
-	case 'addTransition':
-	case 'updateTransition':
-		validateTransitionPayload(operation.selector, operation.transition, operationPath, issues, operation.kind);
-		validateTransitionTargets(project, operation.selector, operation.transition, `${operationPath}.transition`, issues, operation.kind);
-		break;
-	case 'removeTransition':
-		break;
-	case 'addLookGear':
-		validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
-		validateGearPayload(project, operations, operationIndex, operation.selector, operation.gear, operationPath, issues, operation.kind);
-		validateAddGearDoesNotDuplicate(project, operations, operationIndex, operation.selector, `${operationPath}.selector`, issues, operation.kind);
-		break;
-	case 'updateLookGear':
-		validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
-		validateGearPayload(project, operations, operationIndex, operation.selector, operation.gear, operationPath, issues, operation.kind);
-		validateExistingGear(project, operations, operationIndex, operation.selector, `${operationPath}.selector`, issues, operation.kind);
-		break;
-	case 'removeLookGear':
-		validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
-		validateGearSelector(project, operations, operationIndex, operation.selector, `${operationPath}.selector`, issues, operation.kind);
-		validateExistingGear(project, operations, operationIndex, operation.selector, `${operationPath}.selector`, issues, operation.kind);
-		break;
-	case 'addGear':
-		validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
-		validateGearPayload(project, operations, operationIndex, operation.selector, operation.gear, operationPath, issues, operation.kind);
-		validateAddGearDoesNotDuplicate(project, operations, operationIndex, operation.selector, `${operationPath}.selector`, issues, operation.kind);
-		break;
-	case 'updateGear':
-		validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
-		validateGearPayload(project, operations, operationIndex, operation.selector, operation.gear, operationPath, issues, operation.kind);
-		validateExistingGear(project, operations, operationIndex, operation.selector, `${operationPath}.selector`, issues, operation.kind);
-		break;
-	case 'removeGear':
-		validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
-		validateGearSelector(project, operations, operationIndex, operation.selector, `${operationPath}.selector`, issues, operation.kind);
-		validateExistingGear(project, operations, operationIndex, operation.selector, `${operationPath}.selector`, issues, operation.kind);
-		break;
+		case 'addController':
+			validateControllerPayload(operation.selector, operation.controller, operationPath, issues, operation.kind);
+			validateControllerActionTargets(
+				project,
+				operation.selector,
+				operation.controller,
+				`${operationPath}.controller`,
+				issues,
+				operation.kind,
+			);
+			break;
+		case 'updateController':
+			validateControllerPayload(operation.selector, operation.controller, operationPath, issues, operation.kind);
+			validateControllerActionTargets(
+				project,
+				operation.selector,
+				operation.controller,
+				`${operationPath}.controller`,
+				issues,
+				operation.kind,
+			);
+			if (isFinalControllerMutation(operations, operationIndex, operation.selector)) {
+				validateUpdatedControllerGearBindings(
+					project,
+					operations,
+					operation.selector,
+					operation.controller,
+					operationPath,
+					issues,
+				);
+			}
+			break;
+		case 'removeController':
+			break;
+		case 'addTransition':
+		case 'updateTransition':
+			validateTransitionPayload(operation.selector, operation.transition, operationPath, issues, operation.kind);
+			validateTransitionTargets(
+				project,
+				operation.selector,
+				operation.transition,
+				`${operationPath}.transition`,
+				issues,
+				operation.kind,
+			);
+			break;
+		case 'removeTransition':
+			break;
+		case 'addLookGear':
+			validateTouchedDisplayNodeKind(
+				project,
+				operation.selector,
+				`${operationPath}.selector.displayNodeId`,
+				issues,
+				operation.kind,
+			);
+			validateGearPayload(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				operation.gear,
+				operationPath,
+				issues,
+				operation.kind,
+			);
+			validateAddGearDoesNotDuplicate(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				`${operationPath}.selector`,
+				issues,
+				operation.kind,
+			);
+			break;
+		case 'updateLookGear':
+			validateTouchedDisplayNodeKind(
+				project,
+				operation.selector,
+				`${operationPath}.selector.displayNodeId`,
+				issues,
+				operation.kind,
+			);
+			validateGearPayload(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				operation.gear,
+				operationPath,
+				issues,
+				operation.kind,
+			);
+			validateExistingGear(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				`${operationPath}.selector`,
+				issues,
+				operation.kind,
+			);
+			break;
+		case 'removeLookGear':
+			validateTouchedDisplayNodeKind(
+				project,
+				operation.selector,
+				`${operationPath}.selector.displayNodeId`,
+				issues,
+				operation.kind,
+			);
+			validateGearSelector(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				`${operationPath}.selector`,
+				issues,
+				operation.kind,
+			);
+			validateExistingGear(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				`${operationPath}.selector`,
+				issues,
+				operation.kind,
+			);
+			break;
+		case 'addGear':
+			validateTouchedDisplayNodeKind(
+				project,
+				operation.selector,
+				`${operationPath}.selector.displayNodeId`,
+				issues,
+				operation.kind,
+			);
+			validateGearPayload(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				operation.gear,
+				operationPath,
+				issues,
+				operation.kind,
+			);
+			validateAddGearDoesNotDuplicate(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				`${operationPath}.selector`,
+				issues,
+				operation.kind,
+			);
+			break;
+		case 'updateGear':
+			validateTouchedDisplayNodeKind(
+				project,
+				operation.selector,
+				`${operationPath}.selector.displayNodeId`,
+				issues,
+				operation.kind,
+			);
+			validateGearPayload(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				operation.gear,
+				operationPath,
+				issues,
+				operation.kind,
+			);
+			validateExistingGear(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				`${operationPath}.selector`,
+				issues,
+				operation.kind,
+			);
+			break;
+		case 'removeGear':
+			validateTouchedDisplayNodeKind(
+				project,
+				operation.selector,
+				`${operationPath}.selector.displayNodeId`,
+				issues,
+				operation.kind,
+			);
+			validateGearSelector(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				`${operationPath}.selector`,
+				issues,
+				operation.kind,
+			);
+			validateExistingGear(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				`${operationPath}.selector`,
+				issues,
+				operation.kind,
+			);
+			break;
 	}
 }

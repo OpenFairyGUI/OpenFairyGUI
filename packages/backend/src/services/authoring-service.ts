@@ -1,8 +1,21 @@
 import type { ProjectBranchDirectory, ProjectResourceFolder, ProjectSourceFile } from '@openfairygui/core/project-io';
-import { staleBranchDirectories, staleResourceFolders, staleSourceFiles, type UamProject } from '@openfairygui/core/uam';
+import {
+	staleBranchDirectories,
+	staleResourceFolders,
+	staleSourceFiles,
+	type UamProject,
+} from '@openfairygui/core/uam';
 import { type ApplyUamTransactionAppError, applyUamTransactionAppAsync } from '@openfairygui/functions/uam';
 import type { BackendDiagnostic } from '../contracts.js';
-import type { ApplySessionTransactionInput, BackendResult, BackendSessionSnapshot, BackendTransactionPreview, SessionNotFoundError, SessionStaleWriteError, TransactionPreviewError } from '../runtime/contracts.js';
+import type {
+	ApplySessionTransactionInput,
+	BackendResult,
+	BackendSessionSnapshot,
+	BackendTransactionPreview,
+	SessionNotFoundError,
+	SessionStaleWriteError,
+	TransactionPreviewError,
+} from '../runtime/contracts.js';
 import type { CacheService } from './cache-service.js';
 import { type BackendContext, type BackendSessionState, failure, success } from './context.js';
 import type { EventService } from './event-service.js';
@@ -80,7 +93,9 @@ function detachSharedByteViews(value: unknown, seen = new WeakSet<object>()): vo
 
 export class AuthoringService {
 	public constructor(
-		private readonly context: Pick<BackendContext, 'capabilities'> & { sessions: Pick<BackendContext['sessions'], 'get'> },
+		private readonly context: Pick<BackendContext, 'capabilities'> & {
+			sessions: Pick<BackendContext['sessions'], 'get'>;
+		},
 		private readonly cacheService: CacheService,
 		private readonly eventService: EventService,
 		private readonly sessionOperations: SessionOperationQueue,
@@ -88,17 +103,28 @@ export class AuthoringService {
 
 	public async preflightTransaction(
 		input: ApplySessionTransactionInput,
-	): Promise<BackendResult<BackendTransactionPreview, SessionNotFoundError | SessionStaleWriteError | ApplyUamTransactionAppError | TransactionPreviewError>> {
+	): Promise<
+		BackendResult<
+			BackendTransactionPreview,
+			SessionNotFoundError | SessionStaleWriteError | ApplyUamTransactionAppError | TransactionPreviewError
+		>
+	> {
 		const queuedInput = structuredClone(input);
 		detachSharedByteViews(queuedInput);
 		return this.sessionOperations.run(queuedInput.sessionId, async () => {
 			const startedAt = Date.now();
 			const session = this.context.sessions.get(queuedInput.sessionId);
-			if (!session || session.closed) return failure('authoring', startedAt, createSessionNotFoundError(queuedInput.sessionId));
+			if (!session || session.closed)
+				return failure('authoring', startedAt, createSessionNotFoundError(queuedInput.sessionId));
 			const meta = { sessionId: session.sessionId, revision: session.revision };
 			if (queuedInput.expectedRevision !== session.revision) {
-				return failure('authoring', startedAt, createStaleWriteError(session, queuedInput.expectedRevision),
-					toSessionSnapshot(session, this.context.capabilities), meta);
+				return failure(
+					'authoring',
+					startedAt,
+					createStaleWriteError(session, queuedInput.expectedRevision),
+					toSessionSnapshot(session, this.context.capabilities),
+					meta,
+				);
 			}
 			// The authoritative session, including source bytes, never enters the preview executor.
 			const project = structuredClone(session.project);
@@ -108,21 +134,40 @@ export class AuthoringService {
 				return failure('authoring', startedAt, createSessionNotFoundError(queuedInput.sessionId));
 			}
 			if (!result.ok) {
-				return failure('authoring', startedAt, result.error, toSessionSnapshot(session, this.context.capabilities),
-					{ ...meta, diagnostics: toBackendDiagnostics(result.error) });
+				return failure(
+					'authoring',
+					startedAt,
+					result.error,
+					toSessionSnapshot(session, this.context.capabilities),
+					{ ...meta, diagnostics: toBackendDiagnostics(result.error) },
+				);
 			}
 			try {
-				const preview = await previewTransactionImpact({ ...session, project }, result.project, Boolean(session.fileSystem));
+				const preview = await previewTransactionImpact(
+					{ ...session, project },
+					result.project,
+					Boolean(session.fileSystem),
+				);
 				if (this.context.sessions.get(queuedInput.sessionId) !== session || session.closed) {
 					return failure('authoring', startedAt, createSessionNotFoundError(queuedInput.sessionId));
 				}
 				return success('authoring', startedAt, preview, meta);
 			} catch (error) {
-				return failure('authoring', startedAt, {
-					code: 'transaction_preview_failed' as const, sessionId: session.sessionId,
-					reason: error instanceof PreviewBudgetError ? 'response_budget_exceeded' as const : 'projection_failed' as const,
-					message: error instanceof Error ? error.message : String(error),
-				}, toSessionSnapshot(session, this.context.capabilities), meta);
+				return failure(
+					'authoring',
+					startedAt,
+					{
+						code: 'transaction_preview_failed' as const,
+						sessionId: session.sessionId,
+						reason:
+							error instanceof PreviewBudgetError
+								? ('response_budget_exceeded' as const)
+								: ('projection_failed' as const),
+						message: error instanceof Error ? error.message : String(error),
+					},
+					toSessionSnapshot(session, this.context.capabilities),
+					meta,
+				);
 			}
 		});
 	}
@@ -225,5 +270,4 @@ export class AuthoringService {
 			revision: session.revision,
 		});
 	}
-
 }

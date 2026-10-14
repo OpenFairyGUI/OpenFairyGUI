@@ -48,7 +48,7 @@ Every business command and `docs` subcommand uses the same shape: `{schemaVersio
 
 Exit codes are 0 for success, 1 for workflow failure, 2 for argument errors and 3 for incomplete validation. `--json` works before or after the command; stdout contains one JSON document and human logs go to stderr. Help/version remain text. Human mode keeps its reports and uses the same exit codes.
 
-`packages/cli/src/contracts.ts` owns output types. Generation covers 13 command paths, including parser-only `ofgui`/`docs` failures. `test:repo` checks registration coverage and installed consumers validate actual outputs against generated schemas. Read `ofgui docs schema cli/validate --json` or `ofgui docs cat "cli/docs cat" --json`; the self-contained schema is in `result.text`. MCP exposes `openfairygui://docs/cli/{command}`, with spaces encoded as `%20`. Type collection adds no runtime Backend-to-CLI dependency.
+`packages/cli/src/contracts.ts` owns output types. Generation covers all command paths, including parser-only `ofgui`/`docs` failures. `test:repo` checks registration coverage and installed consumers validate actual outputs against generated schemas. Read `ofgui docs schema cli/validate --json` or `ofgui docs cat "cli/docs cat" --json`; the self-contained schema is in `result.text`. MCP exposes `openfairygui://docs/cli/{command}`, with spaces encoded as `%20`. Type collection adds no runtime Backend-to-CLI dependency.
 
 ## Discover exact parameters
 
@@ -118,7 +118,7 @@ A preview reserves no revision and does not guarantee later apply/save or public
 
 ## Transport and semantic boundaries
 
-- Core binary values remain `Uint8Array`. MCP represents declared binary fields as integer arrays (0–255) and explicitly restores them through generated field paths. Replacement operations, resource/package snapshots, and imported projects share this conversion. A same-named `sourceBytes` field in arbitrary JSON metadata is not rewritten.
+- Core binary values remain `Uint8Array`. MCP represents declared input binary fields as integer arrays (0–255) and output binary fields as base64 strings and explicitly restores them through generated field paths. Replacement operations, resource/package snapshots, and imported projects share this conversion. A same-named `sourceBytes` field in arbitrary JSON metadata is not rewritten.
 - Host objects are not tool inputs: `openProjectSession.storage`, `saveSession.fileSystem`, and `materializeSession.storage/fileSystem/targetPath` remain excluded. Host injection uses Backend APIs.
 - Schemas preserve open fields declared by the actual types, including extension settings, resource metadata, and some dynamic values. They do not invent missing protocol definitions. Unknown fields on closed objects are rejected instead of silently dropped.
 - Homogeneous fixed tuples (such as the four numbers in `scale9Grid` / `cornerRadius`) use a single `items` schema with equal `minItems` / `maxItems`. MCP discovery does not need positional item arrays; element types and exact lengths stay enforced. Heterogeneous tuples retain their per-position constraints.
@@ -132,7 +132,7 @@ A preview reserves no revision and does not guarantee later apply/save or public
 The tables summarize top-level parameters only; read schemas for nested fields and concrete results. SHA-256 identifies generated contract content, not a package version.
 
 <!-- contracts:start -->
-SHA-256: `d3ec1cc02994d7af79610540dec9369f9fe8d03de795c754cd1d12ec8b214581`
+SHA-256: `0149738442b7e33781db0c613515bab0b1431c99f5f6a26260001893155b8d8f`
 
 | Operation | Parameters (`?` = optional) |
 |---|---|
@@ -203,6 +203,9 @@ SHA-256: `d3ec1cc02994d7af79610540dec9369f9fe8d03de795c754cd1d12ec8b214581`
 | `publish` | `cli/publish` |
 | `validate` | `cli/validate` |
 | `restore` | `cli/restore` |
+| `tx` | `cli/tx` |
+| `tx preflight` | `cli/tx preflight` |
+| `tx apply` | `cli/tx apply` |
 | `ofgui` | `cli/ofgui` |
 | `docs` | `cli/docs` |
 | `inspect` | `cli/inspect` |
@@ -216,3 +219,9 @@ SHA-256: `d3ec1cc02994d7af79610540dec9369f9fe8d03de795c754cd1d12ec8b214581`
 <!-- contracts:end -->
 
 Unsupported TypeScript constructs fail generation instead of becoming arbitrary payloads. New methods must appear in both Backend capabilities and MCP metadata; operations come directly from the Core union. After editing, run `pnpm contracts:generate` and `pnpm check:ci`. See the [development guide](./development.md) for verification scope.
+
+One-shot CLI transactions: `ofgui tx preflight <project> --ops ops.json --expected-revision 0 --json` previews; `ofgui tx apply <project> --ops ops.json --expected-revision 0 --json` previews, applies, fully validates, saves and closes under one lock. Each invocation starts a fresh session at revision 0; a prior command revision is not a disk version token. Use Backend/MCP for persistent sessions. Failed validation prevents saving; exit discards in-memory edits. Save recovery paths remain in result.save. MCP binary output is base64 in structuredContent.backendResult; input bytes remain generated arrays.
+
+Failed MCP calls include a bounded text summary of the primary error code, message and nested diagnostic codes for clients that omit structured errors; the complete result remains in `structuredContent.backendResult`.
+
+Labels and Label component instances use inputSettings for the full input override: null means no input block; an object retains nullable promptText/restrict, maxLength, keyboardType and password. getInstancePromptText/setInstancePromptText are convenience accessors over this formal object.

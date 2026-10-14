@@ -18,6 +18,8 @@ MCP adapts Backend session capabilities; publishing and recovery use explicitly 
 
 ## Public entrypoints
 
+The root re-exports the complete `/uam` API. `BinaryReader` and `BinaryWriter` are exported from `@openfairygui/core/project-io`; `ReaderContext` is private.
+
 | Entrypoint | Boundary |
 |---|---|
 | `@openfairygui/core` | Runtime-neutral property model, `Document`, UAM, binary protocol, and project I/O with an injected filesystem. |

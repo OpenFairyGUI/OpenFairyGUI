@@ -30,9 +30,16 @@ test('round-trip: image duplicatePadding survives write→read', async (t) => {
 	try {
 		await io.writeProject(doc, outFairy);
 		const doc2 = await io.readProject(outFairy);
-		const image2 = doc2.getRoot().getPackage('Demo')?.listResources().find((res) => res.getId?.() === 'img1');
+		const image2 = doc2
+			.getRoot()
+			.getPackage('Demo')
+			?.listResources()
+			.find((res) => res.getId?.() === 'img1');
 		t.truthy(image2, 'image exists after round-trip');
-		t.true((image2 as ReturnType<Document['createImageResource']>).getDuplicatePadding(), 'duplicatePadding survives');
+		t.true(
+			(image2 as ReturnType<Document['createImageResource']>).getDuplicatePadding(),
+			'duplicatePadding survives',
+		);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
@@ -66,7 +73,11 @@ test('round-trip: package image width/height/gridTile survive package.xml write�
 		t.true(pkgXml.includes('gridTile="3"'), 'package image writes gridTile attr');
 
 		const doc2 = await io.readProject(outFairy);
-		const image2 = doc2.getRoot().getPackage('DemoImageMeta')?.listResources().find((res) => res.getId?.() === 'imgMeta');
+		const image2 = doc2
+			.getRoot()
+			.getPackage('DemoImageMeta')
+			?.listResources()
+			.find((res) => res.getId?.() === 'imgMeta');
 		t.truthy(image2, 'image exists after round-trip');
 		t.is((image2 as ReturnType<Document['createImageResource']>).getWidth(), 16, 'width survives');
 		t.is((image2 as ReturnType<Document['createImageResource']>).getHeight(), 18, 'height survives');
@@ -85,8 +96,13 @@ test('round-trip: complete source package settings survive UAM without serializi
 
 	try {
 		await fs.mkdir(path.join(sourceDir, 'assets', 'DemoPkg'), { recursive: true });
-		await fs.writeFile(sourceFairy, '<?xml version="1.0" encoding="utf-8"?>\n<projectDescription id="pkg-meta" type="Layabox" version="3.0"/>\n');
-		await fs.writeFile(path.join(sourceDir, 'assets', 'DemoPkg', 'package.xml'), `<?xml version="1.0" encoding="utf-8"?>
+		await fs.writeFile(
+			sourceFairy,
+			'<?xml version="1.0" encoding="utf-8"?>\n<projectDescription id="pkg-meta" type="Layabox" version="3.0"/>\n',
+		);
+		await fs.writeFile(
+			path.join(sourceDir, 'assets', 'DemoPkg', 'package.xml'),
+			`<?xml version="1.0" encoding="utf-8"?>
 <packageDescription id="pkgmeta" compressPNG="true" jpegQuality="80">
   <resources>
     <image id="imgmeta" name="hero.png" path="/images/"/>
@@ -96,7 +112,8 @@ test('round-trip: complete source package settings survive UAM without serializi
     <atlas name="Effects" index="3" compression="true"/>
   </publish>
 </packageDescription>
-`);
+`,
+		);
 
 		const doc = await io.readProject(sourceFairy);
 		const lifted = liftDocumentToUamProject(doc);
@@ -115,13 +132,19 @@ test('round-trip: complete source package settings survive UAM without serializi
 		await fs.mkdir(path.dirname(outFairy), { recursive: true });
 		await io.writeProject(materialized, outFairy);
 		const packageXml = await fs.readFile(path.join(tmpDir, 'out', 'assets', 'DemoPkg', 'package.xml'), 'utf-8');
-		t.true(packageXml.includes('<packageDescription id="pkgmeta" compressPNG="true" jpegQuality="80">'), 'packageDescription writes canonical id and publish image attrs');
+		t.true(
+			packageXml.includes('<packageDescription id="pkgmeta" compressPNG="true" jpegQuality="80">'),
+			'packageDescription writes canonical id and publish image attrs',
+		);
 		t.regex(
 			packageXml,
 			/<publish name="DemoPublish" path="dist\/ui" branchPath="dist\/branches" packageCount="1" genCode="true" codePath="src\/ui-gen"/,
 			'publish writes canonical name, path, branchPath, packageCount, genCode and codePath attrs',
 		);
-		t.regex(packageXml, /<publish[^>]*maxAtlasSize="1024"[^>]*sizeOption="mof"[^>]*square="true"[^>]*rotation="true"[^>]*multiPage="false"[^>]*extractAlpha="true"[^>]*maxAtlasIndex="4"[^>]*excluded="imgmeta,missing-resource"/);
+		t.regex(
+			packageXml,
+			/<publish[^>]*maxAtlasSize="1024"[^>]*sizeOption="mof"[^>]*square="true"[^>]*rotation="true"[^>]*multiPage="false"[^>]*extractAlpha="true"[^>]*maxAtlasIndex="4"[^>]*excluded="imgmeta,missing-resource"/,
+		);
 		t.regex(packageXml, /<atlas name="Main" index="0"\/>/);
 		t.regex(packageXml, /<atlas name="Effects" index="3" compression="true"\/>/);
 		t.false(packageXml.includes('generated-atlas'), 'generated atlas does not leak into source publish settings');
@@ -166,14 +189,8 @@ test('round-trip: resource favorites derive package hasFavorites and survive wri
 	const pkg = doc.createPackage('Favorites');
 	pkg.setId('pkgFavorites');
 
-	const image = doc.createImageResource('icon.png')
-		.setId('imgFavorite')
-		.setPath('/')
-		.setFavorite(true);
-	const component = doc.createComponent('Main')
-		.setId('cmpFavorite')
-		.setPath('/')
-		.setFavorite(false);
+	const image = doc.createImageResource('icon.png').setId('imgFavorite').setPath('/').setFavorite(true);
+	const component = doc.createComponent('Main').setId('cmpFavorite').setPath('/').setFavorite(false);
 	pkg.addResource(image);
 	pkg.addResource(component);
 
@@ -242,11 +259,15 @@ test('round-trip: package image qualityOption and font TMP import attrs survive 
 		const pkg2 = doc2.getRoot().getPackage('DemoPackageMeta');
 		t.truthy(pkg2, 'DemoPackageMeta exists after round-trip');
 
-		const image2 = pkg2!.listResources().find((res) => res.getId?.() === 'imgMeta1') as ReturnType<Document['createImageResource']>;
+		const image2 = pkg2!.listResources().find((res) => res.getId?.() === 'imgMeta1') as ReturnType<
+			Document['createImageResource']
+		>;
 		t.truthy(image2, 'image resource exists after round-trip');
 		t.is(image2.getQualityOption(), 'source', 'qualityOption survives');
 
-		const font2 = pkg2!.listResources().find((res) => res.getId?.() === 'fontMeta1') as ReturnType<Document['createFontResource']>;
+		const font2 = pkg2!.listResources().find((res) => res.getId?.() === 'fontMeta1') as ReturnType<
+			Document['createFontResource']
+		>;
 		t.truthy(font2, 'font resource exists after round-trip');
 		t.is(font2.getRenderMode(), 'sdfaa', 'renderMode survives');
 		t.is(font2.getSamplePointSize(), 60, 'samplePointSize survives');
@@ -283,7 +304,9 @@ test('round-trip: package image textureSetMode survives package.xml write→read
 		const pkg2 = doc2.getRoot().getPackage('DemoTextureSetMode');
 		t.truthy(pkg2, 'DemoTextureSetMode exists after round-trip');
 
-		const image2 = pkg2!.listResources().find((res) => res.getId?.() === 'imgAtlas') as ReturnType<Document['createImageResource']>;
+		const image2 = pkg2!.listResources().find((res) => res.getId?.() === 'imgAtlas') as ReturnType<
+			Document['createImageResource']
+		>;
 		t.truthy(image2, 'image resource exists after round-trip');
 		t.is(image2.getTextureSetMode(), 'alone_npot', 'textureSetMode survives');
 	} finally {
@@ -319,7 +342,10 @@ test('round-trip: package movieclip atlas survives XML and smoothing survives UA
 	try {
 		await io.writeProject(doc, outFairy);
 
-		const pkgXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoMovieClipTextureSetMode', 'package.xml'), 'utf-8');
+		const pkgXml = await fs.readFile(
+			path.join(tmpDir, 'assets', 'DemoMovieClipTextureSetMode', 'package.xml'),
+			'utf-8',
+		);
 		t.true(pkgXml.includes('atlas="alone_mof"'), 'package movieclip writes atlas attr');
 		t.regex(pkgXml, /<movieclip[^>]*id="mcAtlas"[^>]*smoothing="false"/);
 		t.notRegex(pkgXml, /<movieclip[^>]*id="mcDefault"[^>]*smoothing=/);
@@ -328,11 +354,15 @@ test('round-trip: package movieclip atlas survives XML and smoothing survives UA
 		const pkg2 = doc2.getRoot().getPackage('DemoMovieClipTextureSetMode');
 		t.truthy(pkg2, 'DemoMovieClipTextureSetMode exists after round-trip');
 
-		const movieClip2 = pkg2!.listResources().find((res) => res.getId?.() === 'mcAtlas') as ReturnType<Document['createMovieClipResource']>;
+		const movieClip2 = pkg2!.listResources().find((res) => res.getId?.() === 'mcAtlas') as ReturnType<
+			Document['createMovieClipResource']
+		>;
 		t.truthy(movieClip2, 'movieclip resource exists after round-trip');
 		t.is(movieClip2.getTextureSetMode(), 'alone_mof', 'movieclip textureSetMode survives');
 		t.false(movieClip2.getSmoothing(), 'explicit movieclip smoothing=false survives');
-		const defaultMovieClip2 = pkg2!.listResources().find((res) => res.getId?.() === 'mcDefault') as ReturnType<Document['createMovieClipResource']>;
+		const defaultMovieClip2 = pkg2!.listResources().find((res) => res.getId?.() === 'mcDefault') as ReturnType<
+			Document['createMovieClipResource']
+		>;
 		t.true(defaultMovieClip2.getSmoothing(), 'missing movieclip smoothing defaults to true');
 
 		const lifted = liftDocumentToUamProject(doc2);
@@ -349,8 +379,11 @@ test('round-trip: package movieclip atlas survives XML and smoothing survives UA
 		t.regex(materializedPackageXml, /<movieclip[^>]*id="mcAtlas"[^>]*smoothing="false"/);
 		t.notRegex(materializedPackageXml, /<movieclip[^>]*id="mcDefault"[^>]*smoothing=/);
 		const materializedDoc = await io.readProject(materializedFairy);
-		const materializedMovieClip = materializedDoc.getRoot().getPackage('DemoMovieClipTextureSetMode')
-			?.listResources().find((resource) => resource.getId?.() === 'mcAtlas') as ReturnType<Document['createMovieClipResource']>;
+		const materializedMovieClip = materializedDoc
+			.getRoot()
+			.getPackage('DemoMovieClipTextureSetMode')
+			?.listResources()
+			.find((resource) => resource.getId?.() === 'mcAtlas') as ReturnType<Document['createMovieClipResource']>;
 		t.false(materializedMovieClip.getSmoothing(), 'materialized movieclip keeps smoothing=false after reload');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
@@ -364,7 +397,8 @@ test('round-trip: unreadable MovieClip JTA preserves source bytes and XML proper
 	const pkg = doc.createPackage('Demo');
 	pkg.setId('pkgUnreadableMovieClip');
 	const sourceBytes = new Uint8Array([0, 1, 2, 3]);
-	const movieClip = doc.createMovieClipResource('broken')
+	const movieClip = doc
+		.createMovieClipResource('broken')
 		.setId('mcBroken')
 		.setPath('/')
 		.setFileName('broken.jta')
@@ -403,12 +437,15 @@ test('round-trip: SWF resources survive UAM and hydrated project writes', async 
 	doc.getRoot().setProjectId('proj-swf').setProjectType(1).setVersion('3.0');
 	const pkg = doc.createPackage('DemoSwf').setId('pkgSwf');
 	const bytes = new Uint8Array([0x46, 0x57, 0x53, 0x09]);
-	pkg.addResource(doc.createSwfResource('movie')
-		.setId('swf001')
-		.setPath('/movies/')
-		.setFile('movie.swf')
-		.setExported(true)
-		.setSourceData(doc.createBuffer().setURI('/movies/movie.swf').setData(bytes)));
+	pkg.addResource(
+		doc
+			.createSwfResource('movie')
+			.setId('swf001')
+			.setPath('/movies/')
+			.setFile('movie.swf')
+			.setExported(true)
+			.setSourceData(doc.createBuffer().setURI('/movies/movie.swf').setData(bytes)),
+	);
 
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-swf-'));
 	const sourceFairy = path.join(tmpDir, 'source.fairy');
@@ -424,7 +461,9 @@ test('round-trip: SWF resources survive UAM and hydrated project writes', async 
 		await fs.mkdir(path.dirname(copiedFairy), { recursive: true });
 		await io.writeProject(materializeUamProject(uam), copiedFairy);
 		const copied = await io.readProject(copiedFairy, { hydrateResourceBytes: true });
-		const swf = copied.getRoot().getPackage('DemoSwf')?.getResourceById('swf001') as ReturnType<Document['createSwfResource']>;
+		const swf = copied.getRoot().getPackage('DemoSwf')?.getResourceById('swf001') as ReturnType<
+			Document['createSwfResource']
+		>;
 		t.is(swf.propertyType, PropertyType.SWF_RESOURCE);
 		t.is(swf.getFile(), 'movie.swf');
 		t.deepEqual(swf.getSourceData()?.getData(), bytes);

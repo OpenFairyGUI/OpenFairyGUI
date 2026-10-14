@@ -2,9 +2,7 @@ export {
 	createOpenFairyGuiMcpServer,
 	type CreateOpenFairyGuiMcpServerOptions,
 } from './server.js';
-export {
-	connectOpenFairyGuiMcpStdio,
-} from './stdio.js';
+export { connectOpenFairyGuiMcpStdio } from './stdio.js';
 export {
 	callOpenFairyGuiBackendTool,
 	type OpenFairyGuiBackendRuntime,

@@ -57,8 +57,8 @@ class FakeDirectoryHandle {
 	async getFileHandle(name: string, options: { create?: boolean } = {}): Promise<FakeFileHandle> {
 		const entry = this.entriesMap.get(name);
 		if (entry instanceof FakeFileHandle) return entry;
-		if (entry) throw new Error(`Path is not a file: ${name}`);
-		if (!options.create) throw new Error(`File not found: ${name}`);
+		if (entry) throw new DOMException(`Path has another type: ${name}`, 'TypeMismatchError');
+		if (!options.create) throw new DOMException(`Not found: ${name}`, 'NotFoundError');
 		const file = new FakeFileHandle(name);
 		this.entriesMap.set(name, file);
 		return file;
@@ -67,8 +67,8 @@ class FakeDirectoryHandle {
 	async getDirectoryHandle(name: string, options: { create?: boolean } = {}): Promise<FakeDirectoryHandle> {
 		const entry = this.entriesMap.get(name);
 		if (entry instanceof FakeDirectoryHandle) return entry;
-		if (entry) throw new Error(`Path is not a directory: ${name}`);
-		if (!options.create) throw new Error(`Directory not found: ${name}`);
+		if (entry) throw new DOMException(`Path has another type: ${name}`, 'TypeMismatchError');
+		if (!options.create) throw new DOMException(`Not found: ${name}`, 'NotFoundError');
 		const dir = new FakeDirectoryHandle(name);
 		this.entriesMap.set(name, dir);
 		return dir;
@@ -183,7 +183,12 @@ class MemoryFileSystem implements FileSystem {
 	}
 
 	private clean(path: string): string {
-		return path.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\.\/+/, '').replace(/^\/+/, '').replace(/\/+$/, '');
+		return path
+			.replace(/\\/g, '/')
+			.replace(/\/+/g, '/')
+			.replace(/^\.\/+/, '')
+			.replace(/^\/+/, '')
+			.replace(/\/+$/, '');
 	}
 }
 
@@ -242,7 +247,7 @@ test('File System Access adapter reads, writes, lists, and normalizes project pa
 });
 
 test('WebIO public surface is limited to browser project read/write', async (t) => {
-	const coreRoot = await import('../src/index.js') as Record<string, unknown>;
+	const coreRoot = (await import('../src/index.js')) as Record<string, unknown>;
 	const io = new WebIO(new MemoryFileSystem());
 
 	t.false('WebIO' in coreRoot);
@@ -354,7 +359,12 @@ test('all project settings sidecars survive detached UAM round-trip and independ
 	lifted.settings.publish!.atlasSetting!.maxSize = 512;
 	lifted.settings.i18n!.langFiles[0]!.name = 'Changed';
 	const liftedGroups = lifted.settings.customProperties!.groups;
-	if (!Array.isArray(liftedGroups) || typeof liftedGroups[0] !== 'object' || liftedGroups[0] === null || Array.isArray(liftedGroups[0])) {
+	if (
+		!Array.isArray(liftedGroups) ||
+		typeof liftedGroups[0] !== 'object' ||
+		liftedGroups[0] === null ||
+		Array.isArray(liftedGroups[0])
+	) {
 		throw new Error('expected custom property group fixture');
 	}
 	liftedGroups[0].enabled = false;
@@ -418,7 +428,8 @@ test('ProjectWriter rejects resource outputs that collide with package metadata 
 		t.fail('expected writable demo package');
 		return;
 	}
-	const resource = doc.createMiscResource('bad')
+	const resource = doc
+		.createMiscResource('bad')
 		.setId('bad')
 		.setPath('/')
 		.setFile('package.xml')
@@ -433,9 +444,11 @@ test('ProjectWriter rejects resource outputs that collide with package metadata 
 
 test('ProjectWriter only accepts structured, package-scoped stale source references', async (t) => {
 	const fs = new MemoryFileSystem();
-	const error = await t.throwsAsync(new ProjectWriter(fs).write(createWritableDocument(), 'Project.fairy', {
-		staleSourceFiles: [{ packageName: '..', branch: '', path: '/', fileName: 'outside.bin' }],
-	}));
+	const error = await t.throwsAsync(
+		new ProjectWriter(fs).write(createWritableDocument(), 'Project.fairy', {
+			staleSourceFiles: [{ packageName: '..', branch: '', path: '/', fileName: 'outside.bin' }],
+		}),
+	);
 	t.regex(error?.message ?? '', /Invalid stale source package name/);
 	t.false(await fs.exists('Project.fairy'));
 });
@@ -450,30 +463,53 @@ test('ProjectWriter shares branch targets and descriptor ordering while preservi
 		{ branch: 'mobile', path: '/localized/', favorite: false, atlas: '' },
 		{ branch: 'folderOnly', path: '/empty/', favorite: true, atlas: '' },
 	]);
-	const image = doc.createImageResource('image').setId('z').setFileName('raw.png').setPath('/nested/')
+	const image = doc
+		.createImageResource('image')
+		.setId('z')
+		.setFileName('raw.png')
+		.setPath('/nested/')
 		.setSourceData(doc.createBuffer().setData(new Uint8Array([0, 255, 7])));
 	pkg.addResource(image);
 	pkg.addResource(doc.createComponent('Main').setId('a').setPath('/localized/').setBranch('mobile'));
-	pkg.addResource(doc.createMiscResource('data').setId('x').setFile('source.bin').setBranch('resourceOnly')
-		.setSourceData(doc.createBuffer().setData(new Uint8Array([3, 2, 1]))));
+	pkg.addResource(
+		doc
+			.createMiscResource('data')
+			.setId('x')
+			.setFile('source.bin')
+			.setBranch('resourceOnly')
+			.setSourceData(doc.createBuffer().setData(new Uint8Array([3, 2, 1]))),
+	);
 	const unhydrated = doc.createImageResource('existing.png').setId('b').setPath('/nested/');
 	pkg.addResource(unhydrated);
 	await output.writeFileRaw('assets/Demo/nested/existing.png', new Uint8Array([9]));
 	await new ProjectWriter(output).write(doc, 'Project.fairy', {
 		staleSourceFiles: [{ packageName: 'Demo', branch: '', path: '/nested/', fileName: 'existing.png' }],
 	});
-	t.deepEqual([...output.files.keys()].sort(), [
-		'Project.fairy', 'settings/Common.json', 'assets/Demo/package.xml', 'assets/Demo/Main.xml',
-		'assets/Demo/nested/raw.png', 'assets/Demo/nested/existing.png',
-		'assets_empty/Demo/package_branch.xml', 'assets_mobile/Demo/package_branch.xml',
-		'assets_mobile/Demo/localized/Main.xml', 'assets_resourceOnly/Demo/package_branch.xml',
-		'assets_resourceOnly/Demo/source.bin', 'assets_folderOnly/Demo/package_branch.xml',
-	].sort());
+	t.deepEqual(
+		[...output.files.keys()].sort(),
+		[
+			'Project.fairy',
+			'settings/Common.json',
+			'assets/Demo/package.xml',
+			'assets/Demo/Main.xml',
+			'assets/Demo/nested/raw.png',
+			'assets/Demo/nested/existing.png',
+			'assets_empty/Demo/package_branch.xml',
+			'assets_mobile/Demo/package_branch.xml',
+			'assets_mobile/Demo/localized/Main.xml',
+			'assets_resourceOnly/Demo/package_branch.xml',
+			'assets_resourceOnly/Demo/source.bin',
+			'assets_folderOnly/Demo/package_branch.xml',
+		].sort(),
+	);
 	t.true(output.dirs.has('assets_folderOnly/Demo/empty'));
 	t.deepEqual(await output.readFileRaw('assets/Demo/nested/raw.png'), new Uint8Array([0, 255, 7]));
 	t.deepEqual(await output.readFileRaw('assets/Demo/nested/existing.png'), new Uint8Array([9]));
 	const xml = await output.readFile('assets/Demo/package.xml');
-	t.deepEqual([...xml.matchAll(/<(?:component|image) id="([^"]+)"/g)].map((match) => match[1]), ['b', 'z', 'cmpMain']);
+	t.deepEqual(
+		[...xml.matchAll(/<(?:component|image) id="([^"]+)"/g)].map((match) => match[1]),
+		['b', 'z', 'cmpMain'],
+	);
 	const previous = new Map(output.files);
 	await new ProjectWriter(output).write(doc, 'Project.fairy');
 	t.deepEqual(output.files, previous);
@@ -483,17 +519,28 @@ test('ProjectWriter preflights branch target collisions and leaves stale sources
 	const output = new MemoryFileSystem();
 	const doc = createWritableDocument();
 	const pkg = doc.getRoot().getPackage('Demo')!;
-	const resource = doc.createMiscResource('data').setId('x').setBranch('mobile').setFile('package_branch.xml')
+	const resource = doc
+		.createMiscResource('data')
+		.setId('x')
+		.setBranch('mobile')
+		.setFile('package_branch.xml')
 		.setSourceData(doc.createBuffer().setData(new Uint8Array([1])));
 	pkg.addResource(resource);
-	await t.throwsAsync(new ProjectWriter(output).write(doc, 'Project.fairy'), { message: /conflicts with package descriptor/ });
+	await t.throwsAsync(new ProjectWriter(output).write(doc, 'Project.fairy'), {
+		message: /conflicts with package descriptor/,
+	});
 	t.is(output.files.size, 0);
 	t.deepEqual([...output.dirs], ['']);
 	resource.setFile('data.bin');
 	await output.writeFileRaw('assets/Demo/stale.bin', new Uint8Array([9]));
-	output.writeFileRaw = async () => { throw new Error('output failed'); };
-	await t.throwsAsync(new ProjectWriter(output).write(doc, 'Project.fairy', {
-		staleSourceFiles: [{ packageName: 'Demo', branch: '', path: '/', fileName: 'stale.bin' }],
-	}), { message: 'output failed' });
+	output.writeFileRaw = async () => {
+		throw new Error('output failed');
+	};
+	await t.throwsAsync(
+		new ProjectWriter(output).write(doc, 'Project.fairy', {
+			staleSourceFiles: [{ packageName: 'Demo', branch: '', path: '/', fileName: 'stale.bin' }],
+		}),
+		{ message: 'output failed' },
+	);
 	t.deepEqual(await output.readFileRaw('assets/Demo/stale.bin'), new Uint8Array([9]));
 });

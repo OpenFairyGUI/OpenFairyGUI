@@ -41,8 +41,11 @@ export const BACKEND_SESSION_READ_LIMITS = {
 } as const;
 
 /** The public UAM model, excluding only each asset resource's primary sourceBytes. */
-export type BackendSessionResourceModel = UamComponentResource | Omit<UamImageResource, 'sourceBytes'>
-	| Omit<UamMovieClipResource, 'sourceBytes'> | Omit<UamGenericAssetResource, 'sourceBytes'>;
+export type BackendSessionResourceModel =
+	| UamComponentResource
+	| Omit<UamImageResource, 'sourceBytes'>
+	| Omit<UamMovieClipResource, 'sourceBytes'>
+	| Omit<UamGenericAssetResource, 'sourceBytes'>;
 export interface BackendSessionPackageModel extends Omit<UamPackage, 'resources'> {
 	resources: BackendSessionResourceModel[];
 }
@@ -58,7 +61,8 @@ export interface ReadResourceBytesInput {
 	expectedRevision: number;
 	selector: UamResourceSelector;
 }
-export interface BackendSessionStateSnapshot extends Pick<BackendSessionSnapshot, 'sessionId' | 'revision' | 'lastSavedRevision' | 'dirty' | 'uamFidelity'> {
+export interface BackendSessionStateSnapshot
+	extends Pick<BackendSessionSnapshot, 'sessionId' | 'revision' | 'lastSavedRevision' | 'dirty' | 'uamFidelity'> {
 	project: BackendSessionProjectModel;
 	readDiagnostics: import('@openfairygui/core').ProjectDiagnostic[];
 	/** Source-read completeness, not a guarantee of resource bytes or downstream usability. */
@@ -75,7 +79,14 @@ export interface SessionReadError {
 	code: 'session_read_failed';
 	message: string;
 	sessionId: string;
-	reason: 'invalid_query' | 'not_found' | 'ambiguous' | 'unsupported_resource' | 'bytes_unavailable' | 'response_budget_exceeded' | 'non_json_value';
+	reason:
+		| 'invalid_query'
+		| 'not_found'
+		| 'ambiguous'
+		| 'unsupported_resource'
+		| 'bytes_unavailable'
+		| 'response_budget_exceeded'
+		| 'non_json_value';
 }
 export interface SessionStaleReadError {
 	code: 'stale_read';
@@ -87,12 +98,26 @@ export interface SessionStaleReadError {
 export const BACKEND_TRANSACTION_PREVIEW_LIMITS = { maxBytes: 262144, maxEntries: 2000 } as const;
 /** Fixed resource projection. Binary content, source bookkeeping and arbitrary metadata are excluded. */
 export const BACKEND_RESOURCE_QUERY_FIELDS = [
-	'kind', 'id', 'name', 'path', 'exported', 'favorite', 'branch', 'branchItemIds',
-	'fileName', 'file', 'dimensions', 'image', 'movieClip',
+	'kind',
+	'id',
+	'name',
+	'path',
+	'exported',
+	'favorite',
+	'branch',
+	'branchItemIds',
+	'fileName',
+	'file',
+	'dimensions',
+	'image',
+	'movieClip',
 ] as const;
-type ResourceQueryFields<T> = Pick<T, Extract<keyof T, typeof BACKEND_RESOURCE_QUERY_FIELDS[number]>>;
-export type BackendResourceSnapshot = ResourceQueryFields<UamImageResource> | ResourceQueryFields<UamMovieClipResource>
-	| ResourceQueryFields<UamGenericAssetResource> | ResourceQueryFields<UamComponentResource>;
+type ResourceQueryFields<T> = Pick<T, Extract<keyof T, (typeof BACKEND_RESOURCE_QUERY_FIELDS)[number]>>;
+export type BackendResourceSnapshot =
+	| ResourceQueryFields<UamImageResource>
+	| ResourceQueryFields<UamMovieClipResource>
+	| ResourceQueryFields<UamGenericAssetResource>
+	| ResourceQueryFields<UamComponentResource>;
 export type BackendComponentSnapshot = Pick<UamComponentModel, 'size' | 'properties' | 'customData'>;
 export type BackendProjectSnapshot = Pick<UamProject, 'projectId' | 'settings'>;
 export interface BackendPackageSnapshot {
@@ -116,7 +141,8 @@ export interface BackendEntitySnapshot {
 	sessionId: string;
 	revision: number;
 	target: BackendEntityTarget;
-	entity: { kind: 'project'; properties: BackendProjectSnapshot }
+	entity:
+		| { kind: 'project'; properties: BackendProjectSnapshot }
 		| { kind: 'package'; properties: BackendPackageSnapshot }
 		| { kind: 'resource'; properties: BackendResourceSnapshot }
 		| { kind: 'component'; properties: BackendComponentSnapshot }
@@ -144,6 +170,12 @@ export interface BackendFileStat {
 	isDirectory(): boolean;
 }
 
+/** A committed staged write. Cleanup problems after commit are reported here instead of failing the save. */
+export interface ProjectWriteTransactionResult {
+	/** Previous project copies the host could not remove; the committed project is unaffected. */
+	retainedBackupPaths?: string[];
+}
+
 /** A failed staged write with an explicit outcome for the original project. */
 export class ProjectWriteTransactionError extends Error {
 	public readonly code = 'project_write_transaction_failed';
@@ -152,12 +184,20 @@ export class ProjectWriteTransactionError extends Error {
 	public static is(error: unknown): error is ProjectWriteTransactionError {
 		if (typeof error !== 'object' || error === null) return false;
 		const value = error as Partial<ProjectWriteTransactionError>;
-		return value.code === 'project_write_transaction_failed' && typeof value.message === 'string'
-			&& typeof value.diskMayBePartiallyUpdated === 'boolean'
-			&& Array.isArray(value.recoveryPaths) && value.recoveryPaths.every((path) => typeof path === 'string');
+		return (
+			value.code === 'project_write_transaction_failed' &&
+			typeof value.message === 'string' &&
+			typeof value.diskMayBePartiallyUpdated === 'boolean' &&
+			Array.isArray(value.recoveryPaths) &&
+			value.recoveryPaths.every((path) => typeof path === 'string')
+		);
 	}
 
-	constructor(cause: unknown, public readonly diskMayBePartiallyUpdated: boolean, public readonly recoveryPaths: string[] = []) {
+	constructor(
+		cause: unknown,
+		public readonly diskMayBePartiallyUpdated: boolean,
+		public readonly recoveryPaths: string[] = [],
+	) {
 		super(cause instanceof Error ? cause.message : String(cause), { cause });
 		this.name = 'ProjectWriteTransactionError';
 	}
@@ -172,15 +212,17 @@ export interface BackendFileSystem {
 	writeFileRaw(filePath: string, data: Uint8Array): Promise<void>;
 	mkdir(dirPath: string, options?: { recursive?: boolean }): Promise<void>;
 	resolvePath(filePath: string): Promise<string>;
-	/** Optional host validation before a project is read. Node rejects links anywhere in the project tree. */
+	/** Compare resolved paths case-sensitively. Omitted means case-insensitive comparison. */
+	caseSensitivePaths?: boolean;
+	/** Optional host validation before a project is read. Node rejects links in project-owned assets, settings and project files. */
 	validateProjectRoot?(projectRoot: string): Promise<void>;
-	/** Optional host-specific lock location. Node keeps it beside the project so directory swaps do not move it. */
+	/** Optional host-specific lock location. Node keeps it beside the project. */
 	getSessionLockPath?(canonicalProjectPath: string): string;
 	/** Stages project writes. On failure, throw ProjectWriteTransactionError to report rollback and recovery paths. */
 	runProjectWriteTransaction?(
 		projectRoot: string,
 		write: (stagedFileSystem: BackendFileSystem) => Promise<void>,
-	): Promise<void>;
+	): Promise<ProjectWriteTransactionResult>;
 	acquireSessionLock(lockPath: string): Promise<BackendSessionLock>;
 	unlink(filePath: string): Promise<void>;
 	rmdir(dirPath: string): Promise<void>;
@@ -246,13 +288,27 @@ export interface BackendCapabilities {
 		capabilitySnapshot: true;
 		sessionSnapshot: true;
 		projectOutline: true;
-		entityQuery: { kinds: readonly BackendEntityTarget['kind'][]; projection: 'properties'; sourceBytes: false; limits: typeof BACKEND_ENTITY_QUERY_LIMITS };
+		entityQuery: {
+			kinds: readonly BackendEntityTarget['kind'][];
+			projection: 'properties';
+			sourceBytes: false;
+			limits: typeof BACKEND_ENTITY_QUERY_LIMITS;
+		};
 		sessionState: { sourceBytes: false; limits: typeof BACKEND_SESSION_READ_LIMITS.model };
-		resourceBytes: { expectedRevisionRequired: true; hydration: false; maxBytes: typeof BACKEND_SESSION_READ_LIMITS.resourceBytes };
+		resourceBytes: {
+			expectedRevisionRequired: true;
+			hydration: false;
+			maxBytes: typeof BACKEND_SESSION_READ_LIMITS.resourceBytes;
+		};
 		projectValidation: true;
 	};
 	authoring: {
-		preflightTransaction: { mode: 'execute-and-discard'; reservesRevision: false; impact: 'model-diff'; limits: typeof BACKEND_TRANSACTION_PREVIEW_LIMITS };
+		preflightTransaction: {
+			mode: 'execute-and-discard';
+			reservesRevision: false;
+			impact: 'model-diff';
+			limits: typeof BACKEND_TRANSACTION_PREVIEW_LIMITS;
+		};
 		applyTransaction: true;
 		saveSession: true;
 		resourceKinds: readonly string[];
@@ -276,12 +332,16 @@ export interface BackendCapabilities {
 	compatibilityPolicy: typeof BACKEND_COMPATIBILITY_POLICY;
 	runtime: {
 		sessionRuntime: true;
+		/** Open and opening sessions allowed at once; further opens fail with session_limit_exceeded. */
+		maxSessions: number;
+		/** Clean idle sessions are closed after this interval; zero disables expiry. Dirty sessions are retained. */
+		idleSessionTimeoutMs: number;
 		advisoryLocking: true;
 		coordinatedSave: true;
 		atomicSave: boolean;
 		staleRevisionProtection: true;
 		pathPolicy: {
-			canonicalization: 'realpath+normalized-casefold';
+			canonicalization: 'realpath+normalized' | 'realpath+normalized-casefold';
 			sessionIdentity: 'project-root';
 			saveTarget: 'opened-project-only';
 			outputTargets: 'deferred';
@@ -408,6 +468,12 @@ export interface AdvisoryLockConflictError {
 	canonicalPathKey: string;
 	holderSessionId?: string;
 	lockFilePath: string;
+}
+
+export interface SessionLimitExceededError {
+	code: 'session_limit_exceeded';
+	message: string;
+	maxSessions: number;
 }
 
 export interface SessionIdConflictError {
@@ -550,6 +616,7 @@ export type BackendError =
 	| SessionReadError
 	| SessionStaleReadError
 	| SessionIdConflictError
+	| SessionLimitExceededError
 	| SessionStaleWriteError
 	| InProcessLockConflictError
 	| AdvisoryLockConflictError
@@ -570,8 +637,20 @@ export interface ProjectRootNotAllowedError {
 	projectPath: string;
 }
 
+export type ProjectOpenFailureReason =
+	| 'project_not_found'
+	| 'not_a_project_file'
+	| 'no_project_file'
+	| 'multiple_project_files'
+	| 'symbolic_link_unsupported'
+	| 'access_denied'
+	| 'project_read_failed'
+	| 'unknown';
+
 export interface ProjectOpenFailedError {
 	code: 'project_open_failed';
+	/** Why the project could not be opened; `unknown` keeps unexpected exception details out of the result. */
+	reason: ProjectOpenFailureReason;
 	message: string;
 	projectPath: string;
 }
@@ -667,6 +746,10 @@ export interface MaterializeSessionInput {
 export interface BackendRuntimeOptions {
 	fileSystem?: BackendFileSystem;
 	host?: BackendHostAdapter;
-	/** Canonical filesystem roots available to file-backed sessions. Omit for unrestricted library use. */
+	/** Canonical filesystem roots available to file-backed sessions. Omit for unrestricted library use; an empty list allows no roots. */
 	allowedProjectRoots?: readonly string[];
+	/** Maximum open sessions, each holding its project in memory. Defaults to 32. */
+	maxSessions?: number;
+	/** Close clean idle sessions after this interval. Defaults to 30 minutes; zero disables expiry. */
+	idleSessionTimeoutMs?: number;
 }

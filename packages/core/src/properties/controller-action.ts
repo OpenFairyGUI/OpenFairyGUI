@@ -40,33 +40,73 @@ export class ControllerAction extends Property<IControllerAction> {
 		});
 	}
 
-	public getActionType(): number { return this.get('actionType'); }
-	public setActionType(v: number): this { return this.set('actionType', v); }
+	public getActionType(): number {
+		return this.get('actionType');
+	}
+	public setActionType(v: number): this {
+		return this.set('actionType', v);
+	}
 
-	public getFromPage(): string[] { return this.get('fromPage'); }
-	public setFromPage(v: string[]): this { return this.set('fromPage', v); }
+	public getFromPage(): string[] {
+		return this.get('fromPage');
+	}
+	public setFromPage(v: string[]): this {
+		return this.set('fromPage', v);
+	}
 
-	public getToPage(): string[] { return this.get('toPage'); }
-	public setToPage(v: string[]): this { return this.set('toPage', v); }
+	public getToPage(): string[] {
+		return this.get('toPage');
+	}
+	public setToPage(v: string[]): this {
+		return this.set('toPage', v);
+	}
 
-	public getTransitionName(): string { return this.get('transitionName'); }
-	public setTransitionName(v: string): this { return this.set('transitionName', v); }
+	public getTransitionName(): string {
+		return this.get('transitionName');
+	}
+	public setTransitionName(v: string): this {
+		return this.set('transitionName', v);
+	}
 
-	public getPlayTimes(): number { return this.get('playTimes'); }
-	public setPlayTimes(v: number): this { return this.set('playTimes', v); }
+	public getPlayTimes(): number {
+		return this.get('playTimes');
+	}
+	public setPlayTimes(v: number): this {
+		return this.set('playTimes', v);
+	}
 
-	public getDelay(): number { return this.get('delay'); }
-	public setDelay(v: number): this { return this.set('delay', v); }
+	public getDelay(): number {
+		return this.get('delay');
+	}
+	public setDelay(v: number): this {
+		return this.set('delay', v);
+	}
 
-	public getStopOnExit(): boolean { return this.get('stopOnExit'); }
-	public setStopOnExit(v: boolean): this { return this.set('stopOnExit', v); }
+	public getStopOnExit(): boolean {
+		return this.get('stopOnExit');
+	}
+	public setStopOnExit(v: boolean): this {
+		return this.set('stopOnExit', v);
+	}
 
-	public getObjectId(): string { return this.get('objectId'); }
-	public setObjectId(v: string): this { return this.set('objectId', v); }
+	public getObjectId(): string {
+		return this.get('objectId');
+	}
+	public setObjectId(v: string): this {
+		return this.set('objectId', v);
+	}
 
-	public getControllerName(): string { return this.get('controllerName'); }
-	public setControllerName(v: string): this { return this.set('controllerName', v); }
+	public getControllerName(): string {
+		return this.get('controllerName');
+	}
+	public setControllerName(v: string): this {
+		return this.set('controllerName', v);
+	}
 
-	public getTargetPage(): string { return this.get('targetPage'); }
-	public setTargetPage(v: string): this { return this.set('targetPage', v); }
+	public getTargetPage(): string {
+		return this.get('targetPage');
+	}
+	public setTargetPage(v: string): this {
+		return this.set('targetPage', v);
+	}
 }

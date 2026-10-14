@@ -1,9 +1,5 @@
 import type { ProjectSettings } from '../types/settings.js';
-import type {
-	UamEdgeInsets,
-	UamListItemData,
-	UamRelation,
-} from './model.js';
+import type { UamEdgeInsets, UamListItemData, UamRelation } from './model.js';
 import { UAM_SUPPORTED_MATERIALIZATION_SCOPE } from './model.js';
 
 export function cloneSettings(settings: ProjectSettings): ProjectSettings {
@@ -28,7 +24,9 @@ export function ensureSupportedGearKind(kind: string): void {
 	}
 }
 
-export function materializeRelations(relations: UamRelation[]): Array<{ target: string; type: number; usePercent: boolean }> {
+export function materializeRelations(
+	relations: UamRelation[],
+): Array<{ target: string; type: number; usePercent: boolean }> {
 	return relations.map((relation) => ({
 		target: relation.targetNodeId,
 		type: relation.type,

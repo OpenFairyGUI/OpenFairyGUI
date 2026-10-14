@@ -150,7 +150,7 @@ function normalizeComponentInstanceProperties(
 				icon: properties.icon ?? '',
 				titleColor: properties.titleColor ?? '',
 				titleFontSize: properties.titleFontSize ?? 0,
-				promptText: properties.promptText ?? '',
+				inputSettings: properties.inputSettings ? { ...properties.inputSettings } : null,
 				sound: properties.sound ?? '',
 				soundVolumeScale: properties.soundVolumeScale ?? 1,
 			};
@@ -579,9 +579,7 @@ export function createDefaultUamPlainTextProperties(): UamPlainTextProperties {
 function normalizeTextProperties(properties: UamTextProperties): UamTextProperties {
 	const normalizeColor = (color: string) => {
 		const normalized = color.toLowerCase();
-		return normalized.startsWith('#ff') && normalized.length === 9
-			? `#${normalized.slice(3)}`
-			: normalized;
+		return normalized.startsWith('#ff') && normalized.length === 9 ? `#${normalized.slice(3)}` : normalized;
 	};
 	return {
 		text: properties.text,
@@ -774,7 +772,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				lineSize: graph.lineSize ?? 1,
 				lineColor: graph.lineColor ?? '#000000',
 				fillColor: graph.fillColor ?? '#FFFFFF',
-				cornerRadius: graph.cornerRadius ? [...graph.cornerRadius] as [number, number, number, number] : null,
+				cornerRadius: graph.cornerRadius ? ([...graph.cornerRadius] as [number, number, number, number]) : null,
 				points: graph.points ? [...graph.points] : null,
 				sides: graph.sides ?? 0,
 				startAngle: graph.startAngle ?? 0,
@@ -858,6 +856,9 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			return {
 				kind: 'button',
 				...base,
+				controller: button.controller ?? '',
+				page: button.page ?? '',
+				checked: button.checked ?? false,
 				group: button.group ?? '',
 				src: button.src ?? '',
 				packageId: button.packageId ?? '',
@@ -865,7 +866,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				icon: button.icon ?? '',
 				selectedTitle: button.selectedTitle ?? '',
 				selectedIcon: button.selectedIcon ?? '',
-				titleColor: button.titleColor ?? '#000000',
+				titleColor: button.titleColor ?? '',
 				titleFontSize: button.titleFontSize ?? 0,
 				sound: button.sound ?? '',
 				soundVolumeScale: button.soundVolumeScale ?? 1,
@@ -879,12 +880,13 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			return {
 				kind: 'label',
 				...base,
+				inputSettings: label.inputSettings ? { ...label.inputSettings } : null,
 				group: label.group ?? '',
 				src: label.src ?? '',
 				packageId: label.packageId ?? '',
 				title: label.title ?? '',
 				icon: label.icon ?? '',
-				titleColor: label.titleColor ?? '#000000',
+				titleColor: label.titleColor ?? '',
 				titleFontSize: label.titleFontSize ?? 0,
 				sound: label.sound ?? '',
 				soundVolumeScale: label.soundVolumeScale ?? 1,
@@ -991,7 +993,7 @@ function normalizeControllerModel(controller: UamControllerModel): UamController
 		alias: controller.alias ?? '',
 		exported: controller.exported ?? false,
 		homePageType,
-		homePage: homePageType === 'specific' || homePageType === 'variable' ? controller.homePage ?? '' : '',
+		homePage: homePageType === 'specific' || homePageType === 'variable' ? (controller.homePage ?? '') : '',
 		pages: (controller.pages ?? []).map(normalizeControllerPage),
 		actions: (controller.actions ?? []).map(normalizeControllerAction),
 	};
@@ -1066,9 +1068,7 @@ export function createDefaultUamMovieClipResourceProperties(): UamMovieClipResou
 	};
 }
 
-function normalizeImageResourceProperties(
-	properties: UamImageResourceProperties,
-): UamImageResourceProperties {
+function normalizeImageResourceProperties(properties: UamImageResourceProperties): UamImageResourceProperties {
 	if (!properties) return properties;
 	return {
 		textureSetMode: properties.textureSetMode,
@@ -1170,12 +1170,14 @@ function normalizeResource(resource: UamResource): UamResource {
 
 function normalizePackage(pkg: UamPackage): UamPackage {
 	const resources = (pkg.resources ?? []).map(normalizeResource);
-	const folders = (pkg.folders ?? []).map((folder): UamResourceFolder => ({
-		branch: folder.branch ?? '',
-		path: normalizeResourceFolderPath(folder.path),
-		favorite: folder.favorite ?? false,
-		atlas: folder.atlas ?? '',
-	}));
+	const folders = (pkg.folders ?? []).map(
+		(folder): UamResourceFolder => ({
+			branch: folder.branch ?? '',
+			path: normalizeResourceFolderPath(folder.path),
+			favorite: folder.favorite ?? false,
+			atlas: folder.atlas ?? '',
+		}),
+	);
 	const folderKeys = new Set(folders.map((folder) => `${folder.branch}\0${folder.path}`));
 	for (const resource of resources) {
 		const segments = normalizeResourceFolderPath(resource.path).split('/').filter(Boolean);

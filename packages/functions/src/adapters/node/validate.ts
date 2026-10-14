@@ -7,6 +7,7 @@ import {
 } from '@openfairygui/core';
 import { NodeIO } from '@openfairygui/core/node';
 import { validateProject } from '../../validate.js';
+import { MAX_IMAGE_PIXELS } from './image-limits.js';
 
 const importNative = new Function('id', 'return import(id)') as <T>(id: string) => Promise<T>;
 
@@ -28,13 +29,19 @@ export async function validateProjectNode(projectPath: string): Promise<ProjectV
 	try {
 		project = liftDocumentToUamProject(read.document);
 	} catch (error) {
-		return createProjectValidationReport([...read.diagnostics, {
-			severity: 'error',
-			code: 'invalid_uam',
-			path: 'project',
-			message: `Project cannot be represented as UAM: ${error instanceof Error ? error.message : String(error)}`,
-			sourcePath: projectPath,
-		}], false);
+		return createProjectValidationReport(
+			[
+				...read.diagnostics,
+				{
+					severity: 'error',
+					code: 'invalid_uam',
+					path: 'project',
+					message: `Project cannot be represented as UAM: ${error instanceof Error ? error.message : String(error)}`,
+					sourcePath: projectPath,
+				},
+			],
+			false,
+		);
 	}
 	const base = validateProject(project, {
 		readDiagnostics: read.diagnostics,
@@ -42,39 +49,55 @@ export async function validateProjectNode(projectPath: string): Promise<ProjectV
 		validateSources: true,
 	});
 	let diagnostics: ProjectDiagnostic[] = base.diagnostics;
-	const knownCorruptPaths = new Set(base.diagnostics
-		.filter((diagnostic) => diagnostic.code === 'corrupt_source')
-		.map((diagnostic) => diagnostic.path));
-	const images = project.packages.flatMap((pkg, packageIndex) => pkg.resources
-		.map((resource, resourceIndex) => ({ pkg, packageIndex, resource, resourceIndex }))
-		.filter(({ resource, packageIndex, resourceIndex }) => (
-			resource.kind === 'image'
-			&& resource.sourceBytes instanceof Uint8Array
-			&& !knownCorruptPaths.has(`packages[${packageIndex}].resources[${resourceIndex}]`)
-		)));
+	const knownCorruptPaths = new Set(
+		base.diagnostics
+			.filter((diagnostic) => diagnostic.code === 'corrupt_source')
+			.map((diagnostic) => diagnostic.path),
+	);
+	const images = project.packages.flatMap((pkg, packageIndex) =>
+		pkg.resources
+			.map((resource, resourceIndex) => ({ pkg, packageIndex, resource, resourceIndex }))
+			.filter(
+				({ resource, packageIndex, resourceIndex }) =>
+					resource.kind === 'image' &&
+					resource.sourceBytes instanceof Uint8Array &&
+					!knownCorruptPaths.has(`packages[${packageIndex}].resources[${resourceIndex}]`),
+			),
+	);
 	if (images.length === 0) return base;
 
-	let sharp: ((bytes: Uint8Array) => { raw(): { toBuffer(): Promise<unknown> } });
+	let sharp: (
+		bytes: Uint8Array,
+		options: { limitInputPixels: number },
+	) => { raw(): { toBuffer(): Promise<unknown> } };
 	try {
 		const loaded = await importNative<typeof import('sharp')>('sharp');
 		sharp = (loaded as unknown as { default?: typeof loaded }).default ?? loaded;
 	} catch {
-		return createProjectValidationReport([...base.diagnostics, {
-			severity: 'warning',
-			code: 'decode_capability_unavailable',
-			path: 'project',
-			message: 'Sharp is unavailable, so Node image decoding could not be completed.',
-		}], false);
+		return createProjectValidationReport(
+			[
+				...base.diagnostics,
+				{
+					severity: 'warning',
+					code: 'decode_capability_unavailable',
+					path: 'project',
+					message: 'Sharp is unavailable, so Node image decoding could not be completed.',
+				},
+			],
+			false,
+		);
 	}
-	const decodedPaths = new Set(images.map(({ packageIndex, resourceIndex }) => `packages[${packageIndex}].resources[${resourceIndex}]`));
-	diagnostics = diagnostics.filter((diagnostic) => (
-		diagnostic.code !== 'decode_capability_unavailable' || !decodedPaths.has(diagnostic.path)
-	));
+	const decodedPaths = new Set(
+		images.map(({ packageIndex, resourceIndex }) => `packages[${packageIndex}].resources[${resourceIndex}]`),
+	);
+	diagnostics = diagnostics.filter(
+		(diagnostic) => diagnostic.code !== 'decode_capability_unavailable' || !decodedPaths.has(diagnostic.path),
+	);
 
 	for (const { pkg, packageIndex, resource, resourceIndex } of images) {
 		if (resource.kind !== 'image') continue;
 		try {
-			await sharp(resource.sourceBytes!).raw().toBuffer();
+			await sharp(resource.sourceBytes!, { limitInputPixels: MAX_IMAGE_PIXELS }).raw().toBuffer();
 		} catch (error) {
 			diagnostics.push({
 				severity: 'error',
