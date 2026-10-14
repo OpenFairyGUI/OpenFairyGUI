@@ -9,6 +9,10 @@ Release comparisons:
 - Stable line (`main`): [v0.6.1...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.1...main)
 - Development line (`next`): [v0.6.1...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.1...next)
 
+Fixes:
+
+- core: Write ComboBox component-instance `selectionController` bindings to binary packages as the owning component's controller index instead of always `-1`, so decoded bindings survive rewrites and UAM round trips.
+
 ## v0.6.x
 
 ### v0.6.1 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.1))

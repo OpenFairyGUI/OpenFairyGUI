@@ -157,6 +157,7 @@ export type EncoderChildLike = ChildNode & {
 	getInstanceValue?(): number;
 	getInstanceMax?(): number;
 	getInstanceMin?(): number;
+	getInstanceSelectionController?(): string;
 	getInstanceComboItems?(): ComboItemLike[];
 	getInstanceAutoClearItems?(): boolean;
 	getSelectionController?(): string;

@@ -785,7 +785,13 @@ function _writeExtensionInstanceData(
 			if (comboTitleColor) buf.writeColor(comboTitleColor, true);
 			buf.writeInt32(child.getInstanceVisibleItemCount?.() ?? 10);
 			buf.writeUint8(child.getInstancePopupDirection?.() ?? 0);
-			buf.writeInt16(-1); // selectionController
+			const selectionController = child.getInstanceSelectionController?.() ?? '';
+			if (selectionController) {
+				const ctrlIdx = comp.listControllers().findIndex((c) => c.getName() === selectionController);
+				buf.writeInt16(ctrlIdx >= 0 ? ctrlIdx : -1);
+			} else {
+				buf.writeInt16(-1);
+			}
 			if (version >= 5) {
 				buf.writeS(remapLocalUiUrl(context, child.getInstanceSound?.() ?? null));
 				buf.writeFloat32(child.getInstanceSoundVolumeScale?.() ?? 1);

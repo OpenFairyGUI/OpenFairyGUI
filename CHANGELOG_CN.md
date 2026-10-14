@@ -9,6 +9,10 @@
 - 稳定线（`main`）：[v0.6.1...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.1...main)
 - 开发线（`next`）：[v0.6.1...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.1...next)
 
+修复：
+
+- core：二进制封包按所属组件的控制器索引写入 ComboBox 组件实例的 `selectionController` 绑定，不再固定写 `-1`，解码后的绑定在重写和 UAM 往返后得以保留。
+
 ## v0.6.x
 
 ### v0.6.1（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.1)）
