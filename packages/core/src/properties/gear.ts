@@ -51,7 +51,9 @@ export class Gear extends Property<IGear> {
 		});
 	}
 
-	public getGearType(): number { return this.get('gearType'); }
+	public getGearType(): number {
+		return this.get('gearType');
+	}
 	public setGearType(v: number): this {
 		const stringValues = v === GearType.Text || v === GearType.Icon;
 		if (stringValues === this.hasStringValues()) return this.set('gearType', v);
@@ -62,10 +64,16 @@ export class Gear extends Property<IGear> {
 		return this.set('pageValues', pageValues);
 	}
 
-	public getController(): Controller | null { return this.getRef('controller' as never) as Controller | null; }
-	public setController(ctrl: Controller | null): this { return this.setRef('controller' as never, ctrl as never); }
+	public getController(): Controller | null {
+		return this.getRef('controller' as never) as Controller | null;
+	}
+	public setController(ctrl: Controller | null): this {
+		return this.setRef('controller' as never, ctrl as never);
+	}
 
-	public getPages(): string { return this.get('pages'); }
+	public getPages(): string {
+		return this.get('pages');
+	}
 	public setPages(v: string): this {
 		this.set('pages', v);
 		if (this.hasStringValues()) {
@@ -79,13 +87,15 @@ export class Gear extends Property<IGear> {
 	public getValues(): string {
 		if (!this.hasStringValues()) return this.get('values');
 		const values = this.getPageValues();
-		return (this.getPages() ? this.getPages().split(',') : []).map((page) => {
-			const value = values[page];
-			if (value === null || value === undefined || value.includes('|')) {
-				throw new Error('Text/Icon gear states containing null or "|" require getPageValues().');
-			}
-			return value;
-		}).join('|');
+		return (this.getPages() ? this.getPages().split(',') : [])
+			.map((page) => {
+				const value = values[page];
+				if (value === null || value === undefined || value.includes('|')) {
+					throw new Error('Text/Icon gear states containing null or "|" require getPageValues().');
+				}
+				return value;
+			})
+			.join('|');
 	}
 	public setValues(v: string): this {
 		if (!this.hasStringValues()) return this.set('values', v);
@@ -101,13 +111,23 @@ export class Gear extends Property<IGear> {
 		return Object.fromEntries(pages.map((page, index) => [page, values[index] ?? '']));
 	}
 
-	public getCondition(): string { return this.get('condition'); }
-	public setCondition(v: string): this { return this.set('condition', v); }
+	public getCondition(): string {
+		return this.get('condition');
+	}
+	public setCondition(v: string): this {
+		return this.set('condition', v);
+	}
 
-	public getDefaultValue(): unknown { return this.get('defaultValue' as never) as unknown; }
-	public setDefaultValue(v: unknown): this { return this.set('defaultValue' as never, v as never); }
+	public getDefaultValue(): unknown {
+		return this.get('defaultValue' as never) as unknown;
+	}
+	public setDefaultValue(v: unknown): this {
+		return this.set('defaultValue' as never, v as never);
+	}
 
-	public getPageValues(): Record<string, string | null> { return { ...this.get('pageValues') }; }
+	public getPageValues(): Record<string, string | null> {
+		return { ...this.get('pageValues') };
+	}
 	public setPageValues(v: Record<string, string | null>): this {
 		if (Object.values(v).some((value) => value !== null && typeof value !== 'string')) {
 			throw new Error('Gear page values must be strings or null.');
@@ -128,21 +148,45 @@ export class Gear extends Property<IGear> {
 		return this.getGearType() === GearType.Text || this.getGearType() === GearType.Icon;
 	}
 
-	public getPositionsInPercent(): boolean { return this.get('positionsInPercent'); }
-	public setPositionsInPercent(v: boolean): this { return this.set('positionsInPercent', v); }
+	public getPositionsInPercent(): boolean {
+		return this.get('positionsInPercent');
+	}
+	public setPositionsInPercent(v: boolean): this {
+		return this.set('positionsInPercent', v);
+	}
 
-	public getTween(): boolean { return this.get('tween'); }
-	public setTween(v: boolean): this { return this.set('tween', v); }
+	public getTween(): boolean {
+		return this.get('tween');
+	}
+	public setTween(v: boolean): this {
+		return this.set('tween', v);
+	}
 
-	public getTweenDuration(): number { return this.get('tweenDuration'); }
-	public setTweenDuration(v: number): this { return this.set('tweenDuration', v); }
+	public getTweenDuration(): number {
+		return this.get('tweenDuration');
+	}
+	public setTweenDuration(v: number): this {
+		return this.set('tweenDuration', v);
+	}
 
-	public getTweenDelay(): number { return this.get('tweenDelay'); }
-	public setTweenDelay(v: number): this { return this.set('tweenDelay', v); }
+	public getTweenDelay(): number {
+		return this.get('tweenDelay');
+	}
+	public setTweenDelay(v: number): this {
+		return this.set('tweenDelay', v);
+	}
 
-	public getEaseType(): number { return this.get('easeType'); }
-	public setEaseType(v: number): this { return this.set('easeType', v); }
+	public getEaseType(): number {
+		return this.get('easeType');
+	}
+	public setEaseType(v: number): this {
+		return this.set('easeType', v);
+	}
 
-	public getCustomEasePath(): string { return this.get('customEasePath'); }
-	public setCustomEasePath(v: string): this { return this.set('customEasePath', v); }
+	public getCustomEasePath(): string {
+		return this.get('customEasePath');
+	}
+	public setCustomEasePath(v: string): this {
+		return this.set('customEasePath', v);
+	}
 }

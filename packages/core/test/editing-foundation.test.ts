@@ -3,12 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
-import {
-	ControllerActionType,
-	Document,
-	GearType,
-	TransitionActionType,
-} from '../src/index.js';
+import { ControllerActionType, Document, GearType, TransitionActionType } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
 
 const REAL_PROJECT_PATH = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
@@ -76,18 +71,10 @@ test('project creation survives save -> re-read semantic round-trip', async (t) 
 	pkg.setId('pkgedit1');
 
 	const component = doc.createComponent('Main');
-	component
-		.setId('cmpedit1')
-		.setPath('/')
-		.setExported(true)
-		.setSize(320, 180);
+	component.setId('cmpedit1').setPath('/').setExported(true).setSize(320, 180);
 
 	const title = doc.createGTextField('title');
-	title
-		.setId('n0')
-		.setText('Hello OpenFairyGUI')
-		.setXY(12, 18)
-		.setSize(180, 32);
+	title.setId('n0').setText('Hello OpenFairyGUI').setXY(12, 18).setSize(180, 32);
 
 	component.addChild(title);
 	pkg.addResource(component);
@@ -118,25 +105,13 @@ test('component creation survives save -> re-read semantic round-trip', async (t
 	pkg.setId('pkgcomp1');
 
 	const component = doc.createComponent('Card');
-	component
-		.setId('cmpcard1')
-		.setPath('/')
-		.setExported(true)
-		.setSize(240, 120);
+	component.setId('cmpcard1').setPath('/').setExported(true).setSize(240, 120);
 
 	const background = doc.createGImage('background');
-	background
-		.setId('n0')
-		.setXY(0, 0)
-		.setSize(240, 120)
-		.setColor('#FFFFFF');
+	background.setId('n0').setXY(0, 0).setSize(240, 120).setColor('#FFFFFF');
 
 	const label = doc.createGTextField('label');
-	label
-		.setId('n1')
-		.setText('Card Label')
-		.setXY(16, 14)
-		.setSize(120, 24);
+	label.setId('n1').setText('Card Label').setXY(16, 14).setSize(120, 24);
 
 	component.addChild(background);
 	component.addChild(label);
@@ -167,11 +142,7 @@ test('display-object property edits survive save -> re-read semantic round-trip 
 
 	t.truthy(editedImage, 'expected real fixture image child to exist');
 
-	editedImage!
-		.setAlpha(0.42)
-		.setRotation(17)
-		.setVisible(false)
-		.setTooltips('edited-in-regression-matrix');
+	editedImage!.setAlpha(0.42).setRotation(17).setVisible(false).setTooltips('edited-in-regression-matrix');
 
 	const doc2 = await roundTripProject(doc);
 	const editedImage2 = doc2
@@ -192,11 +163,7 @@ test('display-list append/remove edits survive save -> re-read semantic round-tr
 	pkg.setId('pkglist1');
 
 	const component = doc.createComponent('Host');
-	component
-		.setId('cmplist1')
-		.setPath('/')
-		.setExported(true)
-		.setSize(300, 200);
+	component.setId('cmplist1').setPath('/').setExported(true).setSize(300, 200);
 
 	const first = doc.createGTextField('first');
 	first.setId('n0').setText('first').setXY(0, 0).setSize(60, 20);
@@ -223,10 +190,7 @@ test('display-list append/remove edits survive save -> re-read semantic round-tr
 
 	t.truthy(component2, 'component should survive round-trip');
 	t.deepEqual(childIds(component2!), ['n0', 'n2', 'n3']);
-	t.is(
-		(component2?.getChildById('n3') as ReturnType<Document['createGTextField']> | null)?.getText(),
-		'appended',
-	);
+	t.is((component2?.getChildById('n3') as ReturnType<Document['createGTextField']> | null)?.getText(), 'appended');
 });
 
 test('controller edits survive save -> re-read semantic round-trip', async (t) => {
@@ -235,11 +199,7 @@ test('controller edits survive save -> re-read semantic round-trip', async (t) =
 	pkg.setId('pkgctrl1');
 
 	const component = doc.createComponent('Panel');
-	component
-		.setId('cmpctrl1')
-		.setPath('/')
-		.setExported(true)
-		.setSize(240, 140);
+	component.setId('cmpctrl1').setPath('/').setExported(true).setSize(240, 140);
 
 	const child = doc.createGComponent('content');
 	child.setId('n0');
@@ -274,10 +234,13 @@ test('controller edits survive save -> re-read semantic round-trip', async (t) =
 
 	t.truthy(controller2, 'controller should survive round-trip');
 	t.is(controller2?.getSelectedIndex(), 1);
-	t.deepEqual(controller2?.listPages().map((page) => ({ id: page.getId(), name: page.getName() })), [
-		{ id: '0', name: 'Idle' },
-		{ id: '1', name: 'Active' },
-	]);
+	t.deepEqual(
+		controller2?.listPages().map((page) => ({ id: page.getId(), name: page.getName() })),
+		[
+			{ id: '0', name: 'Idle' },
+			{ id: '1', name: 'Active' },
+		],
+	);
 	t.truthy(action2, 'controller action should survive round-trip');
 	t.is(action2?.getActionType(), ControllerActionType.ChangePage);
 	t.deepEqual(action2?.getFromPage(), ['0']);
@@ -293,27 +256,17 @@ test('transition edits survive save -> re-read semantic round-trip', async (t) =
 	pkg.setId('pkgtran1');
 
 	const component = doc.createComponent('Animator');
-	component
-		.setId('cmptran1')
-		.setPath('/')
-		.setExported(true)
-		.setSize(200, 120);
+	component.setId('cmptran1').setPath('/').setExported(true).setSize(200, 120);
 
 	const child = doc.createGImage('hero');
 	child.setId('n0').setXY(0, 0).setSize(100, 100);
 	component.addChild(child);
 
 	const transition = doc.createTransition('intro');
-	transition
-		.setAutoPlay(true)
-		.setAutoPlayTimes(2)
-		.setAutoPlayDelay(0.25)
-		.setOptions(3)
-		.setFps(30);
+	transition.setAutoPlay(true).setAutoPlayTimes(2).setAutoPlayDelay(0.25).setOptions(3).setFps(30);
 
 	const item = doc.createTransitionItem('move');
-	item
-		.setTime(3)
+	item.setTime(3)
 		.setTargetId('n0')
 		.setActionType(TransitionActionType.XY)
 		.setTween(true)
@@ -356,11 +309,7 @@ test('gear edits survive save -> re-read semantic round-trip', async (t) => {
 	pkg.setId('pkggear1');
 
 	const component = doc.createComponent('StateHost');
-	component
-		.setId('cmpgear1')
-		.setPath('/')
-		.setExported(true)
-		.setSize(220, 140);
+	component.setId('cmpgear1').setPath('/').setExported(true).setSize(220, 140);
 
 	const controller = doc.createController('state');
 	const page0 = doc.createControllerPage('Idle');
@@ -372,14 +321,10 @@ test('gear edits survive save -> re-read semantic round-trip', async (t) => {
 	component.addController(controller);
 
 	const image = doc.createGImage('icon');
-	image
-		.setId('n0')
-		.setXY(10, 10)
-		.setSize(80, 80);
+	image.setId('n0').setXY(10, 10).setSize(80, 80);
 
 	const gear = doc.createGear('look');
-	gear
-		.setGearType(GearType.Look)
+	gear.setGearType(GearType.Look)
 		.setController(controller)
 		.setPages('0,1')
 		.setValues('1,1,0|0.35,0.35,1')
@@ -393,11 +338,9 @@ test('gear edits survive save -> re-read semantic round-trip', async (t) => {
 	pkg.addResource(component);
 
 	const doc2 = await roundTripProject(doc);
-	const image2 = doc2
-		.getRoot()
-		.getPackage('Gears')
-		?.getComponent('StateHost')
-		?.getChildById('n0') as ReturnType<Document['createGImage']> | null;
+	const image2 = doc2.getRoot().getPackage('Gears')?.getComponent('StateHost')?.getChildById('n0') as ReturnType<
+		Document['createGImage']
+	> | null;
 	const gear2 = image2?.listGears()[0];
 
 	t.truthy(gear2, 'gear should survive round-trip');

@@ -1,11 +1,6 @@
 import test from 'ava';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
-import {
-	type Document,
-	type GTree,
-	ListSelectionMode,
-	PropertyType,
-} from '../src/index.js';
+import { type Document, type GTree, ListSelectionMode, PropertyType } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
 
 const PROJECT_PATH = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
@@ -114,7 +109,10 @@ test('settings are loaded', async (t) => {
 
 test('Demo_List display list order matches component XML order', async (t) => {
 	const doc = await getDoc();
-	const basics = doc.getRoot().listPackages().find((p) => p.getName() === 'Basics')!;
+	const basics = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Basics')!;
 	const comp = basics.listComponents().find((c) => c.getName() === 'Demo_List')!;
 	t.deepEqual(
 		comp.listChildren().map((child) => child.getId()),
@@ -124,7 +122,10 @@ test('Demo_List display list order matches component XML order', async (t) => {
 
 test('Demo_Grid display list order matches component XML order', async (t) => {
 	const doc = await getDoc();
-	const basics = doc.getRoot().listPackages().find((p) => p.getName() === 'Basics')!;
+	const basics = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Basics')!;
 	const comp = basics.listComponents().find((c) => c.getName() === 'Demo_Grid')!;
 	t.deepEqual(
 		comp.listChildren().map((child) => child.getId()),
@@ -154,7 +155,10 @@ test('totals across all packages', async (t) => {
 
 test('Demo_Image preserves image flip values from source XML', async (t) => {
 	const doc = await getDoc();
-	const basics = doc.getRoot().listPackages().find((p) => p.getName() === 'Basics')!;
+	const basics = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Basics')!;
 	const comp = basics.listComponents().find((c) => c.getName() === 'Demo_Image')!;
 	const byId = new Map(comp.listChildren().map((child) => [child.getId(), child as any]));
 
@@ -170,7 +174,10 @@ test('Demo_Image preserves image flip values from source XML', async (t) => {
 
 test('Demo_Graph preserves pivot anchor on image-backed graph children', async (t) => {
 	const doc = await getDoc();
-	const basics = doc.getRoot().listPackages().find((p) => p.getName() === 'Basics')!;
+	const basics = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Basics')!;
 	const comp = basics.listComponents().find((c) => c.getName() === 'Demo_Graph')!;
 	const byId = new Map(comp.listChildren().map((child) => [child.getId(), child as any]));
 
@@ -182,7 +189,10 @@ test('Demo_Graph preserves pivot anchor on image-backed graph children', async (
 
 test('display objects preserve tag-scoped pivot and scale attrs from source XML', async (t) => {
 	const doc = await getDoc();
-	const basics = doc.getRoot().listPackages().find((p) => p.getName() === 'Basics')!;
+	const basics = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Basics')!;
 
 	const demoLoader = basics.listComponents().find((c) => c.getName() === 'Demo_Loader')!;
 	const loaderById = new Map(demoLoader.listChildren().map((child) => [child.getId(), child as any]));
@@ -200,7 +210,10 @@ test('display objects preserve tag-scoped pivot and scale attrs from source XML'
 	t.is(movieClipById.get('n15')?.getPivotY?.(), 0.5, 'movieclip keeps pivotY from XML');
 
 	const editorDoc = await getEditorDoc();
-	const basicPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Basic')!;
+	const basicPkg = editorDoc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Basic')!;
 	const hueSlider = basicPkg.listComponents().find((c) => c.getName() === 'HueSlider')!;
 	const hueById = new Map(hueSlider.listChildren().map((child) => [child.getId(), child as any]));
 	t.is(hueById.get('n43_mkkf')?.getPivotX?.(), 0, 'component keeps pivotX from editor XML');
@@ -210,7 +223,10 @@ test('display objects preserve tag-scoped pivot and scale attrs from source XML'
 
 test('display objects preserve tag-scoped group attrs from source XML', async (t) => {
 	const editorDoc = await getEditorDoc();
-	const basicPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Basic')!;
+	const basicPkg = editorDoc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Basic')!;
 	const colorPicker = basicPkg.listComponents().find((c) => c.getName() === 'ColorPickerDialog')!;
 	const colorById = new Map(colorPicker.listChildren().map((child) => [child.getId(), child as any]));
 	t.is(colorById.get('n18_ss7s')?.getGroup?.(), 'n20_ss7s', 'image keeps group attr');
@@ -218,7 +234,10 @@ test('display objects preserve tag-scoped group attrs from source XML', async (t
 	t.is(colorById.get('n0_ss7s')?.getGroup?.(), 'n50_qfvx', 'text keeps group attr');
 	t.is(colorById.get('n1_ss7s')?.getGroup?.(), 'n50_qfvx', 'component keeps group attr');
 
-	const builderPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const builderPkg = editorDoc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Builder')!;
 	const libraryView = builderPkg.listComponents().find((c) => c.getName() === 'LibraryView')!;
 	const libraryById = new Map(libraryView.listChildren().map((child) => [child.getId(), child as any]));
 	t.is(libraryById.get('n3')?.getGroup?.(), 'n16_emg4', 'list keeps group attr');
@@ -228,7 +247,10 @@ test('display objects preserve tag-scoped group attrs from source XML', async (t
 	t.is(arrangeById.get('n46_ov4h')?.getGroup?.(), 'n48_ryaj', 'group keeps group attr');
 
 	const runtimeDoc = await getDoc();
-	const transitionPkg = runtimeDoc.getRoot().listPackages().find((p) => p.getName() === 'Transition')!;
+	const transitionPkg = runtimeDoc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Transition')!;
 	const powerUp = transitionPkg.listComponents().find((c) => c.getName() === 'PowerUp')!;
 	const powerById = new Map(powerUp.listChildren().map((child) => [child.getId(), child as any]));
 	t.is(powerById.get('n5')?.getGroup?.(), 'n6', 'movieclip keeps group attr');
@@ -236,7 +258,10 @@ test('display objects preserve tag-scoped group attrs from source XML', async (t
 
 test('display objects preserve tag-scoped xy attrs from source XML', async (t) => {
 	const doc = await getDoc();
-	const basics = doc.getRoot().listPackages().find((p) => p.getName() === 'Basics')!;
+	const basics = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Basics')!;
 
 	const demoLoader = basics.listComponents().find((c) => c.getName() === 'Demo_Loader')!;
 	const loaderById = new Map(demoLoader.listChildren().map((child) => [child.getId(), child as any]));
@@ -254,7 +279,10 @@ test('display objects preserve tag-scoped xy attrs from source XML', async (t) =
 	t.is(movieClipById.get('n15')?.getY?.(), 227, 'movieclip keeps y from XML');
 
 	const editorDoc = await getEditorDoc();
-	const basicPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Basic')!;
+	const basicPkg = editorDoc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Basic')!;
 	const colorPicker = basicPkg.listComponents().find((c) => c.getName() === 'ColorPickerDialog')!;
 	const colorById = new Map(colorPicker.listChildren().map((child) => [child.getId(), child as any]));
 	t.is(colorById.get('n18_ss7s')?.getX?.(), 325, 'image keeps x from editor XML');
@@ -262,7 +290,10 @@ test('display objects preserve tag-scoped xy attrs from source XML', async (t) =
 	t.is(colorById.get('n0_ss7s')?.getX?.(), 322, 'text keeps x from editor XML');
 	t.is(colorById.get('n0_ss7s')?.getY?.(), 109, 'text keeps y from editor XML');
 
-	const builderPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const builderPkg = editorDoc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Builder')!;
 	const libraryView = builderPkg.listComponents().find((c) => c.getName() === 'LibraryView')!;
 	const libraryById = new Map(libraryView.listChildren().map((child) => [child.getId(), child as any]));
 	t.is(libraryById.get('n3')?.getX?.(), 0, 'list keeps x from editor XML');
@@ -271,7 +302,10 @@ test('display objects preserve tag-scoped xy attrs from source XML', async (t) =
 
 test('display objects preserve tag-scoped size attrs from source XML', async (t) => {
 	const doc = await getDoc();
-	const basics = doc.getRoot().listPackages().find((p) => p.getName() === 'Basics')!;
+	const basics = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Basics')!;
 
 	const demoLoader = basics.listComponents().find((c) => c.getName() === 'Demo_Loader')!;
 	const loaderById = new Map(demoLoader.listChildren().map((child) => [child.getId(), child as any]));
@@ -289,7 +323,10 @@ test('display objects preserve tag-scoped size attrs from source XML', async (t)
 	t.is(movieClipById.get('n15')?.getHeight?.(), 144, 'movieclip keeps height from XML');
 
 	const editorDoc = await getEditorDoc();
-	const basicPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Basic')!;
+	const basicPkg = editorDoc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Basic')!;
 	const colorPicker = basicPkg.listComponents().find((c) => c.getName() === 'ColorPickerDialog')!;
 	const colorById = new Map(colorPicker.listChildren().map((child) => [child.getId(), child as any]));
 	t.is(colorById.get('n18_ss7s')?.getWidth?.(), 57, 'image keeps width from editor XML');
@@ -299,7 +336,10 @@ test('display objects preserve tag-scoped size attrs from source XML', async (t)
 	t.is(colorById.get('n48_qfvx')?.getWidth?.(), 58, 'graph keeps width from editor XML');
 	t.is(colorById.get('n48_qfvx')?.getHeight?.(), 30, 'graph keeps height from editor XML');
 
-	const builderPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const builderPkg = editorDoc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Builder')!;
 	const libraryView = builderPkg.listComponents().find((c) => c.getName() === 'LibraryView')!;
 	const libraryById = new Map(libraryView.listChildren().map((child) => [child.getId(), child as any]));
 	t.is(libraryById.get('n3')?.getWidth?.(), 137, 'list keeps width from editor XML');
@@ -313,19 +353,29 @@ test('display objects preserve tag-scoped size attrs from source XML', async (t)
 
 test('display objects preserve tag-scoped locked and restrictSize attrs from source XML', async (t) => {
 	const editorDoc = await getEditorDoc();
-	const basicPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Basic')!;
+	const basicPkg = editorDoc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Basic')!;
 	const colorPicker = basicPkg.listComponents().find((c) => c.getName() === 'ColorPickerDialog')!;
 	const colorById = new Map(colorPicker.listChildren().map((child) => [child.getId(), child as any]));
 	t.true(colorById.get('n37_mkkf')?.getLocked?.(), 'component keeps locked attr');
 
-	const builderPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const builderPkg = editorDoc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Builder')!;
 	const relationPopup = builderPkg.listComponents().find((c) => c.getName() === 'RelationTypePopup')!;
 	const relationById = new Map(relationPopup.listChildren().map((child) => [child.getId(), child as any]));
 	t.true(relationById.get('n3')?.getLocked?.(), 'image keeps locked attr');
 
 	const customArrange = builderPkg.listComponents().find((c) => c.getName() === 'CustomArrangePanel')!;
 	const arrangeById = new Map(customArrange.listChildren().map((child) => [child.getId(), child as any]));
-	t.true(arrangeById.get('n48_ryaj')?.getLocked?.() === false || arrangeById.get('n48_ryaj')?.getLocked?.() === undefined, 'unlocked group remains default false');
+	t.true(
+		arrangeById.get('n48_ryaj')?.getLocked?.() === false ||
+			arrangeById.get('n48_ryaj')?.getLocked?.() === undefined,
+		'unlocked group remains default false',
+	);
 
 	const langItem = builderPkg.listComponents().find((c) => c.getName() === 'LangSetting_item')!;
 	const langById = new Map(langItem.listChildren().map((child) => [child.getId(), child as any]));
@@ -344,12 +394,18 @@ test('display objects preserve tag-scoped locked and restrictSize attrs from sou
 	t.is(libraryById.get('n11_qilr')?.getMaxWidth?.(), 200, 'component keeps restrictSize maxWidth');
 
 	const doc = await getDoc();
-	const emojiPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Emoji')!;
+	const emojiPkg = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Emoji')!;
 	const chatLeft = emojiPkg.listComponents().find((c) => c.getName() === 'chatLeft')!;
 	const chatById = new Map(chatLeft.listChildren().map((child) => [child.getId(), child as any]));
 	t.is(chatById.get('n3')?.getMaxWidth?.(), 663, 'richtext keeps restrictSize maxWidth');
 
-	const turnPagePkg = doc.getRoot().listPackages().find((p) => p.getName() === 'TurnPage')!;
+	const turnPagePkg = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'TurnPage')!;
 	const book = turnPagePkg.listComponents().find((c) => c.getName() === 'Book')!;
 	const bookById = new Map(book.listChildren().map((child) => [child.getId(), child as any]));
 	t.true(bookById.get('n10_jva6')?.getLocked?.(), 'group keeps locked attr');
@@ -357,7 +413,10 @@ test('display objects preserve tag-scoped locked and restrictSize attrs from sou
 
 test('TreeView package preserves tree list attrs and item hierarchy', async (t) => {
 	const doc = await getDoc();
-	const treeViewPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'TreeView')!;
+	const treeViewPkg = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'TreeView')!;
 	const main = treeViewPkg.listComponents().find((c) => c.getName() === 'Main')!;
 	const byName = new Map(main.listChildren().map((child) => [child.getName(), child as any]));
 
@@ -396,7 +455,10 @@ test('TreeView package preserves tree list attrs and item hierarchy', async (t) 
 
 test('Builder package preserves list static item controllers from source XML', async (t) => {
 	const doc = await getEditorDoc();
-	const builderPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const builderPkg = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Builder')!;
 	const consoleView = builderPkg.listComponents().find((c) => c.getName() === 'ConsoleView')!;
 	const list = consoleView.listChildren().find((child) => child.getName?.() === 'list') as any;
 	t.truthy(list, 'ConsoleView/list exists');
@@ -409,7 +471,10 @@ test('Builder package preserves list static item controllers from source XML', a
 
 test('Builder tree infers trailing anonymous items as leaves', async (t) => {
 	const doc = await getEditorDoc();
-	const builderPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const builderPkg = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Builder')!;
 	const hierarchyView = builderPkg.listComponents().find((c) => c.getName() === 'HierarchyView')!;
 	const tree = hierarchyView.listChildren().find((child) => child.getName?.() === 'list') as any;
 
@@ -423,7 +488,10 @@ test('Builder tree infers trailing anonymous items as leaves', async (t) => {
 
 test('Builder package preserves ComboBox static item collection from source XML', async (t) => {
 	const doc = await getEditorDoc();
-	const builderPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const builderPkg = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Builder')!;
 	const dialog = builderPkg.listComponents().find((c) => c.getName() === 'CreatePluginDialog')!;
 	const combo = dialog.listChildren().find((child) => child.getName?.() === 'template') as any;
 	t.truthy(combo, 'CreatePluginDialog/template exists');
@@ -442,7 +510,10 @@ test('Builder package preserves ComboBox static item collection from source XML'
 
 test('Bag package preserves list colGap and selectionController from source XML', async (t) => {
 	const doc = await getDoc();
-	const bagPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Bag')!;
+	const bagPkg = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Bag')!;
 	const bagWin = bagPkg.listComponents().find((c) => c.getName() === 'BagWin')!;
 	const byId = new Map(bagWin.listChildren().map((child) => [child.getId(), child as any]));
 
@@ -462,7 +533,10 @@ test('Bag package preserves list colGap and selectionController from source XML'
 
 test('display objects preserve fileName/pkg/filter metadata from source XML', async (t) => {
 	const doc = await getDoc();
-	const filterPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Filter')!;
+	const filterPkg = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Filter')!;
 	const filterMain = filterPkg.listComponents().find((c) => c.getName() === 'Main')!;
 	const filterById = new Map(filterMain.listChildren().map((child) => [child.getId(), child as any]));
 
@@ -483,7 +557,10 @@ test('display objects preserve fileName/pkg/filter metadata from source XML', as
 	t.is(filteredButton?.getFilterData?.(), '0.00,0.00,0.00,1.00', 'component instance keeps filterData attr');
 
 	const editorDoc = await getEditorDoc();
-	const builderPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const builderPkg = editorDoc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Builder')!;
 	const alignToolbar = builderPkg.listComponents().find((c) => c.getName() === 'AlignToolbar')!;
 	const alignById = new Map(alignToolbar.listChildren().map((child) => [child.getId(), child as any]));
 
@@ -499,7 +576,10 @@ test('display objects preserve fileName/pkg/filter metadata from source XML', as
 	t.is(flatIconButton?.getPackageId?.(), 'nk9ejx23', 'component keeps editor pkg attr');
 	t.is(flatIconButton?.getTooltips?.(), '左对齐', 'component keeps editor tooltips attr');
 
-	const basicsPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Basics')!;
+	const basicsPkg = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Basics')!;
 	const windowFrame = basicsPkg.listComponents().find((c) => c.getName() === 'WindowFrame')!;
 	const windowFrameById = new Map(windowFrame.listChildren().map((child) => [child.getId(), child as any]));
 	const closeButton = windowFrameById.get('n1');
@@ -509,7 +589,10 @@ test('display objects preserve fileName/pkg/filter metadata from source XML', as
 
 test('FairyGUI-Editor samples preserve text customData attrs', async (t) => {
 	const doc = await getEditorDoc();
-	const builderPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const builderPkg = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Builder')!;
 	const hierarchyItem = builderPkg.listComponents().find((c) => c.getName() === 'HierarchyView_item')!;
 	const byId = new Map(hierarchyItem.listChildren().map((child) => [child.getId(), child as any]));
 
@@ -520,7 +603,10 @@ test('FairyGUI-Editor samples preserve text customData attrs', async (t) => {
 
 test('FairyGUI-Editor samples preserve component/group/loader state attrs', async (t) => {
 	const editorDoc = await getEditorDoc();
-	const builderPkg = editorDoc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const builderPkg = editorDoc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Builder')!;
 
 	const toolbar = builderPkg.listComponents().find((c) => c.getName() === 'Toolbar')!;
 	const toolbarById = new Map(toolbar.listChildren().map((child) => [child.getId(), child as any]));
@@ -536,7 +622,10 @@ test('FairyGUI-Editor samples preserve component/group/loader state attrs', asyn
 	t.false(inputPanel?.getVisible?.(), 'group keeps visible=false attr');
 
 	const doc = await getDoc();
-	const basicsPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Basics')!;
+	const basicsPkg = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Basics')!;
 	const button52 = basicsPkg.listComponents().find((c) => c.getName() === 'Button52')!;
 	const iconLoader = button52.listChildren().find((child) => child.getName() === 'icon') as any;
 	t.truthy(iconLoader, 'Button52 icon loader exists');
@@ -545,7 +634,10 @@ test('FairyGUI-Editor samples preserve component/group/loader state attrs', asyn
 
 test('FairyGUI-Editor samples preserve lineItemCount/autoItemSize and group visibility attrs', async (t) => {
 	const doc = await getEditorDoc();
-	const builderPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
+	const builderPkg = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Builder')!;
 
 	const viewGrid = builderPkg.listComponents().find((c) => c.getName() === 'ViewGrid')!;
 	const viewGridById = new Map(viewGrid.listChildren().map((child) => [child.getId(), child as any]));
@@ -609,15 +701,25 @@ test('FairyGUI-Editor samples preserve component root scroll/restrict attrs and 
 
 test('FairyGUI-Editor samples preserve component instance attrs and extension overlays', async (t) => {
 	const doc = await getEditorDoc();
-	const builderPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Builder')!;
-	const basicPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'Basic')!;
+	const builderPkg = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Builder')!;
+	const basicPkg = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'Basic')!;
 
 	const colorPickerPopup = basicPkg.listComponents().find((c) => c.getName() === 'ColorPickerPopup')!;
 	const popupById = new Map(colorPickerPopup.listChildren().map((child) => [child.getId(), child as any]));
 	const currentColorValue = popupById.get('n3');
 	t.truthy(currentColorValue, 'ColorPickerPopup currentColorValue exists');
 	t.is(currentColorValue?.getSrc?.(), 'gcza1s', 'component instance keeps src attr');
-	t.is(currentColorValue?.getControllerOverrides?.(), 'noBorder,0,showClear,0', 'component instance keeps controller override attr');
+	t.is(
+		currentColorValue?.getControllerOverrides?.(),
+		'noBorder,0,showClear,0',
+		'component instance keeps controller override attr',
+	);
 
 	const alphaInput = popupById.get('n7');
 	t.truthy(alphaInput, 'ColorPickerPopup alphaInput exists');
@@ -651,18 +753,29 @@ test('FairyGUI-Editor samples preserve component instance attrs and extension ov
 
 	const controllerEditDialog = builderPkg.listComponents().find((c) => c.getName() === 'ControllerEditDialog')!;
 	t.truthy(controllerEditDialog, 'ControllerEditDialog exists');
-	const controllerEditById = new Map(controllerEditDialog.listChildren().map((child) => [child.getId(), child as any]));
+	const controllerEditById = new Map(
+		controllerEditDialog.listChildren().map((child) => [child.getId(), child as any]),
+	);
 	const homePageType = controllerEditById.get('n116_omf5');
 	t.truthy(homePageType, 'ControllerEditDialog homePageType exists');
 	t.is(homePageType?.getInstanceExtType?.(), 'ComboBox', 'ComboBox overlay keeps extension type');
-	t.is(homePageType?.getInstanceSelectionController?.(), 'homepage', 'ComboBox overlay keeps selectionController attr');
+	t.is(
+		homePageType?.getInstanceSelectionController?.(),
+		'homepage',
+		'ComboBox overlay keeps selectionController attr',
+	);
 });
 
 test('TreeView package resolves default tree item template semantics', async (t) => {
 	const doc = await getDoc();
-	const treeViewPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'TreeView')!;
+	const treeViewPkg = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'TreeView')!;
 	const main = treeViewPkg.listComponents().find((c) => c.getName() === 'Main')!;
-	const tree = main.listChildren().find((child) => child.getName?.() === 'tree') as ReturnType<Document['createGTree']> | undefined;
+	const tree = main.listChildren().find((child) => child.getName?.() === 'tree') as
+		| ReturnType<Document['createGTree']>
+		| undefined;
 	t.truthy(tree, 'tree child exists');
 
 	const template = tree?.inspectDefaultItemTemplate(doc.getRoot());
@@ -682,9 +795,14 @@ test('TreeView package resolves default tree item template semantics', async (t)
 
 test('TreeView package builds runtime tree hierarchy semantics', async (t) => {
 	const doc = await getDoc();
-	const treeViewPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'TreeView')!;
+	const treeViewPkg = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'TreeView')!;
 	const main = treeViewPkg.listComponents().find((c) => c.getName() === 'Main')!;
-	const tree = main.listChildren().find((child) => child.getName?.() === 'tree') as ReturnType<Document['createGTree']> | undefined;
+	const tree = main.listChildren().find((child) => child.getName?.() === 'tree') as
+		| ReturnType<Document['createGTree']>
+		| undefined;
 	t.truthy(tree, 'tree child exists');
 
 	const runtimeRoot = tree?.buildRuntimeTree();
@@ -705,7 +823,10 @@ test('TreeView package builds runtime tree hierarchy semantics', async (t) => {
 	t.true(folder1?.children.every((node) => node.level === 2));
 	t.true(folder1?.children.every((node) => node.isFolder === false));
 	t.true(folder1?.children.every((node) => node.expanded === null));
-	t.deepEqual(folder1?.children.map((node) => node.title), ['Leaf 1', 'Leaf 2', 'Leaf 3', 'Leaf 4']);
+	t.deepEqual(
+		folder1?.children.map((node) => node.title),
+		['Leaf 1', 'Leaf 2', 'Leaf 3', 'Leaf 4'],
+	);
 
 	t.is(folder2?.title, 'Folder 2');
 	t.true(folder2?.isFolder ?? false);
@@ -714,14 +835,22 @@ test('TreeView package builds runtime tree hierarchy semantics', async (t) => {
 	t.is(folder2?.children[0]?.icon, 'ui://5nx1f8vzua5o7');
 
 	const flattened = tree?.listRuntimeNodes() ?? [];
-	t.deepEqual(flattened.map((node) => node.title), ['Folder 1', 'Leaf 1', 'Leaf 2', 'Leaf 3', 'Leaf 4', 'Folder 2', 'Leaf 1']);
+	t.deepEqual(
+		flattened.map((node) => node.title),
+		['Folder 1', 'Leaf 1', 'Leaf 2', 'Leaf 3', 'Leaf 4', 'Folder 2', 'Leaf 1'],
+	);
 });
 
 test('TreeView package exposes interactive runtime tree state helpers', async (t) => {
 	const doc = await getDoc();
-	const treeViewPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'TreeView')!;
+	const treeViewPkg = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'TreeView')!;
 	const main = treeViewPkg.listComponents().find((c) => c.getName() === 'Main')!;
-	const tree = main.listChildren().find((child) => child.getName?.() === 'tree') as ReturnType<Document['createGTree']> | undefined;
+	const tree = main.listChildren().find((child) => child.getName?.() === 'tree') as
+		| ReturnType<Document['createGTree']>
+		| undefined;
 	t.truthy(tree, 'tree child exists');
 
 	const defaultState = tree?.createInteractionState();
@@ -737,7 +866,10 @@ test('TreeView package exposes interactive runtime tree state helpers', async (t
 		selectedItemIndices: [],
 		lastSelectedItemIndex: -1,
 	});
-	t.deepEqual(tree?.listVisibleRuntimeNodes(collapsed).map((node) => node.title), ['Folder 1', 'Folder 2']);
+	t.deepEqual(
+		tree?.listVisibleRuntimeNodes(collapsed).map((node) => node.title),
+		['Folder 1', 'Folder 2'],
+	);
 
 	const folder1Expanded = tree?.setRuntimeNodeExpanded(collapsed ?? {}, 0, true);
 	t.deepEqual(folder1Expanded, {
@@ -745,7 +877,10 @@ test('TreeView package exposes interactive runtime tree state helpers', async (t
 		selectedItemIndices: [],
 		lastSelectedItemIndex: -1,
 	});
-	t.deepEqual(tree?.listVisibleRuntimeNodes(folder1Expanded).map((node) => node.title), ['Folder 1', 'Leaf 1', 'Leaf 2', 'Leaf 3', 'Leaf 4', 'Folder 2']);
+	t.deepEqual(
+		tree?.listVisibleRuntimeNodes(folder1Expanded).map((node) => node.title),
+		['Folder 1', 'Leaf 1', 'Leaf 2', 'Leaf 3', 'Leaf 4', 'Folder 2'],
+	);
 
 	const selectedLeaf = tree?.selectRuntimeNode(collapsed ?? {}, 6);
 	t.deepEqual(selectedLeaf, {
@@ -754,7 +889,10 @@ test('TreeView package exposes interactive runtime tree state helpers', async (t
 		lastSelectedItemIndex: 6,
 	});
 	t.is(tree?.getSelectedRuntimeNode(selectedLeaf)?.title, 'Leaf 1');
-	t.deepEqual(tree?.listVisibleRuntimeNodes(selectedLeaf).map((node) => node.title), ['Folder 1', 'Folder 2', 'Leaf 1']);
+	t.deepEqual(
+		tree?.listVisibleRuntimeNodes(selectedLeaf).map((node) => node.title),
+		['Folder 1', 'Folder 2', 'Leaf 1'],
+	);
 
 	const toggled = tree?.toggleRuntimeNodeExpanded(defaultState ?? {}, 5);
 	t.deepEqual(toggled, {
@@ -780,7 +918,10 @@ test('TreeView package exposes interactive runtime tree state helpers', async (t
 
 test('TreeView package supports multi-select and range-select interaction semantics', async (t) => {
 	const doc = await getDoc();
-	const treeViewPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'TreeView')!;
+	const treeViewPkg = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'TreeView')!;
 	const main = treeViewPkg.listComponents().find((c) => c.getName() === 'Main')!;
 	const sourceTree = main.listChildren().find((child) => child.getName?.() === 'tree') as GTree;
 	const tree = sourceTree.clone();
@@ -856,7 +997,10 @@ test('TreeView package supports multi-select and range-select interaction semant
 
 test('TreeView package supports keyboard-style runtime tree navigation', async (t) => {
 	const doc = await getDoc();
-	const treeViewPkg = doc.getRoot().listPackages().find((p) => p.getName() === 'TreeView')!;
+	const treeViewPkg = doc
+		.getRoot()
+		.listPackages()
+		.find((p) => p.getName() === 'TreeView')!;
 	const main = treeViewPkg.listComponents().find((c) => c.getName() === 'Main')!;
 	const sourceTree = main.listChildren().find((child) => child.getName?.() === 'tree') as GTree;
 	const tree = sourceTree.clone();
@@ -889,7 +1033,10 @@ test('TreeView package supports keyboard-style runtime tree navigation', async (
 		selectedItemIndices: [0],
 		lastSelectedItemIndex: 0,
 	});
-	t.deepEqual(tree.listVisibleRuntimeNodes(expandFolder1).map((node) => node.title), ['Folder 1', 'Leaf 1', 'Leaf 2', 'Leaf 3', 'Leaf 4', 'Folder 2']);
+	t.deepEqual(
+		tree.listVisibleRuntimeNodes(expandFolder1).map((node) => node.title),
+		['Folder 1', 'Leaf 1', 'Leaf 2', 'Leaf 3', 'Leaf 4', 'Folder 2'],
+	);
 
 	const enterFirstChild = tree.navigateRuntimeSelection(expandFolder1, 'right');
 	t.deepEqual(enterFirstChild, {
@@ -912,7 +1059,10 @@ test('TreeView package supports keyboard-style runtime tree navigation', async (
 		selectedItemIndices: [0],
 		lastSelectedItemIndex: 0,
 	});
-	t.deepEqual(tree.listVisibleRuntimeNodes(collapseFolder1).map((node) => node.title), ['Folder 1', 'Folder 2']);
+	t.deepEqual(
+		tree.listVisibleRuntimeNodes(collapseFolder1).map((node) => node.title),
+		['Folder 1', 'Folder 2'],
+	);
 
 	const leafNoop = tree.navigateRuntimeSelection(tree.selectRuntimeNode(expandFolder1, 1), 'right');
 	t.deepEqual(leafNoop, {

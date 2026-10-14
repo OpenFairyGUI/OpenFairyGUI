@@ -129,13 +129,19 @@ test.serial('publishBrowser falls back to HTMLImageElement for validated SVG and
 	};
 	globals.Image = BrowserImageStub;
 	globalThis.URL.createObjectURL = () => `blob:svg-${++createdUrls}`;
-	globalThis.URL.revokeObjectURL = () => { revokedUrls += 1; };
+	globalThis.URL.revokeObjectURL = () => {
+		revokedUrls += 1;
+	};
 
 	try {
 		const source = new MemoryFileSystem();
 		const output = new MemoryFileSystem();
 		const document = new Document();
-		addSvgPackage(document, source, '<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2" viewBox="0 0 2 2"><rect width="2" height="2" fill="#fff"/></svg>');
+		addSvgPackage(
+			document,
+			source,
+			'<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2" viewBox="0 0 2 2"><rect width="2" height="2" fill="#fff"/></svg>',
+		);
 
 		const result = await publishBrowser({
 			document,
@@ -235,7 +241,11 @@ test.serial('publishBrowser reports unavailable SVG decoders with zero output', 
 		const source = new MemoryFileSystem();
 		const output = new MemoryFileSystem();
 		const document = new Document();
-		addSvgPackage(document, source, '<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><rect width="2" height="2"/></svg>');
+		addSvgPackage(
+			document,
+			source,
+			'<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><rect width="2" height="2"/></svg>',
+		);
 
 		const result = await publishBrowser({
 			document,
@@ -293,8 +303,15 @@ test.serial('publishBrowser writes Layabox .fui and atlas PNG through browser fi
 		]);
 		t.true(output.files.has('.fairygui-runtime/Demo.fui'));
 		t.true(output.files.has('.fairygui-runtime/Demo_atlas0.png'));
-		t.deepEqual([...output.files.get('.fairygui-runtime/Demo_atlas0.png')!.subarray(0, 8)], [...PNG.subarray(0, 8)]);
-		t.is(document.getRoot().getProjectType(), ProjectType.Pixi, 'publish target does not change the loaded project type');
+		t.deepEqual(
+			[...output.files.get('.fairygui-runtime/Demo_atlas0.png')!.subarray(0, 8)],
+			[...PNG.subarray(0, 8)],
+		);
+		t.is(
+			document.getRoot().getProjectType(),
+			ProjectType.Pixi,
+			'publish target does not change the loaded project type',
+		);
 	} finally {
 		if (previousCanvas === undefined) delete globals.OffscreenCanvas;
 		else globals.OffscreenCanvas = previousCanvas;
@@ -337,7 +354,10 @@ test.serial('publishBrowser resolves supported settings and rejects unsafe brows
 		});
 
 		t.true(extensionResult.success, extensionResult.diagnostics.map((entry) => entry.message).join('\n'));
-		t.deepEqual(extensionResult.files.map((file) => file.path), ['.fairygui-runtime/Included.bin']);
+		t.deepEqual(
+			extensionResult.files.map((file) => file.path),
+			['.fairygui-runtime/Included.bin'],
+		);
 		t.true(extensionOutput.files.has('.fairygui-runtime/Included.bin'));
 		t.false(extensionOutput.files.has('.fairygui-runtime/CodegenOnly.bin'));
 
@@ -414,7 +434,10 @@ test.serial('publishBrowser resolves supported settings and rejects unsafe brows
 
 		t.false(partialResult.success);
 		t.is(partialResult.diagnostics.at(-1)?.code, 'publish_failed');
-		t.deepEqual(partialResult.files.map((file) => file.path), ['.fairygui-runtime/Demo_atlas0.png']);
+		t.deepEqual(
+			partialResult.files.map((file) => file.path),
+			['.fairygui-runtime/Demo_atlas0.png'],
+		);
 		t.true(partialOutput.files.has('.fairygui-runtime/Demo_atlas0.png'));
 		t.false(partialOutput.files.has('.fairygui-runtime/Demo.fui'));
 	} finally {
@@ -445,12 +468,10 @@ test.serial('publishBrowser decodes PNG/JPEG JTA textures in authoritative textu
 			source,
 			'Demo',
 			'demo0001',
-			createTestJta([PNG, JPEG], [
-				{ textureIndex: 1 },
-				{ textureIndex: 0 },
-				{ textureIndex: 1 },
-				{ textureIndex: -1 },
-			]),
+			createTestJta(
+				[PNG, JPEG],
+				[{ textureIndex: 1 }, { textureIndex: 0 }, { textureIndex: 1 }, { textureIndex: -1 }],
+			),
 		);
 
 		const result = await publishBrowser({
@@ -463,12 +484,10 @@ test.serial('publishBrowser decodes PNG/JPEG JTA textures in authoritative textu
 		});
 
 		t.true(result.success, result.diagnostics.map((entry) => entry.message).join('\n'));
-		t.deepEqual(movieClip.listFrames().map((frame) => frame.getSpriteId()), [
-			'demo0001mc_0',
-			'demo0001mc_1',
-			'demo0001mc_0',
-			'',
-		]);
+		t.deepEqual(
+			movieClip.listFrames().map((frame) => frame.getSpriteId()),
+			['demo0001mc_0', 'demo0001mc_1', 'demo0001mc_0', ''],
+		);
 		t.deepEqual(
 			movieClip
 				.listFrames()
@@ -477,10 +496,15 @@ test.serial('publishBrowser decodes PNG/JPEG JTA textures in authoritative textu
 			['demo0001mc_0', 'demo0001mc_1'],
 			'sprite IDs and insertion order follow the first frame that references each texture',
 		);
-		t.deepEqual(document.getRoot().listPackages()[0]?.listAtlases()[0]?.listSprites().map((sprite) => sprite.getItemId()), [
-			'demo0001mc_1',
-			'demo0001mc_0',
-		]);
+		t.deepEqual(
+			document
+				.getRoot()
+				.listPackages()[0]
+				?.listAtlases()[0]
+				?.listSprites()
+				.map((sprite) => sprite.getItemId()),
+			['demo0001mc_1', 'demo0001mc_0'],
+		);
 		t.is(source.readCalls.get('assets/Demo/clips/spinner.jta'), 1, 'publish reuses the global JTA preflight cache');
 		t.true(decodedMimeTypes.includes('image/jpeg'), 'embedded JPEG bytes use the JPEG Blob MIME type');
 		t.true(decodedMimeTypes.includes('image/png'), 'mixed embedded PNG bytes remain PNG');
@@ -566,8 +590,14 @@ test.serial('publishBrowser publishes single-frame PNG/JPEG resources with same-
 		});
 
 		t.true(result.success, result.diagnostics.map((entry) => entry.message).join('\n'));
-		t.deepEqual(pngMovieClip.listFrames().map((frame) => frame.getSpriteId()), ['sharedmc_0']);
-		t.deepEqual(jpegMovieClip.listFrames().map((frame) => frame.getSpriteId()), ['sharedmc_0']);
+		t.deepEqual(
+			pngMovieClip.listFrames().map((frame) => frame.getSpriteId()),
+			['sharedmc_0'],
+		);
+		t.deepEqual(
+			jpegMovieClip.listFrames().map((frame) => frame.getSpriteId()),
+			['sharedmc_0'],
+		);
 		t.is(source.readCalls.get('assets/PngPackage/clips/spinner.jta'), 1);
 		t.is(source.readCalls.get('assets/JpegPackage/clips/spinner.jta'), 1);
 		t.true(output.files.has('.fairygui-runtime/PngPackage_atlas0.png'));
@@ -635,7 +665,11 @@ test.serial('publishBrowser rejects truncated and unsupported JTA textures befor
 		const invalidTextures = [
 			['truncated PNG', PNG.subarray(0, PNG.byteLength - 1), /Could not decode MovieClip/],
 			['truncated JPEG', JPEG.subarray(0, JPEG.byteLength - 1), /Could not decode MovieClip/],
-			['WebP', Uint8Array.from([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]), /unsupported raster format/],
+			[
+				'WebP',
+				Uint8Array.from([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]),
+				/unsupported raster format/,
+			],
 			['GIF', Uint8Array.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]), /unsupported raster format/],
 			['TIFF', Uint8Array.from([0x49, 0x49, 0x2a, 0x00]), /unsupported raster format/],
 		] as const;
@@ -644,7 +678,13 @@ test.serial('publishBrowser rejects truncated and unsupported JTA textures befor
 			const source = new MemoryFileSystem();
 			const output = new MemoryFileSystem();
 			const document = new Document();
-			addMovieClipPackage(document, source, 'Broken', 'broken01', createTestJta([texture], [{ textureIndex: 0 }]));
+			addMovieClipPackage(
+				document,
+				source,
+				'Broken',
+				'broken01',
+				createTestJta([texture], [{ textureIndex: 0 }]),
+			);
 
 			const result = await publishBrowser({
 				document,

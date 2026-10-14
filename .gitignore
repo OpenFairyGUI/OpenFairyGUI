@@ -1,9 +1,9 @@
 node_modules/
-referer/
+/reference/
 release/
+.release/
 restore/
 **/dist/
-/[Oo]bj/
 
 # Local AI/tooling config
 .claude/

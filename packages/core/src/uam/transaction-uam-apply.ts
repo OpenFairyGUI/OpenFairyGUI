@@ -1,16 +1,9 @@
 import { applyDisplayNodePropsUpdate } from './property-updates.js';
 import type { UamAssetResource, UamComponentResource, UamPackage, UamProject } from './model.js';
-import {
-	normalizeResourceFolderPath,
-	resourceFolderName,
-	resourceFolderParentPath,
-} from '../utils/resource-folder.js';
+import { normalizeResourceFolderPath, resourceFolderName, resourceFolderParentPath } from '../utils/resource-folder.js';
 import { deriveMovieClipModelFromJta } from '../utils/jta-parser.js';
 import { normalizeUamProject } from './normalize.js';
-import {
-	UamTransactionError,
-	type UamTransactionOperation,
-} from './transaction-contracts.js';
+import { UamTransactionError, type UamTransactionOperation } from './transaction-contracts.js';
 import {
 	asTransactionError,
 	findComponentSpec,
@@ -94,12 +87,15 @@ export function applyUamLifecycleOperation(project: UamProject, operation: UamLi
 		case 'renameBranch': {
 			const previousName = operation.selector.branch;
 			project.branches = project.branches
-				.map((branch) => branch === previousName ? operation.newName : branch)
+				.map((branch) => (branch === previousName ? operation.newName : branch))
 				.sort((left, right) => left.localeCompare(right));
 			for (const pkg of project.packages) {
-				pkg.branchNames = pkg.branchNames.map((branch) => branch === previousName ? operation.newName : branch);
+				pkg.branchNames = pkg.branchNames.map((branch) =>
+					branch === previousName ? operation.newName : branch,
+				);
 				for (const folder of pkg.folders) if (folder.branch === previousName) folder.branch = operation.newName;
-				for (const resource of pkg.resources) if (resource.branch === previousName) resource.branch = operation.newName;
+				for (const resource of pkg.resources)
+					if (resource.branch === previousName) resource.branch = operation.newName;
 			}
 			return;
 		}
@@ -152,7 +148,9 @@ export function applyUamLifecycleOperation(project: UamProject, operation: UamLi
 			const pkg = requirePackageSpec(project, operation.selector.packageId);
 			const index = pkg.resources.findIndex((resource) => resource.id === operation.selector.componentResourceId);
 			if (index < 0 || pkg.resources[index]?.kind !== 'component') {
-				throw new Error(`Component "${operation.selector.componentResourceId}" was not found in package "${pkg.id}".`);
+				throw new Error(
+					`Component "${operation.selector.componentResourceId}" was not found in package "${pkg.id}".`,
+				);
 			}
 			pkg.resources.splice(index, 1);
 			return;
@@ -161,10 +159,14 @@ export function applyUamLifecycleOperation(project: UamProject, operation: UamLi
 			const source = requirePackageSpec(project, operation.selector.packageId);
 			const target = requirePackageSpec(project, operation.toPackageId);
 			if (source === target) throw new Error('moveComponent requires a different destination package.');
-			const sourceIndex = source.resources.findIndex((resource) => resource.id === operation.selector.componentResourceId);
+			const sourceIndex = source.resources.findIndex(
+				(resource) => resource.id === operation.selector.componentResourceId,
+			);
 			const component = source.resources[sourceIndex];
 			if (!component || component.kind !== 'component') {
-				throw new Error(`Component "${operation.selector.componentResourceId}" was not found in package "${source.id}".`);
+				throw new Error(
+					`Component "${operation.selector.componentResourceId}" was not found in package "${source.id}".`,
+				);
 			}
 			if (target.resources.some((resource) => resource.id === component.id)) {
 				throw new Error(`Resource id "${component.id}" already exists in package "${target.id}".`);
@@ -177,17 +179,28 @@ export function applyUamLifecycleOperation(project: UamProject, operation: UamLi
 	}
 }
 
-export function applyUamDisplayListRewriteOperation(project: UamProject, operation: UamDisplayListRewriteOperation): void {
+export function applyUamDisplayListRewriteOperation(
+	project: UamProject,
+	operation: UamDisplayListRewriteOperation,
+): void {
 	switch (operation.kind) {
 		case 'attachDisplayNode': {
 			const component = findComponentSpec(project, operation.selector);
 			if (!component) {
-				throw new Error(`Component "${operation.selector.componentResourceId}" was not found in package "${operation.selector.packageId}".`);
+				throw new Error(
+					`Component "${operation.selector.componentResourceId}" was not found in package "${operation.selector.packageId}".`,
+				);
 			}
 			if (component.component.displayList.some((node) => node.id === operation.node.id)) {
-				throw new Error(`attachDisplayNode target component "${component.id}" already contains node id "${operation.node.id}".`);
+				throw new Error(
+					`attachDisplayNode target component "${component.id}" already contains node id "${operation.node.id}".`,
+				);
 			}
-			assertInsertionIndex(operation.atIndex, component.component.displayList.length, 'attachDisplayNode.atIndex');
+			assertInsertionIndex(
+				operation.atIndex,
+				component.component.displayList.length,
+				'attachDisplayNode.atIndex',
+			);
 			component.component.displayList.splice(
 				operation.atIndex,
 				0,
@@ -198,7 +211,9 @@ export function applyUamDisplayListRewriteOperation(project: UamProject, operati
 		case 'detachDisplayNode': {
 			const found = findDisplayNodeSpecWithPath(project, operation.selector);
 			if (!found) {
-				throw new Error(`Display node "${operation.selector.displayNodeId}" was not found in component "${operation.selector.componentResourceId}".`);
+				throw new Error(
+					`Display node "${operation.selector.displayNodeId}" was not found in component "${operation.selector.componentResourceId}".`,
+				);
 			}
 			const nodeIndex = found.component.component.displayList.indexOf(found.node);
 			found.component.component.displayList.splice(nodeIndex, 1);
@@ -232,7 +247,9 @@ export function applyUamResourceLifecycleOperation(
 			const resourceIndex = pkg.resources.findIndex((resource) => resource.id === operation.selector.resourceId);
 			const resource = pkg.resources[resourceIndex];
 			if (!resource || resource.kind === 'component') {
-				throw new Error(`Binary resource "${operation.selector.resourceId}" was not found in package "${pkg.id}".`);
+				throw new Error(
+					`Binary resource "${operation.selector.resourceId}" was not found in package "${pkg.id}".`,
+				);
 			}
 			pkg.resources.splice(resourceIndex, 1);
 		}
@@ -255,9 +272,9 @@ export function applyUamResourceFolderLifecycleOperation(
 	}
 
 	const branch = operation.selector.branch ?? '';
-	const folderIndex = pkg.folders.findIndex((folder) => (
-		folder.branch === branch && folder.path === operation.selector.path
-	));
+	const folderIndex = pkg.folders.findIndex(
+		(folder) => folder.branch === branch && folder.path === operation.selector.path,
+	);
 	const folder = pkg.folders[folderIndex];
 	if (!folder) {
 		throw new Error(`Resource folder "${branch}:${operation.selector.path}" was not found in package "${pkg.id}".`);
@@ -265,9 +282,7 @@ export function applyUamResourceFolderLifecycleOperation(
 
 	switch (operation.kind) {
 		case 'renameResourceFolder':
-			folder.path = normalizeResourceFolderPath(
-				`${resourceFolderParentPath(folder.path)}/${operation.newName}`,
-			);
+			folder.path = normalizeResourceFolderPath(`${resourceFolderParentPath(folder.path)}/${operation.newName}`);
 			return;
 		case 'moveResourceFolder':
 			folder.path = normalizeResourceFolderPath(`${operation.toPath}/${resourceFolderName(folder.path)}`);
@@ -277,14 +292,14 @@ export function applyUamResourceFolderLifecycleOperation(
 	}
 }
 
-
 export function canApplyOperationsInUam(operations: UamTransactionOperation[]): boolean {
-	return operations.every(isUamNativeOperation)
-		&& (!operations.some(isDisplayListRewriteOperation)
-			|| operations.some(isLifecycleOperation)
-			|| operations.some(isResourceLifecycleOperation));
+	return (
+		operations.every(isUamNativeOperation) &&
+		(!operations.some(isDisplayListRewriteOperation) ||
+			operations.some(isLifecycleOperation) ||
+			operations.some(isResourceLifecycleOperation))
+	);
 }
-
 
 function applyUamNativeOperation(project: UamProject, operation: UamTransactionOperation): void {
 	switch (operation.kind) {
@@ -301,7 +316,9 @@ function applyUamNativeOperation(project: UamProject, operation: UamTransactionO
 		case 'setComponentProps': {
 			const found = findComponentSpecWithPath(project, operation.selector);
 			if (!found) {
-				throw new Error(`Component "${operation.selector.componentResourceId}" was not found in package "${operation.selector.packageId}".`);
+				throw new Error(
+					`Component "${operation.selector.componentResourceId}" was not found in package "${operation.selector.packageId}".`,
+				);
 			}
 			if (operation.props.size !== undefined) {
 				found.resource.component.size = { ...operation.props.size };
@@ -314,7 +331,9 @@ function applyUamNativeOperation(project: UamProject, operation: UamTransactionO
 		case 'setResourceFavorite': {
 			const found = findResourceSpecWithPath(project, operation.selector);
 			if (!found) {
-				throw new Error(`Resource "${operation.selector.resourceId}" was not found in package "${operation.selector.packageId}".`);
+				throw new Error(
+					`Resource "${operation.selector.resourceId}" was not found in package "${operation.selector.packageId}".`,
+				);
 			}
 			found.resource.favorite = operation.favorite;
 			return;
@@ -322,11 +341,13 @@ function applyUamNativeOperation(project: UamProject, operation: UamTransactionO
 		case 'setResourceFolderFavorite': {
 			const pkg = requirePackageSpec(project, operation.selector.packageId);
 			const branch = operation.selector.branch ?? '';
-			const folder = pkg.folders.find((candidate) => (
-				candidate.branch === branch && candidate.path === operation.selector.path
-			));
+			const folder = pkg.folders.find(
+				(candidate) => candidate.branch === branch && candidate.path === operation.selector.path,
+			);
 			if (!folder) {
-				throw new Error(`Resource folder "${branch}:${operation.selector.path}" was not found in package "${pkg.id}".`);
+				throw new Error(
+					`Resource folder "${branch}:${operation.selector.path}" was not found in package "${pkg.id}".`,
+				);
 			}
 			folder.favorite = operation.favorite;
 			return;
@@ -334,11 +355,13 @@ function applyUamNativeOperation(project: UamProject, operation: UamTransactionO
 		case 'setResourceFolderAtlas': {
 			const pkg = requirePackageSpec(project, operation.selector.packageId);
 			const branch = operation.selector.branch ?? '';
-			const folder = pkg.folders.find((candidate) => (
-				candidate.branch === branch && candidate.path === operation.selector.path
-			));
+			const folder = pkg.folders.find(
+				(candidate) => candidate.branch === branch && candidate.path === operation.selector.path,
+			);
 			if (!folder) {
-				throw new Error(`Resource folder "${branch}:${operation.selector.path}" was not found in package "${pkg.id}".`);
+				throw new Error(
+					`Resource folder "${branch}:${operation.selector.path}" was not found in package "${pkg.id}".`,
+				);
 			}
 			folder.atlas = operation.atlas;
 			return;
@@ -346,7 +369,9 @@ function applyUamNativeOperation(project: UamProject, operation: UamTransactionO
 		case 'setResourceExported': {
 			const found = findResourceSpecWithPath(project, operation.selector);
 			if (!found) {
-				throw new Error(`Resource "${operation.selector.resourceId}" was not found in package "${operation.selector.packageId}".`);
+				throw new Error(
+					`Resource "${operation.selector.resourceId}" was not found in package "${operation.selector.packageId}".`,
+				);
 			}
 			found.resource.exported = operation.exported;
 			return;
@@ -354,7 +379,9 @@ function applyUamNativeOperation(project: UamProject, operation: UamTransactionO
 		case 'setImageResourceProps': {
 			const found = findResourceSpecWithPath(project, operation.selector);
 			if (!found || found.resource.kind !== 'image') {
-				throw new Error(`Image resource "${operation.selector.resourceId}" was not found in package "${operation.selector.packageId}".`);
+				throw new Error(
+					`Image resource "${operation.selector.resourceId}" was not found in package "${operation.selector.packageId}".`,
+				);
 			}
 			found.resource.image = structuredClone(operation.props);
 			return;
@@ -362,7 +389,9 @@ function applyUamNativeOperation(project: UamProject, operation: UamTransactionO
 		case 'setDisplayNodeProps': {
 			const found = findDisplayNodeSpecWithPath(project, operation.selector);
 			if (!found) {
-				throw new Error(`Display node "${operation.selector.displayNodeId}" was not found in component "${operation.selector.componentResourceId}".`);
+				throw new Error(
+					`Display node "${operation.selector.displayNodeId}" was not found in component "${operation.selector.componentResourceId}".`,
+				);
 			}
 			applyDisplayNodePropsUpdate(found.node, operation.props);
 			return;
@@ -397,10 +426,7 @@ function applyUamNativeOperation(project: UamProject, operation: UamTransactionO
 	}
 }
 
-export function applyUamNativeOperations(
-	project: UamProject,
-	operations: UamTransactionOperation[],
-): UamProject {
+export function applyUamNativeOperations(project: UamProject, operations: UamTransactionOperation[]): UamProject {
 	const result = normalizeUamProject(project);
 	for (const [opIndex, operation] of operations.entries()) {
 		try {
@@ -411,7 +437,10 @@ export function applyUamNativeOperations(
 				opIndex,
 				opId: operation.opId,
 				opKind: operation.kind,
-				selector: 'selector' in operation ? selectorDetails(operation.selector as unknown as Record<string, unknown>) : undefined,
+				selector:
+					'selector' in operation
+						? selectorDetails(operation.selector as unknown as Record<string, unknown>)
+						: undefined,
 			});
 		}
 	}

@@ -162,7 +162,11 @@ export class MaxRectsCompat {
 		return cloneNodeRect(newNode);
 	}
 
-	private findPositionForNewNodeBottomLeft(width: number, height: number, allowRectRotation: boolean): CompatNodeRect {
+	private findPositionForNewNodeBottomLeft(
+		width: number,
+		height: number,
+		allowRectRotation: boolean,
+	): CompatNodeRect {
 		const bestNode = MaxRectsCompat.helperRect;
 		bestNode.score1 = MAX_SCORE;
 		bestNode.score2 = 0;
@@ -183,7 +187,11 @@ export class MaxRectsCompat {
 		return bestNode;
 	}
 
-	private findPositionForNewNodeBestShortSideFit(width: number, height: number, allowRectRotation: boolean): CompatNodeRect {
+	private findPositionForNewNodeBestShortSideFit(
+		width: number,
+		height: number,
+		allowRectRotation: boolean,
+	): CompatNodeRect {
 		const bestNode = MaxRectsCompat.helperRect;
 		bestNode.score1 = MAX_SCORE;
 		bestNode.score2 = 0;
@@ -193,7 +201,10 @@ export class MaxRectsCompat {
 				const leftoverVert = Math.abs(freeRect.height - height);
 				const shortSideFit = Math.min(leftoverHoriz, leftoverVert);
 				const longSideFit = Math.max(leftoverHoriz, leftoverVert);
-				if (shortSideFit < bestNode.score1 || (shortSideFit === bestNode.score1 && longSideFit < bestNode.score2)) {
+				if (
+					shortSideFit < bestNode.score1 ||
+					(shortSideFit === bestNode.score1 && longSideFit < bestNode.score2)
+				) {
 					setNodeRect(bestNode, freeRect.x, freeRect.y, width, height, false, shortSideFit, longSideFit);
 				}
 			}
@@ -202,7 +213,10 @@ export class MaxRectsCompat {
 				const leftoverVert = Math.abs(freeRect.height - width);
 				const shortSideFit = Math.min(leftoverHoriz, leftoverVert);
 				const longSideFit = Math.max(leftoverHoriz, leftoverVert);
-				if (shortSideFit < bestNode.score1 || (shortSideFit === bestNode.score1 && longSideFit < bestNode.score2)) {
+				if (
+					shortSideFit < bestNode.score1 ||
+					(shortSideFit === bestNode.score1 && longSideFit < bestNode.score2)
+				) {
 					setNodeRect(bestNode, freeRect.x, freeRect.y, height, width, true, shortSideFit, longSideFit);
 				}
 			}
@@ -210,7 +224,11 @@ export class MaxRectsCompat {
 		return bestNode;
 	}
 
-	private findPositionForNewNodeBestLongSideFit(width: number, height: number, allowRectRotation: boolean): CompatNodeRect {
+	private findPositionForNewNodeBestLongSideFit(
+		width: number,
+		height: number,
+		allowRectRotation: boolean,
+	): CompatNodeRect {
 		const bestNode = MaxRectsCompat.helperRect;
 		bestNode.score1 = 0;
 		bestNode.score2 = MAX_SCORE;
@@ -220,7 +238,10 @@ export class MaxRectsCompat {
 				const leftoverVert = Math.abs(freeRect.height - height);
 				const shortSideFit = Math.min(leftoverHoriz, leftoverVert);
 				const longSideFit = Math.max(leftoverHoriz, leftoverVert);
-				if (longSideFit < bestNode.score2 || (longSideFit === bestNode.score2 && shortSideFit < bestNode.score1)) {
+				if (
+					longSideFit < bestNode.score2 ||
+					(longSideFit === bestNode.score2 && shortSideFit < bestNode.score1)
+				) {
 					setNodeRect(bestNode, freeRect.x, freeRect.y, width, height, false, shortSideFit, longSideFit);
 				}
 			}
@@ -229,7 +250,10 @@ export class MaxRectsCompat {
 				const leftoverVert = Math.abs(freeRect.height - width);
 				const shortSideFit = Math.min(leftoverHoriz, leftoverVert);
 				const longSideFit = Math.max(leftoverHoriz, leftoverVert);
-				if (longSideFit < bestNode.score2 || (longSideFit === bestNode.score2 && shortSideFit < bestNode.score1)) {
+				if (
+					longSideFit < bestNode.score2 ||
+					(longSideFit === bestNode.score2 && shortSideFit < bestNode.score1)
+				) {
 					setNodeRect(bestNode, freeRect.x, freeRect.y, height, width, true, shortSideFit, longSideFit);
 				}
 			}
@@ -237,7 +261,11 @@ export class MaxRectsCompat {
 		return bestNode;
 	}
 
-	private findPositionForNewNodeBestAreaFit(width: number, height: number, allowRectRotation: boolean): CompatNodeRect {
+	private findPositionForNewNodeBestAreaFit(
+		width: number,
+		height: number,
+		allowRectRotation: boolean,
+	): CompatNodeRect {
 		const bestNode = MaxRectsCompat.helperRect;
 		bestNode.score1 = MAX_SCORE;
 		bestNode.score2 = 0;
@@ -263,7 +291,11 @@ export class MaxRectsCompat {
 		return bestNode;
 	}
 
-	private findPositionForNewNodeContactPoint(width: number, height: number, allowRectRotation: boolean): CompatNodeRect {
+	private findPositionForNewNodeContactPoint(
+		width: number,
+		height: number,
+		allowRectRotation: boolean,
+	): CompatNodeRect {
 		const bestNode = MaxRectsCompat.helperRect;
 		bestNode.score1 = -1;
 		bestNode.score2 = 0;

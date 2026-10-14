@@ -95,10 +95,12 @@ export function validateAssetResourcePayload(
 			'Added binary resource id must not be empty.',
 			{ operationKind, resourceKind: resource.kind },
 		);
-	} else if (findProjectedResource(project, operations, operationIndex, {
-		packageId: selector.packageId,
-		resourceId: resource.id,
-	})) {
+	} else if (
+		findProjectedResource(project, operations, operationIndex, {
+			packageId: selector.packageId,
+			resourceId: resource.id,
+		})
+	) {
 		pushSupportIssue(
 			issues,
 			'duplicate_resource_id',
@@ -174,25 +176,29 @@ function projectedAssetFileName(
 	selector: UamResourceSelector,
 ): string {
 	const resource = findResourceSpec(project, selector);
-	let fileName = resource && resource.kind !== 'component'
-		? resource.fileName ?? ('file' in resource ? resource.file : undefined) ?? ''
-		: '';
+	let fileName =
+		resource && resource.kind !== 'component'
+			? (resource.fileName ?? ('file' in resource ? resource.file : undefined) ?? '')
+			: '';
 	for (let index = 0; index < operationIndex; index += 1) {
 		const operation = operations[index]!;
 		if (operation.kind === 'addResource') {
 			if (operation.selector.packageId === selector.packageId && operation.resource.id === selector.resourceId) {
-				fileName = operation.resource.fileName
-					?? ('file' in operation.resource ? operation.resource.file : undefined)
-					?? '';
+				fileName =
+					operation.resource.fileName ??
+					('file' in operation.resource ? operation.resource.file : undefined) ??
+					'';
 			}
 			continue;
 		}
-		if (!('selector' in operation)
-			|| !('packageId' in operation.selector)
-			|| operation.selector.packageId !== selector.packageId
-			|| !('resourceId' in operation.selector)
-			|| operation.selector.resourceId !== selector.resourceId
-		) continue;
+		if (
+			!('selector' in operation) ||
+			!('packageId' in operation.selector) ||
+			operation.selector.packageId !== selector.packageId ||
+			!('resourceId' in operation.selector) ||
+			operation.selector.resourceId !== selector.resourceId
+		)
+			continue;
 		if (operation.kind === 'removeResource') fileName = '';
 		if (operation.kind === 'renameResource' && fileName) {
 			fileName = renamedResourceFileName(fileName, operation.newName);
@@ -209,15 +215,18 @@ function imageReplacementSurvives(
 	for (let index = operationIndex + 1; index < operations.length; index += 1) {
 		const operation = operations[index]!;
 		if (operation.kind === 'addResource') {
-			if (operation.selector.packageId === selector.packageId && operation.resource.id === selector.resourceId) return false;
+			if (operation.selector.packageId === selector.packageId && operation.resource.id === selector.resourceId)
+				return false;
 			continue;
 		}
-		if (!('selector' in operation)
-			|| !('packageId' in operation.selector)
-			|| operation.selector.packageId !== selector.packageId
-			|| !('resourceId' in operation.selector)
-			|| operation.selector.resourceId !== selector.resourceId
-		) continue;
+		if (
+			!('selector' in operation) ||
+			!('packageId' in operation.selector) ||
+			operation.selector.packageId !== selector.packageId ||
+			!('resourceId' in operation.selector) ||
+			operation.selector.resourceId !== selector.resourceId
+		)
+			continue;
 		if (operation.kind === 'replaceResourceBytes' || operation.kind === 'removeResource') return false;
 	}
 	return true;
@@ -227,181 +236,317 @@ export function validateResourceOperation(
 	project: UamProject,
 	operations: UamTransactionOperation[],
 	operationIndex: number,
-	operation: Extract<UamTransactionOperation, { kind: 'renameResource' | 'moveResource' | 'setResourceFavorite' | 'setResourceExported' | 'setImageResourceProps' | 'addResource' | 'replaceResourceBytes' | 'removeResource' }>,
+	operation: Extract<
+		UamTransactionOperation,
+		{
+			kind:
+				| 'renameResource'
+				| 'moveResource'
+				| 'setResourceFavorite'
+				| 'setResourceExported'
+				| 'setImageResourceProps'
+				| 'addResource'
+				| 'replaceResourceBytes'
+				| 'removeResource';
+		}
+	>,
 	operationPath: string,
 	issues: UamTransactionSupportIssue[],
 ): void {
 	switch (operation.kind) {
-	case 'renameResource':
-		validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
-		validateAssetSourceBytes(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
-		if (!isSafeResourceFileName(operation.newName)) {
-			pushSupportIssue(
-				issues,
-				'invalid_resource_name',
-				`${operationPath}.newName`,
-				'renameResource.newName must be a safe file or resource name.',
-				{ operationKind: operation.kind },
-			);
-		}
-		break;
-	case 'moveResource':
-		validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
-		validateAssetSourceBytes(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
-		if (!isSafeResourcePath(operation.toPath)) {
-			pushSupportIssue(
-				issues,
-				'invalid_resource_path',
-				`${operationPath}.toPath`,
-				'moveResource.toPath must not be empty or contain traversal segments.',
-				{ operationKind: operation.kind },
-			);
-		}
-		break;
-	case 'setResourceFavorite':
-		validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
-		if (typeof operation.favorite !== 'boolean') {
-			pushSupportIssue(
-				issues,
-				'invalid_resource_payload',
-				`${operationPath}.favorite`,
-				'setResourceFavorite.favorite must be boolean.',
-				{ operationKind: 'setResourceFavorite' },
-			);
-		}
-		break;
-	case 'setResourceExported':
-		validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
-		if (typeof operation.exported !== 'boolean') {
-			pushSupportIssue(
-				issues,
-				'invalid_resource_payload',
-				`${operationPath}.exported`,
-				'setResourceExported.exported must be boolean.',
-				{ operationKind: operation.kind },
-			);
-		}
-		break;
-	case 'setImageResourceProps': {
-		validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
-		const resource = findProjectedResource(project, operations, operationIndex, operation.selector);
-		if (resource && resource.kind !== 'image') {
-			pushSupportIssue(
-				issues,
-				'invalid_resource_selector',
+		case 'renameResource':
+			validateTouchedResourceKind(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
 				`${operationPath}.selector.resourceId`,
-				'setImageResourceProps requires an image resource selector.',
-				{ operationKind: operation.kind, resourceKind: resource.kind },
-			);
-		} else if (!isValidUamImageResourceProperties(operation.props)) {
-			pushSupportIssue(
 				issues,
-				'invalid_resource_payload',
-				`${operationPath}.props`,
-				'setImageResourceProps.props must be a complete valid image property snapshot.',
-				{ operationKind: operation.kind },
+				operation.kind,
 			);
-		}
-		break;
-	}
-	case 'addResource':
-		validateAssetResourcePayload(project, operations, operationIndex, operation.selector, operation.resource, operationPath, issues, operation.kind);
-		break;
-	case 'replaceResourceBytes': {
-		validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
-		validateBinaryResourceTarget(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
-		validateAssetSourceBytes(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
-		if (!(operation.sourceBytes instanceof Uint8Array)) {
-			pushSupportIssue(
+			validateAssetSourceBytes(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				`${operationPath}.selector.resourceId`,
 				issues,
-				'unavailable_resource_source_bytes',
-				`${operationPath}.sourceBytes`,
-				'replaceResourceBytes.sourceBytes must be a Uint8Array.',
-				{ operationKind: operation.kind },
+				operation.kind,
 			);
-			break;
-		}
-		const resource = findProjectedResource(project, operations, operationIndex, operation.selector);
-		if (resource?.kind === 'movieClip') {
-			try {
-				deriveMovieClipModelFromJta(operation.sourceBytes);
-			} catch (error) {
+			if (!isSafeResourceFileName(operation.newName)) {
 				pushSupportIssue(
 					issues,
-					'invalid_movie_clip_jta',
-					`${operationPath}.sourceBytes`,
-					error instanceof Error ? error.message : 'MovieClip replacement bytes are not a valid JTA file.',
+					'invalid_resource_name',
+					`${operationPath}.newName`,
+					'renameResource.newName must be a safe file or resource name.',
+					{ operationKind: operation.kind },
+				);
+			}
+			break;
+		case 'moveResource':
+			validateTouchedResourceKind(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				`${operationPath}.selector.resourceId`,
+				issues,
+				operation.kind,
+			);
+			validateAssetSourceBytes(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				`${operationPath}.selector.resourceId`,
+				issues,
+				operation.kind,
+			);
+			if (!isSafeResourcePath(operation.toPath)) {
+				pushSupportIssue(
+					issues,
+					'invalid_resource_path',
+					`${operationPath}.toPath`,
+					'moveResource.toPath must not be empty or contain traversal segments.',
+					{ operationKind: operation.kind },
+				);
+			}
+			break;
+		case 'setResourceFavorite':
+			validateTouchedResourceKind(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				`${operationPath}.selector.resourceId`,
+				issues,
+				operation.kind,
+			);
+			if (typeof operation.favorite !== 'boolean') {
+				pushSupportIssue(
+					issues,
+					'invalid_resource_payload',
+					`${operationPath}.favorite`,
+					'setResourceFavorite.favorite must be boolean.',
+					{ operationKind: 'setResourceFavorite' },
+				);
+			}
+			break;
+		case 'setResourceExported':
+			validateTouchedResourceKind(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				`${operationPath}.selector.resourceId`,
+				issues,
+				operation.kind,
+			);
+			if (typeof operation.exported !== 'boolean') {
+				pushSupportIssue(
+					issues,
+					'invalid_resource_payload',
+					`${operationPath}.exported`,
+					'setResourceExported.exported must be boolean.',
+					{ operationKind: operation.kind },
+				);
+			}
+			break;
+		case 'setImageResourceProps': {
+			validateTouchedResourceKind(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				`${operationPath}.selector.resourceId`,
+				issues,
+				operation.kind,
+			);
+			const resource = findProjectedResource(project, operations, operationIndex, operation.selector);
+			if (resource && resource.kind !== 'image') {
+				pushSupportIssue(
+					issues,
+					'invalid_resource_selector',
+					`${operationPath}.selector.resourceId`,
+					'setImageResourceProps requires an image resource selector.',
 					{ operationKind: operation.kind, resourceKind: resource.kind },
+				);
+			} else if (!isValidUamImageResourceProperties(operation.props)) {
+				pushSupportIssue(
+					issues,
+					'invalid_resource_payload',
+					`${operationPath}.props`,
+					'setImageResourceProps.props must be a complete valid image property snapshot.',
+					{ operationKind: operation.kind },
 				);
 			}
 			break;
 		}
-		if (resource?.kind !== 'image') break;
-		const fileName = projectedAssetFileName(project, operations, operationIndex, operation.selector);
-		const expectedFormat = rasterImageFormatFromFileName(fileName);
-		if (!expectedFormat) {
-			pushSupportIssue(
+		case 'addResource':
+			validateAssetResourcePayload(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				operation.resource,
+				operationPath,
 				issues,
-				'unsupported_resource_mutation',
-				`${operationPath}.sourceBytes`,
-				`replaceResourceBytes only supports PNG and JPEG image sources; "${fileName}" is unsupported.`,
-				{ operationKind: operation.kind, resourceKind: resource.kind },
+				operation.kind,
 			);
 			break;
-		}
-		if (browserRasterValidationRequired(operation.sourceBytes)) {
-			pushSupportIssue(
+		case 'replaceResourceBytes': {
+			validateTouchedResourceKind(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				`${operationPath}.selector.resourceId`,
 				issues,
-				'unsupported_resource_mutation',
-				`${operationPath}.sourceBytes`,
-				'Browser image replacement requires applyUamTransactionAsync so decoding does not block the main thread.',
-				{ operationKind: operation.kind, resourceKind: resource.kind },
+				operation.kind,
 			);
-			break;
-		}
-		const imageInfo = probeRasterImage(operation.sourceBytes);
-		if (!imageInfo || imageInfo.format !== expectedFormat) {
-			pushSupportIssue(
+			validateBinaryResourceTarget(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				`${operationPath}.selector.resourceId`,
 				issues,
-				'invalid_resource_bytes',
-				`${operationPath}.sourceBytes`,
-				imageInfo
-					? `Image replacement format "${imageInfo.format}" does not match source file "${fileName}".`
-					: 'Image replacement bytes are not a structurally valid PNG or JPEG source.',
-				{ operationKind: operation.kind, resourceKind: resource.kind },
+				operation.kind,
 			);
-			break;
-		}
-		const finalResource = findProjectedResource(project, operations, operations.length, operation.selector);
-		if (finalResource?.kind === 'image' && imageReplacementSurvives(operations, operationIndex, operation.selector)) {
-			const finalFileName = projectedAssetFileName(project, operations, operations.length, operation.selector);
-			if (finalFileName !== fileName) {
-				const finalFormat = rasterImageFormatFromFileName(finalFileName);
-				if (!finalFormat) {
+			validateAssetSourceBytes(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				`${operationPath}.selector.resourceId`,
+				issues,
+				operation.kind,
+			);
+			if (!(operation.sourceBytes instanceof Uint8Array)) {
+				pushSupportIssue(
+					issues,
+					'unavailable_resource_source_bytes',
+					`${operationPath}.sourceBytes`,
+					'replaceResourceBytes.sourceBytes must be a Uint8Array.',
+					{ operationKind: operation.kind },
+				);
+				break;
+			}
+			const resource = findProjectedResource(project, operations, operationIndex, operation.selector);
+			if (resource?.kind === 'movieClip') {
+				try {
+					deriveMovieClipModelFromJta(operation.sourceBytes);
+				} catch (error) {
 					pushSupportIssue(
 						issues,
-						'unsupported_resource_mutation',
+						'invalid_movie_clip_jta',
 						`${operationPath}.sourceBytes`,
-						`replaceResourceBytes only supports PNG and JPEG image sources; "${finalFileName}" is unsupported.`,
-						{ operationKind: operation.kind, resourceKind: resource.kind },
-					);
-				} else if (imageInfo.format !== finalFormat) {
-					pushSupportIssue(
-						issues,
-						'invalid_resource_bytes',
-						`${operationPath}.sourceBytes`,
-						`Image replacement format "${imageInfo.format}" does not match final source file "${finalFileName}".`,
+						error instanceof Error
+							? error.message
+							: 'MovieClip replacement bytes are not a valid JTA file.',
 						{ operationKind: operation.kind, resourceKind: resource.kind },
 					);
 				}
+				break;
 			}
+			if (resource?.kind !== 'image') break;
+			const fileName = projectedAssetFileName(project, operations, operationIndex, operation.selector);
+			const expectedFormat = rasterImageFormatFromFileName(fileName);
+			if (!expectedFormat) {
+				pushSupportIssue(
+					issues,
+					'unsupported_resource_mutation',
+					`${operationPath}.sourceBytes`,
+					`replaceResourceBytes only supports PNG and JPEG image sources; "${fileName}" is unsupported.`,
+					{ operationKind: operation.kind, resourceKind: resource.kind },
+				);
+				break;
+			}
+			if (browserRasterValidationRequired(operation.sourceBytes)) {
+				pushSupportIssue(
+					issues,
+					'unsupported_resource_mutation',
+					`${operationPath}.sourceBytes`,
+					'Browser image replacement requires applyUamTransactionAsync so decoding does not block the main thread.',
+					{ operationKind: operation.kind, resourceKind: resource.kind },
+				);
+				break;
+			}
+			const imageInfo = probeRasterImage(operation.sourceBytes);
+			if (!imageInfo || imageInfo.format !== expectedFormat) {
+				pushSupportIssue(
+					issues,
+					'invalid_resource_bytes',
+					`${operationPath}.sourceBytes`,
+					imageInfo
+						? `Image replacement format "${imageInfo.format}" does not match source file "${fileName}".`
+						: 'Image replacement bytes are not a structurally valid PNG or JPEG source.',
+					{ operationKind: operation.kind, resourceKind: resource.kind },
+				);
+				break;
+			}
+			const finalResource = findProjectedResource(project, operations, operations.length, operation.selector);
+			if (
+				finalResource?.kind === 'image' &&
+				imageReplacementSurvives(operations, operationIndex, operation.selector)
+			) {
+				const finalFileName = projectedAssetFileName(
+					project,
+					operations,
+					operations.length,
+					operation.selector,
+				);
+				if (finalFileName !== fileName) {
+					const finalFormat = rasterImageFormatFromFileName(finalFileName);
+					if (!finalFormat) {
+						pushSupportIssue(
+							issues,
+							'unsupported_resource_mutation',
+							`${operationPath}.sourceBytes`,
+							`replaceResourceBytes only supports PNG and JPEG image sources; "${finalFileName}" is unsupported.`,
+							{ operationKind: operation.kind, resourceKind: resource.kind },
+						);
+					} else if (imageInfo.format !== finalFormat) {
+						pushSupportIssue(
+							issues,
+							'invalid_resource_bytes',
+							`${operationPath}.sourceBytes`,
+							`Image replacement format "${imageInfo.format}" does not match final source file "${finalFileName}".`,
+							{ operationKind: operation.kind, resourceKind: resource.kind },
+						);
+					}
+				}
+			}
+			break;
 		}
-		break;
-	}
-	case 'removeResource':
-		validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
-		validateBinaryResourceTarget(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
-		validateAssetSourceBytes(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
-		break;
+		case 'removeResource':
+			validateTouchedResourceKind(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				`${operationPath}.selector.resourceId`,
+				issues,
+				operation.kind,
+			);
+			validateBinaryResourceTarget(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				`${operationPath}.selector.resourceId`,
+				issues,
+				operation.kind,
+			);
+			validateAssetSourceBytes(
+				project,
+				operations,
+				operationIndex,
+				operation.selector,
+				`${operationPath}.selector.resourceId`,
+				issues,
+				operation.kind,
+			);
+			break;
 	}
 }

@@ -117,11 +117,13 @@ test('rename: renames a resource', async (t) => {
 	comp.setId('c001');
 	pkg.addResource(comp);
 
-	await doc.transform(rename({
-		packageName: 'test',
-		resourceName: 'OldName',
-		newName: 'NewName',
-	}));
+	await doc.transform(
+		rename({
+			packageName: 'test',
+			resourceName: 'OldName',
+			newName: 'NewName',
+		}),
+	);
 
 	const renamed = pkg.listComponents().find((c) => c.getName() === 'NewName');
 	t.truthy(renamed, 'component renamed to NewName');
@@ -144,9 +146,7 @@ test('transform pipeline: prune runs on a validatable document', async (t) => {
 	comp.setId('c001');
 	pkg.addResource(comp);
 
-	await doc.transform(
-		prune(),
-	);
+	await doc.transform(prune());
 	t.truthy(validateProject(liftDocumentToUamProject(doc)));
 	// Image should be pruned
 	const images = pkg.listResources().filter((r) => r.propertyType === 'ImageResource');

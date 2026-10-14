@@ -1,17 +1,6 @@
-import type {
-	Document,
-	FontResource,
-	ILogger,
-	ImageResource,
-	MovieClipResource,
-	Package,
-} from '@openfairygui/core';
+import type { Document, FontResource, ILogger, ImageResource, MovieClipResource, Package } from '@openfairygui/core';
 import type { AtlasOptions } from '../atlas.js';
-import type {
-	AtlasRasterBackend,
-	AtlasRasterInput,
-	AtlasRasterResolvedBuffer,
-} from '../publish/contracts.js';
+import type { AtlasRasterBackend, AtlasRasterInput, AtlasRasterResolvedBuffer } from '../publish/contracts.js';
 import {
 	isFontResource,
 	isImageResource,
@@ -46,7 +35,10 @@ export type PackageResource = ReturnType<Package['listResources']>[number];
 export type PackableResource = ImageResource | MovieClipResource | FontResource;
 export type PackInputResource = ImageResource | MovieClipResource;
 
-export function getPublishedItemId(resource: PackageResource, publishedResources?: ReadonlyMap<PackageResource, string>): string {
+export function getPublishedItemId(
+	resource: PackageResource,
+	publishedResources?: ReadonlyMap<PackageResource, string>,
+): string {
 	return publishedResources?.get(resource) ?? resource.getId();
 }
 
@@ -241,9 +233,8 @@ export async function collectImage(
 			}
 		} catch (error) {
 			if (options.strictOutput) {
-				const detail = error instanceof Error && error.message.startsWith('publishBrowser:')
-					? ` ${error.message}`
-					: '';
+				const detail =
+					error instanceof Error && error.message.startsWith('publishBrowser:') ? ` ${error.message}` : '';
 				throw new Error(`atlas: Could not read image "${filePath}".${detail}`);
 			}
 			if (origW === 0 || origH === 0) {
@@ -302,7 +293,9 @@ export async function collectMovieClipFrames(
 ): Promise<void> {
 	if (!options.basePath || !options.readFileRaw) {
 		if (options.strictOutput) {
-			throw new Error(`atlas: MovieClip "${resource.getId()}" requires basePath and readFileRaw for complete raster output.`);
+			throw new Error(
+				`atlas: MovieClip "${resource.getId()}" requires basePath and readFileRaw for complete raster output.`,
+			);
 		}
 		return;
 	}
@@ -320,10 +313,7 @@ export async function collectMovieClipFrames(
 		for (const frame of resource.listFrames()) {
 			resource.removeFrame(frame);
 		}
-		resource
-			.setInterval(jta.meta.interval)
-			.setSwing(jta.meta.swing)
-			.setRepeatDelay(jta.meta.repeatDelay);
+		resource.setInterval(jta.meta.interval).setSwing(jta.meta.swing).setRepeatDelay(jta.meta.repeatDelay);
 		const spriteIdByTextureIndex = new Map<number, string>();
 		for (const texture of jta.referencedTextures) {
 			if (texture.width <= 0 || texture.height <= 0) continue;
@@ -428,7 +418,11 @@ export async function collectFontTexture(
 }
 
 export function isPackableResource(resource: PackageResource): resource is PackableResource {
-	return isImageResource(resource) || isMovieClipResource(resource) || (isFontResource(resource) && !resource.isExternalFont());
+	return (
+		isImageResource(resource) ||
+		isMovieClipResource(resource) ||
+		(isFontResource(resource) && !resource.isExternalFont())
+	);
 }
 
 function isResolvedBuffer(value: Uint8Array | AtlasRasterResolvedBuffer): value is AtlasRasterResolvedBuffer {

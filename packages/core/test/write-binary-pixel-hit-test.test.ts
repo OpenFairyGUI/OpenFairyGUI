@@ -12,17 +12,17 @@ test('binary writer: emits pixel hit test block when image resource provides pix
 	const pkg = doc.createPackage('PixelHitTestPkg');
 	pkg.setId('pkg_pixel');
 
-		const image = doc.createImageResource('hit');
+	const image = doc.createImageResource('hit');
 	image.setId('img_hit');
 	image.setPath('/');
 	image.setExported(true);
 	image.setWidth(8);
 	image.setHeight(8);
-		image.setPixelHitTestData({
-			pixelWidth: 4,
-			scaleDenominator: 2,
-			pixels: new Uint8Array([0xaa, 0x55]),
-		});
+	image.setPixelHitTestData({
+		pixelWidth: 4,
+		scaleDenominator: 2,
+		pixels: new Uint8Array([0xaa, 0x55]),
+	});
 	pkg.addResource(image);
 
 	const io = new NodeIO();

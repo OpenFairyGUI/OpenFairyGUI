@@ -12,7 +12,8 @@ export function createBackendFixtureProject() {
 }
 
 export async function createTempBackendProject() {
-	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-backend-p0-'));
+	// Match the canonical paths used by the Node host, including Windows 8.3 TEMP aliases.
+	const tmpDir = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-backend-p0-')));
 	const fairyPath = path.join(tmpDir, 'BackendProject.fairy');
 	const io = new NodeIO();
 	await writeProjectFromUam(io, createBackendFixtureProject(), fairyPath);
@@ -21,7 +22,13 @@ export async function createTempBackendProject() {
 		rootDir: tmpDir,
 		fairyPath,
 		async cleanup(): Promise<void> {
-			await fs.rm(path.join(path.dirname(tmpDir), `.${path.basename(tmpDir)}.openfairygui.backend.lock`), { force: true });
+			await fs.rm(path.join(path.dirname(tmpDir), `.${path.basename(tmpDir)}.openfairygui.backend.lock`), {
+				force: true,
+			});
+			await fs.rm(
+				path.join(path.dirname(tmpDir), `.${path.basename(tmpDir)}.openfairygui.backend.lock.coordination`),
+				{ recursive: true, force: true },
+			);
 			await fs.rm(tmpDir, { recursive: true, force: true });
 		},
 	};
@@ -44,14 +51,13 @@ export function createFailingFileSystem(shouldFail: (filePath: string) => boolea
 	return {
 		...base,
 		async runProjectWriteTransaction(projectRoot, write) {
-			await base.runProjectWriteTransaction!(projectRoot, (staged) => write(injectFailure(staged)));
+			return await base.runProjectWriteTransaction!(projectRoot, (staged) => write(injectFailure(staged)));
 		},
 	};
 }
 
-export function createBackendRuntime(options: {
-	fileSystem?: BackendFileSystem;
-	allowedProjectRoots?: readonly string[];
-} = {}): BackendRuntime {
+export function createBackendRuntime(
+	options: { fileSystem?: BackendFileSystem; allowedProjectRoots?: readonly string[] } = {},
+): BackendRuntime {
 	return createNodeBackendRuntime(options);
 }

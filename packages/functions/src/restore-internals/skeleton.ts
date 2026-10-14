@@ -146,7 +146,7 @@ async function ensureLooseMiscResource(
 		.setBranchItemIds(owner.getBranchItemIds() ?? [])
 		.setExported(false)
 		.setFile(fileName);
-	resource.setExtras({ ...(resource.getExtras() ?? {}), _publishedFile: fileBaseName(sourcePath) });
+	resource.setPublishedFile(fileBaseName(sourcePath));
 	pkg.addResource(resource);
 	return resource;
 }
@@ -168,9 +168,9 @@ async function ensureLooseImageResource(
 	const sourcePath = await resolveLooseSourceFile(fs, pkg, sourceDir, fileName);
 	if (!sourcePath) return existing ?? null;
 	if (existing) {
+		existing.setPublishedFile(fileBaseName(sourcePath));
 		existing.setExtras({
 			...(existing.getExtras() ?? {}),
-			_publishedFile: fileBaseName(sourcePath),
 			_restoreAsLooseImage: true,
 		});
 		return existing;
@@ -183,9 +183,9 @@ async function ensureLooseImageResource(
 		.setBranchItemIds(owner.getBranchItemIds() ?? [])
 		.setExported(false)
 		.setFileName(fileName);
+	resource.setPublishedFile(fileBaseName(sourcePath));
 	resource.setExtras({
 		...(resource.getExtras() ?? {}),
-		_publishedFile: fileBaseName(sourcePath),
 		_restoreAsLooseImage: true,
 	});
 	ProjectWriter.setImageWriteHints(resource, { omitPackageSize: true });

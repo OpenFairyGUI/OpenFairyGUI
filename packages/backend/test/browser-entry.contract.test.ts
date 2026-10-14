@@ -1,7 +1,6 @@
 import test from 'ava';
 import { execFile } from 'node:child_process';
 import fs from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { BackendRuntime } from '../src/index.js';
@@ -63,10 +62,21 @@ test('workspace package dependencies resolve to semver for published metadata', 
 		for (const field of DEPENDENCY_FIELDS) {
 			const dependencySet = manifest[field];
 			for (const [dependencyName, dependencyVersion] of Object.entries(dependencySet ?? {})) {
-				const publishedVersion = resolveWorkspaceDependencyVersion(dependencyName, dependencyVersion, workspaceVersions);
-				t.false(publishedVersion.startsWith('workspace:'), `${manifestPath} ${dependencyName} must publish with semver, got ${dependencyVersion}`);
+				const publishedVersion = resolveWorkspaceDependencyVersion(
+					dependencyName,
+					dependencyVersion,
+					workspaceVersions,
+				);
+				t.false(
+					publishedVersion.startsWith('workspace:'),
+					`${manifestPath} ${dependencyName} must publish with semver, got ${dependencyVersion}`,
+				);
 				if (dependencyVersion.startsWith('workspace:')) {
-					t.regex(publishedVersion, SEMVER_SPEC, `${manifestPath} ${dependencyName} resolves to ${publishedVersion}`);
+					t.regex(
+						publishedVersion,
+						SEMVER_SPEC,
+						`${manifestPath} ${dependencyName} resolves to ${publishedVersion}`,
+					);
 				}
 				const workspaceVersion = workspaceVersions.get(dependencyName);
 				if (workspaceVersion !== undefined) {
@@ -107,20 +117,44 @@ test('root browser-safe barrels do not export NodeIO', async (t) => {
 	t.false(coreIoRoot.includes('NodeIO'));
 });
 
-test.serial('built backend CommonJS root does not load the Node bridge', async (t) => {
+test.serial('built backend entries share runtime identity without loading the Node bridge from root', async (t) => {
 	const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
-	const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-backend-build-'));
+	const outputDir = await fs.mkdtemp(path.resolve('packages/backend/node_modules/.entry-build-'));
 	try {
-		await execFileAsync(pnpmCommand, ['--filter', '@openfairygui/backend', 'exec', 'tsdown', '--out-dir', outputDir], {
-			cwd: path.resolve('.'),
-			shell: process.platform === 'win32',
-		});
-		const rootPath = path.join(outputDir, 'index.cjs');
-		const rootEntry = await fs.readFile(rootPath, 'utf-8');
-		const { stderr } = await execFileAsync(process.execPath, ['--trace-warnings', '-e', `require(${JSON.stringify(rootPath)})`]);
-
-		t.false(rootEntry.includes('node:fs'));
-		t.is(stderr, '');
+		await execFileAsync(
+			pnpmCommand,
+			['--filter', '@openfairygui/backend', 'exec', 'tsdown', '--out-dir', outputDir],
+			{
+				cwd: path.resolve('.'),
+				shell: process.platform === 'win32',
+			},
+		);
+		for (const format of ['cjs', 'mjs']) {
+			for (const order of [
+				['index', 'node'],
+				['node', 'index'],
+			]) {
+				const script = `
+					const assert = require('node:assert/strict');
+					const path = require('node:path');
+					const { pathToFileURL } = require('node:url');
+					(async () => {
+						const entries = {};
+						for (const entry of ${JSON.stringify(order)}) {
+							const file = path.join(${JSON.stringify(outputDir)}, entry + '.${format}');
+							entries[entry] = ${format === 'cjs' ? 'require(file)' : 'await import(pathToFileURL(file).href)'};
+							if (entry === 'index' && '${format}' === 'cjs' && !entries.node) {
+								assert(!require.cache[path.join(${JSON.stringify(outputDir)}, 'node.cjs')], 'root loaded Node bridge');
+							}
+						}
+						assert.equal(entries.index.BackendRuntime, entries.node.BackendRuntime);
+						assert(entries.node.createNodeBackendRuntime() instanceof entries.index.BackendRuntime);
+					})().catch(error => { console.error(error); process.exitCode = 1; });
+				`;
+				const { stderr } = await execFileAsync(process.execPath, ['--trace-warnings', '-e', script]);
+				t.is(stderr, '', `${format}: ${order.join(' then ')}`);
+			}
+		}
 	} finally {
 		await fs.rm(outputDir, { recursive: true, force: true });
 	}

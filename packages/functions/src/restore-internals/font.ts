@@ -1,4 +1,13 @@
-import { type Document, type FontResource, type FontGlyph, type ImageResource, GTextField, type Package, generateId, ProjectWriter } from '@openfairygui/core';
+import {
+	type Document,
+	type FontResource,
+	type FontGlyph,
+	type ImageResource,
+	GTextField,
+	type Package,
+	generateId,
+	ProjectWriter,
+} from '@openfairygui/core';
 import { normalizeRestoreResourcePath } from '../path-utils.js';
 
 const syntheticFontGlyphImages = new WeakSet<ImageResource>();
@@ -13,7 +22,12 @@ function resourceFileName(resource: FontResource | ReturnType<Package['listResou
 }
 
 function stripExtension(fileName: string): string {
-	return fileName.split(/[\\/]/).pop()?.replace(/\.[^.]+$/u, '') ?? '';
+	return (
+		fileName
+			.split(/[\\/]/)
+			.pop()
+			?.replace(/\.[^.]+$/u, '') ?? ''
+	);
 }
 
 function fontGlyphCharId(glyph: FontGlyph): number {
@@ -23,18 +37,14 @@ function fontGlyphCharId(glyph: FontGlyph): number {
 	return char ? (char.codePointAt(0) ?? 0) : 0;
 }
 
-function serializeTtfFontHeader(
-	pkg: Package,
-	resource: FontResource,
-	glyphs: FontGlyph[],
-): string[] {
+function serializeTtfFontHeader(pkg: Package, resource: FontResource, glyphs: FontGlyph[]): string[] {
 	const fileName = resourceFileName(resource);
 	const face = stripExtension(fileName) || resource.getName() || 'Font';
 	const lineHeight = resource.getLineHeight() ?? 0;
 	const fontSize = resource.getFontSize() ?? lineHeight;
 	const textureId = resource.getTextureId() ?? '';
 	const textureResource = textureId
-		? pkg.listImageResources().find((image) => image.getId() === textureId) ?? null
+		? (pkg.listImageResources().find((image) => image.getId() === textureId) ?? null)
 		: null;
 	const textureName = textureResource ? resourceFileName(textureResource) : `${face}_atlas.png`;
 	const scaleW = textureResource?.getWidth() ?? 256;
@@ -48,11 +58,7 @@ function serializeTtfFontHeader(
 	];
 }
 
-export function serializeFont(
-	pkg: Package,
-	resource: FontResource,
-	glyphs: FontGlyph[],
-): string {
+export function serializeFont(pkg: Package, resource: FontResource, glyphs: FontGlyph[]): string {
 	const isTtf = resource.getTtf() === true;
 	const lines = isTtf
 		? serializeTtfFontHeader(pkg, resource, glyphs)
@@ -62,8 +68,8 @@ export function serializeFont(
 		const charId = fontGlyphCharId(glyph);
 		if (isTtf) {
 			lines.push(
-				`char id=${charId} x=${glyph.getX()} y=${glyph.getY()} width=${glyph.getWidth()} height=${glyph.getHeight()} `
-				+ `xoffset=${glyph.getXOffset()} yoffset=${glyph.getYOffset()} xadvance=${glyph.getAdvance()} page=0 chnl=${glyph.getChannel()}`,
+				`char id=${charId} x=${glyph.getX()} y=${glyph.getY()} width=${glyph.getWidth()} height=${glyph.getHeight()} ` +
+					`xoffset=${glyph.getXOffset()} yoffset=${glyph.getYOffset()} xadvance=${glyph.getAdvance()} page=0 chnl=${glyph.getChannel()}`,
 			);
 		} else {
 			lines.push(
@@ -87,7 +93,12 @@ export function initializeFontGlyphImageResources(doc: Document): void {
 	for (const pkg of doc.getRoot().listPackages()) {
 		for (const resource of [...pkg.listResources()]) {
 			if (resource.propertyType !== 'FontResource') continue;
-			const glyphIds = new Set(resource.listGlyphs().map((glyph) => glyph.getImg()).filter(Boolean));
+			const glyphIds = new Set(
+				resource
+					.listGlyphs()
+					.map((glyph) => glyph.getImg())
+					.filter(Boolean),
+			);
 			for (const glyphId of glyphIds) {
 				if (pkg.getResourceById(glyphId)) continue;
 				const image = doc.createImageResource(glyphId);
@@ -96,7 +107,10 @@ export function initializeFontGlyphImageResources(doc: Document): void {
 					.setPath('/images/')
 					.setBranch(resource.getBranch() ?? '')
 					.setFileName(syntheticFontGlyphFileName(glyphId));
-				ProjectWriter.setImageWriteHints(image, { omitPackageSize: true, packageOrder: { afterId: resource.getId(), weight: 1 } });
+				ProjectWriter.setImageWriteHints(image, {
+					omitPackageSize: true,
+					packageOrder: { afterId: resource.getId(), weight: 1 },
+				});
 				syntheticFontGlyphImages.add(image);
 				pkg.addResource(image);
 			}
@@ -116,7 +130,10 @@ export function initializeFontTextureImageResources(doc: Document): void {
 				.setPath(resource.getPath() ?? '/')
 				.setBranch(resource.getBranch() ?? '')
 				.setFileName(syntheticFontTextureFileName(resource));
-			ProjectWriter.setImageWriteHints(image, { omitPackageSize: true, packageOrder: { afterId: resource.getId(), weight: 0 } });
+			ProjectWriter.setImageWriteHints(image, {
+				omitPackageSize: true,
+				packageOrder: { afterId: resource.getId(), weight: 0 },
+			});
 			pkg.addResource(image);
 		}
 	}
@@ -141,7 +158,9 @@ export function initializePublishedTextFontResources(doc: Document): void {
 			fontResources.map((resource) => [resourceFileName(resource).toLowerCase(), resource] as const),
 		);
 		const fontByDisplayName = new Map(
-			fontResources.map((resource) => [stripExtension(resourceFileName(resource)).toLowerCase(), resource] as const),
+			fontResources.map(
+				(resource) => [stripExtension(resourceFileName(resource)).toLowerCase(), resource] as const,
+			),
 		);
 
 		for (const component of pkg.listComponents()) {
@@ -183,9 +202,12 @@ export function initializePublishedFontTextureIds(doc: Document): void {
 			if (resource.getTtf() !== true) continue;
 			const expectedFileName = syntheticFontTextureFileName(resource).toLowerCase();
 			const texture = resources.find((candidate) => {
-				return candidate.propertyType === 'ImageResource'
-					&& normalizeRestoreResourcePath(resource.getPath()) === normalizeRestoreResourcePath(candidate.getPath())
-					&& resourceFileName(candidate).split(/[\\/]/).pop()?.toLowerCase() === expectedFileName;
+				return (
+					candidate.propertyType === 'ImageResource' &&
+					normalizeRestoreResourcePath(resource.getPath()) ===
+						normalizeRestoreResourcePath(candidate.getPath()) &&
+					resourceFileName(candidate).split(/[\\/]/).pop()?.toLowerCase() === expectedFileName
+				);
 			});
 			if (texture?.getId()) resource.setTextureId(texture.getId());
 		}

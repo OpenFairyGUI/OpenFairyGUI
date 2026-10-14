@@ -41,7 +41,11 @@ export interface CodeWriter {
 }
 
 export interface Plugin {
-	genCode?: (doc: Document, settings: Required<CliCodeGenerationSettings>, options: PublishCodeGenerationOptions) => MaybePromise<void>;
+	genCode?: (
+		doc: Document,
+		settings: Required<CliCodeGenerationSettings>,
+		options: PublishCodeGenerationOptions,
+	) => MaybePromise<void>;
 	onPublishStart?: (doc: Document, options: PublishOptions) => MaybePromise<void>;
 	onPublishEnd?: (doc: Document, options: PublishOptions) => MaybePromise<void>;
 }

@@ -32,21 +32,45 @@ export class MovieFrame extends Property<IMovieFrame> {
 		});
 	}
 
-	public getRectX(): number { return this.get('rectX'); }
-	public setRectX(v: number): this { return this.set('rectX', v); }
+	public getRectX(): number {
+		return this.get('rectX');
+	}
+	public setRectX(v: number): this {
+		return this.set('rectX', v);
+	}
 
-	public getRectY(): number { return this.get('rectY'); }
-	public setRectY(v: number): this { return this.set('rectY', v); }
+	public getRectY(): number {
+		return this.get('rectY');
+	}
+	public setRectY(v: number): this {
+		return this.set('rectY', v);
+	}
 
-	public getRectWidth(): number { return this.get('rectWidth'); }
-	public setRectWidth(v: number): this { return this.set('rectWidth', v); }
+	public getRectWidth(): number {
+		return this.get('rectWidth');
+	}
+	public setRectWidth(v: number): this {
+		return this.set('rectWidth', v);
+	}
 
-	public getRectHeight(): number { return this.get('rectHeight'); }
-	public setRectHeight(v: number): this { return this.set('rectHeight', v); }
+	public getRectHeight(): number {
+		return this.get('rectHeight');
+	}
+	public setRectHeight(v: number): this {
+		return this.set('rectHeight', v);
+	}
 
-	public getAddDelay(): number { return this.get('addDelay'); }
-	public setAddDelay(v: number): this { return this.set('addDelay', v); }
+	public getAddDelay(): number {
+		return this.get('addDelay');
+	}
+	public setAddDelay(v: number): this {
+		return this.set('addDelay', v);
+	}
 
-	public getSpriteId(): string { return this.get('spriteId'); }
-	public setSpriteId(v: string): this { return this.set('spriteId', v); }
+	public getSpriteId(): string {
+		return this.get('spriteId');
+	}
+	public setSpriteId(v: string): this {
+		return this.set('spriteId', v);
+	}
 }

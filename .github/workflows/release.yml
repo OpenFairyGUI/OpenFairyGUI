@@ -2,176 +2,121 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
-  id-token: write
-  contents: write
-  packages: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  release:
+  verify:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: recursive
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version-file: .node-version
           cache: pnpm
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Setup npm for trusted publishing
-        # Node 22 bundles npm 10; OIDC publishing requires npm 11.5.1 or newer.
-        run: npm install --global npm@11
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Verify release ref and package versions
+      - run: pnpm install --frozen-lockfile
+      - name: Verify tag, package versions and bilingual release notes
         env:
           RELEASE_REF_TYPE: ${{ github.ref_type }}
           RELEASE_TAG: ${{ github.ref_name }}
-        run: node --input-type=module -e "import fs from 'node:fs'; if (process.env.RELEASE_REF_TYPE !== 'tag') throw new Error('Release must run from a tag.'); for (const dir of ['core','functions','backend','cli','mcp']) { const { name, version } = JSON.parse(fs.readFileSync('packages/' + dir + '/package.json', 'utf8')); if ('v' + version !== process.env.RELEASE_TAG) throw new Error(name + '@' + version + ' does not match ' + process.env.RELEASE_TAG); }"
-
-      - name: Lint
-        run: pnpm lint:ci
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Build workspace
-        run: pnpm build
-
-      - name: Test
-        run: pnpm test
-
-      - name: Pack publish artifacts
+        run: pnpm release:prepare
+      - name: Full release gate
+        run: pnpm check:ci --browser-deps
+      - name: Pack the publish artifacts
         run: |
-          mkdir -p .release
-          pack_package() {
-            local pkg_dir="$1"
-            (cd "${pkg_dir}" && pnpm pack --pack-destination ../../.release)
-          }
-          pack_package packages/core
-          pack_package packages/functions
-          pack_package packages/backend
-          pack_package packages/cli
-          pack_package packages/mcp
-
-      - name: Verify the exact tarballs before publishing
+          for pkg in core functions backend cli mcp; do
+            (cd "packages/$pkg" && pnpm pack --pack-destination ../../.release)
+          done
+          cp .node-version .release/.node-version
+      - name: Verify the exact publish artifacts
         run: pnpm pack:check --artifacts .release --browser-deps
+      - name: Record artifact checksums
+        working-directory: .release
+        run: sha256sum *.tgz > SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: verified-release
+          path: .release/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
 
-      - name: Publish to npmjs
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      packages: write
+    steps:
+      # No checkout, dependency install, build, test or project script in this job.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: verified-release
+          path: .release
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .release/.node-version
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Setup trusted-publishing CLI without lifecycle scripts
+        run: npm install --global --ignore-scripts npm@11
+      - name: Verify artifact checksums
+        working-directory: .release
+        run: sha256sum --check SHA256SUMS
+      - name: Publish verified tarballs to npm
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          npm_dist_tag_for_version() {
-            local pkg_version="$1"
-            if [[ "${pkg_version}" == *-* ]]; then
-              echo "next"
+          version="${RELEASE_TAG#v}"
+          dist_tag=latest
+          if [[ "$version" == *-* ]]; then dist_tag=next; fi
+          for pkg in core functions backend cli mcp; do
+            if npm view "@openfairygui/$pkg@$version" version --registry=https://registry.npmjs.org >/dev/null 2>&1; then
+              echo "Already published: @openfairygui/$pkg@$version"
             else
-              echo "latest"
+              npm publish --ignore-scripts --provenance --access public --tag "$dist_tag" ".release/openfairygui-$pkg-$version.tgz"
             fi
-          }
-
-          package_tarball() {
-            local pkg_dir="$1"
-            local pkg_name
-            local pkg_version
-            local tarball_name
-            pkg_name=$(node -p "require('./${pkg_dir}/package.json').name")
-            pkg_version=$(node -p "require('./${pkg_dir}/package.json').version")
-            tarball_name="${pkg_name#@}"
-            tarball_name="${tarball_name//\//-}-${pkg_version}.tgz"
-            echo ".release/${tarball_name}"
-          }
-
-          publish_if_needed() {
-            local pkg_dir="$1"
-            local pkg_name
-            local pkg_version
-            local npm_dist_tag
-            local pkg_tarball
-            pkg_name=$(node -p "require('./${pkg_dir}/package.json').name")
-            pkg_version=$(node -p "require('./${pkg_dir}/package.json').version")
-            npm_dist_tag=$(npm_dist_tag_for_version "${pkg_version}")
-            pkg_tarball=$(package_tarball "${pkg_dir}")
-            if npm view "${pkg_name}@${pkg_version}" version --registry=https://registry.npmjs.org >/dev/null 2>&1; then
-              echo "Skipping npmjs publish for ${pkg_name}@${pkg_version} (already published)"
-            else
-              echo "Publishing ${pkg_name}@${pkg_version} to npmjs via trusted publishing with dist-tag ${npm_dist_tag}"
-              npm publish --provenance --access public --tag "${npm_dist_tag}" "${pkg_tarball}"
-            fi
-          }
-          publish_if_needed packages/core
-          publish_if_needed packages/functions
-          publish_if_needed packages/backend
-          publish_if_needed packages/cli
-          publish_if_needed packages/mcp
-
-      - name: Publish to GitHub Packages
+          done
+      - name: Publish verified tarballs to GitHub Packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          npm config set @openfairygui:registry https://npm.pkg.github.com
-          npm config set //npm.pkg.github.com/:_authToken "$NODE_AUTH_TOKEN"
-          npm_dist_tag_for_version() {
-            local pkg_version="$1"
-            if [[ "${pkg_version}" == *-* ]]; then
-              echo "next"
+          printf '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}\n' > "$RUNNER_TEMP/github-packages.npmrc"
+          export NPM_CONFIG_USERCONFIG="$RUNNER_TEMP/github-packages.npmrc"
+          version="${RELEASE_TAG#v}"
+          dist_tag=latest
+          if [[ "$version" == *-* ]]; then dist_tag=next; fi
+          for pkg in core functions backend cli mcp; do
+            if npm view "@openfairygui/$pkg@$version" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
+              echo "Already published: @openfairygui/$pkg@$version"
             else
-              echo "latest"
+              npm publish --ignore-scripts --tag "$dist_tag" --registry=https://npm.pkg.github.com ".release/openfairygui-$pkg-$version.tgz"
             fi
-          }
-
-          package_tarball() {
-            local pkg_dir="$1"
-            local pkg_name
-            local pkg_version
-            local tarball_name
-            pkg_name=$(node -p "require('./${pkg_dir}/package.json').name")
-            pkg_version=$(node -p "require('./${pkg_dir}/package.json').version")
-            tarball_name="${pkg_name#@}"
-            tarball_name="${tarball_name//\//-}-${pkg_version}.tgz"
-            echo ".release/${tarball_name}"
-          }
-
-          publish_if_needed() {
-            local pkg_dir="$1"
-            local pkg_name
-            local pkg_version
-            local npm_dist_tag
-            local pkg_tarball
-            pkg_name=$(node -p "require('./${pkg_dir}/package.json').name")
-            pkg_version=$(node -p "require('./${pkg_dir}/package.json').version")
-            npm_dist_tag=$(npm_dist_tag_for_version "${pkg_version}")
-            pkg_tarball=$(package_tarball "${pkg_dir}")
-            if npm view "${pkg_name}@${pkg_version}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
-              echo "Skipping GitHub Packages publish for ${pkg_name}@${pkg_version} (already published)"
-            else
-              echo "Publishing ${pkg_name}@${pkg_version} to GitHub Packages with dist-tag ${npm_dist_tag}"
-              npm publish --tag "${npm_dist_tag}" "${pkg_tarball}" --registry=https://npm.pkg.github.com
-            fi
-          }
-          publish_if_needed packages/core
-          publish_if_needed packages/functions
-          publish_if_needed packages/backend
-          publish_if_needed packages/cli
-          publish_if_needed packages/mcp
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true
-          prerelease: ${{ contains(github.ref_name, '-') }}
-          files: |
-            .release/*.tgz
+          done
+      - name: Create or update the bilingual GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          prerelease=false
+          if [[ "$RELEASE_TAG" == *-* ]]; then prerelease=true; fi
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --notes-file .release/release-notes.md --prerelease="$prerelease"
+            gh release upload "$RELEASE_TAG" .release/*.tgz --clobber
+          else
+            gh release create "$RELEASE_TAG" .release/*.tgz --verify-tag --title "$RELEASE_TAG" --notes-file .release/release-notes.md --prerelease="$prerelease"
+          fi

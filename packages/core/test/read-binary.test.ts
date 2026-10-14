@@ -3,14 +3,7 @@ import { getFixturePath } from '@openfairygui/test-utils';
 import { type Document, PropertyType } from '../src/index.js';
 import { NodeIO } from '../src/node.js';
 
-const BASICS_FUI = getFixturePath(
-	'FairyGUI-unity',
-	'Assets',
-	'Examples',
-	'Resources',
-	'UI',
-	'Basics_fui.bytes',
-);
+const BASICS_FUI = getFixturePath('FairyGUI-unity', 'Assets', 'Examples', 'Resources', 'UI', 'Basics_fui.bytes');
 
 // Shared: read the binary package once.
 let _doc: Awaited<ReturnType<NodeIO['readBinary']>>;
@@ -23,7 +16,12 @@ async function getDoc() {
 }
 
 function getMainPackage(doc: Awaited<ReturnType<NodeIO['readBinary']>>) {
-	return doc.getRoot().listPackages().find((pkg) => pkg.listResources().length > 0) ?? null;
+	return (
+		doc
+			.getRoot()
+			.listPackages()
+			.find((pkg) => pkg.listResources().length > 0) ?? null
+	);
 }
 
 test('binary: reads without error', async (t) => {
@@ -61,10 +59,8 @@ test('binary: image resources have scale/smoothing properties', async (t) => {
 test('binary: sprite atlas mapping is stored in extras', async (t) => {
 	const doc = await getDoc();
 	const pkg = getMainPackage(doc)!;
-	const extras = pkg.getExtras() as { sprites?: unknown[] };
-	t.truthy(extras, 'extras is non-null');
-	t.true(Array.isArray(extras?.sprites), 'sprites array is present in extras');
-	t.true((extras.sprites as unknown[]).length > 0, 'sprites array is non-empty');
+	t.true(pkg.listAtlases().flatMap((atlas) => atlas.listSprites()).length > 0);
+	t.is(pkg.getExtras().sprites, undefined);
 });
 
 test('binary: dependencies are attached as formal package relations', async (t) => {
@@ -79,18 +75,18 @@ test('binary: dependencies are attached as formal package relations', async (t) 
 	t.pass('dependencies are represented as formal package relations when present');
 });
 
-test('binary: components have raw binary data in extras', async (t) => {
+test('binary: components expose decoded properties without retaining raw byte slices', async (t) => {
 	const doc = await getDoc();
 	const pkg = getMainPackage(doc)!;
 	const components = pkg.listResources().filter((r) => r.propertyType === 'Component');
 	t.true(components.length > 0, 'package has component resources');
 
-	// Each component should have _rawBinary in extras
+	// Components retain formal properties, never original string-table-bound bytes.
 	const withRaw = components.filter((c) => {
 		const extras = (c as any).getExtras?.() as Record<string, unknown> | null;
 		return extras?._rawBinary != null;
 	});
-	t.is(withRaw.length, components.length, 'all components have _rawBinary in extras');
+	t.is(withRaw.length, 0, 'component writes always encode the current graph');
 });
 
 test('binary: component top-level formal properties decode from sample package', async (t) => {
@@ -158,7 +154,9 @@ test('binary: GList child blocks decode into formal list properties from sample 
 	const demoList = pkg.getComponent('Demo_List');
 	t.truthy(demoList, 'Demo_List exists');
 
-	const verticalList = demoList?.listChildren().find((child) => child.getId() === 'n0') as ReturnType<Document['createGList']>;
+	const verticalList = demoList?.listChildren().find((child) => child.getId() === 'n0') as ReturnType<
+		Document['createGList']
+	>;
 	t.truthy(verticalList, 'Demo_List vertical list exists');
 	t.is(verticalList.getLayout(), 0);
 	t.is(verticalList.getOverflow(), 2);
@@ -169,7 +167,9 @@ test('binary: GList child blocks decode into formal list properties from sample 
 	t.false(verticalList.getFoldInvisibleItems());
 	t.is(verticalList.getListItems().length, 6);
 
-	const flowHorizontalList = demoList?.listChildren().find((child) => child.getId() === 'n9') as ReturnType<Document['createGList']>;
+	const flowHorizontalList = demoList?.listChildren().find((child) => child.getId() === 'n9') as ReturnType<
+		Document['createGList']
+	>;
 	t.truthy(flowHorizontalList, 'Demo_List flow-horizontal list exists');
 	t.is(flowHorizontalList.getLayout(), 3);
 	t.is(flowHorizontalList.getScrollType(), 0);
@@ -177,7 +177,9 @@ test('binary: GList child blocks decode into formal list properties from sample 
 
 	const demoGrid = pkg.getComponent('Demo_Grid');
 	t.truthy(demoGrid, 'Demo_Grid exists');
-	const multiSelectList = demoGrid?.listChildren().find((child) => child.getId() === 'n30') as ReturnType<Document['createGList']>;
+	const multiSelectList = demoGrid?.listChildren().find((child) => child.getId() === 'n30') as ReturnType<
+		Document['createGList']
+	>;
 	t.truthy(multiSelectList, 'Demo_Grid selectable list exists');
 	t.is(multiSelectList.getSelectionMode(), 3);
 	t.is(multiSelectList.getDefaultItem(), 'ui://9leh0eyfatih7o');

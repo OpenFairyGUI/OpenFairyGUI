@@ -37,14 +37,15 @@ function projectSourceFiles(project: UamProject): Map<string, ProjectSourceFile>
 		}
 		for (const resource of pkg.resources) {
 			if (resource.branch) branches.add(resource.branch);
-			const source = resource.kind === 'component'
-				? {
-					packageName: pkg.name,
-					branch: resource.branch,
-					path: resource.path,
-					fileName: `${resource.name}.xml`,
-				}
-				: sourceFileReference(pkg.name, resource);
+			const source =
+				resource.kind === 'component'
+					? {
+							packageName: pkg.name,
+							branch: resource.branch,
+							path: resource.path,
+							fileName: `${resource.name}.xml`,
+						}
+					: sourceFileReference(pkg.name, resource);
 			if (source) sources.set(`${pkg.id}/${resource.id}`, source);
 		}
 		for (const branch of branches) {
@@ -70,16 +71,24 @@ function resourceFolderKey(folder: ProjectResourceFolder): string {
 }
 
 export function staleResourceFolders(previousProject: UamProject, nextProject: UamProject): ProjectResourceFolder[] {
-	const previous = previousProject.packages.flatMap((pkg) => pkg.folders.map((folder) => ({
-		packageName: pkg.name,
-		branch: folder.branch,
-		path: folder.path,
-	})));
-	const nextKeys = new Set(nextProject.packages.flatMap((pkg) => pkg.folders.map((folder) => resourceFolderKey({
-		packageName: pkg.name,
-		branch: folder.branch,
-		path: folder.path,
-	}))));
+	const previous = previousProject.packages.flatMap((pkg) =>
+		pkg.folders.map((folder) => ({
+			packageName: pkg.name,
+			branch: folder.branch,
+			path: folder.path,
+		})),
+	);
+	const nextKeys = new Set(
+		nextProject.packages.flatMap((pkg) =>
+			pkg.folders.map((folder) =>
+				resourceFolderKey({
+					packageName: pkg.name,
+					branch: folder.branch,
+					path: folder.path,
+				}),
+			),
+		),
+	);
 	return previous.filter((folder) => !nextKeys.has(resourceFolderKey(folder)));
 }
 
@@ -96,7 +105,9 @@ function projectBranchDirectories(project: UamProject): ProjectBranchDirectory[]
 
 export function staleBranchDirectories(previousProject: UamProject, nextProject: UamProject): ProjectBranchDirectory[] {
 	const nextKeys = new Set(projectBranchDirectories(nextProject).map(branchDirectoryKey));
-	return projectBranchDirectories(previousProject).filter((directory) => !nextKeys.has(branchDirectoryKey(directory)));
+	return projectBranchDirectories(previousProject).filter(
+		(directory) => !nextKeys.has(branchDirectoryKey(directory)),
+	);
 }
 
 /** Marks hydrated resource bytes as committed at their current package-relative paths. */

@@ -1,3 +1,4 @@
+import { ProjectIOError } from './errors.js';
 import type { GImage } from '../properties/g-image.js';
 import type { GGraph } from '../properties/g-graph.js';
 import type { GGroup } from '../properties/g-group.js';
@@ -77,16 +78,13 @@ const DISPLAY_OBJECT_PROTOCOL_BY_TYPE: Record<string, XmlNodeProtocol> = {
 
 const DISPLAY_LIST_CONTAINER = PROJECT_XML_PROTOCOL.componentRoot.containers?.displayList;
 if (!DISPLAY_LIST_CONTAINER) {
-	throw new Error('PROJECT_XML_PROTOCOL.componentRoot must define containers.displayList');
+	throw new ProjectIOError('PROJECT_XML_PROTOCOL.componentRoot must define containers.displayList');
 }
 
 const DISPLAY_LIST_ALLOWED_VARIANTS = new Set(Object.keys(DISPLAY_LIST_CONTAINER.items));
 
 function renderXmlText(value: unknown): string {
-	return String(value)
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;');
+	return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function renderXmlNode(tagName: string, node: unknown, indent: string): string {
@@ -124,7 +122,6 @@ function renderXmlNode(tagName: string, node: unknown, indent: string): string {
 	return `${indent}<${tagName}${renderXmlAttrs(attrs)}>\n${childLines.join('\n')}\n${indent}</${tagName}>`;
 }
 
-
 function formatDisplayAlpha(value: number): string {
 	return formatTrimmedFixed(value, 2);
 }
@@ -143,11 +140,22 @@ function formatImageFlip(value: number): string {
 }
 
 // Some concrete tags lack these state fields; all other accessors belong to GObject.
-type CommonDisplayState = GObject & Partial<Pick<GImage,
-	'getX' | 'getY' | 'getWidth' | 'getHeight' | 'getGroup' |
-	'getAlpha' | 'getRotation' | 'getVisible' | 'getTouchable' | 'getGrayed'
->>;
-
+type CommonDisplayState = GObject &
+	Partial<
+		Pick<
+			GImage,
+			| 'getX'
+			| 'getY'
+			| 'getWidth'
+			| 'getHeight'
+			| 'getGroup'
+			| 'getAlpha'
+			| 'getRotation'
+			| 'getVisible'
+			| 'getTouchable'
+			| 'getGrayed'
+		>
+	>;
 
 function writeCommonDisplayState(
 	target: Record<string, unknown>,
@@ -156,10 +164,11 @@ function writeCommonDisplayState(
 ): void {
 	const specs = protocol.attrs;
 	if (specs.xy) {
-		writeXmlAttr(target, specs.xy, formatProjectInt32List([
-			object.getX?.() ?? 0,
-			object.getY?.() ?? 0,
-		], 'display object xy'));
+		writeXmlAttr(
+			target,
+			specs.xy,
+			formatProjectInt32List([object.getX?.() ?? 0, object.getY?.() ?? 0], 'display object xy'),
+		);
 	}
 	const width = object.getWidth?.() ?? 0;
 	const height = object.getHeight?.() ?? 0;
@@ -238,7 +247,7 @@ function getDisplayListVariantName(propertyType: string, tagName: string): strin
 function assertDisplayListVariantAllowed(propertyType: string, tagName: string, childName: string): void {
 	const variantName = getDisplayListVariantName(propertyType, tagName);
 	if (!DISPLAY_LIST_ALLOWED_VARIANTS.has(variantName)) {
-		throw new Error(
+		throw new ProjectIOError(
 			`displayList variant "${variantName}" derived from propertyType "${propertyType}" is not declared in protocol for child "${childName}"`,
 		);
 	}
@@ -264,16 +273,18 @@ export function serializeDisplayList(children: GObject[]): string {
 
 function serializeChild(obj: GObject): Record<string, unknown> {
 	const attrs: Record<string, unknown> = {};
-	if (obj.getId()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.id, obj.getId());
-	if (obj.getName()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.displayObject.attrs.name, obj.getName());
+	if (obj.getId()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.id, obj.getId());
+	if (obj.getName()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.name, obj.getName());
 
 	// Type-specific attributes
 	const type = obj.propertyType as string;
 	if (EXTENSION_TYPE[type]) {
 		const instance = obj as GComponent;
 		if (instance.getSrc()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.src, instance.getSrc());
-		if (instance.getFileName()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.fileName, instance.getFileName());
-		if (instance.getPackageId()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.pkg, instance.getPackageId());
+		if (instance.getFileName())
+			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.fileName, instance.getFileName());
+		if (instance.getPackageId())
+			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.componentInstance.attrs.pkg, instance.getPackageId());
 	}
 	if (type === 'GImage') {
 		writeImageXmlAttributes(attrs, obj as GImage);
@@ -302,7 +313,7 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 		writeListXmlNode(attrs, obj as GList | GTree);
 	}
 
-	const extension = type === 'GComponent'
+	const extension = ['GComponent', 'GButton', 'GLabel'].includes(type)
 		? writeComponentInstanceXmlNode(attrs, obj as GComponent)
 		: undefined;
 
@@ -321,15 +332,21 @@ function writeImageXmlAttributes(attrs: Record<string, unknown>, object: GImage)
 	if (src) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.src, src);
 	if (object.getPackageId()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.pkg, object.getPackageId());
 	const imageColor = object.getColor();
-	if (imageColor && !isDefaultWhiteColor(imageColor)) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.color, imageColor);
+	if (imageColor && !isDefaultWhiteColor(imageColor))
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.color, imageColor);
 	const flip = object.getFlip() ?? 0;
 	if (flip !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.flip, formatImageFlip(flip));
 	const fillMethod = object.getFillMethod() ?? 0;
 	if (fillMethod !== 0) {
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.fillMethod, formatFillMethod(fillMethod));
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.fillOrigin, String(object.getFillOrigin() ?? 0));
-		if (object.getFillClockwise() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.fillClockwise, 'false');
-		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.fillAmount, String(Math.round((object.getFillAmount() ?? 0) * 100)));
+		if (object.getFillClockwise() === false)
+			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.fillClockwise, 'false');
+		writeXmlAttr(
+			attrs,
+			PROJECT_XML_PROTOCOL.image.attrs.fillAmount,
+			String(Math.round((object.getFillAmount() ?? 0) * 100)),
+		);
 	}
 }
 
@@ -344,7 +361,8 @@ function writeGraphXmlAttributes(attrs: Record<string, unknown>, object: GGraph)
 		};
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.type, graphTypeName[graphType] ?? 'rect');
 	}
-	if ((object.getLineSize() ?? 1) !== 1) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.lineSize, String(object.getLineSize() ?? 1));
+	if ((object.getLineSize() ?? 1) !== 1)
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.lineSize, String(object.getLineSize() ?? 1));
 	const lineColor = object.getLineColor();
 	if (lineColor && !sameColor(lineColor, '#000000') && !sameColor(lineColor, '#ff000000')) {
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.lineColor, formatXmlColor(lineColor));
@@ -395,7 +413,8 @@ function writeLoaderXmlAttributes(attrs: Record<string, unknown>, object: GLoade
 	if (object.getUseResize()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.useResize, '1');
 	if (object.getShowErrorSign()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.errorSign, 'true');
 	const loaderColor = object.getColor();
-	if (loaderColor && !isDefaultWhiteColor(loaderColor)) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.color, loaderColor);
+	if (loaderColor && !isDefaultWhiteColor(loaderColor))
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.color, loaderColor);
 	if (object.getPlaying() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.playing, 'false');
 	const frame = object.getFrame() ?? 0;
 	if (frame !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.frame, String(frame));
@@ -403,8 +422,13 @@ function writeLoaderXmlAttributes(attrs: Record<string, unknown>, object: GLoade
 	if (fillMethod !== 0) {
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fillMethod, formatFillMethod(fillMethod));
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fillOrigin, String(object.getFillOrigin() ?? 0));
-		if (object.getFillClockwise() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fillClockwise, 'false');
-		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fillAmount, String(Math.round((object.getFillAmount() ?? 0) * 100)));
+		if (object.getFillClockwise() === false)
+			writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fillClockwise, 'false');
+		writeXmlAttr(
+			attrs,
+			PROJECT_XML_PROTOCOL.loader.attrs.fillAmount,
+			String(Math.round((object.getFillAmount() ?? 0) * 100)),
+		);
 	}
 	if (object.getClearOnPublish()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.clearOnPublish, 'true');
 }

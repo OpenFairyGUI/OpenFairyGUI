@@ -46,33 +46,69 @@ export class Controller extends ExtensibleProperty<IController> {
 		});
 	}
 
-	public getSelectedIndex(): number { return this.get('selectedIndex'); }
-	public setSelectedIndex(v: number): this { return this.set('selectedIndex', v); }
+	public getSelectedIndex(): number {
+		return this.get('selectedIndex');
+	}
+	public setSelectedIndex(v: number): this {
+		return this.set('selectedIndex', v);
+	}
 
-	public getAutoRadioGroupDepth(): boolean { return this.get('autoRadioGroupDepth'); }
-	public setAutoRadioGroupDepth(v: boolean): this { return this.set('autoRadioGroupDepth', v); }
+	public getAutoRadioGroupDepth(): boolean {
+		return this.get('autoRadioGroupDepth');
+	}
+	public setAutoRadioGroupDepth(v: boolean): this {
+		return this.set('autoRadioGroupDepth', v);
+	}
 
-	public getAlias(): string { return this.get('alias'); }
-	public setAlias(v: string): this { return this.set('alias', v); }
+	public getAlias(): string {
+		return this.get('alias');
+	}
+	public setAlias(v: string): this {
+		return this.set('alias', v);
+	}
 
-	public getExported(): boolean { return this.get('exported'); }
-	public setExported(v: boolean): this { return this.set('exported', v); }
+	public getExported(): boolean {
+		return this.get('exported');
+	}
+	public setExported(v: boolean): this {
+		return this.set('exported', v);
+	}
 
-	public getHomePageType(): ControllerHomePageType { return this.get('homePageType'); }
-	public setHomePageType(v: ControllerHomePageType): this { return this.set('homePageType', v); }
+	public getHomePageType(): ControllerHomePageType {
+		return this.get('homePageType');
+	}
+	public setHomePageType(v: ControllerHomePageType): this {
+		return this.set('homePageType', v);
+	}
 
-	public getHomePage(): string { return this.get('homePage'); }
-	public setHomePage(v: string): this { return this.set('homePage', v); }
+	public getHomePage(): string {
+		return this.get('homePage');
+	}
+	public setHomePage(v: string): this {
+		return this.set('homePage', v);
+	}
 
-	public addPage(page: ControllerPage): this { return this.addRef('pages', page); }
-	public removePage(page: ControllerPage): this { return this.removeRef('pages', page); }
-	public listPages(): ControllerPage[] { return this.listRefs('pages'); }
+	public addPage(page: ControllerPage): this {
+		return this.addRef('pages', page);
+	}
+	public removePage(page: ControllerPage): this {
+		return this.removeRef('pages', page);
+	}
+	public listPages(): ControllerPage[] {
+		return this.listRefs('pages');
+	}
 
 	public getPage(name: string): ControllerPage | null {
 		return this.listPages().find((p) => p.getName() === name) || null;
 	}
 
-	public addAction(action: ControllerAction): this { return this.addRef('actions', action); }
-	public removeAction(action: ControllerAction): this { return this.removeRef('actions', action); }
-	public listActions(): ControllerAction[] { return this.listRefs('actions'); }
+	public addAction(action: ControllerAction): this {
+		return this.addRef('actions', action);
+	}
+	public removeAction(action: ControllerAction): this {
+		return this.removeRef('actions', action);
+	}
+	public listActions(): ControllerAction[] {
+		return this.listRefs('actions');
+	}
 }
