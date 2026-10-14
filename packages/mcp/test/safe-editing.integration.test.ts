@@ -232,8 +232,8 @@ for (const [fixtureName, relativeFairyPath] of [
 			assert(query.ok && query.data.entity.kind === 'project');
 			const settings = query.data.entity.properties.settings;
 			assert(settings.publish && settings.common);
-			t.is(settings.publish.jpegQuality, sourcePublish.jpegQuality); t.is(settings.publish.compressPNG, sourcePublish.compressPNG);
-			t.is(settings.common.fontAdjustment, sourceCommon.fontAdjustment);
+			t.is<unknown, unknown>(settings.publish.jpegQuality, sourcePublish.jpegQuality); t.is<unknown, unknown>(settings.publish.compressPNG, sourcePublish.compressPNG);
+			t.is<unknown, unknown>(settings.common.fontAdjustment, sourceCommon.fontAdjustment);
 			for (const derived of ['fileName', 'include2x', 'include3x', 'include4x']) t.false(derived in settings.publish, derived);
 			t.false('fileName' in settings.common); t.false('fileName' in (settings.adaptation ?? {}));
 
