@@ -71,6 +71,7 @@ ProjectWriter 在写盘前构建一次包/分支输出描述，固定描述文�
 
 | 文件 | 不变量 |
 |---|---|
+| `operation-shape.ts` | 所有阶段之前的操作外形：数组、对象、已知 `kind`、必填/未知字段、字段 JS 类型与 selector 字段 |
 | `support.ts`、`values.ts` | 支持范围、selector、诊断构造、共享值与安全名称校验 |
 | `settings.ts` | 工程/包设置快照、JSON-safe 值及规范比较 |
 | `display.ts` | 节点类型对应的属性快照与无变化判定 |
@@ -78,6 +79,8 @@ ProjectWriter 在写盘前构建一次包/分支输出描述，固定描述文�
 | `resources.ts`、`resource-folders.ts` | 资源源字节、PNG/JPEG/JTA、目录与 atlas 约束 |
 | `lifecycle.ts` | 在同一工作副本中按顺序投影分支、包、组件、资源、目录及显示列表重写 |
 | `projected-state.ts` | 最终 group / 资源引用，以及未触及的既有问题边界 |
+
+外形表由 `transaction-contracts.ts` 的类型推导约束，字段集合、可选性或类型漂移会导致类型检查失败；任一操作外形不符时返回 `invalid_operation_payload` 并停止后续阶段，因为同批投影会读取其他操作。快照载荷（包、组件、资源、显示节点）先由所属领域检查容器，再交给 Core 规范化；无法规范化的载荷在该载荷路径上报告。事务执行中出现的非 `UamTransactionError` 异常统一转为 `execution_failure`，不会作为原始异常抛给宿主。
 
 生命周期投影复用实际 UAM apply helper，不另建执行器。领域函数不能各自遍历并重排整个批次；错误码、路径、诊断顺序与失败不修改输入必须保持。`uam-transaction-support.test.ts`、`uam-transaction-apply.test.ts`、`uam-transaction-lifecycle.test.ts` 覆盖这些职责和跨域批次。
 

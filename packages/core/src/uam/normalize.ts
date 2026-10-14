@@ -618,7 +618,7 @@ function normalizePlainTextProperties(properties: UamPlainTextProperties): UamPl
 	};
 }
 
-function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
+export function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 	const base = {
 		id: node.id,
 		name: node.name ?? '',
@@ -1158,7 +1158,7 @@ function normalizeAssetResource(resource: UamAssetResource): UamAssetResource {
 	};
 }
 
-function normalizeResource(resource: UamResource): UamResource {
+export function normalizeResource(resource: UamResource): UamResource {
 	if (resource.kind === 'component') {
 		return {
 			kind: 'component',

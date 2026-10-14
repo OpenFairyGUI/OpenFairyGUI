@@ -70,6 +70,7 @@ The stable entry is `packages/core/src/uam/transaction.ts`. `validateTransaction
 
 | File | Invariants |
 |---|---|
+| `operation-shape.ts` | Operation envelope before every phase: array, object, known `kind`, required/unknown fields, field JS types and selector fields |
 | `support.ts`, `values.ts` | Support scope, selectors, diagnostic construction, shared value and safe-name checks |
 | `settings.ts` | Project/package settings snapshots, JSON-safe values and canonical comparison |
 | `display.ts` | Node-kind-specific property snapshots and unchanged-result rejection |
@@ -77,6 +78,8 @@ The stable entry is `packages/core/src/uam/transaction.ts`. `validateTransaction
 | `resources.ts`, `resource-folders.ts` | Source bytes, PNG/JPEG/JTA, folders and atlas constraints |
 | `lifecycle.ts` | Ordered branch/package/component/resource/folder/display-list projection on one working copy |
 | `projected-state.ts` | Final group/resource references and boundaries for untouched pre-existing issues |
+
+The envelope table is typed from `transaction-contracts.ts`, so drift in fields, optionality or types fails type checking. Any envelope mismatch returns `invalid_operation_payload` and stops later phases, because same-batch projections read other operations. Snapshot payloads (package, component, resource, display node) have their containers checked by the owning domain, then pass through Core normalization; a payload that cannot be normalized is reported at its payload path. A non-`UamTransactionError` exception during transaction execution becomes `execution_failure` instead of reaching the host as a raw exception.
 
 Lifecycle projection reuses actual UAM apply helpers, not another executor. Domain functions must not independently traverse and reorder the whole batch. Preserve diagnostic codes, paths, ordering and input immutability on failure. `uam-transaction-support.test.ts`, `uam-transaction-apply.test.ts` and `uam-transaction-lifecycle.test.ts` cover these responsibilities and cross-domain batches.
 

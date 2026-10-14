@@ -4,7 +4,7 @@ import type { UamProject } from './model.js';
 import { normalizeUamProject } from './normalize.js';
 import { UamTransactionError, type UamTransactionOperation } from './transaction-contracts.js';
 import { applyDocumentOperation } from './transaction-document-apply.js';
-import { assertTransactionSupported } from './transaction-preflight.js';
+import { assertTransactionOperationShapes, assertTransactionSupported } from './transaction-preflight.js';
 import { asTransactionError, findProjectedResource, selectorDetails } from './transaction-shared.js';
 import { applyUamNativeOperations, canApplyOperationsInUam } from './transaction-uam-apply.js';
 import { validateUamProject } from './validate.js';
@@ -46,7 +46,20 @@ export function createUamTransaction(project: UamProject): UamTransaction {
 	return new UamTransaction(project);
 }
 
+/** Transactions only fail with UamTransactionError; an unexpected exception is an execution failure, not a crash. */
+function asExecutionFailure(error: unknown): UamTransactionError {
+	return error instanceof UamTransactionError ? error : asTransactionError(error, { code: 'execution_failure' });
+}
+
 function applyNormalizedUamTransaction(baseline: UamProject, operations: UamTransactionOperation[]): UamProject {
+	try {
+		return applyCheckedUamTransaction(baseline, operations);
+	} catch (error) {
+		throw asExecutionFailure(error);
+	}
+}
+
+function applyCheckedUamTransaction(baseline: UamProject, operations: UamTransactionOperation[]): UamProject {
 	assertTransactionSupported(baseline, operations);
 	if (canApplyOperationsInUam(operations)) {
 		return applyUamNativeOperations(baseline, operations);
@@ -104,18 +117,26 @@ export async function applyUamTransactionAsync(
 	project: UamProject,
 	operations: UamTransactionOperation[],
 ): Promise<UamProject> {
+	// Byte preparation reads operations before Phase A, so it needs the contract envelope first.
+	assertTransactionOperationShapes(operations);
 	if (typeof Worker !== 'function' || !operations.some((operation) => operation.kind === 'replaceResourceBytes'))
 		return applyUamTransaction(project, operations);
 	const safeProject = normalizeUamProject(project);
-	const safeOperations = structuredClone(operations);
-	const imageBytes = safeOperations.flatMap((operation, operationIndex) => {
-		if (operation.kind !== 'replaceResourceBytes' || !(operation.sourceBytes instanceof Uint8Array)) return [];
-		if (findProjectedResource(safeProject, safeOperations, operationIndex, operation.selector)?.kind !== 'image') return [];
-		if (typeof SharedArrayBuffer !== 'undefined' && operation.sourceBytes.buffer instanceof SharedArrayBuffer) {
-			operation.sourceBytes = new Uint8Array(operation.sourceBytes);
-		}
-		return [operation.sourceBytes];
-	});
+	let safeOperations: UamTransactionOperation[];
+	let imageBytes: Uint8Array[];
+	try {
+		safeOperations = structuredClone(operations);
+		imageBytes = safeOperations.flatMap((operation, operationIndex) => {
+			if (operation.kind !== 'replaceResourceBytes' || !(operation.sourceBytes instanceof Uint8Array)) return [];
+			if (findProjectedResource(safeProject, safeOperations, operationIndex, operation.selector)?.kind !== 'image') return [];
+			if (typeof SharedArrayBuffer !== 'undefined' && operation.sourceBytes.buffer instanceof SharedArrayBuffer) {
+				operation.sourceBytes = new Uint8Array(operation.sourceBytes);
+			}
+			return [operation.sourceBytes];
+		});
+	} catch (error) {
+		throw asExecutionFailure(error);
+	}
 	for (const bytes of imageBytes) await prepareBrowserRasterValidation(bytes);
 	try {
 		return applyNormalizedUamTransaction(safeProject, safeOperations);

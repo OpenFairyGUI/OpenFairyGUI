@@ -27,6 +27,7 @@ import {
 } from '../transaction-uam-apply.js';
 import {
 	pushSupportIssue,
+	validateDisplayNodePayload,
 	validateSupportedDisplayNode,
 	validateTouchedDisplayNodeKind,
 	validateLifecyclePackageSelector,
@@ -48,6 +49,24 @@ import {
 } from './resource-folders.js';
 import { validateAssetResourcePayload } from './resources.js';
 
+/** Normalizes and validates a snapshot payload in isolation; unreadable structure becomes one payload issue. */
+function validateSnapshotModel(
+	build: () => UamProject,
+	path: string,
+	code: 'invalid_package_payload' | 'invalid_component_payload',
+	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
+): { project: UamProject; issues: ReturnType<typeof validateUamProject> } | null {
+	try {
+		const project = normalizeUamProject(build());
+		return { project, issues: validateUamProject(project) };
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		pushSupportIssue(issues, code, path, `Payload does not match the UAM model: ${message}`, { operationKind });
+		return null;
+	}
+}
+
 function validatePackagePayload(
 	project: UamProject,
 	pkg: UamPackage,
@@ -55,6 +74,7 @@ function validatePackagePayload(
 	issues: UamTransactionSupportIssue[],
 	operationKind: UamTransactionOperation['kind'],
 ): void {
+	const issueCount = issues.length;
 	if (!pkg.id) {
 		pushSupportIssue(issues, 'invalid_package_payload', `${path}.id`, 'Package id must not be empty.', { operationKind });
 	}
@@ -66,16 +86,27 @@ function validatePackagePayload(
 		jpegQuality: pkg.jpegQuality,
 		publish: pkg.publish,
 	}, path, issues, operationKind);
+	// The model snapshot is only read once its identity and settings are well formed.
+	if (issues.length > issueCount) return;
+	const snapshot = validateSnapshotModel(
+		() => ({ ...project, packages: [pkg] }),
+		path,
+		'invalid_package_payload',
+		issues,
+		operationKind,
+	);
+	if (!snapshot) return;
 
-	const standalone = normalizeUamProject({ ...project, packages: [pkg] });
-	for (const issue of validateUamProject(standalone)) {
+	for (const issue of snapshot.issues) {
 		const suffix = issue.path.startsWith('packages[0]') ? issue.path.slice('packages[0]'.length) : `.${issue.path}`;
 		pushSupportIssue(issues, 'invalid_package_payload', `${path}${suffix}`, issue.message, { operationKind });
 	}
 
-	for (const [resourceIndex, resource] of pkg.resources.entries()) {
+	// Normalization preserves resource order; primary bytes are checked on the caller's own values.
+	for (const [resourceIndex, resource] of snapshot.project.packages[0]!.resources.entries()) {
 		const resourcePath = `${path}.resources[${resourceIndex}]`;
-		if (resource.kind !== 'component' && !(resource.sourceBytes instanceof Uint8Array)) {
+		const sourceBytes = resource.kind === 'component' ? undefined : (pkg.resources[resourceIndex] as typeof resource).sourceBytes;
+		if (resource.kind !== 'component' && !(sourceBytes instanceof Uint8Array)) {
 			pushSupportIssue(
 				issues,
 				'unavailable_resource_source_bytes',
@@ -84,9 +115,9 @@ function validatePackagePayload(
 				{ operationKind, resourceKind: resource.kind },
 			);
 		}
-		if (resource.kind === 'movieClip' && resource.sourceBytes instanceof Uint8Array) {
+		if (resource.kind === 'movieClip' && sourceBytes instanceof Uint8Array) {
 			try {
-				deriveMovieClipModelFromJta(resource.sourceBytes);
+				deriveMovieClipModelFromJta(sourceBytes);
 			} catch (error) {
 				pushSupportIssue(
 					issues,
@@ -114,19 +145,28 @@ function validateComponentPayload(
 	issues: UamTransactionSupportIssue[],
 	operationKind: UamTransactionOperation['kind'],
 ): void {
+	if (component.kind !== 'component') {
+		pushSupportIssue(issues, 'invalid_component_payload', `${path}.kind`, 'Component payload kind must be "component".', { operationKind });
+		return;
+	}
+	const snapshot = validateSnapshotModel(
+		() => ({ ...project, packages: [{ ...pkg, resources: [component] }] }),
+		path,
+		'invalid_component_payload',
+		issues,
+		operationKind,
+	);
+	if (!snapshot) return;
 	if (!component.id) {
 		pushSupportIssue(issues, 'invalid_component_payload', `${path}.id`, 'Component id must not be empty.', { operationKind });
 	}
-	const standalone = normalizeUamProject({
-		...project,
-		packages: [{ ...pkg, resources: [component] }],
-	});
-	for (const issue of validateUamProject(standalone)) {
+	for (const issue of snapshot.issues) {
 		const prefix = 'packages[0].resources[0]';
 		const suffix = issue.path.startsWith(prefix) ? issue.path.slice(prefix.length) : `.${issue.path}`;
 		pushSupportIssue(issues, 'invalid_component_payload', `${path}${suffix}`, issue.message, { operationKind });
 	}
-	for (const [nodeIndex, node] of component.component.displayList.entries()) {
+	const normalized = snapshot.project.packages[0]!.resources[0] as UamComponentResource;
+	for (const [nodeIndex, node] of normalized.component.displayList.entries()) {
 		validateSupportedDisplayNode(node, pkg.id, `${path}.component.displayList[${nodeIndex}]`, issues, {
 			operationKind,
 		});
@@ -498,9 +538,6 @@ export function validateLifecycleOperationPayloads(
 				if (branch && (!isSafePackageName(branch) || !projected.branches.includes(branch))) {
 					pushSupportIssue(issues, 'invalid_resource_folder_path', `${operationPath}.branch`, `Resource folder branch "${branch}" is not defined by the project.`, { operationKind: operation.kind });
 				}
-				if (operation.favorite !== undefined && typeof operation.favorite !== 'boolean') {
-					pushSupportIssue(issues, 'invalid_resource_payload', `${operationPath}.favorite`, 'addResourceFolder.favorite must be boolean.', { operationKind: operation.kind });
-				}
 				validateResourceFolderAtlas(
 					operation.atlas === undefined ? '' : operation.atlas,
 					pkg ? resourceFolderMaxAtlasIndexAt(pkg, operations, operationIndex) : 10,
@@ -586,7 +623,7 @@ export function validateLifecycleOperationPayloads(
 						{ operationKind: operation.kind },
 					);
 				}
-				validateSupportedDisplayNode(operation.node, operation.selector.packageId, `${operationPath}.node`, issues, {
+				validateDisplayNodePayload(operation.node, operation.selector.packageId, `${operationPath}.node`, issues, {
 					operationKind: operation.kind,
 				});
 				if (component && Number.isInteger(operation.atIndex) && operation.atIndex >= 0) {

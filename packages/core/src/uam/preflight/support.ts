@@ -1,6 +1,7 @@
 import {
 	type UamComponentResource,
 	type UamDisplayNode,
+	type UamGearBinding,
 	type UamPackage,
 	type UamProject,
 	UAM_SUPPORTED_TRANSACTION_SCOPE,
@@ -20,6 +21,8 @@ import {
 	findPackageSpec,
 	findProjectedResource,
 } from '../transaction-shared.js';
+import { normalizeDisplayNode } from '../normalize.js';
+import { isPlainRecord, isRecordArray, isStringArray } from './values.js';
 
 export function pushSupportIssue(
 	issues: UamTransactionSupportIssue[],
@@ -41,6 +44,56 @@ function countDuplicateNames(values: string[]): Set<string> {
 	return duplicates;
 }
 
+/** A malformed container inside a payload, with its path relative to that payload. */
+export interface PayloadContainerIssue {
+	path: string;
+	message: string;
+}
+
+/** Gear containers that support checks and same-batch projections iterate. */
+export function gearContainerIssue(gear: UamGearBinding): PayloadContainerIssue | null {
+	if (gear.kind === 'display' || gear.kind === 'display2') {
+		return isStringArray(gear.visibleOnPageIds)
+			? null
+			: { path: 'visibleOnPageIds', message: 'Display gear visibleOnPageIds must be an array of page ids.' };
+	}
+	if (!isRecordArray(gear.states)) return { path: 'states', message: 'Gear states must be an array of page state objects.' };
+	for (const [stateIndex, state] of gear.states.entries()) {
+		if (typeof state.pageId !== 'string') {
+			return { path: `states[${stateIndex}].pageId`, message: 'Gear state pageId must be a string.' };
+		}
+	}
+	return null;
+}
+
+/** Snapshot payloads must be readable by Core normalization before any stage projects them. */
+export function normalizationFailure(normalize: () => unknown): string | null {
+	try {
+		normalize();
+		return null;
+	} catch (error) {
+		return error instanceof Error ? error.message : String(error);
+	}
+}
+
+/** A display node supplied by an operation, rather than one already in the normalized project. */
+export function validateDisplayNodePayload(
+	node: UamDisplayNode,
+	owningPackageId: string,
+	path: string,
+	issues: UamTransactionSupportIssue[],
+	details: Omit<Partial<UamTransactionSupportIssue>, 'code' | 'path' | 'message' | 'nodeKind' | 'gearKind'> = {},
+): void {
+	const issueCount = issues.length;
+	validateSupportedDisplayNode(node, owningPackageId, path, issues, details);
+	// Precise container issues come first; normalization covers the remaining model structure.
+	if (issues.length > issueCount) return;
+	const failure = normalizationFailure(() => normalizeDisplayNode(node));
+	if (failure) {
+		pushSupportIssue(issues, 'invalid_display_node_payload', path, `Display node payload does not match the UAM model: ${failure}`, details);
+	}
+}
+
 export function validateSupportedDisplayNode(
 	node: UamDisplayNode,
 	owningPackageId: string,
@@ -48,6 +101,10 @@ export function validateSupportedDisplayNode(
 	issues: UamTransactionSupportIssue[],
 	details: Omit<Partial<UamTransactionSupportIssue>, 'code' | 'path' | 'message' | 'nodeKind' | 'gearKind'> = {},
 ): void {
+	if (!isPlainRecord(node)) {
+		pushSupportIssue(issues, 'invalid_display_node_payload', path, 'Display node must be an object.', details);
+		return;
+	}
 	if (!UAM_SUPPORTED_TRANSACTION_SCOPE.nodeKinds.includes(node.kind as never)) {
 		pushSupportIssue(
 			issues,
@@ -58,7 +115,9 @@ export function validateSupportedDisplayNode(
 		);
 	}
 
-	if (node.kind === 'image' && node.resource.packageId && node.resource.packageId !== owningPackageId) {
+	if (node.kind === 'image' && !isPlainRecord(node.resource)) {
+		pushSupportIssue(issues, 'invalid_display_node_payload', `${path}.resource`, 'Image display node resource must be an object.', details);
+	} else if (node.kind === 'image' && node.resource.packageId && node.resource.packageId !== owningPackageId) {
 		pushSupportIssue(
 			issues,
 			'unsupported_cross_package_image_ref',
@@ -68,8 +127,17 @@ export function validateSupportedDisplayNode(
 		);
 	}
 
+	if (!isRecordArray(node.gears)) {
+		pushSupportIssue(issues, 'invalid_display_node_payload', `${path}.gears`, 'Display node gears must be an array of gear objects.', details);
+		return;
+	}
 	const gearKinds = new Set<string>();
 	for (const [gearIndex, gear] of node.gears.entries()) {
+		const containerIssue = gearContainerIssue(gear);
+		if (containerIssue) {
+			pushSupportIssue(issues, 'invalid_display_node_payload', `${path}.gears[${gearIndex}].${containerIssue.path}`, containerIssue.message, details);
+			continue;
+		}
 		if (!UAM_SUPPORTED_TRANSACTION_SCOPE.gearKinds.includes(gear.kind as never)) {
 			pushSupportIssue(
 				issues,

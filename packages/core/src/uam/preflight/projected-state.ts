@@ -70,10 +70,11 @@ function collectProjectedResourceReferenceIssues(project: UamProject): Projected
 	const pushMissingUi = (
 		key: string,
 		path: string,
-		value: string,
+		value: unknown,
 		expectedKinds: readonly UamPackage['resources'][number]['kind'][],
 	) => {
-		if (!value.startsWith('ui://')) return;
+		// Non-string values are reported by model validation.
+		if (typeof value !== 'string' || !value.startsWith('ui://')) return;
 		const target = findUiResource(project, value);
 		if (target && expectedKinds.includes(target.kind)) return;
 		issues.push({

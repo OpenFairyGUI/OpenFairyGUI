@@ -18,7 +18,8 @@ import {
 	findProjectedResource,
 	renamedResourceFileName,
 } from '../transaction-shared.js';
-import { pushSupportIssue, validateTouchedResourceKind } from './support.js';
+import { normalizationFailure, pushSupportIssue, validateTouchedResourceKind } from './support.js';
+import { normalizeResource } from '../normalize.js';
 import { isSafeResourceFileName, isSafeResourcePath } from './values.js';
 
 export function primaryResourceFileName(resource: UamAssetResource): string {
@@ -78,6 +79,17 @@ export function validateAssetResourcePayload(
 ): void {
 	const pkg = findPackageSpec(project, selector.packageId);
 	if (!pkg) return;
+	const failure = normalizationFailure(() => normalizeResource(resource));
+	if (failure) {
+		pushSupportIssue(
+			issues,
+			'invalid_resource_payload',
+			`${path}.resource`,
+			`Resource payload does not match the UAM model: ${failure}`,
+			{ operationKind },
+		);
+		return;
+	}
 	if (!UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds.includes(resource.kind as never)) {
 		pushSupportIssue(
 			issues,
@@ -260,27 +272,9 @@ export function validateResourceOperation(
 		break;
 	case 'setResourceFavorite':
 		validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
-		if (typeof operation.favorite !== 'boolean') {
-			pushSupportIssue(
-				issues,
-				'invalid_resource_payload',
-				`${operationPath}.favorite`,
-				'setResourceFavorite.favorite must be boolean.',
-				{ operationKind: 'setResourceFavorite' },
-			);
-		}
 		break;
 	case 'setResourceExported':
 		validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
-		if (typeof operation.exported !== 'boolean') {
-			pushSupportIssue(
-				issues,
-				'invalid_resource_payload',
-				`${operationPath}.exported`,
-				'setResourceExported.exported must be boolean.',
-				{ operationKind: operation.kind },
-			);
-		}
 		break;
 	case 'setImageResourceProps': {
 		validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
@@ -311,16 +305,6 @@ export function validateResourceOperation(
 		validateTouchedResourceKind(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
 		validateBinaryResourceTarget(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
 		validateAssetSourceBytes(project, operations, operationIndex, operation.selector, `${operationPath}.selector.resourceId`, issues, operation.kind);
-		if (!(operation.sourceBytes instanceof Uint8Array)) {
-			pushSupportIssue(
-				issues,
-				'unavailable_resource_source_bytes',
-				`${operationPath}.sourceBytes`,
-				'replaceResourceBytes.sourceBytes must be a Uint8Array.',
-				{ operationKind: operation.kind },
-			);
-			break;
-		}
 		const resource = findProjectedResource(project, operations, operationIndex, operation.selector);
 		if (resource?.kind === 'movieClip') {
 			try {
