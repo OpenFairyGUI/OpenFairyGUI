@@ -86,9 +86,9 @@ Codex 非交互参数、JSONL 事件与配置覆盖依据[官方非交互文档]
 
 真实模型仅手动运行，不在 PR CI 中调用，不创建定时任务，也不自动重试到通过。复现失败请先使用保留归档和同一 CLI/模型，再决定修复产品、宿主还是客户端兼容问题；新运行不删除旧失败记录。
 
-第二客户端：`pnpm eval:agent --runner claude --claude <native-executable>`。使用 bare/restricted 模式、禁用内建工具、严格 MCP 配置；初始化工具清单或实际调用出现额外能力即判隔离失败。CLI 参数依据 [Claude Code 官方参考](https://code.claude.com/docs/en/cli-reference)。新增 compound-edit 任务要求先编辑并保存，再重新查询、重命名并再次保存。版本化证据见 agent/evals/baselines；reference 结果不是模型成绩。真实客户端运行需要本机可用的认证与兼容 CLI，未运行不得填成功率。
+第二客户端：`pnpm eval:agent --runner claude --claude <native-executable>`。使用 bare/restricted 模式、禁用内建工具、严格 MCP 配置；初始化工具清单或实际调用出现额外能力即判隔离失败。CLI 参数依据 [Claude Code 官方参考](https://code.claude.com/docs/en/cli-reference)。新增 compound-edit 任务要求先编辑并保存，再重新查询、重命名并再次保存。reference 结果不是模型成绩。真实客户端运行需要本机可用的认证与兼容 CLI，未运行不得填成功率。
 
-可用 `--report agent/evals/baselines/<version>-<runner>.json` 导出版本化结果（失败也保留报告）。报告包含安装版本、tarball/任务集摘要、工作区 dirty 标记和逐项判断；错误栈与完整现场保留在仓库外。
+可用 `--report <仓库外路径>/<version>-<runner>.json` 导出版本化结果（失败也保留报告），报告不提交到仓库。报告包含安装版本、tarball/任务集摘要、工作区 dirty 标记和逐项判断；错误栈与完整现场同样保留在仓库外。
 
 认证设置不会自动从个人配置继承。`bare` 模式不读取订阅 OAuth 登录；可使用客户端支持的 API/provider 环境认证，或显式添加 `--claude-settings <settings.json>`，由 Claude 自己读取该文件（评测器不复制凭据）。只提供本次评测需要的认证/provider 设置，不包含自定义 hooks、plugins 或工具。此参数仅适用于 Claude，保留 bare/restricted、禁用 skills 和内建工具、严格 MCP 清单等约束。认证失败、429 与超时属于运行环境失败；保留原始报告，但不得将其解释为模型能力得分。参见 [Claude 程序化认证说明](https://code.claude.com/docs/en/headless#start-faster-with-bare-mode)。
 
