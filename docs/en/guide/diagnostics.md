@@ -845,7 +845,7 @@ Inspect the execution/cache failure and current session/revision. Preserve sourc
 <!-- diagnostics:end -->
 
 <!-- product-facts:start -->
-Package: `0.6.1` · Backend contract: `3.0.0` · Capability schema: `15`
+Package: `0.6.3` · Backend contract: `3.0.0` · Capability schema: `15`
 
 Operations: 41 · Backend methods: 17 · CLI commands: 16 · Diagnostic codes: 103
 <!-- product-facts:end -->

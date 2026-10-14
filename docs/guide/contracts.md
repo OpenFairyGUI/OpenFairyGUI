@@ -56,7 +56,9 @@ MCP `resources/list` 提供 `openfairygui://contracts/operations`，列出正式
 
 `tools/list` 的每个工具使用对应 Backend 方法的输入/输出 schema，不再共享宽泛的结果定义。工具 `_meta` 中的 `openfairygui/contractDigest`、operation catalog 和下表摘要对应同一份生成快照。参数或注解变化后，未更新快照或双语表格会使检查失败。
 
-MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 Zod 的 draft-07 `definitions` 与本地 `$ref` 复用重复结构，不展开整份事务子树。所有引用包含在单个 schema 内，无需网络解析。调用继续使用原 Zod 校验器和预算检查；这是传输表达优化，不新增或省略字段。原始安装契约/单项操作文档仍提供 draft-2020-12 `$defs`。真实客户端的发现和执行检查见[Agent 评测](./agent-evaluations.md)。
+MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 Zod 的 draft-07 `definitions` 与本地 `$ref` 复用重复结构，不展开整份事务子树。所有引用包含在单个 schema 内，无需网络解析。调用继续使用原 Zod 校验器和预算检查；这是传输表达优化，不新增或省略字段。原始安装契约/单项操作文档仍提供 draft-2020-12 `$defs`。
+
+`apply_transaction` / `preflight_transaction` 的工具说明给出以 `kind` 区分的最小 operation 示例，并指向上述 catalog 与单项 schema URI。按 `kind` 区分的联合校验失败时，MCP 只报告输入 `kind` 选中分支的问题，路径保持完整；operation 分支的问题消息附带 `openfairygui://contracts/operations/<kind>`。缺少或未知 `kind` 时只在 `…kind` 路径报告一个 `invalid_value` 问题，`values` 与消息列出全部有效 kind，operation 联合另附单项 schema URI 模板。其他联合保留 Zod 原始问题；`callOpenFairyGuiBackendTool` 直接调用抛出相同的问题列表。真实客户端的发现和执行检查见[Agent 评测](./agent-evaluations.md)。
 
 ## 查询当前实体
 
@@ -132,7 +134,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 下表只摘要顶层参数；嵌套字段和具体结果请读取对应 schema。SHA-256 变化表示生成契约发生变化，不等同于包版本号。
 
 <!-- contracts:start -->
-SHA-256: `0149738442b7e33781db0c613515bab0b1431c99f5f6a26260001893155b8d8f`
+SHA-256: `6127537d6b6106fee49befd57e7d702be6dcf02accf71455ecb2e24ad0051b7c`
 
 | 操作 | 参数（`?` 表示可选） |
 |---|---|

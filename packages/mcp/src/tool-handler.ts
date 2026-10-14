@@ -1,5 +1,5 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import type { z } from 'zod';
+import { z } from 'zod';
 import {
 	BACKEND_CAPABILITY_SCHEMA_VERSION,
 	BACKEND_CONTRACT_VERSION,
@@ -12,7 +12,7 @@ import {
 	type OpenFairyGuiBackendToolName,
 } from './tool-definitions.js';
 
-import { decodeToolBytes, CONTRACT_SNAPSHOT } from './contract-schema.js';
+import { decodeToolBytes, focusContractIssues, CONTRACT_SNAPSHOT } from './contract-schema.js';
 import type { McpUnhandledFailure, McpResponseBudgetFailure } from './tool-metadata.js';
 
 export type OpenFairyGuiBackendRuntime = Pick<BackendRuntime, BackendMethodName>;
@@ -124,7 +124,9 @@ export async function callOpenFairyGuiBackendTool(
 	if (!isOpenFairyGuiMcpPayloadWithinBudget(input, bytePaths)) {
 		throw new RangeError('MCP input exceeds the depth, node, key, string, or byte budget.');
 	}
-	const parsed = definition.inputSchema.parse(input) as Record<string, unknown>;
+	const checked = definition.inputSchema.safeParse(input);
+	if (!checked.success) throw new z.ZodRealError(focusContractIssues(checked.error.issues, input));
+	const parsed = checked.data as Record<string, unknown>;
 	const decoded = decodeToolBytes(parsed, bytePaths);
 	const startedAt = Date.now();
 	try {

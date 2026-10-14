@@ -702,6 +702,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				group: node.group ?? '',
 				resource: normalizeResourceRef(node.resource),
 				...(node.controllerOverrides ? { controllerOverrides: node.controllerOverrides } : {}),
+				...(node.pageController ? { pageController: node.pageController } : {}),
 				...(node.fileName ? { fileName: node.fileName } : {}),
 				...(node.propertyOverrides?.length
 					? { propertyOverrides: node.propertyOverrides.map((property) => ({ ...property })) }
@@ -862,6 +863,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				group: button.group ?? '',
 				src: button.src ?? '',
 				packageId: button.packageId ?? '',
+				...(button.pageController ? { pageController: button.pageController } : {}),
 				title: button.title ?? '',
 				icon: button.icon ?? '',
 				selectedTitle: button.selectedTitle ?? '',
@@ -884,6 +886,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				group: label.group ?? '',
 				src: label.src ?? '',
 				packageId: label.packageId ?? '',
+				...(label.pageController ? { pageController: label.pageController } : {}),
 				title: label.title ?? '',
 				icon: label.icon ?? '',
 				titleColor: label.titleColor ?? '',
@@ -900,6 +903,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				group: comboBox.group ?? '',
 				src: comboBox.src ?? '',
 				packageId: comboBox.packageId ?? '',
+				...(comboBox.pageController ? { pageController: comboBox.pageController } : {}),
 				title: comboBox.title ?? '',
 				icon: comboBox.icon ?? '',
 				titleColor: comboBox.titleColor ?? '#000000',
@@ -922,6 +926,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				group: progressBar.group ?? '',
 				src: progressBar.src ?? '',
 				packageId: progressBar.packageId ?? '',
+				...(progressBar.pageController ? { pageController: progressBar.pageController } : {}),
 				titleType: progressBar.titleType ?? 0,
 				min: progressBar.min ?? 0,
 				max: progressBar.max ?? 100,
@@ -939,6 +944,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				group: slider.group ?? '',
 				src: slider.src ?? '',
 				packageId: slider.packageId ?? '',
+				...(slider.pageController ? { pageController: slider.pageController } : {}),
 				titleType: slider.titleType ?? 0,
 				min: slider.min ?? 0,
 				max: slider.max ?? 100,
@@ -954,6 +960,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				group: scrollBar.group ?? '',
 				src: scrollBar.src ?? '',
 				packageId: scrollBar.packageId ?? '',
+				...(scrollBar.pageController ? { pageController: scrollBar.pageController } : {}),
 				fixedGripSize: scrollBar.fixedGripSize ?? false,
 			} satisfies UamScrollBarNode;
 		}

@@ -593,7 +593,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"name": "openfairygui_backend_preflight_transaction",
 			"backendMethod": "preflightTransaction",
 			"title": "Preview UAM Transaction",
-			"description": "Execute a revision-checked operation batch on an isolated project snapshot and discard the result. Returns the base revision and Core diagnostics; does not write, reserve a revision, or guarantee a later apply/save.",
+			"description": "Execute a revision-checked operation batch on an isolated project snapshot and discard the result. Each operations[] item is one object whose \"kind\" field selects its fields, e.g. {\"kind\":\"renameResource\",\"selector\":{\"packageId\":\"<packageId>\",\"resourceId\":\"<resourceId>\"},\"newName\":\"Panel\"} with IDs from openfairygui_backend_get_project_outline. Read openfairygui://contracts/operations for every kind and openfairygui://contracts/operations/{kind} for the exact fields of one kind before composing operations. Returns the base revision and Core diagnostics; does not write, reserve a revision, or guarantee a later apply/save.",
 			"annotations": {
 				"readOnlyHint": true,
 				"idempotentHint": true,
@@ -672,7 +672,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"name": "openfairygui_backend_apply_transaction",
 			"backendMethod": "applyTransaction",
 			"title": "Apply UAM Transaction",
-			"description": "Preflight first, then apply the same bounded operation batch with expectedRevision. On stale_write, re-query and reconsider the batch; do not retry blindly. Validate and save afterward.",
+			"description": "Apply a bounded, revision-checked UAM operation batch. Each operations[] item is one object whose \"kind\" field selects its fields, e.g. {\"kind\":\"renameResource\",\"selector\":{\"packageId\":\"<packageId>\",\"resourceId\":\"<resourceId>\"},\"newName\":\"Panel\"} with IDs from openfairygui_backend_get_project_outline. Read openfairygui://contracts/operations for every kind and openfairygui://contracts/operations/{kind} for the exact fields of one kind before composing operations. Check a batch first with openfairygui_backend_preflight_transaction. On stale_write, re-query and reconsider the batch; do not retry blindly. Validate and save afterward.",
 			"annotations": {
 				"readOnlyHint": false,
 				"destructiveHint": true,
@@ -5112,6 +5112,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"controllerOverrides": {
 					"type": "string"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"fileName": {
 					"type": "string"
 				},
@@ -6975,6 +6978,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"soundVolumeScale": {
 					"type": "number"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -7132,6 +7138,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"soundVolumeScale": {
 					"type": "number"
+				},
+				"pageController": {
+					"type": "string"
 				},
 				"src": {
 					"type": "string"
@@ -7311,6 +7320,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"soundVolumeScale": {
 					"type": "number"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -7470,6 +7482,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"soundVolumeScale": {
 					"type": "number"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -7618,6 +7633,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"wholeNumbers": {
 					"type": "boolean"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -7751,6 +7769,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"fixedGripSize": {
 					"type": "boolean"
+				},
+				"pageController": {
+					"type": "string"
 				},
 				"src": {
 					"type": "string"
@@ -16597,6 +16618,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"controllerOverrides": {
 					"type": "string"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"fileName": {
 					"type": "string"
 				},
@@ -18460,6 +18484,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"soundVolumeScale": {
 					"type": "number"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -18617,6 +18644,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"soundVolumeScale": {
 					"type": "number"
+				},
+				"pageController": {
+					"type": "string"
 				},
 				"src": {
 					"type": "string"
@@ -18796,6 +18826,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"soundVolumeScale": {
 					"type": "number"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -18955,6 +18988,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"soundVolumeScale": {
 					"type": "number"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -19103,6 +19139,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"wholeNumbers": {
 					"type": "boolean"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -19236,6 +19275,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"fixedGripSize": {
 					"type": "boolean"
+				},
+				"pageController": {
+					"type": "string"
 				},
 				"src": {
 					"type": "string"
@@ -24537,6 +24579,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"controllerOverrides": {
 					"type": "string"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"fileName": {
 					"type": "string"
 				},
@@ -26433,6 +26478,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"soundVolumeScale": {
 					"type": "number"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -26590,6 +26638,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"soundVolumeScale": {
 					"type": "number"
+				},
+				"pageController": {
+					"type": "string"
 				},
 				"src": {
 					"type": "string"
@@ -26769,6 +26820,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"soundVolumeScale": {
 					"type": "number"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -26928,6 +26982,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"soundVolumeScale": {
 					"type": "number"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -27076,6 +27133,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"wholeNumbers": {
 					"type": "boolean"
 				},
+				"pageController": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -27209,6 +27269,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"fixedGripSize": {
 					"type": "boolean"
+				},
+				"pageController": {
+					"type": "string"
 				},
 				"src": {
 					"type": "string"
@@ -33889,5 +33952,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "0149738442b7e33781db0c613515bab0b1431c99f5f6a26260001893155b8d8f"
+	"digest": "6127537d6b6106fee49befd57e7d702be6dcf02accf71455ecb2e24ad0051b7c"
 };
