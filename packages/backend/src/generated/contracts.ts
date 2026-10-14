@@ -570,7 +570,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"name": "openfairygui_backend_preflight_transaction",
 			"backendMethod": "preflightTransaction",
 			"title": "Preview UAM Transaction",
-			"description": "Execute a revision-checked operation batch on an isolated project snapshot and discard the result. Returns the base revision and Core diagnostics; does not write, reserve a revision, or guarantee a later apply/save.",
+			"description": "Execute a revision-checked operation batch on an isolated project snapshot and discard the result. Each operations[] item is one object whose \"kind\" field selects its fields, e.g. {\"kind\":\"renameResource\",\"selector\":{\"packageId\":\"<packageId>\",\"resourceId\":\"<resourceId>\"},\"newName\":\"Panel\"} with IDs from openfairygui_backend_get_project_outline. Read openfairygui://contracts/operations for every kind and openfairygui://contracts/operations/{kind} for the exact fields of one kind before composing operations. Returns the base revision and Core diagnostics; does not write, reserve a revision, or guarantee a later apply/save.",
 			"annotations": {
 				"readOnlyHint": true,
 				"idempotentHint": true,
@@ -648,7 +648,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"name": "openfairygui_backend_apply_transaction",
 			"backendMethod": "applyTransaction",
 			"title": "Apply UAM Transaction",
-			"description": "Apply a bounded, revision-checked UAM operation batch using the Core transaction discriminants.",
+			"description": "Apply a bounded, revision-checked UAM operation batch. Each operations[] item is one object whose \"kind\" field selects its fields, e.g. {\"kind\":\"renameResource\",\"selector\":{\"packageId\":\"<packageId>\",\"resourceId\":\"<resourceId>\"},\"newName\":\"Panel\"} with IDs from openfairygui_backend_get_project_outline. Read openfairygui://contracts/operations for every kind and openfairygui://contracts/operations/{kind} for the exact fields of one kind before composing operations. Check a batch first with openfairygui_backend_preflight_transaction.",
 			"annotations": {
 				"readOnlyHint": false,
 				"destructiveHint": true,
@@ -24221,5 +24221,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "a697049ea5b7971d610ddc730833f5db8bfc0f1979a488f8f23c914924e29f51"
+	"digest": "8a681d6ee3501b3d7a2ca4bed4daa9e08a942a6a3a4d3a274da05e6696c96301"
 };
