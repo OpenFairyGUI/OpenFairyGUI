@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import test from 'ava';
+import test, { type ExecutionContext } from 'ava';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { createNodeBackendFileSystem } from '../src/node.js';
@@ -228,6 +228,32 @@ test('a live foreign PID with a different OS creation identity does not keep a s
 	await lock.release();
 });
 
+test('a live foreign PID with an unverified identity keeps its lock', async (t) => {
+	const fixture = await createTempBackendProject();
+	t.teardown(() => fixture.cleanup());
+	const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {
+		stdio: 'ignore',
+		windowsHide: true,
+	});
+	await once(child, 'spawn');
+	t.teardown(() => {
+		child.kill();
+	});
+	const base = createNodeBackendFileSystem();
+	const lockPath = base.getSessionLockPath!(fixture.rootDir);
+	const record = JSON.stringify({
+		schemaVersion: 2,
+		pid: child.pid,
+		processStartTime: 0,
+		processIdentity: 'unverified:owner-without-os-probe',
+		hostname: os.hostname(),
+		token: 'unverified',
+	});
+	await fs.writeFile(lockPath, record);
+	await t.throwsAsync(base.acquireSessionLock(lockPath), { code: 'EEXIST' });
+	t.is(await fs.readFile(lockPath, 'utf8'), record);
+});
+
 test('concurrent stale-lock contenders publish exactly one owner before host metadata', async (t) => {
 	const fixture = await createTempBackendProject();
 	t.teardown(() => fixture.cleanup());
@@ -397,7 +423,65 @@ test.serial('Windows lock coordination waits out briefly unreadable contender fi
 	t.deepEqual(await fs.readdir(directory), []);
 });
 
-test('Windows lock identity survives a failed probe and slow PowerShell startup', async (t) => {
+/** Runs a lock script in a separate process: it starts with an empty identity cache and isolates OS-probe injection. */
+async function runLockScript(t: ExecutionContext, script: string): Promise<void> {
+	const child = spawn(process.execPath, ['--import', 'tsx/esm', '--input-type=module', '-e', script], {
+		stdio: ['ignore', 'ignore', 'pipe'],
+		windowsHide: true,
+		timeout: 30_000,
+	});
+	t.teardown(() => child.kill());
+	let stderr = '';
+	child.stderr!.on('data', (chunk) => {
+		stderr += chunk;
+	});
+	const [code] = await once(child, 'exit');
+	t.is(code, 0, stderr);
+}
+
+test('an unavailable OS identity probe falls back to an unverified lock owner', async (t) => {
+	const fixture = await createTempBackendProject();
+	t.teardown(() => fixture.cleanup());
+	const entry = new URL('../src/node-session-lock.ts', import.meta.url).href;
+	const lockPath = lockPathFor(fixture.rootDir);
+	await runLockScript(
+		t,
+		`
+		import assert from 'node:assert/strict';
+		import cp from 'node:child_process';
+		import fs from 'node:fs/promises';
+		import { syncBuiltinESMExports } from 'node:module';
+		import { promisify } from 'node:util';
+		let probes = 0;
+		const unavailable = () => {
+			probes++;
+			return Promise.reject(Object.assign(new Error('OS identity probe unavailable'), { code: 'ENOENT' }));
+		};
+		const original = cp.execFile;
+		const wrapped = (...args) => original(...args);
+		wrapped[promisify.custom] = unavailable;
+		cp.execFile = wrapped;
+		const readFile = fs.readFile;
+		fs.readFile = (file, ...rest) => /^\\/proc\\/\\d+\\/stat$/.test(String(file)) ? unavailable() : readFile(file, ...rest);
+		syncBuiltinESMExports();
+		const { acquireNodeSessionLock } = await import(${JSON.stringify(entry)});
+		const lockPath = ${JSON.stringify(lockPath)};
+		const locks = await Promise.all([
+			acquireNodeSessionLock(lockPath),
+			acquireNodeSessionLock(lockPath + '-second'),
+		]);
+		const owner = JSON.parse(await readFile(lockPath, 'utf8'));
+		assert.match(owner.processIdentity, /^unverified:/);
+		assert.equal(JSON.parse(await readFile(lockPath + '-second', 'utf8')).processIdentity, owner.processIdentity);
+		await assert.rejects(acquireNodeSessionLock(lockPath), { code: 'EEXIST' }, 'a live unverified owner keeps its lock');
+		await Promise.all(locks.map(lock => lock.release()));
+		await assert.rejects(fs.stat(lockPath), { code: 'ENOENT' });
+		assert.equal(probes, 1, 'the fallback identity is resolved once per process');
+	`,
+	);
+});
+
+test('Windows lock identity survives slow PowerShell startup', async (t) => {
 	if (process.platform !== 'win32') {
 		t.pass('Windows-specific process identity probe');
 		return;
@@ -406,8 +490,9 @@ test('Windows lock identity survives a failed probe and slow PowerShell startup'
 	t.teardown(() => fixture.cleanup());
 	const entry = new URL('../src/node-session-lock.ts', import.meta.url).href;
 	const lockPath = lockPathFor(fixture.rootDir);
-	// A separate process starts with an empty identity cache and isolates the OS-probe injection.
-	const script = `
+	await runLockScript(
+		t,
+		`
 		import assert from 'node:assert/strict';
 		import cp from 'node:child_process';
 		import fs from 'node:fs/promises';
@@ -421,7 +506,6 @@ test('Windows lock identity survives a failed probe and slow PowerShell startup'
 		wrapped[promisify.custom] = (file, args, options) => {
 			if (file !== 'powershell.exe') return execute(file, args, options);
 			probes++;
-			if (probes === 1) throw new Error('transient OS identity probe failure');
 			const pending = execute(file, [...args.slice(0, -1), 'Start-Sleep -Seconds 6; ' + args.at(-1)], options);
 			pending.child.stdin.once('finish', () => { closedInputs++; });
 			return pending;
@@ -430,26 +514,14 @@ test('Windows lock identity survives a failed probe and slow PowerShell startup'
 		syncBuiltinESMExports();
 		const { acquireNodeSessionLock } = await import(${JSON.stringify(entry)});
 		const lockPath = ${JSON.stringify(lockPath)};
-		await assert.rejects(acquireNodeSessionLock(lockPath), /owner creation identity/);
-		await assert.rejects(fs.stat(lockPath), { code: 'ENOENT' });
 		const locks = await Promise.all([
 			acquireNodeSessionLock(lockPath),
 			acquireNodeSessionLock(lockPath + '-second'),
 		]);
+		assert.match(JSON.parse(await fs.readFile(lockPath, 'utf8')).processIdentity, /^win32:\\d+$/);
 		await Promise.all(locks.map(lock => lock.release()));
-		assert.equal(probes, 2, 'successful identity is shared and cached; failure is not cached');
+		assert.equal(probes, 1, 'concurrent opens share one identity probe');
 		assert.equal(closedInputs, 1, 'noninteractive PowerShell receives EOF');
-	`;
-	const child = spawn(process.execPath, ['--import', 'tsx/esm', '--input-type=module', '-e', script], {
-		stdio: ['ignore', 'ignore', 'pipe'],
-		windowsHide: true,
-		timeout: 30_000,
-	});
-	t.teardown(() => child.kill());
-	let stderr = '';
-	child.stderr!.on('data', (chunk) => {
-		stderr += chunk;
-	});
-	const [code] = await once(child, 'exit');
-	t.is(code, 0, stderr);
+	`,
+	);
 });

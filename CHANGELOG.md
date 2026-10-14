@@ -13,7 +13,7 @@ Release comparisons:
 
 Bug Fixes:
 
-- backend: Allow bounded Windows process-identity probe cold starts and retry failed probes on later session opens without weakening lock ownership checks.
+- backend: Allow bounded Windows process-identity probe cold starts. When the probe is unavailable, acquire the lock with an unverified identity instead of refusing to open; a live PID keeps such a lock.
 
 - core: Preserve complete Label binary input settings through UAM and re-encoding, including null versus empty strings. Reject unsupported XML conversion before writing. Label UAM uses inputSettings instead of the prompt-only field. Synchronize the frozen dependency lockfile.
 

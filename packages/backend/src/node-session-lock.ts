@@ -94,14 +94,17 @@ async function processIdentity(pid: number): Promise<string | null> {
 		return null;
 	}
 }
-let ownIdentity: Promise<string | null> | undefined;
 
-async function getOwnIdentity(): Promise<string | null> {
-	const pending = (ownIdentity ??= processIdentity(process.pid));
-	const identity = await pending;
-	// Coalesce concurrent probes, but a transient failure must not poison the process forever.
-	if (identity === null && ownIdentity === pending) ownIdentity = undefined;
-	return identity;
+/** Recorded when the OS probe is unavailable (missing, blocked or hung PowerShell / `ps`); no other process can recompute it. */
+const UNVERIFIED_IDENTITY_PREFIX = 'unverified:';
+
+let ownIdentity: Promise<string> | undefined;
+
+/** Resolved once per process, so every lock record this process writes carries the same identity. */
+function getOwnIdentity(): Promise<string> {
+	return (ownIdentity ??= processIdentity(process.pid).then(
+		(identity) => identity ?? `${UNVERIFIED_IDENTITY_PREFIX}${randomUUID()}`,
+	));
 }
 
 async function isProcessAlive(metadata: NodeLockMetadata): Promise<boolean> {
@@ -112,8 +115,13 @@ async function isProcessAlive(metadata: NodeLockMetadata): Promise<boolean> {
 		return (error as NodeJS.ErrnoException).code !== 'ESRCH';
 	}
 	const identity = metadata.pid === process.pid ? await getOwnIdentity() : await processIdentity(metadata.pid);
-	// Permission failures and unavailable OS probes never authorize reclaiming a live PID.
-	return identity === null || identity === metadata.processIdentity;
+	// Permission failures, unavailable OS probes and unverified identities never authorize reclaiming a live PID.
+	return (
+		identity === null ||
+		identity.startsWith(UNVERIFIED_IDENTITY_PREFIX) ||
+		metadata.processIdentity.startsWith(UNVERIFIED_IDENTITY_PREFIX) ||
+		identity === metadata.processIdentity
+	);
 }
 
 /** Lamport's bakery doorway serializes short lock-file operations across processes.
@@ -124,7 +132,6 @@ async function coordinateLock<T>(filePath: string, action: () => Promise<T>): Pr
 	const directory = `${filePath}.coordination`;
 	await fs.mkdir(directory, { recursive: true });
 	const identity = await getOwnIdentity();
-	if (!identity) throw new Error('Unable to determine lock coordination owner identity.');
 	const token = randomUUID();
 	const candidate = path.join(directory, token);
 	const temporary = path.join(directory, `.${token}.tmp`);
@@ -271,7 +278,6 @@ async function isHeldByLiveForeignOwner(filePath: string, token: string): Promis
 
 export async function acquireNodeSessionLock(filePath: string): Promise<BackendSessionLock> {
 	const identity = await getOwnIdentity();
-	if (!identity) throw new Error('Unable to determine the Node lock owner creation identity.');
 	const owner: NodeLockMetadata = {
 		schemaVersion: 2,
 		pid: process.pid,

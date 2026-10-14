@@ -87,4 +87,4 @@ Backend 的 `validateSession({ sessionId })` 验证当前 revision 的 authorita
 
 Node 文件会话按真实文件身份规范化路径，浏览器存储使用声明的 `caseSensitivePaths`。工程路径检查覆盖 `.fairy`、设置与资源目录，不扫描无关根目录内容。`maxSessions` 限制打开及正在打开的会话，`idleSessionTimeoutMs` 仅自动关闭干净且无正在执行操作的空闲会话；脏会话需要显式保存或关闭。保存失败应检查 `diskMayBePartiallyUpdated` 与 `recoveryPaths`，成功但清理失败应检查 `save_backup_retained` 警告。
 
-Node 会话锁以操作系统进程创建身份区分 PID 复用。Windows PowerShell 身份探针最多等待 15 秒；成功结果在进程内共享，失败结果不缓存，后续打开可重新探测。无法确认自身身份时拒绝取锁；无法确认其他存活进程身份时保留其锁。
+Node 会话锁以操作系统进程创建身份区分 PID 复用。Windows PowerShell 身份探针最多等待 15 秒，结果在进程内只解析一次。探针不可用（缺失、被禁用或超时）时以未验证身份取锁；未验证身份的锁在其 PID 存活期间始终保留，无法识别 PID 复用。无法确认其他存活进程身份时同样保留其锁。

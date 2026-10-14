@@ -13,7 +13,7 @@ Agent 工具：MCP 默认引导/文档工具、base64 结构化二进制输出�
 
 缺陷修复：
 
-- backend：允许 Windows 进程身份探针在有界时间内冷启动，失败后可在后续开会话时重试，保持锁归属检查。
+- backend：允许 Windows 进程身份探针在有界时间内冷启动；探针不可用时以未验证身份取锁而不是拒绝打开，PID 存活期间保留此类锁。
 
 - core：完整保留 Label 二进制输入设置及 UAM 往返，区分 null 与空字符串；不支持的 XML 转换在写入前拒绝。Label UAM 使用 inputSettings 替代仅含 prompt 的字段。同步冻结依赖锁文件。
 
