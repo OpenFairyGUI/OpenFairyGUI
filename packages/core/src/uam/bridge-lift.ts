@@ -73,6 +73,7 @@ type LiftableComponentDerivedControl = LiftableDisplayNodeBase & {
 	getGroup(): string;
 	getSrc(): string;
 	getPackageId(): string;
+	getPageController(): string;
 };
 
 type LiftableTitleControl = LiftableComponentDerivedControl & {
@@ -87,7 +88,8 @@ type LiftableTitleControl = LiftableComponentDerivedControl & {
 type LiftedDisplayNodeBase = Omit<UamDisplayNodeBase, 'kind'>;
 type LiftedGroupableDisplayNodeBase = LiftedDisplayNodeBase & Pick<UamButtonNode, 'group'>;
 
-type LiftedComponentDerivedControlBase = LiftedGroupableDisplayNodeBase & Pick<UamButtonNode, 'src' | 'packageId'>;
+type LiftedComponentDerivedControlBase = LiftedGroupableDisplayNodeBase &
+	Pick<UamButtonNode, 'src' | 'packageId' | 'pageController'>;
 type LiftedTitleControlBase = LiftedComponentDerivedControlBase &
 	Pick<UamButtonNode, 'title' | 'icon' | 'titleColor' | 'titleFontSize' | 'sound' | 'soundVolumeScale'>;
 
@@ -126,6 +128,7 @@ function liftComponentDerivedControlBase(child: LiftableComponentDerivedControl)
 		group: child.getGroup(),
 		src: child.getSrc(),
 		packageId: child.getPackageId(),
+		...(child.getPageController() ? { pageController: child.getPageController() } : {}),
 	};
 }
 
@@ -539,6 +542,7 @@ export function liftDisplayNode(child: GObject): UamDisplayNode {
 			group: component.getGroup(),
 			resource: { packageId: component.getPackageId(), resourceId: component.getSrc() },
 			...(component.getControllerOverrides() ? { controllerOverrides: component.getControllerOverrides() } : {}),
+			...(component.getPageController() ? { pageController: component.getPageController() } : {}),
 			...(component.getFileName() ? { fileName: component.getFileName() } : {}),
 			...(propertyOverrides.length > 0 ? { propertyOverrides } : {}),
 			...(instanceProperties ? { instanceProperties } : {}),

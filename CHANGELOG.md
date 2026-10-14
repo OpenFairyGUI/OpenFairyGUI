@@ -8,8 +8,8 @@ Agent tooling: MCP default guidance/docs tool, base64 structured binary output (
 
 Release comparisons:
 
-- Stable line (`main`): [v0.6.1...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.1...main)
-- Development line (`next`): [v0.6.1...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.1...next)
+- Stable line (`main`): [v0.6.3...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.3...main)
+- Development line (`next`): [v0.6.3...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.3...next)
 
 Bug Fixes:
 
@@ -50,6 +50,28 @@ Breaking changes:
 - backend: `BackendFileSystem.runProjectWriteTransaction` resolves to a `ProjectWriteTransactionResult`; hosts return `{}`, or `retainedBackupPaths` for previous project copies they could not remove.
 
 ## v0.6.x
+
+### v0.6.3 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.3))
+
+Bug Fixes:
+
+- core: Preserve component-instance and component-derived page controllers through UAM conversion, binary round trips and project writing, with formal optional fields and reference validation.
+- core: Normalize optional animation and size Gear fields consistently, preventing valid compact values from blocking project saves. Fixes [#152](https://github.com/OpenFairyGUI/OpenFairyGUI/issues/152).
+
+Other:
+
+- backend, docs: Regenerate public schemas and installed documentation; add save/reopen and binary regression coverage, exercise successful LayaBox saves and publication, and synchronize bilingual writing guidance.
+
+### v0.6.2 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.2))
+
+Bug Fixes:
+
+- core: Preserve component-instance `fileName` hints through UAM lifting, normalization and materialization, with a formal optional field and validation.
+- core: Write Color Gear values without a trailing comma when no outline color is configured, and normalize an explicitly empty outline field consistently. Supported projects now retain full UAM fidelity through editing, saving and reopening. Fixes [#149](https://github.com/OpenFairyGUI/OpenFairyGUI/issues/149).
+
+Other:
+
+- backend, docs: Regenerate public schemas and installed documentation; add seven round-trip/save regression cases and synchronize bilingual project-writing guidance.
 
 ### v0.6.1 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.1))
 

@@ -154,7 +154,11 @@ The published resource closure includes component-root `showSound` / `hideSound`
 
 A component instance's `fileName` is an editor file hint preserved through project round trips; `src` and optional `pkg` still identify the target. An absent hint remains omitted.
 
+A component instance's `pageController` names the parent component's controller driving its paged scrolling. Round trips preserve this name and omit an absent binding. UAM validation rejects non-string values and missing parent controllers. Component-derived button, label, combo box, progress bar, slider and scroll bar instances also preserve this field through decoded-binary UAM round trips and project writing.
+
 `gearColor` states and defaults are written as a single color when no outline color is configured. An explicitly empty second field is also normalized to a single color. Configured outline colors and `-` states without an override retain their meaning.
+
+`gearAni` writing omits trailing empty animation and skin names, retaining the frame, play state and non-trailing empty fields. Missing `gearSize` scaleX/scaleY values both mean 1; writing fills them when explicit scale fields are needed and omits identity scales otherwise. These rules apply to states and defaults on both the original project and UAM round-trip paths. Unset `-` states and absent default overrides remain unchanged.
 
 ## Project resource-tree metadata
 

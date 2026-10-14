@@ -16,7 +16,9 @@ import {
 	getOpenFairyGuiOperationSchema,
 	OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS,
 	OPENFAIRYGUI_OPERATION_CATALOG_URI,
+	OPENFAIRYGUI_OPERATION_SCHEMA_TEMPLATE,
 } from '../src/index.js';
+import { compactToolSchema } from '../src/contract-schema.js';
 import { createMcpFixtureProject, createTempMcpProject } from './helpers.js';
 
 test('operation discovery returns precise, isolated schemas including nested properties and byte arrays', (t) => {
@@ -239,6 +241,156 @@ test('direct calls reject structural and budget violations before reaching Backe
 		instanceOf: RangeError,
 	});
 	t.is(calls, 0);
+});
+
+const TRANSACTION_TOOLS = OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.filter(
+	(entry) => entry.backendMethod === 'applyTransaction' || entry.backendMethod === 'preflightTransaction',
+);
+
+test('transaction descriptions name the kind discriminator with a valid example and schema URIs', (t) => {
+	t.is(TRANSACTION_TOOLS.length, 2);
+	for (const definition of TRANSACTION_TOOLS) {
+		const { description } = definition;
+		t.true(description.includes('"kind"'), definition.name);
+		t.true(description.includes(OPENFAIRYGUI_OPERATION_CATALOG_URI), definition.name);
+		t.true(description.includes(OPENFAIRYGUI_OPERATION_SCHEMA_TEMPLATE), definition.name);
+		const start = description.indexOf('{"kind"');
+		let end = start,
+			depth = 0;
+		do depth += description[end] === '{' ? 1 : description[end] === '}' ? -1 : 0;
+		while (depth > 0 && ++end < description.length);
+		const example = JSON.parse(description.slice(start, end + 1)) as { kind: string };
+		t.true(getOpenFairyGuiOperationCatalog().operations.some(({ kind }) => kind === example.kind));
+		t.true(
+			definition.inputSchema.safeParse({ sessionId: 's', expectedRevision: 0, operations: [example] }).success,
+			definition.name,
+		);
+	}
+});
+
+test('kind-discriminated validation reports the selected branch or the valid kinds', async (t) => {
+	const kinds = getOpenFairyGuiOperationCatalog().operations.map(({ kind }) => kind);
+	const selector = { packageId: 'p', resourceId: 'r' };
+	const runtime = new BackendRuntime();
+	for (const definition of TRANSACTION_TOOLS) {
+		const wire = compactToolSchema(() => definition.inputSchema, 'input');
+		async function issues(operation: unknown) {
+			const input = {
+				sessionId: 's',
+				expectedRevision: 0,
+				operations: [{ kind: 'renameResource', selector, newName: 'Valid' }, operation],
+			};
+			const parsed = wire.safeParse(input);
+			assert(!parsed.success, `${definition.name} accepted ${JSON.stringify(operation)}`);
+			const direct = await t.throwsAsync(callOpenFairyGuiBackendTool(runtime, definition.name, input), {
+				instanceOf: z.ZodRealError,
+			});
+			t.deepEqual(
+				direct.issues,
+				parsed.error.issues.map((issue) => ({ ...issue })),
+				'Direct calls report the same issues',
+			);
+			return parsed.error.issues;
+		}
+		for (const [operation, found] of [
+			[{ type: 'renameResource', selector, newName: 'Panel' }, 'Missing operation kind'],
+			[{ kind: 'renamePanel', selector, newName: 'Panel' }, 'Unknown operation kind "renamePanel"'],
+		] as const) {
+			const [issue, ...rest] = await issues(operation);
+			t.deepEqual(rest, []);
+			t.like(issue, { code: 'invalid_value', path: ['operations', 1, 'kind'] });
+			t.deepEqual(issue.code === 'invalid_value' && issue.values, kinds);
+			t.true(issue.message.startsWith(found), issue.message);
+			t.true(issue.message.includes(OPENFAIRYGUI_OPERATION_SCHEMA_TEMPLATE));
+		}
+		const note = ` (schema: ${OPENFAIRYGUI_OPERATION_CATALOG_URI}/renameResource)`;
+		const fields = await issues({ kind: 'renameResource', selector, name: 'Panel' });
+		t.like(fields, [
+			{ code: 'invalid_type', expected: 'string', path: ['operations', 1, 'newName'] },
+			{ code: 'unrecognized_keys', keys: ['name'], path: ['operations', 1] },
+		]);
+		t.is(fields.length, 2);
+		for (const issue of fields) t.true(issue.message.endsWith(note), issue.message);
+		const resource = {
+			kind: 'misc',
+			id: 'd',
+			name: 'd',
+			path: '/',
+			exported: false,
+			favorite: false,
+			branch: '',
+			branchItemIds: [],
+			file: 'd.bin',
+			sourceBytes: [1],
+		};
+		const [nestedKind, ...nestedRest] = await issues({
+			kind: 'addResource',
+			selector: { packageId: 'p' },
+			resource: { ...resource, kind: 'blob' },
+		});
+		t.deepEqual(nestedRest, []);
+		t.like(nestedKind, { code: 'invalid_value', path: ['operations', 1, 'resource', 'kind'] });
+		t.true(
+			nestedKind.code === 'invalid_value' &&
+				nestedKind.values.includes('misc') &&
+				!nestedKind.values.includes('renameResource'),
+		);
+		t.true(
+			nestedKind.message.startsWith('Unknown kind "blob"') &&
+				nestedKind.message.endsWith(` (schema: ${OPENFAIRYGUI_OPERATION_CATALOG_URI}/addResource)`),
+			nestedKind.message,
+		);
+		const [bytes, ...bytesRest] = await issues({
+			kind: 'addResource',
+			selector: { packageId: 'p' },
+			resource: { ...resource, sourceBytes: 'oops' },
+		});
+		t.deepEqual(bytesRest, []);
+		t.like(
+			bytes,
+			{ code: 'invalid_union', path: ['operations', 1, 'resource', 'sourceBytes'] },
+			'Unions without kind tags keep their Zod issue',
+		);
+		t.true(
+			wire.safeParse({
+				sessionId: 's',
+				expectedRevision: 0,
+				operations: [
+					{ kind: 'renameResource', selector, newName: 'Panel' },
+					{ kind: 'addResource', selector: { packageId: 'p' }, resource },
+				],
+			}).success,
+		);
+	}
+});
+
+test('MCP clients receive compact validation errors that point to the operation schema', async (t) => {
+	const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+	const server = createOpenFairyGuiMcpServer({ runtime: new BackendRuntime() });
+	const client = new Client({ name: 'validation-errors', version: 'test' });
+	await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+	try {
+		for (const { name } of TRANSACTION_TOOLS) {
+			for (const [operation, expected] of [
+				[
+					{ kind: 'renameResource', selector: { packageId: 'p', resourceId: 'r' }, name: 'Panel' },
+					`${OPENFAIRYGUI_OPERATION_CATALOG_URI}/renameResource`,
+				],
+				[{ type: 'renameResource' }, OPENFAIRYGUI_OPERATION_SCHEMA_TEMPLATE],
+			] as const) {
+				const result = await client
+					.callTool({ name, arguments: { sessionId: 's', expectedRevision: 0, operations: [operation] } })
+					.catch((error: Error) => ({ isError: true, content: [{ type: 'text', text: error.message }] }));
+				const text = (result.content as Array<{ text: string }>).map((entry) => entry.text).join('\n');
+				t.true(result.isError);
+				t.true(text.includes(expected), text);
+				t.true(Buffer.byteLength(text) < 4096, `${name}: ${Buffer.byteLength(text)} bytes`);
+			}
+		}
+	} finally {
+		await client.close();
+		await server.close();
+	}
 });
 
 test('MCP discovery and four representative operations preserve semantics through save and reread', async (t) => {

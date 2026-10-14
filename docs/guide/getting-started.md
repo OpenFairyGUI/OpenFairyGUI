@@ -163,7 +163,7 @@ console.log(report.projectType, report.totals.packages);
 `Document` 是可变低层 API；公共编辑入口使用 UAM transaction。诊断处理见[诊断与恢复](./diagnostics.md)，架构与协议入口见[文档总览](../README.md)。
 
 <!-- product-facts:start -->
-Package: `0.6.1` · Backend contract: `3.0.0` · Capability schema: `15`
+Package: `0.6.3` · Backend contract: `3.0.0` · Capability schema: `15`
 
 Operations: 41 · Backend methods: 17 · CLI commands: 16 · Diagnostic codes: 103
 <!-- product-facts:end -->

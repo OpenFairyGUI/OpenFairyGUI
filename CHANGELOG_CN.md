@@ -8,8 +8,8 @@ Agent 工具：MCP 默认引导/文档工具、base64 结构化二进制输出�
 
 发布比较：
 
-- 稳定线（`main`）：[v0.6.1...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.1...main)
-- 开发线（`next`）：[v0.6.1...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.1...next)
+- 稳定线（`main`）：[v0.6.3...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.3...main)
+- 开发线（`next`）：[v0.6.3...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.3...next)
 
 缺陷修复：
 
@@ -50,6 +50,28 @@ Agent 工具：MCP 默认引导/文档工具、base64 结构化二进制输出�
 - backend：`BackendFileSystem.runProjectWriteTransaction` 需返回 `ProjectWriteTransactionResult`；宿主返回 `{}`，无法删除旧工程副本时在 `retainedBackupPaths` 中列出。
 
 ## v0.6.x
+
+### v0.6.3（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.3)）
+
+缺陷修复：
+
+- core：通过正式可选字段和引用校验，在 UAM 转换、二进制往返及工程写回中保留组件实例与派生组件的分页控制器。
+- core：统一规范化动画和尺寸 Gear 的可选字段，避免合法的紧凑值阻止工程保存。修复 [#152](https://github.com/OpenFairyGUI/OpenFairyGUI/issues/152)。
+
+其他：
+
+- backend、docs：重新生成公开 schema 和随包文档；补充保存重开与二进制回归覆盖，验证 LayaBox 保存和发布成功，同步双语写回说明。
+
+### v0.6.2（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.2)）
+
+缺陷修复：
+
+- core：通过正式可选字段及校验，在 UAM 提升、规范化和物化过程中保留组件实例的 `fileName` 提示。
+- core：未配置描边颜色时，Color Gear 值不再追加尾逗号，并统一规范化显式空描边字段。受支持工程在编辑、保存及重开后保持完整 UAM 保真度。修复 [#149](https://github.com/OpenFairyGUI/OpenFairyGUI/issues/149)。
+
+其他：
+
+- backend、docs：重新生成公开 schema 和随包文档，新增七个往返及保存回归案例，同步双语工程写回说明。
 
 ### v0.6.1（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.6.1)）
 
