@@ -2583,6 +2583,68 @@ test('binary writer: built-in component instances preserve desktop overlay prope
 	}
 });
 
+test('binary writer: ComboBox instance selectionController survives decode, rewrite and UAM round trips', async (t) => {
+	const doc = new Document();
+	const pkg = doc.createPackage('ComboPkg').setId('combopkg');
+	pkg.addResource(doc.createComponent('ComboDefinition').setId('comboDef').setExtensionType('ComboBox'));
+
+	const host = doc.createComponent('Host').setId('host001').setSize(320, 200);
+	for (const name of ['other', 'choice']) {
+		const controller = doc.createController(name);
+		controller.addPage(doc.createControllerPage('First').setId('0'));
+		controller.addPage(doc.createControllerPage('Second').setId('1'));
+		host.addController(controller);
+	}
+	for (const [id, selectionController] of [
+		['n0', 'choice'],
+		['n1', 'other'],
+		['n2', ''],
+		['n3', 'missing'],
+	] as const) {
+		host.addChild(
+			doc
+				.createGComponent(id)
+				.setId(id)
+				.setSrc('comboDef')
+				.setInstanceExtType('ComboBox')
+				.setInstanceSelectionController(selectionController),
+		);
+	}
+	pkg.addResource(host);
+
+	// The runtime reads an int16 index into the parent's controllers, with -1 for none.
+	const expected = { n0: 'choice', n1: 'other', n2: '', n3: '' };
+	const readBindings = (document: Document) =>
+		Object.fromEntries(
+			document
+				.getRoot()
+				.getPackage('ComboPkg')!
+				.getComponent('Host')!
+				.listChildren()
+				.map((child) => [child.getId(), (child as GComponent).getInstanceSelectionController()]),
+		);
+
+	const io = new NodeIO();
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-combo-selection-'));
+	try {
+		const roundTrip = async (source: Document, fileName: string) => {
+			const outPath = path.join(tmpDir, fileName);
+			await io.writeBinary(source, outPath);
+			return io.readBinary(outPath);
+		};
+		const decoded = await roundTrip(doc, 'authored.fui');
+		t.deepEqual(readBindings(decoded), expected, 'authored bindings encode as controller indexes');
+
+		const rewritten = await roundTrip(decoded, 'rewritten.fui');
+		t.deepEqual(readBindings(rewritten), expected, 'a no-edit rewrite keeps the decoded bindings');
+
+		const bridged = await roundTrip(materializeUamProject(liftDocumentToUamProject(rewritten)), 'bridged.fui');
+		t.deepEqual(readBindings(bridged), expected, 'bindings survive the UAM bridge before re-encoding');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('binary writer: list and tree child blocks round-trip into formal list properties', async (t) => {
 	const doc = new Document();
 	const pkg = doc.createPackage('ListPkg');
