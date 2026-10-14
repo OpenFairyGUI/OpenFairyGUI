@@ -56,7 +56,9 @@ MCP `resources/list` exposes `openfairygui://contracts/operations`, listing oper
 
 Each tool in `tools/list` has input/output schemas derived from its Backend method instead of a shared loose result. The tool's `openfairygui/contractDigest` metadata, operation catalog, and table digest identify the same generated snapshot. Parameter or annotation changes fail checks if the snapshot or bilingual tables are stale.
 
-The MCP factory exposes a fixed Backend tool catalog. Discovery reuses existing Zod draft-07 `definitions` and local `$ref` support instead of expanding repeated transaction subtrees. Each schema contains every reference target and needs no network resolution. Calls retain the original Zod validators and budget checks; this changes transport representation without adding or omitting fields. Installed contract/individual-operation documents still provide draft-2020-12 `$defs`. See [agent evaluations](./agent-evaluations.md) for actual client discovery and execution checks.
+The MCP factory exposes a fixed Backend tool catalog. Discovery reuses existing Zod draft-07 `definitions` and local `$ref` support instead of expanding repeated transaction subtrees. Each schema contains every reference target and needs no network resolution. Calls retain the original Zod validators and budget checks; this changes transport representation without adding or omitting fields. Installed contract/individual-operation documents still provide draft-2020-12 `$defs`.
+
+The `apply_transaction` / `preflight_transaction` descriptions show a minimal `kind`-discriminated operation and point to the catalog and per-kind schema URIs above. When a `kind`-tagged union fails validation, MCP reports only the issues of the branch selected by the input `kind`, with full paths; operation-branch messages append `openfairygui://contracts/operations/<kind>`. A missing or unknown `kind` yields one `invalid_value` issue at the `…kind` path whose `values` and message list every valid kind, plus the per-operation schema URI template for operations. Other unions keep Zod's original issue; direct `callOpenFairyGuiBackendTool` calls throw the same issues. See [agent evaluations](./agent-evaluations.md) for actual client discovery and execution checks.
 
 ## Query current entities
 
@@ -132,7 +134,7 @@ A preview reserves no revision and does not guarantee later apply/save or public
 The tables summarize top-level parameters only; read schemas for nested fields and concrete results. SHA-256 identifies generated contract content, not a package version.
 
 <!-- contracts:start -->
-SHA-256: `5718c7534651570432e9dda5a5cda367cbc292e71e59f5f6ad2e1c55321dee5a`
+SHA-256: `9cb5ccdb224dc93265d6023bf517fe35abf6b3cb5c44774d041244301d139ad9`
 
 | Operation | Parameters (`?` = optional) |
 |---|---|
