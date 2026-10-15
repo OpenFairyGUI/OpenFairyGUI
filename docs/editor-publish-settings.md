@@ -14,7 +14,7 @@
 | `CustomProperties.json` | `customProperties`，保存 JSON 对象 |
 | `i18n.json` | `i18n`，其中 `langFiles` 保存语言文件的 `name` 与 `path` |
 
-五类设置在工程读写与 UAM 往返中保持完整的嵌套 JSON 数据。`CustomProperties.json` 与 `i18n.json` 是可选文件；源工程不存在对应设置时，规范化和写回不会自行创建它们。`updateProjectSettings` 以完整设置快照更新工程设置，相同快照以 `project_settings_unchanged` 拒绝；从快照删除可选字段时，写回会删除已有 sidecar，并要求文件系统提供 `unlink()`。
+五类设置在工程读写与 UAM 往返中保持完整的嵌套 JSON 数据，编辑器序列化的派生访问器除外：`Publish.json`、`Common.json`、`Adaptation.json` 中的 `fileName` 只重复 sidecar 名称，`Publish.json` 中的 `include2x`、`include3x`、`include4x` 对应 `includeHighResolution` 的位。读取时它们不进入设置快照，写回时也不写出；高分辨率开关只由 `includeHighResolution` 保存。`Publish.json` 顶层的 `jpegQuality`、`compressPNG` 与 `Common.json` 的 `fontAdjustment` 是正式设置字段。`CustomProperties.json` 与 `i18n.json` 是可选文件；源工程不存在对应设置时，规范化和写回不会自行创建它们。`updateProjectSettings` 以完整设置快照更新工程设置，相同快照以 `project_settings_unchanged` 拒绝；从快照删除可选字段时，写回会删除已有 sidecar，并要求文件系统提供 `unlink()`。
 
 ## 设置文件与层级
 
@@ -363,7 +363,7 @@ Unity 与 Cocos Creator 运行时不解压二进制描述文件，因此这两�
 | `branchPath` | 分支输出路径 |
 | `seperatedAtlasForBranch` | 分支 atlas 是否单独输出 |
 
-`includeHighResolution` 可以理解为 `2x`、`3x`、`4x` 资源开关对应的位掩码字段：`@2x=1`、`@3x=2`、`@4x=4`。
+`includeHighResolution` 可以理解为 `2x`、`3x`、`4x` 资源开关对应的位掩码字段：`@2x=1`、`@3x=2`、`@4x=4`。编辑器的 `include2x`、`include3x`、`include4x` 是分别对应这三个位的布尔访问器。
 
 发布流程只发现并链接工程中已经存在的同路径、同分支、同类型 `@2x` / `@3x` / `@4x` 资源，例如 `icon.png` 对应 `icon@2x.png`。它们会作为独立 `image` / `movieclip` package item 写入，再由基础 item 的 high-resolution 列表引用；发布期不会主动把原始位图缩放或放大生成高分辨率资源。
 

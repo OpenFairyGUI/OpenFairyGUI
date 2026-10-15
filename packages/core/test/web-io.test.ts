@@ -401,6 +401,43 @@ test('all project settings sidecars survive detached UAM round-trip and independ
 	t.false(await missingTarget.exists('settings/i18n.json'));
 });
 
+test('ProjectReader keeps editor settings fields and drops derived editor accessors', async (t) => {
+	const source = new MemoryFileSystem();
+	await seedMinimalProject(source);
+	for (const [name, value] of [
+		[
+			'Publish.json',
+			{
+				jpegQuality: 80,
+				compressPNG: false,
+				includeHighResolution: 5,
+				include2x: true,
+				include3x: false,
+				include4x: true,
+				fileName: 'Publish',
+			},
+		],
+		['Common.json', { fontSize: 12, fontAdjustment: false, fileName: 'Common' }],
+		['Adaptation.json', { scaleMode: 'ScaleWithScreenSize', fileName: 'Adaptation' }],
+		['CustomProperties.json', { fileName: 'user variable' }],
+	] as const) {
+		await source.writeFile(`settings/${name}`, JSON.stringify(value));
+	}
+	const settings = {
+		publish: { jpegQuality: 80, compressPNG: false, includeHighResolution: 5 },
+		common: { fontSize: 12, fontAdjustment: false },
+		adaptation: { scaleMode: 'ScaleWithScreenSize' },
+		customProperties: { fileName: 'user variable' },
+	};
+
+	const document = await new ProjectReader(source).read('Project.fairy');
+	t.deepEqual(document.getRoot().getSettings(), settings);
+	const output = new MemoryFileSystem();
+	await new ProjectWriter(output).write(document, 'Project.fairy');
+	t.deepEqual(JSON.parse(await output.readFile('settings/Publish.json')), settings.publish);
+	t.deepEqual(JSON.parse(await output.readFile('settings/Common.json')), settings.common);
+});
+
 test('ProjectWriter preflights optional settings cleanup before writing', async (t) => {
 	const fs = new MemoryFileSystem();
 	await fs.writeFile('Project.fairy', 'unchanged');

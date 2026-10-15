@@ -158,8 +158,14 @@ test('project settings transactions validate, detach, preserve unknown JSON, and
 	};
 	const original = structuredClone(project.settings);
 	const updated = {
-		publish: { binaryFormat: false, atlasSetting: { maxSize: 1024 }, codeGeneration: { codePath: 'src/ui' } },
-		common: { font: 'Noto Sans', scrollBars: { vertical: 'ui://new-scroll' } },
+		publish: {
+			binaryFormat: false,
+			jpegQuality: 70,
+			compressPNG: true,
+			atlasSetting: { maxSize: 1024 },
+			codeGeneration: { codePath: 'src/ui' },
+		},
+		common: { font: 'Noto Sans', fontAdjustment: true, scrollBars: { vertical: 'ui://new-scroll' } },
 		adaptation: { designResolutionX: 1920, devices: [{ name: 'desktop' }] },
 		customProperties: { groups: [{ name: 'UI' }] },
 		i18n: { langFiles: [{ name: 'French', path: 'locale/fr.xml' }] },
@@ -190,6 +196,9 @@ test('project settings transactions validate, detach, preserve unknown JSON, and
 	for (const settings of [
 		null,
 		{ publish: { binaryFormat: 'yes' } },
+		{ publish: { jpegQuality: '80' } },
+		{ publish: { compressPNG: 1 } },
+		{ common: { fontAdjustment: 'no' } },
 		{ common: { scrollBars: { vertical: 1 } } },
 		{ adaptation: { devices: {} } },
 		{ customProperties: [] },

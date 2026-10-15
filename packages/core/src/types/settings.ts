@@ -7,6 +7,8 @@ export interface FairyProjectDesc {
 export interface PublishSettings {
 	binaryFormat?: boolean;
 	compressDesc?: boolean;
+	jpegQuality?: number;
+	compressPNG?: boolean;
 	fileExtension?: string;
 	path?: string;
 	branchPath?: string;
@@ -41,6 +43,7 @@ export interface CommonSettings {
 	font?: string;
 	fontSize?: number;
 	textColor?: string;
+	fontAdjustment?: boolean;
 	buttonClickSound?: string;
 	scrollBars?: {
 		defaultDisplay?: string;
