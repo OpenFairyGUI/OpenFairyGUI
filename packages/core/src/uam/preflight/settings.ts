@@ -69,8 +69,16 @@ export function validateProjectSettingsPayload(
 		const valid =
 			isPlainRecord(publish) &&
 			optionalFieldsMatch(publish, ['fileExtension', 'path', 'branchPath'], strings) &&
-			optionalFieldsMatch(publish, ['binaryFormat', 'compressDesc', 'seperatedAtlasForBranch'], booleans) &&
-			optionalFieldsMatch(publish, ['includeHighResolution', 'branchProcessing', 'packageCount'], isFiniteNumber);
+			optionalFieldsMatch(
+				publish,
+				['binaryFormat', 'compressDesc', 'compressPNG', 'seperatedAtlasForBranch'],
+				booleans,
+			) &&
+			optionalFieldsMatch(
+				publish,
+				['jpegQuality', 'includeHighResolution', 'branchProcessing', 'packageCount'],
+				isFiniteNumber,
+			);
 		if (!valid) {
 			pushSupportIssue(
 				issues,
@@ -120,6 +128,7 @@ export function validateProjectSettingsPayload(
 			isPlainRecord(common) &&
 			optionalFieldsMatch(common, ['font', 'textColor', 'buttonClickSound', 'pivot', 'tipsRes'], strings) &&
 			optionalFieldsMatch(common, ['fontSize'], isFiniteNumber) &&
+			optionalFieldsMatch(common, ['fontAdjustment'], booleans) &&
 			optionalFieldsMatch(common, ['colorScheme', 'fontScheme', 'fontSizeScheme'], stringArray);
 		if (!valid) {
 			pushSupportIssue(

@@ -14,7 +14,7 @@ The project settings directory supports five JSON files:
 | `CustomProperties.json` | `customProperties`, containing a JSON object |
 | `i18n.json` | `i18n`, whose `langFiles` stores each language file's `name` and `path` |
 
-All five settings categories preserve their complete nested JSON data through project I/O and UAM round trips. `CustomProperties.json` and `i18n.json` are optional; normalization and write-back do not create them when the source project has no corresponding settings. `updateProjectSettings` replaces project settings with a complete snapshot and rejects an identical snapshot as `project_settings_unchanged`. Removing an optional field from the snapshot deletes an existing sidecar during write-back and requires the filesystem to provide `unlink()`.
+All five settings categories preserve their complete nested JSON data through project I/O and UAM round trips, except derived accessors serialized by the editor: `fileName` in `Publish.json`, `Common.json`, and `Adaptation.json` only repeats the sidecar name, and `include2x`, `include3x`, and `include4x` in `Publish.json` mirror bits of `includeHighResolution`. Reading leaves them out of the settings snapshot, and write-back does not emit them; only `includeHighResolution` stores the high-resolution switches. Top-level `jpegQuality` and `compressPNG` in `Publish.json`, and `fontAdjustment` in `Common.json`, are formal settings fields. `CustomProperties.json` and `i18n.json` are optional; normalization and write-back do not create them when the source project has no corresponding settings. `updateProjectSettings` replaces project settings with a complete snapshot and rejects an identical snapshot as `project_settings_unchanged`. Removing an optional field from the snapshot deletes an existing sidecar during write-back and requires the filesystem to provide `unlink()`.
 
 ## Settings files and levels
 
@@ -357,7 +357,7 @@ This table preserves FairyGUI Editor's project-type rules as an index for future
 | `branchPath` | Branch output path |
 | `seperatedAtlasForBranch` | Whether branch atlases are output separately |
 
-`includeHighResolution` is the bitmask for `2x`, `3x`, and `4x` resource switches: `@2x=1`, `@3x=2`, and `@4x=4`.
+`includeHighResolution` is the bitmask for `2x`, `3x`, and `4x` resource switches: `@2x=1`, `@3x=2`, and `@4x=4`. The editor's `include2x`, `include3x`, and `include4x` are boolean accessors for those three bits.
 
 Publishing only discovers and links existing `@2x` / `@3x` / `@4x` resources with the same path, branch, and type, such as `icon@2x.png` corresponding to `icon.png`. They are emitted as independent `image` or `movieclip` package items and referenced by the base item's high-resolution list. Publishing does not scale or enlarge the source bitmap to generate high-resolution resources.
 

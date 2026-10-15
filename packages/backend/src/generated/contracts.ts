@@ -1171,6 +1171,12 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"compressDesc": {
 					"$ref": "#/$defs/Shape_6b49a92435"
 				},
+				"jpegQuality": {
+					"type": "number"
+				},
+				"compressPNG": {
+					"$ref": "#/$defs/Shape_6b49a92435"
+				},
 				"fileExtension": {
 					"type": "string"
 				},
@@ -1290,6 +1296,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"textColor": {
 					"type": "string"
+				},
+				"fontAdjustment": {
+					"$ref": "#/$defs/Shape_6b49a92435"
 				},
 				"buttonClickSound": {
 					"type": "string"
@@ -13542,6 +13551,12 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"compressDesc": {
 					"$ref": "#/$defs/Shape_6b49a92435_wire"
 				},
+				"jpegQuality": {
+					"type": "number"
+				},
+				"compressPNG": {
+					"$ref": "#/$defs/Shape_6b49a92435_wire"
+				},
 				"fileExtension": {
 					"type": "string"
 				},
@@ -13661,6 +13676,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"textColor": {
 					"type": "string"
+				},
+				"fontAdjustment": {
+					"$ref": "#/$defs/Shape_6b49a92435_wire"
 				},
 				"buttonClickSound": {
 					"type": "string"
@@ -28167,6 +28185,12 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"compressDesc": {
 					"$ref": "#/$defs/Shape_6b49a92435_read"
 				},
+				"jpegQuality": {
+					"type": "number"
+				},
+				"compressPNG": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
 				"fileExtension": {
 					"type": "string"
 				},
@@ -28274,6 +28298,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"textColor": {
 					"type": "string"
+				},
+				"fontAdjustment": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
 				},
 				"buttonClickSound": {
 					"type": "string"
@@ -33952,5 +33979,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "6127537d6b6106fee49befd57e7d702be6dcf02accf71455ecb2e24ad0051b7c"
+	"digest": "9551176bbfaea109e866c25b23a57d501cb9c6271f0ff365b43c0e029e30d109"
 };

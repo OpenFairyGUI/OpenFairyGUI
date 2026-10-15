@@ -24,6 +24,22 @@ interface FairyProjectDescriptionNode extends XmlNode {
 	version?: string;
 }
 
+// The editor also serializes derived accessors into some sidecars: SettingsBase.fileName repeats the
+// sidecar name, and GlobalPublishSettings.include2x/3x/4x mirror includeHighResolution bits.
+const DERIVED_SETTING_KEYS: Partial<Record<ProjectSettingKey, readonly string[]>> = {
+	publish: ['fileName', 'include2x', 'include3x', 'include4x'],
+	common: ['fileName'],
+	adaptation: ['fileName'],
+};
+
+function withoutDerivedSettingKeys(key: ProjectSettingKey, value: unknown): unknown {
+	const derivedKeys = DERIVED_SETTING_KEYS[key];
+	if (!derivedKeys || typeof value !== 'object' || value === null || Array.isArray(value)) return value;
+	const stored: Record<string, unknown> = { ...value };
+	for (const derivedKey of derivedKeys) delete stored[derivedKey];
+	return stored;
+}
+
 function assignSetting(settings: ProjectSettings, key: ProjectSettingKey, value: unknown): void {
 	switch (key) {
 		case 'publish':
@@ -247,7 +263,7 @@ export class ProjectReader {
 			try {
 				if (await fs.exists(filePath)) {
 					const content = await fs.readFile(filePath);
-					assignSetting(ctx.settings, key, JSON.parse(content));
+					assignSetting(ctx.settings, key, withoutDerivedSettingKeys(key, JSON.parse(content)));
 				}
 			} catch (error) {
 				ctx.addDiagnostic({
