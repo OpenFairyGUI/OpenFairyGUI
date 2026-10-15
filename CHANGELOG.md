@@ -4,14 +4,17 @@
 
 ## Unreleased
 
+## v0.7.x
+
+### v0.7.0 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.7.0))
+
 Agent tooling: MCP default guidance/docs tool, base64 structured binary output (transport breaking change), opt-in host publish; CLI one-shot transactions; bilingual governance and Claude evaluation runner.
 
-Release comparisons:
-
-- Stable line (`main`): [v0.6.3...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.3...main)
-- Development line (`next`): [v0.6.3...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.3...next)
-
 Bug Fixes:
+
+- core, mcp: Model editor settings fields so queried settings can be resubmitted through MCP; reject malformed operations and selectors during transaction preflight without stringifying caller values in diagnostics.
+- core: Validate transaction snapshot payloads field by field against generated canonical contracts, rejecting malformed structures before applying operations.
+- tests: Reduce MCP settings round-trip fixtures and reuse compiled validators; wait for actual idle file-session lock release to stabilize Windows regression checks.
 
 - core: Write ComboBox component-instance `selectionController` bindings to binary packages as the owning component's controller index instead of always `-1`, so decoded bindings survive rewrites and UAM round trips.
 
