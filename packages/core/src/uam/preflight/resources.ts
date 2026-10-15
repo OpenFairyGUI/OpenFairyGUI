@@ -18,8 +18,7 @@ import {
 	findProjectedResource,
 	renamedResourceFileName,
 } from '../transaction-shared.js';
-import { normalizationFailure, pushSupportIssue, validateTouchedResourceKind } from './support.js';
-import { normalizeResource } from '../normalize.js';
+import { pushSupportIssue, validateTouchedResourceKind } from './support.js';
 import { isSafeResourceFileName, isSafeResourcePath, describeValue } from './values.js';
 
 export function primaryResourceFileName(resource: UamAssetResource): string {
@@ -79,22 +78,6 @@ export function validateAssetResourcePayload(
 ): void {
 	const pkg = findPackageSpec(project, selector.packageId);
 	if (!pkg) return;
-	// Branch keys the package folder projection, so it must be a string before normalization.
-	if (resource.branch !== undefined && typeof resource.branch !== 'string') {
-		pushSupportIssue(issues, 'invalid_resource_payload', `${path}.resource.branch`, 'Added binary resource branch must be a string.', { operationKind });
-		return;
-	}
-	const failure = normalizationFailure(() => normalizeResource(resource));
-	if (failure) {
-		pushSupportIssue(
-			issues,
-			'invalid_resource_payload',
-			`${path}.resource`,
-			`Resource payload does not match the UAM model: ${failure}`,
-			{ operationKind },
-		);
-		return;
-	}
 	if (!UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds.includes(resource.kind as never)) {
 		pushSupportIssue(
 			issues,

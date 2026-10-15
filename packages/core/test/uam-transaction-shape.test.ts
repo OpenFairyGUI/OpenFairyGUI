@@ -2,6 +2,7 @@ import test from 'ava';
 import {
 	applyUamTransaction,
 	applyUamTransactionAsync,
+	createDefaultUamPlainTextProperties,
 	normalizeUamProject,
 	UamTransactionError,
 	validateTransactionSupport,
@@ -9,6 +10,7 @@ import {
 	type UamTransactionOperation,
 	type UamTransactionSupportIssueCode,
 } from '../src/index.js';
+import { OPERATION_PAYLOAD_SCHEMA } from '../src/uam/generated/operation-payload-schema.js';
 import {
 	createControllerModel,
 	createLifecycleComponent,
@@ -219,19 +221,19 @@ test('required and optional fields follow the operation contract', (t) => {
 	});
 });
 
-test('malformed nested payload containers are reported by their owning domain checks', (t) => {
+test('malformed nested payloads are reported at their exact path with the owning domain code', (t) => {
 	const cases: Array<[unknown, string, string]> = [
 		[{ ...VALID_OPERATIONS.addController, controller: { ...createControllerModel('c2'), pages: null } }, 'invalid_controller_payload', 'operations[0].controller.pages'],
 		[{ ...VALID_OPERATIONS.addController, controller: { ...createControllerModel('c2'), actions: [{ fromPageIds: 'x' }] } }, 'invalid_controller_payload', 'operations[0].controller.actions[0].fromPageIds'],
 		[{ ...VALID_OPERATIONS.addTransition, transition: { ...createTransitionModel('t2'), items: {} } }, 'invalid_transition_payload', 'operations[0].transition.items'],
-		[{ ...VALID_OPERATIONS.addGear, gear: { ...xyGear, states: [null] } }, 'invalid_gear_payload', 'operations[0].gear.states'],
+		[{ ...VALID_OPERATIONS.addGear, gear: { ...xyGear, states: [null] } }, 'invalid_gear_payload', 'operations[0].gear.states[0]'],
 		[{ ...VALID_OPERATIONS.attachDisplayNode, node: { ...textNode, gears: 'x' } }, 'invalid_display_node_payload', 'operations[0].node.gears'],
-		[{ ...VALID_OPERATIONS.attachDisplayNode, node: { ...textNode, color: 0 } }, 'invalid_display_node_payload', 'operations[0].node'],
+		[{ ...VALID_OPERATIONS.attachDisplayNode, node: { ...textNode, color: 0 } }, 'invalid_display_node_payload', 'operations[0].node.color'],
 		[{ ...VALID_OPERATIONS.addComponent, component: { ...createLifecycleComponent('cmp009', 'Popup9'), kind: 'image' } }, 'invalid_component_payload', 'operations[0].component.kind'],
-		[{ ...VALID_OPERATIONS.addComponent, component: { ...createLifecycleComponent('cmp009', 'Popup9'), component: null } }, 'invalid_component_payload', 'operations[0].component'],
-		[{ ...VALID_OPERATIONS.addPackage, package: { ...createLifecyclePackage('pkg003', 'Third'), resources: 0 } }, 'invalid_package_payload', 'operations[0].package'],
+		[{ ...VALID_OPERATIONS.addComponent, component: { ...createLifecycleComponent('cmp009', 'Popup9'), component: null } }, 'invalid_component_payload', 'operations[0].component.component'],
+		[{ ...VALID_OPERATIONS.addPackage, package: { ...createLifecyclePackage('pkg003', 'Third'), resources: 0 } }, 'invalid_package_payload', 'operations[0].package.resources'],
 		[{ ...VALID_OPERATIONS.addPackage, package: { ...createLifecyclePackage('pkg003', 'Third'), name: null } }, 'invalid_package_payload', 'operations[0].package.name'],
-		[{ ...VALID_OPERATIONS.addResource, resource: { ...VALID_OPERATIONS.addResource.resource, branchItemIds: 0 } }, 'invalid_resource_payload', 'operations[0].resource'],
+		[{ ...VALID_OPERATIONS.addResource, resource: { ...VALID_OPERATIONS.addResource.resource, branchItemIds: 0 } }, 'invalid_resource_payload', 'operations[0].resource.branchItemIds'],
 	];
 	for (const [operation, code, path] of cases) {
 		assertRejectedWithoutCrash(t, [operation], path);
@@ -305,5 +307,61 @@ test('literal selector kinds only accept their contract values', (t) => {
 		const operation = { ...VALID_OPERATIONS[kind], selector: { ...VALID_OPERATIONS[kind].selector, kind: 'bogus' } };
 		t.like(issuesFor([operation])[0], { code: 'invalid_operation_payload', path: 'operations[0].selector.kind' }, kind);
 		t.throws(() => applyUamTransaction(project, [operation as never]), { instanceOf: UamTransactionError }, kind);
+	}
+});
+
+test('snapshot payloads follow the generated contract structure with the owning domain code', (t) => {
+	const attach = VALID_OPERATIONS.attachDisplayNode;
+	const props = VALID_OPERATIONS.setDisplayNodeProps;
+	const lifecycleComponent = createLifecycleComponent('cmp009', 'Popup9');
+	const { name: _name, ...unnamedNode } = textNode;
+	const holes: unknown[] = [];
+	holes[1] = { id: '1', name: 'Alert', remark: '' };
+	const cases: Array<[string, unknown, string, string, RegExp?]> = [
+		['wrong type', { ...attach, node: { ...textNode, position: { x: '1', y: 0 } } }, 'invalid_display_node_payload', 'node.position.x', /^attachDisplayNode\.node\.position\.x must be a finite number\.$/],
+		['missing required field', { ...attach, node: unnamedNode }, 'invalid_display_node_payload', 'node.name', /is required and must be a string/],
+		['undeclared nested field', { ...attach, node: { ...textNode, position: { x: 0, y: 0, z: 0 } } }, 'invalid_display_node_payload', 'node.position.z', /accepted fields: x, y/],
+		['non-finite number', { ...attach, node: { ...textNode, alpha: Number.NaN } }, 'invalid_display_node_payload', 'node.alpha'],
+		['unknown payload kind', { ...attach, node: { ...textNode, kind: 'bogus' } }, 'unsupported_display_node_kind', 'node.kind', /must be one of "image", "text"/],
+		['unknown nested kind', { ...VALID_OPERATIONS.addComponent, component: { ...lifecycleComponent, component: { ...lifecycleComponent.component, displayList: [{ ...textNode, kind: 'bogus' }] } } }, 'invalid_component_payload', 'component.component.displayList[0].kind'],
+		['unsupported props field', { ...props, props: { width: 10 } }, 'unsupported_display_node_field', 'props.width'],
+		['undeclared field inside props', { ...props, props: { position: { x: 0, y: 0, z: 0 } } }, 'invalid_display_node_payload', 'props.position.z'],
+		['closest union member', { ...props, props: { textProperties: { ...createDefaultUamPlainTextProperties(), fontSize: 'x' } } }, 'invalid_display_node_payload', 'props.textProperties.fontSize'],
+		['fixed-length tuple', { ...VALID_OPERATIONS.setImageResourceProps, props: { ...imageResource.image, scale9Grid: [1, 2, 3] } }, 'invalid_resource_payload', 'props.scale9Grid', /an array of 4 items/],
+		['plain array where bytes are declared', { ...VALID_OPERATIONS.addResource, resource: { ...VALID_OPERATIONS.addResource.resource, sourceBytes: [1, 2] } }, 'invalid_resource_payload', 'resource.sourceBytes'],
+		['unknown resource kind', { ...VALID_OPERATIONS.addResource, resource: { ...VALID_OPERATIONS.addResource.resource, kind: 'component' } }, 'unsupported_resource_kind', 'resource.kind'],
+		['array hole', { ...VALID_OPERATIONS.addController, controller: { ...createControllerModel('c2'), pages: holes } }, 'invalid_controller_payload', 'controller.pages[0]'],
+		// These used to apply and then fail while saving, or to be written to disk as given.
+		['component name', { ...VALID_OPERATIONS.addComponent, component: { ...lifecycleComponent, name: 42 } }, 'invalid_component_payload', 'component.name'],
+		['transition item time', { ...VALID_OPERATIONS.addTransition, transition: { ...createTransitionModel('t2'), items: [{ ...createTransitionModel('t2').items[0]!, time: 'x' }] } }, 'invalid_transition_payload', 'transition.items[0].time'],
+		['controller selected index', { ...VALID_OPERATIONS.addController, controller: { ...createControllerModel('c2'), selectedIndex: 'x' } }, 'invalid_controller_payload', 'controller.selectedIndex'],
+		['gear tween duration', { ...VALID_OPERATIONS.addGear, gear: { ...xyGear, tweenDuration: 'x' } }, 'invalid_gear_payload', 'gear.tweenDuration'],
+		['package jpeg quality', { ...VALID_OPERATIONS.updatePackageSettings, settings: { ...VALID_OPERATIONS.updatePackageSettings.settings, jpegQuality: '80' } }, 'invalid_package_settings', 'settings.jpegQuality'],
+	];
+	for (const [label, operation, code, path, message] of cases) {
+		const issues = issuesFor([operation]);
+		t.deepEqual(issues.map((issue) => [issue.code, issue.path]), [[code, `operations[0].${path}`]], label);
+		if (message) t.regex(issues[0]!.message, message, label);
+		assertRejectedWithoutCrash(t, [operation], label);
+		const error = t.throws(() => applyUamTransaction(project, [operation] as UamTransactionOperation[]), { instanceOf: UamTransactionError }, label);
+		t.is(error?.code, 'transaction_unsupported', label);
+	}
+	t.like(issuesFor([{ ...props, props: { width: 10 } }])[0], { field: 'width', operationKind: 'setDisplayNodeProps' });
+	// A structural issue stops the batch before domain stages read any operation.
+	t.deepEqual(issuesFor([VALID_OPERATIONS.removeResource, { ...attach, node: { ...textNode, alpha: 'x' } }]).map((issue) => issue.path), ['operations[1].node.alpha']);
+});
+
+test('every generated payload root is enforced by the shape gate', (t) => {
+	for (const [kind, fields] of Object.entries(OPERATION_PAYLOAD_SCHEMA.roots)) {
+		const operation = VALID_OPERATIONS[kind as keyof typeof VALID_OPERATIONS] as Record<string, unknown>;
+		for (const field of Object.keys(fields)) {
+			const payload = operation[field] as Record<string, unknown>;
+			const key = Object.keys(payload).find((name) => payload[name] !== undefined)!;
+			const issues = issuesFor([{ ...operation, [field]: { ...payload, [key]: Symbol('probe') } }]);
+			t.true(
+				issues.some((issue) => issue.code !== 'invalid_operation_payload' && issue.path.startsWith(`operations[0].${field}.${key}`)),
+				`${kind}.${field}.${key}`,
+			);
+		}
 	}
 });

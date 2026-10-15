@@ -12,6 +12,8 @@ export const CLI = 'packages/cli/src/contracts.ts';
 export const GENERATED = 'packages/backend/src/generated/contracts.ts';
 /** Runtime envelope table typed as a mirror of the operation contracts; `pnpm typecheck` enforces it. */
 export const OPERATION_SHAPE = 'packages/core/src/uam/preflight/operation-shape.ts';
+/** Core payload table generated from this contract; only the stubbed envelope table imports it. */
+export const CORE_GENERATED = 'packages/core/src/uam/generated/operation-payload-schema.ts';
 
 export function createContractProgram(root = ROOT, sourceOverrides = {}) {
 	const config = ts.readConfigFile(path.join(root, 'tsconfig.json'), ts.sys.readFile);

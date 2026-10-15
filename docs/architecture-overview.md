@@ -23,9 +23,9 @@ Backend 预演只在内存中物化可能含无效引用的已有快照，以支
 | CLI | `packages/cli/src/cli.ts`、`commands/`：参数与调用装配；`contracts.ts`、`utils/json-output.ts`：进程 JSON envelope | 领域协议；工作流 result 仍复用 Core/Functions/Backend 类型 |
 | test-utils | `packages/test-utils/`：测试辅助和固定提交的 fixture | 生产协议或运行时工作流 |
 
-`scripts/generate-contracts.mjs` 用已有 TypeScript 编译器从 Core/Backend/CLI 类型生成结构 schema、操作目录、版本绑定语料及文档表格；MCP 复用现有 Zod 校验结构，Core 再校验语义。独立的 `@openfairygui/backend/docs` 分发生成数据，不引入 Backend → CLI 的运行时依赖，也不让 Core 依赖 Zod。
+`scripts/generate-contracts.mjs` 用已有 TypeScript 编译器从 Core/Backend/CLI 类型生成结构 schema、操作目录、版本绑定语料及文档表格；MCP 复用现有 Zod 校验结构。同一契约快照还生成 Core 的事务载荷结构表 `packages/core/src/uam/generated/operation-payload-schema.ts`，Core 预校验据此检查载荷结构，再校验语义。独立的 `@openfairygui/backend/docs` 分发生成数据，不引入 Backend → CLI 的运行时依赖，也不让 Core 依赖 Zod。
 
-生成入口负责契约组装和命令参数；`scripts/contracts/schema.mjs` 拥有类型程序与 schema 推导，`transport.mjs` 拥有输入预算和字节路径，`output.mjs` 拥有双语表格、安装文档及生成漂移检查。
+生成入口负责契约组装和命令参数；`scripts/contracts/schema.mjs` 拥有类型程序与 schema 推导，`transport.mjs` 拥有输入预算和字节路径，`payload-schema.mjs` 拥有不含传输上限的 Core 载荷结构表，`output.mjs` 拥有双语表格、安装文档及生成漂移检查。
 
 Backend 的带类型诊断目录覆盖正式错误码，记录共享码的全部 owners、文档 URI 和恢复建议；响应保留实际来源与原错误字段。CLI/MCP 共用随安装版本发布的离线语料与薄 Skill。精确字段、版本和摘要见[契约查询](./guide/contracts.md)、[诊断与恢复](./guide/diagnostics.md)、[安装版本文档](./guide/installed-docs.md)。
 
@@ -71,7 +71,7 @@ ProjectWriter 在写盘前构建一次包/分支输出描述，固定描述文�
 
 | 文件 | 不变量 |
 |---|---|
-| `operation-shape.ts` | 所有阶段之前的操作外形：数组、对象、已知 `kind`、必填/未知字段、字段 JS 类型与 selector 字段 |
+| `operation-shape.ts`、`payload-schema.ts` | 所有阶段之前的操作外形：数组、对象、已知 `kind`、必填/未知字段、字段 JS 类型与 selector 字段；快照载荷按生成的契约结构逐字段检查 |
 | `support.ts`、`values.ts` | 支持范围、selector、诊断构造、共享值与安全名称校验 |
 | `settings.ts` | 工程/包设置快照、JSON-safe 值及规范比较 |
 | `display.ts` | 节点类型对应的属性快照与无变化判定 |
@@ -80,7 +80,7 @@ ProjectWriter 在写盘前构建一次包/分支输出描述，固定描述文�
 | `lifecycle.ts` | 在同一工作副本中按顺序投影分支、包、组件、资源、目录及显示列表重写 |
 | `projected-state.ts` | 最终 group / 资源引用，以及未触及的既有问题边界 |
 
-外形表由 `transaction-contracts.ts` 的类型推导约束，字段集合、可选性或类型漂移会导致类型检查失败；字面量类型字段（如 gear selector 的 `kind`）必须用列出全部且仅有合法值的规则，gear 种类取自 `UAM_SUPPORTED_TRANSACTION_SCOPE`；任一操作外形不符时返回 `invalid_operation_payload` 并停止后续阶段，因为同批投影会读取其他操作。快照载荷（包、组件、资源、显示节点）先由所属领域检查容器，再交给 Core 规范化；无法规范化的载荷在该载荷路径上报告。诊断消息不对调用方的值做字符串转换（`describeValue`），载荷中的对象值不会让校验本身抛出。事务执行中出现的非 `UamTransactionError` 异常统一转为 `execution_failure`，不会作为原始异常抛给宿主。
+外形表由 `transaction-contracts.ts` 的类型推导约束，字段集合、可选性或类型漂移会导致类型检查失败；字面量类型字段（如 gear selector 的 `kind`）必须用列出全部且仅有合法值的规则，gear 种类取自 `UAM_SUPPORTED_TRANSACTION_SCOPE`；操作外形不符时返回 `invalid_operation_payload`。快照载荷（工程/包设置、包、组件、资源、显示节点及其属性、controller、transition、gear）按生成的载荷结构表逐字段检查：JS 类型、必填与未声明字段、有限数值、固定长度数组、`Uint8Array`、循环引用以及按 `kind` 等判别字段区分的联合；不含 MCP 的长度、数量等传输上限。问题报告到具体字段路径，并使用载荷所属领域的诊断码，例如 `invalid_display_node_payload`；载荷自身的未知 `kind` 保留 `unsupported_display_node_kind` / `unsupported_resource_kind`，`setDisplayNodeProps` 未声明的属性保留 `unsupported_display_node_field`。任一外形或载荷结构不符时停止后续阶段，因为同批投影会读取其他操作；领域阶段只检查取值、引用与组合约束。诊断消息不对调用方的值做字符串转换（`describeValue`），载荷中的对象值不会让校验本身抛出。事务执行中出现的非 `UamTransactionError` 异常统一转为 `execution_failure`，不会作为原始异常抛给宿主。
 
 生命周期投影复用实际 UAM apply helper，不另建执行器。领域函数不能各自遍历并重排整个批次；错误码、路径、诊断顺序与失败不修改输入必须保持。`uam-transaction-support.test.ts`、`uam-transaction-apply.test.ts`、`uam-transaction-lifecycle.test.ts` 覆盖这些职责和跨域批次。
 

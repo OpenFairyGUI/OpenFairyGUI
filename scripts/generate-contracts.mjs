@@ -11,6 +11,7 @@ import { checkGeneratedFiles, generatedFiles } from './contracts/output.mjs';
 
 export { createContractProgram, createSchemaEmitter, dereference } from './contracts/schema.mjs';
 export { nativeBytePaths } from './contracts/transport.mjs';
+export { corePayloadSchema, payloadFields } from './contracts/payload-schema.mjs';
 export { generatedSource, contractTables, generatedFiles, checkGeneratedFiles } from './contracts/output.mjs';
 
 export function generateContract(program = createContractProgram()) {

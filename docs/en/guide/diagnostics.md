@@ -14,6 +14,8 @@ SDK: `getBackendDiagnosticCatalog()` / `getBackendDiagnosticGuide(code)`. MCP: r
 
 `revise-operation` covers invalid payloads, conflicts, references and unsupported edits: read schemas and current entities before replanning; never delete data to bypass a failure. Report an already-satisfied no-op, preserve dirty state and inspect actual files after a write failure, and never delete a live lock. Complete guidance does not imply automatic repair.
 
+Transaction payload structure is checked field by field against the operation schema before any domain check. `path` names the exact field, such as `operations[0].node.position.x`, and the code belongs to the domain that owns the payload, such as `invalid_display_node_payload` or `invalid_component_payload`. An unknown `kind` on the payload itself stays `unsupported_display_node_kind` / `unsupported_resource_kind`, and an undeclared `setDisplayNodeProps` property stays `unsupported_display_node_field`. A batch with structural issues reports only those; preflight again after fixing them to get value and reference diagnostics.
+
 ## Complete Formal Diagnostic Catalog
 
 Generated from Backend's typed catalog by `pnpm contracts:generate`; do not edit the marked section.

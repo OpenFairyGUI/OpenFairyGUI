@@ -14,6 +14,8 @@ SDK：`getBackendDiagnosticCatalog()` / `getBackendDiagnosticGuide(code)`。MCP�
 
 `revise-operation` 用于正式 payload、冲突、引用与不支持的编辑；先读 schema 和当前实体再规划，不能删除数据来绕过错误。无变化应报告已满足，写入失败必须保留 dirty 状态并检查实际文件，锁冲突不得删除活跃锁；目录覆盖不等于这些情况可以自动修复。
 
+事务载荷结构在任何领域检查之前按操作 schema 逐字段检查：`path` 指向具体字段，例如 `operations[0].node.position.x`，诊断码属于载荷所属领域，例如 `invalid_display_node_payload`、`invalid_component_payload`。载荷自身的未知 `kind` 仍为 `unsupported_display_node_kind` / `unsupported_resource_kind`，`setDisplayNodeProps` 未声明的属性仍为 `unsupported_display_node_field`。批次中出现结构问题时只报告结构问题；修正后再预检以获得取值与引用诊断。
+
 ## 完整正式诊断目录
 
 以下内容由 `pnpm contracts:generate` 从 Backend 的带类型目录生成；不要手改。
