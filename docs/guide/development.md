@@ -93,7 +93,7 @@ Agent 评测共用 tarball 安装流程。`pnpm eval:agent --runner reference` �
 
 ## 产品文档与仓库诊断
 
-安装包使用 `ofgui docs` 和 `ofgui doctor --json`，不依赖仓库。语料与契约统一由 `pnpm contracts:generate` 更新到 `packages/backend/src/generated/`；包版本、工作流或薄 Skill 变化也必须生成并运行 `pnpm contracts:check`。`pnpm pack:check` 验证离线 CLI/MCP 语料一致性、版本、doctor 与随包 Skill。仓库环境诊断仍用 `pnpm repo:doctor`，完整区别见[安装版本文档](./installed-docs.md)。
+安装包使用 `ofgui docs` 和 `ofgui doctor --json`，不依赖仓库。语料与契约统一由 `pnpm contracts:generate` 更新到 `packages/backend/src/generated/`，Core 事务载荷结构表更新到 `packages/core/src/uam/generated/`；包版本、工作流或薄 Skill 变化也必须生成并运行 `pnpm contracts:check`。`pnpm pack:check` 验证离线 CLI/MCP 语料一致性、版本、doctor 与随包 Skill。仓库环境诊断仍用 `pnpm repo:doctor`，完整区别见[安装版本文档](./installed-docs.md)。
 
 契约生成从 Core/Backend/CLI 类型更新 MCP/CLI 结构契约、操作目录、诊断指引、快照与双语表格；`contracts:check` 只读检查映射、正式诊断码覆盖/归属与生成物漂移。CLI 命令注册覆盖另由仓库自测检查。修改入口见[契约指南](./contracts.md)。
 

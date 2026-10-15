@@ -4,7 +4,6 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'ava';
 import sharp from 'sharp';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import {
 	BackendRuntime,
@@ -31,7 +30,7 @@ import {
 	callOpenFairyGuiBackendTool,
 	OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS,
 } from '../src/index.js';
-import { createTempMcpProject, createMcpFixtureProject } from './helpers.js';
+import { createTempMcpProject, createMcpFixtureProject, createMcpTestClient } from './helpers.js';
 
 test('MCP round-trips a real image above the generic array budget through read, preview and apply', async (t) => {
 	const project = createMcpFixtureProject();
@@ -49,7 +48,7 @@ test('MCP round-trips a real image above the generic array budget through read, 
 		selector = { packageId: 'pkg001', resourceId: 'img001' };
 	const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 	const server = createOpenFairyGuiMcpServer({ runtime });
-	const client = new Client({ name: 'image-roundtrip', version: 'test' });
+	const client = createMcpTestClient('image-roundtrip');
 	await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
 	try {
 		await client.listTools();
@@ -120,7 +119,7 @@ test('MCP session reads expose current unsaved state and primary bytes at one re
 	const runtime = createNodeBackendRuntime({ allowedProjectRoots: [fixture.rootDir] });
 	const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 	const server = createOpenFairyGuiMcpServer({ runtime });
-	const client = new Client({ name: 'session-state-reader', version: 'test' });
+	const client = createMcpTestClient('session-state-reader');
 	await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
 	let sessionId: string | undefined;
 	try {
@@ -270,7 +269,7 @@ test('MCP reads complete project and package settings before editing only the re
 	const expected = await readProjectAsUam(io, fixture.fairyPath);
 	const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 	const server = createOpenFairyGuiMcpServer({ allowedProjectRoots: [fixture.rootDir] });
-	const client = new Client({ name: 'settings-editing', version: 'test' });
+	const client = createMcpTestClient('settings-editing');
 	await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
 	let sessionId: string | undefined;
 	async function call<T>(method: string, input: Record<string, unknown>): Promise<T> {
@@ -364,7 +363,12 @@ for (const [fixtureName, relativeFairyPath] of [
 		const sourcePath = getFixtureProjectPath(fixtureName, relativeFairyPath);
 		const rootDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-mcp-settings-'));
 		const fairyPath = path.join(rootDir, path.basename(sourcePath));
-		await fs.cp(path.dirname(sourcePath), rootDir, { recursive: true });
+		// Only the project file and settings sidecars are under test; packages would make open, save and reread
+		// process the whole fixture.
+		await fs.copyFile(sourcePath, fairyPath);
+		await fs.cp(path.join(path.dirname(sourcePath), 'settings'), path.join(rootDir, 'settings'), {
+			recursive: true,
+		});
 		const readSidecar = async (name: string) =>
 			JSON.parse(await fs.readFile(path.join(rootDir, 'settings', name), 'utf8')) as Record<string, unknown>;
 		const [sourcePublish, sourceCommon] = [await readSidecar('Publish.json'), await readSidecar('Common.json')];
@@ -373,7 +377,7 @@ for (const [fixtureName, relativeFairyPath] of [
 		t.is(typeof sourcePublish.jpegQuality, 'number');
 		const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 		const server = createOpenFairyGuiMcpServer({ allowedProjectRoots: [rootDir] });
-		const client = new Client({ name: 'fixture-settings', version: 'test' });
+		const client = createMcpTestClient('fixture-settings');
 		await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
 		let sessionId: string | undefined;
 		async function callBackend<T>(method: string, input: Record<string, unknown>): Promise<BackendResult<T>> {
@@ -440,7 +444,7 @@ test('MCP queries, previews, applies and saves with generated schemas and revisi
 	assert(opened.ok);
 	const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 	const server = createOpenFairyGuiMcpServer({ runtime });
-	const client = new Client({ name: 'safe-editing', version: 'test' });
+	const client = createMcpTestClient('safe-editing');
 	await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
 	try {
 		const tools = await client.listTools();
@@ -634,7 +638,7 @@ test('MCP complex queries validate formal selectors and round-trip full snapshot
 	const sessionId = opened.data.sessionId;
 	const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 	const server = createOpenFairyGuiMcpServer({ runtime });
-	const client = new Client({ name: 'complex-editing', version: 'test' });
+	const client = createMcpTestClient('complex-editing');
 	await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
 	try {
 		await client.listTools(); // The SDK validates actual output against the advertised schema.

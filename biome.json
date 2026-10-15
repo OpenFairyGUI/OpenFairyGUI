@@ -54,7 +54,8 @@
 			"!**/packages/**/*/dist",
 			"!**/build",
 			"!packages/test-utils/test/fixtures/**",
-			"!packages/*/src/generated/**"
+			"!packages/*/src/generated/**",
+			"!packages/core/src/uam/generated/**"
 		]
 	},
 	"overrides": [

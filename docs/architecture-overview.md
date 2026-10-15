@@ -34,7 +34,9 @@ flowchart TD
 
 发布由 Functions 的 Node/Web 宿主执行。MCP 默认不开启发布；显式注入的 publish 回调拥有路径授权、输出范围与插件策略，不改变 Backend 方法集合。CLI tx 每次打开新会话，在同一锁内预演、提交、验证、保存并关闭；跨进程预演不保留会话 revision。
 
-事务预校验先由 `preflight/operation-shape.ts` 检查操作外形及 selector 字面量；外形表受正式事务类型约束。外形错误返回 `invalid_operation_payload`，未知 kind 返回 `unsupported_operation`，并停止后续阶段。快照载荷由所属领域检查容器并交给 Core 规范化；诊断文本通过 `describeValue` 避免转换调用方对象，执行中的意外异常转为 `execution_failure`。
+事务预校验先由 `preflight/operation-shape.ts` 检查操作外形及 selector 字面量；外形表受正式事务类型约束。`payload-schema.ts` 按生成的 `uam/generated/operation-payload-schema.ts` 逐字段检查快照载荷的类型、必填与未声明字段、有限数值、固定长度数组、字节和循环引用，报告具体字段路径及所属领域诊断码，不引入 MCP 传输上限。任一结构错误停止后续领域语义检查。诊断文本通过 `describeValue` 避免转换调用方对象，执行中的意外异常转为 `execution_failure`。
+
+契约生成器从与 MCP 相同的正式契约快照生成 Core 载荷结构表；`scripts/contracts/payload-schema.mjs` 拥有不含传输上限的投影，Core 不依赖 Zod。
 
 ## 契约与文档事实源
 
