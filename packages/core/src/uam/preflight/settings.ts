@@ -1,7 +1,7 @@
 import type { UamPackage, UamPackageSettings } from '../model.js';
 import type { UamTransactionOperation, UamTransactionSupportIssue } from '../transaction-contracts.js';
 import { pushSupportIssue } from './support.js';
-import { hasExactKeys, isFiniteNumber, isPlainRecord, isIntegerBetween, isSafeBranchName } from './values.js';
+import { hasExactKeys, isFiniteNumber, isPlainRecord, isIntegerBetween, isSafeBranchName, describeValue } from './values.js';
 
 function findInvalidJsonData(
 	value: unknown,
@@ -248,7 +248,7 @@ export function validatePackageSettingsPayload(
 				pushInvalidPackageSettings(issues, `${atlasPath}.index`, 'Atlas index must be a non-negative integer no greater than maxAtlasIndex.', operationKind);
 			} else {
 				if (indices.has(atlas.index)) {
-					pushInvalidPackageSettings(issues, `${atlasPath}.index`, `Atlas index ${atlas.index} is duplicated.`, operationKind);
+					pushInvalidPackageSettings(issues, `${atlasPath}.index`, `Atlas index ${describeValue(atlas.index)} is duplicated.`, operationKind);
 				}
 				indices.add(atlas.index);
 			}
@@ -271,7 +271,7 @@ export function validatePackageSettingsPayload(
 			if (typeof resourceId !== 'string' || !/^[A-Za-z0-9_-]+$/.test(resourceId)) {
 				pushInvalidPackageSettings(issues, resourcePath, 'Excluded resource ids must be non-empty CSV-safe ids.', operationKind);
 			} else if (ids.has(resourceId)) {
-				pushInvalidPackageSettings(issues, resourcePath, `Excluded resource id "${resourceId}" is duplicated.`, operationKind);
+				pushInvalidPackageSettings(issues, resourcePath, `Excluded resource id "${describeValue(resourceId)}" is duplicated.`, operationKind);
 			}
 			ids.add(resourceId);
 		}

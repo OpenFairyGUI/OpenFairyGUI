@@ -7,7 +7,7 @@ import type {
 } from '../transaction-contracts.js';
 import { findPackageSpec } from '../transaction-shared.js';
 import { pushSupportIssue } from './support.js';
-import { isPlainRecord, isIntegerBetween, isSafePackageName } from './values.js';
+import { isPlainRecord, isIntegerBetween, isSafePackageName, describeValue } from './values.js';
 import { primaryResourceFileName } from './resources.js';
 
 export function isSafeResourceFolderPath(value: string, allowRoot = false): boolean {
@@ -39,8 +39,8 @@ export function folderPathConflictsWithResource(pkg: UamPackage, branch: string,
 	const folderTarget = path.replace(/^\/+|\/+$/g, '');
 	return pkg.resources.some((resource) => {
 		if (resource.branch !== branch) return false;
-		const fileName = resource.kind === 'component' ? `${resource.name}.xml` : primaryResourceFileName(resource);
-		return normalizeResourceFolderPath(`${resource.path}/${fileName}`).slice(1, -1) === folderTarget;
+		const fileName = resource.kind === 'component' ? `${describeValue(resource.name)}.xml` : primaryResourceFileName(resource);
+		return normalizeResourceFolderPath(`${describeValue(resource.path)}/${fileName}`).slice(1, -1) === folderTarget;
 	});
 }
 
@@ -72,7 +72,7 @@ export function validateResourceFolderSelector(
 			issues,
 			'invalid_resource_folder_selector',
 			path,
-			`Resource folder "${folderBranch(selector)}:${selector.path}" was not found in package "${selector.packageId}".`,
+			`Resource folder "${folderBranch(selector)}:${selector.path}" was not found in package "${describeValue(selector.packageId)}".`,
 			{ operationKind },
 		);
 	}

@@ -21,7 +21,7 @@ import type {
 import { findDisplayNodeSpec, GROUPABLE_DISPLAY_NODE_KINDS, TEXT_DISPLAY_NODE_KINDS } from '../transaction-shared.js';
 import { applyDisplayNodePropsUpdate } from '../property-updates.js';
 import { pushSupportIssue } from './support.js';
-import { hasExactKeys, isFiniteNumber, stableJson, isIntegerBetween } from './values.js';
+import { hasExactKeys, isFiniteNumber, stableJson, isIntegerBetween, describeValue } from './values.js';
 
 const COMMON_DISPLAY_PROP_KEYS = new Set<keyof UamDisplayNodePropsUpdate>([
 	'position',
@@ -416,12 +416,12 @@ export function validateDisplayPropsPayload(
 	if (op.props.blendMode !== undefined
 		&& !['normal', 'none', 'add', 'multiply', 'screen', 'erase'].includes(op.props.blendMode)
 	) {
-		commonValueIssue('blendMode', `Unsupported display node blendMode "${op.props.blendMode}".`);
+		commonValueIssue('blendMode', `Unsupported display node blendMode "${describeValue(op.props.blendMode)}".`);
 	}
 	const filter = op.props.filter ?? node?.filter ?? '';
 	const filterData = op.props.filterData ?? node?.filterData ?? '';
 	if (filter !== '' && filter !== 'color') {
-		commonValueIssue('filter', `Unsupported display node filter "${filter}".`);
+		commonValueIssue('filter', `Unsupported display node filter "${describeValue(filter)}".`);
 	} else if (filter === 'color') {
 		const values = filterData.split(',').map((part) => Number(part.trim()));
 		if (values.length !== 4 || values.some((value) => !Number.isFinite(value))) {

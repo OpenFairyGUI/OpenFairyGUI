@@ -7,7 +7,7 @@ import {
 } from './transaction-contracts.js';
 import {
 	pushSupportIssue,
-	validateSupportedDisplayNode,
+	validateDisplayNodePayload,
 	validateBaselineSupport,
 	validateTouchedDisplayNodeKind,
 	validateLifecyclePackageSelector,
@@ -31,6 +31,7 @@ import {
 	requiresSequentialDisplayProjection,
 } from './preflight/lifecycle.js';
 import { validateProjectedState, validateProjectedGroupState } from './preflight/projected-state.js';
+import { validateOperationShapes } from './preflight/operation-shape.js';
 
 function validateOperationPayloads(project: UamProject, operations: UamTransactionOperation[], issues: UamTransactionSupportIssue[]): void {
 	const usesSequentialDisplayProjection = requiresSequentialDisplayProjection(operations);
@@ -103,15 +104,6 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 				if (!usesSequentialDisplayProjection) {
 					validateResourceFolderSelector(project, operation.selector, `${operationPath}.selector`, issues, operation.kind);
 				}
-				if (typeof operation.favorite !== 'boolean') {
-					pushSupportIssue(
-						issues,
-						'invalid_resource_payload',
-						`${operationPath}.favorite`,
-						'setResourceFolderFavorite.favorite must be boolean.',
-						{ operationKind: 'setResourceFolderFavorite' },
-					);
-				}
 				break;
 			case 'setResourceFolderAtlas':
 				break;
@@ -122,16 +114,6 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 				break;
 			case 'setComponentProps': {
 				validateLifecycleComponentSelector(project, operation.selector, `${operationPath}.selector`, issues, operation.kind);
-				if (!operation.props || typeof operation.props !== 'object' || Array.isArray(operation.props)) {
-					pushSupportIssue(
-						issues,
-						'invalid_component_payload',
-						`${operationPath}.props`,
-						'setComponentProps.props must be an object.',
-						{ operationKind: operation.kind },
-					);
-					break;
-				}
 				const keys = Object.keys(operation.props);
 				if (keys.length === 0 || keys.some((key) => key !== 'size' && key !== 'properties')) {
 					pushSupportIssue(
@@ -190,7 +172,7 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 						{ operationKind: operation.kind },
 					);
 				}
-				validateSupportedDisplayNode(operation.node, operation.selector.packageId, `${operationPath}.node`, issues, {
+				validateDisplayNodePayload(operation.node, operation.selector.packageId, `${operationPath}.node`, issues, {
 					operationKind: operation.kind,
 				});
 				break;
@@ -222,16 +204,6 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 			case 'removeComponent':
 			case 'moveComponent':
 				break;
-			default: {
-				const unknownOperation = operation as { kind?: unknown };
-				pushSupportIssue(
-					issues,
-					'unsupported_operation',
-					`${operationPath}.kind`,
-					`Unsupported transaction operation "${String(unknownOperation.kind)}".`,
-				);
-				break;
-			}
 		}
 	}
 }
@@ -245,6 +217,7 @@ export function validateTransactionSupport(
 		validateBaselineSupport(project, issues);
 		return issues;
 	}
+	if (!validateOperationShapes(operations, issues)) return issues;
 	const lifecycleOnly = validateLifecycleBatchCompatibility(operations, issues);
 	validateOperationPayloads(project, operations, issues);
 	if (
@@ -258,17 +231,25 @@ export function validateTransactionSupport(
 	return issues;
 }
 
-export function assertTransactionSupported(
-	project: UamProject,
-	operations?: UamTransactionOperation[],
-): void {
-	const issues = validateTransactionSupport(project, operations);
-	if (issues.length === 0) return;
-	throw new UamTransactionError(
+function transactionUnsupportedError(issues: UamTransactionSupportIssue[]): UamTransactionError {
+	return new UamTransactionError(
 		`Phase A transaction support check failed:\n${issues.map((issue) => `- ${issue.path}: ${issue.message}`).join('\n')}`,
 		{
 			code: 'transaction_unsupported',
 			issues,
 		},
 	);
+}
+
+export function assertTransactionOperationShapes(operations: unknown): asserts operations is UamTransactionOperation[] {
+	const issues: UamTransactionSupportIssue[] = [];
+	if (!validateOperationShapes(operations, issues)) throw transactionUnsupportedError(issues);
+}
+
+export function assertTransactionSupported(
+	project: UamProject,
+	operations?: UamTransactionOperation[],
+): void {
+	const issues = validateTransactionSupport(project, operations);
+	if (issues.length > 0) throw transactionUnsupportedError(issues);
 }

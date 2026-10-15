@@ -83,6 +83,7 @@ export const BACKEND_DIAGNOSTIC_GUIDES = [
 	{ code: 'event_cursor_invalid', owners: ['backend'], remediation: { kind: 'refresh-and-replan', message: "Read the error and getEvents cursor bounds. Request a fresh bounded event page without the invalid cursor and refresh the current outline before replanning; missing retained history is not evidence that nothing changed." } },
 	{ code: 'corrupt_source', owners: ["core.validation"], remediation: source },
 	{ code: 'unsupported_operation', owners: ["core.transaction"], remediation: unsupported },
+	{ code: 'invalid_operation_payload', owners: ["core.transaction"], remediation: payload },
 	{ code: 'transaction_unsupported', owners: ["core.transaction"], remediation: unsupported },
 	{ code: 'unsupported_display_node_kind', owners: ["core.transaction"], remediation: unsupported },
 	{ code: 'unsupported_cross_package_image_ref', owners: ["core.transaction"], remediation: unsupported },

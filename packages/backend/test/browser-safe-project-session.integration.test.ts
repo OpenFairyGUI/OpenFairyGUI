@@ -2794,7 +2794,11 @@ test('browser-safe LayaBox storage sessions preserve resource and gear edits thr
 				},
 				{
 					kind: 'setDisplayNodeProps',
-					selector: gearTarget,
+					selector: {
+						packageId: gearTarget.packageId,
+						componentResourceId: gearTarget.componentResourceId,
+						displayNodeId: gearTarget.displayNodeId,
+					},
 					props: { alpha: targetNode.alpha === 0.65 ? 0.55 : 0.65 },
 				},
 			],

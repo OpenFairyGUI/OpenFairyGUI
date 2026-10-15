@@ -12,7 +12,7 @@ import type {
 } from './model.js';
 import { normalizeResourceFolderPath, resourceFolderParentPath } from '../utils/resource-folder.js';
 import type { ProjectDiagnosticCode } from '../validation.js';
-import { hasExactKeys, isFiniteUamPoint, isUiResourceReference } from './property-rules/values.js';
+import { hasExactKeys, isFiniteUamPoint, isUiResourceReference, describeValue } from './property-rules/values.js';
 import { isValidUamTextProperties, textPropertiesFromNode } from './property-rules/text.js';
 import { isValidUamImageProperties, isValidUamMovieClipProperties } from './property-rules/image.js';
 import { isValidUamComponentInstanceProperties, isValidUamComponentPropertyOverride } from './property-rules/component-instance.js';
@@ -275,16 +275,16 @@ function validateControllerAction(
 ): void {
 	for (const pageId of action.fromPageIds) {
 		if (!knownPageIds.has(pageId)) {
-			pushIssue(issues, `${path}.fromPageIds`, `Unknown controller page id "${pageId}".`);
+			pushIssue(issues, `${path}.fromPageIds`, `Unknown controller page id "${describeValue(pageId)}".`);
 		}
 	}
 	for (const pageId of action.toPageIds) {
 		if (!knownPageIds.has(pageId)) {
-			pushIssue(issues, `${path}.toPageIds`, `Unknown controller page id "${pageId}".`);
+			pushIssue(issues, `${path}.toPageIds`, `Unknown controller page id "${describeValue(pageId)}".`);
 		}
 	}
 	if (action.targetNodeId && !knownChildIds.has(action.targetNodeId)) {
-		pushIssue(issues, `${path}.targetNodeId`, `Unknown target node id "${action.targetNodeId}".`);
+		pushIssue(issues, `${path}.targetNodeId`, `Unknown target node id "${describeValue(action.targetNodeId)}".`);
 	}
 }
 
@@ -297,7 +297,7 @@ function validateGearBinding(
 	if (gear.kind === 'xy') {
 		for (const [valuePath, value] of [
 			[`${path}.defaultValue`, gear.defaultValue],
-			...gear.states.filter((state) => state.value !== null).map((state) => [`${path}.states.${state.pageId}.value`, state.value] as const),
+			...gear.states.filter((state) => state.value !== null).map((state) => [`${path}.states.${describeValue(state.pageId)}.value`, state.value] as const),
 		] as const) {
 			if (value !== null && !isValidUamXYGearValue(value, gear.positionsInPercent)) {
 				pushIssue(issues, valuePath, 'XY gear values require finite x/y and paired finite px/py; percentage mode requires px/py.');
@@ -306,7 +306,7 @@ function validateGearBinding(
 	}
 	const controller = controllerMap.get(gear.controllerName);
 	if (!controller) {
-		pushIssue(issues, `${path}.controllerName`, `Unknown gear controller "${gear.controllerName}".`);
+		pushIssue(issues, `${path}.controllerName`, `Unknown gear controller "${describeValue(gear.controllerName)}".`);
 		return;
 	}
 
@@ -314,7 +314,7 @@ function validateGearBinding(
 	if (gear.kind === 'display' || gear.kind === 'display2') {
 		const seen = new Set<string>();
 		for (const pageId of gear.visibleOnPageIds) {
-			if (seen.has(pageId)) pushIssue(issues, `${path}.visibleOnPageIds`, `Duplicate gear page id "${pageId}".`);
+			if (seen.has(pageId)) pushIssue(issues, `${path}.visibleOnPageIds`, `Duplicate gear page id "${describeValue(pageId)}".`);
 			seen.add(pageId);
 		}
 		return;
@@ -322,8 +322,8 @@ function validateGearBinding(
 
 	const seen = new Set<string>();
 	for (const state of gear.states) {
-		if (!pageIds.has(state.pageId)) pushIssue(issues, `${path}.states`, `Unknown gear state page id "${state.pageId}".`);
-		if (seen.has(state.pageId)) pushIssue(issues, `${path}.states`, `Duplicate gear state page id "${state.pageId}".`);
+		if (!pageIds.has(state.pageId)) pushIssue(issues, `${path}.states`, `Unknown gear state page id "${describeValue(state.pageId)}".`);
+		if (seen.has(state.pageId)) pushIssue(issues, `${path}.states`, `Duplicate gear state page id "${describeValue(state.pageId)}".`);
 		seen.add(state.pageId);
 	}
 }
@@ -360,14 +360,14 @@ function validatePackageOutputTargets(
 	issues: UamValidationIssue[],
 ): void {
 	if (!isSafePathSegment(pkg.name)) {
-		pushIssue(issues, `${pkgPath}.name`, `Invalid package output name "${pkg.name}".`, 'unsafe_path');
+		pushIssue(issues, `${pkgPath}.name`, `Invalid package output name "${describeValue(pkg.name)}".`, 'unsafe_path');
 	}
 	const outputs = new Map<string, string>();
 	const folderKeys = new Set<string>();
 	for (const [folderIndex, folder] of pkg.folders.entries()) {
 		const folderPath = `${pkgPath}.folders[${folderIndex}]`;
 		if (folder.branch && !isSafePathSegment(folder.branch)) {
-			pushIssue(issues, `${folderPath}.branch`, `Invalid package branch name "${folder.branch}".`);
+			pushIssue(issues, `${folderPath}.branch`, `Invalid package branch name "${describeValue(folder.branch)}".`);
 		}
 		const normalizedPath = normalizeResourceFolderPath(folder.path);
 		if (folder.path === '/' || folder.path !== normalizedPath || !folder.path.split('/').filter(Boolean).every(isSafePathSegment)) {
@@ -380,31 +380,31 @@ function validatePackageOutputTargets(
 		if (typeof folder.atlas !== 'string') {
 			pushIssue(issues, `${folderPath}.atlas`, 'Resource folder atlas must be a string.');
 		}
-		const key = `${folder.branch}\0${folder.path}`.toLowerCase();
+		const key = `${describeValue(folder.branch)}\0${describeValue(folder.path)}`.toLowerCase();
 		if (folderKeys.has(key)) {
-			pushIssue(issues, `${folderPath}.path`, `Duplicate resource folder path "${folder.path}".`, 'path_collision');
+			pushIssue(issues, `${folderPath}.path`, `Duplicate resource folder path "${describeValue(folder.path)}".`, 'path_collision');
 		}
 		folderKeys.add(key);
 		const parentPath = resourceFolderParentPath(folder.path);
-		if (parentPath !== '/' && !folderKeys.has(`${folder.branch}\0${parentPath}`.toLowerCase())
+		if (parentPath !== '/' && !folderKeys.has(`${describeValue(folder.branch)}\0${parentPath}`.toLowerCase())
 			&& !pkg.folders.some((candidate) => candidate.branch.toLowerCase() === folder.branch.toLowerCase()
 				&& candidate.path.toLowerCase() === parentPath.toLowerCase())
 		) {
-			pushIssue(issues, `${folderPath}.path`, `Parent resource folder "${parentPath}" does not exist.`);
+			pushIssue(issues, `${folderPath}.path`, `Parent resource folder "${describeValue(parentPath)}" does not exist.`);
 		}
 		const target = folder.path.replace(/^\/+|\/+$/g, '');
 		const descriptor = folder.branch ? 'package_branch.xml' : 'package.xml';
 		if (target.toLowerCase() === descriptor) {
-			pushIssue(issues, `${folderPath}.path`, `Resource folder output "${target}" conflicts with the package descriptor.`, 'path_collision');
+			pushIssue(issues, `${folderPath}.path`, `Resource folder output "${describeValue(target)}" conflicts with the package descriptor.`, 'path_collision');
 		}
-		outputs.set(`${folder.branch}\0${target}`.toLowerCase(), folderPath);
+		outputs.set(`${describeValue(folder.branch)}\0${target}`.toLowerCase(), folderPath);
 	}
 	for (const [resourceIndex, resource] of pkg.resources.entries()) {
 		const resourcePath = `${pkgPath}.resources[${resourceIndex}]`;
 		if (resource.branch && !isSafePathSegment(resource.branch)) {
-			pushIssue(issues, `${resourcePath}.branch`, `Invalid package branch name "${resource.branch}".`);
+			pushIssue(issues, `${resourcePath}.branch`, `Invalid package branch name "${describeValue(resource.branch)}".`);
 		}
-		const fileName = resource.kind === 'component' ? `${resource.name}.xml` : assetFileName(resource);
+		const fileName = resource.kind === 'component' ? `${describeValue(resource.name)}.xml` : assetFileName(resource);
 		const target = normalizedResourceTarget(resource.path, fileName);
 		if (!target) {
 			pushIssue(issues, `${resourcePath}.path`, 'Resource output path must be package-relative and traversal-free.', 'unsafe_path');
@@ -412,12 +412,12 @@ function validatePackageOutputTargets(
 		}
 		const descriptor = resource.branch ? 'package_branch.xml' : 'package.xml';
 		if (target.toLowerCase() === descriptor) {
-			pushIssue(issues, `${resourcePath}.path`, `Resource output "${target}" conflicts with the package descriptor.`, 'path_collision');
+			pushIssue(issues, `${resourcePath}.path`, `Resource output "${describeValue(target)}" conflicts with the package descriptor.`, 'path_collision');
 		}
-		const key = `${resource.branch}\0${target}`.toLowerCase();
+		const key = `${describeValue(resource.branch)}\0${target}`.toLowerCase();
 		const previous = outputs.get(key);
 		if (previous) {
-			pushIssue(issues, `${resourcePath}.path`, `Resource output "${target}" conflicts with ${previous}.`, 'path_collision');
+			pushIssue(issues, `${resourcePath}.path`, `Resource output "${describeValue(target)}" conflicts with ${previous}.`, 'path_collision');
 		} else {
 			outputs.set(key, resourcePath);
 		}
@@ -469,10 +469,10 @@ function validateDisplayNode(
 		pushIssue(issues, path, 'Display node tooltips, filter, filterData, and customData must be strings.');
 	}
 	if (!['normal', 'none', 'add', 'multiply', 'screen', 'erase'].includes(node.blendMode)) {
-		pushIssue(issues, `${path}.blendMode`, `Unsupported display node blendMode "${node.blendMode}".`);
+		pushIssue(issues, `${path}.blendMode`, `Unsupported display node blendMode "${describeValue(node.blendMode)}".`);
 	}
 	if (node.filter !== '' && node.filter !== 'color') {
-		pushIssue(issues, `${path}.filter`, `Unsupported display node filter "${node.filter}".`);
+		pushIssue(issues, `${path}.filter`, `Unsupported display node filter "${describeValue(node.filter)}".`);
 	} else if (node.filter === 'color') {
 		const values = node.filterData.split(',').map((part) => Number(part.trim()));
 		if (values.length !== 4 || values.some((value) => !Number.isFinite(value))) {
@@ -500,7 +500,7 @@ function validateDisplayNode(
 		if (typeof node.pageController !== 'string') {
 			pushIssue(issues, `${path}.pageController`, 'Component page controller must be a string.');
 		} else if (node.pageController && !controllerMap.has(node.pageController)) {
-			pushIssue(issues, `${path}.pageController`, `Unknown page controller "${node.pageController}".`);
+			pushIssue(issues, `${path}.pageController`, `Unknown page controller "${describeValue(node.pageController)}".`);
 		}
 	}
 	if (node.kind === 'component' && node.controllerOverrides !== undefined && typeof node.controllerOverrides !== 'string') {
@@ -551,26 +551,26 @@ function validateDisplayNode(
 	}
 	if (node.kind === 'loader' || node.kind === 'loader3D') {
 		if ('group' in node) {
-			pushIssue(issues, `${path}.group`, `${node.kind} display nodes must not declare a group reference.`);
+			pushIssue(issues, `${path}.group`, `${describeValue(node.kind)} display nodes must not declare a group reference.`);
 		}
 	} else {
 		if (!('group' in node) || typeof node.group !== 'string') {
 			pushIssue(issues, `${path}.group`, 'Display node group must be a string.');
 		} else if (node.group && (node.group === node.id || !knownGroupIds.has(node.group))) {
-			pushIssue(issues, `${path}.group`, `Group reference "${node.group}" must target another group in the same component.`);
+			pushIssue(issues, `${path}.group`, `Group reference "${describeValue(node.group)}" must target another group in the same component.`);
 		}
 	}
 	const gearKinds = new Set<UamGearBinding['kind']>();
 	for (const [gearIndex, gear] of node.gears.entries()) {
 		if (gearKinds.has(gear.kind)) {
-			pushIssue(issues, `${path}.gears[${gearIndex}]`, `A display node may only have one ${gear.kind} gear.`);
+			pushIssue(issues, `${path}.gears[${gearIndex}]`, `A display node may only have one ${describeValue(gear.kind)} gear.`);
 		}
 		gearKinds.add(gear.kind);
 		validateGearBinding(gear, controllerMap, `${path}.gears[${gearIndex}]`, issues);
 	}
 	for (const [relationIndex, relation] of node.relations.entries()) {
 		if (relation.targetNodeId && !knownChildIds.has(relation.targetNodeId)) {
-			pushIssue(issues, `${path}.relations[${relationIndex}]`, `Unknown relation target node id "${relation.targetNodeId}".`);
+			pushIssue(issues, `${path}.relations[${relationIndex}]`, `Unknown relation target node id "${describeValue(relation.targetNodeId)}".`);
 		}
 	}
 }
@@ -583,8 +583,8 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 	if (!Array.isArray(project.branches)) pushIssue(issues, 'branches', 'Project branches must be an array.');
 	const projectBranchNames = new Set<string>();
 	for (const [branchIndex, branchName] of declaredProjectBranches.entries()) {
-		if (!isSafePathSegment(branchName)) pushIssue(issues, `branches[${branchIndex}]`, `Invalid branch name "${branchName}".`);
-		if (projectBranchNames.has(branchName)) pushIssue(issues, `branches[${branchIndex}]`, `Duplicate branch name "${branchName}".`);
+		if (!isSafePathSegment(branchName)) pushIssue(issues, `branches[${branchIndex}]`, `Invalid branch name "${describeValue(branchName)}".`);
+		if (projectBranchNames.has(branchName)) pushIssue(issues, `branches[${branchIndex}]`, `Duplicate branch name "${describeValue(branchName)}".`);
 		if (branchIndex > 0 && declaredProjectBranches[branchIndex - 1]!.localeCompare(branchName) > 0) {
 			pushIssue(issues, `branches[${branchIndex}]`, 'Project branches must use canonical lexical order.');
 		}
@@ -593,8 +593,8 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 
 	for (const [pkgIndex, pkg] of project.packages.entries()) {
 		const pkgPath = `packages[${pkgIndex}]`;
-		if (packageIds.has(pkg.id)) pushIssue(issues, `${pkgPath}.id`, `Duplicate package id "${pkg.id}".`, 'duplicate_package_id');
-		if (packageNames.has(pkg.name.toLowerCase())) pushIssue(issues, `${pkgPath}.name`, `Duplicate package name "${pkg.name}".`, 'duplicate_package_name');
+		if (packageIds.has(pkg.id)) pushIssue(issues, `${pkgPath}.id`, `Duplicate package id "${describeValue(pkg.id)}".`, 'duplicate_package_id');
+		if (packageNames.has(pkg.name.toLowerCase())) pushIssue(issues, `${pkgPath}.name`, `Duplicate package name "${describeValue(pkg.name)}".`, 'duplicate_package_name');
 		packageIds.add(pkg.id);
 		packageNames.add(pkg.name.toLowerCase());
 		validatePackageOutputTargets(pkg, pkgPath, issues);
@@ -605,10 +605,10 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 		const packageBranchNames = new Set<string>();
 		for (const [branchIndex, branchName] of declaredBranchNames.entries()) {
 			if (!branchName || !projectBranchNames.has(branchName)) {
-				pushIssue(issues, `${pkgPath}.branchNames[${branchIndex}]`, `Unknown package branch "${branchName}".`);
+				pushIssue(issues, `${pkgPath}.branchNames[${branchIndex}]`, `Unknown package branch "${describeValue(branchName)}".`);
 			}
 			if (packageBranchNames.has(branchName)) {
-				pushIssue(issues, `${pkgPath}.branchNames[${branchIndex}]`, `Duplicate package branch "${branchName}".`);
+				pushIssue(issues, `${pkgPath}.branchNames[${branchIndex}]`, `Duplicate package branch "${describeValue(branchName)}".`);
 			}
 			packageBranchNames.add(branchName);
 		}
@@ -616,10 +616,10 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 		const resourceIds = new Set<string>();
 		for (const [resourceIndex, resource] of pkg.resources.entries()) {
 			const resourcePath = `${pkgPath}.resources[${resourceIndex}]`;
-			if (resourceIds.has(resource.id)) pushIssue(issues, `${resourcePath}.id`, `Duplicate resource id "${resource.id}".`, 'duplicate_resource_id');
+			if (resourceIds.has(resource.id)) pushIssue(issues, `${resourcePath}.id`, `Duplicate resource id "${describeValue(resource.id)}".`, 'duplicate_resource_id');
 			resourceIds.add(resource.id);
 			if (resource.branch && !packageBranchNames.has(resource.branch)) {
-				pushIssue(issues, `${resourcePath}.branch`, `Unknown package branch "${resource.branch}".`);
+				pushIssue(issues, `${resourcePath}.branch`, `Unknown package branch "${describeValue(resource.branch)}".`);
 			}
 			if (resource.branchItemIds.length > declaredBranchNames.length) {
 				pushIssue(issues, `${resourcePath}.branchItemIds`, 'Branch item ids exceed the package branch table.');
@@ -649,7 +649,7 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 			const groupIds = new Set<string>();
 			for (const [childIndex, child] of component.displayList.entries()) {
 				const childPath = `${resourcePath}.component.displayList[${childIndex}]`;
-				if (childIds.has(child.id)) pushIssue(issues, `${childPath}.id`, `Duplicate child id "${child.id}".`);
+				if (childIds.has(child.id)) pushIssue(issues, `${childPath}.id`, `Duplicate child id "${describeValue(child.id)}".`);
 				childIds.add(child.id);
 				if (child.kind === 'group') groupIds.add(child.id);
 			}
@@ -657,13 +657,13 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 			const controllerMap = new Map<string, UamControllerModel>();
 			for (const [controllerIndex, controller] of component.controllers.entries()) {
 				const controllerPath = `${resourcePath}.component.controllers[${controllerIndex}]`;
-				if (controllerMap.has(controller.name)) pushIssue(issues, `${controllerPath}.name`, `Duplicate controller name "${controller.name}".`);
+				if (controllerMap.has(controller.name)) pushIssue(issues, `${controllerPath}.name`, `Duplicate controller name "${describeValue(controller.name)}".`);
 				controllerMap.set(controller.name, controller);
 
 				const pageIds = new Set<string>();
 				for (const [pageIndex, page] of controller.pages.entries()) {
 					const pagePath = `${controllerPath}.pages[${pageIndex}]`;
-					if (pageIds.has(page.id)) pushIssue(issues, `${pagePath}.id`, `Duplicate controller page id "${page.id}".`);
+					if (pageIds.has(page.id)) pushIssue(issues, `${pagePath}.id`, `Duplicate controller page id "${describeValue(page.id)}".`);
 					pageIds.add(page.id);
 				}
 				if (typeof controller.autoRadioGroupDepth !== 'boolean') {
@@ -672,15 +672,15 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 				if (typeof controller.alias !== 'string') pushIssue(issues, `${controllerPath}.alias`, 'Controller alias must be a string.');
 				if (typeof controller.exported !== 'boolean') pushIssue(issues, `${controllerPath}.exported`, 'Controller exported must be boolean.');
 				if (!['default', 'specific', 'branch', 'variable'].includes(controller.homePageType)) {
-					pushIssue(issues, `${controllerPath}.homePageType`, `Unknown controller home page type "${controller.homePageType}".`);
+					pushIssue(issues, `${controllerPath}.homePageType`, `Unknown controller home page type "${describeValue(controller.homePageType)}".`);
 				} else if (typeof controller.homePage !== 'string') {
 					pushIssue(issues, `${controllerPath}.homePage`, 'Controller homePage must be a string.');
 				} else if (controller.homePageType === 'specific' && !pageIds.has(controller.homePage)) {
-					pushIssue(issues, `${controllerPath}.homePage`, `Unknown controller home page id "${controller.homePage}".`);
+					pushIssue(issues, `${controllerPath}.homePage`, `Unknown controller home page id "${describeValue(controller.homePage)}".`);
 				} else if (controller.homePageType === 'variable' && !controller.homePage) {
 					pushIssue(issues, `${controllerPath}.homePage`, 'Variable controller home page requires a custom property key.');
 				} else if ((controller.homePageType === 'default' || controller.homePageType === 'branch') && controller.homePage) {
-					pushIssue(issues, `${controllerPath}.homePage`, `Controller home page must be empty for "${controller.homePageType}".`);
+					pushIssue(issues, `${controllerPath}.homePage`, `Controller home page must be empty for "${describeValue(controller.homePageType)}".`);
 				}
 
 				for (const [actionIndex, action] of controller.actions.entries()) {
@@ -691,7 +691,7 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 				pushIssue(
 					issues,
 					`${resourcePath}.component.properties.pageController`,
-					`Unknown page controller "${component.properties.pageController}".`,
+					`Unknown page controller "${describeValue(component.properties.pageController)}".`,
 				);
 			}
 

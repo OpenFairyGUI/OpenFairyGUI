@@ -10445,6 +10445,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"unsupported_resource_kind",
 						"decode_capability_unavailable",
 						"unsupported_operation",
+						"invalid_operation_payload",
 						"invalid_project_settings",
 						"project_settings_unchanged",
 						"invalid_package_settings",
@@ -14281,6 +14282,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"duplicate_resource_id",
 						"unsupported_resource_kind",
 						"unsupported_operation",
+						"invalid_operation_payload",
 						"invalid_project_settings",
 						"project_settings_unchanged",
 						"invalid_package_settings",
@@ -14471,6 +14473,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"duplicate_resource_id",
 						"unsupported_resource_kind",
 						"unsupported_operation",
+						"invalid_operation_payload",
 						"invalid_project_settings",
 						"project_settings_unchanged",
 						"invalid_package_settings",
@@ -23476,6 +23479,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		},
 		{
+			"code": "invalid_operation_payload",
+			"owners": [
+				"core.transaction"
+			],
+			"remediation": {
+				"kind": "revise-operation",
+				"message": "Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data."
+			}
+		},
+		{
 			"code": "transaction_unsupported",
 			"owners": [
 				"core.transaction"
@@ -24221,5 +24234,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "8a681d6ee3501b3d7a2ca4bed4daa9e08a942a6a3a4d3a274da05e6696c96301"
+	"digest": "990a087da4f99f9e5af446d73879ff8c06cf71eed9704017b363e96eac3cf9b6"
 };

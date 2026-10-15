@@ -134,7 +134,7 @@ A preview reserves no revision and does not guarantee later apply/save or public
 The tables summarize top-level parameters only; read schemas for nested fields and concrete results. SHA-256 identifies generated contract content, not a package version.
 
 <!-- contracts:start -->
-SHA-256: `8a681d6ee3501b3d7a2ca4bed4daa9e08a942a6a3a4d3a274da05e6696c96301`
+SHA-256: `990a087da4f99f9e5af446d73879ff8c06cf71eed9704017b363e96eac3cf9b6`
 
 | Operation | Parameters (`?` = optional) |
 |---|---|
