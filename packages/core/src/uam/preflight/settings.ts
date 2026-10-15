@@ -1,7 +1,14 @@
 import type { UamPackage, UamPackageSettings } from '../model.js';
 import type { UamTransactionOperation, UamTransactionSupportIssue } from '../transaction-contracts.js';
 import { pushSupportIssue } from './support.js';
-import { hasExactKeys, isFiniteNumber, isPlainRecord, isIntegerBetween, isSafeBranchName } from './values.js';
+import {
+	hasExactKeys,
+	isFiniteNumber,
+	isPlainRecord,
+	isIntegerBetween,
+	isSafeBranchName,
+	describeValue,
+} from './values.js';
 
 function findInvalidJsonData(
 	value: unknown,
@@ -397,7 +404,7 @@ export function validatePackageSettingsPayload(
 					pushInvalidPackageSettings(
 						issues,
 						`${atlasPath}.index`,
-						`Atlas index ${atlas.index} is duplicated.`,
+						`Atlas index ${describeValue(atlas.index)} is duplicated.`,
 						operationKind,
 					);
 				}
@@ -450,7 +457,7 @@ export function validatePackageSettingsPayload(
 				pushInvalidPackageSettings(
 					issues,
 					resourcePath,
-					`Excluded resource id "${resourceId}" is duplicated.`,
+					`Excluded resource id "${describeValue(resourceId)}" is duplicated.`,
 					operationKind,
 				);
 			}

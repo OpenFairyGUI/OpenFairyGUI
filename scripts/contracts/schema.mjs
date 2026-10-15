@@ -10,6 +10,8 @@ export const BACKEND = 'packages/backend/src/runtime.ts';
 export const METADATA = 'packages/mcp/src/tool-metadata.ts';
 export const CLI = 'packages/cli/src/contracts.ts';
 export const GENERATED = 'packages/backend/src/generated/contracts.ts';
+/** Runtime envelope table typed as a mirror of the operation contracts; `pnpm typecheck` enforces it. */
+export const OPERATION_SHAPE = 'packages/core/src/uam/preflight/operation-shape.ts';
 
 export function createContractProgram(root = ROOT, sourceOverrides = {}) {
 	const config = ts.readConfigFile(path.join(root, 'tsconfig.json'), ts.sys.readFile);
@@ -23,6 +25,9 @@ export function createContractProgram(root = ROOT, sourceOverrides = {}) {
 		// Canonical types must not depend on whether yesterday's generated value still typechecks.
 		if (relative === GENERATED)
 			return "import type { ContractSnapshot } from '../docs.js'; export declare const CONTRACT_SNAPSHOT: ContractSnapshot;";
+		// Likewise, extracting a changed contract must not wait for its runtime mirror to be updated.
+		if (relative === OPERATION_SHAPE)
+			return "import type { UamTransactionOperation, UamTransactionSupportIssue } from '../transaction-contracts.js'; export declare function validateOperationShapes(operations: unknown, issues: UamTransactionSupportIssue[]): operations is UamTransactionOperation[];";
 		return sourceOverrides[relative] ?? read(file);
 	};
 	const program = ts.createProgram(

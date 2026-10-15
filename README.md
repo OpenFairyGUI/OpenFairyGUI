@@ -88,7 +88,7 @@ pnpm repo:setup
 <!-- product-facts:start -->
 Package: `0.6.3` · Backend contract: `3.0.0` · Capability schema: `15`
 
-Operations: 41 · Backend methods: 17 · CLI commands: 16 · Diagnostic codes: 103
+Operations: 41 · Backend methods: 17 · CLI commands: 16 · Diagnostic codes: 104
 <!-- product-facts:end -->
 
 [贡献](./CONTRIBUTING.md)

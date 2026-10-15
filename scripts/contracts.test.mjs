@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { tsImport } from 'tsx/esm/api';
+import ts from 'typescript';
 import {
 	checkGeneratedFiles,
 	contractTables,
@@ -13,9 +14,28 @@ import {
 	nativeBytePaths,
 } from './generate-contracts.mjs';
 import { ROOT } from './repo-utils.mjs';
+import { OPERATION_SHAPE } from './contracts/schema.mjs';
 
 const { z } = createRequire(new URL('../packages/mcp/package.json', import.meta.url))('zod');
 const contract = generateContract();
+
+/** Type-checks one source file with the repository options, reading the given files from memory. */
+function typeErrorsIn(entry, overrides) {
+	const config = ts.readConfigFile(path.join(ROOT, 'tsconfig.json'), ts.sys.readFile);
+	const options = {
+		...ts.parseJsonConfigFileContent(config.config, ts.sys, ROOT).options,
+		types: ['node'],
+		noEmit: true,
+	};
+	const host = ts.createCompilerHost(options);
+	const read = host.readFile.bind(host);
+	const relative = (file) => path.relative(ROOT, file).replaceAll('\\', '/');
+	host.readFile = (file) => overrides[relative(file)] ?? read(file);
+	return ts
+		.getPreEmitDiagnostics(ts.createProgram([path.join(ROOT, entry)], options, host))
+		.filter((diagnostic) => diagnostic.file && relative(diagnostic.file.fileName) === entry)
+		.map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'));
+}
 
 test('CLI schemas cover every registered command and reject malformed envelopes; new diagnostic codes fail closed', async () => {
 	const { createProgram } = await tsImport('../packages/cli/src/cli.ts', import.meta.url);
@@ -150,6 +170,13 @@ test('current snapshot and bilingual tables match; a canonical field change fail
 	assert.throws(
 		() => checkGeneratedFiles({ 'docs/en/guide/contracts.md': files['docs/en/guide/contracts.md'] }),
 		/Generated contract drift/,
+	);
+	// Extraction ignores the runtime envelope table, but type checking still rejects the same unmirrored change.
+	assert.deepEqual(typeErrorsIn(OPERATION_SHAPE, {}), []);
+	assert(
+		typeErrorsIn(OPERATION_SHAPE, { [file]: edited }).some((message) =>
+			message.includes("Property 'contractProbe' is missing"),
+		),
 	);
 	assert.equal(readFileSync(path.join(ROOT, file), 'utf8'), before);
 	const backendFile = 'packages/backend/src/runtime.ts';

@@ -193,8 +193,11 @@ test('project settings transactions validate, detach, preserve unknown JSON, and
 
 	const circular: Record<string, unknown> = {};
 	circular.self = circular;
+	const notAnObject = validateTransactionSupport(project, [
+		{ kind: 'updateProjectSettings', settings: null } as never,
+	]);
+	t.like(notAnObject[0], { code: 'invalid_operation_payload', path: 'operations[0].settings' });
 	for (const settings of [
-		null,
 		{ publish: { binaryFormat: 'yes' } },
 		{ publish: { jpegQuality: '80' } },
 		{ publish: { compressPNG: 1 } },
@@ -316,8 +319,17 @@ test('package settings transactions replace one complete snapshot and support an
 	t.is(unchanged[0]?.code, 'package_settings_unchanged');
 
 	const valid = structuredClone(original);
+	t.like(
+		validateTransactionSupport(project, [
+			{
+				kind: 'updatePackageSettings',
+				selector: { packageId: pkg.id },
+				settings: null,
+			} as never,
+		])[0],
+		{ code: 'invalid_operation_payload', path: 'operations[0].settings' },
+	);
 	for (const settings of [
-		null,
 		{ ...valid, jpegQuality: 101 },
 		{ ...valid, publish: null },
 		{ ...valid, publish: { ...valid.publish!, path: '../escape' } },
@@ -381,7 +393,7 @@ test('resource exported transactions support assets, components, inverse, and so
 	const invalid = validateTransactionSupport(project, [
 		{ ...operations[0]!, exported: 'true' as unknown as boolean },
 	]);
-	t.is(invalid[0]?.code, 'invalid_resource_payload');
+	t.is(invalid[0]?.code, 'invalid_operation_payload');
 	t.is(invalid[0]?.path, 'operations[0].exported');
 
 	const unknown = validateTransactionSupport(project, [{ kind: 'unknownResourceOperation' } as never]);
@@ -441,15 +453,17 @@ test('resource folder favorite supports non-empty and branch folders, inverse, a
 	const invalid = validateTransactionSupport(project, [
 		{ kind: 'setResourceFolderFavorite', selector: { packageId: 'pkg001', path: '/' }, favorite: true },
 		{ kind: 'setResourceFolderFavorite', selector: { packageId: 'pkg001', path: '/missing/' }, favorite: true },
-		{
-			kind: 'setResourceFolderFavorite',
-			selector: { packageId: 'pkg001', path: '/images/' },
-			favorite: 'true' as unknown as boolean,
-		},
 	]);
 	t.true(invalid.filter((issue) => issue.code === 'invalid_resource_folder_selector').length >= 2);
-	t.true(
-		invalid.some((issue) => issue.path === 'operations[2].favorite' && issue.code === 'invalid_resource_payload'),
+	t.deepEqual(
+		validateTransactionSupport(project, [
+			{
+				kind: 'setResourceFolderFavorite',
+				selector: { packageId: 'pkg001', path: '/images/' },
+				favorite: 'true' as unknown as boolean,
+			},
+		]).map((issue) => [issue.code, issue.path]),
+		[['invalid_operation_payload', 'operations[0].favorite']],
 	);
 
 	const documentBacked = applyUamTransaction(project, [

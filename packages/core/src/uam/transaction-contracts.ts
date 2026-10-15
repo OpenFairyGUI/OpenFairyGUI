@@ -406,6 +406,7 @@ export type UamTransactionOperation =
 
 export type UamTransactionSupportIssueCode =
 	| 'unsupported_operation'
+	| 'invalid_operation_payload'
 	| 'invalid_project_settings'
 	| 'project_settings_unchanged'
 	| 'invalid_package_settings'
