@@ -65,8 +65,8 @@ export function validateProjectSettingsPayload(
 	if (publish !== undefined) {
 		const valid = isPlainRecord(publish)
 			&& optionalFieldsMatch(publish, ['fileExtension', 'path', 'branchPath'], strings)
-			&& optionalFieldsMatch(publish, ['binaryFormat', 'compressDesc', 'seperatedAtlasForBranch'], booleans)
-			&& optionalFieldsMatch(publish, ['includeHighResolution', 'branchProcessing', 'packageCount'], isFiniteNumber);
+			&& optionalFieldsMatch(publish, ['binaryFormat', 'compressDesc', 'compressPNG', 'seperatedAtlasForBranch'], booleans)
+			&& optionalFieldsMatch(publish, ['jpegQuality', 'includeHighResolution', 'branchProcessing', 'packageCount'], isFiniteNumber);
 		if (!valid) {
 			pushSupportIssue(issues, 'invalid_project_settings', `${path}.publish`, 'Publish settings contain an invalid typed field.', { operationKind });
 		} else {
@@ -92,6 +92,7 @@ export function validateProjectSettingsPayload(
 		const valid = isPlainRecord(common)
 			&& optionalFieldsMatch(common, ['font', 'textColor', 'buttonClickSound', 'pivot', 'tipsRes'], strings)
 			&& optionalFieldsMatch(common, ['fontSize'], isFiniteNumber)
+			&& optionalFieldsMatch(common, ['fontAdjustment'], booleans)
 			&& optionalFieldsMatch(common, ['colorScheme', 'fontScheme', 'fontSizeScheme'], stringArray);
 		if (!valid) {
 			pushSupportIssue(issues, 'invalid_project_settings', `${path}.common`, 'Common settings contain an invalid typed field.', { operationKind });
