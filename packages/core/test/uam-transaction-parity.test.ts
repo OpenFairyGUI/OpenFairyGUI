@@ -260,13 +260,29 @@ test('shared property rules preserve ordered diagnostics and rejected transactio
 		expectedProjectPaths.map((path) => ({ code: 'invalid_uam', path })),
 	);
 	const operationBaseline = structuredClone(operations);
-	const issues = validateTransactionSupport(project, operations);
+	// A non-finite number is structural for transactions, so it is reported at its field and stops the batch.
+	const structural = operations.findIndex(
+		(operation) => operation.kind === 'setDisplayNodeProps' && operation.props.componentInstanceProperties,
+	);
+	t.deepEqual(
+		validateTransactionSupport(project, operations).map(({ code, path }) => ({ code, path })),
+		[
+			{
+				code: 'invalid_display_node_payload',
+				path: 'operations[' + structural + '].props.componentInstanceProperties.value',
+			},
+		],
+	);
+	const semantic = operations.filter((_, index) => index !== structural);
+	const issues = validateTransactionSupport(project, semantic);
 	t.deepEqual(
 		issues.map(({ code, path }) => ({ code, path })),
-		fields.map((field, index) => ({
-			code: 'invalid_display_node_payload',
-			path: 'operations[' + index + '].props.' + field,
-		})),
+		fields
+			.filter((_, index) => index !== structural)
+			.map((field, index) => ({
+				code: 'invalid_display_node_payload',
+				path: 'operations[' + index + '].props.' + field,
+			})),
 	);
 	for (const batch of [operations, [...operations, ...documentRoute]]) {
 		t.throws(() => applyUamTransaction(project, batch), { instanceOf: UamTransactionError });

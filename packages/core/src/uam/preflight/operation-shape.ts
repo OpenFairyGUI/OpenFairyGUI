@@ -9,9 +9,12 @@ import type {
 	UamResourceSelector,
 	UamTransactionOperation,
 	UamTransactionSupportIssue,
+	UamTransactionSupportIssueCode,
 	UamTransitionSelector,
 } from '../transaction-contracts.js';
 import { UAM_SUPPORTED_TRANSACTION_SCOPE } from '../model.js';
+import { OPERATION_PAYLOAD_SCHEMA } from '../generated/operation-payload-schema.js';
+import { validatePayloadSchema } from './payload-schema.js';
 import { pushSupportIssue } from './support.js';
 import { isPlainRecord } from './values.js';
 
@@ -31,8 +34,18 @@ interface FieldRule<T> {
 	/** Exhaustive values of a literal-typed string field. */
 	readonly values?: readonly string[];
 	readonly fields?: Readonly<Record<string, FieldRule<never>>>;
+	readonly payload?: PayloadCodes;
 	/** Type-only: a rule must accept every value of the contract field it describes. */
 	readonly accepts?: (value: T) => void;
+}
+
+/** Codes of the domain that owns a snapshot payload, for structural issues found inside it. */
+interface PayloadCodes {
+	readonly code: UamTransactionSupportIssueCode;
+	/** A discriminator directly on the payload that names no contract member. */
+	readonly kindCode?: UamTransactionSupportIssueCode;
+	/** A field directly on the payload that its contract does not declare. */
+	readonly unknownFieldCode?: UamTransactionSupportIssueCode;
 }
 
 /** Type-only: a literal rule must also accept nothing outside the contract field's values. */
@@ -81,8 +94,26 @@ const text = rule<string>('string');
 const flag = rule<boolean>('boolean');
 const count = rule<number>('number');
 const bytes = rule<Uint8Array>('bytes');
-// Snapshot payloads keep their existing domain validators; the envelope only guarantees an object.
-const payload = rule<object>('object');
+
+/** Snapshot payloads follow the structure generated from the same contract; domain stages check their values. */
+function payload(codes: PayloadCodes): Rule<object> {
+	return { check: 'object', optional: false, payload: codes };
+}
+
+const projectSettings = payload({ code: 'invalid_project_settings' });
+const packageSettings = payload({ code: 'invalid_package_settings' });
+const resourceProps = payload({ code: 'invalid_resource_payload' });
+const assetResource = payload({ code: 'invalid_resource_payload', kindCode: 'unsupported_resource_kind' });
+const packageSnapshot = payload({ code: 'invalid_package_payload' });
+const componentPayload = payload({ code: 'invalid_component_payload' });
+const displayNodeProps = payload({
+	code: 'invalid_display_node_payload',
+	unknownFieldCode: 'unsupported_display_node_field',
+});
+const displayNode = payload({ code: 'invalid_display_node_payload', kindCode: 'unsupported_display_node_kind' });
+const controller = payload({ code: 'invalid_controller_payload' });
+const transition = payload({ code: 'invalid_transition_payload' });
+const gear = payload({ code: 'invalid_gear_payload' });
 
 const packageSelector = shape<UamPackageSelector>({ packageId: text });
 const resourceSelector = shape<UamResourceSelector>({ packageId: text, resourceId: text });
@@ -120,8 +151,8 @@ const gearSelector = shape<UamGearSelector>({
 });
 
 const OPERATION_FIELDS: OperationFields = {
-	updateProjectSettings: { settings: payload },
-	updatePackageSettings: { selector: packageSelector, settings: payload },
+	updateProjectSettings: { settings: projectSettings },
+	updatePackageSettings: { selector: packageSelector, settings: packageSettings },
 	renameResource: { selector: resourceSelector, newName: text },
 	moveResource: { selector: resourceSelector, toPath: text },
 	setResourceFavorite: { selector: resourceSelector, favorite: flag },
@@ -138,34 +169,34 @@ const OPERATION_FIELDS: OperationFields = {
 	renameResourceFolder: { selector: folderSelector, newName: text },
 	moveResourceFolder: { selector: folderSelector, toPath: text },
 	removeResourceFolder: { selector: folderSelector },
-	setImageResourceProps: { selector: resourceSelector, props: payload },
-	addResource: { selector: packageSelector, resource: payload, atIndex: optional(count) },
+	setImageResourceProps: { selector: resourceSelector, props: resourceProps },
+	addResource: { selector: packageSelector, resource: assetResource, atIndex: optional(count) },
 	addBranch: { branch: text },
 	renameBranch: { selector: branchSelector, newName: text },
 	removeBranch: { selector: branchSelector },
-	addPackage: { package: payload, atIndex: count },
+	addPackage: { package: packageSnapshot, atIndex: count },
 	renamePackage: { selector: packageSelector, newName: text },
 	removePackage: { selector: packageSelector },
-	addComponent: { selector: packageSelector, component: payload, atIndex: count },
+	addComponent: { selector: packageSelector, component: componentPayload, atIndex: count },
 	removeComponent: { selector: componentSelector },
 	moveComponent: { selector: componentSelector, toPackageId: text, toIndex: count },
 	replaceResourceBytes: { selector: resourceSelector, sourceBytes: bytes },
 	removeResource: { selector: resourceSelector },
-	setComponentProps: { selector: componentSelector, props: payload },
-	setDisplayNodeProps: { selector: displayNodeSelector, props: payload },
-	attachDisplayNode: { selector: componentSelector, atIndex: count, node: payload },
+	setComponentProps: { selector: componentSelector, props: componentPayload },
+	setDisplayNodeProps: { selector: displayNodeSelector, props: displayNodeProps },
+	attachDisplayNode: { selector: componentSelector, atIndex: count, node: displayNode },
 	detachDisplayNode: { selector: displayNodeSelector },
-	addController: { selector: controllerSelector, controller: payload },
-	updateController: { selector: controllerSelector, controller: payload },
+	addController: { selector: controllerSelector, controller },
+	updateController: { selector: controllerSelector, controller },
 	removeController: { selector: controllerSelector },
-	addTransition: { selector: transitionSelector, transition: payload },
-	updateTransition: { selector: transitionSelector, transition: payload },
+	addTransition: { selector: transitionSelector, transition },
+	updateTransition: { selector: transitionSelector, transition },
 	removeTransition: { selector: transitionSelector },
-	addLookGear: { selector: lookGearSelector, gear: payload },
-	updateLookGear: { selector: lookGearSelector, gear: payload },
+	addLookGear: { selector: lookGearSelector, gear },
+	updateLookGear: { selector: lookGearSelector, gear },
 	removeLookGear: { selector: lookGearSelector },
-	addGear: { selector: gearSelector, gear: payload },
-	updateGear: { selector: gearSelector, gear: payload },
+	addGear: { selector: gearSelector, gear },
+	updateGear: { selector: gearSelector, gear },
 	removeGear: { selector: gearSelector },
 };
 
@@ -244,6 +275,34 @@ function validateFields(
 				operationKind,
 			);
 		}
+		if (field.payload) {
+			validatePayload(value, field.payload, name, `${path}.${name}`, `${label}.${name}`, issues, operationKind);
+		}
+	}
+}
+
+function validatePayload(
+	value: unknown,
+	codes: PayloadCodes,
+	name: string,
+	path: string,
+	label: string,
+	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
+): void {
+	const root = OPERATION_PAYLOAD_SCHEMA.roots[operationKind]?.[name];
+	if (root === undefined) throw new Error(`Missing generated payload schema for ${operationKind}.${name}.`);
+	for (const issue of validatePayloadSchema(OPERATION_PAYLOAD_SCHEMA, root, value)) {
+		// Only issues on the payload's own fields can mean a wrong kind or an unsupported field.
+		const direct = !/[.[]/.test(issue.path.slice(1));
+		const code =
+			(direct && issue.discriminant && codes.kindCode) ||
+			(direct && issue.unknownField && codes.unknownFieldCode) ||
+			codes.code;
+		pushSupportIssue(issues, code, `${path}${issue.path}`, `${label}${issue.path} ${issue.message}`, {
+			operationKind,
+			field: direct && issue.unknownField ? issue.path.slice(1) : name,
+		});
 	}
 }
 

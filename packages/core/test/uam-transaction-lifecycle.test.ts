@@ -547,8 +547,18 @@ test('package and component lifecycle preflight reports dependency and batch dia
 	t.true(addIssues.some((issue) => issue.code === 'duplicate_package_id'));
 	t.true(addIssues.some((issue) => issue.code === 'invalid_package_payload'));
 	t.true(addIssues.some((issue) => issue.code === 'invalid_package_index'));
+	// A non-finite number is structural: the package snapshot reports it at the field.
+	t.like(
+		validateTransactionSupport(createSupportedProject(), [
+			{
+				kind: 'addPackage',
+				package: { ...createLifecyclePackage('invalid-settings-1'), jpegQuality: Number.NaN },
+				atIndex: 1,
+			},
+		])[0],
+		{ code: 'invalid_package_payload', path: 'operations[0].package.jpegQuality' },
+	);
 	for (const invalidPackage of [
-		{ ...createLifecyclePackage('invalid-settings-1'), jpegQuality: Number.NaN },
 		{ ...createLifecyclePackage('invalid-settings-2'), publish: null },
 		{
 			...createLifecyclePackage('invalid-settings-3'),
