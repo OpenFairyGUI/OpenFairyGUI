@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'ava';
 import sharp from 'sharp';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -8,7 +10,7 @@ import { BackendRuntime, type BackendEntitySnapshot, type BackendResult, type Ba
 import { createNodeBackendRuntime } from '@openfairygui/backend/node';
 import { composeController, composeTransition, materializeUamProject, liftDocumentToUamProject, readProjectAsUam, writeProjectFromUam } from '@openfairygui/core';
 import { NodeIO } from '@openfairygui/core/node';
-import { getFixturePath } from '@openfairygui/test-utils';
+import { getFixturePath, getFixtureProjectPath } from '@openfairygui/test-utils';
 import { isOpenFairyGuiMcpPayloadWithinBudget } from '../src/tool-definitions.js';
 import { createOpenFairyGuiMcpServer, callOpenFairyGuiBackendTool, OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS } from '../src/index.js';
 import { createTempMcpProject, createMcpFixtureProject } from './helpers.js';
@@ -59,7 +61,7 @@ test('MCP session reads expose current unsaved state and primary bytes at one re
 	const project = createMcpFixtureProject();
 	const image = project.packages[0].resources[0]; assert(image.kind === 'image');
 	image.sourceBytes = new Uint8Array(await sharp({ create: { width: 320, height: 180, channels: 4, background: '#123456' } }).png().toBuffer());
-	project.settings.publish = Object.assign({ compressDesc: false }, { include2x: true });
+	project.settings.publish = Object.assign({ compressDesc: false }, { unmodeledEditorFlag: true });
 	project.settings.customProperties = { extension: { sourceBytes: [7, 8] } };
 	await writeProjectFromUam(new NodeIO(), project, fixture.fairyPath);
 	const runtime = createNodeBackendRuntime({ allowedProjectRoots: [fixture.rootDir] });
@@ -87,7 +89,7 @@ test('MCP session reads expose current unsaved state and primary bytes at one re
 		const native = runtime.readSessionState({ sessionId, expectedRevision: 1 }); assert(native.ok);
 		t.deepEqual(backend.data, JSON.parse(JSON.stringify(native.data)));
 		t.deepEqual(backend.data.project.settings.customProperties, project.settings.customProperties);
-		t.true((backend.data.project.settings.publish as Record<string, unknown>).include2x);
+		t.true((backend.data.project.settings.publish as Record<string, unknown>).unmodeledEditorFlag);
 		const definition = OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS.find((entry) => entry.backendMethod === 'readSessionState')!;
 		const invalid = structuredClone(backend);
 		Object.assign(invalid.data.project.packages[0].resources.find((entry) => entry.kind === 'image')!, { sourceBytes: [1, 2] });
@@ -198,6 +200,63 @@ test('MCP reads complete project and package settings before editing only the re
 		await client.close(); await server.close(); await fixture.cleanup();
 	}
 });
+
+for (const [fixtureName, relativeFairyPath] of [
+	['FairyGUI-layabox', 'demo/UIProject/FairyGUI-layabox-demo.fairy'],
+	['FairyGUI-Editor', 'ui/FairyGUI-Editor.fairy'],
+] as const) {
+	test(`MCP resubmits project settings queried from the pinned ${fixtureName} project`, async (t) => {
+		const sourcePath = getFixtureProjectPath(fixtureName, relativeFairyPath);
+		const rootDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-mcp-settings-'));
+		const fairyPath = path.join(rootDir, path.basename(sourcePath));
+		await fs.cp(path.dirname(sourcePath), rootDir, { recursive: true });
+		const readSidecar = async (name: string) => JSON.parse(await fs.readFile(path.join(rootDir, 'settings', name), 'utf8')) as Record<string, unknown>;
+		const [sourcePublish, sourceCommon] = [await readSidecar('Publish.json'), await readSidecar('Common.json')];
+		t.is(sourcePublish.fileName, 'Publish'); t.is(typeof sourcePublish.include2x, 'boolean'); t.is(typeof sourcePublish.jpegQuality, 'number');
+		const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+		const server = createOpenFairyGuiMcpServer({ allowedProjectRoots: [rootDir] });
+		const client = new Client({ name: 'fixture-settings', version: 'test' });
+		await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+		let sessionId: string | undefined;
+		async function callBackend<T>(method: string, input: Record<string, unknown>): Promise<BackendResult<T>> {
+			const result = await client.callTool({ name: `openfairygui_backend_${method}`, arguments: input });
+			const backend = (result.structuredContent as { backendResult?: BackendResult<T> } | undefined)?.backendResult;
+			assert(backend, `MCP rejected ${method} before Backend: ${JSON.stringify(result.content)}`);
+			return backend;
+		}
+		try {
+			await client.listTools();
+			const opened = await callBackend<BackendSessionSnapshot>('open_session', { projectPath: fairyPath }); assert(opened.ok);
+			sessionId = opened.data.sessionId;
+			const query = await callBackend<BackendEntitySnapshot>('query_entity', { sessionId, target: { kind: 'project' } });
+			assert(query.ok && query.data.entity.kind === 'project');
+			const settings = query.data.entity.properties.settings;
+			assert(settings.publish && settings.common);
+			t.is<unknown, unknown>(settings.publish.jpegQuality, sourcePublish.jpegQuality); t.is<unknown, unknown>(settings.publish.compressPNG, sourcePublish.compressPNG);
+			t.is<unknown, unknown>(settings.common.fontAdjustment, sourceCommon.fontAdjustment);
+			for (const derived of ['fileName', 'include2x', 'include3x', 'include4x']) t.false(derived in settings.publish, derived);
+			t.false('fileName' in settings.common); t.false('fileName' in (settings.adaptation ?? {}));
+
+			const unchanged = await callBackend('preflight_transaction', {
+				sessionId, expectedRevision: query.data.revision, operations: [{ kind: 'updateProjectSettings', settings }],
+			});
+			assert(!unchanged.ok); t.is(unchanged.meta.diagnostics?.[0]?.code, 'project_settings_unchanged');
+			settings.common.fontSize = (settings.common.fontSize ?? 12) + 1;
+			const applied = await callBackend<BackendSessionSnapshot>('apply_transaction', {
+				sessionId, expectedRevision: query.data.revision, operations: [{ kind: 'updateProjectSettings', settings }],
+			});
+			assert(applied.ok, JSON.stringify(applied));
+			assert((await callBackend('save_session', { sessionId, expectedRevision: applied.data.revision })).ok);
+			t.deepEqual((await readProjectAsUam(new NodeIO(), fairyPath)).settings, settings);
+			const savedPublish = await readSidecar('Publish.json');
+			t.is(savedPublish.jpegQuality, sourcePublish.jpegQuality); t.is(savedPublish.includeHighResolution, sourcePublish.includeHighResolution);
+			t.false('fileName' in savedPublish); t.false('include2x' in savedPublish);
+		} finally {
+			if (sessionId) await callBackend('close_session', { sessionId });
+			await client.close(); await server.close(); await fs.rm(rootDir, { recursive: true, force: true });
+		}
+	});
+}
 
 test('MCP queries, previews, applies and saves with generated schemas and revision checks', async (t) => {
 	const fixture = await createTempMcpProject();
