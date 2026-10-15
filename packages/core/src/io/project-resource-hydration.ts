@@ -62,7 +62,7 @@ export async function hydratePackageResourceBytes(
 		try {
 			const data = new Uint8Array(await fs.readFileRaw(filePath));
 			const buffer = doc.createBuffer().setURI(sourcePath).setData(data);
-			(_asSourceDataResource(resource)).setSourceData(buffer);
+			_asSourceDataResource(resource).setSourceData(buffer);
 			if (resource.propertyType === 'ImageResource') {
 				const size = probeRasterImageDimensions(data);
 				if (size) {

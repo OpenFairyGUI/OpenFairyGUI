@@ -5,7 +5,7 @@ import { OPENFAIRYGUI_BACKEND_TOOL_METADATA, type BackendToolMetadata } from './
 
 export const OPENFAIRYGUI_BACKEND_TOOL_PREFIX = 'openfairygui_backend_';
 export type { BackendMethodName };
-export type OpenFairyGuiBackendToolName = typeof OPENFAIRYGUI_BACKEND_TOOL_METADATA[number]['name'];
+export type OpenFairyGuiBackendToolName = (typeof OPENFAIRYGUI_BACKEND_TOOL_METADATA)[number]['name'];
 export const OPENFAIRYGUI_BACKEND_TOOL_NAMES = OPENFAIRYGUI_BACKEND_TOOL_METADATA.map((entry) => entry.name);
 
 export interface OpenFairyGuiBackendToolDefinition extends BackendToolMetadata {
@@ -16,7 +16,8 @@ export interface OpenFairyGuiBackendToolDefinition extends BackendToolMetadata {
 
 export function isOpenFairyGuiMcpPayloadWithinBudget(root: unknown, bytePaths: readonly string[][] = []): boolean {
 	const pending: Array<{ value: unknown; path: string[] }> = [{ value: root, path: [] }];
-	let nodes = 0, binaryBytes = 0;
+	let nodes = 0,
+		binaryBytes = 0;
 	while (pending.length > 0) {
 		const { value, path } = pending.pop()!;
 		nodes += 1;
@@ -36,13 +37,24 @@ export function isOpenFairyGuiMcpPayloadWithinBudget(root: unknown, bytePaths: r
 			continue;
 		}
 		if (Array.isArray(value)) {
-			if (bytePaths.some((parts) => parts.length === path.length && parts.every((part, index) => part === '*' || part === path[index]))) {
+			if (
+				bytePaths.some(
+					(parts) =>
+						parts.length === path.length &&
+						parts.every((part, index) => part === '*' || part === path[index]),
+				)
+			) {
 				binaryBytes += value.length;
-				if (binaryBytes > 8 * 1024 * 1024 || !value.every((byte) => Number.isInteger(byte) && byte >= 0 && byte <= 255)) return false;
+				if (
+					binaryBytes > 8 * 1024 * 1024 ||
+					!value.every((byte) => Number.isInteger(byte) && byte >= 0 && byte <= 255)
+				)
+					return false;
 				continue;
 			}
 			if (value.length > 10_000) return false;
-			for (const [index, child] of value.entries()) pending.push({ value: child, path: [...path, String(index)] });
+			for (const [index, child] of value.entries())
+				pending.push({ value: child, path: [...path, String(index)] });
 			continue;
 		}
 		if (typeof value !== 'object') return false;
@@ -56,9 +68,15 @@ export function isOpenFairyGuiMcpPayloadWithinBudget(root: unknown, bytePaths: r
 export const OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS: readonly OpenFairyGuiBackendToolDefinition[] =
 	OPENFAIRYGUI_BACKEND_TOOL_METADATA.map((metadata) => {
 		const contract = CONTRACT_SNAPSHOT.tools[metadata.backendMethod];
+		let inputSchema: z.ZodObject | undefined;
+		let outputSchema: z.ZodObject | undefined;
 		return {
 			...metadata,
-			inputSchema: contractObjectSchema(contract.input),
-			outputSchema: contractObjectSchema(contract.output),
+			get inputSchema() {
+				return (inputSchema ??= contractObjectSchema(contract.input));
+			},
+			get outputSchema() {
+				return (outputSchema ??= contractObjectSchema(contract.output));
+			},
 		};
 	});

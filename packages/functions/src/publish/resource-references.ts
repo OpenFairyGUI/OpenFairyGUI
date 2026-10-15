@@ -102,11 +102,7 @@ function addTextReferences(
 	}
 }
 
-function addUnknownReferences(
-	target: PackageResourceReferences,
-	ownerPackageId: string,
-	value: unknown,
-): void {
+function addUnknownReferences(target: PackageResourceReferences, ownerPackageId: string, value: unknown): void {
 	if (Array.isArray(value)) {
 		for (const entry of value) addUnknownReferences(target, ownerPackageId, entry);
 		return;
@@ -125,7 +121,8 @@ function addFontReferences(
 ): void {
 	for (const entry of Array.isArray(value) ? value : [value]) {
 		const reference = entry ? parseURL(entry) : null;
-		const resource = reference && doc?.getRoot().getPackageById(reference.packageId)?.getResourceById(reference.resourceId);
+		const resource =
+			reference && doc?.getRoot().getPackageById(reference.packageId)?.getResourceById(reference.resourceId);
 		if (resource?.propertyType === 'FontResource' && resource.isExternalFont()) continue;
 		addUiReference(target, ownerPackageId, entry);
 	}
@@ -173,7 +170,11 @@ function collectComponentReferences(
 			addUiReference(target, ownerPackageId, item.icon);
 			addUiReference(target, ownerPackageId, item.selectedIcon);
 			addUiReference(target, ownerPackageId, item.url);
-			addUnknownReferences(target, ownerPackageId, item.propertyOverrides?.map((property) => property.value));
+			addUnknownReferences(
+				target,
+				ownerPackageId,
+				item.propertyOverrides?.map((property) => property.value),
+			);
 		}
 		addUnknownReferences(
 			target,
@@ -181,9 +182,10 @@ function collectComponentReferences(
 			child.getPropertyOverrides?.().map((property) => property.value),
 		);
 		for (const gear of child.listGears?.() ?? []) {
-			const values = gear.getGearType() === GearType.Text || gear.getGearType() === GearType.Icon
-				? Object.values(gear.getPageValues())
-				: gear.getValues();
+			const values =
+				gear.getGearType() === GearType.Text || gear.getGearType() === GearType.Icon
+					? Object.values(gear.getPageValues())
+					: gear.getValues();
 			addUnknownReferences(target, ownerPackageId, values);
 			addUnknownReferences(target, ownerPackageId, gear.getDefaultValue?.());
 		}

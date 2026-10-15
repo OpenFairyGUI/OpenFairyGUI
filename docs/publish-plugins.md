@@ -11,6 +11,10 @@ OpenFairyGUI 自动化发布链路，不等同于 FairyGUI 编辑器插件。
 - `publishBrowser()` 不注入插件，因此 browser-safe 发布不会加载 Node 插件。
 - `genCode` 仍是通用发布后的处理能力；Node adapter 默认启用，browser adapter 默认关闭。
 
+CLI `ofgui publish project.fairy --no-plugins` 禁用工程插件发现和执行；Node SDK 使用 `publishNode({ plugins: [] })`。默认插件以当前进程权限执行 JavaScript，加载模块本身即可产生副作用，只应对可信工程启用。`--packages` 中任何未知名称都会导致失败，主流程 hooks 不会执行；默认插件模块加载仍发生在包名校验之前。
+
+指定 `-o` 时，Node adapter 暂存并提交该输出目录。省略 `-o` 时，按工程配置写入各输出位置，不保证跨目录原子性；代码生成和插件在输出目录外的写入也不在回滚范围内。
+
 ## 插件目录
 
 `publishNode()` 默认从工程根目录下的 `plugins/` 目录加载 publish 插件：

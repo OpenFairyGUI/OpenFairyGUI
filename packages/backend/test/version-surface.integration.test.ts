@@ -13,7 +13,7 @@ test('backend version surface is explicit and pinned', (t) => {
 	if (!result.ok) return;
 
 	t.is(BACKEND_CONTRACT_VERSION, '3.0.0');
-	t.is(BACKEND_CAPABILITY_SCHEMA_VERSION, 12);
+	t.is(BACKEND_CAPABILITY_SCHEMA_VERSION, 15);
 	t.is(result.meta.contractVersion, BACKEND_CONTRACT_VERSION);
 	t.is(result.meta.capabilitySchemaVersion, BACKEND_CAPABILITY_SCHEMA_VERSION);
 	t.is(result.data.contractVersion, BACKEND_CONTRACT_VERSION);

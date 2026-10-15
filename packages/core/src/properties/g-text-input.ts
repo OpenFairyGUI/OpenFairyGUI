@@ -31,18 +31,38 @@ export class GTextInput extends GTextField<IGTextInput, PropertyType.G_TEXT_INPU
 		});
 	}
 
-	public getPromptText(): string { return this.get('promptText'); }
-	public setPromptText(v: string): this { return this.set('promptText', v); }
+	public getPromptText(): string {
+		return this.get('promptText');
+	}
+	public setPromptText(v: string): this {
+		return this.set('promptText', v);
+	}
 
-	public getMaxLength(): number { return this.get('maxLength'); }
-	public setMaxLength(v: number): this { return this.set('maxLength', v); }
+	public getMaxLength(): number {
+		return this.get('maxLength');
+	}
+	public setMaxLength(v: number): this {
+		return this.set('maxLength', v);
+	}
 
-	public getRestrict(): string { return this.get('restrict'); }
-	public setRestrict(v: string): this { return this.set('restrict', v); }
+	public getRestrict(): string {
+		return this.get('restrict');
+	}
+	public setRestrict(v: string): this {
+		return this.set('restrict', v);
+	}
 
-	public getPassword(): boolean { return this.get('password'); }
-	public setPassword(v: boolean): this { return this.set('password', v); }
+	public getPassword(): boolean {
+		return this.get('password');
+	}
+	public setPassword(v: boolean): this {
+		return this.set('password', v);
+	}
 
-	public getKeyboardType(): number { return this.get('keyboardType'); }
-	public setKeyboardType(v: number): this { return this.set('keyboardType', v); }
+	public getKeyboardType(): number {
+		return this.get('keyboardType');
+	}
+	public setKeyboardType(v: number): this {
+		return this.set('keyboardType', v);
+	}
 }

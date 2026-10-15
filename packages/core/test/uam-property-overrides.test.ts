@@ -70,9 +70,10 @@ function fidelitySnapshot(project: UamProject) {
 		listItemOverrides: list.listItems[0]?.propertyOverrides,
 		instanceOverrides: instance.propertyOverrides,
 		instanceControllerOverrides: instance.controllerOverrides,
-		instanceAutoClearItems: instance.instanceProperties?.extensionType === 'ComboBox'
-			? instance.instanceProperties.autoClearItems
-			: false,
+		instanceAutoClearItems:
+			instance.instanceProperties?.extensionType === 'ComboBox'
+				? instance.instanceProperties.autoClearItems
+				: false,
 	};
 }
 

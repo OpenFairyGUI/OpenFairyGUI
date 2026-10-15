@@ -29,7 +29,15 @@ export function pushSupportIssue(
 	message: string,
 	details: Omit<Partial<UamTransactionSupportIssue>, 'code' | 'path' | 'message'> = {},
 ): void {
-	const safeDetails = Object.fromEntries(Object.entries(details).filter(([, value]) => value === undefined || typeof value === 'string'));
+	const safeDetails = Object.fromEntries(
+		Object.entries(details).filter(
+			([key, value]) =>
+				value === undefined ||
+				(key === 'operationIndex'
+					? Number.isInteger(value) && (value as number) >= 0
+					: typeof value === 'string'),
+		),
+	);
 	issues.push({ code, path, message, ...safeDetails });
 }
 
@@ -52,7 +60,13 @@ export function validateDisplayNodePayload(
 	details: Omit<Partial<UamTransactionSupportIssue>, 'code' | 'path' | 'message' | 'nodeKind' | 'gearKind'> = {},
 ): void {
 	if (!node.id) {
-		pushSupportIssue(issues, 'invalid_display_node_payload', `${path}.id`, 'Display node id must be a non-empty string.', details);
+		pushSupportIssue(
+			issues,
+			'invalid_display_node_payload',
+			`${path}.id`,
+			'Display node id must be a non-empty string.',
+			details,
+		);
 		return;
 	}
 	validateSupportedDisplayNode(node, owningPackageId, path, issues, details);
@@ -114,7 +128,10 @@ export function validateBaselineSupport(project: UamProject, issues: UamTransact
 	for (const [packageIndex, pkg] of project.packages.entries()) {
 		for (const [resourceIndex, resource] of pkg.resources.entries()) {
 			const resourcePath = `packages[${packageIndex}].resources[${resourceIndex}]`;
-			if (resource.kind !== 'component' && !UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds.includes(resource.kind as never)) {
+			if (
+				resource.kind !== 'component' &&
+				!UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds.includes(resource.kind as never)
+			) {
 				pushSupportIssue(
 					issues,
 					'unsupported_resource_kind',
@@ -127,7 +144,9 @@ export function validateBaselineSupport(project: UamProject, issues: UamTransact
 
 			if (resource.kind !== 'component') continue;
 
-			const duplicateTransitionNames = countDuplicateNames(resource.component.transitions.map((transition) => transition.name));
+			const duplicateTransitionNames = countDuplicateNames(
+				resource.component.transitions.map((transition) => transition.name),
+			);
 			for (const duplicateName of duplicateTransitionNames) {
 				pushSupportIssue(
 					issues,
@@ -169,7 +188,10 @@ export function validateTouchedResourceKind(
 		);
 		return;
 	}
-	if (resource.kind === 'component' || UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds.includes(resource.kind as never)) {
+	if (
+		resource.kind === 'component' ||
+		UAM_SUPPORTED_TRANSACTION_SCOPE.resourceKinds.includes(resource.kind as never)
+	) {
 		return;
 	}
 	pushSupportIssue(

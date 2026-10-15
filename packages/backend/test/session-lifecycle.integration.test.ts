@@ -8,10 +8,16 @@ test('an unreadable asset directory cannot become a writable empty session', asy
 	const fixture = await createTempBackendProject();
 	t.teardown(() => fixture.cleanup());
 	const base = createNodeBackendFileSystem();
-	const runtime = createBackendRuntime({ fileSystem: { ...base, readdir: async (directory) => {
-		if (directory === path.join(fixture.rootDir, 'assets')) throw Object.assign(new Error('permission denied'), { code: 'EACCES' });
-		return base.readdir(directory);
-	} } });
+	const runtime = createBackendRuntime({
+		fileSystem: {
+			...base,
+			readdir: async (directory) => {
+				if (directory === path.join(fixture.rootDir, 'assets'))
+					throw Object.assign(new Error('permission denied'), { code: 'EACCES' });
+				return base.readdir(directory);
+			},
+		},
+	});
 	const opened = await runtime.openSession({ projectPath: fixture.fairyPath });
 	t.true(opened.ok);
 	if (!opened.ok) return;
@@ -36,7 +42,8 @@ test.serial('Node lock read failures keep the session retryable and block a seco
 	const readFile = fs.readFile;
 	for (const code of ['EIO', 'EACCES']) {
 		fs.readFile = ((...args: Parameters<typeof fs.readFile>) => {
-			if (args[0] === lockPath) return Promise.reject(Object.assign(new Error('injected lock read failure'), { code }));
+			if (args[0] === lockPath)
+				return Promise.reject(Object.assign(new Error('injected lock read failure'), { code }));
 			return readFile(...args);
 		}) as typeof fs.readFile;
 		try {
@@ -90,12 +97,17 @@ test('a locked file session rejects storage rebinding before writing the new tar
 	t.true(opened.ok);
 	if (!opened.ok) return;
 	const target = path.join(fixture.rootDir, 'other', 'Other.fairy');
-	const result = await runtime.materializeSession({ sessionId: opened.data.sessionId, storage: { fileSystem, fairyPath: target } });
+	const result = await runtime.materializeSession({
+		sessionId: opened.data.sessionId,
+		storage: { fileSystem, fairyPath: target },
+	});
 	t.false(result.ok);
 	if (!result.ok) t.is(result.error.code, 'path_policy_violation');
 	await t.throwsAsync(fs.stat(path.dirname(target)), { code: 'ENOENT' });
 	const session = runtime.getSession({ sessionId: opened.data.sessionId });
-	t.true(session.ok && session.data.lockHeld && session.data.canonicalProjectPath === opened.data.canonicalProjectPath);
+	t.true(
+		session.ok && session.data.lockHeld && session.data.canonicalProjectPath === opened.data.canonicalProjectPath,
+	);
 	t.false((await createBackendRuntime().openSession({ projectPath: fixture.fairyPath })).ok);
 	t.true((await runtime.closeSession({ sessionId: opened.data.sessionId })).ok);
 });
@@ -125,11 +137,17 @@ test('openSession -> getSession -> closeSession reports revision and dirty state
 		t.is(outline.meta.stage, 'read');
 		t.is(outline.data.revision, 0);
 		t.is(outline.data.projectId, 'backend-p0');
-		t.deepEqual(outline.data.packages.map((pkg) => [pkg.id, pkg.name]), [['pkg001', 'Main']]);
+		t.deepEqual(
+			outline.data.packages.map((pkg) => [pkg.id, pkg.name]),
+			[['pkg001', 'Main']],
+		);
 		t.deepEqual(outline.data.packages[0]?.folders, [{ branch: '', path: '/images/' }]);
 		t.deepEqual(
 			outline.data.packages[0]?.resources.map((resource) => [resource.id, resource.kind]),
-			[['img001', 'image'], ['cmp001', 'component']],
+			[
+				['img001', 'image'],
+				['cmp001', 'component'],
+			],
 		);
 		t.deepEqual(
 			outline.data.packages[0]?.resources.find((resource) => resource.id === 'cmp001')?.component?.displayList,

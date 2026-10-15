@@ -60,10 +60,9 @@ test('atlas: rejects a packable input that cannot fit on any page', async (t) =>
 	image.setId('img001').setWidth(64).setHeight(64);
 	pkg.addResource(image);
 
-	await t.throwsAsync(
-		() => doc.transform(atlas({ maxSize: 16, allowRotation: false, multiPage: false })),
-		{ message: /Could not pack every input/ },
-	);
+	await t.throwsAsync(() => doc.transform(atlas({ maxSize: 16, allowRotation: false, multiPage: false })), {
+		message: /Could not pack every input/,
+	});
 });
 
 test('atlas: handles multiple pages when images exceed maxSize', async (t) => {
@@ -74,7 +73,9 @@ test('atlas: handles multiple pages when images exceed maxSize', async (t) => {
 	// Create images that won't fit in a 128x128 atlas
 	for (let i = 0; i < 5; i++) {
 		const img = doc.createImageResource(`img${i}.png`);
-		img.setId(`i${String(i).padStart(3, '0')}`).setWidth(80).setHeight(80);
+		img.setId(`i${String(i).padStart(3, '0')}`)
+			.setWidth(80)
+			.setHeight(80);
 		pkg.addResource(img);
 	}
 
@@ -103,7 +104,9 @@ test('atlas: trimImage keeps fully transparent images as zero-sized sprites', as
 				channels: 4,
 				background: { r: 0, g: 0, b: 0, alpha: 0 },
 			},
-		}).png().toFile(imagePath);
+		})
+			.png()
+			.toFile(imagePath);
 
 		const doc = new Document();
 		const pkg = doc.createPackage('Basics');
@@ -115,17 +118,19 @@ test('atlas: trimImage keeps fully transparent images as zero-sized sprites', as
 		img.setExtras({ ...img.getExtras(), _fileName: 'transparent.png' });
 		pkg.addResource(img);
 
-		await doc.transform(atlas({
-			encoder: sharp,
-			basePath: tmpDir,
-			outputPath: tmpDir,
-			mkdir: async (dir) => {
-				await fs.mkdir(dir, { recursive: true });
-			},
-			trimImage: true,
-			powerOfTwo: true,
-			maxSize: 256,
-		}));
+		await doc.transform(
+			atlas({
+				encoder: sharp,
+				basePath: tmpDir,
+				outputPath: tmpDir,
+				mkdir: async (dir) => {
+					await fs.mkdir(dir, { recursive: true });
+				},
+				trimImage: true,
+				powerOfTwo: true,
+				maxSize: 256,
+			}),
+		);
 
 		const sprites = pkg.listAtlases().flatMap((atlasNode) => atlasNode.listSprites());
 		const sprite = sprites.find((entry) => entry.getItemId() === 'img001');
@@ -202,7 +207,9 @@ test('atlas: direct single PNG output keeps portrait sprite unrotated for Unity 
 				channels: 4,
 				background: { r: 255, g: 0, b: 0, alpha: 1 },
 			},
-		}).png().toFile(imagePath);
+		})
+			.png()
+			.toFile(imagePath);
 
 		const doc = new Document();
 		const pkg = doc.createPackage('BundleUsage');
@@ -213,18 +220,20 @@ test('atlas: direct single PNG output keeps portrait sprite unrotated for Unity 
 		img.setExtras({ ...img.getExtras(), _fileName: 'sword.png' });
 		pkg.addResource(img);
 
-		await doc.transform(atlas({
-			encoder: sharp,
-			basePath: tmpDir,
-			outputPath: tmpDir,
-			mkdir: async (dir) => {
-				await fs.mkdir(dir, { recursive: true });
-			},
-			powerOfTwo: true,
-			allowRotation: true,
-			maxSize: 1024,
-			directSingleImageOutput: true,
-		}));
+		await doc.transform(
+			atlas({
+				encoder: sharp,
+				basePath: tmpDir,
+				outputPath: tmpDir,
+				mkdir: async (dir) => {
+					await fs.mkdir(dir, { recursive: true });
+				},
+				powerOfTwo: true,
+				allowRotation: true,
+				maxSize: 1024,
+				directSingleImageOutput: true,
+			}),
+		);
 
 		const atlases = pkg.listAtlases();
 		t.is(atlases.length, 1, 'one direct-output atlas created');
@@ -260,7 +269,9 @@ test('atlas: standalone textureSetMode and fixed page outputs use editor-style f
 				channels: 3,
 				background: { r: 120, g: 40, b: 30 },
 			},
-		}).jpeg().toFile(coverPath);
+		})
+			.jpeg()
+			.toFile(coverPath);
 		await sharp({
 			create: {
 				width: 64,
@@ -268,7 +279,9 @@ test('atlas: standalone textureSetMode and fixed page outputs use editor-style f
 				channels: 4,
 				background: { r: 30, g: 120, b: 220, alpha: 1 },
 			},
-		}).png().toFile(iconPath);
+		})
+			.png()
+			.toFile(iconPath);
 		await sharp({
 			create: {
 				width: 48,
@@ -276,14 +289,22 @@ test('atlas: standalone textureSetMode and fixed page outputs use editor-style f
 				channels: 4,
 				background: { r: 220, g: 180, b: 30, alpha: 1 },
 			},
-		}).png().toFile(badgePath);
+		})
+			.png()
+			.toFile(badgePath);
 
 		const doc = new Document();
 		const pkg = doc.createPackage('AtlasModes');
 		pkg.setId('atlasmodes01');
 
 		const cover = doc.createImageResource('cover');
-		cover.setId('cover01').setPath('/images/').setWidth(320).setHeight(180).setExported(true).setTextureSetMode('alone_npot');
+		cover
+			.setId('cover01')
+			.setPath('/images/')
+			.setWidth(320)
+			.setHeight(180)
+			.setExported(true)
+			.setTextureSetMode('alone_npot');
 		cover.setExtras({ ...cover.getExtras(), _fileName: 'cover.jpg' });
 		pkg.addResource(cover);
 
@@ -297,18 +318,20 @@ test('atlas: standalone textureSetMode and fixed page outputs use editor-style f
 		badge.setExtras({ ...badge.getExtras(), _fileName: 'badge.png' });
 		pkg.addResource(badge);
 
-		await doc.transform(atlas({
-			encoder: sharp,
-			basePath: tmpDir,
-			outputPath: tmpDir,
-			mkdir: async (dir) => {
-				await fs.mkdir(dir, { recursive: true });
-			},
-			powerOfTwo: true,
-			maxSize: 512,
-			maxAtlasIndex: 12,
-			directSingleImageOutput: true,
-		}));
+		await doc.transform(
+			atlas({
+				encoder: sharp,
+				basePath: tmpDir,
+				outputPath: tmpDir,
+				mkdir: async (dir) => {
+					await fs.mkdir(dir, { recursive: true });
+				},
+				powerOfTwo: true,
+				maxSize: 512,
+				maxAtlasIndex: 12,
+				directSingleImageOutput: true,
+			}),
+		);
 
 		const files = new Set((await fs.readdir(tmpDir)).filter((entry) => entry.startsWith('AtlasModes_atlas')));
 		t.true(files.has('AtlasModes_atlas_cover01.jpg'), 'standalone image writes resource-id atlas file');
@@ -316,7 +339,10 @@ test('atlas: standalone textureSetMode and fixed page outputs use editor-style f
 		t.true(files.has('AtlasModes_atlas0.png'), 'auto atlas uses the first unreserved page');
 		t.false(files.has('AtlasModes_atlas1.png'), 'no unexpected extra page is emitted');
 
-		const atlasFiles = pkg.listAtlases().map((atlasNode) => atlasNode.getFile()).sort();
+		const atlasFiles = pkg
+			.listAtlases()
+			.map((atlasNode) => atlasNode.getFile())
+			.sort();
 		t.deepEqual(
 			atlasFiles,
 			['AtlasModes_atlas0.png', 'AtlasModes_atlas12.png', 'AtlasModes_atlas_cover01.jpg'],

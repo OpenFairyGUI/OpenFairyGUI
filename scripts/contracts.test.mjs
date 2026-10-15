@@ -5,7 +5,16 @@ import path from 'node:path';
 import test from 'node:test';
 import { tsImport } from 'tsx/esm/api';
 import ts from 'typescript';
-import { checkGeneratedFiles, contractTables, corePayloadSchema, createContractProgram, generateContract, generatedFiles, nativeBytePaths, payloadFields } from './generate-contracts.mjs';
+import {
+	checkGeneratedFiles,
+	contractTables,
+	corePayloadSchema,
+	createContractProgram,
+	generateContract,
+	generatedFiles,
+	nativeBytePaths,
+	payloadFields,
+} from './generate-contracts.mjs';
 import { ROOT } from './repo-utils.mjs';
 import { CORE_GENERATED, OPERATION_SHAPE } from './contracts/schema.mjs';
 
@@ -15,12 +24,17 @@ const contract = generateContract();
 /** Type-checks one source file with the repository options, reading the given files from memory. */
 function typeErrorsIn(entry, overrides) {
 	const config = ts.readConfigFile(path.join(ROOT, 'tsconfig.json'), ts.sys.readFile);
-	const options = { ...ts.parseJsonConfigFileContent(config.config, ts.sys, ROOT).options, types: ['node'], noEmit: true };
+	const options = {
+		...ts.parseJsonConfigFileContent(config.config, ts.sys, ROOT).options,
+		types: ['node'],
+		noEmit: true,
+	};
 	const host = ts.createCompilerHost(options);
 	const read = host.readFile.bind(host);
 	const relative = (file) => path.relative(ROOT, file).replaceAll('\\', '/');
 	host.readFile = (file) => overrides[relative(file)] ?? read(file);
-	return ts.getPreEmitDiagnostics(ts.createProgram([path.join(ROOT, entry)], options, host))
+	return ts
+		.getPreEmitDiagnostics(ts.createProgram([path.join(ROOT, entry)], options, host))
 		.filter((diagnostic) => diagnostic.file && relative(diagnostic.file.fileName) === entry)
 		.map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'));
 }
@@ -31,29 +45,59 @@ test('CLI schemas cover every registered command and reject malformed envelopes;
 	function visit(command, prefix = '') {
 		for (const child of command.commands) {
 			const name = `${prefix}${child.name()}`;
-			paths.push(name); visit(child, `${name} `);
+			paths.push(name);
+			visit(child, `${name} `);
 		}
 	}
 	visit(createProgram());
 	assert.deepEqual(Object.keys(contract.cli).sort(), paths.sort());
 	for (const [command, output] of Object.entries(contract.cli)) {
-		assert(z.fromJSONSchema({ ...output, $defs: contract.$defs }).safeParse({
-			schemaVersion: 1, command, success: false, error: { code: 'invalid_arguments', message: 'Invalid arguments' },
-		}).success, `CLI failure schema: ${command}`);
+		assert(
+			z.fromJSONSchema({ ...output, $defs: contract.$defs }).safeParse({
+				schemaVersion: 1,
+				command,
+				success: false,
+				error: { code: 'invalid_arguments', message: 'Invalid arguments' },
+			}).success,
+			`CLI failure schema: ${command}`,
+		);
 	}
 	const schema = z.fromJSONSchema({ ...contract.cli.validate, $defs: contract.$defs });
-	const report = { schemaVersion: 1, command: 'validate', success: true, result: { status: 'valid', complete: true, diagnostics: [] } };
+	const report = {
+		schemaVersion: 1,
+		command: 'validate',
+		success: true,
+		result: { status: 'valid', complete: true, diagnostics: [] },
+	};
 	assert(schema.safeParse(report).success);
 	assert(!schema.safeParse({ ...report, result: { status: 'ready' } }).success);
 	assert(!schema.safeParse({ ...report, command: 'inspect' }).success);
 	assert(!schema.safeParse({ ...report, success: false }).success);
-	assert(!schema.safeParse({ ...report, result: { ...report.result, diagnostics: [{ code: 'invented', message: 'x', severity: 'error', path: '' }] } }).success);
+	assert(
+		!schema.safeParse({
+			...report,
+			result: {
+				...report.result,
+				diagnostics: [{ code: 'invented', message: 'x', severity: 'error', path: '' }],
+			},
+		}).success,
+	);
 	const file = 'packages/core/src/validation.ts';
 	const before = readFileSync(path.join(ROOT, file), 'utf8');
-	assert.throws(() => generateContract(createContractProgram(ROOT, { [file]: before.replace("| 'invalid_project_xml'", "| 'contract_probe' | 'invalid_project_xml'") })), /every formal diagnostic code/);
+	assert.throws(
+		() =>
+			generateContract(
+				createContractProgram(ROOT, {
+					[file]: before.replace("| 'invalid_project_xml'", "| 'contract_probe' | 'invalid_project_xml'"),
+				}),
+			),
+		/every formal diagnostic code/,
+	);
 	const cli = 'packages/cli/src/contracts.ts';
 	const source = readFileSync(path.join(ROOT, cli), 'utf8');
-	const changed = generateContract(createContractProgram(ROOT, { [cli]: source.replace('schemaVersion: 1;', 'schemaVersion: 2;') }));
+	const changed = generateContract(
+		createContractProgram(ROOT, { [cli]: source.replace('schemaVersion: 1;', 'schemaVersion: 2;') }),
+	);
 	assert.notEqual(changed.digest, contract.digest);
 	assert.throws(() => checkGeneratedFiles(generatedFiles(changed)), /Generated contract drift/);
 });
@@ -66,19 +110,47 @@ test('canonical types generate precise schemas for the four representative opera
 	const rename = { kind: 'renameResource', selector: { packageId: 'p', resourceId: 'r' }, newName: 'new' };
 	assert(schema(rename.kind).safeParse(rename).success);
 	assert(!schema(rename.kind).safeParse({ ...rename, selector: { packageId: 'p' } }).success);
-	const update = { kind: 'setDisplayNodeProps', selector: { packageId: 'p', componentResourceId: 'c', displayNodeId: 'n' }, props: { text: 'ok', position: { x: 1, y: 2 } } };
+	const update = {
+		kind: 'setDisplayNodeProps',
+		selector: { packageId: 'p', componentResourceId: 'c', displayNodeId: 'n' },
+		props: { text: 'ok', position: { x: 1, y: 2 } },
+	};
 	assert(schema(update.kind).safeParse(update).success);
 	assert(!schema(update.kind).safeParse({ ...update, props: { position: { x: 'wrong', y: 2 } } }).success);
 	assert(!schema(update.kind).safeParse({ ...update, props: { inventedProperty: true } }).success);
 	const add = { kind: 'addComponent', selector: { packageId: 'p' }, component, atIndex: 0 };
 	assert(schema(add.kind).safeParse(add).success);
-	assert(!schema(add.kind).safeParse({ ...add, component: { ...component, component: { ...component.component, displayList: [{ kind: 'text', text: 'incomplete' }] } } }).success);
-	const replace = { kind: 'replaceResourceBytes', selector: { packageId: 'p', resourceId: 'r' }, sourceBytes: [0, 255] };
+	assert(
+		!schema(add.kind).safeParse({
+			...add,
+			component: {
+				...component,
+				component: { ...component.component, displayList: [{ kind: 'text', text: 'incomplete' }] },
+			},
+		}).success,
+	);
+	const replace = {
+		kind: 'replaceResourceBytes',
+		selector: { packageId: 'p', resourceId: 'r' },
+		sourceBytes: [0, 255],
+	};
 	assert(schema(replace.kind).safeParse(replace).success);
 	assert(!schema(replace.kind).safeParse({ ...replace, sourceBytes: [256] }).success);
 	assert(!schema(replace.kind).safeParse({ ...replace, sourceBytes: new Uint8Array([1]) }).success);
-	assert(schema('addResourceFolder').safeParse({ kind: 'addResourceFolder', selector: { packageId: 'p' }, path: '/icons/', branch: '' }).success);
-	assert(schema('removeResourceFolder').safeParse({ kind: 'removeResourceFolder', selector: { packageId: 'p', path: '/icons/', branch: '' } }).success);
+	assert(
+		schema('addResourceFolder').safeParse({
+			kind: 'addResourceFolder',
+			selector: { packageId: 'p' },
+			path: '/icons/',
+			branch: '',
+		}).success,
+	);
+	assert(
+		schema('removeResourceFolder').safeParse({
+			kind: 'removeResourceFolder',
+			selector: { packageId: 'p', path: '/icons/', branch: '' },
+		}).success,
+	);
 	assert(!schema('removeBranch').safeParse({ kind: 'removeBranch', selector: { branch: '' } }).success);
 });
 
@@ -93,29 +165,54 @@ test('current snapshot and bilingual tables match; a canonical field change fail
 	assert.notEqual(changed.digest, contract.digest);
 	const files = generatedFiles(changed);
 	assert.throws(() => checkGeneratedFiles(files), /Generated contract drift/);
-	assert.throws(() => checkGeneratedFiles({ 'docs/guide/contracts.md': files['docs/guide/contracts.md'] }), /Generated contract drift/);
-	assert.throws(() => checkGeneratedFiles({ 'docs/en/guide/contracts.md': files['docs/en/guide/contracts.md'] }), /Generated contract drift/);
+	assert.throws(
+		() => checkGeneratedFiles({ 'docs/guide/contracts.md': files['docs/guide/contracts.md'] }),
+		/Generated contract drift/,
+	);
+	assert.throws(
+		() => checkGeneratedFiles({ 'docs/en/guide/contracts.md': files['docs/en/guide/contracts.md'] }),
+		/Generated contract drift/,
+	);
 	// Extraction ignores the runtime envelope table, but type checking still rejects the same unmirrored change.
 	assert.deepEqual(typeErrorsIn(OPERATION_SHAPE, {}), []);
-	assert(typeErrorsIn(OPERATION_SHAPE, { [file]: edited }).some((message) => message.includes("Property 'contractProbe' is missing")));
+	assert(
+		typeErrorsIn(OPERATION_SHAPE, { [file]: edited }).some((message) =>
+			message.includes("Property 'contractProbe' is missing"),
+		),
+	);
 	assert.equal(readFileSync(path.join(ROOT, file), 'utf8'), before);
 	const backendFile = 'packages/backend/src/runtime.ts';
 	const backend = readFileSync(path.join(ROOT, backendFile), 'utf8');
-	const extraMethod = backend.replace('public getCapabilities()', 'public contractProbe() { return this.getCapabilities(); }\n\tpublic getCapabilities()');
+	const extraMethod = backend.replace(
+		'public getCapabilities()',
+		'public contractProbe() { return this.getCapabilities(); }\n\tpublic getCapabilities()',
+	);
 	assert.notEqual(extraMethod, backend);
-	assert.throws(() => generateContract(createContractProgram(ROOT, { [backendFile]: extraMethod })), /MCP mapping must cover every public Backend method/);
+	assert.throws(
+		() => generateContract(createContractProgram(ROOT, { [backendFile]: extraMethod })),
+		/MCP mapping must cover every public Backend method/,
+	);
 });
 
 test('installed documentation is bound to the package version, source text and generated contract', async () => {
-	const { getInstalledDocumentationIndex, readInstalledDocumentation, getInstalledContractSnapshot } = await tsImport('../packages/backend/src/docs.ts', import.meta.url);
+	const { getInstalledDocumentationIndex, readInstalledDocumentation, getInstalledContractSnapshot } = await tsImport(
+		'../packages/backend/src/docs.ts',
+		import.meta.url,
+	);
 	const index = getInstalledDocumentationIndex();
 	const manifest = JSON.parse(readFileSync(path.join(ROOT, 'packages/backend/package.json'), 'utf8'));
 	assert.equal(index.packageName, manifest.name);
 	assert.equal(index.packageVersion, manifest.version);
 	assert.equal(index.nodeEngine, manifest.engines.node);
 	assert.equal(index.contractDigest, contract.digest);
-	assert.equal(readInstalledDocumentation('workflow').text, readFileSync(path.join(ROOT, 'packages/backend/docs/workflow.md'), 'utf8').replaceAll('\r\n', '\n'));
-	assert.equal(readInstalledDocumentation('restore-limits').text, readFileSync(path.join(ROOT, 'docs/published-project-restore-limitations.md'), 'utf8').replaceAll('\r\n', '\n'));
+	assert.equal(
+		readInstalledDocumentation('workflow').text,
+		readFileSync(path.join(ROOT, 'packages/backend/docs/workflow.md'), 'utf8').replaceAll('\r\n', '\n'),
+	);
+	assert.equal(
+		readInstalledDocumentation('restore-limits').text,
+		readFileSync(path.join(ROOT, 'docs/published-project-restore-limitations.md'), 'utf8').replaceAll('\r\n', '\n'),
+	);
 	assert.equal(new Set(index.documents.map((entry) => entry.id)).size, index.documents.length);
 	assert.deepEqual(getInstalledContractSnapshot().diagnostics, contract.diagnostics);
 	const copy = getInstalledContractSnapshot();
@@ -123,7 +220,10 @@ test('installed documentation is bound to the package version, source text and g
 	assert(Object.keys(getInstalledContractSnapshot().operations).length > 0);
 	const files = generatedFiles(contract);
 	const docsFile = 'packages/backend/src/generated/docs.ts';
-	assert.throws(() => checkGeneratedFiles({ [docsFile]: files[docsFile].replace(manifest.version, '0.0.0-drift') }), /Generated contract drift/);
+	assert.throws(
+		() => checkGeneratedFiles({ [docsFile]: files[docsFile].replace(manifest.version, '0.0.0-drift') }),
+		/Generated contract drift/,
+	);
 });
 
 test('generated byte paths cover declared resource snapshots and reject unsupported recursive native bytes', async () => {
@@ -134,11 +234,13 @@ test('generated byte paths cover declared resource snapshots and reject unsuppor
 	assert(decoded.project.packages[0].resources[0].sourceBytes instanceof Uint8Array);
 	assert.deepEqual(decoded.project.packages[0].resources[0].metadata.sourceBytes, [7, 8]);
 	assert.deepEqual(resource.sourceBytes, [0, 255]);
-	const batch = { operations: [
-		{ kind: 'replaceResourceBytes', sourceBytes: [1] },
-		{ kind: 'addResource', resource },
-		{ kind: 'addPackage', package: { resources: [resource] } },
-	] };
+	const batch = {
+		operations: [
+			{ kind: 'replaceResourceBytes', sourceBytes: [1] },
+			{ kind: 'addResource', resource },
+			{ kind: 'addPackage', package: { resources: [resource] } },
+		],
+	};
 	const operations = decodeToolBytes(batch, contract.tools.applyTransaction.bytePaths).operations;
 	assert(operations[0].sourceBytes instanceof Uint8Array);
 	assert(operations[1].resource.sourceBytes instanceof Uint8Array);
@@ -147,27 +249,52 @@ test('generated byte paths cover declared resource snapshots and reject unsuppor
 	const byteListInput = { buffers: [[1], [2]] };
 	const byteListPaths = nativeBytePaths({ type: 'object', properties: { buffers: byteList } }, {});
 	assert.deepEqual(decodeToolBytes(byteListInput, byteListPaths).buffers, [new Uint8Array([1]), new Uint8Array([2])]);
-	const recursive = { type: 'object', properties: { next: { $ref: '#/$defs/Node' }, bytes: { 'x-openfairygui-native': 'Uint8Array' } } };
+	const recursive = {
+		type: 'object',
+		properties: { next: { $ref: '#/$defs/Node' }, bytes: { 'x-openfairygui-native': 'Uint8Array' } },
+	};
 	assert.throws(() => nativeBytePaths({ $ref: '#/$defs/Node' }, { Node: recursive }), /Recursive native bytes/);
 });
 
 test('Core payload table follows canonical snapshot types, drifts with the model and fails closed', () => {
 	const { roots, nodes } = corePayloadSchema(contract);
-	const rootFields = Object.entries(roots).flatMap(([kind, fields]) => Object.keys(fields).map((field) => `${kind}.${field}`));
-	assert.deepEqual(rootFields, payloadFields(contract).map(([kind, field]) => `${kind}.${field}`));
+	const rootFields = Object.entries(roots).flatMap(([kind, fields]) =>
+		Object.keys(fields).map((field) => `${kind}.${field}`),
+	);
+	assert.deepEqual(
+		rootFields,
+		payloadFields(contract).map(([kind, field]) => `${kind}.${field}`),
+	);
 	assert(rootFields.includes('attachDisplayNode.node') && rootFields.includes('addPackage.package'));
-	assert(!rootFields.some((field) => /\.(selector|opId|kind|atIndex|newName|favorite)$/.test(field)), 'Scalars and selectors stay in the envelope table');
-	assert.deepEqual(nodes[roots.attachDisplayNode.node].slice(0, 1).concat(nodes[roots.attachDisplayNode.node][2]), ['union', 'kind']);
+	assert(
+		!rootFields.some((field) => /\.(selector|opId|kind|atIndex|newName|favorite)$/.test(field)),
+		'Scalars and selectors stay in the envelope table',
+	);
+	assert.deepEqual(nodes[roots.attachDisplayNode.node].slice(0, 1).concat(nodes[roots.attachDisplayNode.node][2]), [
+		'union',
+		'kind',
+	]);
 	// MCP bounds package ids to 1-256 characters; Core checks only that they are strings.
 	assert.deepEqual(nodes[nodes[roots.addPackage.package][1].id], ['string']);
 	const file = 'packages/core/src/uam/model.ts';
 	const before = readFileSync(path.join(ROOT, file), 'utf8');
-	const edited = before.replace('export interface UamControllerPage {', 'export interface UamControllerPage {\n\tcontractProbe?: boolean;');
+	const edited = before.replace(
+		'export interface UamControllerPage {',
+		'export interface UamControllerPage {\n\tcontractProbe?: boolean;',
+	);
 	assert.notEqual(edited, before);
 	const changed = generatedFiles(generateContract(createContractProgram(ROOT, { [file]: edited })));
 	assert.match(changed[CORE_GENERATED], /"contractProbe"/);
 	assert.throws(() => checkGeneratedFiles({ [CORE_GENERATED]: changed[CORE_GENERATED] }), /Generated contract drift/);
 	const tuple = { type: 'array', prefixItems: [{ type: 'string' }], minItems: 1, maxItems: 1, items: false };
-	const probe = { type: 'object', properties: { value: { type: 'object', properties: { tuple }, required: [], additionalProperties: false } }, required: ['value'], additionalProperties: false };
-	assert.throws(() => corePayloadSchema({ operations: { probe }, $defs: {} }), /Unsupported payload schema construct/);
+	const probe = {
+		type: 'object',
+		properties: { value: { type: 'object', properties: { tuple }, required: [], additionalProperties: false } },
+		required: ['value'],
+		additionalProperties: false,
+	};
+	assert.throws(
+		() => corePayloadSchema({ operations: { probe }, $defs: {} }),
+		/Unsupported payload schema construct/,
+	);
 });

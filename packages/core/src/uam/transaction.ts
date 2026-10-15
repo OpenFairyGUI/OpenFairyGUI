@@ -132,7 +132,10 @@ export async function applyUamTransactionAsync(
 		safeOperations = structuredClone(operations);
 		imageBytes = safeOperations.flatMap((operation, operationIndex) => {
 			if (operation.kind !== 'replaceResourceBytes' || !(operation.sourceBytes instanceof Uint8Array)) return [];
-			if (findProjectedResource(safeProject, safeOperations, operationIndex, operation.selector)?.kind !== 'image') return [];
+			if (
+				findProjectedResource(safeProject, safeOperations, operationIndex, operation.selector)?.kind !== 'image'
+			)
+				return [];
 			if (typeof SharedArrayBuffer !== 'undefined' && operation.sourceBytes.buffer instanceof SharedArrayBuffer) {
 				operation.sourceBytes = new Uint8Array(operation.sourceBytes);
 			}

@@ -18,12 +18,20 @@ test('runtime events are monotonic and reflect transaction/save/close ordering',
 		const mutableInitialEvent = initialEvents.data.events[0];
 		if (!mutableInitialEvent) return;
 		mutableInitialEvent.kind = 'save.failed';
-		mutableInitialEvent.diagnostics.push({ code: 'execution_failure', message: 'external mutation', severity: 'error' });
+		mutableInitialEvent.diagnostics.push({
+			code: 'execution_failure',
+			message: 'external mutation',
+			severity: 'error',
+		});
 		const initialEventsAgain = runtime.getEvents({ sessionId: opened.data.sessionId });
 		t.true(initialEventsAgain.ok);
 		if (!initialEventsAgain.ok) return;
 		t.is(initialEventsAgain.data.events[0]?.kind, 'session.opened');
-		t.false(initialEventsAgain.data.events[0]?.diagnostics.some((diagnostic) => diagnostic.code === 'execution_failure') ?? true);
+		t.false(
+			initialEventsAgain.data.events[0]?.diagnostics.some(
+				(diagnostic) => diagnostic.code === 'execution_failure',
+			) ?? true,
+		);
 
 		const applied = await runtime.applyTransaction({
 			sessionId: opened.data.sessionId,
@@ -41,14 +49,23 @@ test('runtime events are monotonic and reflect transaction/save/close ordering',
 		const afterApply = runtime.getEvents({ sessionId: opened.data.sessionId, after: '1' });
 		t.true(afterApply.ok);
 		if (!afterApply.ok) return;
-		t.deepEqual(afterApply.data.events.map((event) => event.kind), ['transaction.applied', 'cache.invalidated']);
+		t.deepEqual(
+			afterApply.data.events.map((event) => event.kind),
+			['transaction.applied', 'cache.invalidated'],
+		);
 
 		const saved = await runtime.saveSession({ sessionId: opened.data.sessionId });
 		t.true(saved.ok);
-		const afterSave = runtime.getEvents({ sessionId: opened.data.sessionId, after: String(afterApply.data.currentSequence) });
+		const afterSave = runtime.getEvents({
+			sessionId: opened.data.sessionId,
+			after: String(afterApply.data.currentSequence),
+		});
 		t.true(afterSave.ok);
 		if (!afterSave.ok) return;
-		t.deepEqual(afterSave.data.events.map((event) => event.kind), ['save.started', 'save.completed', 'cache.updated']);
+		t.deepEqual(
+			afterSave.data.events.map((event) => event.kind),
+			['save.started', 'save.completed', 'cache.updated'],
+		);
 
 		const closed = await runtime.closeSession({ sessionId: opened.data.sessionId });
 		t.true(closed.ok);

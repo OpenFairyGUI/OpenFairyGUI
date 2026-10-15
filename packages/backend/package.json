@@ -1,6 +1,6 @@
 {
 	"name": "@openfairygui/backend",
-	"version": "0.6.3",
+	"version": "0.7.0",
 	"description": "FairyGUI Headless Authoring SDK — stateful backend runtime and session services.",
 	"author": "OpenFairyGUI Contributors",
 	"license": "MIT",
@@ -33,8 +33,14 @@
 			}
 		},
 		"./docs": {
-			"require": { "types": "./dist/docs.d.cts", "default": "./dist/docs.cjs" },
-			"default": { "types": "./dist/docs.d.mts", "default": "./dist/docs.mjs" }
+			"require": {
+				"types": "./dist/docs.d.cts",
+				"default": "./dist/docs.cjs"
+			},
+			"default": {
+				"types": "./dist/docs.d.mts",
+				"default": "./dist/docs.mjs"
+			}
 		},
 		"./node": {
 			"require": {
@@ -53,8 +59,7 @@
 	},
 	"files": [
 		"docs/",
-		"dist/",
-		"src/"
+		"dist/"
 	],
 	"keywords": [
 		"fairygui",

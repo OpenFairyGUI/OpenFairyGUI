@@ -30,17 +30,19 @@ test('resource reference scanner separates local resources from external package
 	component.addChild(shared);
 
 	const list = doc.createGList('choices');
-	list.setId('list0001').setListItems([{
-		title: null,
-		selectedTitle: null,
-		icon: null,
-		selectedIcon: 'ui://main0001/listSelected',
-		url: null,
-		name: null,
-		level: 0,
-		isFolder: null,
-		propertyOverrides: [{ target: 'icon', propertyId: 1, value: 'ui://main0001/listOverride' }],
-	}]);
+	list.setId('list0001').setListItems([
+		{
+			title: null,
+			selectedTitle: null,
+			icon: null,
+			selectedIcon: 'ui://main0001/listSelected',
+			url: null,
+			name: null,
+			level: 0,
+			isFolder: null,
+			propertyOverrides: [{ target: 'icon', propertyId: 1, value: 'ui://main0001/listOverride' }],
+		},
+	]);
 	component.addChild(list);
 
 	const clearedText = doc.createGTextField('cleared-text');
@@ -50,18 +52,31 @@ test('resource reference scanner separates local resources from external package
 	clearedLoader.setUrl('ui://main0001/clearedLoader').setClearOnPublish(true);
 	component.addChild(clearedLoader);
 	const clearedList = doc.createGList('cleared-list');
-	clearedList.setAutoClearItems(true).setListItems([{
-		title: null, selectedTitle: null, icon: 'ui://main0001/clearedList', selectedIcon: null,
-		url: null, name: null, level: 0, isFolder: null,
-	}]);
+	clearedList.setAutoClearItems(true).setListItems([
+		{
+			title: null,
+			selectedTitle: null,
+			icon: 'ui://main0001/clearedList',
+			selectedIcon: null,
+			url: null,
+			name: null,
+			level: 0,
+			isFolder: null,
+		},
+	]);
 	component.addChild(clearedList);
 
 	pkg.addResource(component);
 
 	const references = collectPackageResourceReferences(pkg);
-	t.deepEqual(
-		[...references.localResourceIds].sort(),
-		['font0001', 'listOverride', 'listSelected', 'loaderImage', 'overrideIcon', 'panel001', 'textIcon'],
-	);
+	t.deepEqual([...references.localResourceIds].sort(), [
+		'font0001',
+		'listOverride',
+		'listSelected',
+		'loaderImage',
+		'overrideIcon',
+		'panel001',
+		'textIcon',
+	]);
 	t.deepEqual([...references.packageIds], ['shared01']);
 });

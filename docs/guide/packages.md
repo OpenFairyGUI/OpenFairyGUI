@@ -21,8 +21,8 @@ MCP 是 Backend 会话能力的适配层；发布与恢复使用显式授权的 
 | 入口 | 使用边界 |
 |---|---|
 | `@openfairygui/core` | 运行时无关的属性模型、`Document`、UAM、二进制协议与可注入文件系统的工程读写。 |
-| `@openfairygui/core/uam` | 聚焦 UAM 模型、规范化、校验、事务和 lift/materialize。 |
-| `@openfairygui/core/project-io` | 使用调用方提供的 `FileSystem` 读写工程，不绑定 Node 或浏览器宿主。 |
+| `@openfairygui/core/uam` | 聚焦 UAM 模型、规范化、校验、事务和 lift/materialize；根入口重导出相同 UAM API。 |
+| `@openfairygui/core/project-io` | 使用调用方提供的 `FileSystem` 读写工程与二进制包，导出 `BinaryReader` / `BinaryWriter`，不绑定 Node 或浏览器宿主。 |
 | `@openfairygui/core/node` | Node.js 文件系统入口 `NodeIO`。 |
 | `@openfairygui/core/web` | 浏览器工程读写入口 `WebIO` 与 File System Access API 适配器。 |
 | `@openfairygui/core/image-validation-worker` | 浏览器图片校验 Worker 的独立打包入口，不是普通业务模块入口；包元数据保留其消息监听器初始化副作用。 |

@@ -13,15 +13,23 @@ export function registerValidateCommand(program: Command): void {
 			const fairyPath = await resolveFairyPath(projectDir);
 			const report = await validateProjectNode(fairyPath);
 			if (options.json) {
-				printJson('validate', report, report.status === 'valid' ? undefined : {
-					code: report.status === 'invalid' ? 'validation_failed' : 'validation_incomplete',
-					message: `Project validation is ${report.status}; inspect result.diagnostics.`,
-				});
+				printJson(
+					'validate',
+					report,
+					report.status === 'valid'
+						? undefined
+						: {
+								code: report.status === 'invalid' ? 'validation_failed' : 'validation_incomplete',
+								message: `Project validation is ${report.status}; inspect result.diagnostics.`,
+							},
+				);
 			} else {
 				console.log(`${report.status.toUpperCase()}: ${fairyPath}`);
 				for (const diagnostic of report.diagnostics) {
 					const source = diagnostic.sourcePath ? ` (${diagnostic.sourcePath})` : '';
-					console.log(`${diagnostic.severity.toUpperCase()} ${diagnostic.code} ${diagnostic.path}${source}: ${diagnostic.message}`);
+					console.log(
+						`${diagnostic.severity.toUpperCase()} ${diagnostic.code} ${diagnostic.path}${source}: ${diagnostic.message}`,
+					);
 				}
 			}
 			process.exitCode = report.status === 'valid' ? 0 : report.status === 'invalid' ? 1 : 3;

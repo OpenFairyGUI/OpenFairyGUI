@@ -13,7 +13,10 @@ export function isPlainRecord(value: unknown): value is Record<string, unknown> 
 export function stableJson(value: unknown): string {
 	if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
 	if (isPlainRecord(value)) {
-		return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(',')}}`;
+		return `{${Object.keys(value)
+			.sort()
+			.map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`)
+			.join(',')}}`;
 	}
 	return JSON.stringify(value) ?? 'null';
 }
@@ -23,28 +26,28 @@ export function isIntegerBetween(value: unknown, minimum: number, maximum: numbe
 }
 
 export function isSafeResourceFileName(value: unknown): boolean {
-	return typeof value === 'string'
-		&& value.length > 0
-		&& !value.includes('/')
-		&& !value.includes('\\')
-		&& value !== '.'
-		&& value !== '..';
+	return (
+		typeof value === 'string' &&
+		value.length > 0 &&
+		!value.includes('/') &&
+		!value.includes('\\') &&
+		value !== '.' &&
+		value !== '..'
+	);
 }
 
 export function isSafePackageName(value: unknown): boolean {
-	return typeof value === 'string'
-		&& value.length > 0
-		&& !/[\\/:]/.test(value)
-		&& value !== '.'
-		&& value !== '..';
+	return typeof value === 'string' && value.length > 0 && !/[\\/:]/.test(value) && value !== '.' && value !== '..';
 }
 
 export function isSafeBranchName(value: unknown): boolean {
-	return typeof value === 'string'
-		&& isSafePackageName(value)
-		&& value.trim() === value
-		&& !/[. ]$/.test(value)
-		&& !/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i.test(value);
+	return (
+		typeof value === 'string' &&
+		isSafePackageName(value) &&
+		value.trim() === value &&
+		!/[. ]$/.test(value) &&
+		!/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i.test(value)
+	);
 }
 
 export function isSafeResourcePath(value: unknown): boolean {

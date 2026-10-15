@@ -442,6 +442,7 @@ export type UamTransactionSupportIssueCode =
 	| 'invalid_gear_payload'
 	| 'duplicate_gear_state_page'
 	| 'invalid_resource_payload'
+	| 'projection_failed'
 	| 'invalid_resource_bytes'
 	| 'invalid_movie_clip_jta'
 	| 'invalid_resource_selector'
@@ -476,6 +477,8 @@ export interface UamTransactionSupportIssue {
 	code: UamTransactionSupportIssueCode;
 	path: string;
 	message: string;
+	operationIndex?: number;
+	operationId?: string;
 	operationKind?: UamTransactionOperation['kind'];
 	nodeKind?: UamDisplayNode['kind'];
 	resourceKind?: UamProject['packages'][number]['resources'][number]['kind'];

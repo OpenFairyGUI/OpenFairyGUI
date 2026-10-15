@@ -1,5 +1,11 @@
 import type { Document } from '@openfairygui/core';
-import { type FileSystem, type ProjectBranchDirectory, type ProjectSourceFile, ProjectWriter } from '@openfairygui/core/project-io';
+import {
+	type FileSystem,
+	type ProjectBranchDirectory,
+	type ProjectSourceFile,
+	ProjectWriter,
+} from '@openfairygui/core/project-io';
+import type { BackendMessage } from '../contracts.js';
 import type { BackendFileSystem } from '../runtime.js';
 import { ProjectWriteTransactionError } from '../runtime/contracts.js';
 import { assertProjectPathContained } from '../path-policy.js';
@@ -66,7 +72,7 @@ export async function writeSessionProject(input: {
 	staleBranchDirectories: ProjectBranchDirectory[];
 	writtenPaths: string[];
 	failedPaths: string[];
-}): Promise<void> {
+}): Promise<BackendMessage[]> {
 	const projectRoot = input.fileSystem.dirname(input.fairyPath);
 	const write = async (fileSystem: BackendFileSystem): Promise<void> => {
 		const writer = new ProjectWriter(
@@ -79,9 +85,16 @@ export async function writeSessionProject(input: {
 		});
 	};
 
-	if (!input.fileSystem.runProjectWriteTransaction) return write(input.fileSystem);
+	if (!input.fileSystem.runProjectWriteTransaction) {
+		await write(input.fileSystem);
+		return [];
+	}
 	try {
-		await input.fileSystem.runProjectWriteTransaction(projectRoot, write);
+		const result = await input.fileSystem.runProjectWriteTransaction(projectRoot, write);
+		return (result.retainedBackupPaths ?? []).map((backupPath) => ({
+			code: 'save_backup_retained',
+			message: `The project was saved, but the previous project copy could not be removed: ${backupPath}`,
+		}));
 	} catch (error) {
 		if (ProjectWriteTransactionError.is(error) && !error.diskMayBePartiallyUpdated) input.writtenPaths.length = 0;
 		throw error;

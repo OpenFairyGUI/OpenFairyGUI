@@ -10,11 +10,14 @@ function findUiResource(project: UamProject, value: string) {
 		const packageKey = reference.slice(0, slashIndex);
 		const resourceKey = reference.slice(slashIndex + 1);
 		const pkg = project.packages.find((candidate) => candidate.id === packageKey || candidate.name === packageKey);
-		return pkg?.resources.find((resource) => (
-			resource.id === resourceKey
-			|| resource.name === resourceKey
-			|| resource.name.replace(/\.[^.]+$/, '') === resourceKey
-		)) ?? null;
+		return (
+			pkg?.resources.find(
+				(resource) =>
+					resource.id === resourceKey ||
+					resource.name === resourceKey ||
+					resource.name.replace(/\.[^.]+$/, '') === resourceKey,
+			) ?? null
+		);
 	}
 	const pkg = [...project.packages]
 		.sort((left, right) => right.id.length - left.id.length)
@@ -31,9 +34,8 @@ function collectUiReferences(value: unknown): string[] {
 
 export function validateUamReferences(project: UamProject): UamValidationIssue[] {
 	const issues: UamValidationIssue[] = [];
-	const findResource = (packageId: string, resourceId: string) => (
-		project.packages.find((pkg) => pkg.id === packageId)?.resources.find((resource) => resource.id === resourceId)
-	);
+	const findResource = (packageId: string, resourceId: string) =>
+		project.packages.find((pkg) => pkg.id === packageId)?.resources.find((resource) => resource.id === resourceId);
 	const pushMissing = (
 		path: string,
 		packageId: string,
@@ -86,7 +88,13 @@ export function validateUamReferences(project: UamProject): UamValidationIssue[]
 					? resource.metadata.requireIds.filter((value): value is string => typeof value === 'string')
 					: [];
 				for (const [requireIndex, requireId] of requireIds.entries()) {
-					pushMissing(`${resourcePath}.metadata.requireIds[${requireIndex}]`, pkg.id, requireId, binaryKinds, owner);
+					pushMissing(
+						`${resourcePath}.metadata.requireIds[${requireIndex}]`,
+						pkg.id,
+						requireId,
+						binaryKinds,
+						owner,
+					);
 				}
 			}
 			if (resource.kind !== 'component') continue;
@@ -102,20 +110,48 @@ export function validateUamReferences(project: UamProject): UamValidationIssue[]
 				pushMissingUi(`${componentPath}.properties.${field}`, value, componentKinds, owner);
 			}
 			pushMissingUi(`${componentPath}.properties.sound`, resource.component.properties.sound, ['sound'], owner);
-			pushMissingUi(`${componentPath}.properties.designImage`, resource.component.properties.designImage, ['image'], owner);
+			pushMissingUi(
+				`${componentPath}.properties.designImage`,
+				resource.component.properties.designImage,
+				['image'],
+				owner,
+			);
 			for (const field of ['showSound', 'hideSound'] as const) {
-				pushMissingUi(`${componentPath}.properties.${field}`, resource.component.properties[field], ['sound'], owner);
+				pushMissingUi(
+					`${componentPath}.properties.${field}`,
+					resource.component.properties[field],
+					['sound'],
+					owner,
+				);
 			}
 
 			for (const [nodeIndex, node] of resource.component.displayList.entries()) {
 				const nodePath = `${componentPath}.displayList[${nodeIndex}]`;
 				const nodeOwner = { ...owner, nodeId: node.id };
 				if (node.kind === 'image' && node.resource.resourceId) {
-					pushMissing(`${nodePath}.resource`, node.resource.packageId || pkg.id, node.resource.resourceId, ['image'], nodeOwner);
+					pushMissing(
+						`${nodePath}.resource`,
+						node.resource.packageId || pkg.id,
+						node.resource.resourceId,
+						['image'],
+						nodeOwner,
+					);
 				} else if (node.kind === 'movieClip' && node.resource.resourceId) {
-					pushMissing(`${nodePath}.resource`, node.resource.packageId || pkg.id, node.resource.resourceId, ['movieClip'], nodeOwner);
+					pushMissing(
+						`${nodePath}.resource`,
+						node.resource.packageId || pkg.id,
+						node.resource.resourceId,
+						['movieClip'],
+						nodeOwner,
+					);
 				} else if (node.kind === 'component' && node.resource.resourceId) {
-					pushMissing(`${nodePath}.resource`, node.resource.packageId || pkg.id, node.resource.resourceId, componentKinds, nodeOwner);
+					pushMissing(
+						`${nodePath}.resource`,
+						node.resource.packageId || pkg.id,
+						node.resource.resourceId,
+						componentKinds,
+						nodeOwner,
+					);
 				} else if ('packageId' in node && 'src' in node && node.src) {
 					pushMissing(`${nodePath}.src`, node.packageId || pkg.id, node.src, componentKinds, nodeOwner);
 				}
@@ -140,31 +176,60 @@ export function validateUamReferences(project: UamProject): UamValidationIssue[]
 						pushMissingUi(`${nodePath}.${field}`, value, componentKinds, nodeOwner);
 					}
 					for (const [itemIndex, item] of node.listItems.entries()) {
-						pushMissingUi(`${nodePath}.listItems[${itemIndex}].url`, item.url ?? '', componentKinds, nodeOwner);
-						pushMissingUi(`${nodePath}.listItems[${itemIndex}].icon`, item.icon ?? '', visualKinds, nodeOwner);
-						pushMissingUi(`${nodePath}.listItems[${itemIndex}].selectedIcon`, item.selectedIcon ?? '', visualKinds, nodeOwner);
+						pushMissingUi(
+							`${nodePath}.listItems[${itemIndex}].url`,
+							item.url ?? '',
+							componentKinds,
+							nodeOwner,
+						);
+						pushMissingUi(
+							`${nodePath}.listItems[${itemIndex}].icon`,
+							item.icon ?? '',
+							visualKinds,
+							nodeOwner,
+						);
+						pushMissingUi(
+							`${nodePath}.listItems[${itemIndex}].selectedIcon`,
+							item.selectedIcon ?? '',
+							visualKinds,
+							nodeOwner,
+						);
 					}
 				}
 				if (node.kind === 'component' && node.instanceProperties) {
 					const instance = node.instanceProperties;
-					if ('icon' in instance) pushMissingUi(`${nodePath}.instanceProperties.icon`, instance.icon, visualKinds, nodeOwner);
+					if ('icon' in instance)
+						pushMissingUi(`${nodePath}.instanceProperties.icon`, instance.icon, visualKinds, nodeOwner);
 					if (instance.extensionType === 'Button') {
-						pushMissingUi(`${nodePath}.instanceProperties.selectedIcon`, instance.selectedIcon, visualKinds, nodeOwner);
+						pushMissingUi(
+							`${nodePath}.instanceProperties.selectedIcon`,
+							instance.selectedIcon,
+							visualKinds,
+							nodeOwner,
+						);
 					}
-					if (instance.extensionType === 'Button'
-						|| instance.extensionType === 'Label'
-						|| instance.extensionType === 'ComboBox'
-						|| instance.extensionType === 'ProgressBar') {
+					if (
+						instance.extensionType === 'Button' ||
+						instance.extensionType === 'Label' ||
+						instance.extensionType === 'ComboBox' ||
+						instance.extensionType === 'ProgressBar'
+					) {
 						pushMissingUi(`${nodePath}.instanceProperties.sound`, instance.sound, ['sound'], nodeOwner);
 					}
 					if (instance.extensionType === 'ComboBox') {
 						for (const [itemIndex, item] of instance.items.entries()) {
-							pushMissingUi(`${nodePath}.instanceProperties.items[${itemIndex}].icon`, item.icon ?? '', visualKinds, nodeOwner);
+							pushMissingUi(
+								`${nodePath}.instanceProperties.items[${itemIndex}].icon`,
+								item.icon ?? '',
+								visualKinds,
+								nodeOwner,
+							);
 						}
 					}
 				}
 				if ('icon' in node) pushMissingUi(`${nodePath}.icon`, node.icon, visualKinds, nodeOwner);
-				if ('selectedIcon' in node) pushMissingUi(`${nodePath}.selectedIcon`, node.selectedIcon, visualKinds, nodeOwner);
+				if ('selectedIcon' in node)
+					pushMissingUi(`${nodePath}.selectedIcon`, node.selectedIcon, visualKinds, nodeOwner);
 				if ('icons' in node) {
 					for (const [iconIndex, icon] of node.icons.entries()) {
 						pushMissingUi(`${nodePath}.icons[${iconIndex}]`, icon, visualKinds, nodeOwner);
@@ -179,9 +244,17 @@ export function validateUamReferences(project: UamProject): UamValidationIssue[]
 			}
 			for (const [transitionIndex, transition] of resource.component.transitions.entries()) {
 				for (const [itemIndex, item] of transition.items.entries()) {
-					for (const [field, value] of [['startValue', item.startValue], ['endValue', item.endValue]] as const) {
+					for (const [field, value] of [
+						['startValue', item.startValue],
+						['endValue', item.endValue],
+					] as const) {
 						for (const [index, reference] of collectUiReferences(value).entries()) {
-							pushMissingUi(`${componentPath}.transitions[${transitionIndex}].items[${itemIndex}].${field}[${index}]`, reference, resourceKinds, owner);
+							pushMissingUi(
+								`${componentPath}.transitions[${transitionIndex}].items[${itemIndex}].${field}[${index}]`,
+								reference,
+								resourceKinds,
+								owner,
+							);
 						}
 					}
 				}

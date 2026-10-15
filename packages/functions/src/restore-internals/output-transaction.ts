@@ -13,7 +13,14 @@ export function isPathWithin(root: string, candidate: string): boolean {
 export function normalizeRestoreOutputDir(output: string): string {
 	const normalized = trimTrailingSlashes(output);
 	const name = basename(normalized);
-	if (!normalized || /\.fairy$/i.test(normalized) || !name || name === '.' || name === '..' || /^[a-z]:$/iu.test(name)) {
+	if (
+		!normalized ||
+		/\.fairy$/i.test(normalized) ||
+		!name ||
+		name === '.' ||
+		name === '..' ||
+		/^[a-z]:$/iu.test(name)
+	) {
 		throw new Error('restore: Output must be a non-root project directory, not a .fairy file.');
 	}
 	return normalized;

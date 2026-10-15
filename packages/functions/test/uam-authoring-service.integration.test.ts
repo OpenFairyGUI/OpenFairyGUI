@@ -327,7 +327,10 @@ test.serial('async app transaction uses browser worker raster validation', async
 		});
 		t.false(malformedResult.ok);
 		if ('error' in malformedResult)
-			t.like(malformedResult.error.diagnostics[0], { code: 'invalid_operation_payload', path: 'operations[0].sourceBytes' });
+			t.like(malformedResult.error.diagnostics[0], {
+				code: 'invalid_operation_payload',
+				path: 'operations[0].sourceBytes',
+			});
 	} finally {
 		if (descriptor) Object.defineProperty(globalThis, 'Worker', descriptor);
 		else Reflect.deleteProperty(globalThis, 'Worker');

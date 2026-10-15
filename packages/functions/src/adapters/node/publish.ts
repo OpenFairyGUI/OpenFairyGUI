@@ -105,7 +105,8 @@ async function publishToStagedOutput(output: string, run: (staging: string) => P
 	let existed = false;
 	try {
 		const stat = await fs.lstat(target);
-		if (stat.isSymbolicLink() || !stat.isDirectory()) throw new Error(`publishNode: output must be a regular directory: ${target}`);
+		if (stat.isSymbolicLink() || !stat.isDirectory())
+			throw new Error(`publishNode: output must be a regular directory: ${target}`);
 		await assertNoSymlinks(fs, path, target);
 		existed = true;
 	} catch (error) {
@@ -149,7 +150,8 @@ async function assertNoSymlinks(
 ): Promise<void> {
 	for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
 		const entryPath = path.join(directory, entry.name);
-		if (entry.isSymbolicLink()) throw new Error(`publishNode: symbolic links are not supported in output directories: ${entryPath}`);
+		if (entry.isSymbolicLink())
+			throw new Error(`publishNode: symbolic links are not supported in output directories: ${entryPath}`);
 		if (entry.isDirectory()) await assertNoSymlinks(fs, path, entryPath);
 	}
 }
@@ -192,28 +194,39 @@ export async function publishNode(options: PublishNodeOptions): Promise<PublishN
 
 	const result: PublishNodeResult = { files: [] };
 	const run = async (output: string | undefined): Promise<void> => {
-		await document.transform(publish({
-			...publishOptions,
-			output,
-			basePath: assetsPath,
-			encoder,
-			atlas: {
-				...atlas,
-				readFileRaw: fileSystem.readFileRaw,
-				onFileWritten(file) {
-					files.add(path.resolve(file));
-					atlas?.onFileWritten?.(file);
+		await document.transform(
+			publish({
+				...publishOptions,
+				output,
+				basePath: assetsPath,
+				encoder,
+				atlas: {
+					...atlas,
+					readFileRaw: fileSystem.readFileRaw,
+					onFileWritten(file) {
+						files.add(path.resolve(file));
+						atlas?.onFileWritten?.(file);
+					},
 				},
-			},
-			fs: fileSystem,
-			plugins,
-		}));
+				fs: fileSystem,
+				plugins,
+			}),
+		);
 		// Measure before commit so a failed manifest read also preserves the previous explicit output.
-		result.files = await Promise.all([...files].sort().map(async (file) => {
-			const relative = output ? path.relative(output, file) : null;
-			const staged = relative !== null && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
-			return { path: staged ? path.resolve(publishOptions.output!, relative) : file, size: (await fs.stat(file)).size };
-		}));
+		result.files = await Promise.all(
+			[...files].sort().map(async (file) => {
+				const relative = output ? path.relative(output, file) : null;
+				const staged =
+					relative !== null &&
+					relative !== '..' &&
+					!relative.startsWith(`..${path.sep}`) &&
+					!path.isAbsolute(relative);
+				return {
+					path: staged ? path.resolve(publishOptions.output!, relative) : file,
+					size: (await fs.stat(file)).size,
+				};
+			}),
+		);
 	};
 	if (publishOptions.output) {
 		await publishToStagedOutput(publishOptions.output, run);

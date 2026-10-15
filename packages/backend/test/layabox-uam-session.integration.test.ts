@@ -17,10 +17,7 @@ import { createBackendRuntime } from './helpers.js';
 
 const sharp = sharpImplementation as typeof sharpImplementation & AtlasRasterBackend;
 
-const LAYABOX_PROJECT_PATH = getFixtureProjectPath(
-	'FairyGUI-layabox',
-	'demo/UIProject/FairyGUI-layabox-demo.fairy',
-);
+const LAYABOX_PROJECT_PATH = getFixtureProjectPath('FairyGUI-layabox', 'demo/UIProject/FairyGUI-layabox-demo.fairy');
 
 type EditableTextNode = Extract<UamDisplayNode, { kind: 'text' | 'richText' | 'textInput' }>;
 
@@ -142,13 +139,16 @@ test('real LayaBox UIProject supports browser-safe UAM session edit with undo an
 	}
 	t.is(saveFailure.session?.revision, 1);
 	t.true(saveFailure.session?.dirty);
-	t.deepEqual(saveFailure.meta.diagnostics.map(({ owner, docsUri, remediation, ...diagnostic }) => diagnostic), [
-		{
-			code: 'capability_unavailable',
-			message: 'saveSession requires an injected BackendFileSystem adapter.',
-			severity: 'error',
-		},
-	]);
+	t.deepEqual(
+		saveFailure.meta.diagnostics.map(({ owner, docsUri, remediation, ...diagnostic }) => diagnostic),
+		[
+			{
+				code: 'capability_unavailable',
+				message: 'saveSession requires an injected BackendFileSystem adapter.',
+				severity: 'error',
+			},
+		],
+	);
 
 	t.deepEqual(project, originalProject);
 	const undoOpened = runtime.openProjectSession({
@@ -252,12 +252,14 @@ test('real LayaBox UIProject preserves file-backed UAM edits through save and pu
 
 		const publishOut = path.join(tmpDir, 'Release');
 		const publishDoc = await io.readProject(fairyPath);
-		await publishDoc.transform(publish({
-			output: publishOut,
-			encoder: sharp,
-			fs: createPublishFs(),
-			basePath: path.join(projectRoot, 'assets'),
-		}));
+		await publishDoc.transform(
+			publish({
+				output: publishOut,
+				encoder: sharp,
+				fs: createPublishFs(),
+				basePath: path.join(projectRoot, 'assets'),
+			}),
+		);
 		const publishedNames = await fs.readdir(publishOut);
 		t.true(publishedNames.some((name) => name.endsWith('.fui')));
 	} finally {

@@ -30,3 +30,8 @@ Unpublished branch changes must be tested with `pack:check`, not assumed present
 For the current checkout, run `pnpm pack:check` from the repository root. It copies these same files into an isolated consumer, installs the five freshly packed tarballs and checks the results. The examples are not workspace packages or shipped library files.
 
 当前源码的验证命令为仓库根目录的 `pnpm pack:check`：复制这些示例到隔离目录，安装当前五包 tarball 后执行并验证结果。示例不加入 workspace，也不进入库发布包。
+
+- [Reward panel states / 奖励面板状态](./reward-panel-states/index.mjs): controller pages and conditional display.
+- [Reward layout / 奖励面板布局](./reward-panel-layout/index.mjs): layout and entrance animation.
+- [Reward cards / 奖励卡片生成](./reward-card-generation/index.mjs): generate repeated components.
+- [Browser storage / 浏览器存储](./browser-project-storage/serve.mjs): serve the browser OPFS example locally.

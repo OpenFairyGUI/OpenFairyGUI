@@ -67,10 +67,21 @@ export function validateUamSourceBytes(project: UamProject): UamSourceValidation
 				const extension = sourceExtension(resource);
 				if (extension === 'png' || extension === 'jpg' || extension === 'jpeg') {
 					if (!probeRasterImage(bytes)) {
-						diagnostics.push({ severity: 'error', code: 'corrupt_source', message: `Invalid ${extension.toUpperCase()} source.`, ...base });
+						diagnostics.push({
+							severity: 'error',
+							code: 'corrupt_source',
+							message: `Invalid ${extension.toUpperCase()} source.`,
+							...base,
+						});
 					}
 				} else if (extension === 'svg') {
-					if (!validSvg(bytes)) diagnostics.push({ severity: 'error', code: 'corrupt_source', message: 'Invalid or unsafe SVG source.', ...base });
+					if (!validSvg(bytes))
+						diagnostics.push({
+							severity: 'error',
+							code: 'corrupt_source',
+							message: 'Invalid or unsafe SVG source.',
+							...base,
+						});
 				} else {
 					complete = false;
 					diagnostics.push({

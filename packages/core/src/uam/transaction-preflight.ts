@@ -33,7 +33,11 @@ import {
 import { validateProjectedState, validateProjectedGroupState } from './preflight/projected-state.js';
 import { validateOperationShapes } from './preflight/operation-shape.js';
 
-function validateOperationPayloads(project: UamProject, operations: UamTransactionOperation[], issues: UamTransactionSupportIssue[]): void {
+function validateOperationPayloads(
+	project: UamProject,
+	operations: UamTransactionOperation[],
+	issues: UamTransactionSupportIssue[],
+): void {
 	const usesSequentialDisplayProjection = requiresSequentialDisplayProjection(operations);
 	let projectedSettings = canonicalProjectSettings(project.settings);
 	const projectedPackageSettings = new Map<string, UamPackageSettings>();
@@ -102,7 +106,13 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 				break;
 			case 'setResourceFolderFavorite':
 				if (!usesSequentialDisplayProjection) {
-					validateResourceFolderSelector(project, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+					validateResourceFolderSelector(
+						project,
+						operation.selector,
+						`${operationPath}.selector`,
+						issues,
+						operation.kind,
+					);
 				}
 				break;
 			case 'setResourceFolderAtlas':
@@ -113,7 +123,13 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 			case 'removeResourceFolder':
 				break;
 			case 'setComponentProps': {
-				validateLifecycleComponentSelector(project, operation.selector, `${operationPath}.selector`, issues, operation.kind);
+				validateLifecycleComponentSelector(
+					project,
+					operation.selector,
+					`${operationPath}.selector`,
+					issues,
+					operation.kind,
+				);
 				const keys = Object.keys(operation.props);
 				if (keys.length === 0 || keys.some((key) => key !== 'size' && key !== 'properties')) {
 					pushSupportIssue(
@@ -126,13 +142,14 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 				}
 				if (operation.props.size !== undefined) {
 					const size = operation.props.size;
-					if (!size
-						|| typeof size !== 'object'
-						|| Object.keys(size).length !== 2
-						|| !Number.isFinite(size.width)
-						|| size.width < 0
-						|| !Number.isFinite(size.height)
-						|| size.height < 0
+					if (
+						!size ||
+						typeof size !== 'object' ||
+						Object.keys(size).length !== 2 ||
+						!Number.isFinite(size.width) ||
+						size.width < 0 ||
+						!Number.isFinite(size.height) ||
+						size.height < 0
 					) {
 						pushSupportIssue(
 							issues,
@@ -143,8 +160,9 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 						);
 					}
 				}
-				if (operation.props.properties !== undefined
-					&& !isValidUamComponentProperties(operation.props.properties)
+				if (
+					operation.props.properties !== undefined &&
+					!isValidUamComponentProperties(operation.props.properties)
 				) {
 					pushSupportIssue(
 						issues,
@@ -158,7 +176,13 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 			}
 			case 'setDisplayNodeProps':
 				if (usesSequentialDisplayProjection) break;
-				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
+				validateTouchedDisplayNodeKind(
+					project,
+					operation.selector,
+					`${operationPath}.selector.displayNodeId`,
+					issues,
+					operation.kind,
+				);
 				validateDisplayPropsPayload(operation, project, operationPath, issues);
 				break;
 			case 'attachDisplayNode':
@@ -172,13 +196,25 @@ function validateOperationPayloads(project: UamProject, operations: UamTransacti
 						{ operationKind: operation.kind },
 					);
 				}
-				validateDisplayNodePayload(operation.node, operation.selector.packageId, `${operationPath}.node`, issues, {
-					operationKind: operation.kind,
-				});
+				validateDisplayNodePayload(
+					operation.node,
+					operation.selector.packageId,
+					`${operationPath}.node`,
+					issues,
+					{
+						operationKind: operation.kind,
+					},
+				);
 				break;
 			case 'detachDisplayNode':
 				if (usesSequentialDisplayProjection) break;
-				validateTouchedDisplayNodeKind(project, operation.selector, `${operationPath}.selector.displayNodeId`, issues, operation.kind);
+				validateTouchedDisplayNodeKind(
+					project,
+					operation.selector,
+					`${operationPath}.selector.displayNodeId`,
+					issues,
+					operation.kind,
+				);
 				break;
 			case 'addController':
 			case 'updateController':
@@ -220,10 +256,7 @@ export function validateTransactionSupport(
 	if (!validateOperationShapes(operations, issues)) return issues;
 	const lifecycleOnly = validateLifecycleBatchCompatibility(operations, issues);
 	validateOperationPayloads(project, operations, issues);
-	if (
-		lifecycleOnly
-		&& requiresSequentialDisplayProjection(operations)
-	) {
+	if (lifecycleOnly && requiresSequentialDisplayProjection(operations)) {
 		validateLifecycleOperationPayloads(project, operations, issues);
 	}
 	validateProjectedGroupState(project, operations, issues);
@@ -236,6 +269,9 @@ function transactionUnsupportedError(issues: UamTransactionSupportIssue[]): UamT
 		`Phase A transaction support check failed:\n${issues.map((issue) => `- ${issue.path}: ${issue.message}`).join('\n')}`,
 		{
 			code: 'transaction_unsupported',
+			opIndex: issues[0].operationIndex,
+			opId: issues[0].operationId,
+			opKind: issues[0].operationKind,
 			issues,
 		},
 	);
@@ -246,10 +282,7 @@ export function assertTransactionOperationShapes(operations: unknown): asserts o
 	if (!validateOperationShapes(operations, issues)) throw transactionUnsupportedError(issues);
 }
 
-export function assertTransactionSupported(
-	project: UamProject,
-	operations?: UamTransactionOperation[],
-): void {
+export function assertTransactionSupported(project: UamProject, operations?: UamTransactionOperation[]): void {
 	const issues = validateTransactionSupport(project, operations);
 	if (issues.length > 0) throw transactionUnsupportedError(issues);
 }

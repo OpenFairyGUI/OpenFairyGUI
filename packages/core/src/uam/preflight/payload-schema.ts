@@ -50,7 +50,9 @@ function describe(schema: OperationPayloadSchema, index: number): string {
 		case 'bytes':
 			return 'a Uint8Array';
 		case 'literal':
-			return node[1].length === 1 ? JSON.stringify(node[1][0]) : `one of ${node[1].map((value) => JSON.stringify(value)).join(', ')}`;
+			return node[1].length === 1
+				? JSON.stringify(node[1][0])
+				: `one of ${node[1].map((value) => JSON.stringify(value)).join(', ')}`;
 		case 'array':
 			return node[2] === undefined ? 'an array' : `an array of ${node[2]} items`;
 		case 'object':
@@ -61,7 +63,10 @@ function describe(schema: OperationPayloadSchema, index: number): string {
 }
 
 /** The value has the node's own JavaScript type; containers are checked further by the validator. */
-function matchesType(node: Exclude<OperationPayloadSchemaNode, readonly ['union', ...unknown[]]>, value: unknown): boolean {
+function matchesType(
+	node: Exclude<OperationPayloadSchemaNode, readonly ['union', ...unknown[]]>,
+	value: unknown,
+): boolean {
 	switch (node[0]) {
 		case 'any':
 			return true;
@@ -165,7 +170,9 @@ class PayloadValidator {
 	): void {
 		const [, members, key] = node;
 		if (key !== null && isPlainRecord(value)) {
-			const member = members.find((candidate) => literalOf(this.schema, candidate, key).includes(value[key] as Literal));
+			const member = members.find((candidate) =>
+				literalOf(this.schema, candidate, key).includes(value[key] as Literal),
+			);
 			if (member !== undefined) {
 				this.check(member, value, path);
 				return;
@@ -200,7 +207,11 @@ class PayloadValidator {
 }
 
 /** Checks a snapshot payload against its generated contract node; issue paths are relative to the payload. */
-export function validatePayloadSchema(schema: OperationPayloadSchema, root: number, value: unknown): PayloadSchemaIssue[] {
+export function validatePayloadSchema(
+	schema: OperationPayloadSchema,
+	root: number,
+	value: unknown,
+): PayloadSchemaIssue[] {
 	const issues: PayloadSchemaIssue[] = [];
 	new PayloadValidator(schema, issues).check(root, value, '');
 	return issues;

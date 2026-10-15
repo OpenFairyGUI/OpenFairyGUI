@@ -7,10 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      sharp:
-        specifier: ^0.34.5
-        version: 0.34.5
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.4.9
@@ -30,6 +26,9 @@ importers:
       mermaid:
         specifier: 11.16.0
         version: 11.16.0
+      sharp:
+        specifier: ^0.34.5
+        version: 0.34.5
       tsdown:
         specifier: ^0.21.5
         version: 0.21.7(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@typescript/typescript6@6.0.2)
@@ -73,22 +72,21 @@ importers:
       '@openfairygui/backend':
         specifier: workspace:*
         version: link:../backend
-      commander:
-        specifier: ^14.0.2
-        version: 14.0.3
-      jiti:
-        specifier: ^2.7.0
-        version: 2.7.0
-    devDependencies:
       '@openfairygui/core':
         specifier: workspace:*
         version: link:../core
       '@openfairygui/functions':
         specifier: workspace:*
         version: link:../functions
+      commander:
+        specifier: ^14.0.2
+        version: 14.0.3
+      jiti:
+        specifier: ^2.7.0
+        version: 2.7.0
     optionalDependencies:
       sharp:
-        specifier: '>=0.33.0'
+        specifier: '>=0.33.0 <0.35.0'
         version: 0.34.5
 
   packages/core:
@@ -139,7 +137,7 @@ importers:
         version: 4.21.0
     optionalDependencies:
       sharp:
-        specifier: '>=0.33.0'
+        specifier: '>=0.33.0 <0.35.0'
         version: 0.34.5
 
   packages/mcp:

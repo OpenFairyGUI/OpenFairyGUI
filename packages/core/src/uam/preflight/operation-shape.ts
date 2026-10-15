@@ -59,11 +59,15 @@ type OptionalRule<T> = RuleFor<T> & { readonly optional: true };
 
 /** Mirrors the contract interface: every field, its optionality, and a compatible JS type. */
 type FieldRules<T> = {
-	readonly [K in keyof T]-?: Pick<T, K> extends Required<Pick<T, K>> ? RequiredRule<T[K]> : OptionalRule<Exclude<T[K], undefined>>;
+	readonly [K in keyof T]-?: Pick<T, K> extends Required<Pick<T, K>>
+		? RequiredRule<T[K]>
+		: OptionalRule<Exclude<T[K], undefined>>;
 };
 
 type OperationFields = {
-	readonly [K in UamTransactionOperation['kind']]: FieldRules<Omit<Extract<UamTransactionOperation, { kind: K }>, 'kind' | 'opId'>>;
+	readonly [K in UamTransactionOperation['kind']]: FieldRules<
+		Omit<Extract<UamTransactionOperation, { kind: K }>, 'kind' | 'opId'>
+	>;
 };
 
 type Rule<T> = FieldRule<T> & { readonly optional: false };
@@ -76,7 +80,9 @@ function oneOf<const T extends string>(values: readonly T[]): Rule<T> & LiteralR
 	return { check: 'string', optional: false, values };
 }
 
-function optional<R extends { readonly optional: false }>(required: R): Omit<R, 'optional'> & { readonly optional: true } {
+function optional<R extends { readonly optional: false }>(
+	required: R,
+): Omit<R, 'optional'> & { readonly optional: true } {
 	return { ...required, optional: true };
 }
 
@@ -100,7 +106,10 @@ const resourceProps = payload({ code: 'invalid_resource_payload' });
 const assetResource = payload({ code: 'invalid_resource_payload', kindCode: 'unsupported_resource_kind' });
 const packageSnapshot = payload({ code: 'invalid_package_payload' });
 const componentPayload = payload({ code: 'invalid_component_payload' });
-const displayNodeProps = payload({ code: 'invalid_display_node_payload', unknownFieldCode: 'unsupported_display_node_field' });
+const displayNodeProps = payload({
+	code: 'invalid_display_node_payload',
+	unknownFieldCode: 'unsupported_display_node_field',
+});
 const displayNode = payload({ code: 'invalid_display_node_payload', kindCode: 'unsupported_display_node_kind' });
 const controller = payload({ code: 'invalid_controller_payload' });
 const transition = payload({ code: 'invalid_transition_payload' });
@@ -286,9 +295,10 @@ function validatePayload(
 	for (const issue of validatePayloadSchema(OPERATION_PAYLOAD_SCHEMA, root, value)) {
 		// Only issues on the payload's own fields can mean a wrong kind or an unsupported field.
 		const direct = !/[.[]/.test(issue.path.slice(1));
-		const code = (direct && issue.discriminant && codes.kindCode)
-			|| (direct && issue.unknownField && codes.unknownFieldCode)
-			|| codes.code;
+		const code =
+			(direct && issue.discriminant && codes.kindCode) ||
+			(direct && issue.unknownField && codes.unknownFieldCode) ||
+			codes.code;
 		pushSupportIssue(issues, code, `${path}${issue.path}`, `${label}${issue.path} ${issue.message}`, {
 			operationKind,
 			field: direct && issue.unknownField ? issue.path.slice(1) : name,
@@ -335,7 +345,10 @@ export function validateOperationShapes(
 			continue;
 		}
 		const operationKind = kind as UamTransactionOperation['kind'];
-		const fields = { ...OPERATION_FIELDS[operationKind], ...OPERATION_BASE_FIELDS } as Record<string, FieldRule<never>>;
+		const fields = { ...OPERATION_FIELDS[operationKind], ...OPERATION_BASE_FIELDS } as Record<
+			string,
+			FieldRule<never>
+		>;
 		validateFields(operation, fields, ['kind'], operationPath, operationKind, issues, operationKind);
 	}
 	return issues.length === initialIssueCount;

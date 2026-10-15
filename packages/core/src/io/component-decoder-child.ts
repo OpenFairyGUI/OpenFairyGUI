@@ -9,40 +9,52 @@ import {
 	remainingBytes,
 	type ComponentDisplayObject,
 } from './component-decoder-shared.js';
-import {
-	decodeChildBlock3,
-	decodeGearStatus,
-	readPathData,
-} from './component-decoder-transition-gear.js';
+import { decodeChildBlock3, decodeGearStatus, readPathData } from './component-decoder-transition-gear.js';
 
 function createDisplayObject(doc: Document, objectType: number, name: string): ComponentDisplayObject | null {
 	switch (objectType) {
-		case 0: return doc.createGImage(name);
-		case 1: return doc.createGMovieClip(name);
-		case 3: return doc.createGGraph(name);
-		case 4: return doc.createGLoader(name);
-		case 5: return doc.createGGroup(name);
-		case 6: return doc.createGTextField(name);
-		case 7: return doc.createGRichTextField(name);
-		case 8: return doc.createGTextInput(name);
-		case 9: return doc.createGComponent(name);
-		case 10: return doc.createGList(name);
-		case 11: return doc.createGLabel(name);
-		case 12: return doc.createGButton(name);
-		case 13: return doc.createGComboBox(name);
-		case 14: return doc.createGProgressBar(name);
-		case 15: return doc.createGSlider(name);
-		case 16: return doc.createGScrollBar(name);
-		case 17: return doc.createGTree(name);
-		case 18: return doc.createGLoader3D(name);
-		default: return null;
+		case 0:
+			return doc.createGImage(name);
+		case 1:
+			return doc.createGMovieClip(name);
+		case 3:
+			return doc.createGGraph(name);
+		case 4:
+			return doc.createGLoader(name);
+		case 5:
+			return doc.createGGroup(name);
+		case 6:
+			return doc.createGTextField(name);
+		case 7:
+			return doc.createGRichTextField(name);
+		case 8:
+			return doc.createGTextInput(name);
+		case 9:
+			return doc.createGComponent(name);
+		case 10:
+			return doc.createGList(name);
+		case 11:
+			return doc.createGLabel(name);
+		case 12:
+			return doc.createGButton(name);
+		case 13:
+			return doc.createGComboBox(name);
+		case 14:
+			return doc.createGProgressBar(name);
+		case 15:
+			return doc.createGSlider(name);
+		case 16:
+			return doc.createGScrollBar(name);
+		case 17:
+			return doc.createGTree(name);
+		case 18:
+			return doc.createGLoader3D(name);
+		default:
+			return null;
 	}
 }
 
-function decodeChildBlock0(
-	doc: Document,
-	childBuf: ByteBuffer,
-): ComponentDisplayObject | null {
+function decodeChildBlock0(doc: Document, childBuf: ByteBuffer): ComponentDisplayObject | null {
 	if (!childBuf.seek(0, 0) || remainingBytes(childBuf) < 33) return null;
 
 	const objectType = childBuf.getUint8();
@@ -81,11 +93,7 @@ function decodeChildBlock0(
 		const maxWidth = childBuf.getInt32();
 		const minHeight = childBuf.getInt32();
 		const maxHeight = childBuf.getInt32();
-		child
-			.setMinWidth(minWidth)
-			.setMaxWidth(maxWidth)
-			.setMinHeight(minHeight)
-			.setMaxHeight(maxHeight);
+		child.setMinWidth(minWidth).setMaxWidth(maxWidth).setMinHeight(minHeight).setMaxHeight(maxHeight);
 	}
 
 	if (childBuf.readBool() && remainingBytes(childBuf) >= 8) {
@@ -159,10 +167,7 @@ function decodeChildBlock0(
 	return child;
 }
 
-function decodeChildBlock1(
-	child: ComponentDisplayObject,
-	childBuf: ByteBuffer,
-): number {
+function decodeChildBlock1(child: ComponentDisplayObject, childBuf: ByteBuffer): number {
 	if (!childBuf.seek(0, 1) || remainingBytes(childBuf) < 4) return -1;
 	if ('setTooltips' in child && typeof child.setTooltips === 'function') {
 		(child as { setTooltips(v: string): void }).setTooltips(childBuf.readS() ?? '');
@@ -196,7 +201,9 @@ function decodeChildBlock4ComponentLike(
 	if (childBuf.version >= 2 && remainingBytes(childBuf) >= 2) {
 		const propertyOverrides = decodePropertyOverrides(childBuf);
 		if ('setPropertyOverrides' in child && typeof child.setPropertyOverrides === 'function') {
-			(child as { setPropertyOverrides(v: GComponentPropertyOverride[]): void }).setPropertyOverrides(propertyOverrides);
+			(child as { setPropertyOverrides(v: GComponentPropertyOverride[]): void }).setPropertyOverrides(
+				propertyOverrides,
+			);
 		}
 	}
 }
@@ -233,18 +240,14 @@ function decodeTextChildSpecific(child: ComponentDisplayObject, childBuf: ByteBu
 		.setSingleLine(childBuf.readBool());
 
 	if (childBuf.readBool() && remainingBytes(childBuf) >= 8) {
-		textChild
-			.setStrokeColor(readColorValue(childBuf, true))
-			.setStrokeSize(childBuf.getFloat32());
+		textChild.setStrokeColor(readColorValue(childBuf, true)).setStrokeSize(childBuf.getFloat32());
 	}
 
 	if (childBuf.readBool() && remainingBytes(childBuf) >= 12) {
-		textChild
-			.setShadowColor(readColorValue(childBuf, true))
-			.setShadowOffset({
-				x: childBuf.getFloat32(),
-				y: childBuf.getFloat32(),
-			});
+		textChild.setShadowColor(readColorValue(childBuf, true)).setShadowOffset({
+			x: childBuf.getFloat32(),
+			y: childBuf.getFloat32(),
+		});
 	}
 
 	if (childBuf.readBool()) {
@@ -263,9 +266,7 @@ function decodeTextChildSpecific(child: ComponentDisplayObject, childBuf: ByteBu
 function decodeListScrollPane(child: ComponentDisplayObject, childBuf: ByteBuffer): void {
 	if (!childBuf.seek(0, 7) || remainingBytes(childBuf) < 10) return;
 	const listLike = child as ReturnType<Document['createGList']> | ReturnType<Document['createGTree']>;
-	listLike
-		.setScrollType(childBuf.getUint8())
-		.setScrollBarDisplay(childBuf.getUint8());
+	listLike.setScrollType(childBuf.getUint8()).setScrollBarDisplay(childBuf.getUint8());
 	listLike.setScrollBarFlags(childBuf.getInt32());
 	if (childBuf.readBool() && remainingBytes(childBuf) >= 16) {
 		listLike.setScrollBarMargin([
@@ -305,9 +306,7 @@ function decodeListItemOverrides(
 	for (let index = 0; index < controllerOverrideCount && remainingBytes(buf) >= 4; index += 1) {
 		controllerParts.push(buf.readS() ?? '', buf.readS() ?? '');
 	}
-	const propertyOverrides = version >= 2 && remainingBytes(buf) >= 2
-		? decodePropertyOverrides(buf)
-		: [];
+	const propertyOverrides = version >= 2 && remainingBytes(buf) >= 2 ? decodePropertyOverrides(buf) : [];
 	return {
 		...(controllerParts.length > 0 ? { controllers: controllerParts.join(',') } : {}),
 		...(propertyOverrides.length > 0 ? { propertyOverrides } : {}),
@@ -361,9 +360,7 @@ function decodeListItems(child: ComponentDisplayObject, childBuf: ByteBuffer): v
 function decodeTreeSettings(child: ComponentDisplayObject, childBuf: ByteBuffer): void {
 	if (child.propertyType !== 'GTree') return;
 	if (!childBuf.seek(0, 9) || remainingBytes(childBuf) < 5) return;
-	(child as ReturnType<Document['createGTree']>)
-		.setIndent(childBuf.getInt32())
-		.setClickToExpand(childBuf.getUint8());
+	(child as ReturnType<Document['createGTree']>).setIndent(childBuf.getInt32()).setClickToExpand(childBuf.getUint8());
 }
 
 function decodeChildBlock5(child: ComponentDisplayObject, childBuf: ByteBuffer): void {
@@ -376,9 +373,7 @@ function decodeChildBlock5(child: ComponentDisplayObject, childBuf: ByteBuffer):
 				(child as ReturnType<Document['createGImage']>).setColor(readColorValue(childBuf, false));
 			}
 			const imageChild = child as ReturnType<Document['createGImage']>;
-			imageChild
-				.setFlip(childBuf.getUint8())
-				.setFillMethod(childBuf.getUint8());
+			imageChild.setFlip(childBuf.getUint8()).setFillMethod(childBuf.getUint8());
 			if (imageChild.getFillMethod() !== 0 && remainingBytes(childBuf) >= 6) {
 				imageChild
 					.setFillOrigin(childBuf.getUint8())
@@ -417,9 +412,7 @@ function decodeChildBlock5(child: ComponentDisplayObject, childBuf: ByteBuffer):
 				}
 				graph.setPoints(points);
 			} else if (graphType === 4 && remainingBytes(childBuf) >= 8) {
-				graph
-					.setSides(childBuf.getInt16())
-					.setStartAngle(childBuf.getFloat32());
+				graph.setSides(childBuf.getInt16()).setStartAngle(childBuf.getFloat32());
 				const distanceCount = childBuf.getInt16();
 				const distances: number[] = [];
 				for (let index = 0; index < distanceCount && remainingBytes(childBuf) >= 4; index += 1) {
@@ -437,11 +430,9 @@ function decodeChildBlock5(child: ComponentDisplayObject, childBuf: ByteBuffer):
 				.setColumnGap(childBuf.getInt32())
 				.setExcludeInvisibles(childBuf.readBool())
 				.setAutoSizeDisabled(childBuf.readBool())
-				.setMainGridIndex(childBuf.getInt16());
-			const group = child as ReturnType<Document['createGGroup']>;
-			if (group.listGears().length > 0 || group.getRelations().length > 0) {
-				group.setAdvanced(true);
-			}
+				.setMainGridIndex(childBuf.getInt16())
+				// Publishing strips ordinary groups, so every group in a component child list is advanced.
+				.setAdvanced(true);
 			break;
 		}
 		case 'GLoader': {
@@ -455,9 +446,7 @@ function decodeChildBlock5(child: ComponentDisplayObject, childBuf: ByteBuffer):
 				.setShrinkOnly(childBuf.readBool())
 				.setAutoSize(childBuf.readBool());
 			loader.setShowErrorSign(childBuf.readBool());
-			loader
-				.setPlaying(childBuf.readBool())
-				.setFrame(childBuf.getInt32());
+			loader.setPlaying(childBuf.readBool()).setFrame(childBuf.getInt32());
 			if (childBuf.readBool()) {
 				loader.setColor(readColorValue(childBuf, false));
 			}
@@ -500,9 +489,7 @@ function decodeChildBlock5(child: ComponentDisplayObject, childBuf: ByteBuffer):
 				movieClip.setColor(readColorValue(childBuf, false));
 			}
 			childBuf.getUint8(); // flip, current model has no formal field
-			movieClip
-				.setFrame(childBuf.getInt32())
-				.setPlaying(childBuf.readBool());
+			movieClip.setFrame(childBuf.getInt32()).setPlaying(childBuf.readBool());
 			break;
 		}
 		case 'GList':
@@ -535,9 +522,7 @@ function decodeChildBlock5(child: ComponentDisplayObject, childBuf: ByteBuffer):
 				listLike.setClipSoftness([childBuf.getInt32(), childBuf.getInt32()]);
 			}
 			if (childBuf.version >= 2 && remainingBytes(childBuf) >= 2) {
-				listLike
-					.setScrollItemToViewOnClick(childBuf.readBool())
-					.setFoldInvisibleItems(childBuf.readBool());
+				listLike.setScrollItemToViewOnClick(childBuf.readBool()).setFoldInvisibleItems(childBuf.readBool());
 			}
 			if (overflow === 2) {
 				decodeListScrollPane(child, childBuf);
@@ -566,6 +551,8 @@ function decodeChildBlock6(
 				(child as ReturnType<Document['createGTextField']>).setText(childBuf.readS() ?? '');
 			}
 			break;
+		case 'GButton':
+		case 'GLabel':
 		case 'GComponent': {
 			if (remainingBytes(childBuf) < 1) return;
 			const extType = childBuf.getUint8();
@@ -589,7 +576,9 @@ function decodeChildBlock6(
 					{
 						const relatedControllerIndex = childBuf.getInt16();
 						if (relatedControllerIndex >= 0) {
-							component.setInstanceController(resource.listControllers()[relatedControllerIndex]?.getName() ?? '');
+							component.setInstanceController(
+								resource.listControllers()[relatedControllerIndex]?.getName() ?? '',
+							);
 						}
 					}
 					component.setInstancePage(childBuf.readS() ?? '');
@@ -603,21 +592,19 @@ function decodeChildBlock6(
 					break;
 				case 'Label':
 					if (remainingBytes(childBuf) < 9) return;
-					component
-						.setInstanceTitle(childBuf.readS() ?? '')
-						.setInstanceIcon(childBuf.readS() ?? '');
+					component.setInstanceTitle(childBuf.readS() ?? '').setInstanceIcon(childBuf.readS() ?? '');
 					if (childBuf.readBool()) {
 						component.setInstanceTitleColor(readColorValue(childBuf, true));
 					}
 					component.setInstanceTitleFontSize(childBuf.getInt32());
 					if (remainingBytes(childBuf) >= 1 && childBuf.readBool()) {
-						component.setInstancePromptText(childBuf.readS() ?? '');
-						childBuf.readS(); // restrict
-						if (remainingBytes(childBuf) >= 9) {
-							childBuf.getInt32(); // maxLength
-							childBuf.getInt32(); // keyboardType
-							childBuf.readBool(); // password
-						}
+						component.setInstanceLabelInputSettings({
+							promptText: childBuf.readS(),
+							restrict: childBuf.readS(),
+							maxLength: childBuf.getInt32(),
+							keyboardType: childBuf.getInt32(),
+							password: childBuf.readBool(),
+						});
 					}
 					if (childBuf.version >= 5 && remainingBytes(childBuf) >= 6) {
 						component
@@ -651,7 +638,9 @@ function decodeChildBlock6(
 						.setInstancePopupDirection(childBuf.getUint8());
 					const selectionControllerIndex = childBuf.getInt16();
 					if (selectionControllerIndex >= 0) {
-						component.setInstanceSelectionController(resource.listControllers()[selectionControllerIndex]?.getName() ?? '');
+						component.setInstanceSelectionController(
+							resource.listControllers()[selectionControllerIndex]?.getName() ?? '',
+						);
 					}
 					if (childBuf.version >= 5 && remainingBytes(childBuf) >= 6) {
 						component
@@ -675,54 +664,6 @@ function decodeChildBlock6(
 					break;
 				default:
 					break;
-			}
-			break;
-		}
-		case 'GButton': {
-			if (remainingBytes(childBuf) < 13) return;
-			childBuf.getUint8(); // extType
-			const button = child as ReturnType<Document['createGButton']>;
-			button
-				.setTitle(childBuf.readS() ?? '')
-				.setSelectedTitle(childBuf.readS() ?? '')
-				.setIcon(childBuf.readS() ?? '')
-				.setSelectedIcon(childBuf.readS() ?? '');
-			if (childBuf.readBool()) {
-				button.setTitleColor(readColorValue(childBuf, true));
-			}
-			button.setTitleFontSize(childBuf.getInt32());
-			childBuf.getInt16(); // relatedController index
-			childBuf.readS(); // relatedPageId
-			button.setSound(childBuf.readS() ?? '');
-			if (childBuf.readBool() && remainingBytes(childBuf) >= 4) {
-				button.setSoundVolumeScale(childBuf.getFloat32());
-			}
-			if (remainingBytes(childBuf) >= 1) {
-				childBuf.readBool(); // selected
-			}
-			break;
-		}
-		case 'GLabel': {
-			if (remainingBytes(childBuf) < 10) return;
-			childBuf.getUint8(); // extType
-			const label = child as ReturnType<Document['createGLabel']>;
-			label
-				.setTitle(childBuf.readS() ?? '')
-				.setIcon(childBuf.readS() ?? '');
-			if (childBuf.readBool()) {
-				label.setTitleColor(readColorValue(childBuf, true));
-			}
-			label.setTitleFontSize(childBuf.getInt32());
-			if (remainingBytes(childBuf) >= 1) {
-				const hasInputSettings = childBuf.readBool();
-				if (hasInputSettings) {
-					// current writer does not emit this payload
-				}
-			}
-			if (childBuf.version >= 5 && remainingBytes(childBuf) >= 6) {
-				label
-					.setSound(childBuf.readS() ?? '')
-					.setSoundVolumeScale(childBuf.getFloat32());
 			}
 			break;
 		}
@@ -751,14 +692,10 @@ function decodeChildBlock6(
 			if (childBuf.readBool()) {
 				comboBox.setTitleColor(readColorValue(childBuf, true));
 			}
-			comboBox
-				.setVisibleItemCount(childBuf.getInt32())
-				.setPopupDirection(childBuf.getUint8());
+			comboBox.setVisibleItemCount(childBuf.getInt32()).setPopupDirection(childBuf.getUint8());
 			childBuf.getInt16(); // selectionController index
 			if (childBuf.version >= 5 && remainingBytes(childBuf) >= 6) {
-				comboBox
-					.setSound(childBuf.readS() ?? '')
-					.setSoundVolumeScale(childBuf.getFloat32());
+				comboBox.setSound(childBuf.readS() ?? '').setSoundVolumeScale(childBuf.getFloat32());
 			}
 			break;
 		}
@@ -769,10 +706,7 @@ function decodeChildBlock6(
 			const sliderLike = child as
 				| ReturnType<Document['createGProgressBar']>
 				| ReturnType<Document['createGSlider']>;
-			sliderLike
-				.setValue(childBuf.getInt32())
-				.setMax(childBuf.getInt32())
-				.setMin(childBuf.getInt32());
+			sliderLike.setValue(childBuf.getInt32()).setMax(childBuf.getInt32()).setMin(childBuf.getInt32());
 			if (child.propertyType === 'GProgressBar' && childBuf.version >= 5 && remainingBytes(childBuf) >= 6) {
 				(sliderLike as ReturnType<Document['createGProgressBar']>)
 					.setSound(childBuf.readS() ?? '')
@@ -786,8 +720,9 @@ function decodeChildBlock6(
 			const controllerIndex = childBuf.getInt16();
 			const controller = controllerIndex >= 0 ? resource.listControllers()[controllerIndex] : null;
 			if (controller) {
-				(child as ReturnType<Document['createGList']> | ReturnType<Document['createGTree']>)
-					.setSelectionController(controller.getName());
+				(
+					child as ReturnType<Document['createGList']> | ReturnType<Document['createGTree']>
+				).setSelectionController(controller.getName());
 			}
 			break;
 		}
@@ -854,8 +789,7 @@ function decodeChildBlock2(
 			const hasTween = childBuf.readBool();
 			gear.setTween(hasTween);
 			if (hasTween && remainingBytes(childBuf) >= 9) {
-				gear
-					.setEaseType(childBuf.getUint8())
+				gear.setEaseType(childBuf.getUint8())
 					.setTweenDuration(childBuf.getFloat32())
 					.setTweenDelay(childBuf.getFloat32());
 				if (childBuf.version >= 4 && gear.getEaseType() === 31) {
@@ -874,7 +808,8 @@ function decodeChildBlock2(
 					if (rawPageId === null || pageId === '') continue;
 					const px = childBuf.getFloat32();
 					const py = childBuf.getFloat32();
-					values[pageIndex] = `${values[pageIndex] || '0,0'},${formatBinaryNumber(px)},${formatBinaryNumber(py)}`;
+					values[pageIndex] =
+						`${values[pageIndex] || '0,0'},${formatBinaryNumber(px)},${formatBinaryNumber(py)}`;
 				}
 				if (remainingBytes(childBuf) >= 1 && childBuf.readBool()) {
 					const px = childBuf.getFloat32();
@@ -912,7 +847,6 @@ function decodeChildBlock2(
 		childBuf.pos = nextPos;
 	}
 }
-
 
 export function decodeComponentDisplayList(
 	doc: Document,
@@ -954,15 +888,15 @@ export function decodeComponentDisplayList(
 		if (entry.child.propertyType === 'GTextInput') {
 			decodeChildBlock4TextInput(entry.child, entry.childBuf);
 		} else if (
-			entry.child.propertyType === 'GComponent'
-			|| entry.child.propertyType === 'GList'
-			|| entry.child.propertyType === 'GTree'
-			|| entry.child.propertyType === 'GButton'
-			|| entry.child.propertyType === 'GLabel'
-			|| entry.child.propertyType === 'GComboBox'
-			|| entry.child.propertyType === 'GProgressBar'
-			|| entry.child.propertyType === 'GSlider'
-			|| entry.child.propertyType === 'GScrollBar'
+			entry.child.propertyType === 'GComponent' ||
+			entry.child.propertyType === 'GList' ||
+			entry.child.propertyType === 'GTree' ||
+			entry.child.propertyType === 'GButton' ||
+			entry.child.propertyType === 'GLabel' ||
+			entry.child.propertyType === 'GComboBox' ||
+			entry.child.propertyType === 'GProgressBar' ||
+			entry.child.propertyType === 'GSlider' ||
+			entry.child.propertyType === 'GScrollBar'
 		) {
 			decodeChildBlock4ComponentLike(resource, entry.child, entry.childBuf);
 		}

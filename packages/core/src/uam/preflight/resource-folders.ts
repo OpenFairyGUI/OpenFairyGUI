@@ -28,18 +28,22 @@ export function findResourceFolder(project: UamProject, selector: UamResourceFol
 }
 
 export function folderContainsItems(pkg: UamPackage, branch: string, path: string): boolean {
-	return pkg.folders.some((folder) => (
-		folder.branch === branch && folder.path !== path && folder.path.startsWith(path)
-	)) || pkg.resources.some((resource) => (
-		resource.branch === branch && normalizeResourceFolderPath(resource.path).startsWith(path)
-	));
+	return (
+		pkg.folders.some(
+			(folder) => folder.branch === branch && folder.path !== path && folder.path.startsWith(path),
+		) ||
+		pkg.resources.some(
+			(resource) => resource.branch === branch && normalizeResourceFolderPath(resource.path).startsWith(path),
+		)
+	);
 }
 
 export function folderPathConflictsWithResource(pkg: UamPackage, branch: string, path: string): boolean {
 	const folderTarget = path.replace(/^\/+|\/+$/g, '');
 	return pkg.resources.some((resource) => {
 		if (resource.branch !== branch) return false;
-		const fileName = resource.kind === 'component' ? `${describeValue(resource.name)}.xml` : primaryResourceFileName(resource);
+		const fileName =
+			resource.kind === 'component' ? `${describeValue(resource.name)}.xml` : primaryResourceFileName(resource);
 		return normalizeResourceFolderPath(`${describeValue(resource.path)}/${fileName}`).slice(1, -1) === folderTarget;
 	});
 }
@@ -104,9 +108,8 @@ export function validateResourceFolderAtlas(
 	issues: UamTransactionSupportIssue[],
 	operationKind: UamTransactionOperation['kind'],
 ): atlas is string {
-	if (typeof atlas === 'string'
-		&& (atlas === '' || (/^(0|[1-9]\d*)$/.test(atlas) && Number(atlas) <= maxAtlasIndex))
-	) return true;
+	if (typeof atlas === 'string' && (atlas === '' || (/^(0|[1-9]\d*)$/.test(atlas) && Number(atlas) <= maxAtlasIndex)))
+		return true;
 	pushSupportIssue(
 		issues,
 		'invalid_resource_folder_atlas',

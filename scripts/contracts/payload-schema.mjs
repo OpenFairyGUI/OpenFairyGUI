@@ -44,9 +44,21 @@ export function corePayloadSchema(contract) {
 		return add(build(schema, 'inline schema'));
 	}
 	function build(schema, label) {
-		const unsupported = Object.keys(schema).filter((key) => !TRANSPORT_KEYWORDS.has(key) && ![
-			'type', 'const', 'enum', 'items', 'properties', 'required', 'additionalProperties', 'anyOf', 'x-openfairygui-native',
-		].includes(key));
+		const unsupported = Object.keys(schema).filter(
+			(key) =>
+				!TRANSPORT_KEYWORDS.has(key) &&
+				![
+					'type',
+					'const',
+					'enum',
+					'items',
+					'properties',
+					'required',
+					'additionalProperties',
+					'anyOf',
+					'x-openfairygui-native',
+				].includes(key),
+		);
 		assert.deepEqual(unsupported, [], `Unsupported payload schema construct in ${label}`);
 		if (Object.keys(schema).length === 0) return ['any'];
 		if (schema['x-openfairygui-native'] === 'Uint8Array') return ['bytes'];
@@ -62,11 +74,15 @@ export function corePayloadSchema(contract) {
 				assert(schema.items && typeof schema.items === 'object', `Unsupported positional tuple in ${label}`);
 				const item = encode(schema.items);
 				// Equal bounds come from fixed-length tuples; a lone maxItems is a transport limit.
-				return schema.minItems !== undefined && schema.minItems === schema.maxItems ? ['array', item, schema.minItems] : ['array', item];
+				return schema.minItems !== undefined && schema.minItems === schema.maxItems
+					? ['array', item, schema.minItems]
+					: ['array', item];
 			}
 			case 'object': {
 				assert(schema.additionalProperties !== true, `Open object in operation input: ${label}`);
-				const properties = Object.fromEntries(Object.entries(schema.properties).map(([name, field]) => [name, encode(field)]));
+				const properties = Object.fromEntries(
+					Object.entries(schema.properties).map(([name, field]) => [name, encode(field)]),
+				);
 				const index = schema.additionalProperties ? encode(schema.additionalProperties) : null;
 				return ['object', properties, schema.required, index];
 			}
@@ -91,7 +107,10 @@ export function corePayloadSchema(contract) {
 		}
 		if (values.length) {
 			const unique = [...new Set(values)];
-			const literal = unique.length === 2 && unique.includes(true) && unique.includes(false) ? ['boolean'] : ['literal', unique];
+			const literal =
+				unique.length === 2 && unique.includes(true) && unique.includes(false)
+					? ['boolean']
+					: ['literal', unique];
 			if (!encoded.length) return literal;
 			encoded.push(add(literal));
 		}
@@ -99,14 +118,28 @@ export function corePayloadSchema(contract) {
 			assert(nodes[encoded[0]], `Self-referencing union in ${label}`);
 			return nodes[encoded[0]];
 		}
-		const objects = members.map((member) => dereference(member, contract.$defs)).filter((member) => member.type === 'object');
+		const objects = members
+			.map((member) => dereference(member, contract.$defs))
+			.filter((member) => member.type === 'object');
 		let discriminator = null;
 		if (objects.length > 1) {
-			discriminator = Object.keys(objects[0].properties).find((name) => objects.every((member) => member.required.includes(name)
-				&& member.properties[name] && literals(dereference(member.properties[name], contract.$defs))));
+			discriminator = Object.keys(objects[0].properties).find((name) =>
+				objects.every(
+					(member) =>
+						member.required.includes(name) &&
+						member.properties[name] &&
+						literals(dereference(member.properties[name], contract.$defs)),
+				),
+			);
 			if (discriminator) {
-				const values = objects.flatMap((member) => literals(dereference(member.properties[discriminator], contract.$defs)));
-				assert.equal(new Set(values).size, values.length, `Ambiguous union discriminator in ${label}: ${discriminator}`);
+				const values = objects.flatMap((member) =>
+					literals(dereference(member.properties[discriminator], contract.$defs)),
+				);
+				assert.equal(
+					new Set(values).size,
+					values.length,
+					`Ambiguous union discriminator in ${label}: ${discriminator}`,
+				);
 			}
 		}
 		return ['union', encoded, discriminator ?? null];

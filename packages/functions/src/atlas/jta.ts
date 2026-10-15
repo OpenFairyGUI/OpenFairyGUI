@@ -1,9 +1,4 @@
-import {
-	deriveMovieClipModel,
-	parseJta,
-	probeRasterImage,
-	type RasterImageFormat,
-} from '@openfairygui/core';
+import { deriveMovieClipModel, parseJta, probeRasterImage, type RasterImageFormat } from '@openfairygui/core';
 import type { AtlasRasterBackend } from '../publish/contracts.js';
 
 export interface JtaFrameMeta {
@@ -84,9 +79,7 @@ function detectSupportedRasterFormat(data: Uint8Array): RasterImageFormat | null
 }
 
 function couldNotDecode(filePath: string, frameIndex: number, textureIndex: number): Error {
-	return new Error(
-		`atlas: Could not decode MovieClip "${filePath}" frame ${frameIndex} (texture ${textureIndex}).`,
-	);
+	return new Error(`atlas: Could not decode MovieClip "${filePath}" frame ${frameIndex} (texture ${textureIndex}).`);
 }
 
 export async function prepareJtaForPublish(
