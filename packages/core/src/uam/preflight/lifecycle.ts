@@ -27,13 +27,14 @@ import {
 } from '../transaction-uam-apply.js';
 import {
 	pushSupportIssue,
+	validateDisplayNodePayload,
 	validateSupportedDisplayNode,
 	validateTouchedDisplayNodeKind,
 	validateLifecyclePackageSelector,
 	validateLifecycleComponentSelector,
 } from './support.js';
 import { validateDisplayPropsPayload } from './display.js';
-import { isSafePackageName, isSafeBranchName } from './values.js';
+import { isSafePackageName, isSafeBranchName, describeValue } from './values.js';
 import { validatePackageSettingsPayload } from './settings.js';
 import {
 	isSafeResourceFolderPath,
@@ -48,6 +49,24 @@ import {
 } from './resource-folders.js';
 import { validateAssetResourcePayload } from './resources.js';
 
+/** Normalizes and validates a snapshot payload in isolation; unreadable structure becomes one payload issue. */
+function validateSnapshotModel(
+	build: () => UamProject,
+	path: string,
+	code: 'invalid_package_payload' | 'invalid_component_payload',
+	issues: UamTransactionSupportIssue[],
+	operationKind: UamTransactionOperation['kind'],
+): { project: UamProject; issues: ReturnType<typeof validateUamProject> } | null {
+	try {
+		const project = normalizeUamProject(build());
+		return { project, issues: validateUamProject(project) };
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		pushSupportIssue(issues, code, path, `Payload does not match the UAM model: ${message}`, { operationKind });
+		return null;
+	}
+}
+
 function validatePackagePayload(
 	project: UamProject,
 	pkg: UamPackage,
@@ -55,8 +74,9 @@ function validatePackagePayload(
 	issues: UamTransactionSupportIssue[],
 	operationKind: UamTransactionOperation['kind'],
 ): void {
-	if (!pkg.id) {
-		pushSupportIssue(issues, 'invalid_package_payload', `${path}.id`, 'Package id must not be empty.', {
+	const issueCount = issues.length;
+	if (typeof pkg.id !== 'string' || !pkg.id) {
+		pushSupportIssue(issues, 'invalid_package_payload', `${path}.id`, 'Package id must be a non-empty string.', {
 			operationKind,
 		});
 	}
@@ -79,16 +99,28 @@ function validatePackagePayload(
 		issues,
 		operationKind,
 	);
+	// The model snapshot is only read once its identity and settings are well formed.
+	if (issues.length > issueCount) return;
+	const snapshot = validateSnapshotModel(
+		() => ({ ...project, packages: [pkg] }),
+		path,
+		'invalid_package_payload',
+		issues,
+		operationKind,
+	);
+	if (!snapshot) return;
 
-	const standalone = normalizeUamProject({ ...project, packages: [pkg] });
-	for (const issue of validateUamProject(standalone)) {
+	for (const issue of snapshot.issues) {
 		const suffix = issue.path.startsWith('packages[0]') ? issue.path.slice('packages[0]'.length) : `.${issue.path}`;
 		pushSupportIssue(issues, 'invalid_package_payload', `${path}${suffix}`, issue.message, { operationKind });
 	}
 
-	for (const [resourceIndex, resource] of pkg.resources.entries()) {
+	// Normalization preserves resource order; primary bytes are checked on the caller's own values.
+	for (const [resourceIndex, resource] of snapshot.project.packages[0]!.resources.entries()) {
 		const resourcePath = `${path}.resources[${resourceIndex}]`;
-		if (resource.kind !== 'component' && !(resource.sourceBytes instanceof Uint8Array)) {
+		const sourceBytes =
+			resource.kind === 'component' ? undefined : (pkg.resources[resourceIndex] as typeof resource).sourceBytes;
+		if (resource.kind !== 'component' && !(sourceBytes instanceof Uint8Array)) {
 			pushSupportIssue(
 				issues,
 				'unavailable_resource_source_bytes',
@@ -97,9 +129,9 @@ function validatePackagePayload(
 				{ operationKind, resourceKind: resource.kind },
 			);
 		}
-		if (resource.kind === 'movieClip' && resource.sourceBytes instanceof Uint8Array) {
+		if (resource.kind === 'movieClip' && sourceBytes instanceof Uint8Array) {
 			try {
-				deriveMovieClipModelFromJta(resource.sourceBytes);
+				deriveMovieClipModelFromJta(sourceBytes);
 			} catch (error) {
 				pushSupportIssue(
 					issues,
@@ -127,21 +159,40 @@ function validateComponentPayload(
 	issues: UamTransactionSupportIssue[],
 	operationKind: UamTransactionOperation['kind'],
 ): void {
-	if (!component.id) {
-		pushSupportIssue(issues, 'invalid_component_payload', `${path}.id`, 'Component id must not be empty.', {
-			operationKind,
-		});
+	if (component.kind !== 'component') {
+		pushSupportIssue(
+			issues,
+			'invalid_component_payload',
+			`${path}.kind`,
+			'Component payload kind must be "component".',
+			{ operationKind },
+		);
+		return;
 	}
-	const standalone = normalizeUamProject({
-		...project,
-		packages: [{ ...pkg, resources: [component] }],
-	});
-	for (const issue of validateUamProject(standalone)) {
+	const snapshot = validateSnapshotModel(
+		() => ({ ...project, packages: [{ ...pkg, resources: [component] }] }),
+		path,
+		'invalid_component_payload',
+		issues,
+		operationKind,
+	);
+	if (!snapshot) return;
+	if (typeof component.id !== 'string' || !component.id) {
+		pushSupportIssue(
+			issues,
+			'invalid_component_payload',
+			`${path}.id`,
+			'Component id must be a non-empty string.',
+			{ operationKind },
+		);
+	}
+	for (const issue of snapshot.issues) {
 		const prefix = 'packages[0].resources[0]';
 		const suffix = issue.path.startsWith(prefix) ? issue.path.slice(prefix.length) : `.${issue.path}`;
 		pushSupportIssue(issues, 'invalid_component_payload', `${path}${suffix}`, issue.message, { operationKind });
 	}
-	for (const [nodeIndex, node] of component.component.displayList.entries()) {
+	const normalized = snapshot.project.packages[0]!.resources[0] as UamComponentResource;
+	for (const [nodeIndex, node] of normalized.component.displayList.entries()) {
 		validateSupportedDisplayNode(node, pkg.id, `${path}.component.displayList[${nodeIndex}]`, issues, {
 			operationKind,
 		});
@@ -298,7 +349,7 @@ function validateLifecycleReferenceChecks(
 						issues,
 						'package_referenced',
 						check.path,
-						`Package "${check.packageId}" is still referenced by ${referencePath}.`,
+						`Package "${describeValue(check.packageId)}" is still referenced by ${referencePath}.`,
 						{ operationKind: check.operationKind },
 					);
 				}
@@ -311,7 +362,7 @@ function validateLifecycleReferenceChecks(
 						issues,
 						'component_referenced',
 						check.path,
-						`Component "${check.componentId}" is still referenced by ${referencePath}.`,
+						`Component "${describeValue(check.componentId)}" is still referenced by ${referencePath}.`,
 						{ operationKind: check.operationKind },
 					);
 				}
@@ -330,7 +381,7 @@ function validateLifecycleReferenceChecks(
 						issues,
 						'component_referenced',
 						check.path,
-						`Component "${check.component.id}" is still referenced by ${referencePath}.`,
+						`Component "${describeValue(check.component.id)}" is still referenced by ${referencePath}.`,
 						{ operationKind: check.operationKind },
 					);
 				}
@@ -345,7 +396,7 @@ function validateLifecycleReferenceChecks(
 						issues,
 						'component_has_package_dependencies',
 						dependencyPath,
-						`Component "${check.component.id}" still resolves display resources from package "${check.sourcePackageId}".`,
+						`Component "${describeValue(check.component.id)}" still resolves display resources from package "${describeValue(check.sourcePackageId)}".`,
 						{ operationKind: check.operationKind },
 					);
 				}
@@ -368,7 +419,7 @@ function validateLifecycleReferenceChecks(
 					issues,
 					'invalid_component_reference',
 					referencePath,
-					`Display node "${check.node.id}" references missing component "${reference.packageId}/${reference.componentId}".`,
+					`Display node "${describeValue(check.node.id)}" references missing component "${describeValue(reference.packageId)}/${describeValue(reference.componentId)}".`,
 					{ operationKind: check.operationKind },
 				);
 				break;
@@ -414,7 +465,7 @@ export function validateLifecycleOperationPayloads(
 						issues,
 						'duplicate_branch_name',
 						`${operationPath}.branch`,
-						`Branch "${operation.branch}" already exists.`,
+						`Branch "${describeValue(operation.branch)}" already exists.`,
 						{ operationKind: operation.kind },
 					);
 				}
@@ -426,7 +477,7 @@ export function validateLifecycleOperationPayloads(
 						issues,
 						'invalid_branch_selector',
 						`${operationPath}.selector.branch`,
-						`Branch "${branchName}" was not found.`,
+						`Branch "${describeValue(branchName)}" was not found.`,
 						{ operationKind: operation.kind },
 					);
 				}
@@ -444,7 +495,7 @@ export function validateLifecycleOperationPayloads(
 						issues,
 						'duplicate_branch_name',
 						`${operationPath}.newName`,
-						`Branch "${operation.newName}" already exists.`,
+						`Branch "${describeValue(operation.newName)}" already exists.`,
 						{ operationKind: operation.kind },
 					);
 				}
@@ -457,7 +508,7 @@ export function validateLifecycleOperationPayloads(
 						issues,
 						'invalid_branch_selector',
 						`${operationPath}.selector.branch`,
-						`Branch "${branchName}" was not found.`,
+						`Branch "${describeValue(branchName)}" was not found.`,
 						{ operationKind: operation.kind },
 					);
 					break;
@@ -473,7 +524,7 @@ export function validateLifecycleOperationPayloads(
 						issues,
 						'branch_not_empty',
 						`${operationPath}.selector.branch`,
-						`Branch "${branchName}" still contains resources or folders.`,
+						`Branch "${describeValue(branchName)}" still contains resources or folders.`,
 						{ operationKind: operation.kind },
 					);
 				}
@@ -487,7 +538,7 @@ export function validateLifecycleOperationPayloads(
 						issues,
 						'branch_referenced',
 						`${operationPath}.selector.branch`,
-						`Branch "${branchName}" still has mapped variant ids.`,
+						`Branch "${describeValue(branchName)}" still has mapped variant ids.`,
 						{ operationKind: operation.kind },
 					);
 				}
@@ -506,7 +557,7 @@ export function validateLifecycleOperationPayloads(
 						issues,
 						'duplicate_package_id',
 						`${operationPath}.package.id`,
-						`Package id "${operation.package.id}" already exists.`,
+						`Package id "${describeValue(operation.package.id)}" already exists.`,
 						{ operationKind: operation.kind },
 					);
 				}
@@ -515,7 +566,7 @@ export function validateLifecycleOperationPayloads(
 						issues,
 						'duplicate_package_name',
 						`${operationPath}.package.name`,
-						`Package name "${operation.package.name}" already exists.`,
+						`Package name "${describeValue(operation.package.name)}" already exists.`,
 						{ operationKind: operation.kind },
 					);
 				}
@@ -554,7 +605,7 @@ export function validateLifecycleOperationPayloads(
 						issues,
 						'duplicate_package_name',
 						`${operationPath}.newName`,
-						`Package name "${operation.newName}" already exists.`,
+						`Package name "${describeValue(operation.newName)}" already exists.`,
 						{ operationKind: operation.kind },
 					);
 				}
@@ -592,7 +643,7 @@ export function validateLifecycleOperationPayloads(
 							issues,
 							'duplicate_component_id',
 							`${operationPath}.component.id`,
-							`Resource id "${operation.component.id}" already exists in package "${pkg.id}".`,
+							`Resource id "${describeValue(operation.component.id)}" already exists in package "${describeValue(pkg.id)}".`,
 							{ operationKind: operation.kind },
 						);
 					}
@@ -631,7 +682,7 @@ export function validateLifecycleOperationPayloads(
 						issues,
 						'invalid_package_selector',
 						`${operationPath}.toPackageId`,
-						`Package "${operation.toPackageId}" was not found.`,
+						`Package "${describeValue(operation.toPackageId)}" was not found.`,
 						{ operationKind: operation.kind },
 					);
 				}
@@ -650,7 +701,7 @@ export function validateLifecycleOperationPayloads(
 							issues,
 							'duplicate_component_id',
 							`${operationPath}.selector.componentResourceId`,
-							`Resource id "${component.id}" already exists in package "${target.id}".`,
+							`Resource id "${describeValue(component.id)}" already exists in package "${describeValue(target.id)}".`,
 							{ operationKind: operation.kind },
 						);
 					}
@@ -702,7 +753,7 @@ export function validateLifecycleOperationPayloads(
 						issues,
 						'invalid_resource_selector',
 						`${operationPath}.selector.resourceId`,
-						`Binary resource "${operation.selector.resourceId}" was not found in package "${operation.selector.packageId}".`,
+						`Binary resource "${describeValue(operation.selector.resourceId)}" was not found in package "${describeValue(operation.selector.packageId)}".`,
 						{ operationKind: operation.kind },
 					);
 				}
@@ -731,16 +782,7 @@ export function validateLifecycleOperationPayloads(
 						issues,
 						'invalid_resource_folder_path',
 						`${operationPath}.branch`,
-						`Resource folder branch "${branch}" is not defined by the project.`,
-						{ operationKind: operation.kind },
-					);
-				}
-				if (operation.favorite !== undefined && typeof operation.favorite !== 'boolean') {
-					pushSupportIssue(
-						issues,
-						'invalid_resource_payload',
-						`${operationPath}.favorite`,
-						'addResourceFolder.favorite must be boolean.',
+						`Resource folder branch "${describeValue(branch)}" is not defined by the project.`,
 						{ operationKind: operation.kind },
 					);
 				}
@@ -757,7 +799,7 @@ export function validateLifecycleOperationPayloads(
 							issues,
 							'invalid_resource_folder_path',
 							`${operationPath}.path`,
-							`Parent folder "${resourceFolderParentPath(operation.path)}" does not exist.`,
+							`Parent folder "${describeValue(resourceFolderParentPath(operation.path))}" does not exist.`,
 							{ operationKind: operation.kind },
 						);
 					}
@@ -769,7 +811,7 @@ export function validateLifecycleOperationPayloads(
 							issues,
 							'resource_folder_conflict',
 							`${operationPath}.path`,
-							`Resource folder path "${operation.path}" already exists or conflicts with a resource.`,
+							`Resource folder path "${describeValue(operation.path)}" already exists or conflicts with a resource.`,
 							{ operationKind: operation.kind },
 						);
 					}
@@ -819,7 +861,7 @@ export function validateLifecycleOperationPayloads(
 								issues,
 								'resource_folder_conflict',
 								`${operationPath}.newName`,
-								`Resource folder path "${destination}" already exists or conflicts with a resource.`,
+								`Resource folder path "${describeValue(destination)}" already exists or conflicts with a resource.`,
 								{ operationKind: operation.kind },
 							);
 						}
@@ -856,7 +898,7 @@ export function validateLifecycleOperationPayloads(
 							issues,
 							'invalid_resource_folder_path',
 							`${operationPath}.toPath`,
-							`Destination parent folder "${operation.toPath}" does not exist.`,
+							`Destination parent folder "${describeValue(operation.toPath)}" does not exist.`,
 							{ operationKind: operation.kind },
 						);
 					}
@@ -890,7 +932,7 @@ export function validateLifecycleOperationPayloads(
 							issues,
 							'resource_folder_conflict',
 							`${operationPath}.toPath`,
-							`Resource folder path "${destination}" already exists or conflicts with a resource.`,
+							`Resource folder path "${describeValue(destination)}" already exists or conflicts with a resource.`,
 							{ operationKind: operation.kind },
 						);
 					}
@@ -933,7 +975,7 @@ export function validateLifecycleOperationPayloads(
 						{ operationKind: operation.kind },
 					);
 				}
-				validateSupportedDisplayNode(
+				validateDisplayNodePayload(
 					operation.node,
 					operation.selector.packageId,
 					`${operationPath}.node`,
@@ -948,7 +990,7 @@ export function validateLifecycleOperationPayloads(
 							issues,
 							'invalid_display_node_selector',
 							`${operationPath}.node.id`,
-							`Component "${component.id}" already contains display node id "${operation.node.id}".`,
+							`Component "${describeValue(component.id)}" already contains display node id "${describeValue(operation.node.id)}".`,
 							{ operationKind: operation.kind },
 						);
 					} else if (operation.atIndex > component.component.displayList.length) {
@@ -1108,7 +1150,7 @@ export function validateLifecycleBatchCompatibility(
 		issues,
 		'unsupported_operation_batch',
 		`operations[${nonLifecycleIndex}].kind`,
-		`Lifecycle operations may only be batched with resource lifecycle operations, display-list rewrites, or display-node property updates; "${operation.kind}" must be committed separately.`,
+		`Lifecycle operations may only be batched with resource lifecycle operations, display-list rewrites, or display-node property updates; "${describeValue(operation.kind)}" must be committed separately.`,
 		{ operationKind: operation.kind },
 	);
 	return false;

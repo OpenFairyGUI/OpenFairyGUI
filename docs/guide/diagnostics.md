@@ -243,6 +243,14 @@ URI: `openfairygui://docs/diagnostics/unsupported_operation`
 
 Read the operation schema, capabilities and reported target kind/field. Stop unsupported work or replan using supported operations with equivalent intended semantics. Never silently drop fields or objects to make a transaction pass.
 
+### invalid_operation_payload
+
+Owners: `core.transaction` · Recovery: `revise-operation`
+
+URI: `openfairygui://docs/diagnostics/invalid_operation_payload`
+
+Inspect the diagnostic path and current operation schema or UAM issues. Correct values, required fields and indices against exact queried entities, then preflight. Do not invent defaults or coerce away invalid data.
+
 ### transaction_unsupported
 
 Owners: `core.transaction` · Recovery: `revise-operation`
@@ -847,5 +855,5 @@ Inspect the execution/cache failure and current session/revision. Preserve sourc
 <!-- product-facts:start -->
 Package: `0.6.3` · Backend contract: `3.0.0` · Capability schema: `15`
 
-Operations: 41 · Backend methods: 17 · CLI commands: 16 · Diagnostic codes: 103
+Operations: 41 · Backend methods: 17 · CLI commands: 16 · Diagnostic codes: 104
 <!-- product-facts:end -->

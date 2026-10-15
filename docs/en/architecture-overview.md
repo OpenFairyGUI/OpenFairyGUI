@@ -34,6 +34,8 @@ Reading, UAM validation and host decoding are separate layers. Invalid means def
 
 Functions owns Node/Web publishing. Default MCP does not publish. An injected publish callback owns authorization, output confinement and plugin policy without adding Backend methods. CLI tx opens a fresh session per invocation and previews, applies, validates, saves and closes under one lock; a separate preflight process does not preserve session revision.
 
+Transaction preflight first checks operation envelopes and selector literals in `preflight/operation-shape.ts`; the table is constrained by the canonical transaction types. Invalid shapes return `invalid_operation_payload`, unknown kinds return `unsupported_operation`, and later stages stop. Owning domains check snapshot containers before Core normalization. Diagnostic text uses `describeValue` to avoid converting caller objects; unexpected execution errors become `execution_failure`.
+
 ## Contracts and documentation
 
 Core/Backend/CLI TypeScript types generate operation schemas and command envelopes. Backend/docs distributes the installed corpus. MCP compiles schemas lazily and checks input budgets before deep validation. Native binary output uses base64 and appears only in structuredContent; arbitrary JSON metadata is not converted to bytes. Host policy runs after input validation and before Backend invocation.

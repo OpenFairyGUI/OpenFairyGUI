@@ -265,12 +265,6 @@ test('addResource restores exact resource order with optional stable indexes', a
 		{
 			kind: 'addResource' as const,
 			selector: { packageId: pkg.id },
-			resource: createMisc('null', 6),
-			atIndex: null as unknown as number,
-		},
-		{
-			kind: 'addResource' as const,
-			selector: { packageId: pkg.id },
 			resource: createMisc('nan', 7),
 			atIndex: Number.NaN,
 		},
@@ -285,7 +279,18 @@ test('addResource restores exact resource order with optional stable indexes', a
 		validateTransactionSupport(invalidSource, invalidOperations).filter(
 			(issue) => issue.code === 'invalid_resource_index',
 		).length,
-		5,
+		4,
+	);
+	t.like(
+		validateTransactionSupport(invalidSource, [
+			{
+				kind: 'addResource',
+				selector: { packageId: pkg.id },
+				resource: createMisc('null', 6),
+				atIndex: null as unknown as number,
+			},
+		])[0],
+		{ code: 'invalid_operation_payload', path: 'operations[0].atIndex' },
 	);
 	t.throws(() => applyUamTransaction(invalidSource, invalidOperations), { instanceOf: UamTransactionError });
 	t.deepEqual(invalidSource, invalidBefore);

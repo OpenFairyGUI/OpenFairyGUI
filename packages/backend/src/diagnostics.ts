@@ -200,6 +200,7 @@ export const BACKEND_DIAGNOSTIC_GUIDES = [
 	},
 	{ code: 'corrupt_source', owners: ['core.validation'], remediation: source },
 	{ code: 'unsupported_operation', owners: ['core.transaction'], remediation: unsupported },
+	{ code: 'invalid_operation_payload', owners: ['core.transaction'], remediation: payload },
 	{ code: 'transaction_unsupported', owners: ['core.transaction'], remediation: unsupported },
 	{ code: 'unsupported_display_node_kind', owners: ['core.transaction'], remediation: unsupported },
 	{ code: 'unsupported_cross_package_image_ref', owners: ['core.transaction'], remediation: unsupported },
