@@ -49,22 +49,13 @@ import {
 } from './resource-folders.js';
 import { validateAssetResourcePayload } from './resources.js';
 
-/** Normalizes and validates a snapshot payload in isolation; unreadable structure becomes one payload issue. */
-function validateSnapshotModel(
-	build: () => UamProject,
-	path: string,
-	code: 'invalid_package_payload' | 'invalid_component_payload',
-	issues: UamTransactionSupportIssue[],
-	operationKind: UamTransactionOperation['kind'],
-): { project: UamProject; issues: ReturnType<typeof validateUamProject> } | null {
-	try {
-		const project = normalizeUamProject(build());
-		return { project, issues: validateUamProject(project) };
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		pushSupportIssue(issues, code, path, `Payload does not match the UAM model: ${message}`, { operationKind });
-		return null;
-	}
+/** Normalizes and validates a snapshot payload in isolation; the shape gate has already checked its structure. */
+function validateSnapshotModel(project: UamProject): {
+	project: UamProject;
+	issues: ReturnType<typeof validateUamProject>;
+} {
+	const normalized = normalizeUamProject(project);
+	return { project: normalized, issues: validateUamProject(normalized) };
 }
 
 function validatePackagePayload(
@@ -101,14 +92,7 @@ function validatePackagePayload(
 	);
 	// The model snapshot is only read once its identity and settings are well formed.
 	if (issues.length > issueCount) return;
-	const snapshot = validateSnapshotModel(
-		() => ({ ...project, packages: [pkg] }),
-		path,
-		'invalid_package_payload',
-		issues,
-		operationKind,
-	);
-	if (!snapshot) return;
+	const snapshot = validateSnapshotModel({ ...project, packages: [pkg] });
 
 	for (const issue of snapshot.issues) {
 		const suffix = issue.path.startsWith('packages[0]') ? issue.path.slice('packages[0]'.length) : `.${issue.path}`;
@@ -159,24 +143,7 @@ function validateComponentPayload(
 	issues: UamTransactionSupportIssue[],
 	operationKind: UamTransactionOperation['kind'],
 ): void {
-	if (component.kind !== 'component') {
-		pushSupportIssue(
-			issues,
-			'invalid_component_payload',
-			`${path}.kind`,
-			'Component payload kind must be "component".',
-			{ operationKind },
-		);
-		return;
-	}
-	const snapshot = validateSnapshotModel(
-		() => ({ ...project, packages: [{ ...pkg, resources: [component] }] }),
-		path,
-		'invalid_component_payload',
-		issues,
-		operationKind,
-	);
-	if (!snapshot) return;
+	const snapshot = validateSnapshotModel({ ...project, packages: [{ ...pkg, resources: [component] }] });
 	if (typeof component.id !== 'string' || !component.id) {
 		pushSupportIssue(
 			issues,

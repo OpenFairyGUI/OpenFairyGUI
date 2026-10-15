@@ -34,7 +34,9 @@ Reading, UAM validation and host decoding are separate layers. Invalid means def
 
 Functions owns Node/Web publishing. Default MCP does not publish. An injected publish callback owns authorization, output confinement and plugin policy without adding Backend methods. CLI tx opens a fresh session per invocation and previews, applies, validates, saves and closes under one lock; a separate preflight process does not preserve session revision.
 
-Transaction preflight first checks operation envelopes and selector literals in `preflight/operation-shape.ts`; the table is constrained by the canonical transaction types. Invalid shapes return `invalid_operation_payload`, unknown kinds return `unsupported_operation`, and later stages stop. Owning domains check snapshot containers before Core normalization. Diagnostic text uses `describeValue` to avoid converting caller objects; unexpected execution errors become `execution_failure`.
+Transaction preflight checks operation envelopes and selector literals in `preflight/operation-shape.ts`, constrained by canonical transaction types. `payload-schema.ts` checks snapshot fields against generated `uam/generated/operation-payload-schema.ts`: types, required and undeclared fields, finite numbers, tuples, bytes and cycles. It reports exact field paths with domain-owned diagnostic codes without MCP transport limits. Structural errors stop subsequent domain semantics checks. Diagnostic text uses `describeValue` to avoid converting caller objects; unexpected execution errors become `execution_failure`.
+
+The contract generator emits the Core payload table from the same canonical snapshot as MCP; `scripts/contracts/payload-schema.mjs` owns this transport-independent projection. Core does not depend on Zod.
 
 ## Contracts and documentation
 
