@@ -4,14 +4,17 @@
 
 ## 未发布
 
+## v0.7.x
+
+### v0.7.0（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.7.0)）
+
 Agent 工具：MCP 默认引导/文档工具、base64 结构化二进制输出（传输破坏性变更）、显式宿主发布；CLI 一次性事务、双语治理与 Claude 评测入口。
 
-发布比较：
-
-- 稳定线（`main`）：[v0.6.3...main](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.3...main)
-- 开发线（`next`）：[v0.6.3...next](https://github.com/OpenFairyGUI/OpenFairyGUI/compare/v0.6.3...next)
-
 缺陷修复：
+
+- core、mcp：正式建模编辑器设置字段，使查询结果可通过 MCP 重新提交；事务预检拒绝畸形操作和选择器，诊断不再字符串化调用方值。
+- core：按生成的正式契约逐字段校验事务快照载荷，在应用前拒绝结构不合法的输入。
+- tests：缩小 MCP 设置往返 fixture 并复用已编译校验器；按实际锁释放状态等待空闲文件会话过期，稳定 Windows 回归验证。
 
 - core：二进制封包按所属组件的控制器索引写入 ComboBox 组件实例的 `selectionController` 绑定，不再固定写 `-1`，解码后的绑定在重写和 UAM 往返后得以保留。
 
