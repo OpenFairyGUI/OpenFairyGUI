@@ -24,6 +24,27 @@ const MALFORMED: Array<{ label: string; operations: unknown; diagnostics: Array<
 		diagnostics: [['invalid_operation_payload', 'operations[0].selector']],
 	},
 	{
+		label: 'kind whose string conversion throws',
+		operations: [{ kind: { toString: null, valueOf: null } }],
+		diagnostics: [['unsupported_operation', 'operations[0].kind']],
+	},
+	{
+		label: 'look gear selector with a non-look kind',
+		operations: [{
+			kind: 'removeLookGear',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n0', kind: 'xy', controllerName: 'state' },
+		}],
+		diagnostics: [['invalid_operation_payload', 'operations[0].selector.kind']],
+	},
+	{
+		label: 'gear selector with an unknown kind',
+		operations: [{
+			kind: 'removeGear',
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n0', kind: 'bogus', controllerName: 'state' },
+		}],
+		diagnostics: [['invalid_operation_payload', 'operations[0].selector.kind']],
+	},
+	{
 		label: 'nested payload container',
 		operations: [{ kind: 'addController', selector: { packageId: 'pkg001', componentResourceId: 'cmp001', controllerName: 'c' }, controller }],
 		diagnostics: [['invalid_controller_payload', 'operations[0].controller.pages']],

@@ -34,7 +34,7 @@ import {
 	validateLifecycleComponentSelector,
 } from './support.js';
 import { validateDisplayPropsPayload } from './display.js';
-import { isSafePackageName, isSafeBranchName } from './values.js';
+import { isSafePackageName, isSafeBranchName, describeValue } from './values.js';
 import { validatePackageSettingsPayload } from './settings.js';
 import {
 	isSafeResourceFolderPath,
@@ -75,8 +75,8 @@ function validatePackagePayload(
 	operationKind: UamTransactionOperation['kind'],
 ): void {
 	const issueCount = issues.length;
-	if (!pkg.id) {
-		pushSupportIssue(issues, 'invalid_package_payload', `${path}.id`, 'Package id must not be empty.', { operationKind });
+	if (typeof pkg.id !== 'string' || !pkg.id) {
+		pushSupportIssue(issues, 'invalid_package_payload', `${path}.id`, 'Package id must be a non-empty string.', { operationKind });
 	}
 	if (!isSafePackageName(pkg.name)) {
 		pushSupportIssue(issues, 'invalid_package_payload', `${path}.name`, 'Package name must be a safe output path segment.', { operationKind });
@@ -157,8 +157,8 @@ function validateComponentPayload(
 		operationKind,
 	);
 	if (!snapshot) return;
-	if (!component.id) {
-		pushSupportIssue(issues, 'invalid_component_payload', `${path}.id`, 'Component id must not be empty.', { operationKind });
+	if (typeof component.id !== 'string' || !component.id) {
+		pushSupportIssue(issues, 'invalid_component_payload', `${path}.id`, 'Component id must be a non-empty string.', { operationKind });
 	}
 	for (const issue of snapshot.issues) {
 		const prefix = 'packages[0].resources[0]';
@@ -321,14 +321,14 @@ function validateLifecycleReferenceChecks(
 			case 'removePackage': {
 				const referencePath = findExternalPackageReference(project, check.packageId);
 				if (referencePath) {
-					pushSupportIssue(issues, 'package_referenced', check.path, `Package "${check.packageId}" is still referenced by ${referencePath}.`, { operationKind: check.operationKind });
+					pushSupportIssue(issues, 'package_referenced', check.path, `Package "${describeValue(check.packageId)}" is still referenced by ${referencePath}.`, { operationKind: check.operationKind });
 				}
 				break;
 			}
 			case 'removeComponent': {
 				const referencePath = findExternalComponentReference(project, check.packageId, check.componentId);
 				if (referencePath) {
-					pushSupportIssue(issues, 'component_referenced', check.path, `Component "${check.componentId}" is still referenced by ${referencePath}.`, { operationKind: check.operationKind });
+					pushSupportIssue(issues, 'component_referenced', check.path, `Component "${describeValue(check.componentId)}" is still referenced by ${referencePath}.`, { operationKind: check.operationKind });
 				}
 				break;
 			}
@@ -337,7 +337,7 @@ function validateLifecycleReferenceChecks(
 				if (!finalPackage || finalPackage.id === check.sourcePackageId) break;
 				const referencePath = findExternalComponentReference(project, check.sourcePackageId, check.component.id);
 				if (referencePath) {
-					pushSupportIssue(issues, 'component_referenced', check.path, `Component "${check.component.id}" is still referenced by ${referencePath}.`, { operationKind: check.operationKind });
+					pushSupportIssue(issues, 'component_referenced', check.path, `Component "${describeValue(check.component.id)}" is still referenced by ${referencePath}.`, { operationKind: check.operationKind });
 				}
 				const dependencyPath = findComponentPackageDependency(
 					check.component,
@@ -346,7 +346,7 @@ function validateLifecycleReferenceChecks(
 					check.path,
 				);
 				if (dependencyPath) {
-					pushSupportIssue(issues, 'component_has_package_dependencies', dependencyPath, `Component "${check.component.id}" still resolves display resources from package "${check.sourcePackageId}".`, { operationKind: check.operationKind });
+					pushSupportIssue(issues, 'component_has_package_dependencies', dependencyPath, `Component "${describeValue(check.component.id)}" still resolves display resources from package "${describeValue(check.sourcePackageId)}".`, { operationKind: check.operationKind });
 				}
 				break;
 			}
@@ -364,7 +364,7 @@ function validateLifecycleReferenceChecks(
 					issues,
 					'invalid_component_reference',
 					referencePath,
-					`Display node "${check.node.id}" references missing component "${reference.packageId}/${reference.componentId}".`,
+					`Display node "${describeValue(check.node.id)}" references missing component "${describeValue(reference.packageId)}/${describeValue(reference.componentId)}".`,
 					{ operationKind: check.operationKind },
 				);
 				break;
@@ -399,49 +399,49 @@ export function validateLifecycleOperationPayloads(
 					pushSupportIssue(issues, 'invalid_branch_name', `${operationPath}.branch`, 'Branch must be a safe non-reserved output path segment.', { operationKind: operation.kind });
 				}
 				if (projected.branches.includes(operation.branch)) {
-					pushSupportIssue(issues, 'duplicate_branch_name', `${operationPath}.branch`, `Branch "${operation.branch}" already exists.`, { operationKind: operation.kind });
+					pushSupportIssue(issues, 'duplicate_branch_name', `${operationPath}.branch`, `Branch "${describeValue(operation.branch)}" already exists.`, { operationKind: operation.kind });
 				}
 				break;
 			case 'renameBranch': {
 				const branchName = operation.selector.branch;
 				if (!projected.branches.includes(branchName)) {
-					pushSupportIssue(issues, 'invalid_branch_selector', `${operationPath}.selector.branch`, `Branch "${branchName}" was not found.`, { operationKind: operation.kind });
+					pushSupportIssue(issues, 'invalid_branch_selector', `${operationPath}.selector.branch`, `Branch "${describeValue(branchName)}" was not found.`, { operationKind: operation.kind });
 				}
 				if (!isSafeBranchName(operation.newName)) {
 					pushSupportIssue(issues, 'invalid_branch_name', `${operationPath}.newName`, 'Branch must be a safe non-reserved output path segment.', { operationKind: operation.kind });
 				}
 				if (projected.branches.includes(operation.newName)) {
-					pushSupportIssue(issues, 'duplicate_branch_name', `${operationPath}.newName`, `Branch "${operation.newName}" already exists.`, { operationKind: operation.kind });
+					pushSupportIssue(issues, 'duplicate_branch_name', `${operationPath}.newName`, `Branch "${describeValue(operation.newName)}" already exists.`, { operationKind: operation.kind });
 				}
 				break;
 			}
 			case 'removeBranch': {
 				const branchName = operation.selector.branch;
 				if (!projected.branches.includes(branchName)) {
-					pushSupportIssue(issues, 'invalid_branch_selector', `${operationPath}.selector.branch`, `Branch "${branchName}" was not found.`, { operationKind: operation.kind });
+					pushSupportIssue(issues, 'invalid_branch_selector', `${operationPath}.selector.branch`, `Branch "${describeValue(branchName)}" was not found.`, { operationKind: operation.kind });
 					break;
 				}
 				if (projected.packages.some((pkg) => (
 					pkg.folders.some((folder) => folder.branch === branchName)
 					|| pkg.resources.some((resource) => resource.branch === branchName)
 				))) {
-					pushSupportIssue(issues, 'branch_not_empty', `${operationPath}.selector.branch`, `Branch "${branchName}" still contains resources or folders.`, { operationKind: operation.kind });
+					pushSupportIssue(issues, 'branch_not_empty', `${operationPath}.selector.branch`, `Branch "${describeValue(branchName)}" still contains resources or folders.`, { operationKind: operation.kind });
 				}
 				if (projected.packages.some((pkg) => {
 					const slotIndex = pkg.branchNames.indexOf(branchName);
 					return slotIndex >= 0 && pkg.resources.some((resource) => !!resource.branchItemIds[slotIndex]);
 				})) {
-					pushSupportIssue(issues, 'branch_referenced', `${operationPath}.selector.branch`, `Branch "${branchName}" still has mapped variant ids.`, { operationKind: operation.kind });
+					pushSupportIssue(issues, 'branch_referenced', `${operationPath}.selector.branch`, `Branch "${describeValue(branchName)}" still has mapped variant ids.`, { operationKind: operation.kind });
 				}
 				break;
 			}
 			case 'addPackage': {
 				validatePackagePayload(projected, operation.package, `${operationPath}.package`, issues, operation.kind);
 				if (findPackageSpec(projected, operation.package.id)) {
-					pushSupportIssue(issues, 'duplicate_package_id', `${operationPath}.package.id`, `Package id "${operation.package.id}" already exists.`, { operationKind: operation.kind });
+					pushSupportIssue(issues, 'duplicate_package_id', `${operationPath}.package.id`, `Package id "${describeValue(operation.package.id)}" already exists.`, { operationKind: operation.kind });
 				}
 				if (projected.packages.some((pkg) => pkg.name === operation.package.name)) {
-					pushSupportIssue(issues, 'duplicate_package_name', `${operationPath}.package.name`, `Package name "${operation.package.name}" already exists.`, { operationKind: operation.kind });
+					pushSupportIssue(issues, 'duplicate_package_name', `${operationPath}.package.name`, `Package name "${describeValue(operation.package.name)}" already exists.`, { operationKind: operation.kind });
 				}
 				validateLifecycleInsertionIndex(operation.atIndex, projected.packages.length, `${operationPath}.atIndex`, 'invalid_package_index', issues, operation.kind);
 				break;
@@ -452,7 +452,7 @@ export function validateLifecycleOperationPayloads(
 					pushSupportIssue(issues, 'invalid_package_payload', `${operationPath}.newName`, 'Package name must be a safe output path segment.', { operationKind: operation.kind });
 				}
 				if (pkg && projected.packages.some((candidate) => candidate !== pkg && candidate.name === operation.newName)) {
-					pushSupportIssue(issues, 'duplicate_package_name', `${operationPath}.newName`, `Package name "${operation.newName}" already exists.`, { operationKind: operation.kind });
+					pushSupportIssue(issues, 'duplicate_package_name', `${operationPath}.newName`, `Package name "${describeValue(operation.newName)}" already exists.`, { operationKind: operation.kind });
 				}
 				break;
 			}
@@ -465,7 +465,7 @@ export function validateLifecycleOperationPayloads(
 				if (pkg) {
 					validateComponentPayload(projected, pkg, operation.component, `${operationPath}.component`, issues, operation.kind);
 					if (pkg.resources.some((resource) => resource.id === operation.component.id)) {
-						pushSupportIssue(issues, 'duplicate_component_id', `${operationPath}.component.id`, `Resource id "${operation.component.id}" already exists in package "${pkg.id}".`, { operationKind: operation.kind });
+						pushSupportIssue(issues, 'duplicate_component_id', `${operationPath}.component.id`, `Resource id "${describeValue(operation.component.id)}" already exists in package "${describeValue(pkg.id)}".`, { operationKind: operation.kind });
 					}
 					validateLifecycleInsertionIndex(operation.atIndex, pkg.resources.length, `${operationPath}.atIndex`, 'invalid_component_index', issues, operation.kind);
 				}
@@ -479,14 +479,14 @@ export function validateLifecycleOperationPayloads(
 				const component = validateLifecycleComponentSelector(projected, operation.selector, `${operationPath}.selector`, issues, operation.kind);
 				const target = findPackageSpec(projected, operation.toPackageId);
 				if (!target) {
-					pushSupportIssue(issues, 'invalid_package_selector', `${operationPath}.toPackageId`, `Package "${operation.toPackageId}" was not found.`, { operationKind: operation.kind });
+					pushSupportIssue(issues, 'invalid_package_selector', `${operationPath}.toPackageId`, `Package "${describeValue(operation.toPackageId)}" was not found.`, { operationKind: operation.kind });
 				}
 				if (operation.selector.packageId === operation.toPackageId) {
 					pushSupportIssue(issues, 'invalid_component_move', `${operationPath}.toPackageId`, 'moveComponent requires a different destination package.', { operationKind: operation.kind });
 				}
 				if (component && target) {
 					if (target.resources.some((resource) => resource.id === component.id)) {
-						pushSupportIssue(issues, 'duplicate_component_id', `${operationPath}.selector.componentResourceId`, `Resource id "${component.id}" already exists in package "${target.id}".`, { operationKind: operation.kind });
+						pushSupportIssue(issues, 'duplicate_component_id', `${operationPath}.selector.componentResourceId`, `Resource id "${describeValue(component.id)}" already exists in package "${describeValue(target.id)}".`, { operationKind: operation.kind });
 					}
 					validateLifecycleInsertionIndex(operation.toIndex, target.resources.length, `${operationPath}.toIndex`, 'invalid_component_index', issues, operation.kind);
 				}
@@ -523,7 +523,7 @@ export function validateLifecycleOperationPayloads(
 						issues,
 						'invalid_resource_selector',
 						`${operationPath}.selector.resourceId`,
-						`Binary resource "${operation.selector.resourceId}" was not found in package "${operation.selector.packageId}".`,
+						`Binary resource "${describeValue(operation.selector.resourceId)}" was not found in package "${describeValue(operation.selector.packageId)}".`,
 						{ operationKind: operation.kind },
 					);
 				}
@@ -536,7 +536,7 @@ export function validateLifecycleOperationPayloads(
 					pushSupportIssue(issues, 'invalid_resource_folder_path', `${operationPath}.path`, 'Resource folder path must be canonical, non-root, and traversal-free.', { operationKind: operation.kind });
 				}
 				if (branch && (!isSafePackageName(branch) || !projected.branches.includes(branch))) {
-					pushSupportIssue(issues, 'invalid_resource_folder_path', `${operationPath}.branch`, `Resource folder branch "${branch}" is not defined by the project.`, { operationKind: operation.kind });
+					pushSupportIssue(issues, 'invalid_resource_folder_path', `${operationPath}.branch`, `Resource folder branch "${describeValue(branch)}" is not defined by the project.`, { operationKind: operation.kind });
 				}
 				validateResourceFolderAtlas(
 					operation.atlas === undefined ? '' : operation.atlas,
@@ -547,12 +547,12 @@ export function validateLifecycleOperationPayloads(
 				);
 				if (pkg && isSafeResourceFolderPath(operation.path)) {
 					if (!folderParentExists(pkg, branch, operation.path)) {
-						pushSupportIssue(issues, 'invalid_resource_folder_path', `${operationPath}.path`, `Parent folder "${resourceFolderParentPath(operation.path)}" does not exist.`, { operationKind: operation.kind });
+						pushSupportIssue(issues, 'invalid_resource_folder_path', `${operationPath}.path`, `Parent folder "${describeValue(resourceFolderParentPath(operation.path))}" does not exist.`, { operationKind: operation.kind });
 					}
 					if (pkg.folders.some((folder) => folder.branch === branch && folder.path === operation.path)
 						|| folderPathConflictsWithResource(pkg, branch, operation.path)
 					) {
-						pushSupportIssue(issues, 'resource_folder_conflict', `${operationPath}.path`, `Resource folder path "${operation.path}" already exists or conflicts with a resource.`, { operationKind: operation.kind });
+						pushSupportIssue(issues, 'resource_folder_conflict', `${operationPath}.path`, `Resource folder path "${describeValue(operation.path)}" already exists or conflicts with a resource.`, { operationKind: operation.kind });
 					}
 				}
 				break;
@@ -573,7 +573,7 @@ export function validateLifecycleOperationPayloads(
 							|| found.pkg.folders.some((folder) => folder.branch === branch && folder.path === destination)
 							|| folderPathConflictsWithResource(found.pkg, branch, destination)
 						) {
-							pushSupportIssue(issues, 'resource_folder_conflict', `${operationPath}.newName`, `Resource folder path "${destination}" already exists or conflicts with a resource.`, { operationKind: operation.kind });
+							pushSupportIssue(issues, 'resource_folder_conflict', `${operationPath}.newName`, `Resource folder path "${describeValue(destination)}" already exists or conflicts with a resource.`, { operationKind: operation.kind });
 						}
 					}
 				}
@@ -587,7 +587,7 @@ export function validateLifecycleOperationPayloads(
 				}
 				if (found && isSafeResourceFolderPath(operation.toPath, true)) {
 					if (operation.toPath !== '/' && !found.pkg.folders.some((folder) => folder.branch === branch && folder.path === operation.toPath)) {
-						pushSupportIssue(issues, 'invalid_resource_folder_path', `${operationPath}.toPath`, `Destination parent folder "${operation.toPath}" does not exist.`, { operationKind: operation.kind });
+						pushSupportIssue(issues, 'invalid_resource_folder_path', `${operationPath}.toPath`, `Destination parent folder "${describeValue(operation.toPath)}" does not exist.`, { operationKind: operation.kind });
 					}
 					if (operation.toPath.startsWith(found.folder.path)) {
 						pushSupportIssue(issues, 'invalid_resource_folder_path', `${operationPath}.toPath`, 'A resource folder cannot be moved into itself.', { operationKind: operation.kind });
@@ -600,7 +600,7 @@ export function validateLifecycleOperationPayloads(
 						|| found.pkg.folders.some((folder) => folder.branch === branch && folder.path === destination)
 						|| folderPathConflictsWithResource(found.pkg, branch, destination)
 					) {
-						pushSupportIssue(issues, 'resource_folder_conflict', `${operationPath}.toPath`, `Resource folder path "${destination}" already exists or conflicts with a resource.`, { operationKind: operation.kind });
+						pushSupportIssue(issues, 'resource_folder_conflict', `${operationPath}.toPath`, `Resource folder path "${describeValue(destination)}" already exists or conflicts with a resource.`, { operationKind: operation.kind });
 					}
 				}
 				break;
@@ -628,7 +628,7 @@ export function validateLifecycleOperationPayloads(
 				});
 				if (component && Number.isInteger(operation.atIndex) && operation.atIndex >= 0) {
 					if (component.component.displayList.some((node) => node.id === operation.node.id)) {
-						pushSupportIssue(issues, 'invalid_display_node_selector', `${operationPath}.node.id`, `Component "${component.id}" already contains display node id "${operation.node.id}".`, { operationKind: operation.kind });
+						pushSupportIssue(issues, 'invalid_display_node_selector', `${operationPath}.node.id`, `Component "${describeValue(component.id)}" already contains display node id "${describeValue(operation.node.id)}".`, { operationKind: operation.kind });
 					} else if (operation.atIndex > component.component.displayList.length) {
 						pushSupportIssue(issues, 'invalid_attach_index', `${operationPath}.atIndex`, `attachDisplayNode.atIndex must be between 0 and ${component.component.displayList.length}.`, { operationKind: operation.kind });
 					}
@@ -755,7 +755,7 @@ export function validateLifecycleBatchCompatibility(
 		issues,
 		'unsupported_operation_batch',
 		`operations[${nonLifecycleIndex}].kind`,
-		`Lifecycle operations may only be batched with resource lifecycle operations, display-list rewrites, or display-node property updates; "${operation.kind}" must be committed separately.`,
+		`Lifecycle operations may only be batched with resource lifecycle operations, display-list rewrites, or display-node property updates; "${describeValue(operation.kind)}" must be committed separately.`,
 		{ operationKind: operation.kind },
 	);
 	return false;

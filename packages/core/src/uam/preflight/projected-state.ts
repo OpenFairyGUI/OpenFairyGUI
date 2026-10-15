@@ -11,6 +11,7 @@ import {
 } from '../transaction-shared.js';
 import { applyUamNativeOperations } from '../transaction-uam-apply.js';
 import { pushSupportIssue } from './support.js';
+import { describeValue } from './values.js';
 
 interface ProjectedResourceReferenceIssue {
 	key: string;
@@ -64,7 +65,7 @@ function collectProjectedResourceReferenceIssues(project: UamProject): Projected
 		issues.push({
 			key,
 			path,
-			message: `Resource reference "${packageId}/${resourceId}" must target ${expectedKinds.join(' or ')}.`,
+			message: `Resource reference "${describeValue(packageId)}/${describeValue(resourceId)}" must target ${expectedKinds.join(' or ')}.`,
 		});
 	};
 	const pushMissingUi = (
@@ -80,7 +81,7 @@ function collectProjectedResourceReferenceIssues(project: UamProject): Projected
 		issues.push({
 			key,
 			path,
-			message: `Resource reference "${value}" must target ${expectedKinds.join(' or ')}.`,
+			message: `Resource reference "${describeValue(value)}" must target ${expectedKinds.join(' or ')}.`,
 		});
 	};
 	const componentKinds = ['component'] as const;
@@ -91,11 +92,11 @@ function collectProjectedResourceReferenceIssues(project: UamProject): Projected
 	for (const pkg of project.packages) {
 		for (const resource of pkg.resources) {
 			if (resource.kind === 'font') {
-				const textureId = `${resource.metadata?.textureId ?? ''}`;
+				const textureId = describeValue(resource.metadata?.textureId ?? '');
 				if (textureId) {
 					pushMissing(
-						`${pkg.id}/${resource.id}/metadata.textureId`,
-						`packages.${pkg.id}.resources.${resource.id}.metadata.textureId`,
+						`${describeValue(pkg.id)}/${describeValue(resource.id)}/metadata.textureId`,
+						`packages.${describeValue(pkg.id)}.resources.${describeValue(resource.id)}.metadata.textureId`,
 						pkg.id,
 						textureId,
 						['image'],
@@ -108,8 +109,8 @@ function collectProjectedResourceReferenceIssues(project: UamProject): Projected
 					: [];
 				for (const [requireIndex, requireId] of requireIds.entries()) {
 					pushMissing(
-						`${pkg.id}/${resource.id}/metadata.requireIds/${requireId}`,
-						`packages.${pkg.id}.resources.${resource.id}.metadata.requireIds.${requireIndex}`,
+						`${describeValue(pkg.id)}/${describeValue(resource.id)}/metadata.requireIds/${describeValue(requireId)}`,
+						`packages.${describeValue(pkg.id)}.resources.${describeValue(resource.id)}.metadata.requireIds.${requireIndex}`,
 						pkg.id,
 						requireId,
 						binaryKinds,
@@ -117,7 +118,7 @@ function collectProjectedResourceReferenceIssues(project: UamProject): Projected
 				}
 			}
 			if (resource.kind !== 'component') continue;
-			const componentPath = `packages.${pkg.id}.resources.${resource.id}.component`;
+			const componentPath = `packages.${describeValue(pkg.id)}.resources.${describeValue(resource.id)}.component`;
 			const componentRefs = [
 				['vtScrollBarRes', resource.component.properties.vtScrollBarRes],
 				['hzScrollBarRes', resource.component.properties.hzScrollBarRes],
@@ -127,35 +128,35 @@ function collectProjectedResourceReferenceIssues(project: UamProject): Projected
 			] as const;
 			for (const [field, value] of componentRefs) {
 				pushMissingUi(
-					`${pkg.id}/${resource.id}/properties/${field}`,
+					`${describeValue(pkg.id)}/${describeValue(resource.id)}/properties/${field}`,
 					`${componentPath}.properties.${field}`,
 					value,
 					componentKinds,
 				);
 			}
 			pushMissingUi(
-				`${pkg.id}/${resource.id}/properties/sound`,
+				`${describeValue(pkg.id)}/${describeValue(resource.id)}/properties/sound`,
 				`${componentPath}.properties.sound`,
 				resource.component.properties.sound,
 				['sound'],
 			);
 			pushMissingUi(
-				`${pkg.id}/${resource.id}/properties/designImage`,
+				`${describeValue(pkg.id)}/${describeValue(resource.id)}/properties/designImage`,
 				`${componentPath}.properties.designImage`,
 				resource.component.properties.designImage,
 				['image'],
 			);
 			for (const field of ['showSound', 'hideSound'] as const) {
 				pushMissingUi(
-					`${pkg.id}/${resource.id}/properties/${field}`,
+					`${describeValue(pkg.id)}/${describeValue(resource.id)}/properties/${field}`,
 					`${componentPath}.properties.${field}`,
 					resource.component.properties[field],
 					['sound'],
 				);
 			}
 			for (const node of resource.component.displayList) {
-				const nodeKey = `${pkg.id}/${resource.id}/${node.id}`;
-				const nodePath = `packages.${pkg.id}.resources.${resource.id}.component.displayList.${node.id}`;
+				const nodeKey = `${describeValue(pkg.id)}/${describeValue(resource.id)}/${describeValue(node.id)}`;
+				const nodePath = `packages.${describeValue(pkg.id)}.resources.${describeValue(resource.id)}.component.displayList.${describeValue(node.id)}`;
 				if (node.kind === 'image' && node.resource.resourceId) {
 					pushMissing(
 						`${nodeKey}/resource`,
@@ -261,7 +262,7 @@ function collectProjectedResourceReferenceIssues(project: UamProject): Projected
 					for (const [field, value] of [['startValue', item.startValue], ['endValue', item.endValue]] as const) {
 						for (const [referenceIndex, reference] of collectUiReferences(value).entries()) {
 							pushMissingUi(
-								`${pkg.id}/${resource.id}/transitions/${transitionIndex}/${itemIndex}/${field}/${reference}`,
+								`${describeValue(pkg.id)}/${describeValue(resource.id)}/transitions/${transitionIndex}/${itemIndex}/${field}/${reference}`,
 								`${componentPath}.transitions.${transitionIndex}.items.${itemIndex}.${field}.${referenceIndex}`,
 								reference,
 								resourceKinds,

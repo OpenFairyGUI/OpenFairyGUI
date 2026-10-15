@@ -7,6 +7,7 @@ import {
 	validateTransactionSupport,
 	type UamProject,
 	type UamTransactionOperation,
+	type UamTransactionSupportIssueCode,
 } from '../src/index.js';
 import {
 	createControllerModel,
@@ -239,4 +240,70 @@ test('malformed nested payload containers are reported by their owning domain ch
 	// Same-batch readers skip a malformed earlier payload; its own operation reports it.
 	const malformedController = { ...VALID_OPERATIONS.updateController, controller: { ...createControllerModel('state'), pages: 'x' } };
 	assertRejectedWithoutCrash(t, [malformedController, VALID_OPERATIONS.updateGear], 'controller then gear');
+});
+
+/** Valid JSON that structured clone keeps, but whose string conversion throws. */
+const unconvertible = () => ({ toString: null, valueOf: null });
+
+test('an unconvertible kind is reported at its path by support checks and both apply paths', async (t) => {
+	const operations = [{ kind: unconvertible() }] as unknown as UamTransactionOperation[];
+	const before = structuredClone(project);
+	let issues: ReturnType<typeof validateTransactionSupport> = [];
+	t.notThrows(() => { issues = validateTransactionSupport(project, operations); });
+	t.deepEqual(issues.map(({ code, path, message }) => ({ code, path, message })), [{
+		code: 'unsupported_operation',
+		path: 'operations[0].kind',
+		message: 'Transaction operation kind must be a string; received object.',
+	}]);
+	const syncError = t.throws(() => applyUamTransaction(project, operations), { instanceOf: UamTransactionError });
+	const asyncError = await t.throwsAsync(applyUamTransactionAsync(project, operations), { instanceOf: UamTransactionError });
+	for (const error of [syncError, asyncError]) {
+		t.is(error?.code, 'transaction_unsupported');
+		t.like(error?.issues?.[0], { code: 'unsupported_operation', path: 'operations[0].kind' });
+	}
+	t.deepEqual(project, before);
+});
+
+test('unconvertible values inside payloads are reported without converting them', (t) => {
+	const cases: Array<[unknown, UamTransactionSupportIssueCode, string]> = [
+		[{ ...VALID_OPERATIONS.addController, controller: { ...createControllerModel('c2'), homePageType: unconvertible() } }, 'invalid_controller_payload', 'operations[0].controller.homePageType'],
+		[{ ...VALID_OPERATIONS.addController, controller: { ...createControllerModel('c2'), selectedIndex: unconvertible() } }, 'invalid_controller_payload', 'operations[0].controller.selectedIndex'],
+		[{ ...VALID_OPERATIONS.attachDisplayNode, node: { ...textNode, kind: unconvertible() } }, 'unsupported_display_node_kind', 'operations[0].node.kind'],
+		[{ ...VALID_OPERATIONS.attachDisplayNode, node: { ...textNode, id: unconvertible() } }, 'invalid_display_node_payload', 'operations[0].node.id'],
+		[{ ...VALID_OPERATIONS.addComponent, component: { ...createLifecycleComponent('cmp009', 'Popup9'), id: unconvertible() } }, 'invalid_component_payload', 'operations[0].component.id'],
+		[{ ...VALID_OPERATIONS.addResource, resource: { ...VALID_OPERATIONS.addResource.resource, kind: unconvertible() } }, 'unsupported_resource_kind', 'operations[0].resource.kind'],
+		[{ ...VALID_OPERATIONS.addResource, resource: { ...VALID_OPERATIONS.addResource.resource, branch: unconvertible() } }, 'invalid_resource_payload', 'operations[0].resource.branch'],
+	];
+	for (const [operation, code, path] of cases) {
+		assertRejectedWithoutCrash(t, [operation], path);
+		const issue = issuesFor([operation]).find((candidate) => candidate.path === path);
+		t.is(issue?.code, code, path);
+		// Kind details are typed strings; a caller object is never copied into a diagnostic.
+		t.false(issue !== undefined && Object.values(issue).some((value) => typeof value === 'object'), path);
+	}
+});
+
+test('literal selector kinds only accept their contract values', (t) => {
+	const lookSelector = VALID_OPERATIONS.removeLookGear.selector;
+	// The XY gear on n1 shares the look selector's controller; a look operation must not reach it.
+	const wrongLook = { kind: 'removeLookGear', selector: { ...lookSelector, displayNodeId: 'n1', kind: 'xy' } };
+	t.like(issuesFor([wrongLook])[0], {
+		code: 'invalid_operation_payload',
+		path: 'operations[0].selector.kind',
+		message: 'removeLookGear.selector.kind must be one of "look".',
+	});
+	const error = t.throws(() => applyUamTransaction(project, [wrongLook as never]), { instanceOf: UamTransactionError });
+	t.is(error?.code, 'transaction_unsupported');
+	t.true(cmp001.component.displayList[1]!.gears.some((gear) => gear.kind === 'xy'));
+	for (const kind of ['addLookGear', 'updateLookGear'] as const) {
+		t.like(issuesFor([{ ...VALID_OPERATIONS[kind], selector: { ...VALID_OPERATIONS[kind].selector, kind: 'xy' } }])[0], {
+			code: 'invalid_operation_payload',
+			path: 'operations[0].selector.kind',
+		}, kind);
+	}
+	for (const kind of ['addGear', 'updateGear', 'removeGear'] as const) {
+		const operation = { ...VALID_OPERATIONS[kind], selector: { ...VALID_OPERATIONS[kind].selector, kind: 'bogus' } };
+		t.like(issuesFor([operation])[0], { code: 'invalid_operation_payload', path: 'operations[0].selector.kind' }, kind);
+		t.throws(() => applyUamTransaction(project, [operation as never]), { instanceOf: UamTransactionError }, kind);
+	}
 });

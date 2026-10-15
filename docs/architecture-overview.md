@@ -80,7 +80,7 @@ ProjectWriter 在写盘前构建一次包/分支输出描述，固定描述文�
 | `lifecycle.ts` | 在同一工作副本中按顺序投影分支、包、组件、资源、目录及显示列表重写 |
 | `projected-state.ts` | 最终 group / 资源引用，以及未触及的既有问题边界 |
 
-外形表由 `transaction-contracts.ts` 的类型推导约束，字段集合、可选性或类型漂移会导致类型检查失败；任一操作外形不符时返回 `invalid_operation_payload` 并停止后续阶段，因为同批投影会读取其他操作。快照载荷（包、组件、资源、显示节点）先由所属领域检查容器，再交给 Core 规范化；无法规范化的载荷在该载荷路径上报告。事务执行中出现的非 `UamTransactionError` 异常统一转为 `execution_failure`，不会作为原始异常抛给宿主。
+外形表由 `transaction-contracts.ts` 的类型推导约束，字段集合、可选性或类型漂移会导致类型检查失败；字面量类型字段（如 gear selector 的 `kind`）必须用列出全部且仅有合法值的规则，gear 种类取自 `UAM_SUPPORTED_TRANSACTION_SCOPE`；任一操作外形不符时返回 `invalid_operation_payload` 并停止后续阶段，因为同批投影会读取其他操作。快照载荷（包、组件、资源、显示节点）先由所属领域检查容器，再交给 Core 规范化；无法规范化的载荷在该载荷路径上报告。诊断消息不对调用方的值做字符串转换（`describeValue`），载荷中的对象值不会让校验本身抛出。事务执行中出现的非 `UamTransactionError` 异常统一转为 `execution_failure`，不会作为原始异常抛给宿主。
 
 生命周期投影复用实际 UAM apply helper，不另建执行器。领域函数不能各自遍历并重排整个批次；错误码、路径、诊断顺序与失败不修改输入必须保持。`uam-transaction-support.test.ts`、`uam-transaction-apply.test.ts`、`uam-transaction-lifecycle.test.ts` 覆盖这些职责和跨域批次。
 

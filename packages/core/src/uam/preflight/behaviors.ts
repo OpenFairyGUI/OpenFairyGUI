@@ -19,7 +19,7 @@ import type {
 import { findComponentSpec, findDisplayNodeSpec } from '../transaction-shared.js';
 import { isValidUamXYGearValue } from '../validate.js';
 import { gearContainerIssue, type PayloadContainerIssue, pushSupportIssue, validateTouchedDisplayNodeKind } from './support.js';
-import { isRecordArray, isStringArray } from './values.js';
+import { isRecordArray, isStringArray, describeValue } from './values.js';
 
 /** Containers that behavior checks and same-batch projections iterate; values keep their domain checks. */
 function controllerContainerIssue(controller: UamControllerModel): PayloadContainerIssue | null {
@@ -122,7 +122,7 @@ function validateUniquePageIds(
 				issues,
 				'invalid_controller_payload',
 				`${path}.pages[${pageIndex}].id`,
-				`Duplicate controller page id "${page.id}".`,
+				`Duplicate controller page id "${describeValue(page.id)}".`,
 				{ operationKind },
 			);
 		}
@@ -167,7 +167,7 @@ function validateControllerPayload(
 		);
 	}
 	validateUniquePageIds(controller.pages, `${path}.controller`, issues, operationKind);
-	if (controller.selectedIndex < 0 || controller.selectedIndex >= controller.pages.length) {
+	if (!Number.isInteger(controller.selectedIndex) || controller.selectedIndex < 0 || controller.selectedIndex >= controller.pages.length) {
 		pushSupportIssue(
 			issues,
 			'invalid_controller_payload',
@@ -187,15 +187,15 @@ function validateControllerPayload(
 		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.exported`, 'Controller exported must be boolean.', { operationKind });
 	}
 	if (!['default', 'specific', 'branch', 'variable'].includes(controller.homePageType)) {
-		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.homePageType`, `Unknown controller home page type "${controller.homePageType}".`, { operationKind });
+		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.homePageType`, `Unknown controller home page type "${describeValue(controller.homePageType)}".`, { operationKind });
 	} else if (typeof controller.homePage !== 'string') {
 		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.homePage`, 'Controller homePage must be a string.', { operationKind });
 	} else if (controller.homePageType === 'specific' && !pageIds.has(controller.homePage)) {
-		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.homePage`, `Unknown controller home page id "${controller.homePage}".`, { operationKind });
+		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.homePage`, `Unknown controller home page id "${describeValue(controller.homePage)}".`, { operationKind });
 	} else if (controller.homePageType === 'variable' && !controller.homePage) {
 		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.homePage`, 'Variable controller home page requires a custom property key.', { operationKind });
 	} else if ((controller.homePageType === 'default' || controller.homePageType === 'branch') && controller.homePage) {
-		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.homePage`, `Controller home page must be empty for "${controller.homePageType}".`, { operationKind });
+		pushSupportIssue(issues, 'invalid_controller_payload', `${path}.controller.homePage`, `Controller home page must be empty for "${describeValue(controller.homePageType)}".`, { operationKind });
 	}
 	for (const [actionIndex, action] of controller.actions.entries()) {
 		for (const pageId of action.fromPageIds) {
@@ -204,7 +204,7 @@ function validateControllerPayload(
 					issues,
 					'invalid_controller_payload',
 					`${path}.controller.actions[${actionIndex}].fromPageIds`,
-					`Unknown controller page id "${pageId}".`,
+					`Unknown controller page id "${describeValue(pageId)}".`,
 					{ operationKind },
 				);
 			}
@@ -215,7 +215,7 @@ function validateControllerPayload(
 					issues,
 					'invalid_controller_payload',
 					`${path}.controller.actions[${actionIndex}].toPageIds`,
-					`Unknown controller page id "${pageId}".`,
+					`Unknown controller page id "${describeValue(pageId)}".`,
 					{ operationKind },
 				);
 			}
@@ -315,7 +315,7 @@ function validateUpdatedControllerGearBindings(
 				issues,
 				'invalid_controller_payload',
 				`${path}.controller.pages`,
-				`Unknown gear page id "${pageId}"; controller page ids would leave the ${gear.kind} gear on display node "${displayNodeId}" invalid.`,
+				`Unknown gear page id "${describeValue(pageId)}"; controller page ids would leave the ${describeValue(gear.kind)} gear on display node "${describeValue(displayNodeId)}" invalid.`,
 				{ operationKind: 'updateController', gearKind: gear.kind },
 			);
 		}
@@ -389,7 +389,7 @@ function validateGearSelector(
 			issues,
 			'invalid_gear_selector',
 			`${path}.kind`,
-			`Unsupported gear selector kind "${selector.kind}".`,
+			`Unsupported gear selector kind "${describeValue(selector.kind)}".`,
 			{ operationKind, gearKind: selector.kind },
 		);
 	}
@@ -399,7 +399,7 @@ function validateGearSelector(
 		issues,
 		'invalid_gear_selector',
 		`${path}.controllerName`,
-		`Unknown gear controller "${selector.controllerName}".`,
+		`Unknown gear controller "${describeValue(selector.controllerName)}".`,
 		{ operationKind, gearKind: selector.kind },
 	);
 	return null;
@@ -460,7 +460,7 @@ function validateGearPayload(
 				issues,
 				'invalid_gear_payload',
 				statePath,
-				`Unknown controller page id "${pageId}".`,
+				`Unknown controller page id "${describeValue(pageId)}".`,
 				{ operationKind, gearKind: gear.kind },
 			);
 		}
@@ -469,7 +469,7 @@ function validateGearPayload(
 				issues,
 				gear.kind === 'look' ? 'duplicate_look_gear_state_page' : 'duplicate_gear_state_page',
 				statePath,
-				`Duplicate gear state page id "${pageId}".`,
+				`Duplicate gear state page id "${describeValue(pageId)}".`,
 				{ operationKind, gearKind: gear.kind },
 			);
 		}
@@ -538,7 +538,7 @@ function validateExistingGear(
 		issues,
 		'invalid_gear_selector',
 		path,
-		`No ${selector.kind} gear exists for controller "${selector.controllerName}" on this display node.`,
+		`No ${selector.kind} gear exists for controller "${describeValue(selector.controllerName)}" on this display node.`,
 		{ operationKind, gearKind: selector.kind },
 	);
 }

@@ -22,7 +22,7 @@ import {
 	findProjectedResource,
 } from '../transaction-shared.js';
 import { normalizeDisplayNode } from '../normalize.js';
-import { isPlainRecord, isRecordArray, isStringArray } from './values.js';
+import { isPlainRecord, isRecordArray, isStringArray, describeValue } from './values.js';
 
 export function pushSupportIssue(
 	issues: UamTransactionSupportIssue[],
@@ -31,7 +31,8 @@ export function pushSupportIssue(
 	message: string,
 	details: Omit<Partial<UamTransactionSupportIssue>, 'code' | 'path' | 'message'> = {},
 ): void {
-	issues.push({ code, path, message, ...details });
+	const safeDetails = Object.fromEntries(Object.entries(details).filter(([, value]) => value === undefined || typeof value === 'string'));
+	issues.push({ code, path, message, ...safeDetails });
 }
 
 function countDuplicateNames(values: string[]): Set<string> {
@@ -84,6 +85,10 @@ export function validateDisplayNodePayload(
 	issues: UamTransactionSupportIssue[],
 	details: Omit<Partial<UamTransactionSupportIssue>, 'code' | 'path' | 'message' | 'nodeKind' | 'gearKind'> = {},
 ): void {
+	if (isPlainRecord(node) && (typeof node.id !== 'string' || !node.id)) {
+		pushSupportIssue(issues, 'invalid_display_node_payload', `${path}.id`, 'Display node id must be a non-empty string.', details);
+		return;
+	}
 	const issueCount = issues.length;
 	validateSupportedDisplayNode(node, owningPackageId, path, issues, details);
 	// Precise container issues come first; normalization covers the remaining model structure.
@@ -110,7 +115,7 @@ export function validateSupportedDisplayNode(
 			issues,
 			'unsupported_display_node_kind',
 			`${path}.kind`,
-			`Phase A does not support display node kind "${node.kind}".`,
+			`Phase A does not support display node kind "${describeValue(node.kind)}".`,
 			{ ...details, nodeKind: node.kind },
 		);
 	}
@@ -122,7 +127,7 @@ export function validateSupportedDisplayNode(
 			issues,
 			'unsupported_cross_package_image_ref',
 			`${path}.resource.packageId`,
-			`Phase A does not support cross-package image refs on supported image nodes ("${node.resource.packageId}" != "${owningPackageId}").`,
+			`Phase A does not support cross-package image refs on supported image nodes ("${describeValue(node.resource.packageId)}" != "${describeValue(owningPackageId)}").`,
 			{ ...details, nodeKind: node.kind },
 		);
 	}
@@ -143,7 +148,7 @@ export function validateSupportedDisplayNode(
 				issues,
 				'unsupported_gear_kind',
 				`${path}.gears[${gearIndex}]`,
-				`Phase A does not support gear kind "${gear.kind}".`,
+				`Phase A does not support gear kind "${describeValue(gear.kind)}".`,
 				{ ...details, nodeKind: node.kind, gearKind: gear.kind },
 			);
 			continue;
@@ -153,7 +158,7 @@ export function validateSupportedDisplayNode(
 				issues,
 				gear.kind === 'look' ? 'duplicate_look_gear_controller' : 'duplicate_gear_controller',
 				`${path}.gears[${gearIndex}]`,
-				`A display node may only have one ${gear.kind} gear, regardless of its controller.`,
+				`A display node may only have one ${describeValue(gear.kind)} gear, regardless of its controller.`,
 				{ ...details, nodeKind: node.kind, gearKind: gear.kind },
 			);
 		}
@@ -170,7 +175,7 @@ export function validateBaselineSupport(project: UamProject, issues: UamTransact
 					issues,
 					'unsupported_resource_kind',
 					`${resourcePath}.kind`,
-					`Phase A does not support resource kind "${resource.kind}".`,
+					`Phase A does not support resource kind "${describeValue(resource.kind)}".`,
 					{ resourceKind: resource.kind },
 				);
 				continue;
@@ -184,7 +189,7 @@ export function validateBaselineSupport(project: UamProject, issues: UamTransact
 					issues,
 					'duplicate_transition_name',
 					`${resourcePath}.component.transitions`,
-					`Phase A requires transition names to be unique within a component ("${duplicateName}").`,
+					`Phase A requires transition names to be unique within a component ("${describeValue(duplicateName)}").`,
 				);
 			}
 
@@ -227,7 +232,7 @@ export function validateTouchedResourceKind(
 		issues,
 		'unsupported_resource_mutation',
 		path,
-		`Phase A does not support ${resource.kind} resource mutation ("${selector.packageId}/${selector.resourceId}").`,
+		`Phase A does not support ${describeValue(resource.kind)} resource mutation ("${selector.packageId}/${selector.resourceId}").`,
 		{ operationKind, resourceKind: resource.kind },
 	);
 }
@@ -245,7 +250,7 @@ export function validateTouchedDisplayNodeKind(
 			issues,
 			'invalid_display_node_selector',
 			path,
-			`Display node "${selector.displayNodeId}" does not exist in component "${selector.componentResourceId}".`,
+			`Display node "${describeValue(selector.displayNodeId)}" does not exist in component "${describeValue(selector.componentResourceId)}".`,
 			{ operationKind },
 		);
 		return null;
@@ -255,7 +260,7 @@ export function validateTouchedDisplayNodeKind(
 			issues,
 			'unsupported_display_node_mutation',
 			path,
-			`Phase A does not support ${found.node.kind} display node mutation ("${selector.displayNodeId}").`,
+			`Phase A does not support ${describeValue(found.node.kind)} display node mutation ("${describeValue(selector.displayNodeId)}").`,
 			{ operationKind, nodeKind: found.node.kind },
 		);
 	}
@@ -275,7 +280,7 @@ export function validateLifecyclePackageSelector(
 		issues,
 		'invalid_package_selector',
 		`${path}.packageId`,
-		`Package "${selector.packageId}" was not found.`,
+		`Package "${describeValue(selector.packageId)}" was not found.`,
 		{ operationKind },
 	);
 	return null;
@@ -294,7 +299,7 @@ export function validateLifecycleComponentSelector(
 		issues,
 		'invalid_component_selector',
 		`${path}.componentResourceId`,
-		`Component "${selector.componentResourceId}" was not found in package "${selector.packageId}".`,
+		`Component "${describeValue(selector.componentResourceId)}" was not found in package "${describeValue(selector.packageId)}".`,
 		{ operationKind },
 	);
 	return null;

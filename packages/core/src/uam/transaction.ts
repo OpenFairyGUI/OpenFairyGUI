@@ -118,7 +118,11 @@ export async function applyUamTransactionAsync(
 	operations: UamTransactionOperation[],
 ): Promise<UamProject> {
 	// Byte preparation reads operations before Phase A, so it needs the contract envelope first.
-	assertTransactionOperationShapes(operations);
+	try {
+		assertTransactionOperationShapes(operations);
+	} catch (error) {
+		throw asExecutionFailure(error);
+	}
 	if (typeof Worker !== 'function' || !operations.some((operation) => operation.kind === 'replaceResourceBytes'))
 		return applyUamTransaction(project, operations);
 	const safeProject = normalizeUamProject(project);

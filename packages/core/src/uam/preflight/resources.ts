@@ -20,7 +20,7 @@ import {
 } from '../transaction-shared.js';
 import { normalizationFailure, pushSupportIssue, validateTouchedResourceKind } from './support.js';
 import { normalizeResource } from '../normalize.js';
-import { isSafeResourceFileName, isSafeResourcePath } from './values.js';
+import { isSafeResourceFileName, isSafeResourcePath, describeValue } from './values.js';
 
 export function primaryResourceFileName(resource: UamAssetResource): string {
 	return resource.fileName ?? ('file' in resource ? resource.file : '') ?? '';
@@ -79,6 +79,11 @@ export function validateAssetResourcePayload(
 ): void {
 	const pkg = findPackageSpec(project, selector.packageId);
 	if (!pkg) return;
+	// Branch keys the package folder projection, so it must be a string before normalization.
+	if (resource.branch !== undefined && typeof resource.branch !== 'string') {
+		pushSupportIssue(issues, 'invalid_resource_payload', `${path}.resource.branch`, 'Added binary resource branch must be a string.', { operationKind });
+		return;
+	}
 	const failure = normalizationFailure(() => normalizeResource(resource));
 	if (failure) {
 		pushSupportIssue(
@@ -95,16 +100,16 @@ export function validateAssetResourcePayload(
 			issues,
 			'unsupported_resource_kind',
 			`${path}.resource.kind`,
-			`Unsupported resource kind "${resource.kind}".`,
+			`Unsupported resource kind "${describeValue(resource.kind)}".`,
 			{ operationKind, resourceKind: resource.kind },
 		);
 	}
-	if (!resource.id) {
+	if (typeof resource.id !== 'string' || !resource.id) {
 		pushSupportIssue(
 			issues,
 			'invalid_resource_payload',
 			`${path}.resource.id`,
-			'Added binary resource id must not be empty.',
+			'Added binary resource id must be a non-empty string.',
 			{ operationKind, resourceKind: resource.kind },
 		);
 	} else if (findProjectedResource(project, operations, operationIndex, {
@@ -115,7 +120,7 @@ export function validateAssetResourcePayload(
 			issues,
 			'duplicate_resource_id',
 			`${path}.resource.id`,
-			`Resource id "${resource.id}" already exists in package "${selector.packageId}".`,
+			`Resource id "${describeValue(resource.id)}" already exists in package "${describeValue(selector.packageId)}".`,
 			{ operationKind, resourceKind: resource.kind },
 		);
 	}
@@ -328,7 +333,7 @@ export function validateResourceOperation(
 				issues,
 				'unsupported_resource_mutation',
 				`${operationPath}.sourceBytes`,
-				`replaceResourceBytes only supports PNG and JPEG image sources; "${fileName}" is unsupported.`,
+				`replaceResourceBytes only supports PNG and JPEG image sources; "${describeValue(fileName)}" is unsupported.`,
 				{ operationKind: operation.kind, resourceKind: resource.kind },
 			);
 			break;
@@ -350,7 +355,7 @@ export function validateResourceOperation(
 				'invalid_resource_bytes',
 				`${operationPath}.sourceBytes`,
 				imageInfo
-					? `Image replacement format "${imageInfo.format}" does not match source file "${fileName}".`
+					? `Image replacement format "${describeValue(imageInfo.format)}" does not match source file "${describeValue(fileName)}".`
 					: 'Image replacement bytes are not a structurally valid PNG or JPEG source.',
 				{ operationKind: operation.kind, resourceKind: resource.kind },
 			);
@@ -366,7 +371,7 @@ export function validateResourceOperation(
 						issues,
 						'unsupported_resource_mutation',
 						`${operationPath}.sourceBytes`,
-						`replaceResourceBytes only supports PNG and JPEG image sources; "${finalFileName}" is unsupported.`,
+						`replaceResourceBytes only supports PNG and JPEG image sources; "${describeValue(finalFileName)}" is unsupported.`,
 						{ operationKind: operation.kind, resourceKind: resource.kind },
 					);
 				} else if (imageInfo.format !== finalFormat) {
@@ -374,7 +379,7 @@ export function validateResourceOperation(
 						issues,
 						'invalid_resource_bytes',
 						`${operationPath}.sourceBytes`,
-						`Image replacement format "${imageInfo.format}" does not match final source file "${finalFileName}".`,
+						`Image replacement format "${describeValue(imageInfo.format)}" does not match final source file "${describeValue(finalFileName)}".`,
 						{ operationKind: operation.kind, resourceKind: resource.kind },
 					);
 				}

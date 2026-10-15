@@ -1,4 +1,4 @@
-export { hasExactKeys } from '../property-rules/values.js';
+export { describeValue, hasExactKeys } from '../property-rules/values.js';
 
 export function isFiniteNumber(value: unknown): value is number {
 	return typeof value === 'number' && Number.isFinite(value);
