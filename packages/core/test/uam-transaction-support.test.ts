@@ -1191,13 +1191,29 @@ test('graph, loader, list, and tree property snapshots survive transaction lifec
 	}]);
 	t.deepEqual(unchangedTreeIssues.map((issue) => issue.code), ['display_node_props_unchanged']);
 
-	const invalidTreeClickValues = [-1, 3, 1.5, true, '2', null] as const;
-	const invalidPayloadIssues = validateTransactionSupport(project, [
+	const treeClick = (clickToExpand: unknown) => ({
+		kind: 'setDisplayNodeProps' as const,
+		selector: selector(tree.id),
+		props: {
+			listProperties: { ...updatedTree, clickToExpand: clickToExpand as number },
+		},
+	});
+	// Undeclared fields and wrong types are structural: reported at their field before any semantic stage.
+	const structuralIssues = validateTransactionSupport(project, [
 		{
 			kind: 'setDisplayNodeProps',
 			selector: selector(graph.id),
 			props: { graphProperties: { ...updatedGraph, pivot: { x: 0, y: 0 } } as UamGraphProperties },
 		},
+		...[true, '2', null].map(treeClick),
+	]);
+	t.deepEqual(structuralIssues.map(({ code, path }) => [code, path]), [
+		['invalid_display_node_payload', 'operations[0].props.graphProperties.pivot'],
+		['invalid_display_node_payload', 'operations[1].props.listProperties.clickToExpand'],
+		['invalid_display_node_payload', 'operations[2].props.listProperties.clickToExpand'],
+		['invalid_display_node_payload', 'operations[3].props.listProperties.clickToExpand'],
+	]);
+	const invalidPayloadIssues = validateTransactionSupport(project, [
 		{
 			kind: 'setDisplayNodeProps',
 			selector: selector(loader.id),
@@ -1218,15 +1234,9 @@ test('graph, loader, list, and tree property snapshots survive transaction lifec
 			selector: selector(tree.id),
 			props: { listProperties: { ...updatedTree, scrollBarDisplay: 4 } },
 		},
-		...invalidTreeClickValues.map((clickToExpand) => ({
-			kind: 'setDisplayNodeProps' as const,
-			selector: selector(tree.id),
-			props: {
-				listProperties: { ...updatedTree, clickToExpand: clickToExpand as number },
-			},
-		})),
+		...[-1, 3, 1.5].map(treeClick),
 	]);
-	t.is(invalidPayloadIssues.filter((issue) => issue.code === 'invalid_display_node_payload').length, 10);
+	t.is(invalidPayloadIssues.filter((issue) => issue.code === 'invalid_display_node_payload').length, 6);
 
 	const mixed = await roundTripCommittedProject(applyUamTransaction(project, [
 		forward[0]!,
@@ -1721,4 +1731,39 @@ test('assertTransactionSupported rejects duplicate transition names and duplicat
 		() => assertTransactionSupported(duplicateLookGearProject),
 		{ instanceOf: UamTransactionError },
 	);
+});
+
+test('list and tree controller references that are not strings are rejected at preflight', (t) => {
+	const source = createSupportedProject();
+	const owner = source.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
+	if (owner?.kind !== 'component') {
+		t.fail('expected component resource');
+		return;
+	}
+	const list: UamDisplayNode = { kind: 'list', ...createListNodeBase('list-refs', 'list', 32) };
+	const tree: UamDisplayNode = { kind: 'tree', ...createListNodeBase('tree-refs', 'tree', 48), treeView: true, indent: 30, clickToExpand: 0 };
+	owner.component.displayList.push(list, tree);
+	const project = normalizeUamProject(source);
+	const before = structuredClone(project);
+	const component = { packageId: 'pkg001', componentResourceId: 'cmp001' };
+	for (const field of ['pageController', 'controllerOverrides', 'selectionController'] as const) {
+		for (const node of [list, tree]) {
+			// These used to pass preflight and fail during apply as execution_failure.
+			const cases: Array<[unknown, string]> = [
+				[{ kind: 'attachDisplayNode', selector: component, atIndex: 0, node: { ...structuredClone(node), id: `${node.id}-copy`, [field]: { name: 'state' } } }, `operations[0].node.${field}`],
+				[{
+					kind: 'setDisplayNodeProps',
+					selector: { ...component, displayNodeId: node.id },
+					props: { listProperties: { ...readSpecificProperties<UamListProperties>(node), [field]: { name: 'state' } } },
+				}, `operations[0].props.listProperties.${field}`],
+			];
+			for (const [operation, path] of cases) {
+				const label = `${node.kind} ${path}`;
+				t.deepEqual(validateTransactionSupport(project, [operation as never]).map(({ code, path }) => [code, path]), [['invalid_display_node_payload', path]], label);
+				const error = t.throws(() => applyUamTransaction(project, [operation as never]), { instanceOf: UamTransactionError }, label);
+				t.is(error?.code, 'transaction_unsupported', label);
+			}
+		}
+	}
+	t.deepEqual(project, before);
 });

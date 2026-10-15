@@ -18,38 +18,8 @@ import type {
 } from '../transaction-contracts.js';
 import { findComponentSpec, findDisplayNodeSpec } from '../transaction-shared.js';
 import { isValidUamXYGearValue } from '../validate.js';
-import { gearContainerIssue, type PayloadContainerIssue, pushSupportIssue, validateTouchedDisplayNodeKind } from './support.js';
-import { isRecordArray, isStringArray, describeValue } from './values.js';
-
-/** Containers that behavior checks and same-batch projections iterate; values keep their domain checks. */
-function controllerContainerIssue(controller: UamControllerModel): PayloadContainerIssue | null {
-	if (!isRecordArray(controller.pages)) return { path: 'pages', message: 'Controller pages must be an array of page objects.' };
-	for (const [pageIndex, page] of controller.pages.entries()) {
-		if (typeof page.id !== 'string') return { path: `pages[${pageIndex}].id`, message: 'Controller page id must be a string.' };
-	}
-	if (!isRecordArray(controller.actions)) return { path: 'actions', message: 'Controller actions must be an array of action objects.' };
-	for (const [actionIndex, action] of controller.actions.entries()) {
-		for (const field of ['fromPageIds', 'toPageIds'] as const) {
-			if (!isStringArray(action[field])) {
-				return { path: `actions[${actionIndex}].${field}`, message: `Controller action ${field} must be an array of page ids.` };
-			}
-		}
-		if (typeof action.targetNodeId !== 'string') {
-			return { path: `actions[${actionIndex}].targetNodeId`, message: 'Controller action targetNodeId must be a string.' };
-		}
-	}
-	return null;
-}
-
-function transitionContainerIssue(transition: UamComponentModel['transitions'][number]): PayloadContainerIssue | null {
-	if (!isRecordArray(transition.items)) return { path: 'items', message: 'Transition items must be an array of item objects.' };
-	for (const [itemIndex, item] of transition.items.entries()) {
-		if (typeof item.targetNodeId !== 'string') {
-			return { path: `items[${itemIndex}].targetNodeId`, message: 'Transition item targetNodeId must be a string.' };
-		}
-	}
-	return null;
-}
+import { pushSupportIssue, validateTouchedDisplayNodeKind } from './support.js';
+import { describeValue } from './values.js';
 
 function validateControllerActionTargets(
 	project: UamProject,
@@ -136,18 +106,7 @@ function validateControllerPayload(
 	path: string,
 	issues: UamTransactionSupportIssue[],
 	operationKind: UamTransactionOperation['kind'],
-): boolean {
-	const containerIssue = controllerContainerIssue(controller);
-	if (containerIssue) {
-		pushSupportIssue(
-			issues,
-			'invalid_controller_payload',
-			`${path}.controller.${containerIssue.path}`,
-			containerIssue.message,
-			{ operationKind },
-		);
-		return false;
-	}
+): void {
 	if (controller.name !== selector.controllerName) {
 		pushSupportIssue(
 			issues,
@@ -221,7 +180,6 @@ function validateControllerPayload(
 			}
 		}
 	}
-	return true;
 }
 
 function isControllerGearOperation(
@@ -242,8 +200,6 @@ function projectedDisplayGearsForController(
 	const keyFor = (displayNodeId: string, kind: 'display' | 'display2') => `${displayNodeId}\u0000${kind}`;
 	const include = (displayNodeId: string, gear: UamGearBinding) => {
 		if ((gear.kind !== 'display' && gear.kind !== 'display2') || gear.controllerName !== selector.controllerName) return;
-		// Malformed same-batch gears are reported by their own operation.
-		if (gearContainerIssue(gear)) return;
 		projected.set(keyFor(displayNodeId, gear.kind), { displayNodeId, gear });
 	};
 
@@ -256,9 +212,7 @@ function projectedDisplayGearsForController(
 			&& operation.selector.packageId === selector.packageId
 			&& operation.selector.componentResourceId === selector.componentResourceId
 		) {
-			if (isRecordArray(operation.node.gears)) {
-				for (const gear of operation.node.gears as UamGearBinding[]) include(operation.node.id, gear);
-			}
+			for (const gear of operation.node.gears) include(operation.node.id, gear);
 			continue;
 		}
 		if (operation.kind === 'detachDisplayNode'
@@ -328,18 +282,7 @@ function validateTransitionPayload(
 	path: string,
 	issues: UamTransactionSupportIssue[],
 	operationKind: UamTransactionOperation['kind'],
-): boolean {
-	const containerIssue = transitionContainerIssue(transition);
-	if (containerIssue) {
-		pushSupportIssue(
-			issues,
-			'invalid_transition_payload',
-			`${path}.transition.${containerIssue.path}`,
-			containerIssue.message,
-			{ operationKind },
-		);
-		return false;
-	}
+): void {
 	if (transition.name !== selector.transitionName) {
 		pushSupportIssue(
 			issues,
@@ -349,7 +292,6 @@ function validateTransitionPayload(
 			{ operationKind },
 		);
 	}
-	return true;
 }
 
 function plannedControllerForOperation(
@@ -415,11 +357,6 @@ function validateGearPayload(
 	issues: UamTransactionSupportIssue[],
 	operationKind: UamTransactionOperation['kind'],
 ): void {
-	const containerIssue = gearContainerIssue(gear);
-	if (containerIssue) {
-		pushSupportIssue(issues, 'invalid_gear_payload', `${path}.gear.${containerIssue.path}`, containerIssue.message, { operationKind });
-		return;
-	}
 	if (gear.kind === 'xy' && [gear.defaultValue, ...gear.states.map((state) => state.value)]
 		.some((value) => value !== null && !isValidUamXYGearValue(value, gear.positionsInPercent))) {
 		pushSupportIssue(issues, 'invalid_gear_payload', `${path}.gear`,
@@ -444,8 +381,7 @@ function validateGearPayload(
 			{ operationKind, gearKind: gear.kind },
 		);
 	}
-	// A malformed planned controller is reported by the operation that supplied it.
-	if (!controller || controllerContainerIssue(controller)) return;
+	if (!controller) return;
 	const pageIds = new Set(controller.pages.map((page) => page.id));
 	const statePageIds = gear.kind === 'display' || gear.kind === 'display2'
 		? gear.visibleOnPageIds
@@ -553,11 +489,11 @@ export function validateBehaviorOperation(
 ): void {
 	switch (operation.kind) {
 	case 'addController':
-		if (!validateControllerPayload(operation.selector, operation.controller, operationPath, issues, operation.kind)) break;
+		validateControllerPayload(operation.selector, operation.controller, operationPath, issues, operation.kind);
 		validateControllerActionTargets(project, operation.selector, operation.controller, `${operationPath}.controller`, issues, operation.kind);
 		break;
 	case 'updateController':
-		if (!validateControllerPayload(operation.selector, operation.controller, operationPath, issues, operation.kind)) break;
+		validateControllerPayload(operation.selector, operation.controller, operationPath, issues, operation.kind);
 		validateControllerActionTargets(project, operation.selector, operation.controller, `${operationPath}.controller`, issues, operation.kind);
 		if (isFinalControllerMutation(operations, operationIndex, operation.selector)) {
 			validateUpdatedControllerGearBindings(project, operations, operation.selector, operation.controller, operationPath, issues);
@@ -567,7 +503,7 @@ export function validateBehaviorOperation(
 		break;
 	case 'addTransition':
 	case 'updateTransition':
-		if (!validateTransitionPayload(operation.selector, operation.transition, operationPath, issues, operation.kind)) break;
+		validateTransitionPayload(operation.selector, operation.transition, operationPath, issues, operation.kind);
 		validateTransitionTargets(project, operation.selector, operation.transition, `${operationPath}.transition`, issues, operation.kind);
 		break;
 	case 'removeTransition':

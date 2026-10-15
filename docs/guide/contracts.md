@@ -126,6 +126,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 - 同类型定长元组（例如四个数值的 `scale9Grid` / `cornerRadius`）生成单一 `items` schema，并保留相等的 `minItems` / `maxItems`；MCP 工具发现无需解析位置数组，元素类型和固定长度约束不变。不同类型的位置元组仍保留逐位置约束。
 - 输入继续受批次上限（1–1000）、revision 整数、selector 长度及总节点/深度/字符串预算约束。通用预算为深度 32、节点 100000、单个数组/对象 10000 项、单个字符串 1000000 字符、键长 256。仅生成契约声明的字节路径使用整数 0–255 数组，绕过通用数组长度和逐字节节点计数；所有字节字段合计最多 8 MiB。任意 metadata 中同名字节字段不获此豁免。schema 中的单字段限制不覆盖总预算。
 - schema 不替代 Core 的引用、资源内容、字段适用性和合法批次检查；校验成功不表示事务可执行或保存会成功。MCP 不增加第二套事务内核，预演也只映射 Backend 的正式入口。
+- 同一契约快照还生成 Core 的载荷结构表（`packages/core/src/uam/generated/operation-payload-schema.ts`），因此直接调用 SDK 的事务与 MCP 接受相同的快照结构；传输上限只属于 MCP。
 - 方法专属结果保留 Backend 的错误分类；适配层抛出的未处理错误使用 `backend_unhandled_error`，不暴露内部异常详情。响应预算及诊断修复策略不由结构 schema 承诺。
 - MCP 工厂的 `toolPolicies` 可为指定工具声明 Host `failureSchema` 和 `beforeCall` 检查。检查在输入校验后收到独立的 wire 参数副本；返回 `undefined` 以原参数调用 Backend 一次，返回已声明的 `ok: false` 分支则停止。Host 失败同样受工具响应预算约束；Backend 返回值始终按正式 schema 校验。SDK 动态发现包含后注册的 Host 工具及对应策略的输出扩展，`openfairygui/hostPolicy` 元数据标识策略；固定契约摘要和随包语料仅描述 Backend 分支。
 

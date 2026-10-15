@@ -10,23 +10,6 @@ export function isPlainRecord(value: unknown): value is Record<string, unknown> 
 	return prototype === Object.prototype || prototype === null;
 }
 
-function isArrayOf<T>(value: unknown, predicate: (entry: unknown) => entry is T): value is T[] {
-	if (!Array.isArray(value)) return false;
-	// Indexed reads also reject holes, which every() would skip.
-	for (let index = 0; index < value.length; index += 1) {
-		if (!predicate(value[index])) return false;
-	}
-	return true;
-}
-
-export function isRecordArray(value: unknown): value is Record<string, unknown>[] {
-	return isArrayOf(value, isPlainRecord);
-}
-
-export function isStringArray(value: unknown): value is string[] {
-	return isArrayOf(value, (entry): entry is string => typeof entry === 'string');
-}
-
 export function stableJson(value: unknown): string {
 	if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
 	if (isPlainRecord(value)) {

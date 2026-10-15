@@ -93,7 +93,7 @@ Check output naming and settings against public documentation, source projects a
 
 ## Product documentation and repository diagnosis
 
-Installed packages use `ofgui docs` and `ofgui doctor --json` without a checkout. `pnpm contracts:generate` updates contracts and corpus under `packages/backend/src/generated/`; package-version, workflow and thin-skill changes also require regeneration and `pnpm contracts:check`. `pnpm pack:check` verifies CLI/MCP corpus parity, versions, doctor and the packaged skill. Repository prerequisites still use `pnpm repo:doctor`; see [installed docs](./installed-docs.md).
+Installed packages use `ofgui docs` and `ofgui doctor --json` without a checkout. `pnpm contracts:generate` updates contracts and corpus under `packages/backend/src/generated/` and Core's transaction payload table under `packages/core/src/uam/generated/`; package-version, workflow and thin-skill changes also require regeneration and `pnpm contracts:check`. `pnpm pack:check` verifies CLI/MCP corpus parity, versions, doctor and the packaged skill. Repository prerequisites still use `pnpm repo:doctor`; see [installed docs](./installed-docs.md).
 
 Contract generation uses Core/Backend/CLI types to update MCP/CLI structures, operations, diagnostic guides, snapshots and bilingual tables. `contracts:check` checks mappings, formal diagnostic coverage/ownership and generated drift without writing; repository tests separately check CLI command registration coverage. See the [contract guide](./contracts.md) for change entrypoints.
 
