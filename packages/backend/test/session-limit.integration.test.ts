@@ -4,6 +4,31 @@ import { BackendRuntime } from '../src/index.js';
 import { createNodeBackendFileSystem } from '../src/node.js';
 import { createBackendFixtureProject, createBackendRuntime, createTempBackendProject } from './helpers.js';
 
+// Windows lock I/O retries sharing violations with 10·2^n ms backoff, at most 7 times (≈1.27 s per operation).
+// Allow that for the release's lock-file unlink and each of its three best-effort coordination cleanups, which
+// still fails inside AVA's 10 s inactivity window.
+const LOCK_IO_RETRY_BUDGET_MS = 10 * (2 ** 7 - 1);
+const LOCK_RELEASE_DEADLINE_MS = 4 * LOCK_IO_RETRY_BUDGET_MS;
+
+/**
+ * Idle expiry closes a file session only after releasing its advisory lock, so a fixed delay races Windows retries.
+ * Session reads renew expiry; probe a runtime limited to one session instead, whose capacity frees exactly when
+ * closeSession removes the expired session after the release.
+ */
+async function waitForReleasedCapacity(runtime: BackendRuntime, idleSessionTimeoutMs: number): Promise<boolean> {
+	const deadline = Date.now() + idleSessionTimeoutMs + LOCK_RELEASE_DEADLINE_MS;
+	for (;;) {
+		// A rejected probe reserves nothing and touches no session.
+		const probe = runtime.openProjectSession({ project: createBackendFixtureProject() });
+		if (probe.ok) {
+			await runtime.closeSession({ sessionId: probe.data.sessionId });
+			return true;
+		}
+		if (probe.error.code !== 'session_limit_exceeded' || Date.now() >= deadline) return false;
+		await delay(10);
+	}
+}
+
 test('runtime rejects sessions beyond maxSessions until one is closed', async (t) => {
 	const runtime = new BackendRuntime({ maxSessions: 2 });
 	t.is(runtime.getCapabilities().data.runtime.maxSessions, 2);
@@ -88,10 +113,14 @@ test('zero idle timeout disables expiry and invalid timeout values fail early', 
 test('idle file sessions release the advisory lock for another runtime', async (t) => {
 	const fixture = await createTempBackendProject();
 	t.teardown(() => fixture.cleanup());
-	const runtime = new BackendRuntime({ fileSystem: createNodeBackendFileSystem(), idleSessionTimeoutMs: 30 });
+	const runtime = new BackendRuntime({
+		fileSystem: createNodeBackendFileSystem(),
+		maxSessions: 1,
+		idleSessionTimeoutMs: 30,
+	});
 	const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 	t.true(opened.ok);
-	await delay(180);
+	t.true(await waitForReleasedCapacity(runtime, 30), 'idle expiry did not close the file session');
 	if (opened.ok) t.false(runtime.getSession({ sessionId: opened.data.sessionId }).ok);
 	const other = createBackendRuntime();
 	const reopened = await other.openSession({ projectPath: fixture.rootDir });
@@ -133,7 +162,7 @@ test('idle expiry cannot close a session during an in-flight save', async (t) =>
 			return base.runProjectWriteTransaction!(root, write);
 		},
 	};
-	const runtime = new BackendRuntime({ fileSystem, idleSessionTimeoutMs: 40 });
+	const runtime = new BackendRuntime({ fileSystem, maxSessions: 1, idleSessionTimeoutMs: 40 });
 	const opened = await runtime.openSession({ projectPath: fixture.rootDir });
 	t.true(opened.ok);
 	if (!opened.ok) return;
@@ -144,6 +173,6 @@ test('idle expiry cannot close a session during an in-flight save', async (t) =>
 	t.true(runtime.getSession({ sessionId }).ok);
 	unblock();
 	t.true((await saving).ok);
-	await delay(160);
+	t.true(await waitForReleasedCapacity(runtime, 40), 'idle expiry did not close the saved session');
 	t.false(runtime.getSession({ sessionId }).ok);
 });
