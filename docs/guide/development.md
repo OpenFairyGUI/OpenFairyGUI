@@ -59,9 +59,9 @@ doctor 不安装、不下载、不写文件；子模块状态查询也禁用 Git
 
 PR CI 先获取完整 Git 历史，使用 PR 目标提交与 `test:changed --list` 的现有影响映射判定范围。仅 `repository-only` 计划跳过 quality/consumer jobs；documentation job 仍执行 `scripts/repository.test.mjs` 仓库脚本自测、`docs:check` 与 `docs:build`。代码、站点配置、脚本、依赖、未知路径、无变更或无法确认比较基准时执行全量；范围判定 job 失败也不会静默跳过产品检查。工作流保持触发，跳过的是具体 job。
 
-全量 CI 的 quality job 在 Ubuntu/Windows × Node 22/24 上执行 `check`。Ubuntu / Node 22 另运行覆盖率门禁并上传报告；documentation job 检查并构建文档；consumer job 在 Linux/Windows 上执行 `pack:check`。文档与消费者 job 不下载 fixture。`main` 与 `next` 的 push 始终执行全量；同一 PR 的新运行取消旧运行，不同 push 不互相取消。Pages 仅在 main 的 push CI 成功后，通过 workflow_run 检出该次已验证的 head_sha 构建部署；过期提交跳过部署。远端链接、翻译含义和协议解释仍需人工审查。
+全量 CI 的 quality job 在 Ubuntu/Windows × Node 22/24 上执行 `check`；Ubuntu / Node 22 改用 `pnpm coverage` 以覆盖率模式执行同一组检查并上传报告，不重复运行测试；documentation job 检查并构建文档；consumer job 在 Linux/Windows 上执行 `pack:check`。文档与消费者 job 不下载 fixture。`main` 与 `next` 的 push 始终执行全量；同一 PR 的新运行取消旧运行，不同 push 不互相取消。Pages 仅在 main 的 push CI 成功后，通过 workflow_run 检出该次已验证的 head_sha 构建部署；过期提交跳过部署。远端链接、翻译含义和协议解释仍需人工审查。
 
-本地 `check:ci` 先验证 fixture、格式/lint、类型与指引，再运行 `pack:check`、仓库测试、`pnpm test` 和文档构建。`pnpm test` 显式先构建，独立运行也不会读取旧 dist；测试内部不重建共享 CLI/MCP 输出。`pack:check` 为消费者独立检查契约并构建，因此完整流程包含两次构建。Linux CI 用 `pnpm check:ci --browser-deps` 显式准备 Chromium 系统依赖。
+本地 `check:ci` 先验证 fixture、格式/lint、类型与 `docs:check`（指引与契约），再运行 `pack:check`、仓库测试、`pnpm test` 和文档构建。`pnpm test` 显式先构建，独立运行也不会读取旧 dist；测试内部不重建共享 CLI/MCP 输出。`pack:check` 为消费者独立检查契约并构建，因此完整流程包含两次构建。Linux CI 用 `pnpm check:ci --browser-deps` 显式准备 Chromium 系统依赖。
 
 发布工作流分为只读 verify 与拥有发布权限的 publish job。verify 校验标签、五包版本、双语 CHANGELOG 对应条目，执行完整 check:ci，验证将发布的同一组 tarball 并上传校验和。publish 不检出源码或安装项目依赖，只下载并核验这些产物；npm 11 安装和 tarball 发布均禁用生命周期脚本。Release 正文取自双语 CHANGELOG，不生成替代日志。所有第三方 Actions 固定到提交 SHA；文档构建 job 不拥有 Pages/OIDC 写权限。
 
@@ -120,7 +120,7 @@ Agent 评测共用 tarball 安装流程。`pnpm eval:agent --runner reference` �
 
 根 package.json 的 toolchain 字段说明双编译器分工：`typecheck` 显式调用 `@typescript/native/bin/tsc`（TS7），TypeDoc 和契约生成使用 `typescript` 别名提供的 TS6 Compiler API。禁止依赖两个包争用的裸 tsc shim。tarball 类型消费者验证 TS6 的 NodeNext ESM/CJS；TS5 不在当前承诺范围。
 
-`pnpm coverage` 先构建再执行完整 AVA，以 c8 检查维护源码：lines/statements/functions 至少 90%，branches 至少 75%，生成代码不计入分母。输出 coverage/lcov.info 和终端摘要；Ubuntu / Node 22 CI 执行并上传报告，未达到门槛直接失败。AVA 的 workerThreads: false 只在根配置声明，并将并行测试文件上限设为 4，避免 Windows 上大量进程启动导致超时。
+`pnpm coverage` 在 c8 下执行完整 `pnpm check`，检查维护源码：lines/statements/functions 至少 90%，branches 至少 75%，生成代码不计入分母。输出 coverage/lcov.info 和终端摘要；Ubuntu / Node 22 CI 执行并上传报告，未达到门槛直接失败。AVA 的 workerThreads: false 只在根配置声明，并将并行测试文件上限设为 4，避免 Windows 上大量进程启动导致超时；无响应超时设为 60s，读写真实 fixture 的测试在较慢的 Windows 磁盘上不会误报超时。
 
 ## 离线验证
 

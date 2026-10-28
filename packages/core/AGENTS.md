@@ -8,5 +8,3 @@
 - 工程 XML 的 reader、writer 与字段元数据在 `packages/core/src/io/`。新字段按真实标签归属建模，同步 reader、writer、UAM bridge 和语义往返测试。
 - Core 不依赖 Backend、MCP 或 Node 宿主；Node/Web 能力从对应入口或注入接口获取。不要把二进制 sourceBytes 经 JSON clone 处理。
 - Core 改动影响全部下游；运行 `pnpm check:fast --base origin/next`，提交前运行 `pnpm check:ci`。具体测试组与关联文档由根影响映射维护。
-
-验证基准使用实际 PR 目标；离线验证与完整检查的边界见[开发指南](../../docs/guide/development.md#离线验证)。
