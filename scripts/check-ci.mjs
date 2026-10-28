@@ -6,7 +6,7 @@ export function ciCommands(browserDeps = false) {
 		['refs:verify'],
 		['lint:ci'],
 		['typecheck'],
-		['check:agent-links'],
+		['docs:check'],
 		['pack:check', ...(browserDeps ? ['--browser-deps'] : [])],
 		['test:repo'],
 		['test'],

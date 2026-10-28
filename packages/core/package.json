@@ -81,8 +81,8 @@
 		}
 	},
 	"scripts": {
-		"build": "tsdown src/index.ts src/uam/index.ts src/project-io.ts src/node.ts src/web.ts src/image-validation-worker.ts --format esm,cjs --platform neutral --external node:fs --external node:path --external node:fs/promises",
-		"build:watch": "tsdown src/index.ts src/uam/index.ts src/project-io.ts src/node.ts src/web.ts src/image-validation-worker.ts --watch --format esm,cjs --platform neutral"
+		"build": "tsdown",
+		"build:watch": "tsdown --watch"
 	},
 	"keywords": [
 		"fairygui",
@@ -97,8 +97,7 @@
 	],
 	"devDependencies": {
 		"@types/pako": "^2.0.0",
-		"ava": "^7.0.0",
-		"tsx": "^4.0.0"
+		"ava": "^7.0.0"
 	},
 	"dependencies": {
 		"fast-xml-parser": "^5.0.0",
