@@ -746,7 +746,7 @@ test('round-trip: tag-scoped xy survive write→read', async (t) => {
 		t.true(/<group\b[^>]*id="n4"[^>]*xy="90,100"/.test(componentXml), 'group writes xy attr');
 		t.true(/<list\b[^>]*id="n5"[^>]*xy="110,120"/.test(componentXml), 'list writes xy attr');
 		t.true(/<loader\b[^>]*id="n6"[^>]*xy="130,140"/.test(componentXml), 'loader writes xy attr');
-		t.true(/<loader3d\b[^>]*id="n7"[^>]*xy="150,160"/.test(componentXml), 'loader3D writes xy attr');
+		t.true(/<loader3D\b[^>]*id="n7"[^>]*xy="150,160"/.test(componentXml), 'loader3D writes xy attr');
 		t.true(/<jta\b[^>]*id="n8"[^>]*xy="170,180"/.test(componentXml), 'jta writes xy attr');
 		t.true(/<image\b[^>]*id="n9"[^>]*xy="0,0"/.test(componentXml), 'image writes explicit zero xy attr');
 		t.true(/<text\b[^>]*id="n10"[^>]*xy="0,0"/.test(componentXml), 'text writes explicit zero xy attr');
@@ -871,7 +871,7 @@ test('round-trip: tag-scoped size survive write→read', async (t) => {
 		t.true(/<group\b[^>]*id="n4"[^>]*size="91,101"/.test(componentXml), 'group writes size attr');
 		t.true(/<list\b[^>]*id="n5"[^>]*size="111,121"/.test(componentXml), 'list writes size attr');
 		t.true(/<loader\b[^>]*id="n6"[^>]*size="131,141"/.test(componentXml), 'loader writes size attr');
-		t.true(/<loader3d\b[^>]*id="n7"[^>]*size="151,161"/.test(componentXml), 'loader3D writes size attr');
+		t.true(/<loader3D\b[^>]*id="n7"[^>]*size="151,161"/.test(componentXml), 'loader3D writes size attr');
 		t.true(/<jta\b[^>]*id="n8"[^>]*size="171,181"/.test(componentXml), 'jta writes size attr');
 
 		const doc2 = await io.readProject(outFairy);

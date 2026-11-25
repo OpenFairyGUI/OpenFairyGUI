@@ -684,10 +684,12 @@ test('writer: uses canonical XML attr names for component root, loader, text nod
 			),
 			'richtext writes canonical common display attrs',
 		);
+		t.true(/<loader3D\b/.test(componentXml), 'loader3D uses editor-compatible tag case');
+		t.false(/<loader3d\b/.test(componentXml), 'loader3D does not use lowercase tag');
 		t.true(componentXml.includes('animation="idle"'), 'loader3D uses canonical animation attr');
 		t.false(componentXml.includes('animationName='), 'loader3D no longer writes model field name');
-		t.false(/<loader3d\b[^>]*\balign=/.test(componentXml), 'loader3D omits default align attr');
-		t.false(/<loader3d\b[^>]*\bvAlign=/.test(componentXml), 'loader3D omits default vAlign attr');
+		t.false(/<loader3D\b[^>]*\balign=/.test(componentXml), 'loader3D omits default align attr');
+		t.false(/<loader3D\b[^>]*\bvAlign=/.test(componentXml), 'loader3D omits default vAlign attr');
 		t.true(componentXml.includes('prompt="Search here"'), 'text input uses canonical prompt attr');
 		t.true(
 			/<inputtext\b[^>]*text=""[^>]*color="#ff3300"/.test(componentXml),
