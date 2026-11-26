@@ -22,7 +22,7 @@
 		"openfairygui": "bin/cli.cjs"
 	},
 	"scripts": {
-		"build": "tsdown src/cli.ts --format esm --platform node --no-dts --external sharp --external jiti"
+		"build": "tsdown"
 	},
 	"files": [
 		"dist/",
