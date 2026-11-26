@@ -31,16 +31,15 @@ jobs:
           RELEASE_REF_TYPE: ${{ github.ref_type }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: pnpm release:prepare
-      - name: Full release gate
-        run: pnpm check:ci --browser-deps
-      - name: Pack the publish artifacts
+      - name: Build and pack the exact publish artifacts
         run: |
+          pnpm build
           for pkg in core functions backend cli mcp; do
             (cd "packages/$pkg" && pnpm pack --pack-destination ../../.release)
           done
           cp .node-version .release/.node-version
-      - name: Verify the exact publish artifacts
-        run: pnpm pack:check --artifacts .release --browser-deps
+      - name: Full release gate on the exact publish artifacts
+        run: pnpm check:ci --artifacts .release --browser-deps
       - name: Record artifact checksums
         working-directory: .release
         run: sha256sum *.tgz > SHA256SUMS
@@ -75,6 +74,52 @@ jobs:
       - name: Verify artifact checksums
         working-directory: .release
         run: sha256sum --check SHA256SUMS
+      - name: Prepare dist-tag comparison helper
+        run: |
+          cat <<'EOF' > "$RUNNER_TEMP/compare-next-tag.mjs"
+          const [rawTags, target] = process.argv.slice(2);
+          const tags = JSON.parse(rawTags);
+          if (!tags || typeof tags !== 'object' || Array.isArray(tags)) {
+            throw new Error('Invalid dist-tags response');
+          }
+          const current = tags.next;
+          if (current === undefined) {
+            console.log('update');
+            process.exit(0);
+          }
+          if (typeof current !== 'string' || !current) {
+            throw new Error(`Invalid next dist-tag: ${String(current)}`);
+          }
+          const parse = (value) => {
+            const match = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+.*)?$/.exec(value);
+            if (!match) throw new Error(`Invalid semver: ${value}`);
+            return {
+              nums: [Number(match[1]), Number(match[2]), Number(match[3])],
+              pre: match[4] ? match[4].split('.') : [],
+            };
+          };
+          const compare = (left, right) => {
+            const a = parse(left);
+            const b = parse(right);
+            for (let i = 0; i < 3; i++) if (a.nums[i] !== b.nums[i]) return a.nums[i] - b.nums[i];
+            if (!a.pre.length && !b.pre.length) return 0;
+            if (!a.pre.length) return 1;
+            if (!b.pre.length) return -1;
+            for (let i = 0; i < Math.max(a.pre.length, b.pre.length); i++) {
+              const ai = a.pre[i];
+              const bi = b.pre[i];
+              if (ai === undefined) return -1;
+              if (bi === undefined) return 1;
+              const an = /^\d+$/.test(ai);
+              const bn = /^\d+$/.test(bi);
+              if (an && bn && Number(ai) !== Number(bi)) return Number(ai) - Number(bi);
+              if (an !== bn) return an ? -1 : 1;
+              if (ai !== bi) return ai < bi ? -1 : 1;
+            }
+            return 0;
+          };
+          console.log(compare(current, target) < 0 ? 'update' : `keep:${current}`);
+          EOF
       - name: Publish verified tarballs to npm
         env:
           RELEASE_TAG: ${{ github.ref_name }}
@@ -92,40 +137,7 @@ jobs:
           if [[ "$dist_tag" == "latest" ]]; then
             for pkg in core functions backend cli mcp; do
               dist_tags_json="$(npm view "@openfairygui/$pkg" dist-tags --json --registry=https://registry.npmjs.org)"
-              decision="$(node -e '
-                const [rawTags, next] = process.argv.slice(1);
-                const tags = JSON.parse(rawTags);
-                if (!tags || typeof tags !== "object" || Array.isArray(tags)) throw new Error("Invalid dist-tags response");
-                const cur = tags.next;
-                if (cur === undefined) {
-                  console.log("update");
-                  process.exit(0);
-                }
-                if (typeof cur !== "string" || !cur) throw new Error(`Invalid next dist-tag: ${String(cur)}`);
-                const parse = (v) => {
-                  const m = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+.*)?$/.exec(v);
-                  if (!m) throw new Error(`Invalid semver: ${v}`);
-                  return { n: [+m[1], +m[2], +m[3]], p: m[4] ? m[4].split(".") : [] };
-                };
-                const cmp = (a, b) => {
-                  const pa = parse(a), pb = parse(b);
-                  for (let i = 0; i < 3; i++) if (pa.n[i] !== pb.n[i]) return pa.n[i] - pb.n[i];
-                  if (!pa.p.length && !pb.p.length) return 0;
-                  if (!pa.p.length) return 1;
-                  if (!pb.p.length) return -1;
-                  for (let i = 0; i < Math.max(pa.p.length, pb.p.length); i++) {
-                    const ai = pa.p[i], bi = pb.p[i];
-                    if (ai === undefined) return -1;
-                    if (bi === undefined) return 1;
-                    const an = /^\d+$/.test(ai), bn = /^\d+$/.test(bi);
-                    if (an && bn && +ai !== +bi) return +ai - +bi;
-                    if (an !== bn) return an ? -1 : 1;
-                    if (ai !== bi) return ai < bi ? -1 : 1;
-                  }
-                  return 0;
-                };
-                console.log(cmp(cur, next) < 0 ? "update" : `keep:${cur}`);
-              ' "$dist_tags_json" "$version")"
+              decision="$(node "$RUNNER_TEMP/compare-next-tag.mjs" "$dist_tags_json" "$version")"
               if [[ "$decision" == "update" ]]; then
                 npm dist-tag add "@openfairygui/$pkg@$version" next --registry=https://registry.npmjs.org
               else
@@ -133,6 +145,36 @@ jobs:
               fi
             done
           fi
+      - name: Verify published npm dist-tags
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          dist_tag=latest
+          if [[ "$version" == *-* ]]; then dist_tag=next; fi
+          for pkg in core functions backend cli mcp; do
+            verified=false
+            for attempt in $(seq 1 12); do
+              dist_tags_json="$(npm view "@openfairygui/$pkg" dist-tags --json --registry=https://registry.npmjs.org)"
+              if node -e '
+                const [raw, tag, ver] = process.argv.slice(1);
+                const tags = JSON.parse(raw);
+                process.exit(tags && typeof tags === "object" && tags[tag] === ver ? 0 : 1);
+              ' "$dist_tags_json" "$dist_tag" "$version"; then
+                if [[ "$dist_tag" != "latest" ]] || [[ "$(node "$RUNNER_TEMP/compare-next-tag.mjs" "$dist_tags_json" "$version")" != "update" ]]; then
+                  echo "@openfairygui/$pkg dist-tags verified: $dist_tags_json"
+                  verified=true
+                  break
+                fi
+              fi
+              echo "Waiting for npm dist-tags propagation for @openfairygui/$pkg (attempt $attempt/12): $dist_tags_json"
+              sleep 10
+            done
+            if [[ "$verified" != "true" ]]; then
+              echo "Failed to verify npm dist-tags for @openfairygui/$pkg@$version" >&2
+              exit 1
+            fi
+          done
       - name: Publish verified tarballs to GitHub Packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -153,40 +195,7 @@ jobs:
           if [[ "$dist_tag" == "latest" ]]; then
             for pkg in core functions backend cli mcp; do
               dist_tags_json="$(npm view "@openfairygui/$pkg" dist-tags --json --registry=https://npm.pkg.github.com)"
-              decision="$(node -e '
-                const [rawTags, next] = process.argv.slice(1);
-                const tags = JSON.parse(rawTags);
-                if (!tags || typeof tags !== "object" || Array.isArray(tags)) throw new Error("Invalid dist-tags response");
-                const cur = tags.next;
-                if (cur === undefined) {
-                  console.log("update");
-                  process.exit(0);
-                }
-                if (typeof cur !== "string" || !cur) throw new Error(`Invalid next dist-tag: ${String(cur)}`);
-                const parse = (v) => {
-                  const m = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+.*)?$/.exec(v);
-                  if (!m) throw new Error(`Invalid semver: ${v}`);
-                  return { n: [+m[1], +m[2], +m[3]], p: m[4] ? m[4].split(".") : [] };
-                };
-                const cmp = (a, b) => {
-                  const pa = parse(a), pb = parse(b);
-                  for (let i = 0; i < 3; i++) if (pa.n[i] !== pb.n[i]) return pa.n[i] - pb.n[i];
-                  if (!pa.p.length && !pb.p.length) return 0;
-                  if (!pa.p.length) return 1;
-                  if (!pb.p.length) return -1;
-                  for (let i = 0; i < Math.max(pa.p.length, pb.p.length); i++) {
-                    const ai = pa.p[i], bi = pb.p[i];
-                    if (ai === undefined) return -1;
-                    if (bi === undefined) return 1;
-                    const an = /^\d+$/.test(ai), bn = /^\d+$/.test(bi);
-                    if (an && bn && +ai !== +bi) return +ai - +bi;
-                    if (an !== bn) return an ? -1 : 1;
-                    if (ai !== bi) return ai < bi ? -1 : 1;
-                  }
-                  return 0;
-                };
-                console.log(cmp(cur, next) < 0 ? "update" : `keep:${cur}`);
-              ' "$dist_tags_json" "$version")"
+              decision="$(node "$RUNNER_TEMP/compare-next-tag.mjs" "$dist_tags_json" "$version")"
               if [[ "$decision" == "update" ]]; then
                 npm dist-tag add "@openfairygui/$pkg@$version" next --registry=https://npm.pkg.github.com
               else

@@ -61,9 +61,9 @@ PR CI 先获取完整 Git 历史，使用 PR 目标提交与 `test:changed --lis
 
 全量 CI 的 quality job 在 Ubuntu/Windows × Node 22/24 上执行 `check`；Ubuntu / Node 22 改用 `pnpm coverage` 以覆盖率模式执行同一组检查并上传报告，不重复运行测试；documentation job 检查并构建文档；consumer job 在 Linux/Windows 上执行 `pack:check`。文档与消费者 job 不下载 fixture。`main` 的 push 始终执行全量；同一 PR 的新运行取消旧运行，不同 push 不互相取消。Pages 仅在 main 的 push CI 成功后，通过 workflow_run 检出该次已验证的 head_sha 构建部署；过期提交跳过部署。远端链接、翻译含义和协议解释仍需人工审查。
 
-本地 `check:ci` 先验证 fixture、格式/lint、类型与 `docs:check`（指引与契约），再运行 `pack:check`、仓库测试、`pnpm test` 和文档构建。`pnpm test` 显式先构建，独立运行也不会读取旧 dist；测试内部不重建共享 CLI/MCP 输出。`pack:check` 为消费者独立检查契约并构建，因此完整流程包含两次构建。Linux CI 用 `pnpm check:ci --browser-deps` 显式准备 Chromium 系统依赖。
+本地 `check:ci` 先验证 fixture、格式/lint、类型与 `docs:check`（指引与契约），再运行 `pack:check`、仓库测试、`pnpm test` 和文档构建。`pnpm test` 显式先构建，独立运行也不会读取旧 dist；测试内部不重建共享 CLI/MCP 输出。传入 `--artifacts .release` 时，`pack:check` 直接校验该目录中已打包的精确 tarball 而不重复构建。Linux CI 用 `pnpm check:ci --browser-deps` 显式准备 Chromium 系统依赖。
 
-发布工作流分为只读 verify 与拥有发布权限的 publish job。verify 校验标签、五包版本、双语 CHANGELOG 对应条目，执行完整 check:ci，验证将发布的同一组 tarball 并上传校验和。publish 不检出源码或安装项目依赖，只下载并核验这些产物；npm 11 安装和 tarball 发布均禁用生命周期脚本。Release 正文取自双语 CHANGELOG，不生成替代日志。所有第三方 Actions 固定到提交 SHA；文档构建 job 不拥有 Pages/OIDC 写权限。
+发布工作流分为只读 verify 与拥有发布权限的 publish job。verify 校验标签、五包版本和双语 CHANGELOG 对应条目，先构建并打包 `.release/*.tgz`，再以 `pnpm check:ci --artifacts .release --browser-deps` 一次性验证将发布的同一组 tarball 并上传校验和。publish 不检出源码或安装项目依赖，只下载并核验这些产物；npm 11 安装和 tarball 发布均禁用生命周期脚本；发布正式版后若 `next` 标签为空或更旧则同步推进，并在最后核验 npm dist-tags。Release 正文取自双语 CHANGELOG，不生成替代日志。所有第三方 Actions 固定到提交 SHA；文档构建 job 不拥有 Pages/OIDC 写权限。
 
 `pnpm pack:check` 构建五包并在仓库外安装，验证公开入口、类型、CLI/MCP、Node 示例及真实 Chromium OPFS 编辑/保存/刷新/锁/路径与图片字节。它会联网安装依赖，首次下载匹配浏览器；成功清理自身临时目录，失败保留现场，`--keep` 可保留成功现场。发布前用 `pnpm pack:check --artifacts .release` 检查同一组已打包文件。入口、示例及验证限制见[可运行示例与消费者验证](./examples.md)。
 
@@ -125,6 +125,16 @@ Agent 评测共用 tarball 安装流程。`pnpm eval:agent --runner reference` �
 ## 离线验证
 
 已有依赖和固定 fixture 时，`pnpm check:fast --base origin/main` 与 `pnpm check` 不主动下载浏览器或安装消费者依赖。离线可先运行这些检查，再运行 `pnpm docs:check`；缺少 fixture 时先报告 `pnpm refs:status` 的结果，不能把跳过视为通过。`pnpm check:ci` 的 tarball 消费者安装/浏览器下载仍需网络，恢复网络后补跑，离线结果不替代完整 CI。
+
+## 发布流程
+
+项目采用单主干 `main` 发布；仅在需要给已发布 minor 打补丁且 `main` 已包含未发布破坏性变更时，才从对应 tag 临时切出 `release/0.x` 分支（修复先合入 `main` 再 cherry-pick）。
+
+1. **统一升级版本与生成文档**：执行 `pnpm release:bump 0.8.0`（传入不带 `v` 的 semver），自动更新五个发布包与 `examples/package.json` 的精确版本并运行 `pnpm contracts:generate`。
+2. **编写并校验双语更新日志**：同步更新 `CHANGELOG.md` 与 `CHANGELOG_CN.md` 对应版本条目，执行 `pnpm release:prepare --tag v0.8.0` 校验版本、发布链接与双语结构一致。
+3. **验证并合并发布 PR**：运行 `pnpm check:ci`（或针对已打包 `.release/` 运行 `pnpm check:ci --artifacts .release`），提交 PR 至 `main` 并等待全部 CI 通过后合并。
+4. **确认 npm Trusted Publisher 权限**：正式版发布需要通过 OIDC 推进 `next` dist-tag；首次发版前在 npmjs.com 确认五个 `@openfairygui/*` 包的 Trusted Publisher 均已启用 **Allow npm dist-tag**。
+5. **打标签并核验发布**：在 `main` 合并提交上创建并推送 `v0.8.0` 标签触发 `.github/workflows/release.yml`；工作流会在推送完成后自动核验 npm 的 `latest` / `next` dist-tags 并创建双语 GitHub Release。
 
 ## 贡献入口
 

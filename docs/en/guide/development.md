@@ -61,9 +61,9 @@ PR CI first fetches full Git history and classifies changes against the PR base 
 
 Full CI runs `check` on Ubuntu/Windows × Node 22/24; Ubuntu / Node 22 runs the same checks in coverage mode through `pnpm coverage` and uploads its report instead of running tests twice. Documentation checks and builds separately; consumers run pack:check on Linux/Windows. Documentation and consumers do not download fixtures. Pushes to main always run full checks; only runs for the same PR cancel each other. Pages uses workflow_run after successful main push CI, checks out that verified head_sha and skips superseded commits. Remote links, translation meaning and protocol interpretation still require review.
 
-Local `check:ci` verifies fixtures, formatting/lint, types and `docs:check` (guidance and contracts), then runs pack:check, repository tests, pnpm test and documentation builds. pnpm test explicitly builds first, including when invoked independently; tests never rebuild shared CLI/MCP output. pack:check independently checks contracts and builds for consumers, so the full pipeline includes two builds. Linux CI uses `pnpm check:ci --browser-deps` to install Chromium system dependencies.
+Local `check:ci` verifies fixtures, formatting/lint, types and `docs:check` (guidance and contracts), then runs pack:check, repository tests, pnpm test and documentation builds. pnpm test explicitly builds first, including when invoked independently; tests never rebuild shared CLI/MCP output. When given `--artifacts .release`, `pack:check` validates those packed tarballs directly without building and packing a second time. Linux CI uses `pnpm check:ci --browser-deps` to install Chromium system dependencies.
 
-Release separates a read-only verify job from the privileged publish job. Verification checks the tag, five package versions and matching bilingual CHANGELOG entries, runs full check:ci, verifies the exact tarballs, and uploads them with checksums. Publishing checks out no sources and installs no project dependencies; it downloads and verifies those artifacts. npm 11 installation and tarball publication disable lifecycle scripts. Release notes come from both changelogs instead of generated replacements. Third-party Actions are pinned to commit SHAs; documentation builds have no Pages/OIDC write permissions.
+Release separates a read-only verify job from the privileged publish job. Verification checks the tag, five package versions and matching bilingual CHANGELOG entries, builds and packs `.release/*.tgz`, runs `pnpm check:ci --artifacts .release --browser-deps` once against those exact tarballs, and uploads them with checksums. Publishing checks out no sources and installs no project dependencies; it downloads and verifies those artifacts. npm 11 installation and tarball publication disable lifecycle scripts; stable releases advance `next` when absent or older and verify the published npm dist-tags. Release notes come from both changelogs instead of generated replacements. Third-party Actions are pinned to commit SHAs; documentation builds have no Pages/OIDC write permissions.
 
 `pnpm pack:check` builds and installs five tarballs outside the checkout, verifying public entries, types, CLI/MCP, Node examples and real Chromium OPFS edits/save/reload/locks/paths/image bytes. It installs dependencies over the network and downloads the matching browser on first use; successful runs remove their temporary directory, failures preserve it, and `--keep` preserves successful runs too. Release uses `pnpm pack:check --artifacts .release` to check the same packed files. See [Runnable Examples and Consumer Verification](./examples.md) for entrypoints, examples and limits.
 
@@ -125,6 +125,16 @@ The package.json toolchain field explains the compiler split: typecheck invokes 
 ## Offline verification
 
 With dependencies and pinned fixtures already present, `pnpm check:fast --base origin/main` and `pnpm check` do not download browsers or install consumer dependencies. Run these and `pnpm docs:check` offline. Report missing fixtures using `pnpm refs:status`; skipped checks are not passes. `pnpm check:ci` may need network access for consumer installation and browsers and must still pass before release.
+
+## Release runbook
+
+Releases cut from the single trunk `main`. Only create a temporary `release/0.x` branch from a tag when patching an older minor while `main` already carries unpublished breaking changes (land fixes on `main` first, then cherry-pick).
+
+1. **Bump versions and generated docs**: run `pnpm release:bump 0.8.0` (semver without a leading `v`) to update all five publishable packages plus `examples/package.json` and run `pnpm contracts:generate`.
+2. **Update and validate bilingual changelogs**: add matching entries to `CHANGELOG.md` and `CHANGELOG_CN.md`, then run `pnpm release:prepare --tag v0.8.0` to verify package versions, release links and bilingual structure.
+3. **Verify and merge the release PR**: run `pnpm check:ci` (or `pnpm check:ci --artifacts .release` against pre-packed tarballs), open the PR targeting `main`, and merge once all required CI checks pass.
+4. **Confirm npm Trusted Publisher dist-tag permission**: stable releases advance `next` over OIDC; ensure **Allow npm dist-tag** is enabled under Trusted Publisher settings on npmjs.com for all five `@openfairygui/*` packages before tagging.
+5. **Tag and verify publication**: tag and push `v0.8.0` on the merged `main` commit to trigger `.github/workflows/release.yml`, which verifies published npm `latest`/`next` dist-tags and creates the bilingual GitHub Release.
 
 ## Contributing
 

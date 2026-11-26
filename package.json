@@ -47,6 +47,7 @@
 		"lint:ci": "biome ci packages scripts examples docs/.vitepress/config.ts docs/.vitepress/theme",
 		"format": "biome format --write packages scripts examples docs/.vitepress/config.ts docs/.vitepress/theme",
 		"typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit --declaration false",
+		"release:bump": "node scripts/bump-release.mjs",
 		"release:prepare": "node scripts/prepare-release.mjs"
 	},
 	"devDependencies": {

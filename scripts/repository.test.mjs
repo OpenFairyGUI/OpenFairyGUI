@@ -1,3 +1,4 @@
+import { bumpReleaseVersion } from './bump-release.mjs';
 import { releaseNotes } from './prepare-release.mjs';
 import { ciCommands } from './check-ci.mjs';
 import assert from 'node:assert/strict';
@@ -622,18 +623,50 @@ test('refused Git ownership preserves doctor sections and actionable selection f
 	assert(!JSON.stringify(plan).includes('Cannot resolve comparison base'));
 });
 
-test('CI and release gates retain mandatory checks and isolate privileged jobs', () => {
+test('release:bump updates all publishable packages and examples consistently and rejects invalid versions', (t) => {
+	const root = mkdtempSync(path.join(tmpdir(), 'ofgui-bump-test-'));
+	t.after(() => rmSync(root, { recursive: true, force: true }));
+	for (const directory of ['core', 'functions', 'backend', 'cli', 'mcp']) {
+		write(
+			root,
+			`packages/${directory}/package.json`,
+			`{\n\t"name": "@openfairygui/${directory}",\n\t"version": "0.7.1"\n}\n`,
+		);
+	}
+	write(
+		root,
+		'examples/package.json',
+		'{\n  "dependencies": {\n    "@modelcontextprotocol/sdk": "^1.29.0",\n    "@openfairygui/core": "0.7.1",\n    "@openfairygui/functions": "0.7.1",\n    "@openfairygui/backend": "0.7.1",\n    "@openfairygui/mcp": "0.7.1"\n  }\n}\n',
+	);
+	assert.throws(() => bumpReleaseVersion(root, 'v0.7.2'), /without leading/);
+	assert.throws(() => bumpReleaseVersion(root, 'not-a-version'), /Expected a semver/);
+	const updated = bumpReleaseVersion(root, '0.8.0-rc.1');
+	assert.equal(updated.length, 6);
+	for (const directory of ['core', 'functions', 'backend', 'cli', 'mcp']) {
+		assert.equal(readJson(path.join(root, 'packages', directory, 'package.json')).version, '0.8.0-rc.1');
+	}
+	const examples = readJson(path.join(root, 'examples/package.json'));
+	assert.equal(examples.dependencies['@modelcontextprotocol/sdk'], '^1.29.0');
+	assert.equal(examples.dependencies['@openfairygui/core'], '0.8.0-rc.1');
+	assert.equal(examples.dependencies['@openfairygui/mcp'], '0.8.0-rc.1');
+});
+
+test('CI and release gates retain mandatory checks and isolate privileged jobs', (t) => {
 	assert.deepEqual(
 		ciCommands(true).find((args) => args[0] === 'pack:check'),
 		['pack:check', '--browser-deps'],
+	);
+	assert.deepEqual(
+		ciCommands(true, '.release').find((args) => args[0] === 'pack:check'),
+		['pack:check', '--artifacts', '.release', '--browser-deps'],
 	);
 	assert(ciCommands().some((args) => args[0] === 'test:repo'));
 	assert(ciCommands().some((args) => args[0] === 'docs:build'));
 	const release = readFileSync(path.join(ROOT, '.github/workflows/release.yml'), 'utf8');
 	const publish = release.split('  publish:')[1];
-	assert.match(release, /pnpm check:ci --browser-deps/);
+	assert.match(release, /pnpm check:ci --artifacts \.release --browser-deps/);
+	assert(!release.includes('pnpm pack:check --artifacts .release'));
 	assert.match(release, /pnpm release:prepare/);
-	assert.match(release, /--artifacts .release --browser-deps/);
 	assert(!publish.includes('actions/checkout'));
 	assert(!publish.includes('pnpm install'));
 	assert.match(publish, /npm@\^11\.21\.0/);
@@ -646,7 +679,26 @@ test('CI and release gates retain mandatory checks and isolate privileged jobs',
 		publish,
 		/npm dist-tag add "@openfairygui\/\$pkg@\$version" next --registry=https:\/\/npm\.pkg\.github\.com/,
 	);
+	assert.match(publish, /Verify published npm dist-tags/);
 	assert.match(publish, /--notes-file .release\/release-notes\.md/);
+	const helperMatch = /cat <<'EOF' > "\$RUNNER_TEMP\/compare-next-tag\.mjs"\r?\n([\s\S]*?)\r?\n\s*EOF/.exec(publish);
+	assert(helperMatch, 'publish job must define compare-next-tag.mjs helper');
+	const helperDir = mkdtempSync(path.join(tmpdir(), 'ofgui-dist-tag-helper-'));
+	t.after(() => rmSync(helperDir, { recursive: true, force: true }));
+	const helperPath = path.join(helperDir, 'compare-next-tag.mjs');
+	writeFileSync(helperPath, helperMatch[1]);
+	const decide = (raw, version) =>
+		execFileSync(process.execPath, [helperPath, raw, version], {
+			encoding: 'utf8',
+			stdio: ['ignore', 'pipe', 'pipe'],
+		}).trim();
+	assert.equal(decide('{"latest":"0.7.1"}', '0.7.1'), 'update');
+	assert.equal(decide('{"latest":"0.7.1","next":"0.5.0-alpha.4"}', '0.7.1'), 'update');
+	assert.equal(decide('{"latest":"0.7.1","next":"0.7.1-rc.1"}', '0.7.1'), 'update');
+	assert.equal(decide('{"latest":"0.7.1","next":"0.7.1"}', '0.7.1'), 'keep:0.7.1');
+	assert.equal(decide('{"latest":"0.7.1","next":"0.8.0-rc.1"}', '0.7.1'), 'keep:0.8.0-rc.1');
+	assert.throws(() => decide('', '0.7.1'));
+	assert.throws(() => decide('[]', '0.7.1'));
 	for (const file of ['ci.yml', 'release.yml', 'deploy-docs.yml']) {
 		const workflow = readFileSync(path.join(ROOT, '.github/workflows', file), 'utf8');
 		for (const match of workflow.matchAll(/uses: ([^\n]+)/g)) assert.match(match[1], /^[^@]+@[a-f0-9]{40}(?: |$)/);
