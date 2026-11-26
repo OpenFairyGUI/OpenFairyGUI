@@ -64,8 +64,8 @@
 		}
 	},
 	"scripts": {
-		"build": "tsdown src/index.ts src/uam-transaction.ts src/node.ts src/web.ts --format esm,cjs --platform neutral",
-		"build:watch": "tsdown src/index.ts src/uam-transaction.ts src/node.ts src/web.ts --watch --format esm,cjs --platform neutral"
+		"build": "tsdown",
+		"build:watch": "tsdown --watch"
 	},
 	"files": [
 		"dist/"
