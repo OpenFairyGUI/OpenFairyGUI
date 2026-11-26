@@ -10,6 +10,4 @@
 - 默认是本地 stdio，不假设 HTTP 端口。stdout 只能承载协议消息；日志使用 stderr。
 - 运行 `pnpm check:fast --base origin/next` 覆盖 MCP；`packages/mcp/test/stdio-smoke.integration.test.ts` 检查构建入口，不代表已安装 tarball 的消费者测试。
 
-验证基准使用实际 PR 目标；离线验证与完整检查的边界见[开发指南](../../docs/guide/development.md#离线验证)。
-
 MCP 默认握手给出文档 → outline → query → preflight → apply → validate → save → close 的顺序。openfairygui_docs_read 供只支持工具的客户端读取安装语料。正式二进制输出是 structuredContent.backendResult 中的 base64，文本仅给摘要；输入仍按生成契约使用字节数组。显式注入 publish 回调才注册 openfairygui_host_publish，路径授权、输出范围和插件策略归宿主；默认 stdio 不开启发布。

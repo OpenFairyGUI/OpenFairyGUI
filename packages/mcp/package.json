@@ -47,9 +47,8 @@
 		"ofgui-mcp": "bin/ofgui-mcp.cjs"
 	},
 	"scripts": {
-		"build": "tsdown src/index.ts src/stdio.ts --format esm,cjs --platform node --external node:fs --external node:path --external node:fs/promises",
-		"build:watch": "tsdown src/index.ts src/stdio.ts --watch --format esm,cjs --platform node",
-		"test": "ava test/**/*.test.ts"
+		"build": "tsdown",
+		"build:watch": "tsdown --watch"
 	},
 	"files": [
 		"dist/",
@@ -70,20 +69,6 @@
 	"devDependencies": {
 		"@openfairygui/core": "workspace:*",
 		"@openfairygui/test-utils": "workspace:*",
-		"ava": "^7.0.0",
-		"tsx": "^4.0.0"
-	},
-	"ava": {
-		"extensions": {
-			"ts": "module"
-		},
-		"nodeArguments": [
-			"--import",
-			"tsx/esm"
-		],
-		"files": [
-			"test/**/*.test.ts"
-		],
-		"workerThreads": false
+		"ava": "^7.0.0"
 	}
 }
