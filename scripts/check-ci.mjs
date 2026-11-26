@@ -1,13 +1,16 @@
 import { parseArgs } from 'node:util';
 import { isMain, pnpmInvocation, ROOT, runCommand } from './repo-utils.mjs';
 
-export function ciCommands(browserDeps = false) {
+export function ciCommands(browserDeps = false, artifacts = undefined) {
+	const packArgs = ['pack:check'];
+	if (artifacts) packArgs.push('--artifacts', artifacts);
+	if (browserDeps) packArgs.push('--browser-deps');
 	return [
 		['refs:verify'],
 		['lint:ci'],
 		['typecheck'],
 		['docs:check'],
-		['pack:check', ...(browserDeps ? ['--browser-deps'] : [])],
+		packArgs,
 		['test:repo'],
 		['test'],
 		['docs:build'],
@@ -16,8 +19,15 @@ export function ciCommands(browserDeps = false) {
 
 if (isMain(import.meta.url)) {
 	try {
-		const { values } = parseArgs({ options: { 'browser-deps': { type: 'boolean' } } });
-		for (const args of ciCommands(values['browser-deps'])) {
+		const { values } = parseArgs({
+			options: {
+				'browser-deps': { type: 'boolean' },
+				artifacts: { type: 'string' },
+			},
+		});
+		if (values.artifacts !== undefined && !values.artifacts.trim())
+			throw new Error('--artifacts must be a non-empty directory path.');
+		for (const args of ciCommands(values['browser-deps'], values.artifacts)) {
 			runCommand(ROOT, ...pnpmInvocation(process.env.npm_execpath, args));
 		}
 	} catch (error) {
