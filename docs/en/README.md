@@ -17,6 +17,7 @@ This directory contains the English documentation used by the static website. It
 | [Real Agent Task Evaluations](./guide/agent-evaluations.md) | Ten real-tarball tasks, deterministic oracles, manual model observations and failure reproduction. |
 | [Project Validation](./project-validation.md) | Shared project validation reports and API/CLI/Backend/MCP behavior. |
 | [Changelog](https://github.com/OpenFairyGUI/OpenFairyGUI/blob/main/CHANGELOG.md) | Public features, fixes, breaking changes, and maintenance work by release. |
+| [Roadmap](https://github.com/OpenFairyGUI/OpenFairyGUI/blob/main/ROADMAP_EN.md) | Upcoming release priorities and proposals (not a release commitment; plans live outside `docs/`). |
 | [Architecture Overview](./architecture-overview.md) | Package responsibilities, UAM and backend boundaries, host adapters, and primary data flows. |
 | [Editor Publish Settings](./editor-publish-settings.md) | Actual editor setting files, properties, defaults, output resolution, and current publish behavior. |
 | [Publish Plugins](./publish-plugins.md) | Plugin directories, manifests, lifecycle hooks, fallback behavior, and the boundary with FairyGUI Editor plugins. |

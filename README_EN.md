@@ -6,7 +6,7 @@
 [![npm](https://img.shields.io/badge/npm-%40openfairygui%2Fmcp-cb3837.svg)](https://www.npmjs.com/package/@openfairygui/mcp)
 [![License](https://img.shields.io/badge/license-MIT-007ec6.svg)](./LICENSE)
 
-[中文](./README.md) · [Agent Setup Guide](./docs/en/guide/getting-started.md) · [Documentation](https://fairygui.dev/en/) · [API Reference](https://fairygui.dev/api/) · [Changelog](./CHANGELOG.md)
+[中文](./README.md) · [Agent Setup Guide](./docs/en/guide/getting-started.md) · [Documentation](https://fairygui.dev/en/) · [API Reference](https://fairygui.dev/api/) · [Changelog](./CHANGELOG.md) · [Roadmap](./ROADMAP_EN.md)
 
 > **A FairyGUI project toolchain for AI agents and automation workflows.**
 > Read, edit, validate, and publish projects through MCP, the CLI, and TypeScript SDKs without starting the desktop editor.
@@ -69,7 +69,7 @@ MCP provides Backend session editing. Publishing saved projects and limited reco
 
 ## Status and boundaries
 
-The 0.x APIs may evolve; see the [Changelog](./CHANGELOG.md) for stable releases and prereleases. Node.js hosts require 22+; browser hosts use runtime-neutral or explicit `/web` entrypoints and inject host capabilities. Saving is rejected when faithful writeback is unsupported. A successful preview or state read does not guarantee later writes, publishing, or rendering.
+The 0.x APIs may evolve; see the [Changelog](./CHANGELOG.md) for stable releases and prereleases, and the [Roadmap](./ROADMAP_EN.md) for upcoming plans (not a release commitment). Node.js hosts require 22+; browser hosts use runtime-neutral or explicit `/web` entrypoints and inject host capabilities. Saving is rejected when faithful writeback is unsupported. A successful preview or state read does not guarantee later writes, publishing, or rendering.
 
 ## Local development
 

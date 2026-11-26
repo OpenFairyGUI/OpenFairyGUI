@@ -6,7 +6,7 @@
 [![npm](https://img.shields.io/badge/npm-%40openfairygui%2Fmcp-cb3837.svg)](https://www.npmjs.com/package/@openfairygui/mcp)
 [![License](https://img.shields.io/badge/license-MIT-007ec6.svg)](./LICENSE)
 
-[English](./README_EN.md) · [Agent 接入指南](./docs/guide/getting-started.md) · [官网文档](https://fairygui.dev/) · [API Reference](https://fairygui.dev/api/) · [更新日志](./CHANGELOG_CN.md)
+[English](./README_EN.md) · [Agent 接入指南](./docs/guide/getting-started.md) · [官网文档](https://fairygui.dev/) · [API Reference](https://fairygui.dev/api/) · [更新日志](./CHANGELOG_CN.md) · [路线图](./ROADMAP.md)
 
 > **面向 AI Agent 与自动化工作流的 FairyGUI 工程工具链。**
 > 通过 MCP、CLI 和 TypeScript SDK 读取、编辑、验证与发布工程，无需启动桌面编辑器。
@@ -69,7 +69,7 @@ MCP 提供 Backend 会话编辑能力；发布已保存工程与可信本地产�
 
 ## 当前状态与边界
 
-0.x API 仍可能演进，稳定版与预发布版见[更新日志](./CHANGELOG_CN.md)。Node.js 宿主要求 22+；浏览器宿主使用运行时无关入口或明确的 `/web` 入口，并注入宿主能力。无法保真写回时会拒绝保存；预演或状态读取成功不保证后续写盘、发布或渲染成功。
+0.x API 仍可能演进，稳定版与预发布版见[更新日志](./CHANGELOG_CN.md)，后续规划见[路线图](./ROADMAP.md)（非发布承诺）。Node.js 宿主要求 22+；浏览器宿主使用运行时无关入口或明确的 `/web` 入口，并注入宿主能力。无法保真写回时会拒绝保存；预演或状态读取成功不保证后续写盘、发布或渲染成功。
 
 ## 本地开发
 
