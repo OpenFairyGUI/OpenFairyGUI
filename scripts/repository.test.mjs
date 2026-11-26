@@ -109,6 +109,8 @@ test('impact selection includes downstream consumers and conservatively falls ba
 		'AGENTS.md',
 		'CHANGELOG.md',
 		'CHANGELOG_CN.md',
+		'ROADMAP.md',
+		'ROADMAP_EN.md',
 	];
 	assert.equal(selectTests(map, documentation, available).scope, 'repository-only');
 	for (const file of [
