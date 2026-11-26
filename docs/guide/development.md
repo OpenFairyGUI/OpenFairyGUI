@@ -23,15 +23,15 @@ pnpm repo:setup
 | 场景 | 命令 | 实际覆盖 |
 |---|---|---|
 | 首次启动 | `pnpm repo:setup` | 获取固定 fixture、安装、构建、仓库脚本自测与环境诊断；完成后即可开始开发 |
-| 代码修改 | `pnpm check:fast --base origin/next` | lint、typecheck、仓库脚本基础自测与指引检查；选中 AVA 测试时先构建再测试。base 换成实际 PR 目标 |
+| 代码修改 | `pnpm check:fast --base origin/main` | lint、typecheck、仓库脚本基础自测与指引检查；选中 AVA 测试时先构建再测试。base 换成实际 PR 目标 |
 | 普通文档修改 | `pnpm docs:check` | 本地链接、指令路径/命令、影响表、公开源码入口、双语导航、Changelog 结构和契约漂移 |
 | 大范围改动或完整 CI 复现 | `pnpm check:ci` | fixture、lint、typecheck、指引/契约、构建、全部仓库脚本与 AVA 测试、tarball 消费者和文档构建 |
 
 预览与执行使用同一基准；`--list` 只输出计划，不运行 lint、typecheck 或构建：
 
 ```bash
-pnpm check:fast --base origin/next --list
-pnpm check:fast --base origin/next
+pnpm check:fast --base origin/main --list
+pnpm check:fast --base origin/main
 ```
 
 快速检查不是完整回归。普通文档不包括 `docs/.vitepress/` 站点配置或主题代码；需要页面预览时运行 `pnpm docs:build`，它显式先生成 TypeDoc API，再构建 VitePress。CI 仍会检查并构建文档。
@@ -59,7 +59,7 @@ doctor 不安装、不下载、不写文件；子模块状态查询也禁用 Git
 
 PR CI 先获取完整 Git 历史，使用 PR 目标提交与 `test:changed --list` 的现有影响映射判定范围。仅 `repository-only` 计划跳过 quality/consumer jobs；documentation job 仍执行 `scripts/repository.test.mjs` 仓库脚本自测、`docs:check` 与 `docs:build`。代码、站点配置、脚本、依赖、未知路径、无变更或无法确认比较基准时执行全量；范围判定 job 失败也不会静默跳过产品检查。工作流保持触发，跳过的是具体 job。
 
-全量 CI 的 quality job 在 Ubuntu/Windows × Node 22/24 上执行 `check`；Ubuntu / Node 22 改用 `pnpm coverage` 以覆盖率模式执行同一组检查并上传报告，不重复运行测试；documentation job 检查并构建文档；consumer job 在 Linux/Windows 上执行 `pack:check`。文档与消费者 job 不下载 fixture。`main` 与 `next` 的 push 始终执行全量；同一 PR 的新运行取消旧运行，不同 push 不互相取消。Pages 仅在 main 的 push CI 成功后，通过 workflow_run 检出该次已验证的 head_sha 构建部署；过期提交跳过部署。远端链接、翻译含义和协议解释仍需人工审查。
+全量 CI 的 quality job 在 Ubuntu/Windows × Node 22/24 上执行 `check`；Ubuntu / Node 22 改用 `pnpm coverage` 以覆盖率模式执行同一组检查并上传报告，不重复运行测试；documentation job 检查并构建文档；consumer job 在 Linux/Windows 上执行 `pack:check`。文档与消费者 job 不下载 fixture。`main` 的 push 始终执行全量；同一 PR 的新运行取消旧运行，不同 push 不互相取消。Pages 仅在 main 的 push CI 成功后，通过 workflow_run 检出该次已验证的 head_sha 构建部署；过期提交跳过部署。远端链接、翻译含义和协议解释仍需人工审查。
 
 本地 `check:ci` 先验证 fixture、格式/lint、类型与 `docs:check`（指引与契约），再运行 `pack:check`、仓库测试、`pnpm test` 和文档构建。`pnpm test` 显式先构建，独立运行也不会读取旧 dist；测试内部不重建共享 CLI/MCP 输出。`pack:check` 为消费者独立检查契约并构建，因此完整流程包含两次构建。Linux CI 用 `pnpm check:ci --browser-deps` 显式准备 Chromium 系统依赖。
 
@@ -124,7 +124,7 @@ Agent 评测共用 tarball 安装流程。`pnpm eval:agent --runner reference` �
 
 ## 离线验证
 
-已有依赖和固定 fixture 时，`pnpm check:fast --base origin/next` 与 `pnpm check` 不主动下载浏览器或安装消费者依赖。离线可先运行这些检查，再运行 `pnpm docs:check`；缺少 fixture 时先报告 `pnpm refs:status` 的结果，不能把跳过视为通过。`pnpm check:ci` 的 tarball 消费者安装/浏览器下载仍需网络，恢复网络后补跑，离线结果不替代完整 CI。
+已有依赖和固定 fixture 时，`pnpm check:fast --base origin/main` 与 `pnpm check` 不主动下载浏览器或安装消费者依赖。离线可先运行这些检查，再运行 `pnpm docs:check`；缺少 fixture 时先报告 `pnpm refs:status` 的结果，不能把跳过视为通过。`pnpm check:ci` 的 tarball 消费者安装/浏览器下载仍需网络，恢复网络后补跑，离线结果不替代完整 CI。
 
 ## 贡献入口
 

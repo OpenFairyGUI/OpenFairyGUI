@@ -23,15 +23,15 @@ Choose one entrypoint for the task, rather than running every command in order. 
 | Task | Command | Coverage |
 |---|---|---|
 | First checkout | `pnpm repo:setup` | Pinned fixtures, installation, build, repository-tool tests and environment diagnosis; ready to start development |
-| Code changes | `pnpm check:fast --base origin/next` | Lint, typecheck, basic repository-tool tests and guidance checks; build before selected AVA tests. Replace the base with the actual PR target |
+| Code changes | `pnpm check:fast --base origin/main` | Lint, typecheck, basic repository-tool tests and guidance checks; build before selected AVA tests. Replace the base with the actual PR target |
 | Ordinary documentation changes | `pnpm docs:check` | Local links, agent paths/commands, impact-table drift, public source mappings, bilingual entries, Changelog structure and contract drift |
 | Broad changes or full CI reproduction | `pnpm check:ci` | Fixtures, lint, typecheck, guidance/contracts, build, all repository-tool and AVA tests, tarball consumers and documentation build |
 
 Use the same base for preview and execution. `--list` only prints a plan; it does not run lint, typecheck or builds:
 
 ```bash
-pnpm check:fast --base origin/next --list
-pnpm check:fast --base origin/next
+pnpm check:fast --base origin/main --list
+pnpm check:fast --base origin/main
 ```
 
 Fast checks are not a full regression. Ordinary documentation excludes site configuration and theme code under `docs/.vitepress/`. Run `pnpm docs:build` when you need a page preview; it explicitly generates TypeDoc API pages before building VitePress. CI still checks and builds documentation.
@@ -59,7 +59,7 @@ Doctor does not install, download, configure or write files; submodule status qu
 
 PR CI first fetches full Git history and classifies changes against the PR base commit using the existing impact map through `test:changed --list`. Only a `repository-only` plan skips quality/consumer jobs; documentation still runs the repository script checks in `scripts/repository.test.mjs`, `docs:check` and `docs:build`. Code, site configuration, scripts, dependencies, unknown paths, no changes or an unavailable comparison base select full checks. A failed scope job also does not silently skip product checks. The workflow remains triggered; only individual jobs are skipped.
 
-Full CI runs `check` on Ubuntu/Windows × Node 22/24; Ubuntu / Node 22 runs the same checks in coverage mode through `pnpm coverage` and uploads its report instead of running tests twice. Documentation checks and builds separately; consumers run pack:check on Linux/Windows. Documentation and consumers do not download fixtures. Pushes to main and next always run full checks; only runs for the same PR cancel each other. Pages uses workflow_run after successful main push CI, checks out that verified head_sha and skips superseded commits. Remote links, translation meaning and protocol interpretation still require review.
+Full CI runs `check` on Ubuntu/Windows × Node 22/24; Ubuntu / Node 22 runs the same checks in coverage mode through `pnpm coverage` and uploads its report instead of running tests twice. Documentation checks and builds separately; consumers run pack:check on Linux/Windows. Documentation and consumers do not download fixtures. Pushes to main always run full checks; only runs for the same PR cancel each other. Pages uses workflow_run after successful main push CI, checks out that verified head_sha and skips superseded commits. Remote links, translation meaning and protocol interpretation still require review.
 
 Local `check:ci` verifies fixtures, formatting/lint, types and `docs:check` (guidance and contracts), then runs pack:check, repository tests, pnpm test and documentation builds. pnpm test explicitly builds first, including when invoked independently; tests never rebuild shared CLI/MCP output. pack:check independently checks contracts and builds for consumers, so the full pipeline includes two builds. Linux CI uses `pnpm check:ci --browser-deps` to install Chromium system dependencies.
 
@@ -124,7 +124,7 @@ The package.json toolchain field explains the compiler split: typecheck invokes 
 
 ## Offline verification
 
-With dependencies and pinned fixtures already present, `pnpm check:fast --base origin/next` and `pnpm check` do not download browsers or install consumer dependencies. Run these and `pnpm docs:check` offline. Report missing fixtures using `pnpm refs:status`; skipped checks are not passes. `pnpm check:ci` may need network access for consumer installation and browsers and must still pass before release.
+With dependencies and pinned fixtures already present, `pnpm check:fast --base origin/main` and `pnpm check` do not download browsers or install consumer dependencies. Run these and `pnpm docs:check` offline. Report missing fixtures using `pnpm refs:status`; skipped checks are not passes. `pnpm check:ci` may need network access for consumer installation and browsers and must still pass before release.
 
 ## Contributing
 
