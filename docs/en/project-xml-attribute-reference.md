@@ -344,7 +344,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `filter` |  | Filter type |
 | `filterData` |  | Filter data |
 
-### `<loader3d>`
+### `<loader3D>`
 
 | Attribute | Alias | Description |
 |---|---|---|

@@ -16,10 +16,10 @@ This document defines the current alignment among these names so that the `displ
 
 | Rule | Description |
 |---|---|
-| A raw XML tag describes only the tag present in the file. | Examples: `loader3d`, `list`. |
+| A raw XML tag describes only the tag present in the file. | Examples: `loader3D`, `list`. |
 | A `displayList` variant describes only the object variant in the container. | Examples: `loader3D`, `tree`, `inputtext`. |
 | Editor `DisplayListItem.type` uses the normalized result after editor loading. | Examples: `inputtext`, `tree`. |
-| Raw tags and variants may use different names during I/O. | Confirmed mappings include `loader3d -> loader3D`, `list -> tree`, and `text -> inputtext`. |
+| Raw tags and variants may use different names during I/O. | Confirmed mappings include `list -> tree` and `text -> inputtext` (reading also accepts lowercase `loader3d -> loader3D`). |
 
 ## Alignment table
 
@@ -32,7 +32,7 @@ This document defines the current alignment among these names so that the `displ
 | Graph | `graph` | `graph` | `graph` | `graph` |
 | Group | `group` | `group` | `group` | `group` |
 | Loader | `loader` | `loader` | `loader` | `loader` |
-| Loader3D | `loader3d` | `loader3D` | Aligned as `loader3D` in this repository | `loader3d` |
+| Loader3D | `loader3D` (reading also accepts lowercase `loader3d`) | `loader3D` | Aligned as `loader3D` in this repository | `loader3D` |
 | MovieClip | `movieclip` | `movieclip` | `movieclip` | `movieclip` |
 | JTA animation | `jta` | `jta` | `jta` | `jta` |
 | Child component instance | `component` | `component` | Resource reference objects normally omit an independent `type`; the referenced resource determines the display-list item. | `component` |
@@ -47,7 +47,7 @@ The following variants depend on additional conditions and cannot be determined 
 |---|---|---|---|
 | `text` | `input="true"` | `inputtext` | `UIPackage.loadComponentChildren(...)` |
 | `list` | `treeView="true"` | `tree` | `UIPackage.loadComponentChildren(...)` |
-| `loader3d` | No extra condition; the variant uses camel case. | `loader3D` | Current project-protocol container contract |
+| `loader3D` / `loader3d` | No extra condition; canonical tag and write output are `loader3D`, while reading also accepts lowercase `loader3d`. | `loader3D` | Pinned fixture `FairyGUI-Experiments/assets/Loader/Main.xml` and editor `FObjectFactory` |
 
 ## Current write rules
 
@@ -57,7 +57,7 @@ The following variants depend on additional conditions and cannot be determined 
 | `GTextInput` | `inputtext` |
 | `GRichTextField` | `richtext` |
 | `GTree` | `list` with `treeView="true"` |
-| `GLoader3D` | `loader3d` |
+| `GLoader3D` | `loader3D` |
 | `GMovieClip` | `jta` |
 | Compatibility input using `movieclip` | Always written as `jta`. |
 | `GComponent / GButton / GLabel / GComboBox / GProgressBar / GSlider / GScrollBar` | `component` |
@@ -68,5 +68,5 @@ The following variants depend on additional conditions and cannot be determined 
 |---|---|
 | Add a `displayList` object type | Update the raw XML tag, `displayList` variant, editor alignment, and this table together. |
 | Change the `displayList` container variant set | Recheck project reading, project writing, and editor `DisplayListItem.type` alignment together. |
-| Change normalization for `text`, `tree`, `loader3d`, or `jta` | Update this table in the same change; changing only a code constant is not allowed. |
+| Change normalization for `text`, `tree`, `loader3D`, or `jta` | Update this table in the same change; changing only a code constant is not allowed. |
 | Documentation boundary | This document covers `displayList` naming and variant protocols only, not internal reader or writer implementation details. |

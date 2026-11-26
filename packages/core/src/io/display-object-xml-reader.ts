@@ -68,10 +68,11 @@ function getDisplayListVariantName(tagName: string, attrs: DisplayObjectXmlNode)
 }
 
 export function assertDisplayListTagAllowed(tagName: string, attrs: DisplayObjectXmlNode, componentName: string): void {
-	if (!DISPLAY_TAG_MAP[tagName]) {
+	const normalizedTagName = tagName.toLowerCase();
+	if (!DISPLAY_TAG_MAP[normalizedTagName]) {
 		throw new ProjectIOError(`Unsupported displayList tag "${tagName}" in component "${componentName}"`);
 	}
-	const variantName = getDisplayListVariantName(tagName, attrs);
+	const variantName = getDisplayListVariantName(normalizedTagName, attrs);
 	if (!DISPLAY_LIST_ALLOWED_VARIANTS.has(variantName)) {
 		throw new ProjectIOError(
 			`displayList variant "${variantName}" derived from tag "${tagName}" is not declared in protocol for component "${componentName}"`,
@@ -180,10 +181,11 @@ export function createDisplayObject(
 	attrs: DisplayObjectXmlNode,
 	localControllers: Map<string, Controller>,
 ): GObject | null {
+	const normalizedTagName = tagName.toLowerCase();
 	const name = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.name) ?? '';
 	let obj: GObject;
 
-	switch (tagName) {
+	switch (normalizedTagName) {
 		case 'image': {
 			const g = doc.createGImage(name);
 			const imageSrc = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.image.attrs.src);
@@ -238,7 +240,7 @@ export function createDisplayObject(
 		case 'text':
 		case 'richtext':
 		case 'inputtext':
-			obj = createTextDisplayObject(doc, tagName, name, attrs);
+			obj = createTextDisplayObject(doc, normalizedTagName, name, attrs);
 			break;
 		case 'graph': {
 			const g = doc.createGGraph(name);
@@ -482,7 +484,7 @@ export function createDisplayObject(
 	// Common GObject attributes
 	const objectId = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.sharedDisplayAttributes.attrs.id);
 	obj.setId(objectId || '');
-	const objectProtocol = DISPLAY_OBJECT_PROTOCOL_MAP[tagName];
+	const objectProtocol = DISPLAY_OBJECT_PROTOCOL_MAP[normalizedTagName];
 	readCommonDisplayState(attrs, obj as WritableCommonDisplayState, objectProtocol);
 	readDisplayBehaviors(doc, obj, attrs, objectProtocol, localControllers);
 	readComponentInstanceOverlays(obj, attrs);

@@ -344,7 +344,7 @@
 | `filter` |  | 滤镜类型 |
 | `filterData` |  | 滤镜数据 |
 
-### `<loader3d>`
+### `<loader3D>`
 
 | 属性名 | Alias | 说明 |
 |---|---|---|

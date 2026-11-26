@@ -16,10 +16,10 @@
 
 | 规则 | 说明 |
 |---|---|
-| 原始 XML tag 只描述文件中出现的标签名 | 例如 `loader3d`、`list` |
+| 原始 XML tag 只描述文件中出现的标签名 | 例如 `loader3D`、`list` |
 | `displayList` variant 只描述容器中的对象变体名 | 例如 `loader3D`、`tree`、`inputtext` |
 | editor `DisplayListItem.type` 采用编辑器加载后的归一结果 | 例如 `inputtext`、`tree` |
-| 读写时允许“原始 tag”和“variant”不同名 | 当前明确存在 `loader3d -> loader3D`、`list -> tree`、`text -> inputtext` |
+| 读写时允许“原始 tag”和“variant”不同名 | 当前明确存在 `list -> tree`、`text -> inputtext`（读入也兼容小写 `loader3d -> loader3D`） |
 
 ## 对齐映射表
 
@@ -32,7 +32,7 @@
 | 图形 | `graph` | `graph` | `graph` | `graph` |
 | 分组 | `group` | `group` | `group` | `group` |
 | Loader | `loader` | `loader` | `loader` | `loader` |
-| Loader3D | `loader3d` | `loader3D` | 当前仓库按 `loader3D` 对齐 | `loader3d` |
+| Loader3D | `loader3D`（读入兼容小写 `loader3d`） | `loader3D` | 当前仓库按 `loader3D` 对齐 | `loader3D` |
 | MovieClip | `movieclip` | `movieclip` | `movieclip` | `movieclip` |
 | JTA 动画 | `jta` | `jta` | `jta` | `jta` |
 | 子组件实例 | `component` | `component` | 资源引用对象通常不单独写 `type`，其显示列表项由引用资源决定 | `component` |
@@ -47,7 +47,7 @@
 |---|---|---|---|
 | `text` | `input="true"` | `inputtext` | `UIPackage.loadComponentChildren(...)` |
 | `list` | `treeView="true"` | `tree` | `UIPackage.loadComponentChildren(...)` |
-| `loader3d` | 无额外条件，但 variant 采用 CamelCase | `loader3D` | 当前工程协议容器口径 |
+| `loader3D` / `loader3d` | 无额外条件；正式标签与写回为 `loader3D`，读入兼容小写 `loader3d` | `loader3D` | 固定样本 `FairyGUI-Experiments/assets/Loader/Main.xml` 与编辑器 `FObjectFactory` |
 
 ## 当前写回规则
 
@@ -57,7 +57,7 @@
 | `GTextInput` | `inputtext` |
 | `GRichTextField` | `richtext` |
 | `GTree` | `list`，同时写 `treeView="true"` |
-| `GLoader3D` | `loader3d` |
+| `GLoader3D` | `loader3D` |
 | `GMovieClip` | `jta` |
 | 兼容读入的 `movieclip` | 当前统一写回 `jta` |
 | `GComponent / GButton / GLabel / GComboBox / GProgressBar / GSlider / GScrollBar` | `component` |
@@ -68,5 +68,5 @@
 |---|---|
 | 新增 `displayList` 对象类型 | 必须同时更新原始 XML tag、`displayList` variant、editor 对齐口径和本表 |
 | 调整 `displayList` 容器 variant 集合 | 必须同步检查工程读入、工程写回和编辑器 `DisplayListItem.type` 是否仍一致 |
-| 修改 `text/tree/loader3d/jta` 等归一规则 | 必须同步更新本表，不允许只改代码常量 |
+| 修改 `text/tree/loader3D/jta` 等归一规则 | 必须同步更新本表，不允许只改代码常量 |
 | 文档边界 | 本文档只描述 `displayList` 命名与变体协议，不描述内部 reader / writer 实现细节 |
