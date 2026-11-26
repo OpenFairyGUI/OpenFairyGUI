@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+Bug Fixes:
+
+- core: Emit canonical `<loader3D>` display-list tags when writing project XML for FairyGUI Desktop compatibility, normalize tag casing across reader paths so both `<loader3D>` and legacy `<loader3d>` remain readable, and synchronize the bilingual XML protocol documentation.
+
 Other:
 
 - Development and CI: Ubuntu / Node 22 runs the full check once under the coverage gate instead of repeating the tests; `check:ci` also runs the contract drift check through `docs:check`. Build options live only in each package's tsdown config, removing the deprecated `external` flag and watch-mode drift. Remove duplicate root scripts, the unused MCP package-level test setup and redundant `tsx` declarations; the AVA inactivity timeout is 60s.

@@ -103,8 +103,7 @@ test('all display node pivot/anchor variants survive XML and binary round-trips'
 			const tag =
 				outputXml.match(
 					new RegExp(
-						`<(?:text|richtext|inputtext|loader|list|group|loader3d|movieclip|jta)\\b[^>]*id="${id}"[^>]*>`,
-						'i',
+						`<(?:text|richtext|inputtext|loader|list|group|loader3D|movieclip|jta)\\b[^>]*id="${id}"[^>]*>`,
 					),
 				)?.[0] ?? '';
 			t.regex(tag, new RegExp(`pivot="${pivotX},${pivotY}"`), `${id} writes pivot`);

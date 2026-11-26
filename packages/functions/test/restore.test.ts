@@ -710,11 +710,11 @@ test('restore published project: directory batch restores packages, assets, and 
 
 		const loaderMainXml = await fs.readFile(path.join(outputDir, 'assets', 'Loader', 'Main.xml'), 'utf-8');
 		t.false(
-			/<loader3d\b[^>]*\balign=/.test(loaderMainXml),
+			/<loader3D\b[^>]*\balign=/.test(loaderMainXml),
 			'restored Loader/Main omits default loader3D align attrs',
 		);
 		t.false(
-			/<loader3d\b[^>]*\bvAlign=/.test(loaderMainXml),
+			/<loader3D\b[^>]*\bvAlign=/.test(loaderMainXml),
 			'restored Loader/Main omits default loader3D vAlign attrs',
 		);
 

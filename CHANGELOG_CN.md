@@ -4,6 +4,10 @@
 
 ## 未发布
 
+缺陷修复：
+
+- core：工程 XML 写回 `GLoader3D` 时使用与 FairyGUI 桌面编辑器兼容的正式 `<loader3D>` 标签，在读取路径统一归一化标签大小写以兼容 `<loader3D>` 与小写 `<loader3d>`，并同步双语 XML 协议文档。
+
 其他：
 
 - 开发与 CI：Ubuntu / Node 22 在覆盖率门禁下只运行一次完整检查，不再重复运行测试；`check:ci` 通过 `docs:check` 同时检查契约漂移。构建参数只保存在各包 tsdown 配置中，消除已弃用的 `external` 参数和 watch 模式漂移。删除重复的根脚本、MCP 包级测试配置和多余的 `tsx` 声明；AVA 无响应超时为 60s。

@@ -33,7 +33,7 @@ const DISPLAY_TAG: Record<string, string> = {
 	GGraph: 'graph',
 	GGroup: 'group',
 	GLoader: 'loader',
-	GLoader3D: 'loader3d',
+	GLoader3D: 'loader3D',
 	GMovieClip: 'jta',
 	GComponent: 'component',
 	GButton: 'component',

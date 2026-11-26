@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
 import { Document, PropertyType } from '../src/index.js';
+import { assertDisplayListTagAllowed, createDisplayObject } from '../src/io/display-object-xml-reader.js';
 import { NodeIO } from '../src/node.js';
 
 const PROJECT_PATH = getFixtureProjectPath('FairyGUI-unity', 'UIProject/FairyGUI-Unity-Examples.fairy');
@@ -684,10 +685,12 @@ test('writer: uses canonical XML attr names for component root, loader, text nod
 			),
 			'richtext writes canonical common display attrs',
 		);
+		t.true(/<loader3D\b/.test(componentXml), 'loader3D uses editor-compatible tag case');
+		t.false(/<loader3d\b/.test(componentXml), 'loader3D does not use lowercase tag');
 		t.true(componentXml.includes('animation="idle"'), 'loader3D uses canonical animation attr');
 		t.false(componentXml.includes('animationName='), 'loader3D no longer writes model field name');
-		t.false(/<loader3d\b[^>]*\balign=/.test(componentXml), 'loader3D omits default align attr');
-		t.false(/<loader3d\b[^>]*\bvAlign=/.test(componentXml), 'loader3D omits default vAlign attr');
+		t.false(/<loader3D\b[^>]*\balign=/.test(componentXml), 'loader3D omits default align attr');
+		t.false(/<loader3D\b[^>]*\bvAlign=/.test(componentXml), 'loader3D omits default vAlign attr');
 		t.true(componentXml.includes('prompt="Search here"'), 'text input uses canonical prompt attr');
 		t.true(
 			/<inputtext\b[^>]*text=""[^>]*color="#ff3300"/.test(componentXml),
@@ -1082,5 +1085,60 @@ test('round-trip: tree view list attrs and static item hierarchy survive writeâ†
 		});
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('loader3D XML reader accepts both <loader3D> and legacy <loader3d>, writing canonical <loader3D>', async (t) => {
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-loader3d-case-'));
+	t.teardown(() => fs.rm(dir, { recursive: true, force: true }));
+
+	const projectPath = path.join(dir, 'LoaderCase.fairy');
+	const pkgDir = path.join(dir, 'assets', 'Main');
+	await fs.mkdir(pkgDir, { recursive: true });
+	await fs.writeFile(projectPath, '<projectDescription id="loader3dcase" type="Unity" version="3.0"/>\n', 'utf8');
+	await fs.writeFile(
+		path.join(pkgDir, 'package.xml'),
+		'<packageDescription id="pkgcase"><resources><component id="cmp1" name="Main.xml" path="/" exported="true"/></resources></packageDescription>\n',
+		'utf8',
+	);
+	await fs.writeFile(
+		path.join(pkgDir, 'Main.xml'),
+		`<component size="200,200">
+  <displayList>
+    <loader3D id="n0" name="canonical" xy="10,20" size="80,80" animation="idle"/>
+    <loader3d id="n1" name="legacy" xy="90,20" size="80,80" animation="run"/>
+  </displayList>
+</component>
+`,
+		'utf8',
+	);
+
+	const io = new NodeIO();
+	const doc = await io.readProject(projectPath);
+	const comp = doc.getRoot().getPackage('Main')?.getComponent('Main');
+	t.truthy(comp);
+	const children = comp?.listChildren() ?? [];
+	t.is(children.length, 2);
+	t.is(children[0]?.propertyType, PropertyType.G_LOADER_3D);
+	t.is(children[1]?.propertyType, PropertyType.G_LOADER_3D);
+
+	const outDir = path.join(dir, 'out');
+	await fs.mkdir(outDir, { recursive: true });
+	const outFairy = path.join(outDir, 'LoaderCase.fairy');
+	await io.writeProject(doc, outFairy);
+	const outXml = await fs.readFile(path.join(outDir, 'assets', 'Main', 'Main.xml'), 'utf8');
+	t.is(outXml.match(/<loader3D\b/g)?.length, 2, 'both GLoader3D nodes write canonical <loader3D>');
+	t.false(/<loader3d\b/.test(outXml), 'written project XML contains no lowercase <loader3d>');
+
+	const reread = await io.readProject(outFairy);
+	t.is(reread.getRoot().getPackage('Main')?.getComponent('Main')?.listChildren().length, 2);
+
+	const directDoc = new Document();
+	const dummyCtx = {} as Parameters<typeof createDisplayObject>[0];
+	const controllers = new Map();
+	for (const tag of ['loader3D', 'loader3d']) {
+		t.notThrows(() => assertDisplayListTagAllowed(tag, { '@_id': 'n0', '@_name': tag }, 'Direct'));
+		const obj = createDisplayObject(dummyCtx, directDoc, tag, { '@_id': 'n0', '@_name': tag }, controllers);
+		t.is(obj?.propertyType, PropertyType.G_LOADER_3D);
 	}
 });
