@@ -6,6 +6,16 @@
 
 ## v0.7.x
 
+### v0.7.1（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.7.1)）
+
+缺陷修复：
+
+- workspace、functions、cli：将 Functions 与 CLI 的可选 `sharp` 依赖范围从 `>=0.33.0 <0.35.0` 升级为 `^0.35.5`，并将根目录开发依赖更新至 `^0.35.5`，消除影响 `sharp <=0.35.5-rc.1` 的高危安全通告。修复 [#170](https://github.com/OpenFairyGUI/OpenFairyGUI/issues/170)。
+
+其他：
+
+- 开发与 CI：更新发布工作流，在发布高于现有 `next` 标签的正式版时，同步推进 npm 与 GitHub Packages 的 `next` dist-tag。
+
 ### v0.7.0（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.7.0)）
 
 Agent 工具：MCP 默认引导/文档工具、base64 结构化二进制输出（传输破坏性变更）、显式宿主发布；CLI 一次性事务、双语治理与 Claude 评测入口。
