@@ -23,15 +23,15 @@ Choose one entrypoint for the task, rather than running every command in order. 
 | Task | Command | Coverage |
 |---|---|---|
 | First checkout | `pnpm repo:setup` | Pinned fixtures, installation, build, repository-tool tests and environment diagnosis; ready to start development |
-| Code changes | `pnpm check:fast --base origin/next` | Lint, typecheck, basic repository-tool tests and guidance checks; build before selected AVA tests. Replace the base with the actual PR target |
+| Code changes | `pnpm check:fast --base origin/main` | Lint, typecheck, basic repository-tool tests and guidance checks; build before selected AVA tests. Replace the base with the actual PR target |
 | Ordinary documentation changes | `pnpm docs:check` | Local links, agent paths/commands, impact-table drift, public source mappings, bilingual entries, Changelog structure and contract drift |
 | Broad changes or full CI reproduction | `pnpm check:ci` | Fixtures, lint, typecheck, guidance/contracts, build, all repository-tool and AVA tests, tarball consumers and documentation build |
 
 Use the same base for preview and execution. `--list` only prints a plan; it does not run lint, typecheck or builds:
 
 ```bash
-pnpm check:fast --base origin/next --list
-pnpm check:fast --base origin/next
+pnpm check:fast --base origin/main --list
+pnpm check:fast --base origin/main
 ```
 
 Fast checks are not a full regression. Ordinary documentation excludes site configuration and theme code under `docs/.vitepress/`. Run `pnpm docs:build` when you need a page preview; it explicitly generates TypeDoc API pages before building VitePress. CI still checks and builds documentation.
@@ -59,9 +59,9 @@ Doctor does not install, download, configure or write files; submodule status qu
 
 PR CI first fetches full Git history and classifies changes against the PR base commit using the existing impact map through `test:changed --list`. Only a `repository-only` plan skips quality/consumer jobs; documentation still runs the repository script checks in `scripts/repository.test.mjs`, `docs:check` and `docs:build`. Code, site configuration, scripts, dependencies, unknown paths, no changes or an unavailable comparison base select full checks. A failed scope job also does not silently skip product checks. The workflow remains triggered; only individual jobs are skipped.
 
-Full CI runs `check` on Ubuntu/Windows × Node 22/24. Ubuntu / Node 22 additionally enforces coverage and uploads its report. Documentation checks and builds separately; consumers run pack:check on Linux/Windows. Documentation and consumers do not download fixtures. Pushes to main and next always run full checks; only runs for the same PR cancel each other. Pages uses workflow_run after successful main push CI, checks out that verified head_sha and skips superseded commits. Remote links, translation meaning and protocol interpretation still require review.
+Full CI runs `check` on Ubuntu/Windows × Node 22/24; Ubuntu / Node 22 runs the same checks in coverage mode through `pnpm coverage` and uploads its report instead of running tests twice. Documentation checks and builds separately; consumers run pack:check on Linux/Windows. Documentation and consumers do not download fixtures. Pushes to main always run full checks; only runs for the same PR cancel each other. Pages uses workflow_run after successful main push CI, checks out that verified head_sha and skips superseded commits. Remote links, translation meaning and protocol interpretation still require review.
 
-Local `check:ci` verifies fixtures, formatting/lint, types and guidance, then runs pack:check, repository tests, pnpm test and documentation builds. pnpm test explicitly builds first, including when invoked independently; tests never rebuild shared CLI/MCP output. pack:check independently checks contracts and builds for consumers, so the full pipeline includes two builds. Linux CI uses `pnpm check:ci --browser-deps` to install Chromium system dependencies.
+Local `check:ci` verifies fixtures, formatting/lint, types and `docs:check` (guidance and contracts), then runs pack:check, repository tests, pnpm test and documentation builds. pnpm test explicitly builds first, including when invoked independently; tests never rebuild shared CLI/MCP output. pack:check independently checks contracts and builds for consumers, so the full pipeline includes two builds. Linux CI uses `pnpm check:ci --browser-deps` to install Chromium system dependencies.
 
 Release separates a read-only verify job from the privileged publish job. Verification checks the tag, five package versions and matching bilingual CHANGELOG entries, runs full check:ci, verifies the exact tarballs, and uploads them with checksums. Publishing checks out no sources and installs no project dependencies; it downloads and verifies those artifacts. npm 11 installation and tarball publication disable lifecycle scripts. Release notes come from both changelogs instead of generated replacements. Third-party Actions are pinned to commit SHAs; documentation builds have no Pages/OIDC write permissions.
 
@@ -120,11 +120,11 @@ See [Development Task Recipes](./task-recipes.md) for concrete entrypoints, evid
 
 The package.json toolchain field explains the compiler split: typecheck invokes @typescript/native/bin/tsc (TS7) explicitly, while TypeDoc and contract generation use the stable TS6 Compiler API through the typescript alias. Do not rely on the shared bare tsc shim. Tarball type consumers verify TS6 NodeNext ESM/CJS; TS5 is not a current compatibility commitment.
 
-`pnpm coverage` builds and runs all AVA tests with c8. Maintained source thresholds are 90% lines/statements/functions and 75% branches, excluding generated code. It emits coverage/lcov.info and a terminal summary. Ubuntu / Node 22 CI enforces these limits and uploads the report. AVA workerThreads: false is declared only in root configuration; at most four test files run concurrently to avoid Windows process-start contention.
+`pnpm coverage` runs the full `pnpm check` under c8. Maintained source thresholds are 90% lines/statements/functions and 75% branches, excluding generated code. It emits coverage/lcov.info and a terminal summary. Ubuntu / Node 22 CI enforces these limits and uploads the report. AVA workerThreads: false is declared only in root configuration; at most four test files run concurrently to avoid Windows process-start contention, and the 60s inactivity timeout keeps tests that read and write real fixtures from timing out spuriously on slower Windows disks.
 
 ## Offline verification
 
-With dependencies and pinned fixtures already present, `pnpm check:fast --base origin/next` and `pnpm check` do not download browsers or install consumer dependencies. Run these and `pnpm docs:check` offline. Report missing fixtures using `pnpm refs:status`; skipped checks are not passes. `pnpm check:ci` may need network access for consumer installation and browsers and must still pass before release.
+With dependencies and pinned fixtures already present, `pnpm check:fast --base origin/main` and `pnpm check` do not download browsers or install consumer dependencies. Run these and `pnpm docs:check` offline. Report missing fixtures using `pnpm refs:status`; skipped checks are not passes. `pnpm check:ci` may need network access for consumer installation and browsers and must still pass before release.
 
 ## Contributing
 

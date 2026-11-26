@@ -6,5 +6,10 @@ const packageVersion = (
 ).version;
 
 export default defineConfig({
+	entry: ['src/cli.ts'],
+	format: ['esm'],
+	platform: 'node',
+	dts: false,
+	deps: { neverBundle: ['sharp', 'jiti'] },
 	define: { __OPENFAIRYGUI_PACKAGE_VERSION__: JSON.stringify(packageVersion) },
 });

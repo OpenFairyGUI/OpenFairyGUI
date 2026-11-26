@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+Other:
+
+- Development and CI: Ubuntu / Node 22 runs the full check once under the coverage gate instead of repeating the tests; `check:ci` also runs the contract drift check through `docs:check`. Build options live only in each package's tsdown config, removing the deprecated `external` flag and watch-mode drift. Remove duplicate root scripts, the unused MCP package-level test setup and redundant `tsx` declarations; the AVA inactivity timeout is 60s.
+- Development and CI: Migrate repository workflows, guidance and check defaults from dual `main`/`next` branches to single-trunk `main`.
+
 ## v0.7.x
 
 ### v0.7.1 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.7.1))
