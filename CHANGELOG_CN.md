@@ -4,7 +4,23 @@
 
 ## 未发布
 
+其他：
+
+- 开发与 CI：Ubuntu / Node 22 在覆盖率门禁下只运行一次完整检查，不再重复运行测试；`check:ci` 通过 `docs:check` 同时检查契约漂移。构建参数只保存在各包 tsdown 配置中，消除已弃用的 `external` 参数和 watch 模式漂移。删除重复的根脚本、MCP 包级测试配置和多余的 `tsx` 声明；AVA 无响应超时为 60s。
+- 开发与 CI：将仓库 CI、指引文档和快速检查默认基准从 `main`/`next` 双分支迁移至单主干 `main`。
+- 开发与 CI：`check:ci` 新增 `--artifacts` 参数以消除 `release.yml` 重复执行 `pack:check`，`publish` 复用统一的 dist-tag 比较脚本并增加发布后 npm dist-tag 核验，新增 `pnpm release:bump` 与双语发布流程文档。
+
 ## v0.7.x
+
+### v0.7.1（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.7.1)）
+
+缺陷修复：
+
+- workspace、functions、cli：将 Functions 与 CLI 的可选 `sharp` 依赖范围从 `>=0.33.0 <0.35.0` 升级为 `^0.35.5`，并将根目录开发依赖更新至 `^0.35.5`，消除影响 `sharp <=0.35.5-rc.1` 的高危安全通告。修复 [#170](https://github.com/OpenFairyGUI/OpenFairyGUI/issues/170)。
+
+其他：
+
+- 开发与 CI：更新发布工作流，在发布高于现有 `next` 标签的正式版时，同步推进 npm 与 GitHub Packages 的 `next` dist-tag。
 
 ### v0.7.0（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.7.0)）
 

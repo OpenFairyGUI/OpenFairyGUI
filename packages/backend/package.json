@@ -1,6 +1,6 @@
 {
 	"name": "@openfairygui/backend",
-	"version": "0.7.0",
+	"version": "0.7.1",
 	"description": "FairyGUI Headless Authoring SDK — stateful backend runtime and session services.",
 	"author": "OpenFairyGUI Contributors",
 	"license": "MIT",
@@ -74,7 +74,6 @@
 	},
 	"devDependencies": {
 		"@openfairygui/test-utils": "workspace:*",
-		"ava": "^7.0.0",
-		"tsx": "^4.0.0"
+		"ava": "^7.0.0"
 	}
 }

@@ -885,7 +885,7 @@ export async function runtimeSmoke() {
 		if (['@openfairygui/functions', '@openfairygui/cli'].includes(source.name)) {
 			assert.equal(
 				manifest.optionalDependencies?.sharp,
-				'>=0.33.0 <0.35.0',
+				'^0.35.5',
 				'Optional sharp support must have a tested upper bound',
 			);
 		}

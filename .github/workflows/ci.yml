@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - next
 
 permissions:
   contents: read
@@ -72,9 +71,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Full repository checks
+        if: matrix.os != 'ubuntu-latest' || matrix.node != 22
         run: pnpm check
 
-      - name: Coverage gate
+      - name: Full repository checks with coverage gate
         if: matrix.os == 'ubuntu-latest' && matrix.node == 22
         run: pnpm coverage
 

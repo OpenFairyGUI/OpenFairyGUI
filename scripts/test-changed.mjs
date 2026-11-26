@@ -102,7 +102,7 @@ if (isMain(import.meta.url)) {
 		});
 		if (values.check && !values.matrix && !values.base && !process.env.GITHUB_BASE_REF) {
 			throw new Error(
-				'check:fast requires --base <PR target>, for example --base origin/next. Add --list to preview the same plan without running checks.',
+				'check:fast requires --base <PR target>, for example --base origin/main. Add --list to preview the same plan without running checks.',
 			);
 		}
 		const map = readJson(path.join(ROOT, 'agent/impact-map.json'));
