@@ -66,13 +66,21 @@ export async function validateProjectNode(projectPath: string): Promise<ProjectV
 	);
 	if (images.length === 0) return base;
 
-	let sharp: (
+	type SharpDecoder = (
 		bytes: Uint8Array,
 		options: { limitInputPixels: number },
 	) => { raw(): { toBuffer(): Promise<unknown> } };
+	let sharp: SharpDecoder;
 	try {
-		const loaded = await importNative<typeof import('sharp')>('sharp');
-		sharp = (loaded as unknown as { default?: typeof loaded }).default ?? loaded;
+		const loaded = await importNative<unknown>('sharp');
+		const resolved =
+			typeof loaded === 'function'
+				? loaded
+				: typeof loaded === 'object' && loaded !== null && 'default' in loaded
+					? (loaded as { default: unknown }).default
+					: undefined;
+		if (typeof resolved !== 'function') throw new Error('Loaded sharp module is not callable.');
+		sharp = resolved as SharpDecoder;
 	} catch {
 		return createProjectValidationReport(
 			[

@@ -6,6 +6,16 @@
 
 ## v0.7.x
 
+### v0.7.1 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.7.1))
+
+Bug Fixes:
+
+- workspace, functions, cli: Raise optional `sharp` support in Functions and CLI from `>=0.33.0 <0.35.0` to `^0.35.5` and update the root development dependency to `^0.35.5`, eliminating the high-severity advisories affecting `sharp <=0.35.5-rc.1`. Fixes [#170](https://github.com/OpenFairyGUI/OpenFairyGUI/issues/170).
+
+Other:
+
+- Development and CI: Update the release workflow to advance the `next` dist-tag on npm and GitHub Packages when publishing a stable release newer than the existing `next` tag.
+
 ### v0.7.0 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.7.0))
 
 Agent tooling: MCP default guidance/docs tool, base64 structured binary output (transport breaking change), opt-in host publish; CLI one-shot transactions; bilingual governance and Claude evaluation runner.

@@ -71,7 +71,7 @@ jobs:
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
       - name: Setup trusted-publishing CLI without lifecycle scripts
-        run: npm install --global --ignore-scripts npm@11
+        run: npm install --global --ignore-scripts npm@^11.21.0
       - name: Verify artifact checksums
         working-directory: .release
         run: sha256sum --check SHA256SUMS
@@ -89,6 +89,42 @@ jobs:
               npm publish --ignore-scripts --provenance --access public --tag "$dist_tag" ".release/openfairygui-$pkg-$version.tgz"
             fi
           done
+          if [[ "$dist_tag" == "latest" ]]; then
+            for pkg in core functions backend cli mcp; do
+              current_next="$(npm view "@openfairygui/$pkg" dist-tags.next --registry=https://registry.npmjs.org 2>/dev/null | tr -d '\r\n' || true)"
+              if node -e '
+                const [cur, next] = process.argv.slice(1);
+                if (!cur) process.exit(0);
+                const parse = (v) => {
+                  const m = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+.*)?$/.exec(v);
+                  if (!m) throw new Error(`Invalid semver: ${v}`);
+                  return { n: [+m[1], +m[2], +m[3]], p: m[4] ? m[4].split(".") : [] };
+                };
+                const cmp = (a, b) => {
+                  const pa = parse(a), pb = parse(b);
+                  for (let i = 0; i < 3; i++) if (pa.n[i] !== pb.n[i]) return pa.n[i] - pb.n[i];
+                  if (!pa.p.length && !pb.p.length) return 0;
+                  if (!pa.p.length) return 1;
+                  if (!pb.p.length) return -1;
+                  for (let i = 0; i < Math.max(pa.p.length, pb.p.length); i++) {
+                    const ai = pa.p[i], bi = pb.p[i];
+                    if (ai === undefined) return -1;
+                    if (bi === undefined) return 1;
+                    const an = /^\d+$/.test(ai), bn = /^\d+$/.test(bi);
+                    if (an && bn && +ai !== +bi) return +ai - +bi;
+                    if (an !== bn) return an ? -1 : 1;
+                    if (ai !== bi) return ai < bi ? -1 : 1;
+                  }
+                  return 0;
+                };
+                process.exit(cmp(cur, next) < 0 ? 0 : 1);
+              ' "$current_next" "$version"; then
+                npm dist-tag add "@openfairygui/$pkg@$version" next --registry=https://registry.npmjs.org
+              else
+                echo "Keeping npm next dist-tag for @openfairygui/$pkg: $current_next"
+              fi
+            done
+          fi
       - name: Publish verified tarballs to GitHub Packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -106,6 +142,42 @@ jobs:
               npm publish --ignore-scripts --tag "$dist_tag" --registry=https://npm.pkg.github.com ".release/openfairygui-$pkg-$version.tgz"
             fi
           done
+          if [[ "$dist_tag" == "latest" ]]; then
+            for pkg in core functions backend cli mcp; do
+              current_next="$(npm view "@openfairygui/$pkg" dist-tags.next --registry=https://npm.pkg.github.com 2>/dev/null | tr -d '\r\n' || true)"
+              if node -e '
+                const [cur, next] = process.argv.slice(1);
+                if (!cur) process.exit(0);
+                const parse = (v) => {
+                  const m = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+.*)?$/.exec(v);
+                  if (!m) throw new Error(`Invalid semver: ${v}`);
+                  return { n: [+m[1], +m[2], +m[3]], p: m[4] ? m[4].split(".") : [] };
+                };
+                const cmp = (a, b) => {
+                  const pa = parse(a), pb = parse(b);
+                  for (let i = 0; i < 3; i++) if (pa.n[i] !== pb.n[i]) return pa.n[i] - pb.n[i];
+                  if (!pa.p.length && !pb.p.length) return 0;
+                  if (!pa.p.length) return 1;
+                  if (!pb.p.length) return -1;
+                  for (let i = 0; i < Math.max(pa.p.length, pb.p.length); i++) {
+                    const ai = pa.p[i], bi = pb.p[i];
+                    if (ai === undefined) return -1;
+                    if (bi === undefined) return 1;
+                    const an = /^\d+$/.test(ai), bn = /^\d+$/.test(bi);
+                    if (an && bn && +ai !== +bi) return +ai - +bi;
+                    if (an !== bn) return an ? -1 : 1;
+                    if (ai !== bi) return ai < bi ? -1 : 1;
+                  }
+                  return 0;
+                };
+                process.exit(cmp(cur, next) < 0 ? 0 : 1);
+              ' "$current_next" "$version"; then
+                npm dist-tag add "@openfairygui/$pkg@$version" next --registry=https://npm.pkg.github.com
+              else
+                echo "Keeping GitHub Packages next dist-tag for @openfairygui/$pkg: $current_next"
+              fi
+            done
+          fi
       - name: Create or update the bilingual GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

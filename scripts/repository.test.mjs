@@ -53,7 +53,7 @@ test('workspace sharp is development-only and published image hosts bound the op
 	assert.equal(root.dependencies?.sharp, undefined);
 	for (const name of ['functions', 'cli']) {
 		const manifest = readJson(path.join(ROOT, 'packages', name, 'package.json'));
-		assert.equal(manifest.optionalDependencies.sharp, '>=0.33.0 <0.35.0');
+		assert.equal(manifest.optionalDependencies.sharp, '^0.35.5');
 		assert.equal(manifest.dependencies?.sharp, undefined);
 	}
 });
@@ -636,8 +636,17 @@ test('CI and release gates retain mandatory checks and isolate privileged jobs',
 	assert.match(release, /--artifacts .release --browser-deps/);
 	assert(!publish.includes('actions/checkout'));
 	assert(!publish.includes('pnpm install'));
+	assert.match(publish, /npm@\^11\.21\.0/);
 	assert.match(publish, /--ignore-scripts --provenance/);
-	assert.match(publish, /--notes-file .release\/release-notes.md/);
+	assert.match(
+		publish,
+		/npm dist-tag add "@openfairygui\/\$pkg@\$version" next --registry=https:\/\/registry\.npmjs\.org/,
+	);
+	assert.match(
+		publish,
+		/npm dist-tag add "@openfairygui\/\$pkg@\$version" next --registry=https:\/\/npm\.pkg\.github\.com/,
+	);
+	assert.match(publish, /--notes-file .release\/release-notes\.md/);
 	for (const file of ['ci.yml', 'release.yml', 'deploy-docs.yml']) {
 		const workflow = readFileSync(path.join(ROOT, '.github/workflows', file), 'utf8');
 		for (const match of workflow.matchAll(/uses: ([^\n]+)/g)) assert.match(match[1], /^[^@]+@[a-f0-9]{40}(?: |$)/);
