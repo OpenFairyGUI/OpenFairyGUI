@@ -3,7 +3,12 @@ import { ControllerActionType } from '../constants.js';
 import type { Component } from '../properties/component.js';
 import type { ResourceReferenceEncodingContext } from './component-encoder-shared.js';
 import type { MarginLike, RelationOwner } from './component-encoder-shared.js';
-import { getRuntimeChildIndexMap, getRuntimeChildren, remapLocalUiUrl } from './component-encoder-shared.js';
+import {
+	getRuntimeChildIndexMap,
+	getRuntimeChildren,
+	remapLocalResourceId,
+	remapLocalUiUrl,
+} from './component-encoder-shared.js';
 import type { WriteBuffer } from './write-buffer.js';
 
 export function _writeComponentHeader(buf: WriteBuffer, comp: Component): void {
@@ -83,13 +88,13 @@ export function _writeComponentHeader(buf: WriteBuffer, comp: Component): void {
 
 // ─── Block 1: Controllers ────────────────────────────────────────────────
 
-export function _writeControllers(buf: WriteBuffer, comp: Component): void {
+export function _writeControllers(buf: WriteBuffer, comp: Component, version = 2): void {
 	const controllers = comp.listControllers();
 	buf.writeInt16(controllers.length);
 
 	for (const ctrl of controllers) {
 		const ctrlStartPos = buf.pos;
-		buf.writeInt16(0); // placeholder for nextPos offset
+		buf.writeUint16(0); // placeholder for nextPos offset
 
 		// Controller has its own index table (3 blocks)
 		const ctrlIndexPos = buf.pos;
@@ -114,33 +119,35 @@ export function _writeControllers(buf: WriteBuffer, comp: Component): void {
 			buf.writeSEx(page.getName?.() ?? '', false, false); // cache, empty≠null
 		}
 		// v2: homePageType
-		switch (ctrl.getHomePageType()) {
-			case 'default':
-				buf.writeUint8(0);
-				break;
-			case 'specific': {
-				const homePageIndex = pages.findIndex((page) => page.getId() === ctrl.getHomePage());
-				if (homePageIndex < 0) {
-					throw new BinaryFormatError(
-						`Controller "${ctrl.getName()}" references unknown home page id "${ctrl.getHomePage()}".`,
-					);
+		if (version >= 2) {
+			switch (ctrl.getHomePageType()) {
+				case 'default':
+					buf.writeUint8(0);
+					break;
+				case 'specific': {
+					const homePageIndex = pages.findIndex((page) => page.getId() === ctrl.getHomePage());
+					if (homePageIndex < 0) {
+						throw new BinaryFormatError(
+							`Controller "${ctrl.getName()}" references unknown home page id "${ctrl.getHomePage()}".`,
+						);
+					}
+					buf.writeUint8(1);
+					buf.writeInt16(homePageIndex);
+					break;
 				}
-				buf.writeUint8(1);
-				buf.writeInt16(homePageIndex);
-				break;
+				case 'branch':
+					buf.writeUint8(2);
+					break;
+				case 'variable':
+					if (!ctrl.getHomePage()) {
+						throw new BinaryFormatError(`Controller "${ctrl.getName()}" requires a custom property key.`);
+					}
+					buf.writeUint8(3);
+					buf.writeS(ctrl.getHomePage());
+					break;
+				default:
+					throw new BinaryFormatError(`Controller "${ctrl.getName()}" has unsupported home page type.`);
 			}
-			case 'branch':
-				buf.writeUint8(2);
-				break;
-			case 'variable':
-				if (!ctrl.getHomePage()) {
-					throw new BinaryFormatError(`Controller "${ctrl.getName()}" requires a custom property key.`);
-				}
-				buf.writeUint8(3);
-				buf.writeS(ctrl.getHomePage());
-				break;
-			default:
-				throw new BinaryFormatError(`Controller "${ctrl.getName()}" has unsupported home page type.`);
 		}
 
 		// Controller Block 2: actions
@@ -149,7 +156,7 @@ export function _writeControllers(buf: WriteBuffer, comp: Component): void {
 		buf.writeInt16(actions.length);
 		for (const action of actions) {
 			const actionStart = buf.pos;
-			buf.writeInt16(0); // placeholder
+			buf.writeUint16(0); // placeholder
 			const actionType = action.getActionType?.() ?? 0;
 			buf.writeUint8(actionType);
 			const fromPage = action.getFromPage?.() ?? [];
@@ -180,7 +187,7 @@ export function _writeControllers(buf: WriteBuffer, comp: Component): void {
 			const actionEnd = buf.pos;
 			const saved = buf.pos;
 			buf.pos = actionStart;
-			buf.writeInt16(actionEnd - actionStart - 2);
+			buf.writeUint16(actionEnd - actionStart - 2);
 			buf.pos = saved;
 		}
 
@@ -195,7 +202,7 @@ export function _writeControllers(buf: WriteBuffer, comp: Component): void {
 		// Patch controller nextPos
 		const ctrlEnd = buf.pos;
 		buf.pos = ctrlStartPos;
-		buf.writeInt16(ctrlEnd - ctrlStartPos - 2);
+		buf.writeUint16(ctrlEnd - ctrlStartPos - 2);
 		buf.pos = ctrlEnd;
 	}
 }
@@ -245,7 +252,12 @@ function _resolveRelationTargetIndex(target: string, childIndexById?: ReadonlyMa
 
 // ─── Block 4: Advanced properties ────────────────────────────────────────
 
-export function _writeAdvancedProps(buf: WriteBuffer, comp: Component, version: number): void {
+export function _writeAdvancedProps(
+	buf: WriteBuffer,
+	comp: Component,
+	context: ResourceReferenceEncodingContext,
+	version: number,
+): void {
 	// customData — noCache
 	buf.writeSEx(comp.getCustomData?.() ?? null, true);
 	buf.writeBool(comp.getOpaque?.() ?? true); // opaque
@@ -275,7 +287,7 @@ export function _writeAdvancedProps(buf: WriteBuffer, comp: Component, version: 
 			const htIdx = children.findIndex((c) => c.getId() === parts[0]);
 			buf.writeInt32(htIdx >= 0 ? htIdx : -1);
 		} else {
-			buf.writeS(parts[0]);
+			buf.writeS(remapLocalResourceId(context, parts[0]));
 			buf.writeInt32(parseInt(parts[1], 10) || 0);
 			buf.writeInt32(parseInt(parts[2], 10) || 0);
 		}
@@ -285,8 +297,8 @@ export function _writeAdvancedProps(buf: WriteBuffer, comp: Component, version: 
 		buf.writeInt32(0); // i2
 	}
 	if (version >= 5) {
-		buf.writeS(comp.getAddedToStageSound?.() ?? null);
-		buf.writeS(comp.getRemovedFromStageSound?.() ?? null);
+		buf.writeS(remapLocalUiUrl(context, comp.getAddedToStageSound?.() ?? null));
+		buf.writeS(remapLocalUiUrl(context, comp.getRemovedFromStageSound?.() ?? null));
 	}
 }
 
@@ -296,7 +308,7 @@ export function _writeExtensionDef(
 	buf: WriteBuffer,
 	comp: Component,
 	context: ResourceReferenceEncodingContext,
-	_version: number,
+	version: number,
 ): void {
 	const extType = comp.getExtensionType?.() ?? '';
 	if (!extType) return;
@@ -325,9 +337,10 @@ export function _writeExtensionDef(
 		case 'Slider': {
 			buf.writeUint8(comp.getTitleType?.() ?? 0); // titleType
 			buf.writeBool(comp.getReverse?.() ?? false); // reverse
-			// v2
-			buf.writeBool(comp.getWholeNumbers?.() ?? false);
-			buf.writeBool(comp.getChangeOnClick?.() ?? true);
+			if (version >= 2) {
+				buf.writeBool(comp.getWholeNumbers?.() ?? false);
+				buf.writeBool(comp.getChangeOnClick?.() ?? true);
+			}
 			break;
 		}
 		case 'ScrollBar': {
@@ -354,8 +367,9 @@ export function _writeComponentScrollPane(
 	buf.writeInt32(comp.getScrollBarFlags?.() ?? 0);
 	// scrollBarMargin
 	const sbMargin = comp.getScrollBarMargin?.() ?? null;
-	buf.writeBool(!!sbMargin);
-	if (sbMargin) {
+	const hasSbMargin = !!sbMargin && !!(sbMargin.top || sbMargin.bottom || sbMargin.left || sbMargin.right);
+	buf.writeBool(hasSbMargin);
+	if (hasSbMargin && sbMargin) {
 		buf.writeInt32(sbMargin.top ?? 0);
 		buf.writeInt32(sbMargin.bottom ?? 0);
 		buf.writeInt32(sbMargin.left ?? 0);

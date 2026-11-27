@@ -825,7 +825,8 @@ export function materializeDisplayNodeProperties(target: GObject, node: UamDispl
 			.setValues(comboBoxNode.values)
 			.setSelectedIndex(comboBoxNode.selectedIndex)
 			.setVisibleItemCount(comboBoxNode.visibleItemCount)
-			.setPopupDirection(comboBoxNode.popupDirection);
+			.setPopupDirection(comboBoxNode.popupDirection)
+			.setSelectionController(comboBoxNode.selectionController ?? '');
 		return comboBox;
 	}
 

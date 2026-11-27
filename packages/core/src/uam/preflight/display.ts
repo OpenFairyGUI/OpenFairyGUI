@@ -457,7 +457,21 @@ export function validateDisplayPropsPayload(
 	}
 	if (
 		op.props.blendMode !== undefined &&
-		!['normal', 'none', 'add', 'multiply', 'screen', 'erase'].includes(op.props.blendMode)
+		![
+			'normal',
+			'none',
+			'add',
+			'multiply',
+			'screen',
+			'erase',
+			'mask',
+			'below',
+			'off',
+			'one_oneminussrcalpha',
+			'custom1',
+			'custom2',
+			'custom3',
+		].includes(op.props.blendMode)
 	) {
 		commonValueIssue('blendMode', `Unsupported display node blendMode "${describeValue(op.props.blendMode)}".`);
 	}

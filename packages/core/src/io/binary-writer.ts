@@ -280,7 +280,7 @@ export class BinaryWriter {
 
 		const pixelHitTests = resources
 			.filter((resource) => resource.propertyType === 'ImageResource')
-			.map((resource) => getPixelHitTestEntry(resource))
+			.map((resource) => getPixelHitTestEntry(resource, context))
 			.filter((entry): entry is PixelHitTestEntry => entry !== null);
 
 		// String table is built lazily during encoding via writeS/writeSEx calls.
@@ -736,7 +736,7 @@ function _encodeMovieClipFrames(jtaData: MovieClipFrameData, parentBuf: WriteBuf
 
 	for (const frame of jtaData.frames) {
 		const frameStart = buf.pos;
-		buf.writeInt16(0); // placeholder for chunk size
+		buf.writeUint16(0); // placeholder for chunk size
 
 		buf.writeInt32(frame.x);
 		buf.writeInt32(frame.y);
@@ -749,7 +749,7 @@ function _encodeMovieClipFrames(jtaData: MovieClipFrameData, parentBuf: WriteBuf
 		const frameEnd = buf.pos;
 		const saved = buf.pos;
 		buf.pos = frameStart;
-		buf.writeInt16(frameEnd - frameStart - 2);
+		buf.writeUint16(frameEnd - frameStart - 2);
 		buf.pos = saved;
 	}
 
@@ -799,7 +799,7 @@ function _encodeFontGlyphs(fntData: FntData, parentBuf: WriteBuffer): Uint8Array
 
 	for (const glyph of fntData.glyphs) {
 		const glyphStart = buf.pos;
-		buf.writeInt16(0); // placeholder for chunk size
+		buf.writeUint16(0); // placeholder for chunk size
 
 		buf.writeUint16(glyph.charId);
 		buf.writeS(glyph.img);
@@ -815,7 +815,7 @@ function _encodeFontGlyphs(fntData: FntData, parentBuf: WriteBuffer): Uint8Array
 		const glyphEnd = buf.pos;
 		const saved = buf.pos;
 		buf.pos = glyphStart;
-		buf.writeInt16(glyphEnd - glyphStart - 2);
+		buf.writeUint16(glyphEnd - glyphStart - 2);
 		buf.pos = saved;
 	}
 
@@ -957,11 +957,14 @@ function getOptionalStringId(item: BinaryPackageItem): string {
 	return '';
 }
 
-function getPixelHitTestEntry(resource: PackageResource): PixelHitTestEntry | null {
+function getPixelHitTestEntry(
+	resource: PackageResource,
+	context?: BinaryPackageEncodingContext,
+): PixelHitTestEntry | null {
 	const payload = (resource as ImageResource).getPixelHitTestData();
 	if (!payload) return null;
 	return {
-		itemId: resource.getId(),
+		itemId: getPublishedItemId(resource, context),
 		pixelWidth: payload.pixelWidth,
 		scaleDenominator: payload.scaleDenominator,
 		pixels: payload.pixels,

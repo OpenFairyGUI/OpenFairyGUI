@@ -181,7 +181,7 @@ function decodeMovieClipFrames(
 	if (!buf.seek(indexTablePos, 1)) return;
 	const frameCount = buf.getInt16();
 	for (let index = 0; index < frameCount; index += 1) {
-		const chunkSize = buf.getInt16();
+		const chunkSize = buf.getUint16();
 		const nextPos = buf.pos + chunkSize;
 		const frame = doc.createMovieFrame(`${resource.getId()}_${index}`);
 		frame
@@ -223,7 +223,7 @@ function decodeFontGlyphs(doc: Document, resource: ReturnType<Document['createFo
 	if (!buf.seek(indexTablePos, 1)) return;
 	const glyphCount = buf.getInt32();
 	for (let index = 0; index < glyphCount; index += 1) {
-		const chunkSize = buf.getInt16();
+		const chunkSize = buf.getUint16();
 		const nextPos = buf.pos + chunkSize;
 		const charId = buf.getUint16();
 		const glyph = doc.createFontGlyph(`${resource.getId()}_${charId || index}`);

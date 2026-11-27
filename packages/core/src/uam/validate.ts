@@ -574,7 +574,23 @@ function validateDisplayNode(
 	if (![node.tooltips, node.filter, node.filterData, node.customData].every((value) => typeof value === 'string')) {
 		pushIssue(issues, path, 'Display node tooltips, filter, filterData, and customData must be strings.');
 	}
-	if (!['normal', 'none', 'add', 'multiply', 'screen', 'erase'].includes(node.blendMode)) {
+	if (
+		![
+			'normal',
+			'none',
+			'add',
+			'multiply',
+			'screen',
+			'erase',
+			'mask',
+			'below',
+			'off',
+			'one_oneminussrcalpha',
+			'custom1',
+			'custom2',
+			'custom3',
+		].includes(node.blendMode)
+	) {
 		pushIssue(
 			issues,
 			`${path}.blendMode`,

@@ -3369,9 +3369,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -4515,9 +4522,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -4733,9 +4747,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -4954,9 +4975,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -5195,9 +5223,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -5648,9 +5683,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -5952,9 +5994,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -6206,9 +6255,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -6378,9 +6434,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -6521,9 +6584,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -6700,9 +6770,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -6875,9 +6952,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -7058,9 +7142,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -7219,9 +7310,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -7310,6 +7408,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"popupDirection": {
 					"type": "number"
+				},
+				"selectionController": {
+					"type": "string"
 				},
 				"title": {
 					"type": "string"
@@ -7400,9 +7501,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -7562,9 +7670,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -7713,9 +7828,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -7850,9 +7972,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -8583,9 +8712,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -14886,9 +15022,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -16032,9 +16175,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -16250,9 +16400,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -16471,9 +16628,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -16712,9 +16876,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -17165,9 +17336,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -17469,9 +17647,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -17723,9 +17908,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -17895,9 +18087,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -18038,9 +18237,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -18217,9 +18423,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -18392,9 +18605,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -18575,9 +18795,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -18736,9 +18963,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -18827,6 +19061,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"popupDirection": {
 					"type": "number"
+				},
+				"selectionController": {
+					"type": "string"
 				},
 				"title": {
 					"type": "string"
@@ -18917,9 +19154,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -19079,9 +19323,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -19230,9 +19481,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -19367,9 +19625,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -22837,9 +23102,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -23995,9 +24267,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -24213,9 +24492,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -24434,9 +24720,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -24675,9 +24968,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -25128,9 +25428,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -25447,9 +25754,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -25701,9 +26015,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -25891,9 +26212,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -26034,9 +26362,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -26213,9 +26548,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -26388,9 +26730,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -26571,9 +26920,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -26732,9 +27088,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -26823,6 +27186,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"popupDirection": {
 					"type": "number"
+				},
+				"selectionController": {
+					"type": "string"
 				},
 				"title": {
 					"type": "string"
@@ -26913,9 +27279,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -27075,9 +27448,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -27226,9 +27606,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -27363,9 +27750,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -33995,5 +34389,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "dcfeadbd451f77fa2d2d3bb51911cb1fbe9f6d12cbd6562047d59b441d72e50e"
+	"digest": "d52e3c4f632ba737ff055eb885812d3446da8bd55700de0c2582e4ee50a9c2ba"
 };

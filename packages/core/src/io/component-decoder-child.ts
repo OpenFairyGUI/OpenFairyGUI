@@ -144,7 +144,21 @@ function decodeChildBlock0(doc: Document, childBuf: ByteBuffer): ComponentDispla
 	}
 
 	if (remainingBytes(childBuf) < 2) return child;
-	const blendModes = ['normal', 'none', 'add', 'multiply', 'screen', 'erase'] as const;
+	const blendModes = [
+		'normal',
+		'none',
+		'add',
+		'multiply',
+		'screen',
+		'erase',
+		'mask',
+		'below',
+		'off',
+		'one_oneminussrcalpha',
+		'custom1',
+		'custom2',
+		'custom3',
+	] as const;
 	child.setBlendMode(blendModes[childBuf.getUint8()] ?? 'normal');
 	const filter = childBuf.getUint8();
 	if (filter === 1 && remainingBytes(childBuf) >= 16) {
@@ -251,7 +265,7 @@ function decodeTextChildSpecific(child: ComponentDisplayObject, childBuf: ByteBu
 	}
 
 	if (childBuf.readBool()) {
-		// template vars, current writer does not emit payload
+		textChild.setTemplateVarsEnabled(true);
 	}
 
 	if (childBuf.version >= 3 && remainingBytes(childBuf) >= 13) {
@@ -332,26 +346,27 @@ function decodeListItems(child: ComponentDisplayObject, childBuf: ByteBuffer): v
 		propertyOverrides?: GComponentPropertyOverride[];
 	}> = [];
 	for (let index = 0; index < itemCount && remainingBytes(childBuf) >= 2; index += 1) {
-		const chunkSize = childBuf.getInt16();
+		const chunkSize = childBuf.getUint16();
 		const nextPos = childBuf.pos + chunkSize;
-		const url = childBuf.readS();
+		const itemBuf = childBuf.readBuffer(chunkSize);
+		const url = itemBuf.readS();
 		let isFolder: boolean | null = null;
 		let level = 0;
-		if (isTree && remainingBytes(childBuf) >= 2) {
-			isFolder = childBuf.readBool();
-			level = childBuf.getUint8();
+		if (isTree && remainingBytes(itemBuf) >= 2) {
+			isFolder = itemBuf.readBool();
+			level = itemBuf.getUint8();
 		}
 		const item = {
 			url,
-			title: childBuf.readS(),
-			selectedTitle: childBuf.readS(),
-			icon: childBuf.readS(),
-			selectedIcon: childBuf.readS(),
-			name: childBuf.readS(),
+			title: itemBuf.readS(),
+			selectedTitle: itemBuf.readS(),
+			icon: itemBuf.readS(),
+			selectedIcon: itemBuf.readS(),
+			name: itemBuf.readS(),
 			level,
 			isFolder,
 		};
-		items.push({ ...item, ...decodeListItemOverrides(childBuf, childBuf.version) });
+		items.push({ ...item, ...decodeListItemOverrides(itemBuf, itemBuf.version) });
 		childBuf.pos = nextPos;
 	}
 	listLike.setListItems(items);
@@ -388,11 +403,12 @@ function decodeChildBlock5(child: ComponentDisplayObject, childBuf: ByteBuffer):
 			decodeTextChildSpecific(child, childBuf);
 			break;
 		case 'GGraph': {
-			if (remainingBytes(childBuf) < 13) return;
+			if (remainingBytes(childBuf) < 1) return;
 			const graph = child as ReturnType<Document['createGGraph']>;
-			const graphType = remainingBytes(childBuf) >= 14 ? childBuf.getUint8() : 0;
+			const graphType = childBuf.getUint8();
+			graph.setGraphType(graphType);
+			if (graphType === 0 || remainingBytes(childBuf) < 13) return;
 			graph
-				.setGraphType(graphType)
 				.setLineSize(childBuf.getInt32())
 				.setLineColor(readColorValue(childBuf, true, true))
 				.setFillColor(readColorValue(childBuf, true, true));
@@ -423,16 +439,20 @@ function decodeChildBlock5(child: ComponentDisplayObject, childBuf: ByteBuffer):
 			break;
 		}
 		case 'GGroup': {
-			if (remainingBytes(childBuf) < 11) return;
-			(child as ReturnType<Document['createGGroup']>)
+			if (remainingBytes(childBuf) < 9) return;
+			const group = child as ReturnType<Document['createGGroup']>;
+			group
 				.setLayout(childBuf.getUint8())
 				.setLineGap(childBuf.getInt32())
 				.setColumnGap(childBuf.getInt32())
-				.setExcludeInvisibles(childBuf.readBool())
-				.setAutoSizeDisabled(childBuf.readBool())
-				.setMainGridIndex(childBuf.getInt16())
 				// Publishing strips ordinary groups, so every group in a component child list is advanced.
 				.setAdvanced(true);
+			if (childBuf.version >= 2 && remainingBytes(childBuf) >= 4) {
+				group
+					.setExcludeInvisibles(childBuf.readBool())
+					.setAutoSizeDisabled(childBuf.readBool())
+					.setMainGridIndex(childBuf.getInt16());
+			}
 			break;
 		}
 		case 'GLoader': {
@@ -617,7 +637,7 @@ function decodeChildBlock6(
 					const itemCount = childBuf.getInt16();
 					const items: Array<{ title: string | null; value: string | null; icon: string | null }> = [];
 					for (let index = 0; index < itemCount && remainingBytes(childBuf) >= 2; index += 1) {
-						const chunkSize = childBuf.getInt16();
+						const chunkSize = childBuf.getUint16();
 						const nextPos = childBuf.pos + chunkSize;
 						items.push({
 							title: childBuf.readS(),
@@ -651,11 +671,11 @@ function decodeChildBlock6(
 				}
 				case 'ProgressBar':
 				case 'Slider':
-					if (remainingBytes(childBuf) < 12) return;
-					component
-						.setInstanceValue(childBuf.getInt32())
-						.setInstanceMax(childBuf.getInt32())
-						.setInstanceMin(childBuf.getInt32());
+					if (remainingBytes(childBuf) < 8) return;
+					component.setInstanceValue(childBuf.getInt32()).setInstanceMax(childBuf.getInt32());
+					if (childBuf.version >= 2 && remainingBytes(childBuf) >= 4) {
+						component.setInstanceMin(childBuf.getInt32());
+					}
 					if (extTypeName === 'ProgressBar' && childBuf.version >= 5 && remainingBytes(childBuf) >= 6) {
 						component
 							.setInstanceSound(childBuf.readS() ?? '')
@@ -676,7 +696,7 @@ function decodeChildBlock6(
 			const values: string[] = [];
 			const icons: string[] = [];
 			for (let index = 0; index < itemCount && remainingBytes(childBuf) >= 2; index += 1) {
-				const chunkSize = childBuf.getInt16();
+				const chunkSize = childBuf.getUint16();
 				const nextPos = childBuf.pos + chunkSize;
 				items.push(childBuf.readS() ?? '');
 				values.push(childBuf.readS() ?? '');
@@ -693,7 +713,10 @@ function decodeChildBlock6(
 				comboBox.setTitleColor(readColorValue(childBuf, true));
 			}
 			comboBox.setVisibleItemCount(childBuf.getInt32()).setPopupDirection(childBuf.getUint8());
-			childBuf.getInt16(); // selectionController index
+			const selectionControllerIndex = childBuf.getInt16();
+			if (selectionControllerIndex >= 0) {
+				comboBox.setSelectionController(resource.listControllers()[selectionControllerIndex]?.getName() ?? '');
+			}
 			if (childBuf.version >= 5 && remainingBytes(childBuf) >= 6) {
 				comboBox.setSound(childBuf.readS() ?? '').setSoundVolumeScale(childBuf.getFloat32());
 			}
@@ -701,12 +724,15 @@ function decodeChildBlock6(
 		}
 		case 'GProgressBar':
 		case 'GSlider': {
-			if (remainingBytes(childBuf) < 14) return;
+			if (remainingBytes(childBuf) < 9) return;
 			childBuf.getUint8(); // extType
 			const sliderLike = child as
 				| ReturnType<Document['createGProgressBar']>
 				| ReturnType<Document['createGSlider']>;
-			sliderLike.setValue(childBuf.getInt32()).setMax(childBuf.getInt32()).setMin(childBuf.getInt32());
+			sliderLike.setValue(childBuf.getInt32()).setMax(childBuf.getInt32());
+			if (childBuf.version >= 2 && remainingBytes(childBuf) >= 4) {
+				sliderLike.setMin(childBuf.getInt32());
+			}
 			if (child.propertyType === 'GProgressBar' && childBuf.version >= 5 && remainingBytes(childBuf) >= 6) {
 				(sliderLike as ReturnType<Document['createGProgressBar']>)
 					.setSound(childBuf.readS() ?? '')
@@ -740,7 +766,7 @@ function decodeChildBlock2(
 	if (!childBuf.seek(0, 2) || remainingBytes(childBuf) < 2) return;
 	const gearCount = childBuf.getInt16();
 	for (let gearIndex = 0; gearIndex < gearCount && remainingBytes(childBuf) >= 2; gearIndex += 1) {
-		const chunkSize = childBuf.getInt16();
+		const chunkSize = childBuf.getUint16();
 		const nextPos = childBuf.pos + chunkSize;
 		if (remainingBytes(childBuf) < 3) {
 			childBuf.pos = nextPos;
@@ -785,42 +811,46 @@ function decodeChildBlock2(
 			}
 		}
 
+		let hasTween = false;
 		if (remainingBytes(childBuf) >= 1) {
-			const hasTween = childBuf.readBool();
+			hasTween = childBuf.readBool();
 			gear.setTween(hasTween);
 			if (hasTween && remainingBytes(childBuf) >= 9) {
 				gear.setEaseType(childBuf.getUint8())
 					.setTweenDuration(childBuf.getFloat32())
 					.setTweenDelay(childBuf.getFloat32());
-				if (childBuf.version >= 4 && gear.getEaseType() === 31) {
-					gear.setCustomEasePath(readPathData(childBuf));
-				}
 			}
 		}
 
-		if (childBuf.version >= 2 && gearType === GearType.XY && remainingBytes(childBuf) >= 1) {
-			const positionsInPercent = childBuf.readBool();
-			gear.setPositionsInPercent(positionsInPercent);
-			if (positionsInPercent) {
-				for (let pageIndex = 0; pageIndex < pages.length && remainingBytes(childBuf) >= 2; pageIndex += 1) {
-					const rawPageId = childBuf.readS();
-					const pageId = rawPageId ?? pages[pageIndex] ?? '';
-					if (rawPageId === null || pageId === '') continue;
-					const px = childBuf.getFloat32();
-					const py = childBuf.getFloat32();
-					values[pageIndex] =
-						`${values[pageIndex] || '0,0'},${formatBinaryNumber(px)},${formatBinaryNumber(py)}`;
+		// Unity GearBase.Setup reads v>=2 extensions (GearXY percent / GearDisplay2 condition)
+		// before v>=4 customEase and v>=6 GearAnimation ext.
+		if (childBuf.version >= 2) {
+			if (gearType === GearType.XY && remainingBytes(childBuf) >= 1) {
+				const positionsInPercent = childBuf.readBool();
+				gear.setPositionsInPercent(positionsInPercent);
+				if (positionsInPercent) {
+					for (let pageIndex = 0; pageIndex < pages.length && remainingBytes(childBuf) >= 2; pageIndex += 1) {
+						const rawPageId = childBuf.readS();
+						const pageId = rawPageId ?? pages[pageIndex] ?? '';
+						if (rawPageId === null || pageId === '') continue;
+						const px = childBuf.getFloat32();
+						const py = childBuf.getFloat32();
+						values[pageIndex] =
+							`${values[pageIndex] || '0,0'},${formatBinaryNumber(px)},${formatBinaryNumber(py)}`;
+					}
+					if (remainingBytes(childBuf) >= 1 && childBuf.readBool()) {
+						const px = childBuf.getFloat32();
+						const py = childBuf.getFloat32();
+						defaultValue = `${defaultValue || '0,0'},${formatBinaryNumber(px)},${formatBinaryNumber(py)}`;
+					}
 				}
-				if (remainingBytes(childBuf) >= 1 && childBuf.readBool()) {
-					const px = childBuf.getFloat32();
-					const py = childBuf.getFloat32();
-					defaultValue = `${defaultValue || '0,0'},${formatBinaryNumber(px)},${formatBinaryNumber(py)}`;
-				}
+			} else if (gearType === GearType.Display2 && remainingBytes(childBuf) >= 1) {
+				gear.setCondition(`${childBuf.getUint8()}`);
 			}
 		}
 
-		if (gearType === GearType.Display2 && remainingBytes(childBuf) >= 1) {
-			gear.setCondition(`${childBuf.getUint8()}`);
+		if (childBuf.version >= 4 && hasTween && gear.getEaseType() === 31) {
+			gear.setCustomEasePath(readPathData(childBuf));
 		}
 
 		if (childBuf.version >= 6 && gearType === GearType.Animation) {
@@ -852,10 +882,12 @@ export function decodeComponentDisplayList(
 	doc: Document,
 	resource: ReturnType<Document['createComponent']>,
 	buf: ByteBuffer,
-): void {
-	if (!buf.seek(0, 2) || remainingBytes(buf) < 2) return;
+): string[] {
+	if (!buf.seek(0, 2) || remainingBytes(buf) < 2) return [];
 	const childCount = buf.getInt16();
 	const entries: Array<{ child: ComponentDisplayObject; groupIndex: number; childBuf: ByteBuffer }> = [];
+	const childrenByRawIndex: Array<ComponentDisplayObject | null> = [];
+	const childIds: string[] = [];
 
 	for (let index = 0; index < childCount && remainingBytes(buf) >= 2; index += 1) {
 		const chunkSize = buf.getInt16();
@@ -863,6 +895,8 @@ export function decodeComponentDisplayList(
 		const childBuf = buf.readBuffer(chunkSize);
 
 		const child = decodeChildBlock0(doc, childBuf);
+		childrenByRawIndex.push(child);
+		childIds.push(child?.getId() ?? '');
 		if (child) {
 			const groupIndex = decodeChildBlock1(child, childBuf);
 			resource.addChild(child);
@@ -874,7 +908,7 @@ export function decodeComponentDisplayList(
 
 	for (const entry of entries) {
 		if (entry.groupIndex < 0) continue;
-		const target = entries[entry.groupIndex]?.child;
+		const target = childrenByRawIndex[entry.groupIndex];
 		if (target) {
 			if ('setGroup' in entry.child && typeof entry.child.setGroup === 'function') {
 				(entry.child as { setGroup(v: string): void }).setGroup(target.getId());
@@ -884,7 +918,7 @@ export function decodeComponentDisplayList(
 
 	for (const entry of entries) {
 		decodeChildBlock2(doc, resource, entry.child, entry.childBuf);
-		decodeChildBlock3(resource, entry.child, entry.childBuf);
+		decodeChildBlock3(resource, entry.child, entry.childBuf, childIds);
 		if (entry.child.propertyType === 'GTextInput') {
 			decodeChildBlock4TextInput(entry.child, entry.childBuf);
 		} else if (
@@ -903,4 +937,6 @@ export function decodeComponentDisplayList(
 		decodeChildBlock5(entry.child, entry.childBuf);
 		decodeChildBlock6(resource, entry.child, entry.childBuf);
 	}
+
+	return childIds;
 }

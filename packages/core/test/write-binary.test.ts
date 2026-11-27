@@ -5,13 +5,17 @@ import path from 'node:path';
 import { getFixturePath } from '@openfairygui/test-utils';
 import {
 	Document,
+	GearType,
 	type GLoader,
 	type GComponent,
 	type GTextField,
 	liftDocumentToUamProject,
 	materializeUamProject,
 	PropertyType,
+	RelationType,
+	TransitionActionType,
 } from '../src/index.js';
+import { ByteBuffer } from '../src/io/byte-buffer.js';
 import { NodeIO } from '../src/node.js';
 import { normalizeUamProject, validateUamProject } from '../src/uam/index.js';
 
@@ -3259,4 +3263,522 @@ test('binary writer: component structured objects round-trip into formal models'
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
+});
+
+test('binary protocol regressions: GearXY positionsInPercent precedes customEase (Unity GearBase wire order)', async (t) => {
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-bin-b1-'));
+	t.teardown(() => fs.rm(dir, { recursive: true, force: true }));
+
+	const doc = new Document();
+	const pkg = doc.createPackage('B1Pkg').setId('pkgb1');
+	const comp = doc.createComponent('Host').setId('cmpb1').setSize(200, 200);
+	const ctrl = doc.createController('state');
+	ctrl.addPage(doc.createControllerPage('p0').setId('0'));
+	ctrl.addPage(doc.createControllerPage('p1').setId('1'));
+	comp.addController(ctrl);
+
+	const target = doc.createGGraph('box').setId('n0').setGraphType(1).setSize(40, 40);
+	const gear = doc
+		.createGear('xy')
+		.setGearType(GearType.XY)
+		.setController(ctrl)
+		.setPages('0,1')
+		.setValues('10,20,0.25,0.5|30,40,0.75,0.25')
+		.setDefaultValue('0,0,0,0')
+		.setPositionsInPercent(true)
+		.setTween(true)
+		.setEaseType(31)
+		.setTweenDuration(0.4)
+		.setTweenDelay(0.1)
+		.setCustomEasePath('0,0.25,0.75');
+	target.addGear(gear);
+	comp.addChild(target);
+	pkg.addResource(comp);
+
+	const outPath = path.join(dir, 'B1Pkg.bytes');
+	const io = new NodeIO();
+	await io.writeBinary(doc, outPath, { compressed: false, version: 7 });
+
+	// Inspect raw wire bytes directly to guarantee Unity GearBase.Setup order:
+	// tween header -> v>=2 positionsInPercent + ext floats -> v>=4 customEase path.
+	const rawFile = await fs.readFile(outPath);
+	const pkgBuf = new ByteBuffer(rawFile.buffer, rawFile.byteOffset, rawFile.byteLength);
+	pkgBuf.pos = 4; // skip FGUI magic
+	pkgBuf.version = pkgBuf.getInt32();
+	pkgBuf.readBool(); // compressed
+	pkgBuf.readUTFString(); // pkgId
+	pkgBuf.readUTFString(); // pkgName
+	pkgBuf.skip(20);
+	const pkgIndexPos = pkgBuf.pos;
+	t.true(pkgBuf.seek(pkgIndexPos, 4));
+	const strCnt = pkgBuf.getInt32();
+	const stringTable: string[] = [];
+	for (let i = 0; i < strCnt; i++) stringTable.push(pkgBuf.readUTFString());
+	pkgBuf.stringTable = stringTable;
+
+	t.true(pkgBuf.seek(pkgIndexPos, 1));
+	const itemCnt = pkgBuf.getUint16();
+	t.is(itemCnt, 1);
+	pkgBuf.getInt32(); // nextPos
+	pkgBuf.readByte(); // itemType (Component)
+	pkgBuf.readS();
+	pkgBuf.readS();
+	pkgBuf.readS();
+	pkgBuf.readS();
+	pkgBuf.readBool();
+	pkgBuf.getInt32();
+	pkgBuf.getInt32();
+	pkgBuf.readByte(); // extType
+	const compBuf = pkgBuf.readBuffer();
+	t.true(compBuf.seek(0, 2));
+	t.is(compBuf.getInt16(), 1);
+	const childLen = compBuf.getInt16();
+	const childBuf = compBuf.readBuffer(childLen);
+	t.true(childBuf.seek(0, 2));
+	t.is(childBuf.getInt16(), 1);
+	childBuf.getUint16(); // gear chunkSize
+	t.is(childBuf.getUint8(), GearType.XY);
+	t.is(childBuf.getInt16(), 0); // controller 0
+	const pageCnt = childBuf.getInt16();
+	t.is(pageCnt, 2);
+	for (let i = 0; i < pageCnt; i++) {
+		childBuf.readS();
+		childBuf.getInt32();
+		childBuf.getInt32();
+	}
+	t.true(childBuf.readBool()); // hasDefault
+	childBuf.getInt32();
+	childBuf.getInt32();
+	t.true(childBuf.readBool()); // hasTween
+	t.is(childBuf.getUint8(), 31); // EaseType.Custom
+	childBuf.getFloat32(); // duration
+	childBuf.getFloat32(); // delay
+	// CRITICAL: next byte MUST be positionsInPercent (bool=true), NOT customEase int32 pointCount!
+	t.true(childBuf.readBool(), 'v>=2 positionsInPercent immediately follows tween footer');
+	for (let i = 0; i < pageCnt; i++) {
+		childBuf.readS();
+		childBuf.getFloat32();
+		childBuf.getFloat32();
+	}
+	t.true(childBuf.readBool(), 'positionsInPercent hasDefault');
+	childBuf.getFloat32();
+	childBuf.getFloat32();
+	// Now v>=4 customEase path follows!
+	t.is(childBuf.getInt32(), 1, 'v>=4 customEase pointCount appears AFTER positionsInPercent');
+	t.is(childBuf.getUint8(), 0);
+	t.is(childBuf.getFloat32(), 0.25);
+	t.is(childBuf.getFloat32(), 0.75);
+
+	// And verify round-trip decode recovers both fields cleanly
+	const decoded = (await io.readBinary(outPath)).getRoot().getPackage('B1Pkg')?.getComponent('Host');
+	const decodedGear = decoded?.getChildById('n0')?.listGears()[0];
+	t.true(decodedGear?.getPositionsInPercent());
+	t.is(decodedGear?.getEaseType(), 31);
+	t.is(decodedGear?.getCustomEasePath(), '0,0.25,0.75');
+	t.is(decodedGear?.getValues(), '10,20,0.25,0.5|30,40,0.75,0.25');
+});
+
+test('binary protocol regressions: GSlider/GProgressBar 13B Block 6, templateVars, BlendMode 6..12, unbound gear, direct GComboBox, zero scrollBarMargin', async (t) => {
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-bin-b2-'));
+	t.teardown(() => fs.rm(dir, { recursive: true, force: true }));
+
+	const doc = new Document();
+	const pkg = doc.createPackage('B2Pkg').setId('pkgb2');
+	const comp = doc
+		.createComponent('Host')
+		.setId('cmpb2')
+		.setSize(400, 300)
+		.setOverflow(2)
+		.setScrollBarMargin({ top: 0, bottom: 0, left: 0, right: 0 });
+	const ctrl = doc.createController('choice');
+	ctrl.addPage(doc.createControllerPage('A').setId('0'));
+	ctrl.addPage(doc.createControllerPage('B').setId('1'));
+	comp.addController(ctrl);
+
+	// B2: direct GSlider & GProgressBar
+	const slider = doc.createGSlider('slider').setId('s0').setValue(35).setMax(120).setMin(10);
+	const pbar = doc.createGProgressBar('pbar').setId('p0').setValue(45).setMax(200).setMin(5);
+
+	// B3: templateVarsEnabled across plain, rich, input text
+	const plainText = doc.createGTextField('t0').setId('t0').setText('hi {name}').setTemplateVarsEnabled(true);
+	const richText = doc.createGRichTextField('t1').setId('t1').setText('[b]{v}[/b]').setTemplateVarsEnabled(true);
+	const inputText = doc.createGTextInput('t2').setId('t2').setText('plain').setTemplateVarsEnabled(false);
+
+	// B4: BlendMode 6..12 (including mixed-case One_OneMinusSrcAlpha)
+	const blendSpecs = [
+		['bm6', 'mask', 'mask'],
+		['bm7', 'below', 'below'],
+		['bm8', 'off', 'off'],
+		['bm9', 'One_OneMinusSrcAlpha', 'one_oneminussrcalpha'],
+		['bm10', 'custom1', 'custom1'],
+		['bm11', 'custom2', 'custom2'],
+		['bm12', 'custom3', 'custom3'],
+	] as const;
+	const blendChildren = blendSpecs.map(([id, inputMode]) =>
+		doc.createGImage(id).setId(id).setSrc('img0').setBlendMode(inputMode),
+	);
+
+	// B6: Unbound Gear must be skipped (not bound to controller 0)
+	const unboundHost = doc.createGGraph('unbound').setId('u0').setGraphType(0);
+	unboundHost.addGear(doc.createGear('orphan').setGearType(GearType.XY).setPages('0').setValues('5,5'));
+
+	// B8: Direct GComboBox preserves selectionController and omits unset titleColor
+	const comboDefault = doc.createGComboBox('comboDefault').setId('c0').setSelectionController('choice');
+	t.is(comboDefault.getTitleColor(), '', 'new GComboBox leaves titleColor unset by default');
+
+	// B11: TransitionItem 12-byte Block 1 (empty endLabel) & Unknown action type
+	const trans = doc.createTransition('t0');
+	trans.addItem(
+		doc
+			.createTransitionItem()
+			.setTime(0)
+			.setActionType(TransitionActionType.Alpha)
+			.setTargetId('t0')
+			.setTween(true)
+			.setDuration(12)
+			.setStartValue(['0'])
+			.setEndValue(['1']),
+	);
+	trans.addItem(
+		doc
+			.createTransitionItem()
+			.setTime(0)
+			.setActionType(TransitionActionType.Unknown)
+			.setTargetId('t0')
+			.setStartValue([]),
+	);
+	comp.addTransition(trans);
+
+	for (const child of [slider, pbar, plainText, richText, inputText, ...blendChildren, unboundHost, comboDefault]) {
+		comp.addChild(child);
+	}
+	pkg.addResource(comp);
+
+	const io = new NodeIO();
+	// Test v4 (13-byte ProgressBar & Slider Block 6) AND v7
+	for (const version of [4, 7] as const) {
+		const outPath = path.join(dir, `B2Pkg_v${version}.bytes`);
+		await io.writeBinary(doc, outPath, { compressed: false, version });
+
+		// Verify B11: zero scrollBarMargin emits bool=false (no 16 zero bytes) in Block 7
+		if (version === 7) {
+			const rawFile = await fs.readFile(outPath);
+			const pkgBuf = new ByteBuffer(rawFile.buffer, rawFile.byteOffset, rawFile.byteLength);
+			pkgBuf.pos = 4;
+			pkgBuf.version = pkgBuf.getInt32();
+			pkgBuf.readBool();
+			pkgBuf.readUTFString();
+			pkgBuf.readUTFString();
+			pkgBuf.skip(20);
+			const pkgIdx = pkgBuf.pos;
+			pkgBuf.seek(pkgIdx, 4);
+			const sCnt = pkgBuf.getInt32();
+			const tbl: string[] = [];
+			for (let i = 0; i < sCnt; i++) tbl.push(pkgBuf.readUTFString());
+			pkgBuf.stringTable = tbl;
+			pkgBuf.seek(pkgIdx, 1);
+			pkgBuf.getUint16();
+			pkgBuf.getInt32();
+			pkgBuf.readByte();
+			pkgBuf.readS();
+			pkgBuf.readS();
+			pkgBuf.readS();
+			pkgBuf.readS();
+			pkgBuf.readBool();
+			pkgBuf.getInt32();
+			pkgBuf.getInt32();
+			pkgBuf.readByte();
+			const compBuf = pkgBuf.readBuffer();
+			t.true(compBuf.seek(0, 7));
+			compBuf.getUint8(); // scrollType
+			compBuf.getUint8(); // scrollBarDisplay
+			compBuf.getInt32(); // scrollBarFlags
+			t.false(compBuf.readBool(), 'zero scrollBarMargin emits false instead of 16 zero bytes');
+		}
+
+		const decoded = (await io.readBinary(outPath)).getRoot().getPackage('B2Pkg')?.getComponent('Host');
+		t.truthy(decoded);
+
+		const decSlider = decoded?.getChildById('s0') as any;
+		t.is(decSlider?.getValue(), 35, `v${version} GSlider value preserved`);
+		t.is(decSlider?.getMax(), 120, `v${version} GSlider max preserved`);
+		t.is(decSlider?.getMin(), 10, `v${version} GSlider min preserved`);
+
+		const decPbar = decoded?.getChildById('p0') as any;
+		t.is(decPbar?.getValue(), 45, `v${version} GProgressBar value preserved`);
+		t.is(decPbar?.getMax(), 200, `v${version} GProgressBar max preserved`);
+		t.is(decPbar?.getMin(), 5, `v${version} GProgressBar min preserved`);
+
+		t.true((decoded?.getChildById('t0') as GTextField)?.getTemplateVarsEnabled());
+		t.true((decoded?.getChildById('t1') as GTextField)?.getTemplateVarsEnabled());
+		t.false((decoded?.getChildById('t2') as GTextField)?.getTemplateVarsEnabled());
+
+		for (const [id, , expectedMode] of blendSpecs) {
+			t.is(decoded?.getChildById(id)?.getBlendMode(), expectedMode, `v${version} blendMode ${expectedMode}`);
+		}
+
+		const decUnbound = decoded?.getChildById('u0') as any;
+		t.is(decUnbound?.listGears().length, 0, 'unbound gear is skipped in binary');
+		t.is(decUnbound?.getGraphType(), 0, 'empty GGraph decodes without misalignment');
+
+		const decCombo = decoded?.getChildById('c0') as any;
+		t.is(decCombo?.getSelectionController(), 'choice', 'direct GComboBox selectionController survives');
+		t.is(decCombo?.getTitleColor(), '', 'direct GComboBox unset titleColor stays empty');
+
+		const decTrans = decoded?.listTransitions()[0];
+		t.is(decTrans?.listItems()[0]?.getDuration(), 12, '12-byte TransitionItem Block 1 decodes cleanly');
+		t.is(decTrans?.listItems()[1]?.getActionType(), TransitionActionType.Unknown);
+		t.deepEqual(decTrans?.listItems()[1]?.getStartValue(), []);
+	}
+});
+
+test('binary protocol regressions: ObjectType.Swf child reserves raw index slot, V1 version gates, and effectiveResourceIds remapping', async (t) => {
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-bin-b5-'));
+	t.teardown(() => fs.rm(dir, { recursive: true, force: true }));
+
+	// B5: ObjectType.Swf at index 0 must NOT shift groupIndex, relations, maskIndex, or transition targetId
+	const doc = new Document();
+	const pkg = doc.createPackage('SwfPkg').setId('pkgswf');
+	const comp = doc.createComponent('Host').setId('cmpswf').setSize(300, 200).setMask('img2');
+	const swfPlaceholder = doc.createGImage('swfSlot').setId('swf0').setSrc('res0');
+	const grp = doc.createGGroup('grp').setId('g1').setAdvanced(true);
+	const img2 = doc
+		.createGImage('img2')
+		.setId('img2')
+		.setSrc('res1')
+		.setGroup('g1')
+		.setRelations([{ target: 'g1', type: RelationType.Width, usePercent: false }]);
+	comp.addChild(swfPlaceholder);
+	comp.addChild(grp);
+	comp.addChild(img2);
+	comp.setRelations([{ target: 'img2', type: RelationType.Height, usePercent: false }]);
+	const trans = doc.createTransition('t0');
+	trans.addItem(
+		doc
+			.createTransitionItem()
+			.setTime(0)
+			.setActionType(TransitionActionType.Alpha)
+			.setTargetId('img2')
+			.setStartValue(['0.5']),
+	);
+	comp.addTransition(trans);
+	pkg.addResource(comp);
+
+	const io = new NodeIO();
+	const swfPath = path.join(dir, 'SwfPkg.bytes');
+	await io.writeBinary(doc, swfPath, { compressed: false, version: 7 });
+
+	// Patch child 0 objectType byte from 0 (GImage) to 2 (ObjectType.Swf)
+	const raw = new Uint8Array(await fs.readFile(swfPath));
+	const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
+	const pb = new ByteBuffer(raw.buffer, raw.byteOffset, raw.byteLength);
+	pb.pos = 4;
+	pb.version = pb.getInt32();
+	pb.readBool();
+	pb.readUTFString();
+	pb.readUTFString();
+	pb.skip(20);
+	const pkgIdx = pb.pos;
+	pb.seek(pkgIdx, 4);
+	const sCnt = pb.getInt32();
+	const tbl: string[] = [];
+	for (let i = 0; i < sCnt; i++) tbl.push(pb.readUTFString());
+	pb.stringTable = tbl;
+	pb.seek(pkgIdx, 1);
+	pb.getUint16();
+	pb.getInt32();
+	pb.readByte();
+	pb.readS();
+	pb.readS();
+	pb.readS();
+	pb.readS();
+	pb.readBool();
+	pb.getInt32();
+	pb.getInt32();
+	pb.readByte();
+	const compDataLen = pb.getUint32();
+	const compDataStart = pb.pos;
+	const compBuf = new ByteBuffer(raw.buffer, raw.byteOffset + compDataStart, compDataLen);
+	compBuf.seek(0, 2);
+	compBuf.getInt16(); // childCount
+	compBuf.getInt16(); // child0 len
+	const child0Start = compBuf.pos;
+	compBuf.seek(child0Start, 0);
+	const absObjectTypePos = compDataStart + compBuf.pos;
+	t.is(view.getUint8(absObjectTypePos), 0, 'located child 0 objectType byte');
+	view.setUint8(absObjectTypePos, 2); // ObjectType.Swf
+	await fs.writeFile(swfPath, raw);
+
+	const decodedSwfComp = (await io.readBinary(swfPath)).getRoot().getPackage('SwfPkg')?.getComponent('Host');
+	t.truthy(decodedSwfComp);
+	t.is(decodedSwfComp?.listChildren().length, 2, 'Swf child is omitted from displayList');
+	t.is(decodedSwfComp?.getMask(), 'img2', 'component mask index does not shift past Swf');
+	t.deepEqual(decodedSwfComp?.getRelations(), [{ target: 'img2', type: RelationType.Height, usePercent: false }]);
+	const decImg2 = decodedSwfComp?.getChildById('img2') as any;
+	t.is(decImg2?.getGroup(), 'g1', 'child groupIndex does not shift past Swf');
+	t.deepEqual(decImg2?.getRelations(), [{ target: 'g1', type: RelationType.Width, usePercent: false }]);
+	t.is(
+		decodedSwfComp?.listTransitions()[0]?.listItems()[0]?.getTargetId(),
+		'img2',
+		'transition target does not shift',
+	);
+
+	// B7: V1 binary compatibility across gated fields
+	const v1Doc = new Document();
+	const v1Pkg = v1Doc.createPackage('V1Pkg').setId('pkgv1');
+	const v1Comp = v1Doc
+		.createComponent('SliderHost')
+		.setId('cmpv1')
+		.setSize(200, 100)
+		.setExtensionType('Slider')
+		.setTitleType(1)
+		.setReverse(true)
+		.setWholeNumbers(true)
+		.setChangeOnClick(false);
+	const v1Ctrl = v1Doc.createController('c0');
+	v1Ctrl.addPage(v1Doc.createControllerPage('a').setId('0'));
+	v1Comp.addController(v1Ctrl);
+	const v1Group = v1Doc.createGGroup('g0').setId('g0').setAdvanced(true).setLayout(1).setLineGap(4).setColumnGap(6);
+	const v1Slider = v1Doc.createGSlider('sl').setId('s0').setValue(25).setMax(100).setMin(5);
+	const v1List = v1Doc.createGList('ls').setId('l0').setLayout(1);
+	const v1Disp2 = v1Doc
+		.createGear('d2')
+		.setGearType(GearType.Display2)
+		.setController(v1Ctrl)
+		.setPages('0')
+		.setCondition('1');
+	v1List.addGear(v1Disp2);
+	const v1Trans = v1Doc.createTransition('tr');
+	v1Trans.addItem(
+		v1Doc
+			.createTransitionItem()
+			.setTime(0)
+			.setActionType(TransitionActionType.XY)
+			.setTargetId('s0')
+			.setStartValue(['12', '34']),
+	);
+	v1Comp.addChild(v1Group);
+	v1Comp.addChild(v1Slider);
+	v1Comp.addChild(v1List);
+	v1Comp.addTransition(v1Trans);
+	v1Pkg.addResource(v1Comp);
+
+	const v1Path = path.join(dir, 'V1Pkg.bytes');
+	await io.writeBinary(v1Doc, v1Path, { compressed: false, version: 1 });
+	const decV1 = (await io.readBinary(v1Path)).getRoot().getPackage('V1Pkg')?.getComponent('SliderHost');
+	t.is(decV1?.getTitleType(), 1);
+	t.true(decV1?.getReverse());
+	t.is((decV1?.getChildById('g0') as any)?.getLineGap(), 4);
+	t.is((decV1?.getChildById('g0') as any)?.getColumnGap(), 6);
+	t.is((decV1?.getChildById('s0') as any)?.getValue(), 25);
+	t.is((decV1?.getChildById('s0') as any)?.getMax(), 100);
+	t.deepEqual(decV1?.listTransitions()[0]?.listItems()[0]?.getStartValue(), ['12', '34']);
+
+	// B10: effectiveResourceIds local resource ID remapping across PixelHitTest, sounds, hitTest, transitions, gears, propertyOverrides
+	const remapDoc = new Document();
+	const remapPkg = remapDoc.createPackage('RemapPkg').setId('pkgrmp');
+	const imgRes = remapDoc
+		.createImageResource('hit.png')
+		.setId('imgOrig')
+		.setPath('/')
+		.setPixelHitTestData({ pixelWidth: 2, scaleDenominator: 1, pixels: new Uint8Array([0b11000000]) });
+	remapPkg.addResource(imgRes);
+	const remapComp = remapDoc
+		.createComponent('Main')
+		.setId('cmprmp')
+		.setSize(100, 100)
+		.setHitTest('imgOrig,1,2')
+		.setAddedToStageSound('ui://pkgrmpsndOrig')
+		.setRemovedFromStageSound('ui://pkgrmpsndOrig');
+	const rCtrl = remapDoc.createController('c0');
+	rCtrl.addPage(remapDoc.createControllerPage('a').setId('0'));
+	remapComp.addController(rCtrl);
+	const rChild = remapDoc
+		.createGComponent('sub')
+		.setId('n0')
+		.setSrc('sub0')
+		.setPropertyOverrides([
+			{ target: 'icon', propertyId: 1, value: 'ui://pkgrmpimgOrig' },
+			{ target: 'title', propertyId: 0, value: 'see [img]ui://pkgrmpimgOrig[/img]' },
+		]);
+	rChild.addGear(
+		remapDoc
+			.createGear('gIcon')
+			.setGearType(GearType.Icon)
+			.setController(rCtrl)
+			.setPages('0')
+			.setPageValues({ '0': 'ui://pkgrmpimgOrig' })
+			.setDefaultValue('ui://pkgrmpimgOrig'),
+	);
+	rChild.addGear(
+		remapDoc
+			.createGear('gText')
+			.setGearType(GearType.Text)
+			.setController(rCtrl)
+			.setPages('0')
+			.setPageValues({ '0': '[img]ui://pkgrmpimgOrig[/img]' })
+			.setDefaultValue('[img]ui://pkgrmpimgOrig[/img]'),
+	);
+	remapComp.addChild(rChild);
+	const rTrans = remapDoc.createTransition('t0');
+	rTrans.addItem(
+		remapDoc
+			.createTransitionItem()
+			.setTime(0)
+			.setActionType(TransitionActionType.Sound)
+			.setStartValue(['ui://pkgrmpsndOrig', '80']),
+	);
+	rTrans.addItem(
+		remapDoc
+			.createTransitionItem()
+			.setTime(0)
+			.setActionType(TransitionActionType.Icon)
+			.setTargetId('n0')
+			.setStartValue(['ui://pkgrmpimgOrig']),
+	);
+	rTrans.addItem(
+		remapDoc
+			.createTransitionItem()
+			.setTime(0)
+			.setActionType(TransitionActionType.Text)
+			.setTargetId('n0')
+			.setStartValue(['[img]ui://pkgrmpimgOrig[/img]']),
+	);
+	remapComp.addTransition(rTrans);
+	remapPkg.addResource(remapComp);
+
+	const remapPath = path.join(dir, 'RemapPkg.bytes');
+	await io.writeBinary(remapDoc, remapPath, {
+		compressed: false,
+		version: 7,
+		packageContext: {
+			publishedResourceIds: new Set(['imgOrig', 'cmprmp']),
+			effectiveResourceIds: new Map([
+				['imgOrig', 'imgBr'],
+				['sndOrig', 'sndBr'],
+			]),
+			publishedFiles: new Map(),
+			includeBranches: false,
+		},
+	});
+	const decRemapPkg = (await io.readBinary(remapPath)).getRoot().getPackage('RemapPkg');
+	const decHitImg = decRemapPkg?.getResourceById('imgBr') as any;
+	t.truthy(decHitImg?.getPixelHitTestData(), 'Block 3 PixelHitTest itemId uses remapped effectiveResourceId');
+	const decRemapComp = decRemapPkg?.getComponent('Main');
+	t.is(decRemapComp?.getHitTest(), 'imgBr,1,2');
+	t.is(decRemapComp?.getAddedToStageSound(), 'ui://pkgrmpsndBr');
+	t.is(decRemapComp?.getRemovedFromStageSound(), 'ui://pkgrmpsndBr');
+	const decRChild = decRemapComp?.getChildById('n0') as GComponent;
+	t.deepEqual(decRChild?.getPropertyOverrides(), [
+		{ target: 'icon', propertyId: 1, value: 'ui://pkgrmpimgBr' },
+		{ target: 'title', propertyId: 0, value: 'see [img]ui://pkgrmpimgBr[/img]' },
+	]);
+	const iconGear = decRChild?.listGears().find((g) => g.getGearType() === GearType.Icon);
+	const textGear = decRChild?.listGears().find((g) => g.getGearType() === GearType.Text);
+	t.is(iconGear?.getDefaultValue(), 'ui://pkgrmpimgBr');
+	t.is(textGear?.getDefaultValue(), '[img]ui://pkgrmpimgBr[/img]');
+	const rItems = decRemapComp?.listTransitions()[0]?.listItems() ?? [];
+	t.deepEqual(rItems[0]?.getStartValue(), ['ui://pkgrmpsndBr', '80']);
+	t.deepEqual(rItems[1]?.getStartValue(), ['ui://pkgrmpimgBr']);
+	t.deepEqual(rItems[2]?.getStartValue(), ['[img]ui://pkgrmpimgBr[/img]']);
 });

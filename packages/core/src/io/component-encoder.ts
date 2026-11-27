@@ -46,7 +46,7 @@ export function encodeComponent(
 
 	// --- Block 1: Controllers ---
 	const block1Offset = buf.pos - indexTablePos;
-	_writeControllers(buf, comp);
+	_writeControllers(buf, comp, version);
 
 	// --- Block 2: Display list ---
 	const block2Offset = buf.pos - indexTablePos;
@@ -58,11 +58,11 @@ export function encodeComponent(
 
 	// --- Block 4: Advanced properties ---
 	const block4Offset = buf.pos - indexTablePos;
-	_writeAdvancedProps(buf, comp, version);
+	_writeAdvancedProps(buf, comp, context, version);
 
 	// --- Block 5: Transitions ---
 	const block5Offset = buf.pos - indexTablePos;
-	_writeTransitions(buf, comp, version);
+	_writeTransitions(buf, comp, context, version);
 
 	// --- Block 6: Extension definition (Button/Label/ComboBox/etc.) ---
 	const block6Start = buf.pos;
