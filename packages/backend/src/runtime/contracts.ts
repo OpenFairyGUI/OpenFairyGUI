@@ -62,7 +62,10 @@ export interface ReadResourceBytesInput {
 	selector: UamResourceSelector;
 }
 export interface BackendSessionStateSnapshot
-	extends Pick<BackendSessionSnapshot, 'sessionId' | 'revision' | 'lastSavedRevision' | 'dirty' | 'uamFidelity'> {
+	extends Pick<
+		BackendSessionSnapshot,
+		'sessionId' | 'revision' | 'lastSavedRevision' | 'dirty' | 'uamFidelity' | 'uamFidelityReport'
+	> {
 	project: BackendSessionProjectModel;
 	readDiagnostics: import('@openfairygui/core').ProjectDiagnostic[];
 	/** Source-read completeness, not a guarantee of resource bytes or downstream usability. */
@@ -363,6 +366,33 @@ export interface BackendCapabilities {
 	};
 }
 
+export type UamFidelityFailureReason = 'incomplete_read' | 'materialize_failed' | 'round_trip_mismatch';
+
+export interface UamFidelityDiffEntry {
+	/** Project-relative path of the differing file or directory. */
+	path: string;
+	kind: 'file' | 'directory';
+	change: 'missing' | 'extra' | 'modified' | 'type_mismatch';
+	/** First differing 1-based line number for text files. */
+	line?: number;
+	/** Bounded excerpt of the source writer line at `line`. */
+	sourceExcerpt?: string;
+	/** Bounded excerpt of the materialized writer line at `line`. */
+	materializedExcerpt?: string;
+}
+
+export interface UamFidelityReport {
+	reason: UamFidelityFailureReason;
+	/** Bounded message when read failed completeness or materialization threw. */
+	errorMessage?: string;
+	/** Total number of differing files and directories detected before truncation. */
+	totalDiffCount: number;
+	/** Bounded list of detected differences, sorted deterministically by path and kind. */
+	diffs: UamFidelityDiffEntry[];
+	/** True when `diffs` was capped to stay within response bounds. */
+	truncated: boolean;
+}
+
 export interface BackendSessionSnapshot {
 	sessionId: string;
 	canonicalProjectPath: string;
@@ -370,6 +400,8 @@ export interface BackendSessionSnapshot {
 	lastSavedRevision: number;
 	dirty: boolean;
 	uamFidelity: 'full' | 'unsupported';
+	/** Present when `uamFidelity` is `unsupported` and a bounded failure report was captured. */
+	uamFidelityReport?: UamFidelityReport;
 	lockHeld: boolean;
 	capabilities: BackendCapabilities;
 }
@@ -500,6 +532,8 @@ export interface UamFidelityUnsupportedError {
 	message: string;
 	sessionId: string;
 	canonicalPathKey: string;
+	/** Bounded structured summary of why UAM fidelity is unsupported. */
+	fidelityReport?: UamFidelityReport;
 }
 
 export interface MaterializeValidationFailedError {

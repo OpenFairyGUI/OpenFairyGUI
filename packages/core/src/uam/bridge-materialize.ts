@@ -408,6 +408,7 @@ type MaterializedComponentDerivedControl = MaterializedDisplayNodeBase & {
 	setSrc(src: string): MaterializedComponentDerivedControl;
 	setPackageId(packageId: string): MaterializedComponentDerivedControl;
 	setPageController(pageController: string): MaterializedComponentDerivedControl;
+	setFileName(fileName: string): MaterializedComponentDerivedControl;
 };
 
 type MaterializedTitleControl = MaterializedComponentDerivedControl & {
@@ -470,7 +471,8 @@ function materializeComponentDerivedControlBase<TTarget extends MaterializedComp
 	materializeDisplayNodeBase(target, node)
 		.setSrc(node.src)
 		.setPackageId(node.packageId)
-		.setPageController(node.pageController ?? '');
+		.setPageController(node.pageController ?? '')
+		.setFileName(node.fileName ?? '');
 	return target;
 }
 
@@ -577,6 +579,7 @@ export function materializeUamMovieClipResourceProperties(
 			.setSpriteId(frame.spriteId),
 	);
 	movieClip
+		.setTextureSetMode(properties.textureSetMode ?? '')
 		.setInterval(properties.interval)
 		.setRepeatDelay(properties.repeatDelay)
 		.setSwing(properties.swing)

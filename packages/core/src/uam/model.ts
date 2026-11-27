@@ -146,6 +146,7 @@ export interface UamMovieClipFrame {
 }
 
 export interface UamMovieClipResourceProperties {
+	textureSetMode?: string;
 	interval: number;
 	repeatDelay: number;
 	swing: boolean;
@@ -598,6 +599,11 @@ export interface UamMovieClipNode extends UamGroupableDisplayNodeBase, UamMovieC
 interface UamComponentDerivedNodeBase extends UamGroupableDisplayNodeBase {
 	/** Parent component controller driving this instance's paged scrolling. */
 	pageController?: string;
+	/**
+	 * Editor file hint for the referenced component, relative to its package. `src`/`packageId` remain the
+	 * authoritative reference; the hint is preserved as written and may be stale after moves or renames.
+	 */
+	fileName?: string;
 	src: string;
 	packageId: string;
 }

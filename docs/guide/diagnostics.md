@@ -811,7 +811,7 @@ Owners: `backend` · Recovery: `host-action`
 
 URI: `openfairygui://docs/diagnostics/uam_fidelity_unsupported`
 
-Read capability/error details. Ask the host to provide the required filesystem, decoder or complete UAM adapter. Preserve the session and unsaved work; do not substitute a lossy path or bypass checks.
+Inspect uamFidelityReport on the session snapshot or error.fidelityReport and meta.diagnostics for the failure reason and differing project paths. Preserve the session and unsaved work; do not substitute a lossy save path or bypass fidelity checks.
 
 ### save_partial_failure
 

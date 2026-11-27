@@ -327,7 +327,7 @@ export class BinaryWriter {
 		const allItems: BinaryPackageItem[] = [...resources, ...atlasItems];
 		const packageItemIds = new Set(
 			allItems.map((item) => {
-				if ('getExtras' in item) {
+				if (item.propertyType !== 'AtlasItem') {
 					return getPublishedItemId(item as PackageResource, context);
 				}
 				return item.getId();

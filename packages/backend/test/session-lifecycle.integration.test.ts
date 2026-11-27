@@ -2,6 +2,7 @@ import test from 'ava';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createNodeBackendFileSystem } from '../src/node.js';
+import type { BackendContext } from '../src/services/context.js';
 import { createBackendFixtureProject, createBackendRuntime, createTempBackendProject } from './helpers.js';
 
 test('an unreadable asset directory cannot become a writable empty session', async (t) => {
@@ -22,11 +23,61 @@ test('an unreadable asset directory cannot become a writable empty session', asy
 	t.true(opened.ok);
 	if (!opened.ok) return;
 	t.is(opened.data.uamFidelity, 'unsupported');
+	t.is(opened.data.uamFidelityReport?.reason, 'incomplete_read');
+	t.is(opened.data.uamFidelityReport?.totalDiffCount, 0);
+	t.deepEqual(opened.data.uamFidelityReport?.diffs, []);
 	const saved = await runtime.materializeSession({ sessionId: opened.data.sessionId });
 	t.false(saved.ok);
-	if (!saved.ok) t.is(saved.error.code, 'uam_fidelity_unsupported');
+	if (!saved.ok) {
+		t.is(saved.error.code, 'uam_fidelity_unsupported');
+		if (saved.error.code === 'uam_fidelity_unsupported') {
+			t.is(saved.error.fidelityReport?.reason, 'incomplete_read');
+		}
+		t.is(saved.meta.diagnostics[0]?.code, 'uam_fidelity_unsupported');
+	}
 	t.true((await fs.stat(path.join(fixture.rootDir, 'assets', 'Main', 'MainView.xml'))).isFile());
 	await runtime.closeSession({ sessionId: opened.data.sessionId });
+});
+
+test('unsupported UAM fidelity rejects dirty saves and materialization before writing', async (t) => {
+	const fixture = await createTempBackendProject();
+	t.teardown(() => fixture.cleanup());
+	const runtime = createBackendRuntime();
+	const opened = await runtime.openSession({ projectPath: fixture.fairyPath });
+	t.true(opened.ok);
+	if (!opened.ok) return;
+	const sessionId = opened.data.sessionId;
+	t.teardown(() => runtime.closeSession({ sessionId }).then(() => undefined));
+	const applied = await runtime.applyTransaction({
+		sessionId,
+		expectedRevision: 0,
+		operations: [
+			{ kind: 'setResourceFavorite', selector: { packageId: 'pkg001', resourceId: 'img001' }, favorite: true },
+		],
+	});
+	t.true(applied.ok);
+	if (!applied.ok) return;
+	// Fidelity is computed once on open; force the guard to exercise the write paths it protects.
+	(runtime as unknown as { context: BackendContext }).context.sessions.get(sessionId)!.uamFidelity = 'unsupported';
+	const snapshot = async () => {
+		const files = await fs.readdir(fixture.rootDir, { recursive: true, withFileTypes: true });
+		return Promise.all(
+			files
+				.filter((entry) => entry.isFile())
+				.map(async (entry) => {
+					const filePath = path.join(entry.parentPath, entry.name);
+					return [path.relative(fixture.rootDir, filePath), await fs.readFile(filePath)] as const;
+				}),
+		);
+	};
+	const before = await snapshot();
+	const saved = await runtime.saveSession({ sessionId, expectedRevision: applied.data.revision });
+	t.false(saved.ok);
+	if (!saved.ok) t.is(saved.error.code, 'uam_fidelity_unsupported');
+	const materialized = await runtime.materializeSession({ sessionId, expectedRevision: applied.data.revision });
+	t.false(materialized.ok);
+	if (!materialized.ok) t.is(materialized.error.code, 'uam_fidelity_unsupported');
+	t.deepEqual(await snapshot(), before);
 });
 
 test.serial('Node lock read failures keep the session retryable and block a second owner', async (t) => {

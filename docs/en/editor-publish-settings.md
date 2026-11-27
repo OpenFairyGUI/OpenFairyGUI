@@ -190,7 +190,7 @@ A valid replacement derives new raster width and height from the bytes and proje
 
 ## Project MovieClip properties and JTA transactions
 
-MovieClip resources in `package.xml` and `package_branch.xml` use `atlas` for texture-set mode and `smoothing` for smoothing. Missing `smoothing` reads as `true`; write-back emits `smoothing="false"` only for the non-default value. A MovieClip uses the formal `UamMovieClipResource.movieClip` snapshot for `interval`, `repeatDelay`, `swing`, `smoothing`, and each frame's rectangle, additional delay, and sprite ID. The legacy `metadata` property bag is not read.
+MovieClip resources in `package.xml` and `package_branch.xml` use `atlas` for texture-set mode (preserved via the optional UAM `textureSetMode` field) and `smoothing` for smoothing. Missing `smoothing` reads as `true`; write-back emits `smoothing="false"` only for the non-default value. A MovieClip uses the formal `UamMovieClipResource.movieClip` snapshot for `interval`, `repeatDelay`, `swing`, `smoothing`, optional `textureSetMode`, and each frame's rectangle, additional delay, and sprite ID. The legacy `metadata` property bag is not read.
 
 When `ProjectReader` hydrates JTA v100-v102, it derives dimensions, playback timing, and the frame list from source bytes. `fps === 0` normalizes to 24, negative values are invalid, and millisecond fields use integer truncation. If the derived model cannot be parsed, raw source bytes and XML attributes are still retained. `smoothing`, which JTA does not carry, continues to use XML/UAM as its source of truth.
 

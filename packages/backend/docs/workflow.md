@@ -36,7 +36,7 @@ updateController and updateTransition replace complete snapshots, not partial pa
 
 ## Consume the committed session state
 
-For complete public UAM consumption, use readSessionState({sessionId, expectedRevision?}); use queryEntity for targeted properties. The detached model excludes only asset resources' primary sourceBytes, retaining sourcePath and JSON extensions. It includes revision, dirty, lastSavedRevision, readComplete, readDiagnostics and uamFidelity. Only this read-model output schema accepts unnamed object fields; transaction input contracts remain unchanged.
+For complete public UAM consumption, use readSessionState({sessionId, expectedRevision?}); use queryEntity for targeted properties. The detached model excludes only asset resources' primary sourceBytes, retaining sourcePath and JSON extensions. It includes revision, dirty, lastSavedRevision, readComplete, readDiagnostics, uamFidelity and (when uamFidelity is unsupported) a bounded uamFidelityReport. Only this read-model output schema accepts unnamed object fields; transaction input contracts remain unchanged.
 
 Read each asset with readResourceBytes({sessionId, expectedRevision: state.revision, selector:{packageId,resourceId}}). Bytes are detached Uint8Array values in the SDK and integer arrays in MCP, limited to the primary file already held in memory. There is no disk hydration or auxiliary-file discovery. Components are unsupported; unavailable bytes produce session_read_failed with reason bytes_unavailable.
 

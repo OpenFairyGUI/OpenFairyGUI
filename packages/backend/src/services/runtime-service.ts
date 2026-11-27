@@ -1,11 +1,5 @@
-import { capturedDirectoriesEqual, capturedFilesEqual, createCaptureFileSystem } from './capture-project.js';
-import { type FileSystem, ProjectReader, ProjectWriter } from '@openfairygui/core/project-io';
-import {
-	liftDocumentToUamProject,
-	materializeUamProject,
-	normalizeUamProject,
-	type UamProject,
-} from '@openfairygui/core/uam';
+import { type FileSystem, ProjectReader } from '@openfairygui/core/project-io';
+import { liftDocumentToUamProject, normalizeUamProject } from '@openfairygui/core/uam';
 import {
 	assertProjectPathContained,
 	createProjectReadFailure,
@@ -31,6 +25,7 @@ import { type BackendContext, type BackendSessionState, failure, success } from 
 import type { EventService } from './event-service.js';
 import type { SessionOperationQueue } from './session-operation-queue.js';
 import { createSessionNotFoundError, toSessionSnapshot } from './session-utils.js';
+import { evaluateUamFidelity } from './uam-fidelity.js';
 
 function randomId(): string {
 	return crypto.randomUUID();
@@ -97,29 +92,8 @@ function createProjectReaderFileSystem(
 	};
 }
 
-async function hasFullUamFidelity(
-	document: Awaited<ReturnType<ProjectReader['read']>>,
-	project: UamProject,
-): Promise<boolean> {
-	const sourceFiles = new Map<string, string | Uint8Array>();
-	const materializedFiles = new Map<string, string | Uint8Array>();
-	const sourceDirectories = new Set<string>();
-	const materializedDirectories = new Set<string>();
-	try {
-		await Promise.all([
-			new ProjectWriter(createCaptureFileSystem(sourceFiles, sourceDirectories)).write(document, 'Project.fairy'),
-			new ProjectWriter(createCaptureFileSystem(materializedFiles, materializedDirectories)).write(
-				materializeUamProject(project),
-				'Project.fairy',
-			),
-		]);
-	} catch {
-		return false;
-	}
-	return (
-		capturedFilesEqual(sourceFiles, materializedFiles) &&
-		capturedDirectoriesEqual(sourceDirectories, materializedDirectories)
-	);
+function extractFairyFileName(fairyPath: string): string {
+	return fairyPath.replace(/\\/g, '/').split('/').at(-1) || 'Project.fairy';
 }
 
 export class RuntimeService {
@@ -220,6 +194,11 @@ export class RuntimeService {
 			if (!read.document) throw createProjectReadFailure(read.diagnostics[0]?.message);
 			const document = read.document;
 			const project = liftDocumentToUamProject(document);
+			const fidelity = await evaluateUamFidelity(document, project, {
+				readComplete: read.complete,
+				readDiagnostics: read.diagnostics,
+				fairyFileName: extractFairyFileName(fairyPath),
+			});
 			const session: BackendSessionState = {
 				sessionId,
 				fairyPath,
@@ -231,7 +210,8 @@ export class RuntimeService {
 				project,
 				readDiagnostics: read.diagnostics,
 				readComplete: read.complete,
-				uamFidelity: read.complete && (await hasFullUamFidelity(document, project)) ? 'full' : 'unsupported',
+				uamFidelity: fidelity.uamFidelity,
+				...(fidelity.uamFidelity === 'unsupported' ? { uamFidelityReport: fidelity.report } : {}),
 				revision: 0,
 				lastSavedRevision: 0,
 				pendingStaleSourceFiles: new Map(),

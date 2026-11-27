@@ -13,7 +13,7 @@ import {
 	type BackendSessionSnapshot,
 	type BackendSessionStateSnapshot,
 } from '@openfairygui/backend';
-import { createNodeBackendRuntime } from '@openfairygui/backend/node';
+import { createNodeBackendFileSystem, createNodeBackendRuntime } from '@openfairygui/backend/node';
 import {
 	composeController,
 	composeTransition,
@@ -740,6 +740,88 @@ test('MCP complex queries validate formal selectors and round-trip full snapshot
 		await client.close();
 		await server.close();
 		await runtime.closeSession({ sessionId });
+		await fixture.cleanup();
+	}
+});
+
+test('MCP exposes uamFidelityReport on session reads and save_session failures under generated schemas', async (t) => {
+	const fixture = await createTempMcpProject();
+	const blockedDir = path.join(fixture.rootDir, 'assets', 'Main', 'blocked');
+	await fs.mkdir(blockedDir, { recursive: true });
+	const baseFs = createNodeBackendFileSystem();
+	const runtime = new BackendRuntime({
+		fileSystem: {
+			...baseFs,
+			async readdir(dirPath) {
+				if (path.basename(dirPath) === 'blocked') throw new Error('EACCES: blocked dir');
+				return baseFs.readdir(dirPath);
+			},
+		},
+	});
+	const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+	const server = createOpenFairyGuiMcpServer({ runtime });
+	const client = createMcpTestClient('openfairygui-mcp-fidelity-test');
+	let sessionId: string | undefined;
+
+	try {
+		await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+		const openedTool = await client.callTool({
+			name: 'openfairygui_backend_open_session',
+			arguments: { projectPath: fixture.fairyPath },
+		});
+		t.false(openedTool.isError);
+		const opened = (openedTool.structuredContent as { backendResult: BackendResult<BackendSessionSnapshot> })
+			.backendResult;
+		assert(opened.ok);
+		sessionId = opened.data.sessionId;
+		t.is(opened.data.uamFidelity, 'unsupported');
+		t.is(opened.data.uamFidelityReport?.reason, 'incomplete_read');
+		t.truthy(opened.data.uamFidelityReport?.errorMessage);
+
+		const stateTool = await client.callTool({
+			name: 'openfairygui_backend_read_session_state',
+			arguments: { sessionId },
+		});
+		t.false(stateTool.isError);
+		const state = (stateTool.structuredContent as { backendResult: BackendResult<BackendSessionStateSnapshot> })
+			.backendResult;
+		assert(state.ok);
+		t.is(state.data.uamFidelity, 'unsupported');
+		t.deepEqual(state.data.uamFidelityReport, opened.data.uamFidelityReport);
+
+		const appliedTool = await client.callTool({
+			name: 'openfairygui_backend_apply_transaction',
+			arguments: {
+				sessionId,
+				expectedRevision: 0,
+				operations: [
+					{
+						kind: 'setDisplayNodeProps',
+						selector: { packageId: 'pkg001', componentResourceId: 'cmp001', displayNodeId: 'n1' },
+						props: { text: 'Blocked Save' },
+					},
+				],
+			},
+		});
+		t.false(appliedTool.isError);
+
+		const savedTool = await client.callTool({
+			name: 'openfairygui_backend_save_session',
+			arguments: { sessionId, expectedRevision: 1 },
+		});
+		t.true(savedTool.isError);
+		const savedText = (savedTool.content as Array<{ type: string; text?: string }>)[0]?.text ?? '';
+		t.regex(savedText, /uam_fidelity_unsupported/);
+		t.regex(savedText, /incomplete/i);
+		const saved = (savedTool.structuredContent as { backendResult: BackendResult<BackendSessionSnapshot> })
+			.backendResult;
+		assert(!saved.ok && saved.error.code === 'uam_fidelity_unsupported');
+		t.deepEqual(saved.error.fidelityReport, opened.data.uamFidelityReport);
+		t.true(saved.meta.diagnostics.some((entry) => entry.code === 'uam_fidelity_unsupported'));
+	} finally {
+		await client.close();
+		await server.close();
+		if (sessionId) await runtime.closeSession({ sessionId });
 		await fixture.cleanup();
 	}
 });

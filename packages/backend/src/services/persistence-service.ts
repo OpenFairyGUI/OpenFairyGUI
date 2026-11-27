@@ -24,6 +24,7 @@ import type { EventService } from './event-service.js';
 import type { SessionOperationQueue } from './session-operation-queue.js';
 import { createSessionNotFoundError, createStaleWriteError, toSessionSnapshot } from './session-utils.js';
 import { writeSessionProject } from './session-project-writer.js';
+import { createUamFidelityDiagnostics, formatUamFidelityUnsupportedMessage } from './uam-fidelity.js';
 
 function createCapabilityUnavailableError(message: string): BackendCapabilityUnavailableError {
 	return {
@@ -35,11 +36,13 @@ function createCapabilityUnavailableError(message: string): BackendCapabilityUna
 }
 
 function createUamFidelityUnsupportedError(session: BackendSessionState): UamFidelityUnsupportedError {
+	const report = session.uamFidelityReport;
 	return {
 		code: 'uam_fidelity_unsupported',
-		message: 'The source project contains formal properties that the current UAM cannot preserve.',
+		message: formatUamFidelityUnsupportedMessage(report),
 		sessionId: session.sessionId,
 		canonicalPathKey: session.canonicalPathKey,
+		...(report ? { fidelityReport: structuredClone(report) } : {}),
 	};
 }
 
@@ -218,16 +221,12 @@ export class PersistenceService {
 			});
 		}
 		if (session.uamFidelity === 'unsupported') {
-			return failure(
-				'authoring',
-				startedAt,
-				createUamFidelityUnsupportedError(session),
-				toSessionSnapshot(session, this.context.capabilities),
-				{
-					sessionId: session.sessionId,
-					revision: session.revision,
-				},
-			);
+			const error = createUamFidelityUnsupportedError(session);
+			return failure('authoring', startedAt, error, toSessionSnapshot(session, this.context.capabilities), {
+				sessionId: session.sessionId,
+				revision: session.revision,
+				diagnostics: createUamFidelityDiagnostics(session.uamFidelityReport, error.message),
+			});
 		}
 
 		const committedPaths: string[] = [];
@@ -400,16 +399,12 @@ export class PersistenceService {
 		}
 
 		if (session.uamFidelity === 'unsupported') {
-			return failure(
-				'authoring',
-				startedAt,
-				createUamFidelityUnsupportedError(session),
-				toSessionSnapshot(session, this.context.capabilities),
-				{
-					sessionId: session.sessionId,
-					revision: session.revision,
-				},
-			);
+			const error = createUamFidelityUnsupportedError(session);
+			return failure('authoring', startedAt, error, toSessionSnapshot(session, this.context.capabilities), {
+				sessionId: session.sessionId,
+				revision: session.revision,
+				diagnostics: createUamFidelityDiagnostics(session.uamFidelityReport, error.message),
+			});
 		}
 
 		const diagnostics = validationDiagnostics(session.project);

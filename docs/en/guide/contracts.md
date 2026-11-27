@@ -6,7 +6,7 @@ Core's `UamTransactionOperation` and UAM models own parameter structure and tran
 
 ## Read the current session model and resource bytes
 
-Use `readSessionState({ sessionId, expectedRevision? })` to consume the complete current UAM, or `queryEntity` below for selected properties. The complete read returns a detached copy of state committed at the instant of the call: `project`, actual `revision`, `dirty`, `lastSavedRevision`, `readComplete`, `readDiagnostics` and `uamFidelity`.
+Use `readSessionState({ sessionId, expectedRevision? })` to consume the complete current UAM, or `queryEntity` below for selected properties. The complete read returns a detached copy of state committed at the instant of the call: `project`, actual `revision`, `dirty`, `lastSavedRevision`, `readComplete`, `readDiagnostics`, `uamFidelity`, and a bounded `uamFidelityReport` when `uamFidelity === 'unsupported'`.
 
 `project` derives directly from Core's public UAM types, excluding only the formal `sourceBytes` field on each asset resource. It retains `sourcePath`, complete components and Reader-retained JSON extensions. Extension properties named `sourceBytes` are not recursively removed. Only this complete read-model output schema accepts unnamed object fields; declared fields retain their formal types, and transaction inputs and existing query contracts are unchanged. Reads do not revalidate references, normalize or repair projects, or expose internal Documents, locks, filesystems, caches or cleanup queues.
 
@@ -25,7 +25,7 @@ if (!bytes.ok) throw new Error(bytes.error.code);
 
 Every resource read must carry the model's revision. `stale_read` returns both `expectedRevision` and `actualRevision`; discard that incomplete model/bytes collection and restart rather than mixing edit revisions. Reads neither wait for uncommitted transactions nor retain history or reserve a revision. Saves can update public `sourcePath`, dirty state and other bookkeeping without advancing the edit revision: sessionId + revision is not a permanent identity for identical complete raw UAM.
 
-`readComplete` and `uamFidelity` report existing session flags faithfully. In-memory sessions can report `true` / `full` even without source bytes. These flags do not guarantee complete bytes, rendering or saving. Missing/closed sessions return `session_not_found`; other refusals use `session_read_failed.reason`: `invalid_query`, `not_found`, `ambiguous`, `unsupported_resource`, `bytes_unavailable`, `response_budget_exceeded` or `non_json_value`. Failure never returns truncated data as success.
+`readComplete` and `uamFidelity` report existing session flags faithfully. In-memory sessions can report `true` / `full` even without source bytes. When `uamFidelity === 'unsupported'`, session snapshots and `readSessionState` attach `uamFidelityReport` with the failure `reason` (`incomplete_read`, `materialize_failed`, or `round_trip_mismatch`), an optional error summary, and up to 50 deterministically sorted diff entries (including line numbers and bounded excerpts); `uam_fidelity_unsupported` save/materialization failures expose the same report under `error.fidelityReport` and `meta.diagnostics`. These flags do not guarantee complete bytes, rendering or saving. Missing/closed sessions return `session_not_found`; other refusals use `session_read_failed.reason`: `invalid_query`, `not_found`, `ambiguous`, `unsupported_resource`, `bytes_unavailable`, `response_budget_exceeded` or `non_json_value`. Failure never returns truncated data as success.
 
 | Budget | Limit |
 |---|---|
@@ -135,7 +135,7 @@ A preview reserves no revision and does not guarantee later apply/save or public
 The tables summarize top-level parameters only; read schemas for nested fields and concrete results. SHA-256 identifies generated contract content, not a package version.
 
 <!-- contracts:start -->
-SHA-256: `dcfeadbd451f77fa2d2d3bb51911cb1fbe9f6d12cbd6562047d59b441d72e50e`
+SHA-256: `64a6a6dec406a146f0220fa36bde8124427faf9b98a021f6c00f502ff0c3d022`
 
 | Operation | Parameters (`?` = optional) |
 |---|---|

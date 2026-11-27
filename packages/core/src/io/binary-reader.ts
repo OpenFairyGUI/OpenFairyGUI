@@ -591,8 +591,6 @@ export class BinaryReader {
 			buf.pos = nextPos;
 		}
 
-		// Attach sprite map to package extras for consumers
-
 		// --- PixelHitTest (block 3) ---
 		const pixelHitTests = new Map<string, PixelHitTestEntry>();
 		if (buf.seek(indexTablePos, 3)) {

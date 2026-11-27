@@ -14,10 +14,6 @@ import {
 import type { AtlasRasterBackend } from './contracts.js';
 import { collectPackageResourceReferences } from './resource-references.js';
 
-interface ImageResourceExtras extends Record<string, unknown> {
-	_fileName?: string;
-}
-
 interface BranchAwarePublishedResource {
 	getBranch?(): string;
 }
@@ -109,8 +105,7 @@ export function resolveImagePath(resource: ImageResource, pkg: Package, basePath
 }
 
 export function resolveImageFileName(resource: ImageResource): string {
-	const extras = (resource.getExtras() as ImageResourceExtras | undefined) ?? {};
-	return resource.getFileName() || extras._fileName || resource.getName();
+	return resource.getFileName() || resource.getName();
 }
 
 export function resolveFontPath(resource: FontResource, pkg: Package, basePath: string): string {
