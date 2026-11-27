@@ -142,6 +142,7 @@ This block stores package entries. Every entry has a common header followed by i
 | `3` | `Component` | Common fields plus extension type code and component binary data |
 | `4` | `Atlas` | Atlas-entry `id`, `file`, and dimensions |
 | `5` | `Font` | Common fields plus glyph-data block |
+| `6` | `Swf` | Common fields plus SWF auxiliary resource filename |
 | `7` | `Misc` | Unclassified item |
 | `8` | `Unknown` | Unmodeled package item type code |
 | `9` | `Spine` | Common fields plus resource filename, `skeletonAnchor.x`, and `skeletonAnchor.y` |
@@ -162,13 +163,13 @@ Every package item writes this common header before its type-specific segment:
 | `width` | Resource width |
 | `height` | Resource height |
 
-The `Font` glyph-data block stores its UTF-16 code unit (`charId`) as `uint16`, covering the complete BMP range. Image references and glyph metrics then use their respective string-table indices and `int32` fields.
+The `Font` glyph-data block stores its UTF-16 code unit (`charId`) as `uint16`, covering the complete BMP range. Each glyph chunk begins with a `uint16` byte length, followed by image references and glyph metrics using string-table indices and `int32` fields.
 
 Bitmap glyph image references must resolve in the same package's resource and sprite tables. A whole-font texture is addressed by the font ID in the sprite table. After branch merging, glyph image IDs refer to merged resources. Imported TTF/TTC/OTF fonts use their engine font name in text `font` fields and are not encoded as bitmap `Font` resources.
 
-### `Spine` / `DragoneBones` item segment
+### `Spine` / `DragonBones` item segment
 
-`Spine` and `DragoneBones` append a skeleton anchor after the common header:
+`Spine` and `DragonBones` append a skeleton anchor after the common header:
 
 | Field | Protocol |
 |---|---|
@@ -178,6 +179,7 @@ Bitmap glyph image references must resolve in the same package's resource and sp
 Notes:
 
 - Project resource fields such as `require` and `atlasNames` are not written directly into the package-item segment.
+- Dependencies referenced only via skeleton `require` (such as `.atlas`, `_tex.json`, and `.png`) are exported as loose sidecar files on disk and are **not** written into Block 1 unless independently exported or referenced by another component.
 - The runtime locates and aligns a skeleton resource through `file` and `skeletonAnchor`.
 
 ### Publish semantics of `file`
@@ -187,23 +189,24 @@ Notes:
 | Resource type | Meaning of `file` |
 |---|---|
 | `Atlas` / `Sound` / `Misc` / `Swf` | Published auxiliary-resource filename; the runtime adds the package asset prefix required by the target |
-| `Spine` / `DragoneBones` | Published primary skeleton-resource filename, which the runtime uses to load the corresponding resource |
+| `Spine` / `DragonBones` | Published primary skeleton-resource filename, which the runtime uses to load the corresponding resource |
 
-For `Sound` / `Misc` / `Swf`, `file` is the published item ID plus the source extension. Unity additionally appends `.txt` to `.atlas`. For example, `hero.json` with item ID `biss7` is stored as `biss7.json`; its physical auxiliary file carries the package publish-name prefix expected by the runtime. `Swf` uses item type code `6`.
+For independently published `Sound` / `Misc` / `Swf` items, `file` is the published item ID plus the source extension. Unity additionally appends `.txt` to `.atlas`. For example, an independently exported `hero.json` with item ID `biss7` is stored as `biss7.json`; its physical auxiliary file carries the package publish-name prefix expected by the runtime. `Swf` uses item type code `6`.
 
-Current Unity naming for `Spine` primary and dependent resources is:
+Unity naming for `Spine` / `DragonBones` primary files and `require` sidecars is:
 
 | Project resource file | Published result |
 |---|---|
 | `*.skel` | `*.skel.bytes` |
-| `*.atlas` (`Misc` dependency) | `<item-id>.atlas.txt` |
-| `*.png` | Original filename retained |
+| `*.atlas` (skeleton `require` sidecar) | Original filename with `.txt` appended (e.g. `alien-pma.atlas.txt`, no package prefix and no item-id rename) |
+| `*_ske.json` / `*_tex.json` (skeleton `require` sidecar) | Original filename retained (no package prefix and no item-id rename) |
+| `*.png` (skeleton `require` sidecar) | Original filename retained |
 
-Non-Unity primary skeleton files retain the filename required by their target; dependencies published as `Misc` still use `<item-id><source-extension>`.
+Non-Unity skeleton primary files and `require` sidecars retain their original filenames (no `.bytes` / `.txt` suffix, no package prefix, and excluded from Block 1).
 
-When publish settings enable separate branch atlases, an atlas item's `file` contains a branch suffix, such as `atlas0_dev.png`. The main atlas remains `atlas0.png`.
+When publish settings enable separate branch atlases, an atlas item's `file` contains a branch suffix, such as `atlas0_dev.png`. The main atlas remains `atlas0.png`. Standalone atlases (`alone`, `alone_npot`, `alone_mof`) use Block 1 item ID `atlas_<itemId>`.
 
-The `DragoneBones` primary file retains the filename required by its target. `Misc` dependencies use their published item IDs, while image dependencies retain their published image names.
+The `DragonBones` primary file retains the filename required by its target. `Misc` dependencies use their published item IDs, while image dependencies retain their published image names.
 
 ### Conditional trailing fields
 
@@ -212,7 +215,7 @@ The end of an item contains conditional data:
 | Field | Protocol |
 |---|---|
 | branch name | Branch containing the current item; a main-branch item writes `null` |
-| branchCount | Number of branch mappings. When the package has a branch table, a main item writes branch-variant item IDs in package-level branch order. |
+| branchCount | Number of branch mappings. When the package has a branch table (`branchIncluded=true`), a main item writes branch-variant item IDs in package-level branch order. In merged active-branch mode (`branchProcessing = 1`, `branchIncluded=false`), an item overridden by the active branch writes `1` followed by its original branch item ID alias. |
 | highResCount | Number of high-resolution variant slots, followed by package item IDs in `@2x`, `@3x`, `@4x` order |
 
 Notes:
@@ -221,7 +224,7 @@ Notes:
 - A branch variant item writes only its branch name and does not recursively contain another `branchCount` mapping.
 - The high-resolution list references only `image` or `movieclip` resources already published as package items. Publishing does not enlarge source bitmaps.
 - If an intermediate scale is missing while a later scale exists, the missing slot is `null`; missing trailing slots are omitted.
-- In **merge active branch into main** mode, branch replacement is already complete. Package-level `branchCount` is `0`, and item branch name and `branchCount` are empty.
+- In **merge active branch into main** mode, branch replacement is already complete. Package-level `branchCount` is `0` and item `branch name` is `null`; items merged from an active branch override write `branchCount = 1` plus the original branch item ID (so runtimes alias that ID to the merged main item), while unoverridden items write `branchCount = 0`.
 - When branches are retained and branch atlases are separate, a branch may use independent atlas items. Current editor samples use `100 + pageIndex` as the branch atlas index.
 
 ## Block 2: Sprites
@@ -232,7 +235,7 @@ Notes:
 | Base fields | `itemId`, `atlasId`, `x`, `y`, `w`, `h`, `rotated` |
 | Conditional fields | `offsetX`, `offsetY`, `originalWidth`, `originalHeight` |
 
-This block describes each resource's trimmed atlas rectangle and original dimensions. The trailing segment is present when offsets are non-zero, the sprite is rotated or zero-sized direct output, or the original dimensions differ from the trimmed rectangle. A sprite trimmed only on its right or bottom edge therefore retains `originalWidth` / `originalHeight` even with zero offsets.
+This block describes each resource's trimmed atlas rectangle and original dimensions. Rotated atlases follow target engine orientation: Unity and other engines use `rotationDir = 0` (-90° CCW pixels with swapped sheet `w`/`h`), whereas CocosCreator, Cocos2dx, and Egret use `rotationDir = 1` (+90° CW pixels with unrotated logical `w`/`h`). The trailing segment is present when offsets are non-zero, the sprite is rotated or zero-sized direct output, or the original dimensions differ from the unrotated trimmed rectangle. A sprite trimmed only on its right or bottom edge therefore retains `originalWidth` / `originalHeight` even with zero offsets.
 
 ## Block 3: Pixel Hit Test
 
@@ -327,7 +330,7 @@ The formal `homePageType:uint8` values and their trailing payloads are:
 
 Controller `alias` and `exported` are editor metadata in project XML and are not written into this runtime Controller block.
 
-The `actions` block begins with `actionCount:int16`. Each action then starts with `chunkSize:int16`, followed by fields in this fixed order:
+The `actions` block begins with `actionCount:int16`. Each action then starts with `chunkSize:uint16`, followed by fields in this fixed order:
 
 | Field | Meaning |
 |---|---|
@@ -401,8 +404,8 @@ Present only when component `overflow=scroll`:
 
 | Field group | Content |
 |---|---|
-| Scroll base | `scrollType`, `scrollBarFlags` |
-| Margin | `scrollBarMargin` |
+| Scroll base | `scrollType`, `scrollBarDisplay`, `scrollBarFlags` |
+| Margin | `scrollBarMargin` (writes `false` and omits the 16-byte payload when all four edges are zero) |
 | Resource references | `vtScrollBarRes`, `hzScrollBarRes`, `headerRes`, `footerRes` |
 
 ### Child decoding
@@ -428,6 +431,7 @@ Notes:
 |---|---|
 | 0 | `GImage` |
 | 1 | `GMovieClip` |
+| 2 | `Swf` (unmodeled object type; decoding preserves raw child index slots so later indices do not shift) |
 | 3 | `GGraph` |
 | 4 | `GLoader` |
 | 5 | `GGroup` |
@@ -449,22 +453,22 @@ Notes:
 
 | Block | Content |
 |---|---|
-| 0 | beforeAdd: object type, src, pkgId, id, name, xy, size, restricted size, scale, skew, pivot, alpha, rotation, visible, touchable, grayed, blend, color filter, customData |
+| 0 | beforeAdd: object type, src, pkgId, id, name, xy, size, restricted size, scale, skew, pivot, alpha, rotation, visible, touchable, grayed, blend (`0..12`), color filter, customData |
 | 1 | Common afterAdd segment: tooltips, group |
-| 2 | Gears |
+| 2 | Gears (each entry begins with a `uint16` chunk length) |
 | 3 | Relations |
-| 4 | `GComponent` / `GList` page controller or `GTextInput` type-specific segment |
+| 4 | `GComponent` / `GList` / `GTree` page controller or `GTextInput` type-specific segment |
 | 5 | Child-type-specific extension |
 | 6 | afterAdd text/icon/extension-instance data |
-| 7 | `GList` scroll pane |
-| 8 | `GList` static list items |
+| 7 | `GList` / `GTree` scroll pane |
+| 8 | `GList` / `GTree` static list items |
 | 9 | Tree settings |
 
 #### Child Block 4
 
 | Type | Content |
 |---|---|
-| `GComponent`, `GList`, `GButton`, `GLabel`, `GComboBox`, `GProgressBar`, `GSlider`, `GScrollBar` | Page controller and controller overrides; V2+ then stores ordered property overrides as `target / propertyId / value` |
+| `GComponent`, `GList`, `GTree`, `GButton`, `GLabel`, `GComboBox`, `GProgressBar`, `GSlider`, `GScrollBar` | Page controller and controller overrides; V2+ then stores ordered property overrides as `target / propertyId / value` |
 | `GTextInput` | Input-field-specific settings |
 | Other types | Offset is `0`; the block is absent |
 
@@ -473,13 +477,13 @@ Notes:
 | Type | Main fields |
 |---|---|
 | `GImage` | color, flip, fillMethod, fillOrigin, fillClockwise, fillAmount |
-| `GTextField` / `GRichTextField` / `GTextInput` | font, fontSize, color, align, vAlign, leading, letterSpacing, ubb, autoSize, underline, italic, bold, singleLine, stroke, shadow, strikethrough, faceDilate, outlineSoftness, underlaySoftness |
+| `GTextField` / `GRichTextField` / `GTextInput` | font, fontSize, color, align, vAlign, leading, letterSpacing, ubb, autoSize, underline, italic, bold, singleLine, stroke, shadow, templateVars (`vars`), strikethrough, faceDilate, outlineSoftness, underlaySoftness |
 | `GGraph` | graphType, lineSize, lineColor, fillColor, cornerRadius, points, sides, startAngle, distances |
 | `GGroup` | layout, lineGap, columnGap, excludeInvisibles, autoSizeDisabled, mainGridIndex |
-| `GLoader` | url, align, vAlign, fill, shrinkOnly, autoSize, playing, frame, color, fillMethod, useResize |
+| `GLoader` | url, align, vAlign, fill, shrinkOnly, autoSize, errorSign, playing, frame, color, fillMethod, useResize |
 | `GLoader3D` | url, align, vAlign, fill, shrinkOnly, autoSize, animationName, skinName, playing, frame, loop, color |
-| `GMovieClip` | color, frame, playing |
-| `GList` | layout, selectionMode, align, vAlign, lineGap, columnGap, lineCount, columnCount, autoResizeItem, childrenRenderOrder, apexIndex, margin, overflow, clipSoftness, scrollItemToViewOnClick, foldInvisibleItems |
+| `GMovieClip` | color, flip (wire byte), frame, playing |
+| `GList` / `GTree` | layout, selectionMode, align, vAlign, lineGap, columnGap, lineCount, columnCount, autoResizeItem, childrenRenderOrder, apexIndex, margin, overflow, clipSoftness, scrollItemToViewOnClick, foldInvisibleItems |
 
 ### Extension types and afterAdd data
 
@@ -493,7 +497,7 @@ Block 6 restores data written during the afterAdd phase:
 | `GComboBox` | `items`, `values`, `icons`, `title`, `icon`, `titleColor`, `visibleItemCount`, `popupDirection`, `selectionController`, `sound`, `soundVolumeScale` |
 | `GProgressBar` | `value`, `max`, `min`, `sound`, `soundVolumeScale` |
 | `GSlider` | `value`, `max`, `min` |
-| `GList` | `selectionController` |
+| `GList` / `GTree` | `selectionController` |
 | `GComponent` Button extension instance | `title`, `selectedTitle`, `icon`, `selectedIcon`, `titleColor`, `titleFontSize`, `relatedController`, `relatedPageId`, `sound`, `soundVolumeScale`, `selected` |
 | `GComponent` Label extension instance | `title`, `icon`, `titleColor`, `titleFontSize`, input settings, `sound`, `soundVolumeScale` |
 | `GComponent` ComboBox extension instance | `items`, `title`, `icon`, `titleColor`, `visibleItemCount`, `popupDirection`, `selectionController`, `sound`, `soundVolumeScale` |
@@ -512,7 +516,7 @@ Block 6 restores data written during the afterAdd phase:
 |---|---|---|
 | 1 | `defaultItem` | String-table reference |
 | 2 | `itemCount` | `Int16` |
-| 3 | `chunkSize` | One `Int16` per item, giving the byte length of item data after this length field |
+| 3 | `chunkSize` | One `UInt16` per item, giving the byte length of item data after this length field |
 | 4 | `url` | String-table reference |
 | 5 | `isFolder` | Present only for `GTree`; `Bool` |
 | 6 | `level` | Present only for `GTree`; `UInt8`; negative values clamp to `0` before writing |
@@ -552,10 +556,12 @@ This preserves hierarchy semantics for leaf nodes without icons or URLs. Icons a
 | Controller binding | Resolves the controller index to a controller reference |
 | Pages | Page-ID list |
 | Values/default | State structure determined by gear type |
-| Tween | Ease, duration, delay, and custom-ease path |
-| Extended state | Conditional fields such as GearXY percentages and GearAnimation extended state |
+| Tween header | `tween:bool`, followed when true by `easeType`, `duration`, and `delay` |
+| V2+ extended state | `GearXY.positionsInPercent` plus percent coordinates, or `GearDisplay2.condition` (precedes `customEase`) |
+| V4+ `customEase` | Written when `tween=true` and `easeType=Custom (31)` |
+| V6+ animation extension | `GearAnimation` `animationName` / `skinName` extended state |
 
-Each child has one slot per Gear type, regardless of its controller binding; Display and Display2 are separate types. The XY percentage extension stores floating-point `px/py` coordinates relative to the parent size (`0.5` means 50%). Size scales and Look alpha may be `0`.
+Each child has one slot per Gear type, regardless of its controller binding; gears without a valid controller binding are skipped during binary export; Display and Display2 are separate types. The XY percentage extension stores floating-point `px/py` coordinates relative to the parent size (`0.5` means 50%). Size scales and Look alpha may be `0`.
 
 XY, Size, Look, Color, Animation, FontSize, Text, and Icon store the presence of a default state in a separate Boolean. Without that payload, the runtime retains the default captured from the owner's initial properties. Unconfigured pages return to that state instead of a fixed zero size, white color, or font size.
 
@@ -576,7 +582,7 @@ Scale `0` is a valid scale. Sound volume `0` means silence, and a nested Transit
 
 | Content | Requirement |
 |---|---|
-| Component scroll pane | `scrollType`, `scrollBarFlags`, `scrollBarMargin`, `vt/hz scrollBarRes`, `headerRes`, `footerRes` |
+| Component scroll pane | `scrollType`, `scrollBarDisplay`, `scrollBarFlags`, `scrollBarMargin`, `vt/hz scrollBarRes`, `headerRes`, `footerRes` |
 | List scroll pane | The list's own scroll-pane data |
 | Tree/list additional flags | `scrollItemToViewOnClick`, `foldInvisibleItems`, and tree settings |
 
@@ -592,9 +598,9 @@ Scale `0` is a valid scale. Sound volume `0` means silence, and a nested Transit
 | Phase | Corresponding data |
 |---|---|
 | `constructFromResource2` | Component top-level blocks 0-7 and child-list assembly |
-| `setup_beforeAdd` | Child blocks 0 and 5 plus list/tree extension blocks |
-| `setup_afterAdd` | Child blocks 1, 4, and 6 plus extension-instance data |
-| ScrollPane / Extension definition | Component blocks 6 and 7 plus extra list blocks |
+| `setup_beforeAdd` | Child blocks 0, 4 (`GTextInput`), and 5 plus list/tree extension blocks 7/8/9 |
+| `setup_afterAdd` | Child blocks 1, 2 (gears), 4 (component/list overrides), and 6 plus extension-instance data |
+| Relations / ScrollPane / Extension definition | Child block 3, component blocks 3, 6, and 7 plus extra list blocks |
 
 ### Decode result
 

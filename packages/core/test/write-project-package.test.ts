@@ -14,11 +14,31 @@ test('every supported project type survives XML write and read', async (t) => {
 	const target = path.join(directory, 'Types.fairy');
 	const io = new NodeIO();
 	const doc = new Document();
-	for (let type = 0; type <= 12; type++) {
+	t.is(doc.getRoot().getVersion(), '3.0', 'new Document defaults .fairy version to 3.0');
+	for (let type = 0; type <= 17; type++) {
 		doc.getRoot().setProjectType(type);
 		await io.writeProject(doc, target);
 		t.is((await io.readProject(target)).getRoot().getProjectType(), type);
 	}
+	// Legacy/Desktop aliases Cry and PIXI map cleanly; unknown non-empty types are rejected.
+	await fs.writeFile(
+		target,
+		'<?xml version="1.0" encoding="utf-8"?>\n<projectDescription id="alias1" type="Cry" version="3.0"/>\n',
+	);
+	t.is((await io.readProject(target)).getRoot().getProjectType(), 10);
+	await fs.writeFile(
+		target,
+		'<?xml version="1.0" encoding="utf-8"?>\n<projectDescription id="alias2" type="PIXI" version="3.0"/>\n',
+	);
+	t.is((await io.readProject(target)).getRoot().getProjectType(), 7);
+	await fs.writeFile(
+		target,
+		'<?xml version="1.0" encoding="utf-8"?>\n<projectDescription id="bad1" type="UnknownEngine" version="3.0"/>\n',
+	);
+	await t.throwsAsync(io.readProject(target), { message: /Unsupported project type/ });
+
+	doc.getRoot().setProjectType(17);
+	await io.writeProject(doc, target);
 	const original = await fs.readFile(target, 'utf8');
 	doc.getRoot().setProjectType(99);
 	await t.throwsAsync(io.writeProject(doc, target), { message: /Unsupported project type/ });
@@ -589,7 +609,7 @@ test('round-trip: sample list ptrRes and transition value attrs survive write→
 			powerUpXml.includes('<item time="0" type="XY" value="0,0"/>'),
 			'non-tween XY writes value attr instead of startValue',
 		);
-		t.true(/<jta\b[^>]*id="n5"/.test(powerUpXml), 'movie clip instances write jta display tags');
+		t.true(/<movieclip\b[^>]*id="n5"/.test(powerUpXml), 'movie clip instances write movieclip display tags');
 
 		const goodHitXml = await fs.readFile(path.join(tmpDir, 'assets', 'Transition', 'GoodHit.xml'), 'utf-8');
 		t.true(
@@ -718,11 +738,41 @@ test('writer: suppresses restored-like default attrs and float-noise defaults', 
 		const compXml = await fs.readFile(path.join(tmpDir, 'assets', 'DefaultNoise', 'Defaults.xml'), 'utf-8');
 		t.false(buttonXml.includes('downEffectValue='), 'button omits float-noise default downEffectValue');
 		t.false(compXml.includes('color="#FFFFFF"'), 'writer omits default white image/loader color');
-		t.false(/<jta\b[^>]*color="#ffffff"/.test(compXml), 'writer omits default white jta color');
+		t.false(/<movieclip\b[^>]*color="#ffffff"/.test(compXml), 'writer omits default white movieclip color');
 		t.false(compXml.includes('color="#000000"'), 'writer omits default black text color');
 		t.false(compXml.includes('fill="none"'), 'loader omits default fill');
 		t.false(compXml.includes('selectionMode="single"'), 'list omits default selectionMode');
 		t.false(compXml.includes('level="0"'), 'list items omit default level');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('package.xml omits default atlas and qualityOption values', async (t) => {
+	const io = new NodeIO();
+	const doc = new Document();
+	const pkg = doc.createPackage('PkgDefaults').setId('pkgdef01');
+	const img = doc
+		.createImageResource('hero')
+		.setId('img001')
+		.setPath('/')
+		.setFileName('hero.png')
+		.setTextureSetMode('default')
+		.setQualityOption('default');
+	const mc = doc
+		.createMovieClipResource('anim')
+		.setId('mc001')
+		.setPath('/')
+		.setFileName('anim.jta')
+		.setTextureSetMode('default');
+	pkg.addResource(img).addResource(mc);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-pkg-defaults-'));
+	try {
+		await io.writeProject(doc, path.join(tmpDir, 'PkgDefaults.fairy'));
+		const pkgXml = await fs.readFile(path.join(tmpDir, 'assets', 'PkgDefaults', 'package.xml'), 'utf8');
+		t.false(pkgXml.includes('atlas="default"'), 'package.xml omits atlas="default"');
+		t.false(pkgXml.includes('qualityOption="default"'), 'package.xml omits qualityOption="default"');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

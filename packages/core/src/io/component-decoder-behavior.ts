@@ -11,7 +11,7 @@ export function decodeComponentControllers(
 	if (!buf.seek(0, 1) || remainingBytes(buf) < 2) return;
 	const controllerCount = buf.getInt16();
 	for (let controllerIndex = 0; controllerIndex < controllerCount && remainingBytes(buf) >= 2; controllerIndex += 1) {
-		const chunkSize = buf.getInt16();
+		const chunkSize = buf.getUint16();
 		const nextPos = buf.pos + chunkSize;
 		const controllerBuf = buf.readBuffer(chunkSize);
 		const controller = doc.createController(`controller${controllerIndex}`);
@@ -75,7 +75,7 @@ export function decodeComponentControllers(
 				actionIndex < actionCount && remainingBytes(controllerBuf) >= 2;
 				actionIndex += 1
 			) {
-				const actionSize = controllerBuf.getInt16();
+				const actionSize = controllerBuf.getUint16();
 				const actionNextPos = controllerBuf.pos + actionSize;
 				const actionBuf = controllerBuf.readBuffer(actionSize);
 				const action = doc.createControllerAction(`${controller.getName()}_action${actionIndex}`);
@@ -122,9 +122,13 @@ export function decodeComponentControllers(
 	}
 }
 
-export function decodeComponentRelations(resource: ReturnType<Document['createComponent']>, buf: ByteBuffer): void {
+export function decodeComponentRelations(
+	resource: ReturnType<Document['createComponent']>,
+	buf: ByteBuffer,
+	rawChildIds?: string[],
+): void {
 	if (!buf.seek(0, 3) || remainingBytes(buf) < 1) return;
-	const childIds = resource.listChildren().map((child) => child.getId());
+	const childIds = rawChildIds ?? resource.listChildren().map((child) => child.getId());
 	decodeRelationBlock(buf, childIds, (relation) => resource.addRelation(relation));
 }
 
@@ -157,15 +161,20 @@ export function decodeComponentHeader(resource: ReturnType<Document['createCompo
 	}
 }
 
-export function decodeComponentAdvancedProps(resource: ReturnType<Document['createComponent']>, buf: ByteBuffer): void {
+export function decodeComponentAdvancedProps(
+	resource: ReturnType<Document['createComponent']>,
+	buf: ByteBuffer,
+	rawChildIds?: string[],
+): void {
 	if (!buf.seek(0, 4)) return;
 	if (remainingBytes(buf) < 15) return;
 
+	const childIds = rawChildIds ?? resource.listChildren().map((child) => child.getId());
 	resource.setCustomData(buf.readS() ?? '').setOpaque(buf.readBool());
 
 	const maskIndex = buf.getInt16();
 	if (maskIndex >= 0) {
-		resource.setMask(resource.listChildren()[maskIndex]?.getId() ?? '');
+		resource.setMask(childIds[maskIndex] ?? '');
 		resource.setReversedMask(buf.readBool());
 	}
 
@@ -175,7 +184,7 @@ export function decodeComponentAdvancedProps(resource: ReturnType<Document['crea
 	if (hitTestId) {
 		resource.setHitTest(`${hitTestId},${hitTestArg1},${hitTestArg2}`);
 	} else if (hitTestArg1 === 1 && hitTestArg2 >= 0) {
-		resource.setHitTest(resource.listChildren()[hitTestArg2]?.getId() ?? '');
+		resource.setHitTest(childIds[hitTestArg2] ?? '');
 	}
 
 	if (buf.version >= 5 && remainingBytes(buf) >= 4) {
@@ -210,12 +219,11 @@ export function decodeComponentExtensionDef(
 			resource.setTitleType(buf.getUint8()).setReverse(buf.readBool());
 			break;
 		case 'Slider':
-			if (remainingBytes(buf) < 4) return;
-			resource
-				.setTitleType(buf.getUint8())
-				.setReverse(buf.readBool())
-				.setWholeNumbers(buf.readBool())
-				.setChangeOnClick(buf.readBool());
+			if (remainingBytes(buf) < 2) return;
+			resource.setTitleType(buf.getUint8()).setReverse(buf.readBool());
+			if (buf.version >= 2 && remainingBytes(buf) >= 2) {
+				resource.setWholeNumbers(buf.readBool()).setChangeOnClick(buf.readBool());
+			}
 			break;
 		case 'ScrollBar':
 			if (remainingBytes(buf) < 1) return;

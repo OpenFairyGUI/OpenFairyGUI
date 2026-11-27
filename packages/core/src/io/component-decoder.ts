@@ -31,10 +31,10 @@ export function decodeComponentDefinition(
 
 	decodeComponentHeader(resource, componentBuf);
 	decodeComponentControllers(doc, resource, componentBuf);
-	decodeComponentDisplayList(doc, resource, componentBuf);
-	decodeComponentRelations(resource, componentBuf);
-	decodeComponentAdvancedProps(resource, componentBuf);
-	decodeComponentTransitions(doc, resource, componentBuf);
+	const childIds = decodeComponentDisplayList(doc, resource, componentBuf);
+	decodeComponentRelations(resource, componentBuf, childIds);
+	decodeComponentAdvancedProps(resource, componentBuf, childIds);
+	decodeComponentTransitions(doc, resource, componentBuf, childIds);
 	decodeComponentExtensionDef(resource, componentBuf, extensionType);
 	decodeComponentScrollPane(resource, componentBuf);
 }

@@ -101,6 +101,7 @@ const PACKAGE_IMAGE_RESOURCE_ATTRS = {
 	qualityOption: { canonical: 'qualityOption' },
 	quality: { canonical: 'quality' },
 	duplicatePadding: { canonical: 'duplicatePadding' },
+	disableTrim: { canonical: 'disableTrim' },
 	smoothing: { canonical: 'smoothing' },
 } satisfies XmlAttrMap;
 
@@ -764,6 +765,7 @@ const LOADER_NODE = defineNode(
 		PIVOT_ATTRS,
 		ANCHOR_ATTRS,
 		SCALE_ATTRS,
+		GROUP_REF_ATTRS,
 		COMMON_DISPLAY_STATE_ATTRS,
 		LOADER_PANEL_ATTRS,
 		FILTER_ATTRS,
@@ -772,7 +774,7 @@ const LOADER_NODE = defineNode(
 );
 
 const LOADER3D_NODE = defineNode(
-	mergeAttrs(COMMON_DISPLAY_OBJECT_ATTRS, LOADER3D_PANEL_ATTRS),
+	mergeAttrs(COMMON_DISPLAY_OBJECT_ATTRS, GROUP_REF_ATTRS, LOADER3D_PANEL_ATTRS),
 	mergeChildren(WITH_RELATION_CHILDREN, WITH_GEAR_CHILDREN),
 );
 
@@ -878,6 +880,7 @@ const COMPONENT_ROOT_NODE = defineNode(
 			transition: TRANSITION_NODE,
 			customProperty: CUSTOM_PROPERTY_NODE,
 		},
+		WITH_RELATION_CHILDREN,
 		WITH_ROOT_EXTENSION_CHILDREN,
 	),
 	mergeContainers({

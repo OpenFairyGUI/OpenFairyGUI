@@ -49,7 +49,7 @@ export function writeComponentInstanceXmlNode(
 		if (object.getInstanceController() && extSpecs.controller)
 			writeXmlAttr(extAttrs, extSpecs.controller, object.getInstanceController());
 		if (object.getInstancePage() && extSpecs.page) writeXmlAttr(extAttrs, extSpecs.page, object.getInstancePage());
-		if (object.getInstanceChecked() && extSpecs.checked) writeXmlAttr(extAttrs, extSpecs.checked, '1');
+		if (object.getInstanceChecked() && extSpecs.checked) writeXmlAttr(extAttrs, extSpecs.checked, 'true');
 		const popupDirection = object.getInstancePopupDirection() ?? 0;
 		if (popupDirection !== 0 && extSpecs.popupDirection) {
 			writeXmlAttr(

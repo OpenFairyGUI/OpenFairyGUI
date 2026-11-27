@@ -61,7 +61,7 @@ export function writeTextXmlAttributes(attrs: Record<string, unknown>, object: G
 	if (object.getUnderline()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.underline, 'true');
 	if (object.getItalic()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.italic, 'true');
 	if (object.getBold()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.bold, 'true');
-	if (object.getStrikethrough()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.strikethrough, '1');
+	if (object.getStrikethrough()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.strikethrough, 'true');
 	const strokeColor = object.getStrokeColor();
 	if (strokeColor) {
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.strokeColor, formatXmlColor(strokeColor));
@@ -80,6 +80,7 @@ export function writeTextXmlAttributes(attrs: Record<string, unknown>, object: G
 }
 
 export function writeTextInputXmlAttributes(attrs: Record<string, unknown>, object: GTextInput): void {
+	writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.input, 'true');
 	const promptText = object.getPromptText();
 	if (promptText) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.textInput.attrs.prompt, promptText);
 	const maxLength = object.getMaxLength() ?? 0;

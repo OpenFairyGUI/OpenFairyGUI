@@ -29,7 +29,7 @@ Editor publish settings have at least two levels:
 
 ### Top-level properties
 
-The following real publish properties are visible on `GlobalPublishSettings`:
+The following real top-level properties appear in `settings/Publish.json`:
 
 | Property | Meaning |
 |---|---|
@@ -41,22 +41,13 @@ The following real publish properties are visible on `GlobalPublishSettings`:
 | `binaryFormat` | Whether to use the binary publish format |
 | `jpegQuality` | JPEG quality |
 | `compressPNG` | Whether to compress PNG |
-| `allowGenCode` | Whether code generation is allowed |
-| `codePath` | Generated-code output path |
-| `classNamePrefix` | Class-name prefix |
-| `memberNamePrefix` | Member-name prefix |
-| `packageName` | Package name used for code generation |
-| `ignoreNoname` | Whether unnamed objects are ignored |
-| `getMemberByName` | Whether members are retrieved by name |
-| `codeType` | Code-generation type |
 | `includeHighResolution` | Bitmask for included high-resolution resources |
 | `branchProcessing` | Branch-processing mode |
-| `atlasMaxSize` | Maximum atlas size |
-| `atlasPaging` | Whether pagination is enabled |
-| `atlasSizeOption` | Atlas-size strategy |
-| `atlasForceSquare` | Whether atlases are forced square |
-| `atlasAllowRotation` | Whether rotation is allowed |
-| `atlasTrimImage` | Whether images are trimmed |
+| `seperatedAtlasForBranch` | Whether branch atlases are output separately when branches are kept |
+| `codeGeneration` | Code-generation settings child object |
+| `atlasSetting` | Global atlas-settings child object |
+
+Note: the editor's in-memory `GlobalPublishSettings` object also exposes flattened runtime accessors (`allowGenCode`, `codePath`, `classNamePrefix`, `memberNamePrefix`, `packageName`, `ignoreNoname`, `getMemberByName`, `codeType`, and `atlasMaxSize`, `atlasPaging`, `atlasSizeOption`, `atlasForceSquare`, `atlasAllowRotation`, `atlasTrimImage`), which serialize inside the `codeGeneration` and `atlasSetting` child objects in `Publish.json`.
 
 ### `codeGeneration`
 
@@ -88,8 +79,8 @@ The atlas child object in `Publish.json` contains these real properties:
 
 Notes:
 
-- Editor `GlobalPublishSettings` also contains the runtime fields `atlasMaxSize`, `atlasPaging`, `atlasSizeOption`, `atlasForceSquare`, `atlasAllowRotation`, and `atlasTrimImage`. They correspond to the `atlasSetting` child object in `Publish.json`.
 - `extractAlpha` is not a real global `Publish.json` property; it appears in package-level atlas settings.
+- Alongside these real `atlasSetting` properties, OpenFairyGUI's programmatic `resolvePublishOptions` also accepts optional `fast` and `padding` overrides when supplied.
 
 ### Publishing SVG images
 
@@ -121,7 +112,9 @@ Notes:
 - The `packageDescription` root in project `package.xml` formally supports `compressPNG`, `jpegQuality`, and derived `hasFavorites`. Unset image-compression options remain omitted; `hasFavorites` is written as `true` only when the package contains a favorite resource or resource folder. UAM stores both the root compression values and the complete package publish snapshot, so lift/materialize retains these fields.
 - `<publish><atlas>` is source project configuration and is separate from the generated atlases returned by `Package.listAtlases()` after publishing or binary reads. ProjectWriter writes `<publish><atlas>` only from source configuration and never writes generated atlases back to `package.xml`.
 
-`updatePackageSettings` accepts a complete single-package snapshot containing `compressPNG`, `jpegQuality`, and the complete `publish` object. Fields are removed by submitting a new complete snapshot, and an identical snapshot is rejected as `package_settings_unchanged`. Package names and output paths must be safe relative paths. JPEG quality is limited to 1-100, package atlas maximum size to 1-16384, and `maxAtlasIndex` to 0-255. Sparse atlas indices must be unique and no greater than that limit. `excludedResourceIds` stores CSV-safe resource IDs and may retain IDs absent from the current project; reads and writes do not misclassify them as dangling references.
+`updatePackageSettings` accepts a complete single-package snapshot containing `compressPNG`, `jpegQuality`, and the complete `publish` object. Fields are removed by submitting a new complete snapshot, and an identical snapshot is rejected as `package_settings_unchanged`. As a UAM transaction safety boundary, package names and output paths must be safe relative paths without `..` traversal segments (even though raw editor `package.xml` files may contain `../` relative paths). JPEG quality is limited to 1-100, package atlas maximum size to 1-16384, and `maxAtlasIndex` to 0-255. Sparse atlas indices must be unique and no greater than that limit. `excludedResourceIds` stores CSV-safe resource IDs and may retain IDs absent from the current project; reads and writes do not misclassify them as dangling references.
+
+During publishing, explicit call overrides take precedence over package atlas settings, which in turn take precedence over global settings when `useGlobal=false`; `extractAlpha` and `maxAtlasIndex` always read the package-level values. Package settings control max size, `pot / npot / mof`, squareness, rotation, and paging, with Layabox forcing rotation off. CocosCreator, Cocos2dx, and Egret use editor `rotationDir = 1` (+90° CW atlas pixels with unrotated sprite `w/h` in Block 2), whereas Unity and other engines use `rotationDir = 0` (-90° CCW atlas pixels with swapped sprite `w/h`). Resources with empty or `"default"` `atlas` inherit the nearest ancestor `folder@atlas`; images with `duplicatePadding` extrude 1px border pixels around their packed rects; images with `disableTrim` skip transparent-edge trimming even when `trimImage=true`; fixed-page groups honor `multiPage` and share pages across branches when `seperatedAtlasForBranch=false`; standalone atlases (`alone`, `alone_npot`, `alone_mof`) use `atlas_<itemId>` IDs and raster output extensions. `excludedResourceIds` removes resources from the publish closure, which is traced transitively only from `exported="true"` roots. `extractAlpha` for Unity and Cocos2dx emits an RGB main atlas plus a `!a.png` alpha atlas. `package.xml` write-back omits default `atlas="default"` and `qualityOption="default"`.
 
 ## List cleanup and property overrides in component XML
 
@@ -142,7 +135,7 @@ Integer geometry fields include:
 
 `pivot`, `scale`, `skew`, percentage values in `gearXY`, and scale values in `gearSize` continue to preserve decimals.
 
-Component roots and display tags supporting pivots preserve `pivot="0,0"` when `anchor="true"`; zero coordinates do not cancel anchor semantics. `.fairy` writing preserves all 13 formal project types from `Unity` through `Vision`, rejecting unknown types before writing.
+Component roots and display tags supporting pivots preserve `pivot="0,0"` when `anchor="true"`; zero coordinates do not cancel anchor semantics. `.fairy` project I/O supports all 18 formal project types (`Unity`, `Flash`, `Starling`, `CocosCreator`, `Layabox`, `Egret`, `Haxe`, `Pixi`/`PIXI`, `LibGDX`, `Unreal`, `CryEngine`/`Cry`, `MonoGame`, `Vision`, `Cocos2dx`, `Corona`, `ThreeJS`, `CreateJS`, and `DOM`), rejecting unknown non-empty types on both read and write. A newly created `Document` defaults `.fairy` `version` to `"3.0"`.
 
 UAM XY Gear states and defaults use `x/y` and optional `px/py`. Enabling `positionsInPercent` requires paired finite `px/py` coordinates in explicit values; `0.5` means 50%. A `null` default means no default override and remains omitted on save. Each display node allows one binding per Gear type. Rebind a controller by removing the gear and adding it again; Display and Display2 may coexist.
 
@@ -166,7 +159,7 @@ Project source data lives in `.fairy`, `settings/`, `assets/` and `assets_<branc
 
 Component and asset resource nodes in `package.xml` and `package_branch.xml` use `exported="true"` and `favorite="true"` to store export and favorite state. The corresponding attribute is omitted when disabled. SWF uses the formal `SwfResource` model for `<swf>` nodes, and the UAM `swf` resource preserves its source file, export state, and favorite state. UAM stores these values as `resource.exported` and `resource.favorite`; public transactions set the target Boolean idempotently through `setResourceExported` and `setResourceFavorite`.
 
-Each package records its own resource branches in the formal ordered `branchNames` list, persisted as the same-named JSON-array attribute on the `package.xml` root. Project reads use that order to establish mappings; binary publishing uses the same order to define that package's `branchItemIds` slots and must not derive them again from root project branch order. Document calls that do not explicitly set a package-local table derive it from actual branch resources in project branch order before publishing.
+Each package records its own resource branches in the formal ordered `branchNames` list; OpenFairyGUI persists that package-local ordering as the same-named JSON-array attribute on the `package.xml` root (an OpenFairyGUI persistence extension, not emitted by native FairyGUI Editor). Project reads use that order to establish mappings; binary publishing uses the same order to define that package's `branchItemIds` slots and must not derive them again from root project branch order. Document calls that do not explicitly set a package-local table derive it from actual branch resources in project branch order before publishing.
 
 The public `addBranch`, `renameBranch`, and `removeBranch` transactions maintain the project branch registry sorted by name. Rename atomically updates resources, resource folders, and package-local branch tables while preserving each package's existing slot positions. Removal is allowed only for an empty branch with no variant-ID mapping. A branch name must be a safe, non-reserved single path segment. The branch currently active in the editor is local UI state and is not changed by these project transactions.
 
@@ -176,13 +169,13 @@ Stale-file and directory cleanup uses the storage adapter's existing-path identi
 
 Resource folders are formally represented by `package.folders` with `branch / path / favorite / atlas`. Folder paths use canonical leading and trailing `/`, and the root is implicit. Actual `assets[/_<branch>]/<package-name>/` directories are the source of truth for existence; `<folder>` nodes store only favorite or atlas metadata that needs persistence. `setResourceFolderFavorite` updates a known folder in the main branch or a resource branch, and one operation changes only the selected folder. To match editor behavior that favorites descendants, callers should explicitly submit favorite operations for descendant folders and resources in the same transaction. Public `addResourceFolder`, `renameResourceFolder`, `moveResourceFolder`, and `removeResourceFolder` transactions operate only on empty folders. The parent must exist, and root, path conflicts, or non-empty operations are rejected before commit. Browser storage adapters must provide non-recursive `rmdir`; removed empty directories are cleaned up only after a successful save.
 
-`setResourceFolderAtlas` updates the source Atlas slot of an existing folder selected by canonical `branch + path`. An empty string clears the override; a non-empty value must be a decimal string without leading zeroes in the `0..maxAtlasIndex` range, and Atlas names are not reference values. `addResourceFolder.atlas` uses the same validation, and the limit defaults to `10` when package publish settings are absent. To expand the range in the same transaction, submit `updatePackageSettings` before the folder Atlas operation. Assigning the current value is rejected as `resource_folder_atlas_unchanged`.
+`setResourceFolderAtlas` updates the source Atlas slot of an existing folder selected by canonical `branch + path`. An empty string clears the override; a non-empty value must be `"alone"`, `"alone_npot"`, `"alone_mof"`, or a decimal string without leading zeroes in the `0..maxAtlasIndex` range, and Atlas names are not reference values. `addResourceFolder.atlas` uses the same validation, and the limit defaults to `10` when package publish settings are absent. To expand the range in the same transaction, submit `updatePackageSettings` before the folder Atlas operation. Assigning the current value is rejected as `resource_folder_atlas_unchanged`.
 
 `packageDescription@hasFavorites` in the main `package.xml` is derived from favorite resources and resource folders in the package and is not independently editable. Favorite state affects editor project data only and does not enter the runtime binary publish protocol.
 
 ## Project image-resource properties
 
-Image-resource attributes in `package.xml` and `package_branch.xml` are represented by the complete UAM `resource.image` snapshot, including texture-set mode, quality option and custom quality, smoothing, edge duplication, scale mode, nine-slice grid, and tile-grid bitmask. The public `setImageResourceProps` transaction replaces only that formal property snapshot and does not change image source bytes. A non-image selector, incomplete snapshot, invalid scale mode, nine-slice grid, or bitmask is rejected before write-back.
+Image-resource attributes in `package.xml` and `package_branch.xml` are represented by the complete UAM `resource.image` snapshot, including texture-set mode, quality option and custom quality, smoothing, edge duplication, trim suppression (`disableTrim`), scale mode, nine-slice grid, and tile-grid bitmask. The public `setImageResourceProps` transaction replaces only that formal property snapshot and does not change image source bytes. A non-image selector, incomplete snapshot, invalid scale mode, nine-slice grid, or bitmask is rejected before write-back.
 
 Updating image source bytes through `replaceResourceBytes` currently supports PNG and common 8-bit Huffman JPEG only. Preflight checks PNG chunk CRCs, zlib/scanline boundaries, and container order. For JPEG it checks quantization/Huffman tables, frame/scan order, and encoding constraints and also completes pixel decoding. Both paths compare the actual format with the filename extension at operation time and in the final state. Malformed or mismatched data returns `invalid_resource_bytes`; unsupported formats such as SVG, WebP, GIF, PSD, and TGA return `unsupported_resource_mutation`. The browser backend performs the same strict validation through `applyUamTransactionAsync` in the packaged Web Worker. Calling the synchronous entry in a browser is rejected immediately rather than scanning or decoding on the main thread. Consumer bundlers must package the public `@openfairygui/core/image-validation-worker` entry as a self-contained ESM `image-validation-worker.js` beside the main bundle; rebundling only the main entry or merely copying the worker file omits its decoder chunks. An unresponsive worker is terminated after ten seconds. Browser source input is limited to 8 MiB and decoded raster size to 8,388,608 pixels. Node/CLI synchronous validation limits source and decoded PNG bytes to 128 MiB; strict JPEG decoding is additionally limited to 8,388,608 pixels and 64 MiB.
 
@@ -190,7 +183,7 @@ A valid replacement derives new raster width and height from the bytes and proje
 
 ## Project MovieClip properties and JTA transactions
 
-MovieClip resources in `package.xml` and `package_branch.xml` use `atlas` for texture-set mode and `smoothing` for smoothing. Missing `smoothing` reads as `true`; write-back emits `smoothing="false"` only for the non-default value. A MovieClip uses the formal `UamMovieClipResource.movieClip` snapshot for `interval`, `repeatDelay`, `swing`, `smoothing`, and each frame's rectangle, additional delay, and sprite ID. The legacy `metadata` property bag is not read.
+MovieClip resources in `package.xml` and `package_branch.xml` use `atlas` for texture-set mode (preserved via the optional UAM `textureSetMode` field) and `smoothing` for smoothing. Missing `smoothing` reads as `true`; write-back emits `smoothing="false"` only for the non-default value. A MovieClip uses the formal `UamMovieClipResource.movieClip` snapshot for `interval`, `repeatDelay`, `swing`, `smoothing`, optional `textureSetMode`, and each frame's rectangle, additional delay, and sprite ID. The legacy `metadata` property bag is not read.
 
 When `ProjectReader` hydrates JTA v100-v102, it derives dimensions, playback timing, and the frame list from source bytes. `fps === 0` normalizes to 24, negative values are invalid, and millisecond fields use integer truncation. If the derived model cannot be parsed, raw source bytes and XML attributes are still retained. `smoothing`, which JTA does not carry, continues to use XML/UAM as its source of truth.
 
@@ -200,13 +193,12 @@ When `ProjectReader` hydrates JTA v100-v102, it derives dimensions, playback tim
 
 An explicitly supplied output directory takes priority over settings. Without one, the current selection order is:
 
-1. Package-level `branchPath` for an active branch, then global `branchPath`.
-2. Package-level `path`.
-3. Global `path`.
+1. For active-branch publishing (`branchProcessing = 1` with a non-empty `branch`), package-level `branchPath`, then global `branchPath`, falling back to package-level `path` and global `path`.
+2. For main or all-branch publishing, package-level `path`, then global `path`.
 
 The selected relative path resolves against the project root. If none is configured, publishing does not implicitly choose an output directory.
 
-Project and package `path` / `branchPath` first replace `{publish_file_name}` with the publish name without its extension, then replace `{name}` in `CustomProperties.json` property order before resolving relative paths. Unknown variables remain literal; explicit `output` is used directly as the caller's path. Project and package `codePath` also expand custom variables.
+Project and package `path` / `branchPath` first replace `{publish_file_name}` (without extension) and `{branch_name}` (active branch name, or empty string on main), then replace `{name}` in `CustomProperties.json` property order before resolving relative paths. For non-main active-branch publishes, `/<branch>` is appended to the resolved output directory whenever the selected template does not already contain `{branch_name}` (matching FairyGUI Editor `PublishHandler`). Unknown variables remain literal; explicit `output` is used directly as the caller's path. Project and package `codePath` also expand custom variables.
 
 Browser Laya publishing never uses project or package desktop output paths beneath an explicit `output`. Explicit `branch`, `packages`, `compressed`, and `atlas` parameters also remain authoritative. Without an explicit override, persisted compression, atlas, and safe file-extension settings directly drive output. The current browser host does not provide code generation. If global settings allow it and any selected package enables `genCode`, publishing rejects with `unsupported_publish_setting`, including `setting` and `path`, before Canvas checks or file writes. On failure, `files` contains only files whose `writeFileRaw` completed. Therefore, `success=false` with a non-empty list means built-in output was written partially; hosts requiring atomic publication must provide a transactional or staging output filesystem.
 
@@ -305,16 +297,18 @@ These defaults come from the actual behavior of editor `GlobalPublishSettings.re
 | `atlasSetting.trimImage` | Defaults to `true` for project version `>= 500`; otherwise uses the legacy default logic |
 | `jpegQuality` | `80` |
 
+Note: the table above documents FairyGUI Editor's UI initialization defaults. In OpenFairyGUI programmatic calls where a field is omitted from `Publish.json` and no override is passed, `resolvePublishOptions` and `resolveCodeGenerationSettings` use conservative fallbacks (`compressDesc: false`, `powerOfTwo: false`, `trimImage: false`, `ignoreNoname: false`), while honoring every explicit setting present in `Publish.json`.
+
 ## Current `fileExtension` rules
 
 The current OpenFairyGUI implementation of `fileExtension` does not reproduce the editor's full project-type matrix. Its formal behavior is:
 
 | Scenario | Result |
 |---|---|
-| Unity project | Always `bytes` |
-| Cocos Creator project with explicit `fileExtension` in `Publish.json` | Uses the configured value |
+| Unity project | Always `bytes`, with `_fui` filename suffix keyed on `ProjectType.Unity` (`<publishName>_fui.<ext>`) |
+| Cocos Creator project with explicit `fileExtension` in `Publish.json` | Uses the configured value (`<publishName>.<ext>`) |
 | Cocos Creator project without explicit `fileExtension` | Defaults to `bin` |
-| Other non-Unity project with explicit `fileExtension` | Uses the configured value |
+| Other non-Unity project with explicit `fileExtension` | Uses the configured value (no `_fui` suffix) |
 | Other non-Unity project without explicit `fileExtension` | Falls back to `fui` |
 
 ### Explicit CLI target overrides
@@ -366,7 +360,7 @@ The visible meanings of `branchProcessing` are:
 | Value | Editor behavior |
 |---|---|
 | `0` | **Main includes every branch**. Output retains the main branch and all branch content and uses `path`. |
-| `1` | **Merge active branch into main**. Output retains only the merged main and currently active branch. Main output uses `path`; non-main output uses `branchPath/<branch>` when `branchPath` is set. |
+| `1` | **Merge active branch into main**. Output retains only the merged main and currently active branch. Main output uses `path`; non-main output uses `branchPath/<branch>` (appending `/<branch>` automatically when the path template does not contain `{branch_name}`). |
 
 The visible meanings of `seperatedAtlasForBranch` are:
 

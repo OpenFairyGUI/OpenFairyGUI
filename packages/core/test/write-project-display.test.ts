@@ -3,7 +3,15 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { getFixtureProjectPath } from '@openfairygui/test-utils';
-import { Document, PropertyType } from '../src/index.js';
+import {
+	Document,
+	GearType,
+	liftDocumentToUamProject,
+	materializeUamProject,
+	PropertyType,
+	RelationType,
+	TransitionActionType,
+} from '../src/index.js';
 import { assertDisplayListTagAllowed, createDisplayObject } from '../src/io/display-object-xml-reader.js';
 import { NodeIO } from '../src/node.js';
 
@@ -335,8 +343,8 @@ test('round-trip: text shadow attrs survive write→read', async (t) => {
 			'richtext writes canonical underlaySoftness attr',
 		);
 		t.true(
-			/<inputtext\b[^>]*demoText="input preview"/.test(componentXml),
-			'input text writes canonical plain-text attrs',
+			/<text\b[^>]*demoText="input preview"[^>]*input="true"/.test(componentXml),
+			'input text writes canonical plain-text attrs with input="true"',
 		);
 
 		const doc2 = await io.readProject(outFairy);
@@ -658,7 +666,7 @@ test('writer: uses canonical XML attr names for component root, loader, text nod
 		);
 		t.true(componentXml.includes('scrollBarFlags="1184"'), 'component root writes canonical scrollBarFlags attr');
 		t.true(componentXml.includes('<loader'), 'loader node is written');
-		t.true(componentXml.includes('useResize="1"'), 'loader writes canonical useResize attr');
+		t.true(componentXml.includes('useResize="true"'), 'loader writes canonical useResize attr');
 		t.true(/<loader\b[^>]*errorSign(?:="true")?/.test(componentXml), 'loader writes canonical errorSign attr');
 		t.true(componentXml.includes('fill="scale"'), 'loader writes canonical fill attr');
 		t.true(
@@ -693,15 +701,15 @@ test('writer: uses canonical XML attr names for component root, loader, text nod
 		t.false(/<loader3D\b[^>]*\bvAlign=/.test(componentXml), 'loader3D omits default vAlign attr');
 		t.true(componentXml.includes('prompt="Search here"'), 'text input uses canonical prompt attr');
 		t.true(
-			/<inputtext\b[^>]*text=""[^>]*color="#ff3300"/.test(componentXml),
-			'text input preserves explicit empty text and lowercases color attrs',
+			/<text\b[^>]*text=""[^>]*color="#ff3300"[^>]*input="true"/.test(componentXml),
+			'text input preserves explicit empty text, lowercases color attrs, and writes input="true"',
 		);
 		t.true(
-			/<inputtext\b[^>]*autoClearText(?:="true")?/.test(componentXml),
+			/<text\b[^>]*autoClearText(?:="true")?[^>]*input="true"/.test(componentXml),
 			'text input writes canonical autoClearText attr',
 		);
 		t.true(
-			/<inputtext\b(?=[^>]*rotation="15")(?=[^>]*alpha="0.65")(?=[^>]*touchable="false")(?=[^>]*grayed="true")/.test(
+			/<text\b(?=[^>]*input="true")(?=[^>]*rotation="15")(?=[^>]*alpha="0.65")(?=[^>]*touchable="false")(?=[^>]*grayed="true")/.test(
 				componentXml,
 			),
 			'text input writes canonical common display attrs',
@@ -1141,4 +1149,344 @@ test('loader3D XML reader accepts both <loader3D> and legacy <loader3d>, writing
 		const obj = createDisplayObject(dummyCtx, directDoc, tag, { '@_id': 'n0', '@_name': tag }, controllers);
 		t.is(obj?.propertyType, PropertyType.G_LOADER_3D);
 	}
+});
+
+test('XML protocol drift regressions: booleans, graph types, loader3D defaults, fillAmount, fileName, and extension overlays', async (t) => {
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-xml-drift-a-'));
+	t.teardown(() => fs.rm(dir, { recursive: true, force: true }));
+
+	const doc = new Document();
+	doc.getRoot().setProjectId('xml-drift-a').setProjectType(0).setVersion('3.0');
+	const pkg = doc.createPackage('DriftA').setId('pkgdrifta');
+
+	const imgRes = doc.createImageResource('bg.png').setId('img01').setPath('/images/');
+	pkg.addResource(imgRes);
+	for (const [id, name, ext] of [
+		['btn01', 'Btn', 'Button'],
+		['cmb01', 'Cmb', 'ComboBox'],
+		['pb01', 'Pb', 'ProgressBar'],
+		['sl01', 'Sl', 'Slider'],
+		['sb01', 'Sb', 'ScrollBar'],
+	] as const) {
+		pkg.addResource(doc.createComponent(name).setId(id).setPath('/').setSize(40, 20).setExtensionType(ext));
+	}
+
+	const comp = doc
+		.createComponent('Main')
+		.setId('cmp01')
+		.setPath('/')
+		.setSize(400, 300)
+		.setMask('n0')
+		.setReversedMask(true)
+		.setScrollType(0)
+		.setScrollBarDisplay(2)
+		.setScrollBarFlags(128)
+		.setScrollBarMargin({ top: 1, bottom: 2, left: 3, right: 4 })
+		.setVtScrollBarRes('ui://pkgdrifta/vbar')
+		.setHzScrollBarRes('ui://pkgdrifta/hbar')
+		.setHeaderRes('ui://pkgdrifta/hdr')
+		.setFooterRes('ui://pkgdrifta/ftr');
+	comp.setRelations([{ target: 'n0', type: RelationType.Width, usePercent: false }]);
+
+	const image = doc.createGImage('img').setId('n0').setSrc('img01').setFileName('images/bg.png').setFillMethod(1);
+	t.is(image.getFillAmount(), 1, 'new GImage defaults fillAmount to 1 on 0..1 scale');
+
+	const text = doc.createGTextField('txt').setId('n1').setText('strike').setStrikethrough(true);
+
+	const ellipse = doc.createGGraph('ellipse').setId('n2').setGraphType(2).setSize(40, 40);
+	const regPoly = doc
+		.createGGraph('star')
+		.setId('n3')
+		.setGraphType(4)
+		.setSides(4)
+		.setDistances([1, 0.5, 1, 0.5])
+		.setSize(60, 60);
+
+	const grp = doc.createGGroup('grp').setId('g0');
+	const loader = doc
+		.createGLoader('ldr')
+		.setId('n4')
+		.setGroup('g0')
+		.setShrinkOnly(true)
+		.setAutoSize(true)
+		.setUseResize(true)
+		.setFillMethod(1);
+	t.is(loader.getFillAmount(), 1, 'new GLoader defaults fillAmount to 1 on 0..1 scale');
+
+	const loader3dDefault = doc.createGLoader3D('l3dDefault').setId('n5').setGroup('g0').setUrl('ui://pkgdrifta/sk');
+	t.false(loader3dDefault.getLoop(), 'new GLoader3D defaults loop to false');
+
+	const loader3dLoop = doc.createGLoader3D('l3dLoop').setId('n6').setShrinkOnly(true).setAutoSize(true).setLoop(true);
+
+	const btn = doc
+		.createGButton('btn')
+		.setId('n7')
+		.setSrc('btn01')
+		.setInstanceExtType('Button')
+		.setInstanceChecked(true);
+	const combo = doc
+		.createGComboBox('combo')
+		.setId('n8')
+		.setSrc('cmb01')
+		.setInstanceExtType('ComboBox')
+		.setInstanceVisibleItemCount(5)
+		.setInstanceSelectionController('c0');
+	const pbar = doc
+		.createGProgressBar('pbar')
+		.setId('n9')
+		.setSrc('pb01')
+		.setInstanceExtType('ProgressBar')
+		.setInstanceValue(30)
+		.setInstanceMax(100);
+	const slider = doc
+		.createGSlider('slider')
+		.setId('n10')
+		.setSrc('sl01')
+		.setInstanceExtType('Slider')
+		.setInstanceValue(40)
+		.setInstanceMax(100);
+	const sbar = doc.createGScrollBar('sbar').setId('n11').setSrc('sb01').setControllerOverrides('c0,1');
+
+	const ctrl = doc.createController('c0');
+	ctrl.addPage(doc.createControllerPage('p0').setId('0'));
+	ctrl.addPage(doc.createControllerPage('p1').setId('1'));
+	comp.addController(ctrl);
+
+	const untouchable = doc.createGImage('untouchable').setId('n12').setSrc('img01').setTouchable(false);
+	const lookGear = doc
+		.createGear()
+		.setGearType(GearType.Look)
+		.setController(ctrl)
+		.setPages('0,1')
+		.setValues('1,0,0,1|0.5,0,0,0')
+		.setDefaultValue('1,0,0,1');
+	untouchable.addGear(lookGear);
+
+	const trans = doc.createTransition('t0');
+	trans.addItem(
+		doc
+			.createTransitionItem()
+			.setTime(0)
+			.setActionType(TransitionActionType.Text)
+			.setTargetId('n1')
+			.setStartValue(['01,000']),
+	);
+	trans.addItem(
+		doc
+			.createTransitionItem()
+			.setTime(0)
+			.setActionType(TransitionActionType.Icon)
+			.setTargetId('n4')
+			.setStartValue(['ui://pkgdrifta/a,b']),
+	);
+	trans.addItem(
+		doc
+			.createTransitionItem()
+			.setTime(0)
+			.setActionType(TransitionActionType.XY)
+			.setTargetId('n0')
+			.setTween(true)
+			.setDuration(6)
+			.setStartValue(['0', '0', '0.125', '0.25'])
+			.setEndValue(['10', '20', '0.375', '0.5']),
+	);
+	comp.addTransition(trans);
+
+	for (const child of [
+		image,
+		text,
+		ellipse,
+		regPoly,
+		grp,
+		loader,
+		loader3dDefault,
+		loader3dLoop,
+		btn,
+		combo,
+		pbar,
+		slider,
+		sbar,
+		untouchable,
+	]) {
+		comp.addChild(child);
+	}
+	pkg.addResource(comp);
+
+	const io = new NodeIO();
+	const outFairy = path.join(dir, 'DriftA.fairy');
+	await io.writeProject(doc, outFairy);
+	const xml = await fs.readFile(path.join(dir, 'assets', 'DriftA', 'Main.xml'), 'utf8');
+
+	// X1: boolean attrs use "true", never "1"
+	t.true(xml.includes('reversedMask="true"'));
+	t.true(xml.includes('strikethrough="true"'));
+	t.true(xml.includes('checked="true"'));
+	t.true(/<loader\b[^>]*id="n4"[^>]*shrinkOnly="true"[^>]*autoSize="true"[^>]*useResize="true"/.test(xml));
+	t.true(/<loader3D\b[^>]*id="n6"[^>]*shrinkOnly="true"[^>]*autoSize="true"/.test(xml));
+	t.false(/\b(?:reversedMask|strikethrough|checked|shrinkOnly|autoSize|useResize)="1"/.test(xml));
+
+	// X2: graph types
+	t.true(/<graph\b[^>]*id="n2"[^>]*type="eclipse"/.test(xml));
+	t.true(/<graph\b[^>]*id="n3"[^>]*type="regular_polygon"/.test(xml));
+
+	// X3: loader3D loop default false, omits default fill/color/loop
+	t.false(/<loader3D\b[^>]*id="n5"[^>]*(?:fill=|color=|loop=)/.test(xml));
+	t.true(/<loader3D\b[^>]*id="n6"[^>]*loop="true"/.test(xml));
+
+	// X5: root component relation
+	t.true(xml.includes('<relation target="n0" sidePair="width-width"/>'));
+
+	// X7 & X18: fillAmount=100 (not 10000) & image fileName
+	t.true(/<image\b[^>]*id="n0"[^>]*fileName="images\/bg\.png"[^>]*fillAmount="100"/.test(xml));
+	t.true(/<loader\b[^>]*id="n4"[^>]*fillAmount="100"/.test(xml));
+	t.false(xml.includes('fillAmount="10000"'));
+
+	// X10: gearLook retains ",1" when owner touchable=false
+	t.true(xml.includes('values="1,0,0,1|0.5,0,0,0"'));
+	t.true(xml.includes('default="1,0,0,1"'));
+
+	// X12: raw Text/Icon transition values & 3-decimal XY percents
+	t.true(xml.includes('<item time="0" type="Text" target="n1" value="01,000"/>'));
+	t.true(xml.includes('<item time="0" type="Icon" target="n4" value="ui://pkgdrifta/a,b"/>'));
+	t.true(xml.includes('startValue="0,0,0.125,0.25"'));
+	t.true(xml.includes('endValue="10,20,0.375,0.5"'));
+
+	// X13: ComboBox / ProgressBar / Slider / ScrollBar child instances emit overlays & component instance attrs
+	t.true(xml.includes('<ComboBox selectionController="c0" visibleItemCount="5"/>'));
+	t.true(xml.includes('<ProgressBar value="30" max="100"/>'));
+	t.true(xml.includes('<Slider value="40" max="100"/>'));
+	t.true(/<component\b[^>]*id="n11"[^>]*controller="c0,1"/.test(xml));
+
+	// X14: loader/loader3D group attr
+	t.true(/<loader\b[^>]*id="n4"[^>]*group="g0"/.test(xml));
+	t.true(/<loader3D\b[^>]*id="n5"[^>]*group="g0"/.test(xml));
+
+	// X17: root scroll/scrollBarMargin/scrollBarRes/ptrRes preserved without overflow="scroll", scrollBar/scrollBarFlags still gated
+	t.true(xml.includes('scroll="horizontal"'));
+	t.true(xml.includes('scrollBarMargin="1,2,3,4"'));
+	t.true(xml.includes('scrollBarRes="ui://pkgdrifta/vbar,ui://pkgdrifta/hbar"'));
+	t.true(xml.includes('ptrRes="ui://pkgdrifta/hdr,ui://pkgdrifta/ftr"'));
+	t.false(xml.includes('scrollBar="auto"'));
+	t.false(xml.includes('scrollBarFlags="128"'));
+
+	// Round-trip through XML + UAM
+	const reread = await io.readProject(outFairy);
+	const uam = liftDocumentToUamProject(reread);
+	const matDoc = materializeUamProject(uam);
+	const matComp = matDoc.getRoot().getPackage('DriftA')?.getComponent('Main');
+	t.truthy(matComp);
+	t.deepEqual(matComp?.getRelations(), [{ target: 'n0', type: RelationType.Width, usePercent: false }]);
+	t.is((matComp?.getChildById('n4') as any)?.getGroup?.(), 'g0');
+	t.is((matComp?.getChildById('n5') as any)?.getGroup?.(), 'g0');
+	t.false((matComp?.getChildById('n5') as any)?.getLoop?.());
+	t.true((matComp?.getChildById('n6') as any)?.getLoop?.());
+	t.is((matComp?.getChildById('n0') as any)?.getFillAmount?.(), 1);
+	t.is((matComp?.getChildById('n4') as any)?.getFillAmount?.(), 1);
+	const rereadComp = reread.getRoot().getPackage('DriftA')?.getComponent('Main');
+	t.is(rereadComp?.getScrollType(), 0);
+	t.deepEqual(rereadComp?.getScrollBarMargin(), { top: 1, bottom: 2, left: 3, right: 4 });
+	t.is(rereadComp?.getVtScrollBarRes(), 'ui://pkgdrifta/vbar');
+	t.is(rereadComp?.getHzScrollBarRes(), 'ui://pkgdrifta/hbar');
+	t.is(rereadComp?.getHeaderRes(), 'ui://pkgdrifta/hdr');
+	t.is(rereadComp?.getFooterRes(), 'ui://pkgdrifta/ftr');
+	const rereadTransItems = rereadComp?.listTransitions()[0]?.listItems() ?? [];
+	t.deepEqual(rereadTransItems[0]?.getStartValue(), ['01,000']);
+	t.deepEqual(rereadTransItems[1]?.getStartValue(), ['ui://pkgdrifta/a,b']);
+});
+
+test('XML protocol drift regressions: shorthand sidePair, explicit <tree>, graph distances, single-value margins, legacy tags', async (t) => {
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-xml-drift-b-'));
+	t.teardown(() => fs.rm(dir, { recursive: true, force: true }));
+
+	const projectPath = path.join(dir, 'DriftB.fairy');
+	const pkgDir = path.join(dir, 'assets', 'DriftB');
+	await fs.mkdir(pkgDir, { recursive: true });
+	await fs.writeFile(projectPath, '<projectDescription id="driftb" type="Unity" version="3.0"/>\n', 'utf8');
+	await fs.writeFile(
+		path.join(pkgDir, 'package.xml'),
+		`<packageDescription id="pkgdriftb">
+  <resources>
+    <component id="cmp01" name="Main.xml" path="/" exported="true"/>
+    <movieclip id="mc01" name="Anim.jta" path="/"/>
+  </resources>
+</packageDescription>
+`,
+		'utf8',
+	);
+	await fs.writeFile(
+		path.join(pkgDir, 'Main.xml'),
+		`<component size="300,200" margin="10" scrollBarMargin="8">
+  <displayList>
+    <graph id="g0" name="el" xy="0,0" size="50,50" type="ellipse">
+      <relation target="" sidePair="width,height,center-center,middle-middle,width%"/>
+    </graph>
+    <graph id="g1" name="rp" xy="60,0" size="50,50" type="regularpolygon" sides="4" distances=",0.5,,0.5"/>
+    <tree id="t0" name="treeObj" xy="0,60" size="120,100" margin="6" scrollBarMargin="4"/>
+    <inputtext id="i0" name="legacyInput" xy="130,60" size="100,30" text="abc" prompt="hint"/>
+    <jta id="m0" name="legacyMc" src="mc01" xy="130,100"/>
+  </displayList>
+  <relation target="g0" sidePair="width"/>
+</component>
+`,
+		'utf8',
+	);
+
+	const io = new NodeIO();
+	const doc = await io.readProject(projectPath);
+	const comp = doc.getRoot().getPackage('DriftB')?.getComponent('Main');
+	t.truthy(comp);
+	t.deepEqual(comp?.getMargin(), { top: 10, bottom: 10, left: 10, right: 10 });
+	t.deepEqual(comp?.getScrollBarMargin(), { top: 8, bottom: 8, left: 8, right: 8 });
+	t.deepEqual(comp?.getRelations(), [{ target: 'g0', type: RelationType.Width, usePercent: false }]);
+
+	const g0 = comp?.getChildById('g0') as any;
+	t.is(g0?.getGraphType(), 2);
+	t.deepEqual(g0?.getRelations(), [
+		{ target: '', type: RelationType.Width, usePercent: false },
+		{ target: '', type: RelationType.Height, usePercent: false },
+		{ target: '', type: RelationType.Center_Center, usePercent: false },
+		{ target: '', type: RelationType.Middle_Middle, usePercent: false },
+		{ target: '', type: RelationType.Width, usePercent: true },
+	]);
+
+	const g1 = comp?.getChildById('g1') as any;
+	t.is(g1?.getGraphType(), 4);
+	t.deepEqual(g1?.getDistances(), [1, 0.5, 1, 0.5]);
+
+	const t0 = comp?.getChildById('t0') as any;
+	t.is(t0?.propertyType, PropertyType.G_TREE);
+	t.deepEqual(t0?.getMargin(), { top: 6, bottom: 6, left: 6, right: 6 });
+	t.deepEqual(t0?.getScrollBarMargin(), { top: 4, bottom: 4, left: 4, right: 4 });
+
+	t.is(comp?.getChildById('i0')?.propertyType, PropertyType.G_TEXT_INPUT);
+	t.is(comp?.getChildById('m0')?.propertyType, PropertyType.G_MOVIE_CLIP);
+
+	// Re-write normalizes legacy tags and graph types to canonical editor XML
+	const outDir = path.join(dir, 'out');
+	await fs.mkdir(outDir, { recursive: true });
+	await io.writeProject(doc, path.join(outDir, 'DriftB.fairy'));
+	const outXml = await fs.readFile(path.join(outDir, 'assets', 'DriftB', 'Main.xml'), 'utf8');
+	t.true(/<graph\b[^>]*id="g0"[^>]*type="eclipse"/.test(outXml));
+	t.true(/<graph\b[^>]*id="g1"[^>]*type="regular_polygon"/.test(outXml));
+	t.true(/<list\b[^>]*id="t0"[^>]*treeView="true"/.test(outXml));
+	t.true(/<text\b[^>]*id="i0"[^>]*input="true"[^>]*prompt="hint"/.test(outXml));
+	t.true(/<movieclip\b[^>]*id="m0"/.test(outXml));
+	t.false(/<(?:inputtext|jta)\b/.test(outXml));
+
+	// Pinned FairyGUI-Editor fixture verifies real-world root <relation> and shorthand sidePair
+	const editorFairy = getFixtureProjectPath('FairyGUI-Editor', 'ui/FairyGUI-Editor.fairy');
+	const editorDoc = await io.readProject(editorFairy);
+	const basicPkg = editorDoc.getRoot().getPackage('Basic');
+	const btnWithIcon = basicPkg?.listComponents().find((c) => c.getName() === 'ButtonWithIcon');
+	t.truthy(btnWithIcon);
+	t.true(
+		(btnWithIcon?.getRelations().length ?? 0) > 0,
+		'FairyGUI-Editor Basic/ButtonWithIcon root <relation> is preserved',
+	);
+	const btnLight = basicPkg?.listComponents().find((c) => c.getName() === 'Button_light');
+	t.truthy(btnLight);
+	const btnLightChildWithWidthHeight = btnLight
+		?.listChildren()
+		.find((child) => child.getRelations().some((r) => r.type === RelationType.Width));
+	t.truthy(btnLightChildWithWidthHeight, 'FairyGUI-Editor Basic/Button_light shorthand sidePair parses');
 });

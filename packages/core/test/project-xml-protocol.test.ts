@@ -479,6 +479,7 @@ test('project XML protocol children maps stay explicit and stable', (t) => {
 		'Slider',
 		'controller',
 		'customProperty',
+		'relation',
 		'transition',
 	]);
 	t.deepEqual(collectChildNames('componentInstance'), [
@@ -765,6 +766,7 @@ test('protocolized project XML fields do not regress to legacy direct access pat
 		"if (attrs.scale === '9grid' && attrs.scale9grid)",
 		'res.setQualityOption(attrs.qualityOption)',
 		'res.setDuplicatePadding(parseBool(attrs.duplicatePadding))',
+		'res.setDisableTrim(parseBool(attrs.disableTrim))',
 		"res.setSmoothing(attrs.smoothing !== 'false')",
 		'if (attrs.texture) {',
 		'res.setRenderMode(attrs.renderMode)',
@@ -804,6 +806,7 @@ test('protocolized project XML fields do not regress to legacy direct access pat
 		"attrs['@_scale'] = '9grid'",
 		"attrs['@_qualityOption']",
 		"attrs['@_duplicatePadding'] = 'true'",
+		"attrs['@_disableTrim'] = 'true'",
 		"attrs['@_smoothing'] = 'false'",
 		"attrs['@_texture'] = texture",
 		"attrs['@_renderMode']",

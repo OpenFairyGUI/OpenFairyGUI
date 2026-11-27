@@ -10,10 +10,9 @@ import {
 	resolveImageFileName,
 	resolveImagePath,
 } from '../publish/package-context.js';
-import { parseTextureSetMode, type TextureSetMode } from '../utils.js';
+import { parseTextureSetMode, usesClockwiseAtlasRotation, type TextureSetMode } from '../utils.js';
 import {
 	getPublishedItemId,
-	type FontResourceExtras,
 	type InputItem,
 	type PackageResource,
 	type PackInputResource,
@@ -37,15 +36,28 @@ export async function emitAtlasInputs(input: {
 	logger: ILogger;
 }): Promise<void> {
 	const { doc, pkg, allResources, inputs, options, encoder, logger } = input;
+	const clockwiseRotation = usesClockwiseAtlasRotation(doc.getRoot().getProjectType());
 	let totalPageCount = 0;
 	let usedDirectOutput = false;
 	const { autoInputs, fixedPageGroups, standaloneGroups, reservedPageIndexes } = groupStandaloneInputs(
 		doc,
+		pkg,
 		inputs,
 		options,
 	);
 	const branchGroups = buildBranchAtlasGroups(doc, autoInputs, options);
 	const branchPageOffsets = new Map<number, number>();
+	const usedAtlasIndices = new Set<number>();
+	for (const group of fixedPageGroups) {
+		usedAtlasIndices.add(resolveAtlasIndex(group.branchOrdinal, group.pageIndex));
+	}
+
+	const allocateOverflowAtlasIndex = (start: number): number => {
+		let candidate = start;
+		while (usedAtlasIndices.has(candidate)) candidate += 1;
+		usedAtlasIndices.add(candidate);
+		return candidate;
+	};
 
 	for (const group of branchGroups) {
 		const directOutput =
@@ -63,31 +75,62 @@ export async function emitAtlasInputs(input: {
 				group.branchName,
 				group.branchOrdinal,
 			);
+			usedAtlasIndices.add(resolveAtlasIndex(group.branchOrdinal, 0));
 			usedDirectOutput = true;
 			totalPageCount += 1;
 			continue;
 		}
-		const pageStart = reserveAutoPageStart(branchPageOffsets, group.branchOrdinal, reservedPageIndexes);
+		let nextAutoPageIndex = branchPageOffsets.get(group.branchOrdinal) ?? 0;
 		const emittedPageCount = await emitPagedAtlasGroup(doc, pkg, allResources, group.inputs, {
 			branchName: group.branchName,
 			branchOrdinal: group.branchOrdinal,
-			pageStart,
-			fileNameAt: (pageIndex) => resolveAtlasOutputFileName(pkg, pageIndex, group.branchName),
+			clockwiseRotation,
+			allocatePage: () => {
+				while (group.branchOrdinal === 0 && reservedPageIndexes.has(nextAutoPageIndex)) {
+					nextAutoPageIndex += 1;
+				}
+				const pageIndex = nextAutoPageIndex;
+				nextAutoPageIndex += 1;
+				const atlasIndex = resolveAtlasIndex(group.branchOrdinal, pageIndex);
+				usedAtlasIndices.add(atlasIndex);
+				return {
+					atlasIndex,
+					atlasName: `atlas${atlasIndex}`,
+					fileName: resolveAtlasOutputFileName(pkg, pageIndex, group.branchName),
+				};
+			},
 			options,
 			encoder,
 			logger,
 		});
 		totalPageCount += emittedPageCount;
-		branchPageOffsets.set(group.branchOrdinal, pageStart + emittedPageCount);
+		branchPageOffsets.set(group.branchOrdinal, nextAutoPageIndex);
 	}
 
+	let nextOverflowIndex = 100;
 	for (const group of fixedPageGroups) {
 		const emittedPageCount = await emitPagedAtlasGroup(doc, pkg, allResources, group.inputs, {
 			branchName: group.branchName,
 			branchOrdinal: group.branchOrdinal,
-			pageStart: group.pageIndex,
-			forceSinglePage: true,
-			fileNameAt: () => resolveAtlasOutputFileName(pkg, group.pageIndex, group.branchName),
+			clockwiseRotation,
+			allocatePage: (pageOffset) => {
+				if (pageOffset === 0) {
+					const atlasIndex = resolveAtlasIndex(group.branchOrdinal, group.pageIndex);
+					usedAtlasIndices.add(atlasIndex);
+					return {
+						atlasIndex,
+						atlasName: `atlas${atlasIndex}`,
+						fileName: resolveAtlasOutputFileName(pkg, group.pageIndex, group.branchName),
+					};
+				}
+				const atlasIndex = allocateOverflowAtlasIndex(nextOverflowIndex);
+				nextOverflowIndex = atlasIndex + 1;
+				return {
+					atlasIndex,
+					atlasName: `atlas${atlasIndex}`,
+					fileName: resolveAtlasOverflowFileName(pkg, group.pageIndex, pageOffset, group.branchName),
+				};
+			},
 			options,
 			encoder,
 			logger,
@@ -105,6 +148,7 @@ export async function emitAtlasInputs(input: {
 	for (const group of standaloneGroups) {
 		const emittedPageCount = await emitStandaloneAtlasGroup(doc, pkg, group, {
 			atlasIndexStart: standalonePageOffsets.get(group.branchOrdinal) ?? 0,
+			clockwiseRotation,
 			options,
 			encoder,
 			logger,
@@ -170,18 +214,6 @@ function buildBranchAtlasGroups(doc: Document, inputs: InputItem[], options: Atl
 		}));
 }
 
-function reserveAutoPageStart(
-	branchPageOffsets: Map<number, number>,
-	branchOrdinal: number,
-	reservedPageIndexes: Set<number>,
-): number {
-	let pageIndex = branchPageOffsets.get(branchOrdinal) ?? 0;
-	while (branchOrdinal === 0 && reservedPageIndexes.has(pageIndex)) {
-		pageIndex += 1;
-	}
-	return pageIndex;
-}
-
 async function emitPagedAtlasGroup(
 	doc: Document,
 	pkg: Package,
@@ -190,8 +222,8 @@ async function emitPagedAtlasGroup(
 	context: {
 		branchName: string;
 		branchOrdinal: number;
-		pageStart: number;
-		fileNameAt: (pageIndex: number) => string;
+		clockwiseRotation: boolean;
+		allocatePage: (pageOffset: number) => { atlasIndex: number; atlasName: string; fileName: string };
 		options: AtlasOptions;
 		encoder: AtlasRasterBackend | undefined;
 		logger: ILogger;
@@ -204,15 +236,24 @@ async function emitPagedAtlasGroup(
 
 	for (let pageOffset = 0; pageOffset < pages.length; pageOffset += 1) {
 		const page = pages[pageOffset];
-		const pageIndex = context.pageStart + pageOffset;
-		const atlasNode = doc.createAtlas(`atlas${resolveAtlasIndex(context.branchOrdinal, pageIndex)}`);
-		atlasNode.setIndex(resolveAtlasIndex(context.branchOrdinal, pageIndex));
-		atlasNode.setFile(context.fileNameAt(pageIndex));
+		const allocated = context.allocatePage(pageOffset);
+		const atlasNode = doc.createAtlas(allocated.atlasName);
+		atlasNode.setIndex(allocated.atlasIndex);
+		atlasNode.setFile(allocated.fileName);
 		atlasNode.setWidth(page.width);
 		atlasNode.setHeight(page.height);
 		pkg.addAtlas(atlasNode);
 
-		attachSpritesToAtlas(doc, allResources, inputs, page.outputRects, atlasNode);
+		attachSpritesToAtlas(
+			doc,
+			pkg,
+			allResources,
+			inputs,
+			page.outputRects,
+			atlasNode,
+			context.clockwiseRotation,
+			context.options.publishResources,
+		);
 		await writeAtlasPageImage(
 			pkg,
 			inputs,
@@ -221,6 +262,7 @@ async function emitPagedAtlasGroup(
 			context.encoder,
 			context.options,
 			context.logger,
+			context.clockwiseRotation,
 		);
 	}
 
@@ -233,6 +275,7 @@ async function emitStandaloneAtlasGroup(
 	group: StandaloneAtlasGroup,
 	context: {
 		atlasIndexStart: number;
+		clockwiseRotation: boolean;
 		options: AtlasOptions;
 		encoder: AtlasRasterBackend | undefined;
 		logger: ILogger;
@@ -251,6 +294,7 @@ async function emitStandaloneAtlasGroup(
 	);
 	assertPackedInputCoverage(pages, group.inputs.length, `standalone texture in package "${pkg.getName()}"`);
 
+	const publishedResourceId = getPublishedItemId(group.resource, context.options.publishResources);
 	for (let pageOffset = 0; pageOffset < pages.length; pageOffset += 1) {
 		const page = pages[pageOffset];
 		const baseFileName = resolveStandaloneAtlasOutputFileName(
@@ -261,7 +305,9 @@ async function emitStandaloneAtlasGroup(
 		);
 		const atlasFileName = pages.length <= 1 ? baseFileName : insertFileNameSuffix(baseFileName, `_${pageOffset}`);
 		const atlasIndex = context.atlasIndexStart + pageOffset;
-		const atlasNode = doc.createAtlas(`atlas${resolveAtlasIndex(group.branchOrdinal, atlasIndex)}`);
+		const atlasId =
+			pageOffset === 0 ? `atlas_${publishedResourceId}` : `atlas_${publishedResourceId}_${pageOffset}`;
+		const atlasNode = doc.createAtlas(atlasId);
 		atlasNode.setIndex(resolveAtlasIndex(group.branchOrdinal, atlasIndex));
 		atlasNode.setFile(atlasFileName);
 		const standaloneSize = resolveStandaloneAtlasSize(page.width, page.height, group.sizeMode, context.options);
@@ -269,7 +315,16 @@ async function emitStandaloneAtlasGroup(
 		atlasNode.setHeight(standaloneSize.height);
 		pkg.addAtlas(atlasNode);
 
-		attachSpritesToAtlas(doc, [], group.inputs, page.outputRects, atlasNode);
+		attachSpritesToAtlas(
+			doc,
+			pkg,
+			[],
+			group.inputs,
+			page.outputRects,
+			atlasNode,
+			context.clockwiseRotation,
+			context.options.publishResources,
+		);
 		await writeAtlasPageImage(
 			pkg,
 			group.inputs,
@@ -278,6 +333,7 @@ async function emitStandaloneAtlasGroup(
 			context.encoder,
 			context.options,
 			context.logger,
+			context.clockwiseRotation,
 		);
 	}
 
@@ -333,15 +389,24 @@ function assertPackedInputCoverage(
 
 function attachSpritesToAtlas(
 	doc: Document,
+	pkg: Package,
 	allResources: PackageResource[],
 	inputs: InputItem[],
 	outputRects: Array<{ index: number; x: number; y: number; width: number; height: number; rotated: boolean }>,
 	atlasNode: ReturnType<Document['createAtlas']>,
+	clockwiseRotation: boolean,
+	publishResources?: AtlasOptions['publishResources'],
 ): void {
 	for (const packedRect of outputRects) {
 		const input = inputs[packedRect.index];
 		if (!input) continue;
-		const packedSize = resolvePackedRectSize(input, packedRect.width, packedRect.height, packedRect.rotated);
+		const packedSize = resolvePackedRectSize(
+			input,
+			packedRect.width,
+			packedRect.height,
+			packedRect.rotated,
+			clockwiseRotation,
+		);
 		const sprite = doc.createSprite();
 		sprite.setItemId(input.id);
 		sprite.setRectX(packedRect.x);
@@ -358,19 +423,33 @@ function attachSpritesToAtlas(
 	}
 
 	for (const resource of allResources) {
-		if (!isFontResource(resource)) continue;
-		const extras = resource.getExtras() as FontResourceExtras;
-		const alias = extras?._fontSpriteAlias;
-		if (!alias) continue;
-		const imageSprite = outputRects.find((result) => inputs[result.index]?.id === alias.textureId);
+		if (!isFontResource(resource) || resource.isExternalFont()) continue;
+		const textureId = resource.getTextureId();
+		if (!textureId) continue;
+		const fontId = getPublishedItemId(resource, publishResources);
+		const textureResource = pkg.getResourceById(textureId);
+		const effectiveTextureId =
+			textureResource && publishResources
+				? getPublishedItemId(textureResource as PackInputResource, publishResources)
+				: textureId;
+		const imageSprite = outputRects.find((result) => inputs[result.index]?.id === effectiveTextureId);
 		if (!imageSprite) continue;
 		const imageInput = inputs[imageSprite.index];
+		const fontPackedSize = imageInput
+			? resolvePackedRectSize(
+					imageInput,
+					imageSprite.width,
+					imageSprite.height,
+					imageSprite.rotated,
+					clockwiseRotation,
+				)
+			: { width: imageSprite.width, height: imageSprite.height };
 		const fontSprite = doc.createSprite();
-		fontSprite.setItemId(alias.fontId);
+		fontSprite.setItemId(fontId);
 		fontSprite.setRectX(imageSprite.x);
 		fontSprite.setRectY(imageSprite.y);
-		fontSprite.setRectWidth(imageSprite.width);
-		fontSprite.setRectHeight(imageSprite.height);
+		fontSprite.setRectWidth(fontPackedSize.width);
+		fontSprite.setRectHeight(fontPackedSize.height);
 		fontSprite.setRotated(imageSprite.rotated);
 		if (imageInput) {
 			fontSprite.setOffsetX(imageInput.offsetX);
@@ -395,6 +474,7 @@ async function writeAtlasPageImage(
 	encoder: AtlasRasterBackend | undefined,
 	options: AtlasOptions,
 	logger: ILogger,
+	clockwiseRotation: boolean,
 ): Promise<void> {
 	if (!encoder || !options.outputPath) return;
 	if (options.mkdir) {
@@ -423,12 +503,50 @@ async function writeAtlasPageImage(
 				const filePath = resolveImagePath(input.resource, pkg, options.basePath!);
 				imageBuffer = await encoder(filePath).toBuffer();
 			}
-			if (packedRect.rotated) imageBuffer = await encoder(imageBuffer).rotate(270).toBuffer();
+			if (packedRect.rotated) {
+				imageBuffer = await encoder(imageBuffer)
+					.rotate(clockwiseRotation ? 90 : 270)
+					.toBuffer();
+			}
 			compositeInputs.push({
 				input: imageBuffer,
 				left: packedRect.x,
 				top: packedRect.y,
 			});
+			const duplicatePaddingEnabled =
+				isImageResource(input.resource) && input.resource.getDuplicatePadding?.() === true;
+			if (duplicatePaddingEnabled && packedRect.width > 0 && packedRect.height > 0) {
+				const w = packedRect.width;
+				const h = packedRect.height;
+				if (packedRect.y > 0) {
+					const topEdge = await encoder(imageBuffer)
+						.extract({ left: 0, top: 0, width: w, height: 1 })
+						.png()
+						.toBuffer();
+					compositeInputs.push({ input: topEdge, left: packedRect.x, top: packedRect.y - 1 });
+				}
+				if (packedRect.y + h < page.height) {
+					const bottomEdge = await encoder(imageBuffer)
+						.extract({ left: 0, top: h - 1, width: w, height: 1 })
+						.png()
+						.toBuffer();
+					compositeInputs.push({ input: bottomEdge, left: packedRect.x, top: packedRect.y + h });
+				}
+				if (packedRect.x > 0) {
+					const leftEdge = await encoder(imageBuffer)
+						.extract({ left: 0, top: 0, width: 1, height: h })
+						.png()
+						.toBuffer();
+					compositeInputs.push({ input: leftEdge, left: packedRect.x - 1, top: packedRect.y });
+				}
+				if (packedRect.x + w < page.width) {
+					const rightEdge = await encoder(imageBuffer)
+						.extract({ left: w - 1, top: 0, width: 1, height: h })
+						.png()
+						.toBuffer();
+					compositeInputs.push({ input: rightEdge, left: packedRect.x + w, top: packedRect.y });
+				}
+			}
 		} catch {
 			const message = `atlas: Could not read image "${input.id}" for compositing.`;
 			if (options.strictOutput) throw new Error(message);
@@ -483,8 +601,15 @@ function resolvePackedRectSize(
 	width: number,
 	height: number,
 	rectRotated: boolean,
+	clockwiseRotation: boolean,
 ): { width: number; height: number } {
 	if (!rectRotated) return { width, height };
+	if (clockwiseRotation) {
+		return {
+			width: input.width,
+			height: input.height,
+		};
+	}
 	return {
 		width: input.height,
 		height: input.width,
@@ -605,6 +730,16 @@ function resolveAtlasOutputFileName(pkg: Package, pageIndex: number, branchName:
 	return `${pkg.getPublishName() || pkg.getName()}_atlas${pageIndex}${suffix}.png`;
 }
 
+function resolveAtlasOverflowFileName(
+	pkg: Package,
+	pageIndex: number,
+	overflowIndex: number,
+	branchName: string,
+): string {
+	const suffix = branchName ? `_${branchName}` : '';
+	return `${pkg.getPublishName() || pkg.getName()}_atlas${pageIndex}_${overflowIndex}${suffix}.png`;
+}
+
 function resolveStandaloneAtlasOutputFileName(
 	pkg: Package,
 	resource: PackInputResource,
@@ -614,7 +749,8 @@ function resolveStandaloneAtlasOutputFileName(
 	const baseName = `${pkg.getPublishName() || pkg.getName()}_atlas_${getPublishedItemId(resource, options.publishResources)}`;
 	const suffix = branchName ? `_${branchName}` : '';
 	if (isImageResource(resource)) {
-		const ext = extname(resolveImageFileName(resource)) || '.png';
+		const rawExt = extname(resolveImageFileName(resource)).toLowerCase();
+		const ext = rawExt === '.jpg' || rawExt === '.jpeg' || rawExt === '.png' ? rawExt : '.png';
 		return `${baseName}${suffix}${ext}`;
 	}
 	return `${baseName}${suffix}.png`;
@@ -686,12 +822,51 @@ export function sortResourcesByOrder(
 	return ordered;
 }
 
-function getResourceTextureSetMode(resource: PackInputResource, maxAtlasIndex: number): TextureSetMode {
-	return parseTextureSetMode(resource.getTextureSetMode?.(), maxAtlasIndex);
+function normalizeFolderPath(rawPath: string | undefined): string {
+	const trimmed = (rawPath ?? '').trim().replace(/\\/g, '/');
+	if (!trimmed || trimmed === '/') return '/';
+	const withLeading = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+	return withLeading.endsWith('/') ? withLeading : `${withLeading}/`;
+}
+
+function buildFolderAtlasMap(pkg: Package): Map<string, string> {
+	const map = new Map<string, string>();
+	for (const folder of pkg.listResourceFolders?.() ?? []) {
+		const atlas = folder.atlas?.trim() ?? '';
+		if (!atlas || atlas === 'default') continue;
+		const key = `${folder.branch ?? ''}\u0000${normalizeFolderPath(folder.path)}`;
+		map.set(key, atlas);
+	}
+	return map;
+}
+
+function getResourceTextureSetMode(
+	resource: PackInputResource,
+	folderAtlasMap: ReadonlyMap<string, string>,
+	maxAtlasIndex: number,
+): TextureSetMode {
+	const ownMode = resource.getTextureSetMode?.()?.trim() ?? '';
+	if (ownMode && ownMode !== 'default') {
+		return parseTextureSetMode(ownMode, maxAtlasIndex);
+	}
+	if (folderAtlasMap.size > 0) {
+		const branchName = (resource as { getBranch?(): string }).getBranch?.() ?? '';
+		let currentPath = normalizeFolderPath(resource.getPath?.());
+		while (currentPath !== '/') {
+			const branchAtlas = branchName ? folderAtlasMap.get(`${branchName}\u0000${currentPath}`) : undefined;
+			if (branchAtlas) return parseTextureSetMode(branchAtlas, maxAtlasIndex);
+			const mainAtlas = folderAtlasMap.get(`\u0000${currentPath}`);
+			if (mainAtlas) return parseTextureSetMode(mainAtlas, maxAtlasIndex);
+			const parentSlash = currentPath.lastIndexOf('/', currentPath.length - 2);
+			currentPath = parentSlash <= 0 ? '/' : currentPath.slice(0, parentSlash + 1);
+		}
+	}
+	return parseTextureSetMode(ownMode, maxAtlasIndex);
 }
 
 function groupStandaloneInputs(
 	doc: Document,
+	pkg: Package,
 	inputs: InputItem[],
 	options: AtlasOptions,
 ): {
@@ -704,6 +879,7 @@ function groupStandaloneInputs(
 	const fixedInputsByPage = new Map<string, PagedAtlasGroup>();
 	const standaloneGroups = new Map<string, StandaloneAtlasGroup>();
 	const reservedPageIndexes = new Set<number>();
+	const folderAtlasMap = buildFolderAtlasMap(pkg);
 	const discoveredBranchNames = [
 		...new Set(inputs.map((input) => getInputBranchName(input)).filter((branchName) => !!branchName)),
 	];
@@ -728,9 +904,10 @@ function groupStandaloneInputs(
 	}
 
 	for (const input of inputs) {
-		const branchName = getInputBranchName(input);
-		const branchOrdinal = branchOrdinalByName.get(branchName) ?? 0;
-		const mode = getResourceTextureSetMode(input.resource, options.maxAtlasIndex ?? 10);
+		const rawBranchName = getInputBranchName(input);
+		const branchName = options.separatedAtlasForBranch ? rawBranchName : '';
+		const branchOrdinal = branchOrdinalByName.get(rawBranchName) ?? 0;
+		const mode = getResourceTextureSetMode(input.resource, folderAtlasMap, options.maxAtlasIndex ?? 10);
 		if (mode.kind === 'standalone') {
 			const resourceId = getPublishedItemId(input.resource, options.publishResources);
 			const key = `${branchName}\u0000${resourceId}`;
@@ -749,7 +926,7 @@ function groupStandaloneInputs(
 			continue;
 		}
 		if (mode.kind === 'page') {
-			reservedPageIndexes.add(mode.pageIndex);
+			if (branchOrdinal === 0) reservedPageIndexes.add(mode.pageIndex);
 			const key = `${branchName}\u0000${mode.pageIndex}`;
 			const existing = fixedInputsByPage.get(key);
 			if (existing) {

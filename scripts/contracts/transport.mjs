@@ -45,6 +45,20 @@ export function boundInput(shape, definitions, operation = false) {
 			for (const variant of dereference(shape.properties.target, definitions).anyOf ?? [])
 				boundInput(dereference(variant, definitions), definitions, true);
 		}
+		if (shape.properties.filter) {
+			constrain(shape, 'limit', { type: 'integer', minimum: 1, maximum: 200 });
+			if (shape.properties.selector) {
+				const selector = structuredClone(dereference(shape.properties.selector, definitions));
+				for (const name of Object.keys(selector.properties)) constrain(selector, name, identifier);
+				shape.properties.selector = selector;
+			}
+			const filter = structuredClone(dereference(shape.properties.filter, definitions));
+			for (const name of ['name', 'text', 'title', 'group', 'url']) constrain(filter, name, { maxLength: 1024 });
+			for (const name of ['nameContains', 'textContains', 'titleContains'])
+				constrain(filter, name, { minLength: 1, maxLength: 1024 });
+			constrain(filter, 'resourceId', identifier);
+			shape.properties.filter = filter;
+		}
 		if (shape.properties.project) {
 			const project = dereference(shape.properties.project, definitions);
 			constrain(project, 'projectId', identifier);

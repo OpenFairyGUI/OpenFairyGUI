@@ -31,6 +31,7 @@ export interface BackendSessionState {
 	readDiagnostics: import('@openfairygui/core').ProjectDiagnostic[];
 	readComplete: boolean;
 	uamFidelity: 'full' | 'unsupported';
+	uamFidelityReport?: import('../runtime/contracts.js').UamFidelityReport;
 	revision: number;
 	lastSavedRevision: number;
 	/** Package-controlled files deferred until a successful replacement project write. */
@@ -71,6 +72,7 @@ export type SessionReadView = ReadonlyData<
 		| 'readDiagnostics'
 		| 'readComplete'
 		| 'uamFidelity'
+		| 'uamFidelityReport'
 		| 'revision'
 		| 'lastSavedRevision'
 		| 'dirty'

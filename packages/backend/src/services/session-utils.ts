@@ -3,13 +3,21 @@ import type {
 	BackendSessionSnapshot,
 	SessionNotFoundError,
 	SessionStaleWriteError,
+	UamFidelityReport,
 } from '../runtime.js';
 import { cloneReadData, type ReadonlyData, type BackendSessionState, type SessionReadView } from './context.js';
 
 export function toSessionSnapshot(
 	session: Pick<
 		SessionReadView,
-		'sessionId' | 'canonicalProjectPath' | 'revision' | 'lastSavedRevision' | 'dirty' | 'uamFidelity' | 'lockHeld'
+		| 'sessionId'
+		| 'canonicalProjectPath'
+		| 'revision'
+		| 'lastSavedRevision'
+		| 'dirty'
+		| 'uamFidelity'
+		| 'uamFidelityReport'
+		| 'lockHeld'
 	>,
 	capabilities: ReadonlyData<BackendCapabilities>,
 ): BackendSessionSnapshot {
@@ -20,6 +28,9 @@ export function toSessionSnapshot(
 		lastSavedRevision: session.lastSavedRevision,
 		dirty: session.dirty,
 		uamFidelity: session.uamFidelity,
+		...(session.uamFidelity === 'unsupported' && session.uamFidelityReport
+			? { uamFidelityReport: cloneReadData<UamFidelityReport>(session.uamFidelityReport) }
+			: {}),
 		lockHeld: session.lockHeld,
 		capabilities: cloneReadData<BackendCapabilities>(capabilities),
 	};

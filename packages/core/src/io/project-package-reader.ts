@@ -54,6 +54,7 @@ interface ResourceXmlAttrs extends XmlNode {
 	scale9grid?: string;
 	smoothing?: string | boolean;
 	duplicatePadding?: string | boolean;
+	disableTrim?: string | boolean;
 	texture?: string;
 	width?: string | number;
 	height?: string | number;
@@ -434,6 +435,11 @@ function createResourceFromXML(
 						attrs,
 						PROJECT_XML_PROTOCOL.packageImageResource.attrs.duplicatePadding,
 					),
+				),
+			);
+			res.setDisableTrim(
+				parseBool(
+					readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.disableTrim),
 				),
 			);
 			res.setSmoothing(

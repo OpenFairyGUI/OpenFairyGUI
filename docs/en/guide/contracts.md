@@ -6,7 +6,7 @@ Core's `UamTransactionOperation` and UAM models own parameter structure and tran
 
 ## Read the current session model and resource bytes
 
-Use `readSessionState({ sessionId, expectedRevision? })` to consume the complete current UAM, or `queryEntity` below for selected properties. The complete read returns a detached copy of state committed at the instant of the call: `project`, actual `revision`, `dirty`, `lastSavedRevision`, `readComplete`, `readDiagnostics` and `uamFidelity`.
+Use `readSessionState({ sessionId, expectedRevision? })` to consume the complete current UAM, or `queryEntity` below for selected properties. The complete read returns a detached copy of state committed at the instant of the call: `project`, actual `revision`, `dirty`, `lastSavedRevision`, `readComplete`, `readDiagnostics`, `uamFidelity`, and a bounded `uamFidelityReport` when `uamFidelity === 'unsupported'`.
 
 `project` derives directly from Core's public UAM types, excluding only the formal `sourceBytes` field on each asset resource. It retains `sourcePath`, complete components and Reader-retained JSON extensions. Extension properties named `sourceBytes` are not recursively removed. Only this complete read-model output schema accepts unnamed object fields; declared fields retain their formal types, and transaction inputs and existing query contracts are unchanged. Reads do not revalidate references, normalize or repair projects, or expose internal Documents, locks, filesystems, caches or cleanup queues.
 
@@ -25,7 +25,7 @@ if (!bytes.ok) throw new Error(bytes.error.code);
 
 Every resource read must carry the model's revision. `stale_read` returns both `expectedRevision` and `actualRevision`; discard that incomplete model/bytes collection and restart rather than mixing edit revisions. Reads neither wait for uncommitted transactions nor retain history or reserve a revision. Saves can update public `sourcePath`, dirty state and other bookkeeping without advancing the edit revision: sessionId + revision is not a permanent identity for identical complete raw UAM.
 
-`readComplete` and `uamFidelity` report existing session flags faithfully. In-memory sessions can report `true` / `full` even without source bytes. These flags do not guarantee complete bytes, rendering or saving. Missing/closed sessions return `session_not_found`; other refusals use `session_read_failed.reason`: `invalid_query`, `not_found`, `ambiguous`, `unsupported_resource`, `bytes_unavailable`, `response_budget_exceeded` or `non_json_value`. Failure never returns truncated data as success.
+`readComplete` and `uamFidelity` report existing session flags faithfully. In-memory sessions can report `true` / `full` even without source bytes. When `uamFidelity === 'unsupported'`, session snapshots and `readSessionState` attach `uamFidelityReport` with the failure `reason` (`incomplete_read`, `materialize_failed`, or `round_trip_mismatch`), an optional error summary, and up to 50 deterministically sorted diff entries (including line numbers and bounded excerpts); `uam_fidelity_unsupported` save/materialization failures expose the same report under `error.fidelityReport` and `meta.diagnostics`. These flags do not guarantee complete bytes, rendering or saving. Missing/closed sessions return `session_not_found`; other refusals use `session_read_failed.reason`: `invalid_query`, `not_found`, `ambiguous`, `unsupported_resource`, `bytes_unavailable`, `response_budget_exceeded` or `non_json_value`. Failure never returns truncated data as success.
 
 | Budget | Limit |
 |---|---|
@@ -96,6 +96,12 @@ Transition item `startValue` / `endValue` retain Core's `unknown[]`; queries do 
 
 Compact JSON `data` is limited to 262144 UTF-8 bytes, traversal depth 32 and 100000 nodes, advertised under `read.entityQuery.limits`. Properties are never truncated: excess returns `response_budget_exceeded`, and non-JSON values return `non_json_value`, as `entity_query_failed.reason`. Checks run before cloning; MCP envelopes and text copies are outside this data budget.
 
+### Filter display nodes within a component
+
+When locating candidate display nodes inside a component by modeled properties (such as disambiguating duplicate names), call `queryDisplayNodes` / `openfairygui_backend_query_display_nodes` with `{ sessionId, selector: { packageId, componentResourceId }, filter?, limit? }`. Supported `filter` fields are advertised in `read.displayNodeQuery.filterFields`: `kind`, `name`, `nameContains`, `text`, `textContains`, `title`, `titleContains`, `group`, `resourceId`, `url`, `visible`, `locked`, `touchable`, `hasGears`, and `hasRelations` (combined with logical AND; omitting `filter` or passing `{}` matches every node in the component).
+
+Results are bound to the current `revision` and return `totalMatched`, `truncated`, and `displayList`-ordered candidate summaries in `nodes` (exact `id`, `name`, `kind`, `index`, `position`, `size`, `visible`, `locked`, `touchable`, `gearCount`, `relationCount`, plus applicable `group`/`text`/`title`/`resource`/`url`). The default `limit` is 50 and the maximum is 200; matches beyond `limit` set `truncated: true` without silently truncating candidate fields. Response data is bounded by `read.displayNodeQuery.limits` (262144 UTF-8 bytes, depth 32, 100000 nodes), reusing `entity_query_failed` for invalid queries, missing/ambiguous components, or budget/non-JSON failures; zero matches return `ok: true` with an empty array. Preflight and transaction commits still require exact `displayNodeId` selectors; call `queryEntity` whenever complete gears, relations, or extended node properties are needed.
+
 ## Preview a transaction
 
 `preflightTransaction` / `openfairygui_backend_preflight_transaction` accepts the same `{ sessionId, expectedRevision, operations }` as `applyTransaction`. This is not merely a support check: Backend's `AuthoringService` checks the revision in its existing per-session exclusive queue, deeply copies the project and source bytes, calls the authoritative `applyUamTransactionAppAsync`, then discards the resulting project.
@@ -135,7 +141,7 @@ A preview reserves no revision and does not guarantee later apply/save or public
 The tables summarize top-level parameters only; read schemas for nested fields and concrete results. SHA-256 identifies generated contract content, not a package version.
 
 <!-- contracts:start -->
-SHA-256: `dcfeadbd451f77fa2d2d3bb51911cb1fbe9f6d12cbd6562047d59b441d72e50e`
+SHA-256: `db380ccf317aa73e3ab3ed6632af69fedcb0ad604ab575b7219fd2d79d44495d`
 
 | Operation | Parameters (`?` = optional) |
 |---|---|
@@ -189,6 +195,7 @@ SHA-256: `dcfeadbd451f77fa2d2d3bb51911cb1fbe9f6d12cbd6562047d59b441d72e50e`
 | `getSession` | `openfairygui_backend_get_session` | `sessionId` | `true` |
 | `getProjectOutline` | `openfairygui_backend_get_project_outline` | `sessionId` | `true` |
 | `queryEntity` | `openfairygui_backend_query_entity` | `sessionId`, `target` | `true` |
+| `queryDisplayNodes` | `openfairygui_backend_query_display_nodes` | `sessionId`, `selector`, `filter?`, `limit?` | `true` |
 | `readSessionState` | `openfairygui_backend_read_session_state` | `sessionId`, `expectedRevision?` | `true` |
 | `readResourceBytes` | `openfairygui_backend_read_resource_bytes` | `sessionId`, `expectedRevision`, `selector` | `true` |
 | `validateSession` | `openfairygui_backend_validate_session` | `sessionId` | `true` |

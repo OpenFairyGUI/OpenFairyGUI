@@ -1,6 +1,6 @@
 import type { Graph } from 'property-graph';
 import { RefSet } from 'property-graph';
-import { type Nullable, PropertyType, VERSION } from '../constants.js';
+import { type Nullable, PropertyType } from '../constants.js';
 import type { Extension } from '../extension.js';
 import { ExtensibleProperty, type IExtensibleProperty } from './extensible-property.js';
 import type { ExtensionProperty } from './extension-property.js';
@@ -39,7 +39,7 @@ export class Root extends ExtensibleProperty<IRoot> {
 		return Object.assign(super.getDefaults(), {
 			projectId: '',
 			projectType: 0,
-			version: VERSION,
+			version: '3.0',
 			branches: [],
 			settings: {},
 			packages: new RefSet<Package>(),

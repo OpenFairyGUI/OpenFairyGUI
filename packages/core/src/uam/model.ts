@@ -124,6 +124,7 @@ export interface UamImageResourceProperties {
 	quality: number;
 	smoothing: boolean;
 	duplicatePadding: boolean;
+	disableTrim?: boolean;
 	scaleOption: 0 | 1 | 2;
 	scale9Grid: [number, number, number, number] | null;
 	tileGridIndice: number;
@@ -146,6 +147,7 @@ export interface UamMovieClipFrame {
 }
 
 export interface UamMovieClipResourceProperties {
+	textureSetMode?: string;
 	interval: number;
 	repeatDelay: number;
 	swing: boolean;
@@ -186,6 +188,7 @@ export interface UamComponentModel {
 	size: UamSize;
 	properties: UamComponentProperties;
 	customData: string;
+	relations?: UamRelation[];
 	displayList: UamDisplayNode[];
 	controllers: UamControllerModel[];
 	transitions: UamTransitionModel[];
@@ -337,7 +340,20 @@ export type UamDisplayNodeKind =
 	| 'slider'
 	| 'scrollBar';
 
-export type UamBlendMode = 'normal' | 'none' | 'add' | 'multiply' | 'screen' | 'erase';
+export type UamBlendMode =
+	| 'normal'
+	| 'none'
+	| 'add'
+	| 'multiply'
+	| 'screen'
+	| 'erase'
+	| 'mask'
+	| 'below'
+	| 'off'
+	| 'one_oneminussrcalpha'
+	| 'custom1'
+	| 'custom2'
+	| 'custom3';
 
 export interface UamDisplayNodeBase {
 	kind: UamDisplayNodeKind;
@@ -383,6 +399,8 @@ export interface UamImageProperties {
 export interface UamImageNode extends UamGroupableDisplayNodeBase, UamImageProperties {
 	kind: 'image';
 	resource: UamResourceRef;
+	/** Preserved editor file hint for this image instance; resource identifies the target. */
+	fileName?: string;
 }
 
 export interface UamTextProperties {
@@ -558,7 +576,7 @@ export interface UamLoaderProperties {
 	clearOnPublish: boolean;
 }
 
-export interface UamLoaderNode extends UamDisplayNodeBase, UamLoaderProperties {
+export interface UamLoaderNode extends UamGroupableDisplayNodeBase, UamLoaderProperties {
 	kind: 'loader';
 	pivot: UamPoint;
 }
@@ -579,7 +597,7 @@ export interface UamLoader3DProperties {
 	clearOnPublish: boolean;
 }
 
-export interface UamLoader3DNode extends UamDisplayNodeBase, UamLoader3DProperties {
+export interface UamLoader3DNode extends UamGroupableDisplayNodeBase, UamLoader3DProperties {
 	kind: 'loader3D';
 }
 
@@ -598,6 +616,11 @@ export interface UamMovieClipNode extends UamGroupableDisplayNodeBase, UamMovieC
 interface UamComponentDerivedNodeBase extends UamGroupableDisplayNodeBase {
 	/** Parent component controller driving this instance's paged scrolling. */
 	pageController?: string;
+	/**
+	 * Editor file hint for the referenced component, relative to its package. `src`/`packageId` remain the
+	 * authoritative reference; the hint is preserved as written and may be stale after moves or renames.
+	 */
+	fileName?: string;
 	src: string;
 	packageId: string;
 }
@@ -636,6 +659,7 @@ export interface UamComboBoxNode extends UamTitleControlNodeBase {
 	selectedIndex: number;
 	visibleItemCount: number;
 	popupDirection: number;
+	selectionController?: string;
 }
 
 export interface UamProgressBarNode extends UamComponentDerivedNodeBase {

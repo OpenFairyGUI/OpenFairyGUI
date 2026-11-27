@@ -21,6 +21,8 @@ import {
 	type RestoreImageExtractInput,
 	restore,
 } from '../src/index.js';
+import { restoreNode } from '../src/node.js';
+import { createTestJta } from './test-jta.js';
 
 const sharp = sharpImplementation as typeof sharpImplementation & AtlasRasterBackend;
 
@@ -307,6 +309,7 @@ test('restore published project: directory batch restores packages, assets, and 
 					'_packageOrderWeight',
 					'_syntheticFontGlyph',
 					'_syntheticFontTexture',
+					'_restoreAsLooseImage',
 				]) {
 					t.false(
 						key in resource.getExtras(),
@@ -390,7 +393,10 @@ test('restore published project: directory batch restores packages, assets, and 
 			path.join(outputDir, 'assets', 'Basics', 'Demo_Image.xml'),
 			'utf-8',
 		);
-		t.false(/<image\b[^>]*\bfileName=/.test(basicsDemoImageXml), 'restored image instances omit fileName attrs');
+		t.true(
+			basicsDemoImageXml.includes('fileName="images/pic.png"'),
+			'restored image instances backfill editor fileName attrs from package resources',
+		);
 		const basicsDemoControllerXml = await fs.readFile(
 			path.join(outputDir, 'assets', 'Basics', 'Demo_Controller.xml'),
 			'utf-8',
@@ -509,7 +515,7 @@ test('restore published project: directory batch restores packages, assets, and 
 			'restored Basics/Demo_Text lowercases text color attrs',
 		);
 		t.true(
-			/<inputtext\b[^>]*id="n22"[^>]*text=""/.test(basicsDemoTextXml),
+			/<text\b[^>]*id="n22"[^>]*text=""[^>]*input="true"/.test(basicsDemoTextXml),
 			'restored Basics/Demo_Text keeps explicit empty input text',
 		);
 		t.true(
@@ -650,12 +656,12 @@ test('restore published project: directory batch restores packages, assets, and 
 			'utf-8',
 		);
 		t.true(
-			powerUpXml.includes('<jta id="n5"'),
-			'restored Transition/PowerUp writes movie clips with jta display tags',
+			powerUpXml.includes('<movieclip id="n5"'),
+			'restored Transition/PowerUp writes movie clips with movieclip display tags',
 		);
 		t.false(
-			/<jta\b[^>]*color="#ffffff"/.test(powerUpXml),
-			'restored Transition/PowerUp omits default white jta color',
+			/<movieclip\b[^>]*color="#ffffff"/.test(powerUpXml),
+			'restored Transition/PowerUp omits default white movieclip color',
 		);
 		t.true(
 			powerUpXml.includes('<item time="0" type="Alpha" value="1.00"/>'),
@@ -1422,6 +1428,113 @@ test('restore published project: projectType override sets restored project type
 			ProjectType.CocosCreator,
 			'restored project type follows explicit override',
 		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('restore published project: infers fileExtension, restores empty JTA frames, font headers, Swf files, and !a.png alpha atlases', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-restore-p10-'));
+	const assetsDir = path.join(tmpDir, 'assets');
+	const pkgDir = path.join(assetsDir, 'RestoreP10');
+	const publishDir = path.join(tmpDir, 'release');
+	const restoredDir = path.join(tmpDir, 'restored');
+	try {
+		await fs.mkdir(pkgDir, { recursive: true });
+		const semiPng = await sharp({
+			create: { width: 12, height: 10, channels: 4, background: { r: 200, g: 100, b: 50, alpha: 0.5 } },
+		})
+			.png()
+			.toBuffer();
+		await fs.writeFile(path.join(pkgDir, 'semi.png'), semiPng);
+		await fs.writeFile(path.join(pkgDir, 'glyphA.png'), semiPng);
+		await fs.writeFile(
+			path.join(pkgDir, 'clip.jta'),
+			createTestJta(
+				[semiPng],
+				[
+					{ textureIndex: 0, rectWidth: 12, rectHeight: 10 },
+					{ textureIndex: -1, rectWidth: 0, rectHeight: 0 },
+				],
+			),
+		);
+		await fs.writeFile(
+			path.join(pkgDir, 'NumFont.fnt'),
+			'info creator=UIBuilder size=24 resizable=true colored=true\ncommon lineHeight=28 xadvance=16\nchar id=65 img=glyph01 xoffset=0 yoffset=0 xadvance=16\n',
+		);
+		const swfBytes = Uint8Array.from([0x46, 0x57, 0x53, 0x09, 0x01, 0x02]);
+		await fs.writeFile(path.join(pkgDir, 'effect.swf'), swfBytes);
+
+		const doc = new Document();
+		doc.getRoot().setProjectType(ProjectType.Cocos2dx);
+		const pkg = doc.createPackage('RestoreP10').setId('restp101');
+		pkg.setSourceAtlasSettings({ ...pkg.getSourceAtlasSettings(), useGlobal: false, extractAlpha: true });
+		pkg.addResource(
+			doc.createImageResource('semi').setId('semi01').setPath('/').setFileName('semi.png').setExported(true),
+		);
+		pkg.addResource(doc.createImageResource('glyphA').setId('glyph01').setPath('/').setFileName('glyphA.png'));
+		pkg.addResource(
+			doc.createMovieClipResource('clip').setId('clip01').setPath('/').setFileName('clip.jta').setExported(true),
+		);
+		pkg.addResource(
+			doc.createFontResource('NumFont').setId('font01').setPath('/').setFileName('NumFont.fnt').setExported(true),
+		);
+		pkg.addResource(
+			doc.createSwfResource('effect').setId('swf001').setPath('/').setFile('effect.swf').setExported(true),
+		);
+
+		await doc.transform(
+			publish({
+				output: publishDir,
+				basePath: assetsDir,
+				fileExtension: 'fui',
+				fs: createPublishFs(),
+				encoder: sharp,
+				codeGeneration: false,
+			}),
+		);
+		t.truthy(await fs.stat(path.join(publishDir, 'RestoreP10.fui')).catch(() => null));
+		t.truthy(await fs.stat(path.join(publishDir, 'RestoreP10_atlas0!a.png')).catch(() => null));
+
+		const result = await restoreNode({
+			inputDir: publishDir,
+			output: restoredDir,
+			projectType: ProjectType.Cocos2dx,
+		});
+
+		// 1) Inferred fileExtension from .fui binary
+		t.is(result.document.getRoot().getSettings().publish?.fileExtension, 'fui');
+
+		// 2) Recombined !a.png alpha channel into restored semi.png
+		const restoredSemi = await sharp(path.join(restoredDir, 'assets', 'RestoreP10', 'semi.png'))
+			.ensureAlpha()
+			.raw()
+			.toBuffer({ resolveWithObject: true });
+		t.is(restoredSemi.info.width, 12);
+		t.is(restoredSemi.info.height, 10);
+		t.is(restoredSemi.data[0], 200);
+		t.is(restoredSemi.data[1], 100);
+		t.is(restoredSemi.data[2], 50);
+		t.true(restoredSemi.data[3]! >= 127 && restoredSemi.data[3]! <= 128, 'alpha channel restored from !a.png');
+
+		// 3) MovieClip with empty frame still produces valid .jta with textureIndex === -1
+		const restoredJta = parseJta(await fs.readFile(path.join(restoredDir, 'assets', 'RestoreP10', 'clip.jta')));
+		t.is(restoredJta.frames.length, 2);
+		t.is(restoredJta.frames[0]?.textureIndex, 0);
+		t.is(restoredJta.frames[1]?.textureIndex, -1);
+
+		// 4) Restored .fnt preserves size, resizable, colored, xadvance
+		const restoredFnt = await fs.readFile(path.join(restoredDir, 'assets', 'RestoreP10', 'NumFont.fnt'), 'utf8');
+		t.true(restoredFnt.includes('size=24'), 'restored .fnt keeps size');
+		t.true(restoredFnt.includes('resizable=true'), 'restored .fnt keeps resizable');
+		t.true(restoredFnt.includes('colored=true'), 'restored .fnt keeps colored');
+		t.true(restoredFnt.includes('xadvance=16'), 'restored .fnt keeps common xadvance');
+
+		// 5) SwfResource loose file copied
+		const restoredSwf = new Uint8Array(
+			await fs.readFile(path.join(restoredDir, 'assets', 'RestoreP10', 'effect.swf')),
+		);
+		t.deepEqual(restoredSwf, swfBytes, 'SwfResource file copied during restore');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

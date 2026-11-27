@@ -13,6 +13,7 @@ interface IGComboBox extends IGComponent {
 	selectedIndex: number;
 	popupDirection: number;
 	visibleItemCount: number;
+	selectionController: string;
 	sound: string;
 	soundVolumeScale: number;
 	src: string;
@@ -33,7 +34,7 @@ export class GComboBox extends GComponent<IGComboBox, PropertyType.G_COMBO_BOX> 
 		return Object.assign(super.getDefaults(), {
 			title: '',
 			icon: '',
-			titleColor: '#000000',
+			titleColor: '',
 			titleFontSize: 0,
 			items: [],
 			icons: [],
@@ -41,6 +42,7 @@ export class GComboBox extends GComponent<IGComboBox, PropertyType.G_COMBO_BOX> 
 			selectedIndex: -1,
 			popupDirection: 0,
 			visibleItemCount: 0,
+			selectionController: '',
 			sound: '',
 			soundVolumeScale: 1,
 			src: '',
@@ -108,6 +110,13 @@ export class GComboBox extends GComponent<IGComboBox, PropertyType.G_COMBO_BOX> 
 	}
 	public setPopupDirection(v: number): this {
 		return this.set('popupDirection', v);
+	}
+
+	public getSelectionController(): string {
+		return this.get('selectionController');
+	}
+	public setSelectionController(v: string): this {
+		return this.set('selectionController', v);
 	}
 
 	public getSound(): string {

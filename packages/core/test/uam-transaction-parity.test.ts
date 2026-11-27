@@ -121,7 +121,7 @@ test('native and mixed Document batches preserve the same properties and existin
 					fillMethod: 0,
 					fillOrigin: 0,
 					fillClockwise: true,
-					fillAmount: 100,
+					fillAmount: 1,
 				},
 			},
 		},
@@ -294,7 +294,7 @@ test('shared property rules preserve ordered diagnostics and rejected transactio
 
 test('property rule leaves distinguish missing fields, explicit defaults and extension snapshots', (t) => {
 	const text = createDefaultUamPlainTextProperties();
-	const image = { color: '#ffffff', flip: 0, fillMethod: 0, fillOrigin: 0, fillClockwise: true, fillAmount: 100 };
+	const image = { color: '#ffffff', flip: 0, fillMethod: 0, fillOrigin: 0, fillClockwise: true, fillAmount: 1 };
 	const instance = { extensionType: 'Slider', value: 0, min: 0, max: 1 };
 	const override = { target: 'label', propertyId: 0, value: '' };
 	const baseline = structuredClone({ text, image, instance, override });
@@ -304,7 +304,7 @@ test('property rule leaves distinguish missing fields, explicit defaults and ext
 	t.false(isValidUamTextProperties({ ...text, strokeSize: 0 }, 'text'));
 	t.true(isValidUamTextProperties({ ...text, strokeColor: '#ffffff00', strokeSize: 0 }, 'text'));
 	t.true(isValidUamImageProperties(image));
-	t.false(isValidUamImageProperties({ ...image, fillAmount: 1 }));
+	t.false(isValidUamImageProperties({ ...image, fillAmount: 0.5 }));
 	t.true(isValidUamImageProperties({ ...image, fillMethod: 1, fillAmount: 0 }));
 	t.true(isValidUamComponentInstanceProperties(instance));
 	t.false(isValidUamComponentInstanceProperties({ ...instance, max: undefined }));

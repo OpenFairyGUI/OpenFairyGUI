@@ -24,6 +24,13 @@ const BLEND_MODE_CODE: Readonly<Record<string, number>> = {
 	multiply: 3,
 	screen: 4,
 	erase: 5,
+	mask: 6,
+	below: 7,
+	off: 8,
+	one_oneminussrcalpha: 9,
+	custom1: 10,
+	custom2: 11,
+	custom3: 12,
 };
 
 function colorFilterValues(child: EncoderChildLike): number[] | null {
@@ -178,7 +185,7 @@ export function _writeDisplayList(
 
 		// BlendMode
 		const blendMode = child.getBlendMode?.() ?? 'normal';
-		const blendModeCode = BLEND_MODE_CODE[blendMode];
+		const blendModeCode = BLEND_MODE_CODE[blendMode.toLowerCase()];
 		if (blendModeCode === undefined) {
 			throw new BinaryFormatError(
 				`Display node "${child.getId?.() ?? child.getName?.() ?? ''}" has unsupported blend mode "${blendMode}".`,
@@ -204,20 +211,24 @@ export function _writeDisplayList(
 
 		// --- Child Block 2: gears ---
 		const cb2 = buf.pos - childIndexPos;
-		const gears = child.listGears?.() ?? [];
+		const controllers = comp.listControllers();
+		const gears = (child.listGears?.() ?? []).filter((gear) => {
+			const ctrl = gear.getController?.();
+			return !!ctrl && controllers.indexOf(ctrl) >= 0;
+		});
 		buf.writeInt16(gears.length);
 		for (const gear of gears) {
 			const gearStart = buf.pos;
-			buf.writeInt16(0); // placeholder for nextPos
+			buf.writeUint16(0); // placeholder for nextPos
 
 			const gearType = gear.getGearType?.() ?? 0;
 			buf.writeUint8(gearType);
-			_writeGear(buf, gear, gearType, comp, version);
+			_writeGear(buf, gear, gearType, comp, version, context);
 
 			const gearEnd = buf.pos;
 			const saved = buf.pos;
 			buf.pos = gearStart;
-			buf.writeInt16(gearEnd - gearStart - 2);
+			buf.writeUint16(gearEnd - gearStart - 2);
 			buf.pos = saved;
 		}
 
@@ -375,7 +386,7 @@ function _writeChildSpecific(
 				buf.writeBool(false);
 			}
 			// Template vars
-			buf.writeBool(false);
+			buf.writeBool(child.getTemplateVarsEnabled?.() ?? false);
 			if (version >= 3) {
 				buf.writeBool(child.getStrikethrough?.() ?? false);
 				buf.writeFloat32(child.getFaceDilate?.() ?? 0);
@@ -392,13 +403,13 @@ function _writeChildSpecific(
 			// but the payload is still part of the binary layout and must be preserved.
 			if (graphType === 0) {
 				buf.writeInt32(child.getLineSize?.() ?? 1);
-				buf.writeColor(child.getLineColor?.() ?? '#000000ff', true);
+				buf.writeColor(child.getLineColor?.() ?? '#ff000000', true);
 				buf.writeColor(child.getFillColor?.() ?? '#ffffffff', true, 0xffffffff);
 				buf.writeBool(false);
 			} else {
 				buf.writeUint8(graphType);
 				buf.writeInt32(child.getLineSize?.() ?? 1);
-				buf.writeColor(child.getLineColor?.() ?? '#000000ff', true);
+				buf.writeColor(child.getLineColor?.() ?? '#ff000000', true);
 				buf.writeColor(child.getFillColor?.() ?? '#ffffffff', true, 0xffffffff);
 				// Corner radius
 				const corner = child.getCornerRadius?.();
@@ -441,10 +452,11 @@ function _writeChildSpecific(
 			buf.writeUint8(child.getLayout?.() ?? 0);
 			buf.writeInt32(child.getLineGap?.() ?? 0);
 			buf.writeInt32(child.getColumnGap?.() ?? 0);
-			// v2
-			buf.writeBool(child.getExcludeInvisibles?.() ?? false);
-			buf.writeBool(child.getAutoSizeDisabled?.() ?? false);
-			buf.writeInt16(child.getMainGridIndex?.() ?? -1);
+			if (version >= 2) {
+				buf.writeBool(child.getExcludeInvisibles?.() ?? false);
+				buf.writeBool(child.getAutoSizeDisabled?.() ?? false);
+				buf.writeInt16(child.getMainGridIndex?.() ?? -1);
+			}
 			break;
 
 		case 'GLoader': {
@@ -486,7 +498,7 @@ function _writeChildSpecific(
 			buf.writeS(child.getSkinName?.() ?? null);
 			buf.writeBool(child.getPlaying?.() ?? true);
 			buf.writeInt32(child.getFrame?.() ?? 0);
-			buf.writeBool(child.getLoop?.() ?? true);
+			buf.writeBool(child.getLoop?.() ?? false);
 			const loader3DColor = child.getColor?.() ?? null;
 			const loader3DColorLower = loader3DColor?.toLowerCase?.() ?? '';
 			const hasLoader3DColor =
@@ -557,9 +569,10 @@ function _writeChildSpecific(
 			} else {
 				buf.writeBool(false);
 			}
-			// v2 fields
-			buf.writeBool(child.getScrollItemToViewOnClick?.() ?? true);
-			buf.writeBool(child.getFoldInvisibleItems?.() ?? false);
+			if (version >= 2) {
+				buf.writeBool(child.getScrollItemToViewOnClick?.() ?? true);
+				buf.writeBool(child.getFoldInvisibleItems?.() ?? false);
+			}
 			break;
 		}
 
@@ -607,14 +620,14 @@ function _writeChildAfterAdd(
 			buf.writeInt16(items.length);
 			for (let i = 0; i < items.length; i++) {
 				const itemStart = buf.pos;
-				buf.writeInt16(0); // placeholder
+				buf.writeUint16(0); // placeholder
 				buf.writeSEx(items[i] ?? null, true, false); // noCache, empty≠null
 				buf.writeSEx(values[i] ?? null, false, false); // cache, empty≠null
 				buf.writeS(remapLocalUiUrl(context, icons[i] ?? null));
 				const itemEnd = buf.pos;
 				const saved = buf.pos;
 				buf.pos = itemStart;
-				buf.writeInt16(itemEnd - itemStart - 2);
+				buf.writeUint16(itemEnd - itemStart - 2);
 				buf.pos = saved;
 			}
 			buf.writeSEx(child.getTitle?.() ?? null, true); // noCache
@@ -628,7 +641,13 @@ function _writeChildAfterAdd(
 			// popupDirection
 			buf.writeUint8(child.getPopupDirection?.() ?? 0);
 			// selectionController
-			buf.writeInt16(-1);
+			const directSelectionController = child.getSelectionController?.() ?? '';
+			if (directSelectionController) {
+				const ctrlIdx = comp.listControllers().findIndex((c) => c.getName() === directSelectionController);
+				buf.writeInt16(ctrlIdx >= 0 ? ctrlIdx : -1);
+			} else {
+				buf.writeInt16(-1);
+			}
 			if (version >= 5) {
 				buf.writeS(remapLocalUiUrl(context, child.getSound?.() ?? null));
 				buf.writeFloat32(child.getSoundVolumeScale?.() ?? 1);
@@ -642,8 +661,9 @@ function _writeChildAfterAdd(
 			buf.writeUint8(child.propertyType === 'GSlider' ? 15 : 14); // EXT_SLIDER or EXT_PROGRESS_BAR
 			buf.writeInt32(child.getValue?.() ?? 0);
 			buf.writeInt32(child.getMax?.() ?? 100);
-			// v2: min
-			buf.writeInt32(child.getMin?.() ?? 0);
+			if (version >= 2) {
+				buf.writeInt32(child.getMin?.() ?? 0);
+			}
 			if (version >= 5 && child.propertyType === 'GProgressBar') {
 				buf.writeS(remapLocalUiUrl(context, child.getSound?.() ?? null));
 				buf.writeFloat32(child.getSoundVolumeScale?.() ?? 1);
@@ -748,14 +768,14 @@ function _writeExtensionInstanceData(
 			buf.writeInt16(comboItems.length);
 			for (const item of comboItems) {
 				const itemStart = buf.pos;
-				buf.writeInt16(0); // placeholder
+				buf.writeUint16(0); // placeholder
 				buf.writeSEx(item.title ?? null, true, false); // noCache, empty≠null
 				buf.writeSEx(item.value ?? null, false, false); // cache, empty≠null
 				buf.writeS(remapLocalUiUrl(context, item.icon ?? null));
 				const itemEnd = buf.pos;
 				const saved = buf.pos;
 				buf.pos = itemStart;
-				buf.writeInt16(itemEnd - itemStart - 2);
+				buf.writeUint16(itemEnd - itemStart - 2);
 				buf.pos = saved;
 			}
 			buf.writeSEx(child.getInstanceTitle?.() ?? null, true); // noCache
@@ -782,7 +802,9 @@ function _writeExtensionInstanceData(
 		case 'Slider':
 			buf.writeInt32(child.getInstanceValue?.() ?? 0);
 			buf.writeInt32(child.getInstanceMax?.() ?? 100);
-			buf.writeInt32(child.getInstanceMin?.() ?? 0);
+			if (version >= 2) {
+				buf.writeInt32(child.getInstanceMin?.() ?? 0);
+			}
 			if (version >= 5 && extType === 'ProgressBar') {
 				buf.writeS(remapLocalUiUrl(context, child.getInstanceSound?.() ?? null));
 				buf.writeFloat32(child.getInstanceSoundVolumeScale?.() ?? 1);
@@ -801,8 +823,9 @@ function _writeScrollPane(buf: WriteBuffer, child: EncoderChildLike, context: Re
 	buf.writeInt32(child.getScrollBarFlags?.() ?? 0); // flags
 	// scrollBar margin
 	const sbMargin = child.getScrollBarMargin?.();
-	buf.writeBool(!!sbMargin);
-	if (sbMargin) {
+	const hasSbMargin = !!sbMargin && !!(sbMargin.top || sbMargin.bottom || sbMargin.left || sbMargin.right);
+	buf.writeBool(hasSbMargin);
+	if (hasSbMargin && sbMargin) {
 		buf.writeInt32(sbMargin.top ?? 0);
 		buf.writeInt32(sbMargin.bottom ?? 0);
 		buf.writeInt32(sbMargin.left ?? 0);
@@ -829,7 +852,7 @@ function _writeListItems(
 	buf.writeInt16(listItems.length);
 	for (const [index, item] of listItems.entries()) {
 		const itemStart = buf.pos;
-		buf.writeInt16(0); // placeholder
+		buf.writeUint16(0); // placeholder
 		buf.writeS(remapLocalUiUrl(context, item.url ?? null));
 		if (isTree) {
 			buf.writeBool(resolveTreeItemIsFolder(listItems, index));
@@ -856,13 +879,13 @@ function _writeListItems(
 		buf.writeInt16(controllerCount);
 		buf.pos = controllerEnd;
 		if (version >= 2) {
-			_writePropertyOverrides(buf, item.propertyOverrides ?? []);
+			_writePropertyOverrides(buf, item.propertyOverrides ?? [], context);
 		}
 
 		const itemEnd = buf.pos;
 		const saved = buf.pos;
 		buf.pos = itemStart;
-		buf.writeInt16(itemEnd - itemStart - 2);
+		buf.writeUint16(itemEnd - itemStart - 2);
 		buf.pos = saved;
 	}
 }
@@ -878,7 +901,7 @@ function _writeChildBlock4Component(
 	buf: WriteBuffer,
 	child: EncoderChildLike,
 	comp: Component,
-	_context: ResourceReferenceEncodingContext,
+	context: ResourceReferenceEncodingContext,
 	version: number,
 ): void {
 	// 1. pageController index
@@ -916,19 +939,26 @@ function _writeChildBlock4Component(
 
 	// 3. Property overrides (§_-55§)
 	if (version >= 2) {
-		_writePropertyOverrides(buf, child.getPropertyOverrides?.() ?? []);
+		_writePropertyOverrides(buf, child.getPropertyOverrides?.() ?? [], context);
 	}
 }
 
 function _writePropertyOverrides(
 	buf: WriteBuffer,
 	overrides: Array<{ target: string; propertyId: number; value: string }>,
+	context: ResourceReferenceEncodingContext,
 ): void {
 	buf.writeInt16(overrides.length);
 	for (const property of overrides) {
 		buf.writeS(property.target);
 		buf.writeInt16(property.propertyId);
-		buf.writeSEx(property.value, true);
+		const remappedValue =
+			property.propertyId === 1
+				? (remapLocalUiUrl(context, property.value) ?? property.value)
+				: property.propertyId === 0
+					? (remapLocalUiRefsInText(context, property.value) ?? property.value)
+					: property.value;
+		buf.writeSEx(remappedValue, true);
 	}
 }
 

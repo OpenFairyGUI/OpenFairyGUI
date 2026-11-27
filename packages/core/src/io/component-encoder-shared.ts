@@ -99,6 +99,7 @@ export type EncoderChildLike = ChildNode & {
 	getFoldInvisibleItems?(): boolean;
 	getText?(): string;
 	getAutoClearText?(): boolean;
+	getTemplateVarsEnabled?(): boolean;
 	getFaceDilate?(): number;
 	getOutlineSoftness?(): number;
 	getUnderlaySoftness?(): number;
@@ -217,16 +218,6 @@ export interface ListItemLike {
 	propertyOverrides?: GComponentPropertyOverride[];
 }
 
-export interface ChildEncoderExtras extends Record<string, unknown> {
-	_clipSoftness?: XYLike;
-	controller?: string;
-	page?: string;
-	sound?: string;
-	volume?: string | number;
-	checked?: string | boolean;
-	scrollBarDisplay?: number;
-}
-
 export interface ResourceReferenceEncodingContext {
 	packageId: string;
 	effectiveResourceIds?: ReadonlyMap<string, string>;
@@ -234,10 +225,6 @@ export interface ResourceReferenceEncodingContext {
 
 export interface RelationOwner {
 	getRelations?(): RelationDef[];
-}
-
-export function getChildExtras(child: { getExtras?(): Record<string, unknown> }): ChildEncoderExtras {
-	return (child.getExtras?.() as ChildEncoderExtras | undefined) ?? {};
 }
 
 export function remapLocalResourceId(

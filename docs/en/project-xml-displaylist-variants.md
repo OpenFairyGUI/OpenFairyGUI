@@ -27,14 +27,14 @@ This document defines the current alignment among these names so that the `displ
 |---|---|---|---|---|
 | Image | `image` | `image` | `image` | `image` |
 | Plain text | `text` | `text` | `text` | `text` |
-| Input text | `text` with `input="true"`, or explicit `inputtext` | `inputtext` | `inputtext` | `inputtext` |
+| Input text | `text` with `input="true"`, or explicit `inputtext` | `inputtext` | `inputtext` | `text` with `input="true"` |
 | Rich text | `richtext` | `richtext` | `richtext` | `richtext` |
 | Graph | `graph` | `graph` | `graph` | `graph` |
 | Group | `group` | `group` | `group` | `group` |
 | Loader | `loader` | `loader` | `loader` | `loader` |
 | Loader3D | `loader3D` (reading also accepts lowercase `loader3d`) | `loader3D` | Aligned as `loader3D` in this repository | `loader3D` |
 | MovieClip | `movieclip` | `movieclip` | `movieclip` | `movieclip` |
-| JTA animation | `jta` | `jta` | `jta` | `jta` |
+| JTA animation (legacy tag) | `jta` | `jta` | `jta` | `movieclip` |
 | Child component instance | `component` | `component` | Resource reference objects normally omit an independent `type`; the referenced resource determines the display-list item. | `component` |
 | List | `list` | `list` | `list` | `list` |
 | Tree | `list` with `treeView="true"`, or explicit `tree` | `tree` | `tree` | `list` with `treeView="true"` |
@@ -54,12 +54,13 @@ The following variants depend on additional conditions and cannot be determined 
 | Scenario | Written result |
 |---|---|
 | `GTextField` | `text` |
-| `GTextInput` | `inputtext` |
+| `GTextInput` | `text` with `input="true"` |
+| Compatibility input using `inputtext` | Always written as `text` with `input="true"`. |
 | `GRichTextField` | `richtext` |
-| `GTree` | `list` with `treeView="true"` |
+| `GTree` | `list` with `treeView="true"` (reading also accepts explicit `tree`) |
 | `GLoader3D` | `loader3D` |
-| `GMovieClip` | `jta` |
-| Compatibility input using `movieclip` | Always written as `jta`. |
+| `GMovieClip` | `movieclip` |
+| Compatibility input using `jta` | Always written as `movieclip`. |
 | `GComponent / GButton / GLabel / GComboBox / GProgressBar / GSlider / GScrollBar` | `component` |
 
 ## Maintenance requirements

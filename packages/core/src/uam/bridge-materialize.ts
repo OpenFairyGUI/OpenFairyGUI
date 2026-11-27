@@ -408,6 +408,7 @@ type MaterializedComponentDerivedControl = MaterializedDisplayNodeBase & {
 	setSrc(src: string): MaterializedComponentDerivedControl;
 	setPackageId(packageId: string): MaterializedComponentDerivedControl;
 	setPageController(pageController: string): MaterializedComponentDerivedControl;
+	setFileName(fileName: string): MaterializedComponentDerivedControl;
 };
 
 type MaterializedTitleControl = MaterializedComponentDerivedControl & {
@@ -470,7 +471,8 @@ function materializeComponentDerivedControlBase<TTarget extends MaterializedComp
 	materializeDisplayNodeBase(target, node)
 		.setSrc(node.src)
 		.setPackageId(node.packageId)
-		.setPageController(node.pageController ?? '');
+		.setPageController(node.pageController ?? '')
+		.setFileName(node.fileName ?? '');
 	return target;
 }
 
@@ -556,6 +558,7 @@ export function materializeUamImageResourceProperties(
 		.setQuality(properties.quality)
 		.setSmoothing(properties.smoothing)
 		.setDuplicatePadding(properties.duplicatePadding)
+		.setDisableTrim(properties.disableTrim === true)
 		.setScaleOption(properties.scaleOption)
 		.setScale9Grid(properties.scale9Grid ? [...properties.scale9Grid] : null)
 		.setTileGridIndice(properties.tileGridIndice);
@@ -577,6 +580,7 @@ export function materializeUamMovieClipResourceProperties(
 			.setSpriteId(frame.spriteId),
 	);
 	movieClip
+		.setTextureSetMode(properties.textureSetMode ?? '')
 		.setInterval(properties.interval)
 		.setRepeatDelay(properties.repeatDelay)
 		.setSwing(properties.swing)
@@ -721,7 +725,8 @@ export function materializeDisplayNodeProperties(target: GObject, node: UamDispl
 		const image = materializeDisplayNodeBase(target as ReturnType<Document['createGImage']>, node)
 			.setGroup(imageNode.group)
 			.setSrc(imageNode.resource.resourceId)
-			.setPackageId(imageNode.resource.packageId ?? '');
+			.setPackageId(imageNode.resource.packageId ?? '')
+			.setFileName(imageNode.fileName ?? '');
 		materializeUamImageProperties(image, imageNode);
 		return image;
 	}
@@ -825,7 +830,8 @@ export function materializeDisplayNodeProperties(target: GObject, node: UamDispl
 			.setValues(comboBoxNode.values)
 			.setSelectedIndex(comboBoxNode.selectedIndex)
 			.setVisibleItemCount(comboBoxNode.visibleItemCount)
-			.setPopupDirection(comboBoxNode.popupDirection);
+			.setPopupDirection(comboBoxNode.popupDirection)
+			.setSelectionController(comboBoxNode.selectionController ?? '');
 		return comboBox;
 	}
 
@@ -1154,7 +1160,8 @@ function materializeComponentResource(
 		.setExported(resource.exported)
 		.setFavorite(resource.favorite)
 		.setSize(resource.component.size.width, resource.component.size.height)
-		.setCustomData(resource.component.customData);
+		.setCustomData(resource.component.customData)
+		.setRelations(materializeRelations(resource.component.relations ?? []));
 	materializeUamComponentProperties(component, resource.component.properties);
 
 	for (const node of resource.component.displayList) {

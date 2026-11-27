@@ -1,5 +1,6 @@
 import {
 	type Component,
+	type Document,
 	type DragonBonesResource,
 	type FontResource,
 	type ImageResource,
@@ -14,10 +15,6 @@ import {
 import type { AtlasRasterBackend } from './contracts.js';
 import { collectPackageResourceReferences } from './resource-references.js';
 
-interface ImageResourceExtras extends Record<string, unknown> {
-	_fileName?: string;
-}
-
 interface BranchAwarePublishedResource {
 	getBranch?(): string;
 }
@@ -27,6 +24,8 @@ export interface PackagePublishContext {
 	referencedIds: Set<string>;
 	publishedResourceIds: Set<string>;
 	exportedResourceIds: Set<string>;
+	skeletonDependencyImageIds: Set<string>;
+	skeletonDependencyMiscIds: Set<string>;
 	pixelHitTestImageIds: Set<string>;
 	highResolutionItemIds: Map<string, Array<string | null>>;
 	effectiveResourceIds: Map<string, string>;
@@ -91,7 +90,10 @@ export function isSkeletonResource(
 	return isSpineResource(resource) || isDragonBonesResource(resource);
 }
 
-function resolvePackageAssetsBasePath(basePath: string, resource: BranchAwarePublishedResource | undefined): string {
+export function resolvePackageAssetsBasePath(
+	basePath: string,
+	resource: BranchAwarePublishedResource | undefined,
+): string {
 	const branchName = resource?.getBranch?.() ?? '';
 	if (!branchName) return basePath;
 	const normalized = basePath.replace(/[/\\]+$/, '');
@@ -109,8 +111,7 @@ export function resolveImagePath(resource: ImageResource, pkg: Package, basePath
 }
 
 export function resolveImageFileName(resource: ImageResource): string {
-	const extras = (resource.getExtras() as ImageResourceExtras | undefined) ?? {};
-	return resource.getFileName() || extras._fileName || resource.getName();
+	return resource.getFileName() || resource.getName();
 }
 
 export function resolveFontPath(resource: FontResource, pkg: Package, basePath: string): string {
@@ -118,6 +119,15 @@ export function resolveFontPath(resource: FontResource, pkg: Package, basePath: 
 		resource.getFileName() ||
 		(/\.fnt$/i.test(resource.getName()) ? resource.getName() : `${resource.getName()}.fnt`);
 	return `${resolvePackageAssetsBasePath(basePath, resource)}/${pkg.getName()}${resource.getPath() || '/'}${fileName}`;
+}
+
+export function resolveMovieClipPath(resource: MovieClipResource, pkg: Package, basePath: string): string {
+	const fileName =
+		resource.getFileName() ||
+		(/\.jta$/i.test(resource.getName()) ? resource.getName() : `${resource.getName()}.jta`);
+	const resourcePath = resource.getPath() ?? '/';
+	const packageBasePath = resolvePackageAssetsBasePath(basePath, resource);
+	return `${packageBasePath}/${pkg.getName()}${resourcePath}${fileName}`;
 }
 
 export function resolveSoundPath(resource: SoundResource, pkg: Package, basePath: string): string {
@@ -150,6 +160,14 @@ function resolvePublishedMiscFileName(
 	effectiveResourceIds: ReadonlyMap<string, string>,
 ): string {
 	const fileName = `${getPublishedId(resource, effectiveResourceIds)}${extname(resource.getFile())}`;
+	if (projectType === UNITY_PROJECT_TYPE && fileName.toLowerCase().endsWith('.atlas')) {
+		return `${fileName}.txt`;
+	}
+	return fileName;
+}
+
+export function resolvePublishedSkeletonDependencyMiscFileName(resource: MiscResource, projectType: number): string {
+	const fileName = resource.getFile();
 	if (projectType === UNITY_PROJECT_TYPE && fileName.toLowerCase().endsWith('.atlas')) {
 		return `${fileName}.txt`;
 	}
@@ -204,16 +222,20 @@ function buildHighResolutionResourceKey(
 	return `${resource.propertyType}|${resource.getBranch?.() ?? ''}|${resource.getPath() ?? ''}|${name}`;
 }
 
+const HIGH_RESOLUTION_MEDIA_EXT_RE = /\.(?:png|jpe?g|gif|webp|bmp|svg|psd|jta)$/iu;
+
 function isHighResolutionVariantName(name: string): boolean {
-	return /@(?:2|3|4)x(?:\.[^./\\]+)?$/iu.test(name);
+	return /@(?:2|3|4)x(?:\.(?:png|jpe?g|gif|webp|bmp|svg|psd|jta))?$/iu.test(name);
 }
 
-function appendHighResolutionScaleToName(name: string, scale: number): string {
-	const extensionIndex = name.lastIndexOf('.');
-	if (extensionIndex > 0) {
-		return `${name.slice(0, extensionIndex)}@${scale}x${name.slice(extensionIndex)}`;
+function getHighResolutionCandidateNames(name: string, scale: number): string[] {
+	const direct = `${name}@${scale}x`;
+	const extMatch = HIGH_RESOLUTION_MEDIA_EXT_RE.exec(name);
+	if (extMatch && extMatch.index > 0) {
+		const beforeExt = `${name.slice(0, extMatch.index)}@${scale}x${extMatch[0]}`;
+		return [direct, beforeExt];
 	}
-	return `${name}@${scale}x`;
+	return [direct];
 }
 
 function trimTrailingMissingHighResolutionIds(ids: Array<string | null>): Array<string | null> {
@@ -228,14 +250,37 @@ function collectHighResolutionItemIds(
 	publishedResourceIds: Set<string>,
 	includeHighResolution: number,
 	excludedResourceIds: Set<string>,
+	options: {
+		includeBranches: boolean;
+		activeBranch: string;
+		mainByKey?: ReadonlyMap<string, ReturnType<Package['listResources']>[number]>;
+		effectiveResourceIds?: Map<string, string>;
+	},
 ): Map<string, Array<string | null>> {
 	const result = new Map<string, Array<string | null>>();
 	if (includeHighResolution <= 0) return result;
 
 	const highResolutionResourceByKey = new Map<string, ImageResource | MovieClipResource>();
-	for (const resource of resources) {
-		if (!isHighResolutionResource(resource) || excludedResourceIds.has(resource.getId())) continue;
-		highResolutionResourceByKey.set(buildHighResolutionResourceKey(resource), resource);
+	if (options.includeBranches) {
+		for (const resource of resources) {
+			if (!isHighResolutionResource(resource) || excludedResourceIds.has(resource.getId())) continue;
+			highResolutionResourceByKey.set(buildHighResolutionResourceKey(resource), resource);
+		}
+	} else {
+		// In merged-branch mode, active branch high-res variants override main high-res variants.
+		for (const resource of resources) {
+			if (!isHighResolutionResource(resource) || excludedResourceIds.has(resource.getId())) continue;
+			const branchName = getBranchName(resource);
+			if (branchName) continue;
+			highResolutionResourceByKey.set(buildBranchResourceKey(resource), resource);
+		}
+		if (options.activeBranch) {
+			for (const resource of resources) {
+				if (!isHighResolutionResource(resource) || excludedResourceIds.has(resource.getId())) continue;
+				if (getBranchName(resource) !== options.activeBranch) continue;
+				highResolutionResourceByKey.set(buildBranchResourceKey(resource), resource);
+			}
+		}
 	}
 
 	for (const resource of resources) {
@@ -250,12 +295,17 @@ function collectHighResolutionItemIds(
 				continue;
 			}
 
-			const highResolutionResource = highResolutionResourceByKey.get(
-				buildHighResolutionResourceKey(
-					resource,
-					appendHighResolutionScaleToName(resource.getName(), level.scale),
-				),
-			);
+			let highResolutionResource: ImageResource | MovieClipResource | undefined;
+			for (const candidateName of getHighResolutionCandidateNames(resource.getName(), level.scale)) {
+				const lookupKey = options.includeBranches
+					? buildHighResolutionResourceKey(resource, candidateName)
+					: `${resource.propertyType}|${resource.getPath() ?? ''}|${candidateName}`;
+				const found = highResolutionResourceByKey.get(lookupKey);
+				if (found) {
+					highResolutionResource = found;
+					break;
+				}
+			}
 			if (!highResolutionResource) {
 				ids[level.slot] = null;
 				continue;
@@ -263,6 +313,17 @@ function collectHighResolutionItemIds(
 
 			const highResolutionId = highResolutionResource.getId();
 			publishedResourceIds.add(highResolutionId);
+			if (
+				!options.includeBranches &&
+				options.effectiveResourceIds &&
+				!options.effectiveResourceIds.has(highResolutionId)
+			) {
+				const branchName = getBranchName(highResolutionResource);
+				const mainVariant = branchName
+					? options.mainByKey?.get(buildBranchResourceKey(highResolutionResource))
+					: undefined;
+				options.effectiveResourceIds.set(highResolutionId, mainVariant?.getId() ?? highResolutionId);
+			}
 			ids[level.slot] = highResolutionId;
 		}
 
@@ -276,6 +337,7 @@ function collectHighResolutionItemIds(
 export function collectPackagePublishContext(
 	pkg: Package,
 	options: {
+		doc?: Document;
 		projectType: number;
 		includeBranches: boolean;
 		activeBranch: string;
@@ -285,13 +347,54 @@ export function collectPackagePublishContext(
 	const resources = pkg.listResources();
 	const excludedResourceIds = new Set(pkg.getSourceAtlasSettings().excludedResourceIds);
 	const resourceMap = new Map(resources.map((resource) => [resource.getId(), resource]));
-	const referencedIds = collectPackageResourceReferences(pkg).localResourceIds;
-	const pixelHitTestImageIds = new Set<string>();
-	const collectExportedResourceIds = (
+	const referencedIds = collectPackageResourceReferences(pkg, options.doc, {
+		exportedOnly: true,
+		includeBranches: options.includeBranches,
+		activeBranch: options.activeBranch,
+	}).localResourceIds;
+
+	const collectFontDependencyIds = (
 		sourceResources: ReturnType<Package['listResources']>,
 		sourcePublishedResourceIds: Set<string>,
-	): Set<string> => {
+	): void => {
+		const resourcesById = new Map(sourceResources.map((resource) => [resource.getId(), resource] as const));
+		let changed = true;
+		while (changed) {
+			changed = false;
+			for (const resourceId of [...sourcePublishedResourceIds]) {
+				if (excludedResourceIds.has(resourceId)) {
+					sourcePublishedResourceIds.delete(resourceId);
+					changed = true;
+					continue;
+				}
+				const resource = resourcesById.get(resourceId);
+				if (!resource || !isFontResource(resource)) continue;
+				for (const requiredId of getFontDependencyImageIds(resource)) {
+					if (
+						!requiredId ||
+						excludedResourceIds.has(requiredId) ||
+						sourcePublishedResourceIds.has(requiredId)
+					)
+						continue;
+					sourcePublishedResourceIds.add(requiredId);
+					changed = true;
+				}
+			}
+		}
+	};
+
+	const collectExportedResources = (
+		sourceResources: ReturnType<Package['listResources']>,
+		sourcePublishedResourceIds: Set<string>,
+		activeBranchByKey?: ReadonlyMap<string, ReturnType<Package['listResources']>[number]>,
+	): {
+		exportedResourceIds: Set<string>;
+		skeletonDependencyImageIds: Set<string>;
+		skeletonDependencyMiscIds: Set<string>;
+	} => {
 		const exportedResourceIds = new Set<string>(sourcePublishedResourceIds);
+		const skeletonDependencyImageIds = new Set<string>();
+		const skeletonDependencyMiscIds = new Set<string>();
 		const resourcesById = new Map(sourceResources.map((resource) => [resource.getId(), resource] as const));
 		let changed = true;
 		while (changed) {
@@ -304,37 +407,59 @@ export function collectPackagePublishContext(
 				}
 				const resource = resourcesById.get(resourceId);
 				if (!resource) continue;
-				const requiredIds = isSkeletonResource(resource)
+				const skeletonResource = isSkeletonResource(resource);
+				const requiredIds = skeletonResource
 					? resource.getRequireIds()
 					: isFontResource(resource)
 						? getFontDependencyImageIds(resource)
 						: [];
-				for (const requiredId of requiredIds) {
-					if (!requiredId || excludedResourceIds.has(requiredId) || exportedResourceIds.has(requiredId))
-						continue;
-					exportedResourceIds.add(requiredId);
+				for (const rawRequiredId of requiredIds) {
+					if (!rawRequiredId || excludedResourceIds.has(rawRequiredId)) continue;
+					let resolvedRequiredId = rawRequiredId;
+					if (activeBranchByKey) {
+						const rawTarget = resourcesById.get(rawRequiredId);
+						if (rawTarget && !getBranchName(rawTarget)) {
+							const override = activeBranchByKey.get(buildBranchResourceKey(rawTarget));
+							if (override && !excludedResourceIds.has(override.getId())) {
+								resolvedRequiredId = override.getId();
+							}
+						}
+					}
+					if (skeletonResource) {
+						const resolvedTarget = resourcesById.get(resolvedRequiredId);
+						if (resolvedTarget && isImageResource(resolvedTarget)) {
+							skeletonDependencyImageIds.add(resolvedRequiredId);
+						} else if (resolvedTarget && isMiscResource(resolvedTarget)) {
+							skeletonDependencyMiscIds.add(resolvedRequiredId);
+						}
+					}
+					if (exportedResourceIds.has(resolvedRequiredId)) continue;
+					exportedResourceIds.add(resolvedRequiredId);
 					changed = true;
 				}
 			}
 		}
-		return exportedResourceIds;
+		return {
+			exportedResourceIds,
+			skeletonDependencyImageIds,
+			skeletonDependencyMiscIds,
+		};
 	};
 
+	const mainByKey = new Map<string, ReturnType<Package['listResources']>[number]>();
+	const activeBranchByKey = new Map<string, ReturnType<Package['listResources']>[number]>();
+	const branchVariantsByKey = new Map<string, Array<ReturnType<Package['listResources']>[number]>>();
 	for (const resource of resources) {
-		if (!isComponentResource(resource)) continue;
-		const component = resource;
-		const children = component.listChildren();
-		const childMap = new Map(children.map((child) => [child.getId?.() ?? '', child]));
-
-		const hitTest = component.getHitTest?.()?.trim();
-		if (hitTest && !hitTest.includes(',')) {
-			const targetChild = childMap.get(hitTest);
-			const sourceId = (targetChild as { getSrc?(): string } | undefined)?.getSrc?.();
-			if (sourceId && !excludedResourceIds.has(sourceId)) {
-				const sourceResource = resourceMap.get(sourceId);
-				if (sourceResource && isImageResource(sourceResource)) {
-					pixelHitTestImageIds.add(sourceId);
-				}
+		const branchName = getBranchName(resource);
+		const key = buildBranchResourceKey(resource);
+		if (!branchName) {
+			mainByKey.set(key, resource);
+		} else {
+			const list = branchVariantsByKey.get(key) ?? [];
+			list.push(resource);
+			branchVariantsByKey.set(key, list);
+			if (branchName === options.activeBranch) {
+				activeBranchByKey.set(key, resource);
 			}
 		}
 	}
@@ -350,7 +475,7 @@ export function collectPackagePublishContext(
 			continue;
 		}
 		if (isImageResource(resource)) {
-			if (resource.getExported() || referencedIds.has(resourceId) || pixelHitTestImageIds.has(resourceId)) {
+			if (resource.getExported() || referencedIds.has(resourceId)) {
 				publishedResourceIds.add(resourceId);
 			}
 			continue;
@@ -375,30 +500,49 @@ export function collectPackagePublishContext(
 		}
 	}
 
-	for (const resourceId of collectExportedResourceIds(resources, publishedResourceIds)) {
-		publishedResourceIds.add(resourceId);
-	}
+	// Only expand font image dependencies into Block 1 publishedResourceIds;
+	// skeleton requireIds stay sidecar-only in exportedResourceIds.
+	collectFontDependencyIds(resources, publishedResourceIds);
 
-	const highResolutionItemIds = collectHighResolutionItemIds(
-		resources,
-		publishedResourceIds,
-		options.includeHighResolution,
-		excludedResourceIds,
-	);
-
-	if (!options.includeBranches) {
-		const mainByKey = new Map<string, ReturnType<Package['listResources']>[number]>();
-		const activeBranchByKey = new Map<string, ReturnType<Package['listResources']>[number]>();
-		for (const resource of resources) {
-			const branchName = getBranchName(resource);
-			const key = buildBranchResourceKey(resource);
-			if (!branchName) {
-				mainByKey.set(key, resource);
-			} else if (branchName === options.activeBranch) {
-				activeBranchByKey.set(key, resource);
+	if (options.includeBranches) {
+		// Ensure branch variants of published main resources are also included (matching FPackageItem branch publish).
+		for (const resourceId of [...publishedResourceIds]) {
+			const resource = resourceMap.get(resourceId);
+			if (!resource || getBranchName(resource)) continue;
+			for (const variant of branchVariantsByKey.get(buildBranchResourceKey(resource)) ?? []) {
+				const variantId = variant.getId();
+				if (variantId && !excludedResourceIds.has(variantId)) {
+					publishedResourceIds.add(variantId);
+				}
 			}
 		}
+		collectFontDependencyIds(resources, publishedResourceIds);
+	}
 
+	const collectPixelHitTestImages = (activeResourceIds: Set<string>): Set<string> => {
+		const imageIds = new Set<string>();
+		for (const resource of resources) {
+			if (!isComponentResource(resource)) continue;
+			if (!activeResourceIds.has(resource.getId())) continue;
+			const children = resource.listChildren();
+			const childMap = new Map(children.map((child) => [child.getId?.() ?? '', child]));
+
+			const hitTest = resource.getHitTest?.()?.trim();
+			if (hitTest && !hitTest.includes(',')) {
+				const targetChild = childMap.get(hitTest);
+				const sourceId = (targetChild as { getSrc?(): string } | undefined)?.getSrc?.();
+				if (sourceId && !excludedResourceIds.has(sourceId)) {
+					const sourceResource = resourceMap.get(sourceId);
+					if (sourceResource && isImageResource(sourceResource)) {
+						imageIds.add(sourceId);
+					}
+				}
+			}
+		}
+		return imageIds;
+	};
+
+	if (!options.includeBranches) {
 		const mergedPublishedResourceIds = new Set<string>();
 		const effectiveResourceIds = new Map<string, string>();
 		for (const resource of resources) {
@@ -416,7 +560,7 @@ export function collectPackagePublishContext(
 			}
 
 			const override = activeBranchByKey.get(key);
-			if (override) {
+			if (override && !excludedResourceIds.has(override.getId())) {
 				mergedPublishedResourceIds.add(override.getId());
 				effectiveResourceIds.set(override.getId(), resourceId);
 				continue;
@@ -431,25 +575,63 @@ export function collectPackagePublishContext(
 			publishedResourceIds.add(resourceId);
 		}
 
-		const mergedPixelHitTestImageIds = new Set<string>();
+		// Expand font dependencies of any merged active-branch fonts and resolve their effective IDs.
+		const beforeFontDepIds = new Set(publishedResourceIds);
+		collectFontDependencyIds(resources, publishedResourceIds);
+		for (const resourceId of [...publishedResourceIds]) {
+			if (beforeFontDepIds.has(resourceId)) continue;
+			const resource = resourceMap.get(resourceId);
+			if (!resource) continue;
+			const branchName = getBranchName(resource);
+			const key = buildBranchResourceKey(resource);
+			if (!branchName) {
+				const override = activeBranchByKey.get(key);
+				if (override && !excludedResourceIds.has(override.getId())) {
+					publishedResourceIds.delete(resourceId);
+					publishedResourceIds.add(override.getId());
+					effectiveResourceIds.set(override.getId(), resourceId);
+					continue;
+				}
+				effectiveResourceIds.set(resourceId, resourceId);
+			} else if (branchName === options.activeBranch) {
+				const mainResource = mainByKey.get(key);
+				effectiveResourceIds.set(resourceId, mainResource?.getId() ?? resourceId);
+			}
+		}
+
+		const highResolutionItemIds = collectHighResolutionItemIds(
+			resources,
+			publishedResourceIds,
+			options.includeHighResolution,
+			excludedResourceIds,
+			{
+				includeBranches: false,
+				activeBranch: options.activeBranch,
+				mainByKey,
+				effectiveResourceIds,
+			},
+		);
+
+		const rawPixelHitTestImageIds = collectPixelHitTestImages(publishedResourceIds);
+		const pixelHitTestImageIds = new Set<string>();
 		for (const resource of resources) {
 			if (!isImageResource(resource)) continue;
 			const resourceId = resource.getId();
 			if (!publishedResourceIds.has(resourceId)) continue;
 			const effectiveId = effectiveResourceIds.get(resourceId) ?? resourceId;
-			if (pixelHitTestImageIds.has(effectiveId)) {
-				mergedPixelHitTestImageIds.add(resourceId);
+			if (rawPixelHitTestImageIds.has(resourceId) || rawPixelHitTestImageIds.has(effectiveId)) {
+				pixelHitTestImageIds.add(resourceId);
 			}
-		}
-		pixelHitTestImageIds.clear();
-		for (const resourceId of mergedPixelHitTestImageIds) {
-			pixelHitTestImageIds.add(resourceId);
 		}
 
 		return {
 			referencedIds,
 			publishedResourceIds,
-			exportedResourceIds: collectExportedResourceIds(resources, publishedResourceIds),
+			...collectExportedResources(
+				resources,
+				publishedResourceIds,
+				options.activeBranch ? activeBranchByKey : undefined,
+			),
 			pixelHitTestImageIds,
 			highResolutionItemIds,
 			effectiveResourceIds,
@@ -457,10 +639,22 @@ export function collectPackagePublishContext(
 		};
 	}
 
+	const highResolutionItemIds = collectHighResolutionItemIds(
+		resources,
+		publishedResourceIds,
+		options.includeHighResolution,
+		excludedResourceIds,
+		{
+			includeBranches: true,
+			activeBranch: '',
+		},
+	);
+	const pixelHitTestImageIds = collectPixelHitTestImages(publishedResourceIds);
+
 	return {
 		referencedIds,
 		publishedResourceIds,
-		exportedResourceIds: collectExportedResourceIds(resources, publishedResourceIds),
+		...collectExportedResources(resources, publishedResourceIds),
 		pixelHitTestImageIds,
 		highResolutionItemIds,
 		effectiveResourceIds: new Map([...publishedResourceIds].map((resourceId) => [resourceId, resourceId])),
@@ -536,6 +730,7 @@ export async function preparePackagePublishContext(
 	basePath: string | undefined,
 	encoder: AtlasRasterBackend | undefined,
 	options: {
+		doc?: Document;
 		projectType: number;
 		includeBranches: boolean;
 		activeBranch: string;
@@ -563,19 +758,4 @@ export async function preparePackagePublishContext(
 		}
 	}
 	return { ...context, publishedFiles };
-}
-
-export function getPublishedSkeletonDependencyImageIds(pkg: Package, publishedResourceIds: Set<string>): Set<string> {
-	const imageIds = new Set<string>();
-	const resourcesById = new Map(pkg.listResources().map((resource) => [resource.getId(), resource] as const));
-	for (const resource of pkg.listResources()) {
-		if (!isSkeletonResource(resource)) continue;
-		if (!publishedResourceIds.has(resource.getId())) continue;
-		for (const requiredId of resource.getRequireIds()) {
-			if (!requiredId) continue;
-			const required = resourcesById.get(requiredId);
-			if (required && isImageResource(required)) imageIds.add(requiredId);
-		}
-	}
-	return imageIds;
 }

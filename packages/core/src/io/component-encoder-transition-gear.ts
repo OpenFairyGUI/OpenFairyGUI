@@ -1,6 +1,13 @@
 import type { Component } from '../properties/component.js';
-import type { GearNode, TransitionItemNode } from './component-encoder-shared.js';
-import { _numVal, _numberToken, _strVal, getRuntimeChildren } from './component-encoder-shared.js';
+import type { GearNode, ResourceReferenceEncodingContext, TransitionItemNode } from './component-encoder-shared.js';
+import {
+	_numVal,
+	_numberToken,
+	_strVal,
+	getRuntimeChildren,
+	remapLocalUiRefsInText,
+	remapLocalUiUrl,
+} from './component-encoder-shared.js';
 import type { WriteBuffer } from './write-buffer.js';
 
 function _writeGearAnimationExtStatus(buf: WriteBuffer, valueStr: string): void {
@@ -15,7 +22,12 @@ function _hasGearAnimationExtStatus(valueStr: string | null | undefined): boolea
 	return parts.length > 2 && (!!parts[2] || !!parts[3]);
 }
 
-export function _writeTransitions(buf: WriteBuffer, comp: Component, version: number): void {
+export function _writeTransitions(
+	buf: WriteBuffer,
+	comp: Component,
+	context: ResourceReferenceEncodingContext,
+	version: number,
+): void {
 	const transitions = comp.listTransitions();
 	buf.writeInt16(transitions.length);
 
@@ -23,7 +35,7 @@ export function _writeTransitions(buf: WriteBuffer, comp: Component, version: nu
 		const fps = trans.getFps?.() ?? 24;
 		const secondsPerFrame = fps > 0 ? 1 / fps : 1 / 24;
 		const transStartPos = buf.pos;
-		buf.writeInt16(0); // placeholder
+		buf.writeUint16(0); // placeholder
 
 		buf.writeS(trans.getName?.() ?? '');
 		buf.writeInt32(trans.getOptions?.() ?? 0);
@@ -80,11 +92,11 @@ export function _writeTransitions(buf: WriteBuffer, comp: Component, version: nu
 
 				// Item Block 2: start value
 				const ib2 = buf.pos - itemIndexPos;
-				_writeTransitionValue(buf, item, item.getStartValue?.(), version);
+				_writeTransitionValue(buf, item, item.getStartValue?.(), context, version);
 
 				// Item Block 3: end value
 				const ib3 = buf.pos - itemIndexPos;
-				_writeTransitionValue(buf, item, item.getEndValue?.(), version);
+				_writeTransitionValue(buf, item, item.getEndValue?.(), context, version);
 				if (version >= 2) {
 					_writePathData(buf, item.getPath?.() ?? null);
 				}
@@ -104,7 +116,7 @@ export function _writeTransitions(buf: WriteBuffer, comp: Component, version: nu
 				// Editor export still reserves 4 offset slots for non-tween items.
 				const ib1 = 0;
 				const ib2 = buf.pos - itemIndexPos;
-				_writeTransitionValue(buf, item, item.getStartValue?.(), version);
+				_writeTransitionValue(buf, item, item.getStartValue?.(), context, version);
 				const ib3 = 0;
 
 				const itemSaved = buf.pos;
@@ -126,7 +138,7 @@ export function _writeTransitions(buf: WriteBuffer, comp: Component, version: nu
 		// Patch transition nextPos
 		const transEnd = buf.pos;
 		buf.pos = transStartPos;
-		buf.writeInt16(transEnd - transStartPos - 2);
+		buf.writeUint16(transEnd - transStartPos - 2);
 		buf.pos = transEnd;
 	}
 }
@@ -185,7 +197,13 @@ function _writePathData(buf: WriteBuffer, path: unknown): void {
 	buf.pos = saved;
 }
 
-function _writeTransitionValue(buf: WriteBuffer, item: TransitionItemNode, value: unknown, version: number): void {
+function _writeTransitionValue(
+	buf: WriteBuffer,
+	item: TransitionItemNode,
+	value: unknown,
+	context: ResourceReferenceEncodingContext,
+	version: number,
+): void {
 	// Value can be: string array ['10','20'], comma-separated string, or object
 	const type = item.getActionType?.() ?? 0;
 	const parts: string[] = !value
@@ -214,13 +232,13 @@ function _writeTransitionValue(buf: WriteBuffer, item: TransitionItemNode, value
 		'Text',
 		'Icon',
 	];
-	const typeName = ACTION_TYPE_NAMES[type] ?? 'XY';
+	const typeName = ACTION_TYPE_NAMES[type];
 
 	switch (typeName) {
 		case 'XY': {
 			const b1 = parts[0] !== '-' && parts[0] !== undefined;
 			const b2 = parts.length > 1 && parts[1] !== '-';
-			const hasPercent = parts.length > 2;
+			const hasPercent = version >= 2 && parts.length > 2;
 			buf.writeBool(b1);
 			buf.writeBool(b2);
 			if (hasPercent) {
@@ -230,7 +248,9 @@ function _writeTransitionValue(buf: WriteBuffer, item: TransitionItemNode, value
 				buf.writeFloat32(b1 ? parseFloat(parts[0]) || 0 : 0);
 				buf.writeFloat32(b2 ? parseFloat(parts[1]) || 0 : 0);
 			}
-			buf.writeBool(hasPercent);
+			if (version >= 2) {
+				buf.writeBool(hasPercent);
+			}
 			break;
 		}
 		case 'Size':
@@ -275,7 +295,7 @@ function _writeTransitionValue(buf: WriteBuffer, item: TransitionItemNode, value
 			break;
 		}
 		case 'Sound': {
-			buf.writeSEx(parts[0] || null, false, false);
+			buf.writeSEx(remapLocalUiUrl(context, parts[0] || null), false, false);
 			buf.writeFloat32(Math.trunc(_numberToken(parts[1], 100)) / 100);
 			break;
 		}
@@ -297,25 +317,28 @@ function _writeTransitionValue(buf: WriteBuffer, item: TransitionItemNode, value
 			break;
 		}
 		case 'Text': {
-			buf.writeSEx(parts.join(',') || null, true);
+			buf.writeSEx(remapLocalUiRefsInText(context, parts.join(',') || null), true);
 			break;
 		}
 		case 'Icon': {
-			buf.writeS(parts[0] || null);
+			buf.writeS(remapLocalUiUrl(context, parts[0] || null));
 			break;
 		}
-		default: {
-			buf.writeBool(true);
-			buf.writeBool(true);
-			buf.writeFloat32(0);
-			buf.writeFloat32(0);
-		}
+		default:
+			break;
 	}
 }
 
 // ─── Gear encoding ───────────────────────────────────────────────────────
 
-export function _writeGear(buf: WriteBuffer, gear: GearNode, gearType: number, comp: Component, version: number): void {
+export function _writeGear(
+	buf: WriteBuffer,
+	gear: GearNode,
+	gearType: number,
+	comp: Component,
+	version: number,
+	context?: ResourceReferenceEncodingContext,
+): void {
 	// Controller index
 	const ctrl = gear.getController?.();
 	const controllers = comp.listControllers();
@@ -354,13 +377,13 @@ export function _writeGear(buf: WriteBuffer, gear: GearNode, gearType: number, c
 			}
 
 			buf.writeS(pages[i] ?? null);
-			_writeGearStatus(buf, gearType, value, version);
+			_writeGearStatus(buf, gearType, value, version, context);
 		}
 		// Default value
 		const hasDefault = stringValues ? defaultValue !== null && defaultValue !== undefined : defaultStr !== '';
 		buf.writeBool(hasDefault);
 		if (hasDefault) {
-			_writeGearStatus(buf, gearType, defaultStr, version);
+			_writeGearStatus(buf, gearType, defaultStr, version, context);
 		}
 	}
 
@@ -375,36 +398,38 @@ export function _writeGear(buf: WriteBuffer, gear: GearNode, gearType: number, c
 		buf.writeFloat32(gear.getTweenDuration?.() ?? 0.3);
 		buf.writeFloat32(gear.getTweenDelay?.() ?? 0);
 	}
-	if (version >= 4 && hasTween && (gear.getEaseType?.() ?? 5) === 31) {
-		_writePathData(buf, gear.getCustomEasePath?.() ?? null);
-	}
 
-	if (version >= 2 && gearType === 1) {
-		const positionsInPercent = gear.getPositionsInPercent?.() ?? false;
-		buf.writeBool(positionsInPercent);
-		if (positionsInPercent) {
-			for (let i = 0; i < pageCount; i++) {
-				const value = values[i] ?? '';
-				if (_shouldWriteNullGearPage(gearType, value)) {
-					buf.writeS(null);
-					continue;
+	// Unity GearBase.Setup reads v>=2 extensions (GearXY percent / GearDisplay2 condition)
+	// before v>=4 customEase and v>=6 GearAnimation ext.
+	if (version >= 2) {
+		if (gearType === 1) {
+			const positionsInPercent = gear.getPositionsInPercent?.() ?? false;
+			buf.writeBool(positionsInPercent);
+			if (positionsInPercent) {
+				for (let i = 0; i < pageCount; i++) {
+					const value = values[i] ?? '';
+					if (_shouldWriteNullGearPage(gearType, value)) {
+						buf.writeS(null);
+						continue;
+					}
+
+					buf.writeS(pages[i] ?? null);
+					_writeGearXYExtStatus(buf, value);
 				}
-
-				buf.writeS(pages[i] ?? null);
-				_writeGearXYExtStatus(buf, value);
+				const hasDefault = defaultStr !== '';
+				buf.writeBool(hasDefault);
+				if (hasDefault) {
+					_writeGearXYExtStatus(buf, defaultStr);
+				}
 			}
-			const hasDefault = defaultStr !== '';
-			buf.writeBool(hasDefault);
-			if (hasDefault) {
-				_writeGearXYExtStatus(buf, defaultStr);
-			}
+		} else if (gearType === 8) {
+			const condition = gear.getCondition?.() ?? 0;
+			buf.writeUint8(_numVal(condition, 0));
 		}
 	}
 
-	// GearDisplay2 condition
-	if (gearType === 8) {
-		const condition = gear.getCondition?.() ?? 0;
-		buf.writeUint8(_numVal(condition, 0));
+	if (version >= 4 && hasTween && (gear.getEaseType?.() ?? 5) === 31) {
+		_writePathData(buf, gear.getCustomEasePath?.() ?? null);
 	}
 
 	if (version >= 6 && gearType === 5) {
@@ -430,7 +455,13 @@ function _shouldWriteNullGearPage(gearType: number, valueStr: string): boolean {
 	return gearType !== 6 && gearType !== 7 && (!valueStr || valueStr === '-');
 }
 
-function _writeGearStatus(buf: WriteBuffer, gearType: number, valueStr: string, _version: number): void {
+function _writeGearStatus(
+	buf: WriteBuffer,
+	gearType: number,
+	valueStr: string,
+	_version: number,
+	context?: ResourceReferenceEncodingContext,
+): void {
 	const parts = valueStr.split(',');
 	switch (gearType) {
 		case 1: // GearXY: x,y
@@ -458,10 +489,10 @@ function _writeGearStatus(buf: WriteBuffer, gearType: number, valueStr: string, 
 			buf.writeInt32(parseInt(parts[0], 10) || 0);
 			break;
 		case 6: // GearText
-			buf.writeS(valueStr);
+			buf.writeS(context ? remapLocalUiRefsInText(context, valueStr) : valueStr);
 			break;
 		case 7: // GearIcon
-			buf.writeS(valueStr);
+			buf.writeS(context ? remapLocalUiUrl(context, valueStr) : valueStr);
 			break;
 		case 9: // GearFontSize
 			buf.writeInt32(parseInt(valueStr, 10) || 12);

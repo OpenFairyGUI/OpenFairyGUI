@@ -114,8 +114,7 @@ test('atlas: trimImage keeps fully transparent images as zero-sized sprites', as
 
 		const img = doc.createImageResource('transparent');
 		img.setId('img001').setPath('/images/');
-		img.setWidth(66).setHeight(44).setExported(true);
-		img.setExtras({ ...img.getExtras(), _fileName: 'transparent.png' });
+		img.setWidth(66).setHeight(44).setExported(true).setFileName('transparent.png');
 		pkg.addResource(img);
 
 		await doc.transform(
@@ -139,6 +138,80 @@ test('atlas: trimImage keeps fully transparent images as zero-sized sprites', as
 		t.is(sprite?.getRectHeight(), 0, 'sprite height matches CLI zero-sized trim result');
 		t.is(sprite?.getOriginalWidth(), 66, 'original width metadata is preserved');
 		t.is(sprite?.getOriginalHeight(), 44, 'original height metadata is preserved');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('atlas: image disableTrim skips transparent-edge trimming when trimImage is enabled', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-atlas-disable-trim-'));
+	const imageDir = path.join(tmpDir, 'TrimPkg', 'images');
+	try {
+		await fs.mkdir(imageDir, { recursive: true });
+		// 20x20 transparent canvas with a 4x4 opaque center at (8, 8).
+		const raw = new Uint8Array(20 * 20 * 4);
+		for (let y = 8; y < 12; y++) {
+			for (let x = 8; x < 12; x++) {
+				const offset = (y * 20 + x) * 4;
+				raw[offset] = 255;
+				raw[offset + 1] = 80;
+				raw[offset + 2] = 40;
+				raw[offset + 3] = 255;
+			}
+		}
+		const png = await sharp(raw, { raw: { width: 20, height: 20, channels: 4 } })
+			.png()
+			.toBuffer();
+		await fs.writeFile(path.join(imageDir, 'trimmed.png'), png);
+		await fs.writeFile(path.join(imageDir, 'untrimmed.png'), png);
+
+		const doc = new Document();
+		const pkg = doc.createPackage('TrimPkg').setId('trimpkg2');
+		const trimmed = doc
+			.createImageResource('trimmed')
+			.setId('imgTrim')
+			.setPath('/images/')
+			.setFileName('trimmed.png')
+			.setWidth(20)
+			.setHeight(20)
+			.setExported(true);
+		const untrimmed = doc
+			.createImageResource('untrimmed')
+			.setId('imgNoTrim')
+			.setPath('/images/')
+			.setFileName('untrimmed.png')
+			.setWidth(20)
+			.setHeight(20)
+			.setDisableTrim(true)
+			.setExported(true);
+		pkg.addResource(trimmed).addResource(untrimmed);
+
+		await doc.transform(
+			atlas({
+				encoder: sharp,
+				basePath: tmpDir,
+				outputPath: tmpDir,
+				mkdir: async (dir) => {
+					await fs.mkdir(dir, { recursive: true });
+				},
+				trimImage: true,
+				allowRotation: false,
+				powerOfTwo: true,
+				maxSize: 256,
+			}),
+		);
+
+		const sprites = pkg.listAtlases().flatMap((atlasNode) => atlasNode.listSprites());
+		const trimmedSprite = sprites.find((entry) => entry.getItemId() === 'imgTrim')!;
+		const untrimmedSprite = sprites.find((entry) => entry.getItemId() === 'imgNoTrim')!;
+		t.is(trimmedSprite.getRectWidth(), 4, 'regular image is trimmed to 4x4');
+		t.is(trimmedSprite.getRectHeight(), 4);
+		t.is(trimmedSprite.getOffsetX(), 8);
+		t.is(trimmedSprite.getOffsetY(), 8);
+		t.is(untrimmedSprite.getRectWidth(), 20, 'disableTrim image keeps untrimmed 20x20 bounds');
+		t.is(untrimmedSprite.getRectHeight(), 20);
+		t.is(untrimmedSprite.getOffsetX(), 0);
+		t.is(untrimmedSprite.getOffsetY(), 0);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
@@ -216,8 +289,7 @@ test('atlas: direct single PNG output keeps portrait sprite unrotated for Unity 
 		pkg.setId('bundle001');
 
 		const img = doc.createImageResource('sword');
-		img.setId('fou91').setPath('/').setWidth(104).setHeight(512).setExported(true);
-		img.setExtras({ ...img.getExtras(), _fileName: 'sword.png' });
+		img.setId('fou91').setPath('/').setWidth(104).setHeight(512).setExported(true).setFileName('sword.png');
 		pkg.addResource(img);
 
 		await doc.transform(
@@ -304,18 +376,23 @@ test('atlas: standalone textureSetMode and fixed page outputs use editor-style f
 			.setWidth(320)
 			.setHeight(180)
 			.setExported(true)
-			.setTextureSetMode('alone_npot');
-		cover.setExtras({ ...cover.getExtras(), _fileName: 'cover.jpg' });
+			.setTextureSetMode('alone_npot')
+			.setFileName('cover.jpg');
 		pkg.addResource(cover);
 
 		const icon = doc.createImageResource('icon');
-		icon.setId('icon01').setPath('/images/').setWidth(64).setHeight(64).setExported(true);
-		icon.setExtras({ ...icon.getExtras(), _fileName: 'icon.png' });
+		icon.setId('icon01').setPath('/images/').setWidth(64).setHeight(64).setExported(true).setFileName('icon.png');
 		pkg.addResource(icon);
 
 		const badge = doc.createImageResource('badge');
-		badge.setId('badge01').setPath('/images/').setWidth(48).setHeight(48).setExported(true).setTextureSetMode('12');
-		badge.setExtras({ ...badge.getExtras(), _fileName: 'badge.png' });
+		badge
+			.setId('badge01')
+			.setPath('/images/')
+			.setWidth(48)
+			.setHeight(48)
+			.setExported(true)
+			.setTextureSetMode('12')
+			.setFileName('badge.png');
 		pkg.addResource(badge);
 
 		await doc.transform(
@@ -348,7 +425,178 @@ test('atlas: standalone textureSetMode and fixed page outputs use editor-style f
 			['AtlasModes_atlas0.png', 'AtlasModes_atlas12.png', 'AtlasModes_atlas_cover01.jpg'],
 			'atlas nodes keep standalone and fixed-page file names',
 		);
+		const standaloneAtlas = pkg.listAtlases().find((a) => a.getFile() === 'AtlasModes_atlas_cover01.jpg');
+		t.is(standaloneAtlas?.getName(), 'atlas_cover01', 'standalone atlas uses atlas_<itemId> ID');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('atlas: external bitmap font texture attaches font sprite without writing transient extras', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-atlas-font-extras-'));
+	const pkgDir = path.join(tmpDir, 'Fonts');
+	const texPath = path.join(pkgDir, 'bitmap_font.png');
+
+	try {
+		await fs.mkdir(pkgDir, { recursive: true });
+		await sharp({
+			create: {
+				width: 64,
+				height: 64,
+				channels: 4,
+				background: { r: 255, g: 255, b: 255, alpha: 1 },
+			},
+		})
+			.png()
+			.toFile(texPath);
+
+		const doc = new Document();
+		const pkg = doc.createPackage('Fonts');
+		pkg.setId('fonts001');
+
+		const tex = doc.createImageResource('bitmap_font');
+		tex.setId('tex01').setPath('/').setWidth(64).setHeight(64).setExported(false).setFileName('bitmap_font.png');
+		pkg.addResource(tex);
+
+		const font = doc.createFontResource('score');
+		font.setId('fnt01').setPath('/').setExported(true).setTextureId('tex01').setFileName('score.fnt');
+		pkg.addResource(font);
+
+		await doc.transform(
+			atlas({
+				encoder: sharp,
+				basePath: tmpDir,
+				outputPath: tmpDir,
+				mkdir: async (dir) => {
+					await fs.mkdir(dir, { recursive: true });
+				},
+				powerOfTwo: true,
+				maxSize: 256,
+			}),
+		);
+
+		const spriteIds = pkg
+			.listAtlases()
+			.flatMap((atlasNode) => atlasNode.listSprites())
+			.map((sprite) => sprite.getItemId());
+		t.true(spriteIds.includes('tex01'), 'font texture image sprite is packed');
+		t.true(spriteIds.includes('fnt01'), 'external bitmap font alias sprite is attached via formal textureId');
+		t.false('_fontSpriteAlias' in font.getExtras(), 'font resource extras are not polluted with transient alias');
+		t.deepEqual(font.getExtras(), {}, 'font resource extras stay empty');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('atlas: folder atlas inheritance, duplicatePadding pixel extrusion, fixed-page multiPage & branch sharing, and SVG standalone png ext', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-atlas-p4-'));
+	const pkgDir = path.join(tmpDir, 'P4Pkg');
+	const nestedDir = path.join(pkgDir, 'ui', 'icons');
+	const branchNestedDir = path.join(`${tmpDir}_dev`, 'P4Pkg', 'ui', 'icons');
+	try {
+		await fs.mkdir(nestedDir, { recursive: true });
+		await fs.mkdir(branchNestedDir, { recursive: true });
+		const redPng = await sharp({
+			create: { width: 20, height: 20, channels: 4, background: { r: 255, g: 10, b: 20, alpha: 1 } },
+		})
+			.png()
+			.toBuffer();
+		const bluePng = await sharp({
+			create: { width: 20, height: 20, channels: 4, background: { r: 10, g: 20, b: 255, alpha: 1 } },
+		})
+			.png()
+			.toBuffer();
+		await fs.writeFile(path.join(nestedDir, 'a.png'), redPng);
+		await fs.writeFile(path.join(branchNestedDir, 'b.png'), bluePng);
+		await fs.writeFile(
+			path.join(pkgDir, 'vec.svg'),
+			'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#00ff00"/></svg>',
+		);
+
+		const doc = new Document();
+		doc.getRoot().setBranches(['dev']);
+		const pkg = doc.createPackage('P4Pkg').setId('p4pkg001');
+		pkg.setResourceFolders([{ branch: '', path: '/ui/', favorite: false, atlas: '2' }]);
+
+		const imgA = doc
+			.createImageResource('a')
+			.setId('imgA')
+			.setPath('/ui/icons/')
+			.setFileName('a.png')
+			.setWidth(20)
+			.setHeight(20)
+			.setDuplicatePadding(true)
+			.setExported(true);
+		const imgB = doc
+			.createImageResource('b')
+			.setId('imgB')
+			.setBranch('dev')
+			.setPath('/ui/icons/')
+			.setFileName('b.png')
+			.setWidth(20)
+			.setHeight(20)
+			.setExported(true);
+		const svg = doc
+			.createImageResource('vec')
+			.setId('svg01')
+			.setPath('/')
+			.setFileName('vec.svg')
+			.setWidth(16)
+			.setHeight(16)
+			.setTextureSetMode('alone_npot')
+			.setExported(true);
+		pkg.addResource(imgA).addResource(imgB).addResource(svg);
+
+		// Max size 32 forces fixed page 2 (20x20 + 20x20) to spill onto a second overflow page via multiPage=true.
+		await doc.transform(
+			atlas({
+				encoder: sharp,
+				basePath: tmpDir,
+				outputPath: tmpDir,
+				mkdir: async (dir) => {
+					await fs.mkdir(dir, { recursive: true });
+				},
+				maxSize: 32,
+				padding: 2,
+				powerOfTwo: false,
+				multiPage: true,
+				separatedAtlasForBranch: false,
+			}),
+		);
+
+		const atlases = pkg.listAtlases();
+		const svgAtlas = atlases.find((entry) => entry.getName() === 'atlas_svg01');
+		t.truthy(svgAtlas, 'standalone SVG uses atlas_<itemId> name');
+		t.is(svgAtlas?.getFile(), 'P4Pkg_atlas_svg01.png', 'standalone SVG uses .png raster output extension');
+
+		// Both imgA (main) and imgB (dev) inherited /ui/ -> atlas '2', shared the fixed group, and spilled to overflow page.
+		const fixedPrimary = atlases.find((entry) => entry.getFile() === 'P4Pkg_atlas2.png');
+		const fixedOverflow = atlases.find((entry) => entry.getFile() === 'P4Pkg_atlas2_1.png');
+		t.truthy(fixedPrimary, 'ancestor folder atlas="2" placed images on fixed page 2');
+		t.truthy(fixedOverflow, 'fixed page group honors multiPage=true and creates overflow page without colliding');
+
+		// Verify duplicatePadding actually extruded 1px red border around imgA.
+		const imgAAtlas = atlases.find((entry) => entry.listSprites().some((sp) => sp.getItemId() === 'imgA'))!;
+		const spriteA = imgAAtlas.listSprites().find((sp) => sp.getItemId() === 'imgA')!;
+		const { data, info } = await sharp(path.join(tmpDir, imgAAtlas.getFile()))
+			.ensureAlpha()
+			.raw()
+			.toBuffer({ resolveWithObject: true });
+		const pixelAt = (px: number, py: number) => {
+			const offset = (py * info.width + px) * info.channels;
+			return [data[offset], data[offset + 1], data[offset + 2], data[offset + 3]];
+		};
+		const x = spriteA.getRectX();
+		const y = spriteA.getRectY();
+		const w = spriteA.getRectWidth();
+		const h = spriteA.getRectHeight();
+		t.true(x >= 1 && y >= 1, 'duplicatePadding sprite is offset by >=1px');
+		t.deepEqual(pixelAt(x - 1, y), [255, 10, 20, 255], 'left edge pixel duplicated');
+		t.deepEqual(pixelAt(x + w, y), [255, 10, 20, 255], 'right edge pixel duplicated');
+		t.deepEqual(pixelAt(x, y - 1), [255, 10, 20, 255], 'top edge pixel duplicated');
+		t.deepEqual(pixelAt(x, y + h), [255, 10, 20, 255], 'bottom edge pixel duplicated');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+		await fs.rm(`${tmpDir}_dev`, { recursive: true, force: true });
 	}
 });

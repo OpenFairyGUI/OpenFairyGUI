@@ -80,7 +80,7 @@ export class GImage extends GObject<IGImage, PropertyType.G_IMAGE> {
 			fillMethod: FillMethod.None,
 			fillOrigin: FillOrigin.Top,
 			fillClockwise: true,
-			fillAmount: 100,
+			fillAmount: 1,
 		});
 	}
 

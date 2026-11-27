@@ -185,6 +185,7 @@ test('MCP P0 tool annotations reflect backend side effects and non-goals', (t) =
 		'getSession',
 		'getProjectOutline',
 		'queryEntity',
+		'queryDisplayNodes',
 		'readSessionState',
 		'readResourceBytes',
 		'validateSession',
@@ -257,6 +258,13 @@ test('MCP P0 direct tool handler can call every backend P2 method without redefi
 			},
 		});
 		t.true(entity.ok);
+		const filtered = await callTool(runtime, 'openfairygui_backend_query_display_nodes', {
+			sessionId,
+			selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
+			filter: { kind: 'text', name: 'title' },
+		});
+		t.true(filtered.ok);
+		t.is((filtered.data as { nodes: Array<{ id: string }> }).nodes[0]?.id, 'n1');
 		const validation = await callTool(runtime, 'openfairygui_backend_validate_session', { sessionId });
 		t.true(validation.ok);
 

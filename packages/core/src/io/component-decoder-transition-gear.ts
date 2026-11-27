@@ -47,9 +47,10 @@ export function decodeChildBlock3(
 	resource: ReturnType<Document['createComponent']>,
 	child: ComponentDisplayObject,
 	childBuf: ByteBuffer,
+	rawChildIds?: string[],
 ): void {
 	if (!childBuf.seek(0, 3) || remainingBytes(childBuf) < 1) return;
-	const childIds = resource.listChildren().map((entry) => entry.getId());
+	const childIds = rawChildIds ?? resource.listChildren().map((entry) => entry.getId());
 	decodeRelationBlock(childBuf, childIds, (relation) => child.addRelation(relation));
 }
 
@@ -89,7 +90,7 @@ function readTransitionValue(actionType: number, buf: ByteBuffer, version: numbe
 			const hasY = buf.readBool();
 			const value1 = buf.getFloat32();
 			const value2 = buf.getFloat32();
-			const positionsInPercent = buf.readBool();
+			const positionsInPercent = version >= 2 ? buf.readBool() : false;
 			if (positionsInPercent) {
 				return [hasX ? '0' : '-', hasY ? '0' : '-', formatBinaryNumber(value1), formatBinaryNumber(value2)];
 			}
@@ -151,12 +152,13 @@ export function decodeComponentTransitions(
 	doc: Document,
 	resource: ReturnType<Document['createComponent']>,
 	buf: ByteBuffer,
+	rawChildIds?: string[],
 ): void {
 	if (!buf.seek(0, 5) || remainingBytes(buf) < 2) return;
 	const transitionCount = buf.getInt16();
-	const childIds = resource.listChildren().map((child) => child.getId());
+	const childIds = rawChildIds ?? resource.listChildren().map((child) => child.getId());
 	for (let transitionIndex = 0; transitionIndex < transitionCount && remainingBytes(buf) >= 2; transitionIndex += 1) {
-		const chunkSize = buf.getInt16();
+		const chunkSize = buf.getUint16();
 		const nextPos = buf.pos + chunkSize;
 		const transition = doc.createTransition(buf.readS() ?? `transition${transitionIndex}`);
 		transition
@@ -181,7 +183,7 @@ export function decodeComponentTransitions(
 					.setTween(itemBuf.readBool());
 			}
 
-			if (item.getTween() && itemBuf.seek(0, 1) && remainingBytes(itemBuf) >= 14) {
+			if (item.getTween() && itemBuf.seek(0, 1) && remainingBytes(itemBuf) >= 12) {
 				item.setDuration(itemBuf.getFloat32() * transition.getFps())
 					.setEaseType(itemBuf.getUint8())
 					.setRepeat(itemBuf.getInt32())

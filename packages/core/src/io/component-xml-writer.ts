@@ -15,6 +15,7 @@ import {
 	getProtocolChildName,
 	hasNonZeroInsets,
 } from './project-xml-writer-utils.js';
+import { serializeRelationsXml } from './display-object-xml-behaviors-writer.js';
 import { serializeDisplayList } from './display-object-xml-writer.js';
 import type { FileSystem } from './file-system.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr } from './project-xml-protocol.js';
@@ -86,7 +87,7 @@ function formatTransitionFrameValue(value: number): string {
 	return formatTrimmedFixed(value, 3);
 }
 
-function formatTransitionValuePart(actionType: number, raw: string): string {
+function formatTransitionValuePart(actionType: number, raw: string, partIndex: number): string {
 	if (!raw || raw === '-' || raw === 'true' || raw === 'false' || raw === 'p' || raw === 's') {
 		return raw;
 	}
@@ -96,6 +97,8 @@ function formatTransitionValuePart(actionType: number, raw: string): string {
 		case TransitionActionType.Alpha:
 		case TransitionActionType.ColorFilter:
 			return numeric.toFixed(2);
+		case TransitionActionType.XY:
+			return partIndex >= 2 ? formatTrimmedFixed(numeric, 3) : formatTrimmedFixed(numeric);
 		default:
 			return formatTrimmedFixed(numeric);
 	}
@@ -103,6 +106,9 @@ function formatTransitionValuePart(actionType: number, raw: string): string {
 
 function stringifyTransitionValue(actionType: number, values: unknown[]): string {
 	const parts = values.map((value) => String(value));
+	if (actionType === TransitionActionType.Text || actionType === TransitionActionType.Icon) {
+		return parts.join(',');
+	}
 	if (actionType === 9) {
 		if (parts.length <= 1) return parts[0] ?? '';
 		if (parts[1] === '100') return parts[0] ?? '';
@@ -111,7 +117,7 @@ function stringifyTransitionValue(actionType: number, values: unknown[]): string
 		if (parts.length <= 1) return parts[0] ?? '';
 		if (parts[1] === '1') return parts[0] ?? '';
 	}
-	return parts.map((part) => formatTransitionValuePart(actionType, part)).join(',');
+	return parts.map((part, index) => formatTransitionValuePart(actionType, part, index)).join(',');
 }
 
 type WritableComponent = Component & {
@@ -288,23 +294,23 @@ export async function writeComponent(
 	if (mask) {
 		writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.mask, mask);
 		if (typedComp.getReversedMask?.())
-			writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.reversedMask, '1');
+			writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.reversedMask, 'true');
 	}
 	const hitTest = typedComp.getHitTest?.();
 	if (hitTest) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.hitTest, hitTest);
 	const customData = typedComp.getCustomData?.();
 	if (customData) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.customData, customData);
+	const scrollTypeName: Record<number, string> = { 0: 'horizontal', 1: 'vertical', 2: 'both' };
+	const scrollBarName: Record<number, string> = { 0: 'default', 1: 'visible', 2: 'auto', 3: 'hidden' };
+	const scrollType = typedComp.getScrollType?.() ?? 1;
+	if (scrollType !== 1) {
+		writeXmlAttr(
+			compAttrs,
+			PROJECT_XML_PROTOCOL.componentRoot.attrs.scroll,
+			scrollTypeName[scrollType] ?? 'vertical',
+		);
+	}
 	if (overflow === 2) {
-		const scrollTypeName: Record<number, string> = { 0: 'horizontal', 1: 'vertical', 2: 'both' };
-		const scrollBarName: Record<number, string> = { 0: 'default', 1: 'visible', 2: 'auto', 3: 'hidden' };
-		const scrollType = typedComp.getScrollType?.() ?? 1;
-		if (scrollType !== 1) {
-			writeXmlAttr(
-				compAttrs,
-				PROJECT_XML_PROTOCOL.componentRoot.attrs.scroll,
-				scrollTypeName[scrollType] ?? 'vertical',
-			);
-		}
 		const scrollBarDisplay = typedComp.getScrollBarDisplay?.() ?? 0;
 		if (scrollBarDisplay !== 0) {
 			writeXmlAttr(
@@ -316,26 +322,26 @@ export async function writeComponent(
 		const scrollBarFlags = typedComp.getScrollBarFlags?.() ?? 0;
 		if (scrollBarFlags !== 0)
 			writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarFlags, String(scrollBarFlags));
-		const scrollBarMargin = typedComp.getScrollBarMargin?.();
-		if (hasNonZeroInsets(scrollBarMargin))
-			writeXmlAttr(
-				compAttrs,
-				PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarMargin,
-				formatInsets(scrollBarMargin!, 'component scrollBarMargin'),
-			);
-		const vtScrollBarRes = typedComp.getVtScrollBarRes?.() ?? '';
-		const hzScrollBarRes = typedComp.getHzScrollBarRes?.() ?? '';
-		if (vtScrollBarRes || hzScrollBarRes)
-			writeXmlAttr(
-				compAttrs,
-				PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarRes,
-				`${vtScrollBarRes},${hzScrollBarRes}`,
-			);
-		const headerRes = typedComp.getHeaderRes?.() ?? '';
-		const footerRes = typedComp.getFooterRes?.() ?? '';
-		if (headerRes || footerRes)
-			writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.ptrRes, `${headerRes},${footerRes}`);
 	}
+	const scrollBarMargin = typedComp.getScrollBarMargin?.();
+	if (hasNonZeroInsets(scrollBarMargin))
+		writeXmlAttr(
+			compAttrs,
+			PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarMargin,
+			formatInsets(scrollBarMargin!, 'component scrollBarMargin'),
+		);
+	const vtScrollBarRes = typedComp.getVtScrollBarRes?.() ?? '';
+	const hzScrollBarRes = typedComp.getHzScrollBarRes?.() ?? '';
+	if (vtScrollBarRes || hzScrollBarRes)
+		writeXmlAttr(
+			compAttrs,
+			PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarRes,
+			`${vtScrollBarRes},${hzScrollBarRes}`,
+		);
+	const headerRes = typedComp.getHeaderRes?.() ?? '';
+	const footerRes = typedComp.getFooterRes?.() ?? '';
+	if (headerRes || footerRes)
+		writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.ptrRes, `${headerRes},${footerRes}`);
 
 	const extType = typedComp.getExtensionType?.() ?? '';
 	if (extType) writeXmlAttr(compAttrs, PROJECT_XML_PROTOCOL.componentRoot.attrs.extention, extType);
@@ -436,6 +442,12 @@ export async function writeComponent(
 		if (rootExtensionChildName) {
 			compNode[rootExtensionChildName] = Object.keys(extAttrs).length > 0 ? extAttrs : '';
 		}
+	}
+
+	const relationChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.componentRoot, 'relation');
+	const relElements = serializeRelationsXml(comp.getRelations());
+	if (relElements.length > 0 && relationChildName) {
+		compNode[relationChildName] = relElements;
 	}
 
 	const xmlObj = {

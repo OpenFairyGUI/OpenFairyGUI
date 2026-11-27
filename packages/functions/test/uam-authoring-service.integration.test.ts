@@ -80,7 +80,7 @@ function createSupportedProject(): UamProject {
 									fillMethod: 0,
 									fillOrigin: 0,
 									fillClockwise: true,
-									fillAmount: 100,
+									fillAmount: 1,
 									id: 'n0',
 									name: 'bg',
 									position: { x: 0, y: 0 },

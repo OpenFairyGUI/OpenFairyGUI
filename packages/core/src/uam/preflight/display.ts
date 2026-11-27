@@ -21,7 +21,7 @@ import type {
 	SetDisplayNodePropsOperation,
 	UamTransactionSupportIssue,
 } from '../transaction-contracts.js';
-import { findDisplayNodeSpec, GROUPABLE_DISPLAY_NODE_KINDS, TEXT_DISPLAY_NODE_KINDS } from '../transaction-shared.js';
+import { findDisplayNodeSpec, TEXT_DISPLAY_NODE_KINDS } from '../transaction-shared.js';
 import { applyDisplayNodePropsUpdate } from '../property-updates.js';
 import { pushSupportIssue } from './support.js';
 import { hasExactKeys, isFiniteNumber, stableJson, isIntegerBetween, describeValue } from './values.js';
@@ -246,8 +246,9 @@ function isValidLoaderProperties(value: unknown): value is UamLoaderProperties {
 		isIntegerBetween(properties.fillMethod, 0, 5) &&
 		isIntegerBetween(properties.fillOrigin, 0, 3) &&
 		isFiniteNumber(properties.fillAmount) &&
-		(properties.fillMethod !== 0 ||
-			(properties.fillOrigin === 0 && properties.fillClockwise && properties.fillAmount === 100))
+		(properties.fillMethod === 0
+			? properties.fillOrigin === 0 && properties.fillClockwise && properties.fillAmount === 1
+			: properties.fillAmount >= 0 && properties.fillAmount <= 1)
 	);
 }
 
@@ -457,7 +458,21 @@ export function validateDisplayPropsPayload(
 	}
 	if (
 		op.props.blendMode !== undefined &&
-		!['normal', 'none', 'add', 'multiply', 'screen', 'erase'].includes(op.props.blendMode)
+		![
+			'normal',
+			'none',
+			'add',
+			'multiply',
+			'screen',
+			'erase',
+			'mask',
+			'below',
+			'off',
+			'one_oneminussrcalpha',
+			'custom1',
+			'custom2',
+			'custom3',
+		].includes(op.props.blendMode)
 	) {
 		commonValueIssue('blendMode', `Unsupported display node blendMode "${describeValue(op.props.blendMode)}".`);
 	}
@@ -499,15 +514,7 @@ export function validateDisplayPropsPayload(
 			continue;
 		}
 		if (key === 'group') {
-			if (nodeKind && !GROUPABLE_DISPLAY_NODE_KINDS.has(nodeKind)) {
-				pushSupportIssue(
-					issues,
-					'unsupported_display_node_field',
-					`${path}.props.group`,
-					'Group references are not supported on loader or loader3D display nodes.',
-					{ operationKind: op.kind, nodeKind, field: key },
-				);
-			} else if (typeof op.props.group !== 'string') {
+			if (typeof op.props.group !== 'string') {
 				pushSupportIssue(
 					issues,
 					'invalid_display_node_payload',

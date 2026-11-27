@@ -303,21 +303,25 @@ async function reference(config, configPath) {
 			const pkg = outline.packages.find((entry) => entry.name === 'Main');
 			const resource = pkg.resources.find((entry) => entry.name === 'MainView');
 			let target = { kind: 'resource', selector: { packageId: pkg.id, resourceId: resource.id } };
+			let expectedRevision;
 			if (['edit-display-node', 'compound-edit'].includes(config.task.id)) {
-				const matches = [];
-				for (const node of resource.component.displayList.filter((node) => node.name === 'title')) {
-					const candidate = {
-						kind: 'displayNode',
-						selector: { packageId: pkg.id, componentResourceId: resource.id, displayNodeId: node.id },
-					};
-					if (
-						data(await call('queryEntity', { sessionId, target: candidate })).entity.properties.text ===
-						'Hello OpenFairyGUI'
-					)
-						matches.push(candidate);
-				}
-				assert.equal(matches.length, 1);
-				target = matches[0];
+				const filtered = data(
+					await call('queryDisplayNodes', {
+						sessionId,
+						selector: { packageId: pkg.id, componentResourceId: resource.id },
+						filter: { kind: 'text', name: 'title', text: 'Hello OpenFairyGUI' },
+					}),
+				);
+				assert.equal(filtered.nodes.length, 1);
+				expectedRevision = filtered.revision;
+				target = {
+					kind: 'displayNode',
+					selector: {
+						packageId: pkg.id,
+						componentResourceId: resource.id,
+						displayNodeId: filtered.nodes[0].id,
+					},
+				};
 			}
 			if (config.task.id === 'edit-controller')
 				target = {
@@ -329,7 +333,8 @@ async function reference(config, configPath) {
 					kind: 'transition',
 					selector: { packageId: pkg.id, componentResourceId: resource.id, transitionName: 'intro' },
 				};
-			const current = data(await call('queryEntity', { sessionId, target }));
+			const current =
+				expectedRevision === undefined ? data(await call('queryEntity', { sessionId, target })) : null;
 			let operation = ['edit-display-node', 'compound-edit'].includes(config.task.id)
 				? {
 						kind: 'setDisplayNodeProps',
@@ -351,7 +356,11 @@ async function reference(config, configPath) {
 				Object.assign(items[0], { duration: 18, endValue: [120, 64] });
 				operation = { kind: 'updateTransition', selector: target.selector, transition };
 			}
-			const input = { sessionId, expectedRevision: current.revision, operations: [operation] };
+			const input = {
+				sessionId,
+				expectedRevision: expectedRevision ?? current.revision,
+				operations: [operation],
+			};
 			data(await call('preflightTransaction', input));
 			let applied = await call('applyTransaction', input);
 			if (!applied.ok && applied.error.code === 'stale_write') {

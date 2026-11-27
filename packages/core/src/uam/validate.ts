@@ -74,8 +74,21 @@ const IMAGE_RESOURCE_PROPERTY_KEYS = [
 	'tileGridIndice',
 ] as const satisfies readonly (keyof UamImageResourceProperties)[];
 
+const IMAGE_RESOURCE_OPTIONAL_KEYS = ['disableTrim'] as const satisfies readonly (keyof UamImageResourceProperties)[];
+
 export function isValidUamImageResourceProperties(value: unknown): value is UamImageResourceProperties {
-	if (typeof value !== 'object' || value === null || !hasExactKeys(value, IMAGE_RESOURCE_PROPERTY_KEYS)) return false;
+	if (typeof value !== 'object' || value === null) return false;
+	const keys = Object.keys(value);
+	if (
+		!IMAGE_RESOURCE_PROPERTY_KEYS.every((key) => Object.hasOwn(value, key)) ||
+		!keys.every(
+			(key) =>
+				(IMAGE_RESOURCE_PROPERTY_KEYS as readonly string[]).includes(key) ||
+				(IMAGE_RESOURCE_OPTIONAL_KEYS as readonly string[]).includes(key),
+		)
+	) {
+		return false;
+	}
 	const properties = value as UamImageResourceProperties;
 	if (
 		typeof properties.textureSetMode !== 'string' ||
@@ -85,6 +98,7 @@ export function isValidUamImageResourceProperties(value: unknown): value is UamI
 		properties.quality > 100 ||
 		typeof properties.smoothing !== 'boolean' ||
 		typeof properties.duplicatePadding !== 'boolean' ||
+		(properties.disableTrim !== undefined && typeof properties.disableTrim !== 'boolean') ||
 		![0, 1, 2].includes(properties.scaleOption) ||
 		!Number.isInteger(properties.tileGridIndice) ||
 		properties.tileGridIndice < 0 ||
@@ -112,6 +126,10 @@ const MOVIE_CLIP_RESOURCE_PROPERTY_KEYS = [
 	'frames',
 ] as const satisfies readonly (keyof UamMovieClipResourceProperties)[];
 
+const MOVIE_CLIP_RESOURCE_OPTIONAL_KEYS = [
+	'textureSetMode',
+] as const satisfies readonly (keyof UamMovieClipResourceProperties)[];
+
 const MOVIE_CLIP_FRAME_KEYS = [
 	'rectX',
 	'rectY',
@@ -122,10 +140,21 @@ const MOVIE_CLIP_FRAME_KEYS = [
 ] as const satisfies readonly (keyof UamMovieClipResourceProperties['frames'][number])[];
 
 export function isValidUamMovieClipResourceProperties(value: unknown): value is UamMovieClipResourceProperties {
-	if (typeof value !== 'object' || value === null || !hasExactKeys(value, MOVIE_CLIP_RESOURCE_PROPERTY_KEYS))
+	if (typeof value !== 'object' || value === null) return false;
+	const keys = Object.keys(value);
+	if (
+		!MOVIE_CLIP_RESOURCE_PROPERTY_KEYS.every((key) => Object.hasOwn(value, key)) ||
+		!keys.every(
+			(key) =>
+				(MOVIE_CLIP_RESOURCE_PROPERTY_KEYS as readonly string[]).includes(key) ||
+				(MOVIE_CLIP_RESOURCE_OPTIONAL_KEYS as readonly string[]).includes(key),
+		)
+	) {
 		return false;
+	}
 	const properties = value as UamMovieClipResourceProperties;
 	if (
+		(properties.textureSetMode !== undefined && typeof properties.textureSetMode !== 'string') ||
 		!Number.isInteger(properties.interval) ||
 		properties.interval < 0 ||
 		!Number.isInteger(properties.repeatDelay) ||
@@ -574,7 +603,23 @@ function validateDisplayNode(
 	if (![node.tooltips, node.filter, node.filterData, node.customData].every((value) => typeof value === 'string')) {
 		pushIssue(issues, path, 'Display node tooltips, filter, filterData, and customData must be strings.');
 	}
-	if (!['normal', 'none', 'add', 'multiply', 'screen', 'erase'].includes(node.blendMode)) {
+	if (
+		![
+			'normal',
+			'none',
+			'add',
+			'multiply',
+			'screen',
+			'erase',
+			'mask',
+			'below',
+			'off',
+			'one_oneminussrcalpha',
+			'custom1',
+			'custom2',
+			'custom3',
+		].includes(node.blendMode)
+	) {
 		pushIssue(
 			issues,
 			`${path}.blendMode`,
@@ -605,7 +650,17 @@ function validateDisplayNode(
 			pushIssue(issues, `${path}.pivotAsAnchor`, 'Display node pivotAsAnchor must be boolean.');
 		}
 	}
-	if (node.kind === 'component' && node.fileName !== undefined && typeof node.fileName !== 'string') {
+	if (
+		(node.kind === 'component' ||
+			node.kind === 'button' ||
+			node.kind === 'label' ||
+			node.kind === 'comboBox' ||
+			node.kind === 'progressBar' ||
+			node.kind === 'slider' ||
+			node.kind === 'scrollBar') &&
+		node.fileName !== undefined &&
+		typeof node.fileName !== 'string'
+	) {
 		pushIssue(issues, `${path}.fileName`, 'Component file name hint must be a string.');
 	}
 	if (
@@ -697,24 +752,14 @@ function validateDisplayNode(
 	) {
 		pushIssue(issues, path, 'MovieClip properties must be a complete valid property snapshot.');
 	}
-	if (node.kind === 'loader' || node.kind === 'loader3D') {
-		if ('group' in node) {
-			pushIssue(
-				issues,
-				`${path}.group`,
-				`${describeValue(node.kind)} display nodes must not declare a group reference.`,
-			);
-		}
-	} else {
-		if (!('group' in node) || typeof node.group !== 'string') {
-			pushIssue(issues, `${path}.group`, 'Display node group must be a string.');
-		} else if (node.group && (node.group === node.id || !knownGroupIds.has(node.group))) {
-			pushIssue(
-				issues,
-				`${path}.group`,
-				`Group reference "${describeValue(node.group)}" must target another group in the same component.`,
-			);
-		}
+	if (!('group' in node) || typeof node.group !== 'string') {
+		pushIssue(issues, `${path}.group`, 'Display node group must be a string.');
+	} else if (node.group && (node.group === node.id || !knownGroupIds.has(node.group))) {
+		pushIssue(
+			issues,
+			`${path}.group`,
+			`Group reference "${describeValue(node.group)}" must target another group in the same component.`,
+		);
 	}
 	const gearKinds = new Set<UamGearBinding['kind']>();
 	for (const [gearIndex, gear] of node.gears.entries()) {
@@ -869,6 +914,15 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 					pushIssue(issues, `${childPath}.id`, `Duplicate child id "${describeValue(child.id)}".`);
 				childIds.add(child.id);
 				if (child.kind === 'group') groupIds.add(child.id);
+			}
+			for (const [relationIndex, relation] of (component.relations ?? []).entries()) {
+				if (relation.targetNodeId && !childIds.has(relation.targetNodeId)) {
+					pushIssue(
+						issues,
+						`${resourcePath}.component.relations[${relationIndex}]`,
+						`Unknown relation target node id "${describeValue(relation.targetNodeId)}".`,
+					);
+				}
 			}
 
 			const controllerMap = new Map<string, UamControllerModel>();

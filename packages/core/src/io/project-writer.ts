@@ -50,7 +50,6 @@ type WritableResource = PackageResource & {
 	getBranchItemIds?(): string[];
 	getExported?(): boolean;
 	getFavorite?(): boolean;
-	getExtras?(): Record<string, unknown>;
 };
 
 type WritableImageResource = WritableResource & {
@@ -65,7 +64,7 @@ type WritableImageResource = WritableResource & {
 	getTileGridIndice?(): number;
 	getSmoothing?(): boolean;
 	getDuplicatePadding?(): boolean;
-	getExtras?(): Record<string, unknown>;
+	getDisableTrim?(): boolean;
 };
 
 type WritableFontResource = WritableResource & {
@@ -784,7 +783,7 @@ export class ProjectWriter {
 			if (res.propertyType === 'ImageResource') {
 				const imgRes = res as WritableImageResource;
 				const textureSetMode = imgRes.getTextureSetMode?.() ?? '';
-				if (textureSetMode)
+				if (textureSetMode && textureSetMode !== 'default')
 					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.atlas, textureSetMode);
 				const scaleOpt = imgRes.getScaleOption?.() ?? 0;
 				if (scaleOpt === 1) {
@@ -811,7 +810,7 @@ export class ProjectWriter {
 				if (gridTile !== 0)
 					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.gridTile, String(gridTile));
 				const qualityOption = imgRes.getQualityOption?.() ?? '';
-				if (qualityOption)
+				if (qualityOption && qualityOption !== 'default')
 					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.qualityOption, qualityOption);
 				if (qualityOption === 'custom') {
 					writeXmlAttr(
@@ -822,6 +821,8 @@ export class ProjectWriter {
 				}
 				if (imgRes.getDuplicatePadding?.())
 					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.duplicatePadding, 'true');
+				if (imgRes.getDisableTrim?.())
+					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.disableTrim, 'true');
 				if (imgRes.getSmoothing?.() === false)
 					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageImageResource.attrs.smoothing, 'false');
 			}
@@ -846,7 +847,7 @@ export class ProjectWriter {
 			if (res.propertyType === 'MovieClipResource') {
 				const movieClipRes = res as WritableMovieClipResource;
 				const textureSetMode = movieClipRes.getTextureSetMode?.() ?? '';
-				if (textureSetMode)
+				if (textureSetMode && textureSetMode !== 'default')
 					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageMovieClipResource.attrs.atlas, textureSetMode);
 				if (movieClipRes.getSmoothing?.() === false)
 					writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.packageMovieClipResource.attrs.smoothing, 'false');
@@ -949,6 +950,11 @@ export class ProjectWriter {
 			10: 'CryEngine',
 			11: 'MonoGame',
 			12: 'Vision',
+			13: 'Cocos2dx',
+			14: 'Corona',
+			15: 'ThreeJS',
+			16: 'CreateJS',
+			17: 'DOM',
 		};
 		if (names[type] === undefined) throw new ProjectIOError(`Unsupported project type "${type}".`);
 		return names[type];

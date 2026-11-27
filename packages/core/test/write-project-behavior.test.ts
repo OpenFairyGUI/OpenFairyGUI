@@ -430,7 +430,7 @@ test('round-trip: component extension definition and instance extension attrs su
 		t.true(hostXml.includes('titleColor="#ffcc00"'), 'button instance writes canonical titleColor attr');
 		t.true(hostXml.includes('titleFontSize="24"'), 'button instance writes canonical titleFontSize attr');
 		t.true(hostXml.includes('page="1"'), 'button instance writes canonical page attr');
-		t.true(hostXml.includes('checked="1"'), 'button instance writes canonical checked attr');
+		t.true(hostXml.includes('checked="true"'), 'button instance writes canonical checked attr');
 		t.regex(
 			hostXml,
 			/<Button\b[^>]*sound="ui:\/\/pkg005\/click"[^>]*volume="45"/,

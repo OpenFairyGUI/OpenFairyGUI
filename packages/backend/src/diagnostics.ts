@@ -278,7 +278,15 @@ export const BACKEND_DIAGNOSTIC_GUIDES = [
 	{ code: 'path_collision', owners: ['core.validation'], remediation: path },
 	{ code: 'unsafe_path', owners: ['core.validation'], remediation: path },
 	{ code: 'capability_unavailable', owners: ['backend'], remediation: capability },
-	{ code: 'uam_fidelity_unsupported', owners: ['backend'], remediation: capability },
+	{
+		code: 'uam_fidelity_unsupported',
+		owners: ['backend'],
+		remediation: {
+			kind: 'host-action',
+			message:
+				'Inspect uamFidelityReport on the session snapshot or error.fidelityReport and meta.diagnostics for the failure reason and differing project paths. Preserve the session and unsaved work; do not substitute a lossy save path or bypass fidelity checks.',
+		},
+	},
 	{ code: 'save_partial_failure', owners: ['backend'], remediation: write },
 	{ code: 'write_failed', owners: ['backend'], remediation: write },
 	{ code: 'project_open_failed', owners: ['backend'], remediation: project },

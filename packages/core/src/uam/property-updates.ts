@@ -30,9 +30,6 @@ export function applyDisplayNodePropsUpdate(node: UamDisplayNode, props: UamDisp
 	if (props.filterData !== undefined) node.filterData = props.filterData;
 	if (props.customData !== undefined) node.customData = props.customData;
 	if (props.group !== undefined) {
-		if (!('group' in node)) {
-			throw new Error(`Group references are not supported on display node kind "${node.kind}".`);
-		}
 		node.group = props.group;
 	}
 

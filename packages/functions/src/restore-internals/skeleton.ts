@@ -18,6 +18,12 @@ import {
 	type RestoreResource,
 } from './resource-paths.js';
 
+const looseRestoreImages = new WeakSet<ImageResource>();
+
+export function isLooseRestoreImage(resource: RestoreResource): boolean {
+	return resource.propertyType === 'ImageResource' && looseRestoreImages.has(resource);
+}
+
 export async function synthesizeLooseSkeletonResources(
 	fs: RestoreFileSystem,
 	doc: Document,
@@ -169,10 +175,7 @@ async function ensureLooseImageResource(
 	if (!sourcePath) return existing ?? null;
 	if (existing) {
 		existing.setPublishedFile(fileBaseName(sourcePath));
-		existing.setExtras({
-			...(existing.getExtras() ?? {}),
-			_restoreAsLooseImage: true,
-		});
+		looseRestoreImages.add(existing);
 		return existing;
 	}
 	const resource = doc.createImageResource(stripExtension(fileName));
@@ -184,10 +187,7 @@ async function ensureLooseImageResource(
 		.setExported(false)
 		.setFileName(fileName);
 	resource.setPublishedFile(fileBaseName(sourcePath));
-	resource.setExtras({
-		...(resource.getExtras() ?? {}),
-		_restoreAsLooseImage: true,
-	});
+	looseRestoreImages.add(resource);
 	ProjectWriter.setImageWriteHints(resource, { omitPackageSize: true });
 	pkg.addResource(resource);
 	return resource;

@@ -8,8 +8,8 @@ import {
 	resolveFontPath,
 	resolveImageFileName,
 	resolveImagePath,
+	resolveMovieClipPath,
 } from '../publish/package-context.js';
-import type { ExtrasMap } from '../shared-types.js';
 import { parseFnt } from './font.js';
 import { prepareJtaForPublish, type PreparedJtaData } from './jta.js';
 
@@ -40,15 +40,6 @@ export function getPublishedItemId(
 	publishedResources?: ReadonlyMap<PackageResource, string>,
 ): string {
 	return publishedResources?.get(resource) ?? resource.getId();
-}
-
-interface FontSpriteAlias {
-	fontId: string;
-	textureId: string;
-}
-
-export interface FontResourceExtras extends ExtrasMap {
-	_fontSpriteAlias?: FontSpriteAlias;
 }
 
 /**
@@ -167,9 +158,7 @@ export interface PagedAtlasGroup {
 }
 
 export function resolveMovieClipSourcePath(resource: MovieClipResource, pkg: Package, basePath: string): string {
-	const fileName = `${resource.getName()}.jta`;
-	const resourcePath = resource.getPath() ?? '/';
-	return `${basePath}/${pkg.getName()}${resourcePath}${fileName}`;
+	return resolveMovieClipPath(resource, pkg, basePath);
 }
 
 export async function prepareMovieClipResource(
@@ -252,7 +241,7 @@ export async function collectImage(
 		offY = 0;
 	let trimBuf: Uint8Array | undefined;
 
-	if (doTrim && sourceHasAlpha && options.basePath && encoder) {
+	if (doTrim && !resource.getDisableTrim?.() && sourceHasAlpha && options.basePath && encoder) {
 		const filePath = resolveImagePath(resource, pkg, options.basePath);
 		try {
 			const trimResult = await _trimImage(encoder, rasterizedBuffer ?? filePath, origW, origH);
@@ -303,7 +292,7 @@ export async function collectMovieClipFrames(
 		throw new Error(`atlas: MovieClip "${resource.getId()}" requires an encoder for complete raster output.`);
 	}
 
-	const mcId = resource.getId();
+	const mcId = getPublishedItemId(resource, options.publishResources);
 	const filePath = resolveMovieClipSourcePath(resource, pkg, options.basePath);
 
 	try {
@@ -365,15 +354,6 @@ export async function collectFontTexture(
 	options: AtlasOptions,
 ): Promise<void> {
 	if (fontRes.isExternalFont()) return;
-	const textureId = fontRes.getTextureId?.() ?? '';
-
-	if (textureId) {
-		// Record font→texture mapping so we can add a duplicate sprite entry
-		// after atlas packing. The editor stores both the image ID (jb800) and
-		// the font ID (wa8u2r) as separate sprites at the same atlas position.
-		const fontId = fontRes.getId();
-		fontRes.setExtras({ ...fontRes.getExtras(), _fontSpriteAlias: { fontId, textureId } });
-	}
 
 	// Parse .fnt file for glyph data (needed for binary encoding)
 	// Bitmap fonts may reference individual glyph images without a textureId.

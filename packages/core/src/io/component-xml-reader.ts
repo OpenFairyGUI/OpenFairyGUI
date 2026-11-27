@@ -1,6 +1,6 @@
 import { ProjectIOError } from './errors.js';
 import { getXmlNode } from '../utils/xml-utils.js';
-import { ControllerActionType } from '../constants.js';
+import { ControllerActionType, type RelationDef, TransitionActionType } from '../constants.js';
 import type { Component } from '../properties/component.js';
 import type { Controller, ControllerHomePageType } from '../properties/controller.js';
 import {
@@ -9,6 +9,7 @@ import {
 	parseControllerPages,
 	parseFloat2,
 	parseInt2,
+	parseSidePair,
 	parseSizeString,
 	parseXML,
 	parseXMLPreserveOrder,
@@ -163,6 +164,7 @@ interface ComponentXmlNode extends Record<string, unknown> {
 	extention?: string;
 	controller?: ControllerXmlNode | ControllerXmlNode[];
 	customProperty?: CustomPropertyXmlNode | CustomPropertyXmlNode[];
+	relation?: Record<string, unknown> | Record<string, unknown>[];
 	displayList?: Record<string, DisplayObjectXmlNode | DisplayObjectXmlNode[]>;
 	transition?: TransitionXmlNode | TransitionXmlNode[];
 	[key: string]: unknown;
@@ -386,7 +388,12 @@ export function readComponentXml(ctx: ReaderContext, comp: Component, xmlContent
 	const margin = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.margin);
 	if (margin) {
 		const parts = margin.split(',').map(Number);
-		comp.setMargin?.({ top: parts[0] ?? 0, bottom: parts[1] ?? 0, left: parts[2] ?? 0, right: parts[3] ?? 0 });
+		if (parts.length === 1) {
+			const inset = parts[0] ?? 0;
+			comp.setMargin?.({ top: inset, bottom: inset, left: inset, right: inset });
+		} else {
+			comp.setMargin?.({ top: parts[0] ?? 0, bottom: parts[1] ?? 0, left: parts[2] ?? 0, right: parts[3] ?? 0 });
+		}
 	}
 
 	// Restrict size
@@ -470,26 +477,29 @@ export function readComponentXml(ctx: ReaderContext, comp: Component, xmlContent
 	const customData = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.customData);
 	if (customData !== undefined) comp.setCustomData?.(customData);
 
-	// Scroll pane data for overflow=scroll
-	if (overflow === 'scroll') {
-		const scroll = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.scroll);
-		if (scroll) {
-			const scrollMap: Record<string, number> = { horizontal: 0, vertical: 1, both: 2 };
-			comp.setScrollType?.(scrollMap[scroll] ?? 1);
-		}
-		const scrollBar = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBar);
-		if (scrollBar) {
-			const barMap: Record<string, number> = { default: 0, visible: 1, auto: 2, hidden: 3 };
-			comp.setScrollBarDisplay?.(barMap[scrollBar] ?? 0);
-		}
-		const scrollBarFlags = readXmlAttr<string | number>(
-			compNode,
-			PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarFlags,
-		);
-		if (scrollBarFlags !== undefined) comp.setScrollBarFlags?.(parseInt2(scrollBarFlags));
-		const scrollBarMargin = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarMargin);
-		if (scrollBarMargin) {
-			const parts = scrollBarMargin.split(',').map(Number);
+	// Scroll pane attributes (Editor reads these unconditionally; scrollBar/scrollBarFlags only write when overflow=scroll)
+	const scroll = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.scroll);
+	if (scroll) {
+		const scrollMap: Record<string, number> = { horizontal: 0, vertical: 1, both: 2 };
+		comp.setScrollType?.(scrollMap[scroll] ?? 1);
+	}
+	const scrollBar = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBar);
+	if (scrollBar) {
+		const barMap: Record<string, number> = { default: 0, visible: 1, auto: 2, hidden: 3 };
+		comp.setScrollBarDisplay?.(barMap[scrollBar] ?? 0);
+	}
+	const scrollBarFlags = readXmlAttr<string | number>(
+		compNode,
+		PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarFlags,
+	);
+	if (scrollBarFlags !== undefined) comp.setScrollBarFlags?.(parseInt2(scrollBarFlags));
+	const scrollBarMargin = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarMargin);
+	if (scrollBarMargin) {
+		const parts = scrollBarMargin.split(',').map(Number);
+		if (parts.length === 1) {
+			const inset = parts[0] ?? 0;
+			comp.setScrollBarMargin?.({ top: inset, bottom: inset, left: inset, right: inset });
+		} else {
 			comp.setScrollBarMargin?.({
 				top: parts[0] ?? 0,
 				bottom: parts[1] ?? 0,
@@ -497,18 +507,18 @@ export function readComponentXml(ctx: ReaderContext, comp: Component, xmlContent
 				right: parts[3] ?? 0,
 			});
 		}
-		const scrollBarRes = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarRes);
-		if (scrollBarRes) {
-			const parts = scrollBarRes.split(',');
-			comp.setVtScrollBarRes?.(parts[0] ?? '');
-			comp.setHzScrollBarRes?.(parts[1] ?? '');
-		}
-		const ptrRes = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.ptrRes);
-		if (ptrRes) {
-			const parts = ptrRes.split(',');
-			comp.setHeaderRes?.(parts[0] ?? '');
-			comp.setFooterRes?.(parts[1] ?? '');
-		}
+	}
+	const scrollBarRes = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarRes);
+	if (scrollBarRes) {
+		const parts = scrollBarRes.split(',');
+		comp.setVtScrollBarRes?.(parts[0] ?? '');
+		comp.setHzScrollBarRes?.(parts[1] ?? '');
+	}
+	const ptrRes = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.ptrRes);
+	if (ptrRes) {
+		const parts = ptrRes.split(',');
+		comp.setHeaderRes?.(parts[0] ?? '');
+		comp.setFooterRes?.(parts[1] ?? '');
 	}
 
 	// Extension type (Button, Label, etc.)
@@ -883,23 +893,44 @@ export function readComponentXml(ctx: ReaderContext, comp: Component, xmlContent
 			};
 			ti.setActionType(actionTypeMap[typeStr] ?? 16);
 
-			// Values
+			// Values (Text/Icon keep raw unsplit strings per FTransitionValue.as)
+			const actionType = ti.getActionType();
+			const isRawStringAction =
+				actionType === TransitionActionType.Text || actionType === TransitionActionType.Icon;
 			const value = readXmlAttr<string>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.value);
 			if (value !== undefined) {
-				ti.setStartValue(String(value).split(','));
+				ti.setStartValue(isRawStringAction ? [String(value)] : String(value).split(','));
 			}
 			const startValue = readXmlAttr<string>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.startValue);
 			if (startValue !== undefined) {
-				ti.setStartValue(String(startValue).split(','));
+				ti.setStartValue(isRawStringAction ? [String(startValue)] : String(startValue).split(','));
 			}
 			const endValue = readXmlAttr<string>(parsedItem, PROJECT_XML_PROTOCOL.transitionItem.attrs.endValue);
 			if (endValue !== undefined) {
-				ti.setEndValue(String(endValue).split(','));
+				ti.setEndValue(isRawStringAction ? [String(endValue)] : String(endValue).split(','));
 			}
 
 			trans.addItem(ti);
 		}
 
 		comp.addTransition(trans);
+	}
+
+	// Component-level relations
+	const relationChildName = getProtocolChildName(PROJECT_XML_PROTOCOL.componentRoot, 'relation');
+	const rootRelations = relationChildName ? ensureArray(compNode[relationChildName]) : [];
+	for (const relDef of rootRelations) {
+		const parsedRelation = getXmlNode<Record<string, unknown>>(relDef);
+		if (!parsedRelation) continue;
+		const sidePair = readXmlAttr<string>(parsedRelation, PROJECT_XML_PROTOCOL.relation.attrs.sidePair) || '';
+		const target = readXmlAttr<string>(parsedRelation, PROJECT_XML_PROTOCOL.relation.attrs.target) || '';
+		for (const sp of parseSidePair(sidePair)) {
+			const rel: RelationDef = {
+				target,
+				type: sp.type,
+				usePercent: sp.usePercent,
+			};
+			comp.addRelation(rel);
+		}
 	}
 }

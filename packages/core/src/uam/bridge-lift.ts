@@ -74,6 +74,7 @@ type LiftableComponentDerivedControl = LiftableDisplayNodeBase & {
 	getSrc(): string;
 	getPackageId(): string;
 	getPageController(): string;
+	getFileName(): string;
 };
 
 type LiftableTitleControl = LiftableComponentDerivedControl & {
@@ -89,7 +90,7 @@ type LiftedDisplayNodeBase = Omit<UamDisplayNodeBase, 'kind'>;
 type LiftedGroupableDisplayNodeBase = LiftedDisplayNodeBase & Pick<UamButtonNode, 'group'>;
 
 type LiftedComponentDerivedControlBase = LiftedGroupableDisplayNodeBase &
-	Pick<UamButtonNode, 'src' | 'packageId' | 'pageController'>;
+	Pick<UamButtonNode, 'src' | 'packageId' | 'pageController' | 'fileName'>;
 type LiftedTitleControlBase = LiftedComponentDerivedControlBase &
 	Pick<UamButtonNode, 'title' | 'icon' | 'titleColor' | 'titleFontSize' | 'sound' | 'soundVolumeScale'>;
 
@@ -129,6 +130,7 @@ function liftComponentDerivedControlBase(child: LiftableComponentDerivedControl)
 		src: child.getSrc(),
 		packageId: child.getPackageId(),
 		...(child.getPageController() ? { pageController: child.getPageController() } : {}),
+		...(child.getFileName() ? { fileName: child.getFileName() } : {}),
 	};
 }
 
@@ -200,6 +202,7 @@ function liftAssetResource(resource: LiftableAssetResource): UamAssetResource {
 				quality: image.getQuality(),
 				smoothing: image.getSmoothing(),
 				duplicatePadding: image.getDuplicatePadding(),
+				...(image.getDisableTrim() ? { disableTrim: true } : {}),
 				scaleOption: image.getScaleOption() as 0 | 1 | 2,
 				scale9Grid: scale9Grid ? [...scale9Grid] : null,
 				tileGridIndice: image.getTileGridIndice(),
@@ -216,6 +219,7 @@ function liftAssetResource(resource: LiftableAssetResource): UamAssetResource {
 				height: movieClip.getHeight(),
 			},
 			movieClip: {
+				...(movieClip.getTextureSetMode() ? { textureSetMode: movieClip.getTextureSetMode() } : {}),
 				interval: movieClip.getInterval(),
 				repeatDelay: movieClip.getRepeatDelay(),
 				swing: movieClip.getSwing(),
@@ -466,6 +470,7 @@ export function liftDisplayNode(child: GObject): UamDisplayNode {
 			...liftDisplayNodeBase(image),
 			group: image.getGroup(),
 			resource: { packageId: image.getPackageId(), resourceId: image.getSrc() },
+			...(image.getFileName() ? { fileName: image.getFileName() } : {}),
 			color: image.getColor(),
 			flip: image.getFlip(),
 			fillMethod: image.getFillMethod(),
@@ -636,6 +641,7 @@ export function liftDisplayNode(child: GObject): UamDisplayNode {
 		return {
 			kind: 'loader',
 			...liftDisplayNodeBase(loader),
+			group: loader.getGroup(),
 			pivot: { x: loader.getPivotX(), y: loader.getPivotY() },
 			url: loader.getUrl(),
 			fill: loader.getFill(),
@@ -660,6 +666,7 @@ export function liftDisplayNode(child: GObject): UamDisplayNode {
 		return {
 			kind: 'loader3D',
 			...liftDisplayNodeBase(loader),
+			group: loader.getGroup(),
 			url: loader.getUrl(),
 			fill: loader.getFill(),
 			shrinkOnly: loader.getShrinkOnly(),
@@ -709,6 +716,7 @@ export function liftDisplayNode(child: GObject): UamDisplayNode {
 			selectedIndex: comboBox.getSelectedIndex(),
 			visibleItemCount: comboBox.getVisibleItemCount(),
 			popupDirection: comboBox.getPopupDirection(),
+			...(comboBox.getSelectionController() ? { selectionController: comboBox.getSelectionController() } : {}),
 		} satisfies UamComboBoxNode;
 	}
 	if (child.propertyType === PropertyType.G_PROGRESS_BAR) {
@@ -901,6 +909,7 @@ function liftComponentResource(resource: ReturnType<Document['createComponent']>
 			size: { width: resource.getWidth(), height: resource.getHeight() },
 			properties: liftComponentProperties(resource),
 			customData: resource.getCustomData(),
+			...(resource.getRelations().length > 0 ? { relations: liftRelations(resource.getRelations()) } : {}),
 			displayList: resource.listChildren().map((child) => liftDisplayNode(child)),
 			controllers: liftControllers(resource),
 			transitions: liftTransitions(resource),

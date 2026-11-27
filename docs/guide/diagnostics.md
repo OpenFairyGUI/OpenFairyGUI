@@ -4,7 +4,7 @@ Backend 自有错误由 Backend 定义；事务错误与 support issue 来自 Co
 
 `BackendDiagnostic.code` 由 Backend 错误、Core 事务错误/support issue、Core 工程验证码的正式联合类型约束；全部正式唯一码都有指引。`contracts:check` 对照这些事实源拒绝遗漏、重复、未知码和错误归属。目录的 `owners` 列出同名码的全部正式来源，响应的 `owner` 保留实际来源；例如 `invalid_uam` 同时用于事务和工程验证。
 
-正式诊断增加 `owner`、`docsUri`、`remediation { kind, message, read? }`。不在类型契约中的宿主输入若出现未知码，仍保留原错误，不承诺恢复指引。capability schema 为 15，`manifest.diagnostics.recoveryGuides` 为 `all-formal-codes`，`automaticRepair` 为 false。CLI 进程错误由独立的 [CLI 输出契约](./contracts.md#cli-机器输出)约束，不冒充 Backend 诊断。
+正式诊断增加 `owner`、`docsUri`、`remediation { kind, message, read? }`。不在类型契约中的宿主输入若出现未知码，仍保留原错误，不承诺恢复指引。当前 capability schema 声明 `manifest.diagnostics.recoveryGuides` 为 `all-formal-codes`，`automaticRepair` 为 false。CLI 进程错误由独立的 [CLI 输出契约](./contracts.md#cli-机器输出)约束，不冒充 Backend 诊断。
 
 `read` 仅是可执行的只读起点：`getProjectOutline({ sessionId })`。MCP 对应 `openfairygui_backend_get_project_outline`，方法映射见[契约指南](./contracts.md)。随后通过精确查询读取实际属性并重新规划；不能只替换 `expectedRevision` 重发原事务。预演不预留 revision，保存仍独立检查。
 
@@ -811,7 +811,7 @@ Owners: `backend` · Recovery: `host-action`
 
 URI: `openfairygui://docs/diagnostics/uam_fidelity_unsupported`
 
-Read capability/error details. Ask the host to provide the required filesystem, decoder or complete UAM adapter. Preserve the session and unsaved work; do not substitute a lossy path or bypass checks.
+Inspect uamFidelityReport on the session snapshot or error.fidelityReport and meta.diagnostics for the failure reason and differing project paths. Preserve the session and unsaved work; do not substitute a lossy save path or bypass fidelity checks.
 
 ### save_partial_failure
 
@@ -855,7 +855,7 @@ Inspect the execution/cache failure and current session/revision. Preserve sourc
 <!-- diagnostics:end -->
 
 <!-- product-facts:start -->
-Package: `0.7.1` · Backend contract: `3.0.0` · Capability schema: `15`
+Package: `0.7.1` · Backend contract: `3.0.0` · Capability schema: `16`
 
-Operations: 41 · Backend methods: 17 · CLI commands: 16 · Diagnostic codes: 104
+Operations: 41 · Backend methods: 18 · CLI commands: 16 · Diagnostic codes: 104
 <!-- product-facts:end -->

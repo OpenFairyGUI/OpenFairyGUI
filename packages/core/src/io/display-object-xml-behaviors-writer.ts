@@ -1,5 +1,5 @@
 import { ProjectIOError } from './errors.js';
-import { GearType } from '../constants.js';
+import { GearType, type RelationDef } from '../constants.js';
 import type { GObject } from '../properties/g-object.js';
 import type { Gear } from '../properties/gear.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr, type XmlNodeProtocol } from './project-xml-protocol.js';
@@ -100,7 +100,7 @@ function formatGearLookAlpha(value: string | undefined, fixedAlpha: boolean): st
 	return fixedAlpha ? numeric.toFixed(2) : formatTrimmedFixed(numeric, 2);
 }
 
-function normalizeGearLookSegment(segment: string, fixedAlpha: boolean): string {
+function normalizeGearLookSegment(segment: string, fixedAlpha: boolean, ownerTouchable: boolean): string {
 	if (!segment || segment === '-') return segment;
 	const parts = segment.split(',');
 	if (parts.length < 3) return segment;
@@ -118,7 +118,7 @@ function normalizeGearLookSegment(segment: string, fixedAlpha: boolean): string 
 	];
 	if (parts.length >= 4) {
 		const touchable = normalizeFlag(parts[3], '1');
-		if (touchable !== '1') normalized.push(touchable);
+		if (touchable !== '1' || !ownerTouchable) normalized.push(touchable);
 	}
 	return normalized.join(',');
 }
@@ -196,6 +196,7 @@ function normalizeGearXmlValue(
 	ownerType?: string,
 	ownerName?: string,
 	gear?: Gear,
+	ownerTouchable = true,
 ): string {
 	const raw = String(value ?? '');
 	switch (gearType) {
@@ -218,7 +219,7 @@ function normalizeGearXmlValue(
 				ownerType === 'GLoader' || Boolean(gear?.getTween() && !almostEqual(gear.getTweenDuration(), 0.3));
 			return raw
 				.split('|')
-				.map((segment) => normalizeGearLookSegment(segment, fixedAlpha))
+				.map((segment) => normalizeGearLookSegment(segment, fixedAlpha, ownerTouchable))
 				.join('|');
 		}
 		case GearType.Color: {
@@ -241,40 +242,42 @@ function getProtocolGearChildNameSet(protocol: XmlNodeProtocol): Set<string> {
 	return new Set(Object.keys(protocol.children ?? {}).filter((name) => gearTagNames.has(name)));
 }
 
+export function serializeRelationsXml(relations: readonly RelationDef[]): Array<Record<string, unknown>> {
+	if (relations.length === 0) return [];
+	const byTarget = new Map<string, string[]>();
+	for (const rel of relations) {
+		const name = RELATION_TYPE_NAME[rel.type] ?? '';
+		if (!name) continue;
+		const pair = rel.usePercent ? `${name}%` : name;
+		if (!byTarget.has(rel.target)) byTarget.set(rel.target, []);
+		byTarget.get(rel.target)!.push(pair);
+	}
+	return Array.from(byTarget.entries()).map(([target, pairs]) => {
+		const relationAttrs: Record<string, unknown> = {};
+		writeXmlAttr(relationAttrs, PROJECT_XML_PROTOCOL.relation.attrs.target, target);
+		writeXmlAttr(relationAttrs, PROJECT_XML_PROTOCOL.relation.attrs.sidePair, pairs.join(','));
+		return relationAttrs;
+	});
+}
+
 export function writeDisplayObjectBehaviors(
 	attrs: Record<string, unknown>,
 	obj: GObject,
 	protocol: XmlNodeProtocol,
 ): void {
 	const gearChildNameSet = getProtocolGearChildNameSet(protocol);
+	const ownerTouchable = (obj as GObject & { getTouchable?(): boolean }).getTouchable?.() ?? true;
 	assertDisplayObjectGearXmlValues(obj);
 	for (const gear of obj.listGears()) {
 		const gearTag = GEAR_TAG[gear.getGearType()];
 		if (!gearTag || !gearChildNameSet.has(gearTag)) continue;
-		attrs[gearTag] = [serializeGear(gear, obj.propertyType, obj.getName())];
+		attrs[gearTag] = [serializeGear(gear, obj.propertyType, obj.getName(), ownerTouchable)];
 	}
 
 	// Relation child elements
 	const relationChildName = getProtocolChildName(protocol, 'relation');
-	const relations = obj.getRelations();
-	if (relations.length > 0) {
-		// Group by target
-		const byTarget = new Map<string, string[]>();
-		for (const rel of relations) {
-			const name = RELATION_TYPE_NAME[rel.type] ?? '';
-			if (!name) continue;
-			const pair = rel.usePercent ? name + '%' : name;
-			if (!byTarget.has(rel.target)) byTarget.set(rel.target, []);
-			byTarget.get(rel.target)!.push(pair);
-		}
-		const relElements = Array.from(byTarget.entries()).map(([target, pairs]) => {
-			const relationAttrs: Record<string, unknown> = {};
-			writeXmlAttr(relationAttrs, PROJECT_XML_PROTOCOL.relation.attrs.target, target);
-			writeXmlAttr(relationAttrs, PROJECT_XML_PROTOCOL.relation.attrs.sidePair, pairs.join(','));
-			return relationAttrs;
-		});
-		if (relElements.length > 0 && relationChildName) attrs[relationChildName] = relElements;
-	}
+	const relElements = serializeRelationsXml(obj.getRelations());
+	if (relElements.length > 0 && relationChildName) attrs[relationChildName] = relElements;
 }
 
 export function assertDisplayObjectGearXmlValues(obj: GObject): void {
@@ -300,7 +303,12 @@ function assertTextGearXmlValues(gear: Gear): void {
 	}
 }
 
-function serializeGear(gear: Gear, ownerType?: string, ownerName?: string | null): Record<string, unknown> {
+function serializeGear(
+	gear: Gear,
+	ownerType?: string,
+	ownerName?: string | null,
+	ownerTouchable = true,
+): Record<string, unknown> {
 	const ctrl = gear.getController();
 	const attrs: Record<string, unknown> = {};
 	if (ctrl) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.controller, ctrl.getName());
@@ -318,14 +326,28 @@ function serializeGear(gear: Gear, ownerType?: string, ownerName?: string | null
 			writeXmlAttr(
 				attrs,
 				PROJECT_XML_PROTOCOL.gear.attrs.values,
-				normalizeGearXmlValue(gear.getGearType(), gear.getValues(), ownerType, ownerName ?? undefined, gear),
+				normalizeGearXmlValue(
+					gear.getGearType(),
+					gear.getValues(),
+					ownerType,
+					ownerName ?? undefined,
+					gear,
+					ownerTouchable,
+				),
 			);
 	}
 	if (gear.getDefaultValue() !== null)
 		writeXmlAttr(
 			attrs,
 			PROJECT_XML_PROTOCOL.gear.attrs.default,
-			normalizeGearXmlValue(gear.getGearType(), gear.getDefaultValue(), ownerType, ownerName ?? undefined, gear),
+			normalizeGearXmlValue(
+				gear.getGearType(),
+				gear.getDefaultValue(),
+				ownerType,
+				ownerName ?? undefined,
+				gear,
+				ownerTouchable,
+			),
 		);
 	if (gear.getTween()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.tween, 'true');
 	if (gear.getEaseType() !== 5)

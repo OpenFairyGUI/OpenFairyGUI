@@ -8,6 +8,8 @@ import { createRuntimePathPolicy } from '../path-policy.js';
 import { createArtifactCapabilities } from '../services/artifact-service.js';
 import type { BackendArtifactBridgeCapability, BackendCapabilities, BackendMethodName } from './contracts.js';
 import {
+	BACKEND_DISPLAY_NODE_FILTER_FIELDS,
+	BACKEND_DISPLAY_NODE_QUERY_LIMITS,
 	BACKEND_ENTITY_QUERY_LIMITS,
 	BACKEND_SESSION_READ_LIMITS,
 	BACKEND_TRANSACTION_PREVIEW_LIMITS,
@@ -20,6 +22,7 @@ export const BACKEND_METHODS = [
 	'getSession',
 	'getProjectOutline',
 	'queryEntity',
+	'queryDisplayNodes',
 	'readSessionState',
 	'readResourceBytes',
 	'validateSession',
@@ -65,6 +68,13 @@ export function createCapabilities(
 				projection: 'properties',
 				sourceBytes: false,
 				limits: BACKEND_ENTITY_QUERY_LIMITS,
+			},
+			displayNodeQuery: {
+				scope: 'component',
+				filterFields: BACKEND_DISPLAY_NODE_FILTER_FIELDS,
+				projection: 'summary',
+				sourceBytes: false,
+				limits: BACKEND_DISPLAY_NODE_QUERY_LIMITS,
 			},
 			sessionState: { sourceBytes: false, limits: BACKEND_SESSION_READ_LIMITS.model },
 			resourceBytes: {

@@ -660,12 +660,13 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				...base,
 				group: node.group ?? '',
 				resource: normalizeResourceRef(node.resource),
+				...(node.fileName ? { fileName: node.fileName } : {}),
 				color: node.color ?? '#FFFFFF',
 				flip: node.flip ?? 0,
 				fillMethod: node.fillMethod ?? 0,
 				fillOrigin: node.fillOrigin ?? 0,
 				fillClockwise: node.fillClockwise ?? true,
-				fillAmount: node.fillAmount ?? 100,
+				fillAmount: node.fillAmount ?? 1,
 			} satisfies UamImageNode;
 		case 'text':
 			return {
@@ -800,6 +801,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			return {
 				kind: 'loader',
 				...base,
+				group: loader.group ?? '',
 				pivot: normalizePoint(loader.pivot),
 				url: loader.url ?? '',
 				fill: loader.fill ?? 0,
@@ -815,7 +817,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				fillMethod: loader.fillMethod ?? 0,
 				fillOrigin: loader.fillOrigin ?? 0,
 				fillClockwise: loader.fillClockwise ?? true,
-				fillAmount: loader.fillAmount ?? 100,
+				fillAmount: loader.fillAmount ?? 1,
 				clearOnPublish: loader.clearOnPublish ?? false,
 			} satisfies UamLoaderNode;
 		}
@@ -824,6 +826,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			return {
 				kind: 'loader3D',
 				...base,
+				group: loader.group ?? '',
 				url: loader.url ?? '',
 				fill: loader.fill ?? 0,
 				shrinkOnly: loader.shrinkOnly ?? false,
@@ -834,7 +837,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				skinName: loader.skinName ?? '',
 				playing: loader.playing ?? true,
 				frame: loader.frame ?? 0,
-				loop: loader.loop ?? true,
+				loop: loader.loop ?? false,
 				color: loader.color ?? '#FFFFFF',
 				clearOnPublish: loader.clearOnPublish ?? false,
 			} satisfies UamLoader3DNode;
@@ -864,6 +867,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				src: button.src ?? '',
 				packageId: button.packageId ?? '',
 				...(button.pageController ? { pageController: button.pageController } : {}),
+				...(button.fileName ? { fileName: button.fileName } : {}),
 				title: button.title ?? '',
 				icon: button.icon ?? '',
 				selectedTitle: button.selectedTitle ?? '',
@@ -887,6 +891,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				src: label.src ?? '',
 				packageId: label.packageId ?? '',
 				...(label.pageController ? { pageController: label.pageController } : {}),
+				...(label.fileName ? { fileName: label.fileName } : {}),
 				title: label.title ?? '',
 				icon: label.icon ?? '',
 				titleColor: label.titleColor ?? '',
@@ -904,9 +909,10 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				src: comboBox.src ?? '',
 				packageId: comboBox.packageId ?? '',
 				...(comboBox.pageController ? { pageController: comboBox.pageController } : {}),
+				...(comboBox.fileName ? { fileName: comboBox.fileName } : {}),
 				title: comboBox.title ?? '',
 				icon: comboBox.icon ?? '',
-				titleColor: comboBox.titleColor ?? '#000000',
+				titleColor: comboBox.titleColor ?? '',
 				titleFontSize: comboBox.titleFontSize ?? 0,
 				items: [...(comboBox.items ?? [])],
 				icons: [...(comboBox.icons ?? [])],
@@ -914,6 +920,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				selectedIndex: comboBox.selectedIndex ?? -1,
 				visibleItemCount: comboBox.visibleItemCount ?? 0,
 				popupDirection: comboBox.popupDirection ?? 0,
+				...(comboBox.selectionController ? { selectionController: comboBox.selectionController } : {}),
 				sound: comboBox.sound ?? '',
 				soundVolumeScale: comboBox.soundVolumeScale ?? 1,
 			} satisfies UamComboBoxNode;
@@ -927,6 +934,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				src: progressBar.src ?? '',
 				packageId: progressBar.packageId ?? '',
 				...(progressBar.pageController ? { pageController: progressBar.pageController } : {}),
+				...(progressBar.fileName ? { fileName: progressBar.fileName } : {}),
 				titleType: progressBar.titleType ?? 0,
 				min: progressBar.min ?? 0,
 				max: progressBar.max ?? 100,
@@ -945,6 +953,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				src: slider.src ?? '',
 				packageId: slider.packageId ?? '',
 				...(slider.pageController ? { pageController: slider.pageController } : {}),
+				...(slider.fileName ? { fileName: slider.fileName } : {}),
 				titleType: slider.titleType ?? 0,
 				min: slider.min ?? 0,
 				max: slider.max ?? 100,
@@ -961,6 +970,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				src: scrollBar.src ?? '',
 				packageId: scrollBar.packageId ?? '',
 				...(scrollBar.pageController ? { pageController: scrollBar.pageController } : {}),
+				...(scrollBar.fileName ? { fileName: scrollBar.fileName } : {}),
 				fixedGripSize: scrollBar.fixedGripSize ?? false,
 			} satisfies UamScrollBarNode;
 		}
@@ -1039,6 +1049,7 @@ function normalizeTransitionModel(transition: UamTransitionModel): UamTransition
 }
 
 function normalizeComponentModel(component: UamComponentModel): UamComponentModel {
+	const relations = normalizeRelations(component.relations);
 	return {
 		size: {
 			width: component.size?.width ?? 0,
@@ -1046,6 +1057,7 @@ function normalizeComponentModel(component: UamComponentModel): UamComponentMode
 		},
 		properties: normalizeComponentProperties(component.properties),
 		customData: component.customData ?? '',
+		...(relations.length > 0 ? { relations } : {}),
 		displayList: (component.displayList ?? []).map(normalizeDisplayNode),
 		controllers: (component.controllers ?? []).map(normalizeControllerModel),
 		transitions: (component.transitions ?? []).map(normalizeTransitionModel),
@@ -1083,6 +1095,7 @@ function normalizeImageResourceProperties(properties: UamImageResourceProperties
 		quality: properties.quality,
 		smoothing: properties.smoothing,
 		duplicatePadding: properties.duplicatePadding,
+		...(properties.disableTrim ? { disableTrim: true } : {}),
 		scaleOption: properties.scaleOption,
 		scale9Grid: properties.scale9Grid ? [...properties.scale9Grid] : null,
 		tileGridIndice: properties.tileGridIndice,
@@ -1094,6 +1107,7 @@ function normalizeMovieClipResourceProperties(
 ): UamMovieClipResourceProperties {
 	if (!properties) return properties;
 	return {
+		...(properties.textureSetMode ? { textureSetMode: properties.textureSetMode } : {}),
 		interval: properties.interval,
 		repeatDelay: properties.repeatDelay,
 		swing: properties.swing,

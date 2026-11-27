@@ -141,6 +141,7 @@ Writer 对协议中的 `uint8 / int8 / uint16 / int16 / uint32 / int32`、UTFStr
 | `3` | `Component` | 通用字段 + 扩展类型码 + 组件二进制 |
 | `4` | `Atlas` | atlas 条目 `id`、`file`、尺寸 |
 | `5` | `Font` | 通用字段 + glyph 数据块 |
+| `6` | `Swf` | 通用字段 + SWF 附属资源文件名 |
 | `7` | `Misc` | 未归类条目 |
 | `8` | `Unknown` | 未建模的 package item 类型码 |
 | `9` | `Spine` | 通用字段 + 资源文件名 + `skeletonAnchor.x` + `skeletonAnchor.y` |
@@ -161,13 +162,13 @@ Writer 对协议中的 `uint8 / int8 / uint16 / int16 / uint32 / int32`、UTFStr
 | `width` | 资源宽度 |
 | `height` | 资源高度 |
 
-`Font` glyph 数据块以 `uint16` 保存 UTF-16 code unit（`charId`），因此可覆盖完整 BMP 范围；后续图像引用和字形度量按各自的字符串表索引与 `int32` 字段保存。
+`Font` glyph 数据块以 `uint16` 保存 UTF-16 code unit（`charId`），因此可覆盖完整 BMP 范围；每项字形以 `uint16` 长度前缀分块，后续图像引用和字形度量按各自的字符串表索引与 `int32` 字段保存。
 
 位图字体的字形图像引用必须可在同包资源与精灵表中解析；使用整张字体纹理时，精灵以字体 ID 寻址。合并分支后的 glyph 图像 ID 指向合并后的资源。导入的 TTF/TTC/OTF 使用引擎字体名称作为文本的 `font`，不编码为位图 `Font` 资源。
 
-### `Spine` / `DragoneBones` item 数据段
+### `Spine` / `DragonBones` item 数据段
 
-`Spine` 与 `DragoneBones` 在通用头部之后追加 skeleton 锚点：
+`Spine` 与 `DragonBones` 在通用头部之后追加 skeleton 锚点：
 
 | 字段 | 协议说明 |
 |---|---|
@@ -176,6 +177,7 @@ Writer 对协议中的 `uint8 / int8 / uint16 / int16 / uint32 / int32`、UTFStr
 
 说明：
 - `require`、`atlasNames` 等工程资源层字段不直接写入 package item 数据段。
+- 仅被 skeleton `require` 引用的依赖资源（如 `.atlas`、`_tex.json`、`.png`）作为磁盘 sidecar 文件导出，**不写入** Block 1（除非该资源自身独立导出或被其他组件引用）。
 - 运行时通过 `file` 和 `skeletonAnchor` 完成 skeleton 资源定位与对齐。
 
 ### `file` 的发布语义
@@ -185,23 +187,24 @@ Writer 对协议中的 `uint8 / int8 / uint16 / int16 / uint32 / int32`、UTFStr
 | 资源类型 | `file` 语义 |
 |---|---|
 | `Atlas` / `Sound` / `Misc` / `Swf` | 指向发布后的附属资源文件名；运行时按目标规则添加包资源前缀 |
-| `Spine` / `DragoneBones` | 指向发布后的 skeleton 主资源文件名；运行时再按该路径加载对应资源 |
+| `Spine` / `DragonBones` | 指向发布后的 skeleton 主资源文件名；运行时再按该路径加载对应资源 |
 
-`Sound` / `Misc` / `Swf` 的 `file` 使用发布 item id 加源扩展名。Unity 中 `.atlas` 额外追加 `.txt`。例如 item id 为 `biss7` 的 `hero.json` 写为 `biss7.json`，其实际附属文件按运行时约定带包发布名前缀。`Swf` 使用 item 类型码 `6`。
+独立发布的 `Sound` / `Misc` / `Swf` 的 `file` 使用发布 item id 加源扩展名。Unity 中 `.atlas` 额外追加 `.txt`。例如独立导出的 item id 为 `biss7` 的 `hero.json` 写为 `biss7.json`，其实际附属文件按运行时约定带包发布名前缀。`Swf` 使用 item 类型码 `6`。
 
-当前 Unity 发布侧的 `Spine` 主资源与依赖资源命名规则如下：
+Unity 发布侧的 `Spine` / `DragonBones` 主资源与 `require` sidecar 命名规则如下：
 
 | 工程资源文件 | 发布结果 |
 |---|---|
 | `*.skel` | `*.skel.bytes` |
-| `*.atlas`（`Misc` 依赖） | `<item-id>.atlas.txt` |
-| `*.png` | 保持原文件名 |
+| `*.atlas`（skeleton `require` sidecar） | 保持原文件名并追加 `.txt`（如 `alien-pma.atlas.txt`，无包前缀、不按 item id 改名） |
+| `*_ske.json` / `*_tex.json`（skeleton `require` sidecar） | 保持原文件名（无包前缀、不按 item id 改名） |
+| `*.png`（skeleton `require` sidecar） | 保持原文件名 |
 
-非 Unity 项目的 skeleton 主资源保持目标所需文件名；作为 `Misc` 发布的依赖仍使用 `<item-id><源扩展名>`。
+非 Unity 项目的 skeleton 主资源与 `require` sidecar 均保持原文件名（不追加 `.bytes` / `.txt`，无包前缀，也不写入 Block 1）。
 
-当发布设置启用“分支 atlas 单独输出”时，atlas 条目的 `file` 会写成分支后缀形式，例如 `atlas0_dev.png`。主干 atlas 仍写 `atlas0.png`。
+当发布设置启用“分支 atlas 单独输出”时，atlas 条目的 `file` 会写成分支后缀形式，例如 `atlas0_dev.png`。主干 atlas 仍写 `atlas0.png`。独立图集（`alone` / `alone_npot` / `alone_mof`）的 Block 1 `id` 为 `atlas_<itemId>`。
 
-`DragoneBones` 主文件保持目标所需文件名；其 `Misc` 依赖按发布 item id 命名，图片依赖保持图片发布名。
+`DragonBones` 主文件保持目标所需文件名；其 `Misc` 依赖按发布 item id 命名，图片依赖保持图片发布名。
 
 ### 条件附加字段
 
@@ -210,7 +213,7 @@ Writer 对协议中的 `uint8 / int8 / uint16 / int16 / uint32 / int32`、UTFStr
 | 字段 | 协议说明 |
 |---|---|
 | branch name | 当前条目所属分支名；主分支条目写 `null` |
-| branchCount | 分支映射数量；当包启用分支表时，主条目按包级 branch 顺序写分支变体 item id 列表 |
+| branchCount | 分支映射数量；当包启用分支表（`branchIncluded=true`）时，主条目按包级 branch 顺序写分支变体 item id 列表；合并分支发布（`branchProcessing = 1`，`branchIncluded=false`）时，由活跃分支覆写的条目写 `1` 及原分支 item id 别名 |
 | highResCount | 高分辨率变体槽位数量；后续按 `@2x`、`@3x`、`@4x` 顺序写 package item id |
 
 说明：
@@ -218,7 +221,7 @@ Writer 对协议中的 `uint8 / int8 / uint16 / int16 / uint32 / int32`、UTFStr
 - branch 变体条目自身只写 `branch name`，不再继续嵌套 `branchCount` 映射。
 - 高分辨率列表只引用已经发布为 package item 的 `image` / `movieclip` 资源，不在发布期主动放大原始位图。
 - 当中间倍率缺失但后续倍率存在时，对应槽位写 `null`；尾部缺失槽位省略。
-- 当发布模式为 `主干合并活跃分支` 时，发布结果已经完成分支替换，包级 `branchCount` 写 `0`，各 item 的 `branch name` 与 `branchCount` 也都写空值。
+- 当发布模式为 `主干合并活跃分支` 时，发布结果已经完成分支替换，包级 `branchCount` 写 `0`，各 item 的 `branch name` 写 `null`；由活跃分支覆写的条目写 `branchCount = 1` + 原分支 item id（供运行时将分支 ID 别名映射回合并后的主干 ID），未覆写条目写 `branchCount = 0`。
 - 当发布模式保留分支且 atlas 单独输出时，分支 atlas 可以使用独立 atlas 条目；当前编辑器样本中分支 atlas 的 index 使用 `100 + pageIndex`。
 
 ## Block 2：Sprites
@@ -229,7 +232,7 @@ Writer 对协议中的 `uint8 / int8 / uint16 / int16 / uint32 / int32`、UTFStr
 | 基础字段 | `itemId`、`atlasId`、`x`、`y`、`w`、`h`、`rotated` |
 | 条件附加字段 | `offsetX`、`offsetY`、`originalWidth`、`originalHeight` |
 
-该 block 用于描述资源在 atlas 中的裁切矩形与原始尺寸信息。当 offset 非零、旋转、零尺寸直出，或原始尺寸与裁切矩形不同时，附加段存在；因此仅裁掉右侧/下侧且 offset 为 `0` 的 sprite 仍会保留 `originalWidth` / `originalHeight`。
+该 block 用于描述资源在 atlas 中的裁切矩形与原始尺寸信息。旋转图集按目标引擎区分方向：Unity 等目标采用 `rotationDir = 0`（像素逆时针旋转 `-90°`，`w`/`h` 记录旋转后的图集宽高）；CocosCreator / Cocos2dx / Egret 采用 `rotationDir = 1`（像素顺时针旋转 `+90°`，`w`/`h` 记录旋转前的逻辑宽高）。当 offset 非零、旋转、零尺寸直出，或原始尺寸与未旋转裁切矩形不同时，附加段存在；因此仅裁掉右侧/下侧且 offset 为 `0` 的 sprite 仍会保留 `originalWidth` / `originalHeight`。
 
 ## Block 3：Pixel Hit Test
 
@@ -323,7 +326,7 @@ Component header 和 child 的 pivot 存在标志在任一坐标非零或 `pivot
 
 工程 XML 中的 controller `alias` 与 `exported` 属于编辑器元数据，不进入这个运行时 Controller block。
 
-`actions` block 先写 `actionCount:int16`，随后每个 action 以 `chunkSize:int16` 开头，action 正文顺序固定如下：
+`actions` block 先写 `actionCount:int16`，随后每个 action 以 `chunkSize:uint16` 开头，action 正文顺序固定如下：
 
 | 字段 | 含义 |
 |---|---|
@@ -397,8 +400,8 @@ Component header 和 child 的 pivot 存在标志在任一坐标非零或 `pivot
 
 | 字段组 | 内容 |
 |---|---|
-| 滚动基础 | `scrollType`、`scrollBarFlags` |
-| margin | `scrollBarMargin` |
+| 滚动基础 | `scrollType`、`scrollBarDisplay`、`scrollBarFlags` |
+| margin | `scrollBarMargin`（全零时写 `false` 省略 16 字节） |
 | 资源引用 | `vtScrollBarRes`、`hzScrollBarRes`、`headerRes`、`footerRes` |
 
 ### Child 解码
@@ -423,6 +426,7 @@ child 自身带独立 index table，不同对象类型的 block 数量不同：
 |---|---|
 | 0 | `GImage` |
 | 1 | `GMovieClip` |
+| 2 | `Swf`（未建模对象类型，解码时保留原始 child 索引槽位以免后续索引偏移） |
 | 3 | `GGraph` |
 | 4 | `GLoader` |
 | 5 | `GGroup` |
@@ -444,22 +448,22 @@ child 自身带独立 index table，不同对象类型的 block 数量不同：
 
 | Block | 内容 |
 |---|---|
-| 0 | beforeAdd：object type、src、pkgId、id、name、xy、size、restrict size、scale、skew、pivot、alpha、rotation、visible、touchable、grayed、blend、color filter、customData |
+| 0 | beforeAdd：object type、src、pkgId、id、name、xy、size、restrict size、scale、skew、pivot、alpha、rotation、visible、touchable、grayed、blend（`0..12`）、color filter、customData |
 | 1 | afterAdd 公共段：tooltips、group |
-| 2 | gears |
+| 2 | gears（每项以 `uint16` 长度前缀分块） |
 | 3 | relations |
-| 4 | `GComponent` / `GList` page controller 或 `GTextInput` 特定段 |
+| 4 | `GComponent` / `GList` / `GTree` page controller 或 `GTextInput` 特定段 |
 | 5 | child-type-specific extension |
 | 6 | afterAdd 文本/图标/扩展实例数据 |
-| 7 | `GList` 的 scroll pane |
-| 8 | `GList` 的静态 list items |
+| 7 | `GList` / `GTree` 的 scroll pane |
+| 8 | `GList` / `GTree` 的静态 list items |
 | 9 | tree settings |
 
 #### Child Block 4
 
 | 类型 | 内容 |
 |---|---|
-| `GComponent`、`GList`、`GButton`、`GLabel`、`GComboBox`、`GProgressBar`、`GSlider`、`GScrollBar` | page controller、controller overrides；V2+ 继续写有序 property overrides，每项为 `target / propertyId / value` |
+| `GComponent`、`GList`、`GTree`、`GButton`、`GLabel`、`GComboBox`、`GProgressBar`、`GSlider`、`GScrollBar` | page controller、controller overrides；V2+ 继续写有序 property overrides，每项为 `target / propertyId / value` |
 | `GTextInput` | 输入框特定设置 |
 | 其他类型 | offset 为 `0`，该 block 不存在 |
 
@@ -468,13 +472,13 @@ child 自身带独立 index table，不同对象类型的 block 数量不同：
 | 类型 | 主要字段 |
 |---|---|
 | `GImage` | color、flip、fillMethod、fillOrigin、fillClockwise、fillAmount |
-| `GTextField` / `GRichTextField` / `GTextInput` | font、fontSize、color、align、vAlign、leading、letterSpacing、ubb、autoSize、underline、italic、bold、singleLine、stroke、shadow、strikethrough、faceDilate、outlineSoftness、underlaySoftness |
+| `GTextField` / `GRichTextField` / `GTextInput` | font、fontSize、color、align、vAlign、leading、letterSpacing、ubb、autoSize、underline、italic、bold、singleLine、stroke、shadow、templateVars (`vars`)、strikethrough、faceDilate、outlineSoftness、underlaySoftness |
 | `GGraph` | graphType、lineSize、lineColor、fillColor、cornerRadius、points、sides、startAngle、distances |
 | `GGroup` | layout、lineGap、columnGap、excludeInvisibles、autoSizeDisabled、mainGridIndex |
 | `GLoader` | url、align、vAlign、fill、shrinkOnly、autoSize、errorSign、playing、frame、color、fillMethod、useResize |
 | `GLoader3D` | url、align、vAlign、fill、shrinkOnly、autoSize、animationName、skinName、playing、frame、loop、color |
-| `GMovieClip` | color、frame、playing |
-| `GList` | layout、selectionMode、align、vAlign、lineGap、columnGap、lineCount、columnCount、autoResizeItem、childrenRenderOrder、apexIndex、margin、overflow、clipSoftness、scrollItemToViewOnClick、foldInvisibleItems |
+| `GMovieClip` | color、flip（线协议字节）、frame、playing |
+| `GList` / `GTree` | layout、selectionMode、align、vAlign、lineGap、columnGap、lineCount、columnCount、autoResizeItem、childrenRenderOrder、apexIndex、margin、overflow、clipSoftness、scrollItemToViewOnClick、foldInvisibleItems |
 
 ### 扩展类型与 afterAdd 数据
 
@@ -488,7 +492,7 @@ Block 6 用于恢复 afterAdd 阶段写入的数据：
 | `GComboBox` | `items`、`values`、`icons`、`title`、`icon`、`titleColor`、`visibleItemCount`、`popupDirection`、`selectionController`、`sound`、`soundVolumeScale` |
 | `GProgressBar` | `value`、`max`、`min`、`sound`、`soundVolumeScale` |
 | `GSlider` | `value`、`max`、`min` |
-| `GList` | `selectionController` |
+| `GList` / `GTree` | `selectionController` |
 | `GComponent` Button 扩展实例 | `title`、`selectedTitle`、`icon`、`selectedIcon`、`titleColor`、`titleFontSize`、`relatedController`、`relatedPageId`、`sound`、`soundVolumeScale`、`selected` |
 | `GComponent` Label 扩展实例 | `title`、`icon`、`titleColor`、`titleFontSize`、输入设置、`sound`、`soundVolumeScale` |
 | `GComponent` ComboBox 扩展实例 | `items`、`title`、`icon`、`titleColor`、`visibleItemCount`、`popupDirection`、`selectionController`、`sound`、`soundVolumeScale` |
@@ -507,7 +511,7 @@ Block 6 用于恢复 afterAdd 阶段写入的数据：
 |---|---|---|
 | 1 | `defaultItem` | 字符串表引用 |
 | 2 | `itemCount` | `Int16` |
-| 3 | `chunkSize` | 每项一个 `Int16`，表示该长度字段之后的项数据字节数 |
+| 3 | `chunkSize` | 每项一个 `UInt16`，表示该长度字段之后的项数据字节数 |
 | 4 | `url` | 字符串表引用 |
 | 5 | `isFolder` | 仅 `GTree` 存在，`Bool` |
 | 6 | `level` | 仅 `GTree` 存在，`UInt8`；写入前将负值收敛为 `0` |
@@ -549,10 +553,12 @@ Tree 项的 `isFolder` 在二进制中没有 `null` 表示，因此编码时按�
 | controller 绑定 | controller index 解析为 controller 引用 |
 | pages | page id 列表 |
 | values/default | 不同 gear 类型对应不同状态结构 |
-| tween | ease、duration、delay、custom ease path |
-| 扩展状态 | GearXY percent、GearAnimation 扩展状态等条件字段 |
+| tween 基础段 | `tween:bool`，为真时跟 `easeType`、`duration`、`delay` |
+| V2+ 扩展状态 | `GearXY` 的 `positionsInPercent` 及百分比坐标，或 `GearDisplay2` 的 `condition`（位于 `customEase` 之前） |
+| V4+ `customEase` | 当 `tween=true` 且 `easeType=Custom (31)` 时写出自定义缓动路径 |
+| V6+ 动画扩展 | `GearAnimation` 的 `animationName` / `skinName` 扩展状态 |
 
-每个 child 的每种 Gear 类型只有一个槽位，绑定哪个 controller 不改变该约束；Display 与 Display2 是独立类型。XY 百分比扩展保存相对父级尺寸的 `px/py` 浮点值（`0.5` 表示 50%）。Size 的缩放值和 Look 的 alpha 允许为 `0`。
+每个 child 的每种 Gear 类型只有一个槽位，绑定哪个 controller 不改变该约束；未绑定有效 controller 的 Gear 在二进制发布时跳过；Display 与 Display2 是独立类型。XY 百分比扩展保存相对父级尺寸的 `px/py` 浮点值（`0.5` 表示 50%）。Size 的缩放值和 Look 的 alpha 允许为 `0`。
 
 XY、Size、Look、Color、Animation、FontSize、Text 和 Icon 的默认状态是否存在由独立布尔值表示。省略默认状态时，运行时保留从对象初始属性捕获的默认值；未配置页面回到该状态，不替换为零尺寸、白色或固定字号。
 
@@ -573,7 +579,7 @@ Scale 的 `0` 是有效缩放值。Sound 的音量 `0` 表示静音，嵌套 Tra
 
 | 内容 | 要求 |
 |---|---|
-| component scroll pane | `scrollType`、`scrollBarFlags`、`scrollBarMargin`、`vt/hz scrollBarRes`、`headerRes`、`footerRes` |
+| component scroll pane | `scrollType`、`scrollBarDisplay`、`scrollBarFlags`、`scrollBarMargin`、`vt/hz scrollBarRes`、`headerRes`、`footerRes` |
 | list scroll pane | 列表自身的 scroll pane 数据 |
 | tree/list 附加位 | `scrollItemToViewOnClick`、`foldInvisibleItems`、tree 设置 |
 
@@ -589,9 +595,9 @@ Scale 的 `0` 是有效缩放值。Sound 的音量 `0` 表示静音，嵌套 Tra
 | 阶段 | 对应数据 |
 |---|---|
 | `constructFromResource2` | 组件顶层 block 0-7 与 child 列表装配 |
-| `setup_beforeAdd` | child block 0、5 以及 list/tree 扩展块 |
-| `setup_afterAdd` | child block 1、4、6 与扩展实例数据 |
-| ScrollPane / Extension definition | 组件 block 6、7 与 list 额外 block |
+| `setup_beforeAdd` | child block 0、4（`GTextInput`）、5 以及 list/tree 扩展块 7/8/9 |
+| `setup_afterAdd` | child block 1、2（gears）、4（组件/列表覆盖）、6 与扩展实例数据 |
+| Relations / ScrollPane / Extension definition | child block 3、组件 block 3/6/7 与 list 额外 block |
 
 ### 解码结果
 

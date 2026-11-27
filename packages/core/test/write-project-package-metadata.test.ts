@@ -276,6 +276,45 @@ test('round-trip: package image qualityOption and font TMP import attrs survive 
 	}
 });
 
+test('round-trip: package image disableTrim survives package.xml write→read and omits default false', async (t) => {
+	const io = new NodeIO();
+	const doc = new Document();
+	doc.getRoot().setProjectId('proj-disable-trim').setProjectType(0).setVersion('5.0');
+
+	const pkg = doc.createPackage('TrimPkg').setId('trimpkg1');
+	const disabled = doc
+		.createImageResource('scene_img0')
+		.setId('nojc1')
+		.setPath('/')
+		.setFileName('scene_img0.png')
+		.setDisableTrim(true);
+	const normal = doc
+		.createImageResource('normal_img')
+		.setId('nojc2')
+		.setPath('/')
+		.setFileName('normal_img.png')
+		.setDisableTrim(false);
+	pkg.addResource(disabled).addResource(normal);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-disable-trim-'));
+	const outFairy = path.join(tmpDir, 'out.fairy');
+	try {
+		await io.writeProject(doc, outFairy);
+		const pkgXml = await fs.readFile(path.join(tmpDir, 'assets', 'TrimPkg', 'package.xml'), 'utf-8');
+		t.regex(pkgXml, /<image[^>]*id="nojc1"[^>]*disableTrim="true"/, 'disableTrim="true" is written');
+		t.false(/<image[^>]*id="nojc2"[^>]*disableTrim=/.test(pkgXml), 'default disableTrim=false is omitted');
+
+		const doc2 = await io.readProject(outFairy);
+		const pkg2 = doc2.getRoot().getPackage('TrimPkg')!;
+		const disabled2 = pkg2.getResourceById('nojc1') as ReturnType<Document['createImageResource']>;
+		const normal2 = pkg2.getResourceById('nojc2') as ReturnType<Document['createImageResource']>;
+		t.true(disabled2.getDisableTrim(), 'disableTrim=true survives round-trip');
+		t.false(normal2.getDisableTrim(), 'omitted disableTrim reads back as false');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('round-trip: package image textureSetMode survives package.xml write→read', async (t) => {
 	const io = new NodeIO();
 	const doc = new Document();
@@ -368,7 +407,10 @@ test('round-trip: package movieclip atlas survives XML and smoothing survives UA
 		const lifted = liftDocumentToUamProject(doc2);
 		const liftedMovieClip = lifted.packages[0]?.resources.find((resource) => resource.id === 'mcAtlas');
 		t.is(liftedMovieClip?.kind, 'movieClip');
-		if (liftedMovieClip?.kind === 'movieClip') t.false(liftedMovieClip.movieClip.smoothing);
+		if (liftedMovieClip?.kind === 'movieClip') {
+			t.is(liftedMovieClip.movieClip.textureSetMode, 'alone_mof');
+			t.false(liftedMovieClip.movieClip.smoothing);
+		}
 
 		await fs.mkdir(path.dirname(materializedFairy), { recursive: true });
 		await io.writeProject(materializeUamProject(lifted), materializedFairy);
@@ -376,7 +418,8 @@ test('round-trip: package movieclip atlas survives XML and smoothing survives UA
 			path.join(tmpDir, 'materialized', 'assets', 'DemoMovieClipTextureSetMode', 'package.xml'),
 			'utf-8',
 		);
-		t.regex(materializedPackageXml, /<movieclip[^>]*id="mcAtlas"[^>]*smoothing="false"/);
+		t.regex(materializedPackageXml, /<movieclip[^>]*id="mcAtlas"[^>]*atlas="alone_mof"[^>]*smoothing="false"/);
+		t.notRegex(materializedPackageXml, /<movieclip[^>]*id="mcDefault"[^>]*atlas=/);
 		t.notRegex(materializedPackageXml, /<movieclip[^>]*id="mcDefault"[^>]*smoothing=/);
 		const materializedDoc = await io.readProject(materializedFairy);
 		const materializedMovieClip = materializedDoc
@@ -384,6 +427,11 @@ test('round-trip: package movieclip atlas survives XML and smoothing survives UA
 			.getPackage('DemoMovieClipTextureSetMode')
 			?.listResources()
 			.find((resource) => resource.getId?.() === 'mcAtlas') as ReturnType<Document['createMovieClipResource']>;
+		t.is(
+			materializedMovieClip.getTextureSetMode(),
+			'alone_mof',
+			'materialized movieclip keeps textureSetMode after reload',
+		);
 		t.false(materializedMovieClip.getSmoothing(), 'materialized movieclip keeps smoothing=false after reload');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
