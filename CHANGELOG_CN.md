@@ -8,11 +8,15 @@
 
 - core：工程 XML 写回 `GLoader3D` 时使用与 FairyGUI 桌面编辑器兼容的正式 `<loader3D>` 标签，在读取路径统一归一化标签大小写以兼容 `<loader3D>` 与小写 `<loader3d>`，并同步双语 XML 协议文档。
 - core：为 `MovieClipResource` 的 `atlas` 纹理集模式（`textureSetMode`）以及 `button`、`label`、`comboBox`、`progressBar`、`slider`、`scrollBar` 等组件派生节点的 `fileName` 补充正式 UAM 建模、校验、规范化与读写往返，避免合法工程因未建模属性在保存时被误判为 `uamFidelity: 'unsupported'`。
+- core：对齐 FairyGUI 桌面编辑器工程 XML 读写协议（规范 `"true"`/`"false"` 布尔序列化、`fillAmount` 百分比刻度归一化、图形类型与单值边距简写、根 `<component>` `<relation>` 与 `customExtention`、`<loader>`/`<loader3D>` 的 `group` 属性等），并同步双语 XML 协议文档与契约。
+- core：对齐 FairyGUI V1–V7 运行时二进制包编解码协议（修复包条目、组件子项、行为、Gear、Transition 与 ComboBox 二进制编码漂移），并同步双语二进制格式文档与契约。
+- core、functions、cli：对齐发布、图集、分支与受限恢复协议（按引擎区分旋转图集方向、目录 `folder@atlas` 继承、`duplicatePadding` 边缘像素复制、固定页 `multiPage`/分支共享、独立图集 `atlas_<itemId>` 命名、合并分支别名与路径模板，以及恢复期旋转图集与 `!a.png` alpha 分离重组、`fileExtension` 推导），同步双语发布与恢复文档。
 
 新功能：
 
-- backend、workspace：当会话 `uamFidelity` 为 `'unsupported'` 时，通过会话快照、`readSessionState`（`uamFidelityReport`）以及 `uam_fidelity_unsupported` 保存/物化失败的 `error.fidelityReport` 与 `meta.diagnostics` 返回有界差异报告（含失败原因、路径、行号与摘要）；新增 `pnpm fidelity:measure` 语料保真度量脚本，输出 `full` 占比与按频次排序的差异清单。
+- backend、workspace：当会话 `uamFidelity` 为 `'unsupported'` 时，通过会话快照、`readSessionState`（`uamFidelityReport`）以及 `uam_fidelity_unsupported` 保存/物化失败的 `error.fidelityReport` 与 `meta.diagnostics` 返回有界差异报告（含失败原因、路径、行号与摘要）；新增 `pnpm fidelity:measure` 语料保真度量脚本，输出 `full` 占比（公开语料实测 4/4 / 100.0%）与按频次排序的差异清单。
 - backend、mcp：新增有预算上限的组件内节点筛选查询 `queryDisplayNodes`（MCP 工具 `openfairygui_backend_query_display_nodes`），支持按 `kind`、`name`/`nameContains`、`text`/`textContains`、`title`/`titleContains`、`group`、`resourceId`、`url`、`visible`、`locked`、`touchable`、`hasGears`、`hasRelations` 筛选候选节点并返回精确 ID 与关键属性（默认上限 50、最大 200，256 KiB 响应预算，提交仍需精确 `displayNodeId`），同步接入评测编辑宿主并降低 `edit-display-node` 类任务的工具调用次数。能力 schema 版本提升至 16（`BACKEND_CONTRACT_VERSION` 保持 `3.0.0`，无破坏性变更）。
+- core、functions：为 `ImageResource` 新增 `disableTrim` 正式属性及工程 XML、UAM 与图集装箱支持（启用后在 `trimImage=true` 时跳过透明裁边并保留原始尺寸），同步双语文档与生成契约。
 
 其他：
 
