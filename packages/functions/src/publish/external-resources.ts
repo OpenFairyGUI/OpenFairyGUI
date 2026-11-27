@@ -4,8 +4,6 @@ import {
 	extname,
 	type PackagePublishContext,
 	getPublishedId,
-	getPublishedSkeletonDependencyImageIds,
-	getPublishedSkeletonDependencyMiscIds,
 	isImageResource,
 	isMiscResource,
 	isSkeletonResource,
@@ -66,9 +64,8 @@ export async function exportPackageExternalResources(
 	readFileRaw: PublishFileSystem['readFileRaw'] | undefined,
 	projectType: number,
 ): Promise<void> {
-	const { exportedResourceIds, publishedResourceIds } = context;
-	const skeletonDependencyImageIds = getPublishedSkeletonDependencyImageIds(pkg, exportedResourceIds);
-	const skeletonDependencyMiscIds = getPublishedSkeletonDependencyMiscIds(pkg, exportedResourceIds);
+	const { exportedResourceIds, publishedResourceIds, skeletonDependencyImageIds, skeletonDependencyMiscIds } =
+		context;
 	if (exportedResourceIds.size === 0) return;
 	if (!basePath || !readFileRaw) {
 		const hasPublishedExternal = pkg.listResources().some((resource) => {

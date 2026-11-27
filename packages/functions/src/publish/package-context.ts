@@ -24,6 +24,8 @@ export interface PackagePublishContext {
 	referencedIds: Set<string>;
 	publishedResourceIds: Set<string>;
 	exportedResourceIds: Set<string>;
+	skeletonDependencyImageIds: Set<string>;
+	skeletonDependencyMiscIds: Set<string>;
 	pixelHitTestImageIds: Set<string>;
 	highResolutionItemIds: Map<string, Array<string | null>>;
 	effectiveResourceIds: Map<string, string>;
@@ -381,12 +383,18 @@ export function collectPackagePublishContext(
 		}
 	};
 
-	const collectExportedResourceIds = (
+	const collectExportedResources = (
 		sourceResources: ReturnType<Package['listResources']>,
 		sourcePublishedResourceIds: Set<string>,
 		activeBranchByKey?: ReadonlyMap<string, ReturnType<Package['listResources']>[number]>,
-	): Set<string> => {
+	): {
+		exportedResourceIds: Set<string>;
+		skeletonDependencyImageIds: Set<string>;
+		skeletonDependencyMiscIds: Set<string>;
+	} => {
 		const exportedResourceIds = new Set<string>(sourcePublishedResourceIds);
+		const skeletonDependencyImageIds = new Set<string>();
+		const skeletonDependencyMiscIds = new Set<string>();
 		const resourcesById = new Map(sourceResources.map((resource) => [resource.getId(), resource] as const));
 		let changed = true;
 		while (changed) {
@@ -399,7 +407,8 @@ export function collectPackagePublishContext(
 				}
 				const resource = resourcesById.get(resourceId);
 				if (!resource) continue;
-				const requiredIds = isSkeletonResource(resource)
+				const skeletonResource = isSkeletonResource(resource);
+				const requiredIds = skeletonResource
 					? resource.getRequireIds()
 					: isFontResource(resource)
 						? getFontDependencyImageIds(resource)
@@ -416,13 +425,25 @@ export function collectPackagePublishContext(
 							}
 						}
 					}
+					if (skeletonResource) {
+						const resolvedTarget = resourcesById.get(resolvedRequiredId);
+						if (resolvedTarget && isImageResource(resolvedTarget)) {
+							skeletonDependencyImageIds.add(resolvedRequiredId);
+						} else if (resolvedTarget && isMiscResource(resolvedTarget)) {
+							skeletonDependencyMiscIds.add(resolvedRequiredId);
+						}
+					}
 					if (exportedResourceIds.has(resolvedRequiredId)) continue;
 					exportedResourceIds.add(resolvedRequiredId);
 					changed = true;
 				}
 			}
 		}
-		return exportedResourceIds;
+		return {
+			exportedResourceIds,
+			skeletonDependencyImageIds,
+			skeletonDependencyMiscIds,
+		};
 	};
 
 	const mainByKey = new Map<string, ReturnType<Package['listResources']>[number]>();
@@ -606,7 +627,7 @@ export function collectPackagePublishContext(
 		return {
 			referencedIds,
 			publishedResourceIds,
-			exportedResourceIds: collectExportedResourceIds(
+			...collectExportedResources(
 				resources,
 				publishedResourceIds,
 				options.activeBranch ? activeBranchByKey : undefined,
@@ -633,7 +654,7 @@ export function collectPackagePublishContext(
 	return {
 		referencedIds,
 		publishedResourceIds,
-		exportedResourceIds: collectExportedResourceIds(resources, publishedResourceIds),
+		...collectExportedResources(resources, publishedResourceIds),
 		pixelHitTestImageIds,
 		highResolutionItemIds,
 		effectiveResourceIds: new Map([...publishedResourceIds].map((resourceId) => [resourceId, resourceId])),
@@ -737,34 +758,4 @@ export async function preparePackagePublishContext(
 		}
 	}
 	return { ...context, publishedFiles };
-}
-
-export function getPublishedSkeletonDependencyImageIds(pkg: Package, exportedResourceIds: Set<string>): Set<string> {
-	const imageIds = new Set<string>();
-	const resourcesById = new Map(pkg.listResources().map((resource) => [resource.getId(), resource] as const));
-	for (const resource of pkg.listResources()) {
-		if (!isSkeletonResource(resource)) continue;
-		if (!exportedResourceIds.has(resource.getId())) continue;
-		for (const requiredId of resource.getRequireIds()) {
-			if (!requiredId) continue;
-			const required = resourcesById.get(requiredId);
-			if (required && isImageResource(required) && exportedResourceIds.has(requiredId)) imageIds.add(requiredId);
-		}
-	}
-	return imageIds;
-}
-
-export function getPublishedSkeletonDependencyMiscIds(pkg: Package, exportedResourceIds: Set<string>): Set<string> {
-	const miscIds = new Set<string>();
-	const resourcesById = new Map(pkg.listResources().map((resource) => [resource.getId(), resource] as const));
-	for (const resource of pkg.listResources()) {
-		if (!isSkeletonResource(resource)) continue;
-		if (!exportedResourceIds.has(resource.getId())) continue;
-		for (const requiredId of resource.getRequireIds()) {
-			if (!requiredId) continue;
-			const required = resourcesById.get(requiredId);
-			if (required && isMiscResource(required) && exportedResourceIds.has(requiredId)) miscIds.add(requiredId);
-		}
-	}
-	return miscIds;
 }

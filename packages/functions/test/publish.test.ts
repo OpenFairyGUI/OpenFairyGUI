@@ -2827,3 +2827,244 @@ test('publish: dotted high-res names, merged-branch high-res & MovieClips, Cocos
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 });
+
+test('publish context resolves active-branch overrides for skeleton image and misc dependencies', async (t) => {
+	const doc = new Document();
+	doc.getRoot().setBranches(['dev']);
+	const pkg = doc.createPackage('SkeletonDeps').setId('skeldeps');
+
+	pkg.addResource(
+		doc
+			.createMiscResource('hero.atlas')
+			.setId('atlasMain')
+			.setPath('/spine/')
+			.setFile('hero.atlas')
+			.setExported(false),
+	);
+	pkg.addResource(
+		doc
+			.createMiscResource('hero.atlas')
+			.setId('atlasDev')
+			.setBranch('dev')
+			.setPath('/spine/')
+			.setFile('hero.atlas')
+			.setExported(false),
+	);
+	pkg.addResource(
+		doc
+			.createMiscResource('shared.atlas')
+			.setId('atlasShared')
+			.setPath('/spine/')
+			.setFile('shared.atlas')
+			.setExported(false),
+	);
+	pkg.addResource(
+		doc.createImageResource('hero').setId('texMain').setPath('/spine/').setFileName('hero.png').setExported(false),
+	);
+	pkg.addResource(
+		doc
+			.createImageResource('hero')
+			.setId('texDev')
+			.setBranch('dev')
+			.setPath('/spine/')
+			.setFileName('hero.png')
+			.setExported(false),
+	);
+	pkg.addResource(
+		doc
+			.createSpineResource('hero')
+			.setId('skelMain')
+			.setPath('/spine/')
+			.setFile('hero.skel')
+			.setExported(true)
+			.setRequireIds(['atlasMain', 'atlasShared', 'texMain']),
+	);
+
+	const merged = await preparePackagePublishContext(pkg, undefined, undefined, {
+		projectType: ProjectType.Unity,
+		activeBranch: 'dev',
+		includeBranches: false,
+		includeHighResolution: 0,
+	});
+	t.deepEqual([...merged.publishedResourceIds], ['skelMain']);
+	t.deepEqual([...merged.exportedResourceIds].sort(), ['atlasDev', 'atlasShared', 'skelMain', 'texDev']);
+	t.deepEqual([...merged.skeletonDependencyImageIds], ['texDev']);
+	t.deepEqual([...merged.skeletonDependencyMiscIds].sort(), ['atlasDev', 'atlasShared']);
+
+	// Excluded active-branch override falls back to the main-branch dependency.
+	pkg.setSourceAtlasSettings({ ...pkg.getSourceAtlasSettings(), excludedResourceIds: ['texDev'] });
+	const fallback = await preparePackagePublishContext(pkg, undefined, undefined, {
+		projectType: ProjectType.Unity,
+		activeBranch: 'dev',
+		includeBranches: false,
+		includeHighResolution: 0,
+	});
+	t.deepEqual([...fallback.skeletonDependencyImageIds], ['texMain']);
+	t.deepEqual([...fallback.skeletonDependencyMiscIds].sort(), ['atlasDev', 'atlasShared']);
+
+	// Separate-branches mode retains main-branch skeleton dependency IDs.
+	pkg.setSourceAtlasSettings({ ...pkg.getSourceAtlasSettings(), excludedResourceIds: [] });
+	const separated = await preparePackagePublishContext(pkg, undefined, undefined, {
+		projectType: ProjectType.Unity,
+		activeBranch: 'dev',
+		includeBranches: true,
+		includeHighResolution: 0,
+	});
+	t.deepEqual([...separated.skeletonDependencyImageIds], ['texMain']);
+	t.deepEqual([...separated.skeletonDependencyMiscIds].sort(), ['atlasMain', 'atlasShared']);
+});
+
+test('publish: merged active branch exports branch-overridden skeleton texture and atlas sidecars', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-branch-skel-'));
+	const assetsDir = path.join(tmpDir, 'assets');
+	const branchAssetsDir = path.join(tmpDir, 'assets_dev');
+	const outDir = path.join(tmpDir, 'release');
+
+	try {
+		await fs.mkdir(path.join(assetsDir, 'Loader', 'spine'), { recursive: true });
+		await fs.mkdir(path.join(branchAssetsDir, 'Loader', 'spine'), { recursive: true });
+
+		const mainPng = await sharp({
+			create: { width: 16, height: 16, channels: 4, background: { r: 220, g: 30, b: 30, alpha: 1 } },
+		})
+			.png()
+			.toBuffer();
+		const devPng = await sharp({
+			create: { width: 24, height: 24, channels: 4, background: { r: 30, g: 90, b: 220, alpha: 1 } },
+		})
+			.png()
+			.toBuffer();
+
+		await fs.writeFile(path.join(assetsDir, 'Loader', 'spine', 'alien-pro.skel'), 'main skel');
+		await fs.writeFile(path.join(assetsDir, 'Loader', 'spine', 'alien-pma.atlas'), 'main atlas');
+		await fs.writeFile(path.join(assetsDir, 'Loader', 'spine', 'alien-pma.png'), mainPng);
+		await fs.writeFile(path.join(assetsDir, 'Loader', 'spine', 'alien-pma2.png'), mainPng);
+		await fs.writeFile(path.join(branchAssetsDir, 'Loader', 'spine', 'alien-pma.atlas'), 'dev atlas');
+		await fs.writeFile(path.join(branchAssetsDir, 'Loader', 'spine', 'alien-pma.png'), devPng);
+		await fs.writeFile(path.join(branchAssetsDir, 'Loader', 'spine', 'alien-pma2.png'), devPng);
+
+		const doc = new Document();
+		doc.getRoot()
+			.setProjectType(ProjectType.Unity)
+			.setBranches(['dev'])
+			.setSettings({
+				publish: {
+					branchProcessing: 1,
+				},
+			} as RootProjectSettings);
+
+		const pkg = doc.createPackage('Loader').setId('loader01').setPublishName('Loader');
+		pkg.addResource(
+			doc
+				.createMiscResource('alien-pma.atlas')
+				.setId('miscMain')
+				.setPath('/spine/')
+				.setFile('alien-pma.atlas')
+				.setExported(false),
+		);
+		pkg.addResource(
+			doc
+				.createMiscResource('alien-pma.atlas')
+				.setId('miscDev')
+				.setBranch('dev')
+				.setPath('/spine/')
+				.setFile('alien-pma.atlas')
+				.setExported(false),
+		);
+		pkg.addResource(
+			doc
+				.createImageResource('alien-pma')
+				.setId('imgMain')
+				.setPath('/spine/')
+				.setFileName('alien-pma.png')
+				.setWidth(16)
+				.setHeight(16)
+				.setExported(false),
+		);
+		pkg.addResource(
+			doc
+				.createImageResource('alien-pma')
+				.setId('imgDev')
+				.setBranch('dev')
+				.setPath('/spine/')
+				.setFileName('alien-pma.png')
+				.setWidth(24)
+				.setHeight(24)
+				.setExported(false),
+		);
+		pkg.addResource(
+			doc
+				.createImageResource('alien-pma2')
+				.setId('imgExportedMain')
+				.setPath('/spine/')
+				.setFileName('alien-pma2.png')
+				.setWidth(16)
+				.setHeight(16)
+				.setExported(true),
+		);
+		pkg.addResource(
+			doc
+				.createImageResource('alien-pma2')
+				.setId('imgExportedDev')
+				.setBranch('dev')
+				.setPath('/spine/')
+				.setFileName('alien-pma2.png')
+				.setWidth(24)
+				.setHeight(24)
+				.setExported(true),
+		);
+		pkg.addResource(
+			doc
+				.createSpineResource('alien-pro')
+				.setId('spineMain')
+				.setPath('/spine/')
+				.setFile('alien-pro.skel')
+				.setExported(true)
+				.setRequireIds(['miscMain', 'imgMain', 'imgExportedMain'])
+				.setAtlasNames(['alien-pma']),
+		);
+
+		await doc.transform(
+			publish({
+				output: outDir,
+				packages: ['Loader'],
+				branch: 'dev',
+				fs: createFs(),
+				encoder: sharp,
+				basePath: assetsDir,
+				codeGeneration: false,
+			}),
+		);
+
+		t.is(await fs.readFile(path.join(outDir, 'alien-pro.skel.bytes'), 'utf8'), 'main skel');
+		t.is(
+			await fs.readFile(path.join(outDir, 'alien-pma.atlas.txt'), 'utf8'),
+			'dev atlas',
+			'overridden skeleton atlas sidecar is exported from active branch',
+		);
+		t.deepEqual(
+			await fs.readFile(path.join(outDir, 'alien-pma.png')),
+			devPng,
+			'unexported overridden skeleton texture sidecar is exported from active branch',
+		);
+		t.deepEqual(
+			await fs.readFile(path.join(outDir, 'alien-pma2.png')),
+			devPng,
+			'exported overridden skeleton texture sidecar is exported from active branch',
+		);
+		t.falsy(
+			await fs.stat(path.join(outDir, 'Loader_atlas0.png')).catch(() => null),
+			'overridden skeleton texture images are not packed into a UI atlas',
+		);
+
+		const parsed = parsePackageBinary(new Uint8Array(await fs.readFile(path.join(outDir, 'Loader_fui.bytes'))));
+		const byId = new Map(parsed.items.map((item) => [item.id, item]));
+		t.is(byId.get('spineMain')?.file, 'alien-pro.skel.bytes');
+		t.false(byId.has('miscMain'), 'skeleton-only misc dependency stays sidecar-only');
+		t.false(byId.has('miscDev'), 'overridden skeleton-only misc dependency stays sidecar-only');
+		t.false(byId.has('imgMain'), 'skeleton-only image dependency stays sidecar-only');
+		t.false(byId.has('imgDev'), 'overridden skeleton-only image dependency stays sidecar-only');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});

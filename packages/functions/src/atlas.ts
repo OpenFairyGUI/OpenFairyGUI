@@ -219,15 +219,25 @@ interface ChildWithReferenceUrls extends HasOptionalSrc, HasOptionalUrl {
 	listGears?(): Gear[];
 }
 
-function getSelectedSkeletonDependencyImageIds(resources: PackageResource[]): Set<string> {
+function getSelectedSkeletonDependencyImageIds(
+	resources: PackageResource[],
+	selectedResources?: ReadonlyMap<PackageResource, string>,
+): Set<string> {
 	const imageIds = new Set<string>();
-	const resourcesById = new Map(resources.map((resource) => [resource.getId(), resource] as const));
+	const resourcesById = new Map<string, PackageResource>();
+	for (const resource of resources) {
+		resourcesById.set(resource.getId(), resource);
+		const effectiveId = selectedResources?.get(resource);
+		if (effectiveId && !resourcesById.has(effectiveId)) {
+			resourcesById.set(effectiveId, resource);
+		}
+	}
 	for (const resource of resources) {
 		if (!isSkeletonResource(resource)) continue;
 		for (const requiredId of resource.getRequireIds()) {
 			if (!requiredId) continue;
 			const required = resourcesById.get(requiredId);
-			if (required && isImageResource(required)) imageIds.add(requiredId);
+			if (required && isImageResource(required)) imageIds.add(required.getId());
 		}
 	}
 	return imageIds;
@@ -412,7 +422,7 @@ export function atlas(_options: AtlasOptions = {}): Transform {
 				? pkg.listResources().filter((resource) => selectedResources!.has(resource))
 				: pkg.listResources();
 			for (const font of allResources.filter(isFontResource)) await collectFontTexture(doc, font, pkg, options);
-			const skeletonDependencyImageIds = getSelectedSkeletonDependencyImageIds(allResources);
+			const skeletonDependencyImageIds = getSelectedSkeletonDependencyImageIds(allResources, selectedResources);
 			// Process resources in declaration order (matching editor behavior)
 			const orderedResources = await resolveEditorCompatibleResourceOrder(pkg, allResources);
 			const resourceOrder = new Map(orderedResources.map((resource, index) => [resource.getId(), index]));
