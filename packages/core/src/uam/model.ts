@@ -339,7 +339,20 @@ export type UamDisplayNodeKind =
 	| 'slider'
 	| 'scrollBar';
 
-export type UamBlendMode = 'normal' | 'none' | 'add' | 'multiply' | 'screen' | 'erase';
+export type UamBlendMode =
+	| 'normal'
+	| 'none'
+	| 'add'
+	| 'multiply'
+	| 'screen'
+	| 'erase'
+	| 'mask'
+	| 'below'
+	| 'off'
+	| 'one_oneminussrcalpha'
+	| 'custom1'
+	| 'custom2'
+	| 'custom3';
 
 export interface UamDisplayNodeBase {
 	kind: UamDisplayNodeKind;
@@ -645,6 +658,7 @@ export interface UamComboBoxNode extends UamTitleControlNodeBase {
 	selectedIndex: number;
 	visibleItemCount: number;
 	popupDirection: number;
+	selectionController?: string;
 }
 
 export interface UamProgressBarNode extends UamComponentDerivedNodeBase {

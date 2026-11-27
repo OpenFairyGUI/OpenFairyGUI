@@ -715,6 +715,7 @@ export function liftDisplayNode(child: GObject): UamDisplayNode {
 			selectedIndex: comboBox.getSelectedIndex(),
 			visibleItemCount: comboBox.getVisibleItemCount(),
 			popupDirection: comboBox.getPopupDirection(),
+			...(comboBox.getSelectionController() ? { selectionController: comboBox.getSelectionController() } : {}),
 		} satisfies UamComboBoxNode;
 	}
 	if (child.propertyType === PropertyType.G_PROGRESS_BAR) {

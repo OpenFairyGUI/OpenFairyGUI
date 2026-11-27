@@ -912,7 +912,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				...(comboBox.fileName ? { fileName: comboBox.fileName } : {}),
 				title: comboBox.title ?? '',
 				icon: comboBox.icon ?? '',
-				titleColor: comboBox.titleColor ?? '#000000',
+				titleColor: comboBox.titleColor ?? '',
 				titleFontSize: comboBox.titleFontSize ?? 0,
 				items: [...(comboBox.items ?? [])],
 				icons: [...(comboBox.icons ?? [])],
@@ -920,6 +920,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				selectedIndex: comboBox.selectedIndex ?? -1,
 				visibleItemCount: comboBox.visibleItemCount ?? 0,
 				popupDirection: comboBox.popupDirection ?? 0,
+				...(comboBox.selectionController ? { selectionController: comboBox.selectionController } : {}),
 				sound: comboBox.sound ?? '',
 				soundVolumeScale: comboBox.soundVolumeScale ?? 1,
 			} satisfies UamComboBoxNode;

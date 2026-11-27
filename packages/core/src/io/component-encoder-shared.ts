@@ -99,6 +99,7 @@ export type EncoderChildLike = ChildNode & {
 	getFoldInvisibleItems?(): boolean;
 	getText?(): string;
 	getAutoClearText?(): boolean;
+	getTemplateVarsEnabled?(): boolean;
 	getFaceDilate?(): number;
 	getOutlineSoftness?(): number;
 	getUnderlaySoftness?(): number;
