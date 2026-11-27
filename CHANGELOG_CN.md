@@ -4,13 +4,19 @@
 
 ## 未发布
 
+## v0.8.x
+
+### v0.8.0（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.8.0)）
+
+保真诊断与协议对齐：UAM 保真失败差异报告与语料度量（公开语料 `full` 占比 4/4 / 100.0%）、预算受控的组件内节点筛选 `queryDisplayNodes`（能力 schema 16，无破坏性变更）、`ImageResource.disableTrim`、工程 XML / 二进制 V1–V7 / 发布与恢复协议对齐，以及单主干发布流水线。
+
 缺陷修复：
 
 - core：工程 XML 写回 `GLoader3D` 时使用与 FairyGUI 桌面编辑器兼容的正式 `<loader3D>` 标签，在读取路径统一归一化标签大小写以兼容 `<loader3D>` 与小写 `<loader3d>`，并同步双语 XML 协议文档。
 - core：为 `MovieClipResource` 的 `atlas` 纹理集模式（`textureSetMode`）以及 `button`、`label`、`comboBox`、`progressBar`、`slider`、`scrollBar` 等组件派生节点的 `fileName` 补充正式 UAM 建模、校验、规范化与读写往返，避免合法工程因未建模属性在保存时被误判为 `uamFidelity: 'unsupported'`。
 - core：对齐 FairyGUI 桌面编辑器工程 XML 读写协议（规范 `"true"`/`"false"` 布尔序列化、`fillAmount` 百分比刻度归一化、图形类型与单值边距简写、根 `<component>` `<relation>` 与 `customExtention`、`<loader>`/`<loader3D>` 的 `group` 属性等），并同步双语 XML 协议文档与契约。
 - core：对齐 FairyGUI V1–V7 运行时二进制包编解码协议（修复包条目、组件子项、行为、Gear、Transition 与 ComboBox 二进制编码漂移），并同步双语二进制格式文档与契约。
-- core、functions、cli：对齐发布、图集、分支与受限恢复协议（按引擎区分旋转图集方向、目录 `folder@atlas` 继承、`duplicatePadding` 边缘像素复制、固定页 `multiPage`/分支共享、独立图集 `atlas_<itemId>` 命名、合并分支别名与路径模板，以及恢复期旋转图集与 `!a.png` alpha 分离重组、`fileExtension` 推导），同步双语发布与恢复文档。
+- core、functions、cli：对齐发布、图集、分支与受限恢复协议（按引擎区分旋转图集方向、目录 `folder@atlas` 继承、`duplicatePadding` 边缘像素复制、固定页 `multiPage`/分支共享、独立图集 `atlas_<itemId>` 命名、合并分支别名与骨架依赖覆写导出及路径模板，以及恢复期旋转图集与 `!a.png` alpha 分离重组、`fileExtension` 推导），同步双语发布与恢复文档。
 
 新功能：
 
