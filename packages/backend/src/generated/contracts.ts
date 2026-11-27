@@ -2924,6 +2924,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"customData": {
 					"type": "string"
 				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29"
+				},
 				"displayList": {
 					"$ref": "#/$defs/Array_467ca5fd71"
 				},
@@ -3233,6 +3236,32 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
+		"Array_9d4803aa29": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamRelation_05734287d5"
+			}
+		},
+		"UamRelation_05734287d5": {
+			"type": "object",
+			"properties": {
+				"targetNodeId": {
+					"type": "string"
+				},
+				"type": {
+					"type": "number"
+				},
+				"usePercent": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"targetNodeId",
+				"type",
+				"usePercent"
+			],
+			"additionalProperties": false
+		},
 		"Array_467ca5fd71": {
 			"type": "array",
 			"items": {
@@ -3306,6 +3335,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"resource": {
 					"$ref": "#/$defs/UamResourceRef_3486136f6c"
+				},
+				"fileName": {
+					"type": "string"
 				},
 				"group": {
 					"type": "string"
@@ -3455,32 +3487,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			},
 			"required": [
 				"resourceId"
-			],
-			"additionalProperties": false
-		},
-		"Array_9d4803aa29": {
-			"type": "array",
-			"items": {
-				"$ref": "#/$defs/UamRelation_05734287d5"
-			}
-		},
-		"UamRelation_05734287d5": {
-			"type": "object",
-			"properties": {
-				"targetNodeId": {
-					"type": "string"
-				},
-				"type": {
-					"type": "number"
-				},
-				"usePercent": {
-					"type": "boolean"
-				}
-			},
-			"required": [
-				"targetNodeId",
-				"type",
-				"usePercent"
 			],
 			"additionalProperties": false
 		},
@@ -6465,6 +6471,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pivot": {
 					"$ref": "#/$defs/UamPoint_600bb96bb9"
 				},
+				"group": {
+					"type": "string"
+				},
 				"id": {
 					"type": "string"
 				},
@@ -6593,6 +6602,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"required": [
 				"kind",
 				"pivot",
+				"group",
 				"id",
 				"name",
 				"position",
@@ -6640,6 +6650,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"kind": {
 					"type": "string",
 					"const": "loader3D"
+				},
+				"group": {
+					"type": "string"
 				},
 				"id": {
 					"type": "string"
@@ -6762,6 +6775,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			},
 			"required": [
 				"kind",
+				"group",
 				"id",
 				"name",
 				"position",
@@ -14824,6 +14838,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"resource": {
 					"$ref": "#/$defs/UamResourceRef_3486136f6c_wire"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"group": {
 					"type": "string"
 				},
@@ -17982,6 +17999,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pivot": {
 					"$ref": "#/$defs/UamPoint_600bb96bb9_wire"
 				},
+				"group": {
+					"type": "string"
+				},
 				"id": {
 					"type": "string"
 				},
@@ -18110,6 +18130,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"required": [
 				"kind",
 				"pivot",
+				"group",
 				"id",
 				"name",
 				"position",
@@ -18157,6 +18178,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"kind": {
 					"type": "string",
 					"const": "loader3D"
+				},
+				"group": {
+					"type": "string"
 				},
 				"id": {
 					"type": "string"
@@ -18279,6 +18303,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			},
 			"required": [
 				"kind",
+				"group",
 				"id",
 				"name",
 				"position",
@@ -20061,6 +20086,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"customData": {
 					"type": "string"
+				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_wire"
 				},
 				"displayList": {
 					"$ref": "#/$defs/Array_467ca5fd71_wire"
@@ -22392,6 +22420,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"customData": {
 					"type": "string"
 				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_read"
+				},
 				"displayList": {
 					"$ref": "#/$defs/Array_467ca5fd71_read"
 				},
@@ -22701,6 +22732,32 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
+		"Array_9d4803aa29_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamRelation_05734287d5_read"
+			}
+		},
+		"UamRelation_05734287d5_read": {
+			"type": "object",
+			"properties": {
+				"targetNodeId": {
+					"type": "string"
+				},
+				"type": {
+					"type": "number"
+				},
+				"usePercent": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"targetNodeId",
+				"type",
+				"usePercent"
+			],
+			"additionalProperties": true
+		},
 		"Array_467ca5fd71_read": {
 			"type": "array",
 			"items": {
@@ -22774,6 +22831,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"resource": {
 					"$ref": "#/$defs/UamResourceRef_3486136f6c_read"
+				},
+				"fileName": {
+					"type": "string"
 				},
 				"group": {
 					"type": "string"
@@ -22937,32 +22997,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": true
 				}
 			]
-		},
-		"Array_9d4803aa29_read": {
-			"type": "array",
-			"items": {
-				"$ref": "#/$defs/UamRelation_05734287d5_read"
-			}
-		},
-		"UamRelation_05734287d5_read": {
-			"type": "object",
-			"properties": {
-				"targetNodeId": {
-					"type": "string"
-				},
-				"type": {
-					"type": "number"
-				},
-				"usePercent": {
-					"type": "boolean"
-				}
-			},
-			"required": [
-				"targetNodeId",
-				"type",
-				"usePercent"
-			],
-			"additionalProperties": true
 		},
 		"Array_aa00fd9a0a_read": {
 			"type": "array",
@@ -25978,6 +26012,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pivot": {
 					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
 				},
+				"group": {
+					"type": "string"
+				},
 				"id": {
 					"type": "string"
 				},
@@ -26106,6 +26143,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"required": [
 				"kind",
 				"pivot",
+				"group",
 				"id",
 				"name",
 				"position",
@@ -26153,6 +26191,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"kind": {
 					"type": "string",
 					"const": "loader3D"
+				},
+				"group": {
+					"type": "string"
 				},
 				"id": {
 					"type": "string"
@@ -26275,6 +26316,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			},
 			"required": [
 				"kind",
+				"group",
 				"id",
 				"name",
 				"position",
@@ -33995,5 +34037,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "dcfeadbd451f77fa2d2d3bb51911cb1fbe9f6d12cbd6562047d59b441d72e50e"
+	"digest": "8588f6fc533392e8acb3de4c6d0d8c27aa90ad3b64131c548b78e21ccedf85da"
 };

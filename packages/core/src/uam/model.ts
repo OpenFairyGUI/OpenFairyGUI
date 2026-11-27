@@ -186,6 +186,7 @@ export interface UamComponentModel {
 	size: UamSize;
 	properties: UamComponentProperties;
 	customData: string;
+	relations?: UamRelation[];
 	displayList: UamDisplayNode[];
 	controllers: UamControllerModel[];
 	transitions: UamTransitionModel[];
@@ -383,6 +384,8 @@ export interface UamImageProperties {
 export interface UamImageNode extends UamGroupableDisplayNodeBase, UamImageProperties {
 	kind: 'image';
 	resource: UamResourceRef;
+	/** Preserved editor file hint for this image instance; resource identifies the target. */
+	fileName?: string;
 }
 
 export interface UamTextProperties {
@@ -558,7 +561,7 @@ export interface UamLoaderProperties {
 	clearOnPublish: boolean;
 }
 
-export interface UamLoaderNode extends UamDisplayNodeBase, UamLoaderProperties {
+export interface UamLoaderNode extends UamGroupableDisplayNodeBase, UamLoaderProperties {
 	kind: 'loader';
 	pivot: UamPoint;
 }
@@ -579,7 +582,7 @@ export interface UamLoader3DProperties {
 	clearOnPublish: boolean;
 }
 
-export interface UamLoader3DNode extends UamDisplayNodeBase, UamLoader3DProperties {
+export interface UamLoader3DNode extends UamGroupableDisplayNodeBase, UamLoader3DProperties {
 	kind: 'loader3D';
 }
 

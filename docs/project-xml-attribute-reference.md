@@ -51,6 +51,35 @@
 | `path` |  | 包级发布路径 |
 | `branchPath` |  | 分支发布路径 |
 | `packageCount` |  | 发布分包数量 |
+| `genCode` |  | 是否生成代码 |
+| `codePath` |  | 包级代码生成路径 |
+| `maxAtlasSize` |  | 最大图集尺寸 |
+| `sizeOption` |  | 图集尺寸策略 |
+| `npot` |  | 是否允许非 2 的幂尺寸 |
+| `square` |  | 是否强制正方形图集 |
+| `rotation` |  | 是否允许图集旋转打包 |
+| `multiPage` |  | 是否允许多页图集 |
+| `extractAlpha` |  | 是否分离 Alpha 通道 |
+| `maxAtlasIndex` |  | 自定义图集最大索引 |
+| `excluded` |  | 是否在发布时排除 |
+
+`publish` 下可包含多个 `<atlas>` 子节点：
+
+| 属性名 | Alias | 说明 |
+|---|---|---|
+| `name` |  | 图集名称 |
+| `index` |  | 图集索引 |
+| `compression` |  | 图集压缩选项 |
+
+### `resources > folder`
+
+| 属性名 | Alias | 说明 |
+|---|---|---|
+| `id` |  | 目录标识 |
+| `name` |  | 目录名 |
+| `path` |  | 目录路径 |
+| `favorite` |  | 是否加入资源收藏 |
+| `atlas` |  | 目录默认图集分配模式 |
 
 ### 通用资源节点
 
@@ -127,8 +156,12 @@
 | 项目 | 说明 |
 |---|---|
 | 显示对象 `xy` | `displayList` 中支持 `xy` 的对象节点当前显式写出位置；默认原点写为 `xy="0,0"` |
+| 布尔属性 | 与编辑器 `XData`/`XML` 解析规则一致，布尔属性统一写为 `"true"` / `"false"`（不写 `"1"` / `"0"`） |
+| 边距属性 | `margin` / `scrollBarMargin` 支持 4 段 `top,bottom,left,right` 及编辑器单值简写 `N`（等价 `N,N,N,N`） |
 
 ### 根节点 `<component>`
+
+根节点除 `<controller>`、`<displayList>`、`<transition>`、`<customProperty>` 及扩展子节点外，也支持直接子 `<relation>` 节点（用于根组件跟随子元素尺寸等关联）。
 
 | 属性名 | Alias | 说明 |
 |---|---|---|
@@ -151,6 +184,7 @@
 | `scrollBarRes` |  | 滚动条资源 |
 | `ptrRes` |  | 下拉刷新资源 |
 | `extention` |  | 根组件扩展类型 |
+| `customExtention` |  | 自定义扩展类名/标识 |
 | `bgColor` |  | 背景颜色 |
 | `bgColorEnabled` |  | 是否启用背景颜色 |
 | `idnum` |  | 内部编号 |
@@ -243,7 +277,7 @@
 | `fillMethod` |  | 填充方法 |
 | `fillOrigin` |  | 填充起点 |
 | `fillClockwise` |  | 顺时针填充 |
-| `fillAmount` |  | 填充比例 |
+| `fillAmount` |  | 填充比例，XML 采用 `0..100` 百分比刻度（默认 `100`，模型内部归一到 `0..1`） |
 | `xy` |  | 位置 |
 | `size` |  | 尺寸 |
 | `locked` |  | 是否锁定 |
@@ -258,6 +292,7 @@
 | `visible` |  | 是否可见 |
 | `touchable` |  | 是否可触摸 |
 | `grayed` |  | 是否置灰 |
+| `fileName` |  | 资源文件名 |
 | `pkg` |  | 资源包标识 |
 | `filter` |  | 滤镜类型 |
 | `filterData` |  | 滤镜数据 |
@@ -279,7 +314,7 @@
 | `touchable` |  | 是否可触摸 |
 | `grayed` |  | 是否置灰 |
 | `skew` |  | 倾斜 |
-| `type` |  | 图形类型 |
+| `type` |  | 图形类型：规范写回 `rect`、`eclipse`、`polygon`、`regular_polygon`（读入兼容 `ellipse`/`regularpolygon`） |
 | `lineSize` |  | 线宽 |
 | `lineColor` |  | 线颜色 |
 | `fillColor` |  | 填充颜色 |
@@ -287,7 +322,7 @@
 | `points` |  | 顶点坐标 |
 | `sides` |  | 多边形边数 |
 | `startAngle` |  | 起始角度 |
-| `distances` |  | 顶点距离 |
+| `distances` |  | 顶点距离列表，缺省空槽按 `1` 解析 |
 
 ### `<movieclip>` / `<jta>`
 
@@ -321,6 +356,7 @@
 | `pivot` |  | pivot |
 | `anchor` |  | 是否以 pivot 作为坐标锚点 |
 | `scale` |  | 缩放 |
+| `group` |  | 所属 group |
 | `rotation` |  | 旋转 |
 | `alpha` |  | 透明度 |
 | `visible` |  | 是否可见 |
@@ -333,13 +369,14 @@
 | `shrinkOnly` |  | 仅缩小 |
 | `autoSize` |  | 自动尺寸 |
 | `useResize` |  | 使用 resize |
+| `errorSign` |  | 加载失败时是否显示错误标志 |
 | `color` |  | 颜色 |
 | `playing` |  | 是否播放 |
 | `frame` |  | 帧号 |
 | `fillMethod` |  | 填充方法 |
 | `fillOrigin` |  | 填充起点 |
 | `fillClockwise` |  | 顺时针填充 |
-| `fillAmount` |  | 填充比例 |
+| `fillAmount` |  | 填充比例，XML 采用 `0..100` 百分比刻度（默认 `100`，模型内部归一到 `0..1`） |
 | `clearOnPublish` |  | 发布时清理 |
 | `filter` |  | 滤镜类型 |
 | `filterData` |  | 滤镜数据 |
@@ -352,6 +389,7 @@
 | `size` |  | 尺寸 |
 | `pivot` |  | pivot |
 | `anchor` |  | 是否以 pivot 作为坐标锚点 |
+| `group` |  | 所属 group |
 | `rotation` |  | 旋转 |
 | `alpha` |  | 透明度 |
 | `visible` |  | 是否可见 |
@@ -367,7 +405,7 @@
 | `skin` | `skinName` | 皮肤名 |
 | `playing` |  | 是否播放 |
 | `frame` |  | 帧号 |
-| `loop` |  | 是否循环 |
+| `loop` |  | 是否循环；缺省为 `false`，仅在 `true` 时写回 |
 | `color` |  | 颜色 |
 | `clearOnPublish` |  | 发布时清理 |
 
@@ -657,10 +695,12 @@
 
 ### `<relation>`
 
+可作为显示对象或根节点 `<component>` 的直接子节点。
+
 | 属性名 | Alias | 说明 |
 |---|---|---|
 | `target` |  | 目标对象 |
-| `sidePair` |  | 关系侧对 |
+| `sidePair` |  | 关系侧对；支持编辑器单侧简写（如 `width,height` 等价 `width-width,height-height`，`width%` 等价 `width-width%`） |
 
 ### `<gear*>`
 
@@ -678,6 +718,8 @@
 | `delay` |  | 补间延迟，单位秒，默认 0 |
 
 ### `<controller>`
+
+支持 `<action>` 与 `<remark page="..." value="..."/>` 直接子节点。
 
 | 属性名 | Alias | 说明 |
 |---|---|---|

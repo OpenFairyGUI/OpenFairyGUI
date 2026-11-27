@@ -697,24 +697,14 @@ function validateDisplayNode(
 	) {
 		pushIssue(issues, path, 'MovieClip properties must be a complete valid property snapshot.');
 	}
-	if (node.kind === 'loader' || node.kind === 'loader3D') {
-		if ('group' in node) {
-			pushIssue(
-				issues,
-				`${path}.group`,
-				`${describeValue(node.kind)} display nodes must not declare a group reference.`,
-			);
-		}
-	} else {
-		if (!('group' in node) || typeof node.group !== 'string') {
-			pushIssue(issues, `${path}.group`, 'Display node group must be a string.');
-		} else if (node.group && (node.group === node.id || !knownGroupIds.has(node.group))) {
-			pushIssue(
-				issues,
-				`${path}.group`,
-				`Group reference "${describeValue(node.group)}" must target another group in the same component.`,
-			);
-		}
+	if (!('group' in node) || typeof node.group !== 'string') {
+		pushIssue(issues, `${path}.group`, 'Display node group must be a string.');
+	} else if (node.group && (node.group === node.id || !knownGroupIds.has(node.group))) {
+		pushIssue(
+			issues,
+			`${path}.group`,
+			`Group reference "${describeValue(node.group)}" must target another group in the same component.`,
+		);
 	}
 	const gearKinds = new Set<UamGearBinding['kind']>();
 	for (const [gearIndex, gear] of node.gears.entries()) {
@@ -869,6 +859,15 @@ export function validateUamProject(project: UamProject): UamValidationIssue[] {
 					pushIssue(issues, `${childPath}.id`, `Duplicate child id "${describeValue(child.id)}".`);
 				childIds.add(child.id);
 				if (child.kind === 'group') groupIds.add(child.id);
+			}
+			for (const [relationIndex, relation] of (component.relations ?? []).entries()) {
+				if (relation.targetNodeId && !childIds.has(relation.targetNodeId)) {
+					pushIssue(
+						issues,
+						`${resourcePath}.component.relations[${relationIndex}]`,
+						`Unknown relation target node id "${describeValue(relation.targetNodeId)}".`,
+					);
+				}
 			}
 
 			const controllerMap = new Map<string, UamControllerModel>();

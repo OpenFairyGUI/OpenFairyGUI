@@ -135,7 +135,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 下表只摘要顶层参数；嵌套字段和具体结果请读取对应 schema。SHA-256 变化表示生成契约发生变化，不等同于包版本号。
 
 <!-- contracts:start -->
-SHA-256: `dcfeadbd451f77fa2d2d3bb51911cb1fbe9f6d12cbd6562047d59b441d72e50e`
+SHA-256: `8588f6fc533392e8acb3de4c6d0d8c27aa90ad3b64131c548b78e21ccedf85da`
 
 | 操作 | 参数（`?` 表示可选） |
 |---|---|

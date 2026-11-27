@@ -28,7 +28,7 @@ export function isValidUamImageProperties(value: unknown): value is UamImageProp
 		typeof properties.fillAmount === 'number' &&
 		Number.isFinite(properties.fillAmount) &&
 		(properties.fillMethod === 0
-			? properties.fillOrigin === 0 && properties.fillClockwise && properties.fillAmount === 100
+			? properties.fillOrigin === 0 && properties.fillClockwise && properties.fillAmount === 1
 			: properties.fillAmount >= 0 && properties.fillAmount <= 1)
 	);
 }

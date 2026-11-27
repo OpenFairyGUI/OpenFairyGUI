@@ -176,12 +176,17 @@ const RELATION_TYPE_MAP: Record<string, number> = {
 
 export function parseSidePair(sidePair: string): Array<{ type: number; usePercent: boolean }> {
 	if (!sidePair) return [];
-	return sidePair.split(',').map((pair) => {
-		const usePercent = pair.endsWith('%');
-		const clean = usePercent ? pair.slice(0, -1) : pair;
-		const type = RELATION_TYPE_MAP[clean] ?? 0;
-		return { type, usePercent };
-	});
+	return sidePair
+		.split(',')
+		.map((pair) => pair.trim())
+		.filter(Boolean)
+		.map((pair) => {
+			const usePercent = pair.endsWith('%');
+			const clean = usePercent ? pair.slice(0, -1) : pair;
+			const canonical = clean.includes('-') ? clean : `${clean}-${clean}`;
+			const type = RELATION_TYPE_MAP[canonical] ?? 0;
+			return { type, usePercent };
+		});
 }
 
 export function ensureArray<T>(v: T | T[] | undefined): T[] {

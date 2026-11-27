@@ -589,7 +589,7 @@ test('round-trip: sample list ptrRes and transition value attrs survive write→
 			powerUpXml.includes('<item time="0" type="XY" value="0,0"/>'),
 			'non-tween XY writes value attr instead of startValue',
 		);
-		t.true(/<jta\b[^>]*id="n5"/.test(powerUpXml), 'movie clip instances write jta display tags');
+		t.true(/<movieclip\b[^>]*id="n5"/.test(powerUpXml), 'movie clip instances write movieclip display tags');
 
 		const goodHitXml = await fs.readFile(path.join(tmpDir, 'assets', 'Transition', 'GoodHit.xml'), 'utf-8');
 		t.true(
@@ -718,7 +718,7 @@ test('writer: suppresses restored-like default attrs and float-noise defaults', 
 		const compXml = await fs.readFile(path.join(tmpDir, 'assets', 'DefaultNoise', 'Defaults.xml'), 'utf-8');
 		t.false(buttonXml.includes('downEffectValue='), 'button omits float-noise default downEffectValue');
 		t.false(compXml.includes('color="#FFFFFF"'), 'writer omits default white image/loader color');
-		t.false(/<jta\b[^>]*color="#ffffff"/.test(compXml), 'writer omits default white jta color');
+		t.false(/<movieclip\b[^>]*color="#ffffff"/.test(compXml), 'writer omits default white movieclip color');
 		t.false(compXml.includes('color="#000000"'), 'writer omits default black text color');
 		t.false(compXml.includes('fill="none"'), 'loader omits default fill');
 		t.false(compXml.includes('selectionMode="single"'), 'list omits default selectionMode');

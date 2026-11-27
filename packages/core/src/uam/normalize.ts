@@ -660,12 +660,13 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				...base,
 				group: node.group ?? '',
 				resource: normalizeResourceRef(node.resource),
+				...(node.fileName ? { fileName: node.fileName } : {}),
 				color: node.color ?? '#FFFFFF',
 				flip: node.flip ?? 0,
 				fillMethod: node.fillMethod ?? 0,
 				fillOrigin: node.fillOrigin ?? 0,
 				fillClockwise: node.fillClockwise ?? true,
-				fillAmount: node.fillAmount ?? 100,
+				fillAmount: node.fillAmount ?? 1,
 			} satisfies UamImageNode;
 		case 'text':
 			return {
@@ -800,6 +801,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			return {
 				kind: 'loader',
 				...base,
+				group: loader.group ?? '',
 				pivot: normalizePoint(loader.pivot),
 				url: loader.url ?? '',
 				fill: loader.fill ?? 0,
@@ -815,7 +817,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				fillMethod: loader.fillMethod ?? 0,
 				fillOrigin: loader.fillOrigin ?? 0,
 				fillClockwise: loader.fillClockwise ?? true,
-				fillAmount: loader.fillAmount ?? 100,
+				fillAmount: loader.fillAmount ?? 1,
 				clearOnPublish: loader.clearOnPublish ?? false,
 			} satisfies UamLoaderNode;
 		}
@@ -824,6 +826,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 			return {
 				kind: 'loader3D',
 				...base,
+				group: loader.group ?? '',
 				url: loader.url ?? '',
 				fill: loader.fill ?? 0,
 				shrinkOnly: loader.shrinkOnly ?? false,
@@ -834,7 +837,7 @@ function normalizeDisplayNode(node: UamDisplayNode): UamDisplayNode {
 				skinName: loader.skinName ?? '',
 				playing: loader.playing ?? true,
 				frame: loader.frame ?? 0,
-				loop: loader.loop ?? true,
+				loop: loader.loop ?? false,
 				color: loader.color ?? '#FFFFFF',
 				clearOnPublish: loader.clearOnPublish ?? false,
 			} satisfies UamLoader3DNode;
@@ -1039,6 +1042,7 @@ function normalizeTransitionModel(transition: UamTransitionModel): UamTransition
 }
 
 function normalizeComponentModel(component: UamComponentModel): UamComponentModel {
+	const relations = normalizeRelations(component.relations);
 	return {
 		size: {
 			width: component.size?.width ?? 0,
@@ -1046,6 +1050,7 @@ function normalizeComponentModel(component: UamComponentModel): UamComponentMode
 		},
 		properties: normalizeComponentProperties(component.properties),
 		customData: component.customData ?? '',
+		...(relations.length > 0 ? { relations } : {}),
 		displayList: (component.displayList ?? []).map(normalizeDisplayNode),
 		controllers: (component.controllers ?? []).map(normalizeControllerModel),
 		transitions: (component.transitions ?? []).map(normalizeTransitionModel),

@@ -892,6 +892,7 @@ test('Loader3D properties survive transaction, save/reload, inverse, and invalid
 	const loader = {
 		kind: 'loader3D' as const,
 		...createDisplayNodeBase('loader3d-node', 'loader3d'),
+		group: '',
 		url: '',
 		fill: 0,
 		shrinkOnly: false,
@@ -902,8 +903,8 @@ test('Loader3D properties survive transaction, save/reload, inverse, and invalid
 		skinName: '',
 		playing: true,
 		frame: 0,
-		loop: true,
-		color: '#ffffff',
+		loop: false,
+		color: '#FFFFFF',
 		clearOnPublish: false,
 	};
 	component.component.displayList.push(loader);
@@ -919,7 +920,7 @@ test('Loader3D properties survive transaction, save/reload, inverse, and invalid
 		skinName: 'hero',
 		playing: false,
 		frame: 7,
-		loop: false,
+		loop: true,
 		color: '#A1B2C3',
 		clearOnPublish: true,
 	};
@@ -1157,6 +1158,7 @@ test('graph, loader, list, and tree property snapshots survive transaction lifec
 	const loader: UamDisplayNode = {
 		kind: 'loader',
 		...createDisplayNodeBase('loader-props', 'loader', 16),
+		group: '',
 		pivot: { x: 0, y: 0 },
 		url: '',
 		fill: 0,
@@ -1172,7 +1174,7 @@ test('graph, loader, list, and tree property snapshots survive transaction lifec
 		fillMethod: 0,
 		fillOrigin: 0,
 		fillClockwise: true,
-		fillAmount: 100,
+		fillAmount: 1,
 		clearOnPublish: false,
 	};
 	const list: UamDisplayNode = {
@@ -1627,6 +1629,7 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 		{
 			kind: 'loader',
 			...createDisplayNodeBase('n6', 'loader', 40),
+			group: '',
 			pivot: { x: 0, y: 0 },
 			scale: { x: 1, y: 1 },
 			url: 'ui://pkg001/img001',
@@ -1645,7 +1648,7 @@ test('Phase A transactions support common FairyGUI display node kinds for common
 			fillMethod: 0,
 			fillOrigin: 0,
 			fillClockwise: true,
-			fillAmount: 100,
+			fillAmount: 1,
 			clearOnPublish: false,
 		},
 		{
@@ -1902,6 +1905,7 @@ test('group references validate against the projected component display list', (
 	component.component.displayList.push({
 		kind: 'loader',
 		...createDisplayNodeBase(loaderTarget.displayNodeId, 'loader'),
+		group: '',
 		pivot: { x: 0, y: 0 },
 		scale: { x: 1, y: 1 },
 		url: '',
@@ -1920,17 +1924,18 @@ test('group references validate against the projected component display list', (
 		fillMethod: 0,
 		fillOrigin: 0,
 		fillClockwise: true,
-		fillAmount: 100,
+		fillAmount: 1,
 		clearOnPublish: false,
 	});
-	t.true(
+	t.deepEqual(
 		validateTransactionSupport(withLoader, [
 			{
 				kind: 'setDisplayNodeProps',
 				selector: loaderTarget,
 				props: { group: groupNode.id },
 			},
-		]).some((issue) => issue.code === 'unsupported_display_node_field'),
+		]),
+		[],
 	);
 	const loaderWithGroup = structuredClone(withLoader);
 	const loaderComponent = loaderWithGroup.packages[0]?.resources.find((resource) => resource.id === 'cmp001');
@@ -1939,6 +1944,8 @@ test('group references validate against the projected component display list', (
 			? loaderComponent.component.displayList.find((node) => node.id === loaderTarget.displayNodeId)
 			: null;
 	if (loaderNode) Object.assign(loaderNode, { group: groupNode.id });
+	t.deepEqual(validateUamProject(loaderWithGroup), []);
+	if (loaderNode) Object.assign(loaderNode, { group: 'missing-group' });
 	t.true(validateUamProject(loaderWithGroup).some((issue) => issue.path.endsWith('.group')));
 
 	t.true(

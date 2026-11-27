@@ -5,13 +5,13 @@ import type { ReaderContext } from './reader-context.js';
 
 type XmlNode = Record<string, unknown>;
 
-type ProjectInt32Rule = readonly [spec: XmlAttrSpec, partCount: number];
+type ProjectInt32Rule = readonly [spec: XmlAttrSpec, partCount: number | readonly number[]];
 
 const COMPONENT_INT32_RULES: readonly ProjectInt32Rule[] = [
 	[PROJECT_XML_PROTOCOL.componentRoot.attrs.size, 2],
 	[PROJECT_XML_PROTOCOL.componentRoot.attrs.restrictSize, 4],
-	[PROJECT_XML_PROTOCOL.componentRoot.attrs.margin, 4],
-	[PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarMargin, 4],
+	[PROJECT_XML_PROTOCOL.componentRoot.attrs.margin, [1, 4]],
+	[PROJECT_XML_PROTOCOL.componentRoot.attrs.scrollBarMargin, [1, 4]],
 	[PROJECT_XML_PROTOCOL.componentRoot.attrs.clipSoftness, 2],
 	[PROJECT_XML_PROTOCOL.componentRoot.attrs.designImageOffsetX, 1],
 	[PROJECT_XML_PROTOCOL.componentRoot.attrs.designImageOffsetY, 1],
@@ -24,8 +24,8 @@ const DISPLAY_OBJECT_INT32_RULES: readonly ProjectInt32Rule[] = [
 ];
 
 const LIST_INT32_RULES: readonly ProjectInt32Rule[] = [
-	[PROJECT_XML_PROTOCOL.list.attrs.margin, 4],
-	[PROJECT_XML_PROTOCOL.list.attrs.scrollBarMargin, 4],
+	[PROJECT_XML_PROTOCOL.list.attrs.margin, [1, 4]],
+	[PROJECT_XML_PROTOCOL.list.attrs.scrollBarMargin, [1, 4]],
 	[PROJECT_XML_PROTOCOL.list.attrs.clipSoftness, 2],
 ];
 
@@ -45,8 +45,16 @@ function isProjectBoolean(value: string): boolean {
 	return ['true', 'false', '1', '0'].includes(value.trim());
 }
 
-function hasInvalidProjectInt32Parts(value: unknown, partCount: number, allowSuffix = false): boolean {
+function hasInvalidProjectInt32Parts(
+	value: unknown,
+	partCount: number | readonly number[],
+	allowSuffix = false,
+): boolean {
 	const parts = String(value).split(',');
+	if (typeof partCount !== 'number') {
+		if (!partCount.includes(parts.length)) return true;
+		return parts.some((part) => !isProjectInt32(part));
+	}
 	if (allowSuffix ? parts.length < partCount : parts.length !== partCount) return true;
 	return parts.slice(0, partCount).some((part) => !isProjectInt32(part));
 }
@@ -147,11 +155,12 @@ export function validateComponentXmlValues(
 		for (const [spec, partCount] of rules) {
 			const value = readXmlAttr(attrs, spec);
 			if (value === undefined || !hasInvalidProjectInt32Parts(value, partCount)) continue;
+			const expectedCount = Array.isArray(partCount) ? partCount.join(' or ') : String(partCount);
 			ctx.addDiagnostic({
 				severity: 'error',
 				code: 'desktop_incompatible_geometry',
 				path: `${path}.${spec.canonical}`,
-				message: `FairyGUI Desktop requires "${spec.canonical}" to contain ${partCount} signed 32-bit integer value(s); received ${JSON.stringify(String(value))}.`,
+				message: `FairyGUI Desktop requires "${spec.canonical}" to contain ${expectedCount} signed 32-bit integer value(s); received ${JSON.stringify(String(value))}.`,
 				resourceId: comp.getId(),
 				...(nodeId ? { nodeId } : {}),
 				sourcePath,

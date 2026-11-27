@@ -486,7 +486,7 @@ function _writeChildSpecific(
 			buf.writeS(child.getSkinName?.() ?? null);
 			buf.writeBool(child.getPlaying?.() ?? true);
 			buf.writeInt32(child.getFrame?.() ?? 0);
-			buf.writeBool(child.getLoop?.() ?? true);
+			buf.writeBool(child.getLoop?.() ?? false);
 			const loader3DColor = child.getColor?.() ?? null;
 			const loader3DColorLower = loader3DColor?.toLowerCase?.() ?? '';
 			const hasLoader3DColor =
