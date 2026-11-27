@@ -8,9 +8,9 @@ function randomStagingToken(): string {
 	return globalThis.crypto?.randomUUID?.() ?? generateId();
 }
 
-export function isPathWithin(root: string, candidate: string): boolean {
-	const normalizedRoot = normalizeComparablePath(root);
-	const normalizedCandidate = normalizeComparablePath(candidate);
+export function isPathWithin(root: string, candidate: string, caseSensitive = false): boolean {
+	const normalizedRoot = normalizeComparablePath(root, caseSensitive);
+	const normalizedCandidate = normalizeComparablePath(candidate, caseSensitive);
 	if (normalizedRoot === '/') {
 		return (
 			normalizedCandidate.startsWith('/') && normalizedCandidate !== '/' && !normalizedCandidate.startsWith('//')
@@ -68,12 +68,12 @@ export async function assertRestoreOutputDir(
 		resolvePathForContainment(inputDir, fs),
 		resolvePathForContainment(outputDir, fs),
 	]);
-	const normalizedInputDir = normalizeComparablePath(resolvedInputDir);
-	const normalizedOutputDir = normalizeComparablePath(resolvedOutputDir);
+	const normalizedInputDir = normalizeComparablePath(resolvedInputDir, false);
+	const normalizedOutputDir = normalizeComparablePath(resolvedOutputDir, false);
 	if (
 		normalizedInputDir === normalizedOutputDir ||
-		isPathWithin(normalizedInputDir, normalizedOutputDir) ||
-		isPathWithin(normalizedOutputDir, normalizedInputDir)
+		isPathWithin(normalizedInputDir, normalizedOutputDir, false) ||
+		isPathWithin(normalizedOutputDir, normalizedInputDir, false)
 	) {
 		throw new Error('Restore output directory must be independent from the published input directory.');
 	}

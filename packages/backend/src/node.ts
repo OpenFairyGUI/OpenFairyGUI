@@ -89,6 +89,20 @@ async function resolvePathThroughExistingAncestor(filePath: string): Promise<str
 	}
 }
 
+async function assertPathNotSymlink(filePath: string): Promise<void> {
+	const stat = await fs.lstat(filePath).catch((error: NodeJS.ErrnoException) => {
+		if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return null;
+		throw error;
+	});
+	if (stat?.isSymbolicLink()) {
+		const error = new Error(`Symbolic links are not supported in project directories: ${filePath}`) as Error & {
+			code: string;
+		};
+		error.code = 'ELOOP';
+		throw error;
+	}
+}
+
 async function pathExists(filePath: string): Promise<boolean> {
 	return fs.stat(filePath).then(
 		() => true,
@@ -289,11 +303,13 @@ export function createNodeBackendFileSystem(): BackendFileSystem {
 			const buffer = await fs.readFile(filePath);
 			return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 		},
-		writeFile(filePath: string, content: string): Promise<void> {
-			return fs.writeFile(filePath, content, 'utf-8');
+		async writeFile(filePath: string, content: string): Promise<void> {
+			await assertPathNotSymlink(filePath);
+			await fs.writeFile(filePath, content, 'utf-8');
 		},
-		writeFileRaw(filePath: string, data: Uint8Array): Promise<void> {
-			return fs.writeFile(filePath, data);
+		async writeFileRaw(filePath: string, data: Uint8Array): Promise<void> {
+			await assertPathNotSymlink(filePath);
+			await fs.writeFile(filePath, data);
 		},
 		async mkdir(dirPath: string, options?: { recursive?: boolean }): Promise<void> {
 			await fs.mkdir(dirPath, { recursive: options?.recursive ?? false });

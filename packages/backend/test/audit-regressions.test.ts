@@ -124,6 +124,7 @@ test('NodeBackendFileSystem rejects dangling symlinks with ELOOP', async (t) => 
 	}
 
 	const backendFs = createNodeBackendFileSystem();
+	await t.throwsAsync(backendFs.resolvePath(dangling), { code: 'ELOOP' });
 	await t.throwsAsync(backendFs.writeFile(dangling, 'payload'), { code: 'ELOOP' });
 });
 
