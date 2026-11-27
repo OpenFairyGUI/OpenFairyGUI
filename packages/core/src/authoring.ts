@@ -202,40 +202,25 @@ export function composeController(
 
 	ensureUniquePageIds(options.pages, component);
 	const knownPageIds = new Set(options.pages.map((page) => page.id));
+	const selectedIndex = options.selectedIndex ?? 0;
+	const homePageType = options.homePageType ?? 'default';
+	const homePage = options.homePage ?? '';
 
-	const controller = doc
-		.createController(options.name)
-		.setSelectedIndex(options.selectedIndex ?? 0)
-		.setAutoRadioGroupDepth(options.autoRadioGroupDepth ?? false)
-		.setAlias(options.alias ?? '')
-		.setExported(options.exported ?? false)
-		.setHomePageType(options.homePageType ?? 'default')
-		.setHomePage(options.homePage ?? '');
-
-	if (controller.getSelectedIndex() < 0 || controller.getSelectedIndex() >= options.pages.length) {
+	if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex >= options.pages.length) {
 		throw new Error(
-			`composeController: selectedIndex ${controller.getSelectedIndex()} is out of range for controller "${options.name}".`,
+			`composeController: selectedIndex ${selectedIndex} is out of range for controller "${options.name}".`,
 		);
 	}
-	if (controller.getHomePageType() === 'specific' && !knownPageIds.has(controller.getHomePage())) {
+	if (homePageType === 'specific' && !knownPageIds.has(homePage)) {
 		throw new Error(
-			`composeController: controller "${options.name}" references unknown home page id "${controller.getHomePage()}".`,
+			`composeController: controller "${options.name}" references unknown home page id "${homePage}".`,
 		);
 	}
-	if (controller.getHomePageType() === 'variable' && !controller.getHomePage()) {
+	if (homePageType === 'variable' && !homePage) {
 		throw new Error(`composeController: controller "${options.name}" requires a custom property key.`);
 	}
 
-	for (const pageInput of options.pages) {
-		controller.addPage(
-			doc
-				.createControllerPage(pageInput.name)
-				.setId(pageInput.id)
-				.setRemark(pageInput.remark ?? ''),
-		);
-	}
-
-	for (const actionInput of options.actions ?? []) {
+	const validatedActions = (options.actions ?? []).map((actionInput) => {
 		const fromPage = [...(actionInput.fromPage ?? [])];
 		const toPage = [...(actionInput.toPage ?? [])];
 		ensureKnownPageIds(
@@ -246,7 +231,29 @@ export function composeController(
 			'action fromPage',
 		);
 		ensureKnownPageIds('composeController', `controller "${options.name}"`, toPage, knownPageIds, 'action toPage');
+		const objectId = resolveComponentChildId(component, actionInput.object, 'composeController');
+		return { actionInput, fromPage, toPage, objectId };
+	});
 
+	const controller = doc
+		.createController(options.name)
+		.setSelectedIndex(selectedIndex)
+		.setAutoRadioGroupDepth(options.autoRadioGroupDepth ?? false)
+		.setAlias(options.alias ?? '')
+		.setExported(options.exported ?? false)
+		.setHomePageType(homePageType)
+		.setHomePage(homePage);
+
+	for (const pageInput of options.pages) {
+		controller.addPage(
+			doc
+				.createControllerPage(pageInput.name)
+				.setId(pageInput.id)
+				.setRemark(pageInput.remark ?? ''),
+		);
+	}
+
+	for (const { actionInput, fromPage, toPage, objectId } of validatedActions) {
 		const action = doc.createControllerAction(actionInput.name ?? '');
 		action
 			.setActionType(actionInput.actionType)
@@ -256,7 +263,7 @@ export function composeController(
 			.setPlayTimes(actionInput.playTimes ?? 1)
 			.setDelay(actionInput.delay ?? 0)
 			.setStopOnExit(actionInput.stopOnExit ?? false)
-			.setObjectId(resolveComponentChildId(component, actionInput.object, 'composeController'))
+			.setObjectId(objectId)
 			.setControllerName(actionInput.controllerName ?? '')
 			.setTargetPage(actionInput.targetPage ?? '');
 		controller.addAction(action);
@@ -283,6 +290,11 @@ export function composeTransition(
 		);
 	}
 
+	const validatedItems = (options.items ?? []).map((itemInput) => ({
+		itemInput,
+		targetId: resolveComponentChildId(component, itemInput.target, 'composeTransition'),
+	}));
+
 	const transition = doc
 		.createTransition(options.name)
 		.setAutoPlay(options.autoPlay ?? false)
@@ -291,10 +303,10 @@ export function composeTransition(
 		.setOptions(options.options ?? 0)
 		.setFps(options.fps ?? 24);
 
-	for (const itemInput of options.items ?? []) {
+	for (const { itemInput, targetId } of validatedItems) {
 		const item: TransitionItem = doc.createTransitionItem(itemInput.name ?? '');
 		item.setTime(itemInput.time)
-			.setTargetId(resolveComponentChildId(component, itemInput.target, 'composeTransition'))
+			.setTargetId(targetId)
 			.setActionType(itemInput.actionType)
 			.setTween(itemInput.tween ?? false)
 			.setDuration(itemInput.duration ?? 0)

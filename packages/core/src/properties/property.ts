@@ -75,16 +75,42 @@ function equalsRefMap(a: RefMap<Property> | null, b: RefMap<Property> | null): b
 	return true;
 }
 
-function equalsObject(a: unknown, b: unknown): boolean {
-	return JSON.stringify(a) === JSON.stringify(b);
-}
-
-function equalsArray(a: unknown[], b: unknown[]): boolean {
-	if (a.length !== b.length) return false;
-	for (let i = 0; i < a.length; i++) {
-		if (a[i] !== b[i]) return false;
+function deepEqualValue(a: unknown, b: unknown): boolean {
+	if (Object.is(a, b)) return true;
+	if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false;
+	if (ArrayBuffer.isView(a) || ArrayBuffer.isView(b)) {
+		if (!ArrayBuffer.isView(a) || !ArrayBuffer.isView(b)) return false;
+		if (a.constructor !== b.constructor || a.byteLength !== b.byteLength) return false;
+		const bytesA = new Uint8Array(a.buffer, a.byteOffset, a.byteLength);
+		const bytesB = new Uint8Array(b.buffer, b.byteOffset, b.byteLength);
+		for (let i = 0; i < bytesA.length; i++) {
+			if (bytesA[i] !== bytesB[i]) return false;
+		}
+		return true;
+	}
+	if (Array.isArray(a) || Array.isArray(b)) {
+		if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+		for (let i = 0; i < a.length; i++) {
+			if (!deepEqualValue(a[i], b[i])) return false;
+		}
+		return true;
+	}
+	const keysA = Object.keys(a as Record<string, unknown>);
+	const keysB = Object.keys(b as Record<string, unknown>);
+	if (keysA.length !== keysB.length) return false;
+	for (const key of keysA) {
+		if (!Object.hasOwn(b, key)) return false;
+		if (!deepEqualValue((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])) return false;
 	}
 	return true;
+}
+
+function equalsObject(a: unknown, b: unknown): boolean {
+	return deepEqualValue(a, b);
+}
+
+function equalsArray(a: unknown, b: unknown): boolean {
+	return deepEqualValue(a, b);
 }
 
 const EMPTY_SET = new Set<string>();
@@ -183,25 +209,21 @@ export abstract class Property<T extends IProperty = IProperty> extends GraphNod
 					const ref = thisValue as unknown as Ref<Property>;
 					ref.getChild().copy(resolve(otherValue.getChild()), resolve);
 				} else {
-					this.setRef(key as any, resolve(otherValue.getChild()), otherValue.getAttributes());
+					this.setRef(key as never, resolve(otherValue.getChild()) as never, otherValue.getAttributes());
 				}
 			} else if (otherValue instanceof RefSet || otherValue instanceof RefList) {
 				for (const ref of otherValue.values()) {
-					this.addRef(key as any, resolve(ref.getChild()) as any, ref.getAttributes());
+					this.addRef(key as never, resolve(ref.getChild()) as never, ref.getAttributes());
 				}
 			} else if (otherValue instanceof RefMap) {
 				for (const subkey of otherValue.keys()) {
 					const ref = otherValue.get(subkey)!;
-					this.setRefMap(key as any, subkey, resolve(ref.getChild()) as any, ref.getAttributes());
+					this.setRefMap(key as never, subkey, resolve(ref.getChild()) as never, ref.getAttributes());
 				}
-			} else if (isPlainObject(otherValue)) {
-				this[$attributes][key] = JSON.parse(JSON.stringify(otherValue));
-			} else if (
-				Array.isArray(otherValue) ||
-				otherValue instanceof ArrayBuffer ||
-				ArrayBuffer.isView(otherValue)
-			) {
-				this[$attributes][key] = (otherValue as unknown as Uint8Array).slice() as any;
+			} else if (isPlainObject(otherValue) || Array.isArray(otherValue)) {
+				this[$attributes][key] = structuredClone(otherValue) as typeof otherValue;
+			} else if (otherValue instanceof ArrayBuffer || ArrayBuffer.isView(otherValue)) {
+				this[$attributes][key] = (otherValue as unknown as Uint8Array).slice() as unknown as typeof otherValue;
 			} else {
 				this[$attributes][key] = otherValue;
 			}
@@ -229,7 +251,7 @@ export abstract class Property<T extends IProperty = IProperty> extends GraphNod
 			} else if (isPlainObject(a) || isPlainObject(b)) {
 				if (!equalsObject(a, b)) return false;
 			} else if (isArray(a) || isArray(b)) {
-				if (!equalsArray(a as unknown as [], b as unknown as [])) return false;
+				if (!isArray(a) || !isArray(b) || !equalsArray(a, b)) return false;
 			} else {
 				if (a !== b) return false;
 			}

@@ -10,7 +10,7 @@ Core 的 `UamTransactionOperation` 与 UAM 模型拥有参数结构和事务语�
 
 `project` 直接派生自 Core 的公开 UAM 类型，只移除每个 asset resource 的正式 `sourceBytes` 字段，保留 `sourcePath`、组件完整内容及 Reader 保留的 JSON 扩展字段。不会按属性名递归删除扩展数据中的 `sourceBytes`。只有这份完整只读模型的输出 schema 允许未列名的对象字段；已列名字段仍保留正式类型，事务输入及现有查询契约不变。读取不重新验证引用、不规范化或修复工程，也不返回内部 Document、锁、文件系统、缓存或清理队列。
 
-通过 `readResourceBytes({ sessionId, expectedRevision, selector: { packageId, resourceId } })` 获取单个 asset resource 已在会话中的主文件字节。返回实际 revision、selector 和独立 `Uint8Array`；MCP 对应数字数组。不读取磁盘、不加载辅助文件、不补齐缺失字节；component 不提供此字节读取。
+通过 `readResourceBytes({ sessionId, expectedRevision, selector: { packageId, resourceId } })` 获取单个 asset resource 已在会话中的主文件字节。返回实际 revision、selector 和独立 `Uint8Array`；MCP 在 `structuredContent.backendResult` 中编码为 base64 字符串（输入字节字段仍按生成契约使用整数数组）。不读取磁盘、不加载辅助文件、不补齐缺失字节；component 不提供此字节读取。
 
 ```ts
 const state = runtime.readSessionState({ sessionId });
@@ -31,9 +31,9 @@ if (!bytes.ok) throw new Error(bytes.error.code);
 |---|---|
 | `read.sessionState.limits` | 完整 `data` 的紧凑 JSON UTF-8 为 4 MiB，深度 64，节点 500000；克隆前检查 |
 | `read.resourceBytes.maxBytes` | 单个主文件 1 MiB；复制前检查，空字节数组可以读取 |
-| 两个新 MCP 工具 | 每个完整 `CallToolResult` 序列化为 JSON 后为 16 MiB，包含紧凑文本和 structuredContent 两份内容；超限返回 `mcp_response_budget_exceeded`，不改变 Backend 预算或其他工具 |
+| 两个新 MCP 工具 | 每个完整 `CallToolResult` 序列化为 JSON 后为 16 MiB（含文本摘要与 structuredContent）；超限返回 `mcp_response_budget_exceeded`，不改变 Backend 预算或其他工具 |
 
-仓库固定 fixture 的实测规模如下（字节；模型为 `readSessionState.data`，响应为完整 `CallToolResult`，请求 ID 长度等可造成小幅变化）。这决定了模型与资源分开读取的粒度；不是无限工程大小的承诺。
+仓库固定 fixture 的历史基线规模如下（字节；模型为 `readSessionState.data`，响应为早期完整文本 + 数字数组格式下的 `CallToolResult`，当前 base64 输出与短文本摘要更紧凑；请求 ID 长度等可造成小幅变化）。这决定了模型与资源分开读取的粒度；不是无限工程大小的承诺。
 
 | 工程 | 模型 JSON | 模型 MCP 响应 | 最大主文件 | 该资源 MCP 响应 |
 |---|---:|---:|---:|---:|
@@ -141,7 +141,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 下表只摘要顶层参数；嵌套字段和具体结果请读取对应 schema。SHA-256 变化表示生成契约发生变化，不等同于包版本号。
 
 <!-- contracts:start -->
-SHA-256: `db380ccf317aa73e3ab3ed6632af69fedcb0ad604ab575b7219fd2d79d44495d`
+SHA-256: `efcb035e34f4fabf1b61902321a232bd0644b74b6f6d02d4f378e006b872e0cb`
 
 | 操作 | 参数（`?` 表示可选） |
 |---|---|

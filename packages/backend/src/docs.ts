@@ -143,10 +143,11 @@ export function getInstalledDocumentationIndex() {
 	};
 }
 
-/** IDs come from the index, never filesystem paths or remote URLs. */
-export function readInstalledDocumentation(id: string) {
-	const entry = getInstalledDocumentationIndex().documents.find((document) => document.id === id);
-	if (!entry) throw new RangeError(`Unknown installed documentation ID: ${id}`);
+function renderInstalledDocumentationEntry(
+	entry: ReturnType<typeof getInstalledDocumentationIndex>['documents'][number],
+	version: ReturnType<typeof getInstalledDocumentationVersion>,
+) {
+	const id = entry.id;
 	let content: unknown;
 	if (id === 'workflow') content = INSTALLED_DOCS.workflow;
 	else if (id === 'restore-limits') content = INSTALLED_DOCS.restoreLimits;
@@ -174,22 +175,32 @@ export function readInstalledDocumentation(id: string) {
 		content = { ...tool, input: standaloneSchema(tool.input), output: standaloneSchema(tool.output) };
 	}
 	return {
-		...getInstalledDocumentationVersion(),
+		...version,
 		...entry,
 		mimeType: typeof content === 'string' ? 'text/markdown' : 'application/json',
 		text: typeof content === 'string' ? content : JSON.stringify(content, null, 2),
 	};
 }
 
+/** IDs come from the index, never filesystem paths or remote URLs. */
+export function readInstalledDocumentation(id: string) {
+	const index = getInstalledDocumentationIndex();
+	const entry = index.documents.find((document) => document.id === id);
+	if (!entry) throw new RangeError(`Unknown installed documentation ID: ${id}`);
+	return renderInstalledDocumentationEntry(entry, getInstalledDocumentationVersion());
+}
+
 export function findInstalledDocumentation(query: string) {
 	const term = query.trim().toLowerCase();
 	if (!term) throw new RangeError('Documentation search must not be empty');
 	const index = getInstalledDocumentationIndex();
-	// ponytail: linear search is sufficient for this small installed corpus; index only if it grows materially.
+	const version = getInstalledDocumentationVersion();
 	return {
 		...index,
 		documents: index.documents.filter((entry) =>
-			`${entry.id}\n${entry.title}\n${readInstalledDocumentation(entry.id).text}`.toLowerCase().includes(term),
+			`${entry.id}\n${entry.title}\n${renderInstalledDocumentationEntry(entry, version).text}`
+				.toLowerCase()
+				.includes(term),
 		),
 	};
 }

@@ -211,7 +211,7 @@ Owners: `backend` · Recovery: `host-action`
 
 URI: `openfairygui://docs/diagnostics/session_id_conflict`
 
-Use getSession to inspect the existing session. Reuse it only for the intended project, or choose a new session ID; do not close another owner\u0027s session to make room.
+Use getSession to inspect the existing session. Reuse it only for the intended project, or choose a new session ID; do not close another owner's session to make room.
 
 ### lock_conflict
 
@@ -855,7 +855,7 @@ Inspect the execution/cache failure and current session/revision. Preserve sourc
 <!-- diagnostics:end -->
 
 <!-- product-facts:start -->
-Package: `0.8.0` · Backend contract: `3.0.0` · Capability schema: `16`
+Package: `0.8.1` · Backend contract: `3.0.0` · Capability schema: `16`
 
 Operations: 41 · Backend methods: 18 · CLI commands: 16 · Diagnostic codes: 104
 <!-- product-facts:end -->

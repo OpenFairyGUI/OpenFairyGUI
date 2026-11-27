@@ -6,6 +6,24 @@
 
 ## v0.8.x
 
+### v0.8.1（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.8.1)）
+
+安全加固与全仓质量修复：封堵 SVG 实体/CSS 绕过、组件路径穿越与 `.fairy` 符号链接沙箱逃逸，修复 Core XML/二进制编解码与组件实例扩展往返缺陷，完善 `prune`/`rename`/图集/代码生成/恢复管线，修复 Backend 锁与会话清理、CLI 参数校验及 MCP `stdio.mjs` 直接启动问题。
+
+缺陷修复：
+
+- core：加固 SVG 安全校验（解码 XML 字符引用、预定义实体与 CSS 反斜杠转义，拒绝自定义实体与非法码点）；校验 `<component>` 包内相对路径以拦截路径穿越并产出 `unsafe_path` 诊断；修复 `GComboBox`/`GProgressBar`/`GSlider` 实例扩展读写丢失、`Property.equals`/`copy` 嵌套与空数组处理、`WriteBuffer(0)`/`ByteBuffer`/`BinaryReader` 边界、`Gear.customEasePath` 与 `RelationType.Size` XML 往返、属性换行/制表符转义及 `WebIO` OPFS 路径归一化。
+- functions：为 Node Sharp 光栅化施加 `limitInputPixels` 上限与 SVG XXE/SSRF 防护（兼容标准 W3C SVG 1.1 图标），插件加载通过 `realpath` 复核边界并新增 `PublishNodeOptions.allowProjectPlugins`；加固代码生成单遍模板渲染、字符串转义及 `packageName`/`classNamePrefix` 与输出文件名校验；重写 `prune`（包级完整引用图与不动点清理）与 `rename`（冲突检查、保留扩展名与命名 `ui://` 引用更新）；修复 `MaxRectsPackerCompat` 单页/边缘 padding/`0×0` 裁剪、字库解析、浏览器校验错误分类及恢复阶段字形覆写与骨架贴图匹配。
+- backend：在 `resolveCanonicalProjectRoot` 之后对规范工程根与 `.fairy` 路径复核 `allowedProjectRoots` 以封堵符号链接沙箱逃逸，拒绝悬空符号链接（`ELOOP`）；修复 `/`、`.`、UNC 与 `\\?\` 路径归一化及包含判断；`saveSession` 在 `save.started` 前完成 `materializeUamProject`，外部 `fileSystem` 导出不再误清 `dirty`；为 Windows 锁进程身份查询增加缓存与陈旧损坏锁恢复，新增独立 `disposeBackendRuntime(runtime)` 以释放全部活跃会话锁，修复事件游标边界与诊断/文档查询冗余深拷贝。
+- cli：拒绝空或纯空白路径与查询参数、非法 `--project-type`/`--packages`（统一返回退出码 `2` 与 `invalid_arguments`）；`publish` 补充 `--no-compressed` 与 `--json` stdout 隔离；`tx` 与 `backend-capabilities` 在 `SIGINT`/`SIGTERM` 时主动释放会话锁并收紧大文件限制与错误码；修复 JSON 模式 stdout 作用域恢复与版本回退读取。
+- mcp：拆分 `tsdown` 构建入口修复直接执行 `packages/mcp/dist/stdio.mjs` 静默退出；`server.close()` 与 stdio 退出信号自动关闭会话并释放锁；收紧 `openfairygui_docs_read` 与 `openfairygui_host_publish` 严格校验、脱敏宿主回调异常并补充 `contractDigest` 元数据；资源模板 URI 安全解码（非法百分号编码返回 `InvalidParams`）并施加 16 MiB 预算；补齐非破坏性/幂等工具注解。
+
+其他：
+
+- 文档与契约：同步随包 `workflow.md`、中英文 `contracts.md`、`cli`/`mcp` README、VitePress 英文侧边栏 `Project Validation` 入口及 11 项评测任务文档（补入 `compound-edit`），修复 `scripts/contracts/` 传输约束克隆与基础选项，重新生成契约与离线文档快照。
+- 开发与 CI：修复 `scripts/repo-doctor.mjs` 在 Windows 直接执行时识别 `pnpm`，`check:fast` 纳入 `contracts:check` 与全部仓库脚本测试，`agent/impact-map.json` 细化 `docs/published-project-restore-limitations.md` 映射，增强 `clean.mjs`/`check-guidance.mjs`/`prepare-release.mjs` 与 `release.yml` dist-tag 重试及 `SHA256SUMS` 发布附件。
+- 构建、依赖与测试：移除 `packages/cli` 死文件 `bin/cli.js` 与未使用的 `jiti` 依赖，将 `core` `image-validation-worker` 拆为纯 ESM 产物，覆盖率配置排除 `packages/core/src/uam/generated/**`，在 `biome.json` 重新启用 `noFallthroughSwitchClause` 并清零全部 lint warning，为五个发布包新增共 19 项回归测试。
+
 ### v0.8.0（[发布页](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.8.0)）
 
 保真诊断与协议对齐：UAM 保真失败差异报告与语料度量（公开语料 `full` 占比 4/4 / 100.0%）、预算受控的组件内节点筛选 `queryDisplayNodes`（能力 schema 16，无破坏性变更）、`ImageResource.disableTrim`、工程 XML / 二进制 V1–V7 / 发布与恢复协议对齐，以及单主干发布流水线。

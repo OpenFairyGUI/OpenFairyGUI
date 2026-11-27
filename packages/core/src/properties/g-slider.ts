@@ -79,4 +79,25 @@ export class GSlider extends GComponent<IGSlider, PropertyType.G_SLIDER> {
 	public setSrc(v: string): this {
 		return this.set('src', v);
 	}
+	public override getInstanceExtType(): string {
+		return 'Slider';
+	}
+	public override getInstanceMin(): number {
+		return this.getMin();
+	}
+	public override setInstanceMin(value: number): this {
+		return this.setMin(value);
+	}
+	public override getInstanceMax(): number {
+		return this.getMax();
+	}
+	public override setInstanceMax(value: number): this {
+		return this.setMax(value);
+	}
+	public override getInstanceValue(): number {
+		return this.getValue();
+	}
+	public override setInstanceValue(value: number): this {
+		return this.setValue(value);
+	}
 }

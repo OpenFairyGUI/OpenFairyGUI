@@ -78,12 +78,28 @@ function addUiReference(
 	target: PackageResourceReferences,
 	ownerPackageId: string,
 	value: string | null | undefined,
+	doc?: Document,
 ): void {
 	if (!value?.startsWith('ui://')) return;
 	const reference = value.slice(5);
 	const slashIndex = reference.indexOf('/');
 	if (slashIndex >= 0) {
-		addReference(target, ownerPackageId, reference.slice(0, slashIndex), reference.slice(slashIndex + 1));
+		const pkgToken = reference.slice(0, slashIndex);
+		const resToken = reference.slice(slashIndex + 1);
+		if (doc) {
+			const root = doc.getRoot();
+			const pkg =
+				root.getPackageById(pkgToken) ??
+				root.listPackages().find((candidate) => candidate.getName() === pkgToken);
+			if (pkg) {
+				const res =
+					pkg.getResourceById(resToken) ??
+					pkg.listResources().find((candidate) => candidate.getName() === resToken);
+				addReference(target, ownerPackageId, pkg.getId(), res ? res.getId() : resToken);
+				return;
+			}
+		}
+		addReference(target, ownerPackageId, pkgToken, resToken);
 		return;
 	}
 	if (reference.length > 8) {
@@ -95,21 +111,27 @@ function addTextReferences(
 	target: PackageResourceReferences,
 	ownerPackageId: string,
 	value: string | null | undefined,
+	doc?: Document,
 ): void {
 	if (!value) return;
-	for (const match of value.matchAll(/ui:\/\/([0-9a-z]{8})\/?([0-9a-z]+)/giu)) {
-		addReference(target, ownerPackageId, match[1] ?? '', match[2] ?? '');
+	for (const match of value.matchAll(/ui:\/\/([^\s"'<>[\]]+)/giu)) {
+		addUiReference(target, ownerPackageId, `ui://${match[1] ?? ''}`, doc);
 	}
 }
 
-function addUnknownReferences(target: PackageResourceReferences, ownerPackageId: string, value: unknown): void {
+function addUnknownReferences(
+	target: PackageResourceReferences,
+	ownerPackageId: string,
+	value: unknown,
+	doc?: Document,
+): void {
 	if (Array.isArray(value)) {
-		for (const entry of value) addUnknownReferences(target, ownerPackageId, entry);
+		for (const entry of value) addUnknownReferences(target, ownerPackageId, entry, doc);
 		return;
 	}
 	if (typeof value === 'string') {
-		addUiReference(target, ownerPackageId, value);
-		addTextReferences(target, ownerPackageId, value);
+		addUiReference(target, ownerPackageId, value, doc);
+		addTextReferences(target, ownerPackageId, value, doc);
 	}
 }
 
@@ -124,7 +146,7 @@ function addFontReferences(
 		const resource =
 			reference && doc?.getRoot().getPackageById(reference.packageId)?.getResourceById(reference.resourceId);
 		if (resource?.propertyType === 'FontResource' && resource.isExternalFont()) continue;
-		addUiReference(target, ownerPackageId, entry);
+		addUiReference(target, ownerPackageId, entry, doc);
 	}
 }
 
@@ -138,14 +160,14 @@ function collectComponentReferences(
 	for (const child of referenceComponent.listChildren()) {
 		const sourceId = child.getSrc?.();
 		if (sourceId) {
-			if (sourceId.startsWith('ui://')) addUiReference(target, ownerPackageId, sourceId);
+			if (sourceId.startsWith('ui://')) addUiReference(target, ownerPackageId, sourceId, doc);
 			else target.localResourceIds.add(sourceId);
 		}
 		const sourcePackageId = child.getPackageId?.()?.trim();
 		if (sourcePackageId && sourcePackageId !== ownerPackageId) target.packageIds.add(sourcePackageId);
 
 		addFontReferences(target, ownerPackageId, child.getFont?.(), doc);
-		if (!child.getAutoClearText?.()) addTextReferences(target, ownerPackageId, child.getText?.());
+		if (!child.getAutoClearText?.()) addTextReferences(target, ownerPackageId, child.getText?.(), doc);
 		for (const reference of [
 			child.getClearOnPublish?.() ? undefined : child.getUrl?.(),
 			child.getDefaultItem?.(),
@@ -161,33 +183,35 @@ function collectComponentReferences(
 			child.getHeaderRes?.(),
 			child.getFooterRes?.(),
 		]) {
-			addUiReference(target, ownerPackageId, reference);
+			addUiReference(target, ownerPackageId, reference, doc);
 		}
 		for (const item of child.getInstanceAutoClearItems?.() ? [] : (child.getInstanceComboItems?.() ?? [])) {
-			addUiReference(target, ownerPackageId, item.icon);
+			addUiReference(target, ownerPackageId, item.icon, doc);
 		}
 		for (const item of child.getAutoClearItems?.() ? [] : (child.getListItems?.() ?? [])) {
-			addUiReference(target, ownerPackageId, item.icon);
-			addUiReference(target, ownerPackageId, item.selectedIcon);
-			addUiReference(target, ownerPackageId, item.url);
+			addUiReference(target, ownerPackageId, item.icon, doc);
+			addUiReference(target, ownerPackageId, item.selectedIcon, doc);
+			addUiReference(target, ownerPackageId, item.url, doc);
 			addUnknownReferences(
 				target,
 				ownerPackageId,
 				item.propertyOverrides?.map((property) => property.value),
+				doc,
 			);
 		}
 		addUnknownReferences(
 			target,
 			ownerPackageId,
 			child.getPropertyOverrides?.().map((property) => property.value),
+			doc,
 		);
 		for (const gear of child.listGears?.() ?? []) {
 			const values =
 				gear.getGearType() === GearType.Text || gear.getGearType() === GearType.Icon
 					? Object.values(gear.getPageValues())
 					: gear.getValues();
-			addUnknownReferences(target, ownerPackageId, values);
-			addUnknownReferences(target, ownerPackageId, gear.getDefaultValue?.());
+			addUnknownReferences(target, ownerPackageId, values, doc);
+			addUnknownReferences(target, ownerPackageId, gear.getDefaultValue?.(), doc);
 		}
 	}
 
@@ -202,12 +226,12 @@ function collectComponentReferences(
 		referenceComponent.getHzScrollBarRes?.(),
 		referenceComponent.getSound?.(),
 	]) {
-		addUiReference(target, ownerPackageId, reference);
+		addUiReference(target, ownerPackageId, reference, doc);
 	}
 	for (const transition of referenceComponent.listTransitions?.() ?? []) {
 		for (const item of transition.listItems?.() ?? []) {
-			addUnknownReferences(target, ownerPackageId, item.getStartValue?.());
-			addUnknownReferences(target, ownerPackageId, item.getEndValue?.());
+			addUnknownReferences(target, ownerPackageId, item.getStartValue?.(), doc);
+			addUnknownReferences(target, ownerPackageId, item.getEndValue?.(), doc);
 		}
 	}
 }

@@ -120,6 +120,6 @@ export async function validateProjectNode(projectPath: string): Promise<ProjectV
 	}
 	return createProjectValidationReport(
 		diagnostics,
-		read.complete && !diagnostics.some((diagnostic) => diagnostic.code === 'decode_capability_unavailable'),
+		base.complete && !diagnostics.some((diagnostic) => diagnostic.code === 'decode_capability_unavailable'),
 	);
 }

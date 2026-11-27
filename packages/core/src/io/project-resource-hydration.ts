@@ -121,11 +121,16 @@ function _primaryResourceFileName(resource: ReturnType<Package['listResources']>
 	}
 }
 
-function _packageRelativeSourcePath(resourcePath: string, fileName: string): string | null {
-	if (!fileName || /[\\/:]/.test(fileName) || fileName === '.' || fileName === '..') return null;
+export function resolveSafePackageRelativePath(resourcePath: string, fileName: string): string | null {
+	if (!fileName || /[\\/:\0]/.test(fileName) || fileName === '.' || fileName === '..') return null;
+	if (resourcePath.includes('\0')) return null;
 	const segments = resourcePath.replace(/\\/g, '/').split('/').filter(Boolean);
 	if (segments.some((segment) => segment === '.' || segment === '..' || segment.includes(':'))) return null;
 	return `/${[...segments, fileName].join('/')}`;
+}
+
+function _packageRelativeSourcePath(resourcePath: string, fileName: string): string | null {
+	return resolveSafePackageRelativePath(resourcePath, fileName);
 }
 
 function _asSourceDataResource(resource: ReturnType<Package['listResources']>[number]): {

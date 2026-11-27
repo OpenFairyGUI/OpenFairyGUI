@@ -42,8 +42,9 @@ if (isMain(import.meta.url)) {
 		if (process.env.GITHUB_ACTIONS === 'true' && process.env.RELEASE_REF_TYPE !== 'tag')
 			throw new Error('Release must run from a tag.');
 		const notes = releaseNotes(ROOT, values.tag ?? process.env.RELEASE_TAG);
-		mkdirSync(values.out, { recursive: true });
-		writeFileSync(path.join(values.out, 'release-notes.md'), notes);
+		const outDir = path.resolve(ROOT, values.out);
+		mkdirSync(outDir, { recursive: true });
+		writeFileSync(path.join(outDir, 'release-notes.md'), notes);
 		console.log('Release versions and bilingual changelog verified.');
 	} catch (error) {
 		console.error(error.message);

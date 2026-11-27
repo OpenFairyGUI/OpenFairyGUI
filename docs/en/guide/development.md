@@ -71,7 +71,7 @@ Release separates a read-only verify job from the privileged publish job. Verifi
 
 Use the repository's `.github/pull_request_template.md` to identify affected packages, UAM/Backend/MCP/CLI contracts, version handling, documentation and bilingual changelogs, together with the actual tested base, commands and failed/unrun checks. The template records review evidence; checkboxes neither replace CI nor authorize publication or prove verification.
 
-Agent evaluations share that tarball installation. `pnpm eval:agent --runner reference` runs ten deterministic tasks, including editing, safe stops and separate publish/recovery tasks; these already gate consumer verification. `pnpm eval:agent --runner codex --codex codex` runs real-model tasks manually, with success rates used only as observations. See [Real Agent Task Evaluations](./agent-evaluations.md) for tasks, isolation, Windows executable requirements and reproduction.
+Agent evaluations share that tarball installation. `pnpm eval:agent --runner reference` runs eleven deterministic tasks, including editing, safe stops and separate publish/recovery tasks; these already gate consumer verification. `pnpm eval:agent --runner codex --codex codex` runs real-model tasks manually, with success rates used only as observations. See [Real Agent Task Evaluations](./agent-evaluations.md) for tasks, isolation, Windows executable requirements and reproduction.
 
 ## Reference evidence
 

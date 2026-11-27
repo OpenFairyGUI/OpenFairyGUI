@@ -44,6 +44,10 @@ async function createNodeRestoreFileSystem(): Promise<RestoreFileSystem> {
 			await fs.mkdir(dirPath, { recursive: true });
 		},
 		async readdir(dirPath: string): Promise<string[]> {
+			const stat = await fs.lstat(dirPath);
+			if (stat.isSymbolicLink() || !stat.isDirectory()) {
+				throw new Error(`restoreNode: directory path must be a regular directory: ${dirPath}`);
+			}
 			return fs.readdir(dirPath);
 		},
 		async exists(filePath: string): Promise<boolean> {
@@ -75,7 +79,17 @@ async function createNodeRestoreFileSystem(): Promise<RestoreFileSystem> {
 			});
 		},
 		async rename(from: string, to: string): Promise<void> {
-			await fs.rename(from, to);
+			for (let attempt = 0; ; attempt++) {
+				try {
+					await fs.rename(from, to);
+					return;
+				} catch (error) {
+					const code = (error as NodeJS.ErrnoException | null)?.code;
+					const transient = process.platform === 'win32' && ['EPERM', 'EACCES', 'EBUSY'].includes(code ?? '');
+					if (attempt >= 7 || !transient) throw error;
+					await new Promise((resolve) => setTimeout(resolve, 10 * 2 ** attempt));
+				}
+			}
 		},
 		join(...paths: string[]): string {
 			return path.join(...paths);
@@ -86,12 +100,59 @@ async function createNodeRestoreFileSystem(): Promise<RestoreFileSystem> {
 	};
 }
 
+interface SharpRestorePipeline {
+	extract(region: { left: number; top: number; width: number; height: number }): SharpRestorePipeline;
+	extractChannel(channel: 'red'): SharpRestorePipeline;
+	raw(): SharpRestorePipeline;
+	toBuffer(options: { resolveWithObject: true }): Promise<{
+		data: Buffer;
+		info: { width: number; height: number; channels: number };
+	}>;
+	toBuffer(): Promise<Buffer>;
+	ensureAlpha(): SharpRestorePipeline;
+	removeAlpha(): SharpRestorePipeline;
+	joinChannel(data: Buffer, options: { raw: { width: number; height: number; channels: 1 } }): SharpRestorePipeline;
+	rotate(angle: number): SharpRestorePipeline;
+	composite(inputs: Array<{ input: Buffer; left: number; top: number }>): SharpRestorePipeline;
+	extend(options: {
+		top: number;
+		bottom: number;
+		left: number;
+		right: number;
+		background: { r: number; g: number; b: number; alpha: number };
+	}): SharpRestorePipeline;
+	png(): SharpRestorePipeline;
+	toFile(filePath: string): Promise<unknown>;
+}
+
+type SharpRestoreInput =
+	| string
+	| Buffer
+	| Uint8Array
+	| {
+			create: {
+				width: number;
+				height: number;
+				channels: number;
+				background: { r: number; g: number; b: number; alpha: number };
+			};
+	  };
+
+type SharpRestoreFactory = (input: SharpRestoreInput, options?: { limitInputPixels?: number }) => SharpRestorePipeline;
+
 /** @internal */
 export async function createRestoreImageProcessors(): Promise<RestoreImageProcessors> {
-	let sharp: any;
+	let sharp: SharpRestoreFactory;
 	try {
-		const loaded = await importNative<any>('sharp');
-		sharp = loaded.default ?? loaded;
+		const loaded = await importNative<unknown>('sharp');
+		const resolved =
+			typeof loaded === 'function'
+				? loaded
+				: typeof loaded === 'object' && loaded !== null && 'default' in loaded
+					? (loaded as { default: unknown }).default
+					: undefined;
+		if (typeof resolved !== 'function') throw new Error('Loaded sharp module is not callable.');
+		sharp = resolved as SharpRestoreFactory;
 	} catch {
 		throw new Error('restoreNode: Sharp is required to crop atlas images. Install sharp before restoring.');
 	}

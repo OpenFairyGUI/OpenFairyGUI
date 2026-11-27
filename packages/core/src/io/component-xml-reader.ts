@@ -378,16 +378,16 @@ export function readComponentXml(ctx: ReaderContext, comp: Component, xmlContent
 	const pivot = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.pivot);
 	if (pivot) {
 		const parts = pivot.split(',');
-		comp.setPivotX?.(parseFloat(parts[0]) || 0);
-		comp.setPivotY?.(parseFloat(parts[1]) || 0);
-		const anchor = readXmlAttr<string | boolean>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.anchor);
-		if (anchor !== undefined) comp.setPivotAsAnchor?.(parseBool(anchor));
+		comp.setPivotX?.(parseFloat2(parts[0], 0));
+		comp.setPivotY?.(parseFloat2(parts[1], 0));
 	}
+	const anchor = readXmlAttr<string | boolean>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.anchor);
+	if (anchor !== undefined) comp.setPivotAsAnchor?.(parseBool(anchor));
 
 	// Margin
 	const margin = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.margin);
 	if (margin) {
-		const parts = margin.split(',').map(Number);
+		const parts = margin.split(',').map((value) => parseFloat2(value, 0));
 		if (parts.length === 1) {
 			const inset = parts[0] ?? 0;
 			comp.setMargin?.({ top: inset, bottom: inset, left: inset, right: inset });
@@ -399,7 +399,7 @@ export function readComponentXml(ctx: ReaderContext, comp: Component, xmlContent
 	// Restrict size
 	const restrictSize = readXmlAttr<string>(compNode, PROJECT_XML_PROTOCOL.componentRoot.attrs.restrictSize);
 	if (restrictSize) {
-		const parts = restrictSize.split(',').map(Number);
+		const parts = restrictSize.split(',').map((value) => parseFloat2(value, 0));
 		comp.setMinWidth?.(parts[0] ?? 0);
 		comp.setMaxWidth?.(parts[1] ?? 0);
 		comp.setMinHeight?.(parts[2] ?? 0);

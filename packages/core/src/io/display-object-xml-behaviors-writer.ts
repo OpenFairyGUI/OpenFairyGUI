@@ -246,11 +246,18 @@ export function serializeRelationsXml(relations: readonly RelationDef[]): Array<
 	if (relations.length === 0) return [];
 	const byTarget = new Map<string, string[]>();
 	for (const rel of relations) {
-		const name = RELATION_TYPE_NAME[rel.type] ?? '';
-		if (!name) continue;
-		const pair = rel.usePercent ? `${name}%` : name;
+		const names =
+			rel.type === 24
+				? ['width-width', 'height-height']
+				: RELATION_TYPE_NAME[rel.type]
+					? [RELATION_TYPE_NAME[rel.type]!]
+					: [];
+		if (names.length === 0) continue;
 		if (!byTarget.has(rel.target)) byTarget.set(rel.target, []);
-		byTarget.get(rel.target)!.push(pair);
+		const list = byTarget.get(rel.target)!;
+		for (const name of names) {
+			list.push(rel.usePercent ? `${name}%` : name);
+		}
 	}
 	return Array.from(byTarget.entries()).map(([target, pairs]) => {
 		const relationAttrs: Record<string, unknown> = {};
@@ -352,6 +359,8 @@ function serializeGear(
 	if (gear.getTween()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.tween, 'true');
 	if (gear.getEaseType() !== 5)
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.ease, stringifyEaseType(gear.getEaseType()));
+	if (gear.getEaseType() === 31 && gear.getCustomEasePath())
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.customEase, gear.getCustomEasePath());
 	if (gear.getTweenDuration() !== 0.3)
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.gear.attrs.duration, String(gear.getTweenDuration()));
 	if (gear.getTweenDelay() !== 0)

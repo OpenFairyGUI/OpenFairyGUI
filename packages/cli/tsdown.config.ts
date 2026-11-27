@@ -10,6 +10,6 @@ export default defineConfig({
 	format: ['esm'],
 	platform: 'node',
 	dts: false,
-	deps: { neverBundle: ['sharp', 'jiti'] },
+	deps: { neverBundle: ['sharp'] },
 	define: { __OPENFAIRYGUI_PACKAGE_VERSION__: JSON.stringify(packageVersion) },
 });

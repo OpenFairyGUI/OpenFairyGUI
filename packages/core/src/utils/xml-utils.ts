@@ -107,7 +107,9 @@ export function parseScale9GridString(v: string | undefined): [number, number, n
 	if (!v) return null;
 	const parts = v.split(',');
 	if (parts.length < 4) return null;
-	return [parseFloat(parts[0]), parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3])];
+	const parsed = [parseFloat(parts[0]), parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3])] as const;
+	if (parsed.some((n) => Number.isNaN(n))) return null;
+	return [parsed[0], parsed[1], parsed[2], parsed[3]];
 }
 
 export function parseControllerPages(pagesStr: string): Array<{ id: string; name: string }> {
@@ -180,12 +182,18 @@ export function parseSidePair(sidePair: string): Array<{ type: number; usePercen
 		.split(',')
 		.map((pair) => pair.trim())
 		.filter(Boolean)
-		.map((pair) => {
+		.flatMap((pair) => {
 			const usePercent = pair.endsWith('%');
 			const clean = usePercent ? pair.slice(0, -1) : pair;
 			const canonical = clean.includes('-') ? clean : `${clean}-${clean}`;
-			const type = RELATION_TYPE_MAP[canonical] ?? 0;
-			return { type, usePercent };
+			if (canonical === 'size-size') {
+				return [
+					{ type: 14, usePercent },
+					{ type: 15, usePercent },
+				];
+			}
+			const type = RELATION_TYPE_MAP[canonical];
+			return type === undefined ? [] : [{ type, usePercent }];
 		});
 }
 

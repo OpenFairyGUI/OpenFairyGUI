@@ -174,7 +174,13 @@ export function validateComponentXmlValues(
 	addDiagnostics(componentNode, COMPONENT_INT32_RULES, rootPath);
 	validateBooleanAttrs(
 		componentNode,
-		[rootAttrs.anchor, rootAttrs.opaque, rootAttrs.reversedMask, rootAttrs.bgColorEnabled],
+		[
+			rootAttrs.anchor,
+			rootAttrs.opaque,
+			rootAttrs.reversedMask,
+			rootAttrs.bgColorEnabled,
+			rootAttrs.designImageForTest,
+		],
 		rootPath,
 	);
 	validateInt32Attrs(
@@ -198,9 +204,18 @@ export function validateComponentXmlValues(
 			const nodePath = `${componentPath}.displayList.${nodeIndex++}`;
 			addDiagnostics(attrs, DISPLAY_OBJECT_INT32_RULES, nodePath, nodeId);
 			const normalizedTagName = tagName.toLowerCase();
-			const displayProtocol = Object.entries(
+			let displayProtocol = Object.entries(
 				PROJECT_XML_PROTOCOL.componentRoot.containers?.displayList?.items ?? {},
 			).find(([name]) => name.toLowerCase() === normalizedTagName)?.[1];
+			if (
+				normalizedTagName === 'inputtext' ||
+				(normalizedTagName === 'text' &&
+					['true', '1'].includes(
+						String(readXmlAttr(attrs, PROJECT_XML_PROTOCOL.text.attrs.input) ?? '').trim(),
+					))
+			) {
+				displayProtocol = PROJECT_XML_PROTOCOL.textInput;
+			}
 			const displayAttrs: import('./project-xml-protocol.js').XmlNodeProtocol['attrs'] | undefined =
 				displayProtocol?.attrs;
 			if (displayAttrs) {
@@ -278,7 +293,12 @@ export function validateComponentXmlValues(
 					(value) => isProjectInt32(value) && BigInt(value.trim()) > 0n,
 					nodeId,
 				);
-				for (const spec of [displayAttrs.strokeSize, displayAttrs.faceDilate, displayAttrs.underlaySoftness]) {
+				for (const spec of [
+					displayAttrs.strokeSize,
+					displayAttrs.faceDilate,
+					displayAttrs.outlineSoftness,
+					displayAttrs.underlaySoftness,
+				]) {
 					addInvalidValue(attrs, spec, nodePath, 'a finite number', isProjectFiniteNumber, nodeId);
 				}
 				validateNumberTuple(attrs, displayAttrs.shadowOffset, 2, nodePath, nodeId);
@@ -379,6 +399,7 @@ export function validateComponentXmlValues(
 						displayAttrs.shrinkOnly,
 						displayAttrs.autoSize,
 						displayAttrs.useResize,
+						displayAttrs.errorSign,
 						displayAttrs.playing,
 						displayAttrs.loop,
 						displayAttrs.clearOnPublish,
@@ -390,6 +411,17 @@ export function validateComponentXmlValues(
 					attrs,
 					[displayAttrs.frame, displayAttrs.fillOrigin, displayAttrs.fillAmount],
 					nodePath,
+					nodeId,
+				);
+				addInvalidValue(
+					attrs,
+					displayAttrs.flip,
+					nodePath,
+					'one of "none", "hz", "horizontal", "vt", "vertical", "both", "0", "1", "2", "3"',
+					(value) =>
+						['none', 'hz', 'horizontal', 'vt', 'vertical', 'both', '0', '1', '2', '3'].includes(
+							value.trim().toLowerCase(),
+						),
 					nodeId,
 				);
 				validateEnum(attrs, displayAttrs.align, ['left', 'center', 'right'], nodePath, nodeId);

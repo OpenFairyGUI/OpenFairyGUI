@@ -170,10 +170,9 @@ export class ProjectReader {
 		linkPackageBranchItems(doc);
 
 		// 4. Parse component XMLs (second pass, after all resources registered)
-		for (const [_key, resource] of ctx.resourceMap) {
+		for (const [resource, compPath] of ctx.componentPaths) {
 			if (resource.propertyType !== 'Component') continue;
 			const comp = resource as Component;
-			const compPath = ctx.componentPaths.get(comp);
 			if (!compPath) continue;
 
 			try {

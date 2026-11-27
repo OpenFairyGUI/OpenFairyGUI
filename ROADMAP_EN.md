@@ -2,7 +2,7 @@
 
 [中文](./ROADMAP.md)
 
-> **Status: proposal, not a release commitment.** This document reflects the repository state at v0.8.0 (2026-11-27) on the `main` trunk. Shipped capabilities are defined by the [Changelog](./CHANGELOG.md) and the [documentation](./docs/en/README.md); `docs/` describes only the current implementation, and plans are recorded only in this file.
+> **Status: proposal, not a release commitment.** This document reflects the repository state at v0.8.1 (2026-11-28) on the `main` trunk. Shipped capabilities are defined by the [Changelog](./CHANGELOG.md) and the [documentation](./docs/en/README.md); `docs/` describes only the current implementation, and plans are recorded only in this file.
 
 ## Versioning and release rules
 

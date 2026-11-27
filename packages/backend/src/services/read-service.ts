@@ -676,8 +676,9 @@ export class ReadService {
 		if (!session || session.closed) {
 			return failure('read', startedAt, createSessionNotFoundError(input.sessionId));
 		}
-		const report = validateProject(cloneReadData<import('@openfairygui/core/uam').UamProject>(session.project), {
-			readDiagnostics: cloneReadData<import('@openfairygui/core').ProjectDiagnostic[]>(session.readDiagnostics),
+		// validateProject is non-mutating, so avoid deep-cloning all binary sourceBytes on every validation call.
+		const report = validateProject(session.project as unknown as import('@openfairygui/core/uam').UamProject, {
+			readDiagnostics: session.readDiagnostics as unknown as import('@openfairygui/core').ProjectDiagnostic[],
 			complete: session.readComplete,
 			validateSources: true,
 		});

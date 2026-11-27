@@ -30,7 +30,7 @@ export interface ICodeWriterConfig {
 
 export interface CodeWriter {
 	writeMark(): void;
-	writeln(fmt?: string, ...args: any[]): CodeWriter;
+	writeln(fmt?: string, ...args: unknown[]): CodeWriter;
 	startBlock(): CodeWriter;
 	endBlock(): CodeWriter;
 	incIndent(): CodeWriter;

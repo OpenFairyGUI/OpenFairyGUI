@@ -37,19 +37,22 @@ export function parseFnt(text: string): ParsedFont {
 	for (const line of lines) {
 		const trimmed = line.trim();
 		if (!trimmed) continue;
-		const parts = trimmed.split(/\s+/);
+		const headMatch = /^(\S+)/.exec(trimmed);
+		const tag = headMatch?.[1] ?? '';
 		const attrs: Record<string, string> = {};
-		for (let index = 1; index < parts.length; index += 1) {
-			const entry = parts[index]?.split('=') ?? [];
-			if (entry.length === 2 && entry[0]) attrs[entry[0]] = entry[1] ?? '';
+		const rest = trimmed.slice(tag.length);
+		for (const attrMatch of rest.matchAll(/([A-Za-z_][\w-]*)=("([^"]*)"|\S+)/gu)) {
+			const key = attrMatch[1];
+			if (!key) continue;
+			attrs[key] = attrMatch[3] !== undefined ? attrMatch[3] : (attrMatch[2] ?? '');
 		}
 
-		switch (parts[0]) {
+		switch (tag) {
 			case 'info':
 				hasFace = attrs.face != null;
 				colored = hasFace;
 				if (attrs.colored !== undefined) colored = attrs.colored === 'true';
-				fontSize = parseInt(attrs.size ?? '', 10) || 0;
+				fontSize = Math.abs(parseInt(attrs.size ?? '', 10) || 0);
 				resizable = attrs.resizable === 'true';
 				break;
 			case 'common':

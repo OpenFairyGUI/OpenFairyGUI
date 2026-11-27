@@ -124,10 +124,12 @@ function readCommonDisplayState(
 	if (aspect !== undefined) object.setAspect(parseBool(aspect));
 
 	const pivot = specs.pivot ? readXmlAttr<string>(source, specs.pivot) : undefined;
+	const anchor = specs.anchor ? readXmlAttr<string | boolean>(source, specs.anchor) : undefined;
 	if (pivot) {
 		const [pivotX, pivotY] = parseXYString(pivot);
-		const anchor = specs.anchor ? readXmlAttr<string | boolean>(source, specs.anchor) : undefined;
 		object.setPivot(pivotX, pivotY, parseBool(anchor));
+	} else if (anchor !== undefined) {
+		object.setPivot(object.getPivotX(), object.getPivotY(), parseBool(anchor));
 	}
 
 	const scale = specs.scale ? readXmlAttr<string>(source, specs.scale) : undefined;

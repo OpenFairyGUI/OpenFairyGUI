@@ -251,7 +251,10 @@ export function applyDerivedMovieClipModel(
 			.setSpriteId(''),
 	);
 
-	for (const frame of resource.listFrames()) resource.removeFrame(frame);
+	for (const frame of resource.listFrames()) {
+		resource.removeFrame(frame);
+		frame.dispose();
+	}
 	resource
 		.setWidth(model.dimensions.width)
 		.setHeight(model.dimensions.height)

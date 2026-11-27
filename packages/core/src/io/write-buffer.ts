@@ -26,7 +26,7 @@ export class WriteBuffer {
 	}
 
 	constructor(initialSize = 4096, parent?: WriteBuffer) {
-		this._buf = new ArrayBuffer(initialSize);
+		this._buf = new ArrayBuffer(Math.max(1, initialSize));
 		this._view = new DataView(this._buf);
 		if (parent) {
 			// Share parent's string table — writeS calls register in parent
@@ -55,7 +55,7 @@ export class WriteBuffer {
 	private _ensure(extra: number): void {
 		const needed = this._pos + extra;
 		if (needed <= this._buf.byteLength) return;
-		let newLen = this._buf.byteLength;
+		let newLen = Math.max(1, this._buf.byteLength);
 		while (newLen < needed) newLen *= 2;
 		const newBuf = new ArrayBuffer(newLen);
 		new Uint8Array(newBuf).set(new Uint8Array(this._buf));
@@ -234,8 +234,9 @@ export class WriteBuffer {
 
 	/** Skip `count` bytes (writes zeros). */
 	skip(count: number): void {
+		if (count <= 0) return;
 		this._ensure(count);
-		// Already zeroed in ArrayBuffer
+		new Uint8Array(this._buf, this._pos, count).fill(0);
 		this._pos += count;
 	}
 }

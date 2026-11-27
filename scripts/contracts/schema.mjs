@@ -167,7 +167,7 @@ export function createSchemaEmitter(checker, root = ROOT, openObjects = false, b
 
 export function exported(program, file, name) {
 	const checker = program.getTypeChecker();
-	const source = program.getSourceFile(path.join(ROOT, file));
+	const source = program.getSourceFile(path.join(program.getCurrentDirectory(), file));
 	assert(source, `Missing contract source: ${file}`);
 	const symbol = checker.getExportsOfModule(checker.getSymbolAtLocation(source)).find((entry) => entry.name === name);
 	assert(symbol, `Missing contract export: ${file}#${name}`);

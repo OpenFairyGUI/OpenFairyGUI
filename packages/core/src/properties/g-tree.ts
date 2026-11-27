@@ -170,8 +170,7 @@ export class GTree extends GListBase<IGTree, PropertyType.G_TREE> {
 			const node = this._createRuntimeNode(item, index, sourceLevel, parent, expanded, selected);
 			parent.children.push(node);
 			if (node.isFolder) {
-				folderStack[sourceLevel + 1] = node;
-				folderStack.length = sourceLevel + 2;
+				folderStack.push(node);
 			}
 		}
 		let visibleIndex = 0;

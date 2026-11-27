@@ -11,13 +11,15 @@ function getInjectedPackageVersion(): string | null {
 export function readPackageVersion(): string {
 	const injectedVersion = getInjectedPackageVersion();
 	if (injectedVersion) return injectedVersion;
-	try {
-		const pkg = require('../../package.json') as { version?: unknown };
-		if (typeof pkg.version === 'string' && pkg.version.length > 0) {
-			return pkg.version;
+	for (const candidate of ['../package.json', '../../package.json']) {
+		try {
+			const pkg = require(candidate) as { name?: unknown; version?: unknown };
+			if (pkg.name === '@openfairygui/cli' && typeof pkg.version === 'string' && pkg.version.length > 0) {
+				return pkg.version;
+			}
+		} catch {
+			// Try next fallback candidate when executed from dist/ vs src/.
 		}
-	} catch {
-		// Keep the CLI usable when executed from a bundled artifact missing package.json.
 	}
 	return '0.0.0-dev';
 }

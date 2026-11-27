@@ -48,11 +48,19 @@ export function createProjectReadFailure(detail?: string): ProjectOpenError {
 }
 
 export function normalizeComparablePath(value: string, caseSensitive = false): string {
-	const normalized = value.replace(/[/\\]+$/, '').replace(/\\/g, '/');
-	const driveMatch = normalized.match(/^([a-z]:)(?:\/(.*))?$/i);
-	const drivePrefix = driveMatch?.[1].toLowerCase() ?? '';
-	const remainder = driveMatch ? (driveMatch[2] ?? '') : normalized;
-	const hasRoot = driveMatch ? true : remainder.startsWith('/');
+	let normalized = value.replace(/\\/g, '/');
+	// Normalize Windows extended-length paths (\\?\UNC\server\share and \\?\C:\...).
+	if (normalized.startsWith('//?/UNC/') || normalized.startsWith('//?/unc/')) {
+		normalized = `//${normalized.slice(8)}`;
+	} else if (/^\/\/\?\/[a-z]:(?:\/|$)/i.test(normalized)) {
+		normalized = normalized.slice(4);
+	}
+	const uncMatch = normalized.match(/^\/\/([^/]+)\/([^/]+)(?:\/(.*))?$/);
+	const driveMatch = !uncMatch ? normalized.match(/^([a-z]:)(?:\/(.*))?$/i) : null;
+	const uncPrefix = uncMatch ? `//${uncMatch[1]}/${uncMatch[2]}` : '';
+	const drivePrefix = driveMatch ? driveMatch[1].toLowerCase() : '';
+	const remainder = uncMatch ? (uncMatch[3] ?? '') : driveMatch ? (driveMatch[2] ?? '') : normalized;
+	const hasRoot = Boolean(uncMatch || driveMatch || remainder.startsWith('/'));
 	const rawSegments = remainder.split('/').filter((segment) => segment.length > 0);
 	const segments: string[] = [];
 
@@ -70,11 +78,19 @@ export function normalizeComparablePath(value: string, caseSensitive = false): s
 	}
 
 	const joined = segments.join('/');
-	const comparable = drivePrefix
-		? `${drivePrefix}/${joined}`.replace(/\/$/, '')
-		: hasRoot
-			? `/${joined}`.replace(/\/$/, '')
-			: joined || '.';
+	const comparable = uncPrefix
+		? joined
+			? `${uncPrefix}/${joined}`
+			: uncPrefix
+		: drivePrefix
+			? joined
+				? `${drivePrefix}/${joined}`
+				: `${drivePrefix}/`
+			: hasRoot
+				? joined
+					? `/${joined}`
+					: '/'
+				: joined || '.';
 	return caseSensitive ? comparable : comparable.toLowerCase();
 }
 
@@ -99,8 +115,22 @@ export async function assertProjectPathContained(
 	]);
 	const root = normalizeComparablePath(resolvedRoot, fileSystem.caseSensitivePaths);
 	const target = normalizeComparablePath(resolvedTarget, fileSystem.caseSensitivePaths);
-	if (root === '.' && !target.startsWith('/') && !/^[a-z]:\//i.test(target)) return;
-	if (target === root || target.startsWith(`${root}/`)) return;
+	if (root === '.') {
+		const isContainedRelative =
+			target === '.' ||
+			(!target.startsWith('/') &&
+				!target.startsWith('//') &&
+				!/^[a-z]:/i.test(target) &&
+				target !== '..' &&
+				!target.startsWith('../'));
+		if (isContainedRelative) return;
+	} else if (root === '/') {
+		if (target === '/' || (target.startsWith('/') && !target.startsWith('//'))) return;
+	} else if (root.endsWith('/')) {
+		if (target === root || target.startsWith(root)) return;
+	} else if (target === root || target.startsWith(`${root}/`)) {
+		return;
+	}
 	const error = new Error(`Project path escapes the opened root: ${targetPath}`) as Error & { code: string };
 	error.code = 'EACCES';
 	throw error;

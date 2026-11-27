@@ -104,9 +104,21 @@ async function ensureSpineSidecarResources(
 	const fileName = resourceFileName(resource).replace(/\.skel\.bytes$/i, '.skel');
 	const skeletonBase = stripExtension(fileName);
 	if (!skeletonBase) return;
-	const atlasBase = skeletonBase.replace(/-(?:pro|ess)$/i, '-pma');
-	const atlas = await ensureLooseMiscResource(fs, doc, pkg, resource, sourceDir, `${atlasBase}.atlas`);
-	const texture = await ensureLooseImageResource(fs, doc, pkg, resource, sourceDir, `${atlasBase}.png`);
+	const pmaBase = skeletonBase.replace(/-(?:pro|ess)$/i, '-pma');
+	const candidates = pmaBase === skeletonBase ? [skeletonBase] : [pmaBase, skeletonBase];
+	let atlasBase = pmaBase;
+	let atlas: MiscResource | null = null;
+	let texture: ImageResource | null = null;
+	for (const candidate of candidates) {
+		const foundAtlas = await ensureLooseMiscResource(fs, doc, pkg, resource, sourceDir, `${candidate}.atlas`);
+		const foundTexture = await ensureLooseImageResource(fs, doc, pkg, resource, sourceDir, `${candidate}.png`);
+		if (foundAtlas || foundTexture) {
+			atlasBase = candidate;
+			atlas = foundAtlas;
+			texture = foundTexture;
+			break;
+		}
+	}
 	const requireIds = [atlas?.getId(), texture?.getId()].filter((id): id is string => !!id);
 	if (requireIds.length > 0) resource.setRequireIds(requireIds);
 	if (atlas) resource.setAtlasNames([atlasBase]);
@@ -122,7 +134,9 @@ async function ensureDragonBonesSidecarResources(
 	const skeletonBase = stripExtension(resourceFileName(resource)).replace(/_ske$/i, '');
 	if (!skeletonBase) return;
 	const textureJson = await ensureLooseMiscResource(fs, doc, pkg, resource, sourceDir, `${skeletonBase}_tex.json`);
-	const textureImage = await ensureLooseImageResource(fs, doc, pkg, resource, sourceDir, `${skeletonBase}.png`);
+	const textureImage =
+		(await ensureLooseImageResource(fs, doc, pkg, resource, sourceDir, `${skeletonBase}_tex.png`)) ??
+		(await ensureLooseImageResource(fs, doc, pkg, resource, sourceDir, `${skeletonBase}.png`));
 	const requireIds = [textureJson?.getId(), textureImage?.getId()].filter((id): id is string => !!id);
 	if (requireIds.length > 0) resource.setRequireIds(requireIds);
 }
@@ -197,19 +211,24 @@ function initializeSpineResourceRelation(resource: SpineResource, resources: Res
 	const fileName = resourceFileName(resource);
 	const skeletonBase = stripExtension(fileName);
 	if (!skeletonBase) return;
-	const atlasBase = skeletonBase.replace(/-(?:pro|ess)$/i, '-pma');
+	const pmaBase = skeletonBase.replace(/-(?:pro|ess)$/i, '-pma');
+	const candidates = pmaBase === skeletonBase ? [skeletonBase] : [pmaBase, skeletonBase];
+	const miscResources = resources.filter((entry) => entry.propertyType === 'MiscResource');
+	const imageResources = resources.filter((entry) => entry.propertyType === 'ImageResource');
+	let atlasBase = pmaBase;
+	let atlas: MiscResource | null = null;
+	let texture: ImageResource | null = null;
+	for (const candidate of candidates) {
+		const foundAtlas = findResourceByFile(miscResources, resource, `${candidate}.atlas`);
+		const foundTexture = findResourceByFile(imageResources, resource, `${candidate}.png`);
+		if (foundAtlas || foundTexture) {
+			atlasBase = candidate;
+			atlas = foundAtlas;
+			texture = foundTexture;
+			break;
+		}
+	}
 	const requireIds: string[] = [];
-
-	const atlas = findResourceByFile(
-		resources.filter((entry) => entry.propertyType === 'MiscResource'),
-		resource,
-		`${atlasBase}.atlas`,
-	);
-	const texture = findResourceByFile(
-		resources.filter((entry) => entry.propertyType === 'ImageResource'),
-		resource,
-		`${atlasBase}.png`,
-	);
 	if (atlas?.getId()) requireIds.push(atlas.getId());
 	if (texture?.getId()) requireIds.push(texture.getId());
 	if (requireIds.length > 0) resource.setRequireIds(requireIds);
@@ -221,17 +240,16 @@ function initializeDragonBonesResourceRelation(resource: DragonBonesResource, re
 	const skeletonBase = stripExtension(fileName).replace(/_ske$/i, '');
 	if (!skeletonBase) return;
 	const requireIds: string[] = [];
+	const imageResources = resources.filter((entry) => entry.propertyType === 'ImageResource');
 
 	const textureJson = findResourceByFile(
 		resources.filter((entry) => entry.propertyType === 'MiscResource'),
 		resource,
 		`${skeletonBase}_tex.json`,
 	);
-	const textureImage = findResourceByFile(
-		resources.filter((entry) => entry.propertyType === 'ImageResource'),
-		resource,
-		`${skeletonBase}.png`,
-	);
+	const textureImage =
+		findResourceByFile(imageResources, resource, `${skeletonBase}_tex.png`) ??
+		findResourceByFile(imageResources, resource, `${skeletonBase}.png`);
 	if (textureJson?.getId()) requireIds.push(textureJson.getId());
 	if (textureImage?.getId()) requireIds.push(textureImage.getId());
 	if (requireIds.length > 0) resource.setRequireIds(requireIds);

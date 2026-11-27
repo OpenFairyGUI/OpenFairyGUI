@@ -90,6 +90,7 @@ export default withMermaid(
 								text: 'Reference',
 								items: [
 									{ text: 'Architecture Overview', link: '/en/architecture-overview' },
+									{ text: 'Project Validation', link: '/en/project-validation' },
 									{ text: 'Editor Publish Settings', link: '/en/editor-publish-settings' },
 									{ text: 'Publish Plugins', link: '/en/publish-plugins' },
 									{

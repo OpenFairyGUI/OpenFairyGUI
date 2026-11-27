@@ -5,6 +5,7 @@ import { acquireNodeSessionLock } from './node-session-lock.js';
 import { resolveFairyPath } from './path-policy.js';
 import {
 	BackendRuntime,
+	disposeBackendRuntime,
 	ProjectWriteTransactionError,
 	type BackendFileStat,
 	type BackendFileSystem,
@@ -47,6 +48,20 @@ async function canonicalExistingPath(filePath: string): Promise<string> {
 	return canonical;
 }
 
+async function retryWindowsRename(from: string, to: string): Promise<void> {
+	for (let attempt = 0; ; attempt++) {
+		try {
+			await fs.rename(from, to);
+			return;
+		} catch (error) {
+			const code = (error as NodeJS.ErrnoException | null)?.code;
+			const transient = process.platform === 'win32' && ['EPERM', 'EACCES', 'EBUSY'].includes(code ?? '');
+			if (attempt >= 7 || !transient) throw error;
+			await new Promise((resolve) => setTimeout(resolve, 10 * 2 ** attempt));
+		}
+	}
+}
+
 async function resolvePathThroughExistingAncestor(filePath: string): Promise<string> {
 	const missing: string[] = [];
 	let candidate = path.resolve(filePath);
@@ -57,6 +72,15 @@ async function resolvePathThroughExistingAncestor(filePath: string): Promise<str
 		} catch (error) {
 			const code = (error as NodeJS.ErrnoException).code;
 			if (code !== 'ENOENT' && code !== 'ENOTDIR') throw error;
+			// Reject dangling symlinks instead of treating them as missing regular paths.
+			const linkStat = await fs.lstat(candidate).catch(() => null);
+			if (linkStat?.isSymbolicLink()) {
+				const linkError = new Error(
+					`Symbolic links are not supported in project directories: ${candidate}`,
+				) as Error & { code: string };
+				linkError.code = 'ELOOP';
+				throw linkError;
+			}
 			const parent = path.dirname(candidate);
 			if (parent === candidate) return path.resolve(filePath);
 			missing.unshift(path.basename(candidate));
@@ -79,24 +103,26 @@ function isProjectEntry(name: string): boolean {
 	return name.endsWith('.fairy') || name === 'settings' || name === 'assets' || name.startsWith('assets_');
 }
 
+function isProjectEntryCaseInsensitive(name: string): boolean {
+	const lower = name.toLowerCase();
+	return lower.endsWith('.fairy') || lower === 'settings' || lower === 'assets' || lower.startsWith('assets_');
+}
+
 async function projectEntries(root: string): Promise<Set<string>> {
 	const names = await fs.readdir(root);
 	const owned = new Set(names.filter(isProjectEntry));
-	for (const fixed of ['assets', 'settings']) {
-		if (owned.has(fixed)) continue;
-		const aliases = names.filter((name) => name.toLowerCase() === fixed);
-		if (!aliases.length) continue;
+	for (const alias of names) {
+		if (owned.has(alias) || !isProjectEntryCaseInsensitive(alias)) continue;
+		const canonicalLower = alias.toLowerCase();
 		let actual;
 		try {
-			actual = await fs.lstat(path.join(root, fixed), { bigint: true });
+			actual = await fs.lstat(path.join(root, canonicalLower), { bigint: true });
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
 			throw error;
 		}
-		for (const alias of aliases) {
-			const entry = await fs.lstat(path.join(root, alias), { bigint: true });
-			if (entry.dev === actual.dev && entry.ino === actual.ino) owned.add(alias);
-		}
+		const entry = await fs.lstat(path.join(root, alias), { bigint: true });
+		if (entry.dev === actual.dev && entry.ino === actual.ino) owned.add(alias);
 	}
 	return owned;
 }
@@ -139,10 +165,13 @@ function createStagedNodeFileSystem(projectRoot: string, stagingRoot: string): B
 		async readdir(dirPath) {
 			const entries = await fs.readdir(translate(dirPath), { withFileTypes: true });
 			const symlink = entries.find((entry) => entry.isSymbolicLink());
-			if (symlink)
-				throw new Error(
+			if (symlink) {
+				const error = new Error(
 					`Symbolic links are not supported in project directories: ${path.join(dirPath, symlink.name)}`,
-				);
+				) as Error & { code: string };
+				error.code = 'ELOOP';
+				throw error;
+			}
 			return entries.map((entry) => entry.name);
 		},
 		readFile: (filePath) => fs.readFile(translate(filePath), 'utf-8'),
@@ -185,6 +214,8 @@ async function runNodeProjectWriteTransaction(
 					force: false,
 				});
 			}
+			// Re-verify staging after copy so a TOCTOU symlink inserted between check and copy cannot escape.
+			await assertNoSymlinks(staging, true);
 		}
 		await write(createStagedNodeFileSystem(root, staging));
 		await assertNoSymlinks(root, true).catch((error: NodeJS.ErrnoException) => {
@@ -197,11 +228,11 @@ async function runNodeProjectWriteTransaction(
 				const change = { name: entry, backedUp: false, installed: false };
 				changes.push(change);
 				if (await pathExists(path.join(root, entry))) {
-					await fs.rename(path.join(root, entry), path.join(backup, entry));
+					await retryWindowsRename(path.join(root, entry), path.join(backup, entry));
 					change.backedUp = true;
 				}
 				if (await pathExists(path.join(staging, entry))) {
-					await fs.rename(path.join(staging, entry), path.join(root, entry));
+					await retryWindowsRename(path.join(staging, entry), path.join(root, entry));
 					change.installed = true;
 				}
 			}
@@ -210,8 +241,9 @@ async function runNodeProjectWriteTransaction(
 			for (const change of changes.reverse()) {
 				try {
 					if (change.installed)
-						await fs.rename(path.join(root, change.name), path.join(staging, change.name));
-					if (change.backedUp) await fs.rename(path.join(backup, change.name), path.join(root, change.name));
+						await retryWindowsRename(path.join(root, change.name), path.join(staging, change.name));
+					if (change.backedUp)
+						await retryWindowsRename(path.join(backup, change.name), path.join(root, change.name));
 				} catch (error) {
 					errors.push(error);
 				}
@@ -222,7 +254,7 @@ async function runNodeProjectWriteTransaction(
 					true,
 					[backup, staging],
 				);
-			if (!existed) await fs.rmdir(root);
+			if (!existed) await fs.rmdir(root).catch(() => undefined);
 			throw commitError;
 		}
 	} catch (error) {
@@ -247,9 +279,8 @@ export function createNodeBackendFileSystem(): BackendFileSystem {
 		stat(filePath: string): Promise<BackendFileStat> {
 			return fs.stat(filePath);
 		},
-		async readdir(dirPath: string): Promise<string[]> {
-			const entries = await fs.readdir(dirPath, { withFileTypes: true });
-			return entries.map((entry) => entry.name);
+		readdir(dirPath: string): Promise<string[]> {
+			return fs.readdir(dirPath);
 		},
 		readFile(filePath: string): Promise<string> {
 			return fs.readFile(filePath, 'utf-8');
@@ -323,7 +354,7 @@ export type {
 	BackendRuntimeOptions,
 	BackendSessionLock,
 } from './runtime.js';
-export { BackendRuntime };
+export { BackendRuntime, disposeBackendRuntime };
 
 /** Resolve a CLI/SDK project input using the same rules as Node sessions. */
 export function resolveNodeFairyPath(input: string): Promise<string> {

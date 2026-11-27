@@ -87,15 +87,16 @@ function renderXmlText(value: unknown): string {
 	return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function renderXmlNode(tagName: string, node: unknown, indent: string): string {
+export function renderXmlNode(tagName: string, node: unknown, indent: string, rawTags?: ReadonlySet<string>): string {
 	if (node === undefined || node === null || node === '') {
 		return `${indent}<${tagName}/>`;
 	}
 	if (Array.isArray(node)) {
-		return node.map((item) => renderXmlNode(tagName, item, indent)).join('\n');
+		return node.map((item) => renderXmlNode(tagName, item, indent, rawTags)).join('\n');
 	}
 	if (typeof node !== 'object') {
-		return `${indent}<${tagName}>${renderXmlText(node)}</${tagName}>`;
+		const content = rawTags?.has(tagName) ? String(node) : renderXmlText(node);
+		return `${indent}<${tagName}>${content}</${tagName}>`;
 	}
 
 	const attrs: Record<string, unknown> = {};
@@ -113,9 +114,9 @@ function renderXmlNode(tagName: string, node: unknown, indent: string): string {
 	const childLines: string[] = [];
 	for (const child of children) {
 		if (Array.isArray(child.value)) {
-			for (const item of child.value) childLines.push(renderXmlNode(child.tagName, item, childIndent));
+			for (const item of child.value) childLines.push(renderXmlNode(child.tagName, item, childIndent, rawTags));
 		} else {
-			childLines.push(renderXmlNode(child.tagName, child.value, childIndent));
+			childLines.push(renderXmlNode(child.tagName, child.value, childIndent, rawTags));
 		}
 	}
 

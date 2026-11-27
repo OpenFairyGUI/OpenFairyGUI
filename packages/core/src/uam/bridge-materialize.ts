@@ -585,7 +585,10 @@ export function materializeUamMovieClipResourceProperties(
 		.setRepeatDelay(properties.repeatDelay)
 		.setSwing(properties.swing)
 		.setSmoothing(properties.smoothing);
-	for (const frame of movieClip.listFrames()) movieClip.removeFrame(frame);
+	for (const frame of movieClip.listFrames()) {
+		movieClip.removeFrame(frame);
+		frame.dispose();
+	}
 	for (const frame of frames) movieClip.addFrame(frame);
 }
 

@@ -1,4 +1,4 @@
-import type { Command } from 'commander';
+import { InvalidArgumentError, type Command } from 'commander';
 import {
 	findInstalledDocumentation,
 	getInstalledDocumentationIndex,
@@ -47,7 +47,11 @@ export function registerDocsCommand(program: Command): void {
 		.description('List installed document IDs, URIs and version')
 		.option('--json', 'Print JSON')
 		.action((options) => print('docs ls', options, getInstalledDocumentationIndex));
-	docs.command('find <query>')
+	docs.command('find')
+		.argument('<query>', 'Search term', (value: string) => {
+			if (!value || !value.trim()) throw new InvalidArgumentError('Documentation search must not be empty.');
+			return value;
+		})
 		.description('Search only the installed corpus')
 		.option('--json', 'Print JSON')
 		.action((query: string, options) => print('docs find', options, () => findInstalledDocumentation(query)));

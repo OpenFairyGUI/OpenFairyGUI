@@ -35,6 +35,8 @@ pnpm check:fast --base origin/main
 2. 运行契约生成与漂移检查；必要时同步 resources/prompts。读写注解不授予授权，不得放宽 roots、revision 或字节预算；Backend 映射不获得 publish/restore 执行权；独立发布工具仅调用显式注入并负责授权的宿主回调。
 3. 参考 `packages/mcp/test/backend-tool-mapping.integration.test.ts`、`contract-schemas.integration.test.ts`、`stdio-smoke.integration.test.ts` 检查发现、无效参数、结构化错误和真实调用。用[公开 stdio 示例与 tarball 消费者](./examples.md)验证安装入口；stdout 仅承载协议，不假设 HTTP 端口。
 
+MCP 默认握手给出文档 → outline → query → preflight → apply → validate → save → close 的顺序。`openfairygui_docs_read` 供只支持工具的客户端读取安装语料。正式二进制输出是 `structuredContent.backendResult` 中的 base64，文本仅给摘要；输入仍按生成契约使用字节数组。显式注入 `publish` 回调才注册 `openfairygui_host_publish`，路径授权、输出范围和插件策略归宿主；默认 stdio 不开启发布。
+
 ## 排查发布与受限恢复
 
 1. 保留原工程和失败现场；用安装版 `ofgui doctor <project> --output-dir <separate-output> --json` 区分环境/源文件问题，读 `ofgui docs diagnostic <code> --json`。doctor 不运行插件、发布或恢复，检查成功不保证写盘。
@@ -52,5 +54,3 @@ pnpm refs:grep "public class UIPackage"
 `refs:grep` 只接受一个非空、单行、区分大小写的字面量；`-` 开头及正则元字符也按文本处理。先验证必需 fixture，再搜索 Git 跟踪文本并输出路径/行号。0 表示命中，1 表示没有匹配，2 表示参数、资料或搜索错误；失败不会返回部分成功，也不自动安装、下载或重置。总结果超过 64 KiB 或 Git 输出预算时也会失败，应缩小搜索词或在已核验的来源目录使用原生 Git/rg。
 
 公开 fixture 的来源 URL 看 `.gitmodules`，固定提交看 gitlink 和 `refs:status`，资料职责看 `references.json`。搜索结果不是协议结论。资料选择、版本核验及缺失证据的处理见[开发指南](./development.md#参考资料与取证)。
-
-MCP 默认握手给出文档 → outline → query → preflight → apply → validate → save → close 的顺序。openfairygui_docs_read 供只支持工具的客户端读取安装语料。正式二进制输出是 structuredContent.backendResult 中的 base64，文本仅给摘要；输入仍按生成契约使用字节数组。显式注入 publish 回调才注册 openfairygui_host_publish，路径授权、输出范围和插件策略归宿主；默认 stdio 不开启发布。

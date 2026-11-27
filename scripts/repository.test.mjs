@@ -236,6 +236,7 @@ if (process.argv[2] === 'lint' && fs.existsSync('fail-lint')) process.exit(1);
 				'check:fast': manifest.scripts['check:fast'],
 				'lint:ci': 'node record.cjs lint',
 				typecheck: 'node record.cjs types',
+				'contracts:check': 'node record.cjs contracts',
 			},
 		}),
 	);
@@ -263,10 +264,10 @@ if (process.argv[2] === 'lint' && fs.existsSync('fail-lint')) process.exit(1);
 	assert.equal(JSON.parse(run('--base unavailable-target --list')).scope, 'full');
 	assert(!existsSync(path.join(root, 'calls.jsonl')), 'Preview must not execute any checks');
 	run(`--base ${base}`);
-	assert.deepEqual(calls(), ['lint', 'types', 'repository', 'guidance']);
+	assert.deepEqual(calls(), ['lint', 'types', 'contracts', 'repository', 'guidance']);
 	write(root, 'fail-lint', '');
 	assert.throws(() => run(`--base ${base}`));
-	assert.deepEqual(calls(), ['lint', 'types', 'repository', 'guidance', 'lint']);
+	assert.deepEqual(calls(), ['lint', 'types', 'contracts', 'repository', 'guidance', 'lint']);
 });
 
 test('documentation-only Git changes cannot hide deleted or renamed product code', (t) => {

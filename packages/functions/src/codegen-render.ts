@@ -214,7 +214,7 @@ function collectFguiTypescriptImports(classInfo: CodegenClass, variant: FguiType
 	for (const member of classInfo.members) {
 		if (member.ignored) continue;
 		const translated = translateFguiTypescriptType(member.type, variant);
-		if (!translated.includes('.')) {
+		if (!translated.includes('.') && translated !== classInfo.encodedClassName) {
 			imports.add(`import ${translated} from "./${translated}";`);
 		}
 	}
@@ -229,17 +229,29 @@ function translateFguiTypescriptType(typeName: string, variant: FguiTypescriptVa
 }
 
 function renderTemplate(template: string, data: Record<string, string>): string {
-	let output = template;
-	for (const [key, value] of Object.entries(data)) {
-		output = output.replaceAll(`{{${key}}}`, value);
-	}
-	return output;
+	return template.replace(/\{\{(\w+)\}\}/g, (match, key: string) => (Object.hasOwn(data, key) ? data[key]! : match));
 }
 
 function escapeCSharpString(value: string): string {
-	return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+	return value
+		.replace(/\\/g, '\\\\')
+		.replace(/"/g, '\\"')
+		.replace(/\r/g, '\\r')
+		.replace(/\n/g, '\\n')
+		.replace(/\t/g, '\\t')
+		.replace(/\0/g, '\\0')
+		.replace(/\u2028/g, '\\u2028')
+		.replace(/\u2029/g, '\\u2029');
 }
 
 function escapeTypeScriptString(value: string): string {
-	return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+	return value
+		.replace(/\\/g, '\\\\')
+		.replace(/"/g, '\\"')
+		.replace(/\r/g, '\\r')
+		.replace(/\n/g, '\\n')
+		.replace(/\t/g, '\\t')
+		.replace(/\0/g, '\\0')
+		.replace(/\u2028/g, '\\u2028')
+		.replace(/\u2029/g, '\\u2029');
 }

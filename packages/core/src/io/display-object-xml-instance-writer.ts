@@ -33,6 +33,9 @@ export function writeComponentInstanceXmlNode(
 	const instanceExtType = object.getInstanceExtType() ?? '';
 	if (instanceExtType) {
 		const extProtocol = EXTENSION_PROTOCOL_MAP[instanceExtType as keyof typeof EXTENSION_PROTOCOL_MAP];
+		if (!extProtocol) {
+			throw new ProjectIOError(`Unsupported component instance extension type: "${instanceExtType}".`);
+		}
 		const extSpecs = extProtocol.attrs as Record<string, { canonical: string }>;
 		const extAttrs: Record<string, unknown> = {};
 		if (object.getInstanceTitle() && extSpecs.title)

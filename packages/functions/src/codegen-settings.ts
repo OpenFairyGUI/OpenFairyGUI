@@ -64,7 +64,13 @@ export function resolvePackageCodegenPlan(
 
 	const packageFolderName = normalizeTypeName(pkg.getName()) || 'Package';
 	const outputDir = resolveCodePath(rawCodePath, options.basePath, options.fs);
-	const packageNamespace = settings.packageName ? `${settings.packageName}.${packageFolderName}` : packageFolderName;
+	const rawPackageName = settings.packageName.trim();
+	if (rawPackageName && !/^[A-Za-z_][0-9A-Za-z_]*(?:\.[A-Za-z_][0-9A-Za-z_]*)*$/u.test(rawPackageName)) {
+		throw new Error(
+			`codegen: Invalid packageName "${settings.packageName}"; expected dot-separated ASCII identifiers.`,
+		);
+	}
+	const packageNamespace = rawPackageName ? `${rawPackageName}.${packageFolderName}` : packageFolderName;
 
 	return {
 		outputDir,

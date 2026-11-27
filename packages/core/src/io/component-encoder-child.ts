@@ -354,7 +354,7 @@ function _writeChildSpecific(
 		case 'GTextField':
 		case 'GRichTextField':
 		case 'GTextInput': {
-			buf.writeS(resolveFontName(doc, child.getFont?.() ?? '') || null);
+			buf.writeS(remapLocalUiUrl(context, resolveFontName(doc, child.getFont?.() ?? '') || null));
 			buf.writeInt16(child.getFontSize?.() ?? 12);
 			buf.writeColor(child.getColor?.() ?? '#000000', false);
 			buf.writeUint8(child.getAlign?.() ?? 0);
@@ -400,9 +400,11 @@ function _writeChildSpecific(
 			const graphType = child.getGraphType?.() ?? 0;
 			// Editor output keeps a 13-byte default graph payload even when graphType is empty.
 			// The Unity runtime reads the first byte as type=0 and ignores the trailing defaults,
-			// but the payload is still part of the binary layout and must be preserved.
+			// so clamp lineSize to keep the high byte (graphType) strictly 0.
 			if (graphType === 0) {
-				buf.writeInt32(child.getLineSize?.() ?? 1);
+				const rawLineSize = child.getLineSize?.() ?? 1;
+				const safeLineSize = rawLineSize >= 0 && rawLineSize <= 0x00ffffff ? rawLineSize : 1;
+				buf.writeInt32(safeLineSize);
 				buf.writeColor(child.getLineColor?.() ?? '#ff000000', true);
 				buf.writeColor(child.getFillColor?.() ?? '#ffffffff', true, 0xffffffff);
 				buf.writeBool(false);

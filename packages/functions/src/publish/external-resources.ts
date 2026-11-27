@@ -1,4 +1,5 @@
 import type { Package } from '@openfairygui/core';
+import { assertSafeOutputFileName } from '../path-utils.js';
 import type { PublishFileSystem } from './contracts.js';
 import {
 	extname,
@@ -43,14 +44,20 @@ export async function exportPackageSounds(
 		if (!publishedResourceIds.has(resource.getId())) continue;
 
 		const sourcePath = resolveSoundPath(resource, pkg, basePath);
-		const targetName = `${pkg.getPublishName() || pkg.getName()}_${getPublishedId(resource, context.effectiveResourceIds)}${extname(resource.getFile() || '')}`;
+		const targetName = assertSafeOutputFileName(
+			`${pkg.getPublishName() || pkg.getName()}_${getPublishedId(resource, context.effectiveResourceIds)}${extname(resource.getFile() || '')}`,
+			'exported sound filename',
+		);
 		const targetPath = fs.join(outputDir, targetName);
 
 		try {
 			const data = await readFileRaw(sourcePath);
 			await fs.writeFileRaw(targetPath, data);
-		} catch {
-			throw new Error(`publish: Could not export sound "${resource.getId()}" from package "${pkg.getName()}".`);
+		} catch (error) {
+			throw new Error(
+				`publish: Could not export sound "${resource.getId()}" from package "${pkg.getName()}": ${error instanceof Error ? error.message : String(error)}`,
+				{ cause: error },
+			);
 		}
 	}
 }
@@ -121,13 +128,15 @@ export async function exportPackageExternalResources(
 		}
 
 		for (const write of writes) {
-			const targetPath = fs.join(outputDir, write.targetName);
+			const safeTargetName = assertSafeOutputFileName(write.targetName, 'exported resource filename');
+			const targetPath = fs.join(outputDir, safeTargetName);
 			try {
 				const data = await readFileRaw(write.sourcePath);
 				await fs.writeFileRaw(targetPath, data);
-			} catch {
+			} catch (error) {
 				throw new Error(
-					`publish: Could not export external resource "${resource.getId()}" from package "${pkg.getName()}".`,
+					`publish: Could not export external resource "${resource.getId()}" from package "${pkg.getName()}": ${error instanceof Error ? error.message : String(error)}`,
+					{ cause: error },
 				);
 			}
 		}

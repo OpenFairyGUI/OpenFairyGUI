@@ -17,6 +17,7 @@ import { PROJECT_XML_PROTOCOL, readXmlAttr } from './project-xml-protocol.js';
 import type { FileSystem } from './file-system.js';
 import type { ReaderContext } from './reader-context.js';
 import { readProjectDirectory, readProjectSubdirectory } from './project-reader-discovery.js';
+import { resolveSafePackageRelativePath } from './project-resource-hydration.js';
 
 type XmlNode = Record<string, unknown>;
 type OrderedXmlEntry = Record<string, unknown>;
@@ -456,9 +457,22 @@ function createResourceFromXML(
 			res.setBranch(branchName);
 			res.setExported(exported);
 			res.setFavorite(favorite);
-			// Store file path for second-pass parsing
-			const filePath = fs.join(packageDir, path.replace(/^\//, ''), name);
-			ctx.componentPaths.set(res, filePath);
+			// Store file path for second-pass parsing only when strictly contained within packageDir.
+			const safeRelativePath = resolveSafePackageRelativePath(path, name);
+			if (safeRelativePath) {
+				const filePath = fs.join(packageDir, safeRelativePath.replace(/^\//, ''));
+				ctx.componentPaths.set(res, filePath);
+			} else {
+				ctx.addDiagnostic({
+					severity: 'error',
+					code: 'unsafe_path',
+					path: `components.${id}`,
+					message: `Component "${name}" has an unsafe package-relative path: ${path}${name}`,
+					packageId: pkg.getId(),
+					resourceId: id,
+					sourcePath: `${path}${name}`,
+				});
+			}
 			pkg.addResource(res);
 			ctx.registerResource(pkg.getId(), id, res);
 			return res;

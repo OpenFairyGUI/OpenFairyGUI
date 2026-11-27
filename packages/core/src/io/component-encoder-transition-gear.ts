@@ -305,8 +305,8 @@ function _writeTransitionValue(
 			break;
 		}
 		case 'Shake': {
-			buf.writeFloat32(parseFloat(parts[0]) || 0);
-			buf.writeFloat32(parseFloat(parts[1]) || 0.3);
+			buf.writeFloat32(_numberToken(parts[0], 0));
+			buf.writeFloat32(_numberToken(parts[1], 0.3));
 			break;
 		}
 		case 'ColorFilter': {

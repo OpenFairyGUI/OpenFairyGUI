@@ -5,10 +5,18 @@ const packageVersion = (
 	JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
 ).version;
 
-export default defineConfig({
-	entry: ['src/index.ts', 'src/stdio.ts'],
-	format: ['esm', 'cjs'],
-	platform: 'node',
-	deps: { neverBundle: ['node:fs', 'node:path', 'node:fs/promises'] },
-	define: { __OPENFAIRYGUI_PACKAGE_VERSION__: JSON.stringify(packageVersion) },
-});
+export default defineConfig([
+	{
+		entry: ['src/index.ts'],
+		format: ['esm', 'cjs'],
+		platform: 'node',
+		define: { __OPENFAIRYGUI_PACKAGE_VERSION__: JSON.stringify(packageVersion) },
+	},
+	{
+		entry: ['src/stdio.ts'],
+		format: ['esm', 'cjs'],
+		platform: 'node',
+		clean: false,
+		define: { __OPENFAIRYGUI_PACKAGE_VERSION__: JSON.stringify(packageVersion) },
+	},
+]);

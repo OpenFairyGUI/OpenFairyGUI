@@ -33,6 +33,10 @@ export class SessionRegistry {
 		return this.sessions.get(sessionId);
 	}
 
+	public listSessionIds(): string[] {
+		return [...this.sessions.keys()];
+	}
+
 	public touch(sessionId: string): void {
 		if (!this.sessions.has(sessionId) || !this.idleTimeoutMs) return;
 		clearTimeout(this.idleTimers.get(sessionId));

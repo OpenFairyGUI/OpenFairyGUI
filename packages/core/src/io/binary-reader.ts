@@ -90,20 +90,6 @@ interface BinaryDependency {
 	name: string;
 }
 
-interface BinarySpriteEntry {
-	itemId: string;
-	atlasId: string;
-	x: number;
-	y: number;
-	w: number;
-	h: number;
-	rotated: boolean;
-	offsetX: number;
-	offsetY: number;
-	originalWidth: number;
-	originalHeight: number;
-}
-
 interface BranchAwarePackageResource {
 	setPath(path: string): unknown;
 	setBranch(branch: string): unknown;
@@ -313,8 +299,13 @@ export class BinaryReader {
 		const ver2 = buf.version >= 2;
 
 		// --- String table (block 4) ---
-		buf.seek(indexTablePos, 4);
+		if (!buf.seek(indexTablePos, 4)) {
+			throw new BinaryFormatError('Invalid FairyGUI binary file: missing string table block (4)');
+		}
 		const strCnt = buf.getInt32();
+		if (strCnt < 0) {
+			throw new BinaryFormatError(`Invalid FairyGUI binary file: negative string count (${strCnt})`);
+		}
 		const stringTable: string[] = [];
 		for (let i = 0; i < strCnt; i++) stringTable[i] = buf.readUTFString();
 		buf.stringTable = stringTable;
@@ -322,15 +313,25 @@ export class BinaryReader {
 		// Custom string overrides (block 5, optional)
 		if (buf.seek(indexTablePos, 5)) {
 			const cnt = buf.readInt32();
+			if (cnt < 0) {
+				throw new BinaryFormatError(`Invalid FairyGUI binary file: negative custom string count (${cnt})`);
+			}
 			for (let i = 0; i < cnt; i++) {
 				const index = buf.readUint16();
 				const len = buf.readInt32();
+				if (index >= stringTable.length || len < 0) {
+					throw new BinaryFormatError(
+						`Invalid FairyGUI binary file: custom string entry out of bounds (index=${index}, len=${len})`,
+					);
+				}
 				stringTable[index] = buf.getCustomString(len);
 			}
 		}
 
 		// --- Dependencies (block 0) ---
-		buf.seek(indexTablePos, 0);
+		if (!buf.seek(indexTablePos, 0)) {
+			throw new BinaryFormatError('Invalid FairyGUI binary file: missing dependency block (0)');
+		}
 		const depCnt = buf.getInt16();
 		const dependencies: BinaryDependency[] = [];
 		for (let i = 0; i < depCnt; i++) {
@@ -368,11 +369,17 @@ export class BinaryReader {
 		}
 
 		// --- Package items (block 1) ---
-		buf.seek(indexTablePos, 1);
+		if (!buf.seek(indexTablePos, 1)) {
+			throw new BinaryFormatError('Invalid FairyGUI binary file: missing package items block (1)');
+		}
 		const itemCnt = buf.getUint16();
 
 		for (let i = 0; i < itemCnt; i++) {
-			const nextPos = buf.getInt32() + buf.pos;
+			const itemLen = buf.getInt32();
+			if (itemLen < 0 || itemLen > buf.byteLength - buf.pos) {
+				throw new BinaryFormatError(`Invalid FairyGUI binary file: invalid package item length (${itemLen})`);
+			}
+			const nextPos = itemLen + buf.pos;
 
 			const itemType = buf.readByte() as BinItemType;
 			const itemId = buf.readS() ?? '';
@@ -549,7 +556,6 @@ export class BinaryReader {
 
 		// --- Sprite atlas mappings (block 2) ---
 		const spriteCnt = buf.seek(indexTablePos, 2) ? buf.getUint16() : 0;
-		const sprites: BinarySpriteEntry[] = [];
 
 		for (let i = 0; i < spriteCnt; i++) {
 			const nextPos = buf.getUint16() + buf.pos;
@@ -570,7 +576,6 @@ export class BinaryReader {
 				originalWidth = buf.getInt32();
 				originalHeight = buf.getInt32();
 			}
-			sprites.push({ itemId, atlasId, x, y, w, h, rotated, offsetX, offsetY, originalWidth, originalHeight });
 			const atlas = atlasMap.get(atlasId);
 			if (atlas) {
 				const sprite = doc.createSprite(itemId);
@@ -596,7 +601,13 @@ export class BinaryReader {
 		if (buf.seek(indexTablePos, 3)) {
 			const hitTestCnt = buf.getInt16();
 			for (let i = 0; i < hitTestCnt; i++) {
-				const nextPos = buf.getInt32() + buf.pos;
+				const hitTestLen = buf.getInt32();
+				if (hitTestLen < 0 || hitTestLen > buf.byteLength - buf.pos) {
+					throw new BinaryFormatError(
+						`Invalid FairyGUI binary file: invalid pixel hit-test length (${hitTestLen})`,
+					);
+				}
+				const nextPos = hitTestLen + buf.pos;
 				const itemId = buf.readS() ?? '';
 				buf.getInt32(); // deprecated offset field
 				const pixelWidth = buf.getInt32();

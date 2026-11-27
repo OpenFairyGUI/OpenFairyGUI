@@ -64,10 +64,10 @@ export class Root extends ExtensibleProperty<IRoot> {
 		this.set('projectId', other.get('projectId'));
 		this.set('projectType', other.get('projectType'));
 		this.set('version', other.get('version'));
-		this.set('branches', other.get('branches'));
-		this.set('settings', other.get('settings'));
+		this.set('branches', [...other.get('branches')]);
+		this.set('settings', structuredClone(other.get('settings')));
 		this.setName(other.getName());
-		this.setExtras({ ...other.getExtras() });
+		this.setExtras(structuredClone(other.getExtras()));
 
 		for (const extensionName of other.listRefMapKeys('extensions')) {
 			const otherExtension = other.getExtension(extensionName) as ExtensionProperty;

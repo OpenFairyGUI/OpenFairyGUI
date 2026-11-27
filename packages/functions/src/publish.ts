@@ -12,7 +12,13 @@ import { atlas } from './atlas.js';
 import { collectFontTexture, prepareMovieClipResource } from './atlas/inputs.js';
 import type { PreparedJtaData } from './atlas/jta.js';
 import { publishCodeGeneration, resolveProjectBasePath } from './codegen.js';
-import { dirname, expandPathVariables, isAbsolutePathLike, trimTrailingSlashes } from './path-utils.js';
+import {
+	assertSafeOutputFileName,
+	dirname,
+	expandPathVariables,
+	isAbsolutePathLike,
+	trimTrailingSlashes,
+} from './path-utils.js';
 import { formatPluginError, type LoadedPlugin, shouldAbortPluginFailure } from './plugins/types.js';
 import type { PublishFileSystem } from './publish/contracts.js';
 import {
@@ -186,7 +192,10 @@ export function publish(options: PublishOptions): Transform {
 			config: ResolvedProjectPublishConfig,
 			projectBasePath?: string,
 		): Omit<ResolvedPackagePublishPlan, 'context'> => {
-			const publishName = pkg.getPublishName() || pkg.getName();
+			const publishName = assertSafeOutputFileName(pkg.getPublishName() || pkg.getName(), 'package publish name');
+			if (config.activeBranch) {
+				assertSafeOutputFileName(config.activeBranch, 'publish branch name');
+			}
 			const customProperties = doc.getRoot().getSettings().customProperties ?? {};
 			let outputDir: string | undefined;
 
@@ -204,13 +213,11 @@ export function publish(options: PublishOptions): Transform {
 					const rawCandidate = candidate?.trim() ?? '';
 					if (!rawCandidate) continue;
 					const hasBranchVar = rawCandidate.includes('{branch_name}');
-					const expanded = expandPathVariables(
-						expandPathVariables(rawCandidate, {
-							publish_file_name: publishName,
-							branch_name: isActiveBranchPublish ? config.activeBranch : '',
-						}),
-						customProperties,
-					);
+					const expanded = expandPathVariables(rawCandidate, {
+						...customProperties,
+						publish_file_name: publishName,
+						branch_name: isActiveBranchPublish ? config.activeBranch : '',
+					});
 					const resolved = resolveConfiguredOutputPath(expanded, projectBasePath);
 					if (!resolved) continue;
 					outputDir =
@@ -341,7 +348,8 @@ export function publish(options: PublishOptions): Transform {
 
 			if (!options.fs) return;
 
-			const filePath = options.fs.join(plan.outputDir!, plan.fileName);
+			const safeFileName = assertSafeOutputFileName(plan.fileName, 'published package binary filename');
+			const filePath = options.fs.join(plan.outputDir!, safeFileName);
 			const bwOptions: BinaryWriterOptions = {
 				compressed: plan.compressed,
 				packageIndex,
@@ -498,8 +506,7 @@ export function publish(options: PublishOptions): Transform {
 }
 
 /**
- * Scan component children for font="ui://..." references to build dependency list.
- * The editor only adds dependencies for packages referenced via bitmap font URLs.
+ * Collect cross-package resource dependencies referenced by published resources in a package.
  * @internal
  */
 function _computeDependencies(

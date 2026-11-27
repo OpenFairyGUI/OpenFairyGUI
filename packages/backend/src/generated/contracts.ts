@@ -177,6 +177,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"description": "Open a project directory or .fairy file within allowed roots (stdio: OPENFAIRYGUI_ALLOWED_PROJECT_ROOTS). Acquire a session lock; close the session when finished.",
 			"annotations": {
 				"readOnlyHint": false,
+				"destructiveHint": false,
 				"idempotentHint": false,
 				"openWorldHint": false
 			},
@@ -222,6 +223,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"description": "Open a browser-safe backend session from an already loaded UAM project without filesystem access.",
 			"annotations": {
 				"readOnlyHint": false,
+				"destructiveHint": false,
 				"idempotentHint": false,
 				"openWorldHint": false
 			},
@@ -229,7 +231,102 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"type": "object",
 				"properties": {
 					"project": {
-						"$ref": "#/$defs/UamProject_85ce95a6cd"
+						"type": "object",
+						"properties": {
+							"projectId": {
+								"type": "string",
+								"minLength": 1,
+								"maxLength": 256
+							},
+							"projectType": {
+								"type": "integer"
+							},
+							"version": {
+								"type": "string",
+								"maxLength": 256
+							},
+							"branches": {
+								"type": "array",
+								"items": {
+									"type": "string",
+									"maxLength": 256
+								},
+								"maxItems": 256
+							},
+							"settings": {
+								"$ref": "#/$defs/ProjectSettings_eb04257954"
+							},
+							"packages": {
+								"type": "array",
+								"items": {
+									"type": "object",
+									"properties": {
+										"id": {
+											"type": "string",
+											"minLength": 1,
+											"maxLength": 256
+										},
+										"name": {
+											"type": "string",
+											"minLength": 1,
+											"maxLength": 256
+										},
+										"compressPNG": {
+											"$ref": "#/$defs/Shape_e3070b8c30"
+										},
+										"jpegQuality": {
+											"$ref": "#/$defs/Shape_c0aa748fff"
+										},
+										"publish": {
+											"$ref": "#/$defs/Shape_ed4dd118ce"
+										},
+										"branchNames": {
+											"type": "array",
+											"items": {
+												"type": "string",
+												"maxLength": 256
+											},
+											"maxItems": 256
+										},
+										"folders": {
+											"type": "array",
+											"items": {
+												"$ref": "#/$defs/UamResourceFolder_1fd3e19c3b"
+											},
+											"maxItems": 10000
+										},
+										"resources": {
+											"type": "array",
+											"items": {
+												"$ref": "#/$defs/UamResource_529522ca3e"
+											},
+											"maxItems": 100000
+										}
+									},
+									"required": [
+										"id",
+										"name",
+										"compressPNG",
+										"jpegQuality",
+										"publish",
+										"branchNames",
+										"folders",
+										"resources"
+									],
+									"additionalProperties": false
+								},
+								"maxItems": 1000
+							}
+						},
+						"required": [
+							"projectId",
+							"projectType",
+							"version",
+							"branches",
+							"settings",
+							"packages"
+						],
+						"additionalProperties": false
 					},
 					"sessionId": {
 						"type": "string",
@@ -1175,7 +1272,8 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"description": "Synchronously refresh the derived session cache and return its revision-bound snapshot.",
 			"annotations": {
 				"readOnlyHint": false,
-				"idempotentHint": false,
+				"destructiveHint": false,
+				"idempotentHint": true,
 				"openWorldHint": false
 			},
 			"input": {
@@ -2923,14 +3021,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"type": "object",
 			"properties": {
 				"id": {
-					"type": "string",
-					"minLength": 1,
-					"maxLength": 256
+					"type": "string"
 				},
 				"name": {
-					"type": "string",
-					"minLength": 1,
-					"maxLength": 256
+					"type": "string"
 				},
 				"compressPNG": {
 					"$ref": "#/$defs/Shape_e3070b8c30"
@@ -2942,26 +3036,13 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"$ref": "#/$defs/Shape_ed4dd118ce"
 				},
 				"branchNames": {
-					"type": "array",
-					"items": {
-						"type": "string",
-						"maxLength": 256
-					},
-					"maxItems": 256
+					"$ref": "#/$defs/Array_5444db1618"
 				},
 				"folders": {
-					"type": "array",
-					"items": {
-						"$ref": "#/$defs/UamResourceFolder_1fd3e19c3b"
-					},
-					"maxItems": 10000
+					"$ref": "#/$defs/Array_b86c274617"
 				},
 				"resources": {
-					"type": "array",
-					"items": {
-						"$ref": "#/$defs/UamResource_529522ca3e"
-					},
-					"maxItems": 100000
+					"$ref": "#/$defs/Array_0a949e1f15"
 				}
 			},
 			"required": [
@@ -11135,34 +11216,22 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"type": "object",
 			"properties": {
 				"projectId": {
-					"type": "string",
-					"minLength": 1,
-					"maxLength": 256
+					"type": "string"
 				},
 				"projectType": {
-					"type": "integer"
+					"type": "number"
 				},
 				"version": {
-					"type": "string",
-					"maxLength": 256
+					"type": "string"
 				},
 				"branches": {
-					"type": "array",
-					"items": {
-						"type": "string",
-						"maxLength": 256
-					},
-					"maxItems": 256
+					"$ref": "#/$defs/Array_5444db1618"
 				},
 				"settings": {
 					"$ref": "#/$defs/ProjectSettings_eb04257954"
 				},
 				"packages": {
-					"type": "array",
-					"items": {
-						"$ref": "#/$defs/UamPackage_bc8c23dd4d"
-					},
-					"maxItems": 1000
+					"$ref": "#/$defs/Array_a58ddcdc1a"
 				}
 			},
 			"required": [
@@ -20875,7 +20944,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"additionalProperties": false
 		},
 		"BackendSessionProjectModel_6724369185_wire": {
-			"$ref": "#/$defs/BackendSessionProjectModel_6724369185_read"
+			"$ref": "#/$defs/BackendSessionProjectModel_6724369185_read_wire"
 		},
 		"Array_ad8392e934_wire": {
 			"type": "array",
@@ -23178,17 +23247,17 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"BackendSessionProjectModel_6724369185_read": {
+		"BackendSessionProjectModel_6724369185_read_wire": {
 			"type": "object",
 			"properties": {
 				"packages": {
-					"$ref": "#/$defs/Array_ad8392e934_read"
+					"$ref": "#/$defs/Array_ad8392e934_read_wire"
 				},
 				"settings": {
-					"$ref": "#/$defs/ProjectSettings_eb04257954_read"
+					"$ref": "#/$defs/ProjectSettings_eb04257954_read_wire"
 				},
 				"branches": {
-					"$ref": "#/$defs/Array_5444db1618_read"
+					"$ref": "#/$defs/Array_5444db1618_read_wire"
 				},
 				"projectId": {
 					"type": "string"
@@ -23210,17 +23279,17 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_ad8392e934_read": {
+		"Array_ad8392e934_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/BackendSessionPackageModel_95a6cda673_read"
+				"$ref": "#/$defs/BackendSessionPackageModel_95a6cda673_read_wire"
 			}
 		},
-		"BackendSessionPackageModel_95a6cda673_read": {
+		"BackendSessionPackageModel_95a6cda673_read_wire": {
 			"type": "object",
 			"properties": {
 				"resources": {
-					"$ref": "#/$defs/Array_92fe6a02f4_read"
+					"$ref": "#/$defs/Array_92fe6a02f4_read_wire"
 				},
 				"name": {
 					"type": "string"
@@ -23229,19 +23298,19 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"publish": {
-					"$ref": "#/$defs/Shape_ed4dd118ce_read"
+					"$ref": "#/$defs/Shape_ed4dd118ce_read_wire"
 				},
 				"compressPNG": {
-					"$ref": "#/$defs/Shape_e3070b8c30_read"
+					"$ref": "#/$defs/Shape_e3070b8c30_read_wire"
 				},
 				"jpegQuality": {
-					"$ref": "#/$defs/Shape_c0aa748fff_read"
+					"$ref": "#/$defs/Shape_c0aa748fff_read_wire"
 				},
 				"branchNames": {
-					"$ref": "#/$defs/Array_5444db1618_read"
+					"$ref": "#/$defs/Array_5444db1618_read_wire"
 				},
 				"folders": {
-					"$ref": "#/$defs/Array_b86c274617_read"
+					"$ref": "#/$defs/Array_b86c274617_read_wire"
 				}
 			},
 			"required": [
@@ -23256,29 +23325,29 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_92fe6a02f4_read": {
+		"Array_92fe6a02f4_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/BackendSessionResourceModel_274e188ce4_read"
+				"$ref": "#/$defs/BackendSessionResourceModel_274e188ce4_read_wire"
 			}
 		},
-		"BackendSessionResourceModel_274e188ce4_read": {
+		"BackendSessionResourceModel_274e188ce4_read_wire": {
 			"anyOf": [
 				{
-					"$ref": "#/$defs/UamComponentResource_7a6f14a3c8_read"
+					"$ref": "#/$defs/UamComponentResource_7a6f14a3c8_read_wire"
 				},
 				{
-					"$ref": "#/$defs/Omit_c9f8dc1509_read"
+					"$ref": "#/$defs/Omit_c9f8dc1509_read_wire"
 				},
 				{
-					"$ref": "#/$defs/Omit_6479c7d601_read"
+					"$ref": "#/$defs/Omit_6479c7d601_read_wire"
 				},
 				{
-					"$ref": "#/$defs/Omit_c2923cbde6_read"
+					"$ref": "#/$defs/Omit_c2923cbde6_read_wire"
 				}
 			]
 		},
-		"UamComponentResource_7a6f14a3c8_read": {
+		"UamComponentResource_7a6f14a3c8_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -23304,10 +23373,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"branchItemIds": {
-					"$ref": "#/$defs/Array_5444db1618_read"
+					"$ref": "#/$defs/Array_5444db1618_read_wire"
 				},
 				"component": {
-					"$ref": "#/$defs/UamComponentModel_dbb5865ef3_read"
+					"$ref": "#/$defs/UamComponentModel_dbb5865ef3_read_wire"
 				}
 			},
 			"required": [
@@ -23323,35 +23392,35 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_5444db1618_read": {
+		"Array_5444db1618_read_wire": {
 			"type": "array",
 			"items": {
 				"type": "string"
 			}
 		},
-		"UamComponentModel_dbb5865ef3_read": {
+		"UamComponentModel_dbb5865ef3_read_wire": {
 			"type": "object",
 			"properties": {
 				"size": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"properties": {
-					"$ref": "#/$defs/UamComponentProperties_d7c39dde47_read"
+					"$ref": "#/$defs/UamComponentProperties_d7c39dde47_read_wire"
 				},
 				"customData": {
 					"type": "string"
 				},
 				"relations": {
-					"$ref": "#/$defs/Array_9d4803aa29_read"
+					"$ref": "#/$defs/Array_9d4803aa29_read_wire"
 				},
 				"displayList": {
-					"$ref": "#/$defs/Array_467ca5fd71_read"
+					"$ref": "#/$defs/Array_467ca5fd71_read_wire"
 				},
 				"controllers": {
-					"$ref": "#/$defs/Array_33931a1f70_read"
+					"$ref": "#/$defs/Array_33931a1f70_read_wire"
 				},
 				"transitions": {
-					"$ref": "#/$defs/Array_40451c0a9c_read"
+					"$ref": "#/$defs/Array_40451c0a9c_read_wire"
 				}
 			},
 			"required": [
@@ -23364,7 +23433,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamSize_fcba86f12a_read": {
+		"UamSize_fcba86f12a_read_wire": {
 			"type": "object",
 			"properties": {
 				"width": {
@@ -23380,17 +23449,17 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamComponentProperties_d7c39dde47_read": {
+		"UamComponentProperties_d7c39dde47_read_wire": {
 			"type": "object",
 			"properties": {
 				"minSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"maxSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"pivot": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"pivotAsAnchor": {
 					"type": "boolean"
@@ -23399,10 +23468,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "number"
 				},
 				"margin": {
-					"$ref": "#/$defs/UamEdgeInsets_c3197c8668_read"
+					"$ref": "#/$defs/UamEdgeInsets_c3197c8668_read_wire"
 				},
 				"clipSoftness": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"hitTest": {
 					"type": "string"
@@ -23423,7 +23492,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "number"
 				},
 				"scrollBarMargin": {
-					"$ref": "#/$defs/UamEdgeInsets_c3197c8668_read"
+					"$ref": "#/$defs/UamEdgeInsets_c3197c8668_read_wire"
 				},
 				"vtScrollBarRes": {
 					"type": "string"
@@ -23450,7 +23519,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "number"
 				},
 				"designImageOffset": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"designImage": {
 					"type": "string"
@@ -23528,7 +23597,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"customProperties": {
-					"$ref": "#/$defs/Array_e690da8127_read"
+					"$ref": "#/$defs/Array_e690da8127_read_wire"
 				}
 			},
 			"required": [
@@ -23584,7 +23653,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamPoint_600bb96bb9_read": {
+		"UamPoint_600bb96bb9_read_wire": {
 			"type": "object",
 			"properties": {
 				"x": {
@@ -23600,7 +23669,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamEdgeInsets_c3197c8668_read": {
+		"UamEdgeInsets_c3197c8668_read_wire": {
 			"type": "object",
 			"properties": {
 				"top": {
@@ -23624,13 +23693,13 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_e690da8127_read": {
+		"Array_e690da8127_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamComponentCustomProperty_25bde4aacf_read"
+				"$ref": "#/$defs/UamComponentCustomProperty_25bde4aacf_read_wire"
 			}
 		},
-		"UamComponentCustomProperty_25bde4aacf_read": {
+		"UamComponentCustomProperty_25bde4aacf_read_wire": {
 			"type": "object",
 			"properties": {
 				"target": {
@@ -23653,13 +23722,13 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_9d4803aa29_read": {
+		"Array_9d4803aa29_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamRelation_05734287d5_read"
+				"$ref": "#/$defs/UamRelation_05734287d5_read_wire"
 			}
 		},
-		"UamRelation_05734287d5_read": {
+		"UamRelation_05734287d5_read_wire": {
 			"type": "object",
 			"properties": {
 				"targetNodeId": {
@@ -23679,71 +23748,71 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_467ca5fd71_read": {
+		"Array_467ca5fd71_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamDisplayNode_0f29e80218_read"
+				"$ref": "#/$defs/UamDisplayNode_0f29e80218_read_wire"
 			}
 		},
-		"UamDisplayNode_0f29e80218_read": {
+		"UamDisplayNode_0f29e80218_read_wire": {
 			"anyOf": [
 				{
-					"$ref": "#/$defs/UamImageNode_6d7f87f630_read"
+					"$ref": "#/$defs/UamImageNode_6d7f87f630_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamTextNode_85783c6389_read"
+					"$ref": "#/$defs/UamTextNode_85783c6389_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamRichTextNode_f95a8b7bf3_read"
+					"$ref": "#/$defs/UamRichTextNode_f95a8b7bf3_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamTextInputNode_883228a038_read"
+					"$ref": "#/$defs/UamTextInputNode_883228a038_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamComponentRefNode_fba1f50b74_read"
+					"$ref": "#/$defs/UamComponentRefNode_fba1f50b74_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamListNode_02caa92ee3_read"
+					"$ref": "#/$defs/UamListNode_02caa92ee3_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamTreeNode_766f6fba35_read"
+					"$ref": "#/$defs/UamTreeNode_766f6fba35_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamGraphNode_4bd58a17d4_read"
+					"$ref": "#/$defs/UamGraphNode_4bd58a17d4_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamGroupNode_7f8e4b5101_read"
+					"$ref": "#/$defs/UamGroupNode_7f8e4b5101_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamLoaderNode_1f097f3724_read"
+					"$ref": "#/$defs/UamLoaderNode_1f097f3724_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamLoader3DNode_f53e4afa5e_read"
+					"$ref": "#/$defs/UamLoader3DNode_f53e4afa5e_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamMovieClipNode_77dce6d447_read"
+					"$ref": "#/$defs/UamMovieClipNode_77dce6d447_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamButtonNode_f2028f1d63_read"
+					"$ref": "#/$defs/UamButtonNode_f2028f1d63_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamLabelNode_745844563c_read"
+					"$ref": "#/$defs/UamLabelNode_745844563c_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamComboBoxNode_fae3458a32_read"
+					"$ref": "#/$defs/UamComboBoxNode_fae3458a32_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamProgressBarNode_54cbbca18d_read"
+					"$ref": "#/$defs/UamProgressBarNode_54cbbca18d_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamSliderNode_3dc285cb59_read"
+					"$ref": "#/$defs/UamSliderNode_3dc285cb59_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamScrollBarNode_6521c99a04_read"
+					"$ref": "#/$defs/UamScrollBarNode_6521c99a04_read_wire"
 				}
 			]
 		},
-		"UamImageNode_6d7f87f630_read": {
+		"UamImageNode_6d7f87f630_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -23751,7 +23820,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": "image"
 				},
 				"resource": {
-					"$ref": "#/$defs/UamResourceRef_3486136f6c_read"
+					"$ref": "#/$defs/UamResourceRef_3486136f6c_read_wire"
 				},
 				"fileName": {
 					"type": "string"
@@ -23766,10 +23835,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"position": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"size": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"locked": {
 					"type": "boolean"
@@ -23778,22 +23847,22 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"minSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"maxSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"pivot": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"pivotAsAnchor": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"scale": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"skew": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"visible": {
 					"type": "boolean"
@@ -23840,10 +23909,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"relations": {
-					"$ref": "#/$defs/Array_9d4803aa29_read"
+					"$ref": "#/$defs/Array_9d4803aa29_read_wire"
 				},
 				"gears": {
-					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+					"$ref": "#/$defs/Array_aa00fd9a0a_read_wire"
 				},
 				"color": {
 					"type": "string"
@@ -23899,7 +23968,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamResourceRef_3486136f6c_read": {
+		"UamResourceRef_3486136f6c_read_wire": {
 			"type": "object",
 			"properties": {
 				"packageId": {
@@ -23914,7 +23983,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Shape_6b49a92435_read": {
+		"Shape_6b49a92435_read_wire": {
 			"anyOf": [
 				{
 					"type": "boolean",
@@ -23926,47 +23995,47 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				}
 			]
 		},
-		"Array_aa00fd9a0a_read": {
+		"Array_aa00fd9a0a_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamGearBinding_02d8315877_read"
+				"$ref": "#/$defs/UamGearBinding_02d8315877_read_wire"
 			}
 		},
-		"UamGearBinding_02d8315877_read": {
+		"UamGearBinding_02d8315877_read_wire": {
 			"anyOf": [
 				{
-					"$ref": "#/$defs/UamDisplayGearBinding_639c9f984b_read"
+					"$ref": "#/$defs/UamDisplayGearBinding_639c9f984b_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamDisplay2GearBinding_07dd5cb9d4_read"
+					"$ref": "#/$defs/UamDisplay2GearBinding_07dd5cb9d4_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamLookGearBinding_4c8d5d296f_read"
+					"$ref": "#/$defs/UamLookGearBinding_4c8d5d296f_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamXYGearBinding_68e0a5a986_read"
+					"$ref": "#/$defs/UamXYGearBinding_68e0a5a986_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamSizeGearBinding_f34aa6dd02_read"
+					"$ref": "#/$defs/UamSizeGearBinding_f34aa6dd02_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamColorGearBinding_d4f848dd3a_read"
+					"$ref": "#/$defs/UamColorGearBinding_d4f848dd3a_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamAnimationGearBinding_f6f5f06994_read"
+					"$ref": "#/$defs/UamAnimationGearBinding_f6f5f06994_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamTextGearBinding_96d3f53293_read"
+					"$ref": "#/$defs/UamTextGearBinding_96d3f53293_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamIconGearBinding_8b66ab7f2c_read"
+					"$ref": "#/$defs/UamIconGearBinding_8b66ab7f2c_read_wire"
 				},
 				{
-					"$ref": "#/$defs/UamFontSizeGearBinding_4491b976c1_read"
+					"$ref": "#/$defs/UamFontSizeGearBinding_4491b976c1_read_wire"
 				}
 			]
 		},
-		"UamDisplayGearBinding_639c9f984b_read": {
+		"UamDisplayGearBinding_639c9f984b_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -23980,7 +24049,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"visibleOnPageIds": {
-					"$ref": "#/$defs/Array_5444db1618_read"
+					"$ref": "#/$defs/Array_5444db1618_read_wire"
 				}
 			},
 			"required": [
@@ -23991,7 +24060,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamDisplay2GearBinding_07dd5cb9d4_read": {
+		"UamDisplay2GearBinding_07dd5cb9d4_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -24005,7 +24074,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"visibleOnPageIds": {
-					"$ref": "#/$defs/Array_5444db1618_read"
+					"$ref": "#/$defs/Array_5444db1618_read_wire"
 				},
 				"condition": {
 					"type": "string"
@@ -24020,7 +24089,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamLookGearBinding_4c8d5d296f_read": {
+		"UamLookGearBinding_4c8d5d296f_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -24034,10 +24103,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"states": {
-					"$ref": "#/$defs/Array_f0a51bde56_read"
+					"$ref": "#/$defs/Array_f0a51bde56_read_wire"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/Shape_46b9d1c0a2_read"
+					"$ref": "#/$defs/Shape_46b9d1c0a2_read_wire"
 				},
 				"condition": {
 					"type": "string"
@@ -24077,20 +24146,20 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_f0a51bde56_read": {
+		"Array_f0a51bde56_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamGearPageState_5d308908f8_read"
+				"$ref": "#/$defs/UamGearPageState_5d308908f8_read_wire"
 			}
 		},
-		"UamGearPageState_5d308908f8_read": {
+		"UamGearPageState_5d308908f8_read_wire": {
 			"type": "object",
 			"properties": {
 				"pageId": {
 					"type": "string"
 				},
 				"value": {
-					"$ref": "#/$defs/Shape_46b9d1c0a2_read"
+					"$ref": "#/$defs/Shape_46b9d1c0a2_read_wire"
 				}
 			},
 			"required": [
@@ -24099,17 +24168,17 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Shape_46b9d1c0a2_read": {
+		"Shape_46b9d1c0a2_read_wire": {
 			"anyOf": [
 				{
 					"type": "null"
 				},
 				{
-					"$ref": "#/$defs/UamLookGearValue_4691602999_read"
+					"$ref": "#/$defs/UamLookGearValue_4691602999_read_wire"
 				}
 			]
 		},
-		"UamLookGearValue_4691602999_read": {
+		"UamLookGearValue_4691602999_read_wire": {
 			"type": "object",
 			"properties": {
 				"alpha": {
@@ -24133,7 +24202,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamXYGearBinding_68e0a5a986_read": {
+		"UamXYGearBinding_68e0a5a986_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -24147,10 +24216,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"states": {
-					"$ref": "#/$defs/Array_f4ce911974_read"
+					"$ref": "#/$defs/Array_f4ce911974_read_wire"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/Shape_ddacff5c0d_read"
+					"$ref": "#/$defs/Shape_ddacff5c0d_read_wire"
 				},
 				"condition": {
 					"type": "string"
@@ -24190,20 +24259,20 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_f4ce911974_read": {
+		"Array_f4ce911974_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamGearPageState_ec1cf9ab55_read"
+				"$ref": "#/$defs/UamGearPageState_ec1cf9ab55_read_wire"
 			}
 		},
-		"UamGearPageState_ec1cf9ab55_read": {
+		"UamGearPageState_ec1cf9ab55_read_wire": {
 			"type": "object",
 			"properties": {
 				"pageId": {
 					"type": "string"
 				},
 				"value": {
-					"$ref": "#/$defs/Shape_ddacff5c0d_read"
+					"$ref": "#/$defs/Shape_ddacff5c0d_read_wire"
 				}
 			},
 			"required": [
@@ -24212,17 +24281,17 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Shape_ddacff5c0d_read": {
+		"Shape_ddacff5c0d_read_wire": {
 			"anyOf": [
 				{
 					"type": "null"
 				},
 				{
-					"$ref": "#/$defs/UamXYGearValue_22ca68eeec_read"
+					"$ref": "#/$defs/UamXYGearValue_22ca68eeec_read_wire"
 				}
 			]
 		},
-		"UamXYGearValue_22ca68eeec_read": {
+		"UamXYGearValue_22ca68eeec_read_wire": {
 			"type": "object",
 			"properties": {
 				"px": {
@@ -24244,7 +24313,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamSizeGearBinding_f34aa6dd02_read": {
+		"UamSizeGearBinding_f34aa6dd02_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -24258,10 +24327,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"states": {
-					"$ref": "#/$defs/Array_a6f523d7be_read"
+					"$ref": "#/$defs/Array_a6f523d7be_read_wire"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/Shape_ba9a349e2f_read"
+					"$ref": "#/$defs/Shape_ba9a349e2f_read_wire"
 				},
 				"condition": {
 					"type": "string"
@@ -24301,20 +24370,20 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_a6f523d7be_read": {
+		"Array_a6f523d7be_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamGearPageState_036372b975_read"
+				"$ref": "#/$defs/UamGearPageState_036372b975_read_wire"
 			}
 		},
-		"UamGearPageState_036372b975_read": {
+		"UamGearPageState_036372b975_read_wire": {
 			"type": "object",
 			"properties": {
 				"pageId": {
 					"type": "string"
 				},
 				"value": {
-					"$ref": "#/$defs/Shape_ba9a349e2f_read"
+					"$ref": "#/$defs/Shape_ba9a349e2f_read_wire"
 				}
 			},
 			"required": [
@@ -24323,17 +24392,17 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Shape_ba9a349e2f_read": {
+		"Shape_ba9a349e2f_read_wire": {
 			"anyOf": [
 				{
 					"type": "null"
 				},
 				{
-					"$ref": "#/$defs/UamSizeGearValue_ff75a42f3e_read"
+					"$ref": "#/$defs/UamSizeGearValue_ff75a42f3e_read_wire"
 				}
 			]
 		},
-		"UamSizeGearValue_ff75a42f3e_read": {
+		"UamSizeGearValue_ff75a42f3e_read_wire": {
 			"type": "object",
 			"properties": {
 				"scaleX": {
@@ -24357,7 +24426,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamColorGearBinding_d4f848dd3a_read": {
+		"UamColorGearBinding_d4f848dd3a_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -24371,10 +24440,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"states": {
-					"$ref": "#/$defs/Array_8a4bf84a05_read"
+					"$ref": "#/$defs/Array_8a4bf84a05_read_wire"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/Shape_2062560efc_read"
+					"$ref": "#/$defs/Shape_2062560efc_read_wire"
 				},
 				"condition": {
 					"type": "string"
@@ -24414,20 +24483,20 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_8a4bf84a05_read": {
+		"Array_8a4bf84a05_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamGearPageState_f965f29d9e_read"
+				"$ref": "#/$defs/UamGearPageState_f965f29d9e_read_wire"
 			}
 		},
-		"UamGearPageState_f965f29d9e_read": {
+		"UamGearPageState_f965f29d9e_read_wire": {
 			"type": "object",
 			"properties": {
 				"pageId": {
 					"type": "string"
 				},
 				"value": {
-					"$ref": "#/$defs/Shape_2062560efc_read"
+					"$ref": "#/$defs/Shape_2062560efc_read_wire"
 				}
 			},
 			"required": [
@@ -24436,24 +24505,24 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Shape_2062560efc_read": {
+		"Shape_2062560efc_read_wire": {
 			"anyOf": [
 				{
 					"type": "null"
 				},
 				{
-					"$ref": "#/$defs/UamColorGearValue_6a39902a4e_read"
+					"$ref": "#/$defs/UamColorGearValue_6a39902a4e_read_wire"
 				}
 			]
 		},
-		"UamColorGearValue_6a39902a4e_read": {
+		"UamColorGearValue_6a39902a4e_read_wire": {
 			"type": "object",
 			"properties": {
 				"color": {
 					"type": "string"
 				},
 				"outlineColor": {
-					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+					"$ref": "#/$defs/Shape_5eeb3f060e_read_wire"
 				}
 			},
 			"required": [
@@ -24462,7 +24531,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Shape_5eeb3f060e_read": {
+		"Shape_5eeb3f060e_read_wire": {
 			"anyOf": [
 				{
 					"type": "null"
@@ -24472,7 +24541,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				}
 			]
 		},
-		"UamAnimationGearBinding_f6f5f06994_read": {
+		"UamAnimationGearBinding_f6f5f06994_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -24486,10 +24555,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"states": {
-					"$ref": "#/$defs/Array_40093b7bc7_read"
+					"$ref": "#/$defs/Array_40093b7bc7_read_wire"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/Shape_34b927db3a_read"
+					"$ref": "#/$defs/Shape_34b927db3a_read_wire"
 				},
 				"condition": {
 					"type": "string"
@@ -24529,20 +24598,20 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_40093b7bc7_read": {
+		"Array_40093b7bc7_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamGearPageState_40b7b56fcc_read"
+				"$ref": "#/$defs/UamGearPageState_40b7b56fcc_read_wire"
 			}
 		},
-		"UamGearPageState_40b7b56fcc_read": {
+		"UamGearPageState_40b7b56fcc_read_wire": {
 			"type": "object",
 			"properties": {
 				"pageId": {
 					"type": "string"
 				},
 				"value": {
-					"$ref": "#/$defs/Shape_34b927db3a_read"
+					"$ref": "#/$defs/Shape_34b927db3a_read_wire"
 				}
 			},
 			"required": [
@@ -24551,17 +24620,17 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Shape_34b927db3a_read": {
+		"Shape_34b927db3a_read_wire": {
 			"anyOf": [
 				{
 					"type": "null"
 				},
 				{
-					"$ref": "#/$defs/UamAnimationGearValue_bc75e89741_read"
+					"$ref": "#/$defs/UamAnimationGearValue_bc75e89741_read_wire"
 				}
 			]
 		},
-		"UamAnimationGearValue_bc75e89741_read": {
+		"UamAnimationGearValue_bc75e89741_read_wire": {
 			"type": "object",
 			"properties": {
 				"frame": {
@@ -24585,7 +24654,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamTextGearBinding_96d3f53293_read": {
+		"UamTextGearBinding_96d3f53293_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -24599,10 +24668,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"states": {
-					"$ref": "#/$defs/Array_e68d70de11_read"
+					"$ref": "#/$defs/Array_e68d70de11_read_wire"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/Shape_4391f013f2_read"
+					"$ref": "#/$defs/Shape_4391f013f2_read_wire"
 				},
 				"condition": {
 					"type": "string"
@@ -24642,20 +24711,20 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_e68d70de11_read": {
+		"Array_e68d70de11_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamGearPageState_245215dbde_read"
+				"$ref": "#/$defs/UamGearPageState_245215dbde_read_wire"
 			}
 		},
-		"UamGearPageState_245215dbde_read": {
+		"UamGearPageState_245215dbde_read_wire": {
 			"type": "object",
 			"properties": {
 				"pageId": {
 					"type": "string"
 				},
 				"value": {
-					"$ref": "#/$defs/Shape_4391f013f2_read"
+					"$ref": "#/$defs/Shape_4391f013f2_read_wire"
 				}
 			},
 			"required": [
@@ -24664,17 +24733,17 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Shape_4391f013f2_read": {
+		"Shape_4391f013f2_read_wire": {
 			"anyOf": [
 				{
 					"type": "null"
 				},
 				{
-					"$ref": "#/$defs/UamTextGearValue_9d786778d5_read"
+					"$ref": "#/$defs/UamTextGearValue_9d786778d5_read_wire"
 				}
 			]
 		},
-		"UamTextGearValue_9d786778d5_read": {
+		"UamTextGearValue_9d786778d5_read_wire": {
 			"type": "object",
 			"properties": {
 				"text": {
@@ -24686,7 +24755,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamIconGearBinding_8b66ab7f2c_read": {
+		"UamIconGearBinding_8b66ab7f2c_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -24700,10 +24769,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"states": {
-					"$ref": "#/$defs/Array_0bd75ccf9b_read"
+					"$ref": "#/$defs/Array_0bd75ccf9b_read_wire"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/Shape_6dc9e9b23e_read"
+					"$ref": "#/$defs/Shape_6dc9e9b23e_read_wire"
 				},
 				"condition": {
 					"type": "string"
@@ -24743,20 +24812,20 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_0bd75ccf9b_read": {
+		"Array_0bd75ccf9b_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamGearPageState_30eefa6937_read"
+				"$ref": "#/$defs/UamGearPageState_30eefa6937_read_wire"
 			}
 		},
-		"UamGearPageState_30eefa6937_read": {
+		"UamGearPageState_30eefa6937_read_wire": {
 			"type": "object",
 			"properties": {
 				"pageId": {
 					"type": "string"
 				},
 				"value": {
-					"$ref": "#/$defs/Shape_6dc9e9b23e_read"
+					"$ref": "#/$defs/Shape_6dc9e9b23e_read_wire"
 				}
 			},
 			"required": [
@@ -24765,17 +24834,17 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Shape_6dc9e9b23e_read": {
+		"Shape_6dc9e9b23e_read_wire": {
 			"anyOf": [
 				{
 					"type": "null"
 				},
 				{
-					"$ref": "#/$defs/UamIconGearValue_a708aa25aa_read"
+					"$ref": "#/$defs/UamIconGearValue_a708aa25aa_read_wire"
 				}
 			]
 		},
-		"UamIconGearValue_a708aa25aa_read": {
+		"UamIconGearValue_a708aa25aa_read_wire": {
 			"type": "object",
 			"properties": {
 				"icon": {
@@ -24787,7 +24856,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamFontSizeGearBinding_4491b976c1_read": {
+		"UamFontSizeGearBinding_4491b976c1_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -24801,10 +24870,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"states": {
-					"$ref": "#/$defs/Array_645f922ea6_read"
+					"$ref": "#/$defs/Array_645f922ea6_read_wire"
 				},
 				"defaultValue": {
-					"$ref": "#/$defs/Shape_d727f9067a_read"
+					"$ref": "#/$defs/Shape_d727f9067a_read_wire"
 				},
 				"condition": {
 					"type": "string"
@@ -24844,20 +24913,20 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_645f922ea6_read": {
+		"Array_645f922ea6_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamGearPageState_d83347980b_read"
+				"$ref": "#/$defs/UamGearPageState_d83347980b_read_wire"
 			}
 		},
-		"UamGearPageState_d83347980b_read": {
+		"UamGearPageState_d83347980b_read_wire": {
 			"type": "object",
 			"properties": {
 				"pageId": {
 					"type": "string"
 				},
 				"value": {
-					"$ref": "#/$defs/Shape_d727f9067a_read"
+					"$ref": "#/$defs/Shape_d727f9067a_read_wire"
 				}
 			},
 			"required": [
@@ -24866,17 +24935,17 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Shape_d727f9067a_read": {
+		"Shape_d727f9067a_read_wire": {
 			"anyOf": [
 				{
 					"type": "null"
 				},
 				{
-					"$ref": "#/$defs/UamFontSizeGearValue_89031fdbfc_read"
+					"$ref": "#/$defs/UamFontSizeGearValue_89031fdbfc_read_wire"
 				}
 			]
 		},
-		"UamFontSizeGearValue_89031fdbfc_read": {
+		"UamFontSizeGearValue_89031fdbfc_read_wire": {
 			"type": "object",
 			"properties": {
 				"fontSize": {
@@ -24888,7 +24957,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamTextNode_85783c6389_read": {
+		"UamTextNode_85783c6389_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -24905,10 +24974,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"position": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"size": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"locked": {
 					"type": "boolean"
@@ -24917,22 +24986,22 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"minSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"maxSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"pivot": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"pivotAsAnchor": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"scale": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"skew": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"visible": {
 					"type": "boolean"
@@ -24979,10 +25048,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"relations": {
-					"$ref": "#/$defs/Array_9d4803aa29_read"
+					"$ref": "#/$defs/Array_9d4803aa29_read_wire"
 				},
 				"gears": {
-					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+					"$ref": "#/$defs/Array_aa00fd9a0a_read_wire"
 				},
 				"demoText": {
 					"type": "string"
@@ -25048,16 +25117,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"strokeColor": {
-					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+					"$ref": "#/$defs/Shape_5eeb3f060e_read_wire"
 				},
 				"strokeSize": {
 					"type": "number"
 				},
 				"shadowColor": {
-					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+					"$ref": "#/$defs/Shape_5eeb3f060e_read_wire"
 				},
 				"shadowOffset": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				}
 			},
 			"required": [
@@ -25113,7 +25182,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamRichTextNode_f95a8b7bf3_read": {
+		"UamRichTextNode_f95a8b7bf3_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -25130,10 +25199,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"position": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"size": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"locked": {
 					"type": "boolean"
@@ -25142,22 +25211,22 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"minSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"maxSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"pivot": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"pivotAsAnchor": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"scale": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"skew": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"visible": {
 					"type": "boolean"
@@ -25204,10 +25273,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"relations": {
-					"$ref": "#/$defs/Array_9d4803aa29_read"
+					"$ref": "#/$defs/Array_9d4803aa29_read_wire"
 				},
 				"gears": {
-					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+					"$ref": "#/$defs/Array_aa00fd9a0a_read_wire"
 				},
 				"text": {
 					"type": "string"
@@ -25264,16 +25333,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"strokeColor": {
-					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+					"$ref": "#/$defs/Shape_5eeb3f060e_read_wire"
 				},
 				"strokeSize": {
 					"type": "number"
 				},
 				"shadowColor": {
-					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+					"$ref": "#/$defs/Shape_5eeb3f060e_read_wire"
 				},
 				"shadowOffset": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				}
 			},
 			"required": [
@@ -25326,7 +25395,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamTextInputNode_883228a038_read": {
+		"UamTextInputNode_883228a038_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -25358,10 +25427,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"position": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"size": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"locked": {
 					"type": "boolean"
@@ -25370,22 +25439,22 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"minSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"maxSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"pivot": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"pivotAsAnchor": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"scale": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"skew": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"visible": {
 					"type": "boolean"
@@ -25432,10 +25501,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"relations": {
-					"$ref": "#/$defs/Array_9d4803aa29_read"
+					"$ref": "#/$defs/Array_9d4803aa29_read_wire"
 				},
 				"gears": {
-					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+					"$ref": "#/$defs/Array_aa00fd9a0a_read_wire"
 				},
 				"demoText": {
 					"type": "string"
@@ -25501,16 +25570,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"strokeColor": {
-					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+					"$ref": "#/$defs/Shape_5eeb3f060e_read_wire"
 				},
 				"strokeSize": {
 					"type": "number"
 				},
 				"shadowColor": {
-					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+					"$ref": "#/$defs/Shape_5eeb3f060e_read_wire"
 				},
 				"shadowOffset": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				}
 			},
 			"required": [
@@ -25571,7 +25640,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamComponentRefNode_fba1f50b74_read": {
+		"UamComponentRefNode_fba1f50b74_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -25579,7 +25648,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": "component"
 				},
 				"resource": {
-					"$ref": "#/$defs/UamResourceRef_3486136f6c_read"
+					"$ref": "#/$defs/UamResourceRef_3486136f6c_read_wire"
 				},
 				"controllerOverrides": {
 					"type": "string"
@@ -25591,10 +25660,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"instanceProperties": {
-					"$ref": "#/$defs/Shape_8a3021d271_read"
+					"$ref": "#/$defs/Shape_8a3021d271_read_wire"
 				},
 				"propertyOverrides": {
-					"$ref": "#/$defs/Array_7c27bc0bce_read"
+					"$ref": "#/$defs/Array_7c27bc0bce_read_wire"
 				},
 				"group": {
 					"type": "string"
@@ -25606,10 +25675,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"position": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"size": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"locked": {
 					"type": "boolean"
@@ -25618,22 +25687,22 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"minSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"maxSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"pivot": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"pivotAsAnchor": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"scale": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"skew": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"visible": {
 					"type": "boolean"
@@ -25680,10 +25749,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"relations": {
-					"$ref": "#/$defs/Array_9d4803aa29_read"
+					"$ref": "#/$defs/Array_9d4803aa29_read_wire"
 				},
 				"gears": {
-					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+					"$ref": "#/$defs/Array_aa00fd9a0a_read_wire"
 				}
 			},
 			"required": [
@@ -25715,29 +25784,29 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Shape_8a3021d271_read": {
+		"Shape_8a3021d271_read_wire": {
 			"anyOf": [
 				{
-					"$ref": "#/$defs/__type_006774ed57_read"
+					"$ref": "#/$defs/__type_006774ed57_read_wire"
 				},
 				{
-					"$ref": "#/$defs/__type_3ec408e73a_read"
+					"$ref": "#/$defs/__type_3ec408e73a_read_wire"
 				},
 				{
-					"$ref": "#/$defs/__type_aafd35036e_read"
+					"$ref": "#/$defs/__type_aafd35036e_read_wire"
 				},
 				{
-					"$ref": "#/$defs/__type_8584fb13b4_read"
+					"$ref": "#/$defs/__type_8584fb13b4_read_wire"
 				},
 				{
-					"$ref": "#/$defs/__type_f9094ab4f6_read"
+					"$ref": "#/$defs/__type_f9094ab4f6_read_wire"
 				},
 				{
-					"$ref": "#/$defs/__type_18e05aa3c9_read"
+					"$ref": "#/$defs/__type_18e05aa3c9_read_wire"
 				}
 			]
 		},
-		"__type_006774ed57_read": {
+		"__type_006774ed57_read_wire": {
 			"type": "object",
 			"properties": {
 				"extensionType": {
@@ -25794,7 +25863,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"__type_3ec408e73a_read": {
+		"__type_3ec408e73a_read_wire": {
 			"type": "object",
 			"properties": {
 				"extensionType": {
@@ -25814,7 +25883,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "number"
 				},
 				"inputSettings": {
-					"$ref": "#/$defs/Shape_3d6e91ae8c_read"
+					"$ref": "#/$defs/Shape_3d6e91ae8c_read_wire"
 				},
 				"sound": {
 					"type": "string"
@@ -25835,24 +25904,24 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Shape_3d6e91ae8c_read": {
+		"Shape_3d6e91ae8c_read_wire": {
 			"anyOf": [
 				{
 					"type": "null"
 				},
 				{
-					"$ref": "#/$defs/LabelInputSettings_0c668731fc_read"
+					"$ref": "#/$defs/LabelInputSettings_0c668731fc_read_wire"
 				}
 			]
 		},
-		"LabelInputSettings_0c668731fc_read": {
+		"LabelInputSettings_0c668731fc_read_wire": {
 			"type": "object",
 			"properties": {
 				"promptText": {
-					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+					"$ref": "#/$defs/Shape_5eeb3f060e_read_wire"
 				},
 				"restrict": {
-					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+					"$ref": "#/$defs/Shape_5eeb3f060e_read_wire"
 				},
 				"maxLength": {
 					"type": "number"
@@ -25873,7 +25942,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"__type_aafd35036e_read": {
+		"__type_aafd35036e_read_wire": {
 			"type": "object",
 			"properties": {
 				"extensionType": {
@@ -25908,7 +25977,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"items": {
-					"$ref": "#/$defs/Array_869b7b43cc_read"
+					"$ref": "#/$defs/Array_869b7b43cc_read_wire"
 				}
 			},
 			"required": [
@@ -25926,23 +25995,23 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_869b7b43cc_read": {
+		"Array_869b7b43cc_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamComponentInstanceComboItem_121d45b924_read"
+				"$ref": "#/$defs/UamComponentInstanceComboItem_121d45b924_read_wire"
 			}
 		},
-		"UamComponentInstanceComboItem_121d45b924_read": {
+		"UamComponentInstanceComboItem_121d45b924_read_wire": {
 			"type": "object",
 			"properties": {
 				"title": {
-					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+					"$ref": "#/$defs/Shape_5eeb3f060e_read_wire"
 				},
 				"value": {
-					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+					"$ref": "#/$defs/Shape_5eeb3f060e_read_wire"
 				},
 				"icon": {
-					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+					"$ref": "#/$defs/Shape_5eeb3f060e_read_wire"
 				}
 			},
 			"required": [
@@ -25952,7 +26021,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"__type_8584fb13b4_read": {
+		"__type_8584fb13b4_read_wire": {
 			"type": "object",
 			"properties": {
 				"extensionType": {
@@ -25985,7 +26054,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"__type_f9094ab4f6_read": {
+		"__type_f9094ab4f6_read_wire": {
 			"type": "object",
 			"properties": {
 				"extensionType": {
@@ -26010,7 +26079,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"__type_18e05aa3c9_read": {
+		"__type_18e05aa3c9_read_wire": {
 			"type": "object",
 			"properties": {
 				"extensionType": {
@@ -26023,13 +26092,13 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_7c27bc0bce_read": {
+		"Array_7c27bc0bce_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamComponentPropertyOverride_0ffab02aad_read"
+				"$ref": "#/$defs/UamComponentPropertyOverride_0ffab02aad_read_wire"
 			}
 		},
-		"UamComponentPropertyOverride_0ffab02aad_read": {
+		"UamComponentPropertyOverride_0ffab02aad_read_wire": {
 			"type": "object",
 			"properties": {
 				"target": {
@@ -26049,7 +26118,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamListNode_02caa92ee3_read": {
+		"UamListNode_02caa92ee3_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -26066,10 +26135,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"position": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"size": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"locked": {
 					"type": "boolean"
@@ -26078,22 +26147,22 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"minSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"maxSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"pivot": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"pivotAsAnchor": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"scale": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"skew": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"visible": {
 					"type": "boolean"
@@ -26140,10 +26209,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"relations": {
-					"$ref": "#/$defs/Array_9d4803aa29_read"
+					"$ref": "#/$defs/Array_9d4803aa29_read_wire"
 				},
 				"gears": {
-					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+					"$ref": "#/$defs/Array_aa00fd9a0a_read_wire"
 				},
 				"layout": {
 					"type": "number"
@@ -26197,7 +26266,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "number"
 				},
 				"scrollBarMargin": {
-					"$ref": "#/$defs/UamEdgeInsets_c3197c8668_read"
+					"$ref": "#/$defs/UamEdgeInsets_c3197c8668_read_wire"
 				},
 				"vtScrollBarRes": {
 					"type": "string"
@@ -26212,10 +26281,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"margin": {
-					"$ref": "#/$defs/UamEdgeInsets_c3197c8668_read"
+					"$ref": "#/$defs/UamEdgeInsets_c3197c8668_read_wire"
 				},
 				"clipSoftness": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"scrollItemToViewOnClick": {
 					"type": "boolean"
@@ -26227,7 +26296,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"listItems": {
-					"$ref": "#/$defs/Array_4178092e1f_read"
+					"$ref": "#/$defs/Array_4178092e1f_read_wire"
 				},
 				"pageController": {
 					"type": "string"
@@ -26298,44 +26367,44 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_4178092e1f_read": {
+		"Array_4178092e1f_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamListItemData_8e91379cee_read"
+				"$ref": "#/$defs/UamListItemData_8e91379cee_read_wire"
 			}
 		},
-		"UamListItemData_8e91379cee_read": {
+		"UamListItemData_8e91379cee_read_wire": {
 			"type": "object",
 			"properties": {
 				"title": {
-					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+					"$ref": "#/$defs/Shape_5eeb3f060e_read_wire"
 				},
 				"icon": {
-					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+					"$ref": "#/$defs/Shape_5eeb3f060e_read_wire"
 				},
 				"url": {
-					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+					"$ref": "#/$defs/Shape_5eeb3f060e_read_wire"
 				},
 				"name": {
-					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+					"$ref": "#/$defs/Shape_5eeb3f060e_read_wire"
 				},
 				"selectedTitle": {
-					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+					"$ref": "#/$defs/Shape_5eeb3f060e_read_wire"
 				},
 				"selectedIcon": {
-					"$ref": "#/$defs/Shape_5eeb3f060e_read"
+					"$ref": "#/$defs/Shape_5eeb3f060e_read_wire"
 				},
 				"level": {
 					"type": "number"
 				},
 				"isFolder": {
-					"$ref": "#/$defs/Shape_e3070b8c30_read"
+					"$ref": "#/$defs/Shape_e3070b8c30_read_wire"
 				},
 				"controllers": {
-					"$ref": "#/$defs/Shape_416ae97aa3_read"
+					"$ref": "#/$defs/Shape_416ae97aa3_read_wire"
 				},
 				"propertyOverrides": {
-					"$ref": "#/$defs/Array_7c27bc0bce_read"
+					"$ref": "#/$defs/Array_7c27bc0bce_read_wire"
 				}
 			},
 			"required": [
@@ -26350,7 +26419,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Shape_e3070b8c30_read": {
+		"Shape_e3070b8c30_read_wire": {
 			"anyOf": [
 				{
 					"type": "null"
@@ -26365,7 +26434,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				}
 			]
 		},
-		"Shape_416ae97aa3_read": {
+		"Shape_416ae97aa3_read_wire": {
 			"anyOf": [
 				{
 					"type": "null"
@@ -26375,7 +26444,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				}
 			]
 		},
-		"UamTreeNode_766f6fba35_read": {
+		"UamTreeNode_766f6fba35_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -26392,10 +26461,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"position": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"size": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"locked": {
 					"type": "boolean"
@@ -26404,22 +26473,22 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"minSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"maxSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"pivot": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"pivotAsAnchor": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"scale": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"skew": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"visible": {
 					"type": "boolean"
@@ -26466,10 +26535,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"relations": {
-					"$ref": "#/$defs/Array_9d4803aa29_read"
+					"$ref": "#/$defs/Array_9d4803aa29_read_wire"
 				},
 				"gears": {
-					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+					"$ref": "#/$defs/Array_aa00fd9a0a_read_wire"
 				},
 				"treeView": {
 					"type": "boolean"
@@ -26532,7 +26601,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "number"
 				},
 				"scrollBarMargin": {
-					"$ref": "#/$defs/UamEdgeInsets_c3197c8668_read"
+					"$ref": "#/$defs/UamEdgeInsets_c3197c8668_read_wire"
 				},
 				"vtScrollBarRes": {
 					"type": "string"
@@ -26547,10 +26616,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"margin": {
-					"$ref": "#/$defs/UamEdgeInsets_c3197c8668_read"
+					"$ref": "#/$defs/UamEdgeInsets_c3197c8668_read_wire"
 				},
 				"clipSoftness": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"scrollItemToViewOnClick": {
 					"type": "boolean"
@@ -26562,7 +26631,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"listItems": {
-					"$ref": "#/$defs/Array_4178092e1f_read"
+					"$ref": "#/$defs/Array_4178092e1f_read_wire"
 				},
 				"pageController": {
 					"type": "string"
@@ -26636,7 +26705,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamGraphNode_4bd58a17d4_read": {
+		"UamGraphNode_4bd58a17d4_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -26644,7 +26713,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": "graph"
 				},
 				"pivot": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"pivotAsAnchor": {
 					"type": "boolean"
@@ -26659,10 +26728,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"position": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"size": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"locked": {
 					"type": "boolean"
@@ -26671,16 +26740,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"minSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"maxSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"scale": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"skew": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"visible": {
 					"type": "boolean"
@@ -26727,10 +26796,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"relations": {
-					"$ref": "#/$defs/Array_9d4803aa29_read"
+					"$ref": "#/$defs/Array_9d4803aa29_read_wire"
 				},
 				"gears": {
-					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+					"$ref": "#/$defs/Array_aa00fd9a0a_read_wire"
 				},
 				"graphType": {
 					"type": "number"
@@ -26745,10 +26814,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"cornerRadius": {
-					"$ref": "#/$defs/Shape_901551dc98_read"
+					"$ref": "#/$defs/Shape_901551dc98_read_wire"
 				},
 				"points": {
-					"$ref": "#/$defs/Shape_3bb3fc0cfc_read"
+					"$ref": "#/$defs/Shape_3bb3fc0cfc_read_wire"
 				},
 				"sides": {
 					"type": "number"
@@ -26757,7 +26826,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "number"
 				},
 				"distances": {
-					"$ref": "#/$defs/Shape_3bb3fc0cfc_read"
+					"$ref": "#/$defs/Shape_3bb3fc0cfc_read_wire"
 				}
 			},
 			"required": [
@@ -26799,17 +26868,17 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Shape_901551dc98_read": {
+		"Shape_901551dc98_read_wire": {
 			"anyOf": [
 				{
 					"type": "null"
 				},
 				{
-					"$ref": "#/$defs/Shape_208406a252_read"
+					"$ref": "#/$defs/Shape_208406a252_read_wire"
 				}
 			]
 		},
-		"Shape_208406a252_read": {
+		"Shape_208406a252_read_wire": {
 			"type": "array",
 			"minItems": 4,
 			"maxItems": 4,
@@ -26817,23 +26886,23 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"type": "number"
 			}
 		},
-		"Shape_3bb3fc0cfc_read": {
+		"Shape_3bb3fc0cfc_read_wire": {
 			"anyOf": [
 				{
 					"type": "null"
 				},
 				{
-					"$ref": "#/$defs/Array_84dc8cbe6b_read"
+					"$ref": "#/$defs/Array_84dc8cbe6b_read_wire"
 				}
 			]
 		},
-		"Array_84dc8cbe6b_read": {
+		"Array_84dc8cbe6b_read_wire": {
 			"type": "array",
 			"items": {
 				"type": "number"
 			}
 		},
-		"UamGroupNode_7f8e4b5101_read": {
+		"UamGroupNode_7f8e4b5101_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -26850,10 +26919,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"position": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"size": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"locked": {
 					"type": "boolean"
@@ -26862,22 +26931,22 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"minSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"maxSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"pivot": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"pivotAsAnchor": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"scale": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"skew": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"visible": {
 					"type": "boolean"
@@ -26924,10 +26993,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"relations": {
-					"$ref": "#/$defs/Array_9d4803aa29_read"
+					"$ref": "#/$defs/Array_9d4803aa29_read_wire"
 				},
 				"gears": {
-					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+					"$ref": "#/$defs/Array_aa00fd9a0a_read_wire"
 				},
 				"layout": {
 					"type": "number"
@@ -26986,7 +27055,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamLoaderNode_1f097f3724_read": {
+		"UamLoaderNode_1f097f3724_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -26994,7 +27063,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": "loader"
 				},
 				"pivot": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"group": {
 					"type": "string"
@@ -27006,10 +27075,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"position": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"size": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"locked": {
 					"type": "boolean"
@@ -27018,19 +27087,19 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"minSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"maxSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"pivotAsAnchor": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"scale": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"skew": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"visible": {
 					"type": "boolean"
@@ -27077,10 +27146,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"relations": {
-					"$ref": "#/$defs/Array_9d4803aa29_read"
+					"$ref": "#/$defs/Array_9d4803aa29_read_wire"
 				},
 				"gears": {
-					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+					"$ref": "#/$defs/Array_aa00fd9a0a_read_wire"
 				},
 				"url": {
 					"type": "string"
@@ -27176,7 +27245,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamLoader3DNode_f53e4afa5e_read": {
+		"UamLoader3DNode_f53e4afa5e_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -27193,10 +27262,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"position": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"size": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"locked": {
 					"type": "boolean"
@@ -27205,22 +27274,22 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"minSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"maxSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"pivot": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"pivotAsAnchor": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"scale": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"skew": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"visible": {
 					"type": "boolean"
@@ -27267,10 +27336,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"relations": {
-					"$ref": "#/$defs/Array_9d4803aa29_read"
+					"$ref": "#/$defs/Array_9d4803aa29_read_wire"
 				},
 				"gears": {
-					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+					"$ref": "#/$defs/Array_aa00fd9a0a_read_wire"
 				},
 				"url": {
 					"type": "string"
@@ -27353,7 +27422,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamMovieClipNode_77dce6d447_read": {
+		"UamMovieClipNode_77dce6d447_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -27361,7 +27430,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": "movieClip"
 				},
 				"resource": {
-					"$ref": "#/$defs/UamResourceRef_3486136f6c_read"
+					"$ref": "#/$defs/UamResourceRef_3486136f6c_read_wire"
 				},
 				"fileName": {
 					"type": "string"
@@ -27376,10 +27445,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"position": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"size": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"locked": {
 					"type": "boolean"
@@ -27388,22 +27457,22 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"minSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"maxSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"pivot": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"pivotAsAnchor": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"scale": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"skew": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"visible": {
 					"type": "boolean"
@@ -27450,10 +27519,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"relations": {
-					"$ref": "#/$defs/Array_9d4803aa29_read"
+					"$ref": "#/$defs/Array_9d4803aa29_read_wire"
 				},
 				"gears": {
-					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+					"$ref": "#/$defs/Array_aa00fd9a0a_read_wire"
 				},
 				"playing": {
 					"type": "boolean"
@@ -27498,7 +27567,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamButtonNode_f2028f1d63_read": {
+		"UamButtonNode_f2028f1d63_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -27512,7 +27581,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"checked": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"selectedTitle": {
 					"type": "string"
@@ -27569,10 +27638,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"position": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"size": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"locked": {
 					"type": "boolean"
@@ -27581,22 +27650,22 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"minSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"maxSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"pivot": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"pivotAsAnchor": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"scale": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"skew": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"visible": {
 					"type": "boolean"
@@ -27643,10 +27712,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"relations": {
-					"$ref": "#/$defs/Array_9d4803aa29_read"
+					"$ref": "#/$defs/Array_9d4803aa29_read_wire"
 				},
 				"gears": {
-					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+					"$ref": "#/$defs/Array_aa00fd9a0a_read_wire"
 				}
 			},
 			"required": [
@@ -27690,7 +27759,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamLabelNode_745844563c_read": {
+		"UamLabelNode_745844563c_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -27698,7 +27767,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": "label"
 				},
 				"inputSettings": {
-					"$ref": "#/$defs/Shape_a5f9eea0b6_read"
+					"$ref": "#/$defs/Shape_a5f9eea0b6_read_wire"
 				},
 				"title": {
 					"type": "string"
@@ -27740,10 +27809,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"position": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"size": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"locked": {
 					"type": "boolean"
@@ -27752,22 +27821,22 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"minSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"maxSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"pivot": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"pivotAsAnchor": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"scale": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"skew": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"visible": {
 					"type": "boolean"
@@ -27814,10 +27883,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"relations": {
-					"$ref": "#/$defs/Array_9d4803aa29_read"
+					"$ref": "#/$defs/Array_9d4803aa29_read_wire"
 				},
 				"gears": {
-					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+					"$ref": "#/$defs/Array_aa00fd9a0a_read_wire"
 				}
 			},
 			"required": [
@@ -27856,17 +27925,17 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Shape_a5f9eea0b6_read": {
+		"Shape_a5f9eea0b6_read_wire": {
 			"anyOf": [
 				{
 					"type": "null"
 				},
 				{
-					"$ref": "#/$defs/LabelInputSettings_0c668731fc_read"
+					"$ref": "#/$defs/LabelInputSettings_0c668731fc_read_wire"
 				}
 			]
 		},
-		"UamComboBoxNode_fae3458a32_read": {
+		"UamComboBoxNode_fae3458a32_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -27874,13 +27943,13 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": "comboBox"
 				},
 				"items": {
-					"$ref": "#/$defs/Array_5444db1618_read"
+					"$ref": "#/$defs/Array_5444db1618_read_wire"
 				},
 				"icons": {
-					"$ref": "#/$defs/Array_5444db1618_read"
+					"$ref": "#/$defs/Array_5444db1618_read_wire"
 				},
 				"values": {
-					"$ref": "#/$defs/Array_5444db1618_read"
+					"$ref": "#/$defs/Array_5444db1618_read_wire"
 				},
 				"selectedIndex": {
 					"type": "number"
@@ -27934,10 +28003,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"position": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"size": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"locked": {
 					"type": "boolean"
@@ -27946,22 +28015,22 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"minSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"maxSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"pivot": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"pivotAsAnchor": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"scale": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"skew": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"visible": {
 					"type": "boolean"
@@ -28008,10 +28077,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"relations": {
-					"$ref": "#/$defs/Array_9d4803aa29_read"
+					"$ref": "#/$defs/Array_9d4803aa29_read_wire"
 				},
 				"gears": {
-					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+					"$ref": "#/$defs/Array_aa00fd9a0a_read_wire"
 				}
 			},
 			"required": [
@@ -28056,7 +28125,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamProgressBarNode_54cbbca18d_read": {
+		"UamProgressBarNode_54cbbca18d_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -28106,10 +28175,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"position": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"size": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"locked": {
 					"type": "boolean"
@@ -28118,22 +28187,22 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"minSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"maxSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"pivot": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"pivotAsAnchor": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"scale": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"skew": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"visible": {
 					"type": "boolean"
@@ -28180,10 +28249,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"relations": {
-					"$ref": "#/$defs/Array_9d4803aa29_read"
+					"$ref": "#/$defs/Array_9d4803aa29_read_wire"
 				},
 				"gears": {
-					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+					"$ref": "#/$defs/Array_aa00fd9a0a_read_wire"
 				}
 			},
 			"required": [
@@ -28223,7 +28292,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamSliderNode_3dc285cb59_read": {
+		"UamSliderNode_3dc285cb59_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -28267,10 +28336,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"position": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"size": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"locked": {
 					"type": "boolean"
@@ -28279,22 +28348,22 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"minSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"maxSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"pivot": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"pivotAsAnchor": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"scale": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"skew": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"visible": {
 					"type": "boolean"
@@ -28341,10 +28410,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"relations": {
-					"$ref": "#/$defs/Array_9d4803aa29_read"
+					"$ref": "#/$defs/Array_9d4803aa29_read_wire"
 				},
 				"gears": {
-					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+					"$ref": "#/$defs/Array_aa00fd9a0a_read_wire"
 				}
 			},
 			"required": [
@@ -28382,7 +28451,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamScrollBarNode_6521c99a04_read": {
+		"UamScrollBarNode_6521c99a04_read_wire": {
 			"type": "object",
 			"properties": {
 				"kind": {
@@ -28414,10 +28483,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"position": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"size": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"locked": {
 					"type": "boolean"
@@ -28426,22 +28495,22 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"minSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"maxSize": {
-					"$ref": "#/$defs/UamSize_fcba86f12a_read"
+					"$ref": "#/$defs/UamSize_fcba86f12a_read_wire"
 				},
 				"pivot": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"pivotAsAnchor": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"scale": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"skew": {
-					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
+					"$ref": "#/$defs/UamPoint_600bb96bb9_read_wire"
 				},
 				"visible": {
 					"type": "boolean"
@@ -28488,10 +28557,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"relations": {
-					"$ref": "#/$defs/Array_9d4803aa29_read"
+					"$ref": "#/$defs/Array_9d4803aa29_read_wire"
 				},
 				"gears": {
-					"$ref": "#/$defs/Array_aa00fd9a0a_read"
+					"$ref": "#/$defs/Array_aa00fd9a0a_read_wire"
 				}
 			},
 			"required": [
@@ -28525,13 +28594,13 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_33931a1f70_read": {
+		"Array_33931a1f70_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamControllerModel_d2c7df213c_read"
+				"$ref": "#/$defs/UamControllerModel_d2c7df213c_read_wire"
 			}
 		},
-		"UamControllerModel_d2c7df213c_read": {
+		"UamControllerModel_d2c7df213c_read_wire": {
 			"type": "object",
 			"properties": {
 				"name": {
@@ -28561,10 +28630,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"pages": {
-					"$ref": "#/$defs/Array_3cddeaf305_read"
+					"$ref": "#/$defs/Array_3cddeaf305_read_wire"
 				},
 				"actions": {
-					"$ref": "#/$defs/Array_9ca78e6812_read"
+					"$ref": "#/$defs/Array_9ca78e6812_read_wire"
 				}
 			},
 			"required": [
@@ -28580,13 +28649,13 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_3cddeaf305_read": {
+		"Array_3cddeaf305_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamControllerPage_f4ec4b78c2_read"
+				"$ref": "#/$defs/UamControllerPage_f4ec4b78c2_read_wire"
 			}
 		},
-		"UamControllerPage_f4ec4b78c2_read": {
+		"UamControllerPage_f4ec4b78c2_read_wire": {
 			"type": "object",
 			"properties": {
 				"id": {
@@ -28606,13 +28675,13 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_9ca78e6812_read": {
+		"Array_9ca78e6812_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamControllerAction_e2543de88e_read"
+				"$ref": "#/$defs/UamControllerAction_e2543de88e_read_wire"
 			}
 		},
-		"UamControllerAction_e2543de88e_read": {
+		"UamControllerAction_e2543de88e_read_wire": {
 			"type": "object",
 			"properties": {
 				"name": {
@@ -28622,10 +28691,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "number"
 				},
 				"fromPageIds": {
-					"$ref": "#/$defs/Array_5444db1618_read"
+					"$ref": "#/$defs/Array_5444db1618_read_wire"
 				},
 				"toPageIds": {
-					"$ref": "#/$defs/Array_5444db1618_read"
+					"$ref": "#/$defs/Array_5444db1618_read_wire"
 				},
 				"transitionName": {
 					"type": "string"
@@ -28664,13 +28733,13 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_40451c0a9c_read": {
+		"Array_40451c0a9c_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamTransitionModel_467f6dc47d_read"
+				"$ref": "#/$defs/UamTransitionModel_467f6dc47d_read_wire"
 			}
 		},
-		"UamTransitionModel_467f6dc47d_read": {
+		"UamTransitionModel_467f6dc47d_read_wire": {
 			"type": "object",
 			"properties": {
 				"name": {
@@ -28692,7 +28761,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "number"
 				},
 				"items": {
-					"$ref": "#/$defs/Array_e00c02f0d2_read"
+					"$ref": "#/$defs/Array_e00c02f0d2_read_wire"
 				}
 			},
 			"required": [
@@ -28706,13 +28775,13 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_e00c02f0d2_read": {
+		"Array_e00c02f0d2_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamTransitionItem_6740c9ff04_read"
+				"$ref": "#/$defs/UamTransitionItem_6740c9ff04_read_wire"
 			}
 		},
-		"UamTransitionItem_6740c9ff04_read": {
+		"UamTransitionItem_6740c9ff04_read_wire": {
 			"type": "object",
 			"properties": {
 				"name": {
@@ -28734,10 +28803,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "number"
 				},
 				"startValue": {
-					"$ref": "#/$defs/Array_b0089278cf_read"
+					"$ref": "#/$defs/Array_b0089278cf_read_wire"
 				},
 				"endValue": {
-					"$ref": "#/$defs/Array_b0089278cf_read"
+					"$ref": "#/$defs/Array_b0089278cf_read_wire"
 				},
 				"easeType": {
 					"type": "number"
@@ -28780,11 +28849,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_b0089278cf_read": {
+		"Array_b0089278cf_read_wire": {
 			"type": "array",
 			"items": {}
 		},
-		"Omit_c9f8dc1509_read": {
+		"Omit_c9f8dc1509_read_wire": {
 			"type": "object",
 			"properties": {
 				"name": {
@@ -28794,7 +28863,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"image": {
-					"$ref": "#/$defs/UamImageResourceProperties_cfb7584659_read"
+					"$ref": "#/$defs/UamImageResourceProperties_cfb7584659_read_wire"
 				},
 				"path": {
 					"type": "string"
@@ -28819,10 +28888,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"branchItemIds": {
-					"$ref": "#/$defs/Array_5444db1618_read"
+					"$ref": "#/$defs/Array_5444db1618_read_wire"
 				},
 				"dimensions": {
-					"$ref": "#/$defs/Shape_348b454846_read"
+					"$ref": "#/$defs/Shape_348b454846_read_wire"
 				},
 				"sourceBytes": {
 					"not": {}
@@ -28841,7 +28910,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamImageResourceProperties_cfb7584659_read": {
+		"UamImageResourceProperties_cfb7584659_read_wire": {
 			"type": "object",
 			"properties": {
 				"textureSetMode": {
@@ -28860,7 +28929,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"disableTrim": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"scaleOption": {
 					"enum": [
@@ -28870,7 +28939,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					]
 				},
 				"scale9Grid": {
-					"$ref": "#/$defs/Shape_901551dc98_read"
+					"$ref": "#/$defs/Shape_901551dc98_read_wire"
 				},
 				"tileGridIndice": {
 					"type": "number"
@@ -28888,17 +28957,17 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Shape_348b454846_read": {
+		"Shape_348b454846_read_wire": {
 			"anyOf": [
 				{
 					"type": "null"
 				},
 				{
-					"$ref": "#/$defs/UamDimensions_78dd3aa7d8_read"
+					"$ref": "#/$defs/UamDimensions_78dd3aa7d8_read_wire"
 				}
 			]
 		},
-		"UamDimensions_78dd3aa7d8_read": {
+		"UamDimensions_78dd3aa7d8_read_wire": {
 			"type": "object",
 			"properties": {
 				"width": {
@@ -28914,7 +28983,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Omit_6479c7d601_read": {
+		"Omit_6479c7d601_read_wire": {
 			"type": "object",
 			"properties": {
 				"name": {
@@ -28936,7 +29005,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"movieClip": {
-					"$ref": "#/$defs/UamMovieClipResourceProperties_7891e3deb2_read"
+					"$ref": "#/$defs/UamMovieClipResourceProperties_7891e3deb2_read_wire"
 				},
 				"kind": {
 					"type": "string",
@@ -28949,10 +29018,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"branchItemIds": {
-					"$ref": "#/$defs/Array_5444db1618_read"
+					"$ref": "#/$defs/Array_5444db1618_read_wire"
 				},
 				"dimensions": {
-					"$ref": "#/$defs/UamDimensions_78dd3aa7d8_read"
+					"$ref": "#/$defs/UamDimensions_78dd3aa7d8_read_wire"
 				},
 				"sourceBytes": {
 					"not": {}
@@ -28972,7 +29041,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"UamMovieClipResourceProperties_7891e3deb2_read": {
+		"UamMovieClipResourceProperties_7891e3deb2_read_wire": {
 			"type": "object",
 			"properties": {
 				"textureSetMode": {
@@ -28991,7 +29060,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"frames": {
-					"$ref": "#/$defs/Array_f511a7c33d_read"
+					"$ref": "#/$defs/Array_f511a7c33d_read_wire"
 				}
 			},
 			"required": [
@@ -29003,13 +29072,13 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_f511a7c33d_read": {
+		"Array_f511a7c33d_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamMovieClipFrame_be4b7bc991_read"
+				"$ref": "#/$defs/UamMovieClipFrame_be4b7bc991_read_wire"
 			}
 		},
-		"UamMovieClipFrame_be4b7bc991_read": {
+		"UamMovieClipFrame_be4b7bc991_read_wire": {
 			"type": "object",
 			"properties": {
 				"rectX": {
@@ -29041,7 +29110,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Omit_c2923cbde6_read": {
+		"Omit_c2923cbde6_read_wire": {
 			"type": "object",
 			"properties": {
 				"name": {
@@ -29054,7 +29123,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"metadata": {
-					"$ref": "#/$defs/Shape_c7da9a8476_read"
+					"$ref": "#/$defs/Shape_c7da9a8476_read_wire"
 				},
 				"path": {
 					"type": "string"
@@ -29085,10 +29154,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"branchItemIds": {
-					"$ref": "#/$defs/Array_5444db1618_read"
+					"$ref": "#/$defs/Array_5444db1618_read_wire"
 				},
 				"dimensions": {
-					"$ref": "#/$defs/Shape_348b454846_read"
+					"$ref": "#/$defs/Shape_348b454846_read_wire"
 				},
 				"sourceBytes": {
 					"not": {}
@@ -29106,33 +29175,33 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Shape_c7da9a8476_read": {
+		"Shape_c7da9a8476_read_wire": {
 			"anyOf": [
 				{
 					"type": "null"
 				},
 				{
-					"$ref": "#/$defs/Record_00831351dc_read"
+					"$ref": "#/$defs/Record_00831351dc_read_wire"
 				}
 			]
 		},
-		"Record_00831351dc_read": {
+		"Record_00831351dc_read_wire": {
 			"type": "object",
 			"properties": {},
 			"required": [],
 			"additionalProperties": {}
 		},
-		"Shape_ed4dd118ce_read": {
+		"Shape_ed4dd118ce_read_wire": {
 			"anyOf": [
 				{
 					"type": "null"
 				},
 				{
-					"$ref": "#/$defs/UamPackagePublish_852ce0ef37_read"
+					"$ref": "#/$defs/UamPackagePublish_852ce0ef37_read_wire"
 				}
 			]
 		},
-		"UamPackagePublish_852ce0ef37_read": {
+		"UamPackagePublish_852ce0ef37_read_wire": {
 			"type": "object",
 			"properties": {
 				"name": {
@@ -29182,10 +29251,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "number"
 				},
 				"atlases": {
-					"$ref": "#/$defs/Array_efaaa7a0c6_read"
+					"$ref": "#/$defs/Array_efaaa7a0c6_read_wire"
 				},
 				"excludedResourceIds": {
-					"$ref": "#/$defs/Array_5444db1618_read"
+					"$ref": "#/$defs/Array_5444db1618_read_wire"
 				}
 			},
 			"required": [
@@ -29208,13 +29277,13 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_efaaa7a0c6_read": {
+		"Array_efaaa7a0c6_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamPackagePublishAtlas_058e9ab725_read"
+				"$ref": "#/$defs/UamPackagePublishAtlas_058e9ab725_read_wire"
 			}
 		},
-		"UamPackagePublishAtlas_058e9ab725_read": {
+		"UamPackagePublishAtlas_058e9ab725_read_wire": {
 			"type": "object",
 			"properties": {
 				"index": {
@@ -29234,7 +29303,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Shape_c0aa748fff_read": {
+		"Shape_c0aa748fff_read_wire": {
 			"anyOf": [
 				{
 					"type": "null"
@@ -29244,13 +29313,13 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				}
 			]
 		},
-		"Array_b86c274617_read": {
+		"Array_b86c274617_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/UamResourceFolder_1fd3e19c3b_read"
+				"$ref": "#/$defs/UamResourceFolder_1fd3e19c3b_read_wire"
 			}
 		},
-		"UamResourceFolder_1fd3e19c3b_read": {
+		"UamResourceFolder_1fd3e19c3b_read_wire": {
 			"type": "object",
 			"properties": {
 				"branch": {
@@ -29274,42 +29343,42 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"ProjectSettings_eb04257954_read": {
+		"ProjectSettings_eb04257954_read_wire": {
 			"type": "object",
 			"properties": {
 				"publish": {
-					"$ref": "#/$defs/PublishSettings_07cce4fce4_read"
+					"$ref": "#/$defs/PublishSettings_07cce4fce4_read_wire"
 				},
 				"common": {
-					"$ref": "#/$defs/CommonSettings_d2df7b88a0_read"
+					"$ref": "#/$defs/CommonSettings_d2df7b88a0_read_wire"
 				},
 				"adaptation": {
-					"$ref": "#/$defs/AdaptationSettings_bc44aaaacd_read"
+					"$ref": "#/$defs/AdaptationSettings_bc44aaaacd_read_wire"
 				},
 				"customProperties": {
-					"$ref": "#/$defs/CustomPropertiesSettings_998d45f13a_read"
+					"$ref": "#/$defs/CustomPropertiesSettings_998d45f13a_read_wire"
 				},
 				"i18n": {
-					"$ref": "#/$defs/I18nSettings_ba25aa71d9_read"
+					"$ref": "#/$defs/I18nSettings_ba25aa71d9_read_wire"
 				}
 			},
 			"required": [],
 			"additionalProperties": {}
 		},
-		"PublishSettings_07cce4fce4_read": {
+		"PublishSettings_07cce4fce4_read_wire": {
 			"type": "object",
 			"properties": {
 				"binaryFormat": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"compressDesc": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"jpegQuality": {
 					"type": "number"
 				},
 				"compressPNG": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"fileExtension": {
 					"type": "string"
@@ -29327,60 +29396,60 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "number"
 				},
 				"seperatedAtlasForBranch": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"packageCount": {
 					"type": "number"
 				},
 				"atlasSetting": {
-					"$ref": "#/$defs/__type_3e7e0f03d2_read"
+					"$ref": "#/$defs/__type_3e7e0f03d2_read_wire"
 				},
 				"codeGeneration": {
-					"$ref": "#/$defs/__type_d4a3b6df84_read"
+					"$ref": "#/$defs/__type_d4a3b6df84_read_wire"
 				}
 			},
 			"required": [],
 			"additionalProperties": true
 		},
-		"__type_3e7e0f03d2_read": {
+		"__type_3e7e0f03d2_read_wire": {
 			"type": "object",
 			"properties": {
 				"maxSize": {
 					"type": "number"
 				},
 				"paging": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"sizeOption": {
 					"type": "string"
 				},
 				"forceSquare": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"fast": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"allowRotation": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"padding": {
 					"type": "number"
 				},
 				"trimImage": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"extractAlpha": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				}
 			},
 			"required": [],
 			"additionalProperties": true
 		},
-		"__type_d4a3b6df84_read": {
+		"__type_d4a3b6df84_read_wire": {
 			"type": "object",
 			"properties": {
 				"allowGenCode": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"classNamePrefix": {
 					"type": "string"
@@ -29392,10 +29461,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"getMemberByName": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"ignoreNoname": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"memberNamePrefix": {
 					"type": "string"
@@ -29407,7 +29476,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"required": [],
 			"additionalProperties": true
 		},
-		"CommonSettings_d2df7b88a0_read": {
+		"CommonSettings_d2df7b88a0_read_wire": {
 			"type": "object",
 			"properties": {
 				"font": {
@@ -29420,25 +29489,25 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"fontAdjustment": {
-					"$ref": "#/$defs/Shape_6b49a92435_read"
+					"$ref": "#/$defs/Shape_6b49a92435_read_wire"
 				},
 				"buttonClickSound": {
 					"type": "string"
 				},
 				"scrollBars": {
-					"$ref": "#/$defs/__type_27493ca38f_read"
+					"$ref": "#/$defs/__type_27493ca38f_read_wire"
 				},
 				"pivot": {
 					"type": "string"
 				},
 				"colorScheme": {
-					"$ref": "#/$defs/Array_5444db1618_read"
+					"$ref": "#/$defs/Array_5444db1618_read_wire"
 				},
 				"fontScheme": {
-					"$ref": "#/$defs/Array_5444db1618_read"
+					"$ref": "#/$defs/Array_5444db1618_read_wire"
 				},
 				"fontSizeScheme": {
-					"$ref": "#/$defs/Array_5444db1618_read"
+					"$ref": "#/$defs/Array_5444db1618_read_wire"
 				},
 				"tipsRes": {
 					"type": "string"
@@ -29447,7 +29516,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"required": [],
 			"additionalProperties": true
 		},
-		"__type_27493ca38f_read": {
+		"__type_27493ca38f_read_wire": {
 			"type": "object",
 			"properties": {
 				"defaultDisplay": {
@@ -29463,7 +29532,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"required": [],
 			"additionalProperties": true
 		},
-		"AdaptationSettings_bc44aaaacd_read": {
+		"AdaptationSettings_bc44aaaacd_read_wire": {
 			"type": "object",
 			"properties": {
 				"designResolutionX": {
@@ -29479,21 +29548,21 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "string"
 				},
 				"devices": {
-					"$ref": "#/$defs/Array_b0089278cf_read"
+					"$ref": "#/$defs/Array_b0089278cf_read_wire"
 				}
 			},
 			"required": [],
 			"additionalProperties": true
 		},
-		"CustomPropertiesSettings_998d45f13a_read": {
+		"CustomPropertiesSettings_998d45f13a_read_wire": {
 			"type": "object",
 			"properties": {},
 			"required": [],
 			"additionalProperties": {
-				"$ref": "#/$defs/JsonValue_2e8ca24927_read"
+				"$ref": "#/$defs/JsonValue_2e8ca24927_read_wire"
 			}
 		},
-		"JsonValue_2e8ca24927_read": {
+		"JsonValue_2e8ca24927_read_wire": {
 			"anyOf": [
 				{
 					"type": "null"
@@ -29513,32 +29582,32 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": true
 				},
 				{
-					"$ref": "#/$defs/Array_0ed736b115_read"
+					"$ref": "#/$defs/Array_0ed736b115_read_wire"
 				},
 				{
-					"$ref": "#/$defs/__type_9a0811c5dd_read"
+					"$ref": "#/$defs/__type_9a0811c5dd_read_wire"
 				}
 			]
 		},
-		"Array_0ed736b115_read": {
+		"Array_0ed736b115_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/JsonValue_2e8ca24927_read"
+				"$ref": "#/$defs/JsonValue_2e8ca24927_read_wire"
 			}
 		},
-		"__type_9a0811c5dd_read": {
+		"__type_9a0811c5dd_read_wire": {
 			"type": "object",
 			"properties": {},
 			"required": [],
 			"additionalProperties": {
-				"$ref": "#/$defs/JsonValue_2e8ca24927_read"
+				"$ref": "#/$defs/JsonValue_2e8ca24927_read_wire"
 			}
 		},
-		"I18nSettings_ba25aa71d9_read": {
+		"I18nSettings_ba25aa71d9_read_wire": {
 			"type": "object",
 			"properties": {
 				"langFiles": {
-					"$ref": "#/$defs/Array_2a467c4753_read"
+					"$ref": "#/$defs/Array_2a467c4753_read_wire"
 				}
 			},
 			"required": [
@@ -29546,13 +29615,13 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
-		"Array_2a467c4753_read": {
+		"Array_2a467c4753_read_wire": {
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/__type_4d3a96bb12_read"
+				"$ref": "#/$defs/__type_4d3a96bb12_read_wire"
 			}
 		},
-		"__type_4d3a96bb12_read": {
+		"__type_4d3a96bb12_read_wire": {
 			"type": "object",
 			"properties": {
 				"name": {
@@ -34479,7 +34548,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"remediation": {
 				"kind": "host-action",
-				"message": "Use getSession to inspect the existing session. Reuse it only for the intended project, or choose a new session ID; do not close another owner\\u0027s session to make room."
+				"message": "Use getSession to inspect the existing session. Reuse it only for the intended project, or choose a new session ID; do not close another owner's session to make room."
 			}
 		},
 		{
@@ -35288,5 +35357,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "db380ccf317aa73e3ab3ed6632af69fedcb0ad604ab575b7219fd2d79d44495d"
+	"digest": "efcb035e34f4fabf1b61902321a232bd0644b74b6f6d02d4f378e006b872e0cb"
 };

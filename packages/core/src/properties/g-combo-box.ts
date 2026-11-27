@@ -146,4 +146,82 @@ export class GComboBox extends GComponent<IGComboBox, PropertyType.G_COMBO_BOX> 
 	public setSrc(v: string): this {
 		return this.set('src', v);
 	}
+	public override getInstanceExtType(): string {
+		return 'ComboBox';
+	}
+	public override getInstanceTitle(): string {
+		return this.getTitle();
+	}
+	public override setInstanceTitle(value: string): this {
+		return this.setTitle(value);
+	}
+	public override getInstanceIcon(): string {
+		return this.getIcon();
+	}
+	public override setInstanceIcon(value: string): this {
+		return this.setIcon(value);
+	}
+	public override getInstanceTitleColor(): string {
+		return this.getTitleColor();
+	}
+	public override setInstanceTitleColor(value: string): this {
+		return this.setTitleColor(value);
+	}
+	public override getInstanceTitleFontSize(): number {
+		return this.getTitleFontSize();
+	}
+	public override setInstanceTitleFontSize(value: number): this {
+		return this.setTitleFontSize(value);
+	}
+	public override getInstancePopupDirection(): number {
+		return this.getPopupDirection();
+	}
+	public override setInstancePopupDirection(value: number): this {
+		return this.setPopupDirection(value);
+	}
+	public override getInstanceVisibleItemCount(): number {
+		return this.getVisibleItemCount();
+	}
+	public override setInstanceVisibleItemCount(value: number): this {
+		return this.setVisibleItemCount(value);
+	}
+	public override getInstanceSelectionController(): string {
+		return this.getSelectionController();
+	}
+	public override setInstanceSelectionController(value: string): this {
+		return this.setSelectionController(value);
+	}
+	public override getInstanceSound(): string {
+		return this.getSound();
+	}
+	public override setInstanceSound(value: string): this {
+		return this.setSound(value);
+	}
+	public override getInstanceSoundVolumeScale(): number {
+		return this.getSoundVolumeScale();
+	}
+	public override setInstanceSoundVolumeScale(value: number): this {
+		return this.setSoundVolumeScale(value);
+	}
+	public override getInstanceComboItems(): IGComponent['instanceComboItems'] {
+		const items = this.getItems();
+		const values = this.getValues();
+		const icons = this.getIcons();
+		const count = Math.max(items.length, values.length, icons.length);
+		const result: IGComponent['instanceComboItems'] = [];
+		for (let i = 0; i < count; i++) {
+			result.push({
+				title: items[i] ?? '',
+				value: values[i] !== undefined && values[i] !== '' ? values[i]! : null,
+				icon: icons[i] !== undefined && icons[i] !== '' ? icons[i]! : null,
+			});
+		}
+		return result;
+	}
+	public override setInstanceComboItems(v: IGComponent['instanceComboItems']): this {
+		this.setItems(v.map((item) => item.title ?? ''));
+		this.setValues(v.map((item) => item.value ?? ''));
+		this.setIcons(v.map((item) => item.icon ?? ''));
+		return this;
+	}
 }

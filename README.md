@@ -86,7 +86,7 @@ pnpm repo:setup
 [MIT](./LICENSE)
 
 <!-- product-facts:start -->
-Package: `0.8.0` · Backend contract: `3.0.0` · Capability schema: `16`
+Package: `0.8.1` · Backend contract: `3.0.0` · Capability schema: `16`
 
 Operations: 41 · Backend methods: 18 · CLI commands: 16 · Diagnostic codes: 104
 <!-- product-facts:end -->

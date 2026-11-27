@@ -77,8 +77,8 @@ export async function restoreAssets(
 	warnings: string[],
 ): Promise<void> {
 	for (const pkg of doc.getRoot().listPackages()) {
-		await restoreAtlasImages(fs, pkg, options);
-		await writeGeneratedResources(fs, pkg, options, warnings);
+		const restoredImages = await restoreAtlasImages(fs, pkg, options, warnings);
+		await writeGeneratedResources(fs, pkg, options, warnings, restoredImages);
 		await copyLooseResources(fs, pkg, options, warnings);
 	}
 }
@@ -87,8 +87,10 @@ async function restoreAtlasImages(
 	fs: RestoreFileSystem,
 	pkg: Package,
 	options: RestoreExecutionOptions,
-): Promise<void> {
-	if (!options.cropImage) return;
+	warnings: string[],
+): Promise<Set<ImageResource>> {
+	const restoredImages = new Set<ImageResource>();
+	if (!options.cropImage) return restoredImages;
 	const clockwiseRotated = resolvePackageClockwiseRotation(pkg, options);
 	for (const atlas of pkg.listAtlases()) {
 		const sourceAtlas = await resolveSourceFile(fs, options.sourceDir, sourceFileCandidates(pkg, atlas.getFile()));
@@ -101,8 +103,16 @@ async function restoreAtlasImages(
 		for (const sprite of atlas.listSprites()) {
 			const image = findImageResource(pkg, sprite.getItemId());
 			if (!image) continue;
-			if (sprite.getRectWidth() <= 0 || sprite.getRectHeight() <= 0) continue;
 			const outputPath = resourceOutputPath(fs, options.outputProjectPath, pkg, image, imageFileName(image));
+			if (sprite.getRectWidth() <= 0 || sprite.getRectHeight() <= 0) {
+				await fs.mkdir(fs.dirname(outputPath));
+				await fs.writeFileRaw(outputPath, TRANSPARENT_PNG_1X1);
+				restoredImages.add(image);
+				warnings.push(
+					`Zero-sized trimmed sprite restored as 1x1 transparent PNG in package "${pkg.getName()}": ${imageFileName(image)}`,
+				);
+				continue;
+			}
 			const imageWidth = image.getWidth() ?? 0;
 			const imageHeight = image.getHeight() ?? 0;
 			const rotated = sprite.getRotated();
@@ -126,8 +136,10 @@ async function restoreAtlasImages(
 				expectedWidth: Math.max(imageWidth, sprite.getOriginalWidth(), spriteWidth),
 				expectedHeight: Math.max(imageHeight, sprite.getOriginalHeight(), spriteHeight),
 			});
+			restoredImages.add(image);
 		}
 	}
+	return restoredImages;
 }
 
 async function copyLooseResources(
@@ -168,15 +180,21 @@ async function writeGeneratedResources(
 	pkg: Package,
 	options: RestoreExecutionOptions,
 	warnings: string[],
+	restoredImages: ReadonlySet<ImageResource>,
 ): Promise<void> {
+	let cachedSpriteLookup: Map<string, SpriteLookupEntry> | null = null;
+	const getSpriteLookup = async (): Promise<Map<string, SpriteLookupEntry>> => {
+		cachedSpriteLookup ??= await buildSpriteLookup(fs, pkg, options);
+		return cachedSpriteLookup;
+	};
 	for (const resource of pkg.listResources()) {
 		if (resource.propertyType === 'FontResource') {
 			await writeFontFile(fs, pkg, resource, options.outputProjectPath);
 		} else if (resource.propertyType === 'MovieClipResource') {
-			await writeMovieClipFile(fs, pkg, resource, options, warnings);
+			await writeMovieClipFile(fs, pkg, resource, options, warnings, getSpriteLookup);
 		}
 	}
-	await writeSyntheticFontGlyphImages(fs, pkg, options.outputProjectPath);
+	await writeSyntheticFontGlyphImages(fs, pkg, options.outputProjectPath, restoredImages);
 }
 
 async function writeFontFile(
@@ -201,6 +219,7 @@ async function writeMovieClipFile(
 	resource: MovieClipResource,
 	options: RestoreExecutionOptions,
 	warnings: string[],
+	getSpriteLookup: () => Promise<Map<string, SpriteLookupEntry>>,
 ): Promise<void> {
 	const fileName = resourceFileName(resource);
 	if (!/\.jta$/i.test(fileName)) return;
@@ -212,7 +231,7 @@ async function writeMovieClipFile(
 	}
 
 	const clockwiseRotated = resolvePackageClockwiseRotation(pkg, options);
-	const sprites = await buildSpriteLookup(fs, pkg, options);
+	const sprites = await getSpriteLookup();
 	const textures: Uint8Array[] = [];
 	for (const [index, frame] of frames.entries()) {
 		const spriteId = frame.getSpriteId();
@@ -264,9 +283,12 @@ async function writeSyntheticFontGlyphImages(
 	fs: RestoreFileSystem,
 	pkg: Package,
 	outputProjectPath: string,
+	restoredImages: ReadonlySet<ImageResource>,
 ): Promise<void> {
 	for (const resource of pkg.listResources()) {
 		if (resource.propertyType !== 'ImageResource' || !isSyntheticFontGlyphImage(resource)) continue;
+		// Preserve real glyph images already cropped from atlas sprites.
+		if (restoredImages.has(resource)) continue;
 		const fileName = resourceFileName(resource) || `${resource.getId() ?? 'glyph'}.png`;
 		const outputPath = resourceOutputPath(fs, outputProjectPath, pkg, resource, fileName);
 		await fs.mkdir(fs.dirname(outputPath));

@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import {
@@ -127,10 +128,16 @@ if (isMain(import.meta.url)) {
 			console.log(JSON.stringify(plan, null, 2));
 			if (!values.list) {
 				if (values.check) {
-					for (const command of ['lint:ci', 'typecheck'])
+					for (const command of ['lint:ci', 'typecheck', 'contracts:check'])
 						runCommand(ROOT, ...pnpmInvocation(process.env.npm_execpath, [command]));
 				}
-				runCommand(ROOT, process.execPath, ['--test', 'scripts/repository.test.mjs']);
+				const repoTestFiles = [
+					'scripts/repository.test.mjs',
+					'scripts/contracts.test.mjs',
+					'scripts/agent-evals.test.mjs',
+					'scripts/measure-uam-fidelity.test.mjs',
+				].filter((file) => existsSync(path.join(ROOT, file)));
+				runCommand(ROOT, process.execPath, ['--test', ...repoTestFiles]);
 				runCommand(ROOT, process.execPath, ['scripts/check-guidance.mjs']);
 				if (plan.tests.length > 0) {
 					const refs = inspectReferences(ROOT);

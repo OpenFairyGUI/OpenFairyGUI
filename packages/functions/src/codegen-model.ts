@@ -29,13 +29,17 @@ export interface CodegenClass {
 }
 
 export function buildCodegenClasses(doc: Document, pkg: Package, plan: ResolvedPackageCodegenPlan): CodegenClass[] {
-	const codegenComponents = pkg.listComponents().sort((left, right) => left.getId().localeCompare(right.getId()));
+	const codegenComponents = pkg
+		.listComponents()
+		.filter((component) => !component.getBranch())
+		.sort((left, right) => left.getId().localeCompare(right.getId()));
 	const generatedById = new Map<string, CodegenClass>();
 	const usedClassNames = new Set([plan.binderClassName.toLowerCase()]);
+	const classNamePrefix = sanitizeIdentifierPrefix(plan.settings.classNamePrefix, 'classNamePrefix');
 
 	for (const component of codegenComponents) {
 		const encodedClassName = claimName(
-			`${plan.settings.classNamePrefix}${normalizeTypeName(component.getName()) || 'Component'}`,
+			`${classNamePrefix}${normalizeTypeName(component.getName()) || 'Component'}`,
 			usedClassNames,
 			true,
 		);
@@ -229,9 +233,115 @@ function isDefaultMemberName(ownerType: string, kind: CodegenMember['kind'], nam
 	return /^n\d+(?:_.*)?$/i.test(name);
 }
 
+const RESERVED_CODEGEN_KEYWORDS = new Set([
+	'abstract',
+	'as',
+	'async',
+	'await',
+	'base',
+	'bool',
+	'break',
+	'byte',
+	'case',
+	'catch',
+	'char',
+	'checked',
+	'class',
+	'const',
+	'continue',
+	'debugger',
+	'decimal',
+	'default',
+	'delegate',
+	'delete',
+	'do',
+	'double',
+	'else',
+	'enum',
+	'event',
+	'explicit',
+	'export',
+	'extends',
+	'extern',
+	'false',
+	'finally',
+	'fixed',
+	'float',
+	'for',
+	'foreach',
+	'function',
+	'goto',
+	'if',
+	'implements',
+	'implicit',
+	'import',
+	'in',
+	'instanceof',
+	'int',
+	'interface',
+	'internal',
+	'is',
+	'let',
+	'lock',
+	'long',
+	'namespace',
+	'new',
+	'null',
+	'object',
+	'operator',
+	'out',
+	'override',
+	'package',
+	'params',
+	'private',
+	'protected',
+	'public',
+	'readonly',
+	'ref',
+	'return',
+	'sbyte',
+	'sealed',
+	'short',
+	'sizeof',
+	'stackalloc',
+	'static',
+	'string',
+	'struct',
+	'super',
+	'switch',
+	'this',
+	'throw',
+	'true',
+	'try',
+	'typeof',
+	'uint',
+	'ulong',
+	'unchecked',
+	'unsafe',
+	'ushort',
+	'using',
+	'var',
+	'virtual',
+	'void',
+	'volatile',
+	'while',
+	'with',
+	'yield',
+]);
+
+function sanitizeIdentifierPrefix(prefix: string, fieldName: string): string {
+	if (!prefix) return '';
+	if (!/^[A-Za-z_][0-9A-Za-z_]*$/u.test(prefix)) {
+		throw new Error(`codegen: Invalid ${fieldName} "${prefix}"; expected an ASCII identifier prefix.`);
+	}
+	return prefix;
+}
+
 function applyMemberNamePrefix(name: string, prefix: string): string {
+	const safePrefix = sanitizeIdentifierPrefix(prefix, 'memberNamePrefix');
 	const normalized = normalizeMemberName(name) || 'member';
-	return prefix ? `${prefix}${normalized}` : normalized;
+	const combined = safePrefix ? `${safePrefix}${normalized}` : normalized;
+	return RESERVED_CODEGEN_KEYWORDS.has(combined) ? `_${combined}` : combined;
 }
 
 function claimName(base: string, used: Set<string>, ignoreCase = false): string {

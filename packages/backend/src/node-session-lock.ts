@@ -95,6 +95,18 @@ async function processIdentity(pid: number): Promise<string | null> {
 	}
 }
 
+const PROCESS_IDENTITY_CACHE_TTL_MS = 5_000;
+const processIdentityCache = new Map<number, { value: string | null; expiresAt: number }>();
+
+async function cachedProcessIdentity(pid: number): Promise<string | null> {
+	const now = Date.now();
+	const cached = processIdentityCache.get(pid);
+	if (cached && cached.expiresAt > now) return cached.value;
+	const value = await processIdentity(pid);
+	processIdentityCache.set(pid, { value, expiresAt: Date.now() + PROCESS_IDENTITY_CACHE_TTL_MS });
+	return value;
+}
+
 /** Recorded when the OS probe is unavailable (missing, blocked or hung PowerShell / `ps`); no other process can recompute it. */
 const UNVERIFIED_IDENTITY_PREFIX = 'unverified:';
 
@@ -112,9 +124,10 @@ async function isProcessAlive(metadata: NodeLockMetadata): Promise<boolean> {
 	try {
 		process.kill(metadata.pid, 0);
 	} catch (error) {
+		processIdentityCache.delete(metadata.pid);
 		return (error as NodeJS.ErrnoException).code !== 'ESRCH';
 	}
-	const identity = metadata.pid === process.pid ? await getOwnIdentity() : await processIdentity(metadata.pid);
+	const identity = metadata.pid === process.pid ? await getOwnIdentity() : await cachedProcessIdentity(metadata.pid);
 	// Permission failures, unavailable OS probes and unverified identities never authorize reclaiming a live PID.
 	return (
 		identity === null ||
@@ -153,11 +166,12 @@ async function coordinateLock<T>(filePath: string, action: () => Promise<T>): Pr
 		await retryLockIo(() => fs.unlink(temporary));
 	};
 	const readContender = async (name: string): Promise<(NodeLockMetadata & { ticket: number }) | null> => {
+		const contenderPath = path.join(directory, name);
+		const ticketFile = path.join(directory, `.ticket-${name}`);
 		try {
 			// A departing contender's files may be briefly unreadable on Windows before they disappear.
-			const content = await retryLockIo(() => fs.readFile(path.join(directory, name), 'utf8'));
+			const content = await retryLockIo(() => fs.readFile(contenderPath, 'utf8'));
 			const metadata = parseLockMetadata(content);
-			const ticketFile = path.join(directory, `.ticket-${name}`);
 			const ticket: number = await retryLockIo(() => fs.readFile(ticketFile, 'utf8')).then(
 				Number,
 				(error: NodeJS.ErrnoException) => {
@@ -165,10 +179,16 @@ async function coordinateLock<T>(filePath: string, action: () => Promise<T>): Pr
 					throw error;
 				},
 			);
-			if (!metadata || !Number.isSafeInteger(ticket) || (ticket as number) < 0)
-				throw new Error('Invalid lock coordination record.');
+			if (!metadata || !Number.isSafeInteger(ticket) || (ticket as number) < 0) {
+				const stat = await retryLockIo(() => fs.stat(contenderPath)).catch(() => null);
+				if (stat && Date.now() - stat.mtimeMs > UNWRITTEN_LOCK_STALE_MS) {
+					await retryLockIo(() => fs.unlink(contenderPath)).catch(() => undefined);
+					await retryLockIo(() => fs.unlink(ticketFile)).catch(() => undefined);
+				}
+				return null;
+			}
 			if (!(await isProcessAlive(metadata))) {
-				await retryLockIo(() => fs.unlink(path.join(directory, name))).catch(() => undefined);
+				await retryLockIo(() => fs.unlink(contenderPath)).catch(() => undefined);
 				await retryLockIo(() => fs.unlink(ticketFile)).catch(() => undefined);
 				return null;
 			}
@@ -211,8 +231,17 @@ async function coordinateLock<T>(filePath: string, action: () => Promise<T>): Pr
 			await new Promise((resolve) => setTimeout(resolve, 10));
 		}
 	} finally {
-		await retryLockIo(() => fs.unlink(candidate)).catch(() => undefined);
-		await retryLockIo(() => fs.unlink(ticketPath)).catch(() => undefined);
+		// Only remove the ticket once candidate is removed; otherwise a surviving candidate looks like ticket=0 (self-deadlock).
+		let candidateRemoved = false;
+		try {
+			await retryLockIo(() => fs.unlink(candidate));
+			candidateRemoved = true;
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code === 'ENOENT') candidateRemoved = true;
+		}
+		if (candidateRemoved) {
+			await retryLockIo(() => fs.unlink(ticketPath)).catch(() => undefined);
+		}
 		await retryLockIo(() => fs.unlink(temporary)).catch(() => undefined);
 		await retryLockIo(() => fs.unlink(ticketTemporary)).catch(() => undefined);
 	}
@@ -233,7 +262,10 @@ function isUnwrittenLock(content: string): boolean {
 
 async function readLockFile(filePath: string): Promise<{ content: string; modifiedAt: number } | null> {
 	try {
-		const [content, stat] = await Promise.all([fs.readFile(filePath, 'utf-8'), fs.stat(filePath)]);
+		const [content, stat] = await Promise.all([
+			retryLockIo(() => fs.readFile(filePath, 'utf-8')),
+			retryLockIo(() => fs.stat(filePath)),
+		]);
 		return { content, modifiedAt: stat.mtimeMs };
 	} catch {
 		return null;
@@ -299,7 +331,8 @@ export async function acquireNodeSessionLock(filePath: string): Promise<BackendS
 					await retryLockIo(() => fs.link(prepared, filePath));
 				}
 			} finally {
-				await retryLockIo(() => fs.unlink(prepared));
+				// Never fail acquisition after the hard-linked lock is already live, or callers would leak it.
+				await retryLockIo(() => fs.unlink(prepared)).catch(() => undefined);
 			}
 		});
 	} catch (error) {
@@ -314,7 +347,7 @@ export async function acquireNodeSessionLock(filePath: string): Promise<BackendS
 	let released = false;
 	const hostMetadataPath = path.join(`${filePath}.coordination`, `.host-${owner.token}`);
 	const assertOwner = async (): Promise<void> => {
-		const current = parseLockMetadata(await fs.readFile(filePath, 'utf8'));
+		const current = parseLockMetadata(await retryLockIo(() => fs.readFile(filePath, 'utf8')));
 		if (!current || current.token !== owner.token)
 			throw new Error('Cannot release session lock: invalid or changed ownership metadata');
 	};

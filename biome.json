@@ -9,7 +9,7 @@
 			"suspicious": {
 				"noAssignInExpressions": "off",
 				"noEmptyInterface": "off",
-				"noFallthroughSwitchClause": "off",
+				"noFallthroughSwitchClause": "error",
 				"noImplicitAnyLet": "off",
 				"noExplicitAny": "off"
 			},

@@ -110,7 +110,13 @@ function applyCheckedUamTransaction(baseline: UamProject, operations: UamTransac
 }
 
 export function applyUamTransaction(project: UamProject, operations: UamTransactionOperation[]): UamProject {
-	return applyNormalizedUamTransaction(normalizeUamProject(project), operations);
+	let baseline: UamProject;
+	try {
+		baseline = normalizeUamProject(project);
+	} catch (error) {
+		throw asExecutionFailure(error);
+	}
+	return applyNormalizedUamTransaction(baseline, operations);
 }
 
 export async function applyUamTransactionAsync(
@@ -125,7 +131,12 @@ export async function applyUamTransactionAsync(
 	}
 	if (typeof Worker !== 'function' || !operations.some((operation) => operation.kind === 'replaceResourceBytes'))
 		return applyUamTransaction(project, operations);
-	const safeProject = normalizeUamProject(project);
+	let safeProject: UamProject;
+	try {
+		safeProject = normalizeUamProject(project);
+	} catch (error) {
+		throw asExecutionFailure(error);
+	}
 	let safeOperations: UamTransactionOperation[];
 	let imageBytes: Uint8Array[];
 	try {

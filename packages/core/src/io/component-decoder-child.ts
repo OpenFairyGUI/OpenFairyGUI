@@ -768,16 +768,17 @@ function decodeChildBlock2(
 	for (let gearIndex = 0; gearIndex < gearCount && remainingBytes(childBuf) >= 2; gearIndex += 1) {
 		const chunkSize = childBuf.getUint16();
 		const nextPos = childBuf.pos + chunkSize;
-		if (remainingBytes(childBuf) < 3) {
-			childBuf.pos = nextPos;
+		if (chunkSize > remainingBytes(childBuf) || chunkSize < 3) {
+			childBuf.pos = Math.min(nextPos, childBuf.byteLength);
 			continue;
 		}
-		const gearType = childBuf.getUint8();
+		const gearBuf = childBuf.readBuffer(chunkSize);
+		const gearType = gearBuf.getUint8();
 		const gear = doc.createGear(`${child.getId()}_gear${gearIndex}`);
 		gear.setGearType(gearType);
 
-		if (remainingBytes(childBuf) >= 2) {
-			const controllerIndex = childBuf.getInt16();
+		if (remainingBytes(gearBuf) >= 2) {
+			const controllerIndex = gearBuf.getInt16();
 			gear.setController(resource.listControllers()[controllerIndex] ?? null);
 		}
 
@@ -786,16 +787,16 @@ function decodeChildBlock2(
 		let defaultValue: string | null = null;
 
 		if (gearType === GearType.Display || gearType === GearType.Display2) {
-			const pageCount = remainingBytes(childBuf) >= 2 ? childBuf.getInt16() : 0;
-			for (let pageIndex = 0; pageIndex < pageCount && remainingBytes(childBuf) >= 2; pageIndex += 1) {
-				pages.push(childBuf.readS() ?? '');
+			const pageCount = remainingBytes(gearBuf) >= 2 ? gearBuf.getInt16() : 0;
+			for (let pageIndex = 0; pageIndex < pageCount && remainingBytes(gearBuf) >= 2; pageIndex += 1) {
+				pages.push(gearBuf.readS() ?? '');
 			}
 		} else {
-			const pageCount = remainingBytes(childBuf) >= 2 ? childBuf.getInt16() : 0;
+			const pageCount = remainingBytes(gearBuf) >= 2 ? gearBuf.getInt16() : 0;
 			const controllerPages = gear.getController()?.listPages() ?? [];
 			for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
-				if (remainingBytes(childBuf) < 2) break;
-				const rawPageId = childBuf.readS();
+				if (remainingBytes(gearBuf) < 2) break;
+				const rawPageId = gearBuf.readS();
 				// Text/Icon null entries have no payload or recoverable page ID.
 				if (rawPageId === null && (gearType === GearType.Text || gearType === GearType.Icon)) continue;
 				const pageId = rawPageId ?? controllerPages[pageIndex]?.getId() ?? '';
@@ -804,66 +805,65 @@ function decodeChildBlock2(
 					values.push('-');
 					continue;
 				}
-				values.push(decodeGearStatus(childBuf, gearType, childBuf.version));
+				values.push(decodeGearStatus(gearBuf, gearType, gearBuf.version));
 			}
-			if (remainingBytes(childBuf) >= 1 && childBuf.readBool()) {
-				defaultValue = decodeGearStatus(childBuf, gearType, childBuf.version);
+			if (remainingBytes(gearBuf) >= 1 && gearBuf.readBool()) {
+				defaultValue = decodeGearStatus(gearBuf, gearType, gearBuf.version);
 			}
 		}
 
 		let hasTween = false;
-		if (remainingBytes(childBuf) >= 1) {
-			hasTween = childBuf.readBool();
+		if (remainingBytes(gearBuf) >= 1) {
+			hasTween = gearBuf.readBool();
 			gear.setTween(hasTween);
-			if (hasTween && remainingBytes(childBuf) >= 9) {
-				gear.setEaseType(childBuf.getUint8())
-					.setTweenDuration(childBuf.getFloat32())
-					.setTweenDelay(childBuf.getFloat32());
+			if (hasTween && remainingBytes(gearBuf) >= 9) {
+				gear.setEaseType(gearBuf.getUint8())
+					.setTweenDuration(gearBuf.getFloat32())
+					.setTweenDelay(gearBuf.getFloat32());
 			}
 		}
 
 		// Unity GearBase.Setup reads v>=2 extensions (GearXY percent / GearDisplay2 condition)
 		// before v>=4 customEase and v>=6 GearAnimation ext.
-		if (childBuf.version >= 2) {
-			if (gearType === GearType.XY && remainingBytes(childBuf) >= 1) {
-				const positionsInPercent = childBuf.readBool();
+		if (gearBuf.version >= 2) {
+			if (gearType === GearType.XY && remainingBytes(gearBuf) >= 1) {
+				const positionsInPercent = gearBuf.readBool();
 				gear.setPositionsInPercent(positionsInPercent);
 				if (positionsInPercent) {
-					for (let pageIndex = 0; pageIndex < pages.length && remainingBytes(childBuf) >= 2; pageIndex += 1) {
-						const rawPageId = childBuf.readS();
-						const pageId = rawPageId ?? pages[pageIndex] ?? '';
-						if (rawPageId === null || pageId === '') continue;
-						const px = childBuf.getFloat32();
-						const py = childBuf.getFloat32();
+					for (let pageIndex = 0; pageIndex < pages.length && remainingBytes(gearBuf) >= 2; pageIndex += 1) {
+						const rawPageId = gearBuf.readS();
+						if (rawPageId === null) continue;
+						const px = gearBuf.getFloat32();
+						const py = gearBuf.getFloat32();
 						values[pageIndex] =
 							`${values[pageIndex] || '0,0'},${formatBinaryNumber(px)},${formatBinaryNumber(py)}`;
 					}
-					if (remainingBytes(childBuf) >= 1 && childBuf.readBool()) {
-						const px = childBuf.getFloat32();
-						const py = childBuf.getFloat32();
+					if (remainingBytes(gearBuf) >= 1 && gearBuf.readBool()) {
+						const px = gearBuf.getFloat32();
+						const py = gearBuf.getFloat32();
 						defaultValue = `${defaultValue || '0,0'},${formatBinaryNumber(px)},${formatBinaryNumber(py)}`;
 					}
 				}
-			} else if (gearType === GearType.Display2 && remainingBytes(childBuf) >= 1) {
-				gear.setCondition(`${childBuf.getUint8()}`);
+			} else if (gearType === GearType.Display2 && remainingBytes(gearBuf) >= 1) {
+				gear.setCondition(`${gearBuf.getUint8()}`);
 			}
 		}
 
-		if (childBuf.version >= 4 && hasTween && gear.getEaseType() === 31) {
-			gear.setCustomEasePath(readPathData(childBuf));
+		if (gearBuf.version >= 4 && hasTween && gear.getEaseType() === 31) {
+			gear.setCustomEasePath(readPathData(gearBuf));
 		}
 
-		if (childBuf.version >= 6 && gearType === GearType.Animation) {
-			for (let pageIndex = 0; pageIndex < pages.length && remainingBytes(childBuf) >= 2; pageIndex += 1) {
-				const rawPageId = childBuf.readS();
+		if (gearBuf.version >= 6 && gearType === GearType.Animation) {
+			for (let pageIndex = 0; pageIndex < pages.length && remainingBytes(gearBuf) >= 2; pageIndex += 1) {
+				const rawPageId = gearBuf.readS();
 				if (rawPageId === null) continue;
-				const animationName = childBuf.readS() ?? '';
-				const skinName = childBuf.readS() ?? '';
+				const animationName = gearBuf.readS() ?? '';
+				const skinName = gearBuf.readS() ?? '';
 				values[pageIndex] = `${values[pageIndex] || '0,p'},${animationName},${skinName}`;
 			}
-			if (remainingBytes(childBuf) >= 1 && childBuf.readBool()) {
-				const animationName = childBuf.readS() ?? '';
-				const skinName = childBuf.readS() ?? '';
+			if (remainingBytes(gearBuf) >= 1 && gearBuf.readBool()) {
+				const animationName = gearBuf.readS() ?? '';
+				const skinName = gearBuf.readS() ?? '';
 				defaultValue = `${defaultValue || '0,p'},${animationName},${skinName}`;
 			}
 		}
