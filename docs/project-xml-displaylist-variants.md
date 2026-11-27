@@ -27,14 +27,14 @@
 |---|---|---|---|---|
 | 图片 | `image` | `image` | `image` | `image` |
 | 普通文本 | `text` | `text` | `text` | `text` |
-| 输入文本 | `text` 且 `input="true"`，或显式 `inputtext` | `inputtext` | `inputtext` | `inputtext` |
+| 输入文本 | `text` 且 `input="true"`，或显式 `inputtext` | `inputtext` | `inputtext` | `text` 且 `input="true"` |
 | 富文本 | `richtext` | `richtext` | `richtext` | `richtext` |
 | 图形 | `graph` | `graph` | `graph` | `graph` |
 | 分组 | `group` | `group` | `group` | `group` |
 | Loader | `loader` | `loader` | `loader` | `loader` |
 | Loader3D | `loader3D`（读入兼容小写 `loader3d`） | `loader3D` | 当前仓库按 `loader3D` 对齐 | `loader3D` |
 | MovieClip | `movieclip` | `movieclip` | `movieclip` | `movieclip` |
-| JTA 动画 | `jta` | `jta` | `jta` | `jta` |
+| JTA 动画（兼容旧标签） | `jta` | `jta` | `jta` | `movieclip` |
 | 子组件实例 | `component` | `component` | 资源引用对象通常不单独写 `type`，其显示列表项由引用资源决定 | `component` |
 | 列表 | `list` | `list` | `list` | `list` |
 | 树 | `list` 且 `treeView="true"`，或显式 `tree` | `tree` | `tree` | `list` 且 `treeView="true"` |
@@ -54,12 +54,13 @@
 | 场景 | 写回结果 |
 |---|---|
 | `GTextField` | `text` |
-| `GTextInput` | `inputtext` |
+| `GTextInput` | `text`，同时写 `input="true"` |
+| 兼容读入的 `inputtext` | 当前统一写回 `text` 且带 `input="true"` |
 | `GRichTextField` | `richtext` |
-| `GTree` | `list`，同时写 `treeView="true"` |
+| `GTree` | `list`，同时写 `treeView="true"`（读入同时兼容显式 `tree`） |
 | `GLoader3D` | `loader3D` |
-| `GMovieClip` | `jta` |
-| 兼容读入的 `movieclip` | 当前统一写回 `jta` |
+| `GMovieClip` | `movieclip` |
+| 兼容读入的 `jta` | 当前统一写回 `movieclip` |
 | `GComponent / GButton / GLabel / GComboBox / GProgressBar / GSlider / GScrollBar` | `component` |
 
 ## 维护要求

@@ -724,7 +724,8 @@ export function materializeDisplayNodeProperties(target: GObject, node: UamDispl
 		const image = materializeDisplayNodeBase(target as ReturnType<Document['createGImage']>, node)
 			.setGroup(imageNode.group)
 			.setSrc(imageNode.resource.resourceId)
-			.setPackageId(imageNode.resource.packageId ?? '');
+			.setPackageId(imageNode.resource.packageId ?? '')
+			.setFileName(imageNode.fileName ?? '');
 		materializeUamImageProperties(image, imageNode);
 		return image;
 	}
@@ -1157,7 +1158,8 @@ function materializeComponentResource(
 		.setExported(resource.exported)
 		.setFavorite(resource.favorite)
 		.setSize(resource.component.size.width, resource.component.size.height)
-		.setCustomData(resource.component.customData);
+		.setCustomData(resource.component.customData)
+		.setRelations(materializeRelations(resource.component.relations ?? []));
 	materializeUamComponentProperties(component, resource.component.properties);
 
 	for (const node of resource.component.displayList) {

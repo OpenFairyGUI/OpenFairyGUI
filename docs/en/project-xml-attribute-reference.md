@@ -51,6 +51,35 @@ This document does not cover:
 | `path` |  | Package publish path |
 | `branchPath` |  | Branch publish path |
 | `packageCount` |  | Published package-split count |
+| `genCode` |  | Whether code generation is enabled |
+| `codePath` |  | Package-level code generation output path |
+| `maxAtlasSize` |  | Maximum atlas dimension |
+| `sizeOption` |  | Atlas sizing strategy |
+| `npot` |  | Whether non-power-of-two atlas sizes are allowed |
+| `square` |  | Whether square atlases are enforced |
+| `rotation` |  | Whether rotated atlas packing is enabled |
+| `multiPage` |  | Whether multi-page atlases are allowed |
+| `extractAlpha` |  | Whether alpha channel extraction is enabled |
+| `maxAtlasIndex` |  | Highest custom atlas index |
+| `excluded` |  | Whether the package is excluded from publishing |
+
+`publish` may contain repeatable `<atlas>` child nodes:
+
+| Attribute | Alias | Description |
+|---|---|---|
+| `name` |  | Atlas name |
+| `index` |  | Atlas index |
+| `compression` |  | Atlas compression option |
+
+### `resources > folder`
+
+| Attribute | Alias | Description |
+|---|---|---|
+| `id` |  | Folder identifier |
+| `name` |  | Folder name |
+| `path` |  | Folder path |
+| `favorite` |  | Whether the folder is marked as a favorite |
+| `atlas` |  | Default atlas assignment mode for resources inside the folder |
 
 ### Common resource nodes
 
@@ -127,8 +156,12 @@ Current project write-back contract:
 | Item | Description |
 |---|---|
 | Display-object `xy` | Nodes in `displayList` that support `xy` explicitly write their position; the default origin is written as `xy="0,0"` |
+| Boolean attributes | Aligned with editor `XData`/`XML` parsing, boolean attributes are written as `"true"` / `"false"` (never `"1"` / `"0"`) |
+| Margin attributes | `margin` / `scrollBarMargin` accept both 4-part `top,bottom,left,right` and single-value editor shorthand `N` (equivalent to `N,N,N,N`) |
 
 ### Root `<component>`
+
+In addition to `<controller>`, `<displayList>`, `<transition>`, `<customProperty>`, and extension child nodes, the root `<component>` element also supports direct `<relation>` children (for example, sizing a root component to a child object).
 
 | Attribute | Alias | Description |
 |---|---|---|
@@ -151,6 +184,7 @@ Current project write-back contract:
 | `scrollBarRes` |  | Scrollbar resource |
 | `ptrRes` |  | Pull-to-refresh resource |
 | `extention` |  | Root component extension type |
+| `customExtention` |  | Custom extension class name / identifier |
 | `bgColor` |  | Background color |
 | `bgColorEnabled` |  | Whether the background color is enabled |
 | `idnum` |  | Internal number |
@@ -243,7 +277,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `fillMethod` |  | Fill method |
 | `fillOrigin` |  | Fill origin |
 | `fillClockwise` |  | Whether filling is clockwise |
-| `fillAmount` |  | Fill ratio |
+| `fillAmount` |  | Fill ratio on the `0..100` percentage XML scale (defaults to `100`, normalized to `0..1` in the model) |
 | `xy` |  | Position |
 | `size` |  | Size |
 | `locked` |  | Whether the image is locked |
@@ -258,6 +292,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `visible` |  | Whether the image is visible |
 | `touchable` |  | Whether the image is touchable |
 | `grayed` |  | Whether the image is grayed out |
+| `fileName` |  | Resource filename |
 | `pkg` |  | Resource package identifier |
 | `filter` |  | Filter type |
 | `filterData` |  | Filter data |
@@ -279,7 +314,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `touchable` |  | Whether the graph is touchable |
 | `grayed` |  | Whether the graph is grayed out |
 | `skew` |  | Skew |
-| `type` |  | Graph type |
+| `type` |  | Graph type: canonical write-back uses `rect`, `eclipse`, `polygon`, `regular_polygon` (reading also accepts `ellipse`/`regularpolygon`) |
 | `lineSize` |  | Line width |
 | `lineColor` |  | Line color |
 | `fillColor` |  | Fill color |
@@ -287,7 +322,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `points` |  | Vertex coordinates |
 | `sides` |  | Polygon side count |
 | `startAngle` |  | Start angle |
-| `distances` |  | Vertex distances |
+| `distances` |  | Vertex distances; omitted empty slots parse as `1` |
 
 ### `<movieclip>` / `<jta>`
 
@@ -321,6 +356,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `pivot` |  | Pivot |
 | `anchor` |  | Whether the pivot is used as the coordinate anchor |
 | `scale` |  | Scale |
+| `group` |  | Owning group |
 | `rotation` |  | Rotation |
 | `alpha` |  | Opacity |
 | `visible` |  | Whether the loader is visible |
@@ -333,13 +369,14 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `shrinkOnly` |  | Whether only shrinking is allowed |
 | `autoSize` |  | Automatic sizing |
 | `useResize` |  | Whether resize is used |
+| `errorSign` |  | Whether an error sign is shown when loading fails |
 | `color` |  | Color |
 | `playing` |  | Whether playback is active |
 | `frame` |  | Frame number |
 | `fillMethod` |  | Fill method |
 | `fillOrigin` |  | Fill origin |
 | `fillClockwise` |  | Whether filling is clockwise |
-| `fillAmount` |  | Fill ratio |
+| `fillAmount` |  | Fill ratio on the `0..100` percentage XML scale (defaults to `100`, normalized to `0..1` in the model) |
 | `clearOnPublish` |  | Whether the value is cleared on publish |
 | `filter` |  | Filter type |
 | `filterData` |  | Filter data |
@@ -352,6 +389,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `size` |  | Size |
 | `pivot` |  | Pivot |
 | `anchor` |  | Whether the pivot is used as the coordinate anchor |
+| `group` |  | Owning group |
 | `rotation` |  | Rotation |
 | `alpha` |  | Opacity |
 | `visible` |  | Whether the loader is visible |
@@ -367,7 +405,7 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `skin` | `skinName` | Skin name |
 | `playing` |  | Whether playback is active |
 | `frame` |  | Frame number |
-| `loop` |  | Whether playback loops |
+| `loop` |  | Whether playback loops; defaults to `false` and is written only when `true` |
 | `color` |  | Color |
 | `clearOnPublish` |  | Whether the value is cleared on publish |
 
@@ -657,10 +695,12 @@ These attributes apply to every concrete display-list object. The tag-specific t
 
 ### `<relation>`
 
+Allowed as a direct child of display objects and of the root `<component>` element.
+
 | Attribute | Alias | Description |
 |---|---|---|
 | `target` |  | Target object |
-| `sidePair` |  | Relation-side pair |
+| `sidePair` |  | Relation-side pair; supports single-side editor shorthand (e.g. `width,height` expands to `width-width,height-height`, and `width%` to `width-width%`) |
 
 ### `<gear*>`
 
@@ -678,6 +718,8 @@ These attributes apply to every concrete display-list object. The tag-specific t
 | `delay` |  | Tween delay in seconds, default 0 |
 
 ### `<controller>`
+
+Supports direct `<action>` and `<remark page="..." value="..."/>` child elements.
 
 | Attribute | Alias | Description |
 |---|---|---|

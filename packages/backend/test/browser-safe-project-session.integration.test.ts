@@ -2379,7 +2379,7 @@ test('real LayaBox UAM sessions persist atomic resource dependency moves in brow
 			fillMethod: 0,
 			fillOrigin: 0,
 			fillClockwise: true,
-			fillAmount: 100,
+			fillAmount: 1,
 			id: 'issue34-image-ref',
 			name: 'issue34-image-ref',
 			position: { x: 0, y: 0 },

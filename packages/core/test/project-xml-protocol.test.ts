@@ -479,6 +479,7 @@ test('project XML protocol children maps stay explicit and stable', (t) => {
 		'Slider',
 		'controller',
 		'customProperty',
+		'relation',
 		'transition',
 	]);
 	t.deepEqual(collectChildNames('componentInstance'), [

@@ -280,7 +280,9 @@ export function createDisplayObject(
 				const startAngle = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.graph.attrs.startAngle);
 				g.setStartAngle(parseFloat2(startAngle));
 				const distances = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.graph.attrs.distances);
-				if (distances) g.setDistances(distances.split(',').map(Number));
+				if (distances) {
+					g.setDistances(distances.split(',').map((part) => (part.trim() === '' ? 1 : Number(part))));
+				}
 			}
 			obj = g;
 			break;
@@ -475,7 +477,8 @@ export function createDisplayObject(
 			break;
 		}
 		case 'list':
-			obj = createListDisplayObject(doc, name, attrs);
+		case 'tree':
+			obj = createListDisplayObject(doc, name, attrs, normalizedTagName === 'tree');
 			break;
 		default:
 			return null;

@@ -469,6 +469,7 @@ export function liftDisplayNode(child: GObject): UamDisplayNode {
 			...liftDisplayNodeBase(image),
 			group: image.getGroup(),
 			resource: { packageId: image.getPackageId(), resourceId: image.getSrc() },
+			...(image.getFileName() ? { fileName: image.getFileName() } : {}),
 			color: image.getColor(),
 			flip: image.getFlip(),
 			fillMethod: image.getFillMethod(),
@@ -639,6 +640,7 @@ export function liftDisplayNode(child: GObject): UamDisplayNode {
 		return {
 			kind: 'loader',
 			...liftDisplayNodeBase(loader),
+			group: loader.getGroup(),
 			pivot: { x: loader.getPivotX(), y: loader.getPivotY() },
 			url: loader.getUrl(),
 			fill: loader.getFill(),
@@ -663,6 +665,7 @@ export function liftDisplayNode(child: GObject): UamDisplayNode {
 		return {
 			kind: 'loader3D',
 			...liftDisplayNodeBase(loader),
+			group: loader.getGroup(),
 			url: loader.getUrl(),
 			fill: loader.getFill(),
 			shrinkOnly: loader.getShrinkOnly(),
@@ -904,6 +907,7 @@ function liftComponentResource(resource: ReturnType<Document['createComponent']>
 			size: { width: resource.getWidth(), height: resource.getHeight() },
 			properties: liftComponentProperties(resource),
 			customData: resource.getCustomData(),
+			...(resource.getRelations().length > 0 ? { relations: liftRelations(resource.getRelations()) } : {}),
 			displayList: resource.listChildren().map((child) => liftDisplayNode(child)),
 			controllers: liftControllers(resource),
 			transitions: liftTransitions(resource),

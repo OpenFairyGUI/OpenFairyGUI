@@ -29,12 +29,12 @@ const DISPLAY_TAG: Record<string, string> = {
 	GImage: 'image',
 	GTextField: 'text',
 	GRichTextField: 'richtext',
-	GTextInput: 'inputtext',
+	GTextInput: 'text',
 	GGraph: 'graph',
 	GGroup: 'group',
 	GLoader: 'loader',
 	GLoader3D: 'loader3D',
-	GMovieClip: 'jta',
+	GMovieClip: 'movieclip',
 	GComponent: 'component',
 	GButton: 'component',
 	GLabel: 'component',
@@ -239,6 +239,7 @@ function formatFillMethod(fillMethod: number): string {
 }
 
 function getDisplayListVariantName(propertyType: string, tagName: string): string {
+	if (propertyType === 'GTextInput') return 'inputtext';
 	if (propertyType === 'GLoader3D') return 'loader3D';
 	if (propertyType === 'GTree') return 'tree';
 	return tagName;
@@ -313,9 +314,10 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 		writeListXmlNode(attrs, obj as GList | GTree);
 	}
 
-	const extension = ['GComponent', 'GButton', 'GLabel'].includes(type)
-		? writeComponentInstanceXmlNode(attrs, obj as GComponent)
-		: undefined;
+	const extension =
+		type === 'GComponent' || Boolean(EXTENSION_TYPE[type])
+			? writeComponentInstanceXmlNode(attrs, obj as GComponent)
+			: undefined;
 	if (EXTENSION_TYPE[type]) {
 		const pageController = (obj as GComponent).getPageController();
 		if (pageController)
@@ -335,6 +337,8 @@ function serializeChild(obj: GObject): Record<string, unknown> {
 function writeImageXmlAttributes(attrs: Record<string, unknown>, object: GImage): void {
 	const src = object.getSrc();
 	if (src) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.src, src);
+	const fileName = object.getFileName();
+	if (fileName) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.fileName, fileName);
 	if (object.getPackageId()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.image.attrs.pkg, object.getPackageId());
 	const imageColor = object.getColor();
 	if (imageColor && !isDefaultWhiteColor(imageColor))
@@ -360,9 +364,9 @@ function writeGraphXmlAttributes(attrs: Record<string, unknown>, object: GGraph)
 	if (graphType !== 0) {
 		const graphTypeName: Record<number, string> = {
 			1: 'rect',
-			2: 'ellipse',
+			2: 'eclipse',
 			3: 'polygon',
-			4: 'regularpolygon',
+			4: 'regular_polygon',
 		};
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.graph.attrs.type, graphTypeName[graphType] ?? 'rect');
 	}
@@ -413,9 +417,9 @@ function writeLoaderXmlAttributes(attrs: Record<string, unknown>, object: GLoade
 		};
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.fill, fillName[fill] ?? 'none');
 	}
-	if (object.getShrinkOnly()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.shrinkOnly, '1');
-	if (object.getAutoSize()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.autoSize, '1');
-	if (object.getUseResize()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.useResize, '1');
+	if (object.getShrinkOnly()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.shrinkOnly, 'true');
+	if (object.getAutoSize()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.autoSize, 'true');
+	if (object.getUseResize()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.useResize, 'true');
 	if (object.getShowErrorSign()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader.attrs.errorSign, 'true');
 	const loaderColor = object.getColor();
 	if (loaderColor && !isDefaultWhiteColor(loaderColor))
@@ -452,7 +456,7 @@ function writeLoader3DXmlAttributes(attrs: Record<string, unknown>, object: GLoa
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.vAlign, vAlignName[vAlign] ?? 'top');
 	}
 	const fill = object.getFill();
-	if (fill !== undefined) {
+	if (fill !== undefined && fill !== 0) {
 		const fillName: Record<number, string> = {
 			0: 'none',
 			1: 'scale',
@@ -463,8 +467,8 @@ function writeLoader3DXmlAttributes(attrs: Record<string, unknown>, object: GLoa
 		};
 		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.fill, fillName[fill] ?? 'none');
 	}
-	if (object.getShrinkOnly()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.shrinkOnly, '1');
-	if (object.getAutoSize()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.autoSize, '1');
+	if (object.getShrinkOnly()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.shrinkOnly, 'true');
+	if (object.getAutoSize()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.autoSize, 'true');
 	const animationName = object.getAnimationName();
 	if (animationName) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.animation, animationName);
 	const skinName = object.getSkinName();
@@ -472,9 +476,10 @@ function writeLoader3DXmlAttributes(attrs: Record<string, unknown>, object: GLoa
 	if (object.getPlaying() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.playing, 'false');
 	const frame = object.getFrame() ?? 0;
 	if (frame !== 0) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.frame, String(frame));
-	if (object.getLoop() === false) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.loop, 'false');
+	if (object.getLoop()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.loop, 'true');
 	const loaderColor = object.getColor();
-	if (loaderColor) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.color, loaderColor);
+	if (loaderColor && !isDefaultWhiteColor(loaderColor))
+		writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.color, loaderColor);
 	if (object.getClearOnPublish()) writeXmlAttr(attrs, PROJECT_XML_PROTOCOL.loader3D.attrs.clearOnPublish, 'true');
 }
 

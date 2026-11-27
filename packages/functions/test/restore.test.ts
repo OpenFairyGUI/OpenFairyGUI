@@ -391,7 +391,10 @@ test('restore published project: directory batch restores packages, assets, and 
 			path.join(outputDir, 'assets', 'Basics', 'Demo_Image.xml'),
 			'utf-8',
 		);
-		t.false(/<image\b[^>]*\bfileName=/.test(basicsDemoImageXml), 'restored image instances omit fileName attrs');
+		t.true(
+			basicsDemoImageXml.includes('fileName="images/pic.png"'),
+			'restored image instances backfill editor fileName attrs from package resources',
+		);
 		const basicsDemoControllerXml = await fs.readFile(
 			path.join(outputDir, 'assets', 'Basics', 'Demo_Controller.xml'),
 			'utf-8',
@@ -510,7 +513,7 @@ test('restore published project: directory batch restores packages, assets, and 
 			'restored Basics/Demo_Text lowercases text color attrs',
 		);
 		t.true(
-			/<inputtext\b[^>]*id="n22"[^>]*text=""/.test(basicsDemoTextXml),
+			/<text\b[^>]*id="n22"[^>]*text=""[^>]*input="true"/.test(basicsDemoTextXml),
 			'restored Basics/Demo_Text keeps explicit empty input text',
 		);
 		t.true(
@@ -651,12 +654,12 @@ test('restore published project: directory batch restores packages, assets, and 
 			'utf-8',
 		);
 		t.true(
-			powerUpXml.includes('<jta id="n5"'),
-			'restored Transition/PowerUp writes movie clips with jta display tags',
+			powerUpXml.includes('<movieclip id="n5"'),
+			'restored Transition/PowerUp writes movie clips with movieclip display tags',
 		);
 		t.false(
-			/<jta\b[^>]*color="#ffffff"/.test(powerUpXml),
-			'restored Transition/PowerUp omits default white jta color',
+			/<movieclip\b[^>]*color="#ffffff"/.test(powerUpXml),
+			'restored Transition/PowerUp omits default white movieclip color',
 		);
 		t.true(
 			powerUpXml.includes('<item time="0" type="Alpha" value="1.00"/>'),

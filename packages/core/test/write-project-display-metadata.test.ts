@@ -56,7 +56,7 @@ test('text XML preserves empty values, tag-specific attributes and Gear order', 
 				'      <gearText default=""/>',
 				'    </text>',
 				'    <richtext id="r" name="rich" outlineSoftness="0.2" underlaySoftness="0.3" text="[b]&lt;&amp;&gt;[/b]" fontSize="12" ubb="true" xy="0,0"/>',
-				'    <inputtext id="i" name="input" text="0" fontSize="12" prompt="say &quot;hi&quot;" maxLength="5" restrict="0-9" password="true" keyboardType="2" xy="0,0"/>',
+				'    <text id="i" name="input" text="0" fontSize="12" input="true" prompt="say &quot;hi&quot;" maxLength="5" restrict="0-9" password="true" keyboardType="2" xy="0,0"/>',
 			].join('\n') +
 			'\n  ',
 	);
@@ -241,7 +241,7 @@ test('round-trip: display object fileName/pkg/filter metadata survives write→r
 	try {
 		await io.writeProject(doc, outFairy);
 		const hostXml = await fs.readFile(path.join(tmpDir, 'assets', 'DemoMeta', 'Host.xml'), 'utf-8');
-		t.false(/<image\b[^>]*\bfileName=/.test(hostXml), 'image omits fileName attr');
+		t.true(/<image\b[^>]*fileName="images\/pic\.png"/.test(hostXml), 'image writes canonical fileName attr');
 		t.true(hostXml.includes('pkg="pkgA"'), 'image writes canonical pkg attr');
 		t.true(/\baspect(?:="true")?(?=[\s>])/.test(hostXml), 'display object writes canonical aspect attr');
 		t.true(hostXml.includes('filter="color"'), 'display object writes canonical filter attr');
@@ -264,7 +264,7 @@ test('round-trip: display object fileName/pkg/filter metadata survives write→r
 		t.truthy(host2, 'Host exists after round-trip');
 		const byId = new Map(host2!.listChildren().map((item) => [item.getId(), item as any]));
 
-		t.is(byId.get('n0')?.getFileName?.(), '');
+		t.is(byId.get('n0')?.getFileName?.(), 'images/pic.png');
 		t.is(byId.get('n0')?.getPackageId?.(), 'pkgA');
 		t.true(byId.get('n0')?.getAspect?.());
 		t.is(byId.get('n0')?.getFilter?.(), 'color');
@@ -529,7 +529,7 @@ test('round-trip: tag-scoped pivot/anchor/scale survive write→read', async (t)
 		t.true(/<graph\b[^>]*id="n2"[^>]*anchor(?:="true")?/.test(componentXml), 'graph writes anchor attr');
 		t.true(/<loader\b[^>]*id="n3"[^>]*pivot="0.5,0.5"/.test(componentXml), 'loader writes pivot attr');
 		t.true(/<loader\b[^>]*id="n3"[^>]*scale="2,2"/.test(componentXml), 'loader writes scale attr');
-		t.true(/<jta\b[^>]*id="n4"[^>]*pivot="0.5,0.5"/.test(componentXml), 'jta writes pivot attr');
+		t.true(/<movieclip\b[^>]*id="n4"[^>]*pivot="0.5,0.5"/.test(componentXml), 'movieclip writes pivot attr');
 
 		const doc2 = await io.readProject(outFairy);
 		const comp2 = doc2
@@ -608,6 +608,14 @@ test('round-trip: tag-scoped group survives write→read', async (t) => {
 	movieClip.setSrc('ui://pkgGroup/movie');
 	movieClip.setGroup('groot');
 
+	const loader = doc.createGLoader('loader');
+	loader.setId('n7');
+	loader.setGroup('groot');
+
+	const loader3d = doc.createGLoader3D('loader3d');
+	loader3d.setId('n8');
+	loader3d.setGroup('groot');
+
 	comp.addChild(image);
 	comp.addChild(childComp);
 	comp.addChild(text);
@@ -615,6 +623,8 @@ test('round-trip: tag-scoped group survives write→read', async (t) => {
 	comp.addChild(nestedGroup);
 	comp.addChild(list);
 	comp.addChild(movieClip);
+	comp.addChild(loader);
+	comp.addChild(loader3d);
 	pkg.addResource(comp);
 
 	const io = new NodeIO();
@@ -631,7 +641,9 @@ test('round-trip: tag-scoped group survives write→read', async (t) => {
 		t.true(/<graph\b[^>]*id="n3"[^>]*group="groot"/.test(componentXml), 'graph writes group attr');
 		t.true(/<group\b[^>]*id="n4"[^>]*group="groot"/.test(componentXml), 'group writes group attr');
 		t.true(/<list\b[^>]*id="n5"[^>]*group="groot"/.test(componentXml), 'list writes group attr');
-		t.true(/<jta\b[^>]*id="n6"[^>]*group="groot"/.test(componentXml), 'jta writes group attr');
+		t.true(/<movieclip\b[^>]*id="n6"[^>]*group="groot"/.test(componentXml), 'movieclip writes group attr');
+		t.true(/<loader\b[^>]*id="n7"[^>]*group="groot"/.test(componentXml), 'loader writes group attr');
+		t.true(/<loader3D\b[^>]*id="n8"[^>]*group="groot"/.test(componentXml), 'loader3D writes group attr');
 
 		const doc2 = await io.readProject(outFairy);
 		const comp2 = doc2
@@ -649,6 +661,8 @@ test('round-trip: tag-scoped group survives write→read', async (t) => {
 		t.is(byId.get('n4')?.getGroup?.(), 'groot');
 		t.is(byId.get('n5')?.getGroup?.(), 'groot');
 		t.is(byId.get('n6')?.getGroup?.(), 'groot');
+		t.is(byId.get('n7')?.getGroup?.(), 'groot');
+		t.is(byId.get('n8')?.getGroup?.(), 'groot');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
@@ -747,7 +761,7 @@ test('round-trip: tag-scoped xy survive write→read', async (t) => {
 		t.true(/<list\b[^>]*id="n5"[^>]*xy="110,120"/.test(componentXml), 'list writes xy attr');
 		t.true(/<loader\b[^>]*id="n6"[^>]*xy="130,140"/.test(componentXml), 'loader writes xy attr');
 		t.true(/<loader3D\b[^>]*id="n7"[^>]*xy="150,160"/.test(componentXml), 'loader3D writes xy attr');
-		t.true(/<jta\b[^>]*id="n8"[^>]*xy="170,180"/.test(componentXml), 'jta writes xy attr');
+		t.true(/<movieclip\b[^>]*id="n8"[^>]*xy="170,180"/.test(componentXml), 'movieclip writes xy attr');
 		t.true(/<image\b[^>]*id="n9"[^>]*xy="0,0"/.test(componentXml), 'image writes explicit zero xy attr');
 		t.true(/<text\b[^>]*id="n10"[^>]*xy="0,0"/.test(componentXml), 'text writes explicit zero xy attr');
 		t.true(
@@ -872,7 +886,7 @@ test('round-trip: tag-scoped size survive write→read', async (t) => {
 		t.true(/<list\b[^>]*id="n5"[^>]*size="111,121"/.test(componentXml), 'list writes size attr');
 		t.true(/<loader\b[^>]*id="n6"[^>]*size="131,141"/.test(componentXml), 'loader writes size attr');
 		t.true(/<loader3D\b[^>]*id="n7"[^>]*size="151,161"/.test(componentXml), 'loader3D writes size attr');
-		t.true(/<jta\b[^>]*id="n8"[^>]*size="171,181"/.test(componentXml), 'jta writes size attr');
+		t.true(/<movieclip\b[^>]*id="n8"[^>]*size="171,181"/.test(componentXml), 'movieclip writes size attr');
 
 		const doc2 = await io.readProject(outFairy);
 		const comp2 = doc2

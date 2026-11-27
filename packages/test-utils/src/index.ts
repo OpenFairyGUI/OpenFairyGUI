@@ -284,7 +284,7 @@ export function createMinimalUamProject(projectId: string): UamProject {
 									fillMethod: 0,
 									fillOrigin: 0,
 									fillClockwise: true,
-									fillAmount: 100,
+									fillAmount: 1,
 									resource: { resourceId: 'img001' },
 								},
 								{

@@ -118,7 +118,7 @@ function createEngineeringScaleUamProject(): UamProject {
 									fillMethod: 0,
 									fillOrigin: 0,
 									fillClockwise: true,
-									fillAmount: 100,
+									fillAmount: 1,
 									gears: [
 										{
 											kind: 'look',
@@ -1203,7 +1203,8 @@ test('UAM project lift and materialize preserve list, tree, graph, group, loader
 			.setUrl('ui://pkg-display-nodes/image')
 			.setColor('#abcdef')
 			.setShowErrorSign(true)
-			.setFillAmount(75),
+			.setFillMethod(1)
+			.setFillAmount(0.75),
 	);
 	component.addChild(
 		doc
@@ -1292,7 +1293,7 @@ test('UAM project lift and materialize preserve list, tree, graph, group, loader
 	const loaderNode = nodes.get('loader-node');
 	if (loaderNode?.kind === 'loader') {
 		t.is(loaderNode.customData, 'loader-data');
-		t.is(loaderNode.fillAmount, 75);
+		t.is(loaderNode.fillAmount, 0.75);
 		t.true(loaderNode.showErrorSign);
 	}
 	const loader3DNode = nodes.get('loader3d-node');

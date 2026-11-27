@@ -75,9 +75,10 @@ export function createListDisplayObject(
 	doc: Document,
 	name: string,
 	attrs: DisplayObjectXmlNode,
+	forceTree = false,
 ): ReturnType<Document['createGList']> | ReturnType<Document['createGTree']> {
 	const treeView = readXmlAttr<string | boolean>(attrs, PROJECT_XML_PROTOCOL.list.attrs.treeView);
-	const isTree = treeView !== undefined && parseBool(treeView);
+	const isTree = forceTree || (treeView !== undefined && parseBool(treeView));
 	let g;
 	if (isTree) {
 		g = doc.createGTree(name).setTreeView(true);
@@ -192,23 +193,33 @@ export function createListDisplayObject(
 		if (scrollBarFlags !== undefined) g.setScrollBarFlags(parseInt2(scrollBarFlags));
 		if (margin) {
 			const parts = margin.split(',').map(Number);
-			g.setMargin({
+			if (parts.length === 1) {
+				const inset = parts[0] ?? 0;
+				g.setMargin({ top: inset, bottom: inset, left: inset, right: inset });
+			} else {
+				g.setMargin({
+					top: parts[0] ?? 0,
+					bottom: parts[1] ?? 0,
+					left: parts[2] ?? 0,
+					right: parts[3] ?? 0,
+				});
+			}
+		}
+	}
+	const scrollBarMargin = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarMargin);
+	if (scrollBarMargin) {
+		const parts = scrollBarMargin.split(',').map(Number);
+		if (parts.length === 1) {
+			const inset = parts[0] ?? 0;
+			g.setScrollBarMargin?.({ top: inset, bottom: inset, left: inset, right: inset });
+		} else {
+			g.setScrollBarMargin?.({
 				top: parts[0] ?? 0,
 				bottom: parts[1] ?? 0,
 				left: parts[2] ?? 0,
 				right: parts[3] ?? 0,
 			});
 		}
-	}
-	const scrollBarMargin = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.scrollBarMargin);
-	if (scrollBarMargin) {
-		const parts = scrollBarMargin.split(',').map(Number);
-		g.setScrollBarMargin?.({
-			top: parts[0] ?? 0,
-			bottom: parts[1] ?? 0,
-			left: parts[2] ?? 0,
-			right: parts[3] ?? 0,
-		});
 	}
 	// clipSoftness
 	const clipSoftness = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.list.attrs.clipSoftness);
