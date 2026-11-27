@@ -4,13 +4,19 @@
 
 ## Unreleased
 
+## v0.8.x
+
+### v0.8.0 ([Release](https://github.com/OpenFairyGUI/OpenFairyGUI/releases/tag/v0.8.0))
+
+Fidelity diagnostics and protocol alignment: bounded UAM fidelity failure reports and corpus measurement (`full` share 4/4 / 100.0% across pinned public fixtures), budgeted in-component `queryDisplayNodes` filtering (capability schema 16, non-breaking), `ImageResource.disableTrim`, project XML / V1–V7 binary / publish & restore protocol alignment, and single-trunk release tooling.
+
 Bug Fixes:
 
 - core: Emit canonical `<loader3D>` display-list tags when writing project XML for FairyGUI Desktop compatibility, normalize tag casing across reader paths so both `<loader3D>` and legacy `<loader3d>` remain readable, and synchronize the bilingual XML protocol documentation.
 - core: Formally model, validate, normalize, and round-trip `MovieClipResource` `atlas` texture-set mode (`textureSetMode`) and component-derived node `fileName` hints (`button`, `label`, `comboBox`, `progressBar`, `slider`, `scrollBar`) through UAM, preventing valid projects with those attributes from being falsely marked `uamFidelity: 'unsupported'`.
 - core: Align project XML reading and writing with FairyGUI Desktop Editor protocols (canonical `"true"`/`"false"` booleans, `fillAmount` percentage normalization, graph shape names and single-value margin shorthands, root `<component>` `<relation>` and `customExtention`, and `<loader>`/`<loader3D>` `group` membership) and synchronize bilingual XML docs and generated contracts.
 - core: Align binary package encoding and decoding with the FairyGUI V1–V7 runtime wire protocol across package items, component children, behaviors, gears, transitions, and ComboBox properties, synchronizing bilingual binary-format docs and generated contracts.
-- core, functions, cli: Align publish, atlas, branch, and restore protocols (target-specific atlas rotation direction, folder `folder@atlas` inheritance, `duplicatePadding` border extrusion, fixed-page `multiPage`/branch sharing, standalone `atlas_<itemId>` naming, merged-branch aliases and path templates, plus restore handling for rotated atlases, `!a.png` alpha recombination, and `fileExtension` inference) and synchronize bilingual publish/restore documentation.
+- core, functions, cli: Align publish, atlas, branch, and restore protocols (target-specific atlas rotation direction, folder `folder@atlas` inheritance, `duplicatePadding` border extrusion, fixed-page `multiPage`/branch sharing, standalone `atlas_<itemId>` naming, merged-branch aliases, skeleton dependency override exports and path templates, plus restore handling for rotated atlases, `!a.png` alpha recombination, and `fileExtension` inference) and synchronize bilingual publish/restore documentation.
 
 Features:
 

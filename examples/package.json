@@ -17,9 +17,9 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@openfairygui/core": "0.7.1",
-    "@openfairygui/functions": "0.7.1",
-    "@openfairygui/backend": "0.7.1",
-    "@openfairygui/mcp": "0.7.1"
+    "@openfairygui/core": "0.8.0",
+    "@openfairygui/functions": "0.8.0",
+    "@openfairygui/backend": "0.8.0",
+    "@openfairygui/mcp": "0.8.0"
   }
 }

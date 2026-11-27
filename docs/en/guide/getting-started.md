@@ -163,7 +163,7 @@ console.log(report.projectType, report.totals.packages);
 `Document` is a mutable low-level API; public editing uses UAM transactions. See [Diagnostics and Recovery](./diagnostics.md) for failure handling and the [documentation index](../README.md) for architecture and protocols.
 
 <!-- product-facts:start -->
-Package: `0.7.1` · Backend contract: `3.0.0` · Capability schema: `16`
+Package: `0.8.0` · Backend contract: `3.0.0` · Capability schema: `16`
 
 Operations: 41 · Backend methods: 18 · CLI commands: 16 · Diagnostic codes: 104
 <!-- product-facts:end -->
