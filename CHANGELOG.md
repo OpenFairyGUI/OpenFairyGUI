@@ -12,6 +12,7 @@ Bug Fixes:
 Features:
 
 - backend, workspace: Expose bounded `uamFidelityReport` diagnostics on session snapshots and `readSessionState`, and attach `error.fidelityReport` plus `meta.diagnostics` on `uam_fidelity_unsupported` save/materialization failures (reporting failure reason, paths, line numbers, and bounded excerpts); add `pnpm fidelity:measure` to measure corpus `full` fidelity ratios and output a frequency-ranked difference inventory.
+- backend, mcp: Add the budgeted in-component display-node filter query `queryDisplayNodes` (MCP tool `openfairygui_backend_query_display_nodes`) supporting modeled filters (`kind`, `name`/`nameContains`, `text`/`textContains`, `title`/`titleContains`, `group`, `resourceId`, `url`, `visible`, `locked`, `touchable`, `hasGears`, `hasRelations`), candidate limits (default 50, max 200), and 256 KiB response budgets while keeping exact `displayNodeId` commit requirements; expose it in the evaluation editing host to reduce tool calls on `edit-display-node`-style tasks. Capability schema version is now 16 (`BACKEND_CONTRACT_VERSION` remains `3.0.0`, non-breaking).
 
 Other:
 

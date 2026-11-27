@@ -18,7 +18,7 @@ test('backend responses carry unified diagnostics metadata', async (t) => {
 		t.deepEqual(opened.meta.warnings, []);
 		t.deepEqual(opened.meta.diagnostics, []);
 		t.is(opened.meta.contractVersion, '3.0.0');
-		t.is(opened.meta.capabilitySchemaVersion, 15);
+		t.is(opened.meta.capabilitySchemaVersion, 16);
 
 		const stale = await runtime.applyTransaction({
 			sessionId: opened.data.sessionId,

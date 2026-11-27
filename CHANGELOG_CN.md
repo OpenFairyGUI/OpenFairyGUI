@@ -12,6 +12,7 @@
 新功能：
 
 - backend、workspace：当会话 `uamFidelity` 为 `'unsupported'` 时，通过会话快照、`readSessionState`（`uamFidelityReport`）以及 `uam_fidelity_unsupported` 保存/物化失败的 `error.fidelityReport` 与 `meta.diagnostics` 返回有界差异报告（含失败原因、路径、行号与摘要）；新增 `pnpm fidelity:measure` 语料保真度量脚本，输出 `full` 占比与按频次排序的差异清单。
+- backend、mcp：新增有预算上限的组件内节点筛选查询 `queryDisplayNodes`（MCP 工具 `openfairygui_backend_query_display_nodes`），支持按 `kind`、`name`/`nameContains`、`text`/`textContains`、`title`/`titleContains`、`group`、`resourceId`、`url`、`visible`、`locked`、`touchable`、`hasGears`、`hasRelations` 筛选候选节点并返回精确 ID 与关键属性（默认上限 50、最大 200，256 KiB 响应预算，提交仍需精确 `displayNodeId`），同步接入评测编辑宿主并降低 `edit-display-node` 类任务的工具调用次数。能力 schema 版本提升至 16（`BACKEND_CONTRACT_VERSION` 保持 `3.0.0`，无破坏性变更）。
 
 其他：
 

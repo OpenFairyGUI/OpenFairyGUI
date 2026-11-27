@@ -96,6 +96,12 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 
 `data` 的紧凑 JSON UTF-8 大小不得超过 262144 字节，遍历深度不得超过 32，节点数不得超过 100000；边界已在 `read.entityQuery.limits` 中声明。不截断属性：超限返回 `response_budget_exceeded`，非 JSON 值返回 `non_json_value`，均位于 `entity_query_failed.reason`。预算在克隆前检查，MCP envelope 和文本副本不计入此数据预算。
 
+### 组件内按属性筛选显示节点
+
+需要在一个组件内按已建模属性定位候选显示节点（例如区分多个同名节点）时，调用 `queryDisplayNodes` / `openfairygui_backend_query_display_nodes`，传入 `{ sessionId, selector: { packageId, componentResourceId }, filter?, limit? }`。`filter` 支持的已建模字段在 `read.displayNodeQuery.filterFields` 中声明：`kind`、`name`、`nameContains`、`text`、`textContains`、`title`、`titleContains`、`group`、`resourceId`、`url`、`visible`、`locked`、`touchable`、`hasGears`、`hasRelations`（所有传入条件按逻辑与匹配；省略或空对象返回该组件的全部节点）。
+
+返回结果绑定当前 `revision`，包含 `totalMatched`、`truncated` 以及按 `displayList` 顺序排列的候选摘要 `nodes`（精确 `id`、`name`、`kind`、`index`、`position`、`size`、`visible`、`locked`、`touchable`、`gearCount`、`relationCount`，以及适用的 `group`/`text`/`title`/`resource`/`url`）。默认 `limit` 为 50，上限 200；超过 `limit` 时 `truncated` 为 `true`，但仍不静默截断字段内容。响应数据受 `read.displayNodeQuery.limits`（262144 UTF-8 字节、深度 32、节点 100000）约束，无效查询、目标组件不存在/冲突或超预算复用 `entity_query_failed`；匹配 0 项返回 `ok: true` 与空数组。后续预演与事务提交仍必须使用精确的 `displayNodeId` selector，需要完整 gears/relations 或扩展字段时继续调用 `queryEntity`。
+
 ## 预演一次事务
 
 `preflightTransaction` / `openfairygui_backend_preflight_transaction` 接受与 `applyTransaction` 相同的 `{ sessionId, expectedRevision, operations }`。它不是仅查询支持范围：Backend 的 `AuthoringService` 在现有会话排他队列中检查 revision，深度复制工程和源字节，再调用正式的 `applyUamTransactionAppAsync`，执行后丢弃新工程。
@@ -135,7 +141,7 @@ MCP 服务工厂暴露固定的 Backend 工具目录；发现声明使用已有 
 下表只摘要顶层参数；嵌套字段和具体结果请读取对应 schema。SHA-256 变化表示生成契约发生变化，不等同于包版本号。
 
 <!-- contracts:start -->
-SHA-256: `64a6a6dec406a146f0220fa36bde8124427faf9b98a021f6c00f502ff0c3d022`
+SHA-256: `8a72c99a668c8d19d21d0aba008b46bde71e9b0218e59de1be0935c014f788c3`
 
 | 操作 | 参数（`?` 表示可选） |
 |---|---|
@@ -189,6 +195,7 @@ SHA-256: `64a6a6dec406a146f0220fa36bde8124427faf9b98a021f6c00f502ff0c3d022`
 | `getSession` | `openfairygui_backend_get_session` | `sessionId` | `true` |
 | `getProjectOutline` | `openfairygui_backend_get_project_outline` | `sessionId` | `true` |
 | `queryEntity` | `openfairygui_backend_query_entity` | `sessionId`, `target` | `true` |
+| `queryDisplayNodes` | `openfairygui_backend_query_display_nodes` | `sessionId`, `selector`, `filter?`, `limit?` | `true` |
 | `readSessionState` | `openfairygui_backend_read_session_state` | `sessionId`, `expectedRevision?` | `true` |
 | `readResourceBytes` | `openfairygui_backend_read_resource_bytes` | `sessionId`, `expectedRevision`, `selector` | `true` |
 | `validateSession` | `openfairygui_backend_validate_session` | `sessionId` | `true` |

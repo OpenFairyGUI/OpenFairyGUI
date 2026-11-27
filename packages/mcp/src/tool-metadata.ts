@@ -84,6 +84,14 @@ export const OPENFAIRYGUI_BACKEND_TOOL_METADATA = [
 		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 	},
 	{
+		name: 'openfairygui_backend_query_display_nodes',
+		backendMethod: 'queryDisplayNodes',
+		title: 'Query Display Nodes in Component',
+		description:
+			'Filter display nodes within one component by modeled properties (kind, name, nameContains, text, textContains, title, titleContains, group, resourceId, url, visible, locked, touchable, hasGears, hasRelations) with an explicit limit (default 50, max 200) and response byte budget. Returns matching displayNode IDs, displayList indices, and key summary properties at the current revision; mutations still require exact displayNodeId selectors.',
+		annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+	},
+	{
 		name: 'openfairygui_backend_read_session_state',
 		backendMethod: 'readSessionState',
 		title: 'Read Session State',

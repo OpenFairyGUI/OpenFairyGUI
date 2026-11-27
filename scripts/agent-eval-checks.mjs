@@ -8,6 +8,7 @@ export const EVAL_METHODS = [
 	'getSession',
 	'getProjectOutline',
 	'queryEntity',
+	'queryDisplayNodes',
 	'validateSession',
 	'preflightTransaction',
 	'applyTransaction',
