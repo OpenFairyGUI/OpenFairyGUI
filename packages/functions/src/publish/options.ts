@@ -133,9 +133,13 @@ export function resolvePublishAtlasRuntimeOptions(fileExtension: string): Publis
 	};
 }
 
-export function resolvePublishFileName(publishName: string, fileExtension: string): string {
-	if (fileExtension === 'bytes') {
-		return `${publishName}_fui.bytes`;
+export function resolvePublishFileName(publishName: string, fileExtension: string, projectType?: number): string {
+	const useUnitySuffix =
+		projectType !== undefined
+			? projectType === UNITY_PROJECT_TYPE && fileExtension === 'bytes'
+			: fileExtension === 'bytes';
+	if (useUnitySuffix) {
+		return `${publishName}_fui.${fileExtension}`;
 	}
 	return `${publishName}.${fileExtension}`;
 }

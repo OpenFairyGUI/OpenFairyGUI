@@ -39,12 +39,14 @@ import {
 
 export interface RestoreImageCropInput {
 	sourcePath: string;
+	alphaSourcePath?: string;
 	outputPath: string;
 	left: number;
 	top: number;
 	width: number;
 	height: number;
 	rotated: boolean;
+	clockwiseRotated?: boolean;
 	offsetX: number;
 	offsetY: number;
 	expectedWidth: number;
@@ -103,6 +105,18 @@ function inferPackageName(fileName: string): string {
 	if (/_fui\.bytes$/i.test(fileName)) return fileName.replace(/_fui\.bytes$/i, '');
 	if (/\.fui$/i.test(fileName)) return fileName.replace(/\.fui$/i, '');
 	return fileName.replace(/\.bin$/i, '');
+}
+
+function inferPublishedFileExtension(binaryPaths: string[], projectType: number): string {
+	for (const binaryPath of binaryPaths) {
+		const name = basename(binaryPath);
+		if (/_fui\.bytes$/i.test(name)) return 'bytes';
+		if (/\.fui$/i.test(name)) return 'fui';
+		if (/\.bin$/i.test(name)) return 'bin';
+	}
+	if (projectType === ProjectType.Unity) return 'bytes';
+	if (projectType === ProjectType.CocosCreator) return 'bin';
+	return 'fui';
 }
 
 export async function restore(options: RestoreOptions): Promise<RestoreResult> {
@@ -177,7 +191,7 @@ class RestoreWorkflow {
 		const reader = new BinaryReader(this._fs);
 		const doc = await reader.readMany(options.binaryPaths);
 		assertDocumentPaths(doc);
-		this._initializeProjectDefaults(doc, options.projectType);
+		this._initializeProjectDefaults(doc, options.projectType, options.binaryPaths);
 		this._initializeImageFileNames(doc);
 		this._initializeLooseResourceFileNames(doc);
 		assertDocumentPaths(doc);
@@ -199,15 +213,16 @@ class RestoreWorkflow {
 		await restoreAssets(this._fs, doc, options, warnings);
 	}
 
-	private _initializeProjectDefaults(doc: Document, projectType?: number): void {
+	private _initializeProjectDefaults(doc: Document, projectType?: number, binaryPaths: string[] = []): void {
+		const resolvedProjectType = projectType ?? ProjectType.Unity;
 		doc.getRoot()
 			.setProjectId(generateId())
-			.setProjectType(projectType ?? ProjectType.Unity)
+			.setProjectType(resolvedProjectType)
 			.setVersion('3.0')
 			.setSettings({
 				publish: {
 					binaryFormat: true,
-					fileExtension: 'bytes',
+					fileExtension: inferPublishedFileExtension(binaryPaths, resolvedProjectType),
 					compressDesc: false,
 				},
 				common: {},
@@ -240,6 +255,7 @@ class RestoreWorkflow {
 			for (const resource of pkg.listResources()) {
 				if (
 					resource.propertyType !== 'MiscResource' &&
+					resource.propertyType !== 'SwfResource' &&
 					resource.propertyType !== 'SpineResource' &&
 					resource.propertyType !== 'DragonBonesResource' &&
 					resource.propertyType !== 'SoundResource'

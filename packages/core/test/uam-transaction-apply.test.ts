@@ -525,6 +525,20 @@ test('resource folder atlas supports projected slots, inverse, both apply paths,
 	t.is(expanded.packages[0]?.publish?.maxAtlasIndex, 12);
 	t.is(expanded.packages[0]?.folders.find((folder) => folder.path === '/images/')?.atlas, '12');
 
+	for (const standaloneAtlas of ['alone', 'alone_npot', 'alone_mof']) {
+		t.deepEqual(
+			validateTransactionSupport(project, [
+				{
+					kind: 'setResourceFolderAtlas',
+					selector: { packageId: 'pkg001', path: '/images/' },
+					atlas: standaloneAtlas,
+				},
+			]),
+			[],
+			`folder atlas accepts ${standaloneAtlas}`,
+		);
+	}
+
 	for (const atlas of ['atlas0', '01', '11']) {
 		const issues = validateTransactionSupport(project, [
 			{

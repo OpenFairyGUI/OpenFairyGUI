@@ -5,7 +5,7 @@ import type { Document } from '../document.js';
 import type { Atlas } from '../properties/atlas.js';
 import type { Package } from '../properties/package.js';
 import type { ImageResource } from '../properties/image-resource.js';
-import { FGUI_MAGIC } from '../constants.js';
+import { FGUI_MAGIC, ProjectType } from '../constants.js';
 import { WriteBuffer } from './write-buffer.js';
 import { encodeComponent } from './component-encoder.js';
 import type { FileSystem } from './file-system.js';
@@ -217,6 +217,11 @@ export class BinaryWriter {
 		const compressed = options.compressed ?? false;
 		const packageId = pkg.getId();
 		const packageName = pkg.getName();
+		const projectType = doc.getRoot().getProjectType();
+		const clockwiseAtlasRotation =
+			projectType === ProjectType.CocosCreator ||
+			projectType === ProjectType.Cocos2dx ||
+			projectType === ProjectType.Egret;
 
 		// --- Phase 1: collect all strings and build blocks into a data buffer ---
 		const data = new WriteBuffer(65536);
@@ -537,7 +542,13 @@ export class BinaryWriter {
 			// v2 extra fields per item
 			if (version >= 2) {
 				const branchName = includeBranches ? getItemBranchName(res) : '';
-				const branchItemIds = includeBranches ? getItemBranchItemIds(res, branchNames, branchItemIdsMap) : [];
+				const branchItemIds = includeBranches
+					? getItemBranchItemIds(res, branchNames, branchItemIdsMap)
+					: 'getId' in res &&
+							typeof res.getId === 'function' &&
+							res.getId() !== getPublishedItemId(res, context)
+						? [res.getId()]
+						: [];
 				data.writeSEx(branchName || null);
 				data.writeUint8(branchItemIds.length);
 				for (const branchItemId of branchItemIds) {
@@ -584,14 +595,16 @@ export class BinaryWriter {
 				// - trimmed sprites keep offset + original size
 				// - fully transparent direct-output package items keep a 0x0 rect with original size
 				// - generated movieclip frame sprites only emit this payload when they carry trim offsets
-				const originalWidth = ow || (sp.rotated ? sp.h : sp.w);
-				const originalHeight = oh || (sp.rotated ? sp.w : sp.h);
+				const unrotatedWidth = sp.rotated && !clockwiseAtlasRotation ? sp.h : sp.w;
+				const unrotatedHeight = sp.rotated && !clockwiseAtlasRotation ? sp.w : sp.h;
+				const originalWidth = ow || unrotatedWidth;
+				const originalHeight = oh || unrotatedHeight;
 				const hasOriginal =
 					(isPackageItemSprite && sp.rotated) ||
 					ox !== 0 ||
 					oy !== 0 ||
-					originalWidth !== (sp.rotated ? sp.h : sp.w) ||
-					originalHeight !== (sp.rotated ? sp.w : sp.h) ||
+					originalWidth !== unrotatedWidth ||
+					originalHeight !== unrotatedHeight ||
 					isZeroSizedDirectOutput;
 				data.writeBool(hasOriginal);
 				if (hasOriginal) {
@@ -942,6 +955,8 @@ function getItemHighResolutionItemIds(
 }
 
 function getAtlasId(atlas: Atlas): string {
+	const name = atlas.getName()?.trim();
+	if (name && /^atlas(?:_[^\s]+|\d+)$/u.test(name)) return name;
 	return `atlas${atlas.getIndex()}`;
 }
 

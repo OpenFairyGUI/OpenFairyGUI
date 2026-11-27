@@ -2634,6 +2634,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		"UamMovieClipResourceProperties_7891e3deb2": {
 			"type": "object",
 			"properties": {
+				"textureSetMode": {
+					"type": "string"
+				},
 				"interval": {
 					"type": "number"
 				},
@@ -3079,6 +3082,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"customData": {
 					"type": "string"
 				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29"
+				},
 				"displayList": {
 					"$ref": "#/$defs/Array_467ca5fd71"
 				},
@@ -3388,6 +3394,32 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
+		"Array_9d4803aa29": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamRelation_05734287d5"
+			}
+		},
+		"UamRelation_05734287d5": {
+			"type": "object",
+			"properties": {
+				"targetNodeId": {
+					"type": "string"
+				},
+				"type": {
+					"type": "number"
+				},
+				"usePercent": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"targetNodeId",
+				"type",
+				"usePercent"
+			],
+			"additionalProperties": false
+		},
 		"Array_467ca5fd71": {
 			"type": "array",
 			"items": {
@@ -3462,6 +3494,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"resource": {
 					"$ref": "#/$defs/UamResourceRef_3486136f6c"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"group": {
 					"type": "string"
 				},
@@ -3524,9 +3559,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -3610,32 +3652,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			},
 			"required": [
 				"resourceId"
-			],
-			"additionalProperties": false
-		},
-		"Array_9d4803aa29": {
-			"type": "array",
-			"items": {
-				"$ref": "#/$defs/UamRelation_05734287d5"
-			}
-		},
-		"UamRelation_05734287d5": {
-			"type": "object",
-			"properties": {
-				"targetNodeId": {
-					"type": "string"
-				},
-				"type": {
-					"type": "number"
-				},
-				"usePercent": {
-					"type": "boolean"
-				}
-			},
-			"required": [
-				"targetNodeId",
-				"type",
-				"usePercent"
 			],
 			"additionalProperties": false
 		},
@@ -4670,9 +4686,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -4888,9 +4911,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -5109,9 +5139,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -5350,9 +5387,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -5803,9 +5847,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -6107,9 +6158,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -6361,9 +6419,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -6533,9 +6598,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -6620,6 +6692,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pivot": {
 					"$ref": "#/$defs/UamPoint_600bb96bb9"
 				},
+				"group": {
+					"type": "string"
+				},
 				"id": {
 					"type": "string"
 				},
@@ -6676,9 +6751,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -6748,6 +6830,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"required": [
 				"kind",
 				"pivot",
+				"group",
 				"id",
 				"name",
 				"position",
@@ -6795,6 +6878,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"kind": {
 					"type": "string",
 					"const": "loader3D"
+				},
+				"group": {
+					"type": "string"
 				},
 				"id": {
 					"type": "string"
@@ -6855,9 +6941,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -6917,6 +7010,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			},
 			"required": [
 				"kind",
+				"group",
 				"id",
 				"name",
 				"position",
@@ -7030,9 +7124,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -7145,6 +7246,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -7213,9 +7317,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -7306,6 +7417,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -7374,9 +7488,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -7466,6 +7587,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"popupDirection": {
 					"type": "number"
 				},
+				"selectionController": {
+					"type": "string"
+				},
 				"title": {
 					"type": "string"
 				},
@@ -7485,6 +7609,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "number"
 				},
 				"pageController": {
+					"type": "string"
+				},
+				"fileName": {
 					"type": "string"
 				},
 				"src": {
@@ -7555,9 +7682,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -7649,6 +7783,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -7717,9 +7854,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -7800,6 +7944,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -7868,9 +8015,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -7937,6 +8091,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -8005,9 +8162,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -8738,9 +8902,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -12815,6 +12986,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"unsupported"
 					]
 				},
+				"uamFidelityReport": {
+					"$ref": "#/$defs/UamFidelityReport_aee071a4e7_wire"
+				},
 				"lockHeld": {
 					"type": "boolean"
 				},
@@ -12831,6 +13005,80 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"uamFidelity",
 				"lockHeld",
 				"capabilities"
+			],
+			"additionalProperties": false
+		},
+		"UamFidelityReport_aee071a4e7_wire": {
+			"type": "object",
+			"properties": {
+				"reason": {
+					"enum": [
+						"incomplete_read",
+						"materialize_failed",
+						"round_trip_mismatch"
+					]
+				},
+				"errorMessage": {
+					"type": "string"
+				},
+				"totalDiffCount": {
+					"type": "number"
+				},
+				"diffs": {
+					"$ref": "#/$defs/Array_c1dbe9d153_wire"
+				},
+				"truncated": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"reason",
+				"totalDiffCount",
+				"diffs",
+				"truncated"
+			],
+			"additionalProperties": false
+		},
+		"Array_c1dbe9d153_wire": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamFidelityDiffEntry_45527c2258_wire"
+			}
+		},
+		"UamFidelityDiffEntry_45527c2258_wire": {
+			"type": "object",
+			"properties": {
+				"path": {
+					"type": "string"
+				},
+				"kind": {
+					"enum": [
+						"file",
+						"directory"
+					]
+				},
+				"change": {
+					"enum": [
+						"missing",
+						"extra",
+						"modified",
+						"type_mismatch"
+					]
+				},
+				"line": {
+					"type": "number"
+				},
+				"sourceExcerpt": {
+					"type": "string"
+				},
+				"materializedExcerpt": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"path",
+				"kind",
+				"change"
 			],
 			"additionalProperties": false
 		},
@@ -14573,6 +14821,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		"UamMovieClipResourceProperties_7891e3deb2_wire": {
 			"type": "object",
 			"properties": {
+				"textureSetMode": {
+					"type": "string"
+				},
 				"interval": {
 					"type": "number"
 				},
@@ -15144,6 +15395,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"resource": {
 					"$ref": "#/$defs/UamResourceRef_3486136f6c_wire"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"group": {
 					"type": "string"
 				},
@@ -15206,9 +15460,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -16352,9 +16613,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -16570,9 +16838,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -16791,9 +17066,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -17032,9 +17314,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -17485,9 +17774,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -17789,9 +18085,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -18043,9 +18346,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -18215,9 +18525,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -18302,6 +18619,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pivot": {
 					"$ref": "#/$defs/UamPoint_600bb96bb9_wire"
 				},
+				"group": {
+					"type": "string"
+				},
 				"id": {
 					"type": "string"
 				},
@@ -18358,9 +18678,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -18430,6 +18757,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"required": [
 				"kind",
 				"pivot",
+				"group",
 				"id",
 				"name",
 				"position",
@@ -18477,6 +18805,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"kind": {
 					"type": "string",
 					"const": "loader3D"
+				},
+				"group": {
+					"type": "string"
 				},
 				"id": {
 					"type": "string"
@@ -18537,9 +18868,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -18599,6 +18937,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			},
 			"required": [
 				"kind",
+				"group",
 				"id",
 				"name",
 				"position",
@@ -18712,9 +19051,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -18827,6 +19173,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -18895,9 +19244,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -18988,6 +19344,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -19056,9 +19415,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -19148,6 +19514,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"popupDirection": {
 					"type": "number"
 				},
+				"selectionController": {
+					"type": "string"
+				},
 				"title": {
 					"type": "string"
 				},
@@ -19167,6 +19536,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "number"
 				},
 				"pageController": {
+					"type": "string"
+				},
+				"fileName": {
 					"type": "string"
 				},
 				"src": {
@@ -19237,9 +19609,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -19331,6 +19710,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -19399,9 +19781,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -19482,6 +19871,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -19550,9 +19942,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -19619,6 +20018,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -19687,9 +20089,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -20442,6 +20851,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"full",
 						"unsupported"
 					]
+				},
+				"uamFidelityReport": {
+					"$ref": "#/$defs/UamFidelityReport_aee071a4e7_wire"
 				}
 			},
 			"required": [
@@ -20583,6 +20995,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"customData": {
 					"type": "string"
+				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_wire"
 				},
 				"displayList": {
 					"$ref": "#/$defs/Array_467ca5fd71_wire"
@@ -22010,6 +22425,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"unsupported"
 					]
 				},
+				"uamFidelityReport": {
+					"$ref": "#/$defs/UamFidelityReport_aee071a4e7_wire"
+				},
 				"lockHeld": {
 					"type": "boolean"
 				},
@@ -22183,6 +22601,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"canonicalPathKey": {
 					"type": "string"
+				},
+				"fidelityReport": {
+					"$ref": "#/$defs/UamFidelityReport_aee071a4e7_wire"
 				}
 			},
 			"required": [
@@ -22914,6 +23335,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"customData": {
 					"type": "string"
 				},
+				"relations": {
+					"$ref": "#/$defs/Array_9d4803aa29_read"
+				},
 				"displayList": {
 					"$ref": "#/$defs/Array_467ca5fd71_read"
 				},
@@ -23223,6 +23647,32 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": true
 		},
+		"Array_9d4803aa29_read": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamRelation_05734287d5_read"
+			}
+		},
+		"UamRelation_05734287d5_read": {
+			"type": "object",
+			"properties": {
+				"targetNodeId": {
+					"type": "string"
+				},
+				"type": {
+					"type": "number"
+				},
+				"usePercent": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"targetNodeId",
+				"type",
+				"usePercent"
+			],
+			"additionalProperties": true
+		},
 		"Array_467ca5fd71_read": {
 			"type": "array",
 			"items": {
@@ -23297,6 +23747,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"resource": {
 					"$ref": "#/$defs/UamResourceRef_3486136f6c_read"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"group": {
 					"type": "string"
 				},
@@ -23359,9 +23812,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -23459,32 +23919,6 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": true
 				}
 			]
-		},
-		"Array_9d4803aa29_read": {
-			"type": "array",
-			"items": {
-				"$ref": "#/$defs/UamRelation_05734287d5_read"
-			}
-		},
-		"UamRelation_05734287d5_read": {
-			"type": "object",
-			"properties": {
-				"targetNodeId": {
-					"type": "string"
-				},
-				"type": {
-					"type": "number"
-				},
-				"usePercent": {
-					"type": "boolean"
-				}
-			},
-			"required": [
-				"targetNodeId",
-				"type",
-				"usePercent"
-			],
-			"additionalProperties": true
 		},
 		"Array_aa00fd9a0a_read": {
 			"type": "array",
@@ -24517,9 +24951,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -24735,9 +25176,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -24956,9 +25404,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -25197,9 +25652,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -25650,9 +26112,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -25969,9 +26438,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -26223,9 +26699,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -26413,9 +26896,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -26500,6 +26990,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pivot": {
 					"$ref": "#/$defs/UamPoint_600bb96bb9_read"
 				},
+				"group": {
+					"type": "string"
+				},
 				"id": {
 					"type": "string"
 				},
@@ -26556,9 +27049,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -26628,6 +27128,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			"required": [
 				"kind",
 				"pivot",
+				"group",
 				"id",
 				"name",
 				"position",
@@ -26675,6 +27176,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"kind": {
 					"type": "string",
 					"const": "loader3D"
+				},
+				"group": {
+					"type": "string"
 				},
 				"id": {
 					"type": "string"
@@ -26735,9 +27239,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -26797,6 +27308,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			},
 			"required": [
 				"kind",
+				"group",
 				"id",
 				"name",
 				"position",
@@ -26910,9 +27422,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -27025,6 +27544,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -27093,9 +27615,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -27186,6 +27715,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -27254,9 +27786,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -27346,6 +27885,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"popupDirection": {
 					"type": "number"
 				},
+				"selectionController": {
+					"type": "string"
+				},
 				"title": {
 					"type": "string"
 				},
@@ -27365,6 +27907,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "number"
 				},
 				"pageController": {
+					"type": "string"
+				},
+				"fileName": {
 					"type": "string"
 				},
 				"src": {
@@ -27435,9 +27980,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -27529,6 +28081,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -27597,9 +28152,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -27680,6 +28242,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -27748,9 +28313,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -27817,6 +28389,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -27885,9 +28460,16 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"add",
 						"none",
 						"normal",
+						"off",
+						"mask",
 						"multiply",
 						"screen",
-						"erase"
+						"erase",
+						"below",
+						"one_oneminussrcalpha",
+						"custom1",
+						"custom2",
+						"custom3"
 					]
 				},
 				"filter": {
@@ -28384,6 +28966,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		"UamMovieClipResourceProperties_7891e3deb2_read": {
 			"type": "object",
 			"properties": {
+				"textureSetMode": {
+					"type": "string"
+				},
 				"interval": {
 					"type": "number"
 				},
@@ -29558,6 +30143,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"unsupported"
 					]
 				},
+				"uamFidelityReport": {
+					"$ref": "#/$defs/UamFidelityReport_aee071a4e7"
+				},
 				"lockHeld": {
 					"type": "boolean"
 				},
@@ -29574,6 +30162,80 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"uamFidelity",
 				"lockHeld",
 				"capabilities"
+			],
+			"additionalProperties": false
+		},
+		"UamFidelityReport_aee071a4e7": {
+			"type": "object",
+			"properties": {
+				"reason": {
+					"enum": [
+						"incomplete_read",
+						"materialize_failed",
+						"round_trip_mismatch"
+					]
+				},
+				"errorMessage": {
+					"type": "string"
+				},
+				"totalDiffCount": {
+					"type": "number"
+				},
+				"diffs": {
+					"$ref": "#/$defs/Array_c1dbe9d153"
+				},
+				"truncated": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"reason",
+				"totalDiffCount",
+				"diffs",
+				"truncated"
+			],
+			"additionalProperties": false
+		},
+		"Array_c1dbe9d153": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamFidelityDiffEntry_45527c2258"
+			}
+		},
+		"UamFidelityDiffEntry_45527c2258": {
+			"type": "object",
+			"properties": {
+				"path": {
+					"type": "string"
+				},
+				"kind": {
+					"enum": [
+						"file",
+						"directory"
+					]
+				},
+				"change": {
+					"enum": [
+						"missing",
+						"extra",
+						"modified",
+						"type_mismatch"
+					]
+				},
+				"line": {
+					"type": "number"
+				},
+				"sourceExcerpt": {
+					"type": "string"
+				},
+				"materializedExcerpt": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"path",
+				"kind",
+				"change"
 			],
 			"additionalProperties": false
 		},
@@ -31857,6 +32519,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"unsupported"
 					]
 				},
+				"uamFidelityReport": {
+					"$ref": "#/$defs/UamFidelityReport_aee071a4e7"
+				},
 				"lockHeld": {
 					"type": "boolean"
 				},
@@ -32030,6 +32695,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"canonicalPathKey": {
 					"type": "string"
+				},
+				"fidelityReport": {
+					"$ref": "#/$defs/UamFidelityReport_aee071a4e7"
 				}
 			},
 			"required": [
@@ -34557,7 +35225,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"remediation": {
 				"kind": "host-action",
-				"message": "Read capability/error details. Ask the host to provide the required filesystem, decoder or complete UAM adapter. Preserve the session and unsaved work; do not substitute a lossy path or bypass checks."
+				"message": "Inspect uamFidelityReport on the session snapshot or error.fidelityReport and meta.diagnostics for the failure reason and differing project paths. Preserve the session and unsaved work; do not substitute a lossy save path or bypass fidelity checks."
 			}
 		},
 		{
@@ -34611,5 +35279,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "8a72c99a668c8d19d21d0aba008b46bde71e9b0218e59de1be0935c014f788c3"
+	"digest": "deb8cc553490232c328aa82d133b77b8bee1deade809382e833e2e435300fa4a"
 };

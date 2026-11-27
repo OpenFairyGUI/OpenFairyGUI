@@ -177,6 +177,7 @@ Writer 对协议中的 `uint8 / int8 / uint16 / int16 / uint32 / int32`、UTFStr
 
 说明：
 - `require`、`atlasNames` 等工程资源层字段不直接写入 package item 数据段。
+- 仅被 skeleton `require` 引用的依赖资源（如 `.atlas`、`_tex.json`、`.png`）作为磁盘 sidecar 文件导出，**不写入** Block 1（除非该资源自身独立导出或被其他组件引用）。
 - 运行时通过 `file` 和 `skeletonAnchor` 完成 skeleton 资源定位与对齐。
 
 ### `file` 的发布语义
@@ -188,19 +189,20 @@ Writer 对协议中的 `uint8 / int8 / uint16 / int16 / uint32 / int32`、UTFStr
 | `Atlas` / `Sound` / `Misc` / `Swf` | 指向发布后的附属资源文件名；运行时按目标规则添加包资源前缀 |
 | `Spine` / `DragonBones` | 指向发布后的 skeleton 主资源文件名；运行时再按该路径加载对应资源 |
 
-`Sound` / `Misc` / `Swf` 的 `file` 使用发布 item id 加源扩展名。Unity 中 `.atlas` 额外追加 `.txt`。例如 item id 为 `biss7` 的 `hero.json` 写为 `biss7.json`，其实际附属文件按运行时约定带包发布名前缀。`Swf` 使用 item 类型码 `6`。
+独立发布的 `Sound` / `Misc` / `Swf` 的 `file` 使用发布 item id 加源扩展名。Unity 中 `.atlas` 额外追加 `.txt`。例如独立导出的 item id 为 `biss7` 的 `hero.json` 写为 `biss7.json`，其实际附属文件按运行时约定带包发布名前缀。`Swf` 使用 item 类型码 `6`。
 
-当前 Unity 发布侧的 `Spine` 主资源与依赖资源命名规则如下：
+Unity 发布侧的 `Spine` / `DragonBones` 主资源与 `require` sidecar 命名规则如下：
 
 | 工程资源文件 | 发布结果 |
 |---|---|
 | `*.skel` | `*.skel.bytes` |
-| `*.atlas`（`Misc` 依赖） | `<item-id>.atlas.txt` |
-| `*.png` | 保持原文件名 |
+| `*.atlas`（skeleton `require` sidecar） | 保持原文件名并追加 `.txt`（如 `alien-pma.atlas.txt`，无包前缀、不按 item id 改名） |
+| `*_ske.json` / `*_tex.json`（skeleton `require` sidecar） | 保持原文件名（无包前缀、不按 item id 改名） |
+| `*.png`（skeleton `require` sidecar） | 保持原文件名 |
 
-非 Unity 项目的 skeleton 主资源保持目标所需文件名；作为 `Misc` 发布的依赖仍使用 `<item-id><源扩展名>`。
+非 Unity 项目的 skeleton 主资源与 `require` sidecar 均保持原文件名（不追加 `.bytes` / `.txt`，无包前缀，也不写入 Block 1）。
 
-当发布设置启用“分支 atlas 单独输出”时，atlas 条目的 `file` 会写成分支后缀形式，例如 `atlas0_dev.png`。主干 atlas 仍写 `atlas0.png`。
+当发布设置启用“分支 atlas 单独输出”时，atlas 条目的 `file` 会写成分支后缀形式，例如 `atlas0_dev.png`。主干 atlas 仍写 `atlas0.png`。独立图集（`alone` / `alone_npot` / `alone_mof`）的 Block 1 `id` 为 `atlas_<itemId>`。
 
 `DragonBones` 主文件保持目标所需文件名；其 `Misc` 依赖按发布 item id 命名，图片依赖保持图片发布名。
 
@@ -211,7 +213,7 @@ Writer 对协议中的 `uint8 / int8 / uint16 / int16 / uint32 / int32`、UTFStr
 | 字段 | 协议说明 |
 |---|---|
 | branch name | 当前条目所属分支名；主分支条目写 `null` |
-| branchCount | 分支映射数量；当包启用分支表（`branchIncluded=true`）时，主条目按包级 branch 顺序写分支变体 item id 列表；当 `branchIncluded=false`（独立合并分支包）且存在分支覆写别名时，`branchCount=1` 并跟单个原分支 item id 别名 |
+| branchCount | 分支映射数量；当包启用分支表（`branchIncluded=true`）时，主条目按包级 branch 顺序写分支变体 item id 列表；合并分支发布（`branchProcessing = 1`，`branchIncluded=false`）时，由活跃分支覆写的条目写 `1` 及原分支 item id 别名 |
 | highResCount | 高分辨率变体槽位数量；后续按 `@2x`、`@3x`、`@4x` 顺序写 package item id |
 
 说明：
@@ -219,7 +221,7 @@ Writer 对协议中的 `uint8 / int8 / uint16 / int16 / uint32 / int32`、UTFStr
 - branch 变体条目自身只写 `branch name`，不再继续嵌套 `branchCount` 映射。
 - 高分辨率列表只引用已经发布为 package item 的 `image` / `movieclip` 资源，不在发布期主动放大原始位图。
 - 当中间倍率缺失但后续倍率存在时，对应槽位写 `null`；尾部缺失槽位省略。
-- 当发布模式为 `主干合并活跃分支` 时，包级 `branchCount` 写 `0`，各 item 的 `branch name` 写 `null`；若某主条目由分支覆写而来，运行时协议支持 `branchCount=1` 加原分支 item id 别名供按旧 ID 寻址。
+- 当发布模式为 `主干合并活跃分支` 时，发布结果已经完成分支替换，包级 `branchCount` 写 `0`，各 item 的 `branch name` 写 `null`；由活跃分支覆写的条目写 `branchCount = 1` + 原分支 item id（供运行时将分支 ID 别名映射回合并后的主干 ID），未覆写条目写 `branchCount = 0`。
 - 当发布模式保留分支且 atlas 单独输出时，分支 atlas 可以使用独立 atlas 条目；当前编辑器样本中分支 atlas 的 index 使用 `100 + pageIndex`。
 
 ## Block 2：Sprites
@@ -230,7 +232,7 @@ Writer 对协议中的 `uint8 / int8 / uint16 / int16 / uint32 / int32`、UTFStr
 | 基础字段 | `itemId`、`atlasId`、`x`、`y`、`w`、`h`、`rotated` |
 | 条件附加字段 | `offsetX`、`offsetY`、`originalWidth`、`originalHeight` |
 
-该 block 用于描述资源在 atlas 中的裁切矩形与原始尺寸信息。当 offset 非零、旋转、零尺寸直出，或原始尺寸与裁切矩形不同时，附加段存在；因此仅裁掉右侧/下侧且 offset 为 `0` 的 sprite 仍会保留 `originalWidth` / `originalHeight`。
+该 block 用于描述资源在 atlas 中的裁切矩形与原始尺寸信息。旋转图集按目标引擎区分方向：Unity 等目标采用 `rotationDir = 0`（像素逆时针旋转 `-90°`，`w`/`h` 记录旋转后的图集宽高）；CocosCreator / Cocos2dx / Egret 采用 `rotationDir = 1`（像素顺时针旋转 `+90°`，`w`/`h` 记录旋转前的逻辑宽高）。当 offset 非零、旋转、零尺寸直出，或原始尺寸与未旋转裁切矩形不同时，附加段存在；因此仅裁掉右侧/下侧且 offset 为 `0` 的 sprite 仍会保留 `originalWidth` / `originalHeight`。
 
 ## Block 3：Pixel Hit Test
 

@@ -179,6 +179,7 @@ Bitmap glyph image references must resolve in the same package's resource and sp
 Notes:
 
 - Project resource fields such as `require` and `atlasNames` are not written directly into the package-item segment.
+- Dependencies referenced only via skeleton `require` (such as `.atlas`, `_tex.json`, and `.png`) are exported as loose sidecar files on disk and are **not** written into Block 1 unless independently exported or referenced by another component.
 - The runtime locates and aligns a skeleton resource through `file` and `skeletonAnchor`.
 
 ### Publish semantics of `file`
@@ -190,19 +191,20 @@ Notes:
 | `Atlas` / `Sound` / `Misc` / `Swf` | Published auxiliary-resource filename; the runtime adds the package asset prefix required by the target |
 | `Spine` / `DragonBones` | Published primary skeleton-resource filename, which the runtime uses to load the corresponding resource |
 
-For `Sound` / `Misc` / `Swf`, `file` is the published item ID plus the source extension. Unity additionally appends `.txt` to `.atlas`. For example, `hero.json` with item ID `biss7` is stored as `biss7.json`; its physical auxiliary file carries the package publish-name prefix expected by the runtime. `Swf` uses item type code `6`.
+For independently published `Sound` / `Misc` / `Swf` items, `file` is the published item ID plus the source extension. Unity additionally appends `.txt` to `.atlas`. For example, an independently exported `hero.json` with item ID `biss7` is stored as `biss7.json`; its physical auxiliary file carries the package publish-name prefix expected by the runtime. `Swf` uses item type code `6`.
 
-Current Unity naming for `Spine` primary and dependent resources is:
+Unity naming for `Spine` / `DragonBones` primary files and `require` sidecars is:
 
 | Project resource file | Published result |
 |---|---|
 | `*.skel` | `*.skel.bytes` |
-| `*.atlas` (`Misc` dependency) | `<item-id>.atlas.txt` |
-| `*.png` | Original filename retained |
+| `*.atlas` (skeleton `require` sidecar) | Original filename with `.txt` appended (e.g. `alien-pma.atlas.txt`, no package prefix and no item-id rename) |
+| `*_ske.json` / `*_tex.json` (skeleton `require` sidecar) | Original filename retained (no package prefix and no item-id rename) |
+| `*.png` (skeleton `require` sidecar) | Original filename retained |
 
-Non-Unity primary skeleton files retain the filename required by their target; dependencies published as `Misc` still use `<item-id><source-extension>`.
+Non-Unity skeleton primary files and `require` sidecars retain their original filenames (no `.bytes` / `.txt` suffix, no package prefix, and excluded from Block 1).
 
-When publish settings enable separate branch atlases, an atlas item's `file` contains a branch suffix, such as `atlas0_dev.png`. The main atlas remains `atlas0.png`.
+When publish settings enable separate branch atlases, an atlas item's `file` contains a branch suffix, such as `atlas0_dev.png`. The main atlas remains `atlas0.png`. Standalone atlases (`alone`, `alone_npot`, `alone_mof`) use Block 1 item ID `atlas_<itemId>`.
 
 The `DragonBones` primary file retains the filename required by its target. `Misc` dependencies use their published item IDs, while image dependencies retain their published image names.
 
@@ -213,7 +215,7 @@ The end of an item contains conditional data:
 | Field | Protocol |
 |---|---|
 | branch name | Branch containing the current item; a main-branch item writes `null` |
-| branchCount | Number of branch mappings. When the package has a branch table (`branchIncluded=true`), a main item writes branch-variant item IDs in package-level branch order. When `branchIncluded=false` (merged standalone branch package) and an item carries a branch override alias, `branchCount=1` is followed by a single original branch item ID alias. |
+| branchCount | Number of branch mappings. When the package has a branch table (`branchIncluded=true`), a main item writes branch-variant item IDs in package-level branch order. In merged active-branch mode (`branchProcessing = 1`, `branchIncluded=false`), an item overridden by the active branch writes `1` followed by its original branch item ID alias. |
 | highResCount | Number of high-resolution variant slots, followed by package item IDs in `@2x`, `@3x`, `@4x` order |
 
 Notes:
@@ -222,7 +224,7 @@ Notes:
 - A branch variant item writes only its branch name and does not recursively contain another `branchCount` mapping.
 - The high-resolution list references only `image` or `movieclip` resources already published as package items. Publishing does not enlarge source bitmaps.
 - If an intermediate scale is missing while a later scale exists, the missing slot is `null`; missing trailing slots are omitted.
-- In **merge active branch into main** mode, package-level `branchCount` is `0` and item branch name is `null`; for items overridden from a branch, the runtime protocol supports `branchCount=1` plus the original branch item ID alias for legacy ID lookup.
+- In **merge active branch into main** mode, branch replacement is already complete. Package-level `branchCount` is `0` and item `branch name` is `null`; items merged from an active branch override write `branchCount = 1` plus the original branch item ID (so runtimes alias that ID to the merged main item), while unoverridden items write `branchCount = 0`.
 - When branches are retained and branch atlases are separate, a branch may use independent atlas items. Current editor samples use `100 + pageIndex` as the branch atlas index.
 
 ## Block 2: Sprites
@@ -233,7 +235,7 @@ Notes:
 | Base fields | `itemId`, `atlasId`, `x`, `y`, `w`, `h`, `rotated` |
 | Conditional fields | `offsetX`, `offsetY`, `originalWidth`, `originalHeight` |
 
-This block describes each resource's trimmed atlas rectangle and original dimensions. The trailing segment is present when offsets are non-zero, the sprite is rotated or zero-sized direct output, or the original dimensions differ from the trimmed rectangle. A sprite trimmed only on its right or bottom edge therefore retains `originalWidth` / `originalHeight` even with zero offsets.
+This block describes each resource's trimmed atlas rectangle and original dimensions. Rotated atlases follow target engine orientation: Unity and other engines use `rotationDir = 0` (-90° CCW pixels with swapped sheet `w`/`h`), whereas CocosCreator, Cocos2dx, and Egret use `rotationDir = 1` (+90° CW pixels with unrotated logical `w`/`h`). The trailing segment is present when offsets are non-zero, the sprite is rotated or zero-sized direct output, or the original dimensions differ from the unrotated trimmed rectangle. A sprite trimmed only on its right or bottom edge therefore retains `originalWidth` / `originalHeight` even with zero offsets.
 
 ## Block 3: Pixel Hit Test
 

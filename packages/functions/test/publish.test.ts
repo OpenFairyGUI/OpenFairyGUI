@@ -2,11 +2,12 @@ import test from 'ava';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import os from 'node:os';
-import { Document } from '@openfairygui/core';
+import { Document, ProjectType } from '@openfairygui/core';
 import { NodeIO } from '@openfairygui/core/node';
 import { getFixturePath, getFixtureProjectPath } from '@openfairygui/test-utils';
 import sharpImplementation from 'sharp';
 import { publish, resolvePublishOptions, type AtlasRasterBackend, type RootProjectSettings } from '../src/index.js';
+import { restoreNode } from '../src/node.js';
 import { resolvePublishAtlasRuntimeOptions } from '../src/publish.js';
 import { preparePackagePublishContext } from '../src/publish/package-context.js';
 import { createTestJta } from './test-jta.js';
@@ -666,13 +667,13 @@ test('publish: exports loader skeleton resources and dependency closure with edi
 		const expectedFiles = [
 			'Loader_fui.bytes',
 			'dragon_ske.json',
-			'Loader_biss7.json',
+			'dragon_tex.json',
 			'dragon.png',
 			'alien-pro.skel.bytes',
-			'Loader_nbcg7.atlas.txt',
+			'alien-pma.atlas.txt',
 			'alien-pma.png',
 			'mix-and-match-pro.skel.bytes',
-			'Loader_czqy1i.atlas.txt',
+			'mix-and-match-pma.atlas.txt',
 			'mix-and-match-pma.png',
 		];
 		for (const file of expectedFiles) {
@@ -680,7 +681,14 @@ test('publish: exports loader skeleton resources and dependency closure with edi
 			t.truthy(stat, `${file} was exported`);
 		}
 
-		for (const absentFile of ['spineboy-ess.skel.bytes', 'spineboy-pma.atlas.txt', 'spineboy-pma.png']) {
+		for (const absentFile of [
+			'Loader_biss7.json',
+			'Loader_nbcg7.atlas.txt',
+			'Loader_czqy1i.atlas.txt',
+			'spineboy-ess.skel.bytes',
+			'spineboy-pma.atlas.txt',
+			'spineboy-pma.png',
+		]) {
 			const stat = await fs.stat(path.join(tmpDir, absentFile)).catch(() => null);
 			t.falsy(stat, `${absentFile} was not exported`);
 		}
@@ -688,7 +696,9 @@ test('publish: exports loader skeleton resources and dependency closure with edi
 		const bytes = await fs.readFile(path.join(tmpDir, 'Loader_fui.bytes'));
 		const parsed = parsePackageBinary(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
 		const byId = new Map(parsed.items.map((item) => [item.id, item]));
-		t.is(byId.get('nbcg7')?.file, 'nbcg7.atlas.txt', 'misc atlas dependency writes runtime item-id file name');
+		t.false(byId.has('nbcg7'), 'skeleton-only misc atlas dependency is excluded from Block 1');
+		t.false(byId.has('biss7'), 'skeleton-only dragonbones json dependency is excluded from Block 1');
+		t.false(byId.has('nbcg8'), 'skeleton-only image dependency is excluded from Block 1');
 		t.is(byId.get('nbcge')?.file, 'alien-pro.skel.bytes', 'spine item writes published skeleton file name');
 		t.is(byId.get('biss6')?.file, 'dragon_ske.json', 'dragonbones item keeps published json file name');
 	} finally {
@@ -797,6 +807,16 @@ test('publish: Branch package merges active branch resources onto main ids', asy
 		t.false(byId.has('kn7w3'), 'branch component is not emitted under its original id');
 		t.is(byId.get('kn7w1')?.width, 62, 'active branch overrides image width');
 		t.is(byId.get('kn7w1')?.height, 60, 'active branch overrides image height');
+		t.deepEqual(
+			byId.get('kn7w0')?.branchItems,
+			['kn7w3'],
+			'merged active-branch component writes single original branch ID alias',
+		);
+		t.deepEqual(
+			byId.get('kn7w1')?.branchItems,
+			['kn7w2'],
+			'merged active-branch image writes single original branch ID alias',
+		);
 		const mergedRoundTrip = await io.readBinary(path.join(tmpDir, 'Branch_fui.bytes'));
 		const mergedPkg = mergedRoundTrip.getRoot().getPackage('Branch')!;
 		const mergedComponent = mergedPkg.getResourceById('kn7w0') as any;
@@ -2521,5 +2541,289 @@ test('publish: later truncated and unsupported MovieClips leave all Node built-i
 		} finally {
 			await fs.rm(tmpDir, { recursive: true, force: true });
 		}
+	}
+});
+
+test('publish: CocosCreator rotated atlas uses rotationDir=1 (+90° CW pixels, unrotated sprite rect) and restores pixel-identically', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-cocos-rot-'));
+	const assetsDir = path.join(tmpDir, 'assets');
+	const pkgDir = path.join(assetsDir, 'RotPkg');
+	const publishDir = path.join(tmpDir, 'release');
+	const restoredDir = path.join(tmpDir, 'restored');
+	try {
+		await fs.mkdir(pkgDir, { recursive: true });
+		// Build an asymmetric 14x58 image with distinct quadrant colors so +90° vs -90° rotation is unambiguous.
+		const width = 14;
+		const height = 58;
+		const rawPixels = new Uint8Array(width * height * 4);
+		for (let y = 0; y < height; y++) {
+			for (let x = 0; x < width; x++) {
+				const offset = (y * width + x) * 4;
+				const topHalf = y < height / 2;
+				const leftHalf = x < width / 2;
+				rawPixels[offset] = topHalf ? (leftHalf ? 240 : 40) : leftHalf ? 40 : 220;
+				rawPixels[offset + 1] = topHalf ? (leftHalf ? 30 : 220) : leftHalf ? 50 : 210;
+				rawPixels[offset + 2] = topHalf ? (leftHalf ? 30 : 40) : leftHalf ? 230 : 40;
+				rawPixels[offset + 3] = 255;
+			}
+		}
+		const sourcePath = path.join(pkgDir, 'card.png');
+		await sharp(rawPixels, { raw: { width, height, channels: 4 } })
+			.png()
+			.toFile(sourcePath);
+
+		// Add a 60x36 banner so the remaining 64x26 strip in a single 64x64 page forces 14x58 card to rotate to 58x14.
+		const widePath = path.join(pkgDir, 'banner.png');
+		await sharp({
+			create: { width: 60, height: 36, channels: 4, background: { r: 100, g: 100, b: 100, alpha: 1 } },
+		})
+			.png()
+			.toFile(widePath);
+
+		const doc = new Document();
+		doc.getRoot()
+			.setProjectType(ProjectType.CocosCreator)
+			.setSettings({
+				publish: {
+					atlasSetting: { maxSize: 64, allowRotation: true, sizeOption: 'pot', paging: false },
+				},
+			} as RootProjectSettings);
+		const pkg = doc.createPackage('RotPkg').setId('rotpkg01');
+		const card = doc
+			.createImageResource('card')
+			.setId('card01')
+			.setPath('/')
+			.setFileName('card.png')
+			.setExported(true);
+		const banner = doc
+			.createImageResource('banner')
+			.setId('banr01')
+			.setPath('/')
+			.setFileName('banner.png')
+			.setExported(true);
+		pkg.addResource(card).addResource(banner);
+
+		await doc.transform(
+			publish({
+				output: publishDir,
+				basePath: assetsDir,
+				fs: createFs(),
+				encoder: sharp,
+				atlas: { allowRotation: true, powerOfTwo: true, maxSize: 64, padding: 2, multiPage: false },
+			}),
+		);
+
+		const publishedDoc = await new NodeIO().readBinary(path.join(publishDir, 'RotPkg.bin'));
+		const cardSprite = publishedDoc
+			.getRoot()
+			.getPackage('RotPkg')!
+			.listAtlases()
+			.flatMap((atlas) => atlas.listSprites())
+			.find((sprite) => sprite.getItemId() === 'card01')!;
+		t.truthy(cardSprite, 'card sprite exists in published CocosCreator binary');
+		t.true(cardSprite.getRotated(), 'card sprite was rotated during packing');
+		t.is(cardSprite.getRectWidth(), width, 'CocosCreator Block 2 sprite stores unrotated width');
+		t.is(cardSprite.getRectHeight(), height, 'CocosCreator Block 2 sprite stores unrotated height');
+
+		// Restore through the real Node restore pipeline and verify exact pixel round-trip.
+		const restoreResult = await restoreNode({
+			inputDir: publishDir,
+			output: restoredDir,
+			projectType: ProjectType.CocosCreator,
+		});
+		t.is(restoreResult.document.getRoot().getSettings().publish?.fileExtension, 'bin');
+		const restoredCardPath = path.join(restoredDir, 'assets', 'RotPkg', 'card.png');
+		const restoredRaw = await sharp(restoredCardPath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+		t.is(restoredRaw.info.width, width);
+		t.is(restoredRaw.info.height, height);
+		t.deepEqual(
+			new Uint8Array(restoredRaw.data),
+			rawPixels,
+			'restored CocosCreator rotated sprite matches source pixels',
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: reachability closure excludes unexported unreferenced components and their dependencies', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-reachability-'));
+	const assetsDir = path.join(tmpDir, 'assets');
+	const outDir = path.join(tmpDir, 'release');
+	try {
+		await fs.mkdir(path.join(assetsDir, 'Main'), { recursive: true });
+		await fs.mkdir(path.join(assetsDir, 'DepUsed'), { recursive: true });
+		await fs.mkdir(path.join(assetsDir, 'DepOrphan'), { recursive: true });
+		const png = await sharp({ create: { width: 8, height: 8, channels: 4, background: '#112233ff' } })
+			.png()
+			.toBuffer();
+		await fs.writeFile(path.join(assetsDir, 'Main', 'used.png'), png);
+		await fs.writeFile(path.join(assetsDir, 'Main', 'orphan.png'), png);
+
+		const doc = new Document();
+		doc.getRoot().setProjectType(ProjectType.Pixi);
+		const depUsed = doc.createPackage('DepUsed').setId('depused1');
+		depUsed.addResource(doc.createComponent('UsedBtn').setId('ubtn01').setExported(true));
+		const depOrphan = doc.createPackage('DepOrphan').setId('deporph1');
+		depOrphan.addResource(doc.createComponent('OrphanBtn').setId('obtn01').setExported(true));
+
+		const main = doc.createPackage('Main').setId('mainpkg1');
+		main.addResource(doc.createImageResource('used').setId('imgUsed').setPath('/').setFileName('used.png'));
+		main.addResource(doc.createImageResource('orphan').setId('imgOrph').setPath('/').setFileName('orphan.png'));
+
+		const entry = doc.createComponent('Entry').setId('cmpEntry').setExported(true);
+		entry.addChild(doc.createGImage('u').setId('n0').setSrc('imgUsed'));
+		entry.addChild(doc.createGComponent('ub').setId('n1').setSrc('ubtn01').setPackageId('depused1'));
+		main.addResource(entry);
+
+		const orphanComp = doc.createComponent('Orphan').setId('cmpOrph').setExported(false);
+		orphanComp.addChild(doc.createGImage('o').setId('n0').setSrc('imgOrph'));
+		orphanComp.addChild(doc.createGComponent('ob').setId('n1').setSrc('obtn01').setPackageId('deporph1'));
+		main.addResource(orphanComp);
+
+		await doc.transform(
+			publish({
+				output: outDir,
+				packages: ['Main'],
+				basePath: assetsDir,
+				fs: createFs(),
+				encoder: sharp,
+				codeGeneration: false,
+			}),
+		);
+
+		const published = await new NodeIO().readBinary(path.join(outDir, 'Main.fui'));
+		const publishedMain = published.getRoot().getPackage('Main')!;
+		const itemIds = publishedMain.listResources().map((r) => r.getId());
+		t.true(itemIds.includes('cmpEntry'));
+		t.true(itemIds.includes('imgUsed'));
+		t.false(itemIds.includes('cmpOrph'), 'unexported unreferenced component is excluded');
+		t.false(itemIds.includes('imgOrph'), 'image only used by unexported component is excluded');
+		t.deepEqual(
+			publishedMain.listDependencies().map((dep) => dep.getId()),
+			['depused1'],
+			'cross-package dependency from unexported unreferenced component is excluded',
+		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('publish: dotted high-res names, merged-branch high-res & MovieClips, Cocos2dx extractAlpha, and non-Unity bytes naming', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-p6-p9-'));
+	const assetsDir = path.join(tmpDir, 'assets');
+	const branchAssetsDir = path.join(tmpDir, 'assets_dev');
+	const outDir = path.join(tmpDir, 'release');
+	try {
+		await fs.mkdir(path.join(assetsDir, 'Mixed'), { recursive: true });
+		await fs.mkdir(path.join(branchAssetsDir, 'Mixed'), { recursive: true });
+		const basePng = await sharp({
+			create: { width: 10, height: 10, channels: 4, background: { r: 20, g: 40, b: 60, alpha: 0.5 } },
+		})
+			.png()
+			.toBuffer();
+		const hiPng = await sharp({
+			create: { width: 20, height: 20, channels: 4, background: { r: 80, g: 100, b: 120, alpha: 0.5 } },
+		})
+			.png()
+			.toBuffer();
+		await fs.writeFile(path.join(assetsDir, 'Mixed', 'foo.bar.png'), basePng);
+		await fs.writeFile(path.join(branchAssetsDir, 'Mixed', 'foo.bar.png'), basePng);
+		await fs.writeFile(path.join(branchAssetsDir, 'Mixed', 'foo.bar@2x.png'), hiPng);
+		await fs.writeFile(
+			path.join(assetsDir, 'Mixed', 'clip.jta'),
+			createTestJta([basePng], [{ textureIndex: 0, rectWidth: 10, rectHeight: 10 }], { width: 10, height: 10 }),
+		);
+		await fs.writeFile(
+			path.join(branchAssetsDir, 'Mixed', 'clip_dev.jta'),
+			createTestJta([hiPng], [{ textureIndex: 0, rectWidth: 20, rectHeight: 20 }], { width: 20, height: 20 }),
+		);
+
+		const doc = new Document();
+		doc.getRoot()
+			.setProjectType(ProjectType.Cocos2dx)
+			.setBranches(['dev'])
+			.setSettings({
+				publish: {
+					fileExtension: 'bytes',
+					branchProcessing: 1,
+					includeHighResolution: 1,
+				},
+			} as RootProjectSettings);
+		const pkg = doc.createPackage('Mixed').setId('mixed001');
+		pkg.setSourceAtlasSettings({ ...pkg.getSourceAtlasSettings(), useGlobal: false, extractAlpha: true });
+		pkg.addResource(
+			doc
+				.createImageResource('foo.bar')
+				.setId('mainImg')
+				.setPath('/')
+				.setFileName('foo.bar.png')
+				.setExported(true),
+		);
+		pkg.addResource(
+			doc
+				.createImageResource('foo.bar')
+				.setId('devImg')
+				.setBranch('dev')
+				.setPath('/')
+				.setFileName('foo.bar.png')
+				.setExported(true),
+		);
+		pkg.addResource(
+			doc
+				.createImageResource('foo.bar@2x')
+				.setId('devImg2x')
+				.setBranch('dev')
+				.setPath('/')
+				.setFileName('foo.bar@2x.png'),
+		);
+		pkg.addResource(
+			doc.createMovieClipResource('clip').setId('mainMc').setPath('/').setFileName('clip.jta').setExported(true),
+		);
+		pkg.addResource(
+			doc
+				.createMovieClipResource('clip')
+				.setId('devMc')
+				.setBranch('dev')
+				.setPath('/')
+				.setFileName('clip_dev.jta')
+				.setExported(true),
+		);
+
+		await doc.transform(
+			publish({
+				output: outDir,
+				basePath: assetsDir,
+				branch: 'dev',
+				fs: createFs(),
+				encoder: sharp,
+				codeGeneration: false,
+			}),
+		);
+
+		// Non-Unity with fileExtension='bytes' must NOT receive Unity's '_fui' suffix.
+		t.truthy(
+			await fs.stat(path.join(outDir, 'Mixed.bytes')).catch(() => null),
+			'Cocos2dx bytes output omits _fui suffix',
+		);
+		t.falsy(await fs.stat(path.join(outDir, 'Mixed_fui.bytes')).catch(() => null));
+		// Cocos2dx supports extractAlpha -> !a.png output.
+		t.truthy(
+			await fs.stat(path.join(outDir, 'Mixed_atlas0!a.png')).catch(() => null),
+			'Cocos2dx supports extractAlpha',
+		);
+
+		const parsed = parsePackageBinary(new Uint8Array(await fs.readFile(path.join(outDir, 'Mixed.bytes'))));
+		const byId = new Map(parsed.items.map((item) => [item.id, item]));
+		t.deepEqual(
+			byId.get('mainImg')?.highResolutionItems,
+			['devImg2x'],
+			'dotted extensionless name links @2x after branch merge',
+		);
+		t.deepEqual(byId.get('mainImg')?.branchItems, ['devImg'], 'merged image keeps branch alias');
+		t.deepEqual(byId.get('mainMc')?.branchItems, ['devMc'], 'merged movieclip keeps branch alias');
+		t.is(byId.get('mainMc')?.width, 20, 'branch movieclip loaded from assets_dev with custom fileName');
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 });

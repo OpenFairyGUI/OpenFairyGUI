@@ -8,6 +8,7 @@ import {
 	resolveFontPath,
 	resolveImageFileName,
 	resolveImagePath,
+	resolveMovieClipPath,
 } from '../publish/package-context.js';
 import { parseFnt } from './font.js';
 import { prepareJtaForPublish, type PreparedJtaData } from './jta.js';
@@ -157,9 +158,7 @@ export interface PagedAtlasGroup {
 }
 
 export function resolveMovieClipSourcePath(resource: MovieClipResource, pkg: Package, basePath: string): string {
-	const fileName = `${resource.getName()}.jta`;
-	const resourcePath = resource.getPath() ?? '/';
-	return `${basePath}/${pkg.getName()}${resourcePath}${fileName}`;
+	return resolveMovieClipPath(resource, pkg, basePath);
 }
 
 export async function prepareMovieClipResource(
@@ -293,7 +292,7 @@ export async function collectMovieClipFrames(
 		throw new Error(`atlas: MovieClip "${resource.getId()}" requires an encoder for complete raster output.`);
 	}
 
-	const mcId = resource.getId();
+	const mcId = getPublishedItemId(resource, options.publishResources);
 	const filePath = resolveMovieClipSourcePath(resource, pkg, options.basePath);
 
 	try {

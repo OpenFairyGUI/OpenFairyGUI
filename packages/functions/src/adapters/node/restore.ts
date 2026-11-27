@@ -107,7 +107,23 @@ export async function createRestoreImageProcessors(): Promise<RestoreImageProces
 			width: input.width,
 			height: input.height,
 		});
-		if (input.rotated) image = image.rotate(90);
+		if (input.alphaSourcePath) {
+			const alphaRaw = await sharp(input.alphaSourcePath, { limitInputPixels: MAX_IMAGE_PIXELS })
+				.extract({
+					left: input.left,
+					top: input.top,
+					width: input.width,
+					height: input.height,
+				})
+				.extractChannel('red')
+				.raw()
+				.toBuffer();
+			const rgbBuffer = await image.removeAlpha().toBuffer();
+			image = sharp(rgbBuffer).joinChannel(alphaRaw, {
+				raw: { width: input.width, height: input.height, channels: 1 },
+			});
+		}
+		if (input.rotated) image = image.rotate(input.clockwiseRotated ? 270 : 90);
 		const { data, info } = await image.png().toBuffer({ resolveWithObject: true });
 		const needsOriginalCanvas =
 			input.expectedWidth > 0 &&
