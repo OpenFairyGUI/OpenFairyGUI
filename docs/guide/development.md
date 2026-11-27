@@ -42,6 +42,8 @@ pnpm check:fast --base origin/main
 
 `pnpm repo:doctor --json` 输出只读环境报告，覆盖 Node/pnpm、依赖、公开导出文件、原生图片能力、临时目录权限与参考资料状态。
 
+`pnpm fidelity:measure` 在不修改源目录的前提下，通过真实 `BackendRuntime` 会话批量度量三个 `references.json` 公开子模块与 Git 跟踪的 `FairyGUI-Experiments` 工程的 `uamFidelity` `full` 占比，并输出按频次排序的差异清单；支持 `--json`、`--fail-on-unsupported` 以及传入 `--project <path>` 度量指定工程（需先运行 `pnpm build`）。
+
 doctor 不安装、不下载、不写文件；子模块状态查询也禁用 Git 可选的索引刷新写入。它只检查导出文件是否存在，不证明构建新鲜度或 Node/Web 运行行为；实际消费者边界由 `pack:check` 验证。Sharp 检查会在内存完成 PNG/JPEG 编码和像素解码，而非只读取版本；不可用或失败会警告，不能据此宣称已验证真实 publish/restore。临时路径必须是可访问目录，但访问标志不证明 ACL、磁盘容量、后续写入或回滚。推荐 Node 不匹配仅警告；低于包支持范围、pnpm 不匹配、缺少必需 fixture/构建产物则失败。
 
 ### 变更选择规则

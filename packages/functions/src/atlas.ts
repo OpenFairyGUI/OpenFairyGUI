@@ -82,8 +82,7 @@ export interface AtlasOptions {
 	trimImage?: boolean;
 
 	/**
-	 * Base path for reading source images. If not set, images must have
-	 * their pixel data stored in extras._imageData as Uint8Array.
+	 * Base path for reading source images and package assets from disk.
 	 */
 	basePath?: string;
 

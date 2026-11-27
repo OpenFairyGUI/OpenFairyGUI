@@ -43,29 +43,6 @@ export function createCaptureFileSystem(files: Map<string, string | Uint8Array>,
 	};
 }
 
-export function capturedFilesEqual(
-	left: Map<string, string | Uint8Array>,
-	right: Map<string, string | Uint8Array>,
-): boolean {
-	if (left.size !== right.size) return false;
-	for (const [filePath, leftValue] of left) {
-		const rightValue = right.get(filePath);
-		if (typeof leftValue === 'string') {
-			if (leftValue !== rightValue) return false;
-			continue;
-		}
-		if (!(rightValue instanceof Uint8Array) || leftValue.length !== rightValue.length) return false;
-		for (let index = 0; index < leftValue.length; index += 1) {
-			if (leftValue[index] !== rightValue[index]) return false;
-		}
-	}
-	return true;
-}
-
-export function capturedDirectoriesEqual(left: Set<string>, right: Set<string>): boolean {
-	return left.size === right.size && [...left].every((directory) => right.has(directory));
-}
-
 /** Serialize only into memory. This is a model projection, not a disk inventory or write plan. */
 export async function captureProject(document: Document, fairyFileName: string) {
 	const files = new Map<string, string | Uint8Array>();

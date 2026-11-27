@@ -112,6 +112,10 @@ const MOVIE_CLIP_RESOURCE_PROPERTY_KEYS = [
 	'frames',
 ] as const satisfies readonly (keyof UamMovieClipResourceProperties)[];
 
+const MOVIE_CLIP_RESOURCE_OPTIONAL_KEYS = [
+	'textureSetMode',
+] as const satisfies readonly (keyof UamMovieClipResourceProperties)[];
+
 const MOVIE_CLIP_FRAME_KEYS = [
 	'rectX',
 	'rectY',
@@ -122,10 +126,21 @@ const MOVIE_CLIP_FRAME_KEYS = [
 ] as const satisfies readonly (keyof UamMovieClipResourceProperties['frames'][number])[];
 
 export function isValidUamMovieClipResourceProperties(value: unknown): value is UamMovieClipResourceProperties {
-	if (typeof value !== 'object' || value === null || !hasExactKeys(value, MOVIE_CLIP_RESOURCE_PROPERTY_KEYS))
+	if (typeof value !== 'object' || value === null) return false;
+	const keys = Object.keys(value);
+	if (
+		!MOVIE_CLIP_RESOURCE_PROPERTY_KEYS.every((key) => Object.hasOwn(value, key)) ||
+		!keys.every(
+			(key) =>
+				(MOVIE_CLIP_RESOURCE_PROPERTY_KEYS as readonly string[]).includes(key) ||
+				(MOVIE_CLIP_RESOURCE_OPTIONAL_KEYS as readonly string[]).includes(key),
+		)
+	) {
 		return false;
+	}
 	const properties = value as UamMovieClipResourceProperties;
 	if (
+		(properties.textureSetMode !== undefined && typeof properties.textureSetMode !== 'string') ||
 		!Number.isInteger(properties.interval) ||
 		properties.interval < 0 ||
 		!Number.isInteger(properties.repeatDelay) ||
@@ -605,7 +620,17 @@ function validateDisplayNode(
 			pushIssue(issues, `${path}.pivotAsAnchor`, 'Display node pivotAsAnchor must be boolean.');
 		}
 	}
-	if (node.kind === 'component' && node.fileName !== undefined && typeof node.fileName !== 'string') {
+	if (
+		(node.kind === 'component' ||
+			node.kind === 'button' ||
+			node.kind === 'label' ||
+			node.kind === 'comboBox' ||
+			node.kind === 'progressBar' ||
+			node.kind === 'slider' ||
+			node.kind === 'scrollBar') &&
+		node.fileName !== undefined &&
+		typeof node.fileName !== 'string'
+	) {
 		pushIssue(issues, `${path}.fileName`, 'Component file name hint must be a string.');
 	}
 	if (

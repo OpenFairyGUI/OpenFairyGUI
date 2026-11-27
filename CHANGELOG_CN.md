@@ -7,9 +7,15 @@
 缺陷修复：
 
 - core：工程 XML 写回 `GLoader3D` 时使用与 FairyGUI 桌面编辑器兼容的正式 `<loader3D>` 标签，在读取路径统一归一化标签大小写以兼容 `<loader3D>` 与小写 `<loader3d>`，并同步双语 XML 协议文档。
+- core：为 `MovieClipResource` 的 `atlas` 纹理集模式（`textureSetMode`）以及 `button`、`label`、`comboBox`、`progressBar`、`slider`、`scrollBar` 等组件派生节点的 `fileName` 补充正式 UAM 建模、校验、规范化与读写往返，避免合法工程因未建模属性在保存时被误判为 `uamFidelity: 'unsupported'`。
+
+新功能：
+
+- backend、workspace：当会话 `uamFidelity` 为 `'unsupported'` 时，通过会话快照、`readSessionState`（`uamFidelityReport`）以及 `uam_fidelity_unsupported` 保存/物化失败的 `error.fidelityReport` 与 `meta.diagnostics` 返回有界差异报告（含失败原因、路径、行号与摘要）；新增 `pnpm fidelity:measure` 语料保真度量脚本，输出 `full` 占比与按频次排序的差异清单。
 
 其他：
 
+- core、functions：清理 `core` 与 `functions` 中残留的内部 `extras` 瞬态标记与过时代码（移除 `_fontSpriteAlias`、`_fileName` 回退、`_restoreAsLooseImage` 及未使用的内部 `extras` 辅助声明），改用正式属性或模块内部 `WeakSet`，并补充语料保真与 MCP 诊断回归测试。
 - 开发与 CI：Ubuntu / Node 22 在覆盖率门禁下只运行一次完整检查，不再重复运行测试；`check:ci` 通过 `docs:check` 同时检查契约漂移。构建参数只保存在各包 tsdown 配置中，消除已弃用的 `external` 参数和 watch 模式漂移。删除重复的根脚本、MCP 包级测试配置和多余的 `tsx` 声明；AVA 无响应超时为 60s。
 - 开发与 CI：将仓库 CI、指引文档和快速检查默认基准从 `main`/`next` 双分支迁移至单主干 `main`。
 - 开发与 CI：`check:ci` 新增 `--artifacts` 参数以消除 `release.yml` 重复执行 `pack:check`，`publish` 复用统一的 dist-tag 比较脚本并增加发布后 npm dist-tag 核验，新增 `pnpm release:bump` 与双语发布流程文档。

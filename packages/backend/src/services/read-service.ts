@@ -338,6 +338,9 @@ export class ReadService {
 			dirty: session.dirty,
 			lastSavedRevision: session.lastSavedRevision,
 			uamFidelity: session.uamFidelity,
+			...(session.uamFidelity === 'unsupported' && session.uamFidelityReport
+				? { uamFidelityReport: session.uamFidelityReport }
+				: {}),
 			readComplete: session.readComplete,
 			readDiagnostics: session.readDiagnostics,
 			project: {

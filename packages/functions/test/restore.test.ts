@@ -307,6 +307,7 @@ test('restore published project: directory batch restores packages, assets, and 
 					'_packageOrderWeight',
 					'_syntheticFontGlyph',
 					'_syntheticFontTexture',
+					'_restoreAsLooseImage',
 				]) {
 					t.false(
 						key in resource.getExtras(),

@@ -2479,6 +2479,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		"UamMovieClipResourceProperties_7891e3deb2": {
 			"type": "object",
 			"properties": {
+				"textureSetMode": {
+					"type": "string"
+				},
 				"interval": {
 					"type": "number"
 				},
@@ -6990,6 +6993,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -7149,6 +7155,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "number"
 				},
 				"pageController": {
+					"type": "string"
+				},
+				"fileName": {
 					"type": "string"
 				},
 				"src": {
@@ -7332,6 +7341,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -7494,6 +7506,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -7645,6 +7660,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -7780,6 +7798,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"pageController": {
+					"type": "string"
+				},
+				"fileName": {
 					"type": "string"
 				},
 				"src": {
@@ -12495,6 +12516,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"unsupported"
 					]
 				},
+				"uamFidelityReport": {
+					"$ref": "#/$defs/UamFidelityReport_aee071a4e7_wire"
+				},
 				"lockHeld": {
 					"type": "boolean"
 				},
@@ -12511,6 +12535,80 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"uamFidelity",
 				"lockHeld",
 				"capabilities"
+			],
+			"additionalProperties": false
+		},
+		"UamFidelityReport_aee071a4e7_wire": {
+			"type": "object",
+			"properties": {
+				"reason": {
+					"enum": [
+						"incomplete_read",
+						"materialize_failed",
+						"round_trip_mismatch"
+					]
+				},
+				"errorMessage": {
+					"type": "string"
+				},
+				"totalDiffCount": {
+					"type": "number"
+				},
+				"diffs": {
+					"$ref": "#/$defs/Array_c1dbe9d153_wire"
+				},
+				"truncated": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"reason",
+				"totalDiffCount",
+				"diffs",
+				"truncated"
+			],
+			"additionalProperties": false
+		},
+		"Array_c1dbe9d153_wire": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamFidelityDiffEntry_45527c2258_wire"
+			}
+		},
+		"UamFidelityDiffEntry_45527c2258_wire": {
+			"type": "object",
+			"properties": {
+				"path": {
+					"type": "string"
+				},
+				"kind": {
+					"enum": [
+						"file",
+						"directory"
+					]
+				},
+				"change": {
+					"enum": [
+						"missing",
+						"extra",
+						"modified",
+						"type_mismatch"
+					]
+				},
+				"line": {
+					"type": "number"
+				},
+				"sourceExcerpt": {
+					"type": "string"
+				},
+				"materializedExcerpt": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"path",
+				"kind",
+				"change"
 			],
 			"additionalProperties": false
 		},
@@ -14253,6 +14351,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		"UamMovieClipResourceProperties_7891e3deb2_wire": {
 			"type": "object",
 			"properties": {
+				"textureSetMode": {
+					"type": "string"
+				},
 				"interval": {
 					"type": "number"
 				},
@@ -18507,6 +18608,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -18666,6 +18770,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "number"
 				},
 				"pageController": {
+					"type": "string"
+				},
+				"fileName": {
 					"type": "string"
 				},
 				"src": {
@@ -18849,6 +18956,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -19011,6 +19121,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -19162,6 +19275,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -19297,6 +19413,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"pageController": {
+					"type": "string"
+				},
+				"fileName": {
 					"type": "string"
 				},
 				"src": {
@@ -19920,6 +20039,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"full",
 						"unsupported"
 					]
+				},
+				"uamFidelityReport": {
+					"$ref": "#/$defs/UamFidelityReport_aee071a4e7_wire"
 				}
 			},
 			"required": [
@@ -21488,6 +21610,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"unsupported"
 					]
 				},
+				"uamFidelityReport": {
+					"$ref": "#/$defs/UamFidelityReport_aee071a4e7_wire"
+				},
 				"lockHeld": {
 					"type": "boolean"
 				},
@@ -21661,6 +21786,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"canonicalPathKey": {
 					"type": "string"
+				},
+				"fidelityReport": {
+					"$ref": "#/$defs/UamFidelityReport_aee071a4e7_wire"
 				}
 			},
 			"required": [
@@ -26503,6 +26631,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -26662,6 +26793,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "number"
 				},
 				"pageController": {
+					"type": "string"
+				},
+				"fileName": {
 					"type": "string"
 				},
 				"src": {
@@ -26845,6 +26979,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -27007,6 +27144,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -27158,6 +27298,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"pageController": {
 					"type": "string"
 				},
+				"fileName": {
+					"type": "string"
+				},
 				"src": {
 					"type": "string"
 				},
@@ -27293,6 +27436,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"type": "boolean"
 				},
 				"pageController": {
+					"type": "string"
+				},
+				"fileName": {
 					"type": "string"
 				},
 				"src": {
@@ -27862,6 +28008,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 		"UamMovieClipResourceProperties_7891e3deb2_read": {
 			"type": "object",
 			"properties": {
+				"textureSetMode": {
+					"type": "string"
+				},
 				"interval": {
 					"type": "number"
 				},
@@ -29036,6 +29185,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"unsupported"
 					]
 				},
+				"uamFidelityReport": {
+					"$ref": "#/$defs/UamFidelityReport_aee071a4e7"
+				},
 				"lockHeld": {
 					"type": "boolean"
 				},
@@ -29052,6 +29204,80 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"uamFidelity",
 				"lockHeld",
 				"capabilities"
+			],
+			"additionalProperties": false
+		},
+		"UamFidelityReport_aee071a4e7": {
+			"type": "object",
+			"properties": {
+				"reason": {
+					"enum": [
+						"incomplete_read",
+						"materialize_failed",
+						"round_trip_mismatch"
+					]
+				},
+				"errorMessage": {
+					"type": "string"
+				},
+				"totalDiffCount": {
+					"type": "number"
+				},
+				"diffs": {
+					"$ref": "#/$defs/Array_c1dbe9d153"
+				},
+				"truncated": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"reason",
+				"totalDiffCount",
+				"diffs",
+				"truncated"
+			],
+			"additionalProperties": false
+		},
+		"Array_c1dbe9d153": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/UamFidelityDiffEntry_45527c2258"
+			}
+		},
+		"UamFidelityDiffEntry_45527c2258": {
+			"type": "object",
+			"properties": {
+				"path": {
+					"type": "string"
+				},
+				"kind": {
+					"enum": [
+						"file",
+						"directory"
+					]
+				},
+				"change": {
+					"enum": [
+						"missing",
+						"extra",
+						"modified",
+						"type_mismatch"
+					]
+				},
+				"line": {
+					"type": "number"
+				},
+				"sourceExcerpt": {
+					"type": "string"
+				},
+				"materializedExcerpt": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"path",
+				"kind",
+				"change"
 			],
 			"additionalProperties": false
 		},
@@ -31241,6 +31467,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"unsupported"
 					]
 				},
+				"uamFidelityReport": {
+					"$ref": "#/$defs/UamFidelityReport_aee071a4e7"
+				},
 				"lockHeld": {
 					"type": "boolean"
 				},
@@ -31414,6 +31643,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"canonicalPathKey": {
 					"type": "string"
+				},
+				"fidelityReport": {
+					"$ref": "#/$defs/UamFidelityReport_aee071a4e7"
 				}
 			},
 			"required": [
@@ -33941,7 +34173,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"remediation": {
 				"kind": "host-action",
-				"message": "Read capability/error details. Ask the host to provide the required filesystem, decoder or complete UAM adapter. Preserve the session and unsaved work; do not substitute a lossy path or bypass checks."
+				"message": "Inspect uamFidelityReport on the session snapshot or error.fidelityReport and meta.diagnostics for the failure reason and differing project paths. Preserve the session and unsaved work; do not substitute a lossy save path or bypass fidelity checks."
 			}
 		},
 		{
@@ -33995,5 +34227,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "dcfeadbd451f77fa2d2d3bb51911cb1fbe9f6d12cbd6562047d59b441d72e50e"
+	"digest": "64a6a6dec406a146f0220fa36bde8124427faf9b98a021f6c00f502ff0c3d022"
 };

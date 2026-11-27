@@ -13,7 +13,6 @@ import {
 import { parseTextureSetMode, type TextureSetMode } from '../utils.js';
 import {
 	getPublishedItemId,
-	type FontResourceExtras,
 	type InputItem,
 	type PackageResource,
 	type PackInputResource,
@@ -358,15 +357,15 @@ function attachSpritesToAtlas(
 	}
 
 	for (const resource of allResources) {
-		if (!isFontResource(resource)) continue;
-		const extras = resource.getExtras() as FontResourceExtras;
-		const alias = extras?._fontSpriteAlias;
-		if (!alias) continue;
-		const imageSprite = outputRects.find((result) => inputs[result.index]?.id === alias.textureId);
+		if (!isFontResource(resource) || resource.isExternalFont()) continue;
+		const textureId = resource.getTextureId();
+		if (!textureId) continue;
+		const fontId = resource.getId();
+		const imageSprite = outputRects.find((result) => inputs[result.index]?.id === textureId);
 		if (!imageSprite) continue;
 		const imageInput = inputs[imageSprite.index];
 		const fontSprite = doc.createSprite();
-		fontSprite.setItemId(alias.fontId);
+		fontSprite.setItemId(fontId);
 		fontSprite.setRectX(imageSprite.x);
 		fontSprite.setRectY(imageSprite.y);
 		fontSprite.setRectWidth(imageSprite.width);

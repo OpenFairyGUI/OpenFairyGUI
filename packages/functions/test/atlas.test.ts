@@ -114,8 +114,7 @@ test('atlas: trimImage keeps fully transparent images as zero-sized sprites', as
 
 		const img = doc.createImageResource('transparent');
 		img.setId('img001').setPath('/images/');
-		img.setWidth(66).setHeight(44).setExported(true);
-		img.setExtras({ ...img.getExtras(), _fileName: 'transparent.png' });
+		img.setWidth(66).setHeight(44).setExported(true).setFileName('transparent.png');
 		pkg.addResource(img);
 
 		await doc.transform(
@@ -216,8 +215,7 @@ test('atlas: direct single PNG output keeps portrait sprite unrotated for Unity 
 		pkg.setId('bundle001');
 
 		const img = doc.createImageResource('sword');
-		img.setId('fou91').setPath('/').setWidth(104).setHeight(512).setExported(true);
-		img.setExtras({ ...img.getExtras(), _fileName: 'sword.png' });
+		img.setId('fou91').setPath('/').setWidth(104).setHeight(512).setExported(true).setFileName('sword.png');
 		pkg.addResource(img);
 
 		await doc.transform(
@@ -304,18 +302,23 @@ test('atlas: standalone textureSetMode and fixed page outputs use editor-style f
 			.setWidth(320)
 			.setHeight(180)
 			.setExported(true)
-			.setTextureSetMode('alone_npot');
-		cover.setExtras({ ...cover.getExtras(), _fileName: 'cover.jpg' });
+			.setTextureSetMode('alone_npot')
+			.setFileName('cover.jpg');
 		pkg.addResource(cover);
 
 		const icon = doc.createImageResource('icon');
-		icon.setId('icon01').setPath('/images/').setWidth(64).setHeight(64).setExported(true);
-		icon.setExtras({ ...icon.getExtras(), _fileName: 'icon.png' });
+		icon.setId('icon01').setPath('/images/').setWidth(64).setHeight(64).setExported(true).setFileName('icon.png');
 		pkg.addResource(icon);
 
 		const badge = doc.createImageResource('badge');
-		badge.setId('badge01').setPath('/images/').setWidth(48).setHeight(48).setExported(true).setTextureSetMode('12');
-		badge.setExtras({ ...badge.getExtras(), _fileName: 'badge.png' });
+		badge
+			.setId('badge01')
+			.setPath('/images/')
+			.setWidth(48)
+			.setHeight(48)
+			.setExported(true)
+			.setTextureSetMode('12')
+			.setFileName('badge.png');
 		pkg.addResource(badge);
 
 		await doc.transform(
@@ -348,6 +351,62 @@ test('atlas: standalone textureSetMode and fixed page outputs use editor-style f
 			['AtlasModes_atlas0.png', 'AtlasModes_atlas12.png', 'AtlasModes_atlas_cover01.jpg'],
 			'atlas nodes keep standalone and fixed-page file names',
 		);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
+test('atlas: external bitmap font texture attaches font sprite without writing transient extras', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-atlas-font-extras-'));
+	const pkgDir = path.join(tmpDir, 'Fonts');
+	const texPath = path.join(pkgDir, 'bitmap_font.png');
+
+	try {
+		await fs.mkdir(pkgDir, { recursive: true });
+		await sharp({
+			create: {
+				width: 64,
+				height: 64,
+				channels: 4,
+				background: { r: 255, g: 255, b: 255, alpha: 1 },
+			},
+		})
+			.png()
+			.toFile(texPath);
+
+		const doc = new Document();
+		const pkg = doc.createPackage('Fonts');
+		pkg.setId('fonts001');
+
+		const tex = doc.createImageResource('bitmap_font');
+		tex.setId('tex01').setPath('/').setWidth(64).setHeight(64).setExported(false).setFileName('bitmap_font.png');
+		pkg.addResource(tex);
+
+		const font = doc.createFontResource('score');
+		font.setId('fnt01').setPath('/').setExported(true).setTextureId('tex01').setFileName('score.fnt');
+		pkg.addResource(font);
+
+		await doc.transform(
+			atlas({
+				encoder: sharp,
+				basePath: tmpDir,
+				outputPath: tmpDir,
+				mkdir: async (dir) => {
+					await fs.mkdir(dir, { recursive: true });
+				},
+				powerOfTwo: true,
+				maxSize: 256,
+			}),
+		);
+
+		const spriteIds = pkg
+			.listAtlases()
+			.flatMap((atlasNode) => atlasNode.listSprites())
+			.map((sprite) => sprite.getItemId());
+		t.true(spriteIds.includes('tex01'), 'font texture image sprite is packed');
+		t.true(spriteIds.includes('fnt01'), 'external bitmap font alias sprite is attached via formal textureId');
+		t.false('_fontSpriteAlias' in font.getExtras(), 'font resource extras are not polluted with transient alias');
+		t.deepEqual(font.getExtras(), {}, 'font resource extras stay empty');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	}

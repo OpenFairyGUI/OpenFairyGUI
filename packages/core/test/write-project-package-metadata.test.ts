@@ -368,7 +368,10 @@ test('round-trip: package movieclip atlas survives XML and smoothing survives UA
 		const lifted = liftDocumentToUamProject(doc2);
 		const liftedMovieClip = lifted.packages[0]?.resources.find((resource) => resource.id === 'mcAtlas');
 		t.is(liftedMovieClip?.kind, 'movieClip');
-		if (liftedMovieClip?.kind === 'movieClip') t.false(liftedMovieClip.movieClip.smoothing);
+		if (liftedMovieClip?.kind === 'movieClip') {
+			t.is(liftedMovieClip.movieClip.textureSetMode, 'alone_mof');
+			t.false(liftedMovieClip.movieClip.smoothing);
+		}
 
 		await fs.mkdir(path.dirname(materializedFairy), { recursive: true });
 		await io.writeProject(materializeUamProject(lifted), materializedFairy);
@@ -376,7 +379,8 @@ test('round-trip: package movieclip atlas survives XML and smoothing survives UA
 			path.join(tmpDir, 'materialized', 'assets', 'DemoMovieClipTextureSetMode', 'package.xml'),
 			'utf-8',
 		);
-		t.regex(materializedPackageXml, /<movieclip[^>]*id="mcAtlas"[^>]*smoothing="false"/);
+		t.regex(materializedPackageXml, /<movieclip[^>]*id="mcAtlas"[^>]*atlas="alone_mof"[^>]*smoothing="false"/);
+		t.notRegex(materializedPackageXml, /<movieclip[^>]*id="mcDefault"[^>]*atlas=/);
 		t.notRegex(materializedPackageXml, /<movieclip[^>]*id="mcDefault"[^>]*smoothing=/);
 		const materializedDoc = await io.readProject(materializedFairy);
 		const materializedMovieClip = materializedDoc
@@ -384,6 +388,11 @@ test('round-trip: package movieclip atlas survives XML and smoothing survives UA
 			.getPackage('DemoMovieClipTextureSetMode')
 			?.listResources()
 			.find((resource) => resource.getId?.() === 'mcAtlas') as ReturnType<Document['createMovieClipResource']>;
+		t.is(
+			materializedMovieClip.getTextureSetMode(),
+			'alone_mof',
+			'materialized movieclip keeps textureSetMode after reload',
+		);
 		t.false(materializedMovieClip.getSmoothing(), 'materialized movieclip keeps smoothing=false after reload');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });

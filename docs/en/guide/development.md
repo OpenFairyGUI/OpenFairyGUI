@@ -42,6 +42,8 @@ Fast checks are not a full regression. Ordinary documentation excludes site conf
 
 `pnpm repo:doctor --json` reports read-only Node/pnpm, dependency, exported-file, native-image, temporary-directory permission and reference status.
 
+`pnpm fidelity:measure` opens real read-only `BackendRuntime` sessions without modifying source directories, reports the `uamFidelity` `full` share across the three `references.json` public submodules plus tracked `FairyGUI-Experiments`, and ranks any remaining differences by frequency; supports `--json`, `--fail-on-unsupported`, and `--project <path>` for targeted projects (requires `pnpm build` first).
+
 Doctor does not install, download, configure or write files; submodule status queries also disable Git's optional index-refresh writes. Export-file presence does not prove build freshness or Node/Web runtime behavior; `pack:check` verifies actual consumer boundaries. Sharp checks exercise in-memory PNG/JPEG encoding and pixel decoding, not just version metadata; unavailable or failed codecs warn, without proving real publish/restore workflows. The temporary path must be an accessible directory, but access flags do not prove ACL permissions, free space, later writes or rollback. A non-recommended Node major warns; an unsupported Node version, mismatched pnpm or missing required fixtures/build output fails.
 
 ### Changed-test selection

@@ -7,9 +7,15 @@
 Bug Fixes:
 
 - core: Emit canonical `<loader3D>` display-list tags when writing project XML for FairyGUI Desktop compatibility, normalize tag casing across reader paths so both `<loader3D>` and legacy `<loader3d>` remain readable, and synchronize the bilingual XML protocol documentation.
+- core: Formally model, validate, normalize, and round-trip `MovieClipResource` `atlas` texture-set mode (`textureSetMode`) and component-derived node `fileName` hints (`button`, `label`, `comboBox`, `progressBar`, `slider`, `scrollBar`) through UAM, preventing valid projects with those attributes from being falsely marked `uamFidelity: 'unsupported'`.
+
+Features:
+
+- backend, workspace: Expose bounded `uamFidelityReport` diagnostics on session snapshots and `readSessionState`, and attach `error.fidelityReport` plus `meta.diagnostics` on `uam_fidelity_unsupported` save/materialization failures (reporting failure reason, paths, line numbers, and bounded excerpts); add `pnpm fidelity:measure` to measure corpus `full` fidelity ratios and output a frequency-ranked difference inventory.
 
 Other:
 
+- core, functions: Clean up remaining internal transient `extras` markers and obsolete helpers across `core` and `functions` (removing `_fontSpriteAlias`, `_fileName` fallbacks, `_restoreAsLooseImage`, and unused internal `extras` plumbing) in favor of formal properties and module-internal `WeakSet` tracking, and expand corpus fidelity and MCP diagnostics regression tests.
 - Development and CI: Ubuntu / Node 22 runs the full check once under the coverage gate instead of repeating the tests; `check:ci` also runs the contract drift check through `docs:check`. Build options live only in each package's tsdown config, removing the deprecated `external` flag and watch-mode drift. Remove duplicate root scripts, the unused MCP package-level test setup and redundant `tsx` declarations; the AVA inactivity timeout is 60s.
 - Development and CI: Migrate repository workflows, guidance and check defaults from dual `main`/`next` branches to single-trunk `main`.
 - Development and CI: Support `--artifacts` in `check:ci` so `release.yml` verifies packed tarballs in one pass, share the `publish` job dist-tag comparator with post-publish npm dist-tag verification, add `pnpm release:bump`, and document the bilingual release runbook.

@@ -10,6 +10,7 @@ import {
 	resolveSourceFile,
 	resourceOutputPath,
 } from './resource-paths.js';
+import { isLooseRestoreImage } from './skeleton.js';
 
 interface SpriteLookupEntry {
 	sourceAtlas: string;
@@ -86,7 +87,7 @@ async function copyLooseResources(
 	warnings: string[],
 ): Promise<void> {
 	for (const resource of pkg.listResources()) {
-		const restoreAsLooseImage = resource.getExtras()?._restoreAsLooseImage === true;
+		const restoreAsLooseImage = isLooseRestoreImage(resource);
 		if (
 			!['SoundResource', 'MiscResource', 'SpineResource', 'DragonBonesResource'].includes(
 				resource.propertyType,

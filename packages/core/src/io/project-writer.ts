@@ -50,7 +50,6 @@ type WritableResource = PackageResource & {
 	getBranchItemIds?(): string[];
 	getExported?(): boolean;
 	getFavorite?(): boolean;
-	getExtras?(): Record<string, unknown>;
 };
 
 type WritableImageResource = WritableResource & {
@@ -65,7 +64,6 @@ type WritableImageResource = WritableResource & {
 	getTileGridIndice?(): number;
 	getSmoothing?(): boolean;
 	getDuplicatePadding?(): boolean;
-	getExtras?(): Record<string, unknown>;
 };
 
 type WritableFontResource = WritableResource & {

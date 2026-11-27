@@ -49,8 +49,9 @@ Adapter-backed `openSession` hydrates primary resource bytes so browser-safe tra
 assets or add/replace/remove binary resources. `saveSession` writes replacement bytes before it removes
 stale source files, preserving the prior file when a write fails.
 It also compares the source project with a UAM round trip through `ProjectWriter`; sessions with
-unrepresented persisted properties expose `uamFidelity: 'unsupported'`, and write attempts fail with
-`uam_fidelity_unsupported`. Existing projects in browser storage must be opened through this path by
+unrepresented persisted properties expose `uamFidelity: 'unsupported'` together with a bounded
+`uamFidelityReport`, and write attempts fail with `uam_fidelity_unsupported` carrying `error.fidelityReport`
+and matching `meta.diagnostics`. Existing projects in browser storage must be opened through this path by
 injecting `createBackendStorageFileSystem(storage)` into `BackendRuntime`; `openProjectSession` is only
 for sessions whose supplied UAM project is authoritative. Transactions, saves, and materialization are
 serialized per session together with close. Opening and storage rebinding reserve the canonical target before asynchronous I/O; failed rebinding retains the original session binding.

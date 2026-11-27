@@ -196,7 +196,7 @@ ProjectWriter 会为每个工程分支保留 `assets_<branch>/`，并为包内�
 
 ## 工程 MovieClip 资源属性与 JTA 事务
 
-`package.xml` 与 `package_branch.xml` 的 `movieclip` 资源使用 `atlas` 记录纹理集模式，并使用 `smoothing` 记录平滑设置。缺少 `smoothing` 时按 `true` 读取；写回时仅为非默认值输出 `smoothing="false"`。MovieClip 资源使用正式的 `UamMovieClipResource.movieClip` 快照承载 `interval`、`repeatDelay`、`swing`、`smoothing` 和逐帧矩形/附加延迟/sprite id，不读取旧式 `metadata` 属性袋。
+`package.xml` 与 `package_branch.xml` 的 `movieclip` 资源使用 `atlas` 记录纹理集模式（由 UAM 可选字段 `textureSetMode` 保留），并使用 `smoothing` 记录平滑设置。缺少 `smoothing` 时按 `true` 读取；写回时仅为非默认值输出 `smoothing="false"`。MovieClip 资源使用正式的 `UamMovieClipResource.movieClip` 快照承载 `interval`、`repeatDelay`、`swing`、`smoothing`、可选 `textureSetMode` 和逐帧矩形/附加延迟/sprite id，不读取旧式 `metadata` 属性袋。
 
 `ProjectReader` 水合 JTA v100-v102 时，以 source bytes 派生尺寸、播放 timing 与帧列表；`fps === 0` 按 24 归一，负值无效，毫秒字段使用整数截断。无法解析派生模型时仍保留原始 source bytes 和 XML 属性。JTA 不携带的 `smoothing` 继续以 XML/UAM 为事实来源。
 

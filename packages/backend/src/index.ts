@@ -91,6 +91,9 @@ export {
 	type SessionNotFoundError,
 	type SessionCloseFailedError,
 	type SessionStaleWriteError,
+	type UamFidelityDiffEntry,
+	type UamFidelityFailureReason,
+	type UamFidelityReport,
 	type UamFidelityUnsupportedError,
 	type ValidateSessionInput,
 } from './runtime.js';

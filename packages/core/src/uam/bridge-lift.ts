@@ -74,6 +74,7 @@ type LiftableComponentDerivedControl = LiftableDisplayNodeBase & {
 	getSrc(): string;
 	getPackageId(): string;
 	getPageController(): string;
+	getFileName(): string;
 };
 
 type LiftableTitleControl = LiftableComponentDerivedControl & {
@@ -89,7 +90,7 @@ type LiftedDisplayNodeBase = Omit<UamDisplayNodeBase, 'kind'>;
 type LiftedGroupableDisplayNodeBase = LiftedDisplayNodeBase & Pick<UamButtonNode, 'group'>;
 
 type LiftedComponentDerivedControlBase = LiftedGroupableDisplayNodeBase &
-	Pick<UamButtonNode, 'src' | 'packageId' | 'pageController'>;
+	Pick<UamButtonNode, 'src' | 'packageId' | 'pageController' | 'fileName'>;
 type LiftedTitleControlBase = LiftedComponentDerivedControlBase &
 	Pick<UamButtonNode, 'title' | 'icon' | 'titleColor' | 'titleFontSize' | 'sound' | 'soundVolumeScale'>;
 
@@ -129,6 +130,7 @@ function liftComponentDerivedControlBase(child: LiftableComponentDerivedControl)
 		src: child.getSrc(),
 		packageId: child.getPackageId(),
 		...(child.getPageController() ? { pageController: child.getPageController() } : {}),
+		...(child.getFileName() ? { fileName: child.getFileName() } : {}),
 	};
 }
 
@@ -216,6 +218,7 @@ function liftAssetResource(resource: LiftableAssetResource): UamAssetResource {
 				height: movieClip.getHeight(),
 			},
 			movieClip: {
+				...(movieClip.getTextureSetMode() ? { textureSetMode: movieClip.getTextureSetMode() } : {}),
 				interval: movieClip.getInterval(),
 				repeatDelay: movieClip.getRepeatDelay(),
 				swing: movieClip.getSwing(),
