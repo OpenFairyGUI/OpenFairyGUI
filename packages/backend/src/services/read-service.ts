@@ -8,10 +8,14 @@ import {
 } from './context.js';
 import type {
 	BackendCapabilities,
+	BackendDisplayNodeCandidate,
+	BackendDisplayNodeQueryResult,
 	BackendProjectOutline,
 	BackendResult,
 	BackendSessionSnapshot,
+	DisplayNodeFilter,
 	GetProjectOutlineInput,
+	QueryDisplayNodesInput,
 	QueryEntityInput,
 	BackendEntitySnapshot,
 	BackendResourceSnapshot,
@@ -27,11 +31,196 @@ import type {
 import { createSessionNotFoundError, toSessionSnapshot } from './session-utils.js';
 import { validateProject } from '@openfairygui/functions';
 import type { ProjectValidationReport } from '@openfairygui/core';
+import type { UamDisplayNode, UamDisplayNodeKind } from '@openfairygui/core/uam';
 import {
+	BACKEND_DISPLAY_NODE_FILTER_FIELDS,
+	BACKEND_DISPLAY_NODE_QUERY_LIMITS,
 	BACKEND_ENTITY_QUERY_LIMITS,
 	BACKEND_RESOURCE_QUERY_FIELDS,
 	BACKEND_SESSION_READ_LIMITS,
 } from '../runtime/contracts.js';
+
+const DISPLAY_NODE_KINDS: ReadonlySet<string> = new Set<UamDisplayNodeKind>([
+	'image',
+	'text',
+	'richText',
+	'textInput',
+	'component',
+	'list',
+	'tree',
+	'graph',
+	'group',
+	'loader',
+	'loader3D',
+	'movieClip',
+	'button',
+	'label',
+	'comboBox',
+	'progressBar',
+	'slider',
+	'scrollBar',
+]);
+const DISPLAY_NODE_FILTER_KEY_SET: ReadonlySet<string> = new Set<string>(BACKEND_DISPLAY_NODE_FILTER_FIELDS);
+const DISPLAY_NODE_FILTER_EXACT_STRINGS = ['name', 'text', 'title', 'group', 'url'] as const;
+const DISPLAY_NODE_FILTER_CONTAINS_STRINGS = ['nameContains', 'textContains', 'titleContains'] as const;
+const DISPLAY_NODE_FILTER_BOOLEANS = ['visible', 'locked', 'touchable', 'hasGears', 'hasRelations'] as const;
+const DISPLAY_NODE_QUERY_INPUT_KEYS = new Set(['sessionId', 'selector', 'filter', 'limit']);
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		!Array.isArray(value) &&
+		(Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)
+	);
+}
+
+function isValidDisplayNodeFilter(value: unknown): value is DisplayNodeFilter {
+	if (!isPlainRecord(value)) return false;
+	for (const key of Object.keys(value)) {
+		if (!DISPLAY_NODE_FILTER_KEY_SET.has(key)) return false;
+	}
+	if (value.kind !== undefined && (typeof value.kind !== 'string' || !DISPLAY_NODE_KINDS.has(value.kind))) {
+		return false;
+	}
+	for (const key of DISPLAY_NODE_FILTER_EXACT_STRINGS) {
+		const entry = value[key];
+		if (entry !== undefined && (typeof entry !== 'string' || entry.length > 1024)) return false;
+	}
+	for (const key of DISPLAY_NODE_FILTER_CONTAINS_STRINGS) {
+		const entry = value[key];
+		if (entry !== undefined && (typeof entry !== 'string' || !entry.length || entry.length > 1024)) return false;
+	}
+	if (
+		value.resourceId !== undefined &&
+		(typeof value.resourceId !== 'string' || !value.resourceId.length || value.resourceId.length > 256)
+	) {
+		return false;
+	}
+	for (const key of DISPLAY_NODE_FILTER_BOOLEANS) {
+		const entry = value[key];
+		if (entry !== undefined && typeof entry !== 'boolean') return false;
+	}
+	return true;
+}
+
+function displayNodeText(node: ReadonlyData<UamDisplayNode>): string | undefined {
+	if (node.kind === 'text' || node.kind === 'richText' || node.kind === 'textInput') {
+		return node.text;
+	}
+	return undefined;
+}
+
+function displayNodeTitle(node: ReadonlyData<UamDisplayNode>): string | undefined {
+	if (node.kind === 'button' || node.kind === 'label' || node.kind === 'comboBox') {
+		return node.title;
+	}
+	if (
+		node.kind === 'component' &&
+		node.instanceProperties &&
+		'title' in node.instanceProperties &&
+		typeof node.instanceProperties.title === 'string'
+	) {
+		return node.instanceProperties.title;
+	}
+	return undefined;
+}
+
+function displayNodeGroup(node: ReadonlyData<UamDisplayNode>): string | undefined {
+	return 'group' in node ? node.group : undefined;
+}
+
+function displayNodeResource(
+	node: ReadonlyData<UamDisplayNode>,
+): { packageId?: string; resourceId: string } | undefined {
+	if (node.kind === 'image' || node.kind === 'component' || node.kind === 'movieClip') {
+		return {
+			...(node.resource.packageId !== undefined ? { packageId: node.resource.packageId } : {}),
+			resourceId: node.resource.resourceId,
+		};
+	}
+	if ('src' in node && typeof node.src === 'string' && node.src.length > 0) {
+		const packageId =
+			'packageId' in node && typeof node.packageId === 'string' && node.packageId.length > 0
+				? node.packageId
+				: undefined;
+		return {
+			...(packageId !== undefined ? { packageId } : {}),
+			resourceId: node.src,
+		};
+	}
+	return undefined;
+}
+
+function displayNodeUrl(node: ReadonlyData<UamDisplayNode>): string | undefined {
+	if (node.kind === 'loader' || node.kind === 'loader3D') {
+		return node.url;
+	}
+	return undefined;
+}
+
+function matchesDisplayNodeFilter(node: ReadonlyData<UamDisplayNode>, filter: DisplayNodeFilter | undefined): boolean {
+	if (!filter) return true;
+	if (filter.kind !== undefined && node.kind !== filter.kind) return false;
+	if (filter.name !== undefined && node.name !== filter.name) return false;
+	if (filter.nameContains !== undefined && !node.name.includes(filter.nameContains)) return false;
+	if (filter.text !== undefined || filter.textContains !== undefined) {
+		const text = displayNodeText(node);
+		if (typeof text !== 'string') return false;
+		if (filter.text !== undefined && text !== filter.text) return false;
+		if (filter.textContains !== undefined && !text.includes(filter.textContains)) return false;
+	}
+	if (filter.title !== undefined || filter.titleContains !== undefined) {
+		const title = displayNodeTitle(node);
+		if (typeof title !== 'string') return false;
+		if (filter.title !== undefined && title !== filter.title) return false;
+		if (filter.titleContains !== undefined && !title.includes(filter.titleContains)) return false;
+	}
+	if (filter.group !== undefined) {
+		const group = displayNodeGroup(node);
+		if (group === undefined || group !== filter.group) return false;
+	}
+	if (filter.resourceId !== undefined) {
+		const resource = displayNodeResource(node);
+		if (!resource || resource.resourceId !== filter.resourceId) return false;
+	}
+	if (filter.url !== undefined) {
+		const url = displayNodeUrl(node);
+		if (typeof url !== 'string' || url !== filter.url) return false;
+	}
+	if (filter.visible !== undefined && node.visible !== filter.visible) return false;
+	if (filter.locked !== undefined && node.locked !== filter.locked) return false;
+	if (filter.touchable !== undefined && node.touchable !== filter.touchable) return false;
+	if (filter.hasGears !== undefined && node.gears.length > 0 !== filter.hasGears) return false;
+	if (filter.hasRelations !== undefined && node.relations.length > 0 !== filter.hasRelations) return false;
+	return true;
+}
+
+function toDisplayNodeCandidate(node: ReadonlyData<UamDisplayNode>, index: number): BackendDisplayNodeCandidate {
+	const group = displayNodeGroup(node);
+	const text = displayNodeText(node);
+	const title = displayNodeTitle(node);
+	const resource = displayNodeResource(node);
+	const url = displayNodeUrl(node);
+	return {
+		id: node.id,
+		name: node.name,
+		kind: node.kind,
+		index,
+		position: { x: node.position.x, y: node.position.y },
+		size: { width: node.size.width, height: node.size.height },
+		visible: node.visible,
+		locked: node.locked,
+		touchable: node.touchable,
+		...(group !== undefined && group.length > 0 ? { group } : {}),
+		...(text !== undefined ? { text } : {}),
+		...(title !== undefined ? { title } : {}),
+		...(resource !== undefined ? { resource } : {}),
+		...(url !== undefined ? { url } : {}),
+		gearCount: node.gears.length,
+		relationCount: node.relations.length,
+	};
+}
 
 /** Bound traversal before serialization or cloning, including non-JSON values on a malformed native input. */
 function queryResponseProblem(
@@ -288,6 +477,86 @@ export class ReadService {
 			}
 		}
 		return respond(entity);
+	}
+
+	public queryDisplayNodes(
+		input: QueryDisplayNodesInput,
+	): BackendResult<BackendDisplayNodeQueryResult, SessionNotFoundError | EntityQueryError> {
+		const startedAt = Date.now();
+		const sessionId = typeof input?.sessionId === 'string' ? input.sessionId : '';
+		const session = this.getSessionState(sessionId);
+		if (!session || session.closed) return failure('read', startedAt, createSessionNotFoundError(sessionId));
+		const meta = { sessionId: session.sessionId, revision: session.revision };
+		const reject = (reason: EntityQueryError['reason']) =>
+			failure(
+				'read',
+				startedAt,
+				{
+					code: 'entity_query_failed' as const,
+					sessionId: session.sessionId,
+					reason,
+					message: `Display node query failed: ${reason}.`,
+				},
+				undefined,
+				meta,
+			);
+		if (!isPlainRecord(input) || Object.keys(input).some((key) => !DISPLAY_NODE_QUERY_INPUT_KEYS.has(key))) {
+			return reject('invalid_query');
+		}
+		const selector = input.selector as unknown as Record<string, unknown>;
+		if (
+			!isPlainRecord(selector) ||
+			Object.keys(selector).length !== 2 ||
+			['packageId', 'componentResourceId'].some(
+				(key) =>
+					!Object.hasOwn(selector, key) ||
+					typeof selector[key] !== 'string' ||
+					!(selector[key] as string).length ||
+					(selector[key] as string).length > 256,
+			)
+		) {
+			return reject('invalid_query');
+		}
+		const limit = input.limit ?? BACKEND_DISPLAY_NODE_QUERY_LIMITS.defaultLimit;
+		if (
+			typeof limit !== 'number' ||
+			!Number.isInteger(limit) ||
+			limit < 1 ||
+			limit > BACKEND_DISPLAY_NODE_QUERY_LIMITS.maxLimit
+		) {
+			return reject('invalid_query');
+		}
+		if (input.filter !== undefined && !isValidDisplayNodeFilter(input.filter)) {
+			return reject('invalid_query');
+		}
+		const packages = session.project.packages.filter((pkg) => pkg.id === selector.packageId);
+		if (packages.length !== 1) return reject(packages.length ? 'ambiguous' : 'not_found');
+		const resources = packages[0].resources.filter((resource) => resource.id === selector.componentResourceId);
+		if (resources.length !== 1) return reject(resources.length ? 'ambiguous' : 'not_found');
+		const resource = resources[0];
+		if (resource.kind !== 'component') return reject('not_found');
+
+		let totalMatched = 0;
+		const nodes: BackendDisplayNodeCandidate[] = [];
+		for (const [index, node] of resource.component.displayList.entries()) {
+			if (!matchesDisplayNodeFilter(node, input.filter)) continue;
+			totalMatched += 1;
+			if (nodes.length < limit) {
+				nodes.push(toDisplayNodeCandidate(node, index));
+			}
+		}
+		const data: BackendDisplayNodeQueryResult = {
+			...meta,
+			selector: {
+				packageId: selector.packageId as string,
+				componentResourceId: selector.componentResourceId as string,
+			},
+			totalMatched,
+			truncated: totalMatched > nodes.length,
+			nodes,
+		};
+		const problem = queryResponseProblem(data, BACKEND_DISPLAY_NODE_QUERY_LIMITS);
+		return problem ? reject(problem) : success('read', startedAt, structuredClone(data), meta);
 	}
 
 	private resolveReadSession(

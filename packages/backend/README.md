@@ -29,6 +29,7 @@ It also provides:
 - synchronous cache refresh returning a detached revision-bound snapshot
 - revision-bound derived read-only cache snapshots
 - revision-bound project identity outlines for transaction planning
+- revision-bound in-component display-node filtering with explicit candidate limits and byte budgets
 - bounded, detached public UAM model and primary resource-byte reads with edit-revision checks
 - revision-bound read-only project validation reports
 - explicit Node bridge boundaries for publish/restore

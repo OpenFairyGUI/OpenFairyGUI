@@ -29,6 +29,8 @@ import type {
 	GetEventsInput,
 	GetEventsSnapshot,
 	GetProjectOutlineInput,
+	QueryDisplayNodesInput,
+	BackendDisplayNodeQueryResult,
 	QueryEntityInput,
 	BackendEntitySnapshot,
 	EntityQueryError,
@@ -175,6 +177,12 @@ export class BackendRuntime {
 		input: QueryEntityInput,
 	): BackendResult<BackendEntitySnapshot, SessionNotFoundError | EntityQueryError> {
 		return this.readService.queryEntity(input);
+	}
+
+	public queryDisplayNodes(
+		input: QueryDisplayNodesInput,
+	): BackendResult<BackendDisplayNodeQueryResult, SessionNotFoundError | EntityQueryError> {
+		return this.readService.queryDisplayNodes(input);
 	}
 
 	public readSessionState(

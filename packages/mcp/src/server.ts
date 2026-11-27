@@ -42,7 +42,7 @@ const PACKAGE_VERSION = readPackageVersion();
 export const DEFAULT_INSTRUCTIONS = [
 	'Read openfairygui_docs_read with id index, then workflow and the needed operation/method documents.',
 	'Open a project directory or .fairy file within the configured allowed roots.',
-	'Read the project outline, then query exact entity IDs and their current revision.',
+	'Read the project outline, use openfairygui_backend_query_display_nodes to filter candidate nodes within a component by property when needed, and query exact entity IDs and their current revision.',
 	'Preflight the operation batch with expectedRevision before applying it.',
 	'Apply at that same revision; on stale_write re-query and reconsider, never retry blindly.',
 	'Validate the edited session, save with its current revision, and close the session when finished.',

@@ -56,7 +56,7 @@ export const OPENFAIRYGUI_BACKEND_PROMPT_DEFINITIONS = [
 		description: 'Guide a client through backend-owned revision checks without inventing operation grammar.',
 		text: [
 			'Use openfairygui_backend_get_session to read the current revision before mutation.',
-			'Use openfairygui_backend_get_project_outline for identities, then openfairygui_backend_query_entity for current properties at the returned revision.',
+			'Use openfairygui_backend_get_project_outline for identities, openfairygui_backend_query_display_nodes to filter candidate display nodes within a component by modeled properties, and openfairygui_backend_query_entity for full current properties at the returned revision.',
 			'For settings edits, query target {kind:"project"} or {kind:"package",selector:{packageId}}; copy entity.properties.settings, change the requested fields, and submit the complete settings to updateProjectSettings or updatePackageSettings.',
 			'Read openfairygui://contracts/operations and openfairygui://contracts/operations/{kind} for the current operation names and exact JSON parameters.',
 			'Call openfairygui_backend_preflight_transaction with the queried revision and planned operations to execute and discard an isolated preview; inspect the backend diagnostics.',

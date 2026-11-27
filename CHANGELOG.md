@@ -8,6 +8,10 @@ Bug Fixes:
 
 - core: Emit canonical `<loader3D>` display-list tags when writing project XML for FairyGUI Desktop compatibility, normalize tag casing across reader paths so both `<loader3D>` and legacy `<loader3d>` remain readable, and synchronize the bilingual XML protocol documentation.
 
+Features:
+
+- backend, mcp: Add the budgeted in-component display-node filter query `queryDisplayNodes` (MCP tool `openfairygui_backend_query_display_nodes`) supporting modeled filters (`kind`, `name`/`nameContains`, `text`/`textContains`, `title`/`titleContains`, `group`, `resourceId`, `url`, `visible`, `locked`, `touchable`, `hasGears`, `hasRelations`), candidate limits (default 50, max 200), and 256 KiB response budgets while keeping exact `displayNodeId` commit requirements; expose it in the evaluation editing host to reduce tool calls on `edit-display-node`-style tasks. Capability schema version is now 16 (`BACKEND_CONTRACT_VERSION` remains `3.0.0`, non-breaking).
+
 Other:
 
 - Development and CI: Ubuntu / Node 22 runs the full check once under the coverage gate instead of repeating the tests; `check:ci` also runs the contract drift check through `docs:check`. Build options live only in each package's tsdown config, removing the deprecated `external` flag and watch-mode drift. Remove duplicate root scripts, the unused MCP package-level test setup and redundant `tsx` declarations; the AVA inactivity timeout is 60s.

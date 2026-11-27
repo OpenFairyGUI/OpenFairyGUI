@@ -44,7 +44,7 @@ test('SDK discovery includes Host tools before and after connection and follows 
 	await Promise.all([client.connect(ct), server.connect(st)]);
 	try {
 		t.is(client.getInstructions(), instructions);
-		t.is((await client.listTools()).tools.length, 19);
+		t.is((await client.listTools()).tools.length, 20);
 		t.deepEqual((await client.callTool({ name: 'host_probe', arguments: {} })).content, [
 			{ type: 'text', text: 'ok' },
 		]);
@@ -55,7 +55,7 @@ test('SDK discovery includes Host tools before and after connection and follows 
 		probe.update({ title: 'Updated Host tool' });
 		t.is((await client.listTools()).tools.find(({ name }) => name === 'host_probe')?.title, 'Updated Host tool');
 		probe.remove();
-		t.is((await client.listTools()).tools.length, 18);
+		t.is((await client.listTools()).tools.length, 19);
 		server.registerTool('host_late', {}, async () => ({ content: [{ type: 'text', text: 'late' }] }));
 		t.true((await client.listTools()).tools.some(({ name }) => name === 'host_late'));
 		t.deepEqual((await client.callTool({ name: 'host_late', arguments: {} })).content, [

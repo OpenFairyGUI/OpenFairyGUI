@@ -4,7 +4,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 	"schemaVersion": 2,
 	"versions": {
 		"BACKEND_CONTRACT_VERSION": "3.0.0",
-		"BACKEND_CAPABILITY_SCHEMA_VERSION": 15
+		"BACKEND_CAPABILITY_SCHEMA_VERSION": 16
 	},
 	"operations": {
 		"updateProjectSettings": {
@@ -408,6 +408,161 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 						"anyOf": [
 							{
 								"$ref": "#/$defs/BackendResult_31436e4e14_wire"
+							},
+							{
+								"$ref": "#/$defs/McpUnhandledFailure_fcecd3763a"
+							}
+						]
+					}
+				},
+				"required": [
+					"backendResult"
+				],
+				"additionalProperties": false
+			},
+			"bytePaths": [],
+			"outputBytePaths": []
+		},
+		"queryDisplayNodes": {
+			"name": "openfairygui_backend_query_display_nodes",
+			"backendMethod": "queryDisplayNodes",
+			"title": "Query Display Nodes in Component",
+			"description": "Filter display nodes within one component by modeled properties (kind, name, nameContains, text, textContains, title, titleContains, group, resourceId, url, visible, locked, touchable, hasGears, hasRelations) with an explicit limit (default 50, max 200) and response byte budget. Returns matching displayNode IDs, displayList indices, and key summary properties at the current revision; mutations still require exact displayNodeId selectors.",
+			"annotations": {
+				"readOnlyHint": true,
+				"idempotentHint": true,
+				"openWorldHint": false
+			},
+			"input": {
+				"type": "object",
+				"properties": {
+					"sessionId": {
+						"type": "string",
+						"minLength": 1
+					},
+					"selector": {
+						"type": "object",
+						"properties": {
+							"packageId": {
+								"type": "string",
+								"minLength": 1,
+								"maxLength": 256
+							},
+							"componentResourceId": {
+								"type": "string",
+								"minLength": 1,
+								"maxLength": 256
+							}
+						},
+						"required": [
+							"packageId",
+							"componentResourceId"
+						],
+						"additionalProperties": false
+					},
+					"filter": {
+						"type": "object",
+						"properties": {
+							"kind": {
+								"enum": [
+									"button",
+									"label",
+									"image",
+									"text",
+									"group",
+									"list",
+									"movieClip",
+									"component",
+									"richText",
+									"textInput",
+									"tree",
+									"graph",
+									"loader",
+									"loader3D",
+									"comboBox",
+									"progressBar",
+									"slider",
+									"scrollBar"
+								]
+							},
+							"name": {
+								"type": "string",
+								"maxLength": 1024
+							},
+							"nameContains": {
+								"type": "string",
+								"minLength": 1,
+								"maxLength": 1024
+							},
+							"text": {
+								"type": "string",
+								"maxLength": 1024
+							},
+							"textContains": {
+								"type": "string",
+								"minLength": 1,
+								"maxLength": 1024
+							},
+							"title": {
+								"type": "string",
+								"maxLength": 1024
+							},
+							"titleContains": {
+								"type": "string",
+								"minLength": 1,
+								"maxLength": 1024
+							},
+							"group": {
+								"type": "string",
+								"maxLength": 1024
+							},
+							"resourceId": {
+								"type": "string",
+								"minLength": 1,
+								"maxLength": 256
+							},
+							"url": {
+								"type": "string",
+								"maxLength": 1024
+							},
+							"visible": {
+								"$ref": "#/$defs/Shape_6b49a92435"
+							},
+							"locked": {
+								"$ref": "#/$defs/Shape_6b49a92435"
+							},
+							"touchable": {
+								"$ref": "#/$defs/Shape_6b49a92435"
+							},
+							"hasGears": {
+								"$ref": "#/$defs/Shape_6b49a92435"
+							},
+							"hasRelations": {
+								"$ref": "#/$defs/Shape_6b49a92435"
+							}
+						},
+						"required": [],
+						"additionalProperties": false
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 200
+					}
+				},
+				"required": [
+					"sessionId",
+					"selector"
+				],
+				"additionalProperties": false
+			},
+			"output": {
+				"type": "object",
+				"properties": {
+					"backendResult": {
+						"anyOf": [
+							{
+								"$ref": "#/$defs/BackendResult_b18bc44e67_wire"
 							},
 							{
 								"$ref": "#/$defs/McpUnhandledFailure_fcecd3763a"
@@ -10482,7 +10637,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
-					"const": 15
+					"const": 16
 				}
 			},
 			"required": [
@@ -11106,6 +11261,77 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
+		"DisplayNodeFilter_15d978b0af": {
+			"type": "object",
+			"properties": {
+				"kind": {
+					"enum": [
+						"button",
+						"label",
+						"image",
+						"text",
+						"group",
+						"list",
+						"movieClip",
+						"component",
+						"richText",
+						"textInput",
+						"tree",
+						"graph",
+						"loader",
+						"loader3D",
+						"comboBox",
+						"progressBar",
+						"slider",
+						"scrollBar"
+					]
+				},
+				"name": {
+					"type": "string"
+				},
+				"nameContains": {
+					"type": "string"
+				},
+				"text": {
+					"type": "string"
+				},
+				"textContains": {
+					"type": "string"
+				},
+				"title": {
+					"type": "string"
+				},
+				"titleContains": {
+					"type": "string"
+				},
+				"group": {
+					"type": "string"
+				},
+				"resourceId": {
+					"type": "string"
+				},
+				"url": {
+					"type": "string"
+				},
+				"visible": {
+					"$ref": "#/$defs/Shape_6b49a92435"
+				},
+				"locked": {
+					"$ref": "#/$defs/Shape_6b49a92435"
+				},
+				"touchable": {
+					"$ref": "#/$defs/Shape_6b49a92435"
+				},
+				"hasGears": {
+					"$ref": "#/$defs/Shape_6b49a92435"
+				},
+				"hasRelations": {
+					"$ref": "#/$defs/Shape_6b49a92435"
+				}
+			},
+			"required": [],
+			"additionalProperties": false
+		},
 		"Array_96c9f2280e": {
 			"type": "array",
 			"items": {
@@ -11294,7 +11520,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
-					"const": 15
+					"const": 16
 				}
 			},
 			"required": [
@@ -11564,7 +11790,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
-					"const": 15
+					"const": 16
 				},
 				"transactionKernelOwner": {
 					"type": "string",
@@ -11579,10 +11805,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": "@openfairygui/backend"
 				},
 				"methods": {
-					"$ref": "#/$defs/Shape_ae72a55d5a_wire"
+					"$ref": "#/$defs/Shape_5f0e8ee676_wire"
 				},
 				"read": {
-					"$ref": "#/$defs/__type_4c480176a6_wire"
+					"$ref": "#/$defs/__type_de50af0353_wire"
 				},
 				"authoring": {
 					"$ref": "#/$defs/__type_cea960ae37_wire"
@@ -11616,7 +11842,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"Shape_ae72a55d5a_wire": {
+		"Shape_5f0e8ee676_wire": {
 			"type": "array",
 			"prefixItems": [
 				{
@@ -11642,6 +11868,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				{
 					"type": "string",
 					"const": "queryEntity"
+				},
+				{
+					"type": "string",
+					"const": "queryDisplayNodes"
 				},
 				{
 					"type": "string",
@@ -11688,11 +11918,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": "refreshCache"
 				}
 			],
-			"minItems": 17,
-			"maxItems": 17,
+			"minItems": 18,
+			"maxItems": 18,
 			"items": false
 		},
-		"__type_4c480176a6_wire": {
+		"__type_de50af0353_wire": {
 			"type": "object",
 			"properties": {
 				"capabilitySnapshot": {
@@ -11710,6 +11940,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"entityQuery": {
 					"$ref": "#/$defs/__type_14ef9c17ee_wire"
 				},
+				"displayNodeQuery": {
+					"$ref": "#/$defs/__type_181f67f6a1_wire"
+				},
 				"sessionState": {
 					"$ref": "#/$defs/__type_21fe9bfc0c_wire"
 				},
@@ -11726,6 +11959,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"sessionSnapshot",
 				"projectOutline",
 				"entityQuery",
+				"displayNodeQuery",
 				"sessionState",
 				"resourceBytes",
 				"projectValidation"
@@ -11792,6 +12026,92 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"maxBytes",
 				"maxDepth",
 				"maxNodes"
+			],
+			"additionalProperties": false
+		},
+		"__type_181f67f6a1_wire": {
+			"type": "object",
+			"properties": {
+				"scope": {
+					"type": "string",
+					"const": "component"
+				},
+				"filterFields": {
+					"$ref": "#/$defs/ReadonlyArray_65b443321f_wire"
+				},
+				"projection": {
+					"type": "string",
+					"const": "summary"
+				},
+				"sourceBytes": {
+					"type": "boolean",
+					"const": false
+				},
+				"limits": {
+					"$ref": "#/$defs/__object_7de0a6f325_wire"
+				}
+			},
+			"required": [
+				"scope",
+				"filterFields",
+				"projection",
+				"sourceBytes",
+				"limits"
+			],
+			"additionalProperties": false
+		},
+		"ReadonlyArray_65b443321f_wire": {
+			"type": "array",
+			"items": {
+				"enum": [
+					"name",
+					"url",
+					"visible",
+					"title",
+					"text",
+					"group",
+					"locked",
+					"touchable",
+					"kind",
+					"resourceId",
+					"nameContains",
+					"textContains",
+					"titleContains",
+					"hasGears",
+					"hasRelations"
+				]
+			}
+		},
+		"__object_7de0a6f325_wire": {
+			"type": "object",
+			"properties": {
+				"maxBytes": {
+					"type": "number",
+					"const": 262144
+				},
+				"maxDepth": {
+					"type": "number",
+					"const": 32
+				},
+				"maxNodes": {
+					"type": "number",
+					"const": 100000
+				},
+				"defaultLimit": {
+					"type": "number",
+					"const": 50
+				},
+				"maxLimit": {
+					"type": "number",
+					"const": 200
+				}
+			},
+			"required": [
+				"maxBytes",
+				"maxDepth",
+				"maxNodes",
+				"defaultLimit",
+				"maxLimit"
 			],
 			"additionalProperties": false
 		},
@@ -19758,6 +20078,208 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"message",
 				"sessionId",
 				"reason"
+			],
+			"additionalProperties": false
+		},
+		"BackendResult_b18bc44e67_wire": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/BackendFailure_c6f2a9c77b_wire"
+				},
+				{
+					"$ref": "#/$defs/BackendSuccess_a38e44c6ae_wire"
+				}
+			]
+		},
+		"BackendSuccess_a38e44c6ae_wire": {
+			"type": "object",
+			"properties": {
+				"ok": {
+					"type": "boolean",
+					"const": true
+				},
+				"meta": {
+					"$ref": "#/$defs/BackendResponseMeta_bbbdb18c02_wire"
+				},
+				"data": {
+					"$ref": "#/$defs/BackendDisplayNodeQueryResult_c1c8ce8f1c_wire"
+				}
+			},
+			"required": [
+				"ok",
+				"meta",
+				"data"
+			],
+			"additionalProperties": false
+		},
+		"BackendDisplayNodeQueryResult_c1c8ce8f1c_wire": {
+			"type": "object",
+			"properties": {
+				"sessionId": {
+					"type": "string"
+				},
+				"revision": {
+					"type": "number"
+				},
+				"selector": {
+					"$ref": "#/$defs/UamComponentSelector_0f08120f8d_wire"
+				},
+				"totalMatched": {
+					"type": "number"
+				},
+				"truncated": {
+					"type": "boolean"
+				},
+				"nodes": {
+					"$ref": "#/$defs/Array_19966bcf3f_wire"
+				}
+			},
+			"required": [
+				"sessionId",
+				"revision",
+				"selector",
+				"totalMatched",
+				"truncated",
+				"nodes"
+			],
+			"additionalProperties": false
+		},
+		"Array_19966bcf3f_wire": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/BackendDisplayNodeCandidate_9e81b81aa0_wire"
+			}
+		},
+		"BackendDisplayNodeCandidate_9e81b81aa0_wire": {
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "string"
+				},
+				"name": {
+					"type": "string"
+				},
+				"kind": {
+					"enum": [
+						"button",
+						"label",
+						"image",
+						"text",
+						"group",
+						"list",
+						"movieClip",
+						"component",
+						"richText",
+						"textInput",
+						"tree",
+						"graph",
+						"loader",
+						"loader3D",
+						"comboBox",
+						"progressBar",
+						"slider",
+						"scrollBar"
+					]
+				},
+				"index": {
+					"type": "number"
+				},
+				"position": {
+					"$ref": "#/$defs/__type_4b84b3d539_wire"
+				},
+				"size": {
+					"$ref": "#/$defs/__type_38742680c1_wire"
+				},
+				"visible": {
+					"type": "boolean"
+				},
+				"locked": {
+					"type": "boolean"
+				},
+				"touchable": {
+					"type": "boolean"
+				},
+				"group": {
+					"type": "string"
+				},
+				"text": {
+					"type": "string"
+				},
+				"title": {
+					"type": "string"
+				},
+				"resource": {
+					"$ref": "#/$defs/__type_6d828cf2a1_wire"
+				},
+				"url": {
+					"type": "string"
+				},
+				"gearCount": {
+					"type": "number"
+				},
+				"relationCount": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"id",
+				"name",
+				"kind",
+				"index",
+				"position",
+				"size",
+				"visible",
+				"locked",
+				"touchable",
+				"gearCount",
+				"relationCount"
+			],
+			"additionalProperties": false
+		},
+		"__type_4b84b3d539_wire": {
+			"type": "object",
+			"properties": {
+				"x": {
+					"type": "number"
+				},
+				"y": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"x",
+				"y"
+			],
+			"additionalProperties": false
+		},
+		"__type_38742680c1_wire": {
+			"type": "object",
+			"properties": {
+				"width": {
+					"type": "number"
+				},
+				"height": {
+					"type": "number"
+				}
+			},
+			"required": [
+				"width",
+				"height"
+			],
+			"additionalProperties": false
+		},
+		"__type_6d828cf2a1_wire": {
+			"type": "object",
+			"properties": {
+				"packageId": {
+					"type": "string"
+				},
+				"resourceId": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"resourceId"
 			],
 			"additionalProperties": false
 		},
@@ -29064,7 +29586,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"capabilitySchemaVersion": {
 					"type": "number",
-					"const": 15
+					"const": 16
 				},
 				"transactionKernelOwner": {
 					"type": "string",
@@ -29079,10 +29601,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": "@openfairygui/backend"
 				},
 				"methods": {
-					"$ref": "#/$defs/Shape_ae72a55d5a"
+					"$ref": "#/$defs/Shape_5f0e8ee676"
 				},
 				"read": {
-					"$ref": "#/$defs/__type_4c480176a6"
+					"$ref": "#/$defs/__type_de50af0353"
 				},
 				"authoring": {
 					"$ref": "#/$defs/__type_cea960ae37"
@@ -29116,7 +29638,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			],
 			"additionalProperties": false
 		},
-		"Shape_ae72a55d5a": {
+		"Shape_5f0e8ee676": {
 			"type": "array",
 			"prefixItems": [
 				{
@@ -29142,6 +29664,10 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				{
 					"type": "string",
 					"const": "queryEntity"
+				},
+				{
+					"type": "string",
+					"const": "queryDisplayNodes"
 				},
 				{
 					"type": "string",
@@ -29188,11 +29714,11 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 					"const": "refreshCache"
 				}
 			],
-			"minItems": 17,
-			"maxItems": 17,
+			"minItems": 18,
+			"maxItems": 18,
 			"items": false
 		},
-		"__type_4c480176a6": {
+		"__type_de50af0353": {
 			"type": "object",
 			"properties": {
 				"capabilitySnapshot": {
@@ -29210,6 +29736,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"entityQuery": {
 					"$ref": "#/$defs/__type_14ef9c17ee"
 				},
+				"displayNodeQuery": {
+					"$ref": "#/$defs/__type_181f67f6a1"
+				},
 				"sessionState": {
 					"$ref": "#/$defs/__type_21fe9bfc0c"
 				},
@@ -29226,6 +29755,7 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"sessionSnapshot",
 				"projectOutline",
 				"entityQuery",
+				"displayNodeQuery",
 				"sessionState",
 				"resourceBytes",
 				"projectValidation"
@@ -29292,6 +29822,92 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"maxBytes",
 				"maxDepth",
 				"maxNodes"
+			],
+			"additionalProperties": false
+		},
+		"__type_181f67f6a1": {
+			"type": "object",
+			"properties": {
+				"scope": {
+					"type": "string",
+					"const": "component"
+				},
+				"filterFields": {
+					"$ref": "#/$defs/ReadonlyArray_65b443321f"
+				},
+				"projection": {
+					"type": "string",
+					"const": "summary"
+				},
+				"sourceBytes": {
+					"type": "boolean",
+					"const": false
+				},
+				"limits": {
+					"$ref": "#/$defs/__object_7de0a6f325"
+				}
+			},
+			"required": [
+				"scope",
+				"filterFields",
+				"projection",
+				"sourceBytes",
+				"limits"
+			],
+			"additionalProperties": false
+		},
+		"ReadonlyArray_65b443321f": {
+			"type": "array",
+			"items": {
+				"enum": [
+					"name",
+					"url",
+					"visible",
+					"title",
+					"text",
+					"group",
+					"locked",
+					"touchable",
+					"kind",
+					"resourceId",
+					"nameContains",
+					"textContains",
+					"titleContains",
+					"hasGears",
+					"hasRelations"
+				]
+			}
+		},
+		"__object_7de0a6f325": {
+			"type": "object",
+			"properties": {
+				"maxBytes": {
+					"type": "number",
+					"const": 262144
+				},
+				"maxDepth": {
+					"type": "number",
+					"const": 32
+				},
+				"maxNodes": {
+					"type": "number",
+					"const": 100000
+				},
+				"defaultLimit": {
+					"type": "number",
+					"const": 50
+				},
+				"maxLimit": {
+					"type": "number",
+					"const": 200
+				}
+			},
+			"required": [
+				"maxBytes",
+				"maxDepth",
+				"maxNodes",
+				"defaultLimit",
+				"maxLimit"
 			],
 			"additionalProperties": false
 		},
@@ -33995,5 +34611,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "dcfeadbd451f77fa2d2d3bb51911cb1fbe9f6d12cbd6562047d59b441d72e50e"
+	"digest": "8a72c99a668c8d19d21d0aba008b46bde71e9b0218e59de1be0935c014f788c3"
 };

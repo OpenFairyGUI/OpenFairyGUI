@@ -432,7 +432,8 @@ test('manual model execution is explicit, bounded, tool-only and shell-free', ()
 });
 
 test('artifact host never widens editing tools or accepts arbitrary execution inputs', () => {
-	assert.equal(EVAL_METHODS.length, 10);
+	assert.equal(EVAL_METHODS.length, 11);
+	assert(EVAL_METHODS.includes('queryDisplayNodes'));
 	assert(!EVAL_METHODS.some((method) => /publish|restore|exec/.test(method)));
 	for (const tool of ARTIFACT_TOOLS)
 		assertArtifactTool('publish-consume', tool.name, tool.name.endsWith('_inspect') ? { target: 'published' } : {});

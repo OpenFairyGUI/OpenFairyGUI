@@ -8,6 +8,10 @@
 
 - core：工程 XML 写回 `GLoader3D` 时使用与 FairyGUI 桌面编辑器兼容的正式 `<loader3D>` 标签，在读取路径统一归一化标签大小写以兼容 `<loader3D>` 与小写 `<loader3d>`，并同步双语 XML 协议文档。
 
+新功能：
+
+- backend、mcp：新增有预算上限的组件内节点筛选查询 `queryDisplayNodes`（MCP 工具 `openfairygui_backend_query_display_nodes`），支持按 `kind`、`name`/`nameContains`、`text`/`textContains`、`title`/`titleContains`、`group`、`resourceId`、`url`、`visible`、`locked`、`touchable`、`hasGears`、`hasRelations` 筛选候选节点并返回精确 ID 与关键属性（默认上限 50、最大 200，256 KiB 响应预算，提交仍需精确 `displayNodeId`），同步接入评测编辑宿主并降低 `edit-display-node` 类任务的工具调用次数。能力 schema 版本提升至 16（`BACKEND_CONTRACT_VERSION` 保持 `3.0.0`，无破坏性变更）。
+
 其他：
 
 - 开发与 CI：Ubuntu / Node 22 在覆盖率门禁下只运行一次完整检查，不再重复运行测试；`check:ci` 通过 `docs:check` 同时检查契约漂移。构建参数只保存在各包 tsdown 配置中，消除已弃用的 `external` 参数和 watch 模式漂移。删除重复的根脚本、MCP 包级测试配置和多余的 `tsx` 声明；AVA 无响应超时为 60s。

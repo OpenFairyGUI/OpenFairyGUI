@@ -7,6 +7,7 @@ import sharp from 'sharp';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import {
 	BackendRuntime,
+	type BackendDisplayNodeQueryResult,
 	type BackendEntitySnapshot,
 	type BackendResult,
 	type BackendTransactionPreview,
@@ -741,5 +742,133 @@ test('MCP complex queries validate formal selectors and round-trip full snapshot
 		await server.close();
 		await runtime.closeSession({ sessionId });
 		await fixture.cleanup();
+	}
+});
+
+test('MCP query_display_nodes disambiguates same-name nodes in one call under generated schemas and commits by exact ID', async (t) => {
+	const project = createMcpFixtureProject();
+	const component = project.packages[0].resources[1];
+	assert(component.kind === 'component');
+	const originalTitle = component.component.displayList[1];
+	assert(originalTitle.kind === 'text');
+	const distractor = structuredClone(originalTitle);
+	distractor.id = 'n_dup_title';
+	distractor.text = 'Distractor Heading';
+	component.component.displayList.splice(1, 0, distractor);
+
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-mcp-display-node-query-'));
+	const fairyPath = path.join(tmpDir, 'FilterDemo.fairy');
+	const io = new NodeIO();
+	await writeProjectFromUam(io, project, fairyPath);
+
+	const runtime = createNodeBackendRuntime({ allowedProjectRoots: [tmpDir] });
+	const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+	const server = createOpenFairyGuiMcpServer({ runtime });
+	const client = createMcpTestClient('openfairygui-mcp-display-node-query-test');
+	let sessionId: string | undefined;
+
+	try {
+		await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+		const opened = runtime.openSession({ projectPath: fairyPath });
+		const openedResult = await opened;
+		assert(openedResult.ok);
+		sessionId = openedResult.data.sessionId;
+
+		for (const invalidArgs of [
+			{
+				sessionId,
+				selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
+				limit: 0,
+			},
+			{
+				sessionId,
+				selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
+				limit: 201,
+			},
+			{
+				sessionId,
+				selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
+				filter: { inventedField: 'x' },
+			},
+			{
+				sessionId,
+				selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
+				filter: { textContains: '' },
+			},
+		]) {
+			t.true(
+				(
+					await client.callTool({
+						name: 'openfairygui_backend_query_display_nodes',
+						arguments: invalidArgs,
+					})
+				).isError,
+				JSON.stringify(invalidArgs),
+			);
+		}
+
+		const filteredTool = await client.callTool({
+			name: 'openfairygui_backend_query_display_nodes',
+			arguments: {
+				sessionId,
+				selector: { packageId: 'pkg001', componentResourceId: 'cmp001' },
+				filter: { kind: 'text', name: 'title', text: originalTitle.text },
+			},
+		});
+		t.false(filteredTool.isError);
+		const filtered = (
+			filteredTool.structuredContent as { backendResult: BackendResult<BackendDisplayNodeQueryResult> }
+		).backendResult;
+		assert(filtered.ok);
+		t.is(filtered.data.revision, 0);
+		t.is(filtered.data.totalMatched, 1);
+		t.false(filtered.data.truncated);
+		t.is(filtered.data.nodes.length, 1);
+		t.is(filtered.data.nodes[0]?.id, originalTitle.id);
+		t.is(filtered.data.nodes[0]?.index, 2);
+		t.is(filtered.data.nodes[0]?.text, originalTitle.text);
+
+		const txArgs = {
+			sessionId,
+			expectedRevision: filtered.data.revision,
+			operations: [
+				{
+					kind: 'setDisplayNodeProps',
+					selector: {
+						packageId: 'pkg001',
+						componentResourceId: 'cmp001',
+						displayNodeId: filtered.data.nodes[0]!.id,
+					},
+					props: { text: 'Edited Exact Title', position: { x: 40, y: 56 } },
+				},
+			],
+		};
+		t.false(
+			(await client.callTool({ name: 'openfairygui_backend_preflight_transaction', arguments: txArgs })).isError,
+		);
+		t.false((await client.callTool({ name: 'openfairygui_backend_apply_transaction', arguments: txArgs })).isError);
+		t.false(
+			(
+				await client.callTool({
+					name: 'openfairygui_backend_save_session',
+					arguments: { sessionId, expectedRevision: 1 },
+				})
+			).isError,
+		);
+
+		const reread = await readProjectAsUam(io, fairyPath);
+		const savedComp = reread.packages[0]!.resources[1]!;
+		assert(savedComp.kind === 'component');
+		const savedDistractor = savedComp.component.displayList.find((node) => node.id === 'n_dup_title');
+		const savedTarget = savedComp.component.displayList.find((node) => node.id === originalTitle.id);
+		assert(savedDistractor?.kind === 'text' && savedTarget?.kind === 'text');
+		t.is(savedDistractor.text, 'Distractor Heading');
+		t.is(savedTarget.text, 'Edited Exact Title');
+		t.deepEqual(savedTarget.position, { x: 40, y: 56 });
+	} finally {
+		await client.close();
+		await server.close();
+		if (sessionId) await runtime.closeSession({ sessionId });
+		await fs.rm(tmpDir, { recursive: true, force: true });
 	}
 });

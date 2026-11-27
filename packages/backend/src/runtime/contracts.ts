@@ -35,6 +35,30 @@ import type { BackendRuntime } from '../runtime.js';
 export type BackendMethodName = keyof BackendRuntime;
 
 export const BACKEND_ENTITY_QUERY_LIMITS = { maxBytes: 262144, maxDepth: 32, maxNodes: 100000 } as const;
+export const BACKEND_DISPLAY_NODE_QUERY_LIMITS = {
+	maxBytes: 262144,
+	maxDepth: 32,
+	maxNodes: 100000,
+	defaultLimit: 50,
+	maxLimit: 200,
+} as const;
+export const BACKEND_DISPLAY_NODE_FILTER_FIELDS = [
+	'kind',
+	'name',
+	'nameContains',
+	'text',
+	'textContains',
+	'title',
+	'titleContains',
+	'group',
+	'resourceId',
+	'url',
+	'visible',
+	'locked',
+	'touchable',
+	'hasGears',
+	'hasRelations',
+] as const;
 export const BACKEND_SESSION_READ_LIMITS = {
 	model: { maxBytes: 4194304, maxDepth: 64, maxNodes: 500000 },
 	resourceBytes: 1048576,
@@ -155,6 +179,58 @@ export interface EntityQueryError {
 	message: string;
 	sessionId: string;
 	reason: 'invalid_query' | 'not_found' | 'ambiguous' | 'response_budget_exceeded' | 'non_json_value';
+}
+export interface DisplayNodeFilter {
+	kind?: UamDisplayNodeKind;
+	name?: string;
+	nameContains?: string;
+	text?: string;
+	textContains?: string;
+	title?: string;
+	titleContains?: string;
+	group?: string;
+	resourceId?: string;
+	url?: string;
+	visible?: boolean;
+	locked?: boolean;
+	touchable?: boolean;
+	hasGears?: boolean;
+	hasRelations?: boolean;
+}
+export interface QueryDisplayNodesInput {
+	sessionId: string;
+	selector: UamComponentSelector;
+	filter?: DisplayNodeFilter;
+	/** Maximum candidate entries to return (default 50, max 200). */
+	limit?: number;
+}
+export interface BackendDisplayNodeCandidate {
+	/** Exact display node ID to pass to queryEntity or mutation selectors. */
+	id: string;
+	name: string;
+	kind: UamDisplayNodeKind;
+	/** Zero-based index in the component's displayList. */
+	index: number;
+	position: { x: number; y: number };
+	size: { width: number; height: number };
+	visible: boolean;
+	locked: boolean;
+	touchable: boolean;
+	group?: string;
+	text?: string;
+	title?: string;
+	resource?: { packageId?: string; resourceId: string };
+	url?: string;
+	gearCount: number;
+	relationCount: number;
+}
+export interface BackendDisplayNodeQueryResult {
+	sessionId: string;
+	revision: number;
+	selector: UamComponentSelector;
+	totalMatched: number;
+	truncated: boolean;
+	nodes: BackendDisplayNodeCandidate[];
 }
 
 /** An exclusive lock owned for the lifetime of one backend session. */
@@ -293,6 +369,13 @@ export interface BackendCapabilities {
 			projection: 'properties';
 			sourceBytes: false;
 			limits: typeof BACKEND_ENTITY_QUERY_LIMITS;
+		};
+		displayNodeQuery: {
+			scope: 'component';
+			filterFields: readonly (keyof DisplayNodeFilter)[];
+			projection: 'summary';
+			sourceBytes: false;
+			limits: typeof BACKEND_DISPLAY_NODE_QUERY_LIMITS;
 		};
 		sessionState: { sourceBytes: false; limits: typeof BACKEND_SESSION_READ_LIMITS.model };
 		resourceBytes: {

@@ -43,8 +43,8 @@ test('server startup defers schemas; calls load one tool and discovery caches al
 		t.false(result.isError);
 		t.deepEqual([...accessed].sort(), ['getCapabilities.inputSchema', 'getCapabilities.outputSchema']);
 		const first = await client.listTools();
-		t.is(first.tools.length, 18);
-		t.is(accessed.size, 34);
+		t.is(first.tools.length, 19);
+		t.is(accessed.size, 36);
 		const afterDiscovery = reads;
 		t.deepEqual(await client.listTools(), first);
 		t.is(reads, afterDiscovery, 'Repeated discovery must reuse converted wire schemas');
