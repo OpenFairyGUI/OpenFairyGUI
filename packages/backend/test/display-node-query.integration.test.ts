@@ -216,7 +216,7 @@ test('queryDisplayNodes filters by every modeled property, preserves displayList
 	t.deepEqual(idsOf({ titleContains: 'onf' }), ['n_btn_comp']);
 	t.deepEqual(idsOf({ group: 'grp0' }), ['n_distractor', 'n_target', 'n_img']);
 	t.deepEqual(idsOf({ group: '', kind: 'richText' }), ['n_rich']);
-	t.deepEqual(idsOf({ group: '', kind: 'loader' }), []);
+	t.deepEqual(idsOf({ group: '', kind: 'loader' }), ['n_loader']);
 	t.deepEqual(idsOf({ resourceId: 'img001' }), ['n_img']);
 	t.deepEqual(idsOf({ resourceId: 'sub001' }), ['n_btn_comp', 'n_pb_comp', 'n_derived_btn', 'n_list']);
 	t.deepEqual(idsOf({ url: 'ui://pkg001/img001' }), ['n_loader']);
