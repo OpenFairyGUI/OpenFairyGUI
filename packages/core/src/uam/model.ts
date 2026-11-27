@@ -124,6 +124,7 @@ export interface UamImageResourceProperties {
 	quality: number;
 	smoothing: boolean;
 	duplicatePadding: boolean;
+	disableTrim?: boolean;
 	scaleOption: 0 | 1 | 2;
 	scale9Grid: [number, number, number, number] | null;
 	tileGridIndice: number;

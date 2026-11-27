@@ -241,7 +241,7 @@ export async function collectImage(
 		offY = 0;
 	let trimBuf: Uint8Array | undefined;
 
-	if (doTrim && sourceHasAlpha && options.basePath && encoder) {
+	if (doTrim && !resource.getDisableTrim?.() && sourceHasAlpha && options.basePath && encoder) {
 		const filePath = resolveImagePath(resource, pkg, options.basePath);
 		try {
 			const trimResult = await _trimImage(encoder, rasterizedBuffer ?? filePath, origW, origH);

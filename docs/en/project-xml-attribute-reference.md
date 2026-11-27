@@ -106,6 +106,7 @@ These base attributes apply to resources under `resources` in both `package.xml`
 | `qualityOption` |  | Image quality option |
 | `quality` |  | Custom image quality; written when `qualityOption="custom"` |
 | `duplicatePadding` |  | Whether edge pixels are duplicated |
+| `disableTrim` |  | Whether atlas transparent-edge trimming is disabled; defaults to `false` and is written only when `true` |
 | `smoothing` |  | Whether smoothing is enabled |
 
 ### `resources > movieclip`

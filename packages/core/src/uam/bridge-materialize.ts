@@ -558,6 +558,7 @@ export function materializeUamImageResourceProperties(
 		.setQuality(properties.quality)
 		.setSmoothing(properties.smoothing)
 		.setDuplicatePadding(properties.duplicatePadding)
+		.setDisableTrim(properties.disableTrim === true)
 		.setScaleOption(properties.scaleOption)
 		.setScale9Grid(properties.scale9Grid ? [...properties.scale9Grid] : null)
 		.setTileGridIndice(properties.tileGridIndice);

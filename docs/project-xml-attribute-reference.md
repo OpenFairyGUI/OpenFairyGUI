@@ -106,6 +106,7 @@
 | `qualityOption` |  | 图片质量选项 |
 | `quality` |  | 自定义图片质量；`qualityOption="custom"` 时写回 |
 | `duplicatePadding` |  | 是否复制边缘像素 |
+| `disableTrim` |  | 是否禁止图集透明边缘裁切；缺省为 `false`，仅在 `true` 时写回 |
 | `smoothing` |  | 是否允许平滑 |
 
 ### `resources > movieclip`

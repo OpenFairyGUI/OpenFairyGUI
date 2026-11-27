@@ -2372,6 +2372,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"duplicatePadding": {
 					"type": "boolean"
 				},
+				"disableTrim": {
+					"$ref": "#/$defs/Shape_6b49a92435"
+				},
 				"scaleOption": {
 					"enum": [
 						0,
@@ -14695,6 +14698,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				},
 				"duplicatePadding": {
 					"type": "boolean"
+				},
+				"disableTrim": {
+					"$ref": "#/$defs/Shape_6b49a92435_wire"
 				},
 				"scaleOption": {
 					"enum": [
@@ -28853,6 +28859,9 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 				"duplicatePadding": {
 					"type": "boolean"
 				},
+				"disableTrim": {
+					"$ref": "#/$defs/Shape_6b49a92435_read"
+				},
 				"scaleOption": {
 					"enum": [
 						0,
@@ -35279,5 +35288,5 @@ export const CONTRACT_SNAPSHOT: ContractSnapshot = {
 			}
 		}
 	],
-	"digest": "deb8cc553490232c328aa82d133b77b8bee1deade809382e833e2e435300fa4a"
+	"digest": "db380ccf317aa73e3ab3ed6632af69fedcb0ad604ab575b7219fd2d79d44495d"
 };

@@ -101,6 +101,7 @@ const PACKAGE_IMAGE_RESOURCE_ATTRS = {
 	qualityOption: { canonical: 'qualityOption' },
 	quality: { canonical: 'quality' },
 	duplicatePadding: { canonical: 'duplicatePadding' },
+	disableTrim: { canonical: 'disableTrim' },
 	smoothing: { canonical: 'smoothing' },
 } satisfies XmlAttrMap;
 

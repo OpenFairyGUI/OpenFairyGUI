@@ -202,6 +202,7 @@ function liftAssetResource(resource: LiftableAssetResource): UamAssetResource {
 				quality: image.getQuality(),
 				smoothing: image.getSmoothing(),
 				duplicatePadding: image.getDuplicatePadding(),
+				...(image.getDisableTrim() ? { disableTrim: true } : {}),
 				scaleOption: image.getScaleOption() as 0 | 1 | 2,
 				scale9Grid: scale9Grid ? [...scale9Grid] : null,
 				tileGridIndice: image.getTileGridIndice(),

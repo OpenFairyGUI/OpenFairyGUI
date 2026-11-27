@@ -130,6 +130,7 @@ test('image resource properties survive transaction, save/reload, inverse, and s
 		quality: 72,
 		smoothing: !originalProps.smoothing,
 		duplicatePadding: !originalProps.duplicatePadding,
+		disableTrim: true,
 		scaleOption: 1,
 		scale9Grid: [1, 1, image.dimensions.width - 2, image.dimensions.height - 2],
 		tileGridIndice: 5,

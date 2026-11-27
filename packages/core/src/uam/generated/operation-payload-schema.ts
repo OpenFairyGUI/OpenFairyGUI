@@ -35,7 +35,7 @@ export const OPERATION_PAYLOAD_SCHEMA: OperationPayloadSchema = {
 		["literal",["pot","npot","mof"]],
 		["array",29],
 		["object",{"index":3,"name":4,"compression":18},["index","name","compression"],null],
-		["object",{"textureSetMode":4,"qualityOption":4,"quality":3,"smoothing":18,"duplicatePadding":18,"scaleOption":31,"scale9Grid":32,"tileGridIndice":3},["textureSetMode","qualityOption","quality","smoothing","duplicatePadding","scaleOption","scale9Grid","tileGridIndice"],null],
+		["object",{"textureSetMode":4,"qualityOption":4,"quality":3,"smoothing":18,"duplicatePadding":18,"disableTrim":2,"scaleOption":31,"scale9Grid":32,"tileGridIndice":3},["textureSetMode","qualityOption","quality","smoothing","duplicatePadding","scaleOption","scale9Grid","tileGridIndice"],null],
 		["literal",[0,2,1]],
 		["union",[15,33],null],
 		["array",3,4],

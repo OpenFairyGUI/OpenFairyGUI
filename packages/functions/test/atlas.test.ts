@@ -143,6 +143,80 @@ test('atlas: trimImage keeps fully transparent images as zero-sized sprites', as
 	}
 });
 
+test('atlas: image disableTrim skips transparent-edge trimming when trimImage is enabled', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-atlas-disable-trim-'));
+	const imageDir = path.join(tmpDir, 'TrimPkg', 'images');
+	try {
+		await fs.mkdir(imageDir, { recursive: true });
+		// 20x20 transparent canvas with a 4x4 opaque center at (8, 8).
+		const raw = new Uint8Array(20 * 20 * 4);
+		for (let y = 8; y < 12; y++) {
+			for (let x = 8; x < 12; x++) {
+				const offset = (y * 20 + x) * 4;
+				raw[offset] = 255;
+				raw[offset + 1] = 80;
+				raw[offset + 2] = 40;
+				raw[offset + 3] = 255;
+			}
+		}
+		const png = await sharp(raw, { raw: { width: 20, height: 20, channels: 4 } })
+			.png()
+			.toBuffer();
+		await fs.writeFile(path.join(imageDir, 'trimmed.png'), png);
+		await fs.writeFile(path.join(imageDir, 'untrimmed.png'), png);
+
+		const doc = new Document();
+		const pkg = doc.createPackage('TrimPkg').setId('trimpkg2');
+		const trimmed = doc
+			.createImageResource('trimmed')
+			.setId('imgTrim')
+			.setPath('/images/')
+			.setFileName('trimmed.png')
+			.setWidth(20)
+			.setHeight(20)
+			.setExported(true);
+		const untrimmed = doc
+			.createImageResource('untrimmed')
+			.setId('imgNoTrim')
+			.setPath('/images/')
+			.setFileName('untrimmed.png')
+			.setWidth(20)
+			.setHeight(20)
+			.setDisableTrim(true)
+			.setExported(true);
+		pkg.addResource(trimmed).addResource(untrimmed);
+
+		await doc.transform(
+			atlas({
+				encoder: sharp,
+				basePath: tmpDir,
+				outputPath: tmpDir,
+				mkdir: async (dir) => {
+					await fs.mkdir(dir, { recursive: true });
+				},
+				trimImage: true,
+				allowRotation: false,
+				powerOfTwo: true,
+				maxSize: 256,
+			}),
+		);
+
+		const sprites = pkg.listAtlases().flatMap((atlasNode) => atlasNode.listSprites());
+		const trimmedSprite = sprites.find((entry) => entry.getItemId() === 'imgTrim')!;
+		const untrimmedSprite = sprites.find((entry) => entry.getItemId() === 'imgNoTrim')!;
+		t.is(trimmedSprite.getRectWidth(), 4, 'regular image is trimmed to 4x4');
+		t.is(trimmedSprite.getRectHeight(), 4);
+		t.is(trimmedSprite.getOffsetX(), 8);
+		t.is(trimmedSprite.getOffsetY(), 8);
+		t.is(untrimmedSprite.getRectWidth(), 20, 'disableTrim image keeps untrimmed 20x20 bounds');
+		t.is(untrimmedSprite.getRectHeight(), 20);
+		t.is(untrimmedSprite.getOffsetX(), 0);
+		t.is(untrimmedSprite.getOffsetY(), 0);
+	} finally {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	}
+});
+
 test('atlas: rasterizes declared-size SVGs before trim and composite', async (t) => {
 	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openfairygui-atlas-svg-'));
 	const imageDir = path.join(tmpDir, 'Icons', 'images');

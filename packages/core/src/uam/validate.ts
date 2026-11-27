@@ -74,8 +74,21 @@ const IMAGE_RESOURCE_PROPERTY_KEYS = [
 	'tileGridIndice',
 ] as const satisfies readonly (keyof UamImageResourceProperties)[];
 
+const IMAGE_RESOURCE_OPTIONAL_KEYS = ['disableTrim'] as const satisfies readonly (keyof UamImageResourceProperties)[];
+
 export function isValidUamImageResourceProperties(value: unknown): value is UamImageResourceProperties {
-	if (typeof value !== 'object' || value === null || !hasExactKeys(value, IMAGE_RESOURCE_PROPERTY_KEYS)) return false;
+	if (typeof value !== 'object' || value === null) return false;
+	const keys = Object.keys(value);
+	if (
+		!IMAGE_RESOURCE_PROPERTY_KEYS.every((key) => Object.hasOwn(value, key)) ||
+		!keys.every(
+			(key) =>
+				(IMAGE_RESOURCE_PROPERTY_KEYS as readonly string[]).includes(key) ||
+				(IMAGE_RESOURCE_OPTIONAL_KEYS as readonly string[]).includes(key),
+		)
+	) {
+		return false;
+	}
 	const properties = value as UamImageResourceProperties;
 	if (
 		typeof properties.textureSetMode !== 'string' ||
@@ -85,6 +98,7 @@ export function isValidUamImageResourceProperties(value: unknown): value is UamI
 		properties.quality > 100 ||
 		typeof properties.smoothing !== 'boolean' ||
 		typeof properties.duplicatePadding !== 'boolean' ||
+		(properties.disableTrim !== undefined && typeof properties.disableTrim !== 'boolean') ||
 		![0, 1, 2].includes(properties.scaleOption) ||
 		!Number.isInteger(properties.tileGridIndice) ||
 		properties.tileGridIndice < 0 ||

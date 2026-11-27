@@ -112,7 +112,7 @@
 
 `updatePackageSettings` 使用包含 `compressPNG`、`jpegQuality` 和完整 `publish` 的单包快照，删除字段通过提交新的完整快照表达；相同快照以 `package_settings_unchanged` 拒绝。出于 UAM 事务安全边界，包名和输出路径必须是安全的相对路径（拒绝含 `..` 的路径逃逸，尽管原始编辑器 `package.xml` 可读取 `../` 相对路径），JPEG 质量范围是 1–100，包级 atlas 最大尺寸范围是 1–16384，`maxAtlasIndex` 范围是 0–255；稀疏 atlas 索引必须唯一且不超过该上限。`excludedResourceIds` 保存 CSV-safe 的资源 ID，可以保留当前工程中不存在的 ID，读取与写回不会把它误判为悬空引用。
 
-发布时，显式调用参数优先于包级 atlas 设置，包级设置在 `useGlobal=false` 时优先于全局发布设置；`extractAlpha` 与 `maxAtlasIndex` 始终读取包级正式值。包级设置控制最大尺寸、`pot / npot / mof`、正方形、旋转和分页，Layabox 目标强制禁用旋转。CocosCreator / Cocos2dx / Egret 目标在旋转图集时采用编辑器 `rotationDir = 1`（像素顺时针旋转 `+90°`，Block 2 sprite 记录旋转前宽高）；Unity 与其他目标采用 `rotationDir = 0`（像素逆时针旋转 `-90°`，Block 2 sprite 记录交换后的图集宽高）。资源未显式指定 `atlas`（或为 `default`）时，装箱会沿父文件夹继承最近的 `folder@atlas`；启用 `duplicatePadding` 的图像会在图集四周复制 1px 边缘像素；固定页图集遵循 `multiPage` 分页并在 `seperatedAtlasForBranch=false` 时与主干共享页；独立图集（`alone` / `alone_npot` / `alone_mof`）使用 `atlas_<itemId>` ID 并确保输出栅格扩展名。`excludedResourceIds` 从发布闭包移除对应资源；发布闭包仅从 `exported="true"` 入口做可达性遍历。Unity 与 Cocos2dx 的 `extractAlpha` 输出无 alpha 的主图集与 `!a.png` alpha 图集。`package.xml` 写回时省略默认的 `atlas="default"` 与 `qualityOption="default"`。
+发布时，显式调用参数优先于包级 atlas 设置，包级设置在 `useGlobal=false` 时优先于全局发布设置；`extractAlpha` 与 `maxAtlasIndex` 始终读取包级正式值。包级设置控制最大尺寸、`pot / npot / mof`、正方形、旋转和分页，Layabox 目标强制禁用旋转。CocosCreator / Cocos2dx / Egret 目标在旋转图集时采用编辑器 `rotationDir = 1`（像素顺时针旋转 `+90°`，Block 2 sprite 记录旋转前宽高）；Unity 与其他目标采用 `rotationDir = 0`（像素逆时针旋转 `-90°`，Block 2 sprite 记录交换后的图集宽高）。资源未显式指定 `atlas`（或为 `default`）时，装箱会沿父文件夹继承最近的 `folder@atlas`；启用 `duplicatePadding` 的图像会在图集四周复制 1px 边缘像素；启用 `disableTrim` 的图像在 `trimImage=true` 时仍跳过透明裁边、保留原始尺寸；固定页图集遵循 `multiPage` 分页并在 `seperatedAtlasForBranch=false` 时与主干共享页；独立图集（`alone` / `alone_npot` / `alone_mof`）使用 `atlas_<itemId>` ID 并确保输出栅格扩展名。`excludedResourceIds` 从发布闭包移除对应资源；发布闭包仅从 `exported="true"` 入口做可达性遍历。Unity 与 Cocos2dx 的 `extractAlpha` 输出无 alpha 的主图集与 `!a.png` alpha 图集。`package.xml` 写回时省略默认的 `atlas="default"` 与 `qualityOption="default"`。
 
 ## 组件 XML 的列表清理与属性覆盖
 
@@ -179,7 +179,7 @@ ProjectWriter 会为每个工程分支保留 `assets_<branch>/`，并为包内�
 
 ## 工程图片资源属性
 
-`package.xml` 与 `package_branch.xml` 的 `image` 资源属性由 UAM `resource.image` 完整快照承载，包括纹理集模式、质量选项与自定义质量、平滑、边缘复制、缩放模式、九宫格和 tile-grid 位掩码。公开事务 `setImageResourceProps` 只替换这份正式属性快照，不修改图片 source bytes；非图片 selector、不完整快照、非法缩放模式、九宫格或位掩码会在写回前被拒绝。
+`package.xml` 与 `package_branch.xml` 的 `image` 资源属性由 UAM `resource.image` 完整快照承载，包括纹理集模式、质量选项与自定义质量、平滑、边缘复制、禁用裁边（`disableTrim`）、缩放模式、九宫格和 tile-grid 位掩码。公开事务 `setImageResourceProps` 只替换这份正式属性快照，不修改图片 source bytes；非图片 selector、不完整快照、非法缩放模式、九宫格或位掩码会在写回前被拒绝。
 
 图片 source bytes 通过 `replaceResourceBytes` 更新时，当前只支持 PNG 与常见 8-bit Huffman JPEG。preflight 会检查 PNG 的 chunk CRC、zlib/scanline 边界和容器顺序；JPEG 除检查 quantization/Huffman table、frame/scan 顺序及编码约束外，还会完成像素解码。两者都会核对实际格式与操作时、最终文件扩展名；畸形或不匹配返回 `invalid_resource_bytes`，SVG、WebP、GIF、PSD、TGA 等未支持格式返回 `unsupported_resource_mutation`。浏览器 backend 通过 `applyUamTransactionAsync` 在包内 Web Worker 中执行相同的严格校验，browser 环境误用同步入口会直接拒绝而不会在主线程扫描或解码。消费端 bundler 必须把公开入口 `@openfairygui/core/image-validation-worker` 再打成与主 bundle 相邻的 self-contained ESM `image-validation-worker.js`；仅重打主入口或只复制 worker 文件不会带上其解码 chunk。Worker 无响应会在 10 秒后终止。浏览器 source 上限为 8 MiB，decoded raster 上限为 8,388,608 pixels；Node/CLI 同步校验的 source/PNG decoded bytes 上限为 128 MiB，JPEG 严格解码另限 8,388,608 pixels 与 64 MiB。
 

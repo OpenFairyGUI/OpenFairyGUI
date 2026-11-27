@@ -1095,6 +1095,7 @@ function normalizeImageResourceProperties(properties: UamImageResourceProperties
 		quality: properties.quality,
 		smoothing: properties.smoothing,
 		duplicatePadding: properties.duplicatePadding,
+		...(properties.disableTrim ? { disableTrim: true } : {}),
 		scaleOption: properties.scaleOption,
 		scale9Grid: properties.scale9Grid ? [...properties.scale9Grid] : null,
 		tileGridIndice: properties.tileGridIndice,
