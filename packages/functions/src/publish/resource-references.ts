@@ -212,21 +212,128 @@ function collectComponentReferences(
 	}
 }
 
+export interface CollectPackageResourceReferencesOptions {
+	/**
+	 * When true, perform transitive reachability traversal starting only from
+	 * exported resources (matching FairyGUI Editor publish reachability).
+	 */
+	exportedOnly?: boolean;
+	/** Whether all branches are kept in the published package (branchProcessing === 0). */
+	includeBranches?: boolean;
+	/** Active branch name when includeBranches is false. */
+	activeBranch?: string;
+}
+
+function buildBranchVariantKey(resource: { propertyType: string; getPath(): string; getName(): string }): string {
+	return `${resource.propertyType}|${resource.getPath() ?? ''}|${resource.getName() ?? ''}`;
+}
+
+function getResourceBranch(resource: ReturnType<Package['listResources']>[number]): string {
+	return (resource as { getBranch?(): string }).getBranch?.() ?? '';
+}
+
 /**
  * Enumerates package-local resource IDs and external package IDs referenced by
  * component content. Callers retain policy decisions such as atlas selection
  * and dependency ordering.
  */
-export function collectPackageResourceReferences(pkg: Package, doc?: Document): PackageResourceReferences {
+export function collectPackageResourceReferences(
+	pkg: Package,
+	doc?: Document,
+	options: CollectPackageResourceReferencesOptions = {},
+): PackageResourceReferences {
 	const references: PackageResourceReferences = {
 		localResourceIds: new Set<string>(),
 		packageIds: new Set<string>(),
 	};
 	const excludedResourceIds = new Set(pkg.getSourceAtlasSettings().excludedResourceIds);
-	for (const resource of pkg.listResources()) {
-		if (resource.propertyType === 'Component' && !excludedResourceIds.has(resource.getId())) {
-			collectComponentReferences(references, pkg.getId(), resource, doc);
+	const resources = pkg.listResources();
+
+	if (!options.exportedOnly) {
+		for (const resource of resources) {
+			if (resource.propertyType === 'Component' && !excludedResourceIds.has(resource.getId())) {
+				collectComponentReferences(references, pkg.getId(), resource, doc);
+			}
+		}
+		return references;
+	}
+
+	const includeBranches = options.includeBranches ?? true;
+	const activeBranch = includeBranches ? '' : (options.activeBranch ?? '');
+	const resourcesById = new Map(resources.map((resource) => [resource.getId(), resource] as const));
+	const branchVariantsByKey = new Map<string, Array<ReturnType<Package['listResources']>[number]>>();
+	const activeBranchOverrideByKey = new Map<string, ReturnType<Package['listResources']>[number]>();
+
+	for (const resource of resources) {
+		const id = resource.getId();
+		if (!id || excludedResourceIds.has(id)) continue;
+		const branchName = getResourceBranch(resource);
+		if (!branchName) continue;
+		const key = buildBranchVariantKey(resource);
+		const variants = branchVariantsByKey.get(key) ?? [];
+		variants.push(resource);
+		branchVariantsByKey.set(key, variants);
+		if (!includeBranches && activeBranch && branchName === activeBranch) {
+			activeBranchOverrideByKey.set(key, resource);
 		}
 	}
+
+	const queue: Component[] = [];
+	const visitedComponentIds = new Set<string>();
+
+	const enqueueComponent = (component: Component): void => {
+		const componentId = component.getId();
+		if (!componentId || excludedResourceIds.has(componentId)) return;
+		const branchName = getResourceBranch(component);
+		if (!includeBranches) {
+			if (branchName && branchName !== activeBranch) return;
+			if (!branchName && activeBranch) {
+				const override = activeBranchOverrideByKey.get(buildBranchVariantKey(component));
+				if (override && override.propertyType === 'Component') {
+					enqueueComponent(override);
+					return;
+				}
+			}
+			if (visitedComponentIds.has(componentId)) return;
+			visitedComponentIds.add(componentId);
+			queue.push(component);
+			return;
+		}
+
+		if (visitedComponentIds.has(componentId)) return;
+		visitedComponentIds.add(componentId);
+		queue.push(component);
+		if (!branchName) {
+			for (const variant of branchVariantsByKey.get(buildBranchVariantKey(component)) ?? []) {
+				if (variant.propertyType === 'Component') enqueueComponent(variant);
+			}
+		}
+	};
+
+	for (const resource of resources) {
+		if (resource.propertyType !== 'Component') continue;
+		const resourceId = resource.getId();
+		if (!resourceId || excludedResourceIds.has(resourceId)) continue;
+		if (!resource.getExported()) continue;
+		enqueueComponent(resource);
+	}
+
+	while (queue.length > 0) {
+		const component = queue.pop()!;
+		const stepRefs: PackageResourceReferences = {
+			localResourceIds: new Set<string>(),
+			packageIds: new Set<string>(),
+		};
+		collectComponentReferences(stepRefs, pkg.getId(), component, doc);
+		for (const pkgId of stepRefs.packageIds) references.packageIds.add(pkgId);
+		for (const localId of stepRefs.localResourceIds) {
+			references.localResourceIds.add(localId);
+			const target = resourcesById.get(localId);
+			if (target?.propertyType === 'Component') {
+				enqueueComponent(target);
+			}
+		}
+	}
+
 	return references;
 }

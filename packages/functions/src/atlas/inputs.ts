@@ -8,6 +8,7 @@ import {
 	resolveFontPath,
 	resolveImageFileName,
 	resolveImagePath,
+	resolveMovieClipPath,
 } from '../publish/package-context.js';
 import type { ExtrasMap } from '../shared-types.js';
 import { parseFnt } from './font.js';
@@ -167,9 +168,7 @@ export interface PagedAtlasGroup {
 }
 
 export function resolveMovieClipSourcePath(resource: MovieClipResource, pkg: Package, basePath: string): string {
-	const fileName = `${resource.getName()}.jta`;
-	const resourcePath = resource.getPath() ?? '/';
-	return `${basePath}/${pkg.getName()}${resourcePath}${fileName}`;
+	return resolveMovieClipPath(resource, pkg, basePath);
 }
 
 export async function prepareMovieClipResource(
@@ -303,7 +302,7 @@ export async function collectMovieClipFrames(
 		throw new Error(`atlas: MovieClip "${resource.getId()}" requires an encoder for complete raster output.`);
 	}
 
-	const mcId = resource.getId();
+	const mcId = getPublishedItemId(resource, options.publishResources);
 	const filePath = resolveMovieClipSourcePath(resource, pkg, options.basePath);
 
 	try {
@@ -371,8 +370,16 @@ export async function collectFontTexture(
 		// Record font→texture mapping so we can add a duplicate sprite entry
 		// after atlas packing. The editor stores both the image ID (jb800) and
 		// the font ID (wa8u2r) as separate sprites at the same atlas position.
-		const fontId = fontRes.getId();
-		fontRes.setExtras({ ...fontRes.getExtras(), _fontSpriteAlias: { fontId, textureId } });
+		const fontId = getPublishedItemId(fontRes, options.publishResources);
+		const textureResource = pkg.getResourceById(textureId);
+		const effectiveTextureId =
+			textureResource && options.publishResources
+				? getPublishedItemId(textureResource as PackInputResource, options.publishResources)
+				: textureId;
+		fontRes.setExtras({
+			...fontRes.getExtras(),
+			_fontSpriteAlias: { fontId, textureId: effectiveTextureId },
+		});
 	}
 
 	// Parse .fnt file for glyph data (needed for binary encoding)

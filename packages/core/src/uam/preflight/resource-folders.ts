@@ -108,13 +108,20 @@ export function validateResourceFolderAtlas(
 	issues: UamTransactionSupportIssue[],
 	operationKind: UamTransactionOperation['kind'],
 ): atlas is string {
-	if (typeof atlas === 'string' && (atlas === '' || (/^(0|[1-9]\d*)$/.test(atlas) && Number(atlas) <= maxAtlasIndex)))
+	if (
+		typeof atlas === 'string' &&
+		(atlas === '' ||
+			atlas === 'alone' ||
+			atlas === 'alone_npot' ||
+			atlas === 'alone_mof' ||
+			(/^(0|[1-9]\d*)$/.test(atlas) && Number(atlas) <= maxAtlasIndex))
+	)
 		return true;
 	pushSupportIssue(
 		issues,
 		'invalid_resource_folder_atlas',
 		path,
-		`Resource folder atlas must be empty or a canonical slot index from 0 to ${maxAtlasIndex}.`,
+		`Resource folder atlas must be empty, "alone", "alone_npot", "alone_mof", or a canonical slot index from 0 to ${maxAtlasIndex}.`,
 		{ operationKind },
 	);
 	return false;

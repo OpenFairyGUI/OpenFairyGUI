@@ -142,6 +142,7 @@ This block stores package entries. Every entry has a common header followed by i
 | `3` | `Component` | Common fields plus extension type code and component binary data |
 | `4` | `Atlas` | Atlas-entry `id`, `file`, and dimensions |
 | `5` | `Font` | Common fields plus glyph-data block |
+| `6` | `Swf` | Common fields plus SWF auxiliary filename |
 | `7` | `Misc` | Unclassified item |
 | `8` | `Unknown` | Unmodeled package item type code |
 | `9` | `Spine` | Common fields plus resource filename, `skeletonAnchor.x`, and `skeletonAnchor.y` |
@@ -166,9 +167,9 @@ The `Font` glyph-data block stores its UTF-16 code unit (`charId`) as `uint16`, 
 
 Bitmap glyph image references must resolve in the same package's resource and sprite tables. A whole-font texture is addressed by the font ID in the sprite table. After branch merging, glyph image IDs refer to merged resources. Imported TTF/TTC/OTF fonts use their engine font name in text `font` fields and are not encoded as bitmap `Font` resources.
 
-### `Spine` / `DragoneBones` item segment
+### `Spine` / `DragonBones` item segment
 
-`Spine` and `DragoneBones` append a skeleton anchor after the common header:
+`Spine` and `DragonBones` append a skeleton anchor after the common header:
 
 | Field | Protocol |
 |---|---|
@@ -178,6 +179,7 @@ Bitmap glyph image references must resolve in the same package's resource and sp
 Notes:
 
 - Project resource fields such as `require` and `atlasNames` are not written directly into the package-item segment.
+- Dependencies referenced only via skeleton `require` (such as `.atlas`, `_tex.json`, and `.png`) are exported as loose sidecar files on disk and are **not** written into Block 1 unless independently exported or referenced by another component.
 - The runtime locates and aligns a skeleton resource through `file` and `skeletonAnchor`.
 
 ### Publish semantics of `file`
@@ -187,23 +189,22 @@ Notes:
 | Resource type | Meaning of `file` |
 |---|---|
 | `Atlas` / `Sound` / `Misc` / `Swf` | Published auxiliary-resource filename; the runtime adds the package asset prefix required by the target |
-| `Spine` / `DragoneBones` | Published primary skeleton-resource filename, which the runtime uses to load the corresponding resource |
+| `Spine` / `DragonBones` | Published primary skeleton-resource filename, which the runtime uses to load the corresponding resource |
 
-For `Sound` / `Misc` / `Swf`, `file` is the published item ID plus the source extension. Unity additionally appends `.txt` to `.atlas`. For example, `hero.json` with item ID `biss7` is stored as `biss7.json`; its physical auxiliary file carries the package publish-name prefix expected by the runtime. `Swf` uses item type code `6`.
+For independently published `Sound` / `Misc` / `Swf` items, `file` is the published item ID plus the source extension. Unity additionally appends `.txt` to `.atlas`. For example, an independently exported `hero.json` with item ID `biss7` is stored as `biss7.json`; its physical auxiliary file carries the package publish-name prefix expected by the runtime. `Swf` uses item type code `6`.
 
-Current Unity naming for `Spine` primary and dependent resources is:
+Unity naming for `Spine` / `DragonBones` primary files and `require` sidecars is:
 
 | Project resource file | Published result |
 |---|---|
 | `*.skel` | `*.skel.bytes` |
-| `*.atlas` (`Misc` dependency) | `<item-id>.atlas.txt` |
-| `*.png` | Original filename retained |
+| `*.atlas` (skeleton `require` sidecar) | Original filename with `.txt` appended (e.g. `alien-pma.atlas.txt`, no package prefix and no item-id rename) |
+| `*_ske.json` / `*_tex.json` (skeleton `require` sidecar) | Original filename retained (no package prefix and no item-id rename) |
+| `*.png` (skeleton `require` sidecar) | Original filename retained |
 
-Non-Unity primary skeleton files retain the filename required by their target; dependencies published as `Misc` still use `<item-id><source-extension>`.
+Non-Unity skeleton primary files and `require` sidecars retain their original filenames (no `.bytes` / `.txt` suffix, no package prefix, and excluded from Block 1).
 
-When publish settings enable separate branch atlases, an atlas item's `file` contains a branch suffix, such as `atlas0_dev.png`. The main atlas remains `atlas0.png`.
-
-The `DragoneBones` primary file retains the filename required by its target. `Misc` dependencies use their published item IDs, while image dependencies retain their published image names.
+When publish settings enable separate branch atlases, an atlas item's `file` contains a branch suffix, such as `atlas0_dev.png`. The main atlas remains `atlas0.png`. Standalone atlases (`alone`, `alone_npot`, `alone_mof`) use Block 1 item ID `atlas_<itemId>`.
 
 ### Conditional trailing fields
 
@@ -212,7 +213,7 @@ The end of an item contains conditional data:
 | Field | Protocol |
 |---|---|
 | branch name | Branch containing the current item; a main-branch item writes `null` |
-| branchCount | Number of branch mappings. When the package has a branch table, a main item writes branch-variant item IDs in package-level branch order. |
+| branchCount | Number of branch mappings. When the package has a branch table, a main item writes branch-variant item IDs in package-level branch order. In merged active-branch mode (`branchProcessing = 1`), an item overridden by the active branch writes `1` followed by its original branch item ID alias. |
 | highResCount | Number of high-resolution variant slots, followed by package item IDs in `@2x`, `@3x`, `@4x` order |
 
 Notes:
@@ -221,7 +222,7 @@ Notes:
 - A branch variant item writes only its branch name and does not recursively contain another `branchCount` mapping.
 - The high-resolution list references only `image` or `movieclip` resources already published as package items. Publishing does not enlarge source bitmaps.
 - If an intermediate scale is missing while a later scale exists, the missing slot is `null`; missing trailing slots are omitted.
-- In **merge active branch into main** mode, branch replacement is already complete. Package-level `branchCount` is `0`, and item branch name and `branchCount` are empty.
+- In **merge active branch into main** mode, branch replacement is already complete. Package-level `branchCount` is `0` and item `branch name` is `null`; items merged from an active branch override write `branchCount = 1` plus the original branch item ID (so runtimes alias that ID to the merged main item), while unoverridden items write `branchCount = 0`.
 - When branches are retained and branch atlases are separate, a branch may use independent atlas items. Current editor samples use `100 + pageIndex` as the branch atlas index.
 
 ## Block 2: Sprites
@@ -232,7 +233,7 @@ Notes:
 | Base fields | `itemId`, `atlasId`, `x`, `y`, `w`, `h`, `rotated` |
 | Conditional fields | `offsetX`, `offsetY`, `originalWidth`, `originalHeight` |
 
-This block describes each resource's trimmed atlas rectangle and original dimensions. The trailing segment is present when offsets are non-zero, the sprite is rotated or zero-sized direct output, or the original dimensions differ from the trimmed rectangle. A sprite trimmed only on its right or bottom edge therefore retains `originalWidth` / `originalHeight` even with zero offsets.
+This block describes each resource's trimmed atlas rectangle and original dimensions. Rotated atlases follow target engine orientation: Unity and other engines use `rotationDir = 0` (-90° CCW pixels with swapped sheet `w`/`h`), whereas CocosCreator, Cocos2dx, and Egret use `rotationDir = 1` (+90° CW pixels with unrotated logical `w`/`h`). The trailing segment is present when offsets are non-zero, the sprite is rotated or zero-sized direct output, or the original dimensions differ from the unrotated trimmed rectangle. A sprite trimmed only on its right or bottom edge therefore retains `originalWidth` / `originalHeight` even with zero offsets.
 
 ## Block 3: Pixel Hit Test
 

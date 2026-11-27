@@ -1,11 +1,13 @@
 import type { Document, Package, Sprite, ImageResource, FontResource, MovieClipResource } from '@openfairygui/core';
 import type { RestoreFileSystem, RestoreExecutionOptions } from '../restore.js';
+import { usesClockwiseAtlasRotation } from '../utils.js';
 import { isSyntheticFontGlyphImage, serializeFont } from './font.js';
 import { serializeMovieClip } from './movie-clip.js';
 import {
 	resourceFileName,
 	resourcePublishedFileName,
 	imageFileName,
+	fileBaseName,
 	sourceFileCandidates,
 	resolveSourceFile,
 	resourceOutputPath,
@@ -13,7 +15,48 @@ import {
 
 interface SpriteLookupEntry {
 	sourceAtlas: string;
+	alphaSourcePath: string | null;
 	sprite: Sprite;
+}
+
+function inferBinaryPackageName(fileName: string): string {
+	if (/_fui\.bytes$/i.test(fileName)) return fileName.replace(/_fui\.bytes$/i, '');
+	if (/\.fui$/i.test(fileName)) return fileName.replace(/\.fui$/i, '');
+	return fileName.replace(/\.bin$/i, '');
+}
+
+function resolvePackageClockwiseRotation(pkg: Package, options: RestoreExecutionOptions): boolean {
+	const pkgNames = new Set([pkg.getName(), pkg.getPublishName()].filter(Boolean));
+	const matchedBinary = options.binaryPaths.find((binaryPath) =>
+		pkgNames.has(inferBinaryPackageName(fileBaseName(binaryPath))),
+	);
+	if (matchedBinary && /_fui\.bytes$/i.test(fileBaseName(matchedBinary))) {
+		return false;
+	}
+	if (options.projectType !== undefined) {
+		return usesClockwiseAtlasRotation(options.projectType);
+	}
+	if (matchedBinary && /\.bin$/i.test(fileBaseName(matchedBinary))) {
+		return true;
+	}
+	return false;
+}
+
+function insertAlphaSuffix(fileName: string): string {
+	const normalized = fileName.replace(/\\/g, '/');
+	const lastSlash = normalized.lastIndexOf('/');
+	const lastDot = normalized.lastIndexOf('.');
+	if (lastDot <= lastSlash) return `${fileName}!a`;
+	return `${fileName.slice(0, lastDot)}!a${fileName.slice(lastDot)}`;
+}
+
+async function resolveAlphaAtlasFile(
+	fs: RestoreFileSystem,
+	pkg: Package,
+	sourceDir: string,
+	atlasFile: string,
+): Promise<string | null> {
+	return resolveSourceFile(fs, sourceDir, sourceFileCandidates(pkg, insertAlphaSuffix(atlasFile)));
 }
 
 const TRANSPARENT_PNG_1X1 = Uint8Array.from([
@@ -45,6 +88,7 @@ async function restoreAtlasImages(
 	options: RestoreExecutionOptions,
 ): Promise<void> {
 	if (!options.cropImage) return;
+	const clockwiseRotated = resolvePackageClockwiseRotation(pkg, options);
 	for (const atlas of pkg.listAtlases()) {
 		const sourceAtlas = await resolveSourceFile(fs, options.sourceDir, sourceFileCandidates(pkg, atlas.getFile()));
 		if (!sourceAtlas) {
@@ -52,6 +96,7 @@ async function restoreAtlasImages(
 				`Atlas image not found for package "${pkg.getName()}": ${sourceFileCandidates(pkg, atlas.getFile()).join(', ')}`,
 			);
 		}
+		const alphaSourcePath = await resolveAlphaAtlasFile(fs, pkg, options.sourceDir, atlas.getFile());
 		for (const sprite of atlas.listSprites()) {
 			const image = findImageResource(pkg, sprite.getItemId());
 			if (!image) continue;
@@ -59,17 +104,22 @@ async function restoreAtlasImages(
 			const outputPath = resourceOutputPath(fs, options.outputProjectPath, pkg, image, imageFileName(image));
 			const imageWidth = image.getWidth() ?? 0;
 			const imageHeight = image.getHeight() ?? 0;
-			const spriteWidth = sprite.getRotated() ? sprite.getRectHeight() : sprite.getRectWidth();
-			const spriteHeight = sprite.getRotated() ? sprite.getRectWidth() : sprite.getRectHeight();
+			const rotated = sprite.getRotated();
+			const cropWidth = rotated && clockwiseRotated ? sprite.getRectHeight() : sprite.getRectWidth();
+			const cropHeight = rotated && clockwiseRotated ? sprite.getRectWidth() : sprite.getRectHeight();
+			const spriteWidth = rotated && !clockwiseRotated ? sprite.getRectHeight() : sprite.getRectWidth();
+			const spriteHeight = rotated && !clockwiseRotated ? sprite.getRectWidth() : sprite.getRectHeight();
 			await fs.mkdir(fs.dirname(outputPath));
 			await options.cropImage({
 				sourcePath: sourceAtlas,
+				alphaSourcePath: alphaSourcePath ?? undefined,
 				outputPath,
 				left: sprite.getRectX(),
 				top: sprite.getRectY(),
-				width: sprite.getRectWidth(),
-				height: sprite.getRectHeight(),
-				rotated: sprite.getRotated(),
+				width: cropWidth,
+				height: cropHeight,
+				rotated,
+				clockwiseRotated,
 				offsetX: sprite.getOffsetX(),
 				offsetY: sprite.getOffsetY(),
 				expectedWidth: Math.max(imageWidth, sprite.getOriginalWidth(), spriteWidth),
@@ -88,7 +138,7 @@ async function copyLooseResources(
 	for (const resource of pkg.listResources()) {
 		const restoreAsLooseImage = resource.getExtras()?._restoreAsLooseImage === true;
 		if (
-			!['SoundResource', 'MiscResource', 'SpineResource', 'DragonBonesResource'].includes(
+			!['SoundResource', 'MiscResource', 'SwfResource', 'SpineResource', 'DragonBonesResource'].includes(
 				resource.propertyType,
 			) &&
 			!restoreAsLooseImage
@@ -160,10 +210,16 @@ async function writeMovieClipFile(
 		return;
 	}
 
+	const clockwiseRotated = resolvePackageClockwiseRotation(pkg, options);
 	const sprites = await buildSpriteLookup(fs, pkg, options);
 	const textures: Uint8Array[] = [];
 	for (const [index, frame] of frames.entries()) {
-		const spriteEntry = sprites.get(frame.getSpriteId());
+		const spriteId = frame.getSpriteId();
+		if (!spriteId) {
+			textures.push(new Uint8Array(0));
+			continue;
+		}
+		const spriteEntry = sprites.get(spriteId);
 		if (!spriteEntry) {
 			warnings.push(
 				`MovieClip frame sprite not found for package "${pkg.getName()}": ${fileName} frame ${index}`,
@@ -175,18 +231,25 @@ async function writeMovieClipFile(
 			textures.push(new Uint8Array(0));
 			continue;
 		}
+		const rotated = sprite.getRotated();
+		const cropWidth = rotated && clockwiseRotated ? sprite.getRectHeight() : sprite.getRectWidth();
+		const cropHeight = rotated && clockwiseRotated ? sprite.getRectWidth() : sprite.getRectHeight();
+		const expectedWidth = rotated && !clockwiseRotated ? sprite.getRectHeight() : sprite.getRectWidth();
+		const expectedHeight = rotated && !clockwiseRotated ? sprite.getRectWidth() : sprite.getRectHeight();
 		textures.push(
 			await options.extractImage({
 				sourcePath: spriteEntry.sourceAtlas,
+				alphaSourcePath: spriteEntry.alphaSourcePath ?? undefined,
 				left: sprite.getRectX(),
 				top: sprite.getRectY(),
-				width: sprite.getRectWidth(),
-				height: sprite.getRectHeight(),
-				rotated: sprite.getRotated(),
+				width: cropWidth,
+				height: cropHeight,
+				rotated,
+				clockwiseRotated,
 				offsetX: 0,
 				offsetY: 0,
-				expectedWidth: sprite.getRotated() ? sprite.getRectHeight() : sprite.getRectWidth(),
-				expectedHeight: sprite.getRotated() ? sprite.getRectWidth() : sprite.getRectHeight(),
+				expectedWidth,
+				expectedHeight,
 			}),
 		);
 	}
@@ -223,8 +286,9 @@ async function buildSpriteLookup(
 				`Atlas image not found for package "${pkg.getName()}": ${sourceFileCandidates(pkg, atlas.getFile()).join(', ')}`,
 			);
 		}
+		const alphaSourcePath = await resolveAlphaAtlasFile(fs, pkg, options.sourceDir, atlas.getFile());
 		for (const sprite of atlas.listSprites()) {
-			sprites.set(sprite.getItemId(), { sourceAtlas, sprite });
+			sprites.set(sprite.getItemId(), { sourceAtlas, alphaSourcePath, sprite });
 		}
 	}
 	return sprites;

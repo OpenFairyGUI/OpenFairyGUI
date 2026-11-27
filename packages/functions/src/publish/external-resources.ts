@@ -5,6 +5,7 @@ import {
 	type PackagePublishContext,
 	getPublishedId,
 	getPublishedSkeletonDependencyImageIds,
+	getPublishedSkeletonDependencyMiscIds,
 	isImageResource,
 	isMiscResource,
 	isSkeletonResource,
@@ -13,6 +14,7 @@ import {
 	resolveGenericResourcePath,
 	resolveImageFileName,
 	resolveImagePath,
+	resolvePublishedSkeletonDependencyMiscFileName,
 	resolveSoundPath,
 } from './package-context.js';
 
@@ -62,9 +64,11 @@ export async function exportPackageExternalResources(
 	basePath: string | undefined,
 	fs: PublishFileSystem,
 	readFileRaw: PublishFileSystem['readFileRaw'] | undefined,
+	projectType: number,
 ): Promise<void> {
-	const { exportedResourceIds } = context;
+	const { exportedResourceIds, publishedResourceIds } = context;
 	const skeletonDependencyImageIds = getPublishedSkeletonDependencyImageIds(pkg, exportedResourceIds);
+	const skeletonDependencyMiscIds = getPublishedSkeletonDependencyMiscIds(pkg, exportedResourceIds);
 	if (exportedResourceIds.size === 0) return;
 	if (!basePath || !readFileRaw) {
 		const hasPublishedExternal = pkg.listResources().some((resource) => {
@@ -84,36 +88,51 @@ export async function exportPackageExternalResources(
 
 	for (const resource of pkg.listResources()) {
 		const resourceId = resource.getId();
-		const isExternal =
-			exportedResourceIds.has(resourceId) &&
-			(isMiscResource(resource) || isSwfResource(resource) || isSkeletonResource(resource));
 		const isSkeletonImageDependency = skeletonDependencyImageIds.has(resourceId) && isImageResource(resource);
-		if (!isExternal && !isSkeletonImageDependency) continue;
+		const isSkeletonMiscDependency = skeletonDependencyMiscIds.has(resourceId) && isMiscResource(resource);
+		const isPublishedExternal =
+			publishedResourceIds.has(resourceId) &&
+			(isMiscResource(resource) || isSwfResource(resource) || isSkeletonResource(resource));
+		if (!isPublishedExternal && !isSkeletonImageDependency && !isSkeletonMiscDependency) continue;
 
-		let sourcePath: string;
-		let targetName: string;
+		const writes: Array<{ sourcePath: string; targetName: string }> = [];
 		if (isSkeletonImageDependency) {
-			sourcePath = resolveImagePath(resource, pkg, basePath);
-			targetName = resolveImageFileName(resource);
-		} else if (isMiscResource(resource) || isSwfResource(resource) || isSkeletonResource(resource)) {
-			sourcePath = resolveGenericResourcePath(resource, pkg, basePath);
+			writes.push({
+				sourcePath: resolveImagePath(resource, pkg, basePath),
+				targetName: resolveImageFileName(resource),
+			});
+		}
+		if (isSkeletonMiscDependency) {
+			writes.push({
+				sourcePath: resolveGenericResourcePath(resource, pkg, basePath),
+				targetName: resolvePublishedSkeletonDependencyMiscFileName(resource, projectType),
+			});
+		}
+		if (
+			isPublishedExternal &&
+			(isMiscResource(resource) || isSwfResource(resource) || isSkeletonResource(resource))
+		) {
+			const sourcePath = resolveGenericResourcePath(resource, pkg, basePath);
 			const publishedFile = context.publishedFiles.get(resource.getId()) ?? resource.getFile();
-			targetName =
+			const targetName =
 				isMiscResource(resource) || isSwfResource(resource)
 					? `${pkg.getPublishName() || pkg.getName()}_${publishedFile}`
 					: publishedFile;
-		} else {
-			continue;
+			if (!writes.some((entry) => entry.targetName === targetName)) {
+				writes.push({ sourcePath, targetName });
+			}
 		}
-		const targetPath = fs.join(outputDir, targetName);
 
-		try {
-			const data = await readFileRaw(sourcePath);
-			await fs.writeFileRaw(targetPath, data);
-		} catch {
-			throw new Error(
-				`publish: Could not export external resource "${resource.getId()}" from package "${pkg.getName()}".`,
-			);
+		for (const write of writes) {
+			const targetPath = fs.join(outputDir, write.targetName);
+			try {
+				const data = await readFileRaw(write.sourcePath);
+				await fs.writeFileRaw(targetPath, data);
+			} catch {
+				throw new Error(
+					`publish: Could not export external resource "${resource.getId()}" from package "${pkg.getName()}".`,
+				);
+			}
 		}
 	}
 }

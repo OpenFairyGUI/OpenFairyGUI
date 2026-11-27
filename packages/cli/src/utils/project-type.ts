@@ -20,8 +20,14 @@ export function parseProjectType(value: string | undefined): number | undefined 
 		libgdx: ProjectType.LibGDX,
 		unreal: ProjectType.Unreal,
 		cryengine: ProjectType.CryEngine,
+		cry: ProjectType.CryEngine,
 		monogame: ProjectType.MonoGame,
 		vision: ProjectType.Vision,
+		cocos2dx: ProjectType.Cocos2dx,
+		corona: ProjectType.Corona,
+		threejs: ProjectType.ThreeJS,
+		createjs: ProjectType.CreateJS,
+		dom: ProjectType.DOM,
 	};
 	const resolved = map[normalized];
 	if (resolved === undefined) {

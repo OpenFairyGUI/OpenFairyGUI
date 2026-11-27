@@ -42,6 +42,9 @@ function serializeTtfFontHeader(pkg: Package, resource: FontResource, glyphs: Fo
 	const face = stripExtension(fileName) || resource.getName() || 'Font';
 	const lineHeight = resource.getLineHeight() ?? 0;
 	const fontSize = resource.getFontSize() ?? lineHeight;
+	const xAdvance = resource.getXAdvance() ?? 0;
+	const resizable = resource.getAutoScale() === true;
+	const colored = resource.getTint() === true;
 	const textureId = resource.getTextureId() ?? '';
 	const textureResource = textureId
 		? (pkg.listImageResources().find((image) => image.getId() === textureId) ?? null)
@@ -50,9 +53,13 @@ function serializeTtfFontHeader(pkg: Package, resource: FontResource, glyphs: Fo
 	const scaleW = textureResource?.getWidth() ?? 256;
 	const scaleH = textureResource?.getHeight() ?? 256;
 	const base = Math.max(Math.min(fontSize, lineHeight) - 6, 0);
+	const infoExtras: string[] = [];
+	if (resizable) infoExtras.push('resizable=true');
+	if (!colored) infoExtras.push('colored=false');
+	const commonExtra = xAdvance > 0 ? ` xadvance=${xAdvance}` : '';
 	return [
-		`info face="${face}" size=${fontSize} bold=0 italic=0 charset="" unicode=1 stretchH=100 smooth=1 aa=1 padding=0,0,0,0 spacing=1,1 outline=0`,
-		`common lineHeight=${lineHeight} base=${base} scaleW=${scaleW} scaleH=${scaleH} pages=1 packed=0 alphaChnl=${resource.getTint() ? 1 : 0} redChnl=0 greenChnl=0 blueChnl=0`,
+		`info face="${face}" size=${fontSize} bold=0 italic=0 charset="" unicode=1 stretchH=100 smooth=1 aa=1 padding=0,0,0,0 spacing=1,1 outline=0${infoExtras.length > 0 ? ` ${infoExtras.join(' ')}` : ''}`,
+		`common lineHeight=${lineHeight} base=${base} scaleW=${scaleW} scaleH=${scaleH} pages=1 packed=0 alphaChnl=${colored ? 1 : 0} redChnl=0 greenChnl=0 blueChnl=0${commonExtra}`,
 		`page id=0 file="${textureName}"`,
 		`chars count=${glyphs.length}`,
 	];
@@ -60,9 +67,20 @@ function serializeTtfFontHeader(pkg: Package, resource: FontResource, glyphs: Fo
 
 export function serializeFont(pkg: Package, resource: FontResource, glyphs: FontGlyph[]): string {
 	const isTtf = resource.getTtf() === true;
-	const lines = isTtf
-		? serializeTtfFontHeader(pkg, resource, glyphs)
-		: ['info creator=UIBuilder', `common lineHeight=${resource.getLineHeight() ?? 0}`];
+	let lines: string[];
+	if (isTtf) {
+		lines = serializeTtfFontHeader(pkg, resource, glyphs);
+	} else {
+		const fontSize = resource.getFontSize() ?? 0;
+		const xAdvance = resource.getXAdvance() ?? 0;
+		const infoParts = ['info', 'creator=UIBuilder'];
+		if (fontSize > 0) infoParts.push(`size=${fontSize}`);
+		if (resource.getAutoScale() === true) infoParts.push('resizable=true');
+		if (resource.getTint() === true) infoParts.push('colored=true');
+		const commonParts = ['common', `lineHeight=${resource.getLineHeight() ?? 0}`];
+		if (xAdvance > 0) commonParts.push(`xadvance=${xAdvance}`);
+		lines = [infoParts.join(' '), commonParts.join(' ')];
+	}
 
 	for (const glyph of glyphs) {
 		const charId = fontGlyphCharId(glyph);

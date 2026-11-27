@@ -205,11 +205,16 @@ test('publish: non-Unity project keeps spine sidecar file names unchanged', asyn
 			}),
 		);
 
-		for (const file of ['Loader.bin', 'Loader_misc001.atlas', 'alien-pro.skel', 'alien-pma.png']) {
+		for (const file of ['Loader.bin', 'alien-pma.atlas', 'alien-pro.skel', 'alien-pma.png']) {
 			const stat = await fs.stat(path.join(tmpDir, file)).catch(() => null);
 			t.truthy(stat, `${file} was exported`);
 		}
-		for (const absentFile of ['alien-pma.atlas.txt', 'alien-pro.skel.bytes', 'Loader_atlas0.png']) {
+		for (const absentFile of [
+			'Loader_misc001.atlas',
+			'alien-pma.atlas.txt',
+			'alien-pro.skel.bytes',
+			'Loader_atlas0.png',
+		]) {
 			const stat = await fs.stat(path.join(tmpDir, absentFile)).catch(() => null);
 			t.falsy(stat, `${absentFile} was not exported`);
 		}
@@ -222,8 +227,8 @@ test('publish: non-Unity project keeps spine sidecar file names unchanged', asyn
 			]),
 		);
 		t.is(byId.get('spine001')?.file, 'alien-pro.skel', 'spine item keeps original skeleton file name');
-		t.is(byId.get('misc001')?.file, 'misc001.atlas', 'misc atlas dependency uses its runtime item id');
-		t.true(byId.has('img001'), 'spine texture image dependency is written as a package item');
+		t.false(byId.has('misc001'), 'skeleton-only misc dependency is not emitted into Block 1');
+		t.false(byId.has('img001'), 'skeleton-only image dependency is not emitted into Block 1');
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 		await fs.rm(basePath, { recursive: true, force: true });

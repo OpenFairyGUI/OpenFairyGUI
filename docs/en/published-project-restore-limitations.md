@@ -96,8 +96,9 @@ The implementation follows FairyGUI Editor conventions where practical, but thes
 
 | Item | Current contract |
 |---|---|
-| Project | Produce a readable, openable, editable FairyGUI project from trusted input. |
-| Resources | Recover packaged assets, component XML, derived font textures, `.jta`, `.fnt`, and other modeled resources where evidence is available. |
+| Project | Produce a readable, openable, editable FairyGUI project from trusted input, inferring `Publish.json` `fileExtension` from input binaries (`_fui.bytes` / `.fui` / `.bin`). |
+| Resources | Recover packaged assets (including Unity `rotationDir = 0` and CocosCreator / Cocos2dx / Egret `rotationDir = 1` rotated atlases, plus `!a.png` alpha-extracted atlas recombination), component XML, derived font textures, `.fnt` headers (`resizable`, `colored`, `size`, `xadvance`), `.jta` files including empty frames, and loose `Sound`/`Misc`/`Swf`/`Spine`/`DragonBones` resources. |
+| Heuristic limits | SDF font `renderMode="sdfaa"` and `samplePointSize="60"` remain filename-heuristic because compiled binaries do not store SDF import settings. |
 | Not guaranteed | Original filenames, text formatting, and local editor state. |
 
 ## When external information is required

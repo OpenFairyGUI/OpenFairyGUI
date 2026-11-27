@@ -400,6 +400,11 @@ export enum ProjectType {
 	CryEngine = 10,
 	MonoGame = 11,
 	Vision = 12,
+	Cocos2dx = 13,
+	Corona = 14,
+	ThreeJS = 15,
+	CreateJS = 16,
+	DOM = 17,
 }
 
 /** Relation definition stored on GObject. */

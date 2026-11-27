@@ -29,7 +29,7 @@
 
 ### 顶层属性
 
-以下是 `GlobalPublishSettings` 中可见的真实发布属性：
+以下是 `settings/Publish.json` 中可见的真实顶层属性：
 
 | 属性 | 含义 |
 |---|---|
@@ -41,22 +41,13 @@
 | `binaryFormat` | 是否使用二进制发布格式 |
 | `jpegQuality` | JPEG 质量 |
 | `compressPNG` | 是否压缩 PNG |
-| `allowGenCode` | 是否允许生成代码 |
-| `codePath` | 代码输出路径 |
-| `classNamePrefix` | 类名前缀 |
-| `memberNamePrefix` | 成员名前缀 |
-| `packageName` | 代码生成使用的包名 |
-| `ignoreNoname` | 是否忽略无名对象 |
-| `getMemberByName` | 是否按名称获取成员 |
-| `codeType` | 代码生成类型 |
 | `includeHighResolution` | 高分辨率资源包含位掩码 |
 | `branchProcessing` | 分支处理模式 |
-| `atlasMaxSize` | 图集最大尺寸 |
-| `atlasPaging` | 是否分页 |
-| `atlasSizeOption` | 图集尺寸策略 |
-| `atlasForceSquare` | 是否强制正方形 |
-| `atlasAllowRotation` | 是否允许旋转 |
-| `atlasTrimImage` | 是否裁边 |
+| `seperatedAtlasForBranch` | 保留分支发布时是否为分支单独输出图集 |
+| `codeGeneration` | 代码生成设置子对象 |
+| `atlasSetting` | 全局图集设置子对象 |
+
+说明：编辑器内存对象 `GlobalPublishSettings` 另提供展开访问器（`allowGenCode`、`codePath`、`classNamePrefix`、`memberNamePrefix`、`packageName`、`ignoreNoname`、`getMemberByName`、`codeType` 与 `atlasMaxSize`、`atlasPaging`、`atlasSizeOption`、`atlasForceSquare`、`atlasAllowRotation`、`atlasTrimImage`），它们在 `Publish.json` 中分别序列化在 `codeGeneration` 与 `atlasSetting` 子对象内。
 
 ### `codeGeneration`
 
@@ -87,8 +78,8 @@
 | `trimImage` | 是否裁边 |
 
 说明：
-- 编辑器 `GlobalPublishSettings` 里还存在 `atlasMaxSize`、`atlasPaging`、`atlasSizeOption`、`atlasForceSquare`、`atlasAllowRotation`、`atlasTrimImage` 这些运行时字段，它们对应 `Publish.json` 里的 `atlasSetting` 子对象。
 - `extractAlpha` 不属于全局 `Publish.json` 的真实属性；它在包级图集设置里出现。
+- OpenFairyGUI 的程序化 `resolvePublishOptions` 除消费上述真实 `atlasSetting` 字段外，也允许调用方或配置对象传入 `fast`、`padding` 等可选图集参数覆盖。
 
 ### SVG 图像发布
 
@@ -119,9 +110,9 @@
 - 工程 `package.xml` 的 `packageDescription` 根节点正式支持 `compressPNG`、`jpegQuality` 与派生的 `hasFavorites`；未设置的图片压缩选项保持省略，`hasFavorites` 仅在包内存在收藏资源或资源文件夹时写为 `true`。UAM 同时承载根节点压缩值与完整包级 publish 快照，lift/materialize 不会丢失这些字段。
 - `<publish><atlas>` 是工程源配置，与发布/二进制读取后 `Package.listAtlases()` 中的生成 atlas 分离；ProjectWriter 只从源配置写回 `<publish><atlas>`，不会把生成 atlas 反写到 `package.xml`。
 
-`updatePackageSettings` 使用包含 `compressPNG`、`jpegQuality` 和完整 `publish` 的单包快照，删除字段通过提交新的完整快照表达；相同快照以 `package_settings_unchanged` 拒绝。包名和输出路径必须是安全的相对路径，JPEG 质量范围是 1–100，包级 atlas 最大尺寸范围是 1–16384，`maxAtlasIndex` 范围是 0–255；稀疏 atlas 索引必须唯一且不超过该上限。`excludedResourceIds` 保存 CSV-safe 的资源 ID，可以保留当前工程中不存在的 ID，读取与写回不会把它误判为悬空引用。
+`updatePackageSettings` 使用包含 `compressPNG`、`jpegQuality` 和完整 `publish` 的单包快照，删除字段通过提交新的完整快照表达；相同快照以 `package_settings_unchanged` 拒绝。出于 UAM 事务安全边界，包名和输出路径必须是安全的相对路径（拒绝含 `..` 的路径逃逸，尽管原始编辑器 `package.xml` 可读取 `../` 相对路径），JPEG 质量范围是 1–100，包级 atlas 最大尺寸范围是 1–16384，`maxAtlasIndex` 范围是 0–255；稀疏 atlas 索引必须唯一且不超过该上限。`excludedResourceIds` 保存 CSV-safe 的资源 ID，可以保留当前工程中不存在的 ID，读取与写回不会把它误判为悬空引用。
 
-发布时，显式调用参数优先于包级 atlas 设置，包级设置在 `useGlobal=false` 时优先于全局发布设置；`extractAlpha` 与 `maxAtlasIndex` 始终读取包级正式值。包级设置控制最大尺寸、`pot / npot / mof`、正方形、旋转和分页，Layabox 目标强制禁用旋转。`excludedResourceIds` 从发布闭包移除对应资源；Unity 的 `extractAlpha` 输出无 alpha 的主图集与 `!a.png` alpha 图集。
+发布时，显式调用参数优先于包级 atlas 设置，包级设置在 `useGlobal=false` 时优先于全局发布设置；`extractAlpha` 与 `maxAtlasIndex` 始终读取包级正式值。包级设置控制最大尺寸、`pot / npot / mof`、正方形、旋转和分页，Layabox 目标强制禁用旋转。CocosCreator / Cocos2dx / Egret 目标在旋转图集时采用编辑器 `rotationDir = 1`（像素顺时针旋转 `+90°`，Block 2 sprite 记录旋转前宽高）；Unity 与其他目标采用 `rotationDir = 0`（像素逆时针旋转 `-90°`，Block 2 sprite 记录交换后的图集宽高）。资源未显式指定 `atlas`（或为 `default`）时，装箱会沿父文件夹继承最近的 `folder@atlas`；启用 `duplicatePadding` 的图像会在图集四周复制 1px 边缘像素；固定页图集遵循 `multiPage` 分页并在 `seperatedAtlasForBranch=false` 时与主干共享页；独立图集（`alone` / `alone_npot` / `alone_mof`）使用 `atlas_<itemId>` ID 并确保输出栅格扩展名。`excludedResourceIds` 从发布闭包移除对应资源；发布闭包仅从 `exported="true"` 入口做可达性遍历。Unity 与 Cocos2dx 的 `extractAlpha` 输出无 alpha 的主图集与 `!a.png` alpha 图集。`package.xml` 写回时省略默认的 `atlas="default"` 与 `qualityOption="default"`。
 
 ## 组件 XML 的列表清理与属性覆盖
 
@@ -148,7 +139,7 @@ FairyGUI 工程 XML 中由桌面编辑器按有符号 32 位整数读取的几�
 
 `pivot`、`scale`、`skew`、`gearXY` 的百分比和 `gearSize` 的缩放值继续保留小数。
 
-组件根及支持 pivot 的显示标签在 `anchor="true"` 时保留 `pivot="0,0"`，零坐标不取消锚点语义。`.fairy` 的工程类型完整写回 `Unity` 至 `Vision` 的 13 种正式类型；未知类型在写入前拒绝。
+组件根及支持 pivot 的显示标签在 `anchor="true"` 时保留 `pivot="0,0"`，零坐标不取消锚点语义。`.fairy` 的工程类型完整支持全部 18 种正式类型（`Unity`、`Flash`、`Starling`、`CocosCreator`、`Layabox`、`Egret`、`Haxe`、`Pixi`/`PIXI`、`LibGDX`、`Unreal`、`CryEngine`/`Cry`、`MonoGame`、`Vision`、`Cocos2dx`、`Corona`、`ThreeJS`、`CreateJS`、`DOM`）；未知非空类型在读取和写入时均拒绝。新建 `Document` 的 `.fairy` 默认 `version` 为 `"3.0"`。
 
 UAM 的 XY Gear 状态与默认值使用 `x/y` 和可选的 `px/py`；启用 `positionsInPercent` 时，显式状态值必须提供成对的有限 `px/py`，比例 `0.5` 表示 50%。默认值 `null` 表示未提供默认覆盖，保存时保持省略。每个显示节点的同一种 Gear 只允许绑定一次；需要更换控制器时移除后重新添加，Display 和 Display2 可共存。
 
@@ -172,7 +163,7 @@ Text/Icon Gear 按页保留未覆盖值、空字符串和普通 `-` 文本，默
 
 `package.xml` 与 `package_branch.xml` 的 component/asset 资源节点使用 `exported="true"` 与 `favorite="true"` 记录导出和收藏状态；未导出、未收藏时省略对应属性。SWF 使用正式的 `SwfResource` 模型读写 `<swf>` 节点，并通过 UAM `swf` 资源保留源文件、导出状态与收藏状态。UAM 通过 `resource.exported`、`resource.favorite` 承载这些字段，公开事务分别使用幂等的 `setResourceExported`、`setResourceFavorite` 设置目标布尔值。
 
-每个 package 通过正式的 `branchNames` 顺序记录自身出现的资源分支，并以 `package.xml` 根节点的同名 JSON 数组属性持久化。工程读取时使用该顺序建立映射；二进制发布时同一顺序定义该 package 的 `branchItemIds` 槽位，不能按工程根分支顺序重新推导。未显式设置包内表的 Document 调用会从实际分支资源按工程分支顺序推导后再发布。
+每个 package 通过正式的 `branchNames` 顺序记录自身出现的资源分支；OpenFairyGUI 以 `package.xml` 根节点的同名 JSON 数组属性（OpenFairyGUI 扩展持久化属性，非 FairyGUI 原生编辑器生成字段）持久化该包级分支顺序。工程读取时使用该顺序建立映射；二进制发布时同一顺序定义该 package 的 `branchItemIds` 槽位，不能按工程根分支顺序重新推导。未显式设置包内表的 Document 调用会从实际分支资源按工程分支顺序推导后再发布。
 
 公开事务 `addBranch`、`renameBranch`、`removeBranch` 维护按名称排序的工程分支注册表。重命名会原子更新资源、资源文件夹和包内分支表，但保持每个包已有槽位位置不变；删除只允许空且没有变体 ID 映射的分支。分支名必须是安全、非保留的单个路径段。编辑器当前激活分支属于本地界面状态，不在这些工程事务中修改。
 
@@ -182,7 +173,7 @@ ProjectWriter 会为每个工程分支保留 `assets_<branch>/`，并为包内�
 
 资源文件夹由 `package.folders` 正式承载 `branch / path / favorite / atlas`。文件夹路径使用以 `/` 开头和结尾的规范形式，根目录是隐式节点；实际 `assets[/_<branch>]/<包名>/` 目录是存在性的事实来源，`<folder>` 节点只写入需要持久化的收藏或图集元数据。`setResourceFolderFavorite` 可更新既有主分支或资源分支文件夹的收藏状态，且单个操作只修改 selector 指定的文件夹；需要匹配编辑器的后代收藏行为时，调用方应在同一事务中显式提交后代文件夹与资源收藏操作。公开事务 `addResourceFolder`、`renameResourceFolder`、`moveResourceFolder`、`removeResourceFolder` 只操作空文件夹；父目录必须存在，根目录、路径冲突和非空操作会在提交前拒绝。浏览器存储适配器须提供非递归 `rmdir`，保存成功后才清理被移除的空目录。
 
-`setResourceFolderAtlas` 以规范 `branch + path` selector 更新既有文件夹的 source Atlas 槽位。空字符串清除覆盖；非空值必须是 `0..maxAtlasIndex` 范围内且没有前导零的十进制字符串，Atlas 名称不作为引用值。`addResourceFolder.atlas` 使用相同校验，未显式配置 package publish 时上限默认为 `10`。同一事务需要扩大上限时，必须先提交 `updatePackageSettings`，再提交文件夹 Atlas 操作；相同赋值以 `resource_folder_atlas_unchanged` 拒绝。
+`setResourceFolderAtlas` 以规范 `branch + path` selector 更新既有文件夹的 source Atlas 槽位。空字符串清除覆盖；非空值必须是 `"alone"`、`"alone_npot"`、`"alone_mof"`，或 `0..maxAtlasIndex` 范围内且没有前导零的十进制字符串，Atlas 名称不作为引用值。`addResourceFolder.atlas` 使用相同校验，未显式配置 package publish 时上限默认为 `10`。同一事务需要扩大上限时，必须先提交 `updatePackageSettings`，再提交文件夹 Atlas 操作；相同赋值以 `resource_folder_atlas_unchanged` 拒绝。
 
 主 `package.xml` 的 `packageDescription@hasFavorites` 由包内资源与资源文件夹的收藏状态派生，不作为独立可编辑状态。收藏状态只影响编辑器工程数据，不进入运行时二进制发布协议。
 
@@ -206,13 +197,12 @@ ProjectWriter 会为每个工程分支保留 `assets_<branch>/`，并为包内�
 
 发布时显式传入的输出目录优先于设置文件。未传入时，当前选择顺序如下：
 
-1. 活跃分支发布的包级 `branchPath`，再到全局 `branchPath`。
-2. 包级 `path`。
-3. 全局 `path`。
+1. 活跃分支发布（`branchProcessing = 1` 且指定了非空 `branch`）优先选包级 `branchPath`，再到全局 `branchPath`，最后回退到包级 `path` / 全局 `path`。
+2. 主干或保留分支发布选包级 `path`，再到全局 `path`。
 
 选中的相对路径以工程根目录为基准；若以上都未配置，发布不会隐式选择输出目录。
 
-工程及包级 `path` / `branchPath` 先以发布名称替换 `{publish_file_name}`（不含扩展名），再按 `CustomProperties.json` 的属性顺序替换 `{变量名}`，最后解析相对路径。未知变量保持原样；显式 `output` 作为调用方路径直接使用。工程及包级 `codePath` 同样展开自定义变量。
+工程及包级 `path` / `branchPath` 先替换 `{publish_file_name}`（不含扩展名）与 `{branch_name}`（活跃分支名，主干为空串），再按 `CustomProperties.json` 的属性顺序替换 `{变量名}`，最后解析相对路径。对于非主干活跃分支发布，若所选路径模板未包含 `{branch_name}`，会在解析后的目录末尾追加 `/<branch>`（与 FairyGUI 编辑器 `PublishHandler` 一致）。未知变量保持原样；显式 `output` 作为调用方路径直接使用。工程及包级 `codePath` 同样展开自定义变量。
 
 浏览器 Laya 发布在显式 `output` 下不会使用工程或包内的桌面输出路径；显式 `branch`、`packages`、`compressed` 与 `atlas` 也保持调用参数优先。未显式覆盖时，持久化的压缩、图集和安全文件扩展名设置直接驱动输出。当前浏览器宿主不提供代码生成；全局允许且任一选中包启用 `genCode` 时，发布会在 Canvas 检查和文件写入前以 `unsupported_publish_setting`（含 `setting` 与 `path`）拒绝。失败结果的 `files` 只包含已经完成 `writeFileRaw` 的文件，因此 `success=false` 且列表非空表示内置输出已部分写入；需要原子发布的宿主必须提供事务式或 staging 输出文件系统。
 
@@ -312,16 +302,18 @@ OpenFairyGUI 当前已经把“代码生成”接入现有 `publish` 流程，�
 | `atlasSetting.trimImage` | 项目版本号 `>= 500` 时默认 `true`，否则使用旧默认逻辑 |
 | `jpegQuality` | `80` |
 
+说明：上表记录的是 FairyGUI 编辑器初始化设置时的默认值；在 OpenFairyGUI 程序化调用中，当 `Publish.json` 缺省某字段且未传入显式覆盖时，`resolvePublishOptions` / `resolveCodeGenerationSettings` 使用保守的缺省回退值（`compressDesc: false`、`powerOfTwo: false`、`trimImage: false`、`ignoreNoname: false`），并在 `Publish.json` 显式配置了字段时严格以工程配置为准。
+
 ## `fileExtension` 的当前实现规则
 
 `fileExtension` 在 OpenFairyGUI 当前实现中不是完整复刻编辑器全部项目类型矩阵，而是基于已落地的发布逻辑生效。当前正式行为如下：
 
 | 场景 | 结果 |
 |---|---|
-| Unity 项目 | 固定为 `bytes` |
-| Cocos Creator 项目，且 `Publish.json` 显式设置了 `fileExtension` | 使用设置值 |
+| Unity 项目 | 固定为 `bytes`，文件名按 `ProjectType.Unity` 规则追加 `_fui` 后缀（`<publishName>_fui.<ext>`） |
+| Cocos Creator 项目，且 `Publish.json` 显式设置了 `fileExtension` | 使用设置值（`<publishName>.<ext>`） |
 | Cocos Creator 项目，且 `Publish.json` 未显式设置 `fileExtension` | 默认使用 `bin` |
-| 其他非 Unity 项目，且 `Publish.json` 显式设置了 `fileExtension` | 使用设置值 |
+| 其他非 Unity 项目，且 `Publish.json` 显式设置了 `fileExtension` | 使用设置值（不追加 `_fui`） |
 | 其他非 Unity 项目，且 `Publish.json` 未显式设置 `fileExtension` | 回退为 `fui` |
 
 ### CLI 显式目标覆盖
@@ -372,7 +364,7 @@ Unity 与 Cocos Creator 运行时不解压二进制描述文件，因此这两�
 | 值 | 编辑器行为 |
 |---|---|
 | `0` | `主干包含所有分支`，发布结果保留主干与全部分支内容，输出路径使用 `path` |
-| `1` | `主干合并活跃分支`，发布结果只保留主干与当前活跃分支合并后的内容；主干输出到 `path`，非主干分支输出到 `branchPath/<branch>`（若 `branchPath` 有值） |
+| `1` | `主干合并活跃分支`，发布结果只保留主干与当前活跃分支合并后的内容；主干输出到 `path`，非主干分支输出到 `branchPath/<branch>`（模板未显式包含 `{branch_name}` 时自动追加 `/<branch>`） |
 
 `seperatedAtlasForBranch` 当前可见语义如下：
 

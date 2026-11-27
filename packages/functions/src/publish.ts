@@ -49,6 +49,7 @@ interface ResolvedProjectPublishConfig extends ResolvedPublishOptions {
 interface ResolvedPackagePublishPlan {
 	context: PackagePublishContext;
 	pkg: Package;
+	projectType: number;
 	outputDir?: string;
 	publishName: string;
 	fileName: string;
@@ -192,25 +193,41 @@ export function publish(options: PublishOptions): Transform {
 			if (options.output) {
 				outputDir = trimTrailingSlashes(options.output);
 			} else {
+				const isActiveBranchPublish = !config.includeBranches && Boolean(config.activeBranch);
 				const candidates: Array<string | undefined> = [];
-				if (!config.includeBranches && config.activeBranch) {
+				if (isActiveBranchPublish) {
 					candidates.push(pkg.getPublishBranchPath(), config.globalBranchOutputPath);
 				}
 				candidates.push(pkg.getPublishPath(), config.globalOutputPath);
 
 				for (const candidate of candidates) {
+					const rawCandidate = candidate?.trim() ?? '';
+					if (!rawCandidate) continue;
+					const hasBranchVar = rawCandidate.includes('{branch_name}');
 					const expanded = expandPathVariables(
-						expandPathVariables(candidate ?? '', { publish_file_name: publishName }),
+						expandPathVariables(rawCandidate, {
+							publish_file_name: publishName,
+							branch_name: isActiveBranchPublish ? config.activeBranch : '',
+						}),
 						customProperties,
 					);
 					const resolved = resolveConfiguredOutputPath(expanded, projectBasePath);
 					if (!resolved) continue;
-					outputDir = resolved;
+					outputDir =
+						isActiveBranchPublish && !hasBranchVar
+							? trimTrailingSlashes(
+									options.fs
+										? options.fs.join(resolved, config.activeBranch)
+										: joinPathSegments(resolved, config.activeBranch),
+								)
+							: resolved;
 					break;
 				}
 			}
 			const sourceAtlas = pkg.getSourceAtlasSettings();
 			const usePackageAtlas = !sourceAtlas.useGlobal;
+			const supportsExtractAlpha =
+				config.projectType === ProjectType.Unity || config.projectType === ProjectType.Cocos2dx;
 			const atlas: ResolvedPublishAtlasOptions = {
 				...config.atlas,
 				maxSize: options.atlas?.maxSize ?? (usePackageAtlas ? sourceAtlas.maxSize : config.atlas.maxSize),
@@ -229,7 +246,7 @@ export function publish(options: PublishOptions): Transform {
 				square: options.atlas?.square ?? (usePackageAtlas ? sourceAtlas.forceSquare : config.atlas.square),
 				multiPage: options.atlas?.multiPage ?? (usePackageAtlas ? sourceAtlas.paging : config.atlas.multiPage),
 				extractAlpha:
-					config.projectType === ProjectType.Unity &&
+					supportsExtractAlpha &&
 					(options.atlas?.extractAlpha ??
 						(usePackageAtlas || sourceAtlas.extractAlpha
 							? sourceAtlas.extractAlpha
@@ -238,9 +255,10 @@ export function publish(options: PublishOptions): Transform {
 
 			return {
 				pkg,
+				projectType: config.projectType,
 				outputDir,
 				publishName,
-				fileName: resolvePublishFileName(publishName, config.fileExtension),
+				fileName: resolvePublishFileName(publishName, config.fileExtension, config.projectType),
 				compressed: config.compressed,
 				fileExtension: config.fileExtension,
 				includeBranches: config.includeBranches,
@@ -292,6 +310,7 @@ export function publish(options: PublishOptions): Transform {
 					options.basePath,
 					options.fs,
 					options.atlas?.readFileRaw ?? options.fs.readFileRaw,
+					plan.projectType,
 				);
 			}
 
@@ -370,10 +389,14 @@ export function publish(options: PublishOptions): Transform {
 			}
 			// Compute dependency list and selected publish artifacts before atlas packing,
 			// so merged-branch publishes can pack the overridden resources with main IDs.
-			_computeDependencies(doc, pkg, pkgMap);
+			_computeDependencies(doc, pkg, pkgMap, {
+				includeBranches: resolved.includeBranches,
+				activeBranch: resolved.activeBranch,
+			});
 			contexts.set(
 				pkg,
 				await preparePackagePublishContext(pkg, options.basePath, options.encoder, {
+					doc,
 					projectType: resolved.projectType,
 					includeBranches: resolved.includeBranches,
 					activeBranch: resolved.activeBranch,
@@ -479,8 +502,17 @@ export function publish(options: PublishOptions): Transform {
  * The editor only adds dependencies for packages referenced via bitmap font URLs.
  * @internal
  */
-function _computeDependencies(doc: Document, pkg: Package, pkgMap: Map<string, Package>): void {
-	const referencedPkgIds = collectPackageResourceReferences(pkg, doc).packageIds;
+function _computeDependencies(
+	doc: Document,
+	pkg: Package,
+	pkgMap: Map<string, Package>,
+	branchOptions: { includeBranches: boolean; activeBranch: string },
+): void {
+	const referencedPkgIds = collectPackageResourceReferences(pkg, doc, {
+		exportedOnly: true,
+		includeBranches: branchOptions.includeBranches,
+		activeBranch: branchOptions.activeBranch,
+	}).packageIds;
 	const packageOrder = new Map(
 		doc
 			.getRoot()

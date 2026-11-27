@@ -1,9 +1,22 @@
-import type { Transform } from '@openfairygui/core';
+import { ProjectType, type Transform } from '@openfairygui/core';
 
 export type TextureSetMode =
 	| { kind: 'auto'; raw: string }
 	| { kind: 'standalone'; raw: string; sizeMode: 'default' | 'npot' | 'multipleOf4' }
 	| { kind: 'page'; raw: string; pageIndex: number };
+
+/**
+ * FairyGUI Editor uses rotationDir = 1 (+90° CW pixels, unrotated sprite rect)
+ * for Cocos2dx, CocosCreator, and Egret, and rotationDir = 0 (-90° CCW pixels,
+ * rotated/swapped sprite rect) for Unity and all other engines.
+ */
+export function usesClockwiseAtlasRotation(projectType: number): boolean {
+	return (
+		projectType === ProjectType.CocosCreator ||
+		projectType === ProjectType.Cocos2dx ||
+		projectType === ProjectType.Egret
+	);
+}
 
 /**
  * Wraps a transform function, assigning it a name for the transform stack.

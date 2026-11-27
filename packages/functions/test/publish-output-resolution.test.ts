@@ -65,12 +65,39 @@ test('publish expands built-in and custom variables in global, package and branc
 				: scope === 'package'
 					? 'package/test-$&/Renamed'
 					: scope === 'branch-global'
-						? 'branch/test-$&/Renamed'
+						? 'branch/test-$&/Renamed/en'
 						: scope === 'branch-package'
-							? 'package-branch/test-$&/Renamed/{unknown}'
+							? 'package-branch/test-$&/Renamed/{unknown}/en'
 							: '{channel}';
 		t.truthy(await fs.stat(path.join(tmpDir, scope, expected, 'Renamed.fui')));
 	}
+});
+
+test('publish expands {branch_name} without double-appending the active branch segment', async (t) => {
+	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ofgui-branch-var-'));
+	t.teardown(() => fs.rm(tmpDir, { recursive: true, force: true }));
+	const doc = new Document();
+	doc.getRoot()
+		.setProjectType(7)
+		.setSettings({
+			publish: {
+				path: 'release',
+				branchPath: 'localized/{branch_name}/{publish_file_name}',
+				branchProcessing: 1,
+			},
+		});
+	doc.createPackage('Main').setId('bvarpkg1').setPublishName('Lobby');
+
+	await doc.transform(
+		publish({
+			fs: createFs(),
+			basePath: path.join(tmpDir, 'assets'),
+			branch: 'jp',
+		}),
+	);
+
+	t.truthy(await fs.stat(path.join(tmpDir, 'localized', 'jp', 'Lobby', 'Lobby.fui')));
+	t.falsy(await fs.stat(path.join(tmpDir, 'localized', 'jp', 'Lobby', 'jp', 'Lobby.fui')).catch(() => null));
 });
 
 test('publish: uses global publish.path when output override is omitted', async (t) => {
@@ -213,8 +240,8 @@ test('publish: package publishBranchPath overrides global branchPath for active 
 		);
 
 		t.truthy(
-			await fs.stat(path.join(tmpDir, 'pkg-branch-release', 'PkgA.fui')).catch(() => null),
-			'package publishBranchPath wins for active branch output',
+			await fs.stat(path.join(tmpDir, 'pkg-branch-release', 'dev', 'PkgA.fui')).catch(() => null),
+			'package publishBranchPath wins for active branch output and appends /<branch>',
 		);
 	} finally {
 		await fs.rm(tmpDir, { recursive: true, force: true });

@@ -297,6 +297,8 @@ export class ProjectReader {
 	}
 
 	private _resolveProjectType(typeStr: string): number {
+		const normalized = typeStr.trim();
+		if (!normalized) return 0;
 		const map: Record<string, number> = {
 			Unity: 0,
 			Flash: 1,
@@ -307,12 +309,23 @@ export class ProjectReader {
 			Egret: 5,
 			Haxe: 6,
 			Pixi: 7,
+			PIXI: 7,
 			LibGDX: 8,
 			Unreal: 9,
 			CryEngine: 10,
+			Cry: 10,
 			MonoGame: 11,
 			Vision: 12,
+			Cocos2dx: 13,
+			Corona: 14,
+			ThreeJS: 15,
+			CreateJS: 16,
+			DOM: 17,
 		};
-		return map[typeStr] ?? 0;
+		const resolved = map[normalized];
+		if (resolved === undefined) {
+			throw new ProjectIOError(`Unsupported project type "${normalized}".`);
+		}
+		return resolved;
 	}
 }

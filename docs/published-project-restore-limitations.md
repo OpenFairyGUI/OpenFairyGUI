@@ -96,8 +96,9 @@
 
 | 项目 | 当前口径 |
 |---|---|
-| 工程目标 | 在可信输入下生成可读、可打开、可继续编辑的 FairyGUI 工程 |
-| 资源目标 | 尽量恢复包内素材、组件 XML、字体派生图与 `.jta` / `.fnt` 等正式资源 |
+| 工程目标 | 在可信输入下生成可读、可打开、可继续编辑的 FairyGUI 工程；根据输入二进制（`_fui.bytes` / `.fui` / `.bin`）推导恢复工程的 `Publish.json` `fileExtension` |
+| 资源目标 | 恢复包内素材（含 Unity `rotationDir = 0` 与 CocosCreator / Cocos2dx / Egret `rotationDir = 1` 旋转图集、`!a.png` alpha 分离图集重组）、组件 XML、字体派生图、含 `resizable`/`colored`/`size`/`xadvance` 头的 `.fnt`、含空帧的 `.jta`，以及 `Sound`/`Misc`/`Swf`/`Spine`/`DragonBones` 散资源 |
+| 启发式局限 | SDF 字体的 `renderMode="sdfaa"` / `samplePointSize="60"` 仅能依据字体名称启发式推断，因发布二进制不包含该导入配置 |
 | 不承诺 | 与原工程一模一样的文件名、文本格式、局部编辑器状态 |
 
 ## 何时需要外部辅助信息
