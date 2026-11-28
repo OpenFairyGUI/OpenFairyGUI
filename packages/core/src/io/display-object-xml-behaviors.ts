@@ -115,6 +115,10 @@ function parseGear(
 	if (ease) {
 		gear.setEaseType(_parseEaseType(ease));
 	}
+	const customEase = readXmlAttr<string>(attrs, PROJECT_XML_PROTOCOL.gear.attrs.customEase);
+	if (customEase) {
+		gear.setCustomEasePath(customEase);
+	}
 	const duration = readXmlAttr<string | number>(attrs, PROJECT_XML_PROTOCOL.gear.attrs.duration);
 	if (duration !== undefined) {
 		gear.setTweenDuration(parseFloat2(duration));

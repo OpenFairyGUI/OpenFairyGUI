@@ -22,7 +22,7 @@ export function isOpenFairyGuiMcpPayloadWithinBudget(root: unknown, bytePaths: r
 		const { value, path } = pending.pop()!;
 		nodes += 1;
 		if (nodes > 100_000 || path.length > 32) return false;
-		if (value === null || typeof value === 'boolean') continue;
+		if (value === undefined || value === null || typeof value === 'boolean') continue;
 		if (typeof value === 'number') {
 			if (!Number.isFinite(value)) return false;
 			continue;
@@ -45,11 +45,12 @@ export function isOpenFairyGuiMcpPayloadWithinBudget(root: unknown, bytePaths: r
 				)
 			) {
 				binaryBytes += value.length;
-				if (
-					binaryBytes > 8 * 1024 * 1024 ||
-					!value.every((byte) => Number.isInteger(byte) && byte >= 0 && byte <= 255)
-				)
-					return false;
+				if (binaryBytes > 8 * 1024 * 1024) return false;
+				for (const entry of value) {
+					if (typeof entry !== 'number' || !Number.isInteger(entry) || entry < 0 || entry > 255) {
+						return false;
+					}
+				}
 				continue;
 			}
 			if (value.length > 10_000) return false;

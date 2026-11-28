@@ -136,7 +136,14 @@ jobs:
           done
           if [[ "$dist_tag" == "latest" ]]; then
             for pkg in core functions backend cli mcp; do
-              dist_tags_json="$(npm view "@openfairygui/$pkg" dist-tags --json --registry=https://registry.npmjs.org)"
+              dist_tags_json=""
+              for attempt in $(seq 1 6); do
+                if dist_tags_json="$(npm view "@openfairygui/$pkg" dist-tags --json --registry=https://registry.npmjs.org 2>/dev/null)" && [[ -n "$dist_tags_json" ]]; then
+                  break
+                fi
+                echo "Waiting for npm dist-tags view for @openfairygui/$pkg (attempt $attempt/6)"
+                sleep 5
+              done
               decision="$(node "$RUNNER_TEMP/compare-next-tag.mjs" "$dist_tags_json" "$version")"
               if [[ "$decision" == "update" ]]; then
                 npm dist-tag add "@openfairygui/$pkg@$version" next --registry=https://registry.npmjs.org
@@ -194,7 +201,14 @@ jobs:
           done
           if [[ "$dist_tag" == "latest" ]]; then
             for pkg in core functions backend cli mcp; do
-              dist_tags_json="$(npm view "@openfairygui/$pkg" dist-tags --json --registry=https://npm.pkg.github.com)"
+              dist_tags_json=""
+              for attempt in $(seq 1 6); do
+                if dist_tags_json="$(npm view "@openfairygui/$pkg" dist-tags --json --registry=https://npm.pkg.github.com 2>/dev/null)" && [[ -n "$dist_tags_json" ]]; then
+                  break
+                fi
+                echo "Waiting for GitHub Packages dist-tags view for @openfairygui/$pkg (attempt $attempt/6)"
+                sleep 5
+              done
               decision="$(node "$RUNNER_TEMP/compare-next-tag.mjs" "$dist_tags_json" "$version")"
               if [[ "$decision" == "update" ]]; then
                 npm dist-tag add "@openfairygui/$pkg@$version" next --registry=https://npm.pkg.github.com
@@ -213,7 +227,7 @@ jobs:
           if [[ "$RELEASE_TAG" == *-* ]]; then prerelease=true; fi
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release edit "$RELEASE_TAG" --notes-file .release/release-notes.md --prerelease="$prerelease"
-            gh release upload "$RELEASE_TAG" .release/*.tgz --clobber
+            gh release upload "$RELEASE_TAG" .release/*.tgz .release/SHA256SUMS --clobber
           else
-            gh release create "$RELEASE_TAG" .release/*.tgz --verify-tag --title "$RELEASE_TAG" --notes-file .release/release-notes.md --prerelease="$prerelease"
+            gh release create "$RELEASE_TAG" .release/*.tgz .release/SHA256SUMS --verify-tag --title "$RELEASE_TAG" --notes-file .release/release-notes.md --prerelease="$prerelease"
           fi

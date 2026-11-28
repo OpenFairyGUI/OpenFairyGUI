@@ -20,10 +20,37 @@ function parseAllowedProjectRoots(value: string | undefined): string[] | undefin
 export async function connectOpenFairyGuiMcpStdio(): Promise<void> {
 	const configuredRoots = parseAllowedProjectRoots(process.env.OPENFAIRYGUI_ALLOWED_PROJECT_ROOTS);
 	const server = createOpenFairyGuiMcpServer({ allowedProjectRoots: configuredRoots });
-	await server.connect(new StdioServerTransport());
+	const transport = new StdioServerTransport();
+
+	let shuttingDown = false;
+	const shutdown = (exitCode?: number): void => {
+		if (shuttingDown) return;
+		shuttingDown = true;
+		void server
+			.close()
+			.catch((error: unknown) => {
+				console.error('[openfairygui-mcp] Failed during stdio shutdown:', error);
+			})
+			.finally(() => {
+				process.off('SIGINT', onSigInt);
+				process.off('SIGTERM', onSigTerm);
+				process.stdin.off('end', onStdinEnd);
+				process.stdin.off('close', onStdinEnd);
+				if (exitCode !== undefined) process.exit(exitCode);
+			});
+	};
+	const onSigInt = () => shutdown(130);
+	const onSigTerm = () => shutdown(143);
+	const onStdinEnd = () => shutdown();
+
+	process.once('SIGINT', onSigInt);
+	process.once('SIGTERM', onSigTerm);
+	process.stdin.once('end', onStdinEnd);
+	process.stdin.once('close', onStdinEnd);
+	await server.connect(transport);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
 	connectOpenFairyGuiMcpStdio().catch((error: unknown) => {
 		console.error(error instanceof Error ? (error.stack ?? error.message) : String(error));
 		process.exitCode = 1;

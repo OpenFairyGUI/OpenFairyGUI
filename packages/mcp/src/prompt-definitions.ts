@@ -26,6 +26,7 @@ export const OPENFAIRYGUI_BACKEND_PROMPT_DEFINITIONS = [
 		text: [
 			'Use openfairygui_backend_get_capabilities first.',
 			'Read contractVersion, capabilitySchemaVersion, capability planes, methods, and runtime non-goals from the backend envelope.',
+			'Read installed documentation via openfairygui://docs/index or, for tool-only clients, via openfairygui_docs_read.',
 			'Do not infer artifact publish/restore, subscriptions, or cache source-of-truth support when the backend marks them unsupported.',
 		].join('\n'),
 	},
@@ -71,6 +72,7 @@ export const OPENFAIRYGUI_BACKEND_PROMPT_DEFINITIONS = [
 		title: 'Save an OpenFairyGUI Backend Session',
 		description: 'Guide a client through coordinated backend save semantics.',
 		text: [
+			'Validate the active session with openfairygui_backend_validate_session (requiring status valid and complete true) before saving.',
 			'Use openfairygui_backend_save_session with sessionId and expectedRevision when available.',
 			'Backend path policy remains authoritative for targetPath; MCP does not canonicalize or authorize paths.',
 			'Handle stale revision and partial save failure envelopes from the backend without rewriting their error semantics.',

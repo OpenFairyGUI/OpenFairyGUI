@@ -30,8 +30,8 @@ The root re-exports the complete `/uam` API. `BinaryReader` and `BinaryWriter` a
 | `@openfairygui/core/image-validation-worker` | Standalone bundler entry for the browser image-validation Worker, not a regular application module; package metadata preserves its message-listener initialization side effect. |
 | `@openfairygui/functions` | Runtime-neutral inspection, validation, transforms, publish kernel, code generation, and limited recovery workflows. |
 | `@openfairygui/functions/uam` | Application-oriented structured results for UAM transaction failures. |
-| `@openfairygui/functions/node` | Node adapters `publishNode()` and `restoreNode()`; Node publish plugins are loaded only here. |
-| `@openfairygui/functions/web` | Browser adapter `publishBrowser()`; it does not load Node plugins. |
+| `@openfairygui/functions/node` | Node adapters `validateProjectNode()`, `publishNode()`, and `restoreNode()`; Node publish plugins are loaded only here. |
+| `@openfairygui/functions/web` | Browser adapters `validateProjectWeb()` and `publishBrowser()`; it does not load Node plugins. |
 | `@openfairygui/backend` | Host-injected backend runtime, sessions, storage, and capability contracts. |
 | `@openfairygui/backend/node` | Default Node filesystem, lock, and backend runtime adapters. |
 | `@openfairygui/backend/docs` | Independent browser-safe installed documentation, operation/method schemas and diagnostics shared by CLI/MCP; see [installed docs](./installed-docs.md). |

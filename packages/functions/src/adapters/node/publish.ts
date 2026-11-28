@@ -1,8 +1,14 @@
-import type { Document } from '@openfairygui/core';
+import { type Document, validateSafeSvgSource } from '@openfairygui/core';
 import { resolveProjectBasePath } from '../../codegen.js';
 import type { LoadedPlugin } from '../../plugins/types.js';
-import type { AtlasRasterBackend, PublishFileSystem } from '../../publish/contracts.js';
+import type {
+	AtlasRasterBackend,
+	AtlasRasterInput,
+	AtlasRasterPipeline,
+	PublishFileSystem,
+} from '../../publish/contracts.js';
 import { type PublishOptions, publish } from '../../publish.js';
+import { MAX_IMAGE_PIXELS } from './image-limits.js';
 import { loadPlugins } from './plugins.js';
 
 const importNative = new Function('id', 'return import(id)') as <T>(id: string) => Promise<T>;
@@ -30,6 +36,11 @@ export interface PublishNodeOptions extends Omit<PublishOptions, 'atlas' | 'base
 	 * Supply already-loaded hooks. Pass an empty array to skip project plugin discovery.
 	 */
 	plugins?: LoadedPlugin[];
+	/**
+	 * Allow automatic discovery and execution of project plugins under `<projectDir>/plugins`.
+	 * Ignored when `plugins` is explicitly supplied. Default: true.
+	 */
+	allowProjectPlugins?: boolean;
 	atlas?: Omit<NonNullable<PublishOptions['atlas']>, 'readFileRaw'>;
 }
 
@@ -73,11 +84,77 @@ async function resolveNodeAssetsPath(document: Document, assetsPath: string | un
 	return path.join(projectDir, 'assets');
 }
 
+function isPotentialSvgBytes(bytes: Uint8Array): boolean {
+	let offset = 0;
+	if (bytes.byteLength >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) offset = 3;
+	while (
+		offset < bytes.byteLength &&
+		(bytes[offset] === 0x20 || bytes[offset] === 0x09 || bytes[offset] === 0x0a || bytes[offset] === 0x0d)
+	) {
+		offset += 1;
+	}
+	return offset < bytes.byteLength && bytes[offset] === 0x3c;
+}
+
+async function retryWindowsRename(fs: typeof import('node:fs/promises'), from: string, to: string): Promise<void> {
+	for (let attempt = 0; ; attempt++) {
+		try {
+			await fs.rename(from, to);
+			return;
+		} catch (error) {
+			const code = (error as NodeJS.ErrnoException | null)?.code;
+			const transient = process.platform === 'win32' && ['EPERM', 'EACCES', 'EBUSY'].includes(code ?? '');
+			if (attempt >= 7 || !transient) throw error;
+			await new Promise((resolve) => setTimeout(resolve, 10 * 2 ** attempt));
+		}
+	}
+}
+
+const SAFE_W3C_SVG_PUBLIC_DOCTYPE =
+	/<!DOCTYPE\s+svg\s+PUBLIC\s+"-\/\/W3C\/\/DTD SVG 1\.[01]\/\/EN"\s+"https?:\/\/www\.w3\.org\/Graphics\/SVG\/1\.[01]\/DTD\/svg1[01]\.dtd"\s*>/giu;
+const EMPTY_SVG_STYLE_ELEMENT = /<style(?:\s+type\s*=\s*(?:"text\/css"|'text\/css'))?\s*(?:\/>|>\s*<\/style>)/giu;
+
+function sanitizeSvgForNodeRaster(bytes: Uint8Array): Buffer {
+	let source: string;
+	try {
+		source = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+	} catch {
+		validateSafeSvgSource(bytes);
+		return Buffer.from(bytes);
+	}
+	const stripped = source.replace(SAFE_W3C_SVG_PUBLIC_DOCTYPE, '').replace(EMPTY_SVG_STYLE_ELEMENT, '');
+	const normalizedBytes = new TextEncoder().encode(stripped);
+	validateSafeSvgSource(normalizedBytes);
+	return Buffer.from(normalizedBytes);
+}
+
 async function loadSharpBackend(): Promise<AtlasRasterBackend | undefined> {
 	try {
-		const loaded = await importNative<typeof import('sharp')>('sharp');
-		const sharp = loaded as unknown as { default?: AtlasRasterBackend };
-		return sharp.default ?? (loaded as unknown as AtlasRasterBackend);
+		const [loaded, fsSync] = await Promise.all([
+			importNative<typeof import('sharp')>('sharp'),
+			importNative<typeof import('node:fs')>('node:fs'),
+		]);
+		type RawSharp = (input: AtlasRasterInput, options?: { limitInputPixels?: number }) => AtlasRasterPipeline;
+		const sharpModule = loaded as unknown as { default?: RawSharp };
+		const rawSharp = sharpModule.default ?? (loaded as unknown as RawSharp);
+		if (typeof rawSharp !== 'function') return undefined;
+		return (input: AtlasRasterInput): AtlasRasterPipeline => {
+			if (input instanceof Uint8Array) {
+				const safeInput = isPotentialSvgBytes(input) ? sanitizeSvgForNodeRaster(input) : input;
+				return rawSharp(safeInput, { limitInputPixels: MAX_IMAGE_PIXELS });
+			}
+			if (typeof input === 'string') {
+				if (/\.svg$/i.test(input)) {
+					const bytes = fsSync.readFileSync(input);
+					const safeBytes = sanitizeSvgForNodeRaster(
+						new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength),
+					);
+					return rawSharp(safeBytes, { limitInputPixels: MAX_IMAGE_PIXELS });
+				}
+				return rawSharp(input, { limitInputPixels: MAX_IMAGE_PIXELS });
+			}
+			return rawSharp(input);
+		};
 	} catch {
 		return undefined;
 	}
@@ -99,6 +176,9 @@ async function publishToStagedOutput(output: string, run: (staging: string) => P
 	const target = path.resolve(output);
 	const parent = path.dirname(target);
 	const name = path.basename(target);
+	if (parent === target || !name) {
+		throw new Error(`publishNode: output must be a non-root directory: ${target}`);
+	}
 	const staging = path.join(parent, `.${name}.publish-${randomUUID()}`);
 	const backup = path.join(parent, `.${name}.publish-backup-${randomUUID()}`);
 	await fs.mkdir(parent, { recursive: true });
@@ -127,18 +207,25 @@ async function publishToStagedOutput(output: string, run: (staging: string) => P
 		throw error;
 	}
 	if (!existed) {
-		await fs.rename(staging, target);
+		await retryWindowsRename(fs, staging, target);
 		return;
 	}
 
-	// ponytail: two-step rename preserves rollback; use directory exchange if zero reader gap becomes required.
-	await fs.rename(target, backup);
+	// Two-step rename preserves rollback; use directory exchange if zero reader gap becomes required.
+	await retryWindowsRename(fs, target, backup);
 	try {
-		await fs.rename(staging, target);
-	} catch (error) {
-		await fs.rename(backup, target);
-		await fs.rm(staging, { recursive: true, force: true });
-		throw error;
+		await retryWindowsRename(fs, staging, target);
+	} catch (commitError) {
+		await fs.rm(staging, { recursive: true, force: true }).catch(() => undefined);
+		try {
+			await retryWindowsRename(fs, backup, target);
+		} catch (rollbackError) {
+			throw new Error(
+				`publishNode: Failed to commit "${target}" (${commitError instanceof Error ? commitError.message : String(commitError)}) and failed to roll back from "${backup}" (${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}). Previous output remains at "${backup}".`,
+				{ cause: commitError },
+			);
+		}
+		throw commitError;
 	}
 	await fs.rm(backup, { recursive: true, force: true }).catch(() => undefined);
 }
@@ -170,6 +257,7 @@ export async function publishNode(options: PublishNodeOptions): Promise<PublishN
 		atlas,
 		encoder: configuredEncoder,
 		plugins: configuredPlugins,
+		allowProjectPlugins = true,
 		...publishOptions
 	} = options;
 	const files = new Set<string>();
@@ -183,9 +271,11 @@ export async function publishNode(options: PublishNodeOptions): Promise<PublishN
 	]);
 	const [encoder, plugins] = await Promise.all([
 		configuredEncoder === undefined ? loadSharpBackend() : Promise.resolve(configuredEncoder),
-		configuredPlugins === undefined
-			? loadNodePublishPlugins(document, assetsPath)
-			: Promise.resolve(configuredPlugins),
+		configuredPlugins !== undefined
+			? Promise.resolve(configuredPlugins)
+			: allowProjectPlugins
+				? loadNodePublishPlugins(document, assetsPath)
+				: Promise.resolve([]),
 	]);
 
 	if (!encoder) {

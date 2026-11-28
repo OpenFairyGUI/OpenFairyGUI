@@ -14,9 +14,9 @@ import { registerTransactionCommands } from './commands/tx.js';
 
 const PACKAGE_VERSION = readPackageVersion();
 
-export function createProgram(): Command {
+export function createProgram(argv: readonly string[] = process.argv): Command {
 	const program = new Command('ofgui');
-	configureJson(program);
+	configureJson(program, argv);
 
 	program.description('FairyGUI Headless Authoring CLI').version(PACKAGE_VERSION).showHelpAfterError();
 
@@ -46,7 +46,30 @@ export function createProgram(): Command {
 
 /** Runs the CLI in the current process; the package bin and direct execution both use it. */
 export async function runCli(argv: readonly string[] = process.argv): Promise<void> {
-	const program = createProgram();
+	const program = new Command('ofgui');
+	const restoreStdout = configureJson(program, argv);
+	program.description('FairyGUI Headless Authoring CLI').version(PACKAGE_VERSION).showHelpAfterError();
+
+	registerInspectCommand(program);
+	registerPublishCommand(program);
+	registerRestoreCommand(program);
+	registerValidateCommand(program);
+	registerBackendCapabilitiesCommand(program);
+	registerDocsCommand(program);
+	registerDoctorCommand(program);
+	registerTransactionCommands(program);
+
+	program.addHelpText(
+		'after',
+		[
+			'',
+			'Alias:',
+			'  openfairygui',
+			'',
+			'Input can be a .fairy file or a project root directory (auto-discovers .fairy file).',
+			'Publish settings are read from the project; --project-type applies target-specific output rules.',
+		].join('\n'),
+	);
 	try {
 		await program.parseAsync([...argv]);
 	} catch (err) {
@@ -63,8 +86,10 @@ export async function runCli(argv: readonly string[] = process.argv): Promise<vo
 							: 'command_failed',
 				message,
 			});
-		else console.error(message);
+		else if (!(err instanceof CommanderError)) console.error(message);
 		process.exitCode = err instanceof CommanderError ? 2 : 1;
+	} finally {
+		restoreStdout();
 	}
 }
 

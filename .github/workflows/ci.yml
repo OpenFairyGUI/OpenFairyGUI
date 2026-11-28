@@ -144,3 +144,48 @@ jobs:
 
       - name: Verify packed consumers and real Chromium storage
         run: pnpm pack:check --browser-deps
+
+  gate:
+    name: CI Gate
+    needs: [changes, quality, documentation, consumer]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required CI results
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          DOCS_ONLY: ${{ needs.changes.outputs.docs-only }}
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          DOCS_RESULT: ${{ needs.documentation.result }}
+          CONSUMER_RESULT: ${{ needs.consumer.result }}
+        run: |
+          set -euo pipefail
+          echo "event=$EVENT_NAME changes=$CHANGES_RESULT docs_only=$DOCS_ONLY quality=$QUALITY_RESULT documentation=$DOCS_RESULT consumer=$CONSUMER_RESULT"
+          if [[ "$EVENT_NAME" == "pull_request" && "$CHANGES_RESULT" != "success" ]]; then
+            echo "Change scope job did not succeed ($CHANGES_RESULT)." >&2
+            exit 1
+          fi
+          if [[ "$DOCS_RESULT" != "success" ]]; then
+            echo "Documentation job did not succeed ($DOCS_RESULT)." >&2
+            exit 1
+          fi
+          if [[ "$EVENT_NAME" == "pull_request" && "$CHANGES_RESULT" == "success" && "$DOCS_ONLY" == "true" ]]; then
+            if [[ "$QUALITY_RESULT" != "skipped" && "$QUALITY_RESULT" != "success" ]]; then
+              echo "Quality job failed ($QUALITY_RESULT)." >&2
+              exit 1
+            fi
+            if [[ "$CONSUMER_RESULT" != "skipped" && "$CONSUMER_RESULT" != "success" ]]; then
+              echo "Consumer job failed ($CONSUMER_RESULT)." >&2
+              exit 1
+            fi
+          else
+            if [[ "$QUALITY_RESULT" != "success" ]]; then
+              echo "Quality job did not succeed ($QUALITY_RESULT)." >&2
+              exit 1
+            fi
+            if [[ "$CONSUMER_RESULT" != "success" ]]; then
+              echo "Consumer job did not succeed ($CONSUMER_RESULT)." >&2
+              exit 1
+            fi
+          fi

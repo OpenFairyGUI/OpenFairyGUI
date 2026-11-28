@@ -88,7 +88,8 @@
 			"packages/*/src/**/*.ts"
 		],
 		"exclude": [
-			"packages/*/src/generated/**"
+			"packages/*/src/generated/**",
+			"packages/core/src/uam/generated/**"
 		]
 	},
 	"toolchain": {

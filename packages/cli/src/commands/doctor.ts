@@ -85,12 +85,15 @@ export function registerDoctorCommand(program: Command): void {
 		.description(
 			'Diagnose versions, native images and directory access; optionally validate a project; never write or repair',
 		)
-		.argument('[project-dir]', 'Optional project directory or .fairy file for Node validation')
+		.argument('[project-dir]', 'Optional project directory or .fairy file for Node validation', (value: string) => {
+			if (!value || !value.trim()) throw new InvalidArgumentError('Project directory must not be empty.');
+			return value;
+		})
 		.option(
 			'--output-dir <directory>',
 			'Check output directory access (or its existing ancestor), without creating it',
 			(value: string) => {
-				if (!value) throw new InvalidArgumentError('Output directory must not be empty.');
+				if (!value || !value.trim()) throw new InvalidArgumentError('Output directory must not be empty.');
 				return value;
 			},
 		)

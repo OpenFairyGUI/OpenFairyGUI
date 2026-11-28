@@ -4,9 +4,21 @@ import type { RestoreFileSystem } from '../restore.js';
 
 export { basename, trimTrailingSlashes } from '../path-utils.js';
 
-export function isPathWithin(root: string, candidate: string): boolean {
-	const normalizedRoot = normalizeComparablePath(root);
-	const normalizedCandidate = normalizeComparablePath(candidate);
+function randomStagingToken(): string {
+	return globalThis.crypto?.randomUUID?.() ?? generateId();
+}
+
+export function isPathWithin(root: string, candidate: string, caseSensitive = false): boolean {
+	const normalizedRoot = normalizeComparablePath(root, caseSensitive);
+	const normalizedCandidate = normalizeComparablePath(candidate, caseSensitive);
+	if (normalizedRoot === '/') {
+		return (
+			normalizedCandidate.startsWith('/') && normalizedCandidate !== '/' && !normalizedCandidate.startsWith('//')
+		);
+	}
+	if (normalizedRoot.endsWith('/')) {
+		return normalizedCandidate.startsWith(normalizedRoot) && normalizedCandidate !== normalizedRoot;
+	}
 	return normalizedCandidate.startsWith(`${normalizedRoot}/`);
 }
 
@@ -56,12 +68,12 @@ export async function assertRestoreOutputDir(
 		resolvePathForContainment(inputDir, fs),
 		resolvePathForContainment(outputDir, fs),
 	]);
-	const normalizedInputDir = normalizeComparablePath(resolvedInputDir);
-	const normalizedOutputDir = normalizeComparablePath(resolvedOutputDir);
+	const normalizedInputDir = normalizeComparablePath(resolvedInputDir, false);
+	const normalizedOutputDir = normalizeComparablePath(resolvedOutputDir, false);
 	if (
 		normalizedInputDir === normalizedOutputDir ||
-		isPathWithin(normalizedInputDir, normalizedOutputDir) ||
-		isPathWithin(normalizedOutputDir, normalizedInputDir)
+		isPathWithin(normalizedInputDir, normalizedOutputDir, false) ||
+		isPathWithin(normalizedOutputDir, normalizedInputDir, false)
 	) {
 		throw new Error('Restore output directory must be independent from the published input directory.');
 	}
@@ -85,7 +97,7 @@ export async function createRestoreStagingDir(outputDir: string, fs: RestoreFile
 	const parentDir = fs.dirname(outputDir) || '.';
 	await fs.mkdir(parentDir);
 	for (let attempt = 0; attempt < 8; attempt += 1) {
-		const stagingDir = fs.join(parentDir, `.${basename(outputDir)}.restore-${generateId()}`);
+		const stagingDir = fs.join(parentDir, `.${basename(outputDir)}.restore-${randomStagingToken()}`);
 		if (await fs.exists(stagingDir)) continue;
 		await fs.mkdir(stagingDir);
 		return stagingDir;
@@ -106,7 +118,7 @@ export async function commitRestoreOutput(
 	const parentDir = fs.dirname(outputDir) || '.';
 	let backupDir = '';
 	for (let attempt = 0; attempt < 8; attempt += 1) {
-		const candidate = fs.join(parentDir, `.${basename(outputDir)}.restore-backup-${generateId()}`);
+		const candidate = fs.join(parentDir, `.${basename(outputDir)}.restore-backup-${randomStagingToken()}`);
 		if (!(await fs.exists(candidate))) {
 			backupDir = candidate;
 			break;
@@ -114,13 +126,20 @@ export async function commitRestoreOutput(
 	}
 	if (!backupDir) throw new Error(`restore: Could not allocate a backup directory beside ${outputDir}.`);
 
-	// ponytail: two-step rename preserves rollback; use a platform directory-exchange primitive if zero reader gap matters.
+	// Two-step rename preserves rollback; use a platform directory-exchange primitive if zero reader gap matters.
 	await fs.rename(outputDir, backupDir);
 	try {
 		await fs.rename(stagingDir, outputDir);
-	} catch (error) {
-		await fs.rename(backupDir, outputDir);
-		throw error;
+	} catch (commitError) {
+		try {
+			await fs.rename(backupDir, outputDir);
+		} catch (rollbackError) {
+			throw new Error(
+				`restore: Failed to commit "${outputDir}" (${commitError instanceof Error ? commitError.message : String(commitError)}) and failed to roll back from "${backupDir}" (${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}). Previous output remains at "${backupDir}".`,
+				{ cause: commitError },
+			);
+		}
+		throw commitError;
 	}
 	try {
 		await fs.rm(backupDir, { recursive: true, force: true });

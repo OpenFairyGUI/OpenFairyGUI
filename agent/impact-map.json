@@ -114,6 +114,21 @@
     },
     {
       "paths": [
+        "docs/published-project-restore-limitations.md"
+      ],
+      "tests": [
+        "backend",
+        "cli",
+        "mcp"
+      ],
+      "docs": [
+        "docs/published-project-restore-limitations.md",
+        "docs/en/published-project-restore-limitations.md",
+        "docs/guide/installed-docs.md"
+      ]
+    },
+    {
+      "paths": [
         "docs/**",
         "AGENTS.md",
         "README.md",

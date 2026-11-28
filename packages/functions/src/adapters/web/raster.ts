@@ -42,8 +42,17 @@ interface BrowserRaster {
 	height: number;
 }
 
-const MAX_SVG_DIMENSION = 16_384;
-const MAX_SVG_PIXELS = 64 * 1024 * 1024;
+const MAX_RASTER_DIMENSION = 16_384;
+const MAX_RASTER_PIXELS = 16_777_216;
+const MAX_SVG_DIMENSION = MAX_RASTER_DIMENSION;
+const MAX_SVG_PIXELS = MAX_RASTER_PIXELS;
+
+export class BrowserDecodeCapabilityError extends Error {
+	public constructor(message: string) {
+		super(message);
+		this.name = 'BrowserDecodeCapabilityError';
+	}
+}
 
 type ParsedSvgEntry = Record<string, unknown> & { ':@'?: Record<string, unknown> };
 
@@ -191,9 +200,27 @@ async function canvasToPng(canvas: BrowserCanvas): Promise<Uint8Array> {
 	return new Uint8Array(await blob.arrayBuffer());
 }
 
+function assertBrowserRasterDimensions(width: number, height: number): void {
+	if (
+		!Number.isFinite(width) ||
+		!Number.isFinite(height) ||
+		width <= 0 ||
+		height <= 0 ||
+		width > MAX_RASTER_DIMENSION ||
+		height > MAX_RASTER_DIMENSION ||
+		width * height > MAX_RASTER_PIXELS
+	) {
+		throw new Error(
+			`publishBrowser: image dimensions ${width}x${height} exceed supported browser raster limits (${MAX_RASTER_PIXELS} pixels).`,
+		);
+	}
+}
+
 async function decodeRaster(bytes: Uint8Array, mimeType: string): Promise<BrowserRaster> {
 	if (typeof createImageBitmap !== 'function') {
-		throw new Error('publishBrowser: createImageBitmap is required for atlas PNG generation.');
+		throw new BrowserDecodeCapabilityError(
+			'publishBrowser: createImageBitmap is required for atlas PNG generation.',
+		);
 	}
 	const copy = bytes.slice();
 	if (mimeType === 'image/svg+xml') validateSvg(copy);
@@ -206,6 +233,7 @@ async function decodeRaster(bytes: Uint8Array, mimeType: string): Promise<Browse
 		return decodeSvgWithDom(blob);
 	}
 	try {
+		assertBrowserRasterDimensions(bitmap.width, bitmap.height);
 		const raster = createRaster(bitmap.width, bitmap.height);
 		getBrowserContext(raster.canvas).drawImage(bitmap, 0, 0);
 		return raster;
@@ -224,7 +252,9 @@ async function decodeSvgWithDom(blob: Blob): Promise<BrowserRaster> {
 		typeof globalThis.URL?.createObjectURL !== 'function' ||
 		typeof globalThis.URL?.revokeObjectURL !== 'function'
 	) {
-		throw new Error('publishBrowser: createImageBitmap rejected SVG and DOM image decoding is unavailable.');
+		throw new BrowserDecodeCapabilityError(
+			'publishBrowser: createImageBitmap rejected SVG and DOM image decoding is unavailable.',
+		);
 	}
 	const url = globalThis.URL.createObjectURL(blob);
 	try {
@@ -359,11 +389,22 @@ class BrowserImagePipeline implements AtlasRasterPipeline {
 
 	rotate(angle: number): this {
 		this.raster = this.raster.then((source) => {
-			if (angle % 180 === 0) return source;
+			const normalized = ((angle % 360) + 360) % 360;
+			if (normalized === 0) return source;
+			if (normalized === 180) {
+				const target = createRaster(source.width, source.height);
+				const context = getBrowserContext(target.canvas);
+				context.save();
+				context.translate(source.width, source.height);
+				context.rotate(Math.PI);
+				context.drawImage(source.canvas, 0, 0);
+				context.restore();
+				return target;
+			}
 			const target = createRaster(source.height, source.width);
 			const context = getBrowserContext(target.canvas);
 			context.save();
-			if (angle === 270 || angle === -90) {
+			if (normalized === 270) {
 				context.translate(0, source.width);
 				context.rotate(-Math.PI / 2);
 			} else {

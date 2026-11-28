@@ -5,7 +5,7 @@ import {
 	type UamProject,
 } from '@openfairygui/core';
 import { validateProject } from '../../validate.js';
-import { assertBrowserImageSupport, validateBrowserImageSource } from './raster.js';
+import { assertBrowserImageSupport, BrowserDecodeCapabilityError, validateBrowserImageSource } from './raster.js';
 
 function sourceName(resource: { name: string; fileName?: string; sourcePath?: string }): string {
 	return resource.sourcePath ?? resource.fileName ?? resource.name;
@@ -34,20 +34,31 @@ export async function validateProjectWeb(project: UamProject): Promise<ProjectVa
 		);
 	}
 	const decodedPaths = new Set<string>();
+	const knownCorruptPaths = new Set(
+		base.diagnostics
+			.filter((diagnostic) => diagnostic.code === 'corrupt_source')
+			.map((diagnostic) => diagnostic.path),
+	);
 	const diagnostics: ProjectDiagnostic[] = [...base.diagnostics];
 	for (const [packageIndex, pkg] of project.packages.entries()) {
 		for (const [resourceIndex, resource] of pkg.resources.entries()) {
-			if (resource.kind !== 'image' || !(resource.sourceBytes instanceof Uint8Array)) continue;
+			const resourcePath = `packages[${packageIndex}].resources[${resourceIndex}]`;
+			if (
+				resource.kind !== 'image' ||
+				!(resource.sourceBytes instanceof Uint8Array) ||
+				knownCorruptPaths.has(resourcePath)
+			) {
+				continue;
+			}
 			try {
 				await validateBrowserImageSource(resource.sourceBytes, sourceName(resource));
-				decodedPaths.add(`packages[${packageIndex}].resources[${resourceIndex}]`);
+				decodedPaths.add(resourcePath);
 			} catch (error) {
-				const capabilityUnavailable =
-					error instanceof Error && /(?:required|unavailable)/iu.test(error.message);
+				const capabilityUnavailable = error instanceof BrowserDecodeCapabilityError;
 				diagnostics.push({
 					severity: capabilityUnavailable ? 'warning' : 'error',
 					code: capabilityUnavailable ? 'decode_capability_unavailable' : 'corrupt_source',
-					path: `packages[${packageIndex}].resources[${resourceIndex}]`,
+					path: resourcePath,
 					message: `Image source cannot be decoded: ${error instanceof Error ? error.message : String(error)}`,
 					packageId: pkg.id,
 					resourceId: resource.id,
@@ -61,6 +72,6 @@ export async function validateProjectWeb(project: UamProject): Promise<ProjectVa
 	);
 	return createProjectValidationReport(
 		resolved,
-		!resolved.some((diagnostic) => diagnostic.code === 'decode_capability_unavailable'),
+		base.complete && !resolved.some((diagnostic) => diagnostic.code === 'decode_capability_unavailable'),
 	);
 }

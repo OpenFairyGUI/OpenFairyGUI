@@ -3,6 +3,7 @@ import { AUTO_GENERATED_CODE_MARK } from './codegen-templates.js';
 import { buildCodegenClasses } from './codegen-model.js';
 import { renderCodegenFiles, resolveFguiTypescriptVariant } from './codegen-render.js';
 import type { ResolvedPackageCodegenPlan } from './codegen-settings.js';
+import { assertSafeOutputFileName } from './path-utils.js';
 import type { PublishFileSystem } from './publish/contracts.js';
 
 export async function generatePackageCode(
@@ -12,13 +13,17 @@ export async function generatePackageCode(
 	fs: PublishFileSystem,
 ): Promise<void> {
 	const variant = resolveFguiTypescriptVariant(doc);
-	const packageDir = fs.join(plan.outputDir, plan.packageFolderName);
+	const packageDir = fs.join(
+		plan.outputDir,
+		assertSafeOutputFileName(plan.packageFolderName, 'codegen package directory'),
+	);
 	await fs.mkdir(plan.outputDir);
 	await fs.mkdir(packageDir);
 	await cleanupGeneratedFiles(packageDir, fs, variant ? '.ts' : '.cs');
 	const classes = buildCodegenClasses(doc, pkg, plan);
 	for (const file of renderCodegenFiles(classes, plan, variant)) {
-		await fs.writeFileRaw(fs.join(packageDir, file.name), encodeText(file.content));
+		const safeName = assertSafeOutputFileName(file.name, 'generated code file');
+		await fs.writeFileRaw(fs.join(packageDir, safeName), encodeText(file.content));
 	}
 }
 

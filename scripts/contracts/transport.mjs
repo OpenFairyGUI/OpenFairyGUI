@@ -60,17 +60,19 @@ export function boundInput(shape, definitions, operation = false) {
 			shape.properties.filter = filter;
 		}
 		if (shape.properties.project) {
-			const project = dereference(shape.properties.project, definitions);
+			const project = structuredClone(dereference(shape.properties.project, definitions));
 			constrain(project, 'projectId', identifier);
 			constrain(project, 'projectType', { type: 'integer' });
 			constrain(project, 'version', { maxLength: 256 });
 			constrain(project, 'branches', { maxItems: 256, items: { type: 'string', maxLength: 256 } });
 			constrain(project, 'packages', { maxItems: 1000 });
-			const pkg = dereference(project.properties.packages.items, definitions);
+			const pkg = structuredClone(dereference(project.properties.packages.items, definitions));
 			for (const name of ['id', 'name']) constrain(pkg, name, identifier);
 			constrain(pkg, 'branchNames', { maxItems: 256, items: { type: 'string', maxLength: 256 } });
 			constrain(pkg, 'folders', { maxItems: 10_000 });
 			constrain(pkg, 'resources', { maxItems: 100_000 });
+			project.properties.packages = { ...project.properties.packages, items: pkg };
+			shape.properties.project = project;
 		}
 	}
 }

@@ -59,7 +59,7 @@ doctor 不安装、不下载、不写文件；子模块状态查询也禁用 Git
 - 执行选中的 AVA 测试前统一运行工作区构建，确保 CLI/MCP/Backend 的构建测试不会加载旧依赖产物；构建失败立即停止。纯文档模式及 `--list`/`--matrix` 不触发构建。
 - 测试通过 pnpm 的 AVA 启动器运行，保留现有隔离构建测试需要的环境；不要直接调用 AVA 的 JS 文件。直接用 Node 调用选择脚本仅支持查看计划/矩阵。
 
-PR CI 先获取完整 Git 历史，使用 PR 目标提交与 `test:changed --list` 的现有影响映射判定范围。仅 `repository-only` 计划跳过 quality/consumer jobs；documentation job 仍执行 `scripts/repository.test.mjs` 仓库脚本自测、`docs:check` 与 `docs:build`。代码、站点配置、脚本、依赖、未知路径、无变更或无法确认比较基准时执行全量；范围判定 job 失败也不会静默跳过产品检查。工作流保持触发，跳过的是具体 job。
+PR CI 先获取完整 Git 历史，使用 PR 目标提交与 `test:changed --list` 的现有影响映射判定范围。仅 `repository-only` 计划跳过 quality/consumer jobs；documentation job 仍执行 `scripts/repository.test.mjs` 仓库脚本自测、`docs:check` 与 `docs:build`。代码、站点配置、脚本、依赖、未知路径、无变更或无法确认比较基准时执行全量；范围判定 job 失败也不会静默跳过产品检查。工作流保持触发，跳过的是具体 job；最终由 `CI Gate` 汇总校验各必需 job 状态，供 `main` 分支保护规则作为必过检查使用。
 
 全量 CI 的 quality job 在 Ubuntu/Windows × Node 22/24 上执行 `check`；Ubuntu / Node 22 改用 `pnpm coverage` 以覆盖率模式执行同一组检查并上传报告，不重复运行测试；documentation job 检查并构建文档；consumer job 在 Linux/Windows 上执行 `pack:check`。文档与消费者 job 不下载 fixture。`main` 的 push 始终执行全量；同一 PR 的新运行取消旧运行，不同 push 不互相取消。Pages 仅在 main 的 push CI 成功后，通过 workflow_run 检出该次已验证的 head_sha 构建部署；过期提交跳过部署。远端链接、翻译含义和协议解释仍需人工审查。
 

@@ -10,7 +10,7 @@ Use `readSessionState({ sessionId, expectedRevision? })` to consume the complete
 
 `project` derives directly from Core's public UAM types, excluding only the formal `sourceBytes` field on each asset resource. It retains `sourcePath`, complete components and Reader-retained JSON extensions. Extension properties named `sourceBytes` are not recursively removed. Only this complete read-model output schema accepts unnamed object fields; declared fields retain their formal types, and transaction inputs and existing query contracts are unchanged. Reads do not revalidate references, normalize or repair projects, or expose internal Documents, locks, filesystems, caches or cleanup queues.
 
-Call `readResourceBytes({ sessionId, expectedRevision, selector: { packageId, resourceId } })` for one asset resource's primary file bytes already held in the session. It returns the actual revision, selector and a detached `Uint8Array` (an integer array in MCP). It does not read disk, load auxiliary files or fill missing bytes. Components do not support this byte read.
+Call `readResourceBytes({ sessionId, expectedRevision, selector: { packageId, resourceId } })` for one asset resource's primary file bytes already held in the session. It returns the actual revision, selector and a detached `Uint8Array` (encoded as a base64 string in MCP `structuredContent.backendResult`; input byte fields retain integer arrays). It does not read disk, load auxiliary files or fill missing bytes. Components do not support this byte read.
 
 ```ts
 const state = runtime.readSessionState({ sessionId });
@@ -31,9 +31,9 @@ Every resource read must carry the model's revision. `stale_read` returns both `
 |---|---|
 | `read.sessionState.limits` | 4 MiB of compact JSON UTF-8 for complete `data`, depth 64, 500000 nodes; checked before cloning |
 | `read.resourceBytes.maxBytes` | 1 MiB per primary file, checked before copying; empty byte arrays are readable |
-| Both new MCP tools | 16 MiB per complete JSON-serialized `CallToolResult`, including compact text and structuredContent; excess returns `mcp_response_budget_exceeded` without changing Backend budgets or other tools |
+| Both new MCP tools | 16 MiB per complete JSON-serialized `CallToolResult` (including text summary and structuredContent); excess returns `mcp_response_budget_exceeded` without changing Backend budgets or other tools |
 
-Measurements using the repository's pinned fixtures follow (bytes; model means `readSessionState.data`, response means complete `CallToolResult`; request-ID length and similar metadata can slightly change totals). These informed separate model/resource reads, not a promise of unlimited project size.
+Historical baseline measurements using the repository's pinned fixtures follow (bytes; model means `readSessionState.data`, response reflects the earlier full-text + integer-array `CallToolResult` baseline; current base64 output and short text summaries are smaller, and request-ID length or metadata can slightly change totals). These informed separate model/resource reads, not a promise of unlimited project size.
 
 | Project | Model JSON | Model MCP response | Largest primary file | Its resource MCP response |
 |---|---:|---:|---:|---:|
@@ -141,7 +141,7 @@ A preview reserves no revision and does not guarantee later apply/save or public
 The tables summarize top-level parameters only; read schemas for nested fields and concrete results. SHA-256 identifies generated contract content, not a package version.
 
 <!-- contracts:start -->
-SHA-256: `db380ccf317aa73e3ab3ed6632af69fedcb0ad604ab575b7219fd2d79d44495d`
+SHA-256: `efcb035e34f4fabf1b61902321a232bd0644b74b6f6d02d4f378e006b872e0cb`
 
 | Operation | Parameters (`?` = optional) |
 |---|---|

@@ -139,27 +139,43 @@ export class RuntimeService {
 			return failure('runtime', startedAt, createCapabilityUnavailableError('fileSystem'));
 		}
 		const fileSystem = this.context.fileSystem;
-		if (this.context.allowedProjectRoots) {
-			let allowed = false;
+		const isAllowedPath = async (candidatePath: string): Promise<boolean> => {
+			if (!this.context.allowedProjectRoots) return true;
 			for (const root of this.context.allowedProjectRoots) {
 				try {
-					await assertProjectPathContained(fileSystem, root, input.projectPath);
-					allowed = true;
-					break;
+					await assertProjectPathContained(fileSystem, root, candidatePath);
+					return true;
 				} catch (error) {
 					if ((error as { code?: unknown }).code !== 'EACCES') throw error;
 				}
 			}
-			if (!allowed) {
-				return failure('runtime', startedAt, {
-					code: 'project_root_not_allowed',
-					message: 'Project path is outside the configured allowed roots.',
-					projectPath: input.projectPath,
-				});
-			}
+			return false;
+		};
+		if (!(await isAllowedPath(input.projectPath))) {
+			return failure('runtime', startedAt, {
+				code: 'project_root_not_allowed',
+				message: 'Project path is outside the configured allowed roots.',
+				projectPath: input.projectPath,
+			});
 		}
+		const resolvedInput = fileSystem.resolve(input.projectPath);
 		const resolved = await resolveCanonicalProjectRoot(fileSystem, input.projectPath);
 		const { fairyPath, canonicalProjectPath, canonicalPathKey } = resolved;
+		// Re-verify allowed roots after following .fairy resolution so a symlinked .fairy cannot escape.
+		if (!(await isAllowedPath(canonicalProjectPath)) || !(await isAllowedPath(fairyPath))) {
+			return failure('runtime', startedAt, {
+				code: 'project_root_not_allowed',
+				message: 'Project path is outside the configured allowed roots.',
+				projectPath: input.projectPath,
+			});
+		}
+		// Reject symlinks inside the caller-supplied project directory even when target lies in an allowed root.
+		const inputStat = await fileSystem.stat(resolvedInput).catch(() => null);
+		if (inputStat?.isDirectory()) {
+			await fileSystem.validateProjectRoot?.(resolvedInput);
+		} else if (inputStat?.isFile()) {
+			await fileSystem.validateProjectRoot?.(fileSystem.dirname(resolvedInput));
+		}
 		await fileSystem.validateProjectRoot?.(canonicalProjectPath);
 		const lockFilePath =
 			fileSystem.getSessionLockPath?.(canonicalProjectPath) ??

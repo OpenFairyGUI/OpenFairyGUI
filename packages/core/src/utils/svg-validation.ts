@@ -31,23 +31,52 @@ function invalidSvg(message: string): never {
 	throw new Error(`Invalid or unsafe SVG source (${message}).`);
 }
 
-function validateAttribute(name: string, value: unknown): void {
-	const normalizedName = name.toLowerCase();
-	if (normalizedName === 'xmlns') {
-		if (value !== SVG_NAMESPACE) invalidSvg('the default namespace must be SVG');
-		return;
-	}
-	if (normalizedName === 'xmlns:xlink') {
-		if (value !== XLINK_NAMESPACE) invalidSvg('the xlink namespace is invalid');
-		return;
-	}
-	if (normalizedName.includes(':') && normalizedName !== 'xlink:href' && normalizedName !== 'xml:space') {
-		invalidSvg(`qualified attribute "${name}" is not allowed`);
-	}
-	const localName = normalizedName.split(':').at(-1)!;
-	const text = String(value);
-	if (localName.startsWith('on')) invalidSvg(`event attribute "${name}" is not allowed`);
-	if (localName === 'style' || localName === 'src') invalidSvg(`attribute "${name}" is not allowed`);
+const XML_PREDEFINED_ENTITIES: Record<string, string> = {
+	amp: '&',
+	lt: '<',
+	gt: '>',
+	quot: '"',
+	apos: "'",
+};
+
+function decodeXmlAttributeEntities(value: string, attrName: string): string {
+	return value.replace(/&(#x[0-9a-fA-F]+|#\d+|[A-Za-z_][\w.-]*);/gu, (_match, ref: string) => {
+		if (ref.startsWith('#x') || ref.startsWith('#X')) {
+			const codePoint = Number.parseInt(ref.slice(2), 16);
+			if (!Number.isFinite(codePoint) || codePoint <= 0 || codePoint > 0x10ffff) {
+				invalidSvg(`invalid character reference in "${attrName}"`);
+			}
+			return String.fromCodePoint(codePoint);
+		}
+		if (ref.startsWith('#')) {
+			const codePoint = Number.parseInt(ref.slice(1), 10);
+			if (!Number.isFinite(codePoint) || codePoint <= 0 || codePoint > 0x10ffff) {
+				invalidSvg(`invalid character reference in "${attrName}"`);
+			}
+			return String.fromCodePoint(codePoint);
+		}
+		const predefined = XML_PREDEFINED_ENTITIES[ref];
+		if (predefined === undefined) {
+			invalidSvg(`entity reference "&${ref};" in "${attrName}" is not allowed`);
+		}
+		return predefined;
+	});
+}
+
+function decodeCssEscapes(value: string): string {
+	return value.replace(/\\([0-9a-fA-F]{1,6}\s?|[\s\S])/gu, (_match, seq: string) => {
+		if (/^[0-9a-fA-F]/u.test(seq)) {
+			const codePoint = Number.parseInt(seq.trim(), 16);
+			if (Number.isFinite(codePoint) && codePoint > 0 && codePoint <= 0x10ffff) {
+				return String.fromCodePoint(codePoint);
+			}
+			return '';
+		}
+		return seq;
+	});
+}
+
+function validateAttributeValueText(name: string, localName: string, text: string): void {
 	if (localName === 'href' && !/^#[A-Za-z_][\w:.-]*$/u.test(text)) {
 		invalidSvg(`external reference in "${name}" is not allowed`);
 	}
@@ -57,6 +86,31 @@ function validateAttribute(name: string, value: unknown): void {
 	for (const match of text.matchAll(/url\s*\(([^)]*)\)/giu)) {
 		const reference = (match[1] ?? '').trim().replace(/^(['"])(.*)\1$/u, '$2');
 		if (!/^#[A-Za-z_][\w:.-]*$/u.test(reference)) invalidSvg(`external url() in "${name}" is not allowed`);
+	}
+}
+
+function validateAttribute(name: string, value: unknown): void {
+	const normalizedName = name.toLowerCase();
+	const rawText = String(value);
+	const decodedText = decodeXmlAttributeEntities(rawText, name);
+	if (normalizedName === 'xmlns') {
+		if (decodedText !== SVG_NAMESPACE) invalidSvg('the default namespace must be SVG');
+		return;
+	}
+	if (normalizedName === 'xmlns:xlink') {
+		if (decodedText !== XLINK_NAMESPACE) invalidSvg('the xlink namespace is invalid');
+		return;
+	}
+	if (normalizedName.includes(':') && normalizedName !== 'xlink:href' && normalizedName !== 'xml:space') {
+		invalidSvg(`qualified attribute "${name}" is not allowed`);
+	}
+	const localName = normalizedName.split(':').at(-1)!;
+	if (localName.startsWith('on')) invalidSvg(`event attribute "${name}" is not allowed`);
+	if (localName === 'style' || localName === 'src') invalidSvg(`attribute "${name}" is not allowed`);
+	validateAttributeValueText(name, localName, decodedText);
+	const cssDecoded = decodeCssEscapes(decodedText);
+	if (cssDecoded !== decodedText) {
+		validateAttributeValueText(name, localName, cssDecoded);
 	}
 }
 

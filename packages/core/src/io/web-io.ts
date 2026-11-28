@@ -40,12 +40,20 @@ function isCoreFileSystem(value: FileSystem | WebIOOptions): value is FileSystem
 }
 
 function normalizePath(path: string): string {
-	return path
-		.replace(/\\/g, '/')
-		.replace(/\/+/g, '/')
-		.replace(/^\.\/+/, '')
-		.replace(/^\/+/, '')
-		.replace(/\/+$/, '');
+	const raw = path.replace(/\\/g, '/');
+	const segments: string[] = [];
+	for (const segment of raw.split('/')) {
+		if (!segment || segment === '.') continue;
+		if (segment === '..') {
+			if (segments.length === 0) {
+				throw new ProjectIOError(`WebIO path escapes root directory: ${path}`);
+			}
+			segments.pop();
+			continue;
+		}
+		segments.push(segment);
+	}
+	return segments.join('/');
 }
 
 function splitPath(path: string): string[] {
@@ -102,13 +110,23 @@ export function createFileSystemAccessFileSystem(root: FileSystemAccessDirectory
 		},
 		async writeFile(path: string, content: string): Promise<void> {
 			const writable = await (await getFile(root, path, { create: true })).createWritable();
-			await writable.write(content);
-			await writable.close();
+			try {
+				await writable.write(content);
+				await writable.close();
+			} catch (error) {
+				await (writable as { abort?(): Promise<void> }).abort?.().catch(() => undefined);
+				throw error;
+			}
 		},
 		async writeFileRaw(path: string, data: Uint8Array): Promise<void> {
 			const writable = await (await getFile(root, path, { create: true })).createWritable();
-			await writable.write(data);
-			await writable.close();
+			try {
+				await writable.write(data);
+				await writable.close();
+			} catch (error) {
+				await (writable as { abort?(): Promise<void> }).abort?.().catch(() => undefined);
+				throw error;
+			}
 		},
 		async mkdir(path: string): Promise<void> {
 			await getDirectory(root, path, { create: true });
@@ -150,7 +168,7 @@ export function createFileSystemAccessFileSystem(root: FileSystemAccessDirectory
 					return true;
 				}
 			} catch (error) {
-				if ((error as Error).name === 'NotFoundError') return false;
+				if (['NotFoundError', 'TypeMismatchError'].includes((error as Error).name)) return false;
 				throw error;
 			}
 		},

@@ -229,6 +229,39 @@ export class PersistenceService {
 			});
 		}
 
+		let document: ReturnType<typeof materializeUamProject>;
+		try {
+			document = materializeUamProject(session.project);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			const diagnosticsFromError: BackendDiagnostic[] = [
+				{
+					code: 'materialize_validation_failed',
+					message,
+					severity: 'error',
+					operationKind: 'saveSession',
+				},
+			];
+			return failure(
+				'authoring',
+				startedAt,
+				{
+					code: 'materialize_validation_failed',
+					message,
+					sessionId: session.sessionId,
+					canonicalPathKey: session.canonicalPathKey,
+					issueCount: diagnosticsFromError.length,
+					diagnostics: diagnosticsFromError,
+				},
+				toSessionSnapshot(session, this.context.capabilities),
+				{
+					sessionId: session.sessionId,
+					revision: session.revision,
+					diagnostics: diagnosticsFromError,
+				},
+			);
+		}
+
 		const committedPaths: string[] = [];
 		const failedPaths: string[] = [];
 		this.eventService.emit({
@@ -240,7 +273,7 @@ export class PersistenceService {
 		try {
 			const warnings = await writeSessionProject({
 				fileSystem,
-				document: materializeUamProject(session.project),
+				document,
 				fairyPath: session.fairyPath,
 				staleSourceFiles: [...session.pendingStaleSourceFiles.values()],
 				staleResourceFolders: [...session.pendingStaleResourceFolders.values()],
@@ -279,8 +312,9 @@ export class PersistenceService {
 					lastSavedRevision: session.lastSavedRevision,
 					committedPaths,
 					failedPaths,
-					diskMayBePartiallyUpdated:
-						!ProjectWriteTransactionError.is(error) || error.diskMayBePartiallyUpdated,
+					diskMayBePartiallyUpdated: ProjectWriteTransactionError.is(error)
+						? error.diskMayBePartiallyUpdated
+						: committedPaths.length > 0 || failedPaths.length > 0,
 					...(ProjectWriteTransactionError.is(error) && error.recoveryPaths.length
 						? { recoveryPaths: error.recoveryPaths }
 						: {}),
@@ -486,6 +520,7 @@ export class PersistenceService {
 				writtenPaths,
 				failedPaths,
 			});
+			const bindsSessionStorage = isSessionStorageTarget || storageTarget !== null || !session.fileSystem;
 			if (isSessionStorageTarget) {
 				session.pendingStaleSourceFiles.clear();
 				session.pendingStaleResourceFolders.clear();
@@ -496,9 +531,12 @@ export class PersistenceService {
 				session.pendingStaleResourceFolders.clear();
 				session.pendingStaleBranchDirectories.clear();
 			}
-			if (isSessionStorageTarget || storageTarget) commitUamProjectSourcePaths(session.project);
+			if (!session.fileSystem && !storageTarget) {
+				session.fileSystem = fileSystem;
+			}
+			if (bindsSessionStorage) commitUamProjectSourcePaths(session.project);
 			reservation?.commit(session);
-			this.finishSuccessfulSave(session);
+			if (bindsSessionStorage) this.finishSuccessfulSave(session);
 			return success(
 				'authoring',
 				startedAt,

@@ -1,4 +1,4 @@
-import { XMLBuilder } from 'fast-xml-parser';
+import { ProjectIOError } from './errors.js';
 import { ControllerActionType, TransitionActionType } from '../constants.js';
 import type { Component } from '../properties/component.js';
 import type { Controller } from '../properties/controller.js';
@@ -16,21 +16,11 @@ import {
 	hasNonZeroInsets,
 } from './project-xml-writer-utils.js';
 import { serializeRelationsXml } from './display-object-xml-behaviors-writer.js';
-import { serializeDisplayList } from './display-object-xml-writer.js';
+import { renderXmlNode, serializeDisplayList } from './display-object-xml-writer.js';
 import type { FileSystem } from './file-system.js';
 import { PROJECT_XML_PROTOCOL, writeXmlAttr } from './project-xml-protocol.js';
 
-const builder = new XMLBuilder({
-	ignoreAttributes: false,
-	attributeNamePrefix: '@_',
-	format: true,
-	indentBy: '  ',
-	suppressBooleanAttributes: false,
-	suppressEmptyNode: true,
-	suppressUnpairedNode: false,
-	unpairedTags: [],
-	stopNodes: ['component.displayList'],
-});
+const COMPONENT_RAW_XML_TAGS = new Set(['displayList']);
 
 function stringifyEaseType(easeType: number): string {
 	const names: Record<number, string> = {
@@ -387,6 +377,9 @@ export async function writeComponent(
 
 	if (extType) {
 		const extProtocol = EXTENSION_PROTOCOL_MAP[extType as keyof typeof EXTENSION_PROTOCOL_MAP];
+		if (!extProtocol) {
+			throw new ProjectIOError(`Unsupported component extension type: "${extType}".`);
+		}
 		const extSpecs = extProtocol.attrs as Record<string, { canonical: string }>;
 		const extAttrs: Record<string, unknown> = {};
 		switch (extType) {
@@ -450,12 +443,8 @@ export async function writeComponent(
 		compNode[relationChildName] = relElements;
 	}
 
-	const xmlObj = {
-		'?xml': { '@_version': '1.0', '@_encoding': 'utf-8' },
-		component: compNode,
-	};
-
-	await fs.writeFile(targetPath, builder.build(xmlObj) as string);
+	const xmlContent = `<?xml version="1.0" encoding="utf-8"?>\n${renderXmlNode('component', compNode, '', COMPONENT_RAW_XML_TAGS)}\n`;
+	await fs.writeFile(targetPath, xmlContent);
 }
 
 function serializeController(ctrl: Controller): Record<string, unknown> {

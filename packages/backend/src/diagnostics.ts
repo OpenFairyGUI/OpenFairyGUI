@@ -177,7 +177,7 @@ export const BACKEND_DIAGNOSTIC_GUIDES = [
 		remediation: {
 			kind: 'host-action',
 			message:
-				'Use getSession to inspect the existing session. Reuse it only for the intended project, or choose a new session ID; do not close another owner\\u0027s session to make room.',
+				"Use getSession to inspect the existing session. Reuse it only for the intended project, or choose a new session ID; do not close another owner's session to make room.",
 		},
 	},
 	{
@@ -297,6 +297,10 @@ export const BACKEND_DIAGNOSTIC_GUIDES = [
 export const BACKEND_DIAGNOSTICS_URI = 'openfairygui://docs/diagnostics';
 export const BACKEND_DIAGNOSTIC_TEMPLATE = `${BACKEND_DIAGNOSTICS_URI}/{code}`;
 
+const BACKEND_DIAGNOSTIC_GUIDE_MAP = new Map<string, BackendDiagnosticGuide>(
+	BACKEND_DIAGNOSTIC_GUIDES.map((guide) => [guide.code, guide]),
+);
+
 export function getBackendDiagnosticCatalog() {
 	return BACKEND_DIAGNOSTIC_GUIDES.map((guide) => ({
 		...structuredClone(guide),
@@ -305,13 +309,16 @@ export function getBackendDiagnosticCatalog() {
 }
 
 export function getBackendDiagnosticGuide(code: string) {
-	const guide = getBackendDiagnosticCatalog().find((entry) => entry.code === code);
+	const guide = BACKEND_DIAGNOSTIC_GUIDE_MAP.get(code);
 	if (!guide) throw new RangeError(`No recovery guide for diagnostic: ${code}`);
-	return guide;
+	return {
+		...structuredClone(guide),
+		docsUri: `${BACKEND_DIAGNOSTICS_URI}/${guide.code}`,
+	};
 }
 
 export function enrichBackendDiagnostic(diagnostic: BackendDiagnostic, sessionId?: string): BackendDiagnostic {
-	const guide = BACKEND_DIAGNOSTIC_GUIDES.find((entry) => entry.code === diagnostic.code);
+	const guide = BACKEND_DIAGNOSTIC_GUIDE_MAP.get(diagnostic.code);
 	if (!guide) return { ...diagnostic };
 	return {
 		...diagnostic,

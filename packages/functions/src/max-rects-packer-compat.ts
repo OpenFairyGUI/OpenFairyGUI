@@ -127,17 +127,35 @@ export class MaxRectsPackerCompat {
 
 		const padding = this.settings.padding;
 		let hasDuplicatePadding = false;
+		const paddedXByIndex = new Set<number>();
+		const paddedYByIndex = new Set<number>();
+		const zeroSizedRects: CompatNodeRect[] = [];
+		const packableRects: CompatNodeRect[] = [];
 		for (const rect of rects) {
 			if (duplicatePadding(rect)) hasDuplicatePadding = true;
-			if (this.settings.maxWidth - rect.width > padding || duplicatePadding(rect)) rect.width += padding;
-			if (this.settings.maxHeight - rect.height > padding || duplicatePadding(rect)) rect.height += padding;
+			if (rect.width <= 0 || rect.height <= 0) {
+				zeroSizedRects.push(rect);
+				continue;
+			}
+			if (this.settings.maxWidth - rect.width > padding || duplicatePadding(rect)) {
+				rect.width += padding;
+				paddedXByIndex.add(rect.index);
+			}
+			if (this.settings.maxHeight - rect.height > padding || duplicatePadding(rect)) {
+				rect.height += padding;
+				paddedYByIndex.add(rect.index);
+			}
+			packableRects.push(rect);
 		}
 
 		const pages: CompatPage[] = [];
-		let remaining = rects;
+		let remaining = packableRects;
 		while (remaining.length > 0) {
 			const page = this.packPage(remaining);
 			if (!page) return null;
+			if (!this.settings.multiPage && page.remainingRects.length > 0) {
+				return null;
+			}
 			if (this.settings.pot) {
 				page.width = MaxRectsPackerCompat.getNextPowerOfTwo(page.width);
 				page.height = MaxRectsPackerCompat.getNextPowerOfTwo(page.height);
@@ -154,17 +172,33 @@ export class MaxRectsPackerCompat {
 			remaining = page.remainingRects.map(cloneCompatRect);
 		}
 
+		if (zeroSizedRects.length > 0) {
+			if (pages.length === 0) {
+				pages.push({
+					outputRects: zeroSizedRects.map((rect) => ({ ...rect, x: 0, y: 0, width: 0, height: 0 })),
+					remainingRects: [],
+					occupancy: 0,
+					width: this.settings.minWidth,
+					height: this.settings.minHeight,
+				});
+			} else {
+				pages[0]!.outputRects.push(
+					...zeroSizedRects.map((rect) => ({ ...rect, x: 0, y: 0, width: 0, height: 0 })),
+				);
+			}
+		}
+
 		pages.sort(comparePage);
 		for (const page of pages) {
 			for (const rect of page.outputRects) {
-				shrinkRectForPadding(rect, padding, this.settings.maxWidth, this.settings.maxHeight);
-				if (hasDuplicatePadding) {
+				shrinkRectForPadding(rect, padding, paddedXByIndex, paddedYByIndex);
+				if (hasDuplicatePadding && rect.width > 0 && rect.height > 0) {
 					if (rect.width !== page.width) rect.x += Math.floor(padding / 2);
 					if (rect.height !== page.height) rect.y += Math.floor(padding / 2);
 				}
 			}
 			for (const rect of page.remainingRects) {
-				shrinkRectForPadding(rect, padding, this.settings.maxWidth, this.settings.maxHeight);
+				shrinkRectForPadding(rect, padding, paddedXByIndex, paddedYByIndex);
 			}
 		}
 
@@ -199,12 +233,8 @@ export class MaxRectsPackerCompat {
 		for (let index = 0; index < candidates.length; index += 1) {
 			selectedWidth = candidates[index].width;
 			selectedHeight = candidates[index].height;
-			page = this.packAtSize(
-				index !== candidates.length - 1,
-				selectedWidth - edgePadding,
-				selectedHeight - edgePadding,
-				rects,
-			);
+			const requireFullFit = !this.settings.multiPage || index !== candidates.length - 1;
+			page = this.packAtSize(requireFullFit, selectedWidth - edgePadding, selectedHeight - edgePadding, rects);
 			if (page) break;
 		}
 
@@ -462,13 +492,18 @@ function duplicatePadding(rect: CompatNodeRect): boolean {
 	return (rect.flags & COMPAT_NODE_RECT_FLAGS.DUPLICATE_PADDING) !== 0;
 }
 
-function shrinkRectForPadding(rect: CompatNodeRect, padding: number, maxWidth: number, maxHeight: number): void {
+function shrinkRectForPadding(
+	rect: CompatNodeRect,
+	padding: number,
+	paddedXByIndex: ReadonlySet<number>,
+	paddedYByIndex: ReadonlySet<number>,
+): void {
 	if (!rect.rotated) {
-		if (maxWidth - rect.width > padding || duplicatePadding(rect)) rect.width -= padding;
-		if (maxHeight - rect.height > padding || duplicatePadding(rect)) rect.height -= padding;
+		if (paddedXByIndex.has(rect.index)) rect.width -= padding;
+		if (paddedYByIndex.has(rect.index)) rect.height -= padding;
 	} else {
-		if (maxHeight - rect.width > padding || duplicatePadding(rect)) rect.width -= padding;
-		if (maxWidth - rect.height > padding || duplicatePadding(rect)) rect.height -= padding;
+		if (paddedYByIndex.has(rect.index)) rect.width -= padding;
+		if (paddedXByIndex.has(rect.index)) rect.height -= padding;
 	}
 }
 

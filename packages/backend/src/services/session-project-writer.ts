@@ -49,11 +49,23 @@ function createWriterFileSystem(
 		readdir: (path) => contained(path, () => fileSystem.readdir(path)),
 		async exists(path): Promise<boolean> {
 			await assertProjectPathContained(fileSystem, projectRoot, path);
+			if (
+				'exists' in fileSystem &&
+				typeof (fileSystem as { exists?: (p: string) => Promise<boolean> }).exists === 'function'
+			) {
+				return (fileSystem as { exists: (p: string) => Promise<boolean> }).exists(path);
+			}
 			try {
 				await fileSystem.stat(path);
 				return true;
-			} catch {
-				return false;
+			} catch (error) {
+				const code =
+					typeof error === 'object' && error !== null ? (error as { code?: unknown }).code : undefined;
+				const name = error instanceof Error ? error.name : undefined;
+				if (code === 'ENOENT' || code === 'ENOTDIR' || code === 'NotFoundError' || name === 'NotFoundError') {
+					return false;
+				}
+				throw error;
 			}
 		},
 		join: (...paths) => fileSystem.join(...paths),

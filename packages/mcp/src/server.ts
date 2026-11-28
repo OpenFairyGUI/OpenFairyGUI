@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { createNodeBackendRuntime } from '@openfairygui/backend/node';
+import { createNodeBackendRuntime, disposeBackendRuntime } from '@openfairygui/backend/node';
 import { createRequire } from 'node:module';
 import { z } from 'zod';
 import { getInstalledDocumentationIndex, readInstalledDocumentation } from '@openfairygui/backend/docs';
@@ -26,13 +26,15 @@ function getInjectedPackageVersion(): string | null {
 function readPackageVersion(): string {
 	const injectedVersion = getInjectedPackageVersion();
 	if (injectedVersion) return injectedVersion;
-	try {
-		const pkg = require('../package.json') as { version?: unknown };
-		if (typeof pkg.version === 'string' && pkg.version.length > 0) {
-			return pkg.version;
+	for (const candidate of ['../package.json', '../../package.json']) {
+		try {
+			const pkg = require(candidate) as { name?: unknown; version?: unknown };
+			if (pkg.name === '@openfairygui/mcp' && typeof pkg.version === 'string' && pkg.version.length > 0) {
+				return pkg.version;
+			}
+		} catch {
+			// Keep the MCP server usable when executed from a bundled artifact missing package.json.
 		}
-	} catch {
-		// Keep the MCP server usable when executed from a bundled artifact missing package.json.
 	}
 	return '0.0.0-dev';
 }
@@ -72,11 +74,13 @@ export function createOpenFairyGuiMcpServer(options: CreateOpenFairyGuiMcpServer
 			throw new RangeError(`Unknown OpenFairyGUI backend MCP tool policy: ${name}`);
 		}
 	}
-	const runtime =
-		options.runtime ??
-		createNodeBackendRuntime({
-			allowedProjectRoots: options.allowedProjectRoots ?? [process.cwd()],
-		});
+	const ownedRuntime = options.runtime
+		? null
+		: createNodeBackendRuntime({
+				allowedProjectRoots: options.allowedProjectRoots ?? [process.cwd()],
+			});
+	const runtime: OpenFairyGuiBackendRuntime = options.runtime ?? ownedRuntime!;
+	const trackedSessions = new Set<string>();
 	const server = new McpServer(
 		{
 			name: options.name ?? 'openfairygui-mcp',
@@ -84,6 +88,23 @@ export function createOpenFairyGuiMcpServer(options: CreateOpenFairyGuiMcpServer
 		},
 		{ instructions: options.instructions ?? DEFAULT_INSTRUCTIONS },
 	);
+
+	const originalClose = server.close.bind(server);
+	let closingSessions: Promise<void> | null = null;
+	server.close = async () => {
+		closingSessions ??= (async () => {
+			if (ownedRuntime) {
+				await disposeBackendRuntime(ownedRuntime);
+				trackedSessions.clear();
+				return;
+			}
+			const sessionIds = [...trackedSessions];
+			trackedSessions.clear();
+			await Promise.allSettled(sessionIds.map((sessionId) => runtime.closeSession({ sessionId })));
+		})();
+		await closingSessions;
+		await originalClose();
+	};
 
 	for (const definition of OPENFAIRYGUI_BACKEND_TOOL_DEFINITIONS) {
 		const policy = options.toolPolicies?.[definition.name];
@@ -121,8 +142,27 @@ export function createOpenFairyGuiMcpServer(options: CreateOpenFairyGuiMcpServer
 				),
 				outputSchema: compactToolSchema(getOutputSchema, 'output'),
 			},
-			async (args: Record<string, unknown>) =>
-				callOpenFairyGuiBackendTool(runtime, definition.name, args, policy),
+			async (args: Record<string, unknown>) => {
+				const result = await callOpenFairyGuiBackendTool(runtime, definition.name, args, policy);
+				if (!ownedRuntime && !result.isError) {
+					const backendResult = (
+						result.structuredContent as
+							| { backendResult?: { ok?: boolean; data?: { sessionId?: string } } }
+							| undefined
+					)?.backendResult;
+					const sessionId = backendResult?.ok ? backendResult.data?.sessionId : undefined;
+					if (
+						sessionId &&
+						(definition.backendMethod === 'openSession' ||
+							definition.backendMethod === 'openProjectSession')
+					) {
+						trackedSessions.add(sessionId);
+					} else if (sessionId && definition.backendMethod === 'closeSession') {
+						trackedSessions.delete(sessionId);
+					}
+				}
+				return result;
+			},
 		);
 	}
 	server.registerTool(
@@ -131,7 +171,7 @@ export function createOpenFairyGuiMcpServer(options: CreateOpenFairyGuiMcpServer
 			title: 'Read installed documentation',
 			description:
 				'Read index first, then an exact document ID from that index. Offline, read-only and bound to the installed version.',
-			inputSchema: z.object({ id: z.string().min(1).max(256).default('index') }),
+			inputSchema: z.strictObject({ id: z.string().min(1).max(256).default('index') }),
 			_meta: { 'openfairygui/contractDigest': CONTRACT_SNAPSHOT.digest },
 			annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
 		},
@@ -159,17 +199,19 @@ export function createOpenFairyGuiMcpServer(options: CreateOpenFairyGuiMcpServer
 
 	registerOpenFairyGuiBackendResources(server, runtime);
 	if (options.publish) {
+		const hostPublish = options.publish;
 		server.registerTool(
 			'openfairygui_host_publish',
 			{
 				title: 'Publish project through host',
 				description:
 					'Publish saved project files through an explicitly enabled host. Host owns path authorization, output policy and plugin execution; unsaved session edits are not included.',
-				inputSchema: z.object({
+				inputSchema: z.strictObject({
 					projectPath: z.string().min(1).max(4096),
 					outputDirectory: z.string().min(1).max(4096),
 					packageNames: z.array(z.string().min(1).max(256)).max(1000).optional(),
 				}),
+				_meta: { 'openfairygui/contractDigest': CONTRACT_SNAPSHOT.digest },
 				annotations: {
 					readOnlyHint: false,
 					destructiveHint: true,
@@ -177,7 +219,21 @@ export function createOpenFairyGuiMcpServer(options: CreateOpenFairyGuiMcpServer
 					openWorldHint: false,
 				},
 			},
-			options.publish,
+			async (args) => {
+				try {
+					return await hostPublish({
+						projectPath: args.projectPath,
+						outputDirectory: args.outputDirectory,
+						...(args.packageNames !== undefined ? { packageNames: args.packageNames } : {}),
+					});
+				} catch (error) {
+					console.error('[openfairygui-mcp] openfairygui_host_publish failed:', error);
+					return {
+						isError: true,
+						content: [{ type: 'text' as const, text: 'Host publish failed.' }],
+					};
+				}
+			},
 		);
 	}
 	registerOpenFairyGuiBackendPrompts(server);

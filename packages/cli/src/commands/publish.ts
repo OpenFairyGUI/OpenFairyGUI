@@ -4,15 +4,15 @@ import { resolvePublishOptions } from '@openfairygui/functions';
 import { publishNode } from '@openfairygui/functions/node';
 import type { Command } from 'commander';
 import { resolveFairyPath } from '../utils/project-input.js';
-import { parseProjectType } from '../utils/project-type.js';
+import { parseNonEmptyPathOption, parsePackageFilterOption, parseProjectType } from '../utils/project-type.js';
 import { printJson } from '../utils/json-output.js';
 
 type PublishCommandOptions = {
 	output?: string;
 	compressed?: boolean;
-	packages?: string;
+	packages?: string[];
 	branch?: string;
-	projectType?: string;
+	projectType?: number;
 	json?: boolean;
 	plugins?: boolean;
 };
@@ -21,40 +21,50 @@ export function registerPublishCommand(program: Command): void {
 	program
 		.command('publish')
 		.description('Publish project to binary outputs and configured generated code')
-		.argument('<project-dir>', 'Project root directory or .fairy file')
+		.argument('<project-dir>', 'Project root directory or .fairy file', (value: string) =>
+			parseNonEmptyPathOption(value, 'Project directory'),
+		)
 		.option('--json', 'Print one JSON result or error (exit 0: success, 1: workflow failure, 2: invalid arguments)')
-		.option('-o, --output <dir>', 'Override project or package publish output directory')
+		.option('-o, --output <dir>', 'Override project or package publish output directory', (value: string) =>
+			parseNonEmptyPathOption(value, 'Output directory'),
+		)
 		.option('-c, --compressed', 'Compress binary data (overrides project setting)')
-		.option('-p, --packages <a,b,c>', 'Only publish specific packages (comma-separated)')
+		.option('--no-compressed', 'Disable binary compression (overrides project setting)')
+		.option('-p, --packages <a,b,c>', 'Only publish specific packages (comma-separated)', (value: string) =>
+			parsePackageFilterOption(value),
+		)
 		.option('--no-plugins', 'Disable project plugin discovery and execution')
 		.option('-b, --branch <name>', 'Active branch used by "主干合并活跃分支"; omit for main branch')
 		.option(
 			'-t, --project-type <name|id>',
 			'Override project type (for example: unity, layabox, cocoscreator, 0, 4, 3)',
+			(value: string) => parseProjectType(value),
 		)
 		.action(async (projectDir: string, options: PublishCommandOptions) => {
 			const fairyPath = await resolveFairyPath(projectDir);
 			const projectRootDir = path.dirname(fairyPath);
-			const outputDir = options.output ? path.resolve(options.output) : undefined;
+			const outputDir = options.output !== undefined ? path.resolve(options.output) : undefined;
 
-			console.log(`Reading project: ${fairyPath}`);
+			if (!options.json) {
+				console.log(`Reading project: ${fairyPath}`);
+			}
 			const io = new NodeIO();
 			const doc = await io.readProject(fairyPath);
-			const projectType = parseProjectType(options.projectType);
-			if (projectType !== undefined) {
-				doc.getRoot().setProjectType(projectType);
+			if (options.projectType !== undefined) {
+				doc.getRoot().setProjectType(options.projectType);
 			}
 
-			const pkgFilter = options.packages?.split(',').map((value) => value.trim());
 			const resolved = resolvePublishOptions(doc, {
 				compressed: options.compressed,
-				packages: pkgFilter,
-				targetProjectType: projectType,
+				packages: options.packages,
+				targetProjectType: options.projectType,
 			});
 
-			console.log(`Settings: ext=${resolved.fileExtension}, compressed=${resolved.compressed}`);
-			if (options.branch) {
-				console.log(`Active branch: ${options.branch}`);
+			if (!options.json) {
+				console.log(`Settings: ext=${resolved.fileExtension}, compressed=${resolved.compressed}`);
+				if (options.branch) {
+					console.log(`Active branch: ${options.branch}`);
+				}
 			}
 
 			const result = await publishNode({

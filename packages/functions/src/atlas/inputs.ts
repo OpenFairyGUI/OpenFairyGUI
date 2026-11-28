@@ -365,6 +365,7 @@ export async function collectFontTexture(
 			const fntParsed = parseFnt(fntText);
 			for (const glyph of fontRes.listGlyphs()) {
 				fontRes.removeGlyph(glyph);
+				glyph.dispose();
 			}
 			fontRes
 				.setTtf(fntParsed.hasFace)
@@ -391,8 +392,13 @@ export async function collectFontTexture(
 					.setChannel(item.channel);
 				fontRes.addGlyph(glyph);
 			}
-		} catch {
-			/* .fnt not found */
+		} catch (error) {
+			if (options.strictOutput) {
+				throw new Error(
+					`atlas: Could not read bitmap font "${fontRes.getId()}" (${fntFile}): ${error instanceof Error ? error.message : String(error)}`,
+					{ cause: error },
+				);
+			}
 		}
 	}
 }

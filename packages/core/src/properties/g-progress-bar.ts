@@ -91,4 +91,37 @@ export class GProgressBar extends GComponent<IGProgressBar, PropertyType.G_PROGR
 	public setSrc(v: string): this {
 		return this.set('src', v);
 	}
+	public override getInstanceExtType(): string {
+		return 'ProgressBar';
+	}
+	public override getInstanceMin(): number {
+		return this.getMin();
+	}
+	public override setInstanceMin(value: number): this {
+		return this.setMin(value);
+	}
+	public override getInstanceMax(): number {
+		return this.getMax();
+	}
+	public override setInstanceMax(value: number): this {
+		return this.setMax(value);
+	}
+	public override getInstanceValue(): number {
+		return this.getValue();
+	}
+	public override setInstanceValue(value: number): this {
+		return this.setValue(value);
+	}
+	public override getInstanceSound(): string {
+		return this.getSound();
+	}
+	public override setInstanceSound(value: string): this {
+		return this.setSound(value);
+	}
+	public override getInstanceSoundVolumeScale(): number {
+		return this.getSoundVolumeScale();
+	}
+	public override setInstanceSoundVolumeScale(value: number): this {
+		return this.setSoundVolumeScale(value);
+	}
 }

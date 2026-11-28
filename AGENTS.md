@@ -36,6 +36,7 @@
 | `packages/cli/**` | cli | `docs/guide/getting-started.md`, `docs/project-validation.md`, `docs/guide/contracts.md`, `docs/guide/diagnostics.md`, `docs/guide/installed-docs.md` |
 | `packages/mcp/**` | mcp | `docs/architecture-overview.md`, `docs/guide/contracts.md`, `docs/guide/diagnostics.md`, `docs/guide/installed-docs.md` |
 | `docs/.vitepress/**`, `scripts/**`, `examples/**`, `agent/**`, `references.json`, `.github/**`, `.node-version` | core, functions, backend, cli, mcp | `docs/guide/development.md`, `docs/en/guide/development.md` |
+| `docs/published-project-restore-limitations.md` | backend, cli, mcp | `docs/published-project-restore-limitations.md`, `docs/en/published-project-restore-limitations.md`, `docs/guide/installed-docs.md` |
 | `docs/**`, `AGENTS.md`, `README.md`, `README_EN.md`, `CHANGELOG.md`, `CHANGELOG_CN.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `ROADMAP.md`, `ROADMAP_EN.md` | 仅仓库检查 | `docs/README.md`, `docs/en/README.md` |
 <!-- impact-map:end -->
 

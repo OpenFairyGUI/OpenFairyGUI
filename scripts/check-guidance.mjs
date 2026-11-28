@@ -83,7 +83,7 @@ export function changelogStructure(text) {
 	let section;
 	let category;
 	for (const line of text.split(/\r?\n/)) {
-		const version = /^### (v\d+\.\d+\.\d+(?:-[\w.]+)?)/.exec(line)?.[1];
+		const version = /^### (v\d+\.\d+\.\d+(?:-[\w.-]+)?)/.exec(line)?.[1];
 		if (version || /^## (Unreleased|未发布)$/.test(line)) {
 			const url = version ? /\]\((https:\/\/github\.com\/[^)]+)\)/.exec(line)?.[1] : undefined;
 			if (version && (!url || !url.endsWith(`/${version}`)))
@@ -162,6 +162,12 @@ export function checkGuidance(root) {
 	)) {
 		if (!existsSync(path.join(root, 'docs/en', file.slice(5))))
 			throw new Error(`Missing English counterpart: ${file}`);
+	}
+	for (const file of documents.filter(
+		(file) => file.startsWith('docs/en/') && !file.startsWith('docs/en/api/') && !file.startsWith('docs/en/.'),
+	)) {
+		if (!existsSync(path.join(root, 'docs', file.slice(8))))
+			throw new Error(`Missing Chinese counterpart: ${file}`);
 	}
 	const examples = readJson(path.join(root, 'examples/package.json'));
 	for (const [name, version] of Object.entries(examples.dependencies)) {

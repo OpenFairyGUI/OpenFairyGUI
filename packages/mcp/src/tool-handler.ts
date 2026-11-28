@@ -127,7 +127,6 @@ export async function callOpenFairyGuiBackendTool(
 	const checked = definition.inputSchema.safeParse(input);
 	if (!checked.success) throw new z.ZodRealError(focusContractIssues(checked.error.issues, input));
 	const parsed = checked.data as Record<string, unknown>;
-	const decoded = decodeToolBytes(parsed, bytePaths);
 	const startedAt = Date.now();
 	try {
 		let hostFailure = await policy?.beforeCall(structuredClone(parsed));
@@ -140,7 +139,7 @@ export async function callOpenFairyGuiBackendTool(
 			(await Reflect.apply(
 				runtime[definition.backendMethod],
 				runtime,
-				definition.backendMethod === 'getCapabilities' ? [] : [decoded],
+				definition.backendMethod === 'getCapabilities' ? [] : [decodeToolBytes(parsed, bytePaths)],
 			));
 		let response = jsonResult(
 			result,
@@ -149,7 +148,7 @@ export async function callOpenFairyGuiBackendTool(
 		);
 		if (
 			definition.maxResponseBytes !== undefined &&
-			new TextEncoder().encode(JSON.stringify(response)).byteLength > definition.maxResponseBytes
+			Buffer.byteLength(JSON.stringify(response), 'utf8') > definition.maxResponseBytes
 		) {
 			response = jsonResult(
 				{

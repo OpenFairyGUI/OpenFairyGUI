@@ -10,6 +10,7 @@ import {
 	resolveImageFileName,
 	resolveImagePath,
 } from '../publish/package-context.js';
+import { assertSafeOutputFileName, trimTrailingSlashes } from '../path-utils.js';
 import { parseTextureSetMode, usesClockwiseAtlasRotation, type TextureSetMode } from '../utils.js';
 import {
 	getPublishedItemId,
@@ -68,6 +69,7 @@ export async function emitAtlasInputs(input: {
 			await emitDirectImageOutput(
 				doc,
 				pkg,
+				allResources,
 				directOutput,
 				encoder,
 				options,
@@ -146,7 +148,7 @@ export async function emitAtlasInputs(input: {
 	}
 
 	for (const group of standaloneGroups) {
-		const emittedPageCount = await emitStandaloneAtlasGroup(doc, pkg, group, {
+		const emittedPageCount = await emitStandaloneAtlasGroup(doc, pkg, allResources, group, {
 			atlasIndexStart: standalonePageOffsets.get(group.branchOrdinal) ?? 0,
 			clockwiseRotation,
 			options,
@@ -272,6 +274,7 @@ async function emitPagedAtlasGroup(
 async function emitStandaloneAtlasGroup(
 	doc: Document,
 	pkg: Package,
+	allResources: PackageResource[],
 	group: StandaloneAtlasGroup,
 	context: {
 		atlasIndexStart: number;
@@ -318,7 +321,7 @@ async function emitStandaloneAtlasGroup(
 		attachSpritesToAtlas(
 			doc,
 			pkg,
-			[],
+			allResources,
 			group.inputs,
 			page.outputRects,
 			atlasNode,
@@ -547,14 +550,17 @@ async function writeAtlasPageImage(
 					compositeInputs.push({ input: rightEdge, left: packedRect.x + w, top: packedRect.y });
 				}
 			}
-		} catch {
-			const message = `atlas: Could not read image "${input.id}" for compositing.`;
-			if (options.strictOutput) throw new Error(message);
+		} catch (error) {
+			const detail = error instanceof Error ? error.message : String(error);
+			const message = `atlas: Could not read image "${input.id}" for compositing: ${detail}`;
+			if (options.strictOutput) throw new Error(message, { cause: error });
 			logger.warn(message);
 		}
 	}
 
-	const outputFile = `${options.outputPath}/${atlasFileName}`;
+	const outputRoot = trimTrailingSlashes(options.outputPath);
+	const safeAtlasFileName = assertSafeOutputFileName(atlasFileName, 'atlas filename');
+	const outputFile = `${outputRoot}/${safeAtlasFileName}`;
 	const atlasPipeline = encoder({
 		create: {
 			width: page.width,
@@ -568,7 +574,11 @@ async function writeAtlasPageImage(
 		await encoder(atlasBuffer).removeAlpha().png().toFile(outputFile);
 		options.onFileWritten?.(outputFile);
 		const alphaBuffer = await encoder(atlasBuffer).extractChannel('alpha').png().toBuffer();
-		const alphaFile = `${options.outputPath}/${insertFileNameSuffix(atlasFileName, '!a')}`;
+		const alphaFileName = assertSafeOutputFileName(
+			insertFileNameSuffix(safeAtlasFileName, '!a'),
+			'alpha atlas filename',
+		);
+		const alphaFile = `${outputRoot}/${alphaFileName}`;
 		await encoder(alphaBuffer).joinChannel([alphaBuffer, alphaBuffer]).png().toFile(alphaFile);
 		options.onFileWritten?.(alphaFile);
 	} else {
@@ -576,7 +586,9 @@ async function writeAtlasPageImage(
 		options.onFileWritten?.(outputFile);
 	}
 
-	logger.info(`atlas: Generated ${atlasFileName} (${page.width}x${page.height}, ${page.outputRects.length} sprites)`);
+	logger.info(
+		`atlas: Generated ${safeAtlasFileName} (${page.width}x${page.height}, ${page.outputRects.length} sprites)`,
+	);
 }
 
 function inputToCompatRect(input: InputItem, index: number): CompatNodeRect {
@@ -653,6 +665,7 @@ function resolveDirectOutputAtlasSize(
 async function emitDirectImageOutput(
 	doc: Document,
 	pkg: Package,
+	allResources: PackageResource[],
 	input: InputItem,
 	encoder: AtlasRasterBackend | undefined,
 	options: AtlasOptions,
@@ -660,7 +673,10 @@ async function emitDirectImageOutput(
 	branchName: string = '',
 	branchOrdinal: number = 0,
 ): Promise<void> {
-	const atlasFileName = resolveAtlasOutputFileName(pkg, 0, branchName);
+	const atlasFileName = assertSafeOutputFileName(
+		resolveAtlasOutputFileName(pkg, 0, branchName),
+		'direct-output atlas filename',
+	);
 	const atlasSize = resolveDirectOutputAtlasSize(input.originalWidth, input.originalHeight, options);
 	const atlasNode = doc.createAtlas(`atlas${resolveAtlasIndex(branchOrdinal, 0)}`);
 	atlasNode.setIndex(resolveAtlasIndex(branchOrdinal, 0));
@@ -669,26 +685,32 @@ async function emitDirectImageOutput(
 	atlasNode.setHeight(atlasSize.height);
 	pkg.addAtlas(atlasNode);
 
-	const sprite = doc.createSprite();
-	sprite.setItemId(input.id);
-	sprite.setRectX(0);
-	sprite.setRectY(0);
-	sprite.setRectWidth(input.originalWidth);
-	sprite.setRectHeight(input.originalHeight);
-	sprite.setRotated(false);
-	sprite.setOffsetX(0);
-	sprite.setOffsetY(0);
-	sprite.setOriginalWidth(input.originalWidth);
-	sprite.setOriginalHeight(input.originalHeight);
-	sprite.setAtlas(atlasNode);
-	atlasNode.addSprite(sprite);
+	attachSpritesToAtlas(
+		doc,
+		pkg,
+		allResources,
+		[input],
+		[
+			{
+				index: 0,
+				x: 0,
+				y: 0,
+				width: input.originalWidth,
+				height: input.originalHeight,
+				rotated: false,
+			},
+		],
+		atlasNode,
+		false,
+		options.publishResources,
+	);
 
 	if (!encoder || !options.outputPath || !isImageResource(input.resource) || !options.basePath) return;
 	if (options.mkdir) {
 		await options.mkdir(options.outputPath);
 	}
 
-	const outputFile = `${options.outputPath}/${atlasFileName}`;
+	const outputFile = `${trimTrailingSlashes(options.outputPath)}/${atlasFileName}`;
 	const filePath = resolveImagePath(input.resource, pkg, options.basePath);
 
 	try {
@@ -709,9 +731,10 @@ async function emitDirectImageOutput(
 				.toFile(outputFile);
 		}
 		options.onFileWritten?.(outputFile);
-	} catch {
-		const message = `atlas: Could not write direct-output atlas "${atlasFileName}".`;
-		if (options.strictOutput) throw new Error(message);
+	} catch (error) {
+		const detail = error instanceof Error ? error.message : String(error);
+		const message = `atlas: Could not write direct-output atlas "${atlasFileName}": ${detail}`;
+		if (options.strictOutput) throw new Error(message, { cause: error });
 		logger.warn(message);
 	}
 }
@@ -748,7 +771,7 @@ function resolveStandaloneAtlasOutputFileName(
 ): string {
 	const baseName = `${pkg.getPublishName() || pkg.getName()}_atlas_${getPublishedItemId(resource, options.publishResources)}`;
 	const suffix = branchName ? `_${branchName}` : '';
-	if (isImageResource(resource)) {
+	if (isImageResource(resource) && !options.extractAlpha) {
 		const rawExt = extname(resolveImageFileName(resource)).toLowerCase();
 		const ext = rawExt === '.jpg' || rawExt === '.jpeg' || rawExt === '.png' ? rawExt : '.png';
 		return `${baseName}${suffix}${ext}`;

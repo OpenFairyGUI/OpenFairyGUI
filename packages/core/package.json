@@ -1,6 +1,6 @@
 {
 	"name": "@openfairygui/core",
-	"version": "0.8.0",
+	"version": "0.8.1",
 	"description": "FairyGUI Headless Authoring SDK — core property graph, Document, and I/O.",
 	"author": "OpenFairyGUI Contributors",
 	"license": "MIT",
@@ -18,8 +18,7 @@
 	},
 	"type": "module",
 	"sideEffects": [
-		"./dist/image-validation-worker.js",
-		"./dist/image-validation-worker.cjs"
+		"./dist/image-validation-worker.js"
 	],
 	"main": "./dist/index.cjs",
 	"module": "./dist/index.js",

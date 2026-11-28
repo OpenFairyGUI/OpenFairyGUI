@@ -15,7 +15,7 @@ import { validateProjectedState, validateProjectedGroupState } from '../src/uam/
 import { PROJECT_XML_PROTOCOL } from '../src/io/project-xml-protocol.js';
 
 test('root and UAM entry exports share the complete runtime surface', (t) => {
-	for (const key of Object.keys(uam) as Array<keyof typeof uam>) t.is(root[key], uam[key], key);
+	for (const [key, value] of Object.entries(uam)) t.is(Reflect.get(root, key), value, key);
 	// @ts-expect-error Protocol keys must reject spelling mistakes at compile time.
 	t.is(PROJECT_XML_PROTOCOL.labelExtension.attrs.promtp, undefined);
 });

@@ -446,10 +446,13 @@ export async function prepareBrowserRasterValidation(data: Uint8Array): Promise<
 	await new Promise<void>((resolve) => {
 		let settled = false;
 		let timeout: ReturnType<typeof setTimeout>;
-		const finish = (): void => {
+		const finish = (markFailed = false): void => {
 			if (settled) return;
 			settled = true;
 			clearTimeout(timeout);
+			if (markFailed && !asyncProbeResults.has(data)) {
+				asyncProbeResults.set(data, null);
+			}
 			worker.terminate();
 			resolve();
 		};
@@ -472,16 +475,16 @@ export async function prepareBrowserRasterValidation(data: Uint8Array): Promise<
 			)
 				asyncProbeResults.set(data, info as RasterImageInfo);
 			else asyncProbeResults.set(data, null);
-			finish();
+			finish(false);
 		};
-		worker.onerror = finish;
-		worker.onmessageerror = finish;
-		timeout = setTimeout(finish, BROWSER_RASTER_VALIDATION_TIMEOUT_MS);
+		worker.onerror = () => finish(true);
+		worker.onmessageerror = () => finish(true);
+		timeout = setTimeout(() => finish(true), BROWSER_RASTER_VALIDATION_TIMEOUT_MS);
 		try {
 			const copy = data.slice();
 			worker.postMessage(copy.buffer, [copy.buffer]);
 		} catch {
-			finish();
+			finish(true);
 		}
 	});
 }

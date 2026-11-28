@@ -51,10 +51,14 @@ export class ByteBuffer {
 	}
 
 	getUint8(): number {
-		return this._view.getUint8(this._pos++);
+		const v = this._view.getUint8(this._pos);
+		this._pos += 1;
+		return v;
 	}
 	getInt8(): number {
-		return this._view.getInt8(this._pos++);
+		const v = this._view.getInt8(this._pos);
+		this._pos += 1;
+		return v;
 	}
 
 	getUint16(): number {

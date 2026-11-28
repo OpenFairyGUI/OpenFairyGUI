@@ -268,13 +268,18 @@ export function remapLocalUiUrl(
 	return `ui://${pkgId}${mappedResourceId}`;
 }
 
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export function remapLocalUiRefsInText(
 	context: ResourceReferenceEncodingContext,
 	value: string | null | undefined,
 ): string | null {
 	if (!value) return value ?? null;
 	const pkgId = context.packageId;
-	return value.replace(new RegExp(`ui://${pkgId}([0-9a-z]+)`, 'gi'), (_match, resourceId: string) => {
+	if (!pkgId) return value;
+	return value.replace(new RegExp(`ui://${escapeRegExp(pkgId)}([0-9a-z]+)`, 'gi'), (_match, resourceId: string) => {
 		const mapped = remapLocalResourceId(context, resourceId);
 		return `ui://${pkgId}${mapped ?? resourceId}`;
 	});

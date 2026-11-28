@@ -114,7 +114,7 @@ export function generateContract(program = createContractProgram()) {
 	// Reader-retained settings/extensions are valid output even when not named in a structural UAM type.
 	// Only this read model gets open object schemas; shared operation inputs and other outputs stay strict.
 	const modelType = exported(program, 'packages/backend/src/runtime/contracts.ts', 'BackendSessionProjectModel').type;
-	const readEmitter = createSchemaEmitter(checker, ROOT, true);
+	const readEmitter = createSchemaEmitter(checker, ROOT, true, true);
 	const modelReference = outputEmitter.schema(modelType);
 	const readReference = readEmitter.schema(modelType);
 	Object.assign(emitter.definitions, readEmitter.definitions);

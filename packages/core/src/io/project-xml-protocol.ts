@@ -510,6 +510,7 @@ const GEAR_ATTRS = {
 	positionsInPercent: { canonical: 'positionsInPercent' },
 	condition: { canonical: 'condition' },
 	ease: { canonical: 'ease' },
+	customEase: { canonical: 'customEase' },
 	duration: { canonical: 'duration' },
 	delay: { canonical: 'delay' },
 } satisfies XmlAttrMap;

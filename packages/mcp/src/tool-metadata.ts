@@ -49,7 +49,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_METADATA = [
 		title: 'Open Backend Session',
 		description:
 			'Open a project directory or .fairy file within allowed roots (stdio: OPENFAIRYGUI_ALLOWED_PROJECT_ROOTS). Acquire a session lock; close the session when finished.',
-		annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },
+		annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
 	},
 	{
 		name: 'openfairygui_backend_open_project_session',
@@ -57,7 +57,7 @@ export const OPENFAIRYGUI_BACKEND_TOOL_METADATA = [
 		title: 'Open Project Session',
 		description:
 			'Open a browser-safe backend session from an already loaded UAM project without filesystem access.',
-		annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },
+		annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
 	},
 	{
 		name: 'openfairygui_backend_get_session',
@@ -178,6 +178,6 @@ export const OPENFAIRYGUI_BACKEND_TOOL_METADATA = [
 		backendMethod: 'refreshCache',
 		title: 'Refresh Cache',
 		description: 'Synchronously refresh the derived session cache and return its revision-bound snapshot.',
-		annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },
+		annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
 	},
 ] as const satisfies readonly BackendToolMetadata[];

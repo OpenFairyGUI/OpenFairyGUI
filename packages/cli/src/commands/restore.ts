@@ -1,14 +1,14 @@
 import path from 'node:path';
 import { restoreNode } from '@openfairygui/functions/node';
 import type { Command } from 'commander';
-import { parseProjectType } from '../utils/project-type.js';
+import { parseNonEmptyPathOption, parsePackageFilterOption, parseProjectType } from '../utils/project-type.js';
 import { printJson } from '../utils/json-output.js';
 
 type RestoreCommandOptions = {
 	output: string;
-	packages?: string;
+	packages?: string[];
 	force?: boolean;
-	projectType?: string;
+	projectType?: number;
 	json?: boolean;
 };
 
@@ -16,30 +16,33 @@ export function registerRestoreCommand(program: Command): void {
 	program
 		.command('restore')
 		.description('Recover a project directory from trusted local published artifacts')
-		.argument('<release-dir>', 'Published release directory')
+		.argument('<release-dir>', 'Published release directory', (value: string) =>
+			parseNonEmptyPathOption(value, 'Release directory'),
+		)
 		.option('--json', 'Print one JSON result or error (exit 0: success, 1: workflow failure, 2: invalid arguments)')
-		.requiredOption('-o, --output <dir>', 'Output project directory')
-		.option('-p, --packages <a,b,c>', 'Only restore specific packages (comma-separated)')
+		.requiredOption('-o, --output <dir>', 'Output project directory', (value: string) =>
+			parseNonEmptyPathOption(value, 'Output directory'),
+		)
+		.option('-p, --packages <a,b,c>', 'Only restore specific packages (comma-separated)', (value: string) =>
+			parsePackageFilterOption(value),
+		)
 		.option('-f, --force', 'Replace a non-empty output directory only after a complete staged restore')
-		.option('-t, --project-type <name|id>', 'Override restored project type; default is unity')
+		.option('-t, --project-type <name|id>', 'Override restored project type; default is unity', (value: string) =>
+			parseProjectType(value),
+		)
 		.action(async (releaseDir: string, options: RestoreCommandOptions) => {
 			const inputDir = path.resolve(releaseDir);
 			const outputDir = path.resolve(options.output);
-			const pkgFilter = options.packages
-				? options.packages
-						.split(',')
-						.map((value) => value.trim())
-						.filter(Boolean)
-				: undefined;
-			const projectType = parseProjectType(options.projectType);
 
-			console.log(`Restoring published FairyGUI project: ${inputDir}`);
+			if (!options.json) {
+				console.log(`Restoring published FairyGUI project: ${inputDir}`);
+			}
 			const result = await restoreNode({
 				inputDir,
 				output: outputDir,
-				packages: pkgFilter,
+				packages: options.packages,
 				force: options.force,
-				projectType,
+				projectType: options.projectType,
 			});
 
 			const packages = result.document.getRoot().listPackages();

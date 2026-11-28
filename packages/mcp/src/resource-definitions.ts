@@ -1,5 +1,5 @@
 import { ResourceTemplate, type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
+import { ErrorCode, McpError, type ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
 import {
 	BACKEND_DIAGNOSTICS_URI,
 	BACKEND_DIAGNOSTIC_TEMPLATE,
@@ -20,18 +20,51 @@ import {
 } from './contract-schema.js';
 
 const JSON_MIME_TYPE = 'application/json';
+const MAX_RESOURCE_RESPONSE_BYTES = 16 * 1024 * 1024;
 
 function firstVariable(value: string | string[] | undefined): string {
 	return Array.isArray(value) ? (value[0] ?? '') : (value ?? '');
 }
 
-function jsonResource(uri: URL, backendResult: unknown): ReadResourceResult {
+function decodeTemplateVariable(value: string | string[] | undefined): string {
+	const raw = firstVariable(value);
+	try {
+		return decodeURIComponent(raw);
+	} catch {
+		throw new McpError(ErrorCode.InvalidParams, `Invalid percent-encoding in resource URI variable: ${raw}`);
+	}
+}
+
+function assertResourceSizeWithinBudget(text: string): void {
+	if (Buffer.byteLength(text, 'utf8') > MAX_RESOURCE_RESPONSE_BYTES) {
+		throw new McpError(
+			ErrorCode.InvalidRequest,
+			`MCP resource response exceeds the ${MAX_RESOURCE_RESPONSE_BYTES}-byte transport budget.`,
+		);
+	}
+}
+
+function runResourceRead(read: () => ReadResourceResult): ReadResourceResult {
+	try {
+		return read();
+	} catch (error) {
+		if (error instanceof McpError) throw error;
+		if (error instanceof RangeError) {
+			throw new McpError(ErrorCode.InvalidParams, error.message);
+		}
+		throw new McpError(ErrorCode.InternalError, 'Resource read failed due to an internal error.');
+	}
+}
+
+function jsonResource(uri: URL, backendResult: unknown, compact = false): ReadResourceResult {
+	const text = compact ? JSON.stringify(backendResult) : JSON.stringify(backendResult, null, 2);
+	assertResourceSizeWithinBudget(text);
 	return {
 		contents: [
 			{
 				uri: uri.toString(),
 				mimeType: JSON_MIME_TYPE,
-				text: JSON.stringify(backendResult, null, 2),
+				text,
 			},
 		],
 	};
@@ -59,11 +92,14 @@ export function registerOpenFairyGuiBackendResources(server: McpServer, runtime:
 				'Offline documentation IDs, URIs, installed package version and contract digest shared with the CLI.',
 			mimeType: JSON_MIME_TYPE,
 		},
-		(uri) => jsonResource(uri, getInstalledDocumentationIndex()),
+		(uri) => runResourceRead(() => jsonResource(uri, getInstalledDocumentationIndex())),
 	);
 	function installedDocument(uri: URL, id: string): ReadResourceResult {
-		const document = readInstalledDocumentation(id);
-		return { contents: [{ uri: uri.toString(), mimeType: document.mimeType, text: document.text }] };
+		return runResourceRead(() => {
+			const document = readInstalledDocumentation(id);
+			assertResourceSizeWithinBudget(document.text);
+			return { contents: [{ uri: uri.toString(), mimeType: document.mimeType, text: document.text }] };
+		});
 	}
 	for (const id of ['workflow', 'restore-limits', 'skill', 'contracts']) {
 		server.registerResource(
@@ -85,7 +121,7 @@ export function registerOpenFairyGuiBackendResources(server: McpServer, runtime:
 			description: 'Read self-contained Backend/MCP wire input/output schemas and metadata.',
 			mimeType: JSON_MIME_TYPE,
 		},
-		(uri, variables) => installedDocument(uri, `methods/${firstVariable(variables.method)}`),
+		(uri, variables) => installedDocument(uri, `methods/${decodeTemplateVariable(variables.method)}`),
 	);
 	server.registerResource(
 		'openfairygui_diagnostic_catalog',
@@ -95,7 +131,7 @@ export function registerOpenFairyGuiBackendResources(server: McpServer, runtime:
 			description: 'Complete formal diagnostic ownership and recovery guidance; never automatic repair.',
 			mimeType: JSON_MIME_TYPE,
 		},
-		(uri) => jsonResource(uri, getBackendDiagnosticCatalog()),
+		(uri) => runResourceRead(() => jsonResource(uri, getBackendDiagnosticCatalog())),
 	);
 	server.registerResource(
 		'openfairygui_docs_cli',
@@ -105,7 +141,7 @@ export function registerOpenFairyGuiBackendResources(server: McpServer, runtime:
 			description: 'Read a generated, self-contained CLI JSON envelope schema.',
 			mimeType: JSON_MIME_TYPE,
 		},
-		(uri, variables) => installedDocument(uri, `cli/${decodeURIComponent(firstVariable(variables.command))}`),
+		(uri, variables) => installedDocument(uri, `cli/${decodeTemplateVariable(variables.command)}`),
 	);
 	server.registerResource(
 		'openfairygui_diagnostic_guide',
@@ -115,7 +151,8 @@ export function registerOpenFairyGuiBackendResources(server: McpServer, runtime:
 			description: 'Read the recovery boundary for one stable diagnostic code.',
 			mimeType: JSON_MIME_TYPE,
 		},
-		(uri, variables) => jsonResource(uri, getBackendDiagnosticGuide(firstVariable(variables.code))),
+		(uri, variables) =>
+			runResourceRead(() => jsonResource(uri, getBackendDiagnosticGuide(decodeTemplateVariable(variables.code)))),
 	);
 	server.registerResource(
 		'openfairygui_operation_catalog',
@@ -125,7 +162,7 @@ export function registerOpenFairyGuiBackendResources(server: McpServer, runtime:
 			description: 'Discover current operations and their generated JSON schemas.',
 			mimeType: JSON_MIME_TYPE,
 		},
-		(uri) => jsonResource(uri, getOpenFairyGuiOperationCatalog()),
+		(uri) => runResourceRead(() => jsonResource(uri, getOpenFairyGuiOperationCatalog())),
 	);
 	server.registerResource(
 		'openfairygui_operation_schema',
@@ -136,7 +173,10 @@ export function registerOpenFairyGuiBackendResources(server: McpServer, runtime:
 				'Read the precise Core-derived JSON wire schema for one operation. Structure is not semantic preflight.',
 			mimeType: JSON_MIME_TYPE,
 		},
-		(uri, variables) => jsonResource(uri, getOpenFairyGuiOperationSchema(firstVariable(variables.kind))),
+		(uri, variables) =>
+			runResourceRead(() =>
+				jsonResource(uri, getOpenFairyGuiOperationSchema(decodeTemplateVariable(variables.kind))),
+			),
 	);
 	server.registerResource(
 		'openfairygui_backend_capabilities',
@@ -146,7 +186,7 @@ export function registerOpenFairyGuiBackendResources(server: McpServer, runtime:
 			description: 'Read the backend capability and version envelope as JSON.',
 			mimeType: JSON_MIME_TYPE,
 		},
-		(uri: URL) => jsonResource(uri, runtime.getCapabilities()),
+		(uri: URL) => runResourceRead(() => jsonResource(uri, runtime.getCapabilities())),
 	);
 
 	server.registerResource(
@@ -158,11 +198,14 @@ export function registerOpenFairyGuiBackendResources(server: McpServer, runtime:
 			mimeType: JSON_MIME_TYPE,
 		},
 		(uri: URL, variables) =>
-			jsonResource(
-				uri,
-				runtime.getSession({
-					sessionId: firstVariable(variables.sessionId),
-				}),
+			runResourceRead(() =>
+				jsonResource(
+					uri,
+					runtime.getSession({
+						sessionId: decodeTemplateVariable(variables.sessionId),
+					}),
+					true,
+				),
 			),
 	);
 
@@ -176,11 +219,14 @@ export function registerOpenFairyGuiBackendResources(server: McpServer, runtime:
 			mimeType: JSON_MIME_TYPE,
 		},
 		(uri: URL, variables) =>
-			jsonResource(
-				uri,
-				runtime.getProjectOutline({
-					sessionId: firstVariable(variables.sessionId),
-				}),
+			runResourceRead(() =>
+				jsonResource(
+					uri,
+					runtime.getProjectOutline({
+						sessionId: decodeTemplateVariable(variables.sessionId),
+					}),
+					true,
+				),
 			),
 	);
 
@@ -193,11 +239,14 @@ export function registerOpenFairyGuiBackendResources(server: McpServer, runtime:
 			mimeType: JSON_MIME_TYPE,
 		},
 		(uri: URL, variables) =>
-			jsonResource(
-				uri,
-				runtime.getCacheSnapshot({
-					sessionId: firstVariable(variables.sessionId),
-				}),
+			runResourceRead(() =>
+				jsonResource(
+					uri,
+					runtime.getCacheSnapshot({
+						sessionId: decodeTemplateVariable(variables.sessionId),
+					}),
+					true,
+				),
 			),
 	);
 }

@@ -63,6 +63,17 @@ import type {
 
 export * from './runtime/contracts.js';
 
+const runtimeDisposers = new WeakMap<BackendRuntime, () => Promise<void>>();
+
+/**
+ * Close all open sessions owned by a runtime and release their session locks and timers.
+ * Kept as a standalone helper so `keyof BackendRuntime` stays 1:1 with the formal Backend/MCP methods.
+ */
+export async function disposeBackendRuntime(runtime: BackendRuntime): Promise<void> {
+	const dispose = runtimeDisposers.get(runtime);
+	if (dispose) await dispose();
+}
+
 export class BackendRuntime {
 	private readonly fileSystem?: BackendFileSystem;
 	private readonly capabilities: BackendCapabilities;
@@ -123,6 +134,10 @@ export class BackendRuntime {
 			this.eventService,
 			this.sessionOperations,
 		);
+		runtimeDisposers.set(this, async () => {
+			const sessionIds = this.sessions.listSessionIds();
+			await Promise.allSettled(sessionIds.map((sessionId) => this.closeSession({ sessionId })));
+		});
 	}
 
 	public getCapabilities(): BackendSuccess<BackendCapabilities> {

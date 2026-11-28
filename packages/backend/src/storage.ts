@@ -101,7 +101,8 @@ function normalizeStoragePath(value: string): string {
 	for (const segment of rawSegments) {
 		if (segment === '.') continue;
 		if (segment === '..') {
-			if (segments.length > 0) segments.pop();
+			if (segments.length > 0 && segments[segments.length - 1] !== '..') segments.pop();
+			else if (!absolute) segments.push('..');
 			continue;
 		}
 		segments.push(segment);
@@ -116,9 +117,24 @@ function joinStoragePath(...paths: string[]): string {
 	return normalizeStoragePath(paths.filter((part) => part.length > 0).join('/'));
 }
 
+function resolveStoragePath(...paths: string[]): string {
+	let resolved = '';
+	for (const part of paths) {
+		if (!part) continue;
+		const normalizedPart = part.replace(/\\/g, '/');
+		if (normalizedPart.startsWith('/')) {
+			resolved = normalizedPart;
+		} else {
+			resolved = resolved ? `${resolved}/${normalizedPart}` : normalizedPart;
+		}
+	}
+	return normalizeStoragePath(resolved);
+}
+
 function dirnameStoragePath(filePath: string): string {
 	const normalized = normalizeStoragePath(filePath);
-	if (normalized === '/' || normalized === '.') return '.';
+	if (normalized === '/') return '/';
+	if (normalized === '.') return '.';
 	const absolute = normalized.startsWith('/');
 	const parts = normalized.split('/').filter((part) => part.length > 0);
 	parts.pop();
@@ -237,7 +253,7 @@ export function createBackendStorageFileSystem(storage: BackendAsyncStorageAdapt
 			return storage.dirname ? storage.dirname(filePath) : dirnameStoragePath(filePath);
 		},
 		resolve(...paths: string[]): string {
-			return storage.resolve ? storage.resolve(...paths) : joinStoragePath(...paths);
+			return storage.resolve ? storage.resolve(...paths) : resolveStoragePath(...paths);
 		},
 	};
 

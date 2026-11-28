@@ -67,6 +67,7 @@ export {
 	type BackendProjectSessionStorage,
 	type BackendResult,
 	BackendRuntime,
+	disposeBackendRuntime,
 	type BackendRuntimeOptions,
 	type BackendSessionLock,
 	type BackendSessionSnapshot,

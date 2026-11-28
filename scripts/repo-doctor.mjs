@@ -96,11 +96,18 @@ export async function doctor(root) {
 	let pnpmVersion = /\bpnpm\/([^ ]+)/.exec(process.env.npm_config_user_agent ?? '')?.[1];
 	if (!pnpmVersion) {
 		try {
-			pnpmVersion = execFileSync('pnpm', ['--version'], {
-				encoding: 'utf8',
-				stdio: ['ignore', 'pipe', 'pipe'],
-				timeout: 10_000,
-			}).trim();
+			pnpmVersion =
+				process.platform === 'win32'
+					? execFileSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', 'pnpm --version'], {
+							encoding: 'utf8',
+							stdio: ['ignore', 'pipe', 'pipe'],
+							timeout: 10_000,
+						}).trim()
+					: execFileSync('pnpm', ['--version'], {
+							encoding: 'utf8',
+							stdio: ['ignore', 'pipe', 'pipe'],
+							timeout: 10_000,
+						}).trim();
 		} catch {
 			/* Report missing/unverifiable pnpm below; never install or change machine configuration. */
 		}
