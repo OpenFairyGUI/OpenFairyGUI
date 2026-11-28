@@ -706,6 +706,9 @@ test('CI and release gates retain mandatory checks and isolate privileged jobs',
 		const workflow = readFileSync(path.join(ROOT, '.github/workflows', file), 'utf8');
 		for (const match of workflow.matchAll(/uses: ([^\n]+)/g)) assert.match(match[1], /^[^@]+@[a-f0-9]{40}(?: |$)/);
 	}
+	const ci = readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8');
+	assert.match(ci, /name: CI Gate/);
+	assert.match(ci, /needs: \[changes, quality, documentation, consumer\]/);
 	const docs = readFileSync(path.join(ROOT, '.github/workflows/deploy-docs.yml'), 'utf8');
 	assert.match(docs, /workflow_run:/);
 	assert.match(docs, /conclusion == 'success'/);
